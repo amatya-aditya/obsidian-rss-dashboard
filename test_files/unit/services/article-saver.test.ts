@@ -392,6 +392,95 @@ describe("ArticleSaver.fetchFullArticleContent", () => {
 });
 
 describe("ArticleSaver - Math Rendering", () => {
+  it("saves WordPress formula images as native LaTeX", async () => {
+    const app = App.createMock();
+    const settings = createSettings({
+      defaultTemplate: "{{content}}",
+      includeFrontmatter: false,
+    });
+    const saver = new ArticleSaver(app, settings, "https://proxy/?url=");
+
+    vi.spyOn(
+      fetchHelpers,
+      "fetchWithProxyFallbackDetailed",
+    ).mockResolvedValueOnce({
+      content:
+        '<p>Let <img class="latex" src="https://s0.wp.com/latex.php?latex=%7Ba_1%7D&amp;bg=ffffff" alt="{a_1}" /> be fixed.</p>',
+      failureType: "none",
+    });
+
+    const item = createItem({ title: "WordPress Math Article" });
+    const file = await saver.saveArticleWithFullContent(item);
+
+    expect(file).toBeInstanceOf(TFile);
+    if (!(file instanceof TFile)) throw new Error("expected TFile");
+    const written = await app.vault.read(file);
+
+    expect(written).toContain("Let ${a_1}$ be fixed.");
+    expect(written).not.toContain("s0.wp.com/latex.php");
+  });
+
+  it("saves a WordPress display formula with Obsidian math delimiters", async () => {
+    const app = App.createMock();
+    const settings = createSettings({
+      defaultTemplate: "{{content}}",
+      includeFrontmatter: false,
+    });
+    const saver = new ArticleSaver(app, settings, "https://proxy/?url=");
+
+    vi.spyOn(
+      fetchHelpers,
+      "fetchWithProxyFallbackDetailed",
+    ).mockResolvedValueOnce({
+      content:
+        '<p>The displayed result is:</p><p align="center"><img class="latex" src="https://s0.wp.com/latex.php?latex=%5Cdisplaystyle+b_2&amp;bg=ffffff" alt="\\displaystyle b_2" /></p>',
+      failureType: "none",
+    });
+
+    const item = createItem({ title: "WordPress Display Math Article" });
+    const file = await saver.saveArticleWithFullContent(item);
+
+    expect(file).toBeInstanceOf(TFile);
+    if (!(file instanceof TFile)) throw new Error("expected TFile");
+    const written = await app.vault.read(file);
+
+    expect(written).toContain(String.raw`$$\displaystyle b_2$$`);
+    expect(written).not.toContain("s0.wp.com/latex.php");
+  });
+
+  it("does not prepend a stale formula-valued hero to saved Markdown", async () => {
+    const app = App.createMock();
+    const settings = createSettings({
+      defaultTemplate: "{{content}}",
+      includeFrontmatter: false,
+    });
+    const saver = new ArticleSaver(app, settings, "https://proxy/?url=");
+    const formulaUrl =
+      "https://s0.wp.com/latex.php?latex=%7Bx%7D&bg=ffffff";
+
+    vi.spyOn(
+      fetchHelpers,
+      "fetchWithProxyFallbackDetailed",
+    ).mockResolvedValueOnce({
+      content: "<p>Article body without an image.</p>",
+      failureType: "none",
+    });
+
+    const item = createItem({
+      title: "Stale Formula Hero",
+      coverImage: formulaUrl,
+      image: formulaUrl,
+    });
+    const file = await saver.saveArticleWithFullContent(item);
+
+    expect(file).toBeInstanceOf(TFile);
+    if (!(file instanceof TFile)) throw new Error("expected TFile");
+    const written = await app.vault.read(file);
+
+    expect(written).toContain("Article body without an image.");
+    expect(written).not.toContain(formulaUrl);
+  });
+
   it("preserves unescaped mathjax when saving html to markdown if data-math is present", async () => {
     const app = App.createMock();
     const settings = createSettings({

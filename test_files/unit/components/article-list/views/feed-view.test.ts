@@ -73,6 +73,28 @@ describe("feed-view", () => {
     ).toBeTruthy();
   });
 
+  it("does not render a hero when stale article media is a LaTeX formula", () => {
+    const formulaUrl =
+      "https://s0.wp.com/latex.php?latex=%7Bx%7D&bg=ffffff";
+    renderFeedView(
+      container,
+      [
+        makeArticle({
+          image: formulaUrl,
+          coverImage: formulaUrl,
+          content: `<p><img class="latex" src="${formulaUrl}" /></p>`,
+        }),
+      ],
+      baseViewContext(),
+      baseViewDeps(),
+    );
+
+    expect(
+      container.querySelector(".rss-dashboard-feed-hero-image"),
+    ).toBeFalsy();
+    expect(container.querySelector(".rss-dashboard-feed-summary")).toBeTruthy();
+  });
+
   it("renders feed source meta when showFeedSource is true", () => {
     const deps = baseViewDeps();
     renderFeedView(

@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   clearMathRenderCache,
   extractLatex,
+  extractWordPressLatexFormula,
   processMathElements,
   protectMathForMarkdown,
   scheduleProcessMathElements,
@@ -78,7 +79,123 @@ describe("Math Rendering Utilities", () => {
     });
   });
 
+  describe("extractWordPressLatexFormula", () => {
+    function getImage(html: string): HTMLImageElement {
+      const doc = new DOMParser().parseFromString(html, "text/html");
+      const image = doc.querySelector<HTMLImageElement>("img");
+      if (!image) throw new Error("expected formula image");
+      return image;
+    }
+
+    it("decodes WordPress query source and HTML entity separators", () => {
+      const image = getImage(
+        '<p>Let <img class="latex" src="https://s0.wp.com/latex.php?latex=%7Bf%28t%29+%5Cin+L%5E2%28%7B%5Cbf+R%7D%29%7D&#038;bg=ffffff" alt="fallback" /></p>',
+      );
+
+      expect(extractWordPressLatexFormula(image)).toEqual({
+        latex: String.raw`{f(t) \in L^2({\bf R})}`,
+        rawMath: String.raw`\({f(t) \in L^2({\bf R})}\)`,
+        display: false,
+      });
+    });
+
+    it("uses alt source and display layout for a formula-only paragraph", () => {
+      const image = getImage(
+        '<p align="center"><img class="latex" src="https://example.com/formula.png" alt="&#92;displaystyle x^2" /></p>',
+      );
+
+      expect(extractWordPressLatexFormula(image)).toEqual({
+        latex: String.raw`\displaystyle x^2`,
+        rawMath: String.raw`\[\displaystyle x^2\]`,
+        display: true,
+      });
+    });
+
+    it("treats a formula inside a legacy named anchor as display math", () => {
+      const image = getImage(
+        '<p align="center"><a name="explicit-ex"><img class="latex" src="https://s0.wp.com/latex.php?latex=%5Cdisplaystyle+F%28z_1%29&amp;bg=ffffff" alt="&#92;displaystyle F(z_1)" /></a></p>',
+      );
+
+      expect(extractWordPressLatexFormula(image)).toEqual({
+        latex: String.raw`\displaystyle F(z_1)`,
+        rawMath: String.raw`\[\displaystyle F(z_1)\]`,
+        display: true,
+      });
+    });
+
+    it("rejects ordinary images and excessively large formula source", () => {
+      const ordinary = getImage(
+        '<img src="https://example.com/photo.jpg" alt="photo" />',
+      );
+      const oversized = getImage(
+        `<img class="latex" src="https://example.com/formula.png" alt="${"x".repeat(16_385)}" />`,
+      );
+
+      expect(extractWordPressLatexFormula(ordinary)).toBeNull();
+      expect(extractWordPressLatexFormula(oversized)).toBeNull();
+    });
+  });
+
   describe("processMathElements", () => {
+    it("renders WordPress formula images as native inline math", async () => {
+      const container = document.createElement("div");
+      sanitizeAndAppendHtml(
+        container,
+        '<p>Let <img class="latex" src="https://s0.wp.com/latex.php?latex=%7Bx%7D&amp;bg=ffffff" alt="{x}" /> be fixed.</p>',
+        { mode: "rich" },
+      );
+      document.body.appendChild(container);
+
+      const result = await processMathElements(container, getContext());
+
+      expect(result.renderedCount).toBe(1);
+      expect(container.querySelector("img.latex")).toBeNull();
+      const rendered = container.querySelector<HTMLElement>("span.math");
+      expect(rendered?.getAttribute("data-math")).toBe(String.raw`\({x}\)`);
+      expectRenderedMath(rendered as HTMLElement, "{x}", false);
+    });
+
+    it("renders a formula-only paragraph as display math", async () => {
+      const container = document.createElement("div");
+      sanitizeAndAppendHtml(
+        container,
+        '<p align="center"><img class="latex" src="https://s0.wp.com/latex.php?latex=%5Cdisplaystyle+x%5E2&amp;bg=ffffff" /></p>',
+        { mode: "rich" },
+      );
+      document.body.appendChild(container);
+
+      await processMathElements(container, getContext());
+
+      const rendered = container.querySelector<HTMLElement>("span.math");
+      expect(rendered?.getAttribute("data-math")).toBe(
+        String.raw`\[\displaystyle x^2\]`,
+      );
+      expectRenderedMath(rendered as HTMLElement, String.raw`\displaystyle x^2`, true);
+    });
+
+    it("restores the original WordPress formula image when rendering fails", async () => {
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      vi.mocked(obsidian.MarkdownRenderer.render).mockRejectedValueOnce(
+        new Error("unsupported formula"),
+      );
+      const container = document.createElement("div");
+      sanitizeAndAppendHtml(
+        container,
+        '<p>Formula <img class="latex" src="https://s0.wp.com/latex.php?latex=%7Bx%7D&amp;bg=ffffff" srcset="https://s0.wp.com/latex.php?latex=%7Bx%7D 1x" alt="{x}" /></p>',
+        { mode: "rich" },
+      );
+      const originalImage = container.querySelector("img");
+
+      const result = await processMathElements(container, getContext());
+
+      expect(result.failedCount).toBe(1);
+      expect(container.querySelector("img.latex")).toBe(originalImage);
+      expect(container.querySelector("img")?.getAttribute("srcset")).toContain(
+        "1x",
+      );
+      warn.mockRestore();
+    });
+
     it("replaces text nodes containing math with rendered math elements", async () => {
       const container = document.createElement("div");
       const p = document.createElement("p");
@@ -419,6 +536,18 @@ describe("Math Rendering Utilities", () => {
       expect(spans.length).toBe(2);
       expect(spans[0].getAttribute("data-math")).toBe("$a_1$");
       expect(spans[1].getAttribute("data-math")).toBe("$$b_2$$");
+    });
+
+    it("converts WordPress formula images into protected inline and display math", () => {
+      const spans = getMathSpans(
+        '<p>Inline <img class="latex" src="https://s0.wp.com/latex.php?latex=%7Ba_1%7D&amp;bg=ffffff" /></p><p><img class="latex" src="https://s0.wp.com/latex.php?latex=%5Cdisplaystyle+b_2&amp;bg=ffffff" /></p>',
+      );
+
+      expect(spans).toHaveLength(2);
+      expect(spans[0].getAttribute("data-math")).toBe(String.raw`\({a_1}\)`);
+      expect(spans[1].getAttribute("data-math")).toBe(
+        String.raw`\[\displaystyle b_2\]`,
+      );
     });
 
     it("does not transform math-looking text inside code or pre", () => {

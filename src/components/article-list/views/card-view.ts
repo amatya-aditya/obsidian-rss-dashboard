@@ -1,42 +1,15 @@
 import type { FeedItem } from "../../../types/types";
 import { formatArticleDate } from "../../../utils/platform-utils";
 import {
-  extractFirstImageSrc,
   getArticlePreviewSummaryText,
   shouldHighlightCardPreviewSummary,
-  isTrackingPixel,
+  resolveArticlePreviewImage,
 } from "../utils/article-preview-utils";
 import { renderSingleRowCardTagChips } from "../utils/tag-layout-utils";
 import type { BaseViewContext, ViewDeps } from "./view-types";
 
 export interface CardViewContext extends BaseViewContext {
   showCardToolbar: boolean;
-}
-
-function resolveCoverImageSrc(article: FeedItem): string | undefined {
-  let coverImgSrc: string | undefined = article.coverImage;
-
-  if (coverImgSrc && isTrackingPixel(coverImgSrc)) {
-    coverImgSrc = undefined;
-  }
-
-  if (!coverImgSrc && article.content) {
-    const extracted = extractFirstImageSrc(article.content);
-    if (extracted) coverImgSrc = extracted;
-  }
-  if (!coverImgSrc && article.summary) {
-    const extracted = extractFirstImageSrc(article.summary);
-    if (extracted) coverImgSrc = extracted;
-  }
-  if (
-    !coverImgSrc &&
-    article.enclosure?.type?.startsWith("image/") &&
-    article.enclosure?.url
-  ) {
-    coverImgSrc = article.enclosure.url;
-  }
-
-  return coverImgSrc || undefined;
 }
 
 export function renderCardView(
@@ -107,7 +80,10 @@ export function renderCardView(
       });
     }
 
-    const coverImgSrc = resolveCoverImageSrc(article);
+    const coverImgSrc = resolveArticlePreviewImage(article, [
+      "coverImage",
+      "image",
+    ]);
     const previewSummaryText = getArticlePreviewSummaryText(article);
 
     if (coverImgSrc) {

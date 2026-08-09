@@ -9,6 +9,7 @@
 
 - Fixed article saves failing on Windows when long titles produced filenames that exceeded safe path lengths by truncating generated filenames to 100 characters while preserving the full title in the note content. [GH Issue #157](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/157)
 - Fix: Math formulas from Math StackExchange feeds now render in Reader content and dashboard title cards through the Markdown renderer lifecycle path, with a small in-memory cache for reopen performance. Full implementation notes are archived in [docs/archive/bug_report_math_rendering.md](docs/archive/bug_report_math_rendering.md). [GH Issue #162](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/162)
+- Fixed WordPress LaTeX image formulas being promoted and stretched as article covers. Their embedded TeX now renders as native, theme-aware math in Reader views and is saved with Obsidian-compatible math delimiters, with the original image retained as a render-failure fallback while later article photos remain eligible as covers and heroes.
 
 ## 2.6.0 - August 3, 2026
 

@@ -110,6 +110,55 @@ describe("card-view", () => {
     ).toBe("Article description text");
   });
 
+  it("renders summary-only preview when stale cover media is a LaTeX formula", () => {
+    renderCardView(
+      container,
+      [
+        makeArticle({
+          coverImage:
+            "https://s0.wp.com/latex.php?latex=%7Bx%7D&bg=ffffff",
+          content:
+            '<p>Formula <img class="latex" src="https://s0.wp.com/latex.php?latex=%7Bx%7D&amp;bg=ffffff" /></p>',
+        }),
+      ],
+      {
+        ...baseViewContext(),
+        showCardToolbar: true,
+      },
+      baseViewDeps(),
+    );
+
+    expect(container.querySelector(".rss-dashboard-cover-image")).toBeFalsy();
+    expect(
+      container.querySelector(".rss-dashboard-cover-summary-only")?.textContent,
+    ).toBe("Article description text");
+  });
+
+  it("uses a valid stored image when the preferred cover is a stale formula", () => {
+    renderCardView(
+      container,
+      [
+        makeArticle({
+          coverImage:
+            "https://s0.wp.com/latex.php?latex=%7Bx%7D&bg=ffffff",
+          image: "https://example.com/article-photo.jpg",
+          content: "",
+        }),
+      ],
+      {
+        ...baseViewContext(),
+        showCardToolbar: true,
+      },
+      baseViewDeps(),
+    );
+
+    expect(
+      container
+        .querySelector(".rss-dashboard-cover-image")
+        ?.getAttribute("src"),
+    ).toBe("https://example.com/article-photo.jpg");
+  });
+
   it("renders summary-only preview when a cover image fails", () => {
     renderCardView(
       container,

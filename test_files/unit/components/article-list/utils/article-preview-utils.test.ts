@@ -24,6 +24,19 @@ describe('article-preview-utils', () => {
       expect(extractFirstImageSrc('<img src="https://example.com/1x1.jpg" />')).toBeNull();
       expect(extractFirstImageSrc('<img src="https://example.com/track/image.png" />')).toBeNull();
     });
+
+    it('returns null when article content contains only a WordPress LaTeX image', () => {
+      const html = '<p>Formula <img class="latex" src="https://s0.wp.com/latex.php?latex=%7Bx%7D&amp;bg=ffffff" /></p>';
+      expect(extractFirstImageSrc(html)).toBeNull();
+    });
+
+    it('skips a WordPress LaTeX image and selects the next article image', () => {
+      const html = `
+        <p><img class="latex" src="https://s0.wp.com/latex.php?latex=%7Bx%7D&amp;bg=ffffff" /></p>
+        <figure><img src="https://example.com/article-photo.jpg" /></figure>
+      `;
+      expect(extractFirstImageSrc(html)).toBe('https://example.com/article-photo.jpg');
+    });
   });
 
   describe('looksLikeStylesheetText', () => {

@@ -2,32 +2,12 @@ import { setIcon } from "obsidian";
 import type { FeedItem } from "../../../types/types";
 import { formatArticleDate } from "../../../utils/platform-utils";
 import {
-  extractFirstImageSrc,
   getArticlePreviewSummaryText,
+  resolveArticlePreviewImage,
 } from "../utils/article-preview-utils";
 import { renderSingleRowCardTagChips } from "../utils/tag-layout-utils";
 import { groupArticles } from "../utils/article-grouping";
 import type { BaseViewContext, ViewDeps } from "./view-types";
-
-function resolveCoverImageSrc(article: FeedItem): string | undefined {
-  let coverImgSrc = article.image || article.coverImage;
-  if (!coverImgSrc && article.content) {
-    const extracted = extractFirstImageSrc(article.content);
-    if (extracted) coverImgSrc = extracted;
-  }
-  if (!coverImgSrc && article.summary) {
-    const extracted = extractFirstImageSrc(article.summary);
-    if (extracted) coverImgSrc = extracted;
-  }
-  if (
-    !coverImgSrc &&
-    article.enclosure?.type?.startsWith("image/") &&
-    article.enclosure?.url
-  ) {
-    coverImgSrc = article.enclosure.url;
-  }
-  return coverImgSrc || undefined;
-}
 
 function renderArticleCard(
   container: HTMLElement,
@@ -57,7 +37,10 @@ function renderArticleCard(
     cls: "rss-dashboard-feed-content",
   });
 
-  const coverImgSrc = resolveCoverImageSrc(article);
+  const coverImgSrc = resolveArticlePreviewImage(article, [
+    "image",
+    "coverImage",
+  ]);
   if (coverImgSrc) {
     const previewRegion = feedContent.createDiv({
       cls: "rss-dashboard-feed-preview-region",

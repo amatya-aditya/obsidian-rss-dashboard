@@ -16,6 +16,11 @@ import {
   normalizeSubstackImageUrl,
   normalizeSubstackImageUrlsInDocument,
 } from "../utils/substack-image-url";
+import {
+  containsLatexFormulaImage,
+  findFirstNonFormulaImage,
+  firstNonFormulaImageUrl,
+} from "../utils/image-url-utils";
 import { PodcastPlayer } from "../views/podcast-player";
 import { VideoPlayer } from "../views/video-player";
 
@@ -303,11 +308,11 @@ export class ArticleRenderer {
     const hasMeaningfulDescription =
       this.hasMeaningfulFeedDescription(descriptionHtml);
     const mainHtml = (fullContent || item.content || "").trim();
-    let fallbackHeroUrl =
-      (item.coverImage || "").trim() ||
-      (item.image || "").trim() ||
-      (item.itunes?.image?.href || "").trim() ||
-      undefined;
+    const fallbackHeroUrl = firstNonFormulaImageUrl([
+      item.coverImage,
+      item.image,
+      item.itunes?.image?.href,
+    ]);
 
     const hasDistinctMainContent =
       mainHtml !== "" &&
@@ -493,7 +498,7 @@ export class ArticleRenderer {
       }
 
       if (heroSlot) {
-        const firstImg = doc.body.querySelector("img");
+        const firstImg = findFirstNonFormulaImage(doc.body);
         if (heroSlot.childElementCount === 0) {
           let heroUrl = normalizeSubstackImageUrl(fallbackHeroUrl);
           const firstImgSrc = normalizeSubstackImageUrl(
@@ -949,6 +954,7 @@ export class ArticleRenderer {
   }
 
   private isShortLeadInBlock(block: HTMLElement): boolean {
+    if (containsLatexFormulaImage(block)) return false;
     if (this.isLeadMediaBlock(block)) return false;
     const text = this.getNormalizedBlockText(block);
     if (!text) return false;
@@ -956,6 +962,7 @@ export class ArticleRenderer {
   }
 
   private isLeadMediaBlock(block: HTMLElement): boolean {
+    if (containsLatexFormulaImage(block)) return false;
     const tag = block.tagName.toLowerCase();
     if (["img", "figure", "picture"].includes(tag)) return true;
     return (

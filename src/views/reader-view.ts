@@ -49,6 +49,11 @@ import {
   normalizeSubstackImageUrl,
   normalizeSubstackImageUrlsInDocument,
 } from "../utils/substack-image-url";
+import {
+  containsLatexFormulaImage,
+  findFirstNonFormulaImage,
+  firstNonFormulaImageUrl,
+} from "../utils/image-url-utils";
 import { PodcastPlayer } from "./podcast-player";
 import { VideoPlayer } from "./video-player";
 import { RSS_DASHBOARD_VIEW_TYPE, RssDashboardView } from "./dashboard-view";
@@ -637,9 +642,11 @@ export class ReaderView extends ItemView {
         : "",
     ];
 
-    const fallbackHeroUrl = fallbackCandidates
-      .map((candidate) => normalize(candidate))
-      .find((candidate) => candidate && candidate !== normalizedFeedIcon);
+    const fallbackHeroUrl = firstNonFormulaImageUrl(
+      fallbackCandidates
+        .map((candidate) => normalize(candidate))
+        .filter((candidate) => candidate !== normalizedFeedIcon),
+    );
 
     if (!fallbackHeroUrl) return html;
 
@@ -1794,11 +1801,11 @@ export class ReaderView extends ItemView {
     const hasMeaningfulDescription =
       this.hasMeaningfulFeedDescription(descriptionHtml);
     const mainHtml = (fullContent || item.content || "").trim();
-    let fallbackHeroUrl =
-      (item.coverImage || "").trim() ||
-      (item.image || "").trim() ||
-      (item.itunes?.image?.href || "").trim() ||
-      undefined;
+    let fallbackHeroUrl = firstNonFormulaImageUrl([
+      item.coverImage,
+      item.image,
+      item.itunes?.image?.href,
+    ]);
 
     // Avoid using the feed icon (logo) as the article hero image.
     if (fallbackHeroUrl && item.feedUrl) {
@@ -2007,7 +2014,7 @@ export class ReaderView extends ItemView {
 
       // Attempt to extract and place hero image
       if (heroSlot) {
-        const firstImg = doc.body.querySelector("img");
+        const firstImg = findFirstNonFormulaImage(doc.body);
 
         if (heroSlot.childElementCount === 0) {
           let heroUrl = normalizeSubstackImageUrl(fallbackHeroUrl);
@@ -2848,6 +2855,7 @@ export class ReaderView extends ItemView {
   }
 
   private isShortLeadInBlock(block: HTMLElement): boolean {
+    if (containsLatexFormulaImage(block)) return false;
     if (this.isLeadMediaBlock(block)) return false;
     const text = this.getNormalizedBlockText(block);
     if (!text) return false;
@@ -2855,6 +2863,7 @@ export class ReaderView extends ItemView {
   }
 
   private isLeadMediaBlock(block: HTMLElement): boolean {
+    if (containsLatexFormulaImage(block)) return false;
     const tag = block.tagName.toLowerCase();
     if (["img", "figure", "picture"].includes(tag)) return true;
     return (

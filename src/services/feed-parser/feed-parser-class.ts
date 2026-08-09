@@ -27,7 +27,12 @@ import {
 } from "./feed-retention.js";
 import type { FeedParseOptions, ParsedFeed, ParsedItem } from "./types.js";
 import { decodeHtmlEntities } from "./xml-parser/xml-html-utils.js";
-import { optimizeImageUrl, sanitizeImageUrl } from "../../utils/image-url-utils.js";
+import {
+  isLatexFormulaImage,
+  isLatexFormulaImageElement,
+  optimizeImageUrl,
+  sanitizeImageUrl,
+} from "../../utils/image-url-utils.js";
 
 const TRACKING_PIXEL_PATTERNS = [
   "tracking/",
@@ -40,6 +45,19 @@ const TRACKING_PIXEL_PATTERNS = [
 
 function isTrackingPixel(url: string): boolean {
   return TRACKING_PIXEL_PATTERNS.some((p) => url.includes(p));
+}
+
+function sanitizeArticleImageUrl(raw: unknown): string {
+  const sanitized = sanitizeImageUrl(raw);
+  return isLatexFormulaImage(sanitized) ? "" : sanitized;
+}
+
+function firstSanitizedArticleImageUrl(candidates: unknown[]): string {
+  for (const candidate of candidates) {
+    const sanitized = sanitizeArticleImageUrl(candidate);
+    if (sanitized) return sanitized;
+  }
+  return "";
 }
 
 export type { FeedParseOptions } from "./types.js";
@@ -255,10 +273,13 @@ export class FeedParser {
             `[RSS Dashboard] extractCoverImage: og:image contains double-encoded: ${content}`,
           );
         }
-        if (content && content.startsWith("http")) {
-          return optimizeImageUrl(content);
-        } else if (content && baseUrl) {
-          return optimizeImageUrl(this.convertToAbsoluteUrl(content, baseUrl));
+        const resolvedContent = content?.startsWith("http")
+          ? content
+          : content && baseUrl
+            ? this.convertToAbsoluteUrl(content, baseUrl)
+            : "";
+        if (resolvedContent && !isLatexFormulaImage(resolvedContent)) {
+          return optimizeImageUrl(resolvedContent);
         }
       }
 
@@ -271,14 +292,19 @@ export class FeedParser {
             `[RSS Dashboard] extractCoverImage: twitter:image contains double-encoded: ${content}`,
           );
         }
-        if (content && content.startsWith("http")) {
-          return optimizeImageUrl(content);
-        } else if (content && baseUrl) {
-          return optimizeImageUrl(this.convertToAbsoluteUrl(content, baseUrl));
+        const resolvedContent = content?.startsWith("http")
+          ? content
+          : content && baseUrl
+            ? this.convertToAbsoluteUrl(content, baseUrl)
+            : "";
+        if (resolvedContent && !isLatexFormulaImage(resolvedContent)) {
+          return optimizeImageUrl(resolvedContent);
         }
       }
 
-      const firstImg = doc.querySelector("img");
+      const firstImg = Array.from(doc.querySelectorAll("img")).find(
+        (image) => !isLatexFormulaImageElement(image),
+      );
       if (firstImg) {
         const src = firstImg.getAttribute("src");
         // Debug: log first img src for troubleshooting double-encoding
@@ -305,7 +331,7 @@ export class FeedParser {
             `[RSS Dashboard] extractCoverImage: img src contains double-encoded: ${src}`,
           );
         }
-        if (isJunkSrc(src)) continue;
+        if (isJunkSrc(src) || isLatexFormulaImageElement(img)) continue;
         if (
           src &&
           src.startsWith("http") &&
@@ -548,21 +574,24 @@ export class FeedParser {
             this.resolvePodcastCoverImage(item, parsed, url) ||
             existingItem.coverImage;
         } else {
-          coverImage = sanitizeImageUrl(
+          coverImage = firstSanitizedArticleImageUrl([
             this.extractCoverImage(
               item.content || item.description || "",
               url,
-            ) ||
+            ),
             optimizeImageUrl(
               this.convertToAbsoluteUrl(
-                item.itunes?.image?.href || item.image?.url || "",
+                item.itunes?.image?.href || "",
                 url,
               )
-            ) ||
+            ),
+            optimizeImageUrl(
+              this.convertToAbsoluteUrl(item.image?.url || "", url),
+            ),
             (item.enclosure?.type?.startsWith("image/")
               ? optimizeImageUrl(this.convertToAbsoluteUrl(item.enclosure.url, url))
-              : "")
-          ) || existingItem.coverImage;
+              : ""),
+          ]) || sanitizeArticleImageUrl(existingItem.coverImage);
         }
         const updatedItem: FeedItem = {
           ...existingItem,
@@ -587,17 +616,24 @@ export class FeedParser {
           summary:
             this.extractSummary(item.content || item.description || "") ||
             existingItem.summary,
-          image: sanitizeImageUrl(
+          image: firstSanitizedArticleImageUrl([
             optimizeImageUrl(
               this.convertToAbsoluteUrl(
-                item.itunes?.image?.href || item.image?.url || "",
+                item.itunes?.image?.href || "",
                 url,
               )
-            ) ||
+            ),
+            optimizeImageUrl(
+              this.convertToAbsoluteUrl(item.image?.url || "", url),
+            ),
+            this.extractCoverImage(
+              item.content || item.description || "",
+              url,
+            ),
             (item.enclosure?.type?.startsWith("image/")
               ? optimizeImageUrl(this.convertToAbsoluteUrl(item.enclosure.url, url))
-              : "")
-          ) || existingItem.image,
+              : ""),
+          ]) || sanitizeArticleImageUrl(existingItem.image),
           duration: item.itunes?.duration || existingItem.duration,
           explicit: item.itunes?.explicit === "yes" || existingItem.explicit,
           category: item.itunes?.category || existingItem.category,
@@ -636,37 +672,42 @@ export class FeedParser {
         if (isPodcast) {
           coverImage = this.resolvePodcastCoverImage(item, parsed, url);
         } else {
-          coverImage = sanitizeImageUrl(
+          coverImage = firstSanitizedArticleImageUrl([
             this.extractCoverImage(
               item.content || item.description || "",
               url,
-            ) ||
+            ),
             optimizeImageUrl(
               this.convertToAbsoluteUrl(
-                item.itunes?.image?.href || item.image?.url || "",
+                item.itunes?.image?.href || "",
                 url,
               )
-            ) ||
+            ),
+            optimizeImageUrl(
+              this.convertToAbsoluteUrl(item.image?.url || "", url),
+            ),
             (item.enclosure?.type?.startsWith("image/")
               ? optimizeImageUrl(this.convertToAbsoluteUrl(item.enclosure.url, url))
-              : "")
-          );
+              : ""),
+          ]);
         }
-        let image = sanitizeImageUrl(optimizeImageUrl(
-          this.convertToAbsoluteUrl(
-            item.itunes?.image?.href || item.image?.url || "",
-            url,
-          )
-        ));
-        if (!image) {
-          image = sanitizeImageUrl(this.extractCoverImage(
+        const image = firstSanitizedArticleImageUrl([
+          optimizeImageUrl(
+            this.convertToAbsoluteUrl(item.itunes?.image?.href || "", url),
+          ),
+          optimizeImageUrl(
+            this.convertToAbsoluteUrl(item.image?.url || "", url),
+          ),
+          this.extractCoverImage(
             item.content || item.description || "",
             url,
-          ));
-        }
-        if (!image && item.enclosure?.type?.startsWith("image/")) {
-          image = sanitizeImageUrl(optimizeImageUrl(this.convertToAbsoluteUrl(item.enclosure.url, url)));
-        }
+          ),
+          item.enclosure?.type?.startsWith("image/")
+            ? optimizeImageUrl(
+                this.convertToAbsoluteUrl(item.enclosure.url, url),
+              )
+            : "",
+        ]);
         const summary = this.extractSummary(
           item.content || item.description || "",
         );

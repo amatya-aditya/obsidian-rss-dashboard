@@ -1,5 +1,36 @@
 import { describe, it, expect } from "vitest";
-import { optimizeImageUrl } from "../../../src/utils/image-url-utils.js";
+import {
+  isLatexFormulaImage,
+  optimizeImageUrl,
+} from "../../../src/utils/image-url-utils.js";
+
+describe("isLatexFormulaImage", () => {
+  it("recognizes WordPress LaTeX images by class", () => {
+    expect(
+      isLatexFormulaImage(
+        "https://example.com/rendered-formula.png",
+        "alignnone latex size-full",
+      ),
+    ).toBe(true);
+  });
+
+  it("recognizes persisted WordPress LaTeX image URLs without a class", () => {
+    expect(
+      isLatexFormulaImage(
+        "https://s0.wp.com/latex.php?latex=%7Bx%7D&bg=ffffff&fg=000000",
+      ),
+    ).toBe(true);
+  });
+
+  it("does not classify ordinary WordPress images as formulas", () => {
+    expect(
+      isLatexFormulaImage(
+        "https://i0.wp.com/example.com/wp-content/uploads/photo.jpg?w=600",
+        "wp-post-image",
+      ),
+    ).toBe(false);
+  });
+});
 
 describe("optimizeImageUrl", () => {
   it("rewrites Brightspot crop URLs without offset", () => {

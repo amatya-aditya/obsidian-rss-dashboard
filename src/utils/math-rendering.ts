@@ -3,6 +3,7 @@ import {
   type Component,
   MarkdownRenderer,
 } from "obsidian";
+import { isLatexFormulaImageElement } from "./image-url-utils";
 
 interface MathTurndownService {
   addRule(
@@ -47,6 +48,76 @@ export function extractLatex(
 
   // No recognized delimiter — treat as inline LaTeX as-is
   return { latex: t, display: false };
+}
+
+const MAX_WORDPRESS_LATEX_LENGTH = 16_384;
+
+export interface WordPressLatexFormula {
+  latex: string;
+  rawMath: string;
+  display: boolean;
+}
+
+function hasRecognizedMathDelimiters(text: string): boolean {
+  const trimmed = text.trim();
+  return (
+    (trimmed.startsWith("$$") && trimmed.endsWith("$$")) ||
+    (trimmed.startsWith("\\[") && trimmed.endsWith("\\]")) ||
+    (trimmed.startsWith("$") && trimmed.endsWith("$")) ||
+    (trimmed.startsWith("\\(") && trimmed.endsWith("\\)"))
+  );
+}
+
+function isFormulaOnlyBlock(image: Element): boolean {
+  const block = image.closest("p, div, figure");
+  if (!block) return false;
+  if ((block.textContent || "").trim()) return false;
+
+  const visualElements = Array.from(
+    block.querySelectorAll("img, video, svg, canvas, iframe"),
+  );
+  return visualElements.length === 1 && visualElements[0] === image;
+}
+
+function decodeHtmlQuerySeparators(value: string): string {
+  return value.replace(/&(?:amp|#0*38);/gi, "&");
+}
+
+function extractLatexQuerySource(src: string): string {
+  if (!src) return "";
+  try {
+    const parsed = new URL(
+      decodeHtmlQuerySeparators(src),
+      "https://rss-dashboard.invalid",
+    );
+    return parsed.searchParams.get("latex")?.trim() || "";
+  } catch {
+    return "";
+  }
+}
+
+/** Decodes the TeX source embedded in a WordPress formula image. */
+export function extractWordPressLatexFormula(
+  image: Element,
+): WordPressLatexFormula | null {
+  if (!isLatexFormulaImageElement(image)) return null;
+
+  const querySource = extractLatexQuerySource(
+    image.getAttribute("src")?.trim() || "",
+  );
+  const source = querySource || image.getAttribute("alt")?.trim() || "";
+  if (!source || source.length > MAX_WORDPRESS_LATEX_LENGTH) return null;
+
+  const hasDelimiters = hasRecognizedMathDelimiters(source);
+  const extracted = extractLatex(source);
+  const display = hasDelimiters
+    ? extracted.display
+    : isFormulaOnlyBlock(image);
+  const rawMath = display
+    ? `\\[${extracted.latex}\\]`
+    : `\\(${extracted.latex}\\)`;
+
+  return { latex: extracted.latex, rawMath, display };
 }
 
 /**
@@ -264,6 +335,37 @@ function normalizeExistingMathSpans(container: HTMLElement): void {
   });
 }
 
+function getWordPressFormulaImages(
+  container: HTMLElement,
+): Array<{ image: HTMLImageElement; formula: WordPressLatexFormula }> {
+  const images: HTMLImageElement[] = [];
+  if (container.tagName.toLowerCase() === "img") {
+    images.push(container as HTMLImageElement);
+  }
+  images.push(
+    ...Array.from(container.querySelectorAll<HTMLImageElement>("img")),
+  );
+
+  const formulas: Array<{
+    image: HTMLImageElement;
+    formula: WordPressLatexFormula;
+  }> = [];
+  for (const image of images) {
+    if (image.closest("code, pre, script, style")) continue;
+    const formula = extractWordPressLatexFormula(image);
+    if (formula) formulas.push({ image, formula });
+  }
+  return formulas;
+}
+
+function normalizeWordPressFormulaImages(container: HTMLElement): void {
+  for (const { image, formula } of getWordPressFormulaImages(container)) {
+    image.replaceWith(
+      createProtectedMathSpan(image.ownerDocument, formula.rawMath),
+    );
+  }
+}
+
 function protectRawMathTextNodes(container: HTMLElement): void {
   const doc = container.ownerDocument || activeDocument;
   const walker = doc.createTreeWalker(container, NodeFilter.SHOW_TEXT, {
@@ -318,7 +420,11 @@ export function addMathTurndownRule(turndownService: MathTurndownService): void 
         (node as Element).classList.contains("math-container")),
     replacement: (_content: string, node: Node) => {
       const el = node as Element;
-      return el.getAttribute("data-math") || el.textContent || "";
+      const rawMath = el.getAttribute("data-math") || el.textContent || "";
+      if (!rawMath.trim()) return "";
+
+      const { latex, display } = extractLatex(rawMath);
+      return display ? `$$${latex}$$` : `$${latex}$`;
     },
   });
 }
@@ -330,6 +436,7 @@ export function protectMathForMarkdown(html: string): string {
   const parser = new DOMParser();
   const doc = parser.parseFromString(trimmedHtml, "text/html");
 
+  normalizeWordPressFormulaImages(doc.body);
   normalizeExistingMathSpans(doc.body);
   protectRawMathTextNodes(doc.body);
 
@@ -359,7 +466,16 @@ export async function processMathElements(
   };
   const pendingRenders: PendingMathRender[] = [];
 
-  // 1. Process existing <span class="math-container"> (legacy RSS feeds)
+  // 1. Convert WordPress formula images while retaining each image as the
+  // failure fallback. Rendering succeeds without fetching the remote bitmap.
+  const formulaImages = getWordPressFormulaImages(container);
+  for (const { image, formula } of formulaImages) {
+    const host = createMathRenderHost(ownerDoc);
+    image.replaceWith(host);
+    pendingRenders.push({ host, fallback: image, rawMath: formula.rawMath });
+  }
+
+  // 2. Process existing <span class="math-container"> (legacy RSS feeds)
   const mathContainers: HTMLElement[] = [];
   if (isMathContainer(container)) {
     mathContainers.push(container);
@@ -379,7 +495,7 @@ export async function processMathElements(
     pendingRenders.push({ host, fallback: span, rawMath: rawText });
   });
 
-  // 2. Walk all text nodes to find raw MathJax
+  // 3. Walk all text nodes to find raw MathJax
   const walker = ownerDoc.createTreeWalker(
     container,
     NodeFilter.SHOW_TEXT,
@@ -455,6 +571,8 @@ export async function processMathElements(
 }
 
 function hasMathCandidate(container: HTMLElement): boolean {
+  if (getWordPressFormulaImages(container).length > 0) return true;
+
   if (
     isMathContainer(container) ||
     container.querySelector(".math-container")

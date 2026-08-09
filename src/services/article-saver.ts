@@ -20,6 +20,7 @@ import {
   addMathTurndownRule,
   protectMathForMarkdown,
 } from "../utils/math-rendering";
+import { firstNonFormulaImageUrl } from "../utils/image-url-utils";
 
 const MAX_FILENAME_LENGTH = 100;
 
@@ -171,12 +172,12 @@ export class ArticleSaver {
         ? item.enclosure.url
         : "";
 
-    const heroUrl =
-      item.coverImage ||
-      item.image ||
-      item.itunes?.image?.href ||
-      enclosureImageUrl ||
-      "";
+    const heroUrl = firstNonFormulaImageUrl([
+      item.coverImage,
+      item.image,
+      item.itunes?.image?.href,
+      enclosureImageUrl,
+    ]);
 
     return normalizeSubstackImageUrl((heroUrl || "").trim());
   }

@@ -379,19 +379,38 @@
   border-radius: 8px;
   margin: 12px 0 18px;
 }
-.rss-reader-article-content a,
-.rss-reader-description a {
+.rss-reader-article-content a[href],
+.rss-reader-description a[href] {
   color: var(--interactive-accent);
   text-decoration: none;
 }
-.rss-reader-article-content a:hover,
-.rss-reader-description a:hover {
+.rss-reader-article-content a[href]:hover,
+.rss-reader-description a[href]:hover {
   text-decoration: underline;
+}
+.rss-reader-article-content a:not([href]),
+.rss-reader-description a:not([href]) {
+  color: inherit;
+  text-decoration: none;
+  cursor: inherit;
 }
 .rss-reader-responsive-img {
   max-width: 100%;
   height: auto;
   border-radius: 5px;
+}
+.rss-reader-article-content img.latex,
+.rss-reader-article-content img[src*="/latex.php?latex="],
+.rss-reader-description-body img.latex,
+.rss-reader-description-body img[src*="/latex.php?latex="] {
+  display: inline-block;
+  width: auto;
+  max-width: 100%;
+  height: auto;
+  margin: 0 0.08em;
+  border-radius: 0;
+  vertical-align: middle;
+  object-fit: contain;
 }
 .rss-reader-error {
   padding: 15px;
