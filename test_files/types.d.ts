@@ -1,4 +1,11 @@
 declare global {
+  interface Node {
+    /**
+     * The window this node belongs to, matching Obsidian's DOM extension.
+     */
+    win: Window;
+  }
+
   interface Document {
     createEl<K extends keyof HTMLElementTagNameMap>(
       tag: K,

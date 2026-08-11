@@ -147,7 +147,7 @@ export class ArticleSaver {
         }
 
         if (hasInlineImage) {
-          const fragment = doc.createDocumentFragment();
+          const fragment = doc.win.createFragment();
           while (link.firstChild) {
             fragment.appendChild(link.firstChild);
           }

@@ -1,6 +1,7 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
+import postcss from "postcss";
 
 const ROOT_DIR = join(import.meta.dirname, "..");
 const STYLES_DIR = join(ROOT_DIR, "src", "styles");
@@ -18,26 +19,21 @@ function listCssFiles(dirPath, results = []) {
   return results;
 }
 
-export function findImportantWithoutAuditComment(source, filePath = "unknown") {
-  const lines = source.split(/\r?\n/);
+export function findImportantDeclarations(source, filePath = "unknown") {
+  const root = postcss.parse(source, { from: filePath });
   const violations = [];
 
-  for (let index = 0; index < lines.length; index += 1) {
-    const line = lines[index];
-    if (!/:\s*[^;{}]*!important/i.test(line)) {
-      continue;
-    }
-
-    if (/audit-ok\s*:/.test(line)) {
-      continue;
+  root.walkDecls((declaration) => {
+    if (!declaration.important) {
+      return;
     }
 
     violations.push({
       filePath,
-      line: index + 1,
-      text: line.trim(),
+      line: declaration.source?.start?.line ?? 1,
+      text: declaration.toString(),
     });
-  }
+  });
 
   return violations;
 }
@@ -50,12 +46,12 @@ function main() {
   for (const absolutePath of cssFiles) {
     const filePath = relative(ROOT_DIR, absolutePath).replace(/\\/g, "/");
     const source = readFileSync(absolutePath, "utf8");
-    violations.push(...findImportantWithoutAuditComment(source, filePath));
+    violations.push(...findImportantDeclarations(source, filePath));
   }
 
   if (violations.length > 0) {
     console.error(
-      `CSS !important check failed: ${violations.length} declaration(s) missing an audit-ok comment.`,
+      `CSS !important check failed: ${violations.length} declaration(s) found. Replace them with scoped, higher-specificity selectors.`,
     );
     for (const violation of violations) {
       console.error(`- ${violation.filePath}:${violation.line} ${violation.text}`);

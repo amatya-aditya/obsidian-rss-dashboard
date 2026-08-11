@@ -93,7 +93,7 @@ export function renderPagination(args: RenderPaginationArgs): void {
   if (startPage > 1) {
     createPageButton(pagesRow, 1, currentPage, onPageChange);
     if (startPage > 2) {
-      pagesRow.createEl("span", {
+      pagesRow.createSpan({
         text: "...",
         cls: "rss-dashboard-pagination-ellipsis",
       });
@@ -104,7 +104,7 @@ export function renderPagination(args: RenderPaginationArgs): void {
   }
   if (endPage < totalPages) {
     if (endPage < totalPages - 1) {
-      pagesRow.createEl("span", {
+      pagesRow.createSpan({
         text: "...",
         cls: "rss-dashboard-pagination-ellipsis",
       });
@@ -194,7 +194,7 @@ export function renderPagination(args: RenderPaginationArgs): void {
     cls: "rss-dashboard-pagination-results",
   });
 
-  resultsRow.createEl("span", {
+  resultsRow.createSpan({
     cls: "rss-dashboard-pagination-results",
     text: `Results: ${startIdx} - ${endIdx} of ${totalArticles}`,
   });

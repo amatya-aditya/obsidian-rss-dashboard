@@ -1,12 +1,21 @@
-audit-remediation-2.3.0.md
-
 # Plugin Scorecard for RSS Dashboard
 
 https://community.obsidian.md/plugins/rss-dashboard
 
 This document tracks compliance status against the Obsidian Community Plugin audit scorecard.
 
-## Compliance Score
+## Current Public Snapshot
+
+Checked August 10, 2026. The public listing reports RSS Dashboard version
+2.5.0 with **Health: Excellent** and **Review: Caution**. The unauthenticated
+public view does not identify a specific current finding behind the caution
+rating, so this document does not infer one. Recheck the listing during release,
+compliance, security, platform, storage, and audit-remediation work.
+
+Current CSS policy requires zero `!important` declarations in `src/styles/`.
+`npm run check:important` enforces this without comment-based exceptions.
+
+## Historical Compliance Score
 
 | Version | Score | Date         | Status                                                                                                   |
 | ------- | ----- | ------------ | -------------------------------------------------------------------------------------------------------- |
@@ -82,15 +91,15 @@ Per project policy (see `CONTRIBUTING.MD`), warnings that cannot be eliminated a
 
 ---
 
-## Pending Re-Audit
+## Historical v2.3.0 Re-Audit Checklist
 
-Active remediation tracked in [audit-remediation-2.3.0.md](../development/audit-remediation-2.3.0.md).
+Remediation was tracked in [audit-remediation-2.3.0.md](../development/audit-remediation-2.3.0.md).
 
 The community audit should re-scan to verify:
 
 1. Dynamic `<script>` injection removed and CI/CD rule enforced
 2. Node.js `fs` usage removed or migrated to Obsidian vault API
-3. CSS warnings either eliminated or documented with inline `/* audit-ok */` comments per `CONTRIBUTING.MD` policy
+3. CSS warnings either eliminated or documented under the policy in effect for that audit
 4. Extra `.zip` release artifact removed from registry entry
 5. Test suite remains fully compliant (130+ files, 1180+ tests, 0 lint errors)
 
@@ -135,7 +144,7 @@ Closed 87% of 77 issues. 3 contributors active in the past year.
 
 ## Documentation & Governance
 
-- **[CONTRIBUTING.MD](../../CONTRIBUTING.MD)** — Canonical source of truth for compliance declarations, audit guardrails, and CSS warning exception policy
+- **[CONTRIBUTING.MD](../../CONTRIBUTING.MD)** — Canonical source of truth for compliance declarations, audit guardrails, and zero-`!important` CSS policy
 - **[docs/development/compliance-patterns.md](../development/compliance-patterns.md)** — Approved implementation patterns and anti-patterns for audit-sensitive code
 - **[docs/development/test-lint-backlog-tracker.md](../development/test-lint-backlog-tracker.md)** — Historical record of all compliance remediation passes
 - **[docs/development/audit-remediation-2.3.0.md](../development/audit-remediation-2.3.0.md)** — Active working checklist for v2.3.0 remediation

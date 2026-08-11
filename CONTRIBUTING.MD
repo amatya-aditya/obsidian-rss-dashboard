@@ -186,7 +186,8 @@ To prevent repeat audit regressions, every PR must follow these declarations. Tr
 
 4. **Use popout-safe window/document APIs in production UI paths**
    - Prefer `activeDocument` instead of global `document` where required for popout compatibility.
-   - Prefer `activeWindow.setTimeout(...)` / `activeWindow.clearTimeout(...)` over global timer functions in UI flows.
+   - Prefer `window.setTimeout(...)`, `window.clearTimeout(...)`, and the other `window.*` timer APIs over `activeWindow.*` or bare timer functions, as enforced by `npm run check:platform`.
+   - Avoid `globalThis` in production UI paths.
 
 5. **Follow Obsidian DOM helper conventions in production code**
    - Prefer framework helpers such as `createDiv()`, `createEl(...)`, `createSpan()`, and `createFragment()` where applicable.
@@ -201,29 +202,26 @@ To prevent repeat audit regressions, every PR must follow these declarations. Tr
 - If generated output conflicts with these rules, correct the patch before opening a PR.
 - Keep fixes policy-aligned, minimal, and test-backed.
 
-### CSS !important Usage Guidelines
+### CSS Specificity Guidelines
 
-To maintain compatibility with Obsidian's community plugin standards and avoid specificity wars, the use of `!important` in CSS should be avoided whenever possible. However, there are limited scenarios where its use may be justified:
+The source stylesheet must contain zero `!important` declarations. The
+`npm run check:important` gate rejects every declaration; an `audit-ok` comment
+does not create an exception.
 
-1. **When overriding Obsidian core styles**: If Obsidian core applies a style with `!important` that needs to be overridden, and increasing specificity alone is insufficient, `!important` may be used as a last resort.
+Resolve conflicts by first checking cascade order and ownership, then construct
+a narrowly scoped selector from an existing plugin root, component, and state
+or element selector. For example:
 
-2. **For specific icon rendering fixes**: As documented in the design spec, `!important` may be justified for icon sizing or visibility rules when Obsidian core sets the same property `!important` on a matching selector, making specificity-only wins impossible.
-
-When `!important` is deemed necessary, it must be accompanied by an inline comment explaining the justification, following this format:
 ```css
-/* audit-ok: !important required to [specific reason] */
-```
-
-Examples of acceptable usage:
-```css
-.your-component-scope .clickable-icon > svg {
-  width: var(--icon-size, 20px) !important; /* audit-ok: Required to override Obsidian core's !important declaration on svg elements */
+.rss-dashboard-container .rss-feed-card.is-selected > .rss-card-action {
+  color: var(--text-accent);
 }
 ```
 
-Any use of `!important` without proper justification and documentation will be flagged during code review and must be refactored.
-
-This aligns with the audit remediation efforts in v2.3.0 where !important usage was reduced from 900 warnings to 0 through a combination of refactoring and documented exceptions.
+Do not introduce IDs, duplicated classes, or unscoped `body` selectors merely
+to inflate specificity. If an Obsidian core rule cannot be overridden without
+`!important`, change the local wrapper, state class, or styled property so the
+plugin owns the cascade instead of adding an exception.
 
 ### Required Before PR
 

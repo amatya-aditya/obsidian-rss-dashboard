@@ -1,6 +1,6 @@
 # Compliance Patterns and Audit Guardrails
 
-Last updated: 2026-05-13
+Last updated: 2026-08-10
 
 This document defines approved patterns for audit-sensitive changes. Use it with `CONTRIBUTING.MD` and `docs/plugin-scorecard.md`.
 
@@ -80,7 +80,29 @@ window.clearTimeout(handle);
 view.registerDomEvent(activeDocument, "keydown", handler);
 ```
 
-## 5) Obsidian DOM Helper Conventions
+## 5) CSS Specificity Without `!important`
+
+### Required
+
+- Keep source CSS free of `!important` declarations.
+- Build sufficient specificity from an existing plugin root, component, and
+  state or element selector.
+- Check cascade order and component ownership before increasing specificity.
+- Do not use IDs, duplicated classes, or unscoped `body` selectors as
+  specificity shortcuts.
+
+### Pattern
+
+```css
+.rss-dashboard-container .rss-feed-card.is-selected > .rss-card-action {
+  color: var(--text-accent);
+}
+```
+
+If a host rule cannot be overridden cleanly, move the style to a plugin-owned
+wrapper or property instead of creating an exception.
+
+## 6) Obsidian DOM Helper Conventions
 
 ### Required
 
@@ -90,7 +112,7 @@ view.registerDomEvent(activeDocument, "keydown", handler);
   - `createSpan()` and `createFragment()` where applicable
 - Keep exceptions localized and documented when test polyfills require plain DOM calls.
 
-## 6) Import and API Restrictions
+## 7) Import and API Restrictions
 
 ### Required
 
@@ -106,6 +128,7 @@ Before opening a PR:
 3. No new undocumented lint suppressions.
 4. No new unsafe HTML injection in production paths.
 5. New UI changes follow popout-safe and DOM-helper conventions.
+6. `npm run check:important` passes for CSS or CSS-policy changes.
 
 ## Related Docs
 

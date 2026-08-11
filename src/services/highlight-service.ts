@@ -135,7 +135,7 @@ export class HighlightService {
     const fragments = this.buildFragments(text, matches);
     for (const fragment of fragments) {
       if (fragment.isMatch) {
-        const mark = activeDocument.createElement("mark");
+        const mark = element.win.createEl("mark");
         mark.className = "rss-highlight";
         mark.style.setProperty(
           "--highlight-color",
@@ -144,7 +144,9 @@ export class HighlightService {
         mark.textContent = fragment.text;
         element.appendChild(mark);
       } else {
-        element.appendChild(activeDocument.createTextNode(fragment.text));
+        element.appendChild(
+          element.ownerDocument.createTextNode(fragment.text),
+        );
       }
     }
   }
@@ -217,7 +219,7 @@ export class HighlightService {
     const newNodes: Node[] = [];
     for (const fragment of fragments) {
       if (fragment.isMatch) {
-        const mark = activeDocument.createElement("mark");
+        const mark = textNode.win.createEl("mark");
         mark.className = "rss-highlight";
         mark.style.setProperty(
           "--highlight-color",
@@ -226,7 +228,7 @@ export class HighlightService {
         mark.textContent = fragment.text;
         newNodes.push(mark);
       } else {
-        newNodes.push(activeDocument.createTextNode(fragment.text));
+        newNodes.push(textNode.ownerDocument.createTextNode(fragment.text));
       }
     }
 

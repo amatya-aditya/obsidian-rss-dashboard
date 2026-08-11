@@ -245,7 +245,7 @@ function isMathContainer(element: Element): boolean {
 }
 
 function createMathRenderHost(doc: Document): HTMLElement {
-  const host = doc.createElement("span");
+  const host = doc.win.createSpan();
   host.className = "rss-math-render-pending";
   return host;
 }
@@ -289,7 +289,7 @@ async function renderPendingMath(
       throw new Error("Markdown renderer returned no MathJax element");
     }
 
-    const wrapper = host.ownerDocument.createElement("span");
+    const wrapper = host.ownerDocument.win.createSpan();
     wrapper.className = renderedMath?.className || "math";
     wrapper.classList.add("math");
     wrapper.classList.add(display ? "math-block" : "math-inline");
@@ -314,7 +314,7 @@ async function renderPendingMath(
 }
 
 function createProtectedMathSpan(doc: Document, rawMath: string): HTMLElement {
-  const span = doc.createElement("span");
+  const span = doc.win.createSpan();
   span.className = "math";
   span.setAttribute("data-math", rawMath);
   span.textContent = rawMath;
@@ -389,7 +389,7 @@ function protectRawMathTextNodes(container: HTMLElement): void {
     if (!MATH_REGEX.test(text)) continue;
     MATH_REGEX.lastIndex = 0;
 
-    const fragment = doc.createDocumentFragment();
+    const fragment = doc.win.createFragment();
     let lastIndex = 0;
     let match: RegExpExecArray | null;
 
@@ -524,7 +524,7 @@ export async function processMathElements(
     if (!MATH_REGEX.test(text)) continue;
     MATH_REGEX.lastIndex = 0;
 
-    const fragment = ownerDoc.createDocumentFragment();
+    const fragment = ownerDoc.win.createFragment();
     let lastIndex = 0;
     let match: RegExpExecArray | null;
 

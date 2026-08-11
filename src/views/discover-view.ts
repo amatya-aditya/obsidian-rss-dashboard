@@ -2057,7 +2057,7 @@ export class DiscoverView extends ItemView {
     if (startPage > 1) {
       this.createPageButton(paginationContainer, 1, currentPage);
       if (startPage > 2) {
-        paginationContainer.createEl("span", {
+        paginationContainer.createSpan({
           text: "...",
           cls: "rss-dashboard-pagination-ellipsis",
         });
@@ -2068,7 +2068,7 @@ export class DiscoverView extends ItemView {
     }
     if (endPage < totalPages) {
       if (endPage < totalPages - 1) {
-        paginationContainer.createEl("span", {
+        paginationContainer.createSpan({
           text: "...",
           cls: "rss-dashboard-pagination-ellipsis",
         });
@@ -2112,7 +2112,7 @@ export class DiscoverView extends ItemView {
       pageSize,
       currentPage,
     });
-    paginationContainer.createEl("span", {
+    paginationContainer.createSpan({
       cls: "rss-dashboard-pagination-results",
       text: `Results: ${startIdx} - ${endIdx} of ${totalFeeds}`,
     });

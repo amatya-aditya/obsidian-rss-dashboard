@@ -24,8 +24,6 @@ CLAUDE.md
 .kilo/
 .claude/
 .agent/*
-.agents
-.agents/*
 userdata.json.backup
 feeds.opml.backup
 coverage/

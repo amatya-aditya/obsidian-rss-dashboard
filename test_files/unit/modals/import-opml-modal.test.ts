@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-/* eslint-disable import/no-nodejs-modules -- test fixtures require Node.js fs/path/url modules */
 import * as obsidian from "obsidian";
 import { readFileSync } from "fs";
 import path from "path";

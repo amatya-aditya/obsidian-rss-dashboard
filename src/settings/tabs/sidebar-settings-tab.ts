@@ -314,10 +314,10 @@ export function renderSidebarSettingsTab(
       if (!icon) return;
       const hideKey = icon.settingKey;
 
-      const nameFrag = activeDocument.createDocumentFragment();
-      const labelWrap = activeDocument.createElement("span");
+      const nameFrag = containerEl.win.createFragment();
+      const labelWrap = containerEl.win.createSpan();
       labelWrap.addClass("rss-settings-icon-label");
-      const iconSpan = activeDocument.createElement("span");
+      const iconSpan = containerEl.win.createSpan();
       iconSpan.addClass("rss-settings-icon-preview");
       setIcon(iconSpan, icon.lucideIcon);
       labelWrap.append(iconSpan);
@@ -346,7 +346,7 @@ export function renderSidebarSettingsTab(
       iconSetting.settingEl.addClass("rss-dashboard-icon-visibility-row");
       iconSetting.settingEl.setAttribute("data-icon-id", id);
 
-      const dragHandle = activeDocument.createElement("button");
+      const dragHandle = containerEl.win.createEl("button");
       dragHandle.type = "button";
       dragHandle.addClass("rss-dashboard-icon-drag-handle");
       dragHandle.setAttribute("draggable", "true");
@@ -354,7 +354,7 @@ export function renderSidebarSettingsTab(
       setIcon(dragHandle, "grip-vertical");
       iconSetting.nameEl.prepend(dragHandle);
 
-      const upBtn = activeDocument.createElement("button");
+      const upBtn = containerEl.win.createEl("button");
       upBtn.addClass("rss-dashboard-icon-order-btn");
       upBtn.setAttribute("aria-label", `Move ${icon.label} up`);
       upBtn.textContent = "↑";
@@ -380,7 +380,7 @@ export function renderSidebarSettingsTab(
         }
       });
 
-      const downBtn = activeDocument.createElement("button");
+      const downBtn = containerEl.win.createEl("button");
       downBtn.addClass("rss-dashboard-icon-order-btn");
       downBtn.setAttribute("aria-label", `Move ${icon.label} down`);
       downBtn.textContent = "↓";

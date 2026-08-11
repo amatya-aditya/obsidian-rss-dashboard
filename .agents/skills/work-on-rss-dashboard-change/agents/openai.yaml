@@ -1,0 +1,7 @@
+interface:
+  display_name: "Work on RSS Dashboard Change"
+  short_description: "Plan, build, and validate RSS Dashboard changes"
+  default_prompt: "Use $work-on-rss-dashboard-change to implement this RSS Dashboard feature or bug safely."
+
+policy:
+  allow_implicit_invocation: true

@@ -8,9 +8,20 @@ Before making or reviewing a code or test change, read these files in full:
 2. `eslint.config.mjs`
 3. `docs/development/test_coverage/testing-guide.md`
 
+Before scoping or implementing a feature or bug fix, also read
+`.agents/project-context.md` for the repository map and change workflow.
+
 `eslint.config.mjs` is the authoritative source for implementation and platform-compatibility rules. Do not knowingly introduce, retain, or suppress a violation. Refactor the code to comply; do not add an `eslint-disable` or weaken a rule unless the user explicitly authorizes that policy change.
 
-For popout-sensitive UI code, use the owning document/window or `activeDocument`/`activeWindow` as required by the lint rules. Do not use global browser objects when they would break popout-window compatibility.
+For popout-sensitive UI code, use the owning document/window APIs required by
+the lint and platform checks. Use `activeDocument` instead of global
+`document`, and use `window.setTimeout`/`window.clearTimeout` and the other
+`window.*` timer APIs instead of `activeWindow.*` or bare timers. Do not use
+`globalThis` in production UI paths.
+
+Do not add `!important` declarations. Resolve CSS conflicts with a scoped,
+higher-specificity selector built from an existing plugin root, component, and
+state or element selector. `audit-ok` comments do not create an exception.
 
 ## Tests
 

@@ -111,7 +111,7 @@ export function renderArticleSavingSettingsTab(
 
   templateContainer.appendChild(templateInput);
 
-  const helpText = containerEl.createEl("div", {
+  const helpText = containerEl.createDiv({
     cls: "setting-item-description rss-dashboard-template-help",
   });
 
