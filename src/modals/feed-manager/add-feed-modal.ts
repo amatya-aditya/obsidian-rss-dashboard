@@ -2,6 +2,7 @@ import { Modal, App, Setting, Notice } from "obsidian";
 import type RssDashboardPlugin from "../../../main";
 import type {
   FeedKeywordRulesSettings,
+  FeedEncoding,
   Folder,
   SavedTemplate,
   Tag,
@@ -44,6 +45,7 @@ export interface AddFeedRequest {
   customTemplate?: string;
   excludeFromRefresh?: boolean;
   customTags?: string[];
+  feedEncoding?: FeedEncoding;
 }
 
 export class AddFeedModal extends Modal {
@@ -62,6 +64,7 @@ export class AddFeedModal extends Modal {
   private status: string = "";
   private latestEntry: string = "-";
   private customTags: string[] = [];
+  private feedEncoding: FeedEncoding = "auto";
   private autoDeleteDuration: number;
   private maxItemsLimit: number;
   private scanInterval: number = 0;
@@ -198,6 +201,7 @@ export class AddFeedModal extends Modal {
       const preview = await resolveAndLoadPreview(this.url, {
         corsProxyEnabled: this.plugin?.settings?.corsProxyEnabled,
         corsProxyUrl: this.plugin?.settings?.corsProxyUrl,
+        feedEncoding: this.feedEncoding,
       });
 
       this.url = preview.finalUrl;
@@ -398,6 +402,23 @@ export class AddFeedModal extends Modal {
     const perFeedControlsBody = perFeedControlsDetails.createDiv({
       cls: "rss-keyword-filter-details-body",
     });
+
+    new Setting(perFeedControlsBody)
+      .setName("Feed encoding")
+      .setDesc(
+        "Use automatic detection unless this RSS or atom feed must be decoded as windows-1251.",
+      )
+      .addDropdown((dropdown) => {
+        dropdown
+          .addOption("auto", "Auto-detect")
+          .addOption("windows-1251", "Windows-1251")
+          .setValue(this.feedEncoding)
+          .onChange((value) => {
+            if (value === "auto" || value === "windows-1251") {
+              this.feedEncoding = value;
+            }
+          });
+      });
 
     const autoDeleteSetting = new Setting(perFeedControlsBody)
       .setName("Auto delete articles duration")
@@ -709,6 +730,10 @@ export class AddFeedModal extends Modal {
           customTemplate: this.customTemplate,
           excludeFromRefresh: this.excludeFromRefresh,
           customTags: this.customTags.length > 0 ? this.customTags : undefined,
+          feedEncoding:
+            this.feedEncoding === "windows-1251"
+              ? this.feedEncoding
+              : undefined,
         }).catch(() => {
           return false;
         });

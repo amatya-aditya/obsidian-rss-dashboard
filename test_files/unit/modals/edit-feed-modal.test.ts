@@ -244,6 +244,55 @@ beforeEach(() => {
 });
 
 describe("EditFeedModal", () => {
+  it("persists an encoding change and immediately refreshes the feed", async () => {
+    const app = createMockApp();
+    const feed: Feed = {
+      title: "Example feed",
+      url: "https://example.com/feed.xml",
+      folder: "Tech",
+      items: [],
+      lastUpdated: 0,
+    };
+    const refreshSelectedFeed = vi.fn(async () => {});
+    const plugin: PluginTestFixture = {
+      app,
+      settings: {
+        folders: [],
+        maxItems: 50,
+        corsProxyEnabled: false,
+        corsProxyUrl: "",
+        articleSaving: { savedTemplates: [] },
+      },
+      ensureFolderExists: vi.fn(async () => {}),
+      saveSettings: vi.fn(async () => {}),
+      refreshSelectedFeed,
+      notifyFiltersUpdated: vi.fn(),
+    };
+
+    const modal = new EditFeedModal(
+      app,
+      asRssDashboardPlugin(plugin),
+      feed,
+      vi.fn(),
+    );
+    modal.open();
+
+    const encodingSelect = getSelectBySettingName(
+      modal.contentEl,
+      "Feed encoding",
+    );
+    expect(encodingSelect.value).toBe("auto");
+    encodingSelect.value = "windows-1251";
+    encodingSelect.dispatchEvent(new Event("change"));
+
+    getButtonByText(modal.contentEl, "Save").click();
+    await flushPromises();
+
+    expect(feed.feedEncoding).toBe("windows-1251");
+    expect(plugin.saveSettings).toHaveBeenCalledTimes(1);
+    expect(refreshSelectedFeed).toHaveBeenCalledWith(feed);
+  });
+
   it("loads the feed when Enter is pressed in the URL field", () => {
     const app = createMockApp();
     const feed: Feed = {

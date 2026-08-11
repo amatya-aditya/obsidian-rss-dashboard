@@ -475,7 +475,14 @@ export class FeedParser {
       throw new Error("Feed url is required");
     }
 
-    const responseText = await fetchFeedXml(url, this.getCorsProxyEnabled(), options?.signal);
+    const responseText = await fetchFeedXml(
+      url,
+      this.getCorsProxyEnabled(),
+      options?.signal,
+      existingFeed?.feedEncoding === "windows-1251"
+        ? existingFeed.feedEncoding
+        : undefined,
+    );
     const parsed = this.parser.parseString(responseText);
 
     assertParsedFeedHasEntries(parsed, options);

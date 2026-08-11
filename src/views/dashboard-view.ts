@@ -18,6 +18,7 @@ import {
   RssDashboardSettings,
   Folder,
   ViewLocation,
+  FeedEncoding,
 } from "../types/types";
 import type {
   FiltersUpdatedEventPayload,
@@ -2319,6 +2320,7 @@ export class RssDashboardView extends ItemView {
     customTemplate?: string,
     excludeFromRefresh?: boolean,
     customTags?: string[],
+    feedEncoding?: FeedEncoding,
   ): Promise<void> {
     await this.plugin.addFeed(
       title,
@@ -2331,6 +2333,7 @@ export class RssDashboardView extends ItemView {
       customTemplate,
       excludeFromRefresh,
       customTags,
+      { feedEncoding },
     );
     void this.render();
   }

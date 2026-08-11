@@ -114,6 +114,54 @@ beforeEach(() => {
 });
 
 describe("AddFeedModal", () => {
+  it("uses the selected feed encoding for preview and save", async () => {
+    const app = createMockApp();
+    const onAdd: OnAddFn = vi.fn(async () => true);
+    const onSave = vi.fn();
+    vi.spyOn(feedPreviewLoader, "resolveAndLoadPreview").mockResolvedValue({
+      detectedType: "rss",
+      inputUrl: "https://example.com/feed.xml",
+      finalUrl: "https://example.com/feed.xml",
+      isXConversion: false,
+      isMastodonConversion: false,
+      title: "Example feed",
+      latestPubDate: undefined,
+      hasEntries: true,
+    });
+
+    const modal = new AddFeedModal(app, [], onAdd, onSave);
+    modal.open();
+
+    const encodingSelect = getSelectBySettingName(
+      modal.contentEl,
+      "Feed encoding",
+    );
+    expect(encodingSelect.value).toBe("auto");
+    expect(Array.from(encodingSelect.options).map((option) => option.text)).toEqual([
+      "Auto-detect",
+      "Windows-1251",
+    ]);
+    encodingSelect.value = "windows-1251";
+    encodingSelect.dispatchEvent(new Event("change"));
+
+    const urlInput = getTextInputBySettingName(modal.contentEl, "Feed URL");
+    urlInput.value = "https://example.com/feed.xml";
+    urlInput.dispatchEvent(new Event("input"));
+    getButtonByText(modal.contentEl, "Load").click();
+    await flushPromises();
+
+    expect(feedPreviewLoader.resolveAndLoadPreview).toHaveBeenCalledWith(
+      "https://example.com/feed.xml",
+      expect.objectContaining({ feedEncoding: "windows-1251" }),
+    );
+
+    getButtonByText(modal.contentEl, "Save").click();
+    await flushPromises();
+    expect(onAdd).toHaveBeenCalledWith(
+      expect.objectContaining({ feedEncoding: "windows-1251" }),
+    );
+  });
+
   it("loads the feed when Enter is pressed in the URL field", () => {
     const app = createMockApp();
     const onAdd: OnAddFn = vi.fn(async () => true);

@@ -69,6 +69,8 @@ export interface FeedItem {
   };
 }
 
+export type FeedEncoding = "auto" | "windows-1251";
+
 export interface Feed {
   feedId?: string;
   title: string;
@@ -87,6 +89,7 @@ export interface Feed {
   customTemplate?: string;
   customFolder?: string;
   customTags?: string[];
+  feedEncoding?: FeedEncoding;
 
   autoDeleteDuration?: number;
   maxItemsLimit?: number;

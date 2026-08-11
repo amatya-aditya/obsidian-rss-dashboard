@@ -55,6 +55,22 @@ describe("resolveAndLoadPreview()", () => {
     );
   });
 
+  it("passes a manual feed encoding to preview loading", async () => {
+    const { resolveAndLoadPreview } = await import(
+      "../../../src/modals/feed-manager/feed-preview-loader"
+    );
+
+    detectPodcastPlatformMock.mockReturnValue(null);
+    await resolveAndLoadPreview("https://example.com/feed.xml", {
+      feedEncoding: "windows-1251",
+    });
+
+    expect(loadFeedForPreviewMock).toHaveBeenCalledWith(
+      "https://example.com/feed.xml",
+      "windows-1251",
+    );
+  });
+
   it("converts X URLs to Nitter before loading", async () => {
     const { resolveAndLoadPreview } = await import(
       "../../../src/modals/feed-manager/feed-preview-loader"

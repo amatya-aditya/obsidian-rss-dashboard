@@ -5,6 +5,7 @@ import {
   Tag,
   RssDashboardSettings,
   FeedKeywordRulesSettings,
+  FeedEncoding,
 } from "../types/types";
 import {
   SIDEBAR_ICON_IDS,
@@ -80,6 +81,7 @@ export interface SidebarCallbacks {
     customTemplate?: string,
     excludeFromRefresh?: boolean,
     customTags?: string[],
+    feedEncoding?: FeedEncoding,
   ) => Promise<void>;
   onEditFeed: (feed: Feed, title: string, url: string, folder: string) => void;
   onDeleteFeed: (feed: Feed) => void;
@@ -3337,6 +3339,7 @@ export class Sidebar {
           request.customTemplate,
           request.excludeFromRefresh,
           request.customTags,
+          request.feedEncoding,
         ),
       () => this.render(),
       defaultFolder,

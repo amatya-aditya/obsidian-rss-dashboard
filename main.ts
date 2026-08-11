@@ -22,6 +22,7 @@ import {
   FeedKeywordRulesSettings,
   FeedIngestionCandidate,
   FeedIngestionOptions,
+  FeedEncoding,
 } from "./src/types/types";
 import { RssDashboardSettingTab } from "./src/settings/settings-tab";
 import {
@@ -946,6 +947,7 @@ export default class RssDashboardPlugin extends Plugin {
           request.customTemplate,
           request.excludeFromRefresh,
           request.customTags,
+          { feedEncoding: request.feedEncoding },
         ),
       () => {
         void this.refreshDashboardViews();
@@ -1899,7 +1901,7 @@ export default class RssDashboardPlugin extends Plugin {
     customTemplate?: string,
     excludeFromRefresh?: boolean,
     customTags?: string[],
-    options?: { showNotice?: boolean },
+    options?: { showNotice?: boolean; feedEncoding?: FeedEncoding },
   ) {
     const showNotice = options?.showNotice !== false;
     try {
@@ -1938,6 +1940,10 @@ export default class RssDashboardPlugin extends Plugin {
         customTags:
           Array.isArray(customTags) && customTags.length > 0
             ? [...customTags]
+            : undefined,
+        feedEncoding:
+          options?.feedEncoding === "windows-1251"
+            ? options.feedEncoding
             : undefined,
         keywordRules: feedKeywordRules || {
           overrideGlobalRules: false,

@@ -1,10 +1,10 @@
-import { requestUrl } from "obsidian";
 import { canonicalizeItemIdentityUrl, resolveAbsoluteHttpUrl } from "../../utils/url-utils.js";
+import { robustFetch } from "../../utils/platform-utils.js";
 import { MediaService } from "../media-service.js";
 import { CustomXMLParser } from "./xml-parser/custom-xml-parser.js";
 import { assertParsedFeedHasEntries } from "./parsed-feed-assert.js";
 import { optimizeImageUrl } from "../../utils/image-url-utils.js";
-import type { Feed, FeedItem } from "../../types/types.js";
+import type { Feed, FeedEncoding, FeedItem } from "../../types/types.js";
 import type { ParsedItem } from "./types.js";
 export class FeedParserService {
   private static instance: FeedParserService;
@@ -21,9 +21,11 @@ export class FeedParserService {
     return FeedParserService.instance;
   }
 
-  private async fetchFeedXml(url: string): Promise<string> {
-    const response = await requestUrl({
-      url: url,
+  private async fetchFeedXml(
+    url: string,
+    feedEncoding?: FeedEncoding,
+  ): Promise<string> {
+    const responseText = await robustFetch(url, {
       method: "GET",
       headers: {
         "User-Agent":
@@ -31,17 +33,23 @@ export class FeedParserService {
         Accept:
           "application/rss+xml, application/atom+xml, application/rdf+xml, application/xml, text/xml;q=0.9, */*;q=0.8",
       },
+      encodingOverride:
+        feedEncoding === "windows-1251" ? feedEncoding : undefined,
     });
 
-    if (!response.text) {
+    if (!responseText) {
       throw new Error(`Failed to fetch feed: Empty response`);
     }
 
-    return response.text;
+    return responseText;
   }
 
-  public async parseFeed(url: string, folder: string): Promise<Feed> {
-    const xml = await this.fetchFeedXml(url);
+  public async parseFeed(
+    url: string,
+    folder: string,
+    feedEncoding?: FeedEncoding,
+  ): Promise<Feed> {
+    const xml = await this.fetchFeedXml(url, feedEncoding);
     const parsed = this.parser.parseString(xml);
 
     assertParsedFeedHasEntries(parsed);
@@ -79,6 +87,8 @@ export class FeedParserService {
         : optimizeImageUrl(item.itunes?.image?.href || item.image?.url || ""),
       mediaContentType: item.mediaContentType,
       mediaType: isPodcast ? "podcast" : "article",
+      feedEncoding:
+        feedEncoding === "windows-1251" ? feedEncoding : undefined,
       author: item.author || "",
       content: item.content || "",
       saved: false,

@@ -1,9 +1,14 @@
-import { requestUrl, RequestUrlParam, setIcon } from "obsidian";
+import { requestUrl, setIcon } from "obsidian";
+import type { RequestUrlParam } from "obsidian";
 
 export interface RobustFetchResult {
   text: string;
   status: number;
 }
+
+export type RobustFetchOptions = Partial<RequestUrlParam> & {
+  encodingOverride?: string;
+};
 
 export function sleep(ms: number): Promise<void> {
   return new Promise<void>((resolve) => window.setTimeout(resolve, ms));
@@ -133,7 +138,7 @@ export function ensureUtf8Meta(html: string): string {
  */
 export async function robustFetch(
   url: string,
-  options: Partial<RequestUrlParam> = {},
+  options: RobustFetchOptions = {},
 ): Promise<string> {
   const response = await robustFetchDetailed(url, options);
   return response.text;
@@ -145,22 +150,29 @@ export async function robustFetch(
  */
 export async function robustFetchDetailed(
   url: string,
-  options: Partial<RequestUrlParam> = {},
+  options: RobustFetchOptions = {},
 ): Promise<RobustFetchResult> {
+  const { encodingOverride, ...requestOptions } = options;
   const response = await requestUrl({
-    ...options,
+    ...requestOptions,
     url,
-    method: options.method || "GET",
+    method: requestOptions.method || "GET",
   });
 
   const status = response.status ?? 0;
 
-  if (!response.arrayBuffer) {
+  if (
+    !response.arrayBuffer ||
+    (response.arrayBuffer.byteLength === 0 && response.text)
+  ) {
     return { text: response.text || "", status };
   }
 
-  const contentType = response.headers["content-type"] || "";
-  let charset = detectCharsetFromHeader(contentType);
+  const contentTypeEntry = Object.entries(response.headers).find(
+    ([name]) => name.toLowerCase() === "content-type",
+  );
+  const contentType = contentTypeEntry?.[1] || "";
+  let charset = encodingOverride || detectCharsetFromHeader(contentType);
 
   if (!charset) {
     // Try to detect from body if not in header
@@ -183,14 +195,22 @@ export async function robustFetchDetailed(
 }
 
 function detectCharsetFromHeader(contentType: string): string | null {
-  const match = contentType.match(/charset=([^;]+)/i);
-  return match ? match[1].trim() : null;
+  const match = contentType.match(
+    /charset\s*=\s*(?:"([^"]+)"|'([^']+)'|([^;\s]+))/i,
+  );
+  return match ? (match[1] || match[2] || match[3]).trim() : null;
 }
 
 function detectCharsetFromBody(buffer: ArrayBuffer): string | null {
   // We only look at the first 2048 bytes for speed
   const view = new Uint8Array(buffer.slice(0, 2048));
   const text = new TextDecoder("ascii").decode(view);
+
+  // XML declarations are the standard way RSS/Atom documents declare encoding.
+  const xmlMatch = text.match(
+    /<\?xml[^>]*encoding\s*=\s*["']([^"']+)["']/i,
+  );
+  if (xmlMatch) return xmlMatch[1];
 
   // Look for <meta charset="...">
   const charsetMatch = text.match(/<meta[^>]+charset=["']?([^"' >]+)/i);

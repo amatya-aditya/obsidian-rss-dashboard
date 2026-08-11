@@ -13,6 +13,11 @@ describe("FeedParserService.parseFeed", () => {
     requestUrlSpy.mockResolvedValueOnce({
       status: 200,
       text: RSS2_PODCAST_WITH_CHANNEL_ITUNES_IMAGE,
+      headers: {},
+      arrayBuffer: new TextEncoder().encode(
+        RSS2_PODCAST_WITH_CHANNEL_ITUNES_IMAGE,
+      ).buffer,
+      json: {},
     });
 
     const service = FeedParserService.getInstance();

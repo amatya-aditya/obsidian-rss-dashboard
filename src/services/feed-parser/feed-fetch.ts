@@ -1,5 +1,7 @@
 import { requestUrl, Platform } from "obsidian";
 import { PREDEFINED_PROXIES } from "../../utils/proxy-utils.js";
+import { robustFetch } from "../../utils/platform-utils.js";
+import type { FeedEncoding } from "../../types/types.js";
 import { isValidFeed } from "./feed-validation.js";
 import type {
   AllOriginsResponse,
@@ -58,24 +60,27 @@ async function fetchThroughProxy(
   targetUrl: string,
   proxyUrl: string,
   signal?: AbortSignal,
+  encodingOverride?: FeedEncoding,
 ): Promise<string> {
   if (signal?.aborted) throw new Error("Timed out");
   const requestUrlParam = `${proxyUrl}${encodeURIComponent(targetUrl)}`;
-  const response = await requestUrl({
-    url: requestUrlParam,
+  const isJsonEnvelope =
+    proxyUrl.includes("allorigins.win/get") || proxyUrl.includes("rss2json");
+  const responseText = await robustFetch(requestUrlParam, {
     method: "GET",
+    encodingOverride: isJsonEnvelope ? undefined : encodingOverride,
   });
 
   if (signal?.aborted) throw new Error("Timed out");
 
   if (proxyUrl.includes("allorigins.win/get")) {
-    const data = JSON.parse(response.text) as AllOriginsResponse;
+    const data = JSON.parse(responseText) as AllOriginsResponse;
     if (!data.contents) throw new Error("No contents from AllOrigins");
     return data.contents;
   }
 
   if (proxyUrl.includes("rss2json")) {
-    const data = JSON.parse(response.text) as Rss2JsonResponse;
+    const data = JSON.parse(responseText) as Rss2JsonResponse;
     if (data.status !== "ok" || !data.feed) {
       throw new Error(
         "RSS2JSON returned error: " + (data.message || "Unknown error"),
@@ -84,18 +89,21 @@ async function fetchThroughProxy(
     return rss2JsonToRss(data);
   }
 
-  if (!response.text) {
+  if (!responseText) {
     throw new Error("Empty response from proxy");
   }
 
-  return response.text;
+  return responseText;
 }
 
-async function discoverFeedUrl(baseUrl: string, signal?: AbortSignal): Promise<string | null> {
+async function discoverFeedUrl(
+  baseUrl: string,
+  signal?: AbortSignal,
+  encodingOverride?: FeedEncoding,
+): Promise<string | null> {
   if (signal?.aborted) return null;
   try {
-    const response = await requestUrl({
-      url: baseUrl,
+    const responseText = await robustFetch(baseUrl, {
       method: "GET",
       headers: {
         "User-Agent":
@@ -107,7 +115,7 @@ async function discoverFeedUrl(baseUrl: string, signal?: AbortSignal): Promise<s
 
     if (signal?.aborted) return null;
 
-    if (!response.text) return null;
+    if (!responseText) return null;
 
     if (baseUrl.includes("feeds.feedburner.com")) {
       const feedNameMatch = baseUrl.match(/feeds\.feedburner\.com\/([^/?]+)/);
@@ -129,8 +137,7 @@ async function discoverFeedUrl(baseUrl: string, signal?: AbortSignal): Promise<s
         for (const feedUrl of feedBurnerUrls) {
           if (signal?.aborted) return null;
           try {
-            const feedResponse = await requestUrl({
-              url: feedUrl,
+            const feedResponseText = await robustFetch(feedUrl, {
               method: "GET",
               headers: {
                 "User-Agent":
@@ -138,13 +145,14 @@ async function discoverFeedUrl(baseUrl: string, signal?: AbortSignal): Promise<s
                 Accept:
                   "application/rss+xml, application/atom+xml, application/rdf+xml, application/xml, text/xml;q=0.9, */*;q=0.8",
               },
+              encodingOverride,
             });
 
             if (
-              feedResponse.text &&
-              (feedResponse.text.includes("<rss") ||
-                feedResponse.text.includes("<feed") ||
-                feedResponse.text.includes("<channel"))
+              feedResponseText &&
+              (feedResponseText.includes("<rss") ||
+                feedResponseText.includes("<feed") ||
+                feedResponseText.includes("<channel"))
             ) {
               return feedUrl;
             }
@@ -155,7 +163,7 @@ async function discoverFeedUrl(baseUrl: string, signal?: AbortSignal): Promise<s
       }
     }
 
-    const feedLinkMatches = response.text.match(
+    const feedLinkMatches = responseText.match(
       /<link[^>]+(?:type="application\/rss\+xml"|type="application\/atom\+xml"|type="application\/rdf\+xml"|type="application\/xml")[^>]+href="([^"]+)"/gi,
     );
 
@@ -186,7 +194,7 @@ async function discoverFeedUrl(baseUrl: string, signal?: AbortSignal): Promise<s
     ];
 
     for (const pattern of altFeedPatterns) {
-      const matches = response.text.match(pattern);
+      const matches = responseText.match(pattern);
       if (matches) {
         for (const match of matches) {
           const hrefMatch = match.match(/href="([^"]+)"/);
@@ -215,6 +223,7 @@ export async function fetchFeedXml(
   url: string,
   proxyConfig: FeedFetchProxyOption = true,
   signal?: AbortSignal,
+  encodingOverride?: FeedEncoding,
 ): Promise<string> {
   const isAndroid = Platform.isAndroidApp;
   const config = normalizeProxyConfig(proxyConfig);
@@ -235,7 +244,12 @@ export async function fetchFeedXml(
       for (const proxyUrl of getProxyUrls(config)) {
         if (signal?.aborted) throw new Error("Timed out");
         try {
-          const proxyText = await fetchThroughProxy(url, proxyUrl, signal);
+          const proxyText = await fetchThroughProxy(
+            url,
+            proxyUrl,
+            signal,
+            encodingOverride,
+          );
           if (isValidFeed(proxyText)) {
             return proxyText;
           }
@@ -270,8 +284,7 @@ export async function fetchFeedXml(
         for (const fbUrl of feedBurnerUrls) {
           if (signal?.aborted) throw new Error("Timed out");
           try {
-            const fbResponse = await requestUrl({
-              url: fbUrl,
+            const fbResponseText = await robustFetch(fbUrl, {
               method: "GET",
               headers: {
                 "User-Agent":
@@ -279,9 +292,10 @@ export async function fetchFeedXml(
                 Accept:
                   "application/rss+xml, application/xml, application/atom+xml, text/xml;q=0.9, */*;q=0.8",
               },
+              encodingOverride,
             });
-            if (fbResponse.text && isValidFeed(fbResponse.text)) {
-              return fbResponse.text;
+            if (fbResponseText && isValidFeed(fbResponseText)) {
+              return fbResponseText;
             } else {
               throw new Error("Not a valid RSS/Atom feed");
             }
@@ -294,8 +308,7 @@ export async function fetchFeedXml(
     if (signal?.aborted) throw new Error("Timed out");
     try {
       const secureUrl = targetUrl; // try original URL as-is first (don't force https)
-      const response = await requestUrl({
-        url: secureUrl,
+      const responseText = await robustFetch(secureUrl, {
         method: "GET",
         headers: {
           "User-Agent":
@@ -303,20 +316,21 @@ export async function fetchFeedXml(
           Accept:
             "application/rss+xml, application/atom+xml, application/rdf+xml, application/xml, text/xml;q=0.9, */*;q=0.8",
         },
+        encodingOverride,
       });
 
-      if (!response.text) {
+      if (!responseText) {
         throw new Error("Empty response from feed");
       }
 
-      if (isValidFeed(response.text)) {
+      if (isValidFeed(responseText)) {
         // Handle arXiv stub feeds that point to rss.arxiv.org but contain no items
-        const hasItems = /<item\b[\s\S]*?<\/item>/i.test(response.text);
+        const hasItems = /<item\b[\s\S]*?<\/item>/i.test(responseText);
         if (!hasItems) {
-          const atomLinkMatch = response.text.match(
+          const atomLinkMatch = responseText.match(
             /<atom:link[^>]*href=["']([^"']+)["'][^>]*>/i,
           );
-          const channelLinkMatch = response.text.match(
+          const channelLinkMatch = responseText.match(
             /<channel[^>]*>[\s\S]*?<link[^>]*>([^<]+)<\/link>/i,
           );
           const candidateUrl =
@@ -324,8 +338,7 @@ export async function fetchFeedXml(
           if (candidateUrl && /arxiv\.org\//i.test(candidateUrl)) {
             if (signal?.aborted) throw new Error("Timed out");
             try {
-              const arxivResp = await requestUrl({
-                url: candidateUrl,
+              const arxivText = await robustFetch(candidateUrl, {
                 method: "GET",
                 headers: {
                   "User-Agent":
@@ -333,16 +346,17 @@ export async function fetchFeedXml(
                   Accept:
                     "application/rss+xml, application/atom+xml, application/rdf+xml, application/xml, text/xml;q=0.9, */*;q=0.8",
                 },
+                encodingOverride,
               });
-              if (arxivResp.text && isValidFeed(arxivResp.text)) {
-                return arxivResp.text;
+              if (arxivText && isValidFeed(arxivText)) {
+                return arxivText;
               }
             } catch {
               // ArXiv feed fetch failed, continue
             }
           }
         }
-        return response.text;
+        return responseText;
       }
 
       // If initial scheme fails, try toggled scheme (http<->https) before other fallbacks
@@ -354,8 +368,7 @@ export async function fetchFeedXml(
       if (toggledUrl) {
         if (signal?.aborted) throw new Error("Timed out");
         try {
-          const toggledResp = await requestUrl({
-            url: toggledUrl,
+          const toggledText = await robustFetch(toggledUrl, {
             method: "GET",
             headers: {
               "User-Agent":
@@ -363,9 +376,10 @@ export async function fetchFeedXml(
               Accept:
                 "application/rss+xml, application/atom+xml, application/rdf+xml, application/xml, text/xml;q=0.9, */*;q=0.8",
             },
+            encodingOverride,
           });
-          if (toggledResp.text && isValidFeed(toggledResp.text)) {
-            return toggledResp.text;
+          if (toggledText && isValidFeed(toggledText)) {
+            return toggledText;
           }
         } catch {
           // Toggled url fetch failed, continue
@@ -373,9 +387,9 @@ export async function fetchFeedXml(
       }
 
       if (
-        response.text.includes("<?php") ||
-        response.text.includes("WordPress") ||
-        response.text.includes("wp-blog-header.php")
+        responseText.includes("<?php") ||
+        responseText.includes("WordPress") ||
+        responseText.includes("wp-blog-header.php")
       ) {
         // [RSS Dashboard] Received php file instead of RSS feed, trying alternative URLs...
 
@@ -413,8 +427,7 @@ export async function fetchFeedXml(
         for (const altUrl of alternativeUrls) {
           if (signal?.aborted) throw new Error("Timed out");
           try {
-            const altResponse = await requestUrl({
-              url: altUrl,
+            const altResponseText = await robustFetch(altUrl, {
               method: "GET",
               headers: {
                 "User-Agent":
@@ -422,10 +435,11 @@ export async function fetchFeedXml(
                 Accept:
                   "application/rss+xml, application/atom+xml, application/rdf+xml, application/xml, text/xml;q=0.9, */*;q=0.8",
               },
+              encodingOverride,
             });
 
-            if (altResponse.text && isValidFeed(altResponse.text)) {
-              return altResponse.text;
+            if (altResponseText && isValidFeed(altResponseText)) {
+              return altResponseText;
             } else {
               throw new Error("Not a valid RSS/Atom feed");
             }
@@ -435,15 +449,14 @@ export async function fetchFeedXml(
         }
 
         const discoveredUrl =
-          (await discoverFeedUrl(baseUrl)) ||
+          (await discoverFeedUrl(baseUrl, signal, encodingOverride)) ||
           (baseUrl.includes("arxiv.org")
             ? baseUrl.replace("export.arxiv.org", "rss.arxiv.org")
             : null);
         if (discoveredUrl) {
           if (signal?.aborted) throw new Error("Timed out");
           try {
-            const discoveredResponse = await requestUrl({
-              url: discoveredUrl,
+            const discoveredResponseText = await robustFetch(discoveredUrl, {
               method: "GET",
               headers: {
                 "User-Agent":
@@ -451,13 +464,14 @@ export async function fetchFeedXml(
                 Accept:
                   "application/rss+xml, application/atom+xml, application/rdf+xml, application/xml, text/xml;q=0.9, */*;q=0.8",
               },
+              encodingOverride,
             });
 
             if (
-              discoveredResponse.text &&
-              isValidFeed(discoveredResponse.text)
+              discoveredResponseText &&
+              isValidFeed(discoveredResponseText)
             ) {
-              return discoveredResponse.text;
+              return discoveredResponseText;
             } else {
               throw new Error("Not a valid RSS/Atom feed");
             }
@@ -502,12 +516,12 @@ export async function fetchFeedXml(
         if (signal?.aborted) throw new Error("Timed out");
         try {
           const rawUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
-          const rawResp = await requestUrl({
-            url: rawUrl,
+          const rawText = await robustFetch(rawUrl, {
             method: "GET",
+            encodingOverride,
           });
-          if (rawResp.text && isValidFeed(rawResp.text)) {
-            return rawResp.text;
+          if (rawText && isValidFeed(rawText)) {
+            return rawText;
           } else {
             throw new Error("AllOrigins raw returned non-feed");
           }
@@ -519,12 +533,12 @@ export async function fetchFeedXml(
           if (signal?.aborted) throw new Error("Timed out");
           try {
             const codetabsUrl = `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(targetUrl)}`;
-            const codetabsResponse = await requestUrl({
-              url: codetabsUrl,
+            const codetabsText = await robustFetch(codetabsUrl, {
               method: "GET",
+              encodingOverride,
             });
-            if (codetabsResponse.text && isValidFeed(codetabsResponse.text)) {
-              return codetabsResponse.text;
+            if (codetabsText && isValidFeed(codetabsText)) {
+              return codetabsText;
             } else {
               throw new Error("Not a valid RSS/Atom feed");
             }
@@ -537,12 +551,12 @@ export async function fetchFeedXml(
           if (signal?.aborted) throw new Error("Timed out");
           try {
             const isoUrl = `https://cors.isomorphic-git.org/${targetUrl}`;
-            const isoResp = await requestUrl({
-              url: isoUrl,
+            const isoText = await robustFetch(isoUrl, {
               method: "GET",
+              encodingOverride,
             });
-            if (isoResp.text && isValidFeed(isoResp.text)) {
-              return isoResp.text;
+            if (isoText && isValidFeed(isoText)) {
+              return isoText;
             } else {
               throw new Error("Not a valid RSS/Atom feed");
             }
@@ -554,15 +568,15 @@ export async function fetchFeedXml(
           if (signal?.aborted) throw new Error("Timed out");
           try {
             const thingproxyUrl = `https://thingproxy.freeboard.io/fetch/${encodeURIComponent(targetUrl)}`;
-            const thingproxyResponse = await requestUrl({
-              url: thingproxyUrl,
+            const thingproxyText = await robustFetch(thingproxyUrl, {
               method: "GET",
+              encodingOverride,
             });
             if (
-              thingproxyResponse.text &&
-              isValidFeed(thingproxyResponse.text)
+              thingproxyText &&
+              isValidFeed(thingproxyText)
             ) {
-              return thingproxyResponse.text;
+              return thingproxyText;
             } else {
               throw new Error("Not a valid RSS/Atom feed");
             }
@@ -573,10 +587,13 @@ export async function fetchFeedXml(
 
           if (signal?.aborted) throw new Error("Timed out");
           try {
-            const discoveredUrl = await discoverFeedUrl(targetUrl, signal);
+            const discoveredUrl = await discoverFeedUrl(
+              targetUrl,
+              signal,
+              encodingOverride,
+            );
             if (discoveredUrl && discoveredUrl !== targetUrl) {
-              const discoveredResponse = await requestUrl({
-                url: discoveredUrl,
+              const discoveredResponseText = await robustFetch(discoveredUrl, {
                 method: "GET",
                 headers: {
                   "User-Agent":
@@ -584,12 +601,13 @@ export async function fetchFeedXml(
                   Accept:
                     "application/rss+xml, application/xml, application/atom+xml, text/xml;q=0.9, */*;q=0.8",
                 },
+                encodingOverride,
               });
               if (
-                discoveredResponse.text &&
-                isValidFeed(discoveredResponse.text)
+                discoveredResponseText &&
+                isValidFeed(discoveredResponseText)
               ) {
-                return discoveredResponse.text;
+                return discoveredResponseText;
               } else {
                 throw new Error("Not a valid RSS/Atom feed");
               }
@@ -617,17 +635,17 @@ export async function fetchFeedXml(
     if (signal?.aborted) throw new Error("Timed out");
     try {
       const proxyUrl = `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(url)}`;
-      const proxyResponse = await requestUrl({
-        url: proxyUrl,
+      const proxyResponseText = await robustFetch(proxyUrl, {
         method: "GET",
         headers: {
           Accept:
             "application/rss+xml, application/atom+xml, application/rdf+xml, application/xml, text/xml;q=0.9, */*;q=0.8",
         },
+        encodingOverride,
       });
 
-      if (proxyResponse.text && isValidFeed(proxyResponse.text)) {
-        return proxyResponse.text;
+      if (proxyResponseText && isValidFeed(proxyResponseText)) {
+        return proxyResponseText;
       } else {
         throw new Error("First proxy blocked by Cloudflare");
       }
