@@ -330,6 +330,11 @@ npm ci
 npm run build
 ```
 
+`main.js` and `styles.css` are generated build artifacts and are intentionally
+ignored by Git. Commit their source files instead, including `main.ts` and
+`src/styles/`; the release workflow builds and publishes fresh artifacts from
+the tagged source.
+
 ## Troubleshooting
 
 ### Common Issues
