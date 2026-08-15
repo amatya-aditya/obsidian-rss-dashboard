@@ -41,6 +41,10 @@ import { resolveItemExternalUrl } from "../utils/item-url-utils";
 import { buildArticleEmptyStateContext } from "../utils/filter-detection";
 import { setupDashboardHotkeys } from "../hotkeys/dashboard-hotkeys";
 import { scheduleProcessMathElements } from "../utils/math-rendering";
+import {
+  handleReaderMathCopy,
+  trackReaderMathSelection,
+} from "../utils/math-copy";
 
 export const RSS_DASHBOARD_VIEW_TYPE = "rss-dashboard-view";
 
@@ -716,6 +720,26 @@ export class RssDashboardView extends ItemView {
         this.containerEl.focus({ preventScroll: true });
       }
     });
+    this.registerDomEvent(this.containerEl, "copy", (event) => {
+      const readerRoot = this.containerEl.querySelector<HTMLElement>(
+        ".rss-reader-content.inline-reader-content",
+      );
+      if (!readerRoot) return;
+
+      const result = handleReaderMathCopy(event, readerRoot);
+      if (result === "failed") {
+        new Notice(
+          "Could not copy formula source; copied rendered selection instead.",
+        );
+      }
+    });
+    this.register(
+      trackReaderMathSelection(this.containerEl, () =>
+        this.containerEl.querySelector<HTMLElement>(
+          ".rss-reader-content.inline-reader-content",
+        ),
+      ),
+    );
     this.registerEvent(
       this.app.workspace.on("active-leaf-change", (leaf) => {
         if (leaf === this.leaf) {

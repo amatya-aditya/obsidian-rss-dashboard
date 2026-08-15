@@ -15,6 +15,10 @@ import {
   protectMathForMarkdown,
   scheduleProcessMathElements,
 } from "../utils/math-rendering";
+import {
+  handleReaderMathCopy,
+  trackReaderMathSelection,
+} from "../utils/math-copy";
 import { sanitizeAndAppendHtml } from "../utils/safe-html";
 import { type FullArticleFetchFailureType } from "../utils/fetch-helpers";
 import {
@@ -1005,6 +1009,23 @@ export class ReaderView extends ItemView {
 
     this.readingContainer = this.contentEl.createDiv({
       cls: "rss-reader-content",
+    });
+    this.register(
+      trackReaderMathSelection(
+        this.containerEl,
+        () => this.readingContainer,
+      ),
+    );
+    this.registerDomEvent(this.containerEl, "copy", (event) => {
+      const result = handleReaderMathCopy(
+        event,
+        this.readingContainer,
+      );
+      if (result === "failed") {
+        new Notice(
+          "Could not copy formula source; copied rendered selection instead.",
+        );
+      }
     });
 
     this.applyReaderFormat();

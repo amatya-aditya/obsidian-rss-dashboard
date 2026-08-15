@@ -64,11 +64,13 @@ RSS Dashboard is an Obsidian plugin that requires access to certain sensitive Ob
 - Exporting feed list (OPML format) to clipboard for sharing
 - Importing feeds via clipboard paste
 - Copying article URLs or content snippets for quick sharing
+- Copying selected Reader content with rendered formulas represented as their retained LaTeX source
 
 **Data Protection**:
 
-- ✅ Clipboard access is **user-initiated** — the plugin only reads/writes when users explicitly click export/import buttons
+- ✅ Clipboard access is **user-initiated** — the plugin only reads/writes when users explicitly use export/import controls or Copy selected Reader content
 - ✅ No automatic or background clipboard monitoring
+- ✅ Reader Copy preserves selected article content and substitutes rendered formulas with their retained source; it does not monitor or modify the clipboard in the background
 - ✅ Users can clear clipboard contents after use via system controls
 - ⚠️ Note: Clipboard contents may contain sensitive information if users copy from outside Obsidian
 

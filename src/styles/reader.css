@@ -193,6 +193,12 @@
   line-height: normal;
 }
 
+.rss-reader-content .math.rss-math-copy-selected {
+  color: var(--text-normal);
+  background-color: var(--text-selection);
+  border-radius: var(--radius-s);
+}
+
 .rss-reader-description-callout {
   margin: 0 auto 16px;
   border: 1px solid var(--background-modifier-border);

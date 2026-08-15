@@ -5,6 +5,7 @@
 - Added automatic and per-feed Windows-1251 decoding for RSS/Atom feeds, including preview and refresh support. New dropdown available in the add/edit feed window > Feed options > Feed Encoding [GH Issue #155](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/155)
 - Added a saved-template selector when saving articles to a custom folder, including immediate selection of newly created templates and viewable templates via Article Savings tab. [GH Issue #158](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/158)
 - Added a new **Settings > Display > Dashboard** option to choose whether pagination controls appear at the top or bottom of the page, with bottom as the default. [GH Issue #161](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/161)
+- Added formula-aware selection in Reader views: rendered LaTeX is visibly highlighted and copies as its retained source while preserving surrounding article text.
 
 ### Fixes
 
