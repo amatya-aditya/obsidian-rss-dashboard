@@ -148,9 +148,8 @@ state never claim a release before publication.
 
 After the branch recovery and workflow documentation merge:
 
-1. Create canonical issues for the three refresh plans.
-2. Rename each draft plan to its issue-number filename and replace dependency
-   filenames with issue URLs.
+1. Use canonical issues #166, #167, and #168 for the three refresh plans.
+2. Keep their permanent issue-number filenames and canonical issue dependencies.
 3. Assign milestone and Required/Stretch metadata.
 4. Implement stage 1 from `fix/<issue>-per-feed-auto-refresh-scheduling` based on
    updated `dev`.

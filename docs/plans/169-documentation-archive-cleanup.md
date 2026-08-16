@@ -1,13 +1,13 @@
 ---
-status: proposed
+status: accepted
 owner: unassigned
 created: 2026-08-16
-issue: ""
-milestone: ""
+issue: https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/169
+milestone: vNext
 workstream: documentation
 sequence: null
 depends_on: []
-release_requirement: ""
+release_requirement: required
 implementation: ""
 ---
 

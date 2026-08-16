@@ -2,12 +2,12 @@
 status: accepted
 owner: unassigned
 created: 2026-08-16
-issue: ""
-milestone: ""
+issue: https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/166
+milestone: vNext
 workstream: feed-refresh
 sequence: 1
 depends_on: []
-release_requirement: ""
+release_requirement: required
 implementation: ""
 ---
 
@@ -18,7 +18,7 @@ implementation: ""
 - **Classification:** Bug fix for an existing nonfunctional Add/Edit Feed setting.
 - **Risk:** High. Scheduling, refresh orchestration, persisted feed metadata,
   storage modes, settings lifecycle, and synchronization are affected.
-- **Required next stage:** [Refresh status and progress indicators](draft-20260816-refresh-status-indicators.md).
+- **Required next stage:** [Refresh status and progress indicators](167-refresh-status-indicators.md).
 - **Gate:** Implement, validate, commit, and archive this plan before starting
   the indicator feature.
 

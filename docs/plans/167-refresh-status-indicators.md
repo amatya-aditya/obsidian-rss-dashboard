@@ -2,13 +2,13 @@
 status: blocked
 owner: unassigned
 created: 2026-08-16
-issue: ""
-milestone: ""
+issue: https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/167
+milestone: vNext
 workstream: feed-refresh
 sequence: 2
 depends_on:
-  - draft-20260816-per-feed-auto-refresh-scheduling.md
-release_requirement: ""
+  - https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/166
+release_requirement: required
 implementation: ""
 ---
 
@@ -19,9 +19,9 @@ implementation: ""
 - **Classification:** User-visible feature.
 - **Risk:** High. Shared refresh state, persisted global metadata, scope
   aggregation, desktop/mobile/popout UI, and accessibility are affected.
-- **Prerequisite:** [Per-feed auto-refresh scheduling fix](draft-20260816-per-feed-auto-refresh-scheduling.md)
+- **Prerequisite:** [Per-feed auto-refresh scheduling fix](166-per-feed-auto-refresh-scheduling.md)
   must be implemented, validated, committed, and archived first.
-- **Next stage:** [Retry failed feeds with Shift+click](draft-20260816-retry-failed-feeds.md).
+- **Next stage:** [Retry failed feeds with Shift+click](168-retry-failed-feeds.md).
 
 Do not implement this plan against the current global-only scheduler. Begin only
 after the prerequisite's per-feed completion field and orchestration contract

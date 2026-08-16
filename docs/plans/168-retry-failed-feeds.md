@@ -2,14 +2,14 @@
 status: blocked
 owner: unassigned
 created: 2026-08-16
-issue: ""
-milestone: ""
+issue: https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/168
+milestone: vNext
 workstream: feed-refresh
 sequence: 3
 depends_on:
-  - draft-20260816-per-feed-auto-refresh-scheduling.md
-  - draft-20260816-refresh-status-indicators.md
-release_requirement: ""
+  - https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/166
+  - https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/167
+release_requirement: stretch
 implementation: ""
 ---
 
@@ -20,7 +20,7 @@ implementation: ""
 - **Status:** Blocked; not implemented.
 - **Classification:** User-visible feature.
 - **Risk:** Medium. The change spans sidebar input and refresh orchestration, but it does not require a new setting, dependency, or persistence schema.
-- **Prerequisites:** [Per-feed auto-refresh scheduling fix](draft-20260816-per-feed-auto-refresh-scheduling.md) and [Refresh status and progress indicators](draft-20260816-refresh-status-indicators.md) must each be implemented, validated, committed, and archived first.
+- **Prerequisites:** [Per-feed auto-refresh scheduling fix](166-per-feed-auto-refresh-scheduling.md) and [Refresh status and progress indicators](167-refresh-status-indicators.md) must each be implemented, validated, committed, and archived first.
 - **Sequence:** This is stage 3. Do not implement it in the same change or commit as either prerequisite.
 
 ## Problem

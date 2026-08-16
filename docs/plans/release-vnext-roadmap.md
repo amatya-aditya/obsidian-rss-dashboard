@@ -115,14 +115,14 @@ First complete the required
 [development branch realignment](draft-20260816-development-branch-realignment.md).
 Then implement the refresh work in three separately validated changes:
 
-1. [Per-feed auto-refresh scheduling fix](draft-20260816-per-feed-auto-refresh-scheduling.md)
-2. [Refresh status and progress indicators](draft-20260816-refresh-status-indicators.md)
-3. [Retry failed feeds with Shift+click](draft-20260816-retry-failed-feeds.md)
+1. [Per-feed auto-refresh scheduling fix](166-per-feed-auto-refresh-scheduling.md)
+2. [Refresh status and progress indicators](167-refresh-status-indicators.md)
+3. [Retry failed feeds with Shift+click](168-retry-failed-feeds.md)
 
 Each stage must be implemented, validated, committed, and have its plan moved
 according to the repository plan lifecycle before implementation starts on the
 next stage. Documentation cleanup is independently tracked in
-[Documentation Archive Cleanup](draft-20260816-documentation-archive-cleanup.md).
+[Documentation Archive Cleanup](169-documentation-archive-cleanup.md).
 
 ## Operating workflow
 
