@@ -11,6 +11,12 @@ Before making or reviewing a code or test change, read these files in full:
 Before scoping or implementing a feature or bug fix, also read
 `.agents/project-context.md` for the repository map and change workflow.
 
+Before completing work driven by a file under `docs/plans/`, or cutting a
+release that contains archived plans, read **Plan Lifecycle and Archive** in
+`docs/development/README.md`. That section is the source of truth for plan
+draft and issue-number naming, metadata, GitHub intake, archival destinations,
+catalog updates, and release-time moves.
+
 `eslint.config.mjs` is the authoritative source for implementation and platform-compatibility rules. Do not knowingly introduce, retain, or suppress a violation. Refactor the code to comply; do not add an `eslint-disable` or weaken a rule unless the user explicitly authorizes that policy change.
 
 For popout-sensitive UI code, use the owning document/window APIs required by

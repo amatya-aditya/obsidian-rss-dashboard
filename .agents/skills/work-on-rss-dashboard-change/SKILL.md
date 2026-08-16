@@ -21,6 +21,14 @@ workflow proportional to risk while preserving the repository's audit gates.
 - Read `AGENTS.md` and every file it requires. Read
   `.agents/project-context.md` before scoping the implementation.
 - Run `git status --short` and preserve unrelated changes.
+- When the request is driven by a file under `docs/plans/`, read **Plan
+  Lifecycle and Archive** in `docs/development/README.md`, record the matching
+  plan path, and keep it current as the implementation changes.
+- Do not begin implementation from a dated draft. For accepted work, require a
+  canonical GitHub issue, rename the plan to `<issue-number>-<slug>.md`, store
+  the exact issue URL, and replace draft dependency filenames with issue URLs.
+  The issue may remain unassigned, but milestone work must name its milestone
+  and whether it is Required or Stretch.
 - Inspect the relevant production code, tests, types, documentation, and nearby
   patterns before asking questions that the repository can answer.
 - State observable acceptance criteria. Classify the work as a feature or fix,
@@ -93,12 +101,32 @@ unrelated files merely to make a broad check green.
 For documentation-only changes, run only relevant document or skill validation
 and explain why application checks were not applicable.
 
-## 6. Hand Off
+## 6. Close the Matching Plan
+
+Run this step only after behavior is complete and every required validation
+gate passes. Leave incomplete or failing work in `docs/plans/`.
+
+When the change has a matching active plan:
+
+- Reconcile the plan with the implementation, tests, limitations, and manual
+  checks actually delivered.
+- Follow the metadata and destination rules in `docs/development/README.md`.
+- Move an implemented plan to `docs/archive/plans/unreleased/` unless a release
+  version is already assigned; use `docs/archive/plans/v<version>/` when it is.
+- Update every repository link to the moved plan and its entry in
+  `docs/archive/README.md`.
+- Preserve issue and implementation links without inventing missing values.
+
+Do not create a plan merely to satisfy this step when the work had no matching
+plan.
+
+## 7. Hand Off
 
 Lead with the completed outcome. Include:
 
 - The implemented behavior and acceptance criteria satisfied.
 - Tests and validation commands with results.
 - The changelog entry and issue link, when present.
+- The updated and archived plan path, when the work started from a plan.
 - Risk-selected manual test steps with expected outcomes.
 - Any remaining limitation, unverified external state, or failing check.

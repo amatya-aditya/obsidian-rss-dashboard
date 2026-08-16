@@ -287,6 +287,9 @@ Before opening a PR, read the contributor policy in [CONTRIBUTING.MD](CONTRIBUTI
 
 For implementation examples and approved patterns used in recent compliance passes, see [docs/development/compliance-patterns.md](docs/development/compliance-patterns.md).
 
+Developer plans remain in `docs/plans/` while active, then move through the
+versioned archive workflow documented in [Development Docs](docs/development/README.md#plan-lifecycle-and-archive).
+
 ### Local Setup
 
 This repo targets Node 22 for local development and CI. Both `.nvmrc` and `.node-version` are pinned to `22`.

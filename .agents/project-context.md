@@ -23,6 +23,9 @@ Public listing and review status:
 - `src/styles/`: source CSS compiled into the release stylesheet.
 - `test_files/unit/`: tests organized to mirror the production source areas.
 - `docs/development/`: compliance patterns, data flow, testing, and release workflow.
+- `docs/plans/`: active or future implementation plans only.
+- `docs/archive/`: indexed historical plans and investigations.
+- `docs/decisions/`: durable architectural decisions that remain discoverable by status.
 - `docs/releases/`: consolidated, public-facing summaries produced at release cut.
 
 ## Sources of Truth
@@ -46,7 +49,12 @@ it is in scope.
 
 Use `$work-on-rss-dashboard-change` for user-visible features, bug fixes, and
 GitHub issues. The skill defines intake, risk classification, TDD, conditional
-Obsidian review gates, staged validation, changelog linking, and manual testing.
+Obsidian review gates, staged validation, changelog linking, plan closure, and
+manual testing. When work starts from `docs/plans/`, read the canonical **Plan
+Lifecycle and Archive** policy in `docs/development/README.md` and keep the plan
+current as implementation decisions change. New ideas use dated draft names;
+accepted implementation work receives a canonical GitHub issue and permanent
+issue-number filename before coding begins.
 
 Keep fast feedback targeted during implementation. Before handoff, use
 `npm run build` as the full compliance, lint, type-check, and production-bundle
@@ -56,3 +64,6 @@ or high risk.
 For user-visible work, record the granular issue-linked entry in
 `CHANGELOG.md` when the behavior is complete. Consolidate those entries for a
 wider audience in `docs/releases/<version>.md` only when cutting the release.
+After implementation and required validation succeed, move a matching plan to
+`docs/archive/plans/unreleased/`; release cut promotes it to
+`docs/archive/plans/v<version>/`.
