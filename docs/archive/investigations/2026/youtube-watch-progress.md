@@ -261,7 +261,7 @@ Following the failure of Phase 6 and continued console errors reporting `Failed 
 
 ### Rationale:
 1. **Electron / Chrome Security Model:** The `app://obsidian.md` custom protocol origin fundamentally cannot receive or send valid `postMessage` cross-origin payloads with `https://www.youtube-nocookie.com` in current Chromium security models.
-2. **Security Audit Limitations:** Previously, this was handled by dynamically injecting the official YouTube IFrame API `<script>`. However, as documented in `docs/development/2.3.0-audit/remove-dynamic-youTube-script-injection.md`, Obsidian's official plugin audit strictly forbids arbitrary remote `<script>` injection due to security concerns.
+2. **Security Audit Limitations:** Previously, this was handled by dynamically injecting the official YouTube IFrame API `<script>`. However, as documented in `docs/archive/investigations/2026/2.3.0-audit/remove-dynamic-youTube-script-injection.md`, Obsidian's official plugin audit strictly forbids arbitrary remote `<script>` injection due to security concerns.
 3. **No Viable Workarounds:** Without the script injection, the raw `postMessage` fallback was our last option. Since this fails due to origin mismatches in the Electron wrapper, there is no viable method for retrieving playback state.
 
 This limitation has been explicitly documented in the `2.4.0` release notes.

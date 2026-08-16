@@ -122,7 +122,7 @@ Then implement the refresh work in three separately validated changes:
 Each stage must be implemented, validated, committed, and have its plan moved
 according to the repository plan lifecycle before implementation starts on the
 next stage. Documentation cleanup is independently tracked in
-[Documentation Archive Cleanup](169-documentation-archive-cleanup.md).
+[Documentation Archive Cleanup](../archive/plans/unreleased/169-documentation-archive-cleanup.md).
 
 ## Operating workflow
 

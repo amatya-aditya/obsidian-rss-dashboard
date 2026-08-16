@@ -1,3 +1,11 @@
+---
+status: implemented
+completed: 2026-06-18
+released_in: 2.4.0
+issue: ""
+implementation: 78d54a7
+---
+
 ## Plan: Multi-Folder Ctrl+Click Selection in Sidebar
 
 **TL;DR:** Add multi-folder selection to sidebar via Ctrl+Click. Users can aggregate articles from multiple folders simultaneously. Single-click preserves single-folder behavior. Clear multi-selection on "All Feeds" click, feed selection, or tag toggle. Keyboard (Enter) will toggle multi-selection in existing multi-select mode.

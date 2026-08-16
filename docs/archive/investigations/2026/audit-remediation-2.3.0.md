@@ -21,7 +21,7 @@
 - [x] **Direct filesystem access via Node.js `fs` module** — All `fs` and `path` imports eliminated from `src/`. Enforced via ESLint `no-restricted-imports` rule (scoped to `src/**/*.ts`) and the `npm run lint` CI step. `fs`/`path` remain permissible only in test files.
 
 - Notes:
-  - Plan: `docs/development/2.3.0-audit/remediate-direct-filesystem-access.md`
+  - Plan: `docs/archive/investigations/2026/2.3.0-audit/remediate-direct-filesystem-access.md`
   - Audited all instances of `fs` usage and completely eliminated Node.js `fs` and `path` dependencies from the production codebase.
   - Migrated OPML import file pickers in `main.ts` and `src/modals/import-opml-modal.ts` to standard, sandboxed browser `<input type="file" accept=".opml,.xml,.backup">` elements, which use standard HTML5 File APIs.
   - Removed the desktop-only synchronous backup flow (`performAutoBackupsSyncDesktop()`) from `src/services/backup-service.ts` and `main.ts`, which bypassed the vault sandbox.

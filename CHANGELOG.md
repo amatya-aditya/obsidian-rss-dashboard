@@ -12,7 +12,7 @@
 
 - Fixed low-resolution fallback hero images being stretched across the Reader by preserving their intrinsic width, centering them, and only scaling them down when needed to fit the available space.
 - Fixed article saves failing on Windows when long titles produced filenames that exceeded safe path lengths by truncating generated filenames to 100 characters while preserving the full title in the note content. [GH Issue #157](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/157)
-- Fix: Math formulas from Math StackExchange feeds now render in Reader content and dashboard title cards through the Markdown renderer lifecycle path, with a small in-memory cache for reopen performance. Full implementation notes are archived in [docs/archive/bug_report_math_rendering.md](docs/archive/bug_report_math_rendering.md). [GH Issue #162](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/162)
+- Fix: Math formulas from Math StackExchange feeds now render in Reader content and dashboard title cards through the Markdown renderer lifecycle path, with a small in-memory cache for reopen performance. Full implementation notes are archived in [math rendering investigation](docs/archive/investigations/2026/math-rendering.md). [GH Issue #162](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/162)
 - Fixed WordPress LaTeX image formulas being promoted and stretched as article covers. Their embedded TeX now renders as native, theme-aware math in Reader views and is saved with Obsidian-compatible math delimiters, with the original image retained as a render-failure fallback while later article photos remain eligible as covers and heroes.
 - Fix: Allow `vault-shards-v2` as a valid storage mode when importing portable data bundles to resolve the "invalid Storagemode value" error.
 - Fix: Dashboard and sidebar views now correctly sync their settings reference from the plugin on every refresh, ensuring feed lists and sidebar folders rebuild correctly after cross-device sync delivers new data.
@@ -56,7 +56,7 @@ Added collapsible headers when viewing feeds in "feed" grouping ([GH Issue #149]
 
 ### Plugin Compliance
 
-- Upon submission of 2.4.0, the plugin was flagged with 455 issues found by automated scans. [docs/development/2.4.0-audit/2.4.0_audit_remediation_plan.md](docs/development/2.4.0-audit/2.4.0_audit_remediation_plan.md) was proposed and implemented. The !important warnings all have comments explaining their usage.
+- Upon submission of 2.4.0, the plugin was flagged with 455 issues found by automated scans. The [2.4.0 audit remediation plan](docs/archive/investigations/2026/2.4.0-audit/2.4.0_audit_remediation_plan.md) was proposed and implemented. The !important warnings all have comments explaining their usage.
 
 - Additional CI/commit blockers were added to the repo which will disallow future commits that violate eslint rules in order to remain compliant
 
@@ -552,7 +552,7 @@ Added collapsible headers when viewing feeds in "feed" grouping ([GH Issue #149]
 - **Testing**: Added unit tests for namespaced XML extraction and reader logic in `test_files/unit/ios-namespace-fix.test.ts`.
 - **Build Logging**: Added explicit confirmation messages to `esbuild.config.mjs` to verify successful JS and CSS bundling.
 - **Removed**
-  - **YouTube Short Detection**: removed feature introduced in 2.3.0-alpha.1 due to inconsistent tagging. Added a comprehensive bug report in `docs/bugs/youtube-shorts-tagging-failure.md` for future reference.
+  - **YouTube Short Detection**: removed feature introduced in 2.3.0-alpha.1 due to inconsistent tagging. Added a comprehensive [bug report](docs/archive/investigations/2026/youtube-shorts-tagging-failure.md) for future reference.
 
 ---
 

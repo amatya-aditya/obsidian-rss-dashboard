@@ -1,13 +1,8 @@
 ---
-status: accepted
-owner: unassigned
-created: 2026-08-16
+status: implemented
+completed: 2026-08-16
+released_in: unreleased
 issue: https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/169
-milestone: vNext
-workstream: documentation
-sequence: null
-depends_on: []
-release_requirement: required
 implementation: ""
 ---
 
@@ -21,9 +16,9 @@ investigations to their canonical locations, add reliable metadata, repair
 repository links, and leave searchable indexes for active and archived work.
 
 The canonical rules are in
-[`docs/development/README.md`](../development/README.md#plan-lifecycle-and-archive).
+[`docs/development/README.md`](../../../development/README.md#plan-lifecycle-and-archive).
 The archive inventory is maintained in
-[`docs/archive/README.md`](../archive/README.md).
+[`docs/archive/README.md`](../../README.md).
 
 ## Recommended Codex Model
 
@@ -208,11 +203,19 @@ established. Ambiguity is not permission to infer a release or completion date.
 
 ## Handoff Record
 
-When implementation begins, maintain a short checklist in this section with:
-
-- inventory date and document count;
-- completed migration batches;
-- unresolved files and missing evidence;
-- validation results;
-- final archive catalog update;
-- implementation commit or pull request when available.
+- **Inventory:** 2026-08-16; 72 Markdown documents classified in
+  [`docs/archive/document-inventory.md`](../../document-inventory.md).
+- **Completed migration batches:** normalized active-plan metadata and removed
+  the legacy `Future/` split; moved seven implemented plans to release or
+  unreleased archives; moved one deferred plan to `unshipped`; moved historical
+  audits, bug reports, and research records to `investigations/2026`.
+- **Unresolved evidence:** none. `main-ts-refactor.md` remains an active
+  in-progress plan because its own record still has incomplete work; unknown
+  issue and implementation fields on archival records remain empty.
+- **Validation:** local Markdown link and anchor check passed for all 72 docs;
+  archived-plan frontmatter check passed for all eight pre-existing archived
+  plans; moved-path search found no stale references.
+- **Catalog:** `docs/archive/README.md` and this inventory now reflect the
+  resulting archive tree.
+- **Implementation:** commit and pull-request references are added when they
+  exist; no value is invented before that point.

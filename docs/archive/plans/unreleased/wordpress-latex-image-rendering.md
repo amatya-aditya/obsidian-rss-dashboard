@@ -1,3 +1,11 @@
+---
+status: implemented
+completed: 2026-08-08
+released_in: unreleased
+issue: ""
+implementation: 9ce3582
+---
+
 # Render WordPress Formula Images as Native LaTeX
 
 ## Summary

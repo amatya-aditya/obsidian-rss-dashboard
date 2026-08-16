@@ -1,3 +1,16 @@
+---
+status: idea
+created: ""
+issue: ""
+milestone: ""
+owner: unassigned
+workstream: ""
+sequence: null
+depends_on: []
+release_requirement: ""
+implementation: ""
+---
+
 # Media Notes Feature — Podcast & Video Player
 
 WORK IN PROGRESS

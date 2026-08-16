@@ -75,7 +75,7 @@ Named transformations are saved presets of resize/format parameters. They are pu
 
 ### Obsidian-clipper `!` truncation (does NOT apply here)
 
-In markdown syntax (`![](URL)`), Obsidian's link parser truncates URLs at `!` because `!` opens image embedding syntax. This is the root cause of obsidian-clipper issues #450 and #468.
+In Markdown image syntax, Obsidian's link parser truncates URLs at `!` because `!` opens image embedding syntax. This is the root cause of obsidian-clipper issues #450 and #468.
 
 This does **not** affect our plugin's HTML `<img src>` attribute. The `src` is set via `setAttribute()` in the DOM, so the full URL (including `!`) is always preserved.
 

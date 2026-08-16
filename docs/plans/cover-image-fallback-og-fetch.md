@@ -1,3 +1,16 @@
+---
+status: proposed
+created: ""
+issue: ""
+milestone: ""
+owner: unassigned
+workstream: ""
+sequence: null
+depends_on: []
+release_requirement: ""
+implementation: ""
+---
+
 # Opt-In Cover Image Fallback Plan
 
 This plan covers plugin-wide cover image retrieval when a feed item does not already carry a usable image. It is intentionally opt-in, off by default, and should follow the UI and interaction rules in [docs/design/design-spec.md](../design/design-spec.md).

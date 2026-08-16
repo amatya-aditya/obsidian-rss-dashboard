@@ -20,9 +20,9 @@ Current CSS policy requires zero `!important` declarations in `src/styles/`.
 | Version | Score | Date         | Status                                                                                                   |
 | ------- | ----- | ------------ | -------------------------------------------------------------------------------------------------------- |
 | 2.2.0   | 46%   | May 15, 2026 | ✅ Remediated — 100% target verified                                                                     |
-| 2.3.0   | 72%   | May 26, 2026 | ✅ Remediated — see [audit-remediation-2.3.0.md](../development/audit-remediation-2.3.0.md) |
+| 2.3.0   | 72%   | May 26, 2026 | ✅ Remediated — see [audit-remediation-2.3.0.md](archive/investigations/2026/audit-remediation-2.3.0.md) |
 | 2.4.0   | Risks | Jul 2, 2026  | 🔄 Remediated in 2.4.1 — pending community rescan                          |
-| 2.4.1   | TBD   | Jul 2, 2026  | ✅ Local compliance gates pass — see [2.4.0 audit remediation plan](development/2.4.0-audit/2.4.0_audit_remediation_plan.md) |
+| 2.4.1   | TBD   | Jul 2, 2026  | ✅ Local compliance gates pass — see [2.4.0 audit remediation plan](archive/investigations/2026/2.4.0-audit/2.4.0_audit_remediation_plan.md) |
 
 ---
 
@@ -52,7 +52,7 @@ All audit findings from the 46% audit were addressed through seven systematic co
 - **Lint Disable Descriptions**: Added explicit audit guardrails with inline justifications to all 37 `eslint-disable` comments
 - **Parameter Hygiene**: Removed 10+ unused parameters across core services
 
-**Detailed remediation history**: See [docs/development/test-lint-backlog-tracker.md](../development/test-lint-backlog-tracker.md) (Passes 1–7)
+**Detailed remediation history**: See [test-lint backlog tracker](development/test-lint-backlog-tracker.md) (Passes 1–7)
 
 ---
 
@@ -93,7 +93,7 @@ Per project policy (see `CONTRIBUTING.MD`), warnings that cannot be eliminated a
 
 ## Historical v2.3.0 Re-Audit Checklist
 
-Remediation was tracked in [audit-remediation-2.3.0.md](../development/audit-remediation-2.3.0.md).
+Remediation was tracked in [audit-remediation-2.3.0.md](archive/investigations/2026/audit-remediation-2.3.0.md).
 
 The community audit should re-scan to verify:
 
@@ -144,9 +144,9 @@ Closed 87% of 77 issues. 3 contributors active in the past year.
 
 ## Documentation & Governance
 
-- **[CONTRIBUTING.MD](../../CONTRIBUTING.MD)** — Canonical source of truth for compliance declarations, audit guardrails, and zero-`!important` CSS policy
-- **[docs/development/compliance-patterns.md](../development/compliance-patterns.md)** — Approved implementation patterns and anti-patterns for audit-sensitive code
-- **[docs/development/test-lint-backlog-tracker.md](../development/test-lint-backlog-tracker.md)** — Historical record of all compliance remediation passes
-- **[docs/development/audit-remediation-2.3.0.md](../development/audit-remediation-2.3.0.md)** — Active working checklist for v2.3.0 remediation
-- **[docs/SECURITY.md](../SECURITY.md)** — Security disclosures (vault access, clipboard, external domains)
-- **[.instructions.md](../../.instructions.md)** — AI-first compliance policy card for generated patches
+- **[CONTRIBUTING.MD](../CONTRIBUTING.MD)** — Canonical source of truth for compliance declarations, audit guardrails, and zero-`!important` CSS policy
+- **[Compliance patterns](development/compliance-patterns.md)** — Approved implementation patterns and anti-patterns for audit-sensitive code
+- **[Test-lint backlog tracker](development/test-lint-backlog-tracker.md)** — Historical record of all compliance remediation passes
+- **[2.3.0 remediation working checklist](archive/investigations/2026/audit-remediation-2.3.0.md)** — Historical audit record
+- **[SECURITY.md](SECURITY.md)** — Security disclosures (vault access, clipboard, external domains)
+- **[.instructions.md](../.instructions.md)** — AI-first compliance policy card for generated patches

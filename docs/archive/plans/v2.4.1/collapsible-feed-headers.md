@@ -1,3 +1,11 @@
+---
+status: implemented
+completed: 2026-07-03
+released_in: 2.4.1
+issue: https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/149
+implementation: 422ada7
+---
+
 Steps
 Phase 1: Settings & Type Definitions
 

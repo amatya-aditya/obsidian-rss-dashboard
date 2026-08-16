@@ -167,12 +167,12 @@ catalog and repository links, and include the user-facing summary under
 ### Additional Development Notes
 
 - [Automatic deletion](./auto-deletion.md)
-- [Audit remediation 2.3.0](./audit-remediation-2.3.0.md)
-- [Defuddle evaluation](./defuddle-evaluation.md)
-- [Substack CDATA entity encoding](./substack-cdata-entity-encoding.md)
+- [Audit remediation 2.3.0](../archive/investigations/2026/audit-remediation-2.3.0.md)
+- [Defuddle evaluation](../archive/investigations/2026/defuddle-evaluation.md)
+- [Substack CDATA entity encoding](../archive/investigations/2026/substack-cdata-entity-encoding.md)
 - [Test-lint backlog tracker](./test-lint-backlog-tracker.md)
 
 ### Design and Bug References
 
 - [RSS Dashboard Design Spec](../design/design-spec.md)
-- [Why YouTube Shorts Auto-Tagging Is Fundamentally Brittle](../bugs/youtube-shorts-tagging-failure.md)
+- [Why YouTube Shorts Auto-Tagging Is Fundamentally Brittle](../archive/investigations/2026/youtube-shorts-tagging-failure.md)

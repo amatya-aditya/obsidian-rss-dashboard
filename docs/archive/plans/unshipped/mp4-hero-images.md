@@ -1,3 +1,10 @@
+---
+status: deferred
+completed: 2026-03-27
+issue: ""
+implementation: ""
+---
+
 # Plan: Handle .mp4 Files as Hero Images in Feed View
 
 ## This feature was attempted but turns out the URL parsing for videos is a lot more in depth. Reverted changes, moved this plan to Future. 3/27/26
@@ -20,7 +27,7 @@ Example from QZ feed:
 
 ## Test-Driven Development (TDD) Approach
 
-Following the project's [Testing Guide](../development/testing-guide.md), we follow the standard TDD cycle:
+Following the project's [Testing Guide](../../../development/test_coverage/testing-guide.md), we follow the standard TDD cycle:
 
 1. **Red**: Write a failing test first
 2. **Green**: Write the minimum amount of code necessary to make the test pass

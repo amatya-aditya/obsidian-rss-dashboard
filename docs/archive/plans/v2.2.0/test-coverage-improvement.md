@@ -1,3 +1,11 @@
+---
+status: implemented
+completed: 2026-04-07
+released_in: 2.2.0
+issue: ""
+implementation: 08030a7
+---
+
 # Test Coverage Improvement Plan
 
 > **Post-Mortem Report**
@@ -208,7 +216,7 @@ describe("verifySavedArticle / fixSavedFilePaths")
 **Current Coverage:** Represented in v8 totals as of P2-6 (2026-03-29). Prior runs excluded `main.ts` from coverage collection.  
 **Target Coverage:** 70% for pipeline  
 **Risk:** Critical — core user workflow
-**Handoff:** [`docs/development/p0-3-handoff.md`](docs/development/p0-3-handoff.md)
+**Handoff:** The original P0-3 handoff was not retained in this repository.
 
 **Work Completed (2026-03-29):**
 
@@ -308,7 +316,7 @@ describe("hasActiveRules")
 **Target:** `src/services/opml-manager.ts`  
 **Current Coverage:** 0%  
 **Target Coverage:** 80%  
-**Handoff:** [`docs/development/p1-1-handoff.md`](docs/development/p1-1-handoff.md)
+**Handoff:** The original P1-1 handoff was not retained in this repository.
 
 **Work Completed (2026-03-29):**
 
@@ -341,7 +349,7 @@ describe("generateOpml")
 **Target:** `src/services/sidebar-ordering-controller.ts`  
 **Current Coverage:** 0%  
 **Target Coverage:** 80%  
-**Handoff:** [`docs/development/p1-2-handoff.md`](docs/development/p1-2-handoff.md)
+**Handoff:** The original P1-2 handoff was not retained in this repository.
 
 **Work Completed (2026-03-29):**
 
@@ -367,7 +375,7 @@ describe("Sidebar Ordering")
 **Target:** `src/views/discover-view.ts`  
 **Current Coverage:** 0%  
 **Target Coverage:** 70%  
-**Handoff:** [`docs/development/p1-3-handoff.md`](docs/development/p1-3-handoff.md)
+**Handoff:** The original P1-3 handoff was not retained in this repository.
 
 **Work Completed (2026-03-29):**
 
@@ -393,7 +401,7 @@ describe("DiscoverView")
 **Target:** `src/components/keyword-filter-editor.ts`  
 **Current Coverage:** 0%  
 **Target Coverage:** 70%  
-**Handoff:** [`docs/development/p1-4-handoff.md`](docs/development/p1-4-handoff.md)
+**Handoff:** The original P1-4 handoff was not retained in this repository.
 
 **Work Completed (2026-03-29):**
 
@@ -419,7 +427,7 @@ describe("Keyword Filter Editor")
 **Target:** `src/settings/tabs/article-saving-settings-tab.ts`  
 **Current Coverage:** 0%  
 **Target Coverage:** 75%  
-**Handoff:** [`docs/development/p1-5-handoff.md`](docs/development/p1-5-handoff.md)
+**Handoff:** The original P1-5 handoff was not retained in this repository.
 
 **Work Completed (2026-03-29):**
 
@@ -446,7 +454,7 @@ describe("Article Saving Settings")
 **Target:** `src/components/discover-sidebar.ts`  
 **Current Coverage:** 0%  
 **Target Coverage:** 70%
-**Handoff:** [`docs/development/p1-6-handoff.md`](docs/development/p1-6-handoff.md)
+**Handoff:** The original P1-6 handoff was not retained in this repository.
 
 **Work Completed (2026-03-29):**
 
@@ -834,7 +842,7 @@ describe("resolveApplePodcastsShowUrl")
   | Lines | 14.81% | ≥ 85% | 🟦 Pending |
   | Branches | 3.12% | ≥ 70% | 🟦 Pending |
 
-- **Handoff:** [phase-10-handoff.md](docs/development/test_coverage/phase-10-handoff.md)
+- **Handoff:** The original phase-10 handoff was not retained in this repository.
 
 ---
 

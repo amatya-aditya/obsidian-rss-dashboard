@@ -16,7 +16,7 @@ Use this file when you need the common settings API surface quickly. Fall back t
 - Authoritative API: [`node_modules/obsidian/obsidian.d.ts`](../../node_modules/obsidian/obsidian.d.ts)
 - Current repo examples:
   - [`src/settings/settings-tab.ts`](../../src/settings/settings-tab.ts)
-  - [`src/components/auto-tag-rule-editor.ts`](../../src/components/auto-tag-rule-editor.ts)
+  - [`src/settings/tabs/tags-settings-tab.ts`](../../src/settings/tabs/tags-settings-tab.ts)
 
 This document is intentionally selective. It is not a complete Obsidian API reference.
 

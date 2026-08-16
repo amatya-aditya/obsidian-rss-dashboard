@@ -1,3 +1,16 @@
+---
+status: in-progress
+created: 2026-04-14
+issue: ""
+milestone: ""
+owner: unassigned
+workstream: ""
+sequence: null
+depends_on: []
+release_requirement: ""
+implementation: ""
+---
+
 # `main.ts` Refactor Audit
 
 # STATUS: 4/14/26 - started and completed

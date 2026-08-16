@@ -15,8 +15,8 @@ We do **not** need another broad coverage phase in this PR. The priority is to d
 ## Canonical Docs
 
 - Primary closeout summary: [`final-testing-pr-closeout-checklist.md`](./final-testing-pr-closeout-checklist.md)
-- Working history and rationale: [`test-coverage-improvement-plan.md`](./test-coverage-improvement-plan.md)
-- Ongoing contributor usage guide: [`testing-guide.md`](./testing-guide.md)
+- Working history and rationale: [test coverage improvement](../../plans/v2.2.0/test-coverage-improvement.md)
+- Ongoing contributor usage guide: [testing guide](../../../development/test_coverage/testing-guide.md)
 
 ## Final Baseline
 

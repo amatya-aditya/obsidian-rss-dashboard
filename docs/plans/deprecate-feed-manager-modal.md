@@ -1,3 +1,16 @@
+---
+status: proposed
+created: ""
+issue: ""
+milestone: ""
+owner: unassigned
+workstream: ""
+sequence: null
+depends_on: []
+release_requirement: ""
+implementation: ""
+---
+
 # 3.0 Plan: Deprecate + Remove `src/modals/feed-manager-modal.ts`
 
 ## Goal (3.0)

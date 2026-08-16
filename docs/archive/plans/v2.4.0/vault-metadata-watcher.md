@@ -1,3 +1,11 @@
+---
+status: implemented
+completed: 2026-06-15
+released_in: 2.4.0
+issue: ""
+implementation: b0e4c81
+---
+
 # Vault Metadata Watcher — Implementation Plan (Revised)
 
 This document supersedes the original bug report sketch. It incorporates findings

@@ -1,3 +1,11 @@
+---
+status: implemented
+completed: 2026-06-19
+released_in: 2.4.0
+issue: ""
+implementation: 58cda8c
+---
+
 ## Plan: Add Shift+Click Range Selection for Sidebar (TDD-first)
 
 **Current Behavior & Problem**

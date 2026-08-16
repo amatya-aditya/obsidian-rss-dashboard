@@ -1,3 +1,11 @@
+---
+status: implemented
+completed: 2026-06-10
+released_in: 2.4.0
+issue: ""
+implementation: ad616ae
+---
+
 # RSS Dashboard — Missing Cover Image Fix Plan
 
 > **Plugin:** `obsidian-rss-dashboard`
