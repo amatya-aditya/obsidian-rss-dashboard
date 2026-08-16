@@ -240,9 +240,7 @@ describe("loadSettings()", () => {
     expect(plugin.settings).toBeDefined();
     expect(plugin.settings.feeds).toEqual(DEFAULT_SETTINGS.feeds);
     expect(plugin.settings.folders).toEqual(DEFAULT_SETTINGS.folders);
-    expect(plugin.settings.refreshInterval).toBe(
-      DEFAULT_SETTINGS.refreshInterval,
-    );
+    expect(plugin.settings.refreshInterval).toBe(0);
     expect(plugin.settings.maxItems).toBe(DEFAULT_SETTINGS.maxItems);
   });
 
@@ -420,6 +418,8 @@ describe("onload() initialization", () => {
   });
 
   it("sets up refresh interval", async () => {
+    plugin.loadData = vi.fn().mockResolvedValue({ refreshInterval: 60 });
+
     // When: onload is called
     await plugin.onload();
 

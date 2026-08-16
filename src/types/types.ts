@@ -579,7 +579,7 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
       modifiedAt: Date.now(),
     },
   ],
-  refreshInterval: 60,
+  refreshInterval: 0,
   lastRefreshTimestamp: 0,
   startupRefreshDelaySeconds: 5,
   maxItems: 50,
