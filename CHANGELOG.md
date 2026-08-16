@@ -14,6 +14,9 @@
 - Fixed article saves failing on Windows when long titles produced filenames that exceeded safe path lengths by truncating generated filenames to 100 characters while preserving the full title in the note content. [GH Issue #157](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/157)
 - Fix: Math formulas from Math StackExchange feeds now render in Reader content and dashboard title cards through the Markdown renderer lifecycle path, with a small in-memory cache for reopen performance. Full implementation notes are archived in [docs/archive/bug_report_math_rendering.md](docs/archive/bug_report_math_rendering.md). [GH Issue #162](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/162)
 - Fixed WordPress LaTeX image formulas being promoted and stretched as article covers. Their embedded TeX now renders as native, theme-aware math in Reader views and is saved with Obsidian-compatible math delimiters, with the original image retained as a render-failure fallback while later article photos remain eligible as covers and heroes.
+- Fix: Allow `vault-shards-v2` as a valid storage mode when importing portable data bundles to resolve the "invalid Storagemode value" error.
+- Fix: Dashboard and sidebar views now correctly sync their settings reference from the plugin on every refresh, ensuring feed lists and sidebar folders rebuild correctly after cross-device sync delivers new data.
+- Fix: Hitting "enter" after inputing a url in the add feed modal now correctly loads the feed instead of advancing to 'Title' input box.
 
 ### Development and compliance
 
@@ -21,14 +24,6 @@
 - Added a repository-local workflow for GitHub issues and feature requests that accepts a supplied issue summary before fetching its URL, preserves exact issue links in changelog entries, applies risk-based Obsidian audit and validation gates, and consolidates public release notes under `docs/releases/` when a release is prepared.
 - Strengthened the Obsidian audit baseline by upgrading `eslint-plugin-obsidianmd` from 0.1.9 to 0.4.1, enabling its recommended production checks, migrating remaining DOM construction to popout-safe owning-window helpers, and adding shared jsdom coverage for those runtime APIs.
 - Enforced a zero-`!important` CSS policy with a repository check and regression tests, and aligned contributor instructions, pull-request guidance, compliance documentation, design guidance, and the plugin scorecard with the stricter policy.
-
-## 2.6.0 - August 3, 2026
-
-### Fixes
-
-- Fix: Allow `vault-shards-v2` as a valid storage mode when importing portable data bundles to resolve the "invalid Storagemode value" error.
-- Fix: Dashboard and sidebar views now correctly sync their settings reference from the plugin on every refresh, ensuring feed lists and sidebar folders rebuild correctly after cross-device sync delivers new data.
-- Fix: Hitting "enter" after inputing a url in the add feed modal now correctly loads the feed instead of advancing to 'Title' input box.
 
 ## 2.5.0 - July 11, 2026
 
