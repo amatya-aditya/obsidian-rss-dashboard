@@ -22,7 +22,7 @@ This is the durable audit record for [GH Issue #169](https://github.com/amatya-a
 
 **Implementation plans — retain in `docs/plans/`:**
 
-- `docs/plans/166-per-feed-auto-refresh-scheduling.md` — accepted, blocked only by implementation work.
+- `docs/archive/plans/unreleased/166-per-feed-auto-refresh-scheduling.md` — implemented, awaiting release.
 - `docs/plans/167-refresh-status-indicators.md` — blocked by issue #166.
 - `docs/plans/168-retry-failed-feeds.md` — blocked by issues #166 and #167.
 - `docs/plans/cover-image-fallback-og-fetch.md` — proposed future work.

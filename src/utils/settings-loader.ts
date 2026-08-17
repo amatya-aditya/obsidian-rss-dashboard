@@ -181,6 +181,13 @@ export function loadAndNormalizeSettings(
     if (typeof feed.maxItemsLimit !== "number") {
       feed.maxItemsLimit = settings.maxItems;
     }
+
+    if (!Number.isFinite(feed.lastRefreshAttemptCompletedAt)) {
+      feed.lastRefreshAttemptCompletedAt =
+        Number.isFinite(feed.lastUpdated) && feed.lastUpdated > 0
+          ? feed.lastUpdated
+          : 0;
+    }
   }
 
   const canonicalPageSizeRaw = settings.allArticlesPageSize;

@@ -417,14 +417,14 @@ describe("onload() initialization", () => {
     ).toBeGreaterThanOrEqual(7);
   });
 
-  it("sets up refresh interval", async () => {
+  it("uses the due-aware scheduler instead of registering a global refresh interval", async () => {
     plugin.loadData = vi.fn().mockResolvedValue({ refreshInterval: 60 });
 
     // When: onload is called
     await plugin.onload();
 
-    // Then: registerInterval should be called with a setInterval result
-    expect(plugin.registerInterval).toHaveBeenCalled();
+    // Then: automatic refresh is owned by the per-feed scheduler, not Plugin.registerInterval.
+    expect(plugin.registerInterval).not.toHaveBeenCalled();
   });
 
   it("does not register auto refresh when refreshInterval is disabled", async () => {
@@ -750,7 +750,7 @@ describe("onload() initialization", () => {
     expect(plugin.settings.viewStyle).toBe("list");
   });
 
-  it("does not attempt a startup refresh before FeedParser initialization", async () => {
+  it("does not request an automatic refresh when startup finds no eligible feeds", async () => {
     plugin.loadData = vi.fn().mockResolvedValue({
       refreshInterval: 60,
       lastRefreshTimestamp: 0,
@@ -763,7 +763,7 @@ describe("onload() initialization", () => {
 
     await plugin.onload();
 
-    expect(refreshSpy).toHaveBeenCalledTimes(1);
+    expect(refreshSpy).not.toHaveBeenCalled();
     expect(mockRefreshAllFeeds).not.toHaveBeenCalled();
     expect(plugin.feedParser).toBeDefined();
   });

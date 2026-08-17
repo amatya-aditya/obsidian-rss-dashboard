@@ -54,6 +54,7 @@ import {
 } from "./src/services/feed-storage-repository";
 import { ImportExportService } from "./src/services/import-export-service";
 import { BackgroundImportService } from "./src/services/background-import-service";
+import { FeedRefreshScheduler } from "./src/services/feed-refresh-scheduler";
 import {
   FEED_REQUEST_TIMEOUT_MS,
   FEED_SOFT_TIMEOUT_MS,
@@ -66,10 +67,7 @@ import { MediaService } from "./src/services/media-service";
 import { ImportOpmlModal } from "./src/modals/import-opml-modal";
 import { AddFeedModal } from "./src/modals/feed-manager/add-feed-modal";
 import { StorageMigrationModal } from "./src/modals/storage-migration-modal";
-import {
-  normalizeRefreshIntervalMinutes,
-  isValidUrl,
-} from "./src/utils/validation";
+import { isValidUrl } from "./src/utils/validation";
 import {
   dedupeAndNormalizeFeedItems,
   loadAndNormalizeSettings,
@@ -278,6 +276,7 @@ export default class RssDashboardPlugin extends Plugin {
   private vaultMetadataReloadTimer: number | null = null;
   private startupRefreshTimeoutId: number | null = null;
   private progressSaveDebounce: number | null = null;
+  private autoRefreshScheduler: FeedRefreshScheduler | null = null;
   private suppressWatcherUntil = 0;
   private static readonly FEED_REFRESH_RENDER_THROTTLE_MS = 250;
   private readonly feedStorageRepository: FeedStorageRepository;
@@ -402,16 +401,17 @@ export default class RssDashboardPlugin extends Plugin {
     }
   }
 
-  private getAutoRefreshIntervalMs(): number | null {
-    const normalizedMinutes = normalizeRefreshIntervalMinutes(
-      this.settings.refreshInterval,
-    );
-
-    if (normalizedMinutes <= 0) {
-      return null;
+  private ensureAutoRefreshScheduler(): FeedRefreshScheduler {
+    if (!this.autoRefreshScheduler) {
+      this.autoRefreshScheduler = new FeedRefreshScheduler({
+        getFeeds: () => this.settings.feeds,
+        getGlobalIntervalMinutes: () => this.settings.refreshInterval,
+        isBatchRunning: () => this.isMultiFeedRefreshRunning,
+        requestDueFeeds: async (feeds) => await this.refreshFeeds(feeds),
+      });
     }
 
-    return normalizedMinutes * 60 * 1000;
+    return this.autoRefreshScheduler;
   }
 
   private async reconcileSavedArticlesOnStartup(): Promise<void> {
@@ -609,14 +609,6 @@ export default class RssDashboardPlugin extends Plugin {
     await this.loadSettings();
     this.registerVaultMetadataChangeListeners();
 
-    const shouldRefreshOnOpen = (): boolean => {
-      const intervalMs = this.getAutoRefreshIntervalMs();
-      if (intervalMs === null) return false;
-      if (!this.settings.lastRefreshTimestamp) return true;
-      const elapsed = Date.now() - this.settings.lastRefreshTimestamp;
-      return elapsed >= intervalMs;
-    };
-
     const view = await this.getActiveDashboardView();
     if (view) {
       view.render();
@@ -625,6 +617,7 @@ export default class RssDashboardPlugin extends Plugin {
 
     try {
       this.initializeSettingsBackedServices();
+      const autoRefreshScheduler = this.ensureAutoRefreshScheduler();
 
       if (Platform.isMobile) {
         this.applyMobileOptimizations();
@@ -793,27 +786,16 @@ export default class RssDashboardPlugin extends Plugin {
         },
       });
 
-      const autoRefreshIntervalMs = this.getAutoRefreshIntervalMs();
-      if (autoRefreshIntervalMs !== null) {
-        this.registerInterval(
-          window.setInterval(() => {
-            void this.refreshFeeds();
-          }, autoRefreshIntervalMs),
-        );
-      }
-
-      if (shouldRefreshOnOpen()) {
-        const delay = Number.isFinite(this.settings.startupRefreshDelaySeconds)
-          ? this.settings.startupRefreshDelaySeconds
-          : DEFAULT_SETTINGS.startupRefreshDelaySeconds;
-        if (delay > 0) {
-          this.startupRefreshTimeoutId = window.setTimeout(() => {
-            this.startupRefreshTimeoutId = null;
-            void this.refreshFeeds();
-          }, delay * 1000);
-        } else {
-          void this.refreshFeeds();
-        }
+      const delay = Number.isFinite(this.settings.startupRefreshDelaySeconds)
+        ? this.settings.startupRefreshDelaySeconds
+        : DEFAULT_SETTINGS.startupRefreshDelaySeconds;
+      if (delay > 0) {
+        this.startupRefreshTimeoutId = window.setTimeout(() => {
+          this.startupRefreshTimeoutId = null;
+          autoRefreshScheduler.start();
+        }, delay * 1000);
+      } else {
+        autoRefreshScheduler.start();
       }
     } catch (err: unknown) {
       if (err instanceof Error) {
@@ -2093,9 +2075,15 @@ export default class RssDashboardPlugin extends Plugin {
     }
 
     const oldTitle = feed.title;
+    const oldUrl = feed.url;
     feed.title = newTitle;
     feed.url = newUrl;
     feed.folder = newFolder;
+
+    if (oldUrl !== newUrl) {
+      feed.lastRefreshAttemptCompletedAt = 0;
+      feed.lastFetchError = undefined;
+    }
 
     // Update feedTitle for all articles in this feed when the title changes
     if (oldTitle !== newTitle) {
@@ -2179,6 +2167,7 @@ export default class RssDashboardPlugin extends Plugin {
       if (shouldSave) {
         await this.saveSettings();
       }
+      this.autoRefreshScheduler?.reschedule();
     } catch (error) {
       storageError("Error loading plugin settings", error);
       new Notice(
@@ -2492,6 +2481,7 @@ export default class RssDashboardPlugin extends Plugin {
         this.getMetadataSaveCallback(),
       );
       storageLog("saveSettings completed", result);
+      this.autoRefreshScheduler?.reschedule();
     } catch (error) {
       storageError("saveSettings failed", error, {
         mode: this.settings.storageMode,
@@ -2627,16 +2617,53 @@ export default class RssDashboardPlugin extends Plugin {
     }
   }
 
+  private finalizeRefreshAttempt(
+    feed: Feed,
+    updatedFeed?: Feed,
+    error?: unknown,
+  ): void {
+    const completedAt = Date.now();
+    if (updatedFeed) {
+      this.mergeRefreshedFeed({
+        ...updatedFeed,
+        lastRefreshAttemptCompletedAt: completedAt,
+        lastFetchError: updatedFeed.lastFetchError,
+      });
+      return;
+    }
+
+    const index = this.settings.feeds.findIndex(
+      (storedFeed) => storedFeed === feed || storedFeed.url === feed.url,
+    );
+    if (index < 0) {
+      return;
+    }
+
+    this.settings.feeds[index] = {
+      ...this.settings.feeds[index],
+      lastRefreshAttemptCompletedAt: completedAt,
+      lastFetchError: error instanceof Error ? error.message : String(error),
+    };
+  }
+
   private async refreshSingleFeed(
     feed: Feed,
     feedNoticeText: string,
   ): Promise<void> {
-    const updatedFeed = await this.refreshFeedWithTimeout(feed);
-    this.mergeRefreshedFeed(updatedFeed);
+    try {
+      const updatedFeed = await this.refreshFeedWithTimeout(feed);
+      this.finalizeRefreshAttempt(feed, updatedFeed);
+    } catch (error) {
+      this.finalizeRefreshAttempt(feed, undefined, error);
+      await this.saveSettings();
+      this.autoRefreshScheduler?.reschedule();
+      throw error;
+    }
 
     await this.validateSavedArticles();
     this.settings.lastRefreshTimestamp = Date.now();
     await this.saveSettings();
+    this.autoRefreshScheduler?.reschedule();
     const view = await this.getActiveDashboardView();
     if (view) {
       view.refresh();
@@ -2736,6 +2763,7 @@ export default class RssDashboardPlugin extends Plugin {
       await this.validateSavedArticles();
       this.settings.lastRefreshTimestamp = Date.now();
       await this.saveSettings();
+      this.autoRefreshScheduler?.reschedule();
       this.activeRefreshState.clear();
       this.isMultiFeedRefreshRunning = false;
       const view = await this.getActiveDashboardView();
@@ -2782,8 +2810,9 @@ export default class RssDashboardPlugin extends Plugin {
 
     try {
       const updatedFeed = await this.refreshFeedWithTimeout(currentFeed);
-      this.mergeRefreshedFeed(updatedFeed);
+      this.finalizeRefreshAttempt(currentFeed, updatedFeed);
     } catch (error) {
+      this.finalizeRefreshAttempt(currentFeed, undefined, error);
       const isTimedOut =
         error instanceof Error && error.message === "Timed out";
       if (isTimedOut) {
@@ -2838,6 +2867,7 @@ export default class RssDashboardPlugin extends Plugin {
   }
 
   onunload() {
+    this.autoRefreshScheduler?.stop();
     if (this.progressSaveDebounce !== null) {
       window.clearTimeout(this.progressSaveDebounce);
       this.progressSaveDebounce = null;

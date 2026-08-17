@@ -124,6 +124,32 @@ describe("settings-loader", () => {
       expect(result.feeds[0].maxItemsLimit).toBe(75);
     });
 
+    it("seeds a missing refresh-attempt completion timestamp from a successful parse", async () => {
+      const { loadAndNormalizeSettings } =
+        await import("../../../src/utils/settings-loader");
+
+      const result = loadAndNormalizeSettings({
+        feeds: [createFeed({ lastUpdated: 123_456 })],
+      });
+
+      expect(result.feeds[0].lastRefreshAttemptCompletedAt).toBe(123_456);
+    });
+
+    it("keeps a valid persisted refresh-attempt completion timestamp and seeds zero otherwise", async () => {
+      const { loadAndNormalizeSettings } =
+        await import("../../../src/utils/settings-loader");
+
+      const result = loadAndNormalizeSettings({
+        feeds: [
+          createFeed({ lastUpdated: 10, lastRefreshAttemptCompletedAt: 99 }),
+          createFeed({ url: "https://example.com/new.xml", lastUpdated: 0 }),
+          createFeed({ url: "https://example.com/invalid.xml", lastRefreshAttemptCompletedAt: Number.NaN }),
+        ],
+      });
+
+      expect(result.feeds.map((feed) => feed.lastRefreshAttemptCompletedAt)).toEqual([99, 0, 0]);
+    });
+
     it("normalizes all five page-size fields to allArticlesPageSize", async () => {
       const { loadAndNormalizeSettings } =
         await import("../../../src/utils/settings-loader");

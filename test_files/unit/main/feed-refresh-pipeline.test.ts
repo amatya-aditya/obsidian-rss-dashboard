@@ -345,13 +345,17 @@ describe("refreshFeeds() pipeline behavior", () => {
 
   it("swallows direct refresh errors and shows an error Notice", async () => {
     const plugin = createPluginWithSettings([createFeed()]);
+    vi.spyOn(Date, "now").mockReturnValue(9_876);
 
     (plugin.feedParser.refreshFeed as unknown as { mockRejectedValue: (error: Error) => void }).mockRejectedValue(
       new Error("network down"),
     );
 
     await expect(plugin.refreshFeeds([plugin.settings.feeds[0]])).resolves.toBeUndefined();
-    expect(plugin.saveData).not.toHaveBeenCalled();
+    expect(plugin.settings.feeds[0].lastUpdated).toBe(1);
+    expect(plugin.settings.feeds[0].lastRefreshAttemptCompletedAt).toBe(9_876);
+    expect(plugin.settings.feeds[0].lastFetchError).toBe("network down");
+    expect(plugin.saveData).toHaveBeenCalledTimes(1);
 
     const notices = getNoticeMessages(consoleLogSpy);
     expect(notices[0]).toBe("Refreshing Feed A...");

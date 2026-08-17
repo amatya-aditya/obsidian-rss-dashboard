@@ -95,6 +95,11 @@ export interface Feed {
   maxItemsLimit?: number;
   scanInterval?: number;
   excludeFromRefresh?: boolean;
+  /**
+   * Completion time of the most recent refresh attempt, successful or not.
+   * This is intentionally distinct from lastUpdated, which tracks successful parsing.
+   */
+  lastRefreshAttemptCompletedAt?: number;
   iconUrl?: string;
   keywordRules?: FeedKeywordRulesSettings;
   lastRefreshDiagnostics?: FeedRefreshDiagnostics;
@@ -141,6 +146,7 @@ export interface FeedMetadata {
   maxItemsLimit?: number;
   scanInterval?: number;
   excludeFromRefresh?: boolean;
+  lastRefreshAttemptCompletedAt?: number;
   importStatus?:
     | "pending"
     | "processing"

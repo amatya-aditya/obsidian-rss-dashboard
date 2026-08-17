@@ -10,6 +10,7 @@
 
 ### Fixes
 
+- Fixed per-feed auto-refresh intervals so Use global, Off, and custom schedules control runtime refresh timing. Failed attempts now wait their configured interval without changing the last successful update time. [GH Issue #166](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/166)
 - Fixed low-resolution fallback hero images being stretched across the Reader by preserving their intrinsic width, centering them, and only scaling them down when needed to fit the available space.
 - Fixed article saves failing on Windows when long titles produced filenames that exceeded safe path lengths by truncating generated filenames to 100 characters while preserving the full title in the note content. [GH Issue #157](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/157)
 - Fix: Math formulas from Math StackExchange feeds now render in Reader content and dashboard title cards through the Markdown renderer lifecycle path, with a small in-memory cache for reopen performance. Full implementation notes are archived in [math rendering investigation](docs/archive/investigations/2026/math-rendering.md). [GH Issue #162](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/162)

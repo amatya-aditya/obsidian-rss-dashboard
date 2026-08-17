@@ -884,6 +884,7 @@ export class EditFeedModal extends Modal {
         }
 
         const oldTitle = this.feed.title;
+        const oldUrl = this.feed.url;
         const previousAutoDeleteDuration =
           typeof this.feed.autoDeleteDuration === "number"
             ? this.feed.autoDeleteDuration
@@ -891,6 +892,10 @@ export class EditFeedModal extends Modal {
         const previousFeedEncoding = this.feed.feedEncoding ?? "auto";
         this.feed.title = this.title;
         this.feed.url = this.url;
+        if (oldUrl !== this.url) {
+          this.feed.lastRefreshAttemptCompletedAt = 0;
+          this.feed.lastFetchError = undefined;
+        }
         const finalFolder = this.folderInput?.value || this.folder;
         this.feed.folder = finalFolder;
 

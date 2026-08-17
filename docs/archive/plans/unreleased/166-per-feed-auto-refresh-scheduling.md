@@ -1,14 +1,9 @@
 ---
-status: accepted
-owner: unassigned
-created: 2026-08-16
+status: implemented
+completed: 2026-08-16
+released_in: unreleased
 issue: https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/166
-milestone: vNext
-workstream: feed-refresh
-sequence: 1
-depends_on: []
-release_requirement: required
-implementation: ""
+implementation: "5592c39"
 ---
 
 # Per-Feed Auto-Refresh Scheduling Fix
@@ -18,7 +13,7 @@ implementation: ""
 - **Classification:** Bug fix for an existing nonfunctional Add/Edit Feed setting.
 - **Risk:** High. Scheduling, refresh orchestration, persisted feed metadata,
   storage modes, settings lifecycle, and synchronization are affected.
-- **Required next stage:** [Refresh status and progress indicators](167-refresh-status-indicators.md).
+- **Required next stage:** [Refresh status and progress indicators](../../../plans/167-refresh-status-indicators.md).
 - **Gate:** Implement, validate, commit, and archive this plan before starting
   the indicator feature.
 
@@ -152,6 +147,34 @@ After every required check passes:
 3. Move it to `docs/archive/plans/unreleased/` and update all links and the archive catalog.
 4. Commit the complete scheduling fix as an independently reviewable change.
 5. Only then start the linked refresh-status indicator plan.
+
+## Delivered implementation
+
+- Added pure effective-interval, due-time, and due-feed helpers with Use global,
+  Off, custom, exclusion, boundary, and global-Off coverage.
+- Added a single-timeout `FeedRefreshScheduler` that starts after the configured
+  startup gate, snapshots due feeds, handles delayed wakeups, avoids active
+  multi-feed overlap, and re-arms after settings saves, reloads, refreshes, and
+  unload.
+- Added `lastRefreshAttemptCompletedAt` to feed metadata. Legacy records seed it
+  from a positive `lastUpdated`, and all storage modes preserve it through their
+  existing feed-config serialization paths.
+- Finalized every refresh attempt at success, parser-reported failure, thrown
+  error, or timeout without repurposing `lastUpdated`; URL changes reset the
+  completion and error identity.
+
+## Automated validation
+
+- Focused scheduling, migration, refresh-pipeline, modal, and lifecycle tests passed.
+- `npm run check:platform`, `npm exec -- tsc --noEmit --skipLibCheck`,
+  `npm run test:unit` (188 files, 1,645 tests), and `npm run build` passed.
+
+## Remaining manual checks
+
+- In Obsidian desktop and mobile, exercise inherited/custom/Off schedules,
+  global-Off custom scheduling, interval changes around a due boundary,
+  restart/wakeup, success/failure/timeout, manual refresh before due time,
+  add/edit/delete, URL change, bulk exclusion, and each storage mode.
 
 ## Non-goals
 
