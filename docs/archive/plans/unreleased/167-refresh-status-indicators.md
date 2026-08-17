@@ -3,7 +3,7 @@ status: implemented
 completed: 2026-08-16
 released_in: unreleased
 issue: https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/167
-implementation: ""
+implementation: "6f767c7"
 ---
 
 # Refresh Status and Progress Indicators
