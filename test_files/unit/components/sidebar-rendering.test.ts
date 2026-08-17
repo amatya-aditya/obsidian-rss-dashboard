@@ -135,7 +135,7 @@ describe("Sidebar Rendering", () => {
     expect(allFeedsBtn?.textContent).toContain("All Feeds");
   });
 
-  it("communicates both refresh actions through accessible text and the tooltip", () => {
+  it("communicates both refresh actions without a competing native tooltip", () => {
     const sidebar = new Sidebar(
       app as unknown as import("obsidian").App,
       container,
@@ -149,12 +149,8 @@ describe("Sidebar Rendering", () => {
     const refreshIcon = container.querySelector<HTMLElement>(
       ".rss-dashboard-all-feeds-icon",
     );
-    expect(refreshIcon?.getAttribute("aria-label")).toBe(
-      "Refresh all feeds. Shift+click to retry failed feeds.",
-    );
-    expect(refreshIcon?.getAttribute("title")).toBe(
-      "Refresh all feeds. Shift+click to retry failed feeds.",
-    );
+    expect(refreshIcon?.hasAttribute("aria-label")).toBe(false);
+    expect(refreshIcon?.hasAttribute("title")).toBe(false);
     const labelId = refreshIcon?.getAttribute("aria-labelledby") ?? "";
     expect(document.getElementById(labelId)?.textContent).toBe(
       "Refresh all feeds. Shift+click to retry failed feeds.",

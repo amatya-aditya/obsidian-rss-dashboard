@@ -463,10 +463,10 @@ describe("Sidebar Core", () => {
       const icon = container.querySelector(
         ".rss-dashboard-all-feeds-icon",
       ) as HTMLElement;
-      expect(icon.getAttribute("title")).toBe(
-        "Refresh all feeds. Shift+click to retry failed feeds.",
-      );
-      expect(icon.getAttribute("aria-label")).toBe(
+      expect(icon.hasAttribute("title")).toBe(false);
+      expect(icon.hasAttribute("aria-label")).toBe(false);
+      const labelId = icon.getAttribute("aria-labelledby") ?? "";
+      expect(container.querySelector(`#${labelId}`)?.textContent).toBe(
         "Refresh all feeds. Shift+click to retry failed feeds.",
       );
 

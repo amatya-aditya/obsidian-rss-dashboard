@@ -1019,8 +1019,6 @@ export class Sidebar {
         "rss-dashboard-all-feeds-icon" + (isRefreshActive ? " refreshing" : ""),
       attr: {
         "aria-labelledby": refreshLabelId,
-        "aria-label": "Refresh all feeds. Shift+click to retry failed feeds.",
-        title: "Refresh all feeds. Shift+click to retry failed feeds.",
       },
     });
     setIcon(feedIcon, "refresh-cw");
