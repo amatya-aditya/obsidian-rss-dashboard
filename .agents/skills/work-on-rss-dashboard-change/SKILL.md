@@ -21,6 +21,15 @@ workflow proportional to risk while preserving the repository's audit gates.
 - Read `AGENTS.md` and every file it requires. Read
   `.agents/project-context.md` before scoping the implementation.
 - Run `git status --short` and preserve unrelated changes.
+- On Windows, set the command's working directory to the repository and use
+  repository-relative paths for Git and file commands. Avoid embedding an
+  absolute repository path in `git -C` or composing paths inside a command.
+  When an absolute PowerShell path is unavoidable, pass one quoted,
+  consistently backslash-separated path to a named parameter such as
+  `-LiteralPath`.
+- Treat warnings about inaccessible Git user configuration (for example a
+  global ignore file) as an environment limitation: report them, but do not
+  change user or global Git configuration to silence them.
 - When the request is driven by a file under `docs/plans/`, read **Plan
   Lifecycle and Archive** in `docs/development/README.md`, record the matching
   plan path, and keep it current as the implementation changes.
