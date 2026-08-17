@@ -157,6 +157,29 @@ describe("Sidebar Rendering", () => {
     );
   });
 
+  it("keeps the custom refresh-details popup on hover", async () => {
+    vi.useFakeTimers();
+    document.body.appendChild(container);
+    const sidebar = new Sidebar(
+      app as unknown as import("obsidian").App,
+      container,
+      plugin as unknown as RssDashboardPlugin,
+      settings,
+      options,
+      callbacks,
+    );
+    sidebar.render();
+
+    const refreshIcon = container.querySelector<HTMLElement>(
+      ".rss-dashboard-all-feeds-icon",
+    );
+    expect(refreshIcon).not.toBeNull();
+    refreshIcon?.dispatchEvent(new MouseEvent("mouseenter"));
+    await vi.advanceTimersByTimeAsync(350);
+
+    expect(document.body.querySelector(".rss-dashboard-refresh-details")).not.toBeNull();
+  });
+
   it("should show unread badge for All Feeds if at least one unread item exists", () => {
     const sidebar = new Sidebar(
       app as unknown as import("obsidian").App,

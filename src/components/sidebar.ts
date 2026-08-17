@@ -999,7 +999,6 @@ export class Sidebar {
       cls: "rss-dashboard-all-feeds-button" + (isAllActive ? " active" : ""),
     });
     allFeedsButton.setAttr("tabindex", "-1");
-    this.attachRefreshDetails(allFeedsButton, this.settings.feeds, "all");
     this.registerSidebarRow({ type: "all-feeds" }, allFeedsButton);
     const isRefreshActive =
       this.plugin.isMultiFeedRefreshActive ||
@@ -1021,6 +1020,7 @@ export class Sidebar {
         "aria-labelledby": refreshLabelId,
       },
     });
+    this.attachRefreshDetails(feedIcon, this.settings.feeds, "all");
     setIcon(feedIcon, "refresh-cw");
     feedIcon.addEventListener("click", (e) => {
       e.stopPropagation();
