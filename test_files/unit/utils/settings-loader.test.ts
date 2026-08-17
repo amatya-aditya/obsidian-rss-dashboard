@@ -232,6 +232,20 @@ describe("settings-loader", () => {
       );
     });
 
+    it("preserves global refresh completion without seeding it from the legacy timestamp", async () => {
+      const { loadAndNormalizeSettings } =
+        await import("../../../src/utils/settings-loader");
+
+      const preserved = loadAndNormalizeSettings({
+        lastRefreshTimestamp: 123,
+        lastGlobalRefreshCompletedAt: 456,
+      });
+      const legacyOnly = loadAndNormalizeSettings({ lastRefreshTimestamp: 123 });
+
+      expect(preserved.lastGlobalRefreshCompletedAt).toBe(456);
+      expect(legacyOnly.lastGlobalRefreshCompletedAt).toBe(0);
+    });
+
     it("infers legacy-json for existing installations missing storageMode (has feeds)", async () => {
       const { loadAndNormalizeSettings } =
         await import("../../../src/utils/settings-loader");

@@ -39,6 +39,12 @@ import { computePagination } from "../utils/pagination-utils";
 import { applyAutomaticArticleTags } from "../utils/tag-utils";
 import { resolveItemExternalUrl } from "../utils/item-url-utils";
 import { buildArticleEmptyStateContext } from "../utils/filter-detection";
+import {
+  formatRefreshStatusTime,
+  getRefreshStatus,
+  getRefreshStatusSegments,
+  type RefreshStatus,
+} from "../utils/refresh-status";
 import { setupDashboardHotkeys } from "../hotkeys/dashboard-hotkeys";
 import { scheduleProcessMathElements } from "../utils/math-rendering";
 import {
@@ -1098,8 +1104,8 @@ export class RssDashboardView extends ItemView {
    *     (Data written by computeDashboardMultiFilterCounts() →
    *     this.dashboardMultiFilterCounts)
    *
-   * Visibility: hidden entirely when settings.display.showFilterStatusBar is
-   * false, or when no keyword/highlight/viewing-filter stats are available.
+   * The static refresh status is always present when this existing status-bar
+   * setting is enabled. It intentionally has no relative-time polling timer.
    *
    * Collapse state persisted in this.isFilterSubheaderCollapsed across renders.
    */
@@ -1115,15 +1121,6 @@ export class RssDashboardView extends ItemView {
       this.dashboardMultiFilterCounts !== null;
     const hasHighlightStats = this.highlightMatchCounts.length > 0;
 
-    // Only render when there is at least one row worth of content.
-    if (
-      !hasKeywordStats &&
-      !hasDashboardMultiFilterStats &&
-      !hasHighlightStats
-    ) {
-      return;
-    }
-
     const subheader = container.createDiv({
       cls: "rss-dashboard-filter-subheader",
     });
@@ -1134,6 +1131,20 @@ export class RssDashboardView extends ItemView {
     if (this.keywordFilterTooltip) {
       subheaderContent.setAttribute("title", this.keywordFilterTooltip);
     }
+
+    const refreshStatus = this.getCurrentRefreshStatus();
+    const refreshStatusRow = subheaderContent.createDiv({
+      cls: "rss-dashboard-filter-stats-row rss-dashboard-refresh-status-row",
+    });
+    const refreshStatusText = [
+      `${refreshStatus.completionLabel}: ${formatRefreshStatusTime(refreshStatus.completionAt)}`,
+      ...getRefreshStatusSegments(refreshStatus),
+    ].join(" | ");
+    refreshStatusRow.createSpan({
+      cls: "rss-dashboard-filter-stats-text rss-dashboard-refresh-status-text",
+      text: refreshStatusText,
+      attr: { "aria-live": "polite" },
+    });
 
     // ── Row 1: Keyword rules stats ──────────────────────────────────────────
     if (hasKeywordStats) {
@@ -1351,6 +1362,61 @@ export class RssDashboardView extends ItemView {
   }
 
   // --- Title and article-scope helpers ---
+  private getCurrentRefreshStatus(): RefreshStatus {
+    this.syncCurrentFeedReference();
+    let scope: "all" | "feed" | "aggregate" = "all";
+    let feeds: Feed[] = this.settings.feeds;
+
+    if (this.currentFeed) {
+      scope = "feed";
+      feeds = [this.currentFeed];
+    } else if (
+      this.selectedFolders.length > 0 ||
+      this.selectedFeeds.length > 0
+    ) {
+      scope = "aggregate";
+      feeds = this.getFeedsForSelectedRefreshScope();
+    } else if (
+      this.currentFolder &&
+      !["read", "unread", "starred", "saved", "videos", "podcasts"].includes(
+        this.currentFolder,
+      )
+    ) {
+      scope = "aggregate";
+      const folderPaths = new Set([
+        this.currentFolder,
+        ...this.getAllDescendantFolders(this.currentFolder),
+      ]);
+      feeds = this.settings.feeds.filter(
+        (feed) => Boolean(feed.folder) && folderPaths.has(feed.folder),
+      );
+    }
+
+    return getRefreshStatus({
+      feeds,
+      globalIntervalMinutes: this.settings.refreshInterval,
+      globalCompletionAt: this.settings.lastGlobalRefreshCompletedAt,
+      activeFeedUrls: new Set(this.plugin.activeRefreshState?.keys() ?? []),
+      scope,
+    });
+  }
+
+  private getFeedsForSelectedRefreshScope(): Feed[] {
+    const folderPaths = new Set<string>();
+    for (const folder of this.selectedFolders) {
+      folderPaths.add(folder);
+      for (const descendant of this.getAllDescendantFolders(folder)) {
+        folderPaths.add(descendant);
+      }
+    }
+    const selectedFeeds = new Set(this.selectedFeeds);
+    return this.settings.feeds.filter(
+      (feed) =>
+        selectedFeeds.has(feed.url) ||
+        (Boolean(feed.folder) && folderPaths.has(feed.folder)),
+    );
+  }
+
   private getTotalFeedsInSelection(): number {
     const includedFeeds = new Set<string>(this.selectedFeeds || []);
     if (this.selectedFolders && this.selectedFolders.length > 0) {

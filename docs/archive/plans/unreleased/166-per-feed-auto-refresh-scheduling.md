@@ -13,7 +13,7 @@ implementation: "5592c39"
 - **Classification:** Bug fix for an existing nonfunctional Add/Edit Feed setting.
 - **Risk:** High. Scheduling, refresh orchestration, persisted feed metadata,
   storage modes, settings lifecycle, and synchronization are affected.
-- **Required next stage:** [Refresh status and progress indicators](../../../plans/167-refresh-status-indicators.md).
+- **Required next stage:** [Refresh status and progress indicators](167-refresh-status-indicators.md).
 - **Gate:** Implement, validate, commit, and archive this plan before starting
   the indicator feature.
 

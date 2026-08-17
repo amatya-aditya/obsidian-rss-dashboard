@@ -1,15 +1,9 @@
 ---
-status: blocked
-owner: unassigned
-created: 2026-08-16
+status: implemented
+completed: 2026-08-16
+released_in: unreleased
 issue: https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/167
-milestone: vNext
-workstream: feed-refresh
-sequence: 2
-depends_on:
-  - https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/166
-release_requirement: required
-implementation: ""
+implementation: "6f767c7"
 ---
 
 # Refresh Status and Progress Indicators
@@ -19,9 +13,9 @@ implementation: ""
 - **Classification:** User-visible feature.
 - **Risk:** High. Shared refresh state, persisted global metadata, scope
   aggregation, desktop/mobile/popout UI, and accessibility are affected.
-- **Prerequisite:** [Per-feed auto-refresh scheduling fix](../archive/plans/unreleased/166-per-feed-auto-refresh-scheduling.md)
+- **Prerequisite:** [Per-feed auto-refresh scheduling fix](166-per-feed-auto-refresh-scheduling.md)
   must be implemented, validated, committed, and archived first.
-- **Next stage:** [Retry failed feeds with Shift+click](168-retry-failed-feeds.md).
+- **Next stage:** [Retry failed feeds with Shift+click](../../../plans/168-retry-failed-feeds.md).
 
 Do not implement this plan against the current global-only scheduler. Begin only
 after the prerequisite's per-feed completion field and orchestration contract
@@ -182,6 +176,37 @@ After every required check passes:
 3. Move it to `docs/archive/plans/unreleased/` and update all links and the catalog.
 4. Commit the complete indicator feature independently.
 5. Only then begin the linked failed-feed retry plan.
+
+## Delivered implementation
+
+- Added persisted `lastGlobalRefreshCompletedAt`, isolated from the readable
+  legacy timestamp, and update it only after explicit all-eligible-feed refresh
+  operations settle, including individual attempt failures.
+- Added pure refresh-status aggregation and locale-aware static formatting for
+  all-feed, feed, folder, and multi-selection scopes. Article filters retain
+  their underlying refresh scope, and excluded feeds are reported separately.
+- Added dashboard status-bar completion/activity/failure text that updates
+  independently of the article list while refresh work is active.
+- Added reusable sidebar refresh details with hover/focus delay, Escape and
+  rerender cleanup, screen-reader descriptions, context-menu access, and
+  owning-document popup placement for popouts.
+- Suppressed plugin-originated vault metadata writes from the external-change
+  watcher so final refresh persistence cannot reload stale or empty shard state.
+- Kept retry-failed gestures and relative-time polling out of this stage.
+
+## Automated validation
+
+- Focused refresh-status, persistence, refresh-pipeline, lifecycle, sidebar,
+  and dashboard tests passed.
+- `npm run check:platform`, `npm run check:css-scope`,
+  `npm run check:important`, targeted ESLint, type-checking, the full unit suite
+  (190 files, 1,653 tests), and `npm run build` passed.
+
+## Remaining manual checks
+
+- In live Obsidian, verify desktop/mobile/popout detail placement, keyboard and
+  touch context-menu access, light/dark themes, narrow layouts, long errors,
+  and persisted completion after reload and synchronization.
 
 ## Non-goals
 

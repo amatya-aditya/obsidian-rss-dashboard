@@ -2,6 +2,7 @@
 
 ### Features
 
+- Added static refresh-status timestamps and accessible refresh details for all feeds, folders, and feeds. [GH Issue #167](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/167)
 - New installations now default global feed auto-refresh to Off.
 - Added automatic and per-feed Windows-1251 decoding for RSS/Atom feeds, including preview and refresh support. New dropdown available in the add/edit feed window > Feed options > Feed Encoding [GH Issue #155](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/155)
 - Added a saved-template selector when saving articles to a custom folder, including immediate selection of newly created templates and viewable templates via Article Savings tab. [GH Issue #158](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/158)
@@ -10,6 +11,7 @@
 
 ### Fixes
 
+- Fixed refresh-detail tooltip and ghost-popup regressions, and prevented global-refresh vault saves from reloading empty article shards. [GH Issue #167](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/167)
 - Fixed per-feed auto-refresh intervals so Use global, Off, and custom schedules control runtime refresh timing. Failed attempts now wait their configured interval without changing the last successful update time. [GH Issue #166](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/166)
 - Fixed low-resolution fallback hero images being stretched across the Reader by preserving their intrinsic width, centering them, and only scaling them down when needed to fit the available space.
 - Fixed article saves failing on Windows when long titles produced filenames that exceeded safe path lengths by truncating generated filenames to 100 characters while preserving the full title in the note content. [GH Issue #157](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/157)

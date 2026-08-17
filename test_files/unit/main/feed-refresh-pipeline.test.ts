@@ -115,6 +115,35 @@ beforeEach(() => {
 });
 
 describe("refreshFeeds() pipeline behavior", () => {
+  it("records global completion after an explicit all-feeds refresh even when one attempt fails", async () => {
+    const successful = createFeed({ url: "https://example.com/one.xml" });
+    const failing = createFeed({ url: "https://example.com/two.xml" });
+    const plugin = createPluginWithSettings([successful, failing]);
+    vi.spyOn(Date, "now").mockReturnValue(9_876);
+    (plugin.feedParser.refreshFeed as unknown as { mockImplementation: (fn: (feed: Feed) => Promise<Feed>) => void }).mockImplementation(
+      async (feed) => {
+        if (feed.url === failing.url) throw new Error("network down");
+        return feed;
+      },
+    );
+
+    await plugin.refreshFeeds();
+
+    expect(plugin.settings.lastGlobalRefreshCompletedAt).toBe(9_876);
+    expect(plugin.settings.feeds[1].lastFetchError).toBe("network down");
+  });
+
+  it("does not record global completion for a selected-feed refresh", async () => {
+    const selected = createFeed();
+    const plugin = createPluginWithSettings([selected]);
+    plugin.settings.lastGlobalRefreshCompletedAt = 123;
+    (plugin.feedParser.refreshFeed as unknown as { mockResolvedValue: (value: Feed) => void }).mockResolvedValue(selected);
+
+    await plugin.refreshFeeds([selected]);
+
+    expect(plugin.settings.lastGlobalRefreshCompletedAt).toBe(123);
+  });
+
   it("refreshes multi-feed selections with bounded concurrency, incremental merges, and a final save + refresh", async () => {
     vi.useFakeTimers();
     const feedA = createFeed({
