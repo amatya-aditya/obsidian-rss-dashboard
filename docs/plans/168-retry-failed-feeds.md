@@ -20,7 +20,7 @@ implementation: ""
 - **Status:** Blocked; not implemented.
 - **Classification:** User-visible feature.
 - **Risk:** Medium. The change spans sidebar input and refresh orchestration, but it does not require a new setting, dependency, or persistence schema.
-- **Prerequisites:** [Per-feed auto-refresh scheduling fix](166-per-feed-auto-refresh-scheduling.md) and [Refresh status and progress indicators](167-refresh-status-indicators.md) must each be implemented, validated, committed, and archived first.
+- **Prerequisites:** [Per-feed auto-refresh scheduling fix](../archive/plans/unreleased/166-per-feed-auto-refresh-scheduling.md) and [Refresh status and progress indicators](167-refresh-status-indicators.md) must each be implemented, validated, committed, and archived first.
 - **Sequence:** This is stage 3. Do not implement it in the same change or commit as either prerequisite.
 
 ## Problem

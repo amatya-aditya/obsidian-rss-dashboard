@@ -115,7 +115,7 @@ First complete the required
 [development branch realignment](draft-20260816-development-branch-realignment.md).
 Then implement the refresh work in three separately validated changes:
 
-1. [Per-feed auto-refresh scheduling fix](166-per-feed-auto-refresh-scheduling.md)
+1. [Per-feed auto-refresh scheduling fix](../archive/plans/unreleased/166-per-feed-auto-refresh-scheduling.md)
 2. [Refresh status and progress indicators](167-refresh-status-indicators.md)
 3. [Retry failed feeds with Shift+click](168-retry-failed-feeds.md)
 

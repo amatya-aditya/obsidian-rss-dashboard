@@ -19,7 +19,7 @@ implementation: ""
 - **Classification:** User-visible feature.
 - **Risk:** High. Shared refresh state, persisted global metadata, scope
   aggregation, desktop/mobile/popout UI, and accessibility are affected.
-- **Prerequisite:** [Per-feed auto-refresh scheduling fix](166-per-feed-auto-refresh-scheduling.md)
+- **Prerequisite:** [Per-feed auto-refresh scheduling fix](../archive/plans/unreleased/166-per-feed-auto-refresh-scheduling.md)
   must be implemented, validated, committed, and archived first.
 - **Next stage:** [Retry failed feeds with Shift+click](168-retry-failed-feeds.md).
 

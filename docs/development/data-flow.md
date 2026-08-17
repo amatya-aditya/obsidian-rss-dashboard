@@ -94,7 +94,22 @@ Each refresh cycle:
 2. Parses the raw XML into structured `FeedItem` objects (title, guid, pubDate, content, media type, cover image, etc.).
 3. Passes the parsed items into the merge step.
 
-Feeds with `excludeFromRefresh: true` are skipped by bulk and auto-refresh. They can still be refreshed manually. Per-feed `scanInterval` overrides can also exclude a feed from a given bulk refresh cycle.
+Feeds with `excludeFromRefresh: true` are skipped by bulk and automatic refresh. They can still be refreshed directly from a feed view.
+
+### Automatic refresh scheduling
+
+Automatic refresh uses one rearmable timeout, not a global interval. For each
+non-excluded feed, `scanInterval: -1` turns scheduling off, a positive value
+uses that number of minutes, and `0` or an absent value inherits the global
+interval. This means a feed with a positive custom value can still refresh when
+the global interval is Off.
+
+`lastRefreshAttemptCompletedAt` is persisted per feed after every completed
+attempt, including parser-reported failure, thrown error, and timeout.
+`lastUpdated` remains the timestamp of the most recent successful parse. The
+next due time is derived in memory from the completion timestamp and effective
+interval; it is never persisted. A changed feed URL starts a new refresh
+identity and clears completion and error history.
 
 ---
 
