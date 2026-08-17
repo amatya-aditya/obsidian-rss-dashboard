@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { Feed } from "../../../src/types/types";
-import { getRefreshStatus } from "../../../src/utils/refresh-status";
+import {
+  formatRefreshStatusTime,
+  getRefreshStatus,
+} from "../../../src/utils/refresh-status";
 
 function createFeed(overrides: Partial<Feed> = {}): Feed {
   return {
@@ -59,5 +62,11 @@ describe("getRefreshStatus", () => {
     expect(notYet.completionAt).toBe(0);
     expect(notYet.neverCheckedCount).toBe(1);
     expect(notApplicable.isApplicable).toBe(false);
+  });
+});
+
+describe("formatRefreshStatusTime", () => {
+  it("formats detailed timestamps with seconds and timezone without throwing", () => {
+    expect(() => formatRefreshStatusTime(1_789_012_345_000, true)).not.toThrow();
   });
 });

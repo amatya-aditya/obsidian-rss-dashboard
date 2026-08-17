@@ -198,7 +198,7 @@ After every required check passes:
   and dashboard tests passed.
 - `npm run check:platform`, `npm run check:css-scope`,
   `npm run check:important`, targeted ESLint, type-checking, the full unit suite
-  (190 files, 1,648 tests), and `npm run build` passed.
+  (190 files, 1,649 tests), and `npm run build` passed.
 
 ## Remaining manual checks
 
