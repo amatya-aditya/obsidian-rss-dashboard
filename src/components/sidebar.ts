@@ -448,6 +448,23 @@ export class Sidebar {
     );
   }
 
+  private attachRefreshActionDetails(row: HTMLElement): void {
+    const actionText =
+      "Refresh all feeds. Shift+click to retry failed feeds.";
+    this.refreshStatusDetailCleanups.push(
+      attachRefreshStatusDetails({
+        row,
+        description: () => actionText,
+        render: (popup) => {
+          popup.createDiv({
+            cls: "rss-dashboard-refresh-details-line",
+            text: actionText,
+          });
+        },
+      }),
+    );
+  }
+
   private showRefreshDetails(
     anchor: HTMLElement,
     feeds: Feed[],
@@ -999,6 +1016,7 @@ export class Sidebar {
       cls: "rss-dashboard-all-feeds-button" + (isAllActive ? " active" : ""),
     });
     allFeedsButton.setAttr("tabindex", "-1");
+    this.attachRefreshActionDetails(allFeedsButton);
     this.registerSidebarRow({ type: "all-feeds" }, allFeedsButton);
     const isRefreshActive =
       this.plugin.isMultiFeedRefreshActive ||
@@ -1020,7 +1038,6 @@ export class Sidebar {
         "aria-labelledby": refreshLabelId,
       },
     });
-    this.attachRefreshDetails(feedIcon, this.settings.feeds, "all");
     setIcon(feedIcon, "refresh-cw");
     feedIcon.addEventListener("click", (e) => {
       e.stopPropagation();
