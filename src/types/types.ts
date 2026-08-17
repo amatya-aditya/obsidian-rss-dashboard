@@ -434,6 +434,8 @@ export interface RssDashboardSettings {
   folders: Folder[];
   refreshInterval: number;
   lastRefreshTimestamp: number;
+  /** Completion time for an explicit refresh of the complete eligible feed set. */
+  lastGlobalRefreshCompletedAt: number;
   startupRefreshDelaySeconds: number;
   maxItems: number;
   defaultAutoDeleteDuration: number;
@@ -587,6 +589,7 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
   ],
   refreshInterval: 0,
   lastRefreshTimestamp: 0,
+  lastGlobalRefreshCompletedAt: 0,
   startupRefreshDelaySeconds: 5,
   maxItems: 50,
   defaultAutoDeleteDuration: 30,

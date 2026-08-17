@@ -45,6 +45,15 @@ import {
   setFolderFeedSortCustom,
   setFolderSortCustom,
 } from "../services/sidebar-ordering-controller";
+import { attachRefreshStatusDetails } from "./refresh-status-details";
+import {
+  formatRefreshStatusTime,
+  getRefreshStatus,
+  type RefreshStatus,
+} from "../utils/refresh-status";
+import {
+  getEffectiveRefreshIntervalMinutes,
+} from "../utils/refresh-intervals";
 
 export interface SidebarOptions {
   currentFolder: string | null;
@@ -297,6 +306,7 @@ export class Sidebar {
   private sidebarRows: SidebarRowDescriptor[] = [];
   private focusedSidebarTarget: SidebarFocusTarget | null = null;
   private isSidebarKeyboardFocused = false;
+  private refreshStatusDetailCleanups: Array<() => void> = [];
 
   private renderFallbackFeedIcon(feedIcon: HTMLElement): void {
     feedIcon.empty();
@@ -347,6 +357,123 @@ export class Sidebar {
     this.cachedFolderPaths = null;
   }
 
+  private clearRefreshStatusDetails(): void {
+    for (const cleanup of this.refreshStatusDetailCleanups) cleanup();
+    this.refreshStatusDetailCleanups = [];
+  }
+
+  private getRefreshDetailLines(
+    feeds: Feed[],
+    scope: "all" | "feed" | "aggregate",
+  ): string[] {
+    const status = getRefreshStatus({
+      feeds,
+      globalIntervalMinutes: this.settings.refreshInterval,
+      globalCompletionAt: this.settings.lastGlobalRefreshCompletedAt,
+      activeFeedUrls: new Set(this.plugin.activeRefreshState?.keys() ?? []),
+      scope,
+    });
+    const lines = [
+      `${status.completionLabel}: ${formatRefreshStatusTime(status.completionAt, true)}`,
+    ];
+    if (!status.isApplicable) return lines;
+
+    if (scope === "feed") {
+      const feed = feeds[0];
+      if (!feed) return lines;
+      const interval = getEffectiveRefreshIntervalMinutes(
+        feed,
+        this.settings.refreshInterval,
+      );
+      lines.push(
+        interval === null
+          ? "Automatic refresh Off"
+          : `Effective interval: ${interval} minutes`,
+      );
+      if (status.nextDueAt !== null) {
+        lines.push(
+          `Next scheduled refresh: ${status.nextDueAt === 0 ? "Due now" : formatRefreshStatusTime(status.nextDueAt, true)}`,
+        );
+      }
+      if (feed.lastFetchError) lines.push(`Last attempt failed: ${feed.lastFetchError}`);
+      if (status.refreshingCount > 0) lines.push("In progress");
+      if (feed.excludeFromRefresh) lines.push("Excluded from global refresh");
+      return lines;
+    }
+
+    const coverage = getRefreshStatus({
+      feeds,
+      globalIntervalMinutes: this.settings.refreshInterval,
+      scope: "aggregate",
+    });
+    lines.push(`Aggregate coverage: ${formatRefreshStatusTime(coverage.completionAt, true)}`);
+    if (status.nextDueAt !== null) {
+      lines.push(
+        `Next scheduled refresh: ${status.nextDueAt === 0 ? "Due now" : formatRefreshStatusTime(status.nextDueAt, true)}`,
+      );
+    }
+    this.appendRefreshStatusCounts(lines, status);
+    return lines;
+  }
+
+  private appendRefreshStatusCounts(lines: string[], status: RefreshStatus): void {
+    if (status.failingCount > 0) lines.push(`Feeds currently failing: ${status.failingCount}`);
+    if (status.refreshingCount > 0) lines.push(`Refreshing ${status.refreshingCount} feeds...`);
+    if (status.automaticOffCount > 0) lines.push(`Automatic refresh off: ${status.automaticOffCount}`);
+    if (status.excludedCount > 0) lines.push(`Feeds excluded from global refresh: ${status.excludedCount}`);
+    if (status.neverCheckedCount > 0) lines.push(`Feeds not yet checked: ${status.neverCheckedCount}`);
+  }
+
+  private attachRefreshDetails(
+    row: HTMLElement,
+    feeds: Feed[],
+    scope: "all" | "feed" | "aggregate",
+  ): void {
+    const getLines = () => this.getRefreshDetailLines(feeds, scope);
+    this.refreshStatusDetailCleanups.push(
+      attachRefreshStatusDetails({
+        row,
+        description: () => `Refresh details. ${getLines().join(". ")}`,
+        render: (popup) => {
+          popup.createEl("strong", { text: "Refresh details" });
+          for (const line of getLines()) {
+            popup.createDiv({
+              cls: "rss-dashboard-refresh-details-line",
+              text: line,
+            });
+          }
+        },
+      }),
+    );
+  }
+
+  private showRefreshDetails(
+    anchor: HTMLElement,
+    feeds: Feed[],
+    scope: "all" | "feed" | "aggregate",
+  ): void {
+    const ownerDocument = anchor.ownerDocument;
+    const popup = ownerDocument.body.createDiv({
+      cls: "rss-dashboard-refresh-details rss-dashboard-refresh-details-manual",
+      attr: { role: "status" },
+    });
+    popup.createEl("strong", { text: "Refresh details" });
+    for (const line of this.getRefreshDetailLines(feeds, scope)) {
+      popup.createDiv({ cls: "rss-dashboard-refresh-details-line", text: line });
+    }
+    const rect = anchor.getBoundingClientRect();
+    popup.style.setProperty("top", `${Math.max(8, rect.top)}px`);
+    popup.style.setProperty("left", `${Math.max(8, rect.right + 8)}px`);
+    const ownerWindow = ownerDocument.defaultView;
+    const dismiss = (event?: KeyboardEvent) => {
+      if (event && event.key !== "Escape") return;
+      popup.remove();
+      ownerDocument.removeEventListener("keydown", dismiss);
+    };
+    ownerDocument.addEventListener("keydown", dismiss);
+    if (ownerWindow) ownerWindow.setTimeout(dismiss, 5000);
+  }
+
   constructor(
     app: App,
     container: HTMLElement,
@@ -364,6 +491,7 @@ export class Sidebar {
   }
 
   public destroy(): void {
+    this.clearRefreshStatusDetails();
     if (this.resizeObserver) {
       this.resizeObserver.disconnect();
       this.resizeObserver = null;
@@ -382,6 +510,7 @@ export class Sidebar {
       foldersScroll = oldFoldersSection.scrollTop;
     }
 
+    this.clearRefreshStatusDetails();
     this.container.empty();
     this.container.addClass("rss-dashboard-sidebar");
     this.container.tabIndex = -1;
@@ -869,6 +998,7 @@ export class Sidebar {
       cls: "rss-dashboard-all-feeds-button" + (isAllActive ? " active" : ""),
     });
     allFeedsButton.setAttr("tabindex", "-1");
+    this.attachRefreshDetails(allFeedsButton, this.settings.feeds, "all");
     this.registerSidebarRow({ type: "all-feeds" }, allFeedsButton);
     const isRefreshActive =
       this.plugin.isMultiFeedRefreshActive ||
@@ -927,6 +1057,17 @@ export class Sidebar {
 
   private showAllFeedsContextMenu(event: MouseEvent): void {
     const menu = new Menu();
+    const anchor = event.currentTarget;
+
+    menu.addItem((item: MenuItem) => {
+      item.setTitle("Refresh details").setIcon("info").onClick(() => {
+        this.showRefreshDetails(
+          anchor instanceof HTMLElement ? anchor : this.container,
+          this.settings.feeds,
+          "all",
+        );
+      });
+    });
 
     menu.addItem((item: MenuItem) => {
       item
@@ -1006,6 +1147,14 @@ export class Sidebar {
       },
     });
     folderHeader.setAttr("tabindex", "-1");
+    const folderRefreshFeeds = this.getAllDescendantFolderPaths(fullPath);
+    this.attachRefreshDetails(
+      folderHeader,
+      this.settings.feeds.filter(
+        (feed) => Boolean(feed.folder) && folderRefreshFeeds.includes(feed.folder),
+      ),
+      "aggregate",
+    );
     this.registerSidebarRow({ type: "folder", path: fullPath }, folderHeader, {
       folderPath: fullPath,
       folderName,
@@ -1400,6 +1549,7 @@ export class Sidebar {
       },
     });
     feedEl.setAttr("tabindex", "-1");
+    this.attachRefreshDetails(feedEl, [feed], "feed");
     this.registerSidebarRow({ type: "feed", url: feed.url }, feedEl, { feed });
 
     const unreadCount = feed.items.filter((item) => !item.read).length;
@@ -1791,6 +1941,20 @@ export class Sidebar {
     folderName: string,
   ): void {
     const menu = new Menu();
+    const anchor = event.currentTarget;
+
+    menu.addItem((item: MenuItem) => {
+      item.setTitle("Refresh details").setIcon("info").onClick(() => {
+        this.showRefreshDetails(
+          anchor instanceof HTMLElement ? anchor : this.container,
+          this.settings.feeds.filter((feed) => {
+            const paths = this.getAllDescendantFolderPaths(fullPath);
+            return Boolean(feed.folder) && paths.includes(feed.folder);
+          }),
+          "aggregate",
+        );
+      });
+    });
     
     if (this.isMultiSelectionTarget('folder', fullPath)) {
       this.appendSelectionContextMenu(menu);
@@ -3438,6 +3602,17 @@ export class Sidebar {
 
   private showFeedContextMenu(event: MouseEvent, feed: Feed): void {
     const menu = new Menu();
+    const anchor = event.currentTarget;
+
+    menu.addItem((item: MenuItem) => {
+      item.setTitle("Refresh details").setIcon("info").onClick(() => {
+        this.showRefreshDetails(
+          anchor instanceof HTMLElement ? anchor : this.container,
+          [feed],
+          "feed",
+        );
+      });
+    });
 
     if (this.isMultiSelectionTarget('feed', feed.url)) {
       this.appendSelectionContextMenu(menu);

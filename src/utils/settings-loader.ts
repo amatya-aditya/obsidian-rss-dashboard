@@ -91,6 +91,14 @@ export function loadAndNormalizeSettings(
     : DEFAULT_SETTINGS.refreshInterval;
 
   if (
+    !Number.isFinite(settings.lastGlobalRefreshCompletedAt) ||
+    settings.lastGlobalRefreshCompletedAt < 0
+  ) {
+    settings.lastGlobalRefreshCompletedAt =
+      DEFAULT_SETTINGS.lastGlobalRefreshCompletedAt;
+  }
+
+  if (
     typeof settings.startupRefreshDelaySeconds !== "number" ||
     settings.startupRefreshDelaySeconds < 0
   ) {

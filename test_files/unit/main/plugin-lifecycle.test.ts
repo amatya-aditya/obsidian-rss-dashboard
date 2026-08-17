@@ -1105,7 +1105,7 @@ describe("refreshFeeds()", () => {
     expect(plugin.settings).toBeDefined();
   });
 
-  it("saves lastRefreshTimestamp after successful refresh", async () => {
+  it("records explicit global completion without changing the legacy timestamp", async () => {
     // Given: Mock refreshAllFeeds returns updated feeds
     mockRefreshAllFeeds.mockResolvedValue([sampleFeed]);
     const beforeRefresh = Date.now();
@@ -1114,105 +1114,38 @@ describe("refreshFeeds()", () => {
     await plugin.refreshFeeds();
     const afterRefresh = Date.now();
 
-    // Then: lastRefreshTimestamp should be set
-    expect(plugin.settings.lastRefreshTimestamp).toBeGreaterThanOrEqual(
+    // Then: only the unambiguous global timestamp is set
+    expect(plugin.settings.lastGlobalRefreshCompletedAt).toBeGreaterThanOrEqual(
       beforeRefresh,
     );
-    expect(plugin.settings.lastRefreshTimestamp).toBeLessThanOrEqual(
+    expect(plugin.settings.lastGlobalRefreshCompletedAt).toBeLessThanOrEqual(
       afterRefresh,
     );
+    expect(plugin.settings.lastRefreshTimestamp).toBe(0);
   });
 
-  it("does NOT save lastRefreshTimestamp on refresh failure", async () => {
+  it("records global completion when an explicit global attempt fails", async () => {
     // Given: Mock refreshAllFeeds throws error
     mockRefreshAllFeeds.mockRejectedValue(new Error("Network error"));
-    plugin.settings.lastRefreshTimestamp = 0;
+    plugin.settings.lastGlobalRefreshCompletedAt = 0;
 
     // When: refreshFeeds is called
     await plugin.refreshFeeds();
 
-    // Then: lastRefreshTimestamp should remain 0 (not updated on failure)
-    expect(plugin.settings.lastRefreshTimestamp).toBe(0);
+    // A completed failed attempt is still a completed global check.
+    expect(plugin.settings.lastGlobalRefreshCompletedAt).toBeGreaterThan(0);
   });
 });
 
 // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// Test Suite: lastRefreshTimestamp settings
+// Test Suite: refresh timestamp settings
 // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-describe("lastRefreshTimestamp in settings", () => {
-  it("has lastRefreshTimestamp in DEFAULT_SETTINGS with default value 0", () => {
-    // Then: DEFAULT_SETTINGS should include lastRefreshTimestamp
+describe("refresh timestamp settings", () => {
+  it("keeps the legacy timestamp readable and defaults global completion to zero", () => {
     expect(DEFAULT_SETTINGS).toHaveProperty("lastRefreshTimestamp");
     expect(DEFAULT_SETTINGS.lastRefreshTimestamp).toBe(0);
-  });
-
-  it("shouldRefreshOnOpen returns true when no timestamp exists", () => {
-    // Given: Settings with no lastRefreshTimestamp
-    const settings = { ...DEFAULT_SETTINGS, lastRefreshTimestamp: 0 };
-
-    // When: Checking if should refresh on open
-    const shouldRefresh =
-      !settings.lastRefreshTimestamp ||
-      Date.now() - settings.lastRefreshTimestamp >=
-        settings.refreshInterval * 60 * 1000;
-
-    // Then: Should return true for first-time users
-    expect(shouldRefresh).toBe(true);
-  });
-
-  it("shouldRefreshOnOpen returns false when auto refresh is disabled", () => {
-    const settings = {
-      ...DEFAULT_SETTINGS,
-      refreshInterval: 0,
-      lastRefreshTimestamp: 0,
-    };
-
-    const shouldRefresh =
-      settings.refreshInterval > 0 &&
-      (!settings.lastRefreshTimestamp ||
-        Date.now() - settings.lastRefreshTimestamp >=
-          settings.refreshInterval * 60 * 1000);
-
-    expect(shouldRefresh).toBe(false);
-  });
-
-  it("shouldRefreshOnOpen returns true when interval has elapsed", () => {
-    // Given: Settings with timestamp 90 minutes ago, interval 60 minutes
-    const ninetyMinutesAgo = Date.now() - 90 * 60 * 1000;
-    const settings = {
-      ...DEFAULT_SETTINGS,
-      lastRefreshTimestamp: ninetyMinutesAgo,
-      refreshInterval: 60,
-    };
-
-    // When: Checking if should refresh on open
-    const shouldRefresh =
-      !settings.lastRefreshTimestamp ||
-      Date.now() - settings.lastRefreshTimestamp >=
-        settings.refreshInterval * 60 * 1000;
-
-    // Then: Should return true
-    expect(shouldRefresh).toBe(true);
-  });
-
-  it("shouldRefreshOnOpen returns false when interval has not elapsed", () => {
-    // Given: Settings with timestamp 30 minutes ago, interval 60 minutes
-    const thirtyMinutesAgo = Date.now() - 30 * 60 * 1000;
-    const settings = {
-      ...DEFAULT_SETTINGS,
-      lastRefreshTimestamp: thirtyMinutesAgo,
-      refreshInterval: 60,
-    };
-
-    // When: Checking if should refresh on open
-    const shouldRefresh =
-      !settings.lastRefreshTimestamp ||
-      Date.now() - settings.lastRefreshTimestamp >=
-        settings.refreshInterval * 60 * 1000;
-
-    // Then: Should return false
-    expect(shouldRefresh).toBe(false);
+    expect(DEFAULT_SETTINGS.lastGlobalRefreshCompletedAt).toBe(0);
   });
 });
 

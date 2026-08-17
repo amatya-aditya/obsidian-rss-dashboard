@@ -407,7 +407,7 @@ export default class RssDashboardPlugin extends Plugin {
         getFeeds: () => this.settings.feeds,
         getGlobalIntervalMinutes: () => this.settings.refreshInterval,
         isBatchRunning: () => this.isMultiFeedRefreshRunning,
-        requestDueFeeds: async (feeds) => await this.refreshFeeds(feeds),
+        requestDueFeeds: async (feeds) => await this.refreshFeeds(feeds, "due"),
       });
     }
 
@@ -467,6 +467,21 @@ export default class RssDashboardPlugin extends Plugin {
       const view = leaf.view;
       if (view instanceof RssDashboardView) {
         view.refresh();
+      }
+    }
+  }
+
+  /** Updates only refresh affordances so active work never resets article scroll. */
+  private async notifyRefreshStatusChanged(): Promise<void> {
+    const leaves = this.app.workspace.getLeavesOfType(RSS_DASHBOARD_VIEW_TYPE);
+    for (const leaf of leaves) {
+      if (requireApiVersion("1.7.2")) {
+        await leaf.loadIfDeferred();
+      }
+      const view = leaf.view;
+      if (view instanceof RssDashboardView) {
+        view.refreshSidebarOnly();
+        view.refreshFilterStatusBarOnly();
       }
     }
   }
@@ -1172,7 +1187,10 @@ export default class RssDashboardPlugin extends Plugin {
     }
   }
 
-  async refreshFeeds(selectedFeeds?: Feed[]) {
+  async refreshFeeds(
+    selectedFeeds?: Feed[],
+    intent: "global" | "targeted" | "due" = selectedFeeds ? "targeted" : "global",
+  ) {
     try {
       const candidateFeeds = selectedFeeds || this.settings.feeds;
       if (candidateFeeds.length === 0) {
@@ -1205,11 +1223,19 @@ export default class RssDashboardPlugin extends Plugin {
 
       new Notice(`Refreshing ${feedNoticeText}...`);
       if (feedsToRefresh.length === 1) {
-        await this.refreshSingleFeed(feedsToRefresh[0], feedNoticeText);
+        await this.refreshSingleFeed(
+          feedsToRefresh[0],
+          feedNoticeText,
+          intent === "global",
+        );
         return;
       }
 
-      await this.refreshFeedBatch(feedsToRefresh, feedNoticeText);
+      await this.refreshFeedBatch(
+        feedsToRefresh,
+        feedNoticeText,
+        intent === "global",
+      );
     } catch (error) {
       console.error(`[RSS dashboard] Error refreshing feeds:`, error);
       new Notice(
@@ -1264,7 +1290,7 @@ export default class RssDashboardPlugin extends Plugin {
       }
 
       new Notice(`Refreshing ${feed.title}...`);
-      await this.refreshSingleFeed(feed, feed.title);
+      await this.refreshSingleFeed(feed, feed.title, false);
     } catch (error) {
       console.error(`[RSS dashboard] Error refreshing feeds:`, error);
       new Notice(
@@ -2649,19 +2675,33 @@ export default class RssDashboardPlugin extends Plugin {
   private async refreshSingleFeed(
     feed: Feed,
     feedNoticeText: string,
+    isExplicitGlobalRefresh: boolean,
   ): Promise<void> {
+    this.activeRefreshState.set(feed.url, {
+      status: "processing",
+      startedAt: Date.now(),
+    });
+    await this.notifyRefreshStatusChanged();
     try {
       const updatedFeed = await this.refreshFeedWithTimeout(feed);
       this.finalizeRefreshAttempt(feed, updatedFeed);
     } catch (error) {
       this.finalizeRefreshAttempt(feed, undefined, error);
+      if (isExplicitGlobalRefresh) {
+        this.settings.lastGlobalRefreshCompletedAt = Date.now();
+      }
       await this.saveSettings();
       this.autoRefreshScheduler?.reschedule();
       throw error;
+    } finally {
+      this.activeRefreshState.delete(feed.url);
+      await this.notifyRefreshStatusChanged();
     }
 
     await this.validateSavedArticles();
-    this.settings.lastRefreshTimestamp = Date.now();
+    if (isExplicitGlobalRefresh) {
+      this.settings.lastGlobalRefreshCompletedAt = Date.now();
+    }
     await this.saveSettings();
     this.autoRefreshScheduler?.reschedule();
     const view = await this.getActiveDashboardView();
@@ -2674,6 +2714,7 @@ export default class RssDashboardPlugin extends Plugin {
   private async refreshFeedBatch(
     feedsToRefresh: Feed[],
     feedNoticeText: string,
+    isExplicitGlobalRefresh: boolean,
   ): Promise<void> {
     if (this.isMultiFeedRefreshRunning) {
       new Notice("A multi-feed refresh is already in progress.");
@@ -2710,6 +2751,9 @@ export default class RssDashboardPlugin extends Plugin {
       if (view) {
         if (typeof view.refreshSidebarOnly === "function") {
           view.refreshSidebarOnly();
+          if (typeof view.refreshFilterStatusBarOnly === "function") {
+            view.refreshFilterStatusBarOnly();
+          }
         } else {
           view.refresh();
         }
@@ -2761,7 +2805,9 @@ export default class RssDashboardPlugin extends Plugin {
       await Promise.all(backgroundPromises);
 
       await this.validateSavedArticles();
-      this.settings.lastRefreshTimestamp = Date.now();
+      if (isExplicitGlobalRefresh) {
+        this.settings.lastGlobalRefreshCompletedAt = Date.now();
+      }
       await this.saveSettings();
       this.autoRefreshScheduler?.reschedule();
       this.activeRefreshState.clear();
@@ -2776,6 +2822,7 @@ export default class RssDashboardPlugin extends Plugin {
     } finally {
       this.activeRefreshState.clear();
       this.isMultiFeedRefreshRunning = false;
+      await this.notifyRefreshStatusChanged();
     }
   }
 

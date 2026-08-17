@@ -1495,3 +1495,30 @@ body .rss-folder-name-modal {
 .rss-dashboard-tag-checkbox {
   pointer-events: none;
 }
+
+.rss-dashboard-refresh-details {
+  position: fixed;
+  z-index: var(--layer-popover);
+  max-width: min(360px, calc(100vw - 16px));
+  padding: 10px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  background-color: var(--background-primary);
+  color: var(--text-normal);
+  box-shadow: var(--shadow-s);
+  font-size: var(--font-ui-small);
+  pointer-events: auto;
+}
+
+.rss-dashboard-refresh-details-line {
+  margin-top: 4px;
+  overflow-wrap: anywhere;
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .rss-dashboard-refresh-details {
+    left: 8px;
+    right: 8px;
+    max-width: none;
+  }
+}

@@ -111,6 +111,15 @@ next due time is derived in memory from the completion timestamp and effective
 interval; it is never persisted. A changed feed URL starts a new refresh
 identity and clears completion and error history.
 
+### Global refresh completion
+
+`lastGlobalRefreshCompletedAt` is a separate persisted settings value. It
+advances only after an explicit refresh of the complete eligible feed set has
+settled, including batches with individual failures. It does not advance for
+single-feed, folder, selection, due-subset, failed-only, empty, or
+excluded-only refreshes. The legacy `lastRefreshTimestamp` remains readable for
+older data but is not used or updated by refresh behavior or status UI.
+
 ---
 
 ## 4. Merge and Carry-Forward
