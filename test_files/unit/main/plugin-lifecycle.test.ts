@@ -712,6 +712,58 @@ describe("onload() initialization", () => {
     vi.useRealTimers();
   });
 
+  it("keeps refreshed articles when shard persistence writes vault metadata", async () => {
+    vi.useFakeTimers();
+    const handlers: Record<string, (...args: unknown[]) => void> = {};
+    plugin.app.vault.on = vi.fn(
+      (event: string, callback: (...args: unknown[]) => void) => {
+        handlers[event] = callback;
+        return {};
+      },
+    );
+
+    await plugin.onload();
+    plugin.settings = {
+      ...DEFAULT_SETTINGS,
+      storageMode: "vault-shards-v2",
+      storageFolder: ".rss-dashboard-data/feeds",
+      metadataStorageMode: "vault-location",
+      metadataStorageFolder: ".rss-dashboard-data",
+      feeds: [
+        {
+          ...sampleFeed,
+          feedId: "feed-1",
+          autoDeleteDuration: 30,
+          items: [
+            {
+              ...sampleFeed.items[0],
+              pubDate: "2026-08-15T00:00:00Z",
+            },
+          ],
+        },
+      ],
+    };
+
+    const loadSpy = vi.spyOn(plugin, "loadSettings").mockImplementation(() => {
+      plugin.settings.feeds[0].items = [];
+      return Promise.resolve();
+    });
+    const adapter = plugin.app.vault.adapter as unknown as {
+      write: (path: string, content: string) => Promise<void>;
+    };
+    vi.spyOn(adapter, "write").mockImplementation((path) => {
+      handlers.modify?.({ path });
+      return Promise.resolve();
+    });
+
+    await plugin.saveSettings();
+    await vi.advanceTimersByTimeAsync(1_500);
+
+    expect(loadSpy).not.toHaveBeenCalled();
+    expect(plugin.settings.feeds[0].items).toHaveLength(1);
+    vi.useRealTimers();
+  });
+
   it("watcher ordering: refresh after loadSettings completes", async () => {
     vi.useFakeTimers();
     const handlers: Record<string, (...args: unknown[]) => void> = {};

@@ -2469,7 +2469,10 @@ export default class RssDashboardPlugin extends Plugin {
           await ensureMetadataFolderExists(this.app, this.settings);
           const dataFilePath = `${metadataPath}/data.json`;
           const jsonContent = JSON.stringify(settingsData, null, 2);
-          await this.app.vault.adapter.write(dataFilePath, jsonContent);
+          await this.writeWithWatcherSuppressed(
+            async () =>
+              await this.app.vault.adapter.write(dataFilePath, jsonContent),
+          );
           storageLog("Metadata saved to vault location", {
             path: dataFilePath,
           });

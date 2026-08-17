@@ -190,6 +190,8 @@ After every required check passes:
 - Added reusable sidebar refresh details with hover/focus delay, Escape and
   rerender cleanup, screen-reader descriptions, context-menu access, and
   owning-document popup placement for popouts.
+- Suppressed plugin-originated vault metadata writes from the external-change
+  watcher so final refresh persistence cannot reload stale or empty shard state.
 - Kept retry-failed gestures and relative-time polling out of this stage.
 
 ## Automated validation
@@ -198,7 +200,7 @@ After every required check passes:
   and dashboard tests passed.
 - `npm run check:platform`, `npm run check:css-scope`,
   `npm run check:important`, targeted ESLint, type-checking, the full unit suite
-  (190 files, 1,652 tests), and `npm run build` passed.
+  (190 files, 1,653 tests), and `npm run build` passed.
 
 ## Remaining manual checks
 
