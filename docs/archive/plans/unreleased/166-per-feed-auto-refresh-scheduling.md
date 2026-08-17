@@ -3,7 +3,7 @@ status: implemented
 completed: 2026-08-16
 released_in: unreleased
 issue: https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/166
-implementation: ""
+implementation: "5592c39"
 ---
 
 # Per-Feed Auto-Refresh Scheduling Fix
