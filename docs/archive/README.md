@@ -7,10 +7,10 @@ records the complete 2026-08-16 documentation classification.
 
 ## Implemented plans awaiting release
 
-| Plan | Completed | Issue | Implementation |
-| --- | --- | --- | --- |
-| [Documentation archive cleanup](plans/unreleased/169-documentation-archive-cleanup.md) | 2026-08-16 | [GH Issue #169](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/169) | Pending commit/PR |
-| [WordPress LaTeX image rendering](plans/unreleased/wordpress-latex-image-rendering.md) | 2026-08-08 | Unknown | `9ce3582` |
+| Plan                                                                                   | Completed  | Issue                                                                               | Implementation |
+| -------------------------------------------------------------------------------------- | ---------- | ----------------------------------------------------------------------------------- | -------------- |
+| [Documentation archive cleanup](plans/unreleased/169-documentation-archive-cleanup.md) | 2026-08-16 | [GH Issue #169](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/169) | `314ae6f`      |
+| [WordPress LaTeX image rendering](plans/unreleased/wordpress-latex-image-rendering.md) | 2026-08-08 | Unknown                                                                             | `9ce3582`      |
 
 ## Versioned plans
 
@@ -31,8 +31,8 @@ records the complete 2026-08-16 documentation classification.
 
 ## Unshipped plans
 
-| Plan | Status | Decision |
-| --- | --- | --- |
+| Plan                                                  | Status              | Decision                                                                               |
+| ----------------------------------------------------- | ------------------- | -------------------------------------------------------------------------------------- |
 | [MP4 hero images](plans/unshipped/mp4-hero-images.md) | Deferred 2026-03-27 | The original attempt was reverted because video URL parsing needed more investigation. |
 
 ## Investigations

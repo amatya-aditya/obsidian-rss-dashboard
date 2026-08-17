@@ -3,7 +3,7 @@ status: implemented
 completed: 2026-08-16
 released_in: unreleased
 issue: https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/169
-implementation: ""
+implementation: "314ae6f"
 ---
 
 # Documentation Archive Cleanup Plan
@@ -29,7 +29,7 @@ reasoning to distinguish plans, investigations, durable references, and release
 records; trace links; and avoid inventing historical metadata. It does not need
 the flagship tier's maximum capability. OpenAI describes GPT-5.6 Terra as the
 balance of intelligence and cost, which fits this workload:
-<https://developers.openai.com/api/docs/models>.
+[https://developers.openai.com/api/docs/models](https://developers.openai.com/api/docs/models).
 
 Escalate to `gpt-5.6-sol` only if the repository history is too ambiguous to
 classify safely after examining the documents, changelog, releases, and Git
@@ -77,16 +77,16 @@ link.
 
 Use the document's purpose and current truth, not its existing directory name.
 
-| Kind | Canonical location | Rule |
-| --- | --- | --- |
-| Active or future implementation plan | `docs/plans/` | Work remains intentionally actionable |
-| Implemented and validated, unreleased | `docs/archive/plans/unreleased/` | Required validation passed but no release contains it |
-| Released implementation plan | `docs/archive/plans/v<version>/` | Group by the first release containing the behavior |
-| Deferred, rejected, or superseded plan | `docs/archive/plans/unshipped/` | Preserve the decision and replacement link |
+| Kind                                     | Canonical location                    | Rule                                                   |
+| ---------------------------------------- | ------------------------------------- | ------------------------------------------------------ |
+| Active or future implementation plan     | `docs/plans/`                         | Work remains intentionally actionable                  |
+| Implemented and validated, unreleased    | `docs/archive/plans/unreleased/`      | Required validation passed but no release contains it  |
+| Released implementation plan             | `docs/archive/plans/v<version>/`      | Group by the first release containing the behavior     |
+| Deferred, rejected, or superseded plan   | `docs/archive/plans/unshipped/`       | Preserve the decision and replacement link             |
 | Investigation, incident, or bug analysis | `docs/archive/investigations/<YYYY>/` | Group by the record's meaningful event/completion year |
-| Durable current guidance | Existing topical `docs/` area | Keep where developers will consult it |
-| Durable architectural decision | `docs/decisions/` | Record status and replacement instead of archiving it |
-| Public release summary | `docs/releases/<version>.md` | Do not merge into implementation-plan archives |
+| Durable current guidance                 | Existing topical`docs/` area          | Keep where developers will consult it                  |
+| Durable architectural decision           | `docs/decisions/`                     | Record status and replacement instead of archiving it  |
+| Public release summary                   | `docs/releases/<version>.md`          | Do not merge into implementation-plan archives         |
 
 When evidence is insufficient, leave the file in place, add it to the archive
 catalog's unresolved section, and record exactly which metadata could not be
