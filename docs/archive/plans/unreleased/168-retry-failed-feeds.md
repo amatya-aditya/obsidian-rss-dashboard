@@ -3,7 +3,7 @@ status: implemented
 completed: 2026-08-17
 released_in: unreleased
 issue: https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/168
-implementation: ""
+implementation: "9a4968d"
 ---
 
 # Retry Failed Feeds with Shift+Click
