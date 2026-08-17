@@ -16,7 +16,17 @@ export function attachRefreshStatusDetails(options: {
   let showTimer: number | null = null;
   let closeTimer: number | null = null;
   const popupId = `rss-refresh-details-${Math.random().toString(36).slice(2)}`;
-  row.setAttribute("aria-label", options.description());
+  const descriptionId = `${popupId}-description`;
+  const previousDescriptionIds = row.getAttribute("aria-describedby");
+  const description = ownerDocument.body.createSpan({
+    cls: "rss-dashboard-refresh-details-sr-only",
+    text: options.description(),
+    attr: { id: descriptionId },
+  });
+  row.setAttribute(
+    "aria-describedby",
+    [previousDescriptionIds, descriptionId].filter(Boolean).join(" "),
+  );
 
   const clearTimers = () => {
     if (showTimer !== null) ownerWindow.clearTimeout(showTimer);
@@ -28,7 +38,6 @@ export function attachRefreshStatusDetails(options: {
     clearTimers();
     popup?.remove();
     popup = null;
-    row.removeAttribute("aria-describedby");
   };
   const show = () => {
     if (popup || !row.isConnected) return;
@@ -40,7 +49,6 @@ export function attachRefreshStatusDetails(options: {
     const rect = row.getBoundingClientRect();
     popup.style.setProperty("top", `${Math.max(8, rect.top)}px`);
     popup.style.setProperty("left", `${Math.max(8, rect.right + 8)}px`);
-    row.setAttribute("aria-describedby", popupId);
     popup.addEventListener("mouseenter", clearTimers);
     popup.addEventListener("mouseleave", scheduleClose);
     popup.addEventListener("focusin", clearTimers);
@@ -56,6 +64,10 @@ export function attachRefreshStatusDetails(options: {
     }, 350);
   };
   const scheduleClose = () => {
+    if (showTimer !== null) {
+      ownerWindow.clearTimeout(showTimer);
+      showTimer = null;
+    }
     if (!popup || closeTimer !== null) return;
     closeTimer = ownerWindow.setTimeout(() => {
       const activeElement = ownerDocument.activeElement;
@@ -87,5 +99,11 @@ export function attachRefreshStatusDetails(options: {
     row.removeEventListener("focusin", scheduleShow);
     row.removeEventListener("focusout", scheduleClose);
     ownerDocument.removeEventListener("keydown", onKeyDown);
+    description.remove();
+    if (previousDescriptionIds) {
+      row.setAttribute("aria-describedby", previousDescriptionIds);
+    } else {
+      row.removeAttribute("aria-describedby");
+    }
   };
 }

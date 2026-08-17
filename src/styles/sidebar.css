@@ -1515,6 +1515,18 @@ body .rss-folder-name-modal {
   overflow-wrap: anywhere;
 }
 
+.rss-dashboard-refresh-details-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 @media (hover: none) and (pointer: coarse) {
   .rss-dashboard-refresh-details {
     left: 8px;

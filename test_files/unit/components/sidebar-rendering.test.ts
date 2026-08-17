@@ -149,8 +149,12 @@ describe("Sidebar Rendering", () => {
     const refreshIcon = container.querySelector<HTMLElement>(
       ".rss-dashboard-all-feeds-icon",
     );
-    expect(refreshIcon?.getAttribute("aria-label")).toBe("Refresh all feeds");
+    expect(refreshIcon?.hasAttribute("aria-label")).toBe(false);
     expect(refreshIcon?.hasAttribute("title")).toBe(false);
+    const labelId = refreshIcon?.getAttribute("aria-labelledby") ?? "";
+    expect(document.getElementById(labelId)?.textContent).toBe(
+      "Refresh all feeds",
+    );
   });
 
   it("should show unread badge for All Feeds if at least one unread item exists", () => {

@@ -1005,11 +1005,19 @@ export class Sidebar {
       (this.plugin.activeRefreshState?.size ?? 0) > 0;
 
     // Feed icon (refresh button) - clickable
+    const refreshLabelId = `rss-dashboard-refresh-all-feeds-${Math.random()
+      .toString(36)
+      .slice(2)}`;
+    allFeedsButton.createSpan({
+      cls: "rss-dashboard-refresh-details-sr-only",
+      text: "Refresh all feeds",
+      attr: { id: refreshLabelId },
+    });
     const feedIcon = allFeedsButton.createDiv({
       cls:
         "rss-dashboard-all-feeds-icon" + (isRefreshActive ? " refreshing" : ""),
       attr: {
-        "aria-label": "Refresh all feeds",
+        "aria-labelledby": refreshLabelId,
       },
     });
     setIcon(feedIcon, "refresh-cw");
