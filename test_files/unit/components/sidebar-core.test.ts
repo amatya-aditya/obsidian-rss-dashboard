@@ -36,6 +36,10 @@ interface TestPlugin extends Partial<RssDashboardPlugin> {
   saveSettings: Mock<() => Promise<void>>;
   activeRefreshState?: Map<string, FeedRefreshState>;
   backgroundImportQueue?: FeedMetadata[];
+  refreshFeeds: Mock<() => Promise<void>>;
+  refreshFailedFeeds: Mock<() => Promise<void>>;
+  cancelPendingStartupRefresh: Mock<() => void>;
+  isMultiFeedRefreshActive?: boolean;
 }
 
 /** Typed interface for Sidebar private member access */
@@ -121,7 +125,11 @@ describe("Sidebar Core", () => {
     plugin = {
       settings,
       saveSettings: vi.fn().mockResolvedValue(undefined),
+      refreshFeeds: vi.fn().mockResolvedValue(undefined),
+      refreshFailedFeeds: vi.fn().mockResolvedValue(undefined),
+      cancelPendingStartupRefresh: vi.fn(),
     };
+    callbacks.onRetryFailedFeeds = plugin.refreshFailedFeeds;
   });
 
   it("should initialize with correct properties", () => {
@@ -432,6 +440,69 @@ describe("Sidebar Core", () => {
         queuedEl?.querySelector(".rss-dashboard-feed-processing-indicator")
           ?.textContent,
       ).toContain("⏳");
+    });
+
+    it("uses plain click for global refresh and Shift+click for failed-feed retry", () => {
+      settings.feeds = [
+        createFeed({ lastFetchError: "network down" }),
+        createFeed({
+          title: "Feed B",
+          url: "https://example.com/b.xml",
+        }),
+      ];
+      const sidebar = new Sidebar(
+        app,
+        container,
+        plugin as unknown as RssDashboardPlugin,
+        settings,
+        options,
+        callbacks,
+      );
+
+      sidebar.render();
+      const icon = container.querySelector(
+        ".rss-dashboard-all-feeds-icon",
+      ) as HTMLElement;
+      expect(icon.hasAttribute("title")).toBe(false);
+      expect(icon.hasAttribute("aria-label")).toBe(false);
+      const labelId = icon.getAttribute("aria-labelledby") ?? "";
+      expect(container.querySelector(`#${labelId}`)?.textContent).toBe(
+        "Refresh all feeds. Shift+click to retry failed feeds.",
+      );
+
+      icon.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      icon.dispatchEvent(
+        new MouseEvent("click", { bubbles: true, shiftKey: true }),
+      );
+
+      expect(plugin.refreshFeeds).toHaveBeenCalledTimes(1);
+      expect(plugin.refreshFailedFeeds).toHaveBeenCalledTimes(1);
+    });
+
+    it("exposes failed-feed retry from the all-feeds context menu", () => {
+      const sidebar = new Sidebar(
+        app,
+        container,
+        plugin as unknown as RssDashboardPlugin,
+        settings,
+        options,
+        callbacks,
+      );
+      sidebar.render();
+
+      const allFeedsButton = container.querySelector(
+        ".rss-dashboard-all-feeds-button",
+      ) as HTMLElement;
+      allFeedsButton.dispatchEvent(
+        new MouseEvent("contextmenu", { bubbles: true }),
+      );
+
+      const retryItem = ObsidianStubs.Menu.lastItems.find(
+        (item) => item.title === "Retry failed feeds",
+      );
+      expect(retryItem).toBeDefined();
+      retryItem?.trigger();
+      expect(plugin.refreshFailedFeeds).toHaveBeenCalledTimes(1);
     });
 
     it("prefers import processing visuals over refresh visuals when both exist", () => {

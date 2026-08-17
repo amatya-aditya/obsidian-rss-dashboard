@@ -2,6 +2,7 @@
 
 ### Features
 
+- Added Shift+click and an All feeds context-menu action to retry failed, non-excluded feeds without advancing the global refresh timestamp. [GH Issue #168](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/168)
 - Added static refresh-status timestamps and accessible refresh details for all feeds, folders, and feeds. [GH Issue #167](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/167)
 - New installations now default global feed auto-refresh to Off.
 - Added automatic and per-feed Windows-1251 decoding for RSS/Atom feeds, including preview and refresh support. New dropdown available in the add/edit feed window > Feed options > Feed Encoding [GH Issue #155](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/155)
@@ -11,6 +12,7 @@
 
 ### Fixes
 
+- Fixed the All feeds refresh-details popup showing alongside Obsidian's delayed native tooltip. [GH Issue #168](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/168)
 - Fixed refresh-detail tooltip and ghost-popup regressions, and prevented global-refresh vault saves from reloading empty article shards. [GH Issue #167](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/167)
 - Fixed per-feed auto-refresh intervals so Use global, Off, and custom schedules control runtime refresh timing. Failed attempts now wait their configured interval without changing the last successful update time. [GH Issue #166](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/166)
 - Fixed low-resolution fallback hero images being stretched across the Reader by preserving their intrinsic width, centering them, and only scaling them down when needed to fit the available space.

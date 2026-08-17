@@ -96,6 +96,7 @@ export interface SidebarCallbacks {
   onDeleteFeed: (feed: Feed) => void;
   onDeleteFolder: (folder: string) => void;
   onRefreshFeeds: () => Promise<void> | void;
+  onRetryFailedFeeds?: () => Promise<void> | void;
   onUpdateFeed: (feed: Feed) => Promise<void>;
   onImportOpml: () => void;
   onExportOpml: () => void;
@@ -442,6 +443,23 @@ export class Sidebar {
               text: line,
             });
           }
+        },
+      }),
+    );
+  }
+
+  private attachRefreshActionDetails(row: HTMLElement): void {
+    const actionText =
+      "Refresh all feeds. Shift+click to retry failed feeds.";
+    this.refreshStatusDetailCleanups.push(
+      attachRefreshStatusDetails({
+        row,
+        description: () => actionText,
+        render: (popup) => {
+          popup.createDiv({
+            cls: "rss-dashboard-refresh-details-line",
+            text: actionText,
+          });
         },
       }),
     );
@@ -998,7 +1016,7 @@ export class Sidebar {
       cls: "rss-dashboard-all-feeds-button" + (isAllActive ? " active" : ""),
     });
     allFeedsButton.setAttr("tabindex", "-1");
-    this.attachRefreshDetails(allFeedsButton, this.settings.feeds, "all");
+    this.attachRefreshActionDetails(allFeedsButton);
     this.registerSidebarRow({ type: "all-feeds" }, allFeedsButton);
     const isRefreshActive =
       this.plugin.isMultiFeedRefreshActive ||
@@ -1010,7 +1028,7 @@ export class Sidebar {
       .slice(2)}`;
     allFeedsButton.createSpan({
       cls: "rss-dashboard-refresh-details-sr-only",
-      text: "Refresh all feeds",
+      text: "Refresh all feeds. Shift+click to retry failed feeds.",
       attr: { id: refreshLabelId },
     });
     const feedIcon = allFeedsButton.createDiv({
@@ -1024,7 +1042,7 @@ export class Sidebar {
     feedIcon.addEventListener("click", (e) => {
       e.stopPropagation();
       if (this.plugin.isMultiFeedRefreshActive) return;
-      void this.handleRefresh();
+      void this.handleRefresh(e);
     });
 
     // Label with count
@@ -1091,6 +1109,15 @@ export class Sidebar {
         .setIcon("refresh-cw")
         .onClick(() => {
           void this.callbacks.onRefreshFeeds();
+        });
+    });
+    menu.addItem((item: MenuItem) => {
+      item
+        .setTitle("Retry failed feeds")
+        .setIcon("refresh-cw")
+        .onClick(() => {
+          if (this.plugin.isMultiFeedRefreshActive) return;
+          void this.callbacks.onRetryFailedFeeds?.();
         });
     });
 
@@ -4092,9 +4119,13 @@ export class Sidebar {
     this.render();
   }
 
-  private async handleRefresh(): Promise<void> {
+  private async handleRefresh(event?: MouseEvent): Promise<void> {
     if (this.plugin.isMultiFeedRefreshActive) return;
     this.plugin.cancelPendingStartupRefresh();
+    if (event?.shiftKey) {
+      await this.plugin.refreshFailedFeeds();
+      return;
+    }
     await this.plugin.refreshFeeds();
   }
 

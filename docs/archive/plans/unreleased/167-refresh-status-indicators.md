@@ -15,7 +15,7 @@ implementation: "6f767c7"
   aggregation, desktop/mobile/popout UI, and accessibility are affected.
 - **Prerequisite:** [Per-feed auto-refresh scheduling fix](166-per-feed-auto-refresh-scheduling.md)
   must be implemented, validated, committed, and archived first.
-- **Next stage:** [Retry failed feeds with Shift+click](../../../plans/168-retry-failed-feeds.md).
+- **Next stage:** [Retry failed feeds with Shift+click](168-retry-failed-feeds.md).
 
 Do not implement this plan against the current global-only scheduler. Begin only
 after the prerequisite's per-feed completion field and orchestration contract

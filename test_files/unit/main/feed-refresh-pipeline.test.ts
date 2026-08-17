@@ -65,6 +65,7 @@ interface TestPlugin {
   saveData: ReturnType<typeof vi.fn>;
   feedParser: TestFeedParser;
   refreshFeeds: (selectedFeeds?: Feed[]) => Promise<void>;
+  refreshFailedFeeds: () => Promise<void>;
   activeRefreshState: Map<string, unknown>;
   getActiveDashboardView: ReturnType<typeof vi.fn>;
   validateSavedArticles: ReturnType<typeof vi.fn>;
@@ -115,6 +116,79 @@ beforeEach(() => {
 });
 
 describe("refreshFeeds() pipeline behavior", () => {
+  it("retries the current failed, non-excluded feeds and includes feeds with automatic refresh off", async () => {
+    const failed = createFeed({
+      title: "Failed Feed",
+      url: "https://example.com/failed.xml",
+      lastFetchError: "network down",
+      scanInterval: 0,
+    });
+    const excluded = createFeed({
+      title: "Excluded Failed Feed",
+      url: "https://example.com/excluded.xml",
+      lastFetchError: "network down",
+      excludeFromRefresh: true,
+    });
+    const healthy = createFeed({
+      title: "Healthy Feed",
+      url: "https://example.com/healthy.xml",
+    });
+    const plugin = createPluginWithSettings([failed, excluded, healthy]);
+    const refreshSpy = vi
+      .spyOn(plugin, "refreshFeeds")
+      .mockResolvedValue(undefined);
+
+    await plugin.refreshFailedFeeds();
+
+    expect(refreshSpy).toHaveBeenCalledWith([failed], "failed");
+  });
+
+  it("shows an empty-state notice without starting a retry when no eligible failures exist", async () => {
+    const excluded = createFeed({
+      lastFetchError: "network down",
+      excludeFromRefresh: true,
+    });
+    const plugin = createPluginWithSettings([createFeed(), excluded]);
+    const refreshSpy = vi.spyOn(plugin, "refreshFeeds");
+
+    await plugin.refreshFailedFeeds();
+
+    expect(refreshSpy).not.toHaveBeenCalled();
+    expect(plugin.feedParser.refreshFeed).not.toHaveBeenCalled();
+    expect(getNoticeMessages(consoleLogSpy)).toContain(
+      "No failed feeds to retry.",
+    );
+  });
+
+  it("keeps global completion unchanged while successful and repeated failed retries update their errors", async () => {
+    const recovered = createFeed({
+      url: "https://example.com/recovered.xml",
+      lastFetchError: "network down",
+    });
+    const stillFailing = createFeed({
+      url: "https://example.com/still-failing.xml",
+      lastFetchError: "old error",
+    });
+    const plugin = createPluginWithSettings([recovered, stillFailing]);
+    plugin.settings.lastGlobalRefreshCompletedAt = 123;
+    (plugin.feedParser.refreshFeed as unknown as {
+      mockImplementation: (fn: (feed: Feed) => Promise<Feed>) => void;
+    }).mockImplementation(async (feed) => {
+      if (feed.url === stillFailing.url) {
+        throw new Error("new error");
+      }
+      return { ...feed, lastFetchError: undefined };
+    });
+
+    await plugin.refreshFailedFeeds();
+
+    expect(plugin.settings.lastGlobalRefreshCompletedAt).toBe(123);
+    expect(plugin.settings.feeds[0].lastFetchError).toBeUndefined();
+    expect(plugin.settings.feeds[1].lastFetchError).toBe("new error");
+    expect(plugin.settings.feeds[0].lastRefreshAttemptCompletedAt).toBeDefined();
+    expect(plugin.settings.feeds[1].lastRefreshAttemptCompletedAt).toBeDefined();
+  });
+
   it("records global completion after an explicit all-feeds refresh even when one attempt fails", async () => {
     const successful = createFeed({ url: "https://example.com/one.xml" });
     const failing = createFeed({ url: "https://example.com/two.xml" });
@@ -287,6 +361,9 @@ describe("refreshFeeds() pipeline behavior", () => {
     const notices = getNoticeMessages(consoleLogSpy);
     expect(notices[0]).toBe("Refreshing 5 feeds...");
     expect(notices).toContain("Feeds refreshed: 5 feeds");
+    expect(notices.some((notice) => notice.includes("Shift+click"))).toBe(
+      false,
+    );
   });
 
   it("refreshes a single feed via the direct path and does not require an active dashboard view", async () => {
@@ -369,7 +446,9 @@ describe("refreshFeeds() pipeline behavior", () => {
 
     const notices = getNoticeMessages(consoleLogSpy);
     expect(notices[0]).toBe("Refreshing 2 feeds...");
-    expect(notices).toContain("Feeds refreshed: 2 feeds (1 timed out)");
+    expect(notices).toContain(
+      "Feeds refreshed: 2 feeds (1 timed out) Shift+click Refresh all feeds to retry failed feeds.",
+    );
   });
 
   it("swallows direct refresh errors and shows an error Notice", async () => {
