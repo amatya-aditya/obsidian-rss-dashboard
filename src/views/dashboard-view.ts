@@ -806,6 +806,7 @@ export class RssDashboardView extends ItemView {
           onDeleteFeed: this.handleDeleteFeed.bind(this),
           onDeleteFolder: this.handleDeleteFolder.bind(this),
           onRefreshFeeds: this.handleRefreshFeeds.bind(this),
+          onRetryFailedFeeds: this.handleRetryFailedFeeds.bind(this),
           onUpdateFeed: this.handleUpdateFeed.bind(this),
           onImportOpml: this.handleImportOpml.bind(this),
           onExportOpml: this.handleExportOpml.bind(this),
@@ -2496,6 +2497,11 @@ export class RssDashboardView extends ItemView {
       this.plugin.cancelPendingStartupRefresh();
       await this.plugin.refreshFeeds();
     }
+  }
+
+  private async handleRetryFailedFeeds(): Promise<void> {
+    this.plugin.cancelPendingStartupRefresh();
+    await this.plugin.refreshFailedFeeds();
   }
 
   private handleImportOpml(): void {

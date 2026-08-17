@@ -24,7 +24,7 @@ This is the durable audit record for [GH Issue #169](https://github.com/amatya-a
 
 - `docs/archive/plans/unreleased/166-per-feed-auto-refresh-scheduling.md` — implemented, awaiting release.
 - `docs/archive/plans/unreleased/167-refresh-status-indicators.md` — implemented, awaiting release.
-- `docs/plans/168-retry-failed-feeds.md` — blocked by issues #166 and #167.
+- `docs/archive/plans/unreleased/168-retry-failed-feeds.md` — implemented, awaiting release.
 - `docs/plans/cover-image-fallback-og-fetch.md` — proposed future work.
 - `docs/plans/deprecate-feed-manager-modal.md` — proposed 3.0 work.
 - `docs/plans/draft-20260816-development-branch-realignment.md` — draft work.

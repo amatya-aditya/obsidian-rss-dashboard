@@ -765,10 +765,19 @@ export class ItemView extends Component {
 }
 
 export class Menu {
+  static lastItems: MenuItem[] = [];
+
+  constructor() {
+    Menu.lastItems = [];
+  }
+
   addSeparator(): this {
     return this;
   }
-  addItem(_cb: (item: MenuItem) => void): this {
+  addItem(cb: (item: MenuItem) => void): this {
+    const item = new MenuItem();
+    cb(item);
+    Menu.lastItems.push(item);
     return this;
   }
   showAtPosition(): void {}
@@ -776,14 +785,23 @@ export class Menu {
 }
 
 export class MenuItem {
-  setTitle(): this {
+  title = "";
+  callback: ((evt: MouseEvent) => unknown) | undefined;
+
+  setTitle(title: string): this {
+    this.title = title;
     return this;
   }
   setIcon(): this {
     return this;
   }
-  onClick(_cb: (evt: any) => any): this {
+  onClick(cb: (evt: MouseEvent) => unknown): this {
+    this.callback = cb;
     return this;
+  }
+
+  trigger(): unknown {
+    return this.callback?.(new MouseEvent("click"));
   }
 }
 

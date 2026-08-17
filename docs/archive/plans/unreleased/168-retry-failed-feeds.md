@@ -1,15 +1,8 @@
 ---
-status: blocked
-owner: unassigned
-created: 2026-08-16
+status: implemented
+completed: 2026-08-17
+released_in: unreleased
 issue: https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/168
-milestone: vNext
-workstream: feed-refresh
-sequence: 3
-depends_on:
-  - https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/166
-  - https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/167
-release_requirement: stretch
 implementation: ""
 ---
 
@@ -17,10 +10,10 @@ implementation: ""
 
 ## Status and scope
 
-- **Status:** Blocked; not implemented.
+- **Status:** Implemented and validated on `feat/168-retry-failed-feeds`.
 - **Classification:** User-visible feature.
 - **Risk:** Medium. The change spans sidebar input and refresh orchestration, but it does not require a new setting, dependency, or persistence schema.
-- **Prerequisites:** [Per-feed auto-refresh scheduling fix](../archive/plans/unreleased/166-per-feed-auto-refresh-scheduling.md) and [Refresh status and progress indicators](../archive/plans/unreleased/167-refresh-status-indicators.md) must each be implemented, validated, committed, and archived first.
+- **Prerequisites:** [Per-feed auto-refresh scheduling fix](../166-per-feed-auto-refresh-scheduling.md) and [Refresh status and progress indicators](../167-refresh-status-indicators.md) were implemented, validated, committed, and archived first.
 - **Sequence:** This is stage 3. Do not implement it in the same change or commit as either prerequisite.
 
 ## Problem

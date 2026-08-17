@@ -2,6 +2,7 @@
 
 ### Features
 
+- Added Shift+click and an All feeds context-menu action to retry failed, non-excluded feeds without advancing the global refresh timestamp. [GH Issue #168](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/168)
 - Added static refresh-status timestamps and accessible refresh details for all feeds, folders, and feeds. [GH Issue #167](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/167)
 - New installations now default global feed auto-refresh to Off.
 - Added automatic and per-feed Windows-1251 decoding for RSS/Atom feeds, including preview and refresh support. New dropdown available in the add/edit feed window > Feed options > Feed Encoding [GH Issue #155](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/155)

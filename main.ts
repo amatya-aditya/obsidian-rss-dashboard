@@ -1189,7 +1189,9 @@ export default class RssDashboardPlugin extends Plugin {
 
   async refreshFeeds(
     selectedFeeds?: Feed[],
-    intent: "global" | "targeted" | "due" = selectedFeeds ? "targeted" : "global",
+    intent: "global" | "targeted" | "due" | "failed" = selectedFeeds
+      ? "targeted"
+      : "global",
   ) {
     try {
       const candidateFeeds = selectedFeeds || this.settings.feeds;
@@ -1234,7 +1236,7 @@ export default class RssDashboardPlugin extends Plugin {
       await this.refreshFeedBatch(
         feedsToRefresh,
         feedNoticeText,
-        intent === "global",
+        intent,
       );
     } catch (error) {
       console.error(`[RSS dashboard] Error refreshing feeds:`, error);
@@ -1242,6 +1244,19 @@ export default class RssDashboardPlugin extends Plugin {
         `Error refreshing  ${error instanceof Error ? error.message : "Unknown error"}`,
       );
     }
+  }
+
+  async refreshFailedFeeds(): Promise<void> {
+    const failedFeeds = this.settings.feeds.filter(
+      (feed) => Boolean(feed.lastFetchError) && !this.isFeedExcludedFromRefresh(feed),
+    );
+
+    if (failedFeeds.length === 0) {
+      new Notice("No failed feeds to retry.");
+      return;
+    }
+
+    await this.refreshFeeds(failedFeeds, "failed");
   }
 
   /**
@@ -2717,7 +2732,7 @@ export default class RssDashboardPlugin extends Plugin {
   private async refreshFeedBatch(
     feedsToRefresh: Feed[],
     feedNoticeText: string,
-    isExplicitGlobalRefresh: boolean,
+    intent: "global" | "targeted" | "due" | "failed",
   ): Promise<void> {
     if (this.isMultiFeedRefreshRunning) {
       new Notice("A multi-feed refresh is already in progress.");
@@ -2808,7 +2823,7 @@ export default class RssDashboardPlugin extends Plugin {
       await Promise.all(backgroundPromises);
 
       await this.validateSavedArticles();
-      if (isExplicitGlobalRefresh) {
+      if (intent === "global") {
         this.settings.lastGlobalRefreshCompletedAt = Date.now();
       }
       await this.saveSettings();
@@ -2820,7 +2835,10 @@ export default class RssDashboardPlugin extends Plugin {
         view.refresh();
       }
 
-      const failureSuffix = this.buildRefreshFailureSummary(refreshSummary);
+      const failureSuffix = this.buildRefreshFailureSummary(
+        refreshSummary,
+        intent === "global",
+      );
       new Notice(`Feeds refreshed: ${feedNoticeText}${failureSuffix}`);
     } finally {
       this.activeRefreshState.clear();
@@ -2829,10 +2847,10 @@ export default class RssDashboardPlugin extends Plugin {
     }
   }
 
-  private buildRefreshFailureSummary(summary: {
-    failed: number;
-    timedOut: number;
-  }): string {
+  private buildRefreshFailureSummary(
+    summary: { failed: number; timedOut: number },
+    includeRetryHint: boolean,
+  ): string {
     const parts: string[] = [];
     if (summary.timedOut > 0) {
       parts.push(`${summary.timedOut} timed out`);
@@ -2845,7 +2863,10 @@ export default class RssDashboardPlugin extends Plugin {
       return "";
     }
 
-    return ` (${parts.join(", ")})`;
+    const suffix = ` (${parts.join(", ")})`;
+    return includeRetryHint
+      ? `${suffix} Shift+click Refresh all feeds to retry failed feeds.`
+      : suffix;
   }
 
   private async processRefreshBatchFeed(
