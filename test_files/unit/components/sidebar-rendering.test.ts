@@ -135,6 +135,24 @@ describe("Sidebar Rendering", () => {
     expect(allFeedsBtn?.textContent).toContain("All Feeds");
   });
 
+  it("keeps the refresh icon accessible without a competing native tooltip", () => {
+    const sidebar = new Sidebar(
+      app as unknown as import("obsidian").App,
+      container,
+      plugin as unknown as RssDashboardPlugin,
+      settings,
+      options,
+      callbacks,
+    );
+    sidebar.render();
+
+    const refreshIcon = container.querySelector<HTMLElement>(
+      ".rss-dashboard-all-feeds-icon",
+    );
+    expect(refreshIcon?.getAttribute("aria-label")).toBe("Refresh all feeds");
+    expect(refreshIcon?.hasAttribute("title")).toBe(false);
+  });
+
   it("should show unread badge for All Feeds if at least one unread item exists", () => {
     const sidebar = new Sidebar(
       app as unknown as import("obsidian").App,

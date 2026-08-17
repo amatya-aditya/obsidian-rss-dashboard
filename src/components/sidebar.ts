@@ -1009,7 +1009,6 @@ export class Sidebar {
       cls:
         "rss-dashboard-all-feeds-icon" + (isRefreshActive ? " refreshing" : ""),
       attr: {
-        title: "Refresh all feeds",
         "aria-label": "Refresh all feeds",
       },
     });
