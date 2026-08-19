@@ -17,7 +17,10 @@ import { fetchFeedXml } from "./feed-fetch.js";
 import { parseFetchErrorMessage } from "./feed-errors.js";
 import { CustomXMLParser } from "./xml-parser/custom-xml-parser.js";
 import { assertParsedFeedHasEntries } from "./parsed-feed-assert.js";
-import { FEED_REQUEST_TIMEOUT_MS, FEED_SOFT_TIMEOUT_MS } from "../feed-timeout.js";
+import {
+  FEED_REQUEST_TIMEOUT_MS,
+  FEED_SOFT_TIMEOUT_MS,
+} from "../feed-timeout.js";
 import { globalFetchSemaphore } from "./fetch-semaphore.js";
 import {
   applyFeedRetentionLimits,
@@ -365,7 +368,6 @@ export class FeedParser {
     return "";
   }
 
-
   private extractPodcastCoverImage(
     item: ParsedItem,
     feedImage: { url: string } | string | undefined,
@@ -433,11 +435,15 @@ export class FeedParser {
     }
 
     if (parsed.feedItunesImage) {
-      return optimizeImageUrl(this.convertToAbsoluteUrl(parsed.feedItunesImage, baseUrl));
+      return optimizeImageUrl(
+        this.convertToAbsoluteUrl(parsed.feedItunesImage, baseUrl),
+      );
     }
 
     if (parsed.feedImageUrl) {
-      return optimizeImageUrl(this.convertToAbsoluteUrl(parsed.feedImageUrl, baseUrl));
+      return optimizeImageUrl(
+        this.convertToAbsoluteUrl(parsed.feedImageUrl, baseUrl),
+      );
     }
 
     return "";
@@ -581,24 +587,24 @@ export class FeedParser {
             this.resolvePodcastCoverImage(item, parsed, url) ||
             existingItem.coverImage;
         } else {
-          coverImage = firstSanitizedArticleImageUrl([
-            this.extractCoverImage(
-              item.content || item.description || "",
-              url,
-            ),
-            optimizeImageUrl(
-              this.convertToAbsoluteUrl(
-                item.itunes?.image?.href || "",
+          coverImage =
+            firstSanitizedArticleImageUrl([
+              this.extractCoverImage(
+                item.content || item.description || "",
                 url,
-              )
-            ),
-            optimizeImageUrl(
-              this.convertToAbsoluteUrl(item.image?.url || "", url),
-            ),
-            (item.enclosure?.type?.startsWith("image/")
-              ? optimizeImageUrl(this.convertToAbsoluteUrl(item.enclosure.url, url))
-              : ""),
-          ]) || sanitizeArticleImageUrl(existingItem.coverImage);
+              ),
+              optimizeImageUrl(
+                this.convertToAbsoluteUrl(item.itunes?.image?.href || "", url),
+              ),
+              optimizeImageUrl(
+                this.convertToAbsoluteUrl(item.image?.url || "", url),
+              ),
+              item.enclosure?.type?.startsWith("image/")
+                ? optimizeImageUrl(
+                    this.convertToAbsoluteUrl(item.enclosure.url, url),
+                  )
+                : "",
+            ]) || sanitizeArticleImageUrl(existingItem.coverImage);
         }
         const updatedItem: FeedItem = {
           ...existingItem,
@@ -623,24 +629,24 @@ export class FeedParser {
           summary:
             this.extractSummary(item.content || item.description || "") ||
             existingItem.summary,
-          image: firstSanitizedArticleImageUrl([
-            optimizeImageUrl(
-              this.convertToAbsoluteUrl(
-                item.itunes?.image?.href || "",
+          image:
+            firstSanitizedArticleImageUrl([
+              optimizeImageUrl(
+                this.convertToAbsoluteUrl(item.itunes?.image?.href || "", url),
+              ),
+              optimizeImageUrl(
+                this.convertToAbsoluteUrl(item.image?.url || "", url),
+              ),
+              this.extractCoverImage(
+                item.content || item.description || "",
                 url,
-              )
-            ),
-            optimizeImageUrl(
-              this.convertToAbsoluteUrl(item.image?.url || "", url),
-            ),
-            this.extractCoverImage(
-              item.content || item.description || "",
-              url,
-            ),
-            (item.enclosure?.type?.startsWith("image/")
-              ? optimizeImageUrl(this.convertToAbsoluteUrl(item.enclosure.url, url))
-              : ""),
-          ]) || sanitizeArticleImageUrl(existingItem.image),
+              ),
+              item.enclosure?.type?.startsWith("image/")
+                ? optimizeImageUrl(
+                    this.convertToAbsoluteUrl(item.enclosure.url, url),
+                  )
+                : "",
+            ]) || sanitizeArticleImageUrl(existingItem.image),
           duration: item.itunes?.duration || existingItem.duration,
           explicit: item.itunes?.explicit === "yes" || existingItem.explicit,
           category: item.itunes?.category || existingItem.category,
@@ -680,22 +686,18 @@ export class FeedParser {
           coverImage = this.resolvePodcastCoverImage(item, parsed, url);
         } else {
           coverImage = firstSanitizedArticleImageUrl([
-            this.extractCoverImage(
-              item.content || item.description || "",
-              url,
-            ),
+            this.extractCoverImage(item.content || item.description || "", url),
             optimizeImageUrl(
-              this.convertToAbsoluteUrl(
-                item.itunes?.image?.href || "",
-                url,
-              )
+              this.convertToAbsoluteUrl(item.itunes?.image?.href || "", url),
             ),
             optimizeImageUrl(
               this.convertToAbsoluteUrl(item.image?.url || "", url),
             ),
-            (item.enclosure?.type?.startsWith("image/")
-              ? optimizeImageUrl(this.convertToAbsoluteUrl(item.enclosure.url, url))
-              : ""),
+            item.enclosure?.type?.startsWith("image/")
+              ? optimizeImageUrl(
+                  this.convertToAbsoluteUrl(item.enclosure.url, url),
+                )
+              : "",
           ]);
         }
         const image = firstSanitizedArticleImageUrl([
@@ -705,10 +707,7 @@ export class FeedParser {
           optimizeImageUrl(
             this.convertToAbsoluteUrl(item.image?.url || "", url),
           ),
-          this.extractCoverImage(
-            item.content || item.description || "",
-            url,
-          ),
+          this.extractCoverImage(item.content || item.description || "", url),
           item.enclosure?.type?.startsWith("image/")
             ? optimizeImageUrl(
                 this.convertToAbsoluteUrl(item.enclosure.url, url),
@@ -844,7 +843,10 @@ export class FeedParser {
     );
 
     const absoluteFeedLogoUrl = feedLogoUrl
-      ? this.convertToAbsoluteUrl(feedLogoUrl, url).replace(/\.(png|jpe?g|gif|webp|svg|ico)\/+$/i, ".$1")
+      ? this.convertToAbsoluteUrl(feedLogoUrl, url).replace(
+          /\.(png|jpe?g|gif|webp|svg|ico)\/+$/i,
+          ".$1",
+        )
       : "";
 
     if (absoluteFeedLogoUrl) {
@@ -873,9 +875,21 @@ export class FeedParser {
     feed.items = updated.items;
   }
 
-  async refreshFeed(feed: Feed): Promise<Feed> {
+  async refreshFeed(
+    feed: Feed,
+    options?: { signal?: AbortSignal },
+  ): Promise<Feed> {
     let timeoutId: number | null = null;
     const abortController = new AbortController();
+    let externalAbortHandler: (() => void) | null = null;
+    if (options?.signal) {
+      if (options.signal.aborted) {
+        abortController.abort();
+      } else {
+        externalAbortHandler = () => abortController.abort();
+        options.signal.addEventListener("abort", externalAbortHandler);
+      }
+    }
     try {
       const refreshedFeed = await Promise.race([
         this.parseFeed(feed.url, feed, { signal: abortController.signal }),
@@ -894,12 +908,18 @@ export class FeedParser {
         `[RSS dashboard] Error parsing feed ${feed.title} (${feed.url}):`,
         error,
       );
+      if (options?.signal?.aborted) {
+        throw error;
+      }
       // Persist the clean error message so the sidebar can show the badge
       feed.lastFetchError = parseFetchErrorMessage(error);
       return feed;
     } finally {
       if (timeoutId !== null) {
         window.clearTimeout(timeoutId);
+      }
+      if (externalAbortHandler && options?.signal) {
+        options.signal.removeEventListener("abort", externalAbortHandler);
       }
     }
   }
@@ -953,7 +973,7 @@ export class FeedParser {
     const workers = Array(Math.min(queueProcessorsCount, feeds.length))
       .fill(0)
       .map(() => worker());
-      
+
     await Promise.all(workers);
     await Promise.all(backgroundPromises);
 

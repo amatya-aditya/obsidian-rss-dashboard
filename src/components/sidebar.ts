@@ -51,9 +51,7 @@ import {
   getRefreshStatus,
   type RefreshStatus,
 } from "../utils/refresh-status";
-import {
-  getEffectiveRefreshIntervalMinutes,
-} from "../utils/refresh-intervals";
+import { getEffectiveRefreshIntervalMinutes } from "../utils/refresh-intervals";
 
 export interface SidebarOptions {
   currentFolder: string | null;
@@ -396,7 +394,8 @@ export class Sidebar {
           `Next scheduled refresh: ${status.nextDueAt === 0 ? "Due now" : formatRefreshStatusTime(status.nextDueAt, true)}`,
         );
       }
-      if (feed.lastFetchError) lines.push(`Last attempt failed: ${feed.lastFetchError}`);
+      if (feed.lastFetchError)
+        lines.push(`Last attempt failed: ${feed.lastFetchError}`);
       if (status.refreshingCount > 0) lines.push("In progress");
       if (feed.excludeFromRefresh) lines.push("Excluded from global refresh");
       return lines;
@@ -407,7 +406,9 @@ export class Sidebar {
       globalIntervalMinutes: this.settings.refreshInterval,
       scope: "aggregate",
     });
-    lines.push(`Aggregate coverage: ${formatRefreshStatusTime(coverage.completionAt, true)}`);
+    lines.push(
+      `Aggregate coverage: ${formatRefreshStatusTime(coverage.completionAt, true)}`,
+    );
     if (status.nextDueAt !== null) {
       lines.push(
         `Next scheduled refresh: ${status.nextDueAt === 0 ? "Due now" : formatRefreshStatusTime(status.nextDueAt, true)}`,
@@ -417,12 +418,20 @@ export class Sidebar {
     return lines;
   }
 
-  private appendRefreshStatusCounts(lines: string[], status: RefreshStatus): void {
-    if (status.failingCount > 0) lines.push(`Feeds currently failing: ${status.failingCount}`);
-    if (status.refreshingCount > 0) lines.push(`Refreshing ${status.refreshingCount} feeds...`);
-    if (status.automaticOffCount > 0) lines.push(`Automatic refresh off: ${status.automaticOffCount}`);
-    if (status.excludedCount > 0) lines.push(`Feeds excluded from global refresh: ${status.excludedCount}`);
-    if (status.neverCheckedCount > 0) lines.push(`Feeds not yet checked: ${status.neverCheckedCount}`);
+  private appendRefreshStatusCounts(
+    lines: string[],
+    status: RefreshStatus,
+  ): void {
+    if (status.failingCount > 0)
+      lines.push(`Feeds currently failing: ${status.failingCount}`);
+    if (status.refreshingCount > 0)
+      lines.push(`Refreshing ${status.refreshingCount} feeds...`);
+    if (status.automaticOffCount > 0)
+      lines.push(`Automatic refresh off: ${status.automaticOffCount}`);
+    if (status.excludedCount > 0)
+      lines.push(`Feeds excluded from global refresh: ${status.excludedCount}`);
+    if (status.neverCheckedCount > 0)
+      lines.push(`Feeds not yet checked: ${status.neverCheckedCount}`);
   }
 
   private attachRefreshDetails(
@@ -449,8 +458,7 @@ export class Sidebar {
   }
 
   private attachRefreshActionDetails(row: HTMLElement): void {
-    const actionText =
-      "Refresh all feeds. Shift+click to retry failed feeds.";
+    const actionText = "Refresh all feeds. Shift+click to retry failed feeds.";
     this.refreshStatusDetailCleanups.push(
       attachRefreshStatusDetails({
         row,
@@ -477,7 +485,10 @@ export class Sidebar {
     });
     popup.createEl("strong", { text: "Refresh details" });
     for (const line of this.getRefreshDetailLines(feeds, scope)) {
-      popup.createDiv({ cls: "rss-dashboard-refresh-details-line", text: line });
+      popup.createDiv({
+        cls: "rss-dashboard-refresh-details-line",
+        text: line,
+      });
     }
     const rect = anchor.getBoundingClientRect();
     popup.style.setProperty("top", `${Math.max(8, rect.top)}px`);
@@ -1021,6 +1032,7 @@ export class Sidebar {
     const isRefreshActive =
       this.plugin.isMultiFeedRefreshActive ||
       (this.plugin.activeRefreshState?.size ?? 0) > 0;
+    const isCancellable = this.plugin.isGlobalRefreshCancellable ?? false;
 
     // Feed icon (refresh button) - clickable
     const refreshLabelId = `rss-dashboard-refresh-all-feeds-${Math.random()
@@ -1028,19 +1040,28 @@ export class Sidebar {
       .slice(2)}`;
     allFeedsButton.createSpan({
       cls: "rss-dashboard-refresh-details-sr-only",
-      text: "Refresh all feeds. Shift+click to retry failed feeds.",
+      text: isCancellable
+        ? "Refresh in progress. Click to stop."
+        : "Refresh all feeds. Shift+click to retry failed feeds.",
       attr: { id: refreshLabelId },
     });
-    const feedIcon = allFeedsButton.createDiv({
+    const feedIcon = allFeedsButton.createEl("button", {
       cls:
-        "rss-dashboard-all-feeds-icon" + (isRefreshActive ? " refreshing" : ""),
+        "rss-dashboard-all-feeds-icon" +
+        (isCancellable ? " stop" : isRefreshActive ? " refreshing" : ""),
       attr: {
+        type: "button",
+        title: isCancellable ? "Stop refresh" : "Refresh all feeds",
         "aria-labelledby": refreshLabelId,
       },
     });
-    setIcon(feedIcon, "refresh-cw");
+    setIcon(feedIcon, isCancellable ? "square-stop" : "refresh-cw");
     feedIcon.addEventListener("click", (e) => {
       e.stopPropagation();
+      if (isCancellable) {
+        this.plugin.cancelGlobalRefresh();
+        return;
+      }
       if (this.plugin.isMultiFeedRefreshActive) return;
       void this.handleRefresh(e);
     });
@@ -1054,6 +1075,17 @@ export class Sidebar {
       cls: "rss-dashboard-all-feeds-label",
       text: `All Feeds (${totalFeeds})`,
     });
+
+    if (isCancellable) {
+      const progress = this.plugin.globalRefreshProgress ?? {
+        completed: 0,
+        total: 0,
+      };
+      labelContainer.createSpan({
+        cls: "rss-dashboard-all-feeds-progress",
+        text: `${progress.completed}/${progress.total}`,
+      });
+    }
 
     const rightContainer = allFeedsButton.createDiv({
       cls: "rss-dashboard-all-feeds-right",
@@ -1085,13 +1117,16 @@ export class Sidebar {
     const anchor = event.currentTarget;
 
     menu.addItem((item: MenuItem) => {
-      item.setTitle("Refresh details").setIcon("info").onClick(() => {
-        this.showRefreshDetails(
-          anchor instanceof HTMLElement ? anchor : this.container,
-          this.settings.feeds,
-          "all",
-        );
-      });
+      item
+        .setTitle("Refresh details")
+        .setIcon("info")
+        .onClick(() => {
+          this.showRefreshDetails(
+            anchor instanceof HTMLElement ? anchor : this.container,
+            this.settings.feeds,
+            "all",
+          );
+        });
     });
 
     menu.addItem((item: MenuItem) => {
@@ -1185,7 +1220,8 @@ export class Sidebar {
     this.attachRefreshDetails(
       folderHeader,
       this.settings.feeds.filter(
-        (feed) => Boolean(feed.folder) && folderRefreshFeeds.includes(feed.folder),
+        (feed) =>
+          Boolean(feed.folder) && folderRefreshFeeds.includes(feed.folder),
       ),
       "aggregate",
     );
@@ -1202,10 +1238,7 @@ export class Sidebar {
       "aria-label",
       isCollapsed ? "Expand folder" : "Collapse folder",
     );
-    setIcon(
-      toggleButton,
-      isCollapsed ? "chevron-right" : "chevron-down",
-    );
+    setIcon(toggleButton, isCollapsed ? "chevron-right" : "chevron-down");
 
     if (folderObj.pinned) {
       const pinIcon = folderHeader.createDiv({
@@ -1262,7 +1295,10 @@ export class Sidebar {
 
       // Shift+click: range selection (delegate computation to caller)
       if (e.shiftKey) {
-        const clickedKey = this.getSidebarTargetKey({ type: "folder", path: fullPath });
+        const clickedKey = this.getSidebarTargetKey({
+          type: "folder",
+          path: fullPath,
+        });
         const visibleKeys = this.sidebarRows.map((r) => r.key);
         this.callbacks.onRangeSelect?.(clickedKey, visibleKeys);
         return;
@@ -1568,7 +1604,8 @@ export class Sidebar {
         }
       }
     }
-    const isSelected = (this.options.selectedFeeds || []).includes(feed.url) || isSelectedFolder;
+    const isSelected =
+      (this.options.selectedFeeds || []).includes(feed.url) || isSelectedFolder;
 
     const feedEl = container.createDiv({
       cls:
@@ -1712,7 +1749,10 @@ export class Sidebar {
       e.stopPropagation();
       // Shift+click: range selection (delegate to caller)
       if (e.shiftKey) {
-        const clickedKey = this.getSidebarTargetKey({ type: "feed", url: feed.url });
+        const clickedKey = this.getSidebarTargetKey({
+          type: "feed",
+          url: feed.url,
+        });
         const visibleKeys = this.sidebarRows.map((r) => r.key);
         this.callbacks.onRangeSelect?.(clickedKey, visibleKeys);
         return;
@@ -1850,16 +1890,19 @@ export class Sidebar {
     });
   }
 
-  private isMultiSelectionTarget(targetType: 'folder' | 'feed', targetKey: string): boolean {
+  private isMultiSelectionTarget(
+    targetType: "folder" | "feed",
+    targetKey: string,
+  ): boolean {
     const { selectedFolders, selectedFeeds } = this.options;
     const folderCount = selectedFolders?.length || 0;
     const feedCount = selectedFeeds?.length || 0;
     // Multi-selection exists if more than 1 feed is selected, or if any folder is selected.
     const hasMultiSelection = folderCount > 0 || feedCount > 1;
-                              
+
     if (!hasMultiSelection) return false;
-    
-    if (targetType === 'folder') {
+
+    if (targetType === "folder") {
       return selectedFolders?.includes(targetKey) || false;
     } else {
       return selectedFeeds?.includes(targetKey) || false;
@@ -1868,14 +1911,16 @@ export class Sidebar {
 
   private appendSelectionContextMenu(menu: Menu): void {
     menu.addItem((item: MenuItem) => {
-      item.setTitle("Mark selection as read")
+      item
+        .setTitle("Mark selection as read")
         .setIcon("check-circle")
         .onClick(() => {
           this.markSelectionReadStatus(true);
         });
     });
     menu.addItem((item: MenuItem) => {
-      item.setTitle("Mark selection as unread")
+      item
+        .setTitle("Mark selection as unread")
         .setIcon("circle")
         .onClick(() => {
           this.markSelectionReadStatus(false);
@@ -1883,7 +1928,8 @@ export class Sidebar {
     });
     menu.addSeparator();
     menu.addItem((item: MenuItem) => {
-      item.setTitle("Delete selection")
+      item
+        .setTitle("Delete selection")
         .setIcon("trash")
         .onClick(() => {
           this.deleteSelection();
@@ -1894,7 +1940,7 @@ export class Sidebar {
   private markSelectionReadStatus(read: boolean): void {
     let count = 0;
     const { selectedFolders, selectedFeeds } = this.options;
-    
+
     const feedsToUpdate = new Set<Feed>();
     for (const feed of this.settings.feeds) {
       if (selectedFeeds && selectedFeeds.includes(feed.url)) {
@@ -1914,7 +1960,7 @@ export class Sidebar {
         }
       }
     }
-    
+
     for (const feed of feedsToUpdate) {
       for (const item of feed.items) {
         if (item.read !== read) {
@@ -1923,12 +1969,12 @@ export class Sidebar {
         }
       }
     }
-    
+
     if (count > 0) {
-      new Notice(`Marked ${count} items as ${read ? 'read' : 'unread'}`);
+      new Notice(`Marked ${count} items as ${read ? "read" : "unread"}`);
       void this.plugin.saveSettings().then(() => this.render());
     } else {
-      new Notice(`No items to mark as ${read ? 'read' : 'unread'}`);
+      new Notice(`No items to mark as ${read ? "read" : "unread"}`);
     }
   }
 
@@ -1936,9 +1982,9 @@ export class Sidebar {
     const { selectedFolders, selectedFeeds } = this.options;
     const folderCount = selectedFolders?.length || 0;
     const feedCount = selectedFeeds?.length || 0;
-    
+
     if (folderCount === 0 && feedCount === 0) return;
-    
+
     let msg = `Are you sure you want to delete the selected items? This action cannot be undone.`;
     if (folderCount > 0 && feedCount === 0) {
       msg = `Are you sure you want to delete ${folderCount} selected folder(s) and all their subfolders and feeds?`;
@@ -1947,7 +1993,7 @@ export class Sidebar {
     } else {
       msg = `Are you sure you want to delete ${folderCount} folder(s) and ${feedCount} feed(s)?`;
     }
-    
+
     this.showConfirmModal(msg, () => {
       if (selectedFolders) {
         for (const folder of selectedFolders) {
@@ -1956,7 +2002,7 @@ export class Sidebar {
       }
       if (selectedFeeds) {
         for (const feedUrl of selectedFeeds) {
-          const feed = this.settings.feeds.find(f => f.url === feedUrl);
+          const feed = this.settings.feeds.find((f) => f.url === feedUrl);
           if (feed) {
             this.callbacks.onDeleteFeed(feed);
           }
@@ -1978,19 +2024,22 @@ export class Sidebar {
     const anchor = event.currentTarget;
 
     menu.addItem((item: MenuItem) => {
-      item.setTitle("Refresh details").setIcon("info").onClick(() => {
-        this.showRefreshDetails(
-          anchor instanceof HTMLElement ? anchor : this.container,
-          this.settings.feeds.filter((feed) => {
-            const paths = this.getAllDescendantFolderPaths(fullPath);
-            return Boolean(feed.folder) && paths.includes(feed.folder);
-          }),
-          "aggregate",
-        );
-      });
+      item
+        .setTitle("Refresh details")
+        .setIcon("info")
+        .onClick(() => {
+          this.showRefreshDetails(
+            anchor instanceof HTMLElement ? anchor : this.container,
+            this.settings.feeds.filter((feed) => {
+              const paths = this.getAllDescendantFolderPaths(fullPath);
+              return Boolean(feed.folder) && paths.includes(feed.folder);
+            }),
+            "aggregate",
+          );
+        });
     });
-    
-    if (this.isMultiSelectionTarget('folder', fullPath)) {
+
+    if (this.isMultiSelectionTarget("folder", fullPath)) {
       this.appendSelectionContextMenu(menu);
       menu.showAtMouseEvent(event);
       return;
@@ -3639,16 +3688,19 @@ export class Sidebar {
     const anchor = event.currentTarget;
 
     menu.addItem((item: MenuItem) => {
-      item.setTitle("Refresh details").setIcon("info").onClick(() => {
-        this.showRefreshDetails(
-          anchor instanceof HTMLElement ? anchor : this.container,
-          [feed],
-          "feed",
-        );
-      });
+      item
+        .setTitle("Refresh details")
+        .setIcon("info")
+        .onClick(() => {
+          this.showRefreshDetails(
+            anchor instanceof HTMLElement ? anchor : this.container,
+            [feed],
+            "feed",
+          );
+        });
     });
 
-    if (this.isMultiSelectionTarget('feed', feed.url)) {
+    if (this.isMultiSelectionTarget("feed", feed.url)) {
       this.appendSelectionContextMenu(menu);
       menu.showAtMouseEvent(event);
       return;

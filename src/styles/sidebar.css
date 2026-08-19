@@ -991,21 +991,47 @@ body.theme-dark .rss-dashboard-all-feeds-button {
 }
 
 .rss-dashboard-all-feeds-icon {
+  --icon-color: var(
+    --rss-unread-badge-all-feeds-color,
+    var(--interactive-accent)
+  );
   width: 16px;
   height: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
   margin-right: 8px;
-  color: var(--rss-unread-badge-all-feeds-color);
+  color: var(
+    --rss-unread-badge-all-feeds-color,
+    var(--interactive-accent)
+  );
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+
+.rss-dashboard-all-feeds-button .rss-dashboard-all-feeds-icon:not(.stop):hover {
+  background-color: transparent;
+}
+
+.rss-dashboard-all-feeds-button .rss-dashboard-all-feeds-icon {
+  background-color: transparent;
 }
 
 .rss-dashboard-all-feeds-icon svg {
   display: block;
   width: 16px;
   height: 16px;
+  color: var(--icon-color);
   overflow: visible;
   will-change: transform;
+  transition: transform 0.3s ease;
+}
+
+.rss-dashboard-all-feeds-icon:not(.refreshing):not(.stop):hover svg {
+  transform: rotate(180deg);
 }
 
 .rss-dashboard-all-feeds-label-container {
@@ -1059,6 +1085,24 @@ body.theme-dark .rss-dashboard-all-feeds-button {
   transform-box: fill-box;
   transform-origin: center;
   will-change: transform;
+}
+
+.rss-dashboard-all-feeds-icon.stop {
+  --icon-color: var(--text-error, var(--rss-color-red-danger, #dc2626));
+  color: var(--text-error, var(--rss-color-red-danger, #dc2626));
+}
+
+.rss-dashboard-all-feeds-icon.stop:hover {
+  --icon-color: var(--rss-color-red-confirm, #ef4444);
+  color: var(--rss-color-red-confirm, #ef4444);
+  background-color: var(--background-modifier-hover);
+}
+
+.rss-dashboard-all-feeds-progress {
+  font-size: var(--font-x-small);
+  color: var(--text-muted);
+  white-space: nowrap;
+  margin-left: 6px;
 }
 
 /* ============================================

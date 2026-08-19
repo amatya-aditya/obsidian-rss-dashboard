@@ -814,4 +814,24 @@ describe("FeedParser.parseFeed", () => {
 
     requestUrlSpy.mockRestore();
   });
+
+  it("does not persist an abort as a feed failure", async () => {
+    const feed: Feed = {
+      title: "Abortable Feed",
+      url: "https://example.com/abortable.xml",
+      folder: "Uncategorized",
+      items: [],
+      lastUpdated: Date.now(),
+      lastFetchError: "previous error",
+    };
+    const parser = new FeedParser(DEFAULT_SETTINGS.display, [], mediaSettings);
+    vi.spyOn(parser, "parseFeed").mockRejectedValue(new Error("Aborted"));
+    const controller = new AbortController();
+    controller.abort();
+
+    await expect(
+      parser.refreshFeed(feed, { signal: controller.signal }),
+    ).rejects.toThrow("Aborted");
+    expect(feed.lastFetchError).toBe("previous error");
+  });
 });

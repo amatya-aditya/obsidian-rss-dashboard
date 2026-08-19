@@ -314,18 +314,8 @@ export function renderSidebarSettingsTab(
       if (!icon) return;
       const hideKey = icon.settingKey;
 
-      const nameFrag = containerEl.win.createFragment();
-      const labelWrap = containerEl.win.createSpan();
-      labelWrap.addClass("rss-settings-icon-label");
-      const iconSpan = containerEl.win.createSpan();
-      iconSpan.addClass("rss-settings-icon-preview");
-      setIcon(iconSpan, icon.lucideIcon);
-      labelWrap.append(iconSpan);
-      labelWrap.append(` ${icon.label}`);
-      nameFrag.append(labelWrap);
-
       const iconSetting = new Setting(iconRowsContainer)
-        .setName(nameFrag)
+        .setName(icon.label)
         .setDisabled(hideToolbar)
         .addToggle((toggle) =>
           toggle
@@ -345,6 +335,11 @@ export function renderSidebarSettingsTab(
 
       iconSetting.settingEl.addClass("rss-dashboard-icon-visibility-row");
       iconSetting.settingEl.setAttribute("data-icon-id", id);
+
+      const iconPreview = containerEl.win.createSpan();
+      iconPreview.addClass("rss-settings-icon-preview");
+      setIcon(iconPreview, icon.lucideIcon);
+      iconSetting.nameEl.prepend(iconPreview);
 
       const dragHandle = containerEl.win.createEl("button");
       dragHandle.type = "button";

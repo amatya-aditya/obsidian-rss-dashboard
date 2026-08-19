@@ -13,6 +13,7 @@ records the complete 2026-08-16 documentation classification.
 | [Per-feed auto-refresh scheduling fix](plans/unreleased/166-per-feed-auto-refresh-scheduling.md) | 2026-08-16 | [GH Issue #166](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/166) | `5592c39`      |
 | [Refresh status and progress indicators](plans/unreleased/167-refresh-status-indicators.md) | 2026-08-16 | [GH Issue #167](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/167) | `6f767c7`      |
 | [Retry failed feeds](plans/unreleased/168-retry-failed-feeds.md) | 2026-08-17 | [GH Issue #168](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/168) | `9a4968d`      |
+| [Cancellable global refresh](plans/unreleased/173-cancel-global-refresh.md) | 2026-08-19 | [GH Issue #173](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/173) | —              |
 | [WordPress LaTeX image rendering](plans/unreleased/wordpress-latex-image-rendering.md) | 2026-08-08 | Unknown                                                                             | `9ce3582`      |
 
 ## Versioned plans
