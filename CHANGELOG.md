@@ -2,6 +2,7 @@
 
 ### Features
 
+- Added a Stop button on the All feeds sidebar row during global refreshes, allowing users to cancel an in-progress refresh, including when only one eligible feed remains. Cancelled feeds do not advance their refresh timestamps, and in-progress fetches are aborted via an AbortSignal. Failed-feed retries and folder/selected/tag/due refreshes remain non-cancellable. [GH Issue #173](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/173)
 - Added Shift+click and an All feeds context-menu action to retry failed, non-excluded feeds without advancing the global refresh timestamp. [GH Issue #168](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/168)
 - Added static refresh-status timestamps and accessible refresh details for all feeds, folders, and feeds. [GH Issue #167](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/167)
 - New installations now default global feed auto-refresh to Off.
@@ -12,6 +13,7 @@
 
 ### Fixes
 
+- Fixed sidebar icon visibility settings displaying `[object DocumentFragment]` instead of each icon's name.
 - Fixed the All feeds refresh-details popup showing alongside Obsidian's delayed native tooltip. [GH Issue #168](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/168)
 - Fixed refresh-detail tooltip and ghost-popup regressions, and prevented global-refresh vault saves from reloading empty article shards. [GH Issue #167](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/167)
 - Fixed per-feed auto-refresh intervals so Use global, Off, and custom schedules control runtime refresh timing. Failed attempts now wait their configured interval without changing the last successful update time. [GH Issue #166](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/166)

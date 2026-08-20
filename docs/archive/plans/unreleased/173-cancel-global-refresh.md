@@ -1,13 +1,8 @@
 ---
-status: proposed
-created: 2026-08-17
+status: implemented
+completed: 2026-08-19
+released_in: unreleased
 issue: https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/173
-milestone: vNext
-owner: unassigned
-workstream: refresh
-sequence: null
-depends_on: []
-release_requirement: stretch
 implementation: ""
 ---
 
@@ -24,7 +19,8 @@ been fetched.
 ## Proposed behavior
 
 - A global refresh can be cancelled regardless of whether it was started
-  manually, during startup, or by the automatic global schedule.
+  manually, during startup, or by the automatic global schedule, including
+  when only one eligible feed remains after exclusions.
 - While a global refresh is active, the All feeds row remains selectable and
   its refresh area becomes a progress row showing completed versus targeted
   feeds.
@@ -36,8 +32,8 @@ been fetched.
   underlying request cannot abort immediately.
 - The interface returns to the normal All feeds state and shows a concise
   “Refresh stopped” notice.
-- Single-feed, folder, selected-feed, due-subset, and failed-only refreshes are
-  outside this control's cancellation scope.
+- Direct single-feed, folder, selected-feed, due-subset, and failed-only
+  refreshes are outside this control's cancellation scope.
 
 ## Acceptance criteria
 
@@ -57,22 +53,29 @@ been fetched.
    network failure.
 8. Existing refresh, timeout, retry-failed, status-indicator, and persistence
    behavior remains unchanged when cancellation is not requested.
+9. An abort-triggered parser rejection does not set or persist
+   `lastFetchError`; cancellation is not presented as a feed failure.
+10. A global operation is cancellable even when it targets exactly one eligible
+    feed, while a due-subset operation remains non-cancellable.
 
 ## Implementation direction
 
 - Extend the centralized refresh orchestration in `main.ts` with cancellation
-  state for the active global operation and a cancellation boundary that
-  prevents late results from being committed.
+  state for every active global operation (including the one-feed path) and a
+  cancellation boundary that prevents late results and abort errors from being
+  committed.
 - Thread a caller-owned abort signal through the multi-feed refresh path and
   feed parser fetch path, while retaining each feed's timeout handling.
 - Expose enough observable global progress/cancellation state for
-  `src/components/sidebar.ts` to render the progress row and Stop action.
+  `src/components/sidebar.ts` to render the progress row and a keyboard- and
+  touch-operable Stop button.
 - Update the owning styles in `src/styles/` with scoped progress, focus, touch,
   and destructive-state treatment; do not use `!important`.
 - Extend the existing refresh pipeline and sidebar rendering tests under
   `test_files/unit/main/` and `test_files/unit/components/` with behavior-level
-  coverage for cancellation, partial persistence, late responses, accessibility
-  state, and row selection.
+  coverage for cancellation, partial persistence, abort-error persistence, late
+  responses, keyboard accessibility, one-feed global refreshes, due-subset
+  exclusion, and row selection.
 
 ## Validation and manual checks
 
@@ -111,3 +114,13 @@ refresh-status or scheduling foundations to function.
   operations, but not due-subset or other scoped batches.
 - Stop means no post-cancellation feed mutation; already committed results are
   authoritative and are not rolled back.
+
+## Review follow-up (2026-08-19)
+
+Implementation review identified four release-blocking regressions: the Stop
+action had to be keyboard-operable; aborted requests could not persist
+`lastFetchError`; a global refresh with one eligible feed had to use the
+cancellable path; and due-subset refreshes had to remain outside the
+cancellation scope. These corrections were completed and validated under
+Beads item `obsidian-rss-dashboard-gyj`, retaining GitHub issue #173 as their
+canonical external reference.

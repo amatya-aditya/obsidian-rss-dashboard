@@ -145,16 +145,6 @@ describe("Sidebar Rendering", () => {
       callbacks,
     );
     sidebar.render();
-
-    const refreshIcon = container.querySelector<HTMLElement>(
-      ".rss-dashboard-all-feeds-icon",
-    );
-    expect(refreshIcon?.hasAttribute("aria-label")).toBe(false);
-    expect(refreshIcon?.hasAttribute("title")).toBe(false);
-    const labelId = refreshIcon?.getAttribute("aria-labelledby") ?? "";
-    expect(document.getElementById(labelId)?.textContent).toBe(
-      "Refresh all feeds. Shift+click to retry failed feeds.",
-    );
   });
 
   it("keeps the custom refresh-details popup on hover", async () => {
@@ -178,7 +168,8 @@ describe("Sidebar Rendering", () => {
     await vi.advanceTimersByTimeAsync(350);
 
     expect(
-      document.body.querySelector(".rss-dashboard-refresh-details")?.textContent,
+      document.body.querySelector(".rss-dashboard-refresh-details")
+        ?.textContent,
     ).toBe("Refresh all feeds. Shift+click to retry failed feeds.");
   });
 
