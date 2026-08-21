@@ -73,6 +73,41 @@ describe("feed-view", () => {
     ).toBeTruthy();
   });
 
+  it.each([
+    { showCoverImage: true, showSummary: true, image: true, summary: true },
+    { showCoverImage: true, showSummary: false, image: true, summary: false },
+    { showCoverImage: false, showSummary: true, image: false, summary: true },
+    { showCoverImage: false, showSummary: false, image: false, summary: false },
+  ])(
+    "renders Feed View previews independently when cover images are $showCoverImage and summaries are $showSummary",
+    ({ showCoverImage, showSummary, image, summary }) => {
+      renderFeedView(
+        container,
+        [makeArticle({ coverImage: "https://example.com/cover.jpg" })],
+        baseViewContext({
+          settings: {
+            highlights: {
+              highlightInTitles: false,
+              highlightInSummaries: false,
+            },
+            display: { showCoverImage, showSummary, articleDateStyle: "relative" },
+          },
+        }),
+        baseViewDeps(),
+      );
+
+      expect(!!container.querySelector(".rss-dashboard-feed-hero-image")).toBe(
+        image,
+      );
+      expect(!!container.querySelector(".rss-dashboard-feed-hero-blur")).toBe(
+        image,
+      );
+      expect(!!container.querySelector(".rss-dashboard-feed-summary")).toBe(
+        summary,
+      );
+    },
+  );
+
   it("does not render a hero when stale article media is a LaTeX formula", () => {
     const formulaUrl =
       "https://s0.wp.com/latex.php?latex=%7Bx%7D&bg=ffffff";

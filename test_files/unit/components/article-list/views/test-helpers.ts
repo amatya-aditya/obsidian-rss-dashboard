@@ -32,6 +32,8 @@ export function baseViewContext(
         highlightInSummaries: false,
       },
       display: {
+        showCoverImage: true,
+        showSummary: true,
         articleDateStyle: "relative",
       },
     } as BaseViewContext["settings"],

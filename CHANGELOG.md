@@ -13,6 +13,7 @@
 
 ### Fixes
 
+- Fixed dashboard Card and Feed preview settings so cover images and summaries can be controlled independently, cover-only cards retain their image on hover, and disabling cover images avoids dashboard preview-image loading. [GH Issue #175](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/175)
 - Fixed sidebar icon visibility settings displaying `[object DocumentFragment]` instead of each icon's name.
 - Fixed the All feeds refresh-details popup showing alongside Obsidian's delayed native tooltip. [GH Issue #168](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/168)
 - Fixed refresh-detail tooltip and ghost-popup regressions, and prevented global-refresh vault saves from reloading empty article shards. [GH Issue #167](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/167)

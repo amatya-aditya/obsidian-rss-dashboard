@@ -80,11 +80,12 @@ export function renderCardView(
       });
     }
 
-    const coverImgSrc = resolveArticlePreviewImage(article, [
-      "coverImage",
-      "image",
-    ]);
-    const previewSummaryText = getArticlePreviewSummaryText(article);
+    const coverImgSrc = ctx.settings.display.showCoverImage
+      ? resolveArticlePreviewImage(article, ["coverImage", "image"])
+      : undefined;
+    const previewSummaryText = ctx.settings.display.showSummary
+      ? getArticlePreviewSummaryText(article)
+      : "";
 
     if (coverImgSrc) {
       const previewRegion = cardContent.createDiv({

@@ -37,10 +37,9 @@ function renderArticleCard(
     cls: "rss-dashboard-feed-content",
   });
 
-  const coverImgSrc = resolveArticlePreviewImage(article, [
-    "image",
-    "coverImage",
-  ]);
+  const coverImgSrc = ctx.settings.display.showCoverImage
+    ? resolveArticlePreviewImage(article, ["image", "coverImage"])
+    : undefined;
   if (coverImgSrc) {
     const previewRegion = feedContent.createDiv({
       cls: "rss-dashboard-feed-preview-region",
@@ -96,7 +95,9 @@ function renderArticleCard(
     });
   }
 
-  const feedPreviewText = getArticlePreviewSummaryText(article);
+  const feedPreviewText = ctx.settings.display.showSummary
+    ? getArticlePreviewSummaryText(article)
+    : "";
   if (feedPreviewText) {
     const summaryEl = textRegion.createDiv({
       cls: "rss-dashboard-feed-summary",

@@ -31,6 +31,47 @@ beforeEach(() => {
 });
 
 describe("renderDisplaySettingsTab() reader section", () => {
+  it("describes dashboard previews and rerenders the active Feed dashboard after either preview preference changes", async () => {
+    const containerEl = document.createElement("div");
+    document.body.appendChild(containerEl);
+    const settings = cloneSettings();
+    settings.viewStyle = "feed";
+    const render = vi.fn();
+    const saveSettings = vi.fn(async () => {});
+    const revealLeaf = vi.fn(async () => {});
+    const plugin = {
+      app: { workspace: { revealLeaf } },
+      settings,
+      saveSettings,
+      getActiveDashboardView: vi.fn(async () => ({ leaf: {}, render })),
+      getActiveReaderView: vi.fn(async () => null),
+    } as unknown as RssDashboardPlugin;
+
+    renderDisplaySettingsTab(containerEl, plugin, () => {});
+
+    const coverImages = getSettingByName(containerEl, "Show cover images");
+    expect(coverImages.querySelector(".setting-item-description")?.textContent).toBe(
+      "Display cover-image previews in dashboard card and feed views. Turning this off reduces remote image loading and can improve browsing performance.",
+    );
+    const coverToggle = coverImages.querySelector("input") as HTMLInputElement;
+    coverToggle.checked = false;
+    coverToggle.dispatchEvent(new Event("change"));
+    await flushPromises();
+
+    const summaryToggle = getSettingByName(containerEl, "Show summary").querySelector(
+      "input",
+    ) as HTMLInputElement;
+    summaryToggle.checked = false;
+    summaryToggle.dispatchEvent(new Event("change"));
+    await flushPromises();
+
+    expect(settings.display.showCoverImage).toBe(false);
+    expect(settings.display.showSummary).toBe(false);
+    expect(saveSettings).toHaveBeenCalledTimes(2);
+    expect(revealLeaf).toHaveBeenCalledTimes(2);
+    expect(render).toHaveBeenCalledTimes(2);
+  });
+
   it("renders a Reader section without paragraph width", () => {
     const containerEl = document.createElement("div");
     document.body.appendChild(containerEl);

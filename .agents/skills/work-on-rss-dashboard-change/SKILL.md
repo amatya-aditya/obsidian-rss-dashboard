@@ -38,6 +38,13 @@ workflow proportional to risk while preserving the repository's audit gates.
   the exact issue URL, and replace draft dependency filenames with issue URLs.
   The issue may remain unassigned, but milestone work must name its milestone
   and whether it is Required or Stretch.
+- Before changing implementation code or tests, create the issue branch from
+  the current `dev` branch. Name it from the canonical plan filename:
+  `fix/<issue-number>-<slug>` for bugs and `feat/<issue-number>-<slug>` for
+  features or enhancements. The `<slug>` is the plan filename after the
+  issue-number prefix and before `.md`. Confirm the new branch starts at the
+  current `dev` tip; if unrelated working-tree changes prevent a safe branch
+  switch, preserve them and ask the user how to proceed.
 - Inspect the relevant production code, tests, types, documentation, and nearby
   patterns before asking questions that the repository can answer.
 - State observable acceptance criteria. Classify the work as a feature or fix,
