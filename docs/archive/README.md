@@ -9,6 +9,7 @@ records the complete 2026-08-16 documentation classification.
 
 | Plan                                                                                   | Completed  | Issue                                                                               | Implementation |
 | -------------------------------------------------------------------------------------- | ---------- | ----------------------------------------------------------------------------------- | -------------- |
+| [Independent dashboard preview settings](plans/unreleased/175-independent-dashboard-preview-settings.md) | 2026-08-21 | [GH Issue #175](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/175) | â€”              |
 | [Documentation archive cleanup](plans/unreleased/169-documentation-archive-cleanup.md) | 2026-08-16 | [GH Issue #169](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/169) | `314ae6f`      |
 | [Per-feed auto-refresh scheduling fix](plans/unreleased/166-per-feed-auto-refresh-scheduling.md) | 2026-08-16 | [GH Issue #166](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/166) | `5592c39`      |
 | [Refresh status and progress indicators](plans/unreleased/167-refresh-status-indicators.md) | 2026-08-16 | [GH Issue #167](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/167) | `6f767c7`      |

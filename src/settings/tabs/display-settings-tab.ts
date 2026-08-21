@@ -51,17 +51,30 @@ export function renderDisplaySettingsTab(
     await rerenderActiveReaderView();
   };
 
+  const rerenderActiveDashboardView = async (): Promise<void> => {
+    const view = await plugin.getActiveDashboardView();
+    if (!view) {
+      return;
+    }
+
+    await plugin.app.workspace.revealLeaf(view.leaf);
+    view.render();
+  };
+
   new Setting(containerEl).setName("Dashboard").setHeading();
 
   new Setting(containerEl)
     .setName("Show cover images")
-    .setDesc("Display cover images for articles in reader view")
+    .setDesc(
+      "Display cover-image previews in dashboard card and feed views. Turning this off reduces remote image loading and can improve browsing performance.",
+    )
     .addToggle((toggle) =>
       toggle
         .setValue(plugin.settings.display.showCoverImage)
         .onChange(async (value) => {
           plugin.settings.display.showCoverImage = value;
           await plugin.saveSettings();
+          await rerenderActiveDashboardView();
         }),
     );
 
@@ -74,11 +87,7 @@ export function renderDisplaySettingsTab(
         .onChange(async (value) => {
           plugin.settings.display.showSummary = value;
           await plugin.saveSettings();
-          const view = await plugin.getActiveDashboardView();
-          if (view && plugin.settings.viewStyle === "card") {
-            await plugin.app.workspace.revealLeaf(view.leaf);
-            view.render();
-          }
+          await rerenderActiveDashboardView();
         }),
     );
 
