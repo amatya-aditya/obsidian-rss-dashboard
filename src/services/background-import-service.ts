@@ -225,21 +225,19 @@ export class BackgroundImportService {
         view.refresh?.();
       }
 
-    this.backgroundImportPersistMode = importPersistMode;
-    if (options?.globalOperation && placeholders.length > 0) {
-      const signal = this.beginGlobalOperation?.(placeholders.length);
-      if (!signal) {
-        return {
-          addedCount: placeholders.length,
-          skippedCount,
-          queuedFeeds: placeholders,
-        };
-      }
-      this.backgroundImportSignal = signal;
-      this.ownsGlobalOperation = true;
-    }
-    this.startBackgroundImport(placeholders);
       this.backgroundImportPersistMode = importPersistMode;
+      if (options?.globalOperation && placeholders.length > 0) {
+        const signal = this.beginGlobalOperation?.(placeholders.length);
+        if (!signal) {
+          return {
+            addedCount: placeholders.length,
+            skippedCount,
+            queuedFeeds: placeholders,
+          };
+        }
+        this.backgroundImportSignal = signal;
+        this.ownsGlobalOperation = true;
+      }
       this.startBackgroundImport(placeholders);
     } finally {
       for (const placeholder of placeholders) {
@@ -418,17 +416,15 @@ export class BackgroundImportService {
         this.backgroundImportSignal?.aborted ||
         this.isGlobalOperationCancelled?.();
       if (!wasCancelled) {
-        this.mergeBackgroundImportedFeed(feedMetadata, parsedFeed);
+        const importedFeed = this.mergeBackgroundImportedFeed(
+          feedMetadata,
+          parsedFeed,
+        );
+        if (importedFeed) {
+          this.onFeedImported?.(importedFeed);
+        }
         feedMetadata.importStatus = "completed";
       }
-      const importedFeed = this.mergeBackgroundImportedFeed(
-        feedMetadata,
-        parsedFeed,
-      );
-      if (importedFeed) {
-        this.onFeedImported?.(importedFeed);
-      }
-      feedMetadata.importStatus = "completed";
     } catch (error) {
       if (
         this.backgroundImportSignal?.aborted ||
@@ -441,9 +437,14 @@ export class BackgroundImportService {
       } else {
         feedMetadata.importStatus = "failed";
       }
-      feedMetadata.importError = getFeedErrorMessage(
-        error instanceof Error ? error : new Error(String(error)),
-      );
+      if (
+        !this.backgroundImportSignal?.aborted &&
+        !this.isGlobalOperationCancelled?.()
+      ) {
+        feedMetadata.importError = getFeedErrorMessage(
+          error instanceof Error ? error : new Error(String(error)),
+        );
+      }
     } finally {
       this.backgroundImportInFlightUrls.delete(feedMetadata.url);
       this.backgroundImportProcessedCount += 1;
