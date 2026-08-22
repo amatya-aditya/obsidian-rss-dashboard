@@ -338,6 +338,14 @@ export default class RssDashboardPlugin extends Plugin {
       ensureFolderExists: (folder, opts) =>
         this.ensureFolderExists(folder, opts),
       addStatusBarItem: () => this.addStatusBarItem(),
+      beginGlobalOperation: (total) => this.beginGlobalOperation(total),
+      updateGlobalOperationProgress: (completed, total) => {
+        this.globalRefreshCompleted = completed;
+        this.globalRefreshTotal = total;
+        void this.notifyRefreshStatusChanged();
+      },
+      endGlobalOperation: () => this.endGlobalOperation(),
+      isGlobalOperationCancelled: () => this.isGlobalRefreshCancelled,
       onFeedImported: (feed) => this.queuePreviewImageCaching(feed),
     });
   }
@@ -705,6 +713,31 @@ export default class RssDashboardPlugin extends Plugin {
       completed: this.globalRefreshCompleted,
       total: this.globalRefreshTotal,
     };
+  }
+
+  private beginGlobalOperation(total: number): AbortSignal | null {
+    if (this.isMultiFeedRefreshRunning) {
+      new Notice("A feed operation is already in progress.");
+      return null;
+    }
+
+    this.isMultiFeedRefreshRunning = true;
+    this.globalRefreshAbortController = new AbortController();
+    this.isGlobalRefreshCancelled = false;
+    this.globalRefreshTotal = total;
+    this.globalRefreshCompleted = 0;
+    void this.notifyRefreshStatusChanged();
+    return this.globalRefreshAbortController.signal;
+  }
+
+  private async endGlobalOperation(): Promise<void> {
+    this.activeRefreshState.clear();
+    this.isMultiFeedRefreshRunning = false;
+    this.globalRefreshAbortController = null;
+    this.isGlobalRefreshCancelled = false;
+    this.globalRefreshTotal = 0;
+    this.globalRefreshCompleted = 0;
+    await this.notifyRefreshStatusChanged();
   }
 
   public cancelGlobalRefresh(): void {
@@ -1589,6 +1622,7 @@ export default class RssDashboardPlugin extends Plugin {
             {
               mode: "update",
               folders: newFolders,
+              globalOperation: true,
             },
           );
 
@@ -2145,7 +2179,11 @@ export default class RssDashboardPlugin extends Plugin {
     customTemplate?: string,
     excludeFromRefresh?: boolean,
     customTags?: string[],
-    options?: { showNotice?: boolean; feedEncoding?: FeedEncoding },
+    options?: {
+      showNotice?: boolean;
+      feedEncoding?: FeedEncoding;
+      globalOperation?: boolean;
+    },
   ) {
     const showNotice = options?.showNotice !== false;
     try {
@@ -2196,11 +2234,22 @@ export default class RssDashboardPlugin extends Plugin {
         },
       };
 
+      const operationSignal = options?.globalOperation
+        ? this.beginGlobalOperation(1)
+        : null;
+      if (options?.globalOperation && !operationSignal) {
+        return false;
+      }
+
       // Try to parse the feed BEFORE adding it to settings
       try {
         const parsedFeed = await this.feedParser.parseFeed(url, newFeed, {
           allowEmpty: true,
+          signal: operationSignal ?? undefined,
         });
+        if (operationSignal?.aborted || this.isGlobalRefreshCancelled) {
+          return false;
+        }
         const feedToStore: Feed = {
           ...newFeed,
           ...parsedFeed,
@@ -2257,6 +2306,10 @@ export default class RssDashboardPlugin extends Plugin {
           new Notice(formatFeedParseNoticeMessage(error));
         }
         return false;
+      } finally {
+        if (operationSignal) {
+          await this.endGlobalOperation();
+        }
       }
     } catch (error) {
       if (showNotice) {

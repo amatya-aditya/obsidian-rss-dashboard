@@ -105,6 +105,7 @@ async function flushPromises(): Promise<void> {
 interface TestPlugin {
   settings: RssDashboardSettings;
   ingestFeedsForBackgroundImport: ReturnType<typeof vi.fn>;
+  addFeed: ReturnType<typeof vi.fn>;
   ensureFolderExists: ReturnType<typeof vi.fn>;
   saveSettings: ReturnType<typeof vi.fn>;
   getActiveDashboardView: ReturnType<typeof vi.fn>;
@@ -171,6 +172,7 @@ async function createView(opts?: {
         };
       },
     ),
+    addFeed: vi.fn().mockResolvedValue(true),
     ensureFolderExists: vi.fn(async () => undefined),
     saveSettings: vi.fn(async () => undefined),
     getActiveDashboardView: vi.fn(async () => null),
@@ -408,7 +410,7 @@ describe("DiscoverView (P1-3)", () => {
           mediaType: "video",
         }),
       ]),
-      expect.objectContaining({ mode: "update" }),
+      expect.objectContaining({ mode: "update", globalOperation: true }),
     );
     expect(
       vi.mocked(plugin.ingestFeedsForBackgroundImport).mock
@@ -419,6 +421,37 @@ describe("DiscoverView (P1-3)", () => {
         mediaType?: "article" | "video" | "podcast";
       }>,
     ).toHaveLength(4);
+  });
+
+  it("single follow routes its fetch through the cancellable global operation", async () => {
+    const { plugin, view } = await createView();
+
+    view.loadData();
+    view.render();
+
+    const addButton = view.containerEl.querySelector(
+      ".rss-discover-card-add-to-btn",
+    );
+    expect(addButton).not.toBeNull();
+    if (!addButton) throw new Error("addButton not found");
+
+    (addButton as HTMLElement).click();
+    folderSelectorSpy.calls[0].onSelect("Uncategorized");
+    await flushPromises();
+
+    expect(plugin.addFeed).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.any(String),
+      "Uncategorized",
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      { showNotice: false, globalOperation: true },
+    );
   });
 
   it("bulk add only adds filtered feeds and skips feeds that are already followed", async () => {
@@ -471,7 +504,7 @@ describe("DiscoverView (P1-3)", () => {
           mediaType: "podcast",
         }),
       ]),
-      expect.objectContaining({ mode: "update" }),
+      expect.objectContaining({ mode: "update", globalOperation: true }),
     );
     expect(
       vi.mocked(plugin.ingestFeedsForBackgroundImport).mock

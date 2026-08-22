@@ -14,6 +14,7 @@
 
 ### Fixes
 
+- Fixed OPML imports and Discover Add actions so their feed fetching uses the global sidebar spinner and Stop action, cancels active and queued work, preserves completed results, and ignores late results after cancellation. [GH Issue #179](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/179)
 - Fixed cached preview images remaining after their feed is deleted from the sidebar.
 - Fixed dashboard Card and Feed preview settings so cover images and summaries can be controlled independently, cover-only cards retain their image on hover, and disabling cover images avoids dashboard preview-image loading. [GH Issue #175](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/175)
 - Fixed sidebar icon visibility settings displaying `[object DocumentFragment]` instead of each icon's name.

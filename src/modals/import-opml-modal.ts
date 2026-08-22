@@ -934,6 +934,7 @@ export class ImportOpmlModal extends Modal {
         {
           mode: this.importMode,
           folders: derivedFolders,
+          globalOperation: true,
         },
       );
 

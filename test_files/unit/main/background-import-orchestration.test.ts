@@ -493,5 +493,61 @@ describe("background import orchestration", () => {
     expect(ensureFolderExists).toHaveBeenCalled();
     expect(savedModes).toEqual(["legacy-json"]);
   });
+
+  it("stops background ingestion without committing a late parse result", async () => {
+    const settings: RssDashboardSettings = {
+      ...DEFAULT_SETTINGS,
+      feeds: [],
+    };
+    const controller = new AbortController();
+    const beginGlobalOperation = vi.fn(() => controller.signal);
+    const endGlobalOperation = vi.fn().mockResolvedValue(undefined);
+    let resolveParse: ((feed: Feed) => void) | undefined;
+    mockParseFeed.mockImplementation(
+      () =>
+        new Promise<Feed>((resolve) => {
+          resolveParse = resolve;
+        }),
+    );
+
+    const service = new BackgroundImportService({
+      feedParser: { parseFeed: mockParseFeed },
+      getSettings: () => settings,
+      getView: async () => null,
+      saveSettings: async () => undefined,
+      ensureFolderExists: vi.fn().mockResolvedValue(false),
+      addStatusBarItem: () => document.createElement("div"),
+      beginGlobalOperation,
+      endGlobalOperation,
+      isGlobalOperationCancelled: () => controller.signal.aborted,
+    });
+
+    const resultPromise = service.ingestFeedsForBackgroundImport(
+      [
+        {
+          title: "Example",
+          url: "https://example.com/feed.xml",
+          folder: "RSS",
+        },
+      ],
+      { globalOperation: true },
+    );
+
+    await vi.waitFor(() => expect(mockParseFeed).toHaveBeenCalledOnce());
+    expect(beginGlobalOperation).toHaveBeenCalledWith(1);
+    controller.abort();
+    resolveParse?.({
+      ...createPlaceholderFeed("https://example.com/feed.xml"),
+      title: "Parsed after stop",
+      items: [{ guid: "late", title: "Late result" }],
+    } as Feed);
+
+    await resultPromise;
+    await vi.waitFor(() => expect(service.isBackgroundImporting).toBe(false));
+
+    expect(settings.feeds[0].title).toBe("Example");
+    expect(settings.feeds[0].items).toEqual([]);
+    expect(endGlobalOperation).toHaveBeenCalledOnce();
+  });
 });
 

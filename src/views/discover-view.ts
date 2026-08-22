@@ -1653,6 +1653,7 @@ export class DiscoverView extends ItemView {
         feedsToAdd,
         {
           mode: "update",
+          globalOperation: true,
           onProgress: (completed: number, total: number) => {
             this.bulkAddCompletedCount = completed;
             this.bulkAddTotalCount = total;
@@ -1695,7 +1696,7 @@ export class DiscoverView extends ItemView {
         undefined,
         undefined,
         undefined,
-        { showNotice: false },
+        { showNotice: false, globalOperation: true },
       );
       if (!added) {
         return;
