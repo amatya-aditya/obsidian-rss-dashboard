@@ -9,6 +9,7 @@ records the complete 2026-08-16 documentation classification.
 
 | Plan                                                                                   | Completed  | Issue                                                                               | Implementation |
 | -------------------------------------------------------------------------------------- | ---------- | ----------------------------------------------------------------------------------- | -------------- |
+| [CI security hardening baseline](plans/unreleased/181-ci-security-hardening.md) | 2026-08-22 | [GH Issue #181](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/181) | — |
 | [Image preview disk cache](plans/unreleased/177-image-preview-disk-cache.md) | 2026-08-21 | [GH Issue #177](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/177) | — |
 | [Independent dashboard preview settings](plans/unreleased/175-independent-dashboard-preview-settings.md) | 2026-08-21 | [GH Issue #175](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/175) | â€”              |
 | [Documentation archive cleanup](plans/unreleased/169-documentation-archive-cleanup.md) | 2026-08-16 | [GH Issue #169](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/169) | `314ae6f`      |
