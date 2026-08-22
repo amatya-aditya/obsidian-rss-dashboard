@@ -71,6 +71,33 @@ describe("settings-loader", () => {
   // ── loadAndNormalizeSettings ─────────────────────────────────────────────────
 
   describe("loadAndNormalizeSettings", () => {
+    it("defaults invalid image cache limits while retaining a valid unlimited preference", async () => {
+      const { loadAndNormalizeSettings } =
+        await import("../../../src/utils/settings-loader");
+
+      const result = loadAndNormalizeSettings({
+        display: {
+          imageCacheLimitMiB: 0,
+          imageCacheUnlimited: true,
+        } as Partial<RssDashboardSettings["display"]>,
+      });
+
+      expect(result.display.imageCacheLimitMiB).toBe(100);
+      expect(result.display.imageCacheUnlimited).toBe(true);
+    });
+
+    it("caps persisted image cache limits at one GiB", async () => {
+      const { loadAndNormalizeSettings } =
+        await import("../../../src/utils/settings-loader");
+
+      const result = loadAndNormalizeSettings({
+        display: {
+          imageCacheLimitMiB: 2_048,
+        } as Partial<RssDashboardSettings["display"]>,
+      });
+
+      expect(result.display.imageCacheLimitMiB).toBe(1_024);
+    });
     it("merges DEFAULT_SETTINGS with raw data", async () => {
       const { loadAndNormalizeSettings } =
         await import("../../../src/utils/settings-loader");

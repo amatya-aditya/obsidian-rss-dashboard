@@ -2,6 +2,7 @@
 
 ### Features
 
+- Added opt-in local caching for Dashboard Card and Feed preview images, with a 1 MiB per-image limit, a synchronized 1–1024 MiB slider/input or unlimited aggregate cap, cache management controls, remote-image fallback, cache warming after feed additions and OPML/background imports, a dashboard refresh when background warming finishes, protection against refreshes overwriting Discover feeds that are still hydrating, and automatic cache cleanup when all feeds are deleted. [GH Issue #177](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/177)
 - Added a Stop button on the All feeds sidebar row during global refreshes, allowing users to cancel an in-progress refresh, including when only one eligible feed remains. Cancelled feeds do not advance their refresh timestamps, and in-progress fetches are aborted via an AbortSignal. Failed-feed retries and folder/selected/tag/due refreshes remain non-cancellable. [GH Issue #173](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/173)
 - Added Shift+click and an All feeds context-menu action to retry failed, non-excluded feeds without advancing the global refresh timestamp. [GH Issue #168](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/168)
 - Added static refresh-status timestamps and accessible refresh details for all feeds, folders, and feeds. [GH Issue #167](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/167)

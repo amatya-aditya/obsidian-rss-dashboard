@@ -1372,6 +1372,63 @@ describe("addFeed()", () => {
     expect(plugin.settings.feeds).toHaveLength(2);
   });
 
+  it("refreshes the dashboard after a newly added feed finishes warming preview images", async () => {
+    const newUrl = "https://example.com/discovered-feed.xml";
+    let finishCaching: ((cached: boolean) => void) | undefined;
+    const cacheUrl = vi.fn(
+      () =>
+        new Promise<boolean>((resolve) => {
+          finishCaching = resolve;
+        }),
+    );
+    const refresh = vi.fn();
+    plugin.settings.display.allowImageCaching = true;
+    plugin.settings.display.showCoverImage = true;
+    vi.mocked(plugin.getActiveDashboardView).mockResolvedValue({
+      refresh,
+    } as unknown as Awaited<ReturnType<typeof plugin.getActiveDashboardView>>);
+    (
+      plugin as unknown as {
+        imageCacheService: {
+          cacheUrl: (url: string, force: boolean) => Promise<boolean>;
+        };
+      }
+    ).imageCacheService = { cacheUrl };
+    mockParseFeed.mockResolvedValue({
+      title: "Discovered Feed",
+      url: newUrl,
+      folder: "Uncategorized",
+      items: [
+        {
+          ...sampleFeed.items[0],
+          feedUrl: newUrl,
+          feedTitle: "Discovered Feed",
+          coverImage: "https://example.com/discovered-cover.jpg",
+        },
+      ],
+      lastUpdated: Date.now(),
+      mediaType: "article",
+    });
+
+    const added = await plugin.addFeed(
+      "Discovered Feed",
+      newUrl,
+      "Uncategorized",
+    );
+
+    expect(added).toBe(true);
+    expect(refresh).toHaveBeenCalledTimes(1);
+    expect(cacheUrl).toHaveBeenCalledWith(
+      "https://example.com/discovered-cover.jpg",
+      true,
+    );
+
+    finishCaching?.(true);
+    await flushPromises();
+
+    expect(refresh).toHaveBeenCalledTimes(2);
+  });
+
   it("detects media type based on folder (YouTube)", async () => {
     // Given: Feed in YouTube folder
     const youtubeUrl = "https://youtube.com/feed.xml";

@@ -1002,6 +1002,8 @@ export class RssDashboardView extends ItemView {
           onPersistSettings: async () => {
             await this.plugin.saveSettings();
           },
+          onResolveCachedImageUrl: (remoteUrl) =>
+            this.plugin.resolveCachedImageUrl(remoteUrl),
           onMarkAllAsRead: () => {
             this.actionMarkAllAsRead();
           },
