@@ -49,6 +49,7 @@ export interface BackgroundImportServiceDeps {
   updateGlobalOperationProgress?: (completed: number, total: number) => void;
   endGlobalOperation?: () => Promise<void>;
   isGlobalOperationCancelled?: () => boolean;
+  onFeedImported?: (feed: Feed) => void;
 }
 
 // ── Service ──────────────────────────────────────────────────────────────────
@@ -76,13 +77,16 @@ export class BackgroundImportService {
   ) => void;
   private readonly endGlobalOperation?: () => Promise<void>;
   private readonly isGlobalOperationCancelled?: () => boolean;
+  private readonly onFeedImported?: (feed: Feed) => void;
 
   // ── State ──────────────────────────────────────────────────────────────────
 
   private importStatusBarItem: HTMLElement | null = null;
   public backgroundImportQueue: FeedMetadata[] = [];
   public isBackgroundImporting = false;
+  private backgroundImportQueuedUrls = new Set<string>();
   private backgroundImportInFlightUrls = new Set<string>();
+  private backgroundImportPendingIngestionUrls = new Set<string>();
   private backgroundImportProcessedCount = 0;
   private backgroundImportTotalCount = 0;
   private backgroundImportPersistMode:
@@ -102,6 +106,7 @@ export class BackgroundImportService {
     this.updateGlobalOperationProgress = deps.updateGlobalOperationProgress;
     this.endGlobalOperation = deps.endGlobalOperation;
     this.isGlobalOperationCancelled = deps.isGlobalOperationCancelled;
+    this.onFeedImported = deps.onFeedImported;
   }
 
   // ── Public API ─────────────────────────────────────────────────────────────
@@ -110,6 +115,7 @@ export class BackgroundImportService {
     const queuedUrls = new Set(
       this.backgroundImportQueue.map((feed) => feed.url),
     );
+    this.backgroundImportQueuedUrls = queuedUrls;
     const newQueueItems = feeds
       .filter(
         (feed) =>
@@ -133,11 +139,22 @@ export class BackgroundImportService {
     }
 
     this.backgroundImportQueue.push(...newQueueItems);
+    for (const feed of newQueueItems) {
+      this.backgroundImportQueuedUrls.add(feed.url);
+    }
     this.backgroundImportTotalCount += newQueueItems.length;
 
     if (!this.isBackgroundImporting) {
       void this.processBackgroundImportQueue();
     }
+  }
+
+  public isFeedPendingImport(url: string): boolean {
+    return (
+      this.backgroundImportPendingIngestionUrls.has(url) ||
+      this.backgroundImportInFlightUrls.has(url) ||
+      this.backgroundImportQueuedUrls.has(url)
+    );
   }
 
   public async ingestFeedsForBackgroundImport(
@@ -184,6 +201,7 @@ export class BackgroundImportService {
       const placeholder = this.createPlaceholderFeed(candidate);
       placeholders.push(placeholder);
       this.getSettings().feeds.push(placeholder);
+      this.backgroundImportPendingIngestionUrls.add(candidate.url);
       existingUrls.add(candidate.url);
       seenUrls.add(candidate.url);
 
@@ -200,11 +218,12 @@ export class BackgroundImportService {
       );
     }
 
-    await this.saveSettingsWithMode(importPersistMode);
-    const view = await this.getView();
-    if (view) {
-      view.refresh?.();
-    }
+    try {
+      await this.saveSettingsWithMode(importPersistMode);
+      const view = await this.getView();
+      if (view) {
+        view.refresh?.();
+      }
 
     this.backgroundImportPersistMode = importPersistMode;
     if (options?.globalOperation && placeholders.length > 0) {
@@ -220,6 +239,13 @@ export class BackgroundImportService {
       this.ownsGlobalOperation = true;
     }
     this.startBackgroundImport(placeholders);
+      this.backgroundImportPersistMode = importPersistMode;
+      this.startBackgroundImport(placeholders);
+    } finally {
+      for (const placeholder of placeholders) {
+        this.backgroundImportPendingIngestionUrls.delete(placeholder.url);
+      }
+    }
 
     return {
       addedCount: placeholders.length,
@@ -346,6 +372,7 @@ export class BackgroundImportService {
         globalFetchSemaphore.release();
         return;
       }
+      this.backgroundImportQueuedUrls.delete(feedMetadata.url);
 
       const importPromise = this.processBackgroundImportFeed(
         feedMetadata,
@@ -394,6 +421,14 @@ export class BackgroundImportService {
         this.mergeBackgroundImportedFeed(feedMetadata, parsedFeed);
         feedMetadata.importStatus = "completed";
       }
+      const importedFeed = this.mergeBackgroundImportedFeed(
+        feedMetadata,
+        parsedFeed,
+      );
+      if (importedFeed) {
+        this.onFeedImported?.(importedFeed);
+      }
+      feedMetadata.importStatus = "completed";
     } catch (error) {
       if (
         this.backgroundImportSignal?.aborted ||
@@ -511,16 +546,16 @@ export class BackgroundImportService {
   private mergeBackgroundImportedFeed(
     feedMetadata: FeedMetadata,
     parsedFeed: Feed,
-  ): void {
+  ): Feed | null {
     const feedIndex = this.getSettings().feeds.findIndex(
       (f) => f.url === feedMetadata.url,
     );
     if (feedIndex < 0) {
-      return;
+      return null;
     }
 
     const existingFeed = this.getSettings().feeds[feedIndex];
-    this.getSettings().feeds[feedIndex] = {
+    const importedFeed: Feed = {
       ...existingFeed,
       title: parsedFeed.title || existingFeed.title || feedMetadata.title,
       author: parsedFeed.author ?? existingFeed.author,
@@ -533,6 +568,8 @@ export class BackgroundImportService {
       ),
       lastUpdated: Date.now(),
     };
+    this.getSettings().feeds[feedIndex] = importedFeed;
+    return importedFeed;
   }
 
   private updateBackgroundImportProgress(

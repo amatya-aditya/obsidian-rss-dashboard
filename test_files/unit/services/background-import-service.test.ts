@@ -212,6 +212,65 @@ describe("BackgroundImportService", () => {
   });
 
   describe("parseFeedWithTimeout", () => {
+    it("reports a successfully hydrated imported feed for post-import work", async () => {
+      const { BackgroundImportService } =
+        await import("../../../src/services/background-import-service");
+      const onFeedImported = vi.fn();
+      const importedFeed: Feed = {
+        title: "Imported Feed",
+        url: "https://example.com/imported.xml",
+        folder: "Inbox",
+        items: [
+          {
+            title: "Article",
+            link: "https://example.com/article",
+            description: "",
+            pubDate: "2026-08-21",
+            guid: "article",
+            read: false,
+            starred: false,
+            tags: [],
+            feedTitle: "Imported Feed",
+            feedUrl: "https://example.com/imported.xml",
+            coverImage: "https://example.com/cover.jpg",
+          },
+        ],
+        lastUpdated: 0,
+        mediaType: "article",
+      };
+      const deps = makeDeps({
+        feeds: [
+          {
+            ...importedFeed,
+            items: [],
+          },
+        ],
+      });
+      deps.feedParser.parseFeed = vi.fn().mockResolvedValue(importedFeed);
+      const service = new BackgroundImportService({
+        ...deps,
+        onFeedImported,
+      });
+
+      (
+        service as unknown as TestableBackgroundImportService
+      ).backgroundImportQueue = [deps._settings.feeds[0]];
+      (
+        service as unknown as TestableBackgroundImportService
+      ).backgroundImportTotalCount = 1;
+
+      await (
+        service as unknown as TestableBackgroundImportService
+      ).processBackgroundImportWorker(1, 1, false);
+
+      expect(onFeedImported).toHaveBeenCalledWith(
+        expect.objectContaining({
+          url: "https://example.com/imported.xml",
+          items: [expect.objectContaining({ coverImage: "https://example.com/cover.jpg" })],
+        }),
+      );
+    });
+
     it("does not retry timeout failures", async () => {
       const { BackgroundImportService } =
         await import("../../../src/services/background-import-service");

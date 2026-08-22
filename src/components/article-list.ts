@@ -63,6 +63,7 @@ interface ArticleListCallbacks {
   onPersistSettings?: () => Promise<void> | void;
   onOpenTagsSettings?: () => Promise<void> | void;
   onTagsMutated?: () => void;
+  onResolveCachedImageUrl?: (remoteUrl: string) => string | null;
 }
 
 export class ArticleList {
@@ -1360,6 +1361,7 @@ export class ArticleList {
       selectedArticle: this.selectedArticle,
       showFeedSource: this.showFeedSource,
       settings: this.settings,
+      resolveCachedImageUrl: this.callbacks.onResolveCachedImageUrl,
       highlightService: this.highlightService,
       callbacks: this.callbacks,
     };

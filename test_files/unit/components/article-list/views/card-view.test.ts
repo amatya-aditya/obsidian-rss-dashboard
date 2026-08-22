@@ -88,6 +88,57 @@ describe("card-view", () => {
     expect(container.querySelector(".rss-dashboard-cover-image")).toBeTruthy();
   });
 
+  it("uses a cached preview URL only when image caching is enabled", () => {
+    const resolveCachedImageUrl = vi.fn(() => "app://local/cache/cover.jpg");
+    renderCardView(
+      container,
+      [makeArticle({ coverImage: "https://example.com/cover.jpg" })],
+      {
+        ...baseViewContext(),
+        settings: {
+          ...baseViewContext().settings,
+          display: {
+            ...baseViewContext().settings.display,
+            allowImageCaching: true,
+          },
+        },
+        resolveCachedImageUrl,
+        showCardToolbar: true,
+      },
+      baseViewDeps(),
+    );
+
+    expect(resolveCachedImageUrl).toHaveBeenCalledWith("https://example.com/cover.jpg");
+    expect(
+      container.querySelector(".rss-dashboard-cover-image")?.getAttribute("src"),
+    ).toBe("app://local/cache/cover.jpg");
+  });
+
+  it("retries the remote preview URL when a cached Card image fails", () => {
+    renderCardView(
+      container,
+      [makeArticle({ coverImage: "https://example.com/cover.jpg" })],
+      {
+        ...baseViewContext(),
+        settings: {
+          ...baseViewContext().settings,
+          display: {
+            ...baseViewContext().settings.display,
+            allowImageCaching: true,
+          },
+        },
+        resolveCachedImageUrl: () => "app://local/cache/cover.jpg",
+        showCardToolbar: true,
+      },
+      baseViewDeps(),
+    );
+
+    const image = container.querySelector(".rss-dashboard-cover-image") as HTMLImageElement;
+    image.dispatchEvent(new Event("error"));
+
+    expect(image.getAttribute("src")).toBe("https://example.com/cover.jpg");
+  });
+
   it.each([
     { showCoverImage: true, showSummary: true, image: true, summary: true },
     { showCoverImage: true, showSummary: false, image: true, summary: false },
