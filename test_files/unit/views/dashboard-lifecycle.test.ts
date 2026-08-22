@@ -141,7 +141,11 @@ async function makeView(
   const { RssDashboardView } =
     await import("../../../src/views/dashboard-view");
   const app = new App();
-  const plugin = { settings, saveSettings: vi.fn(async () => {}) };
+  const plugin = {
+    settings,
+    saveSettings: vi.fn(async () => {}),
+    removeCachedImagesForDeletedFeed: vi.fn(async () => {}),
+  };
   const leaf = { app } as unknown as import("obsidian").WorkspaceLeaf;
   const view = new RssDashboardView(leaf, plugin as never);
   view.render = vi.fn();
@@ -665,20 +669,24 @@ describe("Dashboard lifecycle", () => {
       expect(settings.feeds[0].url).toBe("https://b.com/feed");
     });
 
-    it("leaves the shared image cache intact", async () => {
+    it("removes cached preview images for the deleted feed", async () => {
       const settings = cloneSettings();
-      const feed1 = makeFeed("https://a.com/feed");
+      const feed1 = makeFeed("https://a.com/feed", "", [
+        { coverImage: "https://images.example.com/deleted.jpg" },
+      ]);
       const feed2 = makeFeed("https://b.com/feed");
       settings.feeds = [feed1, feed2];
       const view = await makeView(settings);
-      const clearImageCache = vi.fn();
+      const removeCachedImagesForDeletedFeed = vi.fn();
       (
-        view.plugin as unknown as { clearImageCache: () => void }
-      ).clearImageCache = clearImageCache;
+        view.plugin as unknown as {
+          removeCachedImagesForDeletedFeed: (feed: Feed) => Promise<void>;
+        }
+      ).removeCachedImagesForDeletedFeed = removeCachedImagesForDeletedFeed;
 
       view.handleDeleteFeed(feed1);
 
-      expect(clearImageCache).not.toHaveBeenCalled();
+      expect(removeCachedImagesForDeletedFeed).toHaveBeenCalledWith(feed1);
     });
 
     it("clears currentFeed if the deleted feed was active", async () => {

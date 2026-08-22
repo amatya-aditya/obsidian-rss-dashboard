@@ -2445,6 +2445,7 @@ export class RssDashboardView extends ItemView {
     this.plugin.settings.feeds = this.plugin.settings.feeds.filter(
       (f: Feed) => f !== feed,
     );
+    void this.plugin.removeCachedImagesForDeletedFeed(feed);
     void this.plugin.saveSettings();
 
     if (this.currentFeed === feed) {

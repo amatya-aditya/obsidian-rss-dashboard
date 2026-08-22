@@ -414,6 +414,28 @@ export default class RssDashboardPlugin extends Plugin {
     return (await this.imageCacheService?.clear()) ?? { cleared: 0, failed: 0 };
   }
 
+  public async removeCachedImagesForDeletedFeed(feed: Feed): Promise<void> {
+    const deletedFeedPreviewUrls = this.getPreviewImageUrls(feed);
+    if (deletedFeedPreviewUrls.size === 0) return;
+
+    this.imageCacheQueue = this.imageCacheQueue.filter(
+      (url) => !deletedFeedPreviewUrls.has(url),
+    );
+    for (const url of deletedFeedPreviewUrls) {
+      this.queuedImageCacheUrls.delete(url);
+    }
+
+    const retainedPreviewUrls = new Set(
+      this.settings.feeds.flatMap((remainingFeed) => [
+        ...this.getPreviewImageUrls(remainingFeed),
+      ]),
+    );
+    const orphanedPreviewUrls = Array.from(deletedFeedPreviewUrls).filter(
+      (url) => !retainedPreviewUrls.has(url),
+    );
+    await this.imageCacheService?.removeUrls(orphanedPreviewUrls);
+  }
+
   public async setImageCachingEnabled(enabled: boolean): Promise<void> {
     this.settings.display.allowImageCaching = enabled;
     if (!enabled) {
@@ -442,17 +464,25 @@ export default class RssDashboardPlugin extends Plugin {
       return;
     }
 
-    for (const item of feed.items) {
-      for (const fieldOrder of [["coverImage", "image"], ["image", "coverImage"]] as const) {
-        const previewUrl = resolveArticlePreviewImage(item, fieldOrder);
-        if (previewUrl && !this.queuedImageCacheUrls.has(previewUrl)) {
-          this.queuedImageCacheUrls.add(previewUrl);
-          this.imageCacheQueue.push(previewUrl);
-        }
+    for (const previewUrl of this.getPreviewImageUrls(feed)) {
+      if (!this.queuedImageCacheUrls.has(previewUrl)) {
+        this.queuedImageCacheUrls.add(previewUrl);
+        this.imageCacheQueue.push(previewUrl);
       }
     }
 
     this.startImageCacheWorkers();
+  }
+
+  private getPreviewImageUrls(feed: Feed): Set<string> {
+    const previewUrls = new Set<string>();
+    for (const item of feed.items) {
+      for (const fieldOrder of [["coverImage", "image"], ["image", "coverImage"]] as const) {
+        const previewUrl = resolveArticlePreviewImage(item, fieldOrder);
+        if (previewUrl) previewUrls.add(previewUrl);
+      }
+    }
+    return previewUrls;
   }
 
   private startImageCacheWorkers(): void {

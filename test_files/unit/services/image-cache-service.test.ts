@@ -211,6 +211,28 @@ describe("ImageCacheService", () => {
     expect(cache.resolveCachedUrl("https://example.com/cover.jpg")).toBeNull();
   });
 
+  it("removes only the requested cached preview URLs", async () => {
+    const adapter = createAdapter();
+    const cache = new ImageCacheService({
+      adapter,
+      cacheRoot: "config/plugins/rss-dashboard/image-cache",
+      fetchImage: async () => jpegResponse(),
+      now: () => 100,
+    });
+
+    await cache.initialize();
+    await cache.cacheUrl("https://example.com/deleted.jpg");
+    await cache.cacheUrl("https://example.com/retained.jpg");
+
+    await expect(
+      cache.removeUrls(["https://example.com/deleted.jpg#fragment"]),
+    ).resolves.toEqual({ cleared: 1, failed: 0 });
+    expect(cache.resolveCachedUrl("https://example.com/deleted.jpg")).toBeNull();
+    expect(cache.resolveCachedUrl("https://example.com/retained.jpg")).toContain(
+      ".jpg",
+    );
+  });
+
   it("replaces an aged entry only when refresh work explicitly requests it", async () => {
     const adapter = createAdapter();
     let currentTime = 100;

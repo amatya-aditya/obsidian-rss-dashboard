@@ -220,6 +220,37 @@ export class ImageCacheService {
     return { cleared, failed };
   }
 
+  async removeUrls(rawUrls: Iterable<string>): Promise<{ cleared: number; failed: number }> {
+    const urls = new Set(
+      Array.from(rawUrls, (rawUrl) => this.normalizeUrl(rawUrl)).filter(
+        (url): url is string => url !== null,
+      ),
+    );
+    if (urls.size === 0) return { cleared: 0, failed: 0 };
+
+    this.cancelPendingWrites();
+    let cleared = 0;
+    let failed = 0;
+
+    for (const url of urls) {
+      const entry = this.entries.get(url);
+      if (!entry) continue;
+
+      try {
+        await this.adapter.remove(this.getEntryPath(entry));
+        this.entries.delete(url);
+        cleared += 1;
+      } catch (error) {
+        console.warn("[RSS dashboard] Unable to clear cached preview image", error);
+        failed += 1;
+      }
+    }
+
+    await this.persistIndex();
+    this.onChange?.();
+    return { cleared, failed };
+  }
+
   cancelPendingWrites(): void {
     this.writeGeneration += 1;
   }
