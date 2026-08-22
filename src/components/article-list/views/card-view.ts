@@ -83,11 +83,15 @@ export function renderCardView(
     const coverImgSrc = ctx.settings.display.showCoverImage
       ? resolveArticlePreviewImage(article, ["coverImage", "image"])
       : undefined;
+    const displayedCoverImgSrc =
+      coverImgSrc && ctx.settings.display.allowImageCaching
+        ? (ctx.resolveCachedImageUrl?.(coverImgSrc) ?? coverImgSrc)
+        : coverImgSrc;
     const previewSummaryText = ctx.settings.display.showSummary
       ? getArticlePreviewSummaryText(article)
       : "";
 
-    if (coverImgSrc) {
+    if (displayedCoverImgSrc) {
       const previewRegion = cardContent.createDiv({
         cls: "rss-dashboard-card-preview-region",
       });
@@ -99,13 +103,23 @@ export function renderCardView(
       const coverImg = coverContainer.createEl("img", {
         cls: "rss-dashboard-cover-image",
         attr: {
-          src: coverImgSrc,
+          src: displayedCoverImgSrc,
           alt: article.title,
           loading: "lazy",
           decoding: "async",
         },
       });
       coverImg.onerror = () => {
+        if (
+          displayedCoverImgSrc !== coverImgSrc &&
+          coverImgSrc &&
+          coverImg.dataset.rssCacheRemoteFallback !== "true"
+        ) {
+          coverImg.dataset.rssCacheRemoteFallback = "true";
+          coverImg.setAttribute("src", coverImgSrc);
+          return;
+        }
+
         previewRegion.empty();
 
         if (previewSummaryText) {

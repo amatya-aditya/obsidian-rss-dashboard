@@ -4,7 +4,11 @@ import type {
   Folder,
   RssDashboardSettings,
 } from "../types/types";
-import { DEFAULT_SETTINGS } from "../types/types";
+import {
+  DEFAULT_SETTINGS,
+  IMAGE_CACHE_LIMIT_MAX_MIB,
+  IMAGE_CACHE_LIMIT_MIN_MIB,
+} from "../types/types";
 import {
   migrateDisplaySettings,
   migrateDefaultFilterToDashboardMultiFilters,
@@ -155,6 +159,20 @@ export function loadAndNormalizeSettings(
     DEFAULT_SETTINGS.display,
     settings.display ?? {},
   );
+  if (
+    !Number.isInteger(settings.display.imageCacheLimitMiB) ||
+    settings.display.imageCacheLimitMiB < IMAGE_CACHE_LIMIT_MIN_MIB
+  ) {
+    settings.display.imageCacheLimitMiB =
+      DEFAULT_SETTINGS.display.imageCacheLimitMiB;
+  }
+  if (settings.display.imageCacheLimitMiB > IMAGE_CACHE_LIMIT_MAX_MIB) {
+    settings.display.imageCacheLimitMiB = IMAGE_CACHE_LIMIT_MAX_MIB;
+  }
+  if (typeof settings.display.imageCacheUnlimited !== "boolean") {
+    settings.display.imageCacheUnlimited =
+      DEFAULT_SETTINGS.display.imageCacheUnlimited;
+  }
   settings.readerFormat = Object.assign(
     {},
     DEFAULT_SETTINGS.readerFormat,
@@ -296,6 +314,23 @@ export function migrateSettings(settings: RssDashboardSettings): boolean {
   migrateDisplaySettings(
     settings.display as unknown as Record<string, unknown>,
   );
+  if (
+    !Number.isInteger(settings.display.imageCacheLimitMiB) ||
+    settings.display.imageCacheLimitMiB < IMAGE_CACHE_LIMIT_MIN_MIB
+  ) {
+    settings.display.imageCacheLimitMiB =
+      DEFAULT_SETTINGS.display.imageCacheLimitMiB;
+    didChange = true;
+  }
+  if (settings.display.imageCacheLimitMiB > IMAGE_CACHE_LIMIT_MAX_MIB) {
+    settings.display.imageCacheLimitMiB = IMAGE_CACHE_LIMIT_MAX_MIB;
+    didChange = true;
+  }
+  if (typeof settings.display.imageCacheUnlimited !== "boolean") {
+    settings.display.imageCacheUnlimited =
+      DEFAULT_SETTINGS.display.imageCacheUnlimited;
+    didChange = true;
+  }
 
   settings.keywordRules = Object.assign(
     {},

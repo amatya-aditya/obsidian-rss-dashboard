@@ -40,24 +40,39 @@ function renderArticleCard(
   const coverImgSrc = ctx.settings.display.showCoverImage
     ? resolveArticlePreviewImage(article, ["image", "coverImage"])
     : undefined;
-  if (coverImgSrc) {
+  const displayedCoverImgSrc =
+    coverImgSrc && ctx.settings.display.allowImageCaching
+      ? (ctx.resolveCachedImageUrl?.(coverImgSrc) ?? coverImgSrc)
+      : coverImgSrc;
+  if (displayedCoverImgSrc) {
     const previewRegion = feedContent.createDiv({
       cls: "rss-dashboard-feed-preview-region",
     });
-    previewRegion.createDiv({
+    const heroBlur = previewRegion.createDiv({
       cls: "rss-dashboard-feed-hero-blur",
       attr: {
-        style: `background-image: url('${coverImgSrc}')`,
+        style: `background-image: url('${displayedCoverImgSrc}')`,
       },
     });
-    previewRegion.createEl("img", {
+    const heroImage = previewRegion.createEl("img", {
       cls: "rss-dashboard-feed-hero-image",
       attr: {
-        src: coverImgSrc,
+        src: displayedCoverImgSrc,
         alt: article.title,
         loading: "lazy",
       },
     });
+    heroImage.onerror = () => {
+      if (
+        displayedCoverImgSrc !== coverImgSrc &&
+        coverImgSrc &&
+        heroImage.dataset.rssCacheRemoteFallback !== "true"
+      ) {
+        heroImage.dataset.rssCacheRemoteFallback = "true";
+        heroImage.setAttribute("src", coverImgSrc);
+        heroBlur.setAttribute("style", `background-image: url('${coverImgSrc}')`);
+      }
+    };
   }
 
   const textRegion = feedContent.createDiv({

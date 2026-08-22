@@ -31,6 +31,7 @@ export interface BaseViewContext {
   settings: Pick<RssDashboardSettings, "highlights" | "display"> & {
     collapsedFeedSections?: string[];
   };
+  resolveCachedImageUrl?: (remoteUrl: string) => string | null;
   highlightService: HighlightService | null;
   callbacks: ViewCallbacks;
 }

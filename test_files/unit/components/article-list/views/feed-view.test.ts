@@ -73,6 +73,61 @@ describe("feed-view", () => {
     ).toBeTruthy();
   });
 
+  it("uses one cached preview URL for the Feed image and blur", () => {
+    const resolveCachedImageUrl = vi.fn(() => "app://local/cache/cover.jpg");
+    renderFeedView(
+      container,
+      [makeArticle({ coverImage: "https://example.com/cover.jpg" })],
+      {
+        ...baseViewContext(),
+        settings: {
+          ...baseViewContext().settings,
+          display: {
+            ...baseViewContext().settings.display,
+            allowImageCaching: true,
+          },
+        },
+        resolveCachedImageUrl,
+      },
+      baseViewDeps(),
+    );
+
+    expect(resolveCachedImageUrl).toHaveBeenCalledWith("https://example.com/cover.jpg");
+    expect(
+      container.querySelector(".rss-dashboard-feed-hero-image")?.getAttribute("src"),
+    ).toBe("app://local/cache/cover.jpg");
+    expect(
+      container.querySelector(".rss-dashboard-feed-hero-blur")?.getAttribute("style"),
+    ).toContain("app://local/cache/cover.jpg");
+  });
+
+  it("retries the remote preview URL when a cached Feed image fails", () => {
+    renderFeedView(
+      container,
+      [makeArticle({ coverImage: "https://example.com/cover.jpg" })],
+      {
+        ...baseViewContext(),
+        settings: {
+          ...baseViewContext().settings,
+          display: {
+            ...baseViewContext().settings.display,
+            allowImageCaching: true,
+          },
+        },
+        resolveCachedImageUrl: () => "app://local/cache/cover.jpg",
+      },
+      baseViewDeps(),
+    );
+
+    const image = container.querySelector(".rss-dashboard-feed-hero-image") as HTMLImageElement;
+    image.dispatchEvent(new Event("error"));
+
+    expect(image.getAttribute("src")).toBe("https://example.com/cover.jpg");
+    expect(
+      container.querySelector(".rss-dashboard-feed-hero-blur")?.getAttribute("style"),
+    ).toContain("https://example.com/cover.jpg");
+  });
+
   it.each([
     { showCoverImage: true, showSummary: true, image: true, summary: true },
     { showCoverImage: true, showSummary: false, image: true, summary: false },

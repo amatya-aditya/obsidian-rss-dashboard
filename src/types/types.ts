@@ -257,8 +257,14 @@ export interface ArticleSavingSettings {
   savedTemplates: SavedTemplate[];
 }
 
+export const IMAGE_CACHE_LIMIT_MIN_MIB = 1;
+export const IMAGE_CACHE_LIMIT_MAX_MIB = 1_024;
+
 export interface DisplaySettings {
   showCoverImage: boolean;
+  allowImageCaching: boolean;
+  imageCacheLimitMiB: number;
+  imageCacheUnlimited: boolean;
   showSummary: boolean;
   showFilterStatusBar: boolean;
   paginationPosition: "top" | "bottom";
@@ -699,6 +705,9 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
   },
   display: {
     showCoverImage: true,
+    allowImageCaching: false,
+    imageCacheLimitMiB: 100,
+    imageCacheUnlimited: false,
     showSummary: true,
     showFilterStatusBar: true,
     paginationPosition: "bottom",

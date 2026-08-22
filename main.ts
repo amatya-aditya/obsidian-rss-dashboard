@@ -8,6 +8,8 @@ import {
   TFolder,
   type EventRef,
   type ObsidianProtocolData,
+  normalizePath,
+  requestUrl,
 } from "obsidian";
 
 import { getSettingManager } from "./src/utils/settings-manager";
@@ -15,6 +17,8 @@ import { getSettingManager } from "./src/utils/settings-manager";
 import {
   RssDashboardSettings,
   DEFAULT_SETTINGS,
+  IMAGE_CACHE_LIMIT_MAX_MIB,
+  IMAGE_CACHE_LIMIT_MIN_MIB,
   Feed,
   FeedItem,
   FeedMetadata,
@@ -63,6 +67,8 @@ import {
 import { globalFetchSemaphore } from "./src/services/feed-parser/fetch-semaphore";
 import { OpmlManager } from "./src/services/opml-manager";
 import { MediaService } from "./src/services/media-service";
+import { ImageCacheService } from "./src/services/image-cache-service";
+import { resolveArticlePreviewImage } from "./src/components/article-list/utils/article-preview-utils";
 
 import { ImportOpmlModal } from "./src/modals/import-opml-modal";
 import { AddFeedModal } from "./src/modals/feed-manager/add-feed-modal";
@@ -284,6 +290,12 @@ export default class RssDashboardPlugin extends Plugin {
   private suppressWatcherUntil = 0;
   private static readonly FEED_REFRESH_RENDER_THROTTLE_MS = 250;
   private readonly feedStorageRepository: FeedStorageRepository;
+  private imageCacheService: ImageCacheService | null = null;
+  private imageCacheQueue: string[] = [];
+  private readonly queuedImageCacheUrls = new Set<string>();
+  private readonly imageCacheChangeListeners = new Set<() => void>();
+  private imageCacheWorkers = 0;
+  private imageCacheBatchHasUsableEntries = false;
 
   constructor(app: App, manifest: ConstructorParameters<typeof Plugin>[1]) {
     super(app, manifest);
@@ -326,7 +338,194 @@ export default class RssDashboardPlugin extends Plugin {
       ensureFolderExists: (folder, opts) =>
         this.ensureFolderExists(folder, opts),
       addStatusBarItem: () => this.addStatusBarItem(),
+      onFeedImported: (feed) => this.queuePreviewImageCaching(feed),
     });
+  }
+
+  private async initializeImageCache(): Promise<void> {
+    if (this.imageCacheService) return;
+
+    const adapter = this.app.vault.adapter;
+    if (
+      typeof adapter.readBinary !== "function" ||
+      typeof adapter.writeBinary !== "function" ||
+      typeof adapter.getResourcePath !== "function"
+    ) {
+      return;
+    }
+
+    this.imageCacheService = new ImageCacheService({
+      adapter,
+      cacheRoot: normalizePath(
+        `${this.app.vault.configDir}/plugins/${this.manifest.id}/image-cache`,
+      ),
+      fetchImage: async (url) => {
+        const response = await requestUrl({ url, method: "GET" });
+        return {
+          status: response.status,
+          headers: response.headers,
+          arrayBuffer: response.arrayBuffer,
+        };
+      },
+      maxCacheBytes: this.getImageCacheLimitBytes(),
+      onChange: () => this.notifyImageCacheChanged(),
+    });
+    await this.imageCacheService.initialize();
+  }
+
+  public resolveCachedImageUrl(remoteUrl: string): string | null {
+    if (!this.settings.display.allowImageCaching) return null;
+    return this.imageCacheService?.resolveCachedUrl(remoteUrl) ?? null;
+  }
+
+  public getImageCacheSizeBytes(): number {
+    return this.imageCacheService?.getSizeBytes() ?? 0;
+  }
+
+  public onImageCacheChanged(listener: () => void): () => void {
+    this.imageCacheChangeListeners.add(listener);
+    return () => this.imageCacheChangeListeners.delete(listener);
+  }
+
+  public async setImageCacheLimit(
+    limitMiB: number,
+    unlimited: boolean,
+  ): Promise<void> {
+    const normalizedLimit =
+      Number.isInteger(limitMiB)
+        ? Math.min(
+            IMAGE_CACHE_LIMIT_MAX_MIB,
+            Math.max(IMAGE_CACHE_LIMIT_MIN_MIB, limitMiB),
+          )
+        : DEFAULT_SETTINGS.display.imageCacheLimitMiB;
+    this.settings.display.imageCacheLimitMiB = normalizedLimit;
+    this.settings.display.imageCacheUnlimited = unlimited;
+    await this.imageCacheService?.setMaxCacheBytes(
+      this.getImageCacheLimitBytes(),
+    );
+    await this.saveSettings();
+  }
+
+  public async clearImageCache(): Promise<{ cleared: number; failed: number }> {
+    this.imageCacheQueue = [];
+    this.queuedImageCacheUrls.clear();
+    this.imageCacheBatchHasUsableEntries = false;
+    this.imageCacheService?.cancelPendingWrites();
+    return (await this.imageCacheService?.clear()) ?? { cleared: 0, failed: 0 };
+  }
+
+  public async removeCachedImagesForDeletedFeed(feed: Feed): Promise<void> {
+    const deletedFeedPreviewUrls = this.getPreviewImageUrls(feed);
+    if (deletedFeedPreviewUrls.size === 0) return;
+
+    this.imageCacheQueue = this.imageCacheQueue.filter(
+      (url) => !deletedFeedPreviewUrls.has(url),
+    );
+    for (const url of deletedFeedPreviewUrls) {
+      this.queuedImageCacheUrls.delete(url);
+    }
+
+    const retainedPreviewUrls = new Set(
+      this.settings.feeds.flatMap((remainingFeed) => [
+        ...this.getPreviewImageUrls(remainingFeed),
+      ]),
+    );
+    const orphanedPreviewUrls = Array.from(deletedFeedPreviewUrls).filter(
+      (url) => !retainedPreviewUrls.has(url),
+    );
+    await this.imageCacheService?.removeUrls(orphanedPreviewUrls);
+  }
+
+  public async setImageCachingEnabled(enabled: boolean): Promise<void> {
+    this.settings.display.allowImageCaching = enabled;
+    if (!enabled) {
+      await this.clearImageCache();
+    }
+    await this.saveSettings();
+  }
+
+  private getImageCacheLimitBytes(): number | null {
+    if (this.settings.display.imageCacheUnlimited) return null;
+    return this.settings.display.imageCacheLimitMiB * 1_024 * 1_024;
+  }
+
+  private notifyImageCacheChanged(): void {
+    for (const listener of this.imageCacheChangeListeners) {
+      listener();
+    }
+  }
+
+  private queuePreviewImageCaching(feed: Feed): void {
+    if (
+      !this.settings.display.allowImageCaching ||
+      !this.settings.display.showCoverImage ||
+      !this.imageCacheService
+    ) {
+      return;
+    }
+
+    for (const previewUrl of this.getPreviewImageUrls(feed)) {
+      if (!this.queuedImageCacheUrls.has(previewUrl)) {
+        this.queuedImageCacheUrls.add(previewUrl);
+        this.imageCacheQueue.push(previewUrl);
+      }
+    }
+
+    this.startImageCacheWorkers();
+  }
+
+  private getPreviewImageUrls(feed: Feed): Set<string> {
+    const previewUrls = new Set<string>();
+    for (const item of feed.items) {
+      for (const fieldOrder of [["coverImage", "image"], ["image", "coverImage"]] as const) {
+        const previewUrl = resolveArticlePreviewImage(item, fieldOrder);
+        if (previewUrl) previewUrls.add(previewUrl);
+      }
+    }
+    return previewUrls;
+  }
+
+  private startImageCacheWorkers(): void {
+    while (this.imageCacheWorkers < 2 && this.imageCacheQueue.length > 0) {
+      this.imageCacheWorkers += 1;
+      void this.runImageCacheWorker();
+    }
+  }
+
+  private async runImageCacheWorker(): Promise<void> {
+    try {
+      while (
+        this.settings.display.allowImageCaching &&
+        this.settings.display.showCoverImage
+      ) {
+        const previewUrl = this.imageCacheQueue.shift();
+        if (!previewUrl) return;
+
+        this.queuedImageCacheUrls.delete(previewUrl);
+        const cached = await this.imageCacheService?.cacheUrl(previewUrl, true);
+        if (cached) {
+          this.imageCacheBatchHasUsableEntries = true;
+        }
+      }
+    } finally {
+      this.imageCacheWorkers -= 1;
+      this.startImageCacheWorkers();
+      if (
+        this.imageCacheWorkers === 0 &&
+        this.imageCacheQueue.length === 0 &&
+        this.imageCacheBatchHasUsableEntries
+      ) {
+        this.imageCacheBatchHasUsableEntries = false;
+        void this.refreshDashboardAfterImageCacheBatch();
+      }
+    }
+  }
+
+  private async refreshDashboardAfterImageCacheBatch(): Promise<void> {
+    const view = await this.getActiveDashboardView();
+    if (view) {
+      void view.refresh();
+    }
   }
 
   private cloneFactoryResetFolders(
@@ -647,6 +846,7 @@ export default class RssDashboardPlugin extends Plugin {
     }
 
     await this.loadSettings();
+    await this.initializeImageCache();
     this.registerVaultMetadataChangeListeners();
 
     const view = await this.getActiveDashboardView();
@@ -2042,6 +2242,7 @@ export default class RssDashboardPlugin extends Plugin {
         // Only add to settings if parsing succeeded
         this.settings.feeds.push(feedWithTags);
         await this.saveSettings();
+        this.queuePreviewImageCaching(feedWithTags);
 
         const view = await this.getActiveDashboardView();
         if (view) {
@@ -2665,7 +2866,11 @@ export default class RssDashboardPlugin extends Plugin {
   }
 
   private getRefreshableFeeds(feeds: Feed[]): Feed[] {
-    return feeds.filter((feed) => !this.isFeedExcludedFromRefresh(feed));
+    return feeds.filter(
+      (feed) =>
+        !this.isFeedExcludedFromRefresh(feed) &&
+        !this.backgroundImportService?.isFeedPendingImport(feed.url),
+    );
   }
 
   private mergeRefreshedFeed(updatedFeed: Feed): void {
@@ -2694,6 +2899,7 @@ export default class RssDashboardPlugin extends Plugin {
         lastRefreshAttemptCompletedAt: completedAt,
         lastFetchError: updatedFeed.lastFetchError,
       });
+      this.queuePreviewImageCaching(updatedFeed);
       return;
     }
 
