@@ -33,6 +33,34 @@ describe("PodcastPlayer", () => {
   }
 
   describe("sorting", () => {
+    it("renders only a five-episode window around the active episode", () => {
+      const container: HTMLDivElement = document.createElement("div");
+      document.body.appendChild(container);
+      const app = new App();
+      const player = new PodcastPlayer(container, app, "obsidian");
+      const episodes = Array.from({ length: 9 }, (_, index) => ({
+        ...baseEpisode(),
+        title: `Ep ${index + 1}`,
+        guid: `guid-${index + 1}`,
+        audioUrl: `https://example.com/${index + 1}.mp3`,
+      }));
+
+      player.loadEpisode(episodes[4], episodes);
+
+      expect(container.querySelectorAll(".playlist-episode-row")).toHaveLength(5);
+      expect(container.querySelector(".playlist-window-range")?.textContent).toBe(
+        "Episodes 3–7 of 9",
+      );
+      expect(container.querySelector(".playlist-episode-row.active")?.getAttribute("data-episode-guid")).toBe(
+        "guid-5",
+      );
+
+      const audioBeforePaging = container.querySelector("audio");
+      (container.querySelector(".playlist-next-window") as HTMLButtonElement).click();
+      expect(container.querySelector("audio")).toBe(audioBeforePaging);
+      expect(container.querySelector(".playlist-episode-row.active")).toBeNull();
+    });
+
     it("does not recreate the audio element when sorting the playlist", () => {
       const container: HTMLDivElement = document.createElement("div");
       document.body.appendChild(container);
