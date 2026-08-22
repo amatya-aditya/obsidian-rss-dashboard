@@ -174,7 +174,7 @@ describe("ImportOpmlModal", () => {
           url: "https://example.com/feed.xml",
         }),
       ],
-      expect.objectContaining({ mode: "update" }),
+      expect.objectContaining({ mode: "update", globalOperation: true }),
     );
     expect(logSpy.mock.calls.some((c) => c[0] === "[Stub Notice]")).toBe(true);
   });
@@ -286,6 +286,7 @@ expect(plugin.ingestFeedsForBackgroundImport).toHaveBeenCalledWith(
         expect.any(Array),
         {
           mode: "update",
+          globalOperation: true,
           folders: expect.arrayContaining([
             expect.objectContaining({ name: "Tech" }),
           ]) as unknown as { name: string }[],

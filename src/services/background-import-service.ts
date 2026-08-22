@@ -45,6 +45,10 @@ export interface BackgroundImportServiceDeps {
     opts: { saveSettings: boolean; refreshView: boolean },
   ) => Promise<boolean>;
   addStatusBarItem: () => HTMLElement;
+  beginGlobalOperation?: (total: number) => AbortSignal | null;
+  updateGlobalOperationProgress?: (completed: number, total: number) => void;
+  endGlobalOperation?: () => Promise<void>;
+  isGlobalOperationCancelled?: () => boolean;
 }
 
 // ── Service ──────────────────────────────────────────────────────────────────
@@ -65,6 +69,13 @@ export class BackgroundImportService {
     opts: { saveSettings: boolean; refreshView: boolean },
   ) => Promise<boolean>;
   private readonly addStatusBarItem: () => HTMLElement;
+  private readonly beginGlobalOperation?: (total: number) => AbortSignal | null;
+  private readonly updateGlobalOperationProgress?: (
+    completed: number,
+    total: number,
+  ) => void;
+  private readonly endGlobalOperation?: () => Promise<void>;
+  private readonly isGlobalOperationCancelled?: () => boolean;
 
   // ── State ──────────────────────────────────────────────────────────────────
 
@@ -77,6 +88,8 @@ export class BackgroundImportService {
   private backgroundImportPersistMode:
     | RssDashboardSettings["storageMode"]
     | null = null;
+  private backgroundImportSignal: AbortSignal | null = null;
+  private ownsGlobalOperation = false;
 
   constructor(deps: BackgroundImportServiceDeps) {
     this.feedParser = deps.feedParser;
@@ -85,6 +98,10 @@ export class BackgroundImportService {
     this.saveSettings = deps.saveSettings;
     this.ensureFolderExists = deps.ensureFolderExists;
     this.addStatusBarItem = deps.addStatusBarItem;
+    this.beginGlobalOperation = deps.beginGlobalOperation;
+    this.updateGlobalOperationProgress = deps.updateGlobalOperationProgress;
+    this.endGlobalOperation = deps.endGlobalOperation;
+    this.isGlobalOperationCancelled = deps.isGlobalOperationCancelled;
   }
 
   // ── Public API ─────────────────────────────────────────────────────────────
@@ -190,6 +207,18 @@ export class BackgroundImportService {
     }
 
     this.backgroundImportPersistMode = importPersistMode;
+    if (options?.globalOperation && placeholders.length > 0) {
+      const signal = this.beginGlobalOperation?.(placeholders.length);
+      if (!signal) {
+        return {
+          addedCount: placeholders.length,
+          skippedCount,
+          queuedFeeds: placeholders,
+        };
+      }
+      this.backgroundImportSignal = signal;
+      this.ownsGlobalOperation = true;
+    }
     this.startBackgroundImport(placeholders);
 
     return {
@@ -263,9 +292,11 @@ export class BackgroundImportService {
         view.render();
       }
 
-      new Notice(
-        `Background import completed. Processed ${this.backgroundImportProcessedCount} feeds.`,
-      );
+      if (!this.isGlobalOperationCancelled?.()) {
+        new Notice(
+          `Background import completed. Processed ${this.backgroundImportProcessedCount} feeds.`,
+        );
+      }
     } finally {
       if (this.importStatusBarItem) {
         this.importStatusBarItem.remove();
@@ -276,6 +307,12 @@ export class BackgroundImportService {
       this.backgroundImportProcessedCount = 0;
       this.backgroundImportTotalCount = 0;
       this.backgroundImportInFlightUrls.clear();
+      this.backgroundImportSignal = null;
+
+      if (this.ownsGlobalOperation && this.endGlobalOperation) {
+        await this.endGlobalOperation();
+      }
+      this.ownsGlobalOperation = false;
 
       if (this.backgroundImportQueue.length === 0) {
         this.backgroundImportPersistMode = null;
@@ -295,6 +332,14 @@ export class BackgroundImportService {
   ): Promise<void> {
     while (true) {
       await globalFetchSemaphore.acquire();
+
+      if (
+        this.backgroundImportSignal?.aborted ||
+        this.isGlobalOperationCancelled?.()
+      ) {
+        globalFetchSemaphore.release();
+        return;
+      }
 
       const feedMetadata = this.backgroundImportQueue.shift();
       if (!feedMetadata) {
@@ -338,11 +383,25 @@ export class BackgroundImportService {
         feedMetadata.title,
       );
 
-      const parsedFeed = await this.parseFeedWithTimeout(feedMetadata.url);
-      this.mergeBackgroundImportedFeed(feedMetadata, parsedFeed);
-      feedMetadata.importStatus = "completed";
+      const parsedFeed = await this.parseFeedWithTimeout(
+        feedMetadata.url,
+        this.backgroundImportSignal ?? undefined,
+      );
+      const wasCancelled =
+        this.backgroundImportSignal?.aborted ||
+        this.isGlobalOperationCancelled?.();
+      if (!wasCancelled) {
+        this.mergeBackgroundImportedFeed(feedMetadata, parsedFeed);
+        feedMetadata.importStatus = "completed";
+      }
     } catch (error) {
-      if (error instanceof Error && error.message === "Timed out") {
+      if (
+        this.backgroundImportSignal?.aborted ||
+        this.isGlobalOperationCancelled?.()
+      ) {
+        feedMetadata.importStatus = "pending";
+        delete feedMetadata.importError;
+      } else if (error instanceof Error && error.message === "Timed out") {
         feedMetadata.importStatus = "timed_out";
       } else {
         feedMetadata.importStatus = "failed";
@@ -353,6 +412,10 @@ export class BackgroundImportService {
     } finally {
       this.backgroundImportInFlightUrls.delete(feedMetadata.url);
       this.backgroundImportProcessedCount += 1;
+      this.updateGlobalOperationProgress?.(
+        this.backgroundImportProcessedCount,
+        this.backgroundImportTotalCount,
+      );
     }
 
     if (this.backgroundImportProcessedCount % saveEvery === 0) {
@@ -382,7 +445,10 @@ export class BackgroundImportService {
     });
   }
 
-  private async parseFeedWithTimeout(url: string): Promise<Feed> {
+  private async parseFeedWithTimeout(
+    url: string,
+    signal?: AbortSignal,
+  ): Promise<Feed> {
     let lastError: Error | null = null;
 
     for (
@@ -391,7 +457,7 @@ export class BackgroundImportService {
       attempt += 1
     ) {
       try {
-        return await this.parseFeedAttemptWithTimeout(url);
+        return await this.parseFeedAttemptWithTimeout(url, signal);
       } catch (error) {
         const normalizedError =
           error instanceof Error ? error : new Error(String(error));
@@ -410,13 +476,23 @@ export class BackgroundImportService {
     throw lastError ?? new Error("Timed out");
   }
 
-  private async parseFeedAttemptWithTimeout(url: string): Promise<Feed> {
+  private async parseFeedAttemptWithTimeout(
+    url: string,
+    signal?: AbortSignal,
+  ): Promise<Feed> {
     let timeoutId: number | null = null;
     const abortController = new AbortController();
+    const forwardAbort = (): void => abortController.abort();
 
     try {
+      if (signal?.aborted) {
+        throw new DOMException("The operation was aborted", "AbortError");
+      }
+      signal?.addEventListener("abort", forwardAbort, { once: true });
       return await Promise.race([
-        this.feedParser.parseFeed(url, null, { signal: abortController.signal }),
+        this.feedParser.parseFeed(url, null, {
+          signal: abortController.signal,
+        }),
         new Promise<Feed>((_, reject) => {
           timeoutId = window.setTimeout(() => {
             abortController.abort();
@@ -425,6 +501,7 @@ export class BackgroundImportService {
         }),
       ]);
     } finally {
+      signal?.removeEventListener("abort", forwardAbort);
       if (timeoutId !== null) {
         window.clearTimeout(timeoutId);
       }

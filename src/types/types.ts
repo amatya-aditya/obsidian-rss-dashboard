@@ -177,6 +177,7 @@ export interface FeedIngestionOptions {
   mode?: "update" | "overwrite";
   folders?: Folder[];
   onProgress?: (completed: number, total: number) => void;
+  globalOperation?: boolean;
 }
 
 export interface Tag {
