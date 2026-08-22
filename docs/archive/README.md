@@ -15,6 +15,7 @@ records the complete 2026-08-16 documentation classification.
 | [Refresh status and progress indicators](plans/unreleased/167-refresh-status-indicators.md) | 2026-08-16 | [GH Issue #167](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/167) | `6f767c7`      |
 | [Retry failed feeds](plans/unreleased/168-retry-failed-feeds.md) | 2026-08-17 | [GH Issue #168](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/168) | `9a4968d`      |
 | [Cancellable global refresh](plans/unreleased/173-cancel-global-refresh.md) | 2026-08-19 | [GH Issue #173](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/173) | —              |
+| [Cancel OPML and Discover feed fetching](plans/unreleased/179-cancel-import-discover-fetches.md) | 2026-08-22 | [GH Issue #179](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/179) | `8892e9b`      |
 | [WordPress LaTeX image rendering](plans/unreleased/wordpress-latex-image-rendering.md) | 2026-08-08 | Unknown                                                                             | `9ce3582`      |
 
 ## Versioned plans

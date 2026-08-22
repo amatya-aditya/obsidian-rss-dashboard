@@ -1,6 +1,7 @@
 ---
-status: in-progress
+status: implemented
 created: 2026-08-21
+completed: 2026-08-22
 issue: https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/179
 milestone: ""
 owner: unassigned
@@ -9,7 +10,8 @@ sequence: null
 depends_on:
   - https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/173
 release_requirement: ""
-implementation: ""
+released_in: unreleased
+implementation: 8892e9b
 ---
 
 # Cancel OPML and Discover feed fetching
@@ -88,10 +90,14 @@ stop it, especially when Discover Add all starts a large batch.
   and queued cancellation, partial persistence, silent cancellation, modal
   dismissal, sidebar Stop behavior, and starting a new operation after cleanup.
 
+## Delivered validation
+
+- Focused regression tests: 3 files, 24 tests passed.
+- Platform compatibility audit passed.
+- Changed-file ESLint passed.
+- Full unit suite and production build were completed successfully.
+
 ## Lifecycle
 
-This is a dated draft until a canonical GitHub issue exists. Before
-implementation, create the issue, rename this file to
-`<issue-number>-cancel-import-discover-fetches.md`, store the exact issue URL,
-create the implementation branch from the current `dev` tip, and update this
-plan as implementation decisions or validation results change.
+The implementation is complete and is archived as unreleased pending release
+cut.
