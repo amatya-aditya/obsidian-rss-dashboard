@@ -1,5 +1,6 @@
 import { FeedItem } from "../types/types";
 import { App, setIcon, Menu, Notice } from "obsidian";
+import { PodcastPlaylist } from "../components/podcast-playlist";
 import { MediaService } from "../services/media-service";
 import { sanitizeAndAppendHtml } from "../utils/safe-html";
 import { windowInstanceOf } from "../utils/platform-utils";
@@ -23,6 +24,7 @@ export class PodcastPlayer {
   private progressTrackingEnabled: boolean;
   private defaultPlaySpeed: number;
   private isAutoplayEnabled = false;
+  private playlistWindowStart: number | undefined;
   private onEpisodeSelected?: (
     item: FeedItem,
     source: "playlist" | "nav" | "autoplay" | "external",
@@ -207,8 +209,6 @@ export class PodcastPlayer {
 
   private render(): void {
     if (!this.currentItem) return;
-    const playlistEl = this.container.querySelector(".playlist-list");
-    const savedScrollTop = playlistEl ? playlistEl.scrollTop : 0;
     this.container.empty();
 
     const podcastContainer = this.container.createDiv({
@@ -266,17 +266,13 @@ export class PodcastPlayer {
       cls: "podcast-cover-wrapper",
     });
 
-    if (coverImageUrl) {
-      const img = coverWrapper.createEl("img", {
-        cls: "podcast-cover",
-        attr: { src: coverImageUrl, alt: this.currentItem.title },
-      });
-      img.onerror = () => {
-        img.addClass("hidden");
-        this.createCoverPlaceholder(coverWrapper);
-      };
-    } else {
-      this.createCoverPlaceholder(coverWrapper);
+    const coverPlaceholder = this.createCoverPlaceholder(coverWrapper);
+    if (coverImageUrl && activeDocument.defaultView) {
+      const image = new activeDocument.defaultView.Image();
+      image.classList.add("podcast-cover");
+      image.alt = this.currentItem.title;
+      image.onload = () => coverPlaceholder.replaceWith(image);
+      image.src = coverImageUrl;
     }
 
     const textInfo = infoSection.createDiv({ cls: "podcast-text-info" });
@@ -695,145 +691,8 @@ export class PodcastPlayer {
 
     this.renderEpisodeDetailsUnderProgress();
 
-    if (this.playlist && this.playlist.length > 1) {
-      const playlistSection = this.container.createDiv({
-        cls: "podcast-playlist-section",
-      });
-      playlistSection.setAttribute("data-podcast-theme", this.theme);
-
-      const playlistHeader = playlistSection.createDiv({
-        cls: "playlist-header",
-      });
-      playlistHeader.createDiv({
-        cls: "playlist-title",
-        text: `Playlist (${this.playlist.length} episodes)`,
-      });
-
-      const sortControls = playlistHeader.createDiv({
-        cls: "playlist-sort-controls",
-      });
-
-      const autoplayLabel = sortControls.createEl("label", {
-        cls: "playlist-autoplay-container",
-        attr: { title: "Continuously play all episodes in the playlist" }
-      });
-
-      const autoplayCheckbox = autoplayLabel.createEl("input", {
-        type: "checkbox",
-        cls: "playlist-autoplay-checkbox"
-      });
-      autoplayCheckbox.checked = this.isAutoplayEnabled;
-      
-      autoplayLabel.createSpan({ text: "Autoplay" });
-      
-      autoplayCheckbox.onchange = () => {
-        this.isAutoplayEnabled = autoplayCheckbox.checked;
-        new Notice(this.isAutoplayEnabled ? "Autoplay enabled" : "Autoplay disabled");
-      };
-
-
-      const recentBtn = sortControls.createEl("button", {
-        cls: "playlist-sort-btn",
-        text: "Recent",
-      });
-      if (this.sortOrder === "recent") recentBtn.addClass("active-sort");
-      recentBtn.onclick = () => this.sortPlaylist("recent");
-
-      const oldestBtn = sortControls.createEl("button", {
-        cls: "playlist-sort-btn",
-        text: "Oldest",
-      });
-      if (this.sortOrder === "oldest") oldestBtn.addClass("active-sort");
-      oldestBtn.onclick = () => this.sortPlaylist("oldest");
-
-      const playlistList = playlistSection.createDiv({ cls: "playlist-list" });
-
-      this.playlist.forEach((ep, _index) => {
-        const epRow = playlistList.createDiv({ cls: "playlist-episode-row" });
-        epRow.setAttribute("data-episode-guid", ep.guid);
-
-        // Click to play the episode
-        epRow.onclick = () => {
-          // Switching episodes via playlist should not auto-play; user must hit play.
-          this.loadEpisode(ep, undefined, { notify: true, source: "playlist" });
-        };
-
-        const progress = this.progressData.get(ep.guid);
-        if (progress && progress.position > 0) {
-          epRow.addClass("has-progress");
-          const progressPercent = (progress.position / progress.duration) * 100;
-          epRow.style.setProperty("--progress-width", `${progressPercent}%`);
-        }
-
-        const playlistCoverImage =
-          ep.coverImage ||
-          ep.image ||
-          ep.itunes?.image?.href ||
-          this.currentItem?.coverImage ||
-          this.currentItem?.image ||
-          this.currentItem?.itunes?.image?.href ||
-          "";
-        if (playlistCoverImage) {
-          const img = epRow.createEl("img", {
-            cls: "playlist-ep-cover",
-            attr: { src: playlistCoverImage, alt: ep.title },
-          });
-          img.onerror = () => {
-            img.addClass("hidden");
-            const placeholder = epRow.createDiv({
-              cls: "playlist-ep-cover-placeholder",
-            });
-            placeholder.textContent = "🎧";
-          };
-        } else {
-          const placeholder = epRow.createDiv({
-            cls: "playlist-ep-cover-placeholder",
-          });
-          placeholder.textContent = "🎧";
-        }
-
-        const epInfo = epRow.createDiv({ cls: "playlist-ep-info" });
-        epInfo.createDiv({ cls: "playlist-ep-title", text: ep.title });
-
-        const epMeta = epInfo.createDiv({ cls: "playlist-ep-meta" });
-        const epMetaLeft = epMeta.createDiv({ cls: "playlist-ep-meta-left" });
-        epMetaLeft.createDiv({
-          cls: "playlist-ep-date",
-          text: ep.pubDate ? new Date(ep.pubDate).toLocaleDateString() : "",
-        });
-
-        if (ep.duration || ep.itunes?.duration) {
-          const durationBadge = epMetaLeft.createDiv({
-            cls: "episode-duration-badge",
-          });
-          durationBadge.textContent = ep.duration || ep.itunes?.duration || "";
-        }
-
-        this.renderPlaylistTags(epMeta, ep.tags);
-
-        if (progress && progress.position > 0) {
-          const progressIndicator = epRow.createDiv({
-            cls: "episode-progress-indicator",
-          });
-          const progressPercent = (progress.position / progress.duration) * 100;
-          progressIndicator.style.setProperty(
-            "--progress-width",
-            `${progressPercent}%`,
-          );
-        }
-
-        if (this.currentItem && ep.guid === this.currentItem.guid) {
-          epRow.addClass("active");
-        }
-      });
-
-      if (savedScrollTop > 0) {
-        playlistList.scrollTop = savedScrollTop;
-      }
-    } else {
-      const emptyState = this.container.createDiv({ cls: "playlist-empty" });
-      emptyState.textContent = "No other episodes available in this feed";
-    }
+    this.playlistWindowStart = undefined;
+    this.renderPlaylistSection();
   }
 
   private stripWhitespace(input: string): string {
@@ -1032,164 +891,46 @@ export class PodcastPlayer {
     }
   }
 
-  private replacePlaylistSection(): void {
-    const playlistEl =
-      this.container.querySelector<HTMLElement>(".playlist-list");
-    const savedScrollTop = playlistEl ? playlistEl.scrollTop : 0;
+  private renderPlaylistSection(): void {
+    new PodcastPlaylist(this.container, {
+      episodes: this.playlist,
+      activeEpisodeGuid: this.currentItem?.guid,
+      theme: this.theme,
+      isAutoplayEnabled: this.isAutoplayEnabled,
+      sortOrder: this.sortOrder,
+      windowStart: this.playlistWindowStart,
+      progressData: this.progressData,
+      onEpisodeSelected: (episode) => {
+        this.loadEpisode(episode, undefined, {
+          notify: true,
+          source: "playlist",
+        });
+      },
+      onAutoplayChanged: (enabled) => {
+        this.isAutoplayEnabled = enabled;
+        new Notice(enabled ? "Autoplay enabled" : "Autoplay disabled");
+      },
+      onSortRequested: (order) => this.sortPlaylist(order),
+      onWindowChanged: (start) => {
+        this.playlistWindowStart = start;
+      },
+    }).render();
+  }
 
+  private replacePlaylistSection(): void {
     this.container
       .querySelectorAll(".podcast-playlist-section, .playlist-empty")
       .forEach((el) => el.remove());
 
-    if (this.playlist && this.playlist.length > 1) {
-      const playlistSection = this.container.createDiv({
-        cls: "podcast-playlist-section",
-      });
-      playlistSection.setAttribute("data-podcast-theme", this.theme);
-
-      const playlistHeader = playlistSection.createDiv({
-        cls: "playlist-header",
-      });
-      playlistHeader.createDiv({
-        cls: "playlist-title",
-        text: `Playlist (${this.playlist.length} episodes)`,
-      });
-
-      const sortControls = playlistHeader.createDiv({
-        cls: "playlist-sort-controls",
-      });
-
-      const autoplayLabel = sortControls.createEl("label", {
-        cls: "playlist-autoplay-container",
-        attr: { title: "Continuously play all episodes in the playlist" }
-      });
-
-      const autoplayCheckbox = autoplayLabel.createEl("input", {
-        type: "checkbox",
-        cls: "playlist-autoplay-checkbox"
-      });
-      autoplayCheckbox.checked = this.isAutoplayEnabled;
-      
-      autoplayLabel.createSpan({ text: "Autoplay" });
-      
-      autoplayCheckbox.onchange = () => {
-        this.isAutoplayEnabled = autoplayCheckbox.checked;
-        new Notice(this.isAutoplayEnabled ? "Autoplay enabled" : "Autoplay disabled");
-      };
-
-      const recentBtn = sortControls.createEl("button", {
-        cls: "playlist-sort-btn",
-        text: "Recent",
-      });
-      if (this.sortOrder === "recent") recentBtn.addClass("active-sort");
-      recentBtn.onclick = () => this.sortPlaylist("recent");
-
-      const oldestBtn = sortControls.createEl("button", {
-        cls: "playlist-sort-btn",
-        text: "Oldest",
-      });
-      if (this.sortOrder === "oldest") oldestBtn.addClass("active-sort");
-      oldestBtn.onclick = () => this.sortPlaylist("oldest");
-
-      const playlistList = playlistSection.createDiv({ cls: "playlist-list" });
-
-      this.playlist.forEach((ep) => {
-        const epRow = playlistList.createDiv({ cls: "playlist-episode-row" });
-        epRow.setAttribute("data-episode-guid", ep.guid);
-
-        epRow.onclick = () => {
-          this.loadEpisode(ep, undefined, {
-            notify: true,
-            source: "playlist",
-            autoplay: true,
-          });
-        };
-
-        const progress = this.progressData.get(ep.guid);
-        if (progress && progress.position > 0) {
-          epRow.addClass("has-progress");
-          const progressPercent = (progress.position / progress.duration) * 100;
-          epRow.style.setProperty("--progress-width", `${progressPercent}%`);
-        }
-
-        const playlistCoverImage =
-          ep.coverImage ||
-          ep.image ||
-          ep.itunes?.image?.href ||
-          this.currentItem?.coverImage ||
-          this.currentItem?.image ||
-          this.currentItem?.itunes?.image?.href ||
-          "";
-        if (playlistCoverImage) {
-          const img = epRow.createEl("img", {
-            cls: "playlist-ep-cover",
-            attr: { src: playlistCoverImage, alt: ep.title },
-          });
-          img.onerror = () => {
-            img.addClass("hidden");
-            const placeholder = epRow.createDiv({
-              cls: "playlist-ep-cover-placeholder",
-            });
-            placeholder.textContent = "🎧";
-          };
-        } else {
-          const placeholder = epRow.createDiv({
-            cls: "playlist-ep-cover-placeholder",
-          });
-          placeholder.textContent = "🎧";
-        }
-
-        const epInfo = epRow.createDiv({ cls: "playlist-ep-info" });
-        epInfo.createDiv({ cls: "playlist-ep-title", text: ep.title });
-
-        const epMeta = epInfo.createDiv({ cls: "playlist-ep-meta" });
-        const epMetaLeft = epMeta.createDiv({ cls: "playlist-ep-meta-left" });
-        epMetaLeft.createDiv({
-          cls: "playlist-ep-date",
-          text: ep.pubDate ? new Date(ep.pubDate).toLocaleDateString() : "",
-        });
-
-        if (ep.duration || ep.itunes?.duration) {
-          const durationBadge = epMetaLeft.createDiv({
-            cls: "episode-duration-badge",
-          });
-          durationBadge.textContent = ep.duration || ep.itunes?.duration || "";
-        }
-
-        this.renderPlaylistTags(epMeta, ep.tags);
-
-        if (progress && progress.position > 0) {
-          const progressIndicator = epRow.createDiv({
-            cls: "episode-progress-indicator",
-          });
-          const progressPercent = (progress.position / progress.duration) * 100;
-          progressIndicator.style.setProperty(
-            "--progress-width",
-            `${progressPercent}%`,
-          );
-        }
-
-        if (this.currentItem && ep.guid === this.currentItem.guid) {
-          epRow.addClass("active");
-        }
-      });
-
-      if (savedScrollTop > 0) {
-        playlistList.scrollTop = savedScrollTop;
-      }
-
-      return;
-    }
-
-    const emptyState = this.container.createDiv({ cls: "playlist-empty" });
-    emptyState.textContent = "No other episodes available in this feed";
+    this.renderPlaylistSection();
   }
 
-  private createCoverPlaceholder(container: HTMLElement): void {
+  private createCoverPlaceholder(container: HTMLElement): HTMLElement {
     const placeholder = container.createDiv({
       cls: "podcast-cover-placeholder",
     });
     placeholder.textContent = "🎧";
+    return placeholder;
   }
 
   private toggleShuffle(): void {
@@ -1206,6 +947,7 @@ export class PodcastPlayer {
         (ep) => ep.guid === this.currentItem?.guid,
       );
     }
+    this.playlistWindowStart = undefined;
     this.updateShuffleButton();
     this.replacePlaylistSection();
   }
@@ -1234,6 +976,7 @@ export class PodcastPlayer {
       );
     }
 
+    this.playlistWindowStart = undefined;
     this.replacePlaylistSection();
   }
 

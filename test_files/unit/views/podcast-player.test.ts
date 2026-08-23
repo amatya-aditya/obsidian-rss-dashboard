@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "obsidian";
 import { PodcastPlayer } from "../../../src/views/podcast-player";
 import {
@@ -12,6 +12,10 @@ describe("PodcastPlayer", () => {
     installObsidianDomPolyfills();
     installMediaElementPolyfills();
     document.body.empty();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   function baseEpisode(): FeedItem {
@@ -32,7 +36,65 @@ describe("PodcastPlayer", () => {
     };
   }
 
+  describe("cover artwork", () => {
+    it("keeps the styled placeholder visible until cover artwork loads", () => {
+      const container: HTMLDivElement = document.createElement("div");
+      document.body.appendChild(container);
+      const createElement = vi.spyOn(activeDocument, "createElement");
+      const app = new App();
+      const player = new PodcastPlayer(container, app, "obsidian");
+      const episode = {
+        ...baseEpisode(),
+        coverImage: "https://example.com/cover.jpg",
+      };
+
+      player.loadEpisode(episode, [episode]);
+
+      expect(container.querySelector(".podcast-cover-placeholder")).not.toBeNull();
+      expect(container.querySelector(".podcast-cover")).toBeNull();
+
+      const artwork = createElement.mock.results
+        .map((result) => result.value)
+        .find(
+          (element): element is HTMLImageElement =>
+            element instanceof HTMLImageElement && element.classList.contains("podcast-cover"),
+        );
+      artwork?.dispatchEvent(new Event("load"));
+
+      expect(container.querySelector(".podcast-cover-placeholder")).toBeNull();
+      expect(container.querySelector(".podcast-cover")).not.toBeNull();
+    });
+  });
+
   describe("sorting", () => {
+    it("renders only a five-episode window around the active episode", () => {
+      const container: HTMLDivElement = document.createElement("div");
+      document.body.appendChild(container);
+      const app = new App();
+      const player = new PodcastPlayer(container, app, "obsidian");
+      const episodes = Array.from({ length: 9 }, (_, index) => ({
+        ...baseEpisode(),
+        title: `Ep ${index + 1}`,
+        guid: `guid-${index + 1}`,
+        audioUrl: `https://example.com/${index + 1}.mp3`,
+      }));
+
+      player.loadEpisode(episodes[4], episodes);
+
+      expect(container.querySelectorAll(".playlist-episode-row")).toHaveLength(5);
+      expect(container.querySelector(".playlist-window-range")?.textContent).toBe(
+        "Episodes 3–7 of 9",
+      );
+      expect(container.querySelector(".playlist-episode-row.active")?.getAttribute("data-episode-guid")).toBe(
+        "guid-5",
+      );
+
+      const audioBeforePaging = container.querySelector("audio");
+      (container.querySelector(".playlist-next-window") as HTMLButtonElement).click();
+      expect(container.querySelector("audio")).toBe(audioBeforePaging);
+      expect(container.querySelector(".playlist-episode-row.active")).toBeNull();
+    });
+
     it("does not recreate the audio element when sorting the playlist", () => {
       const container: HTMLDivElement = document.createElement("div");
       document.body.appendChild(container);
