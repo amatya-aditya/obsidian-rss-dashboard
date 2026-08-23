@@ -30,7 +30,7 @@
     "@typescript-eslint/parser": "^8.60.1",
     "@typescript-eslint/utils": "^8.51.0",
     "@vitest/coverage-v8": "4.1.2",
-    "esbuild": "0.27.7",
+    "esbuild": "0.28.2",
     "eslint": "^9.39.2",
     "eslint-plugin-obsidianmd": "^0.4.1",
     "globals": "^16.5.0",
@@ -41,11 +41,11 @@
     "prettier": "^3.8.1",
     "tslib": "2.4.0",
     "typescript": "^5.9.3",
-    "vitest": "4.1.2"
+    "vitest": "4.1.2",
+    "jsdom": "^28.1.0"
   },
   "dependencies": {
     "@mozilla/readability": "^0.6.0",
-    "jsdom": "^28.1.0",
     "turndown": "^7.2.0"
   }
 }
