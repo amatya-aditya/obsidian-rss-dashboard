@@ -20,7 +20,7 @@ export function installObsidianDomPolyfills(): void {
     ): boolean => value instanceof ctor;
   }
   if (!globalScope.activeDocument) {
-    globalScope.activeDocument = document;
+    globalScope.activeDocument = window.document;
   }
 
   const documentProto = Document.prototype as unknown as Record<
@@ -314,7 +314,7 @@ export function installObsidianDomPolyfills(): void {
         | string
         | { cls?: string; text?: string; attr?: Record<string, string> },
     ): HTMLDivElement {
-      const doc = this.ownerDocument ?? document;
+      const doc = this.ownerDocument ?? globalScope.activeDocument ?? window.document;
       const el = doc.createElement("div");
       if (typeof opts === "string") {
         el.className = opts;
@@ -337,7 +337,7 @@ export function installObsidianDomPolyfills(): void {
         | string
         | { cls?: string; text?: string; attr?: Record<string, string> },
     ): HTMLSpanElement {
-      const doc = this.ownerDocument ?? document;
+      const doc = this.ownerDocument ?? globalScope.activeDocument ?? window.document;
       const el = doc.createElement("span");
       if (typeof opts === "string") {
         el.className = opts;
@@ -358,7 +358,7 @@ export function installObsidianDomPolyfills(): void {
       this: HTMLElement,
       text: string,
     ): void {
-      const doc = this.ownerDocument ?? document;
+      const doc = this.ownerDocument ?? globalScope.activeDocument ?? window.document;
       this.append(doc.createTextNode(text));
     };
   }
@@ -376,7 +376,7 @@ export function installObsidianDomPolyfills(): void {
         [key: string]: unknown;
       },
     ): HTMLElementTagNameMap[K] {
-      const doc = this.ownerDocument ?? document;
+      const doc = this.ownerDocument ?? globalScope.activeDocument ?? window.document;
       const el = doc.createElement(tag);
       if (opts?.cls) el.className = opts.cls;
       if (opts?.text !== undefined) el.textContent = opts.text;
