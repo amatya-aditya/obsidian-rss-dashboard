@@ -266,17 +266,13 @@ export class PodcastPlayer {
       cls: "podcast-cover-wrapper",
     });
 
-    if (coverImageUrl) {
-      const img = coverWrapper.createEl("img", {
-        cls: "podcast-cover",
-        attr: { src: coverImageUrl, alt: this.currentItem.title },
-      });
-      img.onerror = () => {
-        img.addClass("hidden");
-        this.createCoverPlaceholder(coverWrapper);
-      };
-    } else {
-      this.createCoverPlaceholder(coverWrapper);
+    const coverPlaceholder = this.createCoverPlaceholder(coverWrapper);
+    if (coverImageUrl && activeDocument.defaultView) {
+      const image = new activeDocument.defaultView.Image();
+      image.classList.add("podcast-cover");
+      image.alt = this.currentItem.title;
+      image.onload = () => coverPlaceholder.replaceWith(image);
+      image.src = coverImageUrl;
     }
 
     const textInfo = infoSection.createDiv({ cls: "podcast-text-info" });
@@ -929,11 +925,12 @@ export class PodcastPlayer {
     this.renderPlaylistSection();
   }
 
-  private createCoverPlaceholder(container: HTMLElement): void {
+  private createCoverPlaceholder(container: HTMLElement): HTMLElement {
     const placeholder = container.createDiv({
       cls: "podcast-cover-placeholder",
     });
     placeholder.textContent = "🎧";
+    return placeholder;
   }
 
   private toggleShuffle(): void {

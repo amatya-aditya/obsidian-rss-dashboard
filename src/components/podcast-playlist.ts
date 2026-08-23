@@ -123,24 +123,6 @@ export class PodcastPlaylist {
       );
     }
 
-    const coverImage =
-      episode.coverImage ||
-      episode.image ||
-      episode.itunes?.image?.href ||
-      "";
-    if (coverImage) {
-      const image = row.createEl("img", {
-        cls: "playlist-ep-cover",
-        attr: { src: coverImage, alt: episode.title },
-      });
-      image.onerror = () => {
-        image.addClass("hidden");
-        row.createDiv({ cls: "playlist-ep-cover-placeholder", text: "🎧" });
-      };
-    } else {
-      row.createDiv({ cls: "playlist-ep-cover-placeholder", text: "🎧" });
-    }
-
     const info = row.createDiv({ cls: "playlist-ep-info" });
     info.createDiv({ cls: "playlist-ep-title", text: episode.title });
     const meta = info.createDiv({ cls: "playlist-ep-meta" });
@@ -156,6 +138,24 @@ export class PodcastPlaylist {
       });
     }
     this.renderTags(meta, episode.tags);
+
+    const coverImage =
+      episode.coverImage ||
+      episode.image ||
+      episode.itunes?.image?.href ||
+      "";
+    const placeholder = row.createDiv({
+      cls: "playlist-ep-cover-placeholder",
+      text: "🎧",
+    });
+    if (coverImage && activeDocument.defaultView) {
+      const image = new activeDocument.defaultView.Image();
+      image.classList.add("playlist-ep-cover");
+      image.alt = episode.title;
+      image.onload = () => placeholder.replaceWith(image);
+      image.src = coverImage;
+    }
+
     if (progress && progress.position > 0 && progress.duration > 0) {
       const indicator = row.createDiv({ cls: "episode-progress-indicator" });
       indicator.style.setProperty(

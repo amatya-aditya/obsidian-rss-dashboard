@@ -1,13 +1,8 @@
 ---
-status: in-progress
-created: 2026-08-22
+status: implemented
+completed: 2026-08-22
+released_in: unreleased
 issue: "https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/183"
-milestone: ""
-owner: unassigned
-workstream: ""
-sequence: null
-depends_on: []
-release_requirement: ""
 implementation: ""
 ---
 
@@ -41,6 +36,9 @@ rendering the entire feed.
   browsed window during tag and playback-progress refreshes.
 - Treat browsing position as transient UI state. Recreating the player or
   reloading a feed recenters on the active episode.
+- Show the styled fallback artwork while an episode cover preloads in both the
+  player and playlist; replace it with the cover only after a successful load
+  so no blank or broken-image box is visible.
 
 ## Acceptance criteria
 
@@ -61,6 +59,9 @@ rendering the entire feed.
 8. Existing playlist appearance, theme selectors, tag updates, and playback
    progress indicators continue to work for every visible row.
 9. Feeds with five or fewer podcast episodes continue to show all episodes.
+10. A loading or failed artwork URL leaves the styled fallback visible; a
+    successfully loaded cover replaces it without exposing a native empty or
+    broken-image box.
 
 ## Implementation direction
 

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "obsidian";
 import { PodcastPlayer } from "../../../src/views/podcast-player";
 import {
@@ -12,6 +12,10 @@ describe("PodcastPlayer", () => {
     installObsidianDomPolyfills();
     installMediaElementPolyfills();
     document.body.empty();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   function baseEpisode(): FeedItem {
@@ -31,6 +35,36 @@ describe("PodcastPlayer", () => {
       audioUrl: "https://example.com/ep1.mp3",
     };
   }
+
+  describe("cover artwork", () => {
+    it("keeps the styled placeholder visible until cover artwork loads", () => {
+      const container: HTMLDivElement = document.createElement("div");
+      document.body.appendChild(container);
+      const createElement = vi.spyOn(activeDocument, "createElement");
+      const app = new App();
+      const player = new PodcastPlayer(container, app, "obsidian");
+      const episode = {
+        ...baseEpisode(),
+        coverImage: "https://example.com/cover.jpg",
+      };
+
+      player.loadEpisode(episode, [episode]);
+
+      expect(container.querySelector(".podcast-cover-placeholder")).not.toBeNull();
+      expect(container.querySelector(".podcast-cover")).toBeNull();
+
+      const artwork = createElement.mock.results
+        .map((result) => result.value)
+        .find(
+          (element): element is HTMLImageElement =>
+            element instanceof HTMLImageElement && element.classList.contains("podcast-cover"),
+        );
+      artwork?.dispatchEvent(new Event("load"));
+
+      expect(container.querySelector(".podcast-cover-placeholder")).toBeNull();
+      expect(container.querySelector(".podcast-cover")).not.toBeNull();
+    });
+  });
 
   describe("sorting", () => {
     it("renders only a five-episode window around the active episode", () => {
