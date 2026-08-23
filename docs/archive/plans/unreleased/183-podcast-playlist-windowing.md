@@ -3,7 +3,7 @@ status: implemented
 completed: 2026-08-22
 released_in: unreleased
 issue: "https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/183"
-implementation: ""
+implementation: "https://github.com/amatya-aditya/obsidian-rss-dashboard/pull/184"
 ---
 
 # Window the podcast playlist around the active episode
