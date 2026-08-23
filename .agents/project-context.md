@@ -33,7 +33,7 @@ Public listing and review status:
 Read the files required by `AGENTS.md` before changing code or tests. Consult
 these additional documents only when their area is affected:
 
-- `CONTRIBUTING.MD` and `docs/development/compliance-patterns.md`: audit-sensitive implementation rules.
+- `CONTRIBUTING.md` and `docs/development/compliance-patterns.md`: audit-sensitive implementation rules.
 - `docs/plugin-scorecard.md`: local audit history and current public-status snapshot.
 - `docs/development/data-flow.md`: feed refresh, merge, retention, and persistence behavior.
 - `docs/storage-vault-shards-guide.md`: storage modes and sync-facing behavior.

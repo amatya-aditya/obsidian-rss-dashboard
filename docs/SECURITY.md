@@ -307,7 +307,7 @@ This prevents thrashing the vault adapter during long playback sessions while en
 **Responsible Disclosure**:
 
 - If you discover a security vulnerability, please report it responsibly
-- See `CONTRIBUTING.MD` for security reporting guidelines
+- See `CONTRIBUTING.md` for security reporting guidelines
 
 ---
 
@@ -374,7 +374,7 @@ If you have questions about this security policy or concerns about data privacy,
 
 1. Open an issue on GitHub: https://github.com/amatya-aditya/obsidian-rss-dashboard/issues
 2. Review the source code: https://github.com/amatya-aditya/obsidian-rss-dashboard
-3. Consult the `CONTRIBUTING.MD` file for security reporting
+3. Consult the `CONTRIBUTING.md` file for security reporting
 4. View our latest scorecard compliance on our Community page: https://community.obsidian.md/plugins/rss-dashboard
 
 ---

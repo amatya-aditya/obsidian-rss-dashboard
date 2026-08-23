@@ -2,7 +2,7 @@
 
 Last updated: 2026-08-10
 
-This document defines approved patterns for audit-sensitive changes. Use it with `CONTRIBUTING.MD` and `docs/plugin-scorecard.md`.
+This document defines approved patterns for audit-sensitive changes. Use it with `CONTRIBUTING.md` and `docs/plugin-scorecard.md`.
 
 ## Scope
 
@@ -132,6 +132,6 @@ Before opening a PR:
 
 ## Related Docs
 
-- `CONTRIBUTING.MD` (Compliance Declarations)
+- `CONTRIBUTING.md` (Compliance Declarations)
 - `docs/plugin-scorecard.md` (live backlog and priorities)
 - `docs/SECURITY.md` (stakeholder-facing security disclosures)

@@ -283,7 +283,7 @@ modification time to detect changes.
 
 ## Development
 
-Before opening a PR, read the contributor policy in [CONTRIBUTING.MD](CONTRIBUTING.MD), especially the **Compliance Declarations (Audit Guardrails)** section.
+Before opening a PR, read the contributor policy in [CONTRIBUTING.md](CONTRIBUTING.md), especially the **Compliance Declarations (Audit Guardrails)** section.
 
 For implementation examples and approved patterns used in recent compliance passes, see [docs/development/compliance-patterns.md](docs/development/compliance-patterns.md).
 

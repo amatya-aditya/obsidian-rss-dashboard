@@ -34,13 +34,13 @@
 
 ## 🟡 Warnings (Address or Document)
 
-> Warnings do not block compliance but will reduce score. Per project policy, warnings that cannot be eliminated must be documented in `CONTRIBUTING.MD` with an inline justification comment in the source file.
+> Warnings do not block compliance but will reduce score. Per project policy, warnings that cannot be eliminated must be documented in `CONTRIBUTING.md` with an inline justification comment in the source file.
 
 ### CSS — `!important` Usage (900 warnings)
 
 - [x] Audit entire codebase for `!important` declarations — replace with higher-specificity selectors or CSS variables where feasible
 - [x] For any `!important` that must remain (e.g. Obsidian theme override conflicts), add an inline comment: `/* audit-ok: !important required to override Obsidian theme specificity */`
-- [x] Document the approved exception pattern in `CONTRIBUTING.MD`
+- [x] Document the approved exception pattern in `CONTRIBUTING.md`
 
 - Note: Line from @controls.css - \* We use !important on display toggles to prevent overrides from later-loaded stylesheets (modals.css, discover.css) - need to investigate further
 
@@ -126,8 +126,8 @@
 
 - [x] Add GitHub Actions step to block dynamic `<script>` element creation (grep/ESLint rule) — covered by `npm run lint` step in `test.yml` and `no-restricted-syntax` rule
 - [x] Add GitHub Actions step to block direct `fs` module usage in `src/` (grep or ESLint `no-restricted-imports`) — covered by same lint step and new `no-restricted-imports` rule targeting `fs`/`path` in `src/**/*.ts`
-- [x] Update `CONTRIBUTING.MD` with CSS warning exception policy (inline comment format + approved patterns)
-- [x] Update `CONTRIBUTING.MD` with guidance on `!important` — when it's acceptable and how to document it
+- [x] Update `CONTRIBUTING.md` with CSS warning exception policy (inline comment format + approved patterns)
+- [x] Update `CONTRIBUTING.md` with guidance on `!important` — when it's acceptable and how to document it
 
 ---
 

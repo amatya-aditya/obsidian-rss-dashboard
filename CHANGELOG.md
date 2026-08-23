@@ -285,7 +285,7 @@ Added collapsible headers when viewing feeds in "feed" grouping ([GH Issue #149]
 - Completed full burn-down of test-file ESLint backlog (2686 errors → 0 errors across 130 test files).
 - Resolved all type-safety debt in test suite with boundary-cast pattern and strict interface definitions.
 - Aligned `Notice` stub behavior with modern Obsidian API to resolve 21 unit test regressions.
-- Added a new `Compliance Declarations (Audit Guardrails)` policy section to `CONTRIBUTING.MD` with required pre-PR compliance checks.
+- Added a new `Compliance Declarations (Audit Guardrails)` policy section to `CONTRIBUTING.md` with required pre-PR compliance checks.
 - Added `docs/development/compliance-patterns.md` as the canonical implementation reference for audit-sensitive patterns (safe HTML rendering, boundary typing, popout-safe APIs, and DOM helper conventions).
 - Added root `.instructions.md` and linked policy references in README/development docs/scorecard so AI-assisted and human contributions follow the same compliance guardrails.
 - See: [docs/development/test-lint-backlog-tracker.md](docs/development/test-lint-backlog-tracker.md) for detailed test-file lint debt burn-down progress (54 passes, 2686 → 0 errors).
