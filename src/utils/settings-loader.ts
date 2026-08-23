@@ -311,9 +311,11 @@ export function migrateSettings(settings: RssDashboardSettings): boolean {
     delete displayUnknown.useDomainFavicons;
     didChange = true;
   }
-  migrateDisplaySettings(
-    settings.display as unknown as Record<string, unknown>,
-  );
+  const displayForMigration: Record<string, unknown> = {
+    ...settings.display,
+  };
+  migrateDisplaySettings(displayForMigration);
+  Object.assign(settings.display, displayForMigration);
   if (
     !Number.isInteger(settings.display.imageCacheLimitMiB) ||
     settings.display.imageCacheLimitMiB < IMAGE_CACHE_LIMIT_MIN_MIB
