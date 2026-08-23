@@ -15,6 +15,51 @@ compliance, security, platform, storage, and audit-remediation work.
 Current CSS policy requires zero `!important` declarations in `src/styles/`.
 `npm run check:important` enforces this without comment-based exceptions.
 
+## Post-2.5.0 / pre-2.6.0 remediation status
+
+Remediation is in progress on the path to 2.6.0. The unedited
+[post-2.5.0 community scorecard capture](development/post-2.5.0-plugin-scorecard.md)
+is retained as evidence of the 2.5.0 release scan. Its paths and line numbers
+describe that released artifact; they must not be rewritten as if they were a
+fresh scan.
+
+The captured report lists 51 automated findings and the public review remains
+**Caution** until a future release and community rescan say otherwise. In the
+current source, Bead `obsidian-rss-dashboard-1tr` has removed the 29 reported
+test-only explicit-`any` occurrences from `test_files/stubs/obsidian.ts` and
+`test_files/types.d.ts` using typed mock contracts. This is a source-state
+correction, not a claim that the public scorecard has been updated.
+
+### Current assessment and recommended order
+
+| Priority | Captured finding | Current disposition | Follow-up scope and validation |
+| --- | --- | --- | --- |
+| P0 | Missing contributing guide | Stale as a repository-content claim: tracked root `CONTRIBUTING.MD` exists. Likely a case-sensitive scorecard convention or listing-index limitation. | Documentation/repository-metadata and community follow-up. First determine whether the scorer requires `CONTRIBUTING.md`; if so, use a case-only rename and update inbound links. Validate repository links and rescan after release. No runtime risk. |
+| P1 | Clipboard access disclosure | Genuine, intentional runtime capability. Current code has no programmatic clipboard read; native paste remains user-mediated. Writes support three settings-export copy buttons, article/feed URL context-menu actions, copying a local-storage address, Reader copy with LaTeX source preservation, and a YouTube embed `clipboard-write` permission. Complete removal is feasible without breaking feed management, fetching, file-based import, or download exports, but would remove these sharing/convenience workflows and degrade Reader math copying. It is therefore not a proportionate response to a disclosure finding. | Retain the capability and make the disclosure unambiguous. Verify the scorecard's supported repository or listing disclosure channel, then submit the exact user-initiated/write-only scope and sensitive-clipboard caveat. Separately assess whether the YouTube iframe permission is needed. Validate settings exports, URL copying, local-storage-address copying, Reader math copy, YouTube playback, and community rescan. Privacy-review risk; no core-feature regression expected from disclosure-only work. |
+| P1 | Unnecessary assertion in `src/utils/settings-loader.ts` | Current at `src/utils/settings-loader.ts:315` (the captured location remains accurate). It is a production lint-quality issue with narrow migration-path scope. | Small TypeScript cleanup plus focused settings-loader migration tests, ESLint for the file, type-check, platform check, and build. Low behavioral risk. |
+| P1 | Three unused destructured values in `src/services/import-export-service.ts` | Current at lines 34-36. This is production lint hygiene, not runtime failure; the exclusion of feeds, folders, and available tags from user-settings export remains intentional. | Small TypeScript cleanup preserving the serialized payload, with a regression assertion for excluded fields, ESLint for the file, type-check, platform check, and build. Low data-export compatibility risk. |
+| P2 | 12 `css-scrollbar` compatibility warnings | Genuine scanner-policy/compatibility findings. The captured source positions drifted: current authored rules are guarded progressive enhancements in `src/styles/modals.css` and `src/styles/sidebar.css`; the six `styles.css:1` references are minified release-bundle offsets. Unsupported engines degrade to ordinary scrollbars, but the scanner still flags the feature. | CSS/product compatibility decision. Inventory every flagged declaration, retain or replace only if equivalent cross-version behavior is acceptable; do not suppress the rule. Validate `npm run check:important`, build, manual desktop/mobile sidebar and modal scrolling on the supported Obsidian floor, then community rescan. Medium UX risk. |
+| P3 | Five global `document` uses in `test_files/unit/test-dom-polyfills.ts` | Current and confined to jsdom test polyfills (lines 23, 317, 340, 361, and 379). They do not ship in the plugin runtime and test ESLint deliberately exempts the production popout rule. | Test-only policy cleanup if scorecard scanning tests is to be optimized. Refactor fallbacks to the owning/active document, retain polyfill behavior, and run the focused polyfill consumers plus the full unit suite. Low runtime risk; moderate test-harness regression risk. |
+| Done locally; awaiting release/rescan | 29 explicit-`any` warnings in test stubs | Stale: no explicit `any` remains in the two cited current files. The captured count and locations belong to the 2.5.0 artifact. | Bead `obsidian-rss-dashboard-1tr` is complete. Preserve its validation record; verify again in the next release build and community rescan. |
+
+Dependencies: resolve the contributing-guide convention with the scorecard
+maintainers before a case-only rename; confirm the supported disclosure channel
+before changing security prose or metadata. Clipboard removal has no dependency
+on core feed workflows, but it would require an explicit product decision to
+retire the identified sharing and Reader-copy conveniences; it is not required
+for disclosure remediation. The production TypeScript cleanups are independent
+of each other. Treat scrollbar changes as a separately reviewed UI compatibility
+workstream, not as a mechanical warning count reduction.
+
+Proposed implementation sequence: (1) obtain community-scanner guidance for
+the contributing-guide and clipboard disclosures, and verify whether the
+YouTube iframe permission is needed; (2) land the two narrow production
+TypeScript cleanups with focused regression coverage; (3) decide and test the
+scrollbar compatibility approach; (4) optionally align test polyfills; (5) cut
+the 2.6.0 candidate, rerun repository gates, and request/review the community
+rescan. Do not mark the Caution rating or all captured findings resolved before
+that rescan.
+
 ## Historical Compliance Score
 
 | Version | Score | Date         | Status                                                                                                   |

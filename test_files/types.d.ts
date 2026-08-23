@@ -13,7 +13,7 @@ declare global {
         cls?: string;
         text?: string;
         attr?: Record<string, string>;
-        [key: string]: any;
+        [key: string]: unknown;
       },
     ): HTMLElementTagNameMap[K];
     createDiv(
@@ -54,7 +54,7 @@ declare global {
         cls?: string;
         text?: string;
         attr?: Record<string, string>;
-        [key: string]: any;
+        [key: string]: unknown;
       },
     ): HTMLElementTagNameMap[K];
     appendText(text: string): void;

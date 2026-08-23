@@ -164,13 +164,20 @@ export interface RequestUrlResponsePromise extends Promise<RequestUrlResponse> {
   text: Promise<string>;
 }
 
+export interface RequestUrlParam {
+  url: string;
+  method?: string;
+  contentType?: string;
+  body?: string | ArrayBuffer;
+  headers?: Record<string, string>;
+  throw?: boolean;
+}
+
 export async function requestUrl(
   _param?: unknown,
 ): Promise<RequestUrlResponse> {
   throw new Error("requestUrl stub - configure mock in test if needed");
 }
-
-export const RequestUrlParam: any = {};
 
 export const Platform = {
   isAndroidApp: false,
@@ -325,6 +332,17 @@ export class TFolder {
 // Mock DataVault (Enhanced)
 // =============================================================================
 
+interface MockVaultAdapter {
+  getBasePath(): string;
+  getFullPath(path: string): string;
+  exists(path: string): Promise<boolean>;
+  read(path: string): Promise<string>;
+  write(path: string, content: string): Promise<void>;
+  on(name: string, callback: (...args: unknown[]) => unknown): unknown;
+  list(path: string): Promise<{ files: string[]; folders: string[] }>;
+  rmdir(path: string, recursive: boolean): Promise<void>;
+}
+
 export class MockDataVault {
   private files: Map<string, TFile> = new Map();
   private folders: Map<string, TFolder> = new Map();
@@ -334,7 +352,7 @@ export class MockDataVault {
     () => ({});
 
   // Mirror Obsidian's `vault.adapter` surface area used by this repo
-  adapter: any;
+  adapter: MockVaultAdapter;
 
   constructor() {
     this.root = new TFolder("/");
@@ -547,7 +565,7 @@ export class MockWorkspace {
     callbacks.forEach((callback) => callback());
   }
 
-  on(_name: string, _callback: (...args: any[]) => unknown): unknown {
+  on(_name: string, _callback: (...args: unknown[]) => unknown): unknown {
     return {};
   }
 
@@ -613,6 +631,14 @@ export interface PluginManifest {
   dir?: string;
 }
 
+export type EventRef = unknown;
+
+interface CommandDefinition {
+  id: string;
+  name: string;
+  [key: string]: unknown;
+}
+
 export class Plugin {
   app: App;
   manifest: PluginManifest;
@@ -625,9 +651,12 @@ export class Plugin {
   async onload(): Promise<void> {}
   onunload(): void {}
 
-  registerView(_type: string, _creator: (leaf: any) => any): void {}
+  registerView(
+    _type: string,
+    _creator: (leaf: WorkspaceLeaf) => ItemView,
+  ): void {}
 
-  addCommand(_command: any): void {}
+  addCommand(_command: CommandDefinition): void {}
 
   addRibbonIcon(
     _icon: string,
@@ -637,7 +666,7 @@ export class Plugin {
     return {};
   }
 
-  addSettingTab(_tab: any): void {}
+  addSettingTab(_tab: PluginSettingTab): void {}
 
   registerInterval(id: number): number {
     return id;
@@ -646,7 +675,7 @@ export class Plugin {
   // Minimal stub for Obsidian's Plugin.registerEvent to allow tests to
   // register EventRef objects without throwing. This mirrors the runtime
   // API surface used by plugins; tests do not rely on the behavior here.
-  registerEvent(_evt: any): void {}
+  registerEvent(_evt: EventRef): void {}
 
   registerObsidianProtocolHandler(
     _action: string,
@@ -654,10 +683,10 @@ export class Plugin {
   ): void {}
 
   // Data API (overridden in tests when needed)
-  async loadData(): Promise<any> {
+  async loadData(): Promise<unknown> {
     return null;
   }
-  async saveData(_data: any): Promise<void> {}
+  async saveData(_data: unknown): Promise<void> {}
 }
 
 export class PluginSettingTab {
@@ -752,7 +781,7 @@ export class ItemView extends Component {
     return Promise.resolve();
   }
 
-  registerEvent(_evt: any): void {}
+  registerEvent(_evt: EventRef): void {}
 
   registerDomEvent(
     el: HTMLElement,
@@ -805,13 +834,66 @@ export class MenuItem {
   }
 }
 
+type SettingComponent = object;
+
+interface ButtonSettingComponent extends SettingComponent {
+  buttonEl: HTMLButtonElement;
+  setButtonText(text: string): this;
+  setIcon(icon: string): this;
+  setTooltip(tooltip: string): this;
+  onClick(handler: (evt: MouseEvent) => void): this;
+  setCta(): this;
+  setWarning(): this;
+  _triggerClick(evt?: MouseEvent): void;
+}
+
+interface SliderSettingComponent extends SettingComponent {
+  sliderEl: HTMLInputElement;
+  setLimits(min: number, max: number, step: number): this;
+  setValue(value: number): this;
+  setDynamicTooltip(): this;
+  onChange(handler: (value: number) => void): this;
+}
+
+interface ColorSettingComponent extends SettingComponent {
+  inputEl: HTMLInputElement;
+  setValue(value: string): this;
+  getValue(): string;
+  setPlaceholder(value: string): this;
+  onChange(handler: (value: string) => void): this;
+}
+
+interface ToggleSettingComponent extends SettingComponent {
+  toggleEl: HTMLInputElement;
+  setValue(value: boolean): this;
+  onChange(handler: (value: boolean) => void): this;
+  _triggerChange(value: boolean): void;
+}
+
+interface TextSettingComponent extends SettingComponent {
+  inputEl: HTMLInputElement;
+  setValue(value: string): this;
+  setPlaceholder(value: string): this;
+  getValue(): string;
+  onChange(handler: (value: string) => void): this;
+  _triggerChange(value: string): void;
+}
+
+interface DropdownSettingComponent extends SettingComponent {
+  selectEl: HTMLSelectElement;
+  addOption(value: string, label: string): this;
+  setValue(value: string): this;
+  onChange(handler: (value: string) => void): this;
+  _triggerChange(value: string): void;
+}
+
 export class Setting {
   settingEl: HTMLDivElement;
   nameEl: HTMLDivElement;
   descEl: HTMLDivElement;
   controlEl: HTMLDivElement;
   // Obsidian stores created components here; many settings tabs access it.
-  components: any[] = [];
+  components: SettingComponent[] = [];
 
   constructor(containerEl: HTMLElement) {
     this.settingEl = activeDocument.createElement("div");
@@ -859,7 +941,7 @@ export class Setting {
   setDisabled(_disabled?: boolean): this {
     return this;
   }
-  addButton(cb: (component: any) => any): this {
+  addButton(cb: (component: ButtonSettingComponent) => unknown): this {
     class ButtonComponent {
       buttonEl: HTMLButtonElement;
       private clickHandler: ((evt: MouseEvent) => void) | null = null;
@@ -915,7 +997,7 @@ export class Setting {
     return this;
   }
 
-  addSlider(cb: (component: any) => any): this {
+  addSlider(cb: (component: SliderSettingComponent) => unknown): this {
     class SliderComponent {
       sliderEl: HTMLInputElement;
       private changeHandler: ((value: number) => void) | null = null;
@@ -958,7 +1040,7 @@ export class Setting {
     return this;
   }
 
-  addColorPicker(cb: (component: any) => any): this {
+  addColorPicker(cb: (component: ColorSettingComponent) => unknown): this {
     class ColorComponent {
       inputEl: HTMLInputElement;
       private changeHandler: ((value: string) => void) | null = null;
@@ -997,7 +1079,7 @@ export class Setting {
     cb(component);
     return this;
   }
-  addToggle(cb: (component: any) => any): this {
+  addToggle(cb: (component: ToggleSettingComponent) => unknown): this {
     class ToggleComponent {
       toggleEl: HTMLInputElement;
       private changeHandler: ((value: boolean) => void) | null = null;
@@ -1032,7 +1114,7 @@ export class Setting {
     cb(component);
     return this;
   }
-  addText(cb: (component: any) => any): this {
+  addText(cb: (component: TextSettingComponent) => unknown): this {
     class TextComponent {
       inputEl: HTMLInputElement;
       private changeHandler: ((value: string) => void) | null = null;
@@ -1076,7 +1158,7 @@ export class Setting {
     cb(component);
     return this;
   }
-  addDropdown(cb: (component: any) => any): this {
+  addDropdown(cb: (component: DropdownSettingComponent) => unknown): this {
     class DropdownComponent {
       selectEl: HTMLSelectElement;
       private changeHandler: ((value: string) => void) | null = null;
@@ -1200,7 +1282,7 @@ export class AbstractInputSuggest<T> {
     return [];
   }
   renderSuggestion(_value: T, _el: HTMLElement): void {}
-  selectSuggestion(_value: T, _evt: any): void {}
+  selectSuggestion(_value: T, _evt: MouseEvent | KeyboardEvent): void {}
   close(): void {}
 }
 export class Scope {
