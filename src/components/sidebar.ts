@@ -103,7 +103,6 @@ export interface SidebarCallbacks {
   onManageFeeds?: () => void;
   onActivateDashboard?: () => void;
   onActivateDiscover?: () => void;
-  onCloseMobileSidebar?: () => void;
   onFolderMultiSelect?: (folders: string[]) => void;
   onRangeSelect?: (clickedKey: string, visibleKeys: string[]) => void;
 }
@@ -634,14 +633,8 @@ export class Sidebar {
   }
 
   private renderFeedFolders(): void {
-    const showSidebarScrollbar =
-      this.settings.display.showSidebarScrollbar ?? true;
     const feedFoldersSection = this.container.createDiv({
-      cls:
-        "rss-dashboard-feed-folders-section" +
-        (showSidebarScrollbar
-          ? ""
-          : " rss-dashboard-feed-folders-section--scrollbar-hidden"),
+      cls: "rss-dashboard-feed-folders-section",
     });
     const folderUnreadCountMap = this.buildFolderUnreadCountMap();
 
@@ -3145,30 +3138,6 @@ export class Sidebar {
 
     this.addHorizontalScrollBehavior(iconRow);
 
-    if (this.callbacks.onCloseMobileSidebar) {
-      const rightActions = header.createDiv({
-        cls: "rss-dashboard-sidebar-header-right",
-      });
-      const closeBtn = rightActions.createDiv({
-        cls: "rss-dashboard-header-close-button clickable-icon",
-        attr: {
-          title: "Close sidebar",
-          "aria-label": "Close sidebar",
-          role: "button",
-          tabindex: "0",
-        },
-      });
-      setIcon(closeBtn, "panel-left-close");
-      closeBtn.addEventListener("click", () => {
-        this.callbacks.onCloseMobileSidebar?.();
-      });
-      closeBtn.addEventListener("keydown", (e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          this.callbacks.onCloseMobileSidebar?.();
-        }
-      });
-    }
   }
 
   private addHorizontalScrollBehavior(iconRow: HTMLElement): void {

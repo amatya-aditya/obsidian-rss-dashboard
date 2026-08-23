@@ -240,6 +240,25 @@ describe("Sidebar Core", () => {
       );
       expect(header).toBeDefined();
     });
+
+    it("does not render a duplicate close button when the mobile modal provides one", () => {
+      const sidebar = new Sidebar(
+        app,
+        container,
+        plugin as unknown as RssDashboardPlugin,
+        settings,
+        options,
+        callbacks,
+      );
+      const headerSurface = document.createElement("div");
+      const ts = sidebar as unknown as TestSidebar;
+
+      ts.renderHeader(headerSurface);
+
+      expect(
+        headerSurface.querySelector(".rss-dashboard-header-close-button"),
+      ).toBeNull();
+    });
   });
 
   describe("lifecycle", () => {

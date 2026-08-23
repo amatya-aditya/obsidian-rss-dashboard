@@ -943,21 +943,6 @@ body .modal.rss-mobile-discover-filters-modal .rss-dashboard-sidebar {
   }
 }
 
-/* CSS Scrollbars L4: progressive enhancement — no-op in engines that don't support scrollbar-width */
-@supports (scrollbar-width: thin) {
-  @media (max-width: 1200px) {
-    .modal.rss-mobile-navigation-modal .rss-dashboard-feed-folders-section,
-    .modal.rss-mobile-discover-filters-modal .rss-discover-sidebar-content {
-      scrollbar-width: thin;
-      scrollbar-color: var(
-          --scrollbar-thumb-bg,
-          var(--background-modifier-border)
-        )
-        transparent;
-    }
-  }
-}
-
 @supports (height: 100dvh) {
   @media (max-width: 1200px) {
     .modal.rss-mobile-navigation-modal,
@@ -980,10 +965,6 @@ body .modal.rss-mobile-discover-filters-modal .rss-dashboard-sidebar {
     border-left: none;
   }
   body .modal.rss-mobile-navigation-modal .rss-dashboard-sidebar-resize-handle {
-    display: none;
-  }
-  .modal.rss-mobile-navigation-modal .modal-close-button,
-  .modal.rss-mobile-discover-filters-modal .modal-close-button {
     display: none;
   }
   .modal.rss-mobile-navigation-modal.rss-mobile-platform-ios,
@@ -1060,29 +1041,6 @@ body .modal.rss-mobile-discover-filters-modal .rss-dashboard-sidebar {
     display: flex;
     align-items: center;
   }
-  .modal.rss-mobile-navigation-modal .rss-dashboard-header-close-button,
-  .modal.rss-mobile-discover-filters-modal .rss-dashboard-header-close-button {
-    width: 32px;
-    min-width: 32px;
-    height: 32px;
-    padding: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    border-radius: 4px;
-    border: none;
-    background: transparent;
-    color: var(--text-muted);
-    margin-right: 0;
-  }
-  .modal.rss-mobile-navigation-modal .rss-dashboard-header-close-button:hover,
-  .modal.rss-mobile-discover-filters-modal
-    .rss-dashboard-header-close-button:hover {
-    background: var(--background-modifier-hover);
-    color: var(--text-normal);
-  }
-
   /* Ensure the text input accepts taps and opens the iOS soft keyboard */
   body .rss-folder-name-modal .rss-folder-name-modal-input {
     -webkit-user-select: text;
@@ -1236,50 +1194,6 @@ body .modal.rss-mobile-discover-filters-modal .rss-dashboard-sidebar {
   }
   .rss-dashboard-modal-buttons button {
     width: 100%;
-  }
-}
-
-/* Scrollbar styles for Mobile */
-@supports selector(::-webkit-scrollbar) {
-  .modal.rss-mobile-navigation-modal
-    .rss-dashboard-feed-folders-section::-webkit-scrollbar {
-    width: 10px;
-    height: 10px;
-  }
-  .modal.rss-mobile-navigation-modal
-    .rss-dashboard-feed-folders-section::-webkit-scrollbar-track,
-  .modal.rss-mobile-navigation-modal
-    .rss-dashboard-feed-folders-section::-webkit-scrollbar-track-piece {
-    background: transparent;
-  }
-  .modal.rss-mobile-navigation-modal
-    .rss-dashboard-feed-folders-section::-webkit-scrollbar-button {
-    width: 0;
-    height: 0;
-    display: none;
-    background: transparent;
-  }
-  .modal.rss-mobile-navigation-modal
-    .rss-dashboard-feed-folders-section::-webkit-scrollbar-thumb {
-    background-color: var(
-      --scrollbar-thumb-bg,
-      var(--background-modifier-border)
-    );
-    border-radius: 999px;
-    border: 2px solid var(--scrollbar-bg, transparent);
-  }
-  .modal.rss-mobile-navigation-modal
-    .rss-dashboard-feed-folders-section::-webkit-scrollbar-thumb:hover {
-    background-color: var(
-      --scrollbar-active-thumb-bg,
-      var(--scrollbar-thumb-bg, var(--background-modifier-border))
-    );
-  }
-  .modal.rss-mobile-navigation-modal
-    .rss-dashboard-feed-folders-section.rss-dashboard-feed-folders-section--scrollbar-hidden::-webkit-scrollbar {
-    width: 0;
-    height: 0;
-    display: none;
   }
 }
 

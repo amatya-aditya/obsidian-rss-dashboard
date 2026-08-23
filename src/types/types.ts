@@ -269,7 +269,6 @@ export interface DisplaySettings {
   showSummary: boolean;
   showFilterStatusBar: boolean;
   paginationPosition: "top" | "bottom";
-  showSidebarScrollbar: boolean;
   showAllFeedsUnreadBadges: boolean;
   showFolderUnreadBadges: boolean;
   showFeedUnreadBadges: boolean;
@@ -712,7 +711,6 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
     showSummary: true,
     showFilterStatusBar: true,
     paginationPosition: "bottom",
-    showSidebarScrollbar: true,
     showAllFeedsUnreadBadges: true,
     showFolderUnreadBadges: true,
     showFeedUnreadBadges: true,

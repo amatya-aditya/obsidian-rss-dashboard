@@ -87,23 +87,6 @@ export function renderSidebarSettingsTab(
   new Setting(containerEl).setName("Sidebar").setHeading();
 
   new Setting(containerEl)
-    .setName("Show sidebar scrollbar")
-    .setDesc("Show the scrollbar in the sidebar feed list")
-    .addToggle((toggle) =>
-      toggle
-        .setValue(plugin.settings.display.showSidebarScrollbar ?? true)
-        .onChange(async (value) => {
-          plugin.settings.display.showSidebarScrollbar = value;
-          await plugin.saveSettings();
-          const view = await plugin.getActiveDashboardView();
-          if (view?.sidebar) {
-            await plugin.app.workspace.revealLeaf(view.leaf);
-            view.sidebar.render();
-          }
-        }),
-    );
-
-  new Setting(containerEl)
     .setName("Hide default RSS icon")
     .setDesc("Hide the default RSS icon for regular feeds in the sidebar")
     .addToggle((toggle) =>
