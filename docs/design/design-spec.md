@@ -464,17 +464,22 @@ The fix addresses both failure modes at source rather than overriding them with 
 }
 ```
 
-#### When `!important` Is Still Justified
+#### Constructing Sufficient Specificity
 
-Only use `!important` on icon sizing or visibility rules if Obsidian core sets the same property `!important` on a matching selector, making specificity-only wins impossible. If that situation arises, document it with a comment citing the specific core rule:
+The source stylesheet permits no `!important` declarations. When a core rule
+wins the cascade, combine an existing plugin root with the component and its
+state or direct child instead of creating an exception:
 
 ```css
-.your-component-scope .clickable-icon > svg {
-  width: var(--icon-size, 20px) !important; /* audit-ok: explanation;
+.rss-dashboard-container .your-component-scope.is-compact > .clickable-icon > svg {
+  width: var(--icon-size, 20px);
 }
 ```
 
-Without that documented reason, `!important` on icon rules is a remediation target, not an acceptable pattern.
+Prefer local wrapper or state ownership over IDs, duplicated classes, or an
+unscoped `body` prefix. If a core property is itself important, redesign the
+plugin-owned wrapper or style a different local property rather than entering
+a specificity escalation that requires the same declaration.
 
 ---
 

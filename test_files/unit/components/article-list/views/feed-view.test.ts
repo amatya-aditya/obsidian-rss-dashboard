@@ -31,6 +31,23 @@ describe("feed-view", () => {
     expect(item?.querySelector(".rss-dashboard-feed-footer")).toBeTruthy();
   });
 
+  it("schedules math rendering for a feed title while preserving its source", () => {
+    const scheduleMathRendering = vi.fn();
+    const rawTitle = String.raw`Direct product of $\mathrm{GL}_n$`;
+    renderFeedView(
+      container,
+      [makeArticle({ title: rawTitle })],
+      baseViewContext(),
+      baseViewDeps({ scheduleMathRendering }),
+    );
+
+    const title = container.querySelector<HTMLElement>(
+      ".rss-dashboard-article-title",
+    );
+    expect(scheduleMathRendering).toHaveBeenCalledWith(title);
+    expect(title?.dataset.articleTitle).toBe(rawTitle);
+  });
+
   it("marks selected article as active", () => {
     const article = makeArticle();
     renderFeedView(
@@ -54,6 +71,118 @@ describe("feed-view", () => {
     expect(
       container.querySelector(".rss-dashboard-feed-hero-image"),
     ).toBeTruthy();
+  });
+
+  it("uses one cached preview URL for the Feed image and blur", () => {
+    const resolveCachedImageUrl = vi.fn(() => "app://local/cache/cover.jpg");
+    renderFeedView(
+      container,
+      [makeArticle({ coverImage: "https://example.com/cover.jpg" })],
+      {
+        ...baseViewContext(),
+        settings: {
+          ...baseViewContext().settings,
+          display: {
+            ...baseViewContext().settings.display,
+            allowImageCaching: true,
+          },
+        },
+        resolveCachedImageUrl,
+      },
+      baseViewDeps(),
+    );
+
+    expect(resolveCachedImageUrl).toHaveBeenCalledWith("https://example.com/cover.jpg");
+    expect(
+      container.querySelector(".rss-dashboard-feed-hero-image")?.getAttribute("src"),
+    ).toBe("app://local/cache/cover.jpg");
+    expect(
+      container.querySelector(".rss-dashboard-feed-hero-blur")?.getAttribute("style"),
+    ).toContain("app://local/cache/cover.jpg");
+  });
+
+  it("retries the remote preview URL when a cached Feed image fails", () => {
+    renderFeedView(
+      container,
+      [makeArticle({ coverImage: "https://example.com/cover.jpg" })],
+      {
+        ...baseViewContext(),
+        settings: {
+          ...baseViewContext().settings,
+          display: {
+            ...baseViewContext().settings.display,
+            allowImageCaching: true,
+          },
+        },
+        resolveCachedImageUrl: () => "app://local/cache/cover.jpg",
+      },
+      baseViewDeps(),
+    );
+
+    const image = container.querySelector(".rss-dashboard-feed-hero-image") as HTMLImageElement;
+    image.dispatchEvent(new Event("error"));
+
+    expect(image.getAttribute("src")).toBe("https://example.com/cover.jpg");
+    expect(
+      container.querySelector(".rss-dashboard-feed-hero-blur")?.getAttribute("style"),
+    ).toContain("https://example.com/cover.jpg");
+  });
+
+  it.each([
+    { showCoverImage: true, showSummary: true, image: true, summary: true },
+    { showCoverImage: true, showSummary: false, image: true, summary: false },
+    { showCoverImage: false, showSummary: true, image: false, summary: true },
+    { showCoverImage: false, showSummary: false, image: false, summary: false },
+  ])(
+    "renders Feed View previews independently when cover images are $showCoverImage and summaries are $showSummary",
+    ({ showCoverImage, showSummary, image, summary }) => {
+      renderFeedView(
+        container,
+        [makeArticle({ coverImage: "https://example.com/cover.jpg" })],
+        baseViewContext({
+          settings: {
+            highlights: {
+              highlightInTitles: false,
+              highlightInSummaries: false,
+            },
+            display: { showCoverImage, showSummary, articleDateStyle: "relative" },
+          },
+        }),
+        baseViewDeps(),
+      );
+
+      expect(!!container.querySelector(".rss-dashboard-feed-hero-image")).toBe(
+        image,
+      );
+      expect(!!container.querySelector(".rss-dashboard-feed-hero-blur")).toBe(
+        image,
+      );
+      expect(!!container.querySelector(".rss-dashboard-feed-summary")).toBe(
+        summary,
+      );
+    },
+  );
+
+  it("does not render a hero when stale article media is a LaTeX formula", () => {
+    const formulaUrl =
+      "https://s0.wp.com/latex.php?latex=%7Bx%7D&bg=ffffff";
+    renderFeedView(
+      container,
+      [
+        makeArticle({
+          image: formulaUrl,
+          coverImage: formulaUrl,
+          content: `<p><img class="latex" src="${formulaUrl}" /></p>`,
+        }),
+      ],
+      baseViewContext(),
+      baseViewDeps(),
+    );
+
+    expect(
+      container.querySelector(".rss-dashboard-feed-hero-image"),
+    ).toBeFalsy();
+    expect(container.querySelector(".rss-dashboard-feed-summary")).toBeTruthy();
   });
 
   it("renders feed source meta when showFeedSource is true", () => {

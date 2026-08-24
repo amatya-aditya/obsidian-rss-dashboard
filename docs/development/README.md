@@ -1,78 +1,178 @@
 # Development Docs
 
-Last updated: 2026-05-12
+Last updated: 2026-08-16
 
 Internal developer documentation for the RSS Dashboard plugin.
 
-## Docs Index
-
-### Bugs
-
-- [Why YouTube Shorts Auto-Tagging Is Fundamentally Brittle](../bugs/youtube-shorts-tagging-failure.md)
-  Last updated: March 18, 2026
-
-### Design
-
-- [RSS Dashboard Design Spec](../design/design-spec.md)
-  Last updated: 2026-03-17: Standardize icon rendering using clickable-icon pattern for Android compatibility
-
-### Development
+## Core References
 
 - [Compliance Patterns and Audit Guardrails](./compliance-patterns.md)
-  Canonical implementation patterns for audit-sensitive code paths: safe HTML rendering, lint-disable rationale, boundary typing, popout-safe APIs, and DOM helper conventions.
-- [Substack / RSS CDATA Entity Encoding](./substack-cdata-entity-encoding.md)
-  How `sanitizeCDATA` entity-decoding corrupts HTML attribute values from `content:encoded`, the `isHtml` flag fix, and the Cloudinary `$s_!TOKEN!` named-transformation URL format for Substack CDN images.
-- [Test-Lint Backlog Tracker](./test-lint-backlog-tracker.md)
-  Pass-by-pass tracker for test-file ESLint debt reduction that branched from audit scorecard work after Pass 4.
-- [Feed Data Lifecycle: Fetch, Merge, Retention, and Persistence](./data-flow.md)
-  Full walkthrough of how a feed item moves from remote fetch through local merge (three paths), two-pass retention, disk persistence, and dashboard display — including flowcharts for each stage.
-- [Defuddle evaluation (vs current article/podcast parsing)](./defuddle-evaluation.md)
-  Date: 2026-03-15
-- [Feed Validation in RSS Dashboard](./feed-validation.md)
-  New feeds are validated through a multi-layered process that ensures technical compatibility and discoverability.
+- [Feed Data Lifecycle](./data-flow.md)
+- [Feed Validation](./feed-validation.md)
 - [Obsidian Settings Reference](./obsidian-settings-reference.md)
-  This file is a prompt-friendly companion to [`node_modules/obsidian/obsidian.d.ts`](../../node_modules/obsidian/obsidian.d.ts) for building settings tabs and settings-driven UI in this plugin.
 - [Release Notes Workflow](./release-notes-workflow.md)
-  How to collect release-note entries in PRs and compile changelog updates efficiently at Beta/Stable cut time.
+- [Testing Guide](./test_coverage/testing-guide.md)
 - [Pull Request Template](../../.github/PULL_REQUEST_TEMPLATE.md)
-  Standard PR checklist and release-notes capture fields used during development.
 
-### Plans
+## Plan Lifecycle and Archive
 
-- [Deprecate + Remove `src/modals/feed-manager-modal.ts`](../plans/Future/deprecate-remove-feed-manager-modal.md)
-  Remove `src/modals/feed-manager-modal.ts` entirely and migrate all code, tests, and docs to import directly from `src/modals/feed-manager/*`.
-- [Plan: Handle .mp4 Files as Hero Images in Feed View](../plans/Future/handle-mp4-hero-images.md)
-  Some feeds (like QZ) provide `.mp4` URLs as `coverImage` values instead of `.jpg` or `.png`. The plugin needs to:
-- [Media Notes Feature — Podcast & Video Player](../plans/Future/Media%20Notes%20Feature%20—%20Podcast%20&%20Video%20Player.md)
-  Add an "Episode notes" / "Video notes" collapsible section to both the podcast and video players, backed by **individual vault files** for full two-way Obsidian sync.
-- [Keyboard Shortcuts](../plans/keyboard-shortcuts.md)
-  Settings/Preferences — `Alt + p`
-- [Normalize 2.2.0 release docs and beta history](../plans/Normalize%202.2.0%20release%20docs%20and%20beta%20history.md)
-  (1) make `docs/releases/2.2.0.md` the public, stable “what’s new” summary, (2) add a single `docs/releases/2.2.0-beta-series.md` that preserves the full beta-by-beta history, and (3) make `CHANGELOG.md` stable-focused…
-- [Plan: Twitter/X/Nitter Default Folder Routing (TDD-First)](../plans/twitter-x-nitter-default-folder-routing.md)
-  Add `media.defaultTwitterFolder` with default `Twitter`, then route Twitter/X/Nitter feeds to this configured folder in Add/Edit Feed modals using strict Red -> Green -> Refactor workflow.
+This section is the source of truth for implementation-plan organization.
 
-### Releases
+### Directory Model
 
-- [Release 2.1.0](../releases/2.1.0.md)
-  **Smart Podcast Detection**: Improved auto-podcast handling prevents non-podcast feeds from being incorrectly recognized as podcasts
-- [Release 2.1.1](../releases/2.1.1.md)
-  This release focuses on improving code quality and ensuring full compatibility with Obsidian's plugin guidelines.
-- [Release 2.1.2](../releases/2.1.2.md)
-  This release addresses plugin review feedback and fixes CSS compatibility issues.
-- [Release 2.1.3](../releases/2.1.3.md)
-  This release fixes several issues and improves code quality.
-- [Release 2.1.4](../releases/2.1.4.md)
-  Fixed TypeScript type safety issues across multiple files
-- [2.1.5](../releases/2.1.5.md)
-  Fixed multiple TypeScript linter errors related to unnecessary `await` expressions
-- [2.1.6](../releases/2.1.6.md)
-  Removed `async` keyword from `onOpen` method in `dashboard-view.ts` to resolve warning about missing `await` expression.
-- [2.1.7](../releases/2.1.7.md)
-  Improved CSS specificity to avoid conflicts with other plugins by adding plugin-specific classes
-- [2.1.8](../releases/2.1.8.md)
-  Fixed folder selection not persisting after selecting from suggestions by dispatching proper DOM events
-- [2.1.9](../releases/2.1.9.md)
-  6 new podcast player themes: Nord, Dracula, Solarized Dark, Catppuccin Mocha, Gruvbox, Tokyo Night
-- [2.2.0](../releases/2.2.0.md)
-  Consolidated RSS, Podcast, and YouTube add-feed workflows into a more streamlined unified flow
+```text
+docs/
+  plans/                         # Active and future work
+  archive/
+    README.md                    # Searchable archive catalog
+    plans/
+      unreleased/                # Implemented and validated, not released
+      v<version>/                # Shipped plans grouped by first release
+      unshipped/                 # Deferred, rejected, or superseded plans
+    investigations/
+      <YYYY>/                    # Incident, bug, and research records
+  decisions/
+    NNNN-<slug>.md               # Durable architectural decisions
+```
+
+Use release versions as the primary grouping for implemented feature and bug
+plans. Use calendar years for investigations whose value is chronological.
+Keep durable architectural decisions in `docs/decisions/`; update their status
+to `superseded` and link the replacement instead of archiving them.
+
+### Plan Metadata
+
+Use this frontmatter for new active plans:
+
+```yaml
+---
+status: idea
+created: YYYY-MM-DD
+issue: ""
+milestone: ""
+owner: unassigned
+workstream: ""
+sequence: null
+depends_on: []
+release_requirement: ""
+implementation: ""
+---
+```
+
+- Use `idea` while exploring, `proposed` while design is under review,
+  `accepted` when approved for implementation, `blocked` when an accepted plan
+  has an unmet dependency, and `in-progress` after implementation begins.
+- Keep `issue` empty until a canonical GitHub issue exists. Before implementation
+  or milestone assignment, create the issue and store its exact URL.
+- Keep `milestone` empty until the issue joins a release milestone. Use
+  `release_requirement: required` or `stretch` only for milestone work.
+- Use `workstream`, `sequence`, and `depends_on` only when they add real
+  coordination value. Before issue creation, dependencies may be draft plan
+  filenames. After issue creation, replace them with canonical issue URLs.
+- An owner may remain `unassigned`; issue identity and assignment are separate.
+
+Before archiving an implemented plan, replace its lifecycle fields with:
+
+```yaml
+---
+status: implemented
+completed: YYYY-MM-DD
+released_in: unreleased
+issue: ""
+implementation: ""
+---
+```
+
+- Set `released_in` to `unreleased` until release cut, then replace it with the
+  version number.
+- Preserve an exact canonical issue URL when one exists.
+- Put a PR URL or commit hash in `implementation` when known; leave it empty
+  rather than inventing one.
+- For deferred, rejected, or superseded plans, use that value for `status`, move
+  the file to `docs/archive/plans/unshipped/`, and add `superseded_by` when
+  applicable.
+
+### Plan Filename Convention
+
+Use lowercase kebab-case and a two-stage identity:
+
+1. Before a canonical issue exists, use
+   `draft-YYYYMMDD-<descriptive-slug>.md`.
+2. After creating the issue, rename the plan once to
+   `<issue-number>-<descriptive-slug>.md` and keep that filename through
+   implementation and archival.
+
+Examples:
+
+```text
+draft-20260816-refresh-status-indicators.md
+143-refresh-status-indicators.md
+```
+
+The date identifies a draft; it is not a promised delivery date. Use product or
+domain language that is understandable without a private abbreviation list.
+Keep status, priority, ownership, milestone, and release version in frontmatter
+or GitHub rather than filenames.
+
+Release roadmaps are durable coordination artifacts and use
+`release-v<version>-roadmap.md`, or `release-vnext-roadmap.md` before the version
+is chosen. ADRs retain `NNNN-<slug>.md` under `docs/decisions/`.
+
+Legacy plans do not need opportunistic renaming. Normalize them through a
+dedicated documentation migration so every inbound link is updated together.
+
+### Idea-to-Release Workflow
+
+1. Capture an uncommitted idea in a GitHub Discussion or a dated draft plan.
+2. Triage it as accepted, deferred, rejected, superseded, or still proposed.
+3. For accepted work, create a GitHub issue, rename the plan with the issue
+   number, and replace draft dependencies with issue URLs.
+4. Keep accepted backlog issues unassigned and unmilestoned when appropriate.
+5. Add only intended release work to the release milestone; mark it Required or
+   Stretch in the Project and plan metadata.
+6. Use an issue branch and pull request that link the canonical issue. Update
+   the plan when implementation changes the accepted contract.
+7. Complete validation, changelog, archive, release-note, and milestone gates
+   through the completion workflow below.
+
+### Completion Workflow
+
+1. Keep the plan in `docs/plans/` while behavior is incomplete or validation is
+   failing.
+2. Update the plan when implementation changes its accepted design, file map,
+   tests, limitations, or manual verification.
+3. After implementation and every required validation gate succeed, mark the
+   plan `implemented` and move it to `docs/archive/plans/unreleased/` unless a
+   release version is already assigned.
+4. Update all repository links to the moved file.
+5. Add or update its row in `docs/archive/README.md`, including status,
+   completion date, release, and implementation link when available.
+6. Keep the granular user-facing change in `CHANGELOG.md`; the archived plan is
+   supporting developer history, not public release-note copy.
+
+At release cut, move implemented plans from `unreleased/` into
+`docs/archive/plans/v<version>/`, replace `released_in`, update the archive
+catalog and repository links, and include the user-facing summary under
+`docs/releases/<version>.md`.
+
+## Documentation Index
+
+### Active Plans and History
+
+- [Active implementation plans](../plans/)
+- [Public roadmap](../plans/public-roadmap.md)
+- [Archive catalog](../archive/README.md)
+- [Release summaries](../releases/)
+
+### Additional Development Notes
+
+- [Automatic deletion](./auto-deletion.md)
+- [Audit remediation 2.3.0](../archive/investigations/2026/audit-remediation-2.3.0.md)
+- [Defuddle evaluation](../archive/investigations/2026/defuddle-evaluation.md)
+- [Substack CDATA entity encoding](../archive/investigations/2026/substack-cdata-entity-encoding.md)
+- [Test-lint backlog tracker](./test-lint-backlog-tracker.md)
+
+### Design and Bug References
+
+- [RSS Dashboard Design Spec](../design/design-spec.md)
+- [Why YouTube Shorts Auto-Tagging Is Fundamentally Brittle](../archive/investigations/2026/youtube-shorts-tagging-failure.md)

@@ -63,19 +63,22 @@ describe("MobileNavigationModal", () => {
       onTagToggle: vi.fn(),
       onClearTags: vi.fn(),
       onTagFilterModeChange: vi.fn(),
-      onCloseMobileSidebar: vi.fn(),
     } as unknown as SidebarCallbacks;
 
     const modal = new MobileNavigationModal(app as unknown as obsidian.App, plugin as unknown as RssDashboardPlugin, settings, { selectedTags: [] } as unknown as SidebarOptions, callbacks);
 
     const closeBtn = document.createElement("button");
-    closeBtn.className = "modal-close-button";
+    closeBtn.className = "modal-header-button mod-raised clickable-icon";
     modal.modalEl.appendChild(closeBtn);
 
     modal.open();
 
     expect(modal.modalEl.classList.contains("rss-mobile-navigation-modal")).toBe(true);
-    expect(modal.modalEl.querySelector(".modal-close-button")).toBeFalsy();
+    expect(
+      modal.modalEl.querySelector(
+        ".modal-header-button.mod-raised.clickable-icon",
+      ),
+    ).toBe(closeBtn);
     expect(lastSidebarInstance?.rendered).toBe(true);
     expect(modal.modalEl.style.width).toBe("1120px");
 
@@ -112,7 +115,6 @@ describe("MobileNavigationModal", () => {
       onTagToggle: vi.fn(),
       onClearTags: vi.fn(),
       onTagFilterModeChange: vi.fn(),
-      onCloseMobileSidebar: vi.fn(),
     } as unknown as SidebarCallbacks;
 
     const modal = new MobileNavigationModal(app as unknown as obsidian.App, plugin as unknown as RssDashboardPlugin, settings, { selectedTags: [] } as unknown as SidebarOptions, callbacks);

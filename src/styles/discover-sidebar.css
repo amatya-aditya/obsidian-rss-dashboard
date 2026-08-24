@@ -117,12 +117,6 @@ body .rss-discover-controls-container.is-narrow .rss-discover-mobile-header {
   font-size: 16px;
   color: var(--text-normal);
 }
-.rss-discover-header-right {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
 .rss-discover-sidebar-toggle {
   contain: layout style;
 }

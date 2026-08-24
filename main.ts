@@ -8,6 +8,8 @@ import {
   TFolder,
   type EventRef,
   type ObsidianProtocolData,
+  normalizePath,
+  requestUrl,
 } from "obsidian";
 
 import { getSettingManager } from "./src/utils/settings-manager";
@@ -15,6 +17,8 @@ import { getSettingManager } from "./src/utils/settings-manager";
 import {
   RssDashboardSettings,
   DEFAULT_SETTINGS,
+  IMAGE_CACHE_LIMIT_MAX_MIB,
+  IMAGE_CACHE_LIMIT_MIN_MIB,
   Feed,
   FeedItem,
   FeedMetadata,
@@ -22,6 +26,7 @@ import {
   FeedKeywordRulesSettings,
   FeedIngestionCandidate,
   FeedIngestionOptions,
+  FeedEncoding,
 } from "./src/types/types";
 import { RssDashboardSettingTab } from "./src/settings/settings-tab";
 import {
@@ -53,6 +58,7 @@ import {
 } from "./src/services/feed-storage-repository";
 import { ImportExportService } from "./src/services/import-export-service";
 import { BackgroundImportService } from "./src/services/background-import-service";
+import { FeedRefreshScheduler } from "./src/services/feed-refresh-scheduler";
 import {
   FEED_REQUEST_TIMEOUT_MS,
   FEED_SOFT_TIMEOUT_MS,
@@ -61,14 +67,13 @@ import {
 import { globalFetchSemaphore } from "./src/services/feed-parser/fetch-semaphore";
 import { OpmlManager } from "./src/services/opml-manager";
 import { MediaService } from "./src/services/media-service";
+import { ImageCacheService } from "./src/services/image-cache-service";
+import { resolveArticlePreviewImage } from "./src/components/article-list/utils/article-preview-utils";
 
 import { ImportOpmlModal } from "./src/modals/import-opml-modal";
 import { AddFeedModal } from "./src/modals/feed-manager/add-feed-modal";
 import { StorageMigrationModal } from "./src/modals/storage-migration-modal";
-import {
-  normalizeRefreshIntervalMinutes,
-  isValidUrl,
-} from "./src/utils/validation";
+import { isValidUrl } from "./src/utils/validation";
 import {
   dedupeAndNormalizeFeedItems,
   loadAndNormalizeSettings,
@@ -272,14 +277,25 @@ export default class RssDashboardPlugin extends Plugin {
   public activeRefreshState = new Map<string, FeedRefreshState>();
   public settingTab: RssDashboardSettingTab | null = null;
   private isMultiFeedRefreshRunning = false;
+  private isGlobalRefreshCancelled = false;
+  private globalRefreshAbortController: AbortController | null = null;
+  private globalRefreshTotal = 0;
+  private globalRefreshCompleted = 0;
   public vaultAbsolutePath = "";
   private hasCompletedStartupSavedArticleValidation = false;
   private vaultMetadataReloadTimer: number | null = null;
   private startupRefreshTimeoutId: number | null = null;
   private progressSaveDebounce: number | null = null;
+  private autoRefreshScheduler: FeedRefreshScheduler | null = null;
   private suppressWatcherUntil = 0;
   private static readonly FEED_REFRESH_RENDER_THROTTLE_MS = 250;
   private readonly feedStorageRepository: FeedStorageRepository;
+  private imageCacheService: ImageCacheService | null = null;
+  private imageCacheQueue: string[] = [];
+  private readonly queuedImageCacheUrls = new Set<string>();
+  private readonly imageCacheChangeListeners = new Set<() => void>();
+  private imageCacheWorkers = 0;
+  private imageCacheBatchHasUsableEntries = false;
 
   constructor(app: App, manifest: ConstructorParameters<typeof Plugin>[1]) {
     super(app, manifest);
@@ -322,7 +338,202 @@ export default class RssDashboardPlugin extends Plugin {
       ensureFolderExists: (folder, opts) =>
         this.ensureFolderExists(folder, opts),
       addStatusBarItem: () => this.addStatusBarItem(),
+      beginGlobalOperation: (total) => this.beginGlobalOperation(total),
+      updateGlobalOperationProgress: (completed, total) => {
+        this.globalRefreshCompleted = completed;
+        this.globalRefreshTotal = total;
+        void this.notifyRefreshStatusChanged();
+      },
+      endGlobalOperation: () => this.endGlobalOperation(),
+      isGlobalOperationCancelled: () => this.isGlobalRefreshCancelled,
+      onFeedImported: (feed) => this.queuePreviewImageCaching(feed),
     });
+  }
+
+  private async initializeImageCache(): Promise<void> {
+    if (this.imageCacheService) return;
+
+    const adapter = this.app.vault.adapter;
+    if (
+      typeof adapter.readBinary !== "function" ||
+      typeof adapter.writeBinary !== "function" ||
+      typeof adapter.getResourcePath !== "function"
+    ) {
+      return;
+    }
+
+    this.imageCacheService = new ImageCacheService({
+      adapter,
+      cacheRoot: normalizePath(
+        `${this.app.vault.configDir}/plugins/${this.manifest.id}/image-cache`,
+      ),
+      fetchImage: async (url) => {
+        const response = await requestUrl({ url, method: "GET" });
+        return {
+          status: response.status,
+          headers: response.headers,
+          arrayBuffer: response.arrayBuffer,
+        };
+      },
+      maxCacheBytes: this.getImageCacheLimitBytes(),
+      onChange: () => this.notifyImageCacheChanged(),
+    });
+    await this.imageCacheService.initialize();
+  }
+
+  public resolveCachedImageUrl(remoteUrl: string): string | null {
+    if (!this.settings.display.allowImageCaching) return null;
+    return this.imageCacheService?.resolveCachedUrl(remoteUrl) ?? null;
+  }
+
+  public getImageCacheSizeBytes(): number {
+    return this.imageCacheService?.getSizeBytes() ?? 0;
+  }
+
+  public onImageCacheChanged(listener: () => void): () => void {
+    this.imageCacheChangeListeners.add(listener);
+    return () => this.imageCacheChangeListeners.delete(listener);
+  }
+
+  public async setImageCacheLimit(
+    limitMiB: number,
+    unlimited: boolean,
+  ): Promise<void> {
+    const normalizedLimit =
+      Number.isInteger(limitMiB)
+        ? Math.min(
+            IMAGE_CACHE_LIMIT_MAX_MIB,
+            Math.max(IMAGE_CACHE_LIMIT_MIN_MIB, limitMiB),
+          )
+        : DEFAULT_SETTINGS.display.imageCacheLimitMiB;
+    this.settings.display.imageCacheLimitMiB = normalizedLimit;
+    this.settings.display.imageCacheUnlimited = unlimited;
+    await this.imageCacheService?.setMaxCacheBytes(
+      this.getImageCacheLimitBytes(),
+    );
+    await this.saveSettings();
+  }
+
+  public async clearImageCache(): Promise<{ cleared: number; failed: number }> {
+    this.imageCacheQueue = [];
+    this.queuedImageCacheUrls.clear();
+    this.imageCacheBatchHasUsableEntries = false;
+    this.imageCacheService?.cancelPendingWrites();
+    return (await this.imageCacheService?.clear()) ?? { cleared: 0, failed: 0 };
+  }
+
+  public async removeCachedImagesForDeletedFeed(feed: Feed): Promise<void> {
+    const deletedFeedPreviewUrls = this.getPreviewImageUrls(feed);
+    if (deletedFeedPreviewUrls.size === 0) return;
+
+    this.imageCacheQueue = this.imageCacheQueue.filter(
+      (url) => !deletedFeedPreviewUrls.has(url),
+    );
+    for (const url of deletedFeedPreviewUrls) {
+      this.queuedImageCacheUrls.delete(url);
+    }
+
+    const retainedPreviewUrls = new Set(
+      this.settings.feeds.flatMap((remainingFeed) => [
+        ...this.getPreviewImageUrls(remainingFeed),
+      ]),
+    );
+    const orphanedPreviewUrls = Array.from(deletedFeedPreviewUrls).filter(
+      (url) => !retainedPreviewUrls.has(url),
+    );
+    await this.imageCacheService?.removeUrls(orphanedPreviewUrls);
+  }
+
+  public async setImageCachingEnabled(enabled: boolean): Promise<void> {
+    this.settings.display.allowImageCaching = enabled;
+    if (!enabled) {
+      await this.clearImageCache();
+    }
+    await this.saveSettings();
+  }
+
+  private getImageCacheLimitBytes(): number | null {
+    if (this.settings.display.imageCacheUnlimited) return null;
+    return this.settings.display.imageCacheLimitMiB * 1_024 * 1_024;
+  }
+
+  private notifyImageCacheChanged(): void {
+    for (const listener of this.imageCacheChangeListeners) {
+      listener();
+    }
+  }
+
+  private queuePreviewImageCaching(feed: Feed): void {
+    if (
+      !this.settings.display.allowImageCaching ||
+      !this.settings.display.showCoverImage ||
+      !this.imageCacheService
+    ) {
+      return;
+    }
+
+    for (const previewUrl of this.getPreviewImageUrls(feed)) {
+      if (!this.queuedImageCacheUrls.has(previewUrl)) {
+        this.queuedImageCacheUrls.add(previewUrl);
+        this.imageCacheQueue.push(previewUrl);
+      }
+    }
+
+    this.startImageCacheWorkers();
+  }
+
+  private getPreviewImageUrls(feed: Feed): Set<string> {
+    const previewUrls = new Set<string>();
+    for (const item of feed.items) {
+      for (const fieldOrder of [["coverImage", "image"], ["image", "coverImage"]] as const) {
+        const previewUrl = resolveArticlePreviewImage(item, fieldOrder);
+        if (previewUrl) previewUrls.add(previewUrl);
+      }
+    }
+    return previewUrls;
+  }
+
+  private startImageCacheWorkers(): void {
+    while (this.imageCacheWorkers < 2 && this.imageCacheQueue.length > 0) {
+      this.imageCacheWorkers += 1;
+      void this.runImageCacheWorker();
+    }
+  }
+
+  private async runImageCacheWorker(): Promise<void> {
+    try {
+      while (
+        this.settings.display.allowImageCaching &&
+        this.settings.display.showCoverImage
+      ) {
+        const previewUrl = this.imageCacheQueue.shift();
+        if (!previewUrl) return;
+
+        this.queuedImageCacheUrls.delete(previewUrl);
+        const cached = await this.imageCacheService?.cacheUrl(previewUrl, true);
+        if (cached) {
+          this.imageCacheBatchHasUsableEntries = true;
+        }
+      }
+    } finally {
+      this.imageCacheWorkers -= 1;
+      this.startImageCacheWorkers();
+      if (
+        this.imageCacheWorkers === 0 &&
+        this.imageCacheQueue.length === 0 &&
+        this.imageCacheBatchHasUsableEntries
+      ) {
+        this.imageCacheBatchHasUsableEntries = false;
+        void this.refreshDashboardAfterImageCacheBatch();
+      }
+    }
+  }
+
+  private async refreshDashboardAfterImageCacheBatch(): Promise<void> {
+    const view = await this.getActiveDashboardView();
+    if (view) {
+      void view.refresh();
+    }
   }
 
   private cloneFactoryResetFolders(
@@ -401,16 +612,17 @@ export default class RssDashboardPlugin extends Plugin {
     }
   }
 
-  private getAutoRefreshIntervalMs(): number | null {
-    const normalizedMinutes = normalizeRefreshIntervalMinutes(
-      this.settings.refreshInterval,
-    );
-
-    if (normalizedMinutes <= 0) {
-      return null;
+  private ensureAutoRefreshScheduler(): FeedRefreshScheduler {
+    if (!this.autoRefreshScheduler) {
+      this.autoRefreshScheduler = new FeedRefreshScheduler({
+        getFeeds: () => this.settings.feeds,
+        getGlobalIntervalMinutes: () => this.settings.refreshInterval,
+        isBatchRunning: () => this.isMultiFeedRefreshRunning,
+        requestDueFeeds: async (feeds) => await this.refreshFeeds(feeds, "due"),
+      });
     }
 
-    return normalizedMinutes * 60 * 1000;
+    return this.autoRefreshScheduler;
   }
 
   private async reconcileSavedArticlesOnStartup(): Promise<void> {
@@ -470,8 +682,69 @@ export default class RssDashboardPlugin extends Plugin {
     }
   }
 
+  /** Updates only refresh affordances so active work never resets article scroll. */
+  private async notifyRefreshStatusChanged(): Promise<void> {
+    const leaves = this.app.workspace.getLeavesOfType(RSS_DASHBOARD_VIEW_TYPE);
+    for (const leaf of leaves) {
+      if (requireApiVersion("1.7.2")) {
+        await leaf.loadIfDeferred();
+      }
+      const view = leaf.view;
+      if (view instanceof RssDashboardView) {
+        view.refreshSidebarOnly();
+        view.refreshFilterStatusBarOnly();
+      }
+    }
+  }
+
   public get isMultiFeedRefreshActive(): boolean {
     return this.isMultiFeedRefreshRunning;
+  }
+
+  public get isGlobalRefreshCancellable(): boolean {
+    return (
+      this.isMultiFeedRefreshRunning &&
+      this.globalRefreshAbortController !== null
+    );
+  }
+
+  public get globalRefreshProgress(): { completed: number; total: number } {
+    return {
+      completed: this.globalRefreshCompleted,
+      total: this.globalRefreshTotal,
+    };
+  }
+
+  private beginGlobalOperation(total: number): AbortSignal | null {
+    if (this.isMultiFeedRefreshRunning) {
+      new Notice("A feed operation is already in progress.");
+      return null;
+    }
+
+    this.isMultiFeedRefreshRunning = true;
+    this.globalRefreshAbortController = new AbortController();
+    this.isGlobalRefreshCancelled = false;
+    this.globalRefreshTotal = total;
+    this.globalRefreshCompleted = 0;
+    void this.notifyRefreshStatusChanged();
+    return this.globalRefreshAbortController.signal;
+  }
+
+  private async endGlobalOperation(): Promise<void> {
+    this.activeRefreshState.clear();
+    this.isMultiFeedRefreshRunning = false;
+    this.globalRefreshAbortController = null;
+    this.isGlobalRefreshCancelled = false;
+    this.globalRefreshTotal = 0;
+    this.globalRefreshCompleted = 0;
+    await this.notifyRefreshStatusChanged();
+  }
+
+  public cancelGlobalRefresh(): void {
+    if (!this.isGlobalRefreshCancellable) return;
+    this.isGlobalRefreshCancelled = true;
+    this.globalRefreshAbortController?.abort();
+    new Notice("Refresh stopped.");
   }
 
   public notifyFiltersUpdated(payload: FiltersUpdatedEventPayload): void {
@@ -606,24 +879,17 @@ export default class RssDashboardPlugin extends Plugin {
     }
 
     await this.loadSettings();
+    await this.initializeImageCache();
     this.registerVaultMetadataChangeListeners();
-
-    const shouldRefreshOnOpen = (): boolean => {
-      const intervalMs = this.getAutoRefreshIntervalMs();
-      if (intervalMs === null) return false;
-      if (!this.settings.lastRefreshTimestamp) return true;
-      const elapsed = Date.now() - this.settings.lastRefreshTimestamp;
-      return elapsed >= intervalMs;
-    };
 
     const view = await this.getActiveDashboardView();
     if (view) {
       view.render();
     }
 
-
     try {
       this.initializeSettingsBackedServices();
+      const autoRefreshScheduler = this.ensureAutoRefreshScheduler();
 
       if (Platform.isMobile) {
         this.applyMobileOptimizations();
@@ -792,27 +1058,16 @@ export default class RssDashboardPlugin extends Plugin {
         },
       });
 
-      const autoRefreshIntervalMs = this.getAutoRefreshIntervalMs();
-      if (autoRefreshIntervalMs !== null) {
-        this.registerInterval(
-          window.setInterval(() => {
-            void this.refreshFeeds();
-          }, autoRefreshIntervalMs),
-        );
-      }
-
-      if (shouldRefreshOnOpen()) {
-        const delay = Number.isFinite(this.settings.startupRefreshDelaySeconds)
-          ? this.settings.startupRefreshDelaySeconds
-          : DEFAULT_SETTINGS.startupRefreshDelaySeconds;
-        if (delay > 0) {
-          this.startupRefreshTimeoutId = window.setTimeout(() => {
-            this.startupRefreshTimeoutId = null;
-            void this.refreshFeeds();
-          }, delay * 1000);
-        } else {
-          void this.refreshFeeds();
-        }
+      const delay = Number.isFinite(this.settings.startupRefreshDelaySeconds)
+        ? this.settings.startupRefreshDelaySeconds
+        : DEFAULT_SETTINGS.startupRefreshDelaySeconds;
+      if (delay > 0) {
+        this.startupRefreshTimeoutId = window.setTimeout(() => {
+          this.startupRefreshTimeoutId = null;
+          autoRefreshScheduler.start();
+        }, delay * 1000);
+      } else {
+        autoRefreshScheduler.start();
       }
     } catch (err: unknown) {
       if (err instanceof Error) {
@@ -946,6 +1201,7 @@ export default class RssDashboardPlugin extends Plugin {
           request.customTemplate,
           request.excludeFromRefresh,
           request.customTags,
+          { feedEncoding: request.feedEncoding },
         ),
       () => {
         void this.refreshDashboardViews();
@@ -1188,7 +1444,12 @@ export default class RssDashboardPlugin extends Plugin {
     }
   }
 
-  async refreshFeeds(selectedFeeds?: Feed[]) {
+  async refreshFeeds(
+    selectedFeeds?: Feed[],
+    intent: "global" | "targeted" | "due" | "failed" = selectedFeeds
+      ? "targeted"
+      : "global",
+  ) {
     try {
       const candidateFeeds = selectedFeeds || this.settings.feeds;
       if (candidateFeeds.length === 0) {
@@ -1220,18 +1481,36 @@ export default class RssDashboardPlugin extends Plugin {
       }
 
       new Notice(`Refreshing ${feedNoticeText}...`);
-      if (feedsToRefresh.length === 1) {
-        await this.refreshSingleFeed(feedsToRefresh[0], feedNoticeText);
+      if (feedsToRefresh.length === 1 && intent !== "global") {
+        await this.refreshSingleFeed(
+          feedsToRefresh[0],
+          feedNoticeText,
+          false,
+        );
         return;
       }
 
-      await this.refreshFeedBatch(feedsToRefresh, feedNoticeText);
+      await this.refreshFeedBatch(feedsToRefresh, feedNoticeText, intent);
     } catch (error) {
       console.error(`[RSS dashboard] Error refreshing feeds:`, error);
       new Notice(
         `Error refreshing  ${error instanceof Error ? error.message : "Unknown error"}`,
       );
     }
+  }
+
+  async refreshFailedFeeds(): Promise<void> {
+    const failedFeeds = this.settings.feeds.filter(
+      (feed) =>
+        Boolean(feed.lastFetchError) && !this.isFeedExcludedFromRefresh(feed),
+    );
+
+    if (failedFeeds.length === 0) {
+      new Notice("No failed feeds to retry.");
+      return;
+    }
+
+    await this.refreshFeeds(failedFeeds, "failed");
   }
 
   /**
@@ -1280,7 +1559,7 @@ export default class RssDashboardPlugin extends Plugin {
       }
 
       new Notice(`Refreshing ${feed.title}...`);
-      await this.refreshSingleFeed(feed, feed.title);
+      await this.refreshSingleFeed(feed, feed.title, false);
     } catch (error) {
       console.error(`[RSS dashboard] Error refreshing feeds:`, error);
       new Notice(
@@ -1343,6 +1622,7 @@ export default class RssDashboardPlugin extends Plugin {
             {
               mode: "update",
               folders: newFolders,
+              globalOperation: true,
             },
           );
 
@@ -1899,7 +2179,11 @@ export default class RssDashboardPlugin extends Plugin {
     customTemplate?: string,
     excludeFromRefresh?: boolean,
     customTags?: string[],
-    options?: { showNotice?: boolean },
+    options?: {
+      showNotice?: boolean;
+      feedEncoding?: FeedEncoding;
+      globalOperation?: boolean;
+    },
   ) {
     const showNotice = options?.showNotice !== false;
     try {
@@ -1939,6 +2223,10 @@ export default class RssDashboardPlugin extends Plugin {
           Array.isArray(customTags) && customTags.length > 0
             ? [...customTags]
             : undefined,
+        feedEncoding:
+          options?.feedEncoding === "windows-1251"
+            ? options.feedEncoding
+            : undefined,
         keywordRules: feedKeywordRules || {
           overrideGlobalRules: false,
           includeLogic: "AND",
@@ -1946,11 +2234,22 @@ export default class RssDashboardPlugin extends Plugin {
         },
       };
 
+      const operationSignal = options?.globalOperation
+        ? this.beginGlobalOperation(1)
+        : null;
+      if (options?.globalOperation && !operationSignal) {
+        return false;
+      }
+
       // Try to parse the feed BEFORE adding it to settings
       try {
         const parsedFeed = await this.feedParser.parseFeed(url, newFeed, {
           allowEmpty: true,
+          signal: operationSignal ?? undefined,
         });
+        if (operationSignal?.aborted || this.isGlobalRefreshCancelled) {
+          return false;
+        }
         const feedToStore: Feed = {
           ...newFeed,
           ...parsedFeed,
@@ -1992,6 +2291,7 @@ export default class RssDashboardPlugin extends Plugin {
         // Only add to settings if parsing succeeded
         this.settings.feeds.push(feedWithTags);
         await this.saveSettings();
+        this.queuePreviewImageCaching(feedWithTags);
 
         const view = await this.getActiveDashboardView();
         if (view) {
@@ -2006,6 +2306,10 @@ export default class RssDashboardPlugin extends Plugin {
           new Notice(formatFeedParseNoticeMessage(error));
         }
         return false;
+      } finally {
+        if (operationSignal) {
+          await this.endGlobalOperation();
+        }
       }
     } catch (error) {
       if (showNotice) {
@@ -2087,9 +2391,15 @@ export default class RssDashboardPlugin extends Plugin {
     }
 
     const oldTitle = feed.title;
+    const oldUrl = feed.url;
     feed.title = newTitle;
     feed.url = newUrl;
     feed.folder = newFolder;
+
+    if (oldUrl !== newUrl) {
+      feed.lastRefreshAttemptCompletedAt = 0;
+      feed.lastFetchError = undefined;
+    }
 
     // Update feedTitle for all articles in this feed when the title changes
     if (oldTitle !== newTitle) {
@@ -2173,6 +2483,7 @@ export default class RssDashboardPlugin extends Plugin {
       if (shouldSave) {
         await this.saveSettings();
       }
+      this.autoRefreshScheduler?.reschedule();
     } catch (error) {
       storageError("Error loading plugin settings", error);
       new Notice(
@@ -2448,7 +2759,10 @@ export default class RssDashboardPlugin extends Plugin {
           await ensureMetadataFolderExists(this.app, this.settings);
           const dataFilePath = `${metadataPath}/data.json`;
           const jsonContent = JSON.stringify(settingsData, null, 2);
-          await this.app.vault.adapter.write(dataFilePath, jsonContent);
+          await this.writeWithWatcherSuppressed(
+            async () =>
+              await this.app.vault.adapter.write(dataFilePath, jsonContent),
+          );
           storageLog("Metadata saved to vault location", {
             path: dataFilePath,
           });
@@ -2486,6 +2800,7 @@ export default class RssDashboardPlugin extends Plugin {
         this.getMetadataSaveCallback(),
       );
       storageLog("saveSettings completed", result);
+      this.autoRefreshScheduler?.reschedule();
     } catch (error) {
       storageError("saveSettings failed", error, {
         mode: this.settings.storageMode,
@@ -2604,7 +2919,11 @@ export default class RssDashboardPlugin extends Plugin {
   }
 
   private getRefreshableFeeds(feeds: Feed[]): Feed[] {
-    return feeds.filter((feed) => !this.isFeedExcludedFromRefresh(feed));
+    return feeds.filter(
+      (feed) =>
+        !this.isFeedExcludedFromRefresh(feed) &&
+        !this.backgroundImportService?.isFeedPendingImport(feed.url),
+    );
   }
 
   private mergeRefreshedFeed(updatedFeed: Feed): void {
@@ -2621,16 +2940,68 @@ export default class RssDashboardPlugin extends Plugin {
     }
   }
 
+  private finalizeRefreshAttempt(
+    feed: Feed,
+    updatedFeed?: Feed,
+    error?: unknown,
+  ): void {
+    const completedAt = Date.now();
+    if (updatedFeed) {
+      this.mergeRefreshedFeed({
+        ...updatedFeed,
+        lastRefreshAttemptCompletedAt: completedAt,
+        lastFetchError: updatedFeed.lastFetchError,
+      });
+      this.queuePreviewImageCaching(updatedFeed);
+      return;
+    }
+
+    const index = this.settings.feeds.findIndex(
+      (storedFeed) => storedFeed === feed || storedFeed.url === feed.url,
+    );
+    if (index < 0) {
+      return;
+    }
+
+    this.settings.feeds[index] = {
+      ...this.settings.feeds[index],
+      lastRefreshAttemptCompletedAt: completedAt,
+      lastFetchError: error instanceof Error ? error.message : String(error),
+    };
+  }
+
   private async refreshSingleFeed(
     feed: Feed,
     feedNoticeText: string,
+    isExplicitGlobalRefresh: boolean,
   ): Promise<void> {
-    const updatedFeed = await this.refreshFeedWithTimeout(feed);
-    this.mergeRefreshedFeed(updatedFeed);
+    this.activeRefreshState.set(feed.url, {
+      status: "processing",
+      startedAt: Date.now(),
+    });
+    await this.notifyRefreshStatusChanged();
+    try {
+      const updatedFeed = await this.refreshFeedWithTimeout(feed);
+      this.finalizeRefreshAttempt(feed, updatedFeed);
+    } catch (error) {
+      this.finalizeRefreshAttempt(feed, undefined, error);
+      if (isExplicitGlobalRefresh) {
+        this.settings.lastGlobalRefreshCompletedAt = Date.now();
+      }
+      await this.saveSettings();
+      this.autoRefreshScheduler?.reschedule();
+      throw error;
+    } finally {
+      this.activeRefreshState.delete(feed.url);
+      await this.notifyRefreshStatusChanged();
+    }
 
     await this.validateSavedArticles();
-    this.settings.lastRefreshTimestamp = Date.now();
+    if (isExplicitGlobalRefresh) {
+      this.settings.lastGlobalRefreshCompletedAt = Date.now();
+    }
     await this.saveSettings();
+    this.autoRefreshScheduler?.reschedule();
     const view = await this.getActiveDashboardView();
     if (view) {
       view.refresh();
@@ -2641,6 +3012,7 @@ export default class RssDashboardPlugin extends Plugin {
   private async refreshFeedBatch(
     feedsToRefresh: Feed[],
     feedNoticeText: string,
+    intent: "global" | "targeted" | "due" | "failed",
   ): Promise<void> {
     if (this.isMultiFeedRefreshRunning) {
       new Notice("A multi-feed refresh is already in progress.");
@@ -2649,6 +3021,19 @@ export default class RssDashboardPlugin extends Plugin {
 
     this.isMultiFeedRefreshRunning = true;
     this.activeRefreshState.clear();
+
+    const isCancellableIntent = intent === "global";
+    if (isCancellableIntent) {
+      this.globalRefreshAbortController = new AbortController();
+      this.isGlobalRefreshCancelled = false;
+      this.globalRefreshTotal = feedsToRefresh.length;
+      this.globalRefreshCompleted = 0;
+    } else {
+      this.globalRefreshAbortController = null;
+      this.isGlobalRefreshCancelled = false;
+    }
+    const cancelSignal = this.globalRefreshAbortController?.signal;
+
     const refreshSummary = {
       failed: 0,
       timedOut: 0,
@@ -2677,6 +3062,9 @@ export default class RssDashboardPlugin extends Plugin {
       if (view) {
         if (typeof view.refreshSidebarOnly === "function") {
           view.refreshSidebarOnly();
+          if (typeof view.refreshFilterStatusBarOnly === "function") {
+            view.refreshFilterStatusBarOnly();
+          }
         } else {
           view.refresh();
         }
@@ -2690,6 +3078,11 @@ export default class RssDashboardPlugin extends Plugin {
       while (true) {
         await globalFetchSemaphore.acquire();
 
+        if (this.isGlobalRefreshCancelled) {
+          globalFetchSemaphore.release();
+          return;
+        }
+
         const currentFeed = feedsToRefresh[nextFeedIndex];
         nextFeedIndex += 1;
         if (!currentFeed) {
@@ -2701,6 +3094,7 @@ export default class RssDashboardPlugin extends Plugin {
           currentFeed,
           refreshSummary,
           refreshView,
+          cancelSignal,
         ).finally(() => {
           globalFetchSemaphore.release();
         });
@@ -2716,10 +3110,7 @@ export default class RssDashboardPlugin extends Plugin {
       }
     };
 
-    const workerCount = Math.min(
-      MAX_CONCURRENT_FETCHES,
-      feedsToRefresh.length,
-    );
+    const workerCount = Math.min(MAX_CONCURRENT_FETCHES, feedsToRefresh.length);
 
     try {
       const workers = Array.from({ length: workerCount }, () => worker());
@@ -2728,8 +3119,11 @@ export default class RssDashboardPlugin extends Plugin {
       await Promise.all(backgroundPromises);
 
       await this.validateSavedArticles();
-      this.settings.lastRefreshTimestamp = Date.now();
+      if (intent === "global" && !this.isGlobalRefreshCancelled) {
+        this.settings.lastGlobalRefreshCompletedAt = Date.now();
+      }
       await this.saveSettings();
+      this.autoRefreshScheduler?.reschedule();
       this.activeRefreshState.clear();
       this.isMultiFeedRefreshRunning = false;
       const view = await this.getActiveDashboardView();
@@ -2737,18 +3131,28 @@ export default class RssDashboardPlugin extends Plugin {
         view.refresh();
       }
 
-      const failureSuffix = this.buildRefreshFailureSummary(refreshSummary);
-      new Notice(`Feeds refreshed: ${feedNoticeText}${failureSuffix}`);
+      if (!this.isGlobalRefreshCancelled) {
+        const failureSuffix = this.buildRefreshFailureSummary(
+          refreshSummary,
+          intent === "global",
+        );
+        new Notice(`Feeds refreshed: ${feedNoticeText}${failureSuffix}`);
+      }
     } finally {
       this.activeRefreshState.clear();
       this.isMultiFeedRefreshRunning = false;
+      this.globalRefreshAbortController = null;
+      this.isGlobalRefreshCancelled = false;
+      this.globalRefreshTotal = 0;
+      this.globalRefreshCompleted = 0;
+      await this.notifyRefreshStatusChanged();
     }
   }
 
-  private buildRefreshFailureSummary(summary: {
-    failed: number;
-    timedOut: number;
-  }): string {
+  private buildRefreshFailureSummary(
+    summary: { failed: number; timedOut: number },
+    includeRetryHint: boolean,
+  ): string {
     const parts: string[] = [];
     if (summary.timedOut > 0) {
       parts.push(`${summary.timedOut} timed out`);
@@ -2761,13 +3165,17 @@ export default class RssDashboardPlugin extends Plugin {
       return "";
     }
 
-    return ` (${parts.join(", ")})`;
+    const suffix = ` (${parts.join(", ")})`;
+    return includeRetryHint
+      ? `${suffix} Shift+click Refresh all feeds to retry failed feeds.`
+      : suffix;
   }
 
   private async processRefreshBatchFeed(
     currentFeed: Feed,
     refreshSummary: { failed: number; timedOut: number },
     refreshView: () => Promise<void>,
+    signal?: AbortSignal,
   ): Promise<void> {
     this.activeRefreshState.set(currentFeed.url, {
       status: "processing",
@@ -2775,9 +3183,18 @@ export default class RssDashboardPlugin extends Plugin {
     });
 
     try {
-      const updatedFeed = await this.refreshFeedWithTimeout(currentFeed);
-      this.mergeRefreshedFeed(updatedFeed);
+      const updatedFeed = await this.refreshFeedWithTimeout(currentFeed, {
+        signal,
+      });
+      this.globalRefreshCompleted += 1;
+      if (!this.isGlobalRefreshCancelled) {
+        this.finalizeRefreshAttempt(currentFeed, updatedFeed);
+      }
     } catch (error) {
+      this.globalRefreshCompleted += 1;
+      if (!this.isGlobalRefreshCancelled) {
+        this.finalizeRefreshAttempt(currentFeed, undefined, error);
+      }
       const isTimedOut =
         error instanceof Error && error.message === "Timed out";
       if (isTimedOut) {
@@ -2805,9 +3222,12 @@ export default class RssDashboardPlugin extends Plugin {
     });
   }
 
-  private async refreshFeedWithTimeout(feed: Feed): Promise<Feed> {
+  private async refreshFeedWithTimeout(
+    feed: Feed,
+    options?: { signal?: AbortSignal },
+  ): Promise<Feed> {
     return await Promise.race([
-      this.refreshFeedDirect(feed),
+      this.refreshFeedDirect(feed, options),
       new Promise<Feed>((_, reject) => {
         window.setTimeout(
           () => reject(new Error("Timed out")),
@@ -2817,9 +3237,12 @@ export default class RssDashboardPlugin extends Plugin {
     ]);
   }
 
-  private async refreshFeedDirect(feed: Feed): Promise<Feed> {
+  private async refreshFeedDirect(
+    feed: Feed,
+    options?: { signal?: AbortSignal },
+  ): Promise<Feed> {
     if (typeof this.feedParser.refreshFeed === "function") {
-      return await this.feedParser.refreshFeed(feed);
+      return await this.feedParser.refreshFeed(feed, options);
     }
 
     const updatedFeeds = await this.feedParser.refreshAllFeeds([feed]);
@@ -2832,6 +3255,7 @@ export default class RssDashboardPlugin extends Plugin {
   }
 
   onunload() {
+    this.autoRefreshScheduler?.stop();
     if (this.progressSaveDebounce !== null) {
       window.clearTimeout(this.progressSaveDebounce);
       this.progressSaveDebounce = null;

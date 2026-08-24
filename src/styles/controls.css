@@ -39,12 +39,6 @@
   min-width: 0;
 }
 
-.rss-discover-header-right {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-}
-
 .rss-discover-header-title {
   font-size: 16px;
   font-weight: 600;

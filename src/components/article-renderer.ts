@@ -1,5 +1,6 @@
-import { App, setIcon, TFile } from "obsidian";
+import { App, type Component, setIcon, TFile } from "obsidian";
 import { sanitizeAndAppendHtml } from "../utils/safe-html";
+import { scheduleProcessMathElements } from "../utils/math-rendering";
 import { FeedItem, RssDashboardSettings } from "../types/types";
 import { HighlightService } from "../services/highlight-service";
 import { MediaService } from "../services/media-service";
@@ -15,6 +16,11 @@ import {
   normalizeSubstackImageUrl,
   normalizeSubstackImageUrlsInDocument,
 } from "../utils/substack-image-url";
+import {
+  containsLatexFormulaImage,
+  findFirstNonFormulaImage,
+  firstNonFormulaImageUrl,
+} from "../utils/image-url-utils";
 import { PodcastPlayer } from "../views/podcast-player";
 import { VideoPlayer } from "../views/video-player";
 
@@ -25,6 +31,7 @@ const FEED_DESCRIPTION_UNAVAILABLE_TEXT = "No feed description available.";
 
 export interface ArticleRendererOptions {
   app: App;
+  component: Component;
   settings: RssDashboardSettings;
   onArticleSave: (item: FeedItem) => void;
   onArticleUpdate: (
@@ -43,6 +50,7 @@ export interface ArticleRendererOptions {
 
 export class ArticleRenderer {
   private app: App;
+  private component: Component;
   private settings: RssDashboardSettings;
   private onArticleSave: (item: FeedItem) => void;
   private onArticleUpdate: (
@@ -71,6 +79,7 @@ export class ArticleRenderer {
 
   constructor(options: ArticleRendererOptions) {
     this.app = options.app;
+    this.component = options.component;
     this.settings = options.settings;
     this.onArticleSave = options.onArticleSave;
     this.onArticleUpdate = options.onArticleUpdate;
@@ -260,6 +269,10 @@ export class ArticleRenderer {
 
     // Note: font family resolving and highlighting logic here...
     articleTitleEl.setText(displayTitle);
+    void scheduleProcessMathElements(articleTitleEl, {
+      app: this.app,
+      component: this.component,
+    });
 
     if (!isNitter) {
       const metaContainer = headerContainer.createDiv({
@@ -295,11 +308,11 @@ export class ArticleRenderer {
     const hasMeaningfulDescription =
       this.hasMeaningfulFeedDescription(descriptionHtml);
     const mainHtml = (fullContent || item.content || "").trim();
-    let fallbackHeroUrl =
-      (item.coverImage || "").trim() ||
-      (item.image || "").trim() ||
-      (item.itunes?.image?.href || "").trim() ||
-      undefined;
+    const fallbackHeroUrl = firstNonFormulaImageUrl([
+      item.coverImage,
+      item.image,
+      item.itunes?.image?.href,
+    ]);
 
     const hasDistinctMainContent =
       mainHtml !== "" &&
@@ -485,7 +498,7 @@ export class ArticleRenderer {
       }
 
       if (heroSlot) {
-        const firstImg = doc.body.querySelector("img");
+        const firstImg = findFirstNonFormulaImage(doc.body);
         if (heroSlot.childElementCount === 0) {
           let heroUrl = normalizeSubstackImageUrl(fallbackHeroUrl);
           const firstImgSrc = normalizeSubstackImageUrl(
@@ -553,6 +566,10 @@ export class ArticleRenderer {
       });
     });
     if (isNitter) this.hydrateNitterStatsIcons(container);
+    void scheduleProcessMathElements(container, {
+      app: this.app,
+      component: this.component,
+    });
   }
 
   private recoverFailedSubstackImageElement(img: HTMLImageElement): boolean {
@@ -937,6 +954,7 @@ export class ArticleRenderer {
   }
 
   private isShortLeadInBlock(block: HTMLElement): boolean {
+    if (containsLatexFormulaImage(block)) return false;
     if (this.isLeadMediaBlock(block)) return false;
     const text = this.getNormalizedBlockText(block);
     if (!text) return false;
@@ -944,6 +962,7 @@ export class ArticleRenderer {
   }
 
   private isLeadMediaBlock(block: HTMLElement): boolean {
+    if (containsLatexFormulaImage(block)) return false;
     const tag = block.tagName.toLowerCase();
     if (["img", "figure", "picture"].includes(tag)) return true;
     return (

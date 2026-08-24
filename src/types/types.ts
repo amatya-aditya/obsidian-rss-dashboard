@@ -69,6 +69,8 @@ export interface FeedItem {
   };
 }
 
+export type FeedEncoding = "auto" | "windows-1251";
+
 export interface Feed {
   feedId?: string;
   title: string;
@@ -87,11 +89,17 @@ export interface Feed {
   customTemplate?: string;
   customFolder?: string;
   customTags?: string[];
+  feedEncoding?: FeedEncoding;
 
   autoDeleteDuration?: number;
   maxItemsLimit?: number;
   scanInterval?: number;
   excludeFromRefresh?: boolean;
+  /**
+   * Completion time of the most recent refresh attempt, successful or not.
+   * This is intentionally distinct from lastUpdated, which tracks successful parsing.
+   */
+  lastRefreshAttemptCompletedAt?: number;
   iconUrl?: string;
   keywordRules?: FeedKeywordRulesSettings;
   lastRefreshDiagnostics?: FeedRefreshDiagnostics;
@@ -138,6 +146,7 @@ export interface FeedMetadata {
   maxItemsLimit?: number;
   scanInterval?: number;
   excludeFromRefresh?: boolean;
+  lastRefreshAttemptCompletedAt?: number;
   importStatus?:
     | "pending"
     | "processing"
@@ -168,6 +177,7 @@ export interface FeedIngestionOptions {
   mode?: "update" | "overwrite";
   folders?: Folder[];
   onProgress?: (completed: number, total: number) => void;
+  globalOperation?: boolean;
 }
 
 export interface Tag {
@@ -248,11 +258,17 @@ export interface ArticleSavingSettings {
   savedTemplates: SavedTemplate[];
 }
 
+export const IMAGE_CACHE_LIMIT_MIN_MIB = 1;
+export const IMAGE_CACHE_LIMIT_MAX_MIB = 1_024;
+
 export interface DisplaySettings {
   showCoverImage: boolean;
+  allowImageCaching: boolean;
+  imageCacheLimitMiB: number;
+  imageCacheUnlimited: boolean;
   showSummary: boolean;
   showFilterStatusBar: boolean;
-  showSidebarScrollbar: boolean;
+  paginationPosition: "top" | "bottom";
   showAllFeedsUnreadBadges: boolean;
   showFolderUnreadBadges: boolean;
   showFeedUnreadBadges: boolean;
@@ -424,6 +440,8 @@ export interface RssDashboardSettings {
   folders: Folder[];
   refreshInterval: number;
   lastRefreshTimestamp: number;
+  /** Completion time for an explicit refresh of the complete eligible feed set. */
+  lastGlobalRefreshCompletedAt: number;
   startupRefreshDelaySeconds: number;
   maxItems: number;
   defaultAutoDeleteDuration: number;
@@ -575,8 +593,9 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
       modifiedAt: Date.now(),
     },
   ],
-  refreshInterval: 60,
+  refreshInterval: 0,
   lastRefreshTimestamp: 0,
+  lastGlobalRefreshCompletedAt: 0,
   startupRefreshDelaySeconds: 5,
   maxItems: 50,
   defaultAutoDeleteDuration: 30,
@@ -686,9 +705,12 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
   },
   display: {
     showCoverImage: true,
+    allowImageCaching: false,
+    imageCacheLimitMiB: 100,
+    imageCacheUnlimited: false,
     showSummary: true,
     showFilterStatusBar: true,
-    showSidebarScrollbar: true,
+    paginationPosition: "bottom",
     showAllFeedsUnreadBadges: true,
     showFolderUnreadBadges: true,
     showFeedUnreadBadges: true,

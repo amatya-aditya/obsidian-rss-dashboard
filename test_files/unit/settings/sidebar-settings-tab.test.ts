@@ -42,6 +42,32 @@ beforeEach(() => {
 });
 
 describe("renderSidebarSettingsTab() - domain icon toggles", () => {
+  it("renders each icon visibility setting with its icon name", () => {
+    const containerEl = document.body.appendChild(
+      document.createElement("div"),
+    );
+    const plugin = {
+      app: obsidian.App.createMock(),
+      settings: cloneSettings(),
+      saveSettings: vi.fn(async () => {}),
+      clearPlaybackProgress: vi.fn(async () => 0),
+      getActiveDashboardView: vi.fn(async () => null),
+    } as unknown as RssDashboardPlugin;
+
+    renderSidebarSettingsTab(containerEl, plugin, vi.fn());
+
+    const iconRows = Array.from(
+      containerEl.querySelectorAll(".rss-dashboard-icon-visibility-row"),
+    );
+    expect(iconRows.length).toBeGreaterThan(0);
+    expect(
+      iconRows.map((row) => row.querySelector(".setting-item-name")?.textContent),
+    ).not.toContain("[object DocumentFragment]");
+    expect(
+      iconRows.map((row) => row.querySelector(".setting-item-name")?.textContent),
+    ).toContain("Discover");
+  });
+
   it("renders and persists the RSS site icons toggle", async () => {
     const containerEl = document.body.appendChild(
       document.createElement("div"),
@@ -358,6 +384,26 @@ describe("Icon refresh helpers", () => {
 });
 
 describe("Sidebar display settings - domain icon fields", () => {
+  it("does not render the retired sidebar scrollbar toggle", () => {
+    const containerEl = document.body.appendChild(
+      document.createElement("div"),
+    );
+    const plugin = {
+      app: obsidian.App.createMock(),
+      settings: cloneSettings(),
+      saveSettings: vi.fn(async () => {}),
+      clearPlaybackProgress: vi.fn(async () => 0),
+      getActiveDashboardView: vi.fn(async () => null),
+    } as unknown as RssDashboardPlugin;
+
+    renderSidebarSettingsTab(containerEl, plugin, vi.fn());
+
+    const settingNames = Array.from(
+      containerEl.querySelectorAll(".setting-item-name"),
+    ).map((element) => element.textContent);
+    expect(settingNames).not.toContain("Show sidebar scrollbar");
+  });
+
   it("defines the domain icon toggle fields in DisplaySettings and check defaults", () => {
     expect(DEFAULT_SETTINGS.display.useDomainIconsRss).toBe(false);
     expect(DEFAULT_SETTINGS.display.useDomainIconsPodcast).toBe(false);

@@ -10,7 +10,15 @@
  * Control tests (marked with "CONTROL:") must PASS both before and after.
  */
 
-import { describe, it, expect, beforeEach, vi, type Mock } from "vitest";
+import {
+  describe,
+  it,
+  expect,
+  beforeEach,
+  afterEach,
+  vi,
+  type Mock,
+} from "vitest";
 import { ArticleRenderer } from "../../../src/components/article-renderer";
 import {
   type FeedItem,
@@ -59,6 +67,7 @@ describe("ArticleRenderer – summary de-duplication", () => {
 
     renderer = new ArticleRenderer({
       app: mockApp,
+      component: new obsidian.Component(),
       settings: { ...DEFAULT_SETTINGS } as RssDashboardSettings,
       onArticleSave: vi.fn(),
       onArticleUpdate: vi.fn(),
@@ -69,6 +78,67 @@ describe("ArticleRenderer – summary de-duplication", () => {
     rendererInternal.fetchFullArticleContent = vi.fn().mockResolvedValue("");
 
     container = document.body.appendChild(document.createElement("div"));
+  });
+
+  afterEach(() => {
+    document.body.empty();
+    vi.clearAllMocks();
+  });
+
+  it("renders a stale WordPress formula cover as native math instead of a hero", async () => {
+    const formulaUrl =
+      "https://s0.wp.com/latex.php?latex=%7Bx%7D&bg=ffffff";
+    const item = makeItem({
+      coverImage: formulaUrl,
+      image: formulaUrl,
+      description: "Formula summary",
+      content: `<p>Let <img class="latex" src="${formulaUrl}" alt="{x}" /> be fixed.</p>`,
+    });
+
+    await renderer.render(container, item);
+
+    const body = container.querySelector<HTMLElement>(
+      ".rss-reader-article-content",
+    );
+    await vi.waitFor(() => {
+      expect(body?.querySelector("mjx-container")?.textContent).toBe("{x}");
+    });
+    expect(container.querySelector(".rss-reader-hero-slot img")).toBeNull();
+    expect(body?.querySelector("img.latex")).toBeNull();
+  });
+
+  it("preserves a leading formula block during full-article media cleanup", async () => {
+    const formulaUrl =
+      "https://s0.wp.com/latex.php?latex=%5Cdisplaystyle+x%5E2&bg=ffffff";
+    const fetchedHtml = `
+      <p>Let <img class="latex" src="${formulaUrl}" alt="\\displaystyle x^2" /> be fixed.</p>
+      <p>Short feed summary</p>
+      <p>${"Substantial article body text remains available after cleanup. ".repeat(4)}</p>
+    `;
+    const item = makeItem({
+      coverImage: "https://example.com/real-cover.jpg",
+      description: "Short feed summary",
+      content: "",
+    });
+    const rendererInternal = renderer as unknown as ArticleRendererWithPrivate;
+    rendererInternal.fetchFullArticleContent = vi
+      .fn()
+      .mockResolvedValue(fetchedHtml);
+
+    await renderer.render(container, item);
+
+    const body = container.querySelector<HTMLElement>(
+      ".rss-reader-article-content",
+    );
+    await vi.waitFor(() => {
+      expect(body?.querySelector("mjx-container")?.textContent).toBe(
+        "\\displaystyle x^2",
+      );
+    });
+    expect(body?.querySelector("img.latex")).toBeNull();
+    expect(body?.textContent).toContain("Let");
+    expect(body?.textContent).toContain("be fixed.");
+    expect(body?.textContent).toContain("Substantial article body text");
   });
 
   // ------------------------------------------------------------------ RED ---

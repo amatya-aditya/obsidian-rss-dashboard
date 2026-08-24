@@ -36,6 +36,13 @@ interface TestPlugin extends Partial<RssDashboardPlugin> {
   saveSettings: Mock<() => Promise<void>>;
   activeRefreshState?: Map<string, FeedRefreshState>;
   backgroundImportQueue?: FeedMetadata[];
+  refreshFeeds: Mock<() => Promise<void>>;
+  refreshFailedFeeds: Mock<() => Promise<void>>;
+  cancelPendingStartupRefresh: Mock<() => void>;
+  cancelGlobalRefresh: Mock<() => void>;
+  isMultiFeedRefreshActive?: boolean;
+  isGlobalRefreshCancellable?: boolean;
+  globalRefreshProgress?: { completed: number; total: number };
 }
 
 /** Typed interface for Sidebar private member access */
@@ -121,7 +128,14 @@ describe("Sidebar Core", () => {
     plugin = {
       settings,
       saveSettings: vi.fn().mockResolvedValue(undefined),
+      refreshFeeds: vi.fn().mockResolvedValue(undefined),
+      refreshFailedFeeds: vi.fn().mockResolvedValue(undefined),
+      cancelPendingStartupRefresh: vi.fn(),
+      cancelGlobalRefresh: vi.fn(),
+      isGlobalRefreshCancellable: false,
+      globalRefreshProgress: { completed: 0, total: 0 },
     };
+    callbacks.onRetryFailedFeeds = plugin.refreshFailedFeeds;
   });
 
   it("should initialize with correct properties", () => {
@@ -225,6 +239,25 @@ describe("Sidebar Core", () => {
         ".rss-dashboard-sidebar-header",
       );
       expect(header).toBeDefined();
+    });
+
+    it("does not render a duplicate close button when the mobile modal provides one", () => {
+      const sidebar = new Sidebar(
+        app,
+        container,
+        plugin as unknown as RssDashboardPlugin,
+        settings,
+        options,
+        callbacks,
+      );
+      const headerSurface = document.createElement("div");
+      const ts = sidebar as unknown as TestSidebar;
+
+      ts.renderHeader(headerSurface);
+
+      expect(
+        headerSurface.querySelector(".rss-dashboard-header-close-button"),
+      ).toBeNull();
     });
   });
 
@@ -434,6 +467,69 @@ describe("Sidebar Core", () => {
       ).toContain("⏳");
     });
 
+    it("uses plain click for global refresh and Shift+click for failed-feed retry", () => {
+      settings.feeds = [
+        createFeed({ lastFetchError: "network down" }),
+        createFeed({
+          title: "Feed B",
+          url: "https://example.com/b.xml",
+        }),
+      ];
+      const sidebar = new Sidebar(
+        app,
+        container,
+        plugin as unknown as RssDashboardPlugin,
+        settings,
+        options,
+        callbacks,
+      );
+
+      sidebar.render();
+      const icon = container.querySelector(
+        ".rss-dashboard-all-feeds-icon",
+      ) as HTMLElement;
+      expect(icon.getAttribute("title")).toBe("Refresh all feeds");
+      expect(icon.hasAttribute("aria-label")).toBe(false);
+      const labelId = icon.getAttribute("aria-labelledby") ?? "";
+      expect(container.querySelector(`#${labelId}`)?.textContent).toBe(
+        "Refresh all feeds. Shift+click to retry failed feeds.",
+      );
+
+      icon.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      icon.dispatchEvent(
+        new MouseEvent("click", { bubbles: true, shiftKey: true }),
+      );
+
+      expect(plugin.refreshFeeds).toHaveBeenCalledTimes(1);
+      expect(plugin.refreshFailedFeeds).toHaveBeenCalledTimes(1);
+    });
+
+    it("exposes failed-feed retry from the all-feeds context menu", () => {
+      const sidebar = new Sidebar(
+        app,
+        container,
+        plugin as unknown as RssDashboardPlugin,
+        settings,
+        options,
+        callbacks,
+      );
+      sidebar.render();
+
+      const allFeedsButton = container.querySelector(
+        ".rss-dashboard-all-feeds-button",
+      ) as HTMLElement;
+      allFeedsButton.dispatchEvent(
+        new MouseEvent("contextmenu", { bubbles: true }),
+      );
+
+      const retryItem = ObsidianStubs.Menu.lastItems.find(
+        (item) => item.title === "Retry failed feeds",
+      );
+      expect(retryItem).toBeDefined();
+      retryItem?.trigger();
+      expect(plugin.refreshFailedFeeds).toHaveBeenCalledTimes(1);
+    });
+
     it("prefers import processing visuals over refresh visuals when both exist", () => {
       const feed = createFeed({
         title: "Imported Feed",
@@ -471,8 +567,127 @@ describe("Sidebar Core", () => {
         feedEl?.querySelector(".rss-dashboard-feed-processing-indicator"),
       ).toBeNull();
     });
-  });
 
+    it("shows a stop icon when global refresh is cancellable", () => {
+      settings.feeds = [
+        createFeed({ url: "https://example.com/a.xml" }),
+        createFeed({ url: "https://example.com/b.xml" }),
+      ];
+      plugin.isGlobalRefreshCancellable = true;
+      plugin.globalRefreshProgress = { completed: 1, total: 2 };
+
+      const sidebar = new Sidebar(
+        app,
+        container,
+        plugin as unknown as RssDashboardPlugin,
+        settings,
+        options,
+        callbacks,
+      );
+      sidebar.render();
+
+      const icon = container.querySelector(
+        ".rss-dashboard-all-feeds-icon",
+      ) as HTMLElement;
+      expect(icon.tagName).toBe("BUTTON");
+      expect(icon.getAttribute("type")).toBe("button");
+      expect(icon.getAttribute("title")).toBe("Stop refresh");
+      expect(icon.getAttribute("aria-labelledby")).toBeTruthy();
+      expect(icon.classList.contains("stop")).toBe(true);
+      expect(icon.classList.contains("refreshing")).toBe(false);
+    });
+
+    it("routes icon click to cancelGlobalRefresh when cancellable", () => {
+      settings.feeds = [createFeed({ url: "https://example.com/a.xml" })];
+      plugin.isGlobalRefreshCancellable = true;
+
+      const sidebar = new Sidebar(
+        app,
+        container,
+        plugin as unknown as RssDashboardPlugin,
+        settings,
+        options,
+        callbacks,
+      );
+      sidebar.render();
+
+      const icon = container.querySelector(
+        ".rss-dashboard-all-feeds-icon",
+      ) as HTMLElement;
+      icon.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+      expect(plugin.cancelGlobalRefresh).toHaveBeenCalledTimes(1);
+      expect(plugin.refreshFeeds).not.toHaveBeenCalled();
+    });
+
+    it("uses a refresh tooltip when the all-feeds row is idle", () => {
+      settings.feeds = [createFeed({ url: "https://example.com/a.xml" })];
+
+      const sidebar = new Sidebar(
+        app,
+        container,
+        plugin as unknown as RssDashboardPlugin,
+        settings,
+        options,
+        callbacks,
+      );
+      sidebar.render();
+
+      expect(
+        container
+          .querySelector(".rss-dashboard-all-feeds-icon")
+          ?.getAttribute("title"),
+      ).toBe("Refresh all feeds");
+    });
+
+    it("shows progress text when global refresh is cancellable", () => {
+      settings.feeds = [
+        createFeed({ url: "https://example.com/a.xml" }),
+        createFeed({ url: "https://example.com/b.xml" }),
+        createFeed({ url: "https://example.com/c.xml" }),
+      ];
+      plugin.isGlobalRefreshCancellable = true;
+      plugin.globalRefreshProgress = { completed: 2, total: 3 };
+
+      const sidebar = new Sidebar(
+        app,
+        container,
+        plugin as unknown as RssDashboardPlugin,
+        settings,
+        options,
+        callbacks,
+      );
+      sidebar.render();
+
+      const progressEl = container.querySelector(
+        ".rss-dashboard-all-feeds-progress",
+      );
+      expect(progressEl).not.toBeNull();
+      expect(progressEl?.textContent).toContain("2/3");
+    });
+
+    it("does not show stop icon when refresh is active but not cancellable", () => {
+      settings.feeds = [createFeed({ url: "https://example.com/a.xml" })];
+      plugin.isMultiFeedRefreshActive = true;
+      plugin.isGlobalRefreshCancellable = false;
+
+      const sidebar = new Sidebar(
+        app,
+        container,
+        plugin as unknown as RssDashboardPlugin,
+        settings,
+        options,
+        callbacks,
+      );
+      sidebar.render();
+
+      const icon = container.querySelector(
+        ".rss-dashboard-all-feeds-icon",
+      ) as HTMLElement;
+      expect(icon.classList.contains("refreshing")).toBe(true);
+      expect(icon.classList.contains("stop")).toBe(false);
+    });
+  });
   // ── RED: multi-folder ctrl+click selection ────────────────────────────────
   // Tests written BEFORE implementation (TDD red phase). These will fail until
   // SidebarOptions.selectedFolders and SidebarCallbacks.onFolderMultiSelect

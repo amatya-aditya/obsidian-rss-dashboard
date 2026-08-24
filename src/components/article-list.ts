@@ -43,6 +43,7 @@ interface ArticleListCallbacks {
   onArticleSave?: (article: FeedItem) => Promise<void> | void;
   onOpenSavedArticle?: (article: FeedItem) => Promise<void> | void;
   onOpenInReaderView?: (article: FeedItem) => void;
+  onRenderArticleTitle?: (titleElement: HTMLElement) => void;
   onOpenInBrowser?: (article: FeedItem) => void;
   onToggleSidebar: () => void;
   onSortChange: (value: "newest" | "oldest") => void;
@@ -62,6 +63,7 @@ interface ArticleListCallbacks {
   onPersistSettings?: () => Promise<void> | void;
   onOpenTagsSettings?: () => Promise<void> | void;
   onTagsMutated?: () => void;
+  onResolveCachedImageUrl?: (remoteUrl: string) => string | null;
 }
 
 export class ArticleList {
@@ -367,7 +369,7 @@ export class ArticleList {
       ".rss-dashboard-card-tags-region",
     );
     if (!tagsRegion) {
-      tagsRegion = activeDocument.createElement("div");
+      tagsRegion = articleEl.win.createDiv();
       tagsRegion.className = "rss-dashboard-card-tags-region";
       const cardFooter = articleEl.querySelector<HTMLElement>(
         ".rss-dashboard-card-footer",
@@ -400,7 +402,7 @@ export class ArticleList {
       ".rss-dashboard-feed-tags-region",
     );
     if (!tagsRegion) {
-      tagsRegion = activeDocument.createElement("div");
+      tagsRegion = articleEl.win.createDiv();
       tagsRegion.className = "rss-dashboard-feed-tags-region";
       const feedFooter = articleEl.querySelector<HTMLElement>(
         ".rss-dashboard-feed-footer",
@@ -1161,7 +1163,10 @@ export class ArticleList {
 
     articleElements.forEach((el) => {
       const titleEl = el.querySelector(".rss-dashboard-article-title");
-      const title = titleEl?.textContent?.toLowerCase() || "";
+      const title =
+        (titleEl as HTMLElement | null)?.dataset.articleTitle?.toLowerCase() ||
+        titleEl?.textContent?.toLowerCase() ||
+        "";
 
       if (query && !title.includes(query)) {
         (el as HTMLElement).classList.add("rss-dashboard-search-hidden");
@@ -1172,6 +1177,39 @@ export class ArticleList {
   }
 
   private renderArticles(): void {
+    const renderPagination = (): void => {
+      const paginationWrapper = this.container.createDiv({
+        cls: "rss-dashboard-pagination-wrapper",
+      });
+      renderPaginationUtil({
+        container: paginationWrapper,
+        currentPage: this.currentPage,
+        totalPages: this.totalPages,
+        pageSize: this.pageSize,
+        totalArticles: this.totalArticles,
+        articles: this.articles,
+        deps: {
+          isMobileViewport: () => this.isMobileViewport(),
+          onPageChange: (page: number) => this.callbacks.onPageChange(page),
+          onPageSizeChange: (pageSize: number) =>
+            this.callbacks.onPageSizeChange(pageSize),
+          onMarkPageAsRead: this.callbacks.onMarkPageAsRead,
+          onPersistSettings: this.callbacks.onPersistSettings,
+          onRerender: () => this.render(),
+          notices: {
+            show: (message: string) => new Notice(message),
+          },
+        },
+      });
+    };
+
+    if (
+      (this.settings.display.paginationPosition ?? "bottom") === "top" &&
+      this.articles.length > 0
+    ) {
+      renderPagination();
+    }
+
     const articlesList = this.container.createDiv({
       cls: `rss-dashboard-articles-list rss-dashboard-${this.settings.viewStyle}-view`,
     });
@@ -1300,29 +1338,9 @@ export class ArticleList {
       }
     }
 
-    const paginationWrapper = this.container.createDiv({
-      cls: "rss-dashboard-pagination-wrapper",
-    });
-    renderPaginationUtil({
-      container: paginationWrapper,
-      currentPage: this.currentPage,
-      totalPages: this.totalPages,
-      pageSize: this.pageSize,
-      totalArticles: this.totalArticles,
-      articles: this.articles,
-      deps: {
-        isMobileViewport: () => this.isMobileViewport(),
-        onPageChange: (page: number) => this.callbacks.onPageChange(page),
-        onPageSizeChange: (pageSize: number) =>
-          this.callbacks.onPageSizeChange(pageSize),
-        onMarkPageAsRead: this.callbacks.onMarkPageAsRead,
-        onPersistSettings: this.callbacks.onPersistSettings,
-        onRerender: () => this.render(),
-        notices: {
-          show: (message: string) => new Notice(message),
-        },
-      },
-    });
+    if ((this.settings.display.paginationPosition ?? "bottom") !== "top") {
+      renderPagination();
+    }
   }
 
   private groupArticles(
@@ -1343,6 +1361,7 @@ export class ArticleList {
       selectedArticle: this.selectedArticle,
       showFeedSource: this.showFeedSource,
       settings: this.settings,
+      resolveCachedImageUrl: this.callbacks.onResolveCachedImageUrl,
       highlightService: this.highlightService,
       callbacks: this.callbacks,
     };
@@ -1356,6 +1375,8 @@ export class ArticleList {
         this.createArticleActionButtons(actionToolbar, article, mode),
       showArticleContextMenu: (event, article) =>
         this.showArticleContextMenu(event, article),
+      scheduleMathRendering: (element: HTMLElement) =>
+        this.callbacks.onRenderArticleTitle?.(element),
       scheduleCardTagLayout: (card) => this.scheduleCardTagLayout(card),
       onToggleFeedSectionCollapse: (feedSourceName, isCollapsed) =>
         this.onToggleFeedSectionCollapse(feedSourceName, isCollapsed),

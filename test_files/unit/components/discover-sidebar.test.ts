@@ -56,7 +56,6 @@ function setupSidebar(opts?: {
   activeSection?: "types" | "categories" | "tags";
   filters?: DiscoverFilters;
   feeds?: FeedMetadata[];
-  onCloseMobileSidebar?: () => void;
 }) {
   const app = new App();
   const container = document.createElement("div");
@@ -66,7 +65,6 @@ function setupSidebar(opts?: {
     onActivateView: vi.fn(),
     onActivateDiscoverView: vi.fn(),
     onActivateSmallwebView: vi.fn(),
-    onCloseMobileSidebar: opts?.onCloseMobileSidebar,
   };
 
   const filters = opts?.filters ?? createFilters();
@@ -151,8 +149,7 @@ describe("DiscoverSidebar", () => {
   });
 
   it("fires header callbacks for Return Home and Kagi Smallweb with click + keyboard parity", () => {
-    const onCloseMobileSidebar = vi.fn();
-    const { container, callbacks } = setupSidebar({ onCloseMobileSidebar });
+    const { container, callbacks } = setupSidebar();
 
     const returnHome = container.querySelector(
       ".rss-discover-return-home",
@@ -189,20 +186,9 @@ describe("DiscoverSidebar", () => {
     smallweb.dispatchEvent(new KeyboardEvent("keydown", { key: " " }));
     expect(callbacks.onActivateSmallwebView).toHaveBeenCalledTimes(3);
 
-    const closeBtn = container.querySelector(
-      ".rss-dashboard-header-close-button",
-    ) as HTMLElement;
-    expect(closeBtn).toBeTruthy();
-    expect(closeBtn.dataset.icon).toBe("panel-left-close");
-    closeBtn.click();
-    expect(onCloseMobileSidebar).toHaveBeenCalledTimes(1);
-
-    // When callback is absent, close button should not render.
-    document.body.empty();
-    const noClose = setupSidebar();
     expect(
-      noClose.container.querySelector(".rss-dashboard-header-close-button"),
-    ).toBeFalsy();
+      container.querySelector(".rss-dashboard-header-close-button"),
+    ).toBeNull();
   });
 
   it("toggles type and tag selections and calls onFilterChange()", () => {

@@ -16,10 +16,12 @@ import { BackgroundImportService } from "../../../src/services/background-import
 import RssDashboardPlugin from "../../../main";
 
 const mockParseFeed = vi.fn();
+const mockRefreshFeed = vi.fn();
 
 vi.mock("../../../src/services/feed-parser", () => ({
   FeedParser: class FeedParser {
     parseFeed = mockParseFeed;
+    refreshFeed = mockRefreshFeed;
     refreshAllFeeds = vi.fn();
     constructor(_media?: unknown, _availableTags?: unknown) {}
   },
@@ -48,6 +50,7 @@ interface PluginWithInternal {
   addStatusBarItem(): HTMLElement;
   feedParser: {
     parseFeed: typeof mockParseFeed;
+    refreshFeed: typeof mockRefreshFeed;
     refreshAllFeeds: ReturnType<typeof vi.fn>;
   };
 }
@@ -74,6 +77,7 @@ function createPlugin(): RssDashboardPlugin {
   pluginInternal.addStatusBarItem = vi.fn(() => document.createElement("div"));
   pluginInternal.feedParser = {
     parseFeed: mockParseFeed,
+    refreshFeed: mockRefreshFeed,
     refreshAllFeeds: vi.fn(),
   };
 
@@ -85,6 +89,12 @@ function createPlugin(): RssDashboardPlugin {
     saveSettings: () => plugin.saveSettings(),
     ensureFolderExists: vi.fn().mockResolvedValue(false),
     addStatusBarItem: () => pluginInternal.addStatusBarItem(),
+    onFeedImported: (feed) =>
+      (
+        plugin as unknown as {
+          queuePreviewImageCaching(importedFeed: Feed): void;
+        }
+      ).queuePreviewImageCaching(feed),
   });
 
   return plugin;
@@ -122,6 +132,140 @@ describe("background import orchestration", () => {
     vi.spyOn(console, "warn").mockImplementation(() => {});
     vi.spyOn(console, "debug").mockImplementation(() => {});
     mockParseFeed.mockReset();
+    mockRefreshFeed.mockReset();
+  });
+
+  it("does not let refresh overwrite a Discover feed while background hydration owns it", async () => {
+    const plugin = createPlugin();
+    const existingFeed = {
+      ...createPlaceholderFeed("https://example.com/existing.xml"),
+      items: [
+        {
+          title: "Existing article",
+          link: "https://example.com/existing/article",
+          description: "Existing description",
+          pubDate: "2026-08-21T12:00:00.000Z",
+          guid: "existing-article",
+          read: false,
+          starred: false,
+          tags: [],
+          feedTitle: "Existing feed",
+          feedUrl: "https://example.com/existing.xml",
+        },
+      ],
+    } satisfies Feed;
+    plugin.settings.feeds = [existingFeed];
+    plugin.settings.display = {
+      ...plugin.settings.display,
+      allowImageCaching: true,
+      showCoverImage: true,
+    };
+    const cacheUrl = vi.fn().mockResolvedValue(true);
+    (
+      plugin as unknown as {
+        imageCacheService: { cacheUrl: typeof cacheUrl };
+      }
+    ).imageCacheService = { cacheUrl };
+
+    let resolveInitialSave: (() => void) | undefined;
+    vi.mocked(plugin.saveData)
+      .mockImplementationOnce(
+        () =>
+          new Promise<void>((resolve) => {
+            resolveInitialSave = resolve;
+          }),
+      )
+      .mockResolvedValue(undefined);
+
+    let resolveImport: ((feed: Feed) => void) | undefined;
+    mockParseFeed.mockReturnValue(
+      new Promise<Feed>((resolve) => {
+        resolveImport = resolve;
+      }),
+    );
+
+    let resolvePlaceholderRefresh: ((feed: Feed) => void) | undefined;
+    mockRefreshFeed.mockImplementation((feed: Feed) => {
+      if (feed.url === existingFeed.url) {
+        return Promise.resolve(feed);
+      }
+
+      return new Promise<Feed>((resolve) => {
+        resolvePlaceholderRefresh = resolve;
+      });
+    });
+
+    const ingestPromise = plugin.ingestFeedsForBackgroundImport([
+      {
+        title: "Discovered feed",
+        url: "https://example.com/discovered.xml",
+        folder: "Discover",
+      },
+    ]);
+    await flushMicrotasks();
+    expect(mockParseFeed).not.toHaveBeenCalled();
+
+    const refreshPromise = plugin.refreshFeeds();
+    await flushMicrotasks();
+
+    expect(mockRefreshFeed).toHaveBeenCalledWith(existingFeed, {
+      signal: expect.any(AbortSignal),
+    });
+
+    resolveInitialSave?.();
+    await ingestPromise;
+    await flushMicrotasks();
+
+    const importedArticle = {
+      title: "Imported article",
+      link: "https://example.com/discovered/article",
+      description: "Imported description",
+      pubDate: "2026-01-01T12:00:00.000Z",
+      guid: "imported-article",
+      read: false,
+      starred: false,
+      tags: [],
+      feedTitle: "Discovered feed",
+      feedUrl: "https://example.com/discovered.xml",
+      coverImage: "https://example.com/discovered-cover.jpg",
+    };
+    resolveImport?.({
+      ...createPlaceholderFeed("https://example.com/discovered.xml"),
+      title: "Discovered feed",
+      items: [importedArticle],
+    });
+    await flushMicrotasks();
+
+    resolvePlaceholderRefresh?.({
+      ...createPlaceholderFeed("https://example.com/discovered.xml"),
+      title: "Discovered feed",
+      items: [],
+    });
+    await refreshPromise;
+    await vi.waitFor(
+      () => {
+        expect(
+          (plugin as unknown as PluginWithInternal).isBackgroundImporting,
+        ).toBe(false);
+      },
+      { timeout: 3000 },
+    );
+
+    expect(plugin.settings.feeds.find((feed) => feed.url === existingFeed.url)?.items)
+      .toEqual(existingFeed.items);
+    expect(
+      plugin.settings.feeds.find(
+        (feed) => feed.url === "https://example.com/discovered.xml",
+      )?.items,
+    ).toEqual([importedArticle]);
+    expect(cacheUrl).toHaveBeenCalledWith(
+      "https://example.com/discovered-cover.jpg",
+      true,
+    );
+    expect(mockRefreshFeed).not.toHaveBeenCalledWith(
+      expect.objectContaining({ url: "https://example.com/discovered.xml" }),
+      expect.anything(),
+    );
   });
 
   it("processes queued feeds with bounded concurrency", async () => {
@@ -348,6 +492,62 @@ describe("background import orchestration", () => {
 
     expect(ensureFolderExists).toHaveBeenCalled();
     expect(savedModes).toEqual(["legacy-json"]);
+  });
+
+  it("stops background ingestion without committing a late parse result", async () => {
+    const settings: RssDashboardSettings = {
+      ...DEFAULT_SETTINGS,
+      feeds: [],
+    };
+    const controller = new AbortController();
+    const beginGlobalOperation = vi.fn(() => controller.signal);
+    const endGlobalOperation = vi.fn().mockResolvedValue(undefined);
+    let resolveParse: ((feed: Feed) => void) | undefined;
+    mockParseFeed.mockImplementation(
+      () =>
+        new Promise<Feed>((resolve) => {
+          resolveParse = resolve;
+        }),
+    );
+
+    const service = new BackgroundImportService({
+      feedParser: { parseFeed: mockParseFeed },
+      getSettings: () => settings,
+      getView: async () => null,
+      saveSettings: async () => undefined,
+      ensureFolderExists: vi.fn().mockResolvedValue(false),
+      addStatusBarItem: () => document.createElement("div"),
+      beginGlobalOperation,
+      endGlobalOperation,
+      isGlobalOperationCancelled: () => controller.signal.aborted,
+    });
+
+    const resultPromise = service.ingestFeedsForBackgroundImport(
+      [
+        {
+          title: "Example",
+          url: "https://example.com/feed.xml",
+          folder: "RSS",
+        },
+      ],
+      { globalOperation: true },
+    );
+
+    await vi.waitFor(() => expect(mockParseFeed).toHaveBeenCalledOnce());
+    expect(beginGlobalOperation).toHaveBeenCalledWith(1);
+    controller.abort();
+    resolveParse?.({
+      ...createPlaceholderFeed("https://example.com/feed.xml"),
+      title: "Parsed after stop",
+      items: [{ guid: "late", title: "Late result" }],
+    } as Feed);
+
+    await resultPromise;
+    await vi.waitFor(() => expect(service.isBackgroundImporting).toBe(false));
+
+    expect(settings.feeds[0].title).toBe("Example");
+    expect(settings.feeds[0].items).toEqual([]);
+    expect(endGlobalOperation).toHaveBeenCalledOnce();
   });
 });
 

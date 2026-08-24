@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { ReaderView } from "../../../src/views/reader-view";
 import {
   FeedItem,
@@ -24,6 +24,7 @@ type ReaderViewHarness = {
   contentEl: HTMLElement;
   readingContainer: HTMLElement;
   fetchFullArticleContent: ReturnType<typeof vi.fn>;
+  buildReaderSaveMarkdown(item: FeedItem): string;
 };
 
 function getHarness(view: ReaderView): ReaderViewHarness {
@@ -71,6 +72,153 @@ describe("ReaderView Image Duplication", () => {
 
     // Initialize contentEl since it's used in onOpen
     getHarness(readerView).contentEl = document.createElement("div");
+  });
+
+  afterEach(() => {
+    document.body.empty();
+    vi.clearAllMocks();
+  });
+
+  it("renders WordPress native math and promotes a later photo to hero", async () => {
+    const formulaUrl =
+      "https://s0.wp.com/latex.php?latex=%7Bx%7D&bg=ffffff";
+    const photoUrl = "https://example.com/article-photo.jpg";
+    const item: FeedItem = {
+      title: "WordPress math article",
+      link: "https://example.com/math",
+      description: "Formula summary",
+      content: `
+        <p>Let <img class="latex" src="${formulaUrl}" srcset="${formulaUrl} 1x, ${formulaUrl}&zoom=4.5 4x" alt="{x}" /> be fixed.</p>
+        <figure><img src="${photoUrl}" alt="Article photo" /></figure>
+      `,
+      pubDate: new Date().toISOString(),
+      guid: "wordpress-math-reader",
+      read: false,
+      starred: false,
+      tags: [],
+      feedTitle: "Math feed",
+      feedUrl: "https://example.com/feed.rss",
+      coverImage: formulaUrl,
+      image: formulaUrl,
+      mediaType: "article",
+      saved: false,
+    };
+
+    await readerView.onOpen();
+    await readerView.displayItem(item);
+
+    const readingContainer = getHarness(readerView).readingContainer;
+    const heroImg = readingContainer.querySelector<HTMLImageElement>(
+      ".rss-reader-hero-slot img",
+    );
+    const body = readingContainer.querySelector<HTMLElement>(
+      ".rss-reader-article-content",
+    );
+    await vi.waitFor(() => {
+      expect(body?.querySelector("mjx-container")?.textContent).toBe("{x}");
+    });
+
+    expect(heroImg?.getAttribute("src")).toBe(photoUrl);
+    expect(body?.querySelector("img.latex")).toBeNull();
+    expect(body?.querySelector("span.math-inline")?.getAttribute("data-math")).toBe(
+      String.raw`\({x}\)`,
+    );
+    expect(body?.querySelector(`img[src="${photoUrl}"]`)).toBeNull();
+  });
+
+  it("preserves a short formula-bearing lead block during fetched cleanup", async () => {
+    const formulaUrl =
+      "https://s0.wp.com/latex.php?latex=%7Bx%5E2%7D&bg=ffffff";
+    const fetchedHtml = `
+      <p>Let <img class="latex" src="${formulaUrl}" alt="{x^2}" /> be fixed.</p>
+      <p>Short feed summary</p>
+      <p>${"Substantial article body text remains available after cleanup. ".repeat(4)}</p>
+    `;
+    const item: FeedItem = {
+      title: "WordPress fetched math article",
+      link: "https://example.com/fetched-math",
+      description: "Short feed summary",
+      content: "",
+      pubDate: new Date().toISOString(),
+      guid: "wordpress-fetched-math",
+      read: false,
+      starred: false,
+      tags: [],
+      feedTitle: "Math feed",
+      feedUrl: "https://example.com/feed.rss",
+      coverImage: "https://example.com/real-cover.jpg",
+      mediaType: "article",
+      saved: false,
+    };
+    getHarness(readerView).fetchFullArticleContent = vi
+      .fn()
+      .mockResolvedValue(fetchedHtml);
+
+    await readerView.onOpen();
+    await readerView.displayItem(item);
+
+    const body = getHarness(readerView).readingContainer.querySelector<HTMLElement>(
+      ".rss-reader-article-content",
+    );
+    await vi.waitFor(() => {
+      expect(body?.querySelector("mjx-container")?.textContent).toBe("{x^2}");
+    });
+    expect(body?.textContent).toContain("Let");
+    expect(body?.textContent).toContain("be fixed.");
+    expect(body?.textContent).toContain("Substantial article body text");
+  });
+
+  it("does not prepend a stale formula hero when building saved Markdown", () => {
+    const formulaUrl =
+      "https://s0.wp.com/latex.php?latex=%7Bx%7D&bg=ffffff";
+    const item: FeedItem = {
+      title: "Saved WordPress math article",
+      link: "https://example.com/saved-math",
+      description: "<p>Saved article body.</p>",
+      content: "",
+      pubDate: new Date().toISOString(),
+      guid: "saved-wordpress-math",
+      read: false,
+      starred: false,
+      tags: [],
+      feedTitle: "Math feed",
+      feedUrl: "https://example.com/feed.rss",
+      coverImage: formulaUrl,
+      image: formulaUrl,
+      mediaType: "article",
+      saved: false,
+    };
+
+    const markdown = getHarness(readerView).buildReaderSaveMarkdown(item);
+
+    expect(markdown).toContain("Saved article body.");
+    expect(markdown).not.toContain(formulaUrl);
+  });
+
+  it("serializes WordPress formula images with Obsidian math delimiters", () => {
+    const formulaUrl =
+      "https://s0.wp.com/latex.php?latex=%7Ba_1%7D&bg=ffffff";
+    const item: FeedItem = {
+      title: "Saved native WordPress math",
+      link: "https://example.com/saved-native-math",
+      description: `<p>Let <img class="latex" src="${formulaUrl}" alt="{a_1}" /> be fixed.</p>`,
+      content: "",
+      pubDate: new Date().toISOString(),
+      guid: "saved-native-wordpress-math",
+      read: false,
+      starred: false,
+      tags: [],
+      feedTitle: "Math feed",
+      feedUrl: "https://example.com/feed.rss",
+      coverImage: "",
+      mediaType: "article",
+      saved: false,
+    };
+
+    const markdown = getHarness(readerView).buildReaderSaveMarkdown(item);
+
+    expect(markdown).toContain("Let ${a_1}$ be fixed.");
+    expect(markdown).not.toContain(formulaUrl);
   });
 
   it("should extract hero image and remove it from content (Reproduction)", async () => {

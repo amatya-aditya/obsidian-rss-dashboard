@@ -4,7 +4,7 @@ import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 
 interface MockSidebar {
   rendered: boolean;
-  callbacks: { onFilterChange: () => void; onCloseMobileSidebar: () => void };
+  callbacks: { onFilterChange: () => void };
 }
 
 let lastDiscoverSidebarInstance: MockSidebar | null = null;
@@ -15,7 +15,7 @@ function setLastDiscoverSidebarInstance(instance: MockSidebar): void {
 
 vi.mock("../../../src/components/discover-sidebar", () => {
   class DiscoverSidebar {
-    callbacks: { onFilterChange: () => void; onCloseMobileSidebar: () => void };
+    callbacks: { onFilterChange: () => void };
     rendered = false;
 
     constructor(
@@ -27,7 +27,6 @@ vi.mock("../../../src/components/discover-sidebar", () => {
       _section: unknown,
       callbacks: {
         onFilterChange: () => void;
-        onCloseMobileSidebar: () => void;
       },
     ) {
       this.callbacks = callbacks;
@@ -54,7 +53,7 @@ describe("MobileDiscoverFiltersModal", () => {
     vi.restoreAllMocks();
   });
 
-  it("renders the discover sidebar and closes via callback", async () => {
+  it("renders the discover sidebar and preserves the native modal close button", async () => {
     const { MobileDiscoverFiltersModal } =
       await import("../../../src/modals/mobile-discover-filters-modal");
 
@@ -81,7 +80,7 @@ describe("MobileDiscoverFiltersModal", () => {
     );
 
     const closeBtn = document.createElement("button");
-    closeBtn.className = "modal-close-button";
+    closeBtn.className = "modal-header-button mod-raised clickable-icon";
     modal.modalEl.appendChild(closeBtn);
 
     modal.open();
@@ -89,13 +88,15 @@ describe("MobileDiscoverFiltersModal", () => {
     expect(
       modal.modalEl.classList.contains("rss-mobile-discover-filters-modal"),
     ).toBe(true);
-    expect(modal.modalEl.querySelector(".modal-close-button")).toBeFalsy();
+    expect(
+      modal.modalEl.querySelector(
+        ".modal-header-button.mod-raised.clickable-icon",
+      ),
+    ).toBe(closeBtn);
     expect(lastDiscoverSidebarInstance?.rendered).toBe(true);
 
     lastDiscoverSidebarInstance?.callbacks.onFilterChange();
     expect(onFilterChange).toHaveBeenCalledTimes(1);
 
-    lastDiscoverSidebarInstance?.callbacks.onCloseMobileSidebar();
-    expect(modal.containerEl.isConnected).toBe(false);
   });
 });

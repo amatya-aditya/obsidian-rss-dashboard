@@ -52,6 +52,8 @@ export function renderListView(
     } else {
       titleEl.textContent = article.title;
     }
+    titleEl.dataset.articleTitle = article.title;
+    deps.scheduleMathRendering?.(titleEl);
     const dateInfo = formatArticleDate(
       article.pubDate,
       ctx.settings.display.articleDateStyle ?? "relative",

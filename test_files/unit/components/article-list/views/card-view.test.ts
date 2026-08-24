@@ -33,6 +33,26 @@ describe("card-view", () => {
     );
   });
 
+  it("schedules math rendering for a card title while preserving its source", () => {
+    const scheduleMathRendering = vi.fn();
+    const rawTitle = String.raw`Direct product of $\mathrm{SL}_n$`;
+    renderCardView(
+      container,
+      [makeArticle({ title: rawTitle })],
+      {
+        ...baseViewContext(),
+        showCardToolbar: true,
+      },
+      baseViewDeps({ scheduleMathRendering }),
+    );
+
+    const title = container.querySelector<HTMLElement>(
+      ".rss-dashboard-article-title",
+    );
+    expect(scheduleMathRendering).toHaveBeenCalledWith(title);
+    expect(title?.dataset.articleTitle).toBe(rawTitle);
+  });
+
   it("adds has-tags class when article has tags", () => {
     renderCardView(
       container,
@@ -68,6 +88,94 @@ describe("card-view", () => {
     expect(container.querySelector(".rss-dashboard-cover-image")).toBeTruthy();
   });
 
+  it("uses a cached preview URL only when image caching is enabled", () => {
+    const resolveCachedImageUrl = vi.fn(() => "app://local/cache/cover.jpg");
+    renderCardView(
+      container,
+      [makeArticle({ coverImage: "https://example.com/cover.jpg" })],
+      {
+        ...baseViewContext(),
+        settings: {
+          ...baseViewContext().settings,
+          display: {
+            ...baseViewContext().settings.display,
+            allowImageCaching: true,
+          },
+        },
+        resolveCachedImageUrl,
+        showCardToolbar: true,
+      },
+      baseViewDeps(),
+    );
+
+    expect(resolveCachedImageUrl).toHaveBeenCalledWith("https://example.com/cover.jpg");
+    expect(
+      container.querySelector(".rss-dashboard-cover-image")?.getAttribute("src"),
+    ).toBe("app://local/cache/cover.jpg");
+  });
+
+  it("retries the remote preview URL when a cached Card image fails", () => {
+    renderCardView(
+      container,
+      [makeArticle({ coverImage: "https://example.com/cover.jpg" })],
+      {
+        ...baseViewContext(),
+        settings: {
+          ...baseViewContext().settings,
+          display: {
+            ...baseViewContext().settings.display,
+            allowImageCaching: true,
+          },
+        },
+        resolveCachedImageUrl: () => "app://local/cache/cover.jpg",
+        showCardToolbar: true,
+      },
+      baseViewDeps(),
+    );
+
+    const image = container.querySelector(".rss-dashboard-cover-image") as HTMLImageElement;
+    image.dispatchEvent(new Event("error"));
+
+    expect(image.getAttribute("src")).toBe("https://example.com/cover.jpg");
+  });
+
+  it.each([
+    { showCoverImage: true, showSummary: true, image: true, summary: true },
+    { showCoverImage: true, showSummary: false, image: true, summary: false },
+    { showCoverImage: false, showSummary: true, image: false, summary: true },
+    { showCoverImage: false, showSummary: false, image: false, summary: false },
+  ])(
+    "renders Card View previews independently when cover images are $showCoverImage and summaries are $showSummary",
+    ({ showCoverImage, showSummary, image, summary }) => {
+      renderCardView(
+        container,
+        [makeArticle({ coverImage: "https://example.com/cover.jpg" })],
+        {
+          ...baseViewContext(),
+          settings: {
+            highlights: {
+              highlightInTitles: false,
+              highlightInSummaries: false,
+            },
+            display: { showCoverImage, showSummary, articleDateStyle: "relative" },
+          },
+          showCardToolbar: true,
+        },
+        baseViewDeps(),
+      );
+
+      expect(!!container.querySelector(".rss-dashboard-cover-image")).toBe(image);
+      expect(
+        !!container.querySelector(
+          ".rss-dashboard-summary-overlay, .rss-dashboard-cover-summary-only",
+        ),
+      ).toBe(summary);
+      expect(!!container.querySelector(".rss-dashboard-card-preview-region")).toBe(
+        image || summary,
+      );
+    },
+  );
+
   it("renders summary-only preview when no image is available", () => {
     renderCardView(
       container,
@@ -90,6 +198,55 @@ describe("card-view", () => {
     ).toBe("Article description text");
   });
 
+  it("renders summary-only preview when stale cover media is a LaTeX formula", () => {
+    renderCardView(
+      container,
+      [
+        makeArticle({
+          coverImage:
+            "https://s0.wp.com/latex.php?latex=%7Bx%7D&bg=ffffff",
+          content:
+            '<p>Formula <img class="latex" src="https://s0.wp.com/latex.php?latex=%7Bx%7D&amp;bg=ffffff" /></p>',
+        }),
+      ],
+      {
+        ...baseViewContext(),
+        showCardToolbar: true,
+      },
+      baseViewDeps(),
+    );
+
+    expect(container.querySelector(".rss-dashboard-cover-image")).toBeFalsy();
+    expect(
+      container.querySelector(".rss-dashboard-cover-summary-only")?.textContent,
+    ).toBe("Article description text");
+  });
+
+  it("uses a valid stored image when the preferred cover is a stale formula", () => {
+    renderCardView(
+      container,
+      [
+        makeArticle({
+          coverImage:
+            "https://s0.wp.com/latex.php?latex=%7Bx%7D&bg=ffffff",
+          image: "https://example.com/article-photo.jpg",
+          content: "",
+        }),
+      ],
+      {
+        ...baseViewContext(),
+        showCardToolbar: true,
+      },
+      baseViewDeps(),
+    );
+
+    expect(
+      container
+        .querySelector(".rss-dashboard-cover-image")
+        ?.getAttribute("src"),
+    ).toBe("https://example.com/article-photo.jpg");
+  });
+
   it("renders summary-only preview when a cover image fails", () => {
     renderCardView(
       container,
@@ -110,6 +267,33 @@ describe("card-view", () => {
     expect(
       container.querySelector(".rss-dashboard-cover-summary-only")?.textContent,
     ).toBe("Article description text");
+  });
+
+  it("does not render a summary fallback after an image error when summaries are disabled", () => {
+    renderCardView(
+      container,
+      [makeArticle({ coverImage: "https://example.com/broken.jpg" })],
+      {
+        ...baseViewContext(),
+        settings: {
+          highlights: {
+            highlightInTitles: false,
+            highlightInSummaries: false,
+          },
+          display: { showCoverImage: true, showSummary: false, articleDateStyle: "relative" },
+        },
+        showCardToolbar: true,
+      },
+      baseViewDeps(),
+    );
+
+    const image = container.querySelector(
+      "img.rss-dashboard-cover-image",
+    ) as HTMLImageElement;
+    image.dispatchEvent(new Event("error"));
+
+    expect(container.querySelector(".rss-dashboard-card-preview-region")).toBeFalsy();
+    expect(container.querySelector(".rss-dashboard-cover-summary-only")).toBeFalsy();
   });
 
   it("omits preview region when no image or summary text is available", () => {

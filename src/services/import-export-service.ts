@@ -30,12 +30,10 @@ export class ImportExportService {
   }
 
   getUserSettingsJson(): string {
-    const {
-      feeds: _feeds,
-      folders: _folders,
-      availableTags: _availableTags,
-      ...settingsOnly
-    } = this.settings;
+    const settingsOnly: Partial<RssDashboardSettings> = { ...this.settings };
+    delete settingsOnly.feeds;
+    delete settingsOnly.folders;
+    delete settingsOnly.availableTags;
     return JSON.stringify(settingsOnly, null, 2);
   }
 

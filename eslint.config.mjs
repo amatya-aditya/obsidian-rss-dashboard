@@ -96,6 +96,12 @@ export default defineConfig([
           allowAutoFix: true,
         },
       ],
+      // Tests intentionally use jsdom/native DOM, Node fixtures, and same-window
+      // assertions. Production code remains covered by these Obsidian rules.
+      "obsidianmd/no-nodejs-modules": "off",
+      "obsidianmd/prefer-create-el": "off",
+      "obsidianmd/prefer-instanceof": "off",
+      "obsidianmd/prefer-window-timers": "off",
       "@typescript-eslint/unbound-method": "off",
       "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/no-unsafe-assignment": "off",
@@ -132,6 +138,11 @@ export default defineConfig([
         {
           acronyms: ["OPML", "XML", "API", "CORS", "URI", "URL", "RSS", "JSON"],
           brands: ["Obsidian"],
+          ignoreRegex: [
+            "^\\d+(?:\\.\\d+)?x$",
+            "^\\d+ (?:day|days|week|weeks|month|months|year|years|item|items|minute|minutes|hour|hours)$",
+            "^https?://",
+          ],
           allowAutoFix: true,
         },
       ],
@@ -159,6 +170,7 @@ export default defineConfig([
       "obsidianmd/settings-tab/no-manual-html-headings": "warn",
       "obsidianmd/no-static-styles-assignment": "error",
       "obsidianmd/platform": "error",
+      "obsidianmd/prefer-create-el": "error",
       "obsidianmd/prefer-file-manager-trash-file": "error",
       "@typescript-eslint/no-unused-vars": [
         "warn",
@@ -168,6 +180,14 @@ export default defineConfig([
           caughtErrorsIgnorePattern: "^_",
         },
       ],
+    },
+  },
+  {
+    files: ["src/settings/settings-tab.ts"],
+    rules: {
+      // The plugin supports Obsidian 1.1.0. Keep the imperative display()
+      // orchestrator until the minimum app version can require the 1.13 API.
+      "obsidianmd/settings-tab/prefer-setting-definitions": "off",
     },
   },
 ]);

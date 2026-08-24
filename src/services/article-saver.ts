@@ -16,14 +16,22 @@ import {
   stripNonContentHtmlNodes,
 } from "../utils/html-text";
 import { normalizeSubstackImageUrl } from "../utils/substack-image-url";
+import {
+  addMathTurndownRule,
+  protectMathForMarkdown,
+} from "../utils/math-rendering";
+import { firstNonFormulaImageUrl } from "../utils/image-url-utils";
+
+const MAX_FILENAME_LENGTH = 100;
 
 export function sanitizeFilename(name: string): string {
   const sanitized = name
     .replace(/[/\\:*?"<>|]/g, "")
     .replace(/\s+/g, " ")
     .trim();
+  const truncated = sanitized.slice(0, MAX_FILENAME_LENGTH).trim();
 
-  return sanitized || "Untitled Article";
+  return truncated || "Untitled Article";
 }
 
 export class ArticleSaver {
@@ -41,13 +49,7 @@ export class ArticleSaver {
     this.settings = settings;
     this.corsProxyUrl = corsProxyUrl;
     this.turndownService = new TurndownService();
-
-    this.turndownService.addRule("math", {
-      filter: (node: Node) =>
-        node.nodeName === "SPAN" &&
-        (node as Element).classList.contains("math"),
-      replacement: (_content: string, node: Node) => node.textContent || "",
-    });
+    addMathTurndownRule(this.turndownService);
   }
 
   private cleanHtml(html: string): string {
@@ -145,7 +147,7 @@ export class ArticleSaver {
         }
 
         if (hasInlineImage) {
-          const fragment = doc.createDocumentFragment();
+          const fragment = doc.win.createFragment();
           while (link.firstChild) {
             fragment.appendChild(link.firstChild);
           }
@@ -170,12 +172,12 @@ export class ArticleSaver {
         ? item.enclosure.url
         : "";
 
-    const heroUrl =
-      item.coverImage ||
-      item.image ||
-      item.itunes?.image?.href ||
-      enclosureImageUrl ||
-      "";
+    const heroUrl = firstNonFormulaImageUrl([
+      item.coverImage,
+      item.image,
+      item.itunes?.image?.href,
+      enclosureImageUrl,
+    ]);
 
     return normalizeSubstackImageUrl((heroUrl || "").trim());
   }
@@ -226,7 +228,7 @@ export class ArticleSaver {
   private htmlToMarkdown(html: string): string {
     const cleaned = stripNonContentHtmlNodes(html);
     const normalized = this.normalizeBlockLinksForMarkdown(cleaned);
-    return this.turndownService.turndown(normalized);
+    return this.turndownService.turndown(protectMathForMarkdown(normalized));
   }
 
   private generateFrontmatter(item: FeedItem): string {
@@ -350,11 +352,15 @@ export class ArticleSaver {
       .replace(/{{source}}/g, item.feedTitle)
       .replace(/{{feedTitle}}/g, item.feedTitle)
       .replace(/{{summary}}/g, item.summary || "")
-      .replace(/{{content}}/g, content)
+      // Use a replacer function for {{content}} so that special replacement
+      // patterns in JS regex (like $$, $&, $`) are not interpreted — without
+      // this, display math delimiters like $$x^2$$ would be collapsed to $x^2$.
+      .replace(/{{content}}/g, () => content)
       .replace(/{{tags}}/g, tagsString)
       .replace(/{{guid}}/g, item.guid)
       .replace(/{{image}}/g, this.getFallbackHeroUrl(item));
   }
+
 
   private normalizePath(path: string): string {
     if (!path || path.trim() === "") {

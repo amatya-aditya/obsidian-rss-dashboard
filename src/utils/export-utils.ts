@@ -59,8 +59,9 @@ export async function exportBlob(args: {
     try {
       const url = URL.createObjectURL(blob);
       try {
-        const opened = activeWindow.open(url, "_blank");
-        window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+        const appWindow = activeWindow;
+        const opened = appWindow.open(url, "_blank");
+        appWindow.setTimeout(() => URL.revokeObjectURL(url), 1000);
         return opened ? "opened" : "failed";
       } catch {
         URL.revokeObjectURL(url);
@@ -74,13 +75,14 @@ export async function exportBlob(args: {
   try {
     const url = URL.createObjectURL(blob);
     try {
-      const a = activeDocument.createElement("a");
+      const doc = activeDocument;
+      const a = doc.win.createEl("a");
       a.href = url;
       a.download = filename;
-      activeDocument.body.appendChild(a);
+      doc.body.appendChild(a);
       a.click();
       a.remove();
-      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      doc.win.setTimeout(() => URL.revokeObjectURL(url), 1000);
       return "downloaded";
     } catch {
       URL.revokeObjectURL(url);

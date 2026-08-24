@@ -19,6 +19,34 @@
 
 /* --- NEW TWO-ROW LAYOUT --- */
 
+.podcast-playlist-section .playlist-window-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 8px 0;
+}
+
+.podcast-playlist-section .playlist-window-range {
+  color: var(--text-muted);
+  font-size: 0.85em;
+  margin-right: auto;
+}
+
+.podcast-playlist-section .playlist-window-btn {
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  color: var(--text-normal);
+  cursor: pointer;
+}
+
+.podcast-playlist-section .playlist-window-btn:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
 .podcast-player-main-layout {
   display: flex;
   flex-direction: column;

@@ -12,7 +12,6 @@ interface DiscoverSidebarCallbacks {
   onActivateView: () => void;
   onActivateDiscoverView: () => void;
   onActivateSmallwebView: () => void;
-  onCloseMobileSidebar?: () => void;
 }
 
 // Type for nested category structure - using unknown for leaf values
@@ -138,22 +137,6 @@ export class DiscoverSidebar {
       () => this.callbacks.onActivateSmallwebView(),
     );
 
-    if (this.callbacks.onCloseMobileSidebar) {
-      const rightActions = header.createDiv({
-        cls: "rss-discover-header-right",
-      });
-      const closeBtn = rightActions.createDiv({
-        cls: "rss-dashboard-header-close-button clickable-icon",
-        attr: {
-          title: "Close filters",
-          "aria-label": "Close filters",
-        },
-      });
-      setIcon(closeBtn, "panel-left-close");
-      closeBtn.addEventListener("click", () => {
-        this.callbacks.onCloseMobileSidebar?.();
-      });
-    }
   }
 
   private createHeaderNavButton(

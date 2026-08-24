@@ -4,6 +4,12 @@ import { ImportOpmlModal } from "../import-opml-modal";
 import { shouldUseMobileSidebarLayout } from "../../utils/platform-utils";
 import { AddFeedModal, type AddFeedRequest } from "./add-feed-modal";
 
+function formatByteSize(bytes: number): string {
+  if (bytes < 1_024) return `${bytes} B`;
+  if (bytes < 1_024 * 1_024) return `${(bytes / 1_024).toFixed(1)} KB`;
+  return `${(bytes / (1_024 * 1_024)).toFixed(1)} MB`;
+}
+
 export class FeedManagerModal extends Modal {
   plugin: RssDashboardPlugin;
 
@@ -52,6 +58,7 @@ export class FeedManagerModal extends Modal {
             request.customTemplate,
             request.excludeFromRefresh,
             request.customTags,
+            { feedEncoding: request.feedEncoding },
           ),
         () => this.onOpen(),
         "",
@@ -96,11 +103,17 @@ export class FeedManagerModal extends Modal {
 
       const { contentEl } = confirmModal;
       contentEl.empty();
+      const imageCacheSizeBytes = this.plugin.getImageCacheSizeBytes();
 
       new Setting(contentEl).setName("Delete all feeds?").setHeading();
       contentEl.createEl("p", {
         text: `This will permanently remove all ${this.plugin.settings.feeds.length} feeds from RSS Dashboard. Your folder structure and plugin settings will remain intact.`,
       });
+      if (imageCacheSizeBytes > 0) {
+        contentEl.createEl("p", {
+          text: `Cached preview images (${formatByteSize(imageCacheSizeBytes)}) will also be cleared.`,
+        });
+      }
 
       const buttonsSetting = new Setting(contentEl);
       buttonsSetting.controlEl.addClass("rss-dashboard-modal-buttons");
@@ -117,6 +130,7 @@ export class FeedManagerModal extends Modal {
             .onClick(async () => {
               this.plugin.settings.feeds = [];
               await this.plugin.saveSettings();
+              const cacheClearResult = await this.plugin.clearImageCache();
               
               const dashboardView = await this.plugin.getActiveDashboardView();
               if (dashboardView) {
@@ -125,7 +139,17 @@ export class FeedManagerModal extends Modal {
 
               this.close();
               confirmModal.close();
-              new Notice("All feeds deleted");
+              if (cacheClearResult.failed > 0) {
+                const failedLabel =
+                  cacheClearResult.failed === 1
+                    ? "1 cached image could not be removed."
+                    : `${cacheClearResult.failed} cached images could not be removed.`;
+                new Notice(`All feeds deleted, but ${failedLabel}`);
+              } else if (imageCacheSizeBytes > 0) {
+                new Notice("All feeds and cached preview images deleted.");
+              } else {
+                new Notice("All feeds deleted");
+              }
             }),
         );
 

@@ -2,12 +2,14 @@ import { MediaService } from "../../services/media-service";
 import { MastodonService } from "../../services/mastodon-service";
 import { loadFeedForPreview, resolvePodcastPlatformUrl } from "../../services/feed-parser";
 import { detectPodcastPlatform } from "../../utils/podcast-platforms";
+import type { FeedEncoding } from "../../types/types";
 
 export type FeedPreviewType = "rss" | "podcast" | "youtube";
 
 export interface FeedPreviewLoaderOptions {
   corsProxyEnabled?: boolean;
   corsProxyUrl?: string;
+  feedEncoding?: FeedEncoding;
 }
 
 export interface FeedPreviewLoadResult {
@@ -191,7 +193,10 @@ export async function resolveAndLoadPreview(
     }
   }
 
-  const feedData = await loadFeedForPreview(finalUrl);
+  const feedData =
+    options?.feedEncoding === "windows-1251"
+      ? await loadFeedForPreview(finalUrl, options.feedEncoding)
+      : await loadFeedForPreview(finalUrl);
 
   return {
     detectedType,

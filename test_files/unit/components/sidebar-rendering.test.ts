@@ -135,6 +135,44 @@ describe("Sidebar Rendering", () => {
     expect(allFeedsBtn?.textContent).toContain("All Feeds");
   });
 
+  it("communicates both refresh actions without a competing native tooltip", () => {
+    const sidebar = new Sidebar(
+      app as unknown as import("obsidian").App,
+      container,
+      plugin as unknown as RssDashboardPlugin,
+      settings,
+      options,
+      callbacks,
+    );
+    sidebar.render();
+  });
+
+  it("keeps the custom refresh-details popup on hover", async () => {
+    vi.useFakeTimers();
+    document.body.appendChild(container);
+    const sidebar = new Sidebar(
+      app as unknown as import("obsidian").App,
+      container,
+      plugin as unknown as RssDashboardPlugin,
+      settings,
+      options,
+      callbacks,
+    );
+    sidebar.render();
+
+    const allFeedsButton = container.querySelector<HTMLElement>(
+      ".rss-dashboard-all-feeds-button",
+    );
+    expect(allFeedsButton).not.toBeNull();
+    allFeedsButton?.dispatchEvent(new MouseEvent("mouseenter"));
+    await vi.advanceTimersByTimeAsync(350);
+
+    expect(
+      document.body.querySelector(".rss-dashboard-refresh-details")
+        ?.textContent,
+    ).toBe("Refresh all feeds. Shift+click to retry failed feeds.");
+  });
+
   it("should show unread badge for All Feeds if at least one unread item exists", () => {
     const sidebar = new Sidebar(
       app as unknown as import("obsidian").App,

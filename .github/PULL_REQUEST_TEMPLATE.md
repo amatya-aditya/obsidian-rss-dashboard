@@ -23,6 +23,8 @@
 ## Release Notes Candidate
 
 <!-- Copy/paste friendly text for CHANGELOG. Keep tense and style consistent. -->
+<!-- Keep this aligned with the entry under CHANGELOG.md > Unreleased. -->
+<!-- docs/releases is consolidated separately when the release is cut. -->
 <!-- Use "N/A" if this should not be included in release notes. -->
 
 -
@@ -59,4 +61,4 @@ Rollback plan:
 - [ ] Branch is scoped to one concern
 - [ ] No unrelated files included
 - [ ] If validation logic changed, tests updated
-- [ ] Changelog handling decided (Release Notes Candidate or N/A)
+- [ ] User-facing changes are recorded under `CHANGELOG.md` > `Unreleased`, or marked N/A

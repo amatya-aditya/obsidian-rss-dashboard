@@ -435,7 +435,7 @@ export class ImportOpmlModal extends Modal {
     const wrapper = container.createDiv({
       cls: "import-opml-cleaner-suggestion",
     });
-    wrapper.createEl("div", {
+    wrapper.createDiv({
       cls: "import-opml-cleaner-title",
       text: "Tip: try cleaning/formatting your OPML file",
     });
@@ -570,7 +570,7 @@ export class ImportOpmlModal extends Modal {
     setIcon(edit, "pencil");
 
     const startEdit = () => {
-      const input = activeDocument.createElement("input");
+      const input = nameText.win.createEl("input");
       input.className = "import-preview-edit-input";
       input.value = node.name;
       nameText.replaceWith(input);
@@ -724,7 +724,7 @@ export class ImportOpmlModal extends Modal {
     setIcon(edit, "pencil");
 
     const startEdit = () => {
-      const input = activeDocument.createElement("input");
+      const input = titleText.win.createEl("input");
       input.className = "import-preview-edit-input";
       input.value = feed.title;
       titleText.replaceWith(input);
@@ -797,11 +797,11 @@ export class ImportOpmlModal extends Modal {
     const updateContent = updateOption.createDiv({
       cls: "import-mode-option-content",
     });
-    updateContent.createEl("div", {
+    updateContent.createDiv({
       cls: "import-mode-option-title",
       text: "Update",
     });
-    updateContent.createEl("div", {
+    updateContent.createDiv({
       cls: "import-mode-option-desc",
       text: "Add new feeds to your existing list (duplicates will be skipped)",
     });
@@ -813,11 +813,11 @@ export class ImportOpmlModal extends Modal {
     const overwriteContent = overwriteOption.createDiv({
       cls: "import-mode-option-content",
     });
-    overwriteContent.createEl("div", {
+    overwriteContent.createDiv({
       cls: "import-mode-option-title",
       text: "Overwrite",
     });
-    overwriteContent.createEl("div", {
+    overwriteContent.createDiv({
       cls: "import-mode-option-desc",
       text: "Replace all existing feeds with the imported feeds",
     });
@@ -934,6 +934,7 @@ export class ImportOpmlModal extends Modal {
         {
           mode: this.importMode,
           folders: derivedFolders,
+          globalOperation: true,
         },
       );
 

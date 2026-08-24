@@ -1,5 +1,6 @@
 import { FeedItem } from '../../../types/types';
 import { htmlToReadableText } from '../../../utils/html-text';
+import { isLatexFormulaImage } from '../../../utils/image-url-utils';
 
 export const CARD_PREVIEW_SUMMARY_MAX_CHARS = 420;
 export const CARD_PREVIEW_HIGHLIGHT_MAX_CHARS = 900;
@@ -20,32 +21,81 @@ export function isTrackingPixel(url: string): boolean {
 export function extractFirstImageSrc(html: string): string | null {
   if (!html) return null;
 
-  // Use a regex for rapid extraction without full DOM parsing
-  const match = html.match(/<img[^>]+src=["']([^"']+)["']/i);
-  if (!match) return null;
+  // Scan tags so rejected formula/tracking images do not hide a later photo.
+  const imageTags = html.match(/<img\b[^>]*>/gi) ?? [];
+  for (const imageTag of imageTags) {
+    const srcMatch = imageTag.match(/\bsrc=["']([^"']+)["']/i);
+    if (!srcMatch) continue;
 
-  const src = match[1].trim();
+    const src = srcMatch[1].trim();
+    const className = imageTag.match(/\bclass=["']([^"']*)["']/i)?.[1];
 
-  // Reject literal placeholder values that some feeds (e.g. NPR CDATA) emit
-  if (!src || src === "undefined" || src === "null" || src === "#" || src === "about:blank") {
-    return null;
+    // Reject literal placeholder values that some feeds (e.g. NPR CDATA) emit.
+    if (
+      !src ||
+      src === "undefined" ||
+      src === "null" ||
+      src === "#" ||
+      src === "about:blank"
+    ) {
+      continue;
+    }
+
+    // Only accept HTTP/HTTPS or protocol-relative URLs.
+    if (
+      !src.startsWith("http://") &&
+      !src.startsWith("https://") &&
+      !src.startsWith("//")
+    ) {
+      continue;
+    }
+
+    if (isLatexFormulaImage(src, className) || isTrackingPixel(src)) continue;
+
+    return src;
   }
 
-  // Only accept HTTP/HTTPS or protocol-relative URLs
+  return null;
+}
+
+type StoredArticleImageField = "coverImage" | "image";
+
+function getEligiblePreviewImageUrl(raw: string | null | undefined): string {
+  const src = raw?.trim() || "";
+  if (!src) return "";
   if (
     !src.startsWith("http://") &&
     !src.startsWith("https://") &&
     !src.startsWith("//")
   ) {
-    return null;
+    return "";
   }
-
-  // Reject known tracking/analytics pixel URLs
-  if (isTrackingPixel(src)) {
-    return null;
-  }
-
+  if (isLatexFormulaImage(src) || isTrackingPixel(src)) return "";
   return src;
+}
+
+/** Resolves one preview image while preserving the caller's stored-field order. */
+export function resolveArticlePreviewImage(
+  article: FeedItem,
+  storedFieldOrder: readonly StoredArticleImageField[],
+): string | undefined {
+  for (const field of storedFieldOrder) {
+    const storedImage = getEligiblePreviewImageUrl(article[field]);
+    if (storedImage) return storedImage;
+  }
+
+  const contentImage = extractFirstImageSrc(article.content || "");
+  if (contentImage) return contentImage;
+
+  const summaryImage = extractFirstImageSrc(article.summary || "");
+  if (summaryImage) return summaryImage;
+
+  if (article.enclosure?.type?.startsWith("image/")) {
+    const enclosureImage = getEligiblePreviewImageUrl(article.enclosure.url);
+    if (enclosureImage) return enclosureImage;
+  }
+
+  return undefined;
 }
 
 export function looksLikeStylesheetText(text: string): boolean {

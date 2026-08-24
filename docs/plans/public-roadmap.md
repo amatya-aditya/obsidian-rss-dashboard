@@ -21,9 +21,9 @@ These items were previously listed in the README:
 
 These features already have draft plan documents and are still not implemented:
 
-- Media notes for podcast and video playback: [Media Notes Feature - Podcast and Video Player](Future/Media%20Notes%20Feature%20%E2%80%94%20Podcast%20%26%20Video%20Player.md)
-- Better handling for `.mp4` hero images in feed view: [handle-mp4-hero-images.md](Future/handle-mp4-hero-images.md)
-- Cover image fallback | Send GET requests to articles to grab hero image if not present in feed item | [cover-image-fallback-og-fetch-plan.md](Future/cover-image-fallback-og-fetch-plan.md)
+- Media notes for podcast and video playback: [Media notes feature](media-notes-podcast-video-player.md)
+- Better handling for `.mp4` hero images in feed view is [deferred](../archive/plans/unshipped/mp4-hero-images.md).
+- Cover image fallback | Send GET requests to articles to grab hero image if not present in feed item | [cover-image-fallback-og-fetch.md](cover-image-fallback-og-fetch.md)
 
 ## Notes
 

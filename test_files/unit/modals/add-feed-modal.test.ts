@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as obsidian from "obsidian";
-import { AddFeedModal } from "../../../src/modals/feed-manager/add-feed-modal";
+import {
+  AddFeedModal,
+  type AddFeedRequest,
+} from "../../../src/modals/feed-manager/add-feed-modal";
 import { MediaService } from "../../../src/services/media-service";
 import * as feedPreviewLoader from "../../../src/modals/feed-manager/feed-preview-loader";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
@@ -111,6 +114,81 @@ beforeEach(() => {
 });
 
 describe("AddFeedModal", () => {
+  it("uses the selected feed encoding for preview and save", async () => {
+    const app = createMockApp();
+    const onAdd: OnAddFn = vi.fn(async () => true);
+    const onSave = vi.fn();
+    vi.spyOn(feedPreviewLoader, "resolveAndLoadPreview").mockResolvedValue({
+      detectedType: "rss",
+      inputUrl: "https://example.com/feed.xml",
+      finalUrl: "https://example.com/feed.xml",
+      isXConversion: false,
+      isMastodonConversion: false,
+      title: "Example feed",
+      latestPubDate: undefined,
+      hasEntries: true,
+    });
+
+    const modal = new AddFeedModal(app, [], onAdd, onSave);
+    modal.open();
+
+    const encodingSelect = getSelectBySettingName(
+      modal.contentEl,
+      "Feed encoding",
+    );
+    expect(encodingSelect.value).toBe("auto");
+    expect(Array.from(encodingSelect.options).map((option) => option.text)).toEqual([
+      "Auto-detect",
+      "Windows-1251",
+    ]);
+    encodingSelect.value = "windows-1251";
+    encodingSelect.dispatchEvent(new Event("change"));
+
+    const urlInput = getTextInputBySettingName(modal.contentEl, "Feed URL");
+    urlInput.value = "https://example.com/feed.xml";
+    urlInput.dispatchEvent(new Event("input"));
+    getButtonByText(modal.contentEl, "Load").click();
+    await flushPromises();
+
+    expect(feedPreviewLoader.resolveAndLoadPreview).toHaveBeenCalledWith(
+      "https://example.com/feed.xml",
+      expect.objectContaining({ feedEncoding: "windows-1251" }),
+    );
+
+    getButtonByText(modal.contentEl, "Save").click();
+    await flushPromises();
+    expect(onAdd).toHaveBeenCalledWith(
+      expect.objectContaining({ feedEncoding: "windows-1251" }),
+    );
+  });
+
+  it("loads the feed when Enter is pressed in the URL field", () => {
+    const app = createMockApp();
+    const onAdd: OnAddFn = vi.fn(async () => true);
+    const onSave = vi.fn();
+
+    const modal = new AddFeedModal(app, [], onAdd, onSave);
+    modal.open();
+
+    const handleLoadFeedSpy = vi
+      .spyOn(
+        modal as unknown as { handleLoadFeed: () => Promise<void> },
+        "handleLoadFeed",
+      )
+      .mockResolvedValue(undefined);
+
+    const urlSetting = getSettingByName(modal.contentEl, "Feed URL");
+    const urlInput = urlSetting.querySelector(
+      'input[type="text"]',
+    ) as HTMLInputElement;
+
+    urlInput.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+    );
+
+    expect(handleLoadFeedSpy).toHaveBeenCalledTimes(1);
+  });
+
   it("submits an explicit Off auto-refresh override as -1", async () => {
     const app = createMockApp();
     const onAdd: OnAddFn = vi.fn(async () => true);
@@ -488,7 +566,9 @@ describe("AddFeedModal", () => {
 
   it("renders tag dropdown multi-select and submits selected customTags in object payload", async () => {
     const app = createMockApp();
-    const onAdd = vi.fn(async () => true);
+    const onAdd = vi.fn<(request: AddFeedRequest) => Promise<boolean | void>>(
+      async () => true,
+    );
     const onSave = vi.fn();
 
     const plugin = {
@@ -534,8 +614,11 @@ describe("AddFeedModal", () => {
     await flushPromises();
 
     expect(onAdd).toHaveBeenCalledTimes(1);
-    const requestPayload = onAdd.mock.calls[0]?.[0];
-    expect(requestPayload).toBeDefined();
+    const addCall = (onAdd.mock.calls as Array<[AddFeedRequest]>)[0];
+    const requestPayload = addCall?.[0];
+    if (requestPayload === undefined) {
+      throw new Error("Expected add-feed request payload");
+    }
     expect(requestPayload.url).toBe("https://example.com/feed.xml");
     expect(requestPayload.title).toBe("My feed");
     expect(requestPayload.customTags).toEqual(["News", "Tech"]);

@@ -4,7 +4,11 @@ import type {
   Folder,
   RssDashboardSettings,
 } from "../types/types";
-import { DEFAULT_SETTINGS } from "../types/types";
+import {
+  DEFAULT_SETTINGS,
+  IMAGE_CACHE_LIMIT_MAX_MIB,
+  IMAGE_CACHE_LIMIT_MIN_MIB,
+} from "../types/types";
 import {
   migrateDisplaySettings,
   migrateDefaultFilterToDashboardMultiFilters,
@@ -91,6 +95,14 @@ export function loadAndNormalizeSettings(
     : DEFAULT_SETTINGS.refreshInterval;
 
   if (
+    !Number.isFinite(settings.lastGlobalRefreshCompletedAt) ||
+    settings.lastGlobalRefreshCompletedAt < 0
+  ) {
+    settings.lastGlobalRefreshCompletedAt =
+      DEFAULT_SETTINGS.lastGlobalRefreshCompletedAt;
+  }
+
+  if (
     typeof settings.startupRefreshDelaySeconds !== "number" ||
     settings.startupRefreshDelaySeconds < 0
   ) {
@@ -147,6 +159,20 @@ export function loadAndNormalizeSettings(
     DEFAULT_SETTINGS.display,
     settings.display ?? {},
   );
+  if (
+    !Number.isInteger(settings.display.imageCacheLimitMiB) ||
+    settings.display.imageCacheLimitMiB < IMAGE_CACHE_LIMIT_MIN_MIB
+  ) {
+    settings.display.imageCacheLimitMiB =
+      DEFAULT_SETTINGS.display.imageCacheLimitMiB;
+  }
+  if (settings.display.imageCacheLimitMiB > IMAGE_CACHE_LIMIT_MAX_MIB) {
+    settings.display.imageCacheLimitMiB = IMAGE_CACHE_LIMIT_MAX_MIB;
+  }
+  if (typeof settings.display.imageCacheUnlimited !== "boolean") {
+    settings.display.imageCacheUnlimited =
+      DEFAULT_SETTINGS.display.imageCacheUnlimited;
+  }
   settings.readerFormat = Object.assign(
     {},
     DEFAULT_SETTINGS.readerFormat,
@@ -180,6 +206,13 @@ export function loadAndNormalizeSettings(
 
     if (typeof feed.maxItemsLimit !== "number") {
       feed.maxItemsLimit = settings.maxItems;
+    }
+
+    if (!Number.isFinite(feed.lastRefreshAttemptCompletedAt)) {
+      feed.lastRefreshAttemptCompletedAt =
+        Number.isFinite(feed.lastUpdated) && feed.lastUpdated > 0
+          ? feed.lastUpdated
+          : 0;
     }
   }
 
@@ -278,9 +311,28 @@ export function migrateSettings(settings: RssDashboardSettings): boolean {
     delete displayUnknown.useDomainFavicons;
     didChange = true;
   }
-  migrateDisplaySettings(
-    settings.display as unknown as Record<string, unknown>,
-  );
+  const displayForMigration: Record<string, unknown> = {
+    ...settings.display,
+  };
+  migrateDisplaySettings(displayForMigration);
+  Object.assign(settings.display, displayForMigration);
+  if (
+    !Number.isInteger(settings.display.imageCacheLimitMiB) ||
+    settings.display.imageCacheLimitMiB < IMAGE_CACHE_LIMIT_MIN_MIB
+  ) {
+    settings.display.imageCacheLimitMiB =
+      DEFAULT_SETTINGS.display.imageCacheLimitMiB;
+    didChange = true;
+  }
+  if (settings.display.imageCacheLimitMiB > IMAGE_CACHE_LIMIT_MAX_MIB) {
+    settings.display.imageCacheLimitMiB = IMAGE_CACHE_LIMIT_MAX_MIB;
+    didChange = true;
+  }
+  if (typeof settings.display.imageCacheUnlimited !== "boolean") {
+    settings.display.imageCacheUnlimited =
+      DEFAULT_SETTINGS.display.imageCacheUnlimited;
+    didChange = true;
+  }
 
   settings.keywordRules = Object.assign(
     {},

@@ -30,6 +30,23 @@ function encodeLatin1(text: string): Uint8Array {
   return bytes;
 }
 
+function encodeWindows1251Xml(declaration = true): Uint8Array {
+  const prefix = declaration
+    ? '<?xml version="1.0" encoding="windows-1251"?><rss><channel><title>'
+    : "<rss><channel><title>";
+  const suffix = "</title></channel></rss>";
+  const cyrillic = new Uint8Array([0xcf, 0xf0, 0xe8, 0xe2, 0xe5, 0xf2]);
+  const prefixBytes = new TextEncoder().encode(prefix);
+  const suffixBytes = new TextEncoder().encode(suffix);
+  const result = new Uint8Array(
+    prefixBytes.length + cyrillic.length + suffixBytes.length,
+  );
+  result.set(prefixBytes);
+  result.set(cyrillic, prefixBytes.length);
+  result.set(suffixBytes, prefixBytes.length + cyrillic.length);
+  return result;
+}
+
 beforeEach(() => {
   installObsidianDomPolyfills();
   document.body.empty();
@@ -83,6 +100,46 @@ describe("platform-utils.robustFetch", () => {
 
     const result = await robustFetch("https://example.com/equiv");
     expect(result).toBe(html);
+  });
+
+  it("detects windows-1251 from an XML declaration", async () => {
+    vi.spyOn(Obsidian, "requestUrl").mockResolvedValue({
+      status: 200,
+      headers: { "content-type": "application/rss+xml" },
+      arrayBuffer: toArrayBuffer(encodeWindows1251Xml()),
+      text: "",
+    } as unknown as Awaited<ReturnType<typeof Obsidian.requestUrl>>);
+
+    const result = await robustFetch("https://example.com/cp1251.xml");
+    expect(result).toContain("Привет");
+  });
+
+  it("normalizes a quoted windows-1251 charset in a case-insensitive header", async () => {
+    vi.spyOn(Obsidian, "requestUrl").mockResolvedValue({
+      status: 200,
+      headers: {
+        "Content-Type": 'application/rss+xml; charset="WINDOWS-1251"',
+      },
+      arrayBuffer: toArrayBuffer(encodeWindows1251Xml(false)),
+      text: "",
+    } as unknown as Awaited<ReturnType<typeof Obsidian.requestUrl>>);
+
+    const result = await robustFetch("https://example.com/cp1251.xml");
+    expect(result).toContain("Привет");
+  });
+
+  it("lets an explicit encoding override win over a conflicting header", async () => {
+    vi.spyOn(Obsidian, "requestUrl").mockResolvedValue({
+      status: 200,
+      headers: { "content-type": "application/rss+xml; charset=utf-8" },
+      arrayBuffer: toArrayBuffer(encodeWindows1251Xml(false)),
+      text: "",
+    } as unknown as Awaited<ReturnType<typeof Obsidian.requestUrl>>);
+
+    const result = await robustFetch("https://example.com/cp1251.xml", {
+      encodingOverride: "windows-1251",
+    });
+    expect(result).toContain("Привет");
   });
 
   it("defaults to utf-8 when no charset is detected", async () => {

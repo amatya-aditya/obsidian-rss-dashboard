@@ -43,6 +43,7 @@ export class RssDashboardSettingTab extends PluginSettingTab {
   plugin: RssDashboardPlugin;
   private currentTab: SettingsTabName = getInitialTab();
   private pendingSection: string | null = null;
+  private displaySettingsCleanup: (() => void) | null = null;
 
   constructor(app: App, plugin: RssDashboardPlugin) {
     super(app, plugin);
@@ -59,6 +60,8 @@ export class RssDashboardSettingTab extends PluginSettingTab {
   }
 
   display(): void {
+    this.displaySettingsCleanup?.();
+    this.displaySettingsCleanup = null;
     const { containerEl } = this;
     containerEl.empty();
 
@@ -99,7 +102,7 @@ export class RssDashboardSettingTab extends PluginSettingTab {
         this.pendingSection = null;
         break;
       case "Display":
-        renderDisplaySettingsTab(
+        this.displaySettingsCleanup = renderDisplaySettingsTab(
           tabContent,
           this.plugin,
           onRefresh,

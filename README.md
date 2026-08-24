@@ -283,9 +283,12 @@ modification time to detect changes.
 
 ## Development
 
-Before opening a PR, read the contributor policy in [CONTRIBUTING.MD](CONTRIBUTING.MD), especially the **Compliance Declarations (Audit Guardrails)** section.
+Before opening a PR, read the contributor policy in [CONTRIBUTING.md](CONTRIBUTING.md), especially the **Compliance Declarations (Audit Guardrails)** section.
 
 For implementation examples and approved patterns used in recent compliance passes, see [docs/development/compliance-patterns.md](docs/development/compliance-patterns.md).
+
+Developer plans remain in `docs/plans/` while active, then move through the
+versioned archive workflow documented in [Development Docs](docs/development/README.md#plan-lifecycle-and-archive).
 
 ### Local Setup
 
@@ -329,6 +332,11 @@ nvm use
 npm ci
 npm run build
 ```
+
+`main.js` and `styles.css` are generated build artifacts and are intentionally
+ignored by Git. Commit their source files instead, including `main.ts` and
+`src/styles/`; the release workflow builds and publishes fresh artifacts from
+the tagged source.
 
 ## Troubleshooting
 

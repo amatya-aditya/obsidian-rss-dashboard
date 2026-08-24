@@ -273,8 +273,8 @@ export function renderStorageSettingsTab(
     }
   };
 
-  const descFragment = activeDocument.createDocumentFragment();
-  const legacyDiv = activeDocument.createElement("div");
+  const descFragment = containerEl.win.createFragment();
+  const legacyDiv = containerEl.win.createDiv();
   setCssProps(legacyDiv, { "margin-bottom": "10px" });
   legacyDiv.createEl("strong", { text: "Legacy JSON:" });
   legacyDiv.appendText(
@@ -282,7 +282,7 @@ export function renderStorageSettingsTab(
   );
   descFragment.appendChild(legacyDiv);
 
-  const v1Div = activeDocument.createElement("div");
+  const v1Div = containerEl.win.createDiv();
   setCssProps(v1Div, { "margin-bottom": "10px" });
   v1Div.createEl("strong", { text: "Shard storage v1:" });
   v1Div.appendText(
@@ -290,7 +290,7 @@ export function renderStorageSettingsTab(
   );
   descFragment.appendChild(v1Div);
 
-  const v2Div = activeDocument.createElement("div");
+  const v2Div = containerEl.win.createDiv();
   v2Div.createEl("strong", { text: "Shard storage v2:" });
   v2Div.appendText(
     " Splits feed content and user state (read, starred, tags) into separate files, providing the most robust sync experience.",

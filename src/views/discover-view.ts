@@ -1653,6 +1653,7 @@ export class DiscoverView extends ItemView {
         feedsToAdd,
         {
           mode: "update",
+          globalOperation: true,
           onProgress: (completed: number, total: number) => {
             this.bulkAddCompletedCount = completed;
             this.bulkAddTotalCount = total;
@@ -1695,7 +1696,7 @@ export class DiscoverView extends ItemView {
         undefined,
         undefined,
         undefined,
-        { showNotice: false },
+        { showNotice: false, globalOperation: true },
       );
       if (!added) {
         return;
@@ -2057,7 +2058,7 @@ export class DiscoverView extends ItemView {
     if (startPage > 1) {
       this.createPageButton(paginationContainer, 1, currentPage);
       if (startPage > 2) {
-        paginationContainer.createEl("span", {
+        paginationContainer.createSpan({
           text: "...",
           cls: "rss-dashboard-pagination-ellipsis",
         });
@@ -2068,7 +2069,7 @@ export class DiscoverView extends ItemView {
     }
     if (endPage < totalPages) {
       if (endPage < totalPages - 1) {
-        paginationContainer.createEl("span", {
+        paginationContainer.createSpan({
           text: "...",
           cls: "rss-dashboard-pagination-ellipsis",
         });
@@ -2112,7 +2113,7 @@ export class DiscoverView extends ItemView {
       pageSize,
       currentPage,
     });
-    paginationContainer.createEl("span", {
+    paginationContainer.createSpan({
       cls: "rss-dashboard-pagination-results",
       text: `Results: ${startIdx} - ${endIdx} of ${totalFeeds}`,
     });

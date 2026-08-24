@@ -5,9 +5,13 @@
  * Exports:
  *   - renderDisplaySettingsTab(containerEl, plugin, onRefresh) — main render fn
  */
-import { Setting, setIcon } from "obsidian";
+import { Modal, Notice, Setting, setIcon } from "obsidian";
 import RssDashboardPlugin from "../../../main";
-import { DEFAULT_SETTINGS } from "../../types/types";
+import {
+  DEFAULT_SETTINGS,
+  IMAGE_CACHE_LIMIT_MAX_MIB,
+  IMAGE_CACHE_LIMIT_MIN_MIB,
+} from "../../types/types";
 import { formatDashboardMultiFiltersSummaryCompact } from "../../utils/filter-title-format";
 import {
   computePopoverPosition,
@@ -16,6 +20,49 @@ import {
 
 // Re-export pure helpers from sidebar-settings-tab for backward compatibility
 export { moveIconOrder, normalizeHexColor } from "./sidebar-settings-tab";
+
+class ClearImageCacheConfirmModal extends Modal {
+  private confirmed = false;
+  private resolvePromise: ((value: boolean) => void) | null = null;
+
+  onOpen(): void {
+    this.contentEl.empty();
+    this.contentEl.createEl("h2", { text: "Clear image cache?" });
+    this.contentEl.createEl("p", {
+      text: "This removes only cached dashboard preview images. Feed data, settings, and saved articles are unchanged.",
+    });
+    new Setting(this.contentEl)
+      .addButton((button) =>
+        button.setButtonText("Cancel").onClick(() => this.close()),
+      )
+      .addButton((button) =>
+        button
+          .setButtonText("Clear image cache")
+          .setWarning()
+          .onClick(() => {
+            this.confirmed = true;
+            this.close();
+          }),
+      );
+  }
+
+  onClose(): void {
+    this.contentEl.empty();
+    this.resolvePromise?.(this.confirmed);
+  }
+
+  waitForClose(): Promise<boolean> {
+    return new Promise((resolve) => {
+      this.resolvePromise = resolve;
+    });
+  }
+}
+
+function formatByteSize(bytes: number): string {
+  if (bytes < 1_024) return `${bytes} B`;
+  if (bytes < 1_024 * 1_024) return `${(bytes / 1_024).toFixed(1)} KB`;
+  return `${(bytes / (1_024 * 1_024)).toFixed(1)} MB`;
+}
 
 // ── Tab renderer ──────────────────────────────────────────────────────────────
 
@@ -29,7 +76,7 @@ export function renderDisplaySettingsTab(
   plugin: RssDashboardPlugin,
   onRefresh: () => void,
   targetSection?: string,
-): void {
+): () => void {
   const rerenderActiveReaderView = async (): Promise<void> => {
     const readerView = await plugin.getActiveReaderView?.();
     if (!readerView) {
@@ -51,18 +98,157 @@ export function renderDisplaySettingsTab(
     await rerenderActiveReaderView();
   };
 
+  const rerenderActiveDashboardView = async (): Promise<void> => {
+    const view = await plugin.getActiveDashboardView();
+    if (!view) {
+      return;
+    }
+
+    await plugin.app.workspace.revealLeaf(view.leaf);
+    view.render();
+  };
+
   new Setting(containerEl).setName("Dashboard").setHeading();
 
   new Setting(containerEl)
     .setName("Show cover images")
-    .setDesc("Display cover images for articles in reader view")
+    .setDesc(
+      "Display cover-image previews in dashboard card and feed views. Turning this off reduces remote image loading and can improve browsing performance.",
+    )
     .addToggle((toggle) =>
       toggle
         .setValue(plugin.settings.display.showCoverImage)
         .onChange(async (value) => {
           plugin.settings.display.showCoverImage = value;
           await plugin.saveSettings();
+          await rerenderActiveDashboardView();
         }),
+    );
+
+  new Setting(containerEl)
+    .setName("Allow image caching")
+    .setDesc(
+      "Store card and feed preview images locally to improve browsing performance. Each image is limited to one megabyte and uses additional vault storage. RSS dashboard does not include this cache in feed or settings sync, but a sync tool that copies plugin files may copy it.",
+    )
+    .addToggle((toggle) =>
+      toggle
+        .setValue(plugin.settings.display.allowImageCaching)
+        .onChange(async (value) => {
+          await plugin.setImageCachingEnabled(value);
+          await rerenderActiveDashboardView();
+          onRefresh();
+        }),
+    );
+
+  let isSyncingImageCacheLimitControls = false;
+  let imageCacheLimitSlider: { setValue: (value: number) => void } | null =
+    null;
+  let imageCacheLimitInput: import("obsidian").TextComponent | null = null;
+  const applyImageCacheLimit = async (value: number): Promise<void> => {
+    await plugin.setImageCacheLimit(value, false);
+  };
+
+  const cacheLimitSetting = new Setting(containerEl)
+    .setName("Image cache limit")
+    .setDesc(
+      "Maximum storage for cached dashboard preview images, in MiB. Lowering this limit removes least-recently-used cached images immediately.",
+    )
+    .addSlider((slider) => {
+      imageCacheLimitSlider = slider;
+      slider
+        .setLimits(IMAGE_CACHE_LIMIT_MIN_MIB, IMAGE_CACHE_LIMIT_MAX_MIB, 1)
+        .setValue(plugin.settings.display.imageCacheLimitMiB)
+        .setDynamicTooltip()
+        .onChange(async (value) => {
+          if (isSyncingImageCacheLimitControls) return;
+          isSyncingImageCacheLimitControls = true;
+          imageCacheLimitInput?.setValue(String(value));
+          isSyncingImageCacheLimitControls = false;
+          await applyImageCacheLimit(value);
+        });
+      slider.sliderEl.disabled = plugin.settings.display.imageCacheUnlimited;
+    })
+    .addText((text) => {
+      imageCacheLimitInput = text;
+      text
+        .setValue(String(plugin.settings.display.imageCacheLimitMiB))
+        .setPlaceholder("100");
+      text.inputEl.type = "number";
+      text.inputEl.min = String(IMAGE_CACHE_LIMIT_MIN_MIB);
+      text.inputEl.max = String(IMAGE_CACHE_LIMIT_MAX_MIB);
+      text.inputEl.step = "1";
+      text.inputEl.disabled = plugin.settings.display.imageCacheUnlimited;
+      text.inputEl.addClass("rss-dashboard-settings-number-input");
+      text.inputEl.addEventListener("blur", () => {
+        const value = Number(text.getValue());
+        if (
+          !Number.isInteger(value) ||
+          value < IMAGE_CACHE_LIMIT_MIN_MIB ||
+          value > IMAGE_CACHE_LIMIT_MAX_MIB
+        ) {
+          text.setValue(String(plugin.settings.display.imageCacheLimitMiB));
+          return;
+        }
+        isSyncingImageCacheLimitControls = true;
+        imageCacheLimitSlider?.setValue(value);
+        isSyncingImageCacheLimitControls = false;
+        void applyImageCacheLimit(value);
+      });
+    });
+  cacheLimitSetting.settingEl.addClass("rss-dashboard-settings-two-row");
+
+  new Setting(containerEl)
+    .setName("No cache size limit")
+    .setDesc(
+      "Do not limit total image-cache storage. The one-megabyte limit for each image still applies.",
+    )
+    .addToggle((toggle) =>
+      toggle
+        .setValue(plugin.settings.display.imageCacheUnlimited)
+        .onChange(async (value) => {
+          await plugin.setImageCacheLimit(
+            plugin.settings.display.imageCacheLimitMiB,
+            value,
+          );
+          onRefresh();
+        }),
+    );
+
+  const clearImageCacheSetting = new Setting(containerEl)
+    .setName("Clear image cache")
+    .setDesc(
+      `Cached image storage: ${formatByteSize(plugin.getImageCacheSizeBytes?.() ?? 0)}.`,
+    );
+  const cacheSizeDescriptionEl = clearImageCacheSetting.descEl;
+  const settingsWindow = containerEl.ownerDocument.defaultView;
+  let cacheSizeUpdateTimer: number | null = null;
+  const refreshCacheSize = (): void => {
+    if (!settingsWindow || cacheSizeUpdateTimer !== null) return;
+    cacheSizeUpdateTimer = settingsWindow.setTimeout(() => {
+      cacheSizeUpdateTimer = null;
+      cacheSizeDescriptionEl.setText(
+        `Cached image storage: ${formatByteSize(plugin.getImageCacheSizeBytes?.() ?? 0)}.`,
+      );
+    }, 250);
+  };
+  const unregisterImageCacheChange =
+    plugin.onImageCacheChanged?.(refreshCacheSize) ?? (() => {});
+
+  clearImageCacheSetting.addButton((button) =>
+      button.setButtonText("Clear image cache").onClick(async () => {
+        const modal = new ClearImageCacheConfirmModal(plugin.app);
+        const confirmation = modal.waitForClose();
+        modal.open();
+        if (!(await confirmation)) return;
+
+        const result = await plugin.clearImageCache();
+        new Notice(
+          result.failed === 0
+            ? "Image cache cleared."
+            : `Cleared ${result.cleared} cached images; ${result.failed} could not be removed.`,
+        );
+        onRefresh();
+      }),
     );
 
   new Setting(containerEl)
@@ -74,11 +260,7 @@ export function renderDisplaySettingsTab(
         .onChange(async (value) => {
           plugin.settings.display.showSummary = value;
           await plugin.saveSettings();
-          const view = await plugin.getActiveDashboardView();
-          if (view && plugin.settings.viewStyle === "card") {
-            await plugin.app.workspace.revealLeaf(view.leaf);
-            view.render();
-          }
+          await rerenderActiveDashboardView();
         }),
     );
 
@@ -214,6 +396,27 @@ export function renderDisplaySettingsTab(
         .setValue(plugin.settings.display.showFilterStatusBar ?? true)
         .onChange(async (value) => {
           plugin.settings.display.showFilterStatusBar = value;
+          await plugin.saveSettings();
+          const view = await plugin.getActiveDashboardView();
+          if (view) {
+            await plugin.app.workspace.revealLeaf(view.leaf);
+            view.render();
+          }
+        }),
+    );
+
+  new Setting(containerEl)
+    .setName("Pagination position")
+    .setDesc("Choose whether dashboard pagination appears above or below the articles")
+    .addDropdown((dropdown) =>
+      dropdown
+        .addOption("bottom", "Bottom")
+        .addOption("top", "Top")
+        .setValue(plugin.settings.display.paginationPosition ?? "bottom")
+        .onChange(async (value) => {
+          plugin.settings.display.paginationPosition = value as
+            | "top"
+            | "bottom";
           await plugin.saveSettings();
           const view = await plugin.getActiveDashboardView();
           if (view) {
@@ -943,4 +1146,11 @@ export function renderDisplaySettingsTab(
   );
 
   containerEl.createEl("hr", { cls: "rss-dashboard-settings-separator" });
+
+  return () => {
+    unregisterImageCacheChange();
+    if (settingsWindow && cacheSizeUpdateTimer !== null) {
+      settingsWindow.clearTimeout(cacheSizeUpdateTimer);
+    }
+  };
 }

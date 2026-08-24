@@ -99,7 +99,6 @@ export function createDefaultSettings(): RssDashboardSettings {
       showCoverImage: true,
       showSummary: true,
       showFilterStatusBar: true,
-      showSidebarScrollbar: true,
       showAllFeedsUnreadBadges: true,
       showFolderUnreadBadges: true,
       showFeedUnreadBadges: true,

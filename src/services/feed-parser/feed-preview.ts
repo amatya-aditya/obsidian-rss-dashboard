@@ -1,4 +1,6 @@
 import { requestUrl } from "obsidian";
+import { robustFetch } from "../../utils/platform-utils.js";
+import type { FeedEncoding } from "../../types/types.js";
 import { isValidFeed } from "./feed-validation.js";
 import type { FeedPreviewData, Rss2JsonResponse } from "./types.js";
 
@@ -24,11 +26,11 @@ export function parseFeedPreviewFromXmlText(
 
 export async function loadFeedForPreview(
   feedUrl: string,
+  feedEncoding?: FeedEncoding,
 ): Promise<FeedPreviewData> {
   // Try direct request first
   try {
-    const response = await requestUrl({
-      url: feedUrl,
+    const responseText = await robustFetch(feedUrl, {
       method: "GET",
       headers: {
         "User-Agent":
@@ -36,11 +38,13 @@ export async function loadFeedForPreview(
         Accept:
           "application/rss+xml, application/atom+xml, application/xml, text/xml;q=0.9, */*;q=0.8",
       },
+      encodingOverride:
+        feedEncoding === "windows-1251" ? feedEncoding : undefined,
     });
 
-    if (response.text && isValidFeed(response.text)) {
+    if (responseText && isValidFeed(responseText)) {
       const parser = new DOMParser();
-      const doc = parser.parseFromString(response.text, "text/xml");
+      const doc = parser.parseFromString(responseText, "text/xml");
       return parseFeedDoc(doc, feedUrl);
     }
   } catch {

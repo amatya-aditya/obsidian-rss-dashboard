@@ -18,6 +18,7 @@ import {
   RssDashboardSettings,
   Folder,
   ViewLocation,
+  FeedEncoding,
 } from "../types/types";
 import type {
   FiltersUpdatedEventPayload,
@@ -38,7 +39,18 @@ import { computePagination } from "../utils/pagination-utils";
 import { applyAutomaticArticleTags } from "../utils/tag-utils";
 import { resolveItemExternalUrl } from "../utils/item-url-utils";
 import { buildArticleEmptyStateContext } from "../utils/filter-detection";
+import {
+  formatRefreshStatusTime,
+  getRefreshStatus,
+  getRefreshStatusSegments,
+  type RefreshStatus,
+} from "../utils/refresh-status";
 import { setupDashboardHotkeys } from "../hotkeys/dashboard-hotkeys";
+import { scheduleProcessMathElements } from "../utils/math-rendering";
+import {
+  handleReaderMathCopy,
+  trackReaderMathSelection,
+} from "../utils/math-copy";
 
 export const RSS_DASHBOARD_VIEW_TYPE = "rss-dashboard-view";
 
@@ -524,14 +536,7 @@ export class RssDashboardView extends ItemView {
    * @internal
    */
   public actionMarkAllAsRead(): void {
-    const articles = this.getFilteredArticles();
-    let count = 0;
-    articles.forEach((item) => {
-      if (!item.read) {
-        item.read = true;
-        count++;
-      }
-    });
+    const count = this.updateFilteredArticleReadStatus(true);
 
     if (count > 0) {
       void this.plugin.saveSettings();
@@ -540,6 +545,37 @@ export class RssDashboardView extends ItemView {
     } else {
       new Notice("No unread items in current view");
     }
+  }
+
+  /**
+   * Action: Mark all filtered articles as unread.
+   * @internal
+   */
+  public actionMarkAllAsUnread(): void {
+    const count = this.updateFilteredArticleReadStatus(false);
+
+    if (count > 0) {
+      void this.plugin.saveSettings();
+      this.scheduleRender();
+      new Notice(`Marked ${count} items as unread`);
+    } else {
+      new Notice("No read items in current view");
+    }
+  }
+
+  private updateFilteredArticleReadStatus(read: boolean): number {
+    let count = 0;
+
+    this.getFilteredArticles().forEach((article) => {
+      const backingArticle = this.findBackingArticleForDisplayItem(article);
+      if (backingArticle && backingArticle.read !== read) {
+        backingArticle.read = read;
+        article.read = read;
+        count++;
+      }
+    });
+
+    return count;
   }
 
   /**
@@ -584,6 +620,7 @@ export class RssDashboardView extends ItemView {
   onOpen(): Promise<void> {
     this.articleRenderer = new ArticleRenderer({
       app: this.app,
+      component: this,
       settings: this.settings,
       onArticleSave: (item) => {
         item.saved = true;
@@ -713,6 +750,26 @@ export class RssDashboardView extends ItemView {
         this.containerEl.focus({ preventScroll: true });
       }
     });
+    this.registerDomEvent(this.containerEl, "copy", (event) => {
+      const readerRoot = this.containerEl.querySelector<HTMLElement>(
+        ".rss-reader-content.inline-reader-content",
+      );
+      if (!readerRoot) return;
+
+      const result = handleReaderMathCopy(event, readerRoot);
+      if (result === "failed") {
+        new Notice(
+          "Could not copy formula source; copied rendered selection instead.",
+        );
+      }
+    });
+    this.register(
+      trackReaderMathSelection(this.containerEl, () =>
+        this.containerEl.querySelector<HTMLElement>(
+          ".rss-reader-content.inline-reader-content",
+        ),
+      ),
+    );
     this.registerEvent(
       this.app.workspace.on("active-leaf-change", (leaf) => {
         if (leaf === this.leaf) {
@@ -773,6 +830,7 @@ export class RssDashboardView extends ItemView {
           onDeleteFeed: this.handleDeleteFeed.bind(this),
           onDeleteFolder: this.handleDeleteFolder.bind(this),
           onRefreshFeeds: this.handleRefreshFeeds.bind(this),
+          onRetryFailedFeeds: this.handleRetryFailedFeeds.bind(this),
           onUpdateFeed: this.handleUpdateFeed.bind(this),
           onImportOpml: this.handleImportOpml.bind(this),
           onExportOpml: this.handleExportOpml.bind(this),
@@ -936,6 +994,12 @@ export class RssDashboardView extends ItemView {
           onOpenInReaderView: (article) => {
             void this.handleOpenInReaderView(article);
           },
+          onRenderArticleTitle: (titleElement) => {
+            void scheduleProcessMathElements(titleElement, {
+              app: this.app,
+              component: this,
+            });
+          },
           onToggleSidebar: this.handleToggleSidebar.bind(this),
           onSortChange: this.handleSortChange.bind(this),
           onGroupChange: this.handleGroupChange.bind(this),
@@ -962,26 +1026,13 @@ export class RssDashboardView extends ItemView {
           onPersistSettings: async () => {
             await this.plugin.saveSettings();
           },
+          onResolveCachedImageUrl: (remoteUrl) =>
+            this.plugin.resolveCachedImageUrl(remoteUrl),
           onMarkAllAsRead: () => {
             this.actionMarkAllAsRead();
           },
           onMarkAllAsUnread: () => {
-            const articles = this.getFilteredArticles();
-            let count = 0;
-            articles.forEach((item) => {
-              if (item.read) {
-                item.read = false;
-                count++;
-              }
-            });
-
-            if (count > 0) {
-              void this.plugin.saveSettings();
-              this.scheduleRender();
-              new Notice(`Marked ${count} items as unread`);
-            } else {
-              new Notice("No read items in current view");
-            }
+            this.actionMarkAllAsUnread();
           },
         },
         currentPage,
@@ -1065,8 +1116,8 @@ export class RssDashboardView extends ItemView {
    *     (Data written by computeDashboardMultiFilterCounts() →
    *     this.dashboardMultiFilterCounts)
    *
-   * Visibility: hidden entirely when settings.display.showFilterStatusBar is
-   * false, or when no keyword/highlight/viewing-filter stats are available.
+   * The static refresh status is always present when this existing status-bar
+   * setting is enabled. It intentionally has no relative-time polling timer.
    *
    * Collapse state persisted in this.isFilterSubheaderCollapsed across renders.
    */
@@ -1082,15 +1133,6 @@ export class RssDashboardView extends ItemView {
       this.dashboardMultiFilterCounts !== null;
     const hasHighlightStats = this.highlightMatchCounts.length > 0;
 
-    // Only render when there is at least one row worth of content.
-    if (
-      !hasKeywordStats &&
-      !hasDashboardMultiFilterStats &&
-      !hasHighlightStats
-    ) {
-      return;
-    }
-
     const subheader = container.createDiv({
       cls: "rss-dashboard-filter-subheader",
     });
@@ -1101,6 +1143,20 @@ export class RssDashboardView extends ItemView {
     if (this.keywordFilterTooltip) {
       subheaderContent.setAttribute("title", this.keywordFilterTooltip);
     }
+
+    const refreshStatus = this.getCurrentRefreshStatus();
+    const refreshStatusRow = subheaderContent.createDiv({
+      cls: "rss-dashboard-filter-stats-row rss-dashboard-refresh-status-row",
+    });
+    const refreshStatusText = [
+      `${refreshStatus.completionLabel}: ${formatRefreshStatusTime(refreshStatus.completionAt)}`,
+      ...getRefreshStatusSegments(refreshStatus),
+    ].join(" | ");
+    refreshStatusRow.createSpan({
+      cls: "rss-dashboard-filter-stats-text rss-dashboard-refresh-status-text",
+      text: refreshStatusText,
+      attr: { "aria-live": "polite" },
+    });
 
     // ── Row 1: Keyword rules stats ──────────────────────────────────────────
     if (hasKeywordStats) {
@@ -1318,6 +1374,61 @@ export class RssDashboardView extends ItemView {
   }
 
   // --- Title and article-scope helpers ---
+  private getCurrentRefreshStatus(): RefreshStatus {
+    this.syncCurrentFeedReference();
+    let scope: "all" | "feed" | "aggregate" = "all";
+    let feeds: Feed[] = this.settings.feeds;
+
+    if (this.currentFeed) {
+      scope = "feed";
+      feeds = [this.currentFeed];
+    } else if (
+      this.selectedFolders.length > 0 ||
+      this.selectedFeeds.length > 0
+    ) {
+      scope = "aggregate";
+      feeds = this.getFeedsForSelectedRefreshScope();
+    } else if (
+      this.currentFolder &&
+      !["read", "unread", "starred", "saved", "videos", "podcasts"].includes(
+        this.currentFolder,
+      )
+    ) {
+      scope = "aggregate";
+      const folderPaths = new Set([
+        this.currentFolder,
+        ...this.getAllDescendantFolders(this.currentFolder),
+      ]);
+      feeds = this.settings.feeds.filter(
+        (feed) => Boolean(feed.folder) && folderPaths.has(feed.folder),
+      );
+    }
+
+    return getRefreshStatus({
+      feeds,
+      globalIntervalMinutes: this.settings.refreshInterval,
+      globalCompletionAt: this.settings.lastGlobalRefreshCompletedAt,
+      activeFeedUrls: new Set(this.plugin.activeRefreshState?.keys() ?? []),
+      scope,
+    });
+  }
+
+  private getFeedsForSelectedRefreshScope(): Feed[] {
+    const folderPaths = new Set<string>();
+    for (const folder of this.selectedFolders) {
+      folderPaths.add(folder);
+      for (const descendant of this.getAllDescendantFolders(folder)) {
+        folderPaths.add(descendant);
+      }
+    }
+    const selectedFeeds = new Set(this.selectedFeeds);
+    return this.settings.feeds.filter(
+      (feed) =>
+        selectedFeeds.has(feed.url) ||
+        (Boolean(feed.folder) && folderPaths.has(feed.folder)),
+    );
+  }
+
   private getTotalFeedsInSelection(): number {
     const includedFeeds = new Set<string>(this.selectedFeeds || []);
     if (this.selectedFolders && this.selectedFolders.length > 0) {
@@ -2311,6 +2422,7 @@ export class RssDashboardView extends ItemView {
     customTemplate?: string,
     excludeFromRefresh?: boolean,
     customTags?: string[],
+    feedEncoding?: FeedEncoding,
   ): Promise<void> {
     await this.plugin.addFeed(
       title,
@@ -2323,6 +2435,7 @@ export class RssDashboardView extends ItemView {
       customTemplate,
       excludeFromRefresh,
       customTags,
+      { feedEncoding },
     );
     void this.render();
   }
@@ -2341,6 +2454,7 @@ export class RssDashboardView extends ItemView {
     this.plugin.settings.feeds = this.plugin.settings.feeds.filter(
       (f: Feed) => f !== feed,
     );
+    void this.plugin.removeCachedImagesForDeletedFeed(feed);
     void this.plugin.saveSettings();
 
     if (this.currentFeed === feed) {
@@ -2395,6 +2509,11 @@ export class RssDashboardView extends ItemView {
       this.plugin.cancelPendingStartupRefresh();
       await this.plugin.refreshFeeds();
     }
+  }
+
+  private async handleRetryFailedFeeds(): Promise<void> {
+    this.plugin.cancelPendingStartupRefresh();
+    await this.plugin.refreshFailedFeeds();
   }
 
   private handleImportOpml(): void {
@@ -3307,9 +3426,8 @@ export class RssDashboardView extends ItemView {
   }
 
   refreshSidebarOnly(): void {
-    if (!this.sidebar) {
-      return;
-    }
+    this.settings = this.plugin.settings;
+    if (!this.sidebar) return;
 
     this.sidebar.clearFolderPathCache();
     this.sidebar["options"] = {
@@ -3330,6 +3448,7 @@ export class RssDashboardView extends ItemView {
   }
 
   refresh(): void {
+    this.settings = this.plugin.settings;
     this.render();
   }
 

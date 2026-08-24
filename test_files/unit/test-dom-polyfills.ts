@@ -20,7 +20,7 @@ export function installObsidianDomPolyfills(): void {
     ): boolean => value instanceof ctor;
   }
   if (!globalScope.activeDocument) {
-    globalScope.activeDocument = document;
+    globalScope.activeDocument = window.document;
   }
 
   const documentProto = Document.prototype as unknown as Record<
@@ -112,6 +112,94 @@ export function installObsidianDomPolyfills(): void {
     ): DocumentFragment {
       return this.createDocumentFragment();
     };
+  }
+
+  const ensureWindowDomHelpers = (target: Window): Window => {
+    const helperTarget = target as unknown as Record<string, unknown>;
+
+    if (typeof helperTarget.createEl !== "function") {
+      helperTarget.createEl = function createEl<
+        K extends keyof HTMLElementTagNameMap,
+      >(
+        this: Window,
+        tag: K,
+        opts?: {
+          cls?: string;
+          text?: string;
+          attr?: Record<string, string>;
+          [key: string]: unknown;
+        },
+      ): HTMLElementTagNameMap[K] {
+        return this.document.createEl(tag, opts);
+      };
+    }
+
+    if (typeof helperTarget.createDiv !== "function") {
+      helperTarget.createDiv = function createDiv(
+        this: Window,
+        opts?:
+          | string
+          | { cls?: string; text?: string; attr?: Record<string, string> },
+      ): HTMLDivElement {
+        return this.document.createDiv(opts);
+      };
+    }
+
+    if (typeof helperTarget.createSpan !== "function") {
+      helperTarget.createSpan = function createSpan(
+        this: Window,
+        opts?:
+          | string
+          | { cls?: string; text?: string; attr?: Record<string, string> },
+      ): HTMLSpanElement {
+        return this.document.createSpan(opts);
+      };
+    }
+
+    if (typeof helperTarget.createSvg !== "function") {
+      helperTarget.createSvg = function createSvg<
+        K extends keyof SVGElementTagNameMap,
+      >(
+        this: Window,
+        tag: K,
+        attrs?: Record<string, string>,
+      ): SVGElementTagNameMap[K] {
+        const el = this.document.createElementNS(
+          "http://www.w3.org/2000/svg",
+          tag,
+        );
+        Object.entries(attrs ?? {}).forEach(([key, value]) => {
+          el.setAttribute(key, value);
+        });
+        return el;
+      };
+    }
+
+    if (typeof helperTarget.createFragment !== "function") {
+      helperTarget.createFragment = function createFragment(
+        this: Window,
+      ): DocumentFragment {
+        return this.document.createFragment();
+      };
+    }
+
+    return target;
+  };
+
+  ensureWindowDomHelpers(window);
+  ensureWindowDomHelpers(globalScope.activeWindow);
+
+  if (!Object.getOwnPropertyDescriptor(Node.prototype, "win")) {
+    Object.defineProperty(Node.prototype, "win", {
+      configurable: true,
+      get(this: Node): Window {
+        const owningDocument =
+          this.nodeType === Node.DOCUMENT_NODE
+            ? (this as Document)
+            : this.ownerDocument;
+        return ensureWindowDomHelpers(owningDocument?.defaultView ?? window);
+      },
+    });
   }
 
   const proto = HTMLElement.prototype as unknown as Record<string, unknown>;
@@ -226,7 +314,7 @@ export function installObsidianDomPolyfills(): void {
         | string
         | { cls?: string; text?: string; attr?: Record<string, string> },
     ): HTMLDivElement {
-      const doc = this.ownerDocument ?? document;
+      const doc = this.ownerDocument ?? globalScope.activeDocument ?? window.document;
       const el = doc.createElement("div");
       if (typeof opts === "string") {
         el.className = opts;
@@ -249,7 +337,7 @@ export function installObsidianDomPolyfills(): void {
         | string
         | { cls?: string; text?: string; attr?: Record<string, string> },
     ): HTMLSpanElement {
-      const doc = this.ownerDocument ?? document;
+      const doc = this.ownerDocument ?? globalScope.activeDocument ?? window.document;
       const el = doc.createElement("span");
       if (typeof opts === "string") {
         el.className = opts;
@@ -270,7 +358,7 @@ export function installObsidianDomPolyfills(): void {
       this: HTMLElement,
       text: string,
     ): void {
-      const doc = this.ownerDocument ?? document;
+      const doc = this.ownerDocument ?? globalScope.activeDocument ?? window.document;
       this.append(doc.createTextNode(text));
     };
   }
@@ -288,7 +376,7 @@ export function installObsidianDomPolyfills(): void {
         [key: string]: unknown;
       },
     ): HTMLElementTagNameMap[K] {
-      const doc = this.ownerDocument ?? document;
+      const doc = this.ownerDocument ?? globalScope.activeDocument ?? window.document;
       const el = doc.createElement(tag);
       if (opts?.cls) el.className = opts.cls;
       if (opts?.text !== undefined) el.textContent = opts.text;

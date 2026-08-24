@@ -104,6 +104,10 @@ function makeFeed(
 /** Typed accessor for private RssDashboardView members accessed from tests. */
 interface DashViewTestAPI {
   render: () => void;
+  refresh: () => void;
+  refreshSidebarOnly: () => void;
+  settings: RssDashboardSettings;
+  plugin: { settings: RssDashboardSettings };
   currentFolder: string | null;
   currentFeed: Feed | null;
   selectedTags: string[];
@@ -137,7 +141,11 @@ async function makeView(
   const { RssDashboardView } =
     await import("../../../src/views/dashboard-view");
   const app = new App();
-  const plugin = { settings, saveSettings: vi.fn(async () => {}) };
+  const plugin = {
+    settings,
+    saveSettings: vi.fn(async () => {}),
+    removeCachedImagesForDeletedFeed: vi.fn(async () => {}),
+  };
   const leaf = { app } as unknown as import("obsidian").WorkspaceLeaf;
   const view = new RssDashboardView(leaf, plugin as never);
   view.render = vi.fn();
@@ -148,6 +156,38 @@ describe("Dashboard lifecycle", () => {
   beforeEach(() => {
     installObsidianDomPolyfills();
     document.body.empty();
+  });
+
+  describe("refresh()", () => {
+    it("syncs the settings reference from the plugin before rendering", async () => {
+      const initialSettings = cloneSettings();
+      initialSettings.feeds = [];
+      const view = await makeView(initialSettings);
+
+      const syncedSettings = cloneSettings();
+      syncedSettings.feeds = [makeFeed("https://a.com/feed")];
+      view.plugin.settings = syncedSettings;
+
+      view.refresh();
+
+      expect(view.settings.feeds).toHaveLength(1);
+      expect(view.render).toHaveBeenCalled();
+    }, 10_000);
+  });
+
+  describe("refreshSidebarOnly()", () => {
+    it("syncs the settings reference from the plugin before rendering the sidebar", async () => {
+      const initialSettings = cloneSettings();
+      const view = await makeView(initialSettings);
+
+      const syncedSettings = cloneSettings();
+      syncedSettings.sidebarCollapsed = true;
+      view.plugin.settings = syncedSettings;
+
+      view.refreshSidebarOnly();
+
+      expect(view.settings.sidebarCollapsed).toBe(true);
+    });
   });
 
   describe("getFilteredArticles()", () => {
@@ -627,6 +667,26 @@ describe("Dashboard lifecycle", () => {
       view.handleDeleteFeed(feed1);
       expect(settings.feeds).toHaveLength(1);
       expect(settings.feeds[0].url).toBe("https://b.com/feed");
+    });
+
+    it("removes cached preview images for the deleted feed", async () => {
+      const settings = cloneSettings();
+      const feed1 = makeFeed("https://a.com/feed", "", [
+        { coverImage: "https://images.example.com/deleted.jpg" },
+      ]);
+      const feed2 = makeFeed("https://b.com/feed");
+      settings.feeds = [feed1, feed2];
+      const view = await makeView(settings);
+      const removeCachedImagesForDeletedFeed = vi.fn();
+      (
+        view.plugin as unknown as {
+          removeCachedImagesForDeletedFeed: (feed: Feed) => Promise<void>;
+        }
+      ).removeCachedImagesForDeletedFeed = removeCachedImagesForDeletedFeed;
+
+      view.handleDeleteFeed(feed1);
+
+      expect(removeCachedImagesForDeletedFeed).toHaveBeenCalledWith(feed1);
     });
 
     it("clears currentFeed if the deleted feed was active", async () => {

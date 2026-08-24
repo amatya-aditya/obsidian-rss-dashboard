@@ -1,10 +1,14 @@
 # Release Notes Workflow
 
-This workflow keeps release notes accurate without updating CHANGELOG on every commit.
+This workflow records completed user-visible changes while keeping release-cut
+editing efficient and accurate.
 
 ## Goal
 
-Capture release notes once at PR time, then compile them when cutting Beta/Stable releases.
+Add completed user-visible features and fixes to `CHANGELOG.md` under
+`Unreleased`, keep the PR Release Notes Candidate aligned with that entry, and
+consolidate the collected entries into a wider-audience summary under
+`docs/releases/` when cutting Beta/Stable releases.
 
 ## Label Taxonomy
 
@@ -43,9 +47,19 @@ Use a small, stable label set so filtering is fast and predictable.
 ## Day-to-Day Contributor Workflow
 
 1. Open PRs against dev.
-2. Fill in the PR template, especially Release Notes Candidate.
-3. Apply labels for type, area, and changelog intent.
-4. Keep CHANGELOG unchanged during normal feature iteration.
+2. Do not add a changelog entry while behavior is incomplete or speculative.
+3. When a user-visible feature or fix is complete, add one concise bullet under
+   `Unreleased` -> `Features` or `Fixes`.
+4. When the work has a canonical GitHub issue, append its exact URL using
+   `[GH Issue #N](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/N)`.
+5. Copy the final changelog wording into the PR Release Notes Candidate, or use
+   `N/A` for internal-only refactors, tests, documentation, and tooling.
+6. Apply labels for type, area, and changelog intent.
+7. Do not edit `docs/releases/` for an individual issue or feature.
+8. After implementation and required validation succeed, close any matching
+   active plan using [Plan Lifecycle and Archive](./README.md#plan-lifecycle-and-archive).
+   Move an implemented plan to `docs/archive/plans/unreleased/`, update its
+   metadata and links, and add it to the archive catalog.
 
 ## Release Branch Workflow
 
@@ -55,13 +69,24 @@ Use a small, stable label set so filtering is fast and predictable.
 4. Apply stabilization fixes on release branch.
 5. For each release-bound PR, ensure changelog:yes or changelog:no is set.
 
-## Compiling Changelog for Beta or Stable
+## Compiling Changelog and Public Release Notes
 
-1. Identify merged PRs between previous tag and HEAD of release branch.
-2. Filter PRs with changelog:yes.
-3. Group entries by type and area.
-4. Copy edited Release Notes Candidate bullets into CHANGELOG.
-5. Exclude internal-only refactors unless user-impacting.
+1. Treat the existing `Unreleased` section as the primary release-note source.
+2. Identify merged PRs between the previous tag and HEAD of the release branch.
+3. Cross-check PRs labeled `changelog:yes` against `Unreleased` and add only
+   genuinely missing user-visible entries.
+4. Deduplicate and polish wording while preserving canonical GitHub issue URLs.
+5. Move the final entries into the new version heading, grouped by type and area.
+6. Create or update `docs/releases/<version>.md` as the public-facing summary.
+   Consolidate related changelog bullets, lead with user impact, and omit
+   implementation detail that does not help the wider audience.
+7. Preserve granular issue URLs in `CHANGELOG.md`. Include issue links in the
+   public release summary only when they add useful context.
+8. Exclude internal-only refactors unless they have direct user impact.
+9. Move release-bound implemented plans from
+   `docs/archive/plans/unreleased/` to
+   `docs/archive/plans/v<version>/`; update `released_in`, repository links,
+   and `docs/archive/README.md`.
 
 ## Useful Commands
 
@@ -79,10 +104,18 @@ git diff --name-only 2.3.0-beta.1..HEAD
 
 ## Practical Rules
 
-- Write user-facing wording in PRs, not in commit messages.
+- Write user-facing wording in `CHANGELOG.md` when the behavior is complete.
+- Keep the PR Release Notes Candidate aligned with the changelog entry.
 - Keep each PR focused so one PR maps to one release-note topic.
 - Prefer short, specific bullets over long paragraphs.
-- Final wording polish happens only at release cut time.
+- Update an existing matching bullet instead of adding a duplicate.
+- Preserve the exact canonical issue URL so GitHub can create a cross-reference.
+- Treat `CHANGELOG.md` as the granular record and `docs/releases/` as the
+  consolidated public narrative.
+- Final grouping, consolidation, and public wording polish happens at release
+  cut time.
+- Treat `docs/plans/` as active work, `docs/archive/README.md` as the historical
+  catalog, and the development README as the plan-lifecycle source of truth.
 
 ## LLM Prompt Pack for Commit and PR Drafts
 
@@ -105,7 +138,9 @@ Context rules:
 
 Repository conventions:
 - PR must include: summary, testing evidence, risk/rollback, release notes candidate.
-- Changelog is curated at release cut time, not continuously.
+- Completed user-visible changes are recorded under CHANGELOG.md > Unreleased.
+- Release-cut curation deduplicates the changelog and produces the consolidated
+  public summary under docs/releases/.
 - Labels expected: type, area, changelog intent.
 
 Inputs:

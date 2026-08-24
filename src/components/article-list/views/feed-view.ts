@@ -2,32 +2,12 @@ import { setIcon } from "obsidian";
 import type { FeedItem } from "../../../types/types";
 import { formatArticleDate } from "../../../utils/platform-utils";
 import {
-  extractFirstImageSrc,
   getArticlePreviewSummaryText,
+  resolveArticlePreviewImage,
 } from "../utils/article-preview-utils";
 import { renderSingleRowCardTagChips } from "../utils/tag-layout-utils";
 import { groupArticles } from "../utils/article-grouping";
 import type { BaseViewContext, ViewDeps } from "./view-types";
-
-function resolveCoverImageSrc(article: FeedItem): string | undefined {
-  let coverImgSrc = article.image || article.coverImage;
-  if (!coverImgSrc && article.content) {
-    const extracted = extractFirstImageSrc(article.content);
-    if (extracted) coverImgSrc = extracted;
-  }
-  if (!coverImgSrc && article.summary) {
-    const extracted = extractFirstImageSrc(article.summary);
-    if (extracted) coverImgSrc = extracted;
-  }
-  if (
-    !coverImgSrc &&
-    article.enclosure?.type?.startsWith("image/") &&
-    article.enclosure?.url
-  ) {
-    coverImgSrc = article.enclosure.url;
-  }
-  return coverImgSrc || undefined;
-}
 
 function renderArticleCard(
   container: HTMLElement,
@@ -57,25 +37,42 @@ function renderArticleCard(
     cls: "rss-dashboard-feed-content",
   });
 
-  const coverImgSrc = resolveCoverImageSrc(article);
-  if (coverImgSrc) {
+  const coverImgSrc = ctx.settings.display.showCoverImage
+    ? resolveArticlePreviewImage(article, ["image", "coverImage"])
+    : undefined;
+  const displayedCoverImgSrc =
+    coverImgSrc && ctx.settings.display.allowImageCaching
+      ? (ctx.resolveCachedImageUrl?.(coverImgSrc) ?? coverImgSrc)
+      : coverImgSrc;
+  if (displayedCoverImgSrc) {
     const previewRegion = feedContent.createDiv({
       cls: "rss-dashboard-feed-preview-region",
     });
-    previewRegion.createDiv({
+    const heroBlur = previewRegion.createDiv({
       cls: "rss-dashboard-feed-hero-blur",
       attr: {
-        style: `background-image: url('${coverImgSrc}')`,
+        style: `background-image: url('${displayedCoverImgSrc}')`,
       },
     });
-    previewRegion.createEl("img", {
+    const heroImage = previewRegion.createEl("img", {
       cls: "rss-dashboard-feed-hero-image",
       attr: {
-        src: coverImgSrc,
+        src: displayedCoverImgSrc,
         alt: article.title,
         loading: "lazy",
       },
     });
+    heroImage.onerror = () => {
+      if (
+        displayedCoverImgSrc !== coverImgSrc &&
+        coverImgSrc &&
+        heroImage.dataset.rssCacheRemoteFallback !== "true"
+      ) {
+        heroImage.dataset.rssCacheRemoteFallback = "true";
+        heroImage.setAttribute("src", coverImgSrc);
+        heroBlur.setAttribute("style", `background-image: url('${coverImgSrc}')`);
+      }
+    };
   }
 
   const textRegion = feedContent.createDiv({
@@ -95,6 +92,8 @@ function renderArticleCard(
   } else {
     titleEl.textContent = article.title;
   }
+  titleEl.dataset.articleTitle = article.title;
+  deps.scheduleMathRendering?.(titleEl);
 
   if (ctx.showFeedSource) {
     const articleMeta = header.createDiv({
@@ -111,7 +110,9 @@ function renderArticleCard(
     });
   }
 
-  const feedPreviewText = getArticlePreviewSummaryText(article);
+  const feedPreviewText = ctx.settings.display.showSummary
+    ? getArticlePreviewSummaryText(article)
+    : "";
   if (feedPreviewText) {
     const summaryEl = textRegion.createDiv({
       cls: "rss-dashboard-feed-summary",

@@ -347,3 +347,32 @@ export const RSS2_SUBSTACK_QUOTED_ATTRS = `<?xml version="1.0" encoding="UTF-8"?
     </item>
   </channel>
 </rss>`;
+
+export const RSS2_WORDPRESS_LATEX_IMAGES = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+  <channel>
+    <title>WordPress Math Feed</title>
+    <link>https://math.example.com</link>
+    <item>
+      <title>Formula-only article</title>
+      <link>https://math.example.com/formula-only</link>
+      <description>Formula-only summary</description>
+      <content:encoded><![CDATA[
+        <p>A function <img src="https://s0.wp.com/latex.php?latex=%7Bf%28t%29%7D&#038;bg=ffffff&#038;fg=000000" srcset="https://s0.wp.com/latex.php?latex=%7Bf%28t%29%7D&#038;bg=ffffff 1x, https://s0.wp.com/latex.php?latex=%7Bf%28t%29%7D&#038;bg=ffffff&#038;zoom=4.5 4x" alt="{f(t)}" class="latex" /> remains inline.</p>
+      ]]></content:encoded>
+      <pubDate>Thu, 06 Aug 2026 18:26:54 GMT</pubDate>
+      <guid>wordpress-formula-only</guid>
+    </item>
+    <item>
+      <title>Formula followed by a photo</title>
+      <link>https://math.example.com/formula-and-photo</link>
+      <description>Formula and photo summary</description>
+      <content:encoded><![CDATA[
+        <p><img class="latex" src="https://s0.wp.com/latex.php?latex=%7Bx%7D&#038;bg=ffffff" alt="{x}" /></p>
+        <figure><img src="https://math.example.com/article-photo.jpg" alt="Article photo" /></figure>
+      ]]></content:encoded>
+      <pubDate>Wed, 05 Aug 2026 18:26:54 GMT</pubDate>
+      <guid>wordpress-formula-and-photo</guid>
+    </item>
+  </channel>
+</rss>`;

@@ -17,6 +17,7 @@ export interface ViewDeps {
     mode: "full" | "minimal-read",
   ): void;
   showArticleContextMenu(event: MouseEvent, article: FeedItem): void;
+  scheduleMathRendering?(element: HTMLElement): void;
   scheduleCardTagLayout?(card: HTMLElement): void;
   onToggleFeedSectionCollapse?(
     feedSourceName: string,
@@ -30,6 +31,7 @@ export interface BaseViewContext {
   settings: Pick<RssDashboardSettings, "highlights" | "display"> & {
     collapsedFeedSections?: string[];
   };
+  resolveCachedImageUrl?: (remoteUrl: string) => string | null;
   highlightService: HighlightService | null;
   callbacks: ViewCallbacks;
 }

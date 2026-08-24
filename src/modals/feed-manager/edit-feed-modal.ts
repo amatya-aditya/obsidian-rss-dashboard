@@ -2,6 +2,7 @@ import { Modal, App, Setting, Notice, setIcon } from "obsidian";
 import type RssDashboardPlugin from "../../../main";
 import type {
   Feed,
+  FeedEncoding,
   FeedKeywordRulesSettings,
   SavedTemplate,
   Tag,
@@ -57,6 +58,7 @@ export class EditFeedModal extends Modal {
   private status: string = "";
   private latestEntry: string = "-";
   private customTags: string[];
+  private feedEncoding: FeedEncoding;
   private originalCustomTags: string[];
   private autoDeleteDuration: number;
   private maxItemsLimit: number;
@@ -94,6 +96,7 @@ export class EditFeedModal extends Modal {
 
     this.originalCustomTags = [...(this.feed.customTags ?? [])];
     this.customTags = [...(this.feed.customTags ?? [])];
+    this.feedEncoding = this.feed.feedEncoding ?? "auto";
 
     this.autoDeleteDuration = this.feed.autoDeleteDuration || 0;
     this.maxItemsLimit =
@@ -187,6 +190,7 @@ export class EditFeedModal extends Modal {
       const preview = await resolveAndLoadPreview(this.url, {
         corsProxyEnabled: this.plugin?.settings?.corsProxyEnabled,
         corsProxyUrl: this.plugin?.settings?.corsProxyUrl,
+        feedEncoding: this.feedEncoding,
       });
 
       const conversionNotice = getPreviewConversionNotice(preview);
@@ -270,13 +274,20 @@ export class EditFeedModal extends Modal {
         this.urlInput.placeholder = "https://example.com/feed.xml";
         this.urlInput.addClass("feed-url-input");
         this.urlInput.addEventListener("focus", () => this.urlInput.select());
-        this.urlInput.addEventListener("keydown", (e) => {
+        const handleEnter = (e: KeyboardEvent) => {
           if (e.key === "Enter") {
-            this.titleInput?.focus();
-          } else if (e.key === "Escape") {
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            if (e.type === "keydown") {
+              void this.handleLoadFeed();
+            }
+          } else if (e.key === "Escape" && e.type === "keydown") {
             this.close();
           }
-        });
+        };
+        this.urlInput.addEventListener("keydown", handleEnter, { capture: true });
+        this.urlInput.addEventListener("keypress", handleEnter, { capture: true });
+        this.urlInput.addEventListener("keyup", handleEnter, { capture: true });
         this.urlInput.addEventListener("blur", this.normalizeNitterUrl);
         this.urlInput.addEventListener("paste", () => {
           window.setTimeout(this.normalizeNitterUrl, 0);
@@ -381,6 +392,23 @@ export class EditFeedModal extends Modal {
     const perFeedControlsBody = perFeedControlsDetails.createDiv({
       cls: "rss-keyword-filter-details-body",
     });
+
+    new Setting(perFeedControlsBody)
+      .setName("Feed encoding")
+      .setDesc(
+        "Use automatic detection unless this RSS or atom feed must be decoded as windows-1251.",
+      )
+      .addDropdown((dropdown) => {
+        dropdown
+          .addOption("auto", "Auto-detect")
+          .addOption("windows-1251", "Windows-1251")
+          .setValue(this.feedEncoding)
+          .onChange((value) => {
+            if (value === "auto" || value === "windows-1251") {
+              this.feedEncoding = value;
+            }
+          });
+      });
 
     const highlightElement = (el: HTMLElement, className: string): void => {
       el.addClass(className);
@@ -856,12 +884,18 @@ export class EditFeedModal extends Modal {
         }
 
         const oldTitle = this.feed.title;
+        const oldUrl = this.feed.url;
         const previousAutoDeleteDuration =
           typeof this.feed.autoDeleteDuration === "number"
             ? this.feed.autoDeleteDuration
             : 0;
+        const previousFeedEncoding = this.feed.feedEncoding ?? "auto";
         this.feed.title = this.title;
         this.feed.url = this.url;
+        if (oldUrl !== this.url) {
+          this.feed.lastRefreshAttemptCompletedAt = 0;
+          this.feed.lastFetchError = undefined;
+        }
         const finalFolder = this.folderInput?.value || this.folder;
         this.feed.folder = finalFolder;
 
@@ -884,6 +918,10 @@ export class EditFeedModal extends Modal {
         this.feed.maxItemsLimit = newMaxItemsLimit;
         this.feed.scanInterval = this.scanInterval;
         this.feed.excludeFromRefresh = this.excludeFromRefresh;
+        this.feed.feedEncoding =
+          this.feedEncoding === "windows-1251"
+            ? this.feedEncoding
+            : undefined;
         this.feed.customTemplate = this.customTemplate || undefined;
         this.feed.keywordRules = {
           overrideGlobalRules: this.feedKeywordRules.overrideGlobalRules,
@@ -892,6 +930,8 @@ export class EditFeedModal extends Modal {
         };
         const didAutoDeleteDurationChange =
           previousAutoDeleteDuration !== this.autoDeleteDuration;
+        const didFeedEncodingChange =
+          previousFeedEncoding !== this.feedEncoding;
 
         if (newMaxItemsLimit > 0 && this.feed.items.length > newMaxItemsLimit) {
           this.feed.items.sort(
@@ -906,7 +946,7 @@ export class EditFeedModal extends Modal {
           new Notice("Feed updated");
         }
         await this.plugin.saveSettings();
-        if (didAutoDeleteDurationChange) {
+        if (didAutoDeleteDurationChange || didFeedEncodingChange) {
           await this.plugin.refreshSelectedFeed?.(this.feed);
         }
         this.plugin.notifyFiltersUpdated({

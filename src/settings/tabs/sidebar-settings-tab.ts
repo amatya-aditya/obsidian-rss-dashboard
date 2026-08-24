@@ -87,23 +87,6 @@ export function renderSidebarSettingsTab(
   new Setting(containerEl).setName("Sidebar").setHeading();
 
   new Setting(containerEl)
-    .setName("Show sidebar scrollbar")
-    .setDesc("Show the scrollbar in the sidebar feed list")
-    .addToggle((toggle) =>
-      toggle
-        .setValue(plugin.settings.display.showSidebarScrollbar ?? true)
-        .onChange(async (value) => {
-          plugin.settings.display.showSidebarScrollbar = value;
-          await plugin.saveSettings();
-          const view = await plugin.getActiveDashboardView();
-          if (view?.sidebar) {
-            await plugin.app.workspace.revealLeaf(view.leaf);
-            view.sidebar.render();
-          }
-        }),
-    );
-
-  new Setting(containerEl)
     .setName("Hide default RSS icon")
     .setDesc("Hide the default RSS icon for regular feeds in the sidebar")
     .addToggle((toggle) =>
@@ -314,18 +297,8 @@ export function renderSidebarSettingsTab(
       if (!icon) return;
       const hideKey = icon.settingKey;
 
-      const nameFrag = activeDocument.createDocumentFragment();
-      const labelWrap = activeDocument.createElement("span");
-      labelWrap.addClass("rss-settings-icon-label");
-      const iconSpan = activeDocument.createElement("span");
-      iconSpan.addClass("rss-settings-icon-preview");
-      setIcon(iconSpan, icon.lucideIcon);
-      labelWrap.append(iconSpan);
-      labelWrap.append(` ${icon.label}`);
-      nameFrag.append(labelWrap);
-
       const iconSetting = new Setting(iconRowsContainer)
-        .setName(nameFrag)
+        .setName(icon.label)
         .setDisabled(hideToolbar)
         .addToggle((toggle) =>
           toggle
@@ -346,7 +319,12 @@ export function renderSidebarSettingsTab(
       iconSetting.settingEl.addClass("rss-dashboard-icon-visibility-row");
       iconSetting.settingEl.setAttribute("data-icon-id", id);
 
-      const dragHandle = activeDocument.createElement("button");
+      const iconPreview = containerEl.win.createSpan();
+      iconPreview.addClass("rss-settings-icon-preview");
+      setIcon(iconPreview, icon.lucideIcon);
+      iconSetting.nameEl.prepend(iconPreview);
+
+      const dragHandle = containerEl.win.createEl("button");
       dragHandle.type = "button";
       dragHandle.addClass("rss-dashboard-icon-drag-handle");
       dragHandle.setAttribute("draggable", "true");
@@ -354,7 +332,7 @@ export function renderSidebarSettingsTab(
       setIcon(dragHandle, "grip-vertical");
       iconSetting.nameEl.prepend(dragHandle);
 
-      const upBtn = activeDocument.createElement("button");
+      const upBtn = containerEl.win.createEl("button");
       upBtn.addClass("rss-dashboard-icon-order-btn");
       upBtn.setAttribute("aria-label", `Move ${icon.label} up`);
       upBtn.textContent = "↑";
@@ -380,7 +358,7 @@ export function renderSidebarSettingsTab(
         }
       });
 
-      const downBtn = activeDocument.createElement("button");
+      const downBtn = containerEl.win.createEl("button");
       downBtn.addClass("rss-dashboard-icon-order-btn");
       downBtn.setAttribute("aria-label", `Move ${icon.label} down`);
       downBtn.textContent = "↓";

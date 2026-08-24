@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { afterEach, describe, it, expect, vi } from "vitest";
 import { DEFAULT_SETTINGS, type Feed, type MediaSettings } from "../../../../src/types/types.js";
 import * as obsidian from "obsidian";
 import { type RequestUrlResponse } from "obsidian";
@@ -7,6 +7,7 @@ import {
   RSS2_MASTODON_PROFILE_IMAGE,
   RSS2_WITH_IMAGE,
   RSS2_PODCAST_WITH_CHANNEL_ITUNES_IMAGE,
+  RSS2_WORDPRESS_LATEX_IMAGES,
 } from "./fixtures/rss-fixtures.js";
 
 /** Creates a minimal but fully-typed {@link RequestUrlResponse} stub for mocking. */
@@ -15,6 +16,10 @@ function mockResponse(status: number, text: string): RequestUrlResponse {
 }
 
 describe("FeedParser.parseFeed", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   const mediaSettings: MediaSettings = {
     autoTagVideos: true,
     rememberPlaybackProgress: true,
@@ -710,6 +715,67 @@ describe("FeedParser.parseFeed", () => {
     requestUrlSpy.mockRestore();
   });
 
+  it("keeps WordPress LaTeX images in content without promoting them to article media", async () => {
+    const feedUrl = "https://math.example.com/feed";
+    const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
+    requestUrlSpy.mockResolvedValueOnce(
+      mockResponse(200, RSS2_WORDPRESS_LATEX_IMAGES),
+    );
+
+    const parser = new FeedParser(DEFAULT_SETTINGS.display, [], mediaSettings);
+    const parsed = await parser.parseFeed(feedUrl, null);
+    const formulaOnly = parsed.items.find(
+      (item) => item.guid === "https://math.example.com/wordpress-formula-only",
+    );
+    const formulaAndPhoto = parsed.items.find(
+      (item) =>
+        item.guid === "https://math.example.com/wordpress-formula-and-photo",
+    );
+
+    expect(formulaOnly?.coverImage).toBeFalsy();
+    expect(formulaOnly?.image).toBeFalsy();
+    expect(formulaOnly?.content).toContain('class="latex"');
+    expect(formulaOnly?.content).toContain("srcset=");
+    expect(formulaAndPhoto?.coverImage).toBe(
+      "https://math.example.com/article-photo.jpg",
+    );
+    expect(formulaAndPhoto?.image).toBe(
+      "https://math.example.com/article-photo.jpg",
+    );
+
+    requestUrlSpy.mockRestore();
+  });
+
+  it("clears stale formula-valued media fields during feed refresh", async () => {
+    const feedUrl = "https://math.example.com/feed";
+    const formulaUrl =
+      "https://s0.wp.com/latex.php?latex=%7Bf%28t%29%7D&bg=ffffff";
+    const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
+    requestUrlSpy
+      .mockResolvedValueOnce(mockResponse(200, RSS2_WORDPRESS_LATEX_IMAGES))
+      .mockResolvedValueOnce(mockResponse(200, RSS2_WORDPRESS_LATEX_IMAGES));
+
+    const parser = new FeedParser(DEFAULT_SETTINGS.display, [], mediaSettings);
+    const initial = await parser.parseFeed(feedUrl, null);
+    const formulaOnly = initial.items.find(
+      (item) => item.guid === "https://math.example.com/wordpress-formula-only",
+    );
+    expect(formulaOnly).toBeTruthy();
+    if (!formulaOnly) return;
+    formulaOnly.coverImage = formulaUrl;
+    formulaOnly.image = formulaUrl;
+
+    const refreshed = await parser.parseFeed(feedUrl, initial);
+    const refreshedFormulaOnly = refreshed.items.find(
+      (item) => item.guid === "https://math.example.com/wordpress-formula-only",
+    );
+
+    expect(refreshedFormulaOnly?.coverImage).toBeFalsy();
+    expect(refreshedFormulaOnly?.image).toBeFalsy();
+
+    requestUrlSpy.mockRestore();
+  });
+
   it("extracts media:description as the summary when summary/description is missing", async () => {
     const feedUrl = "https://www.youtube.com/feeds/videos.xml?channel_id=UCsT0YIqwnpJCM-mx7-gSA4Q";
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
@@ -747,5 +813,25 @@ describe("FeedParser.parseFeed", () => {
     expect(item.summary).toBe("Sometimes the biggest problems have the simplest causes.");
 
     requestUrlSpy.mockRestore();
+  });
+
+  it("does not persist an abort as a feed failure", async () => {
+    const feed: Feed = {
+      title: "Abortable Feed",
+      url: "https://example.com/abortable.xml",
+      folder: "Uncategorized",
+      items: [],
+      lastUpdated: Date.now(),
+      lastFetchError: "previous error",
+    };
+    const parser = new FeedParser(DEFAULT_SETTINGS.display, [], mediaSettings);
+    vi.spyOn(parser, "parseFeed").mockRejectedValue(new Error("Aborted"));
+    const controller = new AbortController();
+    controller.abort();
+
+    await expect(
+      parser.refreshFeed(feed, { signal: controller.signal }),
+    ).rejects.toThrow("Aborted");
+    expect(feed.lastFetchError).toBe("previous error");
   });
 });

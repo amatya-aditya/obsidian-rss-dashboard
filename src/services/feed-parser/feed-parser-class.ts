@@ -17,7 +17,10 @@ import { fetchFeedXml } from "./feed-fetch.js";
 import { parseFetchErrorMessage } from "./feed-errors.js";
 import { CustomXMLParser } from "./xml-parser/custom-xml-parser.js";
 import { assertParsedFeedHasEntries } from "./parsed-feed-assert.js";
-import { FEED_REQUEST_TIMEOUT_MS, FEED_SOFT_TIMEOUT_MS } from "../feed-timeout.js";
+import {
+  FEED_REQUEST_TIMEOUT_MS,
+  FEED_SOFT_TIMEOUT_MS,
+} from "../feed-timeout.js";
 import { globalFetchSemaphore } from "./fetch-semaphore.js";
 import {
   applyFeedRetentionLimits,
@@ -27,7 +30,12 @@ import {
 } from "./feed-retention.js";
 import type { FeedParseOptions, ParsedFeed, ParsedItem } from "./types.js";
 import { decodeHtmlEntities } from "./xml-parser/xml-html-utils.js";
-import { optimizeImageUrl, sanitizeImageUrl } from "../../utils/image-url-utils.js";
+import {
+  isLatexFormulaImage,
+  isLatexFormulaImageElement,
+  optimizeImageUrl,
+  sanitizeImageUrl,
+} from "../../utils/image-url-utils.js";
 
 const TRACKING_PIXEL_PATTERNS = [
   "tracking/",
@@ -40,6 +48,19 @@ const TRACKING_PIXEL_PATTERNS = [
 
 function isTrackingPixel(url: string): boolean {
   return TRACKING_PIXEL_PATTERNS.some((p) => url.includes(p));
+}
+
+function sanitizeArticleImageUrl(raw: unknown): string {
+  const sanitized = sanitizeImageUrl(raw);
+  return isLatexFormulaImage(sanitized) ? "" : sanitized;
+}
+
+function firstSanitizedArticleImageUrl(candidates: unknown[]): string {
+  for (const candidate of candidates) {
+    const sanitized = sanitizeArticleImageUrl(candidate);
+    if (sanitized) return sanitized;
+  }
+  return "";
 }
 
 export type { FeedParseOptions } from "./types.js";
@@ -255,10 +276,13 @@ export class FeedParser {
             `[RSS Dashboard] extractCoverImage: og:image contains double-encoded: ${content}`,
           );
         }
-        if (content && content.startsWith("http")) {
-          return optimizeImageUrl(content);
-        } else if (content && baseUrl) {
-          return optimizeImageUrl(this.convertToAbsoluteUrl(content, baseUrl));
+        const resolvedContent = content?.startsWith("http")
+          ? content
+          : content && baseUrl
+            ? this.convertToAbsoluteUrl(content, baseUrl)
+            : "";
+        if (resolvedContent && !isLatexFormulaImage(resolvedContent)) {
+          return optimizeImageUrl(resolvedContent);
         }
       }
 
@@ -271,14 +295,19 @@ export class FeedParser {
             `[RSS Dashboard] extractCoverImage: twitter:image contains double-encoded: ${content}`,
           );
         }
-        if (content && content.startsWith("http")) {
-          return optimizeImageUrl(content);
-        } else if (content && baseUrl) {
-          return optimizeImageUrl(this.convertToAbsoluteUrl(content, baseUrl));
+        const resolvedContent = content?.startsWith("http")
+          ? content
+          : content && baseUrl
+            ? this.convertToAbsoluteUrl(content, baseUrl)
+            : "";
+        if (resolvedContent && !isLatexFormulaImage(resolvedContent)) {
+          return optimizeImageUrl(resolvedContent);
         }
       }
 
-      const firstImg = doc.querySelector("img");
+      const firstImg = Array.from(doc.querySelectorAll("img")).find(
+        (image) => !isLatexFormulaImageElement(image),
+      );
       if (firstImg) {
         const src = firstImg.getAttribute("src");
         // Debug: log first img src for troubleshooting double-encoding
@@ -305,7 +334,7 @@ export class FeedParser {
             `[RSS Dashboard] extractCoverImage: img src contains double-encoded: ${src}`,
           );
         }
-        if (isJunkSrc(src)) continue;
+        if (isJunkSrc(src) || isLatexFormulaImageElement(img)) continue;
         if (
           src &&
           src.startsWith("http") &&
@@ -338,7 +367,6 @@ export class FeedParser {
 
     return "";
   }
-
 
   private extractPodcastCoverImage(
     item: ParsedItem,
@@ -407,11 +435,15 @@ export class FeedParser {
     }
 
     if (parsed.feedItunesImage) {
-      return optimizeImageUrl(this.convertToAbsoluteUrl(parsed.feedItunesImage, baseUrl));
+      return optimizeImageUrl(
+        this.convertToAbsoluteUrl(parsed.feedItunesImage, baseUrl),
+      );
     }
 
     if (parsed.feedImageUrl) {
-      return optimizeImageUrl(this.convertToAbsoluteUrl(parsed.feedImageUrl, baseUrl));
+      return optimizeImageUrl(
+        this.convertToAbsoluteUrl(parsed.feedImageUrl, baseUrl),
+      );
     }
 
     return "";
@@ -421,7 +453,12 @@ export class FeedParser {
     if (!description) return "";
 
     try {
-      let text = htmlToReadableText(description);
+      // Replace math spans with a placeholder so raw LaTeX doesn't appear in preview text
+      const cleaned = description.replace(
+        /<span[^>]+class=["'][^"']*\bmath(?:-container)?\b[^"']*["'][^>]*>[\s\S]*?<\/span>/gi,
+        "[math]",
+      );
+      let text = htmlToReadableText(cleaned);
       text = decodeHtmlEntities(text);
       text = text.replace(/\s+/g, " ").trim();
 
@@ -444,7 +481,14 @@ export class FeedParser {
       throw new Error("Feed url is required");
     }
 
-    const responseText = await fetchFeedXml(url, this.getCorsProxyEnabled(), options?.signal);
+    const responseText = await fetchFeedXml(
+      url,
+      this.getCorsProxyEnabled(),
+      options?.signal,
+      existingFeed?.feedEncoding === "windows-1251"
+        ? existingFeed.feedEncoding
+        : undefined,
+    );
     const parsed = this.parser.parseString(responseText);
 
     assertParsedFeedHasEntries(parsed, options);
@@ -543,21 +587,24 @@ export class FeedParser {
             this.resolvePodcastCoverImage(item, parsed, url) ||
             existingItem.coverImage;
         } else {
-          coverImage = sanitizeImageUrl(
-            this.extractCoverImage(
-              item.content || item.description || "",
-              url,
-            ) ||
-            optimizeImageUrl(
-              this.convertToAbsoluteUrl(
-                item.itunes?.image?.href || item.image?.url || "",
+          coverImage =
+            firstSanitizedArticleImageUrl([
+              this.extractCoverImage(
+                item.content || item.description || "",
                 url,
-              )
-            ) ||
-            (item.enclosure?.type?.startsWith("image/")
-              ? optimizeImageUrl(this.convertToAbsoluteUrl(item.enclosure.url, url))
-              : "")
-          ) || existingItem.coverImage;
+              ),
+              optimizeImageUrl(
+                this.convertToAbsoluteUrl(item.itunes?.image?.href || "", url),
+              ),
+              optimizeImageUrl(
+                this.convertToAbsoluteUrl(item.image?.url || "", url),
+              ),
+              item.enclosure?.type?.startsWith("image/")
+                ? optimizeImageUrl(
+                    this.convertToAbsoluteUrl(item.enclosure.url, url),
+                  )
+                : "",
+            ]) || sanitizeArticleImageUrl(existingItem.coverImage);
         }
         const updatedItem: FeedItem = {
           ...existingItem,
@@ -582,17 +629,24 @@ export class FeedParser {
           summary:
             this.extractSummary(item.content || item.description || "") ||
             existingItem.summary,
-          image: sanitizeImageUrl(
-            optimizeImageUrl(
-              this.convertToAbsoluteUrl(
-                item.itunes?.image?.href || item.image?.url || "",
+          image:
+            firstSanitizedArticleImageUrl([
+              optimizeImageUrl(
+                this.convertToAbsoluteUrl(item.itunes?.image?.href || "", url),
+              ),
+              optimizeImageUrl(
+                this.convertToAbsoluteUrl(item.image?.url || "", url),
+              ),
+              this.extractCoverImage(
+                item.content || item.description || "",
                 url,
-              )
-            ) ||
-            (item.enclosure?.type?.startsWith("image/")
-              ? optimizeImageUrl(this.convertToAbsoluteUrl(item.enclosure.url, url))
-              : "")
-          ) || existingItem.image,
+              ),
+              item.enclosure?.type?.startsWith("image/")
+                ? optimizeImageUrl(
+                    this.convertToAbsoluteUrl(item.enclosure.url, url),
+                  )
+                : "",
+            ]) || sanitizeArticleImageUrl(existingItem.image),
           duration: item.itunes?.duration || existingItem.duration,
           explicit: item.itunes?.explicit === "yes" || existingItem.explicit,
           category: item.itunes?.category || existingItem.category,
@@ -631,37 +685,35 @@ export class FeedParser {
         if (isPodcast) {
           coverImage = this.resolvePodcastCoverImage(item, parsed, url);
         } else {
-          coverImage = sanitizeImageUrl(
-            this.extractCoverImage(
-              item.content || item.description || "",
-              url,
-            ) ||
+          coverImage = firstSanitizedArticleImageUrl([
+            this.extractCoverImage(item.content || item.description || "", url),
             optimizeImageUrl(
-              this.convertToAbsoluteUrl(
-                item.itunes?.image?.href || item.image?.url || "",
-                url,
+              this.convertToAbsoluteUrl(item.itunes?.image?.href || "", url),
+            ),
+            optimizeImageUrl(
+              this.convertToAbsoluteUrl(item.image?.url || "", url),
+            ),
+            item.enclosure?.type?.startsWith("image/")
+              ? optimizeImageUrl(
+                  this.convertToAbsoluteUrl(item.enclosure.url, url),
+                )
+              : "",
+          ]);
+        }
+        const image = firstSanitizedArticleImageUrl([
+          optimizeImageUrl(
+            this.convertToAbsoluteUrl(item.itunes?.image?.href || "", url),
+          ),
+          optimizeImageUrl(
+            this.convertToAbsoluteUrl(item.image?.url || "", url),
+          ),
+          this.extractCoverImage(item.content || item.description || "", url),
+          item.enclosure?.type?.startsWith("image/")
+            ? optimizeImageUrl(
+                this.convertToAbsoluteUrl(item.enclosure.url, url),
               )
-            ) ||
-            (item.enclosure?.type?.startsWith("image/")
-              ? optimizeImageUrl(this.convertToAbsoluteUrl(item.enclosure.url, url))
-              : "")
-          );
-        }
-        let image = sanitizeImageUrl(optimizeImageUrl(
-          this.convertToAbsoluteUrl(
-            item.itunes?.image?.href || item.image?.url || "",
-            url,
-          )
-        ));
-        if (!image) {
-          image = sanitizeImageUrl(this.extractCoverImage(
-            item.content || item.description || "",
-            url,
-          ));
-        }
-        if (!image && item.enclosure?.type?.startsWith("image/")) {
-          image = sanitizeImageUrl(optimizeImageUrl(this.convertToAbsoluteUrl(item.enclosure.url, url)));
-        }
+            : "",
+        ]);
         const summary = this.extractSummary(
           item.content || item.description || "",
         );
@@ -791,7 +843,10 @@ export class FeedParser {
     );
 
     const absoluteFeedLogoUrl = feedLogoUrl
-      ? this.convertToAbsoluteUrl(feedLogoUrl, url).replace(/\.(png|jpe?g|gif|webp|svg|ico)\/+$/i, ".$1")
+      ? this.convertToAbsoluteUrl(feedLogoUrl, url).replace(
+          /\.(png|jpe?g|gif|webp|svg|ico)\/+$/i,
+          ".$1",
+        )
       : "";
 
     if (absoluteFeedLogoUrl) {
@@ -820,9 +875,21 @@ export class FeedParser {
     feed.items = updated.items;
   }
 
-  async refreshFeed(feed: Feed): Promise<Feed> {
+  async refreshFeed(
+    feed: Feed,
+    options?: { signal?: AbortSignal },
+  ): Promise<Feed> {
     let timeoutId: number | null = null;
     const abortController = new AbortController();
+    let externalAbortHandler: (() => void) | null = null;
+    if (options?.signal) {
+      if (options.signal.aborted) {
+        abortController.abort();
+      } else {
+        externalAbortHandler = () => abortController.abort();
+        options.signal.addEventListener("abort", externalAbortHandler);
+      }
+    }
     try {
       const refreshedFeed = await Promise.race([
         this.parseFeed(feed.url, feed, { signal: abortController.signal }),
@@ -841,12 +908,18 @@ export class FeedParser {
         `[RSS dashboard] Error parsing feed ${feed.title} (${feed.url}):`,
         error,
       );
+      if (options?.signal?.aborted) {
+        throw error;
+      }
       // Persist the clean error message so the sidebar can show the badge
       feed.lastFetchError = parseFetchErrorMessage(error);
       return feed;
     } finally {
       if (timeoutId !== null) {
         window.clearTimeout(timeoutId);
+      }
+      if (externalAbortHandler && options?.signal) {
+        options.signal.removeEventListener("abort", externalAbortHandler);
       }
     }
   }
@@ -900,7 +973,7 @@ export class FeedParser {
     const workers = Array(Math.min(queueProcessorsCount, feeds.length))
       .fill(0)
       .map(() => worker());
-      
+
     await Promise.all(workers);
     await Promise.all(backgroundPromises);
 

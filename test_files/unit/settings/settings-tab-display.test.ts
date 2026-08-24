@@ -198,3 +198,10 @@ describe("normalizeHexColor()", () => {
     });
   });
 });
+
+describe("Display settings defaults", () => {
+  it("defaults dashboard pagination to the bottom", async () => {
+    const { DEFAULT_SETTINGS } = await import("../../../src/types/types");
+    expect(DEFAULT_SETTINGS.display.paginationPosition).toBe("bottom");
+  });
+});

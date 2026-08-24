@@ -1,4 +1,5 @@
 import type { ParsedFeed } from "../types.js";
+import { isLatexFormulaImage } from "../../../utils/image-url-utils.js";
 import {
   decodeHtmlEntities as decodeHtmlEntitiesUtil,
   sanitizeCDATA as sanitizeCDATAUtil,
@@ -412,15 +413,21 @@ export class CustomXMLParser {
     if (!content) return "";
 
     try {
-      const imgMatch = content.match(/<img[^>]+src=["']([^"']+)["'][^>]*>/i);
-      const imageUrl = imgMatch ? imgMatch[1] : "";
-      // Debug: log image URL extraction for troubleshooting
-      if (imageUrl && imageUrl.includes("%25")) {
-        console.debug(
-          `[RSS Dashboard] extractImageFromContent: Found double-encoded URL: ${imageUrl}`,
-        );
+      const imageTags = content.match(/<img\b[^>]*>/gi) ?? [];
+      for (const imageTag of imageTags) {
+        const imageUrl = imageTag.match(/\bsrc=["']([^"']+)["']/i)?.[1] ?? "";
+        const className = imageTag.match(/\bclass=["']([^"']*)["']/i)?.[1];
+        if (!imageUrl || isLatexFormulaImage(imageUrl, className)) continue;
+
+        // Debug: log image URL extraction for troubleshooting
+        if (imageUrl.includes("%25")) {
+          console.debug(
+            `[RSS Dashboard] extractImageFromContent: Found double-encoded URL: ${imageUrl}`,
+          );
+        }
+        return this.convertAppUrls(imageUrl);
       }
-      return this.convertAppUrls(imageUrl);
+      return "";
     } catch {
       return "";
     }

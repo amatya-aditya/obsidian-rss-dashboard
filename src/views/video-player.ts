@@ -76,7 +76,7 @@ export class VideoPlayer {
     });
     const iframeId = `yt-player-${Math.random().toString(36).substring(2, 11)}`;
 
-    this.iframeEl = activeDocument.createElement("iframe");
+    this.iframeEl = videoContainer.win.createEl("iframe");
     this.iframeEl.id = iframeId;
     this.iframeEl.src = `${embed.embedUrl}&id=${iframeId}`;
     this.iframeEl.setAttribute("allow", embed.allow);
@@ -115,7 +115,7 @@ export class VideoPlayer {
           link.target = "_blank";
           link.rel = "noopener noreferrer";
         });
-        const fragment = activeDocument.createDocumentFragment();
+        const fragment = target.win.createFragment();
         while (doc.body.firstChild) {
           fragment.appendChild(doc.body.firstChild);
         }

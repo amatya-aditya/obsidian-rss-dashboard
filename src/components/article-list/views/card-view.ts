@@ -1,42 +1,15 @@
 import type { FeedItem } from "../../../types/types";
 import { formatArticleDate } from "../../../utils/platform-utils";
 import {
-  extractFirstImageSrc,
   getArticlePreviewSummaryText,
   shouldHighlightCardPreviewSummary,
-  isTrackingPixel,
+  resolveArticlePreviewImage,
 } from "../utils/article-preview-utils";
 import { renderSingleRowCardTagChips } from "../utils/tag-layout-utils";
 import type { BaseViewContext, ViewDeps } from "./view-types";
 
 export interface CardViewContext extends BaseViewContext {
   showCardToolbar: boolean;
-}
-
-function resolveCoverImageSrc(article: FeedItem): string | undefined {
-  let coverImgSrc: string | undefined = article.coverImage;
-
-  if (coverImgSrc && isTrackingPixel(coverImgSrc)) {
-    coverImgSrc = undefined;
-  }
-
-  if (!coverImgSrc && article.content) {
-    const extracted = extractFirstImageSrc(article.content);
-    if (extracted) coverImgSrc = extracted;
-  }
-  if (!coverImgSrc && article.summary) {
-    const extracted = extractFirstImageSrc(article.summary);
-    if (extracted) coverImgSrc = extracted;
-  }
-  if (
-    !coverImgSrc &&
-    article.enclosure?.type?.startsWith("image/") &&
-    article.enclosure?.url
-  ) {
-    coverImgSrc = article.enclosure.url;
-  }
-
-  return coverImgSrc || undefined;
 }
 
 export function renderCardView(
@@ -87,6 +60,8 @@ export function renderCardView(
     } else {
       cardTitleEl.textContent = article.title;
     }
+    cardTitleEl.dataset.articleTitle = article.title;
+    deps.scheduleMathRendering?.(cardTitleEl);
 
     if (ctx.showFeedSource) {
       const articleMeta = cardHeader.createDiv({
@@ -105,10 +80,18 @@ export function renderCardView(
       });
     }
 
-    const coverImgSrc = resolveCoverImageSrc(article);
-    const previewSummaryText = getArticlePreviewSummaryText(article);
+    const coverImgSrc = ctx.settings.display.showCoverImage
+      ? resolveArticlePreviewImage(article, ["coverImage", "image"])
+      : undefined;
+    const displayedCoverImgSrc =
+      coverImgSrc && ctx.settings.display.allowImageCaching
+        ? (ctx.resolveCachedImageUrl?.(coverImgSrc) ?? coverImgSrc)
+        : coverImgSrc;
+    const previewSummaryText = ctx.settings.display.showSummary
+      ? getArticlePreviewSummaryText(article)
+      : "";
 
-    if (coverImgSrc) {
+    if (displayedCoverImgSrc) {
       const previewRegion = cardContent.createDiv({
         cls: "rss-dashboard-card-preview-region",
       });
@@ -120,13 +103,23 @@ export function renderCardView(
       const coverImg = coverContainer.createEl("img", {
         cls: "rss-dashboard-cover-image",
         attr: {
-          src: coverImgSrc,
+          src: displayedCoverImgSrc,
           alt: article.title,
           loading: "lazy",
           decoding: "async",
         },
       });
       coverImg.onerror = () => {
+        if (
+          displayedCoverImgSrc !== coverImgSrc &&
+          coverImgSrc &&
+          coverImg.dataset.rssCacheRemoteFallback !== "true"
+        ) {
+          coverImg.dataset.rssCacheRemoteFallback = "true";
+          coverImg.setAttribute("src", coverImgSrc);
+          return;
+        }
+
         previewRegion.empty();
 
         if (previewSummaryText) {

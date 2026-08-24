@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-/* eslint-disable import/no-nodejs-modules -- test fixtures require Node.js fs/path/url modules */
 import * as obsidian from "obsidian";
 import { readFileSync } from "fs";
 import path from "path";
@@ -175,7 +174,7 @@ describe("ImportOpmlModal", () => {
           url: "https://example.com/feed.xml",
         }),
       ],
-      expect.objectContaining({ mode: "update" }),
+      expect.objectContaining({ mode: "update", globalOperation: true }),
     );
     expect(logSpy.mock.calls.some((c) => c[0] === "[Stub Notice]")).toBe(true);
   });
@@ -287,6 +286,7 @@ expect(plugin.ingestFeedsForBackgroundImport).toHaveBeenCalledWith(
         expect.any(Array),
         {
           mode: "update",
+          globalOperation: true,
           folders: expect.arrayContaining([
             expect.objectContaining({ name: "Tech" }),
           ]) as unknown as { name: string }[],

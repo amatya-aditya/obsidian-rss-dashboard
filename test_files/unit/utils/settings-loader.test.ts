@@ -71,6 +71,33 @@ describe("settings-loader", () => {
   // ── loadAndNormalizeSettings ─────────────────────────────────────────────────
 
   describe("loadAndNormalizeSettings", () => {
+    it("defaults invalid image cache limits while retaining a valid unlimited preference", async () => {
+      const { loadAndNormalizeSettings } =
+        await import("../../../src/utils/settings-loader");
+
+      const result = loadAndNormalizeSettings({
+        display: {
+          imageCacheLimitMiB: 0,
+          imageCacheUnlimited: true,
+        } as Partial<RssDashboardSettings["display"]>,
+      });
+
+      expect(result.display.imageCacheLimitMiB).toBe(100);
+      expect(result.display.imageCacheUnlimited).toBe(true);
+    });
+
+    it("caps persisted image cache limits at one GiB", async () => {
+      const { loadAndNormalizeSettings } =
+        await import("../../../src/utils/settings-loader");
+
+      const result = loadAndNormalizeSettings({
+        display: {
+          imageCacheLimitMiB: 2_048,
+        } as Partial<RssDashboardSettings["display"]>,
+      });
+
+      expect(result.display.imageCacheLimitMiB).toBe(1_024);
+    });
     it("merges DEFAULT_SETTINGS with raw data", async () => {
       const { loadAndNormalizeSettings } =
         await import("../../../src/utils/settings-loader");
@@ -122,6 +149,32 @@ describe("settings-loader", () => {
       const result = loadAndNormalizeSettings(raw);
 
       expect(result.feeds[0].maxItemsLimit).toBe(75);
+    });
+
+    it("seeds a missing refresh-attempt completion timestamp from a successful parse", async () => {
+      const { loadAndNormalizeSettings } =
+        await import("../../../src/utils/settings-loader");
+
+      const result = loadAndNormalizeSettings({
+        feeds: [createFeed({ lastUpdated: 123_456 })],
+      });
+
+      expect(result.feeds[0].lastRefreshAttemptCompletedAt).toBe(123_456);
+    });
+
+    it("keeps a valid persisted refresh-attempt completion timestamp and seeds zero otherwise", async () => {
+      const { loadAndNormalizeSettings } =
+        await import("../../../src/utils/settings-loader");
+
+      const result = loadAndNormalizeSettings({
+        feeds: [
+          createFeed({ lastUpdated: 10, lastRefreshAttemptCompletedAt: 99 }),
+          createFeed({ url: "https://example.com/new.xml", lastUpdated: 0 }),
+          createFeed({ url: "https://example.com/invalid.xml", lastRefreshAttemptCompletedAt: Number.NaN }),
+        ],
+      });
+
+      expect(result.feeds.map((feed) => feed.lastRefreshAttemptCompletedAt)).toEqual([99, 0, 0]);
     });
 
     it("normalizes all five page-size fields to allArticlesPageSize", async () => {
@@ -204,6 +257,20 @@ describe("settings-loader", () => {
       expect(result.startupRefreshDelaySeconds).toBe(
         DEFAULT_SETTINGS.startupRefreshDelaySeconds,
       );
+    });
+
+    it("preserves global refresh completion without seeding it from the legacy timestamp", async () => {
+      const { loadAndNormalizeSettings } =
+        await import("../../../src/utils/settings-loader");
+
+      const preserved = loadAndNormalizeSettings({
+        lastRefreshTimestamp: 123,
+        lastGlobalRefreshCompletedAt: 456,
+      });
+      const legacyOnly = loadAndNormalizeSettings({ lastRefreshTimestamp: 123 });
+
+      expect(preserved.lastGlobalRefreshCompletedAt).toBe(456);
+      expect(legacyOnly.lastGlobalRefreshCompletedAt).toBe(0);
     });
 
     it("infers legacy-json for existing installations missing storageMode (has feeds)", async () => {

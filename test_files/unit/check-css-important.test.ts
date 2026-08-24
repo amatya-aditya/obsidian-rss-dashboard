@@ -1,15 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { findImportantWithoutAuditComment } from "../../scripts/check-css-important.mjs";
+import { findImportantDeclarations } from "../../scripts/check-css-important.mjs";
 
-describe("findImportantWithoutAuditComment", () => {
-  it("accepts declarations with audit-ok comments", () => {
+describe("findImportantDeclarations", () => {
+  it("accepts styles without important declarations", () => {
     const source = `
       .example {
-        display: none !important; /* audit-ok: display toggle utility */
+        display: none;
       }
     `;
 
-    expect(findImportantWithoutAuditComment(source)).toEqual([]);
+    expect(findImportantDeclarations(source)).toEqual([]);
   });
 
   it("ignores comment lines that mention !important without declaring it", () => {
@@ -20,17 +20,31 @@ describe("findImportantWithoutAuditComment", () => {
       }
     `;
 
-    expect(findImportantWithoutAuditComment(source)).toEqual([]);
+    expect(findImportantDeclarations(source)).toEqual([]);
   });
 
-  it("flags declarations missing audit-ok comments", () => {
+  it("flags declarations even when an audit-ok comment is present", () => {
     const source = `
       .example {
-        display: none !important;
+        display: none !important; /* audit-ok: legacy exception */
       }
     `;
 
-    expect(findImportantWithoutAuditComment(source)).toEqual([
+    expect(findImportantDeclarations(source, "example.css")).toEqual([
+      expect.objectContaining({ filePath: "example.css", line: 3 }),
+    ]);
+  });
+
+  it("flags multiline important declarations", () => {
+    const source = `
+      .example {
+        display:
+          none
+          !important;
+      }
+    `;
+
+    expect(findImportantDeclarations(source)).toEqual([
       expect.objectContaining({ line: 3 }),
     ]);
   });
