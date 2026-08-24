@@ -10,7 +10,7 @@ sequence: null
 depends_on:
   - https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/173
 release_requirement: ""
-released_in: unreleased
+released_in: 2.6.0
 implementation: 8892e9b
 ---
 

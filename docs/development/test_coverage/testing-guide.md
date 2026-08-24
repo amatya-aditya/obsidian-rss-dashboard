@@ -1,17 +1,17 @@
 # RSS Dashboard Testing Guide
 
-Last updated: 2026-07-02
+Last updated: 2026-08-24
 
 ## 1. Current Test Status
 
-### Current Baseline (latest verification snapshot, 7/2/26, 2.4.1)
+### Current Baseline (latest verification snapshot, 8/24/26, 2.6.0)
 
-- **Test Files:** 177 ✅
-- **Passing Tests:** 1530 (100%) ✅
-- **Statements:** 57.72% ( 12714/22026 )
-- **Branches:** 50.01% ( 6511/13017 )
-- **Functions:** 53.61% ( 2070/3861 )
-- **Lines:** 58.83% ( 12321/20941 )
+- **Test Files:** 192 passed (192)
+- **Passing Tests:** 1725 passed (1725)
+- **Statements:** 60.24% ( 14214/23594 )
+- **Branches:** 51.99% ( 7253/13949 )
+- **Functions:** 56.72% ( 2365/4169 )
+- **Lines:** 61.38% ( 13750/22398 )
 - **Coverage Thresholds:** lines `55`, branches `45`, functions `50`
 
 _Note: Coverage is enforced via Vitest thresholds in `vitest.config.mjs` and should be treated as a ratcheted floor, not just a report._

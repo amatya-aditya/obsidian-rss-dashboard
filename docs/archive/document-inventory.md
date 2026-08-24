@@ -1,102 +1,63 @@
 # Documentation Migration Inventory
 
-**Inventory date:** 2026-08-16
-**Scope:** 72 Markdown documents under `docs/`, including this record.
-**Method:** classify by present purpose, document status, changelog/release
-evidence, and Git history; leave unknown issue and implementation metadata empty.
+**Inventory date:** 2026-08-24
+**Scope:** Markdown documentation under `docs/`, including this record.
+**Method:** Classify documents by their present purpose and lifecycle state.
 
-This is the durable audit record for [GH Issue #169](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/169). Each listed path is classified below; grouped entries have the same classification and lifecycle state.
+This is the durable audit record for [GH Issue #169](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/169).
 
 ## Durable current guidance
 
-**Guidance — keep in topical `docs/` areas:**
+Keep the following in their topical `docs/` areas:
 
 - `docs/SECURITY.md`, `docs/storage-vault-shards-guide.md`, `docs/tags-primer.md`, `docs/keyboard-shortcuts.md`, `docs/design/design-spec.md`, and `docs/plugin-scorecard.md`.
 - `docs/development/README.md`, `docs/development/auto-deletion.md`, `docs/development/compliance-patterns.md`, `docs/development/data-flow.md`, `docs/development/feed-validation.md`, `docs/development/obsidian-settings-reference.md`, `docs/development/release-notes-workflow.md`, `docs/development/test-lint-backlog-tracker.md`, and `docs/development/test_coverage/testing-guide.md`.
 
-**Public release summaries — retain in `docs/releases/`:**
+## Public release summaries
 
-- `docs/releases/2.1.0.md`, `docs/releases/2.1.1.md`, `docs/releases/2.1.2.md`, `docs/releases/2.1.3.md`, `docs/releases/2.1.4.md`, `docs/releases/2.1.5.md`, `docs/releases/2.1.6.md`, `docs/releases/2.1.7.md`, `docs/releases/2.1.8.md`, `docs/releases/2.1.9.md`, `docs/releases/2.2.0.md`, `docs/releases/2.3.0.md`, `docs/releases/2.4.0.md`, and `docs/releases/2.5.0.md`.
+Retain all version summaries in `docs/releases/`, including the prepared
+`docs/releases/2.6.0.md`. The 2.6.0 document is a draft until release
+validation and publication are complete.
 
 ## Active and future work
 
-**Implementation plans — retain in `docs/plans/`:**
+Keep these implementation plans and coordination documents in `docs/plans/`:
 
-- `docs/archive/plans/unreleased/166-per-feed-auto-refresh-scheduling.md` — implemented, awaiting release.
-- `docs/archive/plans/unreleased/167-refresh-status-indicators.md` — implemented, awaiting release.
-- `docs/archive/plans/unreleased/168-retry-failed-feeds.md` — implemented, awaiting release.
-- `docs/plans/cover-image-fallback-og-fetch.md` — proposed future work.
-- `docs/plans/deprecate-feed-manager-modal.md` — proposed 3.0 work.
-- `docs/plans/draft-20260816-development-branch-realignment.md` — draft work.
-- `docs/plans/main-ts-refactor.md` — in progress; no canonical issue or final implementation evidence.
-- `docs/plans/media-notes-podcast-video-player.md` — idea awaiting product decisions.
-- `docs/plans/public-roadmap.md` and `docs/plans/release-vnext-roadmap.md` — active coordination roadmaps, not archived implementation records.
+- `cover-image-fallback-og-fetch.md` - proposed future work.
+- `deprecate-feed-manager-modal.md` - proposed 3.0 work.
+- `main-ts-refactor.md` - in progress; no canonical issue or final implementation evidence.
+- `media-notes-podcast-video-player.md` - idea awaiting product decisions.
+- `public-roadmap.md` and `release-v2.6.0-roadmap.md` - active coordination roadmaps, not archived implementation records.
 
 ## Archived implementation plans
 
-**Released in 2.2.0:**
+### Released in 2.6.0
 
-- `docs/archive/plans/v2.2.0/test-coverage-improvement.md` — implemented; release and commit evidence recorded in frontmatter.
+- `docs/archive/plans/v2.6.0/draft-20260816-development-branch-realignment.md` - completed branch and documentation workflow for GH Issue #165.
+- `docs/archive/plans/v2.6.0/166-per-feed-auto-refresh-scheduling.md`, `167-refresh-status-indicators.md`, `168-retry-failed-feeds.md`, `169-documentation-archive-cleanup.md`, and `173-cancel-global-refresh.md`.
+- `docs/archive/plans/v2.6.0/175-independent-dashboard-preview-settings.md`, `177-image-preview-disk-cache.md`, `179-cancel-import-discover-fetches.md`, `181-ci-security-hardening.md`, `183-podcast-playlist-windowing.md`, and `185-mark-all-read-unread-controls.md`.
+- `docs/archive/plans/v2.6.0/wordpress-latex-image-rendering.md` - implemented; commit evidence is recorded in frontmatter.
 
-**Released in 2.4.0:**
+### Earlier versioned plans
 
-- `docs/archive/plans/v2.4.0/vault-metadata-watcher.md`
-- `docs/archive/plans/v2.4.0/shift-click-range-selection-sidebar.md`
-- `docs/archive/plans/v2.4.0/multi-folder-selection-sidebar.md`
-- `docs/archive/plans/v2.4.0/rss-card-image-fallback.md`
+- `docs/archive/plans/v2.2.0/` - released test coverage work.
+- `docs/archive/plans/v2.4.0/` - released vault-watcher, sidebar-selection, and card-image work.
+- `docs/archive/plans/v2.4.1/` - released collapsible feed-header work.
 
-All four are implemented and have completion, release, and commit evidence in frontmatter.
+### Deferred plans
 
-**Released in 2.4.1:**
-
-- `docs/archive/plans/v2.4.1/collapsible-feed-headers.md` — implemented; issue #149 and commit evidence recorded in frontmatter.
-
-**Implemented but unreleased:**
-
-- `docs/archive/plans/unreleased/169-documentation-archive-cleanup.md` — implemented documentation migration for GH Issue #169.
-- `docs/archive/plans/unreleased/wordpress-latex-image-rendering.md` — implemented; commit evidence recorded in frontmatter.
-
-**Deferred:**
-
-- `docs/archive/plans/unshipped/mp4-hero-images.md` — deferred after the attempted implementation was reverted on 2026-03-27.
+- `docs/archive/plans/unshipped/mp4-hero-images.md` - deferred after the attempted implementation was reverted on 2026-03-27.
 
 ## Historical investigations
 
-**2026 investigations:**
-
-- `docs/archive/investigations/2026/2.4.1-errors.md`
-- `docs/archive/investigations/2026/audit-remediation-2.3.0.md`
-- `docs/archive/investigations/2026/coverage-comparison.md`
-- `docs/archive/investigations/2026/defuddle-evaluation.md`
-- `docs/archive/investigations/2026/final-testing-pr-closeout-checklist.md`
-- `docs/archive/investigations/2026/math-rendering.md`
-- `docs/archive/investigations/2026/sidebar-visibility-row-compression-regression.md`
-- `docs/archive/investigations/2026/substack-cdata-entity-encoding.md`
-- `docs/archive/investigations/2026/youtube-shorts-tagging-failure.md`
-- `docs/archive/investigations/2026/youtube-watch-progress.md`
-
-**2.3.0 audit record set — historical audit/investigation, not current policy:**
-
-- `docs/archive/investigations/2026/2.3.0-audit/CSS Refactor Prompt Template.md`
-- `docs/archive/investigations/2026/2.3.0-audit/[TARGET_FILE.css] — Cleanup, Standardization & Split Plan.md`
-- `docs/archive/investigations/2026/2.3.0-audit/\`modals.css\` Refactor Checklist.md`
-- `docs/archive/investigations/2026/2.3.0-audit/controls.css — Cleanup, Standardization & Split Plan.md`
-- `docs/archive/investigations/2026/2.3.0-audit/css-important-declaration-audit.md`
-- `docs/archive/investigations/2026/2.3.0-audit/discover.css — Cleanup, Standardization & Split Plan.md`
-- `docs/archive/investigations/2026/2.3.0-audit/discover-sidebar.css — Cleanup, Standardization & Split Plan.md`
-- `docs/archive/investigations/2026/2.3.0-audit/remediate-direct-filesystem-access.md`
-- `docs/archive/investigations/2026/2.3.0-audit/remove-dynamic-youTube-script-injection.md`
-- `docs/archive/investigations/2026/2.3.0-audit/settings.css — Cleanup, Standardization & Split Plan.md`
-
-**2.4.0 audit record set — historical audit/investigation, not current policy:**
-
-- `docs/archive/investigations/2026/2.4.0-audit/2.4.0 audit.md`
-- `docs/archive/investigations/2026/2.4.0-audit/2.4.0_audit_remediation_plan.md`
+The 2026 investigations remain under `docs/archive/investigations/2026/`,
+including the 2.3.0 and 2.4.0 audit record sets. They are historical evidence,
+not current implementation guidance.
 
 ## Archive governance
 
-- `docs/archive/README.md` — searchable archive catalog.
-- `docs/archive/document-inventory.md` — this migration audit record.
+- `docs/archive/README.md` - searchable archive catalog.
+- `docs/archive/document-inventory.md` - this migration audit record.
 
 ## Explicit unresolved cases
 

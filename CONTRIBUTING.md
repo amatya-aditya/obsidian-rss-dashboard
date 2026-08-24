@@ -149,14 +149,14 @@ CI enforces global coverage thresholds (configured in `vitest.config.mjs`). We u
 
 ### Current Test Suite
 
-As of **2026-05-19**, the suite contains **1245 passing tests across 137 passing files**. This is the automated test baseline intended to ship with `2.3.0`. Most are **unit tests** plus fast **integration-style** tests (JSDOM + Obsidian stubs) that validate UI rendering and business logic without launching the full Obsidian app. Tests live under `test_files/unit/`.
+As of **2026-08-24**, the suite contains **1725 passing tests across 192 passing files**. This is the automated test baseline for `2.6.0`. Most are **unit tests** plus fast **integration-style** tests (JSDOM + Obsidian stubs) that validate UI rendering and business logic without launching the full Obsidian app. Tests live under `test_files/unit/`.
 
 Current global coverage snapshot (from `npm run test:unit -- --coverage`):
 
-- Statements : 55.6% ( 11284/20293 )
-- Branches : 46.73% ( 5538/11851 )
-- Functions : 50.7% ( 1792/3534 )
-- Lines : 56.69% ( 10943/19303 )
+- Statements : 60.24% ( 14214/23594 )
+- Branches : 51.99% ( 7253/13949 )
+- Functions : 56.72% ( 2365/4169 )
+- Lines : 61.38% ( 13750/22398 )
 
 ### Running and Writing Tests
 

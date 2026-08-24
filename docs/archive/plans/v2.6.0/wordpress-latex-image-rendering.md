@@ -1,7 +1,7 @@
 ---
 status: implemented
 completed: 2026-08-08
-released_in: unreleased
+released_in: 2.6.0
 issue: ""
 implementation: 9ce3582
 ---
