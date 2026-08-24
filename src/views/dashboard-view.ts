@@ -536,14 +536,7 @@ export class RssDashboardView extends ItemView {
    * @internal
    */
   public actionMarkAllAsRead(): void {
-    const articles = this.getFilteredArticles();
-    let count = 0;
-    articles.forEach((item) => {
-      if (!item.read) {
-        item.read = true;
-        count++;
-      }
-    });
+    const count = this.updateFilteredArticleReadStatus(true);
 
     if (count > 0) {
       void this.plugin.saveSettings();
@@ -552,6 +545,37 @@ export class RssDashboardView extends ItemView {
     } else {
       new Notice("No unread items in current view");
     }
+  }
+
+  /**
+   * Action: Mark all filtered articles as unread.
+   * @internal
+   */
+  public actionMarkAllAsUnread(): void {
+    const count = this.updateFilteredArticleReadStatus(false);
+
+    if (count > 0) {
+      void this.plugin.saveSettings();
+      this.scheduleRender();
+      new Notice(`Marked ${count} items as unread`);
+    } else {
+      new Notice("No read items in current view");
+    }
+  }
+
+  private updateFilteredArticleReadStatus(read: boolean): number {
+    let count = 0;
+
+    this.getFilteredArticles().forEach((article) => {
+      const backingArticle = this.findBackingArticleForDisplayItem(article);
+      if (backingArticle && backingArticle.read !== read) {
+        backingArticle.read = read;
+        article.read = read;
+        count++;
+      }
+    });
+
+    return count;
   }
 
   /**
@@ -1008,22 +1032,7 @@ export class RssDashboardView extends ItemView {
             this.actionMarkAllAsRead();
           },
           onMarkAllAsUnread: () => {
-            const articles = this.getFilteredArticles();
-            let count = 0;
-            articles.forEach((item) => {
-              if (item.read) {
-                item.read = false;
-                count++;
-              }
-            });
-
-            if (count > 0) {
-              void this.plugin.saveSettings();
-              this.scheduleRender();
-              new Notice(`Marked ${count} items as unread`);
-            } else {
-              new Notice("No read items in current view");
-            }
+            this.actionMarkAllAsUnread();
           },
         },
         currentPage,

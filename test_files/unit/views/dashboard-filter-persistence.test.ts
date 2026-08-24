@@ -152,4 +152,50 @@ describe("Dashboard multi-filter persistence (TDD)", () => {
     expect(Array.from((view as unknown as { activeTagFilters: Set<string> }).activeTagFilters)).toEqual(["Work"]);
     expect((view as unknown as { filterLogic: "AND" | "OR" }).filterLogic).toBe("AND");
   });
+
+  it("marks the stored articles in the current view as read", async () => {
+    const { RssDashboardView } = await import("../../../src/views/dashboard-view");
+
+    const app = new App();
+    const settings = cloneSettings();
+    const unreadItem = {
+      guid: "unread-item",
+      title: "Unread item",
+      read: false,
+    };
+    const readItem = {
+      guid: "read-item",
+      title: "Read item",
+      read: true,
+    };
+    settings.feeds = [
+      {
+        ...createMockFeed("https://example.com/feed"),
+        items: [unreadItem, readItem],
+      },
+    ];
+    const plugin = {
+      settings,
+      saveSettings: vi.fn(async () => {}),
+    };
+
+    const leaf = { app } as unknown as import("obsidian").WorkspaceLeaf;
+    const view = new RssDashboardView(leaf, plugin as never);
+    (view as unknown as { scheduleRender: () => void }).scheduleRender = vi.fn();
+    (view as unknown as { activeStatusFilters: Set<string> }).activeStatusFilters = new Set(["unread"]);
+
+    view.actionMarkAllAsRead();
+
+    expect(settings.feeds[0].items[0].read).toBe(true);
+    expect(settings.feeds[0].items[1].read).toBe(true);
+    expect(plugin.saveSettings).toHaveBeenCalledTimes(1);
+
+    (view as unknown as { activeStatusFilters: Set<string> }).activeStatusFilters.clear();
+
+    view.actionMarkAllAsUnread();
+
+    expect(settings.feeds[0].items[0].read).toBe(false);
+    expect(settings.feeds[0].items[1].read).toBe(false);
+    expect(plugin.saveSettings).toHaveBeenCalledTimes(2);
+  });
 });
