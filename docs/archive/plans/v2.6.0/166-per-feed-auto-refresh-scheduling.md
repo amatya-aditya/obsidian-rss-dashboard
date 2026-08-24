@@ -1,7 +1,7 @@
 ---
 status: implemented
 completed: 2026-08-16
-released_in: unreleased
+released_in: 2.6.0
 issue: https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/166
 implementation: "5592c39"
 ---

@@ -1,17 +1,18 @@
 ---
-status: accepted
-created: 2026-08-16
+status: implemented
+completed: 2026-08-24
+released_in: 2.6.0
 issue: https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/165
-milestone: vNext
-owner: unassigned
-workstream: release
-sequence: 0
-depends_on: []
-release_requirement: required
 implementation: ""
 ---
 
 # Development Branch Realignment
+
+## Completion record
+
+Completed on 2026-08-24. The development-branch realignment and its
+documentation workflow are complete; this archived plan records the original
+transition contract.
 
 ## Objective
 
