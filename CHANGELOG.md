@@ -77,6 +77,7 @@ Added collapsible headers when viewing feeds in "feed" grouping ([GH Issue #149]
 ### Plugin Compliance
 
 - Upon submission of 2.4.0, the plugin was flagged with 455 issues found by automated scans. The [2.4.0 audit remediation plan](docs/archive/investigations/2026/2.4.0-audit/2.4.0_audit_remediation_plan.md) was proposed and implemented. The !important warnings all have comments explaining their usage.
+- Upon submission of 2.4.0, the plugin was flagged with 455 issues found by automated scans. The [2.4.0 audit remediation plan](docs/archive/investigations/2026/2.4.0-audit/2.4.0_audit_remediation_plan.md) was proposed and implemented. The !important warnings all have comments explaining their usage.
 - Additional CI/commit blockers were added to the repo which will disallow future commits that violate eslint rules in order to remain compliant
 
 ## 2.4.0 - July 1, 2026
@@ -264,6 +265,7 @@ Added collapsible headers when viewing feeds in "feed" grouping ([GH Issue #149]
 - Completed full burn-down of test-file ESLint backlog (2686 errors → 0 errors across 130 test files).
 - Resolved all type-safety debt in test suite with boundary-cast pattern and strict interface definitions.
 - Aligned `Notice` stub behavior with modern Obsidian API to resolve 21 unit test regressions.
+- Added a new `Compliance Declarations (Audit Guardrails)` policy section to `CONTRIBUTING.md` with required pre-PR compliance checks.
 - Added a new `Compliance Declarations (Audit Guardrails)` policy section to `CONTRIBUTING.md` with required pre-PR compliance checks.
 - Added `docs/development/compliance-patterns.md` as the canonical implementation reference for audit-sensitive patterns (safe HTML rendering, boundary typing, popout-safe APIs, and DOM helper conventions).
 - Added root `.instructions.md` and linked policy references in README/development docs/scorecard so AI-assisted and human contributions follow the same compliance guardrails.
@@ -508,6 +510,7 @@ Added collapsible headers when viewing feeds in "feed" grouping ([GH Issue #149]
 - **Testing**: Added unit tests for namespaced XML extraction and reader logic in `test_files/unit/ios-namespace-fix.test.ts`.
 - **Build Logging**: Added explicit confirmation messages to `esbuild.config.mjs` to verify successful JS and CSS bundling.
 - **Removed**
+  - **YouTube Short Detection**: removed feature introduced in 2.3.0-alpha.1 due to inconsistent tagging. Added a comprehensive [bug report](docs/archive/investigations/2026/youtube-shorts-tagging-failure.md) for future reference.
   - **YouTube Short Detection**: removed feature introduced in 2.3.0-alpha.1 due to inconsistent tagging. Added a comprehensive [bug report](docs/archive/investigations/2026/youtube-shorts-tagging-failure.md) for future reference.
 
 ---
