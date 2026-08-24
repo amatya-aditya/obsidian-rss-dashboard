@@ -29,6 +29,7 @@ export interface BaseViewContext {
   selectedArticle: FeedItem | null;
   showFeedSource: boolean;
   settings: Pick<RssDashboardSettings, "highlights" | "display"> & {
+    articleGroupBy?: RssDashboardSettings["articleGroupBy"];
     collapsedFeedSections?: string[];
   };
   resolveCachedImageUrl?: (remoteUrl: string) => string | null;

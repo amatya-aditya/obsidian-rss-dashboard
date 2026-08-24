@@ -40,6 +40,12 @@ records the documentation classification.
 
 - [Test coverage improvement](plans/v2.2.0/test-coverage-improvement.md) - completed 2026-04-07 (`08030a7`).
 
+## Unreleased plans
+
+| Plan | Completed | Issue | Implementation |
+| --- | --- | --- | --- |
+| [Feed View honors disabled grouping](plans/unreleased/195-feed-view-honors-disabled-grouping.md) | 2026-08-24 | [GH Issue #195](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/195) | - |
+
 ## Unshipped plans
 
 | Plan | Status | Decision |

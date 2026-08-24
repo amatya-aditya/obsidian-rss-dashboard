@@ -1,8 +1,66 @@
 import { describe, it, expect } from "vitest";
-import { createArticleListHarness } from "./article-list-harness";
+import { buildArticle, createArticleListHarness } from "./article-list-harness";
 import type { FeedItem } from "../../../src/types/types";
 
 describe("ArticleList grouping header toggle", () => {
+  it("renders Feed View as a flat article sequence when grouping is disabled", () => {
+    const { container, list, cleanup } = createArticleListHarness({
+      settings: { articleGroupBy: "none", viewStyle: "feed" },
+      articles: [
+        buildArticle({ guid: "a1", feedTitle: "Feed A" }),
+        buildArticle({ guid: "b1", feedTitle: "Feed B" }),
+        buildArticle({ guid: "a2", feedTitle: "Feed A" }),
+      ],
+    });
+
+    try {
+      list.render();
+
+      expect(
+        container.querySelectorAll(".rss-dashboard-feed-section"),
+      ).toHaveLength(0);
+      expect(
+        container.querySelectorAll(".rss-dashboard-feed-section-header"),
+      ).toHaveLength(0);
+      expect(
+        container.querySelectorAll(".rss-dashboard-feed-section-toggle"),
+      ).toHaveLength(0);
+      expect(
+        Array.from(
+          container.querySelectorAll<HTMLElement>(
+            ".rss-dashboard-feed-item",
+          ),
+          (item) => item.dataset.articleGuid,
+        ),
+      ).toEqual(["a1", "b1", "a2"]);
+    } finally {
+      cleanup();
+    }
+  });
+
+  it("renders one collapsible header per feed when Feed View groups by feed", () => {
+    const { container, list, cleanup } = createArticleListHarness({
+      settings: { articleGroupBy: "feed", viewStyle: "feed" },
+      articles: [buildArticle({ guid: "a1", feedTitle: "Feed A" })],
+    });
+
+    try {
+      list.render();
+
+      expect(
+        container.querySelectorAll(".rss-dashboard-article-group-header"),
+      ).toHaveLength(0);
+      expect(
+        container.querySelectorAll(".rss-dashboard-feed-section-header"),
+      ).toHaveLength(1);
+      expect(
+        container.querySelectorAll(".rss-dashboard-feed-section-toggle"),
+      ).toHaveLength(1);
+    } finally {
+      cleanup();
+    }
+  });
+
   it("renders group header toggle and toggles collapsed state and persists setting", () => {
     const articlesToUse: FeedItem[] = [
       {
@@ -37,7 +95,7 @@ describe("ArticleList grouping header toggle", () => {
 
     const { container, settings, list, cleanup } = createArticleListHarness({
       articles: articlesToUse,
-      settings: { articleGroupBy: "feed", viewStyle: "feed" },
+      settings: { articleGroupBy: "feed", viewStyle: "list" },
     });
 
     // Initial render

@@ -1256,7 +1256,10 @@ export class ArticleList {
       return;
     }
 
-    if (this.settings.articleGroupBy === "none") {
+    const feedViewGroupsByFeed =
+      this.settings.viewStyle === "feed" &&
+      this.settings.articleGroupBy === "feed";
+    if (this.settings.articleGroupBy === "none" || feedViewGroupsByFeed) {
       if (this.settings.viewStyle === "list") {
         this.renderListView(articlesList, this.articles);
       } else if (this.settings.viewStyle === "feed") {

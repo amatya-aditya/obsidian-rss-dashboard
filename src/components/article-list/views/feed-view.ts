@@ -169,6 +169,13 @@ export function renderFeedView(
   ctx: BaseViewContext,
   deps: ViewDeps,
 ): void {
+  if (ctx.settings.articleGroupBy === "none") {
+    for (const article of articles) {
+      renderArticleCard(container, article, ctx, deps);
+    }
+    return;
+  }
+
   // Group articles by feed source
   const groupedArticles = groupArticles(articles, "feed");
 

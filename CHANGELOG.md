@@ -1,5 +1,11 @@
 ## Unreleased
 
+### Fixes
+
+- Fixed Feed View grouping so **Grouping: Disabled** renders a flat article sequence and **Grouping: Feed** displays one collapsible header per feed. [GH Issue #195](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/195)
+
+## 2.6.0 - August 24, 2026
+
 ### Features
 
 - Added a paged podcast playlist that renders a five-episode window around the active episode, with order-relative browsing controls, a return-to-current action for large feeds, and placeholder-first artwork loading that avoids empty or broken-image boxes. This should alleviate performance issues for feeds with many episodes. [GH Issue #183](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/183)
@@ -139,10 +145,10 @@ Added collapsible headers when viewing feeds in "feed" grouping ([GH Issue #149]
 - Added three ways to auto-tag articles: by feed source, by individual feed, and by folder. Tags can be combined, with folders cascading to descendant feeds.
 - **Feed source**: Added to `Settings > Tags > Auto Tagging` - you can now enable multi-tag auto-tagging based on the feed source (for example, apply "RSS" to all RSS feeds, or "YouTube" to all YouTube feeds, or apply your own custom tags).
 - **Individual feed**: Added a new "Custom auto-tags" dropdown in the Add/Edit feed window under the existing "Feed options" dropdown:
-
   - If feed-source auto-tags are enabled for that feed (via Settings), the individual feed tags are applied on top of the feed-source tags.
   - For example, if you have enabled feed-source auto-tags and applied "RSS" to all RSS feeds, and you also apply the individual feed tag "News" to that feed, all articles from that feed will be tagged with both "RSS" and "News".
   - If no feed-source auto-tags are configured, only the individual feed tags apply.
+
 - Within the Edit feed window, the "Feed options" dropdown now shows a section for inherited feed-source auto-tags where applicable.
 - **Folder auto-tags**: Right-click any folder in the sidebar and choose **Auto tag feeds in folder...** to assign tags that cascade to all feeds in that folder and its descendants. Tags are stored on the configured folder only; child folders inherit parent tags dynamically. Use **Existing articles** to sync folder auto-tags to stored articles (adds new rule tags and removes deselected rule tags while leaving other tags intact) or remove all tags in scope. See [docs/tags-primer.md](docs/tags-primer.md) for precedence and examples.
 
@@ -190,10 +196,10 @@ Added collapsible headers when viewing feeds in "feed" grouping ([GH Issue #149]
 
 - Remediation work on latest Community Plugin Audit (https://community.obsidian.md/plugins/rss-dashboard) - now standing at 72% compliance (up from 46% last version).
 - **Dynamic `<script>` element creation**
-
   - Flagged as a red/critical risk due to 2.3.0's media progress saving feature (specifically Youtube iFrame embeds)
   - Rewrote how the progress is stored that adheres to Obsidian's best practices and Youtube SDK API
   - Added CI/CD ESLint rule to prevent dynamic `<script>` element creation in the future
+
 - Completely eliminated all Node.js/Electron `fs` and `path` usages from the production plugin code
 - Completely eliminated all superflous !important declarations; added comments to remaining declarations that pass audit and deemed necessary
 
@@ -245,7 +251,6 @@ Added collapsible headers when viewing feeds in "feed" grouping ([GH Issue #149]
 ### Development
 
 - **Compliance Audit: 45% → 100% Complete** ✅
-
   - Completed all items on the Obsidian Community Plugin audit scorecard.
   - Resolved all 37 "Disabling '@typescript-eslint/no-explicit-any'" occurrences by adding descriptive audit guardrail comments throughout the codebase.
   - Eliminated all unsafe `innerHTML` assignments in production rendering paths (replaced with `sanitizeAndAppendHtml`).
@@ -254,6 +259,7 @@ Added collapsible headers when viewing feeds in "feed" grouping ([GH Issue #149]
   - Removed all deprecated Clipboard API fallbacks.
   - Final validation: ESLint clean (0 errors, 0 warnings), 130/130 test files passing (1180 tests).
   - See: [docs/plugin-scorecard.md](docs/plugin-scorecard.md)
+
 - Relaxed eslint.config.mjs to now include testing files.
 - Completed full burn-down of test-file ESLint backlog (2686 errors → 0 errors across 130 test files).
 - Resolved all type-safety debt in test suite with boundary-cast pattern and strict interface definitions.
@@ -278,16 +284,15 @@ Added collapsible headers when viewing feeds in "feed" grouping ([GH Issue #149]
 ### Features
 
 - **"Add All" Button added to Discover page**
-
   - Added a new "Add All" button to the Discover page header. This button adds all feeds from the current page to the user's feed list.
-- **Sort feeds by unread count**
 
+- **Sort feeds by unread count**
   - Added a new option to the 'Sort' icon which organizes feeds by unread count.
   - Two options: High to Low / Low to High
+
 - Added new "inline" reader view option to the general settings which opens the article in the same tab as the dashboard. (GH[#100](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/100))
 - Added a new "external browser" reader view location option in General settings so article and media opens can bypass the in-app reader and launch in the system browser. (GH[#89](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/89))
 - **Flexible Date Formatting for Templates** (GH[#102](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/102)):
-
   - Added support for custom date formats in article templates using Moment.js.
   - New variables: `{{dateShort}}` (renders as `YYYY-MM-DD`) and parameterized `{{date:FORMAT}}` (e.g., `{{date:YYYY/MM/DD HH:mm}}`).
   - Improved settings UI for Article Saving with a readable, row-by-row guide of all available template variables.
@@ -319,23 +324,22 @@ Added collapsible headers when viewing feeds in "feed" grouping ([GH Issue #149]
 ### New Features
 
 - **Sidebar Toolbar Divider**:
-
   - Decoupled the vertical divider from the discover icon - now a standalone, configurable element.
   - Added "Divider" to the icon visibility settings in Display tab.
   - The divider can now be enabled/disabled and reordered among other icons via drag-and-drop.
   - Default position is between Discover and Add Feed icons.
-- **Smart Auto-Refresh on Vault Open**:
 
+- **Smart Auto-Refresh on Vault Open**:
   - Feeds now automatically refresh when opening the vault if the configured refresh interval has elapsed since the last refresh.
   - **Before:** The refresh timer reset to zero each time Obsidian closed. Users had to manually refresh or wait for the interval to pass after reopening the vault.
   - **After:** The plugin now tracks the last refresh timestamp in settings. On vault open, it checks if enough time has passed and refreshes immediately if needed.
   - Manual refreshes (sidebar icon, right-click menu, header button) also update the timestamp.
   - Respects all existing refresh interval settings (5 min to 24 hours).
+
 - **Auto Refresh: Off Option added**
-
   - Added a new "Off" option to the refresh interval dropdown in General > Global Feeds > Refresh Interval. Resolves GH Issue #92
-- **Mark Page Read button added**
 
+- **Mark Page Read button added**
   - Appears at the bottom of the article list
   - Marks only the articles from the current page as read, but leaves remaining articles in the feed untouched.
 
@@ -366,19 +370,19 @@ Added collapsible headers when viewing feeds in "feed" grouping ([GH Issue #149]
 ### New Features
 
 - **Sidebar Horizontal Scrolling**:
-
   - Added support for horizontal scrolling in the sidebar header toolbar via the mouse scrollwheel.
   - Added click-and-drag horizontal scrolling for desktop and mobile touch devices.
   - Added "grabbing" cursor feedback and touch-drag optimization to prevent accidental icon clicks while scrolling.
+
 - **XML support**: Import OPML window now allows XML filenames in addition to OPML filenames.
 - **Feed View**:
-
   - Added a new "Feed" view mode for a social-media-style, single-column layout.
   - Features hero images, clamped text summaries, and integrated action toolbars.
   - Added a 3-button view toggle (List, Card, Feed) to the hamburger menu using the accessible `clickable-icon` pattern.
   - Added "Feed" view as a preference in General settings.
   - Improved Feed View image quality by prioritizing high-resolution images and implementing a "hero blur" background layout to handle varying aspect ratios gracefully.
   - Refactored the hamburger menu view toggle from individual buttons into a single consolidated dropdown menu with dynamic icons and enhanced theme compatibility for both dark and light modes.
+
 - **Auto-backup**: Added auto-backup for data.json, OPML, and userdata on plugin unload. By default, OPML and userdata are backed up to the plugin's data directory. These can be changed in the import/export settings.
 
 ### Fixes
@@ -398,37 +402,36 @@ Added collapsible headers when viewing feeds in "feed" grouping ([GH Issue #149]
 ### New Features
 
 - **Customizable sidebar ordering (drag-and-drop)**:
-
   - Drag feeds to reorder within a folder (or move + insert between feeds).
   - Drag folders to reorder, and drag onto another folder to nest/un-nest (supports hierarchical organization).
   - Any manual reorder automatically switches the sidebar sort mode to a new **Custom** row to preserve your ordering.
-- **Customizable sidebar toolbar icons**:
 
+- **Customizable sidebar toolbar icons**:
   - New setting: `Settings > Display > Icon visibility`.
   - Drag-and-drop or up/down buttons (mobile friendly).
   - Hide/show individual icons.
   - Hide/show entire toolbar.
   - New sidebar toolbar "settings" button (opens RSS-Dashboard settings).
-- **Sidebar Tag Filtering**:
 
+- **Sidebar Tag Filtering**:
   - Revamped **Tags** section in the sidebar for easy management and improved filtering logic: **AND** (match all), **OR** (match any), and **NOT** (match none).
   - Inline **Add Tag** row with color picker integrated directly into the sidebar.
+
 - **Podcast Player Sleep Timer**: Added a sleep timer to the podcast player to automatically stop playback after a specified duration (5, 10, 15, 30, 45, 60, 90, or 120 minutes) (GitHub issue #75).
 - **Podcast "Open in Browser" improvements**:
-
   - Fixed the toolbar button, which was previously non-functioning.
   - The button now attempts to resolve the podcast’s website URL from feed metadata, falling back to the podcast’s RSS feed URL if no website URL is found.
   - The dropdown now includes URLs found in the "Episode details" section of the podcast page, plus a link to the direct audio file.
+
 - **Pocket Casts Support**: Added support for importing podcasts directly from Pocket Casts URLs (e.g., `https://pocketcasts.com/podcast/...`).
 - **Robust Podcast Resolution**:
-
   - Implemented a multi-proxy fallback system (AllOrigins, CodeTabs) to handle network timeouts and CORS restrictions when resolving podcast feeds.
   - Added a "Semantic Discovery" fallback using the **iTunes Search API** to resolve feeds when Pocket Casts hides the RSS link from their web player source.
   - Added flexible metadata scraping to handle varied HTML attribute ordering in modern web layouts.
+
 - **Proactive Proxy Validation**: The Add Feed and Edit Feed modals now check whether the CORS proxy is enabled before attempting to resolve Pocket Casts URLs, providing a clear warning and guidance if it’s disabled.
 - **OPML Import Menu Overhaul**: The OPML import menu has been completely overhauled to improve reliability and user experience.
 - **View Filter Setting Improvements**:
-
   - All applied view filters now persist across navigation (state is saved and restored on reopen/restart).
   - All applied view filters now explicitly state which ones are currently applied in the dashboard header.
   - Updated `Settings > Display > Startup filters` to mirror the dashboard filter UI, allowing multiple viewing filters to be applied at startup.
@@ -448,7 +451,6 @@ Added collapsible headers when viewing feeds in "feed" grouping ([GH Issue #149]
 - **Developer Documentation**: Added a new "Advanced Podcast Platform Resolution" section to the developer docs describing proxy rotation and semantic search patterns.
 - **CSS Guardrail**: Added `npm run check:css-scope` (runs during `npm run build`) to prevent unscoped CSS rules from targeting Obsidian core selectors (e.g., `.clickable-icon`, `.suggestion-container`, `.hidden`).
 - **Settings Architecture Refactor**:
-
   - Refactored the monolithic settings tab into a modular architecture for maintainability and performance.
   - Split settings rendering into 9 dedicated tab renderer modules.
   - Centralized shared settings modal classes.
@@ -456,13 +458,14 @@ Added collapsible headers when viewing feeds in "feed" grouping ([GH Issue #149]
   - Used TDD-driven logic for color normalization, icon reordering, and preset detection.
   - Added many new unit tests covering settings-related logic.
   - Reduced the main settings tab orchestrator to ~119 lines.
-- **Feed manager refactor**:
 
+- **Feed manager refactor**:
   - Reorganized the feed manager modal code to be more modular and maintainable (kept backwards compatibility for now; planned for deprecation in the next major release).
   - UI: standardized “supported formats” badges using Lucide icons.
   - Folder handling: improved folder-path collection and removed duplicate folder traversal across folder pickers and the sidebar.
   - Fix: corrected nested folder deletion behavior.
   - Tests: expanded unit coverage across feed manager behavior, sidebar “Add Feed” opening, folder-path utilities, preview loading, and nested folder removal.
+
 - **ReaderView Refactor**: Extracted the reader format settings portal into a helper, added ReaderView cleanup on close, and added unit coverage.
 
 ## [2.3.0-alpha.3 / 2.2.0-beta.7] - March 18, 2026
@@ -471,13 +474,12 @@ Added collapsible headers when viewing feeds in "feed" grouping ([GH Issue #149]
 
 - **Sidebar Feed Filtering** (github issue #74): Added a new setting "Hide empty feeds/no unread articles" to automatically hide feeds with zero articles or only read articles from the sidebar.
 - **Standardized Icon Rendering**:
-
   - Refactored all interactive icons to use the Obsidian-recommended `clickable-icon` pattern.
   - Replaced standard HTML `<button>` elements with accessible `div` structures for better cross-platform (Android) compatibility.
   - Added full keyboard support (Enter/Space) to all interactive icons.
   - Centralized icon sizing via the `--icon-size` CSS variable.
-- **Reader Settings Refactor**:
 
+- **Reader Settings Refactor**:
   - Touch sliders not ideal for mobile devices due to base Obsidian touch behavior, replaced with dropdowns to ensure consistent behavior across platforms.
     - Replaced "Words per row" slider with a percentage-based "Paragraph width" dropdown (25%, 50%, 75%, 100%).
     - Replaced "Font size" slider with a discrete dropdown (80% to 200%).
