@@ -9,6 +9,7 @@ records the complete 2026-08-16 documentation classification.
 
 | Plan                                                                                   | Completed  | Issue                                                                               | Implementation |
 | -------------------------------------------------------------------------------------- | ---------- | ----------------------------------------------------------------------------------- | -------------- |
+| [Mark all read/unread controls](plans/unreleased/185-mark-all-read-unread-controls.md) | 2026-08-24 | [GH Issue #185](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/185) | â€” |
 | [Podcast playlist windowing](plans/unreleased/183-podcast-playlist-windowing.md) | 2026-08-22 | [GH Issue #183](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/183) | [PR #184](https://github.com/amatya-aditya/obsidian-rss-dashboard/pull/184) |
 | [CI security hardening baseline](plans/unreleased/181-ci-security-hardening.md) | 2026-08-22 | [GH Issue #181](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/181) | — |
 | [Image preview disk cache](plans/unreleased/177-image-preview-disk-cache.md) | 2026-08-21 | [GH Issue #177](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/177) | — |

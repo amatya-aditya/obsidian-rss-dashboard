@@ -15,6 +15,7 @@
 
 ### Fixes
 
+- Fixed dashboard header Mark all read/unread controls so they update and persist the stored articles in the current filtered view. [GH Issue #185](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/185)
 - Removed duplicate close controls from mobile Dashboard and Discover sidebars, retaining Obsidian's standard modal header close button.
 - Standardized sidebar and mobile navigation scrolling on native Obsidian scrollbars, removing the retired scrollbar-visibility preference and custom scrollbar styling.
 - Fixed OPML imports and Discover Add actions so their feed fetching uses the global sidebar spinner and Stop action, cancels active and queued work, preserves completed results, and ignores late results after cancellation. [GH Issue #179](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/179)
