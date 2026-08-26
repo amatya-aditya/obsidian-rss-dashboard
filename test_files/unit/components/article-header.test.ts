@@ -76,11 +76,13 @@ describe("ArticleHeader Component", () => {
     header.render();
 
     expect(container.textContent).toContain("Test Title");
-    const toggle = container.querySelector(".rss-dashboard-sidebar-toggle");
+    const toggle = container.querySelector(".rss-dashboard-sidebar-toggle") as HTMLElement;
     expect(toggle).not.toBeNull();
+    toggle.click();
+    expect(mockCallbacks.onToggleSidebar).toHaveBeenCalled();
   });
 
-  it("should trigger onToggleSidebar when sidebar toggle is clicked", () => {
+  it("should open grouping menu with all single and hierarchical options", () => {
     const header = new ArticleHeader(
       container,
       settings,
@@ -94,10 +96,30 @@ describe("ArticleHeader Component", () => {
     );
 
     header.render();
-    const toggle = container.querySelector(".rss-dashboard-sidebar-toggle") as HTMLElement;
-    toggle.click();
+    const groupTrigger = container.querySelector(".rss-dashboard-group") as HTMLElement;
+    expect(groupTrigger).not.toBeNull();
+    groupTrigger.click();
 
-    expect(mockCallbacks.onToggleSidebar).toHaveBeenCalled();
+    const menuItems = Array.from(
+      document.querySelectorAll(".rss-dashboard-filter-menu-item .rss-dashboard-filter-menu-text")
+    ).map((el) => el.textContent);
+
+    expect(menuItems).toEqual([
+      "None",
+      "Feed",
+      "Date",
+      "Date > Feed",
+      "Folder",
+      "Folder > Feed",
+    ]);
+
+    const dateFeedOption = Array.from(
+      document.querySelectorAll<HTMLElement>(".rss-dashboard-filter-menu-item")
+    ).find((el) => el.textContent?.includes("Date > Feed"));
+    dateFeedOption?.click();
+
+    expect(mockCallbacks.onGroupChange).toHaveBeenCalledWith("date_feed");
+    header.destroy();
   });
 
   it("should render custom portal selectors instead of native selects for dark mode fixes", () => {

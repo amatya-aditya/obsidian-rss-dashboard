@@ -435,6 +435,14 @@ export type PersistedFeedConfig = Omit<Feed, "items"> & {
   feedId: string;
 };
 
+export type ArticleGroupByOption =
+  | "none"
+  | "feed"
+  | "date"
+  | "folder"
+  | "date_feed"
+  | "folder_feed";
+
 export interface RssDashboardSettings {
   feeds: Feed[];
   folders: Folder[];
@@ -458,7 +466,7 @@ export interface RssDashboardSettings {
     value: unknown;
   };
   articleSort: "newest" | "oldest";
-  articleGroupBy: "none" | "feed" | "date" | "folder";
+  articleGroupBy: ArticleGroupByOption;
   allArticlesPageSize: number;
   unreadArticlesPageSize: number;
   readArticlesPageSize: number;

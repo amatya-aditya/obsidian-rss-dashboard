@@ -143,4 +143,56 @@ describe("ArticleList grouping header toggle", () => {
       cleanup();
     }
   });
+
+  it("renders flat feed cards under date group header when articleGroupBy is date in Feed view", () => {
+    const { container, list, cleanup } = createArticleListHarness({
+      settings: { articleGroupBy: "date", viewStyle: "feed" },
+      articles: [
+        buildArticle({ guid: "a1", feedTitle: "Feed A", pubDate: "2026-08-25T10:00:00Z" }),
+        buildArticle({ guid: "b1", feedTitle: "Feed B", pubDate: "2026-08-25T11:00:00Z" }),
+      ],
+    });
+
+    try {
+      list.render();
+
+      expect(
+        container.querySelectorAll(".rss-dashboard-article-group-header"),
+      ).toHaveLength(1);
+      expect(
+        container.querySelectorAll(".rss-dashboard-feed-section-header"),
+      ).toHaveLength(0);
+      expect(
+        container.querySelectorAll(".rss-dashboard-feed-item"),
+      ).toHaveLength(2);
+    } finally {
+      cleanup();
+    }
+  });
+
+  it("renders nested feed sections under date group header when articleGroupBy is date_feed in Feed view", () => {
+    const { container, list, cleanup } = createArticleListHarness({
+      settings: { articleGroupBy: "date_feed", viewStyle: "feed" },
+      articles: [
+        buildArticle({ guid: "a1", feedTitle: "Feed A", pubDate: "2026-08-25T10:00:00Z" }),
+        buildArticle({ guid: "b1", feedTitle: "Feed B", pubDate: "2026-08-25T11:00:00Z" }),
+      ],
+    });
+
+    try {
+      list.render();
+
+      expect(
+        container.querySelectorAll(".rss-dashboard-article-group-header"),
+      ).toHaveLength(1);
+      expect(
+        container.querySelectorAll(".rss-dashboard-feed-section-header"),
+      ).toHaveLength(2);
+      expect(
+        container.querySelectorAll(".rss-dashboard-feed-item"),
+      ).toHaveLength(2);
+    } finally {
+      cleanup();
+    }
+  });
 });

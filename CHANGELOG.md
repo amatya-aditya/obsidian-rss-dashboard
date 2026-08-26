@@ -1,5 +1,9 @@
 ## Unreleased
 
+### Features
+
+- Added **Date > Feed** and **Folder > Feed** grouping options to the Grouping selector. Selecting **Date** or **Folder** now renders a flat list of article cards within each date/folder group (no nested feed headers), while **Date > Feed** or **Folder > Feed** renders collapsible per-feed sections nested under each date or folder group header. [GH Issue #195](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/195)
+
 ### Fixes
 
 - Fixed Feed View grouping so **Grouping: Disabled** renders a flat article sequence and **Grouping: Feed** displays one collapsible header per feed. [GH Issue #195](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/195)
