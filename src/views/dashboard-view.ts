@@ -19,6 +19,7 @@ import {
   Folder,
   ViewLocation,
   FeedEncoding,
+  ArticleGroupByOption,
 } from "../types/types";
 import type {
   FiltersUpdatedEventPayload,
@@ -4191,7 +4192,7 @@ export class RssDashboardView extends ItemView {
     }
   }
 
-  private handleGroupChange(value: "none" | "feed" | "date" | "folder"): void {
+  private handleGroupChange(value: ArticleGroupByOption): void {
     this.settings.articleGroupBy = value;
     void this.plugin.saveSettings();
     void this.render();

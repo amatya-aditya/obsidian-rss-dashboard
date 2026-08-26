@@ -1,5 +1,5 @@
 import { setIcon } from "obsidian";
-import { RssDashboardSettings } from "../types/types";
+import { ArticleGroupByOption, RssDashboardSettings } from "../types/types";
 import { FilterChangeEvent } from "./article-filter-menu";
 
 type MenuOptionEntries = Array<[label: string, value: string]>;
@@ -7,7 +7,7 @@ type MenuOptionEntries = Array<[label: string, value: string]>;
 export interface ArticleHeaderMenuCallbacks {
   onSearch: (query: string) => void;
   onSortChange: (value: "newest" | "oldest") => void;
-  onGroupChange: (value: "none" | "feed" | "date" | "folder") => void;
+  onGroupChange: (value: ArticleGroupByOption) => void;
   onFilterChange: (event: FilterChangeEvent) => void;
   onToggleViewStyle: (style: "list" | "card" | "feed") => void;
   onPersistSettings: () => Promise<void> | void;
@@ -207,12 +207,16 @@ export class ArticleHeaderMenu {
       controls,
       "folders",
       "Grouping:",
-      { None: "none", Feed: "feed", Date: "date", Folder: "folder" },
+      {
+        None: "none",
+        Feed: "feed",
+        Date: "date",
+        "Date > Feed": "date_feed",
+        Folder: "folder",
+        "Folder > Feed": "folder_feed",
+      },
       () => this.settings.articleGroupBy,
-      (val) =>
-        this.callbacks.onGroupChange(
-          val as "none" | "feed" | "date" | "folder",
-        ),
+      (val) => this.callbacks.onGroupChange(val as ArticleGroupByOption),
       "rss-dashboard-group",
     );
 

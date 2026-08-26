@@ -225,4 +225,108 @@ describe("feed-view", () => {
 
     expect(onArticleClick).toHaveBeenCalledWith(article);
   });
+
+  it("renders flat cards without feed headers when grouping by date", () => {
+    renderFeedView(
+      container,
+      [
+        makeArticle({ title: "Article 1", feedTitle: "Feed A" }),
+        makeArticle({ title: "Article 2", feedTitle: "Feed B" }),
+      ],
+      baseViewContext({
+        settings: {
+          ...baseViewContext().settings,
+          articleGroupBy: "date",
+        },
+      }),
+      baseViewDeps(),
+    );
+
+    expect(container.querySelectorAll(".rss-dashboard-feed-item").length).toBe(2);
+    expect(container.querySelector(".rss-dashboard-feed-section")).toBeFalsy();
+    expect(container.querySelector(".rss-dashboard-feed-section-header")).toBeFalsy();
+  });
+
+  it("renders flat cards without feed headers when grouping by folder", () => {
+    renderFeedView(
+      container,
+      [
+        makeArticle({ title: "Article 1", feedTitle: "Feed A" }),
+        makeArticle({ title: "Article 2", feedTitle: "Feed B" }),
+      ],
+      baseViewContext({
+        settings: {
+          ...baseViewContext().settings,
+          articleGroupBy: "folder",
+        },
+      }),
+      baseViewDeps(),
+    );
+
+    expect(container.querySelectorAll(".rss-dashboard-feed-item").length).toBe(2);
+    expect(container.querySelector(".rss-dashboard-feed-section")).toBeFalsy();
+    expect(container.querySelector(".rss-dashboard-feed-section-header")).toBeFalsy();
+  });
+
+  it("renders nested feed headers when grouping by date_feed", () => {
+    renderFeedView(
+      container,
+      [
+        makeArticle({ title: "Article 1", feedTitle: "Feed A" }),
+        makeArticle({ title: "Article 2", feedTitle: "Feed B" }),
+      ],
+      baseViewContext({
+        settings: {
+          ...baseViewContext().settings,
+          articleGroupBy: "date_feed",
+        },
+      }),
+      baseViewDeps(),
+    );
+
+    expect(container.querySelectorAll(".rss-dashboard-feed-section").length).toBe(2);
+    expect(container.querySelectorAll(".rss-dashboard-feed-section-header").length).toBe(2);
+  });
+
+  it("renders nested feed headers when grouping by folder_feed", () => {
+    renderFeedView(
+      container,
+      [
+        makeArticle({ title: "Article 1", feedTitle: "Feed A" }),
+        makeArticle({ title: "Article 2", feedTitle: "Feed B" }),
+      ],
+      baseViewContext({
+        settings: {
+          ...baseViewContext().settings,
+          articleGroupBy: "folder_feed",
+        },
+      }),
+      baseViewDeps(),
+    );
+
+    expect(container.querySelectorAll(".rss-dashboard-feed-section").length).toBe(2);
+    expect(container.querySelectorAll(".rss-dashboard-feed-section-header").length).toBe(2);
+  });
+
+  it("renders a feed icon in each section header when grouping by feed", () => {
+    const deps = baseViewDeps();
+    renderFeedView(
+      container,
+      [
+        makeArticle({ title: "Article 1", feedTitle: "Feed A", feedUrl: "https://a.example.com/rss" }),
+        makeArticle({ title: "Article 2", feedTitle: "Feed B", feedUrl: "https://b.example.com/rss" }),
+      ],
+      baseViewContext({
+        settings: {
+          ...baseViewContext().settings,
+          articleGroupBy: "feed",
+        },
+      }),
+      deps,
+    );
+
+    // One icon per section header (2) + one per article card meta (2, showFeedSource is true by default)
+    expect(container.querySelectorAll(".rss-dashboard-feed-section-icon").length).toBe(2);
+    expect(deps.renderFeedIcon).toHaveBeenCalledTimes(4);
+  });
 });
