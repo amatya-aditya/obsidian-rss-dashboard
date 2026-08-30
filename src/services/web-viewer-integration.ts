@@ -1,4 +1,4 @@
-import { App, Notice, TFile, setIcon, Setting } from "obsidian";
+import { App, Notice, TFile, setIcon, Setting, moment } from "obsidian";
 import { FeedItem, ArticleSavingSettings } from "../types/types";
 import { sanitizeFilename } from "./article-saver";
 import { normalizeSubstackImageUrl } from "../utils/substack-image-url";
@@ -322,11 +322,19 @@ guid: "{{guid}}"
           day: "numeric",
         });
 
+    const now = new Date();
+    const saveDate = this.formatMoment(now, "YYYY-MM-DD");
+    const saveTime12 = this.formatMoment(now, "hh:mm A");
+    const saveTime24 = this.formatMoment(now, "HH:mm");
+
     frontmatter = frontmatter
       .replace(/{{title}}/g, item.title)
       .replace(/{{date}}/g, dateString)
       .replace(/{{isoDate}}/g, isoDateTime)
       .replace(/{{isoDateTime}}/g, isoDateTime)
+      .replace(/{{saveDate}}/g, saveDate)
+      .replace(/{{saveTime12}}/g, saveTime12)
+      .replace(/{{saveTime24}}/g, saveTime24)
       .replace(/{{tags}}/g, tagsString)
       .replace(/{{source}}/g, item.feedTitle || "Web viewer")
       .replace(/{{link}}/g, item.link)
@@ -336,6 +344,11 @@ guid: "{{guid}}"
       .replace(/{{image}}/g, this.getImage(item));
 
     return frontmatter.endsWith("\n") ? frontmatter : `${frontmatter}\n`;
+  }
+
+  private formatMoment(date: Date, formatStr: string): string {
+    type MomentFactory = (input: Date) => { format: (fmt: string) => string };
+    return (moment as unknown as MomentFactory)(date).format(formatStr);
   }
 
   protected applyTemplate(item: FeedItem, template: string): string {
@@ -350,12 +363,20 @@ guid: "{{guid}}"
       day: "numeric",
     });
 
+    const now = new Date();
+    const saveDate = this.formatMoment(now, "YYYY-MM-DD");
+    const saveTime12 = this.formatMoment(now, "hh:mm A");
+    const saveTime24 = this.formatMoment(now, "HH:mm");
+
     const description = item.description;
     return template
       .replace(/{{title}}/g, item.title)
       .replace(/{{date}}/g, formattedDate)
       .replace(/{{isoDate}}/g, isoDateTime)
       .replace(/{{isoDateTime}}/g, isoDateTime)
+      .replace(/{{saveDate}}/g, saveDate)
+      .replace(/{{saveTime12}}/g, saveTime12)
+      .replace(/{{saveTime24}}/g, saveTime24)
       .replace(/{{link}}/g, item.link)
       .replace(/{{author}}/g, item.author || "")
       .replace(/{{source}}/g, item.feedTitle || "Web viewer")
