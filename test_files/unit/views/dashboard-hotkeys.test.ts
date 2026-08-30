@@ -251,7 +251,7 @@ describe("DashboardView Hotkeys", () => {
       .mockImplementation(async () => {});
 
     const e = new KeyboardEvent("keydown", { key: "r" });
-    const inputEl = document.createElement("input");
+    const inputEl = createEl("input");
     Object.defineProperty(e, "target", { value: inputEl });
 
     keydownHandler!(e);

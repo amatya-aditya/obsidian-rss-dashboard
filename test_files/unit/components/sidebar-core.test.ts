@@ -79,7 +79,7 @@ describe("Sidebar Core", () => {
 
   beforeEach(() => {
     app = ObsidianStubs.App.createMock() as TestApp;
-    container = document.createElement("div");
+    container = createDiv();
 
     settings = {
       feeds: [],
@@ -169,7 +169,7 @@ describe("Sidebar Core", () => {
         options,
         callbacks,
       );
-      iconEl = document.createElement("div");
+      iconEl = createDiv();
     });
 
     it("should add rss icon by default", () => {
@@ -231,7 +231,7 @@ describe("Sidebar Core", () => {
         options,
         callbacks,
       );
-      const headerSurface = document.createElement("div");
+      const headerSurface = createDiv();
       const ts = sidebar as unknown as TestSidebar;
       ts.renderHeader(headerSurface);
 
@@ -250,7 +250,7 @@ describe("Sidebar Core", () => {
         options,
         callbacks,
       );
-      const headerSurface = document.createElement("div");
+      const headerSurface = createDiv();
       const ts = sidebar as unknown as TestSidebar;
 
       ts.renderHeader(headerSurface);
@@ -720,7 +720,7 @@ describe("Sidebar Core", () => {
       if (container.parentElement) {
         container.parentElement.removeChild(container);
       }
-      container = document.createElement("div");
+      container = createDiv();
     });
 
     it("ctrl+click on a folder calls onFolderMultiSelect with that folder added to the selection", () => {

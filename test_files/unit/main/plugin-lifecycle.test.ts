@@ -174,11 +174,11 @@ async function createPluginInstance(app: MockApp): Promise<RssDashboardPlugin> {
       ensureFolderExists: (folder, opts) =>
         plugin.ensureFolderExists(folder, opts),
       addStatusBarItem: () => {
-        const el = document.createElement("div") as HTMLDivElement & {
+        const el = createDiv() as HTMLDivElement & {
           createSpan: (opts?: { cls?: string }) => HTMLSpanElement;
         };
         el.createSpan = (opts?: { cls?: string }) => {
-          const span = document.createElement("span");
+          const span = createSpan();
           if (opts?.cls) span.className = opts.cls;
           el.appendChild(span);
           return span;

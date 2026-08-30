@@ -19,7 +19,7 @@ describe("favicon-utils (failure cache infrastructure)", () => {
   });
 
   it("createSafeIconImage inserts an img with the given src", () => {
-    const container = document.createElement("div");
+    const container = createDiv();
     createSafeIconImage(container, "https://example.com/icon.png", "alt text", () => {});
     const img = container.querySelector("img") as HTMLImageElement;
     expect(img).toBeTruthy();
@@ -28,7 +28,7 @@ describe("favicon-utils (failure cache infrastructure)", () => {
   });
 
   it("createSafeIconImage onerror adds src to failure cache", () => {
-    const container = document.createElement("div");
+    const container = createDiv();
     const src = "https://broken.example/icon.png";
     createSafeIconImage(container, src, "", () => {});
     const img = container.querySelector("img") as HTMLImageElement;
@@ -37,7 +37,7 @@ describe("favicon-utils (failure cache infrastructure)", () => {
   });
 
   it("createSafeIconImage onerror sets src to TRANSPARENT_PIXEL", () => {
-    const container = document.createElement("div");
+    const container = createDiv();
     createSafeIconImage(container, "https://broken.example/icon.png", "", () => {});
     const img = container.querySelector("img") as HTMLImageElement;
     img.onerror!(new Event("error"));
@@ -45,7 +45,7 @@ describe("favicon-utils (failure cache infrastructure)", () => {
   });
 
   it("createSafeIconImage onerror nulls the handler after firing", () => {
-    const container = document.createElement("div");
+    const container = createDiv();
     createSafeIconImage(container, "https://broken.example/icon.png", "", () => {});
     const img = container.querySelector("img") as HTMLImageElement;
     img.onerror!(new Event("error"));
@@ -53,7 +53,7 @@ describe("favicon-utils (failure cache infrastructure)", () => {
   });
 
   it("createSafeIconImage onerror invokes the onErrorFallback callback", () => {
-    const container = document.createElement("div");
+    const container = createDiv();
     const onError = (): void => {};
     const onErrorFallback = vi.fn(onError);
     createSafeIconImage(container, "https://broken.example/icon.png", "", onErrorFallback);

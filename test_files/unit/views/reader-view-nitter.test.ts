@@ -87,7 +87,7 @@ describe("ReaderView Nitter rendering", () => {
       vi.fn(),
     );
 
-    getInternals(readerView).contentEl = document.createElement("div");
+    getInternals(readerView).contentEl = createDiv();
     await readerView.onOpen();
   });
 

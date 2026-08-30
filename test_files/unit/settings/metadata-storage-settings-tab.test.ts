@@ -81,7 +81,7 @@ beforeEach(() => {
 
 describe("renderStorageSettingsTab() - default folders and metadata", () => {
   it("renders the storage section headings in the dedicated Storage tab", () => {
-    const containerEl = document.body.appendChild(document.createElement("div"));
+    const containerEl = document.body.appendChild(createDiv());
     const plugin = createPlugin();
 
     renderStorageSettingsTab(containerEl, plugin);
@@ -96,7 +96,7 @@ describe("renderStorageSettingsTab() - default folders and metadata", () => {
   });
 
   it("renders and persists the default folder settings", async () => {
-    const containerEl = document.body.appendChild(document.createElement("div"));
+    const containerEl = document.body.appendChild(createDiv());
     const settings = cloneSettings();
     settings.folders = sampleFolders();
     settings.media.defaultTwitterFolder = "Twitter";
@@ -150,7 +150,7 @@ describe("renderStorageSettingsTab() - default folders and metadata", () => {
   });
 
   it("restores the default folder names from the reset action", async () => {
-    const containerEl = document.body.appendChild(document.createElement("div"));
+    const containerEl = document.body.appendChild(createDiv());
     const settings = cloneSettings();
     settings.media.defaultTwitterFolder = "Custom/Twitter";
     settings.media.defaultMastodonFolder = "Custom/Mastodon";

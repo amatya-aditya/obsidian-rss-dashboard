@@ -2,11 +2,15 @@
 
 ### Features
 
+- Added `{{saveDate}}` (`YYYY-MM-DD`), `{{saveTime12}}` (`hh:mm A`), and `{{saveTime24}}` (`HH:mm`) template variables that insert current local date and time when saving an article to Obsidian.
 - Added **Date > Feed** and **Folder > Feed** grouping options to the Grouping selector. Selecting **Date** or **Folder** now renders a flat list of article cards within each date/folder group (no nested feed headers), while **Date > Feed** or **Folder > Feed** renders collapsible per-feed sections nested under each date or folder group header. [GH Issue #195](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/195)
 
 ### Fixes
 
 - Fixed Feed View grouping so **Grouping: Disabled** renders a flat article sequence and **Grouping: Feed** displays one collapsible header per feed. [GH Issue #195](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/195)
+- Fixed `document.createElement` occurrences by migrating to Obsidian `createEl`, `createDiv`, and `createSpan` DOM helpers.
+- Fixed community plugin audit warning for unknown CSS type selector `mjx-container` by using class and attribute selectors (`[class*="mjx-container"]`, `.MathJax`) in `src/styles/articles.css` and `src/styles/reader.css`.
+- Fixed unnecessary type assertion in `src/utils/settings-loader.ts` by updating `migrateDefaultFilterToDashboardMultiFilters` to accept typed `DisplaySettings`.
 
 ## 2.6.0 - August 24, 2026
 

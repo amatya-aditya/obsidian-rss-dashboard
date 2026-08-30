@@ -77,7 +77,7 @@ describe("ReaderView Tag Synchronization", () => {
       vi.fn(),
     );
 
-    getInternals(readerView).contentEl = document.createElement("div");
+    getInternals(readerView).contentEl = createDiv();
     await readerView.onOpen();
   });
 
@@ -164,7 +164,9 @@ describe("ReaderView Tag Synchronization", () => {
     expect(tagAfterRefresh?.style.getPropertyValue("--tag-color")).toBe(
       "#ef4444",
     );
-    expect(getInternals(readerView).currentItem.tags[0].color).toBe("#ef4444");
+    expect(getInternals(readerView).currentItem.tags?.[0]?.color).toBe(
+      "#ef4444",
+    );
   });
 
   it("should remove tags DOM when tags are removed via applyExternalUpdate", async () => {

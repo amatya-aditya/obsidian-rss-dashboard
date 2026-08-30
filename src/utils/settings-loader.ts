@@ -363,8 +363,8 @@ export function migrateSettings(settings: RssDashboardSettings): boolean {
     : { ...DEFAULT_SETTINGS.dashboardMultiFilters };
 
   migrateDefaultFilterToDashboardMultiFilters(
-    settings.display as unknown as Record<string, unknown>,
-    settings.dashboardMultiFilters as unknown as Record<string, unknown>,
+    settings.display,
+    settings.dashboardMultiFilters,
   );
 
   settings.feeds = Array.isArray(settings.feeds) ? settings.feeds : [];

@@ -74,7 +74,7 @@ function createPlugin(): RssDashboardPlugin {
   plugin.saveData = vi.fn().mockResolvedValue(undefined);
   
   const pluginInternal = plugin as unknown as PluginWithInternal;
-  pluginInternal.addStatusBarItem = vi.fn(() => document.createElement("div"));
+  pluginInternal.addStatusBarItem = vi.fn(() => createDiv());
   pluginInternal.feedParser = {
     parseFeed: mockParseFeed,
     refreshFeed: mockRefreshFeed,
@@ -151,6 +151,7 @@ describe("background import orchestration", () => {
           tags: [],
           feedTitle: "Existing feed",
           feedUrl: "https://example.com/existing.xml",
+          coverImage: "",
         },
       ],
     } satisfies Feed;
@@ -477,7 +478,7 @@ describe("background import orchestration", () => {
         savedModes.push(settings.storageMode);
       },
       ensureFolderExists,
-      addStatusBarItem: () => document.createElement("div"),
+      addStatusBarItem: () => createDiv(),
     });
 
     vi.spyOn(service, "startBackgroundImport").mockImplementation(() => {});
@@ -516,7 +517,7 @@ describe("background import orchestration", () => {
       getView: async () => null,
       saveSettings: async () => undefined,
       ensureFolderExists: vi.fn().mockResolvedValue(false),
-      addStatusBarItem: () => document.createElement("div"),
+      addStatusBarItem: () => createDiv(),
       beginGlobalOperation,
       endGlobalOperation,
       isGlobalOperationCancelled: () => controller.signal.aborted,

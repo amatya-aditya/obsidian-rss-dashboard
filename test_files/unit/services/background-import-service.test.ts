@@ -77,7 +77,7 @@ describe("BackgroundImportService", () => {
       getView: vi.fn().mockResolvedValue(null),
       saveSettings: vi.fn().mockResolvedValue(undefined),
       ensureFolderExists: vi.fn().mockResolvedValue(false),
-      addStatusBarItem: vi.fn(() => document.createElement("div")),
+      addStatusBarItem: vi.fn(() => createDiv()),
       _settings: settings, // exposed for test assertions
     };
   }
@@ -433,8 +433,8 @@ describe("BackgroundImportService", () => {
     it("updates the .import-statusbar-text span with current/total and feed title", async () => {
       const { BackgroundImportService } =
         await import("../../../src/services/background-import-service");
-      const statusBarItem = document.createElement("div");
-      const textSpan = document.createElement("span");
+      const statusBarItem = createDiv();
+      const textSpan = createSpan();
       textSpan.className = "import-statusbar-text";
       statusBarItem.appendChild(textSpan);
 

@@ -200,7 +200,7 @@ describe("Phase 7 - ArticleList characterization", () => {
     const title = h
       .getArticleEl("math")
       ?.querySelector<HTMLElement>(".rss-dashboard-article-title");
-    title?.replaceChildren(title.ownerDocument.createElement("mjx-container"));
+    title?.replaceChildren(title.ownerDocument.win.createEl("mjx-container"));
 
     (h.list as unknown as TestableArticleList).filterArticlesBySearch("gl");
 

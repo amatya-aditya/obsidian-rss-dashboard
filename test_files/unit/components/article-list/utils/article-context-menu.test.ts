@@ -33,7 +33,7 @@ describe("article-context-menu utils", () => {
   let article: FeedItem;
 
   beforeEach(() => {
-    container = document.createElement("div");
+    container = createDiv();
     document.body.appendChild(container);
     article = {
       title: "Test Article",

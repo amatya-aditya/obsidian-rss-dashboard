@@ -5,7 +5,7 @@ describe("Obsidian DOM polyfills", () => {
   it("exposes the owning window from documents and nodes", () => {
     installObsidianDomPolyfills();
 
-    const element = document.createElement("div");
+    const element = createDiv();
 
     expect(document.win).toBe(window);
     expect(element.win).toBe(window);
@@ -45,7 +45,7 @@ describe("Obsidian DOM polyfills", () => {
     } as unknown as HTMLElement;
 
     globalScope.activeDocument = activeDocument;
-    delete HTMLElement.prototype.createDiv;
+    delete (HTMLElement.prototype as unknown as Record<string, unknown>)["createDiv"];
     installObsidianDomPolyfills();
 
     try {

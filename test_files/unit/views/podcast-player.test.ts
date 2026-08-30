@@ -38,7 +38,7 @@ describe("PodcastPlayer", () => {
 
   describe("cover artwork", () => {
     it("keeps the styled placeholder visible until cover artwork loads", () => {
-      const container: HTMLDivElement = document.createElement("div");
+      const container: HTMLDivElement = createDiv();
       document.body.appendChild(container);
       const createElement = vi.spyOn(activeDocument, "createElement");
       const app = new App();
@@ -68,7 +68,7 @@ describe("PodcastPlayer", () => {
 
   describe("sorting", () => {
     it("renders only a five-episode window around the active episode", () => {
-      const container: HTMLDivElement = document.createElement("div");
+      const container: HTMLDivElement = createDiv();
       document.body.appendChild(container);
       const app = new App();
       const player = new PodcastPlayer(container, app, "obsidian");
@@ -96,7 +96,7 @@ describe("PodcastPlayer", () => {
     });
 
     it("does not recreate the audio element when sorting the playlist", () => {
-      const container: HTMLDivElement = document.createElement("div");
+      const container: HTMLDivElement = createDiv();
       document.body.appendChild(container);
       const app = new App();
       const player = new PodcastPlayer(container, app, "obsidian");
@@ -133,7 +133,7 @@ describe("PodcastPlayer", () => {
 
   describe("live tag updates", () => {
     it("refreshTags + refreshPlaylistTags update player strip and playlist row", () => {
-      const container: HTMLDivElement = document.createElement("div");
+      const container: HTMLDivElement = createDiv();
       document.body.appendChild(container);
       const app = new App();
       const player = new PodcastPlayer(container, app, "obsidian");
@@ -156,6 +156,7 @@ describe("PodcastPlayer", () => {
       expect(row).not.toBeNull();
 
       // Add tag assignment
+      ep1.tags = ep1.tags ?? [];
       ep1.tags.push({ name: "NewTag", color: "#ff0000" });
       player.refreshTags();
       player.refreshPlaylistTags(ep1.guid);
@@ -185,7 +186,7 @@ describe("PodcastPlayer", () => {
 
   describe("episode details section", () => {
     it("renders the collapsible details section when notes exist", () => {
-      const container: HTMLDivElement = document.createElement("div");
+      const container: HTMLDivElement = createDiv();
       document.body.appendChild(container);
       const app = new App();
       const player = new PodcastPlayer(container, app, "obsidian");
@@ -202,7 +203,7 @@ describe("PodcastPlayer", () => {
     });
 
     it("prefers content over description when meaningfully different", () => {
-      const container: HTMLDivElement = document.createElement("div");
+      const container: HTMLDivElement = createDiv();
       document.body.appendChild(container);
       const app = new App();
       const player = new PodcastPlayer(container, app, "obsidian");
@@ -221,7 +222,7 @@ describe("PodcastPlayer", () => {
     });
 
     it("sanitizes show notes (removes scripts/events, blocks javascript: links)", () => {
-      const container: HTMLDivElement = document.createElement("div");
+      const container: HTMLDivElement = createDiv();
       document.body.appendChild(container);
       const app = new App();
       const player = new PodcastPlayer(container, app, "obsidian");
@@ -262,7 +263,7 @@ describe("PodcastPlayer", () => {
     });
 
     it("renders metadata rows only when fields exist", () => {
-      const container: HTMLDivElement = document.createElement("div");
+      const container: HTMLDivElement = createDiv();
       document.body.appendChild(container);
       const app = new App();
       const player = new PodcastPlayer(container, app, "obsidian");
@@ -310,7 +311,7 @@ describe("PodcastPlayer", () => {
 
   describe("default play speed", () => {
     it("initializes with the given defaultPlaySpeed", () => {
-      const container: HTMLDivElement = document.createElement("div");
+      const container: HTMLDivElement = createDiv();
       document.body.appendChild(container);
       const app = new App();
       const player = new PodcastPlayer(
@@ -342,7 +343,7 @@ describe("PodcastPlayer", () => {
 
   describe("autoplay behavior", () => {
     it("stops playing by default at the end of an episode", async () => {
-      const container: HTMLDivElement = document.createElement("div");
+      const container: HTMLDivElement = createDiv();
       document.body.appendChild(container);
       const app = new App();
       const player = new PodcastPlayer(container, app, "obsidian");
@@ -373,7 +374,7 @@ describe("PodcastPlayer", () => {
     });
 
     it("advances to next episode when Autoplay is enabled", async () => {
-      const container: HTMLDivElement = document.createElement("div");
+      const container: HTMLDivElement = createDiv();
       document.body.appendChild(container);
       const app = new App();
       const player = new PodcastPlayer(container, app, "obsidian");
@@ -414,7 +415,7 @@ describe("PodcastPlayer", () => {
     it("starts tracking on play and flushes on pause", () => {
       vi.useFakeTimers();
 
-      const container: HTMLDivElement = document.createElement("div");
+      const container: HTMLDivElement = createDiv();
       document.body.appendChild(container);
       const app = new App();
       const onPlaybackProgress = vi.fn();

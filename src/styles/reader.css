@@ -186,10 +186,14 @@
   line-height: inherit;
 }
 
-.rss-reader-article-content mjx-container,
-.rss-reader-article-content mjx-container *,
-.rss-reader-description-body mjx-container,
-.rss-reader-description-body mjx-container * {
+.rss-reader-article-content [class*="mjx-container"],
+.rss-reader-article-content [class*="mjx-container"] *,
+.rss-reader-description-body [class*="mjx-container"],
+.rss-reader-description-body [class*="mjx-container"] *,
+.rss-reader-article-content .MathJax,
+.rss-reader-article-content .MathJax *,
+.rss-reader-description-body .MathJax,
+.rss-reader-description-body .MathJax * {
   line-height: normal;
 }
 

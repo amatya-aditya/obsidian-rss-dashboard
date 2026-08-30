@@ -70,7 +70,7 @@ describe("ArticleRenderer restricted-content handling", () => {
       onArticleUpdate: vi.fn(),
     });
 
-    container = document.createElement("div");
+    container = createDiv();
     document.body.appendChild(container);
   });
 

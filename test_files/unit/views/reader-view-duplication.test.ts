@@ -71,7 +71,7 @@ describe("ReaderView Image Duplication", () => {
     );
 
     // Initialize contentEl since it's used in onOpen
-    getHarness(readerView).contentEl = document.createElement("div");
+    getHarness(readerView).contentEl = createDiv();
   });
 
   afterEach(() => {
@@ -337,7 +337,7 @@ describe("ReaderView – summary de-duplication", () => {
       vi.fn(),
     );
 
-    getHarness(readerView).contentEl = document.createElement("div");
+    getHarness(readerView).contentEl = createDiv();
     // Prevent outbound HTTP — content comes from item fields only
     getHarness(readerView).fetchFullArticleContent = vi
       .fn()

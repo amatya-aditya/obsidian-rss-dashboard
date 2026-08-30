@@ -37,7 +37,7 @@ describe("ReaderView math copy", () => {
       vi.fn(),
       vi.fn(),
     );
-    getInternals(readerView).contentEl = document.createElement("div");
+    getInternals(readerView).contentEl = createDiv();
     await readerView.onOpen();
   });
 
@@ -49,11 +49,11 @@ describe("ReaderView math copy", () => {
   it("copies rendered Reader formulas as retained source", () => {
     const readerRoot = getInternals(readerView).readingContainer;
     document.body.appendChild(readerRoot);
-    const paragraph = document.createElement("p");
-    const formula = document.createElement("span");
+    const paragraph = createEl("p");
+    const formula = createSpan();
     formula.className = "math math-inline";
     formula.setAttribute("data-math", "$x$");
-    formula.appendChild(document.createElement("mjx-container"));
+    formula.appendChild(createEl("mjx-container"));
     paragraph.append("Copy ", formula, ".");
     readerRoot.appendChild(paragraph);
     const range = document.createRange();
@@ -78,10 +78,10 @@ describe("ReaderView math copy", () => {
   it("visually marks a formula while it is selected", () => {
     const readerRoot = getInternals(readerView).readingContainer;
     document.body.appendChild(readerRoot);
-    const formula = document.createElement("span");
+    const formula = createSpan();
     formula.className = "math math-inline";
     formula.setAttribute("data-math", "$x$");
-    formula.appendChild(document.createElement("mjx-container"));
+    formula.appendChild(createEl("mjx-container"));
     readerRoot.appendChild(formula);
 
     const range = document.createRange();
