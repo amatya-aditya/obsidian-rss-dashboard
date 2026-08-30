@@ -1,3 +1,4 @@
+import type { DisplaySettings } from "../types/types";
 import { SIDEBAR_ICON_IDS } from "./sidebar-icon-registry";
 
 const CANONICAL_ICON_ORDER = [...SIDEBAR_ICON_IDS];
@@ -55,11 +56,21 @@ export function migrateDisplaySettings(display: Record<string, unknown>): void {
  * view (`currentFolder = null`) while multi-filters are applied immediately.
  */
 export function migrateDefaultFilterToDashboardMultiFilters(
-  display: Record<string, unknown>,
-  dashboardMultiFilters: Record<string, unknown>,
+  display: Record<string, unknown> | DisplaySettings,
+  dashboardMultiFilters:
+    | Record<string, unknown>
+    | {
+        statusFilters?: unknown[];
+        tagFilters?: unknown[];
+        logic?: string;
+      },
 ): void {
-  const statusFiltersRaw = dashboardMultiFilters.statusFilters;
-  const tagFiltersRaw = dashboardMultiFilters.tagFilters;
+  const statusFiltersRaw = (
+    dashboardMultiFilters as Record<string, unknown>
+  ).statusFilters;
+  const tagFiltersRaw = (
+    dashboardMultiFilters as Record<string, unknown>
+  ).tagFilters;
 
   const statusFilters = Array.isArray(statusFiltersRaw)
     ? statusFiltersRaw.filter((v): v is string => typeof v === "string")

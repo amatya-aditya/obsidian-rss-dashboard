@@ -44,7 +44,7 @@ beforeEach(() => {
 describe("renderSidebarSettingsTab() - domain icon toggles", () => {
   it("renders each icon visibility setting with its icon name", () => {
     const containerEl = document.body.appendChild(
-      document.createElement("div"),
+      createDiv(),
     );
     const plugin = {
       app: obsidian.App.createMock(),
@@ -70,7 +70,7 @@ describe("renderSidebarSettingsTab() - domain icon toggles", () => {
 
   it("renders and persists the RSS site icons toggle", async () => {
     const containerEl = document.body.appendChild(
-      document.createElement("div"),
+      createDiv(),
     );
     const settings = cloneSettings();
     settings.display.useDomainIconsRss = false;
@@ -113,7 +113,7 @@ describe("renderSidebarSettingsTab() - domain icon toggles", () => {
 
   it("renders the YouTube info message", async () => {
     const containerEl = document.body.appendChild(
-      document.createElement("div"),
+      createDiv(),
     );
     const settings = cloneSettings();
     const plugin = {
@@ -135,7 +135,7 @@ describe("renderSidebarSettingsTab() - domain icon toggles", () => {
 
   it("renders and persists the Podcast artwork toggle", async () => {
     const containerEl = document.body.appendChild(
-      document.createElement("div"),
+      createDiv(),
     );
     const settings = cloneSettings();
     settings.media.defaultTwitterFolder = "Custom/Twitter";
@@ -174,7 +174,7 @@ describe("renderSidebarSettingsTab() - domain icon toggles", () => {
 
   it("renders and persists the Twitter profile images toggle", async () => {
     const containerEl = document.body.appendChild(
-      document.createElement("div"),
+      createDiv(),
     );
     const settings = cloneSettings();
     settings.media.defaultTwitterFolder = "Custom/Twitter";
@@ -386,7 +386,7 @@ describe("Icon refresh helpers", () => {
 describe("Sidebar display settings - domain icon fields", () => {
   it("does not render the retired sidebar scrollbar toggle", () => {
     const containerEl = document.body.appendChild(
-      document.createElement("div"),
+      createDiv(),
     );
     const plugin = {
       app: obsidian.App.createMock(),

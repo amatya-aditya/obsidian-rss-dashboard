@@ -67,7 +67,7 @@ describe("MobileNavigationModal", () => {
 
     const modal = new MobileNavigationModal(app as unknown as obsidian.App, plugin as unknown as RssDashboardPlugin, settings, { selectedTags: [] } as unknown as SidebarOptions, callbacks);
 
-    const closeBtn = document.createElement("button");
+    const closeBtn = createEl("button");
     closeBtn.className = "modal-header-button mod-raised clickable-icon";
     modal.modalEl.appendChild(closeBtn);
 

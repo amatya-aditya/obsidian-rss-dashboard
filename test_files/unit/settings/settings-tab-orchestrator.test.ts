@@ -55,7 +55,7 @@ describe("RssDashboardSettingTab (orchestrator)", () => {
     const plugin = { app } as unknown as RssDashboardPlugin;
     const tab = new RssDashboardSettingTab(app, plugin);
 
-    tab.containerEl = document.body.appendChild(document.createElement("div"));
+    tab.containerEl = document.body.appendChild(createDiv());
     tab.display();
 
     const tabButtons = Array.from(
@@ -77,7 +77,7 @@ describe("RssDashboardSettingTab (orchestrator)", () => {
     const app = obsidian.App.createMock();
     const plugin = { app } as unknown as RssDashboardPlugin;
     const tab = new RssDashboardSettingTab(app, plugin);
-    tab.containerEl = document.body.appendChild(document.createElement("div"));
+    tab.containerEl = document.body.appendChild(createDiv());
 
     tab.display();
 
@@ -114,7 +114,7 @@ describe("RssDashboardSettingTab (orchestrator)", () => {
     const app = obsidian.App.createMock();
     const plugin = { app } as unknown as RssDashboardPlugin;
     const tab = new RssDashboardSettingTab(app, plugin);
-    tab.containerEl = document.body.appendChild(document.createElement("div"));
+    tab.containerEl = document.body.appendChild(createDiv());
 
     tab.display();
     expect(vi.mocked(general.renderGeneralSettingsTab)).toHaveBeenCalledTimes(1);

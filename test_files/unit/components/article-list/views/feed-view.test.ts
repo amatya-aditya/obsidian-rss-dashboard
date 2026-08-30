@@ -1,12 +1,13 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { renderFeedView } from "../../../../../src/components/article-list/views/feed-view";
+import type { BaseViewContext } from "../../../../../src/components/article-list/views/view-types";
 import { baseViewContext, baseViewDeps, makeArticle } from "./test-helpers";
 
 describe("feed-view", () => {
   let container: HTMLElement;
 
   beforeEach(() => {
-    container = document.createElement("div");
+    container = createDiv();
     document.body.appendChild(container);
   });
 
@@ -146,7 +147,7 @@ describe("feed-view", () => {
               highlightInSummaries: false,
             },
             display: { showCoverImage, showSummary, articleDateStyle: "relative" },
-          },
+          } as unknown as BaseViewContext["settings"],
         }),
         baseViewDeps(),
       );

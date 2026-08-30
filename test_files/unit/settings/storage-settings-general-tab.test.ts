@@ -30,7 +30,7 @@ function resetDocumentBody(): void {
 }
 
 function createTestContainer(): HTMLDivElement {
-  const containerEl = document.createElement("div");
+  const containerEl = createDiv();
   document.body.appendChild(containerEl);
   return containerEl;
 }

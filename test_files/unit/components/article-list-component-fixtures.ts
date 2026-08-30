@@ -229,7 +229,7 @@ export function setupArticleListBeforeEach(): ArticleListTestContext {
     window as unknown as { ResizeObserver: typeof ResizeObserver }
   ).ResizeObserver = ResizeObserverMock;
 
-  const container = activeDocument.createElement("div");
+  const container = activeDocument.createDiv();
   activeDocument.body.appendChild(container);
   Element.prototype.scrollIntoView = vi.fn();
 

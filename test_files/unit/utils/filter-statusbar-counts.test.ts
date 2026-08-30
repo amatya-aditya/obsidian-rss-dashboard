@@ -188,7 +188,7 @@ describe("Filter Status Bar counts (TDD)", () => {
     };
     view.highlightMatchCounts = [];
 
-    const container: HTMLDivElement = document.createElement("div");
+    const container: HTMLDivElement = createDiv();
     document.body.appendChild(container);
     view.renderFilterSubheader!(container);
 
@@ -237,7 +237,7 @@ describe("Filter Status Bar counts (TDD)", () => {
     };
     view.highlightMatchCounts = [];
 
-    const container: HTMLDivElement = document.createElement("div");
+    const container: HTMLDivElement = createDiv();
     document.body.appendChild(container);
     view.renderFilterSubheader!(container);
 

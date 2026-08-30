@@ -77,7 +77,7 @@ describe("ArticleRenderer – summary de-duplication", () => {
     const rendererInternal = renderer as unknown as ArticleRendererWithPrivate;
     rendererInternal.fetchFullArticleContent = vi.fn().mockResolvedValue("");
 
-    container = document.body.appendChild(document.createElement("div"));
+    container = document.body.appendChild(createDiv());
   });
 
   afterEach(() => {

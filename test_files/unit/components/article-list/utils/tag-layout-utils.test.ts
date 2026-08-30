@@ -12,7 +12,7 @@ describe("tag-layout-utils", () => {
   let container: HTMLElement;
 
   beforeEach(() => {
-    container = document.createElement("div");
+    container = createDiv();
     document.body.appendChild(container);
   });
 
@@ -51,7 +51,7 @@ describe("tag-layout-utils", () => {
 
       renderTagChips(container, tags);
 
-      const overflow = container.querySelector(".rss-dashboard-tag-overflow");
+      const overflow = container.querySelector<HTMLElement>(".rss-dashboard-tag-overflow");
       expect(overflow?.textContent).toBe("+1");
       expect(overflow?.title).toBe("Tag7");
     });
@@ -137,11 +137,11 @@ describe("tag-layout-utils", () => {
 
   describe("layoutCardTagRows", () => {
     it("processes cards and renders tags", () => {
-      const card1 = document.createElement("div");
+      const card1 = createDiv();
       card1.className = "rss-dashboard-article-card";
       card1.dataset.articleGuid = "1";
       
-      const card2 = document.createElement("div");
+      const card2 = createDiv();
       card2.className = "rss-dashboard-article-card";
       card2.dataset.articleGuid = "2";
 
@@ -149,8 +149,32 @@ describe("tag-layout-utils", () => {
       container.appendChild(card2);
 
       const articles: FeedItem[] = [
-        { guid: "1", title: "A1", feedTitle: "F1", feedUrl: "u1", pubDate: "2024-01-01", read: false, starred: false, tags: [], coverImage: "" },
-        { guid: "2", title: "A2", feedTitle: "F2", feedUrl: "u2", pubDate: "2024-01-02", read: false, starred: false, tags: [], coverImage: "" },
+        {
+          guid: "1",
+          title: "A1",
+          link: "https://example.com/1",
+          description: "desc 1",
+          feedTitle: "F1",
+          feedUrl: "u1",
+          pubDate: "2024-01-01",
+          read: false,
+          starred: false,
+          tags: [],
+          coverImage: "",
+        },
+        {
+          guid: "2",
+          title: "A2",
+          link: "https://example.com/2",
+          description: "desc 2",
+          feedTitle: "F2",
+          feedUrl: "u2",
+          pubDate: "2024-01-02",
+          read: false,
+          starred: false,
+          tags: [],
+          coverImage: "",
+        },
       ];
 
       // This will clear tag containers since articles have no tags

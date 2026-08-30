@@ -17,7 +17,7 @@ describe("ArticleHeaderMenu Component", () => {
 
   beforeEach(() => {
     installObsidianDomPolyfills();
-    container = document.createElement("div");
+    container = createDiv();
     document.body.appendChild(container);
 
     settings = {
