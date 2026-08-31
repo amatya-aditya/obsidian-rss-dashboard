@@ -11,6 +11,7 @@
 - Fixed `document.createElement` occurrences by migrating to Obsidian `createEl`, `createDiv`, and `createSpan` DOM helpers.
 - Fixed community plugin audit warning for unknown CSS type selector `mjx-container` by using class and attribute selectors (`[class*="mjx-container"]`, `.MathJax`) in `src/styles/articles.css` and `src/styles/reader.css`.
 - Fixed unnecessary type assertion in `src/utils/settings-loader.ts` by updating `migrateDefaultFilterToDashboardMultiFilters` to accept typed `DisplaySettings`.
+- Fixed the global-refresh Stop button not appearing on mobile/tablet: the sidebar modal's polling loop now applies the `stop` class and swaps the icon to `square-stop` when the refresh is cancellable, matching the desktop sidebar behaviour.
 
 ## 2.6.0 - August 24, 2026
 
