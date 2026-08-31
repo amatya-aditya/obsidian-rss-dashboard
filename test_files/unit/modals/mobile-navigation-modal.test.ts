@@ -137,5 +137,118 @@ describe("MobileNavigationModal", () => {
 
     expect(plugin.saveSettings).toHaveBeenCalledTimes(1);
   });
-});
 
+  describe("updateAllFeedsIconRefreshState polling (stop button)", () => {
+    async function openModalWithPlugin(
+      pluginOverrides: Record<string, unknown>,
+    ) {
+      const { MobileNavigationModal } = await import(
+        "../../../src/modals/mobile-navigation-modal"
+      );
+      const app = obsidian.App.createMock();
+      const plugin = {
+        saveSettings: vi.fn(async () => {}),
+        isGlobalRefreshCancellable: false,
+        isMultiFeedRefreshActive: false,
+        activeRefreshState: new Map(),
+        ...pluginOverrides,
+      };
+      const settings = {
+        sidebarWidth: 280,
+      } as unknown as RssDashboardSettings;
+      const callbacks = {
+        onFolderClick: vi.fn(),
+        onFeedClick: vi.fn(),
+        onTagToggle: vi.fn(),
+        onClearTags: vi.fn(),
+        onTagFilterModeChange: vi.fn(),
+      } as unknown as SidebarCallbacks;
+      const modal = new MobileNavigationModal(
+        app as unknown as obsidian.App,
+        plugin as unknown as RssDashboardPlugin,
+        settings,
+        { selectedTags: [] } as unknown as SidebarOptions,
+        callbacks,
+      );
+      modal.open();
+      return { modal, plugin };
+    }
+
+    function injectIcon(modal: { contentEl: HTMLElement }): HTMLButtonElement {
+      // Simulate the icon element that Sidebar.render() creates
+      const icon = createEl("button");
+      icon.className = "rss-dashboard-all-feeds-icon";
+      icon.setAttribute("title", "Refresh all feeds");
+      modal.contentEl
+        .querySelector(".rss-dashboard-sidebar-container")!
+        .appendChild(icon);
+      return icon;
+    }
+
+    it("leaves the icon idle when no refresh is active", async () => {
+      vi.useFakeTimers();
+      let modal: Awaited<ReturnType<typeof openModalWithPlugin>>["modal"] | undefined;
+      try {
+        ({ modal } = await openModalWithPlugin({
+          isGlobalRefreshCancellable: false,
+          isMultiFeedRefreshActive: false,
+        }));
+        const icon = injectIcon(modal);
+
+        vi.advanceTimersByTime(110);
+
+        expect(icon.classList.contains("stop")).toBe(false);
+        expect(icon.classList.contains("refreshing")).toBe(false);
+        expect(icon.getAttribute("title")).toBe("Refresh all feeds");
+        expect(icon.dataset.icon).toBe("refresh-cw");
+      } finally {
+        modal?.close();
+        vi.useRealTimers();
+      }
+    });
+
+    it("adds refreshing class but not stop when a plain multi-feed refresh is active", async () => {
+      vi.useFakeTimers();
+      let modal: Awaited<ReturnType<typeof openModalWithPlugin>>["modal"] | undefined;
+      try {
+        ({ modal } = await openModalWithPlugin({
+          isGlobalRefreshCancellable: false,
+          isMultiFeedRefreshActive: true,
+        }));
+        const icon = injectIcon(modal);
+
+        vi.advanceTimersByTime(110);
+
+        expect(icon.classList.contains("refreshing")).toBe(true);
+        expect(icon.classList.contains("stop")).toBe(false);
+        expect(icon.getAttribute("title")).toBe("Refresh all feeds");
+        expect(icon.dataset.icon).toBe("refresh-cw");
+      } finally {
+        modal?.close();
+        vi.useRealTimers();
+      }
+    });
+
+    it("shows stop state (not refreshing) when global refresh is cancellable", async () => {
+      vi.useFakeTimers();
+      let modal: Awaited<ReturnType<typeof openModalWithPlugin>>["modal"] | undefined;
+      try {
+        ({ modal } = await openModalWithPlugin({
+          isGlobalRefreshCancellable: true,
+          isMultiFeedRefreshActive: true,
+        }));
+        const icon = injectIcon(modal);
+
+        vi.advanceTimersByTime(110);
+
+        expect(icon.classList.contains("stop")).toBe(true);
+        expect(icon.classList.contains("refreshing")).toBe(false);
+        expect(icon.getAttribute("title")).toBe("Stop refresh");
+        expect(icon.dataset.icon).toBe("square-stop");
+      } finally {
+        modal?.close();
+        vi.useRealTimers();
+      }
+    });
+  });
+});

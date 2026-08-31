@@ -1051,7 +1051,7 @@ export class Sidebar {
     setIcon(feedIcon, isCancellable ? "square-stop" : "refresh-cw");
     feedIcon.addEventListener("click", (e) => {
       e.stopPropagation();
-      if (isCancellable) {
+      if (this.plugin.isGlobalRefreshCancellable) {
         this.plugin.cancelGlobalRefresh();
         return;
       }
