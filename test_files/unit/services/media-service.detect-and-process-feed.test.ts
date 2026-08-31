@@ -672,10 +672,10 @@ describe("MediaService.detectAndProcessFeed", () => {
     const twitterFeed = createFeed([
       createItem({
         guid: "tweet-1",
-        link: "https://nitter.net/user/status/123",
+        link: "https://x.com/user/status/123",
       }),
     ]);
-    twitterFeed.url = "https://nitter.net/user/rss";
+    twitterFeed.url = "https://x.com/user";
 
     const tagged = MediaService.applyMediaTags(
       twitterFeed,
@@ -693,10 +693,10 @@ describe("MediaService.detectAndProcessFeed", () => {
     const twitterFeed = createFeed([
       createItem({
         guid: "tweet-2",
-        link: "https://nitter.net/user/status/456",
+        link: "https://x.com/user/status/456",
       }),
     ]);
-    twitterFeed.url = "https://nitter.net/user/rss";
+    twitterFeed.url = "https://x.com/user";
 
     const tagged = MediaService.applyMediaTags(
       twitterFeed,
@@ -817,9 +817,9 @@ describe("MediaService.shouldShowFeedIcon", () => {
     ).toBe(true);
   });
 
-  it("handles Twitter/Nitter feeds correctly", () => {
+  it("handles Twitter feeds correctly", () => {
     const feedTwitter = createMockFeedWithIcon(
-      "https://nitter.net/username/rss",
+      "https://x.com/username",
     );
     expect(
       MediaService.shouldShowFeedIcon(

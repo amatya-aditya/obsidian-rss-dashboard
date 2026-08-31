@@ -869,7 +869,7 @@ export function renderSidebarSettingsTab(
   });
 
   setupDomainIconToggle(containerEl, plugin, {
-    settingName: "Use profile images for Twitter/Nitter feeds",
+    settingName: "Use profile images for Twitter/X feeds",
     settingDesc:
       "Replace the standard Twitter/X icon with the feed profile image when one is available",
     settingKey: "useDomainIconsTwitter",

@@ -23,7 +23,6 @@ describe("FeedParser.parseFeed", () => {
   const mediaSettings: MediaSettings = {
     autoTagVideos: true,
     rememberPlaybackProgress: true,
-    defaultTwitterFolder: "Twitter",
     defaultMastodonFolder: "Mastodon",
     defaultYouTubeFolder: "Videos",
     defaultVideoTag: "Video",
@@ -141,8 +140,8 @@ describe("FeedParser.parseFeed", () => {
     requestUrlSpy.mockRestore();
   });
 
-  it("extracts and honors the Twitter/Nitter icon settings toggle", async () => {
-    const feedUrl = "https://nitter.net/Gargron/rss";
+  it("extracts and honors the Twitter icon settings toggle", async () => {
+    const feedUrl = "https://x.com/Gargron";
     const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
     requestUrlSpy.mockResolvedValue(mockResponse(200, RSS2_WITH_IMAGE));
 

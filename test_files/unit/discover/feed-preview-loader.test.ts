@@ -21,7 +21,7 @@ describe("resolveAndLoadPreview()", () => {
     detectPodcastPlatformMock.mockReset();
 
     vi.spyOn(MediaService, "isXUrl").mockReturnValue(false);
-    vi.spyOn(MediaService, "getNitterRssFeed").mockReturnValue(null);
+    vi.spyOn(MediaService, "isNitterUrl").mockReturnValue(false);
     vi.spyOn(MediaService, "isMastodonUrl").mockReturnValue(false);
     vi.spyOn(MediaService, "getMastodonRssFeed").mockResolvedValue(null);
     vi.spyOn(MediaService, "isYouTubeFeed").mockReturnValue(false);
@@ -71,24 +71,34 @@ describe("resolveAndLoadPreview()", () => {
     );
   });
 
-  it("converts X URLs to Nitter before loading", async () => {
+  it("throws a decommission error for X/Twitter URLs", async () => {
     const { resolveAndLoadPreview } = await import(
       "../../../src/modals/feed-manager/feed-preview-loader"
     );
 
     vi.spyOn(MediaService, "isXUrl").mockReturnValue(true);
-    vi.spyOn(MediaService, "getNitterRssFeed").mockReturnValue(
-      "https://nitter.net/user/rss",
+
+    await expect(
+      resolveAndLoadPreview("https://x.com/user"),
+    ).rejects.toThrow(
+      "X/Twitter and Nitter RSS feeds are no longer supported.",
+    );
+    expect(loadFeedForPreviewMock).not.toHaveBeenCalled();
+  });
+
+  it("throws a decommission error for Nitter URLs", async () => {
+    const { resolveAndLoadPreview } = await import(
+      "../../../src/modals/feed-manager/feed-preview-loader"
     );
 
-    const result = await resolveAndLoadPreview("https://x.com/user");
+    vi.spyOn(MediaService, "isNitterUrl").mockReturnValue(true);
 
-    expect(result.isXConversion).toBe(true);
-    expect(result.isMastodonConversion).toBe(false);
-    expect(result.finalUrl).toBe("https://nitter.net/user/rss");
-    expect(loadFeedForPreviewMock).toHaveBeenCalledWith(
-      "https://nitter.net/user/rss",
+    await expect(
+      resolveAndLoadPreview("https://nitter.net/user/rss"),
+    ).rejects.toThrow(
+      "X/Twitter and Nitter RSS feeds are no longer supported.",
     );
+    expect(loadFeedForPreviewMock).not.toHaveBeenCalled();
   });
 
   it("resolves YouTube page URLs to RSS feed URLs before loading", async () => {
@@ -209,7 +219,6 @@ describe("Mastodon folder defaults", () => {
         detectedType: "rss",
         inputUrl: "https://mastodon.social/@user.rss",
         finalUrl: "https://mastodon.social/@user.rss",
-        isXConversion: false,
         isMastodonConversion: true,
       },
       {
@@ -244,7 +253,6 @@ describe("Mastodon folder defaults", () => {
         detectedType: "rss",
         inputUrl: "https://mastodon.social/@zackwhittaker.rss",
         finalUrl: "https://mastodon.social/@zackwhittaker.rss",
-        isXConversion: false,
         isMastodonConversion: false,
       },
       {

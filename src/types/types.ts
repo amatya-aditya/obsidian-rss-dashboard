@@ -216,7 +216,6 @@ export type PodcastTheme =
 export interface MediaSettings {
   autoTagVideos: boolean;
   rememberPlaybackProgress: boolean;
-  defaultTwitterFolder: string;
   defaultMastodonFolder: string;
   defaultYouTubeFolder: string;
   defaultVideoTag: string;
@@ -651,7 +650,6 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
   media: {
     autoTagVideos: true,
     rememberPlaybackProgress: true,
-    defaultTwitterFolder: "Twitter",
     defaultMastodonFolder: "Mastodon",
     defaultYouTubeFolder: "Videos",
     defaultVideoTag: "Video",

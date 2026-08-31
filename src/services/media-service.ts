@@ -111,19 +111,20 @@ export class MediaService {
     return this.X_HOSTS.has(host);
   }
 
+  static isNitterUrl(url: string): boolean {
+    const host = this.getNormalizedHostname(url);
+    if (!host) return false;
+    // Matches nitter.net and any other nitter instance (nitter.*)
+    return host === "nitter.net" || host.startsWith("nitter.");
+  }
+
   static isMastodonUrl(url: string): boolean {
     return MastodonService.isMastodonProfileUrl(url);
   }
 
   static isTwitterOrNitterFeed(url: string): boolean {
     if (!url) return false;
-    if (this.isXUrl(url)) return true;
-    try {
-      const hostname = new URL(url).hostname.toLowerCase();
-      return hostname === "nitter.net" || hostname.endsWith(".nitter.net");
-    } catch {
-      return false;
-    }
+    return this.isXUrl(url) || this.isNitterUrl(url);
   }
 
   static shouldShowFeedIcon(feed: Feed, displaySettings: DisplaySettings): boolean {
@@ -152,35 +153,6 @@ export class MediaService {
     return MastodonService.resolveProfileFeed(url);
   }
 
-  static getNitterRssFeed(url: string): string | null {
-    const host = this.getNormalizedHostname(url);
-    if (!host || !this.X_PROFILE_HOSTS.has(host)) return null;
-
-    let parsed: URL;
-    try {
-      parsed = new URL(url);
-    } catch {
-      return null;
-    }
-
-    const username = parsed.pathname.split("/").filter(Boolean)[0];
-    if (!username) return null;
-
-    // Skip if it's a common page like 'home', 'notifications', etc.
-    const commonPages = [
-      "home",
-      "notifications",
-      "messages",
-      "explore",
-      "search",
-      "i",
-      "settings",
-    ];
-    if (commonPages.includes(username.toLowerCase())) return null;
-
-    return `https://nitter.net/${username}/rss`;
-  }
-
   private static readonly X_HOSTS = new Set([
     "x.com",
     "www.x.com",
@@ -190,13 +162,6 @@ export class MediaService {
     "www.t.co",
   ]);
 
-  private static readonly X_PROFILE_HOSTS = new Set([
-    "x.com",
-    "www.x.com",
-    "twitter.com",
-    "www.twitter.com",
-  ]);
-
   private static getNormalizedHostname(url: string): string | null {
     if (!url) return null;
     try {
@@ -204,52 +169,6 @@ export class MediaService {
     } catch {
       return null;
     }
-  }
-
-  /**
-   * Normalize a Nitter profile URL to its RSS endpoint.
-   *
-   * Examples:
-   * - https://nitter.net/alliekmiller -> https://nitter.net/alliekmiller/rss
-   * - https://nitter.net/alliekmiller/ -> https://nitter.net/alliekmiller/rss
-   * - https://nitter.net/alliekmiller/rss -> https://nitter.net/alliekmiller/rss
-   */
-  static normalizeNitterUrlToRss(inputUrl: string): string | null {
-    if (!inputUrl) return null;
-
-    let parsed: URL;
-    try {
-      parsed = new URL(inputUrl);
-    } catch {
-      return null;
-    }
-
-    if (!/nitter\.net$/i.test(parsed.hostname)) return null;
-
-    const parts = parsed.pathname.split("/").filter(Boolean);
-    if (parts.length === 0) return null;
-
-    const username = parts[0];
-    const commonPages = [
-      "home",
-      "notifications",
-      "messages",
-      "explore",
-      "search",
-      "i",
-      "settings",
-    ];
-    if (commonPages.includes(username.toLowerCase())) return null;
-
-    if (parts.length === 1) {
-      return `${parsed.origin}/${username}/rss`;
-    }
-
-    if (parts.length === 2 && parts[1].toLowerCase() === "rss") {
-      return `${parsed.origin}/${username}/rss`;
-    }
-
-    return null;
   }
 
   private static extractChannelIdFromHtml(html: string): string | null {

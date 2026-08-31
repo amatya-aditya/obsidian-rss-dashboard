@@ -62,7 +62,7 @@ Community highlights:
 | Multi-Format RSS Support | Support for RSS, Atom, XML and JSON feeds with automatic feed discovery and parsing |
 | YouTube Integration      | Convert YouTube channels to RSS feeds with embedded video playback                  |
 | Podcast Support          | Full podcast feed support with an integrated podcast player                         |
-| Twitter/X Support        | Convert Twitter/X profile URLs to chronological Nitter RSS feeds automatically      |
+| Mastodon Support         | Auto-discover and resolve Mastodon profile RSS feeds                                |
 | Media Detection          | Automatic detection of video and podcast content                                    |
 
 ### Reading and Saving

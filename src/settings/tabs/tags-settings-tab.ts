@@ -40,7 +40,7 @@ export function renderTagsSettingsTab(
     },
     {
       name: "Default Twitter tag",
-      description: "Default tag for Twitter/X/Nitter feeds",
+      description: "Default tag for Twitter/X feeds",
       menuTitle: "Select default Twitter tags",
       getSelectedTagNames: () => plugin.settings.media.defaultTwitterTags ?? [],
       setSelectedTagNames: (selected) => {

@@ -95,11 +95,10 @@ describe("renderStorageSettingsTab() - default folders and metadata", () => {
     expect(names).toContain("Default folders");
   });
 
-  it("renders and persists the default folder settings", async () => {
+  it("renders and persists the supported default folder settings without a Twitter folder", async () => {
     const containerEl = document.body.appendChild(createDiv());
     const settings = cloneSettings();
     settings.folders = sampleFolders();
-    settings.media.defaultTwitterFolder = "Twitter";
     settings.media.defaultYouTubeFolder = "YouTube";
     settings.media.defaultSmallwebFolder = "Smallweb";
 
@@ -114,12 +113,7 @@ describe("renderStorageSettingsTab() - default folders and metadata", () => {
 
     renderStorageSettingsTab(containerEl, plugin);
 
-    const twitterInput = getSettingByName(
-      containerEl,
-      "Default Twitter folder",
-    ).querySelector('input[type="text"]') as HTMLInputElement;
-    twitterInput.value = "Social/Twitter";
-    twitterInput.dispatchEvent(new Event("input"));
+    expect(containerEl.textContent).not.toContain("Default Twitter folder");
 
     const youtubeInput = getSettingByName(
       containerEl,
@@ -137,22 +131,18 @@ describe("renderStorageSettingsTab() - default folders and metadata", () => {
 
     await flushPromises();
 
-    expect(plugin.settings.media.defaultTwitterFolder).toBe(
-      "norm:Social/Twitter",
-    );
     expect(plugin.settings.media.defaultYouTubeFolder).toBe(
       "norm:Media/YouTube",
     );
     expect(plugin.settings.media.defaultSmallwebFolder).toBe(
       "norm:Web/Smallweb",
     );
-    expect(vi.mocked(plugin.saveSettings)).toHaveBeenCalledTimes(3);
+    expect(vi.mocked(plugin.saveSettings)).toHaveBeenCalledTimes(2);
   });
 
   it("restores the default folder names from the reset action", async () => {
     const containerEl = document.body.appendChild(createDiv());
     const settings = cloneSettings();
-    settings.media.defaultTwitterFolder = "Custom/Twitter";
     settings.media.defaultMastodonFolder = "Custom/Mastodon";
     settings.media.defaultYouTubeFolder = "Custom/YouTube";
     settings.media.defaultPodcastFolder = "Custom/Podcast";
@@ -172,9 +162,6 @@ describe("renderStorageSettingsTab() - default folders and metadata", () => {
     await flushPromises();
 
     const defaults = DEFAULT_SETTINGS.media;
-    expect(plugin.settings.media.defaultTwitterFolder).toBe(
-      defaults.defaultTwitterFolder,
-    );
     expect(plugin.settings.media.defaultMastodonFolder).toBe(
       defaults.defaultMastodonFolder,
     );

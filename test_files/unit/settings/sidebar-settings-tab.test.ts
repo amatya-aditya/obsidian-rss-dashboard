@@ -91,7 +91,7 @@ describe("renderSidebarSettingsTab() - domain icon toggles", () => {
     const toggleNames = [
       "Use site icons/favicons for RSS feeds",
       "Use album/show artwork for Podcast feeds",
-      "Use profile images for Twitter/Nitter feeds",
+      "Use profile images for Twitter/X feeds",
       "Use profile images for Mastodon feeds",
     ];
 
@@ -138,7 +138,6 @@ describe("renderSidebarSettingsTab() - domain icon toggles", () => {
       createDiv(),
     );
     const settings = cloneSettings();
-    settings.media.defaultTwitterFolder = "Custom/Twitter";
     settings.media.defaultMastodonFolder = "Custom/Mastodon";
     settings.media.defaultYouTubeFolder = "Custom/YouTube";
     settings.media.defaultPodcastFolder = "Custom/Podcast";
@@ -177,7 +176,6 @@ describe("renderSidebarSettingsTab() - domain icon toggles", () => {
       createDiv(),
     );
     const settings = cloneSettings();
-    settings.media.defaultTwitterFolder = "Custom/Twitter";
     const plugin = {
       app: obsidian.App.createMock(),
       settings,
@@ -190,7 +188,7 @@ describe("renderSidebarSettingsTab() - domain icon toggles", () => {
 
     const toggleSetting = getSettingByName(
       containerEl,
-      "Use profile images for Twitter/Nitter feeds",
+      "Use profile images for Twitter/X feeds",
     );
     const toggle = toggleSetting.querySelector(
       'input[type="checkbox"]',

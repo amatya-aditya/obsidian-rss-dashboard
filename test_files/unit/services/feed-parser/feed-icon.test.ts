@@ -6,7 +6,6 @@ describe("FeedParser trailing slashes on icons", () => {
   const mediaSettings: MediaSettings = {
     autoTagVideos: true,
     rememberPlaybackProgress: true,
-    defaultTwitterFolder: "Twitter",
     defaultMastodonFolder: "Mastodon",
     defaultYouTubeFolder: "Videos",
     defaultVideoTag: "Video",
