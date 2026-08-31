@@ -37,7 +37,7 @@ Only the feeds you need. Stream the world's knowledge into your vault: RSS, podc
 
 ## About
 
-RSS Dashboard is a free, open source community plugin for Obsidian that makes it easy to manage your RSS feeds, YouTube subscriptions, podcasts, and Twitter/X feeds in one place.
+RSS Dashboard is a free, open-source community plugin for Obsidian that makes it easy to manage your RSS feeds, YouTube subscriptions, and podcasts in one place.
 
 - Data is stored locally.
 - Content can be saved directly to your vault.

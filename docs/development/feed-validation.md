@@ -12,7 +12,7 @@ When you add a feed URL manually in the **Add Feed** modal:
     *   **Pocket Casts**: Resolves Pocket Casts web player URLs (which contain the `podcast:guid`) using a multi-layered fallback strategy:
         1.  **CORS Proxy Chain**: Fetches the page through a sequence of proxies (User-configured → AllOrigins → CodeTabs) to bypass 522 timeouts or CORS blocks.
         2.  **Meta Tag Scraping**: Attempts to find the RSS link in the HTML.
-        3.  **iTunes Fallback**: If the RSS link is hidden, it extracts the podcast title from `og:title` or `twitter:title` and queries the **iTunes Search API** to find the canonical feed.
+        3.  **iTunes Fallback**: If the RSS link is hidden, it extracts the podcast title from `og:title` and queries the **iTunes Search API** to find the canonical feed.
     *   **Mastodon**: Automatically auto-discovers and resolves profile URLs to their RSS feeds.
 *   **Content Validation**: The system fetches the URL content and performs a "smoke test":
     *   It checks the first 2048 characters for common feed signatures: `<rss`, `<feed`, `<rdf:rdf`, or specific XML namespaces (`http://purl.org/rss/1.0/`).
@@ -42,7 +42,7 @@ To ensure feeds load even when servers have strict cross-origin (CORS) policies:
 The following files manage the feed validation and redirection logic:
 
 ### Core Services
-*   [media-service.ts](file:///c:/Obsidian/Obsidian_Main/.obsidian/plugins/obsidian-rss-dashboard/src/services/media-service.ts): Contains platform-specific detection and URL transformation logic (e.g., `isYouTubeFeed`, `isXUrl`).
+*   [media-service.ts](file:///c:/Obsidian/Obsidian_Main/.obsidian/plugins/obsidian-rss-dashboard/src/services/media-service.ts): Contains platform-specific detection and URL transformation logic (e.g., `isYouTubeFeed`).
 *   [feed-parser.ts](file:///c:/Obsidian/Obsidian_Main/.obsidian/plugins/obsidian-rss-dashboard/src/services/feed-parser.ts): Handles low-level XML parsing, signature detection (`isValidFeed`), and proxy fallbacks for fetching.
 *   [opml-manager.ts](file:///c:/Obsidian/Obsidian_Main/.obsidian/plugins/obsidian-rss-dashboard/src/services/opml-manager.ts): Logic for parsing and merging OPML files.
 
@@ -69,7 +69,7 @@ Many CORS proxies (like AllOrigins) are unreliable. The `resolvePocketCastsUrl` 
 
 ### Metadata-to-Search Fallback
 If direct scraping fails because the platform has removed the RSS `<link>` tag:
-1.  **Extract Identifying Metadata**: Use flexible regex (accounting for varied attribute order) to pull the `og:title` or `twitter:title`.
+1.  **Extract Identifying Metadata**: Use flexible regex (accounting for varied attribute order) to pull the `og:title`.
 2.  **Safeguard against Generic Titles**: Ignore placeholder titles like "Pocket Casts Plus" to prevent incorrect search matches.
 3.  **Cross-Platform Search**: Query a stable, public directory (like the **iTunes Search API**) using the extracted title to find the canonical RSS feed.
 

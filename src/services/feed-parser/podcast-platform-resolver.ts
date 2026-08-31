@@ -94,10 +94,7 @@ async function resolvePocketCastsUrl(
           /<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:title["']/i,
         ) ||
         contents.match(
-          /<meta[^>]+name=["']twitter:title["'][^>]+content=["']([^"']+)["']/i,
-        ) ||
-        contents.match(
-          /<meta[^>]+content=["']([^"']+)["'][^>]+name=["']twitter:title["']/i,
+          /<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:title["']/i,
         );
 
       if (!titleMatch) {

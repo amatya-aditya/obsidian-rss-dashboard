@@ -92,20 +92,6 @@ describe("migrateMediaVideoTagSettings", () => {
     expect(names).toContain("video");
   });
 
-  it("removes the retired defaultTwitterFolder from saved settings", () => {
-    const settings: Record<string, unknown> = {
-      media: { defaultVideoTag: "Video", defaultTwitterFolder: "Twitter" },
-      availableTags: [],
-    };
-
-    const changed = migrateMediaVideoTagSettings(settings);
-
-    expect(changed).toBe(true);
-    expect(settings.media as Record<string, unknown>).not.toHaveProperty(
-      "defaultTwitterFolder",
-    );
-  });
-
   it("backfills defaultMastodonFolder when missing", () => {
     const settings: Record<string, unknown> = {
       media: { defaultVideoTag: "Video" },

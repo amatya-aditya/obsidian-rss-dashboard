@@ -25,7 +25,6 @@ export function migrateDisplaySettings(display: Record<string, unknown>): void {
     "hideFeedFetchErrorBadges",
     "useDomainIconsRss",
     "useDomainIconsPodcast",
-    "useDomainIconsTwitter",
     "useDomainIconsMastodon",
   ];
 
@@ -262,11 +261,6 @@ export function migrateMediaVideoTagSettings(
     changed = true;
   }
 
-  if ("defaultTwitterFolder" in media) {
-    delete media.defaultTwitterFolder;
-    changed = true;
-  }
-
   if (typeof media.defaultMastodonFolder !== "string") {
     media.defaultMastodonFolder = "Mastodon";
     changed = true;
@@ -349,7 +343,6 @@ const MEDIA_TAG_ARRAY_FIELDS: Array<{
   { legacy: "defaultPodcastTag", array: "defaultPodcastTags" },
   { legacy: "defaultRssTag", array: "defaultRssTags" },
   { legacy: "defaultSmallwebTag", array: "defaultSmallwebTags" },
-  { legacy: "defaultTwitterTag", array: "defaultTwitterTags" },
   { legacy: "defaultMastodonTag", array: "defaultMastodonTags" },
 ];
 

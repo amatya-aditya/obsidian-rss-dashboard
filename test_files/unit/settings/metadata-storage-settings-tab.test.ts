@@ -33,10 +33,6 @@ function getSettingByName(containerEl: HTMLElement, name: string): HTMLElement {
 
 function sampleFolders(): Folder[] {
   return [
-    {
-      name: "Twitter",
-      subfolders: [{ name: "Lists", subfolders: [] }],
-    },
     { name: "YouTube", subfolders: [] },
     { name: "Podcast", subfolders: [] },
   ];
@@ -95,7 +91,7 @@ describe("renderStorageSettingsTab() - default folders and metadata", () => {
     expect(names).toContain("Default folders");
   });
 
-  it("renders and persists the supported default folder settings without a Twitter folder", async () => {
+  it("renders and persists the supported default folder settings", async () => {
     const containerEl = document.body.appendChild(createDiv());
     const settings = cloneSettings();
     settings.folders = sampleFolders();
@@ -112,8 +108,6 @@ describe("renderStorageSettingsTab() - default folders and metadata", () => {
     );
 
     renderStorageSettingsTab(containerEl, plugin);
-
-    expect(containerEl.textContent).not.toContain("Default Twitter folder");
 
     const youtubeInput = getSettingByName(
       containerEl,

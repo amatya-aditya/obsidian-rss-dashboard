@@ -230,8 +230,6 @@ export interface MediaSettings {
   defaultSmallwebFolder: string;
   defaultSmallwebTag: string;
   defaultSmallwebTags: string[];
-  defaultTwitterTag: string;
-  defaultTwitterTags: string[];
   defaultMastodonTag: string;
   defaultMastodonTags: string[];
   openInSplitView: boolean;
@@ -293,7 +291,6 @@ export interface DisplaySettings {
   useDomainFavicons: boolean;
   useDomainIconsPodcast: boolean;
   useDomainIconsMastodon: boolean;
-  useDomainIconsTwitter: boolean;
   useDomainIconsRss: boolean;
   useDomainIconsYouTube: boolean;
   hideDefaultRssIcon: boolean;
@@ -664,8 +661,6 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
     defaultSmallwebFolder: "Smallweb",
     defaultSmallwebTag: "smallweb",
     defaultSmallwebTags: ["smallweb"],
-    defaultTwitterTag: "",
-    defaultTwitterTags: [],
     defaultMastodonTag: "",
     defaultMastodonTags: [],
     openInSplitView: true,
@@ -735,7 +730,6 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
     useDomainFavicons: true,
     useDomainIconsPodcast: false,
     useDomainIconsMastodon: false,
-    useDomainIconsTwitter: false,
     useDomainIconsRss: false,
     useDomainIconsYouTube: false,
     hideDefaultRssIcon: false,

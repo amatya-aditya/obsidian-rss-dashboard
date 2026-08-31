@@ -37,8 +37,6 @@ describe("FeedParser.parseFeed", () => {
     defaultSmallwebFolder: "Smallweb",
     defaultSmallwebTag: "",
     defaultSmallwebTags: [],
-    defaultTwitterTag: "",
-    defaultTwitterTags: [],
     defaultMastodonTag: "",
     defaultMastodonTags: [],
     openInSplitView: true,
@@ -136,24 +134,6 @@ describe("FeedParser.parseFeed", () => {
     expect(parsedOn.iconUrl).toBe(
       "https://lexfridman.com/wordpress/wp-content/uploads/powerpress/artwork_3000-230.png",
     );
-
-    requestUrlSpy.mockRestore();
-  });
-
-  it("extracts and honors the Twitter icon settings toggle", async () => {
-    const feedUrl = "https://x.com/Gargron";
-    const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
-    requestUrlSpy.mockResolvedValue(mockResponse(200, RSS2_WITH_IMAGE));
-
-    // 1. When useDomainIconsTwitter is false
-    const parserOff = new FeedParser({ ...DEFAULT_SETTINGS.display, useDomainIconsTwitter: false  }, [], mediaSettings);
-    const parsedOff = await parserOff.parseFeed(feedUrl, null);
-    expect(parsedOff.iconUrl).toBe("");
-
-    // 2. When useDomainIconsTwitter is true
-    const parserOn = new FeedParser({ ...DEFAULT_SETTINGS.display, useDomainIconsTwitter: true  }, [], mediaSettings);
-    const parsedOn = await parserOn.parseFeed(feedUrl, null);
-    expect(parsedOn.iconUrl).toBe("https://example.com/logo.png");
 
     requestUrlSpy.mockRestore();
   });

@@ -20,8 +20,6 @@ describe("FeedParser trailing slashes on icons", () => {
     defaultSmallwebFolder: "Smallweb",
     defaultSmallwebTag: "",
     defaultSmallwebTags: [],
-    defaultTwitterTag: "",
-    defaultTwitterTags: [],
     defaultMastodonTag: "",
     defaultMastodonTags: [],
     openInSplitView: true,

@@ -40,8 +40,6 @@ text into a normal URL input.
 
 | ID | Current path | Effect of removing the listener | Recommendation |
 | --- | --- | --- | --- |
-| P1 | `src/modals/feed-manager/add-feed-modal.ts` listens for `paste` and schedules Nitter URL normalization. | Users can still type a feed URL, but pasted Nitter URLs lose automatic normalization. | Retain; it is not implicated by the programmatic clipboard-access finding. |
-| P2 | `src/modals/feed-manager/edit-feed-modal.ts` has the same paste-triggered Nitter URL normalization. | Existing feeds can still be edited, but pasted Nitter URLs lose automatic normalization. | Retain for the same reason. |
 
 `docs/SECURITY.md` currently describes “Importing feeds via clipboard paste.”
 The source inventory found normal URL-input paste handling, not a general

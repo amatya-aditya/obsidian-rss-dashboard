@@ -39,15 +39,6 @@ export function renderTagsSettingsTab(
       },
     },
     {
-      name: "Default Twitter tag",
-      description: "Default tag for Twitter/X feeds",
-      menuTitle: "Select default Twitter tags",
-      getSelectedTagNames: () => plugin.settings.media.defaultTwitterTags ?? [],
-      setSelectedTagNames: (selected) => {
-        plugin.settings.media.defaultTwitterTags = selected;
-      },
-    },
-    {
       name: "Default Mastodon tag",
       description: "Default tag for Mastodon feeds",
       menuTitle: "Select default Mastodon tags",
@@ -129,8 +120,6 @@ export function renderTagsSettingsTab(
         plugin.settings.media.defaultRssTags = d.defaultRssTags;
         plugin.settings.media.defaultSmallwebTag = d.defaultSmallwebTag;
         plugin.settings.media.defaultSmallwebTags = d.defaultSmallwebTags;
-        plugin.settings.media.defaultTwitterTag = d.defaultTwitterTag;
-        plugin.settings.media.defaultTwitterTags = d.defaultTwitterTags;
         plugin.settings.media.defaultMastodonTag = d.defaultMastodonTag;
         plugin.settings.media.defaultMastodonTags = d.defaultMastodonTags;
         await plugin.saveSettings();

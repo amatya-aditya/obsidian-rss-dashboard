@@ -155,7 +155,6 @@ export function createDefaultSettings(): RssDashboardSettings {
     media: {
       useDomainIconsRss: true,
       useDomainIconsPodcast: true,
-      useDomainIconsTwitter: true,
       useDomainIconsYouTube: true,
     },
   } as unknown as RssDashboardSettings;

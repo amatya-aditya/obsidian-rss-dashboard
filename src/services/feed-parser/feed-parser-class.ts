@@ -101,8 +101,6 @@ export class FeedParser {
       defaultSmallwebFolder: "Smallweb",
       defaultSmallwebTag: "",
       defaultSmallwebTags: [],
-      defaultTwitterTag: "",
-      defaultTwitterTags: [],
       defaultMastodonTag: "",
       defaultMastodonTags: [],
       openInSplitView: true,
@@ -137,10 +135,6 @@ export class FeedParser {
         : "";
     } else if (MastodonService.isResolvedFeedUrl(url)) {
       resolvedUrl = this.displaySettings.useDomainIconsMastodon
-        ? this.convertToAbsoluteUrl(feedLogoUrl, url)
-        : "";
-    } else if (MediaService.isTwitterOrNitterFeed(url)) {
-      resolvedUrl = this.displaySettings.useDomainIconsTwitter
         ? this.convertToAbsoluteUrl(feedLogoUrl, url)
         : "";
     } else {
@@ -273,25 +267,6 @@ export class FeedParser {
         if (content && content.includes("%25")) {
           console.debug(
             `[RSS Dashboard] extractCoverImage: og:image contains double-encoded: ${content}`,
-          );
-        }
-        const resolvedContent = content?.startsWith("http")
-          ? content
-          : content && baseUrl
-            ? this.convertToAbsoluteUrl(content, baseUrl)
-            : "";
-        if (resolvedContent && !isLatexFormulaImage(resolvedContent)) {
-          return optimizeImageUrl(resolvedContent);
-        }
-      }
-
-      const twitterImage = doc.querySelector('meta[name="twitter:image"]');
-      if (twitterImage?.getAttribute("content")) {
-        const content = twitterImage.getAttribute("content");
-        // Debug: log twitter:image URL for troubleshooting double-encoding
-        if (content && content.includes("%25")) {
-          console.debug(
-            `[RSS Dashboard] extractCoverImage: twitter:image contains double-encoded: ${content}`,
           );
         }
         const resolvedContent = content?.startsWith("http")

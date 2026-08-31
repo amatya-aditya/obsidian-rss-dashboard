@@ -8,7 +8,7 @@
 ### Fixes
 
 - Fixed Feed View grouping so **Grouping: Disabled** renders a flat article sequence and **Grouping: Feed** displays one collapsible header per feed. [GH Issue #195](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/195)
-- Removed Nitter integration, automatic X/Twitter-to-Nitter RSS feed conversion, and the obsolete Twitter/X default-folder setting following the permanent shutdown of Nitter instances and the project repository on August 24, 2026 due to cease and desist demands from X Corp. (https://github.com/zedeus/nitter). Attempting to add an `x.com`, `twitter.com`, or any `nitter.*` URL now shows a clear error message explaining the situation and suggesting third-party RSS bridges (e.g. RSSHub) as an alternative.
+- Removed Nitter integration, automatic X/Twitter-to-Nitter RSS feed conversion, and obsolete Twitter/X settings and fallbacks following the permanent shutdown of Nitter instances and the project repository on August 24, 2026 due to cease and desist demands from X Corp. (https://github.com/zedeus/nitter). Attempting to add an `x.com`, `twitter.com`, or any `nitter.*` URL now shows a clear error message explaining the situation and suggesting third-party RSS bridges (e.g. RSSHub) as an alternative.
 - Fixed `document.createElement` occurrences by migrating to Obsidian `createEl`, `createDiv`, and `createSpan` DOM helpers.
 - Fixed community plugin audit warning for unknown CSS type selector `mjx-container` by using class and attribute selectors (`[class*="mjx-container"]`, `.MathJax`) in `src/styles/articles.css` and `src/styles/reader.css`.
 - Fixed unnecessary type assertion in `src/utils/settings-loader.ts` by updating `migrateDefaultFilterToDashboardMultiFilters` to accept typed `DisplaySettings`.

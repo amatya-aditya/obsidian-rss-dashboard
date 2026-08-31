@@ -114,17 +114,11 @@ export class MediaService {
   static isNitterUrl(url: string): boolean {
     const host = this.getNormalizedHostname(url);
     if (!host) return false;
-    // Matches nitter.net and any other nitter instance (nitter.*)
     return host === "nitter.net" || host.startsWith("nitter.");
   }
 
   static isMastodonUrl(url: string): boolean {
     return MastodonService.isMastodonProfileUrl(url);
-  }
-
-  static isTwitterOrNitterFeed(url: string): boolean {
-    if (!url) return false;
-    return this.isXUrl(url) || this.isNitterUrl(url);
   }
 
   static shouldShowFeedIcon(feed: Feed, displaySettings: DisplaySettings): boolean {
@@ -140,10 +134,6 @@ export class MediaService {
 
     if (MastodonService.isResolvedFeedUrl(feed.url)) {
       return !!displaySettings.useDomainIconsMastodon;
-    }
-
-    if (this.isTwitterOrNitterFeed(feed.url)) {
-      return !!displaySettings.useDomainIconsTwitter;
     }
 
     return !!displaySettings.useDomainIconsRss;
@@ -197,11 +187,6 @@ export class MediaService {
       /<meta property="og:url" content="https:\/\/www\.youtube\.com\/channel\/(UC[\w-]{22})"/,
     );
     if (ogMatch?.[1]) return ogMatch[1];
-
-    const twitterMatch = html.match(
-      /<meta name="twitter:app:url:googleplay" content="https:\/\/www\.youtube\.com\/channel\/(UC[\w-]{22})"/,
-    );
-    if (twitterMatch?.[1]) return twitterMatch[1];
 
     // 5. Fallback to existing broad patterns
     const patterns = [
@@ -671,8 +656,6 @@ export class MediaService {
         | "defaultYouTubeTag"
         | "defaultYouTubeTags"
         | "defaultPodcastTags"
-        | "defaultTwitterTag"
-        | "defaultTwitterTags"
         | "defaultMastodonTag"
         | "defaultMastodonTags"
         | "defaultSmallwebFolder"
@@ -687,12 +670,10 @@ export class MediaService {
     category?:
       | "video"
       | "podcast"
-      | "twitter"
       | "mastodon"
       | "smallweb"
       | "rss";
   } {
-    const isTwitter = MediaService.isTwitterOrNitterFeed(feed.url);
     const isMastodon = MastodonService.isResolvedFeedUrl(feed.url);
     const smallwebFolder = mediaSettings?.defaultSmallwebFolder?.trim() || "";
     const isSmallweb = smallwebFolder && feed.folder === smallwebFolder;
@@ -704,7 +685,6 @@ export class MediaService {
     let tagCategory:
       | "video"
       | "podcast"
-      | "twitter"
       | "mastodon"
       | "smallweb"
       | "rss"
@@ -737,13 +717,6 @@ export class MediaService {
         undefined,
         ["Podcast", "Podcasts"],
         ["Podcast", "Podcasts"],
-      );
-    } else if (isTwitter) {
-      tagCategory = "twitter";
-      mediaTags = this.getConfiguredTagNames(
-        availableTags,
-        mediaSettings?.defaultTwitterTags,
-        mediaSettings?.defaultTwitterTag,
       );
     } else if (isMastodon) {
       tagCategory = "mastodon";
@@ -782,8 +755,6 @@ export class MediaService {
         | "defaultYouTubeTag"
         | "defaultYouTubeTags"
         | "defaultPodcastTags"
-        | "defaultTwitterTag"
-        | "defaultTwitterTags"
         | "defaultMastodonTag"
         | "defaultMastodonTags"
         | "defaultSmallwebFolder"
@@ -817,9 +788,7 @@ export class MediaService {
           ? item.mediaType === "video"
           : tagCategory === "podcast"
             ? item.mediaType === "podcast"
-            : tagCategory === "twitter"
-              ? true
-              : tagCategory === "mastodon"
+            : tagCategory === "mastodon"
                 ? true
                 : tagCategory === "smallweb"
                   ? true
