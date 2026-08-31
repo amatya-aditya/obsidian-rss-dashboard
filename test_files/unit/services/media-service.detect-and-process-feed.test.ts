@@ -668,46 +668,6 @@ describe("MediaService.detectAndProcessFeed", () => {
     );
   });
 
-  it("auto-applies configured defaultTwitterTag to Twitter feeds", () => {
-    const twitterFeed = createFeed([
-      createItem({
-        guid: "tweet-1",
-        link: "https://nitter.net/user/status/123",
-      }),
-    ]);
-    twitterFeed.url = "https://nitter.net/user/rss";
-
-    const tagged = MediaService.applyMediaTags(
-      twitterFeed,
-      [{ name: "TwitterTag", color: "#1da1f2" }],
-      { defaultTwitterTag: "TwitterTag" },
-    );
-
-    const item = tagged.items[0];
-    expect((item.tags ?? []).map((tag) => tag.name.toLowerCase())).toContain(
-      "twittertag",
-    );
-  });
-
-  it("does not tag Twitter feeds if defaultTwitterTag is empty", () => {
-    const twitterFeed = createFeed([
-      createItem({
-        guid: "tweet-2",
-        link: "https://nitter.net/user/status/456",
-      }),
-    ]);
-    twitterFeed.url = "https://nitter.net/user/rss";
-
-    const tagged = MediaService.applyMediaTags(
-      twitterFeed,
-      [{ name: "TwitterTag", color: "#1da1f2" }],
-      { defaultTwitterTag: "" },
-    );
-
-    const item = tagged.items[0];
-    expect(item.tags).toEqual([]);
-  });
-
   it("auto-applies configured defaultMastodonTag to Mastodon feeds", () => {
     const mastodonFeed = createFeed([
       createItem({
@@ -813,24 +773,6 @@ describe("MediaService.shouldShowFeedIcon", () => {
       MediaService.shouldShowFeedIcon(
         feedMastodon,
         defaultDisplaySettings({ useDomainIconsMastodon: true }),
-      ),
-    ).toBe(true);
-  });
-
-  it("handles Twitter/Nitter feeds correctly", () => {
-    const feedTwitter = createMockFeedWithIcon(
-      "https://nitter.net/username/rss",
-    );
-    expect(
-      MediaService.shouldShowFeedIcon(
-        feedTwitter,
-        defaultDisplaySettings({ useDomainIconsTwitter: false }),
-      ),
-    ).toBe(false);
-    expect(
-      MediaService.shouldShowFeedIcon(
-        feedTwitter,
-        defaultDisplaySettings({ useDomainIconsTwitter: true }),
       ),
     ).toBe(true);
   });

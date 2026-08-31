@@ -59,7 +59,6 @@ describe("renderMediaSettingsTab()", () => {
 
     expect(names[0]).toBe("Playback progress");
     expect(names).toContain("Remember playback progress");
-    expect(names).not.toContain("Default Twitter folder");
     expect(names).not.toContain("Default folders");
 
     const progressSetting = getSettingByName(

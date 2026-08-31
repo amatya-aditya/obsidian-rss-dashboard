@@ -92,20 +92,6 @@ describe("migrateMediaVideoTagSettings", () => {
     expect(names).toContain("video");
   });
 
-  it("backfills defaultTwitterFolder when missing", () => {
-    const settings: Record<string, unknown> = {
-      media: { defaultVideoTag: "Video" },
-      availableTags: [],
-    };
-
-    const changed = migrateMediaVideoTagSettings(settings);
-
-    expect(changed).toBe(true);
-    expect(
-      (settings.media as Record<string, unknown>).defaultTwitterFolder,
-    ).toBe("Twitter");
-  });
-
   it("backfills defaultMastodonFolder when missing", () => {
     const settings: Record<string, unknown> = {
       media: { defaultVideoTag: "Video" },
@@ -118,20 +104,6 @@ describe("migrateMediaVideoTagSettings", () => {
     expect(
       (settings.media as Record<string, unknown>).defaultMastodonFolder,
     ).toBe("Mastodon");
-  });
-
-  it("restores defaultTwitterFolder when blank", () => {
-    const settings: Record<string, unknown> = {
-      media: { defaultVideoTag: "Video", defaultTwitterFolder: "   " },
-      availableTags: [],
-    };
-
-    const changed = migrateMediaVideoTagSettings(settings);
-
-    expect(changed).toBe(true);
-    expect(
-      (settings.media as Record<string, unknown>).defaultTwitterFolder,
-    ).toBe("Twitter");
   });
 
   it("restores defaultMastodonFolder when blank", () => {
@@ -169,7 +141,6 @@ describe("migrateMediaVideoTagSettings", () => {
       media: {
         defaultVideoTag: "",
         rememberPlaybackProgress: true,
-        defaultTwitterFolder: "Twitter",
         defaultMastodonFolder: "Mastodon",
         useDomainIconsMastodon: false,
         defaultYouTubeTag: "Video",

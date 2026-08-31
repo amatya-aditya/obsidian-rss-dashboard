@@ -1663,9 +1663,6 @@ export class Sidebar {
       } else {
         this.renderFallbackFeedIcon(feedIcon);
       }
-    } else if (MediaService.isTwitterOrNitterFeed(feed.url)) {
-      this.renderFallbackFeedIcon(feedIcon);
-      this.renderDomainFavicon(feedIcon, "twitter.com");
     } else if (MastodonService.isResolvedFeedUrl(feed.url)) {
       const domain = extractDomain(feed.url);
       if (domain) {

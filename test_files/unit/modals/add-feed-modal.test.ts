@@ -4,7 +4,6 @@ import {
   AddFeedModal,
   type AddFeedRequest,
 } from "../../../src/modals/feed-manager/add-feed-modal";
-import { MediaService } from "../../../src/services/media-service";
 import * as feedPreviewLoader from "../../../src/modals/feed-manager/feed-preview-loader";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 
@@ -122,7 +121,6 @@ describe("AddFeedModal", () => {
       detectedType: "rss",
       inputUrl: "https://example.com/feed.xml",
       finalUrl: "https://example.com/feed.xml",
-      isXConversion: false,
       isMastodonConversion: false,
       title: "Example feed",
       latestPubDate: undefined,
@@ -367,99 +365,7 @@ describe("AddFeedModal", () => {
     expect(closeSpy).toHaveBeenCalledTimes(0);
   });
 
-  it("routes X/Twitter feeds into the configured default Twitter folder when folder is eligible", async () => {
-    const app = createMockApp();
-    const onAdd: OnAddFn = vi.fn(async () => true);
-    const onSave = vi.fn();
 
-    vi.spyOn(MediaService, "normalizeNitterUrlToRss").mockReturnValue(null);
-    vi.spyOn(feedPreviewLoader, "resolveAndLoadPreview").mockResolvedValue({
-      detectedType: "rss",
-      inputUrl: "https://x.com/user",
-      finalUrl: "https://nitter.net/user/rss",
-      isXConversion: true,
-      isMastodonConversion: false,
-      title: "User timeline",
-      latestPubDate: "2026-05-01T00:00:00.000Z",
-      hasEntries: true,
-    });
-
-    const plugin = {
-      settings: {
-        media: {
-          defaultTwitterFolder: "Social/Twitter",
-          defaultYouTubeFolder: "Videos",
-          defaultPodcastFolder: "Podcast",
-          defaultRssFolder: "RSS",
-        },
-      },
-    };
-
-    const modal = new AddFeedModal(
-      app,
-      [],
-      onAdd,
-      onSave,
-      "Uncategorized",
-      plugin as never,
-    );
-    modal.open();
-
-    const urlInput = getTextInputBySettingName(modal.contentEl, "Feed URL");
-    urlInput.value = "https://x.com/user";
-    urlInput.dispatchEvent(new Event("input"));
-
-    getButtonByText(modal.contentEl, "Load").click();
-    await flushPromises();
-
-    const folderInput = getTextInputBySettingName(modal.contentEl, "Folder");
-    expect(folderInput.value).toBe("Social/Twitter");
-  });
-
-  it("keeps a custom folder when loading an X/Twitter feed", async () => {
-    const app = createMockApp();
-    const onAdd: OnAddFn = vi.fn(async () => true);
-    const onSave = vi.fn();
-
-    vi.spyOn(MediaService, "normalizeNitterUrlToRss").mockReturnValue(null);
-    vi.spyOn(feedPreviewLoader, "resolveAndLoadPreview").mockResolvedValue({
-      detectedType: "rss",
-      inputUrl: "https://twitter.com/user",
-      finalUrl: "https://nitter.net/user/rss",
-      isXConversion: true,
-      isMastodonConversion: false,
-      title: "User timeline",
-      latestPubDate: "2026-05-01T00:00:00.000Z",
-      hasEntries: true,
-    });
-
-    const plugin = {
-      settings: {
-        media: {
-          defaultTwitterFolder: "Social/Twitter",
-          defaultYouTubeFolder: "Videos",
-          defaultPodcastFolder: "Podcast",
-          defaultRssFolder: "RSS",
-        },
-      },
-    };
-
-    const modal = new AddFeedModal(app, [], onAdd, onSave, "", plugin as never);
-    modal.open();
-
-    const folderInput = getTextInputBySettingName(modal.contentEl, "Folder");
-    folderInput.value = "My Custom Folder";
-    folderInput.dispatchEvent(new Event("input"));
-
-    const urlInput = getTextInputBySettingName(modal.contentEl, "Feed URL");
-    urlInput.value = "https://twitter.com/user";
-    urlInput.dispatchEvent(new Event("input"));
-
-    getButtonByText(modal.contentEl, "Load").click();
-    await flushPromises();
-
-    expect(folderInput.value).toBe("My Custom Folder");
-  });
 
   it("routes Mastodon feeds into the configured default Mastodon folder and shows conversion notice", async () => {
     const app = createMockApp();
@@ -470,7 +376,6 @@ describe("AddFeedModal", () => {
       detectedType: "rss",
       inputUrl: "https://mastodon.social/@user",
       finalUrl: "https://mastodon.social/@user.rss",
-      isXConversion: false,
       isMastodonConversion: true,
       title: "Mastodon timeline",
       latestPubDate: "2026-05-01T00:00:00.000Z",
@@ -482,7 +387,6 @@ describe("AddFeedModal", () => {
         corsProxyEnabled: false,
         corsProxyUrl: "",
         media: {
-          defaultTwitterFolder: "Social/Twitter",
           defaultMastodonFolder: "Social/Mastodon",
           defaultYouTubeFolder: "Videos",
           defaultPodcastFolder: "Podcast",
@@ -526,7 +430,6 @@ describe("AddFeedModal", () => {
       detectedType: "rss",
       inputUrl: "https://mastodon.social/@user",
       finalUrl: "https://mastodon.social/@user.rss",
-      isXConversion: false,
       isMastodonConversion: true,
       title: "Mastodon timeline",
       latestPubDate: "2026-05-01T00:00:00.000Z",
@@ -538,7 +441,6 @@ describe("AddFeedModal", () => {
         corsProxyEnabled: false,
         corsProxyUrl: "",
         media: {
-          defaultTwitterFolder: "Social/Twitter",
           defaultMastodonFolder: "Social/Mastodon",
           defaultYouTubeFolder: "Videos",
           defaultPodcastFolder: "Podcast",
@@ -578,7 +480,6 @@ describe("AddFeedModal", () => {
           { name: "Tech", color: "#228811" },
         ],
         media: {
-          defaultTwitterFolder: "Social/Twitter",
           defaultYouTubeFolder: "Videos",
           defaultPodcastFolder: "Podcast",
           defaultRssFolder: "RSS",

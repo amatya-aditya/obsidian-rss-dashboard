@@ -111,19 +111,14 @@ export class MediaService {
     return this.X_HOSTS.has(host);
   }
 
-  static isMastodonUrl(url: string): boolean {
-    return MastodonService.isMastodonProfileUrl(url);
+  static isNitterUrl(url: string): boolean {
+    const host = this.getNormalizedHostname(url);
+    if (!host) return false;
+    return host === "nitter.net" || host.startsWith("nitter.");
   }
 
-  static isTwitterOrNitterFeed(url: string): boolean {
-    if (!url) return false;
-    if (this.isXUrl(url)) return true;
-    try {
-      const hostname = new URL(url).hostname.toLowerCase();
-      return hostname === "nitter.net" || hostname.endsWith(".nitter.net");
-    } catch {
-      return false;
-    }
+  static isMastodonUrl(url: string): boolean {
+    return MastodonService.isMastodonProfileUrl(url);
   }
 
   static shouldShowFeedIcon(feed: Feed, displaySettings: DisplaySettings): boolean {
@@ -141,44 +136,11 @@ export class MediaService {
       return !!displaySettings.useDomainIconsMastodon;
     }
 
-    if (this.isTwitterOrNitterFeed(feed.url)) {
-      return !!displaySettings.useDomainIconsTwitter;
-    }
-
     return !!displaySettings.useDomainIconsRss;
   }
 
   static async getMastodonRssFeed(url: string): Promise<string | null> {
     return MastodonService.resolveProfileFeed(url);
-  }
-
-  static getNitterRssFeed(url: string): string | null {
-    const host = this.getNormalizedHostname(url);
-    if (!host || !this.X_PROFILE_HOSTS.has(host)) return null;
-
-    let parsed: URL;
-    try {
-      parsed = new URL(url);
-    } catch {
-      return null;
-    }
-
-    const username = parsed.pathname.split("/").filter(Boolean)[0];
-    if (!username) return null;
-
-    // Skip if it's a common page like 'home', 'notifications', etc.
-    const commonPages = [
-      "home",
-      "notifications",
-      "messages",
-      "explore",
-      "search",
-      "i",
-      "settings",
-    ];
-    if (commonPages.includes(username.toLowerCase())) return null;
-
-    return `https://nitter.net/${username}/rss`;
   }
 
   private static readonly X_HOSTS = new Set([
@@ -190,13 +152,6 @@ export class MediaService {
     "www.t.co",
   ]);
 
-  private static readonly X_PROFILE_HOSTS = new Set([
-    "x.com",
-    "www.x.com",
-    "twitter.com",
-    "www.twitter.com",
-  ]);
-
   private static getNormalizedHostname(url: string): string | null {
     if (!url) return null;
     try {
@@ -204,52 +159,6 @@ export class MediaService {
     } catch {
       return null;
     }
-  }
-
-  /**
-   * Normalize a Nitter profile URL to its RSS endpoint.
-   *
-   * Examples:
-   * - https://nitter.net/alliekmiller -> https://nitter.net/alliekmiller/rss
-   * - https://nitter.net/alliekmiller/ -> https://nitter.net/alliekmiller/rss
-   * - https://nitter.net/alliekmiller/rss -> https://nitter.net/alliekmiller/rss
-   */
-  static normalizeNitterUrlToRss(inputUrl: string): string | null {
-    if (!inputUrl) return null;
-
-    let parsed: URL;
-    try {
-      parsed = new URL(inputUrl);
-    } catch {
-      return null;
-    }
-
-    if (!/nitter\.net$/i.test(parsed.hostname)) return null;
-
-    const parts = parsed.pathname.split("/").filter(Boolean);
-    if (parts.length === 0) return null;
-
-    const username = parts[0];
-    const commonPages = [
-      "home",
-      "notifications",
-      "messages",
-      "explore",
-      "search",
-      "i",
-      "settings",
-    ];
-    if (commonPages.includes(username.toLowerCase())) return null;
-
-    if (parts.length === 1) {
-      return `${parsed.origin}/${username}/rss`;
-    }
-
-    if (parts.length === 2 && parts[1].toLowerCase() === "rss") {
-      return `${parsed.origin}/${username}/rss`;
-    }
-
-    return null;
   }
 
   private static extractChannelIdFromHtml(html: string): string | null {
@@ -278,11 +187,6 @@ export class MediaService {
       /<meta property="og:url" content="https:\/\/www\.youtube\.com\/channel\/(UC[\w-]{22})"/,
     );
     if (ogMatch?.[1]) return ogMatch[1];
-
-    const twitterMatch = html.match(
-      /<meta name="twitter:app:url:googleplay" content="https:\/\/www\.youtube\.com\/channel\/(UC[\w-]{22})"/,
-    );
-    if (twitterMatch?.[1]) return twitterMatch[1];
 
     // 5. Fallback to existing broad patterns
     const patterns = [
@@ -752,8 +656,6 @@ export class MediaService {
         | "defaultYouTubeTag"
         | "defaultYouTubeTags"
         | "defaultPodcastTags"
-        | "defaultTwitterTag"
-        | "defaultTwitterTags"
         | "defaultMastodonTag"
         | "defaultMastodonTags"
         | "defaultSmallwebFolder"
@@ -768,12 +670,10 @@ export class MediaService {
     category?:
       | "video"
       | "podcast"
-      | "twitter"
       | "mastodon"
       | "smallweb"
       | "rss";
   } {
-    const isTwitter = MediaService.isTwitterOrNitterFeed(feed.url);
     const isMastodon = MastodonService.isResolvedFeedUrl(feed.url);
     const smallwebFolder = mediaSettings?.defaultSmallwebFolder?.trim() || "";
     const isSmallweb = smallwebFolder && feed.folder === smallwebFolder;
@@ -785,7 +685,6 @@ export class MediaService {
     let tagCategory:
       | "video"
       | "podcast"
-      | "twitter"
       | "mastodon"
       | "smallweb"
       | "rss"
@@ -818,13 +717,6 @@ export class MediaService {
         undefined,
         ["Podcast", "Podcasts"],
         ["Podcast", "Podcasts"],
-      );
-    } else if (isTwitter) {
-      tagCategory = "twitter";
-      mediaTags = this.getConfiguredTagNames(
-        availableTags,
-        mediaSettings?.defaultTwitterTags,
-        mediaSettings?.defaultTwitterTag,
       );
     } else if (isMastodon) {
       tagCategory = "mastodon";
@@ -863,8 +755,6 @@ export class MediaService {
         | "defaultYouTubeTag"
         | "defaultYouTubeTags"
         | "defaultPodcastTags"
-        | "defaultTwitterTag"
-        | "defaultTwitterTags"
         | "defaultMastodonTag"
         | "defaultMastodonTags"
         | "defaultSmallwebFolder"
@@ -898,9 +788,7 @@ export class MediaService {
           ? item.mediaType === "video"
           : tagCategory === "podcast"
             ? item.mediaType === "podcast"
-            : tagCategory === "twitter"
-              ? true
-              : tagCategory === "mastodon"
+            : tagCategory === "mastodon"
                 ? true
                 : tagCategory === "smallweb"
                   ? true

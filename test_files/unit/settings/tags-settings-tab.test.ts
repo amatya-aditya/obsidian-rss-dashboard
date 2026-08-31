@@ -63,7 +63,6 @@ function getTagOption(name: string): HTMLButtonElement {
 
 const autoTagRows = [
   "Tag for video articles",
-  "Default Twitter tag",
   "Default Mastodon tag",
   "Default YouTube tag",
   "Default podcast tag",
@@ -99,7 +98,7 @@ describe("renderTagsSettingsTab()", () => {
     ).map((el) => el.textContent?.trim());
 
     expect(names[0]).toBe("Auto tagging");
-    expect(names.slice(1, 8)).toEqual(autoTagRows);
+    expect(names.slice(1, 7)).toEqual(autoTagRows);
     expect(names.indexOf("Add new tag")).toBeGreaterThan(
       names.indexOf("Reset tag names"),
     );

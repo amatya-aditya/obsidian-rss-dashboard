@@ -156,22 +156,7 @@ export class EditFeedModal extends Modal {
     subtitle.textContent = "Modify feed settings and configuration";
   }
 
-  /* ============================================
-   * 2. URL & Feed Source
-   * Handles input parsing, live loading, and format detection
-   * ============================================ */
-  private normalizeNitterUrl = (): void => {
-    const candidate = (this.urlInput?.value || this.url || "").trim();
-    const normalized = MediaService.normalizeNitterUrlToRss(candidate);
-    if (!normalized) return;
-
-    this.url = normalized;
-    if (this.urlInput) this.urlInput.value = normalized;
-  };
-
   private async handleLoadFeed() {
-    this.normalizeNitterUrl();
-
     // Set loading state
     this.status = "\u23F3 Loading...";
     this.loadBtn.addClass("loading");
@@ -288,10 +273,6 @@ export class EditFeedModal extends Modal {
         this.urlInput.addEventListener("keydown", handleEnter, { capture: true });
         this.urlInput.addEventListener("keypress", handleEnter, { capture: true });
         this.urlInput.addEventListener("keyup", handleEnter, { capture: true });
-        this.urlInput.addEventListener("blur", this.normalizeNitterUrl);
-        this.urlInput.addEventListener("paste", () => {
-          window.setTimeout(this.normalizeNitterUrl, 0);
-        });
       })
       .addButton((btn) => {
         btn.setButtonText("Load");
@@ -844,7 +825,6 @@ export class EditFeedModal extends Modal {
     });
 
     saveBtn.onclick = () => {
-      this.normalizeNitterUrl();
       const validation = isValidFeedTitle(this.title);
       if (!validation.valid) {
         new Notice(validation.error || "Invalid feed title");
