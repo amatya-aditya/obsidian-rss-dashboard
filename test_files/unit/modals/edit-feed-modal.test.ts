@@ -1417,4 +1417,202 @@ describe("EditFeedModal", () => {
     expect(feed.items[0].tags).toEqual([{ name: "Tech", color: "#228811" }]);
     expect(plugin.saveSettings).not.toHaveBeenCalled();
   });
+
+  it("renders Save, Cancel, and Delete buttons with expected classes, icons, and layout container", () => {
+    const app = createMockApp();
+    const feed: Feed = {
+      title: "Example feed",
+      url: "https://example.com/rss.xml",
+      folder: "",
+      items: [],
+      lastUpdated: 0,
+      maxItemsLimit: 100,
+    };
+    const plugin = {
+      app,
+      settings: {
+        folders: [],
+        maxItems: 100,
+        corsProxyEnabled: false,
+        corsProxyUrl: "",
+        articleSaving: { savedTemplates: [] },
+      } as PluginTestFixture["settings"],
+      ensureFolderExists: vi.fn(async () => {}),
+      saveSettings: vi.fn(async () => {}),
+      notifyFiltersUpdated: vi.fn(),
+    };
+
+    const modal = new EditFeedModal(app, asRssDashboardPlugin(plugin), feed, vi.fn());
+    modal.open();
+
+    expect(modal.modalEl.classList.contains("rss-edit-feed-modal")).toBe(true);
+
+    const actionsContainer = modal.contentEl.querySelector(".rss-edit-feed-actions");
+    expect(actionsContainer).not.toBeNull();
+
+    const saveBtn = modal.contentEl.querySelector(".rss-edit-feed-save-button") as HTMLButtonElement;
+    expect(saveBtn).not.toBeNull();
+    expect(saveBtn.textContent).toBe("Save");
+    expect(saveBtn.classList.contains("rss-dashboard-primary-button")).toBe(true);
+
+    const cancelBtn = modal.contentEl.querySelector(".rss-edit-feed-cancel-button") as HTMLButtonElement;
+    expect(cancelBtn).not.toBeNull();
+    expect(cancelBtn.textContent).toBe("Cancel");
+    expect(cancelBtn.classList.contains("rss-dashboard-cancel-button")).toBe(true);
+    expect(cancelBtn.classList.contains("rss-dashboard-danger-button")).toBe(false);
+
+    const deleteBtn = modal.contentEl.querySelector(".rss-edit-feed-delete-button") as HTMLButtonElement;
+    expect(deleteBtn).not.toBeNull();
+    expect(deleteBtn.classList.contains("rss-dashboard-danger-button")).toBe(true);
+
+    const iconSpan = deleteBtn.querySelector(".rss-edit-feed-delete-icon");
+    expect(iconSpan).not.toBeNull();
+    expect((iconSpan as HTMLElement).dataset.icon).toBe("trash");
+    expect(deleteBtn.textContent).toContain("Delete");
+  });
+
+  it("opens confirmation modal on clicking Delete, and cancels deletion when Cancel is clicked", async () => {
+    const app = createMockApp();
+    const feed: Feed = {
+      title: "My Feed",
+      url: "https://example.com/rss.xml",
+      folder: "",
+      items: [],
+      lastUpdated: 0,
+      maxItemsLimit: 100,
+    };
+    const onDelete = vi.fn();
+    const plugin = {
+      app,
+      settings: {
+        feeds: [feed],
+        folders: [],
+        maxItems: 100,
+        corsProxyEnabled: false,
+        corsProxyUrl: "",
+        articleSaving: { savedTemplates: [] },
+      } as unknown as PluginTestFixture["settings"] & { feeds: Feed[] },
+      ensureFolderExists: vi.fn(async () => {}),
+      saveSettings: vi.fn(async () => {}),
+      notifyFiltersUpdated: vi.fn(),
+    };
+
+    const modal = new EditFeedModal(app, asRssDashboardPlugin(plugin), feed, vi.fn(), {
+      onDelete,
+    });
+    const closeModalSpy = vi.spyOn(modal, "close");
+    modal.open();
+
+    const deleteBtn = modal.contentEl.querySelector(".rss-edit-feed-delete-button") as HTMLButtonElement;
+    deleteBtn.click();
+    await flushPromises();
+
+    // Confirm modal should be open in document body
+    const confirmModalEl = document.body.querySelector(".rss-dashboard-confirm-modal");
+    expect(confirmModalEl).not.toBeNull();
+    expect(confirmModalEl?.textContent).toContain('Are you sure you want to delete the feed "My Feed"?');
+
+    // Click Cancel in the confirm modal
+    const cancelConfirmBtn = getButtonByText(confirmModalEl as HTMLElement, "Cancel");
+    cancelConfirmBtn.click();
+    await flushPromises();
+
+    expect(onDelete).not.toHaveBeenCalled();
+    expect(closeModalSpy).not.toHaveBeenCalled();
+    expect(plugin.saveSettings).not.toHaveBeenCalled();
+  });
+
+  it("deletes the feed via onDelete callback when confirmed", async () => {
+    const app = createMockApp();
+    const feed: Feed = {
+      title: "My Feed",
+      url: "https://example.com/rss.xml",
+      folder: "",
+      items: [],
+      lastUpdated: 0,
+      maxItemsLimit: 100,
+    };
+    const onDelete = vi.fn();
+    const plugin = {
+      app,
+      settings: {
+        feeds: [feed],
+        folders: [],
+        maxItems: 100,
+        corsProxyEnabled: false,
+        corsProxyUrl: "",
+        articleSaving: { savedTemplates: [] },
+      } as unknown as PluginTestFixture["settings"] & { feeds: Feed[] },
+      ensureFolderExists: vi.fn(async () => {}),
+      saveSettings: vi.fn(async () => {}),
+      notifyFiltersUpdated: vi.fn(),
+    };
+
+    const modal = new EditFeedModal(app, asRssDashboardPlugin(plugin), feed, vi.fn(), {
+      onDelete,
+    });
+    const closeModalSpy = vi.spyOn(modal, "close");
+    modal.open();
+
+    const deleteBtn = modal.contentEl.querySelector(".rss-edit-feed-delete-button") as HTMLButtonElement;
+    deleteBtn.click();
+    await flushPromises();
+
+    const confirmModalEl = document.body.querySelector(".rss-dashboard-confirm-modal");
+    const confirmDeleteBtn = getButtonByText(confirmModalEl as HTMLElement, "Delete");
+    confirmDeleteBtn.click();
+    await flushPromises();
+
+    expect(onDelete).toHaveBeenCalledTimes(1);
+    expect(closeModalSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("falls back to default deletion when onDelete option is not provided", async () => {
+    const app = createMockApp();
+    const feed: Feed = {
+      title: "My Feed",
+      url: "https://example.com/rss.xml",
+      folder: "",
+      items: [],
+      lastUpdated: 0,
+      maxItemsLimit: 100,
+    };
+    const onSave = vi.fn();
+    const removeCachedImages = vi.fn(async () => {});
+    const plugin = {
+      app,
+      settings: {
+        feeds: [feed],
+        folders: [],
+        maxItems: 100,
+        corsProxyEnabled: false,
+        corsProxyUrl: "",
+        articleSaving: { savedTemplates: [] },
+      } as unknown as PluginTestFixture["settings"] & { feeds: Feed[] },
+      removeCachedImagesForDeletedFeed: removeCachedImages,
+      ensureFolderExists: vi.fn(async () => {}),
+      saveSettings: vi.fn(async () => {}),
+      notifyFiltersUpdated: vi.fn(),
+    };
+
+    const modal = new EditFeedModal(app, asRssDashboardPlugin(plugin), feed, onSave);
+    const closeModalSpy = vi.spyOn(modal, "close");
+    modal.open();
+
+    const deleteBtn = modal.contentEl.querySelector(".rss-edit-feed-delete-button") as HTMLButtonElement;
+    deleteBtn.click();
+    await flushPromises();
+
+    const confirmModalEl = document.body.querySelector(".rss-dashboard-confirm-modal");
+    const confirmDeleteBtn = getButtonByText(confirmModalEl as HTMLElement, "Delete");
+    confirmDeleteBtn.click();
+    await flushPromises();
+
+    expect(plugin.settings.feeds).not.toContain(feed);
+    expect(removeCachedImages).toHaveBeenCalledWith(feed);
+    expect(plugin.saveSettings).toHaveBeenCalledTimes(1);
+    expect(onSave).toHaveBeenCalledTimes(1);
+    expect(closeModalSpy).toHaveBeenCalledTimes(1);
+  });
 });
+
