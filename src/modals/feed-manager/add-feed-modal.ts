@@ -134,7 +134,7 @@ export class AddFeedModal extends Modal {
    * ============================================ */
   private setupModalContainer() {
     this.modalEl.className +=
-      " rss-dashboard-modal rss-dashboard-modal-container";
+      " rss-dashboard-modal rss-dashboard-modal-container rss-add-feed-modal";
     // Add mobile-specific class for proper styling on mobile/tablet
     if (shouldUseMobileSidebarLayout()) {
       this.modalEl.addClass("rss-mobile-feed-manager-modal");
@@ -675,15 +675,15 @@ export class AddFeedModal extends Modal {
    * ============================================ */
   private renderActionButtons() {
     const btns = this.contentEl.createDiv({
-      cls: "rss-dashboard-modal-buttons rss-dashboard-modal-actions",
+      cls: "rss-dashboard-modal-buttons rss-dashboard-modal-actions rss-add-feed-actions",
     });
     const saveBtn = btns.createEl("button", {
       text: "Save",
-      cls: "rss-dashboard-primary-button",
+      cls: "rss-dashboard-primary-button rss-add-feed-save-button",
     });
     const cancelBtn = btns.createEl("button", {
       text: "Cancel",
-      cls: "rss-dashboard-danger-button rss-dashboard-cancel-button",
+      cls: "rss-dashboard-cancel-button rss-add-feed-cancel-button",
     });
 
     saveBtn.onclick = () => {

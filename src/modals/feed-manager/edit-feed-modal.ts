@@ -39,9 +39,10 @@ import { resolveTagObjects } from "../../utils/tag-resolver";
 const EMPTY_FEED_VALIDATION_WARNING =
   "Feed validation passed, however no content detected.";
 
-interface EditFeedModalOptions {
+export interface EditFeedModalOptions {
   expandSection?: "per-feed" | "rules";
   highlightSection?: "per-feed" | "rules";
+  onDelete?: () => void;
 }
 
 const PER_FEED_HIGHLIGHT_DURATION_MS = 3000;
@@ -140,7 +141,7 @@ export class EditFeedModal extends Modal {
   private setupModalContainer() {
     const isMobile = shouldUseMobileSidebarLayout();
     this.modalEl.className +=
-      " rss-dashboard-modal rss-dashboard-modal-container";
+      " rss-dashboard-modal rss-dashboard-modal-container rss-edit-feed-modal";
 
     if (isMobile) {
       this.modalEl.addClass("rss-mobile-feed-manager-modal");
@@ -813,16 +814,25 @@ export class EditFeedModal extends Modal {
    * ============================================ */
   private renderActionButtons() {
     const btns = this.contentEl.createDiv(
-      "rss-dashboard-modal-buttons rss-dashboard-modal-actions",
+      "rss-dashboard-modal-buttons rss-dashboard-modal-actions rss-edit-feed-actions",
     );
     const saveBtn = btns.createEl("button", {
       text: "Save",
-      cls: "rss-dashboard-primary-button",
+      cls: "rss-dashboard-primary-button rss-edit-feed-save-button",
     });
     const cancelBtn = btns.createEl("button", {
       text: "Cancel",
-      cls: "rss-dashboard-danger-button rss-dashboard-cancel-button",
+      cls: "rss-dashboard-cancel-button rss-edit-feed-cancel-button",
     });
+    const deleteBtn = btns.createEl("button", {
+      cls: "rss-dashboard-danger-button rss-edit-feed-delete-button",
+      attr: { "aria-label": "Delete feed" },
+    });
+    const deleteIcon = deleteBtn.createSpan({
+      cls: "rss-edit-feed-delete-icon",
+    });
+    setIcon(deleteIcon, "trash");
+    deleteBtn.createSpan({ text: "Delete" });
 
     saveBtn.onclick = () => {
       const validation = isValidFeedTitle(this.title);
@@ -939,6 +949,53 @@ export class EditFeedModal extends Modal {
       })();
     };
     cancelBtn.onclick = () => this.close();
+    deleteBtn.onclick = () => this.handleDeleteFeed();
+  }
+
+  private handleDeleteFeed(): void {
+    const confirmModal = new Modal(this.app);
+    confirmModal.modalEl.addClass("rss-dashboard-confirm-modal");
+    const { contentEl } = confirmModal;
+    contentEl.empty();
+
+    new Setting(contentEl).setName("Delete feed").setHeading();
+    contentEl.createEl("p", {
+      text: `Are you sure you want to delete the feed "${this.feed.title}"?`,
+    });
+
+    const buttonsSetting = new Setting(contentEl);
+    buttonsSetting.controlEl.addClass("rss-dashboard-modal-buttons");
+    buttonsSetting
+      .addButton((btn) =>
+        btn.setButtonText("Cancel").onClick(() => {
+          confirmModal.close();
+        }),
+      )
+      .addButton((btn) =>
+        btn
+          .setButtonText("Delete")
+          .setWarning()
+          .onClick(() => {
+            confirmModal.close();
+            this.close();
+
+            void (async () => {
+              if (this.options?.onDelete) {
+                this.options.onDelete();
+              } else {
+                this.plugin.settings.feeds = this.plugin.settings.feeds.filter(
+                  (f: Feed) => f !== this.feed,
+                );
+                await this.plugin.removeCachedImagesForDeletedFeed?.(this.feed);
+                await this.plugin.saveSettings();
+                this.onSave();
+              }
+              new Notice(`Feed "${this.feed.title}" deleted`);
+            })();
+          }),
+      );
+
+    confirmModal.open();
   }
 
   onClose() {

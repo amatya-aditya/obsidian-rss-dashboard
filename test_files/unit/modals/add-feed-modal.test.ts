@@ -525,4 +525,28 @@ describe("AddFeedModal", () => {
     expect(requestPayload.customTags).toEqual(["News", "Tech"]);
     expect(onSave).toHaveBeenCalledTimes(1);
   });
+
+  it("renders Save and Cancel buttons with expected styling classes", () => {
+    const app = createMockApp();
+    const onAdd: OnAddFn = vi.fn(async () => true);
+    const onSave = vi.fn();
+    const modal = new AddFeedModal(app, [], onAdd, onSave);
+    modal.open();
+
+    expect(modal.modalEl.classList.contains("rss-add-feed-modal")).toBe(true);
+
+    const actionsContainer = modal.contentEl.querySelector(".rss-add-feed-actions");
+    expect(actionsContainer).not.toBeNull();
+
+    const saveBtn = modal.contentEl.querySelector(".rss-add-feed-save-button") as HTMLButtonElement;
+    expect(saveBtn).not.toBeNull();
+    expect(saveBtn.textContent).toBe("Save");
+    expect(saveBtn.classList.contains("rss-dashboard-primary-button")).toBe(true);
+
+    const cancelBtn = modal.contentEl.querySelector(".rss-add-feed-cancel-button") as HTMLButtonElement;
+    expect(cancelBtn).not.toBeNull();
+    expect(cancelBtn.textContent).toBe("Cancel");
+    expect(cancelBtn.classList.contains("rss-dashboard-cancel-button")).toBe(true);
+  });
 });
+

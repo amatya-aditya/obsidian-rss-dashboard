@@ -3565,6 +3565,7 @@ export class Sidebar {
     options?: {
       expandSection?: "per-feed" | "rules";
       highlightSection?: "per-feed" | "rules";
+      onDelete?: () => void;
     },
   ): void {
     new EditFeedModal(
@@ -3572,7 +3573,16 @@ export class Sidebar {
       this.plugin,
       feed,
       () => this.render(),
-      options,
+      {
+        ...options,
+        onDelete: () => {
+          if (options?.onDelete) {
+            options.onDelete();
+          } else {
+            this.callbacks.onDeleteFeed(feed);
+          }
+        },
+      },
     ).open();
   }
 
