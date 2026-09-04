@@ -39,8 +39,8 @@ import {
   getFaviconUrl,
 } from "../utils/favicon-utils";
 import {
-  moveFeedAndInsert,
-  moveFeedToFolderAppend,
+  moveFeedsAndInsert,
+  moveFeedsToFolderAppend,
   moveFolder,
   setFolderFeedSortCustom,
   setFolderSortCustom,
@@ -741,6 +741,12 @@ export class Sidebar {
       e.preventDefault();
       feedFoldersSection.classList.remove("drag-over");
       if (e.dataTransfer) {
+        const { feedUrls, folderPaths } = this.extractDragPayload(e.dataTransfer);
+        if (feedUrls.length > 0 || folderPaths.length > 1) {
+          this.batchMoveFeedsAndFoldersToFolder("", feedUrls, folderPaths);
+          return;
+        }
+
         const draggedFolderPath = e.dataTransfer.getData("folder-path");
         if (draggedFolderPath) {
           const result = moveFolder(this.settings, {
@@ -788,22 +794,7 @@ export class Sidebar {
 
         const feedUrl = e.dataTransfer.getData("feed-url");
         if (feedUrl) {
-          const feed = this.settings.feeds.find((f) => f.url === feedUrl);
-          if (!feed || !feed.folder) return;
-
-          const oldFolderPath = feed.folder;
-          const result = moveFeedToFolderAppend(this.settings, {
-            draggedUrl: feedUrl,
-            destinationFolderPath: "",
-          });
-          if (!result.ok) {
-            new Notice(result.error || "Unable to move feed.");
-            return;
-          }
-
-          const oldFolder = this.findFolderByPath(oldFolderPath);
-          if (oldFolder) oldFolder.modifiedAt = Date.now();
-          void this.plugin.saveSettings().then(() => this.render());
+          this.batchMoveFeedsAndFoldersToFolder("", [feedUrl], []);
         }
       }
     });
@@ -1339,7 +1330,23 @@ export class Sidebar {
 
     folderHeader.addEventListener("dragstart", (e) => {
       if (!e.dataTransfer) return;
+      let folderPaths: string[] = [];
+      const selectedFolders = this.options.selectedFolders || [];
+      if (selectedFolders.length > 0) {
+        if (!selectedFolders.includes(fullPath)) {
+          selectedFolders.push(fullPath);
+        }
+        folderPaths = [...selectedFolders];
+      } else {
+        folderPaths = [fullPath];
+      }
       e.dataTransfer.setData("folder-path", fullPath);
+      e.dataTransfer.setData("folder-paths", JSON.stringify(folderPaths));
+
+      const selectedFeeds = this.options.selectedFeeds || [];
+      if (selectedFeeds.length > 0) {
+        e.dataTransfer.setData("feed-urls", JSON.stringify(selectedFeeds));
+      }
       e.dataTransfer.effectAllowed = "move";
     });
 
@@ -1364,8 +1371,12 @@ export class Sidebar {
       e.preventDefault();
       e.stopPropagation(); // Prevent event from bubbling up to root section
 
-      const isFolderDrag = e.dataTransfer.types.includes("folder-path");
-      const isFeedDrag = e.dataTransfer.types.includes("feed-url");
+      const isFolderDrag =
+        e.dataTransfer.types.includes("folder-path") ||
+        e.dataTransfer.types.includes("folder-paths");
+      const isFeedDrag =
+        e.dataTransfer.types.includes("feed-url") ||
+        e.dataTransfer.types.includes("feed-urls");
       if (!isFolderDrag && !isFeedDrag) return;
 
       clearFolderHeaderDropClasses();
@@ -1396,6 +1407,17 @@ export class Sidebar {
       clearFolderHeaderDropClasses();
 
       if (!e.dataTransfer) return;
+
+      const { feedUrls, folderPaths } = this.extractDragPayload(e.dataTransfer);
+      if (feedUrls.length > 0) {
+        this.batchMoveFeedsAndFoldersToFolder(fullPath, feedUrls, folderPaths);
+        return;
+      }
+
+      if (folderPaths.length > 1) {
+        this.batchMoveFeedsAndFoldersToFolder(fullPath, [], folderPaths);
+        return;
+      }
 
       const draggedFolderPath = e.dataTransfer.getData("folder-path");
       if (draggedFolderPath) {
@@ -1442,31 +1464,6 @@ export class Sidebar {
         void this.plugin.saveSettings().then(() => this.render());
         return;
       }
-
-      const feedUrl = e.dataTransfer.getData("feed-url");
-      if (!feedUrl) return;
-
-      const feed = this.settings.feeds.find((f) => f.url === feedUrl);
-      if (!feed || (feed.folder || "") === fullPath) return;
-
-      const oldFolderPath = feed.folder || "";
-      const op = moveFeedToFolderAppend(this.settings, {
-        draggedUrl: feedUrl,
-        destinationFolderPath: fullPath,
-      });
-      if (!op.ok) {
-        new Notice(op.error || "Unable to move feed.");
-        return;
-      }
-
-      if (oldFolderPath) {
-        const oldFolder = this.findFolderByPath(oldFolderPath);
-        if (oldFolder) oldFolder.modifiedAt = Date.now();
-      }
-      const newFolder = this.findFolderByPath(fullPath);
-      if (newFolder) newFolder.modifiedAt = Date.now();
-
-      void this.plugin.saveSettings().then(() => this.render());
     });
 
     // Create the container for both subfolders and feeds
@@ -1491,29 +1488,9 @@ export class Sidebar {
       e.stopPropagation();
       folderFeedsList.classList.remove("drag-over");
       if (e.dataTransfer) {
-        const feedUrl = e.dataTransfer.getData("feed-url");
-        if (feedUrl) {
-          const feed = this.settings.feeds.find((f) => f.url === feedUrl);
-          if (!feed || (feed.folder || "") === fullPath) return;
-
-          const oldFolderPath = feed.folder || "";
-          const result = moveFeedToFolderAppend(this.settings, {
-            draggedUrl: feedUrl,
-            destinationFolderPath: fullPath,
-          });
-          if (!result.ok) {
-            new Notice(result.error || "Unable to move feed.");
-            return;
-          }
-
-          if (oldFolderPath) {
-            const oldFolder = this.findFolderByPath(oldFolderPath);
-            if (oldFolder) oldFolder.modifiedAt = Date.now();
-          }
-          const newFolder = this.findFolderByPath(fullPath);
-          if (newFolder) newFolder.modifiedAt = Date.now();
-
-          void this.plugin.saveSettings().then(() => this.render());
+        const { feedUrls, folderPaths } = this.extractDragPayload(e.dataTransfer);
+        if (feedUrls.length > 0 || folderPaths.length > 0) {
+          this.batchMoveFeedsAndFoldersToFolder(fullPath, feedUrls, folderPaths);
         }
       }
     });
@@ -1763,7 +1740,24 @@ export class Sidebar {
 
     feedEl.addEventListener("dragstart", (e) => {
       if (!e.dataTransfer) return;
+      let feedUrls: string[] = [];
+      const selectedFeeds = this.options.selectedFeeds || [];
+      if (selectedFeeds.length > 0) {
+        if (!selectedFeeds.includes(feed.url)) {
+          selectedFeeds.push(feed.url);
+        }
+        feedUrls = [...selectedFeeds];
+      } else {
+        feedUrls = [feed.url];
+      }
+
       e.dataTransfer.setData("feed-url", feed.url);
+      e.dataTransfer.setData("feed-urls", JSON.stringify(feedUrls));
+
+      const selectedFolders = this.options.selectedFolders || [];
+      if (selectedFolders.length > 0) {
+        e.dataTransfer.setData("folder-paths", JSON.stringify(selectedFolders));
+      }
       e.dataTransfer.effectAllowed = "move";
     });
 
@@ -1775,10 +1769,17 @@ export class Sidebar {
     feedEl.addEventListener("dragover", (e) => {
       if (!e.dataTransfer) return;
       // Ignore folder drags; those are handled on folder headers/root.
-      if (e.dataTransfer.types.includes("folder-path")) return;
+      if (
+        e.dataTransfer.types.includes("folder-path") ||
+        e.dataTransfer.types.includes("folder-paths")
+      ) {
+        return;
+      }
 
-      const draggedUrl = e.dataTransfer.getData("feed-url");
-      if (!draggedUrl) return;
+      const hasFeedDrag =
+        e.dataTransfer.types.includes("feed-url") ||
+        e.dataTransfer.types.includes("feed-urls");
+      if (!hasFeedDrag) return;
 
       e.preventDefault();
       e.stopPropagation();
@@ -1796,25 +1797,34 @@ export class Sidebar {
 
     feedEl.addEventListener("drop", (e) => {
       if (!e.dataTransfer) return;
-      if (e.dataTransfer.types.includes("folder-path")) return;
+      if (
+        e.dataTransfer.types.includes("folder-path") ||
+        e.dataTransfer.types.includes("folder-paths")
+      ) {
+        return;
+      }
 
-      const draggedUrl = e.dataTransfer.getData("feed-url");
-      if (!draggedUrl || draggedUrl === feed.url) return;
+      const { feedUrls } = this.extractDragPayload(e.dataTransfer);
+      if (feedUrls.length === 0) return;
+      if (feedUrls.includes(feed.url)) return; // No-op drop if target is one of the dragged feeds
 
       e.preventDefault();
       e.stopPropagation();
       clearFeedDropClasses();
 
-      const dragged = this.settings.feeds.find((f) => f.url === draggedUrl);
-      const oldFolderPath = dragged?.folder ?? "";
+      const oldFolderPaths = new Set<string>();
+      for (const u of feedUrls) {
+        const f = this.settings.feeds.find((item) => item.url === u);
+        if (f?.folder) oldFolderPaths.add(f.folder);
+      }
       const destinationFolderPath = feed.folder ?? "";
 
       const rect = feedEl.getBoundingClientRect();
       const before = e.clientY < rect.top + rect.height / 2;
       const placement = before ? "before" : "after";
 
-      const result = moveFeedAndInsert(this.settings, {
-        draggedUrl,
+      const result = moveFeedsAndInsert(this.settings, {
+        draggedUrls: feedUrls,
         targetUrl: feed.url,
         placement,
       });
@@ -1824,14 +1834,19 @@ export class Sidebar {
         return;
       }
 
-      if (oldFolderPath && oldFolderPath !== destinationFolderPath) {
-        const oldFolder = this.findFolderByPath(oldFolderPath);
-        if (oldFolder) oldFolder.modifiedAt = Date.now();
+      for (const oldPath of oldFolderPaths) {
+        if (oldPath !== destinationFolderPath) {
+          const oldFolder = this.findFolderByPath(oldPath);
+          if (oldFolder) oldFolder.modifiedAt = Date.now();
+        }
       }
-      if (destinationFolderPath && oldFolderPath !== destinationFolderPath) {
+      if (destinationFolderPath) {
         const newFolder = this.findFolderByPath(destinationFolderPath);
         if (newFolder) newFolder.modifiedAt = Date.now();
       }
+
+      this.options.selectedFeeds = [];
+      this.options.selectedFolders = [];
 
       void this.plugin.saveSettings().then(() => this.render());
     });
@@ -1914,6 +1929,16 @@ export class Sidebar {
         .setIcon("circle")
         .onClick(() => {
           this.markSelectionReadStatus(false);
+        });
+    });
+    menu.addItem((item: MenuItem) => {
+      item
+        .setTitle("Move selection to folder")
+        .setIcon("folder-open")
+        .onClick((evt) => {
+          if (evt instanceof MouseEvent) {
+            this.showMoveSelectionToFolderMenu(evt);
+          }
         });
     });
     menu.addSeparator();
@@ -2002,6 +2027,220 @@ export class Sidebar {
       this.options.selectedFeeds = [];
       this.render();
     });
+  }
+
+  private extractDragPayload(dataTransfer: DataTransfer | null): {
+    feedUrls: string[];
+    folderPaths: string[];
+  } {
+    if (!dataTransfer) return { feedUrls: [], folderPaths: [] };
+
+    let feedUrls: string[] = [];
+    const feedUrlsRaw = dataTransfer.getData("feed-urls");
+    if (feedUrlsRaw) {
+      try {
+        const parsed: unknown = JSON.parse(feedUrlsRaw);
+        if (
+          Array.isArray(parsed) &&
+          parsed.every((item): item is string => typeof item === "string")
+        ) {
+          feedUrls = parsed;
+        }
+      } catch {}
+    }
+    if (feedUrls.length === 0) {
+      const singleFeed = dataTransfer.getData("feed-url");
+      if (singleFeed) feedUrls = [singleFeed];
+    }
+
+    let folderPaths: string[] = [];
+    const folderPathsRaw = dataTransfer.getData("folder-paths");
+    if (folderPathsRaw) {
+      try {
+        const parsed: unknown = JSON.parse(folderPathsRaw);
+        if (
+          Array.isArray(parsed) &&
+          parsed.every((item): item is string => typeof item === "string")
+        ) {
+          folderPaths = parsed;
+        }
+      } catch {}
+    }
+    if (folderPaths.length === 0) {
+      const singleFolder = dataTransfer.getData("folder-path");
+      if (singleFolder) folderPaths = [singleFolder];
+    }
+
+    return { feedUrls, folderPaths };
+  }
+
+  private batchMoveFeedsAndFoldersToFolder(
+    destinationFolderPath: string,
+    feedUrls: string[],
+    folderPaths: string[] = [],
+  ): void {
+    let movedFeedsCount = 0;
+    let movedFoldersCount = 0;
+    let skippedFoldersCount = 0;
+
+    // 1. Move folders first (if any)
+    for (const folderPath of folderPaths) {
+      if (
+        destinationFolderPath === folderPath ||
+        destinationFolderPath.startsWith(`${folderPath}/`)
+      ) {
+        skippedFoldersCount++;
+        continue;
+      }
+
+      const placement = destinationFolderPath ? "nest" : "rootAppend";
+      const result = moveFolder(this.settings, {
+        draggedPath: folderPath,
+        targetPath: destinationFolderPath,
+        placement,
+      });
+
+      if (result.ok) {
+        movedFoldersCount++;
+      } else {
+        skippedFoldersCount++;
+      }
+    }
+
+    // 2. Move feeds
+    const feedsToMove = feedUrls.filter((url) => {
+      const feed = this.settings.feeds.find((f) => f.url === url);
+      return feed && (feed.folder || "") !== destinationFolderPath;
+    });
+
+    if (feedsToMove.length > 0) {
+      const oldFolderPaths = new Set<string>();
+      for (const url of feedsToMove) {
+        const f = this.settings.feeds.find((item) => item.url === url);
+        if (f?.folder) oldFolderPaths.add(f.folder);
+      }
+
+      const result = moveFeedsToFolderAppend(this.settings, {
+        draggedUrls: feedsToMove,
+        destinationFolderPath,
+      });
+
+      if (result.ok) {
+        movedFeedsCount = feedsToMove.length;
+        for (const oldPath of oldFolderPaths) {
+          const oldFolder = this.findFolderByPath(oldPath);
+          if (oldFolder) oldFolder.modifiedAt = Date.now();
+        }
+      } else {
+        new Notice(result.error || "Unable to move feeds.");
+      }
+    }
+
+    if (destinationFolderPath) {
+      const destFolder = this.findFolderByPath(destinationFolderPath);
+      if (destFolder) destFolder.modifiedAt = Date.now();
+    }
+
+    this.clearFolderPathCache();
+
+    if (skippedFoldersCount > 0) {
+      new Notice("Skipped moving folder into itself or its subfolder.");
+    }
+
+    const totalMoved = movedFeedsCount + movedFoldersCount;
+    if (totalMoved > 0) {
+      const destLabel = destinationFolderPath
+        ? `"${destinationFolderPath}"`
+        : "root";
+      const parts: string[] = [];
+      if (movedFeedsCount > 0) {
+        parts.push(`${movedFeedsCount} feed${movedFeedsCount === 1 ? "" : "s"}`);
+      }
+      if (movedFoldersCount > 0) {
+        parts.push(
+          `${movedFoldersCount} folder${movedFoldersCount === 1 ? "" : "s"}`,
+        );
+      }
+      new Notice(`Moved ${parts.join(" and ")} to ${destLabel}`);
+    }
+
+    this.options.selectedFeeds = [];
+    this.options.selectedFolders = [];
+
+    void this.plugin.saveSettings().then(() => this.render());
+  }
+
+  private showMoveSelectionToFolderMenu(event: MouseEvent): void {
+    const menu = new Menu();
+
+    const selectedFeeds = [...(this.options.selectedFeeds || [])];
+    const selectedFolders = [...(this.options.selectedFolders || [])];
+
+    // Add option to move to root (no folder)
+    menu.addItem((item: MenuItem) => {
+      item
+        .setTitle("Root (no folder)")
+        .setIcon("folder")
+        .onClick(() => {
+          this.batchMoveFeedsAndFoldersToFolder(
+            "",
+            selectedFeeds,
+            selectedFolders,
+          );
+        });
+    });
+
+    menu.addSeparator();
+
+    // Add all available folders
+    const allFolders = this.getCachedFolderPaths();
+    if (allFolders.length > 0) {
+      allFolders.sort((a, b) => a.localeCompare(b));
+
+      allFolders.forEach((folderPath) => {
+        menu.addItem((item: MenuItem) => {
+          item
+            .setTitle(folderPath)
+            .setIcon("folder")
+            .onClick(() => {
+              this.batchMoveFeedsAndFoldersToFolder(
+                folderPath,
+                selectedFeeds,
+                selectedFolders,
+              );
+            });
+        });
+      });
+    }
+
+    menu.addSeparator();
+    menu.addItem((item: MenuItem) => {
+      item
+        .setTitle("Create new folder...")
+        .setIcon("folder-plus")
+        .onClick(() => {
+          this.showFolderNameModal({
+            title: "Create new folder",
+            existingNames: this.settings.folders.map((f) => f.name),
+            onSubmit: (folderName) => {
+              void (async () => {
+                await this.addTopLevelFolder(folderName);
+                this.batchMoveFeedsAndFoldersToFolder(
+                  folderName,
+                  selectedFeeds,
+                  selectedFolders,
+                );
+              })();
+            },
+          });
+        });
+    });
+
+    if (typeof menu.showAtMouseEvent === "function") {
+      menu.showAtMouseEvent(event);
+    } else {
+      menu.showAtPosition({ x: event.clientX, y: event.clientY });
+    }
   }
 
   private showFolderContextMenu(
