@@ -23,3 +23,14 @@ _Avoid_: Skipping, episode navigation
 **Window navigation**:
 Moving playlist browsing by one playlist-window length in playlist order. It is presented as Previous/Next rather than chronological Older/Newer.
 _Avoid_: Pagination, chronological navigation
+
+## Sidebar feed management
+
+**Sidebar selection**:
+The active group of feeds and folders selected in the sidebar via click, modifier-click, or range-selection.
+_Avoid_: Active feeds, multi-selection target, highlighted list
+
+**Batch move**:
+Relocating multiple selected feeds or folders together into a target destination folder or root in a single operation.
+_Avoid_: Bulk drag, mass reorder, multi-drop
+

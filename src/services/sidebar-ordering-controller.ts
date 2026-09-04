@@ -30,6 +30,52 @@ export function setFolderSortCustom(settings: RssDashboardSettings): void {
   settings.folderSortOrder = { by: "custom", ascending: prev?.ascending ?? true };
 }
 
+export function moveFeedsAndInsert(
+  settings: RssDashboardSettings,
+  opts: {
+    draggedUrls: string[];
+    targetUrl: string;
+    placement: FeedInsertPlacement;
+  },
+): OperationResult {
+  const { draggedUrls, targetUrl, placement } = opts;
+  if (!draggedUrls || draggedUrls.length === 0 || !targetUrl) {
+    return { ok: false, error: "Missing feed urls." };
+  }
+  if (draggedUrls.includes(targetUrl)) {
+    return { ok: false, error: "No-op drop." };
+  }
+
+  const target = settings.feeds.find((f) => f.url === targetUrl);
+  if (!target) return { ok: false, error: "Target feed not found." };
+
+  const destinationFolderPath = normalizeFolderPath(target.folder);
+  const draggedUrlSet = new Set(draggedUrls);
+  const draggedFeeds = settings.feeds.filter((f) => draggedUrlSet.has(f.url));
+  if (draggedFeeds.length === 0) {
+    return { ok: false, error: "Dragged feeds not found." };
+  }
+
+  for (const feed of draggedFeeds) {
+    feed.folder = destinationFolderPath;
+  }
+
+  const withoutDragged = settings.feeds.filter((f) => !draggedUrlSet.has(f.url));
+  const targetIndex = withoutDragged.findIndex((f) => f.url === targetUrl);
+  if (targetIndex === -1) {
+    return { ok: false, error: "Target feed not found after removal." };
+  }
+
+  const insertIndex = placement === "before" ? targetIndex : targetIndex + 1;
+  const next = [...withoutDragged];
+  next.splice(insertIndex, 0, ...draggedFeeds);
+  settings.feeds = next;
+
+  setFolderFeedSortCustom(settings, destinationFolderPath);
+
+  return { ok: true };
+}
+
 export function moveFeedAndInsert(
   settings: RssDashboardSettings,
   opts: {
@@ -38,30 +84,52 @@ export function moveFeedAndInsert(
     placement: FeedInsertPlacement;
   },
 ): OperationResult {
-  const draggedUrl = opts.draggedUrl;
-  const targetUrl = opts.targetUrl;
-  if (!draggedUrl || !targetUrl) return { ok: false, error: "Missing feed urls." };
-  if (draggedUrl === targetUrl) return { ok: false, error: "No-op drop." };
-
-  const dragged = settings.feeds.find((f) => f.url === draggedUrl);
-  const target = settings.feeds.find((f) => f.url === targetUrl);
+  if (!opts.draggedUrl) return { ok: false, error: "Missing feed urls." };
+  const dragged = settings.feeds.find((f) => f.url === opts.draggedUrl);
   if (!dragged) return { ok: false, error: "Dragged feed not found." };
-  if (!target) return { ok: false, error: "Target feed not found." };
+  return moveFeedsAndInsert(settings, {
+    draggedUrls: [opts.draggedUrl],
+    targetUrl: opts.targetUrl,
+    placement: opts.placement,
+  });
+}
 
-  const destinationFolderPath = normalizeFolderPath(target.folder);
-  dragged.folder = destinationFolderPath;
+export function moveFeedsToFolderAppend(
+  settings: RssDashboardSettings,
+  opts: {
+    draggedUrls: string[];
+    destinationFolderPath: string;
+  },
+): OperationResult {
+  const { draggedUrls } = opts;
+  if (!draggedUrls || draggedUrls.length === 0) {
+    return { ok: false, error: "Dragged feeds not found." };
+  }
 
-  const withoutDragged = settings.feeds.filter((f) => f.url !== draggedUrl);
-  const targetIndex = withoutDragged.findIndex((f) => f.url === targetUrl);
-  if (targetIndex === -1) return { ok: false, error: "Target feed not found after removal." };
+  const destinationFolderPath = normalizeFolderPath(opts.destinationFolderPath);
+  const draggedUrlSet = new Set(draggedUrls);
+  const draggedFeeds = settings.feeds.filter((f) => draggedUrlSet.has(f.url));
+  if (draggedFeeds.length === 0) {
+    return { ok: false, error: "Dragged feeds not found." };
+  }
 
-  const insertIndex = opts.placement === "before" ? targetIndex : targetIndex + 1;
+  for (const feed of draggedFeeds) {
+    feed.folder = destinationFolderPath;
+  }
+
+  const withoutDragged = settings.feeds.filter((f) => !draggedUrlSet.has(f.url));
+  let lastIndexInDestination = -1;
+  for (let i = 0; i < withoutDragged.length; i++) {
+    const folderPath = normalizeFolderPath(withoutDragged[i].folder);
+    if (folderPath === destinationFolderPath) lastIndexInDestination = i;
+  }
+
+  const insertIndex = lastIndexInDestination + 1;
   const next = [...withoutDragged];
-  next.splice(insertIndex, 0, dragged);
+  next.splice(insertIndex, 0, ...draggedFeeds);
   settings.feeds = next;
 
   setFolderFeedSortCustom(settings, destinationFolderPath);
-
   return { ok: true };
 }
 
@@ -72,29 +140,13 @@ export function moveFeedToFolderAppend(
     destinationFolderPath: string;
   },
 ): OperationResult {
-  const draggedUrl = opts.draggedUrl;
-  const destinationFolderPath = normalizeFolderPath(opts.destinationFolderPath);
-  if (!draggedUrl) return { ok: false, error: "Missing dragged feed url." };
-
-  const dragged = settings.feeds.find((f) => f.url === draggedUrl);
+  if (!opts.draggedUrl) return { ok: false, error: "Missing dragged feed url." };
+  const dragged = settings.feeds.find((f) => f.url === opts.draggedUrl);
   if (!dragged) return { ok: false, error: "Dragged feed not found." };
-
-  dragged.folder = destinationFolderPath;
-
-  const withoutDragged = settings.feeds.filter((f) => f.url !== draggedUrl);
-  let lastIndexInDestination = -1;
-  for (let i = 0; i < withoutDragged.length; i++) {
-    const folderPath = normalizeFolderPath(withoutDragged[i].folder);
-    if (folderPath === destinationFolderPath) lastIndexInDestination = i;
-  }
-
-  const insertIndex = lastIndexInDestination + 1;
-  const next = [...withoutDragged];
-  next.splice(insertIndex, 0, dragged);
-  settings.feeds = next;
-
-  setFolderFeedSortCustom(settings, destinationFolderPath);
-  return { ok: true };
+  return moveFeedsToFolderAppend(settings, {
+    draggedUrls: [opts.draggedUrl],
+    destinationFolderPath: opts.destinationFolderPath,
+  });
 }
 
 function splitPath(path: string): string[] {
