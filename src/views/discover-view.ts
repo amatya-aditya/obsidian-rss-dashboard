@@ -1583,7 +1583,11 @@ export class DiscoverView extends ItemView {
     setIcon(previewBtn, "file-search");
     previewBtn.createSpan({ text: "Preview" });
     previewBtn.addEventListener("click", () => {
-      new FeedPreviewModal(this.app, feed, this.plugin.settings.corsProxyEnabled).open();
+      new FeedPreviewModal(
+        this.app,
+        feed,
+        this.plugin.settings.corsProxyEnabled,
+      ).open();
     });
 
     this.renderFollowButton(rightSection, feed);
@@ -1858,7 +1862,7 @@ export class DiscoverView extends ItemView {
 
   private applySidebarWidth(): void {
     if (!this.sidebarContainer) return;
-    const width = this.settings.sidebarWidth || 280;
+    const width = this.settings.sidebarWidth || 310;
     this.sidebarContainer.style.width = `${width}px`;
     this.sidebarContainer.style.minWidth = `${width}px`;
     // Keep the resize handle pinned to the sidebar's right edge.

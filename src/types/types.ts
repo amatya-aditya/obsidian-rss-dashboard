@@ -607,7 +607,7 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
   showFeedArt: true,
   showThumbnails: true,
   sidebarCollapsed: false,
-  sidebarWidth: 280,
+  sidebarWidth: 310,
   collapsedFolders: [],
   collapsedFeedSections: [],
   tagsCollapsed: true,
