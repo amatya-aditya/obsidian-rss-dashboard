@@ -58,6 +58,11 @@ import {
   findFirstNonFormulaImage,
   firstNonFormulaImageUrl,
 } from "../utils/image-url-utils";
+import { ReaderLightbox } from "../components/reader-lightbox";
+import {
+  isLightboxEligibleImage,
+  resolveFullResolutionImageSource,
+} from "../utils/full-size-image-resolver";
 import { PodcastPlayer } from "./podcast-player";
 import { VideoPlayer } from "./video-player";
 import { RSS_DASHBOARD_VIEW_TYPE, RssDashboardView } from "./dashboard-view";
@@ -2026,10 +2031,11 @@ export class ReaderView extends ItemView {
           }
 
           if (heroUrl) {
-            heroSlot.createEl("img", {
+            const heroImg = heroSlot.createEl("img", {
               cls: "rss-reader-fallback-hero",
               attr: { src: heroUrl, alt: title || "Hero image" },
             });
+            this.setupLightboxForImage(heroImg);
 
             // Remove the first image from the body if it's the hero image to avoid duplication
             if (
@@ -2105,6 +2111,7 @@ export class ReaderView extends ItemView {
     // Add classes to images for styling
     container.querySelectorAll("img").forEach((img) => {
       img.addClass("rss-reader-responsive-img");
+      this.setupLightboxForImage(img);
       img.addEventListener("error", () => {
         if (this.recoverFailedSubstackImageElement(img)) {
           console.warn(
@@ -2122,6 +2129,22 @@ export class ReaderView extends ItemView {
     void scheduleProcessMathElements(container, {
       app: this.app,
       component: this,
+    });
+  }
+
+  private setupLightboxForImage(img: HTMLImageElement): void {
+    if (!isLightboxEligibleImage(img)) return;
+
+    img.addClass("rss-reader-zoomable-img");
+    img.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const source = resolveFullResolutionImageSource(img);
+      const lightbox = new ReaderLightbox({
+        source,
+        doc: this.containerEl.ownerDocument,
+      });
+      lightbox.open();
     });
   }
 

@@ -34,3 +34,14 @@ _Avoid_: Active feeds, multi-selection target, highlighted list
 Relocating multiple selected feeds or folders together into a target destination folder or root in a single operation.
 _Avoid_: Bulk drag, mass reorder, multi-drop
 
+## Reader view
+
+**Reader lightbox**:
+The modal overlay presented over the reader view to display an article or hero image in its full resolution with pan and zoom capabilities.
+_Avoid_: Modal dialog, photo popup, preview card, photo gallery
+
+**Full-resolution image source**:
+The unconstrained original media URL extracted by resolving direct image links, selecting the highest-resolution candidate in a srcset, or stripping CDN resize transformations.
+_Avoid_: Thumbnail, cached preview, compressed version
+
+
