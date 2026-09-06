@@ -617,7 +617,11 @@ export default class RssDashboardPlugin extends Plugin {
       this.autoRefreshScheduler = new FeedRefreshScheduler({
         getFeeds: () => this.settings.feeds,
         getGlobalIntervalMinutes: () => this.settings.refreshInterval,
+        getLastGlobalRefreshCompletedAt: () =>
+          this.settings.lastGlobalRefreshCompletedAt,
         isBatchRunning: () => this.isMultiFeedRefreshRunning,
+        requestGlobalRefresh: async () =>
+          await this.refreshFeeds(undefined, "global"),
         requestDueFeeds: async (feeds) => await this.refreshFeeds(feeds, "due"),
       });
     }

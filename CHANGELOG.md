@@ -9,6 +9,7 @@
 
 ### Fixes
 
+- Fixed automatic refresh for feeds using the global interval so it refreshes all eligible feeds in one batch instead of staggered per-feed batches, preventing repeated notifications and dashboard scroll resets. [GH Issue #208](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/208)
 - Fixed an issue where dragging and dropping multiple selected feeds in the sidebar only moved a single feed; dragging now moves all selected feeds together, preserving their relative order across folder headers, folder lists, root, and feed reordering drops.
 - Fixed Feed View grouping so **Grouping: Disabled** renders a flat article sequence and **Grouping: Feed** displays one collapsible header per feed. [GH Issue #195](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/195)
 - Removed Nitter integration, automatic X/Twitter-to-Nitter RSS feed conversion, and obsolete Twitter/X settings and fallbacks following the permanent shutdown of Nitter instances and the project repository on August 24, 2026 due to cease and desist demands from X Corp. (https://github.com/zedeus/nitter). Attempting to add an `x.com`, `twitter.com`, or any `nitter.*` URL now shows a clear error message explaining the situation and suggesting third-party RSS bridges (e.g. RSSHub) as an alternative.
