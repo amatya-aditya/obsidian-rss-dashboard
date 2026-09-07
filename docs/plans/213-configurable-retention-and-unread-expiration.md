@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: in-progress
 created: 2026-09-07
 issue: "https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/213"
 milestone: ""
@@ -62,14 +62,14 @@ In a local-first Obsidian vault where users cannot mark every article as read, u
 - [x] Regression unit tests in `test_files/unit/services/feed-parser/feed-parser-class.test.ts` verifying refresh carry-forward and fresh XML ingest with unified protections.
 
 ### Phase 2: Retention Protection Toggles in General Settings
-- [ ] Render a "Protected from Auto-Deletion" section in `src/settings/tabs/general-settings-tab.ts` under Data Retention.
-- [ ] Add 4 Obsidian toggle switches with concise labels:
+- [x] Render a "Protected from Auto-Deletion" section in `src/settings/tabs/general-settings-tab.ts` under Data Retention.
+- [x] Add 4 Obsidian toggle switches with concise labels:
   - "Protect starred articles"
   - "Protect saved articles"
   - "Protect tagged articles"
   - "Protect unread articles"
-- [ ] Each toggle reflects `plugin.settings` state; changing persists via `plugin.saveSettings()`.
-- [ ] Unit tests in `test_files/unit/settings/general-settings-tab.test.ts` verifying toggle rendering, interaction, and persistence.
+- [x] Each toggle reflects `plugin.settings` state; changing persists via `plugin.saveSettings()`.
+- [x] Unit tests in `test_files/unit/settings/general-settings-tab.test.ts` verifying toggle rendering, interaction, and persistence.
 
 ### Phase 3: Destructive Retention Change Confirmation Modal
 - [ ] Create `RetentionChangeConfirmModal` (extending Obsidian's `Modal`):

@@ -406,6 +406,8 @@ export function renderGeneralSettingsTab(
       });
   });
 
+  new Setting(containerEl).setName("Data retention").setHeading();
+
   // ── Auto-delete duration ──────────────────────────────────────────────────
   const defaultAutoDeleteSetting = new Setting(containerEl)
     .setName("Default auto delete duration (new feeds)")
@@ -472,6 +474,58 @@ export function renderGeneralSettingsTab(
         })();
       });
   });
+
+  new Setting(containerEl)
+    .setName("Protected from auto-deletion")
+    .setHeading();
+
+  new Setting(containerEl)
+    .setName("Protect starred articles")
+    .setDesc("Keep starred articles when retention limits are applied")
+    .addToggle((toggle) =>
+      toggle
+        .setValue(plugin.settings.protectStarred)
+        .onChange(async (value) => {
+          plugin.settings.protectStarred = value;
+          await plugin.saveSettings();
+        }),
+    );
+
+  new Setting(containerEl)
+    .setName("Protect saved articles")
+    .setDesc("Keep articles saved to your vault when retention limits are applied")
+    .addToggle((toggle) =>
+      toggle
+        .setValue(plugin.settings.protectSaved)
+        .onChange(async (value) => {
+          plugin.settings.protectSaved = value;
+          await plugin.saveSettings();
+        }),
+    );
+
+  new Setting(containerEl)
+    .setName("Protect tagged articles")
+    .setDesc("Keep tagged articles when retention limits are applied")
+    .addToggle((toggle) =>
+      toggle
+        .setValue(plugin.settings.protectTagged)
+        .onChange(async (value) => {
+          plugin.settings.protectTagged = value;
+          await plugin.saveSettings();
+        }),
+    );
+
+  new Setting(containerEl)
+    .setName("Protect unread articles")
+    .setDesc("Keep unread articles when retention limits are applied")
+    .addToggle((toggle) =>
+      toggle
+        .setValue(plugin.settings.protectUnread)
+        .onChange(async (value) => {
+          plugin.settings.protectUnread = value;
+          await plugin.saveSettings();
+        }),
+    );
 
   // ── Proxy ─────────────────────────────────────────────────────────────────
   new Setting(containerEl).setName("Proxy").setHeading();
