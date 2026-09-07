@@ -115,6 +115,19 @@ export function loadAndNormalizeSettings(
       DEFAULT_SETTINGS.defaultAutoDeleteDuration;
   }
 
+  if (typeof settings.protectStarred !== "boolean") {
+    settings.protectStarred = DEFAULT_SETTINGS.protectStarred;
+  }
+  if (typeof settings.protectSaved !== "boolean") {
+    settings.protectSaved = DEFAULT_SETTINGS.protectSaved;
+  }
+  if (typeof settings.protectTagged !== "boolean") {
+    settings.protectTagged = DEFAULT_SETTINGS.protectTagged;
+  }
+  if (typeof settings.protectUnread !== "boolean") {
+    settings.protectUnread = DEFAULT_SETTINGS.protectUnread;
+  }
+
   if (!settings.readerViewLocation) {
     settings.readerViewLocation = "right-sidebar";
   }

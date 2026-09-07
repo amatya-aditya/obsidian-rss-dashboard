@@ -587,6 +587,148 @@ describe("FeedParser.parseFeed", () => {
     nowSpy.mockRestore();
   });
 
+  it("retains old unread items on refresh and ingest when protectUnread is true", async () => {
+    const feedUrl = "https://example.com/feed.xml";
+    const fixedNowMs = Date.parse("2026-05-01T00:00:00Z");
+
+    const xmlWithOldAndRecent = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Test Feed</title>
+    <link>https://example.com</link>
+    <item>
+      <title>Recent Article</title>
+      <link>https://example.com/recent</link>
+      <description>recent desc</description>
+      <pubDate>Tue, 28 Apr 2026 00:00:00 GMT</pubDate>
+      <guid>https://example.com/recent</guid>
+    </item>
+    <item>
+      <title>Old Article</title>
+      <link>https://example.com/old</link>
+      <description>old desc</description>
+      <pubDate>Sun, 01 Mar 2026 00:00:00 GMT</pubDate>
+      <guid>https://example.com/old</guid>
+    </item>
+  </channel>
+</rss>`;
+
+    const nowSpy = vi.spyOn(Date, "now").mockReturnValue(fixedNowMs);
+    const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
+    requestUrlSpy
+      .mockResolvedValueOnce(mockResponse(200, xmlWithOldAndRecent))
+      .mockResolvedValueOnce(mockResponse(200, xmlWithOldAndRecent));
+
+    const parser = new FeedParser(
+      DEFAULT_SETTINGS.display,
+      [],
+      mediaSettings,
+      () => [],
+      () => true,
+      () => ({
+        protectStarred: true,
+        protectSaved: true,
+        protectTagged: false,
+        protectUnread: true,
+      }),
+    );
+
+    const first = await parser.parseFeed(feedUrl, {
+      title: "Test Feed",
+      url: feedUrl,
+      folder: "Uncategorized",
+      items: [],
+      lastUpdated: fixedNowMs,
+      autoDeleteDuration: 30,
+    });
+
+    // Both recent and old unread articles are retained because protectUnread is true
+    expect(first.items.map((item) => item.guid)).toEqual([
+      "https://example.com/recent",
+      "https://example.com/old",
+    ]);
+
+    const second = await parser.parseFeed(feedUrl, first);
+    expect(second.items.map((item) => item.guid)).toEqual([
+      "https://example.com/recent",
+      "https://example.com/old",
+    ]);
+
+    requestUrlSpy.mockRestore();
+    nowSpy.mockRestore();
+  });
+
+  it("retains old tagged items during carry-forward when protectTagged is true", async () => {
+    const feedUrl = "https://example.com/feed.xml";
+    const fixedNowMs = Date.parse("2026-05-01T00:00:00Z");
+
+    const xmlRecentOnly = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Test Feed</title>
+    <link>https://example.com</link>
+    <item>
+      <title>Recent Article</title>
+      <link>https://example.com/recent</link>
+      <description>recent desc</description>
+      <pubDate>Tue, 28 Apr 2026 00:00:00 GMT</pubDate>
+      <guid>https://example.com/recent</guid>
+    </item>
+  </channel>
+</rss>`;
+
+    const nowSpy = vi.spyOn(Date, "now").mockReturnValue(fixedNowMs);
+    const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
+    requestUrlSpy.mockResolvedValueOnce(mockResponse(200, xmlRecentOnly));
+
+    const parser = new FeedParser(
+      DEFAULT_SETTINGS.display,
+      [],
+      mediaSettings,
+      () => [],
+      () => true,
+      () => ({
+        protectStarred: true,
+        protectSaved: true,
+        protectTagged: true,
+        protectUnread: false,
+      }),
+    );
+
+    const existingFeed: Feed = {
+      title: "Test Feed",
+      url: feedUrl,
+      folder: "Uncategorized",
+      items: [
+        {
+          title: "Old Tagged Article",
+          link: "https://example.com/old-tagged",
+          guid: "https://example.com/old-tagged",
+          pubDate: "Sun, 01 Mar 2026 00:00:00 GMT",
+          read: true,
+          starred: false,
+          saved: false,
+          tags: [{ name: "research" }],
+          feedTitle: "Test Feed",
+          feedUrl,
+          coverImage: "",
+          description: "",
+          content: "",
+        },
+      ],
+      lastUpdated: fixedNowMs,
+      autoDeleteDuration: 30,
+    };
+
+    const refreshed = await parser.parseFeed(feedUrl, existingFeed);
+    expect(new Set(refreshed.items.map((item) => item.guid))).toEqual(
+      new Set(["https://example.com/recent", "https://example.com/old-tagged"]),
+    );
+
+    requestUrlSpy.mockRestore();
+    nowSpy.mockRestore();
+  });
+
   it("preserves shared feed artwork for podcast episodes on parse and refresh", async () => {
     const feedUrl = "https://lexfridman.com/feed/podcast/";
     const sharedArtwork =

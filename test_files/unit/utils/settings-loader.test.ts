@@ -302,6 +302,46 @@ describe("settings-loader", () => {
 
       expect(result.storageMode).toBe("vault-shards-v2");
     });
+
+    it("normalizes missing or non-boolean retention protection fields to default values", async () => {
+      const { loadAndNormalizeSettings } =
+        await import("../../../src/utils/settings-loader");
+
+      const emptyResult = loadAndNormalizeSettings({});
+      expect(emptyResult.protectStarred).toBe(true);
+      expect(emptyResult.protectSaved).toBe(true);
+      expect(emptyResult.protectTagged).toBe(false);
+      expect(emptyResult.protectUnread).toBe(false);
+
+      const invalidRaw = {
+        protectStarred: "invalid" as unknown as boolean,
+        protectSaved: null as unknown as boolean,
+        protectTagged: 123 as unknown as boolean,
+        protectUnread: undefined,
+      };
+      const normalizedResult = loadAndNormalizeSettings(invalidRaw);
+      expect(normalizedResult.protectStarred).toBe(true);
+      expect(normalizedResult.protectSaved).toBe(true);
+      expect(normalizedResult.protectTagged).toBe(false);
+      expect(normalizedResult.protectUnread).toBe(false);
+    });
+
+    it("preserves explicitly configured retention protection boolean values", async () => {
+      const { loadAndNormalizeSettings } =
+        await import("../../../src/utils/settings-loader");
+
+      const configured = {
+        protectStarred: false,
+        protectSaved: false,
+        protectTagged: true,
+        protectUnread: true,
+      };
+      const result = loadAndNormalizeSettings(configured);
+      expect(result.protectStarred).toBe(false);
+      expect(result.protectSaved).toBe(false);
+      expect(result.protectTagged).toBe(true);
+      expect(result.protectUnread).toBe(true);
+    });
   });
 
   // ── migrateSettings ──────────────────────────────────────────────────────────
