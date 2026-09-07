@@ -8,6 +8,7 @@
 - Added **Date > Feed** and **Folder > Feed** grouping options to the Grouping selector. Selecting **Date** or **Folder** now renders a flat list of article cards within each date/folder group (no nested feed headers), while **Date > Feed** or **Folder > Feed** renders collapsible per-feed sections nested under each date or folder group header. [GH Issue #195](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/195)
 - Added **Move selection to folder** to the sidebar multi-selection context menu, allowing users to relocate multiple selected feeds and folders directly to a chosen folder or root without drag-and-drop.
 - Added tap-to-expand image viewing in the article Reader view, opening an interactive full-resolution Lightbox with progressive loading, 1:1 zoom toggling, pan gestures, mobile swipe-to-dismiss, and smart resolution that retrieves original unconstrained media rather than cached or downscaled thumbnails. [GH Issue #202](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/202)
+- Added **AI Weekly** (`https://aiweekly.co/feed`) to the Discover catalog under Technology → Artificial Intelligence; it is a free curated newsletter covering models, agents, funding, policy, research, and people shaping AI, published roughly three times per week. [GH Issue #206](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/206)
 
 ### Fixes
 
