@@ -2,6 +2,7 @@
 
 ### Features
 
+- Replaced the podcast player's misleading playlist browser with a bounded episode list, incremental Load more control, current-episode recovery, and compact sorting while retaining existing player behavior; on mobile, speed, volume, and sleep timer controls form a centered, evenly spaced row, and the rounded sleep control shows an active countdown inline. [GH Issue #207](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/207)
 - Added a red Delete button with a trash can icon to the bottom-right of the Edit feed modal, resized the Cancel button to sit neatly alongside it on the same row on desktop, configured actions to stack vertically on mobile, and updated the Save button to match the purple Load button color in both the Add feed and Edit feed modals.
 - Added `{{saveDate}}` (`YYYY-MM-DD`), `{{saveTime12}}` (`hh:mm A`), and `{{saveTime24}}` (`HH:mm`) template variables that insert current local date and time when saving an article to Obsidian.
 - Added **Date > Feed** and **Folder > Feed** grouping options to the Grouping selector. Selecting **Date** or **Folder** now renders a flat list of article cards within each date/folder group (no nested feed headers), while **Date > Feed** or **Folder > Feed** renders collapsible per-feed sections nested under each date or folder group header. [GH Issue #195](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/195)
