@@ -45,6 +45,7 @@ records the documentation classification.
 | Plan | Completed | Issue | Implementation |
 | --- | --- | --- | --- |
 | [Feed View honors disabled grouping](plans/unreleased/195-feed-view-honors-disabled-grouping.md) | 2026-08-24 | [GH Issue #195](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/195) | - |
+| [Podcast episode-list redesign](plans/unreleased/207-podcast-episode-list-redesign.md) | 2026-09-06 | [GH Issue #207](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/207) | - |
 
 ## Unshipped plans
 
