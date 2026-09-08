@@ -5,24 +5,24 @@ The vocabulary used for user-facing RSS Dashboard behavior, including its podcas
 ## Podcast player
 
 **Active episode**:
-The episode currently loaded in the podcast player's audio element. It anchors the playlist window whenever the player selects or advances to an episode.
+The episode currently loaded in the podcast player's audio element. It anchors the visible episode-list range whenever the player selects or advances to an episode.
 _Avoid_: Current article, selected row
 
-**Playlist window**:
-A bounded, ordered set of episode rows presented by the podcast playlist around an active episode or while browsing nearby episodes.
-_Avoid_: Full playlist, page
+**Episode list**:
+A bounded, ordered set of episode rows from one feed. It is read-only and does not imply a saved or customizable playlist.
+_Avoid_: Playlist, queue
 
-**Playlist order**:
+**Episode order**:
 The current sequence of episodes after the player's selected sort or shuffle behavior has been applied. It determines an episode's before and after neighbors.
 _Avoid_: Publication order, feed order
 
-**Playlist browsing**:
-Moving the visible playlist window without changing the active episode or audio playback.
+**Episode-list browsing**:
+Loading or viewing a bounded range of episodes without changing the active episode or audio playback.
 _Avoid_: Skipping, episode navigation
 
-**Window navigation**:
-Moving playlist browsing by one playlist-window length in playlist order. It is presented as Previous/Next rather than chronological Older/Newer.
-_Avoid_: Pagination, chronological navigation
+**Incremental loading**:
+Adding the next bounded batch of episode rows to the rendered list. It preserves responsive performance for feeds with thousands of locally stored episodes.
+_Avoid_: Full-list rendering, unbounded scrolling
 
 ## Sidebar feed management
 
@@ -33,4 +33,15 @@ _Avoid_: Active feeds, multi-selection target, highlighted list
 **Batch move**:
 Relocating multiple selected feeds or folders together into a target destination folder or root in a single operation.
 _Avoid_: Bulk drag, mass reorder, multi-drop
+
+## Reader view
+
+**Reader lightbox**:
+The modal overlay presented over the reader view to display an article or hero image in its full resolution with pan and zoom capabilities.
+_Avoid_: Modal dialog, photo popup, preview card, photo gallery
+
+**Full-resolution image source**:
+The unconstrained original media URL extracted by resolving direct image links, selecting the highest-resolution candidate in a srcset, or stripping CDN resize transformations.
+_Avoid_: Thumbnail, cached preview, compressed version
+
 

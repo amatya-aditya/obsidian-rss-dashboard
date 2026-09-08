@@ -38,3 +38,5 @@ scratch/sum_errors_new.ps1
 eslint_test_report_new.json
 scratch/sum_errors.ps1
 .agents/*
+docs/agents/*
+skills-lock.json
