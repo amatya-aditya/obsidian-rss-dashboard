@@ -81,6 +81,11 @@ Not stored: raw RSS/XML documents. There is no hidden local XML archive.
 - On every save: `saveSettings()` overwrites `data.json` with the full current in-memory state.
 - Single-feed refresh: saves immediately after that feed's merge + retention step.
 - Multi-feed batch refresh: one save at the end of the entire batch, not per-feed.
+- While a multi-feed batch is running, completed feeds update the existing global
+  progress label in place. The sidebar and article list are not rebuilt between
+  feed completions, and image-cache completions produced by the batch do not
+  schedule extra dashboard renders. The batch performs one final dashboard
+  refresh after all feed attempts settle.
 
 > SQLite was trialled in 2.2.0-beta.2 and reverted in 2.2.0-beta.4 for cross-platform stability. JSON has been the sole persistence mechanism since then.
 

@@ -296,6 +296,7 @@ export default class RssDashboardPlugin extends Plugin {
   private readonly imageCacheChangeListeners = new Set<() => void>();
   private imageCacheWorkers = 0;
   private imageCacheBatchHasUsableEntries = false;
+  private suppressNextImageCacheDashboardRefresh = false;
 
   constructor(app: App, manifest: ConstructorParameters<typeof Plugin>[1]) {
     super(app, manifest);
@@ -418,6 +419,7 @@ export default class RssDashboardPlugin extends Plugin {
     this.imageCacheQueue = [];
     this.queuedImageCacheUrls.clear();
     this.imageCacheBatchHasUsableEntries = false;
+    this.suppressNextImageCacheDashboardRefresh = false;
     this.imageCacheService?.cancelPendingWrites();
     return (await this.imageCacheService?.clear()) ?? { cleared: 0, failed: 0 };
   }
@@ -472,11 +474,17 @@ export default class RssDashboardPlugin extends Plugin {
       return;
     }
 
+    let queuedImage = false;
     for (const previewUrl of this.getPreviewImageUrls(feed)) {
       if (!this.queuedImageCacheUrls.has(previewUrl)) {
         this.queuedImageCacheUrls.add(previewUrl);
         this.imageCacheQueue.push(previewUrl);
+        queuedImage = true;
       }
+    }
+
+    if (queuedImage && this.isMultiFeedRefreshRunning) {
+      this.suppressNextImageCacheDashboardRefresh = true;
     }
 
     this.startImageCacheWorkers();
@@ -518,13 +526,15 @@ export default class RssDashboardPlugin extends Plugin {
     } finally {
       this.imageCacheWorkers -= 1;
       this.startImageCacheWorkers();
-      if (
-        this.imageCacheWorkers === 0 &&
-        this.imageCacheQueue.length === 0 &&
-        this.imageCacheBatchHasUsableEntries
-      ) {
+      if (this.imageCacheWorkers === 0 && this.imageCacheQueue.length === 0) {
+        const shouldRefreshDashboard =
+          this.imageCacheBatchHasUsableEntries &&
+          !this.suppressNextImageCacheDashboardRefresh;
         this.imageCacheBatchHasUsableEntries = false;
-        void this.refreshDashboardAfterImageCacheBatch();
+        this.suppressNextImageCacheDashboardRefresh = false;
+        if (shouldRefreshDashboard) {
+          void this.refreshDashboardAfterImageCacheBatch();
+        }
       }
     }
   }
@@ -3064,13 +3074,19 @@ export default class RssDashboardPlugin extends Plugin {
 
       const view = await this.getActiveDashboardView();
       if (view) {
-        if (typeof view.refreshSidebarOnly === "function") {
-          view.refreshSidebarOnly();
-          if (typeof view.refreshFilterStatusBarOnly === "function") {
-            view.refreshFilterStatusBarOnly();
+        if (force) {
+          if (typeof view.refreshSidebarOnly === "function") {
+            view.refreshSidebarOnly();
+            if (typeof view.refreshFilterStatusBarOnly === "function") {
+              view.refreshFilterStatusBarOnly();
+            }
+          } else {
+            view.refresh();
           }
-        } else {
-          view.refresh();
+        } else if (
+          typeof view.refreshGlobalRefreshProgressOnly === "function"
+        ) {
+          view.refreshGlobalRefreshProgressOnly();
         }
       }
       lastRenderAt = now;

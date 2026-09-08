@@ -364,8 +364,10 @@ describe("refreshFeeds() pipeline behavior", () => {
     const validateSpy = vi.spyOn(plugin, "validateSavedArticles");
     const viewRefreshSpy = vi.fn();
     const sidebarRefreshSpy = vi.fn();
+    const progressRefreshSpy = vi.fn();
     vi.spyOn(plugin, "getActiveDashboardView").mockResolvedValue({
       refreshSidebarOnly: sidebarRefreshSpy,
+      refreshGlobalRefreshProgressOnly: progressRefreshSpy,
       refresh: viewRefreshSpy,
     } as unknown as Awaited<
       ReturnType<typeof RssDashboardPlugin.prototype.getActiveDashboardView>
@@ -450,7 +452,8 @@ describe("refreshFeeds() pipeline behavior", () => {
 
     expect(validateSpy).toHaveBeenCalledTimes(1);
     expect(plugin.saveData).toHaveBeenCalledTimes(1);
-    expect(sidebarRefreshSpy).toHaveBeenCalledTimes(2);
+    expect(sidebarRefreshSpy).toHaveBeenCalledTimes(1);
+    expect(progressRefreshSpy).toHaveBeenCalled();
     expect(viewRefreshSpy).toHaveBeenCalledTimes(1);
     expect(plugin.feedParser.refreshAllFeeds).not.toHaveBeenCalled();
 
@@ -460,6 +463,93 @@ describe("refreshFeeds() pipeline behavior", () => {
     expect(notices.some((notice) => notice.includes("Shift+click"))).toBe(
       false,
     );
+  });
+
+  it("does not rebuild the dashboard when an image-cache batch finishes during a global refresh", async () => {
+    const feedA = createFeed({
+      title: "Feed A",
+      url: "https://example.com/a.xml",
+    });
+    const feedB = createFeed({
+      title: "Feed B",
+      url: "https://example.com/b.xml",
+    });
+    const plugin = createPluginWithSettings([feedA, feedB]);
+    plugin.settings.display = {
+      ...plugin.settings.display,
+      allowImageCaching: true,
+      showCoverImage: true,
+    };
+
+    const viewRefreshSpy = vi.fn();
+    vi.spyOn(plugin, "getActiveDashboardView").mockResolvedValue({
+      refreshSidebarOnly: vi.fn(),
+      refreshFilterStatusBarOnly: vi.fn(),
+      refresh: viewRefreshSpy,
+    } as unknown as Awaited<
+      ReturnType<typeof RssDashboardPlugin.prototype.getActiveDashboardView>
+    >);
+
+    const cacheUrlSpy = vi.fn().mockResolvedValue(false);
+    (plugin as unknown as {
+      imageCacheService: {
+        cacheUrl: ReturnType<typeof vi.fn>;
+      };
+    }).imageCacheService = {
+      cacheUrl: cacheUrlSpy,
+    };
+
+    const resolvers = new Map<string, (feed: Feed) => void>();
+    (
+      plugin.feedParser.refreshFeed as unknown as {
+        mockImplementation: (fn: (feed: Feed) => Promise<Feed>) => void;
+      }
+    ).mockImplementation(
+      (feed) =>
+        new Promise<Feed>((resolve) => {
+          resolvers.set(feed.url, resolve);
+        }),
+    );
+
+    const refreshPromise = plugin.refreshFeeds();
+    await flushMicrotasks();
+
+    resolvers.get(feedA.url)?.({
+      ...feedA,
+      items: [
+        createItem({
+          feedUrl: feedA.url,
+          coverImage: "https://example.com/a.jpg",
+        }),
+      ],
+    });
+    await flushMicrotasks();
+
+    expect(viewRefreshSpy).not.toHaveBeenCalled();
+
+    resolvers.get(feedB.url)?.(feedB);
+    await refreshPromise;
+
+    expect(viewRefreshSpy).toHaveBeenCalledTimes(1);
+
+    viewRefreshSpy.mockClear();
+    cacheUrlSpy.mockResolvedValue(true);
+    (
+      plugin as unknown as {
+        queuePreviewImageCaching: (feed: Feed) => void;
+      }
+    ).queuePreviewImageCaching({
+      ...feedB,
+      items: [
+        createItem({
+          feedUrl: feedB.url,
+          coverImage: "https://example.com/b.jpg",
+        }),
+      ],
+    });
+    await flushMicrotasks();
+
+    expect(viewRefreshSpy).toHaveBeenCalledTimes(1);
   });
 
   it("refreshes a single feed via the direct path and does not require an active dashboard view", async () => {
