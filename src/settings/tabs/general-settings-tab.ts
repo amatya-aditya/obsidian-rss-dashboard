@@ -20,7 +20,10 @@ import {
   getPageSizeOptions,
   PAGE_SIZE_OPTIONS,
 } from "../../utils/page-size-options";
-import { ApplyMaxItemsToExistingFeedsModal } from "../modals/settings-modals";
+import {
+  ApplyMaxItemsToExistingFeedsModal,
+  RetentionChangeConfirmModal,
+} from "../modals/settings-modals";
 import type { RssDashboardSettings } from "../../types/types";
 import { PREDEFINED_PROXIES } from "../../utils/proxy-utils";
 
@@ -408,6 +411,57 @@ export function renderGeneralSettingsTab(
 
   new Setting(containerEl).setName("Data retention").setHeading();
 
+  const confirmRetentionChange = (
+    applyChange: () => void,
+    revertControl: () => void,
+  ) => {
+    void (async () => {
+      const modal = new RetentionChangeConfirmModal(plugin.app);
+      const actionPromise = modal.waitForClose();
+      modal.open();
+      const action = await actionPromise;
+
+      if (action === "cancel") {
+        revertControl();
+        return;
+      }
+
+      applyChange();
+      await plugin.saveSettings();
+
+      if (action === "apply-now") {
+        await plugin.applyFeedLimitsToAllFeeds();
+      }
+    })();
+  };
+
+  const updateRetentionProtection = (
+    key:
+      | "protectStarred"
+      | "protectSaved"
+      | "protectTagged"
+      | "protectUnread",
+    nextValue: boolean,
+    revertControl: () => void,
+  ) => {
+    const previousValue = plugin.settings[key];
+    if (previousValue === nextValue) return;
+
+    const applyChange = () => {
+      plugin.settings[key] = nextValue;
+    };
+
+    if (previousValue && !nextValue) {
+      confirmRetentionChange(applyChange, revertControl);
+      return;
+    }
+
+    void (async () => {
+      applyChange();
+      await plugin.saveSettings();
+    })();
+  };
+
   // ── Auto-delete duration ──────────────────────────────────────────────────
   const defaultAutoDeleteSetting = new Setting(containerEl)
     .setName("Default auto delete duration (new feeds)")
@@ -417,6 +471,32 @@ export function renderGeneralSettingsTab(
 
   let defaultDuration = plugin.settings.defaultAutoDeleteDuration;
   let autoDeleteCustomInput: HTMLInputElement | null = null;
+
+  const updateDefaultAutoDeleteDuration = (
+    nextDuration: number,
+    revertControl: () => void,
+  ) => {
+    const previousDuration = defaultDuration;
+    if (previousDuration === nextDuration) return;
+
+    const applyChange = () => {
+      defaultDuration = nextDuration;
+      plugin.settings.defaultAutoDeleteDuration = nextDuration;
+    };
+    const isDestructive =
+      nextDuration > 0 &&
+      (previousDuration === 0 || nextDuration < previousDuration);
+
+    if (isDestructive) {
+      confirmRetentionChange(applyChange, revertControl);
+      return;
+    }
+
+    void (async () => {
+      applyChange();
+      await plugin.saveSettings();
+    })();
+  };
 
   defaultAutoDeleteSetting.addDropdown((dropdown) => {
     dropdown
@@ -451,12 +531,14 @@ export function renderGeneralSettingsTab(
             autoDeleteCustomInput.value =
               defaultDuration > 0 ? defaultDuration.toString() : "";
             autoDeleteCustomInput.addEventListener("change", () => {
-              void (async () => {
-                const parsed = parseInt(autoDeleteCustomInput?.value || "", 10);
-                defaultDuration = Number.isFinite(parsed) ? parsed : 0;
-                plugin.settings.defaultAutoDeleteDuration = defaultDuration;
-                await plugin.saveSettings();
-              })();
+              const parsed = parseInt(autoDeleteCustomInput?.value || "", 10);
+              const nextDuration = Number.isFinite(parsed) ? parsed : 0;
+              updateDefaultAutoDeleteDuration(nextDuration, () => {
+                if (autoDeleteCustomInput) {
+                  autoDeleteCustomInput.value =
+                    defaultDuration > 0 ? defaultDuration.toString() : "";
+                }
+              });
             });
           }
 
@@ -467,11 +549,14 @@ export function renderGeneralSettingsTab(
 
         autoDeleteCustomInput?.removeClass("visible");
         autoDeleteCustomInput?.addClass("hidden");
-        defaultDuration = parseInt(value, 10) || 0;
-        void (async () => {
-          plugin.settings.defaultAutoDeleteDuration = defaultDuration;
-          await plugin.saveSettings();
-        })();
+        const nextDuration = parseInt(value, 10) || 0;
+        updateDefaultAutoDeleteDuration(nextDuration, () => {
+          dropdown.setValue(
+            isPresetAutoDeleteDuration(defaultDuration)
+              ? defaultDuration.toString()
+              : "custom",
+          );
+        });
       });
   });
 
@@ -486,8 +571,9 @@ export function renderGeneralSettingsTab(
       toggle
         .setValue(plugin.settings.protectStarred)
         .onChange(async (value) => {
-          plugin.settings.protectStarred = value;
-          await plugin.saveSettings();
+          updateRetentionProtection("protectStarred", value, () => {
+            toggle.setValue(plugin.settings.protectStarred);
+          });
         }),
     );
 
@@ -498,8 +584,9 @@ export function renderGeneralSettingsTab(
       toggle
         .setValue(plugin.settings.protectSaved)
         .onChange(async (value) => {
-          plugin.settings.protectSaved = value;
-          await plugin.saveSettings();
+          updateRetentionProtection("protectSaved", value, () => {
+            toggle.setValue(plugin.settings.protectSaved);
+          });
         }),
     );
 
@@ -510,8 +597,9 @@ export function renderGeneralSettingsTab(
       toggle
         .setValue(plugin.settings.protectTagged)
         .onChange(async (value) => {
-          plugin.settings.protectTagged = value;
-          await plugin.saveSettings();
+          updateRetentionProtection("protectTagged", value, () => {
+            toggle.setValue(plugin.settings.protectTagged);
+          });
         }),
     );
 
@@ -522,8 +610,9 @@ export function renderGeneralSettingsTab(
       toggle
         .setValue(plugin.settings.protectUnread)
         .onChange(async (value) => {
-          plugin.settings.protectUnread = value;
-          await plugin.saveSettings();
+          updateRetentionProtection("protectUnread", value, () => {
+            toggle.setValue(plugin.settings.protectUnread);
+          });
         }),
     );
 

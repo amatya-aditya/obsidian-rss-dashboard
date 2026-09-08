@@ -72,16 +72,16 @@ In a local-first Obsidian vault where users cannot mark every article as read, u
 - [x] Unit tests in `test_files/unit/settings/general-settings-tab.test.ts` verifying toggle rendering, interaction, and persistence.
 
 ### Phase 3: Destructive Retention Change Confirmation Modal
-- [ ] Create `RetentionChangeConfirmModal` (extending Obsidian's `Modal`):
+- [x] Create `RetentionChangeConfirmModal` (extending Obsidian's `Modal`):
   - Explanatory message indicating that newly unprotected or older articles will be permanently removed.
   - Action buttons: "Apply Now", "Apply on Next Refresh", and "Cancel".
-- [ ] In `GeneralSettingsTab`, intercept toggle transitions from `true` to `false` to open the confirmation modal.
-- [ ] In `GeneralSettingsTab`, intercept changes to `defaultAutoDeleteDuration` when the new value is less than the previous value to open the modal.
-- [ ] "Apply Now" saves settings, runs `plugin.applyFeedLimitsToAllFeeds()`, and displays a notice.
-- [ ] "Apply on Next Refresh" saves settings with `plugin.saveSettings()` without immediate limit application.
-- [ ] "Cancel" (or escape) reverts the UI element without saving.
-- [ ] Non-destructive updates (enabling protection, lengthening duration) save immediately without modal.
-- [ ] Unit tests in `test_files/unit/settings/general-settings-tab.test.ts` verifying modal triggering, execution, and rollback.
+- [x] In `GeneralSettingsTab`, intercept toggle transitions from `true` to `false` to open the confirmation modal.
+- [x] In `GeneralSettingsTab`, intercept changes to `defaultAutoDeleteDuration` when the new value is less than the previous value to open the modal.
+- [x] "Apply Now" saves settings, runs `plugin.applyFeedLimitsToAllFeeds()`, and displays a notice.
+- [x] "Apply on Next Refresh" saves settings with `plugin.saveSettings()` without immediate limit application.
+- [x] "Cancel" (or escape) reverts the UI element without saving.
+- [x] Non-destructive updates (enabling protection, lengthening duration) save immediately without modal.
+- [x] Unit tests in `test_files/unit/settings/general-settings-tab.test.ts` verifying modal triggering, execution, and rollback.
 
 ### Phase 4: Documentation, ADR-0002 & Changelog
 - [ ] Create `docs/adr/0002-configurable-retention-protections-and-unread-expiration.md` documenting context, decision, trade-offs, and consequences.
