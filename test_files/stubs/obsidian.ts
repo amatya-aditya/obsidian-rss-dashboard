@@ -979,6 +979,10 @@ export class Setting {
     return this;
   }
 
+  addExtraButton(cb: (component: ButtonSettingComponent) => unknown): this {
+    return this.addButton(cb);
+  }
+
   addSlider(cb: (component: SliderSettingComponent) => unknown): this {
     class SliderComponent {
       sliderEl: HTMLInputElement;
