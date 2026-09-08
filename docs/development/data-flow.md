@@ -145,7 +145,7 @@ The merge step combines two sources:
 
 Carry-forward exists so local history is not wiped every time a feed server stops returning older items. The local list accumulates over time — up to the retention limits.
 
-The merge actually has three distinct paths, not two:
+The merge actually has three distinct paths:
 
 ```
 For each item guid seen in this refresh:
@@ -189,33 +189,30 @@ The two passes are separate functions with independent logic. Pass 1 only applie
 
 ### 5a. Time-Based Cleanup (Auto-Delete Duration)
 
-Removes old, read articles so the feed does not grow indefinitely.
+Removes old, unprotected articles so the feed does not grow indefinitely.
 
 - **When it runs**: every feed refresh; also the "Apply feed limits to all feeds" command.
-- **What it removes**: articles that are all of — read, older than the cutoff, and not starred/saved.
-- **Unread articles are never removed** by this rule, regardless of age.
-- **Tagged-only articles are not protected.** Having tags does not make an item exempt. A read, out-of-window article with tags is removed exactly like one without tags.
+- **What it removes**: articles older than the cutoff that do not match an enabled retention protection.
+- **Disabled duration**: an `autoDeleteDuration` of `0` disables the time-based pass.
+- **Protections**: starred and saved articles are protected by default; tagged and unread articles are protected only when their respective global setting is enabled.
 
 ```
 For each article in merged list:
         │
-        ├── starred or saved? ──────────────────────► KEEP
-        │
-        ├── unread? ────────────────────────────────► KEEP
+        ├── matches an enabled retention protection? ► KEEP
         │
         ├── pubDate within cutoff window? ──────────► KEEP
         │
-        └── read + older than cutoff + unprotected ► REMOVE
+        └── older than cutoff + unprotected ─────────► REMOVE
 ```
 
 ### 5b. Count-Based Cleanup (Max Items Limit)
 
-Enforces a hard cap on the number of non-protected articles per feed.
+Enforces a hard cap on the number of non-protected articles per feed. This is to maintain optimal plugin performance by automatically removing unwanted feeds.
 
 - Keeps the newest N non-protected items (N = `maxItemsLimit`).
-- Protected items (starred / saved) are excluded from the count and never removed.
-- Unread articles **can** be removed if they are old enough to fall outside the newest N.
-- **Tagged-only articles are not protected.** Tags do not affect the count or exempt an item from the limit.
+- Protected items are excluded from the count and never removed.
+- Any article state can be protected when its corresponding global protection setting is enabled.
 
 ```
 Non-protected items sorted newest → oldest:
@@ -227,28 +224,41 @@ Protected items: always appended, never counted
 
 ### 5c. What Counts as "Protected"?
 
-Protection is determined solely by `isProtectedItem()`, which checks two fields:
+Protection is determined solely by `isProtectedItem()` and the current global
+protection settings:
 
 ```ts
-function isProtectedItem(item: FeedItem): boolean {
-  return !!item.saved || !!item.starred;
+function isProtectedItem(
+  item: FeedItem,
+  protections: FeedRetentionProtections,
+): boolean {
+  return (
+    (protections.protectStarred && item.starred) ||
+    (protections.protectSaved && item.saved) ||
+    (protections.protectTagged && item.tags?.length > 0) ||
+    (protections.protectUnread && !item.read)
+  );
 }
 ```
 
-**Tags are not a protection qualifier.** An article that is tagged but not starred and not saved is treated identically to an untagged article by both retention passes. It can be removed by the time-based rule (if read and out-of-window) or by the count-based rule (if it falls beyond the max-items limit).
-
-If you want tagged articles to survive retention, you must also star or save them.
+The default policy protects starred and saved articles. Tagged and unread
+articles are unprotected by default, but users can enable either protection in
+General Settings. Matching any enabled protection shields an article from both
+retention passes.
 
 ### 5d. Retention Summary
 
-| Article State                 | Time-Based Deletion    | Max Items Limit            |
-| :---------------------------- | :--------------------- | :------------------------- |
-| **Unread**                    | 🟢 Always kept         | 🔴 Removed if beyond limit |
-| **Read**                      | 🔴 Removed if past age | 🔴 Removed if beyond limit |
-| **Tagged only** (not ★ or 💾) | 🔴 Same as above       | 🔴 Same as above           |
-| **Starred**                   | 🟢 Always kept         | 🟢 Always kept             |
-| **Saved**                     | 🟢 Always kept         | 🟢 Always kept             |
-| **Starred + Saved**           | 🟢 Always kept         | 🟢 Always kept             |
+| Article state | Default protection | When its protection is enabled |
+| :------------ | :----------------- | :----------------------------- |
+| **Starred**   | 🟢 Protected       | 🟢 Protected                   |
+| **Saved**     | 🟢 Protected       | 🟢 Protected                   |
+| **Tagged**    | 🔴 Unprotected     | 🟢 Protected                   |
+| **Unread**    | 🔴 Unprotected     | 🟢 Protected                   |
+| **Other**     | 🔴 Unprotected     | 🔴 Unprotected                 |
+
+An unprotected article is removed when it is past the active age cutoff or
+falls beyond the newest unprotected `maxItemsLimit` items. An article matching
+any enabled protection is retained by both passes.
 
 ---
 
@@ -289,15 +299,22 @@ The new cutoff is enforced before you close the modal. You do not need to wait f
 
 ### Global Default Auto-Delete Duration (Settings tab)
 
-Changing `defaultAutoDeleteDuration` in the plugin settings tab saves the new value to `data.json` but does **not** trigger any refresh. The new default is used the next time each feed refreshes, or immediately if you run the **"Apply feed limits to all feeds"** command.
+Changing `defaultAutoDeleteDuration` in the plugin settings tab saves the new value to `data.json`. A longer duration or disabled auto-deletion applies immediately and affects future refreshes. Shortening an active duration, or changing from disabled to an active duration, opens a confirmation dialog.
 
 ### Tightening (e.g. 90 days → 30 days) or Re-enabling
 
-Retention re-runs with the new cutoff. Articles that now fall outside the window are removed and the trimmed list is saved to `data.json`. For per-feed changes this happens immediately on save; for global changes it happens on the next refresh.
+For a global setting, users can choose **Apply now**, **Apply on next refresh**, or **Cancel**. Apply now saves the setting and applies retention to all existing feeds, including refreshing the active dashboard view. Apply on next refresh saves the setting without pruning cached articles immediately. Cancel restores the prior control value and does not save.
 
 ### Loosening (e.g. 30 days → 90 days) or Disabling
 
 The setting change alone does not restore any articles. Articles that were already pruned from `data.json` are gone. On the next refresh, the plugin will carry forward whatever is still in local storage and will no longer remove items that are now within the wider window — but nothing is un-deleted.
+
+### Global Retention Protections
+
+Turning an enabled retention protection off follows the same confirmation flow
+as shortening the duration. Turning a protection on saves immediately. The
+protection choices apply globally to starred, saved, tagged, and unread article
+states, and to both age- and count-based retention.
 
 Old articles only reappear if:
 

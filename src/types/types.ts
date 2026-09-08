@@ -439,6 +439,13 @@ export type ArticleGroupByOption =
   | "date_feed"
   | "folder_feed";
 
+export interface FeedRetentionProtections {
+  protectStarred?: boolean;
+  protectSaved?: boolean;
+  protectTagged?: boolean;
+  protectUnread?: boolean;
+}
+
 export interface RssDashboardSettings {
   feeds: Feed[];
   folders: Folder[];
@@ -449,6 +456,10 @@ export interface RssDashboardSettings {
   startupRefreshDelaySeconds: number;
   maxItems: number;
   defaultAutoDeleteDuration: number;
+  protectStarred: boolean;
+  protectSaved: boolean;
+  protectTagged: boolean;
+  protectUnread: boolean;
   viewStyle: "list" | "card" | "feed";
   showFeedArt: boolean;
   showThumbnails: boolean;
@@ -603,6 +614,10 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
   startupRefreshDelaySeconds: 5,
   maxItems: 50,
   defaultAutoDeleteDuration: 30,
+  protectStarred: true,
+  protectSaved: true,
+  protectTagged: false,
+  protectUnread: false,
   viewStyle: "card",
   showFeedArt: true,
   showThumbnails: true,

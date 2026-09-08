@@ -214,7 +214,7 @@ function makeServerFeedItems(): FeedItem[] {
     makeArticle("very-old-read", "2026-03-01T00:00:00Z", { read: true }),
     makeArticle("mid-read", "2026-04-10T00:00:00Z", { read: true }),
     makeArticle("recent-read", "2026-04-28T00:00:00Z", { read: true }),
-    makeArticle("recent-unread", "2026-03-01T00:00:00Z", { read: false }),
+    makeArticle("old-unread", "2026-03-01T00:00:00Z", { read: false }),
   ] as FeedItem[];
 }
 
@@ -831,7 +831,7 @@ describe("EditFeedModal", () => {
       initialItems: getItemsForDuration(0),
       selections: ["30"],
       expectedDuration: 30,
-      expectedGuids: ["recent-read", "mid-read", "recent-unread"],
+      expectedGuids: ["recent-read", "mid-read"],
     },
     {
       label: "keeps current items when switching from 30 days to disabled",
@@ -842,18 +842,18 @@ describe("EditFeedModal", () => {
       expectedGuids: [
         "recent-read",
         "mid-read",
-        "recent-unread",
+        "old-unread",
         "very-old-read",
       ],
     },
     {
       label:
-        "prunes additional old read items when tightening from 30 days to 7 days",
+        "prunes additional old items when tightening from 30 days to 7 days",
       initialDuration: 30,
       initialItems: getItemsForDuration(30),
       selections: ["7"],
       expectedDuration: 7,
-      expectedGuids: ["recent-read", "recent-unread"],
+      expectedGuids: ["recent-read"],
     },
     {
       label:
@@ -862,7 +862,7 @@ describe("EditFeedModal", () => {
       initialItems: getItemsForDuration(7),
       selections: ["30"],
       expectedDuration: 30,
-      expectedGuids: ["recent-read", "mid-read", "recent-unread"],
+      expectedGuids: ["recent-read", "mid-read"],
     },
     {
       label:
@@ -871,7 +871,7 @@ describe("EditFeedModal", () => {
       initialItems: getItemsForDuration(45),
       selections: ["custom", "45", "7"],
       expectedDuration: 7,
-      expectedGuids: ["recent-read", "recent-unread"],
+      expectedGuids: ["recent-read"],
     },
   ])(
     "$label",

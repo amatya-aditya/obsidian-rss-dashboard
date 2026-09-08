@@ -317,6 +317,81 @@ export class FactoryResetConfirmModal extends Modal {
 
 export type ApplyMaxItemsAction = "cancel" | "apply" | "apply-refresh";
 
+export type RetentionChangeAction =
+  | "apply-now"
+  | "apply-on-next-refresh"
+  | "cancel";
+
+export class RetentionChangeConfirmModal extends Modal {
+  private action: RetentionChangeAction = "cancel";
+  private resolvePromise: ((value: RetentionChangeAction) => void) | null =
+    null;
+  private settled = false;
+
+  constructor(app: App) {
+    super(app);
+  }
+
+  waitForClose(): Promise<RetentionChangeAction> {
+    return new Promise((resolve) => {
+      this.resolvePromise = resolve;
+    });
+  }
+
+  private settle(action: RetentionChangeAction): void {
+    if (this.settled) return;
+    this.settled = true;
+    this.action = action;
+    this.resolvePromise?.(this.action);
+    this.resolvePromise = null;
+    this.close();
+  }
+
+  onOpen(): void {
+    const { contentEl } = this;
+    contentEl.empty();
+
+    this.modalEl.addClass("rss-dashboard-modal");
+    this.modalEl.addClass("rss-dashboard-modal-container");
+
+    contentEl.createEl("h2", { text: "Apply retention change?" });
+    contentEl.createEl("p", {
+      text: "Newly unprotected articles and articles older than your retention limit may be permanently removed.",
+    });
+
+    const buttonsSetting = new Setting(contentEl);
+    buttonsSetting.controlEl.addClass("rss-dashboard-modal-buttons");
+    buttonsSetting
+      .addButton((button) =>
+        button.setButtonText("Cancel").onClick(() => {
+          this.settle("cancel");
+        }),
+      )
+      .addButton((button) =>
+        button.setButtonText("Apply on next refresh").onClick(() => {
+          this.settle("apply-on-next-refresh");
+        }),
+      )
+      .addButton((button) =>
+        button
+          .setButtonText("Apply now")
+          .setWarning()
+          .onClick(() => {
+            this.settle("apply-now");
+          }),
+      );
+  }
+
+  onClose(): void {
+    if (!this.settled) {
+      this.settled = true;
+      this.resolvePromise?.("cancel");
+      this.resolvePromise = null;
+    }
+    this.contentEl.empty();
+  }
+}
+
 export class ApplyMaxItemsToExistingFeedsModal extends Modal {
   private readonly newLimit: number;
   private readonly increased: boolean;
