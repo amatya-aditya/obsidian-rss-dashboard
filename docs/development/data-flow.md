@@ -127,6 +127,11 @@ single-feed, folder, selection, due-subset, failed-only, empty, or
 excluded-only refreshes. The legacy `lastRefreshTimestamp` remains readable for
 older data but is not used or updated by refresh behavior or status UI.
 
+When the user stops an automatic global batch, its completion timestamp remains
+unchanged. The in-memory scheduler defers the next automatic global attempt by
+one configured global interval, preventing an immediate retry of the stopped
+batch while preserving the recorded completion time.
+
 ---
 
 ## 4. Merge and Carry-Forward

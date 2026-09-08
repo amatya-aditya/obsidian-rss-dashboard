@@ -71,6 +71,30 @@ describe("FeedRefreshScheduler", () => {
     expect(requestDueFeeds).not.toHaveBeenCalled();
   });
 
+  it("waits for the next global interval after a cancelled automatic refresh", async () => {
+    const inherited = createFeed({ scanInterval: 0 });
+    const requestGlobalRefresh = vi.fn().mockResolvedValue(undefined);
+    const scheduler = new FeedRefreshScheduler({
+      getFeeds: () => [inherited],
+      getGlobalIntervalMinutes: () => 1,
+      getLastGlobalRefreshCompletedAt: () => 0,
+      isBatchRunning: () => false,
+      requestGlobalRefresh,
+      requestDueFeeds: vi.fn().mockResolvedValue(undefined),
+    });
+
+    scheduler.start();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(requestGlobalRefresh).toHaveBeenCalledTimes(1);
+
+    scheduler.deferGlobalRefresh();
+    await vi.advanceTimersByTimeAsync(59_999);
+    expect(requestGlobalRefresh).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(1);
+    expect(requestGlobalRefresh).toHaveBeenCalledTimes(2);
+  });
+
   it("schedules a custom feed when the global interval is off", async () => {
     const custom = createFeed({ scanInterval: 2, lastRefreshAttemptCompletedAt: 0 });
     const requestDueFeeds = vi.fn().mockImplementation(async () => {

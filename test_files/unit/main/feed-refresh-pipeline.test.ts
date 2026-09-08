@@ -911,6 +911,41 @@ describe("refreshFeeds() pipeline behavior", () => {
     vi.useRealTimers();
   });
 
+  it("stops a scheduled global refresh promptly when a feed ignores its abort signal", async () => {
+    vi.useFakeTimers();
+    const feed = createFeed({ url: "https://example.com/slow.xml" });
+    const plugin = createPluginWithSettings([feed]);
+    vi.spyOn(plugin, "getActiveDashboardView").mockResolvedValue(null);
+
+    let resolveFeed: ((value: Feed) => void) | undefined;
+    (
+      plugin.feedParser.refreshFeed as unknown as {
+        mockImplementation: (fn: (feed: Feed) => Promise<Feed>) => void;
+      }
+    ).mockImplementation(
+      () =>
+        new Promise<Feed>((resolve) => {
+          resolveFeed = resolve;
+        }),
+    );
+
+    const refreshPromise = plugin.refreshFeeds(undefined, "global");
+    await flushMicrotasks();
+    plugin.cancelGlobalRefresh();
+    await vi.advanceTimersByTimeAsync(0);
+    await flushMicrotasks();
+
+    try {
+      expect(plugin.isGlobalRefreshCancellable).toBe(false);
+      expect(plugin.activeRefreshState.size).toBe(0);
+    } finally {
+      resolveFeed?.(feed);
+      await refreshPromise;
+      vi.clearAllTimers();
+      vi.useRealTimers();
+    }
+  });
+
   it("forwards an abort signal to feedParser.refreshFeed during a cancellable global refresh", async () => {
     vi.useFakeTimers();
     const feedA = createFeed({ url: "https://example.com/a.xml" });

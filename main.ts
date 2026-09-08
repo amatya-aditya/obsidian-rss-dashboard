@@ -757,6 +757,7 @@ export default class RssDashboardPlugin extends Plugin {
   public cancelGlobalRefresh(): void {
     if (!this.isGlobalRefreshCancellable) return;
     this.isGlobalRefreshCancelled = true;
+    this.autoRefreshScheduler?.deferGlobalRefresh();
     this.globalRefreshAbortController?.abort();
     new Notice("Refresh stopped.");
   }
@@ -3246,15 +3247,38 @@ export default class RssDashboardPlugin extends Plugin {
     feed: Feed,
     options?: { signal?: AbortSignal },
   ): Promise<Feed> {
-    return await Promise.race([
-      this.refreshFeedDirect(feed, options),
-      new Promise<Feed>((_, reject) => {
-        window.setTimeout(
-          () => reject(new Error("Timed out")),
-          FEED_REQUEST_TIMEOUT_MS,
-        );
-      }),
-    ]);
+    let timeoutId: number | null = null;
+    let abortHandler: (() => void) | null = null;
+
+    try {
+      return await Promise.race([
+        this.refreshFeedDirect(feed, options),
+        new Promise<Feed>((_, reject) => {
+          timeoutId = window.setTimeout(
+            () => reject(new Error("Timed out")),
+            FEED_REQUEST_TIMEOUT_MS,
+          );
+        }),
+        new Promise<Feed>((_, reject) => {
+          const signal = options?.signal;
+          if (!signal) return;
+          if (signal.aborted) {
+            reject(new Error("Refresh stopped"));
+            return;
+          }
+
+          abortHandler = () => reject(new Error("Refresh stopped"));
+          signal.addEventListener("abort", abortHandler, { once: true });
+        }),
+      ]);
+    } finally {
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId);
+      }
+      if (abortHandler && options?.signal) {
+        options.signal.removeEventListener("abort", abortHandler);
+      }
+    }
   }
 
   private async refreshFeedDirect(
