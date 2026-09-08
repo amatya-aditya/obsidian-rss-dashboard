@@ -84,9 +84,9 @@ In a local-first Obsidian vault where users cannot mark every article as read, u
 - [x] Unit tests in `test_files/unit/settings/general-settings-tab.test.ts` verifying modal triggering, execution, and rollback.
 
 ### Phase 4: Documentation, ADR-0002 & Changelog
-- [ ] Create `docs/adr/0002-configurable-retention-protections-and-unread-expiration.md` documenting context, decision, trade-offs, and consequences.
-- [ ] Update `docs/development/data-flow.md` to remove "Unread articles are never removed by this rule" and describe the configurable retention protection model.
-- [ ] Add entry under `## [Unreleased]` in `CHANGELOG.md`.
+- [x] Create `docs/adr/0002-configurable-retention-protections-and-unread-expiration.md` documenting context, decision, trade-offs, and consequences.
+- [x] Update `docs/development/data-flow.md` to remove "Unread articles are never removed by this rule" and describe the configurable retention protection model.
+- [x] Add entry under `## [Unreleased]` in `CHANGELOG.md`.
 
 ---
 

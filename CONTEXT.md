@@ -43,5 +43,12 @@ _Avoid_: Modal dialog, photo popup, preview card, photo gallery
 **Full-resolution image source**:
 The unconstrained original media URL extracted by resolving direct image links, selecting the highest-resolution candidate in a srcset, or stripping CDN resize transformations.
 _Avoid_: Thumbnail, cached preview, compressed version
+## Data retention and article lifecycle
 
+**Auto-delete cutoff**:
+The calculated timestamp before which unprotected articles are deleted from local storage, based on publication date and the configured retention duration.
+_Avoid_: Expiration date, purge limit
 
+**Retention protection**:
+The user-selected set of article states (such as starred, saved to vault, or tagged) that shield an article from automatic deletion and feed capacity trimming.
+_Avoid_: Pinned articles, whitelisted items, lock state
