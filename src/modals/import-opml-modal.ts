@@ -6,6 +6,7 @@ import { shouldUseMobileSidebarLayout } from "../utils/platform-utils";
 import type { OpmlImportPreviewFolderSnapshot } from "../services/opml-import-preview-model";
 import { OpmlImportPreviewModel } from "../services/opml-import-preview-model";
 import { isValidFeedTitle, isValidFolderName } from "../utils/validation";
+import { ImporterShell } from "./importer-shell";
 
 /**
  * Import OPML Modal - Provides a preview-based import experience
@@ -23,7 +24,6 @@ export class ImportOpmlModal extends Modal {
   private opmlContent: string | null = null;
   private parsedFeeds: Feed[] = [];
   private parsedFolders: Folder[] = [];
-  private validationError: string | null = null;
   private importMode: "update" | "overwrite" = "update";
   private validationErrorKind:
     | "invalid_extension"
@@ -35,12 +35,13 @@ export class ImportOpmlModal extends Modal {
     | null = null;
   private previewModel: OpmlImportPreviewModel | null = null;
   private collapsedFolderPaths = new Set<string>();
+  private readonly importerShell: ImporterShell<
+    { feeds: Feed[]; folders: Folder[] },
+    OpmlImportPreviewModel
+  >;
 
   // UI References
-  private filePathInput!: HTMLInputElement;
   private previewContainer!: HTMLDivElement;
-  private errorContainer!: HTMLDivElement;
-  private importButton!: HTMLButtonElement;
   private modeSelectorContainer!: HTMLDivElement;
 
   constructor(
@@ -51,6 +52,37 @@ export class ImportOpmlModal extends Modal {
     super(app);
     this.plugin = plugin;
     this.onImportStarted = onImportStarted;
+    this.importerShell = new ImporterShell({
+      acceptedFileTypes: ".opml,.xml,.backup",
+      validate: (content, file) => this.validateOpml(content, file),
+      parse: (content) => this.parseOpml(content),
+      createPreviewModel: (parsed) => {
+        if (parsed.feeds.length === 0) {
+          this.validationErrorKind = "no_feeds";
+          return null;
+        }
+        this.previewModel = new OpmlImportPreviewModel({
+          feeds: parsed.feeds,
+          folders: parsed.folders,
+          importMode: this.importMode,
+          existingUrls: new Set(this.plugin.settings.feeds.map((feed) => feed.url)),
+        });
+        return this.previewModel;
+      },
+      renderer: { render: () => this.renderPreview() },
+      execute: async () => this.performImport(),
+      onAction: () => {
+        if (this.importMode === "overwrite") {
+          this.showOverwriteWarning();
+        } else {
+          void this.importerShell.execute();
+        }
+      },
+      noItemsError: "No feeds found in the OPML file.",
+      renderError: (container, error) => this.renderOpmlError(container, error),
+      onPreviewVisibilityChange: (visible) => this.setModeSelectorVisibility(visible),
+      getActionState: (model) => this.getImportActionState(model),
+    });
   }
 
   onOpen() {
@@ -74,25 +106,6 @@ export class ImportOpmlModal extends Modal {
     subtitle.textContent =
       "Import feeds from an OPML file with preview and validation";
 
-    // File selector row
-    this.createFileSelector(contentEl);
-
-    // Error container (hidden by default)
-    this.errorContainer = contentEl.createDiv({
-      cls: "import-error-container import-hidden",
-    });
-
-    // Preview container (hidden by default)
-    this.previewContainer = contentEl.createDiv({
-      cls: "import-preview-container import-hidden",
-    });
-
-    // Import mode selector (hidden by default)
-    this.modeSelectorContainer = contentEl.createDiv({
-      cls: "import-mode-selector import-hidden",
-    });
-    this.createModeSelector(this.modeSelectorContainer);
-
     // Button container
     const buttonContainer = contentEl.createDiv({
       cls: "rss-dashboard-modal-buttons",
@@ -103,78 +116,32 @@ export class ImportOpmlModal extends Modal {
     });
     cancelButton.onclick = () => this.close();
 
-    this.importButton = buttonContainer.createEl("button", {
-      text: "Import feeds",
-      cls: "rss-dashboard-primary-button",
+    this.importerShell.mount(contentEl, buttonContainer);
+    this.previewContainer = contentEl.querySelector<HTMLDivElement>(
+      ".import-preview-container",
+    )!;
+    this.modeSelectorContainer = contentEl.createDiv({
+      cls: "import-mode-selector import-hidden",
     });
-    this.importButton.disabled = true;
-    this.importButton.onclick = () => {
-      if (this.importMode === "overwrite") {
-        this.showOverwriteWarning();
-      } else {
-        void this.executeImport();
-      }
-    };
+    buttonContainer.parentElement?.insertBefore(
+      this.modeSelectorContainer,
+      buttonContainer,
+    );
+    this.createModeSelector(this.modeSelectorContainer);
   }
 
-  private createFileSelector(contentEl: HTMLElement) {
-    const fileSelector = contentEl.createDiv({
-      cls: "import-file-selector",
-    });
-
-    // File path input (disabled, shows selected file path)
-    this.filePathInput = fileSelector.createEl("input", {
-      type: "text",
-      cls: "import-file-path-input",
-      attr: {
-        placeholder: "No file selected...",
-        disabled: "true",
-      },
-    });
-
-    // Import file button
-    const fileButton = fileSelector.createEl("button", {
-      cls: "import-file-button",
-    });
-    setIcon(fileButton, "folder-open");
-    fileButton.createSpan({ text: " Import file..." });
-    fileButton.onclick = () => this.openFilePicker();
-  }
-
-  private openFilePicker() {
-    const input = activeDocument.body.createEl("input", {
-      attr: { type: "file", accept: ".opml,.xml,.backup" },
-    });
-    input.onchange = async () => {
-      const file = input.files?.[0];
-      if (file) {
-        await this.handleFileSelection(file);
-      }
-      input.remove();
-    };
-    input.click();
-  }
   private async handleFileSelection(file: File) {
     this.selectedFile = file;
-    this.filePathInput.value = file.name;
-
-    // Clear previous state
-    this.validationError = null;
     this.validationErrorKind = null;
     this.parsedFeeds = [];
     this.parsedFolders = [];
     this.opmlContent = null;
     this.previewModel = null;
     this.collapsedFolderPaths.clear();
-
-    // Validate and parse
-    await this.validateAndParseFile(file);
-
-    // Update UI
-    this.updateUI();
+    await this.importerShell.handleFileSelection(file);
   }
 
-  private async validateAndParseFile(file: File): Promise<void> {
+  private validateOpml(content: string, file: File) {
     // Check file extension
     const fileName = file.name.toLowerCase();
     if (
@@ -182,14 +149,12 @@ export class ImportOpmlModal extends Modal {
       !fileName.endsWith(".xml") &&
       !fileName.endsWith(".backup")
     ) {
-      this.validationError =
-        "Please select a valid OPML or XML file (.opml, .xml, or .backup extension required)";
       this.validationErrorKind = "invalid_extension";
-      return;
+      return {
+        valid: false as const,
+        error: "Please select a valid OPML or XML file (.opml, .xml, or .backup extension required)",
+      };
     }
-
-    try {
-      const content = await file.text();
 
       // Basic XML validation
       const parser = new DOMParser();
@@ -198,112 +163,36 @@ export class ImportOpmlModal extends Modal {
       // Check for parsing errors
       const parseError = xmlDoc.querySelector("parsererror");
       if (parseError) {
-        this.validationError =
-          "This is not a valid OPML file. The file contains invalid XML.";
         this.validationErrorKind = "invalid_xml";
-        return;
+        return { valid: false as const, error: "This is not a valid OPML file. The file contains invalid XML." };
       }
 
       // Check for OPML structure
       const opmlRoot = xmlDoc.querySelector("opml");
       if (!opmlRoot) {
-        this.validationError =
-          "This is not a valid OPML file. Missing OPML root element.";
         this.validationErrorKind = "missing_opml";
-        return;
+        return { valid: false as const, error: "This is not a valid OPML file. Missing OPML root element." };
       }
 
       const body = xmlDoc.querySelector("body");
       if (!body) {
-        this.validationError =
-          "This is not a valid OPML file. Missing body element.";
         this.validationErrorKind = "missing_body";
-        return;
+        return { valid: false as const, error: "This is not a valid OPML file. Missing body element." };
       }
 
-      // Parse the valid OPML
-      try {
-        const result = OpmlManager.parseOpml(content);
-        this.parsedFeeds = result.feeds;
-        this.parsedFolders = result.folders;
-        this.opmlContent = content;
-        this.validationError = null;
-        this.validationErrorKind = null;
-
-        const existingUrls = new Set(
-          this.plugin.settings.feeds.map((f) => f.url),
-        );
-        this.previewModel = new OpmlImportPreviewModel({
-          feeds: this.parsedFeeds,
-          folders: this.parsedFolders,
-          importMode: this.importMode,
-          existingUrls,
-        });
-      } catch (error) {
-        this.validationError = `Failed to parse OPML: ${error instanceof Error ? error.message : "Unknown error"}`;
-        this.validationErrorKind = "parse_failed";
-        return;
-      }
-    } catch (error) {
-      this.validationError = `Error reading file: ${error instanceof Error ? error.message : "Unknown error"}`;
-      this.validationErrorKind = "parse_failed";
-    }
+    return { valid: true as const };
   }
 
-  private updateUI() {
-    // Update error container
-    if (this.validationError) {
-      this.errorContainer.removeClass("import-hidden");
-      this.errorContainer.addClass("import-visible");
-      this.errorContainer.empty();
-      const errorDiv = this.errorContainer.createDiv({
-        cls: "import-error-message",
-      });
-      errorDiv.textContent = this.validationError;
-
-      if (
-        this.validationErrorKind === "invalid_xml" ||
-        this.validationErrorKind === "missing_opml" ||
-        this.validationErrorKind === "missing_body" ||
-        this.validationErrorKind === "parse_failed"
-      ) {
-        this.renderOpmlCleanerSuggestion(this.errorContainer);
-      }
-
-      // Hide preview and mode selector
-      this.previewContainer.removeClass("import-visible");
-      this.previewContainer.addClass("import-hidden");
-      this.modeSelectorContainer.removeClass("import-visible");
-      this.modeSelectorContainer.addClass("import-hidden");
-      this.importButton.disabled = true;
-    } else if (this.parsedFeeds.length > 0 && this.previewModel) {
-      // Hide error
-      this.errorContainer.removeClass("import-visible");
-      this.errorContainer.addClass("import-hidden");
-
-      // Show preview
-      this.renderPreview();
-
-      // Show mode selector
-      this.modeSelectorContainer.removeClass("import-hidden");
-      this.modeSelectorContainer.addClass("import-visible");
-
-      this.updateImportButtonFromModel();
-    } else {
-      // No feeds found
-      this.errorContainer.removeClass("import-hidden");
-      this.errorContainer.addClass("import-visible");
-      this.errorContainer.empty();
-      const errorDiv = this.errorContainer.createDiv({
-        cls: "import-error-message",
-      });
-      errorDiv.textContent = "No feeds found in the OPML file.";
-      this.validationErrorKind = "no_feeds";
-      this.previewContainer.removeClass("import-visible");
-      this.previewContainer.addClass("import-hidden");
-      this.modeSelectorContainer.removeClass("import-visible");
-      this.modeSelectorContainer.addClass("import-hidden");
-      this.importButton.disabled = true;
+  private parseOpml(content: string): { feeds: Feed[]; folders: Folder[] } {
+    try {
+      const result = OpmlManager.parseOpml(content);
+      this.parsedFeeds = result.feeds;
+      this.parsedFolders = result.folders;
+      this.opmlContent = content;
+      return result;
+    } catch (error) {
+      this.validationErrorKind = "parse_failed";
+      throw new Error(`Failed to parse OPML: ${error instanceof Error ? error.message : "Unknown error"}`);
     }
   }
 
@@ -404,30 +293,46 @@ export class ImportOpmlModal extends Modal {
   }
 
   private updateImportButtonFromModel(): void {
-    if (!this.previewModel) {
-      this.importButton.disabled = true;
-      this.importButton.textContent = "Import feeds";
-      return;
-    }
+    this.importerShell.updateAction();
+  }
 
-    const stats = this.previewModel.getStats();
+  private getImportActionState(model: OpmlImportPreviewModel | null): {
+    text: string;
+    disabled: boolean;
+    title?: string;
+  } {
+    if (!model) return { text: "Import feeds", disabled: true };
+
+    const stats = model.getStats();
     const count = stats.selectedImportableFeeds;
-
-    this.importButton.textContent =
-      count === 1 ? "Import 1 feed" : `Import ${count} feeds`;
-    this.importButton.disabled = count === 0 || stats.hasBlockingErrors;
-    this.importButton.classList.toggle(
-      "is-disabled",
-      this.importButton.disabled,
-    );
-
     if (stats.hasBlockingErrors) {
-      this.importButton.title =
-        "Fix invalid names (or unselect them) to import.";
-    } else if (count === 0) {
-      this.importButton.title = "Select at least one feed to import.";
-    } else {
-      this.importButton.title = "";
+      return {
+        text: count === 1 ? "Import 1 feed" : `Import ${count} feeds`,
+        disabled: true,
+        title: "Fix invalid names (or unselect them) to import.",
+      };
+    }
+    return {
+      text: count === 1 ? "Import 1 feed" : `Import ${count} feeds`,
+      disabled: count === 0,
+      title: count === 0 ? "Select at least one feed to import." : "",
+    };
+  }
+
+  private setModeSelectorVisibility(visible: boolean): void {
+    this.modeSelectorContainer.toggleClass("import-hidden", !visible);
+    this.modeSelectorContainer.toggleClass("import-visible", visible);
+  }
+
+  private renderOpmlError(container: HTMLElement, error: string): void {
+    container.createDiv({ cls: "import-error-message", text: error });
+    if (
+      this.validationErrorKind === "invalid_xml" ||
+      this.validationErrorKind === "missing_opml" ||
+      this.validationErrorKind === "missing_body" ||
+      this.validationErrorKind === "parse_failed"
+    ) {
+      this.renderOpmlCleanerSuggestion(container);
     }
   }
 
@@ -917,6 +822,10 @@ export class ImportOpmlModal extends Modal {
   }
 
   private async executeImport() {
+    await this.importerShell.execute();
+  }
+
+  private async performImport() {
     if (!this.previewModel) {
       return;
     }
