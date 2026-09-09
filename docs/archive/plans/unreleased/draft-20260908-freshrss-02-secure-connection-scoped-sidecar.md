@@ -63,9 +63,9 @@ activate a versioned scope-aware sidecar without exposing secrets.
   credential-selection, connection-test, and connected states without storing
   secret values.
 - Added non-mutating Google Reader API checks for ClientLogin, `user-info`, and
-  the modification token, plus a versioned scope-aware sidecar that quarantines
-  mismatched or invalid data.
-- Automated verification: focused FreshRSS tests (4 files, 11 tests), the full
+  the modification token over the user-selected HTTPS endpoint, plus a
+  versioned scope-aware sidecar that quarantines mismatched or invalid data.
+- Automated verification: focused FreshRSS tests (4 files, 14 tests), the full
   unit suite, changed-file ESLint, platform checks, TypeScript, and `npm run
   build` all passed.
 - Manual follow-up: on Obsidian 1.11.4 or newer, create a SecretStorage entry

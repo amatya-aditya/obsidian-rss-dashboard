@@ -96,8 +96,20 @@ RSS feeds are hosted on external servers — the plugin must fetch feed content 
 
 - Feed subscription URLs (required to fetch content)
 - Minimal HTTP metadata (User-Agent header, standard HTTP headers)
-- **No user credentials** are transmitted
+- **No user credentials** are transmitted for ordinary feed requests
 - **No vault content** is sent to external servers
+
+### FreshRSS connection testing
+
+When a user explicitly configures and tests a FreshRSS connection, RSS Dashboard
+sends the selected SecretStorage credential bundle only to that user's canonical
+HTTPS FreshRSS Google Reader endpoint for the `ClientLogin` request. The plugin
+then uses the short-lived authentication value only in memory for read-only
+identity and modification-token probes. It does not store credential values,
+authentication values, or modification tokens in plugin data, vault sidecars,
+logs, notices, or test fixtures. FreshRSS requests never include vault content;
+the connection test does not change subscriptions, categories, labels, read
+state, or starred state.
 
 ### Request Logging:
 
@@ -379,6 +391,6 @@ If you have questions about this security policy or concerns about data privacy,
 
 ---
 
-**Last Updated**: May 13, 2026  
-**Document Version**: 1.0  
+**Last Updated**: September 8, 2026
+**Document Version**: 1.1
 **Plugin**: RSS Dashboard for Obsidian
