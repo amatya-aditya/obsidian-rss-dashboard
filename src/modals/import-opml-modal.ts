@@ -599,6 +599,13 @@ export class ImportOpmlModal extends Modal {
     });
     checkbox.checked = selected;
     checkbox.disabled = duplicate;
+    if (duplicate) {
+      row.setAttr("title", "Already exists — unavailable in Update mode.");
+      checkbox.setAttr(
+        "aria-label",
+        `${feed.title}: already exists, unavailable in Update mode`,
+      );
+    }
     checkbox.addEventListener("change", () => {
       model.toggleFeed(url, checkbox.checked);
       this.updateSelectionPresentation();

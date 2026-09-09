@@ -429,6 +429,15 @@
   translate: 1px 0;
 }
 
+.rss-dashboard-modal .import-preview-row.is-duplicate,
+.rss-dashboard-modal .import-preview-row.is-duplicate .import-preview-checkbox {
+  cursor: not-allowed;
+}
+
+.rss-dashboard-modal .import-preview-row.is-duplicate .import-preview-checkbox {
+  pointer-events: none;
+}
+
 .import-preview-icon {
   display: flex;
   align-items: center;

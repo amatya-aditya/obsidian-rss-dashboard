@@ -151,6 +151,46 @@ describe("ImportOpmlModal", () => {
     expect(plugin.saveSettings).toHaveBeenCalledTimes(0);
   });
 
+  it("presents an existing feed as unavailable in update mode", async () => {
+    const app = createMockApp();
+    const settings = cloneSettings();
+    settings.feeds = [
+      {
+        title: "Existing",
+        url: "https://example.com/feed.xml",
+        folder: "Tech",
+        items: [],
+        lastUpdated: 0,
+      },
+    ];
+    const plugin: TestPlugin = {
+      settings,
+      saveSettings: vi.fn(async () => {}),
+      getActiveDashboardView: vi.fn(async () => null),
+      startBackgroundImport: vi.fn(),
+    } as unknown as TestPlugin;
+    const modal = new ImportOpmlModal(
+      app,
+      plugin as unknown as ConstructorParameters<typeof ImportOpmlModal>[1],
+    );
+    (modal as unknown as TestModal).open();
+    await (modal as unknown as TestModal).handleFileSelection(
+      new File([readFixture("single-feed.opml")], "single-feed.opml", {
+        type: "text/xml",
+      }),
+    );
+
+    const row = modal.contentEl.querySelector<HTMLElement>(
+      ".import-preview-row--feed.is-duplicate",
+    )!;
+    const checkbox = row.querySelector<HTMLInputElement>(
+      ".import-preview-checkbox",
+    )!;
+    expect(checkbox.disabled).toBe(true);
+    expect(checkbox.checked).toBe(false);
+    expect(row.title).toBe("Already exists — unavailable in Update mode.");
+  });
+
   it("imports a valid OPML file in update mode and persists once", async () => {
     const app = createMockApp();
     const settings = cloneSettings();
