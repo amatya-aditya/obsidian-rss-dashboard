@@ -20,6 +20,8 @@ export interface FreshRssSettingsPlugin {
   syncFreshRssNow(): Promise<void>;
   setFreshRssAutomaticSyncEnabled(enabled: boolean): Promise<void>;
   setFreshRssAutomaticSyncIntervalMinutes(minutes: number): Promise<void>;
+  exportFreshRssOpml(): Promise<void>;
+  copyFreshRssOpmlToClipboard(): Promise<void>;
 }
 
 function getStatusDescription(status: FreshRssConnectionStatus): string {
@@ -51,11 +53,46 @@ function renderStatus(
     .setDisabled(true);
 }
 
+/**
+ * Renders the dedicated FreshRSS subscription export section. This is a
+ * pure local transform of the dashboard's own feed list -- it needs no
+ * FreshRSS connection, credential, or storage capability, so it is shown
+ * regardless of `FreshRssCapability`.
+ */
+function renderSubscriptionExportSection(
+  containerEl: HTMLElement,
+  plugin: FreshRssSettingsPlugin,
+): void {
+  new Setting(containerEl)
+    .setName("FreshRSS subscription export")
+    .setDesc(
+      "Export a FreshRSS subscription OPML file for the feeds and folders configured in this dashboard. This is a FreshRSS subscription export, not an article-state backup: read/starred state, dashboard tags, FreshRSS labels, and saved notes are never included.",
+    )
+    .addButton((button) =>
+      button
+        .setIcon("download")
+        .setButtonText("Export FreshRSS OPML")
+        .onClick(() => {
+          void plugin.exportFreshRssOpml();
+        }),
+    )
+    .addButton((button) =>
+      button
+        .setIcon("copy")
+        .setTooltip("Copy FreshRSS subscription OPML to clipboard")
+        .onClick(() => {
+          void plugin.copyFreshRssOpmlToClipboard();
+        }),
+    );
+}
+
 export function renderFreshRssSettingsTab(
   containerEl: HTMLElement,
   plugin: FreshRssSettingsPlugin,
 ): void {
   new Setting(containerEl).setName("FreshRSS").setHeading();
+
+  renderSubscriptionExportSection(containerEl, plugin);
 
   const capability = plugin.getFreshRssCapability();
   if (capability === "capability-unavailable") {

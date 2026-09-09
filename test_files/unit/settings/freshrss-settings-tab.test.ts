@@ -34,6 +34,8 @@ function createPlugin(capability: FreshRssCapability = "available") {
     setFreshRssAutomaticSyncIntervalMinutes: vi.fn(async (minutes: number) => {
       settings.freshRss.automaticSyncIntervalMinutes = minutes;
     }),
+    exportFreshRssOpml: vi.fn(async () => {}),
+    copyFreshRssOpmlToClipboard: vi.fn(async () => {}),
   };
   plugin satisfies FreshRssSettingsPlugin;
   return plugin;
@@ -55,6 +57,35 @@ describe("FreshRSS settings", () => {
     expect(containerEl.textContent).toContain("FreshRSS requires Obsidian 1.11.4 or newer");
     expect(plugin.getFreshRssSecretReferences).not.toHaveBeenCalled();
     expect(containerEl.querySelector("input")).toBeNull();
+  });
+
+  it("shows the subscription export section regardless of connection capability", () => {
+    const containerEl = createDiv();
+    const plugin = createPlugin("capability-unavailable");
+
+    renderFreshRssSettingsTab(containerEl, plugin);
+
+    expect(containerEl.textContent).toContain("FreshRSS subscription export");
+    expect(containerEl.textContent).toContain("not an article-state backup");
+  });
+
+  describe("subscription export", () => {
+    it("exports and copies the FreshRSS subscription OPML without requiring a connection", () => {
+      const containerEl = createDiv();
+      const plugin = createPlugin("capability-unavailable");
+
+      renderFreshRssSettingsTab(containerEl, plugin);
+
+      const buttons = Array.from(containerEl.querySelectorAll("button"));
+      const exportButton = buttons.find((b) => b.textContent === "Export FreshRSS OPML");
+      const copyButton = buttons.find((b) => b.title === "Copy FreshRSS subscription OPML to clipboard");
+
+      exportButton?.click();
+      copyButton?.click();
+
+      expect(plugin.exportFreshRssOpml).toHaveBeenCalledTimes(1);
+      expect(plugin.copyFreshRssOpmlToClipboard).toHaveBeenCalledTimes(1);
+    });
   });
 
   it("persists only the canonical endpoint and selected SecretStorage reference", async () => {
@@ -90,9 +121,10 @@ describe("FreshRSS settings", () => {
     renderFreshRssSettingsTab(containerEl, plugin);
 
     expect(containerEl.textContent).toContain("FreshRSS requires Vault Shards v2");
-    expect(containerEl.querySelector("button")?.textContent).toBe(
-      "Choose storage upgrade",
+    const buttonTexts = Array.from(containerEl.querySelectorAll("button")).map(
+      (b) => b.textContent,
     );
+    expect(buttonTexts).toContain("Choose storage upgrade");
     expect(plugin.getFreshRssSecretReferences).not.toHaveBeenCalled();
   });
 });

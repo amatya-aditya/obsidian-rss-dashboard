@@ -1,13 +1,8 @@
 ---
-status: accepted
-created: 2026-09-08
+status: implemented
+completed: 2026-09-09
+released_in: unreleased
 issue: ""
-milestone: ""
-owner: unassigned
-workstream: freshrss-portable-state-client
-sequence: 9
-depends_on: []
-release_requirement: ""
 implementation: ""
 ---
 

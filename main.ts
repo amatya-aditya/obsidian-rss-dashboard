@@ -1122,6 +1122,14 @@ export default class RssDashboardPlugin extends Plugin {
       });
 
       this.addCommand({
+        id: "export-freshrss-opml",
+        name: "Export FreshRSS subscription OPML",
+        callback: () => {
+          void this.exportFreshRssOpml();
+        },
+      });
+
+      this.addCommand({
         id: "import-usersettings-json",
         name: "Import usersettings.json",
         callback: () => {
@@ -2105,6 +2113,14 @@ export default class RssDashboardPlugin extends Plugin {
 
   public async copyOpmlToClipboard(): Promise<void> {
     return this.importExportService.copyOpmlToClipboard();
+  }
+
+  public async exportFreshRssOpml(): Promise<void> {
+    return this.importExportService.exportFreshRssOpml();
+  }
+
+  public async copyFreshRssOpmlToClipboard(): Promise<void> {
+    return this.importExportService.copyFreshRssOpmlToClipboard();
   }
 
   public getStorageStatus(): FeedStorageStatus {

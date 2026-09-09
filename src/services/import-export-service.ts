@@ -1,6 +1,7 @@
 import { Notice } from "obsidian";
 import type { PortableDataBundle, RssDashboardSettings } from "../types/types";
 import { OpmlManager } from "./opml-manager";
+import { generateFreshRssSubscriptionOpml } from "./freshrss-opml-export";
 import {
   exportBlob,
   copyTextToClipboard,
@@ -76,6 +77,26 @@ export class ImportExportService {
       isMobile: this.isMobile,
     });
     this.showExportNotice(result, filename);
+  }
+
+  /**
+   * Exports the dedicated FreshRSS subscription export profile: a
+   * subscription-only OPML 2.0 artifact, not an article-state backup. See
+   * `generateFreshRssSubscriptionOpml` for the excluded-data guarantees.
+   */
+  async exportFreshRssOpml(): Promise<void> {
+    const { opml, warnings } = generateFreshRssSubscriptionOpml(
+      this.settings.feeds,
+    );
+    const filename = "freshrss-subscriptions.opml";
+    const blob = new Blob([opml], { type: "text/xml" });
+    const result = await exportBlob({
+      blob,
+      filename,
+      isMobile: this.isMobile,
+    });
+    this.showExportNotice(result, filename);
+    this.reportFreshRssExportWarnings(warnings);
   }
 
   async exportPortableDataBundle(): Promise<void> {
@@ -163,5 +184,38 @@ export class ImportExportService {
       return;
     }
     new Notice(`Unable to copy ${filename}`);
+  }
+
+  /**
+   * Copies the dedicated FreshRSS subscription export profile to the
+   * clipboard. See `exportFreshRssOpml` for the excluded-data guarantees.
+   */
+  async copyFreshRssOpmlToClipboard(): Promise<void> {
+    const filename = "freshrss-subscriptions.opml";
+    const { opml, warnings } = generateFreshRssSubscriptionOpml(
+      this.settings.feeds,
+    );
+    const result = await copyTextToClipboard(opml);
+    this.showCopyNotice(result, filename);
+    this.reportFreshRssExportWarnings(warnings);
+  }
+
+  /**
+   * Surfaces every deterministic duplicate-feed-URL collapse from the
+   * FreshRSS subscription export. Never silent: at minimum a summary Notice
+   * fires, and every individual collapse is also logged for inspection.
+   */
+  public reportFreshRssExportWarnings(warnings: string[]): void {
+    if (warnings.length === 0) {
+      return;
+    }
+    new Notice(
+      `FreshRSS subscription export: collapsed ${warnings.length} duplicate feed URL${
+        warnings.length === 1 ? "" : "s"
+      }. See the developer console for details.`,
+    );
+    warnings.forEach((warning) => {
+      console.warn(`[RSS Dashboard] ${warning}`);
+    });
   }
 }

@@ -155,6 +155,93 @@ describe("ImportExportService", () => {
     });
   });
 
+  describe("exportFreshRssOpml", () => {
+    function makeFeedSettings(): RssDashboardSettings {
+      return {
+        feeds: [
+          {
+            title: "Duplicate A",
+            url: "https://dup.example.com/rss.xml",
+            folder: "News",
+            items: [],
+            lastUpdated: 0,
+          },
+          {
+            title: "Duplicate B",
+            url: "https://dup.example.com/rss.xml",
+            folder: "News",
+            items: [],
+            lastUpdated: 0,
+          },
+        ],
+        folders: [],
+        availableTags: [],
+        refreshInterval: 60,
+      } as unknown as RssDashboardSettings;
+    }
+
+    it("calls exportBlob with a text/xml freshrss-subscriptions.opml blob", async () => {
+      const svc = new ImportExportService({
+        settings: makeFeedSettings(),
+        isMobile: false,
+      });
+      await svc.exportFreshRssOpml();
+      expect(exportBlob).toHaveBeenCalledWith(
+        expect.objectContaining({
+          blob: expect.objectContaining({ type: "text/xml" }) as unknown as Blob,
+          filename: "freshrss-subscriptions.opml",
+        }),
+      );
+    });
+
+    it("reports a duplicate-collapse warning notice when feed URLs collide", async () => {
+      const svc = new ImportExportService({
+        settings: makeFeedSettings(),
+        isMobile: false,
+      });
+      await svc.exportFreshRssOpml();
+      expect(getNoticeMessages(consoleLogSpy)).toContain(
+        "FreshRSS subscription export: collapsed 1 duplicate feed URL. See the developer console for details.",
+      );
+    });
+
+    it("does not report a warning notice when there are no duplicate URLs", async () => {
+      const settings = makeFeedSettings();
+      settings.feeds = [settings.feeds[0]];
+      const svc = new ImportExportService({ settings, isMobile: false });
+      await svc.exportFreshRssOpml();
+      expect(
+        getNoticeMessages(consoleLogSpy).some((m) => m.includes("collapsed")),
+      ).toBe(false);
+    });
+  });
+
+  describe("copyFreshRssOpmlToClipboard", () => {
+    it("copies the FreshRSS subscription OPML text to the clipboard", async () => {
+      const settings = {
+        feeds: [
+          {
+            title: "Solo feed",
+            url: "https://solo.example.com/rss.xml",
+            folder: "",
+            items: [],
+            lastUpdated: 0,
+          },
+        ],
+        folders: [],
+        availableTags: [],
+        refreshInterval: 60,
+      } as unknown as RssDashboardSettings;
+      const svc = new ImportExportService({ settings, isMobile: false });
+
+      await svc.copyFreshRssOpmlToClipboard();
+
+      expect(getNoticeMessages(consoleLogSpy)).toContain(
+        "Copied freshrss-subscriptions.opml to clipboard",
+      );
+    });
+  });
+
   describe("exportDataJson", () => {
     it("calls exportBlob with an application/json blob containing full settings", async () => {
       const settings = makeSettings();
