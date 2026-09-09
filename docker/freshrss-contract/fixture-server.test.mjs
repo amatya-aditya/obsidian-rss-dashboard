@@ -16,7 +16,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createFixtureServer, loadFixtureRoutes } from "./fixture-server.mjs";
-import { FIXTURE_FEEDS, totalFixtureArticleCount, findFixtureFeed } from "./fixtures/manifest.mjs";
+import {
+  FIXTURE_FEEDS,
+  ALL_SERVED_FEEDS,
+  OPML_ROUND_TRIP_FEED,
+  totalFixtureArticleCount,
+  findFixtureFeed,
+} from "./fixtures/manifest.mjs";
 
 test("fixture manifest declares at least two categorized feeds and one uncategorized feed", () => {
   const categorized = FIXTURE_FEEDS.filter((feed) => feed.category !== null);
@@ -33,7 +39,7 @@ test("loadFixtureRoutes serves every manifest feed byte-for-byte and determinist
   const routesA = loadFixtureRoutes();
   const routesB = loadFixtureRoutes();
 
-  for (const feed of FIXTURE_FEEDS) {
+  for (const feed of ALL_SERVED_FEEDS) {
     const route = `/${feed.fileName}`;
     assert.ok(routesA.has(route), `expected a route for ${route}`);
     const bodyA = routesA.get(route)?.body;
@@ -49,7 +55,7 @@ test("loadFixtureRoutes serves every manifest feed byte-for-byte and determinist
 test("createFixtureServer serves each fixture feed over real loopback HTTP with the right content type", async () => {
   const { url, close } = await createFixtureServer(0);
   try {
-    for (const feed of FIXTURE_FEEDS) {
+    for (const feed of ALL_SERVED_FEEDS) {
       const response = await fetch(`${url}/${feed.fileName}`);
       assert.equal(response.status, 200);
       const contentType = response.headers.get("content-type") ?? "";
@@ -96,4 +102,31 @@ test("findFixtureFeed and totalFixtureArticleCount stay consistent with the mani
   );
   assert.equal(findFixtureFeed("feed-a").title, "Contract Feed A");
   assert.throws(() => findFixtureFeed("does-not-exist"));
+});
+
+test("feed-d (ticket 12 state-mutation/paging fixture) is seeded at boot like feed-a/b/c", () => {
+  assert.ok(
+    FIXTURE_FEEDS.some((feed) => feed.logicalId === "feed-d"),
+    "feed-d must be part of FIXTURE_FEEDS so it is included in seed-subscriptions.opml",
+  );
+  const feedD = findFixtureFeed("feed-d");
+  assert.equal(feedD.category, null, "feed-d is deliberately uncategorized");
+  assert.ok(
+    feedD.articles.length >= 5,
+    "feed-d needs at least 5 articles: one each for read/starred/label control assertions, plus enough to exercise 3-page pagination at n=2",
+  );
+});
+
+test("feed-e (ticket 12 OPML round-trip fixture) is served but not seeded at boot", () => {
+  assert.ok(
+    !FIXTURE_FEEDS.some((feed) => feed.logicalId === "feed-e"),
+    "feed-e must stay out of FIXTURE_FEEDS/seed-subscriptions.opml -- the OPML scenario needs FreshRSS to not already know about it",
+  );
+  assert.equal(OPML_ROUND_TRIP_FEED.logicalId, "feed-e");
+  assert.equal(OPML_ROUND_TRIP_FEED.category, "Category E");
+  assert.ok(
+    ALL_SERVED_FEEDS.some((feed) => feed.logicalId === "feed-e"),
+    "feed-e must still be served by the fixture HTTP server so FreshRSS can fetch it once imported",
+  );
+  assert.equal(findFixtureFeed("feed-e").title, "Contract Feed E");
 });

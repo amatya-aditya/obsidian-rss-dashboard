@@ -74,3 +74,20 @@ test("buildContractArtifact never emits a credential/session/token-shaped field"
   const artifact = buildContractArtifact(baseInput());
   assert.doesNotThrow(() => assertNoSecretShapedKeys(artifact));
 });
+
+test("buildContractArtifact defaults findings to an empty array when omitted", () => {
+  const artifact = buildContractArtifact(baseInput());
+  assert.deepEqual(artifact.findings, []);
+});
+
+test("buildContractArtifact records findings without affecting overallPassed (ticket 12)", () => {
+  const artifact = buildContractArtifact(
+    baseInput({
+      findings: [
+        'tag/list entries have no "label" field on this pinned FreshRSS build; only "id" and "type" are present.',
+      ],
+    }),
+  );
+  assert.equal(artifact.findings.length, 1);
+  assert.equal(artifact.overallPassed, true, "a recorded finding is not itself a scenario failure");
+});

@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Contract Feed D</title>
+    <link>https://fixture.test/feed-d/</link>
+    <description>Deterministic RSS Dashboard Docker-contract fixture feed D (uncategorized, state-mutation and paging scenarios).</description>
+    <language>en</language>
+    <item>
+      <title>Feed D Article 1</title>
+      <link>https://fixture.test/feed-d/article-1</link>
+      <guid isPermaLink="false">https://fixture.test/feed-d/article-1</guid>
+      <pubDate>Tue, 02 Jun 2026 08:00:00 GMT</pubDate>
+      <description>Stable contract-fixture article content for feed D, article 1.</description>
+    </item>
+    <item>
+      <title>Feed D Article 2</title>
+      <link>https://fixture.test/feed-d/article-2</link>
+      <guid isPermaLink="false">https://fixture.test/feed-d/article-2</guid>
+      <pubDate>Tue, 02 Jun 2026 09:00:00 GMT</pubDate>
+      <description>Stable contract-fixture article content for feed D, article 2.</description>
+    </item>
+    <item>
+      <title>Feed D Article 3</title>
+      <link>https://fixture.test/feed-d/article-3</link>
+      <guid isPermaLink="false">https://fixture.test/feed-d/article-3</guid>
+      <pubDate>Tue, 02 Jun 2026 10:00:00 GMT</pubDate>
+      <description>Stable contract-fixture article content for feed D, article 3.</description>
+    </item>
+    <item>
+      <title>Feed D Article 4</title>
+      <link>https://fixture.test/feed-d/article-4</link>
+      <guid isPermaLink="false">https://fixture.test/feed-d/article-4</guid>
+      <pubDate>Tue, 02 Jun 2026 11:00:00 GMT</pubDate>
+      <description>Stable contract-fixture article content for feed D, article 4.</description>
+    </item>
+    <item>
+      <title>Feed D Article 5</title>
+      <link>https://fixture.test/feed-d/article-5</link>
+      <guid isPermaLink="false">https://fixture.test/feed-d/article-5</guid>
+      <pubDate>Tue, 02 Jun 2026 12:00:00 GMT</pubDate>
+      <description>Stable contract-fixture article content for feed D, article 5.</description>
+    </item>
+  </channel>
+</rss>

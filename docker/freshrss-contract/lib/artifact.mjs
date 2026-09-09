@@ -48,6 +48,7 @@ export function assertNoSecretShapedKeys(value, pathPrefix = "artifact") {
  *   scenarios: Array<{ name: string, passed: boolean, detail?: string }>,
  *   startedAt: string,
  *   finishedAt: string,
+ *   findings?: string[],
  * }} input
  */
 export function buildContractArtifact(input) {
@@ -62,6 +63,14 @@ export function buildContractArtifact(input) {
     readiness: { ...input.readiness },
     exercisedApiPaths: [...input.exercisedApiPaths].sort(),
     scenarios: input.scenarios.map((scenario) => ({ ...scenario })),
+    // Ticket 12: non-blocking, human-readable notes about a real, observed
+    // discrepancy between this harness's finding and a mocked-corpus or
+    // production-code assumption (e.g. a response field the mocked tests
+    // assume exists but the pinned server never sends). These never affect
+    // `overallPassed` -- a finding is not a scenario failure, it is
+    // information a follow-up ticket needs. Always present (defaults to
+    // `[]`) so the artifact shape is stable across runs.
+    findings: [...(input.findings ?? [])],
     overallPassed: input.readiness.reachable
       && input.readiness.clientLogin
       && input.readiness.readProbe

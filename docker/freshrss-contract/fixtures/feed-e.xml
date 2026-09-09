@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Contract Feed E</title>
+    <link>https://fixture.test/feed-e/</link>
+    <description>Deterministic RSS Dashboard Docker-contract fixture feed E (OPML round-trip scenario only; not seeded at boot).</description>
+    <language>en</language>
+    <item>
+      <title>Feed E Article 1</title>
+      <link>https://fixture.test/feed-e/article-1</link>
+      <guid isPermaLink="false">https://fixture.test/feed-e/article-1</guid>
+      <pubDate>Wed, 03 Jun 2026 08:00:00 GMT</pubDate>
+      <description>Stable contract-fixture article content for feed E, article 1.</description>
+    </item>
+  </channel>
+</rss>

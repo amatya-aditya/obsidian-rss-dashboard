@@ -14,5 +14,7 @@
     </outline>
     <outline text="Contract Feed C" title="Contract Feed C" type="rss"
               xmlUrl="http://fixture-server:8081/feed-c.xml"/>
+    <outline text="Contract Feed D" title="Contract Feed D" type="rss"
+              xmlUrl="http://fixture-server:8081/feed-d.xml"/>
   </body>
 </opml>

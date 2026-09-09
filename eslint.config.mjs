@@ -36,8 +36,8 @@ export default defineConfig([
     },
   },
   {
-    // The FreshRSS pinned Docker read-contract harness (ticket 11 of the
-    // FreshRSS portable-state-client workstream: see
+    // The FreshRSS pinned Docker read/state/OPML-contract harness (tickets
+    // 11 and 12 of the FreshRSS portable-state-client workstream: see
     // docs/development/freshrss-docker-contract.md) is standalone Node
     // tooling that shells out to `docker compose` and runs a local fixture
     // HTTP server. It never ships in the plugin bundle and never runs
@@ -56,6 +56,17 @@ export default defineConfig([
       "obsidianmd/rule-custom-message": "off",
       "obsidianmd/prefer-window-timers": "off",
       "no-restricted-globals": "off",
+      // `no-unsanitized/method` (from eslint-plugin-obsidianmd's recommended
+      // config) exists to catch untrusted-input XSS sinks in an Obsidian
+      // plugin's Electron/browser rendering path -- e.g. dynamic
+      // `innerHTML`/`eval`. `lib/opml-export-bridge.mjs` (ticket 12) uses a
+      // dynamic `import()` of a path this same script just built with
+      // esbuild and wrote to disk under its own git-ignored
+      // `.generated/` directory -- a plain Node module load with no DOM, no
+      // untrusted input, and no Obsidian runtime involved, for the same
+      // reason the rest of this block does not apply Obsidian-specific
+      // rules to this directory.
+      "no-unsanitized/method": "off",
     },
   },
   {

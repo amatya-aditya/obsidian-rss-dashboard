@@ -49,6 +49,12 @@ services:
     volumes:
       - freshrss_contract_data:/var/www/FreshRSS/data
       - ./fixtures:/contract-fixtures:ro
+      # Writable, run-scoped scratch space (ticket 12): the OPML round-trip
+      # scenario writes RSS Dashboard's real generated export here so
+      # `cli/import-for-user.php` can read it from inside the container.
+      # Host-side directory is created by run-contract.mjs and git-ignored;
+      # it holds no fixture data of its own, unlike the read-only mount above.
+      - ./tmp:/contract-tmp:rw
     healthcheck:
       test: ["CMD", "cli/health.php"]
       interval: 5s

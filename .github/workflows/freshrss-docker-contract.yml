@@ -1,16 +1,20 @@
 name: FreshRSS Docker contract
 
-# Ticket 11 of the FreshRSS portable-state-client workstream. This proves
-# the FreshRSS read contract against one pinned, official FreshRSS Docker
-# image — see docs/development/freshrss-docker-contract.md. It is
-# deliberately a separate job from `Test` (test.yml): it needs a Docker
-# daemon and network access to pull the pinned image, neither of which the
-# ordinary `npm run test:unit` suite requires or should depend on.
+# Ticket 11 (read contract) and ticket 12 (state-mutation + OPML round-trip)
+# of the FreshRSS portable-state-client workstream. This proves the FreshRSS
+# read, read/starred/label mutation, restart-persistence, and OPML-export
+# round-trip contracts against one pinned, official FreshRSS Docker image —
+# see docs/development/freshrss-docker-contract.md. It is deliberately a
+# separate job from `Test` (test.yml): it needs a Docker daemon and network
+# access to pull the pinned image, neither of which the ordinary
+# `npm run test:unit` suite requires or should depend on.
 #
-# STATUS: as of this workflow's introduction, this job has not yet had a
-# successful first run in CI (see "Status of this harness" in the doc
-# above) — the harness was built and validated as far as possible without a
-# reachable Docker daemon. Watch its first run closely.
+# STATUS: this job has now had a successful local run against a live
+# Docker daemon (see "Status of this harness" in the doc above for the
+# exact date/environment) -- but that is one local run, on one machine, not
+# a CI run. Watch this job's actual first CI run closely; runner-specific
+# timing, network, or Docker-in-Docker differences could still surface
+# something the local run did not.
 
 on:
   push:
@@ -47,7 +51,7 @@ jobs:
       - name: Confirm Docker is available
         run: docker version && docker compose version
 
-      - name: Run the pinned FreshRSS Docker read contract
+      - name: Run the pinned FreshRSS Docker read/state/OPML contract
         run: npm run contract:freshrss
 
       - name: Upload contract artifacts
@@ -58,3 +62,34 @@ jobs:
           path: docker/freshrss-contract/artifacts/
           if-no-files-found: warn
           retention-days: 30
+
+  # Ticket 12's "previous stable image" advisory job. Deliberately a stub:
+  # evaluating a genuinely different previous-stable FreshRSS image/digest
+  # (resolving it, confirming the harness's assumptions still hold against
+  # it, and recording its own compatibility artifact) is a real, separate
+  # piece of work -- not something to do casually inside this ticket, per
+  # the master spec's "updating a required image or digest requires an
+  # explicit contract review, fixture run, and compatibility-matrix update"
+  # rule, which applies just as much to *adding* a second tracked image as
+  # to changing the primary one. This job is intentionally non-blocking
+  # (`schedule`/`workflow_dispatch` only, never `push`/`pull_request`, and
+  # never a dependency of the required job above) so its scaffolding exists
+  # without any pretense that a previous-stable image has actually been
+  # chosen or evaluated yet.
+  #
+  # TODO(freshrss-portable-state-client): pick a genuine previous-stable
+  # FreshRSS image/digest, record it the same way docs/development/
+  # freshrss-docker-contract.md documents the required pinned image, and
+  # replace this stub with a real `npm run contract:freshrss`-style run
+  # against it (most likely via an image override the runner script does
+  # not have yet). Tracked as a known gap, not a silent omission.
+  freshrss-docker-contract-previous-stable:
+    runs-on: ubuntu-latest
+    if: false # Remove this guard only once the TODO above is actually done.
+    permissions:
+      contents: read
+    steps:
+      - name: Not yet implemented
+        run: |
+          echo "Ticket 12 scaffolds this job but does not implement it -- see the TODO comment in this workflow file and docs/development/freshrss-docker-contract.md." >&2
+          exit 1

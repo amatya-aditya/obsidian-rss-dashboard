@@ -21,7 +21,7 @@ import { createServer } from "node:http";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import { FIXTURE_FEEDS } from "./fixtures/manifest.mjs";
+import { ALL_SERVED_FEEDS } from "./fixtures/manifest.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const FIXTURES_DIR = path.join(__dirname, "fixtures");
@@ -32,10 +32,14 @@ const FIXTURES_DIR = path.join(__dirname, "fixtures");
  * than per-request) is what makes the server's responses byte-identical and
  * deterministic across the whole contract run, including after a FreshRSS
  * container restart.
+ *
+ * Serves `ALL_SERVED_FEEDS` (ticket 12), not just the boot-seeded
+ * `FIXTURE_FEEDS` subset, so the OPML round-trip scenario's feed-e is
+ * reachable even though it is never part of `seed-subscriptions.opml`.
  */
 export function loadFixtureRoutes() {
   const routes = new Map();
-  for (const feed of FIXTURE_FEEDS) {
+  for (const feed of ALL_SERVED_FEEDS) {
     const filePath = path.join(FIXTURES_DIR, feed.fileName);
     const body = readFileSync(filePath, "utf8");
     const contentType =

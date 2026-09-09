@@ -57,6 +57,7 @@ records the documentation classification.
 | [Export FreshRSS subscription OPML](plans/unreleased/draft-20260908-freshrss-09-subscription-opml-export.md) | 2026-09-09 | - | - |
 | [Fetch additional FreshRSS history safely](plans/unreleased/draft-20260908-freshrss-10-fetch-more-history.md) | 2026-09-09 | - | - |
 | [Prove the read contract against pinned FreshRSS](plans/unreleased/draft-20260908-freshrss-11-pinned-docker-read-contract.md) | 2026-09-09 | - | - |
+| [Prove state mutation and OPML contracts against FreshRSS](plans/unreleased/draft-20260908-freshrss-12-docker-state-opml-contract.md) | 2026-09-09 | - | - |
 
 ## Unshipped plans
 

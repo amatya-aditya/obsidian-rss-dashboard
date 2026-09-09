@@ -11,6 +11,26 @@
  * contract-run time from FreshRSS's responses and are never hardcoded here,
  * per the ticket's "stable logical fixture identities stay distinct from
  * every opaque remote ... ID" requirement.
+ *
+ * Ticket 12 (state mutation + OPML contract) extends this fixture set with
+ * two more feeds, both still deterministic logical fixtures under the same
+ * rule above:
+ *
+ * - `feed-d` is seeded at container boot (via `seed-subscriptions.opml`,
+ *   same as feed-a/b/c) and exists specifically to exercise read/unread,
+ *   starred/unstarred, and mapped-label-membership mutations against
+ *   distinct control articles, plus a deeper (3-page) item-ID pagination
+ *   than feed-a alone exercised under ticket 11.
+ * - `feed-e` (exported as `OPML_ROUND_TRIP_FEED`, not part of
+ *   `FIXTURE_FEEDS`) is deliberately *not* seeded at boot. It exists only so
+ *   the OPML round-trip scenario has a feed that FreshRSS does not already
+ *   know about: the scenario exports it from a synthetic RSS-Dashboard
+ *   subscription list through the real `generateFreshRssSubscriptionOpml`
+ *   production function, imports that OPML into the running FreshRSS
+ *   instance mid-run, and confirms FreshRSS's own re-exported OPML reflects
+ *   it. `ALL_SERVED_FEEDS` (the union) is what the fixture HTTP server
+ *   actually serves, so feed-e is reachable the moment the OPML scenario
+ *   needs it, without being part of the initial seed.
  */
 
 /** @typedef {{ logicalId: string, guid: string, title: string }} FixtureArticle */
@@ -89,14 +109,83 @@ export const FIXTURE_FEEDS = [
       },
     ],
   },
+  {
+    logicalId: "feed-d",
+    fileName: "feed-d.xml",
+    format: "rss",
+    title: "Contract Feed D",
+    category: null,
+    // Five articles: enough for a 3-page item-ID enumeration at n=2 (2, 2, 1)
+    // -- a deeper pagination than feed-a's single-continuation case -- and
+    // enough distinct articles to give each state-mutation scenario (read,
+    // starred, mapped label) its own control article that is never touched
+    // by any of the others, so "X is set" and "Y was never set" can both be
+    // observed from the same feed.
+    articles: [
+      {
+        logicalId: "article-d1",
+        guid: "https://fixture.test/feed-d/article-1",
+        title: "Feed D Article 1",
+      },
+      {
+        logicalId: "article-d2",
+        guid: "https://fixture.test/feed-d/article-2",
+        title: "Feed D Article 2",
+      },
+      {
+        logicalId: "article-d3",
+        guid: "https://fixture.test/feed-d/article-3",
+        title: "Feed D Article 3",
+      },
+      {
+        logicalId: "article-d4",
+        guid: "https://fixture.test/feed-d/article-4",
+        title: "Feed D Article 4",
+      },
+      {
+        logicalId: "article-d5",
+        guid: "https://fixture.test/feed-d/article-5",
+        title: "Feed D Article 5",
+      },
+    ],
+  },
 ];
+
+/**
+ * Ticket 12's OPML round-trip fixture. Deliberately excluded from
+ * `FIXTURE_FEEDS` (and therefore from `seed-subscriptions.opml`, and from
+ * every "is this feed seeded at boot" check in `run-contract.mjs`) so the
+ * OPML scenario has a feed FreshRSS has never seen before it imports the
+ * dashboard-generated OPML mid-run. See the module doc comment above.
+ */
+export const OPML_ROUND_TRIP_FEED = {
+  logicalId: "feed-e",
+  fileName: "feed-e.xml",
+  format: "rss",
+  title: "Contract Feed E",
+  category: "Category E",
+  articles: [
+    {
+      logicalId: "article-e1",
+      guid: "https://fixture.test/feed-e/article-1",
+      title: "Feed E Article 1",
+    },
+  ],
+};
+
+/**
+ * Every feed the fixture HTTP server serves, whether or not it is seeded at
+ * FreshRSS container boot. `fixture-server.mjs` builds its routes from this
+ * union so `feed-e.xml` is reachable the moment the OPML scenario needs it.
+ */
+export const ALL_SERVED_FEEDS = [...FIXTURE_FEEDS, OPML_ROUND_TRIP_FEED];
 
 export function totalFixtureArticleCount() {
   return FIXTURE_FEEDS.reduce((sum, feed) => sum + feed.articles.length, 0);
 }
 
 export function findFixtureFeed(logicalId) {
-  const feed = FIXTURE_FEEDS.find((entry) => entry.logicalId === logicalId);
+  const feed = ALL_SERVED_FEEDS.find((entry) => entry.logicalId === logicalId);
   if (!feed) {
     throw new Error(`Unknown fixture feed logical id: ${logicalId}`);
   }
