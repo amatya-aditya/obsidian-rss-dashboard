@@ -1,4 +1,5 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { moment } from "obsidian";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 import { sanitizeFilename } from "../../../src/services/article-saver";
 import type { FeedItem } from "../../../src/types/types";
@@ -343,7 +344,7 @@ describe("Phase 8 - WebViewerIntegration", () => {
 
       const out = applyTemplate(
         item,
-        "{{title}}|{{date}}|{{isoDateTime}}|{{link}}|{{author}}|{{source}}|{{summary}}|{{content}}",
+        "{{title}}|{{date}}|{{isoDateTime}}|{{saveDate}}|{{saveTime12}}|{{saveTime24}}|{{link}}|{{author}}|{{source}}|{{summary}}|{{content}}",
       );
 
       const expectedDate = new Date().toLocaleDateString(undefined, {
@@ -351,8 +352,14 @@ describe("Phase 8 - WebViewerIntegration", () => {
         month: "long",
         day: "numeric",
       });
+      const expectedSaveDate = moment().format("YYYY-MM-DD");
+      const expectedSaveTime12 = moment().format("hh:mm A");
+      const expectedSaveTime24 = moment().format("HH:mm");
       expect(out).toContain(`T|${expectedDate}|`);
       expect(out).toContain(new Date(item.pubDate).toISOString());
+      expect(out).toContain(
+        `${expectedSaveDate}|${expectedSaveTime12}|${expectedSaveTime24}|`,
+      );
       expect(out).toContain("https://example.com/a|A|F|S|<p>C</p>");
 
       h.cleanup();
@@ -362,23 +369,26 @@ describe("Phase 8 - WebViewerIntegration", () => {
       vi.useFakeTimers();
       vi.setSystemTime(new Date("2026-03-31T12:00:00Z"));
 
-const h = createWebViewerIntegrationHarness({
-          settings: {
-            addSavedTag: true,
-            frontmatterTemplate: `---
+      const h = createWebViewerIntegrationHarness({
+        settings: {
+          addSavedTag: true,
+          frontmatterTemplate: `---
 title: "{{title}}"
 date: "{{date}}"
+saveDate: "{{saveDate}}"
+saveTime12: "{{saveTime12}}"
+saveTime24: "{{saveTime24}}"
 iso: "{{isoDateTime}}"
 tags: [{{tags}}]
 guid: "{{guid}}"
 ---
 `,
-          },
-        });
-        const integration = h.integration as unknown as {
-          generateFrontmatter: (item: FeedItem) => string;
-        };
-        const generateFrontmatter = integration.generateFrontmatter.bind(h.integration);
+        },
+      });
+      const integration = h.integration as unknown as {
+        generateFrontmatter: (item: FeedItem) => string;
+      };
+      const generateFrontmatter = integration.generateFrontmatter.bind(h.integration);
 
       const item = buildFeedItem({
         title: "My Article",
@@ -390,8 +400,15 @@ guid: "{{guid}}"
         pubDate: "not-a-date",
       });
 
+      const expectedSaveDate = moment().format("YYYY-MM-DD");
+      const expectedSaveTime12 = moment().format("hh:mm A");
+      const expectedSaveTime24 = moment().format("HH:mm");
+
       const out = generateFrontmatter(item);
       expect(out).toContain('title: "My Article"');
+      expect(out).toContain(`saveDate: "${expectedSaveDate}"`);
+      expect(out).toContain(`saveTime12: "${expectedSaveTime12}"`);
+      expect(out).toContain(`saveTime24: "${expectedSaveTime24}"`);
       expect(out).toContain("tags: [Saved]");
       expect(out).toContain('guid: "g1"');
       expect(out).toContain(new Date().toISOString());

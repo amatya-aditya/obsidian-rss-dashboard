@@ -16,6 +16,15 @@ declare global {
         [key: string]: unknown;
       },
     ): HTMLElementTagNameMap[K];
+    createEl(
+      tag: string,
+      opts?: {
+        cls?: string;
+        text?: string;
+        attr?: Record<string, string>;
+        [key: string]: unknown;
+      },
+    ): HTMLElement;
     createDiv(
       opts?: string | { cls?: string; text?: string; attr?: Record<string, string> },
     ): HTMLDivElement;
@@ -24,6 +33,36 @@ declare global {
     ): HTMLSpanElement;
     createFragment(): DocumentFragment;
   }
+
+  function createEl<K extends keyof HTMLElementTagNameMap>(
+    tag: K,
+    opts?: {
+      cls?: string;
+      text?: string;
+      attr?: Record<string, string>;
+      [key: string]: unknown;
+    } | string,
+  ): HTMLElementTagNameMap[K];
+  function createEl(
+    tag: string,
+    opts?: {
+      cls?: string;
+      text?: string;
+      attr?: Record<string, string>;
+      [key: string]: unknown;
+    } | string,
+  ): HTMLElement;
+  function createDiv(
+    opts?: string | { cls?: string; text?: string; attr?: Record<string, string>; [key: string]: unknown },
+  ): HTMLDivElement;
+  function createSpan(
+    opts?: string | { cls?: string; text?: string; attr?: Record<string, string>; [key: string]: unknown },
+  ): HTMLSpanElement;
+  function createSvg<K extends keyof SVGElementTagNameMap>(
+    tag: K,
+    attrs?: Record<string, string>,
+  ): SVGElementTagNameMap[K];
+  function createFragment(): DocumentFragment;
 
   interface HTMLElement {
     /**
@@ -57,6 +96,15 @@ declare global {
         [key: string]: unknown;
       },
     ): HTMLElementTagNameMap[K];
+    createEl(
+      tag: string,
+      opts?: {
+        cls?: string;
+        text?: string;
+        attr?: Record<string, string>;
+        [key: string]: unknown;
+      },
+    ): HTMLElement;
     appendText(text: string): void;
   }
 }

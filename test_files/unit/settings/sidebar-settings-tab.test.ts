@@ -44,7 +44,7 @@ beforeEach(() => {
 describe("renderSidebarSettingsTab() - domain icon toggles", () => {
   it("renders each icon visibility setting with its icon name", () => {
     const containerEl = document.body.appendChild(
-      document.createElement("div"),
+      createDiv(),
     );
     const plugin = {
       app: obsidian.App.createMock(),
@@ -70,12 +70,11 @@ describe("renderSidebarSettingsTab() - domain icon toggles", () => {
 
   it("renders and persists the RSS site icons toggle", async () => {
     const containerEl = document.body.appendChild(
-      document.createElement("div"),
+      createDiv(),
     );
     const settings = cloneSettings();
     settings.display.useDomainIconsRss = false;
     settings.display.useDomainIconsPodcast = false;
-    settings.display.useDomainIconsTwitter = false;
     settings.display.useDomainIconsMastodon = false;
 
     const plugin = {
@@ -91,7 +90,6 @@ describe("renderSidebarSettingsTab() - domain icon toggles", () => {
     const toggleNames = [
       "Use site icons/favicons for RSS feeds",
       "Use album/show artwork for Podcast feeds",
-      "Use profile images for Twitter/Nitter feeds",
       "Use profile images for Mastodon feeds",
     ];
 
@@ -106,14 +104,13 @@ describe("renderSidebarSettingsTab() - domain icon toggles", () => {
 
     expect(plugin.settings.display.useDomainIconsRss).toBe(true);
     expect(plugin.settings.display.useDomainIconsPodcast).toBe(true);
-    expect(plugin.settings.display.useDomainIconsTwitter).toBe(true);
     expect(plugin.settings.display.useDomainIconsMastodon).toBe(true);
-    expect(vi.mocked(plugin.saveSettings)).toHaveBeenCalledTimes(8);
+    expect(vi.mocked(plugin.saveSettings)).toHaveBeenCalledTimes(6);
   });
 
   it("renders the YouTube info message", async () => {
     const containerEl = document.body.appendChild(
-      document.createElement("div"),
+      createDiv(),
     );
     const settings = cloneSettings();
     const plugin = {
@@ -135,10 +132,9 @@ describe("renderSidebarSettingsTab() - domain icon toggles", () => {
 
   it("renders and persists the Podcast artwork toggle", async () => {
     const containerEl = document.body.appendChild(
-      document.createElement("div"),
+      createDiv(),
     );
     const settings = cloneSettings();
-    settings.media.defaultTwitterFolder = "Custom/Twitter";
     settings.media.defaultMastodonFolder = "Custom/Mastodon";
     settings.media.defaultYouTubeFolder = "Custom/YouTube";
     settings.media.defaultPodcastFolder = "Custom/Podcast";
@@ -172,37 +168,6 @@ describe("renderSidebarSettingsTab() - domain icon toggles", () => {
     expect(vi.mocked(plugin.saveSettings)).toHaveBeenCalledTimes(2);
   });
 
-  it("renders and persists the Twitter profile images toggle", async () => {
-    const containerEl = document.body.appendChild(
-      document.createElement("div"),
-    );
-    const settings = cloneSettings();
-    settings.media.defaultTwitterFolder = "Custom/Twitter";
-    const plugin = {
-      app: obsidian.App.createMock(),
-      settings,
-      saveSettings: vi.fn(async () => {}),
-      clearPlaybackProgress: vi.fn(async () => 0),
-      getActiveDashboardView: vi.fn(async () => null),
-    } as unknown as RssDashboardPlugin;
-
-    renderSidebarSettingsTab(containerEl, plugin, vi.fn());
-
-    const toggleSetting = getSettingByName(
-      containerEl,
-      "Use profile images for Twitter/Nitter feeds",
-    );
-    const toggle = toggleSetting.querySelector(
-      'input[type="checkbox"]',
-    ) as HTMLInputElement;
-    expect(toggle.checked).toBe(false);
-
-    toggle.click();
-    await flushPromises();
-
-    expect(plugin.settings.display.useDomainIconsTwitter).toBe(true);
-    expect(vi.mocked(plugin.saveSettings)).toHaveBeenCalled();
-  });
 });
 
 describe("DomainIconToggleConfirmModal", () => {
@@ -386,7 +351,7 @@ describe("Icon refresh helpers", () => {
 describe("Sidebar display settings - domain icon fields", () => {
   it("does not render the retired sidebar scrollbar toggle", () => {
     const containerEl = document.body.appendChild(
-      document.createElement("div"),
+      createDiv(),
     );
     const plugin = {
       app: obsidian.App.createMock(),
@@ -407,7 +372,6 @@ describe("Sidebar display settings - domain icon fields", () => {
   it("defines the domain icon toggle fields in DisplaySettings and check defaults", () => {
     expect(DEFAULT_SETTINGS.display.useDomainIconsRss).toBe(false);
     expect(DEFAULT_SETTINGS.display.useDomainIconsPodcast).toBe(false);
-    expect(DEFAULT_SETTINGS.display.useDomainIconsTwitter).toBe(false);
     expect(DEFAULT_SETTINGS.display.useDomainIconsMastodon).toBe(false);
 
     const settingsCopy = JSON.parse(
@@ -415,10 +379,8 @@ describe("Sidebar display settings - domain icon fields", () => {
     ) as typeof DEFAULT_SETTINGS;
     settingsCopy.display.useDomainIconsRss = true;
     settingsCopy.display.useDomainIconsPodcast = true;
-    settingsCopy.display.useDomainIconsTwitter = true;
 
     expect(settingsCopy.display.useDomainIconsRss).toBe(true);
     expect(settingsCopy.display.useDomainIconsPodcast).toBe(true);
-    expect(settingsCopy.display.useDomainIconsTwitter).toBe(true);
   });
 });

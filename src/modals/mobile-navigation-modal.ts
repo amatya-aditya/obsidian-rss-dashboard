@@ -1,4 +1,4 @@
-import { App, Modal, Platform } from "obsidian";
+import { App, Modal, Platform, setIcon } from "obsidian";
 import {
   Sidebar,
   SidebarOptions,
@@ -133,15 +133,23 @@ export class MobileNavigationModal extends Modal {
   }
 
   private updateAllFeedsIconRefreshState(): void {
+    const isCancellable = this.plugin.isGlobalRefreshCancellable ?? false;
     const isRefreshActive =
-      this.plugin.isMultiFeedRefreshActive ||
-      (this.plugin.activeRefreshState?.size ?? 0) > 0;
+      !isCancellable &&
+      (this.plugin.isMultiFeedRefreshActive ||
+        (this.plugin.activeRefreshState?.size ?? 0) > 0);
 
     const allFeedsIcon = this.sidebarWrapper.querySelector(
       ".rss-dashboard-all-feeds-icon",
     );
-    if (allFeedsIcon) {
+    if (allFeedsIcon instanceof HTMLElement) {
+      allFeedsIcon.classList.toggle("stop", isCancellable);
       allFeedsIcon.classList.toggle("refreshing", isRefreshActive);
+      allFeedsIcon.setAttribute(
+        "title",
+        isCancellable ? "Stop refresh" : "Refresh all feeds",
+      );
+      setIcon(allFeedsIcon, isCancellable ? "square-stop" : "refresh-cw");
     }
   }
 

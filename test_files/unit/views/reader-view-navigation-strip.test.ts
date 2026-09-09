@@ -76,7 +76,7 @@ describe("ReaderView full-article nav/breadcrumb stripping", () => {
       vi.fn(),
     );
 
-    getInternals(readerView).contentEl = document.createElement("div");
+    getInternals(readerView).contentEl = createDiv();
     await readerView.onOpen();
   });
 

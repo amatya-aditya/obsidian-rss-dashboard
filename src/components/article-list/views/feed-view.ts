@@ -169,6 +169,18 @@ export function renderFeedView(
   ctx: BaseViewContext,
   deps: ViewDeps,
 ): void {
+  const isNestedFeedGrouping =
+    ctx.settings.articleGroupBy === "feed" ||
+    ctx.settings.articleGroupBy === "date_feed" ||
+    ctx.settings.articleGroupBy === "folder_feed";
+
+  if (!isNestedFeedGrouping) {
+    for (const article of articles) {
+      renderArticleCard(container, article, ctx, deps);
+    }
+    return;
+  }
+
   // Group articles by feed source
   const groupedArticles = groupArticles(articles, "feed");
 
@@ -203,6 +215,15 @@ export function renderFeedView(
       },
     });
     setIcon(sectionToggle, isCollapsed ? "chevron-right" : "chevron-down");
+
+    // Feed icon from the first article in the group
+    const firstArticle = feedArticles[0];
+    if (firstArticle) {
+      const iconContainer = sectionHeader.createDiv({
+        cls: "rss-dashboard-feed-section-icon",
+      });
+      deps.renderFeedIcon(iconContainer, firstArticle.feedUrl, firstArticle.mediaType);
+    }
 
     // Create header text
     sectionHeader.createDiv({

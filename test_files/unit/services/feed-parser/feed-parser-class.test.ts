@@ -23,7 +23,6 @@ describe("FeedParser.parseFeed", () => {
   const mediaSettings: MediaSettings = {
     autoTagVideos: true,
     rememberPlaybackProgress: true,
-    defaultTwitterFolder: "Twitter",
     defaultMastodonFolder: "Mastodon",
     defaultYouTubeFolder: "Videos",
     defaultVideoTag: "Video",
@@ -38,8 +37,6 @@ describe("FeedParser.parseFeed", () => {
     defaultSmallwebFolder: "Smallweb",
     defaultSmallwebTag: "",
     defaultSmallwebTags: [],
-    defaultTwitterTag: "",
-    defaultTwitterTags: [],
     defaultMastodonTag: "",
     defaultMastodonTags: [],
     openInSplitView: true,
@@ -137,24 +134,6 @@ describe("FeedParser.parseFeed", () => {
     expect(parsedOn.iconUrl).toBe(
       "https://lexfridman.com/wordpress/wp-content/uploads/powerpress/artwork_3000-230.png",
     );
-
-    requestUrlSpy.mockRestore();
-  });
-
-  it("extracts and honors the Twitter/Nitter icon settings toggle", async () => {
-    const feedUrl = "https://nitter.net/Gargron/rss";
-    const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
-    requestUrlSpy.mockResolvedValue(mockResponse(200, RSS2_WITH_IMAGE));
-
-    // 1. When useDomainIconsTwitter is false
-    const parserOff = new FeedParser({ ...DEFAULT_SETTINGS.display, useDomainIconsTwitter: false  }, [], mediaSettings);
-    const parsedOff = await parserOff.parseFeed(feedUrl, null);
-    expect(parsedOff.iconUrl).toBe("");
-
-    // 2. When useDomainIconsTwitter is true
-    const parserOn = new FeedParser({ ...DEFAULT_SETTINGS.display, useDomainIconsTwitter: true  }, [], mediaSettings);
-    const parsedOn = await parserOn.parseFeed(feedUrl, null);
-    expect(parsedOn.iconUrl).toBe("https://example.com/logo.png");
 
     requestUrlSpy.mockRestore();
   });
@@ -603,6 +582,148 @@ describe("FeedParser.parseFeed", () => {
     expect(second.items.map((item) => item.guid)).toEqual([
       "https://example.com/recent",
     ]);
+
+    requestUrlSpy.mockRestore();
+    nowSpy.mockRestore();
+  });
+
+  it("retains old unread items on refresh and ingest when protectUnread is true", async () => {
+    const feedUrl = "https://example.com/feed.xml";
+    const fixedNowMs = Date.parse("2026-05-01T00:00:00Z");
+
+    const xmlWithOldAndRecent = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Test Feed</title>
+    <link>https://example.com</link>
+    <item>
+      <title>Recent Article</title>
+      <link>https://example.com/recent</link>
+      <description>recent desc</description>
+      <pubDate>Tue, 28 Apr 2026 00:00:00 GMT</pubDate>
+      <guid>https://example.com/recent</guid>
+    </item>
+    <item>
+      <title>Old Article</title>
+      <link>https://example.com/old</link>
+      <description>old desc</description>
+      <pubDate>Sun, 01 Mar 2026 00:00:00 GMT</pubDate>
+      <guid>https://example.com/old</guid>
+    </item>
+  </channel>
+</rss>`;
+
+    const nowSpy = vi.spyOn(Date, "now").mockReturnValue(fixedNowMs);
+    const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
+    requestUrlSpy
+      .mockResolvedValueOnce(mockResponse(200, xmlWithOldAndRecent))
+      .mockResolvedValueOnce(mockResponse(200, xmlWithOldAndRecent));
+
+    const parser = new FeedParser(
+      DEFAULT_SETTINGS.display,
+      [],
+      mediaSettings,
+      () => [],
+      () => true,
+      () => ({
+        protectStarred: true,
+        protectSaved: true,
+        protectTagged: false,
+        protectUnread: true,
+      }),
+    );
+
+    const first = await parser.parseFeed(feedUrl, {
+      title: "Test Feed",
+      url: feedUrl,
+      folder: "Uncategorized",
+      items: [],
+      lastUpdated: fixedNowMs,
+      autoDeleteDuration: 30,
+    });
+
+    // Both recent and old unread articles are retained because protectUnread is true
+    expect(first.items.map((item) => item.guid)).toEqual([
+      "https://example.com/recent",
+      "https://example.com/old",
+    ]);
+
+    const second = await parser.parseFeed(feedUrl, first);
+    expect(second.items.map((item) => item.guid)).toEqual([
+      "https://example.com/recent",
+      "https://example.com/old",
+    ]);
+
+    requestUrlSpy.mockRestore();
+    nowSpy.mockRestore();
+  });
+
+  it("retains old tagged items during carry-forward when protectTagged is true", async () => {
+    const feedUrl = "https://example.com/feed.xml";
+    const fixedNowMs = Date.parse("2026-05-01T00:00:00Z");
+
+    const xmlRecentOnly = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Test Feed</title>
+    <link>https://example.com</link>
+    <item>
+      <title>Recent Article</title>
+      <link>https://example.com/recent</link>
+      <description>recent desc</description>
+      <pubDate>Tue, 28 Apr 2026 00:00:00 GMT</pubDate>
+      <guid>https://example.com/recent</guid>
+    </item>
+  </channel>
+</rss>`;
+
+    const nowSpy = vi.spyOn(Date, "now").mockReturnValue(fixedNowMs);
+    const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
+    requestUrlSpy.mockResolvedValueOnce(mockResponse(200, xmlRecentOnly));
+
+    const parser = new FeedParser(
+      DEFAULT_SETTINGS.display,
+      [],
+      mediaSettings,
+      () => [],
+      () => true,
+      () => ({
+        protectStarred: true,
+        protectSaved: true,
+        protectTagged: true,
+        protectUnread: false,
+      }),
+    );
+
+    const existingFeed: Feed = {
+      title: "Test Feed",
+      url: feedUrl,
+      folder: "Uncategorized",
+      items: [
+        {
+          title: "Old Tagged Article",
+          link: "https://example.com/old-tagged",
+          guid: "https://example.com/old-tagged",
+          pubDate: "Sun, 01 Mar 2026 00:00:00 GMT",
+          read: true,
+          starred: false,
+          saved: false,
+          tags: [{ name: "research" }],
+          feedTitle: "Test Feed",
+          feedUrl,
+          coverImage: "",
+          description: "",
+          content: "",
+        },
+      ],
+      lastUpdated: fixedNowMs,
+      autoDeleteDuration: 30,
+    };
+
+    const refreshed = await parser.parseFeed(feedUrl, existingFeed);
+    expect(new Set(refreshed.items.map((item) => item.guid))).toEqual(
+      new Set(["https://example.com/recent", "https://example.com/old-tagged"]),
+    );
 
     requestUrlSpy.mockRestore();
     nowSpy.mockRestore();

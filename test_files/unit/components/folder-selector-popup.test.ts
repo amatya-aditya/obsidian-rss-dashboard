@@ -43,7 +43,7 @@ afterEach(() => {
 
 describe("FolderSelectorPopup", () => {
   it("positions below the anchor by default", () => {
-    const anchorEl = document.createElement("div");
+    const anchorEl = createDiv();
     vi.spyOn(anchorEl, "getBoundingClientRect").mockReturnValue({
       left: 10,
       top: 10,
@@ -72,7 +72,7 @@ describe("FolderSelectorPopup", () => {
   it("clamps left and flips above when near viewport edges", () => {
     setViewport(300, 220);
 
-    const anchorEl = document.createElement("div");
+    const anchorEl = createDiv();
     vi.spyOn(anchorEl, "getBoundingClientRect").mockReturnValue({
       left: 200,
       top: 180,
@@ -100,7 +100,7 @@ describe("FolderSelectorPopup", () => {
   });
 
   it("prioritizes defaultFolder to the top when it exists (case-insensitive)", () => {
-    const anchorEl = document.createElement("div");
+    const anchorEl = createDiv();
     vi.spyOn(anchorEl, "getBoundingClientRect").mockReturnValue({
       left: 0,
       top: 0,
@@ -123,7 +123,7 @@ describe("FolderSelectorPopup", () => {
   });
 
   it("filters folders and toggles the clear button on input", () => {
-    const anchorEl = document.createElement("div");
+    const anchorEl = createDiv();
     vi.spyOn(anchorEl, "getBoundingClientRect").mockReturnValue({
       left: 0,
       top: 0,
@@ -170,7 +170,7 @@ describe("FolderSelectorPopup", () => {
   it("sanitizes forbidden characters in real-time and removes invalid highlight after timeout", () => {
     vi.useFakeTimers();
 
-    const anchorEl = document.createElement("div");
+    const anchorEl = createDiv();
     vi.spyOn(anchorEl, "getBoundingClientRect").mockReturnValue({
       left: 0,
       top: 0,
@@ -204,7 +204,7 @@ describe("FolderSelectorPopup", () => {
   });
 
   it("creates a new folder option for a non-matching query and selects sanitized text", () => {
-    const anchorEl = document.createElement("div");
+    const anchorEl = createDiv();
     vi.spyOn(anchorEl, "getBoundingClientRect").mockReturnValue({
       left: 0,
       top: 0,
@@ -242,7 +242,7 @@ describe("FolderSelectorPopup", () => {
   });
 
   it("supports keyboard navigation and Enter selects the highlighted folder", () => {
-    const anchorEl = document.createElement("div");
+    const anchorEl = createDiv();
     vi.spyOn(anchorEl, "getBoundingClientRect").mockReturnValue({
       left: 0,
       top: 0,
@@ -279,7 +279,7 @@ describe("FolderSelectorPopup", () => {
   it("closes on Escape/Tab and on outside click", () => {
     vi.useFakeTimers();
 
-    const anchorEl = document.createElement("div");
+    const anchorEl = createDiv();
     vi.spyOn(anchorEl, "getBoundingClientRect").mockReturnValue({
       left: 0,
       top: 0,
@@ -314,7 +314,7 @@ describe("FolderSelectorPopup", () => {
     });
     vi.runAllTimers();
 
-    const outside = document.createElement("div");
+    const outside = createDiv();
     document.body.appendChild(outside);
     outside.click();
     expect(onClose).toHaveBeenCalledTimes(1);
@@ -334,7 +334,7 @@ describe("FolderSelectorPopup", () => {
   });
 
   it("listOnly mode renders without input and does not show create option", () => {
-    const anchorEl = document.createElement("div");
+    const anchorEl = createDiv();
     vi.spyOn(anchorEl, "getBoundingClientRect").mockReturnValue({
       left: 0,
       top: 0,

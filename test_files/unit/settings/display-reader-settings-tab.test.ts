@@ -32,7 +32,7 @@ beforeEach(() => {
 
 describe("renderDisplaySettingsTab() reader section", () => {
   it("defaults image caching off and delegates enablement to the plugin", async () => {
-    const containerEl = document.createElement("div");
+    const containerEl = createDiv();
     document.body.appendChild(containerEl);
     const settings = cloneSettings();
     const setImageCachingEnabled = vi.fn(async () => {});
@@ -65,7 +65,7 @@ describe("renderDisplaySettingsTab() reader section", () => {
   });
 
   it("saves a custom finite cache limit and lets users remove the aggregate cap", async () => {
-    const containerEl = document.createElement("div");
+    const containerEl = createDiv();
     document.body.appendChild(containerEl);
     const settings = cloneSettings();
     const setImageCacheLimit = vi.fn(async () => {});
@@ -121,7 +121,7 @@ describe("renderDisplaySettingsTab() reader section", () => {
   });
 
   it("describes dashboard previews and rerenders the active Feed dashboard after either preview preference changes", async () => {
-    const containerEl = document.createElement("div");
+    const containerEl = createDiv();
     document.body.appendChild(containerEl);
     const settings = cloneSettings();
     settings.viewStyle = "feed";
@@ -162,7 +162,7 @@ describe("renderDisplaySettingsTab() reader section", () => {
   });
 
   it("renders a Reader section without paragraph width", () => {
-    const containerEl = document.createElement("div");
+    const containerEl = createDiv();
     document.body.appendChild(containerEl);
     const plugin = {
       app: {},
@@ -186,7 +186,7 @@ describe("renderDisplaySettingsTab() reader section", () => {
   });
 
   it("persists reader format changes and refreshes the active reader view", async () => {
-    const containerEl = document.createElement("div");
+    const containerEl = createDiv();
     document.body.appendChild(containerEl);
     const settings = cloneSettings();
     const applyReaderFormat = vi.fn();
@@ -215,7 +215,7 @@ describe("renderDisplaySettingsTab() reader section", () => {
   });
 
   it("resets reader format settings back to defaults", async () => {
-    const containerEl = document.createElement("div");
+    const containerEl = createDiv();
     document.body.appendChild(containerEl);
     const settings = cloneSettings();
     settings.readerFormat.textAlign = "left";

@@ -99,7 +99,6 @@ export default defineConfig([
       // Tests intentionally use jsdom/native DOM, Node fixtures, and same-window
       // assertions. Production code remains covered by these Obsidian rules.
       "obsidianmd/no-nodejs-modules": "off",
-      "obsidianmd/prefer-create-el": "off",
       "obsidianmd/prefer-instanceof": "off",
       "obsidianmd/prefer-window-timers": "off",
       "@typescript-eslint/unbound-method": "off",

@@ -9,7 +9,7 @@ function setup(opts: {
   triggerEmptyLabel?: string;
 }) {
   const onChange = vi.fn();
-  const container = document.createElement("div");
+  const container = createDiv();
   document.body.appendChild(container);
 
   addTagMultiSelectControl({

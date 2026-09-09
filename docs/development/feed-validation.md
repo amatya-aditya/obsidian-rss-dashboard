@@ -12,8 +12,8 @@ When you add a feed URL manually in the **Add Feed** modal:
     *   **Pocket Casts**: Resolves Pocket Casts web player URLs (which contain the `podcast:guid`) using a multi-layered fallback strategy:
         1.  **CORS Proxy Chain**: Fetches the page through a sequence of proxies (User-configured → AllOrigins → CodeTabs) to bypass 522 timeouts or CORS blocks.
         2.  **Meta Tag Scraping**: Attempts to find the RSS link in the HTML.
-        3.  **iTunes Fallback**: If the RSS link is hidden, it extracts the podcast title from `og:title` or `twitter:title` and queries the **iTunes Search API** to find the canonical feed.
-    *   **X (Twitter)**: Automatically redirects `x.com` and `twitter.com` user profile URLs to `nitter.net/username/rss` feeds.
+        3.  **iTunes Fallback**: If the RSS link is hidden, it extracts the podcast title from `og:title` and queries the **iTunes Search API** to find the canonical feed.
+    *   **Mastodon**: Automatically auto-discovers and resolves profile URLs to their RSS feeds.
 *   **Content Validation**: The system fetches the URL content and performs a "smoke test":
     *   It checks the first 2048 characters for common feed signatures: `<rss`, `<feed`, `<rdf:rdf`, or specific XML namespaces (`http://purl.org/rss/1.0/`).
     *   It verifies that the feed actually contains "items" or "entries" (otherwise it shows a warning about an empty feed).
@@ -42,27 +42,21 @@ To ensure feeds load even when servers have strict cross-origin (CORS) policies:
 The following files manage the feed validation and redirection logic:
 
 ### Core Services
-*   [media-service.ts](file:///c:/Obsidian/Obsidian_Main/.obsidian/plugins/obsidian-rss-dashboard/src/services/media-service.ts): Contains platform-specific detection and URL transformation logic (e.g., `isYouTubeFeed`, `isXUrl`, `getNitterRssFeed`).
+*   [media-service.ts](file:///c:/Obsidian/Obsidian_Main/.obsidian/plugins/obsidian-rss-dashboard/src/services/media-service.ts): Contains platform-specific detection and URL transformation logic (e.g., `isYouTubeFeed`).
 *   [feed-parser.ts](file:///c:/Obsidian/Obsidian_Main/.obsidian/plugins/obsidian-rss-dashboard/src/services/feed-parser.ts): Handles low-level XML parsing, signature detection (`isValidFeed`), and proxy fallbacks for fetching.
 *   [opml-manager.ts](file:///c:/Obsidian/Obsidian_Main/.obsidian/plugins/obsidian-rss-dashboard/src/services/opml-manager.ts): Logic for parsing and merging OPML files.
 
 ### UI Components
-*   [feed-manager-modal.ts](file:///c:/Obsidian/Obsidian_Main/.obsidian/plugins/obsidian-rss-dashboard/src/modals/feed-manager-modal.ts): Implements the `AddFeedModal` and `EditFeedModal` which orchestrate the resolution process and display status updates (including the "X > nitter conversion" notice).
+*   [feed-manager-modal.ts](file:///c:/Obsidian/Obsidian_Main/.obsidian/plugins/obsidian-rss-dashboard/src/modals/feed-manager-modal.ts): Implements the `AddFeedModal` and `EditFeedModal` which orchestrate the resolution process and display status updates.
 *   [import-opml-modal.ts](file:///c:/Obsidian/Obsidian_Main/.obsidian/plugins/obsidian-rss-dashboard/src/modals/import-opml-modal.ts): Manages the file selection and preliminary validation of OPML files.
 *   [feed-preview-modal.ts](file:///c:/Obsidian/Obsidian_Main/.obsidian/plugins/obsidian-rss-dashboard/src/modals/feed-preview-modal.ts): Provides a visual preview of feed content before finalizing additions.
-
-### Verification
-*   [x-nitter-redirection.test.ts](file:///c:/Obsidian/Obsidian_Main/.obsidian/plugins/obsidian-rss-dashboard/test_files/unit/x-nitter-redirection.test.ts): Unit tests for the X/Twitter to Nitter transformation logic.
 
 ## 5. Implementation Notes
 
 ### URL Reassignment in Modals
-When implementing platform resolution (YouTube, Podcasts, X/Nitter) within the `AddFeedModal` or `EditFeedModal`, it is critical to reassign both the local `feedUrl` (used for the immediate preview fetch) and the shared `url` variable. 
+When implementing platform resolution (YouTube, Podcasts, Mastodon) within the `AddFeedModal` or `EditFeedModal`, it is critical to reassign both the local `feedUrl` (used for the immediate preview fetch) and the shared `url` variable. 
 
-Failure to reassign the `url` variable will cause the "Save" button to use the original user-pasted URL instead of the resolved RSS/Nitter URL, likely leading to parse errors during background refreshes.
-
-### Nitter Format
-We use the `https://nitter.net/username/rss` format for redirection. While some instances may vary, this is the standard for RSS-compatible Nitter instances.
+Failure to reassign the `url` variable will cause the "Save" button to use the original user-pasted URL instead of the resolved RSS URL, likely leading to parse errors during background refreshes.
 
 ## 6. Advanced Podcast Platform Resolution Patterns
 
@@ -75,7 +69,7 @@ Many CORS proxies (like AllOrigins) are unreliable. The `resolvePocketCastsUrl` 
 
 ### Metadata-to-Search Fallback
 If direct scraping fails because the platform has removed the RSS `<link>` tag:
-1.  **Extract Identifying Metadata**: Use flexible regex (accounting for varied attribute order) to pull the `og:title` or `twitter:title`.
+1.  **Extract Identifying Metadata**: Use flexible regex (accounting for varied attribute order) to pull the `og:title`.
 2.  **Safeguard against Generic Titles**: Ignore placeholder titles like "Pocket Casts Plus" to prevent incorrect search matches.
 3.  **Cross-Platform Search**: Query a stable, public directory (like the **iTunes Search API**) using the extracted title to find the canonical RSS feed.
 

@@ -27,7 +27,7 @@ Tags are deduplicated by name using case-insensitive matching. When the same tag
 
 ## Feed-Type Defaults
 
-Feed-type defaults are configured in Settings -> Tags -> Auto tagging. These defaults apply based on the feed or item media type, such as video, podcast, RSS article, Twitter/X, Mastodon, Smallweb, etc.
+Feed-type defaults are configured in Settings -> Tags -> Auto tagging. These defaults apply based on the feed or item media type, such as video, podcast, RSS article, Mastodon, and Smallweb.
 
 Example: if the default RSS tag is `RSS`, RSS feed items receive that tag unless a more specific folder, feed, or article tag with the same name overrides it.
 
