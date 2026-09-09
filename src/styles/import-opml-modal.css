@@ -421,6 +421,7 @@
    ============================================ */
 
 .import-preview-checkbox {
+  justify-self: center;
   margin: 0;
 }
 

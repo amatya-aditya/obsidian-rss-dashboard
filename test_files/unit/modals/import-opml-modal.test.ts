@@ -354,41 +354,25 @@ expect(plugin.ingestFeedsForBackgroundImport).toHaveBeenCalledWith(
       }),
     );
 
-    // Browsers clamp an empty scroll container's scrollTop to zero; jsdom does not.
-    const originalScrollTop = Object.getOwnPropertyDescriptor(
-      HTMLElement.prototype,
-      "scrollTop",
-    );
-    const positions = new WeakMap<HTMLElement, number>();
-    Object.defineProperty(HTMLElement.prototype, "scrollTop", {
-      configurable: true,
-      get(this: HTMLElement) {
-        return positions.get(this) ?? 0;
-      },
-      set(this: HTMLElement, value: number) {
-        positions.set(
-          this,
-          this.querySelectorAll(".import-preview-row").length === 0 ? 0 : value,
-        );
-      },
-    });
+    const before = document.querySelector<HTMLDivElement>(".import-preview-list")!;
+    before.scrollTop = 72;
+    const checkbox = document.querySelector<HTMLInputElement>(
+      ".import-preview-row--feed .import-preview-checkbox",
+    )!;
+    checkbox.checked = false;
+    checkbox.dispatchEvent(new Event("change"));
 
-    try {
-      const before = document.querySelector<HTMLDivElement>(".import-preview-list")!;
-      before.scrollTop = 72;
-      const checkbox = document.querySelector<HTMLInputElement>(
-        ".import-preview-row--feed .import-preview-checkbox",
-      )!;
-      checkbox.checked = false;
-      checkbox.dispatchEvent(new Event("change"));
+    const after = document.querySelector<HTMLDivElement>(".import-preview-list")!;
+    expect(after).toBe(before);
+    expect(after.scrollTop).toBe(72);
 
-      expect(document.querySelector<HTMLDivElement>(".import-preview-list")?.scrollTop).toBe(72);
-    } finally {
-      if (originalScrollTop) {
-        Object.defineProperty(HTMLElement.prototype, "scrollTop", originalScrollTop);
-      } else {
-        delete (HTMLElement.prototype as { scrollTop?: number }).scrollTop;
-      }
-    }
+    const folderCheckbox = document.querySelector<HTMLInputElement>(
+      ".import-preview-row--folder .import-preview-checkbox",
+    )!;
+    folderCheckbox.checked = false;
+    folderCheckbox.dispatchEvent(new Event("change"));
+
+    expect(document.querySelector(".import-preview-list")).toBe(before);
+    expect(before.scrollTop).toBe(72);
   });
 });

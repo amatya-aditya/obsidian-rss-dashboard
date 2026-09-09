@@ -430,6 +430,7 @@ export class ImportOpmlModal extends Modal {
     const folderRow = listEl.createDiv({
       cls: "import-preview-row import-preview-row--folder",
     });
+    folderRow.dataset.folderPath = node.path;
     folderRow.style.setProperty("--import-indent", `${depth * 14}px`);
 
     const checkbox = folderRow.createEl("input", {
@@ -446,8 +447,7 @@ export class ImportOpmlModal extends Modal {
 
     checkbox.addEventListener("change", () => {
       model.toggleFolder(node.path, checkbox.checked);
-      this.renderPreview();
-      this.updateImportButtonFromModel();
+      this.updateSelectionPresentation();
     });
 
     const icon = folderRow.createDiv({ cls: "import-preview-icon" });
@@ -590,6 +590,7 @@ export class ImportOpmlModal extends Modal {
     const row = listEl.createDiv({
       cls: "import-preview-row import-preview-row--feed",
     });
+    row.dataset.feedUrl = url;
     row.style.setProperty("--import-indent", `${depth * 14}px`);
 
     const checkbox = row.createEl("input", {
@@ -600,8 +601,7 @@ export class ImportOpmlModal extends Modal {
     checkbox.disabled = duplicate;
     checkbox.addEventListener("change", () => {
       model.toggleFeed(url, checkbox.checked);
-      this.renderPreview();
-      this.updateImportButtonFromModel();
+      this.updateSelectionPresentation();
     });
 
     const icon = row.createDiv({ cls: "import-preview-icon" });
@@ -687,6 +687,85 @@ export class ImportOpmlModal extends Modal {
 
     // Keep grid alignment: empty toggle cell
     row.createDiv({ cls: "import-preview-toggle-spacer" });
+  }
+
+  private updateSelectionPresentation(): void {
+    const model = this.previewModel;
+    if (!model) return;
+
+    const primaryBadge = this.previewContainer.querySelector<HTMLElement>(
+      ".import-preview-count--primary",
+    );
+    if (primaryBadge) {
+      primaryBadge.textContent = `${model.getStats().selectedImportableFeeds} to import`;
+    }
+
+    const folderUrls = new Map<string, string[]>();
+    const collectFolderUrls = (
+      nodes: OpmlImportPreviewFolderSnapshot[],
+    ): string[] => {
+      const collected: string[] = [];
+      for (const node of nodes) {
+        const urls = [
+          ...node.feedUrls,
+          ...collectFolderUrls(node.children ?? []),
+        ];
+        folderUrls.set(node.path, urls);
+        collected.push(...urls);
+      }
+      return collected;
+    };
+    collectFolderUrls(model.getFolderTree());
+
+    this.previewContainer
+      .querySelectorAll<HTMLElement>(".import-preview-row--folder")
+      .forEach((row) => {
+        const path = row.dataset.folderPath;
+        if (!path) return;
+        const checkbox = row.querySelector<HTMLInputElement>(
+          ".import-preview-checkbox",
+        );
+        const meta = row.querySelector<HTMLElement>(".import-preview-meta");
+        const selection = model.getFolderSelectionState(path);
+        if (checkbox) {
+          checkbox.checked = selection.checked;
+          checkbox.indeterminate = selection.indeterminate;
+        }
+        const urls = folderUrls.get(path) ?? [];
+        if (meta) {
+          const selectedCount = urls.filter(
+            (url) => model.getFeedState(url).selected,
+          ).length;
+          meta.textContent = `${selectedCount}/${urls.length}`;
+        }
+      });
+
+    this.previewContainer
+      .querySelectorAll<HTMLElement>(".import-preview-row--feed")
+      .forEach((row) => {
+        const url = row.dataset.feedUrl;
+        if (!url) return;
+        const { feed, selected, duplicate } = model.getFeedState(url);
+        const checkbox = row.querySelector<HTMLInputElement>(
+          ".import-preview-checkbox",
+        );
+        if (checkbox) checkbox.checked = selected;
+        const titleValidation = isValidFeedTitle(feed.title);
+        row.classList.toggle(
+          "is-invalid",
+          !titleValidation.valid && selected && !duplicate,
+        );
+        const meta = row.querySelector<HTMLElement>(".import-preview-meta");
+        if (meta) {
+          meta.textContent = duplicate
+            ? "Already exists"
+            : !titleValidation.valid && selected
+              ? "Needs fix"
+              : "";
+        }
+      });
+
+    this.updateImportButtonFromModel();
   }
 
   private createModeSelector(container: HTMLElement) {
