@@ -7,7 +7,7 @@ owner: unassigned
 workstream: freshrss-portable-state-client
 sequence: 4
 depends_on:
-  - draft-20260908-freshrss-03-manual-subscription-article-import.md
+  - ../archive/plans/unreleased/draft-20260908-freshrss-03-manual-subscription-article-import.md
 release_requirement: ""
 implementation: ""
 ---

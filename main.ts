@@ -67,8 +67,13 @@ import {
 import {
   canonicalizeFreshRssEndpoint,
   FreshRssConnectionService,
+  parseCredentialBundle as parseFreshRssCredentialBundle,
 } from "./src/services/freshrss-connection-service";
 import { FreshRssSidecarRepository } from "./src/services/freshrss-sidecar-repository";
+import {
+  FreshRssSyncCoordinator,
+  type FreshRssSyncOutcome,
+} from "./src/services/freshrss-sync-coordinator";
 import type { FreshRssCapability } from "./src/settings/tabs/freshrss-settings-tab";
 import {
   FEED_REQUEST_TIMEOUT_MS,
@@ -2229,6 +2234,104 @@ export default class RssDashboardPlugin extends Plugin {
       }
       return this.setFreshRssConnectionStatus("server-unavailable");
     }
+  }
+
+  public async syncFreshRssNow(): Promise<void> {
+    const capability = this.getFreshRssCapability();
+    if (capability !== "available") {
+      new Notice("FreshRSS sync is unavailable until the connection is ready.");
+      return;
+    }
+
+    const credentialReference = this.settings.freshRss.credentialReference;
+    if (!credentialReference) {
+      new Notice("Select a FreshRSS credential bundle before syncing.");
+      return;
+    }
+
+    let credentialBundleRaw: string | null;
+    try {
+      credentialBundleRaw =
+        this.getFreshRssSecretStorage()?.getSecret(credentialReference) ?? null;
+    } catch {
+      new Notice("FreshRSS sync is unavailable: SecretStorage could not be read.");
+      return;
+    }
+    if (!credentialBundleRaw) {
+      new Notice("Select a FreshRSS credential bundle before syncing.");
+      return;
+    }
+
+    const credentials = parseFreshRssCredentialBundle(credentialBundleRaw);
+    if (!credentials) {
+      new Notice("FreshRSS sync failed: the stored credential bundle is invalid.");
+      return;
+    }
+
+    const sidecarRepository = this.getFreshRssSidecarRepository();
+    const scope = await sidecarRepository.readActiveScope();
+    if (!scope) {
+      new Notice("Test the FreshRSS connection before syncing.");
+      return;
+    }
+
+    let outcome: FreshRssSyncOutcome;
+    try {
+      outcome = await this.runWithDataSyncLease(async (owner) => {
+        owner.throwIfInactive();
+        const coordinator = new FreshRssSyncCoordinator({
+          httpClient: {
+            request: async (request) => {
+              const response = await requestUrl(request);
+              return { status: response.status, text: response.text };
+            },
+          },
+          getSettings: () => this.settings,
+          saveSettings: () => this.saveSettings(),
+          sidecarRepository,
+          getView: () => this.getActiveDashboardView(),
+        });
+        return coordinator.run({
+          endpoint: scope.endpoint,
+          credentials,
+          scope,
+          owner,
+        });
+      });
+    } catch (error) {
+      if (isDataSyncLeaseCancelledError(error)) {
+        return;
+      }
+      new Notice("FreshRSS sync failed: an unexpected error occurred.");
+      return;
+    }
+
+    await this.reportFreshRssSyncOutcome(outcome);
+  }
+
+  private async reportFreshRssSyncOutcome(
+    outcome: FreshRssSyncOutcome,
+  ): Promise<void> {
+    if (outcome.outcome === "credentials-rejected") {
+      await this.setFreshRssConnectionStatus("credentials-rejected");
+      new Notice("FreshRSS sync failed: credentials were rejected.");
+      return;
+    }
+    if (outcome.outcome === "server-unavailable") {
+      new Notice("FreshRSS sync failed: the server did not respond as expected.");
+      return;
+    }
+
+    const parts = [
+      `${outcome.createdFeedCount} feed${outcome.createdFeedCount === 1 ? "" : "s"} created`,
+      `${outcome.linkedFeedCount} linked`,
+      `${outcome.importedArticleCount} article${outcome.importedArticleCount === 1 ? "" : "s"} imported`,
+    ];
+    if (outcome.ambiguousSubscriptionCount > 0) {
+      parts.push(`${outcome.ambiguousSubscriptionCount} ambiguous`);
+    }
+    const summary = `FreshRSS sync ${outcome.partial ? "partially " : ""}completed: ${parts.join(", ")}.`;
+    new Notice(summary);
   }
 
   private getFreshRssSecretStorage(): FreshRssSecretStorage | null {

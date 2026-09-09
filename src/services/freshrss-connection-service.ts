@@ -24,16 +24,21 @@ export type FreshRssConnectionTestResult =
   | { outcome: "credentials-rejected" }
   | { outcome: "server-unavailable" };
 
-interface FreshRssCredentialBundle {
+export interface FreshRssCredentialBundle {
   username: string;
   apiPassword: string;
 }
+
+export type FreshRssAuthenticationResult =
+  | { outcome: "authenticated"; authToken: string }
+  | { outcome: "credentials-rejected" }
+  | { outcome: "server-unavailable" };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
-function parseCredentialBundle(value: string): FreshRssCredentialBundle | null {
+export function parseCredentialBundle(value: string): FreshRssCredentialBundle | null {
   try {
     const parsed: unknown = JSON.parse(value);
     if (
@@ -107,6 +112,38 @@ export function canonicalizeFreshRssEndpoint(input: string): string {
   return `${endpoint.protocol}//${endpoint.host}${path}`;
 }
 
+/**
+ * Performs the ClientLogin exchange and returns the resulting Google-Reader
+ * session token. Shared by the connection test and the sync coordinator so
+ * both authenticate through one code path.
+ */
+export async function authenticateFreshRss(
+  httpClient: FreshRssHttpClient,
+  endpoint: string,
+  credentials: FreshRssCredentialBundle,
+): Promise<FreshRssAuthenticationResult> {
+  try {
+    const login = await httpClient.request({
+      url: `${endpoint}/accounts/ClientLogin`,
+      method: "POST",
+      body: `Email=${encodeURIComponent(credentials.username)}&Passwd=${encodeURIComponent(credentials.apiPassword)}`,
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    });
+    if (isRejectedStatus(login.status)) {
+      return { outcome: "credentials-rejected" };
+    }
+
+    const authToken = login.status === 200 ? getAuthToken(login.text) : null;
+    if (!authToken) {
+      return { outcome: "server-unavailable" };
+    }
+
+    return { outcome: "authenticated", authToken };
+  } catch {
+    return { outcome: "server-unavailable" };
+  }
+}
+
 export class FreshRssConnectionService {
   constructor(private readonly httpClient: FreshRssHttpClient) {}
 
@@ -127,20 +164,15 @@ export class FreshRssConnectionService {
     }
 
     try {
-      const login = await this.httpClient.request({
-        url: `${endpoint}/accounts/ClientLogin`,
-        method: "POST",
-        body: `Email=${encodeURIComponent(credentials.username)}&Passwd=${encodeURIComponent(credentials.apiPassword)}`,
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      });
-      if (isRejectedStatus(login.status)) {
-        return { outcome: "credentials-rejected" };
+      const authResult = await authenticateFreshRss(
+        this.httpClient,
+        endpoint,
+        credentials,
+      );
+      if (authResult.outcome !== "authenticated") {
+        return { outcome: authResult.outcome };
       }
-
-      const authToken = login.status === 200 ? getAuthToken(login.text) : null;
-      if (!authToken) {
-        return { outcome: "server-unavailable" };
-      }
+      const authToken = authResult.authToken;
 
       const headers = { Authorization: `GoogleLogin auth=${authToken}` };
       const identity = await this.httpClient.request({

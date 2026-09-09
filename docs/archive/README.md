@@ -48,6 +48,7 @@ records the documentation classification.
 | [Podcast episode-list redesign](plans/unreleased/207-podcast-episode-list-redesign.md) | 2026-09-06 | [GH Issue #207](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/207) | - |
 | [Introduce a shared data-sync lease](plans/unreleased/draft-20260908-freshrss-01-shared-data-sync-lease.md) | 2026-09-08 | - | - |
 | [Connect FreshRSS securely and establish a scoped sidecar](plans/unreleased/draft-20260908-freshrss-02-secure-connection-scoped-sidecar.md) | 2026-09-08 | - | - |
+| [Import FreshRSS subscriptions and recent articles manually](plans/unreleased/draft-20260908-freshrss-03-manual-subscription-article-import.md) | 2026-09-09 | - | - |
 
 ## Unshipped plans
 

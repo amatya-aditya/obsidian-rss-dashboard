@@ -17,6 +17,7 @@ export interface FreshRssSettingsPlugin {
   saveFreshRssCredentialReference(reference: string): Promise<void>;
   testFreshRssConnection(): Promise<FreshRssConnectionStatus>;
   openFreshRssStorageMigrationChoice(): void;
+  syncFreshRssNow(): Promise<void>;
 }
 
 function getStatusDescription(status: FreshRssConnectionStatus): string {
@@ -118,6 +119,19 @@ export function renderFreshRssSettingsTab(
         button.buttonEl.disabled = true;
         await plugin.testFreshRssConnection();
         button.buttonEl.disabled = false;
+      });
+    });
+
+  new Setting(containerEl)
+    .setName("Sync now")
+    .setDesc("Links or creates FreshRSS feeds and imports a bounded set of recent articles.")
+    .addButton((button) => {
+      button.setButtonText("Sync now");
+      button.buttonEl.disabled = plugin.settings.freshRss.status !== "connected";
+      button.onClick(async () => {
+        button.buttonEl.disabled = true;
+        await plugin.syncFreshRssNow();
+        button.buttonEl.disabled = plugin.settings.freshRss.status !== "connected";
       });
     });
 }
