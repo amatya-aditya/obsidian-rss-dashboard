@@ -56,6 +56,7 @@ records the documentation classification.
 | [Run automatic FreshRSS synchronization](plans/unreleased/draft-20260908-freshrss-08-automatic-sync.md) | 2026-09-09 | - | - |
 | [Export FreshRSS subscription OPML](plans/unreleased/draft-20260908-freshrss-09-subscription-opml-export.md) | 2026-09-09 | - | - |
 | [Fetch additional FreshRSS history safely](plans/unreleased/draft-20260908-freshrss-10-fetch-more-history.md) | 2026-09-09 | - | - |
+| [Prove the read contract against pinned FreshRSS](plans/unreleased/draft-20260908-freshrss-11-pinned-docker-read-contract.md) | 2026-09-09 | - | - |
 
 ## Unshipped plans
 

@@ -27,6 +27,7 @@ CLAUDE.md
 userdata.json.backup
 feeds.opml.backup
 coverage/
+docker/freshrss-contract/artifacts/
 .github/prompts/
 tree.txt
 docs/development/test_lint_backlog_ranked.json

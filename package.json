@@ -15,6 +15,8 @@
     "lint": "eslint . --max-warnings=0",
     "lint:dev": "eslint .",
     "test:unit": "vitest run --config vitest.config.mjs",
+    "test:freshrss-fixtures": "node --test \"docker/freshrss-contract/**/*.test.mjs\"",
+    "contract:freshrss": "node docker/freshrss-contract/run-contract.mjs",
     "hooks:install": "node scripts/setup-git-hooks.mjs",
     "prepare": "npm run hooks:install",
     "version": "node version-bump.mjs && git add manifest.json versions.json"

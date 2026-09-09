@@ -1,0 +1,84 @@
+# FreshRSS pinned read-contract harness (ticket 11 of the FreshRSS
+# portable-state-client workstream). See
+# docs/development/freshrss-docker-contract.md for prerequisites, commands,
+# and the finite compatibility claim this harness makes.
+#
+# This compose project is entirely test-owned: its containers, network, and
+# named volume all carry the `rss-dashboard-freshrss-contract` prefix so
+# `docker compose down -v` (invoked by run-contract.mjs on both success and
+# failure) can never remove anything outside this project.
+name: rss-dashboard-freshrss-contract
+
+services:
+  # The one reviewed, official, stable FreshRSS image this contract proves
+  # the read path against. Pinned by exact version tag AND digest — `latest`
+  # and `edge` are never used here. See docs/development/freshrss-docker-contract.md
+  # for how this reference was resolved and how to update it.
+  freshrss:
+    image: ghcr.io/freshrss/freshrss:1.29.1@sha256:ab6b363102ccdbc39f6a62db926f567c61a5289bf25ba460f1c34423d8cc1a4d
+    container_name: rss-dashboard-freshrss-contract
+    restart: "no"
+    environment:
+      TZ: UTC
+      # Disabled: the contract runner triggers refreshes explicitly
+      # (cli/actualize-user.php) so fixture ingestion stays deterministic and
+      # is never racing a background cron tick.
+      CRON_MIN: ""
+      # Runtime-only deterministic test credentials from .env — never real
+      # secrets. See FRESHRSS_INSTALL/FRESHRSS_USER in the upstream Docker
+      # README for what these arguments do; both blocks run only on the very
+      # first boot of an empty freshrss_contract_data volume.
+      FRESHRSS_INSTALL: |-
+        --api-enabled
+        --base-url http://localhost:${FRESHRSS_PUBLISHED_PORT}
+        --default-user ${FRESHRSS_ADMIN_USER}
+        --language en
+      FRESHRSS_USER: |-
+        --api-password ${FRESHRSS_ADMIN_API_PASSWORD}
+        --password ${FRESHRSS_ADMIN_PASSWORD}
+        --user ${FRESHRSS_ADMIN_USER}
+        --language en
+      # FreshRSS blocks requests to internal-looking hosts by default (SSRF
+      # protection). The fixture server is a sibling container reached by
+      # its compose service name, so it must be explicitly allow-listed —
+      # this is the exact pattern the upstream Docker README documents for
+      # a sibling fixture/bridge container.
+      INTERNAL_HOST_ALLOWLIST: "fixture-server:8081"
+    ports:
+      - "${FRESHRSS_PUBLISHED_PORT}:80"
+    volumes:
+      - freshrss_contract_data:/var/www/FreshRSS/data
+      - ./fixtures:/contract-fixtures:ro
+    healthcheck:
+      test: ["CMD", "cli/health.php"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+    depends_on:
+      fixture-server:
+        condition: service_started
+    networks:
+      - contract
+
+  # Deterministic RSS/Atom fixture server (see fixture-server.mjs). Not the
+  # audited subject of the contract — only infrastructure so FreshRSS has
+  # something stable to subscribe to.
+  fixture-server:
+    build:
+      context: .
+      dockerfile: fixture-server.Dockerfile
+    container_name: rss-dashboard-freshrss-fixture-server
+    restart: "no"
+    expose:
+      - "8081"
+    networks:
+      - contract
+
+networks:
+  contract:
+    name: rss-dashboard-freshrss-contract-network
+
+volumes:
+  freshrss_contract_data:
+    name: rss-dashboard-freshrss-contract-data

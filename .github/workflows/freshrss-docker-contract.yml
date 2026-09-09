@@ -1,0 +1,60 @@
+name: FreshRSS Docker contract
+
+# Ticket 11 of the FreshRSS portable-state-client workstream. This proves
+# the FreshRSS read contract against one pinned, official FreshRSS Docker
+# image — see docs/development/freshrss-docker-contract.md. It is
+# deliberately a separate job from `Test` (test.yml): it needs a Docker
+# daemon and network access to pull the pinned image, neither of which the
+# ordinary `npm run test:unit` suite requires or should depend on.
+#
+# STATUS: as of this workflow's introduction, this job has not yet had a
+# successful first run in CI (see "Status of this harness" in the doc
+# above) — the harness was built and validated as far as possible without a
+# reachable Docker daemon. Watch its first run closely.
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - "docker/freshrss-contract/**"
+      - "src/services/freshrss-*.ts"
+      - ".github/workflows/freshrss-docker-contract.yml"
+  pull_request:
+    paths:
+      - "docker/freshrss-contract/**"
+      - "src/services/freshrss-*.ts"
+      - ".github/workflows/freshrss-docker-contract.yml"
+  workflow_dispatch:
+
+jobs:
+  freshrss-docker-contract:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.x"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Confirm Docker is available
+        run: docker version && docker compose version
+
+      - name: Run the pinned FreshRSS Docker read contract
+        run: npm run contract:freshrss
+
+      - name: Upload contract artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: freshrss-docker-contract-result
+          path: docker/freshrss-contract/artifacts/
+          if-no-files-found: warn
+          retention-days: 30

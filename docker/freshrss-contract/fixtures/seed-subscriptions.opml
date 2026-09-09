@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<opml version="2.0">
+  <head>
+    <title>RSS Dashboard FreshRSS Docker-contract seed subscriptions</title>
+  </head>
+  <body>
+    <outline text="Category A" title="Category A">
+      <outline text="Contract Feed A" title="Contract Feed A" type="rss"
+                xmlUrl="http://fixture-server:8081/feed-a.xml"/>
+    </outline>
+    <outline text="Category B" title="Category B">
+      <outline text="Contract Feed B" title="Contract Feed B" type="rss"
+                xmlUrl="http://fixture-server:8081/feed-b.xml"/>
+    </outline>
+    <outline text="Contract Feed C" title="Contract Feed C" type="rss"
+              xmlUrl="http://fixture-server:8081/feed-c.xml"/>
+  </body>
+</opml>

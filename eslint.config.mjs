@@ -36,6 +36,29 @@ export default defineConfig([
     },
   },
   {
+    // The FreshRSS pinned Docker read-contract harness (ticket 11 of the
+    // FreshRSS portable-state-client workstream: see
+    // docs/development/freshrss-docker-contract.md) is standalone Node
+    // tooling that shells out to `docker compose` and runs a local fixture
+    // HTTP server. It never ships in the plugin bundle and never runs
+    // inside Obsidian, so the Obsidian mobile-compatibility, `requestUrl`,
+    // and popout-timer rules below do not apply to it — exactly as for
+    // test_files/**/*.ts below, which carries the same rationale for the
+    // test suite.
+    files: ["docker/freshrss-contract/**/*.mjs"],
+    languageOptions: {
+      globals: {
+        ...globals.node,
+      },
+    },
+    rules: {
+      "obsidianmd/no-nodejs-modules": "off",
+      "obsidianmd/rule-custom-message": "off",
+      "obsidianmd/prefer-window-timers": "off",
+      "no-restricted-globals": "off",
+    },
+  },
+  {
     files: ["src/**/*.ts"],
     rules: {
       "no-restricted-imports": [

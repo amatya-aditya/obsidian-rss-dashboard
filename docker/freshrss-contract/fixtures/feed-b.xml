@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>Contract Feed B</title>
+  <id>https://fixture.test/feed-b/</id>
+  <link href="https://fixture.test/feed-b/"/>
+  <updated>2026-06-01T11:00:00Z</updated>
+  <subtitle>Deterministic RSS Dashboard Docker-contract fixture feed B (categorized, Atom).</subtitle>
+  <entry>
+    <title>Feed B Article 1</title>
+    <id>https://fixture.test/feed-b/article-1</id>
+    <link href="https://fixture.test/feed-b/article-1"/>
+    <updated>2026-06-01T09:30:00Z</updated>
+    <published>2026-06-01T09:30:00Z</published>
+    <summary>Stable contract-fixture article content for feed B, article 1.</summary>
+  </entry>
+  <entry>
+    <title>Feed B Article 2</title>
+    <id>https://fixture.test/feed-b/article-2</id>
+    <link href="https://fixture.test/feed-b/article-2"/>
+    <updated>2026-06-01T10:30:00Z</updated>
+    <published>2026-06-01T10:30:00Z</published>
+    <summary>Stable contract-fixture article content for feed B, article 2.</summary>
+  </entry>
+</feed>

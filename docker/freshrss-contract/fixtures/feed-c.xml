@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Contract Feed C</title>
+    <link>https://fixture.test/feed-c/</link>
+    <description>Deterministic RSS Dashboard Docker-contract fixture feed C (uncategorized).</description>
+    <language>en</language>
+    <item>
+      <title>Feed C Article 1</title>
+      <link>https://fixture.test/feed-c/article-1</link>
+      <guid isPermaLink="false">https://fixture.test/feed-c/article-1</guid>
+      <pubDate>Mon, 01 Jun 2026 12:00:00 GMT</pubDate>
+      <description>Stable contract-fixture article content for feed C, article 1.</description>
+    </item>
+    <item>
+      <title>Feed C Article 2</title>
+      <link>https://fixture.test/feed-c/article-2</link>
+      <guid isPermaLink="false">https://fixture.test/feed-c/article-2</guid>
+      <pubDate>Mon, 01 Jun 2026 13:00:00 GMT</pubDate>
+      <description>Stable contract-fixture article content for feed C, article 2.</description>
+    </item>
+  </channel>
+</rss>

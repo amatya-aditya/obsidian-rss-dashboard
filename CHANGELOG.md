@@ -33,6 +33,10 @@
 - Fixed unnecessary type assertion in `src/utils/settings-loader.ts` by updating `migrateDefaultFilterToDashboardMultiFilters` to accept typed `DisplaySettings`.
 - Fixed the global-refresh Stop button not appearing on mobile/tablet: the sidebar modal's polling loop now applies the `stop` class and swaps the icon to `square-stop` when the refresh is cancellable, matching the desktop sidebar behaviour.
 
+### Development
+
+- Added a pinned FreshRSS Docker read-contract harness (`docker/freshrss-contract/`, `npm run contract:freshrss`, `npm run test:freshrss-fixtures`, and the `FreshRSS Docker contract` CI workflow) that proves the FreshRSS read path against one official, digest-pinned FreshRSS image (`ghcr.io/freshrss/freshrss:1.29.1@sha256:ab6b363102ccdbc39f6a62db926f567c61a5289bf25ba460f1c34423d8cc1a4d`), separately from the ordinary unit suite, which continues to require neither Docker nor network access. **This harness has not yet had a successful live run in any environment** — it was built and validated as completely as possible (fixture server tests, lint, type-check, build, and the full unit suite all pass with it present) in an environment where the Docker daemon was unreachable; see `docs/development/freshrss-docker-contract.md` for the exact status and what a first real run still needs to confirm.
+
 ## 2.6.0 - August 24, 2026
 
 ### Features
