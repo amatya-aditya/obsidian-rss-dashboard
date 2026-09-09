@@ -32,6 +32,18 @@ function isConnectionScope(value: unknown): value is FreshRssConnectionScope {
   );
 }
 
+function isPendingFacetMutation(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    typeof value.articleId === "string" &&
+    Boolean(value.articleId) &&
+    (value.facet === "read" ||
+      value.facet === "starred" ||
+      value.facet === "label") &&
+    (typeof value.value === "boolean" || typeof value.value === "string")
+  );
+}
+
 function parseSidecar(contents: string): FreshRssSidecarFile | null {
   try {
     const parsed: unknown = JSON.parse(contents);
@@ -39,7 +51,8 @@ function parseSidecar(contents: string): FreshRssSidecarFile | null {
       !isRecord(parsed) ||
       parsed.version !== FRESHRSS_SIDECAR_VERSION ||
       !isConnectionScope(parsed.scope) ||
-      !Array.isArray(parsed.pendingFacetMutations)
+      !Array.isArray(parsed.pendingFacetMutations) ||
+      !parsed.pendingFacetMutations.every(isPendingFacetMutation)
     ) {
       return null;
     }

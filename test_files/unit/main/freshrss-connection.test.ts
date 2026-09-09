@@ -1,10 +1,21 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { RequestUrlResponse } from "obsidian";
 import * as obsidian from "obsidian";
 import RssDashboardPlugin from "../../../main";
 import { DEFAULT_SETTINGS, type RssDashboardSettings } from "../../../src/types/types";
 
 function cloneSettings(): RssDashboardSettings {
   return JSON.parse(JSON.stringify(DEFAULT_SETTINGS)) as RssDashboardSettings;
+}
+
+function mockRequestUrlResponse(text: string): RequestUrlResponse {
+  return {
+    status: 200,
+    headers: {},
+    arrayBuffer: new ArrayBuffer(0),
+    json: {},
+    text,
+  };
 }
 
 describe("FreshRSS connection activation", () => {
@@ -15,9 +26,13 @@ describe("FreshRSS connection activation", () => {
   it("stores only a connected scope sidecar after the non-mutating connection checks succeed", async () => {
     vi.spyOn(obsidian, "requireApiVersion").mockReturnValue(true);
     vi.spyOn(obsidian, "requestUrl")
-      .mockResolvedValueOnce({ status: 200, text: "Auth=opaque-session" })
-      .mockResolvedValueOnce({ status: 200, text: '{"userId":"opaque-user"}' })
-      .mockResolvedValueOnce({ status: 200, text: "opaque-modification-token" });
+      .mockResolvedValueOnce(mockRequestUrlResponse("Auth=opaque-session"))
+      .mockResolvedValueOnce(
+        mockRequestUrlResponse('{"userId":"opaque-user"}'),
+      )
+      .mockResolvedValueOnce(
+        mockRequestUrlResponse("opaque-modification-token"),
+      );
     const app = obsidian.App.createMock();
     const secretStorageApp = app as unknown as {
       secretStorage: { getSecret(reference: string): string | null; listSecrets(): string[] };
@@ -83,6 +98,63 @@ describe("FreshRSS connection activation", () => {
     );
 
     expect(getSecret).not.toHaveBeenCalled();
+    expect(requestUrl).not.toHaveBeenCalled();
+  });
+
+  it("disables FreshRSS when SecretStorage cannot enumerate its references", () => {
+    vi.spyOn(obsidian, "requireApiVersion").mockReturnValue(true);
+    const app = obsidian.App.createMock();
+    const secretStorageApp = app as unknown as {
+      secretStorage: { getSecret(reference: string): string | null; listSecrets(): string[] };
+    };
+    secretStorageApp.secretStorage = {
+      getSecret: () => null,
+      listSecrets: () => {
+        throw new Error("SecretStorage unavailable");
+      },
+    };
+    const plugin = new RssDashboardPlugin(app, {
+      id: "rss-dashboard",
+      name: "RSS Dashboard",
+      version: "2.6.0",
+    });
+    plugin.settings = cloneSettings();
+    plugin.settings.storageMode = "vault-shards-v2";
+    plugin.settings.metadataStorageMode = "vault-location";
+    plugin.settings.metadataStorageSchemaVersion = 2;
+
+    expect(plugin.getFreshRssCapability()).toBe("capability-unavailable");
+  });
+
+  it("disables FreshRSS without a network request when SecretStorage cannot retrieve the selected bundle", async () => {
+    vi.spyOn(obsidian, "requireApiVersion").mockReturnValue(true);
+    const requestUrl = vi.spyOn(obsidian, "requestUrl");
+    const app = obsidian.App.createMock();
+    const secretStorageApp = app as unknown as {
+      secretStorage: { getSecret(reference: string): string | null; listSecrets(): string[] };
+    };
+    secretStorageApp.secretStorage = {
+      getSecret: () => {
+        throw new Error("SecretStorage unavailable");
+      },
+      listSecrets: () => ["freshrss-primary"],
+    };
+    const plugin = new RssDashboardPlugin(app, {
+      id: "rss-dashboard",
+      name: "RSS Dashboard",
+      version: "2.6.0",
+    });
+    plugin.settings = cloneSettings();
+    plugin.settings.storageMode = "vault-shards-v2";
+    plugin.settings.metadataStorageMode = "vault-location";
+    plugin.settings.metadataStorageSchemaVersion = 2;
+    plugin.settings.freshRss.endpoint = "https://reader.example.test/api/greader.php";
+    plugin.settings.freshRss.credentialReference = "freshrss-primary";
+    vi.spyOn(plugin, "saveSettings").mockResolvedValue();
+
+    await expect(plugin.testFreshRssConnection()).resolves.toBe(
+      "capability-unavailable",
+    );
     expect(requestUrl).not.toHaveBeenCalled();
   });
 });

@@ -88,8 +88,8 @@ export function canonicalizeFreshRssEndpoint(input: string): string {
     throw new Error("FreshRSS endpoint must be a valid URL.");
   }
 
-  if (endpoint.protocol !== "http:" && endpoint.protocol !== "https:") {
-    throw new Error("FreshRSS endpoint must use HTTP or HTTPS.");
+  if (endpoint.protocol !== "https:") {
+    throw new Error("FreshRSS endpoint must use HTTPS.");
   }
 
   if (!endpoint.hostname) {

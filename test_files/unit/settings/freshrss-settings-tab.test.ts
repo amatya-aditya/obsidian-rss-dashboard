@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { renderFreshRssSettingsTab } from "../../../src/settings/tabs/freshrss-settings-tab";
+import {
+  renderFreshRssSettingsTab,
+  type FreshRssCapability,
+  type FreshRssSettingsPlugin,
+} from "../../../src/settings/tabs/freshrss-settings-tab";
 import { DEFAULT_SETTINGS, type RssDashboardSettings } from "../../../src/types/types";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 
@@ -7,9 +11,9 @@ function cloneSettings(): RssDashboardSettings {
   return JSON.parse(JSON.stringify(DEFAULT_SETTINGS)) as RssDashboardSettings;
 }
 
-function createPlugin(capability: "available" | "capability-unavailable" = "available") {
+function createPlugin(capability: FreshRssCapability = "available") {
   const settings = cloneSettings();
-  return {
+  const plugin = {
     settings,
     getFreshRssCapability: () => capability,
     getFreshRssSecretReferences: vi.fn(() => ["freshrss-primary"]),
@@ -21,9 +25,11 @@ function createPlugin(capability: "available" | "capability-unavailable" = "avai
       settings.freshRss.credentialReference = reference;
       settings.freshRss.status = "test-required";
     }),
-    testFreshRssConnection: vi.fn(async () => "connected"),
+    testFreshRssConnection: vi.fn(async (): Promise<"connected"> => "connected"),
     openFreshRssStorageMigrationChoice: vi.fn(),
   };
+  plugin satisfies FreshRssSettingsPlugin;
+  return plugin;
 }
 
 beforeEach(() => {

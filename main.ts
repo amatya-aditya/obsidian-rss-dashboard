@@ -2114,7 +2114,12 @@ export default class RssDashboardPlugin extends Plugin {
   }
 
   public getFreshRssCapability(): FreshRssCapability {
-    if (!requireApiVersion("1.11.4") || !this.getFreshRssSecretStorage()) {
+    const secretStorage = this.getFreshRssSecretStorage();
+    if (
+      !requireApiVersion("1.11.4") ||
+      !secretStorage ||
+      !this.canListFreshRssSecretReferences(secretStorage)
+    ) {
       return "capability-unavailable";
     }
 
@@ -2181,7 +2186,7 @@ export default class RssDashboardPlugin extends Plugin {
         credentialReference,
       ) ?? null;
     } catch {
-      credentialBundle = null;
+      return this.setFreshRssConnectionStatus("capability-unavailable");
     }
     if (!credentialBundle) {
       return this.setFreshRssConnectionStatus("credentials-unconfigured");
@@ -2234,6 +2239,16 @@ export default class RssDashboardPlugin extends Plugin {
       typeof secretStorage.listSecrets === "function"
         ? secretStorage
         : null;
+  }
+
+  private canListFreshRssSecretReferences(
+    secretStorage: FreshRssSecretStorage,
+  ): boolean {
+    try {
+      return Array.isArray(secretStorage.listSecrets());
+    } catch {
+      return false;
+    }
   }
 
   private getFreshRssSidecarRepository(): FreshRssSidecarRepository {

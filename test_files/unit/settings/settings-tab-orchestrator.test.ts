@@ -61,7 +61,7 @@ describe("RssDashboardSettingTab (orchestrator)", () => {
     const tabButtons = Array.from(
       tab.containerEl.querySelectorAll(".rss-dashboard-settings-tab-btn"),
     );
-    expect(tabButtons).toHaveLength(11);
+    expect(tabButtons).toHaveLength(12);
     expect(tabButtons[0].textContent).toBe("General");
 
     expect(vi.mocked(general.renderGeneralSettingsTab)).toHaveBeenCalledTimes(1);
