@@ -80,6 +80,74 @@ describe("article-actions utils", () => {
       const toggle = actionToolbar.querySelector(".rss-dashboard-star-toggle");
       expect(toggle?.classList.contains("starred")).toBe(true);
     });
+
+    it("does not mutate article.starred directly on click; only the onArticleUpdate boundary may commit it", () => {
+      const onArticleUpdate = vi.fn();
+      createStarToggle(baseArgs({ callbacks: { onArticleUpdate } }));
+
+      const toggle = actionToolbar.querySelector<HTMLElement>(".rss-dashboard-star-toggle");
+      toggle?.click();
+
+      expect(onArticleUpdate).toHaveBeenCalledWith(article, { starred: true }, false);
+      // The click handler must not have flipped article.starred itself; only
+      // the boundary (onArticleUpdate) is allowed to commit that value.
+      expect(article.starred).toBe(false);
+    });
+
+    it("optimistically reflects the desired star state immediately, then reconciles to the committed value once onArticleUpdate resolves", async () => {
+      let resolveUpdate: (() => void) | undefined;
+      const onArticleUpdate = vi.fn(() => {
+        // Simulate the boundary committing the change asynchronously.
+        return new Promise<void>((resolve) => {
+          resolveUpdate = () => {
+            article.starred = true;
+            resolve();
+          };
+        });
+      });
+      createStarToggle(baseArgs({ callbacks: { onArticleUpdate } }));
+
+      const toggle = actionToolbar.querySelector<HTMLElement>(".rss-dashboard-star-toggle");
+      toggle?.click();
+
+      // Optimistic UI update happens synchronously on click.
+      expect(toggle?.classList.contains("starred")).toBe(true);
+      expect(toggle?.classList.contains("unstarred")).toBe(false);
+
+      resolveUpdate?.();
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(article.starred).toBe(true);
+      expect(toggle?.classList.contains("starred")).toBe(true);
+    });
+
+    it("reverts the optimistic star state when the boundary leaves article.starred unchanged (e.g. a rejected commit)", async () => {
+      let resolveUpdate: (() => void) | undefined;
+      const onArticleUpdate = vi.fn(() => {
+        // Simulate a failed commit: the boundary resolves without changing
+        // article.starred, and the caller is expected to surface an error.
+        return new Promise<void>((resolve) => {
+          resolveUpdate = resolve;
+        });
+      });
+      createStarToggle(baseArgs({ callbacks: { onArticleUpdate } }));
+
+      const toggle = actionToolbar.querySelector<HTMLElement>(".rss-dashboard-star-toggle");
+      toggle?.click();
+
+      expect(toggle?.classList.contains("starred")).toBe(true);
+
+      resolveUpdate?.();
+      await Promise.resolve();
+      await Promise.resolve();
+
+      // article.starred was never committed (still false), so the icon must
+      // reconcile back rather than staying optimistically starred.
+      expect(article.starred).toBe(false);
+      expect(toggle?.classList.contains("starred")).toBe(false);
+      expect(toggle?.classList.contains("unstarred")).toBe(true);
+    });
   });
 
   describe("createTagsToggle", () => {

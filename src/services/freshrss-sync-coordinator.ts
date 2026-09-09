@@ -10,6 +10,7 @@ import {
 } from "./freshrss-connection-service";
 import {
   FRESHRSS_READ_STREAM_ID,
+  FRESHRSS_STARRED_STREAM_ID,
   FreshRssSyncClient,
   type FreshRssSubscription,
 } from "./freshrss-sync-client";
@@ -24,7 +25,28 @@ import {
   markMutationAttemptFailed,
   removeAcknowledgedMutation,
   type FreshRssPendingFacetMutation,
+  type FreshRssSynchronizableFacet,
 } from "./freshrss-facet-mutations";
+
+/** Every article facet the sync coordinator flushes and reconciles. */
+const SYNCHRONIZABLE_FACETS: readonly FreshRssSynchronizableFacet[] = [
+  "read",
+  "starred",
+];
+
+/** The Google-Reader-API system stream backing one synchronizable facet. */
+function facetStreamId(facet: FreshRssSynchronizableFacet): string {
+  return facet === "read" ? FRESHRSS_READ_STREAM_ID : FRESHRSS_STARRED_STREAM_ID;
+}
+
+/** Applies a facet's desired boolean state to the matching FeedItem field. */
+function setFacetOnItem(
+  item: FeedItem,
+  facet: FreshRssSynchronizableFacet,
+  value: boolean,
+): void {
+  item[facet] = value;
+}
 
 /** Bounded per-subscription page size for a manual sync cycle. */
 export const FRESHRSS_SYNC_ARTICLES_PER_SUBSCRIPTION = 50;
@@ -176,14 +198,17 @@ export class FreshRssSyncCoordinator {
     // Pending desired state remains authoritative in memory and on reload
     // until FreshRSS acknowledges the operation, so overlay it onto whatever
     // was hydrated from local storage before anything else runs.
-    this.overlayPendingReadState(feeds, articleBindings, pendingFacetMutations);
+    this.overlayPendingFacetState(feeds, articleBindings, pendingFacetMutations);
 
-    // Flush pending read mutations before pulling any remote state. A fresh
-    // modification token is fetched immediately before dispatch; it is never
-    // reused from the earlier connection test or a previous cycle.
-    const readPendingExists = pendingFacetMutations.some((m) => m.facet === "read");
-    if (readPendingExists) {
-      const flushResult = await this.flushPendingReadMutations(
+    // Flush every pending facet mutation (read and starred) before pulling
+    // any remote state. A fresh modification token is fetched immediately
+    // before dispatch; it is never reused from the earlier connection test or
+    // a previous cycle.
+    const anyPendingExists = pendingFacetMutations.some((m) =>
+      SYNCHRONIZABLE_FACETS.includes(m.facet),
+    );
+    if (anyPendingExists) {
+      const flushResult = await this.flushPendingFacetMutations(
         client,
         pendingFacetMutations,
         { ...sidecarState, feedBindings, articleBindings, checkpoints },
@@ -311,31 +336,34 @@ export class FreshRssSyncCoordinator {
 
     owner.throwIfInactive();
 
-    // Pull remote read state and reconcile it locally. Only fully-enumerated
-    // streams may clear/change local state on absence; a capped or
-    // interrupted enumeration leaves prior state untouched. A still-pending
-    // local read facet is never overridden by a pulled value.
+    // Pull remote facet state (read, then starred) and reconcile it locally.
+    // Only fully-enumerated streams may clear/change local state on absence;
+    // a capped or interrupted enumeration leaves prior state untouched. A
+    // still-pending local facet is never overridden by a pulled value.
     if (articleBindings.length > 0) {
-      const readStreamResult = await this.enumerateBoundedItemIds(
-        client,
-        FRESHRSS_READ_STREAM_ID,
-        owner,
-      );
-      if (readStreamResult.outcome === "auth-rejected") {
-        return { outcome: "credentials-rejected" };
-      }
-      if (readStreamResult.outcome !== "complete") {
-        partial = true;
-      }
-      if (readStreamResult.outcome === "complete") {
-        this.reconcileRemoteReadState(
-          feeds,
-          articleBindings,
-          pendingFacetMutations,
-          readStreamResult.itemIds,
+      for (const facet of SYNCHRONIZABLE_FACETS) {
+        const streamResult = await this.enumerateBoundedItemIds(
+          client,
+          facetStreamId(facet),
+          owner,
         );
+        if (streamResult.outcome === "auth-rejected") {
+          return { outcome: "credentials-rejected" };
+        }
+        if (streamResult.outcome !== "complete") {
+          partial = true;
+        }
+        if (streamResult.outcome === "complete") {
+          this.reconcileRemoteFacetState(
+            feeds,
+            articleBindings,
+            pendingFacetMutations,
+            streamResult.itemIds,
+            facet,
+          );
+        }
+        owner.throwIfInactive();
       }
-      owner.throwIfInactive();
     }
 
     settings.feeds = feeds;
@@ -363,46 +391,54 @@ export class FreshRssSyncCoordinator {
   }
 
   /**
-   * Forces every locally known article with a current pending `read`
-   * mutation to reflect that mutation's desired state. Pending desired state
-   * remains authoritative in memory and on reload until FreshRSS
-   * acknowledges the operation, independent of whatever value was hydrated
-   * from `user-state.json` or a prior partial cycle.
+   * Forces every locally known article with a current pending facet
+   * mutation (read and/or starred) to reflect that mutation's desired state.
+   * Pending desired state remains authoritative in memory and on reload
+   * until FreshRSS acknowledges the operation, independent of whatever value
+   * was hydrated from `user-state.json` or a prior partial cycle.
    */
-  private overlayPendingReadState(
+  private overlayPendingFacetState(
     feeds: Feed[],
     articleBindings: FreshRssArticleBinding[],
     pendingFacetMutations: FreshRssPendingFacetMutation[],
   ): void {
     if (pendingFacetMutations.length === 0) return;
-    const pendingByRemoteId = new Map<string, FreshRssPendingFacetMutation>();
+    const pendingByRemoteId = new Map<string, FreshRssPendingFacetMutation[]>();
     for (const mutation of pendingFacetMutations) {
-      if (mutation.facet === "read") {
-        pendingByRemoteId.set(mutation.remoteArticleId, mutation);
+      if (!SYNCHRONIZABLE_FACETS.includes(mutation.facet)) continue;
+      const existing = pendingByRemoteId.get(mutation.remoteArticleId);
+      if (existing) {
+        existing.push(mutation);
+      } else {
+        pendingByRemoteId.set(mutation.remoteArticleId, [mutation]);
       }
     }
     if (pendingByRemoteId.size === 0) return;
 
     for (const binding of articleBindings) {
-      const pending = pendingByRemoteId.get(binding.remoteArticleId);
-      if (!pending) continue;
+      const pendingForArticle = pendingByRemoteId.get(binding.remoteArticleId);
+      if (!pendingForArticle) continue;
       const feed = feeds.find((f) => f.feedId === binding.feedId);
       const item = feed?.items.find((candidate) => candidate.guid === binding.guid);
-      if (item) {
-        item.read = pending.desiredState;
+      if (!item) continue;
+      for (const pending of pendingForArticle) {
+        setFacetOnItem(item, pending.facet, pending.desiredState);
       }
     }
   }
 
   /**
-   * Dispatches every current pending `read` mutation in deterministic
-   * same-desired-state batches of at most `FRESHRSS_MUTATION_BATCH_SIZE`,
-   * one request in flight. The sidecar is persisted immediately after each
-   * acknowledged batch so a crash mid-flush cannot lose an acknowledgment.
-   * Terminal errors (HTTP 400/404/422) keep the desired state with a
-   * terminal error instead of being retried automatically.
+   * Dispatches every current pending facet mutation (read and/or starred) in
+   * deterministic same-facet, same-desired-state batches of at most
+   * `FRESHRSS_MUTATION_BATCH_SIZE`, one request in flight. A single fresh
+   * modification token covers the whole flush; it is never reused from the
+   * earlier connection test or a previous cycle. The sidecar is persisted
+   * immediately after each acknowledged batch so a crash mid-flush cannot
+   * lose an acknowledgment. Terminal errors (HTTP 400/404/422) keep the
+   * desired state with a terminal error instead of being retried
+   * automatically.
    */
-  private async flushPendingReadMutations(
+  private async flushPendingFacetMutations(
     client: FreshRssSyncClient,
     initialPending: FreshRssPendingFacetMutation[],
     sidecarSnapshot: FreshRssSidecarFile,
@@ -413,8 +449,10 @@ export class FreshRssSyncCoordinator {
     authRejected: boolean;
   }> {
     let pending = initialPending;
-    const readPending = pending.filter((m) => m.facet === "read");
-    if (readPending.length === 0) {
+    const dispatchablePending = pending.filter((m) =>
+      SYNCHRONIZABLE_FACETS.includes(m.facet),
+    );
+    if (dispatchablePending.length === 0) {
       return { pendingFacetMutations: pending, partial: false, authRejected: false };
     }
 
@@ -435,10 +473,24 @@ export class FreshRssSyncCoordinator {
       });
     };
 
-    const groups: Array<{ items: FreshRssPendingFacetMutation[]; action: "read" | "unread" }> = [
-      { items: readPending.filter((m) => m.desiredState === true), action: "read" },
-      { items: readPending.filter((m) => m.desiredState === false), action: "unread" },
-    ];
+    const groups: Array<{
+      items: FreshRssPendingFacetMutation[];
+      facet: FreshRssSynchronizableFacet;
+      action: "add" | "remove";
+    }> = [];
+    for (const facet of SYNCHRONIZABLE_FACETS) {
+      const facetPending = dispatchablePending.filter((m) => m.facet === facet);
+      groups.push({
+        items: facetPending.filter((m) => m.desiredState === true),
+        facet,
+        action: "add",
+      });
+      groups.push({
+        items: facetPending.filter((m) => m.desiredState === false),
+        facet,
+        action: "remove",
+      });
+    }
 
     for (const group of groups) {
       for (const batch of chunk(group.items, FRESHRSS_MUTATION_BATCH_SIZE)) {
@@ -446,6 +498,7 @@ export class FreshRssSyncCoordinator {
         const result = await client.editTag(
           batch.map((m) => m.remoteArticleId),
           group.action,
+          facetStreamId(group.facet),
           token,
         );
         owner.throwIfInactive();
@@ -454,7 +507,7 @@ export class FreshRssSyncCoordinator {
           for (const mutation of batch) {
             pending = removeAcknowledgedMutation(pending, {
               remoteArticleId: mutation.remoteArticleId,
-              facet: "read",
+              facet: group.facet,
               operationId: mutation.operationId,
             });
           }
@@ -468,18 +521,22 @@ export class FreshRssSyncCoordinator {
 
         if (result.outcome === "terminal") {
           const now = this.deps.now?.() ?? Date.now();
+          const message =
+            group.facet === "read"
+              ? "FreshRSS rejected this read/unread change."
+              : "FreshRSS rejected this star/unstar change.";
           for (const mutation of batch) {
             pending = markMutationAttemptFailed(
               pending,
               {
                 remoteArticleId: mutation.remoteArticleId,
-                facet: "read",
+                facet: group.facet,
                 operationId: mutation.operationId,
               },
               now,
               {
                 category: "terminal",
-                message: "FreshRSS rejected this read/unread change.",
+                message,
               },
             );
           }
@@ -547,19 +604,21 @@ export class FreshRssSyncCoordinator {
   }
 
   /**
-   * Applies remote read-state absence/presence to every locally bound
-   * article whose facet is not protected by a still-pending local mutation.
-   * Only called once the read stream has been fully enumerated.
+   * Applies one remote facet stream's absence/presence to every locally
+   * bound article whose facet is not protected by a still-pending local
+   * mutation. Only called once that facet's stream has been fully
+   * enumerated.
    */
-  private reconcileRemoteReadState(
+  private reconcileRemoteFacetState(
     feeds: Feed[],
     articleBindings: FreshRssArticleBinding[],
     pendingFacetMutations: FreshRssPendingFacetMutation[],
-    remoteReadIds: Set<string>,
+    remoteFacetIds: Set<string>,
+    facet: FreshRssSynchronizableFacet,
   ): void {
     const pendingRemoteIds = new Set(
       pendingFacetMutations
-        .filter((m) => m.facet === "read")
+        .filter((m) => m.facet === facet)
         .map((m) => m.remoteArticleId),
     );
 
@@ -570,7 +629,7 @@ export class FreshRssSyncCoordinator {
       const feed = feeds.find((f) => f.feedId === binding.feedId);
       const item = feed?.items.find((candidate) => candidate.guid === binding.guid);
       if (!item) continue;
-      item.read = remoteReadIds.has(binding.remoteArticleId);
+      setFacetOnItem(item, facet, remoteFacetIds.has(binding.remoteArticleId));
     }
   }
 

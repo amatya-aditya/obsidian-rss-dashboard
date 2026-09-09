@@ -31,6 +31,9 @@ export type FreshRssEditTagOutcome =
 /** Google-Reader-API stream ID for the FreshRSS system "read" state. */
 export const FRESHRSS_READ_STREAM_ID = "user/-/state/com.google/read";
 
+/** Google-Reader-API stream ID for the FreshRSS system "starred" state. */
+export const FRESHRSS_STARRED_STREAM_ID = "user/-/state/com.google/starred";
+
 export interface FreshRssSubscription {
   remoteSubscriptionId: string;
   title: string;
@@ -322,8 +325,10 @@ export class FreshRssSyncClient {
   }
 
   /**
-   * Dispatches one batch read-state mutation. `action: "read"` adds the
-   * system read tag; `action: "unread"` removes it. Only a successful
+   * Dispatches one batch facet-state mutation against one system stream
+   * (`FRESHRSS_READ_STREAM_ID` or `FRESHRSS_STARRED_STREAM_ID`). `action:
+   * "add"` adds the given stream tag (marks read / starred); `action:
+   * "remove"` removes it (marks unread / unstarred). Only a successful
    * response whose body is exactly `OK` counts as an acknowledgment; every
    * other outcome (including a 200 with a different body) is treated as not
    * yet acknowledged so the pending record is retried or repaired instead of
@@ -331,7 +336,8 @@ export class FreshRssSyncClient {
    */
   public async editTag(
     remoteArticleIds: string[],
-    action: "read" | "unread",
+    action: "add" | "remove",
+    streamId: string,
     modificationToken: string,
   ): Promise<FreshRssEditTagOutcome> {
     if (remoteArticleIds.length === 0) {
@@ -339,12 +345,12 @@ export class FreshRssSyncClient {
     }
 
     try {
-      const tagParam = action === "read" ? "a" : "r";
+      const tagParam = action === "add" ? "a" : "r";
       const body = [
         "output=json",
         `T=${encodeURIComponent(modificationToken)}`,
         ...remoteArticleIds.map((id) => `i=${encodeURIComponent(id)}`),
-        `${tagParam}=${encodeURIComponent(FRESHRSS_READ_STREAM_ID)}`,
+        `${tagParam}=${encodeURIComponent(streamId)}`,
       ].join("&");
       const response = await this.httpClient.request({
         url: `${this.endpoint}/reader/api/0/edit-tag`,

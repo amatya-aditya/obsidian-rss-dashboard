@@ -77,7 +77,10 @@ import {
   FreshRssSyncCoordinator,
   type FreshRssSyncOutcome,
 } from "./src/services/freshrss-sync-coordinator";
-import { captureFacetMutation } from "./src/services/freshrss-facet-mutations";
+import {
+  captureFacetMutation,
+  type FreshRssSynchronizableFacet,
+} from "./src/services/freshrss-facet-mutations";
 import type { FreshRssCapability } from "./src/settings/tabs/freshrss-settings-tab";
 import {
   FEED_REQUEST_TIMEOUT_MS,
@@ -1432,9 +1435,9 @@ export default class RssDashboardPlugin extends Plugin {
     const originalItem = resolvedFeed.items.find((i) => i.guid === item.guid);
     if (!originalItem) return;
 
-    // Route the read facet through the single FreshRSS-aware mutation
-    // boundary before applying anything else. On failure, nothing from this
-    // update is applied and the user sees an actionable error.
+    // Route the read and starred facets through the single FreshRSS-aware
+    // mutation boundary before applying anything else. On failure, nothing
+    // from this update is applied and the user sees an actionable error.
     if (normalizedUpdates.read !== undefined) {
       const result = await this.commitArticleReadState([
         {
@@ -1448,9 +1451,23 @@ export default class RssDashboardPlugin extends Plugin {
         return;
       }
     }
+    if (normalizedUpdates.starred !== undefined) {
+      const result = await this.commitArticleStarredState([
+        {
+          articleGuid: originalItem.guid,
+          feedUrl: resolvedFeedUrl,
+          desiredStarred: normalizedUpdates.starred,
+        },
+      ]);
+      if (!result.committed) {
+        new Notice(result.error ?? "Couldn't save the star/unstar change.");
+        return;
+      }
+    }
 
-    const { read: _read, ...restUpdates } = normalizedUpdates;
+    const { read: _read, starred: _starred, ...restUpdates } = normalizedUpdates;
     void _read;
+    void _starred;
 
     // Reflect updates in open dashboard/reader views immediately, then persist.
     if (Object.keys(restUpdates).length > 0) {
@@ -2363,10 +2380,14 @@ export default class RssDashboardPlugin extends Plugin {
   }
 
   /**
-   * The single article-facet mutation boundary for read/unread state. Every
-   * observable read/unread entry point (reader, dashboard, context menu,
-   * automatic-read, page, selection, folder, and all-feed actions) must route
-   * through this method rather than assigning `item.read` directly.
+   * The single article-facet mutation boundary, shared by every
+   * synchronizable facet (`read` and `starred`). Every observable
+   * read/unread and star/unstar entry point (reader, dashboard, inline
+   * reader, context menu, automatic-read, page, selection, folder, and
+   * all-feed actions) must route through this method (or the
+   * `commitArticleReadState`/`commitArticleStarredState` convenience
+   * wrappers below) rather than assigning `item.read`/`item.starred`
+   * directly.
    *
    * For a FreshRSS-linked article, the desired state is durably captured as a
    * pending facet mutation in the sidecar, under the shared data-sync lease,
@@ -2376,8 +2397,9 @@ export default class RssDashboardPlugin extends Plugin {
    * A local-only (non-FreshRSS-linked) article is completely unaffected: no
    * sidecar record is created and its existing behavior is preserved exactly.
    */
-  public async commitArticleReadState(
-    changes: Array<{ articleGuid: string; feedUrl: string; desiredRead: boolean }>,
+  public async commitArticleFacetState(
+    facet: FreshRssSynchronizableFacet,
+    changes: Array<{ articleGuid: string; feedUrl: string; desiredState: boolean }>,
   ): Promise<{ committed: boolean; error?: string }> {
     if (changes.length === 0) {
       return { committed: true };
@@ -2386,14 +2408,14 @@ export default class RssDashboardPlugin extends Plugin {
     const resolved: Array<{
       feed: Feed;
       article: FeedItem;
-      desiredRead: boolean;
+      desiredState: boolean;
       binding: FreshRssArticleBinding | null;
     }> = [];
     for (const change of changes) {
       const feed = this.settings.feeds.find((f) => f.url === change.feedUrl);
       const article = feed?.items.find((item) => item.guid === change.articleGuid);
       if (!feed || !article) continue;
-      resolved.push({ feed, article, desiredRead: change.desiredRead, binding: null });
+      resolved.push({ feed, article, desiredState: change.desiredState, binding: null });
     }
     if (resolved.length === 0) {
       return { committed: true };
@@ -2422,6 +2444,7 @@ export default class RssDashboardPlugin extends Plugin {
     }
 
     const linkedEntries = resolved.filter((entry) => entry.binding);
+    const facetLabel = facet === "read" ? "read/unread" : "star/unstar";
 
     if (linkedEntries.length > 0 && sidecarRepository && scope && sidecarState) {
       try {
@@ -2436,8 +2459,8 @@ export default class RssDashboardPlugin extends Plugin {
             if (!entry.binding) continue;
             pending = captureFacetMutation(pending, {
               remoteArticleId: entry.binding.remoteArticleId,
-              facet: "read",
-              desiredState: entry.desiredRead,
+              facet,
+              desiredState: entry.desiredState,
               nowMs,
             });
           }
@@ -2457,21 +2480,64 @@ export default class RssDashboardPlugin extends Plugin {
         }
         return {
           committed: false,
-          error:
-            "Couldn't save this read/unread change for FreshRSS syncing. The change was not applied. Please try again.",
+          error: `Couldn't save this ${facetLabel} change for FreshRSS syncing. The change was not applied. Please try again.`,
         };
       }
     }
 
     for (const entry of resolved) {
-      entry.article.read = entry.desiredRead;
+      if (facet === "read") {
+        entry.article.read = entry.desiredState;
+      } else {
+        entry.article.starred = entry.desiredState;
+      }
     }
     await this.saveSettings();
     for (const entry of resolved) {
-      await this.syncReaderArticleUpdate(entry.article.guid, { read: entry.desiredRead });
+      await this.syncReaderArticleUpdate(
+        entry.article.guid,
+        facet === "read" ? { read: entry.desiredState } : { starred: entry.desiredState },
+      );
     }
 
     return { committed: true };
+  }
+
+  /**
+   * Convenience wrapper over `commitArticleFacetState` for the `read` facet.
+   * Kept so existing read/unread call sites and tests can keep using the
+   * `desiredRead` field name.
+   */
+  public async commitArticleReadState(
+    changes: Array<{ articleGuid: string; feedUrl: string; desiredRead: boolean }>,
+  ): Promise<{ committed: boolean; error?: string }> {
+    return this.commitArticleFacetState(
+      "read",
+      changes.map((change) => ({
+        articleGuid: change.articleGuid,
+        feedUrl: change.feedUrl,
+        desiredState: change.desiredRead,
+      })),
+    );
+  }
+
+  /**
+   * Convenience wrapper over `commitArticleFacetState` for the `starred`
+   * facet. Every star/unstar entry point routes through this (or directly
+   * through `commitArticleFacetState`) rather than assigning
+   * `item.starred` directly.
+   */
+  public async commitArticleStarredState(
+    changes: Array<{ articleGuid: string; feedUrl: string; desiredStarred: boolean }>,
+  ): Promise<{ committed: boolean; error?: string }> {
+    return this.commitArticleFacetState(
+      "starred",
+      changes.map((change) => ({
+        articleGuid: change.articleGuid,
+        feedUrl: change.feedUrl,
+        desiredState: change.desiredStarred,
+      })),
+    );
   }
 
   private getFreshRssSecretStorage(): FreshRssSecretStorage | null {

@@ -93,6 +93,47 @@ describe("FreshRSS pending facet mutation capture/coalescing", () => {
       ]);
     });
 
+    it("keeps independent records for different facets of the same article", () => {
+      const withRead = captureFacetMutation([], {
+        remoteArticleId: "article-1",
+        facet: "read",
+        desiredState: true,
+        nowMs: 1000,
+        createOperationId: () => "op-read",
+      });
+      const withBoth = captureFacetMutation(withRead, {
+        remoteArticleId: "article-1",
+        facet: "starred",
+        desiredState: true,
+        nowMs: 1000,
+        createOperationId: () => "op-starred",
+      });
+
+      expect(withBoth).toHaveLength(2);
+      expect(
+        findPendingFacetMutation(withBoth, { remoteArticleId: "article-1", facet: "read" }),
+      ).toMatchObject({ operationId: "op-read" });
+      expect(
+        findPendingFacetMutation(withBoth, { remoteArticleId: "article-1", facet: "starred" }),
+      ).toMatchObject({ operationId: "op-starred" });
+
+      // Replacing the starred decision must not disturb the read record.
+      const afterStarredChange = captureFacetMutation(withBoth, {
+        remoteArticleId: "article-1",
+        facet: "starred",
+        desiredState: false,
+        nowMs: 2000,
+        createOperationId: () => "op-starred-2",
+      });
+      expect(afterStarredChange).toHaveLength(2);
+      expect(
+        findPendingFacetMutation(afterStarredChange, { remoteArticleId: "article-1", facet: "read" }),
+      ).toMatchObject({ operationId: "op-read", desiredState: true });
+      expect(
+        findPendingFacetMutation(afterStarredChange, { remoteArticleId: "article-1", facet: "starred" }),
+      ).toMatchObject({ operationId: "op-starred-2", desiredState: false });
+    });
+
     it("keeps independent records for different articles", () => {
       const result = captureFacetMutation(
         captureFacetMutation([], {

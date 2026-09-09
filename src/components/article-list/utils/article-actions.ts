@@ -183,24 +183,35 @@ export function createStarToggle(
     starIcon.textContent = arg.article.starred ? "*" : "o";
   }
 
-  const toggleStar = (e: Event) => {
-    e.stopPropagation();
-    const newStarState = !arg.article.starred;
-    arg.article.starred = newStarState;
-    void arg.callbacks.onArticleUpdate?.(
-      arg.article,
-      { starred: newStarState },
-      false,
-    );
-    starToggle.classList.toggle("starred", newStarState);
-    starToggle.classList.toggle("unstarred", !newStarState);
+  const reflectStarState = (isStarred: boolean): void => {
+    starToggle.classList.toggle("starred", isStarred);
+    starToggle.classList.toggle("unstarred", !isStarred);
     const iconEl = starToggle.querySelector(".rss-dashboard-star-icon");
     if (iconEl) {
-      setIcon(iconEl as HTMLElement, newStarState ? "star" : "star-off");
+      setIcon(iconEl as HTMLElement, isStarred ? "star" : "star-off");
       if (!iconEl.querySelector("svg")) {
-        iconEl.textContent = newStarState ? "*" : "o";
+        iconEl.textContent = isStarred ? "*" : "o";
       }
     }
+  };
+
+  const toggleStar = (e: Event) => {
+    e.stopPropagation();
+    const desiredStarredState = !arg.article.starred;
+    // Optimistic UI: flip the icon immediately, but do NOT mutate
+    // arg.article.starred here. The article-facet mutation boundary
+    // (onArticleUpdate) is the only thing allowed to commit that value; on
+    // failure (e.g. an offline FreshRSS sidecar write), it leaves
+    // arg.article.starred unchanged and we reconcile the icon back below.
+    reflectStarState(desiredStarredState);
+    const outcome = arg.callbacks.onArticleUpdate?.(
+      arg.article,
+      { starred: desiredStarredState },
+      false,
+    );
+    void Promise.resolve(outcome).then(() => {
+      reflectStarState(!!arg.article.starred);
+    });
   };
 
   toggleClickableIcon(starToggle, toggleStar);

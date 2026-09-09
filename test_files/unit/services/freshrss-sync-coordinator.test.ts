@@ -155,6 +155,8 @@ describe("FreshRssSyncCoordinator", () => {
       "POST https://reader.example.test/api/greader.php/reader/api/0/stream/items/contents",
       // Read-state reconciliation pull, once articles are bound.
       "GET https://reader.example.test/api/greader.php/reader/api/0/stream/items/ids",
+      // Starred-state reconciliation pull, once articles are bound.
+      "GET https://reader.example.test/api/greader.php/reader/api/0/stream/items/ids",
     ]);
 
     expect(settings.feeds).toHaveLength(2);
@@ -779,6 +781,342 @@ describe("FreshRssSyncCoordinator", () => {
       await coordinator.run({ endpoint, credentials, scope, owner: activeOwner });
 
       expect(settings.feeds[0].items[0].read).toBe(true);
+    });
+  });
+
+  describe("pending starred-facet mutations", () => {
+    function pendingStarredMutation(overrides: Partial<{
+      operationId: string;
+      remoteArticleId: string;
+      desiredState: boolean;
+    }> = {}) {
+      return {
+        operationId: overrides.operationId ?? "op-1",
+        remoteArticleId: overrides.remoteArticleId ?? "item-1",
+        facet: "starred" as const,
+        desiredState: overrides.desiredState ?? true,
+        createdAtMs: 1000,
+        lastAttemptAtMs: null,
+        attemptCount: 0,
+        error: null,
+      };
+    }
+
+    it("obtains a fresh modification token and flushes a pending starred mutation against the starred stream, removing it on an exact OK acknowledgment", async () => {
+      const httpClient = createHttpClient((request) => {
+        if (request.url.includes("/accounts/ClientLogin")) return loginResponse();
+        if (request.url.includes("/reader/api/0/token")) {
+          return { status: 200, text: "fresh-token-xyz" };
+        }
+        if (request.url.includes("/edit-tag")) {
+          expect(request.body).toContain("T=fresh-token-xyz");
+          expect(request.body).toContain("i=item-1");
+          expect(request.body).toContain("a=user%2F-%2Fstate%2Fcom.google%2Fstarred");
+          return { status: 200, text: "OK" };
+        }
+        if (request.url.includes("/subscription/list")) return jsonResponse({ subscriptions: [] });
+        if (request.url.includes("/tag/list")) return jsonResponse({ tags: [] });
+        throw new Error(`Unexpected request: ${request.url}`);
+      });
+      const { repository, store } = createSidecarRepository();
+      await repository.activate(scope);
+      await repository.write({
+        version: 2,
+        scope,
+        pendingFacetMutations: [pendingStarredMutation()],
+        feedBindings: [],
+        articleBindings: [],
+        checkpoints: [],
+      });
+      const settings = createSettings([]);
+
+      const coordinator = new FreshRssSyncCoordinator({
+        httpClient,
+        getSettings: () => settings,
+        saveSettings: vi.fn().mockResolvedValue(undefined),
+        sidecarRepository: repository,
+        getView: async () => null,
+      });
+
+      const outcome = await coordinator.run({ endpoint, credentials, scope, owner: activeOwner });
+
+      expect(outcome).toMatchObject({ outcome: "synced", partial: false });
+      const sidecar = JSON.parse(store.files.get("sidecar.json") ?? "") as FreshRssSidecarFile;
+      expect(sidecar.pendingFacetMutations).toEqual([]);
+    });
+
+    it("dispatches an unstar (remove) mutation with r= against the starred stream", async () => {
+      const httpClient = createHttpClient((request) => {
+        if (request.url.includes("/accounts/ClientLogin")) return loginResponse();
+        if (request.url.includes("/reader/api/0/token")) return { status: 200, text: "token" };
+        if (request.url.includes("/edit-tag")) {
+          expect(request.body).toContain("r=user%2F-%2Fstate%2Fcom.google%2Fstarred");
+          return { status: 200, text: "OK" };
+        }
+        if (request.url.includes("/subscription/list")) return jsonResponse({ subscriptions: [] });
+        if (request.url.includes("/tag/list")) return jsonResponse({ tags: [] });
+        throw new Error(`Unexpected request: ${request.url}`);
+      });
+      const { repository, store } = createSidecarRepository();
+      await repository.activate(scope);
+      await repository.write({
+        version: 2,
+        scope,
+        pendingFacetMutations: [pendingStarredMutation({ desiredState: false })],
+        feedBindings: [],
+        articleBindings: [],
+        checkpoints: [],
+      });
+      const settings = createSettings([]);
+
+      const coordinator = new FreshRssSyncCoordinator({
+        httpClient,
+        getSettings: () => settings,
+        saveSettings: vi.fn().mockResolvedValue(undefined),
+        sidecarRepository: repository,
+        getView: async () => null,
+      });
+
+      await coordinator.run({ endpoint, credentials, scope, owner: activeOwner });
+
+      const sidecar = JSON.parse(store.files.get("sidecar.json") ?? "") as FreshRssSidecarFile;
+      expect(sidecar.pendingFacetMutations).toEqual([]);
+    });
+
+    it("keeps the desired starred state pending when the mutation request is unavailable", async () => {
+      const httpClient = createHttpClient((request) => {
+        if (request.url.includes("/accounts/ClientLogin")) return loginResponse();
+        if (request.url.includes("/reader/api/0/token")) return { status: 200, text: "token" };
+        if (request.url.includes("/edit-tag")) return { status: 503, text: "" };
+        if (request.url.includes("/subscription/list")) return jsonResponse({ subscriptions: [] });
+        if (request.url.includes("/tag/list")) return jsonResponse({ tags: [] });
+        throw new Error(`Unexpected request: ${request.url}`);
+      });
+      const { repository, store } = createSidecarRepository();
+      await repository.activate(scope);
+      const pending = pendingStarredMutation();
+      await repository.write({
+        version: 2,
+        scope,
+        pendingFacetMutations: [pending],
+        feedBindings: [],
+        articleBindings: [],
+        checkpoints: [],
+      });
+      const settings = createSettings([]);
+
+      const coordinator = new FreshRssSyncCoordinator({
+        httpClient,
+        getSettings: () => settings,
+        saveSettings: vi.fn().mockResolvedValue(undefined),
+        sidecarRepository: repository,
+        getView: async () => null,
+      });
+
+      const outcome = await coordinator.run({ endpoint, credentials, scope, owner: activeOwner });
+
+      expect(outcome).toMatchObject({ outcome: "synced", partial: true });
+      const sidecar = JSON.parse(store.files.get("sidecar.json") ?? "") as FreshRssSidecarFile;
+      expect(sidecar.pendingFacetMutations).toEqual([pending]);
+    });
+
+    it("never overrides a still-pending local starred facet with pulled remote starred state", async () => {
+      const httpClient = createHttpClient((request) => {
+        if (request.url.includes("/accounts/ClientLogin")) return loginResponse();
+        if (request.url.includes("/reader/api/0/token")) return { status: 200, text: "token" };
+        if (request.url.includes("/edit-tag")) return { status: 503, text: "" };
+        if (request.url.includes("/subscription/list")) return jsonResponse({ subscriptions: [] });
+        if (request.url.includes("/tag/list")) return jsonResponse({ tags: [] });
+        if (request.url.includes("/stream/items/ids")) {
+          // Remote says item-1 is NOT in the starred set.
+          return jsonResponse({ itemRefs: [] });
+        }
+        throw new Error(`Unexpected request: ${request.url}`);
+      });
+      const { repository, store } = createSidecarRepository();
+      await repository.activate(scope);
+      const boundFeed: Feed = {
+        feedId: "local-1",
+        title: "Feed One",
+        url: "https://example.test/feed.xml",
+        folder: "Tech",
+        items: [{ title: "t", link: "x", description: "", pubDate: "", guid: "item-1", feedTitle: "Feed One", feedUrl: "x", coverImage: "", starred: true }],
+        lastUpdated: 0,
+      };
+      await repository.write({
+        version: 2,
+        scope,
+        pendingFacetMutations: [pendingStarredMutation({ desiredState: true })],
+        feedBindings: [{ feedId: "local-1", remoteSubscriptionId: "feed/1" }],
+        articleBindings: [{ feedId: "local-1", guid: "item-1", remoteArticleId: "item-1" }],
+        checkpoints: [],
+      });
+      const settings = createSettings([boundFeed]);
+
+      const coordinator = new FreshRssSyncCoordinator({
+        httpClient,
+        getSettings: () => settings,
+        saveSettings: vi.fn().mockResolvedValue(undefined),
+        sidecarRepository: repository,
+        getView: async () => null,
+      });
+
+      await coordinator.run({ endpoint, credentials, scope, owner: activeOwner });
+
+      // The flush attempt failed (503), so the pending record is still
+      // authoritative: the pulled remote "unstarred" value must not win.
+      expect(settings.feeds[0].items[0].starred).toBe(true);
+      const sidecar = JSON.parse(store.files.get("sidecar.json") ?? "") as FreshRssSidecarFile;
+      expect(sidecar.pendingFacetMutations).toHaveLength(1);
+    });
+
+    it("clears local starred state on remote absence only once the starred-stream enumeration is complete", async () => {
+      const boundFeed = (): Feed => ({
+        feedId: "local-1",
+        title: "Feed One",
+        url: "https://example.test/feed.xml",
+        folder: "Tech",
+        items: [{ title: "t", link: "x", description: "", pubDate: "", guid: "item-1", feedTitle: "Feed One", feedUrl: "x", coverImage: "", starred: true }],
+        lastUpdated: 0,
+      });
+      const seedSidecar = async (repository: FreshRssSidecarRepository) => {
+        await repository.activate(scope);
+        await repository.write({
+          version: 2,
+          scope,
+          pendingFacetMutations: [],
+          feedBindings: [{ feedId: "local-1", remoteSubscriptionId: "feed/1" }],
+          articleBindings: [{ feedId: "local-1", guid: "item-1", remoteArticleId: "item-1" }],
+          checkpoints: [],
+        });
+      };
+
+      // Capped/repeated-cursor enumeration: must not clear local state.
+      {
+        const httpClient = createHttpClient((request) => {
+          if (request.url.includes("/accounts/ClientLogin")) return loginResponse();
+          if (request.url.includes("/subscription/list")) return jsonResponse({ subscriptions: [] });
+          if (request.url.includes("/tag/list")) return jsonResponse({ tags: [] });
+          if (request.url.includes("/stream/items/ids")) {
+            return jsonResponse({ itemRefs: [], continuation: "stuck" });
+          }
+          throw new Error(`Unexpected request: ${request.url}`);
+        });
+        const { repository } = createSidecarRepository();
+        await seedSidecar(repository);
+        const settings = createSettings([boundFeed()]);
+        const coordinator = new FreshRssSyncCoordinator({
+          httpClient,
+          getSettings: () => settings,
+          saveSettings: vi.fn().mockResolvedValue(undefined),
+          sidecarRepository: repository,
+          getView: async () => null,
+        });
+
+        const outcome = await coordinator.run({ endpoint, credentials, scope, owner: activeOwner });
+        expect(outcome).toMatchObject({ outcome: "synced", partial: true });
+        expect(settings.feeds[0].items[0].starred).toBe(true);
+      }
+
+      // Fully-enumerated absence: local state is cleared.
+      {
+        const httpClient = createHttpClient((request) => {
+          if (request.url.includes("/accounts/ClientLogin")) return loginResponse();
+          if (request.url.includes("/subscription/list")) return jsonResponse({ subscriptions: [] });
+          if (request.url.includes("/tag/list")) return jsonResponse({ tags: [] });
+          if (request.url.includes("/stream/items/ids")) {
+            return jsonResponse({ itemRefs: [] });
+          }
+          throw new Error(`Unexpected request: ${request.url}`);
+        });
+        const { repository } = createSidecarRepository();
+        await seedSidecar(repository);
+        const settings = createSettings([boundFeed()]);
+        const coordinator = new FreshRssSyncCoordinator({
+          httpClient,
+          getSettings: () => settings,
+          saveSettings: vi.fn().mockResolvedValue(undefined),
+          sidecarRepository: repository,
+          getView: async () => null,
+        });
+
+        const outcome = await coordinator.run({ endpoint, credentials, scope, owner: activeOwner });
+        expect(outcome).toMatchObject({ outcome: "synced", partial: false });
+        expect(settings.feeds[0].items[0].starred).toBe(false);
+      }
+    });
+  });
+
+  describe("combined read and starred pending mutations", () => {
+    it("flushes both a pending read and a pending starred mutation for different articles using one shared fresh modification token", async () => {
+      let tokenRequests = 0;
+      const editTagRequests: string[] = [];
+      const httpClient = createHttpClient((request) => {
+        if (request.url.includes("/accounts/ClientLogin")) return loginResponse();
+        if (request.url.includes("/reader/api/0/token")) {
+          tokenRequests += 1;
+          return { status: 200, text: "shared-token" };
+        }
+        if (request.url.includes("/edit-tag")) {
+          expect(request.body).toContain("T=shared-token");
+          editTagRequests.push(request.body ?? "");
+          return { status: 200, text: "OK" };
+        }
+        if (request.url.includes("/subscription/list")) return jsonResponse({ subscriptions: [] });
+        if (request.url.includes("/tag/list")) return jsonResponse({ tags: [] });
+        throw new Error(`Unexpected request: ${request.url}`);
+      });
+      const { repository, store } = createSidecarRepository();
+      await repository.activate(scope);
+      await repository.write({
+        version: 2,
+        scope,
+        pendingFacetMutations: [
+          {
+            operationId: "op-read",
+            remoteArticleId: "item-read",
+            facet: "read",
+            desiredState: true,
+            createdAtMs: 1000,
+            lastAttemptAtMs: null,
+            attemptCount: 0,
+            error: null,
+          },
+          {
+            operationId: "op-starred",
+            remoteArticleId: "item-starred",
+            facet: "starred",
+            desiredState: true,
+            createdAtMs: 1000,
+            lastAttemptAtMs: null,
+            attemptCount: 0,
+            error: null,
+          },
+        ],
+        feedBindings: [],
+        articleBindings: [],
+        checkpoints: [],
+      });
+      const settings = createSettings([]);
+
+      const coordinator = new FreshRssSyncCoordinator({
+        httpClient,
+        getSettings: () => settings,
+        saveSettings: vi.fn().mockResolvedValue(undefined),
+        sidecarRepository: repository,
+        getView: async () => null,
+      });
+
+      const outcome = await coordinator.run({ endpoint, credentials, scope, owner: activeOwner });
+
+      expect(outcome).toMatchObject({ outcome: "synced", partial: false });
+      // One fresh modification token covers the whole flush phase, not one
+      // per facet.
+      expect(tokenRequests).toBe(1);
+      expect(editTagRequests.some((body) => body.includes("i=item-read") && body.includes("a=user%2F-%2Fstate%2Fcom.google%2Fread"))).toBe(true);
+      expect(editTagRequests.some((body) => body.includes("i=item-starred") && body.includes("a=user%2F-%2Fstate%2Fcom.google%2Fstarred"))).toBe(true);
+      const sidecar = JSON.parse(store.files.get("sidecar.json") ?? "") as FreshRssSidecarFile;
+      expect(sidecar.pendingFacetMutations).toEqual([]);
     });
   });
 });

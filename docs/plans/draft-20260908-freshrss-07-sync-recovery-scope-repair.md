@@ -7,7 +7,7 @@ owner: unassigned
 workstream: freshrss-portable-state-client
 sequence: 7
 depends_on:
-  - draft-20260908-freshrss-05-starred-state-sync.md
+  - ../archive/plans/unreleased/draft-20260908-freshrss-05-starred-state-sync.md
   - draft-20260908-freshrss-06-mapped-label-sync.md
 release_requirement: ""
 implementation: ""

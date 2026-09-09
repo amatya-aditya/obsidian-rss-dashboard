@@ -120,6 +120,83 @@ describe("FreshRSS sidecar repository", () => {
     expect(store.files.get(quarantinePath)).toBe(incompleteState);
   });
 
+  it("round-trips a pending starred-facet mutation alongside a pending read-facet mutation", async () => {
+    const store = createStore();
+    const repository = new FreshRssSidecarRepository(store, {
+      sidecarPath,
+      createQuarantinePath: () => quarantinePath,
+    });
+    await repository.activate(scope);
+    const state = await repository.read(scope);
+    expect(state).not.toBeNull();
+
+    await repository.write({
+      ...state!,
+      pendingFacetMutations: [
+        {
+          operationId: "op-read",
+          remoteArticleId: "article-1",
+          facet: "read",
+          desiredState: true,
+          createdAtMs: 1000,
+          lastAttemptAtMs: null,
+          attemptCount: 0,
+          error: null,
+        },
+        {
+          operationId: "op-starred",
+          remoteArticleId: "article-1",
+          facet: "starred",
+          desiredState: true,
+          createdAtMs: 1000,
+          lastAttemptAtMs: null,
+          attemptCount: 0,
+          error: null,
+        },
+      ],
+    });
+
+    const roundTripped = await repository.read(scope);
+    expect(roundTripped?.pendingFacetMutations).toHaveLength(2);
+    expect(roundTripped?.pendingFacetMutations.map((m) => m.facet).sort()).toEqual([
+      "read",
+      "starred",
+    ]);
+  });
+
+  it("quarantines a pending mutation with an unknown facet instead of activating it", async () => {
+    const unknownFacetState = JSON.stringify({
+      version: 2,
+      scope,
+      pendingFacetMutations: [
+        {
+          operationId: "op-1",
+          remoteArticleId: "article-1",
+          facet: "label:tech",
+          desiredState: true,
+          createdAtMs: 1000,
+          lastAttemptAtMs: null,
+          attemptCount: 0,
+          error: null,
+        },
+      ],
+      feedBindings: [],
+      articleBindings: [],
+      checkpoints: [],
+    });
+    const store = createStore({ [sidecarPath]: unknownFacetState });
+    const repository = new FreshRssSidecarRepository(store, {
+      sidecarPath,
+      createQuarantinePath: () => quarantinePath,
+    });
+
+    await expect(repository.activate(scope)).resolves.toEqual({
+      outcome: "sidecar-invalid",
+    });
+    expect(store.files.get(sidecarPath)).toBe(unknownFacetState);
+    expect(store.files.get(quarantinePath)).toBe(unknownFacetState);
+  });
+
   it("quarantines a v1 sidecar (no bindings/checkpoints) instead of silently activating it", async () => {
     const v1State = JSON.stringify({
       version: 1,

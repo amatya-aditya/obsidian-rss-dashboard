@@ -488,12 +488,8 @@ export class RssDashboardView extends ItemView {
    */
   public async actionToggleStarStatus(): Promise<void> {
     if (this.selectedArticle) {
-      this.selectedArticle.starred = !this.selectedArticle.starred;
-      await this.handleArticleUpdate(
-        this.selectedArticle,
-        { starred: this.selectedArticle.starred },
-        false,
-      );
+      const desiredStarred = !this.selectedArticle.starred;
+      await this.handleArticleUpdate(this.selectedArticle, { starred: desiredStarred }, false);
     }
   }
 
@@ -2919,9 +2915,9 @@ export class RssDashboardView extends ItemView {
 
     if (!originalArticle) return;
 
-    // Route the read facet through the single FreshRSS-aware mutation
-    // boundary before applying anything else. On failure, nothing from this
-    // update is applied and the user sees an actionable error.
+    // Route the read and starred facets through the single FreshRSS-aware
+    // mutation boundary before applying anything else. On failure, nothing
+    // from this update is applied and the user sees an actionable error.
     if (normalizedUpdates.read !== undefined) {
       const result = await this.plugin.commitArticleReadState([
         {
@@ -2939,9 +2935,27 @@ export class RssDashboardView extends ItemView {
       // separate display-copy `article` object to match.
       article.read = originalArticle.read;
     }
+    if (normalizedUpdates.starred !== undefined) {
+      const result = await this.plugin.commitArticleStarredState([
+        {
+          articleGuid: originalArticle.guid,
+          feedUrl: feed.url,
+          desiredStarred: normalizedUpdates.starred,
+        },
+      ]);
+      if (!result.committed) {
+        new Notice(result.error ?? "Couldn't save the star/unstar change.");
+        return;
+      }
+      // commitArticleStarredState already mutated originalArticle (same
+      // reference as settings.feeds[...].items[...]) by reference; sync the
+      // separate display-copy `article` object to match.
+      article.starred = originalArticle.starred;
+    }
 
-    const { read: _read, ...restUpdates } = normalizedUpdates;
+    const { read: _read, starred: _starred, ...restUpdates } = normalizedUpdates;
     void _read;
+    void _starred;
 
     if (Object.keys(restUpdates).length > 0) {
       Object.assign(originalArticle, restUpdates);

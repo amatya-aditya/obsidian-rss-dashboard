@@ -50,6 +50,7 @@ records the documentation classification.
 | [Connect FreshRSS securely and establish a scoped sidecar](plans/unreleased/draft-20260908-freshrss-02-secure-connection-scoped-sidecar.md) | 2026-09-08 | - | - |
 | [Import FreshRSS subscriptions and recent articles manually](plans/unreleased/draft-20260908-freshrss-03-manual-subscription-article-import.md) | 2026-09-09 | - | - |
 | [Synchronize read state offline-first](plans/unreleased/draft-20260908-freshrss-04-offline-first-read-sync.md) | 2026-09-09 | - | - |
+| [Synchronize starred state](plans/unreleased/draft-20260908-freshrss-05-starred-state-sync.md) | 2026-09-09 | - | - |
 
 ## Unshipped plans
 

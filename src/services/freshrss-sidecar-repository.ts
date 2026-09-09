@@ -1,5 +1,10 @@
 import type { FreshRssConnectionScope } from "./freshrss-connection-service";
-import type { FreshRssPendingFacetMutation } from "./freshrss-facet-mutations";
+import type {
+  FreshRssPendingFacetMutation,
+  FreshRssSynchronizableFacet,
+} from "./freshrss-facet-mutations";
+
+const SYNCHRONIZABLE_FACETS: readonly FreshRssSynchronizableFacet[] = ["read", "starred"];
 
 const FRESHRSS_SIDECAR_VERSION = 2;
 
@@ -75,7 +80,8 @@ function isPendingFacetMutation(
     Boolean(value.operationId) &&
     typeof value.remoteArticleId === "string" &&
     Boolean(value.remoteArticleId) &&
-    value.facet === "read" &&
+    typeof value.facet === "string" &&
+    (SYNCHRONIZABLE_FACETS as readonly string[]).includes(value.facet) &&
     typeof value.desiredState === "boolean" &&
     typeof value.createdAtMs === "number" &&
     Number.isFinite(value.createdAtMs) &&

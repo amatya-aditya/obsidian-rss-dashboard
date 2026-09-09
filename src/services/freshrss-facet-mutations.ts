@@ -2,20 +2,21 @@
  * Pure capture/coalescing logic for FreshRSS pending facet mutations.
  *
  * A pending facet mutation records a user's absolute desired state for one
- * synchronizable article facet (currently only `read`) on one opaque remote
+ * synchronizable article facet (`read` or `starred`) on one opaque remote
  * article. The sidecar keeps at most one current record per
  * (remoteArticleId, facet) pair: a newer local decision replaces the prior
  * record with a new operation ID rather than appending toggle history, and an
  * acknowledgment only removes a record when its operation ID still matches
  * the record currently on disk (so a delayed/stale acknowledgment for a
- * superseded operation can never discard a newer choice).
+ * superseded operation can never discard a newer choice). Records for
+ * different facets of the same article are entirely independent.
  *
  * Kept dependency-free and side-effect-free so it can be unit tested directly
  * and reused by both the local mutation-capture boundary (main.ts) and the
  * sync coordinator's flush/acknowledgment phase.
  */
 
-export type FreshRssSynchronizableFacet = "read";
+export type FreshRssSynchronizableFacet = "read" | "starred";
 
 export interface FreshRssMutationError {
   category: "auth-rejected" | "terminal" | "unavailable";

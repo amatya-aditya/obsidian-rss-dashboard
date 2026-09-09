@@ -1,14 +1,8 @@
 ---
-status: accepted
-created: 2026-09-08
+status: implemented
+completed: 2026-09-09
+released_in: unreleased
 issue: ""
-milestone: ""
-owner: unassigned
-workstream: freshrss-portable-state-client
-sequence: 5
-depends_on:
-  - ../archive/plans/unreleased/draft-20260908-freshrss-04-offline-first-read-sync.md
-release_requirement: ""
 implementation: ""
 ---
 
