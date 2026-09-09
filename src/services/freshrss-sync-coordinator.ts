@@ -1,4 +1,4 @@
-import type { Feed, FeedItem, RssDashboardSettings } from "../types/types";
+import type { Feed, FeedItem, RssDashboardSettings, Tag } from "../types/types";
 import { mergeFeedHistoryItems, applyFeedRetentionLimits } from "./feed-parser";
 import { normalizeUrlForComparison } from "../utils/url-utils";
 import type { DataSyncLeaseOwner } from "./data-sync-lease";
@@ -18,34 +18,84 @@ import {
   FreshRssSidecarRepository,
   type FreshRssArticleBinding,
   type FreshRssFeedBinding,
+  type FreshRssLabelMapping,
   type FreshRssSidecarFile,
   type FreshRssSyncCheckpoint,
 } from "./freshrss-sidecar-repository";
 import {
+  applyLabelMembership,
+  buildLabelMappings,
+  isSynchronizableFacet,
+  labelNameFromFacet,
+  makeLabelFacet,
   markMutationAttemptFailed,
   removeAcknowledgedMutation,
   type FreshRssPendingFacetMutation,
   type FreshRssSynchronizableFacet,
 } from "./freshrss-facet-mutations";
 
-/** Every article facet the sync coordinator flushes and reconciles. */
-const SYNCHRONIZABLE_FACETS: readonly FreshRssSynchronizableFacet[] = [
-  "read",
-  "starred",
-];
+/** The two fixed system-stream facets, always flushed and reconciled. */
+const SYSTEM_FACETS: readonly ("read" | "starred")[] = ["read", "starred"];
 
-/** The Google-Reader-API system stream backing one synchronizable facet. */
-function facetStreamId(facet: FreshRssSynchronizableFacet): string {
-  return facet === "read" ? FRESHRSS_READ_STREAM_ID : FRESHRSS_STARRED_STREAM_ID;
+/**
+ * The complete set of article facets this cycle flushes and reconciles: the
+ * two fixed system-stream facets plus one dynamic `label:<normalized name>`
+ * facet per currently known FreshRSS label mapping.
+ */
+function synchronizableFacetsFor(
+  labelMappings: readonly FreshRssLabelMapping[],
+): FreshRssSynchronizableFacet[] {
+  return [...SYSTEM_FACETS, ...labelMappings.map((m) => makeLabelFacet(m.normalizedName))];
 }
 
-/** Applies a facet's desired boolean state to the matching FeedItem field. */
+/**
+ * The Google-Reader-API stream/tag ID backing one synchronizable facet.
+ * Returns null for a label facet whose mapping is not currently known (e.g.
+ * a pending mutation recorded before the label was ever discovered, or for a
+ * label whose remote mapping later disappeared): such a facet cannot be
+ * dispatched or pulled this cycle and is left untouched rather than guessed.
+ */
+function facetStreamId(
+  facet: FreshRssSynchronizableFacet,
+  labelMappings: readonly FreshRssLabelMapping[],
+): string | null {
+  if (facet === "read") return FRESHRSS_READ_STREAM_ID;
+  if (facet === "starred") return FRESHRSS_STARRED_STREAM_ID;
+  const normalizedName = labelNameFromFacet(facet);
+  return labelMappings.find((m) => m.normalizedName === normalizedName)?.remoteTagId ?? null;
+}
+
+/**
+ * Applies a facet's desired boolean state to an article. `read`/`starred`
+ * set the matching scalar `FeedItem` field directly; a mapped-label facet
+ * instead adds or removes a matching local tag by normalized name, matching
+ * `applyLabelMembership`'s guarantee that an existing local tag's chosen
+ * display spelling and color are never overwritten by remote membership.
+ */
 function setFacetOnItem(
   item: FeedItem,
   facet: FreshRssSynchronizableFacet,
   value: boolean,
+  labelMappings: readonly FreshRssLabelMapping[],
+  availableTags: readonly Tag[],
 ): void {
-  item[facet] = value;
+  if (facet === "read" || facet === "starred") {
+    item[facet] = value;
+    return;
+  }
+  const normalizedName = labelNameFromFacet(facet);
+  const mapping = labelMappings.find((m) => m.normalizedName === normalizedName);
+  item.tags = applyLabelMembership(item.tags, normalizedName, value, {
+    availableTags,
+    remoteDisplayName: mapping?.displayName ?? normalizedName,
+  });
+}
+
+/** A user-facing rejection message for one synchronizable facet's terminal error. */
+function facetRejectionMessage(facet: FreshRssSynchronizableFacet): string {
+  if (facet === "read") return "FreshRSS rejected this read/unread change.";
+  if (facet === "starred") return "FreshRSS rejected this star/unstar change.";
+  return "FreshRSS rejected this tag change.";
 }
 
 /** Bounded per-subscription page size for a manual sync cycle. */
@@ -192,26 +242,34 @@ export class FreshRssSyncCoordinator {
     const checkpoints: FreshRssSyncCheckpoint[] = sidecarState.checkpoints.map((c) => ({ ...c }));
     let pendingFacetMutations: FreshRssPendingFacetMutation[] =
       sidecarState.pendingFacetMutations.map((m) => ({ ...m }));
+    // The label mappings known BEFORE this cycle's own tag discovery runs.
+    // Overlay and flush deliberately use this persisted snapshot (not a
+    // freshly-discovered one) per the ordered cycle: pending mutations flush
+    // before subscription/tag lists are even read, so a label facet can only
+    // be dispatched once its mapping has survived at least one prior
+    // discovery. It is replaced with a freshly rebuilt list below, right
+    // after tag discovery, for the remote pull/reconcile phase and for what
+    // gets persisted at the end of this cycle.
+    let labelMappings: FreshRssLabelMapping[] = sidecarState.labelMappings.map((m) => ({ ...m }));
 
     let partial = false;
 
     // Pending desired state remains authoritative in memory and on reload
     // until FreshRSS acknowledges the operation, so overlay it onto whatever
     // was hydrated from local storage before anything else runs.
-    this.overlayPendingFacetState(feeds, articleBindings, pendingFacetMutations);
+    this.overlayPendingFacetState(feeds, articleBindings, pendingFacetMutations, labelMappings, settings.availableTags);
 
-    // Flush every pending facet mutation (read and starred) before pulling
-    // any remote state. A fresh modification token is fetched immediately
-    // before dispatch; it is never reused from the earlier connection test or
-    // a previous cycle.
-    const anyPendingExists = pendingFacetMutations.some((m) =>
-      SYNCHRONIZABLE_FACETS.includes(m.facet),
-    );
+    // Flush every pending facet mutation (read, starred, and any known mapped
+    // label) before pulling any remote state. A fresh modification token is
+    // fetched immediately before dispatch; it is never reused from the
+    // earlier connection test or a previous cycle.
+    const anyPendingExists = pendingFacetMutations.some((m) => isSynchronizableFacet(m.facet));
     if (anyPendingExists) {
       const flushResult = await this.flushPendingFacetMutations(
         client,
         pendingFacetMutations,
-        { ...sidecarState, feedBindings, articleBindings, checkpoints },
+        { ...sidecarState, feedBindings, articleBindings, checkpoints, labelMappings },
+        labelMappings,
         owner,
       );
       pendingFacetMutations = flushResult.pendingFacetMutations;
@@ -235,6 +293,13 @@ export class FreshRssSyncCoordinator {
       return mapFatalOutcome(tagLabelsResult.outcome);
     }
     owner.throwIfInactive();
+
+    // Rebuild the known label mappings from this cycle's tag discovery. Read
+    // and starred system streams and FreshRSS category/folder entries are
+    // never exposed as dashboard label tags; a mapping-name collision between
+    // two distinct remote labels excludes both from the rebuilt list rather
+    // than guessing which one owns the name.
+    labelMappings = buildLabelMappings(tagLabelsResult.data).mappings;
 
     let createdFeedCount = 0;
     let linkedFeedCount = 0;
@@ -336,17 +401,20 @@ export class FreshRssSyncCoordinator {
 
     owner.throwIfInactive();
 
-    // Pull remote facet state (read, then starred) and reconcile it locally.
-    // Only fully-enumerated streams may clear/change local state on absence;
-    // a capped or interrupted enumeration leaves prior state untouched. A
-    // still-pending local facet is never overridden by a pulled value.
+    // Pull remote facet state (read, starred, then each known mapped label)
+    // and reconcile it locally. Only fully-enumerated streams may
+    // clear/change local state on absence; a capped or interrupted
+    // enumeration leaves prior state untouched. A still-pending local facet
+    // is never overridden by a pulled value.
     if (articleBindings.length > 0) {
-      for (const facet of SYNCHRONIZABLE_FACETS) {
-        const streamResult = await this.enumerateBoundedItemIds(
-          client,
-          facetStreamId(facet),
-          owner,
-        );
+      for (const facet of synchronizableFacetsFor(labelMappings)) {
+        const streamId = facetStreamId(facet, labelMappings);
+        if (streamId === null) {
+          // A label facet whose mapping isn't (or is no longer) known can't
+          // be pulled this cycle; leave existing local membership untouched.
+          continue;
+        }
+        const streamResult = await this.enumerateBoundedItemIds(client, streamId, owner);
         if (streamResult.outcome === "auth-rejected") {
           return { outcome: "credentials-rejected" };
         }
@@ -360,6 +428,8 @@ export class FreshRssSyncCoordinator {
             pendingFacetMutations,
             streamResult.itemIds,
             facet,
+            labelMappings,
+            settings.availableTags,
           );
         }
         owner.throwIfInactive();
@@ -376,6 +446,7 @@ export class FreshRssSyncCoordinator {
       feedBindings,
       articleBindings,
       checkpoints,
+      labelMappings,
     });
 
     await refreshViewOnce(this.deps.getView);
@@ -401,11 +472,13 @@ export class FreshRssSyncCoordinator {
     feeds: Feed[],
     articleBindings: FreshRssArticleBinding[],
     pendingFacetMutations: FreshRssPendingFacetMutation[],
+    labelMappings: readonly FreshRssLabelMapping[],
+    availableTags: readonly Tag[],
   ): void {
     if (pendingFacetMutations.length === 0) return;
     const pendingByRemoteId = new Map<string, FreshRssPendingFacetMutation[]>();
     for (const mutation of pendingFacetMutations) {
-      if (!SYNCHRONIZABLE_FACETS.includes(mutation.facet)) continue;
+      if (!isSynchronizableFacet(mutation.facet)) continue;
       const existing = pendingByRemoteId.get(mutation.remoteArticleId);
       if (existing) {
         existing.push(mutation);
@@ -422,7 +495,7 @@ export class FreshRssSyncCoordinator {
       const item = feed?.items.find((candidate) => candidate.guid === binding.guid);
       if (!item) continue;
       for (const pending of pendingForArticle) {
-        setFacetOnItem(item, pending.facet, pending.desiredState);
+        setFacetOnItem(item, pending.facet, pending.desiredState, labelMappings, availableTags);
       }
     }
   }
@@ -442,6 +515,7 @@ export class FreshRssSyncCoordinator {
     client: FreshRssSyncClient,
     initialPending: FreshRssPendingFacetMutation[],
     sidecarSnapshot: FreshRssSidecarFile,
+    labelMappings: readonly FreshRssLabelMapping[],
     owner: DataSyncLeaseOwner,
   ): Promise<{
     pendingFacetMutations: FreshRssPendingFacetMutation[];
@@ -449,10 +523,45 @@ export class FreshRssSyncCoordinator {
     authRejected: boolean;
   }> {
     let pending = initialPending;
-    const dispatchablePending = pending.filter((m) =>
-      SYNCHRONIZABLE_FACETS.includes(m.facet),
-    );
+    const dispatchablePending = pending.filter((m) => isSynchronizableFacet(m.facet));
     if (dispatchablePending.length === 0) {
+      return { pendingFacetMutations: pending, partial: false, authRejected: false };
+    }
+
+    // Iterate the facets actually present in this cycle's pending records
+    // (the two fixed system facets plus whichever mapped-label facets have a
+    // pending change), rather than a fixed list, since label facets are
+    // dynamic. A label facet whose mapping isn't currently known is skipped
+    // entirely -- its records stay pending, untouched, for a later cycle
+    // once the mapping is (re)discovered, rather than being attempted,
+    // marked failed, or counted as a partial-cycle failure. This is resolved
+    // BEFORE fetching a modification token, so a cycle with only
+    // not-yet-mapped label mutations makes no network request at all.
+    const facetsPresent = Array.from(new Set(dispatchablePending.map((m) => m.facet)));
+    const groups: Array<{
+      items: FreshRssPendingFacetMutation[];
+      facet: FreshRssSynchronizableFacet;
+      action: "add" | "remove";
+      streamId: string;
+    }> = [];
+    for (const facet of facetsPresent) {
+      const streamId = facetStreamId(facet, labelMappings);
+      if (streamId === null) continue;
+      const facetPending = dispatchablePending.filter((m) => m.facet === facet);
+      groups.push({
+        items: facetPending.filter((m) => m.desiredState === true),
+        facet,
+        action: "add",
+        streamId,
+      });
+      groups.push({
+        items: facetPending.filter((m) => m.desiredState === false),
+        facet,
+        action: "remove",
+        streamId,
+      });
+    }
+    if (groups.length === 0) {
       return { pendingFacetMutations: pending, partial: false, authRejected: false };
     }
 
@@ -473,32 +582,13 @@ export class FreshRssSyncCoordinator {
       });
     };
 
-    const groups: Array<{
-      items: FreshRssPendingFacetMutation[];
-      facet: FreshRssSynchronizableFacet;
-      action: "add" | "remove";
-    }> = [];
-    for (const facet of SYNCHRONIZABLE_FACETS) {
-      const facetPending = dispatchablePending.filter((m) => m.facet === facet);
-      groups.push({
-        items: facetPending.filter((m) => m.desiredState === true),
-        facet,
-        action: "add",
-      });
-      groups.push({
-        items: facetPending.filter((m) => m.desiredState === false),
-        facet,
-        action: "remove",
-      });
-    }
-
     for (const group of groups) {
       for (const batch of chunk(group.items, FRESHRSS_MUTATION_BATCH_SIZE)) {
         owner.throwIfInactive();
         const result = await client.editTag(
           batch.map((m) => m.remoteArticleId),
           group.action,
-          facetStreamId(group.facet),
+          group.streamId,
           token,
         );
         owner.throwIfInactive();
@@ -521,10 +611,6 @@ export class FreshRssSyncCoordinator {
 
         if (result.outcome === "terminal") {
           const now = this.deps.now?.() ?? Date.now();
-          const message =
-            group.facet === "read"
-              ? "FreshRSS rejected this read/unread change."
-              : "FreshRSS rejected this star/unstar change.";
           for (const mutation of batch) {
             pending = markMutationAttemptFailed(
               pending,
@@ -536,7 +622,7 @@ export class FreshRssSyncCoordinator {
               now,
               {
                 category: "terminal",
-                message,
+                message: facetRejectionMessage(group.facet),
               },
             );
           }
@@ -615,6 +701,8 @@ export class FreshRssSyncCoordinator {
     pendingFacetMutations: FreshRssPendingFacetMutation[],
     remoteFacetIds: Set<string>,
     facet: FreshRssSynchronizableFacet,
+    labelMappings: readonly FreshRssLabelMapping[],
+    availableTags: readonly Tag[],
   ): void {
     const pendingRemoteIds = new Set(
       pendingFacetMutations
@@ -629,7 +717,13 @@ export class FreshRssSyncCoordinator {
       const feed = feeds.find((f) => f.feedId === binding.feedId);
       const item = feed?.items.find((candidate) => candidate.guid === binding.guid);
       if (!item) continue;
-      setFacetOnItem(item, facet, remoteFacetIds.has(binding.remoteArticleId));
+      setFacetOnItem(
+        item,
+        facet,
+        remoteFacetIds.has(binding.remoteArticleId),
+        labelMappings,
+        availableTags,
+      );
     }
   }
 

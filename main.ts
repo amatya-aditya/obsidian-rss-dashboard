@@ -27,6 +27,7 @@ import {
   FeedIngestionCandidate,
   FeedIngestionOptions,
   FeedEncoding,
+  Tag,
 } from "./src/types/types";
 import { RssDashboardSettingTab } from "./src/settings/settings-tab";
 import {
@@ -79,6 +80,8 @@ import {
 } from "./src/services/freshrss-sync-coordinator";
 import {
   captureFacetMutation,
+  makeLabelFacet,
+  normalizeFreshRssLabelName,
   type FreshRssSynchronizableFacet,
 } from "./src/services/freshrss-facet-mutations";
 import type { FreshRssCapability } from "./src/settings/tabs/freshrss-settings-tab";
@@ -1464,6 +1467,18 @@ export default class RssDashboardPlugin extends Plugin {
         return;
       }
     }
+    if (normalizedUpdates.tags !== undefined) {
+      const result = await this.commitArticleLabelMembershipChanges(
+        originalItem.guid,
+        resolvedFeedUrl,
+        originalItem.tags,
+        normalizedUpdates.tags,
+      );
+      if (!result.committed) {
+        new Notice(result.error ?? "Couldn't save this tag change.");
+        return;
+      }
+    }
 
     const { read: _read, starred: _starred, ...restUpdates } = normalizedUpdates;
     void _read;
@@ -2538,6 +2553,125 @@ export default class RssDashboardPlugin extends Plugin {
         desiredState: change.desiredStarred,
       })),
     );
+  }
+
+  /**
+   * Captures pending FreshRSS facet mutations for every KNOWN mapped label
+   * whose membership changed between `previousTags` and `nextTags` on one
+   * article's local tags, following the same sidecar-before-commit,
+   * coalescing, and stale-acknowledgment-safe guarantees as
+   * `commitArticleFacetState`. Unlike read/starred, this method does not
+   * itself apply anything to the article: the caller still applies the
+   * `tags` update through its normal flow (e.g. assigning `restUpdates.tags`
+   * onto the stored article) -- this only durably records the remote intent
+   * for each changed KNOWN label BEFORE that local apply happens, so a
+   * sidecar write failure can be surfaced and the caller can choose not to
+   * apply the tag change rather than silently losing the user's choice.
+   *
+   * Unmapped local tag names, automatic tags (e.g. Favorite), folder-sync
+   * tags, saved tags, and any other tag with no known FreshRSS label mapping
+   * create no sidecar record and no remote call -- they stay entirely local.
+   * A local-only (non-FreshRSS-linked) article, or one whose FreshRSS
+   * capability isn't available, is completely unaffected.
+   */
+  public async commitArticleLabelMembershipChanges(
+    articleGuid: string,
+    feedUrl: string,
+    previousTags: readonly Tag[] | undefined,
+    nextTags: readonly Tag[] | undefined,
+  ): Promise<{ committed: boolean; error?: string }> {
+    if (this.getFreshRssCapability() !== "available") {
+      return { committed: true };
+    }
+
+    const feed = this.settings.feeds.find((f) => f.url === feedUrl);
+    const article = feed?.items.find((item) => item.guid === articleGuid);
+    if (!feed || !article) {
+      return { committed: true };
+    }
+
+    const sidecarRepository = this.getFreshRssSidecarRepository();
+    const scope = await sidecarRepository.readActiveScope();
+    if (!scope) {
+      return { committed: true };
+    }
+    const sidecarState = await sidecarRepository.read(scope);
+    if (!sidecarState) {
+      return { committed: true };
+    }
+
+    const binding = sidecarState.articleBindings.find(
+      (b) => b.feedId === feed.feedId && b.guid === article.guid,
+    );
+    if (!binding) {
+      // Local-only (not FreshRSS-linked) article: unaffected.
+      return { committed: true };
+    }
+
+    const knownNormalizedNames = new Set(
+      sidecarState.labelMappings.map((mapping) => mapping.normalizedName),
+    );
+    if (knownNormalizedNames.size === 0) {
+      return { committed: true };
+    }
+
+    const previousNames = new Set(
+      (previousTags ?? []).map((tag) => normalizeFreshRssLabelName(tag.name)),
+    );
+    const nextNames = new Set(
+      (nextTags ?? []).map((tag) => normalizeFreshRssLabelName(tag.name)),
+    );
+
+    const changes: Array<{ normalizedName: string; desiredState: boolean }> = [];
+    for (const name of nextNames) {
+      if (knownNormalizedNames.has(name) && !previousNames.has(name)) {
+        changes.push({ normalizedName: name, desiredState: true });
+      }
+    }
+    for (const name of previousNames) {
+      if (knownNormalizedNames.has(name) && !nextNames.has(name)) {
+        changes.push({ normalizedName: name, desiredState: false });
+      }
+    }
+    if (changes.length === 0) {
+      return { committed: true };
+    }
+
+    try {
+      await this.runWithDataSyncLease(async (owner) => {
+        owner.throwIfInactive();
+        let pending = sidecarState.pendingFacetMutations;
+        const nowMs = Date.now();
+        for (const change of changes) {
+          pending = captureFacetMutation(pending, {
+            remoteArticleId: binding.remoteArticleId,
+            facet: makeLabelFacet(change.normalizedName),
+            desiredState: change.desiredState,
+            nowMs,
+          });
+        }
+        owner.throwIfInactive();
+        await sidecarRepository.write({
+          ...sidecarState,
+          scope,
+          pendingFacetMutations: pending,
+        });
+      });
+    } catch (error) {
+      if (isDataSyncLeaseCancelledError(error)) {
+        return {
+          committed: false,
+          error: "FreshRSS sync is busy right now. Try again in a moment.",
+        };
+      }
+      return {
+        committed: false,
+        error:
+          "Couldn't save this tag change for FreshRSS syncing. The change was not applied. Please try again.",
+      };
+    }
+
+    return { committed: true };
   }
 
   private getFreshRssSecretStorage(): FreshRssSecretStorage | null {

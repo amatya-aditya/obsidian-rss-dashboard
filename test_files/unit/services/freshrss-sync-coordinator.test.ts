@@ -1119,4 +1119,412 @@ describe("FreshRssSyncCoordinator", () => {
       expect(sidecar.pendingFacetMutations).toEqual([]);
     });
   });
+
+  describe("mapped FreshRSS label sync (ticket 06)", () => {
+    const techLabelId = "user/-/label/Tech";
+
+    function boundFeed(overrides: Partial<{ tags: Array<{ name: string; color: string }> }> = {}): Feed {
+      return {
+        feedId: "local-1",
+        title: "Feed One",
+        url: "https://example.test/feed.xml",
+        folder: "Tech",
+        items: [
+          {
+            title: "t",
+            link: "x",
+            description: "",
+            pubDate: "",
+            guid: "item-1",
+            feedTitle: "Feed One",
+            feedUrl: "x",
+            coverImage: "",
+            tags: overrides.tags ?? [],
+          },
+        ],
+        lastUpdated: 0,
+      };
+    }
+
+    it("discovers a label mapping from tag/list, keyed by normalized name, and persists it -- excluding system streams and folder entries", async () => {
+      const httpClient = createHttpClient((request) => {
+        if (request.url.includes("/accounts/ClientLogin")) return loginResponse();
+        if (request.url.includes("/subscription/list")) return jsonResponse({ subscriptions: [] });
+        if (request.url.includes("/tag/list")) {
+          return jsonResponse({
+            tags: [
+              { id: techLabelId, label: " Tech " },
+              { id: "user/-/state/com.google/read" },
+              { id: "user/-/state/com.google/starred" },
+              { id: "user/-/label/Archive", label: "Archive", type: "folder" },
+            ],
+          });
+        }
+        throw new Error(`Unexpected request: ${request.url}`);
+      });
+      const { repository, store } = createSidecarRepository();
+      await repository.activate(scope);
+      const settings = createSettings([]);
+
+      const coordinator = new FreshRssSyncCoordinator({
+        httpClient,
+        getSettings: () => settings,
+        saveSettings: vi.fn().mockResolvedValue(undefined),
+        sidecarRepository: repository,
+        getView: async () => null,
+      });
+
+      const outcome = await coordinator.run({ endpoint, credentials, scope, owner: activeOwner });
+      expect(outcome).toMatchObject({ outcome: "synced" });
+
+      const sidecar = JSON.parse(store.files.get("sidecar.json") ?? "") as FreshRssSidecarFile;
+      expect(sidecar.labelMappings).toEqual([
+        { normalizedName: "tech", remoteTagId: techLabelId, kind: "label", displayName: " Tech " },
+      ]);
+    });
+
+    it("adds a local tag when the fully-enumerated label stream includes the bound article", async () => {
+      const httpClient = createHttpClient((request) => {
+        if (request.url.includes("/accounts/ClientLogin")) return loginResponse();
+        if (request.url.includes("/subscription/list")) return jsonResponse({ subscriptions: [] });
+        if (request.url.includes("/tag/list")) return jsonResponse({ tags: [{ id: techLabelId, label: "Tech" }] });
+        if (request.url.includes("/stream/items/ids")) {
+          // Only the Tech label stream reports item-1 as a member; the
+          // read/starred system streams (also enumerated this cycle) report
+          // it absent.
+          if (request.url.includes(`s=${encodeURIComponent(techLabelId)}`)) {
+            return jsonResponse({ itemRefs: [{ id: "item-1" }] });
+          }
+          return jsonResponse({ itemRefs: [] });
+        }
+        throw new Error(`Unexpected request: ${request.url}`);
+      });
+      const { repository } = createSidecarRepository();
+      await repository.activate(scope);
+      await repository.write({
+        version: 2,
+        scope,
+        pendingFacetMutations: [],
+        feedBindings: [{ feedId: "local-1", remoteSubscriptionId: "feed/1" }],
+        articleBindings: [{ feedId: "local-1", guid: "item-1", remoteArticleId: "item-1" }],
+        checkpoints: [],
+        labelMappings: [],
+      });
+      const settings = createSettings([boundFeed()]);
+
+      const coordinator = new FreshRssSyncCoordinator({
+        httpClient,
+        getSettings: () => settings,
+        saveSettings: vi.fn().mockResolvedValue(undefined),
+        sidecarRepository: repository,
+        getView: async () => null,
+      });
+
+      const outcome = await coordinator.run({ endpoint, credentials, scope, owner: activeOwner });
+      expect(outcome).toMatchObject({ outcome: "synced", partial: false });
+      expect(settings.feeds[0].items[0].tags).toEqual([
+        { name: "Tech", color: "#95a5a6" },
+      ]);
+    });
+
+    it("removes a local tag when the fully-enumerated label stream no longer includes the bound article, preserving color/spelling of unrelated tags", async () => {
+      const httpClient = createHttpClient((request) => {
+        if (request.url.includes("/accounts/ClientLogin")) return loginResponse();
+        if (request.url.includes("/subscription/list")) return jsonResponse({ subscriptions: [] });
+        if (request.url.includes("/tag/list")) return jsonResponse({ tags: [{ id: techLabelId, label: "Tech" }] });
+        if (request.url.includes("/stream/items/ids")) return jsonResponse({ itemRefs: [] });
+        throw new Error(`Unexpected request: ${request.url}`);
+      });
+      const { repository } = createSidecarRepository();
+      await repository.activate(scope);
+      await repository.write({
+        version: 2,
+        scope,
+        pendingFacetMutations: [],
+        feedBindings: [{ feedId: "local-1", remoteSubscriptionId: "feed/1" }],
+        articleBindings: [{ feedId: "local-1", guid: "item-1", remoteArticleId: "item-1" }],
+        checkpoints: [],
+        labelMappings: [],
+      });
+      const settings = createSettings([
+        boundFeed({ tags: [{ name: "Tech", color: "#custom" }, { name: "Favorite", color: "#f1c40f" }] }),
+      ]);
+
+      const coordinator = new FreshRssSyncCoordinator({
+        httpClient,
+        getSettings: () => settings,
+        saveSettings: vi.fn().mockResolvedValue(undefined),
+        sidecarRepository: repository,
+        getView: async () => null,
+      });
+
+      const outcome = await coordinator.run({ endpoint, credentials, scope, owner: activeOwner });
+      expect(outcome).toMatchObject({ outcome: "synced", partial: false });
+      expect(settings.feeds[0].items[0].tags).toEqual([{ name: "Favorite", color: "#f1c40f" }]);
+    });
+
+    it("never overrides a still-pending local label facet with pulled remote label state", async () => {
+      const httpClient = createHttpClient((request) => {
+        if (request.url.includes("/accounts/ClientLogin")) return loginResponse();
+        if (request.url.includes("/reader/api/0/token")) return { status: 200, text: "token" };
+        if (request.url.includes("/edit-tag")) return { status: 503, text: "" };
+        if (request.url.includes("/subscription/list")) return jsonResponse({ subscriptions: [] });
+        if (request.url.includes("/tag/list")) return jsonResponse({ tags: [{ id: techLabelId, label: "Tech" }] });
+        if (request.url.includes("/stream/items/ids")) {
+          // Remote says item-1 is NOT (yet) a member of the Tech label.
+          return jsonResponse({ itemRefs: [] });
+        }
+        throw new Error(`Unexpected request: ${request.url}`);
+      });
+      const { repository, store } = createSidecarRepository();
+      await repository.activate(scope);
+      await repository.write({
+        version: 2,
+        scope,
+        pendingFacetMutations: [
+          {
+            operationId: "op-1",
+            remoteArticleId: "item-1",
+            facet: "label:tech",
+            desiredState: true,
+            createdAtMs: 1000,
+            lastAttemptAtMs: null,
+            attemptCount: 0,
+            error: null,
+          },
+        ],
+        feedBindings: [{ feedId: "local-1", remoteSubscriptionId: "feed/1" }],
+        articleBindings: [{ feedId: "local-1", guid: "item-1", remoteArticleId: "item-1" }],
+        checkpoints: [],
+        // The mapping is already known from a prior cycle so this cycle's
+        // flush can actually attempt (and fail) to dispatch it.
+        labelMappings: [
+          { normalizedName: "tech", remoteTagId: techLabelId, kind: "label", displayName: "Tech" },
+        ],
+      });
+      const settings = createSettings([boundFeed()]);
+
+      const coordinator = new FreshRssSyncCoordinator({
+        httpClient,
+        getSettings: () => settings,
+        saveSettings: vi.fn().mockResolvedValue(undefined),
+        sidecarRepository: repository,
+        getView: async () => null,
+      });
+
+      await coordinator.run({ endpoint, credentials, scope, owner: activeOwner });
+
+      // The flush attempt failed (503), so the pending record is still
+      // authoritative: the pulled remote "not a member" value must not win.
+      expect(settings.feeds[0].items[0].tags).toEqual([{ name: "Tech", color: "#95a5a6" }]);
+      const sidecar = JSON.parse(store.files.get("sidecar.json") ?? "") as FreshRssSidecarFile;
+      expect(sidecar.pendingFacetMutations).toHaveLength(1);
+    });
+
+    it("overlays a pending desired mapped-label state onto hydrated local state at the start of a cycle", async () => {
+      const httpClient = createHttpClient((request) => {
+        if (request.url.includes("/accounts/ClientLogin")) return loginResponse();
+        if (request.url.includes("/reader/api/0/token")) return { status: 200, text: "token" };
+        if (request.url.includes("/edit-tag")) return { status: 503, text: "" };
+        if (request.url.includes("/subscription/list")) return jsonResponse({ subscriptions: [] });
+        if (request.url.includes("/tag/list")) return jsonResponse({ tags: [{ id: techLabelId, label: "Tech" }] });
+        if (request.url.includes("/stream/items/ids")) return jsonResponse({ itemRefs: [] });
+        throw new Error(`Unexpected request: ${request.url}`);
+      });
+      const { repository } = createSidecarRepository();
+      await repository.activate(scope);
+      // Local state was hydrated without the Tech tag (e.g. a crash before
+      // the commit's saveSettings ran), but the pending mutation says the
+      // user added it. The pending record must win immediately, before any
+      // network call.
+      await repository.write({
+        version: 2,
+        scope,
+        pendingFacetMutations: [
+          {
+            operationId: "op-1",
+            remoteArticleId: "item-1",
+            facet: "label:tech",
+            desiredState: true,
+            createdAtMs: 1000,
+            lastAttemptAtMs: null,
+            attemptCount: 0,
+            error: null,
+          },
+        ],
+        feedBindings: [{ feedId: "local-1", remoteSubscriptionId: "feed/1" }],
+        articleBindings: [{ feedId: "local-1", guid: "item-1", remoteArticleId: "item-1" }],
+        checkpoints: [],
+        labelMappings: [
+          { normalizedName: "tech", remoteTagId: techLabelId, kind: "label", displayName: "Tech" },
+        ],
+      });
+      const settings = createSettings([boundFeed()]);
+      const coordinator = new FreshRssSyncCoordinator({
+        httpClient,
+        getSettings: () => settings,
+        saveSettings: vi.fn().mockResolvedValue(undefined),
+        sidecarRepository: repository,
+        getView: async () => null,
+      });
+
+      await coordinator.run({ endpoint, credentials, scope, owner: activeOwner });
+
+      expect(settings.feeds[0].items[0].tags).toEqual([{ name: "Tech", color: "#95a5a6" }]);
+    });
+
+    it("dispatches a pending label mutation against the label's exact remote tag reference, removing it on an exact OK acknowledgment", async () => {
+      const httpClient = createHttpClient((request) => {
+        if (request.url.includes("/accounts/ClientLogin")) return loginResponse();
+        if (request.url.includes("/reader/api/0/token")) return { status: 200, text: "fresh-token" };
+        if (request.url.includes("/edit-tag")) {
+          expect(request.body).toContain("T=fresh-token");
+          expect(request.body).toContain("i=item-1");
+          expect(request.body).toContain(`a=${encodeURIComponent(techLabelId)}`);
+          return { status: 200, text: "OK" };
+        }
+        if (request.url.includes("/subscription/list")) return jsonResponse({ subscriptions: [] });
+        if (request.url.includes("/tag/list")) return jsonResponse({ tags: [{ id: techLabelId, label: "Tech" }] });
+        throw new Error(`Unexpected request: ${request.url}`);
+      });
+      const { repository, store } = createSidecarRepository();
+      await repository.activate(scope);
+      await repository.write({
+        version: 2,
+        scope,
+        pendingFacetMutations: [
+          {
+            operationId: "op-1",
+            remoteArticleId: "item-1",
+            facet: "label:tech",
+            desiredState: true,
+            createdAtMs: 1000,
+            lastAttemptAtMs: null,
+            attemptCount: 0,
+            error: null,
+          },
+        ],
+        feedBindings: [],
+        articleBindings: [],
+        checkpoints: [],
+        labelMappings: [
+          { normalizedName: "tech", remoteTagId: techLabelId, kind: "label", displayName: "Tech" },
+        ],
+      });
+      const settings = createSettings([]);
+
+      const coordinator = new FreshRssSyncCoordinator({
+        httpClient,
+        getSettings: () => settings,
+        saveSettings: vi.fn().mockResolvedValue(undefined),
+        sidecarRepository: repository,
+        getView: async () => null,
+      });
+
+      const outcome = await coordinator.run({ endpoint, credentials, scope, owner: activeOwner });
+
+      expect(outcome).toMatchObject({ outcome: "synced" });
+      const sidecar = JSON.parse(store.files.get("sidecar.json") ?? "") as FreshRssSidecarFile;
+      expect(sidecar.pendingFacetMutations).toEqual([]);
+    });
+
+    it("leaves a pending label mutation undispatched (not attempted, not marked failed) when its mapping isn't known yet", async () => {
+      const httpClient = createHttpClient((request) => {
+        if (request.url.includes("/accounts/ClientLogin")) return loginResponse();
+        if (request.url.includes("/subscription/list")) return jsonResponse({ subscriptions: [] });
+        if (request.url.includes("/tag/list")) return jsonResponse({ tags: [] });
+        throw new Error(`Unexpected request: ${request.url}`);
+      });
+      const { repository, store } = createSidecarRepository();
+      await repository.activate(scope);
+      const pending = {
+        operationId: "op-1",
+        remoteArticleId: "item-1",
+        facet: "label:tech" as const,
+        desiredState: true,
+        createdAtMs: 1000,
+        lastAttemptAtMs: null,
+        attemptCount: 0,
+        error: null,
+      };
+      await repository.write({
+        version: 2,
+        scope,
+        pendingFacetMutations: [pending],
+        feedBindings: [],
+        articleBindings: [],
+        checkpoints: [],
+        labelMappings: [],
+      });
+      const settings = createSettings([]);
+
+      const coordinator = new FreshRssSyncCoordinator({
+        httpClient,
+        getSettings: () => settings,
+        saveSettings: vi.fn().mockResolvedValue(undefined),
+        sidecarRepository: repository,
+        getView: async () => null,
+      });
+
+      const outcome = await coordinator.run({ endpoint, credentials, scope, owner: activeOwner });
+
+      // No /token or /edit-tag request was made for the unmapped label.
+      expect(httpClient.requests.some((r) => r.url.includes("/edit-tag"))).toBe(false);
+      expect(outcome).toMatchObject({ outcome: "synced", partial: false });
+      const sidecar = JSON.parse(store.files.get("sidecar.json") ?? "") as FreshRssSidecarFile;
+      expect(sidecar.pendingFacetMutations).toEqual([pending]);
+      expect(sidecar.pendingFacetMutations[0].attemptCount).toBe(0);
+      expect(sidecar.pendingFacetMutations[0].error).toBeNull();
+    });
+
+    it("excludes both sides of a mapping-name collision from reconciliation, without an extra network request for either", async () => {
+      const httpClient = createHttpClient((request) => {
+        if (request.url.includes("/accounts/ClientLogin")) return loginResponse();
+        if (request.url.includes("/subscription/list")) return jsonResponse({ subscriptions: [] });
+        if (request.url.includes("/tag/list")) {
+          return jsonResponse({
+            tags: [
+              { id: "user/-/label/Tech", label: "Tech" },
+              { id: "user/-/label/tech-2", label: "tech" },
+            ],
+          });
+        }
+        // Only the fixed read/starred system streams are enumerated: with no
+        // resolvable label mapping, no stream request is made for either
+        // colliding label.
+        if (request.url.includes("/stream/items/ids")) {
+          expect(request.url).toMatch(/s=user%2F-%2Fstate%2Fcom\.google%2F(read|starred)/);
+          return jsonResponse({ itemRefs: [] });
+        }
+        throw new Error(`Unexpected request: ${request.url}`);
+      });
+      const { repository, store } = createSidecarRepository();
+      await repository.activate(scope);
+      await repository.write({
+        version: 2,
+        scope,
+        pendingFacetMutations: [],
+        feedBindings: [{ feedId: "local-1", remoteSubscriptionId: "feed/1" }],
+        articleBindings: [{ feedId: "local-1", guid: "item-1", remoteArticleId: "item-1" }],
+        checkpoints: [],
+        labelMappings: [],
+      });
+      const settings = createSettings([boundFeed()]);
+
+      const coordinator = new FreshRssSyncCoordinator({
+        httpClient,
+        getSettings: () => settings,
+        saveSettings: vi.fn().mockResolvedValue(undefined),
+        sidecarRepository: repository,
+        getView: async () => null,
+      });
+
+      const outcome = await coordinator.run({ endpoint, credentials, scope, owner: activeOwner });
+
+      expect(outcome).toMatchObject({ outcome: "synced" });
+      expect(settings.feeds[0].items[0].tags).toEqual([]);
+      const sidecar = JSON.parse(store.files.get("sidecar.json") ?? "") as FreshRssSidecarFile;
+      expect(sidecar.labelMappings).toEqual([]);
+    });
+  });
 });

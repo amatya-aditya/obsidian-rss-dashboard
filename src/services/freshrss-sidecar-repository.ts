@@ -1,10 +1,11 @@
 import type { FreshRssConnectionScope } from "./freshrss-connection-service";
-import type {
-  FreshRssPendingFacetMutation,
-  FreshRssSynchronizableFacet,
+import {
+  isSynchronizableFacet,
+  type FreshRssLabelMapping,
+  type FreshRssPendingFacetMutation,
 } from "./freshrss-facet-mutations";
 
-const SYNCHRONIZABLE_FACETS: readonly FreshRssSynchronizableFacet[] = ["read", "starred"];
+export type { FreshRssLabelMapping } from "./freshrss-facet-mutations";
 
 const FRESHRSS_SIDECAR_VERSION = 2;
 
@@ -40,6 +41,16 @@ export interface FreshRssSidecarFile {
   feedBindings: FreshRssFeedBinding[];
   articleBindings: FreshRssArticleBinding[];
   checkpoints: FreshRssSyncCheckpoint[];
+  /**
+   * Currently known FreshRSS label mappings (normalized name -> exact opaque
+   * remote tag reference + kind), rebuilt from tag discovery each successful
+   * cycle. Optional on the wire so a sidecar written before this field
+   * existed (ticket 04/05's version-2 shape) still parses and activates; a
+   * missing key loads losslessly as an empty list rather than blocking
+   * activation or bumping the schema version, matching how ticket 05 widened
+   * the facet union without a version bump.
+   */
+  labelMappings: FreshRssLabelMapping[];
 }
 
 export type FreshRssSidecarActivationResult =
@@ -80,8 +91,7 @@ function isPendingFacetMutation(
     Boolean(value.operationId) &&
     typeof value.remoteArticleId === "string" &&
     Boolean(value.remoteArticleId) &&
-    typeof value.facet === "string" &&
-    (SYNCHRONIZABLE_FACETS as readonly string[]).includes(value.facet) &&
+    isSynchronizableFacet(value.facet) &&
     typeof value.desiredState === "boolean" &&
     typeof value.createdAtMs === "number" &&
     Number.isFinite(value.createdAtMs) &&
@@ -89,6 +99,19 @@ function isPendingFacetMutation(
     typeof value.attemptCount === "number" &&
     Number.isFinite(value.attemptCount) &&
     isMutationError(value.error)
+  );
+}
+
+function isLabelMapping(value: unknown): value is FreshRssLabelMapping {
+  return (
+    isRecord(value) &&
+    typeof value.normalizedName === "string" &&
+    Boolean(value.normalizedName) &&
+    typeof value.remoteTagId === "string" &&
+    Boolean(value.remoteTagId) &&
+    typeof value.kind === "string" &&
+    Boolean(value.kind) &&
+    typeof value.displayName === "string"
   );
 }
 
@@ -127,6 +150,11 @@ function isSyncCheckpoint(value: unknown): value is FreshRssSyncCheckpoint {
 function parseSidecar(contents: string): FreshRssSidecarFile | null {
   try {
     const parsed: unknown = JSON.parse(contents);
+    // `labelMappings` is optional on the wire: a sidecar written before this
+    // field existed (ticket 04/05's version-2 shape) has no key for it at
+    // all, and that must still parse and activate losslessly as an empty
+    // list rather than being quarantined as invalid.
+    const rawLabelMappings = isRecord(parsed) ? parsed.labelMappings : undefined;
     if (
       !isRecord(parsed) ||
       parsed.version !== FRESHRSS_SIDECAR_VERSION ||
@@ -138,7 +166,9 @@ function parseSidecar(contents: string): FreshRssSidecarFile | null {
       !Array.isArray(parsed.articleBindings) ||
       !parsed.articleBindings.every(isArticleBinding) ||
       !Array.isArray(parsed.checkpoints) ||
-      !parsed.checkpoints.every(isSyncCheckpoint)
+      !parsed.checkpoints.every(isSyncCheckpoint) ||
+      !(rawLabelMappings === undefined ||
+        (Array.isArray(rawLabelMappings) && rawLabelMappings.every(isLabelMapping)))
     ) {
       return null;
     }
@@ -150,6 +180,7 @@ function parseSidecar(contents: string): FreshRssSidecarFile | null {
       feedBindings: parsed.feedBindings,
       articleBindings: parsed.articleBindings,
       checkpoints: parsed.checkpoints,
+      labelMappings: Array.isArray(rawLabelMappings) ? rawLabelMappings : [],
     };
   } catch {
     return null;
@@ -173,6 +204,7 @@ function createEmptySidecar(scope: FreshRssConnectionScope): FreshRssSidecarFile
     feedBindings: [],
     articleBindings: [],
     checkpoints: [],
+    labelMappings: [],
   };
 }
 

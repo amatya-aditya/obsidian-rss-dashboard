@@ -2952,6 +2952,18 @@ export class RssDashboardView extends ItemView {
       // separate display-copy `article` object to match.
       article.starred = originalArticle.starred;
     }
+    if (normalizedUpdates.tags !== undefined) {
+      const result = await this.plugin.commitArticleLabelMembershipChanges(
+        originalArticle.guid,
+        feed.url,
+        originalArticle.tags,
+        normalizedUpdates.tags,
+      );
+      if (!result.committed) {
+        new Notice(result.error ?? "Couldn't save this tag change.");
+        return;
+      }
+    }
 
     const { read: _read, starred: _starred, ...restUpdates } = normalizedUpdates;
     void _read;

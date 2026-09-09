@@ -118,6 +118,7 @@ async function makeView(
     settings,
     saveSettings: vi.fn(async () => {}),
     updateArticle: vi.fn(async () => {}),
+    commitArticleLabelMembershipChanges: vi.fn(async () => ({ committed: true })),
   };
   const leaf = { app } as unknown as import("obsidian").WorkspaceLeaf;
   const view = new RssDashboardView(

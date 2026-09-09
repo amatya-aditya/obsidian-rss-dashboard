@@ -96,12 +96,17 @@ describe("FreshRssSyncClient", () => {
     });
   });
 
-  it("lists tag labels keyed by opaque tag id", async () => {
+  it("lists tag labels with their opaque remote tag reference and kind", async () => {
     const httpClient = createHttpClient([
       {
         status: 200,
         text: JSON.stringify({
-          tags: [{ id: "user/-/label/Tech", label: "Tech" }],
+          tags: [
+            { id: "user/-/label/Tech", label: "Tech" },
+            { id: "user/-/state/com.google/read" },
+            { id: "user/-/state/com.google/starred" },
+            { id: "user/-/label/Archive", label: "Archive", type: "folder" },
+          ],
         }),
       },
     ]);
@@ -110,7 +115,20 @@ describe("FreshRssSyncClient", () => {
     const result = await client.listTagLabels();
     expect(result).toEqual({
       outcome: "ok",
-      data: new Map([["user/-/label/Tech", "Tech"]]),
+      data: [
+        { remoteTagId: "user/-/label/Tech", displayName: "Tech", kind: "label" },
+        {
+          remoteTagId: "user/-/state/com.google/read",
+          displayName: "user/-/state/com.google/read",
+          kind: "system",
+        },
+        {
+          remoteTagId: "user/-/state/com.google/starred",
+          displayName: "user/-/state/com.google/starred",
+          kind: "system",
+        },
+        { remoteTagId: "user/-/label/Archive", displayName: "Archive", kind: "folder" },
+      ],
     });
   });
 

@@ -46,6 +46,20 @@ export interface FreshRssItemIdsPage {
   continuation: string | null;
 }
 
+/**
+ * One remote tag/label/category entry as reported by FreshRSS tag discovery.
+ * `kind` is `"system"` for the dedicated read/starred state streams (matched
+ * by exact opaque stream ID, never inferred from label text), `"folder"`
+ * when FreshRSS reports a category-shaped entry (`type: "folder"`), and
+ * `"label"` for every other entry -- only `"label"` entries are eligible to
+ * become dashboard tag mappings.
+ */
+export interface FreshRssRemoteLabel {
+  remoteTagId: string;
+  displayName: string;
+  kind: "system" | "folder" | "label";
+}
+
 export interface FreshRssRemoteArticle {
   remoteArticleId: string;
   guid: string;
@@ -96,24 +110,40 @@ function parseSubscriptionListResponse(text: string): FreshRssSubscription[] | n
   }
 }
 
-function parseTagListResponse(text: string): Map<string, string> | null {
+function classifyRemoteTagKind(
+  remoteTagId: string,
+  entry: Record<string, unknown>,
+): FreshRssRemoteLabel["kind"] {
+  if (remoteTagId === FRESHRSS_READ_STREAM_ID || remoteTagId === FRESHRSS_STARRED_STREAM_ID) {
+    return "system";
+  }
+  if (entry.type === "folder") {
+    return "folder";
+  }
+  return "label";
+}
+
+function parseTagListResponse(text: string): FreshRssRemoteLabel[] | null {
   try {
     const parsed: unknown = JSON.parse(text);
     if (!isRecord(parsed) || !Array.isArray(parsed.tags)) {
       return null;
     }
 
-    const labelsById = new Map<string, string>();
+    const labels: FreshRssRemoteLabel[] = [];
     for (const entry of parsed.tags) {
       if (!isRecord(entry) || typeof entry.id !== "string" || !entry.id) {
         continue;
       }
-      if (typeof entry.label === "string" && entry.label) {
-        labelsById.set(entry.id, entry.label);
-      }
+      const displayName = typeof entry.label === "string" && entry.label ? entry.label : entry.id;
+      labels.push({
+        remoteTagId: entry.id,
+        displayName,
+        kind: classifyRemoteTagKind(entry.id, entry),
+      });
     }
 
-    return labelsById;
+    return labels;
   } catch {
     return null;
   }
@@ -226,7 +256,7 @@ export class FreshRssSyncClient {
     }
   }
 
-  public async listTagLabels(): Promise<FreshRssRequestOutcome<Map<string, string>>> {
+  public async listTagLabels(): Promise<FreshRssRequestOutcome<FreshRssRemoteLabel[]>> {
     try {
       const response = await this.httpClient.request({
         url: `${this.endpoint}/reader/api/0/tag/list?output=json`,

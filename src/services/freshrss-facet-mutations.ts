@@ -1,9 +1,12 @@
+import type { Tag } from "../types/types";
+
 /**
  * Pure capture/coalescing logic for FreshRSS pending facet mutations.
  *
  * A pending facet mutation records a user's absolute desired state for one
- * synchronizable article facet (`read` or `starred`) on one opaque remote
- * article. The sidecar keeps at most one current record per
+ * synchronizable article facet (`read`, `starred`, or one dynamic
+ * `label:<normalized name>` facet per known FreshRSS label mapping) on one
+ * opaque remote article. The sidecar keeps at most one current record per
  * (remoteArticleId, facet) pair: a newer local decision replaces the prior
  * record with a new operation ID rather than appending toggle history, and an
  * acknowledgment only removes a record when its operation ID still matches
@@ -16,7 +19,61 @@
  * sync coordinator's flush/acknowledgment phase.
  */
 
-export type FreshRssSynchronizableFacet = "read" | "starred";
+/** Prefix for a dynamic mapped-label facet identifier: `label:<normalized name>`. */
+export const FRESHRSS_LABEL_FACET_PREFIX = "label:";
+
+/** A dynamic synchronizable facet for one known FreshRSS label mapping. */
+export type FreshRssLabelFacet = `${typeof FRESHRSS_LABEL_FACET_PREFIX}${string}`;
+
+/**
+ * Every article facet the FreshRSS sync coordinator can flush and reconcile.
+ * `read` and `starred` are the two fixed system-stream facets; a
+ * `label:<normalized name>` facet is dynamic, created for each currently
+ * known FreshRSS label mapping (see `freshrss-sidecar-repository.ts`'s
+ * `FreshRssLabelMapping`). Widened from ticket 05's `"read" | "starred"` to
+ * additionally admit label facets without changing the meaning or shape of
+ * the two existing ones.
+ */
+export type FreshRssSynchronizableFacet = "read" | "starred" | FreshRssLabelFacet;
+
+/** True when `facet` is a well-formed dynamic mapped-label facet identifier. */
+export function isLabelFacet(facet: string): facet is FreshRssLabelFacet {
+  return (
+    facet.startsWith(FRESHRSS_LABEL_FACET_PREFIX) &&
+    facet.length > FRESHRSS_LABEL_FACET_PREFIX.length
+  );
+}
+
+/** True when `value` is a structurally valid `FreshRssSynchronizableFacet`. */
+export function isSynchronizableFacet(
+  value: unknown,
+): value is FreshRssSynchronizableFacet {
+  return (
+    value === "read" || value === "starred" || (typeof value === "string" && isLabelFacet(value))
+  );
+}
+
+/** Builds the dynamic facet identifier for one normalized label name. */
+export function makeLabelFacet(normalizedLabelName: string): FreshRssLabelFacet {
+  return `${FRESHRSS_LABEL_FACET_PREFIX}${normalizedLabelName}`;
+}
+
+/** Recovers the normalized label name from a dynamic label facet identifier. */
+export function labelNameFromFacet(facet: FreshRssLabelFacet): string {
+  return facet.slice(FRESHRSS_LABEL_FACET_PREFIX.length);
+}
+
+/**
+ * Normalizes a FreshRSS label (or local tag) display name to the shared
+ * lookup key used consistently by remote label discovery, local mutation
+ * capture, and mapping lookup on reload: trim surrounding whitespace and
+ * compare a locale-independent lower-case key. `String#toLowerCase` (not
+ * `toLocaleLowerCase`) is used deliberately, since it applies the Unicode
+ * default case mapping rather than a locale-sensitive one.
+ */
+export function normalizeFreshRssLabelName(name: string): string {
+  return name.trim().toLowerCase();
+}
 
 export interface FreshRssMutationError {
   category: "auth-rejected" | "terminal" | "unavailable";
@@ -138,4 +195,115 @@ export function findPendingFacetMutation(
   target: { remoteArticleId: string; facet: FreshRssSynchronizableFacet },
 ): FreshRssPendingFacetMutation | null {
   return existing.find((mutation) => isSameRecordIdentity(mutation, target)) ?? null;
+}
+
+/**
+ * A local mapping from one normalized FreshRSS label name to the exact
+ * opaque remote tag reference and kind reported by FreshRSS tag discovery.
+ * `displayName` is the raw remote label text, kept only as a fallback name
+ * for a locally-created tag the first time a mapped label is applied to an
+ * article that has no matching local tag yet; it is never used to rename or
+ * recolor an existing local tag; the dashboard's chosen display spelling and
+ * color always remain local.
+ */
+export interface FreshRssLabelMapping {
+  normalizedName: string;
+  remoteTagId: string;
+  kind: string;
+  displayName: string;
+}
+
+/** One remote tag/label entry as reported by FreshRSS tag discovery. */
+export interface FreshRssRemoteLabelLike {
+  remoteTagId: string;
+  displayName: string;
+  kind: string;
+}
+
+/**
+ * Rebuilds the current set of label mappings from a freshly discovered
+ * remote tag/label list. Only entries whose `kind` is exactly `"label"` are
+ * considered candidates (excludes the dedicated read/starred system streams
+ * and FreshRSS category/folder entries, which are never exposed as dashboard
+ * label tags). Two remote labels that normalize to the same name are a
+ * mapping-name collision: neither is mapped this cycle (excluded from the
+ * returned mappings and reported in `ambiguousNormalizedNames`) rather than
+ * guessing which one should own the name, consistent with how an ambiguous
+ * FreshRSS subscription/local-feed URL match is refused elsewhere.
+ */
+export function buildLabelMappings(
+  remoteLabels: readonly FreshRssRemoteLabelLike[],
+): { mappings: FreshRssLabelMapping[]; ambiguousNormalizedNames: string[] } {
+  const byNormalizedName = new Map<string, FreshRssLabelMapping>();
+  const ambiguous = new Set<string>();
+
+  for (const remote of remoteLabels) {
+    if (remote.kind !== "label") continue;
+    const normalizedName = normalizeFreshRssLabelName(remote.displayName);
+    if (!normalizedName) continue;
+
+    const existing = byNormalizedName.get(normalizedName);
+    if (existing && existing.remoteTagId !== remote.remoteTagId) {
+      ambiguous.add(normalizedName);
+      continue;
+    }
+
+    byNormalizedName.set(normalizedName, {
+      normalizedName,
+      remoteTagId: remote.remoteTagId,
+      kind: remote.kind,
+      displayName: remote.displayName,
+    });
+  }
+
+  for (const normalizedName of ambiguous) {
+    byNormalizedName.delete(normalizedName);
+  }
+
+  return {
+    mappings: Array.from(byNormalizedName.values()),
+    ambiguousNormalizedNames: Array.from(ambiguous),
+  };
+}
+
+/** Fallback color for a dashboard tag auto-created from a mapped FreshRSS label. */
+export const FRESHRSS_MAPPED_LABEL_FALLBACK_COLOR = "#95a5a6";
+
+/**
+ * Applies one mapped label's remote membership (`desired`) to an article's
+ * local tags, matching by normalized name so the local tag's chosen display
+ * spelling and color are preserved exactly when the tag already exists.
+ * Creating a new local tag (membership newly added and no existing local tag
+ * matches) prefers an already-known local tag definition of the same
+ * normalized name (e.g. from `availableTags`) for its spelling/color, and
+ * only falls back to the remote display name and a default color when this
+ * dashboard has never seen that tag before. Never mutates the input array.
+ */
+export function applyLabelMembership(
+  tags: readonly Tag[] | undefined,
+  normalizedLabelName: string,
+  desired: boolean,
+  fallback: { availableTags: readonly Tag[] | undefined; remoteDisplayName: string },
+): Tag[] {
+  const nextTags = (tags ?? []).map((tag) => ({ ...tag }));
+  const matchIndex = nextTags.findIndex(
+    (tag) => normalizeFreshRssLabelName(tag.name) === normalizedLabelName,
+  );
+
+  if (desired) {
+    if (matchIndex >= 0) return nextTags;
+    const knownTag = (fallback.availableTags ?? []).find(
+      (tag) => normalizeFreshRssLabelName(tag.name) === normalizedLabelName,
+    );
+    nextTags.push(
+      knownTag
+        ? { ...knownTag }
+        : { name: fallback.remoteDisplayName, color: FRESHRSS_MAPPED_LABEL_FALLBACK_COLOR },
+    );
+    return nextTags;
+  }
+
+  if (matchIndex < 0) return nextTags;
+  nextTags.splice(matchIndex, 1);
+  return nextTags;
 }

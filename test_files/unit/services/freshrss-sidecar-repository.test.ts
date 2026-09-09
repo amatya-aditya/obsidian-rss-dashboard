@@ -41,6 +41,7 @@ describe("FreshRSS sidecar repository", () => {
       feedBindings: [],
       articleBindings: [],
       checkpoints: [],
+      labelMappings: [],
     });
   });
 
@@ -80,6 +81,7 @@ describe("FreshRSS sidecar repository", () => {
       feedBindings: [],
       articleBindings: [],
       checkpoints: [],
+      labelMappings: [],
     });
   });
 
@@ -164,7 +166,7 @@ describe("FreshRSS sidecar repository", () => {
     ]);
   });
 
-  it("quarantines a pending mutation with an unknown facet instead of activating it", async () => {
+  it("quarantines a pending mutation with a structurally invalid facet instead of activating it", async () => {
     const unknownFacetState = JSON.stringify({
       version: 2,
       scope,
@@ -172,7 +174,7 @@ describe("FreshRSS sidecar repository", () => {
         {
           operationId: "op-1",
           remoteArticleId: "article-1",
-          facet: "label:tech",
+          facet: "bogus",
           desiredState: true,
           createdAtMs: 1000,
           lastAttemptAtMs: null,
@@ -293,7 +295,149 @@ describe("FreshRSS sidecar repository", () => {
           { feedId: "feed-1", guid: "guid-1", remoteArticleId: "article-1" },
         ],
         checkpoints: [{ remoteSubscriptionId: "sub-1", completedAtMs: 1000 }],
+        labelMappings: [],
       });
+    });
+  });
+
+  describe("label mappings", () => {
+    it("loads a version-2 sidecar written before label mappings existed as an empty list, without a version bump", async () => {
+      const preLabelState = JSON.stringify({
+        version: 2,
+        scope,
+        pendingFacetMutations: [],
+        feedBindings: [],
+        articleBindings: [],
+        checkpoints: [],
+      });
+      const store = createStore({ [sidecarPath]: preLabelState });
+      const repository = new FreshRssSidecarRepository(store, {
+        sidecarPath,
+        createQuarantinePath: () => quarantinePath,
+      });
+
+      await expect(repository.activate(scope)).resolves.toEqual({ outcome: "activated" });
+      const state = await repository.read(scope);
+      expect(state?.labelMappings).toEqual([]);
+    });
+
+    it("accepts a well-formed dynamic label facet, widened from ticket 05's read/starred-only validation", async () => {
+      const labelFacetState = JSON.stringify({
+        version: 2,
+        scope,
+        pendingFacetMutations: [
+          {
+            operationId: "op-1",
+            remoteArticleId: "article-1",
+            facet: "label:tech",
+            desiredState: true,
+            createdAtMs: 1000,
+            lastAttemptAtMs: null,
+            attemptCount: 0,
+            error: null,
+          },
+        ],
+        feedBindings: [],
+        articleBindings: [],
+        checkpoints: [],
+      });
+      const store = createStore({ [sidecarPath]: labelFacetState });
+      const repository = new FreshRssSidecarRepository(store, {
+        sidecarPath,
+        createQuarantinePath: () => quarantinePath,
+      });
+
+      await expect(repository.activate(scope)).resolves.toEqual({ outcome: "activated" });
+      const state = await repository.read(scope);
+      expect(state?.pendingFacetMutations).toEqual([
+        {
+          operationId: "op-1",
+          remoteArticleId: "article-1",
+          facet: "label:tech",
+          desiredState: true,
+          createdAtMs: 1000,
+          lastAttemptAtMs: null,
+          attemptCount: 0,
+          error: null,
+        },
+      ]);
+    });
+
+    it("still quarantines a genuinely malformed facet (empty label name) instead of activating it", async () => {
+      const malformedFacetState = JSON.stringify({
+        version: 2,
+        scope,
+        pendingFacetMutations: [
+          {
+            operationId: "op-1",
+            remoteArticleId: "article-1",
+            facet: "label:",
+            desiredState: true,
+            createdAtMs: 1000,
+            lastAttemptAtMs: null,
+            attemptCount: 0,
+            error: null,
+          },
+        ],
+        feedBindings: [],
+        articleBindings: [],
+        checkpoints: [],
+      });
+      const store = createStore({ [sidecarPath]: malformedFacetState });
+      const repository = new FreshRssSidecarRepository(store, {
+        sidecarPath,
+        createQuarantinePath: () => quarantinePath,
+      });
+
+      await expect(repository.activate(scope)).resolves.toEqual({
+        outcome: "sidecar-invalid",
+      });
+      expect(store.files.get(quarantinePath)).toBe(malformedFacetState);
+    });
+
+    it("round-trips a label mapping alongside feed/article bindings", async () => {
+      const store = createStore();
+      const repository = new FreshRssSidecarRepository(store, {
+        sidecarPath,
+        createQuarantinePath: () => quarantinePath,
+      });
+      await repository.activate(scope);
+      const state = await repository.read(scope);
+      expect(state).not.toBeNull();
+
+      await repository.write({
+        ...state!,
+        labelMappings: [
+          { normalizedName: "tech", remoteTagId: "user/-/label/Tech", kind: "label", displayName: "Tech" },
+        ],
+      });
+
+      const roundTripped = await repository.read(scope);
+      expect(roundTripped?.labelMappings).toEqual([
+        { normalizedName: "tech", remoteTagId: "user/-/label/Tech", kind: "label", displayName: "Tech" },
+      ]);
+    });
+
+    it("quarantines a malformed label mapping (missing remote tag reference) instead of activating it", async () => {
+      const malformedMappingState = JSON.stringify({
+        version: 2,
+        scope,
+        pendingFacetMutations: [],
+        feedBindings: [],
+        articleBindings: [],
+        checkpoints: [],
+        labelMappings: [{ normalizedName: "tech", kind: "label", displayName: "Tech" }],
+      });
+      const store = createStore({ [sidecarPath]: malformedMappingState });
+      const repository = new FreshRssSidecarRepository(store, {
+        sidecarPath,
+        createQuarantinePath: () => quarantinePath,
+      });
+
+      await expect(repository.activate(scope)).resolves.toEqual({
+        outcome: "sidecar-invalid",
+      });
+      expect(store.files.get(quarantinePath)).toBe(malformedMappingState);
     });
   });
 });
