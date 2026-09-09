@@ -13,6 +13,7 @@
 
 ### Fixes
 
+- Preserved Obsidian 1.8.7 compatibility while modernizing settings controls, destructive actions, and slider value displays across supported app versions. [GH Issue #228](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/228)
 - Localized the documented legacy settings-renderer deprecation allowance so all other code remains checked while RSS Dashboard supports Obsidian 1.8.7 through 1.12.x. [GH Issue #232](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/232)
 - Routed destructive settings, modal, and feed-management confirmations through version-aware compatibility controls while preserving their existing actions and cancellation behavior. [GH Issue #230](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/230)
 - Fixed settings sliders so supported legacy Obsidian versions show current formatted values while dragging, using the keyboard, and synchronizing paired inputs; modern Obsidian versions retain the native value display. [GH Issue #231](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/231)
