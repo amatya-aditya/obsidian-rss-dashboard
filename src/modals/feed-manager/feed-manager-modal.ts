@@ -3,6 +3,7 @@ import type RssDashboardPlugin from "../../../main";
 import { ImportOpmlModal } from "../import-opml-modal";
 import { shouldUseMobileSidebarLayout } from "../../utils/platform-utils";
 import { AddFeedModal, type AddFeedRequest } from "./add-feed-modal";
+import { settingsUiCompatibility } from "../../settings/settings-ui-compat";
 
 function formatByteSize(bytes: number): string {
   if (bytes < 1_024) return `${bytes} B`;
@@ -123,11 +124,10 @@ export class FeedManagerModal extends Modal {
             confirmModal.close();
           }),
         )
-        .addButton((btn) =>
-          btn
-            .setButtonText("Delete all feeds")
-            .setWarning()
-            .onClick(async () => {
+        .addButton((btn) => {
+          btn.setButtonText("Delete all feeds");
+          settingsUiCompatibility.markDestructive(btn);
+          btn.onClick(async () => {
               this.plugin.settings.feeds = [];
               await this.plugin.saveSettings();
               const cacheClearResult = await this.plugin.clearImageCache();
@@ -150,8 +150,8 @@ export class FeedManagerModal extends Modal {
               } else {
                 new Notice("All feeds deleted");
               }
-            }),
-        );
+          });
+        });
 
       confirmModal.open();
     };

@@ -184,8 +184,9 @@ export default defineConfig([
   {
     files: ["src/settings/settings-tab.ts"],
     rules: {
-      // The plugin supports Obsidian 1.1.0. Keep the imperative display()
-      // orchestrator until the minimum app version can require the 1.13 API.
+      // Obsidian 1.8.7 through 1.12.x need this imperative renderer and its
+      // refresh bridge. Keep deprecation checking enabled outside this file.
+      "@typescript-eslint/no-deprecated": "off",
       "obsidianmd/settings-tab/prefer-setting-definitions": "off",
     },
   },

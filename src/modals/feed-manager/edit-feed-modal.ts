@@ -10,6 +10,7 @@ import type {
 import { FolderSuggest } from "../../components/folder-suggest";
 import { renderKeywordFilterEditor } from "../../components/keyword-filter-editor";
 import { shouldUseMobileSidebarLayout } from "../../utils/platform-utils";
+import { settingsUiCompatibility } from "../../settings/settings-ui-compat";
 import { isValidFeedTitle } from "../../utils/validation";
 import {
   FEED_REFRESH_DISABLED_INTERVAL,
@@ -971,11 +972,10 @@ export class EditFeedModal extends Modal {
           confirmModal.close();
         }),
       )
-      .addButton((btn) =>
-        btn
-          .setButtonText("Delete")
-          .setWarning()
-          .onClick(() => {
+      .addButton((btn) => {
+        btn.setButtonText("Delete");
+        settingsUiCompatibility.markDestructive(btn);
+        btn.onClick(() => {
             confirmModal.close();
             this.close();
 
@@ -992,8 +992,8 @@ export class EditFeedModal extends Modal {
               }
               new Notice(`Feed "${this.feed.title}" deleted`);
             })();
-          }),
-      );
+        });
+      });
 
     confirmModal.open();
   }

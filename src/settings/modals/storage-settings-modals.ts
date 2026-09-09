@@ -1,5 +1,6 @@
 import { App, Modal, Setting } from "obsidian";
 import type { FeedStorageMode } from "../../types/types";
+import { settingsUiCompatibility } from "../settings-ui-compat";
 
 export type StorageTransitionAction =
   | "cancel"
@@ -144,15 +145,14 @@ export class StorageTransitionModal extends Modal {
           this.close();
         }),
       )
-      .addButton((btn) =>
-        btn
-          .setButtonText("Delete shard folder")
-          .setWarning()
-          .onClick(() => {
+      .addButton((btn) => {
+        btn.setButtonText("Delete shard folder");
+        settingsUiCompatibility.markDestructive(btn);
+        btn.onClick(() => {
             this.action = "apply-delete-shards";
             this.close();
-          }),
-      );
+        });
+      });
   }
 }
 
@@ -197,15 +197,14 @@ export class ShardDeletionFailureModal extends Modal {
           this.close();
         }),
       )
-      .addButton((btn) =>
-        btn
-          .setButtonText("Apply anyway")
-          .setWarning()
-          .onClick(() => {
+      .addButton((btn) => {
+        btn.setButtonText("Apply anyway");
+        settingsUiCompatibility.markDestructive(btn);
+        btn.onClick(() => {
             this.action = "apply-anyway";
             this.close();
-          }),
-      );
+        });
+      });
   }
 
   onClose(): void {
@@ -259,15 +258,14 @@ export class MetadataCleanupModal extends Modal {
           this.close();
         }),
       )
-      .addButton((btn) =>
-        btn
-          .setButtonText("Delete previous copy")
-          .setWarning()
-          .onClick(() => {
+      .addButton((btn) => {
+        btn.setButtonText("Delete previous copy");
+        settingsUiCompatibility.markDestructive(btn);
+        btn.onClick(() => {
             this.action = "delete";
             this.close();
-          }),
-      );
+        });
+      });
   }
 
   onClose(): void {

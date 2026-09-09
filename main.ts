@@ -848,7 +848,7 @@ export default class RssDashboardPlugin extends Plugin {
     }
 
     if (this.settingTab) {
-      this.settingTab.display();
+      this.settingTab.refresh();
     }
 
     new Notice("Restored plugin to factory defaults.");
@@ -1862,7 +1862,7 @@ export default class RssDashboardPlugin extends Plugin {
       this.initializeSettingsBackedServices();
 
       if (this.settingTab) {
-        this.settingTab.display();
+        this.settingTab.refresh();
       }
 
       await this.refreshDashboardViews();
@@ -1992,7 +1992,7 @@ export default class RssDashboardPlugin extends Plugin {
       this.initializeSettingsBackedServices();
       await this.refreshDashboardViews();
       if (this.settingTab) {
-        this.settingTab.display();
+        this.settingTab.refresh();
       }
       storageLog("Plugin migration completed", {
         currentMode: this.settings.storageMode,
@@ -2021,7 +2021,7 @@ export default class RssDashboardPlugin extends Plugin {
       this.initializeSettingsBackedServices();
       await this.refreshDashboardViews();
       if (this.settingTab) {
-        this.settingTab.display();
+        this.settingTab.refresh();
       }
       storageLog("Plugin migration v2 completed", {
         currentMode: this.settings.storageMode,
@@ -2061,7 +2061,7 @@ export default class RssDashboardPlugin extends Plugin {
         (data) => this.saveData(data),
       );
       if (this.settingTab) {
-        this.settingTab.display();
+        this.settingTab.refresh();
       }
       storageLog("Plugin repair completed");
     } catch (error) {
@@ -2101,7 +2101,7 @@ export default class RssDashboardPlugin extends Plugin {
       this.initializeSettingsBackedServices();
       await this.refreshDashboardViews();
       if (this.settingTab) {
-        this.settingTab.display();
+        this.settingTab.refresh();
       }
       storageLog("Plugin revert completed", {
         currentMode: this.settings.storageMode,
