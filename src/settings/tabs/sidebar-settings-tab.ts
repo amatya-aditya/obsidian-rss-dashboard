@@ -22,6 +22,7 @@ import {
   showDomainIconToggleConfirm,
 } from "../../utils/domain-icon-helpers";
 import { FeedItem, Feed } from "../../types/types";
+import { settingsUiCompatibility } from "../settings-ui-compat";
 
 // ── Pure helpers (exported for unit tests) ────────────────────────────────────
 
@@ -529,7 +530,6 @@ export function renderSidebarSettingsTab(
         slider
           .setLimits(paddingMin, paddingMax, paddingStep)
           .setValue(plugin.settings.display[settingKey] ?? defaultValue)
-          .setDynamicTooltip()
           .onChange(async (value) => {
             if (isSyncing) return;
             isSyncing = true;
@@ -537,6 +537,10 @@ export function renderSidebarSettingsTab(
             isSyncing = false;
             await apply(value);
           });
+        settingsUiCompatibility.presentSliderValue(
+          slider,
+          (value) => `${value}px`,
+        );
       })
       .addText((text) => {
         paddingInput = text;
@@ -615,7 +619,6 @@ export function renderSidebarSettingsTab(
         slider
           .setLimits(min, max, 1)
           .setValue(plugin.settings.display[settingKey] ?? defaultValue)
-          .setDynamicTooltip()
           .onChange(async (value) => {
             if (isSyncing) return;
             isSyncing = true;
@@ -623,6 +626,10 @@ export function renderSidebarSettingsTab(
             isSyncing = false;
             await apply(value);
           });
+        settingsUiCompatibility.presentSliderValue(
+          slider,
+          (value) => `${value}px`,
+        );
       })
       .addText((text) => {
         spacingInput = text;

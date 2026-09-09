@@ -42,6 +42,33 @@ beforeEach(() => {
 });
 
 describe("renderSidebarSettingsTab() - domain icon toggles", () => {
+  it("shows formatted values for every sidebar layout slider", () => {
+    const containerEl = document.body.appendChild(createDiv());
+    const plugin = {
+      app: obsidian.App.createMock(),
+      settings: cloneSettings(),
+      saveSettings: vi.fn(async () => {}),
+      clearPlaybackProgress: vi.fn(async () => 0),
+      getActiveDashboardView: vi.fn(async () => null),
+    } as unknown as RssDashboardPlugin;
+
+    renderSidebarSettingsTab(containerEl, plugin, vi.fn());
+
+    const expectedValues = new Map([
+      ["Left padding", "2px"],
+      ["Right padding", "2px"],
+      ["Sidebar row spacing", "10px"],
+      ["Sidebar row indentation", "20px"],
+    ]);
+    for (const [name, value] of expectedValues) {
+      expect(
+        getSettingByName(containerEl, name).querySelector(
+          ".rss-dashboard-slider-value",
+        )?.textContent,
+      ).toBe(value);
+    }
+  });
+
   it("renders each icon visibility setting with its icon name", () => {
     const containerEl = document.body.appendChild(
       createDiv(),
