@@ -80,6 +80,10 @@ export class ImporterShell<TParsed, TModel extends ImporterPreviewModel> {
     this.previewContainer = contentEl.createDiv({
       cls: "import-preview-container import-hidden",
     });
+    // The modal creates its action row first so it can add format-specific
+    // controls. Move it after the shell content to preserve the established
+    // file selector -> preview -> format controls -> actions reading order.
+    contentEl.appendChild(buttonContainer);
     this.actionButton = buttonContainer.createEl("button", {
       text: "Import feeds",
       cls: "rss-dashboard-primary-button",

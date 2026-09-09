@@ -425,6 +425,10 @@
   margin: 0;
 }
 
+.rss-dashboard-modal .import-preview-checkbox:checked::after {
+  translate: 1px 0;
+}
+
 .import-preview-icon {
   display: flex;
   align-items: center;

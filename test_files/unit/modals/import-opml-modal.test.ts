@@ -33,6 +33,10 @@ interface TestModal {
   executeImport: () => Promise<void>;
 }
 
+interface ModalElements {
+  containerEl: HTMLElement;
+}
+
 function readFixture(name: string): string {
   const fixturePath = path.resolve(__dirname, "../../fixtures/opml", name);
   return readFileSync(fixturePath, "utf-8");
@@ -62,6 +66,34 @@ beforeEach(() => {
 });
 
 describe("ImportOpmlModal", () => {
+  it("keeps the original file, preview, mode, and action reading order", () => {
+    const app = createMockApp();
+    const plugin: TestPlugin = {
+      settings: cloneSettings(),
+      saveSettings: vi.fn(async () => {}),
+      getActiveDashboardView: vi.fn(async () => null),
+      startBackgroundImport: vi.fn(),
+    } as unknown as TestPlugin;
+    const modal = new ImportOpmlModal(
+      app,
+      plugin as unknown as ConstructorParameters<typeof ImportOpmlModal>[1],
+    );
+    (modal as unknown as TestModal).open();
+
+    const content = (modal as unknown as TestModal).contentEl;
+    const children = Array.from(content.children);
+    const file = content.querySelector(".import-file-selector")!;
+    const error = content.querySelector(".import-error-container")!;
+    const preview = content.querySelector(".import-preview-container")!;
+    const mode = content.querySelector(".import-mode-selector")!;
+    const actions = content.querySelector(".rss-dashboard-modal-buttons")!;
+
+    expect(children.indexOf(file)).toBeLessThan(children.indexOf(error));
+    expect(children.indexOf(error)).toBeLessThan(children.indexOf(preview));
+    expect(children.indexOf(preview)).toBeLessThan(children.indexOf(mode));
+    expect(children.indexOf(mode)).toBeLessThan(children.indexOf(actions));
+  });
+
   it("shows a validation error for invalid XML and keeps import disabled", async () => {
     const app = createMockApp();
     const plugin: TestPlugin = {
@@ -164,10 +196,11 @@ describe("ImportOpmlModal", () => {
     ) as HTMLButtonElement;
     expect(importBtn.disabled).toBe(false);
 
-    await (modal as unknown as TestModal).executeImport();
-    await flushPromises();
+    importBtn.click();
+    await vi.waitFor(() => {
+      expect(plugin.ingestFeedsForBackgroundImport).toHaveBeenCalledTimes(1);
+    });
 
-    expect(plugin.ingestFeedsForBackgroundImport).toHaveBeenCalledTimes(1);
     expect(plugin.ingestFeedsForBackgroundImport).toHaveBeenCalledWith(
       [
         expect.objectContaining({
@@ -177,6 +210,48 @@ describe("ImportOpmlModal", () => {
       expect.objectContaining({ mode: "update", globalOperation: true }),
     );
     expect(logSpy.mock.calls.some((c) => c[0] === "[Stub Notice]")).toBe(true);
+    expect((modal as unknown as ModalElements).containerEl.isConnected).toBe(false);
+  });
+
+  it("dismisses the overwrite warning and importer after confirming", async () => {
+    const app = createMockApp();
+    const plugin: TestPlugin = {
+      settings: cloneSettings(),
+      saveSettings: vi.fn(async () => {}),
+      getActiveDashboardView: vi.fn(async () => null),
+      startBackgroundImport: vi.fn(),
+      ingestFeedsForBackgroundImport: vi.fn(async () => ({
+        addedCount: 1,
+        skippedCount: 0,
+        queuedFeeds: [],
+      })),
+    } as unknown as TestPlugin;
+    const modal = new ImportOpmlModal(
+      app,
+      plugin as unknown as ConstructorParameters<typeof ImportOpmlModal>[1],
+    );
+    (modal as unknown as TestModal).open();
+    await (modal as unknown as TestModal).handleFileSelection(
+      new File([readFixture("single-feed.opml")], "single-feed.opml", {
+        type: "text/xml",
+      }),
+    );
+
+    const modeOptions = modal.contentEl.querySelectorAll<HTMLElement>(
+      ".import-mode-option",
+    );
+    modeOptions[1].click();
+    modal.contentEl
+      .querySelector<HTMLButtonElement>("button.rss-dashboard-primary-button")!
+      .click();
+    document
+      .querySelector<HTMLButtonElement>(".rss-dashboard-danger-button")!
+      .click();
+
+    await vi.waitFor(() => {
+      expect((modal as unknown as ModalElements).containerEl.isConnected).toBe(false);
+      expect(document.querySelector(".rss-dashboard-modal-overlay")).toBeNull();
+    });
   });
 
   it("calls the optional callback after a successful import starts", async () => {
