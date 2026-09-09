@@ -186,9 +186,9 @@ describe("platform-utils.robustFetch", () => {
 
 describe("platform-utils.attachInputClearButton", () => {
   it("toggles visibility on input events and clears on click", () => {
-    const wrapper = document.createElement("div");
+    const wrapper = createDiv();
     document.body.appendChild(wrapper);
-    const input = document.createElement("input");
+    const input = createEl("input");
     input.type = "text";
     wrapper.appendChild(input);
     const onClear = vi.fn();
@@ -214,9 +214,9 @@ describe("platform-utils.attachInputClearButton", () => {
   });
 
   it("supports keyboard activation via Enter and Space", () => {
-    const wrapper = document.createElement("div");
+    const wrapper = createDiv();
     document.body.appendChild(wrapper);
-    const input = document.createElement("input");
+    const input = createEl("input");
     input.type = "text";
     wrapper.appendChild(input);
     input.value = "abc";
@@ -243,9 +243,9 @@ describe("platform-utils.attachInputClearButton", () => {
   });
 
   it("honors useButtonElement and custom classes", () => {
-    const wrapper = document.createElement("div");
+    const wrapper = createDiv();
     document.body.appendChild(wrapper);
-    const input = document.createElement("input");
+    const input = createEl("input");
     input.type = "text";
     wrapper.appendChild(input);
     input.value = "abc";
@@ -289,7 +289,7 @@ describe("platform-utils.misc", () => {
   });
 
   it("setCssProps sets custom properties", () => {
-    const el = document.createElement("div");
+    const el = createDiv();
     setCssProps(el, { "--a": "1", "--b": "two" });
     expect(el.style.getPropertyValue("--a")).toBe("1");
     expect(el.style.getPropertyValue("--b")).toBe("two");

@@ -33,7 +33,7 @@ describe("Sidebar Rendering", () => {
 
   beforeEach(() => {
     app = ObsidianStubs.App.createMock();
-    container = document.createElement("div");
+    container = createDiv();
     document.body.appendChild(container);
 
     settings = {

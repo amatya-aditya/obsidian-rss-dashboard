@@ -5,6 +5,7 @@ import {
   DisplaySettings,
   MediaSettings,
   Tag,
+  FeedRetentionProtections,
 } from "../../types/types.js";
 import { MediaService } from "../media-service.js";
 import { MastodonService } from "../mastodon-service.js";
@@ -71,6 +72,7 @@ export class FeedParser {
   private parser: CustomXMLParser;
   private getFolders: () => Folder[];
   private getCorsProxyEnabled: () => boolean;
+  private getRetentionProtections: () => FeedRetentionProtections;
 
   constructor(
     displaySettings: DisplaySettings,
@@ -78,18 +80,24 @@ export class FeedParser {
     mediaSettings?: MediaSettings,
     getFolders: () => Folder[] = () => [],
     getCorsProxyEnabled: () => boolean = () => true,
+    getRetentionProtections: () => FeedRetentionProtections = () => ({
+      protectStarred: true,
+      protectSaved: true,
+      protectTagged: false,
+      protectUnread: false,
+    }),
   ) {
     this.displaySettings = displaySettings;
     this.availableTags = availableTags;
     this.parser = new CustomXMLParser();
     this.getFolders = getFolders;
     this.getCorsProxyEnabled = getCorsProxyEnabled;
+    this.getRetentionProtections = getRetentionProtections;
     this.mediaSettings = mediaSettings ?? {
       autoTagVideos: true,
       defaultVideoTag: "Video",
       defaultVideoTags: ["Video"],
       rememberPlaybackProgress: true,
-      defaultTwitterFolder: "Twitter",
       defaultMastodonFolder: "Mastodon",
       defaultYouTubeFolder: "Videos",
       defaultYouTubeTag: "Video",
@@ -102,8 +110,6 @@ export class FeedParser {
       defaultSmallwebFolder: "Smallweb",
       defaultSmallwebTag: "",
       defaultSmallwebTags: [],
-      defaultTwitterTag: "",
-      defaultTwitterTags: [],
       defaultMastodonTag: "",
       defaultMastodonTags: [],
       openInSplitView: true,
@@ -138,10 +144,6 @@ export class FeedParser {
         : "";
     } else if (MastodonService.isResolvedFeedUrl(url)) {
       resolvedUrl = this.displaySettings.useDomainIconsMastodon
-        ? this.convertToAbsoluteUrl(feedLogoUrl, url)
-        : "";
-    } else if (MediaService.isTwitterOrNitterFeed(url)) {
-      resolvedUrl = this.displaySettings.useDomainIconsTwitter
         ? this.convertToAbsoluteUrl(feedLogoUrl, url)
         : "";
     } else {
@@ -274,25 +276,6 @@ export class FeedParser {
         if (content && content.includes("%25")) {
           console.debug(
             `[RSS Dashboard] extractCoverImage: og:image contains double-encoded: ${content}`,
-          );
-        }
-        const resolvedContent = content?.startsWith("http")
-          ? content
-          : content && baseUrl
-            ? this.convertToAbsoluteUrl(content, baseUrl)
-            : "";
-        if (resolvedContent && !isLatexFormulaImage(resolvedContent)) {
-          return optimizeImageUrl(resolvedContent);
-        }
-      }
-
-      const twitterImage = doc.querySelector('meta[name="twitter:image"]');
-      if (twitterImage?.getAttribute("content")) {
-        const content = twitterImage.getAttribute("content");
-        // Debug: log twitter:image URL for troubleshooting double-encoding
-        if (content && content.includes("%25")) {
-          console.debug(
-            `[RSS Dashboard] extractCoverImage: twitter:image contains double-encoded: ${content}`,
           );
         }
         const resolvedContent = content?.startsWith("http")
@@ -573,7 +556,7 @@ export class FeedParser {
       if (existingItem) {
         if (
           autoDeleteCutoffMs > 0 &&
-          !isProtectedItem(existingItem) &&
+          !isProtectedItem(existingItem, this.getRetentionProtections()) &&
           getPubDateMs(item.pubDate || existingItem.pubDate) <=
             autoDeleteCutoffMs
         ) {
@@ -672,9 +655,14 @@ export class FeedParser {
       } else {
         // Skip items older than the auto-delete cutoff during refresh.
         // These were likely auto-deleted previously and should not reappear as unread.
+        // If unread items are protected, do not skip them.
         if (
           existingFeed &&
           autoDeleteCutoffMs > 0 &&
+          !isProtectedItem(
+            { read: false } as FeedItem,
+            this.getRetentionProtections(),
+          ) &&
           getPubDateMs(item.pubDate) <= autoDeleteCutoffMs
         ) {
           skippedByRefreshCutoffCount++;
@@ -770,7 +758,7 @@ export class FeedParser {
           !seenGuids.has(key) &&
           !(
             autoDeleteCutoffMs > 0 &&
-            !isProtectedItem(item) &&
+            !isProtectedItem(item, this.getRetentionProtections()) &&
             getPubDateMs(item.pubDate) <= autoDeleteCutoffMs
           )
         ) {
@@ -871,7 +859,9 @@ export class FeedParser {
    * Apply maxItemsLimit and autoDeleteDuration to a feed's items
    */
   private applyFeedLimits(feed: Feed): void {
-    const updated = applyFeedRetentionLimits(feed);
+    const updated = applyFeedRetentionLimits(feed, {
+      protections: this.getRetentionProtections(),
+    });
     feed.items = updated.items;
   }
 

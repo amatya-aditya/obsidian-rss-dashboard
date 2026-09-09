@@ -16,7 +16,6 @@ export interface FeedPreviewLoadResult {
   detectedType: FeedPreviewType;
   inputUrl: string;
   finalUrl: string;
-  isXConversion: boolean;
   isMastodonConversion: boolean;
   title: string;
   latestPubDate?: string;
@@ -24,7 +23,6 @@ export interface FeedPreviewLoadResult {
 }
 
 export interface MediaFolderDefaults {
-  defaultTwitterFolder?: string;
   defaultMastodonFolder?: string;
   defaultYouTubeFolder?: string;
   defaultPodcastFolder?: string;
@@ -55,12 +53,8 @@ export function formatLatestEntryLabel(
 }
 
 export function getPreviewConversionNotice(
-  preview: Pick<FeedPreviewLoadResult, "isXConversion" | "isMastodonConversion">,
+  preview: Pick<FeedPreviewLoadResult, "isMastodonConversion">,
 ): string {
-  if (preview.isXConversion) {
-    return " (X > nitter conversion)";
-  }
-
   if (preview.isMastodonConversion) {
     return " (Mastodon > RSS auto-discovery)";
   }
@@ -78,12 +72,10 @@ export function shouldAutoAssignFolder(
   }
 
   const autoAssignedFolders = new Set([
-    media?.defaultTwitterFolder || "Twitter",
     media?.defaultMastodonFolder || "Mastodon",
     media?.defaultYouTubeFolder || "Videos",
     media?.defaultPodcastFolder || "Podcast",
     media?.defaultRssFolder || "RSS",
-    "Twitter",
     "Mastodon",
     "Videos",
     "Podcast",
@@ -96,15 +88,10 @@ export function shouldAutoAssignFolder(
 export function getDefaultFolderForResolvedFeed(
   preview: Pick<
     FeedPreviewLoadResult,
-    "detectedType" | "inputUrl" | "finalUrl" | "isXConversion" | "isMastodonConversion"
+    "detectedType" | "inputUrl" | "finalUrl" | "isMastodonConversion"
   >,
   media?: MediaFolderDefaults,
 ): string {
-  const isNitterFeed = !!MediaService.normalizeNitterUrlToRss(preview.finalUrl);
-  if (preview.isXConversion || isNitterFeed) {
-    return media?.defaultTwitterFolder || "Twitter";
-  }
-
   if (
     preview.isMastodonConversion ||
     MastodonService.isResolvedFeedUrl(preview.inputUrl)
@@ -130,22 +117,16 @@ export async function resolveAndLoadPreview(
   let url = inputUrl;
   let finalUrl = inputUrl;
   let detectedType: FeedPreviewType = "rss";
-  let isXConversion = false;
   let isMastodonConversion = false;
 
-  const normalizedNitterUrl = MediaService.normalizeNitterUrlToRss(url);
-  if (normalizedNitterUrl) {
-    url = normalizedNitterUrl;
-    finalUrl = normalizedNitterUrl;
-  }
-
-  if (MediaService.isXUrl(url)) {
-    const nitterUrl = MediaService.getNitterRssFeed(url);
-    if (nitterUrl) {
-      url = nitterUrl;
-      finalUrl = nitterUrl;
-      isXConversion = true;
-    }
+  if (MediaService.isXUrl(url) || MediaService.isNitterUrl(url)) {
+    throw new Error(
+      "X/Twitter and Nitter RSS feeds are no longer supported. " +
+        "On 24 August 2026, X Corp sent cease and desist letters demanding " +
+        "permanent takedown of Nitter instances and its repository " +
+        "(https://github.com/zedeus/nitter). " +
+        "Please use a third-party RSS bridge (e.g. RSSHub) if you need X/Twitter content.",
+    );
   }
 
   if (MediaService.isMastodonUrl(url)) {
@@ -202,7 +183,6 @@ export async function resolveAndLoadPreview(
     detectedType,
     inputUrl,
     finalUrl,
-    isXConversion,
     isMastodonConversion,
     title: feedData.title,
     latestPubDate: feedData.latestPubDate,

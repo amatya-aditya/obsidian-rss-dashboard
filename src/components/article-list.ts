@@ -1,5 +1,10 @@
 import { Notice, setIcon } from "obsidian";
-import { FeedItem, RssDashboardSettings, Tag } from "../types/types";
+import {
+  ArticleGroupByOption,
+  FeedItem,
+  RssDashboardSettings,
+  Tag,
+} from "../types/types";
 import { ArticleHeader } from "./article-header";
 import { ArticleEmptyState } from "./article-empty-state";
 import { setCssProps } from "../utils/platform-utils";
@@ -47,7 +52,7 @@ interface ArticleListCallbacks {
   onOpenInBrowser?: (article: FeedItem) => void;
   onToggleSidebar: () => void;
   onSortChange: (value: "newest" | "oldest") => void;
-  onGroupChange: (value: "none" | "feed" | "date" | "folder") => void;
+  onGroupChange: (value: ArticleGroupByOption) => void;
   onFilterChange: (value: {
     type: string;
     value: unknown;
@@ -1256,7 +1261,10 @@ export class ArticleList {
       return;
     }
 
-    if (this.settings.articleGroupBy === "none") {
+    const feedViewGroupsByFeed =
+      this.settings.viewStyle === "feed" &&
+      this.settings.articleGroupBy === "feed";
+    if (this.settings.articleGroupBy === "none" || feedViewGroupsByFeed) {
       if (this.settings.viewStyle === "list") {
         this.renderListView(articlesList, this.articles);
       } else if (this.settings.viewStyle === "feed") {
@@ -1345,7 +1353,7 @@ export class ArticleList {
 
   private groupArticles(
     articles: FeedItem[],
-    groupBy: "feed" | "date" | "folder" | "none",
+    groupBy: ArticleGroupByOption,
   ): Record<string, FeedItem[]> {
     return groupArticlesUtil(articles, groupBy, (feedUrl: string) =>
       this.getFeedFolder(feedUrl),

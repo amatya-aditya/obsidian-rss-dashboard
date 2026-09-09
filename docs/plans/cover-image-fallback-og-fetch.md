@@ -17,7 +17,7 @@ This plan covers plugin-wide cover image retrieval when a feed item does not alr
 
 ## Goal
 
-Add a setting that lets the plugin fetch an article page once, read `og:image` first and `twitter:image` second, then persist the resolved URL onto the feed item so Card view and saved-item reuse can show a stable cover image.
+Add a setting that lets the plugin fetch an article page once, read `og:image`, then persist the resolved URL onto the feed item so Card view and saved-item reuse can show a stable cover image.
 
 ## Red-Green TDD Shape
 
@@ -26,7 +26,6 @@ Add a setting that lets the plugin fetch an article page once, read `og:image` f
 1. Add parser tests that fail when:
    - the new setting is off and no extra article-page request is made,
    - the setting is on and a missing feed image is resolved from `og:image`,
-   - the fallback uses `twitter:image` when `og:image` is absent,
    - the resolved image is persisted on the item after refresh,
    - existing feed-provided image data still wins over article-page fallback.
 2. Add card-view tests that fail when items with persisted `item.image` do not render a cover image after `coverImage` is empty.

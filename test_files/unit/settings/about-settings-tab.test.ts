@@ -11,7 +11,7 @@ beforeEach(() => {
 
 describe("renderAboutTab()", () => {
   it("renders name/version and link buttons with safe attrs", () => {
-    const containerEl = document.createElement("div");
+    const containerEl = createDiv();
     document.body.appendChild(containerEl);
     const plugin = {
       manifest: {

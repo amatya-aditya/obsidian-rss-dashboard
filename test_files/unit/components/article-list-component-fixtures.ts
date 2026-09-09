@@ -155,7 +155,6 @@ export function createDefaultSettings(): RssDashboardSettings {
     media: {
       useDomainIconsRss: true,
       useDomainIconsPodcast: true,
-      useDomainIconsTwitter: true,
       useDomainIconsYouTube: true,
     },
   } as unknown as RssDashboardSettings;
@@ -229,7 +228,7 @@ export function setupArticleListBeforeEach(): ArticleListTestContext {
     window as unknown as { ResizeObserver: typeof ResizeObserver }
   ).ResizeObserver = ResizeObserverMock;
 
-  const container = activeDocument.createElement("div");
+  const container = activeDocument.createDiv();
   activeDocument.body.appendChild(container);
   Element.prototype.scrollIntoView = vi.fn();
 

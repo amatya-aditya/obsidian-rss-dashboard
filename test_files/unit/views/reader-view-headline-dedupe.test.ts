@@ -75,7 +75,7 @@ describe("ReaderView headline de-dupe", () => {
       vi.fn(),
     );
 
-    getInternals(readerView).contentEl = document.createElement("div");
+    getInternals(readerView).contentEl = createDiv();
     await readerView.onOpen();
   });
 

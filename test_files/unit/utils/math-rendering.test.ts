@@ -33,11 +33,9 @@ describe("Math Rendering Utilities", () => {
         const source = markdown
           .slice(delimiterLength, -delimiterLength)
           .trim();
-        const el = container.ownerDocument.createElement(
-          display ? "div" : "span",
-        );
+        const el = container.ownerDocument.win.createEl(display ? "div" : "span");
         el.className = `math ${display ? "math-block" : "math-inline"}`;
-        const mathJax = container.ownerDocument.createElement("mjx-container");
+        const mathJax = container.ownerDocument.win.createEl("mjx-container");
         mathJax.textContent = `[RENDERED: ${source}]`;
         el.appendChild(mathJax);
         container.appendChild(el);
@@ -138,7 +136,7 @@ describe("Math Rendering Utilities", () => {
 
   describe("processMathElements", () => {
     it("renders WordPress formula images as native inline math", async () => {
-      const container = document.createElement("div");
+      const container = createDiv();
       sanitizeAndAppendHtml(
         container,
         '<p>Let <img class="latex" src="https://s0.wp.com/latex.php?latex=%7Bx%7D&amp;bg=ffffff" alt="{x}" /> be fixed.</p>',
@@ -156,7 +154,7 @@ describe("Math Rendering Utilities", () => {
     });
 
     it("renders a formula-only paragraph as display math", async () => {
-      const container = document.createElement("div");
+      const container = createDiv();
       sanitizeAndAppendHtml(
         container,
         '<p align="center"><img class="latex" src="https://s0.wp.com/latex.php?latex=%5Cdisplaystyle+x%5E2&amp;bg=ffffff" /></p>',
@@ -178,7 +176,7 @@ describe("Math Rendering Utilities", () => {
       vi.mocked(obsidian.MarkdownRenderer.render).mockRejectedValueOnce(
         new Error("unsupported formula"),
       );
-      const container = document.createElement("div");
+      const container = createDiv();
       sanitizeAndAppendHtml(
         container,
         '<p>Formula <img class="latex" src="https://s0.wp.com/latex.php?latex=%7Bx%7D&amp;bg=ffffff" srcset="https://s0.wp.com/latex.php?latex=%7Bx%7D 1x" alt="{x}" /></p>',
@@ -197,8 +195,8 @@ describe("Math Rendering Utilities", () => {
     });
 
     it("replaces text nodes containing math with rendered math elements", async () => {
-      const container = document.createElement("div");
-      const p = document.createElement("p");
+      const container = createDiv();
+      const p = createEl("p");
       p.textContent = "Here is $x^2$ and $$\\frac{1}{2}$$";
       container.appendChild(p);
       document.body.appendChild(container);
@@ -230,12 +228,12 @@ describe("Math Rendering Utilities", () => {
     });
 
     it("renders StackExchange math-container spans from RSS article HTML", async () => {
-      const container = document.createElement("div");
-      const firstParagraph = document.createElement("p");
-      const inlineMath = document.createElement("span");
+      const container = createDiv();
+      const firstParagraph = createEl("p");
+      const inlineMath = createSpan();
       inlineMath.className = "math-container";
       inlineMath.appendChild(document.createTextNode("$X$"));
-      const categoryMath = document.createElement("span");
+      const categoryMath = createSpan();
       categoryMath.className = "math-container";
       categoryMath.textContent = "$\\mathcal{C}$";
       firstParagraph.append(
@@ -246,8 +244,8 @@ describe("Math Rendering Utilities", () => {
         ".",
       );
 
-      const secondParagraph = document.createElement("p");
-      const displayMath = document.createElement("span");
+      const secondParagraph = createEl("p");
+      const displayMath = createSpan();
       displayMath.className = "math-container";
       displayMath.textContent = "$$\n\\operatorname{Hom}(X, Y)\n$$";
       secondParagraph.append(displayMath);
@@ -268,8 +266,8 @@ describe("Math Rendering Utilities", () => {
     });
 
     it("ignores currency values like $10 and $20", async () => {
-      const container = document.createElement("div");
-      const p = document.createElement("p");
+      const container = createDiv();
+      const p = createEl("p");
       p.textContent = "It costs $10 and $20 to buy";
       container.appendChild(p);
       document.body.appendChild(container);
@@ -282,8 +280,8 @@ describe("Math Rendering Utilities", () => {
     });
 
     it("ignores already rendered math spans to prevent double parsing", async () => {
-      const container = document.createElement("div");
-      const existingSpan = document.createElement("span");
+      const container = createDiv();
+      const existingSpan = createSpan();
       existingSpan.className = "math";
       existingSpan.setAttribute("data-math", "$x$");
       existingSpan.textContent = "Already rendered";
@@ -304,8 +302,8 @@ describe("Math Rendering Utilities", () => {
         undefined as unknown as typeof window.requestAnimationFrame;
 
       try {
-        const container = document.createElement("div");
-        const mathSpan = document.createElement("span");
+        const container = createDiv();
+        const mathSpan = createSpan();
         mathSpan.className = "math-container";
         mathSpan.appendChild(document.createTextNode("$X$"));
         container.appendChild(mathSpan);
@@ -346,7 +344,7 @@ describe("Math Rendering Utilities", () => {
         undefined as unknown as typeof window.requestAnimationFrame;
 
       try {
-        const container = document.createElement("div");
+        const container = createDiv();
         container.textContent = "Formula: $x^2$";
         document.body.appendChild(container);
         delete (window as Window & { MathJax?: unknown }).MathJax;
@@ -373,7 +371,7 @@ describe("Math Rendering Utilities", () => {
     });
 
     it("renders intact StackExchange math spans after rich HTML sanitization", async () => {
-      const container = document.createElement("div");
+      const container = createDiv();
       const rawHtml = String.raw`<p>Let <span class="math-container">$f:\Delta\to\Delta$</span> be continuous.</p><p><span class="math-container">$$\operatorname{Hom}(X, Y)$$</span></p>`;
 
       sanitizeAndAppendHtml(container, rawHtml, { mode: "rich" });
@@ -397,17 +395,17 @@ describe("Math Rendering Utilities", () => {
     });
 
     it("renders the PDE feed excerpt with multiline display formulas", async () => {
-      const container = document.createElement("div");
-      const paragraph = document.createElement("p");
+      const container = createDiv();
+      const paragraph = createEl("p");
       paragraph.append(
         "Taking (3.35) as an example: ",
-        Object.assign(document.createElement("span"), {
+        Object.assign(createSpan(), {
           className: "math-container",
           textContent: String.raw`$$ \mathbf{J}_N - \mathbf{J}
  = -\rho'(\varphi_N)\nabla\mu_N + \rho'(\varphi)\nabla\mu $$`,
         }),
         " and the strong convergence ",
-        Object.assign(document.createElement("span"), {
+        Object.assign(createSpan(), {
           className: "math-container",
           textContent: String.raw`$$ \nabla\mu_N \to \nabla\mu \quad \text{in } L^4(\mathcal{Q}_T), $$`,
         }),
@@ -427,8 +425,8 @@ describe("Math Rendering Utilities", () => {
     });
 
     it("passes LaTeX comparison operators directly to the Markdown renderer", async () => {
-      const container = document.createElement("div");
-      const mathSpan = document.createElement("span");
+      const container = createDiv();
+      const mathSpan = createSpan();
       mathSpan.className = "math-container";
       mathSpan.textContent = String.raw`$1<p<\infty$`;
       container.appendChild(mathSpan);
@@ -453,8 +451,8 @@ describe("Math Rendering Utilities", () => {
       vi.mocked(obsidian.MarkdownRenderer.render).mockRejectedValueOnce(
         new ReferenceError("Math renderer unavailable"),
       );
-      const container = document.createElement("div");
-      const mathSpan = document.createElement("span");
+      const container = createDiv();
+      const mathSpan = createSpan();
       mathSpan.className = "math-container";
       mathSpan.appendChild(document.createTextNode("$f:\\Delta\\to\\Delta$"));
       container.appendChild(mathSpan);
@@ -470,7 +468,7 @@ describe("Math Rendering Utilities", () => {
     });
 
     it("reuses rendered math when an article container is recreated", async () => {
-      const firstContainer = document.createElement("div");
+      const firstContainer = createDiv();
       firstContainer.textContent = String.raw`Formula: $\mathrm{GL}_n$`;
       document.body.appendChild(firstContainer);
 
@@ -478,7 +476,7 @@ describe("Math Rendering Utilities", () => {
       const firstMath = firstContainer.querySelector("span.math");
       firstContainer.remove();
 
-      const reopenedContainer = document.createElement("div");
+      const reopenedContainer = createDiv();
       reopenedContainer.textContent = String.raw`Formula: $\mathrm{GL}_n$`;
       document.body.appendChild(reopenedContainer);
       await processMathElements(reopenedContainer, getContext());
@@ -495,10 +493,10 @@ describe("Math Rendering Utilities", () => {
     });
 
     it("keeps rendered math caches isolated between owning documents", async () => {
-      const firstContainer = document.createElement("div");
+      const firstContainer = createDiv();
       firstContainer.textContent = "$x$";
       const popoutDocument = document.implementation.createHTMLDocument();
-      const popoutContainer = popoutDocument.createElement("div");
+      const popoutContainer = popoutDocument.body.createDiv();
       popoutContainer.textContent = "$x$";
 
       await processMathElements(firstContainer, getContext());

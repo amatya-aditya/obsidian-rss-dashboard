@@ -685,7 +685,6 @@ export function renderSidebarSettingsTab(
       settingKey:
         | "useDomainIconsRss"
         | "useDomainIconsPodcast"
-        | "useDomainIconsTwitter"
         | "useDomainIconsMastodon";
       domainName: string;
       heading: string;
@@ -839,8 +838,7 @@ export function renderSidebarSettingsTab(
     matchesDomain: (feed) =>
       !MastodonService.isResolvedFeedUrl(feed.url) &&
       !MediaService.isYouTubeFeed(feed.url) &&
-      feed.mediaType !== "podcast" &&
-      !MediaService.isTwitterOrNitterFeed(feed.url),
+      feed.mediaType !== "podcast",
     clearIconOnDisable: (entries) => {
       for (const { feed } of entries) {
         if (feed.iconUrl) {
@@ -859,24 +857,6 @@ export function renderSidebarSettingsTab(
     heading: "Clear Podcast artwork?",
     confirmLabel: "Clear artwork",
     matchesDomain: (feed) => feed.mediaType === "podcast",
-    clearIconOnDisable: (entries) => {
-      for (const { feed } of entries) {
-        if (feed.iconUrl) {
-          feed.iconUrl = "";
-        }
-      }
-    },
-  });
-
-  setupDomainIconToggle(containerEl, plugin, {
-    settingName: "Use profile images for Twitter/Nitter feeds",
-    settingDesc:
-      "Replace the standard Twitter/X icon with the feed profile image when one is available",
-    settingKey: "useDomainIconsTwitter",
-    domainName: "Twitter",
-    heading: "Clear Twitter profile images?",
-    confirmLabel: "Clear profile images",
-    matchesDomain: (feed) => MediaService.isTwitterOrNitterFeed(feed.url),
     clearIconOnDisable: (entries) => {
       for (const { feed } of entries) {
         if (feed.iconUrl) {

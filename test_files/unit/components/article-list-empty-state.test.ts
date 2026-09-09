@@ -11,7 +11,7 @@ describe("ArticleEmptyState - Component Rendering", () => {
 
   beforeEach(() => {
     // Create a fresh container for each test
-    container = document.createElement("div");
+    container = createDiv();
     document.body.appendChild(container);
   });
 

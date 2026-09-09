@@ -38,7 +38,7 @@ describe("FolderSuggest", () => {
   });
 
   it("includes the add-new row by default", () => {
-    const inputEl = document.body.appendChild(document.createElement("input"));
+    const inputEl = document.body.appendChild(createEl("input"));
     const suggest = new FolderSuggest(
       obsidian.App.createMock(),
       inputEl,
@@ -60,7 +60,7 @@ describe("FolderSuggest", () => {
   });
 
   it("includes the add-new row when explicitly enabled", () => {
-    const inputEl = document.body.appendChild(document.createElement("input"));
+    const inputEl = document.body.appendChild(createEl("input"));
     const suggest = new FolderSuggest(
       obsidian.App.createMock(),
       inputEl,
@@ -72,7 +72,7 @@ describe("FolderSuggest", () => {
   });
 
   it("hides the add-new row when disabled", () => {
-    const inputEl = document.body.appendChild(document.createElement("input"));
+    const inputEl = document.body.appendChild(createEl("input"));
     const suggest = new FolderSuggest(
       obsidian.App.createMock(),
       inputEl,
@@ -86,7 +86,7 @@ describe("FolderSuggest", () => {
   });
 
   it("selecting a real folder updates the input and dispatches input/change", () => {
-    const inputEl = document.body.appendChild(document.createElement("input"));
+    const inputEl = document.body.appendChild(createEl("input"));
     const suggest = new FolderSuggest(
       obsidian.App.createMock(),
       inputEl,
@@ -108,7 +108,7 @@ describe("FolderSuggest", () => {
   });
 
   it("selecting add new folder closes the menu without clearing typed input", () => {
-    const inputEl = document.body.appendChild(document.createElement("input"));
+    const inputEl = document.body.appendChild(createEl("input"));
     inputEl.value = "Custom/Path";
 
     const suggest = new FolderSuggest(

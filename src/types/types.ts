@@ -216,7 +216,6 @@ export type PodcastTheme =
 export interface MediaSettings {
   autoTagVideos: boolean;
   rememberPlaybackProgress: boolean;
-  defaultTwitterFolder: string;
   defaultMastodonFolder: string;
   defaultYouTubeFolder: string;
   defaultVideoTag: string;
@@ -231,8 +230,6 @@ export interface MediaSettings {
   defaultSmallwebFolder: string;
   defaultSmallwebTag: string;
   defaultSmallwebTags: string[];
-  defaultTwitterTag: string;
-  defaultTwitterTags: string[];
   defaultMastodonTag: string;
   defaultMastodonTags: string[];
   openInSplitView: boolean;
@@ -294,7 +291,6 @@ export interface DisplaySettings {
   useDomainFavicons: boolean;
   useDomainIconsPodcast: boolean;
   useDomainIconsMastodon: boolean;
-  useDomainIconsTwitter: boolean;
   useDomainIconsRss: boolean;
   useDomainIconsYouTube: boolean;
   hideDefaultRssIcon: boolean;
@@ -435,6 +431,21 @@ export type PersistedFeedConfig = Omit<Feed, "items"> & {
   feedId: string;
 };
 
+export type ArticleGroupByOption =
+  | "none"
+  | "feed"
+  | "date"
+  | "folder"
+  | "date_feed"
+  | "folder_feed";
+
+export interface FeedRetentionProtections {
+  protectStarred?: boolean;
+  protectSaved?: boolean;
+  protectTagged?: boolean;
+  protectUnread?: boolean;
+}
+
 export interface RssDashboardSettings {
   feeds: Feed[];
   folders: Folder[];
@@ -445,6 +456,10 @@ export interface RssDashboardSettings {
   startupRefreshDelaySeconds: number;
   maxItems: number;
   defaultAutoDeleteDuration: number;
+  protectStarred: boolean;
+  protectSaved: boolean;
+  protectTagged: boolean;
+  protectUnread: boolean;
   viewStyle: "list" | "card" | "feed";
   showFeedArt: boolean;
   showThumbnails: boolean;
@@ -458,7 +473,7 @@ export interface RssDashboardSettings {
     value: unknown;
   };
   articleSort: "newest" | "oldest";
-  articleGroupBy: "none" | "feed" | "date" | "folder";
+  articleGroupBy: ArticleGroupByOption;
   allArticlesPageSize: number;
   unreadArticlesPageSize: number;
   readArticlesPageSize: number;
@@ -599,11 +614,15 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
   startupRefreshDelaySeconds: 5,
   maxItems: 50,
   defaultAutoDeleteDuration: 30,
+  protectStarred: true,
+  protectSaved: true,
+  protectTagged: false,
+  protectUnread: false,
   viewStyle: "card",
   showFeedArt: true,
   showThumbnails: true,
   sidebarCollapsed: false,
-  sidebarWidth: 280,
+  sidebarWidth: 310,
   collapsedFolders: [],
   collapsedFeedSections: [],
   tagsCollapsed: true,
@@ -643,7 +662,6 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
   media: {
     autoTagVideos: true,
     rememberPlaybackProgress: true,
-    defaultTwitterFolder: "Twitter",
     defaultMastodonFolder: "Mastodon",
     defaultYouTubeFolder: "Videos",
     defaultVideoTag: "Video",
@@ -658,8 +676,6 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
     defaultSmallwebFolder: "Smallweb",
     defaultSmallwebTag: "smallweb",
     defaultSmallwebTags: ["smallweb"],
-    defaultTwitterTag: "",
-    defaultTwitterTags: [],
     defaultMastodonTag: "",
     defaultMastodonTags: [],
     openInSplitView: true,
@@ -729,7 +745,6 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
     useDomainFavicons: true,
     useDomainIconsPodcast: false,
     useDomainIconsMastodon: false,
-    useDomainIconsTwitter: false,
     useDomainIconsRss: false,
     useDomainIconsYouTube: false,
     hideDefaultRssIcon: false,

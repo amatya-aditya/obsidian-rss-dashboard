@@ -63,7 +63,6 @@ function storageError(
 ): void {}
 
 type MediaFolderSettingKey =
-  | "defaultTwitterFolder"
   | "defaultMastodonFolder"
   | "defaultYouTubeFolder"
   | "defaultPodcastFolder"
@@ -646,13 +645,6 @@ export function renderStorageSettingsTab(
   renderFolderSetting(
     containerEl,
     plugin,
-    "Default Twitter folder",
-    "Default folder for Twitter/X/Nitter feeds",
-    "defaultTwitterFolder",
-  );
-  renderFolderSetting(
-    containerEl,
-    plugin,
     "Default Mastodon folder",
     "Default folder for Mastodon feeds",
     "defaultMastodonFolder",
@@ -692,7 +684,6 @@ export function renderStorageSettingsTab(
     .addButton((button) => {
       button.setButtonText("Default folder names").onClick(async () => {
         const d = DEFAULT_SETTINGS.media;
-        plugin.settings.media.defaultTwitterFolder = d.defaultTwitterFolder;
         plugin.settings.media.defaultMastodonFolder = d.defaultMastodonFolder;
         plugin.settings.media.defaultYouTubeFolder = d.defaultYouTubeFolder;
         plugin.settings.media.defaultPodcastFolder = d.defaultPodcastFolder;

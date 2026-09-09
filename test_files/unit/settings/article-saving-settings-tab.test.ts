@@ -77,7 +77,7 @@ beforeEach(() => {
 
 describe("renderArticleSavingSettingsTab()", () => {
   it("persists save path via normalizePath() and saveSettings()", async () => {
-    const containerEl = document.createElement("div");
+    const containerEl = createDiv();
     const plugin = createPlugin({ defaultFolder: "Old" });
     const onRefresh = vi.fn();
 
@@ -102,7 +102,7 @@ describe("renderArticleSavingSettingsTab()", () => {
   });
 
   it("persists toggles (addSavedTag, saveFullContent)", async () => {
-    const containerEl = document.createElement("div");
+    const containerEl = createDiv();
     const plugin = createPlugin({ addSavedTag: false, saveFullContent: false });
     const onRefresh = vi.fn();
 
@@ -134,7 +134,7 @@ describe("renderArticleSavingSettingsTab()", () => {
   });
 
   it("defaults fetchTimeout to 10 and persists slider changes", async () => {
-    const containerEl = document.createElement("div");
+    const containerEl = createDiv();
     const plugin = createPlugin({ fetchTimeout: undefined });
     const onRefresh = vi.fn();
 
@@ -155,7 +155,7 @@ describe("renderArticleSavingSettingsTab()", () => {
   });
 
   it("updates defaultTemplate on textarea change; reset restores DEFAULT_SETTINGS + Notice", async () => {
-    const containerEl = document.createElement("div");
+    const containerEl = createDiv();
     const plugin = createPlugin({ defaultTemplate: "A" });
     const onRefresh = vi.fn();
 
@@ -198,7 +198,7 @@ describe("renderArticleSavingSettingsTab()", () => {
   });
 
   it("renders empty saved templates note; save-as-template appends, saves, and notifies", async () => {
-    const containerEl = document.createElement("div");
+    const containerEl = createDiv();
     const plugin = createPlugin({
       defaultTemplate: "CURR",
       savedTemplates: undefined,
@@ -248,7 +248,7 @@ describe("renderArticleSavingSettingsTab()", () => {
   });
 
   it("supports saved template actions: Load, Update, Delete", async () => {
-    const containerEl = document.createElement("div");
+    const containerEl = createDiv();
     const plugin = createPlugin({
       defaultTemplate: "EDITOR",
       savedTemplates: [{ id: "t1", name: "One", template: "SAVED" }],
@@ -323,7 +323,7 @@ describe("renderArticleSavingSettingsTab()", () => {
 
 describe("Article Saving settings help text", () => {
   it("includes {{image}} in the available variables list", () => {
-    const containerEl = document.createElement("div");
+    const containerEl = createDiv();
     const plugin = createPlugin();
     const onRefresh = vi.fn();
 

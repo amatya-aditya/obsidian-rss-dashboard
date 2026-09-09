@@ -38,7 +38,7 @@ beforeEach(() => {
 describe("renderMediaSettingsTab()", () => {
   it("renders playback settings first and does not show folder defaults", async () => {
     const containerEl = document.body.appendChild(
-      document.createElement("div"),
+      createDiv(),
     );
     const settings = cloneSettings();
     settings.media.rememberPlaybackProgress = true;
@@ -59,7 +59,6 @@ describe("renderMediaSettingsTab()", () => {
 
     expect(names[0]).toBe("Playback progress");
     expect(names).toContain("Remember playback progress");
-    expect(names).not.toContain("Default Twitter folder");
     expect(names).not.toContain("Default folders");
 
     const progressSetting = getSettingByName(
@@ -80,7 +79,7 @@ describe("renderMediaSettingsTab()", () => {
 
   it("runs the clear playback progress action", async () => {
     const containerEl = document.body.appendChild(
-      document.createElement("div"),
+      createDiv(),
     );
     const settings = cloneSettings();
 
@@ -107,7 +106,7 @@ describe("renderMediaSettingsTab()", () => {
 
   it("updates podcast theme and refreshes reader view when available", async () => {
     const containerEl = document.body.appendChild(
-      document.createElement("div"),
+      createDiv(),
     );
     const settings = cloneSettings();
     settings.media.podcastTheme = "obsidian" as PodcastTheme;
@@ -137,7 +136,7 @@ describe("renderMediaSettingsTab()", () => {
   describe("Media settings default playback speed", () => {
     it("renders and persists default play speed setting", async () => {
       const containerEl = document.body.appendChild(
-        document.createElement("div"),
+        createDiv(),
       );
       const settings = cloneSettings();
       settings.media.defaultPlaySpeed = 1;

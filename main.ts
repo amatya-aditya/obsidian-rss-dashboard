@@ -311,6 +311,12 @@ export default class RssDashboardPlugin extends Plugin {
       this.settings.media,
       () => this.settings.folders,
       () => this.settings.corsProxyEnabled,
+      () => ({
+        protectStarred: this.settings.protectStarred,
+        protectSaved: this.settings.protectSaved,
+        protectTagged: this.settings.protectTagged,
+        protectUnread: this.settings.protectUnread,
+      }),
     );
     this.articleSaver = new ArticleSaver(this.app, this.settings.articleSaving);
     this.importExportService = new ImportExportService({
@@ -1523,7 +1529,14 @@ export default class RssDashboardPlugin extends Plugin {
 
       for (const feed of this.settings.feeds) {
         const originalCount = feed.items.length;
-        const updated = applyFeedRetentionLimits(feed);
+        const updated = applyFeedRetentionLimits(feed, {
+          protections: {
+            protectStarred: this.settings.protectStarred,
+            protectSaved: this.settings.protectSaved,
+            protectTagged: this.settings.protectTagged,
+            protectUnread: this.settings.protectUnread,
+          },
+        });
         feed.items = updated.items;
 
         if (feed.items.length !== originalCount) {

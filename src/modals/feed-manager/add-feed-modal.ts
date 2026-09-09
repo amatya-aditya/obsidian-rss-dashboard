@@ -15,7 +15,6 @@ import {
   resolveAndLoadPreview,
   shouldAutoAssignFolder,
 } from "./feed-preview-loader";
-import { MediaService } from "../../services/media-service";
 import { renderKeywordFilterEditor } from "../../components/keyword-filter-editor";
 import { shouldUseMobileSidebarLayout } from "../../utils/platform-utils";
 import { isValidFeedTitle } from "../../utils/validation";
@@ -135,7 +134,7 @@ export class AddFeedModal extends Modal {
    * ============================================ */
   private setupModalContainer() {
     this.modalEl.className +=
-      " rss-dashboard-modal rss-dashboard-modal-container";
+      " rss-dashboard-modal rss-dashboard-modal-container rss-add-feed-modal";
     // Add mobile-specific class for proper styling on mobile/tablet
     if (shouldUseMobileSidebarLayout()) {
       this.modalEl.addClass("rss-mobile-feed-manager-modal");
@@ -159,19 +158,10 @@ export class AddFeedModal extends Modal {
    * 2. URL & Feed Source
    * Handles input parsing, live loading, and format detection
    * ============================================ */
-  private normalizeNitterUrl = (): void => {
-    const candidate = (this.urlInput?.value || this.url || "").trim();
-    const normalized = MediaService.normalizeNitterUrlToRss(candidate);
-    if (!normalized) return;
-
-    this.url = normalized;
-    if (this.urlInput) this.urlInput.value = normalized;
-  };
-
   private async handleLoadFeed() {
     // Validate that URL is not empty
     if (!this.url || this.url.trim() === "") {
-      this.status = "\u274C Please enter a feed URL";
+      this.status = "❌ Please enter a feed URL";
       if (this.statusDiv) {
         this.statusDiv.textContent = this.status;
         this.statusDiv.removeClass("status-loading");
@@ -180,8 +170,6 @@ export class AddFeedModal extends Modal {
       }
       return;
     }
-
-    this.normalizeNitterUrl();
 
     // Set loading state
     this.status = "\u23F3 Loading...";
@@ -302,10 +290,6 @@ export class AddFeedModal extends Modal {
         this.urlInput.addEventListener("keydown", handleEnter, { capture: true });
         this.urlInput.addEventListener("keypress", handleEnter, { capture: true });
         this.urlInput.addEventListener("keyup", handleEnter, { capture: true });
-        this.urlInput.addEventListener("blur", this.normalizeNitterUrl);
-        this.urlInput.addEventListener("paste", () => {
-          window.setTimeout(this.normalizeNitterUrl, 0);
-        });
       })
       .addButton((btn) => {
         btn.setButtonText("Load");
@@ -691,19 +675,18 @@ export class AddFeedModal extends Modal {
    * ============================================ */
   private renderActionButtons() {
     const btns = this.contentEl.createDiv({
-      cls: "rss-dashboard-modal-buttons rss-dashboard-modal-actions",
+      cls: "rss-dashboard-modal-buttons rss-dashboard-modal-actions rss-add-feed-actions",
     });
     const saveBtn = btns.createEl("button", {
       text: "Save",
-      cls: "rss-dashboard-primary-button",
+      cls: "rss-dashboard-primary-button rss-add-feed-save-button",
     });
     const cancelBtn = btns.createEl("button", {
       text: "Cancel",
-      cls: "rss-dashboard-danger-button rss-dashboard-cancel-button",
+      cls: "rss-dashboard-cancel-button rss-add-feed-cancel-button",
     });
 
     saveBtn.onclick = () => {
-      this.normalizeNitterUrl();
       if (!this.url) {
         new Notice("Feed URL cannot be empty");
         return;

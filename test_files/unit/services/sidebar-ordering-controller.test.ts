@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   moveFeedAndInsert,
+  moveFeedsAndInsert,
   moveFeedToFolderAppend,
+  moveFeedsToFolderAppend,
   moveFolder,
   setFolderFeedSortCustom,
   setFolderSortCustom,
@@ -157,6 +159,148 @@ describe("moveFeedToFolderAppend", () => {
     expect(settings.folderFeedSortOrders?.["Home"]?.by).toBe("custom");
   });
 });
+
+describe("moveFeedsToFolderAppend", () => {
+  it("rejects when no dragged urls match existing feeds", () => {
+    const settings = cloneSettings();
+    settings.feeds = [makeFeed("A", "a", "Work")];
+
+    expect(
+      moveFeedsToFolderAppend(settings, {
+        draggedUrls: ["nonexistent1", "nonexistent2"],
+        destinationFolderPath: "Work",
+      }),
+    ).toEqual({ ok: false, error: "Dragged feeds not found." });
+
+    expect(
+      moveFeedsToFolderAppend(settings, {
+        draggedUrls: [],
+        destinationFolderPath: "Work",
+      }),
+    ).toEqual({ ok: false, error: "Dragged feeds not found." });
+  });
+
+  it("moves multiple feeds to destination folder preserving their relative order and appends to existing feeds", () => {
+    const settings = cloneSettings();
+    settings.feeds = [
+      makeFeed("A", "a", "Source1"),
+      makeFeed("Target1", "t1", "Dest"),
+      makeFeed("B", "b", "Source2"),
+      makeFeed("Target2", "t2", "Dest"),
+      makeFeed("C", "c", "Source1"),
+      makeFeed("Other", "o", "Other"),
+    ];
+
+    // Move 'a', 'b', 'c' to 'Dest'
+    const result = moveFeedsToFolderAppend(settings, {
+      draggedUrls: ["a", "b", "c"],
+      destinationFolderPath: "Dest",
+    });
+
+    expect(result.ok).toBe(true);
+    // Relative order of a, b, c is preserved, appended after target feeds in Dest
+    expect(settings.feeds.map((f) => f.url)).toEqual(["t1", "t2", "a", "b", "c", "o"]);
+    expect(settings.feeds.filter((f) => ["a", "b", "c"].includes(f.url)).map((f) => f.folder)).toEqual([
+      "Dest",
+      "Dest",
+      "Dest",
+    ]);
+    expect(settings.folderFeedSortOrders?.["Dest"]?.by).toBe("custom");
+  });
+
+  it("moves multiple feeds to root preserving relative order", () => {
+    const settings = cloneSettings();
+    settings.feeds = [
+      makeFeed("Root1", "r1", ""),
+      makeFeed("A", "a", "Work"),
+      makeFeed("B", "b", "Personal"),
+    ];
+
+    const result = moveFeedsToFolderAppend(settings, {
+      draggedUrls: ["a", "b"],
+      destinationFolderPath: "",
+    });
+
+    expect(result.ok).toBe(true);
+    expect(settings.feeds.map((f) => f.url)).toEqual(["r1", "a", "b"]);
+    expect(settings.feeds.find((f) => f.url === "a")?.folder).toBe("");
+    expect(settings.feeds.find((f) => f.url === "b")?.folder).toBe("");
+    expect(settings.folderFeedSortOrders?.[""]?.by).toBe("custom");
+  });
+});
+
+describe("moveFeedsAndInsert", () => {
+  it("rejects when target feed is in dragged feeds (no-op drop)", () => {
+    const settings = cloneSettings();
+    settings.feeds = [makeFeed("A", "a", "Work"), makeFeed("B", "b", "Work")];
+
+    expect(
+      moveFeedsAndInsert(settings, {
+        draggedUrls: ["a", "b"],
+        targetUrl: "a",
+        placement: "before",
+      }),
+    ).toEqual({ ok: false, error: "No-op drop." });
+  });
+
+  it("rejects when target feed is not found", () => {
+    const settings = cloneSettings();
+    settings.feeds = [makeFeed("A", "a", "Work")];
+
+    expect(
+      moveFeedsAndInsert(settings, {
+        draggedUrls: ["a"],
+        targetUrl: "nonexistent",
+        placement: "before",
+      }),
+    ).toEqual({ ok: false, error: "Target feed not found." });
+  });
+
+  it("moves multiple feeds and inserts before target in relative order", () => {
+    const settings = cloneSettings();
+    settings.feeds = [
+      makeFeed("Feed1", "f1", "Work"),
+      makeFeed("Feed2", "f2", "Personal"),
+      makeFeed("Target", "t", "Dest"),
+      makeFeed("AfterTarget", "at", "Dest"),
+    ];
+
+    const result = moveFeedsAndInsert(settings, {
+      draggedUrls: ["f1", "f2"],
+      targetUrl: "t",
+      placement: "before",
+    });
+
+    expect(result.ok).toBe(true);
+    expect(settings.feeds.map((f) => f.url)).toEqual(["f1", "f2", "t", "at"]);
+    expect(settings.feeds.find((f) => f.url === "f1")?.folder).toBe("Dest");
+    expect(settings.feeds.find((f) => f.url === "f2")?.folder).toBe("Dest");
+    expect(settings.folderFeedSortOrders?.["Dest"]?.by).toBe("custom");
+  });
+
+  it("moves multiple feeds and inserts after target in relative order", () => {
+    const settings = cloneSettings();
+    settings.feeds = [
+      makeFeed("Feed1", "f1", "Work"),
+      makeFeed("Target", "t", "Dest"),
+      makeFeed("AfterTarget", "at", "Dest"),
+      makeFeed("Feed2", "f2", "Personal"),
+    ];
+
+    const result = moveFeedsAndInsert(settings, {
+      draggedUrls: ["f1", "f2"],
+      targetUrl: "t",
+      placement: "after",
+    });
+
+    expect(result.ok).toBe(true);
+    expect(settings.feeds.map((f) => f.url)).toEqual(["t", "f1", "f2", "at"]);
+    expect(settings.feeds.find((f) => f.url === "f1")?.folder).toBe("Dest");
+    expect(settings.feeds.find((f) => f.url === "f2")?.folder).toBe("Dest");
+    expect(settings.folderFeedSortOrders?.["Dest"]?.by).toBe("custom");
+  });
+});
+
 
 describe("moveFolder", () => {
   it("rejects missing required inputs and invalid nesting", () => {

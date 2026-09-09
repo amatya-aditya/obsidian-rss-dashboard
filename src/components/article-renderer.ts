@@ -1,4 +1,4 @@
-import { App, type Component, setIcon, TFile } from "obsidian";
+import { App, type Component, TFile } from "obsidian";
 import { sanitizeAndAppendHtml } from "../utils/safe-html";
 import { scheduleProcessMathElements } from "../utils/math-rendering";
 import { FeedItem, RssDashboardSettings } from "../types/types";
@@ -100,9 +100,7 @@ export class ArticleRenderer {
     this.currentItem = item;
     this.relatedItems = relatedItems;
     this.currentDisplayTitle = undefined;
-    this.currentReaderTitle = this.isTweetLikeItem(item)
-      ? this.formatNitterReaderTitle(item)
-      : undefined;
+    this.currentReaderTitle = undefined;
     this.currentContentIsFullArticle = false;
     this.currentFullContentFailureType = "none";
 
@@ -218,9 +216,7 @@ export class ArticleRenderer {
     const onEpisodeSelected = (selectedEpisode: FeedItem) => {
       this.currentItem = selectedEpisode;
       this.currentDisplayTitle = undefined;
-      this.currentReaderTitle = this.isTweetLikeItem(selectedEpisode)
-        ? this.formatNitterReaderTitle(selectedEpisode)
-        : undefined;
+      this.currentReaderTitle = undefined;
       // We might need to bubble this up if the dashboard selection needs to sync
       this.onArticleUpdate(selectedEpisode, { read: true }, false);
     };
@@ -260,7 +256,6 @@ export class ArticleRenderer {
       cls: "rss-reader-article-header",
     });
 
-    const isNitter = this.isTweetLikeItem(item);
     const displayTitle =
       this.currentReaderTitle || this.currentDisplayTitle || item.title;
     const articleTitleEl = headerContainer.createEl("h1", {
@@ -274,19 +269,17 @@ export class ArticleRenderer {
       component: this.component,
     });
 
-    if (!isNitter) {
-      const metaContainer = headerContainer.createDiv({
-        cls: "rss-reader-meta",
-      });
-      metaContainer.createDiv({
-        cls: "rss-reader-feed-title",
-        text: item.feedTitle,
-      });
-      metaContainer.createDiv({
-        cls: "rss-reader-pub-date",
-        text: new Date(item.pubDate).toLocaleString(),
-      });
-    }
+    const metaContainer = headerContainer.createDiv({
+      cls: "rss-reader-meta",
+    });
+    metaContainer.createDiv({
+      cls: "rss-reader-feed-title",
+      text: item.feedTitle,
+    });
+    metaContainer.createDiv({
+      cls: "rss-reader-pub-date",
+      text: new Date(item.pubDate).toLocaleString(),
+    });
 
     if (item.tags && item.tags.length > 0) {
       const tagsContainer = headerContainer.createDiv({
@@ -319,7 +312,7 @@ export class ArticleRenderer {
       (!hasMeaningfulDescription ||
         !this.isEquivalentHtml(mainHtml, descriptionHtml));
 
-    if (!isNitter && hasDistinctMainContent) {
+    if (hasDistinctMainContent) {
       const descriptionCallout = container.createEl("details", {
         cls: "rss-reader-description-callout",
       });
@@ -337,7 +330,6 @@ export class ArticleRenderer {
           displayTitle,
           heroSlot,
           false,
-          false,
           undefined,
         );
       } else {
@@ -345,11 +337,9 @@ export class ArticleRenderer {
       }
     }
 
-    const contentToRender = isNitter
-      ? this.pickBestNitterTweetHtml(item, fullContent)
-      : hasDistinctMainContent
-        ? mainHtml
-        : mainHtml || descriptionHtml;
+    const contentToRender = hasDistinctMainContent
+      ? mainHtml
+      : mainHtml || descriptionHtml;
 
     if (contentToRender) {
       const contentContainer = container.createDiv({
@@ -365,7 +355,6 @@ export class ArticleRenderer {
         displayTitle,
         heroSlot,
         shouldStripHeadline,
-        isNitter,
         descriptionHtml,
       );
     }
@@ -441,7 +430,6 @@ export class ArticleRenderer {
     title?: string,
     heroSlot?: HTMLElement,
     stripTopHeadline = false,
-    isNitter = false,
     feedDescriptionHtml?: string,
   ): void {
     if (!rawHtml) return;
@@ -532,8 +520,6 @@ export class ArticleRenderer {
           el.removeAttribute("data-tooltip-delay");
         });
 
-      if (isNitter) this.transformNitterStatsMarkup(doc);
-
       html = doc.body.innerHTML;
     } catch {
       /* intentionally empty */
@@ -565,7 +551,6 @@ export class ArticleRenderer {
         );
       });
     });
-    if (isNitter) this.hydrateNitterStatsIcons(container);
     void scheduleProcessMathElements(container, {
       app: this.app,
       component: this.component,
@@ -683,8 +668,6 @@ export class ArticleRenderer {
   }
 
   private prefersFeedContent(item: FeedItem): boolean {
-    if (this.isTweetLikeItem(item)) return true;
-
     if (item.link) {
       try {
         const host = new URL(item.link).hostname.toLowerCase();
@@ -707,10 +690,7 @@ export class ArticleRenderer {
       "aeon.co",
       "substack.com",
     ];
-    return (
-      preferred.some((p) => host === p || host.endsWith("." + p)) ||
-      host.toLowerCase().includes("nitter")
-    );
+    return preferred.some((p) => host === p || host.endsWith("." + p));
   }
 
   private hasSubstackRichFeedMarkup(html: string): boolean {
@@ -724,145 +704,7 @@ export class ArticleRenderer {
     );
   }
 
-  private isTweetLikeItem(item: FeedItem): boolean {
-    return (
-      item.link?.toLowerCase().includes("nitter") ||
-      MediaService.isXUrl(item.link) ||
-      MediaService.isXUrl(item.feedUrl)
-    );
-  }
 
-  private formatNitterReaderTitle(item: FeedItem): string {
-    const { name, handle } = this.extractNitterNameAndHandle(item);
-    const date = this.formatIsoDate(item.pubDate);
-    const time = this.formatTimeOfDay(item.pubDate);
-    const dateTime = [date, time].filter(Boolean).join(" ");
-
-    if (name && handle && dateTime) return `${name} (${handle}) · ${dateTime}`;
-    if (name && handle) return `${name} (${handle})`;
-    if (name && dateTime) return `${name} · ${dateTime}`;
-    if (handle && dateTime) return `${handle} · ${dateTime}`;
-    return item.title;
-  }
-
-  private extractNitterNameAndHandle(item: FeedItem): {
-    name: string;
-    handle: string;
-  } {
-    const tryExtract = (source: string): { name: string; handle: string } => {
-      const handleMatch = source.match(/@[\w.]+/i);
-      const handle = handleMatch ? handleMatch[0] : "";
-      let name = source;
-
-      if (handle) name = name.replace(handle, "");
-
-      name = name
-        .replace(/[()]/g, " ")
-        .replace(/[|/]/g, " ")
-        .replace(/\s{2,}/g, " ")
-        .trim();
-
-      return { name, handle };
-    };
-
-    const author = (item.author || "").trim();
-    const feedTitle = (item.feedTitle || "").trim();
-
-    const authorParsed = author ? tryExtract(author) : { name: "", handle: "" };
-    const feedParsed = feedTitle
-      ? tryExtract(feedTitle)
-      : { name: "", handle: "" };
-
-    const urlHandle =
-      this.extractHandleFromUrl(item.link) ||
-      this.extractHandleFromUrl(item.feedUrl);
-
-    const handle =
-      (/^@[\w.]+$/i.test(author) ? author : authorParsed.handle) ||
-      feedParsed.handle ||
-      urlHandle;
-    const name = authorParsed.name || feedParsed.name;
-
-    return { name, handle };
-  }
-
-  private extractHandleFromUrl(url: string | undefined): string {
-    const trimmed = (url || "").trim();
-    if (!trimmed) return "";
-
-    try {
-      const u = new URL(trimmed);
-      const host = u.hostname.toLowerCase();
-      if (
-        !this.isNitterHost(host) &&
-        !host.includes("twitter.com") &&
-        !host.includes("x.com")
-      ) {
-        return "";
-      }
-      const parts = u.pathname.split("/").filter(Boolean);
-      const username = parts[0] || "";
-      if (!username) return "";
-      if (
-        /^(home|explore|messages|notifications|settings|search|i)$/i.test(
-          username,
-        )
-      ) {
-        return "";
-      }
-      return username.startsWith("@") ? username : `@${username}`;
-    } catch {
-      return "";
-    }
-  }
-
-  private isNitterHost(host: string): boolean {
-    return host.toLowerCase().includes("nitter");
-  }
-
-  private formatIsoDate(dateInput: string): string {
-    const trimmed = (dateInput || "").trim();
-    if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) {
-      return trimmed.slice(0, 10);
-    }
-    const parsed = new Date(trimmed);
-    if (Number.isFinite(parsed.getTime())) {
-      return parsed.toISOString().slice(0, 10);
-    }
-    return "";
-  }
-
-  private formatTimeOfDay(dateInput: string): string {
-    const trimmed = (dateInput || "").trim();
-    const parsed = new Date(trimmed);
-    if (!Number.isFinite(parsed.getTime())) return "";
-    return parsed.toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  }
-
-  private pickBestNitterTweetHtml(
-    item: FeedItem,
-    fullContent?: string,
-  ): string {
-    const description = (item.description || "").trim();
-    const content = (item.content || "").trim();
-    const full = (fullContent || "").trim();
-
-    const hasRichFormatting = (html: string): boolean =>
-      /<(br|p|blockquote|img)\b/i.test(html);
-
-    if (
-      description &&
-      (hasRichFormatting(description) ||
-        description.length > (content ? content.length : 0))
-    ) {
-      return description;
-    }
-
-    return content || full || description;
-  }
 
   private isEquivalentHtml(html1: string, html2: string): boolean {
     return (
@@ -1198,78 +1040,7 @@ export class ArticleRenderer {
     if (idx !== -1 && idx <= 9) h1.remove();
   }
 
-  private transformNitterStatsMarkup(doc: Document): void {
-    let target = doc.body.querySelector<HTMLElement>(
-      ".tweet-stats, .tweet-stats-container",
-    );
-    if (!target) {
-      const iconEl = doc.body.querySelector<HTMLElement>(
-        ".icon-comment, .icon-retweet, .icon-heart, .icon-views",
-      );
-      let cursor = iconEl;
-      for (let i = 0; i < 6 && cursor; i++) {
-        if (
-          cursor.querySelectorAll(
-            ".icon-comment, .icon-retweet, .icon-heart, .icon-views",
-          ).length >= 2
-        ) {
-          target = cursor;
-          break;
-        }
-        cursor = cursor.parentElement;
-      }
-    }
-    if (!target) return;
 
-    const extractCount = (cls: string) => {
-      const m = target.querySelector(`.${cls}`);
-      return (
-        (m?.parentElement?.textContent || "")
-          .replace(/\s+/g, " ")
-          .trim()
-          .match(/(\d[\d.,]*\s*[kKmMbB]?)/)?.[1] || ""
-      );
-    };
-
-    const statsEl = doc.createDiv();
-    statsEl.className = "rss-nitter-stats";
-    [
-      { k: "comment", i: "message-circle" },
-      { k: "retweet", i: "repeat-2" },
-      { k: "heart", i: "heart" },
-      { k: "views", i: "bar-chart-2" },
-    ].forEach((p) => {
-      const pill = doc.createSpan();
-      pill.className = "rss-nitter-stat";
-      pill.setAttribute("data-stat", p.k);
-      const icon = doc.createSpan();
-      icon.className = "rss-nitter-stat-icon";
-      icon.setAttribute("data-rss-icon", p.i);
-      const count = doc.createSpan();
-      count.className = "rss-nitter-stat-count";
-      count.textContent = extractCount(`icon-${p.k}`);
-      pill.appendChild(icon);
-      pill.appendChild(count);
-      statsEl.appendChild(pill);
-    });
-
-    target.parentElement?.insertBefore(statsEl, target);
-    target.remove();
-  }
-
-  private hydrateNitterStatsIcons(container: HTMLElement): void {
-    container
-      .querySelectorAll<HTMLElement>(".rss-nitter-stat-icon")
-      .forEach((el) => {
-        const icon = el.dataset.rssIcon;
-        if (icon)
-          try {
-            setIcon(el, icon);
-          } catch {
-            /* intentionally empty */
-          }
-      });
-  }
 
   private extractDisplayTitleFromHtml(html: string): string | null {
     if (!html) return null;

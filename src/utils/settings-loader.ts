@@ -115,6 +115,19 @@ export function loadAndNormalizeSettings(
       DEFAULT_SETTINGS.defaultAutoDeleteDuration;
   }
 
+  if (typeof settings.protectStarred !== "boolean") {
+    settings.protectStarred = DEFAULT_SETTINGS.protectStarred;
+  }
+  if (typeof settings.protectSaved !== "boolean") {
+    settings.protectSaved = DEFAULT_SETTINGS.protectSaved;
+  }
+  if (typeof settings.protectTagged !== "boolean") {
+    settings.protectTagged = DEFAULT_SETTINGS.protectTagged;
+  }
+  if (typeof settings.protectUnread !== "boolean") {
+    settings.protectUnread = DEFAULT_SETTINGS.protectUnread;
+  }
+
   if (!settings.readerViewLocation) {
     settings.readerViewLocation = "right-sidebar";
   }
@@ -363,8 +376,8 @@ export function migrateSettings(settings: RssDashboardSettings): boolean {
     : { ...DEFAULT_SETTINGS.dashboardMultiFilters };
 
   migrateDefaultFilterToDashboardMultiFilters(
-    settings.display as unknown as Record<string, unknown>,
-    settings.dashboardMultiFilters as unknown as Record<string, unknown>,
+    settings.display,
+    settings.dashboardMultiFilters,
   );
 
   settings.feeds = Array.isArray(settings.feeds) ? settings.feeds : [];
