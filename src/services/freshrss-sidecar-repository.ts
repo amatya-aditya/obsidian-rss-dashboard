@@ -38,6 +38,17 @@ export interface FreshRssArticleBinding {
 export interface FreshRssSyncCheckpoint {
   remoteSubscriptionId: string;
   completedAtMs: number;
+  /**
+   * The continuation cursor an interrupted or budget-capped "Fetch more
+   * history" invocation (ticket 10) last persisted, so the next invocation
+   * resumes deeper into this subscription's content stream instead of
+   * re-walking already-processed pages. Optional on the wire so a checkpoint
+   * written before this field existed still parses and activates losslessly;
+   * absent/null means either the subscription is already fully enumerated
+   * (`completedAtMs` set) or no "Fetch more history" invocation has made
+   * partial progress yet.
+   */
+  historyFetchCursor?: string | null;
 }
 
 export interface FreshRssSidecarFile {
@@ -169,7 +180,10 @@ function isSyncCheckpoint(value: unknown): value is FreshRssSyncCheckpoint {
     typeof value.remoteSubscriptionId === "string" &&
     Boolean(value.remoteSubscriptionId) &&
     typeof value.completedAtMs === "number" &&
-    Number.isFinite(value.completedAtMs)
+    Number.isFinite(value.completedAtMs) &&
+    (value.historyFetchCursor === undefined ||
+      value.historyFetchCursor === null ||
+      typeof value.historyFetchCursor === "string")
   );
 }
 

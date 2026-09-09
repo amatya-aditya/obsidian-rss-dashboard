@@ -120,6 +120,22 @@ export const FRESHRSS_ITEM_ID_PAGE_SIZE = 1000;
 /** Default history/state bootstrap budget per relevant stream. */
 export const FRESHRSS_STREAM_ID_BUDGET = 25000;
 
+/**
+ * Bounded per-invocation budget for the explicit "Fetch more history" action
+ * (ticket 10): the maximum number of additional remote item IDs one
+ * invocation enumerates for the single selected FreshRSS-linked feed's
+ * content stream. Deliberately set equal to `FRESHRSS_STREAM_ID_BUDGET` --
+ * the same documented default bootstrap budget the master spec already
+ * defines for "relevant streams" -- rather than inventing a second number.
+ * Unlike the ordinary cycle's per-subscription pull (bounded to the most
+ * recent `FRESHRSS_SYNC_ARTICLES_PER_SUBSCRIPTION` items with no persisted
+ * paging position), a "Fetch more history" invocation pages deeper using a
+ * checkpoint-persisted continuation cursor (`FreshRssSyncCheckpoint.
+ * historyFetchCursor`), so repeated bounded invocations accumulate history
+ * rather than re-reading the same page.
+ */
+export const FRESHRSS_HISTORY_FETCH_BUDGET = FRESHRSS_STREAM_ID_BUDGET;
+
 /** Maximum number of facet changes dispatched in one mutation request. */
 export const FRESHRSS_MUTATION_BATCH_SIZE = 50;
 
@@ -172,6 +188,75 @@ export interface FreshRssSyncRunInput {
   scope: FreshRssConnectionScope;
   owner: DataSyncLeaseOwner;
 }
+
+/**
+ * True when `feedId` is an active-scope FreshRSS-linked feed whose content
+ * stream is capped or incomplete -- i.e. eligible for the explicit "Fetch
+ * more history" action. A local-only feed (no binding) is never eligible; a
+ * bound feed whose checkpoint already recorded true completion
+ * (`completedAtMs > 0`) is already fully enumerated and is also not
+ * eligible. Pure and side-effect-free so both the coordinator's own
+ * defensive check and the plugin's settings-tab eligibility list can share
+ * one definition.
+ */
+export function isFreshRssFeedEligibleForMoreHistory(
+  feedId: string,
+  feedBindings: readonly FreshRssFeedBinding[],
+  checkpoints: readonly FreshRssSyncCheckpoint[],
+): boolean {
+  const binding = feedBindings.find((b) => b.feedId === feedId);
+  if (!binding) return false;
+  const checkpoint = checkpoints.find(
+    (c) => c.remoteSubscriptionId === binding.remoteSubscriptionId,
+  );
+  return !checkpoint || checkpoint.completedAtMs <= 0;
+}
+
+/**
+ * Every active-scope FreshRSS-linked feed currently eligible for "Fetch more
+ * history", in stable feed order, as the safe `{ feedId, title }` pairs a
+ * settings-tab picker needs -- no remote identifiers.
+ */
+export function selectFreshRssHistoryEligibleFeeds(
+  feeds: readonly Feed[],
+  feedBindings: readonly FreshRssFeedBinding[],
+  checkpoints: readonly FreshRssSyncCheckpoint[],
+): Array<{ feedId: string; title: string }> {
+  const eligible: Array<{ feedId: string; title: string }> = [];
+  for (const feed of feeds) {
+    if (!feed.feedId) continue;
+    if (!isFreshRssFeedEligibleForMoreHistory(feed.feedId, feedBindings, checkpoints)) continue;
+    eligible.push({ feedId: feed.feedId, title: feed.title });
+  }
+  return eligible;
+}
+
+export interface FreshRssFetchMoreHistoryInput {
+  endpoint: string;
+  credentials: FreshRssCredentialBundle;
+  scope: FreshRssConnectionScope;
+  owner: DataSyncLeaseOwner;
+  /** The single active-scope FreshRSS-linked feed this invocation extends. */
+  feedId: string;
+}
+
+export type FreshRssFetchMoreHistoryOutcome =
+  | {
+      outcome: "extended";
+      /**
+       * True once this invocation's paging reached the stream's true end
+       * (no continuation cursor) -- the feed's checkpoint now records full
+       * completion. False means this invocation was capped by the bounded
+       * budget, or stopped on a transient failure or a malformed/repeated
+       * continuation cursor; the feed remains eligible for a further
+       * invocation, which resumes from the persisted cursor.
+       */
+      complete: boolean;
+      importedArticleCount: number;
+    }
+  | { outcome: "ineligible" }
+  | { outcome: "credentials-rejected" }
+  | { outcome: "server-unavailable" };
 
 export interface FreshRssSyncCoordinatorDeps {
   httpClient: FreshRssHttpClient;
@@ -570,6 +655,205 @@ export class FreshRssSyncCoordinator {
       partial,
       hasTerminalMutations,
     };
+  }
+
+  /**
+   * The explicit, bounded, user-triggered "Fetch more history" action
+   * (ticket 10): extends ONE selected active-scope FreshRSS-linked feed's
+   * imported history by up to `FRESHRSS_HISTORY_FETCH_BUDGET` additional
+   * remote item IDs, reusing the same authentication, session, retry,
+   * content-batching, retention, and persistence machinery as `run()`
+   * rather than a parallel invocation path. Unlike `run()`, this method
+   * touches only the one selected feed: it never reads subscriptions/tags,
+   * never flushes pending mutations, and never reconciles read/starred/label
+   * facet streams -- so it can never clear another article's facet state by
+   * absence, and a capped or interrupted invocation is safely inert beyond
+   * the content it actually persisted.
+   *
+   * Paging resumes from the feed's checkpoint-persisted
+   * `historyFetchCursor` (null on a feed's first invocation), so repeated
+   * bounded invocations accumulate deeper history instead of re-reading the
+   * same page. The checkpoint's `completedAtMs` is set only once this
+   * invocation's paging reaches the stream's true end (no continuation
+   * cursor) -- a budget cap, transient failure, or malformed/repeated
+   * cursor instead persists the resume cursor and leaves `completedAtMs`
+   * unset, keeping the feed eligible for a further invocation.
+   */
+  public async runFetchMoreHistory(
+    input: FreshRssFetchMoreHistoryInput,
+  ): Promise<FreshRssFetchMoreHistoryOutcome> {
+    const { owner } = input;
+    owner.throwIfInactive();
+
+    const retryingHttpClient = createRetryingFreshRssHttpClient(
+      this.deps.httpClient,
+      this.deps.retry,
+    );
+    const authResult = await this.authenticateWithOneRetry(retryingHttpClient, input);
+    if (authResult.outcome !== "authenticated") {
+      return authResult.outcome === "credentials-rejected"
+        ? { outcome: "credentials-rejected" }
+        : { outcome: "server-unavailable" };
+    }
+    owner.throwIfInactive();
+
+    const holder: FreshRssClientHolder = {
+      client: new FreshRssSyncClient(retryingHttpClient, input.endpoint, authResult.authToken),
+    };
+
+    const sidecarState = await this.deps.sidecarRepository.read(input.scope);
+    if (!sidecarState) {
+      return { outcome: "server-unavailable" };
+    }
+
+    const binding = sidecarState.feedBindings.find((b) => b.feedId === input.feedId);
+    if (!binding) {
+      // Not FreshRSS-linked in the active scope: never eligible.
+      return { outcome: "ineligible" };
+    }
+
+    const checkpoints: FreshRssSyncCheckpoint[] = sidecarState.checkpoints.map((c) => ({ ...c }));
+    const existingCheckpointIndex = checkpoints.findIndex(
+      (c) => c.remoteSubscriptionId === binding.remoteSubscriptionId,
+    );
+    const existingCheckpoint =
+      existingCheckpointIndex >= 0 ? checkpoints[existingCheckpointIndex] : null;
+    if (existingCheckpoint && existingCheckpoint.completedAtMs > 0) {
+      // Already fully enumerated: nothing left to extend.
+      return { outcome: "ineligible" };
+    }
+
+    const settings = this.deps.getSettings();
+    const feeds: Feed[] = settings.feeds.map((feed) => ({ ...feed }));
+    const feedIndex = feeds.findIndex((f) => f.feedId === input.feedId);
+    if (feedIndex < 0) {
+      // Stale binding: the bound local feed no longer exists.
+      return { outcome: "ineligible" };
+    }
+
+    const articleBindings: FreshRssArticleBinding[] = sidecarState.articleBindings.map((b) => ({
+      ...b,
+    }));
+    const boundArticleIds = new Set(
+      articleBindings
+        .filter((b) => b.feedId === input.feedId)
+        .map((b) => b.remoteArticleId),
+    );
+
+    let continuation: string | null = existingCheckpoint?.historyFetchCursor ?? null;
+    const seenCursors = new Set<string>();
+    let idsFetchedThisInvocation = 0;
+    let importedArticleCount = 0;
+    let complete = false;
+    const maxPages = Math.ceil(FRESHRSS_HISTORY_FETCH_BUDGET / FRESHRSS_ITEM_ID_PAGE_SIZE);
+
+    for (
+      let page = 0;
+      page < maxPages && idsFetchedThisInvocation < FRESHRSS_HISTORY_FETCH_BUDGET;
+      page++
+    ) {
+      owner.throwIfInactive();
+      const pageResult = await this.withOneReauth(input, holder, (c) =>
+        c.listItemIds(binding.remoteSubscriptionId, FRESHRSS_ITEM_ID_PAGE_SIZE, continuation),
+      );
+      if (pageResult.outcome === "auth-rejected") {
+        return { outcome: "credentials-rejected" };
+      }
+      if (pageResult.outcome !== "ok") {
+        // Transient failure: stop paging. Pages already merged below persist.
+        break;
+      }
+      idsFetchedThisInvocation += pageResult.data.itemRefs.length;
+
+      const newIds = pageResult.data.itemRefs.filter((id) => !boundArticleIds.has(id));
+      let contentBatchFailed = false;
+      for (const idBatch of chunk(newIds, FRESHRSS_CONTENT_BATCH_SIZE)) {
+        owner.throwIfInactive();
+        const contentsResult = await this.withOneReauth(input, holder, (c) =>
+          c.getItemContents(idBatch),
+        );
+        if (contentsResult.outcome === "auth-rejected") {
+          return { outcome: "credentials-rejected" };
+        }
+        if (contentsResult.outcome === "unavailable") {
+          // Stop entirely rather than leave this page's IDs half-imported;
+          // already-merged prior pages still persist below.
+          contentBatchFailed = true;
+          break;
+        }
+
+        const newItems = contentsResult.data.map((article) => toFeedItem(article, feeds[feedIndex]));
+        feeds[feedIndex] = applyFeedRetentionLimits({
+          ...feeds[feedIndex],
+          items: mergeFeedHistoryItems(feeds[feedIndex].items, newItems),
+          lastUpdated: newItems.length > 0 ? Date.now() : feeds[feedIndex].lastUpdated,
+        });
+        for (const article of contentsResult.data) {
+          articleBindings.push({
+            feedId: input.feedId,
+            guid: article.guid,
+            remoteArticleId: article.remoteArticleId,
+          });
+          boundArticleIds.add(article.remoteArticleId);
+        }
+        importedArticleCount += newItems.length;
+      }
+      if (contentBatchFailed) {
+        break;
+      }
+
+      if (pageResult.data.continuation === null) {
+        complete = true;
+        continuation = null;
+        break;
+      }
+      if (seenCursors.has(pageResult.data.continuation)) {
+        // Repeated cursor: malformed/looping server response, stop rather
+        // than spin; the cursor already on file is still safe to resume
+        // from on a later invocation.
+        break;
+      }
+      seenCursors.add(pageResult.data.continuation);
+      continuation = pageResult.data.continuation;
+    }
+
+    // A pending facet mutation captured before local retention removed an
+    // older article's binding remains authoritative when that same article
+    // is (re)discovered here -- identical overlay rule to ordinary sync.
+    this.overlayPendingFacetState(
+      feeds,
+      articleBindings,
+      sidecarState.pendingFacetMutations,
+      sidecarState.labelMappings,
+      settings.availableTags,
+    );
+
+    const nextCheckpoint: FreshRssSyncCheckpoint = complete
+      ? { remoteSubscriptionId: binding.remoteSubscriptionId, completedAtMs: Date.now(), historyFetchCursor: null }
+      : {
+          remoteSubscriptionId: binding.remoteSubscriptionId,
+          completedAtMs: existingCheckpoint?.completedAtMs ?? 0,
+          historyFetchCursor: continuation,
+        };
+    if (existingCheckpointIndex >= 0) {
+      checkpoints[existingCheckpointIndex] = nextCheckpoint;
+    } else {
+      checkpoints.push(nextCheckpoint);
+    }
+
+    settings.feeds = feeds;
+    await this.deps.saveSettings();
+    owner.throwIfInactive();
+    await this.deps.sidecarRepository.write({
+      ...sidecarState,
+      scope: input.scope,
+      articleBindings,
+      checkpoints,
+    });
+
+    await refreshViewOnce(this.deps.getView);
+
+    return { outcome: "extended", complete, importedArticleCount };
   }
 
   /**

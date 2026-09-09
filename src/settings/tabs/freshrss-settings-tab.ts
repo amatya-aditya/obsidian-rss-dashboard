@@ -1,4 +1,4 @@
-import { Notice, Setting } from "obsidian";
+import { Notice, Setting, type ButtonComponent, type DropdownComponent } from "obsidian";
 import type {
   FreshRssConnectionStatus,
   RssDashboardSettings,
@@ -22,6 +22,10 @@ export interface FreshRssSettingsPlugin {
   setFreshRssAutomaticSyncIntervalMinutes(minutes: number): Promise<void>;
   exportFreshRssOpml(): Promise<void>;
   copyFreshRssOpmlToClipboard(): Promise<void>;
+  /** Every active-scope FreshRSS-linked feed whose history import is capped or incomplete. */
+  getFreshRssHistoryEligibleFeeds(): Promise<Array<{ feedId: string; title: string }>>;
+  /** Extends the selected feed's imported history by one bounded invocation. */
+  fetchMoreFreshRssHistory(feedId: string): Promise<void>;
 }
 
 function getStatusDescription(status: FreshRssConnectionStatus): string {
@@ -84,6 +88,77 @@ function renderSubscriptionExportSection(
           void plugin.copyFreshRssOpmlToClipboard();
         }),
     );
+}
+
+/**
+ * Renders the explicit, bounded "Fetch more history" action (ticket 10): a
+ * dropdown of active-scope FreshRSS-linked feeds whose history import is
+ * capped or incomplete, plus a button that extends the selected feed's
+ * history by one bounded invocation through the same coordinator, session,
+ * lease, paging, and checkpoint machinery as ordinary sync. The eligible-feed
+ * list is loaded asynchronously (it depends on the sidecar's feed bindings
+ * and checkpoints); both controls render disabled with a loading placeholder
+ * until it resolves.
+ */
+function renderFetchMoreHistorySection(
+  containerEl: HTMLElement,
+  plugin: FreshRssSettingsPlugin,
+): void {
+  let dropdownComponent: DropdownComponent | null = null;
+  let buttonComponent: ButtonComponent | null = null;
+
+  // Reads/writes `.selectEl`/`.buttonEl` directly rather than
+  // `getValue()`/`setDisabled()`, matching this file's existing "Sync now"
+  // button (`button.buttonEl.disabled = ...`) so behavior stays identical
+  // against both the real Obsidian components and the lighter test stub.
+  const refreshButtonEnablement = (): void => {
+    if (!buttonComponent) return;
+    buttonComponent.buttonEl.disabled =
+      plugin.settings.freshRss.status !== "connected" ||
+      !dropdownComponent ||
+      dropdownComponent.selectEl.value === "";
+  };
+
+  new Setting(containerEl)
+    .setName("Fetch more history")
+    .setDesc(
+      "Extends one linked FreshRSS feed's imported history by a bounded amount beyond its initial import. Available only for a feed whose history import has not yet fully completed.",
+    )
+    .addDropdown((dropdown) => {
+      dropdownComponent = dropdown;
+      dropdown.addOption("", "Loading eligible feeds...");
+      dropdown.selectEl.disabled = true;
+      dropdown.onChange(() => refreshButtonEnablement());
+    })
+    .addButton((button) => {
+      buttonComponent = button;
+      button.setButtonText("Fetch more history");
+      button.buttonEl.disabled = true;
+      button.onClick(async () => {
+        const feedId = dropdownComponent?.selectEl.value;
+        if (!feedId) return;
+        button.buttonEl.disabled = true;
+        await plugin.fetchMoreFreshRssHistory(feedId);
+        refreshButtonEnablement();
+      });
+    });
+
+  void plugin.getFreshRssHistoryEligibleFeeds().then((feeds) => {
+    const dropdown = dropdownComponent;
+    if (!dropdown) return;
+    dropdown.selectEl.empty();
+    if (feeds.length === 0) {
+      dropdown.addOption("", "No feeds need more history");
+      dropdown.selectEl.disabled = true;
+      if (buttonComponent) buttonComponent.buttonEl.disabled = true;
+      return;
+    }
+    feeds.forEach((feed) => {
+      dropdown.addOption(feed.feedId, feed.title);
+    });
+    dropdown.selectEl.disabled = false;
+    refreshButtonEnablement();
+  });
 }
 
 export function renderFreshRssSettingsTab(
@@ -173,6 +248,8 @@ export function renderFreshRssSettingsTab(
         button.buttonEl.disabled = plugin.settings.freshRss.status !== "connected";
       });
     });
+
+  renderFetchMoreHistorySection(containerEl, plugin);
 
   new Setting(containerEl)
     .setName("Automatic sync")

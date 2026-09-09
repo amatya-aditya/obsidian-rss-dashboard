@@ -55,6 +55,7 @@ records the documentation classification.
 | [Harden paging, recovery, scope safety, and repair](plans/unreleased/draft-20260908-freshrss-07-sync-recovery-scope-repair.md) | 2026-09-09 | - | - |
 | [Run automatic FreshRSS synchronization](plans/unreleased/draft-20260908-freshrss-08-automatic-sync.md) | 2026-09-09 | - | - |
 | [Export FreshRSS subscription OPML](plans/unreleased/draft-20260908-freshrss-09-subscription-opml-export.md) | 2026-09-09 | - | - |
+| [Fetch additional FreshRSS history safely](plans/unreleased/draft-20260908-freshrss-10-fetch-more-history.md) | 2026-09-09 | - | - |
 
 ## Unshipped plans
 

@@ -36,6 +36,8 @@ function createPlugin(capability: FreshRssCapability = "available") {
     }),
     exportFreshRssOpml: vi.fn(async () => {}),
     copyFreshRssOpmlToClipboard: vi.fn(async () => {}),
+    getFreshRssHistoryEligibleFeeds: vi.fn(async () => []),
+    fetchMoreFreshRssHistory: vi.fn(async () => {}),
   };
   plugin satisfies FreshRssSettingsPlugin;
   return plugin;
@@ -112,6 +114,132 @@ describe("FreshRSS settings", () => {
       automaticSyncIntervalMinutes: 15,
     });
     expect(containerEl.textContent).not.toContain("test-password");
+  });
+
+  describe("fetch more history", () => {
+    it("renders a disabled, loading dropdown and button before the eligible-feed list resolves", () => {
+      const containerEl = createDiv();
+      const plugin = createPlugin();
+      plugin.settings.freshRss.status = "connected";
+      let resolveFeeds!: (feeds: Array<{ feedId: string; title: string }>) => void;
+      plugin.getFreshRssHistoryEligibleFeeds = vi.fn(
+        () => new Promise((resolve) => (resolveFeeds = resolve)),
+      );
+
+      renderFreshRssSettingsTab(containerEl, plugin);
+
+      const select = Array.from(containerEl.querySelectorAll("select")).find((el) =>
+        Array.from(el.options).some((o) => o.textContent === "Loading eligible feeds..."),
+      ) as HTMLSelectElement;
+      expect(select).toBeTruthy();
+      expect(select.disabled).toBe(true);
+      const buttons = Array.from(containerEl.querySelectorAll("button"));
+      const fetchButton = buttons.find((b) => b.textContent === "Fetch more history");
+      expect(fetchButton?.disabled).toBe(true);
+
+      resolveFeeds([{ feedId: "feed-1", title: "Feed One" }]);
+    });
+
+    it("enables the dropdown and lists eligible feeds once the async lookup resolves, disabling the button until connected and a feed is selected", async () => {
+      const containerEl = createDiv();
+      const plugin = createPlugin();
+      plugin.settings.freshRss.status = "connected";
+      plugin.getFreshRssHistoryEligibleFeeds = vi.fn(async () => [
+        { feedId: "feed-1", title: "Feed One" },
+        { feedId: "feed-2", title: "Feed Two" },
+      ]);
+
+      renderFreshRssSettingsTab(containerEl, plugin);
+      await Promise.resolve();
+      await Promise.resolve();
+
+      const select = Array.from(containerEl.querySelectorAll("select")).find((el) =>
+        Array.from(el.options).some((o) => o.textContent === "Feed One"),
+      ) as HTMLSelectElement;
+      expect(select.disabled).toBe(false);
+      const optionLabels = Array.from(select.options).map((o) => o.textContent);
+      expect(optionLabels).toContain("Feed One");
+      expect(optionLabels).toContain("Feed Two");
+
+      const buttons = Array.from(containerEl.querySelectorAll("button"));
+      const fetchButton = buttons.find((b) => b.textContent === "Fetch more history") as HTMLButtonElement;
+      // The dropdown auto-selects the first eligible feed once populated, and
+      // the connection is already "connected": the button is enabled.
+      expect(select.value).toBe("feed-1");
+      expect(fetchButton.disabled).toBe(false);
+
+      select.value = "feed-2";
+      select.dispatchEvent(new Event("change"));
+      expect(fetchButton.disabled).toBe(false);
+    });
+
+    it("keeps the button disabled once a feed is selected while the connection is not connected", async () => {
+      const containerEl = createDiv();
+      const plugin = createPlugin();
+      plugin.settings.freshRss.status = "test-required";
+      plugin.getFreshRssHistoryEligibleFeeds = vi.fn(async () => [
+        { feedId: "feed-1", title: "Feed One" },
+      ]);
+
+      renderFreshRssSettingsTab(containerEl, plugin);
+      await Promise.resolve();
+      await Promise.resolve();
+
+      const select = Array.from(containerEl.querySelectorAll("select")).find((el) =>
+        Array.from(el.options).some((o) => o.textContent === "Feed One"),
+      ) as HTMLSelectElement;
+      select.value = "feed-1";
+      select.dispatchEvent(new Event("change"));
+
+      const buttons = Array.from(containerEl.querySelectorAll("button"));
+      const fetchButton = buttons.find((b) => b.textContent === "Fetch more history") as HTMLButtonElement;
+      expect(fetchButton.disabled).toBe(true);
+    });
+
+    it("shows a disabled empty state when no feed needs more history", async () => {
+      const containerEl = createDiv();
+      const plugin = createPlugin();
+      plugin.settings.freshRss.status = "connected";
+      plugin.getFreshRssHistoryEligibleFeeds = vi.fn(async () => []);
+
+      renderFreshRssSettingsTab(containerEl, plugin);
+      await Promise.resolve();
+      await Promise.resolve();
+
+      const select = Array.from(containerEl.querySelectorAll("select")).find((el) =>
+        Array.from(el.options).some((o) => o.textContent === "No feeds need more history"),
+      ) as HTMLSelectElement;
+      expect(select.disabled).toBe(true);
+      const buttons = Array.from(containerEl.querySelectorAll("button"));
+      const fetchButton = buttons.find((b) => b.textContent === "Fetch more history");
+      expect(fetchButton?.disabled).toBe(true);
+    });
+
+    it("invokes fetchMoreFreshRssHistory with the selected feed id when clicked", async () => {
+      const containerEl = createDiv();
+      const plugin = createPlugin();
+      plugin.settings.freshRss.status = "connected";
+      plugin.getFreshRssHistoryEligibleFeeds = vi.fn(async () => [
+        { feedId: "feed-1", title: "Feed One" },
+      ]);
+
+      renderFreshRssSettingsTab(containerEl, plugin);
+      await Promise.resolve();
+      await Promise.resolve();
+
+      const select = Array.from(containerEl.querySelectorAll("select")).find((el) =>
+        Array.from(el.options).some((o) => o.textContent === "Feed One"),
+      ) as HTMLSelectElement;
+      select.value = "feed-1";
+      select.dispatchEvent(new Event("change"));
+
+      const buttons = Array.from(containerEl.querySelectorAll("button"));
+      const fetchButton = buttons.find((b) => b.textContent === "Fetch more history") as HTMLButtonElement;
+      fetchButton.click();
+      await Promise.resolve();
+
+      expect(plugin.fetchMoreFreshRssHistory).toHaveBeenCalledWith("feed-1");
+    });
   });
 
   it("offers the existing storage migration choice without enumerating SecretStorage entries", () => {

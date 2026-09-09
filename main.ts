@@ -70,6 +70,7 @@ import {
   FreshRssConnectionService,
   parseCredentialBundle as parseFreshRssCredentialBundle,
   type FreshRssConnectionScope,
+  type FreshRssCredentialBundle,
 } from "./src/services/freshrss-connection-service";
 import {
   FreshRssSidecarRepository,
@@ -77,7 +78,9 @@ import {
 } from "./src/services/freshrss-sidecar-repository";
 import {
   FreshRssSyncCoordinator,
+  selectFreshRssHistoryEligibleFeeds,
   type FreshRssSyncOutcome,
+  type FreshRssFetchMoreHistoryOutcome,
 } from "./src/services/freshrss-sync-coordinator";
 import { FreshRssAutoSyncScheduler } from "./src/services/freshrss-auto-sync-scheduler";
 import {
@@ -334,7 +337,7 @@ export default class RssDashboardPlugin extends Plugin {
   private freshRssQuarantineSequence = 0;
   private freshRssAutoSyncScheduler: FreshRssAutoSyncScheduler | null = null;
   private readonly freshRssSyncTriggerCoordinator = new FreshRssSyncTriggerCoordinator({
-    runCycle: (trigger) => this.runFreshRssSyncCycle(trigger),
+    runCycle: (trigger, feedId) => this.runFreshRssSyncCycle(trigger, feedId),
   });
   /** Set once in `onunload`. Guards a late in-flight automatic cycle's completion handler from touching plugin/UI state after unload. */
   private freshRssUnloaded = false;
@@ -2429,58 +2432,22 @@ export default class RssDashboardPlugin extends Plugin {
    * retry, matching "blocked states do not spin a timer or notification
    * loop."
    */
-  private async runFreshRssSyncCycle(trigger: FreshRssSyncTriggerKind): Promise<void> {
+  private async runFreshRssSyncCycle(
+    trigger: FreshRssSyncTriggerKind,
+    feedId?: string,
+  ): Promise<void> {
+    if (trigger === "fetch-more-history") {
+      await this.runFreshRssFetchMoreHistoryCycle(feedId ?? "");
+      return;
+    }
+
     const notify = trigger === "manual" || trigger === "retry";
 
-    const capability = this.getFreshRssCapability();
-    if (capability !== "available") {
-      if (notify) {
-        new Notice("FreshRSS sync is unavailable until the connection is ready.");
-      }
+    const context = await this.resolveFreshRssRunContext(notify);
+    if (!context.ready) {
       return;
     }
-
-    const credentialReference = this.settings.freshRss.credentialReference;
-    if (!credentialReference) {
-      if (notify) {
-        new Notice("Select a FreshRSS credential bundle before syncing.");
-      }
-      return;
-    }
-
-    let credentialBundleRaw: string | null;
-    try {
-      credentialBundleRaw =
-        this.getFreshRssSecretStorage()?.getSecret(credentialReference) ?? null;
-    } catch {
-      if (notify) {
-        new Notice("FreshRSS sync is unavailable: SecretStorage could not be read.");
-      }
-      return;
-    }
-    if (!credentialBundleRaw) {
-      if (notify) {
-        new Notice("Select a FreshRSS credential bundle before syncing.");
-      }
-      return;
-    }
-
-    const credentials = parseFreshRssCredentialBundle(credentialBundleRaw);
-    if (!credentials) {
-      if (notify) {
-        new Notice("FreshRSS sync failed: the stored credential bundle is invalid.");
-      }
-      return;
-    }
-
-    const sidecarRepository = this.getFreshRssSidecarRepository();
-    const scope = await sidecarRepository.readActiveScope();
-    if (!scope) {
-      if (notify) {
-        new Notice("Test the FreshRSS connection before syncing.");
-      }
-      return;
-    }
+    const { credentials, scope, sidecarRepository } = context;
 
     let outcome: FreshRssSyncOutcome;
     try {
@@ -2539,6 +2506,216 @@ export default class RssDashboardPlugin extends Plugin {
       // already persisted to the sidecar) is safe to rearm from.
       await this.rearmFreshRssAutoSyncScheduler(scope);
     }
+  }
+
+  /**
+   * The shared preamble every FreshRSS run (an ordinary cycle or the
+   * explicit "Fetch more history" action) needs before it can reach the
+   * network: capability, a configured credential reference, a readable
+   * SecretStorage secret, a well-formed credential bundle, and a tested
+   * active sidecar scope. Reports the matching blocked-state notice when
+   * `notify` is true, exactly matching the messages `runFreshRssSyncCycle`
+   * always used before this preamble was factored out.
+   */
+  private async resolveFreshRssRunContext(notify: boolean): Promise<
+    | {
+        ready: true;
+        credentials: FreshRssCredentialBundle;
+        scope: FreshRssConnectionScope;
+        sidecarRepository: FreshRssSidecarRepository;
+      }
+    | { ready: false }
+  > {
+    const capability = this.getFreshRssCapability();
+    if (capability !== "available") {
+      if (notify) {
+        new Notice("FreshRSS sync is unavailable until the connection is ready.");
+      }
+      return { ready: false };
+    }
+
+    const credentialReference = this.settings.freshRss.credentialReference;
+    if (!credentialReference) {
+      if (notify) {
+        new Notice("Select a FreshRSS credential bundle before syncing.");
+      }
+      return { ready: false };
+    }
+
+    let credentialBundleRaw: string | null;
+    try {
+      credentialBundleRaw =
+        this.getFreshRssSecretStorage()?.getSecret(credentialReference) ?? null;
+    } catch {
+      if (notify) {
+        new Notice("FreshRSS sync is unavailable: SecretStorage could not be read.");
+      }
+      return { ready: false };
+    }
+    if (!credentialBundleRaw) {
+      if (notify) {
+        new Notice("Select a FreshRSS credential bundle before syncing.");
+      }
+      return { ready: false };
+    }
+
+    const credentials = parseFreshRssCredentialBundle(credentialBundleRaw);
+    if (!credentials) {
+      if (notify) {
+        new Notice("FreshRSS sync failed: the stored credential bundle is invalid.");
+      }
+      return { ready: false };
+    }
+
+    const sidecarRepository = this.getFreshRssSidecarRepository();
+    const scope = await sidecarRepository.readActiveScope();
+    if (!scope) {
+      if (notify) {
+        new Notice("Test the FreshRSS connection before syncing.");
+      }
+      return { ready: false };
+    }
+
+    return { ready: true, credentials, scope, sidecarRepository };
+  }
+
+  /**
+   * The explicit, bounded, per-feed "Fetch more history" action (ticket 10).
+   * Always reports one summary notice (it is always a deliberate user
+   * action, like manual sync/retry). Routed through the same
+   * `freshRssSyncTriggerCoordinator` -- and, inside the lease, the same
+   * `FreshRssSyncCoordinator` -- as every other FreshRSS trigger; it just
+   * calls `runFetchMoreHistory` instead of `run`. Deliberately does not
+   * rearm the automatic-sync timer: this is a bounded one-off extension of a
+   * single feed, not a cycle whose completion or backoff should affect the
+   * dedicated automatic schedule.
+   */
+  private async runFreshRssFetchMoreHistoryCycle(feedId: string): Promise<void> {
+    if (!feedId) {
+      return;
+    }
+
+    const context = await this.resolveFreshRssRunContext(true);
+    if (!context.ready) {
+      return;
+    }
+    const { credentials, scope, sidecarRepository } = context;
+
+    let outcome: FreshRssFetchMoreHistoryOutcome;
+    try {
+      outcome = await this.runWithDataSyncLease(async (owner) => {
+        owner.throwIfInactive();
+        const coordinator = new FreshRssSyncCoordinator({
+          httpClient: {
+            request: async (request) => {
+              const response = await requestUrl(request);
+              return { status: response.status, text: response.text };
+            },
+          },
+          getSettings: () => this.settings,
+          saveSettings: () => this.saveSettings(),
+          sidecarRepository,
+          getView: () => this.getActiveDashboardView(),
+        });
+        return coordinator.runFetchMoreHistory({
+          endpoint: scope.endpoint,
+          credentials,
+          scope,
+          owner,
+          feedId,
+        });
+      });
+    } catch (error) {
+      if (isDataSyncLeaseCancelledError(error)) {
+        return;
+      }
+      new Notice("Fetch more history failed: an unexpected error occurred.");
+      return;
+    }
+
+    if (this.freshRssUnloaded) {
+      return;
+    }
+
+    await this.reportFreshRssFetchMoreHistoryOutcome(feedId, outcome);
+  }
+
+  /**
+   * Reports the "Fetch more history" outcome for one feed. Names the
+   * selected feed and a safe bounded result (a count and whether this
+   * invocation reached full completion) -- never a remote ID or secret.
+   */
+  private async reportFreshRssFetchMoreHistoryOutcome(
+    feedId: string,
+    outcome: FreshRssFetchMoreHistoryOutcome,
+  ): Promise<void> {
+    const feedTitle = this.settings.feeds.find((f) => f.feedId === feedId)?.title ?? "This feed";
+
+    if (outcome.outcome === "credentials-rejected") {
+      await this.setFreshRssConnectionStatus("credentials-rejected");
+      new Notice("Fetch more history failed: credentials were rejected.");
+      return;
+    }
+    if (outcome.outcome === "server-unavailable") {
+      new Notice("Fetch more history failed: the server did not respond as expected.");
+      return;
+    }
+    if (outcome.outcome === "ineligible") {
+      new Notice(`${feedTitle} is not eligible for Fetch more history right now.`);
+      return;
+    }
+
+    const articleWord = outcome.importedArticleCount === 1 ? "article" : "articles";
+    if (outcome.complete) {
+      new Notice(
+        `${feedTitle}: history import complete (${outcome.importedArticleCount} ${articleWord} imported).`,
+      );
+      return;
+    }
+    new Notice(
+      `${feedTitle}: fetched ${outcome.importedArticleCount} more ${articleWord}. More history remains -- run Fetch more history again to continue.`,
+    );
+  }
+
+  /**
+   * Every active-scope FreshRSS-linked feed currently eligible for "Fetch
+   * more history" (its content stream is capped or incomplete), for the
+   * settings-tab picker. Returns an empty list whenever the capability isn't
+   * available or no scope has been tested yet, rather than throwing.
+   */
+  public async getFreshRssHistoryEligibleFeeds(): Promise<
+    Array<{ feedId: string; title: string }>
+  > {
+    if (this.getFreshRssCapability() !== "available") {
+      return [];
+    }
+    const sidecarRepository = this.getFreshRssSidecarRepository();
+    const scope = await sidecarRepository.readActiveScope();
+    if (!scope) {
+      return [];
+    }
+    const sidecarState = await sidecarRepository.read(scope);
+    if (!sidecarState) {
+      return [];
+    }
+    return selectFreshRssHistoryEligibleFeeds(
+      this.settings.feeds,
+      sidecarState.feedBindings,
+      sidecarState.checkpoints,
+    );
+  }
+
+  /**
+   * Entry point for the settings-tab "Fetch more history" button: requests
+   * one bounded invocation for `feedId` through the shared trigger
+   * coordinator, exactly like `syncFreshRssNow`/`retryFreshRssSync` request
+   * an ordinary cycle.
+   */
+  public async fetchMoreFreshRssHistory(feedId: string): Promise<void> {
+    if (!feedId) {
+      return;
+    }
+    await this.freshRssSyncTriggerCoordinator.trigger("fetch-more-history", feedId);
   }
 
   private async reportFreshRssSyncOutcome(
