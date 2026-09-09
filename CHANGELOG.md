@@ -23,6 +23,10 @@
 - Fixed unnecessary type assertion in `src/utils/settings-loader.ts` by updating `migrateDefaultFilterToDashboardMultiFilters` to accept typed `DisplaySettings`.
 - Fixed the global-refresh Stop button not appearing on mobile/tablet: the sidebar modal's polling loop now applies the `stop` class and swaps the icon to `square-stop` when the refresh is cancellable, matching the desktop sidebar behaviour.
 
+### Compatibility
+
+- RSS Dashboard now requires Obsidian 1.4.0 or later. Older Obsidian installations will continue to receive the latest compatible plugin release through the Community Plugins directory.
+
 ## 2.6.0 - August 24, 2026
 
 ### Features
