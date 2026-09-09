@@ -13,6 +13,7 @@
 
 ### Fixes
 
+- Added a version-aware settings UI compatibility seam for destructive actions and formatted slider values while preserving support for Obsidian 1.8.7. [GH Issue #229](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/229)
 - Fixed automatic retention so unread articles older than a feed's auto-delete cutoff are deleted by default instead of accumulating indefinitely when the source feed retains them. [GH Issue #213](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/213)
 - Fixed Discover view pagination rendering pages vertically stacked by structuring pagination into horizontal page navigation buttons (`.rss-dashboard-pagination-pages`), utility controls (`.rss-dashboard-pagination-controls`) with a styled page-size wrapper, and results count, matching the Dashboard view layout.
 - Fixed an issue where dragging and dropping multiple selected feeds in the sidebar only moved a single feed; dragging now moves all selected feeds together, preserving their relative order across folder headers, folder lists, root, and feed reordering drops.
