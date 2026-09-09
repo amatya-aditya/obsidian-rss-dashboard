@@ -415,6 +415,16 @@ export function migrateSettings(settings: RssDashboardSettings): boolean {
       freshRss?.status === "connected"
         ? freshRss.status
         : DEFAULT_SETTINGS.freshRss.status,
+    automaticSyncEnabled:
+      typeof freshRss?.automaticSyncEnabled === "boolean"
+        ? freshRss.automaticSyncEnabled
+        : DEFAULT_SETTINGS.freshRss.automaticSyncEnabled,
+    automaticSyncIntervalMinutes:
+      typeof freshRss?.automaticSyncIntervalMinutes === "number" &&
+      Number.isFinite(freshRss.automaticSyncIntervalMinutes) &&
+      freshRss.automaticSyncIntervalMinutes > 0
+        ? freshRss.automaticSyncIntervalMinutes
+        : DEFAULT_SETTINGS.freshRss.automaticSyncIntervalMinutes,
   };
 
   return didChange;

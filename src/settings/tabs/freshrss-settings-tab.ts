@@ -18,6 +18,8 @@ export interface FreshRssSettingsPlugin {
   testFreshRssConnection(): Promise<FreshRssConnectionStatus>;
   openFreshRssStorageMigrationChoice(): void;
   syncFreshRssNow(): Promise<void>;
+  setFreshRssAutomaticSyncEnabled(enabled: boolean): Promise<void>;
+  setFreshRssAutomaticSyncIntervalMinutes(minutes: number): Promise<void>;
 }
 
 function getStatusDescription(status: FreshRssConnectionStatus): string {
@@ -134,4 +136,32 @@ export function renderFreshRssSettingsTab(
         button.buttonEl.disabled = plugin.settings.freshRss.status !== "connected";
       });
     });
+
+  new Setting(containerEl)
+    .setName("Automatic sync")
+    .setDesc(
+      "Opt in to quiet startup and scheduled FreshRSS synchronization, independent of the ordinary feed refresh interval. Off by default.",
+    )
+    .addToggle((toggle) =>
+      toggle
+        .setValue(plugin.settings.freshRss.automaticSyncEnabled)
+        .onChange(async (value) => {
+          await plugin.setFreshRssAutomaticSyncEnabled(value);
+        }),
+    );
+
+  new Setting(containerEl)
+    .setName("Automatic sync interval")
+    .setDesc("Minutes between automatic FreshRSS syncs. Defaults to 15.")
+    .addText((text) =>
+      text
+        .setValue(String(plugin.settings.freshRss.automaticSyncIntervalMinutes))
+        .onChange(async (value) => {
+          const minutes = Number(value);
+          if (!Number.isFinite(minutes) || minutes <= 0) {
+            return;
+          }
+          await plugin.setFreshRssAutomaticSyncIntervalMinutes(minutes);
+        }),
+    );
 }

@@ -461,6 +461,13 @@ export interface FreshRssSettings {
   /** A user-managed Obsidian SecretStorage ID, never the secret's value. */
   credentialReference: string;
   status: FreshRssConnectionStatus;
+  /** Opt-in flag for quiet startup and scheduled FreshRSS synchronization. Defaults off. */
+  automaticSyncEnabled: boolean;
+  /**
+   * Dedicated automatic-sync interval in minutes, fully independent of the
+   * ordinary global and per-feed refresh intervals. Defaults to 15.
+   */
+  automaticSyncIntervalMinutes: number;
 }
 
 export interface RssDashboardSettings {
@@ -836,5 +843,7 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
     endpoint: "",
     credentialReference: "",
     status: "credentials-unconfigured",
+    automaticSyncEnabled: false,
+    automaticSyncIntervalMinutes: 15,
   },
 };

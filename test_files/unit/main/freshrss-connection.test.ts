@@ -61,6 +61,8 @@ describe("FreshRSS connection activation", () => {
       endpoint: "https://reader.example.test/api/greader.php",
       credentialReference: "freshrss-primary",
       status: "connected",
+      automaticSyncEnabled: false,
+      automaticSyncIntervalMinutes: 15,
     });
     await expect(
       app.vault.adapter.read(".rss-dashboard-data/freshrss-state.json"),

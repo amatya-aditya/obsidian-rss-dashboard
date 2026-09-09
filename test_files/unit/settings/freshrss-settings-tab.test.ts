@@ -27,6 +27,13 @@ function createPlugin(capability: FreshRssCapability = "available") {
     }),
     testFreshRssConnection: vi.fn(async (): Promise<"connected"> => "connected"),
     openFreshRssStorageMigrationChoice: vi.fn(),
+    syncFreshRssNow: vi.fn(async () => {}),
+    setFreshRssAutomaticSyncEnabled: vi.fn(async (enabled: boolean) => {
+      settings.freshRss.automaticSyncEnabled = enabled;
+    }),
+    setFreshRssAutomaticSyncIntervalMinutes: vi.fn(async (minutes: number) => {
+      settings.freshRss.automaticSyncIntervalMinutes = minutes;
+    }),
   };
   plugin satisfies FreshRssSettingsPlugin;
   return plugin;
@@ -70,6 +77,8 @@ describe("FreshRSS settings", () => {
       endpoint: "https://reader.example.test/api/greader.php",
       credentialReference: "freshrss-primary",
       status: "test-required",
+      automaticSyncEnabled: false,
+      automaticSyncIntervalMinutes: 15,
     });
     expect(containerEl.textContent).not.toContain("test-password");
   });

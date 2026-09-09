@@ -69,6 +69,7 @@ import {
   canonicalizeFreshRssEndpoint,
   FreshRssConnectionService,
   parseCredentialBundle as parseFreshRssCredentialBundle,
+  type FreshRssConnectionScope,
 } from "./src/services/freshrss-connection-service";
 import {
   FreshRssSidecarRepository,
@@ -78,6 +79,11 @@ import {
   FreshRssSyncCoordinator,
   type FreshRssSyncOutcome,
 } from "./src/services/freshrss-sync-coordinator";
+import { FreshRssAutoSyncScheduler } from "./src/services/freshrss-auto-sync-scheduler";
+import {
+  FreshRssSyncTriggerCoordinator,
+  type FreshRssSyncTriggerKind,
+} from "./src/services/freshrss-sync-trigger-coordinator";
 import {
   captureFacetMutation,
   makeLabelFacet,
@@ -326,6 +332,20 @@ export default class RssDashboardPlugin extends Plugin {
   private readonly feedStorageRepository: FeedStorageRepository;
   private readonly dataSyncLease = new DataSyncLease();
   private freshRssQuarantineSequence = 0;
+  private freshRssAutoSyncScheduler: FreshRssAutoSyncScheduler | null = null;
+  private readonly freshRssSyncTriggerCoordinator = new FreshRssSyncTriggerCoordinator({
+    runCycle: (trigger) => this.runFreshRssSyncCycle(trigger),
+  });
+  /** Set once in `onunload`. Guards a late in-flight automatic cycle's completion handler from touching plugin/UI state after unload. */
+  private freshRssUnloaded = false;
+  /**
+   * Dedupe key for the last non-silent automatic outcome reported, so a
+   * recurring blocked/partial condition notifies once rather than every
+   * automatic cycle. Reset to null on a clean success. Session-local by
+   * design -- losing it across a restart only means the next non-success
+   * automatic outcome notifies once more, never a loop.
+   */
+  private lastFreshRssAutomaticNoticeKey: string | null = null;
   private imageCacheService: ImageCacheService | null = null;
   private imageCacheQueue: string[] = [];
   private readonly queuedImageCacheUrls = new Set<string>();
@@ -669,6 +689,39 @@ export default class RssDashboardPlugin extends Plugin {
     return this.autoRefreshScheduler;
   }
 
+  /**
+   * Owns the dedicated FreshRSS automatic-sync timer, fully independent of
+   * `autoRefreshScheduler`'s ordinary per-feed refresh timer. Created lazily,
+   * same as `ensureAutoRefreshScheduler`, and started only when automatic
+   * FreshRSS sync is enabled.
+   */
+  private ensureFreshRssAutoSyncScheduler(): FreshRssAutoSyncScheduler {
+    if (!this.freshRssAutoSyncScheduler) {
+      this.freshRssAutoSyncScheduler = new FreshRssAutoSyncScheduler({
+        onWake: () => {
+          void this.freshRssSyncTriggerCoordinator.trigger("timer");
+        },
+      });
+    }
+    return this.freshRssAutoSyncScheduler;
+  }
+
+  /**
+   * Starts (or does nothing, if already started) the automatic FreshRSS
+   * timer when the feature is enabled, and requests one immediate cycle
+   * attempt through the shared coordinator. Safe to call repeatedly --
+   * on startup (once hydration completes), after the automatic-sync toggle
+   * is turned on, and after a successful connection test that may have
+   * unblocked a previously stalled schedule.
+   */
+  private kickFreshRssAutoSync(trigger: FreshRssSyncTriggerKind): void {
+    if (!this.settings.freshRss.automaticSyncEnabled) {
+      return;
+    }
+    this.ensureFreshRssAutoSyncScheduler().start();
+    void this.freshRssSyncTriggerCoordinator.trigger(trigger);
+  }
+
   private async reconcileSavedArticlesOnStartup(): Promise<void> {
     if (this.hasCompletedStartupSavedArticleValidation) {
       return;
@@ -940,6 +993,15 @@ export default class RssDashboardPlugin extends Plugin {
     try {
       this.initializeSettingsBackedServices();
       const autoRefreshScheduler = this.ensureAutoRefreshScheduler();
+
+      // Settings, content shards, and user-state.json have already finished
+      // hydrating by this point (awaited at the top of onload via
+      // loadSettings()). freshrss-state.json needs no separate hydration
+      // step -- the coordinator reads it fresh as part of running a cycle --
+      // so it is safe to request a startup FreshRSS sync attempt now. This
+      // is a fully separate trigger from the ordinary per-feed refresh
+      // scheduler started below and never waits on its startup delay.
+      this.kickFreshRssAutoSync("startup");
 
       if (Platform.isMobile) {
         this.applyMobileOptimizations();
@@ -2232,6 +2294,20 @@ export default class RssDashboardPlugin extends Plugin {
   public async testFreshRssConnection(): Promise<
     RssDashboardSettings["freshRss"]["status"]
   > {
+    const status = await this.testFreshRssConnectionInternal();
+    if (status === "connected") {
+      // A successful connection test is one of the documented ways to
+      // resume a previously blocked automatic schedule (alongside a
+      // credential/scope change or an explicit retry) -- attempt promptly
+      // rather than waiting out whatever interval or backoff was pending.
+      this.kickFreshRssAutoSync("startup");
+    }
+    return status;
+  }
+
+  private async testFreshRssConnectionInternal(): Promise<
+    RssDashboardSettings["freshRss"]["status"]
+  > {
     const capability = this.getFreshRssCapability();
     if (capability === "capability-unavailable") {
       return this.setFreshRssConnectionStatus("capability-unavailable");
@@ -2296,16 +2372,63 @@ export default class RssDashboardPlugin extends Plugin {
     }
   }
 
+  /**
+   * Manual "Sync now": a deliberate user action, always reporting one
+   * summary notice regardless of outcome. Routed through the shared
+   * coordinator like every other trigger; see `runFreshRssSyncCycle`.
+   */
   public async syncFreshRssNow(): Promise<void> {
+    await this.freshRssSyncTriggerCoordinator.trigger("manual");
+  }
+
+  /**
+   * Explicit retry: a deliberate user action requesting another attempt,
+   * e.g. after repairing a blocked connection or a terminal pending
+   * mutation. Behaves identically to manual sync (always reports one
+   * summary notice) and is routed through the same shared coordinator.
+   */
+  public async retryFreshRssSync(): Promise<void> {
+    await this.freshRssSyncTriggerCoordinator.trigger("retry");
+  }
+
+  /**
+   * The single FreshRSS sync entry point. Startup (`kickFreshRssAutoSync`),
+   * the dedicated automatic timer, manual "Sync now", and explicit retry all
+   * reach a cycle attempt ONLY through
+   * `freshRssSyncTriggerCoordinator.trigger`, which serializes and coalesces
+   * every call into this method -- there is no parallel invocation path.
+   *
+   * "manual" and "retry" are deliberate user actions and always report one
+   * summary notice, matching the previous manual-only behavior. "startup"
+   * and "timer" are automatic: a clean success stays silent, and any other
+   * outcome notifies only when it differs from the last automatic outcome
+   * reported this session (see `reportFreshRssAutomaticOutcome`), so a
+   * recurring condition (e.g. an ongoing partial-transient cycle every
+   * interval) does not notify on every attempt.
+   *
+   * Every early return below (capability, credentials, secret read,
+   * malformed bundle, or no tested active scope) is a blocked state that
+   * intentionally never arms the automatic timer -- it waits for repair, a
+   * configuration change, a successful connection test, or an explicit
+   * retry, matching "blocked states do not spin a timer or notification
+   * loop."
+   */
+  private async runFreshRssSyncCycle(trigger: FreshRssSyncTriggerKind): Promise<void> {
+    const notify = trigger === "manual" || trigger === "retry";
+
     const capability = this.getFreshRssCapability();
     if (capability !== "available") {
-      new Notice("FreshRSS sync is unavailable until the connection is ready.");
+      if (notify) {
+        new Notice("FreshRSS sync is unavailable until the connection is ready.");
+      }
       return;
     }
 
     const credentialReference = this.settings.freshRss.credentialReference;
     if (!credentialReference) {
-      new Notice("Select a FreshRSS credential bundle before syncing.");
+      if (notify) {
+        new Notice("Select a FreshRSS credential bundle before syncing.");
+      }
       return;
     }
 
@@ -2314,24 +2437,32 @@ export default class RssDashboardPlugin extends Plugin {
       credentialBundleRaw =
         this.getFreshRssSecretStorage()?.getSecret(credentialReference) ?? null;
     } catch {
-      new Notice("FreshRSS sync is unavailable: SecretStorage could not be read.");
+      if (notify) {
+        new Notice("FreshRSS sync is unavailable: SecretStorage could not be read.");
+      }
       return;
     }
     if (!credentialBundleRaw) {
-      new Notice("Select a FreshRSS credential bundle before syncing.");
+      if (notify) {
+        new Notice("Select a FreshRSS credential bundle before syncing.");
+      }
       return;
     }
 
     const credentials = parseFreshRssCredentialBundle(credentialBundleRaw);
     if (!credentials) {
-      new Notice("FreshRSS sync failed: the stored credential bundle is invalid.");
+      if (notify) {
+        new Notice("FreshRSS sync failed: the stored credential bundle is invalid.");
+      }
       return;
     }
 
     const sidecarRepository = this.getFreshRssSidecarRepository();
     const scope = await sidecarRepository.readActiveScope();
     if (!scope) {
-      new Notice("Test the FreshRSS connection before syncing.");
+      if (notify) {
+        new Notice("Test the FreshRSS connection before syncing.");
+      }
       return;
     }
 
@@ -2362,11 +2493,36 @@ export default class RssDashboardPlugin extends Plugin {
       if (isDataSyncLeaseCancelledError(error)) {
         return;
       }
-      new Notice("FreshRSS sync failed: an unexpected error occurred.");
+      if (notify) {
+        new Notice("FreshRSS sync failed: an unexpected error occurred.");
+      }
       return;
     }
 
-    await this.reportFreshRssSyncOutcome(outcome);
+    if (this.freshRssUnloaded) {
+      // Ownership/generation guard: the plugin unloaded while this cycle's
+      // network/lease work was in flight. dataSyncLease.close() already cut
+      // short any further writes inside the lease via owner.throwIfInactive();
+      // this additionally stops the already-completed result from updating
+      // connection status, showing a notice, or rearming a timer post-unload.
+      return;
+    }
+
+    if (notify) {
+      await this.reportFreshRssSyncOutcome(outcome);
+    } else {
+      await this.reportFreshRssAutomaticOutcome(outcome);
+    }
+
+    if (outcome.outcome !== "credentials-rejected") {
+      // Authentication pause is the one non-cancelled outcome that must
+      // never rearm: it performs no automatic retry until the user changes
+      // the credential reference/scope, retests the connection, or retries
+      // explicitly. Every other outcome (success, partial, and
+      // server-unavailable, whose backoff -- if any -- the coordinator
+      // already persisted to the sidecar) is safe to rearm from.
+      await this.rearmFreshRssAutoSyncScheduler(scope);
+    }
   }
 
   private async reportFreshRssSyncOutcome(
@@ -2401,6 +2557,144 @@ export default class RssDashboardPlugin extends Plugin {
         " Some changes were rejected by FreshRSS and need attention: retry or cancel them from FreshRSS settings.";
     }
     new Notice(summary);
+  }
+
+  /**
+   * Reports an automatic (startup/timer) cycle's outcome. A clean success is
+   * always silent and clears the dedupe key. Any other outcome updates
+   * connection status where relevant and notifies only when it differs from
+   * the last automatic outcome reported this session, so a recurring
+   * condition (e.g. a flaky connection producing a partial cycle every
+   * interval) notifies once rather than on every automatic attempt.
+   */
+  private async reportFreshRssAutomaticOutcome(
+    outcome: FreshRssSyncOutcome,
+  ): Promise<void> {
+    if (outcome.outcome === "credentials-rejected") {
+      await this.setFreshRssConnectionStatus("credentials-rejected");
+      this.notifyFreshRssAutomaticOutcomeChange(
+        "credentials-rejected",
+        "FreshRSS automatic sync is paused: credentials were rejected. Fix the connection, then use Sync now.",
+      );
+      return;
+    }
+    if (outcome.outcome === "server-unavailable") {
+      this.notifyFreshRssAutomaticOutcomeChange(
+        "server-unavailable",
+        "FreshRSS automatic sync failed: the server did not respond as expected.",
+      );
+      return;
+    }
+
+    if (!outcome.partial && !outcome.hasTerminalMutations) {
+      this.lastFreshRssAutomaticNoticeKey = null;
+      return;
+    }
+
+    if (outcome.hasTerminalMutations) {
+      this.notifyFreshRssAutomaticOutcomeChange(
+        "terminal-mutations",
+        "FreshRSS automatic sync completed, but some changes were rejected and need attention: retry or cancel them from FreshRSS settings.",
+      );
+      return;
+    }
+
+    this.notifyFreshRssAutomaticOutcomeChange(
+      "partial",
+      "FreshRSS automatic sync is incomplete this cycle and will continue on the next attempt.",
+    );
+  }
+
+  private notifyFreshRssAutomaticOutcomeChange(key: string, message: string): void {
+    if (this.lastFreshRssAutomaticNoticeKey === key) {
+      return;
+    }
+    this.lastFreshRssAutomaticNoticeKey = key;
+    new Notice(message);
+  }
+
+  /**
+   * Rearms the dedicated automatic-sync timer after a non-blocked cycle
+   * outcome. A successful cycle rearms the configured interval counting from
+   * THIS completion; an exhausted transient failure instead rearms from the
+   * backoff deadline the coordinator already persisted to the sidecar --
+   * read fresh here rather than re-derived, since only the coordinator knows
+   * whether this cycle's failure was transient. A no-op when automatic sync
+   * is disabled, not started, or the plugin has unloaded.
+   */
+  private async rearmFreshRssAutoSyncScheduler(
+    scope: FreshRssConnectionScope,
+  ): Promise<void> {
+    if (this.freshRssUnloaded || !this.settings.freshRss.automaticSyncEnabled) {
+      return;
+    }
+    const scheduler = this.freshRssAutoSyncScheduler;
+    if (!scheduler || !scheduler.isStarted) {
+      return;
+    }
+
+    const sidecarState = await this.getFreshRssSidecarRepository().read(scope);
+    if (this.freshRssUnloaded) {
+      return;
+    }
+    const backoffUntilMs = sidecarState?.syncHealth?.backoffUntilMs ?? null;
+    const nowMs = Date.now();
+
+    if (backoffUntilMs !== null && backoffUntilMs > nowMs) {
+      scheduler.armInMs(backoffUntilMs - nowMs);
+    } else {
+      scheduler.armInMs(this.freshRssAutomaticSyncIntervalMs());
+    }
+  }
+
+  private freshRssAutomaticSyncIntervalMs(): number {
+    const minutes = this.settings.freshRss.automaticSyncIntervalMinutes;
+    const safeMinutes =
+      Number.isFinite(minutes) && minutes > 0
+        ? minutes
+        : DEFAULT_SETTINGS.freshRss.automaticSyncIntervalMinutes;
+    return safeMinutes * 60 * 1000;
+  }
+
+  /**
+   * Persists the automatic-sync opt-in flag and starts/stops the dedicated
+   * timer accordingly. Enabling it (when the connection is otherwise ready)
+   * requests an immediate attempt rather than waiting a full interval.
+   */
+  public async setFreshRssAutomaticSyncEnabled(enabled: boolean): Promise<void> {
+    this.settings.freshRss.automaticSyncEnabled = enabled;
+    await this.saveSettings();
+
+    if (!enabled) {
+      this.freshRssAutoSyncScheduler?.stop();
+      this.lastFreshRssAutomaticNoticeKey = null;
+      return;
+    }
+
+    this.kickFreshRssAutoSync("startup");
+  }
+
+  /**
+   * Persists the dedicated automatic-sync interval (minutes, minimum 1) and,
+   * if a cycle isn't currently backed off, immediately rearms the timer to
+   * the new interval rather than waiting for the next completion.
+   */
+  public async setFreshRssAutomaticSyncIntervalMinutes(
+    minutes: number,
+  ): Promise<void> {
+    const safeMinutes = Number.isFinite(minutes) ? Math.max(1, Math.floor(minutes)) : 1;
+    this.settings.freshRss.automaticSyncIntervalMinutes = safeMinutes;
+    await this.saveSettings();
+
+    const scheduler = this.freshRssAutoSyncScheduler;
+    if (!scheduler?.isStarted) {
+      return;
+    }
+    const scope = await this.getFreshRssSidecarRepository().readActiveScope();
+    if (!scope) {
+      return;
+    }
+    await this.rearmFreshRssAutoSyncScheduler(scope);
   }
 
   /**
@@ -4063,6 +4357,12 @@ export default class RssDashboardPlugin extends Plugin {
     this.isGlobalRefreshCancelled = true;
     this.globalRefreshAbortController?.abort();
     this.autoRefreshScheduler?.stop();
+    // Ownership/generation guard: set before stopping the timer so a
+    // completion handler for a cycle already in flight (its lease work
+    // itself gets cut short by dataSyncLease.close() above) sees unload has
+    // happened and skips notices, status writes, and rearming.
+    this.freshRssUnloaded = true;
+    this.freshRssAutoSyncScheduler?.stop();
     if (this.progressSaveDebounce !== null) {
       window.clearTimeout(this.progressSaveDebounce);
       this.progressSaveDebounce = null;
