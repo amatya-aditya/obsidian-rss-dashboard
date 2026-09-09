@@ -25,9 +25,13 @@ seams and external compatibility contract for the FreshRSS portable-state
 client. It does not implement the client or the Docker harness.
 
 The plan inherits the settled contracts from issues #222, #223, and #225 and
-the supplied #224 capability and credential decisions. GitHub issue #224 is
-still visibly open at planning time; this plan does not change that issue or
-claim that it has been closed.
+the supplied #224 capability and credential decisions. GitHub issue #224 was
+still visibly open at planning time; it has since closed as a settled
+Wayfinder decision (see `docs/plans/224-freshrss-capability-credential-ux.md`
+and the "Settled decision sources" section of
+`docs/archive/plans/unreleased/draft-20260908-freshrss-portable-state-client.md`).
+This correction is limited to that planning-time status note — it does not
+change this plan's #226 decision content below.
 
 ## Decision
 

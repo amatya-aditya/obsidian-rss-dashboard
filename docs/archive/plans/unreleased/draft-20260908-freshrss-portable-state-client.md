@@ -1,6 +1,8 @@
 ---
-status: proposed
+status: implemented
 created: 2026-09-08
+completed: 2026-09-09
+released_in: unreleased
 issue: ""
 milestone: ""
 owner: unassigned
@@ -698,3 +700,16 @@ numbers.
 
 The critical implementation path is F1 → F2/F3 → F4 → F5 → F6 → F8 → F10.
 F7 proceeds in parallel and joins the path at F9; F9 also joins F10.
+
+## Workstream closure
+
+Implemented across tickets 01–13 (`docs/archive/plans/unreleased/draft-20260908-freshrss-01-shared-data-sync-lease.md`
+through `-13-rollout-validation-compatibility-docs.md`), completed
+2026-09-09. Ticket 13 is this workstream's closing ticket: it validated the
+implemented behavior against its automated test coverage, published the
+finite tested compatibility matrix (`docs/development/freshrss-docker-contract.md`),
+and reconciled the documentation reconciliation items noted above (the stale
+#224 status note and the duplicate glossary entries) without reopening any
+settled decision (#221–#226). See `docs/development/freshrss-rollout-validation.md`
+for the complete rollout-validation record, including what remains for a
+human with real Obsidian to manually verify.

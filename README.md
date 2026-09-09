@@ -23,6 +23,7 @@ Only the feeds you need. Stream the world's knowledge into your vault: RSS, podc
 - [Roadmap](#roadmap)
 - [Vault Shards Storage Guide](#vault-shards-storage-guide)
 - [Tags Guide](#tags-guide)
+- [FreshRSS Guide](#freshrss-guide)
 - [Installation](#installation)
 - [Getting Started](#getting-started)
 - [One-Click Subscribe URI](#one-click-subscribe-uri)
@@ -64,6 +65,7 @@ Community highlights:
 | Podcast Support          | Full podcast feed support with an integrated podcast player                         |
 | Mastodon Support         | Auto-discover and resolve Mastodon profile RSS feeds                                |
 | Media Detection          | Automatic detection of video and podcast content                                    |
+| FreshRSS Sync            | Optional portable-state client: import subscriptions and sync read/starred/mapped-label state with a FreshRSS account (Obsidian 1.11.4+, Vault Shards v2) |
 
 ### Reading and Saving
 
@@ -121,6 +123,10 @@ Using the new Vault Shards storage mode? See the user-facing guide here: [docs/s
 ## Tags Guide
 
 Tags let you label and filter articles the way that works best for you. Automatic tagging is available at three levels: feed-type defaults (Settings), folder rules (right-click a folder → **Auto tag feeds in folder...**), and per-feed custom tags (Add/Edit feed). For a full walkthrough of precedence, backfill, and filter modes, see [docs/tags-primer.md](docs/tags-primer.md).
+
+## FreshRSS Guide
+
+RSS Dashboard can connect to a FreshRSS account (Obsidian 1.11.4+ and Vault Shards v2 required) to import subscriptions and keep read, starred, and mapped-label state synchronized in both directions, plus export a dedicated FreshRSS subscription OPML file. For setup, the exact synchronized-versus-local-state boundary, and the tested compatibility matrix, see [docs/freshrss-guide.md](docs/freshrss-guide.md).
 
 ## Installation
 

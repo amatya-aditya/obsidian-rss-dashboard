@@ -111,6 +111,38 @@ logs, notices, or test fixtures. FreshRSS requests never include vault content;
 the connection test does not change subscriptions, categories, labels, read
 state, or starred state.
 
+**Explicit no-persistence guarantee.** Credential, authentication, session,
+and modification-token material for FreshRSS never enters any of the
+following, by construction (none of these schemas or writers has a field or
+code path that accepts one):
+
+- `data.json` (plugin settings retain only the FreshRSS endpoint and the
+  *name* of the selected SecretStorage entry -- never its value)
+- `freshrss-state.json` (the versioned sidecar holding connection scope,
+  bindings, label mappings, pending facet mutations, and checkpoints)
+- `user-state.json` (Vault Shards v2 per-article state)
+- Notices, log output, and thrown error messages
+- Test fixtures and the Docker contract's sanitized CI artifacts
+
+This is covered by automated tests at every layer: settings persistence
+(`test_files/unit/settings/freshrss-settings-tab.test.ts`, "persists only the
+canonical endpoint and selected SecretStorage reference"), the connection
+service (`test_files/unit/services/freshrss-connection-service.test.ts`,
+"proves login, identity, and modification-token readiness without persisting
+authentication values" and "canonicalizes a deployment endpoint without
+retaining URL credentials"), the sidecar repository
+(`test_files/unit/services/freshrss-sidecar-repository.test.ts`, whose schema
+has no credential field to leak, including in its malformed/quarantined-data
+paths), and the Docker contract's artifact writer
+(`docker/freshrss-contract/lib/artifact.mjs`, which structurally throws if
+any password/token/secret/auth/session/cookie-shaped key would be written,
+covered by `artifact.test.mjs` under `npm run test:freshrss-fixtures`); the
+contract's own output directory is additionally git-ignored
+(`docker/freshrss-contract/artifacts/`) so a run's artifact is never
+committed even by accident. See
+`docs/development/freshrss-rollout-validation.md` for the full per-artifact
+evidence table.
+
 ### Request Logging:
 
 - ✅ All feed requests go through standard HTTP/HTTPS protocols
@@ -391,6 +423,6 @@ If you have questions about this security policy or concerns about data privacy,
 
 ---
 
-**Last Updated**: September 8, 2026
-**Document Version**: 1.1
+**Last Updated**: September 9, 2026
+**Document Version**: 1.2
 **Plugin**: RSS Dashboard for Obsidian

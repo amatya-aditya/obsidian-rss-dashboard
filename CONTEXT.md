@@ -1,20 +1,10 @@
 # RSS Dashboard
 ## FreshRSS portable-state client
 
-FreshRSS connection scope
-: The canonical FreshRSS endpoint together with the authenticated FreshRSS
-  user identity. Remote references and pending actions are meaningful only
-  inside this scope.
-
 Opaque remote reference
 : A FreshRSS-provided subscription, stream, tag, or article identifier whose
   value is stored and compared as-is. It is not inferred from a URL, title,
   local GUID, or export format.
-
-Pending facet mutation
-: A durable local desired state for one remote article facet, such as read,
-  starred, or a normalized label. It remains authoritative until FreshRSS
-  acknowledges the matching operation.
 
 Docker contract
 : The explicitly tested FreshRSS compatibility boundary used to validate the
@@ -111,9 +101,9 @@ _Avoid_: Full sync, feed synchronization
 RSS Dashboard imports FreshRSS subscriptions, articles, and their state, and writes article read, starred, and label mutations back to FreshRSS. It does not manage FreshRSS subscriptions or categories.
 _Avoid_: FreshRSS replacement server, full FreshRSS client
 
-**Pending FreshRSS mutation**:
-A durable local record of a user-initiated read or starred state change that has not yet been accepted by FreshRSS. A pending mutation takes precedence over a pulled remote state and is sent before the next state pull.
-_Avoid_: Unsaved state, sync conflict
+**Pending facet mutation**:
+A durable local desired state for one remote article facet — read, starred, or a normalized mapped label — recorded before the matching local change commits. A pending facet mutation takes precedence over a pulled remote state and is sent before the next state pull; it is removed only when FreshRSS acknowledges the matching operation.
+_Avoid_: Pending FreshRSS mutation, unsaved state, sync conflict
 
 **FreshRSS retention boundary**:
 FreshRSS removing an article does not remove its local dashboard copy. Local article lifecycle remains governed by the dashboard's retention settings.
@@ -132,7 +122,7 @@ A non-mutating check that proves FreshRSS login, authenticated reading, and writ
 _Avoid_: Sync run, login attempt
 
 **FreshRSS connection scope**:
-The canonical FreshRSS endpoint together with the authenticated FreshRSS user identity that owns the remote references.
+The canonical FreshRSS endpoint together with the authenticated FreshRSS user identity that owns the remote references. Remote bindings, checkpoints, and pending facet mutations — including mapped-label facets — are meaningful only inside this scope.
 _Avoid_: Server profile, account alias
 
 **Quarantined FreshRSS namespace**:

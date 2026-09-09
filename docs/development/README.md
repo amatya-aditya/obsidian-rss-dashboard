@@ -167,7 +167,8 @@ catalog and repository links, and include the user-facing summary under
 ### Additional Development Notes
 
 - [Automatic deletion](./auto-deletion.md)
-- [FreshRSS pinned Docker read contract](./freshrss-docker-contract.md)
+- [FreshRSS pinned Docker read/state/OPML contract and compatibility matrix](./freshrss-docker-contract.md)
+- [FreshRSS rollout validation record](./freshrss-rollout-validation.md)
 - [Audit remediation 2.3.0](../archive/investigations/2026/audit-remediation-2.3.0.md)
 - [Defuddle evaluation](../archive/investigations/2026/defuddle-evaluation.md)
 - [Substack CDATA entity encoding](../archive/investigations/2026/substack-cdata-entity-encoding.md)

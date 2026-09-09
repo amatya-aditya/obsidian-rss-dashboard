@@ -1,43 +1,49 @@
 # FreshRSS pinned Docker read/state/OPML contract
 
 Last updated: 2026-09-09
-Related: ticket 11 (read contract) and ticket 12 (state mutation + OPML
-round-trip) of the FreshRSS portable-state-client workstream
+Related: ticket 11 (read contract), ticket 12 (state mutation + OPML
+round-trip), and ticket 13 (rollout validation and compatibility docs) of the
+FreshRSS portable-state-client workstream
 (`docs/archive/plans/unreleased/draft-20260908-freshrss-11-pinned-docker-read-contract.md`,
-`docs/archive/plans/unreleased/draft-20260908-freshrss-12-docker-state-opml-contract.md`),
+`docs/archive/plans/unreleased/draft-20260908-freshrss-12-docker-state-opml-contract.md`,
+`docs/archive/plans/unreleased/draft-20260908-freshrss-13-rollout-validation-compatibility-docs.md`),
 architecture decision `docs/plans/226-freshrss-test-architecture-docker-contract.md`
 (issue [#226](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/226)).
 
 ## Status of this harness
 
 This harness (compose file, fixture server, contract runner, CI job) has now
-had a **successful live run against the pinned FreshRSS container**, on
-2026-09-09, in the environment that implemented ticket 12 (Docker was
-reachable there — see "Ticket 12: first live run" below for exact results).
-Ticket 11 originally shipped this harness with no live run at all (its build
-environment had no reachable Docker daemon); ticket 12 is the first time any
-part of this harness has actually executed against a real FreshRSS
-container.
+had **three successful local live runs against the pinned FreshRSS
+container**: two on 2026-09-09 in the environment that implemented ticket 12
+(one catching a real bug — see "Ticket 12: first live run" below for exact
+results — and one clean pass after the fix), and a third, independent
+clean pass on 2026-09-09 in the environment that implemented ticket 13
+(`overallPassed: true`, all 21 scenarios passed, artifact
+`contract-result-2026-09-09T21-41-30-766Z.json`, git-ignored). Ticket 11
+originally shipped this harness with no live run at all (its build
+environment had no reachable Docker daemon); ticket 12 was the first time any
+part of this harness actually executed against a real FreshRSS container,
+and ticket 13's run is the first repeat run in a separate environment, giving
+some evidence against a one-machine coincidence.
 
-That said, **one local run on one machine is not the same as a CI run.**
-Before this harness's results can be fully trusted or cited by the
-compatibility matrix (ticket 13):
+That said, **local runs are not the same as a CI run.** Before this harness's
+results can be treated as fully settled:
 
 1. Let the `FreshRSS Docker contract` GitHub Actions workflow actually run
-   (its first-ever CI execution is still outstanding) and confirm it
-   reaches, seeds, mutates, restarts, and tears down the pinned container
-   the same way the local run did — runner-specific timing, network, or
-   Docker-in-Docker differences could still surface something the local run
-   did not.
-2. Re-run `npm run contract:freshrss` on a second machine to build further
-   confidence the local passes were not a coincidence of one lucky timing
-   window; this harness ran three times in the environment that implemented
-   ticket 12 (once catching a real bug — see the findings below — and twice
-   passing cleanly after the fix).
+   (its first-ever CI execution is still outstanding as of the ticket-13 run)
+   and confirm it reaches, seeds, mutates, restarts, and tears down the
+   pinned container the same way the local runs did — runner-specific
+   timing, network, or Docker-in-Docker differences could still surface
+   something the local runs did not.
+2. Continue building confidence beyond four total local runs (three in one
+   environment, one in a second); all four passed after the ticket-12 fix,
+   with no new failures or findings surfaced by the ticket-13 run.
 3. Treat the three `findings` entries below as open items, not settled
    facts, until a maintainer decides what (if anything) to change in
    `src/services/freshrss-sync-client.ts` / `freshrss-sync-coordinator.ts`
-   in response to them.
+   in response to them. The ticket-13 run reproduced the same three
+   findings verbatim, which is further evidence they are a real,
+   reproducible server behavior rather than a one-off artifact.
 
 ## What this proves, and its finite compatibility claim
 
@@ -391,12 +397,14 @@ validation):
   `vitest.config.mjs` discovers tests from).
 - Every file this harness added or changed passes
   `npx eslint docker/freshrss-contract --max-warnings=0` with zero errors
-  and zero warnings. (`npm run lint` run repository-wide fails, but on a
-  pre-existing, unrelated backlog of `obsidianmd/no-unsupported-api`
-  findings tied to `manifest.json`'s `minAppVersion` vs. APIs used elsewhere
-  in `src/` -- confirmed present on this branch before any ticket-12 change
-  by stashing this ticket's work and re-running lint against the clean
-  branch tip. Not something this ticket's scope covers fixing.)
+  and zero warnings, and `npm run lint` run repository-wide is clean (zero
+  errors, zero warnings). Ticket 12 originally hit a pre-existing,
+  unrelated repo-wide `obsidianmd/no-unsupported-api` backlog here (stale
+  `manifest.json` `minAppVersion` vs. APIs already used elsewhere in
+  `src/`); it was resolved by merging `origin/dev`'s compatibility work and
+  raising `minAppVersion` to `1.11.4` (see commit `7db727b` and the
+  "Compatibility matrix" section below) -- not something ticket 12 or 13
+  needed to fix from scratch.
 
 **Verified live, against the real pinned container, on 2026-09-09** (see
 "Ticket 12: first live run" above for the full finding list):
@@ -423,14 +431,35 @@ validation):
   only local runs have happened so far. GitHub-hosted-runner-specific
   timing, network, or Docker-in-Docker differences could still surface
   something the local runs did not.
-- Repeated/flake-resistance confidence beyond three local runs, all on the
-  same machine (one that caught the finding-2 bug, two clean passes after
-  the fix).
+- Repeated/flake-resistance confidence beyond four local runs total: three on
+  the machine that implemented ticket 12 (one caught the finding-2 bug, two
+  clean passes after the fix) and one independent clean pass, with no new
+  findings, on the machine that implemented ticket 13.
 - The scheduled/manual "previous stable image" advisory job -- deliberately
   left a stub in this ticket; see the workflow file's `TODO` comment.
 - Anything about a FreshRSS version other than the exact pinned
   `1.29.1`/digest above.
 
-A CI run, and ideally at least one more independent local run, are still
-warranted before treating this harness's results as fully settled for the
-ticket-13 compatibility matrix.
+A CI run is still warranted before treating this harness's results as fully
+settled beyond the finite compatibility matrix below.
+
+## Compatibility matrix (ticket 13)
+
+This is the complete, tested compatibility boundary. It lists only what has
+actually been exercised by an automated suite or a live Docker run described
+above -- nothing broader.
+
+| Boundary | Exact tested value | What was exercised | Evidence |
+| --- | --- | --- | --- |
+| Obsidian FreshRSS capability gate | Obsidian 1.11.4+ with a usable `App.secretStorage` surface; below 1.11.4, or 1.11.4+ with an unusable SecretStorage surface, is treated as capability-unavailable | Below-gate: FreshRSS stays visible but disabled, no SecretStorage read, no network call, no local-state mutation. At/above gate: SecretStorage-backed controls operate. | Mocked-Obsidian-version pure-unit and settings-DOM tests (e.g. `test_files/unit/settings/freshrss-settings-tab.test.ts`, capability-evaluator unit tests); this is an Obsidian capability contract tested outside Docker, per the settled #226 architecture decision. |
+| FreshRSS server | `ghcr.io/freshrss/freshrss:1.29.1@sha256:ab6b363102ccdbc39f6a62db926f567c61a5289bf25ba460f1c34423d8cc1a4d` (reported `FRESHRSS_VERSION`: `1.29.1`) | Readiness (reachability, `ClientLogin`, authenticated read probe, modification-token probe, seeded-fixture visibility); subscription/tag discovery and category placement; multi-page item-ID enumeration with real continuation cursors; content retrieval; read, starred, and mapped-label-membership mutations with the exact `OK` acknowledgment, each proven not to leak onto an untouched control article; restart persistence of every seeded/imported subscription and all three mutated facets; RSS Dashboard's real `generateFreshRssSubscriptionOpml` export imported into FreshRSS and round-tripped through FreshRSS's own OPML re-export, including duplicate-URL collapse and preservation of a pre-existing baseline subscription. | `npm run contract:freshrss` sanitized artifacts: `contract-result-2026-09-09T20-00-22-224Z.json` (ticket 12) and `contract-result-2026-09-09T21-41-30-766Z.json` (ticket 13), both `overallPassed: true`, 21 scenarios each, both git-ignored/not committed. |
+| Exercised FreshRSS API paths | `accounts/ClientLogin`, `reader/api/0/user-info`, `reader/api/0/token`, `reader/api/0/subscription/list`, `reader/api/0/tag/list`, `reader/api/0/stream/items/ids`, `reader/api/0/stream/items/contents`, `reader/api/0/edit-tag` | Exactly these paths, recorded per-run in each artifact's `exercisedApiPaths`. No other Google-Reader-API endpoint (e.g. subscription/edit, rename, delete) is exercised or claimed. | Same two contract artifacts. |
+| FreshRSS versions NOT tested | Everything except the exact pinned `1.29.1` image/digest above -- including `1.30.0`, `latest`, `edge`, and any older stable release | Not exercised; no claim is made about them | N/A -- absence of evidence, stated explicitly per the settled #226 decision that an untested version never broadens or narrows this matrix |
+| CI execution of this contract | Not yet run | The `FreshRSS Docker contract` GitHub Actions workflow has not had its first execution as of this matrix's publication (2026-09-09); all runs so far are local | See "What has and has not been verified" above |
+
+This matrix supersedes any looser claim elsewhere in project documentation.
+If a document states FreshRSS compatibility more broadly than this table
+(for example, an unbounded "supports FreshRSS" statement, a claim about
+remote subscription/category/label management, or a claim about a FreshRSS
+version other than `1.29.1`), that document is wrong and should be corrected
+to match this matrix.
