@@ -329,4 +329,66 @@ expect(plugin.ingestFeedsForBackgroundImport).toHaveBeenCalledWith(
       expect.objectContaining({ mode: "overwrite" }),
     );
   });
+
+  it("preserves preview scroll position when changing a feed selection", async () => {
+    const app = createMockApp();
+    const plugin: TestPlugin = {
+      settings: cloneSettings(),
+      saveSettings: vi.fn(async () => {}),
+      getActiveDashboardView: vi.fn(async () => null),
+      startBackgroundImport: vi.fn(),
+      ingestFeedsForBackgroundImport: vi.fn(async () => ({
+        addedCount: 1,
+        skippedCount: 0,
+        queuedFeeds: [],
+      })),
+    } as unknown as TestPlugin;
+    const modal = new ImportOpmlModal(
+      app,
+      plugin as unknown as ConstructorParameters<typeof ImportOpmlModal>[1],
+    );
+    (modal as unknown as TestModal).open();
+    await (modal as unknown as TestModal).handleFileSelection(
+      new File([readFixture("nested-folders.opml")], "nested-folders.opml", {
+        type: "text/xml",
+      }),
+    );
+
+    // Browsers clamp an empty scroll container's scrollTop to zero; jsdom does not.
+    const originalScrollTop = Object.getOwnPropertyDescriptor(
+      HTMLElement.prototype,
+      "scrollTop",
+    );
+    const positions = new WeakMap<HTMLElement, number>();
+    Object.defineProperty(HTMLElement.prototype, "scrollTop", {
+      configurable: true,
+      get(this: HTMLElement) {
+        return positions.get(this) ?? 0;
+      },
+      set(this: HTMLElement, value: number) {
+        positions.set(
+          this,
+          this.querySelectorAll(".import-preview-row").length === 0 ? 0 : value,
+        );
+      },
+    });
+
+    try {
+      const before = document.querySelector<HTMLDivElement>(".import-preview-list")!;
+      before.scrollTop = 72;
+      const checkbox = document.querySelector<HTMLInputElement>(
+        ".import-preview-row--feed .import-preview-checkbox",
+      )!;
+      checkbox.checked = false;
+      checkbox.dispatchEvent(new Event("change"));
+
+      expect(document.querySelector<HTMLDivElement>(".import-preview-list")?.scrollTop).toBe(72);
+    } finally {
+      if (originalScrollTop) {
+        Object.defineProperty(HTMLElement.prototype, "scrollTop", originalScrollTop);
+      } else {
+        delete (HTMLElement.prototype as { scrollTop?: number }).scrollTop;
+      }
+    }
+  });
 });

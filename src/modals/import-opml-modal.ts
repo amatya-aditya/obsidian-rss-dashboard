@@ -284,12 +284,14 @@ export class ImportOpmlModal extends Modal {
     const list = this.previewContainer.createDiv({
       cls: "import-preview-list import-preview-tree",
     });
-    list.scrollTop = previousScrollTop;
 
     const tree = model.getFolderTree();
     for (const node of tree) {
       this.renderFolderNode(list, node, 0);
     }
+    // Browsers clamp scrollTop on an empty scroll container to zero. Restore it
+    // only after the rows are present so selection re-renders keep their place.
+    list.scrollTop = previousScrollTop;
   }
 
   private updateImportButtonFromModel(): void {
