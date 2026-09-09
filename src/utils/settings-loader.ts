@@ -395,6 +395,28 @@ export function migrateSettings(settings: RssDashboardSettings): boolean {
     settings.autoBackup ?? {},
   );
 
+  const freshRss = settings.freshRss;
+  settings.freshRss = {
+    endpoint:
+      freshRss && typeof freshRss.endpoint === "string"
+        ? freshRss.endpoint
+        : DEFAULT_SETTINGS.freshRss.endpoint,
+    credentialReference:
+      freshRss && typeof freshRss.credentialReference === "string"
+        ? freshRss.credentialReference
+        : DEFAULT_SETTINGS.freshRss.credentialReference,
+    status:
+      freshRss?.status === "capability-unavailable" ||
+      freshRss?.status === "storage-migration-required" ||
+      freshRss?.status === "credentials-unconfigured" ||
+      freshRss?.status === "test-required" ||
+      freshRss?.status === "credentials-rejected" ||
+      freshRss?.status === "server-unavailable" ||
+      freshRss?.status === "connected"
+        ? freshRss.status
+        : DEFAULT_SETTINGS.freshRss.status,
+  };
+
   return didChange;
 }
 

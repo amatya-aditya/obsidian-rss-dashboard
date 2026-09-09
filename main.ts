@@ -65,6 +65,12 @@ import {
   isDataSyncLeaseCancelledError,
 } from "./src/services/data-sync-lease";
 import {
+  canonicalizeFreshRssEndpoint,
+  FreshRssConnectionService,
+} from "./src/services/freshrss-connection-service";
+import { FreshRssSidecarRepository } from "./src/services/freshrss-sidecar-repository";
+import type { FreshRssCapability } from "./src/settings/tabs/freshrss-settings-tab";
+import {
   FEED_REQUEST_TIMEOUT_MS,
   FEED_SOFT_TIMEOUT_MS,
   MAX_CONCURRENT_FETCHES,
@@ -114,6 +120,13 @@ type LegacyLocalStorageApi = {
 type LegacyPlaybackProgressEntry = {
   position: number;
   duration: number;
+};
+type FreshRssSecretStorage = {
+  getSecret(reference: string): string | null;
+  listSecrets(): string[];
+};
+type AppWithFreshRssSecretStorage = App & {
+  secretStorage?: FreshRssSecretStorage;
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -297,6 +310,7 @@ export default class RssDashboardPlugin extends Plugin {
   private static readonly FEED_REFRESH_RENDER_THROTTLE_MS = 250;
   private readonly feedStorageRepository: FeedStorageRepository;
   private readonly dataSyncLease = new DataSyncLease();
+  private freshRssQuarantineSequence = 0;
   private imageCacheService: ImageCacheService | null = null;
   private imageCacheQueue: string[] = [];
   private readonly queuedImageCacheUrls = new Set<string>();
@@ -2097,6 +2111,166 @@ export default class RssDashboardPlugin extends Plugin {
 
     this.settings.storageMigrationDismissedPermanently = true;
     await this.migrateToVaultShardsV2();
+  }
+
+  public getFreshRssCapability(): FreshRssCapability {
+    if (!requireApiVersion("1.11.4") || !this.getFreshRssSecretStorage()) {
+      return "capability-unavailable";
+    }
+
+    return this.settings.storageMode === "vault-shards-v2" &&
+      this.settings.metadataStorageMode === "vault-location" &&
+      this.settings.metadataStorageSchemaVersion >= 2
+      ? "available"
+      : "storage-migration-required";
+  }
+
+  public getFreshRssSecretReferences(): string[] {
+    if (this.getFreshRssCapability() !== "available") {
+      return [];
+    }
+
+    try {
+      return this.getFreshRssSecretStorage()?.listSecrets() ?? [];
+    } catch {
+      return [];
+    }
+  }
+
+  public async saveFreshRssEndpoint(endpoint: string): Promise<void> {
+    this.settings.freshRss.endpoint = canonicalizeFreshRssEndpoint(endpoint);
+    this.settings.freshRss.status = this.settings.freshRss.credentialReference
+      ? "test-required"
+      : "credentials-unconfigured";
+    await this.saveSettings();
+  }
+
+  public async saveFreshRssCredentialReference(
+    reference: string,
+  ): Promise<void> {
+    this.settings.freshRss.credentialReference = reference;
+    this.settings.freshRss.status = this.settings.freshRss.endpoint
+      ? "test-required"
+      : "credentials-unconfigured";
+    await this.saveSettings();
+  }
+
+  public openFreshRssStorageMigrationChoice(): void {
+    new StorageMigrationModal(this.app, this).open();
+  }
+
+  public async testFreshRssConnection(): Promise<
+    RssDashboardSettings["freshRss"]["status"]
+  > {
+    const capability = this.getFreshRssCapability();
+    if (capability === "capability-unavailable") {
+      return this.setFreshRssConnectionStatus("capability-unavailable");
+    }
+    if (capability === "storage-migration-required") {
+      return this.setFreshRssConnectionStatus("storage-migration-required");
+    }
+
+    const credentialReference = this.settings.freshRss.credentialReference;
+    if (!credentialReference) {
+      return this.setFreshRssConnectionStatus("credentials-unconfigured");
+    }
+
+    let credentialBundle: string | null;
+    try {
+      credentialBundle = this.getFreshRssSecretStorage()?.getSecret(
+        credentialReference,
+      ) ?? null;
+    } catch {
+      credentialBundle = null;
+    }
+    if (!credentialBundle) {
+      return this.setFreshRssConnectionStatus("credentials-unconfigured");
+    }
+
+    try {
+      return await this.runWithDataSyncLease(async (owner) => {
+        owner.throwIfInactive();
+        const connectionService = new FreshRssConnectionService({
+          request: async (request) => {
+            const response = await requestUrl(request);
+            return { status: response.status, text: response.text };
+          },
+        });
+        const result = await connectionService.testConnection({
+          endpoint: this.settings.freshRss.endpoint,
+          credentialBundle,
+        });
+        owner.throwIfInactive();
+
+        if (result.outcome !== "connected") {
+          return this.setFreshRssConnectionStatus(result.outcome);
+        }
+
+        await this.ensureFreshRssSidecarFolder();
+        owner.throwIfInactive();
+        const activation = await this.getFreshRssSidecarRepository().activate(
+          result.scope,
+        );
+        owner.throwIfInactive();
+        if (activation.outcome === "sidecar-invalid") {
+          return this.setFreshRssConnectionStatus("server-unavailable");
+        }
+
+        return this.setFreshRssConnectionStatus("connected");
+      });
+    } catch (error) {
+      if (isDataSyncLeaseCancelledError(error)) {
+        return this.settings.freshRss.status;
+      }
+      return this.setFreshRssConnectionStatus("server-unavailable");
+    }
+  }
+
+  private getFreshRssSecretStorage(): FreshRssSecretStorage | null {
+    const appWithSecretStorage = this.app as AppWithFreshRssSecretStorage;
+    const secretStorage = appWithSecretStorage.secretStorage;
+    return secretStorage &&
+      typeof secretStorage.getSecret === "function" &&
+      typeof secretStorage.listSecrets === "function"
+        ? secretStorage
+        : null;
+  }
+
+  private getFreshRssSidecarRepository(): FreshRssSidecarRepository {
+    const folder = this.getFreshRssSidecarFolder();
+    const sidecarPath = normalizePath(`${folder}/freshrss-state.json`);
+    return new FreshRssSidecarRepository(this.app.vault.adapter, {
+      sidecarPath,
+      createQuarantinePath: () => {
+        this.freshRssQuarantineSequence += 1;
+        return normalizePath(
+          `${folder}/freshrss-state.quarantine-${Date.now()}-${this.freshRssQuarantineSequence}.json`,
+        );
+      },
+    });
+  }
+
+  private getFreshRssSidecarFolder(): string {
+    const configuredFolder = this.settings.metadataStorageFolder.trim();
+    return normalizePath(
+      (configuredFolder || ".rss-dashboard-data").replace(/^\/+|\/+$/g, ""),
+    );
+  }
+
+  private async ensureFreshRssSidecarFolder(): Promise<void> {
+    const folder = this.getFreshRssSidecarFolder();
+    if (!(await this.app.vault.adapter.exists(folder))) {
+      await this.app.vault.createFolder(folder);
+    }
+  }
+
+  private async setFreshRssConnectionStatus(
+    status: RssDashboardSettings["freshRss"]["status"],
+  ): Promise<RssDashboardSettings["freshRss"]["status"]> {
+    this.settings.freshRss.status = status;
+    await this.saveSettings();
+    this.settingTab?.display();
+    return status;
   }
 
   public async repairVaultShards(): Promise<void> {
