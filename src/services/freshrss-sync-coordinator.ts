@@ -8,16 +8,43 @@ import {
   type FreshRssCredentialBundle,
   type FreshRssHttpClient,
 } from "./freshrss-connection-service";
-import { FreshRssSyncClient, type FreshRssSubscription } from "./freshrss-sync-client";
+import {
+  FRESHRSS_READ_STREAM_ID,
+  FreshRssSyncClient,
+  type FreshRssSubscription,
+} from "./freshrss-sync-client";
 import {
   FreshRssSidecarRepository,
   type FreshRssArticleBinding,
   type FreshRssFeedBinding,
+  type FreshRssSidecarFile,
   type FreshRssSyncCheckpoint,
 } from "./freshrss-sidecar-repository";
+import {
+  markMutationAttemptFailed,
+  removeAcknowledgedMutation,
+  type FreshRssPendingFacetMutation,
+} from "./freshrss-facet-mutations";
 
 /** Bounded per-subscription page size for a manual sync cycle. */
 export const FRESHRSS_SYNC_ARTICLES_PER_SUBSCRIPTION = 50;
+
+/** Page size used when enumerating a bounded item-ID stream (e.g. read state). */
+export const FRESHRSS_ITEM_ID_PAGE_SIZE = 1000;
+
+/** Default history/state bootstrap budget per relevant stream. */
+export const FRESHRSS_STREAM_ID_BUDGET = 25000;
+
+/** Maximum number of facet changes dispatched in one mutation request. */
+export const FRESHRSS_MUTATION_BATCH_SIZE = 50;
+
+function chunk<T>(items: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let i = 0; i < items.length; i += size) {
+    chunks.push(items.slice(i, i + size));
+  }
+  return chunks;
+}
 
 export interface DashboardViewLike {
   render(): void;
@@ -50,6 +77,8 @@ export interface FreshRssSyncCoordinatorDeps {
   saveSettings: () => Promise<void>;
   sidecarRepository: FreshRssSidecarRepository;
   getView: () => Promise<DashboardViewLike | null>;
+  /** Injectable clock, primarily so tests can assert deterministic timestamps. */
+  now?: () => number;
 }
 
 function createFeedId(): string {
@@ -128,6 +157,48 @@ export class FreshRssSyncCoordinator {
       authResult.authToken,
     );
 
+    const sidecarState = await this.deps.sidecarRepository.read(input.scope);
+    if (!sidecarState) {
+      // Sidecar must already be activated for this scope before a sync runs.
+      return { outcome: "server-unavailable" };
+    }
+
+    const settings = this.deps.getSettings();
+    const feeds: Feed[] = settings.feeds.map((feed) => ({ ...feed }));
+    const feedBindings: FreshRssFeedBinding[] = sidecarState.feedBindings.map((b) => ({ ...b }));
+    const articleBindings: FreshRssArticleBinding[] = sidecarState.articleBindings.map((b) => ({ ...b }));
+    const checkpoints: FreshRssSyncCheckpoint[] = sidecarState.checkpoints.map((c) => ({ ...c }));
+    let pendingFacetMutations: FreshRssPendingFacetMutation[] =
+      sidecarState.pendingFacetMutations.map((m) => ({ ...m }));
+
+    let partial = false;
+
+    // Pending desired state remains authoritative in memory and on reload
+    // until FreshRSS acknowledges the operation, so overlay it onto whatever
+    // was hydrated from local storage before anything else runs.
+    this.overlayPendingReadState(feeds, articleBindings, pendingFacetMutations);
+
+    // Flush pending read mutations before pulling any remote state. A fresh
+    // modification token is fetched immediately before dispatch; it is never
+    // reused from the earlier connection test or a previous cycle.
+    const readPendingExists = pendingFacetMutations.some((m) => m.facet === "read");
+    if (readPendingExists) {
+      const flushResult = await this.flushPendingReadMutations(
+        client,
+        pendingFacetMutations,
+        { ...sidecarState, feedBindings, articleBindings, checkpoints },
+        owner,
+      );
+      pendingFacetMutations = flushResult.pendingFacetMutations;
+      if (flushResult.authRejected) {
+        return { outcome: "credentials-rejected" };
+      }
+      if (flushResult.partial) {
+        partial = true;
+      }
+      owner.throwIfInactive();
+    }
+
     const subscriptionsResult = await client.listSubscriptions();
     if (subscriptionsResult.outcome !== "ok") {
       return mapFatalOutcome(subscriptionsResult.outcome);
@@ -140,23 +211,10 @@ export class FreshRssSyncCoordinator {
     }
     owner.throwIfInactive();
 
-    const sidecarState = await this.deps.sidecarRepository.read(input.scope);
-    if (!sidecarState) {
-      // Sidecar must already be activated for this scope before a sync runs.
-      return { outcome: "server-unavailable" };
-    }
-
-    const settings = this.deps.getSettings();
-    const feeds: Feed[] = settings.feeds.map((feed) => ({ ...feed }));
-    const feedBindings: FreshRssFeedBinding[] = sidecarState.feedBindings.map((b) => ({ ...b }));
-    const articleBindings: FreshRssArticleBinding[] = sidecarState.articleBindings.map((b) => ({ ...b }));
-    const checkpoints: FreshRssSyncCheckpoint[] = sidecarState.checkpoints.map((c) => ({ ...c }));
-
     let createdFeedCount = 0;
     let linkedFeedCount = 0;
     let ambiguousSubscriptionCount = 0;
     let importedArticleCount = 0;
-    let partial = false;
 
     for (const subscription of subscriptionsResult.data) {
       owner.throwIfInactive();
@@ -252,13 +310,41 @@ export class FreshRssSyncCoordinator {
     }
 
     owner.throwIfInactive();
+
+    // Pull remote read state and reconcile it locally. Only fully-enumerated
+    // streams may clear/change local state on absence; a capped or
+    // interrupted enumeration leaves prior state untouched. A still-pending
+    // local read facet is never overridden by a pulled value.
+    if (articleBindings.length > 0) {
+      const readStreamResult = await this.enumerateBoundedItemIds(
+        client,
+        FRESHRSS_READ_STREAM_ID,
+        owner,
+      );
+      if (readStreamResult.outcome === "auth-rejected") {
+        return { outcome: "credentials-rejected" };
+      }
+      if (readStreamResult.outcome !== "complete") {
+        partial = true;
+      }
+      if (readStreamResult.outcome === "complete") {
+        this.reconcileRemoteReadState(
+          feeds,
+          articleBindings,
+          pendingFacetMutations,
+          readStreamResult.itemIds,
+        );
+      }
+      owner.throwIfInactive();
+    }
+
     settings.feeds = feeds;
     await this.deps.saveSettings();
     owner.throwIfInactive();
     await this.deps.sidecarRepository.write({
       version: 2,
       scope: input.scope,
-      pendingFacetMutations: sidecarState.pendingFacetMutations,
+      pendingFacetMutations,
       feedBindings,
       articleBindings,
       checkpoints,
@@ -274,6 +360,218 @@ export class FreshRssSyncCoordinator {
       importedArticleCount,
       partial,
     };
+  }
+
+  /**
+   * Forces every locally known article with a current pending `read`
+   * mutation to reflect that mutation's desired state. Pending desired state
+   * remains authoritative in memory and on reload until FreshRSS
+   * acknowledges the operation, independent of whatever value was hydrated
+   * from `user-state.json` or a prior partial cycle.
+   */
+  private overlayPendingReadState(
+    feeds: Feed[],
+    articleBindings: FreshRssArticleBinding[],
+    pendingFacetMutations: FreshRssPendingFacetMutation[],
+  ): void {
+    if (pendingFacetMutations.length === 0) return;
+    const pendingByRemoteId = new Map<string, FreshRssPendingFacetMutation>();
+    for (const mutation of pendingFacetMutations) {
+      if (mutation.facet === "read") {
+        pendingByRemoteId.set(mutation.remoteArticleId, mutation);
+      }
+    }
+    if (pendingByRemoteId.size === 0) return;
+
+    for (const binding of articleBindings) {
+      const pending = pendingByRemoteId.get(binding.remoteArticleId);
+      if (!pending) continue;
+      const feed = feeds.find((f) => f.feedId === binding.feedId);
+      const item = feed?.items.find((candidate) => candidate.guid === binding.guid);
+      if (item) {
+        item.read = pending.desiredState;
+      }
+    }
+  }
+
+  /**
+   * Dispatches every current pending `read` mutation in deterministic
+   * same-desired-state batches of at most `FRESHRSS_MUTATION_BATCH_SIZE`,
+   * one request in flight. The sidecar is persisted immediately after each
+   * acknowledged batch so a crash mid-flush cannot lose an acknowledgment.
+   * Terminal errors (HTTP 400/404/422) keep the desired state with a
+   * terminal error instead of being retried automatically.
+   */
+  private async flushPendingReadMutations(
+    client: FreshRssSyncClient,
+    initialPending: FreshRssPendingFacetMutation[],
+    sidecarSnapshot: FreshRssSidecarFile,
+    owner: DataSyncLeaseOwner,
+  ): Promise<{
+    pendingFacetMutations: FreshRssPendingFacetMutation[];
+    partial: boolean;
+    authRejected: boolean;
+  }> {
+    let pending = initialPending;
+    const readPending = pending.filter((m) => m.facet === "read");
+    if (readPending.length === 0) {
+      return { pendingFacetMutations: pending, partial: false, authRejected: false };
+    }
+
+    const tokenResult = await client.getModificationToken();
+    owner.throwIfInactive();
+    if (tokenResult.outcome === "auth-rejected") {
+      return { pendingFacetMutations: pending, partial: true, authRejected: true };
+    }
+    if (tokenResult.outcome !== "ok") {
+      return { pendingFacetMutations: pending, partial: true, authRejected: false };
+    }
+    const token = tokenResult.data;
+
+    const persist = async (): Promise<void> => {
+      await this.deps.sidecarRepository.write({
+        ...sidecarSnapshot,
+        pendingFacetMutations: pending,
+      });
+    };
+
+    const groups: Array<{ items: FreshRssPendingFacetMutation[]; action: "read" | "unread" }> = [
+      { items: readPending.filter((m) => m.desiredState === true), action: "read" },
+      { items: readPending.filter((m) => m.desiredState === false), action: "unread" },
+    ];
+
+    for (const group of groups) {
+      for (const batch of chunk(group.items, FRESHRSS_MUTATION_BATCH_SIZE)) {
+        owner.throwIfInactive();
+        const result = await client.editTag(
+          batch.map((m) => m.remoteArticleId),
+          group.action,
+          token,
+        );
+        owner.throwIfInactive();
+
+        if (result.outcome === "acknowledged") {
+          for (const mutation of batch) {
+            pending = removeAcknowledgedMutation(pending, {
+              remoteArticleId: mutation.remoteArticleId,
+              facet: "read",
+              operationId: mutation.operationId,
+            });
+          }
+          await persist();
+          continue;
+        }
+
+        if (result.outcome === "auth-rejected") {
+          return { pendingFacetMutations: pending, partial: true, authRejected: true };
+        }
+
+        if (result.outcome === "terminal") {
+          const now = this.deps.now?.() ?? Date.now();
+          for (const mutation of batch) {
+            pending = markMutationAttemptFailed(
+              pending,
+              {
+                remoteArticleId: mutation.remoteArticleId,
+                facet: "read",
+                operationId: mutation.operationId,
+              },
+              now,
+              {
+                category: "terminal",
+                message: "FreshRSS rejected this read/unread change.",
+              },
+            );
+          }
+          await persist();
+          continue;
+        }
+
+        // Unavailable (network/timeout/5xx/408/429/malformed body): stop
+        // dispatching further batches this cycle. Already-acknowledged
+        // batches remain acknowledged; the rest retry on the next cycle.
+        return { pendingFacetMutations: pending, partial: true, authRejected: false };
+      }
+    }
+
+    return { pendingFacetMutations: pending, partial: false, authRejected: false };
+  }
+
+  /**
+   * Pages a bounded item-ID stream (page size `FRESHRSS_ITEM_ID_PAGE_SIZE`,
+   * budget `FRESHRSS_STREAM_ID_BUDGET`) and reports whether enumeration
+   * completed. A malformed/repeated continuation cursor or a budget cap stops
+   * the phase and reports `"partial"` rather than falsely claiming
+   * completeness.
+   */
+  private async enumerateBoundedItemIds(
+    client: FreshRssSyncClient,
+    streamId: string,
+    owner: DataSyncLeaseOwner,
+  ): Promise<
+    | { outcome: "complete"; itemIds: Set<string> }
+    | { outcome: "partial"; itemIds: Set<string> }
+    | { outcome: "auth-rejected"; itemIds: Set<string> }
+    | { outcome: "unavailable"; itemIds: Set<string> }
+  > {
+    const itemIds = new Set<string>();
+    const seenCursors = new Set<string>();
+    let continuation: string | null = null;
+    const maxPages = Math.ceil(FRESHRSS_STREAM_ID_BUDGET / FRESHRSS_ITEM_ID_PAGE_SIZE);
+
+    for (let page = 0; page < maxPages; page++) {
+      owner.throwIfInactive();
+      const result = await client.listItemIds(streamId, FRESHRSS_ITEM_ID_PAGE_SIZE, continuation);
+      if (result.outcome === "auth-rejected") {
+        return { outcome: "auth-rejected", itemIds };
+      }
+      if (result.outcome !== "ok") {
+        return { outcome: "unavailable", itemIds };
+      }
+
+      for (const id of result.data.itemRefs) {
+        itemIds.add(id);
+      }
+
+      if (result.data.continuation === null) {
+        return { outcome: "complete", itemIds };
+      }
+      if (seenCursors.has(result.data.continuation)) {
+        return { outcome: "partial", itemIds };
+      }
+      seenCursors.add(result.data.continuation);
+      continuation = result.data.continuation;
+    }
+
+    return { outcome: "partial", itemIds };
+  }
+
+  /**
+   * Applies remote read-state absence/presence to every locally bound
+   * article whose facet is not protected by a still-pending local mutation.
+   * Only called once the read stream has been fully enumerated.
+   */
+  private reconcileRemoteReadState(
+    feeds: Feed[],
+    articleBindings: FreshRssArticleBinding[],
+    pendingFacetMutations: FreshRssPendingFacetMutation[],
+    remoteReadIds: Set<string>,
+  ): void {
+    const pendingRemoteIds = new Set(
+      pendingFacetMutations
+        .filter((m) => m.facet === "read")
+        .map((m) => m.remoteArticleId),
+    );
+
+    for (const binding of articleBindings) {
+      if (pendingRemoteIds.has(binding.remoteArticleId)) {
+        continue;
+      }
+      const feed = feeds.find((f) => f.feedId === binding.feedId);
+      const item = feed?.items.find((candidate) => candidate.guid === binding.guid);
+      if (!item) continue;
+      item.read = remoteReadIds.has(binding.remoteArticleId);
+    }
   }
 
   private resolveFeedIdForSubscription(

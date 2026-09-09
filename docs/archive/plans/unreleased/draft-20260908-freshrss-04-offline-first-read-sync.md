@@ -1,14 +1,8 @@
 ---
-status: accepted
-created: 2026-09-08
+status: implemented
+completed: 2026-09-09
+released_in: unreleased
 issue: ""
-milestone: ""
-owner: unassigned
-workstream: freshrss-portable-state-client
-sequence: 4
-depends_on:
-  - ../archive/plans/unreleased/draft-20260908-freshrss-03-manual-subscription-article-import.md
-release_requirement: ""
 implementation: ""
 ---
 

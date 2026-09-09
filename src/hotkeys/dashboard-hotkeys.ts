@@ -80,7 +80,7 @@ export function setupDashboardHotkeys(view: RssDashboardView): void {
           handled = true;
           break;
         case "A":
-          view.actionMarkAllAsRead();
+          void view.actionMarkAllAsRead();
           handled = true;
           break;
         case "!": // Shift + 1

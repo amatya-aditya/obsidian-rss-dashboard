@@ -1920,7 +1920,7 @@ export class Sidebar {
         .setTitle("Mark selection as read")
         .setIcon("check-circle")
         .onClick(() => {
-          this.markSelectionReadStatus(true);
+          void this.markSelectionReadStatus(true);
         });
     });
     menu.addItem((item: MenuItem) => {
@@ -1928,7 +1928,7 @@ export class Sidebar {
         .setTitle("Mark selection as unread")
         .setIcon("circle")
         .onClick(() => {
-          this.markSelectionReadStatus(false);
+          void this.markSelectionReadStatus(false);
         });
     });
     menu.addItem((item: MenuItem) => {
@@ -1952,8 +1952,7 @@ export class Sidebar {
     });
   }
 
-  private markSelectionReadStatus(read: boolean): void {
-    let count = 0;
+  private async markSelectionReadStatus(read: boolean): Promise<void> {
     const { selectedFolders, selectedFeeds } = this.options;
 
     const feedsToUpdate = new Set<Feed>();
@@ -1976,21 +1975,28 @@ export class Sidebar {
       }
     }
 
+    const changes: Array<{ articleGuid: string; feedUrl: string; desiredRead: boolean }> = [];
     for (const feed of feedsToUpdate) {
       for (const item of feed.items) {
         if (item.read !== read) {
-          item.read = read;
-          count++;
+          changes.push({ articleGuid: item.guid, feedUrl: feed.url, desiredRead: read });
         }
       }
     }
 
-    if (count > 0) {
-      new Notice(`Marked ${count} items as ${read ? "read" : "unread"}`);
-      void this.plugin.saveSettings().then(() => this.render());
-    } else {
+    if (changes.length === 0) {
       new Notice(`No items to mark as ${read ? "read" : "unread"}`);
+      return;
     }
+
+    const result = await this.plugin.commitArticleReadState(changes);
+    if (!result.committed) {
+      new Notice(result.error ?? "Couldn't update read status.");
+      return;
+    }
+
+    new Notice(`Marked ${changes.length} items as ${read ? "read" : "unread"}`);
+    this.render();
   }
 
   private deleteSelection(): void {
@@ -2349,14 +2355,24 @@ export class Sidebar {
         .setIcon("check-circle")
         .onClick(() => {
           const allPaths = this.getAllDescendantFolderPaths(fullPath);
+          const changes: Array<{ articleGuid: string; feedUrl: string; desiredRead: boolean }> = [];
           this.settings.feeds.forEach((feed) => {
             if (feed.folder && allPaths.includes(feed.folder)) {
               feed.items.forEach((item) => {
-                item.read = true;
+                if (!item.read) {
+                  changes.push({ articleGuid: item.guid, feedUrl: feed.url, desiredRead: true });
+                }
               });
             }
           });
-          void this.plugin.saveSettings().then(() => this.render());
+          if (changes.length === 0) return;
+          void this.plugin.commitArticleReadState(changes).then((result) => {
+            if (!result.committed) {
+              new Notice(result.error ?? "Couldn't update read status.");
+              return;
+            }
+            this.render();
+          });
         });
     });
     menu.addItem((item: MenuItem) => {
@@ -3118,43 +3134,51 @@ export class Sidebar {
   }
 
   private async markAllUnreadAsRead(): Promise<void> {
-    let count = 0;
+    const changes: Array<{ articleGuid: string; feedUrl: string; desiredRead: boolean }> = [];
     this.settings.feeds.forEach((feed) => {
       feed.items.forEach((item) => {
         if (!item.read) {
-          item.read = true;
-          count++;
+          changes.push({ articleGuid: item.guid, feedUrl: feed.url, desiredRead: true });
         }
       });
     });
 
-    if (count > 0) {
-      await this.plugin.saveSettings();
-      this.render();
-      new Notice(`Marked ${count} items as read`);
-    } else {
+    if (changes.length === 0) {
       new Notice("No unread items found");
+      return;
     }
+
+    const result = await this.plugin.commitArticleReadState(changes);
+    if (!result.committed) {
+      new Notice(result.error ?? "Couldn't update read status.");
+      return;
+    }
+    this.render();
+    new Notice(`Marked ${changes.length} items as read`);
   }
 
   private async markAllReadAsUnread(): Promise<void> {
-    let count = 0;
+    const changes: Array<{ articleGuid: string; feedUrl: string; desiredRead: boolean }> = [];
     this.settings.feeds.forEach((feed) => {
       feed.items.forEach((item) => {
         if (item.read) {
-          item.read = false;
-          count++;
+          changes.push({ articleGuid: item.guid, feedUrl: feed.url, desiredRead: false });
         }
       });
     });
 
-    if (count > 0) {
-      await this.plugin.saveSettings();
-      this.render();
-      new Notice(`Marked ${count} items as unread`);
-    } else {
+    if (changes.length === 0) {
       new Notice("No read items found");
+      return;
     }
+
+    const result = await this.plugin.commitArticleReadState(changes);
+    if (!result.committed) {
+      new Notice(result.error ?? "Couldn't update read status.");
+      return;
+    }
+    this.render();
+    new Notice(`Marked ${changes.length} items as unread`);
   }
 
   public renderHeader(parentEl: HTMLElement = this.container): void {
@@ -3956,10 +3980,17 @@ export class Sidebar {
         .setTitle("Mark all as read")
         .setIcon("check-circle")
         .onClick(() => {
-          feed.items.forEach((item) => {
-            item.read = true;
+          const changes = feed.items
+            .filter((item) => !item.read)
+            .map((item) => ({ articleGuid: item.guid, feedUrl: feed.url, desiredRead: true }));
+          if (changes.length === 0) return;
+          void this.plugin.commitArticleReadState(changes).then((result) => {
+            if (!result.committed) {
+              new Notice(result.error ?? "Couldn't update read status.");
+              return;
+            }
+            this.render();
           });
-          void this.plugin.saveSettings().then(() => this.render());
         });
     });
 

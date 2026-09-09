@@ -14,6 +14,23 @@ export type FreshRssRequestOutcome<T> =
   | { outcome: "auth-rejected" }
   | { outcome: "unavailable" };
 
+/**
+ * Outcome of a mutation-dispatch (edit-tag) request. `acknowledged` requires
+ * both a successful HTTP response and a body that is exactly `OK` — transport
+ * success alone is not an acknowledgment. `terminal` covers HTTP 400/404/422:
+ * the request will not be retried automatically. `unavailable` covers
+ * network failure, timeouts, HTTP 408/429/5xx, and a malformed/ambiguous
+ * response body, all of which are safe to retry later.
+ */
+export type FreshRssEditTagOutcome =
+  | { outcome: "acknowledged" }
+  | { outcome: "auth-rejected" }
+  | { outcome: "terminal" }
+  | { outcome: "unavailable" };
+
+/** Google-Reader-API stream ID for the FreshRSS system "read" state. */
+export const FRESHRSS_READ_STREAM_ID = "user/-/state/com.google/read";
+
 export interface FreshRssSubscription {
   remoteSubscriptionId: string;
   title: string;
@@ -227,10 +244,14 @@ export class FreshRssSyncClient {
   public async listItemIds(
     remoteSubscriptionId: string,
     limit: number,
+    continuation?: string | null,
   ): Promise<FreshRssRequestOutcome<FreshRssItemIdsPage>> {
     try {
+      const continuationParam = continuation
+        ? `&c=${encodeURIComponent(continuation)}`
+        : "";
       const response = await this.httpClient.request({
-        url: `${this.endpoint}/reader/api/0/stream/items/ids?output=json&n=${limit}&s=${encodeURIComponent(remoteSubscriptionId)}`,
+        url: `${this.endpoint}/reader/api/0/stream/items/ids?output=json&n=${limit}&s=${encodeURIComponent(remoteSubscriptionId)}${continuationParam}`,
         method: "GET",
         headers: this.authHeaders(),
       });
@@ -272,6 +293,80 @@ export class FreshRssSyncClient {
       const articles = parseItemContentsResponse(response.text);
       if (!articles) return { outcome: "unavailable" };
       return { outcome: "ok", data: articles };
+    } catch {
+      return { outcome: "unavailable" };
+    }
+  }
+
+  /**
+   * Fetches a fresh Google-Reader-API modification token (`T=` value). Must
+   * be requested immediately before dispatching mutations; the coordinator
+   * never reuses a token cached from the earlier connection test or a prior
+   * cycle.
+   */
+  public async getModificationToken(): Promise<FreshRssRequestOutcome<string>> {
+    try {
+      const response = await this.httpClient.request({
+        url: `${this.endpoint}/reader/api/0/token`,
+        method: "GET",
+        headers: this.authHeaders(),
+      });
+      if (isRejectedStatus(response.status)) return { outcome: "auth-rejected" };
+      if (response.status !== 200 || !response.text.trim()) {
+        return { outcome: "unavailable" };
+      }
+      return { outcome: "ok", data: response.text.trim() };
+    } catch {
+      return { outcome: "unavailable" };
+    }
+  }
+
+  /**
+   * Dispatches one batch read-state mutation. `action: "read"` adds the
+   * system read tag; `action: "unread"` removes it. Only a successful
+   * response whose body is exactly `OK` counts as an acknowledgment; every
+   * other outcome (including a 200 with a different body) is treated as not
+   * yet acknowledged so the pending record is retried or repaired instead of
+   * being silently dropped.
+   */
+  public async editTag(
+    remoteArticleIds: string[],
+    action: "read" | "unread",
+    modificationToken: string,
+  ): Promise<FreshRssEditTagOutcome> {
+    if (remoteArticleIds.length === 0) {
+      return { outcome: "acknowledged" };
+    }
+
+    try {
+      const tagParam = action === "read" ? "a" : "r";
+      const body = [
+        "output=json",
+        `T=${encodeURIComponent(modificationToken)}`,
+        ...remoteArticleIds.map((id) => `i=${encodeURIComponent(id)}`),
+        `${tagParam}=${encodeURIComponent(FRESHRSS_READ_STREAM_ID)}`,
+      ].join("&");
+      const response = await this.httpClient.request({
+        url: `${this.endpoint}/reader/api/0/edit-tag`,
+        method: "POST",
+        body,
+        headers: {
+          ...this.authHeaders(),
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+      });
+
+      if (isRejectedStatus(response.status)) return { outcome: "auth-rejected" };
+      if (
+        response.status === 400 ||
+        response.status === 404 ||
+        response.status === 422
+      ) {
+        return { outcome: "terminal" };
+      }
+      if (response.status !== 200) return { outcome: "unavailable" };
+      if (response.text.trim() !== "OK") return { outcome: "unavailable" };
+      return { outcome: "acknowledged" };
     } catch {
       return { outcome: "unavailable" };
     }

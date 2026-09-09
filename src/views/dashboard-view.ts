@@ -468,12 +468,8 @@ export class RssDashboardView extends ItemView {
    */
   public async actionToggleReadStatus(): Promise<void> {
     if (this.selectedArticle) {
-      this.selectedArticle.read = !this.selectedArticle.read;
-      await this.handleArticleUpdate(
-        this.selectedArticle,
-        { read: this.selectedArticle.read },
-        false,
-      );
+      const desiredRead = !this.selectedArticle.read;
+      await this.handleArticleUpdate(this.selectedArticle, { read: desiredRead }, false);
     }
   }
 
@@ -539,11 +535,10 @@ export class RssDashboardView extends ItemView {
    * Action: Mark all filtered articles as read.
    * @internal
    */
-  public actionMarkAllAsRead(): void {
-    const count = this.updateFilteredArticleReadStatus(true);
+  public async actionMarkAllAsRead(): Promise<void> {
+    const count = await this.updateFilteredArticleReadStatus(true);
 
     if (count > 0) {
-      void this.plugin.saveSettings();
       this.scheduleRender();
       new Notice(`Marked ${count} items as read`);
     } else {
@@ -555,11 +550,10 @@ export class RssDashboardView extends ItemView {
    * Action: Mark all filtered articles as unread.
    * @internal
    */
-  public actionMarkAllAsUnread(): void {
-    const count = this.updateFilteredArticleReadStatus(false);
+  public async actionMarkAllAsUnread(): Promise<void> {
+    const count = await this.updateFilteredArticleReadStatus(false);
 
     if (count > 0) {
-      void this.plugin.saveSettings();
       this.scheduleRender();
       new Notice(`Marked ${count} items as unread`);
     } else {
@@ -567,19 +561,37 @@ export class RssDashboardView extends ItemView {
     }
   }
 
-  private updateFilteredArticleReadStatus(read: boolean): number {
-    let count = 0;
+  private async updateFilteredArticleReadStatus(read: boolean): Promise<number> {
+    const changes: Array<{ articleGuid: string; feedUrl: string; desiredRead: boolean }> = [];
+    const displayArticles: FeedItem[] = [];
 
     this.getFilteredArticles().forEach((article) => {
       const backingArticle = this.findBackingArticleForDisplayItem(article);
       if (backingArticle && backingArticle.read !== read) {
-        backingArticle.read = read;
-        article.read = read;
-        count++;
+        changes.push({
+          articleGuid: backingArticle.guid,
+          feedUrl: backingArticle.feedUrl,
+          desiredRead: read,
+        });
+        displayArticles.push(article);
       }
     });
 
-    return count;
+    if (changes.length === 0) {
+      return 0;
+    }
+
+    const result = await this.plugin.commitArticleReadState(changes);
+    if (!result.committed) {
+      new Notice(result.error ?? "Couldn't update read status.");
+      return 0;
+    }
+
+    displayArticles.forEach((article) => {
+      article.read = read;
+    });
+
+    return changes.length;
   }
 
   /**
@@ -986,9 +998,8 @@ export class RssDashboardView extends ItemView {
               });
             }
           },
-          onArticleUpdate: (article, updates, shouldRerender) => {
-            void this.handleArticleUpdate(article, updates, shouldRerender);
-          },
+          onArticleUpdate: (article, updates, shouldRerender) =>
+            this.handleArticleUpdate(article, updates, shouldRerender),
           onArticleSave: (article) => {
             void this.handleArticleSave(article);
           },
@@ -1017,9 +1028,7 @@ export class RssDashboardView extends ItemView {
           },
           onPageChange: this.handlePageChange.bind(this),
           onPageSizeChange: this.handlePageSizeChange.bind(this),
-          onMarkPageAsRead: () => {
-            this.markCurrentPageAsRead();
-          },
+          onMarkPageAsRead: () => this.markCurrentPageAsRead(),
           onOpenTagsSettings: () => {
             void this.plugin.openTagsSettings();
           },
@@ -1033,10 +1042,10 @@ export class RssDashboardView extends ItemView {
           onResolveCachedImageUrl: (remoteUrl) =>
             this.plugin.resolveCachedImageUrl(remoteUrl),
           onMarkAllAsRead: () => {
-            this.actionMarkAllAsRead();
+            void this.actionMarkAllAsRead();
           },
           onMarkAllAsUnread: () => {
-            this.actionMarkAllAsUnread();
+            void this.actionMarkAllAsUnread();
           },
         },
         currentPage,
@@ -2910,20 +2919,46 @@ export class RssDashboardView extends ItemView {
 
     if (!originalArticle) return;
 
-    Object.assign(originalArticle, normalizedUpdates);
-    Object.assign(article, normalizedUpdates);
-
-    if (normalizedUpdates.tags) {
-      originalArticle.tags = normalizedUpdates.tags;
-      article.tags = normalizedUpdates.tags;
+    // Route the read facet through the single FreshRSS-aware mutation
+    // boundary before applying anything else. On failure, nothing from this
+    // update is applied and the user sees an actionable error.
+    if (normalizedUpdates.read !== undefined) {
+      const result = await this.plugin.commitArticleReadState([
+        {
+          articleGuid: originalArticle.guid,
+          feedUrl: feed.url,
+          desiredRead: normalizedUpdates.read,
+        },
+      ]);
+      if (!result.committed) {
+        new Notice(result.error ?? "Couldn't save the read/unread change.");
+        return;
+      }
+      // commitArticleReadState already mutated originalArticle (same
+      // reference as settings.feeds[...].items[...]) by reference; sync the
+      // separate display-copy `article` object to match.
+      article.read = originalArticle.read;
     }
 
-    await this.plugin.updateArticle(
-      originalArticle.guid,
-      feed.url,
-      normalizedUpdates,
-      false,
-    );
+    const { read: _read, ...restUpdates } = normalizedUpdates;
+    void _read;
+
+    if (Object.keys(restUpdates).length > 0) {
+      Object.assign(originalArticle, restUpdates);
+      Object.assign(article, restUpdates);
+
+      if (restUpdates.tags) {
+        originalArticle.tags = restUpdates.tags;
+        article.tags = restUpdates.tags;
+      }
+
+      await this.plugin.updateArticle(
+        originalArticle.guid,
+        feed.url,
+        restUpdates,
+        false,
+      );
+    }
 
     if (shouldRerender) {
       void this.render();
@@ -3038,18 +3073,19 @@ export class RssDashboardView extends ItemView {
     this.refreshFilterStatusBarOnly();
   }
 
-  private markPageArticlesAsRead(
+  private async markPageArticlesAsRead(
     currentPageArticles: FeedItem[],
     previousPage: number,
     previousTotalPages: number,
     pageSize: number,
     previousTotalArticles: number,
-  ): void {
+  ): Promise<void> {
     if (!this.articleList) {
       return;
     }
 
-    const updatedArticles: FeedItem[] = [];
+    const changes: Array<{ articleGuid: string; feedUrl: string; desiredRead: boolean }> = [];
+    const candidateArticles: FeedItem[] = [];
     currentPageArticles.forEach((article) => {
       if (article.read) {
         return;
@@ -3060,17 +3096,29 @@ export class RssDashboardView extends ItemView {
         return;
       }
 
-      originalArticle.read = true;
-      article.read = true;
-      updatedArticles.push(article);
+      changes.push({
+        articleGuid: originalArticle.guid,
+        feedUrl: originalArticle.feedUrl,
+        desiredRead: true,
+      });
+      candidateArticles.push(article);
     });
 
-    if (updatedArticles.length === 0) {
+    if (changes.length === 0) {
       new Notice("No unread items on current page");
       return;
     }
 
-    void this.plugin.saveSettings();
+    const result = await this.plugin.commitArticleReadState(changes);
+    if (!result.committed) {
+      new Notice(result.error ?? "Couldn't update read status.");
+      return;
+    }
+
+    const updatedArticles = candidateArticles;
+    updatedArticles.forEach((article) => {
+      article.read = true;
+    });
 
     const filtered = this.getFilteredArticles();
     const pagination = computePagination({
@@ -3125,9 +3173,9 @@ export class RssDashboardView extends ItemView {
     new Notice(`Marked ${updatedArticles.length} items as read`);
   }
 
-  private markCurrentPageAsRead(): void {
+  private markCurrentPageAsRead(): Promise<void> {
     if (!this.articleList) {
-      return;
+      return Promise.resolve();
     }
 
     const filtered = this.getFilteredArticles();
@@ -3148,7 +3196,7 @@ export class RssDashboardView extends ItemView {
       pagination.endIdx,
     );
 
-    this.markPageArticlesAsRead(
+    return this.markPageArticlesAsRead(
       currentPageArticles,
       pagination.currentPage,
       pagination.totalPages,

@@ -141,6 +141,20 @@ describe("Dashboard pagination", () => {
     const plugin = {
       settings,
       saveSettings: vi.fn(async () => {}),
+      commitArticleReadState: vi.fn(
+        async (
+          changes: Array<{ articleGuid: string; feedUrl: string; desiredRead: boolean }>,
+        ) => {
+          for (const change of changes) {
+            for (const feed of settings.feeds) {
+              const item = feed.items.find((i) => i.guid === change.articleGuid);
+              if (item) item.read = change.desiredRead;
+            }
+          }
+          await plugin.saveSettings();
+          return { committed: true };
+        },
+      ),
     };
 
     const leaf = { app } as unknown as import("obsidian").WorkspaceLeaf;
@@ -174,6 +188,20 @@ describe("Dashboard pagination", () => {
     const plugin = {
       settings,
       saveSettings: vi.fn(async () => {}),
+      commitArticleReadState: vi.fn(
+        async (
+          changes: Array<{ articleGuid: string; feedUrl: string; desiredRead: boolean }>,
+        ) => {
+          for (const change of changes) {
+            for (const feed of settings.feeds) {
+              const item = feed.items.find((i) => i.guid === change.articleGuid);
+              if (item) item.read = change.desiredRead;
+            }
+          }
+          await plugin.saveSettings();
+          return { committed: true };
+        },
+      ),
     };
 
     const leaf = { app } as unknown as import("obsidian").WorkspaceLeaf;
@@ -213,6 +241,20 @@ describe("Dashboard pagination", () => {
     const plugin = {
       settings,
       saveSettings: vi.fn(async () => {}),
+      commitArticleReadState: vi.fn(
+        async (
+          changes: Array<{ articleGuid: string; feedUrl: string; desiredRead: boolean }>,
+        ) => {
+          for (const change of changes) {
+            for (const feed of settings.feeds) {
+              const item = feed.items.find((i) => i.guid === change.articleGuid);
+              if (item) item.read = change.desiredRead;
+            }
+          }
+          await plugin.saveSettings();
+          return { committed: true };
+        },
+      ),
     };
 
     const leaf = { app } as unknown as import("obsidian").WorkspaceLeaf;
@@ -253,6 +295,20 @@ describe("Dashboard pagination", () => {
       settings,
       saveSettings: vi.fn(async () => {}),
       openTagsSettings: vi.fn(async () => {}),
+      commitArticleReadState: vi.fn(
+        async (
+          changes: Array<{ articleGuid: string; feedUrl: string; desiredRead: boolean }>,
+        ) => {
+          for (const change of changes) {
+            for (const feed of settings.feeds) {
+              const item = feed.items.find((i) => i.guid === change.articleGuid);
+              if (item) item.read = change.desiredRead;
+            }
+          }
+          await plugin.saveSettings();
+          return { committed: true };
+        },
+      ),
     };
 
     const consoleLogSpy = vi
@@ -272,11 +328,11 @@ describe("Dashboard pagination", () => {
     const renderSpy = vi.spyOn(view, "render");
 
     const callbacks = latestArticleListArgs[6] as {
-      onMarkPageAsRead?: () => void;
+      onMarkPageAsRead?: () => void | Promise<void>;
     };
     expect(callbacks?.onMarkPageAsRead).toBeTypeOf("function");
 
-    callbacks.onMarkPageAsRead?.();
+    await callbacks.onMarkPageAsRead?.();
 
     expect(items.slice(0, 10).every((item) => !item.read)).toBe(true);
     expect(items.slice(10, 20).every((item) => item.read)).toBe(true);
@@ -318,6 +374,20 @@ describe("Dashboard pagination", () => {
       settings,
       saveSettings: vi.fn(async () => {}),
       openTagsSettings: vi.fn(async () => {}),
+      commitArticleReadState: vi.fn(
+        async (
+          changes: Array<{ articleGuid: string; feedUrl: string; desiredRead: boolean }>,
+        ) => {
+          for (const change of changes) {
+            for (const feed of settings.feeds) {
+              const item = feed.items.find((i) => i.guid === change.articleGuid);
+              if (item) item.read = change.desiredRead;
+            }
+          }
+          await plugin.saveSettings();
+          return { committed: true };
+        },
+      ),
     };
 
     const consoleLogSpy = vi
@@ -336,11 +406,11 @@ describe("Dashboard pagination", () => {
     const renderSpy = vi.spyOn(view, "render");
 
     const callbacks = latestArticleListArgs[6] as {
-      onMarkPageAsRead?: () => void;
+      onMarkPageAsRead?: () => void | Promise<void>;
     };
     expect(callbacks?.onMarkPageAsRead).toBeTypeOf("function");
 
-    callbacks.onMarkPageAsRead?.();
+    await callbacks.onMarkPageAsRead?.();
 
     expect(items.slice(0, 10).every((item) => !item.read)).toBe(true);
     expect(items.slice(10, 20).every((item) => item.read)).toBe(true);
@@ -392,6 +462,20 @@ describe("Dashboard pagination", () => {
       settings,
       saveSettings: vi.fn(async () => {}),
       openTagsSettings: vi.fn(async () => {}),
+      commitArticleReadState: vi.fn(
+        async (
+          changes: Array<{ articleGuid: string; feedUrl: string; desiredRead: boolean }>,
+        ) => {
+          for (const change of changes) {
+            for (const feed of settings.feeds) {
+              const item = feed.items.find((i) => i.guid === change.articleGuid);
+              if (item) item.read = change.desiredRead;
+            }
+          }
+          await plugin.saveSettings();
+          return { committed: true };
+        },
+      ),
     };
 
     const consoleLogSpy = vi
@@ -410,11 +494,11 @@ describe("Dashboard pagination", () => {
     view.render();
 
     const callbacks = latestArticleListArgs[6] as {
-      onMarkPageAsRead?: () => void;
+      onMarkPageAsRead?: () => void | Promise<void>;
     };
     expect(callbacks?.onMarkPageAsRead).toBeTypeOf("function");
 
-    callbacks.onMarkPageAsRead?.();
+    await callbacks.onMarkPageAsRead?.();
 
     expect(items.slice(0, 10).every((item) => item.read)).toBe(true);
     expect(plugin.saveSettings).toHaveBeenCalled();
@@ -456,6 +540,20 @@ describe("Dashboard pagination", () => {
       settings,
       saveSettings: vi.fn(async () => {}),
       openTagsSettings: vi.fn(async () => {}),
+      commitArticleReadState: vi.fn(
+        async (
+          changes: Array<{ articleGuid: string; feedUrl: string; desiredRead: boolean }>,
+        ) => {
+          for (const change of changes) {
+            for (const feed of settings.feeds) {
+              const item = feed.items.find((i) => i.guid === change.articleGuid);
+              if (item) item.read = change.desiredRead;
+            }
+          }
+          await plugin.saveSettings();
+          return { committed: true };
+        },
+      ),
     };
 
     const consoleLogSpy = vi
@@ -471,7 +569,7 @@ describe("Dashboard pagination", () => {
     const renderSpy = vi.spyOn(view, "render");
 
     const callbacks = latestArticleListArgs[6] as {
-      onMarkPageAsRead?: () => void;
+      onMarkPageAsRead?: () => void | Promise<void>;
     };
     expect(callbacks?.onMarkPageAsRead).toBeTypeOf("function");
 
@@ -487,7 +585,7 @@ describe("Dashboard pagination", () => {
       checked: true,
     });
 
-    callbacks.onMarkPageAsRead?.();
+    await callbacks.onMarkPageAsRead?.();
 
     expect(items.slice(0, 10).every((item) => item.read)).toBe(true);
     expect(items.slice(10, 20).every((item) => item.read)).toBe(true);

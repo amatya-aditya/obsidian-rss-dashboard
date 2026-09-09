@@ -729,7 +729,7 @@ export class ReaderView extends ItemView {
   public actionMarkAllAsRead(): void {
     const dashboardView = this.getDashboardView();
     if (dashboardView) {
-      dashboardView.actionMarkAllAsRead();
+      void dashboardView.actionMarkAllAsRead();
     }
   }
 

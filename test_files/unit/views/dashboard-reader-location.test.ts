@@ -172,6 +172,20 @@ async function createDashboardView(
     settings,
     saveSettings: vi.fn(async () => {}),
     updateArticle: vi.fn(async () => {}),
+    commitArticleReadState: vi.fn(
+      async (
+        changes: Array<{ articleGuid: string; feedUrl: string; desiredRead: boolean }>,
+      ) => {
+        for (const change of changes) {
+          for (const feed of settings.feeds) {
+            const item = feed.items.find((i) => i.guid === change.articleGuid);
+            if (item) item.read = change.desiredRead;
+          }
+        }
+        await plugin.saveSettings();
+        return { committed: true };
+      },
+    ),
   };
   const dashboardLeaf = {
     app,

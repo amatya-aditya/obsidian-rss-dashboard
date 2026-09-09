@@ -9,7 +9,7 @@ export interface PaginationDependencies {
   isMobileViewport(): boolean;
   onPageChange(page: number): void;
   onPageSizeChange(pageSize: number): void;
-  onMarkPageAsRead?(): void;
+  onMarkPageAsRead?(): void | Promise<void>;
   onPersistSettings?(): Promise<void> | void;
   onRerender?(): void;
   notices?: { show(message: string): void };
@@ -133,7 +133,7 @@ export function renderPagination(args: RenderPaginationArgs): void {
   });
   markPageReadButton.onclick = () => {
     if (deps.onMarkPageAsRead) {
-      deps.onMarkPageAsRead();
+      void deps.onMarkPageAsRead();
     } else {
       let changedCount = 0;
       articles.forEach((article) => {

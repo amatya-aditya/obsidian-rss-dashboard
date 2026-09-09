@@ -69,11 +69,15 @@ import {
   FreshRssConnectionService,
   parseCredentialBundle as parseFreshRssCredentialBundle,
 } from "./src/services/freshrss-connection-service";
-import { FreshRssSidecarRepository } from "./src/services/freshrss-sidecar-repository";
+import {
+  FreshRssSidecarRepository,
+  type FreshRssArticleBinding,
+} from "./src/services/freshrss-sidecar-repository";
 import {
   FreshRssSyncCoordinator,
   type FreshRssSyncOutcome,
 } from "./src/services/freshrss-sync-coordinator";
+import { captureFacetMutation } from "./src/services/freshrss-facet-mutations";
 import type { FreshRssCapability } from "./src/settings/tabs/freshrss-settings-tab";
 import {
   FEED_REQUEST_TIMEOUT_MS,
@@ -1428,21 +1432,45 @@ export default class RssDashboardPlugin extends Plugin {
     const originalItem = resolvedFeed.items.find((i) => i.guid === item.guid);
     if (!originalItem) return;
 
+    // Route the read facet through the single FreshRSS-aware mutation
+    // boundary before applying anything else. On failure, nothing from this
+    // update is applied and the user sees an actionable error.
+    if (normalizedUpdates.read !== undefined) {
+      const result = await this.commitArticleReadState([
+        {
+          articleGuid: originalItem.guid,
+          feedUrl: resolvedFeedUrl,
+          desiredRead: normalizedUpdates.read,
+        },
+      ]);
+      if (!result.committed) {
+        new Notice(result.error ?? "Couldn't save the read/unread change.");
+        return;
+      }
+    }
+
+    const { read: _read, ...restUpdates } = normalizedUpdates;
+    void _read;
+
     // Reflect updates in open dashboard/reader views immediately, then persist.
-    Object.assign(originalItem, normalizedUpdates);
+    if (Object.keys(restUpdates).length > 0) {
+      Object.assign(originalItem, restUpdates);
+    }
     await this.syncDashboardArticleUpdate(
       item.guid,
       resolvedFeedUrl,
       normalizedUpdates,
       !!shouldRerender,
     );
-    await this.syncReaderArticleUpdate(item.guid, normalizedUpdates);
-    await this.updateArticle(
-      item.guid,
-      resolvedFeedUrl,
-      normalizedUpdates,
-      false,
-    );
+    if (Object.keys(restUpdates).length > 0) {
+      await this.syncReaderArticleUpdate(item.guid, restUpdates);
+      await this.updateArticle(
+        item.guid,
+        resolvedFeedUrl,
+        restUpdates,
+        false,
+      );
+    }
   }
 
   private async syncReaderArticleUpdate(
@@ -2332,6 +2360,118 @@ export default class RssDashboardPlugin extends Plugin {
     }
     const summary = `FreshRSS sync ${outcome.partial ? "partially " : ""}completed: ${parts.join(", ")}.`;
     new Notice(summary);
+  }
+
+  /**
+   * The single article-facet mutation boundary for read/unread state. Every
+   * observable read/unread entry point (reader, dashboard, context menu,
+   * automatic-read, page, selection, folder, and all-feed actions) must route
+   * through this method rather than assigning `item.read` directly.
+   *
+   * For a FreshRSS-linked article, the desired state is durably captured as a
+   * pending facet mutation in the sidecar, under the shared data-sync lease,
+   * BEFORE the local facet is applied. If that sidecar write fails, none of
+   * the batch's changes are applied and an actionable error is returned so
+   * the caller can surface it rather than silently losing the user's choice.
+   * A local-only (non-FreshRSS-linked) article is completely unaffected: no
+   * sidecar record is created and its existing behavior is preserved exactly.
+   */
+  public async commitArticleReadState(
+    changes: Array<{ articleGuid: string; feedUrl: string; desiredRead: boolean }>,
+  ): Promise<{ committed: boolean; error?: string }> {
+    if (changes.length === 0) {
+      return { committed: true };
+    }
+
+    const resolved: Array<{
+      feed: Feed;
+      article: FeedItem;
+      desiredRead: boolean;
+      binding: FreshRssArticleBinding | null;
+    }> = [];
+    for (const change of changes) {
+      const feed = this.settings.feeds.find((f) => f.url === change.feedUrl);
+      const article = feed?.items.find((item) => item.guid === change.articleGuid);
+      if (!feed || !article) continue;
+      resolved.push({ feed, article, desiredRead: change.desiredRead, binding: null });
+    }
+    if (resolved.length === 0) {
+      return { committed: true };
+    }
+
+    let sidecarRepository: FreshRssSidecarRepository | null = null;
+    let scope: Awaited<ReturnType<FreshRssSidecarRepository["readActiveScope"]>> = null;
+    let sidecarState: Awaited<ReturnType<FreshRssSidecarRepository["read"]>> = null;
+
+    if (this.getFreshRssCapability() === "available") {
+      sidecarRepository = this.getFreshRssSidecarRepository();
+      scope = await sidecarRepository.readActiveScope();
+      if (scope) {
+        sidecarState = await sidecarRepository.read(scope);
+      }
+    }
+
+    if (sidecarState) {
+      for (const entry of resolved) {
+        entry.binding =
+          sidecarState.articleBindings.find(
+            (binding) =>
+              binding.feedId === entry.feed.feedId && binding.guid === entry.article.guid,
+          ) ?? null;
+      }
+    }
+
+    const linkedEntries = resolved.filter((entry) => entry.binding);
+
+    if (linkedEntries.length > 0 && sidecarRepository && scope && sidecarState) {
+      try {
+        const activeSidecarRepository = sidecarRepository;
+        const activeScope = scope;
+        const activeSidecarState = sidecarState;
+        await this.runWithDataSyncLease(async (owner) => {
+          owner.throwIfInactive();
+          let pending = activeSidecarState.pendingFacetMutations;
+          const nowMs = Date.now();
+          for (const entry of linkedEntries) {
+            if (!entry.binding) continue;
+            pending = captureFacetMutation(pending, {
+              remoteArticleId: entry.binding.remoteArticleId,
+              facet: "read",
+              desiredState: entry.desiredRead,
+              nowMs,
+            });
+          }
+          owner.throwIfInactive();
+          await activeSidecarRepository.write({
+            ...activeSidecarState,
+            scope: activeScope,
+            pendingFacetMutations: pending,
+          });
+        });
+      } catch (error) {
+        if (isDataSyncLeaseCancelledError(error)) {
+          return {
+            committed: false,
+            error: "FreshRSS sync is busy right now. Try again in a moment.",
+          };
+        }
+        return {
+          committed: false,
+          error:
+            "Couldn't save this read/unread change for FreshRSS syncing. The change was not applied. Please try again.",
+        };
+      }
+    }
+
+    for (const entry of resolved) {
+      entry.article.read = entry.desiredRead;
+    }
+    await this.saveSettings();
+    for (const entry of resolved) {
+      await this.syncReaderArticleUpdate(entry.article.guid, { read: entry.desiredRead });
+    }
+
+    return { committed: true };
   }
 
   private getFreshRssSecretStorage(): FreshRssSecretStorage | null {

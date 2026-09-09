@@ -102,7 +102,7 @@ export function showArticleContextMenu(
       .setTitle(article.read ? "Mark as unread" : "Mark as read")
       .setIcon(article.read ? "circle" : "check-circle")
       .onClick(() => {
-        ctx.callbacks.onArticleUpdate?.(
+        void ctx.callbacks.onArticleUpdate?.(
           article,
           { read: !article.read },
           false,

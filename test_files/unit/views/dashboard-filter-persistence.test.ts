@@ -177,6 +177,20 @@ describe("Dashboard multi-filter persistence (TDD)", () => {
     const plugin = {
       settings,
       saveSettings: vi.fn(async () => {}),
+      commitArticleReadState: vi.fn(
+        async (
+          changes: Array<{ articleGuid: string; feedUrl: string; desiredRead: boolean }>,
+        ) => {
+          for (const change of changes) {
+            for (const feed of settings.feeds) {
+              const item = feed.items.find((i) => i.guid === change.articleGuid);
+              if (item) item.read = change.desiredRead;
+            }
+          }
+          await plugin.saveSettings();
+          return { committed: true };
+        },
+      ),
     };
 
     const leaf = { app } as unknown as import("obsidian").WorkspaceLeaf;
@@ -184,7 +198,7 @@ describe("Dashboard multi-filter persistence (TDD)", () => {
     (view as unknown as { scheduleRender: () => void }).scheduleRender = vi.fn();
     (view as unknown as { activeStatusFilters: Set<string> }).activeStatusFilters = new Set(["unread"]);
 
-    view.actionMarkAllAsRead();
+    await view.actionMarkAllAsRead();
 
     expect(settings.feeds[0].items[0].read).toBe(true);
     expect(settings.feeds[0].items[1].read).toBe(true);
@@ -192,7 +206,7 @@ describe("Dashboard multi-filter persistence (TDD)", () => {
 
     (view as unknown as { activeStatusFilters: Set<string> }).activeStatusFilters.clear();
 
-    view.actionMarkAllAsUnread();
+    await view.actionMarkAllAsUnread();
 
     expect(settings.feeds[0].items[0].read).toBe(false);
     expect(settings.feeds[0].items[1].read).toBe(false);

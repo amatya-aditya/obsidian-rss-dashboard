@@ -44,7 +44,7 @@ interface ArticleListCallbacks {
     article: FeedItem,
     updates: Partial<FeedItem>,
     shouldRerender?: boolean,
-  ) => void;
+  ) => void | Promise<void>;
   onArticleSave?: (article: FeedItem) => Promise<void> | void;
   onOpenSavedArticle?: (article: FeedItem) => Promise<void> | void;
   onOpenInReaderView?: (article: FeedItem) => void;
@@ -62,7 +62,7 @@ interface ArticleListCallbacks {
   }) => void;
   onPageChange: (page: number) => void;
   onPageSizeChange: (pageSize: number) => void;
-  onMarkPageAsRead?: () => void;
+  onMarkPageAsRead?: () => void | Promise<void>;
   onMarkAllAsRead?: () => void;
   onMarkAllAsUnread?: () => void;
   onPersistSettings?: () => Promise<void> | void;
@@ -1420,7 +1420,7 @@ export class ArticleList {
 
       this.updateArticleInPlace(article);
 
-      this.callbacks.onArticleUpdate(
+      void this.callbacks.onArticleUpdate(
         article,
         { tags: [...article.tags] },
         false,

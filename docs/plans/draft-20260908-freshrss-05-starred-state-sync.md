@@ -7,7 +7,7 @@ owner: unassigned
 workstream: freshrss-portable-state-client
 sequence: 5
 depends_on:
-  - draft-20260908-freshrss-04-offline-first-read-sync.md
+  - ../archive/plans/unreleased/draft-20260908-freshrss-04-offline-first-read-sync.md
 release_requirement: ""
 implementation: ""
 ---

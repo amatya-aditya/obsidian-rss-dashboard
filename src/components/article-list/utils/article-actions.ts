@@ -31,7 +31,7 @@ export type CreateActionButtonArgs = {
       article: FeedItem,
       updates: Partial<FeedItem>,
       shouldRerender?: boolean,
-    ) => void;
+    ) => void | Promise<void>;
     onArticleSave?: (article: FeedItem) => Promise<void> | void;
     onOpenSavedArticle?: (article: FeedItem) => Promise<void> | void;
     onOpenInReaderView?: (article: FeedItem) => void;
@@ -59,14 +59,29 @@ export function createReadToggle(
   });
   setIcon(readToggle, arg.article.read ? "check-circle" : "circle");
 
+  const reflectReadState = (isRead: boolean): void => {
+    readToggle.classList.toggle("read", isRead);
+    readToggle.classList.toggle("unread", !isRead);
+    setIcon(readToggle, isRead ? "check-circle" : "circle");
+  };
+
   const toggleRead = (e: Event) => {
     e.stopPropagation();
-    const newReadState = !arg.article.read;
-    arg.article.read = newReadState;
-    arg.callbacks.onArticleUpdate?.(arg.article, { read: newReadState }, false);
-    readToggle.classList.toggle("read", newReadState);
-    readToggle.classList.toggle("unread", !newReadState);
-    setIcon(readToggle, newReadState ? "check-circle" : "circle");
+    const desiredReadState = !arg.article.read;
+    // Optimistic UI: flip the icon immediately, but do NOT mutate
+    // arg.article.read here. The article-facet mutation boundary
+    // (onArticleUpdate) is the only thing allowed to commit that value; on
+    // failure (e.g. an offline FreshRSS sidecar write), it leaves
+    // arg.article.read unchanged and we reconcile the icon back below.
+    reflectReadState(desiredReadState);
+    const outcome = arg.callbacks.onArticleUpdate?.(
+      arg.article,
+      { read: desiredReadState },
+      false,
+    );
+    void Promise.resolve(outcome).then(() => {
+      reflectReadState(!!arg.article.read);
+    });
   };
 
   toggleClickableIcon(readToggle, toggleRead);
@@ -172,7 +187,7 @@ export function createStarToggle(
     e.stopPropagation();
     const newStarState = !arg.article.starred;
     arg.article.starred = newStarState;
-    arg.callbacks.onArticleUpdate?.(
+    void arg.callbacks.onArticleUpdate?.(
       arg.article,
       { starred: newStarState },
       false,

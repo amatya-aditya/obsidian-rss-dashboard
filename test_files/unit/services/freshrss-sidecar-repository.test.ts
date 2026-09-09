@@ -48,7 +48,18 @@ describe("FreshRSS sidecar repository", () => {
     const previousState = JSON.stringify({
       version: 2,
       scope: { endpoint: "https://old.example.test/api/greader.php", remoteUserId: "old-user" },
-      pendingFacetMutations: [{ articleId: "old-reference", facet: "read", value: true }],
+      pendingFacetMutations: [
+        {
+          operationId: "old-op",
+          remoteArticleId: "old-reference",
+          facet: "read",
+          desiredState: true,
+          createdAtMs: 1000,
+          lastAttemptAtMs: null,
+          attemptCount: 0,
+          error: null,
+        },
+      ],
       feedBindings: [{ feedId: "feed-1", remoteSubscriptionId: "sub-1" }],
       articleBindings: [],
       checkpoints: [],

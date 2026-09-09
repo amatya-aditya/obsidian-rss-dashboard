@@ -1,4 +1,5 @@
 import type { FreshRssConnectionScope } from "./freshrss-connection-service";
+import type { FreshRssPendingFacetMutation } from "./freshrss-facet-mutations";
 
 const FRESHRSS_SIDECAR_VERSION = 2;
 
@@ -30,7 +31,7 @@ export interface FreshRssSyncCheckpoint {
 export interface FreshRssSidecarFile {
   version: number;
   scope: FreshRssConnectionScope;
-  pendingFacetMutations: unknown[];
+  pendingFacetMutations: FreshRssPendingFacetMutation[];
   feedBindings: FreshRssFeedBinding[];
   articleBindings: FreshRssArticleBinding[];
   checkpoints: FreshRssSyncCheckpoint[];
@@ -54,15 +55,34 @@ function isConnectionScope(value: unknown): value is FreshRssConnectionScope {
   );
 }
 
-function isPendingFacetMutation(value: unknown): boolean {
+function isMutationError(value: unknown): boolean {
+  if (value === null) return true;
   return (
     isRecord(value) &&
-    typeof value.articleId === "string" &&
-    Boolean(value.articleId) &&
-    (value.facet === "read" ||
-      value.facet === "starred" ||
-      value.facet === "label") &&
-    (typeof value.value === "boolean" || typeof value.value === "string")
+    (value.category === "auth-rejected" ||
+      value.category === "terminal" ||
+      value.category === "unavailable") &&
+    typeof value.message === "string"
+  );
+}
+
+function isPendingFacetMutation(
+  value: unknown,
+): value is FreshRssPendingFacetMutation {
+  return (
+    isRecord(value) &&
+    typeof value.operationId === "string" &&
+    Boolean(value.operationId) &&
+    typeof value.remoteArticleId === "string" &&
+    Boolean(value.remoteArticleId) &&
+    value.facet === "read" &&
+    typeof value.desiredState === "boolean" &&
+    typeof value.createdAtMs === "number" &&
+    Number.isFinite(value.createdAtMs) &&
+    (value.lastAttemptAtMs === null || typeof value.lastAttemptAtMs === "number") &&
+    typeof value.attemptCount === "number" &&
+    Number.isFinite(value.attemptCount) &&
+    isMutationError(value.error)
   );
 }
 
