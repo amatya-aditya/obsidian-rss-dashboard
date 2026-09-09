@@ -52,6 +52,7 @@ records the documentation classification.
 | [Synchronize read state offline-first](plans/unreleased/draft-20260908-freshrss-04-offline-first-read-sync.md) | 2026-09-09 | - | - |
 | [Synchronize starred state](plans/unreleased/draft-20260908-freshrss-05-starred-state-sync.md) | 2026-09-09 | - | - |
 | [Synchronize mapped FreshRSS labels](plans/unreleased/draft-20260908-freshrss-06-mapped-label-sync.md) | 2026-09-09 | - | - |
+| [Harden paging, recovery, scope safety, and repair](plans/unreleased/draft-20260908-freshrss-07-sync-recovery-scope-repair.md) | 2026-09-09 | - | - |
 
 ## Unshipped plans
 

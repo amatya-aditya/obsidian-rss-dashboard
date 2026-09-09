@@ -2,14 +2,18 @@ import { describe, expect, it } from "vitest";
 import {
   applyLabelMembership,
   buildLabelMappings,
+  cancelPendingMutation,
   captureFacetMutation,
+  dispatchableFacetMutations,
   findPendingFacetMutation,
   isLabelFacet,
   isSynchronizableFacet,
+  isTerminalMutation,
   labelNameFromFacet,
   makeLabelFacet,
   markMutationAttemptFailed,
   normalizeFreshRssLabelName,
+  rearmTerminalMutation,
   removeAcknowledgedMutation,
   type FreshRssPendingFacetMutation,
 } from "../../../src/services/freshrss-facet-mutations";
@@ -551,6 +555,143 @@ describe("FreshRSS pending facet mutation capture/coalescing", () => {
         remoteDisplayName: "Tech",
       });
       expect(result).toEqual(existing);
+    });
+  });
+
+  describe("terminal mutation repair", () => {
+    function terminalMutation(
+      overrides: Partial<FreshRssPendingFacetMutation> = {},
+    ): FreshRssPendingFacetMutation {
+      return {
+        operationId: "op-1",
+        remoteArticleId: "article-1",
+        facet: "read",
+        desiredState: true,
+        createdAtMs: 1000,
+        lastAttemptAtMs: 1500,
+        attemptCount: 1,
+        error: { category: "terminal", message: "FreshRSS rejected this read/unread change." },
+        ...overrides,
+      };
+    }
+
+    describe("isTerminalMutation", () => {
+      it("is true only for a record whose most recent error is terminal", () => {
+        expect(isTerminalMutation(terminalMutation())).toBe(true);
+        expect(isTerminalMutation(terminalMutation({ error: null }))).toBe(false);
+        expect(
+          isTerminalMutation(
+            terminalMutation({
+              error: { category: "unavailable", message: "network error" },
+            }),
+          ),
+        ).toBe(false);
+      });
+    });
+
+    describe("dispatchableFacetMutations", () => {
+      it("excludes a terminal record but keeps every other synchronizable record", () => {
+        const terminal = terminalMutation();
+        const pending = captureFacetMutation([terminal], {
+          remoteArticleId: "article-2",
+          facet: "starred",
+          desiredState: true,
+          nowMs: 2000,
+          createOperationId: () => "op-2",
+        });
+
+        const dispatchable = dispatchableFacetMutations(pending);
+
+        expect(dispatchable).toHaveLength(1);
+        expect(dispatchable[0].remoteArticleId).toBe("article-2");
+      });
+
+      it("returns every record when none are terminal", () => {
+        const pending = captureFacetMutation([], {
+          remoteArticleId: "article-1",
+          facet: "read",
+          desiredState: true,
+          nowMs: 1000,
+          createOperationId: () => "op-1",
+        });
+        expect(dispatchableFacetMutations(pending)).toEqual(pending);
+      });
+    });
+
+    describe("rearmTerminalMutation", () => {
+      it("clears a terminal record's error without discarding its desired state, creation time, or attempt history", () => {
+        const terminal = terminalMutation();
+        const result = rearmTerminalMutation([terminal], {
+          remoteArticleId: "article-1",
+          facet: "read",
+        });
+
+        expect(result).toEqual([{ ...terminal, error: null }]);
+        // A rearmed record is dispatchable again.
+        expect(dispatchableFacetMutations(result)).toEqual(result);
+      });
+
+      it("is a no-op that returns the input unchanged when no record matches", () => {
+        const existing = [terminalMutation()];
+        const result = rearmTerminalMutation(existing, {
+          remoteArticleId: "no-such-article",
+          facet: "read",
+        });
+        expect(result).toBe(existing);
+      });
+
+      it("is a no-op when the matching record is not currently terminal", () => {
+        const nonTerminal = terminalMutation({ error: null });
+        const existing = [nonTerminal];
+        const result = rearmTerminalMutation(existing, {
+          remoteArticleId: "article-1",
+          facet: "read",
+        });
+        expect(result).toBe(existing);
+      });
+
+      it("leaves unrelated records untouched", () => {
+        const terminal = terminalMutation();
+        const other = terminalMutation({
+          remoteArticleId: "article-2",
+          error: { category: "terminal", message: "other" },
+        });
+        const result = rearmTerminalMutation([terminal, other], {
+          remoteArticleId: "article-1",
+          facet: "read",
+        });
+        expect(result).toEqual([{ ...terminal, error: null }, other]);
+      });
+    });
+
+    describe("cancelPendingMutation", () => {
+      it("removes the pending record regardless of its current error state", () => {
+        const terminal = terminalMutation();
+        const result = cancelPendingMutation([terminal], {
+          remoteArticleId: "article-1",
+          facet: "read",
+        });
+        expect(result).toEqual([]);
+      });
+
+      it("removes a non-terminal pending record too -- an explicit cancel is unconditional", () => {
+        const nonTerminal = terminalMutation({ error: null });
+        const result = cancelPendingMutation([nonTerminal], {
+          remoteArticleId: "article-1",
+          facet: "read",
+        });
+        expect(result).toEqual([]);
+      });
+
+      it("leaves unrelated records untouched", () => {
+        const terminal = terminalMutation();
+        const other = terminalMutation({ remoteArticleId: "article-2" });
+        const result = cancelPendingMutation([terminal, other], {
+          remoteArticleId: "article-1",
+          facet: "read",
+        });
+        expect(result).toEqual([other]);
+      });
     });
   });
 });

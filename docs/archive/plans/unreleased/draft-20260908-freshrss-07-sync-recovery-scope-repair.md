@@ -1,15 +1,8 @@
 ---
-status: accepted
-created: 2026-09-08
+status: implemented
+completed: 2026-09-09
+released_in: unreleased
 issue: ""
-milestone: ""
-owner: unassigned
-workstream: freshrss-portable-state-client
-sequence: 7
-depends_on:
-  - ../archive/plans/unreleased/draft-20260908-freshrss-05-starred-state-sync.md
-  - draft-20260908-freshrss-06-mapped-label-sync.md
-release_requirement: ""
 implementation: ""
 ---
 

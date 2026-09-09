@@ -8,8 +8,8 @@ function cloneSettings(): RssDashboardSettings {
   return JSON.parse(JSON.stringify(DEFAULT_SETTINGS)) as RssDashboardSettings;
 }
 
-function mockRequestUrlResponse(text: string): RequestUrlResponse {
-  return { status: 200, headers: {}, arrayBuffer: new ArrayBuffer(0), json: {}, text };
+function mockRequestUrlResponse(text: string, status = 200): RequestUrlResponse {
+  return { status, headers: {}, arrayBuffer: new ArrayBuffer(0), json: {}, text };
 }
 
 function getNoticeMessages(spy: ReturnType<typeof vi.spyOn>): string[] {
@@ -158,5 +158,56 @@ describe("FreshRSS sync now", () => {
     expect(notices).toContain(
       "FreshRSS sync completed: 1 feed created, 0 linked, 1 article imported.",
     );
+  });
+
+  it("calls out a terminal per-mutation rejection in the summary notice so it isn't mistaken for an ordinary partial cycle", async () => {
+    const { plugin, app } = createConnectedPlugin();
+    await app.vault.adapter.write(
+      ".rss-dashboard-data/freshrss-state.json",
+      JSON.stringify({
+        version: 2,
+        scope: {
+          endpoint: "https://reader.example.test/api/greader.php",
+          remoteUserId: "opaque-user",
+        },
+        pendingFacetMutations: [
+          {
+            operationId: "op-1",
+            remoteArticleId: "item-1",
+            facet: "read",
+            desiredState: true,
+            createdAtMs: 1000,
+            lastAttemptAtMs: null,
+            attemptCount: 0,
+            error: null,
+          },
+        ],
+        feedBindings: [],
+        articleBindings: [],
+        checkpoints: [],
+      }),
+    );
+    vi.spyOn(obsidian, "requestUrl").mockImplementation(async (request) => {
+      const url = typeof request === "string" ? request : request.url;
+      if (url.includes("/accounts/ClientLogin")) {
+        return mockRequestUrlResponse("Auth=opaque-session");
+      }
+      if (url.includes("/reader/api/0/token")) return mockRequestUrlResponse("fresh-token");
+      if (url.includes("/edit-tag")) return mockRequestUrlResponse("", 400);
+      if (url.includes("/subscription/list")) {
+        return mockRequestUrlResponse(JSON.stringify({ subscriptions: [] }));
+      }
+      if (url.includes("/tag/list")) return mockRequestUrlResponse(JSON.stringify({ tags: [] }));
+      throw new Error(`Unexpected request: ${url}`);
+    });
+
+    await plugin.syncFreshRssNow();
+
+    const notices = getNoticeMessages(consoleDebugSpy);
+    expect(
+      notices.some((notice) =>
+        notice.includes("Some changes were rejected by FreshRSS and need attention"),
+      ),
+    ).toBe(true);
   });
 });

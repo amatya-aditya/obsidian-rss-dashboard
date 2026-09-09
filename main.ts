@@ -2390,7 +2390,16 @@ export default class RssDashboardPlugin extends Plugin {
     if (outcome.ambiguousSubscriptionCount > 0) {
       parts.push(`${outcome.ambiguousSubscriptionCount} ambiguous`);
     }
-    const summary = `FreshRSS sync ${outcome.partial ? "partially " : ""}completed: ${parts.join(", ")}.`;
+    let summary = `FreshRSS sync ${outcome.partial ? "partially " : ""}completed: ${parts.join(", ")}.`;
+    // A terminal per-mutation rejection (HTTP 400/404/422, unknown binding, or
+    // an invalid label operation) is durable but never replayed automatically
+    // -- surface it every time it is still outstanding so the user knows a
+    // change requires deliberate repair, distinct from an ordinary partial
+    // (budget-capped or transient-failure) cycle.
+    if (outcome.hasTerminalMutations) {
+      summary +=
+        " Some changes were rejected by FreshRSS and need attention: retry or cancel them from FreshRSS settings.";
+    }
     new Notice(summary);
   }
 

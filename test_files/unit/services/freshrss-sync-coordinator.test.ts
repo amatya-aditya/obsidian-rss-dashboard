@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  FRESHRSS_CONTENT_BATCH_SIZE,
+  FRESHRSS_ITEM_ID_PAGE_SIZE,
+  FRESHRSS_MUTATION_BATCH_SIZE,
+  FRESHRSS_STREAM_ID_BUDGET,
   FreshRssSyncCoordinator,
   type DashboardViewLike,
 } from "../../../src/services/freshrss-sync-coordinator";
@@ -15,6 +19,8 @@ import type {
 } from "../../../src/services/freshrss-connection-service";
 import type { DataSyncLeaseOwner } from "../../../src/services/data-sync-lease";
 import type { Feed, RssDashboardSettings } from "../../../src/types/types";
+import { FRESHRSS_BACKOFF_INITIAL_MS } from "../../../src/services/freshrss-backoff";
+import { FRESHRSS_MAX_REQUEST_ATTEMPTS } from "../../../src/services/freshrss-retry";
 
 const endpoint = "https://reader.example.test/api/greader.php";
 const scope = { endpoint, remoteUserId: "opaque-user" };
@@ -145,6 +151,7 @@ describe("FreshRssSyncCoordinator", () => {
       ambiguousSubscriptionCount: 0,
       importedArticleCount: 1,
       partial: false,
+      hasTerminalMutations: false,
     });
 
     expect(httpClient.requests.map((r) => r.method + " " + r.url.split("?")[0])).toEqual([
@@ -271,6 +278,7 @@ describe("FreshRssSyncCoordinator", () => {
       ambiguousSubscriptionCount: 1,
       importedArticleCount: 0,
       partial: false,
+      hasTerminalMutations: false,
     });
     expect(settings.feeds).toEqual([feedA, feedB]);
     const sidecar = JSON.parse(store.files.get("sidecar.json") ?? "") as FreshRssSidecarFile;
@@ -384,6 +392,7 @@ describe("FreshRssSyncCoordinator", () => {
       ambiguousSubscriptionCount: 0,
       importedArticleCount: 0,
       partial: false,
+      hasTerminalMutations: false,
     });
     expect(settings.feeds).toHaveLength(1);
     expect(settings.feeds[0].items).toHaveLength(1);
@@ -446,7 +455,7 @@ describe("FreshRssSyncCoordinator", () => {
     expect(store.files.get("sidecar.json")).toBe(beforeSidecar);
   });
 
-  it("reports credentials-rejected without any request when authentication itself fails", async () => {
+  it("performs exactly one fresh login retry before reporting credentials-rejected when authentication itself fails", async () => {
     const httpClient = createHttpClient(() => ({ status: 403, text: "" }));
     const { repository } = createSidecarRepository();
     await repository.activate(scope);
@@ -463,7 +472,11 @@ describe("FreshRssSyncCoordinator", () => {
     await expect(
       coordinator.run({ endpoint, credentials, scope, owner: activeOwner }),
     ).resolves.toEqual({ outcome: "credentials-rejected" });
-    expect(httpClient.requests).toHaveLength(1);
+    // One initial login attempt, plus exactly one fresh retry -- never a loop.
+    expect(httpClient.requests).toHaveLength(2);
+    expect(
+      httpClient.requests.every((r) => r.url.includes("/accounts/ClientLogin")),
+    ).toBe(true);
   });
 
   describe("pending read-facet mutations", () => {
@@ -1525,6 +1538,372 @@ describe("FreshRssSyncCoordinator", () => {
       expect(settings.feeds[0].items[0].tags).toEqual([]);
       const sidecar = JSON.parse(store.files.get("sidecar.json") ?? "") as FreshRssSidecarFile;
       expect(sidecar.labelMappings).toEqual([]);
+    });
+  });
+
+  describe("ticket 07: paging budget, transient retry/backoff, reauthentication, and terminal-mutation repair", () => {
+    const fastRetry = { sleep: async () => {} };
+
+    it("exhausts in-cycle retries on a persistent transient failure, reports server-unavailable, and persists advanced cross-cycle backoff", async () => {
+      let subscriptionListAttempts = 0;
+      const httpClient = createHttpClient((request) => {
+        if (request.url.includes("/accounts/ClientLogin")) return loginResponse();
+        if (request.url.includes("/subscription/list")) {
+          subscriptionListAttempts++;
+          return { status: 503, text: "" };
+        }
+        throw new Error(`Unexpected request: ${request.url}`);
+      });
+      const { repository, store } = createSidecarRepository();
+      await repository.activate(scope);
+      const settings = createSettings([]);
+      const nowMs = 5_000_000;
+
+      const coordinator = new FreshRssSyncCoordinator({
+        httpClient,
+        getSettings: () => settings,
+        saveSettings: vi.fn().mockResolvedValue(undefined),
+        sidecarRepository: repository,
+        getView: async () => null,
+        now: () => nowMs,
+        retry: fastRetry,
+      });
+
+      const outcome = await coordinator.run({ endpoint, credentials, scope, owner: activeOwner });
+
+      expect(outcome).toEqual({ outcome: "server-unavailable" });
+      // The first attempt plus two in-cycle retries -- never more.
+      expect(subscriptionListAttempts).toBe(FRESHRSS_MAX_REQUEST_ATTEMPTS);
+      const sidecar = JSON.parse(store.files.get("sidecar.json") ?? "") as FreshRssSidecarFile;
+      expect(sidecar.syncHealth).toEqual({
+        consecutiveTransientFailureCount: 1,
+        backoffUntilMs: nowMs + FRESHRSS_BACKOFF_INITIAL_MS,
+      });
+    });
+
+    it("resets a prior backoff streak to zero after the next cycle fully succeeds", async () => {
+      const httpClient = createHttpClient((request) => {
+        if (request.url.includes("/accounts/ClientLogin")) return loginResponse();
+        if (request.url.includes("/subscription/list")) return jsonResponse({ subscriptions: [] });
+        if (request.url.includes("/tag/list")) return jsonResponse({ tags: [] });
+        throw new Error(`Unexpected request: ${request.url}`);
+      });
+      const { repository, store } = createSidecarRepository();
+      await repository.activate(scope);
+      await repository.write({
+        version: 2,
+        scope,
+        pendingFacetMutations: [],
+        feedBindings: [],
+        articleBindings: [],
+        checkpoints: [],
+        labelMappings: [],
+        syncHealth: { consecutiveTransientFailureCount: 2, backoffUntilMs: 123 },
+      });
+      const settings = createSettings([]);
+
+      const coordinator = new FreshRssSyncCoordinator({
+        httpClient,
+        getSettings: () => settings,
+        saveSettings: vi.fn().mockResolvedValue(undefined),
+        sidecarRepository: repository,
+        getView: async () => null,
+      });
+
+      const outcome = await coordinator.run({ endpoint, credentials, scope, owner: activeOwner });
+
+      expect(outcome).toMatchObject({ outcome: "synced", partial: false });
+      const sidecar = JSON.parse(store.files.get("sidecar.json") ?? "") as FreshRssSidecarFile;
+      expect(sidecar.syncHealth).toEqual({
+        consecutiveTransientFailureCount: 0,
+        backoffUntilMs: null,
+      });
+    });
+
+    it("performs exactly one fresh login on a mid-cycle 401 and continues the same cycle to completion", async () => {
+      let subscriptionListAttempts = 0;
+      const httpClient = createHttpClient((request) => {
+        if (request.url.includes("/accounts/ClientLogin")) return loginResponse();
+        if (request.url.includes("/subscription/list")) {
+          subscriptionListAttempts++;
+          if (subscriptionListAttempts === 1) return { status: 401, text: "" };
+          return jsonResponse({ subscriptions: [] });
+        }
+        if (request.url.includes("/tag/list")) return jsonResponse({ tags: [] });
+        throw new Error(`Unexpected request: ${request.url}`);
+      });
+      const { repository } = createSidecarRepository();
+      await repository.activate(scope);
+      const settings = createSettings([]);
+
+      const coordinator = new FreshRssSyncCoordinator({
+        httpClient,
+        getSettings: () => settings,
+        saveSettings: vi.fn().mockResolvedValue(undefined),
+        sidecarRepository: repository,
+        getView: async () => null,
+      });
+
+      const outcome = await coordinator.run({ endpoint, credentials, scope, owner: activeOwner });
+
+      expect(outcome).toMatchObject({ outcome: "synced" });
+      expect(subscriptionListAttempts).toBe(2);
+      expect(httpClient.requests.map((r) => r.url.split("?")[0])).toEqual([
+        "https://reader.example.test/api/greader.php/accounts/ClientLogin",
+        "https://reader.example.test/api/greader.php/reader/api/0/subscription/list",
+        // Exactly one fresh login before retrying the same request.
+        "https://reader.example.test/api/greader.php/accounts/ClientLogin",
+        "https://reader.example.test/api/greader.php/reader/api/0/subscription/list",
+        "https://reader.example.test/api/greader.php/reader/api/0/tag/list",
+      ]);
+    });
+
+    it("marks a pending mutation terminal on HTTP 400, reports hasTerminalMutations, and never redispatches it automatically on a later cycle", async () => {
+      let editTagAttempts = 0;
+      const httpClient = createHttpClient((request) => {
+        if (request.url.includes("/accounts/ClientLogin")) return loginResponse();
+        if (request.url.includes("/reader/api/0/token")) return { status: 200, text: "token" };
+        if (request.url.includes("/edit-tag")) {
+          editTagAttempts++;
+          return { status: 400, text: "" };
+        }
+        if (request.url.includes("/subscription/list")) return jsonResponse({ subscriptions: [] });
+        if (request.url.includes("/tag/list")) return jsonResponse({ tags: [] });
+        throw new Error(`Unexpected request: ${request.url}`);
+      });
+      const { repository, store } = createSidecarRepository();
+      await repository.activate(scope);
+      const pending = {
+        operationId: "op-1",
+        remoteArticleId: "item-1",
+        facet: "read" as const,
+        desiredState: true,
+        createdAtMs: 1000,
+        lastAttemptAtMs: null,
+        attemptCount: 0,
+        error: null,
+      };
+      await repository.write({
+        version: 2,
+        scope,
+        pendingFacetMutations: [pending],
+        feedBindings: [],
+        articleBindings: [],
+        checkpoints: [],
+        labelMappings: [],
+      });
+      const settings = createSettings([]);
+
+      const coordinator = new FreshRssSyncCoordinator({
+        httpClient,
+        getSettings: () => settings,
+        saveSettings: vi.fn().mockResolvedValue(undefined),
+        sidecarRepository: repository,
+        getView: async () => null,
+      });
+
+      const firstOutcome = await coordinator.run({ endpoint, credentials, scope, owner: activeOwner });
+      expect(firstOutcome).toMatchObject({
+        outcome: "synced",
+        partial: false,
+        hasTerminalMutations: true,
+      });
+      expect(editTagAttempts).toBe(1);
+
+      const sidecarAfterFirst = JSON.parse(store.files.get("sidecar.json") ?? "") as FreshRssSidecarFile;
+      expect(sidecarAfterFirst.pendingFacetMutations).toHaveLength(1);
+      expect(sidecarAfterFirst.pendingFacetMutations[0]).toMatchObject({
+        remoteArticleId: "item-1",
+        desiredState: true,
+        error: { category: "terminal" },
+      });
+
+      const requestCountAfterFirstCycle = httpClient.requests.length;
+
+      const secondOutcome = await coordinator.run({ endpoint, credentials, scope, owner: activeOwner });
+      expect(secondOutcome).toMatchObject({ outcome: "synced", hasTerminalMutations: true });
+      // A terminal record is never replayed automatically: no fresh
+      // modification-token or edit-tag request is issued for it.
+      const requestsDuringSecondCycle = httpClient.requests.slice(requestCountAfterFirstCycle);
+      expect(requestsDuringSecondCycle.some((r) => r.url.includes("/edit-tag"))).toBe(false);
+      expect(requestsDuringSecondCycle.some((r) => r.url.includes("/reader/api/0/token"))).toBe(false);
+      expect(editTagAttempts).toBe(1);
+    });
+
+    it("caps a facet stream's enumeration at the 25,000-ID budget, reports partial, and never clears existing state on the cap", async () => {
+      const maxPages = Math.ceil(FRESHRSS_STREAM_ID_BUDGET / FRESHRSS_ITEM_ID_PAGE_SIZE);
+      let readStreamPageCount = 0;
+      const httpClient = createHttpClient((request) => {
+        if (request.url.includes("/accounts/ClientLogin")) return loginResponse();
+        if (request.url.includes("/subscription/list")) return jsonResponse({ subscriptions: [] });
+        if (request.url.includes("/tag/list")) return jsonResponse({ tags: [] });
+        if (request.url.includes("/stream/items/ids")) {
+          if (request.url.includes("state%2Fcom.google%2Fread")) {
+            readStreamPageCount++;
+            // Deliberately never includes item-1 and never terminates: if this
+            // capped enumeration were ever (incorrectly) treated as complete,
+            // the locally-read article would be wrongly cleared to unread.
+            return jsonResponse({
+              itemRefs: [{ id: "other-item" }],
+              continuation: `cursor-${readStreamPageCount}`,
+            });
+          }
+          // Starred stream: fully enumerated immediately, empty.
+          return jsonResponse({ itemRefs: [] });
+        }
+        throw new Error(`Unexpected request: ${request.url}`);
+      });
+      const { repository } = createSidecarRepository();
+      await repository.activate(scope);
+      const boundFeed: Feed = {
+        feedId: "local-1",
+        title: "Feed One",
+        url: "https://example.test/feed.xml",
+        folder: "Tech",
+        items: [
+          {
+            title: "t",
+            link: "x",
+            description: "",
+            pubDate: "",
+            guid: "item-1",
+            feedTitle: "Feed One",
+            feedUrl: "x",
+            coverImage: "",
+            read: true,
+          },
+        ],
+        lastUpdated: 0,
+      };
+      await repository.write({
+        version: 2,
+        scope,
+        pendingFacetMutations: [],
+        feedBindings: [{ feedId: "local-1", remoteSubscriptionId: "feed/1" }],
+        articleBindings: [{ feedId: "local-1", guid: "item-1", remoteArticleId: "item-1" }],
+        checkpoints: [],
+        labelMappings: [],
+      });
+      const settings = createSettings([boundFeed]);
+
+      const coordinator = new FreshRssSyncCoordinator({
+        httpClient,
+        getSettings: () => settings,
+        saveSettings: vi.fn().mockResolvedValue(undefined),
+        sidecarRepository: repository,
+        getView: async () => null,
+      });
+
+      const outcome = await coordinator.run({ endpoint, credentials, scope, owner: activeOwner });
+
+      expect(outcome).toMatchObject({ outcome: "synced", partial: true });
+      expect(readStreamPageCount).toBe(maxPages);
+      // The capped stream never reached completion, so absence must not be
+      // treated as authoritative: the locally-read article stays read.
+      expect(settings.feeds[0].items[0].read).toBe(true);
+    });
+
+    it("fetches item content in batches of at most FRESHRSS_CONTENT_BATCH_SIZE", async () => {
+      const totalIds = FRESHRSS_CONTENT_BATCH_SIZE + 50;
+      const remoteIds = Array.from({ length: totalIds }, (_, i) => `item-${i}`);
+      let contentRequestCount = 0;
+      const httpClient = createHttpClient((request) => {
+        if (request.url.includes("/accounts/ClientLogin")) return loginResponse();
+        if (request.url.includes("/subscription/list")) {
+          return jsonResponse({
+            subscriptions: [
+              { id: "feed/1", title: "Feed One", url: "https://example.test/feed.xml", categories: [] },
+            ],
+          });
+        }
+        if (request.url.includes("/tag/list")) return jsonResponse({ tags: [] });
+        if (request.url.includes("/stream/items/ids")) {
+          return jsonResponse({ itemRefs: remoteIds.map((id) => ({ id })) });
+        }
+        if (request.url.includes("/stream/items/contents")) {
+          contentRequestCount++;
+          const requestedIds = (request.body ?? "")
+            .split("&")
+            .filter((part) => part.startsWith("i="))
+            .map((part) => decodeURIComponent(part.slice(2)));
+          expect(requestedIds.length).toBeLessThanOrEqual(FRESHRSS_CONTENT_BATCH_SIZE);
+          return jsonResponse({ items: requestedIds.map((id) => ({ id, title: id })) });
+        }
+        throw new Error(`Unexpected request: ${request.url}`);
+      });
+      const { repository } = createSidecarRepository();
+      await repository.activate(scope);
+      const settings = createSettings([]);
+
+      const coordinator = new FreshRssSyncCoordinator({
+        httpClient,
+        getSettings: () => settings,
+        saveSettings: vi.fn().mockResolvedValue(undefined),
+        sidecarRepository: repository,
+        getView: async () => null,
+      });
+
+      const outcome = await coordinator.run({ endpoint, credentials, scope, owner: activeOwner });
+
+      expect(outcome).toMatchObject({ outcome: "synced", importedArticleCount: totalIds });
+      expect(contentRequestCount).toBe(2);
+    });
+
+    it("dispatches pending mutations in batches of at most FRESHRSS_MUTATION_BATCH_SIZE", async () => {
+      const totalMutations = FRESHRSS_MUTATION_BATCH_SIZE * 2 + 25;
+      let editTagRequestCount = 0;
+      const httpClient = createHttpClient((request) => {
+        if (request.url.includes("/accounts/ClientLogin")) return loginResponse();
+        if (request.url.includes("/reader/api/0/token")) return { status: 200, text: "token" };
+        if (request.url.includes("/edit-tag")) {
+          editTagRequestCount++;
+          const requestedIds = (request.body ?? "")
+            .split("&")
+            .filter((part) => part.startsWith("i="));
+          expect(requestedIds.length).toBeLessThanOrEqual(FRESHRSS_MUTATION_BATCH_SIZE);
+          return { status: 200, text: "OK" };
+        }
+        if (request.url.includes("/subscription/list")) return jsonResponse({ subscriptions: [] });
+        if (request.url.includes("/tag/list")) return jsonResponse({ tags: [] });
+        throw new Error(`Unexpected request: ${request.url}`);
+      });
+      const { repository, store } = createSidecarRepository();
+      await repository.activate(scope);
+      const pendingMutations = Array.from({ length: totalMutations }, (_, i) => ({
+        operationId: `op-${i}`,
+        remoteArticleId: `item-${i}`,
+        facet: "read" as const,
+        desiredState: true,
+        createdAtMs: 1000,
+        lastAttemptAtMs: null,
+        attemptCount: 0,
+        error: null,
+      }));
+      await repository.write({
+        version: 2,
+        scope,
+        pendingFacetMutations: pendingMutations,
+        feedBindings: [],
+        articleBindings: [],
+        checkpoints: [],
+        labelMappings: [],
+      });
+      const settings = createSettings([]);
+
+      const coordinator = new FreshRssSyncCoordinator({
+        httpClient,
+        getSettings: () => settings,
+        saveSettings: vi.fn().mockResolvedValue(undefined),
+        sidecarRepository: repository,
+        getView: async () => null,
+      });
+
+      const outcome = await coordinator.run({ endpoint, credentials, scope, owner: activeOwner });
+
+      expect(outcome).toMatchObject({ outcome: "synced" });
+      expect(editTagRequestCount).toBe(3);
+      const sidecar = JSON.parse(store.files.get("sidecar.json") ?? "") as FreshRssSidecarFile;
+      expect(sidecar.pendingFacetMutations).toEqual([]);
     });
   });
 });

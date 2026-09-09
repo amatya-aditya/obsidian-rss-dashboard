@@ -4,6 +4,12 @@ import {
   type FreshRssLabelMapping,
   type FreshRssPendingFacetMutation,
 } from "./freshrss-facet-mutations";
+import {
+  initialFreshRssSyncHealth,
+  type FreshRssSyncHealth,
+} from "./freshrss-backoff";
+
+export type { FreshRssSyncHealth } from "./freshrss-backoff";
 
 export type { FreshRssLabelMapping } from "./freshrss-facet-mutations";
 
@@ -51,6 +57,16 @@ export interface FreshRssSidecarFile {
    * the facet union without a version bump.
    */
   labelMappings: FreshRssLabelMapping[];
+  /**
+   * Durable cross-cycle retry/backoff bookkeeping for this scope: consecutive
+   * cycles ending with an exhausted transient failure, and the earliest time
+   * an automatic cycle should next be attempted (see `freshrss-backoff.ts`).
+   * Optional on the wire for the same reason `labelMappings` is: a sidecar
+   * written before this field existed still parses and activates losslessly,
+   * defaulting to "no backoff owed", rather than being quarantined or
+   * bumping the schema version.
+   */
+  syncHealth: FreshRssSyncHealth;
 }
 
 export type FreshRssSidecarActivationResult =
@@ -137,6 +153,16 @@ function isArticleBinding(value: unknown): value is FreshRssArticleBinding {
   );
 }
 
+function isSyncHealth(value: unknown): value is FreshRssSyncHealth {
+  return (
+    isRecord(value) &&
+    typeof value.consecutiveTransientFailureCount === "number" &&
+    Number.isFinite(value.consecutiveTransientFailureCount) &&
+    (value.backoffUntilMs === null ||
+      (typeof value.backoffUntilMs === "number" && Number.isFinite(value.backoffUntilMs)))
+  );
+}
+
 function isSyncCheckpoint(value: unknown): value is FreshRssSyncCheckpoint {
   return (
     isRecord(value) &&
@@ -155,6 +181,7 @@ function parseSidecar(contents: string): FreshRssSidecarFile | null {
     // all, and that must still parse and activate losslessly as an empty
     // list rather than being quarantined as invalid.
     const rawLabelMappings = isRecord(parsed) ? parsed.labelMappings : undefined;
+    const rawSyncHealth = isRecord(parsed) ? parsed.syncHealth : undefined;
     if (
       !isRecord(parsed) ||
       parsed.version !== FRESHRSS_SIDECAR_VERSION ||
@@ -168,7 +195,8 @@ function parseSidecar(contents: string): FreshRssSidecarFile | null {
       !Array.isArray(parsed.checkpoints) ||
       !parsed.checkpoints.every(isSyncCheckpoint) ||
       !(rawLabelMappings === undefined ||
-        (Array.isArray(rawLabelMappings) && rawLabelMappings.every(isLabelMapping)))
+        (Array.isArray(rawLabelMappings) && rawLabelMappings.every(isLabelMapping))) ||
+      !(rawSyncHealth === undefined || isSyncHealth(rawSyncHealth))
     ) {
       return null;
     }
@@ -181,6 +209,7 @@ function parseSidecar(contents: string): FreshRssSidecarFile | null {
       articleBindings: parsed.articleBindings,
       checkpoints: parsed.checkpoints,
       labelMappings: Array.isArray(rawLabelMappings) ? rawLabelMappings : [],
+      syncHealth: isSyncHealth(rawSyncHealth) ? rawSyncHealth : initialFreshRssSyncHealth(),
     };
   } catch {
     return null;
@@ -205,6 +234,7 @@ function createEmptySidecar(scope: FreshRssConnectionScope): FreshRssSidecarFile
     articleBindings: [],
     checkpoints: [],
     labelMappings: [],
+    syncHealth: initialFreshRssSyncHealth(),
   };
 }
 

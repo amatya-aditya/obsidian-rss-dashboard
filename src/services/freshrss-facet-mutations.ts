@@ -198,6 +198,73 @@ export function findPendingFacetMutation(
 }
 
 /**
+ * True when a pending record's most recent attempt ended in a terminal
+ * error (HTTP 400/404/422, unknown binding, or an invalid label operation).
+ * A terminal record is never dispatched automatically again -- see
+ * `dispatchableFacetMutations` -- until an explicit user retry rearms it.
+ */
+export function isTerminalMutation(
+  mutation: Pick<FreshRssPendingFacetMutation, "error">,
+): boolean {
+  return mutation.error?.category === "terminal";
+}
+
+/**
+ * The subset of pending mutations a sync cycle may dispatch automatically:
+ * every synchronizable-facet record EXCEPT one currently in a terminal error
+ * state. A terminal record's desired state and error remain on file for
+ * repair, but the cycle must never replay it on its own -- only an explicit
+ * `rearmTerminalMutation` call (a deliberate user "Retry" action) makes it
+ * dispatchable again.
+ */
+export function dispatchableFacetMutations(
+  existing: readonly FreshRssPendingFacetMutation[],
+): FreshRssPendingFacetMutation[] {
+  return existing.filter(
+    (mutation) => isSynchronizableFacet(mutation.facet) && !isTerminalMutation(mutation),
+  );
+}
+
+/**
+ * Explicit user "Retry" action: clears a terminal record's error so the
+ * next cycle may dispatch it again, without discarding the desired state,
+ * creation time, or attempt history. A no-op (returns `existing` unchanged)
+ * when no record matches, or the matching record is not currently terminal.
+ */
+export function rearmTerminalMutation(
+  existing: readonly FreshRssPendingFacetMutation[],
+  target: { remoteArticleId: string; facet: FreshRssSynchronizableFacet },
+): FreshRssPendingFacetMutation[] {
+  let changed = false;
+  const next = existing.map((mutation) => {
+    if (!isSameRecordIdentity(mutation, target) || !isTerminalMutation(mutation)) {
+      return mutation;
+    }
+    changed = true;
+    return { ...mutation, error: null };
+  });
+  // `existing` is accepted as `readonly` purely to signal that this function
+  // never mutates its input in place; when nothing actually changed, the
+  // exact input reference is still a valid `FreshRssPendingFacetMutation[]`
+  // at runtime (callers always pass a plain mutable array), so this is the
+  // one deliberate boundary cast rather than a defensive copy that would
+  // falsify the "returns `existing` unchanged" no-op guarantee above.
+  return changed ? next : (existing as FreshRssPendingFacetMutation[]);
+}
+
+/**
+ * Explicit user "Cancel" action: removes a pending record outright,
+ * regardless of its current error state. Only ever called by a deliberate
+ * user action -- never automatically, and never by retention or reconciliation.
+ */
+export function cancelPendingMutation(
+  existing: readonly FreshRssPendingFacetMutation[],
+  target: { remoteArticleId: string; facet: FreshRssSynchronizableFacet },
+): FreshRssPendingFacetMutation[] {
+  return existing.filter((mutation) => !isSameRecordIdentity(mutation, target));
+}
+
+/**
  * A local mapping from one normalized FreshRSS label name to the exact
  * opaque remote tag reference and kind reported by FreshRSS tag discovery.
  * `displayName` is the raw remote label text, kept only as a fallback name

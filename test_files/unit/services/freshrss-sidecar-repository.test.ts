@@ -42,6 +42,7 @@ describe("FreshRSS sidecar repository", () => {
       articleBindings: [],
       checkpoints: [],
       labelMappings: [],
+      syncHealth: { consecutiveTransientFailureCount: 0, backoffUntilMs: null },
     });
   });
 
@@ -82,6 +83,7 @@ describe("FreshRSS sidecar repository", () => {
       articleBindings: [],
       checkpoints: [],
       labelMappings: [],
+      syncHealth: { consecutiveTransientFailureCount: 0, backoffUntilMs: null },
     });
   });
 
@@ -296,6 +298,7 @@ describe("FreshRSS sidecar repository", () => {
         ],
         checkpoints: [{ remoteSubscriptionId: "sub-1", completedAtMs: 1000 }],
         labelMappings: [],
+        syncHealth: { consecutiveTransientFailureCount: 0, backoffUntilMs: null },
       });
     });
   });

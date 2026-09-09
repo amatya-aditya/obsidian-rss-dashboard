@@ -7,7 +7,7 @@ owner: unassigned
 workstream: freshrss-portable-state-client
 sequence: 12
 depends_on:
-  - draft-20260908-freshrss-07-sync-recovery-scope-repair.md
+  - ../archive/plans/unreleased/draft-20260908-freshrss-07-sync-recovery-scope-repair.md
   - draft-20260908-freshrss-09-subscription-opml-export.md
   - draft-20260908-freshrss-11-pinned-docker-read-contract.md
 release_requirement: ""

@@ -4,6 +4,7 @@ import { normalizeUrlForComparison } from "../utils/url-utils";
 import type { DataSyncLeaseOwner } from "./data-sync-lease";
 import {
   authenticateFreshRss,
+  type FreshRssAuthenticationResult,
   type FreshRssConnectionScope,
   type FreshRssCredentialBundle,
   type FreshRssHttpClient,
@@ -12,6 +13,7 @@ import {
   FRESHRSS_READ_STREAM_ID,
   FRESHRSS_STARRED_STREAM_ID,
   FreshRssSyncClient,
+  type FreshRssRemoteArticle,
   type FreshRssSubscription,
 } from "./freshrss-sync-client";
 import {
@@ -25,7 +27,9 @@ import {
 import {
   applyLabelMembership,
   buildLabelMappings,
+  dispatchableFacetMutations,
   isSynchronizableFacet,
+  isTerminalMutation,
   labelNameFromFacet,
   makeLabelFacet,
   markMutationAttemptFailed,
@@ -33,6 +37,15 @@ import {
   type FreshRssPendingFacetMutation,
   type FreshRssSynchronizableFacet,
 } from "./freshrss-facet-mutations";
+import {
+  createRetryingFreshRssHttpClient,
+  type FreshRssRetryDeps,
+} from "./freshrss-retry";
+import {
+  initialFreshRssSyncHealth,
+  nextFreshRssSyncHealth,
+  type FreshRssSyncHealth,
+} from "./freshrss-backoff";
 
 /** The two fixed system-stream facets, always flushed and reconciled. */
 const SYSTEM_FACETS: readonly ("read" | "starred")[] = ["read", "starred"];
@@ -110,6 +123,9 @@ export const FRESHRSS_STREAM_ID_BUDGET = 25000;
 /** Maximum number of facet changes dispatched in one mutation request. */
 export const FRESHRSS_MUTATION_BATCH_SIZE = 50;
 
+/** Maximum number of remote article IDs requested in one item-content batch. */
+export const FRESHRSS_CONTENT_BATCH_SIZE = 100;
+
 function chunk<T>(items: T[], size: number): T[][] {
   const chunks: T[][] = [];
   for (let i = 0; i < items.length; i += size) {
@@ -131,7 +147,21 @@ export type FreshRssSyncOutcome =
       linkedFeedCount: number;
       ambiguousSubscriptionCount: number;
       importedArticleCount: number;
+      /**
+       * True when any phase this cycle did not fully complete: a budget-capped
+       * or malformed/repeated-cursor stream, or an exhausted transient
+       * request failure. Distinguished from `hasTerminalMutations`, which
+       * reports an unrelated non-retryable per-mutation rejection.
+       */
       partial: boolean;
+      /**
+       * True when at least one pending facet mutation ended this cycle in a
+       * terminal error state (HTTP 400/404/422, unknown binding, or an
+       * invalid label operation) and needs explicit user repair -- the
+       * "success-with-terminal-actions" durable outcome. Such a mutation is
+       * never replayed automatically; see `dispatchableFacetMutations`.
+       */
+      hasTerminalMutations: boolean;
     }
   | { outcome: "credentials-rejected" }
   | { outcome: "server-unavailable" };
@@ -151,6 +181,18 @@ export interface FreshRssSyncCoordinatorDeps {
   getView: () => Promise<DashboardViewLike | null>;
   /** Injectable clock, primarily so tests can assert deterministic timestamps. */
   now?: () => number;
+  /** Injectable in-cycle transient-retry delay/jitter, primarily for deterministic tests. */
+  retry?: FreshRssRetryDeps;
+}
+
+/**
+ * A mutable holder for the currently authenticated protocol client. Held by
+ * reference (rather than a local `const client`) so `reauthenticateClient`
+ * can swap in a freshly authenticated client after a mid-cycle auth
+ * rejection, and every subsequent call site automatically observes it.
+ */
+interface FreshRssClientHolder {
+  client: FreshRssSyncClient;
 }
 
 function createFeedId(): string {
@@ -213,21 +255,31 @@ export class FreshRssSyncCoordinator {
     const { owner } = input;
     owner.throwIfInactive();
 
-    const authResult = await authenticateFreshRss(
+    // Every request issued through this client (login, reads, and the
+    // idempotent absolute-state mutation dispatch below) gets up to
+    // FRESHRSS_MAX_REQUEST_ATTEMPTS in-cycle attempts on a network
+    // failure/timeout or a retryable status (408/429/5xx), with bounded
+    // delay/jitter -- decorating once here means neither the protocol client
+    // nor the connection-service login helper needs to know about retry.
+    const retryingHttpClient = createRetryingFreshRssHttpClient(
       this.deps.httpClient,
-      input.endpoint,
-      input.credentials,
+      this.deps.retry,
     );
+
+    // On a rejected login, perform exactly one fresh retry from the same
+    // SecretStorage-sourced credentials before giving up -- matching the
+    // "one fresh login, a second rejection pauses" rule applied uniformly to
+    // every auth-rejected event in this cycle (see `withOneReauth` below for
+    // the mid-cycle case).
+    const authResult = await this.authenticateWithOneRetry(retryingHttpClient, input);
     if (authResult.outcome !== "authenticated") {
       return { outcome: authResult.outcome };
     }
     owner.throwIfInactive();
 
-    const client = new FreshRssSyncClient(
-      this.deps.httpClient,
-      input.endpoint,
-      authResult.authToken,
-    );
+    const holder: FreshRssClientHolder = {
+      client: new FreshRssSyncClient(retryingHttpClient, input.endpoint, authResult.authToken),
+    };
 
     const sidecarState = await this.deps.sidecarRepository.read(input.scope);
     if (!sidecarState) {
@@ -251,22 +303,31 @@ export class FreshRssSyncCoordinator {
     // after tag discovery, for the remote pull/reconcile phase and for what
     // gets persisted at the end of this cycle.
     let labelMappings: FreshRssLabelMapping[] = sidecarState.labelMappings.map((m) => ({ ...m }));
+    const previousSyncHealth = sidecarState.syncHealth ?? initialFreshRssSyncHealth();
 
     let partial = false;
+    // Distinct from `partial`: true only once an exhausted in-cycle
+    // transient retry (network failure/timeout/408/429/5xx) is actually
+    // observed, so cross-cycle backoff engages for real transport trouble
+    // and not for an expected budget cap or a malformed/repeated cursor.
+    let transientFailureOccurred = false;
 
     // Pending desired state remains authoritative in memory and on reload
     // until FreshRSS acknowledges the operation, so overlay it onto whatever
     // was hydrated from local storage before anything else runs.
     this.overlayPendingFacetState(feeds, articleBindings, pendingFacetMutations, labelMappings, settings.availableTags);
 
-    // Flush every pending facet mutation (read, starred, and any known mapped
-    // label) before pulling any remote state. A fresh modification token is
-    // fetched immediately before dispatch; it is never reused from the
-    // earlier connection test or a previous cycle.
-    const anyPendingExists = pendingFacetMutations.some((m) => isSynchronizableFacet(m.facet));
-    if (anyPendingExists) {
+    // Flush every DISPATCHABLE pending facet mutation (read, starred, and any
+    // known mapped label) before pulling any remote state. A record whose
+    // last attempt ended in a terminal error is retained for repair but
+    // never replayed automatically -- see `dispatchableFacetMutations`. A
+    // fresh modification token is fetched immediately before dispatch; it is
+    // never reused from the earlier connection test or a previous cycle.
+    const anyDispatchablePendingExists = dispatchableFacetMutations(pendingFacetMutations).length > 0;
+    if (anyDispatchablePendingExists) {
       const flushResult = await this.flushPendingFacetMutations(
-        client,
+        holder,
+        input,
         pendingFacetMutations,
         { ...sidecarState, feedBindings, articleBindings, checkpoints, labelMappings },
         labelMappings,
@@ -279,17 +340,40 @@ export class FreshRssSyncCoordinator {
       if (flushResult.partial) {
         partial = true;
       }
+      if (flushResult.transientFailureOccurred) {
+        transientFailureOccurred = true;
+      }
       owner.throwIfInactive();
     }
 
-    const subscriptionsResult = await client.listSubscriptions();
+    const subscriptionsResult = await this.withOneReauth(input, holder, (c) => c.listSubscriptions());
     if (subscriptionsResult.outcome !== "ok") {
+      if (subscriptionsResult.outcome === "unavailable") {
+        await this.persistBackoffOnly(input, previousSyncHealth, {
+          ...sidecarState,
+          pendingFacetMutations,
+          feedBindings,
+          articleBindings,
+          checkpoints,
+          labelMappings,
+        });
+      }
       return mapFatalOutcome(subscriptionsResult.outcome);
     }
     owner.throwIfInactive();
 
-    const tagLabelsResult = await client.listTagLabels();
+    const tagLabelsResult = await this.withOneReauth(input, holder, (c) => c.listTagLabels());
     if (tagLabelsResult.outcome !== "ok") {
+      if (tagLabelsResult.outcome === "unavailable") {
+        await this.persistBackoffOnly(input, previousSyncHealth, {
+          ...sidecarState,
+          pendingFacetMutations,
+          feedBindings,
+          articleBindings,
+          checkpoints,
+          labelMappings,
+        });
+      }
       return mapFatalOutcome(tagLabelsResult.outcome);
     }
     owner.throwIfInactive();
@@ -337,9 +421,8 @@ export class FreshRssSyncCoordinator {
           .map((b) => b.remoteArticleId),
       );
 
-      const itemIdsResult = await client.listItemIds(
-        subscription.remoteSubscriptionId,
-        FRESHRSS_SYNC_ARTICLES_PER_SUBSCRIPTION,
+      const itemIdsResult = await this.withOneReauth(input, holder, (c) =>
+        c.listItemIds(subscription.remoteSubscriptionId, FRESHRSS_SYNC_ARTICLES_PER_SUBSCRIPTION),
       );
       owner.throwIfInactive();
       if (itemIdsResult.outcome === "auth-rejected") {
@@ -347,6 +430,7 @@ export class FreshRssSyncCoordinator {
       }
       if (itemIdsResult.outcome === "unavailable") {
         partial = true;
+        transientFailureOccurred = true;
         continue;
       }
 
@@ -354,24 +438,39 @@ export class FreshRssSyncCoordinator {
         (id) => !alreadyBoundArticleIds.has(id),
       );
 
-      const contentsResult = await client.getItemContents(newIds);
-      owner.throwIfInactive();
-      if (contentsResult.outcome === "auth-rejected") {
-        return { outcome: "credentials-rejected" };
+      // Defensively bounded to FRESHRSS_CONTENT_BATCH_SIZE even though
+      // FRESHRSS_SYNC_ARTICLES_PER_SUBSCRIPTION is already well under it
+      // today: a batch failing partway through stops content import for
+      // this subscription this cycle (marked partial) rather than losing
+      // track of which articles were actually fetched.
+      let contentBatchFailed = false;
+      const collectedArticles: FreshRssRemoteArticle[] = [];
+      for (const idBatch of chunk(newIds, FRESHRSS_CONTENT_BATCH_SIZE)) {
+        const contentsResult = await this.withOneReauth(input, holder, (c) => c.getItemContents(idBatch));
+        owner.throwIfInactive();
+        if (contentsResult.outcome === "auth-rejected") {
+          return { outcome: "credentials-rejected" };
+        }
+        if (contentsResult.outcome === "unavailable") {
+          partial = true;
+          transientFailureOccurred = true;
+          contentBatchFailed = true;
+          break;
+        }
+        collectedArticles.push(...contentsResult.data);
       }
-      if (contentsResult.outcome === "unavailable") {
-        partial = true;
+      if (contentBatchFailed) {
         continue;
       }
 
-      const newItems = contentsResult.data.map((article) => toFeedItem(article, feed));
+      const newItems = collectedArticles.map((article) => toFeedItem(article, feed));
       feeds[feedIndex] = applyFeedRetentionLimits({
         ...feed,
         items: mergeFeedHistoryItems(feed.items, newItems),
         lastUpdated: newItems.length > 0 ? Date.now() : feed.lastUpdated,
       });
 
-      for (const article of contentsResult.data) {
+      for (const article of collectedArticles) {
         articleBindings.push({
           feedId: feed.feedId as string,
           guid: article.guid,
@@ -414,12 +513,15 @@ export class FreshRssSyncCoordinator {
           // be pulled this cycle; leave existing local membership untouched.
           continue;
         }
-        const streamResult = await this.enumerateBoundedItemIds(client, streamId, owner);
+        const streamResult = await this.enumerateBoundedItemIds(input, holder, streamId, owner);
         if (streamResult.outcome === "auth-rejected") {
           return { outcome: "credentials-rejected" };
         }
         if (streamResult.outcome !== "complete") {
           partial = true;
+        }
+        if (streamResult.outcome === "unavailable") {
+          transientFailureOccurred = true;
         }
         if (streamResult.outcome === "complete") {
           this.reconcileRemoteFacetState(
@@ -439,6 +541,11 @@ export class FreshRssSyncCoordinator {
     settings.feeds = feeds;
     await this.deps.saveSettings();
     owner.throwIfInactive();
+    const nowMs = this.deps.now?.() ?? Date.now();
+    const syncHealth = nextFreshRssSyncHealth(previousSyncHealth, {
+      transientFailureOccurred,
+      nowMs,
+    });
     await this.deps.sidecarRepository.write({
       version: 2,
       scope: input.scope,
@@ -447,9 +554,12 @@ export class FreshRssSyncCoordinator {
       articleBindings,
       checkpoints,
       labelMappings,
+      syncHealth,
     });
 
     await refreshViewOnce(this.deps.getView);
+
+    const hasTerminalMutations = pendingFacetMutations.some(isTerminalMutation);
 
     return {
       outcome: "synced",
@@ -458,7 +568,85 @@ export class FreshRssSyncCoordinator {
       ambiguousSubscriptionCount,
       importedArticleCount,
       partial,
+      hasTerminalMutations,
     };
+  }
+
+  /**
+   * Attempts login; on a rejected credential/session, performs exactly one
+   * additional fresh login attempt before giving up. Used for the initial
+   * cycle authentication, matching the same "one fresh login, a second
+   * rejection is final" rule `withOneReauth` applies to a mid-cycle
+   * rejection.
+   */
+  private async authenticateWithOneRetry(
+    retryingHttpClient: FreshRssHttpClient,
+    input: FreshRssSyncRunInput,
+  ): Promise<FreshRssAuthenticationResult> {
+    const first = await authenticateFreshRss(retryingHttpClient, input.endpoint, input.credentials);
+    if (first.outcome !== "credentials-rejected") {
+      return first;
+    }
+    return authenticateFreshRss(retryingHttpClient, input.endpoint, input.credentials);
+  }
+
+  /**
+   * Performs exactly one fresh login from `input.credentials` and, on
+   * success, swaps `holder.client` to a freshly authenticated client.
+   * Returns whether reauthentication succeeded.
+   */
+  private async reauthenticateClient(
+    input: FreshRssSyncRunInput,
+    holder: FreshRssClientHolder,
+  ): Promise<boolean> {
+    const retryingHttpClient = createRetryingFreshRssHttpClient(this.deps.httpClient, this.deps.retry);
+    const reauth = await authenticateFreshRss(retryingHttpClient, input.endpoint, input.credentials);
+    if (reauth.outcome !== "authenticated") {
+      return false;
+    }
+    holder.client = new FreshRssSyncClient(retryingHttpClient, input.endpoint, reauth.authToken);
+    return true;
+  }
+
+  /**
+   * Executes one client operation against the current `holder.client`. On an
+   * `auth-rejected` result, performs exactly one fresh login (see
+   * `reauthenticateClient`) and retries the SAME operation once against the
+   * reauthenticated client. A rejection on that retry -- or a failed
+   * reauthentication attempt itself -- is returned as-is: the caller enters
+   * FreshRSS authentication pause rather than looping. This is the mid-cycle
+   * counterpart to `authenticateWithOneRetry`, applied uniformly to every
+   * request this cycle issues (subscription/tag reads, item-ID/content
+   * paging, the modification token, and mutation dispatch).
+   */
+  private async withOneReauth<T extends { outcome: string }>(
+    input: FreshRssSyncRunInput,
+    holder: FreshRssClientHolder,
+    operation: (client: FreshRssSyncClient) => Promise<T>,
+  ): Promise<T> {
+    const result = await operation(holder.client);
+    if (result.outcome !== "auth-rejected") {
+      return result;
+    }
+    const reauthenticated = await this.reauthenticateClient(input, holder);
+    if (!reauthenticated) {
+      return result;
+    }
+    return operation(holder.client);
+  }
+
+  /** Persists only the cross-cycle backoff bookkeeping, used on a fatal unavailable outcome that ends the cycle early. */
+  private async persistBackoffOnly(
+    input: FreshRssSyncRunInput,
+    previousSyncHealth: FreshRssSyncHealth,
+    sidecarSnapshot: FreshRssSidecarFile,
+  ): Promise<void> {
+    const nowMs = this.deps.now?.() ?? Date.now();
+    const syncHealth = nextFreshRssSyncHealth(previousSyncHealth, {
+      transientFailureOccurred: true,
+      nowMs,
+    });
+    await this.deps.sidecarRepository.write({ ...sidecarSnapshot, scope: input.scope, syncHealth });
   }
 
   /**
@@ -509,10 +697,15 @@ export class FreshRssSyncCoordinator {
    * immediately after each acknowledged batch so a crash mid-flush cannot
    * lose an acknowledgment. Terminal errors (HTTP 400/404/422) keep the
    * desired state with a terminal error instead of being retried
-   * automatically.
+   * automatically. Every request this flush issues (the modification token
+   * and each edit-tag batch) goes through `withOneReauth`, matching every
+   * other request this cycle issues: on a mid-flush auth rejection, one
+   * fresh login is attempted and the same request retried once before the
+   * cycle gives up and enters FreshRSS authentication pause.
    */
   private async flushPendingFacetMutations(
-    client: FreshRssSyncClient,
+    holder: FreshRssClientHolder,
+    input: FreshRssSyncRunInput,
     initialPending: FreshRssPendingFacetMutation[],
     sidecarSnapshot: FreshRssSidecarFile,
     labelMappings: readonly FreshRssLabelMapping[],
@@ -521,11 +714,17 @@ export class FreshRssSyncCoordinator {
     pendingFacetMutations: FreshRssPendingFacetMutation[];
     partial: boolean;
     authRejected: boolean;
+    transientFailureOccurred: boolean;
   }> {
     let pending = initialPending;
-    const dispatchablePending = pending.filter((m) => isSynchronizableFacet(m.facet));
+    const dispatchablePending = dispatchableFacetMutations(pending);
     if (dispatchablePending.length === 0) {
-      return { pendingFacetMutations: pending, partial: false, authRejected: false };
+      return {
+        pendingFacetMutations: pending,
+        partial: false,
+        authRejected: false,
+        transientFailureOccurred: false,
+      };
     }
 
     // Iterate the facets actually present in this cycle's pending records
@@ -562,16 +761,31 @@ export class FreshRssSyncCoordinator {
       });
     }
     if (groups.length === 0) {
-      return { pendingFacetMutations: pending, partial: false, authRejected: false };
+      return {
+        pendingFacetMutations: pending,
+        partial: false,
+        authRejected: false,
+        transientFailureOccurred: false,
+      };
     }
 
-    const tokenResult = await client.getModificationToken();
+    const tokenResult = await this.withOneReauth(input, holder, (c) => c.getModificationToken());
     owner.throwIfInactive();
     if (tokenResult.outcome === "auth-rejected") {
-      return { pendingFacetMutations: pending, partial: true, authRejected: true };
+      return {
+        pendingFacetMutations: pending,
+        partial: true,
+        authRejected: true,
+        transientFailureOccurred: false,
+      };
     }
     if (tokenResult.outcome !== "ok") {
-      return { pendingFacetMutations: pending, partial: true, authRejected: false };
+      return {
+        pendingFacetMutations: pending,
+        partial: true,
+        authRejected: false,
+        transientFailureOccurred: true,
+      };
     }
     const token = tokenResult.data;
 
@@ -585,11 +799,8 @@ export class FreshRssSyncCoordinator {
     for (const group of groups) {
       for (const batch of chunk(group.items, FRESHRSS_MUTATION_BATCH_SIZE)) {
         owner.throwIfInactive();
-        const result = await client.editTag(
-          batch.map((m) => m.remoteArticleId),
-          group.action,
-          group.streamId,
-          token,
+        const result = await this.withOneReauth(input, holder, (c) =>
+          c.editTag(batch.map((m) => m.remoteArticleId), group.action, group.streamId, token),
         );
         owner.throwIfInactive();
 
@@ -606,7 +817,12 @@ export class FreshRssSyncCoordinator {
         }
 
         if (result.outcome === "auth-rejected") {
-          return { pendingFacetMutations: pending, partial: true, authRejected: true };
+          return {
+            pendingFacetMutations: pending,
+            partial: true,
+            authRejected: true,
+            transientFailureOccurred: false,
+          };
         }
 
         if (result.outcome === "terminal") {
@@ -633,11 +849,21 @@ export class FreshRssSyncCoordinator {
         // Unavailable (network/timeout/5xx/408/429/malformed body): stop
         // dispatching further batches this cycle. Already-acknowledged
         // batches remain acknowledged; the rest retry on the next cycle.
-        return { pendingFacetMutations: pending, partial: true, authRejected: false };
+        return {
+          pendingFacetMutations: pending,
+          partial: true,
+          authRejected: false,
+          transientFailureOccurred: true,
+        };
       }
     }
 
-    return { pendingFacetMutations: pending, partial: false, authRejected: false };
+    return {
+      pendingFacetMutations: pending,
+      partial: false,
+      authRejected: false,
+      transientFailureOccurred: false,
+    };
   }
 
   /**
@@ -645,10 +871,12 @@ export class FreshRssSyncCoordinator {
    * budget `FRESHRSS_STREAM_ID_BUDGET`) and reports whether enumeration
    * completed. A malformed/repeated continuation cursor or a budget cap stops
    * the phase and reports `"partial"` rather than falsely claiming
-   * completeness.
+   * completeness. Each page request goes through `withOneReauth`, matching
+   * every other request this cycle issues.
    */
   private async enumerateBoundedItemIds(
-    client: FreshRssSyncClient,
+    input: FreshRssSyncRunInput,
+    holder: FreshRssClientHolder,
     streamId: string,
     owner: DataSyncLeaseOwner,
   ): Promise<
@@ -664,7 +892,9 @@ export class FreshRssSyncCoordinator {
 
     for (let page = 0; page < maxPages; page++) {
       owner.throwIfInactive();
-      const result = await client.listItemIds(streamId, FRESHRSS_ITEM_ID_PAGE_SIZE, continuation);
+      const result = await this.withOneReauth(input, holder, (c) =>
+        c.listItemIds(streamId, FRESHRSS_ITEM_ID_PAGE_SIZE, continuation),
+      );
       if (result.outcome === "auth-rejected") {
         return { outcome: "auth-rejected", itemIds };
       }
