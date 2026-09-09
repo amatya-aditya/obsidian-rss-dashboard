@@ -64,6 +64,10 @@
 - Strengthened the Obsidian audit baseline by upgrading `eslint-plugin-obsidianmd` from 0.1.9 to 0.4.1, enabling its recommended production checks, migrating remaining DOM construction to popout-safe owning-window helpers, and adding shared jsdom coverage for those runtime APIs.
 - Enforced a zero-`!important` CSS policy with a repository check and regression tests, and aligned contributor instructions, pull-request guidance, compliance documentation, design guidance, and the plugin scorecard with the stricter policy.
 
+### Compatibility
+
+- RSS Dashboard now requires Obsidian 1.8.7 (February 2025) or later. Older Obsidian installations will continue to receive the latest compatible plugin release through the Community Plugins directory.
+
 ## 2.5.0 - July 11, 2026
 
 ### Features
