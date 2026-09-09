@@ -17,6 +17,7 @@ import {
   computePopoverPosition,
   computeSubmenuPosition,
 } from "../../utils/popover-position";
+import { settingsUiCompatibility } from "../settings-ui-compat";
 
 // Re-export pure helpers from sidebar-settings-tab for backward compatibility
 export { moveIconOrder, normalizeHexColor } from "./sidebar-settings-tab";
@@ -35,15 +36,14 @@ class ClearImageCacheConfirmModal extends Modal {
       .addButton((button) =>
         button.setButtonText("Cancel").onClick(() => this.close()),
       )
-      .addButton((button) =>
-        button
-          .setButtonText("Clear image cache")
-          .setWarning()
-          .onClick(() => {
+      .addButton((button) => {
+        button.setButtonText("Clear image cache");
+        settingsUiCompatibility.markDestructive(button);
+        button.onClick(() => {
             this.confirmed = true;
             this.close();
-          }),
-      );
+        });
+      });
   }
 
   onClose(): void {
