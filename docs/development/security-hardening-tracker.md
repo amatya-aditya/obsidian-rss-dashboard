@@ -1,14 +1,17 @@
 # Security hardening tracker
 
-This document is the human-readable index for the security-hardening epic
-`obsidian-rss-dashboard-dsm`. The maintainer implementation baseline is
+This document is the authoritative tracker for the security-hardening backlog
+identified on 2026-08-22. The maintainer implementation baseline is
 [GitHub issue #181](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/181).
-Beads is the authoritative task tracker; use the linked Bead for status,
-discussion, and completion evidence.
+It was originally indexed by a local `obsidian-rss-dashboard-dsm` bead
+(`bd`/beads issue tracker); that tracker has been retired and this document
+now carries status, discussion, and completion evidence on its own. IDs below
+(`dsm.1`, etc.) are kept only as stable row identifiers.
 
 Implementation status: `dsm.1` through `dsm.4` are implemented on the issue
 #181 branch. An isolated clean-worktree validation passed the full lint,
 platform, type-check, build, both audits, and 191-file/1,714-test unit suite.
+`dsm.5`–`dsm.10` remain open.
 
 Existing disclosure guidance lives in [SECURITY.md](../SECURITY.md).
 
