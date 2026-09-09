@@ -29,10 +29,6 @@
 - Fixed unnecessary type assertion in `src/utils/settings-loader.ts` by updating `migrateDefaultFilterToDashboardMultiFilters` to accept typed `DisplaySettings`.
 - Fixed the global-refresh Stop button not appearing on mobile/tablet: the sidebar modal's polling loop now applies the `stop` class and swaps the icon to `square-stop` when the refresh is cancellable, matching the desktop sidebar behaviour.
 
-### Compatibility
-
-- RSS Dashboard now requires Obsidian 1.4.0 or later. Older Obsidian installations will continue to receive the latest compatible plugin release through the Community Plugins directory.
-
 ## 2.6.0 - August 24, 2026
 
 ### Features
@@ -73,10 +69,6 @@
 - Added a repository-local workflow for GitHub issues and feature requests that accepts a supplied issue summary before fetching its URL, preserves exact issue links in changelog entries, applies risk-based Obsidian audit and validation gates, and consolidates public release notes under `docs/releases/` when a release is prepared.
 - Strengthened the Obsidian audit baseline by upgrading `eslint-plugin-obsidianmd` from 0.1.9 to 0.4.1, enabling its recommended production checks, migrating remaining DOM construction to popout-safe owning-window helpers, and adding shared jsdom coverage for those runtime APIs.
 - Enforced a zero-`!important` CSS policy with a repository check and regression tests, and aligned contributor instructions, pull-request guidance, compliance documentation, design guidance, and the plugin scorecard with the stricter policy.
-
-### Compatibility
-
-- RSS Dashboard now requires Obsidian 1.8.7 (February 2025) or later. Older Obsidian installations will continue to receive the latest compatible plugin release through the Community Plugins directory.
 
 ## 2.5.0 - July 11, 2026
 
