@@ -13,6 +13,7 @@
 
 ### Fixes
 
+- Fixed automatic refresh for feeds using the global interval so it refreshes all eligible feeds in one batch instead of staggered per-feed batches. In-progress batches now update only their progress text and suppress image-cache-triggered dashboard rebuilds, preventing repeated notifications, listing flashes, UI lag, and dashboard scroll resets. Stopping an automatic global batch now cancels its visible work promptly and defers its retry to the next global interval. [GH Issue #208](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/208)
 - Preserved Obsidian 1.8.7 compatibility while modernizing settings controls, destructive actions, and slider value displays across supported app versions. [GH Issue #228](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/228)
 - Localized the documented legacy settings-renderer deprecation allowance so all other code remains checked while RSS Dashboard supports Obsidian 1.8.7 through 1.12.x. [GH Issue #232](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/232)
 - Routed destructive settings, modal, and feed-management confirmations through version-aware compatibility controls while preserving their existing actions and cancellation behavior. [GH Issue #230](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/230)
