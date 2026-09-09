@@ -59,6 +59,11 @@ export class RssDashboardSettingTab extends PluginSettingTab {
     }
   }
 
+  /** Refresh the supported legacy settings renderer. */
+  public refresh(): void {
+    this.display();
+  }
+
   display(): void {
     this.displaySettingsCleanup?.();
     this.displaySettingsCleanup = null;
