@@ -848,6 +848,8 @@ interface SliderSettingComponent extends SettingComponent {
   sliderEl: HTMLInputElement;
   setLimits(min: number, max: number, step: number): this;
   setValue(value: number): this;
+  getValue(): number;
+  setDisplayFormat(format: (value: number) => string): this;
   setDynamicTooltip(): this;
   onChange(handler: (value: number) => void): this;
 }
@@ -1005,6 +1007,14 @@ export class Setting {
 
       setValue(value: number): this {
         this.sliderEl.value = String(value);
+        return this;
+      }
+
+      getValue(): number {
+        return Number(this.sliderEl.value);
+      }
+
+      setDisplayFormat(_format: (value: number) => string): this {
         return this;
       }
 

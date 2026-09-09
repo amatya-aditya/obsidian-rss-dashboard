@@ -145,9 +145,15 @@ describe("renderArticleSavingSettingsTab()", () => {
       'input[type="range"]',
     ) as HTMLInputElement;
     expect(slider.value).toBe("10");
+    expect(
+      settingEl.querySelector(".rss-dashboard-slider-value")?.textContent,
+    ).toBe("10 seconds");
 
     slider.value = "20";
     slider.dispatchEvent(new Event("input"));
+    expect(
+      settingEl.querySelector(".rss-dashboard-slider-value")?.textContent,
+    ).toBe("20 seconds");
     await flushPromises();
 
     expect(plugin.settings.articleSaving.fetchTimeout).toBe(20);

@@ -17,6 +17,7 @@ import {
   computePopoverPosition,
   computeSubmenuPosition,
 } from "../../utils/popover-position";
+import { settingsUiCompatibility } from "../settings-ui-compat";
 
 // Re-export pure helpers from sidebar-settings-tab for backward compatibility
 export { moveIconOrder, normalizeHexColor } from "./sidebar-settings-tab";
@@ -158,7 +159,6 @@ export function renderDisplaySettingsTab(
       slider
         .setLimits(IMAGE_CACHE_LIMIT_MIN_MIB, IMAGE_CACHE_LIMIT_MAX_MIB, 1)
         .setValue(plugin.settings.display.imageCacheLimitMiB)
-        .setDynamicTooltip()
         .onChange(async (value) => {
           if (isSyncingImageCacheLimitControls) return;
           isSyncingImageCacheLimitControls = true;
@@ -166,6 +166,10 @@ export function renderDisplaySettingsTab(
           isSyncingImageCacheLimitControls = false;
           await applyImageCacheLimit(value);
         });
+      settingsUiCompatibility.presentSliderValue(
+        slider,
+        (value) => `${value} MiB`,
+      );
       slider.sliderEl.disabled = plugin.settings.display.imageCacheUnlimited;
     })
     .addText((text) => {
@@ -291,7 +295,6 @@ export function renderDisplaySettingsTab(
       slider
         .setLimits(cardsPerRowMin, cardsPerRowMax, cardsPerRowStep)
         .setValue(plugin.settings.display.cardColumnsPerRow ?? 0)
-        .setDynamicTooltip()
         .onChange(async (value) => {
           if (isSyncingCardsPerRowControls) return;
           isSyncingCardsPerRowControls = true;
@@ -299,6 +302,10 @@ export function renderDisplaySettingsTab(
           isSyncingCardsPerRowControls = false;
           await applyCardsPerRow(value);
         });
+      settingsUiCompatibility.presentSliderValue(slider, (value) => {
+        if (value === 0) return "Auto";
+        return `${value} ${value === 1 ? "column" : "columns"}`;
+      });
     })
     .addText((text) => {
       const initialValue = plugin.settings.display.cardColumnsPerRow ?? 0;
@@ -352,7 +359,6 @@ export function renderDisplaySettingsTab(
       slider
         .setLimits(cardSpacingMin, cardSpacingMax, cardSpacingStep)
         .setValue(plugin.settings.display.cardSpacing ?? 15)
-        .setDynamicTooltip()
         .onChange(async (value) => {
           if (isSyncingCardSpacingControls) return;
           isSyncingCardSpacingControls = true;
@@ -360,6 +366,10 @@ export function renderDisplaySettingsTab(
           isSyncingCardSpacingControls = false;
           await applyCardSpacing(value);
         });
+      settingsUiCompatibility.presentSliderValue(
+        slider,
+        (value) => `${value}px`,
+      );
     })
     .addText((text) => {
       const initialValue = plugin.settings.display.cardSpacing ?? 15;
