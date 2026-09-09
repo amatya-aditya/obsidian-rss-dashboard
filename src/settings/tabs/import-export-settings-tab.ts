@@ -10,6 +10,7 @@ import type RssDashboardPlugin from "../../../main";
 import { ImportOpmlModal } from "../../modals/import-opml-modal";
 import { ImportSuccessModal } from "../../modals/import-success-modal";
 import { AutoBackupSettings, RssDashboardSettings } from "../../types/types";
+import { settingsUiCompatibility } from "../settings-ui-compat";
 
 export class FactoryResetConfirmModal extends Modal {
   private confirmed = false;
@@ -43,15 +44,14 @@ export class FactoryResetConfirmModal extends Modal {
           this.close();
         }),
       )
-      .addButton((btn) =>
-        btn
-          .setButtonText("Factory reset")
-          .setWarning()
-          .onClick(() => {
+      .addButton((btn) => {
+        btn.setButtonText("Factory reset");
+        settingsUiCompatibility.markDestructive(btn);
+        btn.onClick(() => {
             this.confirmed = true;
             this.close();
-          }),
-      );
+        });
+      });
   }
 
   onClose() {
@@ -347,12 +347,10 @@ export function renderImportExportSettingsTab(
 
   const factoryResetActions = new Setting(factoryResetSection);
   factoryResetActions.settingEl.addClass("rss-dashboard-import-export-actions");
-  factoryResetActions.addButton((button) =>
-    button
-      .setIcon("rotate-ccw")
-      .setButtonText("Factory reset")
-      .setWarning()
-      .onClick(() => {
+  factoryResetActions.addButton((button) => {
+    button.setIcon("rotate-ccw").setButtonText("Factory reset");
+    settingsUiCompatibility.markDestructive(button);
+    button.onClick(() => {
         void (async () => {
           const confirmModal = new FactoryResetConfirmModal(plugin.app);
           confirmModal.open();
@@ -363,6 +361,6 @@ export function renderImportExportSettingsTab(
 
           await plugin.performFactoryReset();
         })();
-      }),
-  );
+    });
+  });
 }

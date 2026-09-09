@@ -9,6 +9,7 @@ import {
   setCssProps,
   shouldUseMobileSidebarLayout,
 } from "../../utils/platform-utils";
+import { settingsUiCompatibility } from "../settings-ui-compat";
 
 // ── TemplateNameModal ───────────────────────────────────────────────────────
 
@@ -225,15 +226,14 @@ export class ConfirmDeleteModal extends Modal {
           this.close();
         }),
       )
-      .addButton((btn) =>
-        btn
-          .setButtonText("Delete")
-          .setWarning()
-          .onClick(() => {
+      .addButton((btn) => {
+        btn.setButtonText("Delete");
+        settingsUiCompatibility.markDestructive(btn);
+        btn.onClick(() => {
             this.confirmed = true;
             this.close();
-          }),
-      );
+        });
+      });
   }
 
   onClose() {
@@ -288,16 +288,14 @@ export class FactoryResetConfirmModal extends Modal {
             this.close();
           }),
       )
-      .addButton((btn) =>
-        btn
-          .setButtonText("Factory reset")
-          .setWarning()
-          .setClass("rss-dashboard-danger-button")
-          .onClick(() => {
+      .addButton((btn) => {
+        btn.setButtonText("Factory reset").setClass("rss-dashboard-danger-button");
+        settingsUiCompatibility.markDestructive(btn);
+        btn.onClick(() => {
             this.confirmed = true;
             this.close();
-          }),
-      );
+        });
+      });
   }
 
   onClose() {
@@ -372,14 +370,13 @@ export class RetentionChangeConfirmModal extends Modal {
           this.settle("apply-on-next-refresh");
         }),
       )
-      .addButton((button) =>
-        button
-          .setButtonText("Apply now")
-          .setWarning()
-          .onClick(() => {
+      .addButton((button) => {
+        button.setButtonText("Apply now");
+        settingsUiCompatibility.markDestructive(button);
+        button.onClick(() => {
             this.settle("apply-now");
-          }),
-      );
+        });
+      });
   }
 
   onClose(): void {
@@ -444,7 +441,8 @@ export class ApplyMaxItemsToExistingFeedsModal extends Modal {
         });
       })
       .addButton((btn) => {
-        btn.setButtonText("Apply to all feeds").setWarning();
+        btn.setButtonText("Apply to all feeds");
+        settingsUiCompatibility.markDestructive(btn);
         if (isMobile) setCssProps(btn.buttonEl, { width: "100%" });
         btn.onClick(() => {
           this.action = "apply";
@@ -452,7 +450,8 @@ export class ApplyMaxItemsToExistingFeedsModal extends Modal {
         });
       })
       .addButton((btn) => {
-        btn.setButtonText("Apply & refresh all").setWarning();
+        btn.setButtonText("Apply & refresh all");
+        settingsUiCompatibility.markDestructive(btn);
         if (isMobile) setCssProps(btn.buttonEl, { width: "100%" });
         btn.onClick(() => {
           this.action = "apply-refresh";

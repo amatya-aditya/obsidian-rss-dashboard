@@ -10,6 +10,7 @@ import type { App } from "obsidian";
 import { DEFAULT_SETTINGS, type SavedTemplate } from "../../types/types";
 import { VaultFolderSuggest } from "../../components/folder-suggest";
 import { TemplateNameModal } from "../modals/settings-modals";
+import { settingsUiCompatibility } from "../settings-ui-compat";
 
 export interface ArticleSavingPluginLike {
   app: App;
@@ -79,11 +80,14 @@ export function renderArticleSavingSettingsTab(
       slider
         .setLimits(5, 30, 1)
         .setValue(plugin.settings.articleSaving.fetchTimeout || 10)
-        .setDynamicTooltip()
         .onChange(async (value) => {
           plugin.settings.articleSaving.fetchTimeout = value;
           await plugin.saveSettings();
         });
+      settingsUiCompatibility.presentSliderValue(
+        slider,
+        (value) => `${value} seconds`,
+      );
     });
 
   // ── Default template ──────────────────────────────────────────────────────
