@@ -60,6 +60,11 @@ import { ImportExportService } from "./src/services/import-export-service";
 import { BackgroundImportService } from "./src/services/background-import-service";
 import { FeedRefreshScheduler } from "./src/services/feed-refresh-scheduler";
 import {
+  DataSyncLease,
+  type DataSyncLeaseOwner,
+  isDataSyncLeaseCancelledError,
+} from "./src/services/data-sync-lease";
+import {
   FEED_REQUEST_TIMEOUT_MS,
   FEED_SOFT_TIMEOUT_MS,
   MAX_CONCURRENT_FETCHES,
@@ -277,6 +282,7 @@ export default class RssDashboardPlugin extends Plugin {
   public activeRefreshState = new Map<string, FeedRefreshState>();
   public settingTab: RssDashboardSettingTab | null = null;
   private isMultiFeedRefreshRunning = false;
+  private isMultiFeedRefreshPending = false;
   private isGlobalRefreshCancelled = false;
   private globalRefreshAbortController: AbortController | null = null;
   private globalRefreshTotal = 0;
@@ -290,6 +296,7 @@ export default class RssDashboardPlugin extends Plugin {
   private suppressWatcherUntil = 0;
   private static readonly FEED_REFRESH_RENDER_THROTTLE_MS = 250;
   private readonly feedStorageRepository: FeedStorageRepository;
+  private readonly dataSyncLease = new DataSyncLease();
   private imageCacheService: ImageCacheService | null = null;
   private imageCacheQueue: string[] = [];
   private readonly queuedImageCacheUrls = new Set<string>();
@@ -353,6 +360,8 @@ export default class RssDashboardPlugin extends Plugin {
       endGlobalOperation: () => this.endGlobalOperation(),
       isGlobalOperationCancelled: () => this.isGlobalRefreshCancelled,
       onFeedImported: (feed) => this.queuePreviewImageCaching(feed),
+      runDataSyncOperation: (operation) =>
+        this.runWithDataSyncLease(operation),
     });
   }
 
@@ -705,6 +714,12 @@ export default class RssDashboardPlugin extends Plugin {
 
   public get isMultiFeedRefreshActive(): boolean {
     return this.isMultiFeedRefreshRunning;
+  }
+
+  public runWithDataSyncLease<T>(
+    operation: (owner: DataSyncLeaseOwner) => Promise<T>,
+  ): Promise<T> {
+    return this.dataSyncLease.runExclusive(operation);
   }
 
   public get isGlobalRefreshCancellable(): boolean {
@@ -1456,53 +1471,97 @@ export default class RssDashboardPlugin extends Plugin {
       ? "targeted"
       : "global",
   ) {
+    let reservedBatchRefresh = false;
     try {
       const candidateFeeds = selectedFeeds || this.settings.feeds;
-      if (candidateFeeds.length === 0) {
+      const refreshableFeedCount = this.getRefreshableFeeds(candidateFeeds).length;
+      const usesBatchRefresh =
+        refreshableFeedCount > 0 &&
+        (refreshableFeedCount !== 1 || intent === "global");
+      if (
+        usesBatchRefresh &&
+        (this.isMultiFeedRefreshPending || this.isMultiFeedRefreshRunning)
+      ) {
+        new Notice("A multi-feed refresh is already in progress.");
         return;
       }
-
-      const feedsToRefresh = this.getRefreshableFeeds(candidateFeeds);
-      if (feedsToRefresh.length === 0) {
-        new Notice(
-          selectedFeeds
-            ? "All selected feeds are excluded from refresh."
-            : "All feeds are excluded from refresh.",
-        );
-        return;
+      if (usesBatchRefresh) {
+        this.isMultiFeedRefreshPending = true;
+        reservedBatchRefresh = true;
       }
 
-      if (!this.feedParser) {
-        console.warn(
-          "[RSS dashboard] Feed parser not initialized; skipping refresh.",
-        );
-        return;
-      }
-
-      let feedNoticeText = "";
-      if (feedsToRefresh.length === 1) {
-        feedNoticeText = feedsToRefresh[0].title;
-      } else {
-        feedNoticeText = `${feedsToRefresh.length} feeds`;
-      }
-
-      new Notice(`Refreshing ${feedNoticeText}...`);
-      if (feedsToRefresh.length === 1 && intent !== "global") {
-        await this.refreshSingleFeed(
-          feedsToRefresh[0],
-          feedNoticeText,
-          false,
-        );
-        return;
-      }
-
-      await this.refreshFeedBatch(feedsToRefresh, feedNoticeText, intent);
+      const completeRefresh = await this.runWithDataSyncLease((owner) =>
+        this.refreshFeedsWithOwnership(selectedFeeds, intent, owner),
+      );
+      this.isMultiFeedRefreshPending = false;
+      reservedBatchRefresh = false;
+      await completeRefresh?.();
     } catch (error) {
+      if (isDataSyncLeaseCancelledError(error)) {
+        return;
+      }
       console.error(`[RSS dashboard] Error refreshing feeds:`, error);
       new Notice(
         `Error refreshing  ${error instanceof Error ? error.message : "Unknown error"}`,
       );
+    } finally {
+      if (reservedBatchRefresh) {
+        this.isMultiFeedRefreshPending = false;
+      }
     }
+  }
+
+  private async refreshFeedsWithOwnership(
+    selectedFeeds: Feed[] | undefined,
+    intent: "global" | "targeted" | "due" | "failed",
+    owner: DataSyncLeaseOwner,
+  ): Promise<(() => Promise<void>) | undefined> {
+    owner.throwIfInactive();
+    const candidateFeeds = selectedFeeds || this.settings.feeds;
+    if (candidateFeeds.length === 0) {
+      return;
+    }
+
+    const feedsToRefresh = this.getRefreshableFeeds(candidateFeeds);
+    if (feedsToRefresh.length === 0) {
+      new Notice(
+        selectedFeeds
+          ? "All selected feeds are excluded from refresh."
+          : "All feeds are excluded from refresh.",
+      );
+      return;
+    }
+
+    if (!this.feedParser) {
+      console.warn(
+        "[RSS dashboard] Feed parser not initialized; skipping refresh.",
+      );
+      return;
+    }
+
+    let feedNoticeText = "";
+    if (feedsToRefresh.length === 1) {
+      feedNoticeText = feedsToRefresh[0].title;
+    } else {
+      feedNoticeText = `${feedsToRefresh.length} feeds`;
+    }
+
+    new Notice(`Refreshing ${feedNoticeText}...`);
+    if (feedsToRefresh.length === 1 && intent !== "global") {
+      return await this.refreshSingleFeed(
+        feedsToRefresh[0],
+        feedNoticeText,
+        false,
+        owner,
+      );
+    }
+
+    return await this.refreshFeedBatch(
+      feedsToRefresh,
+      feedNoticeText,
+      intent,
+      owner,
+    );
   }
 
   async refreshFailedFeeds(): Promise<void> {
@@ -1564,16 +1623,23 @@ export default class RssDashboardPlugin extends Plugin {
 
   async refreshSelectedFeed(feed: Feed) {
     try {
-      if (!this.feedParser) {
-        console.warn(
-          "[RSS dashboard] Feed parser not initialized; skipping refresh.",
-        );
+      const completeRefresh = await this.runWithDataSyncLease(async (owner) => {
+        owner.throwIfInactive();
+        if (!this.feedParser) {
+          console.warn(
+            "[RSS dashboard] Feed parser not initialized; skipping refresh.",
+          );
+          return undefined;
+        }
+
+        new Notice(`Refreshing ${feed.title}...`);
+        return await this.refreshSingleFeed(feed, feed.title, false, owner);
+      });
+      await completeRefresh?.();
+    } catch (error) {
+      if (isDataSyncLeaseCancelledError(error)) {
         return;
       }
-
-      new Notice(`Refreshing ${feed.title}...`);
-      await this.refreshSingleFeed(feed, feed.title, false);
-    } catch (error) {
       console.error(`[RSS dashboard] Error refreshing feeds:`, error);
       new Notice(
         `Error refreshing  ${error instanceof Error ? error.message : "Unknown error"}`,
@@ -2430,12 +2496,28 @@ export default class RssDashboardPlugin extends Plugin {
     }
   }
 
-  async loadSettings() {
+  async loadSettings(): Promise<void> {
+    try {
+      await this.runWithDataSyncLease((owner) =>
+        this.loadSettingsWithOwnership(owner),
+      );
+    } catch (error) {
+      if (!isDataSyncLeaseCancelledError(error)) {
+        throw error;
+      }
+    }
+  }
+
+  private async loadSettingsWithOwnership(
+    owner: DataSyncLeaseOwner,
+  ): Promise<void> {
+    const previousSettings = this.settings;
     try {
       storageLog("Loading plugin settings");
 
       // Step 1: load bootstrap pointer from plugin-default location
       let data = (await this.loadData()) as RssDashboardSettings | null;
+      owner.throwIfInactive();
 
       // Step 2: if pointer indicates vault-location mode, load full
       // settings from the vault path stored in the pointer
@@ -2445,6 +2527,7 @@ export default class RssDashboardPlugin extends Plugin {
           "vault-location",
           data.metadataStorageFolder,
         );
+        owner.throwIfInactive();
         if (vaultData) {
           data = vaultData;
           storageLog("Metadata loaded from vault location", {
@@ -2462,9 +2545,11 @@ export default class RssDashboardPlugin extends Plugin {
       this.settings = loadAndNormalizeSettings(data);
       const didMigrateKeywordRules = this.migrateLegacySettings();
       await this.repairMissingFolderPathsForFeeds();
+      owner.throwIfInactive();
       const hydrated = await this.feedStorageRepository.hydrateSettings(
         this.settings,
       );
+      owner.throwIfInactive();
       storageLog("Settings hydrated", {
         mode: this.settings.storageMode,
         folder: this.settings.storageFolder,
@@ -2494,10 +2579,16 @@ export default class RssDashboardPlugin extends Plugin {
           JSON.stringify(this.settings) !== originalSettingsJson);
 
       if (shouldSave) {
+        owner.throwIfInactive();
         await this.saveSettings();
       }
+      owner.throwIfInactive();
       this.autoRefreshScheduler?.reschedule();
     } catch (error) {
+      if (isDataSyncLeaseCancelledError(error)) {
+        this.settings = previousSettings;
+        throw error;
+      }
       storageError("Error loading plugin settings", error);
       new Notice(
         `Error loading settings: ${
@@ -2987,49 +3078,69 @@ export default class RssDashboardPlugin extends Plugin {
     feed: Feed,
     feedNoticeText: string,
     isExplicitGlobalRefresh: boolean,
-  ): Promise<void> {
+    owner: DataSyncLeaseOwner,
+  ): Promise<() => Promise<void>> {
+    owner.throwIfInactive();
     this.activeRefreshState.set(feed.url, {
       status: "processing",
       startedAt: Date.now(),
     });
-    await this.notifyRefreshStatusChanged();
+    void this.notifyRefreshStatusChanged();
     try {
-      const updatedFeed = await this.refreshFeedWithTimeout(feed);
+      const updatedFeed = await this.refreshFeedWithTimeout(feed, {
+        cancellationSignal: owner.signal,
+      });
+      owner.throwIfInactive();
       this.finalizeRefreshAttempt(feed, updatedFeed);
     } catch (error) {
+      if (isDataSyncLeaseCancelledError(error)) {
+        throw error;
+      }
+      owner.throwIfInactive();
       this.finalizeRefreshAttempt(feed, undefined, error);
       if (isExplicitGlobalRefresh) {
         this.settings.lastGlobalRefreshCompletedAt = Date.now();
       }
+      owner.throwIfInactive();
       await this.saveSettings();
+      owner.throwIfInactive();
       this.autoRefreshScheduler?.reschedule();
       throw error;
     } finally {
       this.activeRefreshState.delete(feed.url);
-      await this.notifyRefreshStatusChanged();
+      if (owner.isActive()) {
+        void this.notifyRefreshStatusChanged();
+      }
     }
 
-    await this.validateSavedArticles();
+    owner.throwIfInactive();
+    await this.validateSavedArticles(false);
+    owner.throwIfInactive();
     if (isExplicitGlobalRefresh) {
       this.settings.lastGlobalRefreshCompletedAt = Date.now();
     }
     await this.saveSettings();
+    owner.throwIfInactive();
     this.autoRefreshScheduler?.reschedule();
-    const view = await this.getActiveDashboardView();
-    if (view) {
-      view.refresh();
-      new Notice(`Feeds refreshed: ${feedNoticeText}`);
-    }
+    return async () => {
+      const view = await this.getActiveDashboardView();
+      if (view) {
+        view.refresh();
+        new Notice(`Feeds refreshed: ${feedNoticeText}`);
+      }
+    };
   }
 
   private async refreshFeedBatch(
     feedsToRefresh: Feed[],
     feedNoticeText: string,
     intent: "global" | "targeted" | "due" | "failed",
-  ): Promise<void> {
+    owner: DataSyncLeaseOwner,
+  ): Promise<() => Promise<void>> {
+    owner.throwIfInactive();
     if (this.isMultiFeedRefreshRunning) {
       new Notice("A multi-feed refresh is already in progress.");
-      return;
+      return async () => {};
     }
 
     this.isMultiFeedRefreshRunning = true;
@@ -3089,9 +3200,10 @@ export default class RssDashboardPlugin extends Plugin {
 
     const worker = async (): Promise<void> => {
       while (true) {
+        owner.throwIfInactive();
         await globalFetchSemaphore.acquire();
 
-        if (this.isGlobalRefreshCancelled) {
+        if (this.isGlobalRefreshCancelled || !owner.isActive()) {
           globalFetchSemaphore.release();
           return;
         }
@@ -3107,6 +3219,7 @@ export default class RssDashboardPlugin extends Plugin {
           currentFeed,
           refreshSummary,
           refreshView,
+          owner,
           cancelSignal,
         ).finally(() => {
           globalFetchSemaphore.release();
@@ -3127,30 +3240,36 @@ export default class RssDashboardPlugin extends Plugin {
 
     try {
       const workers = Array.from({ length: workerCount }, () => worker());
-      await refreshView(true);
+      void refreshView(true);
       await Promise.all(workers);
       await Promise.all(backgroundPromises);
 
-      await this.validateSavedArticles();
+      owner.throwIfInactive();
+      await this.validateSavedArticles(false);
+      owner.throwIfInactive();
       if (intent === "global" && !this.isGlobalRefreshCancelled) {
         this.settings.lastGlobalRefreshCompletedAt = Date.now();
       }
       await this.saveSettings();
+      owner.throwIfInactive();
       this.autoRefreshScheduler?.reschedule();
       this.activeRefreshState.clear();
       this.isMultiFeedRefreshRunning = false;
-      const view = await this.getActiveDashboardView();
-      if (view) {
-        view.refresh();
-      }
+      const shouldShowCompletion = !this.isGlobalRefreshCancelled;
+      return async () => {
+        const view = await this.getActiveDashboardView();
+        if (view) {
+          view.refresh();
+        }
 
-      if (!this.isGlobalRefreshCancelled) {
-        const failureSuffix = this.buildRefreshFailureSummary(
-          refreshSummary,
-          intent === "global",
-        );
-        new Notice(`Feeds refreshed: ${feedNoticeText}${failureSuffix}`);
-      }
+        if (shouldShowCompletion) {
+          const failureSuffix = this.buildRefreshFailureSummary(
+            refreshSummary,
+            intent === "global",
+          );
+          new Notice(`Feeds refreshed: ${feedNoticeText}${failureSuffix}`);
+        }
+      };
     } finally {
       this.activeRefreshState.clear();
       this.isMultiFeedRefreshRunning = false;
@@ -3158,7 +3277,7 @@ export default class RssDashboardPlugin extends Plugin {
       this.isGlobalRefreshCancelled = false;
       this.globalRefreshTotal = 0;
       this.globalRefreshCompleted = 0;
-      await this.notifyRefreshStatusChanged();
+      void this.notifyRefreshStatusChanged();
     }
   }
 
@@ -3188,6 +3307,7 @@ export default class RssDashboardPlugin extends Plugin {
     currentFeed: Feed,
     refreshSummary: { failed: number; timedOut: number },
     refreshView: () => Promise<void>,
+    owner: DataSyncLeaseOwner,
     signal?: AbortSignal,
   ): Promise<void> {
     this.activeRefreshState.set(currentFeed.url, {
@@ -3197,13 +3317,19 @@ export default class RssDashboardPlugin extends Plugin {
 
     try {
       const updatedFeed = await this.refreshFeedWithTimeout(currentFeed, {
-        signal,
+        cancellationSignal: signal ?? owner.signal,
+        requestOptions: { signal },
       });
+      owner.throwIfInactive();
       this.globalRefreshCompleted += 1;
       if (!this.isGlobalRefreshCancelled) {
         this.finalizeRefreshAttempt(currentFeed, updatedFeed);
       }
     } catch (error) {
+      if (isDataSyncLeaseCancelledError(error)) {
+        throw error;
+      }
+      owner.throwIfInactive();
       this.globalRefreshCompleted += 1;
       if (!this.isGlobalRefreshCancelled) {
         this.finalizeRefreshAttempt(currentFeed, undefined, error);
@@ -3223,8 +3349,8 @@ export default class RssDashboardPlugin extends Plugin {
     } finally {
       this.activeRefreshState.delete(currentFeed.url);
 
-      if (this.activeRefreshState.size > 0) {
-        await refreshView();
+      if (this.activeRefreshState.size > 0 && owner.isActive()) {
+        void refreshView();
       }
     }
   }
@@ -3237,17 +3363,41 @@ export default class RssDashboardPlugin extends Plugin {
 
   private async refreshFeedWithTimeout(
     feed: Feed,
-    options?: { signal?: AbortSignal },
+    options?: {
+      cancellationSignal?: AbortSignal;
+      requestOptions?: { signal?: AbortSignal };
+    },
   ): Promise<Feed> {
-    return await Promise.race([
-      this.refreshFeedDirect(feed, options),
-      new Promise<Feed>((_, reject) => {
-        window.setTimeout(
-          () => reject(new Error("Timed out")),
-          FEED_REQUEST_TIMEOUT_MS,
-        );
-      }),
-    ]);
+    let timeoutId: number | null = null;
+    const signal = options?.cancellationSignal;
+    let abortOperation = (): void => {};
+    const rejectOnAbort = new Promise<Feed>((_, reject) => {
+      abortOperation = () =>
+        reject(new DOMException("The operation was aborted", "AbortError"));
+      if (signal?.aborted) {
+        abortOperation();
+        return;
+      }
+      signal?.addEventListener("abort", abortOperation, { once: true });
+    });
+
+    try {
+      return await Promise.race([
+        this.refreshFeedDirect(feed, options?.requestOptions),
+        new Promise<Feed>((_, reject) => {
+          timeoutId = window.setTimeout(
+            () => reject(new Error("Timed out")),
+            FEED_REQUEST_TIMEOUT_MS,
+          );
+        }),
+        rejectOnAbort,
+      ]);
+    } finally {
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId);
+      }
+      signal?.removeEventListener("abort", abortOperation);
+    }
   }
 
   private async refreshFeedDirect(
@@ -3268,6 +3418,9 @@ export default class RssDashboardPlugin extends Plugin {
   }
 
   onunload() {
+    this.dataSyncLease.close();
+    this.isGlobalRefreshCancelled = true;
+    this.globalRefreshAbortController?.abort();
     this.autoRefreshScheduler?.stop();
     if (this.progressSaveDebounce !== null) {
       window.clearTimeout(this.progressSaveDebounce);
@@ -3293,7 +3446,7 @@ export default class RssDashboardPlugin extends Plugin {
     }
   }
 
-  private async validateSavedArticles(): Promise<void> {
+  private async validateSavedArticles(shouldRefreshView = true): Promise<void> {
     let updatedCount = 0;
 
     for (const feed of this.settings.feeds) {
@@ -3318,9 +3471,11 @@ export default class RssDashboardPlugin extends Plugin {
     if (updatedCount > 0) {
       await this.saveSettings();
 
-      const view = await this.getActiveDashboardView();
-      if (view) {
-        view.render();
+      if (shouldRefreshView) {
+        const view = await this.getActiveDashboardView();
+        if (view) {
+          view.render();
+        }
       }
     }
   }

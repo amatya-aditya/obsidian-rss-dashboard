@@ -17,6 +17,7 @@ import RssDashboardPlugin from "../../../main";
 
 const mockParseFeed = vi.fn();
 const mockRefreshFeed = vi.fn();
+let consoleLogSpy: ReturnType<typeof vi.spyOn>;
 
 vi.mock("../../../src/services/feed-parser", () => ({
   FeedParser: class FeedParser {
@@ -46,6 +47,7 @@ vi.mock("../../../src/utils/settings-migration", () => ({
 
 interface PluginWithInternal {
   isBackgroundImporting: boolean;
+  isGlobalRefreshCancelled: boolean;
   backgroundImportService: BackgroundImportService;
   addStatusBarItem(): HTMLElement;
   feedParser: {
@@ -53,6 +55,8 @@ interface PluginWithInternal {
     refreshFeed: typeof mockRefreshFeed;
     refreshAllFeeds: ReturnType<typeof vi.fn>;
   };
+  beginGlobalOperation(total: number): AbortSignal | null;
+  endGlobalOperation(): Promise<void>;
 }
 
 function createPlugin(): RssDashboardPlugin {
@@ -89,12 +93,19 @@ function createPlugin(): RssDashboardPlugin {
     saveSettings: () => plugin.saveSettings(),
     ensureFolderExists: vi.fn().mockResolvedValue(false),
     addStatusBarItem: () => pluginInternal.addStatusBarItem(),
+    beginGlobalOperation: (total) => pluginInternal.beginGlobalOperation(total),
+    updateGlobalOperationProgress: vi.fn(),
+    endGlobalOperation: () => pluginInternal.endGlobalOperation(),
+    isGlobalOperationCancelled: () =>
+      pluginInternal.isGlobalRefreshCancelled,
     onFeedImported: (feed) =>
       (
         plugin as unknown as {
           queuePreviewImageCaching(importedFeed: Feed): void;
         }
       ).queuePreviewImageCaching(feed),
+    runDataSyncOperation: (operation) =>
+      plugin.runWithDataSyncLease(operation),
   });
 
   return plugin;
@@ -127,7 +138,7 @@ describe("background import orchestration", () => {
     document.body.innerHTML = "";
     vi.useRealTimers();
     vi.restoreAllMocks();
-    vi.spyOn(console, "log").mockImplementation(() => {});
+    consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
     vi.spyOn(console, "error").mockImplementation(() => {});
     vi.spyOn(console, "warn").mockImplementation(() => {});
     vi.spyOn(console, "debug").mockImplementation(() => {});
@@ -185,16 +196,7 @@ describe("background import orchestration", () => {
       }),
     );
 
-    let resolvePlaceholderRefresh: ((feed: Feed) => void) | undefined;
-    mockRefreshFeed.mockImplementation((feed: Feed) => {
-      if (feed.url === existingFeed.url) {
-        return Promise.resolve(feed);
-      }
-
-      return new Promise<Feed>((resolve) => {
-        resolvePlaceholderRefresh = resolve;
-      });
-    });
+    mockRefreshFeed.mockImplementation((feed: Feed) => Promise.resolve(feed));
 
     const ingestPromise = plugin.ingestFeedsForBackgroundImport([
       {
@@ -209,13 +211,15 @@ describe("background import orchestration", () => {
     const refreshPromise = plugin.refreshFeeds();
     await flushMicrotasks();
 
-    expect(mockRefreshFeed).toHaveBeenCalledWith(existingFeed, {
-      signal: expect.any(AbortSignal),
-    });
+    expect(mockRefreshFeed).not.toHaveBeenCalled();
 
     resolveInitialSave?.();
     await ingestPromise;
-    await flushMicrotasks();
+    await vi.waitFor(() =>
+      expect(mockRefreshFeed).toHaveBeenCalledWith(existingFeed, {
+        signal: expect.any(AbortSignal),
+      }),
+    );
 
     const importedArticle = {
       title: "Imported article",
@@ -237,11 +241,6 @@ describe("background import orchestration", () => {
     });
     await flushMicrotasks();
 
-    resolvePlaceholderRefresh?.({
-      ...createPlaceholderFeed("https://example.com/discovered.xml"),
-      title: "Discovered feed",
-      items: [],
-    });
     await refreshPromise;
     await vi.waitFor(
       () => {
@@ -266,6 +265,91 @@ describe("background import orchestration", () => {
     expect(mockRefreshFeed).not.toHaveBeenCalledWith(
       expect.objectContaining({ url: "https://example.com/discovered.xml" }),
       expect.anything(),
+    );
+  });
+
+  it("waits for background ingestion to finish before starting refresh work", async () => {
+    const plugin = createPlugin();
+    const importingFeed = createPlaceholderFeed(
+      "https://example.com/importing.xml",
+    );
+    const refreshingFeed = createPlaceholderFeed(
+      "https://example.com/refreshing.xml",
+    );
+    plugin.settings.feeds = [importingFeed, refreshingFeed];
+
+    let resolveImport: ((feed: Feed) => void) | undefined;
+    mockParseFeed.mockReturnValue(
+      new Promise<Feed>((resolve) => {
+        resolveImport = resolve;
+      }),
+    );
+    mockRefreshFeed.mockResolvedValue({
+      ...refreshingFeed,
+      lastUpdated: 2,
+    });
+
+    plugin.startBackgroundImport([importingFeed]);
+    await vi.waitFor(() => expect(mockParseFeed).toHaveBeenCalledOnce());
+
+    const refreshPromise = plugin.refreshFeeds([refreshingFeed]);
+    await flushMicrotasks();
+
+    expect(mockRefreshFeed).not.toHaveBeenCalled();
+
+    resolveImport?.({
+      ...importingFeed,
+      title: "Imported feed",
+      items: [{ guid: "imported", title: "Imported article" }],
+    } as Feed);
+    await vi.waitFor(() =>
+      expect(
+        (plugin as unknown as PluginWithInternal).isBackgroundImporting,
+      ).toBe(false),
+    );
+    await refreshPromise;
+
+    expect(mockRefreshFeed).toHaveBeenCalledOnce();
+    expect(plugin.settings.feeds[0].title).toBe("Imported feed");
+    expect(plugin.settings.feeds[1].lastUpdated).toBe(2);
+  });
+
+  it("releases a queued refresh when background parsing is cancelled", async () => {
+    const plugin = createPlugin();
+    const refreshingFeed = createPlaceholderFeed(
+      "https://example.com/refreshing.xml",
+    );
+    plugin.settings.feeds = [refreshingFeed];
+    mockParseFeed.mockReturnValue(new Promise<Feed>(() => {}));
+    mockRefreshFeed.mockResolvedValue({
+      ...refreshingFeed,
+      lastUpdated: 2,
+    });
+
+    await plugin.ingestFeedsForBackgroundImport(
+      [
+        {
+          title: "Importing feed",
+          url: "https://example.com/importing.xml",
+          folder: "Inbox",
+        },
+      ],
+      { globalOperation: true },
+    );
+    await vi.waitFor(() => expect(mockParseFeed).toHaveBeenCalledOnce());
+
+    const refreshPromise = plugin.refreshFeeds([refreshingFeed]);
+    await flushMicrotasks();
+    expect(mockRefreshFeed).not.toHaveBeenCalled();
+
+    plugin.cancelGlobalRefresh();
+    await refreshPromise;
+
+    expect(mockRefreshFeed).toHaveBeenCalledOnce();
+    expect(plugin.settings.feeds[0].lastUpdated).toBe(2);
+    expect(plugin.settings.feeds[1].items).toEqual([]);
+    expect(consoleLogSpy.mock.calls.flat().join(" ")).not.toContain(
+      "Background import completed",
     );
   });
 

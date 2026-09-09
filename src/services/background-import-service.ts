@@ -16,6 +16,11 @@ import {
 } from "./feed-timeout";
 import { globalFetchSemaphore } from "./feed-parser/fetch-semaphore";
 import { setCssProps } from "../utils/platform-utils";
+import {
+  type DataSyncLeaseOwner,
+  type DataSyncOperationRunner,
+  isDataSyncLeaseCancelledError,
+} from "./data-sync-lease";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -50,7 +55,25 @@ export interface BackgroundImportServiceDeps {
   endGlobalOperation?: () => Promise<void>;
   isGlobalOperationCancelled?: () => boolean;
   onFeedImported?: (feed: Feed) => void;
+  runDataSyncOperation?: DataSyncOperationRunner;
 }
+
+interface FeedIngestionResult {
+  addedCount: number;
+  skippedCount: number;
+  queuedFeeds: Feed[];
+}
+
+interface OwnedFeedIngestionResult {
+  result: FeedIngestionResult;
+  completeAfterOwnership: () => Promise<void>;
+}
+
+const unleasedDataSyncOwner: DataSyncLeaseOwner = {
+  signal: new AbortController().signal,
+  isActive: () => true,
+  throwIfInactive: () => {},
+};
 
 // ── Service ──────────────────────────────────────────────────────────────────
 
@@ -78,6 +101,7 @@ export class BackgroundImportService {
   private readonly endGlobalOperation?: () => Promise<void>;
   private readonly isGlobalOperationCancelled?: () => boolean;
   private readonly onFeedImported?: (feed: Feed) => void;
+  private readonly runDataSyncOperation: DataSyncOperationRunner;
 
   // ── State ──────────────────────────────────────────────────────────────────
 
@@ -94,6 +118,7 @@ export class BackgroundImportService {
     | null = null;
   private backgroundImportSignal: AbortSignal | null = null;
   private ownsGlobalOperation = false;
+  private backgroundImportOperationPending = false;
 
   constructor(deps: BackgroundImportServiceDeps) {
     this.feedParser = deps.feedParser;
@@ -107,6 +132,10 @@ export class BackgroundImportService {
     this.endGlobalOperation = deps.endGlobalOperation;
     this.isGlobalOperationCancelled = deps.isGlobalOperationCancelled;
     this.onFeedImported = deps.onFeedImported;
+    this.runDataSyncOperation =
+      deps.runDataSyncOperation ??
+      (async <T>(operation: (owner: DataSyncLeaseOwner) => Promise<T>) =>
+        operation(unleasedDataSyncOwner));
   }
 
   // ── Public API ─────────────────────────────────────────────────────────────
@@ -160,11 +189,20 @@ export class BackgroundImportService {
   public async ingestFeedsForBackgroundImport(
     candidates: FeedIngestionCandidate[],
     options?: FeedIngestionOptions,
-  ): Promise<{
-    addedCount: number;
-    skippedCount: number;
-    queuedFeeds: Feed[];
-  }> {
+  ): Promise<FeedIngestionResult> {
+    const ownedResult = await this.runDataSyncOperation((owner) =>
+      this.ingestFeedsWithOwnership(candidates, options, owner),
+    );
+    await ownedResult.completeAfterOwnership();
+    return ownedResult.result;
+  }
+
+  private async ingestFeedsWithOwnership(
+    candidates: FeedIngestionCandidate[],
+    options: FeedIngestionOptions | undefined,
+    owner: DataSyncLeaseOwner,
+  ): Promise<OwnedFeedIngestionResult> {
+    owner.throwIfInactive();
     const mode = options?.mode || "update";
     const importPersistMode = this.getSettings().storageMode;
     const placeholders: Feed[] = [];
@@ -210,6 +248,7 @@ export class BackgroundImportService {
           saveSettings: false,
           refreshView: false,
         });
+        owner.throwIfInactive();
       }
 
       options?.onProgress?.(
@@ -219,25 +258,26 @@ export class BackgroundImportService {
     }
 
     try {
-      await this.saveSettingsWithMode(importPersistMode);
-      const view = await this.getView();
-      if (view) {
-        view.refresh?.();
-      }
+      await this.saveSettingsWithMode(importPersistMode, owner);
+      owner.throwIfInactive();
 
       this.backgroundImportPersistMode = importPersistMode;
       if (options?.globalOperation && placeholders.length > 0) {
         const signal = this.beginGlobalOperation?.(placeholders.length);
         if (!signal) {
           return {
-            addedCount: placeholders.length,
-            skippedCount,
-            queuedFeeds: placeholders,
+            result: {
+              addedCount: placeholders.length,
+              skippedCount,
+              queuedFeeds: placeholders,
+            },
+            completeAfterOwnership: () => this.refreshViewAfterOwnership(),
           };
         }
         this.backgroundImportSignal = signal;
         this.ownsGlobalOperation = true;
       }
+      owner.throwIfInactive();
       this.startBackgroundImport(placeholders);
     } finally {
       for (const placeholder of placeholders) {
@@ -246,18 +286,52 @@ export class BackgroundImportService {
     }
 
     return {
-      addedCount: placeholders.length,
-      skippedCount,
-      queuedFeeds: placeholders,
+      result: {
+        addedCount: placeholders.length,
+        skippedCount,
+        queuedFeeds: placeholders,
+      },
+      completeAfterOwnership: () => this.refreshViewAfterOwnership(),
     };
   }
 
   // ── Private orchestration ──────────────────────────────────────────────────
 
   private async processBackgroundImportQueue(): Promise<void> {
-    if (this.isBackgroundImporting || this.backgroundImportQueue.length === 0) {
+    if (
+      this.isBackgroundImporting ||
+      this.backgroundImportOperationPending ||
+      this.backgroundImportQueue.length === 0
+    ) {
       return;
     }
+
+    this.backgroundImportOperationPending = true;
+    this.isBackgroundImporting = true;
+    let ownershipWasCancelled = false;
+    try {
+      const completeAfterOwnership = await this.runDataSyncOperation((owner) =>
+        this.processBackgroundImportQueueWithOwnership(owner),
+      );
+      await completeAfterOwnership();
+    } catch (error) {
+      if (!isDataSyncLeaseCancelledError(error)) {
+        throw error;
+      }
+      ownershipWasCancelled = true;
+      this.isBackgroundImporting = false;
+    } finally {
+      this.backgroundImportOperationPending = false;
+      if (!ownershipWasCancelled && this.backgroundImportQueue.length > 0) {
+        void this.processBackgroundImportQueue();
+      }
+    }
+  }
+
+  private async processBackgroundImportQueueWithOwnership(
+    owner: DataSyncLeaseOwner,
+  ): Promise<() => Promise<void>> {
+    owner.throwIfInactive();
 
     this.isBackgroundImporting = true;
 
@@ -296,6 +370,9 @@ export class BackgroundImportService {
       this.backgroundImportQueue.length,
     );
     const backgroundPromises: Promise<void>[] = [];
+    let shouldEndGlobalOperation = false;
+    let completedFeedCount = 0;
+    let shouldShowCompletion = false;
 
     try {
       await Promise.all(
@@ -305,22 +382,20 @@ export class BackgroundImportService {
             renderEvery,
             shouldRenderDuringImport,
             backgroundPromises,
+            owner,
           ),
         ),
       );
       await Promise.all(backgroundPromises);
 
-      await this.saveSettingsWithMode(this.getPersistModeForBackgroundImport());
-      const view = await this.getView();
-      if (view) {
-        view.render();
-      }
-
-      if (!this.isGlobalOperationCancelled?.()) {
-        new Notice(
-          `Background import completed. Processed ${this.backgroundImportProcessedCount} feeds.`,
-        );
-      }
+      owner.throwIfInactive();
+      await this.saveSettingsWithMode(
+        this.getPersistModeForBackgroundImport(),
+        owner,
+      );
+      owner.throwIfInactive();
+      completedFeedCount = this.backgroundImportProcessedCount;
+      shouldShowCompletion = !this.isGlobalOperationCancelled?.();
     } finally {
       if (this.importStatusBarItem) {
         this.importStatusBarItem.remove();
@@ -333,19 +408,35 @@ export class BackgroundImportService {
       this.backgroundImportInFlightUrls.clear();
       this.backgroundImportSignal = null;
 
-      if (this.ownsGlobalOperation && this.endGlobalOperation) {
-        await this.endGlobalOperation();
-      }
+      shouldEndGlobalOperation =
+        this.ownsGlobalOperation && this.endGlobalOperation !== undefined;
       this.ownsGlobalOperation = false;
 
       if (this.backgroundImportQueue.length === 0) {
         this.backgroundImportPersistMode = null;
       }
 
-      if (this.backgroundImportQueue.length > 0) {
-        void this.processBackgroundImportQueue();
+      if (shouldEndGlobalOperation) {
+        void this.endGlobalOperation?.().catch((error) => {
+          console.error(
+            "[RSS dashboard] Failed to finish background import status:",
+            error,
+          );
+        });
       }
     }
+
+    return async () => {
+      const view = await this.getView();
+      if (view) {
+        view.render();
+      }
+      if (shouldShowCompletion) {
+        new Notice(
+          `Background import completed. Processed ${completedFeedCount} feeds.`,
+        );
+      }
+    };
   }
 
   private async processBackgroundImportWorker(
@@ -353,11 +444,14 @@ export class BackgroundImportService {
     renderEvery: number,
     shouldRenderDuringImport: boolean,
     backgroundPromises: Promise<void>[] = [],
+    owner: DataSyncLeaseOwner = unleasedDataSyncOwner,
   ): Promise<void> {
     while (true) {
+      owner.throwIfInactive();
       await globalFetchSemaphore.acquire();
 
       if (
+        !owner.isActive() ||
         this.backgroundImportSignal?.aborted ||
         this.isGlobalOperationCancelled?.()
       ) {
@@ -377,6 +471,7 @@ export class BackgroundImportService {
         saveEvery,
         renderEvery,
         shouldRenderDuringImport,
+        owner,
       ).finally(() => {
         globalFetchSemaphore.release();
       });
@@ -397,6 +492,7 @@ export class BackgroundImportService {
     saveEvery: number,
     renderEvery: number,
     shouldRenderDuringImport: boolean,
+    owner: DataSyncLeaseOwner,
   ): Promise<void> {
     this.backgroundImportInFlightUrls.add(feedMetadata.url);
 
@@ -410,8 +506,9 @@ export class BackgroundImportService {
 
       const parsedFeed = await this.parseFeedWithTimeout(
         feedMetadata.url,
-        this.backgroundImportSignal ?? undefined,
+        this.backgroundImportSignal ?? owner.signal,
       );
+      owner.throwIfInactive();
       const wasCancelled =
         this.backgroundImportSignal?.aborted ||
         this.isGlobalOperationCancelled?.();
@@ -426,6 +523,9 @@ export class BackgroundImportService {
         feedMetadata.importStatus = "completed";
       }
     } catch (error) {
+      if (isDataSyncLeaseCancelledError(error)) {
+        throw error;
+      }
       if (
         this.backgroundImportSignal?.aborted ||
         this.isGlobalOperationCancelled?.()
@@ -455,8 +555,10 @@ export class BackgroundImportService {
     }
 
     if (this.backgroundImportProcessedCount % saveEvery === 0) {
+      owner.throwIfInactive();
       await this.saveSettingsWithMode(
         this.getPersistModeForBackgroundImport(),
+        owner,
       );
     }
 
@@ -464,14 +566,21 @@ export class BackgroundImportService {
       shouldRenderDuringImport &&
       this.backgroundImportProcessedCount % renderEvery === 0
     ) {
-      const view = await this.getView();
-      if (view) {
-        if (typeof view.refreshSidebarOnly === "function") {
-          view.refreshSidebarOnly();
-        } else {
-          view.render();
-        }
-      }
+      void this.refreshProgressView();
+    }
+  }
+
+  private async refreshViewAfterOwnership(): Promise<void> {
+    const view = await this.getView();
+    view?.refresh?.();
+  }
+
+  private async refreshProgressView(): Promise<void> {
+    const view = await this.getView();
+    if (typeof view?.refreshSidebarOnly === "function") {
+      view.refreshSidebarOnly();
+    } else {
+      view?.render();
     }
   }
 
@@ -518,13 +627,20 @@ export class BackgroundImportService {
   ): Promise<Feed> {
     let timeoutId: number | null = null;
     const abortController = new AbortController();
-    const forwardAbort = (): void => abortController.abort();
+    let abortOperation = (): void => {};
+    const rejectOnAbort = new Promise<Feed>((_, reject) => {
+      abortOperation = () => {
+        abortController.abort();
+        reject(new DOMException("The operation was aborted", "AbortError"));
+      };
+    });
 
     try {
       if (signal?.aborted) {
-        throw new DOMException("The operation was aborted", "AbortError");
+        abortOperation();
+      } else {
+        signal?.addEventListener("abort", abortOperation, { once: true });
       }
-      signal?.addEventListener("abort", forwardAbort, { once: true });
       return await Promise.race([
         this.feedParser.parseFeed(url, null, {
           signal: abortController.signal,
@@ -535,9 +651,10 @@ export class BackgroundImportService {
             reject(new Error("Timed out"));
           }, BACKGROUND_IMPORT_FEED_REQUEST_TIMEOUT_MS);
         }),
+        rejectOnAbort,
       ]);
     } finally {
-      signal?.removeEventListener("abort", forwardAbort);
+      signal?.removeEventListener("abort", abortOperation);
       if (timeoutId !== null) {
         window.clearTimeout(timeoutId);
       }
@@ -638,7 +755,9 @@ export class BackgroundImportService {
 
   private async saveSettingsWithMode(
     mode: RssDashboardSettings["storageMode"],
+    owner: DataSyncLeaseOwner = unleasedDataSyncOwner,
   ): Promise<void> {
+    owner.throwIfInactive();
     const settings = this.getSettings();
     const previousMode = settings.storageMode;
 
@@ -648,6 +767,7 @@ export class BackgroundImportService {
 
     try {
       await this.saveSettings();
+      owner.throwIfInactive();
     } finally {
       if (settings.storageMode !== previousMode) {
         settings.storageMode = previousMode;

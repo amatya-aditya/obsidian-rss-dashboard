@@ -13,6 +13,7 @@
 
 ### Fixes
 
+- Serialized feed refresh, background ingestion, and storage reload ownership so overlapping operations cannot overwrite newer feed or article data, and waiting work resumes after completion, failure, or cancellation.
 - Fixed automatic retention so unread articles older than a feed's auto-delete cutoff are deleted by default instead of accumulating indefinitely when the source feed retains them. [GH Issue #213](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/213)
 - Fixed Discover view pagination rendering pages vertically stacked by structuring pagination into horizontal page navigation buttons (`.rss-dashboard-pagination-pages`), utility controls (`.rss-dashboard-pagination-controls`) with a styled page-size wrapper, and results count, matching the Dashboard view layout.
 - Fixed an issue where dragging and dropping multiple selected feeds in the sidebar only moved a single feed; dragging now moves all selected feeds together, preserving their relative order across folder headers, folder lists, root, and feed reordering drops.
