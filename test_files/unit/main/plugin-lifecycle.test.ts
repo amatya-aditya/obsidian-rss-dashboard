@@ -2054,11 +2054,11 @@ describe("storage transition orchestration", () => {
     vi.clearAllMocks();
   });
 
-  it("revertToLegacyJsonStorageWithOptions refreshes dashboards before settings redisplay", async () => {
-    const displaySpy = vi.fn();
-    (plugin as unknown as { settingTab: { display: () => void } }).settingTab =
+  it("revertToLegacyJsonStorageWithOptions refreshes dashboards before settings refresh", async () => {
+    const settingsRefreshSpy = vi.fn();
+    (plugin as unknown as { settingTab: { refresh: () => void } }).settingTab =
       {
-        display: displaySpy,
+        refresh: settingsRefreshSpy,
       };
 
     const repoSpy = vi
@@ -2092,17 +2092,17 @@ describe("storage transition orchestration", () => {
     expect(repoSpy).toHaveBeenCalledTimes(1);
     expect(initSpy).toHaveBeenCalledTimes(1);
     expect(refreshSpy).toHaveBeenCalledTimes(1);
-    expect(displaySpy).toHaveBeenCalledTimes(1);
+    expect(settingsRefreshSpy).toHaveBeenCalledTimes(1);
     expect(refreshSpy.mock.invocationCallOrder[0]).toBeLessThan(
-      displaySpy.mock.invocationCallOrder[0],
+      settingsRefreshSpy.mock.invocationCallOrder[0],
     );
   });
 
-  it("migrateToVaultStorage refreshes dashboards before settings redisplay", async () => {
-    const displaySpy = vi.fn();
-    (plugin as unknown as { settingTab: { display: () => void } }).settingTab =
+  it("migrateToVaultStorage refreshes dashboards before settings refresh", async () => {
+    const settingsRefreshSpy = vi.fn();
+    (plugin as unknown as { settingTab: { refresh: () => void } }).settingTab =
       {
-        display: displaySpy,
+        refresh: settingsRefreshSpy,
       };
 
     const repoSpy = vi
@@ -2134,9 +2134,9 @@ describe("storage transition orchestration", () => {
     expect(repoSpy).toHaveBeenCalledTimes(1);
     expect(initSpy).toHaveBeenCalledTimes(1);
     expect(refreshSpy).toHaveBeenCalledTimes(1);
-    expect(displaySpy).toHaveBeenCalledTimes(1);
+    expect(settingsRefreshSpy).toHaveBeenCalledTimes(1);
     expect(refreshSpy.mock.invocationCallOrder[0]).toBeLessThan(
-      displaySpy.mock.invocationCallOrder[0],
+      settingsRefreshSpy.mock.invocationCallOrder[0],
     );
   });
 });

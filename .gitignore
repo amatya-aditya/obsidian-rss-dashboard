@@ -41,4 +41,4 @@ scratch/sum_errors.ps1
 .agents/*
 docs/agents/*
 skills-lock.json
-docs/archive/beads-export/
+docs/archive/beads-export/*

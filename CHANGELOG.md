@@ -23,6 +23,12 @@
 ### Fixes
 
 - Serialized feed refresh, background ingestion, and storage reload ownership so overlapping operations cannot overwrite newer feed or article data, and waiting work resumes after completion, failure, or cancellation.
+- Fixed automatic refresh for feeds using the global interval so it refreshes all eligible feeds in one batch instead of staggered per-feed batches. In-progress batches now update only their progress text and suppress image-cache-triggered dashboard rebuilds, preventing repeated notifications, listing flashes, UI lag, and dashboard scroll resets. Stopping an automatic global batch now cancels its visible work promptly and defers its retry to the next global interval. [GH Issue #208](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/208)
+- Preserved Obsidian 1.8.7 compatibility while modernizing settings controls, destructive actions, and slider value displays across supported app versions. [GH Issue #228](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/228)
+- Localized the documented legacy settings-renderer deprecation allowance so all other code remains checked while RSS Dashboard supports Obsidian 1.8.7 through 1.12.x. [GH Issue #232](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/232)
+- Routed destructive settings, modal, and feed-management confirmations through version-aware compatibility controls while preserving their existing actions and cancellation behavior. [GH Issue #230](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/230)
+- Fixed settings sliders so supported legacy Obsidian versions show current formatted values while dragging, using the keyboard, and synchronizing paired inputs; modern Obsidian versions retain the native value display. [GH Issue #231](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/231)
+- Added a version-aware settings UI compatibility seam for destructive actions and formatted slider values while preserving support for Obsidian 1.8.7. [GH Issue #229](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/229)
 - Fixed automatic retention so unread articles older than a feed's auto-delete cutoff are deleted by default instead of accumulating indefinitely when the source feed retains them. [GH Issue #213](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/213)
 - Fixed Discover view pagination rendering pages vertically stacked by structuring pagination into horizontal page navigation buttons (`.rss-dashboard-pagination-pages`), utility controls (`.rss-dashboard-pagination-controls`) with a styled page-size wrapper, and results count, matching the Dashboard view layout.
 - Fixed an issue where dragging and dropping multiple selected feeds in the sidebar only moved a single feed; dragging now moves all selected feeds together, preserving their relative order across folder headers, folder lists, root, and feed reordering drops.
@@ -35,7 +41,11 @@
 
 ### Development
 
-- Added a pinned FreshRSS Docker read-contract harness (`docker/freshrss-contract/`, `npm run contract:freshrss`, `npm run test:freshrss-fixtures`, and the `FreshRSS Docker contract` CI workflow) that proves the FreshRSS read path against one official, digest-pinned FreshRSS image (`ghcr.io/freshrss/freshrss:1.29.1@sha256:ab6b363102ccdbc39f6a62db926f567c61a5289bf25ba460f1c34423d8cc1a4d`), separately from the ordinary unit suite, which continues to require neither Docker nor network access. **This harness has not yet had a successful live run in any environment** — it was built and validated as completely as possible (fixture server tests, lint, type-check, build, and the full unit suite all pass with it present) in an environment where the Docker daemon was unreachable; see `docs/development/freshrss-docker-contract.md` for the exact status and what a first real run still needs to confirm.
+- Added a pinned FreshRSS Docker read-contract harness (`docker/freshrss-contract/`, `npm run contract:freshrss`, `npm run test:freshrss-fixtures`, and the `FreshRSS Docker contract` CI workflow) that proves the FreshRSS read path against one official, digest-pinned FreshRSS image (`ghcr.io/freshrss/freshrss:1.29.1@sha256:ab6b363102ccdbc39f6a62db926f567c61a5289bf25ba460f1c34423d8cc1a4d`), separately from the ordinary unit suite, which continues to require neither Docker nor network access. See `docs/development/freshrss-docker-contract.md` for the exact status and what a first real run still needs to confirm.
+
+### Compatibility
+
+- RSS Dashboard now requires Obsidian 1.4.0 or later. Older Obsidian installations will continue to receive the latest compatible plugin release through the Community Plugins directory.
 
 ## 2.6.0 - August 24, 2026
 
@@ -77,6 +87,10 @@
 - Added a repository-local workflow for GitHub issues and feature requests that accepts a supplied issue summary before fetching its URL, preserves exact issue links in changelog entries, applies risk-based Obsidian audit and validation gates, and consolidates public release notes under `docs/releases/` when a release is prepared.
 - Strengthened the Obsidian audit baseline by upgrading `eslint-plugin-obsidianmd` from 0.1.9 to 0.4.1, enabling its recommended production checks, migrating remaining DOM construction to popout-safe owning-window helpers, and adding shared jsdom coverage for those runtime APIs.
 - Enforced a zero-`!important` CSS policy with a repository check and regression tests, and aligned contributor instructions, pull-request guidance, compliance documentation, design guidance, and the plugin scorecard with the stricter policy.
+
+### Compatibility
+
+- RSS Dashboard now requires Obsidian 1.8.7 (February 2025) or later. Older Obsidian installations will continue to receive the latest compatible plugin release through the Community Plugins directory.
 
 ## 2.5.0 - July 11, 2026
 

@@ -1096,6 +1096,19 @@ export class Sidebar {
     });
   }
 
+  public refreshGlobalRefreshProgressOnly(): void {
+    const progress = this.plugin.globalRefreshProgress ?? {
+      completed: 0,
+      total: 0,
+    };
+    const progressEl = this.container.querySelector<HTMLElement>(
+      ".rss-dashboard-all-feeds-progress",
+    );
+    if (progressEl) {
+      progressEl.setText(`${progress.completed}/${progress.total}`);
+    }
+  }
+
   private showAllFeedsContextMenu(event: MouseEvent): void {
     const menu = new Menu();
     const anchor = event.currentTarget;

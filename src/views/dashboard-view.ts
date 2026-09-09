@@ -3572,6 +3572,10 @@ export class RssDashboardView extends ItemView {
     }
   }
 
+  refreshGlobalRefreshProgressOnly(): void {
+    this.sidebar?.refreshGlobalRefreshProgressOnly();
+  }
+
   refresh(): void {
     this.settings = this.plugin.settings;
     this.render();

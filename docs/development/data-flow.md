@@ -81,6 +81,11 @@ Not stored: raw RSS/XML documents. There is no hidden local XML archive.
 - On every save: `saveSettings()` overwrites `data.json` with the full current in-memory state.
 - Single-feed refresh: saves immediately after that feed's merge + retention step.
 - Multi-feed batch refresh: one save at the end of the entire batch, not per-feed.
+- While a multi-feed batch is running, completed feeds update the existing global
+  progress label in place. The sidebar and article list are not rebuilt between
+  feed completions, and image-cache completions produced by the batch do not
+  schedule extra dashboard renders. The batch performs one final dashboard
+  refresh after all feed attempts settle.
 
 > SQLite was trialled in 2.2.0-beta.2 and reverted in 2.2.0-beta.4 for cross-platform stability. JSON has been the sole persistence mechanism since then.
 
@@ -98,11 +103,13 @@ Feeds with `excludeFromRefresh: true` are skipped by bulk and automatic refresh.
 
 ### Automatic refresh scheduling
 
-Automatic refresh uses one rearmable timeout, not a global interval. For each
-non-excluded feed, `scanInterval: -1` turns scheduling off, a positive value
-uses that number of minutes, and `0` or an absent value inherits the global
-interval. This means a feed with a positive custom value can still refresh when
-the global interval is Off.
+Automatic refresh uses one rearmable timeout. When at least one non-excluded
+feed has `scanInterval: 0` or no value, the global interval schedules one
+all-eligible-feed refresh batch; its next run is anchored to
+`lastGlobalRefreshCompletedAt`. `scanInterval: -1` turns automatic scheduling
+off for that feed, while a positive value uses that feed's own completion time
+and interval. This means a feed with a positive custom value can still refresh
+when the global interval is Off.
 
 `lastRefreshAttemptCompletedAt` is persisted per feed after every completed
 attempt, including parser-reported failure, thrown error, and timeout.
@@ -119,6 +126,11 @@ settled, including batches with individual failures. It does not advance for
 single-feed, folder, selection, due-subset, failed-only, empty, or
 excluded-only refreshes. The legacy `lastRefreshTimestamp` remains readable for
 older data but is not used or updated by refresh behavior or status UI.
+
+When the user stops an automatic global batch, its completion timestamp remains
+unchanged. The in-memory scheduler defers the next automatic global attempt by
+one configured global interval, preventing an immediate retry of the stopped
+batch while preserving the recorded completion time.
 
 ---
 

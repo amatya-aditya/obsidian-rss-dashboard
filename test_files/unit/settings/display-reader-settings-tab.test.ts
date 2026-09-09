@@ -31,6 +31,31 @@ beforeEach(() => {
 });
 
 describe("renderDisplaySettingsTab() reader section", () => {
+  it("shows formatted values for dashboard layout sliders", () => {
+    const containerEl = document.body.appendChild(createDiv());
+    const plugin = {
+      app: { workspace: { revealLeaf: vi.fn(async () => {}) } },
+      settings: cloneSettings(),
+      saveSettings: vi.fn(async () => {}),
+      getImageCacheSizeBytes: vi.fn(() => 0),
+      getActiveDashboardView: vi.fn(async () => null),
+      getActiveReaderView: vi.fn(async () => null),
+    } as unknown as RssDashboardPlugin;
+
+    renderDisplaySettingsTab(containerEl, plugin, () => {});
+
+    expect(
+      getSettingByName(containerEl, "Cards per row").querySelector(
+        ".rss-dashboard-slider-value",
+      )?.textContent,
+    ).toBe("Auto");
+    expect(
+      getSettingByName(containerEl, "Card spacing").querySelector(
+        ".rss-dashboard-slider-value",
+      )?.textContent,
+    ).toBe("15px");
+  });
+
   it("defaults image caching off and delegates enablement to the plugin", async () => {
     const containerEl = createDiv();
     document.body.appendChild(containerEl);
@@ -92,11 +117,17 @@ describe("renderDisplaySettingsTab() reader section", () => {
     expect(limitInput.value).toBe("100");
     expect(limitSlider.min).toBe("1");
     expect(limitSlider.max).toBe("1024");
+    expect(
+      limitSetting.querySelector(".rss-dashboard-slider-value")?.textContent,
+    ).toBe("100 MiB");
     limitSlider.value = "512";
     limitSlider.dispatchEvent(new Event("input"));
     await flushPromises();
 
     expect(limitInput.value).toBe("512");
+    expect(
+      limitSetting.querySelector(".rss-dashboard-slider-value")?.textContent,
+    ).toBe("512 MiB");
     expect(setImageCacheLimit).toHaveBeenCalledWith(512, false);
     limitInput.value = "25";
     limitInput.dispatchEvent(new Event("blur"));
