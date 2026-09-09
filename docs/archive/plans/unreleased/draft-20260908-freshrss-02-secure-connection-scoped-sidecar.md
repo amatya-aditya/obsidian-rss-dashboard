@@ -68,6 +68,21 @@ activate a versioned scope-aware sidecar without exposing secrets.
 - Automated verification: focused FreshRSS tests (4 files, 14 tests), the full
   unit suite, changed-file ESLint, platform checks, TypeScript, and `npm run
   build` all passed.
+- Scheme decision: endpoint canonicalization rejects plain HTTP and accepts
+  only HTTPS. This goes beyond the acceptance criterion above, which constrains
+  canonicalization but not the scheme. The reason is that Google Reader
+  `ClientLogin` carries the FreshRSS username and API password in the request,
+  so plain HTTP would put a credential on the wire in cleartext. The rest of the
+  plugin still accepts `http://` for ordinary feed URLs, which carry no
+  credential. The rejection message explains the reason so a LAN user pasting an
+  `http://` endpoint is not left guessing.
+- Known trade-off: this blocks self-hosted FreshRSS instances that are reachable
+  only over plain HTTP on a LAN, which is a real deployment pattern. Accepted for
+  the first release because relaxing the rule later is a non-breaking patch while
+  tightening it later would break already-configured users. If demand appears,
+  the preferred response is an explicit opt-in setting that acknowledges the
+  insecure connection, not a private-address-range carve-out, because address
+  heuristics do not cover mDNS or custom LAN hostnames.
 - Manual follow-up: on Obsidian 1.11.4 or newer, create a SecretStorage entry
   containing a FreshRSS credential bundle, select it, test a valid endpoint,
   then verify the connected status. Repeat with a different FreshRSS account to

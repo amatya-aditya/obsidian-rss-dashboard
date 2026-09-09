@@ -89,7 +89,10 @@ export function canonicalizeFreshRssEndpoint(input: string): string {
   }
 
   if (endpoint.protocol !== "https:") {
-    throw new Error("FreshRSS endpoint must use HTTPS.");
+    throw new Error(
+      "FreshRSS endpoint must use HTTPS. Your FreshRSS password is sent to " +
+        "this address when connecting, so it cannot be sent over plain HTTP.",
+    );
   }
 
   if (!endpoint.hostname) {

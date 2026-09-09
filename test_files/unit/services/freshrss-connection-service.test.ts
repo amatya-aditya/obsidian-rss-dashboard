@@ -37,6 +37,11 @@ describe("FreshRSS connection service", () => {
         "http://reader.example.test/api/greader.php",
       ),
     ).toThrow("must use HTTPS");
+    expect(() =>
+      canonicalizeFreshRssEndpoint(
+        "http://reader.example.test/api/greader.php",
+      ),
+    ).toThrow("password is sent to this address");
   });
 
   it("proves login, identity, and modification-token readiness without persisting authentication values", async () => {
