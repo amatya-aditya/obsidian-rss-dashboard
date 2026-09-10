@@ -190,6 +190,28 @@ describe("Auto Backup Helpers", () => {
       expect(plugin.exportPortableDataBundle).toHaveBeenCalledTimes(1);
     });
 
+    it("renders the Import starred articles entry point next to Import OPML", () => {
+      const containerEl = createContainerEl();
+      const plugin = createPlugin();
+
+      renderImportExportSettingsTab(containerEl, plugin as unknown as RssDashboardPlugin);
+
+      const starredSetting = getSettingByName(containerEl, "Starred articles");
+      expect(starredSetting.textContent).toContain("starred.json");
+
+      const buttons = Array.from(
+        containerEl.querySelectorAll<HTMLButtonElement>("button"),
+      ).map((button) => button.textContent?.trim());
+      expect(buttons).toContain("Import starred articles");
+
+      const settingNames = Array.from(
+        containerEl.querySelectorAll<HTMLElement>(".setting-item-name"),
+      ).map((el) => el.textContent?.trim());
+      expect(settingNames.indexOf("Starred articles")).toBeGreaterThan(
+        settingNames.indexOf("OPML"),
+      );
+    });
+
     it("renders Factory Reset after the Auto backups section", () => {
       const containerEl = createContainerEl();
       const plugin = createPlugin();

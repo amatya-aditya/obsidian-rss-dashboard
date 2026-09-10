@@ -17,7 +17,7 @@ Parent issue: [#234](https://github.com/amatya-aditya/obsidian-rss-dashboard/iss
 
 ## What to build
 
-Add a checkbox to the import review UI ("Fetch full article content"), off by default. When enabled, after the base import from [234-01](234-01-import-starred-items-for-existing-feeds.md) completes, run the existing `fetchFullArticleContentWithOutcome`/Readability/Turndown pipeline (the same one `ArticleSaver.saveArticleWithFullContent` uses) once per selected imported article. A per-article failure (removed page, paywall, network error) does not fail the whole import — it's recorded and shown in a results summary naming the article, linking to its original URL, and recommending the Obsidian Web Clipper browser extension as a manual fallback.
+Add a checkbox to the import review UI ("Fetch full article content"), off by default. When enabled, after the base import from [234-01](../archive/plans/unreleased/234-01-import-starred-items-for-existing-feeds.md) completes, run the existing `fetchFullArticleContentWithOutcome`/Readability/Turndown pipeline (the same one `ArticleSaver.saveArticleWithFullContent` uses) once per selected imported article. A per-article failure (removed page, paywall, network error) does not fail the whole import — it's recorded and shown in a results summary naming the article, linking to its original URL, and recommending the Obsidian Web Clipper browser extension as a manual fallback.
 
 ## Blocked by
 

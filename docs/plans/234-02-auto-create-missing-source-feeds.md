@@ -17,7 +17,7 @@ Parent issue: [#234](https://github.com/amatya-aditya/obsidian-rss-dashboard/iss
 
 ## What to build
 
-Extend [234-01](234-01-import-starred-items-for-existing-feeds.md) so starred items whose source feed (`origin.streamId`/`origin.title`/`origin.htmlUrl`) is not already in the user's feed list are no longer excluded. The mapper produces candidate `Feed` records for these new sources; the preview lets the user assign/edit each new feed's folder placement (same editable-folder UX pattern as OPML import's preview tree, not a fixed "Imported" folder). On execute, any selected new feed is created and then fetched/refreshed once via the existing feed-fetch pipeline — purely to populate feed metadata (title, siteUrl, icon) and current items — independently of, and not blocking, insertion of the historical starred item itself (which still comes from the export's own data, per 234-01).
+Extend [234-01](../archive/plans/unreleased/234-01-import-starred-items-for-existing-feeds.md) so starred items whose source feed (`origin.streamId`/`origin.title`/`origin.htmlUrl`) is not already in the user's feed list are no longer excluded. The mapper produces candidate `Feed` records for these new sources; the preview lets the user assign/edit each new feed's folder placement (same editable-folder UX pattern as OPML import's preview tree, not a fixed "Imported" folder). On execute, any selected new feed is created and then fetched/refreshed once via the existing feed-fetch pipeline — purely to populate feed metadata (title, siteUrl, icon) and current items — independently of, and not blocking, insertion of the historical starred item itself (which still comes from the export's own data, per 234-01).
 
 ## Blocked by
 
