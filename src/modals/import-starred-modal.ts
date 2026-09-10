@@ -2,11 +2,13 @@ import { Modal, App, Setting, Notice, setIcon } from "obsidian";
 import type RssDashboardPlugin from "../../main";
 import type { Feed } from "../types/types";
 import {
+  buildNewFeedRecord,
   mapStarredExportToCandidates,
   type StarredJsonExport,
 } from "../services/starred-import-mapper";
 import type { StarredImportPreviewGroupSnapshot } from "../services/starred-import-preview-model";
 import { StarredImportPreviewModel } from "../services/starred-import-preview-model";
+import { isValidFolderName } from "../utils/validation";
 import { shouldUseMobileSidebarLayout } from "../utils/platform-utils";
 import { ImporterShell } from "./importer-shell";
 
@@ -16,10 +18,15 @@ import { ImporterShell } from "./importer-shell";
  * A second consumer of the shared importer shell (see `ImporterShell`),
  * alongside `ImportOpmlModal`. Reads a Google-Reader-API-compatible
  * `starred.json` export (Inoreader "Read later"/starred-items format) and
- * inserts starred articles directly into feeds the user already subscribes
- * to. Building missing source feeds, surfacing unimportable entries,
- * label-to-tag mapping, re-import dedup, and full-content fetching are all
- * deferred to later 234-* tickets — see docs/plans/234-01-import-starred-items-for-existing-feeds.md.
+ * inserts starred articles into feeds the user already subscribes to. For
+ * source feeds the user does not already subscribe to, the preview groups
+ * their starred items under an editable-folder "new feed" row (234-02); on
+ * execute, the feed is created, a single background fetch is triggered to
+ * populate its metadata/current items, and the historical starred item(s)
+ * are inserted immediately, independent of that fetch. Surfacing
+ * unimportable entries, label-to-tag mapping, re-import dedup, and
+ * full-content fetching are all deferred to later 234-* tickets — see
+ * docs/plans/234-02-auto-create-missing-source-feeds.md.
  */
 export class ImportStarredModal extends Modal {
   plugin: RssDashboardPlugin;
@@ -64,8 +71,7 @@ export class ImportStarredModal extends Modal {
       },
       renderer: { render: () => this.renderPreview() },
       execute: (model) => this.performImport(model),
-      noItemsError:
-        "No starred articles matched a feed you already subscribe to.",
+      noItemsError: "No importable starred articles were found in this file.",
       getActionState: (model) => this.getImportActionState(model),
     });
   }
@@ -88,7 +94,7 @@ export class ImportStarredModal extends Modal {
 
     const subtitle = contentEl.createDiv({ cls: "add-feed-subtitle" });
     subtitle.textContent =
-      "Import starred articles from an exported starred.json (Inoreader / Google Reader API format) for feeds you already subscribe to.";
+      "Import starred articles from an exported starred.json (Inoreader / Google Reader API format). Articles for feeds you don't already subscribe to will create the source feed too.";
 
     const buttonContainer = contentEl.createDiv({
       cls: "rss-dashboard-modal-buttons",
@@ -178,6 +184,15 @@ export class ImportStarredModal extends Modal {
       cls: "import-preview-count import-preview-count--primary",
       text: `${stats.selectedItems} to import`,
     });
+    if (stats.newFeedGroups > 0) {
+      badges.createDiv({
+        cls: "import-preview-count",
+        text:
+          stats.newFeedGroups === 1
+            ? "1 new feed"
+            : `${stats.newFeedGroups} new feeds`,
+      });
+    }
 
     const toolbar = this.previewContainer.createDiv({
       cls: "import-preview-toolbar",
@@ -256,13 +271,21 @@ export class ImportStarredModal extends Modal {
     });
 
     const icon = groupRow.createDiv({ cls: "import-preview-icon" });
-    setIcon(icon, "rss");
+    setIcon(icon, group.isNewFeed ? "plus-circle" : "rss");
 
     const nameWrap = groupRow.createDiv({ cls: "import-preview-name" });
     nameWrap.createSpan({
       cls: "import-preview-name-text",
       text: group.feedTitle,
     });
+
+    if (group.isNewFeed) {
+      nameWrap.createSpan({
+        cls: "import-preview-meta",
+        text: "New feed",
+      });
+      this.renderNewFeedFolderControl(nameWrap, group);
+    }
 
     const selectedCount = group.items.filter((item) => item.selected).length;
     const meta = groupRow.createDiv({ cls: "import-preview-meta" });
@@ -305,6 +328,79 @@ export class ImportStarredModal extends Modal {
     for (const item of group.items) {
       this.renderItemRow(listEl, item);
     }
+  }
+
+  /**
+   * Editable target-folder control for a new-feed group. Mirrors
+   * `ImportOpmlModal`'s inline folder-rename interaction (click pencil,
+   * edit inline, commit on Enter/blur, validate via `isValidFolderName`).
+   */
+  private renderNewFeedFolderControl(
+    nameWrap: HTMLElement,
+    group: StarredImportPreviewGroupSnapshot,
+  ): void {
+    const model = this.previewModel;
+    if (!model) return;
+
+    const folderText = nameWrap.createSpan({
+      cls: "import-preview-meta",
+      text: `Folder: ${group.folder ?? ""}`,
+    });
+
+    const edit = nameWrap.createDiv({
+      cls: "clickable-icon import-preview-edit",
+      attr: {
+        role: "button",
+        tabindex: "0",
+        "aria-label": "Edit target folder",
+        title: "Edit target folder",
+      },
+    });
+    setIcon(edit, "pencil");
+
+    const startEdit = () => {
+      const input = folderText.win.createEl("input");
+      input.className = "import-preview-edit-input";
+      input.value = group.folder ?? "";
+      folderText.replaceWith(input);
+      input.focus();
+      input.select();
+
+      const commit = () => {
+        const next = input.value.trim();
+        const validation = isValidFolderName(next);
+        if (!validation.valid) {
+          input.classList.add("is-invalid");
+          input.setAttribute("title", validation.error ?? "Invalid folder name");
+          input.focus();
+          return;
+        }
+        model.setNewFeedFolder(group.feedUrl, next);
+        this.renderPreview();
+      };
+
+      input.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          commit();
+        } else if (e.key === "Escape") {
+          e.preventDefault();
+          this.renderPreview();
+        }
+      });
+      input.addEventListener("blur", () => commit());
+    };
+
+    edit.addEventListener("click", (e) => {
+      e.preventDefault();
+      startEdit();
+    });
+    edit.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        startEdit();
+      }
+    });
   }
 
   private renderItemRow(
@@ -370,6 +466,33 @@ export class ImportStarredModal extends Modal {
       this.plugin.settings.feeds.map((feed) => [feed.url, feed]),
     );
 
+    const createdFeedUrls: string[] = [];
+    for (const newFeedGroup of model.getSelectedNewFeedGroups()) {
+      if (feedByUrl.has(newFeedGroup.feedUrl)) {
+        // Feed already exists locally (e.g. added since the file was
+        // selected) — reuse it instead of creating a duplicate.
+        continue;
+      }
+
+      const feed = buildNewFeedRecord({
+        url: newFeedGroup.feedUrl,
+        title: newFeedGroup.feedTitle,
+        folder: newFeedGroup.folder,
+        siteUrl: newFeedGroup.siteUrl,
+      });
+
+      if (feed.folder) {
+        await this.plugin.ensureFolderExists(feed.folder, {
+          saveSettings: false,
+          refreshView: false,
+        });
+      }
+
+      this.plugin.settings.feeds.push(feed);
+      feedByUrl.set(feed.url, feed);
+      createdFeedUrls.push(feed.url);
+    }
+
     let insertedCount = 0;
     for (const candidate of selected) {
       const feed = feedByUrl.get(candidate.feedUrl);
@@ -384,12 +507,22 @@ export class ImportStarredModal extends Modal {
       return;
     }
 
+    // Persist the new feed(s) and the historical starred item(s)
+    // immediately. The starred/read state must not wait on the live
+    // fetch triggered below.
     await this.plugin.saveSettings();
     this.onImportStarted?.();
 
     const view = await this.plugin.getActiveDashboardView();
     if (view) {
       view.render();
+    }
+
+    // Fire-and-forget: populate each newly created feed's metadata and
+    // current items via a single background fetch, independent of the
+    // starred-item insertion already persisted above.
+    for (const feedUrl of createdFeedUrls) {
+      this.fetchNewlyCreatedFeed(feedUrl);
     }
 
     new Notice(
@@ -399,6 +532,42 @@ export class ImportStarredModal extends Modal {
     );
 
     this.close();
+  }
+
+  /**
+   * Triggers exactly one feed-fetch/refresh for a feed created during this
+   * import, to populate its metadata (title/siteUrl/icon) and current
+   * items. Deliberately not awaited by `performImport` — the historical
+   * starred item(s) for this feed were already inserted and saved. Any
+   * fetch failure is non-fatal: `FeedParser.refreshFeed` already catches
+   * and records `lastFetchError` on the feed rather than throwing.
+   */
+  private fetchNewlyCreatedFeed(feedUrl: string): void {
+    const feed = this.plugin.settings.feeds.find((f) => f.url === feedUrl);
+    if (!feed) return;
+
+    void this.plugin.feedParser
+      .refreshFeed(feed)
+      .then(async (refreshedFeed) => {
+        const index = this.plugin.settings.feeds.findIndex(
+          (f) => f.url === feedUrl,
+        );
+        if (index < 0) return;
+
+        this.plugin.settings.feeds[index] = refreshedFeed;
+        await this.plugin.saveSettings();
+
+        const view = await this.plugin.getActiveDashboardView();
+        if (view) {
+          view.render();
+        }
+      })
+      .catch((error) => {
+        console.error(
+          `[RSS dashboard] Failed to fetch newly imported feed ${feedUrl}:`,
+          error,
+        );
+      });
   }
 
   onClose() {

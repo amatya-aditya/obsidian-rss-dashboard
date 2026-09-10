@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  buildNewFeedRecord,
   mapStarredExportToCandidates,
   type StarredJsonExport,
 } from "../../../src/services/starred-import-mapper";
@@ -28,28 +29,108 @@ const EXISTING_FEEDS = [
 ];
 
 describe("mapStarredExportToCandidates", () => {
-  it("only produces candidates for items whose source feed already exists locally", () => {
+  it("produces a candidate for every item that has an origin.streamId, matched or not", () => {
     const parsed = loadFixture();
+
+    const candidates = mapStarredExportToCandidates(parsed, EXISTING_FEEDS);
+
+    expect(candidates).toHaveLength(3);
+    expect(candidates.map((c) => c.item.guid)).toEqual([
+      "tag:google.com,2005:reader/item/0000000000000001",
+      "tag:google.com,2005:reader/item/0000000000000002",
+      "tag:google.com,2005:reader/item/0000000000000003",
+    ]);
+  });
+
+  it("marks items matched to an already-subscribed feed as isNewFeed: false", () => {
+    const parsed = loadFixture();
+
+    const candidates = mapStarredExportToCandidates(parsed, EXISTING_FEEDS);
+
+    const matched = candidates.filter((c) => !c.item.guid.endsWith("0003"));
+    expect(matched).toHaveLength(2);
+    for (const candidate of matched) {
+      expect(candidate.isNewFeed).toBe(false);
+      expect(candidate.feedSiteUrl).toBeUndefined();
+    }
+  });
+
+  it("no longer excludes items whose origin.streamId does not match any local feed — it becomes a new-feed candidate", () => {
+    const parsed = loadFixture();
+
+    const candidates = mapStarredExportToCandidates(parsed, EXISTING_FEEDS);
+    const unsubscribed = candidates.find(
+      (c) => c.item.title === "Unsubscribed Source Article",
+    );
+
+    expect(unsubscribed).toBeDefined();
+    expect(unsubscribed?.isNewFeed).toBe(true);
+    expect(unsubscribed?.feedUrl).toBe(
+      "https://not-subscribed.example.test/feed",
+    );
+    expect(unsubscribed?.feedTitle).toBe("Not Subscribed Source");
+    expect(unsubscribed?.feedSiteUrl).toBe(
+      "https://not-subscribed.example.test/",
+    );
+    expect(unsubscribed?.item.feedUrl).toBe(
+      "https://not-subscribed.example.test/feed",
+    );
+    expect(unsubscribed?.item.feedTitle).toBe("Not Subscribed Source");
+  });
+
+  it("falls back to the normalized feed URL as the new feed's title when origin.title is missing", () => {
+    const parsed: StarredJsonExport = {
+      items: [
+        {
+          id: "tag:google.com,2005:reader/item/no-title",
+          title: "No origin title",
+          canonical: [{ href: "https://untitled.example.test/articles/x" }],
+          origin: { streamId: "feed/https://untitled.example.test/rss" },
+        },
+      ],
+    };
+
+    const candidates = mapStarredExportToCandidates(parsed, EXISTING_FEEDS);
+
+    expect(candidates).toHaveLength(1);
+    expect(candidates[0].isNewFeed).toBe(true);
+    expect(candidates[0].feedTitle).toBe(
+      "https://untitled.example.test/rss",
+    );
+  });
+
+  it("groups multiple starred items for the same unmatched source under one new-feed candidate group", () => {
+    const parsed: StarredJsonExport = {
+      items: [
+        {
+          id: "tag:google.com,2005:reader/item/new-a",
+          title: "New A",
+          canonical: [{ href: "https://new-source.example.test/a" }],
+          origin: {
+            streamId: "feed/https://new-source.example.test/rss",
+            title: "New Source",
+            htmlUrl: "https://new-source.example.test/",
+          },
+        },
+        {
+          id: "tag:google.com,2005:reader/item/new-b",
+          title: "New B",
+          canonical: [{ href: "https://new-source.example.test/b" }],
+          origin: {
+            streamId: "feed/https://new-source.example.test/rss",
+            title: "New Source",
+            htmlUrl: "https://new-source.example.test/",
+          },
+        },
+      ],
+    };
 
     const candidates = mapStarredExportToCandidates(parsed, EXISTING_FEEDS);
 
     expect(candidates).toHaveLength(2);
-    expect(candidates.map((c) => c.item.guid)).toEqual([
-      "tag:google.com,2005:reader/item/0000000000000001",
-      "tag:google.com,2005:reader/item/0000000000000002",
-    ]);
-  });
-
-  it("excludes items whose origin.streamId does not match any local feed", () => {
-    const parsed = loadFixture();
-
-    const candidates = mapStarredExportToCandidates(parsed, EXISTING_FEEDS);
-
-    expect(
-      candidates.some(
-        (c) => c.item.title === "Unsubscribed Source Article",
-      ),
-    ).toBe(false);
+    expect(candidates.every((c) => c.isNewFeed)).toBe(true);
+    expect(candidates.every((c) => c.feedUrl === "https://new-source.example.test/rss")).toBe(true);
+    expect(candidates.every((c) => c.feedTitle === "New Source")).toBe(true);
   });
 
   it("excludes items with no origin.streamId at all", () => {
@@ -150,5 +231,33 @@ describe("mapStarredExportToCandidates", () => {
     expect(candidates[0].feedTitle).toBe("Example Feed");
     expect(candidates[1].feedUrl).toBe("https://example.com/blog/feed.xml");
     expect(candidates[1].feedTitle).toBe("Example Blog");
+  });
+});
+
+describe("buildNewFeedRecord", () => {
+  it("builds a Feed record from a new-feed candidate's url, title, folder, and site url", () => {
+    const feed = buildNewFeedRecord({
+      url: "https://not-subscribed.example.test/feed",
+      title: "Not Subscribed Source",
+      folder: "Imported",
+      siteUrl: "https://not-subscribed.example.test/",
+    });
+
+    expect(feed.url).toBe("https://not-subscribed.example.test/feed");
+    expect(feed.title).toBe("Not Subscribed Source");
+    expect(feed.folder).toBe("Imported");
+    expect(feed.siteUrl).toBe("https://not-subscribed.example.test/");
+    expect(feed.items).toEqual([]);
+    expect(typeof feed.lastUpdated).toBe("number");
+  });
+
+  it("omits siteUrl entirely when none was provided", () => {
+    const feed = buildNewFeedRecord({
+      url: "https://untitled.example.test/rss",
+      title: "Untitled",
+      folder: "Uncategorized",
+    });
+
+    expect(feed.siteUrl).toBeUndefined();
   });
 });
