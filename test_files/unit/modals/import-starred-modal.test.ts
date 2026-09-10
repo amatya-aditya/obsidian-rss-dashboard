@@ -543,4 +543,52 @@ describe("ImportStarredModal", () => {
     const labeledItem = settings.feeds[1].items[0];
     expect(labeledItem.tags?.[0]).toEqual({ name: "design", color: "#654321" });
   });
+
+  it("re-importing the same export updates the existing article instead of duplicating it", async () => {
+    const app = createMockApp();
+    const settings = cloneSettings();
+    settings.feeds = [
+      makeFeed("https://example-feed.test/rss", "Example Feed"),
+      makeFeed("https://example.com/blog/feed.xml", "Example Blog"),
+    ];
+    const plugin = createTestPlugin(settings);
+
+    const runImport = async () => {
+      const modal = new ImportStarredModal(
+        app,
+        plugin as unknown as ConstructorParameters<typeof ImportStarredModal>[1],
+      );
+      (modal as unknown as TestModal).open();
+      await (modal as unknown as TestModal).handleFileSelection(
+        new File([readFixture()], "starred.json"),
+      );
+      const content = (modal as unknown as TestModal).contentEl;
+      const importButton = content.querySelector<HTMLButtonElement>(
+        ".rss-dashboard-modal-buttons .rss-dashboard-primary-button",
+      )!;
+      importButton.click();
+      await flushPromises();
+    };
+
+    // First import: user then reads the article and it gets saved locally.
+    await runImport();
+    settings.feeds[0].items[0].read = true;
+    settings.feeds[0].items[0].saved = true;
+    settings.feeds[0].items[0].savedFilePath = "Articles/existing-feed-article-one.md";
+
+    // Re-running the same export must not duplicate the article, and must
+    // leave the locally-edited fields untouched even though the export
+    // itself reports the item as unsaved.
+    await runImport();
+
+    expect(settings.feeds[0].items).toHaveLength(1);
+    expect(settings.feeds[0].items[0]).toMatchObject({
+      title: "Existing Feed Article One",
+      starred: true,
+      read: true,
+      saved: true,
+      savedFilePath: "Articles/existing-feed-article-one.md",
+    });
+    expect(settings.feeds[1].items).toHaveLength(1);
+  });
 });

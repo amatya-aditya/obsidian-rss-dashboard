@@ -10,6 +10,7 @@ import {
 import type { StarredImportPreviewGroupSnapshot } from "../services/starred-import-preview-model";
 import { StarredImportPreviewModel } from "../services/starred-import-preview-model";
 import { isValidFolderName } from "../utils/validation";
+import { applyStarredImportCandidateToFeed } from "../services/starred-import-merge";
 import { shouldUseMobileSidebarLayout } from "../utils/platform-utils";
 import { ImporterShell } from "./importer-shell";
 
@@ -26,8 +27,8 @@ import { ImporterShell } from "./importer-shell";
  * populate its metadata/current items, and the historical starred item(s)
  * are inserted immediately, independent of that fetch. Entries that can
  * never produce a candidate at all are surfaced in an "Unable to import"
- * section (234-03) instead of being silently dropped. Re-import dedup and
- * full-content fetching are deferred to later 234-* tickets — see
+ * section (234-03) instead of being silently dropped. Full-content fetching
+ * is deferred to a later 234-* ticket — see
  * docs/plans/234-02-auto-create-missing-source-feeds.md.
  *
  * Label-to-tag mapping (234-04): `mapStarredExportToCandidates` assigns each
@@ -37,6 +38,14 @@ import { ImporterShell } from "./importer-shell";
  * step) is the seam that actually persists any brand-new label into
  * `settings.availableTags`, since the mapper itself is pure and must not
  * touch plugin state.
+ *
+ * Idempotent re-import (234-05): `performImport` runs each candidate through
+ * `applyStarredImportCandidateToFeed`, which matches it against the target
+ * feed's existing items by guid-or-link identity. A match merges newly
+ * present labels into the existing article's tags and forces `starred` back
+ * to `true`, without touching `read`, `saved`, `savedFilePath`, or any other
+ * locally-edited field. Re-running the import against the same or an updated
+ * export is therefore safe and produces no duplicate articles.
  */
 export class ImportStarredModal extends Modal {
   plugin: RssDashboardPlugin;
@@ -543,6 +552,32 @@ export class ImportStarredModal extends Modal {
     }
   }
 
+  /**
+   * Builds the completion Notice text for a starred-import run. When the run
+   * only inserted brand-new articles (the common case, and the only case
+   * prior to 234-05), the message is unchanged from before. When a re-import
+   * matched and updated one or more already-imported articles, the message
+   * calls that out separately rather than conflating updates with inserts.
+   */
+  private buildImportCompleteNotice(
+    insertedCount: number,
+    updatedCount: number,
+  ): string {
+    if (updatedCount === 0) {
+      return insertedCount === 1
+        ? "Imported 1 starred article."
+        : `Imported ${insertedCount} starred articles.`;
+    }
+
+    if (insertedCount === 0) {
+      return updatedCount === 1
+        ? "Updated 1 already-imported starred article."
+        : `Updated ${updatedCount} already-imported starred articles.`;
+    }
+
+    return `Imported ${insertedCount} starred article${insertedCount === 1 ? "" : "s"} and updated ${updatedCount} already-imported article${updatedCount === 1 ? "" : "s"}.`;
+  }
+
   private async performImport(model: StarredImportPreviewModel): Promise<void> {
     const selected = model.getSelectedCandidates();
     if (selected.length === 0) {
@@ -583,14 +618,24 @@ export class ImportStarredModal extends Modal {
     }
 
     let insertedCount = 0;
+    let updatedCount = 0;
     for (const candidate of selected) {
       const feed = feedByUrl.get(candidate.feedUrl);
       if (!feed) continue;
-      feed.items.push(candidate.item);
-      insertedCount += 1;
+      // Re-import dedup (234-05): matches against the target feed's existing
+      // items by guid-or-link identity. A match is merged (new labels added,
+      // starred forced true, locally-edited fields left untouched) instead
+      // of being inserted again.
+      const result = applyStarredImportCandidateToFeed(feed, candidate.item);
+      if (result === "inserted") {
+        insertedCount += 1;
+      } else {
+        updatedCount += 1;
+      }
     }
 
-    if (insertedCount === 0) {
+    const totalCount = insertedCount + updatedCount;
+    if (totalCount === 0) {
       new Notice("No starred articles were imported.");
       this.close();
       return;
@@ -614,11 +659,7 @@ export class ImportStarredModal extends Modal {
       this.fetchNewlyCreatedFeed(feedUrl);
     }
 
-    new Notice(
-      insertedCount === 1
-        ? "Imported 1 starred article."
-        : `Imported ${insertedCount} starred articles.`,
-    );
+    new Notice(this.buildImportCompleteNotice(insertedCount, updatedCount));
 
     this.close();
   }

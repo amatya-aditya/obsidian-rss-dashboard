@@ -58,8 +58,11 @@ export interface StarredJsonExport {
  * `origin.htmlUrl`) so the preview/execute step can create the missing
  * `Feed` record. Entries that can never produce a candidate at all (no
  * `origin.streamId`, or no article URL) are captured separately in the
- * `unimportable` list (234-03) rather than as a candidate. Re-import dedup
- * and full-content fetching are deferred to later 234-* tickets.
+ * `unimportable` list (234-03) rather than as a candidate. Full-content
+ * fetching is deferred to a later 234-* ticket. Re-import dedup/merge
+ * (234-05) is handled downstream of this mapper, in
+ * `src/services/starred-import-merge.ts` — this module stays unaware of any
+ * feed's existing items.
  */
 export interface StarredImportCandidate {
   feedUrl: string;
