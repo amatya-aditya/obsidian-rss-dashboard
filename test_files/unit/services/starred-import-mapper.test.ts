@@ -4,9 +4,11 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   buildNewFeedRecord,
+  DEFAULT_LABEL_TAG_COLOR,
   mapStarredExportToCandidates,
   type StarredJsonExport,
 } from "../../../src/services/starred-import-mapper";
+import type { Tag } from "../../../src/types/types";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -219,7 +221,7 @@ describe("mapStarredExportToCandidates", () => {
     expect(unreadItem?.item.read).toBe(false);
   });
 
-  it("ignores label categories on the labeled item without any tag side effects", () => {
+  it("maps an item's label categories to tags", () => {
     const parsed = loadFixture();
 
     const { candidates } = mapStarredExportToCandidates(parsed, EXISTING_FEEDS);
@@ -227,7 +229,67 @@ describe("mapStarredExportToCandidates", () => {
 
     expect(labeled).toBeDefined();
     expect(labeled?.item.author).toBe("Jane Example");
-    expect(labeled?.item.tags).toBeUndefined();
+    expect(labeled?.item.tags).toEqual([
+      { name: "Design", color: DEFAULT_LABEL_TAG_COLOR },
+      { name: "art", color: DEFAULT_LABEL_TAG_COLOR },
+    ]);
+  });
+
+  it("leaves tags undefined for an item with no label categories", () => {
+    const parsed = loadFixture();
+
+    const { candidates } = mapStarredExportToCandidates(parsed, EXISTING_FEEDS);
+    const unlabeled = candidates.find((c) => c.item.guid.endsWith("0001"));
+
+    expect(unlabeled).toBeDefined();
+    expect(unlabeled?.item.tags).toBeUndefined();
+  });
+
+  it("reuses an existing availableTags color instead of creating a duplicate palette entry", () => {
+    const parsed = loadFixture();
+    const availableTags: Tag[] = [
+      { name: "design", color: "#123456" },
+      { name: "Unrelated", color: "#abcdef" },
+    ];
+
+    const { candidates } = mapStarredExportToCandidates(
+      parsed,
+      EXISTING_FEEDS,
+      availableTags,
+    );
+    const labeled = candidates.find((c) => c.item.guid.endsWith("0002"));
+
+    expect(labeled?.item.tags).toEqual([
+      { name: "design", color: "#123456" },
+      { name: "art", color: DEFAULT_LABEL_TAG_COLOR },
+    ]);
+    // The mapper is pure: it never mutates the availableTags it was given.
+    expect(availableTags).toHaveLength(2);
+  });
+
+  it("never turns starred, read, or reading-list state categories into tags", () => {
+    const parsed: StarredJsonExport = {
+      items: [
+        {
+          id: "tag:google.com,2005:reader/item/state-only",
+          title: "State only item",
+          categories: [
+            "user/1000000001/state/com.google/reading-list",
+            "user/1000000001/state/com.google/read",
+            "user/1000000001/state/com.google/starred",
+          ],
+          canonical: [{ href: "https://example-feed.test/articles/state-only" }],
+          origin: { streamId: "feed/https://example-feed.test/rss" },
+        },
+      ],
+    };
+
+    const { candidates } = mapStarredExportToCandidates(parsed, EXISTING_FEEDS);
+
+    expect(candidates).toHaveLength(1);
+    expect(candidates[0].item.tags).toBeUndefined();
+    expect(candidates[0].item.starred).toBe(true);
+    expect(candidates[0].item.read).toBe(true);
   });
 
   it("groups candidates under the matching local feed's url and title", () => {

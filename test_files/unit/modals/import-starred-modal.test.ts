@@ -235,6 +235,7 @@ describe("ImportStarredModal", () => {
     });
   });
 
+
   it("creates the missing source feed, assigns it to the default folder, and inserts its starred item immediately without waiting on the fetch", async () => {
     const app = createMockApp();
     const settings = cloneSettings();
@@ -467,5 +468,79 @@ describe("ImportStarredModal", () => {
     const section = content.querySelector(".import-unimportable-section");
     expect(section).not.toBeNull();
     expect(section?.textContent).toContain("Unable to import (3)");
+  });
+
+  it("adds a new label as an availableTags entry and tags the imported article with it", async () => {
+    const app = createMockApp();
+    const settings = cloneSettings();
+    settings.feeds = [
+      makeFeed("https://example-feed.test/rss", "Example Feed"),
+      makeFeed("https://example.com/blog/feed.xml", "Example Blog"),
+    ];
+    const originalTagCount = settings.availableTags.length;
+    const plugin = createTestPlugin(settings);
+    const modal = new ImportStarredModal(
+      app,
+      plugin as unknown as ConstructorParameters<typeof ImportStarredModal>[1],
+    );
+    (modal as unknown as TestModal).open();
+
+    await (modal as unknown as TestModal).handleFileSelection(
+      new File([readFixture()], "starred.json"),
+    );
+
+    const content = (modal as unknown as TestModal).contentEl;
+    const importButton = content.querySelector<HTMLButtonElement>(
+      ".rss-dashboard-modal-buttons .rss-dashboard-primary-button",
+    )!;
+    importButton.click();
+    await flushPromises();
+
+    expect(settings.availableTags).toHaveLength(originalTagCount + 2);
+    const design = settings.availableTags.find((t) => t.name === "Design");
+    const art = settings.availableTags.find((t) => t.name === "art");
+    expect(design).toBeDefined();
+    expect(art).toBeDefined();
+
+    const labeledItem = settings.feeds[1].items[0];
+    expect(labeledItem.tags).toEqual([design, art]);
+  });
+
+  it("reuses an existing availableTags color for a label instead of adding a duplicate entry", async () => {
+    const app = createMockApp();
+    const settings = cloneSettings();
+    settings.feeds = [
+      makeFeed("https://example-feed.test/rss", "Example Feed"),
+      makeFeed("https://example.com/blog/feed.xml", "Example Blog"),
+    ];
+    settings.availableTags.push({ name: "design", color: "#654321" });
+    const originalTagCount = settings.availableTags.length;
+    const plugin = createTestPlugin(settings);
+    const modal = new ImportStarredModal(
+      app,
+      plugin as unknown as ConstructorParameters<typeof ImportStarredModal>[1],
+    );
+    (modal as unknown as TestModal).open();
+
+    await (modal as unknown as TestModal).handleFileSelection(
+      new File([readFixture()], "starred.json"),
+    );
+
+    const content = (modal as unknown as TestModal).contentEl;
+    const importButton = content.querySelector<HTMLButtonElement>(
+      ".rss-dashboard-modal-buttons .rss-dashboard-primary-button",
+    )!;
+    importButton.click();
+    await flushPromises();
+
+    // Only "art" is new; "design"/"Design" already existed (case-insensitive).
+    expect(settings.availableTags).toHaveLength(originalTagCount + 1);
+    const designEntries = settings.availableTags.filter(
+      (t) => t.name.toLowerCase() === "design",
+    );
+    expect(designEntries).toEqual([{ name: "design", color: "#654321" }]);
+
+    const labeledItem = settings.feeds[1].items[0];
+    expect(labeledItem.tags?.[0]).toEqual({ name: "design", color: "#654321" });
   });
 });

@@ -17,7 +17,7 @@ Parent issue: [#234](https://github.com/amatya-aditya/obsidian-rss-dashboard/iss
 
 ## What to build
 
-Make re-running the starred.json importer against the same or an updated export safe. Candidate items are matched against a target feed's existing `items` using the same canonicalized guid-or-link identity logic already used by feed-refresh merging (`canonicalizeItemIdentityUrl`). A match is treated as an update, not a new insert: any newly-present labels (from [234-04](234-04-map-labels-to-tags.md)) are merged into the article's existing tags, and `starred` is forced to `true` — but `read`, `saved`, `savedFilePath`, and any other locally-edited fields are left untouched.
+Make re-running the starred.json importer against the same or an updated export safe. Candidate items are matched against a target feed's existing `items` using the same canonicalized guid-or-link identity logic already used by feed-refresh merging (`canonicalizeItemIdentityUrl`). A match is treated as an update, not a new insert: any newly-present labels (from [234-04](../archive/plans/unreleased/234-04-map-labels-to-tags.md), completed) are merged into the article's existing tags, and `starred` is forced to `true` — but `read`, `saved`, `savedFilePath`, and any other locally-edited fields are left untouched.
 
 ## Blocked by
 

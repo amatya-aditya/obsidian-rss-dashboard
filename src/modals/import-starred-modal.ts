@@ -1,6 +1,6 @@
 import { Modal, App, Setting, Notice, setIcon } from "obsidian";
 import type RssDashboardPlugin from "../../main";
-import type { Feed } from "../types/types";
+import type { Feed, Tag } from "../types/types";
 import {
   buildNewFeedRecord,
   mapStarredExportToCandidates,
@@ -24,10 +24,19 @@ import { ImporterShell } from "./importer-shell";
  * their starred items under an editable-folder "new feed" row (234-02); on
  * execute, the feed is created, a single background fetch is triggered to
  * populate its metadata/current items, and the historical starred item(s)
- * are inserted immediately, independent of that fetch. Surfacing
- * unimportable entries, label-to-tag mapping, re-import dedup, and
- * full-content fetching are all deferred to later 234-* tickets — see
+ * are inserted immediately, independent of that fetch. Entries that can
+ * never produce a candidate at all are surfaced in an "Unable to import"
+ * section (234-03) instead of being silently dropped. Re-import dedup and
+ * full-content fetching are deferred to later 234-* tickets — see
  * docs/plans/234-02-auto-create-missing-source-feeds.md.
+ *
+ * Label-to-tag mapping (234-04): `mapStarredExportToCandidates` assigns each
+ * imported article its `label/X` categories as `Tag`s, reusing an existing
+ * `settings.availableTags` entry's color when the name matches, or a default
+ * color for a brand-new label. This modal's `performImport` (the execute
+ * step) is the seam that actually persists any brand-new label into
+ * `settings.availableTags`, since the mapper itself is pure and must not
+ * touch plugin state.
  */
 export class ImportStarredModal extends Modal {
   plugin: RssDashboardPlugin;
@@ -64,6 +73,7 @@ export class ImportStarredModal extends Modal {
         const { candidates, unimportable } = mapStarredExportToCandidates(
           parsed,
           this.plugin.settings.feeds,
+          this.plugin.settings.availableTags,
         );
         this.unimportableEntries = unimportable;
         if (candidates.length === 0 && unimportable.length === 0) {
@@ -506,11 +516,40 @@ export class ImportStarredModal extends Modal {
     };
   }
 
+  /**
+   * Adds any label-derived tag that appears on a selected candidate but is
+   * not yet present in `settings.availableTags` (case-insensitive name
+   * match), so it immediately shows up in the normal tag-filter UI. Reuses
+   * the exact `{name, color}` the pure mapper already assigned to the
+   * candidate's `item.tags` rather than re-deciding a color here.
+   */
+  private ensureAvailableTagsForSelection(
+    selected: readonly { item: { tags?: Tag[] } }[],
+  ): void {
+    const availableTags = this.plugin.settings.availableTags;
+    const existingByLowerName = new Map(
+      availableTags.map((tag) => [tag.name.toLowerCase(), tag]),
+    );
+
+    for (const candidate of selected) {
+      for (const tag of candidate.item.tags ?? []) {
+        const lowerName = tag.name.toLowerCase();
+        if (existingByLowerName.has(lowerName)) continue;
+
+        const newTag: Tag = { name: tag.name, color: tag.color };
+        availableTags.push(newTag);
+        existingByLowerName.set(lowerName, newTag);
+      }
+    }
+  }
+
   private async performImport(model: StarredImportPreviewModel): Promise<void> {
     const selected = model.getSelectedCandidates();
     if (selected.length === 0) {
       return;
     }
+
+    this.ensureAvailableTagsForSelection(selected);
 
     const feedByUrl = new Map<string, Feed>(
       this.plugin.settings.feeds.map((feed) => [feed.url, feed]),

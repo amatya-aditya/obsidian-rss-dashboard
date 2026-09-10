@@ -1,4 +1,4 @@
-import type { Feed, FeedItem } from "../types/types";
+import type { Feed, FeedItem, Tag } from "../types/types";
 
 /**
  * Shapes for a Google-Reader-API-compatible `starred.json` export
@@ -50,16 +50,16 @@ export interface StarredJsonExport {
 }
 
 /**
- * A candidate article to import. `isNewFeed` distinguishes items whose
+ * A candidate article to import, with any `label/X` categories resolved to
+ * `Tag`s on `item.tags`. `isNewFeed` distinguishes items whose
  * `origin.streamId` matches a feed the user already subscribes to
  * (`isNewFeed: false`) from items whose source feed does not exist locally
  * yet (`isNewFeed: true`, 234-02) — the latter carry `feedSiteUrl` (from
  * `origin.htmlUrl`) so the preview/execute step can create the missing
  * `Feed` record. Entries that can never produce a candidate at all (no
  * `origin.streamId`, or no article URL) are captured separately in the
- * `unimportable` list (234-03) rather than as a candidate. Label-to-tag
- * mapping, re-import dedup, and full-content fetching are all deferred to
- * later 234-* tickets.
+ * `unimportable` list (234-03) rather than as a candidate. Re-import dedup
+ * and full-content fetching are deferred to later 234-* tickets.
  */
 export interface StarredImportCandidate {
   feedUrl: string;
@@ -95,6 +95,18 @@ export interface StarredImportMapResult {
 }
 
 const READ_CATEGORY_SUFFIX = "/state/com.google/read";
+const LABEL_CATEGORY_MARKER = "/label/";
+
+/**
+ * Default color applied to a label-derived tag that does not already exist in
+ * `settings.availableTags`. Matches the fixed default color offered to the
+ * user when manually creating a tag elsewhere in the plugin (see the color
+ * picker defaults in `src/settings/tabs/tags-settings-tab.ts` and
+ * `src/components/sidebar.ts`'s "Add new tag" modal). Kept as a local
+ * constant, rather than importing a shared helper, because this module must
+ * stay free of any Obsidian API dependency.
+ */
+export const DEFAULT_LABEL_TAG_COLOR = "#3498db";
 
 /**
  * Strips the Google-Reader-API `feed/` stream-id prefix, if present, so the
@@ -102,6 +114,74 @@ const READ_CATEGORY_SUFFIX = "/state/com.google/read";
  */
 function normalizeStreamIdToFeedUrl(streamId: string): string {
   return streamId.startsWith("feed/") ? streamId.slice("feed/".length) : streamId;
+}
+
+/**
+ * Extracts label names from a starred item's `categories[]`. Only
+ * `.../label/X` entries are labels; system-state categories
+ * (`.../state/com.google/starred`, `read`, `reading-list`) never match this
+ * shape and are left for `isMarkedRead`/the `starred` flag (or ignored
+ * entirely, for `reading-list`).
+ */
+function extractLabelNames(item: StarredJsonItem): string[] {
+  const names: string[] = [];
+  for (const category of item.categories ?? []) {
+    const markerIndex = category.indexOf(LABEL_CATEGORY_MARKER);
+    if (markerIndex === -1) continue;
+
+    const raw = category.slice(markerIndex + LABEL_CATEGORY_MARKER.length);
+    if (!raw) continue;
+
+    let name = raw;
+    try {
+      name = decodeURIComponent(raw);
+    } catch {
+      // Not valid percent-encoding; use the raw label text as-is.
+    }
+    names.push(name);
+  }
+  return names;
+}
+
+/**
+ * Resolves an item's label names to `Tag` objects, preferring the color of
+ * an already-known tag (case-insensitive name match) and otherwise falling
+ * back to `DEFAULT_LABEL_TAG_COLOR`. `newTagsByLowerName` is shared across a
+ * single `mapStarredExportToCandidates` call so that two items referencing
+ * the same brand-new label within one import batch get the identical `Tag`
+ * object (same color) rather than two independently-colored ones.
+ */
+function resolveLabelTags(
+  item: StarredJsonItem,
+  availableTagByLowerName: Map<string, Tag>,
+  newTagsByLowerName: Map<string, Tag>,
+): Tag[] | undefined {
+  const labelNames = extractLabelNames(item);
+  if (labelNames.length === 0) return undefined;
+
+  const tags: Tag[] = [];
+  const seenLowerNames = new Set<string>();
+
+  for (const name of labelNames) {
+    const lowerName = name.toLowerCase();
+    if (seenLowerNames.has(lowerName)) continue;
+    seenLowerNames.add(lowerName);
+
+    const existingTag = availableTagByLowerName.get(lowerName);
+    if (existingTag) {
+      tags.push(existingTag);
+      continue;
+    }
+
+    let newTag = newTagsByLowerName.get(lowerName);
+    if (!newTag) {
+      newTag = { name, color: DEFAULT_LABEL_TAG_COLOR };
+      newTagsByLowerName.set(lowerName, newTag);
+    }
+    tags.push(newTag);
+  }
+
+  return tags;
 }
 
 function pickLink(item: StarredJsonItem): string {
@@ -125,7 +205,11 @@ function toPubDate(item: StarredJsonItem): string {
   return new Date().toISOString();
 }
 
-function toFeedItem(item: StarredJsonItem, feed: Pick<Feed, "url" | "title">): FeedItem {
+function toFeedItem(
+  item: StarredJsonItem,
+  feed: Pick<Feed, "url" | "title">,
+  tags: Tag[] | undefined,
+): FeedItem {
   const content = item.summary?.content ?? "";
 
   return {
@@ -138,6 +222,7 @@ function toFeedItem(item: StarredJsonItem, feed: Pick<Feed, "url" | "title">): F
     author: item.author || undefined,
     starred: true,
     read: isMarkedRead(item),
+    tags,
     feedTitle: feed.title,
     feedUrl: feed.url,
     coverImage: "",
@@ -164,18 +249,36 @@ function toFeedItem(item: StarredJsonItem, feed: Pick<Feed, "url" | "title">): F
  * entry whose source feed isn't yet subscribed to: that becomes an
  * `isNewFeed: true` candidate instead, not an unimportable entry.
  *
- * Category-based `label/X` entries are read but intentionally ignored here;
- * mapping labels to tags is deferred to 234-04.
+ * `.../label/X` categories become `Tag` entries on the resulting `FeedItem`
+ * (`candidate.item.tags`), reusing the color of a matching entry in
+ * `availableTags` (case-insensitive name match) when one exists, or
+ * `DEFAULT_LABEL_TAG_COLOR` otherwise. `.../state/com.google/starred` and
+ * `.../state/com.google/read` only ever set the `starred`/`read` booleans,
+ * and `.../state/com.google/reading-list` is ignored entirely — neither
+ * produces a tag.
+ *
+ * This mapper is pure and has no Obsidian API/plugin-state dependency: it
+ * does not mutate `availableTags`. A caller that wants a label not already
+ * present in `availableTags` to be added there (so it shows up in the normal
+ * tag-filter UI) must do that itself — using the exact `{name, color}` this
+ * function already assigned to the candidate's tags — typically in a modal's
+ * execute/import step, once the user has confirmed which candidates to
+ * import.
  */
 export function mapStarredExportToCandidates(
   parsed: StarredJsonExport,
   existingFeeds: Array<Pick<Feed, "url" | "title">>,
+  availableTags: readonly Tag[] = [],
 ): StarredImportMapResult {
   const feedByUrl = new Map(existingFeeds.map((feed) => [feed.url, feed]));
   const newFeedMetaByUrl = new Map<
     string,
     { title: string; siteUrl?: string }
   >();
+  const availableTagByLowerName = new Map(
+    availableTags.map((tag) => [tag.name.toLowerCase(), tag]),
+  );
+  const newTagsByLowerName = new Map<string, Tag>();
   const candidates: StarredImportCandidate[] = [];
   const unimportable: StarredImportUnimportableEntry[] = [];
 
@@ -199,6 +302,12 @@ export function mapStarredExportToCandidates(
       continue;
     }
 
+    const tags = resolveLabelTags(
+      item,
+      availableTagByLowerName,
+      newTagsByLowerName,
+    );
+
     const feedUrl = normalizeStreamIdToFeedUrl(streamId);
     const existingFeed = feedByUrl.get(feedUrl);
 
@@ -206,7 +315,7 @@ export function mapStarredExportToCandidates(
       candidates.push({
         feedUrl: existingFeed.url,
         feedTitle: existingFeed.title,
-        item: toFeedItem(item, existingFeed),
+        item: toFeedItem(item, existingFeed, tags),
         isNewFeed: false,
       });
       continue;
@@ -224,7 +333,11 @@ export function mapStarredExportToCandidates(
     candidates.push({
       feedUrl,
       feedTitle: newFeedMeta.title,
-      item: toFeedItem(item, { url: feedUrl, title: newFeedMeta.title }),
+      item: toFeedItem(
+        item,
+        { url: feedUrl, title: newFeedMeta.title },
+        tags,
+      ),
       isNewFeed: true,
       feedSiteUrl: newFeedMeta.siteUrl,
     });
