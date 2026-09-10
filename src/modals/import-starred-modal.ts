@@ -4,6 +4,7 @@ import type { Feed } from "../types/types";
 import {
   buildNewFeedRecord,
   mapStarredExportToCandidates,
+  type StarredImportUnimportableEntry,
   type StarredJsonExport,
 } from "../services/starred-import-mapper";
 import type { StarredImportPreviewGroupSnapshot } from "../services/starred-import-preview-model";
@@ -38,6 +39,7 @@ export class ImportStarredModal extends Modal {
     | "missing_items"
     | null = null;
   private previewModel: StarredImportPreviewModel | null = null;
+  private unimportableEntries: StarredImportUnimportableEntry[] = [];
   private collapsedFeedUrls = new Set<string>();
   private readonly importerShell: ImporterShell<
     StarredJsonExport,
@@ -59,11 +61,12 @@ export class ImportStarredModal extends Modal {
       validate: (content, file) => this.validateStarredJson(content, file),
       parse: (content) => this.parseStarredJson(content),
       createPreviewModel: (parsed) => {
-        const candidates = mapStarredExportToCandidates(
+        const { candidates, unimportable } = mapStarredExportToCandidates(
           parsed,
           this.plugin.settings.feeds,
         );
-        if (candidates.length === 0) {
+        this.unimportableEntries = unimportable;
+        if (candidates.length === 0 && unimportable.length === 0) {
           return null;
         }
         this.previewModel = new StarredImportPreviewModel({ candidates });
@@ -114,6 +117,7 @@ export class ImportStarredModal extends Modal {
   private async handleFileSelection(file: File): Promise<void> {
     this.validationErrorKind = null;
     this.previewModel = null;
+    this.unimportableEntries = [];
     this.collapsedFeedUrls.clear();
     await this.importerShell.handleFileSelection(file);
   }
@@ -243,6 +247,52 @@ export class ImportStarredModal extends Modal {
     }
 
     list.scrollTop = previousScrollTop;
+
+    this.renderUnimportableSection(this.previewContainer);
+  }
+
+  private renderUnimportableSection(container: HTMLElement): void {
+    if (this.unimportableEntries.length === 0) return;
+
+    const section = container.createDiv({
+      cls: "import-unimportable-section",
+    });
+    section.createEl("h4", {
+      cls: "import-unimportable-heading",
+      text: `Unable to import (${this.unimportableEntries.length})`,
+    });
+
+    const list = section.createDiv({ cls: "import-unimportable-list" });
+    for (const entry of this.unimportableEntries) {
+      const row = list.createDiv({ cls: "import-unimportable-row" });
+
+      const icon = row.createDiv({ cls: "import-unimportable-icon" });
+      setIcon(icon, "alert-triangle");
+
+      const nameWrap = row.createDiv({ cls: "import-unimportable-name" });
+      nameWrap.createSpan({
+        cls: "import-unimportable-name-text",
+        text: entry.title || entry.id,
+      });
+
+      row.createDiv({
+        cls: "import-unimportable-reason",
+        text: this.describeUnimportableReason(entry.reason),
+      });
+    }
+  }
+
+  private describeUnimportableReason(
+    reason: StarredImportUnimportableEntry["reason"],
+  ): string {
+    switch (reason) {
+      case "no_source_feed":
+        return "No source feed identified";
+      case "no_article_url":
+        return "No article link found";
+      default:
+        return "Unable to import";
+    }
   }
 
   private renderGroup(

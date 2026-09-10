@@ -13,6 +13,69 @@
   --import-indent: 14px;
 }
 
+/* "Unable to import" section — lists starred.json entries the mapper could
+ * not turn into a candidate at all (see StarredImportUnimportableReason),
+ * shown below the regular preview list instead of silently dropping them. */
+.import-unimportable-section {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--background-modifier-border);
+}
+
+.import-unimportable-heading {
+  margin: 0 0 0.5rem;
+  font-size: var(--font-ui-small);
+  color: var(--text-muted);
+}
+
+.import-unimportable-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.import-unimportable-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.5rem;
+  border-radius: 4px;
+}
+
+.import-unimportable-row:hover {
+  background: var(--background-modifier-hover);
+}
+
+.import-unimportable-icon {
+  display: flex;
+  align-items: center;
+  color: var(--text-warning, var(--text-muted));
+  flex-shrink: 0;
+}
+
+.import-unimportable-icon svg {
+  width: 14px;
+  height: 14px;
+}
+
+.import-unimportable-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.import-unimportable-name-text {
+  color: var(--text-normal);
+}
+
+.import-unimportable-reason {
+  flex-shrink: 0;
+  font-size: var(--font-ui-smaller);
+  color: var(--text-muted);
+}
+
 .rss-import-starred-modal .rss-dashboard-modal-content {
   width: 90vw;
   height: 85vh;

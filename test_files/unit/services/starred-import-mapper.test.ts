@@ -11,16 +11,24 @@ import {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-function loadFixture(): StarredJsonExport {
+function loadFixtureFile(fileName: string): StarredJsonExport {
   const fixturePath = path.resolve(
     __dirname,
     "..",
     "..",
     "fixtures",
     "starred",
-    "starred.json",
+    fileName,
   );
   return JSON.parse(readFileSync(fixturePath, "utf-8")) as StarredJsonExport;
+}
+
+function loadFixture(): StarredJsonExport {
+  return loadFixtureFile("starred.json");
+}
+
+function loadUnimportableFixture(): StarredJsonExport {
+  return loadFixtureFile("starred-unimportable.json");
 }
 
 const EXISTING_FEEDS = [
@@ -32,7 +40,7 @@ describe("mapStarredExportToCandidates", () => {
   it("produces a candidate for every item that has an origin.streamId, matched or not", () => {
     const parsed = loadFixture();
 
-    const candidates = mapStarredExportToCandidates(parsed, EXISTING_FEEDS);
+    const { candidates } = mapStarredExportToCandidates(parsed, EXISTING_FEEDS);
 
     expect(candidates).toHaveLength(3);
     expect(candidates.map((c) => c.item.guid)).toEqual([
@@ -45,7 +53,7 @@ describe("mapStarredExportToCandidates", () => {
   it("marks items matched to an already-subscribed feed as isNewFeed: false", () => {
     const parsed = loadFixture();
 
-    const candidates = mapStarredExportToCandidates(parsed, EXISTING_FEEDS);
+    const { candidates } = mapStarredExportToCandidates(parsed, EXISTING_FEEDS);
 
     const matched = candidates.filter((c) => !c.item.guid.endsWith("0003"));
     expect(matched).toHaveLength(2);
@@ -58,7 +66,7 @@ describe("mapStarredExportToCandidates", () => {
   it("no longer excludes items whose origin.streamId does not match any local feed — it becomes a new-feed candidate", () => {
     const parsed = loadFixture();
 
-    const candidates = mapStarredExportToCandidates(parsed, EXISTING_FEEDS);
+    const { candidates } = mapStarredExportToCandidates(parsed, EXISTING_FEEDS);
     const unsubscribed = candidates.find(
       (c) => c.item.title === "Unsubscribed Source Article",
     );
@@ -90,7 +98,7 @@ describe("mapStarredExportToCandidates", () => {
       ],
     };
 
-    const candidates = mapStarredExportToCandidates(parsed, EXISTING_FEEDS);
+    const { candidates } = mapStarredExportToCandidates(parsed, EXISTING_FEEDS);
 
     expect(candidates).toHaveLength(1);
     expect(candidates[0].isNewFeed).toBe(true);
@@ -125,7 +133,7 @@ describe("mapStarredExportToCandidates", () => {
       ],
     };
 
-    const candidates = mapStarredExportToCandidates(parsed, EXISTING_FEEDS);
+    const { candidates } = mapStarredExportToCandidates(parsed, EXISTING_FEEDS);
 
     expect(candidates).toHaveLength(2);
     expect(candidates.every((c) => c.isNewFeed)).toBe(true);
@@ -144,7 +152,7 @@ describe("mapStarredExportToCandidates", () => {
       ],
     };
 
-    const candidates = mapStarredExportToCandidates(parsed, EXISTING_FEEDS);
+    const { candidates } = mapStarredExportToCandidates(parsed, EXISTING_FEEDS);
 
     expect(candidates).toHaveLength(0);
   });
@@ -152,7 +160,7 @@ describe("mapStarredExportToCandidates", () => {
   it("maps title, link (canonical preferred), content, author, published date, and guid", () => {
     const parsed = loadFixture();
 
-    const candidates = mapStarredExportToCandidates(parsed, EXISTING_FEEDS);
+    const { candidates } = mapStarredExportToCandidates(parsed, EXISTING_FEEDS);
     const first = candidates[0].item;
 
     expect(first.title).toBe("Existing Feed Article One");
@@ -184,7 +192,7 @@ describe("mapStarredExportToCandidates", () => {
       ],
     };
 
-    const candidates = mapStarredExportToCandidates(parsed, EXISTING_FEEDS);
+    const { candidates } = mapStarredExportToCandidates(parsed, EXISTING_FEEDS);
 
     expect(candidates).toHaveLength(1);
     expect(candidates[0].item.link).toBe("https://example-feed.test/alt-link");
@@ -193,7 +201,7 @@ describe("mapStarredExportToCandidates", () => {
   it("sets starred true unconditionally", () => {
     const parsed = loadFixture();
 
-    const candidates = mapStarredExportToCandidates(parsed, EXISTING_FEEDS);
+    const { candidates } = mapStarredExportToCandidates(parsed, EXISTING_FEEDS);
 
     for (const candidate of candidates) {
       expect(candidate.item.starred).toBe(true);
@@ -203,7 +211,7 @@ describe("mapStarredExportToCandidates", () => {
   it("passes through the exported read state", () => {
     const parsed = loadFixture();
 
-    const candidates = mapStarredExportToCandidates(parsed, EXISTING_FEEDS);
+    const { candidates } = mapStarredExportToCandidates(parsed, EXISTING_FEEDS);
     const readItem = candidates.find((c) => c.item.guid.endsWith("0001"));
     const unreadItem = candidates.find((c) => c.item.guid.endsWith("0002"));
 
@@ -214,7 +222,7 @@ describe("mapStarredExportToCandidates", () => {
   it("ignores label categories on the labeled item without any tag side effects", () => {
     const parsed = loadFixture();
 
-    const candidates = mapStarredExportToCandidates(parsed, EXISTING_FEEDS);
+    const { candidates } = mapStarredExportToCandidates(parsed, EXISTING_FEEDS);
     const labeled = candidates.find((c) => c.item.guid.endsWith("0002"));
 
     expect(labeled).toBeDefined();
@@ -225,12 +233,80 @@ describe("mapStarredExportToCandidates", () => {
   it("groups candidates under the matching local feed's url and title", () => {
     const parsed = loadFixture();
 
-    const candidates = mapStarredExportToCandidates(parsed, EXISTING_FEEDS);
+    const { candidates } = mapStarredExportToCandidates(parsed, EXISTING_FEEDS);
 
     expect(candidates[0].feedUrl).toBe("https://example-feed.test/rss");
     expect(candidates[0].feedTitle).toBe("Example Feed");
     expect(candidates[1].feedUrl).toBe("https://example.com/blog/feed.xml");
     expect(candidates[1].feedTitle).toBe("Example Blog");
+  });
+
+  it("returns no unimportable entries for a fixture where every entry is well-formed", () => {
+    const parsed = loadFixture();
+
+    const { unimportable } = mapStarredExportToCandidates(parsed, EXISTING_FEEDS);
+
+    expect(unimportable).toHaveLength(0);
+  });
+
+  describe("unimportable classification", () => {
+    it("classifies an entry with no origin.streamId at all as no_source_feed", () => {
+      const parsed = loadUnimportableFixture();
+
+      const { unimportable } = mapStarredExportToCandidates(parsed, EXISTING_FEEDS);
+
+      expect(unimportable).toContainEqual({
+        id: "tag:google.com,2005:reader/item/0000000000000004",
+        title: "No Source Feed Article",
+        reason: "no_source_feed",
+      });
+    });
+
+    it("classifies an entry with a source feed but neither canonical nor alternate href as no_article_url", () => {
+      const parsed = loadUnimportableFixture();
+
+      const { unimportable } = mapStarredExportToCandidates(parsed, EXISTING_FEEDS);
+
+      expect(unimportable).toContainEqual({
+        id: "tag:google.com,2005:reader/item/0000000000000005",
+        title: "No Article Url Article",
+        reason: "no_article_url",
+      });
+    });
+
+    it("classifies an entry missing both origin.streamId and any article url as no_source_feed (checked first)", () => {
+      const parsed = loadUnimportableFixture();
+
+      const { unimportable } = mapStarredExportToCandidates(parsed, EXISTING_FEEDS);
+
+      expect(unimportable).toContainEqual({
+        id: "tag:google.com,2005:reader/item/0000000000000006",
+        title: "No Source Feed And No Article Url Article",
+        reason: "no_source_feed",
+      });
+    });
+
+    it("does not classify any of the unimportable-fixture entries as candidates", () => {
+      const parsed = loadUnimportableFixture();
+
+      const { candidates, unimportable } = mapStarredExportToCandidates(
+        parsed,
+        EXISTING_FEEDS,
+      );
+
+      expect(candidates).toHaveLength(0);
+      expect(unimportable).toHaveLength(3);
+    });
+
+    it("does not classify an entry excluded only because its (valid) source feed isn't subscribed to locally", () => {
+      const parsed = loadFixture();
+
+      const { unimportable } = mapStarredExportToCandidates(parsed, EXISTING_FEEDS);
+
+      expect(
+        unimportable.some((entry) => entry.title === "Unsubscribed Source Article"),
+      ).toBe(false);
+    });
   });
 });
 

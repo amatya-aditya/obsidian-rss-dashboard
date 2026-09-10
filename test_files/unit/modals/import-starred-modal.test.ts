@@ -40,6 +40,14 @@ function readFixture(): string {
   return readFileSync(fixturePath, "utf-8");
 }
 
+function readUnimportableFixture(): string {
+  const fixturePath = path.resolve(
+    __dirname,
+    "../../fixtures/starred/starred-unimportable.json",
+  );
+  return readFileSync(fixturePath, "utf-8");
+}
+
 function flushPromises(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, 0));
 }
@@ -124,7 +132,28 @@ describe("ImportStarredModal", () => {
     ).toContain("Please select a valid starred.json file");
   });
 
-  it("shows the no-items error when no item has an origin.streamId at all", async () => {
+  it("shows the no-items error when the export has no items at all", async () => {
+    const app = createMockApp();
+    const plugin = createTestPlugin(cloneSettings());
+    const modal = new ImportStarredModal(
+      app,
+      plugin as unknown as ConstructorParameters<typeof ImportStarredModal>[1],
+    );
+    (modal as unknown as TestModal).open();
+
+    const emptyExport = JSON.stringify({ items: [] });
+
+    await (modal as unknown as TestModal).handleFileSelection(
+      new File([emptyExport], "starred.json"),
+    );
+
+    const content = (modal as unknown as TestModal).contentEl;
+    expect(
+      content.querySelector(".import-error-message")?.textContent,
+    ).toContain("No importable starred articles were found in this file.");
+  });
+
+  it("shows the unable-to-import section instead of the blanket no-items error when every item lacks an origin.streamId (234-03)", async () => {
     const app = createMockApp();
     const plugin = createTestPlugin(cloneSettings());
     const modal = new ImportStarredModal(
@@ -148,9 +177,11 @@ describe("ImportStarredModal", () => {
     );
 
     const content = (modal as unknown as TestModal).contentEl;
-    expect(
-      content.querySelector(".import-error-message")?.textContent,
-    ).toContain("No importable starred articles were found in this file.");
+    expect(content.querySelector(".import-error-message")).toBeNull();
+    const section = content.querySelector(".import-unimportable-section");
+    expect(section).not.toBeNull();
+    expect(section?.textContent).toContain("Unable to import (1)");
+    expect(section?.textContent).toContain("No origin item");
   });
 
   it("renders a grouped preview and imports selected articles into their matching existing feed", async () => {
@@ -368,5 +399,73 @@ describe("ImportStarredModal", () => {
     );
     expect(matches).toHaveLength(1);
     expect(matches[0].items).toHaveLength(1);
+  });
+
+  it("renders an 'unable to import' section listing entries with no source feed or no article url, never dropping them silently", async () => {
+    const app = createMockApp();
+    const settings = cloneSettings();
+    settings.feeds = [makeFeed("https://example-feed.test/rss", "Example Feed")];
+    const plugin = createTestPlugin(settings);
+    const modal = new ImportStarredModal(
+      app,
+      plugin as unknown as ConstructorParameters<typeof ImportStarredModal>[1],
+    );
+    (modal as unknown as TestModal).open();
+
+    await (modal as unknown as TestModal).handleFileSelection(
+      new File([readUnimportableFixture()], "starred-unimportable.json"),
+    );
+
+    const content = (modal as unknown as TestModal).contentEl;
+    const section = content.querySelector(".import-unimportable-section");
+    expect(section).not.toBeNull();
+    expect(section?.textContent).toContain("Unable to import (3)");
+
+    const rows = Array.from(
+      content.querySelectorAll(".import-unimportable-row"),
+    );
+    expect(rows).toHaveLength(3);
+
+    expect(section?.textContent).toContain("No Source Feed Article");
+    expect(section?.textContent).toContain("No source feed identified");
+    expect(section?.textContent).toContain("No Article Url Article");
+    expect(section?.textContent).toContain("No article link found");
+    expect(section?.textContent).toContain(
+      "No Source Feed And No Article Url Article",
+    );
+  });
+
+  it("shows both the matched preview and the unable-to-import section when a file has both kinds of entries", async () => {
+    const app = createMockApp();
+    const settings = cloneSettings();
+    settings.feeds = [
+      makeFeed("https://example-feed.test/rss", "Example Feed"),
+      makeFeed("https://example.com/blog/feed.xml", "Example Blog"),
+    ];
+    const plugin = createTestPlugin(settings);
+    const modal = new ImportStarredModal(
+      app,
+      plugin as unknown as ConstructorParameters<typeof ImportStarredModal>[1],
+    );
+    (modal as unknown as TestModal).open();
+
+    const combined = JSON.parse(readFixture()) as { items: unknown[] };
+    const extra = JSON.parse(readUnimportableFixture()) as { items: unknown[] };
+    combined.items = [...combined.items, ...extra.items];
+
+    await (modal as unknown as TestModal).handleFileSelection(
+      new File([JSON.stringify(combined)], "starred.json"),
+    );
+
+    const content = (modal as unknown as TestModal).contentEl;
+    const preview = content.querySelector(".import-preview-container")!;
+    // Base fixture contributes 3 candidates (2 matched + 1 new-feed, 234-02);
+    // the unimportable fixture's 3 entries never become candidates.
+    expect(preview.textContent).toContain("3 articles");
+    expect(preview.textContent).toContain("1 new feed");
+
+    const section = content.querySelector(".import-unimportable-section");
+    expect(section).not.toBeNull();
+    expect(section?.textContent).toContain("Unable to import (3)");
   });
 });
