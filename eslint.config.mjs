@@ -15,6 +15,7 @@ export default defineConfig([
       "scripts/**/*.mjs",
       ".kilo/**",
       ".tmp-*",
+      ".claude/**",
     ],
   },
   ...obsidianmd.configs.recommended,
