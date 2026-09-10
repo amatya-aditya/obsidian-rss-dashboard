@@ -11,6 +11,23 @@ export type TagsDropdownPortalOptions = {
   onPersistSettings?: () => Promise<void> | void;
   onAfterSettingsTagsMutated?: () => void;
   onOpenTagsSettings?: () => Promise<void> | void;
+  /**
+   * Queues the FreshRSS facet-boundary mutation for every article affected
+   * by a tag-definition delete, before `deleteTagFromProfile` applies
+   * anything locally -- mirrors `Sidebar.deleteTag`'s use of
+   * `commitArticleLabelMembershipChangesBatch`. A call site that has not
+   * wired this up gets `{ committed: true }` by default, i.e. the delete
+   * proceeds without queuing any FreshRSS mutation, same as before this
+   * boundary existed; every call site in this codebase wires it.
+   */
+  onCommitLabelMembershipChanges?: (
+    changes: Array<{
+      articleGuid: string;
+      feedUrl: string;
+      previousTags: readonly Tag[] | undefined;
+      nextTags: readonly Tag[] | undefined;
+    }>,
+  ) => Promise<{ committed: boolean; error?: string }>;
   appContainer?: HTMLElement | null;
   onClosed?: () => void;
 };
@@ -26,6 +43,7 @@ export function createTagsDropdownPortal(
     onPersistSettings,
     onAfterSettingsTagsMutated,
     onOpenTagsSettings,
+    onCommitLabelMembershipChanges,
     appContainer,
     onClosed,
   } = options;
@@ -117,22 +135,41 @@ export function createTagsDropdownPortal(
     tagSeparator.style.display = hasTags ? "" : "none";
   };
 
-  const deleteTagFromProfile = (tag: Tag) => {
+  const deleteTagFromProfile = async (tag: Tag): Promise<boolean> => {
     const tagIndex = settings.availableTags.findIndex(
       (t) => t.name === tag.name,
     );
     if (tagIndex === -1) {
-      return;
+      return false;
     }
 
+    const affected = settings.feeds.flatMap((feed) =>
+      feed.items
+        .filter((feedItem) => feedItem.tags?.some((t) => t.name === tag.name))
+        .map((feedItem) => ({
+          feed,
+          feedItem,
+          nextTags: (feedItem.tags ?? []).filter((t) => t.name !== tag.name),
+        })),
+    );
+
+    const result = (await onCommitLabelMembershipChanges?.(
+      affected.map(({ feed, feedItem, nextTags }) => ({
+        articleGuid: feedItem.guid,
+        feedUrl: feed.url,
+        previousTags: feedItem.tags,
+        nextTags,
+      })),
+    )) ?? { committed: true };
+    if (!result.committed) {
+      new Notice(result.error ?? `Couldn't delete tag "${tag.name}".`);
+      return false;
+    }
+
+    for (const { feedItem, nextTags } of affected) {
+      feedItem.tags = nextTags;
+    }
     settings.availableTags.splice(tagIndex, 1);
-    settings.feeds.forEach((feed) => {
-      feed.items.forEach((feedItem) => {
-        if (feedItem.tags) {
-          feedItem.tags = feedItem.tags.filter((t) => t.name !== tag.name);
-        }
-      });
-    });
 
     if (item.tags?.some((t) => t.name === tag.name)) {
       onTagAssignmentChange(tag, false);
@@ -142,6 +179,7 @@ export function createTagsDropdownPortal(
     notifySettingsTagsMutated();
     new Notice(`Tag "${tag.name}" deleted successfully!`);
     updateTagSeparatorVisibility();
+    return true;
   };
 
   const appendTagItem = (tag: Tag, checkedOverride?: boolean) => {
@@ -239,8 +277,11 @@ export function createTagsDropdownPortal(
     deleteButton.addEventListener("click", (e) => {
       e.preventDefault();
       e.stopPropagation();
-      deleteTagFromProfile(tag);
-      tagItem.remove();
+      void (async () => {
+        if (await deleteTagFromProfile(tag)) {
+          tagItem.remove();
+        }
+      })();
     });
 
     tagItem.appendChild(tagCheckbox);

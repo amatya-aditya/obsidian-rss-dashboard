@@ -68,6 +68,14 @@ interface ArticleListCallbacks {
   onPersistSettings?: () => Promise<void> | void;
   onOpenTagsSettings?: () => Promise<void> | void;
   onTagsMutated?: () => void;
+  onCommitLabelMembershipChanges?: (
+    changes: Array<{
+      articleGuid: string;
+      feedUrl: string;
+      previousTags: readonly Tag[] | undefined;
+      nextTags: readonly Tag[] | undefined;
+    }>,
+  ) => Promise<{ committed: boolean; error?: string }>;
   onResolveCachedImageUrl?: (remoteUrl: string) => string | null;
 }
 
@@ -1536,6 +1544,7 @@ export class ArticleList {
       item: article,
       onTagAssignmentChange: onTagChange,
       onPersistSettings: () => this.persistSettings(),
+      onCommitLabelMembershipChanges: this.callbacks.onCommitLabelMembershipChanges,
       onAfterSettingsTagsMutated: () => {
         this.refreshVisibleArticleTags();
         this.callbacks.onTagsMutated?.();

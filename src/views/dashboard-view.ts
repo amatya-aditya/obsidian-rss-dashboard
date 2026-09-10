@@ -1028,6 +1028,8 @@ export class RssDashboardView extends ItemView {
           onOpenTagsSettings: () => {
             void this.plugin.openTagsSettings();
           },
+          onCommitLabelMembershipChanges: (changes) =>
+            this.plugin.commitArticleLabelMembershipChangesBatch(changes),
           onTagsMutated: () => {
             void this.plugin.refreshOpenTagColorViews();
             this.app.workspace.trigger("rss-dashboard:tags-mutated");

@@ -2899,6 +2899,13 @@ export class ReaderView extends ItemView {
           // ignore
         }
       },
+      onCommitLabelMembershipChanges: (changes) => {
+        const plugin = this.getRssDashboardPluginForSettingsSave();
+        if (!plugin?.commitArticleLabelMembershipChangesBatch) {
+          return Promise.resolve({ committed: true });
+        }
+        return plugin.commitArticleLabelMembershipChangesBatch(changes);
+      },
       onAfterSettingsTagsMutated: () => {
         const plugin = this.getRssDashboardPluginForSettingsSave();
         if (plugin?.refreshOpenTagColorViews) {
@@ -3145,6 +3152,14 @@ export class ReaderView extends ItemView {
   private getRssDashboardPluginForSettingsSave(): {
     saveSettings: () => Promise<void>;
     refreshOpenTagColorViews?: () => Promise<void>;
+    commitArticleLabelMembershipChangesBatch?: (
+      changes: Array<{
+        articleGuid: string;
+        feedUrl: string;
+        previousTags: readonly Tag[] | undefined;
+        nextTags: readonly Tag[] | undefined;
+      }>,
+    ) => Promise<{ committed: boolean; error?: string }>;
   } | null {
     try {
       const appWithPlugins = this.app as unknown as {
@@ -3169,12 +3184,21 @@ export class ReaderView extends ItemView {
         | {
             saveSettings?: unknown;
             refreshOpenTagColorViews?: unknown;
+            commitArticleLabelMembershipChangesBatch?: unknown;
           }
         | undefined;
       if (plugin && typeof plugin.saveSettings === "function") {
         return plugin as {
           saveSettings: () => Promise<void>;
           refreshOpenTagColorViews?: () => Promise<void>;
+          commitArticleLabelMembershipChangesBatch?: (
+            changes: Array<{
+              articleGuid: string;
+              feedUrl: string;
+              previousTags: readonly Tag[] | undefined;
+              nextTags: readonly Tag[] | undefined;
+            }>,
+          ) => Promise<{ committed: boolean; error?: string }>;
         };
       }
     } catch {
