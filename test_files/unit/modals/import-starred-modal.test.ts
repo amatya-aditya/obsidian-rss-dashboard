@@ -7,6 +7,7 @@ import { DEFAULT_SETTINGS, type Feed } from "../../../src/types/types";
 import { ImportStarredModal } from "../../../src/modals/import-starred-modal";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 import type { FullArticleFetchResult } from "../../../src/utils/fetch-helpers";
+import type { Tag } from "../../../src/types/types";
 
 const fetchFullArticleContentWithOutcomeMock = vi.hoisted(() => vi.fn());
 
@@ -20,6 +21,21 @@ vi.mock("../../../src/utils/full-article-fetch", async () => {
     fetchFullArticleContentWithOutcome: fetchFullArticleContentWithOutcomeMock,
   };
 });
+
+/**
+ * The tag-editing portal itself (`createTagsDropdownPortal`) has no
+ * existing test coverage anywhere in the suite and none is added by this
+ * work (see draft-20260910-starred-import-followups.md's Testing
+ * Decisions). Tests for the per-article tag chip (234-12) assert that
+ * clicking it invokes the portal with the expected article reference, not
+ * on the portal's own internal rendering — so it is mocked here rather than
+ * exercised for real.
+ */
+const createTagsDropdownPortalMock = vi.hoisted(() => vi.fn());
+
+vi.mock("../../../src/utils/tags-dropdown-portal", () => ({
+  createTagsDropdownPortal: createTagsDropdownPortalMock,
+}));
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -148,11 +164,23 @@ function getNewTagsSection(content: HTMLElement): HTMLElement | null {
   return content.querySelector<HTMLElement>(".import-new-tags-section");
 }
 
+function getItemRow(content: HTMLElement, guid: string): HTMLElement {
+  return content.querySelector<HTMLElement>(`[data-guid='${guid}']`)!;
+}
+
+function getItemTagsControl(content: HTMLElement, guid: string): HTMLElement {
+  return getItemRow(content, guid).querySelector<HTMLElement>(
+    ".import-preview-tags-control",
+  )!;
+}
+
 beforeEach(() => {
   installObsidianDomPolyfills();
   document.body.empty();
   vi.restoreAllMocks();
   fetchFullArticleContentWithOutcomeMock.mockReset();
+  createTagsDropdownPortalMock.mockReset();
+  createTagsDropdownPortalMock.mockImplementation(() => vi.fn());
 });
 
 describe("ImportStarredModal", () => {
@@ -1039,5 +1067,167 @@ describe("ImportStarredModal", () => {
     expect(settings.availableTags).toHaveLength(originalTagCount + 2);
     const labeledItem = settings.feeds[1].items[0];
     expect(labeledItem.tags?.map((t) => t.name)).toEqual(["Design", "art"]);
+  });
+
+  describe("per-article tag chip (234-12)", () => {
+    const labeledGuid = "tag:google.com,2005:reader/item/0000000000000002";
+    const unlabeledGuid = "tag:google.com,2005:reader/item/0000000000000001";
+
+    async function setUpModal(settingsOverride?: typeof DEFAULT_SETTINGS) {
+      const app = createMockApp();
+      const settings = settingsOverride ?? cloneSettings();
+      settings.feeds = settings.feeds.length
+        ? settings.feeds
+        : [
+            makeFeed("https://example-feed.test/rss", "Example Feed"),
+            makeFeed("https://example.com/blog/feed.xml", "Example Blog"),
+          ];
+      const plugin = createTestPlugin(settings);
+      const modal = new ImportStarredModal(
+        app,
+        plugin as unknown as ConstructorParameters<typeof ImportStarredModal>[1],
+      );
+      (modal as unknown as TestModal).open();
+      await (modal as unknown as TestModal).handleFileSelection(
+        new File([readFixture()], "starred.json"),
+      );
+      return {
+        settings,
+        content: (modal as unknown as TestModal).contentEl,
+      };
+    }
+
+    it("renders an article's assigned tags as chips using the existing dashboard-card chip renderer", async () => {
+      const { content } = await setUpModal();
+
+      const labeledControl = getItemTagsControl(content, labeledGuid);
+      const chips = Array.from(
+        labeledControl.querySelectorAll(".rss-dashboard-tag-badge"),
+      ).map((el) => el.textContent);
+      expect(chips).toEqual(["Design", "art"]);
+    });
+
+    it("shows no tag chips (and no Read/Unread text) for an article with no assigned tags", async () => {
+      const { content } = await setUpModal();
+
+      const row = getItemRow(content, unlabeledGuid);
+      expect(row.textContent).not.toContain("Read");
+      expect(row.textContent).not.toContain("Unread");
+
+      const unlabeledControl = getItemTagsControl(content, unlabeledGuid);
+      expect(
+        unlabeledControl.querySelectorAll(".rss-dashboard-tag-badge"),
+      ).toHaveLength(0);
+    });
+
+    it("removes the 'Read'/'Unread' text from every article row", async () => {
+      const { content } = await setUpModal();
+
+      const rows = content.querySelectorAll(".import-preview-row--feed");
+      expect(rows.length).toBeGreaterThan(0);
+      rows.forEach((row) => {
+        expect(row.textContent).not.toContain("Read");
+        expect(row.textContent).not.toContain("Unread");
+      });
+    });
+
+    it("clicking a row's tag chip opens the tag-editing portal against that row's live candidate article", async () => {
+      const { content } = await setUpModal();
+
+      const control = getItemTagsControl(content, labeledGuid);
+      control.click();
+
+      expect(createTagsDropdownPortalMock).toHaveBeenCalledTimes(1);
+      const call = createTagsDropdownPortalMock.mock.calls[0][0] as {
+        anchor: HTMLElement;
+        item: { guid: string; tags?: Tag[] };
+      };
+      expect(call.anchor).toBe(control);
+      expect(call.item.guid).toBe(labeledGuid);
+      expect(call.item.tags?.map((t) => t.name)).toEqual(["Design", "art"]);
+    });
+
+    it("adding a tag through the portal mutates the underlying candidate article's tags directly, which carry through to the imported item", async () => {
+      const { settings, content } = await setUpModal();
+
+      const control = getItemTagsControl(content, unlabeledGuid);
+      control.click();
+
+      const call = createTagsDropdownPortalMock.mock.calls[0][0] as {
+        onTagAssignmentChange: (tag: Tag, checked: boolean) => void;
+      };
+      call.onTagAssignmentChange({ name: "inoreader", color: "#8b5cf6" }, true);
+
+      // The chip re-renders immediately from the same candidate object.
+      const chips = Array.from(
+        getItemTagsControl(content, unlabeledGuid).querySelectorAll(
+          ".rss-dashboard-tag-badge",
+        ),
+      ).map((el) => el.textContent);
+      expect(chips).toEqual(["inoreader"]);
+
+      const importButton = content.querySelector<HTMLButtonElement>(
+        ".rss-dashboard-modal-buttons .rss-dashboard-primary-button",
+      )!;
+      importButton.click();
+      await flushPromises();
+
+      const importedItem = settings.feeds[0].items.find(
+        (item) => item.guid === unlabeledGuid,
+      );
+      expect(importedItem?.tags?.map((t) => t.name)).toEqual(["inoreader"]);
+    });
+
+    it("removing a tag through the portal removes it from the underlying candidate article", async () => {
+      const { content } = await setUpModal();
+
+      const control = getItemTagsControl(content, labeledGuid);
+      control.click();
+
+      const call = createTagsDropdownPortalMock.mock.calls[0][0] as {
+        onTagAssignmentChange: (tag: Tag, checked: boolean) => void;
+      };
+      call.onTagAssignmentChange({ name: "Design", color: "#111111" }, false);
+
+      const chips = Array.from(
+        getItemTagsControl(content, labeledGuid).querySelectorAll(
+          ".rss-dashboard-tag-badge",
+        ),
+      ).map((el) => el.textContent);
+      expect(chips).toEqual(["art"]);
+    });
+
+    it("a tag created on the fly through the chip's portal appears in the 'New tags (N)' confirmation section, with exactly one confirmation path", async () => {
+      const { content } = await setUpModal();
+
+      // No labels in this fixture require confirmation before this test's
+      // ad hoc creation, so the section starts absent.
+      const labeledControl = getItemTagsControl(content, labeledGuid);
+      labeledControl.click();
+      const firstCall = createTagsDropdownPortalMock.mock.calls[0][0] as {
+        onTagAssignmentChange: (tag: Tag, checked: boolean) => void;
+      };
+      // Remove the bulk-imported labels first so only the ad hoc tag is in play.
+      firstCall.onTagAssignmentChange({ name: "Design", color: "#111111" }, false);
+      firstCall.onTagAssignmentChange({ name: "art", color: "#222222" }, false);
+      expect(getNewTagsSection(content)).toBeNull();
+
+      const unlabeledControl = getItemTagsControl(content, unlabeledGuid);
+      unlabeledControl.click();
+      const secondCall = createTagsDropdownPortalMock.mock.calls[
+        createTagsDropdownPortalMock.mock.calls.length - 1
+      ][0] as {
+        onTagAssignmentChange: (tag: Tag, checked: boolean) => void;
+      };
+      secondCall.onTagAssignmentChange(
+        { name: "googleAPI", color: "#00ff00" },
+        true,
+      );
+
+      const section = getNewTagsSection(content);
+      expect(section).not.toBeNull();
+      expect(section?.textContent).toContain("New tags (1)");
+      expect(section?.textContent).toContain("googleAPI");
+    });
   });
 });

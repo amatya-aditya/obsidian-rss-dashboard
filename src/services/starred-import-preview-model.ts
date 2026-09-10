@@ -1,5 +1,6 @@
 import type { StarredImportCandidate } from "./starred-import-mapper";
 import { isValidFolderName, type ValidationResult } from "../utils/validation";
+import type { FeedItem } from "../types/types";
 
 export type StarredImportGroupSelectionState = {
   checked: boolean;
@@ -181,6 +182,18 @@ export class StarredImportPreviewModel {
     for (const state of this.candidateByGuid.values()) {
       state.selected = false;
     }
+  }
+
+  /**
+   * The live `FeedItem` reference backing a candidate row (234-12) — not a
+   * copy of it, unlike `snapshotItem`/`getGroups`. The per-article tag chip
+   * mutates the object returned here directly, so an edit made in the
+   * preview (add/remove/create a tag) is already present on the same object
+   * `performImport` later reads from `getSelectedCandidates`, with no
+   * separate sync step required.
+   */
+  getCandidateItem(guid: string): FeedItem | undefined {
+    return this.candidateByGuid.get(guid)?.candidate.item;
   }
 
   getSelectedCandidates(): StarredImportCandidate[] {

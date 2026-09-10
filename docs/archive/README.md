@@ -57,6 +57,7 @@ records the documentation classification.
 | [Manual full-content fetch in the reader](plans/unreleased/234-09-manual-full-content-fetch-in-reader.md) | 2026-09-10 | [GH Issue #234](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/234) | - |
 | [Remove the import-time full-content-fetch toggle](plans/unreleased/234-10-remove-import-time-full-content-toggle.md) | 2026-09-10 | [GH Issue #234](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/234) | - |
 | [Tag-import toggle and unified confirmation](plans/unreleased/234-11-tag-import-toggle-and-confirmation.md) | 2026-09-10 | [GH Issue #234](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/234) | - |
+| [Per-article tag chip, replaces Read/Unread](plans/unreleased/234-12-per-article-tag-chip.md) | 2026-09-10 | [GH Issue #234](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/234) | - |
 
 ## Unshipped plans
 

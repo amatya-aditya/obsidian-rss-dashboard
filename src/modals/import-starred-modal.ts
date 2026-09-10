@@ -13,6 +13,8 @@ import { isValidFolderName } from "../utils/validation";
 import { applyStarredImportCandidateToFeed } from "../services/starred-import-merge";
 import { shouldUseMobileSidebarLayout } from "../utils/platform-utils";
 import { ImporterShell } from "./importer-shell";
+import { renderSingleRowCardTagChips } from "../components/article-list/utils/tag-layout-utils";
+import { createTagsDropdownPortal } from "../utils/tags-dropdown-portal";
 
 /**
  * Import Starred Articles Modal.
@@ -87,6 +89,8 @@ export class ImportStarredModal extends Modal {
   >;
 
   private previewContainer!: HTMLDivElement;
+  private itemTagsDropdownCleanup: (() => void) | null = null;
+  private itemTagsDropdownAnchor: HTMLElement | null = null;
 
   constructor(
     app: App,
@@ -483,6 +487,21 @@ export class ImportStarredModal extends Modal {
     }
   }
 
+  /**
+   * Re-renders only the "New tags (N)" section in place, without tearing
+   * down the whole preview list (`renderPreview` would remove the anchor
+   * element the per-article tag portal is currently positioned against).
+   * Called after every tag change made through a row's tag chip (234-12) so
+   * a tag added/created via that control is reflected immediately, while
+   * the portal itself stays open for further edits.
+   */
+  private refreshNewTagsSection(): void {
+    this.previewContainer
+      .querySelectorAll(".import-new-tags-section")
+      .forEach((el) => el.remove());
+    this.renderNewTagsSection(this.previewContainer);
+  }
+
   private renderGroup(
     listEl: HTMLElement,
     group: StarredImportPreviewGroupSnapshot,
@@ -657,6 +676,8 @@ export class ImportStarredModal extends Modal {
     const model = this.previewModel;
     if (!model) return;
 
+    const candidateItem = model.getCandidateItem(item.guid);
+
     const row = listEl.createDiv({
       cls: "import-preview-row import-preview-row--feed import-preview-row--indented",
     });
@@ -682,10 +703,132 @@ export class ImportStarredModal extends Modal {
       text: item.title || item.link,
     });
 
-    const meta = row.createDiv({ cls: "import-preview-meta" });
-    meta.textContent = item.read ? "Read" : "Unread";
+    if (candidateItem) {
+      this.renderItemTagsControl(row, candidateItem);
+    } else {
+      row.createDiv({ cls: "import-preview-meta" });
+    }
 
     row.createDiv({ cls: "import-preview-toggle-spacer" });
+  }
+
+  /**
+   * Per-article tag chip (234-12), replacing the old meaningless
+   * "Read"/"Unread" text that used to occupy this column. Reuses the exact
+   * chip renderer already used on dashboard cards
+   * (`renderSingleRowCardTagChips`: one or more visible chips plus a "+N"
+   * overflow chip) so an article's assigned tags are visible at a glance
+   * before import. Clicking the control opens the same tag-editing portal
+   * used from the article list and reader view, wired directly against
+   * `candidateItem` — the live `FeedItem` backing this row, not a copy — so
+   * any edit made here already lives on the object `performImport` reads
+   * from later.
+   */
+  private renderItemTagsControl(row: HTMLElement, candidateItem: FeedItem): void {
+    const control = row.createDiv({
+      cls: "import-preview-meta import-preview-tags-control rss-dashboard-tag-container",
+      attr: {
+        role: "button",
+        tabindex: "0",
+        "aria-label": "Manage tags",
+        title: "Manage tags",
+      },
+    });
+
+    this.renderItemTagsChips(control, candidateItem);
+
+    const openPortal = (e: Event) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this.showItemTagsDropdown(control, candidateItem);
+    };
+    control.addEventListener("click", openPortal);
+    control.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        openPortal(e);
+      }
+    });
+  }
+
+  private renderItemTagsChips(control: HTMLElement, candidateItem: FeedItem): void {
+    control.empty();
+    const tags = candidateItem.tags ?? [];
+    if (tags.length === 0) {
+      const placeholder = control.createDiv({
+        cls: "import-preview-tags-placeholder",
+        attr: { "aria-hidden": "true" },
+      });
+      setIcon(placeholder, "tag");
+      return;
+    }
+    renderSingleRowCardTagChips(control, tags);
+  }
+
+  /**
+   * Opens `createTagsDropdownPortal` against `candidateItem` (the live
+   * candidate object, not a snapshot). Adding, removing, or creating a tag
+   * mutates `candidateItem.tags` in place via `onTagAssignmentChange`, then
+   * refreshes this row's chips and the "New tags (N)" confirmation section
+   * (234-11) so an ad hoc tag surfaces there immediately — the only
+   * palette-confirmation path this work introduces or reuses.
+   *
+   * The palette shown inside the portal is `settings.availableTags` plus
+   * every tag `computeNewTags` currently considers pending (i.e. already
+   * assigned to some selected candidate but not yet in the real palette).
+   * This lets the user reuse an ad hoc tag created from a different row's
+   * portal without recreating it, while keeping the actual mutation of
+   * `settings.availableTags` itself confined to `performImport`'s existing
+   * `ensureAvailableTagsForSelection` step — the portal never pushes
+   * directly into the real palette array here.
+   */
+  private showItemTagsDropdown(anchor: HTMLElement, candidateItem: FeedItem): void {
+    const model = this.previewModel;
+    if (!model) return;
+
+    const isSameAnchor = this.itemTagsDropdownAnchor === anchor;
+    if (this.itemTagsDropdownCleanup) {
+      this.itemTagsDropdownCleanup();
+      this.itemTagsDropdownCleanup = null;
+      if (isSameAnchor) {
+        this.itemTagsDropdownAnchor = null;
+        return;
+      }
+    }
+    this.itemTagsDropdownAnchor = anchor;
+
+    const pendingTags = this.computeNewTags(model);
+    const portalSettings: typeof this.plugin.settings = {
+      ...this.plugin.settings,
+      availableTags: [...this.plugin.settings.availableTags, ...pendingTags],
+    };
+
+    const cleanup = createTagsDropdownPortal({
+      anchor,
+      settings: portalSettings,
+      item: candidateItem,
+      onTagAssignmentChange: (tag, checked) => {
+        if (!candidateItem.tags) candidateItem.tags = [];
+        if (checked) {
+          if (!candidateItem.tags.some((t) => t.name === tag.name)) {
+            candidateItem.tags.push({ ...tag });
+          }
+        } else {
+          candidateItem.tags = candidateItem.tags.filter(
+            (t) => t.name !== tag.name,
+          );
+        }
+        this.renderItemTagsChips(anchor, candidateItem);
+        this.refreshNewTagsSection();
+      },
+      appContainer: this.previewContainer,
+      onClosed: () => {
+        if (this.itemTagsDropdownCleanup === cleanup) {
+          this.itemTagsDropdownCleanup = null;
+          this.itemTagsDropdownAnchor = null;
+        }
+      },
+    });
+    this.itemTagsDropdownCleanup = cleanup;
   }
 
   private getImportActionState(model: StarredImportPreviewModel | null): {
@@ -900,6 +1043,9 @@ export class ImportStarredModal extends Modal {
   }
 
   onClose() {
+    this.itemTagsDropdownCleanup?.();
+    this.itemTagsDropdownCleanup = null;
+    this.itemTagsDropdownAnchor = null;
     this.contentEl.empty();
   }
 }

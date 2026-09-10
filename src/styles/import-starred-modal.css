@@ -179,6 +179,40 @@
   color: var(--text-normal);
 }
 
+/* Per-article tag chip (234-12), replacing the old "Read"/"Unread" text in
+ * this same grid column. Reuses `.rss-dashboard-tag-container` (the
+ * dashboard card's chip strip) but overrides its wrapping/margin rules with
+ * a scoped, higher-specificity selector so the single-row chip renderer's
+ * own overflow ("+N") behavior — not CSS wrapping — decides what's visible
+ * in this row's fixed-width column. */
+.import-preview-tags-control.rss-dashboard-tag-container {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  margin: 0;
+  max-width: 220px;
+  overflow: hidden;
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 2px 4px;
+}
+
+.import-preview-tags-control.rss-dashboard-tag-container:hover,
+.import-preview-tags-control.rss-dashboard-tag-container:focus-visible {
+  background: var(--background-modifier-hover);
+}
+
+.import-preview-tags-placeholder {
+  display: flex;
+  align-items: center;
+  color: var(--text-faint);
+}
+
+.rss-dashboard-modal .import-preview-tags-placeholder svg {
+  width: 14px;
+  height: 14px;
+}
+
 .rss-import-starred-modal .rss-dashboard-modal-content {
   width: 90vw;
   height: 85vh;
