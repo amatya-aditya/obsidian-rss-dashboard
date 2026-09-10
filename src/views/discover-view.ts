@@ -26,6 +26,10 @@ import {
   computePagination,
   computeResultsRange,
 } from "../utils/pagination-utils";
+import {
+  loadVaultLocalStorage,
+  saveVaultLocalStorage,
+} from "../utils/vault-local-storage";
 
 import feedsData from "../discover/discover-feeds.json";
 
@@ -105,7 +109,8 @@ export class DiscoverView extends ItemView {
 
       this.categoryMap = this.generateCategoryMap(this.feeds);
 
-      const savedState = this.app.loadLocalStorage(
+      const savedState = loadVaultLocalStorage(
+        this.app,
         "rss-discover-filters",
       ) as Partial<DiscoverFilters> | null;
       if (savedState) {
@@ -351,7 +356,7 @@ export class DiscoverView extends ItemView {
   }
 
   private saveFilterState(): void {
-    this.app.saveLocalStorage("rss-discover-filters", this.filters);
+    saveVaultLocalStorage(this.app, "rss-discover-filters", this.filters);
   }
 
   private shouldUseMobileSidebarMode(viewportWidth?: number): boolean {
@@ -633,7 +638,7 @@ export class DiscoverView extends ItemView {
       cls: "rss-dashboard-sidebar-toggle clickable-icon",
       attr: { title: "Toggle filters" },
     });
-    setIcon(sidebarToggleButton, "panel-left-open");
+    setIcon(sidebarToggleButton, "sidebar");
     sidebarToggleButton.addEventListener("click", () => {
       this.openMobileSidebar();
     });
@@ -1259,7 +1264,7 @@ export class DiscoverView extends ItemView {
     const sortIcon = sortContainer.createDiv({
       cls: "rss-discover-dropdown-icon",
     });
-    setIcon(sortIcon, "arrow-up-down");
+    setIcon(sortIcon, "sort-asc");
 
     const sortDropdown = sortContainer.createEl("select");
     sortDropdown.addClass("rss-discover-sort-dropdown");
