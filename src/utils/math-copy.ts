@@ -123,7 +123,7 @@ function replaceFormulaMarkup(fragment: DocumentFragment): void {
 }
 
 function appendLineBreak(parts: string[]): void {
-  if (parts.length === 0 || !parts[parts.length - 1].endsWith("\n")) {
+  if (parts.length === 0 || !(parts[parts.length - 1] ?? "").endsWith("\n")) {
     parts.push("\n");
   }
 }

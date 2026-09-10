@@ -102,7 +102,8 @@ abstract class LegacyInputSuggest<T> {
 
     if (event.key === "Enter" && this.selectedIndex >= 0) {
       event.preventDefault();
-      this.selectSuggestion(this.suggestions[this.selectedIndex], event);
+      const suggestion = this.suggestions[this.selectedIndex];
+      if (suggestion) this.selectSuggestion(suggestion, event);
       return;
     }
 

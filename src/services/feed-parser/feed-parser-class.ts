@@ -217,7 +217,7 @@ export class FeedParser {
 
               const urlMatch = trimmedPart.match(/^([^\s]+)(\s+\d+w)?$/);
               if (urlMatch) {
-                const url = urlMatch[1];
+                const url = urlMatch[1] ?? "";
                 const sizeDescriptor = urlMatch[2] || "";
 
                 const decodedUrl = this.parser.decodeHtmlEntities(url);

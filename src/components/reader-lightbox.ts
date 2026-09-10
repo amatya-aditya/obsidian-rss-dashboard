@@ -333,14 +333,16 @@ export class ReaderLightbox {
     // Touch events for mobile
     const onTouchStart = (e: TouchEvent): void => {
       if (e.touches.length === 1) {
-        this.touchStartX = e.touches[0].clientX;
-        this.touchStartY = e.touches[0].clientY;
+        const touch = e.touches[0];
+        if (!touch) return;
+        this.touchStartX = touch.clientX;
+        this.touchStartY = touch.clientY;
         this.isSwipingToDismiss = this.scale === 1;
 
         if (this.scale > 1) {
           this.isDragging = true;
-          this.dragStartX = e.touches[0].clientX;
-          this.dragStartY = e.touches[0].clientY;
+          this.dragStartX = touch.clientX;
+          this.dragStartY = touch.clientY;
           this.dragInitialPanX = this.panX;
           this.dragInitialPanY = this.panY;
           this.stageEl?.addClass("is-panning");
@@ -355,14 +357,16 @@ export class ReaderLightbox {
 
     const onTouchMove = (e: TouchEvent): void => {
       if (e.touches.length === 1) {
+        const touch = e.touches[0];
+        if (!touch) return;
         if (this.isDragging && this.scale > 1) {
-          const deltaX = e.touches[0].clientX - this.dragStartX;
-          const deltaY = e.touches[0].clientY - this.dragStartY;
+          const deltaX = touch.clientX - this.dragStartX;
+          const deltaY = touch.clientY - this.dragStartY;
           this.panX = this.dragInitialPanX + deltaX;
           this.panY = this.dragInitialPanY + deltaY;
           this.updateTransform();
         } else if (this.isSwipingToDismiss && this.scale === 1) {
-          const deltaY = e.touches[0].clientY - this.touchStartY;
+          const deltaY = touch.clientY - this.touchStartY;
           if (deltaY > 0) {
             this.panY = deltaY * 0.7;
             this.updateTransform();
@@ -449,8 +453,11 @@ export class ReaderLightbox {
 
   private getTouchDistance(touches: TouchList): number {
     if (touches.length < 2) return 0;
-    const dx = touches[0].clientX - touches[1].clientX;
-    const dy = touches[0].clientY - touches[1].clientY;
+    const firstTouch = touches[0];
+    const secondTouch = touches[1];
+    if (!firstTouch || !secondTouch) return 0;
+    const dx = firstTouch.clientX - secondTouch.clientX;
+    const dy = firstTouch.clientY - secondTouch.clientY;
     return Math.sqrt(dx * dx + dy * dy);
   }
 }

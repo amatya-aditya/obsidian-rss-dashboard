@@ -36,7 +36,7 @@ export class SidebarSearchService {
       };
     }
 
-    const prefix = match[1].toLowerCase();
+    const prefix = match[1]?.toLowerCase() ?? "";
     const scope = SCOPE_PREFIXES[prefix];
     if (!scope) {
       return {

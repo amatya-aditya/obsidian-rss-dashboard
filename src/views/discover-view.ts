@@ -138,16 +138,23 @@ export class DiscoverView extends ItemView {
         if (!categoryMap.categories[domain]) {
           categoryMap.categories[domain] = {};
         }
+        const domainCategories = categoryMap.categories[domain];
+        if (!domainCategories) {
+          return;
+        }
 
         feed.subdomain.forEach((subdomain) => {
-          if (!categoryMap.categories[domain][subdomain]) {
-            categoryMap.categories[domain][subdomain] = {};
+          if (!domainCategories[subdomain]) {
+            domainCategories[subdomain] = {};
           }
 
           feed.area.forEach((area) => {
-            const subdomainObj = categoryMap.categories[domain][
-              subdomain
-            ] as Record<string, unknown>;
+            const subdomainObj = domainCategories[subdomain] as
+              | Record<string, unknown>
+              | undefined;
+            if (!subdomainObj) {
+              return;
+            }
             if (!subdomainObj[area]) {
               subdomainObj[area] = [];
             }
@@ -1421,12 +1428,14 @@ export class DiscoverView extends ItemView {
 
   private getInitials(title: string): string {
     const words = title.split(" ");
+    const firstWord = words[0] ?? "";
+    const secondWord = words[1] ?? "";
     if (words.length > 1) {
-      return (words[0][0] + words[1][0]).toUpperCase();
-    } else if (words.length === 1 && words[0].length > 1) {
-      return (words[0][0] + words[0][1]).toUpperCase();
-    } else if (words.length === 1 && words[0].length === 1) {
-      return words[0][0].toUpperCase();
+      return `${firstWord[0] ?? ""}${secondWord[0] ?? ""}`.toUpperCase();
+    } else if (words.length === 1 && firstWord.length > 1) {
+      return `${firstWord[0] ?? ""}${firstWord[1] ?? ""}`.toUpperCase();
+    } else if (words.length === 1 && firstWord.length === 1) {
+      return (firstWord[0] ?? "").toUpperCase();
     }
     return "NA";
   }
@@ -1749,7 +1758,11 @@ export class DiscoverView extends ItemView {
       );
 
       if (feedIndex >= 0) {
-        const feedTitle = this.plugin.settings.feeds[feedIndex].title;
+        const feed = this.plugin.settings.feeds[feedIndex];
+        if (!feed) {
+          return;
+        }
+        const feedTitle = feed.title;
         this.plugin.settings.feeds.splice(feedIndex, 1);
         await this.plugin.saveSettings();
 

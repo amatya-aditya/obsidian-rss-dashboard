@@ -27,7 +27,7 @@ export function extractFirstImageSrc(html: string): string | null {
     const srcMatch = imageTag.match(/\bsrc=["']([^"']+)["']/i);
     if (!srcMatch) continue;
 
-    const src = srcMatch[1].trim();
+    const src = srcMatch[1]?.trim() ?? "";
     const className = imageTag.match(/\bclass=["']([^"']*)["']/i)?.[1];
 
     // Reject literal placeholder values that some feeds (e.g. NPR CDATA) emit.

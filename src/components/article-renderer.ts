@@ -744,9 +744,12 @@ export class ArticleRenderer {
         return this.getNormalizedBlockText(block) === normalizedDescription;
       });
       if (duplicateIndex !== -1) {
-        blocks[duplicateIndex].remove();
+        const duplicateBlock = blocks[duplicateIndex];
+        if (!duplicateBlock) return;
+        duplicateBlock.remove();
         for (let index = duplicateIndex - 1; index >= 0; index--) {
           const block = blocks[index];
+          if (!block) continue;
           if (this.isShortLeadInBlock(block) || this.isLeadMediaBlock(block)) {
             block.remove();
             continue;
@@ -783,6 +786,7 @@ export class ArticleRenderer {
 
     for (let index = 0; index < firstSubstantialIndex; index++) {
       const block = blocks[index];
+      if (!block) continue;
       if (this.isLeadMediaBlock(block)) {
         block.remove();
       }
@@ -979,9 +983,10 @@ export class ArticleRenderer {
       if (totalText.length > 140) return false;
       let linkish = 0;
       for (const li of liEls) {
+        const onlyChild = li.children[0];
         if (
           li.children.length === 1 &&
-          li.children[0].tagName.toLowerCase() === "a"
+          onlyChild?.tagName.toLowerCase() === "a"
         )
           linkish++;
       }

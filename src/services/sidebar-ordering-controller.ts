@@ -120,7 +120,9 @@ export function moveFeedsToFolderAppend(
   const withoutDragged = settings.feeds.filter((f) => !draggedUrlSet.has(f.url));
   let lastIndexInDestination = -1;
   for (let i = 0; i < withoutDragged.length; i++) {
-    const folderPath = normalizeFolderPath(withoutDragged[i].folder);
+    const feed = withoutDragged[i];
+    if (!feed) continue;
+    const folderPath = normalizeFolderPath(feed.folder);
     if (folderPath === destinationFolderPath) lastIndexInDestination = i;
   }
 
@@ -193,6 +195,7 @@ function findFolderLocation(
     const idx = currentArray.findIndex((f) => f.name === name);
     if (idx === -1) return null;
     const folder = currentArray[idx];
+    if (!folder) return null;
 
     if (depth === parts.length - 1) {
       return {

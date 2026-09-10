@@ -217,8 +217,9 @@ export function renderArticleSavingSettingsTab(
             .setButtonText("Update")
             .setTooltip("Update this template with current editor content")
             .onClick(async () => {
-              plugin.settings.articleSaving.savedTemplates![index].template =
-                plugin.settings.articleSaving.defaultTemplate;
+              const templateToUpdate = plugin.settings.articleSaving.savedTemplates?.[index];
+              if (!templateToUpdate) return;
+              templateToUpdate.template = plugin.settings.articleSaving.defaultTemplate;
               await plugin.saveSettings();
               new Notice(`Template "${template.name}" updated`);
             }),

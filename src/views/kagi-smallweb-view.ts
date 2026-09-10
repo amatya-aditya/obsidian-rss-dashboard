@@ -660,7 +660,7 @@ export class KagiSmallwebView extends ItemView {
       hash = hash & hash;
     }
 
-    return colors[Math.abs(hash) % colors.length];
+    return colors[Math.abs(hash) % colors.length] ?? "hsl(0, 0%, 80%)";
   }
 
   private getSmallwebTagColor(tag: string): string {

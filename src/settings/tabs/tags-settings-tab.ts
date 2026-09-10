@@ -137,6 +137,7 @@ export function renderTagsSettingsTab(
 
   for (let i = 0; i < plugin.settings.availableTags.length; i++) {
     const tag = plugin.settings.availableTags[i];
+    if (!tag) continue;
 
     new Setting(tagsContainer)
       .setName(tag.name)

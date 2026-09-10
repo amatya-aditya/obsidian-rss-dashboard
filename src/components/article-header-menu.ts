@@ -423,7 +423,7 @@ export class ArticleHeaderMenu {
     const entries: MenuOptionEntries = Array.isArray(options)
       ? options
       : Object.keys(options).map(
-          (label): [string, string] => [label, options[label]],
+          (label): [string, string] => [label, options[label] ?? label],
         );
 
     entries.forEach(([label, value]) => {

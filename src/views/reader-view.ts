@@ -260,7 +260,7 @@ export class ReaderView extends ItemView {
       steps.length - 1,
       (currentIndex >= 0 ? currentIndex : 2) + 1,
     );
-    format.fontScalePct = steps[nextIndex];
+    format.fontScalePct = steps[nextIndex] ?? 100;
     this.applyReaderFormat();
     void this.flushReaderFormatSave();
   }
@@ -274,7 +274,7 @@ export class ReaderView extends ItemView {
     const format = this.getReaderFormat();
     const currentIndex = steps.indexOf(format.fontScalePct);
     const nextIndex = Math.max(0, (currentIndex >= 0 ? currentIndex : 2) - 1);
-    format.fontScalePct = steps[nextIndex];
+    format.fontScalePct = steps[nextIndex] ?? 100;
     this.applyReaderFormat();
     void this.flushReaderFormatSave();
   }
@@ -2422,6 +2422,7 @@ export class ReaderView extends ItemView {
         const kids = Array.from(li.children) as HTMLElement[];
         if (kids.length !== 1) continue;
         const only = kids[0];
+        if (!only) continue;
         if (only.tagName.toLowerCase() !== "a") continue;
         const t = (only.textContent || "").replace(/\s+/g, " ").trim();
         if (t.length < 1 || t.length > 40) continue;
@@ -2572,9 +2573,12 @@ export class ReaderView extends ItemView {
         return this.getNormalizedBlockText(block) === normalizedDescription;
       });
       if (duplicateIndex !== -1) {
-        blocks[duplicateIndex].remove();
+        const duplicateBlock = blocks[duplicateIndex];
+        if (!duplicateBlock) return;
+        duplicateBlock.remove();
         for (let index = duplicateIndex - 1; index >= 0; index--) {
           const block = blocks[index];
+          if (!block) continue;
           if (this.isShortLeadInBlock(block) || this.isLeadMediaBlock(block)) {
             block.remove();
             continue;
@@ -2611,6 +2615,7 @@ export class ReaderView extends ItemView {
 
     for (let index = 0; index < firstSubstantialIndex; index++) {
       const block = blocks[index];
+      if (!block) continue;
       if (this.isLeadMediaBlock(block)) {
         block.remove();
       }
