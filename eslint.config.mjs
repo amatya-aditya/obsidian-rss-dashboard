@@ -12,7 +12,6 @@ export default defineConfig([
       "main.js",
       "*.mjs",
       "scripts/**/*.js",
-      "scripts/**/*.mjs",
       ".kilo/**",
       ".tmp-*",
     ],
@@ -26,13 +25,19 @@ export default defineConfig([
     },
   },
   {
-    files: ["scripts/check-platform-compat.mjs", "scripts/check-css-important.mjs"],
+    // These scripts run only in Node during repository maintenance and are
+    // never bundled into the mobile plugin runtime.
+    files: ["scripts/**/*.mjs"],
     languageOptions: {
       globals: {
         ...globals.node,
         console: "readonly",
         process: "readonly",
       },
+    },
+    rules: {
+      "obsidianmd/no-nodejs-modules": "off",
+      "obsidianmd/rule-custom-message": "off",
     },
   },
   {
