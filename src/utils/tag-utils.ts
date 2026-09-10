@@ -32,6 +32,9 @@ function ensureCanonicalTag(
 
   if (existingIndex >= 0) {
     const existingTag = nextTags[existingIndex];
+    if (!existingTag) {
+      return { changed: false, tags: nextTags };
+    }
     const nextTag: Tag = {
       ...existingTag,
       name: definition.name,

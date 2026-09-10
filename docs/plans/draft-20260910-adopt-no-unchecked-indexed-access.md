@@ -1,5 +1,5 @@
 ---
-status: idea
+status: in-progress
 created: 2026-09-10
 issue: ""
 milestone: ""
