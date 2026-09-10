@@ -27,6 +27,10 @@ import {
 } from "../utils/platform-utils";
 import { SidebarSearchService } from "../services/sidebar-search-service";
 import { isValidFolderName } from "../utils/validation";
+import {
+  loadVaultLocalStorage,
+  saveVaultLocalStorage,
+} from "../utils/vault-local-storage";
 import type RssDashboardPlugin from "../../main";
 import { applyFeedSortOrder } from "../utils/sidebar-sort-utils";
 import { applyFolderSortOrder } from "../utils/sidebar-folder-sort-utils";
@@ -3240,9 +3244,13 @@ export class Sidebar {
           const action = () => {
             this.showAddFeedModal();
             if (
-              !this.app.loadLocalStorage("rss-first-launch-coachmark-shown")
+              !loadVaultLocalStorage(
+                this.app,
+                "rss-first-launch-coachmark-shown",
+              )
             ) {
-              this.app.saveLocalStorage(
+              saveVaultLocalStorage(
+                this.app,
                 "rss-first-launch-coachmark-shown",
                 "true",
               );
@@ -3371,15 +3379,21 @@ export class Sidebar {
     const addFeedBtn = this.iconBtnEls.get("addFeed");
     if (
       addFeedBtn &&
-      !this.app.loadLocalStorage("rss-first-launch-coachmark-shown")
+      !loadVaultLocalStorage(this.app, "rss-first-launch-coachmark-shown")
     ) {
       const coachmark = addFeedBtn.createDiv({
         cls: "rss-dashboard-coachmark",
         text: "Add your first feed here",
       });
       window.setTimeout(() => {
-        if (!this.app.loadLocalStorage("rss-first-launch-coachmark-shown")) {
-          this.app.saveLocalStorage("rss-first-launch-coachmark-shown", "true");
+        if (
+          !loadVaultLocalStorage(this.app, "rss-first-launch-coachmark-shown")
+        ) {
+          saveVaultLocalStorage(
+            this.app,
+            "rss-first-launch-coachmark-shown",
+            "true",
+          );
           if (coachmark.parentNode) coachmark.remove();
         }
       }, 5000);

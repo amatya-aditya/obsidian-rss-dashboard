@@ -170,10 +170,7 @@ export class ArticleHeader {
       cls: "rss-dashboard-sidebar-toggle clickable-icon",
       attr: { title: "Toggle sidebar", role: "button", tabindex: "0" },
     });
-    setIcon(
-      sidebarToggle,
-      this.settings.sidebarCollapsed ? "panel-left-open" : "panel-left-close",
-    );
+    setIcon(sidebarToggle, "sidebar");
     sidebarToggle.addEventListener("click", () =>
       this.callbacks.onToggleSidebar(),
     );
@@ -305,7 +302,7 @@ export class ArticleHeader {
 
     this.createThemedSelector(
       controls,
-      "arrow-up-down",
+      "sort-asc",
       "Sort:",
       { Newest: "newest", Oldest: "oldest" },
       () => this.settings.articleSort,

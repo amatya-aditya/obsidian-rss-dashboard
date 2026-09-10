@@ -85,6 +85,33 @@ describe("FolderSuggest", () => {
     expect(getSuggestions(suggest, "does-not-exist")).toEqual([]);
   });
 
+  it("renders matching suggestions without the newer Obsidian suggester API", () => {
+    const inputEl = document.body.appendChild(createEl("input"));
+    new FolderSuggest(obsidian.App.createMock(), inputEl, createFolders());
+
+    inputEl.value = "alph";
+    inputEl.dispatchEvent(new Event("input", { bubbles: true }));
+
+    const suggestEl = inputEl.nextElementSibling as HTMLElement;
+    const options = suggestEl.querySelectorAll("[role=option]");
+    expect(options).toHaveLength(2);
+    expect(options[0].textContent).toBe("Add new folder...");
+    expect(options[1].textContent).toBe("Alpha");
+  });
+
+  it("anchors its dropdown to the input container", () => {
+    const container = document.body.appendChild(createDiv());
+    const inputEl = container.createEl("input");
+    new FolderSuggest(obsidian.App.createMock(), inputEl, createFolders());
+
+    expect(container.style.position).toBe("relative");
+    expect(
+      inputEl.nextElementSibling?.classList.contains(
+        "rss-dashboard-folder-suggestion-container",
+      ),
+    ).toBe(true);
+  });
+
   it("selecting a real folder updates the input and dispatches input/change", () => {
     const inputEl = document.body.appendChild(createEl("input"));
     const suggest = new FolderSuggest(

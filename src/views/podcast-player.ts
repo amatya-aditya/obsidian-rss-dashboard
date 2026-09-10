@@ -4,6 +4,10 @@ import { PodcastEpisodeList } from "../components/podcast-episode-list";
 import { MediaService } from "../services/media-service";
 import { sanitizeAndAppendHtml } from "../utils/safe-html";
 import { windowInstanceOf } from "../utils/platform-utils";
+import {
+  loadVaultLocalStorage,
+  saveVaultLocalStorage,
+} from "../utils/vault-local-storage";
 
 export class PodcastPlayer {
   private container: HTMLElement;
@@ -1199,7 +1203,7 @@ export class PodcastPlayer {
       this.progressData.forEach((value, key) => {
         data[key] = value;
       });
-      this.app.saveLocalStorage("rss-podcast-progress", data);
+      saveVaultLocalStorage(this.app, "rss-podcast-progress", data);
     } catch (error) {
       console.error("Failed to save podcast progress:", error);
     }
@@ -1212,7 +1216,7 @@ export class PodcastPlayer {
     }
 
     try {
-      const data: unknown = this.app.loadLocalStorage("rss-podcast-progress");
+      const data = loadVaultLocalStorage(this.app, "rss-podcast-progress");
       if (data && typeof data === "object") {
         const parsed = data as Record<
           string,

@@ -64,6 +64,8 @@
   left: 50%;
   transform: translate(-50%, -50%);
   background: var(--background-primary, #fff);
+  border: 1px solid
+    var(--background-modifier-border-hover, var(--background-modifier-border));
   border-radius: 12px;
   z-index: var(--z-index-modal);
   max-width: 700px;
@@ -89,7 +91,8 @@
   transform: translate(-50%, -50%);
   z-index: var(--z-index-modal);
   margin: 0;
-  border: 1px solid var(--background-modifier-border-hover);
+  border: 1px solid
+    var(--background-modifier-border-hover, var(--background-modifier-border));
 }
 
 /* Close button positioning for modal container */
@@ -418,6 +421,17 @@ body .modal.rss-dashboard-template-dialog {
 
 /* Suggestion container */
 .rss-dashboard-folder-suggestion-container {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  left: 0;
+  max-height: min(16rem, 40vh);
+  overflow-y: auto;
+  padding: 4px;
+  background: var(--background-primary, #fff);
+  border: 1px solid var(--background-modifier-border, #ccc);
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
   z-index: var(--z-index-folder-suggestion-container);
 }
 
@@ -438,7 +452,8 @@ body .modal.rss-dashboard-template-dialog {
     color 0.15s;
 }
 .edit-feed-folder-option:hover,
-.edit-feed-folder-option:focus {
+.edit-feed-folder-option:focus,
+.edit-feed-folder-option.is-selected {
   background: var(--background-modifier-hover, #f0f0f0);
   color: var(--interactive-accent, #3498db);
 }

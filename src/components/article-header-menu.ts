@@ -195,7 +195,7 @@ export class ArticleHeaderMenu {
 
     this.createThemedSelector(
       controls,
-      "arrow-up-down",
+      "sort-asc",
       "Sort:",
       { Newest: "newest", Oldest: "oldest" },
       () => this.settings.articleSort,
