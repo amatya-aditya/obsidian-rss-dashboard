@@ -3,19 +3,20 @@
     "inlineSourceMap": false,
     // "inlineSources": true,
     "module": "ESNext",
-    "target": "ES6",
-    "allowJs": true,
+    "target": "ES2021",
+    "strict": true,
     "noImplicitAny": true,
+    "noFallthroughCasesInSwitch": true,
     "moduleResolution": "bundler",
     "importHelpers": true,
     "isolatedModules": true,
-    "strictNullChecks": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "allowSyntheticDefaultImports": true,
+
     "resolveJsonModule": true,
     "esModuleInterop": true,
-    "lib": ["DOM", "ES2020"],
-    "allowSyntheticDefaultImports": true,
-    "forceConsistentCasingInFileNames": true,
-    "strict": true
+    "lib": ["DOM", "ES2021"]
   },
   "include": ["main.ts", "src/**/*.ts"],
   "exclude": ["test_files/**", "coverage/**", "node_modules/**"]

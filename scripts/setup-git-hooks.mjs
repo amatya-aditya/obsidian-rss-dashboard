@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process";
 
-const proc = globalThis.process;
+const proc = process;
 
 function run(command, args, options = {}) {
   return spawnSync(command, args, {
