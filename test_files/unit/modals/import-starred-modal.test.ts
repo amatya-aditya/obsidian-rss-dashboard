@@ -513,6 +513,39 @@ describe("ImportStarredModal", () => {
     );
   });
 
+  it("shows a folder icon on the new-feed folder control and helper text explaining it, for discoverability", async () => {
+    const app = createMockApp();
+    const settings = cloneSettings();
+    settings.feeds = [
+      makeFeed("https://example-feed.test/rss", "Example Feed"),
+      makeFeed("https://example.com/blog/feed.xml", "Example Blog"),
+    ];
+    const plugin = createTestPlugin(settings);
+    const modal = new ImportStarredModal(
+      app,
+      plugin as unknown as ConstructorParameters<typeof ImportStarredModal>[1],
+    );
+    (modal as unknown as TestModal).open();
+
+    await (modal as unknown as TestModal).handleFileSelection(
+      new File([readFixture()], "starred.json"),
+    );
+
+    const content = (modal as unknown as TestModal).contentEl;
+
+    const folderIcon = content.querySelector<HTMLElement>(
+      ".import-preview-folder-icon",
+    );
+    expect(folderIcon).toBeTruthy();
+    expect(folderIcon?.dataset.icon).toBe("folder");
+
+    const helperText = content.querySelector<HTMLElement>(
+      ".import-preview-helper",
+    );
+    expect(helperText).toBeTruthy();
+    expect(helperText?.textContent).toContain("editable target folder");
+  });
+
   it("does not create a duplicate feed when a new-feed candidate's url already exists locally by the time import executes", async () => {
     const app = createMockApp();
     const settings = cloneSettings();

@@ -13,6 +13,26 @@
   --import-indent: 14px;
 }
 
+/* Helper text (234-08) explaining the new-feed folder-assignment control,
+ * shown above the options/toolbar area whenever the preview contains at
+ * least one new-feed group. */
+.import-preview-helper {
+  margin: 0 0 0.75rem;
+  font-size: var(--font-ui-small);
+  color: var(--text-muted);
+}
+
+/* Leading "folder" icon (234-08) on a new-feed group's folder-edit control,
+ * reusing `ImportOpmlModal`'s folder-row icon sizing so the control reads as
+ * folder assignment rather than a generic rename affordance. */
+.import-preview-folder-icon {
+  flex-shrink: 0;
+}
+
+.rss-dashboard-modal .import-preview-icon.import-preview-folder-icon {
+  --icon-size: 14px;
+}
+
 /* "Options" panel (234-07) — import-time toggles (new-feed metadata
  * refresh; the tag-import toggle from 234-11 joins this same panel later),
  * rendered above the "Preview" section. */

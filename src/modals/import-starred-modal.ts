@@ -246,6 +246,13 @@ export class ImportStarredModal extends Modal {
       });
     }
 
+    if (stats.newFeedGroups > 0) {
+      this.previewContainer.createEl("p", {
+        cls: "import-preview-helper",
+        text: "New feeds are imported into an editable target folder. Use the folder icon on a new feed's row to change it before importing.",
+      });
+    }
+
     const fetchFullContentSetting = new Setting(this.previewContainer)
       .setName("Fetch full article content")
       .setDesc(
@@ -492,6 +499,9 @@ export class ImportStarredModal extends Modal {
    * Editable target-folder control for a new-feed group. Mirrors
    * `ImportOpmlModal`'s inline folder-rename interaction (click pencil,
    * edit inline, commit on Enter/blur, validate via `isValidFolderName`).
+   * Leads with the same "folder" icon `ImportOpmlModal` uses for its folder
+   * rows (234-08) so the control reads as folder assignment rather than a
+   * generic rename affordance.
    */
   private renderNewFeedFolderControl(
     nameWrap: HTMLElement,
@@ -499,6 +509,12 @@ export class ImportStarredModal extends Modal {
   ): void {
     const model = this.previewModel;
     if (!model) return;
+
+    const folderIcon = nameWrap.createDiv({
+      cls: "import-preview-icon import-preview-folder-icon",
+      attr: { "aria-hidden": "true" },
+    });
+    setIcon(folderIcon, "folder");
 
     const folderText = nameWrap.createSpan({
       cls: "import-preview-meta",
