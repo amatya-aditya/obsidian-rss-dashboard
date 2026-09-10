@@ -54,6 +54,7 @@ records the documentation classification.
 | [Opt-in full article content fetch](plans/unreleased/234-06-opt-in-full-content-fetch.md) | 2026-09-10 | [GH Issue #234](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/234) | - |
 | [New-feed metadata refresh toggle](plans/unreleased/234-07-new-feed-metadata-refresh-toggle.md) | 2026-09-10 | [GH Issue #234](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/234) | - |
 | [New-feed folder-assignment discoverability](plans/unreleased/234-08-new-feed-folder-discoverability.md) | 2026-09-10 | [GH Issue #234](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/234) | - |
+| [Manual full-content fetch in the reader](plans/unreleased/234-09-manual-full-content-fetch-in-reader.md) | 2026-09-10 | [GH Issue #234](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/234) | - |
 
 ## Unshipped plans
 

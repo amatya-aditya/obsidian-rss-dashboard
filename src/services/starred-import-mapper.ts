@@ -229,6 +229,12 @@ function toFeedItem(
     feedTitle: feed.title,
     feedUrl: feed.url,
     coverImage: "",
+    // Every imported article starts out as an export-only preview (234-09):
+    // the reader must show the cached-preview banner and skip its automatic
+    // fetch-on-open until the user explicitly requests a fetch, or the
+    // opt-in import-time fetch below (234-06) succeeds and clears this.
+    starredImportContentState: "unfetched",
+    starredImportedAt: Date.now(),
   };
 }
 

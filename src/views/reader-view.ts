@@ -79,6 +79,15 @@ const VIDEO_ARTICLE_BANNER =
 const VIDEO_ARTICLE_LINK_TEXT = "Open video at source";
 const FEED_DESCRIPTION_UNAVAILABLE_TEXT = "No feed description available.";
 
+const STARRED_IMPORT_UNFETCHED_BANNER_TEXT =
+  "This is a cached preview from the starred.json import";
+const STARRED_IMPORT_FAILED_BANNER_TEXT =
+  "The last attempt to fetch the full article failed. Showing the cached preview from the starred.json import";
+const STARRED_IMPORT_FETCH_NOW_TEXT = "Fetch now";
+const STARRED_IMPORT_OPEN_IN_BROWSER_TEXT = "Open in Browser";
+const STARRED_IMPORT_FETCH_FAILED_NOTICE =
+  "Could not fetch full article content.";
+
 export const RSS_READER_VIEW_TYPE = "rss-reader-view";
 
 const RAW_SUBSTACK_FETCH_URL_RE =
@@ -1699,11 +1708,31 @@ export class ReaderView extends ItemView {
   }
 
   private shouldSkipFullArticleFetch(item: FeedItem): boolean {
+    if (this.isStarredImportCachedPreview(item)) {
+      return true;
+    }
+
     if (this.isVideoMediaItem(item)) {
       return true;
     }
 
     return this.prefersFeedContent(item);
+  }
+
+  /**
+   * True for a starred.json-imported article (234-09) that has never had a
+   * full-content fetch attempted, or whose last attempt failed. The reader's
+   * automatic fetch-on-open is skipped in both cases — a fetch only happens
+   * when the user clicks "Fetch now" on the cached-preview banner. Articles
+   * that never came from a starred import (no `starredImportContentState`
+   * at all) always return false here, so their automatic fetch-on-open is
+   * completely unaffected.
+   */
+  private isStarredImportCachedPreview(item: FeedItem): boolean {
+    return (
+      item.starredImportContentState === "unfetched" ||
+      item.starredImportContentState === "failed"
+    );
   }
 
   private isVideoMediaItem(item: FeedItem): boolean {
@@ -1886,7 +1915,123 @@ export class ReaderView extends ItemView {
       this.renderRestrictedBanner(item);
     } else if (this.shouldRenderVideoSourceBanner(item)) {
       this.renderVideoSourceBanner(item);
+    } else if (this.isStarredImportCachedPreview(item)) {
+      this.renderStarredImportBanner(item);
     }
+  }
+
+  /**
+   * Cached-preview banner (234-09) for a starred.json-imported article whose
+   * full content has never been fetched, or whose last fetch attempt
+   * failed. Offers a "Fetch now" action alongside the reader's existing
+   * "Open in Browser" affordance, since the header's browser button is easy
+   * to miss when the reader opened straight to an export-only preview.
+   */
+  private renderStarredImportBanner(item: FeedItem): void {
+    const banner = this.readingContainer.createDiv({
+      cls: "rss-reader-inline-banner rss-reader-starred-import-banner",
+    });
+
+    const message = banner.createDiv({
+      cls: "rss-reader-starred-import-banner-text",
+    });
+    const baseText =
+      item.starredImportContentState === "failed"
+        ? STARRED_IMPORT_FAILED_BANNER_TEXT
+        : STARRED_IMPORT_UNFETCHED_BANNER_TEXT;
+    const importedAtText =
+      typeof item.starredImportedAt === "number"
+        ? new Date(item.starredImportedAt).toLocaleString()
+        : null;
+    message.setText(
+      importedAtText ? `${baseText} (${importedAtText}).` : `${baseText}.`,
+    );
+
+    const actions = banner.createDiv({
+      cls: "rss-reader-starred-import-banner-actions",
+    });
+
+    const fetchNowButton = actions.createEl("button", {
+      cls: "rss-reader-starred-import-fetch-now",
+      text: STARRED_IMPORT_FETCH_NOW_TEXT,
+    });
+    fetchNowButton.addEventListener("click", () => {
+      void this.handleStarredImportFetchNow(item);
+    });
+
+    if (item.link) {
+      const openLink = actions.createEl("a", {
+        cls: "rss-reader-starred-import-open-link",
+        text: STARRED_IMPORT_OPEN_IN_BROWSER_TEXT,
+        href: item.link,
+      });
+      openLink.target = "_blank";
+      openLink.rel = "noopener noreferrer";
+    }
+  }
+
+  /**
+   * Handles the starred-import banner's "Fetch now" action (234-09). Reuses
+   * the same `fetchFullArticleContentWithOutcome` pipeline the reader's
+   * automatic fetch-on-open and the import-time opt-in fetch (234-06) both
+   * use. A successful fetch replaces the article's content, clears its
+   * content-state so the banner won't reappear, and persists that change via
+   * the normal `onArticleUpdate` settings-save path — but only when the
+   * article is starred or saved, per spec, rather than for every article the
+   * reader ever opens. A failed fetch moves the article to the "failed"
+   * state so the banner's wording can distinguish it from "never attempted"
+   * the next time this article is opened.
+   */
+  private async handleStarredImportFetchNow(item: FeedItem): Promise<void> {
+    const proxyUrl =
+      this.settings.corsProxyEnabled && this.settings.corsProxyUrl
+        ? this.settings.corsProxyUrl
+        : undefined;
+
+    const result = item.link
+      ? await fetchFullArticleContentWithOutcome(item.link, proxyUrl)
+      : { content: "", failureType: "none" as const };
+
+    const shouldPersist = Boolean(item.starred || item.saved);
+
+    if (result.content) {
+      item.content = result.content;
+      item.starredImportContentState = undefined;
+      if (shouldPersist) {
+        this.onArticleUpdate(
+          item,
+          { content: result.content, starredImportContentState: undefined },
+          false,
+        );
+      }
+    } else {
+      item.starredImportContentState = "failed";
+      if (shouldPersist) {
+        this.onArticleUpdate(
+          item,
+          { starredImportContentState: "failed" },
+          false,
+        );
+      }
+      new Notice(STARRED_IMPORT_FETCH_FAILED_NOTICE);
+    }
+
+    if (this.currentItem?.guid !== item.guid) {
+      return;
+    }
+
+    this.currentFullContent = result.content || item.content || item.description || "";
+    this.currentContentIsFullArticle = Boolean(result.content);
+    if (result.content) {
+      this.currentDisplayTitle =
+        this.extractDisplayTitleFromHtml(result.content) || undefined;
+    }
+    this.syncReaderTitle();
+
+    if (this.readingContainer) {
+      this.readingContainer.empty();
+    }
+    await this.displayArticle(item, this.currentFullContent);
   }
 
   private renderRestrictedBanner(item: FeedItem): void {

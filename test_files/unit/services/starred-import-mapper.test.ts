@@ -311,6 +311,21 @@ describe("mapStarredExportToCandidates", () => {
     expect(unimportable).toHaveLength(0);
   });
 
+  it("tags every candidate as an unfetched, timestamped starred import (234-09)", () => {
+    const parsed = loadFixture();
+    const before = Date.now();
+
+    const { candidates } = mapStarredExportToCandidates(parsed, EXISTING_FEEDS);
+
+    const after = Date.now();
+    expect(candidates.length).toBeGreaterThan(0);
+    for (const candidate of candidates) {
+      expect(candidate.item.starredImportContentState).toBe("unfetched");
+      expect(candidate.item.starredImportedAt).toBeGreaterThanOrEqual(before);
+      expect(candidate.item.starredImportedAt).toBeLessThanOrEqual(after);
+    }
+  });
+
   describe("unimportable classification", () => {
     it("classifies an entry with no origin.streamId at all as no_source_feed", () => {
       const parsed = loadUnimportableFixture();

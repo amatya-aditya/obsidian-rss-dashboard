@@ -863,13 +863,18 @@ export class ImportStarredModal extends Modal {
         );
         if (result.content) {
           item.content = result.content;
+          // Fetch succeeded during import itself, so the reader never needs
+          // to show the 234-09 cached-preview banner for this article.
+          item.starredImportContentState = undefined;
         } else {
+          item.starredImportContentState = "failed";
           this.fullContentFailures.push({
             title: item.title || item.link,
             link: item.link,
           });
         }
       } catch {
+        item.starredImportContentState = "failed";
         this.fullContentFailures.push({
           title: item.title || item.link,
           link: item.link,

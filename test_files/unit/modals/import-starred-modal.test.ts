@@ -809,6 +809,12 @@ describe("ImportStarredModal", () => {
     expect(settings.feeds[0].items[0].content).toBe(
       "<p>Placeholder summary content for article one.</p>",
     );
+    // Every imported article starts as an unfetched, timestamped export-only
+    // preview (234-09) when the import-time fetch toggle is left off.
+    expect(settings.feeds[0].items[0].starredImportContentState).toBe(
+      "unfetched",
+    );
+    expect(settings.feeds[0].items[0].starredImportedAt).toBeGreaterThan(0);
   });
 
   it("replaces an imported article's content when the toggle is on and the fetch succeeds", async () => {
@@ -859,6 +865,11 @@ describe("ImportStarredModal", () => {
     );
     // Persisted once for the base insert, once more for the fetched content.
     expect(plugin.saveSettings).toHaveBeenCalledTimes(2);
+    // A successful import-time fetch (234-06) clears the 234-09 cached-preview
+    // state, since the reader already has real full content to show.
+    expect(settings.feeds[0].items[0].starredImportContentState).toBeUndefined();
+    expect(settings.feeds[1].items[0].starredImportContentState).toBeUndefined();
+    expect(settings.feeds[2].items[0].starredImportContentState).toBeUndefined();
   });
 
   it("keeps a failed article's original content, still imports it, and reports the failure without affecting the rest of the import", async () => {
@@ -920,6 +931,15 @@ describe("ImportStarredModal", () => {
     expect(settings.feeds[2].items[0].content).toBe(
       "<article>Full fetched content</article>",
     );
+
+    // The failed article is left in the "failed" state (234-09) so the
+    // reader's cached-preview banner can distinguish it from "never
+    // attempted" on next open; the two that succeeded clear the field.
+    expect(settings.feeds[0].items[0].starredImportContentState).toBe(
+      "failed",
+    );
+    expect(settings.feeds[1].items[0].starredImportContentState).toBeUndefined();
+    expect(settings.feeds[2].items[0].starredImportContentState).toBeUndefined();
 
     const failureLink = content.querySelector<HTMLAnchorElement>(
       ".import-fetch-full-content-failures a",
