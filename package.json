@@ -1,6 +1,6 @@
 {
   "name": "rss-dashboard",
-  "version": "2.6.0",
+  "version": "2.7.0",
   "description": "RSS dashboard for Obsidian",
   "main": "main.js",
   "type": "commonjs",
@@ -9,8 +9,9 @@
     "check:css-scope": "node scripts/check-css-scope.js",
     "check:platform": "node scripts/check-platform-compat.mjs",
     "check:important": "node scripts/check-css-important.mjs",
-    "check:compliance": "npm run check:css-scope && npm run check:platform && npm run check:important && npm run check:commit-message",
+    "check:compliance": "npm run check:css-scope && npm run check:platform && npm run check:important && npm run check:commit-message && npm run check:release-compatibility",
     "check:commit-message": "node scripts/check-commit-message.mjs",
+    "check:release-compatibility": "node scripts/check-release-compatibility.mjs",
     "build": "npm run check:compliance && npm run lint && tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
     "lint": "eslint . --max-warnings=0",
     "lint:dev": "eslint .",

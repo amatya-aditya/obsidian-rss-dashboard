@@ -1,8 +1,8 @@
 {
   "id": "rss-dashboard",
   "name": "RSS Dashboard",
-  "version": "2.6.0",
-  "minAppVersion": "1.1.0",
+  "version": "2.7.0",
+  "minAppVersion": "1.8.7",
   "description": "A dashboard for organizing and consuming RSS feeds, YouTube channels, and podcasts with smart tagging, media playback, and seamless content flow.",
   "author": "Aditya Amatya",
   "authorUrl": "https://github.com/amatya-aditya",
