@@ -1,6 +1,6 @@
 import { Modal, App, Setting, Notice, setIcon } from "obsidian";
 import type RssDashboardPlugin from "../../main";
-import type { Feed, Tag } from "../types/types";
+import type { Feed, FeedItem, Tag } from "../types/types";
 import {
   buildNewFeedRecord,
   mapStarredExportToCandidates,
@@ -54,6 +54,18 @@ import { ImporterShell } from "./importer-shell";
  * stamped by `starred-import-mapper.ts`'s `toFeedItem` (234-09); the
  * reader's manual "Fetch now" banner is the only path to full content for
  * a starred-imported article.
+ *
+ * Tag-import toggle and unified confirmation (234-11): the Options panel's
+ * second toggle, on by default, gates whether a selected candidate's
+ * label-derived tags (assigned unconditionally by the pure mapper above)
+ * actually reach the imported article and the tag palette. When off,
+ * `getEffectiveTags` returns `undefined` for every candidate so no tag ever
+ * reaches `applyStarredImportCandidateToFeed` or `settings.availableTags`.
+ * The inline "New tags (N)" section (`renderNewTagsSection`) is the single
+ * place any brand-new tag is surfaced before execute, sourced from every
+ * currently-selected candidate's effective tags — not just the bulk label
+ * mapping — so a later ad hoc per-article tagging ticket (234-12) can feed
+ * the same section without restructuring it.
  */
 export class ImportStarredModal extends Modal {
   plugin: RssDashboardPlugin;
@@ -68,6 +80,7 @@ export class ImportStarredModal extends Modal {
   private unimportableEntries: StarredImportUnimportableEntry[] = [];
   private collapsedFeedUrls = new Set<string>();
   private newFeedMetadataRefreshEnabled = false;
+  private tagImportEnabled = true;
   private readonly importerShell: ImporterShell<
     StarredJsonExport,
     StarredImportPreviewModel
@@ -286,15 +299,12 @@ export class ImportStarredModal extends Modal {
     list.scrollTop = previousScrollTop;
 
     this.renderUnimportableSection(this.previewContainer);
+    this.renderNewTagsSection(this.previewContainer);
   }
 
   /**
-   * "Options" panel (234-07), rendered above the "Preview" section. Currently
-   * hosts the new-feed metadata-refresh toggle only; the spec
-   * (draft-20260910-starred-import-followups.md) calls for a later,
-   * separately-ticketed tag-import toggle (234-11) to join this same panel,
-   * so the container/heading structure is written to accommodate more than
-   * one option row rather than being tailored to exactly one.
+   * "Options" panel (234-07), rendered above the "Preview" section. Hosts
+   * the new-feed metadata-refresh toggle and the tag-import toggle (234-11).
    */
   private renderOptionsPanel(): void {
     const panel = this.previewContainer.createDiv({
@@ -323,6 +333,25 @@ export class ImportStarredModal extends Modal {
       metadataRefreshSetting,
       !this.newFeedMetadataRefreshEnabled,
     );
+
+    const tagImportSetting = new Setting(panel)
+      .setName("Import labels as tags")
+      .setDesc(
+        "Inoreader labels become tags on each starred article, reusing a matching tag's color when your palette already has one. Any new tags this creates appear below before you import.",
+      )
+      .addToggle((toggle) => {
+        toggle.setValue(this.tagImportEnabled).onChange((value) => {
+          this.tagImportEnabled = value;
+          this.setOptionDescriptionDimmed(tagImportSetting, !value);
+          this.renderPreview();
+          this.importerShell.updateAction();
+        });
+      });
+    tagImportSetting.settingEl.addClasses([
+      "import-option-setting",
+      "import-tag-import-setting",
+    ]);
+    this.setOptionDescriptionDimmed(tagImportSetting, !this.tagImportEnabled);
   }
 
   /**
@@ -375,6 +404,82 @@ export class ImportStarredModal extends Modal {
         return "No article link found";
       default:
         return "Unable to import";
+    }
+  }
+
+  /**
+   * A candidate's tags as they will actually be imported, gated by the
+   * Options panel's tag-import toggle (234-11). The pure mapper always
+   * assigns `item.tags` from the export's labels regardless of this toggle
+   * (it has no plugin-state/settings dependency to gate against); every
+   * site that would let a tag reach the imported article or the tag palette
+   * must go through this helper instead of reading `item.tags` directly.
+   */
+  private getEffectiveTags(item: Pick<FeedItem, "tags">): Tag[] | undefined {
+    return this.tagImportEnabled ? item.tags : undefined;
+  }
+
+  /**
+   * Every distinct tag (by case-insensitive name) that is assigned to at
+   * least one currently-selected candidate and is not yet present in
+   * `settings.availableTags`. This is the "New tags (N)" section's data
+   * source (234-11) — it reads every selected candidate's *effective* tags,
+   * not only the bulk label mapping, so a future ad hoc per-article tagging
+   * ticket (234-12) can add to this same list without a second confirmation
+   * path.
+   */
+  private computeNewTags(model: StarredImportPreviewModel): Tag[] {
+    const existingLowerNames = new Set(
+      this.plugin.settings.availableTags.map((tag) => tag.name.toLowerCase()),
+    );
+    const newTagsByLowerName = new Map<string, Tag>();
+
+    for (const candidate of model.getSelectedCandidates()) {
+      for (const tag of this.getEffectiveTags(candidate.item) ?? []) {
+        const lowerName = tag.name.toLowerCase();
+        if (existingLowerNames.has(lowerName)) continue;
+        if (!newTagsByLowerName.has(lowerName)) {
+          newTagsByLowerName.set(lowerName, tag);
+        }
+      }
+    }
+
+    return Array.from(newTagsByLowerName.values());
+  }
+
+  /**
+   * Inline "New tags (N)" confirmation (234-11), visually matching the
+   * "Unable to import (N)" section above. Lists every tag `computeNewTags`
+   * finds so the user can catch an unwanted tag before it becomes part of
+   * their permanent palette — this section, not any other code path, is
+   * what actually adds these tags in `performImport`. Recomputed on every
+   * `renderPreview` call, so it stays live as articles/labels are
+   * (de)selected or the tag-import toggle changes.
+   */
+  private renderNewTagsSection(container: HTMLElement): void {
+    const model = this.previewModel;
+    if (!model) return;
+
+    const newTags = this.computeNewTags(model);
+    if (newTags.length === 0) return;
+
+    const section = container.createDiv({ cls: "import-new-tags-section" });
+    section.createEl("h4", {
+      cls: "import-new-tags-heading",
+      text: `New tags (${newTags.length})`,
+    });
+
+    const list = section.createDiv({ cls: "import-new-tags-list" });
+    for (const tag of newTags) {
+      const row = list.createDiv({ cls: "import-new-tags-row" });
+
+      const icon = row.createDiv({ cls: "import-new-tags-icon" });
+      setIcon(icon, "tag");
+
+      row.createDiv({
+        cls: "import-new-tags-name",
+        text: tag.name,
+      });
     }
   }
 
@@ -603,10 +708,13 @@ export class ImportStarredModal extends Modal {
    * not yet present in `settings.availableTags` (case-insensitive name
    * match), so it immediately shows up in the normal tag-filter UI. Reuses
    * the exact `{name, color}` the pure mapper already assigned to the
-   * candidate's `item.tags` rather than re-deciding a color here.
+   * candidate's `item.tags` rather than re-deciding a color here. Only ever
+   * called when the tag-import toggle is on (234-11) — this is the same
+   * palette-mutation step the "New tags (N)" section previews before
+   * execute, via `getEffectiveTags`/`computeNewTags`.
    */
   private ensureAvailableTagsForSelection(
-    selected: readonly { item: { tags?: Tag[] } }[],
+    selected: readonly { item: Pick<FeedItem, "tags"> }[],
   ): void {
     const availableTags = this.plugin.settings.availableTags;
     const existingByLowerName = new Map(
@@ -614,7 +722,7 @@ export class ImportStarredModal extends Modal {
     );
 
     for (const candidate of selected) {
-      for (const tag of candidate.item.tags ?? []) {
+      for (const tag of this.getEffectiveTags(candidate.item) ?? []) {
         const lowerName = tag.name.toLowerCase();
         if (existingByLowerName.has(lowerName)) continue;
 
@@ -657,7 +765,12 @@ export class ImportStarredModal extends Modal {
       return;
     }
 
-    this.ensureAvailableTagsForSelection(selected);
+    // Tag-import toggle (234-11): off skips both the bulk label-to-tag
+    // palette mutation and stripping any label-derived tag from the items
+    // actually persisted below, via `getEffectiveTags`.
+    if (this.tagImportEnabled) {
+      this.ensureAvailableTagsForSelection(selected);
+    }
 
     const feedByUrl = new Map<string, Feed>(
       this.plugin.settings.feeds.map((feed) => [feed.url, feed]),
@@ -695,11 +808,17 @@ export class ImportStarredModal extends Modal {
     for (const candidate of selected) {
       const feed = feedByUrl.get(candidate.feedUrl);
       if (!feed) continue;
+      // When the tag-import toggle is off, the item actually persisted
+      // carries no label-derived tags (234-11), even though the pure
+      // mapper always assigned them to `candidate.item.tags`.
+      const itemToApply: typeof candidate.item = this.tagImportEnabled
+        ? candidate.item
+        : { ...candidate.item, tags: this.getEffectiveTags(candidate.item) };
       // Re-import dedup (234-05): matches against the target feed's existing
       // items by guid-or-link identity. A match is merged (new labels added,
       // starred forced true, locally-edited fields left untouched) instead
       // of being inserted again.
-      const result = applyStarredImportCandidateToFeed(feed, candidate.item);
+      const result = applyStarredImportCandidateToFeed(feed, itemToApply);
       if (result === "inserted") {
         insertedCount += 1;
       } else {

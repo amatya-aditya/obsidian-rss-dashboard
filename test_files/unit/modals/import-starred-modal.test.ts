@@ -132,6 +132,22 @@ function getMetadataRefreshDescription(content: HTMLElement): HTMLElement {
   )!;
 }
 
+function getTagImportToggle(content: HTMLElement): HTMLInputElement {
+  return content.querySelector<HTMLInputElement>(
+    ".import-tag-import-setting input[type='checkbox']",
+  )!;
+}
+
+function getTagImportDescription(content: HTMLElement): HTMLElement {
+  return content.querySelector<HTMLElement>(
+    ".import-tag-import-setting .setting-item-description",
+  )!;
+}
+
+function getNewTagsSection(content: HTMLElement): HTMLElement | null {
+  return content.querySelector<HTMLElement>(".import-new-tags-section");
+}
+
 beforeEach(() => {
   installObsidianDomPolyfills();
   document.body.empty();
@@ -836,5 +852,192 @@ describe("ImportStarredModal", () => {
     expect(content.textContent).not.toContain(
       "could not be fetched",
     );
+  });
+
+  it("shows the tag-import toggle in the Options panel, on by default, alongside the metadata-refresh toggle", async () => {
+    const app = createMockApp();
+    const settings = cloneSettings();
+    settings.feeds = [
+      makeFeed("https://example-feed.test/rss", "Example Feed"),
+      makeFeed("https://example.com/blog/feed.xml", "Example Blog"),
+    ];
+    const plugin = createTestPlugin(settings);
+    const modal = new ImportStarredModal(
+      app,
+      plugin as unknown as ConstructorParameters<typeof ImportStarredModal>[1],
+    );
+    (modal as unknown as TestModal).open();
+
+    await (modal as unknown as TestModal).handleFileSelection(
+      new File([readFixture()], "starred.json"),
+    );
+
+    const content = (modal as unknown as TestModal).contentEl;
+    const optionsPanel = content.querySelector(".import-options-panel");
+    expect(optionsPanel?.textContent).toContain("Import labels as tags");
+    expect(getTagImportToggle(content).checked).toBe(true);
+  });
+
+  it("dims the tag-import toggle's description once switched off", async () => {
+    const app = createMockApp();
+    const settings = cloneSettings();
+    settings.feeds = [
+      makeFeed("https://example-feed.test/rss", "Example Feed"),
+      makeFeed("https://example.com/blog/feed.xml", "Example Blog"),
+    ];
+    const plugin = createTestPlugin(settings);
+    const modal = new ImportStarredModal(
+      app,
+      plugin as unknown as ConstructorParameters<typeof ImportStarredModal>[1],
+    );
+    (modal as unknown as TestModal).open();
+
+    await (modal as unknown as TestModal).handleFileSelection(
+      new File([readFixture()], "starred.json"),
+    );
+
+    const content = (modal as unknown as TestModal).contentEl;
+    expect(
+      getTagImportDescription(content).classList.contains(
+        "import-option-description--disabled",
+      ),
+    ).toBe(false);
+
+    getTagImportToggle(content).click();
+
+    expect(
+      getTagImportDescription(content).classList.contains(
+        "import-option-description--disabled",
+      ),
+    ).toBe(true);
+  });
+
+  it("shows a live 'New tags (N)' section listing every label-derived tag not already in the palette, matching selected articles", async () => {
+    const app = createMockApp();
+    const settings = cloneSettings();
+    settings.feeds = [
+      makeFeed("https://example-feed.test/rss", "Example Feed"),
+      makeFeed("https://example.com/blog/feed.xml", "Example Blog"),
+    ];
+    const plugin = createTestPlugin(settings);
+    const modal = new ImportStarredModal(
+      app,
+      plugin as unknown as ConstructorParameters<typeof ImportStarredModal>[1],
+    );
+    (modal as unknown as TestModal).open();
+
+    await (modal as unknown as TestModal).handleFileSelection(
+      new File([readFixture()], "starred.json"),
+    );
+
+    const content = (modal as unknown as TestModal).contentEl;
+    const section = getNewTagsSection(content);
+    expect(section).not.toBeNull();
+    expect(section?.textContent).toContain("New tags (2)");
+    expect(section?.textContent).toContain("Design");
+    expect(section?.textContent).toContain("art");
+
+    // Deselecting the only article carrying those labels removes them from
+    // the live preview.
+    const labeledCheckbox = content.querySelector<HTMLInputElement>(
+      "[data-guid='tag:google.com,2005:reader/item/0000000000000002'] .import-preview-checkbox",
+    )!;
+    labeledCheckbox.click();
+
+    expect(getNewTagsSection(content)).toBeNull();
+  });
+
+  it("shows no 'New tags' section when every label-derived tag already exists in the palette", async () => {
+    const app = createMockApp();
+    const settings = cloneSettings();
+    settings.feeds = [
+      makeFeed("https://example-feed.test/rss", "Example Feed"),
+      makeFeed("https://example.com/blog/feed.xml", "Example Blog"),
+    ];
+    settings.availableTags.push(
+      { name: "design", color: "#111111" },
+      { name: "art", color: "#222222" },
+    );
+    const plugin = createTestPlugin(settings);
+    const modal = new ImportStarredModal(
+      app,
+      plugin as unknown as ConstructorParameters<typeof ImportStarredModal>[1],
+    );
+    (modal as unknown as TestModal).open();
+
+    await (modal as unknown as TestModal).handleFileSelection(
+      new File([readFixture()], "starred.json"),
+    );
+
+    const content = (modal as unknown as TestModal).contentEl;
+    expect(getNewTagsSection(content)).toBeNull();
+  });
+
+  it("hides the 'New tags' section and turning the toggle off skips the palette mutation entirely", async () => {
+    const app = createMockApp();
+    const settings = cloneSettings();
+    settings.feeds = [
+      makeFeed("https://example-feed.test/rss", "Example Feed"),
+      makeFeed("https://example.com/blog/feed.xml", "Example Blog"),
+    ];
+    const originalTagCount = settings.availableTags.length;
+    const plugin = createTestPlugin(settings);
+    const modal = new ImportStarredModal(
+      app,
+      plugin as unknown as ConstructorParameters<typeof ImportStarredModal>[1],
+    );
+    (modal as unknown as TestModal).open();
+
+    await (modal as unknown as TestModal).handleFileSelection(
+      new File([readFixture()], "starred.json"),
+    );
+
+    const content = (modal as unknown as TestModal).contentEl;
+    getTagImportToggle(content).click();
+
+    expect(getNewTagsSection(content)).toBeNull();
+
+    const importButton = content.querySelector<HTMLButtonElement>(
+      ".rss-dashboard-modal-buttons .rss-dashboard-primary-button",
+    )!;
+    importButton.click();
+    await flushPromises();
+
+    // No new tag reached the palette, and the imported article carries no
+    // label-derived tags at all.
+    expect(settings.availableTags).toHaveLength(originalTagCount);
+    const labeledItem = settings.feeds[1].items[0];
+    expect(labeledItem.tags).toBeUndefined();
+  });
+
+  it("imports label-derived tags as usual when the tag-import toggle is left on (matches shipped 234-04 behavior)", async () => {
+    const app = createMockApp();
+    const settings = cloneSettings();
+    settings.feeds = [
+      makeFeed("https://example-feed.test/rss", "Example Feed"),
+      makeFeed("https://example.com/blog/feed.xml", "Example Blog"),
+    ];
+    const originalTagCount = settings.availableTags.length;
+    const plugin = createTestPlugin(settings);
+    const modal = new ImportStarredModal(
+      app,
+      plugin as unknown as ConstructorParameters<typeof ImportStarredModal>[1],
+    );
+    (modal as unknown as TestModal).open();
+
+    await (modal as unknown as TestModal).handleFileSelection(
+      new File([readFixture()], "starred.json"),
+    );
+
+    const content = (modal as unknown as TestModal).contentEl;
+    const importButton = content.querySelector<HTMLButtonElement>(
+      ".rss-dashboard-modal-buttons .rss-dashboard-primary-button",
+    )!;
+    importButton.click();
+    await flushPromises();
+
+    expect(settings.availableTags).toHaveLength(originalTagCount + 2);
+    const labeledItem = settings.feeds[1].items[0];
+    expect(labeledItem.tags?.map((t) => t.name)).toEqual(["Design", "art"]);
   });
 });

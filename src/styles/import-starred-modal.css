@@ -33,9 +33,9 @@
   --icon-size: 14px;
 }
 
-/* "Options" panel (234-07) — import-time toggles (new-feed metadata
- * refresh; the tag-import toggle from 234-11 joins this same panel later),
- * rendered above the "Preview" section. */
+/* "Options" panel (234-07, 234-11) — import-time toggles (new-feed
+ * metadata refresh; import labels as tags), rendered above the "Preview"
+ * section. */
 .import-options-panel {
   margin-bottom: 1rem;
   padding-bottom: 0.75rem;
@@ -122,6 +122,61 @@
   flex-shrink: 0;
   font-size: var(--font-ui-smaller);
   color: var(--text-muted);
+}
+
+/* "New tags" section (234-11) — the single inline confirmation of every
+ * tag about to be added to `settings.availableTags` before execute,
+ * deliberately matching the "Unable to import" section's visual pattern
+ * above (same heading/list/row shape) rather than introducing a new one. */
+.import-new-tags-section {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--background-modifier-border);
+}
+
+.import-new-tags-heading {
+  margin: 0 0 0.5rem;
+  font-size: var(--font-ui-small);
+  color: var(--text-muted);
+}
+
+.import-new-tags-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.import-new-tags-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.5rem;
+  border-radius: 4px;
+}
+
+.import-new-tags-row:hover {
+  background: var(--background-modifier-hover);
+}
+
+.import-new-tags-icon {
+  display: flex;
+  align-items: center;
+  color: var(--text-accent, var(--text-muted));
+  flex-shrink: 0;
+}
+
+.import-new-tags-icon svg {
+  width: 14px;
+  height: 14px;
+}
+
+.import-new-tags-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-normal);
 }
 
 .rss-import-starred-modal .rss-dashboard-modal-content {
