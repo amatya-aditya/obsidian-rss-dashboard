@@ -95,7 +95,11 @@ export class OpmlImportPreviewModel {
       const normalizedFolder = feed.folder?.trim() ? feed.folder.trim() : UNCATEGORIZED_FOLDER;
       const duplicate = this.importMode === "update" && args.existingUrls.has(feed.url);
       const normalizedFeed: Feed = { ...feed, folder: normalizedFolder };
-      this.feedByUrl.set(feed.url, { feed: normalizedFeed, selected: true, duplicate });
+      this.feedByUrl.set(feed.url, {
+        feed: normalizedFeed,
+        selected: !duplicate,
+        duplicate,
+      });
     }
 
     this.ensureFolderNodesForFeeds();
@@ -105,7 +109,13 @@ export class OpmlImportPreviewModel {
   setImportMode(importMode: ImportMode, existingUrls: Set<string>): void {
     this.importMode = importMode;
     for (const state of this.feedByUrl.values()) {
+      const wasDuplicate = state.duplicate;
       state.duplicate = this.importMode === "update" && existingUrls.has(state.feed.url);
+      if (state.duplicate) {
+        state.selected = false;
+      } else if (wasDuplicate) {
+        state.selected = true;
+      }
     }
   }
 
@@ -178,7 +188,7 @@ export class OpmlImportPreviewModel {
 
   toggleFeed(url: string, selected: boolean): void {
     const state = this.feedByUrl.get(url);
-    if (!state) return;
+    if (!state || state.duplicate) return;
     state.selected = selected;
   }
 
@@ -206,7 +216,7 @@ export class OpmlImportPreviewModel {
     const urls = this.collectDescendantFeedUrls(node);
     for (const url of urls) {
       const state = this.feedByUrl.get(url);
-      if (state) state.selected = selected;
+      if (state && !state.duplicate) state.selected = selected;
     }
   }
 
