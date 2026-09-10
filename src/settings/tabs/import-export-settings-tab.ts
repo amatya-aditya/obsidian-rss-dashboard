@@ -8,6 +8,7 @@
 import { App, Modal, Notice, Setting } from "obsidian";
 import type RssDashboardPlugin from "../../../main";
 import { ImportOpmlModal } from "../../modals/import-opml-modal";
+import { ImportStarredModal } from "../../modals/import-starred-modal";
 import { ImportSuccessModal } from "../../modals/import-success-modal";
 import { AutoBackupSettings, RssDashboardSettings } from "../../types/types";
 import { settingsUiCompatibility } from "../settings-ui-compat";
@@ -290,6 +291,28 @@ export function renderImportExportSettingsTab(
           void plugin.copyOpmlToClipboard();
         }),
     );
+
+  // ── Starred articles ──────────────────────────────────────────────────────
+  const starredSection = containerEl.createDiv();
+  new Setting(starredSection)
+    .setName("Starred articles")
+    .setDesc(
+      "Import starred articles from an exported starred.json (Inoreader / Google Reader API format) into feeds you already subscribe to.",
+    )
+    .setHeading();
+
+  const starredActionsSetting = new Setting(starredSection);
+  starredActionsSetting.settingEl.addClass(
+    "rss-dashboard-import-export-actions",
+  );
+  starredActionsSetting.addButton((button) =>
+    button
+      .setIcon("star")
+      .setButtonText("Import starred articles")
+      .onClick(() => {
+        new ImportStarredModal(plugin.app, plugin).open();
+      }),
+  );
 
   // ── Auto Backups ──────────────────────────────────────────────────────────
   const backupSection = containerEl.createDiv();
