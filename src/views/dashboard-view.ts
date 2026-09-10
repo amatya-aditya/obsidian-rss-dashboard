@@ -20,6 +20,7 @@ import {
   ViewLocation,
   FeedEncoding,
   ArticleGroupByOption,
+  FreshRssArticleRef,
 } from "../types/types";
 import type {
   FiltersUpdatedEventPayload,
@@ -558,7 +559,7 @@ export class RssDashboardView extends ItemView {
   }
 
   private async updateFilteredArticleReadStatus(read: boolean): Promise<number> {
-    const changes: Array<{ articleGuid: string; feedUrl: string; desiredRead: boolean }> = [];
+    const changes: Array<FreshRssArticleRef & { desiredRead: boolean }> = [];
     const displayArticles: FeedItem[] = [];
 
     this.getFilteredArticles().forEach((article) => {
@@ -3112,7 +3113,7 @@ export class RssDashboardView extends ItemView {
       return;
     }
 
-    const changes: Array<{ articleGuid: string; feedUrl: string; desiredRead: boolean }> = [];
+    const changes: Array<FreshRssArticleRef & { desiredRead: boolean }> = [];
     const candidateArticles: FeedItem[] = [];
     currentPageArticles.forEach((article) => {
       if (article.read) {

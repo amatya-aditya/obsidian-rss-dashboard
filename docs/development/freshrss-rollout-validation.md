@@ -79,24 +79,23 @@ claimed anywhere in this document.
 | Bounded Fetch more history (per-feed, bounded budget, same coordinator/checkpoint machinery) | Automated-verified | `test_files/unit/services/freshrss-fetch-more-history.test.ts` (`FreshRssSyncCoordinator.runFetchMoreHistory`, `selectFreshRssHistoryEligibleFeeds`) |
 | Human confirmation of backoff/pause/malformed-stream/scope-quarantine/Fetch-more-history behavior against a real vault and real FreshRSS, including UI-visible outcomes | Manual verification required | See checklist item 4 |
 
-### Known gap: terminal mutation retry/cancel UI
+### Known gap: terminal mutation retry/cancel UI (copy fixed, control still missing)
 
 The sync-outcome notice text in `main.ts` (`reportFreshRssSyncOutcome`,
-`reportFreshRssAutomaticOutcome`) tells the user that a rejected change can be
-retried or cancelled "from FreshRSS settings." The data-layer capability
-exists (`rearmTerminalMutation` in `src/services/freshrss-facet-mutations.ts`,
-and `retryFreshRssSync()` in `main.ts`, which restarts a whole sync cycle),
-but **no per-mutation retry or cancel control exists anywhere in
-`src/settings/tabs/freshrss-settings-tab.ts` or any other rendered UI** as of
-this ticket. This is a real discrepancy between shipped notice copy and
-shipped UI, not a documentation-only issue, and ticket 13's scope is
-documentation, not new runtime behavior -- it is deliberately **not** fixed
-here. See the follow-up task flagged alongside this ticket's final report.
-Until it is resolved (either by adding the UI or by softening the notice
-copy), do not tell users the retry/cancel UI exists; the "Manual
-verification checklist" below reflects this by asking a human to confirm
-the actual current behavior rather than assuming the notice text is
-accurate.
+`reportFreshRssAutomaticOutcome`) used to tell the user that a rejected
+change could be retried or cancelled "from FreshRSS settings," but **no
+per-mutation retry or cancel control exists anywhere in
+`src/settings/tabs/freshrss-settings-tab.ts` or any other rendered UI**. The
+notice copy has since been corrected to state the actual current behavior
+(the change is on hold and won't be retried automatically, and reviewing or
+retrying it isn't available yet) instead of pointing to a control that
+doesn't exist. The data-layer capability still exists
+(`rearmTerminalMutation` in `src/services/freshrss-facet-mutations.ts`) but
+is not wired to any UI or to `retryFreshRssSync()` (which restarts a whole
+sync cycle, not an individual terminal mutation) -- building that control
+remains a follow-up. The "Manual verification checklist" below still asks a
+human to confirm the actual current behavior against the corrected notice
+text.
 
 ## FreshRSS OPML
 
@@ -161,10 +160,10 @@ Nothing in this checklist has been performed by this sandbox.
    authentication pause with no retry loop (watch for repeated notices).
    Trigger a terminal mutation failure if practical (e.g. by racing a label
    deletion in FreshRSS against a pending label mutation) and confirm the
-   actual current behavior -- **do not assume the "retry or cancel them from
-   FreshRSS settings" notice text is accurate; confirm what UI, if any, is
-   actually reachable, and report back if it still does not exist** (see
-   "Known gap" above). Change the connection to a different FreshRSS account
+   actual current behavior matches the corrected notice text (the change is
+   on hold and won't be retried automatically) -- **confirm no retry/cancel
+   UI is reachable and report back if that has changed** (see "Known gap"
+   above). Change the connection to a different FreshRSS account
    and confirm the old namespace is quarantined (no state leaks across
    scopes) and sync remains paused until a fresh connection test passes. Use
    **Fetch more history** on an eligible feed and confirm it extends history

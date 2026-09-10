@@ -28,6 +28,7 @@ import {
   FeedIngestionOptions,
   FeedEncoding,
   Tag,
+  FreshRssArticleRef,
 } from "./src/types/types";
 import { RssDashboardSettingTab } from "./src/settings/settings-tab";
 import {
@@ -2762,7 +2763,7 @@ export default class RssDashboardPlugin extends Plugin {
     // (budget-capped or transient-failure) cycle.
     if (outcome.hasTerminalMutations) {
       summary +=
-        " Some changes were rejected by FreshRSS and need attention: retry or cancel them from FreshRSS settings.";
+        " Some changes were rejected by FreshRSS and are on hold; they will not be retried automatically. Reviewing or retrying them from FreshRSS settings isn't available yet.";
     }
     new Notice(summary);
   }
@@ -2802,7 +2803,7 @@ export default class RssDashboardPlugin extends Plugin {
     if (outcome.hasTerminalMutations) {
       this.notifyFreshRssAutomaticOutcomeChange(
         "terminal-mutations",
-        "FreshRSS automatic sync completed, but some changes were rejected and need attention: retry or cancel them from FreshRSS settings.",
+        "FreshRSS automatic sync completed, but some changes were rejected and are on hold; they will not be retried automatically. Reviewing or retrying them from FreshRSS settings isn't available yet.",
       );
       return;
     }
@@ -2925,7 +2926,7 @@ export default class RssDashboardPlugin extends Plugin {
    */
   public async commitArticleFacetState(
     facet: FreshRssSynchronizableFacet,
-    changes: Array<{ articleGuid: string; feedUrl: string; desiredState: boolean }>,
+    changes: Array<FreshRssArticleRef & { desiredState: boolean }>,
   ): Promise<{ committed: boolean; error?: string }> {
     if (changes.length === 0) {
       return { committed: true };
@@ -3035,7 +3036,7 @@ export default class RssDashboardPlugin extends Plugin {
    * `desiredRead` field name.
    */
   public async commitArticleReadState(
-    changes: Array<{ articleGuid: string; feedUrl: string; desiredRead: boolean }>,
+    changes: Array<FreshRssArticleRef & { desiredRead: boolean }>,
   ): Promise<{ committed: boolean; error?: string }> {
     return this.commitArticleFacetState(
       "read",
@@ -3054,7 +3055,7 @@ export default class RssDashboardPlugin extends Plugin {
    * `item.starred` directly.
    */
   public async commitArticleStarredState(
-    changes: Array<{ articleGuid: string; feedUrl: string; desiredStarred: boolean }>,
+    changes: Array<FreshRssArticleRef & { desiredStarred: boolean }>,
   ): Promise<{ committed: boolean; error?: string }> {
     return this.commitArticleFacetState(
       "starred",
@@ -3111,12 +3112,12 @@ export default class RssDashboardPlugin extends Plugin {
    * capability isn't available, is completely unaffected.
    */
   public async commitArticleLabelMembershipChangesBatch(
-    changes: Array<{
-      articleGuid: string;
-      feedUrl: string;
-      previousTags: readonly Tag[] | undefined;
-      nextTags: readonly Tag[] | undefined;
-    }>,
+    changes: Array<
+      FreshRssArticleRef & {
+        previousTags: readonly Tag[] | undefined;
+        nextTags: readonly Tag[] | undefined;
+      }
+    >,
   ): Promise<{ committed: boolean; error?: string }> {
     if (changes.length === 0) {
       return { committed: true };

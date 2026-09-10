@@ -206,7 +206,7 @@ describe("FreshRSS sync now", () => {
     const notices = getNoticeMessages(consoleDebugSpy);
     expect(
       notices.some((notice) =>
-        notice.includes("Some changes were rejected by FreshRSS and need attention"),
+        notice.includes("Some changes were rejected by FreshRSS and are on hold"),
       ),
     ).toBe(true);
   });

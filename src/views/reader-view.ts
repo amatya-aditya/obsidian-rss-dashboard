@@ -29,6 +29,7 @@ import {
   ArticleSavingSettings,
   Tag,
   ViewLocation,
+  FreshRssArticleRef,
 } from "../types/types";
 import { HighlightService } from "../services/highlight-service";
 import { ArticleSaver } from "../services/article-saver";
@@ -3153,12 +3154,12 @@ export class ReaderView extends ItemView {
     saveSettings: () => Promise<void>;
     refreshOpenTagColorViews?: () => Promise<void>;
     commitArticleLabelMembershipChangesBatch?: (
-      changes: Array<{
-        articleGuid: string;
-        feedUrl: string;
-        previousTags: readonly Tag[] | undefined;
-        nextTags: readonly Tag[] | undefined;
-      }>,
+      changes: Array<
+        FreshRssArticleRef & {
+          previousTags: readonly Tag[] | undefined;
+          nextTags: readonly Tag[] | undefined;
+        }
+      >,
     ) => Promise<{ committed: boolean; error?: string }>;
   } | null {
     try {
@@ -3192,12 +3193,12 @@ export class ReaderView extends ItemView {
           saveSettings: () => Promise<void>;
           refreshOpenTagColorViews?: () => Promise<void>;
           commitArticleLabelMembershipChangesBatch?: (
-            changes: Array<{
-              articleGuid: string;
-              feedUrl: string;
-              previousTags: readonly Tag[] | undefined;
-              nextTags: readonly Tag[] | undefined;
-            }>,
+            changes: Array<
+              FreshRssArticleRef & {
+                previousTags: readonly Tag[] | undefined;
+                nextTags: readonly Tag[] | undefined;
+              }
+            >,
           ) => Promise<{ committed: boolean; error?: string }>;
         };
       }

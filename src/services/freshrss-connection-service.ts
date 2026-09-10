@@ -1,3 +1,5 @@
+import { isRecord, isRejectedStatus } from "./freshrss-type-guards";
+
 export interface FreshRssHttpRequest {
   url: string;
   method: "GET" | "POST";
@@ -33,10 +35,6 @@ export type FreshRssAuthenticationResult =
   | { outcome: "authenticated"; authToken: string }
   | { outcome: "credentials-rejected" }
   | { outcome: "server-unavailable" };
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
 
 export function parseCredentialBundle(value: string): FreshRssCredentialBundle | null {
   try {
@@ -79,10 +77,6 @@ function getRemoteUserId(responseText: string): string | null {
   } catch {
     return null;
   }
-}
-
-function isRejectedStatus(status: number): boolean {
-  return status === 401 || status === 403;
 }
 
 export function canonicalizeFreshRssEndpoint(input: string): string {

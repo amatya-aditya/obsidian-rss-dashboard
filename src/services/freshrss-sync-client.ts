@@ -1,4 +1,5 @@
 import type { FreshRssHttpClient } from "./freshrss-connection-service";
+import { isRecord, isRejectedStatus } from "./freshrss-type-guards";
 
 /**
  * Read-only Google-Reader-API-compatible protocol client used by the FreshRSS
@@ -68,14 +69,6 @@ export interface FreshRssRemoteArticle {
   content: string | null;
   author: string | null;
   publishedMs: number | null;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
-
-function isRejectedStatus(status: number): boolean {
-  return status === 401 || status === 403;
 }
 
 function parseSubscriptionListResponse(text: string): FreshRssSubscription[] | null {

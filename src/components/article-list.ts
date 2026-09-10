@@ -4,6 +4,7 @@ import {
   FeedItem,
   RssDashboardSettings,
   Tag,
+  FreshRssArticleRef,
 } from "../types/types";
 import { ArticleHeader } from "./article-header";
 import { ArticleEmptyState } from "./article-empty-state";
@@ -69,12 +70,12 @@ interface ArticleListCallbacks {
   onOpenTagsSettings?: () => Promise<void> | void;
   onTagsMutated?: () => void;
   onCommitLabelMembershipChanges?: (
-    changes: Array<{
-      articleGuid: string;
-      feedUrl: string;
-      previousTags: readonly Tag[] | undefined;
-      nextTags: readonly Tag[] | undefined;
-    }>,
+    changes: Array<
+      FreshRssArticleRef & {
+        previousTags: readonly Tag[] | undefined;
+        nextTags: readonly Tag[] | undefined;
+      }
+    >,
   ) => Promise<{ committed: boolean; error?: string }>;
   onResolveCachedImageUrl?: (remoteUrl: string) => string | null;
 }

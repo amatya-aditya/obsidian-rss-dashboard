@@ -6,6 +6,7 @@ import {
   RssDashboardSettings,
   FeedKeywordRulesSettings,
   FeedEncoding,
+  FreshRssArticleRef,
 } from "../types/types";
 import {
   SIDEBAR_ICON_IDS,
@@ -1988,7 +1989,7 @@ export class Sidebar {
       }
     }
 
-    const changes: Array<{ articleGuid: string; feedUrl: string; desiredRead: boolean }> = [];
+    const changes: Array<FreshRssArticleRef & { desiredRead: boolean }> = [];
     for (const feed of feedsToUpdate) {
       for (const item of feed.items) {
         if (item.read !== read) {
@@ -2368,7 +2369,7 @@ export class Sidebar {
         .setIcon("check-circle")
         .onClick(() => {
           const allPaths = this.getAllDescendantFolderPaths(fullPath);
-          const changes: Array<{ articleGuid: string; feedUrl: string; desiredRead: boolean }> = [];
+          const changes: Array<FreshRssArticleRef & { desiredRead: boolean }> = [];
           this.settings.feeds.forEach((feed) => {
             if (feed.folder && allPaths.includes(feed.folder)) {
               feed.items.forEach((item) => {
@@ -3179,7 +3180,7 @@ export class Sidebar {
   }
 
   private async markAllUnreadAsRead(): Promise<void> {
-    const changes: Array<{ articleGuid: string; feedUrl: string; desiredRead: boolean }> = [];
+    const changes: Array<FreshRssArticleRef & { desiredRead: boolean }> = [];
     this.settings.feeds.forEach((feed) => {
       feed.items.forEach((item) => {
         if (!item.read) {
@@ -3203,7 +3204,7 @@ export class Sidebar {
   }
 
   private async markAllReadAsUnread(): Promise<void> {
-    const changes: Array<{ articleGuid: string; feedUrl: string; desiredRead: boolean }> = [];
+    const changes: Array<FreshRssArticleRef & { desiredRead: boolean }> = [];
     this.settings.feeds.forEach((feed) => {
       feed.items.forEach((item) => {
         if (item.read) {

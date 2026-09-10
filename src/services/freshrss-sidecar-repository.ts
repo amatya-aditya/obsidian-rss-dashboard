@@ -8,6 +8,7 @@ import {
   initialFreshRssSyncHealth,
   type FreshRssSyncHealth,
 } from "./freshrss-backoff";
+import { isRecord } from "./freshrss-type-guards";
 
 export type { FreshRssSyncHealth } from "./freshrss-backoff";
 
@@ -83,10 +84,6 @@ export interface FreshRssSidecarFile {
 export type FreshRssSidecarActivationResult =
   | { outcome: "activated" }
   | { outcome: "sidecar-invalid" };
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
 
 function isConnectionScope(value: unknown): value is FreshRssConnectionScope {
   return (

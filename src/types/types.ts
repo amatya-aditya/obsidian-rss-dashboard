@@ -455,6 +455,12 @@ export type FreshRssConnectionStatus =
   | "server-unavailable"
   | "connected";
 
+/** Identifies one local article for a FreshRSS facet-mutation request. */
+export interface FreshRssArticleRef {
+  articleGuid: string;
+  feedUrl: string;
+}
+
 export interface FreshRssSettings {
   /** Canonical Google Reader-compatible FreshRSS endpoint, never a credential-bearing URL. */
   endpoint: string;

@@ -1,5 +1,10 @@
 import { Notice, setIcon } from "obsidian";
-import type { FeedItem, RssDashboardSettings, Tag } from "../types/types";
+import type {
+  FeedItem,
+  RssDashboardSettings,
+  Tag,
+  FreshRssArticleRef,
+} from "../types/types";
 import { showEditTagModal } from "./tag-utils";
 import { windowInstanceOf } from "./platform-utils";
 
@@ -21,12 +26,12 @@ export type TagsDropdownPortalOptions = {
    * boundary existed; every call site in this codebase wires it.
    */
   onCommitLabelMembershipChanges?: (
-    changes: Array<{
-      articleGuid: string;
-      feedUrl: string;
-      previousTags: readonly Tag[] | undefined;
-      nextTags: readonly Tag[] | undefined;
-    }>,
+    changes: Array<
+      FreshRssArticleRef & {
+        previousTags: readonly Tag[] | undefined;
+        nextTags: readonly Tag[] | undefined;
+      }
+    >,
   ) => Promise<{ committed: boolean; error?: string }>;
   appContainer?: HTMLElement | null;
   onClosed?: () => void;
