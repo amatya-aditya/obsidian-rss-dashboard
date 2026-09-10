@@ -75,6 +75,43 @@ export function normalizeFreshRssLabelName(name: string): string {
   return name.trim().toLowerCase();
 }
 
+/**
+ * Diffs one article's local tags before and after a change into the set of
+ * KNOWN mapped-label membership changes it implies, using the same
+ * normalization as pull and lookup. Only tags whose normalized name matches a
+ * currently-known label mapping produce a change; unmapped, automatic,
+ * folder-sync, and other local-only tags are silently excluded. Kept
+ * dependency-free so it can be reused by both a single-article change (one
+ * tag toggled) and a bulk change (e.g. deleting a tag definition, which
+ * removes it from every article's tags at once) without duplicating this
+ * logic at each call site.
+ */
+export function diffLabelMembershipChanges(
+  knownNormalizedNames: ReadonlySet<string>,
+  previousTags: readonly Pick<Tag, "name">[] | undefined,
+  nextTags: readonly Pick<Tag, "name">[] | undefined,
+): Array<{ normalizedName: string; desiredState: boolean }> {
+  const previousNames = new Set(
+    (previousTags ?? []).map((tag) => normalizeFreshRssLabelName(tag.name)),
+  );
+  const nextNames = new Set(
+    (nextTags ?? []).map((tag) => normalizeFreshRssLabelName(tag.name)),
+  );
+
+  const changes: Array<{ normalizedName: string; desiredState: boolean }> = [];
+  for (const name of nextNames) {
+    if (knownNormalizedNames.has(name) && !previousNames.has(name)) {
+      changes.push({ normalizedName: name, desiredState: true });
+    }
+  }
+  for (const name of previousNames) {
+    if (knownNormalizedNames.has(name) && !nextNames.has(name)) {
+      changes.push({ normalizedName: name, desiredState: false });
+    }
+  }
+  return changes;
+}
+
 export interface FreshRssMutationError {
   category: "auth-rejected" | "terminal" | "unavailable";
   message: string;

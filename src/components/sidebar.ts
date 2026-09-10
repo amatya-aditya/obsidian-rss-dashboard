@@ -3070,7 +3070,7 @@ export class Sidebar {
           this.showConfirmModal(
             `Are you sure you want to delete the tag "${tag.name}"? This will remove the tag from all articles.`,
             () => {
-              this.deleteTag(tag);
+              void this.deleteTag(tag);
             },
           );
         });
@@ -3092,21 +3092,53 @@ export class Sidebar {
     });
   }
 
-  private deleteTag(tag: Tag): void {
+  /**
+   * Deletes a tag definition and removes it from every article that carries
+   * it. For a FreshRSS-linked article whose tag maps to a known FreshRSS
+   * label, this first durably queues the label-removal intent for every
+   * affected article -- under one shared data-sync-lease write, so it is
+   * atomic across the whole bulk operation -- before applying anything
+   * locally, mirroring the single-article facet mutation boundary used by
+   * `updateArticleFromReader`/`updateArticleStatus`. If that queuing fails
+   * (e.g. FreshRSS sync is busy), nothing is applied: the tag stays defined
+   * and stays on every article, so a bulk delete can never silently drop a
+   * FreshRSS-mapped label's removal intent nor leave some articles updated
+   * and others not.
+   */
+  private async deleteTag(tag: Tag): Promise<void> {
+    const affected = this.settings.feeds.flatMap((feed) =>
+      feed.items
+        .filter((item) => item.tags?.some((t) => t.name === tag.name))
+        .map((item) => ({
+          feed,
+          item,
+          nextTags: (item.tags ?? []).filter((t) => t.name !== tag.name),
+        })),
+    );
+
+    const result = await this.plugin.commitArticleLabelMembershipChangesBatch(
+      affected.map(({ feed, item, nextTags }) => ({
+        articleGuid: item.guid,
+        feedUrl: feed.url,
+        previousTags: item.tags,
+        nextTags,
+      })),
+    );
+    if (!result.committed) {
+      new Notice(result.error ?? `Couldn't delete tag "${tag.name}".`);
+      return;
+    }
+
+    for (const { item, nextTags } of affected) {
+      item.tags = nextTags;
+    }
+
     const tagIndex = this.settings.availableTags.findIndex(
       (t) => t.name === tag.name,
     );
     if (tagIndex !== -1) {
       this.settings.availableTags.splice(tagIndex, 1);
     }
-
-    this.settings.feeds.forEach((feed) => {
-      feed.items.forEach((item) => {
-        if (item.tags) {
-          item.tags = item.tags.filter((t) => t.name !== tag.name);
-        }
-      });
-    });
 
     void this.plugin.saveSettings();
     this.app.workspace.trigger("rss-dashboard:tags-mutated");

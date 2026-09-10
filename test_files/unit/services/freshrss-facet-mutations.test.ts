@@ -4,6 +4,7 @@ import {
   buildLabelMappings,
   cancelPendingMutation,
   captureFacetMutation,
+  diffLabelMembershipChanges,
   dispatchableFacetMutations,
   findPendingFacetMutation,
   isLabelFacet,
@@ -555,6 +556,66 @@ describe("FreshRSS pending facet mutation capture/coalescing", () => {
         remoteDisplayName: "Tech",
       });
       expect(result).toEqual(existing);
+    });
+  });
+
+  describe("diffLabelMembershipChanges", () => {
+    const known = new Set(["tech", "news"]);
+
+    it("reports an addition for a newly-present KNOWN label", () => {
+      const result = diffLabelMembershipChanges(known, [], [{ name: "Tech" }]);
+      expect(result).toEqual([{ normalizedName: "tech", desiredState: true }]);
+    });
+
+    it("reports a removal for a KNOWN label no longer present", () => {
+      const result = diffLabelMembershipChanges(known, [{ name: "Tech" }], []);
+      expect(result).toEqual([{ normalizedName: "tech", desiredState: false }]);
+    });
+
+    it("ignores an UNKNOWN (unmapped) tag added or removed", () => {
+      const added = diffLabelMembershipChanges(known, [], [{ name: "Local Only" }]);
+      const removed = diffLabelMembershipChanges(known, [{ name: "Local Only" }], []);
+      expect(added).toEqual([]);
+      expect(removed).toEqual([]);
+    });
+
+    it("normalizes case and surrounding whitespace before comparing against known names", () => {
+      const result = diffLabelMembershipChanges(known, [], [{ name: " TECH " }]);
+      expect(result).toEqual([{ normalizedName: "tech", desiredState: true }]);
+    });
+
+    it("reports independent changes when multiple known labels change at once", () => {
+      const result = diffLabelMembershipChanges(
+        known,
+        [{ name: "Tech" }],
+        [{ name: "News" }],
+      );
+      expect(result).toEqual(
+        expect.arrayContaining([
+          { normalizedName: "tech", desiredState: false },
+          { normalizedName: "news", desiredState: true },
+        ]),
+      );
+      expect(result).toHaveLength(2);
+    });
+
+    it("returns no changes when nothing known changed", () => {
+      const result = diffLabelMembershipChanges(
+        known,
+        [{ name: "Tech" }, { name: "Local Only" }],
+        [{ name: "Tech" }, { name: "Local Only" }],
+      );
+      expect(result).toEqual([]);
+    });
+
+    it("treats undefined previous/next tags the same as an empty array", () => {
+      const result = diffLabelMembershipChanges(known, undefined, undefined);
+      expect(result).toEqual([]);
+    });
+
+    it("returns no changes when the known-name set is empty", () => {
+      const result = diffLabelMembershipChanges(new Set(), [], [{ name: "Tech" }]);
+      expect(result).toEqual([]);
     });
   });
 

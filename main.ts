@@ -89,8 +89,8 @@ import {
 } from "./src/services/freshrss-sync-trigger-coordinator";
 import {
   captureFacetMutation,
+  diffLabelMembershipChanges,
   makeLabelFacet,
-  normalizeFreshRssLabelName,
   type FreshRssSynchronizableFacet,
 } from "./src/services/freshrss-facet-mutations";
 import type { FreshRssCapability } from "./src/settings/tabs/freshrss-settings-tab";
@@ -3069,21 +3069,9 @@ export default class RssDashboardPlugin extends Plugin {
   /**
    * Captures pending FreshRSS facet mutations for every KNOWN mapped label
    * whose membership changed between `previousTags` and `nextTags` on one
-   * article's local tags, following the same sidecar-before-commit,
-   * coalescing, and stale-acknowledgment-safe guarantees as
-   * `commitArticleFacetState`. Unlike read/starred, this method does not
-   * itself apply anything to the article: the caller still applies the
-   * `tags` update through its normal flow (e.g. assigning `restUpdates.tags`
-   * onto the stored article) -- this only durably records the remote intent
-   * for each changed KNOWN label BEFORE that local apply happens, so a
-   * sidecar write failure can be surfaced and the caller can choose not to
-   * apply the tag change rather than silently losing the user's choice.
-   *
-   * Unmapped local tag names, automatic tags (e.g. Favorite), folder-sync
-   * tags, saved tags, and any other tag with no known FreshRSS label mapping
-   * create no sidecar record and no remote call -- they stay entirely local.
-   * A local-only (non-FreshRSS-linked) article, or one whose FreshRSS
-   * capability isn't available, is completely unaffected.
+   * article's local tags. Convenience wrapper over
+   * `commitArticleLabelMembershipChangesBatch` for the common single-article
+   * case (see that method for the full contract).
    */
   public async commitArticleLabelMembershipChanges(
     articleGuid: string,
@@ -3091,13 +3079,70 @@ export default class RssDashboardPlugin extends Plugin {
     previousTags: readonly Tag[] | undefined,
     nextTags: readonly Tag[] | undefined,
   ): Promise<{ committed: boolean; error?: string }> {
+    return this.commitArticleLabelMembershipChangesBatch([
+      { articleGuid, feedUrl, previousTags, nextTags },
+    ]);
+  }
+
+  /**
+   * Captures pending FreshRSS facet mutations for every KNOWN mapped label
+   * whose membership changed between `previousTags` and `nextTags`, across
+   * one or more articles, following the same sidecar-before-commit,
+   * coalescing, and stale-acknowledgment-safe guarantees as
+   * `commitArticleFacetState`. Unlike read/starred, this method does not
+   * itself apply anything to any article: each caller still applies its own
+   * `tags` update through its normal flow -- this only durably records the
+   * remote intent for each changed KNOWN label BEFORE those local applies
+   * happen, so a sidecar write failure can be surfaced and every caller can
+   * choose not to apply its tag change rather than silently losing the
+   * user's choice.
+   *
+   * All affected articles are captured under ONE data-sync-lease acquisition
+   * and ONE sidecar write, so a multi-article change (e.g. deleting a tag
+   * definition, which can affect many articles at once) is atomic: either
+   * every known-label change across every article is durably queued
+   * together, or none of them are and every caller's local apply must be
+   * skipped.
+   *
+   * Unmapped local tag names, automatic tags (e.g. Favorite), folder-sync
+   * tags, saved tags, and any other tag with no known FreshRSS label mapping
+   * create no sidecar record and no remote call -- they stay entirely local.
+   * A local-only (non-FreshRSS-linked) article, or one whose FreshRSS
+   * capability isn't available, is completely unaffected.
+   */
+  public async commitArticleLabelMembershipChangesBatch(
+    changes: Array<{
+      articleGuid: string;
+      feedUrl: string;
+      previousTags: readonly Tag[] | undefined;
+      nextTags: readonly Tag[] | undefined;
+    }>,
+  ): Promise<{ committed: boolean; error?: string }> {
+    if (changes.length === 0) {
+      return { committed: true };
+    }
     if (this.getFreshRssCapability() !== "available") {
       return { committed: true };
     }
 
-    const feed = this.settings.feeds.find((f) => f.url === feedUrl);
-    const article = feed?.items.find((item) => item.guid === articleGuid);
-    if (!feed || !article) {
+    const resolved: Array<{
+      feed: Feed;
+      article: FeedItem;
+      previousTags: readonly Tag[] | undefined;
+      nextTags: readonly Tag[] | undefined;
+    }> = [];
+    for (const change of changes) {
+      const feed = this.settings.feeds.find((f) => f.url === change.feedUrl);
+      const article = feed?.items.find((item) => item.guid === change.articleGuid);
+      if (!feed || !article) continue;
+      resolved.push({
+        feed,
+        article,
+        previousTags: change.previousTags,
+        nextTags: change.nextTags,
+      });
+    }
+    if (resolved.length === 0) {
       return { committed: true };
     }
 
@@ -3111,14 +3156,6 @@ export default class RssDashboardPlugin extends Plugin {
       return { committed: true };
     }
 
-    const binding = sidecarState.articleBindings.find(
-      (b) => b.feedId === feed.feedId && b.guid === article.guid,
-    );
-    if (!binding) {
-      // Local-only (not FreshRSS-linked) article: unaffected.
-      return { committed: true };
-    }
-
     const knownNormalizedNames = new Set(
       sidecarState.labelMappings.map((mapping) => mapping.normalizedName),
     );
@@ -3126,25 +3163,28 @@ export default class RssDashboardPlugin extends Plugin {
       return { committed: true };
     }
 
-    const previousNames = new Set(
-      (previousTags ?? []).map((tag) => normalizeFreshRssLabelName(tag.name)),
-    );
-    const nextNames = new Set(
-      (nextTags ?? []).map((tag) => normalizeFreshRssLabelName(tag.name)),
-    );
-
-    const changes: Array<{ normalizedName: string; desiredState: boolean }> = [];
-    for (const name of nextNames) {
-      if (knownNormalizedNames.has(name) && !previousNames.has(name)) {
-        changes.push({ normalizedName: name, desiredState: true });
+    const perArticleChanges: Array<{
+      remoteArticleId: string;
+      labelChanges: Array<{ normalizedName: string; desiredState: boolean }>;
+    }> = [];
+    for (const entry of resolved) {
+      const binding = sidecarState.articleBindings.find(
+        (b) => b.feedId === entry.feed.feedId && b.guid === entry.article.guid,
+      );
+      if (!binding) {
+        // Local-only (not FreshRSS-linked) article: unaffected.
+        continue;
+      }
+      const labelChanges = diffLabelMembershipChanges(
+        knownNormalizedNames,
+        entry.previousTags,
+        entry.nextTags,
+      );
+      if (labelChanges.length > 0) {
+        perArticleChanges.push({ remoteArticleId: binding.remoteArticleId, labelChanges });
       }
     }
-    for (const name of previousNames) {
-      if (knownNormalizedNames.has(name) && !nextNames.has(name)) {
-        changes.push({ normalizedName: name, desiredState: false });
-      }
-    }
-    if (changes.length === 0) {
+    if (perArticleChanges.length === 0) {
       return { committed: true };
     }
 
@@ -3153,13 +3193,15 @@ export default class RssDashboardPlugin extends Plugin {
         owner.throwIfInactive();
         let pending = sidecarState.pendingFacetMutations;
         const nowMs = Date.now();
-        for (const change of changes) {
-          pending = captureFacetMutation(pending, {
-            remoteArticleId: binding.remoteArticleId,
-            facet: makeLabelFacet(change.normalizedName),
-            desiredState: change.desiredState,
-            nowMs,
-          });
+        for (const { remoteArticleId, labelChanges } of perArticleChanges) {
+          for (const change of labelChanges) {
+            pending = captureFacetMutation(pending, {
+              remoteArticleId,
+              facet: makeLabelFacet(change.normalizedName),
+              desiredState: change.desiredState,
+              nowMs,
+            });
+          }
         }
         owner.throwIfInactive();
         await sidecarRepository.write({

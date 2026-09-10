@@ -562,11 +562,36 @@ export class MockWorkspace {
     callbacks.forEach((callback) => callback());
   }
 
-  on(_name: string, _callback: (...args: unknown[]) => unknown): unknown {
-    return {};
+  /**
+   * Named-event pub/sub, matching real Obsidian's `Events`/`Workspace`
+   * contract (`on`/`offref`/`trigger`) closely enough for plugin code that
+   * subscribes to or fires custom workspace events (e.g.
+   * `"rss-dashboard:tags-mutated"`) to be exercised in tests.
+   */
+  private eventHandlers: Map<string, Set<(...args: unknown[]) => unknown>> = new Map();
+
+  on(name: string, callback: (...args: unknown[]) => unknown): unknown {
+    if (!this.eventHandlers.has(name)) {
+      this.eventHandlers.set(name, new Set());
+    }
+    this.eventHandlers.get(name)!.add(callback);
+    return { name, callback };
   }
 
-  offref(_ref: unknown): void {}
+  offref(ref: unknown): void {
+    if (!ref || typeof ref !== "object") return;
+    const { name, callback } = ref as {
+      name?: string;
+      callback?: (...args: unknown[]) => unknown;
+    };
+    if (name && callback) {
+      this.eventHandlers.get(name)?.delete(callback);
+    }
+  }
+
+  trigger(name: string, ...args: unknown[]): void {
+    this.eventHandlers.get(name)?.forEach((handler) => handler(...args));
+  }
 }
 
 // =============================================================================

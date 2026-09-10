@@ -316,3 +316,207 @@ describe("commitArticleLabelMembershipChanges (mapped-label facet mutation bound
     expect(result.error).toBeTruthy();
   });
 });
+
+/**
+ * Covers `commitArticleLabelMembershipChangesBatch`: the multi-article form
+ * used by bulk local operations like deleting a tag definition (which
+ * removes it from every article at once). Regression coverage for the bug
+ * where sidebar.ts's "Delete tag" bulk-stripped a tag from every article
+ * directly, without going through this boundary at all -- so a FreshRSS
+ * mapped-label removal never queued a pending mutation and was silently
+ * re-added by the next pull-reconcile.
+ */
+describe("commitArticleLabelMembershipChangesBatch (bulk mapped-label facet mutation boundary)", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    vi.spyOn(obsidian, "requireApiVersion").mockReturnValue(true);
+  });
+
+  function makeTwoArticleFeed(): Feed {
+    return {
+      feedId: "feed-1",
+      title: "Feed One",
+      url: "https://example.test/feed.xml",
+      folder: "Uncategorized",
+      items: [
+        {
+          title: "Article One",
+          link: "https://example.test/a1",
+          description: "",
+          pubDate: "",
+          guid: "guid-1",
+          feedTitle: "Feed One",
+          feedUrl: "https://example.test/feed.xml",
+          coverImage: "",
+          tags: [{ name: "Tech", color: "#111111" }],
+        },
+        {
+          title: "Article Two",
+          link: "https://example.test/a2",
+          description: "",
+          pubDate: "",
+          guid: "guid-2",
+          feedTitle: "Feed One",
+          feedUrl: "https://example.test/feed.xml",
+          coverImage: "",
+          tags: [{ name: "Tech", color: "#111111" }, { name: "Local Only", color: "#333333" }],
+        },
+      ],
+      lastUpdated: 0,
+    };
+  }
+
+  it("is a no-op for an empty change list", async () => {
+    const { plugin } = createFreshRssReadyPlugin();
+    const result = await plugin.commitArticleLabelMembershipChangesBatch([]);
+    expect(result).toEqual({ committed: true });
+  });
+
+  it("captures one pending removal per affected FreshRSS-linked article under a single write, when a mapped-label tag is bulk-removed from every article (deleting a tag definition)", async () => {
+    const { plugin, app } = createFreshRssReadyPlugin();
+    plugin.settings.feeds = [makeTwoArticleFeed()];
+    await activateSidecar(app, {
+      articleBindings: [
+        { feedId: "feed-1", guid: "guid-1", remoteArticleId: "remote-article-1" },
+        { feedId: "feed-1", guid: "guid-2", remoteArticleId: "remote-article-2" },
+      ],
+    });
+    const writeSpy = vi.spyOn(app.vault.adapter, "write");
+
+    const result = await plugin.commitArticleLabelMembershipChangesBatch([
+      {
+        articleGuid: "guid-1",
+        feedUrl: "https://example.test/feed.xml",
+        previousTags: [{ name: "Tech", color: "#111111" }],
+        nextTags: [],
+      },
+      {
+        articleGuid: "guid-2",
+        feedUrl: "https://example.test/feed.xml",
+        previousTags: [
+          { name: "Tech", color: "#111111" },
+          { name: "Local Only", color: "#333333" },
+        ],
+        nextTags: [{ name: "Local Only", color: "#333333" }],
+      },
+    ]);
+
+    expect(result).toEqual({ committed: true });
+    const sidecar = await readSidecar(app);
+    expect(sidecar.pendingFacetMutations).toHaveLength(2);
+    expect(sidecar.pendingFacetMutations).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          remoteArticleId: "remote-article-1",
+          facet: "label:tech",
+          desiredState: false,
+        }),
+        expect.objectContaining({
+          remoteArticleId: "remote-article-2",
+          facet: "label:tech",
+          desiredState: false,
+        }),
+      ]),
+    );
+    // Only one sidecar write for the whole batch, not one per article.
+    const stateWrites = writeSpy.mock.calls.filter(
+      ([path]) => path === ".rss-dashboard-data/freshrss-state.json",
+    );
+    expect(stateWrites).toHaveLength(1);
+  });
+
+  it("skips a local-only (non-FreshRSS-linked) article in the same batch without affecting the linked one", async () => {
+    const { plugin, app } = createFreshRssReadyPlugin();
+    plugin.settings.feeds = [makeTwoArticleFeed()];
+    // Only guid-1 is FreshRSS-linked; guid-2 has no binding.
+    await activateSidecar(app, {
+      articleBindings: [{ feedId: "feed-1", guid: "guid-1", remoteArticleId: "remote-article-1" }],
+    });
+
+    const result = await plugin.commitArticleLabelMembershipChangesBatch([
+      {
+        articleGuid: "guid-1",
+        feedUrl: "https://example.test/feed.xml",
+        previousTags: [{ name: "Tech", color: "#111111" }],
+        nextTags: [],
+      },
+      {
+        articleGuid: "guid-2",
+        feedUrl: "https://example.test/feed.xml",
+        previousTags: [
+          { name: "Tech", color: "#111111" },
+          { name: "Local Only", color: "#333333" },
+        ],
+        nextTags: [{ name: "Local Only", color: "#333333" }],
+      },
+    ]);
+
+    expect(result).toEqual({ committed: true });
+    const sidecar = await readSidecar(app);
+    expect(sidecar.pendingFacetMutations).toHaveLength(1);
+    expect(sidecar.pendingFacetMutations[0]).toMatchObject({
+      remoteArticleId: "remote-article-1",
+      facet: "label:tech",
+    });
+  });
+
+  it("commits nothing for ANY article in the batch when the single shared sidecar write fails -- atomic across the whole bulk operation", async () => {
+    const { plugin, app } = createFreshRssReadyPlugin();
+    plugin.settings.feeds = [makeTwoArticleFeed()];
+    await activateSidecar(app, {
+      articleBindings: [
+        { feedId: "feed-1", guid: "guid-1", remoteArticleId: "remote-article-1" },
+        { feedId: "feed-1", guid: "guid-2", remoteArticleId: "remote-article-2" },
+      ],
+    });
+    vi.spyOn(app.vault.adapter, "write").mockRejectedValue(new Error("disk full"));
+
+    const result = await plugin.commitArticleLabelMembershipChangesBatch([
+      {
+        articleGuid: "guid-1",
+        feedUrl: "https://example.test/feed.xml",
+        previousTags: [{ name: "Tech", color: "#111111" }],
+        nextTags: [],
+      },
+      {
+        articleGuid: "guid-2",
+        feedUrl: "https://example.test/feed.xml",
+        previousTags: [
+          { name: "Tech", color: "#111111" },
+          { name: "Local Only", color: "#333333" },
+        ],
+        nextTags: [{ name: "Local Only", color: "#333333" }],
+      },
+    ]);
+
+    expect(result.committed).toBe(false);
+    expect(result.error).toBeTruthy();
+  });
+
+  it("creates no sidecar record when no article in the batch has a KNOWN mapped-label change", async () => {
+    const { plugin, app } = createFreshRssReadyPlugin();
+    plugin.settings.feeds = [makeTwoArticleFeed()];
+    await activateSidecar(app, {
+      articleBindings: [
+        { feedId: "feed-1", guid: "guid-1", remoteArticleId: "remote-article-1" },
+        { feedId: "feed-1", guid: "guid-2", remoteArticleId: "remote-article-2" },
+      ],
+    });
+
+    const result = await plugin.commitArticleLabelMembershipChangesBatch([
+      {
+        articleGuid: "guid-2",
+        feedUrl: "https://example.test/feed.xml",
+        previousTags: [
+          { name: "Tech", color: "#111111" },
+          { name: "Local Only", color: "#333333" },
+        ],
+        nextTags: [{ name: "Tech", color: "#111111" }],
+      },
+    ]);
+
+    expect(result).toEqual({ committed: true });
+    const sidecar = await readSidecar(app);
+    expect(sidecar.pendingFacetMutations).toEqual([]);
+  });
+});
