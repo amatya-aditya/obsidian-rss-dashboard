@@ -31,6 +31,10 @@
 - Fixed unnecessary type assertion in `src/utils/settings-loader.ts` by updating `migrateDefaultFilterToDashboardMultiFilters` to accept typed `DisplaySettings`.
 - Fixed the global-refresh Stop button not appearing on mobile/tablet: the sidebar modal's polling loop now applies the `stop` class and swaps the icon to `square-stop` when the refresh is cancellable, matching the desktop sidebar behaviour.
 
+### Development and compliance
+
+- Aligned repository tooling with the current Obsidian sample-plugin baseline: TypeScript now targets ES2021, Node-only maintenance scripts are linted under a scoped tooling policy, and repeat version bumps preserve an existing `versions.json` compatibility mapping. Added regression coverage for both version-bump paths. [GH Issue #240](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/240)
+
 ## 2.6.0 - August 24, 2026
 
 ### Features
