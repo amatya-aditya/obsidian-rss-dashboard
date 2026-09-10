@@ -126,6 +126,18 @@ function getFullContentToggle(content: HTMLElement): HTMLInputElement {
   )!;
 }
 
+function getMetadataRefreshToggle(content: HTMLElement): HTMLInputElement {
+  return content.querySelector<HTMLInputElement>(
+    ".import-option-setting input[type='checkbox']",
+  )!;
+}
+
+function getMetadataRefreshDescription(content: HTMLElement): HTMLElement {
+  return content.querySelector<HTMLElement>(
+    ".import-option-setting .setting-item-description",
+  )!;
+}
+
 beforeEach(() => {
   installObsidianDomPolyfills();
   document.body.empty();
@@ -257,7 +269,7 @@ describe("ImportStarredModal", () => {
   });
 
 
-  it("creates the missing source feed, assigns it to the default folder, and inserts its starred item immediately without waiting on the fetch", async () => {
+  it("creates the missing source feed, assigns it to the default folder, and inserts its starred item immediately without waiting on the fetch, when the metadata-refresh toggle is on", async () => {
     const app = createMockApp();
     const settings = cloneSettings();
     settings.feeds = [
@@ -279,6 +291,8 @@ describe("ImportStarredModal", () => {
     );
 
     const content = (modal as unknown as TestModal).contentEl;
+    getMetadataRefreshToggle(content).click();
+
     const importButton = content.querySelector<HTMLButtonElement>(
       ".rss-dashboard-modal-buttons .rss-dashboard-primary-button",
     )!;
@@ -332,6 +346,123 @@ describe("ImportStarredModal", () => {
     expect((plugin.saveSettings as ReturnType<typeof vi.fn>).mock.calls.length).toBeGreaterThan(
       savesBeforeResolve,
     );
+  });
+
+  it("renders an Options panel above Preview containing the new-feed metadata-refresh toggle, off by default", async () => {
+    const app = createMockApp();
+    const settings = cloneSettings();
+    settings.feeds = [
+      makeFeed("https://example-feed.test/rss", "Example Feed"),
+      makeFeed("https://example.com/blog/feed.xml", "Example Blog"),
+    ];
+    const plugin = createTestPlugin(settings);
+    const modal = new ImportStarredModal(
+      app,
+      plugin as unknown as ConstructorParameters<typeof ImportStarredModal>[1],
+    );
+    (modal as unknown as TestModal).open();
+
+    await (modal as unknown as TestModal).handleFileSelection(
+      new File([readFixture()], "starred.json"),
+    );
+
+    const content = (modal as unknown as TestModal).contentEl;
+    const optionsPanel = content.querySelector(".import-options-panel");
+    expect(optionsPanel).not.toBeNull();
+    expect(optionsPanel?.textContent).toContain("New-feed metadata refresh");
+
+    const preview = content.querySelector(".import-preview-container")!;
+    const optionsIndex = Array.from(preview.children).indexOf(
+      optionsPanel as Element,
+    );
+    const headerIndex = Array.from(preview.children).findIndex((child) =>
+      child.querySelector("h4")?.textContent === "Preview",
+    );
+    expect(optionsIndex).toBeGreaterThanOrEqual(0);
+    expect(headerIndex).toBeGreaterThan(optionsIndex);
+
+    expect(getMetadataRefreshToggle(content).checked).toBe(false);
+  });
+
+  it("dims the metadata-refresh toggle's description while off, and un-dims it once switched on", async () => {
+    const app = createMockApp();
+    const settings = cloneSettings();
+    settings.feeds = [
+      makeFeed("https://example-feed.test/rss", "Example Feed"),
+      makeFeed("https://example.com/blog/feed.xml", "Example Blog"),
+    ];
+    const plugin = createTestPlugin(settings);
+    const modal = new ImportStarredModal(
+      app,
+      plugin as unknown as ConstructorParameters<typeof ImportStarredModal>[1],
+    );
+    (modal as unknown as TestModal).open();
+
+    await (modal as unknown as TestModal).handleFileSelection(
+      new File([readFixture()], "starred.json"),
+    );
+
+    const content = (modal as unknown as TestModal).contentEl;
+    expect(
+      getMetadataRefreshDescription(content).classList.contains(
+        "import-option-description--disabled",
+      ),
+    ).toBe(true);
+
+    getMetadataRefreshToggle(content).click();
+
+    expect(
+      getMetadataRefreshDescription(content).classList.contains(
+        "import-option-description--disabled",
+      ),
+    ).toBe(false);
+  });
+
+  it("creates the missing source feed using only the export's data and never triggers a live fetch when the metadata-refresh toggle is left off", async () => {
+    const app = createMockApp();
+    const settings = cloneSettings();
+    settings.feeds = [
+      makeFeed("https://example-feed.test/rss", "Example Feed"),
+      makeFeed("https://example.com/blog/feed.xml", "Example Blog"),
+    ];
+    const deferred = createDeferredRefreshFeed();
+    const plugin = createTestPlugin(settings, {
+      feedParser: { refreshFeed: deferred.refreshFeed },
+    });
+    const modal = new ImportStarredModal(
+      app,
+      plugin as unknown as ConstructorParameters<typeof ImportStarredModal>[1],
+    );
+    (modal as unknown as TestModal).open();
+
+    await (modal as unknown as TestModal).handleFileSelection(
+      new File([readFixture()], "starred.json"),
+    );
+
+    const content = (modal as unknown as TestModal).contentEl;
+    // The toggle is off by default — left untouched.
+    const importButton = content.querySelector<HTMLButtonElement>(
+      ".rss-dashboard-modal-buttons .rss-dashboard-primary-button",
+    )!;
+    importButton.click();
+    await flushPromises();
+
+    const newFeed = settings.feeds.find(
+      (f) => f.url === "https://not-subscribed.example.test/feed",
+    );
+    expect(newFeed).toBeDefined();
+    expect(newFeed?.title).toBe("Not Subscribed Source");
+    expect(newFeed?.siteUrl).toBe("https://not-subscribed.example.test/");
+    expect(newFeed?.folder).toBe("Uncategorized");
+    expect(newFeed?.items).toHaveLength(1);
+    expect(newFeed?.items[0]).toMatchObject({
+      title: "Unsubscribed Source Article",
+      starred: true,
+      read: false,
+    });
+
+    // No live fetch was triggered for the new feed.
+    expect(deferred.calls).toHaveLength(0);
   });
 
   it("lets the user edit the target folder for a new feed before importing", async () => {

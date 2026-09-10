@@ -13,6 +13,34 @@
   --import-indent: 14px;
 }
 
+/* "Options" panel (234-07) — import-time toggles (new-feed metadata
+ * refresh; the tag-import toggle from 234-11 joins this same panel later),
+ * rendered above the "Preview" section. */
+.import-options-panel {
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.import-options-heading {
+  margin: 0 0 0.25rem;
+  font-size: var(--font-ui-small);
+  color: var(--text-muted);
+}
+
+.import-options-panel .import-option-setting {
+  border-top: none;
+  padding: 0.35rem 0;
+}
+
+/* Dims an Options-panel toggle's own description text while that toggle is
+ * off, per the spec's per-option disabled-state visual cue. Scoped to this
+ * panel's description elements (no `!important`) so it can't leak into
+ * unrelated Setting descriptions elsewhere in the modal. */
+.import-options-panel .import-option-description--disabled {
+  opacity: 0.5;
+}
+
 /* "Unable to import" section — lists starred.json entries the mapper could
  * not turn into a candidate at all (see StarredImportUnimportableReason),
  * shown below the regular preview list instead of silently dropping them. */

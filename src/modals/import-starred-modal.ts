@@ -38,11 +38,15 @@ interface FullContentFetchFailure {
  * inserts starred articles into feeds the user already subscribes to. For
  * source feeds the user does not already subscribe to, the preview groups
  * their starred items under an editable-folder "new feed" row (234-02); on
- * execute, the feed is created, a single background fetch is triggered to
- * populate its metadata/current items, and the historical starred item(s)
- * are inserted immediately, independent of that fetch. Entries that can
- * never produce a candidate at all are surfaced in an "Unable to import"
- * section (234-03) instead of being silently dropped.
+ * execute, the feed is created unconditionally using only the export's own
+ * `origin.title`/`origin.htmlUrl` data, and the historical starred item(s)
+ * are inserted immediately. Whether a single background fetch is also
+ * triggered to populate that new feed's live metadata/current items is
+ * controlled by the Options panel's "New-feed metadata refresh" toggle
+ * (234-07), off by default; when off, the feed keeps only the export-derived
+ * placeholder data until its next normal refresh. Entries that can never
+ * produce a candidate at all are surfaced in an "Unable to import" section
+ * (234-03) instead of being silently dropped.
  *
  * Label-to-tag mapping (234-04): `mapStarredExportToCandidates` assigns each
  * imported article its `label/X` categories as `Tag`s, reusing an existing
@@ -79,6 +83,7 @@ export class ImportStarredModal extends Modal {
   private previewModel: StarredImportPreviewModel | null = null;
   private unimportableEntries: StarredImportUnimportableEntry[] = [];
   private collapsedFeedUrls = new Set<string>();
+  private newFeedMetadataRefreshEnabled = false;
   private fetchFullContentEnabled = false;
   private fullContentFailures: FullContentFetchFailure[] = [];
   private readonly importerShell: ImporterShell<
@@ -215,6 +220,8 @@ export class ImportStarredModal extends Modal {
 
     const stats = model.getStats();
 
+    this.renderOptionsPanel();
+
     const header = this.previewContainer.createDiv({
       cls: "import-preview-header",
     });
@@ -304,6 +311,52 @@ export class ImportStarredModal extends Modal {
     list.scrollTop = previousScrollTop;
 
     this.renderUnimportableSection(this.previewContainer);
+  }
+
+  /**
+   * "Options" panel (234-07), rendered above the "Preview" section. Currently
+   * hosts the new-feed metadata-refresh toggle only; the spec
+   * (draft-20260910-starred-import-followups.md) calls for a later,
+   * separately-ticketed tag-import toggle (234-11) to join this same panel,
+   * so the container/heading structure is written to accommodate more than
+   * one option row rather than being tailored to exactly one.
+   */
+  private renderOptionsPanel(): void {
+    const panel = this.previewContainer.createDiv({
+      cls: "import-options-panel",
+    });
+    panel.createEl("h4", {
+      cls: "import-options-heading",
+      text: "Options",
+    });
+
+    const metadataRefreshSetting = new Setting(panel)
+      .setName("New-feed metadata refresh")
+      .setDesc(
+        "When a starred article belongs to a feed you don't already follow, live-fetch that new feed's title, site URL, icon, and current items right away. The starred article itself is always imported, whether this is on or off.",
+      )
+      .addToggle((toggle) => {
+        toggle
+          .setValue(this.newFeedMetadataRefreshEnabled)
+          .onChange((value) => {
+            this.newFeedMetadataRefreshEnabled = value;
+            this.setOptionDescriptionDimmed(metadataRefreshSetting, !value);
+          });
+      });
+    metadataRefreshSetting.settingEl.addClass("import-option-setting");
+    this.setOptionDescriptionDimmed(
+      metadataRefreshSetting,
+      !this.newFeedMetadataRefreshEnabled,
+    );
+  }
+
+  /**
+   * Dims an Options-panel toggle's own description text when that toggle is
+   * off, per story 17 in draft-20260910-starred-import-followups.md — a
+   * scoped CSS class on the description element, not `!important`.
+   */
+  private setOptionDescriptionDimmed(setting: Setting, dimmed: boolean): void {
+    setting.descEl.toggleClass("import-option-description--disabled", dimmed);
   }
 
   private renderUnimportableSection(container: HTMLElement): void {
@@ -706,9 +759,14 @@ export class ImportStarredModal extends Modal {
 
     // Fire-and-forget: populate each newly created feed's metadata and
     // current items via a single background fetch, independent of the
-    // starred-item insertion already persisted above.
-    for (const feedUrl of createdFeedUrls) {
-      this.fetchNewlyCreatedFeed(feedUrl);
+    // starred-item insertion already persisted above. Gated behind the
+    // Options panel's "New-feed metadata refresh" toggle (234-07) — the
+    // feed itself was already created unconditionally regardless of this
+    // toggle's state.
+    if (this.newFeedMetadataRefreshEnabled) {
+      for (const feedUrl of createdFeedUrls) {
+        this.fetchNewlyCreatedFeed(feedUrl);
+      }
     }
 
     new Notice(this.buildImportCompleteNotice(insertedCount, updatedCount));
@@ -724,10 +782,12 @@ export class ImportStarredModal extends Modal {
   /**
    * Triggers exactly one feed-fetch/refresh for a feed created during this
    * import, to populate its metadata (title/siteUrl/icon) and current
-   * items. Deliberately not awaited by `performImport` — the historical
-   * starred item(s) for this feed were already inserted and saved. Any
-   * fetch failure is non-fatal: `FeedParser.refreshFeed` already catches
-   * and records `lastFetchError` on the feed rather than throwing.
+   * items. Only called when the Options panel's "New-feed metadata
+   * refresh" toggle is on (234-07). Deliberately not awaited by
+   * `performImport` — the historical starred item(s) for this feed were
+   * already inserted and saved. Any fetch failure is non-fatal:
+   * `FeedParser.refreshFeed` already catches and records `lastFetchError`
+   * on the feed rather than throwing.
    */
   private fetchNewlyCreatedFeed(feedUrl: string): void {
     const feed = this.plugin.settings.feeds.find((f) => f.url === feedUrl);
