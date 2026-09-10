@@ -1,9 +1,10 @@
-# Import Starred Articles Guide
+# Import Starred Articles from Inoreader
 
-This guide explains the **Import starred articles** feature: what it brings
-in from an Inoreader `starred.json` export, the two Options toggles that
-control optional side effects, how full article content gets fetched, and how
-tagging works during the import preview.
+This guide explains the **Import starred articles from Inoreader** feature:
+what it brings in from an Inoreader `starred.json` export, the two Options
+toggles that control optional side effects, how full article content gets
+fetched, and how tagging works during the import preview. Reach it from the
+command palette, the Settings tab, or the Feed Manager's button row.
 
 ## What it does
 

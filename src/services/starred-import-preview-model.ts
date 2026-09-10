@@ -37,7 +37,7 @@ interface CandidateState {
   selected: boolean;
 }
 
-const DEFAULT_NEW_FEED_FOLDER = "Uncategorized";
+export const DEFAULT_NEW_FEED_FOLDER = "Uncategorized";
 
 /**
  * Article-shaped (not feed/folder-shaped) preview-selection model for the
@@ -194,6 +194,15 @@ export class StarredImportPreviewModel {
    */
   getCandidateItem(guid: string): FeedItem | undefined {
     return this.candidateByGuid.get(guid)?.candidate.item;
+  }
+
+  /**
+   * The full candidate backing a row, including its `labelDerivedTagNames`
+   * provenance — unlike `getCandidateItem`, which only exposes the live
+   * `FeedItem` for direct mutation by the tag chip's portal.
+   */
+  getCandidate(guid: string): StarredImportCandidate | undefined {
+    return this.candidateByGuid.get(guid)?.candidate;
   }
 
   getSelectedCandidates(): StarredImportCandidate[] {

@@ -584,6 +584,40 @@ describe("ImportStarredModal", () => {
     expect(helperText?.textContent).toContain("editable target folder");
   });
 
+  it("displays <None> instead of the literal default folder name for a new feed the user hasn't assigned a folder to", async () => {
+    const app = createMockApp();
+    const settings = cloneSettings();
+    settings.feeds = [
+      makeFeed("https://example-feed.test/rss", "Example Feed"),
+      makeFeed("https://example.com/blog/feed.xml", "Example Blog"),
+    ];
+    const plugin = createTestPlugin(settings);
+    const modal = new ImportStarredModal(
+      app,
+      plugin as unknown as ConstructorParameters<typeof ImportStarredModal>[1],
+    );
+    (modal as unknown as TestModal).open();
+
+    await (modal as unknown as TestModal).handleFileSelection(
+      new File([readFixture()], "starred.json"),
+    );
+
+    const content = (modal as unknown as TestModal).contentEl;
+    const folderIcon = content.querySelector<HTMLElement>(
+      ".import-preview-folder-icon",
+    );
+    const metaSpans = Array.from(
+      folderIcon?.parentElement?.querySelectorAll<HTMLElement>(
+        ".import-preview-meta",
+      ) ?? [],
+    );
+    const folderText = metaSpans.find((el) =>
+      el.textContent?.startsWith("Folder:"),
+    );
+    expect(folderText?.textContent).toBe("Folder: <None>");
+    expect(folderText?.textContent).not.toContain("Uncategorized");
+  });
+
   it("does not create a duplicate feed when a new-feed candidate's url already exists locally by the time import executes", async () => {
     const app = createMockApp();
     const settings = cloneSettings();
@@ -1228,6 +1262,45 @@ describe("ImportStarredModal", () => {
       expect(section).not.toBeNull();
       expect(section?.textContent).toContain("New tags (1)");
       expect(section?.textContent).toContain("googleAPI");
+    });
+
+    it("hides label-derived chips when 'Import labels as tags' is off, but keeps a tag added by hand through the chip's portal", async () => {
+      const { settings, content } = await setUpModal();
+
+      getTagImportToggle(content).click();
+
+      // "Design" and "art" are label-derived (234-04's mapping), so they're
+      // hidden from the chip once the bulk toggle is off.
+      const control = getItemTagsControl(content, labeledGuid);
+      expect(control.querySelectorAll(".rss-dashboard-tag-badge")).toHaveLength(0);
+
+      control.click();
+      const call = createTagsDropdownPortalMock.mock.calls[
+        createTagsDropdownPortalMock.mock.calls.length - 1
+      ][0] as {
+        onTagAssignmentChange: (tag: Tag, checked: boolean) => void;
+      };
+      call.onTagAssignmentChange({ name: "inoreader", color: "#8b5cf6" }, true);
+
+      // The manually-added tag survives display even though the bulk toggle
+      // is still off — only the label-derived tags stay hidden.
+      const chips = Array.from(
+        getItemTagsControl(content, labeledGuid).querySelectorAll(
+          ".rss-dashboard-tag-badge",
+        ),
+      ).map((el) => el.textContent);
+      expect(chips).toEqual(["inoreader"]);
+
+      const importButton = content.querySelector<HTMLButtonElement>(
+        ".rss-dashboard-modal-buttons .rss-dashboard-primary-button",
+      )!;
+      importButton.click();
+      await flushPromises();
+
+      const importedItem = settings.feeds
+        .flatMap((feed) => feed.items)
+        .find((item) => item.guid === labeledGuid);
+      expect(importedItem?.tags?.map((t) => t.name)).toEqual(["inoreader"]);
     });
   });
 });

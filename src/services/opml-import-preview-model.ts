@@ -3,7 +3,7 @@ import { isValidFeedTitle, isValidFolderName, sanitizeName } from "../utils/vali
 
 type ImportMode = "update" | "overwrite";
 
-const UNCATEGORIZED_FOLDER = "Uncategorized";
+export const UNCATEGORIZED_FOLDER = "Uncategorized";
 
 type FolderSelectionState = { checked: boolean; indeterminate: boolean };
 

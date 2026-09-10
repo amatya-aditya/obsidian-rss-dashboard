@@ -1,14 +1,18 @@
 import { Modal, App, Setting, Notice, setIcon } from "obsidian";
 import type RssDashboardPlugin from "../../main";
-import type { Feed, FeedItem, Tag } from "../types/types";
+import type { Feed, Tag } from "../types/types";
 import {
   buildNewFeedRecord,
   mapStarredExportToCandidates,
+  type StarredImportCandidate,
   type StarredImportUnimportableEntry,
   type StarredJsonExport,
 } from "../services/starred-import-mapper";
 import type { StarredImportPreviewGroupSnapshot } from "../services/starred-import-preview-model";
-import { StarredImportPreviewModel } from "../services/starred-import-preview-model";
+import {
+  DEFAULT_NEW_FEED_FOLDER,
+  StarredImportPreviewModel,
+} from "../services/starred-import-preview-model";
 import { isValidFolderName } from "../utils/validation";
 import { applyStarredImportCandidateToFeed } from "../services/starred-import-merge";
 import { shouldUseMobileSidebarLayout } from "../utils/platform-utils";
@@ -138,11 +142,13 @@ export class ImportStarredModal extends Modal {
     }
 
     contentEl.empty();
-    new Setting(contentEl).setName("Import starred articles").setHeading();
+    new Setting(contentEl)
+      .setName("Import starred articles from Inoreader")
+      .setHeading();
 
     const subtitle = contentEl.createDiv({ cls: "add-feed-subtitle" });
     subtitle.textContent =
-      "Import starred articles from an exported starred.json (Inoreader / Google Reader API format). Articles for feeds you don't already subscribe to will create the source feed too.";
+      "Import starred articles from an exported starred.json (the Google Reader API's 'Read later' format, as exported by Inoreader). Articles for feeds you don't already subscribe to will create the source feed too.";
 
     const buttonContainer = contentEl.createDiv({
       cls: "rss-dashboard-modal-buttons",
@@ -412,15 +418,31 @@ export class ImportStarredModal extends Modal {
   }
 
   /**
-   * A candidate's tags as they will actually be imported, gated by the
-   * Options panel's tag-import toggle (234-11). The pure mapper always
-   * assigns `item.tags` from the export's labels regardless of this toggle
-   * (it has no plugin-state/settings dependency to gate against); every
-   * site that would let a tag reach the imported article or the tag palette
-   * must go through this helper instead of reading `item.tags` directly.
+   * A candidate's tags as they will actually be imported and displayed,
+   * gated by the Options panel's tag-import toggle (234-11). The pure mapper
+   * always assigns `item.tags` from the export's labels regardless of this
+   * toggle (it has no plugin-state/settings dependency to gate against);
+   * every site that would let a tag reach the imported article, the tag
+   * palette, or the per-article chip display must go through this helper
+   * instead of reading `item.tags` directly.
+   *
+   * When the toggle is off, only tags named in `labelDerivedTagNames` are
+   * stripped — a tag a user added by hand via the per-article chip (234-12)
+   * is never in that set (it's computed once, from labels only, at mapping
+   * time), so it always survives here regardless of the toggle's state.
    */
-  private getEffectiveTags(item: Pick<FeedItem, "tags">): Tag[] | undefined {
-    return this.tagImportEnabled ? item.tags : undefined;
+  private getEffectiveTags(
+    candidate: Pick<StarredImportCandidate, "item" | "labelDerivedTagNames">,
+  ): Tag[] | undefined {
+    const tags = candidate.item.tags;
+    if (!tags || tags.length === 0) return undefined;
+    if (this.tagImportEnabled) return tags;
+
+    const labelNames = new Set(candidate.labelDerivedTagNames ?? []);
+    const remaining = tags.filter(
+      (tag) => !labelNames.has(tag.name.toLowerCase()),
+    );
+    return remaining.length > 0 ? remaining : undefined;
   }
 
   /**
@@ -439,7 +461,7 @@ export class ImportStarredModal extends Modal {
     const newTagsByLowerName = new Map<string, Tag>();
 
     for (const candidate of model.getSelectedCandidates()) {
-      for (const tag of this.getEffectiveTags(candidate.item) ?? []) {
+      for (const tag of this.getEffectiveTags(candidate) ?? []) {
         const lowerName = tag.name.toLowerCase();
         if (existingLowerNames.has(lowerName)) continue;
         if (!newTagsByLowerName.has(lowerName)) {
@@ -608,9 +630,13 @@ export class ImportStarredModal extends Modal {
     });
     setIcon(folderIcon, "folder");
 
+    const displayFolder =
+      group.folder === DEFAULT_NEW_FEED_FOLDER || !group.folder
+        ? "<None>"
+        : group.folder;
     const folderText = nameWrap.createSpan({
       cls: "import-preview-meta",
-      text: `Folder: ${group.folder ?? ""}`,
+      text: `Folder: ${displayFolder}`,
     });
 
     const edit = nameWrap.createDiv({
@@ -676,7 +702,7 @@ export class ImportStarredModal extends Modal {
     const model = this.previewModel;
     if (!model) return;
 
-    const candidateItem = model.getCandidateItem(item.guid);
+    const candidate = model.getCandidate(item.guid);
 
     const row = listEl.createDiv({
       cls: "import-preview-row import-preview-row--feed import-preview-row--indented",
@@ -703,8 +729,8 @@ export class ImportStarredModal extends Modal {
       text: item.title || item.link,
     });
 
-    if (candidateItem) {
-      this.renderItemTagsControl(row, candidateItem);
+    if (candidate) {
+      this.renderItemTagsControl(row, candidate);
     } else {
       row.createDiv({ cls: "import-preview-meta" });
     }
@@ -720,11 +746,14 @@ export class ImportStarredModal extends Modal {
    * overflow chip) so an article's assigned tags are visible at a glance
    * before import. Clicking the control opens the same tag-editing portal
    * used from the article list and reader view, wired directly against
-   * `candidateItem` — the live `FeedItem` backing this row, not a copy — so
+   * `candidate.item` — the live `FeedItem` backing this row, not a copy — so
    * any edit made here already lives on the object `performImport` reads
    * from later.
    */
-  private renderItemTagsControl(row: HTMLElement, candidateItem: FeedItem): void {
+  private renderItemTagsControl(
+    row: HTMLElement,
+    candidate: StarredImportCandidate,
+  ): void {
     const control = row.createDiv({
       cls: "import-preview-meta import-preview-tags-control rss-dashboard-tag-container",
       attr: {
@@ -735,12 +764,12 @@ export class ImportStarredModal extends Modal {
       },
     });
 
-    this.renderItemTagsChips(control, candidateItem);
+    this.renderItemTagsChips(control, candidate);
 
     const openPortal = (e: Event) => {
       e.preventDefault();
       e.stopPropagation();
-      this.showItemTagsDropdown(control, candidateItem);
+      this.showItemTagsDropdown(control, candidate);
     };
     control.addEventListener("click", openPortal);
     control.addEventListener("keydown", (e) => {
@@ -750,9 +779,19 @@ export class ImportStarredModal extends Modal {
     });
   }
 
-  private renderItemTagsChips(control: HTMLElement, candidateItem: FeedItem): void {
+  /**
+   * Renders the row's chips from its *effective* tags (234-11's
+   * `getEffectiveTags`), not the candidate's raw `item.tags` — so turning
+   * "Import labels as tags" off correctly hides label-derived chips here
+   * too, while any tag added by hand via this same control's portal keeps
+   * showing regardless of that toggle's state.
+   */
+  private renderItemTagsChips(
+    control: HTMLElement,
+    candidate: Pick<StarredImportCandidate, "item" | "labelDerivedTagNames">,
+  ): void {
     control.empty();
-    const tags = candidateItem.tags ?? [];
+    const tags = this.getEffectiveTags(candidate) ?? [];
     if (tags.length === 0) {
       const placeholder = control.createDiv({
         cls: "import-preview-tags-placeholder",
@@ -781,9 +820,13 @@ export class ImportStarredModal extends Modal {
    * `ensureAvailableTagsForSelection` step — the portal never pushes
    * directly into the real palette array here.
    */
-  private showItemTagsDropdown(anchor: HTMLElement, candidateItem: FeedItem): void {
+  private showItemTagsDropdown(
+    anchor: HTMLElement,
+    candidate: StarredImportCandidate,
+  ): void {
     const model = this.previewModel;
     if (!model) return;
+    const candidateItem = candidate.item;
 
     const isSameAnchor = this.itemTagsDropdownAnchor === anchor;
     if (this.itemTagsDropdownCleanup) {
@@ -817,7 +860,7 @@ export class ImportStarredModal extends Modal {
             (t) => t.name !== tag.name,
           );
         }
-        this.renderItemTagsChips(anchor, candidateItem);
+        this.renderItemTagsChips(anchor, candidate);
         this.refreshNewTagsSection();
       },
       appContainer: this.previewContainer,
@@ -857,7 +900,10 @@ export class ImportStarredModal extends Modal {
    * execute, via `getEffectiveTags`/`computeNewTags`.
    */
   private ensureAvailableTagsForSelection(
-    selected: readonly { item: Pick<FeedItem, "tags"> }[],
+    selected: readonly Pick<
+      StarredImportCandidate,
+      "item" | "labelDerivedTagNames"
+    >[],
   ): void {
     const availableTags = this.plugin.settings.availableTags;
     const existingByLowerName = new Map(
@@ -865,7 +911,7 @@ export class ImportStarredModal extends Modal {
     );
 
     for (const candidate of selected) {
-      for (const tag of this.getEffectiveTags(candidate.item) ?? []) {
+      for (const tag of this.getEffectiveTags(candidate) ?? []) {
         const lowerName = tag.name.toLowerCase();
         if (existingByLowerName.has(lowerName)) continue;
 
@@ -953,10 +999,12 @@ export class ImportStarredModal extends Modal {
       if (!feed) continue;
       // When the tag-import toggle is off, the item actually persisted
       // carries no label-derived tags (234-11), even though the pure
-      // mapper always assigned them to `candidate.item.tags`.
+      // mapper always assigned them to `candidate.item.tags` — any tag the
+      // user added by hand via the per-article chip (234-12) still survives,
+      // since `getEffectiveTags` only strips names in `labelDerivedTagNames`.
       const itemToApply: typeof candidate.item = this.tagImportEnabled
         ? candidate.item
-        : { ...candidate.item, tags: this.getEffectiveTags(candidate.item) };
+        : { ...candidate.item, tags: this.getEffectiveTags(candidate) };
       // Re-import dedup (234-05): matches against the target feed's existing
       // items by guid-or-link identity. A match is merged (new labels added,
       // starred forced true, locally-edited fields left untouched) instead

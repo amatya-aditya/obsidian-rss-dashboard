@@ -25,6 +25,7 @@
 
   --feed-manager-import-button-hover: #21b842;
   --feed-manager-export-button-hover: #064cc6;
+  --feed-manager-import-starred-button-hover: #b7791f;
   --feed-manager-delete-all-button: #dc2626;
   --feed-manager-delete-all-button-hover: #b91c1c;
 }
@@ -115,6 +116,21 @@
   color: white;
 }
 
+/* Import starred articles from Inoreader button */
+.feed-manager-button-row button.feed-manager-import-starred-button {
+  color: white;
+  cursor: pointer;
+}
+
+.feed-manager-button-row button.feed-manager-import-starred-button:hover {
+  background: var(--feed-manager-import-starred-button-hover);
+  color: white;
+  cursor: pointer;
+}
+.feed-manager-button-row button.feed-manager-import-starred-button:hover svg {
+  color: white;
+}
+
 /* Delete All Feeds button */
 .feed-manager-button-row button.feed-manager-delete-all-button {
   background: var(--feed-manager-delete-all-button);
@@ -129,6 +145,23 @@
 }
 
 .feed-manager-button-row button.feed-manager-delete-all-button:hover svg {
+  color: white;
+}
+
+/* Delete Feeds + Folders button */
+.feed-manager-button-row button.feed-manager-delete-feeds-folders-button {
+  background: var(--feed-manager-delete-all-button);
+  color: white;
+  cursor: pointer;
+}
+
+.feed-manager-button-row button.feed-manager-delete-feeds-folders-button:hover {
+  background: var(--feed-manager-delete-all-button-hover);
+  color: white;
+  cursor: pointer;
+}
+
+.feed-manager-button-row button.feed-manager-delete-feeds-folders-button:hover svg {
   color: white;
 }
 

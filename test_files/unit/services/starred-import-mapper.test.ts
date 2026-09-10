@@ -245,6 +245,17 @@ describe("mapStarredExportToCandidates", () => {
     expect(unlabeled?.item.tags).toBeUndefined();
   });
 
+  it("records label-derived tag names separately from item.tags, lowercased", () => {
+    const parsed = loadFixture();
+
+    const { candidates } = mapStarredExportToCandidates(parsed, EXISTING_FEEDS);
+    const labeled = candidates.find((c) => c.item.guid.endsWith("0002"));
+    const unlabeled = candidates.find((c) => c.item.guid.endsWith("0001"));
+
+    expect(labeled?.labelDerivedTagNames).toEqual(["design", "art"]);
+    expect(unlabeled?.labelDerivedTagNames).toBeUndefined();
+  });
+
   it("reuses an existing availableTags color instead of creating a duplicate palette entry", () => {
     const parsed = loadFixture();
     const availableTags: Tag[] = [

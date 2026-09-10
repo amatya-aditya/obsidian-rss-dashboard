@@ -70,6 +70,17 @@ export interface StarredImportCandidate {
   item: FeedItem;
   isNewFeed?: boolean;
   feedSiteUrl?: string;
+  /**
+   * Lowercased names of the tags in `item.tags` that came from this item's
+   * Inoreader labels, as resolved by this mapper — never from a tag a user
+   * later adds by hand via the per-article tag chip (234-12). Kept separate
+   * from `FeedItem` itself (it's candidate metadata, not part of the
+   * imported article's own shape) so the "Import labels as tags" toggle
+   * (234-11) can filter out exactly these tags at read time without ever
+   * touching `item.tags` directly — a manually-added tag's name is never in
+   * this set, so it always survives the toggle regardless of its state.
+   */
+  labelDerivedTagNames?: string[];
 }
 
 /**
@@ -316,6 +327,7 @@ export function mapStarredExportToCandidates(
       availableTagByLowerName,
       newTagsByLowerName,
     );
+    const labelDerivedTagNames = tags?.map((tag) => tag.name.toLowerCase());
 
     const feedUrl = normalizeStreamIdToFeedUrl(streamId);
     const existingFeed = feedByUrl.get(feedUrl);
@@ -326,6 +338,7 @@ export function mapStarredExportToCandidates(
         feedTitle: existingFeed.title,
         item: toFeedItem(item, existingFeed, tags),
         isNewFeed: false,
+        labelDerivedTagNames,
       });
       continue;
     }
@@ -349,6 +362,7 @@ export function mapStarredExportToCandidates(
       ),
       isNewFeed: true,
       feedSiteUrl: newFeedMeta.siteUrl,
+      labelDerivedTagNames,
     });
   }
 
