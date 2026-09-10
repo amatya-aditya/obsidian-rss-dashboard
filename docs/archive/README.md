@@ -51,6 +51,7 @@ records the documentation classification.
 | [Surface unimportable entries with reasons](plans/unreleased/234-03-surface-unimportable-entries.md) | 2026-09-10 | [GH Issue #234](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/234) | - |
 | [Map Inoreader labels to tags](plans/unreleased/234-04-map-labels-to-tags.md) | 2026-09-10 | [GH Issue #234](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/234) | - |
 | [Idempotent re-import (dedup + merge)](plans/unreleased/234-05-idempotent-reimport-dedup-merge.md) | 2026-09-10 | [GH Issue #234](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/234) | - |
+| [Opt-in full article content fetch](plans/unreleased/234-06-opt-in-full-content-fetch.md) | 2026-09-10 | [GH Issue #234](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/234) | - |
 
 ## Unshipped plans
 

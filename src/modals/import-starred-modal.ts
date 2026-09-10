@@ -1,6 +1,6 @@
 import { Modal, App, Setting, Notice, setIcon } from "obsidian";
 import type RssDashboardPlugin from "../../main";
-import type { Feed, Tag } from "../types/types";
+import type { Feed, FeedItem, Tag } from "../types/types";
 import {
   buildNewFeedRecord,
   mapStarredExportToCandidates,
@@ -10,9 +10,24 @@ import {
 import type { StarredImportPreviewGroupSnapshot } from "../services/starred-import-preview-model";
 import { StarredImportPreviewModel } from "../services/starred-import-preview-model";
 import { isValidFolderName } from "../utils/validation";
-import { applyStarredImportCandidateToFeed } from "../services/starred-import-merge";
+import {
+  applyStarredImportCandidateToFeed,
+  findMatchingFeedItem,
+} from "../services/starred-import-merge";
 import { shouldUseMobileSidebarLayout } from "../utils/platform-utils";
+import { fetchFullArticleContentWithOutcome } from "../utils/full-article-fetch";
 import { ImporterShell } from "./importer-shell";
+
+/**
+ * A per-article failure recorded when the opt-in full-content fetch (see
+ * 234-06) could not retrieve an imported article's original page. The
+ * article itself is still imported with its export-provided content; this
+ * is purely for the post-import results summary.
+ */
+interface FullContentFetchFailure {
+  title: string;
+  link: string;
+}
 
 /**
  * Import Starred Articles Modal.
@@ -27,9 +42,7 @@ import { ImporterShell } from "./importer-shell";
  * populate its metadata/current items, and the historical starred item(s)
  * are inserted immediately, independent of that fetch. Entries that can
  * never produce a candidate at all are surfaced in an "Unable to import"
- * section (234-03) instead of being silently dropped. Full-content fetching
- * is deferred to a later 234-* ticket — see
- * docs/plans/234-02-auto-create-missing-source-feeds.md.
+ * section (234-03) instead of being silently dropped.
  *
  * Label-to-tag mapping (234-04): `mapStarredExportToCandidates` assigns each
  * imported article its `label/X` categories as `Tag`s, reusing an existing
@@ -46,6 +59,13 @@ import { ImporterShell } from "./importer-shell";
  * to `true`, without touching `read`, `saved`, `savedFilePath`, or any other
  * locally-edited field. Re-running the import against the same or an updated
  * export is therefore safe and produces no duplicate articles.
+ *
+ * Full-content fetch (234-06) is opt-in via a preview checkbox, off by
+ * default. When enabled, it reuses the same
+ * `fetchFullArticleContentWithOutcome` pipeline `ArticleSaver.saveArticleWithFullContent`
+ * and `ReaderView` already use — no fetch/Readability/Turndown logic is
+ * duplicated here. A per-article failure never blocks or rolls back the
+ * rest of the import; it is recorded and surfaced in a results summary.
  */
 export class ImportStarredModal extends Modal {
   plugin: RssDashboardPlugin;
@@ -59,6 +79,8 @@ export class ImportStarredModal extends Modal {
   private previewModel: StarredImportPreviewModel | null = null;
   private unimportableEntries: StarredImportUnimportableEntry[] = [];
   private collapsedFeedUrls = new Set<string>();
+  private fetchFullContentEnabled = false;
+  private fullContentFailures: FullContentFetchFailure[] = [];
   private readonly importerShell: ImporterShell<
     StarredJsonExport,
     StarredImportPreviewModel
@@ -216,6 +238,20 @@ export class ImportStarredModal extends Modal {
             : `${stats.newFeedGroups} new feeds`,
       });
     }
+
+    const fetchFullContentSetting = new Setting(this.previewContainer)
+      .setName("Fetch full article content")
+      .setDesc(
+        "After import, fetch each selected article's full content from its original page. A failed fetch does not block the import — it's reported afterward, with the original article still imported using its exported content.",
+      )
+      .addToggle((toggle) => {
+        toggle.setValue(this.fetchFullContentEnabled).onChange((value) => {
+          this.fetchFullContentEnabled = value;
+        });
+      });
+    fetchFullContentSetting.settingEl.addClass(
+      "import-fetch-full-content-setting",
+    );
 
     const toolbar = this.previewContainer.createDiv({
       cls: "import-preview-toolbar",
@@ -619,6 +655,11 @@ export class ImportStarredModal extends Modal {
 
     let insertedCount = 0;
     let updatedCount = 0;
+    // The actual FeedItem reference now living in `feed.items` for each
+    // successfully-imported candidate, inserted or updated (234-05 replaces
+    // the array slot on an update, so `candidate.item` itself is stale for
+    // that case) — this is what the full-content fetch below must mutate.
+    const importedItems: FeedItem[] = [];
     for (const candidate of selected) {
       const feed = feedByUrl.get(candidate.feedUrl);
       if (!feed) continue;
@@ -629,8 +670,11 @@ export class ImportStarredModal extends Modal {
       const result = applyStarredImportCandidateToFeed(feed, candidate.item);
       if (result === "inserted") {
         insertedCount += 1;
+        importedItems.push(candidate.item);
       } else {
         updatedCount += 1;
+        const updatedItem = findMatchingFeedItem(feed.items, candidate.item);
+        if (updatedItem) importedItems.push(updatedItem);
       }
     }
 
@@ -647,6 +691,14 @@ export class ImportStarredModal extends Modal {
     await this.plugin.saveSettings();
     this.onImportStarted?.();
 
+    this.fullContentFailures = [];
+    if (this.fetchFullContentEnabled) {
+      await this.fetchFullContentForItems(importedItems);
+      // A successful fetch mutates the same FeedItem objects already living
+      // in `feed.items` above, so persist those replacements too.
+      await this.plugin.saveSettings();
+    }
+
     const view = await this.plugin.getActiveDashboardView();
     if (view) {
       view.render();
@@ -660,6 +712,11 @@ export class ImportStarredModal extends Modal {
     }
 
     new Notice(this.buildImportCompleteNotice(insertedCount, updatedCount));
+
+    if (this.fullContentFailures.length > 0) {
+      this.renderFullContentResultsSummary(insertedCount, updatedCount);
+      return;
+    }
 
     this.close();
   }
@@ -698,6 +755,111 @@ export class ImportStarredModal extends Modal {
           error,
         );
       });
+  }
+
+  /**
+   * Runs the existing `fetchFullArticleContentWithOutcome` pipeline (the
+   * same one `ArticleSaver.saveArticleWithFullContent` and `ReaderView` use)
+   * once per already-imported article. Never throws: a per-article failure
+   * (removed page, paywall, network error) is recorded in
+   * `fullContentFailures` and the article keeps its export-provided content.
+   */
+  private async fetchFullContentForItems(items: FeedItem[]): Promise<void> {
+    const proxyUrl =
+      this.plugin.settings.corsProxyEnabled &&
+      this.plugin.settings.corsProxyUrl
+        ? this.plugin.settings.corsProxyUrl
+        : undefined;
+
+    for (const item of items) {
+      if (!item.link) {
+        this.fullContentFailures.push({
+          title: item.title || "Untitled article",
+          link: item.link,
+        });
+        continue;
+      }
+
+      try {
+        const result = await fetchFullArticleContentWithOutcome(
+          item.link,
+          proxyUrl,
+        );
+        if (result.content) {
+          item.content = result.content;
+        } else {
+          this.fullContentFailures.push({
+            title: item.title || item.link,
+            link: item.link,
+          });
+        }
+      } catch {
+        this.fullContentFailures.push({
+          title: item.title || item.link,
+          link: item.link,
+        });
+      }
+    }
+  }
+
+  /**
+   * Post-import results summary shown only when at least one full-content
+   * fetch failed. There is no existing OPML-import results-summary UI to
+   * reuse (checked: none exists), so this reuses the modal's own
+   * `import-preview-*` DOM classes to stay visually consistent.
+   */
+  private renderFullContentResultsSummary(
+    insertedCount: number,
+    updatedCount: number,
+  ): void {
+    const { contentEl } = this;
+    contentEl.empty();
+
+    new Setting(contentEl).setName("Import starred articles").setHeading();
+
+    const summary = contentEl.createDiv({ cls: "import-preview-header" });
+    summary.createEl("p", {
+      text: this.buildImportCompleteNotice(insertedCount, updatedCount),
+    });
+
+    const failuresHeading = contentEl.createDiv({
+      cls: "import-preview-header",
+    });
+    failuresHeading.createEl("h4", {
+      text:
+        this.fullContentFailures.length === 1
+          ? "Full article content could not be fetched for 1 article"
+          : `Full article content could not be fetched for ${this.fullContentFailures.length} articles`,
+    });
+
+    const list = contentEl.createDiv({
+      cls: "import-preview-list import-fetch-full-content-failures",
+    });
+    for (const failure of this.fullContentFailures) {
+      const row = list.createDiv({
+        cls: "import-preview-row import-preview-row--feed",
+      });
+      const nameWrap = row.createDiv({ cls: "import-preview-name" });
+      nameWrap.createEl("a", {
+        cls: "import-preview-name-text",
+        text: failure.title,
+        href: failure.link,
+        attr: { target: "_blank", rel: "noopener noreferrer" },
+      });
+    }
+
+    const note = contentEl.createDiv({ cls: "add-feed-subtitle" });
+    note.textContent =
+      "These articles were still imported using their original feed content. For a manual fallback, try saving the full article with the Obsidian web clipper browser extension.";
+
+    const buttonContainer = contentEl.createDiv({
+      cls: "rss-dashboard-modal-buttons",
+    });
+    const closeButton = buttonContainer.createEl("button", {
+      text: "Close",
+      cls: "rss-dashboard-primary-button",
+    });
+    closeButton.onclick = () => this.close();
   }
 
   onClose() {

@@ -6,6 +6,20 @@ import { fileURLToPath } from "url";
 import { DEFAULT_SETTINGS, type Feed } from "../../../src/types/types";
 import { ImportStarredModal } from "../../../src/modals/import-starred-modal";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
+import type { FullArticleFetchResult } from "../../../src/utils/fetch-helpers";
+
+const fetchFullArticleContentWithOutcomeMock = vi.hoisted(() => vi.fn());
+
+vi.mock("../../../src/utils/full-article-fetch", async () => {
+  const actual = await vi.importActual<
+    typeof import("../../../src/utils/full-article-fetch")
+  >("../../../src/utils/full-article-fetch");
+
+  return {
+    ...actual,
+    fetchFullArticleContentWithOutcome: fetchFullArticleContentWithOutcomeMock,
+  };
+});
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -106,10 +120,17 @@ function createTestPlugin(
   };
 }
 
+function getFullContentToggle(content: HTMLElement): HTMLInputElement {
+  return content.querySelector<HTMLInputElement>(
+    ".import-fetch-full-content-setting input[type='checkbox']",
+  )!;
+}
+
 beforeEach(() => {
   installObsidianDomPolyfills();
   document.body.empty();
   vi.restoreAllMocks();
+  fetchFullArticleContentWithOutcomeMock.mockReset();
 });
 
 describe("ImportStarredModal", () => {
@@ -590,5 +611,159 @@ describe("ImportStarredModal", () => {
       savedFilePath: "Articles/existing-feed-article-one.md",
     });
     expect(settings.feeds[1].items).toHaveLength(1);
+  });
+  it("makes no full-content fetch requests when the toggle is left off", async () => {
+    const app = createMockApp();
+    const settings = cloneSettings();
+    settings.feeds = [
+      makeFeed("https://example-feed.test/rss", "Example Feed"),
+      makeFeed("https://example.com/blog/feed.xml", "Example Blog"),
+      makeFeed(
+        "https://not-subscribed.example.test/feed",
+        "Not Subscribed Source",
+      ),
+    ];
+    const plugin = createTestPlugin(settings);
+    const modal = new ImportStarredModal(
+      app,
+      plugin as unknown as ConstructorParameters<typeof ImportStarredModal>[1],
+    );
+    (modal as unknown as TestModal).open();
+
+    await (modal as unknown as TestModal).handleFileSelection(
+      new File([readFixture()], "starred.json"),
+    );
+
+    const content = (modal as unknown as TestModal).contentEl;
+    const importButton = content.querySelector<HTMLButtonElement>(
+      ".rss-dashboard-modal-buttons .rss-dashboard-primary-button",
+    )!;
+    importButton.click();
+    await flushPromises();
+
+    expect(fetchFullArticleContentWithOutcomeMock).not.toHaveBeenCalled();
+    expect(settings.feeds[0].items[0].content).toBe(
+      "<p>Placeholder summary content for article one.</p>",
+    );
+  });
+
+  it("replaces an imported article's content when the toggle is on and the fetch succeeds", async () => {
+    const app = createMockApp();
+    const settings = cloneSettings();
+    settings.feeds = [
+      makeFeed("https://example-feed.test/rss", "Example Feed"),
+      makeFeed("https://example.com/blog/feed.xml", "Example Blog"),
+      makeFeed(
+        "https://not-subscribed.example.test/feed",
+        "Not Subscribed Source",
+      ),
+    ];
+    const plugin = createTestPlugin(settings);
+    fetchFullArticleContentWithOutcomeMock.mockResolvedValue({
+      content: "<article>Full fetched content</article>",
+      failureType: "none",
+    } satisfies FullArticleFetchResult);
+
+    const modal = new ImportStarredModal(
+      app,
+      plugin as unknown as ConstructorParameters<typeof ImportStarredModal>[1],
+    );
+    (modal as unknown as TestModal).open();
+
+    await (modal as unknown as TestModal).handleFileSelection(
+      new File([readFixture()], "starred.json"),
+    );
+
+    const content = (modal as unknown as TestModal).contentEl;
+    getFullContentToggle(content).click();
+
+    const importButton = content.querySelector<HTMLButtonElement>(
+      ".rss-dashboard-modal-buttons .rss-dashboard-primary-button",
+    )!;
+    importButton.click();
+    await flushPromises();
+
+    expect(fetchFullArticleContentWithOutcomeMock).toHaveBeenCalledTimes(3);
+    expect(settings.feeds[0].items[0].content).toBe(
+      "<article>Full fetched content</article>",
+    );
+    expect(settings.feeds[1].items[0].content).toBe(
+      "<article>Full fetched content</article>",
+    );
+    expect(settings.feeds[2].items[0].content).toBe(
+      "<article>Full fetched content</article>",
+    );
+    // Persisted once for the base insert, once more for the fetched content.
+    expect(plugin.saveSettings).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps a failed article's original content, still imports it, and reports the failure without affecting the rest of the import", async () => {
+    const app = createMockApp();
+    const settings = cloneSettings();
+    settings.feeds = [
+      makeFeed("https://example-feed.test/rss", "Example Feed"),
+      makeFeed("https://example.com/blog/feed.xml", "Example Blog"),
+      makeFeed(
+        "https://not-subscribed.example.test/feed",
+        "Not Subscribed Source",
+      ),
+    ];
+    const plugin = createTestPlugin(settings);
+    fetchFullArticleContentWithOutcomeMock.mockImplementation(
+      async (url: string) => {
+        if (url === "https://example-feed.test/articles/one") {
+          return {
+            content: "",
+            failureType: "network",
+          } satisfies FullArticleFetchResult;
+        }
+        return {
+          content: "<article>Full fetched content</article>",
+          failureType: "none",
+        } satisfies FullArticleFetchResult;
+      },
+    );
+
+    const modal = new ImportStarredModal(
+      app,
+      plugin as unknown as ConstructorParameters<typeof ImportStarredModal>[1],
+    );
+    (modal as unknown as TestModal).open();
+
+    await (modal as unknown as TestModal).handleFileSelection(
+      new File([readFixture()], "starred.json"),
+    );
+
+    const content = (modal as unknown as TestModal).contentEl;
+    getFullContentToggle(content).click();
+
+    const importButton = content.querySelector<HTMLButtonElement>(
+      ".rss-dashboard-modal-buttons .rss-dashboard-primary-button",
+    )!;
+    importButton.click();
+    await flushPromises();
+
+    // All three articles were inserted regardless of the fetch outcome.
+    expect(settings.feeds[0].items).toHaveLength(1);
+    expect(settings.feeds[1].items).toHaveLength(1);
+    expect(settings.feeds[2].items).toHaveLength(1);
+    expect(settings.feeds[0].items[0].content).toBe(
+      "<p>Placeholder summary content for article one.</p>",
+    );
+    expect(settings.feeds[1].items[0].content).toBe(
+      "<article>Full fetched content</article>",
+    );
+    expect(settings.feeds[2].items[0].content).toBe(
+      "<article>Full fetched content</article>",
+    );
+
+    const failureLink = content.querySelector<HTMLAnchorElement>(
+      ".import-fetch-full-content-failures a",
+    )!;
+    expect(failureLink.textContent).toBe("Existing Feed Article One");
+    expect(failureLink.getAttribute("href")).toBe(
+      "https://example-feed.test/articles/one",
+    );
+    expect(content.textContent.toLowerCase()).toContain("web clipper");
   });
 });
