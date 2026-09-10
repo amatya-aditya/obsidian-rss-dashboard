@@ -17,7 +17,7 @@ Parent issue: [#234](https://github.com/amatya-aditya/obsidian-rss-dashboard/iss
 
 ## What to build
 
-Some `starred.json` entries can't be imported at all: missing `origin.streamId` (no identifiable source feed) or missing both `canonical` and `alternate` href (no article URL). Rather than silently dropping these, the mapper from [234-01](234-01-import-starred-items-for-existing-feeds.md) classifies them into an `unimportable` list with a specific reason per entry, and the import UI shows an "unable to import" section listing each one with its title (if available) and reason.
+Some `starred.json` entries can't be imported at all: missing `origin.streamId` (no identifiable source feed) or missing both `canonical` and `alternate` href (no article URL). Rather than silently dropping these, the mapper from [234-01](../archive/plans/unreleased/234-01-import-starred-items-for-existing-feeds.md) classifies them into an `unimportable` list with a specific reason per entry, and the import UI shows an "unable to import" section listing each one with its title (if available) and reason.
 
 ## Blocked by
 
