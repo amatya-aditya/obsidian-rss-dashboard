@@ -120,12 +120,6 @@ function createTestPlugin(
   };
 }
 
-function getFullContentToggle(content: HTMLElement): HTMLInputElement {
-  return content.querySelector<HTMLInputElement>(
-    ".import-fetch-full-content-setting input[type='checkbox']",
-  )!;
-}
-
 function getMetadataRefreshToggle(content: HTMLElement): HTMLInputElement {
   return content.querySelector<HTMLInputElement>(
     ".import-option-setting input[type='checkbox']",
@@ -776,7 +770,7 @@ describe("ImportStarredModal", () => {
     });
     expect(settings.feeds[1].items).toHaveLength(1);
   });
-  it("makes no full-content fetch requests when the toggle is left off", async () => {
+  it("has no 'Fetch full article content' toggle and never fetches full content during import, regardless of any setting (234-10)", async () => {
     const app = createMockApp();
     const settings = cloneSettings();
     settings.feeds = [
@@ -788,47 +782,9 @@ describe("ImportStarredModal", () => {
       ),
     ];
     const plugin = createTestPlugin(settings);
-    const modal = new ImportStarredModal(
-      app,
-      plugin as unknown as ConstructorParameters<typeof ImportStarredModal>[1],
-    );
-    (modal as unknown as TestModal).open();
-
-    await (modal as unknown as TestModal).handleFileSelection(
-      new File([readFixture()], "starred.json"),
-    );
-
-    const content = (modal as unknown as TestModal).contentEl;
-    const importButton = content.querySelector<HTMLButtonElement>(
-      ".rss-dashboard-modal-buttons .rss-dashboard-primary-button",
-    )!;
-    importButton.click();
-    await flushPromises();
-
-    expect(fetchFullArticleContentWithOutcomeMock).not.toHaveBeenCalled();
-    expect(settings.feeds[0].items[0].content).toBe(
-      "<p>Placeholder summary content for article one.</p>",
-    );
-    // Every imported article starts as an unfetched, timestamped export-only
-    // preview (234-09) when the import-time fetch toggle is left off.
-    expect(settings.feeds[0].items[0].starredImportContentState).toBe(
-      "unfetched",
-    );
-    expect(settings.feeds[0].items[0].starredImportedAt).toBeGreaterThan(0);
-  });
-
-  it("replaces an imported article's content when the toggle is on and the fetch succeeds", async () => {
-    const app = createMockApp();
-    const settings = cloneSettings();
-    settings.feeds = [
-      makeFeed("https://example-feed.test/rss", "Example Feed"),
-      makeFeed("https://example.com/blog/feed.xml", "Example Blog"),
-      makeFeed(
-        "https://not-subscribed.example.test/feed",
-        "Not Subscribed Source",
-      ),
-    ];
-    const plugin = createTestPlugin(settings);
+    // Even if the (now-removed) fetch pipeline were somehow still wired up,
+    // making it resolve successfully should not matter — the toggle no
+    // longer exists to enable it, and the call site is gone.
     fetchFullArticleContentWithOutcomeMock.mockResolvedValue({
       content: "<article>Full fetched content</article>",
       failureType: "none",
@@ -845,7 +801,12 @@ describe("ImportStarredModal", () => {
     );
 
     const content = (modal as unknown as TestModal).contentEl;
-    getFullContentToggle(content).click();
+
+    // The toggle and its description are gone entirely.
+    expect(
+      content.querySelector(".import-fetch-full-content-setting"),
+    ).toBeNull();
+    expect(content.textContent).not.toContain("Fetch full article content");
 
     const importButton = content.querySelector<HTMLButtonElement>(
       ".rss-dashboard-modal-buttons .rss-dashboard-primary-button",
@@ -853,101 +814,27 @@ describe("ImportStarredModal", () => {
     importButton.click();
     await flushPromises();
 
-    expect(fetchFullArticleContentWithOutcomeMock).toHaveBeenCalledTimes(3);
-    expect(settings.feeds[0].items[0].content).toBe(
-      "<article>Full fetched content</article>",
-    );
-    expect(settings.feeds[1].items[0].content).toBe(
-      "<article>Full fetched content</article>",
-    );
-    expect(settings.feeds[2].items[0].content).toBe(
-      "<article>Full fetched content</article>",
-    );
-    // Persisted once for the base insert, once more for the fetched content.
-    expect(plugin.saveSettings).toHaveBeenCalledTimes(2);
-    // A successful import-time fetch (234-06) clears the 234-09 cached-preview
-    // state, since the reader already has real full content to show.
-    expect(settings.feeds[0].items[0].starredImportContentState).toBeUndefined();
-    expect(settings.feeds[1].items[0].starredImportContentState).toBeUndefined();
-    expect(settings.feeds[2].items[0].starredImportContentState).toBeUndefined();
-  });
+    // No full-content fetch call happens during import.
+    expect(fetchFullArticleContentWithOutcomeMock).not.toHaveBeenCalled();
 
-  it("keeps a failed article's original content, still imports it, and reports the failure without affecting the rest of the import", async () => {
-    const app = createMockApp();
-    const settings = cloneSettings();
-    settings.feeds = [
-      makeFeed("https://example-feed.test/rss", "Example Feed"),
-      makeFeed("https://example.com/blog/feed.xml", "Example Blog"),
-      makeFeed(
-        "https://not-subscribed.example.test/feed",
-        "Not Subscribed Source",
-      ),
-    ];
-    const plugin = createTestPlugin(settings);
-    fetchFullArticleContentWithOutcomeMock.mockImplementation(
-      async (url: string) => {
-        if (url === "https://example-feed.test/articles/one") {
-          return {
-            content: "",
-            failureType: "network",
-          } satisfies FullArticleFetchResult;
-        }
-        return {
-          content: "<article>Full fetched content</article>",
-          failureType: "none",
-        } satisfies FullArticleFetchResult;
-      },
-    );
-
-    const modal = new ImportStarredModal(
-      app,
-      plugin as unknown as ConstructorParameters<typeof ImportStarredModal>[1],
-    );
-    (modal as unknown as TestModal).open();
-
-    await (modal as unknown as TestModal).handleFileSelection(
-      new File([readFixture()], "starred.json"),
-    );
-
-    const content = (modal as unknown as TestModal).contentEl;
-    getFullContentToggle(content).click();
-
-    const importButton = content.querySelector<HTMLButtonElement>(
-      ".rss-dashboard-modal-buttons .rss-dashboard-primary-button",
-    )!;
-    importButton.click();
-    await flushPromises();
-
-    // All three articles were inserted regardless of the fetch outcome.
-    expect(settings.feeds[0].items).toHaveLength(1);
-    expect(settings.feeds[1].items).toHaveLength(1);
-    expect(settings.feeds[2].items).toHaveLength(1);
+    // Every imported article keeps its export-provided content and starts
+    // in the "unfetched" state (234-09) — the reader's manual "Fetch now"
+    // path is the only way to get full content post-import.
     expect(settings.feeds[0].items[0].content).toBe(
       "<p>Placeholder summary content for article one.</p>",
     );
-    expect(settings.feeds[1].items[0].content).toBe(
-      "<article>Full fetched content</article>",
-    );
-    expect(settings.feeds[2].items[0].content).toBe(
-      "<article>Full fetched content</article>",
-    );
-
-    // The failed article is left in the "failed" state (234-09) so the
-    // reader's cached-preview banner can distinguish it from "never
-    // attempted" on next open; the two that succeeded clear the field.
     expect(settings.feeds[0].items[0].starredImportContentState).toBe(
-      "failed",
+      "unfetched",
     );
-    expect(settings.feeds[1].items[0].starredImportContentState).toBeUndefined();
-    expect(settings.feeds[2].items[0].starredImportContentState).toBeUndefined();
+    expect(settings.feeds[0].items[0].starredImportedAt).toBeGreaterThan(0);
 
-    const failureLink = content.querySelector<HTMLAnchorElement>(
-      ".import-fetch-full-content-failures a",
-    )!;
-    expect(failureLink.textContent).toBe("Existing Feed Article One");
-    expect(failureLink.getAttribute("href")).toBe(
-      "https://example-feed.test/articles/one",
+    // The import-time failure-summary screen is unreachable — the modal
+    // closes normally instead of swapping to a results summary.
+    expect(
+      content.querySelector(".import-fetch-full-content-failures"),
+    ).toBeNull();
+    expect(content.textContent).not.toContain(
+      "could not be fetched",
     );
-    expect(content.textContent.toLowerCase()).toContain("web clipper");
   });
 });
