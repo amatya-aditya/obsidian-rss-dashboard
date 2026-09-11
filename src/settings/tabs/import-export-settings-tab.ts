@@ -95,7 +95,7 @@ export function renderImportExportSettingsTab(
   new Setting(dataSection)
     .setName("Backup & restore (data.json)")
     .setDesc(
-      "Import or export your full dashboard dataset, including preferences, folders, feeds, and stored article retrievals.",
+      "Import or export your full dashboard dataset as a single flat JSON file, including preferences, folders, feeds, and stored article retrievals. This is always the full legacy-format file, even when vault-shard storage is enabled — it will not match the small pointer file named data.json in your vault in that mode. Use \"Shard data\" below for a bundle that matches shard storage.",
     )
     .setHeading();
 
@@ -105,7 +105,7 @@ export function renderImportExportSettingsTab(
     .addButton((button) =>
       button
         .setIcon("upload")
-        .setButtonText("Import data.json")
+        .setButtonText("Import legacy data.json")
         .onClick(() => {
           const input = activeDocument.body.createEl("input", {
             attr: { type: "file", accept: ".json,.backup,application/json" },
@@ -139,7 +139,7 @@ export function renderImportExportSettingsTab(
     .addButton((button) =>
       button
         .setIcon("download")
-        .setButtonText("Export data.json")
+        .setButtonText("Export legacy data.json")
         .onClick(() => {
           void plugin.exportDataJson();
         }),
@@ -147,7 +147,7 @@ export function renderImportExportSettingsTab(
     .addButton((button) =>
       button
         .setIcon("copy")
-        .setTooltip("Copy data.json to clipboard")
+        .setTooltip("Copy legacy data.json to clipboard")
         .onClick(() => {
           void plugin.copyDataJsonToClipboard();
         }),
