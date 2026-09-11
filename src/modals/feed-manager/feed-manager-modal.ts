@@ -33,7 +33,7 @@ export class FeedManagerModal extends Modal {
     const isMobile = shouldUseMobileSidebarLayout();
 
     this.modalEl.className +=
-      " rss-dashboard-modal rss-dashboard-modal-container";
+      " rss-dashboard-modal rss-dashboard-modal-container rss-feed-manager-modal";
     if (isMobile) {
       this.modalEl.addClass("rss-mobile-feed-manager-modal");
     }
@@ -81,7 +81,7 @@ export class FeedManagerModal extends Modal {
       cls: "feed-manager-import-button",
     });
     setIcon(importOpmlBtn, "upload");
-    importOpmlBtn.createSpan({ text: " Import OPML" });
+    importOpmlBtn.createSpan({ text: "Import OPML" });
     importOpmlBtn.onclick = () => {
       new ImportOpmlModal(this.app, this.plugin, () => this.close()).open();
     };
@@ -91,7 +91,7 @@ export class FeedManagerModal extends Modal {
       cls: "feed-manager-export-button",
     });
     setIcon(exportOpmlBtn, "download");
-    exportOpmlBtn.createSpan({ text: " Export OPML" });
+    exportOpmlBtn.createSpan({ text: "Export OPML" });
     exportOpmlBtn.onclick = () => {
       this.plugin.exportOpml();
     };
@@ -101,9 +101,11 @@ export class FeedManagerModal extends Modal {
       cls: "feed-manager-import-starred-button",
     });
     setIcon(importStarredBtn, "star");
-    importStarredBtn.createSpan({ text: " Import starred articles from Inoreader" });
+    importStarredBtn.createSpan({
+      text: "Import starred articles from Inoreader",
+    });
     importStarredBtn.onclick = () => {
-      new ImportStarredModal(this.app, this.plugin).open();
+      new ImportStarredModal(this.app, this.plugin, () => this.close()).open();
     };
 
     // Destructive actions row
@@ -116,7 +118,7 @@ export class FeedManagerModal extends Modal {
       cls: "feed-manager-delete-all-button",
     });
     setIcon(deleteAllBtn, "trash-2");
-    deleteAllBtn.createSpan({ text: " Delete all feeds" });
+    deleteAllBtn.createSpan({ text: "Delete all feeds" });
     deleteAllBtn.onclick = () => {
       if (this.plugin.settings.feeds.length === 0) {
         new Notice("There are no feeds to delete");
@@ -185,7 +187,7 @@ export class FeedManagerModal extends Modal {
       cls: "feed-manager-delete-feeds-folders-button",
     });
     setIcon(deleteFeedsAndFoldersBtn, "trash-2");
-    deleteFeedsAndFoldersBtn.createSpan({ text: " Delete feeds + folders" });
+    deleteFeedsAndFoldersBtn.createSpan({ text: "Delete feeds + folders" });
     deleteFeedsAndFoldersBtn.onclick = () => {
       const folderCount = countFoldersRecursively(this.plugin.settings.folders);
       if (this.plugin.settings.feeds.length === 0 && folderCount === 0) {

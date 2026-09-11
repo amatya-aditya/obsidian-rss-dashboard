@@ -4,7 +4,10 @@ import { readFileSync } from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { DEFAULT_SETTINGS, type Feed } from "../../../src/types/types";
-import { ImportStarredModal } from "../../../src/modals/import-starred-modal";
+import {
+  DEFAULT_NEW_FEED_FOLDER,
+  ImportStarredModal,
+} from "../../../src/modals/import-starred-modal";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 import type { FullArticleFetchResult } from "../../../src/utils/fetch-helpers";
 import type { Tag } from "../../../src/types/types";
@@ -138,13 +141,13 @@ function createTestPlugin(
 
 function getMetadataRefreshToggle(content: HTMLElement): HTMLInputElement {
   return content.querySelector<HTMLInputElement>(
-    ".import-option-setting input[type='checkbox']",
+    ".import-metadata-refresh-setting input[type='checkbox']",
   )!;
 }
 
 function getMetadataRefreshDescription(content: HTMLElement): HTMLElement {
   return content.querySelector<HTMLElement>(
-    ".import-option-setting .setting-item-description",
+    ".import-metadata-refresh-setting .setting-item-description",
   )!;
 }
 
@@ -157,6 +160,18 @@ function getTagImportToggle(content: HTMLElement): HTMLInputElement {
 function getTagImportDescription(content: HTMLElement): HTMLElement {
   return content.querySelector<HTMLElement>(
     ".import-tag-import-setting .setting-item-description",
+  )!;
+}
+
+function getNewFeedFolderInput(content: HTMLElement): HTMLInputElement {
+  return content.querySelector<HTMLInputElement>(
+    ".import-options-panel input[type='text']",
+  )!;
+}
+
+function getGroupRow(content: HTMLElement, feedUrl: string): HTMLElement {
+  return content.querySelector<HTMLElement>(
+    `.import-preview-row--folder[data-feed-url='${feedUrl}']`,
   )!;
 }
 
@@ -346,7 +361,7 @@ describe("ImportStarredModal", () => {
     expect(newFeed).toBeDefined();
     expect(newFeed?.title).toBe("Not Subscribed Source");
     expect(newFeed?.siteUrl).toBe("https://not-subscribed.example.test/");
-    expect(newFeed?.folder).toBe("Uncategorized");
+    expect(newFeed?.folder).toBe(DEFAULT_NEW_FEED_FOLDER);
     expect(newFeed?.items).toHaveLength(1);
     expect(newFeed?.items[0]).toMatchObject({
       title: "Unsubscribed Source Article",
@@ -361,7 +376,7 @@ describe("ImportStarredModal", () => {
       "https://not-subscribed.example.test/feed",
     );
     expect(plugin.ensureFolderExists).toHaveBeenCalledWith(
-      "Uncategorized",
+      DEFAULT_NEW_FEED_FOLDER,
       { saveSettings: false, refreshView: false },
     );
 
@@ -491,7 +506,7 @@ describe("ImportStarredModal", () => {
     expect(newFeed).toBeDefined();
     expect(newFeed?.title).toBe("Not Subscribed Source");
     expect(newFeed?.siteUrl).toBe("https://not-subscribed.example.test/");
-    expect(newFeed?.folder).toBe("Uncategorized");
+    expect(newFeed?.folder).toBe(DEFAULT_NEW_FEED_FOLDER);
     expect(newFeed?.items).toHaveLength(1);
     expect(newFeed?.items[0]).toMatchObject({
       title: "Unsubscribed Source Article",
@@ -503,7 +518,7 @@ describe("ImportStarredModal", () => {
     expect(deferred.calls).toHaveLength(0);
   });
 
-  it("lets the user edit the target folder for a new feed before importing", async () => {
+  it("lets the user change the shared new-feed folder before importing", async () => {
     const app = createMockApp();
     const settings = cloneSettings();
     settings.feeds = [
@@ -522,18 +537,11 @@ describe("ImportStarredModal", () => {
     );
 
     const content = (modal as unknown as TestModal).contentEl;
-    const editButton = content.querySelector<HTMLElement>(
-      ".import-preview-edit",
-    )!;
-    expect(editButton).toBeTruthy();
-    editButton.click();
+    const folderInput = getNewFeedFolderInput(content);
+    expect(folderInput.value).toBe(DEFAULT_NEW_FEED_FOLDER);
 
-    const input = content.querySelector<HTMLInputElement>(
-      ".import-preview-edit-input",
-    )!;
-    expect(input).toBeTruthy();
-    input.value = "Imported";
-    input.dispatchEvent(new Event("blur"));
+    folderInput.value = "Imported";
+    folderInput.dispatchEvent(new Event("blur"));
 
     const importButton = content.querySelector<HTMLButtonElement>(
       ".rss-dashboard-modal-buttons .rss-dashboard-primary-button",
@@ -545,13 +553,39 @@ describe("ImportStarredModal", () => {
       (f) => f.url === "https://not-subscribed.example.test/feed",
     );
     expect(newFeed?.folder).toBe("Imported");
-    expect(plugin.ensureFolderExists).toHaveBeenCalledWith(
-      "Imported",
-      { saveSettings: false, refreshView: false },
-    );
+    expect(plugin.ensureFolderExists).toHaveBeenCalledWith("Imported", {
+      saveSettings: false,
+      refreshView: false,
+    });
   });
 
-  it("shows a folder icon on the new-feed folder control and helper text explaining it, for discoverability", async () => {
+  it("falls back to the default new-feed folder when the field is cleared", async () => {
+    const app = createMockApp();
+    const settings = cloneSettings();
+    settings.feeds = [
+      makeFeed("https://example-feed.test/rss", "Example Feed"),
+      makeFeed("https://example.com/blog/feed.xml", "Example Blog"),
+    ];
+    const plugin = createTestPlugin(settings);
+    const modal = new ImportStarredModal(
+      app,
+      plugin as unknown as ConstructorParameters<typeof ImportStarredModal>[1],
+    );
+    (modal as unknown as TestModal).open();
+
+    await (modal as unknown as TestModal).handleFileSelection(
+      new File([readFixture()], "starred.json"),
+    );
+
+    const content = (modal as unknown as TestModal).contentEl;
+    const folderInput = getNewFeedFolderInput(content);
+    folderInput.value = "   ";
+    folderInput.dispatchEvent(new Event("blur"));
+
+    expect(folderInput.value).toBe(DEFAULT_NEW_FEED_FOLDER);
+  });
+
+  it("marks a new-feed group's row with a '*' and explains it in the helper text, but leaves existing-feed rows unmarked", async () => {
     const app = createMockApp();
     const settings = cloneSettings();
     settings.feeds = [
@@ -571,51 +605,26 @@ describe("ImportStarredModal", () => {
 
     const content = (modal as unknown as TestModal).contentEl;
 
-    const folderIcon = content.querySelector<HTMLElement>(
-      ".import-preview-folder-icon",
+    const newFeedRow = getGroupRow(
+      content,
+      "https://not-subscribed.example.test/feed",
     );
-    expect(folderIcon).toBeTruthy();
-    expect(folderIcon?.dataset.icon).toBe("folder");
+    expect(
+      newFeedRow.querySelector(".import-preview-new-feed-marker"),
+    ).toBeTruthy();
+
+    const existingFeedRow = getGroupRow(
+      content,
+      "https://example-feed.test/rss",
+    );
+    expect(
+      existingFeedRow.querySelector(".import-preview-new-feed-marker"),
+    ).toBeNull();
 
     const helperText = content.querySelector<HTMLElement>(
       ".import-preview-helper",
     );
-    expect(helperText).toBeTruthy();
-    expect(helperText?.textContent).toContain("editable target folder");
-  });
-
-  it("displays <None> instead of the literal default folder name for a new feed the user hasn't assigned a folder to", async () => {
-    const app = createMockApp();
-    const settings = cloneSettings();
-    settings.feeds = [
-      makeFeed("https://example-feed.test/rss", "Example Feed"),
-      makeFeed("https://example.com/blog/feed.xml", "Example Blog"),
-    ];
-    const plugin = createTestPlugin(settings);
-    const modal = new ImportStarredModal(
-      app,
-      plugin as unknown as ConstructorParameters<typeof ImportStarredModal>[1],
-    );
-    (modal as unknown as TestModal).open();
-
-    await (modal as unknown as TestModal).handleFileSelection(
-      new File([readFixture()], "starred.json"),
-    );
-
-    const content = (modal as unknown as TestModal).contentEl;
-    const folderIcon = content.querySelector<HTMLElement>(
-      ".import-preview-folder-icon",
-    );
-    const metaSpans = Array.from(
-      folderIcon?.parentElement?.querySelectorAll<HTMLElement>(
-        ".import-preview-meta",
-      ) ?? [],
-    );
-    const folderText = metaSpans.find((el) =>
-      el.textContent?.startsWith("Folder:"),
-    );
-    expect(folderText?.textContent).toBe("Folder: <None>");
-    expect(folderText?.textContent).not.toContain("Uncategorized");
+    expect(helperText?.textContent).toContain("*");
   });
 
   it("does not create a duplicate feed when a new-feed candidate's url already exists locally by the time import executes", async () => {

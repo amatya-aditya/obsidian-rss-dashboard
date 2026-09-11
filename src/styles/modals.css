@@ -458,6 +458,28 @@ body .modal.rss-dashboard-template-dialog {
   color: var(--interactive-accent, #3498db);
 }
 
+/* "Add \"<name>\"" row (`FolderSuggest`'s add-new option) — icon + text laid
+ * out like a normal option, tinted to read as an action rather than an
+ * existing folder. */
+.edit-feed-folder-option.rss-dashboard-add-new-suggestion {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--interactive-accent, #3498db);
+}
+
+.rss-dashboard-add-new-suggestion-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.rss-dashboard-add-new-suggestion-icon svg {
+  width: 14px;
+  height: 14px;
+}
+
 /* Storage Address section */
 .rss-dashboard-modal .rss-edit-feed-storage-address-row {
   display: flex;

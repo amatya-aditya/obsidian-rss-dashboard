@@ -1,5 +1,4 @@
 import type { StarredImportCandidate } from "./starred-import-mapper";
-import { isValidFolderName, type ValidationResult } from "../utils/validation";
 import type { FeedItem } from "../types/types";
 
 export type StarredImportGroupSelectionState = {
@@ -21,14 +20,12 @@ export type StarredImportPreviewGroupSnapshot = {
   feedUrl: string;
   feedTitle: string;
   isNewFeed: boolean;
-  folder?: string;
   items: StarredImportPreviewItemSnapshot[];
 };
 
 export type StarredImportNewFeedSelection = {
   feedUrl: string;
   feedTitle: string;
-  folder: string;
   siteUrl?: string;
 };
 
@@ -37,18 +34,16 @@ interface CandidateState {
   selected: boolean;
 }
 
-export const DEFAULT_NEW_FEED_FOLDER = "Uncategorized";
-
 /**
  * Article-shaped (not feed/folder-shaped) preview-selection model for the
  * starred.json importer. Parallel in shape to `OpmlImportPreviewModel`'s
  * public surface where the shared importer shell requires it (`getStats()`),
  * but groups candidate articles by their source feed rather than by folder.
  *
- * A group can now (234-02) represent a source feed the user does not
- * already subscribe to — `isNewFeed: true` — in which case it also carries
- * an editable target folder (`getNewFeedFolder`/`setNewFeedFolder`), mirroring
- * `OpmlImportPreviewModel`'s inline folder-rename interaction pattern.
+ * A group can represent a source feed the user does not already subscribe
+ * to — `isNewFeed: true`. All new-feed groups share one target folder,
+ * chosen once in the modal's Options panel rather than per group — see
+ * `ImportStarredModal`'s "New-feed folder" setting.
  */
 export class StarredImportPreviewModel {
   private readonly candidateByGuid = new Map<string, CandidateState>();
@@ -56,7 +51,6 @@ export class StarredImportPreviewModel {
   private readonly guidsByFeedUrl = new Map<string, string[]>();
   private readonly feedTitleByUrl = new Map<string, string>();
   private readonly isNewFeedByUrl = new Map<string, boolean>();
-  private readonly newFeedFolderByUrl = new Map<string, string>();
   private readonly newFeedSiteUrlByUrl = new Map<string, string | undefined>();
 
   constructor(args: { candidates: StarredImportCandidate[] }) {
@@ -70,7 +64,6 @@ export class StarredImportPreviewModel {
         this.feedTitleByUrl.set(candidate.feedUrl, candidate.feedTitle);
         this.isNewFeedByUrl.set(candidate.feedUrl, candidate.isNewFeed === true);
         if (candidate.isNewFeed) {
-          this.newFeedFolderByUrl.set(candidate.feedUrl, DEFAULT_NEW_FEED_FOLDER);
           this.newFeedSiteUrlByUrl.set(candidate.feedUrl, candidate.feedSiteUrl);
         }
       }
@@ -83,9 +76,6 @@ export class StarredImportPreviewModel {
       feedUrl,
       feedTitle: this.feedTitleByUrl.get(feedUrl) ?? feedUrl,
       isNewFeed: this.isNewFeedByUrl.get(feedUrl) === true,
-      folder: this.isNewFeedByUrl.get(feedUrl)
-        ? this.getNewFeedFolder(feedUrl)
-        : undefined,
       items: (this.guidsByFeedUrl.get(feedUrl) ?? []).map((guid) =>
         this.snapshotItem(guid),
       ),
@@ -96,33 +86,11 @@ export class StarredImportPreviewModel {
     return this.isNewFeedByUrl.get(feedUrl) === true;
   }
 
-  getNewFeedFolder(feedUrl: string): string {
-    return this.newFeedFolderByUrl.get(feedUrl) ?? DEFAULT_NEW_FEED_FOLDER;
-  }
-
-  /**
-   * Edits the target folder for a new-feed group, mirroring the OPML
-   * importer's inline folder-rename interaction (validated the same way,
-   * via `isValidFolderName`).
-   */
-  setNewFeedFolder(feedUrl: string, folder: string): ValidationResult {
-    if (!this.isNewFeedGroup(feedUrl)) {
-      return { valid: false, error: "Not a new-feed group." };
-    }
-    const trimmed = folder.trim();
-    const validation = isValidFolderName(trimmed);
-    if (!validation.valid) {
-      return validation;
-    }
-    this.newFeedFolderByUrl.set(feedUrl, trimmed);
-    return { valid: true };
-  }
-
   /**
    * New-feed groups (candidate `Feed` records for source feeds not already
-   * subscribed to locally) that have at least one selected article, along
-   * with the folder the user assigned. Used at execute time to know which
-   * new feeds must actually be created.
+   * subscribed to locally) that have at least one selected article. Used at
+   * execute time to know which new feeds must actually be created; the
+   * shared target folder they all land in is supplied by the caller.
    */
   getSelectedNewFeedGroups(): StarredImportNewFeedSelection[] {
     const result: StarredImportNewFeedSelection[] = [];
@@ -137,7 +105,6 @@ export class StarredImportPreviewModel {
       result.push({
         feedUrl,
         feedTitle: this.feedTitleByUrl.get(feedUrl) ?? feedUrl,
-        folder: this.getNewFeedFolder(feedUrl),
         siteUrl: this.newFeedSiteUrlByUrl.get(feedUrl),
       });
     }

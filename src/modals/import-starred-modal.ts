@@ -9,16 +9,23 @@ import {
   type StarredJsonExport,
 } from "../services/starred-import-mapper";
 import type { StarredImportPreviewGroupSnapshot } from "../services/starred-import-preview-model";
-import {
-  DEFAULT_NEW_FEED_FOLDER,
-  StarredImportPreviewModel,
-} from "../services/starred-import-preview-model";
-import { isValidFolderName } from "../utils/validation";
+import { StarredImportPreviewModel } from "../services/starred-import-preview-model";
 import { applyStarredImportCandidateToFeed } from "../services/starred-import-merge";
 import { shouldUseMobileSidebarLayout } from "../utils/platform-utils";
 import { ImporterShell } from "./importer-shell";
 import { renderSingleRowCardTagChips } from "../components/article-list/utils/tag-layout-utils";
 import { createTagsDropdownPortal } from "../utils/tags-dropdown-portal";
+import { FolderSuggest } from "../components/folder-suggest";
+import { decorateFolderSelectorInput } from "./feed-manager/folder-selector-field";
+
+/**
+ * Default target folder for every feed created by a starred-article import.
+ * A single shared destination, editable once via the Options panel's
+ * "New-feed folder" field — not per new-feed group (see
+ * `StarredImportPreviewModel`'s class doc for why per-group editing was
+ * dropped).
+ */
+export const DEFAULT_NEW_FEED_FOLDER = "Inoreader starred imports";
 
 /**
  * Import Starred Articles Modal.
@@ -27,10 +34,12 @@ import { createTagsDropdownPortal } from "../utils/tags-dropdown-portal";
  * alongside `ImportOpmlModal`. Reads a Google-Reader-API-compatible
  * `starred.json` export (Inoreader "Read later"/starred-items format) and
  * inserts starred articles into feeds the user already subscribes to. For
- * source feeds the user does not already subscribe to, the preview groups
- * their starred items under an editable-folder "new feed" row (234-02); on
+ * source feeds the user does not already subscribe to, the preview marks
+ * their group with a "*" and groups them the same as any other feed; on
  * execute, the feed is created unconditionally using only the export's own
- * `origin.title`/`origin.htmlUrl` data, and the historical starred item(s)
+ * `origin.title`/`origin.htmlUrl` data, placed in the Options panel's
+ * "New-feed folder" (`this.newFeedFolder`, shared by every new feed in the
+ * run rather than assigned per group), and the historical starred item(s)
  * are inserted immediately. Whether a single background fetch is also
  * triggered to populate that new feed's live metadata/current items is
  * controlled by the Options panel's "New-feed metadata refresh" toggle
@@ -78,13 +87,11 @@ export class ImportStarredModal extends Modal {
   private readonly onImportStarted?: () => void;
 
   private validationErrorKind:
-    | "invalid_extension"
-    | "invalid_json"
-    | "missing_items"
-    | null = null;
+    "invalid_extension" | "invalid_json" | "missing_items" | null = null;
   private previewModel: StarredImportPreviewModel | null = null;
   private unimportableEntries: StarredImportUnimportableEntry[] = [];
   private collapsedFeedUrls = new Set<string>();
+  private newFeedFolder = DEFAULT_NEW_FEED_FOLDER;
   private newFeedMetadataRefreshEnabled = false;
   private tagImportEnabled = true;
   private readonly importerShell: ImporterShell<
@@ -150,6 +157,8 @@ export class ImportStarredModal extends Modal {
     subtitle.textContent =
       "Import starred articles from an exported starred.json (the Google Reader API's 'Read later' format, as exported by Inoreader). Articles for feeds you don't already subscribe to will create the source feed too.";
 
+    this.renderStarredJsonInstructions(contentEl);
+
     const buttonContainer = contentEl.createDiv({
       cls: "rss-dashboard-modal-buttons",
     });
@@ -163,6 +172,59 @@ export class ImportStarredModal extends Modal {
     this.previewContainer = contentEl.querySelector<HTMLDivElement>(
       ".import-preview-container",
     )!;
+  }
+
+  /**
+   * Step-by-step instructions for producing a starred.json file, shown
+   * above the file picker before anything has been selected. Inoreader
+   * only exposes starred.json bundled inside its full account archive
+   * (alongside subscriptions.xml and a README) — there's no dedicated
+   * "export starred items" download — so first-time users otherwise have
+   * no way to know where that file even comes from.
+   */
+  private renderStarredJsonInstructions(container: HTMLElement): void {
+    const wrapper = container.createDiv({
+      cls: "import-starred-instructions",
+    });
+    wrapper.createDiv({
+      cls: "import-starred-instructions-title",
+      text: "How to get starred.json from Inoreader",
+    });
+
+    const list = wrapper.createEl("ol", {
+      cls: "import-starred-instructions-list",
+    });
+
+    const step1 = list.createEl("li");
+    step1.appendText("Open Inoreader's ");
+    const link = step1.createEl("a", {
+      text: "Import, export & backup",
+      href: "https://www.inoreader.com/preferences/profile/import_export_backup",
+    });
+    link.setAttribute("target", "_blank");
+    link.setAttribute("rel", "noopener noreferrer");
+    step1.appendText(" settings.");
+
+    const step2 = list.createEl("li");
+    step2.appendText("Click ");
+    step2.createEl("strong", { text: "Download full account archive" });
+    step2.appendText(".");
+
+    const step3 = list.createEl("li");
+    step3.appendText("Unzip the download — it contains three files: ");
+    step3.createEl("code", { text: "README.txt" });
+    step3.appendText(", ");
+    step3.createEl("code", { text: "subscriptions.xml" });
+    step3.appendText(" (your feed list, in OPML format), and ");
+    step3.createEl("code", { text: "starred.json" });
+    step3.appendText(".");
+
+    const step4 = list.createEl("li");
+    step4.appendText("Use ");
+    step4.createEl("strong", { text: "Import file…" });
+    step4.appendText(" below to select ");
+    step4.createEl("code", { text: "starred.json" });
+    step4.appendText(".");
   }
 
   private async handleFileSelection(file: File): Promise<void> {
@@ -179,7 +241,8 @@ export class ImportStarredModal extends Modal {
       this.validationErrorKind = "invalid_extension";
       return {
         valid: false as const,
-        error: "Please select a valid starred.json file (.json extension required)",
+        error:
+          "Please select a valid starred.json file (.json extension required)",
       };
     }
 
@@ -190,7 +253,8 @@ export class ImportStarredModal extends Modal {
       this.validationErrorKind = "invalid_json";
       return {
         valid: false as const,
-        error: "This is not a valid starred.json file. The file contains invalid JSON.",
+        error:
+          "This is not a valid starred.json file. The file contains invalid JSON.",
       };
     }
 
@@ -218,6 +282,11 @@ export class ImportStarredModal extends Modal {
       ".import-preview-list",
     );
     const previousScrollTop = existingList?.scrollTop ?? 0;
+    // `.modal-content` (this.contentEl) is the scrollable region at typical
+    // modal widths (see the @media rule in import-starred-modal.css) — a
+    // full teardown/rebuild of the preview list below otherwise resets it
+    // to the top on every checkbox toggle, not just the inner list.
+    const previousContentScrollTop = this.contentEl.scrollTop;
 
     this.previewContainer.removeClass("import-hidden");
     this.previewContainer.addClass("import-visible");
@@ -254,7 +323,7 @@ export class ImportStarredModal extends Modal {
     if (stats.newFeedGroups > 0) {
       this.previewContainer.createEl("p", {
         cls: "import-preview-helper",
-        text: "New feeds are imported into an editable target folder. Use the folder icon on a new feed's row to change it before importing.",
+        text: "New feeds are marked with *. They're created in the folder set above.",
       });
     }
 
@@ -307,6 +376,7 @@ export class ImportStarredModal extends Modal {
     }
 
     list.scrollTop = previousScrollTop;
+    this.contentEl.scrollTop = previousContentScrollTop;
 
     this.renderUnimportableSection(this.previewContainer);
     this.renderNewTagsSection(this.previewContainer);
@@ -314,7 +384,8 @@ export class ImportStarredModal extends Modal {
 
   /**
    * "Options" panel (234-07), rendered above the "Preview" section. Hosts
-   * the new-feed metadata-refresh toggle and the tag-import toggle (234-11).
+   * the new-feed target folder, the new-feed metadata-refresh toggle, and
+   * the tag-import toggle (234-11).
    */
   private renderOptionsPanel(): void {
     const panel = this.previewContainer.createDiv({
@@ -325,10 +396,12 @@ export class ImportStarredModal extends Modal {
       text: "Options",
     });
 
+    this.renderNewFeedFolderSetting(panel);
+
     const metadataRefreshSetting = new Setting(panel)
       .setName("New-feed metadata refresh")
       .setDesc(
-        "When a starred article belongs to a feed you don't already follow, live-fetch that new feed's title, site URL, icon, and current items right away. The starred article itself is always imported, whether this is on or off.",
+        "When a starred article belongs to a feed you don't already follow, live-fetch that new feed's title, site URL, icon, and the most recent RSS feed items right away. The starred article itself is always imported, whether this is on or off.",
       )
       .addToggle((toggle) => {
         toggle
@@ -338,7 +411,10 @@ export class ImportStarredModal extends Modal {
             this.setOptionDescriptionDimmed(metadataRefreshSetting, !value);
           });
       });
-    metadataRefreshSetting.settingEl.addClass("import-option-setting");
+    metadataRefreshSetting.settingEl.addClasses([
+      "import-option-setting",
+      "import-metadata-refresh-setting",
+    ]);
     this.setOptionDescriptionDimmed(
       metadataRefreshSetting,
       !this.newFeedMetadataRefreshEnabled,
@@ -362,6 +438,48 @@ export class ImportStarredModal extends Modal {
       "import-tag-import-setting",
     ]);
     this.setOptionDescriptionDimmed(tagImportSetting, !this.tagImportEnabled);
+  }
+
+  /**
+   * The shared target folder every new feed created by this import lands
+   * in. A single `FolderSuggest`-backed field (the same type-ahead-plus-
+   * "Add new folder..." combobox Add Feed/Edit Feed already use) rather
+   * than a per-new-feed-group control — see `StarredImportPreviewModel`'s
+   * class doc for why per-group editing was dropped in favor of this.
+   */
+  private renderNewFeedFolderSetting(panel: HTMLElement): void {
+    const setting = new Setting(panel)
+      .setName("New-feed folder")
+      .setDesc(
+        "Starred articles from a feed you don't already follow create that feed here, inside this folder.",
+      );
+
+    let folderInput!: HTMLInputElement;
+    setting.addText((text) => {
+      text.setValue(this.newFeedFolder);
+      folderInput = text.inputEl;
+      folderInput.autocomplete = "off";
+      folderInput.spellcheck = false;
+
+      const commit = () => {
+        this.newFeedFolder =
+          folderInput.value.trim() || DEFAULT_NEW_FEED_FOLDER;
+        folderInput.value = this.newFeedFolder;
+      };
+      folderInput.addEventListener("blur", commit);
+      folderInput.addEventListener("change", commit);
+      // Opens the suggestion dropdown immediately on click, rather than
+      // only once the user starts typing (`FolderSuggest`'s own click
+      // handler only does this when the field is already empty, which it
+      // never is here since it's pre-filled with the default folder).
+      folderInput.addEventListener("click", () => {
+        folderInput.dispatchEvent(new Event("input", { bubbles: true }));
+      });
+
+      new FolderSuggest(this.app, folderInput, this.plugin.settings.folders);
+    });
+    setting.settingEl.addClass("import-option-setting");
+    decorateFolderSelectorInput(setting, folderInput);
   }
 
   /**
@@ -550,7 +668,7 @@ export class ImportStarredModal extends Modal {
     });
 
     const icon = groupRow.createDiv({ cls: "import-preview-icon" });
-    setIcon(icon, group.isNewFeed ? "plus-circle" : "rss");
+    setIcon(icon, "rss");
 
     const nameWrap = groupRow.createDiv({ cls: "import-preview-name" });
     nameWrap.createSpan({
@@ -560,10 +678,10 @@ export class ImportStarredModal extends Modal {
 
     if (group.isNewFeed) {
       nameWrap.createSpan({
-        cls: "import-preview-meta",
-        text: "New feed",
+        cls: "import-preview-new-feed-marker",
+        text: "*",
+        attr: { "aria-label": "New feed", title: "New feed" },
       });
-      this.renderNewFeedFolderControl(nameWrap, group);
     }
 
     const selectedCount = group.items.filter((item) => item.selected).length;
@@ -609,92 +727,6 @@ export class ImportStarredModal extends Modal {
     }
   }
 
-  /**
-   * Editable target-folder control for a new-feed group. Mirrors
-   * `ImportOpmlModal`'s inline folder-rename interaction (click pencil,
-   * edit inline, commit on Enter/blur, validate via `isValidFolderName`).
-   * Leads with the same "folder" icon `ImportOpmlModal` uses for its folder
-   * rows (234-08) so the control reads as folder assignment rather than a
-   * generic rename affordance.
-   */
-  private renderNewFeedFolderControl(
-    nameWrap: HTMLElement,
-    group: StarredImportPreviewGroupSnapshot,
-  ): void {
-    const model = this.previewModel;
-    if (!model) return;
-
-    const folderIcon = nameWrap.createDiv({
-      cls: "import-preview-icon import-preview-folder-icon",
-      attr: { "aria-hidden": "true" },
-    });
-    setIcon(folderIcon, "folder");
-
-    const displayFolder =
-      group.folder === DEFAULT_NEW_FEED_FOLDER || !group.folder
-        ? "<None>"
-        : group.folder;
-    const folderText = nameWrap.createSpan({
-      cls: "import-preview-meta",
-      text: `Folder: ${displayFolder}`,
-    });
-
-    const edit = nameWrap.createDiv({
-      cls: "clickable-icon import-preview-edit",
-      attr: {
-        role: "button",
-        tabindex: "0",
-        "aria-label": "Edit target folder",
-        title: "Edit target folder",
-      },
-    });
-    setIcon(edit, "pencil");
-
-    const startEdit = () => {
-      const input = folderText.win.createEl("input");
-      input.className = "import-preview-edit-input";
-      input.value = group.folder ?? "";
-      folderText.replaceWith(input);
-      input.focus();
-      input.select();
-
-      const commit = () => {
-        const next = input.value.trim();
-        const validation = isValidFolderName(next);
-        if (!validation.valid) {
-          input.classList.add("is-invalid");
-          input.setAttribute("title", validation.error ?? "Invalid folder name");
-          input.focus();
-          return;
-        }
-        model.setNewFeedFolder(group.feedUrl, next);
-        this.renderPreview();
-      };
-
-      input.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") {
-          e.preventDefault();
-          commit();
-        } else if (e.key === "Escape") {
-          e.preventDefault();
-          this.renderPreview();
-        }
-      });
-      input.addEventListener("blur", () => commit());
-    };
-
-    edit.addEventListener("click", (e) => {
-      e.preventDefault();
-      startEdit();
-    });
-    edit.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        startEdit();
-      }
-    });
-  }
-
   private renderItemRow(
     listEl: HTMLElement,
     item: StarredImportPreviewGroupSnapshot["items"][number],
@@ -734,8 +766,6 @@ export class ImportStarredModal extends Modal {
     } else {
       row.createDiv({ cls: "import-preview-meta" });
     }
-
-    row.createDiv({ cls: "import-preview-toggle-spacer" });
   }
 
   /**
@@ -976,7 +1006,7 @@ export class ImportStarredModal extends Modal {
       const feed = buildNewFeedRecord({
         url: newFeedGroup.feedUrl,
         title: newFeedGroup.feedTitle,
-        folder: newFeedGroup.folder,
+        folder: this.newFeedFolder,
         siteUrl: newFeedGroup.siteUrl,
       });
 

@@ -9,6 +9,24 @@
  */
 
 /* ============================================
+   Shared Importer Shell Visibility
+   ============================================ */
+
+/* `ImporterShell` (shared by this modal and Import Starred Articles) toggles
+ * these two classes to show/hide the error message and the preview/options
+ * area as file-selection state changes. Without this rule they were pure
+ * no-ops — a container just carried the "hidden" class in the DOM with no
+ * visual effect — so a stale error or a stale preview from a prior file
+ * selection stayed on screen underneath whatever replaced it. */
+.import-hidden {
+  display: none;
+}
+
+.import-visible {
+  display: block;
+}
+
+/* ============================================
    Import OPML Modal Base
    ============================================ */
 

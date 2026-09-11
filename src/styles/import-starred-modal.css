@@ -13,24 +13,77 @@
   --import-indent: 14px;
 }
 
-/* Helper text (234-08) explaining the new-feed folder-assignment control,
- * shown above the options/toolbar area whenever the preview contains at
- * least one new-feed group. */
+/* "How to get starred.json from Inoreader" steps, shown above the file
+ * picker before anything has been selected. */
+.import-starred-instructions {
+  margin: 0 0 1rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  background: var(--background-secondary);
+}
+
+.import-starred-instructions-title {
+  margin: 0 0 0.4rem;
+  font-size: var(--font-ui-small);
+  font-weight: 600;
+  color: var(--text-normal);
+}
+
+.import-starred-instructions-list {
+  margin: 0;
+  padding-left: 1.25rem;
+  font-size: var(--font-ui-small);
+  color: var(--text-muted);
+}
+
+.import-starred-instructions-list li {
+  margin: 0.15rem 0;
+}
+
+.import-starred-instructions-list code {
+  font-size: 0.9em;
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+/* The shared `.import-preview-row` template (import-opml-modal.css) has a
+ * bare `auto` 4th column and a fixed 28px 5th column reserved for a
+ * collapse/expand chevron — a group row uses both (count text, then the
+ * real chevron). An article row has no chevron of its own; it only ever
+ * rendered an empty `.import-preview-toggle-spacer` filler in that 5th
+ * slot to keep left-hand columns aligned under the group row above it.
+ * That's pure dead space once the tag chips are meant to reach the row's
+ * true right edge, so article rows drop that column entirely (the spacer
+ * div itself is no longer rendered — see `renderItemRow`) and split the
+ * remaining width between the title and tag columns instead of leaving
+ * the tag column content-sized, giving `justify-self`/`margin-left: auto`
+ * on `.import-preview-tags-control` below actual slack to push against.
+ * Scoped to this modal only — OPML's own feed rows use the same `--feed`
+ * class for a plain meta-text column plus a real per-row rename control. */
+.rss-import-starred-modal .import-preview-row--feed {
+  grid-template-columns: 20px 18px minmax(0, 1fr) minmax(0, 1fr);
+}
+
+/* Helper text explaining the "*" new-feed marker, shown above the
+ * options/toolbar area whenever the preview contains at least one new-feed
+ * group. */
 .import-preview-helper {
   margin: 0 0 0.75rem;
   font-size: var(--font-ui-small);
   color: var(--text-muted);
 }
 
-/* Leading "folder" icon (234-08) on a new-feed group's folder-edit control,
- * reusing `ImportOpmlModal`'s folder-row icon sizing so the control reads as
- * folder assignment rather than a generic rename affordance. */
-.import-preview-folder-icon {
-  flex-shrink: 0;
-}
-
-.rss-dashboard-modal .import-preview-icon.import-preview-folder-icon {
-  --icon-size: 14px;
+/* "*" marker on a new-feed group's row — the only inline indicator that its
+ * feed isn't subscribed to yet, replacing the old "New feed" text badge and
+ * distinct group icon. Explained once by `.import-preview-helper` above,
+ * rather than repeated per row. */
+.import-preview-new-feed-marker {
+  margin-left: 2px;
+  color: var(--text-accent);
+  font-weight: 700;
 }
 
 /* "Options" panel (234-07, 234-11) — import-time toggles (new-feed
@@ -184,12 +237,26 @@
  * dashboard card's chip strip) but overrides its wrapping/margin rules with
  * a scoped, higher-specificity selector so the single-row chip renderer's
  * own overflow ("+N") behavior — not CSS wrapping — decides what's visible
- * in this row's fixed-width column. */
+ * in this row's fixed-width column.
+ *
+ * Deliberately no `justify-content: flex-end` here, even though the box
+ * itself is right-aligned in its row (`justify-self: end`/`margin-left:
+ * auto` below): `renderSingleRowCardTagChips` detects overflow by adding
+ * chips one at a time and checking `scrollWidth > clientWidth`, which only
+ * measures overflow in the forward (rightward) direction. Right-justifying
+ * the chips *inside* the box makes any overflow spill leftward instead —
+ * invisible to that check — so `clientWidth`/`scrollWidth` stay identical
+ * no matter how much content is hidden, and the "+N" truncation never
+ * fires. Left-to-right internal flow (the default) keeps overflow
+ * measurable; the box's own fit-content sizing already makes chips hug
+ * its edges tightly when they're not truncated, so no visual difference
+ * shows up in the common case. */
 .import-preview-tags-control.rss-dashboard-tag-container {
   display: flex;
   flex-wrap: nowrap;
   align-items: center;
-  margin: 0;
+  justify-self: end;
+  margin: 0 0 0 auto;
   max-width: 220px;
   overflow: hidden;
   cursor: pointer;
