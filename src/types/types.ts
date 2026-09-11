@@ -58,6 +58,26 @@ export interface FeedItem {
    */
   restrictedReason?: string;
 
+  /**
+   * Full-content fetch state for an article imported from a starred.json
+   * export (234-09). Set to "unfetched" at import time for every imported
+   * article; "failed" once a fetch (either the opt-in import-time fetch from
+   * 234-06, or the reader's manual "Fetch now") has been attempted and did
+   * not return usable content; absent once a fetch succeeds and the article
+   * carries real full content. Only present on starred-imported articles —
+   * articles from a normal feed refresh never set this field, so the
+   * reader's automatic fetch-on-open is unaffected for them.
+   */
+  starredImportContentState?: "unfetched" | "failed";
+
+  /**
+   * Epoch-millisecond timestamp of when this article was imported from a
+   * starred.json export (234-09). Set alongside `starredImportContentState`
+   * at import time; used by the reader's cached-preview banner to show the
+   * user when the export was taken.
+   */
+  starredImportedAt?: number;
+
   ieee?: {
     pubYear?: string;
     volume?: string;

@@ -71,6 +71,7 @@ import { ImageCacheService } from "./src/services/image-cache-service";
 import { resolveArticlePreviewImage } from "./src/components/article-list/utils/article-preview-utils";
 
 import { ImportOpmlModal } from "./src/modals/import-opml-modal";
+import { ImportStarredModal } from "./src/modals/import-starred-modal";
 import { AddFeedModal } from "./src/modals/feed-manager/add-feed-modal";
 import { StorageMigrationModal } from "./src/modals/storage-migration-modal";
 import { isValidUrl } from "./src/utils/validation";
@@ -1019,6 +1020,14 @@ export default class RssDashboardPlugin extends Plugin {
         name: "Import OPML",
         callback: () => {
           new ImportOpmlModal(this.app, this).open();
+        },
+      });
+
+      this.addCommand({
+        id: "import-starred",
+        name: "Import starred articles from Inoreader",
+        callback: () => {
+          new ImportStarredModal(this.app, this).open();
         },
       });
 

@@ -1,4 +1,4 @@
-import { App, TFolder } from "obsidian";
+import { App, TFolder, setIcon } from "obsidian";
 import type { Folder } from "../types/types";
 import { collectFolderPaths } from "../utils/folder-paths";
 import { setCssProps } from "../utils/platform-utils";
@@ -145,12 +145,21 @@ export class VaultFolderSuggest extends LegacyInputSuggest<TFolder> {
   }
 }
 
+/**
+ * A real existing folder, or the "add a new folder with this name" row shown
+ * when the typed query doesn't match one. Kept as a tagged union (rather
+ * than a sentinel string like the old `"Add new folder..."` label) so the
+ * add-new row can carry the actual typed name through to both rendering and
+ * selection.
+ */
+type FolderSuggestOption =
+  | { kind: "folder"; path: string }
+  | { kind: "add-new"; name: string };
+
 /** Provides type-ahead folder suggestions for RSS sidebar folders. */
-export class FolderSuggest extends LegacyInputSuggest<string> {
+export class FolderSuggest extends LegacyInputSuggest<FolderSuggestOption> {
   private folders: string[];
   private showAddNewOption: boolean;
-
-  private static readonly ADD_NEW_FOLDER_LABEL = "Add new folder...";
 
   constructor(
     app: App,
@@ -179,45 +188,55 @@ export class FolderSuggest extends LegacyInputSuggest<string> {
     this.folders = collectFolderPaths(folders, { sort: true });
   }
 
-  protected getSuggestions(query: string): string[] {
-    const lowerQuery = query.toLowerCase();
-    if (
-      lowerQuery === "" ||
-      this.folders.some((folder) => folder.toLowerCase() === lowerQuery)
-    ) {
-      return this.withOptionalAddNewOption(this.folders);
-    }
-
-    return this.withOptionalAddNewOption(
-      this.folders.filter((folder) =>
-        folder.toLowerCase().includes(lowerQuery),
-      ),
+  protected getSuggestions(query: string): FolderSuggestOption[] {
+    const trimmedQuery = query.trim();
+    const lowerQuery = trimmedQuery.toLowerCase();
+    const exactMatch = this.folders.some(
+      (folder) => folder.toLowerCase() === lowerQuery,
     );
-  }
 
-  private withOptionalAddNewOption(folders: string[]): string[] {
-    return this.showAddNewOption
-      ? [FolderSuggest.ADD_NEW_FOLDER_LABEL, ...folders]
-      : [...folders];
-  }
+    // An exact match (the user finished typing a valid existing folder name)
+    // shows the full folder list again, same as an empty query — there's
+    // nothing left to narrow down, and browsing the rest is more useful
+    // than a substring-filtered list containing just that one folder.
+    const matches =
+      lowerQuery === "" || exactMatch
+        ? this.folders
+        : this.folders.filter((folder) =>
+            folder.toLowerCase().includes(lowerQuery),
+          );
+    const folderOptions: FolderSuggestOption[] = matches.map((path) => ({
+      kind: "folder",
+      path,
+    }));
 
-  public renderSuggestion(folder: string, el: HTMLElement): void {
-    if (folder === FolderSuggest.ADD_NEW_FOLDER_LABEL) {
-      el.addClass("rss-dashboard-add-new-suggestion");
+    if (!this.showAddNewOption || trimmedQuery === "" || exactMatch) {
+      return folderOptions;
     }
-    el.setText(folder);
+
+    return [{ kind: "add-new", name: trimmedQuery }, ...folderOptions];
+  }
+
+  public renderSuggestion(option: FolderSuggestOption, el: HTMLElement): void {
+    if (option.kind === "add-new") {
+      el.addClass("rss-dashboard-add-new-suggestion");
+      setIcon(
+        el.createSpan({ cls: "rss-dashboard-add-new-suggestion-icon" }),
+        "folder-plus",
+      );
+      el.createSpan({ text: `Add "${option.name}"` });
+      return;
+    }
+    el.setText(option.path);
   }
 
   public selectSuggestion(
-    folder: string,
+    option: FolderSuggestOption,
     _event: MouseEvent | KeyboardEvent,
   ): void {
-    if (folder !== FolderSuggest.ADD_NEW_FOLDER_LABEL) {
-      this.inputEl.value = folder;
-      this.inputEl.dispatchEvent(new Event("input", { bubbles: true }));
-      this.inputEl.dispatchEvent(new Event("change", { bubbles: true }));
-    }
-
+    this.inputEl.value = option.kind === "add-new" ? option.name : option.path;
+    this.inputEl.dispatchEvent(new Event("input", { bubbles: true }));
+    this.inputEl.dispatchEvent(new Event("change", { bubbles: true }));
     this.inputEl.focus();
     this.close();
   }

@@ -23,6 +23,7 @@ Only the feeds you need. Stream the world's knowledge into your vault: RSS, podc
 - [Roadmap](#roadmap)
 - [Vault Shards Storage Guide](#vault-shards-storage-guide)
 - [Tags Guide](#tags-guide)
+- [Import Starred Articles Guide](#import-starred-articles-guide)
 - [Installation](#installation)
 - [Getting Started](#getting-started)
 - [One-Click Subscribe URI](#one-click-subscribe-uri)
@@ -121,6 +122,15 @@ Using the new Vault Shards storage mode? See the user-facing guide here: [docs/s
 ## Tags Guide
 
 Tags let you label and filter articles the way that works best for you. Automatic tagging is available at three levels: feed-type defaults (Settings), folder rules (right-click a folder → **Auto tag feeds in folder...**), and per-feed custom tags (Add/Edit feed). For a full walkthrough of precedence, backfill, and filter modes, see [docs/tags-primer.md](docs/tags-primer.md).
+
+## Import Starred Articles Guide
+
+Migrating starred articles from Inoreader? Import a `starred.json` export
+from **Import starred articles from Inoreader** (command palette, Settings
+tab, or Feed Manager), review new feeds, tags, and full-content fetching
+before committing, then fetch full content on demand from the reader
+afterward. For the full walkthrough of the Options toggles and why fetching
+is manual, see [docs/starred-import-guide.md](docs/starred-import-guide.md).
 
 ## Installation
 

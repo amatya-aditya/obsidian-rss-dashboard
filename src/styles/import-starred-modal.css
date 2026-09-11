@@ -13,6 +13,107 @@
   --import-indent: 14px;
 }
 
+/* "How to get starred.json from Inoreader" steps, shown above the file
+ * picker before anything has been selected. */
+.import-starred-instructions {
+  margin: 0 0 1rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  background: var(--background-secondary);
+}
+
+.import-starred-instructions-title {
+  margin: 0 0 0.4rem;
+  font-size: var(--font-ui-small);
+  font-weight: 600;
+  color: var(--text-normal);
+}
+
+.import-starred-instructions-list {
+  margin: 0;
+  padding-left: 1.25rem;
+  font-size: var(--font-ui-small);
+  color: var(--text-muted);
+}
+
+.import-starred-instructions-list li {
+  margin: 0.15rem 0;
+}
+
+.import-starred-instructions-list code {
+  font-size: 0.9em;
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+/* The shared `.import-preview-row` template (import-opml-modal.css) has a
+ * bare `auto` 4th column and a fixed 28px 5th column reserved for a
+ * collapse/expand chevron — a group row uses both (count text, then the
+ * real chevron). An article row has no chevron of its own; it only ever
+ * rendered an empty `.import-preview-toggle-spacer` filler in that 5th
+ * slot to keep left-hand columns aligned under the group row above it.
+ * That's pure dead space once the tag chips are meant to reach the row's
+ * true right edge, so article rows drop that column entirely (the spacer
+ * div itself is no longer rendered — see `renderItemRow`) and split the
+ * remaining width between the title and tag columns instead of leaving
+ * the tag column content-sized, giving `justify-self`/`margin-left: auto`
+ * on `.import-preview-tags-control` below actual slack to push against.
+ * Scoped to this modal only — OPML's own feed rows use the same `--feed`
+ * class for a plain meta-text column plus a real per-row rename control. */
+.rss-import-starred-modal .import-preview-row--feed {
+  grid-template-columns: 20px 18px minmax(0, 1fr) minmax(0, 1fr);
+}
+
+/* Helper text explaining the "*" new-feed marker, shown above the
+ * options/toolbar area whenever the preview contains at least one new-feed
+ * group. */
+.import-preview-helper {
+  margin: 0 0 0.75rem;
+  font-size: var(--font-ui-small);
+  color: var(--text-muted);
+}
+
+/* "*" marker on a new-feed group's row — the only inline indicator that its
+ * feed isn't subscribed to yet, replacing the old "New feed" text badge and
+ * distinct group icon. Explained once by `.import-preview-helper` above,
+ * rather than repeated per row. */
+.import-preview-new-feed-marker {
+  margin-left: 2px;
+  color: var(--text-accent);
+  font-weight: 700;
+}
+
+/* "Options" panel (234-07, 234-11) — import-time toggles (new-feed
+ * metadata refresh; import labels as tags), rendered above the "Preview"
+ * section. */
+.import-options-panel {
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.import-options-heading {
+  margin: 0 0 0.25rem;
+  font-size: var(--font-ui-small);
+  color: var(--text-muted);
+}
+
+.import-options-panel .import-option-setting {
+  border-top: none;
+  padding: 0.35rem 0;
+}
+
+/* Dims an Options-panel toggle's own description text while that toggle is
+ * off, per the spec's per-option disabled-state visual cue. Scoped to this
+ * panel's description elements (no `!important`) so it can't leak into
+ * unrelated Setting descriptions elsewhere in the modal. */
+.import-options-panel .import-option-description--disabled {
+  opacity: 0.5;
+}
+
 /* "Unable to import" section — lists starred.json entries the mapper could
  * not turn into a candidate at all (see StarredImportUnimportableReason),
  * shown below the regular preview list instead of silently dropping them. */
@@ -74,6 +175,109 @@
   flex-shrink: 0;
   font-size: var(--font-ui-smaller);
   color: var(--text-muted);
+}
+
+/* "New tags" section (234-11) — the single inline confirmation of every
+ * tag about to be added to `settings.availableTags` before execute,
+ * deliberately matching the "Unable to import" section's visual pattern
+ * above (same heading/list/row shape) rather than introducing a new one. */
+.import-new-tags-section {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--background-modifier-border);
+}
+
+.import-new-tags-heading {
+  margin: 0 0 0.5rem;
+  font-size: var(--font-ui-small);
+  color: var(--text-muted);
+}
+
+.import-new-tags-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.import-new-tags-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.5rem;
+  border-radius: 4px;
+}
+
+.import-new-tags-row:hover {
+  background: var(--background-modifier-hover);
+}
+
+.import-new-tags-icon {
+  display: flex;
+  align-items: center;
+  color: var(--text-accent, var(--text-muted));
+  flex-shrink: 0;
+}
+
+.import-new-tags-icon svg {
+  width: 14px;
+  height: 14px;
+}
+
+.import-new-tags-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-normal);
+}
+
+/* Per-article tag chip (234-12), replacing the old "Read"/"Unread" text in
+ * this same grid column. Reuses `.rss-dashboard-tag-container` (the
+ * dashboard card's chip strip) but overrides its wrapping/margin rules with
+ * a scoped, higher-specificity selector so the single-row chip renderer's
+ * own overflow ("+N") behavior — not CSS wrapping — decides what's visible
+ * in this row's fixed-width column.
+ *
+ * Deliberately no `justify-content: flex-end` here, even though the box
+ * itself is right-aligned in its row (`justify-self: end`/`margin-left:
+ * auto` below): `renderSingleRowCardTagChips` detects overflow by adding
+ * chips one at a time and checking `scrollWidth > clientWidth`, which only
+ * measures overflow in the forward (rightward) direction. Right-justifying
+ * the chips *inside* the box makes any overflow spill leftward instead —
+ * invisible to that check — so `clientWidth`/`scrollWidth` stay identical
+ * no matter how much content is hidden, and the "+N" truncation never
+ * fires. Left-to-right internal flow (the default) keeps overflow
+ * measurable; the box's own fit-content sizing already makes chips hug
+ * its edges tightly when they're not truncated, so no visual difference
+ * shows up in the common case. */
+.import-preview-tags-control.rss-dashboard-tag-container {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-self: end;
+  margin: 0 0 0 auto;
+  max-width: 220px;
+  overflow: hidden;
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 2px 4px;
+}
+
+.import-preview-tags-control.rss-dashboard-tag-container:hover,
+.import-preview-tags-control.rss-dashboard-tag-container:focus-visible {
+  background: var(--background-modifier-hover);
+}
+
+.import-preview-tags-placeholder {
+  display: flex;
+  align-items: center;
+  color: var(--text-faint);
+}
+
+.rss-dashboard-modal .import-preview-tags-placeholder svg {
+  width: 14px;
+  height: 14px;
 }
 
 .rss-import-starred-modal .rss-dashboard-modal-content {

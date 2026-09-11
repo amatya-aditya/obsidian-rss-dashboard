@@ -136,7 +136,7 @@ describe("StarredImportPreviewModel", () => {
     expect(group.items.find((i) => i.guid === "g2")?.read).toBe(false);
   });
 
-  it("marks a group built from isNewFeed candidates as a new feed with a default folder", () => {
+  it("marks a group built from isNewFeed candidates as a new feed", () => {
     const model = new StarredImportPreviewModel({
       candidates: [
         makeCandidate({
@@ -151,12 +151,10 @@ describe("StarredImportPreviewModel", () => {
 
     const [group] = model.getGroups();
     expect(group.isNewFeed).toBe(true);
-    expect(group.folder).toBe("Uncategorized");
     expect(model.isNewFeedGroup("new-url")).toBe(true);
-    expect(model.getNewFeedFolder("new-url")).toBe("Uncategorized");
   });
 
-  it("does not mark an existing-feed group (isNewFeed false/undefined) as new, and it has no folder", () => {
+  it("does not mark an existing-feed group (isNewFeed false/undefined) as new", () => {
     const model = new StarredImportPreviewModel({
       candidates: [
         makeCandidate({ guid: "g1", feedUrl: "u1", feedTitle: "Feed One" }),
@@ -165,42 +163,7 @@ describe("StarredImportPreviewModel", () => {
 
     const [group] = model.getGroups();
     expect(group.isNewFeed).toBe(false);
-    expect(group.folder).toBeUndefined();
     expect(model.isNewFeedGroup("u1")).toBe(false);
-  });
-
-  it("edits the target folder for a new-feed group and rejects invalid folder names", () => {
-    const model = new StarredImportPreviewModel({
-      candidates: [
-        makeCandidate({
-          guid: "g1",
-          feedUrl: "new-url",
-          feedTitle: "New Feed",
-          isNewFeed: true,
-        }),
-      ],
-    });
-
-    const result = model.setNewFeedFolder("new-url", "Imported");
-    expect(result.valid).toBe(true);
-    expect(model.getNewFeedFolder("new-url")).toBe("Imported");
-    expect(model.getGroups()[0].folder).toBe("Imported");
-
-    const invalid = model.setNewFeedFolder("new-url", "bad/name?");
-    expect(invalid.valid).toBe(false);
-    // The last valid value is retained.
-    expect(model.getNewFeedFolder("new-url")).toBe("Imported");
-  });
-
-  it("refuses to set a folder on a group that is not a new feed", () => {
-    const model = new StarredImportPreviewModel({
-      candidates: [
-        makeCandidate({ guid: "g1", feedUrl: "u1", feedTitle: "Feed One" }),
-      ],
-    });
-
-    const result = model.setNewFeedFolder("u1", "Somewhere");
-    expect(result.valid).toBe(false);
   });
 
   it("only returns new-feed groups with at least one selected item from getSelectedNewFeedGroups()", () => {
@@ -230,7 +193,6 @@ describe("StarredImportPreviewModel", () => {
     expect(selectedNewFeeds[0]).toMatchObject({
       feedUrl: "new-url-1",
       feedTitle: "New Feed One",
-      folder: "Uncategorized",
       siteUrl: "https://new-feed-one.test/",
     });
   });

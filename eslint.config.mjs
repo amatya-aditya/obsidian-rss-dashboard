@@ -97,7 +97,7 @@ export default defineConfig([
         "warn",
         {
           acronyms: ["OPML", "XML", "API", "CORS", "URI", "URL", "RSS"],
-          brands: ["Obsidian"],
+          brands: ["Obsidian", "Inoreader"],
           allowAutoFix: true,
         },
       ],
@@ -141,7 +141,7 @@ export default defineConfig([
         "error",
         {
           acronyms: ["OPML", "XML", "API", "CORS", "URI", "URL", "RSS", "JSON"],
-          brands: ["Obsidian"],
+          brands: ["Obsidian", "Inoreader"],
           ignoreRegex: [
             "^\\d+(?:\\.\\d+)?x$",
             "^\\d+ (?:day|days|week|weeks|month|months|year|years|item|items|minute|minutes|hour|hours)$",

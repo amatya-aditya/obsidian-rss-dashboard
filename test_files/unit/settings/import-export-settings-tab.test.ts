@@ -196,18 +196,21 @@ describe("Auto Backup Helpers", () => {
 
       renderImportExportSettingsTab(containerEl, plugin as unknown as RssDashboardPlugin);
 
-      const starredSetting = getSettingByName(containerEl, "Starred articles");
+      const starredSetting = getSettingByName(
+        containerEl,
+        "Inoreader starred articles",
+      );
       expect(starredSetting.textContent).toContain("starred.json");
 
       const buttons = Array.from(
         containerEl.querySelectorAll<HTMLButtonElement>("button"),
       ).map((button) => button.textContent?.trim());
-      expect(buttons).toContain("Import starred articles");
+      expect(buttons).toContain("Import starred articles from Inoreader");
 
       const settingNames = Array.from(
         containerEl.querySelectorAll<HTMLElement>(".setting-item-name"),
       ).map((el) => el.textContent?.trim());
-      expect(settingNames.indexOf("Starred articles")).toBeGreaterThan(
+      expect(settingNames.indexOf("Inoreader starred articles")).toBeGreaterThan(
         settingNames.indexOf("OPML"),
       );
     });

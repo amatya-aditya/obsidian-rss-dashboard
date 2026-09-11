@@ -4,7 +4,10 @@ import type { Feed, Folder } from "../types/types";
 import { OpmlManager } from "../services/opml-manager";
 import { shouldUseMobileSidebarLayout } from "../utils/platform-utils";
 import type { OpmlImportPreviewFolderSnapshot } from "../services/opml-import-preview-model";
-import { OpmlImportPreviewModel } from "../services/opml-import-preview-model";
+import {
+  OpmlImportPreviewModel,
+  UNCATEGORIZED_FOLDER,
+} from "../services/opml-import-preview-model";
 import { isValidFeedTitle, isValidFolderName } from "../utils/validation";
 import { ImporterShell } from "./importer-shell";
 
@@ -454,9 +457,11 @@ export class ImportOpmlModal extends Modal {
     setIcon(icon, "folder");
 
     const nameWrap = folderRow.createDiv({ cls: "import-preview-name" });
+    const displayName =
+      node.name === UNCATEGORIZED_FOLDER ? "<None>" : node.name;
     const nameText = nameWrap.createSpan({
       cls: "import-preview-name-text",
-      text: node.name,
+      text: displayName,
     });
 
     const nameValidation = isValidFolderName(node.name);

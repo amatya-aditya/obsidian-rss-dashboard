@@ -4,6 +4,10 @@ import { FolderSuggest } from "../../../src/components/folder-suggest";
 import type { Folder } from "../../../src/types/types";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 
+type FolderSuggestOption =
+  | { kind: "folder"; path: string }
+  | { kind: "add-new"; name: string };
+
 function createFolders(): Folder[] {
   return [
     {
@@ -25,9 +29,18 @@ function createFolders(): Folder[] {
 function getSuggestions(
   suggest: FolderSuggest,
   query: string,
-): string[] {
-  return (suggest as unknown as { getSuggestions: (query: string) => string[] })
-    .getSuggestions(query);
+): FolderSuggestOption[] {
+  return (
+    suggest as unknown as {
+      getSuggestions: (query: string) => FolderSuggestOption[];
+    }
+  ).getSuggestions(query);
+}
+
+function folderPaths(options: FolderSuggestOption[]): string[] {
+  return options.map((option) =>
+    option.kind === "folder" ? option.path : `add-new:${option.name}`,
+  );
 }
 
 describe("FolderSuggest", () => {
@@ -37,7 +50,7 @@ describe("FolderSuggest", () => {
     vi.restoreAllMocks();
   });
 
-  it("includes the add-new row by default", () => {
+  it("omits the add-new row when the query is empty or matches an existing folder", () => {
     const inputEl = document.body.appendChild(createEl("input"));
     const suggest = new FolderSuggest(
       obsidian.App.createMock(),
@@ -45,33 +58,32 @@ describe("FolderSuggest", () => {
       createFolders(),
     );
 
-    expect(getSuggestions(suggest, "")).toEqual([
-      "Add new folder...",
+    expect(folderPaths(getSuggestions(suggest, ""))).toEqual([
       "Alpha",
       "Media",
       "Media/YouTube",
     ]);
-    expect(getSuggestions(suggest, "media")).toEqual([
-      "Add new folder...",
+    expect(folderPaths(getSuggestions(suggest, "media"))).toEqual([
       "Alpha",
       "Media",
       "Media/YouTube",
     ]);
   });
 
-  it("includes the add-new row when explicitly enabled", () => {
+  it("includes a dynamic add-new row named after the typed query when it matches no existing folder", () => {
     const inputEl = document.body.appendChild(createEl("input"));
     const suggest = new FolderSuggest(
       obsidian.App.createMock(),
       inputEl,
       createFolders(),
-      { showAddNewOption: true },
     );
 
-    expect(getSuggestions(suggest, "alpha")[0]).toBe("Add new folder...");
+    const options = getSuggestions(suggest, "Projects");
+    expect(options[0]).toEqual({ kind: "add-new", name: "Projects" });
+    expect(folderPaths(options)).toEqual(["add-new:Projects"]);
   });
 
-  it("hides the add-new row when disabled", () => {
+  it("hides the add-new row when disabled, even for a non-matching query", () => {
     const inputEl = document.body.appendChild(createEl("input"));
     const suggest = new FolderSuggest(
       obsidian.App.createMock(),
@@ -80,9 +92,12 @@ describe("FolderSuggest", () => {
       { showAddNewOption: false },
     );
 
-    expect(getSuggestions(suggest, "")).toEqual(["Alpha", "Media", "Media/YouTube"]);
-    expect(getSuggestions(suggest, "media")).toEqual(["Alpha", "Media", "Media/YouTube"]);
-    expect(getSuggestions(suggest, "does-not-exist")).toEqual([]);
+    expect(folderPaths(getSuggestions(suggest, ""))).toEqual([
+      "Alpha",
+      "Media",
+      "Media/YouTube",
+    ]);
+    expect(folderPaths(getSuggestions(suggest, "does-not-exist"))).toEqual([]);
   });
 
   it("renders matching suggestions without the newer Obsidian suggester API", () => {
@@ -95,7 +110,7 @@ describe("FolderSuggest", () => {
     const suggestEl = inputEl.nextElementSibling as HTMLElement;
     const options = suggestEl.querySelectorAll("[role=option]");
     expect(options).toHaveLength(2);
-    expect(options[0].textContent).toBe("Add new folder...");
+    expect(options[0].textContent).toBe('Add "alph"');
     expect(options[1].textContent).toBe("Alpha");
   });
 
@@ -127,16 +142,18 @@ describe("FolderSuggest", () => {
     inputEl.addEventListener("input", inputSpy);
     inputEl.addEventListener("change", changeSpy);
 
-    suggest.selectSuggestion("Media/YouTube", new MouseEvent("click"));
+    suggest.selectSuggestion(
+      { kind: "folder", path: "Media/YouTube" },
+      new MouseEvent("click"),
+    );
 
     expect(inputEl.value).toBe("Media/YouTube");
     expect(inputSpy).toHaveBeenCalledTimes(1);
     expect(changeSpy).toHaveBeenCalledTimes(1);
   });
 
-  it("selecting add new folder closes the menu without clearing typed input", () => {
+  it("selecting the add-new row commits the typed name and dispatches input/change, same as a real folder", () => {
     const inputEl = document.body.appendChild(createEl("input"));
-    inputEl.value = "Custom/Path";
 
     const suggest = new FolderSuggest(
       obsidian.App.createMock(),
@@ -151,11 +168,14 @@ describe("FolderSuggest", () => {
     inputEl.addEventListener("input", inputSpy);
     inputEl.addEventListener("change", changeSpy);
 
-    suggest.selectSuggestion("Add new folder...", new MouseEvent("click"));
+    suggest.selectSuggestion(
+      { kind: "add-new", name: "Custom/Path" },
+      new MouseEvent("click"),
+    );
 
     expect(inputEl.value).toBe("Custom/Path");
-    expect(inputSpy).not.toHaveBeenCalled();
-    expect(changeSpy).not.toHaveBeenCalled();
+    expect(inputSpy).toHaveBeenCalledTimes(1);
+    expect(changeSpy).toHaveBeenCalledTimes(1);
     expect(closeSpy).toHaveBeenCalledTimes(1);
   });
 });

@@ -245,6 +245,17 @@ describe("mapStarredExportToCandidates", () => {
     expect(unlabeled?.item.tags).toBeUndefined();
   });
 
+  it("records label-derived tag names separately from item.tags, lowercased", () => {
+    const parsed = loadFixture();
+
+    const { candidates } = mapStarredExportToCandidates(parsed, EXISTING_FEEDS);
+    const labeled = candidates.find((c) => c.item.guid.endsWith("0002"));
+    const unlabeled = candidates.find((c) => c.item.guid.endsWith("0001"));
+
+    expect(labeled?.labelDerivedTagNames).toEqual(["design", "art"]);
+    expect(unlabeled?.labelDerivedTagNames).toBeUndefined();
+  });
+
   it("reuses an existing availableTags color instead of creating a duplicate palette entry", () => {
     const parsed = loadFixture();
     const availableTags: Tag[] = [
@@ -309,6 +320,21 @@ describe("mapStarredExportToCandidates", () => {
     const { unimportable } = mapStarredExportToCandidates(parsed, EXISTING_FEEDS);
 
     expect(unimportable).toHaveLength(0);
+  });
+
+  it("tags every candidate as an unfetched, timestamped starred import (234-09)", () => {
+    const parsed = loadFixture();
+    const before = Date.now();
+
+    const { candidates } = mapStarredExportToCandidates(parsed, EXISTING_FEEDS);
+
+    const after = Date.now();
+    expect(candidates.length).toBeGreaterThan(0);
+    for (const candidate of candidates) {
+      expect(candidate.item.starredImportContentState).toBe("unfetched");
+      expect(candidate.item.starredImportedAt).toBeGreaterThanOrEqual(before);
+      expect(candidate.item.starredImportedAt).toBeLessThanOrEqual(after);
+    }
   });
 
   describe("unimportable classification", () => {

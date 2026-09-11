@@ -1,33 +1,31 @@
 import { Modal, App, Setting, Notice, setIcon } from "obsidian";
 import type RssDashboardPlugin from "../../main";
-import type { Feed, FeedItem, Tag } from "../types/types";
+import type { Feed, Tag } from "../types/types";
 import {
   buildNewFeedRecord,
   mapStarredExportToCandidates,
+  type StarredImportCandidate,
   type StarredImportUnimportableEntry,
   type StarredJsonExport,
 } from "../services/starred-import-mapper";
 import type { StarredImportPreviewGroupSnapshot } from "../services/starred-import-preview-model";
 import { StarredImportPreviewModel } from "../services/starred-import-preview-model";
-import { isValidFolderName } from "../utils/validation";
-import {
-  applyStarredImportCandidateToFeed,
-  findMatchingFeedItem,
-} from "../services/starred-import-merge";
+import { applyStarredImportCandidateToFeed } from "../services/starred-import-merge";
 import { shouldUseMobileSidebarLayout } from "../utils/platform-utils";
-import { fetchFullArticleContentWithOutcome } from "../utils/full-article-fetch";
 import { ImporterShell } from "./importer-shell";
+import { renderSingleRowCardTagChips } from "../components/article-list/utils/tag-layout-utils";
+import { createTagsDropdownPortal } from "../utils/tags-dropdown-portal";
+import { FolderSuggest } from "../components/folder-suggest";
+import { decorateFolderSelectorInput } from "./feed-manager/folder-selector-field";
 
 /**
- * A per-article failure recorded when the opt-in full-content fetch (see
- * 234-06) could not retrieve an imported article's original page. The
- * article itself is still imported with its export-provided content; this
- * is purely for the post-import results summary.
+ * Default target folder for every feed created by a starred-article import.
+ * A single shared destination, editable once via the Options panel's
+ * "New-feed folder" field — not per new-feed group (see
+ * `StarredImportPreviewModel`'s class doc for why per-group editing was
+ * dropped).
  */
-interface FullContentFetchFailure {
-  title: string;
-  link: string;
-}
+export const DEFAULT_NEW_FEED_FOLDER = "Inoreader starred imports";
 
 /**
  * Import Starred Articles Modal.
@@ -36,13 +34,19 @@ interface FullContentFetchFailure {
  * alongside `ImportOpmlModal`. Reads a Google-Reader-API-compatible
  * `starred.json` export (Inoreader "Read later"/starred-items format) and
  * inserts starred articles into feeds the user already subscribes to. For
- * source feeds the user does not already subscribe to, the preview groups
- * their starred items under an editable-folder "new feed" row (234-02); on
- * execute, the feed is created, a single background fetch is triggered to
- * populate its metadata/current items, and the historical starred item(s)
- * are inserted immediately, independent of that fetch. Entries that can
- * never produce a candidate at all are surfaced in an "Unable to import"
- * section (234-03) instead of being silently dropped.
+ * source feeds the user does not already subscribe to, the preview marks
+ * their group with a "*" and groups them the same as any other feed; on
+ * execute, the feed is created unconditionally using only the export's own
+ * `origin.title`/`origin.htmlUrl` data, placed in the Options panel's
+ * "New-feed folder" (`this.newFeedFolder`, shared by every new feed in the
+ * run rather than assigned per group), and the historical starred item(s)
+ * are inserted immediately. Whether a single background fetch is also
+ * triggered to populate that new feed's live metadata/current items is
+ * controlled by the Options panel's "New-feed metadata refresh" toggle
+ * (234-07), off by default; when off, the feed keeps only the export-derived
+ * placeholder data until its next normal refresh. Entries that can never
+ * produce a candidate at all are surfaced in an "Unable to import" section
+ * (234-03) instead of being silently dropped.
  *
  * Label-to-tag mapping (234-04): `mapStarredExportToCandidates` assigns each
  * imported article its `label/X` categories as `Tag`s, reusing an existing
@@ -60,33 +64,44 @@ interface FullContentFetchFailure {
  * locally-edited field. Re-running the import against the same or an updated
  * export is therefore safe and produces no duplicate articles.
  *
- * Full-content fetch (234-06) is opt-in via a preview checkbox, off by
- * default. When enabled, it reuses the same
- * `fetchFullArticleContentWithOutcome` pipeline `ArticleSaver.saveArticleWithFullContent`
- * and `ReaderView` already use — no fetch/Readability/Turndown logic is
- * duplicated here. A per-article failure never blocks or rolls back the
- * rest of the import; it is recorded and surfaced in a results summary.
+ * There is no import-time full-content fetch (234-06 was removed by
+ * 234-10). Every imported article starts in the "unfetched" content state
+ * stamped by `starred-import-mapper.ts`'s `toFeedItem` (234-09); the
+ * reader's manual "Fetch now" banner is the only path to full content for
+ * a starred-imported article.
+ *
+ * Tag-import toggle and unified confirmation (234-11): the Options panel's
+ * second toggle, on by default, gates whether a selected candidate's
+ * label-derived tags (assigned unconditionally by the pure mapper above)
+ * actually reach the imported article and the tag palette. When off,
+ * `getEffectiveTags` returns `undefined` for every candidate so no tag ever
+ * reaches `applyStarredImportCandidateToFeed` or `settings.availableTags`.
+ * The inline "New tags (N)" section (`renderNewTagsSection`) is the single
+ * place any brand-new tag is surfaced before execute, sourced from every
+ * currently-selected candidate's effective tags — not just the bulk label
+ * mapping — so a later ad hoc per-article tagging ticket (234-12) can feed
+ * the same section without restructuring it.
  */
 export class ImportStarredModal extends Modal {
   plugin: RssDashboardPlugin;
   private readonly onImportStarted?: () => void;
 
   private validationErrorKind:
-    | "invalid_extension"
-    | "invalid_json"
-    | "missing_items"
-    | null = null;
+    "invalid_extension" | "invalid_json" | "missing_items" | null = null;
   private previewModel: StarredImportPreviewModel | null = null;
   private unimportableEntries: StarredImportUnimportableEntry[] = [];
   private collapsedFeedUrls = new Set<string>();
-  private fetchFullContentEnabled = false;
-  private fullContentFailures: FullContentFetchFailure[] = [];
+  private newFeedFolder = DEFAULT_NEW_FEED_FOLDER;
+  private newFeedMetadataRefreshEnabled = false;
+  private tagImportEnabled = true;
   private readonly importerShell: ImporterShell<
     StarredJsonExport,
     StarredImportPreviewModel
   >;
 
   private previewContainer!: HTMLDivElement;
+  private itemTagsDropdownCleanup: (() => void) | null = null;
+  private itemTagsDropdownAnchor: HTMLElement | null = null;
 
   constructor(
     app: App,
@@ -134,11 +149,15 @@ export class ImportStarredModal extends Modal {
     }
 
     contentEl.empty();
-    new Setting(contentEl).setName("Import starred articles").setHeading();
+    new Setting(contentEl)
+      .setName("Import starred articles from Inoreader")
+      .setHeading();
 
     const subtitle = contentEl.createDiv({ cls: "add-feed-subtitle" });
     subtitle.textContent =
-      "Import starred articles from an exported starred.json (Inoreader / Google Reader API format). Articles for feeds you don't already subscribe to will create the source feed too.";
+      "Import starred articles from an exported starred.json (the Google Reader API's 'Read later' format, as exported by Inoreader). Articles for feeds you don't already subscribe to will create the source feed too.";
+
+    this.renderStarredJsonInstructions(contentEl);
 
     const buttonContainer = contentEl.createDiv({
       cls: "rss-dashboard-modal-buttons",
@@ -155,6 +174,59 @@ export class ImportStarredModal extends Modal {
     )!;
   }
 
+  /**
+   * Step-by-step instructions for producing a starred.json file, shown
+   * above the file picker before anything has been selected. Inoreader
+   * only exposes starred.json bundled inside its full account archive
+   * (alongside subscriptions.xml and a README) — there's no dedicated
+   * "export starred items" download — so first-time users otherwise have
+   * no way to know where that file even comes from.
+   */
+  private renderStarredJsonInstructions(container: HTMLElement): void {
+    const wrapper = container.createDiv({
+      cls: "import-starred-instructions",
+    });
+    wrapper.createDiv({
+      cls: "import-starred-instructions-title",
+      text: "How to get starred.json from Inoreader",
+    });
+
+    const list = wrapper.createEl("ol", {
+      cls: "import-starred-instructions-list",
+    });
+
+    const step1 = list.createEl("li");
+    step1.appendText("Open Inoreader's ");
+    const link = step1.createEl("a", {
+      text: "Import, export & backup",
+      href: "https://www.inoreader.com/preferences/profile/import_export_backup",
+    });
+    link.setAttribute("target", "_blank");
+    link.setAttribute("rel", "noopener noreferrer");
+    step1.appendText(" settings.");
+
+    const step2 = list.createEl("li");
+    step2.appendText("Click ");
+    step2.createEl("strong", { text: "Download full account archive" });
+    step2.appendText(".");
+
+    const step3 = list.createEl("li");
+    step3.appendText("Unzip the download — it contains three files: ");
+    step3.createEl("code", { text: "README.txt" });
+    step3.appendText(", ");
+    step3.createEl("code", { text: "subscriptions.xml" });
+    step3.appendText(" (your feed list, in OPML format), and ");
+    step3.createEl("code", { text: "starred.json" });
+    step3.appendText(".");
+
+    const step4 = list.createEl("li");
+    step4.appendText("Use ");
+    step4.createEl("strong", { text: "Import file…" });
+    step4.appendText(" below to select ");
+    step4.createEl("code", { text: "starred.json" });
+    step4.appendText(".");
+  }
+
   private async handleFileSelection(file: File): Promise<void> {
     this.validationErrorKind = null;
     this.previewModel = null;
@@ -169,7 +241,8 @@ export class ImportStarredModal extends Modal {
       this.validationErrorKind = "invalid_extension";
       return {
         valid: false as const,
-        error: "Please select a valid starred.json file (.json extension required)",
+        error:
+          "Please select a valid starred.json file (.json extension required)",
       };
     }
 
@@ -180,7 +253,8 @@ export class ImportStarredModal extends Modal {
       this.validationErrorKind = "invalid_json";
       return {
         valid: false as const,
-        error: "This is not a valid starred.json file. The file contains invalid JSON.",
+        error:
+          "This is not a valid starred.json file. The file contains invalid JSON.",
       };
     }
 
@@ -208,12 +282,19 @@ export class ImportStarredModal extends Modal {
       ".import-preview-list",
     );
     const previousScrollTop = existingList?.scrollTop ?? 0;
+    // `.modal-content` (this.contentEl) is the scrollable region at typical
+    // modal widths (see the @media rule in import-starred-modal.css) — a
+    // full teardown/rebuild of the preview list below otherwise resets it
+    // to the top on every checkbox toggle, not just the inner list.
+    const previousContentScrollTop = this.contentEl.scrollTop;
 
     this.previewContainer.removeClass("import-hidden");
     this.previewContainer.addClass("import-visible");
     this.previewContainer.empty();
 
     const stats = model.getStats();
+
+    this.renderOptionsPanel();
 
     const header = this.previewContainer.createDiv({
       cls: "import-preview-header",
@@ -239,19 +320,12 @@ export class ImportStarredModal extends Modal {
       });
     }
 
-    const fetchFullContentSetting = new Setting(this.previewContainer)
-      .setName("Fetch full article content")
-      .setDesc(
-        "After import, fetch each selected article's full content from its original page. A failed fetch does not block the import — it's reported afterward, with the original article still imported using its exported content.",
-      )
-      .addToggle((toggle) => {
-        toggle.setValue(this.fetchFullContentEnabled).onChange((value) => {
-          this.fetchFullContentEnabled = value;
-        });
+    if (stats.newFeedGroups > 0) {
+      this.previewContainer.createEl("p", {
+        cls: "import-preview-helper",
+        text: "New feeds are marked with *. They're created in the folder set above.",
       });
-    fetchFullContentSetting.settingEl.addClass(
-      "import-fetch-full-content-setting",
-    );
+    }
 
     const toolbar = this.previewContainer.createDiv({
       cls: "import-preview-toolbar",
@@ -302,8 +376,119 @@ export class ImportStarredModal extends Modal {
     }
 
     list.scrollTop = previousScrollTop;
+    this.contentEl.scrollTop = previousContentScrollTop;
 
     this.renderUnimportableSection(this.previewContainer);
+    this.renderNewTagsSection(this.previewContainer);
+  }
+
+  /**
+   * "Options" panel (234-07), rendered above the "Preview" section. Hosts
+   * the new-feed target folder, the new-feed metadata-refresh toggle, and
+   * the tag-import toggle (234-11).
+   */
+  private renderOptionsPanel(): void {
+    const panel = this.previewContainer.createDiv({
+      cls: "import-options-panel",
+    });
+    panel.createEl("h4", {
+      cls: "import-options-heading",
+      text: "Options",
+    });
+
+    this.renderNewFeedFolderSetting(panel);
+
+    const metadataRefreshSetting = new Setting(panel)
+      .setName("New-feed metadata refresh")
+      .setDesc(
+        "When a starred article belongs to a feed you don't already follow, live-fetch that new feed's title, site URL, icon, and the most recent RSS feed items right away. The starred article itself is always imported, whether this is on or off.",
+      )
+      .addToggle((toggle) => {
+        toggle
+          .setValue(this.newFeedMetadataRefreshEnabled)
+          .onChange((value) => {
+            this.newFeedMetadataRefreshEnabled = value;
+            this.setOptionDescriptionDimmed(metadataRefreshSetting, !value);
+          });
+      });
+    metadataRefreshSetting.settingEl.addClasses([
+      "import-option-setting",
+      "import-metadata-refresh-setting",
+    ]);
+    this.setOptionDescriptionDimmed(
+      metadataRefreshSetting,
+      !this.newFeedMetadataRefreshEnabled,
+    );
+
+    const tagImportSetting = new Setting(panel)
+      .setName("Import labels as tags")
+      .setDesc(
+        "Inoreader labels become tags on each starred article, reusing a matching tag's color when your palette already has one. Any new tags this creates appear below before you import.",
+      )
+      .addToggle((toggle) => {
+        toggle.setValue(this.tagImportEnabled).onChange((value) => {
+          this.tagImportEnabled = value;
+          this.setOptionDescriptionDimmed(tagImportSetting, !value);
+          this.renderPreview();
+          this.importerShell.updateAction();
+        });
+      });
+    tagImportSetting.settingEl.addClasses([
+      "import-option-setting",
+      "import-tag-import-setting",
+    ]);
+    this.setOptionDescriptionDimmed(tagImportSetting, !this.tagImportEnabled);
+  }
+
+  /**
+   * The shared target folder every new feed created by this import lands
+   * in. A single `FolderSuggest`-backed field (the same type-ahead-plus-
+   * "Add new folder..." combobox Add Feed/Edit Feed already use) rather
+   * than a per-new-feed-group control — see `StarredImportPreviewModel`'s
+   * class doc for why per-group editing was dropped in favor of this.
+   */
+  private renderNewFeedFolderSetting(panel: HTMLElement): void {
+    const setting = new Setting(panel)
+      .setName("New-feed folder")
+      .setDesc(
+        "Starred articles from a feed you don't already follow create that feed here, inside this folder.",
+      );
+
+    let folderInput!: HTMLInputElement;
+    setting.addText((text) => {
+      text.setValue(this.newFeedFolder);
+      folderInput = text.inputEl;
+      folderInput.autocomplete = "off";
+      folderInput.spellcheck = false;
+
+      const commit = () => {
+        this.newFeedFolder =
+          folderInput.value.trim() || DEFAULT_NEW_FEED_FOLDER;
+        folderInput.value = this.newFeedFolder;
+      };
+      folderInput.addEventListener("blur", commit);
+      folderInput.addEventListener("change", commit);
+      // Opens the suggestion dropdown immediately on click, rather than
+      // only once the user starts typing (`FolderSuggest`'s own click
+      // handler only does this when the field is already empty, which it
+      // never is here since it's pre-filled with the default folder).
+      folderInput.addEventListener("click", () => {
+        folderInput.dispatchEvent(new Event("input", { bubbles: true }));
+      });
+
+      new FolderSuggest(this.app, folderInput, this.plugin.settings.folders);
+    });
+    setting.settingEl.addClass("import-option-setting");
+    decorateFolderSelectorInput(setting, folderInput);
+  }
+
+  /**
+   * Dims an Options-panel toggle's own description text when that toggle is
+   * off, per story 17 in draft-20260910-starred-import-followups.md — a
+   * scoped CSS class on the description element, not `!important`.
+   */
+  private setOptionDescriptionDimmed(setting: Setting, dimmed: boolean): void {
+    setting.descEl.toggleClass("import-option-description--disabled", dimmed);
   }
 
   private renderUnimportableSection(container: HTMLElement): void {
@@ -350,6 +535,113 @@ export class ImportStarredModal extends Modal {
     }
   }
 
+  /**
+   * A candidate's tags as they will actually be imported and displayed,
+   * gated by the Options panel's tag-import toggle (234-11). The pure mapper
+   * always assigns `item.tags` from the export's labels regardless of this
+   * toggle (it has no plugin-state/settings dependency to gate against);
+   * every site that would let a tag reach the imported article, the tag
+   * palette, or the per-article chip display must go through this helper
+   * instead of reading `item.tags` directly.
+   *
+   * When the toggle is off, only tags named in `labelDerivedTagNames` are
+   * stripped — a tag a user added by hand via the per-article chip (234-12)
+   * is never in that set (it's computed once, from labels only, at mapping
+   * time), so it always survives here regardless of the toggle's state.
+   */
+  private getEffectiveTags(
+    candidate: Pick<StarredImportCandidate, "item" | "labelDerivedTagNames">,
+  ): Tag[] | undefined {
+    const tags = candidate.item.tags;
+    if (!tags || tags.length === 0) return undefined;
+    if (this.tagImportEnabled) return tags;
+
+    const labelNames = new Set(candidate.labelDerivedTagNames ?? []);
+    const remaining = tags.filter(
+      (tag) => !labelNames.has(tag.name.toLowerCase()),
+    );
+    return remaining.length > 0 ? remaining : undefined;
+  }
+
+  /**
+   * Every distinct tag (by case-insensitive name) that is assigned to at
+   * least one currently-selected candidate and is not yet present in
+   * `settings.availableTags`. This is the "New tags (N)" section's data
+   * source (234-11) — it reads every selected candidate's *effective* tags,
+   * not only the bulk label mapping, so a future ad hoc per-article tagging
+   * ticket (234-12) can add to this same list without a second confirmation
+   * path.
+   */
+  private computeNewTags(model: StarredImportPreviewModel): Tag[] {
+    const existingLowerNames = new Set(
+      this.plugin.settings.availableTags.map((tag) => tag.name.toLowerCase()),
+    );
+    const newTagsByLowerName = new Map<string, Tag>();
+
+    for (const candidate of model.getSelectedCandidates()) {
+      for (const tag of this.getEffectiveTags(candidate) ?? []) {
+        const lowerName = tag.name.toLowerCase();
+        if (existingLowerNames.has(lowerName)) continue;
+        if (!newTagsByLowerName.has(lowerName)) {
+          newTagsByLowerName.set(lowerName, tag);
+        }
+      }
+    }
+
+    return Array.from(newTagsByLowerName.values());
+  }
+
+  /**
+   * Inline "New tags (N)" confirmation (234-11), visually matching the
+   * "Unable to import (N)" section above. Lists every tag `computeNewTags`
+   * finds so the user can catch an unwanted tag before it becomes part of
+   * their permanent palette — this section, not any other code path, is
+   * what actually adds these tags in `performImport`. Recomputed on every
+   * `renderPreview` call, so it stays live as articles/labels are
+   * (de)selected or the tag-import toggle changes.
+   */
+  private renderNewTagsSection(container: HTMLElement): void {
+    const model = this.previewModel;
+    if (!model) return;
+
+    const newTags = this.computeNewTags(model);
+    if (newTags.length === 0) return;
+
+    const section = container.createDiv({ cls: "import-new-tags-section" });
+    section.createEl("h4", {
+      cls: "import-new-tags-heading",
+      text: `New tags (${newTags.length})`,
+    });
+
+    const list = section.createDiv({ cls: "import-new-tags-list" });
+    for (const tag of newTags) {
+      const row = list.createDiv({ cls: "import-new-tags-row" });
+
+      const icon = row.createDiv({ cls: "import-new-tags-icon" });
+      setIcon(icon, "tag");
+
+      row.createDiv({
+        cls: "import-new-tags-name",
+        text: tag.name,
+      });
+    }
+  }
+
+  /**
+   * Re-renders only the "New tags (N)" section in place, without tearing
+   * down the whole preview list (`renderPreview` would remove the anchor
+   * element the per-article tag portal is currently positioned against).
+   * Called after every tag change made through a row's tag chip (234-12) so
+   * a tag added/created via that control is reflected immediately, while
+   * the portal itself stays open for further edits.
+   */
+  private refreshNewTagsSection(): void {
+    this.previewContainer
+      .querySelectorAll(".import-new-tags-section")
+      .forEach((el) => el.remove());
+    this.renderNewTagsSection(this.previewContainer);
+  }
+
   private renderGroup(
     listEl: HTMLElement,
     group: StarredImportPreviewGroupSnapshot,
@@ -376,7 +668,7 @@ export class ImportStarredModal extends Modal {
     });
 
     const icon = groupRow.createDiv({ cls: "import-preview-icon" });
-    setIcon(icon, group.isNewFeed ? "plus-circle" : "rss");
+    setIcon(icon, "rss");
 
     const nameWrap = groupRow.createDiv({ cls: "import-preview-name" });
     nameWrap.createSpan({
@@ -386,10 +678,10 @@ export class ImportStarredModal extends Modal {
 
     if (group.isNewFeed) {
       nameWrap.createSpan({
-        cls: "import-preview-meta",
-        text: "New feed",
+        cls: "import-preview-new-feed-marker",
+        text: "*",
+        attr: { "aria-label": "New feed", title: "New feed" },
       });
-      this.renderNewFeedFolderControl(nameWrap, group);
     }
 
     const selectedCount = group.items.filter((item) => item.selected).length;
@@ -435,85 +727,14 @@ export class ImportStarredModal extends Modal {
     }
   }
 
-  /**
-   * Editable target-folder control for a new-feed group. Mirrors
-   * `ImportOpmlModal`'s inline folder-rename interaction (click pencil,
-   * edit inline, commit on Enter/blur, validate via `isValidFolderName`).
-   */
-  private renderNewFeedFolderControl(
-    nameWrap: HTMLElement,
-    group: StarredImportPreviewGroupSnapshot,
-  ): void {
-    const model = this.previewModel;
-    if (!model) return;
-
-    const folderText = nameWrap.createSpan({
-      cls: "import-preview-meta",
-      text: `Folder: ${group.folder ?? ""}`,
-    });
-
-    const edit = nameWrap.createDiv({
-      cls: "clickable-icon import-preview-edit",
-      attr: {
-        role: "button",
-        tabindex: "0",
-        "aria-label": "Edit target folder",
-        title: "Edit target folder",
-      },
-    });
-    setIcon(edit, "pencil");
-
-    const startEdit = () => {
-      const input = folderText.win.createEl("input");
-      input.className = "import-preview-edit-input";
-      input.value = group.folder ?? "";
-      folderText.replaceWith(input);
-      input.focus();
-      input.select();
-
-      const commit = () => {
-        const next = input.value.trim();
-        const validation = isValidFolderName(next);
-        if (!validation.valid) {
-          input.classList.add("is-invalid");
-          input.setAttribute("title", validation.error ?? "Invalid folder name");
-          input.focus();
-          return;
-        }
-        model.setNewFeedFolder(group.feedUrl, next);
-        this.renderPreview();
-      };
-
-      input.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") {
-          e.preventDefault();
-          commit();
-        } else if (e.key === "Escape") {
-          e.preventDefault();
-          this.renderPreview();
-        }
-      });
-      input.addEventListener("blur", () => commit());
-    };
-
-    edit.addEventListener("click", (e) => {
-      e.preventDefault();
-      startEdit();
-    });
-    edit.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        startEdit();
-      }
-    });
-  }
-
   private renderItemRow(
     listEl: HTMLElement,
     item: StarredImportPreviewGroupSnapshot["items"][number],
   ): void {
     const model = this.previewModel;
     if (!model) return;
+
+    const candidate = model.getCandidate(item.guid);
 
     const row = listEl.createDiv({
       cls: "import-preview-row import-preview-row--feed import-preview-row--indented",
@@ -540,10 +761,147 @@ export class ImportStarredModal extends Modal {
       text: item.title || item.link,
     });
 
-    const meta = row.createDiv({ cls: "import-preview-meta" });
-    meta.textContent = item.read ? "Read" : "Unread";
+    if (candidate) {
+      this.renderItemTagsControl(row, candidate);
+    } else {
+      row.createDiv({ cls: "import-preview-meta" });
+    }
+  }
 
-    row.createDiv({ cls: "import-preview-toggle-spacer" });
+  /**
+   * Per-article tag chip (234-12), replacing the old meaningless
+   * "Read"/"Unread" text that used to occupy this column. Reuses the exact
+   * chip renderer already used on dashboard cards
+   * (`renderSingleRowCardTagChips`: one or more visible chips plus a "+N"
+   * overflow chip) so an article's assigned tags are visible at a glance
+   * before import. Clicking the control opens the same tag-editing portal
+   * used from the article list and reader view, wired directly against
+   * `candidate.item` — the live `FeedItem` backing this row, not a copy — so
+   * any edit made here already lives on the object `performImport` reads
+   * from later.
+   */
+  private renderItemTagsControl(
+    row: HTMLElement,
+    candidate: StarredImportCandidate,
+  ): void {
+    const control = row.createDiv({
+      cls: "import-preview-meta import-preview-tags-control rss-dashboard-tag-container",
+      attr: {
+        role: "button",
+        tabindex: "0",
+        "aria-label": "Manage tags",
+        title: "Manage tags",
+      },
+    });
+
+    this.renderItemTagsChips(control, candidate);
+
+    const openPortal = (e: Event) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this.showItemTagsDropdown(control, candidate);
+    };
+    control.addEventListener("click", openPortal);
+    control.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        openPortal(e);
+      }
+    });
+  }
+
+  /**
+   * Renders the row's chips from its *effective* tags (234-11's
+   * `getEffectiveTags`), not the candidate's raw `item.tags` — so turning
+   * "Import labels as tags" off correctly hides label-derived chips here
+   * too, while any tag added by hand via this same control's portal keeps
+   * showing regardless of that toggle's state.
+   */
+  private renderItemTagsChips(
+    control: HTMLElement,
+    candidate: Pick<StarredImportCandidate, "item" | "labelDerivedTagNames">,
+  ): void {
+    control.empty();
+    const tags = this.getEffectiveTags(candidate) ?? [];
+    if (tags.length === 0) {
+      const placeholder = control.createDiv({
+        cls: "import-preview-tags-placeholder",
+        attr: { "aria-hidden": "true" },
+      });
+      setIcon(placeholder, "tag");
+      return;
+    }
+    renderSingleRowCardTagChips(control, tags);
+  }
+
+  /**
+   * Opens `createTagsDropdownPortal` against `candidateItem` (the live
+   * candidate object, not a snapshot). Adding, removing, or creating a tag
+   * mutates `candidateItem.tags` in place via `onTagAssignmentChange`, then
+   * refreshes this row's chips and the "New tags (N)" confirmation section
+   * (234-11) so an ad hoc tag surfaces there immediately — the only
+   * palette-confirmation path this work introduces or reuses.
+   *
+   * The palette shown inside the portal is `settings.availableTags` plus
+   * every tag `computeNewTags` currently considers pending (i.e. already
+   * assigned to some selected candidate but not yet in the real palette).
+   * This lets the user reuse an ad hoc tag created from a different row's
+   * portal without recreating it, while keeping the actual mutation of
+   * `settings.availableTags` itself confined to `performImport`'s existing
+   * `ensureAvailableTagsForSelection` step — the portal never pushes
+   * directly into the real palette array here.
+   */
+  private showItemTagsDropdown(
+    anchor: HTMLElement,
+    candidate: StarredImportCandidate,
+  ): void {
+    const model = this.previewModel;
+    if (!model) return;
+    const candidateItem = candidate.item;
+
+    const isSameAnchor = this.itemTagsDropdownAnchor === anchor;
+    if (this.itemTagsDropdownCleanup) {
+      this.itemTagsDropdownCleanup();
+      this.itemTagsDropdownCleanup = null;
+      if (isSameAnchor) {
+        this.itemTagsDropdownAnchor = null;
+        return;
+      }
+    }
+    this.itemTagsDropdownAnchor = anchor;
+
+    const pendingTags = this.computeNewTags(model);
+    const portalSettings: typeof this.plugin.settings = {
+      ...this.plugin.settings,
+      availableTags: [...this.plugin.settings.availableTags, ...pendingTags],
+    };
+
+    const cleanup = createTagsDropdownPortal({
+      anchor,
+      settings: portalSettings,
+      item: candidateItem,
+      onTagAssignmentChange: (tag, checked) => {
+        if (!candidateItem.tags) candidateItem.tags = [];
+        if (checked) {
+          if (!candidateItem.tags.some((t) => t.name === tag.name)) {
+            candidateItem.tags.push({ ...tag });
+          }
+        } else {
+          candidateItem.tags = candidateItem.tags.filter(
+            (t) => t.name !== tag.name,
+          );
+        }
+        this.renderItemTagsChips(anchor, candidate);
+        this.refreshNewTagsSection();
+      },
+      appContainer: this.previewContainer,
+      onClosed: () => {
+        if (this.itemTagsDropdownCleanup === cleanup) {
+          this.itemTagsDropdownCleanup = null;
+          this.itemTagsDropdownAnchor = null;
+        }
+      },
+    });
+    this.itemTagsDropdownCleanup = cleanup;
   }
 
   private getImportActionState(model: StarredImportPreviewModel | null): {
@@ -566,10 +924,16 @@ export class ImportStarredModal extends Modal {
    * not yet present in `settings.availableTags` (case-insensitive name
    * match), so it immediately shows up in the normal tag-filter UI. Reuses
    * the exact `{name, color}` the pure mapper already assigned to the
-   * candidate's `item.tags` rather than re-deciding a color here.
+   * candidate's `item.tags` rather than re-deciding a color here. Only ever
+   * called when the tag-import toggle is on (234-11) — this is the same
+   * palette-mutation step the "New tags (N)" section previews before
+   * execute, via `getEffectiveTags`/`computeNewTags`.
    */
   private ensureAvailableTagsForSelection(
-    selected: readonly { item: { tags?: Tag[] } }[],
+    selected: readonly Pick<
+      StarredImportCandidate,
+      "item" | "labelDerivedTagNames"
+    >[],
   ): void {
     const availableTags = this.plugin.settings.availableTags;
     const existingByLowerName = new Map(
@@ -577,7 +941,7 @@ export class ImportStarredModal extends Modal {
     );
 
     for (const candidate of selected) {
-      for (const tag of candidate.item.tags ?? []) {
+      for (const tag of this.getEffectiveTags(candidate) ?? []) {
         const lowerName = tag.name.toLowerCase();
         if (existingByLowerName.has(lowerName)) continue;
 
@@ -620,7 +984,12 @@ export class ImportStarredModal extends Modal {
       return;
     }
 
-    this.ensureAvailableTagsForSelection(selected);
+    // Tag-import toggle (234-11): off skips both the bulk label-to-tag
+    // palette mutation and stripping any label-derived tag from the items
+    // actually persisted below, via `getEffectiveTags`.
+    if (this.tagImportEnabled) {
+      this.ensureAvailableTagsForSelection(selected);
+    }
 
     const feedByUrl = new Map<string, Feed>(
       this.plugin.settings.feeds.map((feed) => [feed.url, feed]),
@@ -637,7 +1006,7 @@ export class ImportStarredModal extends Modal {
       const feed = buildNewFeedRecord({
         url: newFeedGroup.feedUrl,
         title: newFeedGroup.feedTitle,
-        folder: newFeedGroup.folder,
+        folder: this.newFeedFolder,
         siteUrl: newFeedGroup.siteUrl,
       });
 
@@ -655,26 +1024,26 @@ export class ImportStarredModal extends Modal {
 
     let insertedCount = 0;
     let updatedCount = 0;
-    // The actual FeedItem reference now living in `feed.items` for each
-    // successfully-imported candidate, inserted or updated (234-05 replaces
-    // the array slot on an update, so `candidate.item` itself is stale for
-    // that case) — this is what the full-content fetch below must mutate.
-    const importedItems: FeedItem[] = [];
     for (const candidate of selected) {
       const feed = feedByUrl.get(candidate.feedUrl);
       if (!feed) continue;
+      // When the tag-import toggle is off, the item actually persisted
+      // carries no label-derived tags (234-11), even though the pure
+      // mapper always assigned them to `candidate.item.tags` — any tag the
+      // user added by hand via the per-article chip (234-12) still survives,
+      // since `getEffectiveTags` only strips names in `labelDerivedTagNames`.
+      const itemToApply: typeof candidate.item = this.tagImportEnabled
+        ? candidate.item
+        : { ...candidate.item, tags: this.getEffectiveTags(candidate) };
       // Re-import dedup (234-05): matches against the target feed's existing
       // items by guid-or-link identity. A match is merged (new labels added,
       // starred forced true, locally-edited fields left untouched) instead
       // of being inserted again.
-      const result = applyStarredImportCandidateToFeed(feed, candidate.item);
+      const result = applyStarredImportCandidateToFeed(feed, itemToApply);
       if (result === "inserted") {
         insertedCount += 1;
-        importedItems.push(candidate.item);
       } else {
         updatedCount += 1;
-        const updatedItem = findMatchingFeedItem(feed.items, candidate.item);
-        if (updatedItem) importedItems.push(updatedItem);
       }
     }
 
@@ -686,18 +1055,10 @@ export class ImportStarredModal extends Modal {
     }
 
     // Persist the new feed(s) and the historical starred item(s)
-    // immediately. The starred/read state must not wait on the live
-    // fetch triggered below.
+    // immediately. The starred/read state must not wait on the
+    // new-feed metadata-refresh fetch triggered below.
     await this.plugin.saveSettings();
     this.onImportStarted?.();
-
-    this.fullContentFailures = [];
-    if (this.fetchFullContentEnabled) {
-      await this.fetchFullContentForItems(importedItems);
-      // A successful fetch mutates the same FeedItem objects already living
-      // in `feed.items` above, so persist those replacements too.
-      await this.plugin.saveSettings();
-    }
 
     const view = await this.plugin.getActiveDashboardView();
     if (view) {
@@ -706,17 +1067,17 @@ export class ImportStarredModal extends Modal {
 
     // Fire-and-forget: populate each newly created feed's metadata and
     // current items via a single background fetch, independent of the
-    // starred-item insertion already persisted above.
-    for (const feedUrl of createdFeedUrls) {
-      this.fetchNewlyCreatedFeed(feedUrl);
+    // starred-item insertion already persisted above. Gated behind the
+    // Options panel's "New-feed metadata refresh" toggle (234-07) — the
+    // feed itself was already created unconditionally regardless of this
+    // toggle's state.
+    if (this.newFeedMetadataRefreshEnabled) {
+      for (const feedUrl of createdFeedUrls) {
+        this.fetchNewlyCreatedFeed(feedUrl);
+      }
     }
 
     new Notice(this.buildImportCompleteNotice(insertedCount, updatedCount));
-
-    if (this.fullContentFailures.length > 0) {
-      this.renderFullContentResultsSummary(insertedCount, updatedCount);
-      return;
-    }
 
     this.close();
   }
@@ -724,10 +1085,12 @@ export class ImportStarredModal extends Modal {
   /**
    * Triggers exactly one feed-fetch/refresh for a feed created during this
    * import, to populate its metadata (title/siteUrl/icon) and current
-   * items. Deliberately not awaited by `performImport` — the historical
-   * starred item(s) for this feed were already inserted and saved. Any
-   * fetch failure is non-fatal: `FeedParser.refreshFeed` already catches
-   * and records `lastFetchError` on the feed rather than throwing.
+   * items. Only called when the Options panel's "New-feed metadata
+   * refresh" toggle is on (234-07). Deliberately not awaited by
+   * `performImport` — the historical starred item(s) for this feed were
+   * already inserted and saved. Any fetch failure is non-fatal:
+   * `FeedParser.refreshFeed` already catches and records `lastFetchError`
+   * on the feed rather than throwing.
    */
   private fetchNewlyCreatedFeed(feedUrl: string): void {
     const feed = this.plugin.settings.feeds.find((f) => f.url === feedUrl);
@@ -757,112 +1120,10 @@ export class ImportStarredModal extends Modal {
       });
   }
 
-  /**
-   * Runs the existing `fetchFullArticleContentWithOutcome` pipeline (the
-   * same one `ArticleSaver.saveArticleWithFullContent` and `ReaderView` use)
-   * once per already-imported article. Never throws: a per-article failure
-   * (removed page, paywall, network error) is recorded in
-   * `fullContentFailures` and the article keeps its export-provided content.
-   */
-  private async fetchFullContentForItems(items: FeedItem[]): Promise<void> {
-    const proxyUrl =
-      this.plugin.settings.corsProxyEnabled &&
-      this.plugin.settings.corsProxyUrl
-        ? this.plugin.settings.corsProxyUrl
-        : undefined;
-
-    for (const item of items) {
-      if (!item.link) {
-        this.fullContentFailures.push({
-          title: item.title || "Untitled article",
-          link: item.link,
-        });
-        continue;
-      }
-
-      try {
-        const result = await fetchFullArticleContentWithOutcome(
-          item.link,
-          proxyUrl,
-        );
-        if (result.content) {
-          item.content = result.content;
-        } else {
-          this.fullContentFailures.push({
-            title: item.title || item.link,
-            link: item.link,
-          });
-        }
-      } catch {
-        this.fullContentFailures.push({
-          title: item.title || item.link,
-          link: item.link,
-        });
-      }
-    }
-  }
-
-  /**
-   * Post-import results summary shown only when at least one full-content
-   * fetch failed. There is no existing OPML-import results-summary UI to
-   * reuse (checked: none exists), so this reuses the modal's own
-   * `import-preview-*` DOM classes to stay visually consistent.
-   */
-  private renderFullContentResultsSummary(
-    insertedCount: number,
-    updatedCount: number,
-  ): void {
-    const { contentEl } = this;
-    contentEl.empty();
-
-    new Setting(contentEl).setName("Import starred articles").setHeading();
-
-    const summary = contentEl.createDiv({ cls: "import-preview-header" });
-    summary.createEl("p", {
-      text: this.buildImportCompleteNotice(insertedCount, updatedCount),
-    });
-
-    const failuresHeading = contentEl.createDiv({
-      cls: "import-preview-header",
-    });
-    failuresHeading.createEl("h4", {
-      text:
-        this.fullContentFailures.length === 1
-          ? "Full article content could not be fetched for 1 article"
-          : `Full article content could not be fetched for ${this.fullContentFailures.length} articles`,
-    });
-
-    const list = contentEl.createDiv({
-      cls: "import-preview-list import-fetch-full-content-failures",
-    });
-    for (const failure of this.fullContentFailures) {
-      const row = list.createDiv({
-        cls: "import-preview-row import-preview-row--feed",
-      });
-      const nameWrap = row.createDiv({ cls: "import-preview-name" });
-      nameWrap.createEl("a", {
-        cls: "import-preview-name-text",
-        text: failure.title,
-        href: failure.link,
-        attr: { target: "_blank", rel: "noopener noreferrer" },
-      });
-    }
-
-    const note = contentEl.createDiv({ cls: "add-feed-subtitle" });
-    note.textContent =
-      "These articles were still imported using their original feed content. For a manual fallback, try saving the full article with the Obsidian web clipper browser extension.";
-
-    const buttonContainer = contentEl.createDiv({
-      cls: "rss-dashboard-modal-buttons",
-    });
-    const closeButton = buttonContainer.createEl("button", {
-      text: "Close",
-      cls: "rss-dashboard-primary-button",
-    });
-    closeButton.onclick = () => this.close();
-  }
-
   onClose() {
+    this.itemTagsDropdownCleanup?.();
+    this.itemTagsDropdownCleanup = null;
+    this.itemTagsDropdownAnchor = null;
     this.contentEl.empty();
   }
 }

@@ -94,6 +94,46 @@ describe("ImportOpmlModal", () => {
     expect(children.indexOf(mode)).toBeLessThan(children.indexOf(actions));
   });
 
+  it("displays <None> instead of the literal Uncategorized bucket name for feeds with no category", async () => {
+    const app = createMockApp();
+    const plugin: TestPlugin = {
+      settings: cloneSettings(),
+      saveSettings: vi.fn(async () => {}),
+      getActiveDashboardView: vi.fn(async () => null),
+      startBackgroundImport: vi.fn(),
+    } as unknown as TestPlugin;
+
+    const modal = new ImportOpmlModal(
+      app,
+      plugin as unknown as ConstructorParameters<typeof ImportOpmlModal>[1],
+    );
+    (modal as unknown as TestModal).open();
+
+    const uncategorizedOpml = `<?xml version="1.0" encoding="UTF-8"?>
+<opml version="2.0">
+  <head><title>Uncategorized fixture</title></head>
+  <body>
+    <outline
+      text="No Folder Feed"
+      title="No Folder Feed"
+      type="rss"
+      xmlUrl="https://example.com/no-folder.xml"
+    />
+  </body>
+</opml>`;
+    const file = new File([uncategorizedOpml], "uncategorized.opml", {
+      type: "text/xml",
+    });
+    await (modal as unknown as TestModal).handleFileSelection(file);
+
+    const content = (modal as unknown as TestModal).contentEl;
+    const folderNameText = content.querySelector<HTMLElement>(
+      ".import-preview-name-text",
+    );
+    expect(folderNameText?.textContent).toBe("<None>");
+    expect(folderNameText?.textContent).not.toContain("Uncategorized");
+  });
+
   it("shows a validation error for invalid XML and keeps import disabled", async () => {
     const app = createMockApp();
     const plugin: TestPlugin = {
