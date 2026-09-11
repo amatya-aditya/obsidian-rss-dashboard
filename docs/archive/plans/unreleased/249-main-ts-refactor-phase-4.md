@@ -18,7 +18,7 @@ The extraction of five service modules from `main.ts` (Phases 0–3 of the main.
 
 This plan captures the scope and approach for completing Phase 4.
 
-See the original refactor plan at `docs/plans/main-ts-refactor.md` for Phases 0–3 context.
+See the original refactor plan at `docs/archive/plans/unreleased/main-ts-refactor.md` for Phases 0–3 context (archived alongside this plan; see its closing note for how it relates to this one).
 
 ## Problem Statement
 
