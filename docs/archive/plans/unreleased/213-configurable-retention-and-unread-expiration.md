@@ -1,5 +1,5 @@
 ---
-status: in-progress
+status: pending-release
 created: 2026-09-07
 issue: "https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/213"
 milestone: ""
@@ -18,6 +18,7 @@ This plan specifies making unread article expiration the default behavior after 
 ## Problem Statement
 
 Users experience unexpected storage accumulation where articles remain for weeks or months despite setting a short auto-delete duration (e.g. 3 or 7 days). This stems from an architectural discrepancy:
+
 - Carry-forward logic in `src/services/feed-parser/feed-parser-class.ts` drops old unread articles that drop off the upstream feed XML.
 - In-memory retention checks (`applyFeedRetentionLimits` in `src/services/feed-parser/feed-retention.ts`) unconditionally exempt unread articles (`if (!item.read) return true;`), keeping them indefinitely if the upstream feed retains them in its XML.
 
@@ -31,12 +32,12 @@ In a local-first Obsidian vault where users cannot mark every article as read, u
    - `Protect saved articles` (Default: ON)
    - `Protect tagged articles` (Default: OFF)
    - `Protect unread articles` (Default: OFF)
-   Protected articles are immune to both the auto-delete cutoff and `maxItemsLimit` feed trimming.
+     Protected articles are immune to both the auto-delete cutoff and `maxItemsLimit` feed trimming.
 3. **Destructive Action Confirmation Prompt**: When tightening retention (turning OFF any protection or shortening auto-delete duration), display a confirmation modal with three choices:
    - **Apply Now**: Prunes all feeds immediately and refreshes active views.
    - **Apply on Next Refresh**: Saves settings, deferring cache pruning until natural feed refreshes.
    - **Cancel**: Reverts the toggle or slider without saving.
-   Non-destructive changes apply immediately without prompting.
+     Non-destructive changes apply immediately without prompting.
 4. **Clean Zero-State Experience**: When all articles in a feed are pruned by retention, rely on the existing `AllArticlesPrunedByRetention` empty state rather than retaining stale ghost articles.
 
 ---
@@ -44,6 +45,7 @@ In a local-first Obsidian vault where users cannot mark every article as read, u
 ## Phased Implementation Tasks (Tracer Bullets)
 
 ### Phase 1: Unread Article Auto-Deletion & Retention Engine Core
+
 - [x] Add `protectStarred: boolean` (default: `true`), `protectSaved: boolean` (default: `true`), `protectTagged: boolean` (default: `false`), and `protectUnread: boolean` (default: `false`) to `RssDashboardSettings` and `DEFAULT_SETTINGS` in `src/types/types.ts`.
 - [x] Normalize missing retention protection fields in `src/utils/settings-loader.ts` to their default values for backward compatibility.
 - [x] Update `isProtectedItem` in `src/services/feed-parser/feed-retention.ts` to evaluate the unified retention protection configuration:
@@ -62,6 +64,7 @@ In a local-first Obsidian vault where users cannot mark every article as read, u
 - [x] Regression unit tests in `test_files/unit/services/feed-parser/feed-parser-class.test.ts` verifying refresh carry-forward and fresh XML ingest with unified protections.
 
 ### Phase 2: Retention Protection Toggles in General Settings
+
 - [x] Render a "Protected from Auto-Deletion" section in `src/settings/tabs/general-settings-tab.ts` under Data Retention.
 - [x] Add 4 Obsidian toggle switches with concise labels:
   - "Protect starred articles"
@@ -72,6 +75,7 @@ In a local-first Obsidian vault where users cannot mark every article as read, u
 - [x] Unit tests in `test_files/unit/settings/general-settings-tab.test.ts` verifying toggle rendering, interaction, and persistence.
 
 ### Phase 3: Destructive Retention Change Confirmation Modal
+
 - [x] Create `RetentionChangeConfirmModal` (extending Obsidian's `Modal`):
   - Explanatory message indicating that newly unprotected or older articles will be permanently removed.
   - Action buttons: "Apply Now", "Apply on Next Refresh", and "Cancel".
@@ -84,6 +88,7 @@ In a local-first Obsidian vault where users cannot mark every article as read, u
 - [x] Unit tests in `test_files/unit/settings/general-settings-tab.test.ts` verifying modal triggering, execution, and rollback.
 
 ### Phase 4: Documentation, ADR-0002 & Changelog
+
 - [x] Create `docs/adr/0002-configurable-retention-protections-and-unread-expiration.md` documenting context, decision, trade-offs, and consequences.
 - [x] Update `docs/development/data-flow.md` to remove "Unread articles are never removed by this rule" and describe the configurable retention protection model.
 - [x] Add entry under `## [Unreleased]` in `CHANGELOG.md`.

@@ -57,6 +57,7 @@ import {
   ShardFolderDeletionError,
 } from "./src/services/feed-storage-repository";
 import { ImportExportService } from "./src/services/import-export-service";
+import type { ExportBlobResult } from "./src/utils/export-utils";
 import { BackgroundImportService } from "./src/services/background-import-service";
 import { FeedRefreshScheduler } from "./src/services/feed-refresh-scheduler";
 import {
@@ -355,6 +356,9 @@ export default class RssDashboardPlugin extends Plugin {
       endGlobalOperation: () => this.endGlobalOperation(),
       isGlobalOperationCancelled: () => this.isGlobalRefreshCancelled,
       onFeedImported: (feed) => this.queuePreviewImageCaching(feed),
+      onImportQueueDrained: (processedCount) => {
+        new Notice(`Background import completed. Processed ${processedCount} feeds.`);
+      },
     });
   }
 
@@ -1900,36 +1904,87 @@ export default class RssDashboardPlugin extends Plugin {
     }
   }
 
+  /**
+   * Show a Notice reflecting the outcome of an export attempt. Export
+   * services return their result rather than notifying directly; this is the
+   * caller-side translation into user-facing feedback.
+   * @param {ExportBlobResult} result The result of the export operation
+   * @param {string} filename Name of the exported file
+   * @returns {void}
+   */
+  private showExportNotice(result: ExportBlobResult, filename: string): void {
+    if (result === "downloaded") {
+      new Notice(`Downloading ${filename}`);
+      return;
+    }
+    if (result === "shared" || result === "opened") {
+      new Notice(`Opened save menu for ${filename}`);
+      return;
+    }
+    if (result === "canceled") {
+      new Notice("Export canceled");
+      return;
+    }
+    new Notice(`Unable to export ${filename}`);
+  }
+
+  /**
+   * Show a Notice reflecting the outcome of a clipboard copy attempt. Export
+   * services return their result rather than notifying directly; this is the
+   * caller-side translation into user-facing feedback.
+   * @param {"copied" | "failed"} result The result of the copy operation
+   * @param {string} filename Name of the data that was copied
+   * @returns {void}
+   */
+  private showCopyNotice(result: "copied" | "failed", filename: string): void {
+    if (result === "copied") {
+      new Notice(`Copied ${filename} to clipboard`);
+      return;
+    }
+    new Notice(`Unable to copy ${filename}`);
+  }
+
   public async exportUserSettingsJson(): Promise<void> {
-    return this.importExportService.exportUserSettingsJson();
+    const result = await this.importExportService.exportUserSettingsJson();
+    this.showExportNotice(result, "usersettings.json");
   }
 
   public async exportDataJson(): Promise<void> {
-    return this.importExportService.exportDataJson();
+    const result = await this.importExportService.exportDataJson();
+    this.showExportNotice(result, "data.json");
   }
 
   public async exportPortableDataBundle(): Promise<void> {
-    return this.importExportService.exportPortableDataBundle();
+    const result = await this.importExportService.exportPortableDataBundle();
+    this.showExportNotice(result, "rss-dashboard-portable-bundle.json");
   }
 
   public async importPortableDataBundleFromFile(file: File): Promise<void> {
-    return this.importExportService.importPortableDataBundleFromFile(file);
+    await this.importExportService.importPortableDataBundleFromFile(file);
+    new Notice("Portable data bundle imported");
   }
 
   exportOpml(): void {
-    void this.importExportService.exportOpml();
+    void (async () => {
+      const result = await this.importExportService.exportOpml();
+      this.showExportNotice(result, "feeds.opml");
+    })();
   }
 
   public async copyDataJsonToClipboard(): Promise<void> {
-    return this.importExportService.copyDataJsonToClipboard();
+    const result = await this.importExportService.copyDataJsonToClipboard();
+    this.showCopyNotice(result, "data.json");
   }
 
   public async copyUserSettingsJsonToClipboard(): Promise<void> {
-    return this.importExportService.copyUserSettingsJsonToClipboard();
+    const result =
+      await this.importExportService.copyUserSettingsJsonToClipboard();
+    this.showCopyNotice(result, "usersettings.json");
   }
 
   public async copyOpmlToClipboard(): Promise<void> {
-    return this.importExportService.copyOpmlToClipboard();
+    const result = await this.importExportService.copyOpmlToClipboard();
+    this.showCopyNotice(result, "feeds.opml");
   }
 
   public getStorageStatus(): FeedStorageStatus {
@@ -3332,6 +3387,10 @@ export default class RssDashboardPlugin extends Plugin {
     return updatedFeeds[0] ?? feed;
   }
 
+  /**
+   * @returns {Promise<void>}
+   * @throws {Error} If any backup write fails; the caller decides whether to notify the user, retry, or proceed anyway
+   */
   public async performAutoBackups(): Promise<void> {
     // ✅ BackupService extracted — delegates to service
     await this.backupService.performAutoBackups();
@@ -3352,8 +3411,11 @@ export default class RssDashboardPlugin extends Plugin {
 
     this.cancelPendingStartupRefresh();
 
-    // Run backups asynchronously on plugin disable/unload (best effort)
-    void this.backupService.performAutoBackups();
+    // Run backups asynchronously on plugin disable/unload (best effort: log
+    // and move on, there is no view left to notify by the time this runs).
+    this.backupService.performAutoBackups().catch((e: unknown) => {
+      console.error("[RSS Dashboard] Backup on unload failed:", e);
+    });
   }
 
   public cancelPendingStartupRefresh(): void {

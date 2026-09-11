@@ -1,5 +1,5 @@
 ---
-status: idea
+status: implemented
 created: 2026-09-10
 issue: ""
 milestone: ""

@@ -1,4 +1,3 @@
-import { Notice } from "obsidian";
 import type { PortableDataBundle, RssDashboardSettings } from "../types/types";
 import { OpmlManager } from "./opml-manager";
 import {
@@ -17,6 +16,14 @@ export class ImportExportService {
   private getPortableDataBundle?: () => PortableDataBundle;
   private importPortableDataBundle?: (bundle: unknown) => Promise<void>;
 
+  /**
+   * Creates a new ImportExportService instance
+   * @param {Object} options Configuration options
+   * @param {RssDashboardSettings} options.settings Plugin settings to export
+   * @param {boolean} options.isMobile Whether running on mobile platform
+   * @param {Function} [options.getPortableDataBundle] Optional function to retrieve portable data bundle
+   * @param {Function} [options.importPortableDataBundle] Optional function to import portable data bundle
+   */
   constructor(options: {
     settings: RssDashboardSettings;
     isMobile: boolean;
@@ -29,6 +36,10 @@ export class ImportExportService {
     this.importPortableDataBundle = options.importPortableDataBundle;
   }
 
+  /**
+   * Serialize settings to JSON string, excluding feeds and folders
+   * @returns {string} JSON string of user settings only
+   */
   getUserSettingsJson(): string {
     const settingsOnly: Partial<RssDashboardSettings> = { ...this.settings };
     delete settingsOnly.feeds;
@@ -37,48 +48,69 @@ export class ImportExportService {
     return JSON.stringify(settingsOnly, null, 2);
   }
 
-  async exportUserSettingsJson(): Promise<void> {
+  /**
+   * Export user settings (excluding feeds and folders) as a JSON file.
+   * Does not show a Notice — the caller (main.ts/views) turns the result into
+   * user-facing feedback.
+   * @returns {Promise<ExportBlobResult>} The outcome of the export attempt
+   */
+  async exportUserSettingsJson(): Promise<ExportBlobResult> {
     const filename = "usersettings.json";
     const blob = new Blob([this.getUserSettingsJson()], {
       type: "application/json",
     });
-    const result = await exportBlob({
+    return exportBlob({
       blob,
       filename,
       isMobile: this.isMobile,
     });
-    this.showExportNotice(result, filename);
   }
 
-  async exportDataJson(): Promise<void> {
+  /**
+   * Export complete settings including feeds, folders, and tags as data.json.
+   * Does not show a Notice — the caller (main.ts/views) turns the result into
+   * user-facing feedback.
+   * @returns {Promise<ExportBlobResult>} The outcome of the export attempt
+   */
+  async exportDataJson(): Promise<ExportBlobResult> {
     const filename = "data.json";
     const blob = new Blob([JSON.stringify(this.settings, null, 2)], {
       type: "application/json",
     });
-    const result = await exportBlob({
+    return exportBlob({
       blob,
       filename,
       isMobile: this.isMobile,
     });
-    this.showExportNotice(result, filename);
   }
 
-  async exportOpml(): Promise<void> {
+  /**
+   * Export feeds and folder structure in OPML format.
+   * Does not show a Notice — the caller (main.ts/views) turns the result into
+   * user-facing feedback.
+   * @returns {Promise<ExportBlobResult>} The outcome of the export attempt
+   */
+  async exportOpml(): Promise<ExportBlobResult> {
     const opmlContent = OpmlManager.generateOpml(
       this.settings.feeds,
       this.settings.folders,
     );
     const filename = "feeds.opml";
     const blob = new Blob([opmlContent], { type: "text/xml" });
-    const result = await exportBlob({
+    return exportBlob({
       blob,
       filename,
       isMobile: this.isMobile,
     });
-    this.showExportNotice(result, filename);
   }
 
-  async exportPortableDataBundle(): Promise<void> {
+  /**
+   * Export portable data bundle containing all feeds, folders, and settings.
+   * Does not show a Notice — the caller (main.ts/views) turns the result into
+   * user-facing feedback.
+   * @returns {Promise<ExportBlobResult>} The outcome of the export attempt
+   */
+  async exportPortableDataBundle(): Promise<ExportBlobResult> {
     const filename = "rss-dashboard-portable-bundle.json";
     const bundle = this.getPortableDataBundle?.();
     const blob = new Blob(
@@ -87,14 +119,19 @@ export class ImportExportService {
         type: "application/json",
       },
     );
-    const result = await exportBlob({
+    return exportBlob({
       blob,
       filename,
       isMobile: this.isMobile,
     });
-    this.showExportNotice(result, filename);
   }
 
+  /**
+   * Import a portable data bundle from a file
+   * @param {File} file The bundle file to import
+   * @returns {Promise<void>}
+   * @throws {Error} If JSON parsing fails or import handler is not available
+   */
   async importPortableDataBundleFromFile(file: File): Promise<void> {
     const text = await file.text();
     let parsed: unknown;
@@ -114,54 +151,39 @@ export class ImportExportService {
     }
 
     await this.importPortableDataBundle(parsed);
-    new Notice("Portable data bundle imported");
   }
 
-  public showExportNotice(result: ExportBlobResult, filename: string): void {
-    if (result === "downloaded") {
-      new Notice(`Downloading ${filename}`);
-      return;
-    }
-    if (result === "shared" || result === "opened") {
-      new Notice(`Opened save menu for ${filename}`);
-      return;
-    }
-    if (result === "canceled") {
-      new Notice("Export canceled");
-      return;
-    }
-    new Notice(`Unable to export ${filename}`);
+  /**
+   * Copy complete settings (data.json) to clipboard.
+   * Does not show a Notice — the caller (main.ts/views) turns the result into
+   * user-facing feedback.
+   * @returns {Promise<"copied" | "failed">} The outcome of the copy attempt
+   */
+  async copyDataJsonToClipboard(): Promise<"copied" | "failed"> {
+    return copyTextToClipboard(JSON.stringify(this.settings, null, 2));
   }
 
-  async copyDataJsonToClipboard(): Promise<void> {
-    const filename = "data.json";
-    const result = await copyTextToClipboard(
-      JSON.stringify(this.settings, null, 2),
-    );
-    this.showCopyNotice(result, filename);
+  /**
+   * Copy user settings only (usersettings.json) to clipboard.
+   * Does not show a Notice — the caller (main.ts/views) turns the result into
+   * user-facing feedback.
+   * @returns {Promise<"copied" | "failed">} The outcome of the copy attempt
+   */
+  async copyUserSettingsJsonToClipboard(): Promise<"copied" | "failed"> {
+    return copyTextToClipboard(this.getUserSettingsJson());
   }
 
-  async copyUserSettingsJsonToClipboard(): Promise<void> {
-    const filename = "usersettings.json";
-    const result = await copyTextToClipboard(this.getUserSettingsJson());
-    this.showCopyNotice(result, filename);
-  }
-
-  async copyOpmlToClipboard(): Promise<void> {
-    const filename = "feeds.opml";
+  /**
+   * Copy feeds and folder structure in OPML format to clipboard.
+   * Does not show a Notice — the caller (main.ts/views) turns the result into
+   * user-facing feedback.
+   * @returns {Promise<"copied" | "failed">} The outcome of the copy attempt
+   */
+  async copyOpmlToClipboard(): Promise<"copied" | "failed"> {
     const opmlContent = OpmlManager.generateOpml(
       this.settings.feeds,
       this.settings.folders,
     );
-    const result = await copyTextToClipboard(opmlContent);
-    this.showCopyNotice(result, filename);
-  }
-
-  public showCopyNotice(result: "copied" | "failed", filename: string): void {
-    if (result === "copied") {
-      new Notice(`Copied ${filename} to clipboard`);
-      return;
-    }
-    new Notice(`Unable to copy ${filename}`);
+    return copyTextToClipboard(opmlContent);
   }
 }
