@@ -1,5 +1,5 @@
 ---
-status: in-progress
+status: implemented
 owner: unassigned
 created: 2026-08-16
 issue: ""
@@ -49,16 +49,16 @@ The detailed implementation history is archived under
 ## Release gates
 
 - [ ] Confirm required 2.6.0 issues and stabilization fixes are closed or
-  explicitly deferred.
+      explicitly deferred.
 - [ ] Run the complete automated release validation, including unit tests,
-  platform checks, linting, type checking, and production build.
+      platform checks, linting, type checking, and production build.
 - [ ] Complete desktop, mobile, upgrade/storage-mode, accessibility, and
-  popout-window checks relevant to the included changes.
+      popout-window checks relevant to the included changes.
 - [ ] Reconcile the final `CHANGELOG.md` entries with shipped behavior and
-  finalize [the public release notes](../releases/2.6.0.md).
+      finalize [the public release notes](../releases/2.6.0.md).
 - [ ] Verify package, manifest, and version mapping files agree on 2.6.0.
 - [ ] Inspect the release package, publish the GitHub release, and complete a
-  clean-install and post-release smoke test.
+      clean-install and post-release smoke test.
 
 ## Scope control
 

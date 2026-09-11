@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: implemented
 created: 2026-09-10
 issue: "https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/240"
 milestone: ""

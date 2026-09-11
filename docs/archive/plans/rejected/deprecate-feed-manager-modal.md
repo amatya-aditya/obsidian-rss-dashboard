@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: rejected
 created: ""
 issue: ""
 milestone: ""
@@ -11,14 +11,18 @@ release_requirement: ""
 implementation: ""
 ---
 
+9.1.26 - Rejected plan. Feed Manager was refactored and is now repurposed.
+
 # 3.0 Plan: Deprecate + Remove `src/modals/feed-manager-modal.ts`
 
 ## Goal (3.0)
+
 Remove `src/modals/feed-manager-modal.ts` entirely and migrate all code, tests, and docs to import directly from `src/modals/feed-manager/*`.
 
 This is a breaking change for any downstream consumers or forks that still import `../modals/feed-manager-modal`.
 
 ## Historical Context (Why this exists / why remove it)
+
 - **Pre-2.2 refactor reality:** `src/modals/feed-manager-modal.ts` began as a large “do-everything” modal file that bundled three distinct UI surfaces:
   - `AddFeedModal` (URL resolution + preview + per-feed settings)
   - `EditFeedModal` (similar preview + settings editing)
@@ -38,11 +42,13 @@ This is a breaking change for any downstream consumers or forks that still impor
 - **Why schedule for 3.0:** removing the file is a **breaking API change** (even if only for internal usage today). A major release is the right boundary to avoid surprise breakage for forks/users.
 
 Related docs:
+
 - `docs/plans/feed-manager-modal-refactor-tdd.md`
 - `docs/plans/Icon Replacement Plan for feed-manager.md`
 - `docs/design/design-spec.md` (icon rendering standards)
 
 ## Current State (2.x)
+
 - `src/modals/feed-manager-modal.ts` is a barrel re-export used by:
   - `src/components/sidebar.ts`
   - `src/views/dashboard-view.ts`
@@ -52,6 +58,7 @@ Related docs:
 ## Implementation Tasks (3.0)
 
 ### Phase 1 — Internal import migration
+
 - Update `src/components/sidebar.ts`
   - Replace:
     - `import { AddFeedModal, EditFeedModal } from "../modals/feed-manager-modal";`
@@ -65,6 +72,7 @@ Related docs:
     - `import { FeedManagerModal } from "../modals/feed-manager/feed-manager-modal";`
 
 ### Phase 2 — Test migration
+
 - Update `test_files/unit/dashboard-filter-persistence.test.ts`
   - Replace mocking of `../../src/modals/feed-manager-modal` with mocking:
     - `../../src/modals/feed-manager/feed-manager-modal`
@@ -79,6 +87,7 @@ Related docs:
     - `../../src/modals/feed-manager/feed-manager-modal`
 
 ### Phase 3 — Documentation updates
+
 - Update `docs/development/feed-validation.md`
   - Replace references to `src/modals/feed-manager-modal.ts` with:
     - `src/modals/feed-manager/add-feed-modal.ts`
@@ -90,19 +99,22 @@ Related docs:
   - “`src/modals/feed-manager-modal.ts` removed in 3.0; import direct modules under `src/modals/feed-manager/`.”
 
 ### Phase 4 — Removal
+
 - Delete `src/modals/feed-manager-modal.ts`.
 
 ### Phase 5 — Verification (required)
+
 - `npm run test:unit`
 - `npm run build`
 
 ## Acceptance Criteria
+
 - `rg "modals/feed-manager-modal" src test_files` returns no results.
 - Unit tests pass.
 - `npm run build` passes.
 - Docs no longer reference the removed file.
 
 ## Rollout Notes
+
 - Do this only in 3.0 (breaking change).
 - Add a CHANGELOG entry under 3.0: “Removed `feed-manager-modal` barrel; update imports to direct modal modules.”
-
