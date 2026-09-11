@@ -3,8 +3,8 @@
  *
  * Covers:
  *   - getUserSettingsJson: omits feeds/folders/availableTags; produces valid JSON
- *   - showExportNotice: fires correct Notice for each result variant
- *   - showCopyNotice: fires correct Notice for copied/failed
+ *   - export/copy methods: return their result instead of showing a Notice
+ *     (services are infrastructure; main.ts turns the result into a Notice)
  *   - exportOpml: calls exportBlob with a text/xml blob
  *   - exportDataJson: calls exportBlob with an application/json blob containing full settings
  */
@@ -35,18 +35,23 @@ function makeSettings(overrides?: object): RssDashboardSettings {
   } as unknown as RssDashboardSettings;
 }
 
-function getNoticeMessages(spy: MockInstance): string[] {
-  return spy.mock.calls
-    .filter((call: unknown[]): call is [string, string] => call[0] === "[Stub Notice]")
-    .map((call: [string, string]) => String(call[1]));
-}
-
 describe("ImportExportService", () => {
-  let consoleLogSpy: MockInstance;
+  let noticeSpy: MockInstance;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    consoleLogSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
+    noticeSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
+  });
+
+  it("never shows a Notice directly — services are infrastructure, callers notify", async () => {
+    const svc = new ImportExportService({
+      settings: makeSettings(),
+      isMobile: false,
+    });
+    await svc.exportDataJson();
+    await svc.exportOpml();
+    await svc.copyDataJsonToClipboard();
+    expect(noticeSpy).not.toHaveBeenCalledWith("[Stub Notice]", expect.anything());
   });
 
   describe("getUserSettingsJson", () => {
@@ -71,86 +76,34 @@ describe("ImportExportService", () => {
     });
   });
 
-  describe("showExportNotice", () => {
-    it('fires "Downloading <filename>" for "downloaded"', () => {
-      const svc = new ImportExportService({
-        settings: makeSettings(),
-        isMobile: false,
-      });
-      svc.showExportNotice("downloaded", "data.json");
-      expect(getNoticeMessages(consoleLogSpy)).toContain(
-        "Downloading data.json",
-      );
-    });
-
-    it('fires "Opened save menu for <filename>" for "shared"', () => {
-      const svc = new ImportExportService({
-        settings: makeSettings(),
-        isMobile: false,
-      });
-      svc.showExportNotice("shared", "feeds.opml");
-      expect(getNoticeMessages(consoleLogSpy)).toContain(
-        "Opened save menu for feeds.opml",
-      );
-    });
-
-    it('fires "Export canceled" for "canceled"', () => {
-      const svc = new ImportExportService({
-        settings: makeSettings(),
-        isMobile: false,
-      });
-      svc.showExportNotice("canceled", "data.json");
-      expect(getNoticeMessages(consoleLogSpy)).toContain("Export canceled");
-    });
-
-    it('fires "Unable to export <filename>" for "failed"', () => {
-      const svc = new ImportExportService({
-        settings: makeSettings(),
-        isMobile: false,
-      });
-      svc.showExportNotice("failed", "data.json");
-      expect(getNoticeMessages(consoleLogSpy)).toContain(
-        "Unable to export data.json",
-      );
-    });
-  });
-
-  describe("showCopyNotice", () => {
-    it('fires "Copied <filename> to clipboard" for "copied"', () => {
-      const svc = new ImportExportService({
-        settings: makeSettings(),
-        isMobile: false,
-      });
-      svc.showCopyNotice("copied", "data.json");
-      expect(getNoticeMessages(consoleLogSpy)).toContain(
-        "Copied data.json to clipboard",
-      );
-    });
-
-    it('fires "Unable to copy <filename>" for "failed"', () => {
-      const svc = new ImportExportService({
-        settings: makeSettings(),
-        isMobile: false,
-      });
-      svc.showCopyNotice("failed", "data.json");
-      expect(getNoticeMessages(consoleLogSpy)).toContain(
-        "Unable to copy data.json",
-      );
-    });
-  });
-
   describe("exportOpml", () => {
-    it("calls exportBlob with a text/xml blob", async () => {
+    it("calls exportBlob with a text/xml blob and returns its result", async () => {
       const svc = new ImportExportService({
         settings: makeSettings(),
         isMobile: false,
       });
-      await svc.exportOpml();
+      const result = await svc.exportOpml();
       expect(exportBlob).toHaveBeenCalledWith(
         expect.objectContaining({
           blob: expect.objectContaining({ type: "text/xml" }) as unknown as Blob,
           filename: "feeds.opml",
         }),
+      );
+      expect(result).toBe("downloaded");
+    });
+  });
+
+  describe("copyDataJsonToClipboard", () => {
+    it("returns the clipboard copy result without showing a Notice", async () => {
+      const svc = new ImportExportService({
+        settings: makeSettings(),
+        isMobile: false,
+      });
+      const result = await svc.copyDataJsonToClipboard();
+      expect(result).toBe("copied");
+      expect(noticeSpy).not.toHaveBeenCalledWith(
+        "[Stub Notice]",
+        expect.anything(),
       );
     });
   });
@@ -239,8 +192,9 @@ describe("ImportExportService", () => {
           storageMode: "vault-shards",
         }),
       );
-      expect(getNoticeMessages(consoleLogSpy)).toContain(
-        "Portable data bundle imported",
+      expect(noticeSpy).not.toHaveBeenCalledWith(
+        "[Stub Notice]",
+        expect.anything(),
       );
     });
 

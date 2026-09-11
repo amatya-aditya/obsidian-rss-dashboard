@@ -59,6 +59,12 @@ records the documentation classification.
 | [Tag-import toggle and unified confirmation](plans/unreleased/234-11-tag-import-toggle-and-confirmation.md) | 2026-09-10 | [GH Issue #234](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/234) | - |
 | [Per-article tag chip, replaces Read/Unread](plans/unreleased/234-12-per-article-tag-chip.md) | 2026-09-10 | [GH Issue #234](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/234) | - |
 | [User-facing documentation for starred article import](plans/unreleased/234-13-starred-import-user-documentation.md) | 2026-09-10 | [GH Issue #234](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/234) | - |
+| [`main.ts` Refactor Audit (Phases 0–4)](plans/unreleased/main-ts-refactor.md) | 2026-09-11 | [GH Issue #249](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/249) | [PR #250](https://github.com/amatya-aditya/obsidian-rss-dashboard/pull/250) |
+| [Complete main.ts refactor Phase 4 — documentation & error handling](plans/unreleased/249-main-ts-refactor-phase-4.md) | 2026-09-11 | [GH Issue #249](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/249) | [PR #250](https://github.com/amatya-aditya/obsidian-rss-dashboard/pull/250) |
+| [Ticket 01: Add JSDoc to low-risk modules](plans/unreleased/249-01-add-jsdoc-low-risk-modules.md) | 2026-09-11 | [GH Issue #249](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/249) | [PR #250](https://github.com/amatya-aditya/obsidian-rss-dashboard/pull/250) |
+| [Ticket 02: Add JSDoc to high-risk modules](plans/unreleased/249-02-add-jsdoc-high-risk-modules.md) | 2026-09-11 | [GH Issue #249](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/249) | [PR #250](https://github.com/amatya-aditya/obsidian-rss-dashboard/pull/250) |
+| [Ticket 03: Standardize error handling](plans/unreleased/249-03-standardize-error-handling.md) | 2026-09-11 | [GH Issue #249](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/249) | [PR #250](https://github.com/amatya-aditya/obsidian-rss-dashboard/pull/250) |
+| [Ticket 04: Final validation and commit](plans/unreleased/249-04-final-validation-commit.md) | 2026-09-11 | [GH Issue #249](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/249) | [PR #250](https://github.com/amatya-aditya/obsidian-rss-dashboard/pull/250) |
 
 ## Unshipped plans
 
@@ -77,6 +83,5 @@ records the documentation classification.
 
 ## Unresolved historical evidence
 
-None. The active [main.ts refactor](../plans/main-ts-refactor.md) remains in
-`docs/plans/` because its source still records in-progress work; it has no
-canonical issue or final implementation reference.
+None. The [main.ts refactor](plans/unreleased/main-ts-refactor.md) (Phases
+0–4) completed with PR #250 and moved to the unreleased archive above.

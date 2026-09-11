@@ -1,19 +1,28 @@
 ---
-status: in-progress
-created: 2026-04-14
-issue: ""
-milestone: ""
-owner: unassigned
-workstream: ""
-sequence: null
-depends_on: []
-release_requirement: ""
-implementation: ""
+status: implemented
+completed: 2026-09-11
+released_in: unreleased
+issue: "https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/249"
+implementation: "https://github.com/amatya-aditya/obsidian-rss-dashboard/pull/250"
 ---
 
 # `main.ts` Refactor Audit
 
-# STATUS: 4/14/26 - started and completed
+## Closing note (2026-09-11)
+
+This plan was drafted 2026-04-14 (Phases 0–3 landed then). Phase 4 sat
+unfinished and this document drifted significantly from an active plan into
+a historical record — later decisions (the five extracted services, their
+JSDoc and error-handling conventions) were tracked instead in
+[GH Issue #249](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/249)
+and its own plan, archived alongside this one at
+`docs/archive/plans/unreleased/249-main-ts-refactor-phase-4.md`.
+
+The work closed out today (PR #250) was exactly that already-started Phase 4
+work — documentation and error-handling standardization — not a new
+decomposition effort. `main.ts` is still large (3,400+ lines) and further
+extraction remains a real opportunity, but there is no active plan for it;
+treat this document as closed history, not a source of open TODOs.
 
 ## Phase 0 — Establish Baseline ✅
 
@@ -237,17 +246,19 @@ If a previously passing test goes red: stop, revert, document the regression.
 
 ---
 
-## Phase 4 — Refactor Phase · In Progress
+## Phase 4 — Refactor Phase · ✅ Complete
 
-Run the full suite after every non-trivial change.
+Completed via [GH Issue #249](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/249)
+and [PR #250](https://github.com/amatya-aditya/obsidian-rss-dashboard/pull/250); see the archived
+plan at `docs/archive/plans/unreleased/249-main-ts-refactor-phase-4.md`.
 
 - [x] Remove duplication: `parseFeedWithTimeout` timeout constant vs. `FEED_REFRESH_TIMEOUT_MS` — unified to shared `FEED_REQUEST_TIMEOUT_MS`
 - [x] Rename for clarity: removed the remaining `normalizeAndDedupeStoredFeedItems()` wrapper in `main.ts`; load path now calls `dedupeAndNormalizeFeedItems()` directly
-- [ ] Apply consistent error-handling pattern to all service methods (log + `new Notice` vs. rethrow)
-- [ ] Add JSDoc to all exported members of the five new modules
-- [ ] Review `main.ts` remaining size and responsibilities — target < 600 lines (`main.ts` currently 1,563 lines)
-- [x] Run full suite — confirm still green (`npm run test:unit` → 117 test files · 896 tests passing)
-- [ ] Commit: `refactor: decompose main.ts into focused service modules`
+- [x] Apply consistent error-handling pattern to all service methods (throw on recoverable errors, log + throw on invariant violations, no `Notice` calls from services)
+- [x] Add JSDoc to all exported members of the five new modules
+- [ ] Review `main.ts` remaining size and responsibilities — target < 600 lines (`main.ts` currently over 3,400 lines; deferred as follow-up work, out of scope for #249)
+- [x] Run full suite — confirm still green (`npm run test:unit` → 203 test files · 1895 tests passing)
+- [x] Commit: `refactor: standardize error handling across service modules` and related commits on `feat/249-phase-4-jsdoc`
 
 ### Manual Verification Checklist
 
@@ -255,7 +266,7 @@ Use this after the code refactor to confirm behavior in a real Obsidian vault, n
 
 - [x] Plugin startup: reload Obsidian or re-enable the plugin and confirm the dashboard opens without startup errors, settings load successfully, and no data is lost.
 - [x] View registration: open the dashboard, discover, reader, and smallweb views and confirm each view activates normally after plugin load.
-- [o] Feed refresh timeout path: trigger a refresh with at least one intentionally slow or unreachable feed and confirm timed-out feeds are reported without breaking the rest of the refresh batch.
+- [x] Feed refresh timeout path: trigger a refresh with at least one intentionally slow or unreachable feed and confirm timed-out feeds are reported without breaking the rest of the refresh batch. Left partially verified (`[o]`) in April; now covered by automated regression tests in `test_files/unit/main/feed-refresh-pipeline.test.ts` — "times out a stalled feed without blocking the rest of a multi-feed refresh" (hang case) and "records global completion after an explicit all-feeds refresh even when one attempt fails" (network-error case) — both passing.
 - [x] Background import timeout path: import feeds through OPML or discovery, confirm the background import status bar appears, progress updates, and slow feeds fail or time out without aborting the queue.
 - [x] Settings load normalization: restart with a vault containing existing RSS data and confirm duplicate stored items remain deduped, feed ordering is preserved, and migrated settings persist after reload.
 - [x] Folder repair path: verify feeds assigned to nested folders still resolve correctly and missing folder paths are recreated during settings load when needed.
