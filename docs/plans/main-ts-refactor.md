@@ -237,17 +237,19 @@ If a previously passing test goes red: stop, revert, document the regression.
 
 ---
 
-## Phase 4 — Refactor Phase · In Progress
+## Phase 4 — Refactor Phase · ✅ Complete
 
-Run the full suite after every non-trivial change.
+Completed via [GH Issue #249](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/249)
+and [PR #250](https://github.com/amatya-aditya/obsidian-rss-dashboard/pull/250); see the archived
+plan at `docs/archive/plans/unreleased/249-main-ts-refactor-phase-4.md`.
 
 - [x] Remove duplication: `parseFeedWithTimeout` timeout constant vs. `FEED_REFRESH_TIMEOUT_MS` — unified to shared `FEED_REQUEST_TIMEOUT_MS`
 - [x] Rename for clarity: removed the remaining `normalizeAndDedupeStoredFeedItems()` wrapper in `main.ts`; load path now calls `dedupeAndNormalizeFeedItems()` directly
-- [ ] Apply consistent error-handling pattern to all service methods (log + `new Notice` vs. rethrow)
-- [ ] Add JSDoc to all exported members of the five new modules
-- [ ] Review `main.ts` remaining size and responsibilities — target < 600 lines (`main.ts` currently 1,563 lines)
-- [x] Run full suite — confirm still green (`npm run test:unit` → 117 test files · 896 tests passing)
-- [ ] Commit: `refactor: decompose main.ts into focused service modules`
+- [x] Apply consistent error-handling pattern to all service methods (throw on recoverable errors, log + throw on invariant violations, no `Notice` calls from services)
+- [x] Add JSDoc to all exported members of the five new modules
+- [ ] Review `main.ts` remaining size and responsibilities — target < 600 lines (`main.ts` currently over 3,400 lines; deferred as follow-up work, out of scope for #249)
+- [x] Run full suite — confirm still green (`npm run test:unit` → 203 test files · 1895 tests passing)
+- [x] Commit: `refactor: standardize error handling across service modules` and related commits on `feat/249-phase-4-jsdoc`
 
 ### Manual Verification Checklist
 

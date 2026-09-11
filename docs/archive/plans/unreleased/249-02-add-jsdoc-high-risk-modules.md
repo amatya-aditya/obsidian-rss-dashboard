@@ -6,7 +6,7 @@
 
 **Blocked by:** 01 (ensures consistent JSDoc style across all services)
 
-**Status:** ready-for-agent
+**Status:** completed (PR #250)
 
 ## Modules
 

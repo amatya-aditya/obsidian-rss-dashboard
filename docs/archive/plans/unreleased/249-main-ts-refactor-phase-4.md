@@ -1,14 +1,9 @@
 ---
-status: accepted
-created: 2026-09-11
+status: implemented
+completed: 2026-09-11
+released_in: unreleased
 issue: "https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/249"
-milestone: ""
-owner: unassigned
-workstream: ""
-sequence: null
-depends_on: []
-release_requirement: ""
-implementation: ""
+implementation: "https://github.com/amatya-aditya/obsidian-rss-dashboard/pull/250"
 ---
 
 # Complete main.ts Refactor Phase 4 — Documentation & Error Handling
@@ -96,3 +91,22 @@ For each module:
 
 - Review `BackgroundImportService` and `settings-loader.ts` carefully (higher risk)
 - Current main.ts line count (3,405) exceeds original plan target (600); future follow-up should assess whether further extraction is needed
+
+## Outcome
+
+All four tickets (`249-01` through `249-04` in this archive) landed as planned.
+Manual validation during ticket 04 surfaced two additional, previously
+unknown bugs in the touched services, fixed in the same PR since they
+blocked a clean sign-off:
+
+- A cancelled background-import run left unfetched feeds permanently
+  excluded from every future global refresh (stale entries in
+  `BackgroundImportService`'s internal queue-tracking sets).
+- The "Export data.json" / "Copy data.json" settings actions were
+  mislabeled — they always produce the full legacy flat-JSON format, not
+  a mirror of the vault's on-disk `data.json`, which is a small pointer
+  file under vault-shard storage.
+
+Final validation: 1895/1895 unit tests passing, `npm run build` clean.
+Implemented across PR #250 plus the prior three main.ts-refactor Phase 4
+commits (`e0ddc08`, `7018023`, `a371116`) on `feat/249-phase-4-jsdoc`.

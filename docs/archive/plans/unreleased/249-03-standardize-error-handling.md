@@ -6,7 +6,7 @@
 
 **Blocked by:** 01, 02 (to understand current error patterns while documenting, and ensure consistency with JSDoc `@throws` entries)
 
-**Status:** ready-for-agent
+**Status:** completed (PR #250)
 
 ## Strategy
 
