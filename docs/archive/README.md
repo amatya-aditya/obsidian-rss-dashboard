@@ -47,6 +47,11 @@ records the documentation classification.
 | [Feed View honors disabled grouping](plans/unreleased/195-feed-view-honors-disabled-grouping.md) | 2026-08-24 | [GH Issue #195](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/195) | - |
 | [Podcast episode-list redesign](plans/unreleased/207-podcast-episode-list-redesign.md) | 2026-09-06 | [GH Issue #207](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/207) | - |
 | [Import starred.json for feeds you already subscribe to](plans/unreleased/234-01-import-starred-items-for-existing-feeds.md) | 2026-09-10 | [GH Issue #234](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/234) | - |
+| [Auto-create missing source feeds during import](plans/unreleased/234-02-auto-create-missing-source-feeds.md) | 2026-09-10 | [GH Issue #234](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/234) | - |
+| [Surface unimportable entries with reasons](plans/unreleased/234-03-surface-unimportable-entries.md) | 2026-09-10 | [GH Issue #234](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/234) | - |
+| [Map Inoreader labels to tags](plans/unreleased/234-04-map-labels-to-tags.md) | 2026-09-10 | [GH Issue #234](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/234) | - |
+| [Idempotent re-import (dedup + merge)](plans/unreleased/234-05-idempotent-reimport-dedup-merge.md) | 2026-09-10 | [GH Issue #234](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/234) | - |
+| [Opt-in full article content fetch](plans/unreleased/234-06-opt-in-full-content-fetch.md) | 2026-09-10 | [GH Issue #234](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/234) | - |
 
 ## Unshipped plans
 

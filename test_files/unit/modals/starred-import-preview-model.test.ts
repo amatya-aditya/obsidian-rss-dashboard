@@ -9,6 +9,8 @@ function makeCandidate(args: {
   feedTitle: string;
   title?: string;
   read?: boolean;
+  isNewFeed?: boolean;
+  feedSiteUrl?: string;
 }): StarredImportCandidate {
   const item: FeedItem = {
     title: args.title ?? args.guid,
@@ -22,7 +24,13 @@ function makeCandidate(args: {
     starred: true,
     read: args.read ?? false,
   };
-  return { feedUrl: args.feedUrl, feedTitle: args.feedTitle, item };
+  return {
+    feedUrl: args.feedUrl,
+    feedTitle: args.feedTitle,
+    item,
+    isNewFeed: args.isNewFeed,
+    feedSiteUrl: args.feedSiteUrl,
+  };
 }
 
 describe("StarredImportPreviewModel", () => {
@@ -126,5 +134,120 @@ describe("StarredImportPreviewModel", () => {
     const [group] = model.getGroups();
     expect(group.items.find((i) => i.guid === "g1")?.read).toBe(true);
     expect(group.items.find((i) => i.guid === "g2")?.read).toBe(false);
+  });
+
+  it("marks a group built from isNewFeed candidates as a new feed with a default folder", () => {
+    const model = new StarredImportPreviewModel({
+      candidates: [
+        makeCandidate({
+          guid: "g1",
+          feedUrl: "new-url",
+          feedTitle: "New Feed",
+          isNewFeed: true,
+          feedSiteUrl: "https://new-feed.test/",
+        }),
+      ],
+    });
+
+    const [group] = model.getGroups();
+    expect(group.isNewFeed).toBe(true);
+    expect(group.folder).toBe("Uncategorized");
+    expect(model.isNewFeedGroup("new-url")).toBe(true);
+    expect(model.getNewFeedFolder("new-url")).toBe("Uncategorized");
+  });
+
+  it("does not mark an existing-feed group (isNewFeed false/undefined) as new, and it has no folder", () => {
+    const model = new StarredImportPreviewModel({
+      candidates: [
+        makeCandidate({ guid: "g1", feedUrl: "u1", feedTitle: "Feed One" }),
+      ],
+    });
+
+    const [group] = model.getGroups();
+    expect(group.isNewFeed).toBe(false);
+    expect(group.folder).toBeUndefined();
+    expect(model.isNewFeedGroup("u1")).toBe(false);
+  });
+
+  it("edits the target folder for a new-feed group and rejects invalid folder names", () => {
+    const model = new StarredImportPreviewModel({
+      candidates: [
+        makeCandidate({
+          guid: "g1",
+          feedUrl: "new-url",
+          feedTitle: "New Feed",
+          isNewFeed: true,
+        }),
+      ],
+    });
+
+    const result = model.setNewFeedFolder("new-url", "Imported");
+    expect(result.valid).toBe(true);
+    expect(model.getNewFeedFolder("new-url")).toBe("Imported");
+    expect(model.getGroups()[0].folder).toBe("Imported");
+
+    const invalid = model.setNewFeedFolder("new-url", "bad/name?");
+    expect(invalid.valid).toBe(false);
+    // The last valid value is retained.
+    expect(model.getNewFeedFolder("new-url")).toBe("Imported");
+  });
+
+  it("refuses to set a folder on a group that is not a new feed", () => {
+    const model = new StarredImportPreviewModel({
+      candidates: [
+        makeCandidate({ guid: "g1", feedUrl: "u1", feedTitle: "Feed One" }),
+      ],
+    });
+
+    const result = model.setNewFeedFolder("u1", "Somewhere");
+    expect(result.valid).toBe(false);
+  });
+
+  it("only returns new-feed groups with at least one selected item from getSelectedNewFeedGroups()", () => {
+    const model = new StarredImportPreviewModel({
+      candidates: [
+        makeCandidate({
+          guid: "g1",
+          feedUrl: "new-url-1",
+          feedTitle: "New Feed One",
+          isNewFeed: true,
+          feedSiteUrl: "https://new-feed-one.test/",
+        }),
+        makeCandidate({
+          guid: "g2",
+          feedUrl: "new-url-2",
+          feedTitle: "New Feed Two",
+          isNewFeed: true,
+        }),
+        makeCandidate({ guid: "g3", feedUrl: "u1", feedTitle: "Feed One" }),
+      ],
+    });
+
+    model.toggleGroup("new-url-2", false);
+
+    const selectedNewFeeds = model.getSelectedNewFeedGroups();
+    expect(selectedNewFeeds).toHaveLength(1);
+    expect(selectedNewFeeds[0]).toMatchObject({
+      feedUrl: "new-url-1",
+      feedTitle: "New Feed One",
+      folder: "Uncategorized",
+      siteUrl: "https://new-feed-one.test/",
+    });
+  });
+
+  it("reports newFeedGroups in getStats()", () => {
+    const model = new StarredImportPreviewModel({
+      candidates: [
+        makeCandidate({
+          guid: "g1",
+          feedUrl: "new-url",
+          feedTitle: "New Feed",
+          isNewFeed: true,
+        }),
+        makeCandidate({ guid: "g2", feedUrl: "u1", feedTitle: "Feed One" }),
+      ],
+    });
+
+    expect(model.getStats().newFeedGroups).toBe(1);
   });
 });
