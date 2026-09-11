@@ -178,12 +178,9 @@ describe("BackupService", () => {
       );
     });
 
-    it("logs and rethrows with context when a backup write fails", async () => {
+    it("rethrows with context and preserves the original error as cause when a backup write fails", async () => {
       const { BackupService } =
         await import("../../../src/services/backup-service");
-      const consoleErrorSpy = vi
-        .spyOn(console, "error")
-        .mockImplementation(() => {});
       const settings = {
         feeds: [],
         folders: [],
@@ -205,10 +202,9 @@ describe("BackupService", () => {
       await expect(service.performAutoBackups()).rejects.toThrow(
         "Auto-backup failed: disk full",
       );
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        "[RSS Dashboard] Auto-backup failed:",
-        writeError,
-      );
+      await expect(service.performAutoBackups()).rejects.toMatchObject({
+        cause: writeError,
+      });
     });
   });
 });

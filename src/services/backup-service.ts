@@ -116,9 +116,10 @@ export class BackupService {
         }
       }
     } catch (e) {
-      console.error("[RSS Dashboard] Auto-backup failed:", e);
       const message = e instanceof Error ? e.message : String(e);
-      throw new Error(`Auto-backup failed: ${message}`);
+      const wrapped = new Error(`Auto-backup failed: ${message}`);
+      (wrapped as Error & { cause?: unknown }).cause = e;
+      throw wrapped;
     }
   }
 
