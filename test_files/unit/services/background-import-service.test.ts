@@ -41,6 +41,7 @@ interface TestableBackgroundImportService {
   backgroundImportInFlightUrls: Set<string>;
   backgroundImportProcessedCount: number;
   importStatusBarItem: HTMLElement | null;
+  ownsGlobalOperation: boolean;
 }
 
 // Minimal mock interface for feedParser at test boundary
@@ -572,6 +573,97 @@ describe("BackgroundImportService", () => {
       ).processBackgroundImportQueue();
 
       expect(onImportQueueDrained).not.toHaveBeenCalled();
+    });
+
+    it("does not self-restart when the run owned and cancelled the global operation, even though endGlobalOperation resets the cancellation flag", async () => {
+      const { BackgroundImportService } =
+        await import("../../../src/services/background-import-service");
+      const feed: Feed = {
+        title: "Feed",
+        url: "https://example.com/feed.xml",
+        folder: "Inbox",
+        items: [],
+        lastUpdated: 0,
+        mediaType: "article",
+      };
+      const deps = makeDeps({ feeds: [feed] });
+      deps.feedParser.parseFeed = vi.fn().mockResolvedValue(feed);
+
+      // Mirrors main.ts: cancelGlobalRefresh() sets the flag true, and
+      // endGlobalOperation() (called from this service's finally block)
+      // unconditionally resets it back to false.
+      let cancelled = true;
+      const endGlobalOperation = vi.fn(async () => {
+        cancelled = false;
+      });
+      const isGlobalOperationCancelled = vi.fn(() => cancelled);
+
+      const service = new BackgroundImportService({
+        ...deps,
+        endGlobalOperation,
+        isGlobalOperationCancelled,
+      });
+      const testable = service as unknown as TestableBackgroundImportService;
+      testable.ownsGlobalOperation = true;
+      // A cancelled worker returns without shifting its feed off the queue,
+      // so one item remains when the finally block runs.
+      testable.backgroundImportQueue = [{ ...feed, importStatus: "pending" }];
+      testable.backgroundImportTotalCount = 1;
+
+      const processQueueSpy = vi.spyOn(testable, "processBackgroundImportQueue");
+
+      await testable.processBackgroundImportQueue();
+      // Flush the microtask queue so a wrongful `void this.processBackgroundImportQueue()`
+      // recursive call (fire-and-forget) has a chance to register on the spy.
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(endGlobalOperation).toHaveBeenCalledTimes(1);
+      expect(processQueueSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it("stops reporting cancelled-but-never-fetched feeds as pending import once the run finishes draining", async () => {
+      // Regression test: a cancelled worker returns without shifting its
+      // claimed feed off backgroundImportQueue, so backgroundImportQueuedUrls
+      // (which isFeedPendingImport() reads) used to keep those URLs marked
+      // "pending" forever — silently excluding them from every future global
+      // refresh (main.ts's getRefreshableFeeds()) until the exact same feed
+      // happened to be re-queued and this time drain without cancellation.
+      const { BackgroundImportService } =
+        await import("../../../src/services/background-import-service");
+      const feedA: Feed = {
+        title: "Feed A",
+        url: "https://example.com/a.xml",
+        folder: "Inbox",
+        items: [],
+        lastUpdated: 0,
+        mediaType: "article",
+      };
+      const feedB: Feed = {
+        title: "Feed B",
+        url: "https://example.com/b.xml",
+        folder: "Inbox",
+        items: [],
+        lastUpdated: 0,
+        mediaType: "article",
+      };
+      const deps = makeDeps({ feeds: [feedA, feedB] });
+      deps.feedParser.parseFeed = vi.fn().mockResolvedValue(feedA);
+      const service = new BackgroundImportService({
+        ...deps,
+        // Cancelled from the very start: neither worker ever shifts a feed
+        // off the queue, so both stay stuck exactly as in the bug report.
+        isGlobalOperationCancelled: () => true,
+      });
+
+      service.startBackgroundImport([feedA, feedB]);
+      await vi.waitFor(() => expect(service.isBackgroundImporting).toBe(false));
+
+      expect(service.isFeedPendingImport(feedA.url)).toBe(false);
+      expect(service.isFeedPendingImport(feedB.url)).toBe(false);
+      expect(
+        (service as unknown as TestableBackgroundImportService)
+          .backgroundImportQueue,
+      ).toHaveLength(0);
     });
   });
 });

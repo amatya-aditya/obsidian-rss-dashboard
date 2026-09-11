@@ -378,6 +378,25 @@ export class BackgroundImportService {
         this.importStatusBarItem = null;
       }
 
+      // Capture cancellation before endGlobalOperation() resets it below —
+      // otherwise the restart guard would always see "not cancelled".
+      const wasCancelled = this.isGlobalOperationCancelled?.() ?? false;
+
+      if (wasCancelled && this.backgroundImportQueue.length > 0) {
+        // A cancelled worker (see processBackgroundImportWorker) exits
+        // without ever shifting its claimed feed off the queue. Left as-is,
+        // those URLs would stay marked "pending import" in
+        // backgroundImportQueuedUrls forever, which silently excludes them
+        // from every future global refresh (RssDashboardPlugin's
+        // getRefreshableFeeds() skips anything isFeedPendingImport() still
+        // reports as queued). Drain them here so they go back to being
+        // ordinary feeds, refreshable normally.
+        for (const feedMetadata of this.backgroundImportQueue) {
+          this.backgroundImportQueuedUrls.delete(feedMetadata.url);
+        }
+        this.backgroundImportQueue = [];
+      }
+
       this.isBackgroundImporting = false;
       this.backgroundImportProcessedCount = 0;
       this.backgroundImportTotalCount = 0;
@@ -396,10 +415,7 @@ export class BackgroundImportService {
       // Do not self-restart while cancelled: a cancelled worker returns without
       // shifting its feed off the queue, so restarting here would recurse
       // forever without ever draining the remaining items.
-      if (
-        this.backgroundImportQueue.length > 0 &&
-        !this.isGlobalOperationCancelled?.()
-      ) {
+      if (this.backgroundImportQueue.length > 0 && !wasCancelled) {
         void this.processBackgroundImportQueue();
       }
     }
