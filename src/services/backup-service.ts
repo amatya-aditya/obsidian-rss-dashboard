@@ -16,6 +16,16 @@ export class BackupService {
   private getUserSettingsJsonFn: () => string;
   private getPortableDataBundleJsonFn: () => string;
 
+  /**
+   * Creates a new BackupService instance
+   * @param {Object} options Configuration options
+   * @param {RssDashboardSettings} options.settings Plugin settings to backup
+   * @param {Object} options.manifest Plugin manifest with dir property
+   * @param {string} options.vaultAbsolutePath Absolute path to the vault
+   * @param {VaultInterface} options.vault Vault adapter for file operations
+   * @param {Function} [options.getUserSettingsJson] Optional function to serialize user settings
+   * @param {Function} [options.getPortableDataBundleJson] Optional function to serialize portable data bundle
+   */
   constructor(options: {
     settings: RssDashboardSettings;
     manifest: { dir?: string };
@@ -35,8 +45,9 @@ export class BackupService {
   }
 
   /**
-   * Perform async backups using the vault adapter
-   * Called during normal plugin operation
+   * Perform async backups of data.json, OPML, and user settings
+   * Called during normal plugin operation; backs up files based on autoBackup settings
+   * @returns {Promise<void>}
    */
   public async performAutoBackups(): Promise<void> {
     const { autoBackup } = this.settings;
