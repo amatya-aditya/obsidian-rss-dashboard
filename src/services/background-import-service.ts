@@ -1,4 +1,4 @@
-import { Notice, setIcon, Setting } from "obsidian";
+import { setIcon, Setting } from "obsidian";
 import type {
   RssDashboardSettings,
   Feed,
@@ -48,6 +48,7 @@ interface FeedParserLike {
  * @property {Function} [endGlobalOperation] Ends the active global operation
  * @property {Function} [isGlobalOperationCancelled] Returns true if the active global operation was cancelled
  * @property {Function} [onFeedImported] Called each time a queued feed finishes importing successfully
+ * @property {Function} [onImportQueueDrained] Called once the background import queue finishes draining (unless the run was cancelled), with the number of feeds processed. Callers use this to surface a completion Notice — the service itself never shows one.
  */
 export interface BackgroundImportServiceDeps {
   feedParser: FeedParserLike;
@@ -64,6 +65,7 @@ export interface BackgroundImportServiceDeps {
   endGlobalOperation?: () => Promise<void>;
   isGlobalOperationCancelled?: () => boolean;
   onFeedImported?: (feed: Feed) => void;
+  onImportQueueDrained?: (processedCount: number) => void;
 }
 
 // ── Service ──────────────────────────────────────────────────────────────────
@@ -92,6 +94,7 @@ export class BackgroundImportService {
   private readonly endGlobalOperation?: () => Promise<void>;
   private readonly isGlobalOperationCancelled?: () => boolean;
   private readonly onFeedImported?: (feed: Feed) => void;
+  private readonly onImportQueueDrained?: (processedCount: number) => void;
 
   // ── State ──────────────────────────────────────────────────────────────────
 
@@ -125,6 +128,7 @@ export class BackgroundImportService {
     this.endGlobalOperation = deps.endGlobalOperation;
     this.isGlobalOperationCancelled = deps.isGlobalOperationCancelled;
     this.onFeedImported = deps.onFeedImported;
+    this.onImportQueueDrained = deps.onImportQueueDrained;
   }
 
   // ── Public API ─────────────────────────────────────────────────────────────
@@ -366,9 +370,7 @@ export class BackgroundImportService {
       }
 
       if (!this.isGlobalOperationCancelled?.()) {
-        new Notice(
-          `Background import completed. Processed ${this.backgroundImportProcessedCount} feeds.`,
-        );
+        this.onImportQueueDrained?.(this.backgroundImportProcessedCount);
       }
     } finally {
       if (this.importStatusBarItem) {
@@ -391,7 +393,13 @@ export class BackgroundImportService {
         this.backgroundImportPersistMode = null;
       }
 
-      if (this.backgroundImportQueue.length > 0) {
+      // Do not self-restart while cancelled: a cancelled worker returns without
+      // shifting its feed off the queue, so restarting here would recurse
+      // forever without ever draining the remaining items.
+      if (
+        this.backgroundImportQueue.length > 0 &&
+        !this.isGlobalOperationCancelled?.()
+      ) {
         void this.processBackgroundImportQueue();
       }
     }
@@ -518,6 +526,12 @@ export class BackgroundImportService {
       ) {
         feedMetadata.importError = getFeedErrorMessage(
           error instanceof Error ? error : new Error(String(error)),
+        );
+        // Intentionally not rethrown: a single feed's fetch/parse failure must
+        // not abort the rest of the batch. The error is logged for debugging
+        // and recorded on the placeholder so the UI can surface it per-feed.
+        console.error(
+          `[RSS Dashboard] Background import failed for feed "${feedMetadata.url}": ${feedMetadata.importError}`,
         );
       }
     } finally {

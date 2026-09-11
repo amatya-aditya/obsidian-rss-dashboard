@@ -35,6 +35,7 @@ interface TestableBackgroundImportService {
     renderEvery: number,
     shouldRenderDuringImport: boolean,
   ) => Promise<void>;
+  processBackgroundImportQueue: () => Promise<void>;
   backgroundImportQueue: FeedMetadata[];
   backgroundImportTotalCount: number;
   backgroundImportInFlightUrls: Set<string>;
@@ -451,6 +452,126 @@ describe("BackgroundImportService", () => {
 
       expect(textSpan.textContent).toContain("3/10");
       expect(textSpan.textContent).toContain("My Feed");
+    });
+  });
+
+  // ── processBackgroundImportFeed error logging ───────────────────────────────
+
+  describe("processBackgroundImportFeed error handling", () => {
+    it("logs a per-feed failure with the feed URL instead of throwing", async () => {
+      const { BackgroundImportService } =
+        await import("../../../src/services/background-import-service");
+      const consoleErrorSpy = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+      const deps = makeDeps({
+        feeds: [
+          {
+            title: "Broken Feed",
+            url: "https://example.com/broken.xml",
+            folder: "Inbox",
+            items: [],
+            lastUpdated: 0,
+            mediaType: "article",
+          },
+        ],
+      });
+      deps.feedParser.parseFeed = vi
+        .fn()
+        .mockRejectedValue(new Error("Network unreachable"));
+      const service = new BackgroundImportService(deps);
+
+      (
+        service as unknown as TestableBackgroundImportService
+      ).backgroundImportQueue = [deps._settings.feeds[0]];
+      (
+        service as unknown as TestableBackgroundImportService
+      ).backgroundImportTotalCount = 1;
+
+      await expect(
+        (
+          service as unknown as TestableBackgroundImportService
+        ).processBackgroundImportWorker(1, 1, false),
+      ).resolves.not.toThrow();
+
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        expect.stringContaining("https://example.com/broken.xml"),
+      );
+      const updatedFeed = deps._settings.feeds[0] as Feed & {
+        importStatus?: string;
+      };
+      expect(updatedFeed.importStatus).toBe("failed");
+    });
+  });
+
+  // ── processBackgroundImportQueue completion signaling ───────────────────────
+
+  describe("processBackgroundImportQueue", () => {
+    it("calls onImportQueueDrained with the processed count instead of showing a Notice", async () => {
+      const { BackgroundImportService } =
+        await import("../../../src/services/background-import-service");
+      const onImportQueueDrained = vi.fn();
+      const feed: Feed = {
+        title: "Feed",
+        url: "https://example.com/feed.xml",
+        folder: "Inbox",
+        items: [],
+        lastUpdated: 0,
+        mediaType: "article",
+      };
+      const deps = makeDeps({ feeds: [feed] });
+      deps.feedParser.parseFeed = vi.fn().mockResolvedValue(feed);
+      const service = new BackgroundImportService({
+        ...deps,
+        onImportQueueDrained,
+      });
+
+      (
+        service as unknown as TestableBackgroundImportService
+      ).backgroundImportQueue = [{ ...feed, importStatus: "pending" }];
+      (
+        service as unknown as TestableBackgroundImportService
+      ).backgroundImportTotalCount = 1;
+
+      await (
+        service as unknown as TestableBackgroundImportService
+      ).processBackgroundImportQueue();
+
+      expect(onImportQueueDrained).toHaveBeenCalledWith(1);
+    });
+
+    it("does not call onImportQueueDrained when the run was cancelled", async () => {
+      const { BackgroundImportService } =
+        await import("../../../src/services/background-import-service");
+      const onImportQueueDrained = vi.fn();
+      const feed: Feed = {
+        title: "Feed",
+        url: "https://example.com/feed.xml",
+        folder: "Inbox",
+        items: [],
+        lastUpdated: 0,
+        mediaType: "article",
+      };
+      const deps = makeDeps({ feeds: [feed] });
+      deps.feedParser.parseFeed = vi.fn().mockResolvedValue(feed);
+      const service = new BackgroundImportService({
+        ...deps,
+        isGlobalOperationCancelled: () => true,
+        onImportQueueDrained,
+      });
+
+      (
+        service as unknown as TestableBackgroundImportService
+      ).backgroundImportQueue = [{ ...feed, importStatus: "pending" }];
+      (
+        service as unknown as TestableBackgroundImportService
+      ).backgroundImportTotalCount = 1;
+
+      await (
+        service as unknown as TestableBackgroundImportService
+      ).processBackgroundImportQueue();
+
+      expect(onImportQueueDrained).not.toHaveBeenCalled();
     });
   });
 });

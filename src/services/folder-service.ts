@@ -168,6 +168,9 @@ export class FolderService {
 
     if (changed && options?.onSaveSettings) {
       await options.onSaveSettings();
+      // Informational, not an error path: the repair succeeded and settings were
+      // saved. Logged at warn level (rather than a user-facing Notice) so this
+      // config drift is visible in the console when the caller opts into saving.
       console.warn(
         `[RSS dashboard] Repaired ${missingPaths.size} missing feed folder path(s) during settings load.`,
       );

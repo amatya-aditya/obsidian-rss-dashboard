@@ -177,5 +177,38 @@ describe("BackupService", () => {
         expect.any(String),
       );
     });
+
+    it("logs and rethrows with context when a backup write fails", async () => {
+      const { BackupService } =
+        await import("../../../src/services/backup-service");
+      const consoleErrorSpy = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+      const settings = {
+        feeds: [],
+        folders: [],
+        autoBackup: {
+          backupDataJson: false,
+          backupOpml: true,
+          backupUserdata: false,
+        },
+      } as unknown as RssDashboardSettings;
+      const writeError = new Error("disk full");
+      mockVault.adapter.write = vi.fn().mockRejectedValue(writeError);
+      const service = new BackupService({
+        settings,
+        manifest: mockManifest,
+        vaultAbsolutePath,
+        vault: mockVault,
+      });
+
+      await expect(service.performAutoBackups()).rejects.toThrow(
+        "Auto-backup failed: disk full",
+      );
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        "[RSS Dashboard] Auto-backup failed:",
+        writeError,
+      );
+    });
   });
 });

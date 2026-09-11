@@ -48,6 +48,7 @@ export class BackupService {
    * Perform async backups of data.json, OPML, and user settings
    * Called during normal plugin operation; backs up files based on autoBackup settings
    * @returns {Promise<void>}
+   * @throws {Error} If reading or writing any backup file fails; the caller decides whether to notify the user, retry, or proceed anyway
    */
   public async performAutoBackups(): Promise<void> {
     const { autoBackup } = this.settings;
@@ -116,6 +117,8 @@ export class BackupService {
       }
     } catch (e) {
       console.error("[RSS Dashboard] Auto-backup failed:", e);
+      const message = e instanceof Error ? e.message : String(e);
+      throw new Error(`Auto-backup failed: ${message}`);
     }
   }
 
