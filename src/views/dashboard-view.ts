@@ -318,9 +318,12 @@ export class RssDashboardView extends ItemView {
                 newPagination.endIdx,
               );
               if (newArticles.length > 0) {
-                void this.selectArticle(newArticles[0], {
-                  open: options?.open,
-                });
+                const firstArticle = newArticles[0];
+                if (firstArticle) {
+                  void this.selectArticle(firstArticle, {
+                    open: options?.open,
+                  });
+                }
               }
             });
             return;
@@ -333,7 +336,9 @@ export class RssDashboardView extends ItemView {
     }
 
     const nextArticle = articlesForPage[nextIndex];
-    void this.selectArticle(nextArticle, { open: options?.open });
+    if (nextArticle) {
+      void this.selectArticle(nextArticle, { open: options?.open });
+    }
   }
 
   /**
@@ -384,9 +389,12 @@ export class RssDashboardView extends ItemView {
                 newPagination.endIdx,
               );
               if (newArticles.length > 0) {
-                void this.selectArticle(newArticles[newArticles.length - 1], {
-                  open: options?.open,
-                });
+                const lastArticle = newArticles[newArticles.length - 1];
+                if (lastArticle) {
+                  void this.selectArticle(lastArticle, {
+                    open: options?.open,
+                  });
+                }
               }
             });
             return;
@@ -399,7 +407,9 @@ export class RssDashboardView extends ItemView {
     }
 
     const prevArticle = articlesForPage[prevIndex];
-    void this.selectArticle(prevArticle, { open: options?.open });
+    if (prevArticle) {
+      void this.selectArticle(prevArticle, { open: options?.open });
+    }
   }
 
   /**
@@ -429,7 +439,10 @@ export class RssDashboardView extends ItemView {
     if (articlesForPage.length === 0) return;
 
     if (!this.selectedArticle) {
-      void this.selectArticle(articlesForPage[0]);
+      const firstArticle = articlesForPage[0];
+      if (firstArticle) {
+        void this.selectArticle(firstArticle);
+      }
       return;
     }
 
@@ -783,6 +796,9 @@ export class RssDashboardView extends ItemView {
     );
 
     const container = this.containerEl.children[1];
+    if (!container) {
+      return Promise.resolve();
+    }
     container.addClass("rss-dashboard-container");
     let dashboardContainer = container.querySelector(
       ".rss-dashboard-layout",
@@ -902,6 +918,9 @@ export class RssDashboardView extends ItemView {
       }
 
       const container = this.containerEl.children[1];
+      if (!container) {
+        return;
+      }
       let dashboardContainer = container.querySelector(
         ".rss-dashboard-layout",
       ) as HTMLElement;
@@ -2290,13 +2309,16 @@ export class RssDashboardView extends ItemView {
     this.selectedFeeds = [];
     // When entering multi-select, clear single-folder and feed selection
     this.currentFeed = null;
-    this.currentFolder = folders.length === 1 ? folders[0] : null;
+    this.currentFolder = folders.length === 1 ? (folders[0] ?? null) : null;
     this.selectedTags = [];
     void this.render();
 
     // Update anchor to most-recently selected folder
     if (folders && folders.length > 0) {
-      this.lastClickAnchorKey = `folder:${folders[folders.length - 1]}`;
+      const lastFolder = folders[folders.length - 1];
+      if (lastFolder) {
+        this.lastClickAnchorKey = `folder:${lastFolder}`;
+      }
     }
   }
 
@@ -2440,7 +2462,7 @@ export class RssDashboardView extends ItemView {
     this.selectedFeeds = Array.from(finalSelectedFeeds);
     this.currentFolder =
       this.selectedFolders.length === 1 && this.selectedFeeds.length === 0
-        ? this.selectedFolders[0]
+        ? (this.selectedFolders[0] ?? null)
         : null;
     this.currentFeed =
       this.selectedFeeds.length === 1 && this.selectedFolders.length === 0
@@ -3211,7 +3233,7 @@ export class RssDashboardView extends ItemView {
     };
 
     if (this.currentFolder && specialFolderLabels[this.currentFolder]) {
-      return specialFolderLabels[this.currentFolder];
+      return specialFolderLabels[this.currentFolder] ?? null;
     }
 
     if (
@@ -3219,6 +3241,9 @@ export class RssDashboardView extends ItemView {
       this.activeTagFilters.size === 0
     ) {
       const [statusFilter] = Array.from(this.activeStatusFilters);
+      if (!statusFilter) {
+        return null;
+      }
       const statusLabel =
         statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1);
       return `the ${statusLabel} view filter`;

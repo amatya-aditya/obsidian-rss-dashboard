@@ -21,7 +21,7 @@ export class CustomXMLParser {
 
   private detectEncoding(xmlString: string): string {
     const match = xmlString.match(/encoding=["']([^"']+)["']/);
-    return match ? match[1] : "UTF-8";
+    return match?.[1] ?? "UTF-8";
   }
 
   private getTextContent(
@@ -36,6 +36,9 @@ export class CustomXMLParser {
       el = element.querySelector(tagName);
     } else if (tagName.includes(":")) {
       const [namespace, localName] = tagName.split(":");
+      if (!namespace || !localName) {
+        return "";
+      }
 
       // 1. Try namespaced selector with backslash
       try {
@@ -48,7 +51,7 @@ export class CustomXMLParser {
       if (!el) {
         try {
           const elements = element.getElementsByTagNameNS("*", localName);
-          if (elements.length > 0) el = elements[0];
+          el = elements[0] ?? null;
         } catch {
           /* ignore */
         }
@@ -77,7 +80,7 @@ export class CustomXMLParser {
       if (!el) {
         try {
           const tagEls = element.getElementsByTagName(tagName);
-          if (tagEls.length > 0) el = tagEls[0];
+          el = tagEls[0] ?? null;
         } catch {
           /* ignore */
         }
@@ -106,6 +109,9 @@ export class CustomXMLParser {
       }
     } else if (tagName.includes(":")) {
       const [namespace, localName] = tagName.split(":");
+      if (!namespace || !localName) {
+        return "";
+      }
 
       try {
         el = element.querySelector(`${namespace}\\:${localName}`);
@@ -116,7 +122,7 @@ export class CustomXMLParser {
       if (!el) {
         try {
           const elements = element.getElementsByTagNameNS("*", localName);
-          if (elements.length > 0) el = elements[0];
+          el = elements[0] ?? null;
         } catch {
           /* ignore */
         }
@@ -172,7 +178,7 @@ export class CustomXMLParser {
         .filter((x) => !!x.url);
       if (withUrl.length === 0) return "";
       withUrl.sort((a, b) => score(b.el) - score(a.el));
-      return withUrl[0].url;
+      return withUrl[0]?.url ?? "";
     };
 
     // 1) Standard selectors (works in many environments)

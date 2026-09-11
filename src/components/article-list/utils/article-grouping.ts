@@ -31,7 +31,8 @@ export function groupArticles(
       if (!acc[key]) {
         acc[key] = [];
       }
-      acc[key].push(article);
+      const group = acc[key];
+      if (group) group.push(article);
       return acc;
     },
     {} as Record<string, FeedItem[]>,

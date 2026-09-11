@@ -2740,7 +2740,9 @@ export class Sidebar {
       Math.max(0, startIndex + offset),
     );
 
-    this.focusedSidebarTarget = this.sidebarRows[nextIndex].target;
+    const nextRow = this.sidebarRows[nextIndex];
+    if (!nextRow) return;
+    this.focusedSidebarTarget = nextRow.target;
     this.applySidebarFocusState();
   }
 
@@ -2765,6 +2767,7 @@ export class Sidebar {
       idx += direction
     ) {
       const row = this.sidebarRows[idx];
+      if (!row) continue;
       if (row.target.type !== "feed") {
         this.focusedSidebarTarget = row.target;
         this.applySidebarFocusState();
@@ -3426,7 +3429,8 @@ export class Sidebar {
       isDown = true;
       isDragging = false;
       const clientX =
-        e instanceof MouseEvent ? e.clientX : e.touches[0].clientX;
+        e instanceof MouseEvent ? e.clientX : e.touches[0]?.clientX;
+      if (clientX === undefined) return;
       startX = clientX - iconRow.offsetLeft;
       scrollLeft = iconRow.scrollLeft;
     };
@@ -3440,7 +3444,8 @@ export class Sidebar {
       if (!isDown) return;
       e.preventDefault();
       const clientX =
-        e instanceof MouseEvent ? e.clientX : e.touches[0].clientX;
+        e instanceof MouseEvent ? e.clientX : e.touches[0]?.clientX;
+      if (clientX === undefined) return;
       const x = clientX - iconRow.offsetLeft;
       const walk = (x - startX) * 2; // Scroll speed multiplier
       if (Math.abs(walk) > 5) {

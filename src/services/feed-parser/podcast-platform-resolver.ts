@@ -129,14 +129,11 @@ async function resolvePocketCastsUrl(
             const itunesData = JSON.parse(itunesResponse.text) as {
               results?: Array<{ feedUrl?: string; collectionName?: string }>;
             };
-            if (
-              itunesData.results &&
-              itunesData.results.length > 0 &&
-              itunesData.results[0].feedUrl
-            ) {
-              const feedUrl = itunesData.results[0].feedUrl;
+            const firstResult = itunesData.results?.[0];
+            if (firstResult?.feedUrl) {
+              const feedUrl = firstResult.feedUrl;
               console.debug(
-                `[RSS Dashboard] Successfully resolved Pocket Casts URL via iTunes API: ${feedUrl} (matched "${itunesData.results[0].collectionName}")`,
+                `[RSS Dashboard] Successfully resolved Pocket Casts URL via iTunes API: ${feedUrl} (matched "${firstResult.collectionName ?? ""}")`,
               );
               return feedUrl;
             }

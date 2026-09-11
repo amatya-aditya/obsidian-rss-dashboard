@@ -48,12 +48,15 @@ export function extractDomain(url: string): string {
     const match = url.match(/https?:\/\/([^/?]+)/);
     if (match) {
       const hostname = match[1];
+      if (!hostname) {
+        return "";
+      }
       const parts = hostname.split(".");
       if (parts.length >= 2) {
         if (parts.length === 3 && parts[0] === "feeds") {
-          return `${parts[1]}.${parts[2]}`;
+          return `${parts[1] ?? ""}.${parts[2] ?? ""}`;
         } else if (parts.length >= 3) {
-          return `${parts[parts.length - 2]}.${parts[parts.length - 1]}`;
+          return `${parts[parts.length - 2] ?? hostname}.${parts[parts.length - 1] ?? hostname}`;
         } else {
           return hostname;
         }

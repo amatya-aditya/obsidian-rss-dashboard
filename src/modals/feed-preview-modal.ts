@@ -135,7 +135,7 @@ export class FeedPreviewModal extends Modal {
                     const content =
                         item.querySelector(":scope > content\\:encoded")?.textContent || description;
                     const imgMatch = content.match(/<img[^>]+src=["']([^"']+)["'][^>]*>/i);
-                    if (imgMatch) {
+                    if (imgMatch?.[1]) {
                         image = imgMatch[1];
                     } else {
                         
@@ -318,12 +318,14 @@ export class FeedPreviewModal extends Modal {
 
     private getInitials(title: string): string {
         const words = title.split(' ');
+        const firstWord = words[0] ?? '';
+        const secondWord = words[1] ?? '';
         if (words.length > 1) {
-            return (words[0][0] + words[1][0]).toUpperCase();
-        } else if (words.length === 1 && words[0].length > 1) {
-            return (words[0][0] + words[0][1]).toUpperCase();
-        } else if (words.length === 1 && words[0].length === 1) {
-            return words[0][0].toUpperCase();
+            return `${firstWord[0] ?? ''}${secondWord[0] ?? ''}`.toUpperCase();
+        } else if (words.length === 1 && firstWord.length > 1) {
+            return `${firstWord[0] ?? ''}${firstWord[1] ?? ''}`.toUpperCase();
+        } else if (words.length === 1 && firstWord.length === 1) {
+            return (firstWord[0] ?? '').toUpperCase();
         }
         return 'NA';
     }

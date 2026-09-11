@@ -92,7 +92,7 @@ export function extractHighestResolutionFromSrcset(srcset: string | null | undef
 
     if (score > bestScore) {
       bestScore = score;
-      bestUrl = url;
+      bestUrl = url ?? null;
     }
   }
 

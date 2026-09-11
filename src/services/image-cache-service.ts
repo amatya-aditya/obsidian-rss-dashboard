@@ -318,7 +318,8 @@ export class ImageCacheService {
     const contentType = Object.entries(response.headers).find(
       ([name]) => name.toLowerCase() === "content-type",
     )?.[1];
-    return IMAGE_TYPES.get(contentType?.split(";", 1)[0].trim().toLowerCase() ?? "") ?? null;
+    const mediaType = contentType?.split(";", 1)[0];
+    return IMAGE_TYPES.get(mediaType?.trim().toLowerCase() ?? "") ?? null;
   }
 
   private getDeclaredLength(headers: Record<string, string>): number | null {

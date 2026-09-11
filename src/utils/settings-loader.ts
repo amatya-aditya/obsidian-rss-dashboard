@@ -458,6 +458,10 @@ export function dedupeAndNormalizeFeedItems(feeds: Feed[]): boolean {
 
     for (let idx = 0; idx < items.length; idx++) {
       const item = items[idx];
+      if (!item) {
+        didChange = true;
+        continue;
+      }
       const canonicalKey = canonicalizeItemIdentityUrl(
         item.guid || item.link || "",
       );

@@ -610,7 +610,7 @@ export class ArticleSaver {
         const trimmedPart = part.trim();
         const urlMatch = trimmedPart.match(/^([^\s]+)(\s+\d+w|\s+\d+x)?$/);
         if (urlMatch) {
-          const url = urlMatch[1];
+          const url = urlMatch[1] ?? "";
           const sizeDescriptor = urlMatch[2] || "";
           return (
             this.convertToAbsoluteUrl(url.trim(), baseUrl) + sizeDescriptor

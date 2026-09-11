@@ -198,7 +198,8 @@ function detectCharsetFromHeader(contentType: string): string | null {
   const match = contentType.match(
     /charset\s*=\s*(?:"([^"]+)"|'([^']+)'|([^;\s]+))/i,
   );
-  return match ? (match[1] || match[2] || match[3]).trim() : null;
+  const charset = match?.[1] || match?.[2] || match?.[3];
+  return charset?.trim() ?? null;
 }
 
 function detectCharsetFromBody(buffer: ArrayBuffer): string | null {
@@ -210,17 +211,17 @@ function detectCharsetFromBody(buffer: ArrayBuffer): string | null {
   const xmlMatch = text.match(
     /<\?xml[^>]*encoding\s*=\s*["']([^"']+)["']/i,
   );
-  if (xmlMatch) return xmlMatch[1];
+  if (xmlMatch?.[1]) return xmlMatch[1];
 
   // Look for <meta charset="...">
   const charsetMatch = text.match(/<meta[^>]+charset=["']?([^"' >]+)/i);
-  if (charsetMatch) return charsetMatch[1];
+  if (charsetMatch?.[1]) return charsetMatch[1];
 
   // Look for <meta http-equiv="Content-Type" content="...charset=...">
   const equivMatch = text.match(
     /<meta[^>]+http-equiv=["']?Content-Type["']?[^>]+content=["']?[^"'>]+charset=([^"' >]+)/i,
   );
-  if (equivMatch) return equivMatch[1];
+  if (equivMatch?.[1]) return equivMatch[1];
 
   return null;
 }

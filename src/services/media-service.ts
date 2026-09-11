@@ -228,7 +228,7 @@ export class MediaService {
       } else if (input.includes("@")) {
         let handle = "";
         if (input.includes("youtube.com/@")) {
-          handle = input.split("youtube.com/@")[1].split(/[?#/]/)[0];
+          handle = input.split("youtube.com/@")[1]?.split(/[?#/]/)[0] ?? "";
         } else if (input.startsWith("@")) {
           handle = input.substring(1);
         }

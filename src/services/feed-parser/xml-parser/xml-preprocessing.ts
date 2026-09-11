@@ -71,12 +71,15 @@ export function preprocessXmlContent(xmlString: string): string {
   // Auto-declare undeclared namespace prefixes to prevent XML parse errors
   const rootTagMatch = processed.match(/<(rss|feed|rdf:rdf)([^>]*)>/i);
   if (rootTagMatch) {
-    const rootAttrs = rootTagMatch[2];
+    const rootAttrs = rootTagMatch[2] ?? "";
     const declaredPrefixes = new Set<string>();
     const nsRegex = /xmlns:(\w+)\s*=/g;
     let nsMatch;
     while ((nsMatch = nsRegex.exec(rootAttrs)) !== null) {
-      declaredPrefixes.add(nsMatch[1].toLowerCase());
+      const prefix = nsMatch[1];
+      if (prefix) {
+        declaredPrefixes.add(prefix.toLowerCase());
+      }
     }
     // Always consider these as declared (built-in XML prefixes)
     declaredPrefixes.add("xml");
@@ -86,9 +89,13 @@ export function preprocessXmlContent(xmlString: string): string {
     const prefixRegex = /<(\w+):\w+[\s>/]/g;
     let pfxMatch;
     while ((pfxMatch = prefixRegex.exec(processed)) !== null) {
-      const prefix = pfxMatch[1].toLowerCase();
+      const originalPrefix = pfxMatch[1];
+      if (!originalPrefix) {
+        continue;
+      }
+      const prefix = originalPrefix.toLowerCase();
       if (!declaredPrefixes.has(prefix)) {
-        usedPrefixes.add(pfxMatch[1]); // preserve original case
+        usedPrefixes.add(originalPrefix); // preserve original case
       }
     }
 
@@ -96,7 +103,7 @@ export function preprocessXmlContent(xmlString: string): string {
       const newAttrs = [...usedPrefixes]
         .map((p) => `xmlns:${p}="urn:x-${p}:unknown"`)
         .join(" ");
-      const rootTag = rootTagMatch[1];
+      const rootTag = rootTagMatch[1] ?? "rss";
       processed = processed.replace(
         new RegExp(`<${rootTag}([^>]*)>`, "i"),
         `<${rootTag}$1 ${newAttrs}>`,
@@ -128,9 +135,9 @@ export function extractRssContent(xmlString: string): string {
         );
         const linkMatch = xmlString.match(/<link[^>]*>([^<]+)<\/link>/i);
 
-        const title = titleMatch ? titleMatch[1].trim() : "Unknown feed";
-        const description = descMatch ? descMatch[1].trim() : "";
-        const link = linkMatch ? linkMatch[1].trim() : "";
+        const title = titleMatch?.[1]?.trim() ?? "Unknown feed";
+        const description = descMatch?.[1]?.trim() ?? "";
+        const link = linkMatch?.[1]?.trim() ?? "";
 
         rssContent = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0">
@@ -185,21 +192,21 @@ export function fallbackParse(
     const channelTitleMatch = cleanedXml.match(
       /<channel[^>]*>[\s\S]*?<title[^>]*>([^<]+)<\/title>/i,
     );
-    const title = channelTitleMatch
+    const title = channelTitleMatch?.[1]
       ? sanitize(channelTitleMatch[1].trim())
       : "Unknown feed";
 
     const channelDescMatch = cleanedXml.match(
       /<channel[^>]*>[\s\S]*?<description[^>]*>([\s\S]*?)<\/description>/i,
     );
-    const description = channelDescMatch
+    const description = channelDescMatch?.[1]
       ? sanitize(channelDescMatch[1].trim())
       : "";
 
     const channelLinkMatch = cleanedXml.match(
       /<channel[^>]*>[\s\S]*?<link[^>]*>([^<]+)<\/link>/i,
     );
-    const link = channelLinkMatch ? channelLinkMatch[1].trim() : "";
+    const link = channelLinkMatch?.[1]?.trim() ?? "";
 
     const items: ParsedItem[] = [];
 
@@ -297,17 +304,17 @@ export function fallbackParse(
         return;
       }
 
-      const itemTitle = sanitize(itemTitleMatch[1].trim());
+      const itemTitle = sanitize(itemTitleMatch[1]?.trim() ?? "");
 
       const itemLinkMatch = itemXml.match(/<link[^>]*>([^<]+)<\/link>/i);
-      let itemLink = itemLinkMatch ? itemLinkMatch[1].trim() : "#";
+      let itemLink = itemLinkMatch?.[1]?.trim() ?? "#";
 
       itemLink = transformSageUrl(itemLink);
 
       const itemDescMatch = itemXml.match(
         /<description[^>]*>([\s\S]*?)<\/description>/i,
       );
-      let itemDescription = itemDescMatch
+      let itemDescription = itemDescMatch?.[1]
         ? sanitize(itemDescMatch[1].trim())
         : "";
       if (itemDescription === "null" || itemDescription === "") {
@@ -315,7 +322,7 @@ export function fallbackParse(
           itemXml.match(/<media:description[^>]*>([\s\S]*?)<\/media:description>/i) ||
           itemXml.match(/<media\\:description[^>]*>([\s\S]*?)<\/media\\:description>/i);
         if (mediaDescMatch) {
-          itemDescription = sanitize(mediaDescMatch[1].trim());
+          itemDescription = sanitize(mediaDescMatch[1]?.trim() ?? "");
         } else {
           itemDescription = "";
         }
@@ -324,12 +331,11 @@ export function fallbackParse(
       const itemPubDateMatch = itemXml.match(
         /<pubDate[^>]*>([^<]+)<\/pubDate>/i,
       );
-      itemPubDate = itemPubDateMatch
-        ? itemPubDateMatch[1].trim()
-        : new Date().toISOString();
+      itemPubDate =
+        itemPubDateMatch?.[1]?.trim() ?? new Date().toISOString();
 
       const itemGuidMatch = itemXml.match(/<guid[^>]*>([^<]+)<\/guid>/i);
-      itemGuid = itemGuidMatch ? itemGuidMatch[1].trim() : itemLink;
+      itemGuid = itemGuidMatch?.[1]?.trim() ?? itemLink;
 
       const authorMatches = [
         itemXml.match(/<author[^>]*>([^<]+)<\/author>/i),
@@ -344,7 +350,7 @@ export function fallbackParse(
       ];
       for (const authorMatch of authorMatches) {
         if (authorMatch) {
-          itemAuthor = sanitize(authorMatch[1].trim());
+          itemAuthor = sanitize(authorMatch[1]?.trim() ?? "");
           break;
         }
       }
@@ -352,7 +358,7 @@ export function fallbackParse(
       const itemCategoryMatch = itemXml.match(
         /<category[^>]*>([^<]+)<\/category>/i,
       );
-      const itemCategory = itemCategoryMatch
+      const itemCategory = itemCategoryMatch?.[1]
         ? sanitize(itemCategoryMatch[1].trim())
         : "";
 
@@ -412,25 +418,33 @@ export function fallbackParse(
       );
 
       const pubYearMatch = itemXml.match(/<pubYear[^>]*>([^<]+)<\/pubYear>/i);
-      const pubYear = pubYearMatch ? sanitize(pubYearMatch[1].trim()) : "";
+      const pubYear = pubYearMatch?.[1]
+        ? sanitize(pubYearMatch[1].trim())
+        : "";
       const volumeMatch = itemXml.match(/<volume[^>]*>([^<]+)<\/volume>/i);
-      const volume = volumeMatch ? sanitize(volumeMatch[1].trim()) : "";
+      const volume = volumeMatch?.[1] ? sanitize(volumeMatch[1].trim()) : "";
       const issueMatch = itemXml.match(/<issue[^>]*>([^<]+)<\/issue>/i);
-      const issue = issueMatch ? sanitize(issueMatch[1].trim()) : "";
+      const issue = issueMatch?.[1] ? sanitize(issueMatch[1].trim()) : "";
       const startPageMatch = itemXml.match(
         /<startPage[^>]*>([^<]+)<\/startPage>/i,
       );
-      const startPage = startPageMatch
+      const startPage = startPageMatch?.[1]
         ? sanitize(startPageMatch[1].trim())
         : "";
       const endPageMatch = itemXml.match(/<endPage[^>]*>([^<]+)<\/endPage>/i);
-      const endPage = endPageMatch ? sanitize(endPageMatch[1].trim()) : "";
+      const endPage = endPageMatch?.[1]
+        ? sanitize(endPageMatch[1].trim())
+        : "";
       const fileSizeMatch = itemXml.match(
         /<fileSize[^>]*>([^<]+)<\/fileSize>/i,
       );
-      const fileSize = fileSizeMatch ? sanitize(fileSizeMatch[1].trim()) : "";
+      const fileSize = fileSizeMatch?.[1]
+        ? sanitize(fileSizeMatch[1].trim())
+        : "";
       const authorsMatch = itemXml.match(/<authors[^>]*>([^<]+)<\/authors>/i);
-      const authors = authorsMatch ? sanitize(authorsMatch[1].trim()) : "";
+      const authors = authorsMatch?.[1]
+        ? sanitize(authorsMatch[1].trim())
+        : "";
       const ieee =
         pubYear ||
         volume ||

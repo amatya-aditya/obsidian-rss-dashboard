@@ -345,9 +345,12 @@ export function renderSidebarSettingsTab(
         const idx = currentOrder.indexOf(id);
         if (idx > 0) {
           const newOrder = [...currentOrder];
+          const previousId = newOrder[idx - 1];
+          const currentId = newOrder[idx];
+          if (previousId === undefined || currentId === undefined) return;
           [newOrder[idx - 1], newOrder[idx]] = [
-            newOrder[idx],
-            newOrder[idx - 1],
+            currentId,
+            previousId,
           ];
           plugin.settings.display.iconOrder = newOrder;
           renderIconRows();
@@ -371,9 +374,12 @@ export function renderSidebarSettingsTab(
         const idx = currentOrder.indexOf(id);
         if (idx >= 0 && idx < currentOrder.length - 1) {
           const newOrder = [...currentOrder];
+          const currentId = newOrder[idx];
+          const nextId = newOrder[idx + 1];
+          if (currentId === undefined || nextId === undefined) return;
           [newOrder[idx], newOrder[idx + 1]] = [
-            newOrder[idx + 1],
-            newOrder[idx],
+            nextId,
+            currentId,
           ];
           plugin.settings.display.iconOrder = newOrder;
           renderIconRows();

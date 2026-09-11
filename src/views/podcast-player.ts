@@ -615,7 +615,9 @@ export class PodcastPlayer {
         if (windowInstanceOf(e, MouseEvent)) {
           clientX = e.clientX;
         } else {
-          clientX = e.touches[0].clientX;
+          const touch = e.touches[0];
+          if (!touch) return 0;
+          clientX = touch.clientX;
         }
         const percent = Math.max(
           0,
@@ -922,7 +924,9 @@ export class PodcastPlayer {
     this.currentPlaylistIndex =
       (this.currentPlaylistIndex + 1) % this.playlist.length;
     const nextEpisode = this.playlist[this.currentPlaylistIndex];
-    this.loadEpisode(nextEpisode, undefined, { notify: true, source: "nav" });
+    if (nextEpisode) {
+      this.loadEpisode(nextEpisode, undefined, { notify: true, source: "nav" });
+    }
   }
 
   private playPrevious(): void {
@@ -933,7 +937,9 @@ export class PodcastPlayer {
         ? this.playlist.length - 1
         : this.currentPlaylistIndex - 1;
     const prevEpisode = this.playlist[this.currentPlaylistIndex];
-    this.loadEpisode(prevEpisode, undefined, { notify: true, source: "nav" });
+    if (prevEpisode) {
+      this.loadEpisode(prevEpisode, undefined, { notify: true, source: "nav" });
+    }
   }
 
   private handleEpisodeEnd(): void {
@@ -954,11 +960,13 @@ export class PodcastPlayer {
         this.currentPlaylistIndex =
           (this.currentPlaylistIndex + 1) % this.playlist.length;
         const nextEpisode = this.playlist[this.currentPlaylistIndex];
-        this.loadEpisode(nextEpisode, undefined, {
-          notify: true,
-          source: "autoplay",
-          autoplay: true,
-        });
+        if (nextEpisode) {
+          this.loadEpisode(nextEpisode, undefined, {
+            notify: true,
+            source: "autoplay",
+            autoplay: true,
+          });
+        }
       }
     }
 
@@ -1094,8 +1102,9 @@ export class PodcastPlayer {
     let nextIndex = speeds.findIndex((speed) => speed === currentSpeed) + 1;
     if (nextIndex >= speeds.length) nextIndex = 0;
 
-    this.audioElement.playbackRate = speeds[nextIndex];
-    this.speedButtonEl.textContent = `${speeds[nextIndex].toFixed(2)}x`;
+    const nextSpeed = speeds[nextIndex] ?? 1;
+    this.audioElement.playbackRate = nextSpeed;
+    this.speedButtonEl.textContent = `${nextSpeed.toFixed(2)}x`;
   }
 
   private startProgressTracking(): void {

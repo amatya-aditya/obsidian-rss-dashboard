@@ -86,7 +86,7 @@ export class FolderSelectorPopup {
       );
       const folders = [...this.folders];
       const [removed] = folders.splice(defaultIndex, 1);
-      folders.unshift(removed);
+      if (removed !== undefined) folders.unshift(removed);
       return folders;
     }
 
@@ -369,7 +369,7 @@ export class FolderSelectorPopup {
         if (itemCount > 0) {
           const newIndex = currentIndex < itemCount - 1 ? currentIndex + 1 : 0;
           this.clearSelection();
-          items[newIndex].addClass("is-selected");
+          items[newIndex]?.addClass("is-selected");
           this.scrollSelectedItemIntoView();
         }
         break;
@@ -379,7 +379,7 @@ export class FolderSelectorPopup {
         if (itemCount > 0) {
           const newIndex = currentIndex > 0 ? currentIndex - 1 : itemCount - 1;
           this.clearSelection();
-          items[newIndex].addClass("is-selected");
+          items[newIndex]?.addClass("is-selected");
           this.scrollSelectedItemIntoView();
         }
         break;

@@ -548,14 +548,18 @@ export class BackgroundImportService {
     feedMetadata: FeedMetadata,
     parsedFeed: Feed,
   ): Feed | null {
-    const feedIndex = this.getSettings().feeds.findIndex(
+    const settings = this.getSettings();
+    const feedIndex = settings.feeds.findIndex(
       (f) => f.url === feedMetadata.url,
     );
     if (feedIndex < 0) {
       return null;
     }
 
-    const existingFeed = this.getSettings().feeds[feedIndex];
+    const existingFeed = settings.feeds[feedIndex];
+    if (!existingFeed) {
+      return null;
+    }
     const importedFeed: Feed = {
       ...existingFeed,
       title: parsedFeed.title || existingFeed.title || feedMetadata.title,
@@ -565,11 +569,11 @@ export class BackgroundImportService {
       mediaType: parsedFeed.mediaType ?? existingFeed.mediaType,
       items: parsedFeed.items.slice(
         0,
-        existingFeed.maxItemsLimit || this.getSettings().maxItems,
+        existingFeed.maxItemsLimit || settings.maxItems,
       ),
       lastUpdated: Date.now(),
     };
-    this.getSettings().feeds[feedIndex] = importedFeed;
+    settings.feeds[feedIndex] = importedFeed;
     return importedFeed;
   }
 

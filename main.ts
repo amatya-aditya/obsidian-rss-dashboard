@@ -1268,7 +1268,7 @@ export default class RssDashboardPlugin extends Plugin {
       const leaves = workspace.getLeavesOfType(RSS_DASHBOARD_VIEW_TYPE);
 
       if (leaves.length > 0) {
-        leaf = leaves[0];
+        leaf = leaves[0] ?? null;
       } else {
         switch (this.settings.viewLocation) {
           case "left-sidebar":
@@ -1303,7 +1303,7 @@ export default class RssDashboardPlugin extends Plugin {
       const leaves = workspace.getLeavesOfType(RSS_DISCOVER_VIEW_TYPE);
 
       if (leaves.length > 0) {
-        leaf = leaves[0];
+        leaf = leaves[0] ?? null;
       } else {
         leaf = workspace.getLeaf("tab");
       }
@@ -1328,7 +1328,7 @@ export default class RssDashboardPlugin extends Plugin {
       const leaves = workspace.getLeavesOfType(RSS_SMALLWEB_VIEW_TYPE);
 
       if (leaves.length > 0) {
-        leaf = leaves[0];
+        leaf = leaves[0] ?? null;
       } else {
         leaf = workspace.getLeaf("tab");
       }
@@ -1505,15 +1505,23 @@ export default class RssDashboardPlugin extends Plugin {
 
       let feedNoticeText = "";
       if (feedsToRefresh.length === 1) {
-        feedNoticeText = feedsToRefresh[0].title;
+        const singleFeed = feedsToRefresh[0];
+        if (!singleFeed) {
+          return;
+        }
+        feedNoticeText = singleFeed.title;
       } else {
         feedNoticeText = `${feedsToRefresh.length} feeds`;
       }
 
       new Notice(`Refreshing ${feedNoticeText}...`);
       if (feedsToRefresh.length === 1 && intent !== "global") {
+        const singleFeed = feedsToRefresh[0];
+        if (!singleFeed) {
+          return;
+        }
         await this.refreshSingleFeed(
-          feedsToRefresh[0],
+          singleFeed,
           feedNoticeText,
           false,
         );
@@ -2968,11 +2976,15 @@ export default class RssDashboardPlugin extends Plugin {
       (f) => f.url === updatedFeed.url,
     );
     if (index >= 0) {
+      const storedFeed = this.settings.feeds[index];
+      if (!storedFeed) {
+        return;
+      }
       this.settings.feeds[index] = {
         ...updatedFeed,
         excludeFromRefresh:
           updatedFeed.excludeFromRefresh ??
-          this.settings.feeds[index].excludeFromRefresh,
+          storedFeed.excludeFromRefresh,
       };
     }
   }
@@ -3000,8 +3012,13 @@ export default class RssDashboardPlugin extends Plugin {
       return;
     }
 
+    const storedFeed = this.settings.feeds[index];
+    if (!storedFeed) {
+      return;
+    }
+
     this.settings.feeds[index] = {
-      ...this.settings.feeds[index],
+      ...storedFeed,
       lastRefreshAttemptCompletedAt: completedAt,
       lastFetchError: error instanceof Error ? error.message : String(error),
     };
