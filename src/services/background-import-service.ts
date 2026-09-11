@@ -35,6 +35,20 @@ interface FeedParserLike {
   ): Promise<Feed>;
 }
 
+/**
+ * Dependencies injected into BackgroundImportService.
+ * @property {FeedParserLike} feedParser Parser used to fetch and parse feed content
+ * @property {Function} getSettings Returns the live plugin settings object
+ * @property {Function} getView Resolves the active dashboard view, if any
+ * @property {Function} saveSettings Persists the current settings
+ * @property {Function} ensureFolderExists Creates a folder (and ancestors) if missing
+ * @property {Function} addStatusBarItem Adds a new status bar item to the workspace
+ * @property {Function} [beginGlobalOperation] Starts a cancellable global operation and returns its abort signal, or null if one could not be started
+ * @property {Function} [updateGlobalOperationProgress] Reports progress for the active global operation
+ * @property {Function} [endGlobalOperation] Ends the active global operation
+ * @property {Function} [isGlobalOperationCancelled] Returns true if the active global operation was cancelled
+ * @property {Function} [onFeedImported] Called each time a queued feed finishes importing successfully
+ */
 export interface BackgroundImportServiceDeps {
   feedParser: FeedParserLike;
   getSettings: () => RssDashboardSettings;
@@ -95,6 +109,10 @@ export class BackgroundImportService {
   private backgroundImportSignal: AbortSignal | null = null;
   private ownsGlobalOperation = false;
 
+  /**
+   * Creates a new BackgroundImportService instance
+   * @param {BackgroundImportServiceDeps} deps Collaborators and callbacks the service needs to fetch feeds, persist settings, and coordinate with the dashboard view
+   */
   constructor(deps: BackgroundImportServiceDeps) {
     this.feedParser = deps.feedParser;
     this.getSettings = deps.getSettings;
@@ -111,6 +129,12 @@ export class BackgroundImportService {
 
   // ── Public API ─────────────────────────────────────────────────────────────
 
+  /**
+   * Enqueue feeds for background import, skipping feeds already queued or in flight.
+   * Starts processing the queue immediately if no import is currently running.
+   * @param {Feed[]} feeds Feeds to add to the background import queue
+   * @returns {void}
+   */
   public startBackgroundImport(feeds: Feed[]): void {
     const queuedUrls = new Set(
       this.backgroundImportQueue.map((feed) => feed.url),
@@ -149,6 +173,12 @@ export class BackgroundImportService {
     }
   }
 
+  /**
+   * Check whether a feed URL is anywhere in the background import pipeline —
+   * pending ingestion, queued, or currently being fetched.
+   * @param {string} url Feed URL to check
+   * @returns {boolean} true if the feed is queued, in flight, or awaiting ingestion; false otherwise (including feeds that have completed or were never queued)
+   */
   public isFeedPendingImport(url: string): boolean {
     return (
       this.backgroundImportPendingIngestionUrls.has(url) ||
@@ -157,6 +187,17 @@ export class BackgroundImportService {
     );
   }
 
+  /**
+   * Create placeholder feed entries for the given candidates, persist them to
+   * settings, and queue them for background import. Candidates whose URL
+   * already exists (either in settings or elsewhere in the candidate list)
+   * are skipped. In "overwrite" mode, existing feeds and folders are replaced
+   * before ingestion; otherwise new folders are merged into the existing set.
+   * @param {FeedIngestionCandidate[]} candidates Feeds to ingest, keyed by URL
+   * @param {FeedIngestionOptions} [options] Ingestion mode, folder merge data, progress callback, and whether to register a cancellable global operation
+   * @returns {Promise<{addedCount: number, skippedCount: number, queuedFeeds: Feed[]}>} Count of placeholders added, count of candidates skipped as duplicates, and the placeholder feeds that were queued
+   * @throws {Error} If persisting the placeholder feeds via `saveSettings` fails
+   */
   public async ingestFeedsForBackgroundImport(
     candidates: FeedIngestionCandidate[],
     options?: FeedIngestionOptions,
@@ -254,6 +295,14 @@ export class BackgroundImportService {
 
   // ── Private orchestration ──────────────────────────────────────────────────
 
+  /**
+   * Drain the background import queue with a bounded pool of concurrent
+   * workers, sized and paced (save/render cadence) according to the total
+   * queue size. Re-entrant: if an import is already running, calling this
+   * again is a no-op — new items are picked up by the running loop. If the
+   * queue grows again after draining, the loop restarts itself.
+   * @returns {Promise<void>} Resolves once the queue has fully drained and the status bar item has been cleaned up
+   */
   private async processBackgroundImportQueue(): Promise<void> {
     if (this.isBackgroundImporting || this.backgroundImportQueue.length === 0) {
       return;
@@ -348,6 +397,19 @@ export class BackgroundImportService {
     }
   }
 
+  /**
+   * One worker in the concurrent import pool: repeatedly acquires a fetch
+   * semaphore slot, shifts the next feed off the queue, and imports it. If a
+   * feed's import exceeds the soft timeout, the worker moves on without
+   * waiting for it — the still-running import is tracked in
+   * `backgroundPromises` so the caller can await it before finishing. Exits
+   * once the queue is empty or the operation is aborted/cancelled.
+   * @param {number} saveEvery Persist settings after every N processed feeds
+   * @param {number} renderEvery Refresh the view after every N processed feeds
+   * @param {boolean} shouldRenderDuringImport Whether to refresh the view mid-import at all (disabled for very large imports)
+   * @param {Promise<void>[]} backgroundPromises Accumulator for in-flight imports that outlived the soft timeout
+   * @returns {Promise<void>} Resolves once this worker has no more queue items to claim
+   */
   private async processBackgroundImportWorker(
     saveEvery: number,
     renderEvery: number,
@@ -392,6 +454,19 @@ export class BackgroundImportService {
     }
   }
 
+  /**
+   * Fetch and merge a single feed into settings, updating its
+   * `importStatus` throughout (`processing` → `completed`/`failed`/
+   * `timed_out`/back to `pending` if cancelled). Never throws — fetch and
+   * merge errors are caught and recorded on `feedMetadata.importError`
+   * instead. Periodically persists settings and refreshes the view based on
+   * the provided cadence.
+   * @param {FeedMetadata} feedMetadata Placeholder feed being imported; mutated in place with status/error
+   * @param {number} saveEvery Persist settings after every N processed feeds
+   * @param {number} renderEvery Refresh the view after every N processed feeds
+   * @param {boolean} shouldRenderDuringImport Whether to refresh the view mid-import at all
+   * @returns {Promise<void>} Resolves once the feed has been fetched (or has failed/timed out) and bookkeeping is updated
+   */
   private async processBackgroundImportFeed(
     feedMetadata: FeedMetadata,
     saveEvery: number,
@@ -475,12 +550,25 @@ export class BackgroundImportService {
     }
   }
 
+  /**
+   * Resolve after `FEED_SOFT_TIMEOUT_MS`, used to race against an in-flight
+   * feed fetch so a slow feed doesn't block the worker pool.
+   * @returns {Promise<void>} Resolves after the soft timeout elapses
+   */
   private async waitForSoftTimeout(): Promise<void> {
     return new Promise((resolve) => {
       window.setTimeout(resolve, FEED_SOFT_TIMEOUT_MS);
     });
   }
 
+  /**
+   * Parse a feed, retrying up to `BACKGROUND_IMPORT_TIMEOUT_RETRY_COUNT`
+   * times if the attempt times out. Non-timeout errors are not retried.
+   * @param {string} url Feed URL to parse
+   * @param {AbortSignal} [signal] Signal that aborts the fetch (e.g. global operation cancellation)
+   * @returns {Promise<Feed>} The parsed feed
+   * @throws {Error} If every attempt times out, or if a non-timeout error occurs (including abort)
+   */
   private async parseFeedWithTimeout(
     url: string,
     signal?: AbortSignal,
@@ -512,6 +600,16 @@ export class BackgroundImportService {
     throw lastError ?? new Error("Timed out");
   }
 
+  /**
+   * Single parse attempt, racing the feed parser against a hard timeout
+   * (`BACKGROUND_IMPORT_FEED_REQUEST_TIMEOUT_MS`). Aborts the parser's
+   * request if the timeout wins or if `signal` is aborted externally.
+   * @param {string} url Feed URL to parse
+   * @param {AbortSignal} [signal] External signal that aborts this attempt
+   * @returns {Promise<Feed>} The parsed feed
+   * @throws {Error} With message "Timed out" if the hard timeout elapses first
+   * @throws {DOMException} With name "AbortError" if `signal` is already aborted when called
+   */
   private async parseFeedAttemptWithTimeout(
     url: string,
     signal?: AbortSignal,
@@ -544,6 +642,15 @@ export class BackgroundImportService {
     }
   }
 
+  /**
+   * Merge a freshly parsed feed into the settings feed at `feedMetadata.url`,
+   * preferring parsed values but falling back to the existing placeholder's
+   * values where the parse result is missing them. Trims items to the feed's
+   * configured (or default) max items limit.
+   * @param {FeedMetadata} feedMetadata Placeholder feed being replaced, identified by URL
+   * @param {Feed} parsedFeed Freshly parsed feed content
+   * @returns {Feed | null} The merged feed as written into settings, or null if the placeholder is no longer present in settings
+   */
   private mergeBackgroundImportedFeed(
     feedMetadata: FeedMetadata,
     parsedFeed: Feed,
@@ -577,6 +684,14 @@ export class BackgroundImportService {
     return importedFeed;
   }
 
+  /**
+   * Update the status bar item's text to reflect current import progress.
+   * No-op if the status bar item hasn't been created yet.
+   * @param {number} current Number of feeds processed so far
+   * @param {number} total Total number of feeds in the current import run
+   * @param {string} currentFeedTitle Title of the feed currently being fetched
+   * @returns {void}
+   */
   private updateBackgroundImportProgress(
     current: number,
     total: number,
@@ -592,6 +707,13 @@ export class BackgroundImportService {
     }
   }
 
+  /**
+   * Build an empty placeholder Feed from an ingestion candidate, filling in
+   * media-type-specific default folders and per-feed limits from settings
+   * where the candidate doesn't specify its own.
+   * @param {FeedIngestionCandidate} candidate Feed metadata supplied by the caller (e.g. OPML import)
+   * @returns {Feed} A feed with no items yet, ready to be queued for background import
+   */
   private createPlaceholderFeed(candidate: FeedIngestionCandidate): Feed {
     const mediaType = this.resolveCandidateMediaType(candidate);
     let folder = candidate.folder || "Uncategorized";
@@ -636,10 +758,23 @@ export class BackgroundImportService {
     };
   }
 
+  /**
+   * The storage mode saves during the current import run should use — the
+   * mode captured when the run started, so a mid-run settings change doesn't
+   * cause partial writes under a mismatched mode.
+   * @returns {RssDashboardSettings["storageMode"]} The storage mode to persist with
+   */
   private getPersistModeForBackgroundImport(): RssDashboardSettings["storageMode"] {
     return this.backgroundImportPersistMode ?? this.getSettings().storageMode;
   }
 
+  /**
+   * Persist settings with `storageMode` temporarily pinned to `mode` for the
+   * duration of the save, then restored to its prior value.
+   * @param {RssDashboardSettings["storageMode"]} mode Storage mode to save under
+   * @returns {Promise<void>} Resolves once the save completes (mode is restored even if the save throws)
+   * @throws {Error} If the underlying `saveSettings` call fails
+   */
   private async saveSettingsWithMode(
     mode: RssDashboardSettings["storageMode"],
   ): Promise<void> {
@@ -659,12 +794,25 @@ export class BackgroundImportService {
     }
   }
 
+  /**
+   * Determine a candidate's media type, defaulting to "article" when unset.
+   * @param {FeedIngestionCandidate} candidate Feed metadata supplied by the caller
+   * @returns {"article" | "video" | "podcast"} The resolved media type
+   */
   private resolveCandidateMediaType(
     candidate: FeedIngestionCandidate,
   ): "article" | "video" | "podcast" {
     return candidate.mediaType ?? "article";
   }
 
+  /**
+   * Build and attach a modal showing OPML import progress, with minimize and
+   * abort controls.
+   * @param {number} totalFeeds Total number of feeds being imported, shown in the initial status text
+   * @param {Function} onMinimize Called when the minimize button is clicked
+   * @param {Function} onAbort Called when the abort button is clicked
+   * @returns {HTMLElement} The modal root element, appended to `activeDocument.body`
+   */
   private showImportProgressModal(
     totalFeeds: number,
     onMinimize: () => void,
