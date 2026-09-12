@@ -43,6 +43,7 @@ _Avoid_: Modal dialog, photo popup, preview card, photo gallery
 **Full-resolution image source**:
 The unconstrained original media URL extracted by resolving direct image links, selecting the highest-resolution candidate in a srcset, or stripping CDN resize transformations.
 _Avoid_: Thumbnail, cached preview, compressed version
+
 ## Data retention and article lifecycle
 
 **Auto-delete cutoff**:
