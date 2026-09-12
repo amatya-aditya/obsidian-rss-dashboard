@@ -1,11 +1,13 @@
 import { App, Notice, TFile, TFolder, normalizePath } from "obsidian";
 import type {
   Feed,
+  FeedBundle,
   FeedItemsShard,
   PortableDataBundle,
   PersistedFeedConfig,
   PersistedRssDashboardSettings,
   RssDashboardSettings,
+  SettingsBundle,
   ArticleUserState,
   UserStateFile,
 } from "../types/types";
@@ -623,24 +625,61 @@ export class FeedStorageRepository {
     });
   }
 
+  public buildFeedBundle(settings: RssDashboardSettings): FeedBundle {
+    this.ensureFeedIds(settings);
+
+    return {
+      version: SHARD_VERSION,
+      exportedAt: Date.now(),
+      feeds: cloneJson(this.toPersistedFeeds(settings.feeds)),
+      folders: cloneJson(settings.folders),
+      availableTags: cloneJson(settings.availableTags),
+      shards: settings.feeds
+        .filter((feed): feed is Feed & { feedId: string } =>
+          Boolean(feed.feedId),
+        )
+        .map((feed) => createFeedShard(feed)),
+    };
+  }
+
+  public buildSettingsBundle(settings: RssDashboardSettings): SettingsBundle {
+    const { feeds: _feeds, folders: _folders, availableTags: _availableTags, ...rest } =
+      settings;
+    void _feeds;
+    void _folders;
+    void _availableTags;
+    const settingsOnly = cloneJson(rest);
+    settingsOnly.storageFolder = normalizeFolderPath(settingsOnly.storageFolder);
+
+    return {
+      version: SHARD_VERSION,
+      exportedAt: Date.now(),
+      metadataStorageMode: settings.metadataStorageMode,
+      metadataStorageFolder: settings.metadataStorageFolder,
+      settings: settingsOnly,
+    };
+  }
+
   public buildPortableDataBundle(
     settings: RssDashboardSettings,
   ): PortableDataBundle {
-    this.ensureFeedIds(settings);
+    const feedBundle = this.buildFeedBundle(settings);
+    const settingsBundle = this.buildSettingsBundle(settings);
 
     return {
       version: SHARD_VERSION,
       exportedAt: Date.now(),
       storageMode: settings.storageMode,
       storageFolder: settings.storageFolder,
-      metadataStorageMode: settings.metadataStorageMode,
-      metadataStorageFolder: settings.metadataStorageFolder,
-      metadata: this.createPersistedSettings(settings),
-      shards: settings.feeds
-        .filter((feed): feed is Feed & { feedId: string } =>
-          Boolean(feed.feedId),
-        )
-        .map((feed) => createFeedShard(feed)),
+      metadataStorageMode: settingsBundle.metadataStorageMode,
+      metadataStorageFolder: settingsBundle.metadataStorageFolder,
+      metadata: {
+        ...settingsBundle.settings,
+        feeds: feedBundle.feeds,
+        folders: feedBundle.folders,
+        availableTags: feedBundle.availableTags,
+      },
+      shards: feedBundle.shards,
       markdownMirrorFallbackPlanned: true,
     };
   }
@@ -768,11 +807,8 @@ export class FeedStorageRepository {
     };
   }
 
-  private createPersistedSettings(
-    settings: RssDashboardSettings,
-  ): PersistedRssDashboardSettings {
-    const cloned = cloneJson(settings);
-    const feeds: PersistedFeedConfig[] = cloned.feeds.map((feed) => {
+  private toPersistedFeeds(feeds: Feed[]): PersistedFeedConfig[] {
+    return feeds.map((feed) => {
       const { items: _items, feedId, ...config } = feed;
       void _items;
       return {
@@ -780,11 +816,17 @@ export class FeedStorageRepository {
         feedId: feedId ?? createFeedId(),
       };
     });
+  }
+
+  private createPersistedSettings(
+    settings: RssDashboardSettings,
+  ): PersistedRssDashboardSettings {
+    const cloned = cloneJson(settings);
 
     return {
       ...cloned,
       storageFolder: normalizeFolderPath(cloned.storageFolder),
-      feeds,
+      feeds: this.toPersistedFeeds(cloned.feeds),
     };
   }
 

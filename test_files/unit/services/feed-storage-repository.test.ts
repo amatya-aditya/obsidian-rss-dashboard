@@ -404,6 +404,76 @@ describe("FeedStorageRepository", () => {
     expect(bundle.markdownMirrorFallbackPlanned).toBe(true);
   });
 
+  it("builds a feed bundle with feeds, folders, tags, and shards but no app settings", () => {
+    const settings = cloneSettings();
+    settings.storageMode = "vault-shards";
+    settings.storageFolder = "RSS Data/Feeds";
+    settings.feeds = [makeFeed({ feedId: "feed-1" })];
+    settings.availableTags = [{ name: "example-tag", color: "#ffffff" }];
+
+    const bundle = repository.buildFeedBundle(settings);
+
+    expect(bundle.feeds).toHaveLength(1);
+    expect(bundle.feeds[0]).not.toHaveProperty("items");
+    expect(bundle.feeds[0].feedId).toBe("feed-1");
+    expect(bundle.folders).toEqual(settings.folders);
+    expect(bundle.availableTags).toEqual(settings.availableTags);
+    expect(bundle.shards).toHaveLength(1);
+    expect(bundle.shards[0].feedId).toBe("feed-1");
+    expect(bundle).not.toHaveProperty("storageMode");
+    expect(bundle).not.toHaveProperty("display");
+    expect(bundle).not.toHaveProperty("autoBackup");
+  });
+
+  it("builds a settings bundle with app preferences but no feeds, folders, or tags", () => {
+    const settings = cloneSettings();
+    settings.storageMode = "vault-shards";
+    settings.storageFolder = "RSS Data/Feeds";
+    settings.feeds = [makeFeed({ feedId: "feed-1" })];
+    settings.availableTags = [{ name: "example-tag", color: "#ffffff" }];
+
+    const bundle = repository.buildSettingsBundle(settings);
+
+    expect(bundle.settings.storageMode).toBe("vault-shards");
+    expect(bundle.settings.autoBackup).toEqual(settings.autoBackup);
+    expect(bundle.settings).not.toHaveProperty("feeds");
+    expect(bundle.settings).not.toHaveProperty("folders");
+    expect(bundle.settings).not.toHaveProperty("availableTags");
+  });
+
+  it("composes the portable data bundle from the feed bundle and settings bundle unchanged", () => {
+    const settings = cloneSettings();
+    settings.storageMode = "vault-shards";
+    settings.storageFolder = "RSS Data/Feeds";
+    settings.feeds = [makeFeed({ feedId: "feed-1" })];
+    settings.availableTags = [{ name: "example-tag", color: "#ffffff" }];
+
+    const feedBundle = repository.buildFeedBundle(settings);
+    const settingsBundle = repository.buildSettingsBundle(settings);
+    const portableBundle = repository.buildPortableDataBundle(settings);
+
+    expect(portableBundle.storageMode).toBe(settings.storageMode);
+    expect(portableBundle.storageFolder).toBe(settings.storageFolder);
+    expect(portableBundle.metadataStorageMode).toBe(
+      settingsBundle.metadataStorageMode,
+    );
+    expect(portableBundle.metadataStorageFolder).toBe(
+      settingsBundle.metadataStorageFolder,
+    );
+    expect(portableBundle.metadata.feeds).toEqual(feedBundle.feeds);
+    expect(portableBundle.metadata.folders).toEqual(feedBundle.folders);
+    expect(portableBundle.metadata.availableTags).toEqual(
+      feedBundle.availableTags,
+    );
+    expect(portableBundle.metadata.autoBackup).toEqual(
+      settingsBundle.settings.autoBackup,
+    );
+    expect(portableBundle.shards).toHaveLength(feedBundle.shards.length);
+    expect(portableBundle.shards[0].feedId).toBe(feedBundle.shards[0].feedId);
+    expect(portableBundle.shards[0].items).toEqual(feedBundle.shards[0].items);
+    expect(portableBundle.markdownMirrorFallbackPlanned).toBe(true);
+  });
+
   it("imports a portable bundle and restores metadata plus shard items", async () => {
     const settings = cloneSettings();
     settings.storageMode = "legacy-json";
