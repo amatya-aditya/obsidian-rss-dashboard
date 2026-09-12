@@ -2,7 +2,7 @@
 
 **Parent:** #254
 
-**Status:** ready-for-agent
+**Status:** done
 
 **Blocked by:** None (can start immediately)
 
@@ -19,7 +19,7 @@ Follow the Red-Green shape from the plan doc: write the field-subset tests first
 
 ## Acceptance criteria
 
-- [ ] `buildFeedBundle(settings)` returns feeds, folders, tags, articles, and article state; contains no app-preference fields.
-- [ ] `buildSettingsBundle(settings)` returns app preferences only; contains no feeds, folders, tags, or article data.
-- [ ] `buildPortableDataBundle(settings)` is refactored to compose from `buildFeedBundle` + `buildSettingsBundle`, and its output is unchanged from before this ticket (regression-covered).
-- [ ] Unit tests cover the field subsets for all three builders, mirrored under `test_files/unit/services/`.
+- [x] `buildFeedBundle(settings)` returns feeds, folders, tags, articles, and article state; contains no app-preference fields.
+- [x] `buildSettingsBundle(settings)` returns app preferences only; contains no feeds, folders, tags, or article data.
+- [x] `buildPortableDataBundle(settings)` is refactored to compose from `buildFeedBundle` + `buildSettingsBundle`, and its output is unchanged from before this ticket (regression-covered).
+- [x] Unit tests cover the field subsets for all three builders, mirrored under `test_files/unit/services/`.
