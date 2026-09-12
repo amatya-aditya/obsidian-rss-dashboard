@@ -296,9 +296,8 @@ export function renderStorageSettingsTab(
   );
   descFragment.appendChild(v2Div);
 
-  new Setting(containerEl)
+  const storageModeSetting = new Setting(containerEl)
     .setName("Storage mode")
-    .setDesc(descFragment)
     .addDropdown((dropdown) =>
       dropdown
         .addOption("legacy-json", "Legacy JSON")
@@ -314,6 +313,14 @@ export function renderStorageSettingsTab(
           pendingStorageMode = value as typeof plugin.settings.storageMode;
         }),
     );
+  // Obsidian's Setting.setDesc() routes through descEl.setText(), which only
+  // appends a DocumentFragment when `instanceof DocumentFragment` succeeds --
+  // that check fails when the fragment was built in a different window realm
+  // than descEl (e.g. a popped-out window), and silently falls back to
+  // stringifying it as "[object DocumentFragment]". Appending directly to
+  // descEl sidesteps that fragile realm-sensitive dispatch entirely.
+  storageModeSetting.descEl.empty();
+  storageModeSetting.descEl.appendChild(descFragment);
 
   new Setting(containerEl)
     .setName("Storage folder")
