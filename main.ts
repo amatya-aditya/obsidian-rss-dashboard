@@ -328,6 +328,11 @@ export default class RssDashboardPlugin extends Plugin {
       getPortableDataBundle: () => this.getPortableDataBundle(),
       importPortableDataBundle: (bundle) =>
         this.applyPortableDataBundleImport(bundle),
+      getFeedBundle: () => this.getFeedBundle(),
+      importFeedBundle: (bundle) => this.applyFeedBundleImport(bundle),
+      getSettingsBundle: () => this.getSettingsBundle(),
+      importSettingsBundle: (bundle) =>
+        this.applySettingsBundleImport(bundle),
     });
     this.backupService = new BackupService({
       settings: this.settings,
@@ -1866,6 +1871,14 @@ export default class RssDashboardPlugin extends Plugin {
     return this.feedStorageRepository.buildPortableDataBundle(this.settings);
   }
 
+  public getFeedBundle() {
+    return this.feedStorageRepository.buildFeedBundle(this.settings);
+  }
+
+  public getSettingsBundle() {
+    return this.feedStorageRepository.buildSettingsBundle(this.settings);
+  }
+
   private async applyPortableDataBundleImport(bundle: unknown): Promise<void> {
     storageLog("Plugin portable bundle import requested", {
       currentMode: this.settings.storageMode,
@@ -1897,6 +1910,77 @@ export default class RssDashboardPlugin extends Plugin {
       });
     } catch (error) {
       storageError("Plugin portable bundle import failed", error, {
+        currentMode: this.settings.storageMode,
+        folder: this.settings.storageFolder,
+      });
+      throw error instanceof Error ? error : new Error(String(error));
+    }
+  }
+
+  private async applyFeedBundleImport(bundle: unknown): Promise<void> {
+    storageLog("Plugin Feed bundle import requested", {
+      currentMode: this.settings.storageMode,
+      folder: this.settings.storageFolder,
+      feedCount: this.settings.feeds.length,
+    });
+
+    try {
+      await this.feedStorageRepository.importFeedBundle(
+        bundle,
+        this.settings,
+        (data) => this.saveData(data),
+      );
+      this.migrateLegacySettings();
+      this.initializeSettingsBackedServices();
+
+      if (this.settingTab) {
+        this.settingTab.refresh();
+      }
+
+      await this.refreshDashboardViews();
+      const discoverView = await this.getActiveDiscoverView();
+      discoverView?.render();
+
+      storageLog("Plugin Feed bundle import completed", {
+        feedCount: this.settings.feeds.length,
+      });
+    } catch (error) {
+      storageError("Plugin Feed bundle import failed", error, {
+        currentMode: this.settings.storageMode,
+        folder: this.settings.storageFolder,
+      });
+      throw error instanceof Error ? error : new Error(String(error));
+    }
+  }
+
+  private async applySettingsBundleImport(bundle: unknown): Promise<void> {
+    storageLog("Plugin Settings bundle import requested", {
+      currentMode: this.settings.storageMode,
+      folder: this.settings.storageFolder,
+    });
+
+    try {
+      await this.feedStorageRepository.importSettingsBundle(
+        bundle,
+        this.settings,
+        (data) => this.saveData(data),
+      );
+      this.migrateLegacySettings();
+      this.initializeSettingsBackedServices();
+
+      if (this.settingTab) {
+        this.settingTab.refresh();
+      }
+
+      await this.refreshDashboardViews();
+      const discoverView = await this.getActiveDiscoverView();
+      discoverView?.render();
+
+      storageLog("Plugin Settings bundle import completed", {
+        mode: this.settings.storageMode,
+      });
+    } catch (error) {
+      storageError("Plugin Settings bundle import failed", error, {
         currentMode: this.settings.storageMode,
         folder: this.settings.storageFolder,
       });
@@ -1962,6 +2046,26 @@ export default class RssDashboardPlugin extends Plugin {
   public async importPortableDataBundleFromFile(file: File): Promise<void> {
     await this.importExportService.importPortableDataBundleFromFile(file);
     new Notice("Portable data bundle imported");
+  }
+
+  public async exportFeedBundle(): Promise<void> {
+    const result = await this.importExportService.exportFeedBundle();
+    this.showExportNotice(result, "rss-dashboard-feed-bundle.json");
+  }
+
+  public async importFeedBundleFromFile(file: File): Promise<void> {
+    await this.importExportService.importFeedBundleFromFile(file);
+    new Notice("Feed bundle imported");
+  }
+
+  public async exportSettingsBundle(): Promise<void> {
+    const result = await this.importExportService.exportSettingsBundle();
+    this.showExportNotice(result, "rss-dashboard-settings-bundle.json");
+  }
+
+  public async importSettingsBundleFromFile(file: File): Promise<void> {
+    await this.importExportService.importSettingsBundleFromFile(file);
+    new Notice("Settings bundle imported");
   }
 
   exportOpml(): void {

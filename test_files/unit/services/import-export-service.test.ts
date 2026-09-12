@@ -9,7 +9,12 @@
  *   - exportDataJson: calls exportBlob with an application/json blob containing full settings
  */
 import { describe, it, expect, vi, beforeEach, type MockInstance } from "vitest";
-import type { RssDashboardSettings, PortableDataBundle } from "../../../src/types/types";
+import type {
+  RssDashboardSettings,
+  PortableDataBundle,
+  FeedBundle,
+  SettingsBundle,
+} from "../../../src/types/types";
 
 vi.mock("../../../src/utils/export-utils", () => ({
   exportBlob: vi.fn().mockResolvedValue("downloaded"),
@@ -211,6 +216,218 @@ describe("ImportExportService", () => {
 
       await expect(svc.importPortableDataBundleFromFile(file)).rejects.toThrow(
         "Invalid portable bundle JSON",
+      );
+    });
+  });
+
+  describe("exportFeedBundle", () => {
+    it("exports a feed bundle JSON payload when a provider is supplied", async () => {
+      const settings = makeSettings();
+      const svc = new ImportExportService({
+        settings,
+        isMobile: false,
+        getFeedBundle: () => {
+          return {
+            version: 1,
+            exportedAt: 123,
+            feeds: [],
+            folders: [],
+            availableTags: [],
+            shards: [],
+          } as unknown as FeedBundle;
+        },
+      });
+
+      await svc.exportFeedBundle();
+
+      expect(exportBlob).toHaveBeenCalledWith(
+        expect.objectContaining({
+          filename: "rss-dashboard-feed-bundle.json",
+        }),
+      );
+      const call = vi.mocked(exportBlob).mock.calls[0][0] as unknown as { blob: Blob; filename: string };
+      const text = await call.blob.text();
+      const parsed = JSON.parse(text) as Record<string, unknown>;
+      expect(parsed).toHaveProperty("feeds");
+      expect(parsed).not.toHaveProperty("settings");
+    });
+
+    it("throws when no Feed bundle provider is available, instead of exporting a corrupt file", async () => {
+      const svc = new ImportExportService({
+        settings: makeSettings(),
+        isMobile: false,
+      });
+
+      await expect(svc.exportFeedBundle()).rejects.toThrow(
+        "Feed bundle export is not available in this context",
+      );
+      expect(exportBlob).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("exportSettingsBundle", () => {
+    it("exports a settings bundle JSON payload when a provider is supplied", async () => {
+      const settings = makeSettings();
+      const svc = new ImportExportService({
+        settings,
+        isMobile: false,
+        getSettingsBundle: () => {
+          return {
+            version: 1,
+            exportedAt: 123,
+            settings: { refreshInterval: 60 },
+          } as unknown as SettingsBundle;
+        },
+      });
+
+      await svc.exportSettingsBundle();
+
+      expect(exportBlob).toHaveBeenCalledWith(
+        expect.objectContaining({
+          filename: "rss-dashboard-settings-bundle.json",
+        }),
+      );
+      const call = vi.mocked(exportBlob).mock.calls[0][0] as unknown as { blob: Blob; filename: string };
+      const text = await call.blob.text();
+      const parsed = JSON.parse(text) as Record<string, unknown>;
+      expect(parsed).toHaveProperty("settings");
+      expect(parsed).not.toHaveProperty("feeds");
+    });
+
+    it("throws when no Settings bundle provider is available, instead of exporting a corrupt file", async () => {
+      const svc = new ImportExportService({
+        settings: makeSettings(),
+        isMobile: false,
+      });
+
+      await expect(svc.exportSettingsBundle()).rejects.toThrow(
+        "Settings bundle export is not available in this context",
+      );
+      expect(exportBlob).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("importFeedBundleFromFile", () => {
+    it("parses bundle JSON and passes it to the import callback", async () => {
+      const importFeedBundle = vi.fn().mockResolvedValue(undefined);
+      const svc = new ImportExportService({
+        settings: makeSettings(),
+        isMobile: false,
+        importFeedBundle,
+      });
+
+      const file = new File(
+        [
+          JSON.stringify({
+            version: 1,
+            exportedAt: 123,
+            feeds: [],
+            folders: [],
+            availableTags: [],
+            shards: [],
+          }),
+        ],
+        "feed-bundle.json",
+        { type: "application/json" },
+      );
+
+      await svc.importFeedBundleFromFile(file);
+
+      expect(importFeedBundle).toHaveBeenCalledTimes(1);
+      expect(importFeedBundle).toHaveBeenCalledWith(
+        expect.objectContaining({ version: 1 }),
+      );
+    });
+
+    it("throws a helpful error when bundle JSON is invalid", async () => {
+      const svc = new ImportExportService({
+        settings: makeSettings(),
+        isMobile: false,
+        importFeedBundle: vi.fn().mockResolvedValue(undefined),
+      });
+
+      const file = new File(["{bad json"], "feed-bundle.json", {
+        type: "application/json",
+      });
+
+      await expect(svc.importFeedBundleFromFile(file)).rejects.toThrow(
+        "Invalid feed bundle JSON",
+      );
+    });
+
+    it("throws when no import handler is available", async () => {
+      const svc = new ImportExportService({
+        settings: makeSettings(),
+        isMobile: false,
+      });
+
+      const file = new File(["{}"], "feed-bundle.json", {
+        type: "application/json",
+      });
+
+      await expect(svc.importFeedBundleFromFile(file)).rejects.toThrow(
+        "Feed bundle import is not available in this context",
+      );
+    });
+  });
+
+  describe("importSettingsBundleFromFile", () => {
+    it("parses bundle JSON and passes it to the import callback", async () => {
+      const importSettingsBundle = vi.fn().mockResolvedValue(undefined);
+      const svc = new ImportExportService({
+        settings: makeSettings(),
+        isMobile: false,
+        importSettingsBundle,
+      });
+
+      const file = new File(
+        [
+          JSON.stringify({
+            version: 1,
+            exportedAt: 123,
+            settings: { refreshInterval: 60 },
+          }),
+        ],
+        "settings-bundle.json",
+        { type: "application/json" },
+      );
+
+      await svc.importSettingsBundleFromFile(file);
+
+      expect(importSettingsBundle).toHaveBeenCalledTimes(1);
+      expect(importSettingsBundle).toHaveBeenCalledWith(
+        expect.objectContaining({ version: 1 }),
+      );
+    });
+
+    it("throws a helpful error when bundle JSON is invalid", async () => {
+      const svc = new ImportExportService({
+        settings: makeSettings(),
+        isMobile: false,
+        importSettingsBundle: vi.fn().mockResolvedValue(undefined),
+      });
+
+      const file = new File(["{bad json"], "settings-bundle.json", {
+        type: "application/json",
+      });
+
+      await expect(svc.importSettingsBundleFromFile(file)).rejects.toThrow(
+        "Invalid settings bundle JSON",
+      );
+    });
+
+    it("throws when no import handler is available", async () => {
+      const svc = new ImportExportService({
+        settings: makeSettings(),
+        isMobile: false,
+      });
+
+      const file = new File(["{}"], "settings-bundle.json", {
+        type: "application/json",
+      });
+
+      await expect(svc.importSettingsBundleFromFile(file)).rejects.toThrow(
+        "Settings bundle import is not available in this context",
       );
     });
   });

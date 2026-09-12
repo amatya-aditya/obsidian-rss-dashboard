@@ -59,6 +59,10 @@ function createPlugin() {
     copyOpmlToClipboard: vi.fn(async () => {}),
     exportPortableDataBundle: vi.fn(async () => {}),
     importPortableDataBundleFromFile: vi.fn(async () => {}),
+    exportFeedBundle: vi.fn(async () => {}),
+    importFeedBundleFromFile: vi.fn(async () => {}),
+    exportSettingsBundle: vi.fn(async () => {}),
+    importSettingsBundleFromFile: vi.fn(async () => {}),
     getActiveDashboardView: vi.fn(async () => null),
     performFactoryReset: vi.fn(async () => {}),
   };
@@ -188,6 +192,73 @@ describe("Auto Backup Helpers", () => {
 
       exportButton.click();
       expect(plugin.exportPortableDataBundle).toHaveBeenCalledTimes(1);
+    });
+
+    it("renders Feed bundle actions", () => {
+      const containerEl = createContainerEl();
+      const plugin = createPlugin();
+
+      renderImportExportSettingsTab(containerEl, plugin as unknown as RssDashboardPlugin);
+
+      const feedBundleSetting = getSettingByName(containerEl, "Feed bundle");
+      expect(feedBundleSetting.textContent).toContain("no app settings");
+
+      const buttons = Array.from(
+        containerEl.querySelectorAll<HTMLButtonElement>("button"),
+      ).map((button) => button.textContent?.trim());
+      expect(buttons).toContain("Import feed bundle");
+      expect(buttons).toContain("Export feed bundle");
+    });
+
+    it("calls Feed bundle export when Export Feed bundle is clicked", () => {
+      const containerEl = createContainerEl();
+      const plugin = createPlugin();
+
+      renderImportExportSettingsTab(containerEl, plugin as unknown as RssDashboardPlugin);
+
+      const exportButton = Array.from(
+        containerEl.querySelectorAll<HTMLButtonElement>("button"),
+      ).find(
+        (button) => button.textContent === "Export feed bundle",
+      ) as HTMLButtonElement;
+
+      exportButton.click();
+      expect(plugin.exportFeedBundle).toHaveBeenCalledTimes(1);
+    });
+
+    it("renders Settings bundle actions", () => {
+      const containerEl = createContainerEl();
+      const plugin = createPlugin();
+
+      renderImportExportSettingsTab(containerEl, plugin as unknown as RssDashboardPlugin);
+
+      const settingsBundleSetting = getSettingByName(
+        containerEl,
+        "Settings bundle",
+      );
+      expect(settingsBundleSetting.textContent).toContain("app preferences");
+
+      const buttons = Array.from(
+        containerEl.querySelectorAll<HTMLButtonElement>("button"),
+      ).map((button) => button.textContent?.trim());
+      expect(buttons).toContain("Import settings bundle");
+      expect(buttons).toContain("Export settings bundle");
+    });
+
+    it("calls Settings bundle export when Export Settings bundle is clicked", () => {
+      const containerEl = createContainerEl();
+      const plugin = createPlugin();
+
+      renderImportExportSettingsTab(containerEl, plugin as unknown as RssDashboardPlugin);
+
+      const exportButton = Array.from(
+        containerEl.querySelectorAll<HTMLButtonElement>("button"),
+      ).find(
+        (button) => button.textContent === "Export settings bundle",
+      ) as HTMLButtonElement;
+
+      exportButton.click();
+      expect(plugin.exportSettingsBundle).toHaveBeenCalledTimes(1);
     });
 
     it("renders the Import starred articles entry point next to Import OPML", () => {

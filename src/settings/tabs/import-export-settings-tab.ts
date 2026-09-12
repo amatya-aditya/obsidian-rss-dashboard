@@ -202,6 +202,106 @@ export function renderImportExportSettingsTab(
         }),
     );
 
+  // ── Feed bundle ───────────────────────────────────────────────────────────
+  const feedBundleSection = containerEl.createDiv();
+  new Setting(feedBundleSection)
+    .setName("Feed bundle")
+    .setDesc(
+      "Import or export feeds, folders, tags, articles, and article state — no app settings.",
+    )
+    .setHeading();
+
+  const feedBundleActions = new Setting(feedBundleSection);
+  feedBundleActions.settingEl.addClass("rss-dashboard-import-export-actions");
+  feedBundleActions
+    .addButton((button) =>
+      button
+        .setIcon("upload")
+        .setButtonText("Import feed bundle")
+        .onClick(() => {
+          const input = activeDocument.body.createEl("input", {
+            attr: { type: "file", accept: ".json,.backup,application/json" },
+          });
+          input.onchange = () => {
+            void (async () => {
+              const file = input.files?.[0];
+              if (!file) return;
+              try {
+                await plugin.importFeedBundleFromFile(file);
+                new ImportSuccessModal(
+                  plugin.app,
+                  "Feed bundle imported successfully!",
+                ).open();
+              } catch (e) {
+                new Notice(
+                  `Feed bundle import failed: ${e instanceof Error ? e.message : "invalid file"}`,
+                );
+              }
+            })();
+          };
+          input.click();
+        }),
+    )
+    .addButton((button) =>
+      button
+        .setIcon("download")
+        .setButtonText("Export feed bundle")
+        .onClick(() => {
+          void plugin.exportFeedBundle();
+        }),
+    );
+
+  // ── Settings bundle ───────────────────────────────────────────────────────
+  const settingsBundleSection = containerEl.createDiv();
+  new Setting(settingsBundleSection)
+    .setName("Settings bundle")
+    .setDesc(
+      "Import or export app preferences only — no feeds, folders, tags, or articles.",
+    )
+    .setHeading();
+
+  const settingsBundleActions = new Setting(settingsBundleSection);
+  settingsBundleActions.settingEl.addClass(
+    "rss-dashboard-import-export-actions",
+  );
+  settingsBundleActions
+    .addButton((button) =>
+      button
+        .setIcon("upload")
+        .setButtonText("Import settings bundle")
+        .onClick(() => {
+          const input = activeDocument.body.createEl("input", {
+            attr: { type: "file", accept: ".json,.backup,application/json" },
+          });
+          input.onchange = () => {
+            void (async () => {
+              const file = input.files?.[0];
+              if (!file) return;
+              try {
+                await plugin.importSettingsBundleFromFile(file);
+                new ImportSuccessModal(
+                  plugin.app,
+                  "Settings bundle imported successfully!",
+                ).open();
+              } catch (e) {
+                new Notice(
+                  `Settings bundle import failed: ${e instanceof Error ? e.message : "invalid file"}`,
+                );
+              }
+            })();
+          };
+          input.click();
+        }),
+    )
+    .addButton((button) =>
+      button
+        .setIcon("download")
+        .setButtonText("Export settings bundle")
+        .onClick(() => {
+          void plugin.exportSettingsBundle();
+        }),
+    );
+
   // ── usersettings.json ─────────────────────────────────────────────────────
   const userSettingsSection = containerEl.createDiv();
   new Setting(userSettingsSection)

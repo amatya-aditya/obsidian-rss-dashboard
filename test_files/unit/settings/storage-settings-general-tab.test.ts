@@ -80,6 +80,10 @@ function createPlugin() {
     importPortableDataBundleFromFile: vi.fn(async () => {}),
     exportDataJson: vi.fn(async () => {}),
     exportPortableDataBundle: vi.fn(async () => {}),
+    importFeedBundleFromFile: vi.fn(async () => {}),
+    exportFeedBundle: vi.fn(async () => {}),
+    importSettingsBundleFromFile: vi.fn(async () => {}),
+    exportSettingsBundle: vi.fn(async () => {}),
     migrateMetadataToVaultLocation: vi.fn(async () => {}),
     revertMetadataToPluginDefault: vi.fn(async () => {}),
     applyFeedLimitsToAllFeeds: vi.fn(async () => {}),
@@ -411,5 +415,112 @@ describe("General settings storage section", () => {
       ".rss-dashboard-data/custom-feeds",
     );
     expect(plugin.saveSettings).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders Feed bundle and Settings bundle import/export actions alongside the portable bundle", () => {
+    const containerEl = createTestContainer();
+    const plugin = createPlugin();
+
+    renderStorageSettingsTab(containerEl, plugin as never);
+
+    const buttons = Array.from(
+      containerEl.querySelectorAll<HTMLButtonElement>("button"),
+    ).map((button) => button.textContent?.trim());
+
+    expect(buttons).toContain("Import feed bundle");
+    expect(buttons).toContain("Export feed bundle");
+    expect(buttons).toContain("Import settings bundle");
+    expect(buttons).toContain("Export settings bundle");
+  });
+
+  it("exports the Feed bundle when Export Feed bundle is clicked", () => {
+    const containerEl = createTestContainer();
+    const plugin = createPlugin();
+
+    renderStorageSettingsTab(containerEl, plugin as never);
+
+    const exportButton = Array.from(
+      containerEl.querySelectorAll<HTMLButtonElement>("button"),
+    ).find(
+      (button) => button.textContent === "Export feed bundle",
+    ) as HTMLButtonElement;
+
+    exportButton.click();
+    expect(plugin.exportFeedBundle).toHaveBeenCalledTimes(1);
+  });
+
+  it("imports the Feed bundle from a chosen file when Import Feed bundle is clicked", async () => {
+    const containerEl = createTestContainer();
+    const plugin = createPlugin();
+
+    renderStorageSettingsTab(containerEl, plugin as never);
+
+    const importButton = Array.from(
+      containerEl.querySelectorAll<HTMLButtonElement>("button"),
+    ).find(
+      (button) => button.textContent === "Import feed bundle",
+    ) as HTMLButtonElement;
+
+    importButton.click();
+
+    const input = document.querySelector(
+      'input[type="file"]',
+    ) as HTMLInputElement;
+    expect(input).toBeTruthy();
+
+    const file = new File(["{}"], "feed-bundle.json", {
+      type: "application/json",
+    });
+    Object.defineProperty(input, "files", { value: [file] });
+    input.dispatchEvent(new Event("change"));
+
+    await flushAsyncWork();
+
+    expect(plugin.importFeedBundleFromFile).toHaveBeenCalledWith(file);
+  });
+
+  it("exports the Settings bundle when Export Settings bundle is clicked", () => {
+    const containerEl = createTestContainer();
+    const plugin = createPlugin();
+
+    renderStorageSettingsTab(containerEl, plugin as never);
+
+    const exportButton = Array.from(
+      containerEl.querySelectorAll<HTMLButtonElement>("button"),
+    ).find(
+      (button) => button.textContent === "Export settings bundle",
+    ) as HTMLButtonElement;
+
+    exportButton.click();
+    expect(plugin.exportSettingsBundle).toHaveBeenCalledTimes(1);
+  });
+
+  it("imports the Settings bundle from a chosen file when Import Settings bundle is clicked", async () => {
+    const containerEl = createTestContainer();
+    const plugin = createPlugin();
+
+    renderStorageSettingsTab(containerEl, plugin as never);
+
+    const importButton = Array.from(
+      containerEl.querySelectorAll<HTMLButtonElement>("button"),
+    ).find(
+      (button) => button.textContent === "Import settings bundle",
+    ) as HTMLButtonElement;
+
+    importButton.click();
+
+    const inputs = document.querySelectorAll('input[type="file"]');
+    const input = inputs[inputs.length - 1] as HTMLInputElement;
+    expect(input).toBeTruthy();
+
+    const file = new File(["{}"], "settings-bundle.json", {
+      type: "application/json",
+    });
+    Object.defineProperty(input, "files", { value: [file] });
+    input.dispatchEvent(new Event("change"));
+
+    await flushAsyncWork();
+
+    expect(plugin.importSettingsBundleFromFile).toHaveBeenCalledWith(file);
   });
 });

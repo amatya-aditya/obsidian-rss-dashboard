@@ -1,4 +1,9 @@
-import type { PortableDataBundle, RssDashboardSettings } from "../types/types";
+import type {
+  FeedBundle,
+  PortableDataBundle,
+  RssDashboardSettings,
+  SettingsBundle,
+} from "../types/types";
 import { OpmlManager } from "./opml-manager";
 import {
   exportBlob,
@@ -15,6 +20,10 @@ export class ImportExportService {
   private isMobile: boolean;
   private getPortableDataBundle?: () => PortableDataBundle;
   private importPortableDataBundle?: (bundle: unknown) => Promise<void>;
+  private getFeedBundle?: () => FeedBundle;
+  private importFeedBundle?: (bundle: unknown) => Promise<void>;
+  private getSettingsBundle?: () => SettingsBundle;
+  private importSettingsBundle?: (bundle: unknown) => Promise<void>;
 
   /**
    * Creates a new ImportExportService instance
@@ -23,17 +32,29 @@ export class ImportExportService {
    * @param {boolean} options.isMobile Whether running on mobile platform
    * @param {Function} [options.getPortableDataBundle] Optional function to retrieve portable data bundle
    * @param {Function} [options.importPortableDataBundle] Optional function to import portable data bundle
+   * @param {Function} [options.getFeedBundle] Optional function to retrieve the feed bundle
+   * @param {Function} [options.importFeedBundle] Optional function to import a feed bundle
+   * @param {Function} [options.getSettingsBundle] Optional function to retrieve the settings bundle
+   * @param {Function} [options.importSettingsBundle] Optional function to import a settings bundle
    */
   constructor(options: {
     settings: RssDashboardSettings;
     isMobile: boolean;
     getPortableDataBundle?: () => PortableDataBundle;
     importPortableDataBundle?: (bundle: unknown) => Promise<void>;
+    getFeedBundle?: () => FeedBundle;
+    importFeedBundle?: (bundle: unknown) => Promise<void>;
+    getSettingsBundle?: () => SettingsBundle;
+    importSettingsBundle?: (bundle: unknown) => Promise<void>;
   }) {
     this.settings = options.settings;
     this.isMobile = options.isMobile;
     this.getPortableDataBundle = options.getPortableDataBundle;
     this.importPortableDataBundle = options.importPortableDataBundle;
+    this.getFeedBundle = options.getFeedBundle;
+    this.importFeedBundle = options.importFeedBundle;
+    this.getSettingsBundle = options.getSettingsBundle;
+    this.importSettingsBundle = options.importSettingsBundle;
   }
 
   /**
@@ -151,6 +172,106 @@ export class ImportExportService {
     }
 
     await this.importPortableDataBundle(parsed);
+  }
+
+  /**
+   * Export the feed bundle: feeds, folders, tags, articles, and article state,
+   * with no app settings.
+   * Does not show a Notice — the caller (main.ts/views) turns the result into
+   * user-facing feedback.
+   * @returns {Promise<ExportBlobResult>} The outcome of the export attempt
+   */
+  async exportFeedBundle(): Promise<ExportBlobResult> {
+    const filename = "rss-dashboard-feed-bundle.json";
+    const bundle = this.getFeedBundle?.();
+    if (!bundle) {
+      throw new Error("Feed bundle export is not available in this context");
+    }
+    const blob = new Blob([JSON.stringify(bundle, null, 2)], {
+      type: "application/json",
+    });
+    return exportBlob({
+      blob,
+      filename,
+      isMobile: this.isMobile,
+    });
+  }
+
+  /**
+   * Import a feed bundle from a file
+   * @param {File} file The bundle file to import
+   * @returns {Promise<void>}
+   * @throws {Error} If JSON parsing fails or import handler is not available
+   */
+  async importFeedBundleFromFile(file: File): Promise<void> {
+    const text = await file.text();
+    let parsed: unknown;
+
+    try {
+      parsed = JSON.parse(text);
+    } catch (error) {
+      throw new Error(
+        `Invalid feed bundle JSON${error instanceof Error ? `: ${error.message}` : ""}`,
+      );
+    }
+
+    if (!this.importFeedBundle) {
+      throw new Error("Feed bundle import is not available in this context");
+    }
+
+    await this.importFeedBundle(parsed);
+  }
+
+  /**
+   * Export the settings bundle: app preferences only, with no feeds, folders,
+   * tags, or articles.
+   * Does not show a Notice — the caller (main.ts/views) turns the result into
+   * user-facing feedback.
+   * @returns {Promise<ExportBlobResult>} The outcome of the export attempt
+   */
+  async exportSettingsBundle(): Promise<ExportBlobResult> {
+    const filename = "rss-dashboard-settings-bundle.json";
+    const bundle = this.getSettingsBundle?.();
+    if (!bundle) {
+      throw new Error(
+        "Settings bundle export is not available in this context",
+      );
+    }
+    const blob = new Blob([JSON.stringify(bundle, null, 2)], {
+      type: "application/json",
+    });
+    return exportBlob({
+      blob,
+      filename,
+      isMobile: this.isMobile,
+    });
+  }
+
+  /**
+   * Import a settings bundle from a file
+   * @param {File} file The bundle file to import
+   * @returns {Promise<void>}
+   * @throws {Error} If JSON parsing fails or import handler is not available
+   */
+  async importSettingsBundleFromFile(file: File): Promise<void> {
+    const text = await file.text();
+    let parsed: unknown;
+
+    try {
+      parsed = JSON.parse(text);
+    } catch (error) {
+      throw new Error(
+        `Invalid settings bundle JSON${error instanceof Error ? `: ${error.message}` : ""}`,
+      );
+    }
+
+    if (!this.importSettingsBundle) {
+      throw new Error(
+        "Settings bundle import is not available in this context",
+      );
+    }
+
+    await this.importSettingsBundle(parsed);
   }
 
   /**
