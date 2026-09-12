@@ -149,7 +149,7 @@ Not fully. It improves portability by moving large feed history into a normal va
 
 ### Can I move shard data between devices?
 
-Yes. Use the Import shard data and Export shard data actions in settings for transfer workflows.
+Yes. Use the Import/Export portable data bundle actions in settings for transfer workflows. Note this bundle includes your plugin settings alongside the shard files, not shard data alone.
 
 ### What does Shard Storage v2 change from v1?
 
