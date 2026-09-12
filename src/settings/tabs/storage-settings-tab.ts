@@ -348,7 +348,7 @@ export function renderStorageSettingsTab(
   storageActions
     .setName("Storage actions")
     .setDesc(
-      "Apply the selected storage mode, repair shard files, or export a portable bundle for desktop/mobile transfer workflows.",
+      "Apply the selected storage mode, repair shard files, or import/export a portable data bundle (your settings and all feed shard files together) for desktop/mobile transfer workflows.",
     )
     .addButton((button) =>
       button
@@ -532,7 +532,7 @@ export function renderStorageSettingsTab(
       }),
     )
     .addButton((button) =>
-      button.setButtonText("Import shard data").onClick(() => {
+      button.setButtonText("Import portable data bundle").onClick(() => {
         const input = activeDocument.body.createEl("input", {
           attr: { type: "file", accept: ".json,.backup,application/json" },
         });
@@ -540,19 +540,19 @@ export function renderStorageSettingsTab(
           void (async () => {
             const file = input.files?.[0];
             if (!file) return;
-            storageLog("Clicked import shard data", {
+            storageLog("Clicked import portable data bundle", {
               currentMode: plugin.settings.storageMode,
               folder: plugin.settings.storageFolder,
             });
             try {
               await plugin.importPortableDataBundleFromFile(file);
             } catch (error) {
-              storageError("Shard data import failed", error, {
+              storageError("Portable data bundle import failed", error, {
                 currentMode: plugin.settings.storageMode,
                 folder: plugin.settings.storageFolder,
               });
               new Notice(
-                `Shard data import failed${
+                `Portable data bundle import failed${
                   error instanceof Error ? `: ${error.message}` : ""
                 }`,
               );
@@ -563,21 +563,21 @@ export function renderStorageSettingsTab(
       }),
     )
     .addButton((button) =>
-      button.setButtonText("Export shard data").onClick(() => {
+      button.setButtonText("Export portable data bundle").onClick(() => {
         void (async () => {
-          storageLog("Clicked export shard data", {
+          storageLog("Clicked export portable data bundle", {
             currentMode: plugin.settings.storageMode,
             folder: plugin.settings.storageFolder,
           });
           try {
             await plugin.exportPortableDataBundle();
           } catch (error) {
-            storageError("Shard data export failed", error, {
+            storageError("Portable data bundle export failed", error, {
               currentMode: plugin.settings.storageMode,
               folder: plugin.settings.storageFolder,
             });
             new Notice(
-              `Shard data export failed${
+              `Portable data bundle export failed${
                 error instanceof Error ? `: ${error.message}` : ""
               }`,
             );

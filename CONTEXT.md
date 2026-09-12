@@ -89,3 +89,45 @@ _Avoid_: Imported tag, bulk tag
 **Manually-assigned tag**:
 A tag added or removed on a candidate article by hand, via its per-article tag chip in the import preview. Independent of label-derived tags and of the "Import labels as tags" toggle — it always carries through to the imported item regardless of that toggle's state.
 _Avoid_: Ad hoc tag, user tag, manual tag override
+
+## Storage
+
+**Feed storage**:
+Where and how feed content (articles and episodes) is persisted, independent of where plugin metadata is persisted. Its mode is one of Legacy JSON or Shard storage (v1 or v2).
+_Avoid_: Storage (unqualified), article storage
+
+**Metadata storage**:
+Where the plugin's `data.json` (settings, feed definitions, folder organization, cleanup rules) is persisted: either the plugin's own directory or a user-chosen vault folder. Configured independently of feed storage, though Shard storage v2 forces it to a vault folder.
+_Avoid_: Storage (unqualified), config storage
+
+**Shard storage**:
+A feed storage mode that persists one file per feed in a vault folder instead of one monolithic `data.json`, improving sync behavior over Legacy JSON. Comes in two versions: v1 keeps each article's state inside its feed's shard file; v2 moves article state into a separate file, leaving only feed content in the shard.
+_Avoid_: Vault Shards, vault storage
+
+**Feed content**:
+The article or episode data (title, body, media, publish date) written into a feed's shard file under Shard storage v2. Distinct from that feed's article state, which v2 stores separately.
+_Avoid_: Shard content, feed data
+
+**Article state**:
+The per-article interaction data — read, starred, tags, saved-to-vault, playback progress — that Shard storage v2 stores in a separate `user-state.json` rather than inside the feed's shard file. The same states referenced by [[retention protection]].
+_Avoid_: User state (as a standalone term outside v2), read state
+
+**Portable data bundle**:
+A combined export containing both metadata and all feed shard files together, used to move a full Shard storage setup between devices via the storage tab's import/export actions.
+_Avoid_: Shard data, shard export
+
+**Storage migration**:
+Moving feed content from its current feed storage mode into shard files for the first time, or upgrading from Shard storage v1 to v2. Distinct from storage repair and storage revert.
+_Avoid_: Migrate, storage change
+
+**Storage repair**:
+Force-regenerating all shard files from the current in-memory feed data without changing feed storage mode, used to recover from an out-of-sync or incomplete shard folder. Distinct from storage migration and storage revert.
+_Avoid_: Rebuild, resync
+
+**Storage revert**:
+Switching feed storage back to Legacy JSON, writing all feed content back into `data.json` and optionally deleting the shard folder. Distinct from storage migration and storage repair.
+_Avoid_: Rollback, downgrade
+
+**Metadata cleanup**:
+The user's choice, offered right after a metadata storage move succeeds, to delete or keep the `data.json` copy left behind at the previous location.
+_Avoid_: Backup cleanup, orphan file
