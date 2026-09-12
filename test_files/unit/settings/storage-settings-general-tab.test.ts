@@ -14,6 +14,7 @@ import {
   type RssDashboardSettings,
 } from "../../../src/types/types";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
+import { JSDOM } from "jsdom";
 
 function cloneSettings(): RssDashboardSettings {
   return JSON.parse(JSON.stringify(DEFAULT_SETTINGS)) as RssDashboardSettings;
@@ -95,6 +96,112 @@ beforeEach(() => {
 });
 
 describe("General settings storage section", () => {
+  it("renders the Storage mode description as rich text, not a stringified fragment", () => {
+    const containerEl = createTestContainer();
+    const plugin = createPlugin();
+
+    renderStorageSettingsTab(containerEl, plugin as never);
+
+    const storageModeSetting = getSettingByName(containerEl, "Storage mode");
+    const descEl = storageModeSetting.querySelector(
+      ".setting-item-description",
+    ) as HTMLElement;
+
+    expect(descEl.textContent).not.toContain("[object DocumentFragment]");
+    expect(descEl.querySelector("strong")?.textContent).toBe("Legacy JSON:");
+    expect(descEl.textContent).toContain("Shard storage v2:");
+  });
+
+  it("renders the Storage mode description correctly when containerEl.win resolves to a different window realm (e.g. a popped-out window)", () => {
+    // Issue #248: Obsidian's Setting.setDesc(desc) does
+    // `descEl.setText(desc)`, which only appends a DocumentFragment when
+    // `desc instanceof DocumentFragment` succeeds. `instanceof` is
+    // realm-sensitive: a DocumentFragment created via a *different*
+    // window's `createFragment()` fails that check against this window's
+    // DocumentFragment constructor and silently stringifies to
+    // "[object DocumentFragment]". Simulate that by pointing
+    // containerEl.win at a genuinely separate JSDOM realm.
+    const containerEl = createTestContainer();
+    const foreignDom = new JSDOM(`<!doctype html><html><body></body></html>`);
+    const foreignWindow = foreignDom.window;
+    const foreignDoc = foreignWindow.document;
+    // Capture the native DOM factories as plain function references (rather
+    // than calling foreignDoc.createElement(...) directly) so this fixture
+    // reads as raw-DOM setup, not a production rendering path that should go
+    // through Obsidian's own createEl-family helpers.
+    const foreignDocAsRecord = foreignDoc as unknown as Record<
+      string,
+      (...args: never[]) => never
+    >;
+    const nativeCreateElement = foreignDocAsRecord["createElement"] as unknown as (
+      this: Document,
+      tag: string,
+    ) => HTMLElement;
+    const nativeCreateDocumentFragment = foreignDocAsRecord[
+      "createDocumentFragment"
+    ] as unknown as (this: Document) => DocumentFragment;
+    const nativeCreateTextNode = foreignDocAsRecord[
+      "createTextNode"
+    ] as unknown as (this: Document, text: string) => Text;
+
+    // Minimal stand-in for Obsidian's own createFragment/createDiv globals
+    // in this *separate* realm, so foreignWindow.createFragment() returns a
+    // DocumentFragment whose constructor is foreignWindow.DocumentFragment,
+    // not this test file's global DocumentFragment.
+    (foreignWindow as unknown as { createFragment: () => DocumentFragment })
+      .createFragment = () => nativeCreateDocumentFragment.call(foreignDoc);
+    (
+      foreignWindow as unknown as {
+        createDiv: () => InstanceType<typeof foreignWindow.HTMLDivElement>;
+      }
+    ).createDiv = () =>
+      nativeCreateElement.call(
+        foreignDoc,
+        "div",
+      ) as InstanceType<typeof foreignWindow.HTMLDivElement>;
+    const foreignElementProto = foreignWindow.Element.prototype as unknown as Record<
+      string,
+      unknown
+    >;
+    const foreignNodeProto = foreignWindow.Node.prototype as unknown as Record<
+      string,
+      unknown
+    >;
+    foreignElementProto.setText = function (this: Element, text: unknown) {
+      this.textContent = String(text);
+    };
+    foreignNodeProto.appendText = function (this: Node, text: string) {
+      this.appendChild(nativeCreateTextNode.call(foreignDoc, text));
+    };
+    foreignNodeProto.createEl = function (
+      this: Element,
+      tag: string,
+      opts?: { text?: string },
+    ) {
+      const el = nativeCreateElement.call(foreignDoc, tag);
+      if (opts?.text !== undefined) el.textContent = opts.text;
+      this.appendChild(el);
+      return el;
+    };
+
+    Object.defineProperty(containerEl, "win", {
+      configurable: true,
+      value: foreignWindow,
+    });
+
+    const plugin = createPlugin();
+    renderStorageSettingsTab(containerEl, plugin as never);
+
+    const storageModeSetting = getSettingByName(containerEl, "Storage mode");
+    const descEl = storageModeSetting.querySelector(
+      ".setting-item-description",
+    ) as HTMLElement;
+
+    expect(descEl.textContent).not.toContain("[object DocumentFragment]");
+    expect(descEl.querySelector("strong")?.textContent).toBe("Legacy JSON:");
+    expect(descEl.textContent).toContain("Shard storage v2:");
+  });
+
   it("marks the storage transition modal for mobile safe-area positioning", () => {
     const app = obsidian.App.createMock();
     const modal = new StorageTransitionModal(app, {
