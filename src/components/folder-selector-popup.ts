@@ -1,6 +1,7 @@
 import { setIcon } from "obsidian";
 import type RssDashboardPlugin from "../../main";
 import { collectFolderPaths } from "../utils/folder-paths";
+import { FolderNameModal } from "../modals/folder-name-modal";
 
 export interface FolderSelectorOptions {
   /** The element to position the popup relative to */
@@ -36,6 +37,9 @@ export class FolderSelectorPopup {
   private clickOutsideHandler!: (e: MouseEvent) => void;
   private keydownHandler!: (e: KeyboardEvent) => void;
   private isDestroyed = false;
+  // True while a modal this popup opened (e.g. create-folder) is on top of
+  // it — see setInert().
+  private isInert = false;
   private listOnly: boolean = false;
 
   constructor(plugin: RssDashboardPlugin, options: FolderSelectorOptions) {
@@ -198,6 +202,50 @@ export class FolderSelectorPopup {
         (f) => f.toLowerCase() === query.toLowerCase(),
       );
 
+    // List-only mode has no text input, so it can never offer inline folder
+    // creation via showCreateOption above. Without an explicit way forward,
+    // a vault with zero folders is a dead end (no item to click, nothing to
+    // type). Always surface "Root" and "Add new folder" here instead.
+    if (this.listOnly) {
+      const rootItem = this.listEl.createDiv({
+        cls: "rss-folder-selector-item rss-folder-selector-root",
+      });
+      const rootIcon = rootItem.createSpan({
+        cls: "rss-folder-selector-icon",
+      });
+      setIcon(rootIcon, "home");
+      rootItem.createSpan({
+        text: "Root (no folder)",
+        cls: "rss-folder-selector-text",
+      });
+      rootItem.addEventListener("click", () => {
+        this.selectRoot();
+      });
+      rootItem.addEventListener("mouseenter", () => {
+        this.clearSelection();
+        rootItem.addClass("is-selected");
+      });
+
+      const addNewItem = this.listEl.createDiv({
+        cls: "rss-folder-selector-item rss-folder-selector-add-new",
+      });
+      const addNewIcon = addNewItem.createSpan({
+        cls: "rss-folder-selector-icon",
+      });
+      setIcon(addNewIcon, "folder-plus");
+      addNewItem.createSpan({
+        text: "Add new folder",
+        cls: "rss-folder-selector-text",
+      });
+      addNewItem.addEventListener("click", () => {
+        this.openCreateFolderModal();
+      });
+      addNewItem.addEventListener("mouseenter", () => {
+        this.clearSelection();
+        addNewItem.addClass("is-selected");
+      });
+    }
+
     // Show "Create new folder" option if query doesn't match existing folder (and not in list-only mode)
     if (showCreateOption) {
       const createItem = this.listEl.createDiv({
@@ -220,7 +268,11 @@ export class FolderSelectorPopup {
       });
     }
 
-    if (this.filteredFolders.length === 0 && !showCreateOption) {
+    if (
+      this.filteredFolders.length === 0 &&
+      !showCreateOption &&
+      !this.listOnly
+    ) {
       // Empty state
       const emptyItem = this.listEl.createDiv({
         cls: "rss-folder-selector-item rss-folder-selector-empty",
@@ -287,6 +339,22 @@ export class FolderSelectorPopup {
    * Attaches event listeners for user interaction
    */
   private attachEventListeners(): void {
+    // Swallow clicks on this popup's own contents while inert (a modal it
+    // opened, e.g. create-folder, is on top of it). Registered in the
+    // capture phase directly on popupEl so it runs before any individual
+    // item's own click listener — one guard instead of threading an
+    // isInert check through every item handler.
+    this.popupEl.addEventListener(
+      "click",
+      (e) => {
+        if (this.isInert) {
+          e.stopPropagation();
+          e.preventDefault();
+        }
+      },
+      true,
+    );
+
     // Input filtering with validation — skip in list-only mode
     if (!this.listOnly && this.inputEl) {
       this.inputEl.addEventListener("input", () => {
@@ -350,7 +418,7 @@ export class FolderSelectorPopup {
    * Handles keyboard navigation
    */
   private handleKeydown(e: KeyboardEvent): void {
-    if (this.isDestroyed) return;
+    if (this.isDestroyed || this.isInert) return;
 
     const items = this.listEl.querySelectorAll(".rss-folder-selector-item");
     const itemCount = items.length;
@@ -398,6 +466,10 @@ export class FolderSelectorPopup {
           ) {
             // Create new folder with the typed text (only if not in list-only mode)
             this.selectFolder(query);
+          } else if (selectedItem.hasClass("rss-folder-selector-root")) {
+            this.selectRoot();
+          } else if (selectedItem.hasClass("rss-folder-selector-add-new")) {
+            this.openCreateFolderModal();
           } else {
             // Select existing folder
             const textEl = selectedItem.querySelector(
@@ -438,6 +510,70 @@ export class FolderSelectorPopup {
 
     this.onSelect(sanitized);
     this.close();
+  }
+
+  /**
+   * Selects "no folder" (root) — used by the list-only empty-state action,
+   * bypassing selectFolder's sanitization check that treats an empty string
+   * as invalid input.
+   */
+  private selectRoot(): void {
+    this.onSelect("");
+    this.close();
+  }
+
+  /**
+   * Opens the shared "create folder" modal for the list-only "Add new
+   * folder" action. Submitting it both creates the folder and assigns the
+   * feed(s) this popup was opened for to it — the caller's onSelect handler
+   * is responsible for actually creating the folder (via
+   * plugin.ensureFolderExists) before adding the feed, exactly as it does
+   * for any other folder picked from the list.
+   */
+  private openCreateFolderModal(): void {
+    const modal = new FolderNameModal(this.plugin.app, {
+      title: "Create new folder",
+      existingNames: this.folders,
+      onSubmit: (folderName) => {
+        this.selectFolder(folderName);
+      },
+      onClose: () => {
+        this.setInert(false);
+      },
+    });
+
+    // The modal renders outside popupEl's own DOM subtree, so any click
+    // inside it — typing, hitting OK, even Cancel — would otherwise bubble
+    // all the way up to document and trip this popup's outside-click
+    // handler, closing it out from under the modal. Stop that bubbling one
+    // step up from the click, on the modal's own container, in the BUBBLE
+    // phase — that runs *after* the target's own listener (okButton's
+    // submit, cancelButton's close), so the modal still behaves normally;
+    // it just never climbs any higher than its own container. (A
+    // capture-phase listener on document would run before the target's own
+    // handler and silently swallow every click in the modal instead —
+    // learned that one the hard way.)
+    modal.containerEl.addEventListener("click", (e) => {
+      e.stopPropagation();
+    });
+
+    // A real Obsidian Modal normally blocks the rest of the page via its own
+    // backdrop, but this popup's z-index is set high enough to float above
+    // feed cards and other page chrome — high enough, it turns out, to float
+    // above the modal's backdrop too. Make the popup itself inert for as
+    // long as the modal is open so its folder list can't be clicked through.
+    this.setInert(true);
+
+    modal.open();
+  }
+
+  /**
+   * Toggles whether this popup's own contents can be interacted with —
+   * used while a modal it opened (e.g. create-folder) is on top of it.
+   */
+  private setInert(inert: boolean): void {
+    this.isInert = inert;
+    this.popupEl.toggleClass("rss-folder-selector-popup-inert", inert);
   }
 
   /**

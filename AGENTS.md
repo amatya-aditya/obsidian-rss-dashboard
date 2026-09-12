@@ -51,6 +51,22 @@ Before handing off a code change, run the relevant checks and report their resul
 
 If a required check cannot run, report the exact reason and do not claim compliance.
 
+## Bug report format
+
+When reporting a diagnosed/fixed bug, use this exact Markdown structure per
+bug, no extra prose before or after:
+
+```
+**Bug 1: <one-line description>**
+- **Status:** ✅ Fixed | 🔴 Open
+- **Cause:** <one-line root cause>
+- **Fix:** <one-line what changed, file(s) if useful>
+- **Test:** <manual steps the user should do to confirm it's resolved>
+```
+
+Number every bug (`Bug 1:`, `Bug 2:`), even a single one — keeps numbering
+stable if the user refers back to "bug 2" later. Blank line between bugs.
+
 ## GitHub pull request descriptions
 
 When creating or editing a pull request from PowerShell, preserve Markdown

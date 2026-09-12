@@ -817,9 +817,17 @@ export class FeedParser {
     });
 
     const processedFeed = MediaService.detectAndProcessFeed(newFeed);
-    if (processedFeed.mediaType === "video" && !existingFeed?.folder) {
+    // "Uncategorized" (or no folder field at all) means the caller never
+    // specified a folder, so it's fair game for the media-type default.
+    // An explicit "" is different: it means the user picked Root on purpose
+    // (via the folder popup's "Root (no folder)" action) and must be left
+    // alone, not silently redirected to Videos/Podcast.
+    const noFolderSpecified =
+      existingFeed?.folder === undefined ||
+      existingFeed?.folder === "Uncategorized";
+    if (processedFeed.mediaType === "video" && noFolderSpecified) {
       processedFeed.folder = this.mediaSettings.defaultYouTubeFolder;
-    } else if (processedFeed.mediaType === "podcast" && !existingFeed?.folder) {
+    } else if (processedFeed.mediaType === "podcast" && noFolderSpecified) {
       processedFeed.folder = this.mediaSettings.defaultPodcastFolder;
     }
 
