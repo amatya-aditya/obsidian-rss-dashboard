@@ -604,4 +604,306 @@ describe("FeedStorageRepository", () => {
     expect(settings.feeds[0].feedId).toBe("legacy-feed");
     expect(settings.feeds[0].items).toHaveLength(1);
   });
+
+  describe("importFeedBundle", () => {
+    it("applies feeds, folders, and tags but leaves app settings untouched", async () => {
+      const settings = cloneSettings();
+      settings.storageMode = "legacy-json";
+      settings.autoBackup = true;
+      settings.feeds = [makeFeed({ feedId: "old-feed", items: [] })];
+
+      const bundle = {
+        version: 1,
+        exportedAt: Date.now(),
+        feeds: [
+          {
+            ...makeFeed({
+              feedId: "feed-1",
+              title: "Imported Feed",
+              url: "https://example.com/imported.xml",
+            }),
+          },
+        ].map((feed) => {
+          const { items: _items, ...persisted } = feed;
+          void _items;
+          return persisted;
+        }),
+        folders: [
+          {
+            name: "Imported Folder",
+            subfolders: [],
+            createdAt: Date.now(),
+            modifiedAt: Date.now(),
+          },
+        ],
+        availableTags: [{ name: "imported-tag", color: "#123456" }],
+        shards: [
+          {
+            version: 1,
+            feedId: "feed-1",
+            feedUrl: "https://example.com/imported.xml",
+            updatedAt: Date.now(),
+            items: [makeFeed().items[0]],
+          },
+        ],
+      };
+
+      await repository.importFeedBundle(bundle, settings, saveData);
+
+      expect(settings.feeds).toHaveLength(1);
+      expect(settings.feeds[0].feedId).toBe("feed-1");
+      expect(settings.feeds[0].items).toHaveLength(1);
+      expect(settings.folders).toEqual(bundle.folders);
+      expect(settings.availableTags).toEqual(bundle.availableTags);
+      expect(settings.storageMode).toBe("legacy-json");
+      expect(settings.autoBackup).toBe(true);
+    });
+
+    it("ignores settings-shaped fields present in the input", async () => {
+      const settings = cloneSettings();
+      settings.storageMode = "legacy-json";
+      settings.autoBackup = true;
+      settings.feeds = [makeFeed({ feedId: "old-feed", items: [] })];
+
+      const bundle = {
+        version: 1,
+        exportedAt: Date.now(),
+        feeds: [],
+        folders: [],
+        availableTags: [],
+        shards: [],
+        storageMode: "vault-shards",
+        autoBackup: false,
+      };
+
+      await repository.importFeedBundle(bundle, settings, saveData);
+
+      expect(settings.storageMode).toBe("legacy-json");
+      expect(settings.autoBackup).toBe(true);
+    });
+
+    it("rejects feed bundle imports with unsupported schema versions", async () => {
+      const settings = cloneSettings();
+      settings.feeds = [makeFeed({ feedId: "feed-1" })];
+
+      await expect(
+        repository.importFeedBundle(
+          {
+            version: 999,
+            exportedAt: Date.now(),
+            feeds: [],
+            folders: [],
+            availableTags: [],
+            shards: [],
+          },
+          settings,
+          saveData,
+        ),
+      ).rejects.toThrow("Unsupported feed bundle version");
+    });
+
+    it("restores previous feeds, folders, and tags when persistence fails", async () => {
+      const settings = cloneSettings();
+      settings.storageMode = "legacy-json";
+      settings.feeds = [makeFeed({ feedId: "legacy-feed" })];
+      const previousFolders = cloneSettings().folders;
+      const previousTags = [{ name: "kept-tag", color: "#000000" }];
+      settings.availableTags = previousTags;
+
+      const bundle = {
+        version: 1,
+        exportedAt: Date.now(),
+        feeds: [
+          {
+            ...makeFeed({ feedId: "feed-1", items: [] }),
+          },
+        ].map((feed) => {
+          const { items: _items, ...persisted } = feed;
+          void _items;
+          return persisted;
+        }),
+        folders: [
+          {
+            name: "New Folder",
+            subfolders: [],
+            createdAt: Date.now(),
+            modifiedAt: Date.now(),
+          },
+        ],
+        availableTags: [{ name: "new-tag", color: "#ffffff" }],
+        shards: [
+          {
+            version: 1,
+            feedId: "feed-1",
+            feedUrl: "https://example.com/feed.xml",
+            updatedAt: Date.now(),
+            items: [makeFeed().items[0]],
+          },
+        ],
+      };
+
+      saveData
+        .mockRejectedValueOnce(new Error("save failed"))
+        .mockResolvedValue(undefined);
+
+      await expect(
+        repository.importFeedBundle(bundle, settings, saveData),
+      ).rejects.toThrow("save failed");
+
+      expect(settings.feeds[0].feedId).toBe("legacy-feed");
+      expect(settings.folders).toEqual(previousFolders);
+      expect(settings.availableTags).toEqual(previousTags);
+    });
+
+    it("round-trips a feed bundle exported via buildFeedBundle with no data loss", async () => {
+      const settings = cloneSettings();
+      settings.storageMode = "vault-shards";
+      settings.storageFolder = "RSS Data/Feeds";
+      settings.feeds = [makeFeed({ feedId: "feed-1" })];
+      settings.availableTags = [{ name: "example-tag", color: "#ffffff" }];
+
+      const bundle = repository.buildFeedBundle(settings);
+
+      const target = cloneSettings();
+      target.storageMode = "vault-shards";
+      target.storageFolder = "RSS Data/Feeds";
+      target.feeds = [];
+      target.availableTags = [];
+
+      await repository.importFeedBundle(bundle, target, saveData);
+
+      expect(target.feeds).toHaveLength(1);
+      expect(target.feeds[0].feedId).toBe("feed-1");
+      expect(target.feeds[0].items).toEqual(settings.feeds[0].items);
+      expect(target.folders).toEqual(settings.folders);
+      expect(target.availableTags).toEqual(settings.availableTags);
+    });
+  });
+
+  describe("importSettingsBundle", () => {
+    it("applies app settings but leaves feeds, folders, and tags untouched", async () => {
+      const settings = cloneSettings();
+      settings.storageMode = "legacy-json";
+      settings.autoBackup = false;
+      const previousFeeds = [makeFeed({ feedId: "kept-feed" })];
+      settings.feeds = previousFeeds;
+      const previousFolders = settings.folders;
+      const previousTags = settings.availableTags;
+
+      const bundle = {
+        version: 1,
+        exportedAt: Date.now(),
+        metadataStorageMode: "vault-location" as const,
+        metadataStorageFolder: "RSS Data/Meta",
+        settings: {
+          ...cloneSettings(),
+          storageMode: "vault-shards" as const,
+          storageFolder: "RSS Data/Feeds",
+          autoBackup: true,
+        },
+      };
+      delete (bundle.settings as unknown as Record<string, unknown>).feeds;
+      delete (bundle.settings as unknown as Record<string, unknown>).folders;
+      delete (bundle.settings as unknown as Record<string, unknown>)
+        .availableTags;
+
+      await repository.importSettingsBundle(bundle, settings, saveData);
+
+      expect(settings.storageMode).toBe("vault-shards");
+      expect(settings.storageFolder).toBe("RSS Data/Feeds");
+      expect(settings.autoBackup).toBe(true);
+      expect(settings.metadataStorageMode).toBe("vault-location");
+      expect(settings.metadataStorageFolder).toBe("RSS Data/Meta");
+      expect(settings.feeds).toBe(previousFeeds);
+      expect(settings.folders).toEqual(previousFolders);
+      expect(settings.availableTags).toEqual(previousTags);
+    });
+
+    it("ignores feed, folder, and tag-shaped fields present in the input", async () => {
+      const settings = cloneSettings();
+      const previousFeeds = [makeFeed({ feedId: "kept-feed" })];
+      settings.feeds = previousFeeds;
+
+      const bundle = {
+        version: 1,
+        exportedAt: Date.now(),
+        settings: cloneSettings(),
+      };
+      (bundle.settings as unknown as Record<string, unknown>).feeds = [
+        makeFeed({ feedId: "smuggled-feed" }),
+      ];
+      (bundle.settings as unknown as Record<string, unknown>).folders = [];
+      (bundle.settings as unknown as Record<string, unknown>).availableTags =
+        [];
+
+      await repository.importSettingsBundle(bundle, settings, saveData);
+
+      expect(settings.feeds).toBe(previousFeeds);
+      expect(settings.feeds[0].feedId).toBe("kept-feed");
+    });
+
+    it("rejects settings bundle imports with unsupported schema versions", async () => {
+      const settings = cloneSettings();
+
+      await expect(
+        repository.importSettingsBundle(
+          {
+            version: 999,
+            exportedAt: Date.now(),
+            settings: cloneSettings(),
+          },
+          settings,
+          saveData,
+        ),
+      ).rejects.toThrow("Unsupported settings bundle version");
+    });
+
+    it("restores previous app settings when persistence fails", async () => {
+      const settings = cloneSettings();
+      settings.storageMode = "legacy-json";
+      settings.autoBackup = false;
+      settings.feeds = [makeFeed({ feedId: "kept-feed" })];
+
+      const bundle = {
+        version: 1,
+        exportedAt: Date.now(),
+        settings: {
+          ...cloneSettings(),
+          storageMode: "vault-shards" as const,
+          autoBackup: true,
+        },
+      };
+
+      saveData
+        .mockRejectedValueOnce(new Error("save failed"))
+        .mockResolvedValue(undefined);
+
+      await expect(
+        repository.importSettingsBundle(bundle, settings, saveData),
+      ).rejects.toThrow("save failed");
+
+      expect(settings.storageMode).toBe("legacy-json");
+      expect(settings.autoBackup).toBe(false);
+      expect(settings.feeds[0].feedId).toBe("kept-feed");
+    });
+
+    it("round-trips a settings bundle exported via buildSettingsBundle with no data loss", async () => {
+      const settings = cloneSettings();
+      settings.storageMode = "vault-shards";
+      settings.storageFolder = "RSS Data/Feeds";
+      settings.autoBackup = true;
+
+      const bundle = repository.buildSettingsBundle(settings);
+
+      const target = cloneSettings();
+      target.feeds = [makeFeed({ feedId: "kept-feed" })];
+
+      await repository.importSettingsBundle(bundle, target, saveData);
+
+      expect(target.storageMode).toBe("vault-shards");
+      expect(target.storageFolder).toBe("RSS Data/Feeds");
+      expect(target.autoBackup).toBe(true);
+      expect(target.feeds[0].feedId).toBe("kept-feed");
+    });
+  });
 });
