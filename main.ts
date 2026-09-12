@@ -1021,7 +1021,7 @@ export default class RssDashboardPlugin extends Plugin {
 
       this.addCommand({
         id: "import-opml",
-        name: "Import OPML",
+        name: "Import OPML/XML",
         callback: () => {
           new ImportOpmlModal(this.app, this).open();
         },

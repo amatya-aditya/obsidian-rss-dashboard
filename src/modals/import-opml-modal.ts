@@ -102,7 +102,7 @@ export class ImportOpmlModal extends Modal {
     }
 
     contentEl.empty();
-    new Setting(contentEl).setName("Import OPML").setHeading();
+    new Setting(contentEl).setName("Import OPML/XML").setHeading();
 
     // Add subtitle
     const subtitle = contentEl.createDiv({ cls: "add-feed-subtitle" });

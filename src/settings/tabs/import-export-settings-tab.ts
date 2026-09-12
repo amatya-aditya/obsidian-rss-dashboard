@@ -272,7 +272,7 @@ export function renderImportExportSettingsTab(
     .addButton((button) =>
       button
         .setIcon("upload")
-        .setButtonText("Import OPML")
+        .setButtonText("Import OPML/XML")
         .onClick(() => {
           new ImportOpmlModal(plugin.app, plugin).open();
         }),

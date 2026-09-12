@@ -81,7 +81,7 @@ export class FeedManagerModal extends Modal {
       cls: "feed-manager-import-button",
     });
     setIcon(importOpmlBtn, "upload");
-    importOpmlBtn.createSpan({ text: "Import OPML" });
+    importOpmlBtn.createSpan({ text: "Import OPML/XML" });
     importOpmlBtn.onclick = () => {
       new ImportOpmlModal(this.app, this.plugin, () => this.close()).open();
     };
