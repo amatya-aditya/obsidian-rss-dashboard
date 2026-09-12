@@ -80,6 +80,10 @@ Before making or reviewing a code or test change, read these files in full:
 Before scoping or implementing a feature or bug fix, also read
 `.agents/project-context.md` for the repository map and change workflow.
 
+Before a change that adds a responsibility, crosses a module seam, touches
+`main.ts`, or changes dependencies, read
+`docs/development/architecture.md` and run its architecture preflight.
+
 Before completing work driven by a file under `docs/plans/`, or cutting a
 release that contains archived plans, read **Plan Lifecycle and Archive** in
 `docs/development/README.md`. That section is the source of truth for plan
@@ -112,6 +116,7 @@ Before handing off a code change, run the relevant checks and report their resul
 
 - Run ESLint for every changed TypeScript file, or `npm run lint` when practical.
 - Run `npm run check:platform` whenever a `src/` TypeScript file changes.
+- Run `npm run check:architecture` for meaningful production TypeScript changes.
 - Run the focused unit tests covering the change (`npm exec -- vitest related --run <changed files>` selects them from the import graph); run `npm run test:unit` when the change has broad impact.
 - The pre-commit hook lints only staged files and runs only their related tests; the pre-push hook runs `npm run build` and the full unit suite. A passing commit hook is not full validation. See **Git Hooks** in `CONTRIBUTING.md`.
 - Run TypeScript type-checking for TypeScript changes.
