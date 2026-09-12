@@ -211,6 +211,66 @@ describe("BackgroundImportService", () => {
       expect(placeholder.mediaType).toBe("article");
       expect(placeholder.folder).toBe("Uncategorized");
     });
+
+    // GH: bulk "Add all feeds" with Root explicitly selected silently
+    // reassigned every feed to "Uncategorized" (and, for video/podcast
+    // feeds, on from there to Videos/Podcast) because an explicit "" folder
+    // was treated the same as "no folder specified".
+    it("keeps an explicit Root (empty-string) folder instead of defaulting to Uncategorized", async () => {
+      const { BackgroundImportService } =
+        await import("../../../src/services/background-import-service");
+      const deps = makeDeps();
+      const service = new BackgroundImportService(deps);
+
+      const placeholder = (
+        service as unknown as TestableBackgroundImportService
+      ).createPlaceholderFeed({
+        title: "Root Article",
+        url: "https://example.com/root-article.xml",
+        mediaType: "article",
+        folder: "",
+      });
+
+      expect(placeholder.folder).toBe("");
+    });
+
+    it("keeps an explicit Root (empty-string) folder for a video feed instead of defaulting to the Videos folder", async () => {
+      const { BackgroundImportService } =
+        await import("../../../src/services/background-import-service");
+      const deps = makeDeps();
+      const service = new BackgroundImportService(deps);
+
+      const placeholder = (
+        service as unknown as TestableBackgroundImportService
+      ).createPlaceholderFeed({
+        title: "Root Video Feed",
+        url: "https://youtube.com/feeds/videos.xml",
+        mediaType: "video",
+        folder: "",
+      });
+
+      expect(placeholder.mediaType).toBe("video");
+      expect(placeholder.folder).toBe("");
+    });
+
+    it("keeps an explicit Root (empty-string) folder for a podcast feed instead of defaulting to the Podcast folder", async () => {
+      const { BackgroundImportService } =
+        await import("../../../src/services/background-import-service");
+      const deps = makeDeps();
+      const service = new BackgroundImportService(deps);
+
+      const placeholder = (
+        service as unknown as TestableBackgroundImportService
+      ).createPlaceholderFeed({
+        title: "Root Podcast",
+        url: "https://podcast.example.com/feed.xml",
+        mediaType: "podcast",
+        folder: "",
+      });
+
+      expect(placeholder.mediaType).toBe("podcast");
+      expect(placeholder.folder).toBe("");
+    });
   });
 
   describe("parseFeedWithTimeout", () => {

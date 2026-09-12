@@ -955,4 +955,78 @@ describe("FeedParser.parseFeed", () => {
     ).rejects.toThrow("Aborted");
     expect(feed.lastFetchError).toBe("previous error");
   });
+
+  // GH: explicitly assigning a new feed to Root (no folder) was silently
+  // overridden back to the media-type default folder ("Videos"/"Podcast")
+  // because the override check (`!existingFeed?.folder`) treats an explicit
+  // empty-string folder the same as "no folder chosen yet" — the exact
+  // object main.ts's addFeed() passes in for a brand-new feed always has a
+  // `folder` field already set to the user's choice, even when that choice
+  // is "" for Root.
+  it("keeps an explicit Root (empty-string) folder for a new YouTube feed instead of defaulting to the Videos folder", async () => {
+    const feedUrl =
+      "https://www.youtube.com/feeds/videos.xml?channel_id=UCYO_jab_esuFRV4b17AJtAw";
+    const ytXml = `<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns:yt="http://www.youtube.com/xml/schemas/2015" xmlns="http://www.w3.org/2005/Atom">
+  <link rel="self" href="${feedUrl}"/>
+  <id>yt:channel:UCYO_jab_esuFRV4b17AJtAw</id>
+  <title>3Blue1Brown</title>
+  <entry>
+    <id>yt:video:abc123</id>
+    <title>A video</title>
+    <link rel="alternate" href="https://www.youtube.com/watch?v=abc123"/>
+    <author><name>3Blue1Brown</name></author>
+    <published>2024-01-01T00:00:00+00:00</published>
+  </entry>
+</feed>`;
+
+    const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
+    requestUrlSpy.mockResolvedValueOnce(mockResponse(200, ytXml));
+
+    const parser = new FeedParser(DEFAULT_SETTINGS.display, [], mediaSettings);
+
+    // Mirrors exactly what main.ts's addFeed() constructs for a brand-new
+    // feed before calling parseFeed: an empty-items Feed whose folder is
+    // already set to whatever the user picked in the folder popup.
+    const newFeed: Feed = {
+      title: "3Blue1Brown",
+      url: feedUrl,
+      folder: "",
+      items: [],
+      lastUpdated: 0,
+    };
+
+    const result = await parser.parseFeed(feedUrl, newFeed);
+
+    expect(result.mediaType).toBe("video");
+    expect(result.folder).toBe("");
+
+    requestUrlSpy.mockRestore();
+  });
+
+  it("keeps an explicit Root (empty-string) folder for a new podcast feed instead of defaulting to the Podcast folder", async () => {
+    const feedUrl = "https://feeds.99percentinvisible.org/99percentinvisible";
+
+    const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
+    requestUrlSpy.mockResolvedValueOnce(
+      mockResponse(200, RSS2_PODCAST_WITH_CHANNEL_ITUNES_IMAGE),
+    );
+
+    const parser = new FeedParser(DEFAULT_SETTINGS.display, [], mediaSettings);
+
+    const newFeed: Feed = {
+      title: "99% Invisible",
+      url: feedUrl,
+      folder: "",
+      items: [],
+      lastUpdated: 0,
+    };
+
+    const result = await parser.parseFeed(feedUrl, newFeed);
+
+    expect(result.mediaType).toBe("podcast");
+    expect(result.folder).toBe("");
+
+    requestUrlSpy.mockRestore();
+  });
 });

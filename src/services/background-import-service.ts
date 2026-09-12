@@ -746,14 +746,14 @@ export class BackgroundImportService {
    */
   private createPlaceholderFeed(candidate: FeedIngestionCandidate): Feed {
     const mediaType = this.resolveCandidateMediaType(candidate);
-    let folder = candidate.folder || "Uncategorized";
+    // `??` (not `||`) so an explicit "" — Root, chosen on purpose via the
+    // folder popup's "Root (no folder)" action — is preserved. Only a
+    // genuinely unspecified folder (undefined) falls back to Uncategorized.
+    let folder = candidate.folder ?? "Uncategorized";
 
-    if (mediaType === "video" && (!folder || folder === "Uncategorized")) {
+    if (mediaType === "video" && folder === "Uncategorized") {
       folder = this.getSettings().media.defaultYouTubeFolder;
-    } else if (
-      mediaType === "podcast" &&
-      (!folder || folder === "Uncategorized")
-    ) {
+    } else if (mediaType === "podcast" && folder === "Uncategorized") {
       folder = this.getSettings().media.defaultPodcastFolder;
     }
 
