@@ -16,7 +16,8 @@ Public listing and review status:
 
 ## Repository Map
 
-- `main.ts`: plugin lifecycle, commands, shared orchestration, refresh, and persistence wiring.
+- `main.ts`: composition root for plugin lifecycle, module wiring, registration,
+  startup/shutdown orchestration, and thin compatibility delegation.
 - `src/services/`: feed parsing, storage, saving, synchronization, and integrations.
 - `src/views/`, `src/components/`, `src/modals/`, `src/settings/`, `src/discover/`: user-facing behavior.
 - `src/types/` and `src/utils/`: shared contracts and utilities.
@@ -36,6 +37,8 @@ these additional documents only when their area is affected:
 - `CONTRIBUTING.md` and `docs/development/compliance-patterns.md`: audit-sensitive implementation rules.
 - `docs/plugin-scorecard.md`: local audit history and current public-status snapshot.
 - `docs/development/data-flow.md`: feed refresh, merge, retention, and persistence behavior.
+- `docs/development/architecture.md`: module ownership, composition-root policy,
+  dependency direction, architecture preflight, and executable ratchets.
 - `docs/storage-vault-shards-guide.md`: storage modes and sync-facing behavior.
 - `docs/SECURITY.md`: external-domain, clipboard, and vault-access disclosures.
 - `docs/development/obsidian-settings-reference.md`: settings UI patterns.

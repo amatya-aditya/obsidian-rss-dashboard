@@ -1,0 +1,49 @@
+{
+  "thresholds": {
+    "fileLines": 1000,
+    "functionLines": 150,
+    "complexity": 20,
+    "parameters": 5
+  },
+  "ratchets": {
+    "mainTsMaxLines": 3468,
+    "allowedMainImporters": [
+      "src/components/discover-sidebar.ts",
+      "src/components/folder-selector-popup.ts",
+      "src/components/sidebar.ts",
+      "src/modals/feed-manager/add-feed-modal.ts",
+      "src/modals/feed-manager/edit-feed-modal.ts",
+      "src/modals/feed-manager/feed-manager-modal.ts",
+      "src/modals/feed-manager/folder-auto-tag-modal.ts",
+      "src/modals/import-opml-modal.ts",
+      "src/modals/import-starred-modal.ts",
+      "src/modals/mobile-discover-filters-modal.ts",
+      "src/modals/mobile-navigation-modal.ts",
+      "src/modals/storage-migration-modal.ts",
+      "src/settings/settings-tab.ts",
+      "src/settings/tabs/about-settings-tab.ts",
+      "src/settings/tabs/display-settings-tab.ts",
+      "src/settings/tabs/highlights-settings-tab.ts",
+      "src/settings/tabs/import-export-settings-tab.ts",
+      "src/settings/tabs/rules-settings-tab.ts",
+      "src/settings/tabs/sidebar-settings-tab.ts",
+      "src/settings/tabs/tags-settings-tab.ts",
+      "src/views/dashboard-view.ts",
+      "src/views/discover-view.ts",
+      "src/views/kagi-smallweb-view.ts"
+    ],
+    "allowedRuntimeCycleNodeSets": [
+      ["src/views/dashboard-view.ts", "src/views/reader-view.ts"],
+      [
+        "main.ts",
+        "src/settings/settings-tab.ts",
+        "src/settings/tabs/about-settings-tab.ts",
+        "src/settings/tabs/display-settings-tab.ts",
+        "src/settings/tabs/highlights-settings-tab.ts",
+        "src/settings/tabs/rules-settings-tab.ts",
+        "src/settings/tabs/sidebar-settings-tab.ts",
+        "src/settings/tabs/tags-settings-tab.ts"
+      ]
+    ]
+  }
+}
