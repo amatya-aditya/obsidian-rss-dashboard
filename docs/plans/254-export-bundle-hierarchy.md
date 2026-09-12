@@ -1,7 +1,7 @@
 ---
 status: proposed
 created: "2026-09-12"
-issue: ""
+issue: "254"
 milestone: ""
 owner: unassigned
 workstream: ""
