@@ -8,7 +8,14 @@
  *   - exportOpml: calls exportBlob with a text/xml blob
  *   - exportDataJson: calls exportBlob with an application/json blob containing full settings
  */
-import { describe, it, expect, vi, beforeEach, type MockInstance } from "vitest";
+import {
+  describe,
+  it,
+  expect,
+  vi,
+  beforeEach,
+  type MockInstance,
+} from "vitest";
 import type {
   RssDashboardSettings,
   PortableDataBundle,
@@ -56,7 +63,10 @@ describe("ImportExportService", () => {
     await svc.exportDataJson();
     await svc.exportOpml();
     await svc.copyDataJsonToClipboard();
-    expect(noticeSpy).not.toHaveBeenCalledWith("[Stub Notice]", expect.anything());
+    expect(noticeSpy).not.toHaveBeenCalledWith(
+      "[Stub Notice]",
+      expect.anything(),
+    );
   });
 
   describe("getUserSettingsJson", () => {
@@ -65,7 +75,10 @@ describe("ImportExportService", () => {
         settings: makeSettings(),
         isMobile: false,
       });
-      const parsed = JSON.parse(svc.getUserSettingsJson()) as Record<string, unknown>;
+      const parsed = JSON.parse(svc.getUserSettingsJson()) as Record<
+        string,
+        unknown
+      >;
       expect(parsed).not.toHaveProperty("feeds");
       expect(parsed).not.toHaveProperty("folders");
       expect(parsed).not.toHaveProperty("availableTags");
@@ -77,7 +90,9 @@ describe("ImportExportService", () => {
         settings: makeSettings(),
         isMobile: false,
       });
-      expect(() => { JSON.parse(svc.getUserSettingsJson()); }).not.toThrow();
+      expect(() => {
+        JSON.parse(svc.getUserSettingsJson());
+      }).not.toThrow();
     });
   });
 
@@ -90,7 +105,9 @@ describe("ImportExportService", () => {
       const result = await svc.exportOpml();
       expect(exportBlob).toHaveBeenCalledWith(
         expect.objectContaining({
-          blob: expect.objectContaining({ type: "text/xml" }) as unknown as Blob,
+          blob: expect.objectContaining({
+            type: "text/xml",
+          }) as unknown as Blob,
           filename: "feeds.opml",
         }),
       );
@@ -113,6 +130,36 @@ describe("ImportExportService", () => {
     });
   });
 
+  describe("exportUserSettingsJson", () => {
+    it("calls exportBlob with rss-dashboard-user-preferences.json as the filename", async () => {
+      const svc = new ImportExportService({
+        settings: makeSettings(),
+        isMobile: false,
+      });
+      await svc.exportUserSettingsJson();
+      expect(exportBlob).toHaveBeenCalledWith(
+        expect.objectContaining({
+          filename: "rss-dashboard-user-preferences.json",
+        }),
+      );
+    });
+  });
+
+  describe("copyUserSettingsJsonToClipboard", () => {
+    it("returns the clipboard copy result without showing a Notice", async () => {
+      const svc = new ImportExportService({
+        settings: makeSettings(),
+        isMobile: false,
+      });
+      const result = await svc.copyUserSettingsJsonToClipboard();
+      expect(result).toBe("copied");
+      expect(noticeSpy).not.toHaveBeenCalledWith(
+        "[Stub Notice]",
+        expect.anything(),
+      );
+    });
+  });
+
   describe("exportDataJson", () => {
     it("calls exportBlob with an application/json blob containing full settings", async () => {
       const settings = makeSettings();
@@ -120,11 +167,16 @@ describe("ImportExportService", () => {
       await svc.exportDataJson();
       expect(exportBlob).toHaveBeenCalledWith(
         expect.objectContaining({
-          blob: expect.objectContaining({ type: "application/json" }) as unknown as Blob,
+          blob: expect.objectContaining({
+            type: "application/json",
+          }) as unknown as Blob,
           filename: "data.json",
         }),
       );
-      const call = vi.mocked(exportBlob).mock.calls[0][0] as unknown as { blob: Blob; filename: string };
+      const call = vi.mocked(exportBlob).mock.calls[0][0] as unknown as {
+        blob: Blob;
+        filename: string;
+      };
       const text = await call.blob.text();
       const parsed = JSON.parse(text) as Record<string, unknown>;
       expect(parsed).toHaveProperty("feeds");
@@ -156,11 +208,47 @@ describe("ImportExportService", () => {
           filename: "rss-dashboard-portable-bundle.json",
         }),
       );
-      const call = vi.mocked(exportBlob).mock.calls[0][0] as unknown as { blob: Blob; filename: string };
+      const call = vi.mocked(exportBlob).mock.calls[0][0] as unknown as {
+        blob: Blob;
+        filename: string;
+      };
       const text = await call.blob.text();
       const parsed = JSON.parse(text) as Record<string, unknown>;
       expect(parsed.storageMode).toBe("vault-shards");
       expect(parsed.markdownMirrorFallbackPlanned).toBe(true);
+    });
+  });
+
+  describe("copyPortableDataBundleToClipboard", () => {
+    it("copies the portable bundle JSON when a provider is supplied", async () => {
+      const settings = makeSettings();
+      const svc = new ImportExportService({
+        settings,
+        isMobile: false,
+        getPortableDataBundle: () => {
+          return {
+            version: 1,
+            exportedAt: 123,
+            storageMode: "vault-shards",
+            metadata: { ...settings, feeds: [] },
+            shards: [],
+            markdownMirrorFallbackPlanned: true,
+          } as unknown as PortableDataBundle;
+        },
+      });
+
+      const result = await svc.copyPortableDataBundleToClipboard();
+      expect(result).toBe("copied");
+    });
+
+    it("falls back to a settings-only payload when no provider is supplied", async () => {
+      const svc = new ImportExportService({
+        settings: makeSettings(),
+        isMobile: false,
+      });
+
+      const result = await svc.copyPortableDataBundleToClipboard();
+      expect(result).toBe("copied");
     });
   });
 
@@ -245,7 +333,10 @@ describe("ImportExportService", () => {
           filename: "rss-dashboard-feed-bundle.json",
         }),
       );
-      const call = vi.mocked(exportBlob).mock.calls[0][0] as unknown as { blob: Blob; filename: string };
+      const call = vi.mocked(exportBlob).mock.calls[0][0] as unknown as {
+        blob: Blob;
+        filename: string;
+      };
       const text = await call.blob.text();
       const parsed = JSON.parse(text) as Record<string, unknown>;
       expect(parsed).toHaveProperty("feeds");
@@ -262,6 +353,39 @@ describe("ImportExportService", () => {
         "Feed bundle export is not available in this context",
       );
       expect(exportBlob).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("copyFeedBundleToClipboard", () => {
+    it("copies the feed bundle JSON when a provider is supplied", async () => {
+      const svc = new ImportExportService({
+        settings: makeSettings(),
+        isMobile: false,
+        getFeedBundle: () => {
+          return {
+            version: 1,
+            exportedAt: 123,
+            feeds: [],
+            folders: [],
+            availableTags: [],
+            shards: [],
+          } as unknown as FeedBundle;
+        },
+      });
+
+      const result = await svc.copyFeedBundleToClipboard();
+      expect(result).toBe("copied");
+    });
+
+    it("throws when no Feed bundle provider is available, instead of copying a corrupt payload", async () => {
+      const svc = new ImportExportService({
+        settings: makeSettings(),
+        isMobile: false,
+      });
+
+      await expect(svc.copyFeedBundleToClipboard()).rejects.toThrow(
+        "Feed bundle export is not available in this context",
+      );
     });
   });
 
@@ -287,7 +411,10 @@ describe("ImportExportService", () => {
           filename: "rss-dashboard-settings-bundle.json",
         }),
       );
-      const call = vi.mocked(exportBlob).mock.calls[0][0] as unknown as { blob: Blob; filename: string };
+      const call = vi.mocked(exportBlob).mock.calls[0][0] as unknown as {
+        blob: Blob;
+        filename: string;
+      };
       const text = await call.blob.text();
       const parsed = JSON.parse(text) as Record<string, unknown>;
       expect(parsed).toHaveProperty("settings");
@@ -304,6 +431,36 @@ describe("ImportExportService", () => {
         "Settings bundle export is not available in this context",
       );
       expect(exportBlob).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("copySettingsBundleToClipboard", () => {
+    it("copies the settings bundle JSON when a provider is supplied", async () => {
+      const svc = new ImportExportService({
+        settings: makeSettings(),
+        isMobile: false,
+        getSettingsBundle: () => {
+          return {
+            version: 1,
+            exportedAt: 123,
+            settings: { refreshInterval: 60 },
+          } as unknown as SettingsBundle;
+        },
+      });
+
+      const result = await svc.copySettingsBundleToClipboard();
+      expect(result).toBe("copied");
+    });
+
+    it("throws when no Settings bundle provider is available, instead of copying a corrupt payload", async () => {
+      const svc = new ImportExportService({
+        settings: makeSettings(),
+        isMobile: false,
+      });
+
+      await expect(svc.copySettingsBundleToClipboard()).rejects.toThrow(
+        "Settings bundle export is not available in this context",
+      );
     });
   });
 

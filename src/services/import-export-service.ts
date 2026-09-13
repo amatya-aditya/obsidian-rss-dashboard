@@ -76,7 +76,7 @@ export class ImportExportService {
    * @returns {Promise<ExportBlobResult>} The outcome of the export attempt
    */
   async exportUserSettingsJson(): Promise<ExportBlobResult> {
-    const filename = "usersettings.json";
+    const filename = "rss-dashboard-user-preferences.json";
     const blob = new Blob([this.getUserSettingsJson()], {
       type: "application/json",
     });
@@ -285,7 +285,7 @@ export class ImportExportService {
   }
 
   /**
-   * Copy user settings only (usersettings.json) to clipboard.
+   * Copy user settings only (rss-dashboard-user-preferences.json) to clipboard.
    * Does not show a Notice — the caller (main.ts/views) turns the result into
    * user-facing feedback.
    * @returns {Promise<"copied" | "failed">} The outcome of the copy attempt
@@ -306,5 +306,51 @@ export class ImportExportService {
       this.settings.folders,
     );
     return copyTextToClipboard(opmlContent);
+  }
+
+  /**
+   * Copy the portable data bundle (all feeds, folders, and settings) to clipboard.
+   * Does not show a Notice — the caller (main.ts/views) turns the result into
+   * user-facing feedback.
+   * @returns {Promise<"copied" | "failed">} The outcome of the copy attempt
+   */
+  async copyPortableDataBundleToClipboard(): Promise<"copied" | "failed"> {
+    const bundle = this.getPortableDataBundle?.() ?? {
+      settings: this.settings,
+    };
+    return copyTextToClipboard(JSON.stringify(bundle, null, 2));
+  }
+
+  /**
+   * Copy the feed bundle (feeds, folders, tags, articles, and article state)
+   * to clipboard.
+   * Does not show a Notice — the caller (main.ts/views) turns the result into
+   * user-facing feedback.
+   * @returns {Promise<"copied" | "failed">} The outcome of the copy attempt
+   * @throws {Error} If no Feed bundle provider is available
+   */
+  async copyFeedBundleToClipboard(): Promise<"copied" | "failed"> {
+    const bundle = this.getFeedBundle?.();
+    if (!bundle) {
+      throw new Error("Feed bundle export is not available in this context");
+    }
+    return copyTextToClipboard(JSON.stringify(bundle, null, 2));
+  }
+
+  /**
+   * Copy the settings bundle (app preferences only) to clipboard.
+   * Does not show a Notice — the caller (main.ts/views) turns the result into
+   * user-facing feedback.
+   * @returns {Promise<"copied" | "failed">} The outcome of the copy attempt
+   * @throws {Error} If no Settings bundle provider is available
+   */
+  async copySettingsBundleToClipboard(): Promise<"copied" | "failed"> {
+    const bundle = this.getSettingsBundle?.();
+    if (!bundle) {
+      throw new Error(
+        "Settings bundle export is not available in this context",
+      );
+    }
+    return copyTextToClipboard(JSON.stringify(bundle, null, 2));
   }
 }

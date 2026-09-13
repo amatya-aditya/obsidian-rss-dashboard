@@ -49,8 +49,8 @@ export class FactoryResetConfirmModal extends Modal {
         btn.setButtonText("Factory reset");
         settingsUiCompatibility.markDestructive(btn);
         btn.onClick(() => {
-            this.confirmed = true;
-            this.close();
+          this.confirmed = true;
+          this.close();
         });
       });
   }
@@ -95,7 +95,7 @@ export function renderImportExportSettingsTab(
   new Setting(dataSection)
     .setName("Backup & restore (data.json)")
     .setDesc(
-      "Import or export your full dashboard dataset as a single flat JSON file, including preferences, folders, feeds, and stored article retrievals. This is always the full legacy-format file, even when vault-shard storage is enabled — it will not match the small pointer file named data.json in your vault in that mode. Use \"Shard data\" below for a bundle that matches shard storage.",
+      'Import or export your full dashboard dataset as a single flat JSON file, including preferences, folders, feeds, and stored article retrievals. This is always the full legacy-format file, even when vault-shard storage is enabled — it will not match the small pointer file named data.json in your vault in that mode. Use "Shard data" below for a bundle that matches shard storage.',
     )
     .setHeading();
 
@@ -157,7 +157,9 @@ export function renderImportExportSettingsTab(
   const portableBundleSection = containerEl.createDiv();
   new Setting(portableBundleSection)
     .setName("Shard data")
-    .setDesc("Import or export shard data bundles for cross-device migration.")
+    .setDesc(
+      "Import or export shard data bundles for cross-device migration. Exports as rss-dashboard-portable-bundle.json",
+    )
     .setHeading();
 
   const portableBundleActions = new Setting(portableBundleSection);
@@ -200,6 +202,14 @@ export function renderImportExportSettingsTab(
         .onClick(() => {
           void plugin.exportPortableDataBundle();
         }),
+    )
+    .addButton((button) =>
+      button
+        .setIcon("copy")
+        .setTooltip("Copy shard data to clipboard")
+        .onClick(() => {
+          void plugin.copyPortableDataBundleToClipboard();
+        }),
     );
 
   // ── Feed bundle ───────────────────────────────────────────────────────────
@@ -207,7 +217,7 @@ export function renderImportExportSettingsTab(
   new Setting(feedBundleSection)
     .setName("Feed bundle")
     .setDesc(
-      "Import or export feeds, folders, tags, articles, and article state — no app settings.",
+      "Import or export feeds, folders, tags, articles, and article state — no app settings. Exports as rss-dashboard-feed-bundle.json",
     )
     .setHeading();
 
@@ -249,6 +259,14 @@ export function renderImportExportSettingsTab(
         .onClick(() => {
           void plugin.exportFeedBundle();
         }),
+    )
+    .addButton((button) =>
+      button
+        .setIcon("copy")
+        .setTooltip("Copy feed bundle to clipboard")
+        .onClick(() => {
+          void plugin.copyFeedBundleToClipboard();
+        }),
     );
 
   // ── Settings bundle ───────────────────────────────────────────────────────
@@ -256,7 +274,7 @@ export function renderImportExportSettingsTab(
   new Setting(settingsBundleSection)
     .setName("Settings bundle")
     .setDesc(
-      "Import or export app preferences only — no feeds, folders, tags, or articles.",
+      "Import or export app preferences only — no feeds, folders, tags, or articles. Exports as rss-dashboard-settings-bundle.json",
     )
     .setHeading();
 
@@ -300,13 +318,23 @@ export function renderImportExportSettingsTab(
         .onClick(() => {
           void plugin.exportSettingsBundle();
         }),
+    )
+    .addButton((button) =>
+      button
+        .setIcon("copy")
+        .setTooltip("Copy settings bundle to clipboard")
+        .onClick(() => {
+          void plugin.copySettingsBundleToClipboard();
+        }),
     );
 
-  // ── usersettings.json ─────────────────────────────────────────────────────
+  // ── rss-dashboard-user-preferences.json ──────────────────────────────────────────────────
   const userSettingsSection = containerEl.createDiv();
   new Setting(userSettingsSection)
     .setName("User preferences file")
-    .setDesc("Import or export plugin preferences.")
+    .setDesc(
+      "Import or export plugin preferences. Exports as rss-dashboard-user-preferences.json",
+    )
     .setHeading();
 
   const userSettingsActions = new Setting(userSettingsSection);
@@ -315,7 +343,7 @@ export function renderImportExportSettingsTab(
     .addButton((button) =>
       button
         .setIcon("upload")
-        .setButtonText("Import usersettings.json")
+        .setButtonText("Import user preferences")
         .onClick(() => {
           const input = activeDocument.body.createEl("input", {
             attr: { type: "file", accept: ".json,.backup,application/json" },
@@ -343,7 +371,7 @@ export function renderImportExportSettingsTab(
     .addButton((button) =>
       button
         .setIcon("download")
-        .setButtonText("Export usersettings.json")
+        .setButtonText("Export user preferences")
         .onClick(() => {
           void plugin.exportUserSettingsJson();
         }),
@@ -351,7 +379,7 @@ export function renderImportExportSettingsTab(
     .addButton((button) =>
       button
         .setIcon("copy")
-        .setTooltip("Copy usersettings.json to clipboard")
+        .setTooltip("Copy user preferences to clipboard")
         .onClick(() => {
           void plugin.copyUserSettingsJsonToClipboard();
         }),
@@ -474,16 +502,16 @@ export function renderImportExportSettingsTab(
     button.setIcon("rotate-ccw").setButtonText("Factory reset");
     settingsUiCompatibility.markDestructive(button);
     button.onClick(() => {
-        void (async () => {
-          const confirmModal = new FactoryResetConfirmModal(plugin.app);
-          confirmModal.open();
-          const shouldReset = await confirmModal.waitForClose();
-          if (!shouldReset) {
-            return;
-          }
+      void (async () => {
+        const confirmModal = new FactoryResetConfirmModal(plugin.app);
+        confirmModal.open();
+        const shouldReset = await confirmModal.waitForClose();
+        if (!shouldReset) {
+          return;
+        }
 
-          await plugin.performFactoryReset();
-        })();
+        await plugin.performFactoryReset();
+      })();
     });
   });
 }

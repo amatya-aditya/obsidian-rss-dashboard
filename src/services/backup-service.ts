@@ -95,23 +95,40 @@ export class BackupService {
         await this.vault.adapter.write(opmlPath, opmlContent);
       }
 
-      // 3. userdata.json / usersettings.json
+      // 3. rss-dashboard-user-preferences.json / usersettings.json (legacy) / userdata.json
       if (autoBackup.backupUserdata) {
-        // We look for both common names, prioritizing 'usersettings.json' since that's what's exported.
+        // 'rss-dashboard-user-preferences.json' is what's exported today; 'usersettings.json' is
+        // the pre-rename filename, kept as a fallback for files exported before it.
+        const userPreferencesPath = `${pluginDir}/rss-dashboard-user-preferences.json`;
         const userSettingsPath = `${pluginDir}/usersettings.json`;
         const userDataPath = `${pluginDir}/userdata.json`;
 
-        const userSettingsExists =
-          await this.vault.adapter.exists(userSettingsPath);
+        const userPreferencesExists =
+          await this.vault.adapter.exists(userPreferencesPath);
 
-        if (userSettingsExists) {
-          const content = await this.vault.adapter.read(userSettingsPath);
-          await this.vault.adapter.write(`${userSettingsPath}.backup`, content);
+        if (userPreferencesExists) {
+          const content = await this.vault.adapter.read(userPreferencesPath);
+          await this.vault.adapter.write(
+            `${userPreferencesPath}.backup`,
+            content,
+          );
         } else {
-          const userDataExists = await this.vault.adapter.exists(userDataPath);
-          if (userDataExists) {
-            const content = await this.vault.adapter.read(userDataPath);
-            await this.vault.adapter.write(`${userDataPath}.backup`, content);
+          const userSettingsExists =
+            await this.vault.adapter.exists(userSettingsPath);
+
+          if (userSettingsExists) {
+            const content = await this.vault.adapter.read(userSettingsPath);
+            await this.vault.adapter.write(
+              `${userSettingsPath}.backup`,
+              content,
+            );
+          } else {
+            const userDataExists =
+              await this.vault.adapter.exists(userDataPath);
+            if (userDataExists) {
+              const content = await this.vault.adapter.read(userDataPath);
+              await this.vault.adapter.write(`${userDataPath}.backup`, content);
+            }
           }
         }
       }
@@ -122,6 +139,4 @@ export class BackupService {
       throw wrapped;
     }
   }
-
-
 }
