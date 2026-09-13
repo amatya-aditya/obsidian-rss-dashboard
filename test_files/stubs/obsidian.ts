@@ -98,9 +98,12 @@ const createMoment = (input?: string | number | Date) => {
             case "YY":
               return String(year).slice(-2);
             case "MMMM":
-              return monthNames[month];
+              // month is always 0-11 (Date.getMonth()) and monthNames has
+              // exactly 12 entries, so this index is never out of bounds;
+              // the fallback only satisfies noUncheckedIndexedAccess.
+              return monthNames[month] ?? String(month);
             case "MMM":
-              return shortMonthNames[month];
+              return shortMonthNames[month] ?? String(month);
             case "MM":
               return pad(month + 1);
             case "M":
@@ -110,9 +113,12 @@ const createMoment = (input?: string | number | Date) => {
             case "D":
               return String(day);
             case "dddd":
-              return weekdayNames[weekday];
+              // weekday is always 0-6 (Date.getDay()) and weekdayNames has
+              // exactly 7 entries, so this index is never out of bounds;
+              // the fallback only satisfies noUncheckedIndexedAccess.
+              return weekdayNames[weekday] ?? String(weekday);
             case "ddd":
-              return shortWeekdayNames[weekday];
+              return shortWeekdayNames[weekday] ?? String(weekday);
             case "Do":
               return `${day}${ordinalSuffix(day)}`;
             case "HH":
@@ -908,9 +914,14 @@ export class Setting {
     }
     return this;
   }
-  setDesc(_desc?: string): this {
+  setDesc(_desc?: string | DocumentFragment): this {
     if (_desc !== undefined) {
-      this.descEl.textContent = _desc;
+      this.descEl.empty();
+      if (_desc instanceof DocumentFragment) {
+        this.descEl.appendChild(_desc);
+      } else {
+        this.descEl.textContent = _desc;
+      }
     }
     return this;
   }
