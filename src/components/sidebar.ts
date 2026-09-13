@@ -1761,6 +1761,7 @@ export class Sidebar {
   private isMultiSelectionTarget(
     targetType: "folder" | "feed",
     targetKey: string,
+    feedFolder?: string,
   ): boolean {
     const { selectedFolders, selectedFeeds } = this.options;
     const folderCount = selectedFolders?.length || 0;
@@ -1772,9 +1773,27 @@ export class Sidebar {
 
     if (targetType === "folder") {
       return selectedFolders?.includes(targetKey) || false;
-    } else {
-      return selectedFeeds?.includes(targetKey) || false;
     }
+
+    if (selectedFeeds?.includes(targetKey)) return true;
+
+    // A feed with no explicit entry in selectedFeeds is still part of the
+    // multi-selection when its folder (or an ancestor folder) is selected —
+    // renderFeed shows it with the same "multi-selected" styling, so the
+    // context menu must treat it the same way.
+    if (feedFolder && selectedFolders && selectedFolders.length > 0) {
+      let current = feedFolder;
+      while (current) {
+        if (selectedFolders.includes(current)) return true;
+        if (current.includes("/")) {
+          current = current.substring(0, current.lastIndexOf("/"));
+        } else {
+          break;
+        }
+      }
+    }
+
+    return false;
   }
 
   private appendSelectionContextMenu(menu: Menu): void {
@@ -3793,7 +3812,7 @@ export class Sidebar {
         });
     });
 
-    if (this.isMultiSelectionTarget("feed", feed.url)) {
+    if (this.isMultiSelectionTarget("feed", feed.url, feed.folder)) {
       this.appendSelectionContextMenu(menu);
       menu.showAtMouseEvent(event);
       return;

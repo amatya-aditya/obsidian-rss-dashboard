@@ -2425,8 +2425,13 @@ export class RssDashboardView extends ItemView {
         }
       }
 
-      // If all feeds are selected (and there is at least one feed), it's fully selected
-      if (allFeedsSelected && feedCount > 0) {
+      // If all feeds are selected (and there is at least one feed), it's fully
+      // selected — but only promote to a folder selection when that folder
+      // actually still exists. A feed's `folder` field can point at a folder
+      // that was since deleted (it then renders under the root section); such
+      // feeds must stay individually selected rather than collapsing into a
+      // selection of a folder that isn't there to select or delete.
+      if (allFeedsSelected && feedCount > 0 && this.findFolderByPath(folderPath)) {
         finalSelectedFolders.add(folderPath);
       } else if (
         feedCount === 0 &&
