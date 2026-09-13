@@ -2,7 +2,7 @@
 
 ## Status
 
-proposed
+accepted
 
 ## Context
 
@@ -31,7 +31,7 @@ Scope constraints for this split:
 - All three JSON buckets (Portable data bundle, Feed bundle, Settings bundle) get symmetric import as well as export — an export that can't be imported back isn't a usable backup.
 - No platform restriction (desktop vs. mobile): there is no usage data suggesting mobile-only users are rare enough to justify gating a stated core value behind platform.
 
-The technical hierarchy (two toggles, four valid outcomes) and a plain-language decision tree intended for a future settings-tab modal were worked out with the maintainer; see `docs/plans/export-bundle-hierarchy.md` for both, written out in full.
+The technical hierarchy (two toggles, four valid outcomes) and a plain-language decision tree intended for a future settings-tab modal were worked out with the maintainer; see `docs/plans/254-export-bundle-hierarchy.md` for both, written out in full.
 
 ## Considered Options
 
@@ -43,5 +43,5 @@ The technical hierarchy (two toggles, four valid outcomes) and a plain-language 
 
 - The existing "Import/Export shard data" (now "Import/Export portable data bundle") buttons on the Storage tab and Import/Export tab keep working unchanged until this is implemented; this ADR does not itself change behavior.
 - The duplicated bundle controls across the Storage tab and Import/Export tab remain duplicated; deduplicating them is separate follow-up work, not bundled into this decision.
-- Implementing this requires: a `FeedDataBundle` and `SettingsBundle` type/format (or a `scope` field on `PortableDataBundle`), corresponding import validation, and UI for selecting a scope — tracked in `docs/plans/export-bundle-hierarchy.md`.
+- Implementing this requires: a `FeedDataBundle` and `SettingsBundle` type/format (or a `scope` field on `PortableDataBundle`), corresponding import validation, and UI for selecting a scope — tracked in `docs/plans/254-export-bundle-hierarchy.md` (child tickets under [GH Issue #254](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/254)).
 - `usersettings.json`'s current behavior (excluding `feeds`/`folders`/`availableTags`) becomes the correct shape for the new Settings bundle rather than an inconsistency to fix later.

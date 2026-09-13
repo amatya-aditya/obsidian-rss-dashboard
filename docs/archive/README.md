@@ -65,6 +65,11 @@ records the documentation classification.
 | [Ticket 02: Add JSDoc to high-risk modules](plans/unreleased/249-02-add-jsdoc-high-risk-modules.md) | 2026-09-11 | [GH Issue #249](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/249) | [PR #250](https://github.com/amatya-aditya/obsidian-rss-dashboard/pull/250) |
 | [Ticket 03: Standardize error handling](plans/unreleased/249-03-standardize-error-handling.md) | 2026-09-11 | [GH Issue #249](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/249) | [PR #250](https://github.com/amatya-aditya/obsidian-rss-dashboard/pull/250) |
 | [Ticket 04: Final validation and commit](plans/unreleased/249-04-final-validation-commit.md) | 2026-09-11 | [GH Issue #249](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/249) | [PR #250](https://github.com/amatya-aditya/obsidian-rss-dashboard/pull/250) |
+| [Export Bundle Hierarchy Plan](plans/unreleased/254-export-bundle-hierarchy.md) | 2026-09-12 | [GH Issue #254](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/254) | - |
+| [Ticket 01: Build Feed and Settings bundles](plans/unreleased/254-export-bundle-hierarchy/tickets/01-build-feed-and-settings-bundles.md) | 2026-09-12 | [GH Issue #254](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/254) | - |
+| [Ticket 02: Import Feed and Settings bundles](plans/unreleased/254-export-bundle-hierarchy/tickets/02-import-feed-and-settings-bundles.md) | 2026-09-12 | [GH Issue #254](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/254) | - |
+| [Ticket 03: Settings-tab UI for all three JSON scopes + OPML](plans/unreleased/254-export-bundle-hierarchy/tickets/03-settings-tab-ui-for-three-scopes.md) | 2026-09-12 | [GH Issue #254](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/254) | - |
+| [Ticket 04: CONTEXT.md glossary entries for Feed bundle / Settings bundle](plans/unreleased/254-export-bundle-hierarchy/tickets/04-context-glossary-entries.md) | 2026-09-12 | [GH Issue #254](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/254) | - |
 
 ## Unshipped plans
 

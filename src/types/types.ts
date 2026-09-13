@@ -600,6 +600,31 @@ export type SettingsOnly = Omit<
   "feeds" | "folders" | "availableTags"
 >;
 
+/**
+ * Feeds, folders, tags, articles, and article state — no app settings.
+ * See ADR 0005 for the split from the combined PortableDataBundle.
+ */
+export interface FeedBundle {
+  version: number;
+  exportedAt: number;
+  feeds: PersistedFeedConfig[];
+  folders: Folder[];
+  availableTags: Tag[];
+  shards: FeedItemsShard[];
+}
+
+/**
+ * App preferences only — no feeds, folders, tags, or articles.
+ * See ADR 0005 for the split from the combined PortableDataBundle.
+ */
+export interface SettingsBundle {
+  version: number;
+  exportedAt: number;
+  metadataStorageMode?: "plugin-default" | "vault-location";
+  metadataStorageFolder?: string;
+  settings: SettingsOnly;
+}
+
 export const DEFAULT_SETTINGS: RssDashboardSettings = {
   feeds: [],
   folders: [

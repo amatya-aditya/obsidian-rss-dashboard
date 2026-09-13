@@ -1,11 +1,13 @@
 import { App, Notice, TFile, TFolder, normalizePath } from "obsidian";
 import type {
   Feed,
+  FeedBundle,
   FeedItemsShard,
   PortableDataBundle,
   PersistedFeedConfig,
   PersistedRssDashboardSettings,
   RssDashboardSettings,
+  SettingsBundle,
   ArticleUserState,
   UserStateFile,
 } from "../types/types";
@@ -178,6 +180,116 @@ function parsePortableDataBundle(input: unknown): PortableDataBundle {
   }
 
   return bundle as PortableDataBundle;
+}
+
+function assertValidShards(shards: unknown): asserts shards is FeedItemsShard[] {
+  if (!Array.isArray(shards)) {
+    throw new Error("Bundle is missing shards");
+  }
+
+  for (const shard of shards) {
+    if (!shard || typeof shard !== "object") {
+      throw new Error("Bundle has an invalid shard entry");
+    }
+
+    const shardLike = shard as Partial<FeedItemsShard>;
+    if (typeof shardLike.feedId !== "string" || !shardLike.feedId.trim()) {
+      throw new Error("Bundle shard is missing feedId");
+    }
+
+    if (!Array.isArray(shardLike.items)) {
+      throw new Error(`Bundle shard ${shardLike.feedId} is missing items`);
+    }
+  }
+}
+
+function parseFeedBundle(input: unknown): FeedBundle {
+  if (!input || typeof input !== "object") {
+    throw new Error("Feed bundle must be a JSON object");
+  }
+
+  const bundle = input as Partial<FeedBundle>;
+  if (bundle.version !== SHARD_VERSION) {
+    throw new Error(
+      `Unsupported feed bundle version: ${String(bundle.version)} (expected ${SHARD_VERSION})`,
+    );
+  }
+
+  if (typeof bundle.exportedAt !== "number") {
+    throw new Error("Feed bundle is missing a valid exportedAt timestamp");
+  }
+
+  if (!Array.isArray(bundle.feeds)) {
+    throw new Error("Feed bundle is missing feeds");
+  }
+
+  if (!Array.isArray(bundle.folders)) {
+    throw new Error("Feed bundle is missing folders");
+  }
+
+  if (!Array.isArray(bundle.availableTags)) {
+    throw new Error("Feed bundle is missing availableTags");
+  }
+
+  assertValidShards(bundle.shards);
+
+  return {
+    version: bundle.version,
+    exportedAt: bundle.exportedAt,
+    feeds: bundle.feeds,
+    folders: bundle.folders,
+    availableTags: bundle.availableTags,
+    shards: bundle.shards,
+  };
+}
+
+function parseSettingsBundle(input: unknown): SettingsBundle {
+  if (!input || typeof input !== "object") {
+    throw new Error("Settings bundle must be a JSON object");
+  }
+
+  const bundle = input as Partial<SettingsBundle>;
+  if (bundle.version !== SHARD_VERSION) {
+    throw new Error(
+      `Unsupported settings bundle version: ${String(bundle.version)} (expected ${SHARD_VERSION})`,
+    );
+  }
+
+  if (typeof bundle.exportedAt !== "number") {
+    throw new Error(
+      "Settings bundle is missing a valid exportedAt timestamp",
+    );
+  }
+
+  if (!bundle.settings || typeof bundle.settings !== "object") {
+    throw new Error("Settings bundle is missing settings");
+  }
+
+  const {
+    feeds: _feeds,
+    folders: _folders,
+    availableTags: _availableTags,
+    ...settingsOnly
+  } = bundle.settings as Record<string, unknown>;
+  void _feeds;
+  void _folders;
+  void _availableTags;
+
+  if (
+    settingsOnly.storageMode !== "legacy-json" &&
+    settingsOnly.storageMode !== "vault-shards" &&
+    settingsOnly.storageMode !== "vault-shards-v2"
+  ) {
+    throw new Error("Settings bundle has an invalid storageMode value");
+  }
+
+  return {
+    version: bundle.version,
+    exportedAt: bundle.exportedAt,
+    metadataStorageMode: bundle.metadataStorageMode,
+    metadataStorageFolder: bundle.metadataStorageFolder,
+    settings: settingsOnly as SettingsBundle["settings"],
+  };
 }
 
 export class FeedStorageRepository {
@@ -623,24 +735,61 @@ export class FeedStorageRepository {
     });
   }
 
+  public buildFeedBundle(settings: RssDashboardSettings): FeedBundle {
+    this.ensureFeedIds(settings);
+
+    return {
+      version: SHARD_VERSION,
+      exportedAt: Date.now(),
+      feeds: cloneJson(this.toPersistedFeeds(settings.feeds)),
+      folders: cloneJson(settings.folders),
+      availableTags: cloneJson(settings.availableTags),
+      shards: settings.feeds
+        .filter((feed): feed is Feed & { feedId: string } =>
+          Boolean(feed.feedId),
+        )
+        .map((feed) => createFeedShard(feed)),
+    };
+  }
+
+  public buildSettingsBundle(settings: RssDashboardSettings): SettingsBundle {
+    const { feeds: _feeds, folders: _folders, availableTags: _availableTags, ...rest } =
+      settings;
+    void _feeds;
+    void _folders;
+    void _availableTags;
+    const settingsOnly = cloneJson(rest);
+    settingsOnly.storageFolder = normalizeFolderPath(settingsOnly.storageFolder);
+
+    return {
+      version: SHARD_VERSION,
+      exportedAt: Date.now(),
+      metadataStorageMode: settings.metadataStorageMode,
+      metadataStorageFolder: settings.metadataStorageFolder,
+      settings: settingsOnly,
+    };
+  }
+
   public buildPortableDataBundle(
     settings: RssDashboardSettings,
   ): PortableDataBundle {
-    this.ensureFeedIds(settings);
+    const feedBundle = this.buildFeedBundle(settings);
+    const settingsBundle = this.buildSettingsBundle(settings);
 
     return {
       version: SHARD_VERSION,
       exportedAt: Date.now(),
       storageMode: settings.storageMode,
       storageFolder: settings.storageFolder,
-      metadataStorageMode: settings.metadataStorageMode,
-      metadataStorageFolder: settings.metadataStorageFolder,
-      metadata: this.createPersistedSettings(settings),
-      shards: settings.feeds
-        .filter((feed): feed is Feed & { feedId: string } =>
-          Boolean(feed.feedId),
-        )
-        .map((feed) => createFeedShard(feed)),
+      metadataStorageMode: settingsBundle.metadataStorageMode,
+      metadataStorageFolder: settingsBundle.metadataStorageFolder,
+      metadata: {
+        ...settingsBundle.settings,
+        feeds: feedBundle.feeds,
+        folders: feedBundle.folders,
+        availableTags: feedBundle.availableTags,
+      },
+      shards: feedBundle.shards,
       markdownMirrorFallbackPlanned: true,
     };
   }
@@ -754,6 +903,151 @@ export class FeedStorageRepository {
     }
   }
 
+  public validateFeedBundle(input: unknown): FeedBundle {
+    return parseFeedBundle(input);
+  }
+
+  public async importFeedBundle(
+    input: unknown,
+    settings: RssDashboardSettings,
+    saveData: (data: unknown) => Promise<void>,
+  ): Promise<void> {
+    const bundle = this.validateFeedBundle(input);
+    const backupBundle = this.buildFeedBundle(settings);
+
+    storageLog("Starting feed bundle import", {
+      sourceFeedCount: bundle.feeds.length,
+      sourceShardCount: bundle.shards.length,
+    });
+
+    try {
+      const shardItemsByFeedId = new Map(
+        bundle.shards.map((shard) => [shard.feedId, cloneJson(shard.items)]),
+      );
+      const importedFeeds = cloneJson(bundle.feeds).map((feed) => {
+        const feedItems = feed.feedId
+          ? shardItemsByFeedId.get(feed.feedId)
+          : undefined;
+        return {
+          ...feed,
+          items: Array.isArray(feedItems) ? feedItems : [],
+        };
+      });
+
+      settings.feeds = importedFeeds;
+      settings.folders = cloneJson(bundle.folders);
+      settings.availableTags = cloneJson(bundle.availableTags);
+
+      await this.persistSettings(settings, saveData, {
+        forceAllShards: true,
+        forceMetadata: true,
+      });
+
+      storageLog("Completed feed bundle import", {
+        feedCount: settings.feeds.length,
+      });
+    } catch (error) {
+      storageError(
+        "Feed bundle import failed; restoring previous state",
+        error,
+      );
+
+      try {
+        const backupShardItemsByFeedId = new Map(
+          backupBundle.shards.map((shard) => [
+            shard.feedId,
+            cloneJson(shard.items),
+          ]),
+        );
+        settings.feeds = cloneJson(backupBundle.feeds).map((feed) => ({
+          ...feed,
+          items: feed.feedId
+            ? (backupShardItemsByFeedId.get(feed.feedId) ?? [])
+            : [],
+        }));
+        settings.folders = cloneJson(backupBundle.folders);
+        settings.availableTags = cloneJson(backupBundle.availableTags);
+
+        await this.persistSettings(settings, saveData, {
+          forceAllShards: true,
+          forceMetadata: true,
+        });
+        storageLog("Restored previous state after failed feed bundle import");
+      } catch (rollbackError) {
+        storageError(
+          "Rollback failed after feed bundle import failure",
+          rollbackError,
+        );
+      }
+
+      throw error;
+    }
+  }
+
+  public validateSettingsBundle(input: unknown): SettingsBundle {
+    return parseSettingsBundle(input);
+  }
+
+  public async importSettingsBundle(
+    input: unknown,
+    settings: RssDashboardSettings,
+    saveData: (data: unknown) => Promise<void>,
+  ): Promise<void> {
+    const bundle = this.validateSettingsBundle(input);
+    const backupBundle = this.buildSettingsBundle(settings);
+
+    storageLog("Starting settings bundle import", {
+      sourceStorageMode: bundle.settings.storageMode,
+    });
+
+    try {
+      Object.assign(settings, cloneJson(bundle.settings));
+      settings.storageFolder = normalizeFolderPath(settings.storageFolder);
+      settings.metadataStorageMode =
+        bundle.metadataStorageMode ?? settings.metadataStorageMode;
+      settings.metadataStorageFolder =
+        bundle.metadataStorageFolder ?? settings.metadataStorageFolder;
+
+      await this.persistSettings(settings, saveData, {
+        forceAllShards: true,
+        forceMetadata: true,
+      });
+
+      storageLog("Completed settings bundle import", {
+        mode: settings.storageMode,
+      });
+    } catch (error) {
+      storageError(
+        "Settings bundle import failed; restoring previous state",
+        error,
+      );
+
+      try {
+        Object.assign(settings, cloneJson(backupBundle.settings));
+        settings.storageFolder = normalizeFolderPath(settings.storageFolder);
+        settings.metadataStorageMode =
+          backupBundle.metadataStorageMode ?? settings.metadataStorageMode;
+        settings.metadataStorageFolder =
+          backupBundle.metadataStorageFolder ?? settings.metadataStorageFolder;
+
+        await this.persistSettings(settings, saveData, {
+          forceAllShards: true,
+          forceMetadata: true,
+        });
+        storageLog(
+          "Restored previous state after failed settings bundle import",
+        );
+      } catch (rollbackError) {
+        storageError(
+          "Rollback failed after settings bundle import failure",
+          rollbackError,
+        );
+      }
+
+      throw error;
+    }
+  }
+
   public getStatus(settings: RssDashboardSettings): FeedStorageStatus {
     const shardCount = settings.feeds.filter((feed) => feed.feedId).length;
     return {
@@ -768,11 +1062,8 @@ export class FeedStorageRepository {
     };
   }
 
-  private createPersistedSettings(
-    settings: RssDashboardSettings,
-  ): PersistedRssDashboardSettings {
-    const cloned = cloneJson(settings);
-    const feeds: PersistedFeedConfig[] = cloned.feeds.map((feed) => {
+  private toPersistedFeeds(feeds: Feed[]): PersistedFeedConfig[] {
+    return feeds.map((feed) => {
       const { items: _items, feedId, ...config } = feed;
       void _items;
       return {
@@ -780,11 +1071,17 @@ export class FeedStorageRepository {
         feedId: feedId ?? createFeedId(),
       };
     });
+  }
+
+  private createPersistedSettings(
+    settings: RssDashboardSettings,
+  ): PersistedRssDashboardSettings {
+    const cloned = cloneJson(settings);
 
     return {
       ...cloned,
       storageFolder: normalizeFolderPath(cloned.storageFolder),
-      feeds,
+      feeds: this.toPersistedFeeds(cloned.feeds),
     };
   }
 

@@ -114,8 +114,16 @@ The per-article interaction data — read, starred, tags, saved-to-vault, playba
 _Avoid_: User state (as a standalone term outside v2), read state
 
 **Portable data bundle**:
-A combined export containing both metadata and all feed shard files together, used to move a full Shard storage setup between devices. Currently exposed identically on both the storage tab and the Import/Export tab; nothing about the bundle's content is tab-specific. See [ADR 0005](docs/adr/0005-split-portable-data-bundle-into-feed-and-settings-bundles.md) for the planned split into a Feed bundle and a Settings bundle.
+A combined export equivalent to a [[Feed bundle]] plus a [[Settings bundle]] together, used to move a full Shard storage setup between devices. Currently exposed identically on both the storage tab and the Import/Export tab; nothing about the bundle's content is tab-specific. See [ADR 0005](docs/adr/0005-split-portable-data-bundle-into-feed-and-settings-bundles.md) for the split, now implemented.
 _Avoid_: Shard data, shard export
+
+**Feed bundle**:
+An export containing feeds, folders, tags, articles, and article state, with no app settings. One of the two independently exportable/importable pieces that together make up the [[Portable data bundle]]. Introduced by ADR 0005 to let a user move or share their subscriptions and reading history without their app preferences.
+_Avoid_: Feed data bundle, subscriptions export
+
+**Settings bundle**:
+An export containing app preferences only (display, retention, storage config, auto-backup, etc.), with no feeds, folders, tags, or articles. The re-scoped counterpart to the [[Feed bundle]] that together make up the [[Portable data bundle]]; matches the existing `usersettings.json` shape. Introduced by ADR 0005.
+_Avoid_: usersettings bundle, preferences export
 
 **Storage migration**:
 Moving feed content from its current feed storage mode into shard files for the first time, or upgrading from Shard storage v1 to v2. Distinct from storage repair and storage revert.
