@@ -1,7 +1,9 @@
 ---
-status: proposed
+status: implemented
 created: "2026-09-12"
-issue: "254"
+completed: "2026-09-12"
+released_in: unreleased
+issue: "https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/254"
 milestone: ""
 owner: unassigned
 workstream: ""
