@@ -14,12 +14,6 @@ consolidate the collected entries into a wider-audience summary under
 
 Use a small, stable label set so filtering is fast and predictable.
 
-### Release Labels
-
-- release:2.3.0
-- release:2.3.x
-- release:next
-
 ### Type Labels
 
 - type:feature
@@ -38,12 +32,6 @@ Use a small, stable label set so filtering is fast and predictable.
 - area:ui
 - area:performance
 
-### Changelog Labels
-
-- changelog:yes
-- changelog:no
-- changelog:needs-edit
-
 ## Day-to-Day Contributor Workflow
 
 1. Open PRs against dev.
@@ -54,7 +42,7 @@ Use a small, stable label set so filtering is fast and predictable.
    `[GH Issue #N](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/N)`.
 5. Copy the final changelog wording into the PR Release Notes Candidate, or use
    `N/A` for internal-only refactors, tests, documentation, and tooling.
-6. Apply labels for type, area, and changelog intent.
+6. Apply labels for type and area.
 7. Do not edit `docs/releases/` for an individual issue or feature.
 8. After implementation and required validation succeed, close any matching
    active plan using [Plan Lifecycle and Archive](./README.md#plan-lifecycle-and-archive).
@@ -67,14 +55,15 @@ Use a small, stable label set so filtering is fast and predictable.
 2. Bump version on release branch only.
 3. Tag and publish Beta from release branch.
 4. Apply stabilization fixes on release branch.
-5. For each release-bound PR, ensure changelog:yes or changelog:no is set.
 
 ## Compiling Changelog and Public Release Notes
 
 1. Treat the existing `Unreleased` section as the primary release-note source.
-2. Identify merged PRs between the previous tag and HEAD of the release branch.
-3. Cross-check PRs labeled `changelog:yes` against `Unreleased` and add only
-   genuinely missing user-visible entries.
+2. Identify merged PRs between the previous tag and HEAD of the release branch
+   (`gh pr list --state merged`, filtered to merge dates after the previous
+   tag).
+3. Cross-check each PR's user-visible behavior against `Unreleased` and add
+   only genuinely missing entries.
 4. Deduplicate and polish wording while preserving canonical GitHub issue URLs.
 5. Move the final entries into the new version heading, grouped by type and area.
 6. Create or update `docs/releases/<version>.md` as the public-facing summary.
@@ -141,7 +130,7 @@ Repository conventions:
 - Completed user-visible changes are recorded under CHANGELOG.md > Unreleased.
 - Release-cut curation deduplicates the changelog and produces the consolidated
   public summary under docs/releases/.
-- Labels expected: type, area, changelog intent.
+- Labels expected: type, area.
 
 Inputs:
 - Branch name: <branch>
@@ -170,7 +159,7 @@ Output format:
 - Testing
 - Risk and rollback
 - Release Notes Candidate
-- Labels to apply (type, area, changelog)
+- Labels to apply (type, area)
 
 Quality checks before final output:
 - List every claim and map it to a file or test input.

@@ -42,9 +42,10 @@ which would false-positive on ordinary WIP if automated into
 - [ ] `docs/archive/README.md`'s catalog matches what's actually under
       `docs/archive/plans/` (no archived plan missing an entry, no entry
       pointing at a moved/renamed file).
-- [ ] `CHANGELOG.md`'s `Unreleased` section reflects every merged PR labeled
-      `changelog:yes` since the last release
-      (see [release-notes-workflow.md](release-notes-workflow.md)).
+- [ ] `CHANGELOG.md`'s `Unreleased` section reflects every user-visible merged
+      PR since the last release (`gh pr list --state merged`, filtered to
+      merge dates after the previous tag — see
+      [release-notes-workflow.md](release-notes-workflow.md)).
 - [ ] `npm run build` passes clean on the branch you're about to cut from.
 
 ## Why the untracked-file check isn't automated
