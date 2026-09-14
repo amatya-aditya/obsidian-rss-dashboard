@@ -10,7 +10,7 @@ import { mergeTagArrays } from "../utils/tag-utils";
  * matches a starred-import candidate against a feed's existing `items` using
  * `canonicalizeItemIdentityUrl` on guid-or-link — the exact identity logic
  * feed-refresh merging already uses (see `mergeFeedHistoryItems` and
- * `FeedParserService`'s existing-item lookup in
+ * `FeedParser`'s existing-item lookup in
  * `src/services/feed-parser/feed-retention.ts` and
  * `src/services/feed-parser/feed-parser-class.ts`) — so a matched item is
  * treated as an update rather than a new insertion.
