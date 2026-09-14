@@ -54,7 +54,20 @@ Ask the user only when a missing product decision would materially change the
 result. Do not invent issue details, acceptance criteria, or hidden audit
 findings.
 
-## 2. Select Obsidian Review Gates
+## 2. Run Architecture Preflight
+
+For a meaningful production change, read
+`docs/development/architecture.md`, run `npm run check:architecture`, and
+record the likely files, owning module, new responsibility, touched outliers,
+coupling change, and whether `main.ts` changes are composition/delegation or
+implementation. A tiny local fix may record that no architecture signal
+applies.
+
+Resolve unclear ownership before writing code. Do not expand
+`scripts/architecture-baseline.json` to make a change pass without identifying
+the architecture exception and its debt-reduction follow-up.
+
+## 3. Select Obsidian Review Gates
 
 Read [references/obsidian-change-gates.md](references/obsidian-change-gates.md)
 and apply only the rows matching the affected surfaces. Use its risk rules to
@@ -64,7 +77,7 @@ Inspect the live Obsidian community listing only for release, compliance,
 security, platform, storage, or audit-remediation work. For ordinary changes,
 use the local policies and scorecard to avoid unnecessary network work.
 
-## 3. Plan and Implement with TDD
+## 4. Plan and Implement with TDD
 
 - Map each acceptance criterion to an automated test or an explicit manual check.
 - Put new tests under the matching `test_files/unit/` area and follow the
@@ -78,7 +91,7 @@ If the current collaboration mode is Plan Mode, stop after a decision-complete
 `<proposed_plan>`. Otherwise, continue through implementation unless a material
 decision requires user input.
 
-## 4. Record the User-Visible Change
+## 5. Record the User-Visible Change
 
 - After the behavior is complete, add one concise bullet under
   `CHANGELOG.md` -> `Unreleased` -> `Features` or `Fixes`.
@@ -92,7 +105,7 @@ decision requires user input.
   the versioned changelog entries to consolidate related changes into an
   audience-focused `docs/releases/<version>.md` summary.
 
-## 5. Validate Efficiently
+## 6. Validate Efficiently
 
 Use a staged validation ladder:
 
@@ -100,6 +113,8 @@ Use a staged validation ladder:
    `npm exec -- eslint <changed-files> --max-warnings=0` and run focused tests
    with `npm run test:unit -- <matching-test-file>`.
 2. Run `npm run check:platform` early when `main.ts` or `src/**/*.ts` changes.
+   Run `npm run check:architecture -- --base HEAD` for meaningful production
+   TypeScript changes and resolve any enforced regression before continuing.
    For CSS changes, run `npm run check:css-scope` and
    `npm run check:important` early.
 3. Run the full `npm run test:unit` suite for high-risk or broad changes,
@@ -117,7 +132,7 @@ unrelated files merely to make a broad check green.
 For documentation-only changes, run only relevant document or skill validation
 and explain why application checks were not applicable.
 
-## 6. Close the Matching Plan
+## 7. Close the Matching Plan
 
 Run this step only after behavior is complete and every required validation
 gate passes. Leave incomplete or failing work in `docs/plans/`.
@@ -136,12 +151,15 @@ When the change has a matching active plan:
 Do not create a plan merely to satisfy this step when the work had no matching
 plan.
 
-## 7. Hand Off
+## 8. Hand Off
 
 Lead with the completed outcome. Include:
 
 - The implemented behavior and acceptance criteria satisfied.
 - Tests and validation commands with results.
+- The architecture diff for meaningful production changes: `main.ts` LOC
+  delta, threshold crossings, new `main.ts` importers, service dependency
+  direction, and runtime cycles.
 - The changelog entry and issue link, when present.
 - The updated and archived plan path, when the work started from a plan.
 - Risk-selected manual test steps with expected outcomes.

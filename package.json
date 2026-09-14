@@ -6,10 +6,11 @@
   "type": "commonjs",
   "scripts": {
     "dev": "node esbuild.config.mjs",
+    "check:architecture": "node scripts/check-architecture.mjs",
     "check:css-scope": "node scripts/check-css-scope.js",
     "check:platform": "node scripts/check-platform-compat.mjs",
     "check:important": "node scripts/check-css-important.mjs",
-    "check:compliance": "npm run check:css-scope && npm run check:platform && npm run check:important && npm run check:commit-message && npm run check:release-compatibility",
+    "check:compliance": "npm run check:architecture && npm run check:css-scope && npm run check:platform && npm run check:important && npm run check:commit-message && npm run check:release-compatibility",
     "check:commit-message": "node scripts/check-commit-message.mjs",
     "check:release-compatibility": "node scripts/check-release-compatibility.mjs",
     "build": "npm run check:compliance && npm run lint && tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",

@@ -6,6 +6,7 @@ Internal developer documentation for the RSS Dashboard plugin.
 
 ## Core References
 
+- [Architecture Guardrails](./architecture.md)
 - [Compliance Patterns and Audit Guardrails](./compliance-patterns.md)
 - [Feed Data Lifecycle](./data-flow.md)
 - [Feed Validation](./feed-validation.md)
