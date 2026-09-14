@@ -331,7 +331,7 @@ npm ci
 npm run test:unit -- --coverage
 ```
 
-**Test Baseline**: 177 test files, 1530 passing tests. See [testing-guide.md](docs/development/test_coverage/testing-guide.md) for details.
+See [testing-guide.md](docs/development/test_coverage/testing-guide.md) for details.
 
 ### Production Build
 
