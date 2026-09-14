@@ -12,25 +12,24 @@ consolidate the collected entries into a wider-audience summary under
 
 ## Label Taxonomy
 
-Use a small, stable label set so filtering is fast and predictable.
+These are the labels that actually exist on the repo (`gh label list`); apply
+whichever fit, rather than inventing new ones.
 
-### Type Labels
+### Type
 
-- type:feature
-- type:fix
-- type:refactor
-- type:docs
-- type:chore
+- bug
+- enhancement
+- documentation
+- maintenance
 
-### Area Labels
+### Area
 
-- area:reader
-- area:feeds
-- area:settings
-- area:storage
-- area:discover
-- area:ui
-- area:performance
+- area: refresh
+- area: reader
+- area: sidebar
+- area: storage
+- area: documentation
+- area: build
 
 ## Day-to-Day Contributor Workflow
 
