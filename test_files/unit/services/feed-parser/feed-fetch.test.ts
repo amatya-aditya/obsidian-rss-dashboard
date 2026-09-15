@@ -208,6 +208,54 @@ describe("fetchFeedXml", () => {
     expect(xml).toContain("<language>fr</language>");
   });
 
+  it("omits the item pubDate when the RSS2JSON item reports none", async () => {
+    vi.spyOn(obsidian, "requestUrl")
+      .mockRejectedValueOnce(new Error("direct fetch failed"))
+      .mockResolvedValueOnce(
+        mockRequestUrlResponse(
+          JSON.stringify({
+            status: "ok",
+            feed: { title: "Sans date", link: "https://example.com" },
+            items: [{ title: "Item", link: "https://example.com/1" }],
+          }),
+        ),
+      );
+
+    const xml = await fetchFeedXml("https://example.com/feed.xml", {
+      enabled: true,
+      url: "https://api.rss2json.com/v1/api.json?rss_url=",
+    });
+
+    expect(xml).not.toContain("<pubDate>");
+  });
+
+  it("preserves the item pubDate the RSS2JSON item reports", async () => {
+    vi.spyOn(obsidian, "requestUrl")
+      .mockRejectedValueOnce(new Error("direct fetch failed"))
+      .mockResolvedValueOnce(
+        mockRequestUrlResponse(
+          JSON.stringify({
+            status: "ok",
+            feed: { title: "Datée", link: "https://example.com" },
+            items: [
+              {
+                title: "Item",
+                link: "https://example.com/1",
+                pubDate: "2024-01-02T03:04:05.000Z",
+              },
+            ],
+          }),
+        ),
+      );
+
+    const xml = await fetchFeedXml("https://example.com/feed.xml", {
+      enabled: true,
+      url: "https://api.rss2json.com/v1/api.json?rss_url=",
+    });
+
+    expect(xml).toContain("<pubDate>2024-01-02T03:04:05.000Z</pubDate>");
+  });
+
   it("cycles through PREDEFINED_PROXIES if proxyConfig.url is 'auto'", async () => {
     // 1st call: direct fetch fails
     vi.spyOn(obsidian, "requestUrl")
