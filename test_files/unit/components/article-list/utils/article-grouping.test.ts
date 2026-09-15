@@ -1,8 +1,12 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import type { Feed, FeedItem } from "../../../../../src/types/types";
 import { groupArticles, getFeedFolder } from "../../../../../src/components/article-list/utils/article-grouping";
 
 describe("article-grouping utils", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   describe("groupArticles", () => {
     it("returns all articles under 'All articles' when groupBy is 'none'", () => {
       const articles: FeedItem[] = [
@@ -50,6 +54,24 @@ describe("article-grouping utils", () => {
       
       // All articles published today should be in "Today" group
       expect(Object.keys(result)).toContain("Today");
+    });
+
+    it("keeps same-calendar-day articles in one date group even when they straddle a relative-time bucket boundary", () => {
+      // "now" is fixed so the two pubDates below (1 hour apart, same calendar
+      // day) fall on opposite sides of a "2 weeks ago" / "3 weeks ago"
+      // relative-time boundary. Grouping must key off calendar date, not off
+      // a live "time ago" string computed against the current moment.
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-09-15T10:46:00Z"));
+
+      const articles: FeedItem[] = [
+        { guid: "1", title: "A1", feedTitle: "Feed A", feedUrl: "url-a", pubDate: "2026-08-25T10:00:00Z", read: false, starred: false, tags: [], coverImage: "" },
+        { guid: "2", title: "A2", feedTitle: "Feed B", feedUrl: "url-b", pubDate: "2026-08-25T11:00:00Z", read: false, starred: false, tags: [], coverImage: "" },
+      ];
+
+      const result = groupArticles(articles, "date");
+
+      expect(Object.keys(result)).toHaveLength(1);
     });
 
     it("groups articles with no tags under 'All articles' when groupBy is 'none'", () => {

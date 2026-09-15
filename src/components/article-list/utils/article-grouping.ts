@@ -1,5 +1,22 @@
 import type { ArticleGroupByOption, Feed, FeedItem } from "../../../types/types";
-import { formatDateWithRelative } from "../../../utils/platform-utils";
+
+export function getArticleDateGroupKey(pubDate: string): string {
+  const target = new Date(pubDate);
+  if (isNaN(target.getTime())) return "Unknown date";
+
+  const now = new Date();
+  if (now.toDateString() === target.toDateString()) return "Today";
+
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  if (yesterday.toDateString() === target.toDateString()) return "Yesterday";
+
+  return target.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
 
 export function groupArticles(
   articles: FeedItem[],
@@ -17,7 +34,7 @@ export function groupArticles(
           break;
         case "date":
         case "date_feed":
-          key = formatDateWithRelative(article.pubDate).text;
+          key = getArticleDateGroupKey(article.pubDate);
           break;
 
         case "folder":
