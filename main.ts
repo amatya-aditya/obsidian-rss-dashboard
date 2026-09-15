@@ -2285,7 +2285,7 @@ export default class RssDashboardPlugin extends Plugin {
     try {
       await this.feedStorageRepository.revertToLegacyJson(
         this.settings,
-        (data) => this.saveData(data),
+        this.getMetadataSaveCallback(),
         options,
       );
       this.initializeSettingsBackedServices();
@@ -2642,6 +2642,8 @@ export default class RssDashboardPlugin extends Plugin {
       // Step 1: load bootstrap pointer from plugin-default location
       let data = (await this.loadData()) as RssDashboardSettings | null;
 
+      let vaultMetadataUnreadable = false;
+
       // Step 2: if pointer indicates vault-location mode, load full
       // settings from the vault path stored in the pointer
       if (data?.metadataStorageMode === "vault-location") {
@@ -2655,11 +2657,19 @@ export default class RssDashboardPlugin extends Plugin {
           storageLog("Metadata loaded from vault location", {
             folder: data.metadataStorageFolder,
           });
+        } else {
+          // The pointer names a vault file we cannot read. Falling through
+          // here would load DEFAULT_SETTINGS and then save them over the
+          // user's config, so treat it like a null load instead.
+          vaultMetadataUnreadable = true;
+          new Notice(
+            "Could not read plugin metadata from the configured vault folder. Settings were not loaded and nothing has been overwritten.",
+          );
         }
       }
 
       // Track whether we bootstrapped from null (possible pending sync)
-      const wasNullLoad = data === null;
+      const wasNullLoad = data === null || vaultMetadataUnreadable;
 
       const mergedSettings = Object.assign({}, DEFAULT_SETTINGS, data ?? {});
       const originalSettingsJson = JSON.stringify(mergedSettings);

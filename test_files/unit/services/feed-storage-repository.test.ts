@@ -6,6 +6,7 @@ import {
   type Feed,
   type RssDashboardSettings,
 } from "../../../src/types/types";
+import { shouldShowStorageDeprecationPrompt } from "../../../src/utils/storage-deprecation-prompt";
 
 interface VaultAdapterStub {
   write(path: string, content: string): Promise<void>;
@@ -905,5 +906,76 @@ describe("FeedStorageRepository", () => {
       expect(target.autoBackup).toBe(true);
       expect(target.feeds[0].feedId).toBe("kept-feed");
     });
+  });
+});
+
+describe("storage transitions keep the deprecation prompt visible", () => {
+  let app: App;
+  let repository: FeedStorageRepository;
+  let saveData: import("vitest").Mock<(...args: unknown[]) => Promise<void>>;
+
+  beforeEach(() => {
+    app = App.createMock();
+    repository = new FeedStorageRepository(app);
+    saveData = vi
+      .fn<(...args: unknown[]) => Promise<void>>()
+      .mockResolvedValue(undefined);
+  });
+
+  it("prompts again after reverting shard storage v1 to legacy JSON", async () => {
+    const settings = cloneSettings();
+    settings.storageMode = "vault-shards";
+    settings.feeds = [makeFeed()];
+
+    await repository.revertToLegacyJson(settings, saveData);
+
+    expect(settings.storageMode).toBe("legacy-json");
+    expect(shouldShowStorageDeprecationPrompt(settings, "2.7.0")).toBe(true);
+  });
+
+  it("prompts again after reverting shard storage v2 to legacy JSON", async () => {
+    const settings = cloneSettings();
+    settings.storageMode = "vault-shards-v2";
+    settings.feeds = [makeFeed()];
+
+    await repository.revertToLegacyJson(settings, saveData);
+
+    expect(settings.storageMode).toBe("legacy-json");
+    expect(shouldShowStorageDeprecationPrompt(settings, "2.7.0")).toBe(true);
+  });
+
+  it("prompts again after moving shard storage v2 down to v1", async () => {
+    const settings = cloneSettings();
+    settings.storageMode = "vault-shards-v2";
+    settings.feeds = [makeFeed()];
+
+    await repository.migrateToVaultShards(settings, saveData);
+
+    expect(settings.storageMode).toBe("vault-shards");
+    expect(shouldShowStorageDeprecationPrompt(settings, "2.7.0")).toBe(true);
+  });
+
+  it("persists the reverted mode through the supplied save callback", async () => {
+    const settings = cloneSettings();
+    settings.storageMode = "vault-shards-v2";
+    settings.feeds = [makeFeed()];
+
+    await repository.revertToLegacyJson(settings, saveData);
+
+    expect(saveData).toHaveBeenCalledTimes(1);
+    const persisted = saveData.mock.calls[0]?.[0] as RssDashboardSettings;
+    expect(persisted.storageMode).toBe("legacy-json");
+  });
+
+  it("leaves the metadata location alone when reverting", async () => {
+    const settings = cloneSettings();
+    settings.storageMode = "vault-shards-v2";
+    settings.metadataStorageMode = "vault-location";
+    settings.metadataStorageFolder = ".rss-dashboard-data";
+
+    await repository.revertToLegacyJson(settings, saveData);
+
+    expect(settings.metadataStorageMode).toBe("vault-location");
+    expect(settings.metadataStorageFolder).toBe(".rss-dashboard-data");
   });
 });

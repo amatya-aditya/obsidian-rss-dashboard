@@ -2238,3 +2238,67 @@ describe("applyFeedLimitsToAllFeeds()", () => {
     expect(plugin.settings).toBeDefined();
   });
 });
+
+// ─── Storage revert routing (regression) ──────────────────────────────────────
+describe("revertToLegacyJsonStorageWithOptions()", () => {
+  let plugin: RssDashboardPlugin;
+
+  beforeEach(async () => {
+    const app = createMockApp();
+    plugin = await createPluginInstance(app);
+    vi.clearAllMocks();
+  });
+
+  it("writes metadata through the configured location, not straight to plugin data", async () => {
+    plugin.settings = {
+      ...DEFAULT_SETTINGS,
+      storageMode: "vault-shards-v2",
+      metadataStorageMode: "vault-location",
+      metadataStorageFolder: ".rss-dashboard-data",
+      feeds: [sampleFeed],
+    } as RssDashboardSettings;
+
+    await plugin.revertToLegacyJsonStorageWithOptions();
+
+    expect(plugin.settings.storageMode).toBe("legacy-json");
+
+    // Reverting must not dump full settings into the plugin-default data.json:
+    // that file is the bootstrap pointer, and overwriting it with settings that
+    // still say "vault-location" makes the next load read a stale vault copy.
+    const saveDataCalls = (plugin.saveData as ReturnType<typeof vi.fn>).mock
+      .calls;
+    expect(saveDataCalls.length).toBeGreaterThan(0);
+    for (const [payload] of saveDataCalls) {
+      expect(payload).not.toHaveProperty("feeds");
+      expect(payload).toHaveProperty("metadataStorageMode");
+    }
+  });
+});
+
+// ─── loadSettings guards (regression) ─────────────────────────────────────────
+describe("loadSettings() vault metadata guard", () => {
+  let plugin: RssDashboardPlugin;
+
+  beforeEach(async () => {
+    const app = createMockApp();
+    plugin = await createPluginInstance(app);
+    vi.clearAllMocks();
+  });
+
+  it("does not overwrite anything when the pointed-to vault metadata is unreadable", async () => {
+    (plugin.loadData as ReturnType<typeof vi.fn>).mockResolvedValue({
+      metadataStorageMode: "vault-location",
+      metadataStorageFolder: ".rss-dashboard-data",
+      metadataStorageSchemaVersion: 2,
+    });
+
+    const adapter = plugin.app.vault.adapter as unknown as {
+      read: (path: string) => Promise<string>;
+    };
+    vi.spyOn(adapter, "read").mockRejectedValue(new Error("ENOENT"));
+
+    await plugin.loadSettings();
+
+    expect(plugin.saveData).not.toHaveBeenCalled();
+  });
+});
