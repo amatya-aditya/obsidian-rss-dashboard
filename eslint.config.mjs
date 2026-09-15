@@ -98,7 +98,7 @@ export default defineConfig([
         "warn",
         {
           acronyms: ["OPML", "XML", "API", "CORS", "URI", "URL", "RSS"],
-          brands: ["Obsidian", "Inoreader"],
+          brands: ["Obsidian", "Inoreader", "RSS Dashboard"],
           allowAutoFix: true,
         },
       ],
