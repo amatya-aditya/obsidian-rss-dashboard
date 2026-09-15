@@ -39,6 +39,7 @@ interface StorageSettingsPlugin {
     render(): void;
   } | null>;
   getStorageStatus(): FeedStorageStatus;
+  getOrphanedUserStatePath(): Promise<string | null>;
   migrateToVaultStorage(): Promise<void>;
   migrateToVaultShardsV2(): Promise<void>;
   repairVaultStorage(): Promise<void>;
@@ -347,6 +348,20 @@ export function renderStorageSettingsTab(
   new Setting(containerEl)
     .setName("Storage status")
     .setDesc(renderStorageStatus());
+
+  const leftoverStateSetting = new Setting(containerEl).setName(
+    "Leftover article state file",
+  );
+  leftoverStateSetting.settingEl.hidden = true;
+  void plugin.getOrphanedUserStatePath().then((leftoverPath) => {
+    if (!leftoverPath) {
+      return;
+    }
+    leftoverStateSetting.setDesc(
+      `A user-state.json from a previous shard storage v2 setup is still at ${leftoverPath}. It is not read in the current storage mode, and is kept as a backup of read, starred, tagged, and saved state. Delete it manually once you no longer need it.`,
+    );
+    leftoverStateSetting.settingEl.hidden = false;
+  });
 
   new Setting(containerEl)
     .setName("Repair/rebuild storage")

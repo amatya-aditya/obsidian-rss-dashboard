@@ -2107,6 +2107,10 @@ export default class RssDashboardPlugin extends Plugin {
     this.showCopyNotice(result, "rss-dashboard-settings-bundle.json");
   }
 
+  public getOrphanedUserStatePath(): Promise<string | null> {
+    return this.feedStorageRepository.findOrphanedUserState(this.settings);
+  }
+
   public getStorageStatus(): FeedStorageStatus {
     return this.feedStorageRepository.getStatus(this.settings);
   }

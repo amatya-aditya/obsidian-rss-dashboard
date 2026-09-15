@@ -45,6 +45,7 @@ function createPlugin() {
     settings: cloneSettings(),
     saveSettings: vi.fn(async () => {}),
     getActiveDashboardView: vi.fn(async () => null),
+    getOrphanedUserStatePath: vi.fn(async () => null),
     getStorageStatus: vi.fn(() => ({
       mode: "legacy-json" as const,
       folder: ".rss-dashboard-data/feeds",

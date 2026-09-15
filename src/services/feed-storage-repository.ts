@@ -1278,6 +1278,25 @@ export class FeedStorageRepository {
     return normalizePath(`${folder.replace(/^\/+|\/+$/g, "")}/user-state.json`);
   }
 
+  /**
+   * Path of a `user-state.json` left behind by a previous Shard storage v2
+   * setup, or null when none applies.
+   *
+   * Only v2 reads that file, so in any other mode it is inert while still
+   * holding a full copy of article state. It is surfaced rather than deleted
+   * because after a revert it is the only standalone copy of that state.
+   */
+  public async findOrphanedUserState(
+    settings: RssDashboardSettings,
+  ): Promise<string | null> {
+    if (settings.storageMode === "vault-shards-v2") {
+      return null;
+    }
+
+    const path = this.getUserStatePath(settings);
+    return (await this.app.vault.adapter.exists(path)) ? path : null;
+  }
+
   public async loadUserState(settings: RssDashboardSettings): Promise<UserStateFile | null> {
     const path = this.getUserStatePath(settings);
     if (!(await this.app.vault.adapter.exists(path))) {

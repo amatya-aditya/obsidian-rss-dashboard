@@ -59,6 +59,7 @@ function createPlugin() {
     settings: cloneSettings(),
     saveSettings: vi.fn(async () => {}),
     getActiveDashboardView: vi.fn(async () => null),
+    getOrphanedUserStatePath: vi.fn(async () => null),
     getStorageStatus: vi.fn(
       (): FeedStorageStatus => ({
         mode: "legacy-json" as const,

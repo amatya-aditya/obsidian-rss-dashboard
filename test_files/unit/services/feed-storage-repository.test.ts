@@ -979,3 +979,71 @@ describe("storage transitions keep the deprecation prompt visible", () => {
     expect(settings.metadataStorageFolder).toBe(".rss-dashboard-data");
   });
 });
+
+describe("findOrphanedUserState", () => {
+  let app: App;
+  let repository: FeedStorageRepository;
+
+  function stubExists(result: boolean) {
+    const adapter = app.vault.adapter as unknown as {
+      exists: (path: string) => Promise<boolean>;
+    };
+    return vi.spyOn(adapter, "exists").mockResolvedValue(result);
+  }
+
+  beforeEach(() => {
+    app = App.createMock();
+    repository = new FeedStorageRepository(app);
+  });
+
+  it("reports nothing while shard storage v2 is active, since the file is in use", async () => {
+    const settings = cloneSettings();
+    settings.storageMode = "vault-shards-v2";
+    settings.metadataStorageFolder = ".rss-dashboard-data";
+    stubExists(true);
+
+    await expect(repository.findOrphanedUserState(settings)).resolves.toBeNull();
+  });
+
+  it("reports the leftover file after reverting to legacy JSON", async () => {
+    const settings = cloneSettings();
+    settings.storageMode = "legacy-json";
+    settings.metadataStorageFolder = ".rss-dashboard-data";
+    stubExists(true);
+
+    await expect(repository.findOrphanedUserState(settings)).resolves.toBe(
+      ".rss-dashboard-data/user-state.json",
+    );
+  });
+
+  it("reports the leftover file after stepping down to shard storage v1", async () => {
+    const settings = cloneSettings();
+    settings.storageMode = "vault-shards";
+    settings.metadataStorageFolder = ".rss-dashboard-data";
+    stubExists(true);
+
+    await expect(repository.findOrphanedUserState(settings)).resolves.toBe(
+      ".rss-dashboard-data/user-state.json",
+    );
+  });
+
+  it("reports nothing when no such file is present", async () => {
+    const settings = cloneSettings();
+    settings.storageMode = "legacy-json";
+    settings.metadataStorageFolder = ".rss-dashboard-data";
+    stubExists(false);
+
+    await expect(repository.findOrphanedUserState(settings)).resolves.toBeNull();
+  });
+
+  it("falls back to the default metadata folder when none is configured", async () => {
+    const settings = cloneSettings();
+    settings.storageMode = "legacy-json";
+    settings.metadataStorageFolder = "";
+    stubExists(true);
+
+    await expect(repository.findOrphanedUserState(settings)).resolves.toBe(
+      ".rss-dashboard-data/user-state.json",
+    );
+  });
+});
