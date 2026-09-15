@@ -29,6 +29,7 @@
 
 ### Fixes
 
+- Fixed the RSS2JSON proxy path writing a channel `<language>en</language>` into feeds that don't declare a language; the element is omitted instead, so a fabricated default can't be read downstream as a publisher declaration. [GH Issue #276](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/276)
 - Fixed the Discover tab's "Add new folder" action creating the folder but not adding the feed to it, requiring a second "Add to..." round-trip; submitting the create-folder dialog now creates the folder and assigns the feed in one step, matching every other item in the picker.
 - Fixed the Discover tab's folder picker staying fully clickable behind its own "Add new folder" dialog — the picker's stacking order was high enough to sit above the dialog's backdrop, so folders could still be selected through it. The picker is now visibly and functionally disabled for as long as that dialog is open.
 - Fixed the Discover tab's folder popup closing itself the moment "Add new folder" was submitted or cancelled via a real mouse click on OK/Cancel (as opposed to pressing Enter in the input), leaving nothing for the user to click and forcing them to reopen "Add to..." from scratch. The dialog's own click was bubbling up to the popup's outside-click listener; it's now stopped one step up, after the dialog's own button handler runs, so both the dialog and the popup behave correctly.
