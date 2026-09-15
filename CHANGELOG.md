@@ -56,6 +56,7 @@
 - Fixed community plugin audit warning for unknown CSS type selector `mjx-container` by using class and attribute selectors (`[class*="mjx-container"]`, `.MathJax`) in `src/styles/articles.css` and `src/styles/reader.css`.
 - Fixed unnecessary type assertion in `src/utils/settings-loader.ts` by updating `migrateDefaultFilterToDashboardMultiFilters` to accept typed `DisplaySettings`.
 - Fixed the global-refresh Stop button not appearing on mobile/tablet: the sidebar modal's polling loop now applies the `stop` class and swaps the icon to `square-stop` when the refresh is cancellable, matching the desktop sidebar behaviour.
+- Fixed the RSS2JSON proxy path building its reconstructed feed by unescaped string interpolation, so a feed whose title or description contained a bare `&` or `<` produced malformed XML that failed to parse, and a deliberately crafted value could close an element early and inject elements — extra articles, or a `<language>`/`<link>` the plugin would read as a publisher declaration — into the rebuilt feed. Every interpolated value is now escaped, and an item description can no longer break out of its CDATA section. [GH Issue #279](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/279)
 
 ### Development and compliance
 

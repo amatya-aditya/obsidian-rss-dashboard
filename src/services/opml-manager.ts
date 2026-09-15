@@ -1,23 +1,5 @@
 import { Feed, Folder, FeedMetadata } from "../types/types";
-
-function escapeXml(unsafe: string): string {
-  return unsafe.replace(/[<>&'"]/g, (c) => {
-    switch (c) {
-      case "<":
-        return "&lt;";
-      case ">":
-        return "&gt;";
-      case "&":
-        return "&amp;";
-      case "'":
-        return "&apos;";
-      case '"':
-        return "&quot;";
-      default:
-        return c;
-    }
-  });
-}
+import { escapeXml } from "../utils/xml-escape";
 
 export class OpmlManager {
   private static preProcessOpml(opmlContent: string): string {

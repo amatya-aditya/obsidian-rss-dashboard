@@ -1,6 +1,7 @@
 import { requestUrl, Platform } from "obsidian";
 import { PREDEFINED_PROXIES } from "../../utils/proxy-utils.js";
 import { robustFetch } from "../../utils/platform-utils.js";
+import { escapeCdata, escapeXml } from "../../utils/xml-escape.js";
 import type { FeedEncoding } from "../../types/types.js";
 import { isValidFeed } from "./feed-validation.js";
 import type {
@@ -42,18 +43,25 @@ function rss2JsonToRss(data: Rss2JsonResponse): string {
   const feed = data.feed;
   const items = data.items || [];
 
-  let rss = `<?xml version="1.0" encoding="UTF-8"?>\n<rss version="2.0">\n<channel>\n    <title>${feed.title || "Unknown feed"}</title>\n    <description>${feed.description || ""}</description>\n    <link>${feed.link || ""}</link>`;
+  // Every value below originates from a third-party feed relayed by the proxy,
+  // so it is escaped before interpolation. Unescaped markup would otherwise let
+  // a feed publisher close an element early and inject elements of their own.
+  const channelTitle = escapeXml(feed.title || "Unknown feed");
+  const channelLink = escapeXml(feed.link || "");
+
+  let rss = `<?xml version="1.0" encoding="UTF-8"?>\n<rss version="2.0">\n<channel>\n    <title>${channelTitle}</title>\n    <description>${escapeXml(feed.description || "")}</description>\n    <link>${channelLink}</link>`;
 
   if (feed.language) {
-    rss += `\n    <language>${feed.language}</language>`;
+    rss += `\n    <language>${escapeXml(feed.language)}</language>`;
   }
 
   if (feed.image) {
-    rss += `\n    <image>\n        <url>${feed.image}</url>\n        <title>${feed.title || "Unknown feed"}</title>\n        <link>${feed.link || ""}</link>\n    </image>`;
+    rss += `\n    <image>\n        <url>${escapeXml(feed.image)}</url>\n        <title>${channelTitle}</title>\n        <link>${channelLink}</link>\n    </image>`;
   }
 
   items.forEach((item: Rss2JsonFeedItem) => {
-    rss += `\n    <item>\n        <title>${item.title || ""}</title>\n        <link>${item.link || ""}</link>\n        <description><![CDATA[${item.description || ""}]]></description>\n        <pubDate>${item.pubDate || new Date().toISOString()}</pubDate>\n        <guid>${item.link || ""}</guid>\n    </item>`;
+    const itemLink = escapeXml(item.link || "");
+    rss += `\n    <item>\n        <title>${escapeXml(item.title || "")}</title>\n        <link>${itemLink}</link>\n        <description><![CDATA[${escapeCdata(item.description || "")}]]></description>\n        <pubDate>${escapeXml(item.pubDate || new Date().toISOString())}</pubDate>\n        <guid>${itemLink}</guid>\n    </item>`;
   });
 
   rss += `\n</channel>\n</rss>`;
