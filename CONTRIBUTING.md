@@ -1,7 +1,5 @@
 # Git Branching Strategy
 
-Last updated: 2026-05-19
-
 ## Table of Contents
 - [Overview](#overview)
 - [Branch Structure](#branch-structure)

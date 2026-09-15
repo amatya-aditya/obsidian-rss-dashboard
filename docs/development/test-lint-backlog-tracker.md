@@ -1,7 +1,5 @@
 # Test-Lint Backlog Tracker
 
-Last updated: 2026-05-14 (Pass 53 notice-assertion remediation)
-
 This document tracks the test-file ESLint debt burn-down that branched from the audit scorecard after Pass 4.
 
 Scope:
