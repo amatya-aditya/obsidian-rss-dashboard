@@ -31,6 +31,23 @@ To move work already written on the wrong base, save it and replay it:
     git reset --hard dev
     git apply -3 ../work.patch
 
+### Branch from the pushed base
+
+Rebase onto `origin/dev`, not a local `dev` that may be ahead of it. GitHub
+diffs a pull request against the remote base, so every unpushed commit beneath
+your branch appears in the PR as if it were yours — including another
+session's in-flight work. Before opening a pull request, confirm only your own
+commits are there:
+
+    git log --oneline origin/dev..HEAD
+
+### Close issues by hand
+
+`Fixes #NNN` does not close anything here. GitHub fires closing keywords only
+when a pull request merges into the repository's default branch, which is
+`master`, and every pull request targets `dev`. Keep the keyword for the link
+it creates, then close the issue manually once the PR is merged.
+
 ## Mandatory guidance
 
 Before making or reviewing a code or test change, read these files in full:
