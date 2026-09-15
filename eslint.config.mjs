@@ -13,6 +13,7 @@ export default defineConfig([
       "*.mjs",
       "scripts/**/*.js",
       ".kilo/**",
+      ".claude/**",
       ".tmp-*",
     ],
   },
