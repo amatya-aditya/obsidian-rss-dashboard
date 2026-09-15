@@ -62,6 +62,7 @@
 - Fixed unnecessary type assertion in `src/utils/settings-loader.ts` by updating `migrateDefaultFilterToDashboardMultiFilters` to accept typed `DisplaySettings`.
 - Fixed the global-refresh Stop button not appearing on mobile/tablet: the sidebar modal's polling loop now applies the `stop` class and swaps the icon to `square-stop` when the refresh is cancellable, matching the desktop sidebar behaviour.
 - Fixed the RSS2JSON proxy path building its reconstructed feed by unescaped string interpolation, so a feed whose title or description contained a bare `&` or `<` produced malformed XML that failed to parse, and a deliberately crafted value could close an element early and inject elements — extra articles, or a `<language>`/`<link>` the plugin would read as a publisher declaration — into the rebuilt feed. Every interpolated value is now escaped, and an item description can no longer break out of its CDATA section. [GH Issue #279](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/279)
+- Fixed the RSS2JSON proxy path giving every link-less item the same empty `<guid>`, causing them to collide since per-article read/starred/tag state is keyed on guid. The rebuilt feed now prefers RSS2JSON's own per-item `guid` field (previously ignored), falling back to the item's link, then to a synthetic per-item id, so link-less items no longer overwrite one another's state. [GH Issue #285](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/285)
 
 ### Development and compliance
 
