@@ -17,6 +17,17 @@ These items were previously listed in the README:
 | Progress Tracking            | Track reading progress                                           |
 | Playlist Curation            | Ability to create custom playlists from Youtube or Podcasts      |
 
+
+### Recorded from triage
+
+Ideas that came out of issue triage rather than the README. Kept here rather
+than as open issues, so the backlog reflects work that is actually queued.
+
+| Feature                    | Description                                                                                                                                                                                                                       | Source                                                                 |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| Local language detection   | Detect an article's language from its text when no publisher signal exists. Ruled out of the metadata pipeline seam as a third runtime dependency on a mobile plugin, serving only the tier where no publisher declared a language. | [#272](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/272) |
+| Reading-view translation   | Translate article content within the reader.                                                                                                                                                                                       | [#133](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/133) |
+
 ## Documented Upcoming Ideas
 
 These features already have draft plan documents and are still not implemented:
