@@ -42,7 +42,7 @@ jobs:
           cp main.js manifest.json styles.css release/
 
       - name: Attest build provenance for release assets
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest-build-provenance@v4
         with:
           subject-path: |
             main.js
