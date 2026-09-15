@@ -42,7 +42,11 @@ function rss2JsonToRss(data: Rss2JsonResponse): string {
   const feed = data.feed;
   const items = data.items || [];
 
-  let rss = `<?xml version="1.0" encoding="UTF-8"?>\n<rss version="2.0">\n<channel>\n    <title>${feed.title || "Unknown feed"}</title>\n    <description>${feed.description || ""}</description>\n    <link>${feed.link || ""}</link>\n    <language>${feed.language || "en"}</language>`;
+  let rss = `<?xml version="1.0" encoding="UTF-8"?>\n<rss version="2.0">\n<channel>\n    <title>${feed.title || "Unknown feed"}</title>\n    <description>${feed.description || ""}</description>\n    <link>${feed.link || ""}</link>`;
+
+  if (feed.language) {
+    rss += `\n    <language>${feed.language}</language>`;
+  }
 
   if (feed.image) {
     rss += `\n    <image>\n        <url>${feed.image}</url>\n        <title>${feed.title || "Unknown feed"}</title>\n        <link>${feed.link || ""}</link>\n    </image>`;

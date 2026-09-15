@@ -162,6 +162,52 @@ describe("fetchFeedXml", () => {
     expect(xml).toContain("Привет");
   });
 
+  it("omits the channel language when the RSS2JSON feed reports none", async () => {
+    vi.spyOn(obsidian, "requestUrl")
+      .mockRejectedValueOnce(new Error("direct fetch failed"))
+      .mockResolvedValueOnce(
+        mockRequestUrlResponse(
+          JSON.stringify({
+            status: "ok",
+            feed: { title: "Sans langue", link: "https://example.com" },
+            items: [{ title: "Item", link: "https://example.com/1" }],
+          }),
+        ),
+      );
+
+    const xml = await fetchFeedXml("https://example.com/feed.xml", {
+      enabled: true,
+      url: "https://api.rss2json.com/v1/api.json?rss_url=",
+    });
+
+    expect(xml).not.toContain("<language>");
+  });
+
+  it("preserves the channel language the RSS2JSON feed reports", async () => {
+    vi.spyOn(obsidian, "requestUrl")
+      .mockRejectedValueOnce(new Error("direct fetch failed"))
+      .mockResolvedValueOnce(
+        mockRequestUrlResponse(
+          JSON.stringify({
+            status: "ok",
+            feed: {
+              title: "Blogue",
+              link: "https://example.com",
+              language: "fr",
+            },
+            items: [],
+          }),
+        ),
+      );
+
+    const xml = await fetchFeedXml("https://example.com/feed.xml", {
+      enabled: true,
+      url: "https://api.rss2json.com/v1/api.json?rss_url=",
+    });
+
+    expect(xml).toContain("<language>fr</language>");
+  });
+
   it("cycles through PREDEFINED_PROXIES if proxyConfig.url is 'auto'", async () => {
     // 1st call: direct fetch fails
     vi.spyOn(obsidian, "requestUrl")
