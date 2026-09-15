@@ -261,3 +261,133 @@ describe("fetchFeedXml", () => {
     expect(obsidian.requestUrl).toHaveBeenCalledTimes(7);
   });
 });
+
+describe("fetchFeedXml - RSS2JSON XML escaping", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  // The RSS2JSON fallback rebuilds an RSS document from proxy JSON. Every value
+  // in that JSON is authored by whoever controls the subscribed feed, so these
+  // tests drive the real fallback path: the direct fetch fails, then the
+  // RSS2JSON proxy answers with the crafted envelope.
+  async function fetchRebuiltRss(payload: unknown): Promise<string> {
+    vi.spyOn(obsidian, "requestUrl")
+      .mockRejectedValueOnce(new Error("direct fetch failed"))
+      .mockResolvedValueOnce(
+        mockRequestUrlResponse(JSON.stringify(payload)),
+      );
+
+    return fetchFeedXml("https://example.com/feed.xml", {
+      enabled: true,
+      url: "https://api.rss2json.com/v1/api.json?rss_url=",
+    });
+  }
+
+  function parseXml(xml: string): Document {
+    const doc = new DOMParser().parseFromString(xml, "text/xml");
+    expect(doc.getElementsByTagName("parsererror")).toHaveLength(0);
+    return doc;
+  }
+
+  it("produces a parseable document when the feed title contains reserved XML characters", async () => {
+    const title = 'Tips & Tricks <news> "daily"';
+
+    const xml = await fetchRebuiltRss({
+      status: "ok",
+      feed: {
+        title,
+        description: "Bits & pieces",
+        link: "https://example.com/?a=1&b=2",
+      },
+      items: [{ title: "Item & more", link: "https://example.com/1?x=1&y=2" }],
+    });
+
+    const doc = parseXml(xml);
+    expect(doc.querySelector("channel > title")?.textContent).toBe(title);
+    expect(doc.querySelector("channel > description")?.textContent).toBe(
+      "Bits & pieces",
+    );
+    expect(doc.querySelector("channel > link")?.textContent).toBe(
+      "https://example.com/?a=1&b=2",
+    );
+    expect(doc.querySelector("item > title")?.textContent).toBe("Item & more");
+    expect(doc.querySelector("item > link")?.textContent).toBe(
+      "https://example.com/1?x=1&y=2",
+    );
+  });
+
+  it("keeps a feed title that mimics markup as text instead of injecting elements", async () => {
+    // A title crafted to close <title> early and append an extra <item> plus a
+    // publisher-controlled <language> declaration the parser would trust.
+    const title =
+      "</title><language>zz</language><item><title>Injected article</title>" +
+      "<link>https://attacker.example/</link></item><title>";
+
+    const xml = await fetchRebuiltRss({
+      status: "ok",
+      feed: { title, link: "https://example.com" },
+      items: [{ title: "Real article", link: "https://example.com/1" }],
+    });
+
+    // The crafted markup survives only as escaped text in the serialized XML.
+    expect(xml).toContain("&lt;item&gt;");
+    expect(xml).not.toContain("<link>https://attacker.example/</link>");
+
+    const doc = parseXml(xml);
+    expect(doc.querySelector("channel > title")?.textContent).toBe(title);
+
+    const items = doc.querySelectorAll("item");
+    expect(items).toHaveLength(1);
+    expect(items[0].querySelector("title")?.textContent).toBe("Real article");
+    expect(items[0].querySelector("link")?.textContent).toBe(
+      "https://example.com/1",
+    );
+
+    // #277 removed the fabricated "en" default, so a feed declaring no
+    // language must produce no <language> element at all - least of all the
+    // one smuggled in through the title.
+    expect(doc.querySelectorAll("channel > language")).toHaveLength(0);
+  });
+
+  it("keeps an item description from escaping its CDATA section", async () => {
+    // CDATA has no escape mechanism, so a literal "]]>" in the description is
+    // the item-level equivalent of closing an element early.
+    const description =
+      "Legit body]]><item><title>Injected article</title>" +
+      "<link>https://attacker.example/</link></item><![CDATA[";
+
+    const xml = await fetchRebuiltRss({
+      status: "ok",
+      feed: { title: "Escaping feed", link: "https://example.com" },
+      items: [
+        { title: "Real article", link: "https://example.com/1", description },
+      ],
+    });
+
+    const doc = parseXml(xml);
+    const items = doc.querySelectorAll("item");
+    expect(items).toHaveLength(1);
+    expect(items[0].querySelector("description")?.textContent).toBe(
+      description,
+    );
+    expect(doc.querySelector("channel > title")?.textContent).toBe(
+      "Escaping feed",
+    );
+  });
+
+  it("escapes the channel image url and reuses the escaped channel title", async () => {
+    const title = "Photos & <b>more</b>";
+    const image = "https://cdn.example.com/logo.png?w=1&h=2";
+
+    const xml = await fetchRebuiltRss({
+      status: "ok",
+      feed: { title, link: "https://example.com", image },
+      items: [{ title: "Real article", link: "https://example.com/1" }],
+    });
+
+    const doc = parseXml(xml);
+    expect(doc.querySelector("image > url")?.textContent).toBe(image);
+    expect(doc.querySelector("image > title")?.textContent).toBe(title);
+  });
+});
