@@ -84,6 +84,7 @@ export interface AllOriginsResponse {
 export interface Rss2JsonFeedItem {
   title?: string;
   link?: string;
+  guid?: string;
   description?: string;
   pubDate?: string;
 }

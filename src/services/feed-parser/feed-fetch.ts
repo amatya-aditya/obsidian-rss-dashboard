@@ -59,15 +59,16 @@ function rss2JsonToRss(data: Rss2JsonResponse): string {
     rss += `\n    <image>\n        <url>${escapeXml(feed.image)}</url>\n        <title>${channelTitle}</title>\n        <link>${channelLink}</link>\n    </image>`;
   }
 
-  items.forEach((item: Rss2JsonFeedItem) => {
+  items.forEach((item: Rss2JsonFeedItem, index: number) => {
     const itemLink = escapeXml(item.link || "");
+    const itemGuid = escapeXml(item.guid || item.link || `item-${index}`);
     rss += `\n    <item>\n        <title>${escapeXml(item.title || "")}</title>\n        <link>${itemLink}</link>\n        <description><![CDATA[${escapeCdata(item.description || "")}]]></description>`;
 
     if (item.pubDate) {
       rss += `\n        <pubDate>${escapeXml(item.pubDate)}</pubDate>`;
     }
 
-    rss += `\n        <guid>${itemLink}</guid>\n    </item>`;
+    rss += `\n        <guid>${itemGuid}</guid>\n    </item>`;
   });
 
   rss += `\n</channel>\n</rss>`;

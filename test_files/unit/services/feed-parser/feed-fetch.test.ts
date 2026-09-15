@@ -424,6 +424,27 @@ describe("fetchFeedXml - RSS2JSON XML escaping", () => {
     );
   });
 
+  it("gives link-less items distinct guids instead of colliding on empty string", async () => {
+    const xml = await fetchRebuiltRss({
+      status: "ok",
+      feed: { title: "No links", link: "https://example.com" },
+      items: [
+        { title: "First linkless item" },
+        { title: "Second linkless item" },
+      ],
+    });
+
+    const doc = parseXml(xml);
+    const guids = Array.from(doc.querySelectorAll("item > guid")).map(
+      (el) => el.textContent,
+    );
+
+    expect(guids).toHaveLength(2);
+    expect(guids[0]).not.toBe("");
+    expect(guids[1]).not.toBe("");
+    expect(guids[0]).not.toBe(guids[1]);
+  });
+
   it("escapes the channel image url and reuses the escaped channel title", async () => {
     const title = "Photos & <b>more</b>";
     const image = "https://cdn.example.com/logo.png?w=1&h=2";
