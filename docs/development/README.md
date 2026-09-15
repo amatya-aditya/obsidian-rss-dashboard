@@ -167,6 +167,8 @@ catalog and repository links, and include the user-facing summary under
 - [Automatic deletion](./auto-deletion.md)
 - [Audit remediation 2.3.0](../archive/investigations/2026/audit-remediation-2.3.0.md)
 - [Defuddle evaluation](../archive/investigations/2026/defuddle-evaluation.md)
+- [Description-signal precedence](../archive/investigations/2026/description-signal-precedence.md)
+- [Language-signal coverage](../archive/investigations/2026/language-signal-coverage.md)
 - [Substack CDATA entity encoding](../archive/investigations/2026/substack-cdata-entity-encoding.md)
 - [Test-lint backlog tracker](./test-lint-backlog-tracker.md)
 
