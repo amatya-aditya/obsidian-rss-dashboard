@@ -6,7 +6,7 @@ milestone: ""
 owner: unassigned
 workstream: ""
 sequence: null
-depends_on: []
+depends_on: ["#263", "#247"]
 release_requirement: ""
 implementation: ""
 ---
@@ -14,6 +14,23 @@ implementation: ""
 # Opt-In Cover Image Fallback Plan
 
 This plan covers plugin-wide cover image retrieval when a feed item does not already carry a usable image. It is intentionally opt-in, off by default, and should follow the UI and interaction rules in [docs/design/design-spec.md](../design/design-spec.md).
+
+## Dependency note
+
+The extraction mechanism in this plan is superseded by the article-metadata
+pipeline being charted in [#263](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/263).
+
+That pipeline extracts `og:image` from the article page's `<head>` in the same
+pass that resolves description, author, canonical URL, and language, so this
+plan should **consume** a resolved `metadata.image` rather than implement its
+own fetch-and-parse in the refresh path. A second independent page-fetch path
+is precisely the sprawl [#247](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/247)
+exists to remove.
+
+The product decisions below stand unchanged and are the reason this plan
+survives: opt-in, off by default, no extra fetch when the toggle is off,
+bounded concurrency, feed-provided images always win, and the resolved URL
+persists on the item. Only the "how" is replaced.
 
 ## Goal
 
