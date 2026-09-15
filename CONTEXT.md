@@ -91,6 +91,24 @@ _Avoid_: Imported tag, bulk tag
 A tag added or removed on a candidate article by hand, via its per-article tag chip in the import preview. Independent of label-derived tags and of the "Import labels as tags" toggle — it always carries through to the imported item regardless of that toggle's state.
 _Avoid_: Ad hoc tag, user tag, manual tag override
 
+## Article metadata pipeline
+
+**Page metadata**:
+Signals read from the fetched article page's `<head>` and body (meta tags, `<html lang>`, Readability's own fields) during a full-article fetch, as opposed to signals the RSS/Atom feed itself carries.
+_Avoid_: Article metadata (doesn't distinguish source), HTML metadata
+
+**Feed metadata**:
+Signals carried by the RSS/Atom feed entry or channel itself — the feed-supplied `<description>`, feed-level `<language>`/`xml:lang` — independent of any page fetch.
+_Avoid_: RSS metadata, feed signals
+
+**Raw article metadata**:
+Every [[Page metadata]] signal as found on the fetched page, one slot per signal, before any precedence is applied. Produced by `extractPageMetadata` from the `Document` that `Readability.parse()` is about to mutate, so extraction always runs first.
+_Avoid_: Extracted metadata, page signals
+
+**Resolved article metadata**:
+One value per metadata field (description, language) after precedence is applied across [[Raw article metadata]] and [[Feed metadata]]. Produced by `resolveArticleMetadata`, held only for the current render or save — not a `FeedItem` shape itself. Individual fields may be copied onto `FeedItem` by the ticket that defines that field; the object as a whole is never persisted wholesale.
+_Avoid_: Final metadata, merged metadata
+
 ## Storage
 
 **Feed storage**:
@@ -144,3 +162,17 @@ _Avoid_: Rollback, downgrade
 **Metadata cleanup**:
 The user's choice, offered right after a metadata storage move succeeds, to delete or keep the `data.json` copy left behind at the previous location.
 _Avoid_: Backup cleanup, orphan file
+
+## Update notifications
+
+**What's New popup**:
+The modal shown once per plugin update, once the running version differs from the [[Last shown version]], displaying that version's [[Release summary]]. Suppressed on a fresh install and for a version whose changelog entry has no Features. Reachable again afterward from the About tab's "What's new" link, which reopens the same content rather than linking out.
+_Avoid_: Update notification, changelog viewer, whats-new dialog
+
+**Release summary**:
+The curated, Features-only excerpt of a version's CHANGELOG.md entry, extracted at build time and embedded into the plugin so the [[What's New popup]] can render it offline. Distinct from the full changelog entry, which also carries Fixes and Development/compliance notes and is never shipped with the installed plugin — only `main.js`, `manifest.json`, and `styles.css` are.
+_Avoid_: Changelog excerpt, release notes, what's-new text
+
+**Last shown version**:
+The persisted setting recording the most recent plugin version for which the [[What's New popup]] has already been displayed to this user. Compared against the running version on load to decide whether to show the popup. Distinct from `manifest.json`'s version, which always reflects the installed code regardless of what the user has seen.
+_Avoid_: lastSeenVersion, seen version
