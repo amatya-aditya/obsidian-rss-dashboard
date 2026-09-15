@@ -1,14 +1,18 @@
 import { Modal, App, Setting, Notice } from "obsidian";
 import type RssDashboardPlugin from "../../main";
+import {
+  DEPRECATION_TRIGGER_RELEASE,
+  canDeferByVersion,
+  describeStorageMode,
+  nextMinorVersion,
+} from "../utils/storage-deprecation-prompt";
 
 /**
- * Shown on every plugin load when the user's storage mode is not vault-shards-v2
- * and they have not permanently dismissed the prompt.
+ * Shown on load while the vault is still on a deprecated feed storage mode.
  *
- * Buttons:
- *  - "Upgrade Now" — backs up data, migrates to v2, sets dismissed flag
- *  - "Remind Me Later" — closes with no flag change (shows again next load)
- *  - "Never Show Again" — sets dismissed flag permanently, no migration
+ * "Skip this version" is withdrawn once the deferral cap is reached, so the
+ * prompt can always be postponed to the next load but can never be silenced
+ * for good ahead of a cutoff the user would otherwise meet as breakage.
  */
 export class StorageMigrationModal extends Modal {
   private plugin: RssDashboardPlugin;
@@ -25,17 +29,17 @@ export class StorageMigrationModal extends Modal {
     this.modalEl.addClass("rss-dashboard-modal");
     this.modalEl.addClass("rss-dashboard-modal-container");
 
-    new Setting(contentEl)
-      .setName("Storage mode upgrade available")
-      .setHeading();
+    new Setting(contentEl).setName("Storage mode is being retired").setHeading();
+
+    const modeLabel = describeStorageMode(this.plugin.settings.storageMode);
 
     contentEl.createEl("p", {
-      text: `Your RSS Dashboard is using an older storage mode (${this.plugin.settings.storageMode}). Upgrading to Vault Shards V2 offers better performance and more reliable sync across devices.`,
+      text: `Your feed history is stored using ${modeLabel}, which is being retired. When ${DEPRECATION_TRIGGER_RELEASE} ships, this storage mode will stop saving changes: feeds will no longer refresh, and read state, stars, tags, and saved articles will no longer be recorded.`,
       cls: "rss-dashboard-modal-message",
     });
 
     contentEl.createEl("p", {
-      text: "Upgrading will automatically create a backup of your data first.",
+      text: "Upgrading to shard storage v2 keeps everything you already have, and a backup is taken first. You can still upgrade after the cutoff, but the plugin will be read-only until you do.",
       cls: "rss-dashboard-modal-message",
     });
 
@@ -43,26 +47,30 @@ export class StorageMigrationModal extends Modal {
       cls: "rss-dashboard-modal-buttons",
     });
 
-    // "Never Show Again" — leftmost, lowest priority
-    const neverButton = buttonContainer.createEl("button", {
-      text: "Never show again",
-    });
-    neverButton.onclick = async () => {
-      this.plugin.settings.storageMigrationDismissedPermanently = true;
-      await this.plugin.saveSettings();
-      this.close();
-    };
+    const deferrals = this.plugin.settings.storageMigrationDeferralCount ?? 0;
+    let skipButton: HTMLButtonElement | null = null;
 
-    // "Remind Me Later" — middle, stateless dismiss
+    if (canDeferByVersion(deferrals)) {
+      skipButton = buttonContainer.createEl("button", {
+        text: "Skip this version",
+      });
+      skipButton.onclick = async () => {
+        this.plugin.settings.storageMigrationDismissedUntil = nextMinorVersion(
+          this.plugin.manifest.version,
+        );
+        this.plugin.settings.storageMigrationDeferralCount = deferrals + 1;
+        await this.plugin.saveSettings();
+        this.close();
+      };
+    }
+
     const laterButton = buttonContainer.createEl("button", {
       text: "Remind me later",
     });
     laterButton.onclick = () => {
-      // No flag set — modal will appear again next plugin load
       this.close();
     };
 
-    // "Upgrade Now" — rightmost CTA
     const upgradeButton = buttonContainer.createEl("button", {
       text: "Upgrade now (recommended)",
       cls: "mod-cta",
@@ -70,12 +78,14 @@ export class StorageMigrationModal extends Modal {
     upgradeButton.onclick = async () => {
       upgradeButton.disabled = true;
       laterButton.disabled = true;
-      neverButton.disabled = true;
+      if (skipButton) {
+        skipButton.disabled = true;
+      }
       upgradeButton.textContent = "Upgrading...";
 
       try {
         await this.plugin.backupAndMigrateStorageToV2();
-        new Notice("Successfully migrated to vault shards v2.");
+        new Notice("Successfully migrated to shard storage v2.");
       } catch (error) {
         console.error("Migration failed:", error);
         new Notice("Migration failed. Check the console for details.");

@@ -2,21 +2,45 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as obsidian from "obsidian";
 import { StorageMigrationModal } from "../../../src/modals/storage-migration-modal";
 import type RssDashboardPlugin from "../../../main";
+import { MAX_VERSION_DEFERRALS } from "../../../src/utils/storage-deprecation-prompt";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
-
-type MockApp = obsidian.App;
 
 interface TestPlugin {
   settings: {
-    storageMigrationDismissedPermanently?: boolean;
     storageMode: string;
+    storageMigrationDismissedUntil?: string;
+    storageMigrationDeferralCount?: number;
   };
+  manifest: { version: string };
   saveSettings: () => Promise<void>;
   backupAndMigrateStorageToV2: () => Promise<void>;
 }
 
-function createMockApp(): MockApp {
-  return new obsidian.App();
+function createPlugin(overrides: Partial<TestPlugin["settings"]> = {}): TestPlugin {
+  return {
+    settings: { storageMode: "legacy-json", ...overrides },
+    manifest: { version: "2.7.0" },
+    saveSettings: vi.fn(async () => {}),
+    backupAndMigrateStorageToV2: vi.fn(async () => {}),
+  };
+}
+
+function openModal(plugin: TestPlugin): StorageMigrationModal {
+  const modal = new StorageMigrationModal(
+    new obsidian.App(),
+    plugin as unknown as RssDashboardPlugin,
+  );
+  modal.open();
+  return modal;
+}
+
+function findButton(
+  modal: StorageMigrationModal,
+  label: string,
+): HTMLButtonElement | undefined {
+  return Array.from(modal.contentEl.querySelectorAll("button")).find((button) =>
+    button.textContent?.includes(label),
+  );
 }
 
 function flushPromises(): Promise<void> {
@@ -30,72 +54,65 @@ beforeEach(() => {
 });
 
 describe("StorageMigrationModal", () => {
-  it("closes statelessly on 'Remind me later'", async () => {
-    const app = createMockApp();
-    const plugin: TestPlugin = {
-      settings: { storageMode: "legacy-json" },
-      saveSettings: vi.fn(async () => {}),
-      backupAndMigrateStorageToV2: vi.fn(async () => {}),
-    };
+  it("names the release that turns the mode read-only", () => {
+    const modal = openModal(createPlugin());
+    expect(modal.contentEl.textContent).toContain("3.0");
+  });
 
-    const modal = new StorageMigrationModal(app, plugin as unknown as RssDashboardPlugin);
-    modal.open();
+  it("closes without recording anything on 'Remind me later'", async () => {
+    const plugin = createPlugin();
+    const modal = openModal(plugin);
 
-    const buttons = Array.from(modal.contentEl.querySelectorAll("button"));
-    const remindBtn = buttons.find((b) => b.textContent === "Remind me later") as HTMLButtonElement;
-    expect(remindBtn).toBeDefined();
-
-    remindBtn.click();
+    findButton(modal, "Remind me later")?.click();
     await flushPromises();
 
-    expect(plugin.settings.storageMigrationDismissedPermanently).toBeUndefined();
+    expect(plugin.settings.storageMigrationDismissedUntil).toBeUndefined();
+    expect(plugin.settings.storageMigrationDeferralCount).toBeUndefined();
     expect(plugin.saveSettings).not.toHaveBeenCalled();
     expect(plugin.backupAndMigrateStorageToV2).not.toHaveBeenCalled();
   });
 
-  it("sets dismissed permanently on 'Never show again'", async () => {
-    const app = createMockApp();
-    const plugin: TestPlugin = {
-      settings: { storageMode: "legacy-json" },
-      saveSettings: vi.fn(async () => {}),
-      backupAndMigrateStorageToV2: vi.fn(async () => {}),
-    };
+  it("defers to the next minor and counts the deferral on 'Skip this version'", async () => {
+    const plugin = createPlugin();
+    const modal = openModal(plugin);
 
-    const modal = new StorageMigrationModal(app, plugin as unknown as RssDashboardPlugin);
-    modal.open();
-
-    const buttons = Array.from(modal.contentEl.querySelectorAll("button"));
-    const neverBtn = buttons.find((b) => b.textContent === "Never show again") as HTMLButtonElement;
-    expect(neverBtn).toBeDefined();
-
-    neverBtn.click();
+    findButton(modal, "Skip this version")?.click();
     await flushPromises();
 
-    expect(plugin.settings.storageMigrationDismissedPermanently).toBe(true);
+    expect(plugin.settings.storageMigrationDismissedUntil).toBe("2.8.0");
+    expect(plugin.settings.storageMigrationDeferralCount).toBe(1);
     expect(plugin.saveSettings).toHaveBeenCalledTimes(1);
     expect(plugin.backupAndMigrateStorageToV2).not.toHaveBeenCalled();
   });
 
-  it("calls backupAndMigrateStorageToV2 and sets flag on 'Upgrade now'", async () => {
-    const app = createMockApp();
-    const plugin: TestPlugin = {
-      settings: { storageMode: "legacy-json" },
-      saveSettings: vi.fn(async () => {}),
-      backupAndMigrateStorageToV2: vi.fn(async () => {}),
-    };
+  it("accumulates deferrals across prompts", async () => {
+    const plugin = createPlugin({ storageMigrationDeferralCount: 1 });
+    const modal = openModal(plugin);
 
-    const modal = new StorageMigrationModal(app, plugin as unknown as RssDashboardPlugin);
-    modal.open();
-
-    const buttons = Array.from(modal.contentEl.querySelectorAll("button"));
-    const upgradeBtn = buttons.find((b) => b.textContent?.includes("Upgrade now")) as HTMLButtonElement;
-    expect(upgradeBtn).toBeDefined();
-
-    upgradeBtn.click();
+    findButton(modal, "Skip this version")?.click();
     await flushPromises();
 
-    // The method backupAndMigrateStorageToV2 itself handles setting the flag to true
-    // In our test, we just check that the method was called
+    expect(plugin.settings.storageMigrationDeferralCount).toBe(2);
+  });
+
+  it("withdraws version deferral once the cap is reached", () => {
+    const plugin = createPlugin({
+      storageMigrationDeferralCount: MAX_VERSION_DEFERRALS,
+    });
+    const modal = openModal(plugin);
+
+    expect(findButton(modal, "Skip this version")).toBeUndefined();
+    expect(findButton(modal, "Remind me later")).toBeDefined();
+    expect(findButton(modal, "Upgrade now")).toBeDefined();
+  });
+
+  it("migrates on 'Upgrade now'", async () => {
+    const plugin = createPlugin();
+    const modal = openModal(plugin);
+
+    findButton(modal, "Upgrade now")?.click();
+    await flushPromises();
+
     expect(plugin.backupAndMigrateStorageToV2).toHaveBeenCalledTimes(1);
   });
 });

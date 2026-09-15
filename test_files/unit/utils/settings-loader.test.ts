@@ -347,6 +347,23 @@ describe("settings-loader", () => {
   // ── migrateSettings ──────────────────────────────────────────────────────────
 
   describe("migrateSettings", () => {
+    it("drops a permanent storage-migration dismissal so the prompt returns", async () => {
+      const { migrateSettings } =
+        await import("../../../src/utils/settings-loader");
+
+      const settings = {
+        ...DEFAULT_SETTINGS,
+        storageMigrationDismissedPermanently: true,
+      } as unknown as RssDashboardSettings & Record<string, unknown>;
+      const didChange = migrateSettings(
+        settings as unknown as RssDashboardSettings,
+      );
+
+      expect(didChange).toBe(true);
+      expect(settings.storageMigrationDismissedPermanently).toBeUndefined();
+      expect(settings.storageMigrationDismissedUntil).toBeUndefined();
+    });
+
     it("migrates savePath to articleSaving.defaultFolder", async () => {
       const { migrateSettings } =
         await import("../../../src/utils/settings-loader");

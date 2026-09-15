@@ -75,6 +75,7 @@ import { ImportOpmlModal } from "./src/modals/import-opml-modal";
 import { ImportStarredModal } from "./src/modals/import-starred-modal";
 import { AddFeedModal } from "./src/modals/feed-manager/add-feed-modal";
 import { StorageMigrationModal } from "./src/modals/storage-migration-modal";
+import { shouldShowStorageDeprecationPrompt } from "./src/utils/storage-deprecation-prompt";
 import { isValidUrl } from "./src/utils/validation";
 import {
   dedupeAndNormalizeFeedItems,
@@ -934,8 +935,7 @@ export default class RssDashboardPlugin extends Plugin {
       this.app.workspace.onLayoutReady(() => {
         if (
           this.settings &&
-          this.settings.storageMode !== "vault-shards-v2" &&
-          !this.settings.storageMigrationDismissedPermanently
+          shouldShowStorageDeprecationPrompt(this.settings, this.manifest.version)
         ) {
           new StorageMigrationModal(this.app, this).open();
         }
@@ -2235,8 +2235,6 @@ export default class RssDashboardPlugin extends Plugin {
       storageError("Backup failed before migration", e);
       new Notice("Backup failed, proceeding with migration...");
     }
-
-    this.settings.storageMigrationDismissedPermanently = true;
     await this.migrateToVaultShardsV2();
   }
 

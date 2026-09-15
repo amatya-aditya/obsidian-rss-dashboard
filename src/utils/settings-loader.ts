@@ -298,6 +298,14 @@ export function migrateSettings(settings: RssDashboardSettings): boolean {
     didChange = true;
   }
 
+  if (settingsUnknown.storageMigrationDismissedPermanently !== undefined) {
+    // A permanent dismissal was consent to stop advertising an optional
+    // upgrade, not consent to a deprecation. Drop it so the prompt returns
+    // rather than letting these users reach the cutoff unwarned.
+    delete settingsUnknown.storageMigrationDismissedPermanently;
+    didChange = true;
+  }
+
   if (settingsUnknown.savePath !== undefined) {
     settings.articleSaving = Object.assign(
       {},
