@@ -44,6 +44,10 @@ interface StorageSettingsPlugin {
   repairVaultStorage(): Promise<void>;
   importPortableDataBundleFromFile(file: File): Promise<void>;
   exportPortableDataBundle(): Promise<void>;
+  importFeedBundleFromFile(file: File): Promise<void>;
+  exportFeedBundle(): Promise<void>;
+  importSettingsBundleFromFile(file: File): Promise<void>;
+  exportSettingsBundle(): Promise<void>;
   exportDataJson(): Promise<void>;
   revertToLegacyJsonStorageWithOptions(options?: {
     deleteShardFolder?: boolean;
@@ -63,7 +67,6 @@ function storageError(
 ): void {}
 
 type MediaFolderSettingKey =
-  | "defaultTwitterFolder"
   | "defaultMastodonFolder"
   | "defaultYouTubeFolder"
   | "defaultPodcastFolder"
@@ -297,9 +300,8 @@ export function renderStorageSettingsTab(
   );
   descFragment.appendChild(v2Div);
 
-  new Setting(containerEl)
+  const storageModeSetting = new Setting(containerEl)
     .setName("Storage mode")
-    .setDesc(descFragment)
     .addDropdown((dropdown) =>
       dropdown
         .addOption("legacy-json", "Legacy JSON")
@@ -315,6 +317,14 @@ export function renderStorageSettingsTab(
           pendingStorageMode = value as typeof plugin.settings.storageMode;
         }),
     );
+  // Obsidian's Setting.setDesc() routes through descEl.setText(), which only
+  // appends a DocumentFragment when `instanceof DocumentFragment` succeeds --
+  // that check fails when the fragment was built in a different window realm
+  // than descEl (e.g. a popped-out window), and silently falls back to
+  // stringifying it as "[object DocumentFragment]". Appending directly to
+  // descEl sidesteps that fragile realm-sensitive dispatch entirely.
+  storageModeSetting.descEl.empty();
+  storageModeSetting.descEl.appendChild(descFragment);
 
   new Setting(containerEl)
     .setName("Storage folder")
@@ -349,7 +359,7 @@ export function renderStorageSettingsTab(
   storageActions
     .setName("Storage actions")
     .setDesc(
-      "Apply the selected storage mode, repair shard files, or export a portable bundle for desktop/mobile transfer workflows.",
+      "Apply the selected storage mode, repair shard files, or import/export a portable data bundle (everything), a feed bundle (feeds, folders, tags, articles, and article state — no app settings), or a settings bundle (app preferences only) for desktop/mobile transfer workflows.",
     )
     .addButton((button) =>
       button
@@ -533,7 +543,7 @@ export function renderStorageSettingsTab(
       }),
     )
     .addButton((button) =>
-      button.setButtonText("Import shard data").onClick(() => {
+      button.setButtonText("Import portable data bundle").onClick(() => {
         const input = activeDocument.body.createEl("input", {
           attr: { type: "file", accept: ".json,.backup,application/json" },
         });
@@ -541,19 +551,19 @@ export function renderStorageSettingsTab(
           void (async () => {
             const file = input.files?.[0];
             if (!file) return;
-            storageLog("Clicked import shard data", {
+            storageLog("Clicked import portable data bundle", {
               currentMode: plugin.settings.storageMode,
               folder: plugin.settings.storageFolder,
             });
             try {
               await plugin.importPortableDataBundleFromFile(file);
             } catch (error) {
-              storageError("Shard data import failed", error, {
+              storageError("Portable data bundle import failed", error, {
                 currentMode: plugin.settings.storageMode,
                 folder: plugin.settings.storageFolder,
               });
               new Notice(
-                `Shard data import failed${
+                `Portable data bundle import failed${
                   error instanceof Error ? `: ${error.message}` : ""
                 }`,
               );
@@ -564,21 +574,129 @@ export function renderStorageSettingsTab(
       }),
     )
     .addButton((button) =>
-      button.setButtonText("Export shard data").onClick(() => {
+      button.setButtonText("Export portable data bundle").onClick(() => {
         void (async () => {
-          storageLog("Clicked export shard data", {
+          storageLog("Clicked export portable data bundle", {
             currentMode: plugin.settings.storageMode,
             folder: plugin.settings.storageFolder,
           });
           try {
             await plugin.exportPortableDataBundle();
           } catch (error) {
-            storageError("Shard data export failed", error, {
+            storageError("Portable data bundle export failed", error, {
               currentMode: plugin.settings.storageMode,
               folder: plugin.settings.storageFolder,
             });
             new Notice(
-              `Shard data export failed${
+              `Portable data bundle export failed${
+                error instanceof Error ? `: ${error.message}` : ""
+              }`,
+            );
+          }
+        })();
+      }),
+    )
+    .addButton((button) =>
+      button.setButtonText("Import feed bundle").onClick(() => {
+        const input = activeDocument.body.createEl("input", {
+          attr: { type: "file", accept: ".json,.backup,application/json" },
+        });
+        input.onchange = () => {
+          void (async () => {
+            const file = input.files?.[0];
+            if (!file) return;
+            storageLog("Clicked import Feed bundle", {
+              currentMode: plugin.settings.storageMode,
+              folder: plugin.settings.storageFolder,
+            });
+            try {
+              await plugin.importFeedBundleFromFile(file);
+            } catch (error) {
+              storageError("Feed bundle import failed", error, {
+                currentMode: plugin.settings.storageMode,
+                folder: plugin.settings.storageFolder,
+              });
+              new Notice(
+                `Feed bundle import failed${
+                  error instanceof Error ? `: ${error.message}` : ""
+                }`,
+              );
+            }
+          })();
+        };
+        input.click();
+      }),
+    )
+    .addButton((button) =>
+      button.setButtonText("Export feed bundle").onClick(() => {
+        void (async () => {
+          storageLog("Clicked export Feed bundle", {
+            currentMode: plugin.settings.storageMode,
+            folder: plugin.settings.storageFolder,
+          });
+          try {
+            await plugin.exportFeedBundle();
+          } catch (error) {
+            storageError("Feed bundle export failed", error, {
+              currentMode: plugin.settings.storageMode,
+              folder: plugin.settings.storageFolder,
+            });
+            new Notice(
+              `Feed bundle export failed${
+                error instanceof Error ? `: ${error.message}` : ""
+              }`,
+            );
+          }
+        })();
+      }),
+    )
+    .addButton((button) =>
+      button.setButtonText("Import settings bundle").onClick(() => {
+        const input = activeDocument.body.createEl("input", {
+          attr: { type: "file", accept: ".json,.backup,application/json" },
+        });
+        input.onchange = () => {
+          void (async () => {
+            const file = input.files?.[0];
+            if (!file) return;
+            storageLog("Clicked import Settings bundle", {
+              currentMode: plugin.settings.storageMode,
+              folder: plugin.settings.storageFolder,
+            });
+            try {
+              await plugin.importSettingsBundleFromFile(file);
+            } catch (error) {
+              storageError("Settings bundle import failed", error, {
+                currentMode: plugin.settings.storageMode,
+                folder: plugin.settings.storageFolder,
+              });
+              new Notice(
+                `Settings bundle import failed${
+                  error instanceof Error ? `: ${error.message}` : ""
+                }`,
+              );
+            }
+          })();
+        };
+        input.click();
+      }),
+    )
+    .addButton((button) =>
+      button.setButtonText("Export settings bundle").onClick(() => {
+        void (async () => {
+          storageLog("Clicked export Settings bundle", {
+            currentMode: plugin.settings.storageMode,
+            folder: plugin.settings.storageFolder,
+          });
+          try {
+            await plugin.exportSettingsBundle();
+          } catch (error) {
+            storageError("Settings bundle export failed", error, {
+              currentMode: plugin.settings.storageMode,
+              folder: plugin.settings.storageFolder,
+            });
+            new Notice(
+              `Settings bundle export failed${
                 error instanceof Error ? `: ${error.message}` : ""
               }`,
             );
@@ -646,13 +764,6 @@ export function renderStorageSettingsTab(
   renderFolderSetting(
     containerEl,
     plugin,
-    "Default Twitter folder",
-    "Default folder for Twitter/X/Nitter feeds",
-    "defaultTwitterFolder",
-  );
-  renderFolderSetting(
-    containerEl,
-    plugin,
     "Default Mastodon folder",
     "Default folder for Mastodon feeds",
     "defaultMastodonFolder",
@@ -692,7 +803,6 @@ export function renderStorageSettingsTab(
     .addButton((button) => {
       button.setButtonText("Default folder names").onClick(async () => {
         const d = DEFAULT_SETTINGS.media;
-        plugin.settings.media.defaultTwitterFolder = d.defaultTwitterFolder;
         plugin.settings.media.defaultMastodonFolder = d.defaultMastodonFolder;
         plugin.settings.media.defaultYouTubeFolder = d.defaultYouTubeFolder;
         plugin.settings.media.defaultPodcastFolder = d.defaultPodcastFolder;

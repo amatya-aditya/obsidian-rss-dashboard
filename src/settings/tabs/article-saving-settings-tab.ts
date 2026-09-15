@@ -10,6 +10,7 @@ import type { App } from "obsidian";
 import { DEFAULT_SETTINGS, type SavedTemplate } from "../../types/types";
 import { VaultFolderSuggest } from "../../components/folder-suggest";
 import { TemplateNameModal } from "../modals/settings-modals";
+import { settingsUiCompatibility } from "../settings-ui-compat";
 
 export interface ArticleSavingPluginLike {
   app: App;
@@ -79,11 +80,14 @@ export function renderArticleSavingSettingsTab(
       slider
         .setLimits(5, 30, 1)
         .setValue(plugin.settings.articleSaving.fetchTimeout || 10)
-        .setDynamicTooltip()
         .onChange(async (value) => {
           plugin.settings.articleSaving.fetchTimeout = value;
           await plugin.saveSettings();
         });
+      settingsUiCompatibility.presentSliderValue(
+        slider,
+        (value) => `${value} seconds`,
+      );
     });
 
   // ── Default template ──────────────────────────────────────────────────────
@@ -123,6 +127,9 @@ export function renderArticleSavingSettingsTab(
     "{{dateShort}} (YYYY-MM-DD)",
     "{{date:FORMAT}} (Moment.js format, e.g. {{date:YYYY/MM/DD}})",
     "{{isoDate}}",
+    "{{saveDate}} (Local save date YYYY-MM-DD)",
+    "{{saveTime12}} (Local save time 12-hour format, e.g. 02:45 PM)",
+    "{{saveTime24}} (Local save time 24-hour military format, e.g. 14:45)",
     "[{{tags}}] (array of tags e.g. [tag1, tag2, ...])",
     "{{author}}",
     "{{feedTitle}}",
@@ -210,8 +217,9 @@ export function renderArticleSavingSettingsTab(
             .setButtonText("Update")
             .setTooltip("Update this template with current editor content")
             .onClick(async () => {
-              plugin.settings.articleSaving.savedTemplates![index].template =
-                plugin.settings.articleSaving.defaultTemplate;
+              const templateToUpdate = plugin.settings.articleSaving.savedTemplates?.[index];
+              if (!templateToUpdate) return;
+              templateToUpdate.template = plugin.settings.articleSaving.defaultTemplate;
               await plugin.saveSettings();
               new Notice(`Template "${template.name}" updated`);
             }),

@@ -1,0 +1,94 @@
+{
+  "direction": "ltr",
+  "id": "user/-/state/com.google/starred",
+  "title": "Read later",
+  "description": "",
+  "updated": 1700000000,
+  "items": [
+    {
+      "crawlTimeMsec": "1700000004000",
+      "timestampUsec": "1700000004000000",
+      "id": "tag:google.com,2005:reader/item/0000000000000004",
+      "categories": [
+        "user/1000000001/state/com.google/reading-list",
+        "user/1000000001/state/com.google/starred"
+      ],
+      "title": "No Source Feed Article",
+      "published": 1699996000,
+      "updated": 0,
+      "starred": 1700000004,
+      "canonical": [
+        {
+          "href": "https://example-feed.test/articles/four"
+        }
+      ],
+      "alternate": [
+        {
+          "href": "https://example-feed.test/articles/four",
+          "type": "text/html"
+        }
+      ],
+      "summary": {
+        "direction": "ltr",
+        "content": "<p>Placeholder summary content for article four.</p>"
+      },
+      "author": "",
+      "likingUsers": [],
+      "comments": [],
+      "commentsNum": -1,
+      "annotations": [],
+      "summaries": []
+    },
+    {
+      "crawlTimeMsec": "1700000005000",
+      "timestampUsec": "1700000005000000",
+      "id": "tag:google.com,2005:reader/item/0000000000000005",
+      "categories": [
+        "user/1000000001/state/com.google/reading-list",
+        "user/1000000001/state/com.google/starred"
+      ],
+      "title": "No Article Url Article",
+      "published": 1699995000,
+      "updated": 0,
+      "starred": 1700000005,
+      "summary": {
+        "direction": "ltr",
+        "content": "<p>Placeholder summary content for article five.</p>"
+      },
+      "author": "",
+      "likingUsers": [],
+      "comments": [],
+      "commentsNum": -1,
+      "annotations": [],
+      "origin": {
+        "streamId": "feed/https://example-feed.test/rss",
+        "title": "Example Feed",
+        "htmlUrl": "https://example-feed.test/"
+      },
+      "summaries": []
+    },
+    {
+      "crawlTimeMsec": "1700000006000",
+      "timestampUsec": "1700000006000000",
+      "id": "tag:google.com,2005:reader/item/0000000000000006",
+      "categories": [
+        "user/1000000001/state/com.google/reading-list",
+        "user/1000000001/state/com.google/starred"
+      ],
+      "title": "No Source Feed And No Article Url Article",
+      "published": 1699994000,
+      "updated": 0,
+      "starred": 1700000006,
+      "summary": {
+        "direction": "ltr",
+        "content": "<p>Placeholder summary content for article six.</p>"
+      },
+      "author": "",
+      "likingUsers": [],
+      "comments": [],
+      "commentsNum": -1,
+      "annotations": [],
+      "summaries": []
+    }
+  ]
+}

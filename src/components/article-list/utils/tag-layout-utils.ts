@@ -72,7 +72,9 @@ export function renderSingleRowCardTagChips(
   let visibleCount = 0;
 
   for (let i = 0; i < tags.length; i += 1) {
-    createTagChip(container, tags[i]);
+    const tag = tags[i];
+    if (!tag) continue;
+    createTagChip(container, tag);
     visibleCount = i + 1;
 
     const remainingTags = tags.slice(visibleCount);

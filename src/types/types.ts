@@ -58,6 +58,26 @@ export interface FeedItem {
    */
   restrictedReason?: string;
 
+  /**
+   * Full-content fetch state for an article imported from a starred.json
+   * export (234-09). Set to "unfetched" at import time for every imported
+   * article; "failed" once a fetch (either the opt-in import-time fetch from
+   * 234-06, or the reader's manual "Fetch now") has been attempted and did
+   * not return usable content; absent once a fetch succeeds and the article
+   * carries real full content. Only present on starred-imported articles —
+   * articles from a normal feed refresh never set this field, so the
+   * reader's automatic fetch-on-open is unaffected for them.
+   */
+  starredImportContentState?: "unfetched" | "failed";
+
+  /**
+   * Epoch-millisecond timestamp of when this article was imported from a
+   * starred.json export (234-09). Set alongside `starredImportContentState`
+   * at import time; used by the reader's cached-preview banner to show the
+   * user when the export was taken.
+   */
+  starredImportedAt?: number;
+
   ieee?: {
     pubYear?: string;
     volume?: string;
@@ -216,7 +236,6 @@ export type PodcastTheme =
 export interface MediaSettings {
   autoTagVideos: boolean;
   rememberPlaybackProgress: boolean;
-  defaultTwitterFolder: string;
   defaultMastodonFolder: string;
   defaultYouTubeFolder: string;
   defaultVideoTag: string;
@@ -231,8 +250,6 @@ export interface MediaSettings {
   defaultSmallwebFolder: string;
   defaultSmallwebTag: string;
   defaultSmallwebTags: string[];
-  defaultTwitterTag: string;
-  defaultTwitterTags: string[];
   defaultMastodonTag: string;
   defaultMastodonTags: string[];
   openInSplitView: boolean;
@@ -294,7 +311,6 @@ export interface DisplaySettings {
   useDomainFavicons: boolean;
   useDomainIconsPodcast: boolean;
   useDomainIconsMastodon: boolean;
-  useDomainIconsTwitter: boolean;
   useDomainIconsRss: boolean;
   useDomainIconsYouTube: boolean;
   hideDefaultRssIcon: boolean;
@@ -435,6 +451,21 @@ export type PersistedFeedConfig = Omit<Feed, "items"> & {
   feedId: string;
 };
 
+export type ArticleGroupByOption =
+  | "none"
+  | "feed"
+  | "date"
+  | "folder"
+  | "date_feed"
+  | "folder_feed";
+
+export interface FeedRetentionProtections {
+  protectStarred?: boolean;
+  protectSaved?: boolean;
+  protectTagged?: boolean;
+  protectUnread?: boolean;
+}
+
 export interface RssDashboardSettings {
   feeds: Feed[];
   folders: Folder[];
@@ -445,6 +476,10 @@ export interface RssDashboardSettings {
   startupRefreshDelaySeconds: number;
   maxItems: number;
   defaultAutoDeleteDuration: number;
+  protectStarred: boolean;
+  protectSaved: boolean;
+  protectTagged: boolean;
+  protectUnread: boolean;
   viewStyle: "list" | "card" | "feed";
   showFeedArt: boolean;
   showThumbnails: boolean;
@@ -458,7 +493,7 @@ export interface RssDashboardSettings {
     value: unknown;
   };
   articleSort: "newest" | "oldest";
-  articleGroupBy: "none" | "feed" | "date" | "folder";
+  articleGroupBy: ArticleGroupByOption;
   allArticlesPageSize: number;
   unreadArticlesPageSize: number;
   readArticlesPageSize: number;
@@ -565,6 +600,31 @@ export type SettingsOnly = Omit<
   "feeds" | "folders" | "availableTags"
 >;
 
+/**
+ * Feeds, folders, tags, articles, and article state — no app settings.
+ * See ADR 0005 for the split from the combined PortableDataBundle.
+ */
+export interface FeedBundle {
+  version: number;
+  exportedAt: number;
+  feeds: PersistedFeedConfig[];
+  folders: Folder[];
+  availableTags: Tag[];
+  shards: FeedItemsShard[];
+}
+
+/**
+ * App preferences only — no feeds, folders, tags, or articles.
+ * See ADR 0005 for the split from the combined PortableDataBundle.
+ */
+export interface SettingsBundle {
+  version: number;
+  exportedAt: number;
+  metadataStorageMode?: "plugin-default" | "vault-location";
+  metadataStorageFolder?: string;
+  settings: SettingsOnly;
+}
+
 export const DEFAULT_SETTINGS: RssDashboardSettings = {
   feeds: [],
   folders: [
@@ -599,11 +659,15 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
   startupRefreshDelaySeconds: 5,
   maxItems: 50,
   defaultAutoDeleteDuration: 30,
+  protectStarred: true,
+  protectSaved: true,
+  protectTagged: false,
+  protectUnread: false,
   viewStyle: "card",
   showFeedArt: true,
   showThumbnails: true,
   sidebarCollapsed: false,
-  sidebarWidth: 280,
+  sidebarWidth: 310,
   collapsedFolders: [],
   collapsedFeedSections: [],
   tagsCollapsed: true,
@@ -643,7 +707,6 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
   media: {
     autoTagVideos: true,
     rememberPlaybackProgress: true,
-    defaultTwitterFolder: "Twitter",
     defaultMastodonFolder: "Mastodon",
     defaultYouTubeFolder: "Videos",
     defaultVideoTag: "Video",
@@ -658,8 +721,6 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
     defaultSmallwebFolder: "Smallweb",
     defaultSmallwebTag: "smallweb",
     defaultSmallwebTags: ["smallweb"],
-    defaultTwitterTag: "",
-    defaultTwitterTags: [],
     defaultMastodonTag: "",
     defaultMastodonTags: [],
     openInSplitView: true,
@@ -729,7 +790,6 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
     useDomainFavicons: true,
     useDomainIconsPodcast: false,
     useDomainIconsMastodon: false,
-    useDomainIconsTwitter: false,
     useDomainIconsRss: false,
     useDomainIconsYouTube: false,
     hideDefaultRssIcon: false,

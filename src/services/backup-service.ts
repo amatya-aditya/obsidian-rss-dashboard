@@ -16,6 +16,16 @@ export class BackupService {
   private getUserSettingsJsonFn: () => string;
   private getPortableDataBundleJsonFn: () => string;
 
+  /**
+   * Creates a new BackupService instance
+   * @param {Object} options Configuration options
+   * @param {RssDashboardSettings} options.settings Plugin settings to backup
+   * @param {Object} options.manifest Plugin manifest with dir property
+   * @param {string} options.vaultAbsolutePath Absolute path to the vault
+   * @param {VaultInterface} options.vault Vault adapter for file operations
+   * @param {Function} [options.getUserSettingsJson] Optional function to serialize user settings
+   * @param {Function} [options.getPortableDataBundleJson] Optional function to serialize portable data bundle
+   */
   constructor(options: {
     settings: RssDashboardSettings;
     manifest: { dir?: string };
@@ -35,8 +45,10 @@ export class BackupService {
   }
 
   /**
-   * Perform async backups using the vault adapter
-   * Called during normal plugin operation
+   * Perform async backups of data.json, OPML, and user settings
+   * Called during normal plugin operation; backs up files based on autoBackup settings
+   * @returns {Promise<void>}
+   * @throws {Error} If reading or writing any backup file fails; the caller decides whether to notify the user, retry, or proceed anyway
    */
   public async performAutoBackups(): Promise<void> {
     const { autoBackup } = this.settings;
@@ -83,30 +95,48 @@ export class BackupService {
         await this.vault.adapter.write(opmlPath, opmlContent);
       }
 
-      // 3. userdata.json / usersettings.json
+      // 3. rss-dashboard-user-preferences.json / usersettings.json (legacy) / userdata.json
       if (autoBackup.backupUserdata) {
-        // We look for both common names, prioritizing 'usersettings.json' since that's what's exported.
+        // 'rss-dashboard-user-preferences.json' is what's exported today; 'usersettings.json' is
+        // the pre-rename filename, kept as a fallback for files exported before it.
+        const userPreferencesPath = `${pluginDir}/rss-dashboard-user-preferences.json`;
         const userSettingsPath = `${pluginDir}/usersettings.json`;
         const userDataPath = `${pluginDir}/userdata.json`;
 
-        const userSettingsExists =
-          await this.vault.adapter.exists(userSettingsPath);
+        const userPreferencesExists =
+          await this.vault.adapter.exists(userPreferencesPath);
 
-        if (userSettingsExists) {
-          const content = await this.vault.adapter.read(userSettingsPath);
-          await this.vault.adapter.write(`${userSettingsPath}.backup`, content);
+        if (userPreferencesExists) {
+          const content = await this.vault.adapter.read(userPreferencesPath);
+          await this.vault.adapter.write(
+            `${userPreferencesPath}.backup`,
+            content,
+          );
         } else {
-          const userDataExists = await this.vault.adapter.exists(userDataPath);
-          if (userDataExists) {
-            const content = await this.vault.adapter.read(userDataPath);
-            await this.vault.adapter.write(`${userDataPath}.backup`, content);
+          const userSettingsExists =
+            await this.vault.adapter.exists(userSettingsPath);
+
+          if (userSettingsExists) {
+            const content = await this.vault.adapter.read(userSettingsPath);
+            await this.vault.adapter.write(
+              `${userSettingsPath}.backup`,
+              content,
+            );
+          } else {
+            const userDataExists =
+              await this.vault.adapter.exists(userDataPath);
+            if (userDataExists) {
+              const content = await this.vault.adapter.read(userDataPath);
+              await this.vault.adapter.write(`${userDataPath}.backup`, content);
+            }
           }
         }
       }
     } catch (e) {
-      console.error("[RSS Dashboard] Auto-backup failed:", e);
+      const message = e instanceof Error ? e.message : String(e);
+      const wrapped = new Error(`Auto-backup failed: ${message}`);
+      (wrapped as Error & { cause?: unknown }).cause = e;
+      throw wrapped;
     }
   }
-
-
 }

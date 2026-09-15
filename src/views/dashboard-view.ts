@@ -19,6 +19,7 @@ import {
   Folder,
   ViewLocation,
   FeedEncoding,
+  ArticleGroupByOption,
 } from "../types/types";
 import type {
   FiltersUpdatedEventPayload,
@@ -33,7 +34,10 @@ import { FeedManagerModal } from "../modals/feed-manager-modal";
 import { MobileNavigationModal } from "../modals/mobile-navigation-modal";
 import { ShortcutHelpModal } from "../modals/shortcut-help-modal";
 import { KeywordFilterService } from "../services/keyword-filter-service";
-import { shouldUseMobileSidebarLayout, setCssProps } from "../utils/platform-utils";
+import {
+  shouldUseMobileSidebarLayout,
+  setCssProps,
+} from "../utils/platform-utils";
 import { formatDashboardMultiFiltersTitle } from "../utils/filter-title-format";
 import { computePagination } from "../utils/pagination-utils";
 import { applyAutomaticArticleTags } from "../utils/tag-utils";
@@ -314,9 +318,12 @@ export class RssDashboardView extends ItemView {
                 newPagination.endIdx,
               );
               if (newArticles.length > 0) {
-                void this.selectArticle(newArticles[0], {
-                  open: options?.open,
-                });
+                const firstArticle = newArticles[0];
+                if (firstArticle) {
+                  void this.selectArticle(firstArticle, {
+                    open: options?.open,
+                  });
+                }
               }
             });
             return;
@@ -329,7 +336,9 @@ export class RssDashboardView extends ItemView {
     }
 
     const nextArticle = articlesForPage[nextIndex];
-    void this.selectArticle(nextArticle, { open: options?.open });
+    if (nextArticle) {
+      void this.selectArticle(nextArticle, { open: options?.open });
+    }
   }
 
   /**
@@ -380,9 +389,12 @@ export class RssDashboardView extends ItemView {
                 newPagination.endIdx,
               );
               if (newArticles.length > 0) {
-                void this.selectArticle(newArticles[newArticles.length - 1], {
-                  open: options?.open,
-                });
+                const lastArticle = newArticles[newArticles.length - 1];
+                if (lastArticle) {
+                  void this.selectArticle(lastArticle, {
+                    open: options?.open,
+                  });
+                }
               }
             });
             return;
@@ -395,7 +407,9 @@ export class RssDashboardView extends ItemView {
     }
 
     const prevArticle = articlesForPage[prevIndex];
-    void this.selectArticle(prevArticle, { open: options?.open });
+    if (prevArticle) {
+      void this.selectArticle(prevArticle, { open: options?.open });
+    }
   }
 
   /**
@@ -425,7 +439,10 @@ export class RssDashboardView extends ItemView {
     if (articlesForPage.length === 0) return;
 
     if (!this.selectedArticle) {
-      void this.selectArticle(articlesForPage[0]);
+      const firstArticle = articlesForPage[0];
+      if (firstArticle) {
+        void this.selectArticle(firstArticle);
+      }
       return;
     }
 
@@ -779,6 +796,9 @@ export class RssDashboardView extends ItemView {
     );
 
     const container = this.containerEl.children[1];
+    if (!container) {
+      return Promise.resolve();
+    }
     container.addClass("rss-dashboard-container");
     let dashboardContainer = container.querySelector(
       ".rss-dashboard-layout",
@@ -898,6 +918,9 @@ export class RssDashboardView extends ItemView {
       }
 
       const container = this.containerEl.children[1];
+      if (!container) {
+        return;
+      }
       let dashboardContainer = container.querySelector(
         ".rss-dashboard-layout",
       ) as HTMLElement;
@@ -1466,12 +1489,17 @@ export class RssDashboardView extends ItemView {
     } else if (this.selectedTags.length > 0) {
       const mode = (this.settings.sidebarTagFilterMode || "or").toUpperCase();
       const tagsPart = `Tags (${mode}): ${this.selectedTags.join(", ")}`;
-      if ((this.selectedFolders && this.selectedFolders.length > 0) || (this.selectedFeeds && this.selectedFeeds.length > 0)) {
+      if (
+        (this.selectedFolders && this.selectedFolders.length > 0) ||
+        (this.selectedFeeds && this.selectedFeeds.length > 0)
+      ) {
         // Combine folders/feeds and tags when both are active
         const parts = [];
         const totalFeeds = this.getTotalFeedsInSelection();
         if (this.selectedFolders && this.selectedFolders.length > 0) {
-          parts.push(`Folders: ${this.selectedFolders.join(", ")} (Feeds: ${totalFeeds})`);
+          parts.push(
+            `Folders: ${this.selectedFolders.join(", ")} (Feeds: ${totalFeeds})`,
+          );
         } else {
           parts.push(`${totalFeeds} feeds`);
         }
@@ -1479,11 +1507,16 @@ export class RssDashboardView extends ItemView {
         return `${selectionPart} & ${tagsPart}`;
       }
       return tagsPart;
-    } else if ((this.selectedFolders && this.selectedFolders.length > 0) || (this.selectedFeeds && this.selectedFeeds.length > 0)) {
+    } else if (
+      (this.selectedFolders && this.selectedFolders.length > 0) ||
+      (this.selectedFeeds && this.selectedFeeds.length > 0)
+    ) {
       const totalFeeds = this.getTotalFeedsInSelection();
       const parts = [];
       if (this.selectedFolders && this.selectedFolders.length > 0) {
-        parts.push(`Folders: ${this.selectedFolders.join(", ")} (Feeds: ${totalFeeds})`);
+        parts.push(
+          `Folders: ${this.selectedFolders.join(", ")} (Feeds: ${totalFeeds})`,
+        );
       } else {
         parts.push(`${totalFeeds} feeds`);
       }
@@ -1534,7 +1567,10 @@ export class RssDashboardView extends ItemView {
         feedTitle: item.feedTitle || currentFeed.title,
         feedUrl: item.feedUrl || currentFeed.url,
       }));
-    } else if ((this.selectedFolders && this.selectedFolders.length > 0) || (this.selectedFeeds && this.selectedFeeds.length > 0)) {
+    } else if (
+      (this.selectedFolders && this.selectedFolders.length > 0) ||
+      (this.selectedFeeds && this.selectedFeeds.length > 0)
+    ) {
       const allFolders = new Set<string>();
       if (this.selectedFolders) {
         for (const path of this.selectedFolders) {
@@ -1545,7 +1581,10 @@ export class RssDashboardView extends ItemView {
         }
       }
       for (const feed of this.settings.feeds) {
-        if ((feed.folder && allFolders.has(feed.folder)) || (this.selectedFeeds && this.selectedFeeds.includes(feed.url))) {
+        if (
+          (feed.folder && allFolders.has(feed.folder)) ||
+          (this.selectedFeeds && this.selectedFeeds.includes(feed.url))
+        ) {
           articles = articles.concat(
             feed.items.map((item) => ({
               ...item,
@@ -1665,7 +1704,10 @@ export class RssDashboardView extends ItemView {
         feedTitle: item.feedTitle || currentFeed.title,
         feedUrl: item.feedUrl || currentFeed.url,
       }));
-    } else if ((this.selectedFolders && this.selectedFolders.length > 0) || (this.selectedFeeds && this.selectedFeeds.length > 0)) {
+    } else if (
+      (this.selectedFolders && this.selectedFolders.length > 0) ||
+      (this.selectedFeeds && this.selectedFeeds.length > 0)
+    ) {
       const allFolders = new Set<string>();
       if (this.selectedFolders) {
         for (const path of this.selectedFolders) {
@@ -1676,7 +1718,10 @@ export class RssDashboardView extends ItemView {
         }
       }
       for (const feed of this.settings.feeds) {
-        if ((feed.folder && allFolders.has(feed.folder)) || (this.selectedFeeds && this.selectedFeeds.includes(feed.url))) {
+        if (
+          (feed.folder && allFolders.has(feed.folder)) ||
+          (this.selectedFeeds && this.selectedFeeds.includes(feed.url))
+        ) {
           articles = articles.concat(
             feed.items.map((item) => ({
               ...item,
@@ -2102,7 +2147,7 @@ export class RssDashboardView extends ItemView {
     if (e && (Platform.isMacOS ? e.metaKey : e.ctrlKey)) {
       // Ctrl/Meta + Click logic for multi-selection toggle
       const isExplicitlySelected = this.selectedFeeds.includes(feed.url);
-      
+
       let parentFolderIsSelected = false;
       let selectedParentFolder: string | null = null;
       if (feed.folder) {
@@ -2127,10 +2172,13 @@ export class RssDashboardView extends ItemView {
         // Deselect
         if (parentFolderIsSelected && selectedParentFolder) {
           // Remove the parent folder from selectedFolders
-          this.selectedFolders = this.selectedFolders.filter(f => f !== selectedParentFolder);
-          
+          this.selectedFolders = this.selectedFolders.filter(
+            (f) => f !== selectedParentFolder,
+          );
+
           // Add all other descendants of that folder to selectedFeeds
-          const descendantFolders = this.getAllDescendantFolders(selectedParentFolder);
+          const descendantFolders =
+            this.getAllDescendantFolders(selectedParentFolder);
           descendantFolders.push(selectedParentFolder);
           for (const f of this.settings.feeds) {
             if (f.folder && descendantFolders.includes(f.folder)) {
@@ -2140,9 +2188,11 @@ export class RssDashboardView extends ItemView {
             }
           }
         }
-        
+
         if (isExplicitlySelected) {
-          this.selectedFeeds = this.selectedFeeds.filter(url => url !== feed.url);
+          this.selectedFeeds = this.selectedFeeds.filter(
+            (url) => url !== feed.url,
+          );
         }
       } else {
         // Select
@@ -2150,7 +2200,7 @@ export class RssDashboardView extends ItemView {
           this.selectedFeeds.push(feed.url);
         }
       }
-      
+
       this.lastClickAnchorKey = `feed:${feed.url}`;
       void this.plugin.saveSettings();
       void this.render();
@@ -2259,31 +2309,38 @@ export class RssDashboardView extends ItemView {
     this.selectedFeeds = [];
     // When entering multi-select, clear single-folder and feed selection
     this.currentFeed = null;
-    this.currentFolder = folders.length === 1 ? folders[0] : null;
+    this.currentFolder = folders.length === 1 ? (folders[0] ?? null) : null;
     this.selectedTags = [];
     void this.render();
 
     // Update anchor to most-recently selected folder
     if (folders && folders.length > 0) {
-      this.lastClickAnchorKey = `folder:${folders[folders.length - 1]}`;
+      const lastFolder = folders[folders.length - 1];
+      if (lastFolder) {
+        this.lastClickAnchorKey = `folder:${lastFolder}`;
+      }
     }
   }
 
-  private handleSidebarRangeSelect(clickedKey: string, visibleKeys: string[]): void {
+  private handleSidebarRangeSelect(
+    clickedKey: string,
+    visibleKeys: string[],
+  ): void {
     const anchorKey = this.lastClickAnchorKey || clickedKey;
     const startIdx = visibleKeys.indexOf(anchorKey);
     const endIdx = visibleKeys.indexOf(clickedKey);
-    
+
     if (startIdx === -1 || endIdx === -1) {
       this.lastClickAnchorKey = clickedKey;
       return;
     }
-    
-    const [from, to] = startIdx <= endIdx ? [startIdx, endIdx] : [endIdx, startIdx];
+
+    const [from, to] =
+      startIdx <= endIdx ? [startIdx, endIdx] : [endIdx, startIdx];
     const rangeKeys = visibleKeys.slice(from, to + 1);
-    
+
     const selectedFeeds = new Set<string>();
-    
+
     // First, collect all feeds directly in the visual range
     for (const key of rangeKeys) {
       if (key.startsWith("feed:")) {
@@ -2295,20 +2352,25 @@ export class RssDashboardView extends ItemView {
         const folderPath = key.substring("folder:".length);
         const descendantFolders = this.getAllDescendantFolders(folderPath);
         descendantFolders.push(folderPath);
-        
-        const visibleFeedsInFolder = visibleKeys.filter(k => {
+
+        const visibleFeedsInFolder = visibleKeys.filter((k) => {
           if (k.startsWith("feed:")) {
             const feedUrl = k.substring("feed:".length);
-            const feed = this.settings.feeds.find(f => f.url === feedUrl);
-            return feed && feed.folder && descendantFolders.includes(feed.folder);
+            const feed = this.settings.feeds.find((f) => f.url === feedUrl);
+            return (
+              feed && feed.folder && descendantFolders.includes(feed.folder)
+            );
           }
           return false;
         });
-        
-        const visibleFeedsInRange = visibleFeedsInFolder.filter(k => rangeKeys.includes(k));
-        const isPartiallyCovered = visibleFeedsInFolder.length > 0 && 
-                                   visibleFeedsInRange.length > 0 && 
-                                   visibleFeedsInRange.length < visibleFeedsInFolder.length;
+
+        const visibleFeedsInRange = visibleFeedsInFolder.filter((k) =>
+          rangeKeys.includes(k),
+        );
+        const isPartiallyCovered =
+          visibleFeedsInFolder.length > 0 &&
+          visibleFeedsInRange.length > 0 &&
+          visibleFeedsInRange.length < visibleFeedsInFolder.length;
 
         if (!isPartiallyCovered) {
           for (const feed of this.settings.feeds) {
@@ -2319,19 +2381,20 @@ export class RssDashboardView extends ItemView {
         }
       }
     }
-    
+
     // Determine which folders can be considered "fully selected".
     const finalSelectedFolders = new Set<string>();
     const finalSelectedFeeds = new Set<string>();
-    
+
     const foldersToEvaluate = new Set<string>();
     for (const key of rangeKeys) {
-      if (key.startsWith("folder:")) foldersToEvaluate.add(key.substring("folder:".length));
+      if (key.startsWith("folder:"))
+        foldersToEvaluate.add(key.substring("folder:".length));
     }
-    
+
     // Also include parents of any selected feeds
     for (const feedUrl of selectedFeeds) {
-      const feed = this.settings.feeds.find(f => f.url === feedUrl);
+      const feed = this.settings.feeds.find((f) => f.url === feedUrl);
       if (feed && feed.folder) {
         let current = feed.folder;
         while (current) {
@@ -2344,14 +2407,14 @@ export class RssDashboardView extends ItemView {
         }
       }
     }
-    
+
     // A folder is fully selected if ALL its descendant feeds are in `selectedFeeds`
     for (const folderPath of foldersToEvaluate) {
       const descendantFolders = this.getAllDescendantFolders(folderPath);
       descendantFolders.push(folderPath);
       let allFeedsSelected = true;
       let feedCount = 0;
-      
+
       for (const feed of this.settings.feeds) {
         if (feed.folder && descendantFolders.includes(feed.folder)) {
           feedCount++;
@@ -2361,19 +2424,27 @@ export class RssDashboardView extends ItemView {
           }
         }
       }
-      
-      // If all feeds are selected (and there is at least one feed), it's fully selected
-      if (allFeedsSelected && feedCount > 0) {
+
+      // If all feeds are selected (and there is at least one feed), it's fully
+      // selected — but only promote to a folder selection when that folder
+      // actually still exists. A feed's `folder` field can point at a folder
+      // that was since deleted (it then renders under the root section); such
+      // feeds must stay individually selected rather than collapsing into a
+      // selection of a folder that isn't there to select or delete.
+      if (allFeedsSelected && feedCount > 0 && this.findFolderByPath(folderPath)) {
         finalSelectedFolders.add(folderPath);
-      } else if (feedCount === 0 && rangeKeys.includes(`folder:${folderPath}`)) {
+      } else if (
+        feedCount === 0 &&
+        rangeKeys.includes(`folder:${folderPath}`)
+      ) {
         // If it's empty but explicitly clicked/in range, select it anyway
         finalSelectedFolders.add(folderPath);
       }
     }
-    
+
     // Any feed that isn't covered by a fully selected folder goes into finalSelectedFeeds
     for (const feedUrl of selectedFeeds) {
-      const feed = this.settings.feeds.find(f => f.url === feedUrl);
+      const feed = this.settings.feeds.find((f) => f.url === feedUrl);
       let coveredByFolder = false;
       if (feed && feed.folder) {
         const parts = feed.folder.split("/");
@@ -2390,15 +2461,22 @@ export class RssDashboardView extends ItemView {
         finalSelectedFeeds.add(feedUrl);
       }
     }
-    
+
     this.inlineArticle = null;
     this.selectedFolders = Array.from(finalSelectedFolders);
     this.selectedFeeds = Array.from(finalSelectedFeeds);
-    this.currentFolder = this.selectedFolders.length === 1 && this.selectedFeeds.length === 0 ? this.selectedFolders[0] : null;
-    this.currentFeed = this.selectedFeeds.length === 1 && this.selectedFolders.length === 0 ? (this.settings.feeds.find(f => f.url === this.selectedFeeds[0]) || null) : null;
+    this.currentFolder =
+      this.selectedFolders.length === 1 && this.selectedFeeds.length === 0
+        ? (this.selectedFolders[0] ?? null)
+        : null;
+    this.currentFeed =
+      this.selectedFeeds.length === 1 && this.selectedFolders.length === 0
+        ? this.settings.feeds.find((f) => f.url === this.selectedFeeds[0]) ||
+          null
+        : null;
     this.selectedTags = [];
     this.lastClickAnchorKey = clickedKey;
-    
+
     void this.render();
   }
 
@@ -3160,7 +3238,7 @@ export class RssDashboardView extends ItemView {
     };
 
     if (this.currentFolder && specialFolderLabels[this.currentFolder]) {
-      return specialFolderLabels[this.currentFolder];
+      return specialFolderLabels[this.currentFolder] ?? null;
     }
 
     if (
@@ -3168,6 +3246,9 @@ export class RssDashboardView extends ItemView {
       this.activeTagFilters.size === 0
     ) {
       const [statusFilter] = Array.from(this.activeStatusFilters);
+      if (!statusFilter) {
+        return null;
+      }
       const statusLabel =
         statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1);
       return `the ${statusLabel} view filter`;
@@ -3447,6 +3528,10 @@ export class RssDashboardView extends ItemView {
     }
   }
 
+  refreshGlobalRefreshProgressOnly(): void {
+    this.sidebar?.refreshGlobalRefreshProgressOnly();
+  }
+
   refresh(): void {
     this.settings = this.plugin.settings;
     this.render();
@@ -3561,7 +3646,7 @@ export class RssDashboardView extends ItemView {
     if (!this.sidebarContainer) return;
 
     if (!this.settings.sidebarCollapsed) {
-      const width = this.settings.sidebarWidth || 280;
+      const width = this.settings.sidebarWidth || 310;
       // Drive width/min-width via CSS custom property — avoids direct style.width/minWidth
       setCssProps(this.sidebarContainer, {
         "--rss-sidebar-width": `${width}px`,
@@ -4191,7 +4276,7 @@ export class RssDashboardView extends ItemView {
     }
   }
 
-  private handleGroupChange(value: "none" | "feed" | "date" | "folder"): void {
+  private handleGroupChange(value: ArticleGroupByOption): void {
     this.settings.articleGroupBy = value;
     void this.plugin.saveSettings();
     void this.render();

@@ -39,10 +39,10 @@ function extractYouTubeVideoId(rawId: string): string | null {
       const shortsMatch = u.pathname.match(
         /^\/shorts\/([-_A-Za-z0-9]{11})(?:[/?#]|$)/,
       );
-      if (shortsMatch) return shortsMatch[1];
+      if (shortsMatch?.[1]) return shortsMatch[1];
     }
     if (host === "youtu.be") {
-      const pathId = u.pathname.slice(1).split(/[/?#]/)[0];
+      const pathId = u.pathname.slice(1).split(/[/?#]/)[0] ?? "";
       if (YT_VIDEO_ID_RE.test(pathId)) return pathId;
     }
   } catch {

@@ -145,8 +145,10 @@
   overflow: hidden;
 }
 
-.rss-dashboard-article-title mjx-container,
-.rss-dashboard-article-title mjx-container * {
+.rss-dashboard-article-title [class*="mjx-container"],
+.rss-dashboard-article-title [class*="mjx-container"] *,
+.rss-dashboard-article-title .MathJax,
+.rss-dashboard-article-title .MathJax * {
   line-height: normal;
 }
 

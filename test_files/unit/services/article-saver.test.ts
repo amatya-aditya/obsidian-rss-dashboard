@@ -362,6 +362,28 @@ describe("ArticleSaver.replaceDatePlaceholders", () => {
     const expected = moment(date).format("dddd, MMMM Do YYYY");
     expect(result).toBe(expected);
   });
+
+  it("replaces {{saveDate}}, {{saveTime12}}, and {{saveTime24}} with current local system time", () => {
+    vi.useFakeTimers();
+    const fakeNow = new Date(2026, 7, 29, 14, 45, 0); // August 29, 2026 14:45:00 local
+    vi.setSystemTime(fakeNow);
+
+    const app = App.createMock();
+    const settings = createSettings();
+    const saver = new ArticleSaver(app, settings);
+    const pubDate = new Date("2024-04-21T12:00:00Z");
+
+    const input =
+      "Saved on {{saveDate}} at {{saveTime24}} (12h: {{saveTime12}}), published {{dateShort}}";
+    const result = (
+      saver as unknown as PrivateSaverAPI
+    ).replaceDatePlaceholders(input, pubDate);
+
+    expect(result).toBe(
+      "Saved on 2026-08-29 at 14:45 (12h: 02:45 PM), published 2024-04-21",
+    );
+    vi.useRealTimers();
+  });
 });
 
 describe("ArticleSaver.fetchFullArticleContent", () => {

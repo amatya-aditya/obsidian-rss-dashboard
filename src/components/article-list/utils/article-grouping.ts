@@ -1,9 +1,9 @@
-import type { Feed, FeedItem } from "../../../types/types";
+import type { ArticleGroupByOption, Feed, FeedItem } from "../../../types/types";
 import { formatDateWithRelative } from "../../../utils/platform-utils";
 
 export function groupArticles(
   articles: FeedItem[],
-  groupBy: "feed" | "date" | "folder" | "none",
+  groupBy: ArticleGroupByOption,
   getFeedFolderFn?: (feedUrl: string) => string | undefined,
 ): Record<string, FeedItem[]> {
   if (groupBy === "none") return { "All articles": articles };
@@ -16,10 +16,12 @@ export function groupArticles(
           key = article.feedTitle || "Uncategorized";
           break;
         case "date":
+        case "date_feed":
           key = formatDateWithRelative(article.pubDate).text;
           break;
 
         case "folder":
+        case "folder_feed":
           key = getFeedFolderFn?.(article.feedUrl) || "Uncategorized";
           break;
         default:
@@ -29,7 +31,8 @@ export function groupArticles(
       if (!acc[key]) {
         acc[key] = [];
       }
-      acc[key].push(article);
+      const group = acc[key];
+      if (group) group.push(article);
       return acc;
     },
     {} as Record<string, FeedItem[]>,

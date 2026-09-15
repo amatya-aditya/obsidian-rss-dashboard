@@ -64,7 +64,7 @@ describe("ReaderView tooltip attribute stripping", () => {
       vi.fn(),
     );
 
-    getInternals(readerView).contentEl = document.createElement("div");
+    getInternals(readerView).contentEl = createDiv();
     await readerView.onOpen();
   });
 

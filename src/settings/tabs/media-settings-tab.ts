@@ -8,6 +8,7 @@
 import { App, Notice, Setting } from "obsidian";
 import { PodcastTheme } from "../../types/types";
 import type { MediaSettings } from "../../types/types";
+import { settingsUiCompatibility } from "../settings-ui-compat";
 
 interface MediaTabSettings {
   media: MediaSettings;
@@ -51,7 +52,6 @@ export function renderMediaSettingsTab(
     .addButton((button) => {
       button
         .setButtonText("Clear progress")
-        .setWarning()
         .onClick(async () => {
           const clearedCount = await plugin.clearPlaybackProgress();
           new Notice(
@@ -60,6 +60,7 @@ export function renderMediaSettingsTab(
               : "No saved playback progress was found.",
           );
         });
+      settingsUiCompatibility.markDestructive(button);
     });
 
   // ── Podcast player ────────────────────────────────────────────────────────

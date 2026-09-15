@@ -145,7 +145,7 @@ describe("BackupService", () => {
       );
     });
 
-    it("writes userdata.json.backup when backupUserdata is true (fallback chain)", async () => {
+    it("prioritizes rss-dashboard-user-preferences.json when backupUserdata is true", async () => {
       const { BackupService } =
         await import("../../../src/services/backup-service");
       const settings = {
@@ -163,7 +163,43 @@ describe("BackupService", () => {
       });
 
       vi.mocked(mockVault.adapter.exists).mockImplementation((path: string) =>
-        Promise.resolve(path.includes("usersettings.json")),
+        Promise.resolve(path.includes("rss-dashboard-user-preferences.json")),
+      );
+
+      await service.performAutoBackups();
+
+      expect(mockVault.adapter.read).toHaveBeenCalledWith(
+        expect.stringContaining("rss-dashboard-user-preferences.json"),
+      );
+
+      expect(mockVault.adapter.write).toHaveBeenCalledWith(
+        expect.stringContaining("backup"),
+        expect.any(String),
+      );
+    });
+
+    it("falls back to the legacy usersettings.json when rss-dashboard-user-preferences.json is absent", async () => {
+      const { BackupService } =
+        await import("../../../src/services/backup-service");
+      const settings = {
+        autoBackup: {
+          backupDataJson: false,
+          backupOpml: false,
+          backupUserdata: true,
+        },
+      } as unknown as RssDashboardSettings;
+      const service = new BackupService({
+        settings,
+        manifest: mockManifest,
+        vaultAbsolutePath,
+        vault: mockVault,
+      });
+
+      vi.mocked(mockVault.adapter.exists).mockImplementation((path: string) =>
+        Promise.resolve(
+          path.includes("usersettings.json") &&
+            !path.includes("rss-dashboard-user-preferences.json"),
+        ),
       );
 
       await service.performAutoBackups();
@@ -176,6 +212,68 @@ describe("BackupService", () => {
         expect.stringContaining("backup"),
         expect.any(String),
       );
+    });
+
+    it("falls back to userdata.json when neither rss-dashboard-user-preferences.json nor usersettings.json exist", async () => {
+      const { BackupService } =
+        await import("../../../src/services/backup-service");
+      const settings = {
+        autoBackup: {
+          backupDataJson: false,
+          backupOpml: false,
+          backupUserdata: true,
+        },
+      } as unknown as RssDashboardSettings;
+      const service = new BackupService({
+        settings,
+        manifest: mockManifest,
+        vaultAbsolutePath,
+        vault: mockVault,
+      });
+
+      vi.mocked(mockVault.adapter.exists).mockImplementation((path: string) =>
+        Promise.resolve(path.includes("userdata.json")),
+      );
+
+      await service.performAutoBackups();
+
+      expect(mockVault.adapter.read).toHaveBeenCalledWith(
+        expect.stringContaining("userdata.json"),
+      );
+
+      expect(mockVault.adapter.write).toHaveBeenCalledWith(
+        expect.stringContaining("backup"),
+        expect.any(String),
+      );
+    });
+
+    it("rethrows with context and preserves the original error as cause when a backup write fails", async () => {
+      const { BackupService } =
+        await import("../../../src/services/backup-service");
+      const settings = {
+        feeds: [],
+        folders: [],
+        autoBackup: {
+          backupDataJson: false,
+          backupOpml: true,
+          backupUserdata: false,
+        },
+      } as unknown as RssDashboardSettings;
+      const writeError = new Error("disk full");
+      mockVault.adapter.write = vi.fn().mockRejectedValue(writeError);
+      const service = new BackupService({
+        settings,
+        manifest: mockManifest,
+        vaultAbsolutePath,
+        vault: mockVault,
+      });
+
+      await expect(service.performAutoBackups()).rejects.toThrow(
+        "Auto-backup failed: disk full",
+      );
+      await expect(service.performAutoBackups()).rejects.toMatchObject({
+        cause: writeError,
+      });
     });
   });
 });

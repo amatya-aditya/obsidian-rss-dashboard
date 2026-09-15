@@ -88,7 +88,7 @@ describe("ReaderView restricted-content handling", () => {
     );
 
     (readerView as unknown as { contentEl: HTMLElement }).contentEl =
-      document.createElement("div");
+      createDiv();
   });
 
   it("shows a restricted notice and banner while keeping the feed excerpt", async () => {

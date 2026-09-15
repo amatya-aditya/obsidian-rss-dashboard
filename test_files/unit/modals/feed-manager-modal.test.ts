@@ -2,8 +2,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as obsidian from "obsidian";
 import { FeedManagerModal } from "../../../src/modals/feed-manager/feed-manager-modal";
 import { ImportOpmlModal } from "../../../src/modals/import-opml-modal";
+import { ImportStarredModal } from "../../../src/modals/import-starred-modal";
 import {
   DEFAULT_SETTINGS,
+  type Folder,
   type RssDashboardSettings,
 } from "../../../src/types/types";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
@@ -162,5 +164,121 @@ describe("FeedManagerModal", () => {
 
     expect(openSpy).toHaveBeenCalledTimes(1);
     expect(closeSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("opens the Import starred articles from Inoreader modal from its Feed Manager button", () => {
+    const app = obsidian.App.createMock();
+    const plugin = {
+      app,
+      settings: cloneSettings(),
+      saveSettings: vi.fn(async () => {}),
+      getActiveDashboardView: vi.fn(async () => null),
+      exportOpml: vi.fn(),
+      addFeed: vi.fn(async () => true),
+    };
+
+    const openSpy = vi
+      .spyOn(ImportStarredModal.prototype, "open")
+      .mockImplementation(() => {});
+
+    const modal = new FeedManagerModal(
+      app as unknown as obsidian.App,
+      plugin as unknown as RssDashboardPlugin,
+    );
+    modal.open();
+
+    const importStarredButton = modal.contentEl.querySelector(
+      ".feed-manager-import-starred-button",
+    ) as HTMLButtonElement;
+    importStarredButton.click();
+
+    expect(openSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("deletes all feeds and every nested folder from the Delete feeds + folders button", async () => {
+    const app = obsidian.App.createMock();
+    const settings = cloneSettings();
+    settings.feeds = [
+      {
+        title: "Feed",
+        url: "https://example.com/feed.xml",
+        folder: "Inbox",
+        items: [],
+        lastUpdated: 0,
+        mediaType: "article",
+      },
+    ];
+    const nestedFolders: Folder[] = [
+      { name: "Tech", subfolders: [{ name: "AI", subfolders: [] }] },
+      { name: "News", subfolders: [] },
+    ];
+    settings.folders = nestedFolders;
+
+    const clearImageCache = vi.fn(async () => ({ cleared: 0, failed: 0 }));
+    const plugin = {
+      app,
+      settings,
+      saveSettings: vi.fn(async () => {}),
+      getImageCacheSizeBytes: vi.fn(() => 0),
+      clearImageCache,
+      getActiveDashboardView: vi.fn(async () => null),
+      exportOpml: vi.fn(),
+      addFeed: vi.fn(async () => true),
+    };
+    const modal = new FeedManagerModal(
+      app as unknown as obsidian.App,
+      plugin as unknown as RssDashboardPlugin,
+    );
+    modal.open();
+
+    const deleteBtn = modal.contentEl.querySelector(
+      ".feed-manager-delete-feeds-folders-button",
+    ) as HTMLButtonElement;
+    deleteBtn.click();
+
+    const confirmation = Array.from(
+      document.querySelectorAll(".rss-dashboard-confirm-modal"),
+    )[0] as HTMLElement;
+    expect(confirmation.textContent).toContain("1 feeds");
+    expect(confirmation.textContent).toContain("3 folders");
+
+    const confirmButton = Array.from(
+      confirmation.querySelectorAll("button"),
+    ).find(
+      (button) => button.textContent === "Delete feeds + folders",
+    ) as HTMLButtonElement;
+    confirmButton.click();
+    await flushPromises();
+
+    expect(settings.feeds).toEqual([]);
+    expect(settings.folders).toEqual([]);
+    expect(plugin.saveSettings).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows a Notice and opens no confirmation when there are no feeds or folders to delete", () => {
+    const app = obsidian.App.createMock();
+    const settings = cloneSettings();
+    settings.feeds = [];
+    settings.folders = [];
+    const plugin = {
+      app,
+      settings,
+      saveSettings: vi.fn(async () => {}),
+      getActiveDashboardView: vi.fn(async () => null),
+      exportOpml: vi.fn(),
+      addFeed: vi.fn(async () => true),
+    };
+    const modal = new FeedManagerModal(
+      app as unknown as obsidian.App,
+      plugin as unknown as RssDashboardPlugin,
+    );
+    modal.open();
+
+    const deleteBtn = modal.contentEl.querySelector(
+      ".feed-manager-delete-feeds-folders-button",
+    ) as HTMLButtonElement;
+    deleteBtn.click();
+
+    expect(document.querySelector(".rss-dashboard-confirm-modal")).toBeNull();
   });
 });

@@ -79,7 +79,7 @@ describe("MobileDiscoverFiltersModal", () => {
       onFilterChange,
     );
 
-    const closeBtn = document.createElement("button");
+    const closeBtn = createEl("button");
     closeBtn.className = "modal-header-button mod-raised clickable-icon";
     modal.modalEl.appendChild(closeBtn);
 

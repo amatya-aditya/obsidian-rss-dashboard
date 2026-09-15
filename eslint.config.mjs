@@ -12,7 +12,6 @@ export default defineConfig([
       "main.js",
       "*.mjs",
       "scripts/**/*.js",
-      "scripts/**/*.mjs",
       ".kilo/**",
       ".tmp-*",
     ],
@@ -26,13 +25,19 @@ export default defineConfig([
     },
   },
   {
-    files: ["scripts/check-platform-compat.mjs", "scripts/check-css-important.mjs"],
+    // These scripts run only in Node during repository maintenance and are
+    // never bundled into the mobile plugin runtime.
+    files: ["scripts/**/*.mjs"],
     languageOptions: {
       globals: {
         ...globals.node,
         console: "readonly",
         process: "readonly",
       },
+    },
+    rules: {
+      "obsidianmd/no-nodejs-modules": "off",
+      "obsidianmd/rule-custom-message": "off",
     },
   },
   {
@@ -92,14 +97,13 @@ export default defineConfig([
         "warn",
         {
           acronyms: ["OPML", "XML", "API", "CORS", "URI", "URL", "RSS"],
-          brands: ["Obsidian"],
+          brands: ["Obsidian", "Inoreader"],
           allowAutoFix: true,
         },
       ],
       // Tests intentionally use jsdom/native DOM, Node fixtures, and same-window
       // assertions. Production code remains covered by these Obsidian rules.
       "obsidianmd/no-nodejs-modules": "off",
-      "obsidianmd/prefer-create-el": "off",
       "obsidianmd/prefer-instanceof": "off",
       "obsidianmd/prefer-window-timers": "off",
       "@typescript-eslint/unbound-method": "off",
@@ -137,7 +141,7 @@ export default defineConfig([
         "error",
         {
           acronyms: ["OPML", "XML", "API", "CORS", "URI", "URL", "RSS", "JSON"],
-          brands: ["Obsidian"],
+          brands: ["Obsidian", "Inoreader"],
           ignoreRegex: [
             "^\\d+(?:\\.\\d+)?x$",
             "^\\d+ (?:day|days|week|weeks|month|months|year|years|item|items|minute|minutes|hour|hours)$",
@@ -185,8 +189,9 @@ export default defineConfig([
   {
     files: ["src/settings/settings-tab.ts"],
     rules: {
-      // The plugin supports Obsidian 1.1.0. Keep the imperative display()
-      // orchestrator until the minimum app version can require the 1.13 API.
+      // Obsidian 1.8.7 through 1.12.x need this imperative renderer and its
+      // refresh bridge. Keep deprecation checking enabled outside this file.
+      "@typescript-eslint/no-deprecated": "off",
       "obsidianmd/settings-tab/prefer-setting-definitions": "off",
     },
   },

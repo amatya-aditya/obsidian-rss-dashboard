@@ -1,7 +1,5 @@
 # Git Branching Strategy
 
-Last updated: 2026-05-19
-
 ## Table of Contents
 - [Overview](#overview)
 - [Branch Structure](#branch-structure)
@@ -149,14 +147,7 @@ CI enforces global coverage thresholds (configured in `vitest.config.mjs`). We u
 
 ### Current Test Suite
 
-As of **2026-08-24**, the suite contains **1725 passing tests across 192 passing files**. This is the automated test baseline for `2.6.0`. Most are **unit tests** plus fast **integration-style** tests (JSDOM + Obsidian stubs) that validate UI rendering and business logic without launching the full Obsidian app. Tests live under `test_files/unit/`.
-
-Current global coverage snapshot (from `npm run test:unit -- --coverage`):
-
-- Statements : 60.24% ( 14214/23594 )
-- Branches : 51.99% ( 7253/13949 )
-- Functions : 56.72% ( 2365/4169 )
-- Lines : 61.38% ( 13750/22398 )
+Most tests are **unit tests** plus fast **integration-style** tests (JSDOM + Obsidian stubs) that validate UI rendering and business logic without launching the full Obsidian app. Tests live under `test_files/unit/`. Run `npm run test:unit -- --coverage` for the current file/test count and coverage numbers — the coverage gate above is the enforced source of truth, not a point-in-time snapshot here.
 
 ### Running and Writing Tests
 

@@ -1,7 +1,5 @@
 # Development Docs
 
-Last updated: 2026-08-16
-
 Internal developer documentation for the RSS Dashboard plugin.
 
 ## Core References

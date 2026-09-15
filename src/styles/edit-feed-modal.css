@@ -92,3 +92,141 @@
   font-size: 0.85em;
   font-weight: 500;
 }
+
+/* ============================================
+ * Action Buttons (Save, Cancel, Delete)
+ * Desktop row layout & mobile stacked layout
+ * ============================================ */
+
+.rss-dashboard-modal.rss-edit-feed-modal .rss-dashboard-modal-actions.rss-edit-feed-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.rss-dashboard-modal.rss-edit-feed-modal .rss-edit-feed-actions .rss-edit-feed-save-button {
+  width: 100%;
+  margin: 0;
+  min-width: 0;
+  background: var(--rss-color-purple, #8b5cf6);
+  color: var(--text-on-accent, #ffffff);
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 0.4rem 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.rss-dashboard-modal.rss-edit-feed-modal .rss-edit-feed-actions .rss-edit-feed-save-button:hover {
+  background: color-mix(in srgb, var(--rss-color-purple, #8b5cf6) 86%, white);
+  transform: translateY(-1px);
+}
+
+.rss-dashboard-modal.rss-edit-feed-modal .rss-edit-feed-actions .rss-edit-feed-save-button:active {
+  background: var(--rss-color-purple-hover, #7c3aed);
+  transform: translateY(0);
+}
+
+.rss-dashboard-modal.rss-edit-feed-modal .rss-edit-feed-actions .rss-edit-feed-cancel-button {
+  width: 100%;
+  margin: 0;
+  min-width: 0;
+  padding: 0.4rem 1rem;
+  background: var(--background-modifier-border);
+  color: var(--text-normal);
+  border: 1px solid transparent;
+  border-radius: 6px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background 0.15s ease,
+    transform 0.15s ease;
+}
+
+.rss-dashboard-modal.rss-edit-feed-modal .rss-edit-feed-actions .rss-edit-feed-cancel-button:hover {
+  background: var(--background-modifier-border-hover);
+  color: var(--text-normal);
+  transform: translateY(-1px);
+}
+
+.rss-dashboard-modal.rss-edit-feed-modal .rss-edit-feed-actions .rss-edit-feed-cancel-button:active {
+  transform: translateY(0);
+}
+
+.rss-dashboard-modal.rss-edit-feed-modal .rss-edit-feed-actions .rss-edit-feed-delete-button {
+  width: auto;
+  margin: 0;
+  padding: 0.4rem 1rem;
+  background: var(--rss-color-red-danger, #dc2626);
+  color: var(--text-on-accent, #ffffff);
+  border: 2px solid transparent;
+  border-radius: 6px;
+  font-weight: 500;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  white-space: nowrap;
+  transition:
+    background 0.15s ease,
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.rss-dashboard-modal.rss-edit-feed-modal .rss-edit-feed-actions .rss-edit-feed-delete-button:hover {
+  background: var(--rss-color-red-danger-hover, #b91c1c);
+  border-color: var(--rss-color-red-danger, #dc2626);
+  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.3);
+  transform: translateY(-1px);
+}
+
+.rss-dashboard-modal.rss-edit-feed-modal .rss-edit-feed-actions .rss-edit-feed-delete-button:active {
+  transform: translateY(0);
+}
+
+.rss-dashboard-modal.rss-edit-feed-modal .rss-edit-feed-actions .rss-edit-feed-delete-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rss-dashboard-modal.rss-edit-feed-modal .rss-edit-feed-actions .rss-edit-feed-delete-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Mobile: stack vertically */
+.rss-dashboard-modal.rss-edit-feed-modal.rss-mobile-feed-manager-modal .rss-dashboard-modal-actions.rss-edit-feed-actions {
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+.rss-dashboard-modal.rss-edit-feed-modal.rss-mobile-feed-manager-modal .rss-edit-feed-actions button,
+.rss-dashboard-modal.rss-edit-feed-modal.rss-mobile-feed-manager-modal .rss-edit-feed-actions .rss-edit-feed-save-button,
+.rss-dashboard-modal.rss-edit-feed-modal.rss-mobile-feed-manager-modal .rss-edit-feed-actions .rss-edit-feed-cancel-button,
+.rss-dashboard-modal.rss-edit-feed-modal.rss-mobile-feed-manager-modal .rss-edit-feed-actions .rss-edit-feed-delete-button {
+  width: 100%;
+}
+
+@media (max-width: 600px) {
+  .rss-dashboard-modal.rss-edit-feed-modal .rss-dashboard-modal-actions.rss-edit-feed-actions {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .rss-dashboard-modal.rss-edit-feed-modal .rss-edit-feed-actions button,
+  .rss-dashboard-modal.rss-edit-feed-modal .rss-edit-feed-actions .rss-edit-feed-save-button,
+  .rss-dashboard-modal.rss-edit-feed-modal .rss-edit-feed-actions .rss-edit-feed-cancel-button,
+  .rss-dashboard-modal.rss-edit-feed-modal .rss-edit-feed-actions .rss-edit-feed-delete-button {
+    width: 100%;
+  }
+}
+

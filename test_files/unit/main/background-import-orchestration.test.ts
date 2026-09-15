@@ -74,7 +74,7 @@ function createPlugin(): RssDashboardPlugin {
   plugin.saveData = vi.fn().mockResolvedValue(undefined);
   
   const pluginInternal = plugin as unknown as PluginWithInternal;
-  pluginInternal.addStatusBarItem = vi.fn(() => document.createElement("div"));
+  pluginInternal.addStatusBarItem = vi.fn(() => createDiv());
   pluginInternal.feedParser = {
     parseFeed: mockParseFeed,
     refreshFeed: mockRefreshFeed,
@@ -151,6 +151,7 @@ describe("background import orchestration", () => {
           tags: [],
           feedTitle: "Existing feed",
           feedUrl: "https://example.com/existing.xml",
+          coverImage: "",
         },
       ],
     } satisfies Feed;
@@ -477,7 +478,7 @@ describe("background import orchestration", () => {
         savedModes.push(settings.storageMode);
       },
       ensureFolderExists,
-      addStatusBarItem: () => document.createElement("div"),
+      addStatusBarItem: () => createDiv(),
     });
 
     vi.spyOn(service, "startBackgroundImport").mockImplementation(() => {});
@@ -516,7 +517,7 @@ describe("background import orchestration", () => {
       getView: async () => null,
       saveSettings: async () => undefined,
       ensureFolderExists: vi.fn().mockResolvedValue(false),
-      addStatusBarItem: () => document.createElement("div"),
+      addStatusBarItem: () => createDiv(),
       beginGlobalOperation,
       endGlobalOperation,
       isGlobalOperationCancelled: () => controller.signal.aborted,
@@ -548,6 +549,54 @@ describe("background import orchestration", () => {
     expect(settings.feeds[0].title).toBe("Example");
     expect(settings.feeds[0].items).toEqual([]);
     expect(endGlobalOperation).toHaveBeenCalledOnce();
+  });
+
+  it("stops excluding feeds from a later global refresh once a cancelled background-import run finishes draining", async () => {
+    // Regression test: a cancelled worker used to return without ever
+    // shifting its claimed feed off backgroundImportQueue, leaving those
+    // URLs marked "pending import" forever — getRefreshableFeeds() (used by
+    // refreshFeeds()) would then silently exclude them from every future
+    // global refresh, with no way to recover short of manually refreshing
+    // each feed individually.
+    const plugin = createPlugin();
+    const pluginInternal = plugin as unknown as PluginWithInternal;
+
+    const feedA = createPlaceholderFeed("https://example.com/a.xml");
+    const feedB = createPlaceholderFeed("https://example.com/b.xml");
+    plugin.settings.feeds = [feedA, feedB];
+    mockParseFeed.mockResolvedValue(feedA);
+
+    pluginInternal.backgroundImportService = new BackgroundImportService({
+      feedParser: pluginInternal.feedParser,
+      getSettings: () => plugin.settings,
+      getView: () => plugin.getActiveDashboardView(),
+      saveSettings: () => plugin.saveSettings(),
+      ensureFolderExists: vi.fn().mockResolvedValue(false),
+      addStatusBarItem: () => pluginInternal.addStatusBarItem(),
+      // Cancelled from the very start, so neither worker ever shifts a feed
+      // off the queue — both feeds are stuck exactly as in the bug report.
+      isGlobalOperationCancelled: () => true,
+    });
+
+    pluginInternal.backgroundImportService.startBackgroundImport([
+      feedA,
+      feedB,
+    ]);
+    await flushMicrotasks();
+    await vi.waitFor(() =>
+      expect(pluginInternal.backgroundImportService.isBackgroundImporting).toBe(
+        false,
+      ),
+    );
+
+    const getRefreshableFeeds = (
+      plugin as unknown as { getRefreshableFeeds(feeds: Feed[]): Feed[] }
+    ).getRefreshableFeeds.bind(plugin);
+
+    expect(getRefreshableFeeds([feedA, feedB]).map((f) => f.url)).toEqual([
+      feedA.url,
+      feedB.url,
+    ]);
   });
 });
 

@@ -9,6 +9,7 @@ import {
   setCssProps,
   shouldUseMobileSidebarLayout,
 } from "../../utils/platform-utils";
+import { settingsUiCompatibility } from "../settings-ui-compat";
 
 // ── TemplateNameModal ───────────────────────────────────────────────────────
 
@@ -225,15 +226,14 @@ export class ConfirmDeleteModal extends Modal {
           this.close();
         }),
       )
-      .addButton((btn) =>
-        btn
-          .setButtonText("Delete")
-          .setWarning()
-          .onClick(() => {
+      .addButton((btn) => {
+        btn.setButtonText("Delete");
+        settingsUiCompatibility.markDestructive(btn);
+        btn.onClick(() => {
             this.confirmed = true;
             this.close();
-          }),
-      );
+        });
+      });
   }
 
   onClose() {
@@ -288,16 +288,14 @@ export class FactoryResetConfirmModal extends Modal {
             this.close();
           }),
       )
-      .addButton((btn) =>
-        btn
-          .setButtonText("Factory reset")
-          .setWarning()
-          .setClass("rss-dashboard-danger-button")
-          .onClick(() => {
+      .addButton((btn) => {
+        btn.setButtonText("Factory reset").setClass("rss-dashboard-danger-button");
+        settingsUiCompatibility.markDestructive(btn);
+        btn.onClick(() => {
             this.confirmed = true;
             this.close();
-          }),
-      );
+        });
+      });
   }
 
   onClose() {
@@ -316,6 +314,80 @@ export class FactoryResetConfirmModal extends Modal {
 // ── ApplyMaxItemsToExistingFeedsModal ───────────────────────────────────────
 
 export type ApplyMaxItemsAction = "cancel" | "apply" | "apply-refresh";
+
+export type RetentionChangeAction =
+  | "apply-now"
+  | "apply-on-next-refresh"
+  | "cancel";
+
+export class RetentionChangeConfirmModal extends Modal {
+  private action: RetentionChangeAction = "cancel";
+  private resolvePromise: ((value: RetentionChangeAction) => void) | null =
+    null;
+  private settled = false;
+
+  constructor(app: App) {
+    super(app);
+  }
+
+  waitForClose(): Promise<RetentionChangeAction> {
+    return new Promise((resolve) => {
+      this.resolvePromise = resolve;
+    });
+  }
+
+  private settle(action: RetentionChangeAction): void {
+    if (this.settled) return;
+    this.settled = true;
+    this.action = action;
+    this.resolvePromise?.(this.action);
+    this.resolvePromise = null;
+    this.close();
+  }
+
+  onOpen(): void {
+    const { contentEl } = this;
+    contentEl.empty();
+
+    this.modalEl.addClass("rss-dashboard-modal");
+    this.modalEl.addClass("rss-dashboard-modal-container");
+
+    contentEl.createEl("h2", { text: "Apply retention change?" });
+    contentEl.createEl("p", {
+      text: "Newly unprotected articles and articles older than your retention limit may be permanently removed.",
+    });
+
+    const buttonsSetting = new Setting(contentEl);
+    buttonsSetting.controlEl.addClass("rss-dashboard-modal-buttons");
+    buttonsSetting
+      .addButton((button) =>
+        button.setButtonText("Cancel").onClick(() => {
+          this.settle("cancel");
+        }),
+      )
+      .addButton((button) =>
+        button.setButtonText("Apply on next refresh").onClick(() => {
+          this.settle("apply-on-next-refresh");
+        }),
+      )
+      .addButton((button) => {
+        button.setButtonText("Apply now");
+        settingsUiCompatibility.markDestructive(button);
+        button.onClick(() => {
+            this.settle("apply-now");
+        });
+      });
+  }
+
+  onClose(): void {
+    if (!this.settled) {
+      this.settled = true;
+      this.resolvePromise?.("cancel");
+      this.resolvePromise = null;
+    }
+    this.contentEl.empty();
+  }
+}
 
 export class ApplyMaxItemsToExistingFeedsModal extends Modal {
   private readonly newLimit: number;
@@ -369,7 +441,8 @@ export class ApplyMaxItemsToExistingFeedsModal extends Modal {
         });
       })
       .addButton((btn) => {
-        btn.setButtonText("Apply to all feeds").setWarning();
+        btn.setButtonText("Apply to all feeds");
+        settingsUiCompatibility.markDestructive(btn);
         if (isMobile) setCssProps(btn.buttonEl, { width: "100%" });
         btn.onClick(() => {
           this.action = "apply";
@@ -377,7 +450,8 @@ export class ApplyMaxItemsToExistingFeedsModal extends Modal {
         });
       })
       .addButton((btn) => {
-        btn.setButtonText("Apply & refresh all").setWarning();
+        btn.setButtonText("Apply & refresh all");
+        settingsUiCompatibility.markDestructive(btn);
         if (isMobile) setCssProps(btn.buttonEl, { width: "100%" });
         btn.onClick(() => {
           this.action = "apply-refresh";

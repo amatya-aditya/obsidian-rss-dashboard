@@ -1,0 +1,200 @@
+/* Full-Resolution Reader Lightbox */
+
+.rss-reader-lightbox-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background-color: rgba(0, 0, 0, 0.88);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+}
+
+.rss-reader-lightbox-backdrop.is-open {
+  opacity: 1;
+}
+
+.rss-reader-lightbox-toolbar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 56px;
+  padding: 8px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  z-index: 10;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.6) 0%, rgba(0, 0, 0, 0) 100%);
+  pointer-events: none;
+}
+
+.rss-reader-lightbox-toolbar-start,
+.rss-reader-lightbox-toolbar-end {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  pointer-events: auto;
+}
+
+.rss-reader-lightbox-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 36px;
+  min-width: 36px;
+  padding: 0 10px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s ease, transform 0.1s ease;
+}
+
+.rss-reader-lightbox-btn:hover {
+  background: rgba(255, 255, 255, 0.22);
+  transform: translateY(-1px);
+}
+
+.rss-reader-lightbox-btn:active {
+  transform: translateY(0);
+}
+
+.rss-reader-lightbox-btn.rss-reader-lightbox-external-link {
+  max-width: 280px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rss-reader-lightbox-viewport {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  cursor: default;
+}
+
+.rss-reader-lightbox-viewport.is-zoomed {
+  cursor: grab;
+}
+
+.rss-reader-lightbox-viewport.is-dragging {
+  cursor: grabbing;
+}
+
+.rss-reader-lightbox-stage {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 90vw;
+  max-height: 90vh;
+  transform-origin: center center;
+  transition: transform 0.15s cubic-bezier(0.2, 0, 0, 1);
+  will-change: transform;
+}
+
+.rss-reader-lightbox-stage.is-panning {
+  transition: none;
+}
+
+.rss-reader-lightbox-img {
+  max-width: 90vw;
+  max-height: 85vh;
+  object-fit: contain;
+  border-radius: 4px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  pointer-events: auto;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.rss-reader-lightbox-preview-img {
+  position: absolute;
+  filter: blur(4px);
+  transform: scale(0.99);
+  transition: opacity 0.3s ease;
+}
+
+.rss-reader-lightbox-preview-img.is-hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.rss-reader-lightbox-full-img {
+  opacity: 0;
+  transition: opacity 0.25s ease-in-out;
+}
+
+.rss-reader-lightbox-full-img.is-loaded {
+  opacity: 1;
+}
+
+.rss-reader-lightbox-spinner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 36px;
+  height: 36px;
+  border: 3px solid rgba(255, 255, 255, 0.2);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: rss-lightbox-spin 0.8s linear infinite;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.rss-reader-lightbox-spinner.is-hidden {
+  display: none;
+}
+
+@keyframes rss-lightbox-spin {
+  to {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
+
+.rss-reader-lightbox-caption {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 80%;
+  padding: 6px 14px;
+  background: rgba(0, 0, 0, 0.6);
+  border-radius: 16px;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 12px;
+  text-align: center;
+  pointer-events: none;
+  z-index: 10;
+  backdrop-filter: blur(4px);
+}
+
+/* Image affordance in reader content */
+.rss-reader-zoomable-img {
+  cursor: zoom-in;
+  transition: opacity 0.15s ease, filter 0.15s ease;
+}
+
+.rss-reader-zoomable-img:hover {
+  filter: brightness(1.03);
+}

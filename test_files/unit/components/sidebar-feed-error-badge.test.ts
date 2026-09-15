@@ -30,7 +30,7 @@ describe("Feed Error Badge Rendering", () => {
 
   beforeEach(() => {
     app = ObsidianStubs.App.createMock();
-    container = document.createElement("div");
+    container = createDiv();
     document.body.appendChild(container);
 
     settings = {
@@ -47,6 +47,7 @@ describe("Feed Error Badge Rendering", () => {
       selectedTags: [],
       tagsCollapsed: false,
       collapsedFolders: [],
+      selectedFolders: [],
     };
 
     callbacks = {} as unknown as SidebarCallbacks;

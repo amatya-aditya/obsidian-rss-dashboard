@@ -40,11 +40,54 @@ records the documentation classification.
 
 - [Test coverage improvement](plans/v2.2.0/test-coverage-improvement.md) - completed 2026-04-07 (`08030a7`).
 
+## Unreleased plans
+
+| Plan | Completed | Issue | Implementation |
+| --- | --- | --- | --- |
+| [Feed View honors disabled grouping](plans/unreleased/195-feed-view-honors-disabled-grouping.md) | 2026-08-24 | [GH Issue #195](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/195) | - |
+| [Date > Feed / Folder > Feed grouping options](plans/unreleased/195-feed_double_grouping_plan.md) | 2026-08-26 | [GH Issue #195](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/195) | [PR #196](https://github.com/amatya-aditya/obsidian-rss-dashboard/pull/196) |
+| [Podcast episode-list redesign](plans/unreleased/207-podcast-episode-list-redesign.md) | 2026-09-06 | [GH Issue #207](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/207) | - |
+| [Configurable retention protections and unread expiration](plans/unreleased/213-configurable-retention-and-unread-expiration.md) | 2026-09-08 | [GH Issue #213](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/213) | [PR #219](https://github.com/amatya-aditya/obsidian-rss-dashboard/pull/219) |
+| [Import starred.json for feeds you already subscribe to](plans/unreleased/234-01-import-starred-items-for-existing-feeds.md) | 2026-09-10 | [GH Issue #234](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/234) | - |
+| [Auto-create missing source feeds during import](plans/unreleased/234-02-auto-create-missing-source-feeds.md) | 2026-09-10 | [GH Issue #234](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/234) | - |
+| [Surface unimportable entries with reasons](plans/unreleased/234-03-surface-unimportable-entries.md) | 2026-09-10 | [GH Issue #234](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/234) | - |
+| [Map Inoreader labels to tags](plans/unreleased/234-04-map-labels-to-tags.md) | 2026-09-10 | [GH Issue #234](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/234) | - |
+| [Idempotent re-import (dedup + merge)](plans/unreleased/234-05-idempotent-reimport-dedup-merge.md) | 2026-09-10 | [GH Issue #234](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/234) | - |
+| [Opt-in full article content fetch](plans/unreleased/234-06-opt-in-full-content-fetch.md) | 2026-09-10 | [GH Issue #234](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/234) | - |
+| [New-feed metadata refresh toggle](plans/unreleased/234-07-new-feed-metadata-refresh-toggle.md) | 2026-09-10 | [GH Issue #234](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/234) | - |
+| [New-feed folder-assignment discoverability](plans/unreleased/234-08-new-feed-folder-discoverability.md) | 2026-09-10 | [GH Issue #234](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/234) | - |
+| [Manual full-content fetch in the reader](plans/unreleased/234-09-manual-full-content-fetch-in-reader.md) | 2026-09-10 | [GH Issue #234](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/234) | - |
+| [Remove the import-time full-content-fetch toggle](plans/unreleased/234-10-remove-import-time-full-content-toggle.md) | 2026-09-10 | [GH Issue #234](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/234) | - |
+| [Tag-import toggle and unified confirmation](plans/unreleased/234-11-tag-import-toggle-and-confirmation.md) | 2026-09-10 | [GH Issue #234](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/234) | - |
+| [Per-article tag chip, replaces Read/Unread](plans/unreleased/234-12-per-article-tag-chip.md) | 2026-09-10 | [GH Issue #234](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/234) | - |
+| [User-facing documentation for starred article import](plans/unreleased/234-13-starred-import-user-documentation.md) | 2026-09-10 | [GH Issue #234](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/234) | - |
+| [Refactor OPML importer into reusable shell](plans/unreleased/233-opml-importer-shell-refactor.md) | 2026-09-10 | [GH Issue #233](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/233) | [PR #236](https://github.com/amatya-aditya/obsidian-rss-dashboard/pull/236) |
+| [Lint Node-only repository tooling scripts](plans/unreleased/240-lint-node-tooling-scripts.md) | 2026-09-10 | [GH Issue #240](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/240) | [PR #241](https://github.com/amatya-aditya/obsidian-rss-dashboard/pull/241) |
+| [Align repository tooling with sample-plugin baseline](plans/unreleased/240-sample-plugin-tooling-alignment.md) | 2026-09-10 | [GH Issue #240](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/240) | [PR #241](https://github.com/amatya-aditya/obsidian-rss-dashboard/pull/241) |
+| [Adopt noUncheckedIndexedAccess](plans/unreleased/240-adopt-no-unchecked-indexed-access.md) | 2026-09-11 | [GH Issue #240](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/240) | [PR #242](https://github.com/amatya-aditya/obsidian-rss-dashboard/pull/242) |
+| [`main.ts` Refactor Audit (Phases 0–4)](plans/unreleased/main-ts-refactor.md) | 2026-09-11 | [GH Issue #249](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/249) | [PR #250](https://github.com/amatya-aditya/obsidian-rss-dashboard/pull/250) |
+| [Complete main.ts refactor Phase 4 — documentation & error handling](plans/unreleased/249-main-ts-refactor-phase-4.md) | 2026-09-11 | [GH Issue #249](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/249) | [PR #250](https://github.com/amatya-aditya/obsidian-rss-dashboard/pull/250) |
+| [Ticket 01: Add JSDoc to low-risk modules](plans/unreleased/249-01-add-jsdoc-low-risk-modules.md) | 2026-09-11 | [GH Issue #249](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/249) | [PR #250](https://github.com/amatya-aditya/obsidian-rss-dashboard/pull/250) |
+| [Ticket 02: Add JSDoc to high-risk modules](plans/unreleased/249-02-add-jsdoc-high-risk-modules.md) | 2026-09-11 | [GH Issue #249](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/249) | [PR #250](https://github.com/amatya-aditya/obsidian-rss-dashboard/pull/250) |
+| [Ticket 03: Standardize error handling](plans/unreleased/249-03-standardize-error-handling.md) | 2026-09-11 | [GH Issue #249](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/249) | [PR #250](https://github.com/amatya-aditya/obsidian-rss-dashboard/pull/250) |
+| [Ticket 04: Final validation and commit](plans/unreleased/249-04-final-validation-commit.md) | 2026-09-11 | [GH Issue #249](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/249) | [PR #250](https://github.com/amatya-aditya/obsidian-rss-dashboard/pull/250) |
+| [Export Bundle Hierarchy Plan](plans/unreleased/254-export-bundle-hierarchy.md) | 2026-09-12 | [GH Issue #254](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/254) | - |
+| [Ticket 01: Build Feed and Settings bundles](plans/unreleased/254-export-bundle-hierarchy/tickets/01-build-feed-and-settings-bundles.md) | 2026-09-12 | [GH Issue #254](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/254) | - |
+| [Ticket 02: Import Feed and Settings bundles](plans/unreleased/254-export-bundle-hierarchy/tickets/02-import-feed-and-settings-bundles.md) | 2026-09-12 | [GH Issue #254](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/254) | - |
+| [Ticket 03: Settings-tab UI for all three JSON scopes + OPML](plans/unreleased/254-export-bundle-hierarchy/tickets/03-settings-tab-ui-for-three-scopes.md) | 2026-09-12 | [GH Issue #254](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/254) | - |
+| [Ticket 04: CONTEXT.md glossary entries for Feed bundle / Settings bundle](plans/unreleased/254-export-bundle-hierarchy/tickets/04-context-glossary-entries.md) | 2026-09-12 | [GH Issue #254](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/254) | - |
+
 ## Unshipped plans
 
 | Plan | Status | Decision |
 | --- | --- | --- |
 | [MP4 hero images](plans/unshipped/mp4-hero-images.md) | Deferred 2026-03-27 | The original attempt was reverted because video URL parsing needed more investigation. |
+
+## Rejected plans
+
+| Plan | Status | Decision |
+| --- | --- | --- |
+| [Deprecate Feed Manager modal](plans/rejected/deprecate-feed-manager-modal.md) | Rejected 2026-09-01 | Feed Manager was refactored and repurposed instead of removed, so the planned deprecation no longer applies. |
 
 ## Investigations
 
@@ -57,6 +100,5 @@ records the documentation classification.
 
 ## Unresolved historical evidence
 
-None. The active [main.ts refactor](../plans/main-ts-refactor.md) remains in
-`docs/plans/` because its source still records in-progress work; it has no
-canonical issue or final implementation reference.
+None. The [main.ts refactor](plans/unreleased/main-ts-refactor.md) (Phases
+0–4) completed with PR #250 and moved to the unreleased archive above.

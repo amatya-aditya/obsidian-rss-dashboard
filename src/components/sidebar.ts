@@ -26,7 +26,11 @@ import {
   windowInstanceOf,
 } from "../utils/platform-utils";
 import { SidebarSearchService } from "../services/sidebar-search-service";
-import { isValidFolderName } from "../utils/validation";
+import { FolderNameModal } from "../modals/folder-name-modal";
+import {
+  loadVaultLocalStorage,
+  saveVaultLocalStorage,
+} from "../utils/vault-local-storage";
 import type RssDashboardPlugin from "../../main";
 import { applyFeedSortOrder } from "../utils/sidebar-sort-utils";
 import { applyFolderSortOrder } from "../utils/sidebar-folder-sort-utils";
@@ -39,8 +43,8 @@ import {
   getFaviconUrl,
 } from "../utils/favicon-utils";
 import {
-  moveFeedAndInsert,
-  moveFeedToFolderAppend,
+  moveFeedsAndInsert,
+  moveFeedsToFolderAppend,
   moveFolder,
   setFolderFeedSortCustom,
   setFolderSortCustom,
@@ -128,160 +132,6 @@ type SidebarRowDescriptor = {
   folderName?: string;
   expandable?: boolean;
 };
-
-// FolderNameModal — Uses Obsidian's Modal class to prevent mobile focus bugs.
-// ⚠️ DO NOT move the input to a raw document.body div or add event.stopPropagation()
-// guards. Previous attempts created race conditions with Obsidian's workspace handler,
-// causing text deletion, lag, and dropped keystrokes. See bug docs for history.
-class FolderNameModal extends Modal {
-  private readonly opts: {
-    title: string;
-    defaultValue?: string;
-    existingNames?: string[];
-    onSubmit: (name: string) => void;
-  };
-
-  constructor(
-    app: App,
-    opts: {
-      title: string;
-      defaultValue?: string;
-      existingNames?: string[];
-      onSubmit: (name: string) => void;
-    },
-  ) {
-    super(app);
-    this.opts = opts;
-  }
-
-  onOpen() {
-    const { contentEl } = this;
-    contentEl.empty();
-
-    // Scope CSS to this modal element (used for input iOS sizing rules).
-    this.modalEl.addClass("rss-folder-name-modal");
-
-    new Setting(contentEl).setName(this.opts.title).setHeading();
-
-    const inputWrapper = contentEl.createDiv({
-      cls: "rss-folder-name-modal-input-wrapper rss-input-margin-bottom",
-    });
-
-    const nameInput = inputWrapper.createEl("input", {
-      attr: {
-        type: "text",
-        value: this.opts.defaultValue ?? "",
-        placeholder: "Enter folder name",
-        autocomplete: "off",
-        autocorrect: "off",
-        autocapitalize: "off",
-        spellcheck: "false",
-      },
-      cls: "rss-full-width-input rss-folder-name-modal-input",
-    });
-    nameInput.spellcheck = false;
-
-    const clearInputButton = inputWrapper.createEl("button", {
-      cls: "rss-folder-name-modal-input-clear",
-      attr: {
-        type: "button",
-        "aria-label": "Clear folder name",
-        title: "Clear",
-      },
-    });
-    setIcon(clearInputButton, "x");
-
-    const updateClearButtonState = () => {
-      clearInputButton.classList.toggle(
-        "is-hidden",
-        nameInput.value.length === 0,
-      );
-    };
-
-    const errorMsg = contentEl.createDiv({
-      cls: "rss-folder-name-modal-error rss-folder-name-modal-error-hidden",
-    });
-
-    const showError = (msg: string) => {
-      errorMsg.textContent = msg;
-      errorMsg.removeClass("rss-folder-name-modal-error-hidden");
-      nameInput.classList.add("rss-folder-name-modal-input-error");
-    };
-    const clearError = () => {
-      errorMsg.addClass("rss-folder-name-modal-error-hidden");
-      nameInput.classList.remove("rss-folder-name-modal-input-error");
-    };
-
-    const submit = () => {
-      const name = nameInput.value.trim();
-      const validation = isValidFolderName(name);
-      if (!validation.valid) {
-        showError(validation.error || "Please enter a folder name.");
-        nameInput.focus();
-        return;
-      }
-      if (
-        this.opts.existingNames?.includes(name) &&
-        name !== this.opts.defaultValue
-      ) {
-        showError("A folder with this name already exists.");
-        nameInput.focus();
-        return;
-      }
-      this.close();
-      this.opts.onSubmit(name);
-    };
-
-    nameInput.addEventListener("input", () => {
-      clearError();
-      updateClearButtonState();
-    });
-    nameInput.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") submit();
-    });
-
-    clearInputButton.addEventListener("click", () => {
-      nameInput.value = "";
-      clearError();
-      updateClearButtonState();
-      nameInput.focus();
-    });
-
-    updateClearButtonState();
-
-    const buttonContainer = contentEl.createDiv({
-      cls: "rss-dashboard-modal-buttons rss-folder-name-modal-buttons",
-    });
-
-    const okButton = buttonContainer.createEl("button");
-    okButton.className = "rss-dashboard-primary-button";
-    okButton.addClass("rss-folder-name-modal-ok");
-    const okIcon = okButton.createSpan();
-    setIcon(okIcon, "check");
-    okButton.createSpan({ text: "OK" });
-    okButton.addEventListener("click", submit);
-
-    const cancelButton = buttonContainer.createEl("button");
-    cancelButton.addClass("rss-folder-name-modal-cancel");
-    const cancelIcon = cancelButton.createSpan();
-    setIcon(cancelIcon, "x");
-    cancelButton.createSpan({ text: "Cancel" });
-    cancelButton.addEventListener("click", () => this.close());
-
-    // Single focus+select; Obsidian's Modal handles focus isolation.
-    // ⚠️ Do NOT add rAF re-focus, blur recovery, or stopPropagation.
-    window.setTimeout(() => {
-      if (this.contentEl.isConnected) {
-        nameInput.focus();
-        nameInput.select();
-      }
-    }, 50);
-  }
-
-  onClose() {
-    this.contentEl.empty();
-  }
-}
 
 export class Sidebar {
   private container: HTMLElement;
@@ -741,6 +591,12 @@ export class Sidebar {
       e.preventDefault();
       feedFoldersSection.classList.remove("drag-over");
       if (e.dataTransfer) {
+        const { feedUrls, folderPaths } = this.extractDragPayload(e.dataTransfer);
+        if (feedUrls.length > 0 || folderPaths.length > 1) {
+          this.batchMoveFeedsAndFoldersToFolder("", feedUrls, folderPaths);
+          return;
+        }
+
         const draggedFolderPath = e.dataTransfer.getData("folder-path");
         if (draggedFolderPath) {
           const result = moveFolder(this.settings, {
@@ -788,22 +644,7 @@ export class Sidebar {
 
         const feedUrl = e.dataTransfer.getData("feed-url");
         if (feedUrl) {
-          const feed = this.settings.feeds.find((f) => f.url === feedUrl);
-          if (!feed || !feed.folder) return;
-
-          const oldFolderPath = feed.folder;
-          const result = moveFeedToFolderAppend(this.settings, {
-            draggedUrl: feedUrl,
-            destinationFolderPath: "",
-          });
-          if (!result.ok) {
-            new Notice(result.error || "Unable to move feed.");
-            return;
-          }
-
-          const oldFolder = this.findFolderByPath(oldFolderPath);
-          if (oldFolder) oldFolder.modifiedAt = Date.now();
-          void this.plugin.saveSettings().then(() => this.render());
+          this.batchMoveFeedsAndFoldersToFolder("", [feedUrl], []);
         }
       }
     });
@@ -1051,7 +892,7 @@ export class Sidebar {
     setIcon(feedIcon, isCancellable ? "square-stop" : "refresh-cw");
     feedIcon.addEventListener("click", (e) => {
       e.stopPropagation();
-      if (isCancellable) {
+      if (this.plugin.isGlobalRefreshCancellable) {
         this.plugin.cancelGlobalRefresh();
         return;
       }
@@ -1103,6 +944,19 @@ export class Sidebar {
       e.stopPropagation();
       this.showAllFeedsContextMenu(e);
     });
+  }
+
+  public refreshGlobalRefreshProgressOnly(): void {
+    const progress = this.plugin.globalRefreshProgress ?? {
+      completed: 0,
+      total: 0,
+    };
+    const progressEl = this.container.querySelector<HTMLElement>(
+      ".rss-dashboard-all-feeds-progress",
+    );
+    if (progressEl) {
+      progressEl.setText(`${progress.completed}/${progress.total}`);
+    }
   }
 
   private showAllFeedsContextMenu(event: MouseEvent): void {
@@ -1339,7 +1193,23 @@ export class Sidebar {
 
     folderHeader.addEventListener("dragstart", (e) => {
       if (!e.dataTransfer) return;
+      let folderPaths: string[] = [];
+      const selectedFolders = this.options.selectedFolders || [];
+      if (selectedFolders.length > 0) {
+        if (!selectedFolders.includes(fullPath)) {
+          selectedFolders.push(fullPath);
+        }
+        folderPaths = [...selectedFolders];
+      } else {
+        folderPaths = [fullPath];
+      }
       e.dataTransfer.setData("folder-path", fullPath);
+      e.dataTransfer.setData("folder-paths", JSON.stringify(folderPaths));
+
+      const selectedFeeds = this.options.selectedFeeds || [];
+      if (selectedFeeds.length > 0) {
+        e.dataTransfer.setData("feed-urls", JSON.stringify(selectedFeeds));
+      }
       e.dataTransfer.effectAllowed = "move";
     });
 
@@ -1364,8 +1234,12 @@ export class Sidebar {
       e.preventDefault();
       e.stopPropagation(); // Prevent event from bubbling up to root section
 
-      const isFolderDrag = e.dataTransfer.types.includes("folder-path");
-      const isFeedDrag = e.dataTransfer.types.includes("feed-url");
+      const isFolderDrag =
+        e.dataTransfer.types.includes("folder-path") ||
+        e.dataTransfer.types.includes("folder-paths");
+      const isFeedDrag =
+        e.dataTransfer.types.includes("feed-url") ||
+        e.dataTransfer.types.includes("feed-urls");
       if (!isFolderDrag && !isFeedDrag) return;
 
       clearFolderHeaderDropClasses();
@@ -1396,6 +1270,17 @@ export class Sidebar {
       clearFolderHeaderDropClasses();
 
       if (!e.dataTransfer) return;
+
+      const { feedUrls, folderPaths } = this.extractDragPayload(e.dataTransfer);
+      if (feedUrls.length > 0) {
+        this.batchMoveFeedsAndFoldersToFolder(fullPath, feedUrls, folderPaths);
+        return;
+      }
+
+      if (folderPaths.length > 1) {
+        this.batchMoveFeedsAndFoldersToFolder(fullPath, [], folderPaths);
+        return;
+      }
 
       const draggedFolderPath = e.dataTransfer.getData("folder-path");
       if (draggedFolderPath) {
@@ -1442,31 +1327,6 @@ export class Sidebar {
         void this.plugin.saveSettings().then(() => this.render());
         return;
       }
-
-      const feedUrl = e.dataTransfer.getData("feed-url");
-      if (!feedUrl) return;
-
-      const feed = this.settings.feeds.find((f) => f.url === feedUrl);
-      if (!feed || (feed.folder || "") === fullPath) return;
-
-      const oldFolderPath = feed.folder || "";
-      const op = moveFeedToFolderAppend(this.settings, {
-        draggedUrl: feedUrl,
-        destinationFolderPath: fullPath,
-      });
-      if (!op.ok) {
-        new Notice(op.error || "Unable to move feed.");
-        return;
-      }
-
-      if (oldFolderPath) {
-        const oldFolder = this.findFolderByPath(oldFolderPath);
-        if (oldFolder) oldFolder.modifiedAt = Date.now();
-      }
-      const newFolder = this.findFolderByPath(fullPath);
-      if (newFolder) newFolder.modifiedAt = Date.now();
-
-      void this.plugin.saveSettings().then(() => this.render());
     });
 
     // Create the container for both subfolders and feeds
@@ -1491,29 +1351,9 @@ export class Sidebar {
       e.stopPropagation();
       folderFeedsList.classList.remove("drag-over");
       if (e.dataTransfer) {
-        const feedUrl = e.dataTransfer.getData("feed-url");
-        if (feedUrl) {
-          const feed = this.settings.feeds.find((f) => f.url === feedUrl);
-          if (!feed || (feed.folder || "") === fullPath) return;
-
-          const oldFolderPath = feed.folder || "";
-          const result = moveFeedToFolderAppend(this.settings, {
-            draggedUrl: feedUrl,
-            destinationFolderPath: fullPath,
-          });
-          if (!result.ok) {
-            new Notice(result.error || "Unable to move feed.");
-            return;
-          }
-
-          if (oldFolderPath) {
-            const oldFolder = this.findFolderByPath(oldFolderPath);
-            if (oldFolder) oldFolder.modifiedAt = Date.now();
-          }
-          const newFolder = this.findFolderByPath(fullPath);
-          if (newFolder) newFolder.modifiedAt = Date.now();
-
-          void this.plugin.saveSettings().then(() => this.render());
+        const { feedUrls, folderPaths } = this.extractDragPayload(e.dataTransfer);
+        if (feedUrls.length > 0 || folderPaths.length > 0) {
+          this.batchMoveFeedsAndFoldersToFolder(fullPath, feedUrls, folderPaths);
         }
       }
     });
@@ -1663,9 +1503,6 @@ export class Sidebar {
       } else {
         this.renderFallbackFeedIcon(feedIcon);
       }
-    } else if (MediaService.isTwitterOrNitterFeed(feed.url)) {
-      this.renderFallbackFeedIcon(feedIcon);
-      this.renderDomainFavicon(feedIcon, "twitter.com");
     } else if (MastodonService.isResolvedFeedUrl(feed.url)) {
       const domain = extractDomain(feed.url);
       if (domain) {
@@ -1766,7 +1603,24 @@ export class Sidebar {
 
     feedEl.addEventListener("dragstart", (e) => {
       if (!e.dataTransfer) return;
+      let feedUrls: string[] = [];
+      const selectedFeeds = this.options.selectedFeeds || [];
+      if (selectedFeeds.length > 0) {
+        if (!selectedFeeds.includes(feed.url)) {
+          selectedFeeds.push(feed.url);
+        }
+        feedUrls = [...selectedFeeds];
+      } else {
+        feedUrls = [feed.url];
+      }
+
       e.dataTransfer.setData("feed-url", feed.url);
+      e.dataTransfer.setData("feed-urls", JSON.stringify(feedUrls));
+
+      const selectedFolders = this.options.selectedFolders || [];
+      if (selectedFolders.length > 0) {
+        e.dataTransfer.setData("folder-paths", JSON.stringify(selectedFolders));
+      }
       e.dataTransfer.effectAllowed = "move";
     });
 
@@ -1778,10 +1632,17 @@ export class Sidebar {
     feedEl.addEventListener("dragover", (e) => {
       if (!e.dataTransfer) return;
       // Ignore folder drags; those are handled on folder headers/root.
-      if (e.dataTransfer.types.includes("folder-path")) return;
+      if (
+        e.dataTransfer.types.includes("folder-path") ||
+        e.dataTransfer.types.includes("folder-paths")
+      ) {
+        return;
+      }
 
-      const draggedUrl = e.dataTransfer.getData("feed-url");
-      if (!draggedUrl) return;
+      const hasFeedDrag =
+        e.dataTransfer.types.includes("feed-url") ||
+        e.dataTransfer.types.includes("feed-urls");
+      if (!hasFeedDrag) return;
 
       e.preventDefault();
       e.stopPropagation();
@@ -1799,25 +1660,34 @@ export class Sidebar {
 
     feedEl.addEventListener("drop", (e) => {
       if (!e.dataTransfer) return;
-      if (e.dataTransfer.types.includes("folder-path")) return;
+      if (
+        e.dataTransfer.types.includes("folder-path") ||
+        e.dataTransfer.types.includes("folder-paths")
+      ) {
+        return;
+      }
 
-      const draggedUrl = e.dataTransfer.getData("feed-url");
-      if (!draggedUrl || draggedUrl === feed.url) return;
+      const { feedUrls } = this.extractDragPayload(e.dataTransfer);
+      if (feedUrls.length === 0) return;
+      if (feedUrls.includes(feed.url)) return; // No-op drop if target is one of the dragged feeds
 
       e.preventDefault();
       e.stopPropagation();
       clearFeedDropClasses();
 
-      const dragged = this.settings.feeds.find((f) => f.url === draggedUrl);
-      const oldFolderPath = dragged?.folder ?? "";
+      const oldFolderPaths = new Set<string>();
+      for (const u of feedUrls) {
+        const f = this.settings.feeds.find((item) => item.url === u);
+        if (f?.folder) oldFolderPaths.add(f.folder);
+      }
       const destinationFolderPath = feed.folder ?? "";
 
       const rect = feedEl.getBoundingClientRect();
       const before = e.clientY < rect.top + rect.height / 2;
       const placement = before ? "before" : "after";
 
-      const result = moveFeedAndInsert(this.settings, {
-        draggedUrl,
+      const result = moveFeedsAndInsert(this.settings, {
+        draggedUrls: feedUrls,
         targetUrl: feed.url,
         placement,
       });
@@ -1827,14 +1697,19 @@ export class Sidebar {
         return;
       }
 
-      if (oldFolderPath && oldFolderPath !== destinationFolderPath) {
-        const oldFolder = this.findFolderByPath(oldFolderPath);
-        if (oldFolder) oldFolder.modifiedAt = Date.now();
+      for (const oldPath of oldFolderPaths) {
+        if (oldPath !== destinationFolderPath) {
+          const oldFolder = this.findFolderByPath(oldPath);
+          if (oldFolder) oldFolder.modifiedAt = Date.now();
+        }
       }
-      if (destinationFolderPath && oldFolderPath !== destinationFolderPath) {
+      if (destinationFolderPath) {
         const newFolder = this.findFolderByPath(destinationFolderPath);
         if (newFolder) newFolder.modifiedAt = Date.now();
       }
+
+      this.options.selectedFeeds = [];
+      this.options.selectedFolders = [];
 
       void this.plugin.saveSettings().then(() => this.render());
     });
@@ -1886,6 +1761,7 @@ export class Sidebar {
   private isMultiSelectionTarget(
     targetType: "folder" | "feed",
     targetKey: string,
+    feedFolder?: string,
   ): boolean {
     const { selectedFolders, selectedFeeds } = this.options;
     const folderCount = selectedFolders?.length || 0;
@@ -1897,9 +1773,27 @@ export class Sidebar {
 
     if (targetType === "folder") {
       return selectedFolders?.includes(targetKey) || false;
-    } else {
-      return selectedFeeds?.includes(targetKey) || false;
     }
+
+    if (selectedFeeds?.includes(targetKey)) return true;
+
+    // A feed with no explicit entry in selectedFeeds is still part of the
+    // multi-selection when its folder (or an ancestor folder) is selected —
+    // renderFeed shows it with the same "multi-selected" styling, so the
+    // context menu must treat it the same way.
+    if (feedFolder && selectedFolders && selectedFolders.length > 0) {
+      let current = feedFolder;
+      while (current) {
+        if (selectedFolders.includes(current)) return true;
+        if (current.includes("/")) {
+          current = current.substring(0, current.lastIndexOf("/"));
+        } else {
+          break;
+        }
+      }
+    }
+
+    return false;
   }
 
   private appendSelectionContextMenu(menu: Menu): void {
@@ -1917,6 +1811,16 @@ export class Sidebar {
         .setIcon("circle")
         .onClick(() => {
           this.markSelectionReadStatus(false);
+        });
+    });
+    menu.addItem((item: MenuItem) => {
+      item
+        .setTitle("Move selection to folder")
+        .setIcon("folder-open")
+        .onClick((evt) => {
+          if (evt instanceof MouseEvent) {
+            this.showMoveSelectionToFolderMenu(evt);
+          }
         });
     });
     menu.addSeparator();
@@ -2005,6 +1909,220 @@ export class Sidebar {
       this.options.selectedFeeds = [];
       this.render();
     });
+  }
+
+  private extractDragPayload(dataTransfer: DataTransfer | null): {
+    feedUrls: string[];
+    folderPaths: string[];
+  } {
+    if (!dataTransfer) return { feedUrls: [], folderPaths: [] };
+
+    let feedUrls: string[] = [];
+    const feedUrlsRaw = dataTransfer.getData("feed-urls");
+    if (feedUrlsRaw) {
+      try {
+        const parsed: unknown = JSON.parse(feedUrlsRaw);
+        if (
+          Array.isArray(parsed) &&
+          parsed.every((item): item is string => typeof item === "string")
+        ) {
+          feedUrls = parsed;
+        }
+      } catch {}
+    }
+    if (feedUrls.length === 0) {
+      const singleFeed = dataTransfer.getData("feed-url");
+      if (singleFeed) feedUrls = [singleFeed];
+    }
+
+    let folderPaths: string[] = [];
+    const folderPathsRaw = dataTransfer.getData("folder-paths");
+    if (folderPathsRaw) {
+      try {
+        const parsed: unknown = JSON.parse(folderPathsRaw);
+        if (
+          Array.isArray(parsed) &&
+          parsed.every((item): item is string => typeof item === "string")
+        ) {
+          folderPaths = parsed;
+        }
+      } catch {}
+    }
+    if (folderPaths.length === 0) {
+      const singleFolder = dataTransfer.getData("folder-path");
+      if (singleFolder) folderPaths = [singleFolder];
+    }
+
+    return { feedUrls, folderPaths };
+  }
+
+  private batchMoveFeedsAndFoldersToFolder(
+    destinationFolderPath: string,
+    feedUrls: string[],
+    folderPaths: string[] = [],
+  ): void {
+    let movedFeedsCount = 0;
+    let movedFoldersCount = 0;
+    let skippedFoldersCount = 0;
+
+    // 1. Move folders first (if any)
+    for (const folderPath of folderPaths) {
+      if (
+        destinationFolderPath === folderPath ||
+        destinationFolderPath.startsWith(`${folderPath}/`)
+      ) {
+        skippedFoldersCount++;
+        continue;
+      }
+
+      const placement = destinationFolderPath ? "nest" : "rootAppend";
+      const result = moveFolder(this.settings, {
+        draggedPath: folderPath,
+        targetPath: destinationFolderPath,
+        placement,
+      });
+
+      if (result.ok) {
+        movedFoldersCount++;
+      } else {
+        skippedFoldersCount++;
+      }
+    }
+
+    // 2. Move feeds
+    const feedsToMove = feedUrls.filter((url) => {
+      const feed = this.settings.feeds.find((f) => f.url === url);
+      return feed && (feed.folder || "") !== destinationFolderPath;
+    });
+
+    if (feedsToMove.length > 0) {
+      const oldFolderPaths = new Set<string>();
+      for (const url of feedsToMove) {
+        const f = this.settings.feeds.find((item) => item.url === url);
+        if (f?.folder) oldFolderPaths.add(f.folder);
+      }
+
+      const result = moveFeedsToFolderAppend(this.settings, {
+        draggedUrls: feedsToMove,
+        destinationFolderPath,
+      });
+
+      if (result.ok) {
+        movedFeedsCount = feedsToMove.length;
+        for (const oldPath of oldFolderPaths) {
+          const oldFolder = this.findFolderByPath(oldPath);
+          if (oldFolder) oldFolder.modifiedAt = Date.now();
+        }
+      } else {
+        new Notice(result.error || "Unable to move feeds.");
+      }
+    }
+
+    if (destinationFolderPath) {
+      const destFolder = this.findFolderByPath(destinationFolderPath);
+      if (destFolder) destFolder.modifiedAt = Date.now();
+    }
+
+    this.clearFolderPathCache();
+
+    if (skippedFoldersCount > 0) {
+      new Notice("Skipped moving folder into itself or its subfolder.");
+    }
+
+    const totalMoved = movedFeedsCount + movedFoldersCount;
+    if (totalMoved > 0) {
+      const destLabel = destinationFolderPath
+        ? `"${destinationFolderPath}"`
+        : "root";
+      const parts: string[] = [];
+      if (movedFeedsCount > 0) {
+        parts.push(`${movedFeedsCount} feed${movedFeedsCount === 1 ? "" : "s"}`);
+      }
+      if (movedFoldersCount > 0) {
+        parts.push(
+          `${movedFoldersCount} folder${movedFoldersCount === 1 ? "" : "s"}`,
+        );
+      }
+      new Notice(`Moved ${parts.join(" and ")} to ${destLabel}`);
+    }
+
+    this.options.selectedFeeds = [];
+    this.options.selectedFolders = [];
+
+    void this.plugin.saveSettings().then(() => this.render());
+  }
+
+  private showMoveSelectionToFolderMenu(event: MouseEvent): void {
+    const menu = new Menu();
+
+    const selectedFeeds = [...(this.options.selectedFeeds || [])];
+    const selectedFolders = [...(this.options.selectedFolders || [])];
+
+    // Add option to move to root (no folder)
+    menu.addItem((item: MenuItem) => {
+      item
+        .setTitle("Root (no folder)")
+        .setIcon("folder")
+        .onClick(() => {
+          this.batchMoveFeedsAndFoldersToFolder(
+            "",
+            selectedFeeds,
+            selectedFolders,
+          );
+        });
+    });
+
+    menu.addSeparator();
+
+    // Add all available folders
+    const allFolders = this.getCachedFolderPaths();
+    if (allFolders.length > 0) {
+      allFolders.sort((a, b) => a.localeCompare(b));
+
+      allFolders.forEach((folderPath) => {
+        menu.addItem((item: MenuItem) => {
+          item
+            .setTitle(folderPath)
+            .setIcon("folder")
+            .onClick(() => {
+              this.batchMoveFeedsAndFoldersToFolder(
+                folderPath,
+                selectedFeeds,
+                selectedFolders,
+              );
+            });
+        });
+      });
+    }
+
+    menu.addSeparator();
+    menu.addItem((item: MenuItem) => {
+      item
+        .setTitle("Create new folder...")
+        .setIcon("folder-plus")
+        .onClick(() => {
+          this.showFolderNameModal({
+            title: "Create new folder",
+            existingNames: this.settings.folders.map((f) => f.name),
+            onSubmit: (folderName) => {
+              void (async () => {
+                await this.addTopLevelFolder(folderName);
+                this.batchMoveFeedsAndFoldersToFolder(
+                  folderName,
+                  selectedFeeds,
+                  selectedFolders,
+                );
+              })();
+            },
+          });
+        });
+    });
+
+    if (typeof menu.showAtMouseEvent === "function") {
+      menu.showAtMouseEvent(event);
+    } else {
+      menu.showAtPosition({ x: event.clientX, y: event.clientY });
+    }
   }
 
   private showFolderContextMenu(
@@ -2487,7 +2605,9 @@ export class Sidebar {
       Math.max(0, startIndex + offset),
     );
 
-    this.focusedSidebarTarget = this.sidebarRows[nextIndex].target;
+    const nextRow = this.sidebarRows[nextIndex];
+    if (!nextRow) return;
+    this.focusedSidebarTarget = nextRow.target;
     this.applySidebarFocusState();
   }
 
@@ -2512,6 +2632,7 @@ export class Sidebar {
       idx += direction
     ) {
       const row = this.sidebarRows[idx];
+      if (!row) continue;
       if (row.target.type !== "feed") {
         this.focusedSidebarTarget = row.target;
         this.applySidebarFocusState();
@@ -2991,9 +3112,13 @@ export class Sidebar {
           const action = () => {
             this.showAddFeedModal();
             if (
-              !this.app.loadLocalStorage("rss-first-launch-coachmark-shown")
+              !loadVaultLocalStorage(
+                this.app,
+                "rss-first-launch-coachmark-shown",
+              )
             ) {
-              this.app.saveLocalStorage(
+              saveVaultLocalStorage(
+                this.app,
                 "rss-first-launch-coachmark-shown",
                 "true",
               );
@@ -3122,15 +3247,21 @@ export class Sidebar {
     const addFeedBtn = this.iconBtnEls.get("addFeed");
     if (
       addFeedBtn &&
-      !this.app.loadLocalStorage("rss-first-launch-coachmark-shown")
+      !loadVaultLocalStorage(this.app, "rss-first-launch-coachmark-shown")
     ) {
       const coachmark = addFeedBtn.createDiv({
         cls: "rss-dashboard-coachmark",
         text: "Add your first feed here",
       });
       window.setTimeout(() => {
-        if (!this.app.loadLocalStorage("rss-first-launch-coachmark-shown")) {
-          this.app.saveLocalStorage("rss-first-launch-coachmark-shown", "true");
+        if (
+          !loadVaultLocalStorage(this.app, "rss-first-launch-coachmark-shown")
+        ) {
+          saveVaultLocalStorage(
+            this.app,
+            "rss-first-launch-coachmark-shown",
+            "true",
+          );
           if (coachmark.parentNode) coachmark.remove();
         }
       }, 5000);
@@ -3163,7 +3294,8 @@ export class Sidebar {
       isDown = true;
       isDragging = false;
       const clientX =
-        e instanceof MouseEvent ? e.clientX : e.touches[0].clientX;
+        e instanceof MouseEvent ? e.clientX : e.touches[0]?.clientX;
+      if (clientX === undefined) return;
       startX = clientX - iconRow.offsetLeft;
       scrollLeft = iconRow.scrollLeft;
     };
@@ -3177,7 +3309,8 @@ export class Sidebar {
       if (!isDown) return;
       e.preventDefault();
       const clientX =
-        e instanceof MouseEvent ? e.clientX : e.touches[0].clientX;
+        e instanceof MouseEvent ? e.clientX : e.touches[0]?.clientX;
+      if (clientX === undefined) return;
       const x = clientX - iconRow.offsetLeft;
       const walk = (x - startX) * 2; // Scroll speed multiplier
       if (Math.abs(walk) > 5) {
@@ -3568,6 +3701,7 @@ export class Sidebar {
     options?: {
       expandSection?: "per-feed" | "rules";
       highlightSection?: "per-feed" | "rules";
+      onDelete?: () => void;
     },
   ): void {
     new EditFeedModal(
@@ -3575,7 +3709,16 @@ export class Sidebar {
       this.plugin,
       feed,
       () => this.render(),
-      options,
+      {
+        ...options,
+        onDelete: () => {
+          if (options?.onDelete) {
+            options.onDelete();
+          } else {
+            this.callbacks.onDeleteFeed(feed);
+          }
+        },
+      },
     ).open();
   }
 
@@ -3669,7 +3812,7 @@ export class Sidebar {
         });
     });
 
-    if (this.isMultiSelectionTarget("feed", feed.url)) {
+    if (this.isMultiSelectionTarget("feed", feed.url, feed.folder)) {
       this.appendSelectionContextMenu(menu);
       menu.showAtMouseEvent(event);
       return;

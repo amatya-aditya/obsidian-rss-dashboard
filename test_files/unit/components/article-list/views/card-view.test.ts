@@ -1,12 +1,13 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { renderCardView } from "../../../../../src/components/article-list/views/card-view";
+import type { BaseViewContext } from "../../../../../src/components/article-list/views/view-types";
 import { baseViewContext, baseViewDeps, makeArticle } from "./test-helpers";
 
 describe("card-view", () => {
   let container: HTMLElement;
 
   beforeEach(() => {
-    container = document.createElement("div");
+    container = createDiv();
     document.body.appendChild(container);
   });
 
@@ -158,7 +159,7 @@ describe("card-view", () => {
               highlightInSummaries: false,
             },
             display: { showCoverImage, showSummary, articleDateStyle: "relative" },
-          },
+          } as BaseViewContext["settings"],
           showCardToolbar: true,
         },
         baseViewDeps(),
@@ -281,7 +282,7 @@ describe("card-view", () => {
             highlightInSummaries: false,
           },
           display: { showCoverImage: true, showSummary: false, articleDateStyle: "relative" },
-        },
+        } as BaseViewContext["settings"],
         showCardToolbar: true,
       },
       baseViewDeps(),

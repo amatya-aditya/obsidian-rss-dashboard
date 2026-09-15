@@ -601,4 +601,102 @@ describe("DiscoverView (P1-3)", () => {
       "Added 2 feeds. Articles will be fetched in the background. Skipped 1 already-followed feeds.",
     );
   });
+
+  it("renders pagination with structured pages row, controls row, and wrapped dropdown", async () => {
+    const { view } = await createView();
+    view.pageSize = 1;
+    view.loadData();
+    view.render();
+
+    const pagination = view.containerEl.querySelector(
+      ".rss-dashboard-pagination",
+    );
+    expect(pagination).not.toBeNull();
+
+    const pagesRow = pagination?.querySelector(
+      ".rss-dashboard-pagination-pages",
+    );
+    expect(pagesRow).not.toBeNull();
+
+    const prevButton = pagination?.querySelector(
+      ".rss-dashboard-pagination-btn.prev",
+    );
+    const nextButton = pagination?.querySelector(
+      ".rss-dashboard-pagination-btn.next",
+    );
+    expect(prevButton?.parentElement).toBe(pagesRow);
+    expect(nextButton?.parentElement).toBe(pagesRow);
+
+    const pageButtons = Array.from(
+      pagesRow?.querySelectorAll<HTMLButtonElement>(
+        ".rss-dashboard-pagination-btn:not(.prev):not(.next)",
+      ) ?? [],
+    );
+    expect(pageButtons.length).toBeGreaterThan(0);
+    for (const btn of pageButtons) {
+      expect(btn.parentElement).toBe(pagesRow);
+    }
+
+    const controlsRow = pagination?.querySelector(
+      ".rss-dashboard-pagination-controls",
+    );
+    expect(controlsRow).not.toBeNull();
+
+    const pageSizeDropdown = pagination?.querySelector(
+      ".rss-dashboard-page-size-dropdown",
+    );
+    expect(pageSizeDropdown).not.toBeNull();
+    expect(
+      pageSizeDropdown?.parentElement?.classList.contains(
+        "rss-dashboard-page-size-wrapper",
+      ),
+    ).toBe(true);
+    expect(pageSizeDropdown?.parentElement?.parentElement).toBe(controlsRow);
+
+    const resultsRow = pagination?.querySelector(
+      ".rss-dashboard-pagination-results",
+    );
+    expect(resultsRow).not.toBeNull();
+    expect(resultsRow?.textContent).toContain("Results: 1 - 1 of 4");
+    expect((prevButton as HTMLButtonElement).disabled).toBe(true);
+    expect((nextButton as HTMLButtonElement).disabled).toBe(false);
+
+    // Clicking next button advances page
+    (nextButton as HTMLButtonElement).click();
+    expect(view.currentPage).toBe(2);
+
+    const updatedNext = view.containerEl.querySelector(
+      ".rss-dashboard-pagination-btn.next",
+    );
+    const updatedPrev = view.containerEl.querySelector(
+      ".rss-dashboard-pagination-btn.prev",
+    );
+    expect((updatedPrev as HTMLButtonElement).disabled).toBe(false);
+    expect((updatedNext as HTMLButtonElement).disabled).toBe(false);
+
+
+    // Clicking page button directly
+    const page3Btn = Array.from(
+      view.containerEl.querySelectorAll<HTMLButtonElement>(
+        ".rss-dashboard-pagination-pages .rss-dashboard-pagination-btn:not(.prev):not(.next)",
+      ),
+    ).find((b) => b.textContent?.trim() === "3");
+    expect(page3Btn).not.toBeUndefined();
+    page3Btn?.click();
+    expect(view.currentPage).toBe(3);
+
+    // Changing page size updates page size and resets current page to 1
+    const dropdown = view.containerEl.querySelector<HTMLSelectElement>(
+      ".rss-dashboard-page-size-dropdown",
+    );
+    expect(dropdown).not.toBeNull();
+    if (dropdown) {
+      dropdown.value = "10";
+      dropdown.dispatchEvent(new Event("change"));
+    }
+    expect(view.pageSize).toBe(10);
+    expect(view.currentPage).toBe(1);
+  });
 });
+
+

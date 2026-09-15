@@ -26,6 +26,10 @@ import {
   computePagination,
   computeResultsRange,
 } from "../utils/pagination-utils";
+import {
+  loadVaultLocalStorage,
+  saveVaultLocalStorage,
+} from "../utils/vault-local-storage";
 
 import feedsData from "../discover/discover-feeds.json";
 
@@ -105,7 +109,8 @@ export class DiscoverView extends ItemView {
 
       this.categoryMap = this.generateCategoryMap(this.feeds);
 
-      const savedState = this.app.loadLocalStorage(
+      const savedState = loadVaultLocalStorage(
+        this.app,
         "rss-discover-filters",
       ) as Partial<DiscoverFilters> | null;
       if (savedState) {
@@ -133,16 +138,23 @@ export class DiscoverView extends ItemView {
         if (!categoryMap.categories[domain]) {
           categoryMap.categories[domain] = {};
         }
+        const domainCategories = categoryMap.categories[domain];
+        if (!domainCategories) {
+          return;
+        }
 
         feed.subdomain.forEach((subdomain) => {
-          if (!categoryMap.categories[domain][subdomain]) {
-            categoryMap.categories[domain][subdomain] = {};
+          if (!domainCategories[subdomain]) {
+            domainCategories[subdomain] = {};
           }
 
           feed.area.forEach((area) => {
-            const subdomainObj = categoryMap.categories[domain][
-              subdomain
-            ] as Record<string, unknown>;
+            const subdomainObj = domainCategories[subdomain] as
+              | Record<string, unknown>
+              | undefined;
+            if (!subdomainObj) {
+              return;
+            }
             if (!subdomainObj[area]) {
               subdomainObj[area] = [];
             }
@@ -351,7 +363,7 @@ export class DiscoverView extends ItemView {
   }
 
   private saveFilterState(): void {
-    this.app.saveLocalStorage("rss-discover-filters", this.filters);
+    saveVaultLocalStorage(this.app, "rss-discover-filters", this.filters);
   }
 
   private shouldUseMobileSidebarMode(viewportWidth?: number): boolean {
@@ -633,7 +645,7 @@ export class DiscoverView extends ItemView {
       cls: "rss-dashboard-sidebar-toggle clickable-icon",
       attr: { title: "Toggle filters" },
     });
-    setIcon(sidebarToggleButton, "panel-left-open");
+    setIcon(sidebarToggleButton, "sidebar");
     sidebarToggleButton.addEventListener("click", () => {
       this.openMobileSidebar();
     });
@@ -1259,7 +1271,7 @@ export class DiscoverView extends ItemView {
     const sortIcon = sortContainer.createDiv({
       cls: "rss-discover-dropdown-icon",
     });
-    setIcon(sortIcon, "arrow-up-down");
+    setIcon(sortIcon, "sort-asc");
 
     const sortDropdown = sortContainer.createEl("select");
     sortDropdown.addClass("rss-discover-sort-dropdown");
@@ -1416,12 +1428,14 @@ export class DiscoverView extends ItemView {
 
   private getInitials(title: string): string {
     const words = title.split(" ");
+    const firstWord = words[0] ?? "";
+    const secondWord = words[1] ?? "";
     if (words.length > 1) {
-      return (words[0][0] + words[1][0]).toUpperCase();
-    } else if (words.length === 1 && words[0].length > 1) {
-      return (words[0][0] + words[0][1]).toUpperCase();
-    } else if (words.length === 1 && words[0].length === 1) {
-      return words[0][0].toUpperCase();
+      return `${firstWord[0] ?? ""}${secondWord[0] ?? ""}`.toUpperCase();
+    } else if (words.length === 1 && firstWord.length > 1) {
+      return `${firstWord[0] ?? ""}${firstWord[1] ?? ""}`.toUpperCase();
+    } else if (words.length === 1 && firstWord.length === 1) {
+      return (firstWord[0] ?? "").toUpperCase();
     }
     return "NA";
   }
@@ -1583,7 +1597,11 @@ export class DiscoverView extends ItemView {
     setIcon(previewBtn, "file-search");
     previewBtn.createSpan({ text: "Preview" });
     previewBtn.addEventListener("click", () => {
-      new FeedPreviewModal(this.app, feed, this.plugin.settings.corsProxyEnabled).open();
+      new FeedPreviewModal(
+        this.app,
+        feed,
+        this.plugin.settings.corsProxyEnabled,
+      ).open();
     });
 
     this.renderFollowButton(rightSection, feed);
@@ -1740,7 +1758,11 @@ export class DiscoverView extends ItemView {
       );
 
       if (feedIndex >= 0) {
-        const feedTitle = this.plugin.settings.feeds[feedIndex].title;
+        const feed = this.plugin.settings.feeds[feedIndex];
+        if (!feed) {
+          return;
+        }
+        const feedTitle = feed.title;
         this.plugin.settings.feeds.splice(feedIndex, 1);
         await this.plugin.saveSettings();
 
@@ -1858,7 +1880,7 @@ export class DiscoverView extends ItemView {
 
   private applySidebarWidth(): void {
     if (!this.sidebarContainer) return;
-    const width = this.settings.sidebarWidth || 280;
+    const width = this.settings.sidebarWidth || 310;
     this.sidebarContainer.style.width = `${width}px`;
     this.sidebarContainer.style.minWidth = `${width}px`;
     // Keep the resize handle pinned to the sidebar's right edge.
@@ -2038,16 +2060,31 @@ export class DiscoverView extends ItemView {
       cls: "rss-dashboard-pagination",
     });
 
-    const prevButton = paginationContainer.createEl("button", {
+    const pagesRow = paginationContainer.createDiv({
+      cls: "rss-dashboard-pagination-pages",
+    });
+
+    const prevButton = pagesRow.createEl("button", {
       cls: "rss-dashboard-pagination-btn prev",
       text: "<",
     });
     prevButton.disabled = currentPage === 1;
-    prevButton.onclick = () => this.handlePageChange(currentPage - 1);
+    prevButton.onclick = () => {
+      if (currentPage > 1) {
+        this.handlePageChange(currentPage - 1);
+      }
+    };
 
-    const maxPagesToShow = 7;
-    let startPage = Math.max(1, currentPage - 3);
-    let endPage = Math.min(totalPages, currentPage + 3);
+    const isMobile =
+      typeof activeWindow !== "undefined" &&
+      typeof activeWindow.matchMedia === "function"
+        ? activeWindow.matchMedia("(max-width: 768px)").matches
+        : false;
+    const maxPagesToShow = isMobile ? 3 : 5;
+    const padding = isMobile ? 1 : 2;
+
+    let startPage = Math.max(1, currentPage - padding);
+    let endPage = Math.min(totalPages, currentPage + padding);
     if (endPage - startPage < maxPagesToShow - 1) {
       if (startPage === 1) {
         endPage = Math.min(totalPages, startPage + maxPagesToShow - 1);
@@ -2056,35 +2093,46 @@ export class DiscoverView extends ItemView {
       }
     }
     if (startPage > 1) {
-      this.createPageButton(paginationContainer, 1, currentPage);
+      this.createPageButton(pagesRow, 1, currentPage);
       if (startPage > 2) {
-        paginationContainer.createSpan({
+        pagesRow.createSpan({
           text: "...",
           cls: "rss-dashboard-pagination-ellipsis",
         });
       }
     }
     for (let i = startPage; i <= endPage; i++) {
-      this.createPageButton(paginationContainer, i, currentPage);
+      this.createPageButton(pagesRow, i, currentPage);
     }
     if (endPage < totalPages) {
       if (endPage < totalPages - 1) {
-        paginationContainer.createSpan({
+        pagesRow.createSpan({
           text: "...",
           cls: "rss-dashboard-pagination-ellipsis",
         });
       }
-      this.createPageButton(paginationContainer, totalPages, currentPage);
+      this.createPageButton(pagesRow, totalPages, currentPage);
     }
 
-    const nextButton = paginationContainer.createEl("button", {
+    const nextButton = pagesRow.createEl("button", {
       cls: "rss-dashboard-pagination-btn next",
       text: ">",
     });
     nextButton.disabled = currentPage === totalPages;
-    nextButton.onclick = () => this.handlePageChange(currentPage + 1);
+    nextButton.onclick = () => {
+      if (currentPage < totalPages) {
+        this.handlePageChange(currentPage + 1);
+      }
+    };
 
-    const pageSizeDropdown = paginationContainer.createEl("select", {
+    const controlsRow = paginationContainer.createDiv({
+      cls: "rss-dashboard-pagination-controls",
+    });
+
+    const pageSizeWrapper = controlsRow.createDiv({
+      cls: "rss-dashboard-page-size-wrapper",
+    });
+    const pageSizeDropdown = pageSizeWrapper.createEl("select", {
       cls: "rss-dashboard-page-size-dropdown",
     });
     for (const size of getPageSizeOptions(pageSize)) {
@@ -2113,7 +2161,10 @@ export class DiscoverView extends ItemView {
       pageSize,
       currentPage,
     });
-    paginationContainer.createSpan({
+    const resultsRow = paginationContainer.createDiv({
+      cls: "rss-dashboard-pagination-results",
+    });
+    resultsRow.createSpan({
       cls: "rss-dashboard-pagination-results",
       text: `Results: ${startIdx} - ${endIdx} of ${totalFeeds}`,
     });
@@ -2152,6 +2203,10 @@ export class DiscoverView extends ItemView {
       text: String(page),
     });
     btn.disabled = page === currentPage;
-    btn.onclick = () => this.handlePageChange(page);
+    btn.onclick = () => {
+      if (page !== currentPage) {
+        this.handlePageChange(page);
+      }
+    };
   }
 }

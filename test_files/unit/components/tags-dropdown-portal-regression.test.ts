@@ -44,7 +44,7 @@ describe("Tags dropdown portal (regression)", () => {
   });
 
   it("renders portal items for all available tags", () => {
-    const container = document.createElement("div");
+    const container = createDiv();
     document.body.appendChild(container);
     const settings = cloneSettings();
     settings.availableTags = [
@@ -83,7 +83,7 @@ describe("Tags dropdown portal (regression)", () => {
       "AND",
     );
 
-    const anchorEl = document.createElement("div");
+    const anchorEl = createDiv();
     document.body.appendChild(anchorEl);
     (list as unknown as ArticleListWithPrivate).createPortalDropdown(
       anchorEl,
@@ -108,7 +108,7 @@ describe("Tags dropdown portal (regression)", () => {
   });
 
   it("clicking the same tags anchor twice closes the portal", () => {
-    const container = document.createElement("div");
+    const container = createDiv();
     document.body.appendChild(container);
     const settings = cloneSettings();
     settings.availableTags = [{ name: "A", color: "#111111" }];
@@ -144,7 +144,7 @@ describe("Tags dropdown portal (regression)", () => {
       "AND",
     );
 
-    const anchorEl = document.createElement("div");
+    const anchorEl = createDiv();
     document.body.appendChild(anchorEl);
     (list as unknown as ArticleListWithPrivate).createPortalDropdown(
       anchorEl,
@@ -175,7 +175,7 @@ describe("Tags dropdown portal (regression)", () => {
   });
 
   it("opening tags portal must not remove Reader format portal", () => {
-    const container = document.createElement("div");
+    const container = createDiv();
     document.body.appendChild(container);
     const settings = cloneSettings();
     settings.availableTags = [{ name: "A", color: "#111111" }];
@@ -211,12 +211,12 @@ describe("Tags dropdown portal (regression)", () => {
       "AND",
     );
 
-    const formatPortal = document.createElement("div");
+    const formatPortal = createDiv();
     formatPortal.className =
       "rss-dashboard-tags-dropdown-content-portal rss-reader-format-dropdown-portal";
     document.body.appendChild(formatPortal);
 
-    const anchorEl = document.createElement("div");
+    const anchorEl = createDiv();
     document.body.appendChild(anchorEl);
     (list as unknown as ArticleListWithPrivate).createPortalDropdown(
       anchorEl,

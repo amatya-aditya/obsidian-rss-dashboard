@@ -13,7 +13,7 @@ function makeFeed(args: { title: string; url: string; folder: string }): Feed {
 }
 
 describe("OpmlImportPreviewModel", () => {
-  it("builds a folder tree, defaults selection to all feeds, and tracks duplicates in update mode", () => {
+  it("builds a folder tree, selects importable feeds, and unselects duplicates in update mode", () => {
     const feeds: Feed[] = [
       makeFeed({ title: "AI", url: "u1", folder: "Tech/AI" }),
       makeFeed({ title: "Tech News", url: "u2", folder: "Tech" }),
@@ -34,13 +34,14 @@ describe("OpmlImportPreviewModel", () => {
     const stats = model.getStats();
     expect(stats.totalFeeds).toBe(3);
     expect(stats.duplicateFeeds).toBe(1);
-    expect(stats.selectedFeeds).toBe(3);
+    expect(stats.selectedFeeds).toBe(2);
     expect(stats.selectedImportableFeeds).toBe(2);
     expect(stats.hasBlockingErrors).toBe(false);
+    expect(model.getFeedState("u2").selected).toBe(false);
 
     const techState = model.getFolderSelectionState("Tech");
-    expect(techState.checked).toBe(true);
-    expect(techState.indeterminate).toBe(false);
+    expect(techState.checked).toBe(false);
+    expect(techState.indeterminate).toBe(true);
 
     model.toggleFolder("Tech", false);
     const afterToggle = model.getStats();

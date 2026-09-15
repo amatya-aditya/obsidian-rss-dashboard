@@ -69,9 +69,7 @@ export function buildFeedItem(overrides: Partial<FeedItem> = {}): FeedItem {
 
 export function createWebpageContainer(): HTMLElement {
   installObsidianDomPolyfills();
-  const container = activeDocument.createElement("div");
-  container.className = "webpage-container";
-  return container;
+  return activeDocument.createDiv({ cls: "webpage-container" });
 }
 
 export function createWebViewerIntegrationHarness(

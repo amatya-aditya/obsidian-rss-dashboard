@@ -33,5 +33,3 @@ export { fetchFeedXml } from "./feed-parser/feed-fetch.js";
 export { CustomXMLParser } from "./feed-parser/xml-parser/custom-xml-parser.js";
 
 export { FeedParser } from "./feed-parser/feed-parser-class.js";
-
-export { FeedParserService } from "./feed-parser/feed-parser-service.js";

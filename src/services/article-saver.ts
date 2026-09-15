@@ -302,11 +302,19 @@ export class ArticleSaver {
       day: "numeric",
     });
 
+    const now = new Date();
+    const saveDate = this.formatMoment(now, "YYYY-MM-DD");
+    const saveTime12 = this.formatMoment(now, "hh:mm A");
+    const saveTime24 = this.formatMoment(now, "HH:mm");
+
     let replaced = text
       .replace(/{{date}}/g, longFormattedDate)
       .replace(/{{dateShort}}/g, this.formatMoment(validDate, "YYYY-MM-DD"))
       .replace(/{{isoDate}}/g, isoDateTime)
-      .replace(/{{isoDateTime}}/g, isoDateTime);
+      .replace(/{{isoDateTime}}/g, isoDateTime)
+      .replace(/{{saveDate}}/g, saveDate)
+      .replace(/{{saveTime12}}/g, saveTime12)
+      .replace(/{{saveTime24}}/g, saveTime24);
 
     // Handle dynamic formats: {{date:FORMAT}}
     replaced = replaced.replace(
@@ -602,7 +610,7 @@ export class ArticleSaver {
         const trimmedPart = part.trim();
         const urlMatch = trimmedPart.match(/^([^\s]+)(\s+\d+w|\s+\d+x)?$/);
         if (urlMatch) {
-          const url = urlMatch[1];
+          const url = urlMatch[1] ?? "";
           const sizeDescriptor = urlMatch[2] || "";
           return (
             this.convertToAbsoluteUrl(url.trim(), baseUrl) + sizeDescriptor

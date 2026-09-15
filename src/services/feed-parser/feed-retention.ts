@@ -1,4 +1,4 @@
-import type { Feed, FeedItem } from "../../types/types.js";
+import type { Feed, FeedItem, FeedRetentionProtections } from "../../types/types.js";
 import { canonicalizeItemIdentityUrl } from "../../utils/url-utils.js";
 
 export function getPubDateMs(pubDate: string | undefined | null): number {
@@ -7,8 +7,20 @@ export function getPubDateMs(pubDate: string | undefined | null): number {
   return Number.isFinite(ms) ? ms : 0;
 }
 
-export function isProtectedItem(item: FeedItem): boolean {
-  return !!item.saved || !!item.starred;
+export function isProtectedItem(
+  item: FeedItem,
+  protections?: FeedRetentionProtections,
+): boolean {
+  const protectStarred = protections?.protectStarred ?? true;
+  const protectSaved = protections?.protectSaved ?? true;
+  const protectTagged = protections?.protectTagged ?? false;
+  const protectUnread = protections?.protectUnread ?? false;
+
+  if (protectStarred && item.starred) return true;
+  if (protectSaved && item.saved) return true;
+  if (protectTagged && item.tags && item.tags.length > 0) return true;
+  if (protectUnread && !item.read) return true;
+  return false;
 }
 
 /**
@@ -47,15 +59,19 @@ export function mergeFeedHistoryItems(
 
 export function applyFeedRetentionLimits(
   feed: Feed,
-  options?: { nowMs?: number },
+  options?: { nowMs?: number; protections?: FeedRetentionProtections },
 ): Feed {
   const nowMs = options?.nowMs ?? Date.now();
+  const protections = options?.protections;
   const maxItemsLimit =
     typeof feed.maxItemsLimit === "number" ? feed.maxItemsLimit : undefined;
   const autoDeleteDuration =
     typeof feed.autoDeleteDuration === "number"
       ? feed.autoDeleteDuration
       : undefined;
+
+  const isProtected = (item: FeedItem): boolean =>
+    isProtectedItem(item, protections);
 
   const byNewest = (a: FeedItem, b: FeedItem): number => {
     const aMs = getPubDateMs(a.pubDate);
@@ -69,15 +85,14 @@ export function applyFeedRetentionLimits(
   if (autoDeleteDuration && autoDeleteDuration > 0) {
     const cutoffMs = nowMs - autoDeleteDuration * 24 * 60 * 60 * 1000;
     items = items.filter((item) => {
-      if (isProtectedItem(item)) return true;
-      if (!item.read) return true;
+      if (isProtected(item)) return true;
       return getPubDateMs(item.pubDate) > cutoffMs;
     });
   }
 
   if (maxItemsLimit && maxItemsLimit > 0) {
-    const protectedItems = items.filter(isProtectedItem);
-    const nonProtected = items.filter((item) => !isProtectedItem(item));
+    const protectedItems = items.filter(isProtected);
+    const nonProtected = items.filter((item) => !isProtected(item));
     nonProtected.sort(byNewest);
     const limitedNonProtected = nonProtected.slice(0, maxItemsLimit);
     items = [...protectedItems, ...limitedNonProtected];

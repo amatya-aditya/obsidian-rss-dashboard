@@ -22,7 +22,7 @@ describe("renderRulesSettingsTab()", () => {
     );
     const editor = await import("../../../src/components/keyword-filter-editor");
 
-    const containerEl = document.createElement("div");
+    const containerEl = createDiv();
     document.body.appendChild(containerEl);
     const saveSettings = vi.fn(async () => {});
     const notifyFiltersUpdated = vi.fn();

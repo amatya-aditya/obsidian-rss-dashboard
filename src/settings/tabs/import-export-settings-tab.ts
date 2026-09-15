@@ -8,8 +8,10 @@
 import { App, Modal, Notice, Setting } from "obsidian";
 import type RssDashboardPlugin from "../../../main";
 import { ImportOpmlModal } from "../../modals/import-opml-modal";
+import { ImportStarredModal } from "../../modals/import-starred-modal";
 import { ImportSuccessModal } from "../../modals/import-success-modal";
 import { AutoBackupSettings, RssDashboardSettings } from "../../types/types";
+import { settingsUiCompatibility } from "../settings-ui-compat";
 
 export class FactoryResetConfirmModal extends Modal {
   private confirmed = false;
@@ -43,15 +45,14 @@ export class FactoryResetConfirmModal extends Modal {
           this.close();
         }),
       )
-      .addButton((btn) =>
-        btn
-          .setButtonText("Factory reset")
-          .setWarning()
-          .onClick(() => {
-            this.confirmed = true;
-            this.close();
-          }),
-      );
+      .addButton((btn) => {
+        btn.setButtonText("Factory reset");
+        settingsUiCompatibility.markDestructive(btn);
+        btn.onClick(() => {
+          this.confirmed = true;
+          this.close();
+        });
+      });
   }
 
   onClose() {
@@ -94,7 +95,7 @@ export function renderImportExportSettingsTab(
   new Setting(dataSection)
     .setName("Backup & restore (data.json)")
     .setDesc(
-      "Import or export your full dashboard dataset, including preferences, folders, feeds, and stored article retrievals.",
+      'Import or export your full dashboard dataset as a single flat JSON file, including preferences, folders, feeds, and stored article retrievals. This is always the full legacy-format file, even when vault-shard storage is enabled — it will not match the small pointer file named data.json in your vault in that mode. Use "Shard data" below for a bundle that matches shard storage.',
     )
     .setHeading();
 
@@ -104,7 +105,7 @@ export function renderImportExportSettingsTab(
     .addButton((button) =>
       button
         .setIcon("upload")
-        .setButtonText("Import data.json")
+        .setButtonText("Import legacy data.json")
         .onClick(() => {
           const input = activeDocument.body.createEl("input", {
             attr: { type: "file", accept: ".json,.backup,application/json" },
@@ -138,7 +139,7 @@ export function renderImportExportSettingsTab(
     .addButton((button) =>
       button
         .setIcon("download")
-        .setButtonText("Export data.json")
+        .setButtonText("Export legacy data.json")
         .onClick(() => {
           void plugin.exportDataJson();
         }),
@@ -146,7 +147,7 @@ export function renderImportExportSettingsTab(
     .addButton((button) =>
       button
         .setIcon("copy")
-        .setTooltip("Copy data.json to clipboard")
+        .setTooltip("Copy legacy data.json to clipboard")
         .onClick(() => {
           void plugin.copyDataJsonToClipboard();
         }),
@@ -156,7 +157,9 @@ export function renderImportExportSettingsTab(
   const portableBundleSection = containerEl.createDiv();
   new Setting(portableBundleSection)
     .setName("Shard data")
-    .setDesc("Import or export shard data bundles for cross-device migration.")
+    .setDesc(
+      "Import or export shard data bundles for cross-device migration. Exports as rss-dashboard-portable-bundle.json",
+    )
     .setHeading();
 
   const portableBundleActions = new Setting(portableBundleSection);
@@ -199,13 +202,139 @@ export function renderImportExportSettingsTab(
         .onClick(() => {
           void plugin.exportPortableDataBundle();
         }),
+    )
+    .addButton((button) =>
+      button
+        .setIcon("copy")
+        .setTooltip("Copy shard data to clipboard")
+        .onClick(() => {
+          void plugin.copyPortableDataBundleToClipboard();
+        }),
     );
 
-  // ── usersettings.json ─────────────────────────────────────────────────────
+  // ── Feed bundle ───────────────────────────────────────────────────────────
+  const feedBundleSection = containerEl.createDiv();
+  new Setting(feedBundleSection)
+    .setName("Feed bundle")
+    .setDesc(
+      "Import or export feeds, folders, tags, articles, and article state — no app settings. Exports as rss-dashboard-feed-bundle.json",
+    )
+    .setHeading();
+
+  const feedBundleActions = new Setting(feedBundleSection);
+  feedBundleActions.settingEl.addClass("rss-dashboard-import-export-actions");
+  feedBundleActions
+    .addButton((button) =>
+      button
+        .setIcon("upload")
+        .setButtonText("Import feed bundle")
+        .onClick(() => {
+          const input = activeDocument.body.createEl("input", {
+            attr: { type: "file", accept: ".json,.backup,application/json" },
+          });
+          input.onchange = () => {
+            void (async () => {
+              const file = input.files?.[0];
+              if (!file) return;
+              try {
+                await plugin.importFeedBundleFromFile(file);
+                new ImportSuccessModal(
+                  plugin.app,
+                  "Feed bundle imported successfully!",
+                ).open();
+              } catch (e) {
+                new Notice(
+                  `Feed bundle import failed: ${e instanceof Error ? e.message : "invalid file"}`,
+                );
+              }
+            })();
+          };
+          input.click();
+        }),
+    )
+    .addButton((button) =>
+      button
+        .setIcon("download")
+        .setButtonText("Export feed bundle")
+        .onClick(() => {
+          void plugin.exportFeedBundle();
+        }),
+    )
+    .addButton((button) =>
+      button
+        .setIcon("copy")
+        .setTooltip("Copy feed bundle to clipboard")
+        .onClick(() => {
+          void plugin.copyFeedBundleToClipboard();
+        }),
+    );
+
+  // ── Settings bundle ───────────────────────────────────────────────────────
+  const settingsBundleSection = containerEl.createDiv();
+  new Setting(settingsBundleSection)
+    .setName("Settings bundle")
+    .setDesc(
+      "Import or export app preferences only — no feeds, folders, tags, or articles. Exports as rss-dashboard-settings-bundle.json",
+    )
+    .setHeading();
+
+  const settingsBundleActions = new Setting(settingsBundleSection);
+  settingsBundleActions.settingEl.addClass(
+    "rss-dashboard-import-export-actions",
+  );
+  settingsBundleActions
+    .addButton((button) =>
+      button
+        .setIcon("upload")
+        .setButtonText("Import settings bundle")
+        .onClick(() => {
+          const input = activeDocument.body.createEl("input", {
+            attr: { type: "file", accept: ".json,.backup,application/json" },
+          });
+          input.onchange = () => {
+            void (async () => {
+              const file = input.files?.[0];
+              if (!file) return;
+              try {
+                await plugin.importSettingsBundleFromFile(file);
+                new ImportSuccessModal(
+                  plugin.app,
+                  "Settings bundle imported successfully!",
+                ).open();
+              } catch (e) {
+                new Notice(
+                  `Settings bundle import failed: ${e instanceof Error ? e.message : "invalid file"}`,
+                );
+              }
+            })();
+          };
+          input.click();
+        }),
+    )
+    .addButton((button) =>
+      button
+        .setIcon("download")
+        .setButtonText("Export settings bundle")
+        .onClick(() => {
+          void plugin.exportSettingsBundle();
+        }),
+    )
+    .addButton((button) =>
+      button
+        .setIcon("copy")
+        .setTooltip("Copy settings bundle to clipboard")
+        .onClick(() => {
+          void plugin.copySettingsBundleToClipboard();
+        }),
+    );
+
+  // ── rss-dashboard-user-preferences.json ──────────────────────────────────────────────────
   const userSettingsSection = containerEl.createDiv();
   new Setting(userSettingsSection)
     .setName("User preferences file")
-    .setDesc("Import or export plugin preferences.")
+    .setDesc(
+      "Import or export plugin preferences. Exports as rss-dashboard-user-preferences.json",
+    )
     .setHeading();
 
   const userSettingsActions = new Setting(userSettingsSection);
@@ -214,7 +343,7 @@ export function renderImportExportSettingsTab(
     .addButton((button) =>
       button
         .setIcon("upload")
-        .setButtonText("Import usersettings.json")
+        .setButtonText("Import user preferences")
         .onClick(() => {
           const input = activeDocument.body.createEl("input", {
             attr: { type: "file", accept: ".json,.backup,application/json" },
@@ -242,7 +371,7 @@ export function renderImportExportSettingsTab(
     .addButton((button) =>
       button
         .setIcon("download")
-        .setButtonText("Export usersettings.json")
+        .setButtonText("Export user preferences")
         .onClick(() => {
           void plugin.exportUserSettingsJson();
         }),
@@ -250,7 +379,7 @@ export function renderImportExportSettingsTab(
     .addButton((button) =>
       button
         .setIcon("copy")
-        .setTooltip("Copy usersettings.json to clipboard")
+        .setTooltip("Copy user preferences to clipboard")
         .onClick(() => {
           void plugin.copyUserSettingsJsonToClipboard();
         }),
@@ -271,7 +400,7 @@ export function renderImportExportSettingsTab(
     .addButton((button) =>
       button
         .setIcon("upload")
-        .setButtonText("Import OPML")
+        .setButtonText("Import OPML/XML")
         .onClick(() => {
           new ImportOpmlModal(plugin.app, plugin).open();
         }),
@@ -290,6 +419,28 @@ export function renderImportExportSettingsTab(
           void plugin.copyOpmlToClipboard();
         }),
     );
+
+  // ── Inoreader starred articles ──────────────────────────────────────────────
+  const starredSection = containerEl.createDiv();
+  new Setting(starredSection)
+    .setName("Inoreader starred articles")
+    .setDesc(
+      "Import starred articles from an exported starred.json (the Google Reader API's 'Read later' format, as exported by Inoreader) into feeds you already subscribe to.",
+    )
+    .setHeading();
+
+  const starredActionsSetting = new Setting(starredSection);
+  starredActionsSetting.settingEl.addClass(
+    "rss-dashboard-import-export-actions",
+  );
+  starredActionsSetting.addButton((button) =>
+    button
+      .setIcon("star")
+      .setButtonText("Import starred articles from Inoreader")
+      .onClick(() => {
+        new ImportStarredModal(plugin.app, plugin).open();
+      }),
+  );
 
   // ── Auto Backups ──────────────────────────────────────────────────────────
   const backupSection = containerEl.createDiv();
@@ -347,22 +498,20 @@ export function renderImportExportSettingsTab(
 
   const factoryResetActions = new Setting(factoryResetSection);
   factoryResetActions.settingEl.addClass("rss-dashboard-import-export-actions");
-  factoryResetActions.addButton((button) =>
-    button
-      .setIcon("rotate-ccw")
-      .setButtonText("Factory reset")
-      .setWarning()
-      .onClick(() => {
-        void (async () => {
-          const confirmModal = new FactoryResetConfirmModal(plugin.app);
-          confirmModal.open();
-          const shouldReset = await confirmModal.waitForClose();
-          if (!shouldReset) {
-            return;
-          }
+  factoryResetActions.addButton((button) => {
+    button.setIcon("rotate-ccw").setButtonText("Factory reset");
+    settingsUiCompatibility.markDestructive(button);
+    button.onClick(() => {
+      void (async () => {
+        const confirmModal = new FactoryResetConfirmModal(plugin.app);
+        confirmModal.open();
+        const shouldReset = await confirmModal.waitForClose();
+        if (!shouldReset) {
+          return;
+        }
 
-          await plugin.performFactoryReset();
-        })();
-      }),
-  );
+        await plugin.performFactoryReset();
+      })();
+    });
+  });
 }

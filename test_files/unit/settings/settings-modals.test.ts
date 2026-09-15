@@ -4,6 +4,7 @@ import {
   ApplyMaxItemsToExistingFeedsModal,
   ConfirmDeleteModal,
   HighlightWordEditModal,
+  RetentionChangeConfirmModal,
   TemplateNameModal,
 } from "../../../src/settings/modals/settings-modals";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
@@ -190,5 +191,51 @@ describe("ApplyMaxItemsToExistingFeedsModal", () => {
     cancelBtn.click();
 
     await expect(resultPromise).resolves.toBe("cancel");
+  });
+});
+
+describe("RetentionChangeConfirmModal", () => {
+  it("warns about permanent removal and resolves Apply now", async () => {
+    const modal = new RetentionChangeConfirmModal(obsidian.App.createMock());
+    const resultPromise = modal.waitForClose();
+
+    modal.open();
+
+    expect(modal.contentEl.textContent).toContain("permanently removed");
+    expect(
+      Array.from(modal.contentEl.querySelectorAll("button")).map(
+        (button) => button.textContent,
+      ),
+    ).toEqual(["Cancel", "Apply on next refresh", "Apply now"]);
+
+    const applyNowButton = Array.from(
+      modal.contentEl.querySelectorAll("button"),
+    ).find((button) => button.textContent === "Apply now") as HTMLButtonElement;
+    applyNowButton.click();
+
+    await expect(resultPromise).resolves.toBe("apply-now");
+  });
+
+  it("resolves deferred application and escape as cancel", async () => {
+    const deferredModal = new RetentionChangeConfirmModal(
+      obsidian.App.createMock(),
+    );
+    const deferredResult = deferredModal.waitForClose();
+    deferredModal.open();
+    const deferredButton = Array.from(
+      deferredModal.contentEl.querySelectorAll("button"),
+    ).find(
+      (button) => button.textContent === "Apply on next refresh",
+    ) as HTMLButtonElement;
+    deferredButton.click();
+    await expect(deferredResult).resolves.toBe("apply-on-next-refresh");
+
+    const cancelledModal = new RetentionChangeConfirmModal(
+      obsidian.App.createMock(),
+    );
+    const cancelledResult = cancelledModal.waitForClose();
+    cancelledModal.open();
+    cancelledModal.close();
+    await expect(cancelledResult).resolves.toBe("cancel");
   });
 });

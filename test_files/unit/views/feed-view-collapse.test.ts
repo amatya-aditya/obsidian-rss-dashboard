@@ -72,6 +72,7 @@ function createContext(overrides?: Partial<BaseViewContext>): BaseViewContext {
     settings: {
       highlights: settings.highlights,
       display: settings.display,
+      articleGroupBy: "feed",
       collapsedFeedSections: settings.collapsedFeedSections,
     },
     highlightService: mockHighlightService,

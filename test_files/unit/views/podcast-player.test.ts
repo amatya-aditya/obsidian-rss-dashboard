@@ -38,7 +38,7 @@ describe("PodcastPlayer", () => {
 
   describe("cover artwork", () => {
     it("keeps the styled placeholder visible until cover artwork loads", () => {
-      const container: HTMLDivElement = document.createElement("div");
+      const container: HTMLDivElement = createDiv();
       document.body.appendChild(container);
       const createElement = vi.spyOn(activeDocument, "createElement");
       const app = new App();
@@ -67,12 +67,12 @@ describe("PodcastPlayer", () => {
   });
 
   describe("sorting", () => {
-    it("renders only a five-episode window around the active episode", () => {
-      const container: HTMLDivElement = document.createElement("div");
+    it("renders a bounded episode list and loads additional episodes without recreating audio", () => {
+      const container: HTMLDivElement = createDiv();
       document.body.appendChild(container);
       const app = new App();
       const player = new PodcastPlayer(container, app, "obsidian");
-      const episodes = Array.from({ length: 9 }, (_, index) => ({
+      const episodes = Array.from({ length: 25 }, (_, index) => ({
         ...baseEpisode(),
         title: `Ep ${index + 1}`,
         guid: `guid-${index + 1}`,
@@ -81,22 +81,25 @@ describe("PodcastPlayer", () => {
 
       player.loadEpisode(episodes[4], episodes);
 
-      expect(container.querySelectorAll(".playlist-episode-row")).toHaveLength(5);
-      expect(container.querySelector(".playlist-window-range")?.textContent).toBe(
-        "Episodes 3–7 of 9",
+      expect(container.querySelectorAll(".episode-list-row")).toHaveLength(20);
+      expect(container.querySelector(".episode-list-range")?.textContent).toBe(
+        "Showing 20 of 25",
       );
-      expect(container.querySelector(".playlist-episode-row.active")?.getAttribute("data-episode-guid")).toBe(
+      expect(container.querySelector(".episode-list-row.active")?.getAttribute("data-episode-guid")).toBe(
         "guid-5",
       );
 
       const audioBeforePaging = container.querySelector("audio");
-      (container.querySelector(".playlist-next-window") as HTMLButtonElement).click();
+      (container.querySelector(".episode-list-load-more") as HTMLButtonElement).click();
       expect(container.querySelector("audio")).toBe(audioBeforePaging);
-      expect(container.querySelector(".playlist-episode-row.active")).toBeNull();
+      expect(container.querySelectorAll(".episode-list-row")).toHaveLength(25);
+      expect(container.querySelector(".episode-list-row.active")?.getAttribute("data-episode-guid")).toBe(
+        "guid-5",
+      );
     });
 
-    it("does not recreate the audio element when sorting the playlist", () => {
-      const container: HTMLDivElement = document.createElement("div");
+    it("does not recreate the audio element when sorting the episode list", () => {
+      const container: HTMLDivElement = createDiv();
       document.body.appendChild(container);
       const app = new App();
       const player = new PodcastPlayer(container, app, "obsidian");
@@ -132,8 +135,8 @@ describe("PodcastPlayer", () => {
   });
 
   describe("live tag updates", () => {
-    it("refreshTags + refreshPlaylistTags update player strip and playlist row", () => {
-      const container: HTMLDivElement = document.createElement("div");
+    it("refreshTags + refreshPlaylistTags update player strip and episode-list row", () => {
+      const container: HTMLDivElement = createDiv();
       document.body.appendChild(container);
       const app = new App();
       const player = new PodcastPlayer(container, app, "obsidian");
@@ -151,11 +154,12 @@ describe("PodcastPlayer", () => {
 
       expect(container.querySelector(".podcast-tag-strip")).toBeNull();
       const row = container.querySelector<HTMLElement>(
-        `.playlist-episode-row[data-episode-guid="${ep1.guid}"]`,
+        `.episode-list-row[data-episode-guid="${ep1.guid}"]`,
       );
       expect(row).not.toBeNull();
 
       // Add tag assignment
+      ep1.tags = ep1.tags ?? [];
       ep1.tags.push({ name: "NewTag", color: "#ff0000" });
       player.refreshTags();
       player.refreshPlaylistTags(ep1.guid);
@@ -166,7 +170,7 @@ describe("PodcastPlayer", () => {
       expect(playerTag?.textContent).toBe("NewTag");
 
       const rowTag = container.querySelector(
-        `.playlist-episode-row[data-episode-guid="${ep1.guid}"] .playlist-ep-tag`,
+        `.episode-list-row[data-episode-guid="${ep1.guid}"] .episode-list-row-tag`,
       );
       expect(rowTag?.textContent).toBe("NewTag");
 
@@ -177,7 +181,7 @@ describe("PodcastPlayer", () => {
 
       expect(container.querySelector(".podcast-tag-strip")).toBeNull();
       const rowTagsAfter = container.querySelector(
-        `.playlist-episode-row[data-episode-guid="${ep1.guid}"] .playlist-ep-meta-tags`,
+        `.episode-list-row[data-episode-guid="${ep1.guid}"] .episode-list-row-tags`,
       );
       expect(rowTagsAfter).toBeNull();
     });
@@ -185,7 +189,7 @@ describe("PodcastPlayer", () => {
 
   describe("episode details section", () => {
     it("renders the collapsible details section when notes exist", () => {
-      const container: HTMLDivElement = document.createElement("div");
+      const container: HTMLDivElement = createDiv();
       document.body.appendChild(container);
       const app = new App();
       const player = new PodcastPlayer(container, app, "obsidian");
@@ -202,7 +206,7 @@ describe("PodcastPlayer", () => {
     });
 
     it("prefers content over description when meaningfully different", () => {
-      const container: HTMLDivElement = document.createElement("div");
+      const container: HTMLDivElement = createDiv();
       document.body.appendChild(container);
       const app = new App();
       const player = new PodcastPlayer(container, app, "obsidian");
@@ -221,7 +225,7 @@ describe("PodcastPlayer", () => {
     });
 
     it("sanitizes show notes (removes scripts/events, blocks javascript: links)", () => {
-      const container: HTMLDivElement = document.createElement("div");
+      const container: HTMLDivElement = createDiv();
       document.body.appendChild(container);
       const app = new App();
       const player = new PodcastPlayer(container, app, "obsidian");
@@ -262,7 +266,7 @@ describe("PodcastPlayer", () => {
     });
 
     it("renders metadata rows only when fields exist", () => {
-      const container: HTMLDivElement = document.createElement("div");
+      const container: HTMLDivElement = createDiv();
       document.body.appendChild(container);
       const app = new App();
       const player = new PodcastPlayer(container, app, "obsidian");
@@ -310,7 +314,7 @@ describe("PodcastPlayer", () => {
 
   describe("default play speed", () => {
     it("initializes with the given defaultPlaySpeed", () => {
-      const container: HTMLDivElement = document.createElement("div");
+      const container: HTMLDivElement = createDiv();
       document.body.appendChild(container);
       const app = new App();
       const player = new PodcastPlayer(
@@ -342,7 +346,7 @@ describe("PodcastPlayer", () => {
 
   describe("autoplay behavior", () => {
     it("stops playing by default at the end of an episode", async () => {
-      const container: HTMLDivElement = document.createElement("div");
+      const container: HTMLDivElement = createDiv();
       document.body.appendChild(container);
       const app = new App();
       const player = new PodcastPlayer(container, app, "obsidian");
@@ -373,7 +377,7 @@ describe("PodcastPlayer", () => {
     });
 
     it("advances to next episode when Autoplay is enabled", async () => {
-      const container: HTMLDivElement = document.createElement("div");
+      const container: HTMLDivElement = createDiv();
       document.body.appendChild(container);
       const app = new App();
       const player = new PodcastPlayer(container, app, "obsidian");
@@ -390,7 +394,7 @@ describe("PodcastPlayer", () => {
 
       // Enable autoplay via the toggle checkbox
       const autoplayCheckbox = container.querySelector(
-        ".playlist-autoplay-checkbox",
+        ".podcast-autoplay-checkbox",
       ) as HTMLInputElement;
       expect(autoplayCheckbox).not.toBeNull();
       autoplayCheckbox.click();
@@ -414,7 +418,7 @@ describe("PodcastPlayer", () => {
     it("starts tracking on play and flushes on pause", () => {
       vi.useFakeTimers();
 
-      const container: HTMLDivElement = document.createElement("div");
+      const container: HTMLDivElement = createDiv();
       document.body.appendChild(container);
       const app = new App();
       const onPlaybackProgress = vi.fn();

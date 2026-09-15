@@ -2,6 +2,68 @@
 
 ### Features
 
+- Added an **Import starred articles** entry point next to Import OPML that reads an exported `starred.json` (Inoreader / Google Reader API "Read later" format) and previews matching starred items grouped by source feed with per-article and per-feed selection before inserting the selected articles — with `starred` set and the export's read state preserved — into their feed. For feeds you already subscribe to, articles are inserted directly. For feeds you don't, their preview row is marked with a trailing `*`, and on import the feed is created in the folder set by the Options panel's **New-feed folder** field (defaulting to **Inoreader starred imports**, shared by every new feed in the run); a single background fetch then populates its metadata and current items, and the historical starred item is inserted and marked starred/read immediately, without waiting on that fetch. [GH Issue #234](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/234)
+- Added an **Unable to import (N)** section to the Import starred articles preview that lists `starred.json` entries the importer could not turn into a candidate at all — missing a source feed identifier, or missing both a canonical and an alternate article link — each with its title (or raw id) and a specific reason, instead of silently dropping them. [GH Issue #234](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/234)
+- Imported starred articles now carry their exported `label/X` categories as tags, reusing an existing tag's color when the label name already matches one in the tag palette (case-insensitive) and otherwise adding the label to the tag palette with the plugin's default tag color, so it appears immediately in the normal tag-filter UI. `starred`/`read`/`reading-list` state categories continue to only affect the imported article's `starred`/`read` flags and are never turned into tags. [GH Issue #234](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/234)
+- Re-running **Import starred articles** against the same or an updated `starred.json` export is now safe: an article already imported is matched by its guid/link identity and updated in place — any newly-present label is merged into its tags and `starred` is re-confirmed — instead of being inserted again as a duplicate, and `read`/`saved`/other locally-edited state on the existing article is left untouched. [GH Issue #234](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/234)
+- Added an **Options** panel to the Import starred articles preview, positioned above **Preview**, containing a **New-feed metadata refresh** toggle that is off by default. When on, a newly created feed's existing single background metadata/current-items fetch behaves exactly as before; when off, that fetch never runs and the new feed is created using only the export's own title/site URL, picking up real metadata on its next normal refresh. The source feed itself is always created immediately either way, so the imported article always has somewhere to live. Each option's description text visibly dims while its toggle is off. [GH Issue #234](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/234)
+- Added a **New-feed folder** field to the Import starred articles Options panel — a type-ahead folder combobox (the same one Add Feed/Edit Feed use) defaulting to **Inoreader starred imports** — that sets the single shared destination every new feed created by the import lands in. The preview shows brief helper text explaining that a new feed's row is marked with a trailing `*`, whenever the export contains at least one new feed. [GH Issue #234](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/234)
+- Added step-by-step instructions for obtaining `starred.json` from Inoreader (with a direct link to its Import, export & backup settings) to the Import starred articles modal, shown above the file picker before a file is selected — Inoreader only offers it bundled inside a full account archive alongside `subscriptions.xml` and a README, so first-time users previously had no way to know where that file even comes from. [GH Issue #234](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/234)
+- Replaced the podcast player's misleading playlist browser with a bounded episode list, incremental Load more control, current-episode recovery, and compact sorting while retaining existing player behavior; on mobile, speed, volume, and sleep timer controls form a centered, evenly spaced row, and the rounded sleep control shows an active countdown inline. [GH Issue #207](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/207)
+- Added a red Delete button with a trash can icon to the bottom-right of the Edit feed modal, resized the Cancel button to sit neatly alongside it on the same row on desktop, configured actions to stack vertically on mobile, and updated the Save button to match the purple Load button color in both the Add feed and Edit feed modals.
+- Added `{{saveDate}}` (`YYYY-MM-DD`), `{{saveTime12}}` (`hh:mm A`), and `{{saveTime24}}` (`HH:mm`) template variables that insert current local date and time when saving an article to Obsidian.
+- Added **Date > Feed** and **Folder > Feed** grouping options to the Grouping selector. Selecting **Date** or **Folder** now renders a flat list of article cards within each date/folder group (no nested feed headers), while **Date > Feed** or **Folder > Feed** renders collapsible per-feed sections nested under each date or folder group header. [GH Issue #195](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/195)
+- Added **Move selection to folder** to the sidebar multi-selection context menu, allowing users to relocate multiple selected feeds and folders directly to a chosen folder or root without drag-and-drop.
+- Added tap-to-expand image viewing in the article Reader view, opening an interactive full-resolution Lightbox with progressive loading, 1:1 zoom toggling, pan gestures, mobile swipe-to-dismiss, and smart resolution that retrieves original unconstrained media rather than cached or downscaled thumbnails. [GH Issue #202](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/202)
+- Added **AI Weekly** (`https://aiweekly.co/feed`) to the Discover catalog under Technology → Artificial Intelligence; it is a free curated newsletter covering models, agents, funding, policy, research, and people shaping AI, published roughly three times per week. [GH Issue #206](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/206)
+- Added configurable protection toggles for starred, saved, tagged, and unread articles under Data Retention in General Settings. Protections apply to automatic expiration and max-item trimming; when reducing protections or shortening retention, users can apply pruning immediately, defer it to the next refresh, or cancel. Existing users keep starred and saved protections enabled by default. [GH Issue #213](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/213)
+- Opening a starred-imported article in the reader whose full content has never been fetched, or whose last fetch attempt failed, now shows a cached-preview banner naming the `starred.json` import date/time, with a **Fetch now** action alongside the existing **Open in Browser** action, instead of silently auto-fetching on open. Clicking **Fetch now** reuses the existing full-article-fetch pipeline; a successful fetch replaces the article's content and, when the article is starred or saved, persists it, while a failed fetch marks the article so the banner can distinguish "failed" from "never attempted" on the next open. Reader behavior for articles that didn't come from a starred import is unaffected. [GH Issue #234](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/234)
+- Removed the Import starred articles preview's opt-in **Fetch full article content** toggle and the eager, at-import-time full-content fetch it triggered, along with the import-time failure-summary screen that toggle used to show. Imported articles now always start in the "unfetched" content state and rely solely on the reader's **Fetch now** action for full content beyond the export's own summary. [GH Issue #234](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/234)
+- Added an **Import labels as tags** toggle, on by default, to the Import starred articles Options panel. Turning it off means imported articles carry no Inoreader-label-derived tags and no new entries are added to the tag palette; turning it back on restores the existing label-to-tag mapping behavior unchanged. Before importing, an inline **New tags (N)** section — matching the **Unable to import (N)** section's visual pattern — lists every distinct tag that would be added to the tag palette across all currently selected articles, updating live as articles are selected/deselected or the toggle is switched. [GH Issue #234](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/234)
+- Replaced the meaningless **Read**/**Unread** text on each Import starred articles preview row with a tag chip showing that article's currently assigned tags, reusing the same single-row chip renderer and "+N" overflow indicator already used on dashboard article cards. Clicking a chip opens the same tag-editing dropdown used from the article list and reader view, pre-populated with that article's tags and wired directly against the underlying candidate article, so adding, removing, or creating a tag there — including on the fly — carries through to the actual imported item with no separate sync step, and any newly created tag surfaces in the existing **New tags (N)** confirmation section rather than a second one. [GH Issue #234](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/234)
+- Added a user-facing [Import Starred Articles Guide](docs/starred-import-guide.md), linked from the README, explaining what the feature imports, both Options toggles and their defaults, the reader's manual **Fetch now** flow, per-article tagging, and the reasoning behind making feed-metadata refresh and full-content fetch off-by-default/manual. [GH Issue #234](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/234)
+- Renamed the feature and every entry point to **Import starred articles from Inoreader** (it only understands Inoreader's `starred.json` export today), and gave it command-palette (`Import starred articles from Inoreader`) and Feed Manager button entry points alongside the existing Settings-tab button, matching OPML import's existing discoverability. The Feed Manager's button row is now split into a primary row (Add new feed, Import OPML, Export OPML, Import starred articles from Inoreader) and a destructive row, which also gains a new **Delete feeds + folders** button that wipes the entire sidebar (all feeds and folders) rather than just feeds, behind the same confirmation pattern as the existing Delete all feeds button. [GH Issue #234](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/234)
+- Renamed "Import OPML" to "Import OPML/XML" in the Feed Manager button, the Import/Export settings button, the command palette command, and the importer modal's heading, since the importer already accepts `.xml` files (some export tools, including Inoreader's account archive, name their OPML export `subscriptions.xml`). Purely a copy change — no behavioral change to what the importer accepts. [GH Issue #244](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/244)
+- Added **Feed bundle** (feeds, folders, tags, articles, and article state — no app settings) and **Settings bundle** (app preferences only — no feeds, folders, tags, or articles) as independently exportable/importable JSON scopes, alongside the existing Portable data bundle (both together) and OPML export. Import/export controls for both new bundles are available in the same places as the existing Portable data bundle controls, on both the Storage settings tab and the Import/Export settings tab, with no desktop/mobile restriction. [GH Issue #254](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/254)
+- Renamed the exported user-settings file from `usersettings.json` to `rss-dashboard-user-preferences.json` to match its "User preferences file" section heading, and renamed that section's Import/Export buttons from "Import/Export usersettings.json" to "Import user preferences"/"Export user preferences" for the same reason. Auto-backup of this file still recognizes an existing `usersettings.json` on disk as a fallback. Added copy-to-clipboard buttons to the Shard data (Portable bundle), Feed bundle, and Settings bundle sections of the Import/Export settings tab, matching the copy button already present for the legacy data.json, user preferences, and OPML sections; and each of the Feed bundle, Settings bundle, and User preferences file section descriptions now names its default export filename. [GH Issue #254](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/254)
+
+### Fixes
+
+- Fixed the Discover tab's "Add new folder" action creating the folder but not adding the feed to it, requiring a second "Add to..." round-trip; submitting the create-folder dialog now creates the folder and assigns the feed in one step, matching every other item in the picker.
+- Fixed the Discover tab's folder picker staying fully clickable behind its own "Add new folder" dialog — the picker's stacking order was high enough to sit above the dialog's backdrop, so folders could still be selected through it. The picker is now visibly and functionally disabled for as long as that dialog is open.
+- Fixed the Discover tab's folder popup closing itself the moment "Add new folder" was submitted or cancelled via a real mouse click on OK/Cancel (as opposed to pressing Enter in the input), leaving nothing for the user to click and forcing them to reopen "Add to..." from scratch. The dialog's own click was bubbling up to the popup's outside-click listener; it's now stopped one step up, after the dialog's own button handler runs, so both the dialog and the popup behave correctly.
+- Fixed several feeds (e.g. YouTube and podcast feeds, or any feed added via **Add all feeds**) silently landing in a media-type default folder ("Videos", "Podcast") or in "Uncategorized" even when the user explicitly chose **Root (no folder)**. An explicit empty folder was being treated the same as "no folder specified" in `FeedParser.parseFeed` and `BackgroundImportService.createPlaceholderFeed`; Root is now preserved as the deliberate choice it is. [GH Issue #243](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/243)
+- Fixed the Discover tab's "Add to..." and "Add all feeds" folder picker dead-ending with "No folders found" and no way to proceed when the vault has zero folders. The picker now always offers **Root (no folder)** (adds the feed without assigning it to a folder) and **Add new folder** above the folder list. **Add new folder** only creates the folder — it does not assign the feed(s) to it; the picker stays open with the new folder highlighted in the list so assigning it is a separate, explicit click. [GH Issue #243](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/243)
+- Fixed a misleading folder label in the Import OPML preview: a folder row with no name assigned displayed the literal placeholder value `Uncategorized`, implying a folder by that name would be created, when the feed actually lands with no parent folder in the sidebar. The preview now displays `<None>` for this case instead; the underlying default value and its existing "treat as root" handling in `folder-service.ts` are unchanged. [GH Issue #234](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/234)
+- Fixed the Import starred articles preview so turning **Import labels as tags** off correctly hides label-derived tag chips from each article row (previously only the **New tags (N)** section reacted to the toggle, leaving stale label chips visible), while a tag added by hand through that same row's chip now always survives regardless of the toggle's state — previously toggling labels off could silently discard a manually-added tag too, since both were stored in the same untracked list. [GH Issue #234](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/234)
+- Raised the minimum supported Obsidian version to 1.8.7 and corrected every release compatibility mapping to prevent unsupported installations from receiving an unverified build. CI now verifies the support floor and that the current release mapping matches its manifest.
+- Fixed the Storage settings tab's **Storage mode** description showing the literal text `[object DocumentFragment]` instead of its Legacy JSON / Shard storage v1 / Shard storage v2 explainer. Obsidian's `Setting.setDesc()` only appends a `DocumentFragment` when an `instanceof` check against it succeeds, which fails when the fragment was built via a different window's realm (e.g. a popped-out window); the description is now appended directly, sidestepping that check entirely. [GH Issue #248](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/248)
+- Fixed automatic refresh for feeds using the global interval so it refreshes all eligible feeds in one batch instead of staggered per-feed batches. In-progress batches now update only their progress text and suppress image-cache-triggered dashboard rebuilds, preventing repeated notifications, listing flashes, UI lag, and dashboard scroll resets. Stopping an automatic global batch now cancels its visible work promptly and defers its retry to the next global interval. [GH Issue #208](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/208)
+- Preserved Obsidian 1.8.7 compatibility while modernizing settings controls, destructive actions, and slider value displays across supported app versions. [GH Issue #228](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/228)
+- Localized the documented legacy settings-renderer deprecation allowance so all other code remains checked while RSS Dashboard supports Obsidian 1.8.7 through 1.12.x. [GH Issue #232](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/232)
+- Routed destructive settings, modal, and feed-management confirmations through version-aware compatibility controls while preserving their existing actions and cancellation behavior. [GH Issue #230](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/230)
+- Fixed settings sliders so supported legacy Obsidian versions show current formatted values while dragging, using the keyboard, and synchronizing paired inputs; modern Obsidian versions retain the native value display. [GH Issue #231](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/231)
+- Added a version-aware settings UI compatibility seam for destructive actions and formatted slider values while preserving support for Obsidian 1.8.7. [GH Issue #229](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/229)
+- Fixed automatic retention so unread articles older than a feed's auto-delete cutoff are deleted by default instead of accumulating indefinitely when the source feed retains them. [GH Issue #213](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/213)
+- Fixed Discover view pagination rendering pages vertically stacked by structuring pagination into horizontal page navigation buttons (`.rss-dashboard-pagination-pages`), utility controls (`.rss-dashboard-pagination-controls`) with a styled page-size wrapper, and results count, matching the Dashboard view layout.
+- Fixed an issue where dragging and dropping multiple selected feeds in the sidebar only moved a single feed; dragging now moves all selected feeds together, preserving their relative order across folder headers, folder lists, root, and feed reordering drops.
+- Fixed right-clicking a feed whose selection came only from its parent folder being selected (rather than the feed itself appearing in the selection) opening the single-feed context menu instead of the bulk selection menu; choosing "Delete feed" there deleted just that one feed while the rest of the visually-selected folder was left untouched. The multi-selection check now also recognizes feeds covered by a selected ancestor folder, matching the same logic already used to render their "selected" styling.
+- Fixed shift-click range-selecting two or more feeds whose `folder` field names a folder that no longer exists (they render under the root section since it's not a real path) silently collapsing the selection into a folder selection for that stale name. The delete-selection confirmation then read "delete 1 selected folder(s)..." even though no folder was selected — only feeds. Range-select now only promotes a fully-covered folder into a folder selection when that folder still actually exists.
+- Fixed Feed View grouping so **Grouping: Disabled** renders a flat article sequence and **Grouping: Feed** displays one collapsible header per feed. [GH Issue #195](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/195)
+- Removed Nitter integration, automatic X/Twitter-to-Nitter RSS feed conversion, and obsolete Twitter/X settings and fallbacks following the permanent shutdown of Nitter instances and the project repository on August 24, 2026 due to cease and desist demands from X Corp. (https://github.com/zedeus/nitter). Attempting to add an `x.com`, `twitter.com`, or any `nitter.*` URL now shows a clear error message explaining the situation and suggesting third-party RSS bridges (e.g. RSSHub) as an alternative.
+- Fixed `document.createElement` occurrences by migrating to Obsidian `createEl`, `createDiv`, and `createSpan` DOM helpers.
+- Fixed community plugin audit warning for unknown CSS type selector `mjx-container` by using class and attribute selectors (`[class*="mjx-container"]`, `.MathJax`) in `src/styles/articles.css` and `src/styles/reader.css`.
+- Fixed unnecessary type assertion in `src/utils/settings-loader.ts` by updating `migrateDefaultFilterToDashboardMultiFilters` to accept typed `DisplaySettings`.
+- Fixed the global-refresh Stop button not appearing on mobile/tablet: the sidebar modal's polling loop now applies the `stop` class and swaps the icon to `square-stop` when the refresh is cancellable, matching the desktop sidebar behaviour.
+
+### Development and compliance
+
+- Aligned repository tooling with the current Obsidian sample-plugin baseline: TypeScript now targets ES2021, Node-only maintenance scripts are linted under a scoped tooling policy, and repeat version bumps preserve an existing `versions.json` compatibility mapping. Added regression coverage for both version-bump paths. [GH Issue #240](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/240)
+
+## 2.6.0 - August 24, 2026
+
+### Features
+
 - Added a paged podcast playlist that renders a five-episode window around the active episode, with order-relative browsing controls, a return-to-current action for large feeds, and placeholder-first artwork loading that avoids empty or broken-image boxes. This should alleviate performance issues for feeds with many episodes. [GH Issue #183](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/183)
 - Added opt-in local caching for Dashboard Card and Feed preview images, with a 1 MiB per-image limit, a synchronized 1–1024 MiB slider/input or unlimited aggregate cap, cache management controls, remote-image fallback, cache warming after feed additions and OPML/background imports, protection against refreshes overwriting Discover feeds that are still hydrating, and automatic cache cleanup when all feeds are deleted. [GH Issue #177](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/177)
 - Added a Stop button on the All feeds sidebar row during global refreshes, allowing users to cancel an in-progress refresh, including when only one eligible feed remains. Cancelled feeds do not advance their refresh timestamps, and in-progress fetches are aborted via an AbortSignal. Failed-feed retries and folder/selected/tag/due refreshes remain non-cancellable. [GH Issue #173](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/173)
@@ -71,6 +133,7 @@ Added collapsible headers when viewing feeds in "feed" grouping ([GH Issue #149]
 ### Plugin Compliance
 
 - Upon submission of 2.4.0, the plugin was flagged with 455 issues found by automated scans. The [2.4.0 audit remediation plan](docs/archive/investigations/2026/2.4.0-audit/2.4.0_audit_remediation_plan.md) was proposed and implemented. The !important warnings all have comments explaining their usage.
+- Upon submission of 2.4.0, the plugin was flagged with 455 issues found by automated scans. The [2.4.0 audit remediation plan](docs/archive/investigations/2026/2.4.0-audit/2.4.0_audit_remediation_plan.md) was proposed and implemented. The !important warnings all have comments explaining their usage.
 - Additional CI/commit blockers were added to the repo which will disallow future commits that violate eslint rules in order to remain compliant
 
 ## 2.4.0 - July 1, 2026
@@ -139,10 +202,10 @@ Added collapsible headers when viewing feeds in "feed" grouping ([GH Issue #149]
 - Added three ways to auto-tag articles: by feed source, by individual feed, and by folder. Tags can be combined, with folders cascading to descendant feeds.
 - **Feed source**: Added to `Settings > Tags > Auto Tagging` - you can now enable multi-tag auto-tagging based on the feed source (for example, apply "RSS" to all RSS feeds, or "YouTube" to all YouTube feeds, or apply your own custom tags).
 - **Individual feed**: Added a new "Custom auto-tags" dropdown in the Add/Edit feed window under the existing "Feed options" dropdown:
-
   - If feed-source auto-tags are enabled for that feed (via Settings), the individual feed tags are applied on top of the feed-source tags.
   - For example, if you have enabled feed-source auto-tags and applied "RSS" to all RSS feeds, and you also apply the individual feed tag "News" to that feed, all articles from that feed will be tagged with both "RSS" and "News".
   - If no feed-source auto-tags are configured, only the individual feed tags apply.
+
 - Within the Edit feed window, the "Feed options" dropdown now shows a section for inherited feed-source auto-tags where applicable.
 - **Folder auto-tags**: Right-click any folder in the sidebar and choose **Auto tag feeds in folder...** to assign tags that cascade to all feeds in that folder and its descendants. Tags are stored on the configured folder only; child folders inherit parent tags dynamically. Use **Existing articles** to sync folder auto-tags to stored articles (adds new rule tags and removes deselected rule tags while leaving other tags intact) or remove all tags in scope. See [docs/tags-primer.md](docs/tags-primer.md) for precedence and examples.
 
@@ -190,10 +253,10 @@ Added collapsible headers when viewing feeds in "feed" grouping ([GH Issue #149]
 
 - Remediation work on latest Community Plugin Audit (https://community.obsidian.md/plugins/rss-dashboard) - now standing at 72% compliance (up from 46% last version).
 - **Dynamic `<script>` element creation**
-
   - Flagged as a red/critical risk due to 2.3.0's media progress saving feature (specifically Youtube iFrame embeds)
   - Rewrote how the progress is stored that adheres to Obsidian's best practices and Youtube SDK API
   - Added CI/CD ESLint rule to prevent dynamic `<script>` element creation in the future
+
 - Completely eliminated all Node.js/Electron `fs` and `path` usages from the production plugin code
 - Completely eliminated all superflous !important declarations; added comments to remaining declarations that pass audit and deemed necessary
 
@@ -245,7 +308,6 @@ Added collapsible headers when viewing feeds in "feed" grouping ([GH Issue #149]
 ### Development
 
 - **Compliance Audit: 45% → 100% Complete** ✅
-
   - Completed all items on the Obsidian Community Plugin audit scorecard.
   - Resolved all 37 "Disabling '@typescript-eslint/no-explicit-any'" occurrences by adding descriptive audit guardrail comments throughout the codebase.
   - Eliminated all unsafe `innerHTML` assignments in production rendering paths (replaced with `sanitizeAndAppendHtml`).
@@ -254,10 +316,12 @@ Added collapsible headers when viewing feeds in "feed" grouping ([GH Issue #149]
   - Removed all deprecated Clipboard API fallbacks.
   - Final validation: ESLint clean (0 errors, 0 warnings), 130/130 test files passing (1180 tests).
   - See: [docs/plugin-scorecard.md](docs/plugin-scorecard.md)
+
 - Relaxed eslint.config.mjs to now include testing files.
 - Completed full burn-down of test-file ESLint backlog (2686 errors → 0 errors across 130 test files).
 - Resolved all type-safety debt in test suite with boundary-cast pattern and strict interface definitions.
 - Aligned `Notice` stub behavior with modern Obsidian API to resolve 21 unit test regressions.
+- Added a new `Compliance Declarations (Audit Guardrails)` policy section to `CONTRIBUTING.md` with required pre-PR compliance checks.
 - Added a new `Compliance Declarations (Audit Guardrails)` policy section to `CONTRIBUTING.md` with required pre-PR compliance checks.
 - Added `docs/development/compliance-patterns.md` as the canonical implementation reference for audit-sensitive patterns (safe HTML rendering, boundary typing, popout-safe APIs, and DOM helper conventions).
 - Added root `.instructions.md` and linked policy references in README/development docs/scorecard so AI-assisted and human contributions follow the same compliance guardrails.
@@ -278,16 +342,15 @@ Added collapsible headers when viewing feeds in "feed" grouping ([GH Issue #149]
 ### Features
 
 - **"Add All" Button added to Discover page**
-
   - Added a new "Add All" button to the Discover page header. This button adds all feeds from the current page to the user's feed list.
-- **Sort feeds by unread count**
 
+- **Sort feeds by unread count**
   - Added a new option to the 'Sort' icon which organizes feeds by unread count.
   - Two options: High to Low / Low to High
+
 - Added new "inline" reader view option to the general settings which opens the article in the same tab as the dashboard. (GH[#100](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/100))
 - Added a new "external browser" reader view location option in General settings so article and media opens can bypass the in-app reader and launch in the system browser. (GH[#89](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/89))
 - **Flexible Date Formatting for Templates** (GH[#102](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/102)):
-
   - Added support for custom date formats in article templates using Moment.js.
   - New variables: `{{dateShort}}` (renders as `YYYY-MM-DD`) and parameterized `{{date:FORMAT}}` (e.g., `{{date:YYYY/MM/DD HH:mm}}`).
   - Improved settings UI for Article Saving with a readable, row-by-row guide of all available template variables.
@@ -319,23 +382,22 @@ Added collapsible headers when viewing feeds in "feed" grouping ([GH Issue #149]
 ### New Features
 
 - **Sidebar Toolbar Divider**:
-
   - Decoupled the vertical divider from the discover icon - now a standalone, configurable element.
   - Added "Divider" to the icon visibility settings in Display tab.
   - The divider can now be enabled/disabled and reordered among other icons via drag-and-drop.
   - Default position is between Discover and Add Feed icons.
-- **Smart Auto-Refresh on Vault Open**:
 
+- **Smart Auto-Refresh on Vault Open**:
   - Feeds now automatically refresh when opening the vault if the configured refresh interval has elapsed since the last refresh.
   - **Before:** The refresh timer reset to zero each time Obsidian closed. Users had to manually refresh or wait for the interval to pass after reopening the vault.
   - **After:** The plugin now tracks the last refresh timestamp in settings. On vault open, it checks if enough time has passed and refreshes immediately if needed.
   - Manual refreshes (sidebar icon, right-click menu, header button) also update the timestamp.
   - Respects all existing refresh interval settings (5 min to 24 hours).
+
 - **Auto Refresh: Off Option added**
-
   - Added a new "Off" option to the refresh interval dropdown in General > Global Feeds > Refresh Interval. Resolves GH Issue #92
-- **Mark Page Read button added**
 
+- **Mark Page Read button added**
   - Appears at the bottom of the article list
   - Marks only the articles from the current page as read, but leaves remaining articles in the feed untouched.
 
@@ -366,19 +428,19 @@ Added collapsible headers when viewing feeds in "feed" grouping ([GH Issue #149]
 ### New Features
 
 - **Sidebar Horizontal Scrolling**:
-
   - Added support for horizontal scrolling in the sidebar header toolbar via the mouse scrollwheel.
   - Added click-and-drag horizontal scrolling for desktop and mobile touch devices.
   - Added "grabbing" cursor feedback and touch-drag optimization to prevent accidental icon clicks while scrolling.
+
 - **XML support**: Import OPML window now allows XML filenames in addition to OPML filenames.
 - **Feed View**:
-
   - Added a new "Feed" view mode for a social-media-style, single-column layout.
   - Features hero images, clamped text summaries, and integrated action toolbars.
   - Added a 3-button view toggle (List, Card, Feed) to the hamburger menu using the accessible `clickable-icon` pattern.
   - Added "Feed" view as a preference in General settings.
   - Improved Feed View image quality by prioritizing high-resolution images and implementing a "hero blur" background layout to handle varying aspect ratios gracefully.
   - Refactored the hamburger menu view toggle from individual buttons into a single consolidated dropdown menu with dynamic icons and enhanced theme compatibility for both dark and light modes.
+
 - **Auto-backup**: Added auto-backup for data.json, OPML, and userdata on plugin unload. By default, OPML and userdata are backed up to the plugin's data directory. These can be changed in the import/export settings.
 
 ### Fixes
@@ -398,37 +460,36 @@ Added collapsible headers when viewing feeds in "feed" grouping ([GH Issue #149]
 ### New Features
 
 - **Customizable sidebar ordering (drag-and-drop)**:
-
   - Drag feeds to reorder within a folder (or move + insert between feeds).
   - Drag folders to reorder, and drag onto another folder to nest/un-nest (supports hierarchical organization).
   - Any manual reorder automatically switches the sidebar sort mode to a new **Custom** row to preserve your ordering.
-- **Customizable sidebar toolbar icons**:
 
+- **Customizable sidebar toolbar icons**:
   - New setting: `Settings > Display > Icon visibility`.
   - Drag-and-drop or up/down buttons (mobile friendly).
   - Hide/show individual icons.
   - Hide/show entire toolbar.
   - New sidebar toolbar "settings" button (opens RSS-Dashboard settings).
-- **Sidebar Tag Filtering**:
 
+- **Sidebar Tag Filtering**:
   - Revamped **Tags** section in the sidebar for easy management and improved filtering logic: **AND** (match all), **OR** (match any), and **NOT** (match none).
   - Inline **Add Tag** row with color picker integrated directly into the sidebar.
+
 - **Podcast Player Sleep Timer**: Added a sleep timer to the podcast player to automatically stop playback after a specified duration (5, 10, 15, 30, 45, 60, 90, or 120 minutes) (GitHub issue #75).
 - **Podcast "Open in Browser" improvements**:
-
   - Fixed the toolbar button, which was previously non-functioning.
   - The button now attempts to resolve the podcast’s website URL from feed metadata, falling back to the podcast’s RSS feed URL if no website URL is found.
   - The dropdown now includes URLs found in the "Episode details" section of the podcast page, plus a link to the direct audio file.
+
 - **Pocket Casts Support**: Added support for importing podcasts directly from Pocket Casts URLs (e.g., `https://pocketcasts.com/podcast/...`).
 - **Robust Podcast Resolution**:
-
   - Implemented a multi-proxy fallback system (AllOrigins, CodeTabs) to handle network timeouts and CORS restrictions when resolving podcast feeds.
   - Added a "Semantic Discovery" fallback using the **iTunes Search API** to resolve feeds when Pocket Casts hides the RSS link from their web player source.
   - Added flexible metadata scraping to handle varied HTML attribute ordering in modern web layouts.
+
 - **Proactive Proxy Validation**: The Add Feed and Edit Feed modals now check whether the CORS proxy is enabled before attempting to resolve Pocket Casts URLs, providing a clear warning and guidance if it’s disabled.
 - **OPML Import Menu Overhaul**: The OPML import menu has been completely overhauled to improve reliability and user experience.
 - **View Filter Setting Improvements**:
-
   - All applied view filters now persist across navigation (state is saved and restored on reopen/restart).
   - All applied view filters now explicitly state which ones are currently applied in the dashboard header.
   - Updated `Settings > Display > Startup filters` to mirror the dashboard filter UI, allowing multiple viewing filters to be applied at startup.
@@ -448,7 +509,6 @@ Added collapsible headers when viewing feeds in "feed" grouping ([GH Issue #149]
 - **Developer Documentation**: Added a new "Advanced Podcast Platform Resolution" section to the developer docs describing proxy rotation and semantic search patterns.
 - **CSS Guardrail**: Added `npm run check:css-scope` (runs during `npm run build`) to prevent unscoped CSS rules from targeting Obsidian core selectors (e.g., `.clickable-icon`, `.suggestion-container`, `.hidden`).
 - **Settings Architecture Refactor**:
-
   - Refactored the monolithic settings tab into a modular architecture for maintainability and performance.
   - Split settings rendering into 9 dedicated tab renderer modules.
   - Centralized shared settings modal classes.
@@ -456,13 +516,14 @@ Added collapsible headers when viewing feeds in "feed" grouping ([GH Issue #149]
   - Used TDD-driven logic for color normalization, icon reordering, and preset detection.
   - Added many new unit tests covering settings-related logic.
   - Reduced the main settings tab orchestrator to ~119 lines.
-- **Feed manager refactor**:
 
+- **Feed manager refactor**:
   - Reorganized the feed manager modal code to be more modular and maintainable (kept backwards compatibility for now; planned for deprecation in the next major release).
   - UI: standardized “supported formats” badges using Lucide icons.
   - Folder handling: improved folder-path collection and removed duplicate folder traversal across folder pickers and the sidebar.
   - Fix: corrected nested folder deletion behavior.
   - Tests: expanded unit coverage across feed manager behavior, sidebar “Add Feed” opening, folder-path utilities, preview loading, and nested folder removal.
+
 - **ReaderView Refactor**: Extracted the reader format settings portal into a helper, added ReaderView cleanup on close, and added unit coverage.
 
 ## [2.3.0-alpha.3 / 2.2.0-beta.7] - March 18, 2026
@@ -471,13 +532,12 @@ Added collapsible headers when viewing feeds in "feed" grouping ([GH Issue #149]
 
 - **Sidebar Feed Filtering** (github issue #74): Added a new setting "Hide empty feeds/no unread articles" to automatically hide feeds with zero articles or only read articles from the sidebar.
 - **Standardized Icon Rendering**:
-
   - Refactored all interactive icons to use the Obsidian-recommended `clickable-icon` pattern.
   - Replaced standard HTML `<button>` elements with accessible `div` structures for better cross-platform (Android) compatibility.
   - Added full keyboard support (Enter/Space) to all interactive icons.
   - Centralized icon sizing via the `--icon-size` CSS variable.
-- **Reader Settings Refactor**:
 
+- **Reader Settings Refactor**:
   - Touch sliders not ideal for mobile devices due to base Obsidian touch behavior, replaced with dropdowns to ensure consistent behavior across platforms.
     - Replaced "Words per row" slider with a percentage-based "Paragraph width" dropdown (25%, 50%, 75%, 100%).
     - Replaced "Font size" slider with a discrete dropdown (80% to 200%).
@@ -506,6 +566,7 @@ Added collapsible headers when viewing feeds in "feed" grouping ([GH Issue #149]
 - **Testing**: Added unit tests for namespaced XML extraction and reader logic in `test_files/unit/ios-namespace-fix.test.ts`.
 - **Build Logging**: Added explicit confirmation messages to `esbuild.config.mjs` to verify successful JS and CSS bundling.
 - **Removed**
+  - **YouTube Short Detection**: removed feature introduced in 2.3.0-alpha.1 due to inconsistent tagging. Added a comprehensive [bug report](docs/archive/investigations/2026/youtube-shorts-tagging-failure.md) for future reference.
   - **YouTube Short Detection**: removed feature introduced in 2.3.0-alpha.1 due to inconsistent tagging. Added a comprehensive [bug report](docs/archive/investigations/2026/youtube-shorts-tagging-failure.md) for future reference.
 
 ---

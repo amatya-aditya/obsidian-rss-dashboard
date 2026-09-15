@@ -3,7 +3,9 @@ import type { Feed } from "../../../src/types/types";
 import {
   getDueFeeds,
   getEffectiveRefreshIntervalMinutes,
+  getNextGlobalRefreshDueAt,
   getNextRefreshDueAt,
+  usesGlobalRefreshInterval,
 } from "../../../src/utils/refresh-intervals";
 
 function createFeed(overrides: Partial<Feed> = {}): Feed {
@@ -25,6 +27,17 @@ describe("per-feed refresh intervals", () => {
   it("inherits the global interval when the feed uses the global setting", () => {
     expect(getEffectiveRefreshIntervalMinutes(createFeed({ scanInterval: 0 }), 30)).toBe(30);
     expect(getEffectiveRefreshIntervalMinutes(createFeed(), 30)).toBe(30);
+  });
+
+  it("uses one global completion time for every inherited feed", () => {
+    const first = createFeed({ scanInterval: 0, lastRefreshAttemptCompletedAt: 1_000 });
+    const second = createFeed({ url: "https://example.com/second.xml", lastRefreshAttemptCompletedAt: 30_000 });
+    const custom = createFeed({ url: "https://example.com/custom.xml", scanInterval: 5 });
+
+    expect(usesGlobalRefreshInterval(first)).toBe(true);
+    expect(usesGlobalRefreshInterval(second)).toBe(true);
+    expect(usesGlobalRefreshInterval(custom)).toBe(false);
+    expect(getNextGlobalRefreshDueAt([first, second, custom], 1, 1_000)).toBe(61_000);
   });
 
   it("disables automatic refresh for an off feed, excluded feed, or invalid interval", () => {

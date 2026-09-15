@@ -1,5 +1,5 @@
 import { setIcon } from "obsidian";
-import { RssDashboardSettings } from "../types/types";
+import { ArticleGroupByOption, RssDashboardSettings } from "../types/types";
 import { TABLET_LAYOUT_MAX_WIDTH } from "../utils/platform-utils";
 import { ArticleFilterMenu, FilterChangeEvent } from "./article-filter-menu";
 import { ArticleHeaderMenu } from "./article-header-menu";
@@ -14,7 +14,7 @@ export interface ArticleHeaderCallbacks {
   onToggleSidebar: () => void;
   onSearch: (query: string) => void;
   onSortChange: (value: "newest" | "oldest") => void;
-  onGroupChange: (value: "none" | "feed" | "date" | "folder") => void;
+  onGroupChange: (value: ArticleGroupByOption) => void;
   onFilterChange: (event: FilterChangeEvent) => void;
   onToggleViewStyle: (style: "list" | "card" | "feed") => void;
   onPersistSettings: () => Promise<void> | void;
@@ -170,10 +170,7 @@ export class ArticleHeader {
       cls: "rss-dashboard-sidebar-toggle clickable-icon",
       attr: { title: "Toggle sidebar", role: "button", tabindex: "0" },
     });
-    setIcon(
-      sidebarToggle,
-      this.settings.sidebarCollapsed ? "panel-left-open" : "panel-left-close",
-    );
+    setIcon(sidebarToggle, "sidebar");
     sidebarToggle.addEventListener("click", () =>
       this.callbacks.onToggleSidebar(),
     );
@@ -305,7 +302,7 @@ export class ArticleHeader {
 
     this.createThemedSelector(
       controls,
-      "arrow-up-down",
+      "sort-asc",
       "Sort:",
       { Newest: "newest", Oldest: "oldest" },
       () => this.settings.articleSort,
@@ -317,12 +314,16 @@ export class ArticleHeader {
       controls,
       "folders",
       "Grouping:",
-      { None: "none", Feed: "feed", Date: "date", Folder: "folder" },
+      {
+        None: "none",
+        Feed: "feed",
+        Date: "date",
+        "Date > Feed": "date_feed",
+        Folder: "folder",
+        "Folder > Feed": "folder_feed",
+      },
       () => this.settings.articleGroupBy,
-      (val) =>
-        this.callbacks.onGroupChange(
-          val as "none" | "feed" | "date" | "folder",
-        ),
+      (val) => this.callbacks.onGroupChange(val as ArticleGroupByOption),
       "rss-dashboard-group",
     );
 
@@ -430,7 +431,7 @@ export class ArticleHeader {
 
     const entries: MenuOptionEntries = Array.isArray(options)
       ? options
-      : Object.keys(options).map((label) => [label, options[label]]);
+      : Object.keys(options).map((label): [string, string] => [label, options[label] ?? label]);
 
     entries.forEach(([label, value]) => {
       const item = portal.createDiv({ cls: "rss-dashboard-filter-menu-item" });

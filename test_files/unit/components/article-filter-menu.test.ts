@@ -11,10 +11,10 @@ describe("ArticleFilterMenu Component", () => {
 
   beforeEach(() => {
     installObsidianDomPolyfills();
-    container = document.createElement("div");
+    container = createDiv();
     document.body.appendChild(container);
 
-    toggleBtn = document.createElement("button");
+    toggleBtn = createEl("button");
     toggleBtn.className = "rss-dashboard-filter-trigger";
     document.body.appendChild(toggleBtn);
 

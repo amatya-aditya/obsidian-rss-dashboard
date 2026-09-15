@@ -25,6 +25,7 @@
 
   --feed-manager-import-button-hover: #21b842;
   --feed-manager-export-button-hover: #064cc6;
+  --feed-manager-import-starred-button-hover: #b7791f;
   --feed-manager-delete-all-button: #dc2626;
   --feed-manager-delete-all-button-hover: #b91c1c;
 }
@@ -37,6 +38,20 @@
   position: fixed;
   top: 50%;
   left: 50%;
+}
+
+/* `.rss-dashboard-modal-container`'s shared base rules (modals.css) force a
+   760px (or 90vw/600px below 1200px) width meant for content-heavy modals.
+   This modal is just a short vertical button stack, so it should size to
+   its own content instead — the widest button (or the heading) plus some
+   breathing room, not a fixed wide box. Matches/exceeds the specificity of
+   every shared rule it overrides so it wins regardless of load order. */
+.modal-container .modal.rss-dashboard-modal-container.rss-feed-manager-modal,
+.modal-container.mod-dim
+  .modal.rss-dashboard-modal-container.rss-feed-manager-modal {
+  width: fit-content;
+  min-width: 280px;
+  max-width: min(440px, 90vw);
 }
 
 .delete-all-backup-notice strong {
@@ -115,6 +130,21 @@
   color: white;
 }
 
+/* Import starred articles from Inoreader button */
+.feed-manager-button-row button.feed-manager-import-starred-button {
+  color: white;
+  cursor: pointer;
+}
+
+.feed-manager-button-row button.feed-manager-import-starred-button:hover {
+  background: var(--feed-manager-import-starred-button-hover);
+  color: white;
+  cursor: pointer;
+}
+.feed-manager-button-row button.feed-manager-import-starred-button:hover svg {
+  color: white;
+}
+
 /* Delete All Feeds button */
 .feed-manager-button-row button.feed-manager-delete-all-button {
   background: var(--feed-manager-delete-all-button);
@@ -132,10 +162,67 @@
   color: white;
 }
 
+/* Delete Feeds + Folders button */
+.feed-manager-button-row button.feed-manager-delete-feeds-folders-button {
+  background: var(--feed-manager-delete-all-button);
+  color: white;
+  cursor: pointer;
+}
+
+.feed-manager-button-row button.feed-manager-delete-feeds-folders-button:hover {
+  background: var(--feed-manager-delete-all-button-hover);
+  color: white;
+  cursor: pointer;
+}
+
+.feed-manager-button-row button.feed-manager-delete-feeds-folders-button:hover svg {
+  color: white;
+}
+
 /* Delete All Feeds Confirmation Modal */
 
 .rss-dashboard-confirm-modal .export-opml-btn:hover {
   background: var(--feed-manager-export-button-hover);
+}
+
+/* Button rows always stack as a single vertical column. A flex-basis row
+   (equal-width buttons side by side) was tried and broke down once labels
+   stopped being similar lengths — "Import starred articles from Inoreader"
+   has no room to breathe split three or four ways. Stacking scales to any
+   label length at any modal width, so it applies unconditionally rather
+   than only below a breakpoint. Buttons size to their own content (centered)
+   rather than stretching to the full row — a full-width single-column
+   button, sized for the longest label, looked oversized for "Add new
+   feed...". */
+.feed-manager-button-row,
+.feed-manager-button-row-primary,
+.feed-manager-button-row-secondary {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.feed-manager-button-row button,
+.feed-manager-button-row-primary button,
+.feed-manager-button-row-secondary button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: auto;
+  min-width: 0;
+  margin: 0; /* selector is 3-class deep — already outranks Obsidian button margin rules */
+}
+
+/* Separates the destructive row from the safe actions above it — a plain
+   label repeats "delete" reasoning already covered by each button's own
+   confirmation dialog, so a divider alone is enough. */
+.feed-manager-button-row-secondary {
+  margin-top: 6px;
+  padding-top: 16px;
+  border-top: 1px solid var(--background-modifier-border);
 }
 
 /* ============================================
@@ -147,48 +234,6 @@
     max-height: 90dvh;
     padding: 15px 14px;
     width: 90vw;
-  }
-}
-
-@media (min-width: 769px) {
-  .feed-manager-button-row,
-  .feed-manager-button-row-primary,
-  .feed-manager-button-row-secondary {
-    display: flex;
-    flex-direction: row;
-    justify-content: space-between;
-    align-items: center;
-    gap: 16px;
-    width: 100%;
-  }
-
-  .feed-manager-button-row button,
-  .feed-manager-button-row-primary button,
-  .feed-manager-button-row-secondary button {
-    flex: 1 1 0;
-    min-width: 0;
-    max-width: 100%;
-    width: 100%;
-    margin: 0; /* selector is 3-class deep — already outranks Obsidian button margin rules */
-  }
-}
-
-@media (max-width: 768px) {
-  .feed-manager-button-row,
-  .feed-manager-button-row-primary,
-  .feed-manager-button-row-secondary {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    width: 100%;
-  }
-
-  .feed-manager-button-row button,
-  .feed-manager-button-row-primary button,
-  .feed-manager-button-row-secondary button {
-    width: 100%;
-    min-width: 0;
-    margin: 0; /* selector is 3-class deep — already outranks Obsidian button margin rules */
   }
 }
 
@@ -219,14 +264,6 @@
     width: 36px;
     height: 36px;
     flex-shrink: 0;
-  }
-
-  .feed-manager-button-row {
-    flex-direction: column;
-  }
-
-  .feed-manager-button-row button {
-    width: 100%;
   }
 }
 
@@ -337,26 +374,5 @@
     padding-top: 12px;
     padding-bottom: 10px;
     margin-bottom: 10px;
-  }
-
-  .rss-mobile-feed-manager-modal .feed-manager-button-row {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 8px;
-  }
-
-  .rss-mobile-feed-manager-modal .feed-manager-button-row-primary {
-    grid-template-columns: minmax(180px, 320px);
-    justify-content: center;
-  }
-
-  .rss-mobile-feed-manager-modal
-    .feed-manager-button-row-primary
-    .feed-manager-add-button {
-    width: 100%;
-  }
-
-  .rss-mobile-feed-manager-modal .feed-manager-button-row-secondary {
-    grid-template-columns: 1fr 1fr;
   }
 }

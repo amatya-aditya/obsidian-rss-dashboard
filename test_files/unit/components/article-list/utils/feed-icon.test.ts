@@ -17,7 +17,7 @@ describe("feed-icon utils", () => {
   let container: HTMLElement;
 
   beforeEach(() => {
-    container = document.createElement("div");
+    container = createDiv();
     document.body.appendChild(container);
   });
 

@@ -58,6 +58,7 @@ type TestSidebar = {
   resizeObserver: ResizeObserver | null;
   destroy: () => void;
   render: () => void;
+  refreshGlobalRefreshProgressOnly: () => void;
   clearFolderPathCache: () => void;
   focusSidebar: () => void;
   hasKeyboardFocus: () => boolean;
@@ -79,7 +80,7 @@ describe("Sidebar Core", () => {
 
   beforeEach(() => {
     app = ObsidianStubs.App.createMock() as TestApp;
-    container = document.createElement("div");
+    container = createDiv();
 
     settings = {
       feeds: [],
@@ -169,7 +170,7 @@ describe("Sidebar Core", () => {
         options,
         callbacks,
       );
-      iconEl = document.createElement("div");
+      iconEl = createDiv();
     });
 
     it("should add rss icon by default", () => {
@@ -231,7 +232,7 @@ describe("Sidebar Core", () => {
         options,
         callbacks,
       );
-      const headerSurface = document.createElement("div");
+      const headerSurface = createDiv();
       const ts = sidebar as unknown as TestSidebar;
       ts.renderHeader(headerSurface);
 
@@ -250,7 +251,7 @@ describe("Sidebar Core", () => {
         options,
         callbacks,
       );
-      const headerSurface = document.createElement("div");
+      const headerSurface = createDiv();
       const ts = sidebar as unknown as TestSidebar;
 
       ts.renderHeader(headerSurface);
@@ -666,6 +667,37 @@ describe("Sidebar Core", () => {
       expect(progressEl?.textContent).toContain("2/3");
     });
 
+    it("updates global refresh progress without rebuilding feed rows", () => {
+      const feed = createFeed({ url: "https://example.com/a.xml" });
+      settings.feeds = [feed];
+      plugin.isGlobalRefreshCancellable = true;
+      plugin.globalRefreshProgress = { completed: 0, total: 1 };
+
+      const sidebar = new Sidebar(
+        app,
+        container,
+        plugin as unknown as RssDashboardPlugin,
+        settings,
+        options,
+        callbacks,
+      );
+      sidebar.render();
+      const originalFeedRow = container.querySelector(
+        `[data-feed-url="${feed.url}"]`,
+      );
+
+      plugin.globalRefreshProgress = { completed: 1, total: 1 };
+      (sidebar as unknown as TestSidebar).refreshGlobalRefreshProgressOnly();
+
+      expect(
+        container.querySelector(".rss-dashboard-all-feeds-progress")
+          ?.textContent,
+      ).toBe("1/1");
+      expect(container.querySelector(`[data-feed-url="${feed.url}"]`)).toBe(
+        originalFeedRow,
+      );
+    });
+
     it("does not show stop icon when refresh is active but not cancellable", () => {
       settings.feeds = [createFeed({ url: "https://example.com/a.xml" })];
       plugin.isMultiFeedRefreshActive = true;
@@ -720,7 +752,7 @@ describe("Sidebar Core", () => {
       if (container.parentElement) {
         container.parentElement.removeChild(container);
       }
-      container = document.createElement("div");
+      container = createDiv();
     });
 
     it("ctrl+click on a folder calls onFolderMultiSelect with that folder added to the selection", () => {

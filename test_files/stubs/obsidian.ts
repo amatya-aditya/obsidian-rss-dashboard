@@ -98,9 +98,12 @@ const createMoment = (input?: string | number | Date) => {
             case "YY":
               return String(year).slice(-2);
             case "MMMM":
-              return monthNames[month];
+              // month is always 0-11 (Date.getMonth()) and monthNames has
+              // exactly 12 entries, so this index is never out of bounds;
+              // the fallback only satisfies noUncheckedIndexedAccess.
+              return monthNames[month] ?? String(month);
             case "MMM":
-              return shortMonthNames[month];
+              return shortMonthNames[month] ?? String(month);
             case "MM":
               return pad(month + 1);
             case "M":
@@ -110,9 +113,12 @@ const createMoment = (input?: string | number | Date) => {
             case "D":
               return String(day);
             case "dddd":
-              return weekdayNames[weekday];
+              // weekday is always 0-6 (Date.getDay()) and weekdayNames has
+              // exactly 7 entries, so this index is never out of bounds;
+              // the fallback only satisfies noUncheckedIndexedAccess.
+              return weekdayNames[weekday] ?? String(weekday);
             case "ddd":
-              return shortWeekdayNames[weekday];
+              return shortWeekdayNames[weekday] ?? String(weekday);
             case "Do":
               return `${day}${ordinalSuffix(day)}`;
             case "HH":
@@ -200,10 +206,7 @@ export function requireApiVersion(): boolean {
 }
 
 export function renderMath(source: string, display: boolean): HTMLElement {
-  const el = activeDocument.createElement("span");
-  el.className = "math";
-  el.textContent = source;
-  return el;
+  return activeDocument.createSpan({ cls: "math", text: source });
 }
 
 export function finishRenderMath(): Promise<void> {
@@ -224,10 +227,10 @@ export class MarkdownRenderer {
     const latex = markdown
       .slice(delimiterLength, -delimiterLength)
       .trim();
-    const math = doc.createElement(display ? "div" : "span");
-    math.className = display ? "math math-block" : "math math-inline";
-    const mathJax = doc.createElement("mjx-container");
-    mathJax.textContent = latex;
+    const math = display
+      ? doc.createDiv({ cls: "math math-block" })
+      : doc.createSpan({ cls: "math math-inline" });
+    const mathJax = doc.createEl("mjx-container" as keyof HTMLElementTagNameMap, { text: latex });
     math.appendChild(mathJax);
     el.appendChild(math);
     return Promise.resolve();
@@ -697,7 +700,7 @@ export class PluginSettingTab {
   constructor(app: App, plugin: Plugin) {
     this.app = app;
     this.plugin = plugin;
-    this.containerEl = activeDocument.createElement("div");
+    this.containerEl = activeDocument.createDiv();
   }
 
   display(): void {}
@@ -768,9 +771,9 @@ export class ItemView extends Component {
     this.leaf = leaf;
     this.app = leaf.app;
 
-    this.containerEl = activeDocument.createElement("div");
-    this.containerEl.appendChild(activeDocument.createElement("div"));
-    this.containerEl.appendChild(activeDocument.createElement("div"));
+    this.containerEl = activeDocument.createDiv();
+    this.containerEl.createDiv();
+    this.containerEl.createDiv();
   }
 
   onOpen(): Promise<void> {
@@ -851,6 +854,8 @@ interface SliderSettingComponent extends SettingComponent {
   sliderEl: HTMLInputElement;
   setLimits(min: number, max: number, step: number): this;
   setValue(value: number): this;
+  getValue(): number;
+  setDisplayFormat(format: (value: number) => string): this;
   setDynamicTooltip(): this;
   onChange(handler: (value: number) => void): this;
 }
@@ -896,25 +901,11 @@ export class Setting {
   components: SettingComponent[] = [];
 
   constructor(containerEl: HTMLElement) {
-    this.settingEl = activeDocument.createElement("div");
-    this.settingEl.className = "setting-item";
-    containerEl.appendChild(this.settingEl);
-
-    const infoEl = activeDocument.createElement("div");
-    infoEl.className = "setting-item-info";
-    this.settingEl.appendChild(infoEl);
-
-    this.nameEl = activeDocument.createElement("div");
-    this.nameEl.className = "setting-item-name";
-    infoEl.appendChild(this.nameEl);
-
-    this.descEl = activeDocument.createElement("div");
-    this.descEl.className = "setting-item-description";
-    infoEl.appendChild(this.descEl);
-
-    this.controlEl = activeDocument.createElement("div");
-    this.controlEl.className = "setting-item-control";
-    this.settingEl.appendChild(this.controlEl);
+    this.settingEl = containerEl.createDiv({ cls: "setting-item" });
+    const infoEl = this.settingEl.createDiv({ cls: "setting-item-info" });
+    this.nameEl = infoEl.createDiv({ cls: "setting-item-name" });
+    this.descEl = infoEl.createDiv({ cls: "setting-item-description" });
+    this.controlEl = this.settingEl.createDiv({ cls: "setting-item-control" });
   }
 
   setName(_name?: string): this {
@@ -923,9 +914,14 @@ export class Setting {
     }
     return this;
   }
-  setDesc(_desc?: string): this {
+  setDesc(_desc?: string | DocumentFragment): this {
     if (_desc !== undefined) {
-      this.descEl.textContent = _desc;
+      this.descEl.empty();
+      if (_desc instanceof DocumentFragment) {
+        this.descEl.appendChild(_desc);
+      } else {
+        this.descEl.textContent = _desc;
+      }
     }
     return this;
   }
@@ -947,8 +943,7 @@ export class Setting {
       private clickHandler: ((evt: MouseEvent) => void) | null = null;
 
       constructor(container: HTMLElement) {
-        this.buttonEl = activeDocument.createElement("button");
-        container.appendChild(this.buttonEl);
+        this.buttonEl = container.createEl("button");
       }
 
       setButtonText(text: string): this {
@@ -997,15 +992,17 @@ export class Setting {
     return this;
   }
 
+  addExtraButton(cb: (component: ButtonSettingComponent) => unknown): this {
+    return this.addButton(cb);
+  }
+
   addSlider(cb: (component: SliderSettingComponent) => unknown): this {
     class SliderComponent {
       sliderEl: HTMLInputElement;
       private changeHandler: ((value: number) => void) | null = null;
 
       constructor(container: HTMLElement) {
-        this.sliderEl = activeDocument.createElement("input");
-        this.sliderEl.type = "range";
-        container.appendChild(this.sliderEl);
+        this.sliderEl = container.createEl("input", { type: "range" });
         this.sliderEl.addEventListener("input", () => {
           const value = Number(this.sliderEl.value);
           this.changeHandler?.(value);
@@ -1021,6 +1018,14 @@ export class Setting {
 
       setValue(value: number): this {
         this.sliderEl.value = String(value);
+        return this;
+      }
+
+      getValue(): number {
+        return Number(this.sliderEl.value);
+      }
+
+      setDisplayFormat(_format: (value: number) => string): this {
         return this;
       }
 
@@ -1046,9 +1051,7 @@ export class Setting {
       private changeHandler: ((value: string) => void) | null = null;
 
       constructor(container: HTMLElement) {
-        this.inputEl = activeDocument.createElement("input");
-        this.inputEl.type = "color";
-        container.appendChild(this.inputEl);
+        this.inputEl = container.createEl("input", { type: "color" });
         this.inputEl.addEventListener("input", () => {
           this.changeHandler?.(this.inputEl.value);
         });
@@ -1085,9 +1088,7 @@ export class Setting {
       private changeHandler: ((value: boolean) => void) | null = null;
 
       constructor(container: HTMLElement) {
-        this.toggleEl = activeDocument.createElement("input");
-        this.toggleEl.type = "checkbox";
-        container.appendChild(this.toggleEl);
+        this.toggleEl = container.createEl("input", { type: "checkbox" });
         this.toggleEl.addEventListener("change", () => {
           this.changeHandler?.(this.toggleEl.checked);
         });
@@ -1120,9 +1121,7 @@ export class Setting {
       private changeHandler: ((value: string) => void) | null = null;
 
       constructor(container: HTMLElement) {
-        this.inputEl = activeDocument.createElement("input");
-        this.inputEl.type = "text";
-        container.appendChild(this.inputEl);
+        this.inputEl = container.createEl("input", { type: "text" });
         this.inputEl.addEventListener("input", () => {
           this.changeHandler?.(this.inputEl.value);
         });
@@ -1164,18 +1163,14 @@ export class Setting {
       private changeHandler: ((value: string) => void) | null = null;
 
       constructor(container: HTMLElement) {
-        this.selectEl = activeDocument.createElement("select");
-        container.appendChild(this.selectEl);
+        this.selectEl = container.createEl("select");
         this.selectEl.addEventListener("change", () => {
           this.changeHandler?.(this.selectEl.value);
         });
       }
 
       addOption(value: string, label: string): this {
-        const opt = activeDocument.createElement("option");
-        opt.value = value;
-        opt.textContent = label;
-        this.selectEl.appendChild(opt);
+        this.selectEl.createEl("option", { value, text: label });
         return this;
       }
 
@@ -1207,9 +1202,7 @@ export class TextComponent {
   private changeHandler: ((value: string) => void) | null = null;
 
   constructor(container: HTMLElement) {
-    this.inputEl = activeDocument.createElement("input");
-    this.inputEl.type = "text";
-    container.appendChild(this.inputEl);
+    this.inputEl = container.createEl("input", { type: "text" });
     this.inputEl.addEventListener("input", () => {
       this.changeHandler?.(this.inputEl.value);
     });
@@ -1242,16 +1235,9 @@ export class Modal {
   contentEl: HTMLDivElement;
   constructor(app: App) {
     this.app = app;
-    this.containerEl = activeDocument.createElement("div");
-    this.containerEl.className = "modal-container";
-
-    this.modalEl = activeDocument.createElement("div");
-    this.modalEl.className = "modal";
-    this.containerEl.appendChild(this.modalEl);
-
-    this.contentEl = activeDocument.createElement("div");
-    this.contentEl.className = "modal-content";
-    this.modalEl.appendChild(this.contentEl);
+    this.containerEl = activeDocument.createDiv({ cls: "modal-container" });
+    this.modalEl = this.containerEl.createDiv({ cls: "modal" });
+    this.contentEl = this.modalEl.createDiv({ cls: "modal-content" });
   }
 
   onOpen(): void {}

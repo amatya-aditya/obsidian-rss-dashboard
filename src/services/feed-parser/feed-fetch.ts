@@ -170,8 +170,9 @@ async function discoverFeedUrl(
     if (feedLinkMatches) {
       for (const match of feedLinkMatches) {
         const hrefMatch = match.match(/href="([^"]+)"/);
-        if (hrefMatch) {
-          let feedUrl = hrefMatch[1];
+        const href = hrefMatch?.[1];
+        if (href) {
+          let feedUrl = href;
 
           if (feedUrl.startsWith("/")) {
             const url = new URL(baseUrl);
@@ -198,8 +199,9 @@ async function discoverFeedUrl(
       if (matches) {
         for (const match of matches) {
           const hrefMatch = match.match(/href="([^"]+)"/);
-          if (hrefMatch) {
-            let feedUrl = hrefMatch[1];
+          const href = hrefMatch?.[1];
+          if (href) {
+            let feedUrl = href;
             if (feedUrl.startsWith("/")) {
               const url = new URL(baseUrl);
               feedUrl = `${url.protocol}//${url.host}${feedUrl}`;

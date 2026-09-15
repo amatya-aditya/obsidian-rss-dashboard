@@ -45,6 +45,13 @@ export const FACTORY_RESET_LOCAL_STORAGE_KEYS = [
   "rss-first-launch-coachmark-shown",
 ] as const;
 
+/**
+ * Deep-clone a folder tree, stamping every folder (recursively, including
+ * subfolders) with the given `createdAt`/`modifiedAt` timestamp.
+ * @param {Folder[]} folders Folder tree to clone
+ * @param {number} timestamp Timestamp (ms since epoch) to stamp on every cloned folder
+ * @returns {Folder[]} A new folder tree with fresh timestamps
+ */
 function cloneFoldersWithFreshTimestamps(
   folders: Folder[],
   timestamp: number,
@@ -60,6 +67,12 @@ function cloneFoldersWithFreshTimestamps(
   }));
 }
 
+/**
+ * Build a fresh copy of `DEFAULT_SETTINGS` for a factory reset, with the
+ * default folder tree's timestamps stamped to the current time rather than
+ * whatever was baked into the static defaults.
+ * @returns {RssDashboardSettings} A new, independent settings object safe to mutate
+ */
 export function buildFactoryResetSettings(): RssDashboardSettings {
   const settings = JSON.parse(
     JSON.stringify(DEFAULT_SETTINGS),
@@ -74,6 +87,20 @@ export function buildFactoryResetSettings(): RssDashboardSettings {
   return settings;
 }
 
+/**
+ * Merge raw persisted settings data over `DEFAULT_SETTINGS` and normalize the
+ * result into a well-formed `RssDashboardSettings` object: infers a legacy
+ * storage mode when unset but feed/refresh history is present, coerces
+ * malformed numeric/boolean fields back to their defaults, fills in nested
+ * setting groups (`articleSaving`, `media`, `display`, `readerFormat`,
+ * `keywordRules`, `autoBackup`) with their defaults where missing, normalizes
+ * each feed's `items`/`keywordRules`/limits, and unifies all page-size
+ * fields to the canonical `allArticlesPageSize` value. Does not run the
+ * versioned migrations in {@link migrateSettings} — callers typically invoke
+ * both when loading persisted data from disk.
+ * @param {Partial<RssDashboardSettings> | null} [rawData] Raw settings as loaded from disk, possibly partial, malformed, or absent
+ * @returns {RssDashboardSettings} A complete, normalized settings object
+ */
 export function loadAndNormalizeSettings(
   rawData?: Partial<RssDashboardSettings> | null,
 ): RssDashboardSettings {
@@ -113,6 +140,19 @@ export function loadAndNormalizeSettings(
   if (typeof settings.defaultAutoDeleteDuration !== "number") {
     settings.defaultAutoDeleteDuration =
       DEFAULT_SETTINGS.defaultAutoDeleteDuration;
+  }
+
+  if (typeof settings.protectStarred !== "boolean") {
+    settings.protectStarred = DEFAULT_SETTINGS.protectStarred;
+  }
+  if (typeof settings.protectSaved !== "boolean") {
+    settings.protectSaved = DEFAULT_SETTINGS.protectSaved;
+  }
+  if (typeof settings.protectTagged !== "boolean") {
+    settings.protectTagged = DEFAULT_SETTINGS.protectTagged;
+  }
+  if (typeof settings.protectUnread !== "boolean") {
+    settings.protectUnread = DEFAULT_SETTINGS.protectUnread;
   }
 
   if (!settings.readerViewLocation) {
@@ -229,6 +269,19 @@ export function loadAndNormalizeSettings(
   return settings;
 }
 
+/**
+ * Apply in-place data migrations to a settings object that was already
+ * loaded and normalized by {@link loadAndNormalizeSettings}: renames and
+ * relocates deprecated top-level fields (`savePath`, `template`,
+ * `addSavedTag`) into `articleSaving`, migrates keyword-rule, media
+ * video-tag, and default-tag-array settings, migrates the legacy
+ * `useDomainFavicons` display flag, clamps the image cache limit back into
+ * range, normalizes `dashboardMultiFilters`, and folds any legacy default
+ * filter into it. Mutates `settings` directly; does not throw on malformed
+ * input — unrecognized or invalid values are coerced to defaults instead.
+ * @param {RssDashboardSettings} settings Settings object to migrate in place
+ * @returns {boolean} true if any field was changed by a migration, false if the settings were already up to date
+ */
 export function migrateSettings(settings: RssDashboardSettings): boolean {
   let didChange = false;
   const settingsUnknown = settings as unknown as Record<string, unknown>;
@@ -363,8 +416,8 @@ export function migrateSettings(settings: RssDashboardSettings): boolean {
     : { ...DEFAULT_SETTINGS.dashboardMultiFilters };
 
   migrateDefaultFilterToDashboardMultiFilters(
-    settings.display as unknown as Record<string, unknown>,
-    settings.dashboardMultiFilters as unknown as Record<string, unknown>,
+    settings.display,
+    settings.dashboardMultiFilters,
   );
 
   settings.feeds = Array.isArray(settings.feeds) ? settings.feeds : [];
@@ -385,6 +438,17 @@ export function migrateSettings(settings: RssDashboardSettings): boolean {
   return didChange;
 }
 
+/**
+ * Deduplicate each feed's items in place, keyed by canonicalized identity
+ * URL (falling back to guid/link/index when no canonical URL is available).
+ * When two items share a key, the merged item keeps the union of read/
+ * starred/saved/tag state, prefers the longer of each item's title/
+ * description/content/summary, and keeps whichever image/cover/saved-file
+ * path is present. Deduplicated items are re-sorted newest-first by
+ * publish date (falling back to guid comparison for ties or missing dates).
+ * @param {Feed[]} feeds Feeds whose `items` arrays are deduplicated and re-sorted in place
+ * @returns {boolean} true if any feed's items were changed (deduped, re-keyed, or had a nullish entry dropped), false if nothing changed
+ */
 export function dedupeAndNormalizeFeedItems(feeds: Feed[]): boolean {
   let didChange = false;
 
@@ -445,6 +509,10 @@ export function dedupeAndNormalizeFeedItems(feeds: Feed[]): boolean {
 
     for (let idx = 0; idx < items.length; idx++) {
       const item = items[idx];
+      if (!item) {
+        didChange = true;
+        continue;
+      }
       const canonicalKey = canonicalizeItemIdentityUrl(
         item.guid || item.link || "",
       );

@@ -19,6 +19,7 @@ import {
   DisplaySettings,
   MediaSettings,
 } from "../types/types";
+import { settingsUiCompatibility } from "../settings/settings-ui-compat";
 
 // ── Domain Icon Toggle Confirmation Modal ────────────────────────────────────
 
@@ -77,16 +78,15 @@ export class DomainIconToggleConfirmModal extends Modal {
           this.close();
         }),
       )
-      .addButton((btn) =>
-        btn
-          .setButtonText(this.params.confirmLabel)
-          .setWarning()
-          .onClick(() => {
+      .addButton((btn) => {
+        btn.setButtonText(this.params.confirmLabel);
+        settingsUiCompatibility.markDestructive(btn);
+        btn.onClick(() => {
             if (this.params.onConfirm) this.params.onConfirm();
             this.confirmed = true;
             this.close();
-          }),
-      );
+        });
+      });
   }
 
   onClose(): void {

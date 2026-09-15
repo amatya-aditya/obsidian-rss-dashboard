@@ -25,6 +25,15 @@
   animation: rss-folder-popup-fade-in-above 0.15s ease-out;
 }
 
+/* Applied while this popup's own "Add new folder" modal is open on top of
+ * it. This popup's z-index is set high enough to float above normal page
+ * chrome, which also puts it above the modal's own backdrop — pointer-events
+ * plus a dimmed look keeps the list behind the modal from being clickable. */
+.rss-folder-selector-popup-inert {
+  pointer-events: none;
+  opacity: 0.5;
+}
+
 @keyframes rss-folder-popup-fade-in {
   from {
     opacity: 0;
@@ -132,12 +141,18 @@ body .rss-folder-selector-input {
   white-space: nowrap;
 }
 
-.rss-folder-selector-create {
+.rss-folder-selector-create,
+.rss-folder-selector-add-new {
   color: var(--interactive-accent);
 }
 
-.rss-folder-selector-create .rss-folder-selector-icon {
+.rss-folder-selector-create .rss-folder-selector-icon,
+.rss-folder-selector-add-new .rss-folder-selector-icon {
   color: var(--interactive-accent);
+}
+
+.rss-folder-selector-add-new {
+  border-bottom: 1px solid var(--background-modifier-border);
 }
 
 .rss-folder-selector-empty {

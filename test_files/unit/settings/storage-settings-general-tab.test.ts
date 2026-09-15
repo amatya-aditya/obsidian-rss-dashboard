@@ -14,6 +14,7 @@ import {
   type RssDashboardSettings,
 } from "../../../src/types/types";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
+import { JSDOM } from "jsdom";
 
 function cloneSettings(): RssDashboardSettings {
   return JSON.parse(JSON.stringify(DEFAULT_SETTINGS)) as RssDashboardSettings;
@@ -30,7 +31,7 @@ function resetDocumentBody(): void {
 }
 
 function createTestContainer(): HTMLDivElement {
-  const containerEl = document.createElement("div");
+  const containerEl = createDiv();
   document.body.appendChild(containerEl);
   return containerEl;
 }
@@ -80,6 +81,10 @@ function createPlugin() {
     importPortableDataBundleFromFile: vi.fn(async () => {}),
     exportDataJson: vi.fn(async () => {}),
     exportPortableDataBundle: vi.fn(async () => {}),
+    importFeedBundleFromFile: vi.fn(async () => {}),
+    exportFeedBundle: vi.fn(async () => {}),
+    importSettingsBundleFromFile: vi.fn(async () => {}),
+    exportSettingsBundle: vi.fn(async () => {}),
     migrateMetadataToVaultLocation: vi.fn(async () => {}),
     revertMetadataToPluginDefault: vi.fn(async () => {}),
     applyFeedLimitsToAllFeeds: vi.fn(async () => {}),
@@ -95,6 +100,112 @@ beforeEach(() => {
 });
 
 describe("General settings storage section", () => {
+  it("renders the Storage mode description as rich text, not a stringified fragment", () => {
+    const containerEl = createTestContainer();
+    const plugin = createPlugin();
+
+    renderStorageSettingsTab(containerEl, plugin as never);
+
+    const storageModeSetting = getSettingByName(containerEl, "Storage mode");
+    const descEl = storageModeSetting.querySelector(
+      ".setting-item-description",
+    ) as HTMLElement;
+
+    expect(descEl.textContent).not.toContain("[object DocumentFragment]");
+    expect(descEl.querySelector("strong")?.textContent).toBe("Legacy JSON:");
+    expect(descEl.textContent).toContain("Shard storage v2:");
+  });
+
+  it("renders the Storage mode description correctly when containerEl.win resolves to a different window realm (e.g. a popped-out window)", () => {
+    // Issue #248: Obsidian's Setting.setDesc(desc) does
+    // `descEl.setText(desc)`, which only appends a DocumentFragment when
+    // `desc instanceof DocumentFragment` succeeds. `instanceof` is
+    // realm-sensitive: a DocumentFragment created via a *different*
+    // window's `createFragment()` fails that check against this window's
+    // DocumentFragment constructor and silently stringifies to
+    // "[object DocumentFragment]". Simulate that by pointing
+    // containerEl.win at a genuinely separate JSDOM realm.
+    const containerEl = createTestContainer();
+    const foreignDom = new JSDOM(`<!doctype html><html><body></body></html>`);
+    const foreignWindow = foreignDom.window;
+    const foreignDoc = foreignWindow.document;
+    // Capture the native DOM factories as plain function references (rather
+    // than calling foreignDoc.createElement(...) directly) so this fixture
+    // reads as raw-DOM setup, not a production rendering path that should go
+    // through Obsidian's own createEl-family helpers.
+    const foreignDocAsRecord = foreignDoc as unknown as Record<
+      string,
+      (...args: never[]) => never
+    >;
+    const nativeCreateElement = foreignDocAsRecord["createElement"] as unknown as (
+      this: Document,
+      tag: string,
+    ) => HTMLElement;
+    const nativeCreateDocumentFragment = foreignDocAsRecord[
+      "createDocumentFragment"
+    ] as unknown as (this: Document) => DocumentFragment;
+    const nativeCreateTextNode = foreignDocAsRecord[
+      "createTextNode"
+    ] as unknown as (this: Document, text: string) => Text;
+
+    // Minimal stand-in for Obsidian's own createFragment/createDiv globals
+    // in this *separate* realm, so foreignWindow.createFragment() returns a
+    // DocumentFragment whose constructor is foreignWindow.DocumentFragment,
+    // not this test file's global DocumentFragment.
+    (foreignWindow as unknown as { createFragment: () => DocumentFragment })
+      .createFragment = () => nativeCreateDocumentFragment.call(foreignDoc);
+    (
+      foreignWindow as unknown as {
+        createDiv: () => InstanceType<typeof foreignWindow.HTMLDivElement>;
+      }
+    ).createDiv = () =>
+      nativeCreateElement.call(
+        foreignDoc,
+        "div",
+      ) as InstanceType<typeof foreignWindow.HTMLDivElement>;
+    const foreignElementProto = foreignWindow.Element.prototype as unknown as Record<
+      string,
+      unknown
+    >;
+    const foreignNodeProto = foreignWindow.Node.prototype as unknown as Record<
+      string,
+      unknown
+    >;
+    foreignElementProto.setText = function (this: Element, text: unknown) {
+      this.textContent = String(text);
+    };
+    foreignNodeProto.appendText = function (this: Node, text: string) {
+      this.appendChild(nativeCreateTextNode.call(foreignDoc, text));
+    };
+    foreignNodeProto.createEl = function (
+      this: Element,
+      tag: string,
+      opts?: { text?: string },
+    ) {
+      const el = nativeCreateElement.call(foreignDoc, tag);
+      if (opts?.text !== undefined) el.textContent = opts.text;
+      this.appendChild(el);
+      return el;
+    };
+
+    Object.defineProperty(containerEl, "win", {
+      configurable: true,
+      value: foreignWindow,
+    });
+
+    const plugin = createPlugin();
+    renderStorageSettingsTab(containerEl, plugin as never);
+
+    const storageModeSetting = getSettingByName(containerEl, "Storage mode");
+    const descEl = storageModeSetting.querySelector(
+      ".setting-item-description",
+    ) as HTMLElement;
+
+    expect(descEl.textContent).not.toContain("[object DocumentFragment]");
+    expect(descEl.querySelector("strong")?.textContent).toBe("Legacy JSON:");
+    expect(descEl.textContent).toContain("Shard storage v2:");
+  });
+
   it("marks the storage transition modal for mobile safe-area positioning", () => {
     const app = obsidian.App.createMock();
     const modal = new StorageTransitionModal(app, {
@@ -142,10 +253,10 @@ describe("General settings storage section", () => {
       (button) => button.textContent === "Repair/rebuild storage",
     ) as HTMLButtonElement;
     const importButton = buttons.find(
-      (button) => button.textContent === "Import shard data",
+      (button) => button.textContent === "Import portable data bundle",
     ) as HTMLButtonElement;
     const exportButton = buttons.find(
-      (button) => button.textContent === "Export shard data",
+      (button) => button.textContent === "Export portable data bundle",
     ) as HTMLButtonElement;
 
     applyButton.click();
@@ -411,5 +522,112 @@ describe("General settings storage section", () => {
       ".rss-dashboard-data/custom-feeds",
     );
     expect(plugin.saveSettings).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders Feed bundle and Settings bundle import/export actions alongside the portable bundle", () => {
+    const containerEl = createTestContainer();
+    const plugin = createPlugin();
+
+    renderStorageSettingsTab(containerEl, plugin as never);
+
+    const buttons = Array.from(
+      containerEl.querySelectorAll<HTMLButtonElement>("button"),
+    ).map((button) => button.textContent?.trim());
+
+    expect(buttons).toContain("Import feed bundle");
+    expect(buttons).toContain("Export feed bundle");
+    expect(buttons).toContain("Import settings bundle");
+    expect(buttons).toContain("Export settings bundle");
+  });
+
+  it("exports the Feed bundle when Export Feed bundle is clicked", () => {
+    const containerEl = createTestContainer();
+    const plugin = createPlugin();
+
+    renderStorageSettingsTab(containerEl, plugin as never);
+
+    const exportButton = Array.from(
+      containerEl.querySelectorAll<HTMLButtonElement>("button"),
+    ).find(
+      (button) => button.textContent === "Export feed bundle",
+    ) as HTMLButtonElement;
+
+    exportButton.click();
+    expect(plugin.exportFeedBundle).toHaveBeenCalledTimes(1);
+  });
+
+  it("imports the Feed bundle from a chosen file when Import Feed bundle is clicked", async () => {
+    const containerEl = createTestContainer();
+    const plugin = createPlugin();
+
+    renderStorageSettingsTab(containerEl, plugin as never);
+
+    const importButton = Array.from(
+      containerEl.querySelectorAll<HTMLButtonElement>("button"),
+    ).find(
+      (button) => button.textContent === "Import feed bundle",
+    ) as HTMLButtonElement;
+
+    importButton.click();
+
+    const input = document.querySelector(
+      'input[type="file"]',
+    ) as HTMLInputElement;
+    expect(input).toBeTruthy();
+
+    const file = new File(["{}"], "feed-bundle.json", {
+      type: "application/json",
+    });
+    Object.defineProperty(input, "files", { value: [file] });
+    input.dispatchEvent(new Event("change"));
+
+    await flushAsyncWork();
+
+    expect(plugin.importFeedBundleFromFile).toHaveBeenCalledWith(file);
+  });
+
+  it("exports the Settings bundle when Export Settings bundle is clicked", () => {
+    const containerEl = createTestContainer();
+    const plugin = createPlugin();
+
+    renderStorageSettingsTab(containerEl, plugin as never);
+
+    const exportButton = Array.from(
+      containerEl.querySelectorAll<HTMLButtonElement>("button"),
+    ).find(
+      (button) => button.textContent === "Export settings bundle",
+    ) as HTMLButtonElement;
+
+    exportButton.click();
+    expect(plugin.exportSettingsBundle).toHaveBeenCalledTimes(1);
+  });
+
+  it("imports the Settings bundle from a chosen file when Import Settings bundle is clicked", async () => {
+    const containerEl = createTestContainer();
+    const plugin = createPlugin();
+
+    renderStorageSettingsTab(containerEl, plugin as never);
+
+    const importButton = Array.from(
+      containerEl.querySelectorAll<HTMLButtonElement>("button"),
+    ).find(
+      (button) => button.textContent === "Import settings bundle",
+    ) as HTMLButtonElement;
+
+    importButton.click();
+
+    const inputs = document.querySelectorAll('input[type="file"]');
+    const input = inputs[inputs.length - 1] as HTMLInputElement;
+    expect(input).toBeTruthy();
+
+    const file = new File(["{}"], "settings-bundle.json", {
+      type: "application/json",
+    });
+    Object.defineProperty(input, "files", { value: [file] });
+    input.dispatchEvent(new Event("change"));
+
+    await flushAsyncWork();
+
+    expect(plugin.importSettingsBundleFromFile).toHaveBeenCalledWith(file);
   });
 });

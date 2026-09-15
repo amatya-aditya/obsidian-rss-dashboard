@@ -28,7 +28,7 @@ beforeEach(() => {
 describe("safe-html.sanitizeAndAppendHtml", () => {
   it("no-ops on empty/whitespace-only input (container remains unchanged)", () => {
     const container = createContainer();
-    const existing = document.createElement("p");
+    const existing = createEl("p");
     existing.textContent = "Existing";
     container.appendChild(existing);
 

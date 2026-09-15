@@ -50,6 +50,9 @@ export class OpmlManager {
     ) => {
       for (let i = 0; i < outlines.length; i++) {
         const outline = outlines[i];
+        if (!outline) {
+          continue;
+        }
         const type = outline.getAttribute("type");
 
         if (!type && outline.hasChildNodes()) {
@@ -108,7 +111,7 @@ export class OpmlManager {
       folders: Folder[],
     ): Folder | null => {
       const parts = path.split("/");
-      const folderName = parts[0];
+      const folderName = parts[0] ?? "";
 
       let folder = folders.find((f) => f.name === folderName);
 
@@ -130,6 +133,9 @@ export class OpmlManager {
     Object.keys(folderMap).forEach((path) => {
       if (!processedFolders.has(path)) {
         const folder = folderMap[path];
+        if (!folder) {
+          return;
+        }
         const parent = folderHierarchy[path];
 
         if (!parent) {
@@ -172,6 +178,9 @@ export class OpmlManager {
     ) => {
       for (let i = 0; i < outlines.length; i++) {
         const outline = outlines[i];
+        if (!outline) {
+          continue;
+        }
         const type = outline.getAttribute("type");
 
         if (!type && outline.hasChildNodes()) {
@@ -230,7 +239,7 @@ export class OpmlManager {
       folders: Folder[],
     ): Folder | null => {
       const parts = path.split("/");
-      const folderName = parts[0];
+      const folderName = parts[0] ?? "";
 
       let folder = folders.find((f) => f.name === folderName);
 
@@ -252,6 +261,9 @@ export class OpmlManager {
     Object.keys(folderMap).forEach((path) => {
       if (!processedFolders.has(path)) {
         const folder = folderMap[path];
+        if (!folder) {
+          return;
+        }
         const parent = folderHierarchy[path];
 
         if (!parent) {

@@ -13,7 +13,7 @@ export const APPLE_PODCASTS: PodcastPlatform = {
     },
     extractId(url: string): string | null {
         const match = url.match(/id(\d+)(?:\?|$)/);
-        return match ? match[1] : null;
+        return match?.[1] ?? null;
     }
 };
 
@@ -25,7 +25,7 @@ export const SPOTIFY: PodcastPlatform = {
     },
     extractId(url: string): string | null {
         const match = url.match(/show\/([a-zA-Z0-9]+)/);
-        return match ? match[1] : null;
+        return match?.[1] ?? null;
     }
 };
 
@@ -37,7 +37,7 @@ export const GOOGLE_PODCASTS: PodcastPlatform = {
     },
     extractId(url: string): string | null {
         const match = url.match(/feed\/([a-zA-Z0-9_-]+)/);
-        return match ? match[1] : null;
+        return match?.[1] ?? null;
     }
 };
 
@@ -49,7 +49,7 @@ export const POCKET_CASTS: PodcastPlatform = {
     },
     extractId(url: string): string | null {
         const match = url.match(/pocketcasts\.com\/podcast\/[^/]+\/([0-9a-f-]{36})/i);
-        return match ? match[1] : null;
+        return match?.[1] ?? null;
     }
 };
 

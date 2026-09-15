@@ -12,7 +12,7 @@
 
 ## Areas
 
-<!-- Add one or more labels like: area:reader, area:feeds, area:settings -->
+<!-- Add one or more labels like: area: reader, area: storage, area: sidebar -->
 
 ## User Impact
 

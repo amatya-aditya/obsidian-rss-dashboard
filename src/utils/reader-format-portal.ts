@@ -134,7 +134,7 @@ export function createReaderFormatPortal(options: ReaderFormatPortalOptions): {
         0,
         Math.min(values.length - 1, safeIndex + direction),
       );
-      const nextValue = values[nextIndex];
+      const nextValue = values[nextIndex] ?? values[0] ?? format[settingKey];
       if (nextValue === format[settingKey]) {
         return;
       }

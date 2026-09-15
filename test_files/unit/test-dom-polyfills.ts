@@ -23,6 +23,20 @@ export function installObsidianDomPolyfills(): void {
     globalScope.activeDocument = window.document;
   }
 
+  const nativeCreateElement = (
+    Document.prototype as unknown as Record<
+      string,
+      (tagName: string) => HTMLElement
+    >
+  )["createElement"];
+  const nativeCreateElementNS = Document.prototype.createElementNS;
+  const nativeCreateDocumentFragment = (
+    Document.prototype as unknown as Record<
+      string,
+      () => DocumentFragment
+    >
+  )["createDocumentFragment"];
+
   const documentProto = Document.prototype as unknown as Record<
     string,
     unknown
@@ -42,7 +56,7 @@ export function installObsidianDomPolyfills(): void {
         [key: string]: unknown;
       },
     ): HTMLElementTagNameMap[K] {
-      const el = this.createElement(tag);
+      const el = nativeCreateElement.call(this, tag) as HTMLElementTagNameMap[K];
       if (opts?.cls) el.className = opts.cls;
       if (opts?.text !== undefined) el.textContent = opts.text;
       if (opts?.attr) {
@@ -56,7 +70,7 @@ export function installObsidianDomPolyfills(): void {
             return;
           }
           if (key in el) {
-            (el as Record<string, unknown>)[key] = value;
+            (el as unknown as Record<string, unknown>)[key] = value;
           }
         });
       }
@@ -71,7 +85,7 @@ export function installObsidianDomPolyfills(): void {
         | string
         | { cls?: string; text?: string; attr?: Record<string, string> },
     ): HTMLDivElement {
-      const el = this.createElement("div");
+      const el = nativeCreateElement.call(this, "div") as HTMLDivElement;
       if (typeof opts === "string") {
         el.className = opts;
       } else {
@@ -92,7 +106,7 @@ export function installObsidianDomPolyfills(): void {
         | string
         | { cls?: string; text?: string; attr?: Record<string, string> },
     ): HTMLSpanElement {
-      const el = this.createElement("span");
+      const el = nativeCreateElement.call(this, "span") as HTMLSpanElement;
       if (typeof opts === "string") {
         el.className = opts;
       } else {
@@ -110,7 +124,7 @@ export function installObsidianDomPolyfills(): void {
     documentProto.createFragment = function createFragment(
       this: Document,
     ): DocumentFragment {
-      return this.createDocumentFragment();
+      return nativeCreateDocumentFragment.call(this);
     };
   }
 
@@ -130,7 +144,8 @@ export function installObsidianDomPolyfills(): void {
           [key: string]: unknown;
         },
       ): HTMLElementTagNameMap[K] {
-        return this.document.createEl(tag, opts);
+        const doc = this?.document ?? globalScope.activeDocument ?? window.document;
+        return doc.createEl(tag, opts);
       };
     }
 
@@ -141,7 +156,8 @@ export function installObsidianDomPolyfills(): void {
           | string
           | { cls?: string; text?: string; attr?: Record<string, string> },
       ): HTMLDivElement {
-        return this.document.createDiv(opts);
+        const doc = this?.document ?? globalScope.activeDocument ?? window.document;
+        return doc.createDiv(opts);
       };
     }
 
@@ -152,7 +168,8 @@ export function installObsidianDomPolyfills(): void {
           | string
           | { cls?: string; text?: string; attr?: Record<string, string> },
       ): HTMLSpanElement {
-        return this.document.createSpan(opts);
+        const doc = this?.document ?? globalScope.activeDocument ?? window.document;
+        return doc.createSpan(opts);
       };
     }
 
@@ -164,10 +181,12 @@ export function installObsidianDomPolyfills(): void {
         tag: K,
         attrs?: Record<string, string>,
       ): SVGElementTagNameMap[K] {
-        const el = this.document.createElementNS(
+        const doc = this?.document ?? globalScope.activeDocument ?? window.document;
+        const el = nativeCreateElementNS.call(
+          doc,
           "http://www.w3.org/2000/svg",
           tag,
-        );
+        ) as SVGElementTagNameMap[K];
         Object.entries(attrs ?? {}).forEach(([key, value]) => {
           el.setAttribute(key, value);
         });
@@ -179,7 +198,8 @@ export function installObsidianDomPolyfills(): void {
       helperTarget.createFragment = function createFragment(
         this: Window,
       ): DocumentFragment {
-        return this.document.createFragment();
+        const doc = this?.document ?? globalScope.activeDocument ?? window.document;
+        return doc.createFragment();
       };
     }
 
@@ -315,7 +335,7 @@ export function installObsidianDomPolyfills(): void {
         | { cls?: string; text?: string; attr?: Record<string, string> },
     ): HTMLDivElement {
       const doc = this.ownerDocument ?? globalScope.activeDocument ?? window.document;
-      const el = doc.createElement("div");
+      const el = nativeCreateElement.call(doc, "div") as HTMLDivElement;
       if (typeof opts === "string") {
         el.className = opts;
       } else {
@@ -338,7 +358,7 @@ export function installObsidianDomPolyfills(): void {
         | { cls?: string; text?: string; attr?: Record<string, string> },
     ): HTMLSpanElement {
       const doc = this.ownerDocument ?? globalScope.activeDocument ?? window.document;
-      const el = doc.createElement("span");
+      const el = nativeCreateElement.call(doc, "span") as HTMLSpanElement;
       if (typeof opts === "string") {
         el.className = opts;
       } else {
@@ -377,7 +397,7 @@ export function installObsidianDomPolyfills(): void {
       },
     ): HTMLElementTagNameMap[K] {
       const doc = this.ownerDocument ?? globalScope.activeDocument ?? window.document;
-      const el = doc.createElement(tag);
+      const el = nativeCreateElement.call(doc, tag) as HTMLElementTagNameMap[K];
       if (opts?.cls) el.className = opts.cls;
       if (opts?.text !== undefined) el.textContent = opts.text;
       if (opts?.attr) {
@@ -392,7 +412,7 @@ export function installObsidianDomPolyfills(): void {
           }
           // Pass through common properties like value/placeholder/disabled/etc.
           if (key in el) {
-            (el as Record<string, unknown>)[key] = value;
+            (el as unknown as Record<string, unknown>)[key] = value;
           }
         });
       }
