@@ -1,5 +1,36 @@
 # RSS Dashboard Codex Instructions
 
+## Base branch
+
+Branch and create worktrees off `dev`, never `master`. PRs target `dev`.
+`master` takes no direct commits — it receives only merged `release/x.x.x`
+branches, and every commit on it is a tagged release. Branch names use
+`feature/`, `fix/`, `docs/`, or `chore/` plus a short description. See
+**Branch Descriptions** in `CONTRIBUTING.md`.
+
+Verify the base before writing code. `refs/remotes/origin/HEAD` points at
+`origin/master`, so a newly created worktree — and the branch an agent session
+reports as "main" — default to `master` even when the main checkout is on
+`dev`:
+
+    git rev-parse --abbrev-ref HEAD
+    git log --oneline --left-right dev...HEAD
+
+If HEAD sits on `master`, move to `dev` before doing anything else. `master`
+runs roughly 100 commits behind, and validation there is misleading rather
+than merely stale: `manifest.json` declares `minAppVersion` 1.1.0 on `master`
+against 1.8.7 on `dev`, so `npm run lint` reports dozens of phantom
+`obsidianmd/no-unsupported-api` errors, `npm run build` fails at lint, and the
+pre-commit hook refuses to commit at all. All of that is clean on `dev`. Do
+not record those errors as a pre-existing backlog; they are an artifact of the
+wrong base.
+
+To move work already written on the wrong base, save it and replay it:
+
+    git diff --cached --binary master > ../work.patch
+    git reset --hard dev
+    git apply -3 ../work.patch
+
 ## Mandatory guidance
 
 Before making or reviewing a code or test change, read these files in full:
