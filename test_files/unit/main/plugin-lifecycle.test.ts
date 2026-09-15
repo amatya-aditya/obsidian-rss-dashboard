@@ -2302,3 +2302,53 @@ describe("loadSettings() vault metadata guard", () => {
     expect(plugin.saveData).not.toHaveBeenCalled();
   });
 });
+
+// ─── Metadata path reporting ──────────────────────────────────────────────────
+describe("getMetadataFilePath()", () => {
+  let plugin: RssDashboardPlugin;
+
+  beforeEach(async () => {
+    const app = createMockApp();
+    plugin = await createPluginInstance(app);
+    vi.clearAllMocks();
+  });
+
+  it("points at the configured vault folder when metadata lives in the vault", () => {
+    plugin.settings = {
+      ...DEFAULT_SETTINGS,
+      metadataStorageMode: "vault-location",
+      metadataStorageFolder: "rss-dashboard-data",
+    } as RssDashboardSettings;
+
+    expect(plugin.getMetadataFilePath()).toBe("rss-dashboard-data/data.json");
+  });
+
+  it("trims a trailing separator from the configured folder", () => {
+    plugin.settings = {
+      ...DEFAULT_SETTINGS,
+      metadataStorageMode: "vault-location",
+      metadataStorageFolder: "rss-dashboard-data/",
+    } as RssDashboardSettings;
+
+    expect(plugin.getMetadataFilePath()).toBe("rss-dashboard-data/data.json");
+  });
+
+  it("falls back to the default vault folder when none is configured", () => {
+    plugin.settings = {
+      ...DEFAULT_SETTINGS,
+      metadataStorageMode: "vault-location",
+      metadataStorageFolder: "",
+    } as RssDashboardSettings;
+
+    expect(plugin.getMetadataFilePath()).toBe(".rss-dashboard-data/data.json");
+  });
+
+  it("points inside the plugin folder when metadata is plugin-default", () => {
+    plugin.settings = {
+      ...DEFAULT_SETTINGS,
+      metadataStorageMode: "plugin-default",
+    } as RssDashboardSettings;
+
+    expect(plugin.getMetadataFilePath()).toBe("./data.json");
+  });
+});

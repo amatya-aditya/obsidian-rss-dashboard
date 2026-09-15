@@ -40,6 +40,7 @@ interface StorageSettingsPlugin {
   } | null>;
   getStorageStatus(): FeedStorageStatus;
   getOrphanedUserStatePath(): Promise<string | null>;
+  getMetadataFilePath(): string;
   migrateToVaultStorage(): Promise<void>;
   migrateToVaultShardsV2(): Promise<void>;
   repairVaultStorage(): Promise<void>;
@@ -117,6 +118,7 @@ export function renderStorageSettingsTab(
     return [
       `Mode: ${status.mode}`,
       `Folder: ${status.folder}`,
+      `Metadata: ${plugin.getMetadataFilePath()}`,
       `Feeds: ${status.feedCount}`,
       `Shards: ${status.shardCount}`,
       migrationState,

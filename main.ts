@@ -2115,6 +2115,14 @@ export default class RssDashboardPlugin extends Plugin {
     return this.feedStorageRepository.getStatus(this.settings);
   }
 
+  /** Vault-relative path of the data.json that metadata is actually written to. */
+  public getMetadataFilePath(): string {
+    const metadataFolder =
+      getMetadataPath(this.settings) ?? this.manifest.dir ?? "";
+    const trimmed = metadataFolder.replace(/[\\/]+$/g, "");
+    return trimmed ? `${trimmed}/data.json` : "data.json";
+  }
+
   public getFeedLocalStorageAddress(feed: Feed): FeedLocalStorageAddress {
     const resolved = this.feedStorageRepository.getFeedLocalStorageAddress(
       this.settings,
@@ -2125,12 +2133,7 @@ export default class RssDashboardPlugin extends Plugin {
       return resolved;
     }
 
-    const metadataFolder =
-      getMetadataPath(this.settings) ?? this.manifest.dir ?? "";
-    const metadataFolderTrimmed = metadataFolder.replace(/[\\/]+$/g, "");
-    const relativeDataPath = metadataFolderTrimmed
-      ? `${metadataFolderTrimmed}/data.json`
-      : "data.json";
+    const relativeDataPath = this.getMetadataFilePath();
 
     return {
       ...resolved,

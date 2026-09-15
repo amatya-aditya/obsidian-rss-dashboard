@@ -60,6 +60,7 @@ function createPlugin() {
     saveSettings: vi.fn(async () => {}),
     getActiveDashboardView: vi.fn(async () => null),
     getOrphanedUserStatePath: vi.fn(async () => null),
+    getMetadataFilePath: vi.fn(() => "rss-dashboard-data/data.json"),
     getStorageStatus: vi.fn(
       (): FeedStorageStatus => ({
         mode: "legacy-json" as const,
