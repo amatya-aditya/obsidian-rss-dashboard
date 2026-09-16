@@ -10,6 +10,8 @@ import type {
   SyncV3ConfigLog,
   SyncV3ConfigOperation,
   SyncV3Epoch,
+  SyncV3HealthReport,
+  SyncV3RecoveryResult,
   SyncV3StateBucket,
   SyncV3StateValue,
   SyncV3Status,
@@ -34,6 +36,7 @@ interface Adapter {
   list(path: string): Promise<{ files: string[]; folders: string[] }>;
   read(path: string): Promise<string>;
   write(path: string, data: string): Promise<void>;
+  remove(path: string): Promise<void>;
 }
 
 interface LocalStorageApp {
@@ -143,6 +146,19 @@ function operationFeedId(operation: SyncV3ConfigOperation): string | null {
   return null;
 }
 
+/**
+ * Obsidian Sync writes conflict copies as `name.sync-conflict-<timestamp>.ext`
+ * when a device's Conflict Resolution setting is "Create conflict file"
+ * (https://obsidian.md/help/sync/settings). Under a Sync v3 set this is
+ * always a symptom worth surfacing: either an adoption race (two devices
+ * published epoch.json before seeing each other) or the device's Conflict
+ * Resolution setting being "Automatically merge" instead, which would
+ * otherwise silently corrupt the JSON it merges.
+ */
+export function isSyncConflictCopyPath(path: string): boolean {
+  return /\.sync-conflict-[^/]+\.[^./]+$/.test(path);
+}
+
 function isEpoch(value: unknown): value is SyncV3Epoch {
   return (
     isRecord(value) &&
@@ -225,23 +241,74 @@ export class SyncV3Storage {
   }
 
   public async getStatus(): Promise<SyncV3Status> {
-    const epoch = await this.readEpoch();
-    const replicas = await this.listReplicaDirectories();
-    const invalidReplicaCount = epoch ? await this.countInvalidReplicas(epoch) : 0;
+    const [epoch, replicas, conflictCopyPaths] = await Promise.all([
+      this.readEpoch(),
+      this.listReplicaDirectories(),
+      this.listConflictCopyPaths(),
+    ]);
+    const invalidReplicaCount = epoch ? await this.countInvalidReplicas(epoch, replicas) : 0;
     return {
       health: !epoch
         ? "migration-required"
-        : invalidReplicaCount > 0
+        : invalidReplicaCount > 0 || conflictCopyPaths.length > 0
           ? "degraded"
           : "ready",
       root: this.root,
       deviceId: this.getDeviceId(),
+      epochId: epoch?.epochId ?? null,
       replicaCount: replicas.length,
       invalidReplicaCount,
+      conflictCopyPaths,
       localCachePath: this.getCachePath(),
       lastLocalWrite: this.lastLocalWrite,
       lastIncomingMerge: this.lastIncomingMerge,
     };
+  }
+
+  /** The exportable diagnostic snapshot backing a [[Sync v3 health report]]. */
+  public async buildHealthReport(): Promise<SyncV3HealthReport> {
+    return {
+      version: 1,
+      exportedAt: Date.now(),
+      status: await this.getStatus(),
+    };
+  }
+
+  /**
+   * The single, backup-first Sync v3 recovery action. Callers must export a
+   * portable backup before invoking this — it is not this method's
+   * responsibility, matching the existing create/join confirmation flow.
+   *
+   * If this device's own replica belongs to an epoch other than the current
+   * one (an adoption race left it behind), re-adopts the current epoch via
+   * `join`. Otherwise its own data is already current, so this only
+   * re-derives the local projection from every replica via `hydrate`,
+   * fixing staleness without touching any other device's files.
+   */
+  public async recover(settings: RssDashboardSettings): Promise<SyncV3RecoveryResult> {
+    const conflictCopyPaths = await this.listConflictCopyPaths();
+    let clearedConflictCopies = 0;
+    for (const path of conflictCopyPaths) {
+      try {
+        await this.adapter.remove(path);
+        clearedConflictCopies += 1;
+      } catch {
+        // Leave it for the next recovery attempt or manual cleanup.
+      }
+    }
+    const epoch = await this.readEpoch();
+    if (!epoch) return { recovered: false, reason: "no-epoch", clearedConflictCopies };
+    // No own config log under the current epoch covers two cases identically:
+    // a fresh join that has never persisted yet, and a device abandoned by an
+    // adoption race whose replica belongs to a different epoch. Both resolve
+    // the same way — re-adopt the current epoch.
+    const ownConfig = await this.readConfigLog(this.configPath(this.getDeviceId()), epoch);
+    if (!ownConfig) {
+      const joined = await this.join(settings);
+      return { recovered: joined, reason: joined ? "rejoined-current-epoch" : "join-failed", clearedConflictCopies };
+    }
+    const rehydrated = await this.hydrate(settings);
+    return { recovered: rehydrated, reason: rehydrated ? "rehydrated" : "hydrate-failed", clearedConflictCopies };
   }
 
   public async createFromSettings(settings: RssDashboardSettings): Promise<void> {
@@ -289,7 +356,8 @@ export class SyncV3Storage {
     if (!epoch) return false;
     const cached = await this.readLocalCache();
     if (cached) this.copyCachedItems(settings, cached.settings);
-    await this.hydrate(settings);
+    const hydrated = await this.hydrate(settings);
+    if (!hydrated) return false;
     settings.storageMode = "replicated-v3";
     await this.writeLocalCache(settings);
     return true;
@@ -612,8 +680,23 @@ export class SyncV3Storage {
     return listing.folders.map((folder) => folder.split("/").pop() ?? "").filter(Boolean);
   }
 
-  private async countInvalidReplicas(epoch: SyncV3Epoch): Promise<number> {
-    const replicaIds = await this.listReplicaDirectories();
+  private async listConflictCopyPaths(): Promise<string[]> {
+    if (!(await this.adapter.exists(this.root))) return [];
+    const found: string[] = [];
+    const queue: string[] = [this.root];
+    while (queue.length > 0) {
+      const current = queue.shift();
+      if (current === undefined) continue;
+      const listing = await this.adapter.list(current);
+      for (const file of listing.files) {
+        if (isSyncConflictCopyPath(file)) found.push(file);
+      }
+      queue.push(...listing.folders);
+    }
+    return found;
+  }
+
+  private async countInvalidReplicas(epoch: SyncV3Epoch, replicaIds: string[]): Promise<number> {
     let invalid = 0;
     for (const replicaId of replicaIds) {
       const config = await this.readConfigLog(this.configPath(replicaId), epoch);

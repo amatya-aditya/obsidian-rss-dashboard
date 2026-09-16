@@ -30,12 +30,12 @@ Validation: focused Sync V3 tests pass. TypeScript and platform checks are rerun
 - [x] Reload incoming replica changes immediately; this is file-driven and does not claim to know when Obsidian Sync is complete.
 - [x] Rebuild settings-backed services after an incoming projection is applied.
 
-## Phase 4 — Migration and joining — in progress
+## Phase 4 — Migration and joining — complete
 
 - [x] Create a V3 set writes the primary config and manifest before publishing `epoch.json`.
 - [x] Joining devices load the existing epoch and do not seed a second shared configuration.
 - [x] Require a confirmation and portable backup export before the primary publishes a V3 epoch.
-- [ ] Add portable migration diagnostics and a recovery action.
+- [x] Add portable migration diagnostics and a recovery action. `SyncV3Status` now reports `epochId` and detected `conflictCopyPaths` (Obsidian Sync conflict-copy files); "Sync v3 health report" exports that snapshot for cross-device comparison; "Sync v3 recovery" is the single, backup-first action that re-adopts the current epoch or re-hydrates, depending on whether this device's own replica matches it. See ADR 0008 for why this detects and recovers rather than locking to prevent adoption races.
 
 ## Phase 5 — Storage UI and docs — in progress
 

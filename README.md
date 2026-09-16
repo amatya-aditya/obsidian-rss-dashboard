@@ -243,6 +243,12 @@ For a preview of the keyboard shortcuts, see [Keyboard Shortcuts](docs/keyboard-
 RSS Dashboard supports Obsidian Sync and some other third-party sync solutions, but requires
 a specific setup order on new devices to prevent feed data from being overwritten.
 
+> Obsidian Sync is a paid Obsidian subscription feature. Obsidian does not publish a
+> public sync API and discourages third-party sync clients for the same reason — it
+> cannot quality-control the undefined behavior they might cause. RSS Dashboard does
+> its best to accommodate third-party sync tools, but neither is officially supported
+> by Obsidian.
+
 ### Before you begin: folder naming requirements
 
 For sync to work reliably across devices, two naming rules must be followed in General

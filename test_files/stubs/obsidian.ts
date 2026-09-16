@@ -344,6 +344,7 @@ interface MockVaultAdapter {
   on(name: string, callback: (...args: unknown[]) => unknown): unknown;
   list(path: string): Promise<{ files: string[]; folders: string[] }>;
   rmdir(path: string, recursive: boolean): Promise<void>;
+  remove(path: string): Promise<void>;
 }
 
 export class MockDataVault {
@@ -370,6 +371,9 @@ export class MockDataVault {
       read: async (path: string) => this.adapterFiles.get(path) ?? "",
       write: async (path: string, content: string) => {
         this.adapterFiles.set(path, content);
+      },
+      remove: async (path: string) => {
+        this.adapterFiles.delete(path);
       },
       on: (
         _name: string,
@@ -847,6 +851,7 @@ interface ButtonSettingComponent extends SettingComponent {
   onClick(handler: (evt: MouseEvent) => void): this;
   setCta(): this;
   setWarning(): this;
+  setDestructive(): this;
   _triggerClick(evt?: MouseEvent): void;
 }
 
@@ -974,6 +979,11 @@ export class Setting {
 
       setWarning(): this {
         this.buttonEl.classList.add("mod-warning");
+        return this;
+      }
+
+      setDestructive(): this {
+        this.buttonEl.classList.add("mod-destructive");
         return this;
       }
 

@@ -473,11 +473,35 @@ export interface SyncV3Status {
   health: "migration-required" | "waiting-for-primary" | "ready" | "degraded";
   root: string;
   deviceId: string;
+  epochId: string | null;
   replicaCount: number;
   invalidReplicaCount: number;
+  conflictCopyPaths: string[];
   localCachePath: string;
   lastLocalWrite: number | null;
   lastIncomingMerge: number | null;
+}
+
+/** An exportable diagnostic snapshot for cross-device comparison or a bug report. */
+export interface SyncV3HealthReport {
+  version: number;
+  exportedAt: number;
+  status: SyncV3Status;
+}
+
+export type SyncV3RecoveryReason =
+  | "no-epoch"
+  | "rejoined-current-epoch"
+  | "join-failed"
+  | "rehydrated"
+  | "hydrate-failed";
+
+/** Outcome of the single, backup-first Sync v3 recovery action. */
+export interface SyncV3RecoveryResult {
+  recovered: boolean;
+  reason: SyncV3RecoveryReason;
+  /** Sync conflict copies deleted as part of this recovery run. */
+  clearedConflictCopies: number;
 }
 
 export interface ArticleUserState {

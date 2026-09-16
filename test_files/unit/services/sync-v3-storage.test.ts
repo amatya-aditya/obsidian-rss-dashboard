@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { App } from "obsidian";
-import { SyncV3Storage } from "../../../src/services/sync-v3-storage";
+import { isSyncConflictCopyPath, SyncV3Storage } from "../../../src/services/sync-v3-storage";
 import {
   DEFAULT_SETTINGS,
   type Feed,
@@ -160,5 +160,113 @@ describe("SyncV3Storage", () => {
     expect(JSON.parse(await adapter.read(".rss-dashboard-cache-v3/runtime.json"))).toEqual(
       expect.objectContaining({ version: 3 }),
     );
+  });
+
+  describe("isSyncConflictCopyPath", () => {
+    it("matches Obsidian Sync's conflict-copy naming", () => {
+      expect(isSyncConflictCopyPath(
+        "rss-dashboard-data/sync-v3/epoch.sync-conflict-20260916-143022.json",
+      )).toBe(true);
+    });
+
+    it("does not match an ordinary replica file", () => {
+      expect(isSyncConflictCopyPath(
+        "rss-dashboard-data/sync-v3/replicas/device-a/config-log.json",
+      )).toBe(false);
+    });
+  });
+
+  describe("Sync v3 health report", () => {
+    it("reports epochId and no conflict copies for a healthy set", async () => {
+      const storage = new SyncV3Storage(primaryApp);
+      await storage.createFromSettings(settingsWithFeeds([feed("feed-1", "article-1")]));
+
+      const report = await storage.buildHealthReport();
+
+      expect(report.status.health).toBe("ready");
+      expect(report.status.epochId).not.toBeNull();
+      expect(report.status.conflictCopyPaths).toEqual([]);
+    });
+
+    it("degrades health and lists paths when a sync conflict copy is present", async () => {
+      const storage = new SyncV3Storage(primaryApp);
+      await storage.createFromSettings(settingsWithFeeds([feed("feed-1", "article-1")]));
+      const adapter = primaryApp.vault.adapter as { write(path: string, data: string): Promise<void> };
+      const conflictPath = "rss-dashboard-data/sync-v3/epoch.sync-conflict-20260916-143022.json";
+      await adapter.write(conflictPath, "{}");
+
+      const status = await storage.getStatus();
+
+      expect(status.health).toBe("degraded");
+      expect(status.conflictCopyPaths).toEqual([conflictPath]);
+    });
+  });
+
+  describe("recover", () => {
+    it("reports no-epoch when no Sync v3 set exists yet", async () => {
+      const storage = new SyncV3Storage(primaryApp);
+      const settings = settingsWithFeeds([feed("feed-1", "article-1")]);
+
+      const result = await storage.recover(settings);
+
+      expect(result).toEqual({ recovered: false, reason: "no-epoch", clearedConflictCopies: 0 });
+    });
+
+    it("re-hydrates when this device's replica already matches the current epoch", async () => {
+      const primary = new SyncV3Storage(primaryApp);
+      const primarySettings = settingsWithFeeds([feed("feed-1", "article-1")]);
+      await primary.createFromSettings(primarySettings);
+
+      const secondary = new SyncV3Storage(secondaryApp);
+      const secondarySettings = settingsWithFeeds([feed("feed-1", "article-1")]);
+      await secondary.join(secondarySettings);
+      // Persist a real config change so this device writes its own replica
+      // under the current epoch — otherwise a fresh join with no replica yet
+      // is indistinguishable from one left behind by an adoption race, and
+      // recover() correctly treats both the same way (re-adopt via join).
+      secondarySettings.folders = [...secondarySettings.folders, { name: "Local", subfolders: [] }];
+      await secondary.persist(secondarySettings);
+      primarySettings.feeds[0].items[0].read = true;
+      await primary.persist(primarySettings);
+
+      const result = await secondary.recover(secondarySettings);
+
+      expect(result).toEqual({ recovered: true, reason: "rehydrated", clearedConflictCopies: 0 });
+      expect(secondarySettings.feeds[0].items[0].read).toBe(true);
+    });
+
+    it("re-joins the current epoch when this device was left behind by an adoption race", async () => {
+      const loser = new SyncV3Storage(secondaryApp);
+      const loserSettings = settingsWithFeeds([feed("feed-1", "article-1")]);
+      await loser.createFromSettings(loserSettings);
+
+      const winner = new SyncV3Storage(primaryApp);
+      const adapter = primaryApp.vault.adapter as { write(path: string, data: string): Promise<void> };
+      await adapter.write(
+        "rss-dashboard-data/sync-v3/epoch.json",
+        JSON.stringify({ version: 3, epochId: "epoch-winner", createdAt: Date.now(), primaryDeviceId: winner.getDeviceId() }),
+      );
+
+      const result = await loser.recover(loserSettings);
+
+      expect(result).toEqual({ recovered: true, reason: "rejoined-current-epoch", clearedConflictCopies: 0 });
+    });
+
+    it("clears detected sync conflict copies as part of recovery", async () => {
+      const storage = new SyncV3Storage(primaryApp);
+      const settings = settingsWithFeeds([feed("feed-1", "article-1")]);
+      await storage.createFromSettings(settings);
+      const adapter = primaryApp.vault.adapter as {
+        write(path: string, data: string): Promise<void>;
+        exists(path: string): Promise<boolean>;
+      };
+      const conflictPath = "rss-dashboard-data/sync-v3/epoch.sync-conflict-20260916-143022.json";
+      await adapter.write(conflictPath, "{}");
+
+      const result = await storage.recover(settings);
+
+      expect(result.clearedConflictCopies).toBe(1);
+      expect(await adapter.exists(conflictPath)).toBe(false);
+    });
   });
 });

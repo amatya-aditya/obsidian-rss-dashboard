@@ -3,6 +3,7 @@ import type {
   PortableDataBundle,
   RssDashboardSettings,
   SettingsBundle,
+  SyncV3HealthReport,
 } from "../types/types";
 import { OpmlManager } from "./opml-manager";
 import {
@@ -140,6 +141,25 @@ export class ImportExportService {
         type: "application/json",
       },
     );
+    return exportBlob({
+      blob,
+      filename,
+      isMobile: this.isMobile,
+    });
+  }
+
+  /**
+   * Export a Sync v3 health report — the diagnostic snapshot behind
+   * "Sync v3 recovery" — for cross-device comparison or a bug report.
+   * Does not show a Notice — the caller (main.ts/views) turns the result into
+   * user-facing feedback.
+   * @returns {Promise<ExportBlobResult>} The outcome of the export attempt
+   */
+  async exportSyncV3HealthReport(report: SyncV3HealthReport): Promise<ExportBlobResult> {
+    const filename = "rss-dashboard-sync-v3-health-report.json";
+    const blob = new Blob([JSON.stringify(report, null, 2)], {
+      type: "application/json",
+    });
     return exportBlob({
       blob,
       filename,

@@ -14,7 +14,12 @@ import {
 } from "obsidian";
 import { FolderSuggest } from "../../components/folder-suggest";
 import { setCssProps } from "../../utils/platform-utils";
-import { DEFAULT_SETTINGS, type RssDashboardSettings } from "../../types/types";
+import {
+  DEFAULT_SETTINGS,
+  type RssDashboardSettings,
+  type SyncV3RecoveryResult,
+  type SyncV3Status,
+} from "../../types/types";
 import {
   MetadataCleanupModal,
   ShardDeletionFailureModal,
@@ -58,18 +63,45 @@ interface StorageSettingsPlugin {
   openStorageFolderInSystem(folderPath?: string): Promise<void>;
   migrateMetadataToVaultLocation(): Promise<void>;
   revertMetadataToPluginDefault(): Promise<void>;
-  getSyncV3Status?(): Promise<{
-    health: "migration-required" | "waiting-for-primary" | "ready" | "degraded";
-    root: string;
-    deviceId: string;
-    replicaCount: number;
-    invalidReplicaCount: number;
-    localCachePath: string;
-    lastLocalWrite: number | null;
-    lastIncomingMerge: number | null;
-  }>;
+  getSyncV3Status?(): Promise<SyncV3Status>;
   createSyncV3Set?(): Promise<void>;
   joinSyncV3Set?(): Promise<boolean>;
+  exportSyncV3HealthReport?(): Promise<void>;
+  recoverSyncV3?(): Promise<SyncV3RecoveryResult>;
+  exportPortableDataBundleChecked?(): Promise<boolean>;
+}
+
+/**
+ * Confirm, export a portable backup, then run a Sync v3 action — shared by
+ * "Create v3 sync set" and "Run sync v3 recovery" so both actually check the
+ * backup succeeded before proceeding, and so a future similar button doesn't
+ * need to copy this chain a third time.
+ */
+function runConfirmedBackupThenAction(
+  plugin: StorageSettingsPlugin,
+  options: {
+    confirmMessage: string;
+    action: () => Promise<void>;
+    onSuccess: () => void;
+    errorPrefix: string;
+  },
+): void {
+  const confirmed = activeWindow.confirm(options.confirmMessage);
+  if (!confirmed) return;
+  const exportBackup = plugin.exportPortableDataBundleChecked
+    ? plugin.exportPortableDataBundleChecked()
+    : plugin.exportPortableDataBundle().then(() => true);
+  void exportBackup
+    .then((backedUp) => {
+      if (!backedUp) {
+        new Notice(`${options.errorPrefix}: portable backup was not completed.`);
+        return;
+      }
+      return options.action().then(options.onSuccess);
+    })
+    .catch((error: unknown) => {
+      new Notice(`${options.errorPrefix}${error instanceof Error ? `: ${error.message}` : ""}`);
+    });
 }
 
 function storageLog(_message: string, _details?: unknown): void {}
@@ -134,11 +166,15 @@ export function renderStorageSettingsTab(
     const setupGuidance = status.health === "migration-required"
       ? " This device is local-only until you create or join a Sync v3 set."
       : "";
+    const conflictGuidance = status.conflictCopyPaths.length > 0
+      ? ` ${status.conflictCopyPaths.length} sync conflict ${status.conflictCopyPaths.length === 1 ? "copy" : "copies"} found — ` +
+        "check every device's Settings → Sync → Conflict resolution is set to \"Create conflict file\", not \"Automatically merge\"."
+      : "";
     syncV3StatusText.setText(
-      `Status: ${status.health}. Shared folder: ${status.root}. Device: ${status.deviceId.slice(0, 16)}. ` +
+      `Status: ${status.health}. Shared folder: ${status.root}. Device: ${status.deviceId.slice(0, 16)}. Epoch: ${status.epochId ?? "none"}. ` +
         `replicas: ${status.replicaCount}; invalid or incomplete: ${status.invalidReplicaCount}. ` +
         `local cache: ${status.localCachePath}. Last local write: ${lastWrite}. Last incoming merge: ${lastMerge}.` +
-        setupGuidance,
+        setupGuidance + conflictGuidance,
     );
   }).catch(() => {
     syncV3StatusText.setText("Sync v3 status could not be read. Existing shared files were not changed.");
@@ -152,15 +188,14 @@ export function renderStorageSettingsTab(
     )
     .addButton((button) => button.setButtonText("Create v3 sync set from this device").setCta().onClick(() => {
       if (!plugin.createSyncV3Set) return;
-      const confirmed = activeWindow.confirm(
-        "Create Sync v3 from this device? Export a portable backup first, then use this device as the authoritative source for the new shared set.",
-      );
-      if (!confirmed) return;
-      void plugin.exportPortableDataBundle().then(() => plugin.createSyncV3Set!()).then(() => {
-        new Notice("Sync v3 set created. Join it from each other device.");
-        plugin.settingTab?.display();
-      }).catch((error: unknown) => {
-        new Notice(`Could not create sync v3${error instanceof Error ? `: ${error.message}` : ""}`);
+      runConfirmedBackupThenAction(plugin, {
+        confirmMessage: "Create Sync v3 from this device? Export a portable backup first, then use this device as the authoritative source for the new shared set.",
+        action: () => plugin.createSyncV3Set!(),
+        onSuccess: () => {
+          new Notice("Sync v3 set created. Join it from each other device.");
+          plugin.settingTab?.display();
+        },
+        errorPrefix: "Could not create sync v3",
       });
     }))
     .addButton((button) => button.setButtonText("Join existing v3 sync set").onClick(() => {
@@ -172,6 +207,43 @@ export function renderStorageSettingsTab(
         new Notice(`Could not join sync v3${error instanceof Error ? `: ${error.message}` : ""}`);
       });
     }));
+
+  new Setting(containerEl)
+    .setName("Sync v3 recovery")
+    .setDesc(
+      "Export a diagnostic report to compare devices or attach to a bug report, or run recovery if health above is degraded. " +
+        "Recovery always exports a portable backup first, then clears any detected sync conflict copies and either re-adopts " +
+        "the current shared set (if this device fell behind in an adoption race) or re-derives this device's view from every " +
+        "replica. It never touches another device's replica data.",
+    )
+    .addButton((button) => button.setButtonText("Export sync v3 health report").onClick(() => {
+      if (!plugin.exportSyncV3HealthReport) return;
+      void plugin.exportSyncV3HealthReport().catch((error: unknown) => {
+        new Notice(`Could not export sync v3 health report${error instanceof Error ? `: ${error.message}` : ""}`);
+      });
+    }))
+    .addButton((button) => {
+      button.setButtonText("Run sync v3 recovery").onClick(() => {
+        if (!plugin.recoverSyncV3) return;
+        runConfirmedBackupThenAction(plugin, {
+          confirmMessage: "Run Sync v3 recovery? This exports a portable backup first, then reconciles this device with the current shared set.",
+          action: () => plugin.recoverSyncV3!().then((result) => {
+            const clearedNote = result.clearedConflictCopies > 0
+              ? ` Cleared ${result.clearedConflictCopies} sync conflict ${result.clearedConflictCopies === 1 ? "copy" : "copies"}.`
+              : "";
+            new Notice(
+              (result.recovered ? `Sync v3 recovery complete (${result.reason}).` : `Sync v3 recovery could not complete (${result.reason}).`) + clearedNote,
+            );
+          }),
+          onSuccess: () => plugin.settingTab?.display(),
+          errorPrefix: "Sync v3 recovery failed",
+        });
+      });
+      // setWarning()/setDestructive() are unavailable pre-1.13.0 or
+      // deprecated; apply the same style class directly so the button
+      // still reads as a hard-to-undo action on minAppVersion 1.8.7.
+      button.buttonEl.addClass("mod-warning");
+    });
 
   new Setting(containerEl).setName("Legacy storage recovery").setHeading();
 

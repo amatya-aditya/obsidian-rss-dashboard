@@ -27,6 +27,7 @@ import {
   FeedIngestionCandidate,
   FeedIngestionOptions,
   FeedEncoding,
+  SyncV3RecoveryResult,
 } from "./src/types/types";
 import { RssDashboardSettingTab } from "./src/settings/settings-tab";
 import {
@@ -2214,6 +2215,38 @@ export default class RssDashboardPlugin extends Plugin {
     this.initializeSettingsBackedServices();
     await this.refreshDashboardViews();
     return true;
+  }
+
+  public async exportSyncV3HealthReport(): Promise<void> {
+    const report = await this.syncV3Storage.buildHealthReport();
+    const result = await this.importExportService.exportSyncV3HealthReport(report);
+    this.showExportNotice(result, "rss-dashboard-sync-v3-health-report.json");
+  }
+
+  /**
+   * Like exportPortableDataBundle(), but reports whether the export actually
+   * completed instead of swallowing the result — callers that must not
+   * proceed after a canceled or failed export (e.g. Sync v3 recovery) use
+   * this instead.
+   */
+  public async exportPortableDataBundleChecked(): Promise<boolean> {
+    const result = await this.importExportService.exportPortableDataBundle();
+    this.showExportNotice(result, "rss-dashboard-portable-bundle.json");
+    return result === "downloaded" || result === "shared" || result === "opened";
+  }
+
+  public async recoverSyncV3(): Promise<SyncV3RecoveryResult> {
+    const result = await this.syncV3Storage.recover(this.settings);
+    if (result.recovered) {
+      await this.saveData({
+        storageMode: "replicated-v3",
+        storageFolder: this.settings.storageFolder,
+      });
+      await this.saveSettings();
+      this.initializeSettingsBackedServices();
+      await this.refreshDashboardViews();
+    }
+    return result;
   }
 
   public async configureLocalStorageForFirstRun(): Promise<void> {
