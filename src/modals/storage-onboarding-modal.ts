@@ -74,7 +74,7 @@ export class StorageOnboardingModal extends Modal {
       }));
 
     new Setting(this.contentEl)
-      .setName("Sync across devices")
+      .setName("Sync across devices (experimental)")
       .setDesc("Set up device-owned sync v3 replicas. You will choose whether this is the first or an additional device.")
       .addButton((button) => button.setButtonText("Set up sync v3").onClick(() => {
         this.renderSyncChoice();
@@ -111,7 +111,7 @@ export class StorageOnboardingModal extends Modal {
 
   private renderSyncChoice(): void {
     this.contentEl.empty();
-    new Setting(this.contentEl).setName("Set up sync v3").setHeading();
+    new Setting(this.contentEl).setName("Set up sync v3 (experimental)").setHeading();
     this.contentEl.createEl("p", {
       text: "Enable Obsidian sync for all other file types on every device and do not exclude RSS-dashboard-data. RSS dashboard reports replica health, not Obsidian sync completion.",
       cls: "rss-dashboard-modal-message",
@@ -152,6 +152,11 @@ export class StorageOnboardingModal extends Modal {
     onConfirm: () => Promise<void>,
     onCancel: () => void,
   ): void {
+    if (targetMode === "replicated-v3" && this.options.isFirstRun) {
+      this.renderExperimentalConfirmation(onConfirm, onCancel);
+      return;
+    }
+
     if (
       this.options.isFirstRun ||
       this.options.currentStorageMode === targetMode
@@ -161,6 +166,31 @@ export class StorageOnboardingModal extends Modal {
     }
 
     this.renderStorageChangeConfirmation(targetMode, onConfirm, onCancel);
+  }
+
+  private renderExperimentalConfirmation(
+    onConfirm: () => Promise<void>,
+    onCancel: () => void,
+  ): void {
+    this.contentEl.empty();
+    new Setting(this.contentEl).setName("Sync v3 is experimental").setHeading();
+    this.contentEl.createEl("p", {
+      text: "Sync v3 replicas have had less real-world testing than local vault shards v2 storage. Data stays in your vault and remains exportable as a portable data bundle at any time, but replica setup and sync behavior are still being hardened.",
+      cls: "rss-dashboard-modal-message",
+    });
+
+    new Setting(this.contentEl)
+      .addButton((button) =>
+        button.setButtonText("Cancel").onClick(() => {
+          onCancel();
+        }),
+      )
+      .addButton((button) => {
+        button.setButtonText("Set up sync v3").onClick(() => {
+          void onConfirm();
+        });
+        button.buttonEl.addClass("mod-warning");
+      });
   }
 
   private renderStorageChangeConfirmation(

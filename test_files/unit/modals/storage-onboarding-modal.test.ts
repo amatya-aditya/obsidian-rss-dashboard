@@ -76,7 +76,7 @@ describe("StorageOnboardingModal", () => {
     expect(plugin.createSyncV3Set).not.toHaveBeenCalled();
   });
 
-  it("lets the first sync device create a set explicitly", async () => {
+  it("lets the first sync device create a set explicitly after confirming the experimental warning", async () => {
     const plugin = createPlugin();
     const modal = new StorageOnboardingModal(App.createMock(), plugin);
     modal.open();
@@ -85,13 +85,36 @@ describe("StorageOnboardingModal", () => {
       .find((candidate) => candidate.textContent === "Set up sync v3")?.click();
     Array.from(modal.contentEl.querySelectorAll("button"))
       .find((candidate) => candidate.textContent === "Create sync v3 set")?.click();
+
+    expect(plugin.createSyncV3Set).not.toHaveBeenCalled();
+    expect(modal.contentEl.textContent).toContain("Sync v3 is experimental");
+
+    Array.from(modal.contentEl.querySelectorAll("button"))
+      .find((candidate) => candidate.textContent === "Set up sync v3")?.click();
     await flushAsyncWork();
 
     expect(plugin.createSyncV3Set).toHaveBeenCalledTimes(1);
     expect(plugin.prepareSyncV3Join).not.toHaveBeenCalled();
   });
 
-  it("puts an additional device into a non-writing wait state", async () => {
+  it("returns to the sync choice when the experimental warning is cancelled", async () => {
+    const plugin = createPlugin();
+    const modal = new StorageOnboardingModal(App.createMock(), plugin);
+    modal.open();
+
+    Array.from(modal.contentEl.querySelectorAll("button"))
+      .find((candidate) => candidate.textContent === "Set up sync v3")?.click();
+    Array.from(modal.contentEl.querySelectorAll("button"))
+      .find((candidate) => candidate.textContent === "Create sync v3 set")?.click();
+    Array.from(modal.contentEl.querySelectorAll("button"))
+      .find((candidate) => candidate.textContent === "Cancel")?.click();
+    await flushAsyncWork();
+
+    expect(plugin.createSyncV3Set).not.toHaveBeenCalled();
+    expect(modal.contentEl.textContent).toContain("Set up sync v3 (experimental)");
+  });
+
+  it("puts an additional device into a non-writing wait state after confirming the experimental warning", async () => {
     const plugin = createPlugin();
     const modal = new StorageOnboardingModal(App.createMock(), plugin);
     modal.open();
@@ -100,6 +123,8 @@ describe("StorageOnboardingModal", () => {
       .find((candidate) => candidate.textContent === "Set up sync v3")?.click();
     Array.from(modal.contentEl.querySelectorAll("button"))
       .find((candidate) => candidate.textContent === "Wait to join sync v3")?.click();
+    Array.from(modal.contentEl.querySelectorAll("button"))
+      .find((candidate) => candidate.textContent === "Set up sync v3")?.click();
     await flushAsyncWork();
 
     expect(plugin.prepareSyncV3Join).toHaveBeenCalledTimes(1);

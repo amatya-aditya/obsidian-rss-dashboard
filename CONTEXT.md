@@ -147,6 +147,10 @@ _Avoid_: Storage (unqualified), config storage
 A feed storage mode that persists one file per feed in a vault folder instead of one monolithic `data.json`, improving sync behavior over Legacy JSON. Comes in two versions: v1 keeps each article's state inside its feed's shard file; v2 moves article state into a separate file, leaving only feed content in the shard. v2 is the supported version; v1 is a [[deprecated storage mode]].
 _Avoid_: Vault Shards, vault storage
 
+**Sync v3 replicas**:
+An experimental feed storage mode where each device owns its own replica file with explicit read/unread values, distinct from the shared-file model of Shard storage. Opt-in only, not a migration target for [[Deprecated storage mode]] vaults, and unaffected by [ADR 0006](docs/adr/0006-deprecate-legacy-json-and-shard-storage-v1.md)'s selector cleanup. Labeled "(experimental)" everywhere it's offered before a device commits to it (the storage-mode dropdown, the onboarding entry point) but not in the steady-state label shown once a device is already running it.
+_Avoid_: v3, replicated-v3 (as a display term), sync storage
+
 **Deprecated storage mode**:
 A feed storage mode the plugin still reads but will stop writing to when 3.0 ships: Legacy JSON and Shard storage v1. A vault on one of these still opens and displays its articles, but no longer refreshes feeds, records stars, tags, or saves, or auto-deletes by retention rule. Export remains available, and migrating to Shard storage v2 remains possible after the cutoff. See [ADR 0006](docs/adr/0006-deprecate-legacy-json-and-shard-storage-v1.md).
 _Avoid_: Unsupported mode, legacy mode, read-only mode

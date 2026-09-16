@@ -229,7 +229,7 @@ describe("General settings storage section", () => {
     expect(getSettingByName(containerEl, "Sync v3 replica health").textContent)
       .toContain("rss-dashboard-data/sync-v3");
     expect(getSettingByName(containerEl, "Storage mode").textContent)
-      .toContain("Sync v3:");
+      .toContain("Sync v3 (experimental):");
   });
 
   it("marks the storage transition modal for mobile safe-area positioning", () => {

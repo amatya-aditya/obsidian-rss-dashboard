@@ -378,7 +378,7 @@ export function renderStorageSettingsTab(
   descFragment.appendChild(v2Div);
 
   const v3Div = activeWindow.createDiv();
-  v3Div.createEl("strong", { text: "Sync v3:" });
+  v3Div.createEl("strong", { text: "Sync v3 (experimental):" });
   v3Div.appendText(
     " device-owned replicas with explicit read/unread values. Use the setup actions above; legacy repair does not rewrite v3 replicas.",
   );
@@ -391,7 +391,7 @@ export function renderStorageSettingsTab(
         .addOption("legacy-json", "Legacy JSON")
         .addOption("vault-shards", "Shard storage v1")
         .addOption("vault-shards-v2", "Shard storage v2")
-        .addOption("replicated-v3", "Sync v3 replicas")
+        .addOption("replicated-v3", "Sync v3 replicas (experimental)")
         .setValue(pendingStorageMode)
         .onChange((value) => {
           storageLog("Storage mode dropdown changed", {
