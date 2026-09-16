@@ -21,6 +21,7 @@ import {
   protectMathForMarkdown,
 } from "../utils/math-rendering";
 import { firstNonFormulaImageUrl } from "../utils/image-url-utils";
+import { escapeYamlDoubleQuoted } from "../utils/yaml-escape";
 
 const MAX_FILENAME_LENGTH = 100;
 
@@ -263,20 +264,23 @@ export class ArticleSaver {
     const pubDate = item.pubDate ? new Date(item.pubDate) : new Date();
 
     frontmatter = this.replaceDatePlaceholders(frontmatter, pubDate)
-      .replace(/{{title}}/g, item.title)
+      .replace(/{{title}}/g, escapeYamlDoubleQuoted(item.title))
       .replace(/{{tags}}/g, tagsString)
-      .replace(/{{source}}/g, item.feedTitle)
-      .replace(/{{link}}/g, item.link)
-      .replace(/{{author}}/g, item.author || "")
-      .replace(/{{feedTitle}}/g, item.feedTitle)
-      .replace(/{{guid}}/g, item.guid)
-      .replace(/{{image}}/g, this.getFallbackHeroUrl(item));
+      .replace(/{{source}}/g, escapeYamlDoubleQuoted(item.feedTitle))
+      .replace(/{{link}}/g, escapeYamlDoubleQuoted(item.link))
+      .replace(/{{author}}/g, escapeYamlDoubleQuoted(item.author || ""))
+      .replace(/{{feedTitle}}/g, escapeYamlDoubleQuoted(item.feedTitle))
+      .replace(/{{guid}}/g, escapeYamlDoubleQuoted(item.guid))
+      .replace(
+        /{{image}}/g,
+        escapeYamlDoubleQuoted(this.getFallbackHeroUrl(item)),
+      );
 
     if (item.mediaType === "video" && item.videoId) {
-      const injection = `mediaType: video\nvideoId: "${item.videoId}"\n`;
+      const injection = `mediaType: video\nvideoId: "${escapeYamlDoubleQuoted(item.videoId)}"\n`;
       frontmatter = frontmatter.replace(/^---\r?\n/, (m) => `${m}${injection}`);
     } else if (item.mediaType === "podcast" && item.audioUrl) {
-      const injection = `mediaType: podcast\naudioUrl: "${item.audioUrl}"\n`;
+      const injection = `mediaType: podcast\naudioUrl: "${escapeYamlDoubleQuoted(item.audioUrl)}"\n`;
       frontmatter = frontmatter.replace(/^---\r?\n/, (m) => `${m}${injection}`);
     }
 

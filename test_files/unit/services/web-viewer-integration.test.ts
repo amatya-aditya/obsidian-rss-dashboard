@@ -1,5 +1,5 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { moment } from "obsidian";
+import { TFile, moment } from "obsidian";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 import { sanitizeFilename } from "../../../src/services/article-saver";
 import type { FeedItem } from "../../../src/types/types";
@@ -275,6 +275,43 @@ describe("Phase 8 - WebViewerIntegration", () => {
         "[Stub Notice]",
         expect.stringContaining("Article saved: My File"),
       );
+
+      h.cleanup();
+    });
+
+    it("escapes quotes in frontmatter values when saving a web article", async () => {
+      const h = createWebViewerIntegrationHarness({
+        settings: {
+          frontmatterTemplate: `---
+title: "{{title}}"
+author: "{{author}}"
+---`,
+        },
+      });
+
+      const item = buildFeedItem({
+        title: 'Quoted "Title"',
+        author: 'Ada "Lovelace"',
+        link: "https://example.com/a",
+      });
+
+      const integration = h.integration as unknown as {
+        saveArticle: (
+          item: FeedItem,
+          folder: string,
+          template: string,
+          includeFrontmatter: boolean,
+        ) => Promise<unknown>;
+      };
+      const saveArticle = integration.saveArticle.bind(h.integration);
+
+      const file = await saveArticle(item, "", "BODY\n", true);
+      expect(file).not.toBeNull();
+      if (!(file instanceof TFile)) throw new Error("expected TFile");
+      const written = await h.app.vault.read(file);
+
+      expect(written).toContain('title: "Quoted \\"Title\\""');
+      expect(written).toContain('author: "Ada \\"Lovelace\\""');
 
       h.cleanup();
     });
