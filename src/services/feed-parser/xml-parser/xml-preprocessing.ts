@@ -331,8 +331,7 @@ export function fallbackParse(
       const itemPubDateMatch = itemXml.match(
         /<pubDate[^>]*>([^<]+)<\/pubDate>/i,
       );
-      itemPubDate =
-        itemPubDateMatch?.[1]?.trim() ?? new Date().toISOString();
+      itemPubDate = itemPubDateMatch?.[1]?.trim() ?? "";
 
       const itemGuidMatch = itemXml.match(/<guid[^>]*>([^<]+)<\/guid>/i);
       itemGuid = itemGuidMatch?.[1]?.trim() ?? itemLink;
