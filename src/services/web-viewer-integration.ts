@@ -2,6 +2,7 @@ import { App, Notice, TFile, setIcon, Setting, moment } from "obsidian";
 import { FeedItem, ArticleSavingSettings } from "../types/types";
 import { sanitizeFilename } from "./article-saver";
 import { normalizeSubstackImageUrl } from "../utils/substack-image-url";
+import { escapeYamlDoubleQuoted } from "../utils/yaml-escape";
 
 interface WebViewerPlugin {
   openWebpage?(url: string, title: string): Promise<void>;
@@ -328,7 +329,7 @@ guid: "{{guid}}"
     const saveTime24 = this.formatMoment(now, "HH:mm");
 
     frontmatter = frontmatter
-      .replace(/{{title}}/g, item.title)
+      .replace(/{{title}}/g, escapeYamlDoubleQuoted(item.title))
       .replace(/{{date}}/g, dateString)
       .replace(/{{isoDate}}/g, isoDateTime)
       .replace(/{{isoDateTime}}/g, isoDateTime)
@@ -336,12 +337,18 @@ guid: "{{guid}}"
       .replace(/{{saveTime12}}/g, saveTime12)
       .replace(/{{saveTime24}}/g, saveTime24)
       .replace(/{{tags}}/g, tagsString)
-      .replace(/{{source}}/g, item.feedTitle || "Web viewer")
-      .replace(/{{link}}/g, item.link)
-      .replace(/{{author}}/g, item.author || "")
-      .replace(/{{feedTitle}}/g, item.feedTitle || "Web viewer")
-      .replace(/{{guid}}/g, item.guid)
-      .replace(/{{image}}/g, this.getImage(item));
+      .replace(
+        /{{source}}/g,
+        escapeYamlDoubleQuoted(item.feedTitle || "Web viewer"),
+      )
+      .replace(/{{link}}/g, escapeYamlDoubleQuoted(item.link))
+      .replace(/{{author}}/g, escapeYamlDoubleQuoted(item.author || ""))
+      .replace(
+        /{{feedTitle}}/g,
+        escapeYamlDoubleQuoted(item.feedTitle || "Web viewer"),
+      )
+      .replace(/{{guid}}/g, escapeYamlDoubleQuoted(item.guid))
+      .replace(/{{image}}/g, escapeYamlDoubleQuoted(this.getImage(item)));
 
     return frontmatter.endsWith("\n") ? frontmatter : `${frontmatter}\n`;
   }

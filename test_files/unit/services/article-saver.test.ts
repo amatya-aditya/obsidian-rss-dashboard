@@ -137,6 +137,58 @@ describe("ArticleSaver.saveArticle", () => {
     expect(item.tags?.map((tag) => tag.name)).toEqual(["tech", "Saved"]);
   });
 
+  it("escapes quotes, backslashes, and line breaks in frontmatter values", async () => {
+    const app = App.createMock();
+    const settings = createSettings({
+      includeFrontmatter: true,
+      frontmatterTemplate: `---
+title: "{{title}}"
+author: "{{author}}"
+source: "{{source}}"
+---`,
+    });
+    const saver = new ArticleSaver(app, settings);
+
+    const item = createItem({
+      title: 'He said "hi"',
+      author: "A\\B",
+      feedTitle: "Line\nBreak Feed",
+    });
+
+    const createSpy = vi.spyOn(app.vault, "create");
+    await saver.saveArticle(item, undefined, undefined, "BODY");
+
+    const written = createSpy.mock.calls[0][1];
+    expect(written).toContain('title: "He said \\"hi\\""');
+    expect(written).toContain('author: "A\\\\B"');
+    expect(written).toContain('source: "Line\\nBreak Feed"');
+  });
+
+  it("keeps a title containing a line break and a fake key inside the quoted scalar", async () => {
+    const app = App.createMock();
+    const settings = createSettings({
+      includeFrontmatter: true,
+      frontmatterTemplate: `---
+title: "{{title}}"
+---`,
+    });
+    const saver = new ArticleSaver(app, settings);
+
+    const item = createItem({ title: 'Safe"\ninjected: true\n' });
+
+    const createSpy = vi.spyOn(app.vault, "create");
+    await saver.saveArticle(item, undefined, undefined, "BODY");
+
+    const written = createSpy.mock.calls[0][1];
+    // The body template interpolates the raw title, so scope the injection
+    // assertion to the frontmatter block, before the closing `---`.
+    const frontmatter = written.split("\n---")[0];
+    expect(frontmatter).toContain('title: "Safe\\"\\ninjected: true\\n"');
+    // Before escaping, the embedded quote and line breaks ended the scalar and
+    // left `injected: true` as a real frontmatter key.
+    expect(frontmatter).not.toMatch(/^injected: true$/m);
+  });
+
   it("trashes an existing file at the same path before creating a new one", async () => {
     const app = App.createMock();
     const settings = createSettings({
