@@ -1,6 +1,6 @@
 # Sync V3 manual walkthrough
 
-On a new device, use the first-run storage choice: choose local V2 storage for one-device use, or choose Sync V3. To review the same choices later, open **Settings â†’ RSS Dashboard â†’ General â†’ Show startup wizard**. For Sync V3, choose **first device** only on the device that will create the shared set. Choose **additional device** everywhere else; it waits locally and never seeds an empty shared set. Reopened setup asks for confirmation before it changes this device's storage mode.
+On a new device, use the first-run storage choice: choose local V2 storage for one-device use, or choose Sync V3. To review the same choices later, open **Settings → RSS Dashboard → General → Show startup wizard**. For Sync V3, choose **first device** only on the device that will create the shared set. Choose **additional device** everywhere else; it waits locally and never seeds an empty shared set. Reopened setup asks for confirmation before it changes this device's storage mode.
 
 1. Update RSS Dashboard on every device that will share the dashboard.
 2. On the device containing the authoritative feeds and read state, open **Settings → RSS Dashboard → Storage**.
