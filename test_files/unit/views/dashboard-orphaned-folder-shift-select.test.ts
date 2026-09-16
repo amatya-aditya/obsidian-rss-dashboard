@@ -13,6 +13,7 @@ function createMockEnv() {
   app.workspace = {
     on: vi.fn(),
     getLeavesOfType: vi.fn().mockReturnValue([]),
+    onLayoutReady: vi.fn(),
   } as unknown as App["workspace"];
   const leaf = {
     view: null,

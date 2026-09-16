@@ -661,6 +661,10 @@ export class RssDashboardView extends ItemView {
       },
     });
 
+    this.app.workspace.onLayoutReady(() => {
+      this.plugin.maybeShowStorageDeprecationPrompt();
+    });
+
     this.registerEvent(
       this.app.vault.on("delete", (file) => {
         if (file instanceof TFile) {

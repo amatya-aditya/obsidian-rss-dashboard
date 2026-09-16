@@ -286,6 +286,7 @@ export default class RssDashboardPlugin extends Plugin {
   private globalRefreshCompleted = 0;
   public vaultAbsolutePath = "";
   private hasCompletedStartupSavedArticleValidation = false;
+  private hasShownStorageDeprecationPromptThisSession = false;
   private vaultMetadataReloadTimer: number | null = null;
   private startupRefreshTimeoutId: number | null = null;
   private progressSaveDebounce: number | null = null;
@@ -689,6 +690,27 @@ export default class RssDashboardPlugin extends Plugin {
     void this.reconcileSavedArticlesOnStartup();
   }
 
+  /**
+   * Shown when the RSS Dashboard view opens, not on every Obsidian launch:
+   * Obsidian restores background panes before the user ever looks at them, so
+   * gating on the view itself (rather than `workspace.onLayoutReady`) keeps
+   * the prompt tied to actually using the plugin.
+   */
+  public maybeShowStorageDeprecationPrompt(): void {
+    if (this.hasShownStorageDeprecationPromptThisSession) {
+      return;
+    }
+    if (!this.settings) {
+      return;
+    }
+    if (!shouldShowStorageDeprecationPrompt(this.settings, this.manifest.version)) {
+      return;
+    }
+
+    this.hasShownStorageDeprecationPromptThisSession = true;
+    new StorageMigrationModal(this.app, this).open();
+  }
+
   public async getActiveDashboardView(): Promise<RssDashboardView | null> {
     const leaves = this.app.workspace.getLeavesOfType(RSS_DASHBOARD_VIEW_TYPE);
     for (const leaf of leaves) {
@@ -931,15 +953,6 @@ export default class RssDashboardPlugin extends Plugin {
       }
 
       this.scheduleStartupSavedArticleValidation();
-
-      this.app.workspace.onLayoutReady(() => {
-        if (
-          this.settings &&
-          shouldShowStorageDeprecationPrompt(this.settings, this.manifest.version)
-        ) {
-          new StorageMigrationModal(this.app, this).open();
-        }
-      });
 
       this.registerObsidianProtocolHandler(
         this.manifest.id,
