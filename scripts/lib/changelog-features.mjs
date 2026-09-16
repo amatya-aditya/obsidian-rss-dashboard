@@ -5,14 +5,23 @@ const BULLET_LINE = /^- (.+)$/;
 const MARKDOWN_LINK = /\[([^\]]+)\]\([^)]+\)/g;
 
 /**
+ * Splits into lines regardless of line-ending style. CHANGELOG.md is CRLF
+ * on Windows checkouts; a bare `split("\n")` leaves a trailing "\r" on
+ * every line, which silently breaks every `$`-anchored regex above.
+ */
+function splitLines(changelog) {
+  return changelog.split(/\r\n|\r|\n/);
+}
+
+/**
  * Whether CHANGELOG.md has a `## <version>` heading at all, independent of
  * whether that section has any Features. Lets a caller tell "no heading —
  * probably still says Unreleased" apart from "heading found, no Features".
  */
 export function hasVersionHeading(changelog, version) {
-  return changelog
-    .split("\n")
-    .some((line) => line.match(VERSION_HEADING)?.[1] === version);
+  return splitLines(changelog).some(
+    (line) => line.match(VERSION_HEADING)?.[1] === version,
+  );
 }
 
 /**
@@ -21,7 +30,7 @@ export function hasVersionHeading(changelog, version) {
  * version has no heading, or its Features section is missing or empty.
  */
 export function extractFeaturesForVersion(changelog, version) {
-  const lines = changelog.split("\n");
+  const lines = splitLines(changelog);
 
   let versionSectionStart = -1;
   for (let i = 0; i < lines.length; i += 1) {

@@ -101,3 +101,17 @@ describe("hasVersionHeading", () => {
     expect(hasVersionHeading(CHANGELOG, "9.9.9")).toBe(false);
   });
 });
+
+describe("CRLF line endings", () => {
+  const CRLF_CHANGELOG = CHANGELOG.replace(/\n/g, "\r\n");
+
+  it("matches a version heading even when the file uses CRLF, as CHANGELOG.md does on Windows checkouts", () => {
+    expect(hasVersionHeading(CRLF_CHANGELOG, "2.7.0")).toBe(true);
+  });
+
+  it("extracts the same Features bullets from a CRLF changelog as from an LF one", () => {
+    expect(extractFeaturesForVersion(CRLF_CHANGELOG, "2.7.0")).toEqual(
+      extractFeaturesForVersion(CHANGELOG, "2.7.0"),
+    );
+  });
+});
