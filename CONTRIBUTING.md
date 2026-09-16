@@ -7,6 +7,7 @@
 - [Contributor Workflow](#contributor-workflow)
 - [Testing and TDD Approach](#testing-and-tdd-approach)
 - [Compliance Declarations (Audit Guardrails)](#compliance-declarations-audit-guardrails)
+- [Architecture Decision Records (ADRs)](#architecture-decision-records-adrs)
 - [Release Process](#release-process)
 - [Versioning (SemVer)](#versioning-semver)
 - [Naming Conventions and Validation](#naming-conventions-and-validation)
@@ -218,13 +219,35 @@ plugin owns the cascade instead of adding an exception.
 
 - Run `npm run lint` and address violations in changed files.
 - Run `npm run test:unit` (or targeted tests with rationale) and confirm passing status.
+- When code parses or generates from a real repository file (`CHANGELOG.md`, `package.json`, config files, etc.), verify against the actual checked-in file — not just hand-written test fixtures. Line-ending style, encoding, and other real-world formatting quirks won't show up in a synthetic test string. A changelog parser here once passed its full test suite and still shipped broken, because every test fixture used plain `\n` while the repo's actual `CHANGELOG.md` is CRLF-terminated — the parser silently matched nothing against the real file.
 - If you add or change lint suppressions, verify each has a specific inline explanation.
 - Check `docs/plugin-scorecard.md` for current high-priority compliance backlog items relevant to your changes.
 - For implementation patterns and examples, use `docs/development/compliance-patterns.md`.
 
 ---
 
+## Architecture Decision Records (ADRs)
+
+Deliberate, hard-to-reverse, non-obvious decisions are recorded in `docs/adr/` as short, sequentially numbered files (`0001-slug.md`, `0002-slug.md`, ...). Write one when a decision meets all three:
+
+- **Hard to reverse** — the cost of changing your mind later is meaningful.
+- **Surprising without context** — a future reader would look at the code and wonder why it's built this way.
+- **The result of a real trade-off** — genuine alternatives existed and one was picked for specific reasons.
+
+Skip an ADR for anything obvious, easily reversed, or where there was no real alternative. See [ADR 0006](docs/adr/0006-deprecate-legacy-json-and-shard-storage-v1.md) (a deprecation policy with real trade-offs) or [ADR 0008](docs/adr/0008-embed-release-summaries-at-build-time.md) (a build-vs-runtime choice with rejected alternatives) for what a good one looks like.
+
+`CONTEXT.md` at the repo root is the companion glossary — sharpen or add a term there when a PR introduces or clarifies project-specific vocabulary; general programming concepts don't belong in it.
+
+---
+
 ## Release Process
+
+Before Step 6 — Ship, finalize the changelog per
+[release-notes-workflow.md](docs/development/release-notes-workflow.md) and
+work through the
+[pre-release checklist](docs/development/pre-release-checklist.md) —
+including renaming `CHANGELOG.md`'s `## Unreleased` heading to the release
+version and running `npm run generate:whats-new`.
 
 ### Step 1 — Feature Complete
 
@@ -325,6 +348,12 @@ git push origin release/2.3.0 --tags
 ### Step 6 — Ship
 
 When confidence is high and no new issues are surfacing:
+
+Before running the commands below, confirm the changelog is already
+finalized and committed on its own: `CHANGELOG.md`'s `## Unreleased` heading
+renamed to this release's version, and `npm run generate:whats-new` run and
+its output committed. Neither is part of the version-bump commit below — see
+[release-notes-workflow.md](docs/development/release-notes-workflow.md).
 
 ```
 # Bump to the final stable version on the release branch first
