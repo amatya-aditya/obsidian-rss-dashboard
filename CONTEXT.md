@@ -93,6 +93,22 @@ _Avoid_: Ad hoc tag, user tag, manual tag override
 
 ## Article metadata pipeline
 
+**Summary**:
+The legacy `{{summary}}` template variable and its `extractSummary(...)`-derived value: the first ~220 characters of the feed's own `content`/`description` HTML, stripped to text. Frozen byte-identical forever — it never cascades to [[Description tier|description]] or [[Excerpt tier|excerpt]] even once those exist, and the name is not reserved for a future real-summarization feature. Distinct from [[Description tier|description]] (publisher-authored) and [[Excerpt tier|excerpt]] (the new derived fallback) — despite the shared etymology, `summary` names only this one frozen value.
+_Avoid_: Using "summary" for a publisher description or the new excerpt fallback; description, excerpt
+
+**Description**:
+A publisher-authored description of the article, resolved via the [[Description tier]] precedence chain (`meta[name=description]` -> `og:description` -> `twitter:description` -> guarded feed description) and exposed as `{{description}}` and `ResolvedArticleMetadata.description`. Never a truncation of the article body — that is what [[Excerpt tier|excerpt]] is for. A candidate that turns out to be truncated body text is caught by the [[Degenerate description value]] guard and rejected from this tier.
+_Avoid_: Summary, excerpt, using "description" for any RSS-supplied value that hasn't passed the guard
+
+**Excerpt**:
+A derived, non-publisher-authored preview of the article, resolved via the [[Excerpt tier]] fallback chain and exposed as `{{excerpt}}`. Reached only once every [[Description tier]] candidate is exhausted or rejected. Distinct from [[Summary]] (the frozen legacy value) even though both are derived rather than publisher-authored — they resolve independently and can differ.
+_Avoid_: Summary (a different, frozen value), description (publisher-authored, a different tier)
+
+**Feed description**:
+The raw `<description>`/`<content>` value the RSS/Atom feed entry itself supplies, before any resolver precedence or guard is applied. One input to both the [[Description tier]] (as its lowest-precedence, guarded candidate) and the [[Excerpt tier]] (as a fallback), never itself the resolved output. Historically the only source for the Reader's "Feed description" label, which should not be shown for a value that actually came from a page-level [[Description tier]] signal.
+_Avoid_: Description (the resolved, publisher-authored output — a feed description is only ever a candidate for it), RSS description
+
 **Page metadata**:
 Signals read from the fetched article page's `<head>` and body (meta tags, `<html lang>`, Readability's own fields) during a full-article fetch, as opposed to signals the RSS/Atom feed itself carries.
 _Avoid_: Article metadata (doesn't distinguish source), HTML metadata
@@ -110,7 +126,7 @@ One value per metadata field (description, language) after precedence is applied
 _Avoid_: Final metadata, merged metadata
 
 **Persisted article metadata**:
-The subset of [[Resolved article metadata]] fields written onto `FeedItem` once a full-article fetch resolves them: `description` (overwrites the feed-derived value), `language`, `author` (fills only when the feed carried none), and `canonicalUrl`. First-write-wins — once `metadataFetchedAt` is set on an item, a later feed refresh never overwrites these fields, since [[Feed metadata]] is the pre-fetch fallback, not a rival source. Distinct from `excerpt`, `siteName`, and `modifiedAt`, which stay unpersisted (transient [[Resolved article metadata]] only).
+The subset of [[Resolved article metadata]] fields written onto `FeedItem` once a full-article fetch resolves them: `description` (overwrites the feed-derived value), `language`, `author` (`string[]`; overrides the feed-derived value only when the feed side resolved to a single author entry), `canonicalUrl`, `metadataFetchedAt`, and `languageSource`. First-write-wins — once `metadataFetchedAt` is set on an item, a later feed refresh never overwrites these fields, since [[Feed metadata]] is the pre-fetch fallback, not a rival source. Distinct from `excerpt`, `siteName`, `modifiedAt`, and `descriptionSource`, which stay unpersisted (transient [[Resolved article metadata]] only).
 _Avoid_: Enriched metadata (doesn't distinguish transient from persisted), saved metadata
 
 **Metadata provenance**:
