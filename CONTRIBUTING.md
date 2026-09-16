@@ -23,10 +23,10 @@ This document outlines the branching strategy for all contributors. Following th
 ## Branch Structure
 
 ```
-master                          ← stable, tagged releases only
-└── dev                         ← active development, always current with master
-      ├── feature/your-feature  ← contributor work branches
-      ├── fix/your-fix
+master                                     ← stable, tagged releases only
+└── dev                                    ← active development, always current with master
+      ├── feat/123-your-feature            ← contributor work branches
+      ├── fix/124-your-fix
       └── ...
             ↓  PRs merge into dev
            dev
@@ -58,11 +58,12 @@ master                          ← stable, tagged releases only
 
 - All contributor work happens here
 - Always branch off `dev`, never off master
-- Naming conventions:
-  - `feature/short-description` — new functionality
-  - `fix/short-description` — bug fixes
-  - `docs/short-description` — documentation only
-  - `chore/short-description` — maintenance, dependencies, config
+- Naming convention: `<type>/<issue-number>-<short-slug>` — see
+  `docs/agents/branch-naming.md` for full detail and worktree naming
+  - `feat/231-short-slug` — new functionality
+  - `fix/231-short-slug` — bug fixes
+  - `docs/231-short-slug` — documentation only
+  - `chore/231-short-slug` — maintenance, dependencies, config
 - PR back into `dev` when work is complete and self-tested
 
 ### `release/x.x.x`
@@ -87,7 +88,7 @@ master                          ← stable, tagged releases only
    **Command line:**
 
    ```
-   git checkout -b feature/your-feature-name
+   git checkout -b feat/231-your-feature-name
    ```
 
    **GitHub Desktop:**
@@ -101,7 +102,7 @@ master                          ← stable, tagged releases only
    - Type your new branch name in the **"Find or create a branch"** box — it will show "Create branch from **'dev'**"
    - Hit Enter
 
-   > **Note on branch names:** The slash in `feature/your-name` is just a naming convention, not a folder path. Type the full name including the slash — e.g. `feature/youtube-shorts-autotag`. Do not prefix it with `dev/`.
+   > **Note on branch names:** The slash in `feat/231-your-name` is just a naming convention, not a folder path. Type the full name including the slash — e.g. `feat/231-youtube-shorts-autotag`. Do not prefix it with `dev/`. See `docs/agents/branch-naming.md` for the full convention.
 
 3. **Make commits** — keep them small and focused. One concern per commit.
 
@@ -448,7 +449,7 @@ To ensure compatibility across different operating systems and Obsidian's intern
 ```
 # Start new work
 git checkout dev && git pull origin dev
-git checkout -b feature/my-feature
+git checkout -b feat/231-my-feature
 
 # Stay current while working on your branch
 git fetch origin && git rebase origin/dev
