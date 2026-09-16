@@ -159,6 +159,14 @@ _Avoid_: Sync set, V3 set, sync configuration
 A device either creating a new [[Sync v3 set]] (becoming its primary) or joining an existing one (adopting its epoch). Deliberately not called "migration" — that term is reserved for [[Storage migration]], which is unrelated: a device adopting a Sync v3 set already has its feed content in Shard storage v2 and keeps it there.
 _Avoid_: Sync v3 migration, joining, onboarding
 
+**Not adopted**:
+A device's `SyncV3Status.health` value when its `storageMode` isn't `replicated-v3` — it has no relationship to a [[Sync v3 set]] at all, regardless of whether one already exists elsewhere in the shared vault folder. Replaces the `migration-required` value, which the [[Set adoption]] entry's avoid-list already ruled out as a term.
+_Avoid_: migration-required, unconfigured, inactive
+
+**Waiting for primary**:
+A device's `SyncV3Status.health` value when its `storageMode` is `replicated-v3` (it began [[Set adoption]] via the joining path) but no `epoch.json` has synced in yet. Derived from `storageMode` and epoch presence, not a separate tracked marker: only the joining path can produce this combination, since a primary device's `storageMode` is set only after its own `epoch.json` write succeeds.
+_Avoid_: pending, migration-required
+
 **Adoption race**:
 Two devices independently creating a [[Sync v3 set]] because neither has yet seen the other's `epoch.json`, producing two divergent epochs with no shared history. Distinct from ordinary replica staleness, which resolves itself once sync delivers the missing files; an adoption race does not self-resolve because there is no single set for the second device to converge on.
 _Avoid_: Epoch conflict, dual-primary bug, split-brain

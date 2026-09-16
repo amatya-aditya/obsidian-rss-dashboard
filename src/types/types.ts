@@ -470,7 +470,7 @@ export interface SyncV3ConfigLog {
 }
 
 export interface SyncV3Status {
-  health: "migration-required" | "waiting-for-primary" | "ready" | "degraded";
+  health: "not-adopted" | "waiting-for-primary" | "ready" | "degraded";
   root: string;
   deviceId: string;
   epochId: string | null;

@@ -13,6 +13,7 @@ import {
 } from "obsidian";
 
 import { getSettingManager } from "./src/utils/settings-manager";
+import { loadVaultLocalStorage, saveVaultLocalStorage } from "./src/utils/vault-local-storage";
 
 import {
   RssDashboardSettings,
@@ -2167,38 +2168,42 @@ export default class RssDashboardPlugin extends Plugin {
       return false;
     }
 
-    const appWithLocalStorage = this.app as unknown as {
-      loadLocalStorage?: (key: string) => unknown;
-    };
-    const completed = appWithLocalStorage.loadLocalStorage?.(
+    const completed = loadVaultLocalStorage(
+      this.app,
       RssDashboardPlugin.STORAGE_ONBOARDING_COMPLETE_KEY,
     );
     return completed !== true && completed !== "true";
   }
 
   private markStorageOnboardingComplete(): void {
-    const appWithLocalStorage = this.app as unknown as {
-      saveLocalStorage?: (key: string, value: unknown) => void;
-    };
-    appWithLocalStorage.saveLocalStorage?.(
+    saveVaultLocalStorage(
+      this.app,
       RssDashboardPlugin.STORAGE_ONBOARDING_COMPLETE_KEY,
       true,
     );
   }
 
   public async getSyncV3Status() {
-    return this.syncV3Storage.getStatus();
+    return this.syncV3Storage.getStatus(this.settings);
   }
 
-  public async createSyncV3Set(): Promise<void> {
-    await this.syncV3Storage.createFromSettings(this.settings);
+  private async persistSyncV3Mode(): Promise<void> {
     await this.saveData({
       storageMode: "replicated-v3",
       storageFolder: this.settings.storageFolder,
     });
+  }
+
+  private async activateSyncV3Mode(): Promise<void> {
+    await this.persistSyncV3Mode();
     this.markStorageOnboardingComplete();
     this.initializeSettingsBackedServices();
     await this.refreshDashboardViews();
+  }
+
+  public async createSyncV3Set(): Promise<void> {
+    await this.syncV3Storage.createFromSettings(this.settings);
+    await this.activateSyncV3Mode();
   }
 
   public async joinSyncV3Set(): Promise<boolean> {
@@ -2207,18 +2212,12 @@ export default class RssDashboardPlugin extends Plugin {
       await this.prepareSyncV3Join();
       return false;
     }
-    await this.saveData({
-      storageMode: "replicated-v3",
-      storageFolder: this.settings.storageFolder,
-    });
-    this.markStorageOnboardingComplete();
-    this.initializeSettingsBackedServices();
-    await this.refreshDashboardViews();
+    await this.activateSyncV3Mode();
     return true;
   }
 
   public async exportSyncV3HealthReport(): Promise<void> {
-    const report = await this.syncV3Storage.buildHealthReport();
+    const report = await this.syncV3Storage.buildHealthReport(this.settings);
     const result = await this.importExportService.exportSyncV3HealthReport(report);
     this.showExportNotice(result, "rss-dashboard-sync-v3-health-report.json");
   }
@@ -2238,10 +2237,7 @@ export default class RssDashboardPlugin extends Plugin {
   public async recoverSyncV3(): Promise<SyncV3RecoveryResult> {
     const result = await this.syncV3Storage.recover(this.settings);
     if (result.recovered) {
-      await this.saveData({
-        storageMode: "replicated-v3",
-        storageFolder: this.settings.storageFolder,
-      });
+      await this.persistSyncV3Mode();
       await this.saveSettings();
       this.initializeSettingsBackedServices();
       await this.refreshDashboardViews();
@@ -2258,10 +2254,7 @@ export default class RssDashboardPlugin extends Plugin {
   public async prepareSyncV3Join(): Promise<void> {
     this.settings.storageMode = "replicated-v3";
     await this.syncV3Storage.persistLocalCache(this.settings);
-    await this.saveData({
-      storageMode: "replicated-v3",
-      storageFolder: this.settings.storageFolder,
-    });
+    await this.persistSyncV3Mode();
     this.markStorageOnboardingComplete();
   }
 
@@ -2829,11 +2822,7 @@ export default class RssDashboardPlugin extends Plugin {
       await this.repairMissingFolderPathsForFeeds();
       const isV3 = this.settings.storageMode === "replicated-v3";
       const hydrated = isV3
-        ? {
-            didChange: false,
-            shardCount: 0,
-            userStateLoaded: await this.syncV3Storage.hydrate(this.settings),
-          }
+        ? await this.syncV3Storage.hydrateSettings(this.settings)
         : await this.feedStorageRepository.hydrateSettings(this.settings);
       storageLog("Settings hydrated", {
         mode: this.settings.storageMode,
@@ -3209,6 +3198,19 @@ export default class RssDashboardPlugin extends Plugin {
   }
 
   /**
+   * Persists after a feed refresh. A refresh must never write shared V3
+   * config/state (only the local cache), so this branches the same way the
+   * three refresh-completion call sites need to.
+   */
+  private async persistAfterRefresh(): Promise<void> {
+    if (this.settings.storageMode === "replicated-v3") {
+      await this.syncV3Storage.persistLocalCache(this.settings);
+    } else {
+      await this.saveSettings();
+    }
+  }
+
+  /**
    * Migrate metadata from plugin-default location to user-configured vault folder.
    * Steps:
    * 1. Ensure metadata folder exists (idempotent)
@@ -3393,11 +3395,7 @@ export default class RssDashboardPlugin extends Plugin {
       if (isExplicitGlobalRefresh) {
         this.settings.lastGlobalRefreshCompletedAt = Date.now();
       }
-      if (this.settings.storageMode === "replicated-v3") {
-        await this.syncV3Storage.persistLocalCache(this.settings);
-      } else {
-        await this.saveSettings();
-      }
+      await this.persistAfterRefresh();
       this.autoRefreshScheduler?.reschedule();
       throw error;
     } finally {
@@ -3409,11 +3407,7 @@ export default class RssDashboardPlugin extends Plugin {
     if (isExplicitGlobalRefresh) {
       this.settings.lastGlobalRefreshCompletedAt = Date.now();
     }
-    if (this.settings.storageMode === "replicated-v3") {
-      await this.syncV3Storage.persistLocalCache(this.settings);
-    } else {
-      await this.saveSettings();
-    }
+    await this.persistAfterRefresh();
     this.autoRefreshScheduler?.reschedule();
     const view = await this.getActiveDashboardView();
     if (view) {
@@ -3541,11 +3535,7 @@ export default class RssDashboardPlugin extends Plugin {
       if (intent === "global" && !this.isGlobalRefreshCancelled) {
         this.settings.lastGlobalRefreshCompletedAt = Date.now();
       }
-      if (this.settings.storageMode === "replicated-v3") {
-        await this.syncV3Storage.persistLocalCache(this.settings);
-      } else {
-        await this.saveSettings();
-      }
+      await this.persistAfterRefresh();
       this.autoRefreshScheduler?.reschedule();
       this.activeRefreshState.clear();
       this.isMultiFeedRefreshRunning = false;

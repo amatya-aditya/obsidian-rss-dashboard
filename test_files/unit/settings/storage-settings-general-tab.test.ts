@@ -72,7 +72,7 @@ function createPlugin() {
       }),
     ),
     getSyncV3Status: vi.fn(async () => ({
-      health: "migration-required" as const,
+      health: "not-adopted" as const,
       root: "rss-dashboard-data/sync-v3",
       deviceId: "device-123456789",
       epochId: null,
@@ -128,6 +128,36 @@ describe("General settings storage section", () => {
     expect(descEl.textContent).not.toContain("[object DocumentFragment]");
     expect(descEl.querySelector("strong")?.textContent).toBe("Legacy JSON:");
     expect(descEl.textContent).toContain("Shard storage v2:");
+  });
+
+  it("labels the Sync v3 dropdown option as experimental before a device commits to it", () => {
+    const containerEl = createTestContainer();
+    const plugin = createPlugin();
+    plugin.settings.storageMode = "vault-shards-v2";
+
+    renderStorageSettingsTab(containerEl, plugin as never);
+
+    const storageModeSetting = getSettingByName(containerEl, "Storage mode");
+    const option = storageModeSetting.querySelector(
+      "option[value='replicated-v3']",
+    ) as HTMLOptionElement;
+
+    expect(option.textContent).toBe("Sync v3 replicas (experimental)");
+  });
+
+  it("drops the experimental label from the Sync v3 dropdown option once this device is already on it", () => {
+    const containerEl = createTestContainer();
+    const plugin = createPlugin();
+    plugin.settings.storageMode = "replicated-v3";
+
+    renderStorageSettingsTab(containerEl, plugin as never);
+
+    const storageModeSetting = getSettingByName(containerEl, "Storage mode");
+    const option = storageModeSetting.querySelector(
+      "option[value='replicated-v3']",
+    ) as HTMLOptionElement;
+
+    expect(option.textContent).toBe("Sync v3 replicas");
   });
 
   it("renders the Storage mode description correctly when containerEl.win resolves to a different window realm (e.g. a popped-out window)", () => {

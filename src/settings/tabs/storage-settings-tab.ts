@@ -163,9 +163,11 @@ export function renderStorageSettingsTab(
     const lastMerge = status.lastIncomingMerge
       ? new Date(status.lastIncomingMerge).toLocaleString()
       : "not yet";
-    const setupGuidance = status.health === "migration-required"
+    const setupGuidance = status.health === "not-adopted"
       ? " This device is local-only until you create or join a Sync v3 set."
-      : "";
+      : status.health === "waiting-for-primary"
+        ? " This device is waiting for the primary device's replica to sync in."
+        : "";
     const conflictGuidance = status.conflictCopyPaths.length > 0
       ? ` ${status.conflictCopyPaths.length} sync conflict ${status.conflictCopyPaths.length === 1 ? "copy" : "copies"} found — ` +
         "check every device's Settings → Sync → Conflict resolution is set to \"Create conflict file\", not \"Automatically merge\"."
@@ -463,7 +465,12 @@ export function renderStorageSettingsTab(
         .addOption("legacy-json", "Legacy JSON")
         .addOption("vault-shards", "Shard storage v1")
         .addOption("vault-shards-v2", "Shard storage v2")
-        .addOption("replicated-v3", "Sync v3 replicas (experimental)")
+        .addOption(
+          "replicated-v3",
+          plugin.settings.storageMode === "replicated-v3"
+            ? "Sync v3 replicas"
+            : "Sync v3 replicas (experimental)",
+        )
         .setValue(pendingStorageMode)
         .onChange((value) => {
           storageLog("Storage mode dropdown changed", {

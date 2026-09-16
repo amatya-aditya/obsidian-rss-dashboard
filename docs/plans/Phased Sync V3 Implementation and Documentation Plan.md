@@ -35,7 +35,7 @@ Validation: focused Sync V3 tests pass. TypeScript and platform checks are rerun
 - [x] Create a V3 set writes the primary config and manifest before publishing `epoch.json`.
 - [x] Joining devices load the existing epoch and do not seed a second shared configuration.
 - [x] Require a confirmation and portable backup export before the primary publishes a V3 epoch.
-- [x] Add portable migration diagnostics and a recovery action. `SyncV3Status` now reports `epochId` and detected `conflictCopyPaths` (Obsidian Sync conflict-copy files); "Sync v3 health report" exports that snapshot for cross-device comparison; "Sync v3 recovery" is the single, backup-first action that re-adopts the current epoch or re-hydrates, depending on whether this device's own replica matches it. See ADR 0008 for why this detects and recovers rather than locking to prevent adoption races.
+- [x] Add portable migration diagnostics and a recovery action. `SyncV3Status` now reports `epochId` and detected `conflictCopyPaths` (Obsidian Sync conflict-copy files); "Sync v3 health report" exports that snapshot for cross-device comparison; "Sync v3 recovery" is the single, backup-first action that re-adopts the current epoch or re-hydrates, depending on whether this device's own replica matches it. See ADR 0009 for why this detects and recovers rather than locking to prevent adoption races.
 
 ## Phase 5 — Storage UI and docs — in progress
 

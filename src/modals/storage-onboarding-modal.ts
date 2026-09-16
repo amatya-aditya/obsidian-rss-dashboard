@@ -152,7 +152,7 @@ export class StorageOnboardingModal extends Modal {
     onConfirm: () => Promise<void>,
     onCancel: () => void,
   ): void {
-    if (targetMode === "replicated-v3" && this.options.isFirstRun) {
+    if (targetMode === "replicated-v3" && this.options.currentStorageMode !== "replicated-v3") {
       this.renderExperimentalConfirmation(onConfirm, onCancel);
       return;
     }
@@ -239,43 +239,43 @@ export class StorageOnboardingModal extends Modal {
     }
   }
 
-  private async completeLocalChoice(unsure: boolean): Promise<void> {
+  private async runAction(
+    action: () => Promise<void>,
+    successMessage: string,
+    errorPrefix: string,
+  ): Promise<void> {
     try {
-      await this.plugin.configureLocalStorageForFirstRun();
-      new Notice(
-        unsure
-          ? "Local storage is active. You can set up Sync v3 later in Settings → Storage."
-          : "Local storage is active.",
-      );
+      await action();
+      new Notice(successMessage);
       this.close();
     } catch (error) {
-      new Notice(
-        `Could not configure local storage${error instanceof Error ? `: ${error.message}` : ""}`,
-      );
+      new Notice(`${errorPrefix}${error instanceof Error ? `: ${error.message}` : ""}`);
     }
+  }
+
+  private async completeLocalChoice(unsure: boolean): Promise<void> {
+    await this.runAction(
+      () => this.plugin.configureLocalStorageForFirstRun(),
+      unsure
+        ? "Local storage is active. You can set up Sync v3 later in Settings → Storage."
+        : "Local storage is active.",
+      "Could not configure local storage",
+    );
   }
 
   private async createPrimarySet(): Promise<void> {
-    try {
-      await this.plugin.createSyncV3Set();
-      new Notice("Sync v3 set created. Join it from each other device.");
-      this.close();
-    } catch (error) {
-      new Notice(
-        `Could not create sync v3${error instanceof Error ? `: ${error.message}` : ""}`,
-      );
-    }
+    await this.runAction(
+      () => this.plugin.createSyncV3Set(),
+      "Sync v3 set created. Join it from each other device.",
+      "Could not create sync v3",
+    );
   }
 
   private async prepareJoin(): Promise<void> {
-    try {
-      await this.plugin.prepareSyncV3Join();
-      new Notice("Waiting for the first device's sync v3 replica files.");
-      this.close();
-    } catch (error) {
-      new Notice(
-        `Could not prepare Sync v3${error instanceof Error ? `: ${error.message}` : ""}`,
-      );
-    }
+    await this.runAction(
+      () => this.plugin.prepareSyncV3Join(),
+      "Waiting for the first device's sync v3 replica files.",
+      "Could not prepare Sync v3",
+    );
   }
 }

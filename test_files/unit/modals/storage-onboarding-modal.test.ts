@@ -153,7 +153,7 @@ describe("StorageOnboardingModal", () => {
     expect(plugin.configureLocalStorageForFirstRun).toHaveBeenCalledTimes(1);
   });
 
-  it("asks for confirmation before a reopened wizard sets up Sync v3", async () => {
+  it("shows the experimental warning, not the plain change confirmation, before a reopened wizard sets up Sync v3", async () => {
     const plugin = createPlugin();
     const modal = new StorageOnboardingModal(App.createMock(), plugin, {
       currentStorageMode: "vault-shards-v2",
@@ -168,12 +168,37 @@ describe("StorageOnboardingModal", () => {
     await flushAsyncWork();
 
     expect(plugin.createSyncV3Set).not.toHaveBeenCalled();
-    expect(modal.contentEl.textContent).toContain("Confirm storage change");
+    expect(modal.contentEl.textContent).toContain("Sync v3 is experimental");
+    expect(modal.contentEl.textContent).not.toContain("Confirm storage change");
 
     Array.from(modal.contentEl.querySelectorAll("button"))
-      .find((candidate) => candidate.textContent === "Change storage")?.click();
+      .find((candidate) => candidate.textContent === "Set up sync v3")?.click();
     await flushAsyncWork();
 
     expect(plugin.createSyncV3Set).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows the experimental warning when a reopened wizard switches an existing device to Sync v3", async () => {
+    const plugin = createPlugin();
+    const modal = new StorageOnboardingModal(App.createMock(), plugin, {
+      currentStorageMode: "legacy-json",
+      isFirstRun: false,
+    });
+    modal.open();
+
+    Array.from(modal.contentEl.querySelectorAll("button"))
+      .find((candidate) => candidate.textContent === "Set up sync v3")?.click();
+    Array.from(modal.contentEl.querySelectorAll("button"))
+      .find((candidate) => candidate.textContent === "Wait to join sync v3")?.click();
+    await flushAsyncWork();
+
+    expect(plugin.prepareSyncV3Join).not.toHaveBeenCalled();
+    expect(modal.contentEl.textContent).toContain("Sync v3 is experimental");
+
+    Array.from(modal.contentEl.querySelectorAll("button"))
+      .find((candidate) => candidate.textContent === "Set up sync v3")?.click();
+    await flushAsyncWork();
+
+    expect(plugin.prepareSyncV3Join).toHaveBeenCalledTimes(1);
   });
 });

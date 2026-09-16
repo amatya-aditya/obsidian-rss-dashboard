@@ -1,4 +1,5 @@
 import { App, normalizePath } from "obsidian";
+import { loadVaultLocalStorage, saveVaultLocalStorage } from "../utils/vault-local-storage";
 import type {
   ArticleUserState,
   Feed,
@@ -37,11 +38,6 @@ interface Adapter {
   read(path: string): Promise<string>;
   write(path: string, data: string): Promise<void>;
   remove(path: string): Promise<void>;
-}
-
-interface LocalStorageApp {
-  loadLocalStorage(key: string): unknown;
-  saveLocalStorage(key: string, value: unknown): void;
 }
 
 interface CachedProjection {
@@ -91,10 +87,6 @@ function createId(prefix: string): string {
 
 function getAdapter(app: App): Adapter {
   return app.vault.adapter as unknown as Adapter;
-}
-
-function getLocalStorage(app: App): LocalStorageApp {
-  return app as unknown as LocalStorageApp;
 }
 
 function toPersistedFeed(feed: Feed): PersistedFeedConfig {
@@ -198,7 +190,6 @@ function isStateBucket(value: unknown): value is SyncV3StateBucket {
 export class SyncV3Storage {
   private readonly app: App;
   private readonly adapter: Adapter;
-  private readonly localStorage: LocalStorageApp;
   private readonly root: string;
   private readonly cacheRoot: string;
   private deviceId: string | null = null;
@@ -213,7 +204,6 @@ export class SyncV3Storage {
   constructor(app: App, options?: { root?: string; cacheRoot?: string }) {
     this.app = app;
     this.adapter = getAdapter(app);
-    this.localStorage = getLocalStorage(app);
     this.root = normalized(options?.root ?? ROOT);
     this.cacheRoot = normalized(options?.cacheRoot ?? CACHE_ROOT);
   }
@@ -228,11 +218,11 @@ export class SyncV3Storage {
 
   public getDeviceId(): string {
     if (this.deviceId) return this.deviceId;
-    const stored = this.localStorage.loadLocalStorage(DEVICE_ID_KEY);
+    const stored = loadVaultLocalStorage(this.app, DEVICE_ID_KEY);
     this.deviceId = typeof stored === "string" && stored.trim()
       ? stored
       : createId("device");
-    this.localStorage.saveLocalStorage(DEVICE_ID_KEY, this.deviceId);
+    saveVaultLocalStorage(this.app, DEVICE_ID_KEY, this.deviceId);
     return this.deviceId;
   }
 
@@ -240,19 +230,22 @@ export class SyncV3Storage {
     return articleKey(feed, item);
   }
 
-  public async getStatus(): Promise<SyncV3Status> {
+  public async getStatus(settings: RssDashboardSettings): Promise<SyncV3Status> {
     const [epoch, replicas, conflictCopyPaths] = await Promise.all([
       this.readEpoch(),
       this.listReplicaDirectories(),
-      this.listConflictCopyPaths(),
+      this.listAllConflictCopyPaths(),
     ]);
     const invalidReplicaCount = epoch ? await this.countInvalidReplicas(epoch, replicas) : 0;
+    const isAdopted = settings.storageMode === "replicated-v3";
     return {
-      health: !epoch
-        ? "migration-required"
-        : invalidReplicaCount > 0 || conflictCopyPaths.length > 0
-          ? "degraded"
-          : "ready",
+      health: !isAdopted
+        ? "not-adopted"
+        : !epoch
+          ? "waiting-for-primary"
+          : invalidReplicaCount > 0 || conflictCopyPaths.length > 0
+            ? "degraded"
+            : "ready",
       root: this.root,
       deviceId: this.getDeviceId(),
       epochId: epoch?.epochId ?? null,
@@ -266,11 +259,11 @@ export class SyncV3Storage {
   }
 
   /** The exportable diagnostic snapshot backing a [[Sync v3 health report]]. */
-  public async buildHealthReport(): Promise<SyncV3HealthReport> {
+  public async buildHealthReport(settings: RssDashboardSettings): Promise<SyncV3HealthReport> {
     return {
       version: 1,
       exportedAt: Date.now(),
-      status: await this.getStatus(),
+      status: await this.getStatus(settings),
     };
   }
 
@@ -286,7 +279,7 @@ export class SyncV3Storage {
    * fixing staleness without touching any other device's files.
    */
   public async recover(settings: RssDashboardSettings): Promise<SyncV3RecoveryResult> {
-    const conflictCopyPaths = await this.listConflictCopyPaths();
+    const conflictCopyPaths = await this.listOwnConflictCopyPaths();
     let clearedConflictCopies = 0;
     for (const path of conflictCopyPaths) {
       try {
@@ -352,13 +345,8 @@ export class SyncV3Storage {
   }
 
   public async join(settings: RssDashboardSettings): Promise<boolean> {
-    const epoch = await this.readEpoch();
-    if (!epoch) return false;
-    const cached = await this.readLocalCache();
-    if (cached) this.copyCachedItems(settings, cached.settings);
     const hydrated = await this.hydrate(settings);
     if (!hydrated) return false;
-    settings.storageMode = "replicated-v3";
     await this.writeLocalCache(settings);
     return true;
   }
@@ -382,6 +370,17 @@ export class SyncV3Storage {
     this.captureProjection(settings);
     this.lastIncomingMerge = Date.now();
     return true;
+  }
+
+  /** Matches `FeedStorageRepository.hydrateSettings()`'s return shape so callers can dispatch on one seam. */
+  public async hydrateSettings(
+    settings: RssDashboardSettings,
+  ): Promise<{ didChange: boolean; shardCount: number; userStateLoaded?: boolean }> {
+    return {
+      didChange: false,
+      shardCount: 0,
+      userStateLoaded: await this.hydrate(settings),
+    };
   }
 
   public async persist(settings: RssDashboardSettings): Promise<void> {
@@ -437,23 +436,25 @@ export class SyncV3Storage {
       entries.set(key, fields);
       byBucket.set(bucket, entries);
     }
-    for (const [bucketId, entries] of byBucket) {
-      const path = this.statePath(this.getDeviceId(), bucketId);
-      const current = await this.readStateBucket(path, epoch) ?? {
-        version: VERSION,
-        epochId: epoch.epochId,
-        deviceId: this.getDeviceId(),
-        revision: 0,
-        states: {},
-      };
-      for (const [key, fields] of entries) {
-        current.states[key] = {
-          fields: { ...current.states[key]?.fields, ...fields },
+    await Promise.all(
+      [...byBucket.entries()].map(async ([bucketId, entries]) => {
+        const path = this.statePath(this.getDeviceId(), bucketId);
+        const current = await this.readStateBucket(path, epoch) ?? {
+          version: VERSION,
+          epochId: epoch.epochId,
+          deviceId: this.getDeviceId(),
+          revision: 0,
+          states: {},
         };
-      }
-      current.revision += 1;
-      await this.writeJson(path, current);
-    }
+        for (const [key, fields] of entries) {
+          current.states[key] = {
+            fields: { ...current.states[key]?.fields, ...fields },
+          };
+        }
+        current.revision += 1;
+        await this.writeJson(path, current);
+      }),
+    );
   }
 
   private collectConfigOperations(settings: RssDashboardSettings): SyncV3ConfigOperation[] {
@@ -493,13 +494,24 @@ export class SyncV3Storage {
     states: Record<string, SyncV3ArticleState>;
   } | null> {
     const replicaIds = await this.listReplicaDirectories();
+    const perReplica = await Promise.all(
+      replicaIds.map(async (replicaId) => {
+        const [config, buckets] = await Promise.all([
+          this.readConfigLog(this.configPath(replicaId), epoch),
+          Promise.all(
+            Array.from({ length: 16 }, (_, bucket) =>
+              this.readStateBucket(this.statePath(replicaId, bucket.toString(16)), epoch),
+            ),
+          ),
+        ]);
+        return { config, buckets };
+      }),
+    );
     const operations: SyncV3ConfigOperation[] = [];
     const states: Record<string, SyncV3ArticleState> = {};
-    for (const replicaId of replicaIds) {
-      const config = await this.readConfigLog(this.configPath(replicaId), epoch);
+    for (const { config, buckets } of perReplica) {
       if (config) operations.push(...config.operations);
-      for (let bucket = 0; bucket < 16; bucket += 1) {
-        const state = await this.readStateBucket(this.statePath(replicaId, bucket.toString(16)), epoch);
+      for (const state of buckets) {
         if (!state) continue;
         for (const [key, articleState] of Object.entries(state.states)) {
           states[key] = this.mergeArticleState(states[key], articleState);
@@ -585,7 +597,7 @@ export class SyncV3Storage {
       deviceId: this.getDeviceId(),
     };
     this.clock = next;
-    this.localStorage.saveLocalStorage(CLOCK_KEY, next);
+    saveVaultLocalStorage(this.app, CLOCK_KEY, next);
     return next;
   }
 
@@ -604,11 +616,11 @@ export class SyncV3Storage {
       counter: newest.counter,
       deviceId: this.getDeviceId(),
     };
-    this.localStorage.saveLocalStorage(CLOCK_KEY, this.clock);
+    saveVaultLocalStorage(this.app, CLOCK_KEY, this.clock);
   }
 
   private readStoredClock(): HybridLogicalClock {
-    const stored = this.localStorage.loadLocalStorage(CLOCK_KEY);
+    const stored = loadVaultLocalStorage(this.app, CLOCK_KEY);
     return isClock(stored) ? stored : { wallTime: 0, counter: 0, deviceId: this.getDeviceId() };
   }
 
@@ -648,7 +660,6 @@ export class SyncV3Storage {
   }
 
   private async readJson<T>(path: string, guard: (value: unknown) => value is T): Promise<T | null> {
-    if (!(await this.adapter.exists(path))) return null;
     try {
       const parsed: unknown = JSON.parse(await this.adapter.read(path));
       return guard(parsed) ? parsed : null;
@@ -680,29 +691,53 @@ export class SyncV3Storage {
     return listing.folders.map((folder) => folder.split("/").pop() ?? "").filter(Boolean);
   }
 
-  private async listConflictCopyPaths(): Promise<string[]> {
+  /** Every conflict copy under the shared root, including other devices' replica folders — diagnostic-only. */
+  private async listAllConflictCopyPaths(): Promise<string[]> {
     if (!(await this.adapter.exists(this.root))) return [];
     const found: string[] = [];
-    const queue: string[] = [this.root];
-    while (queue.length > 0) {
-      const current = queue.shift();
-      if (current === undefined) continue;
-      const listing = await this.adapter.list(current);
+    let level: string[] = [this.root];
+    while (level.length > 0) {
+      const listings = await Promise.all(level.map((path) => this.adapter.list(path)));
+      const nextLevel: string[] = [];
+      for (const listing of listings) {
+        for (const file of listing.files) {
+          if (isSyncConflictCopyPath(file)) found.push(file);
+        }
+        nextLevel.push(...listing.folders);
+      }
+      level = nextLevel;
+    }
+    return found;
+  }
+
+  /**
+   * Conflict copies this device is allowed to clear during recovery: the
+   * shared root itself (epoch.json/seed-manifest.json) and this device's own
+   * replica folder. Never another device's replica folder — recovery must
+   * not touch another device's replica data.
+   */
+  private async listOwnConflictCopyPaths(): Promise<string[]> {
+    if (!(await this.adapter.exists(this.root))) return [];
+    const scanPaths = [this.root, this.replicaFolder(this.getDeviceId())];
+    const listings = await Promise.all(
+      scanPaths.map(async (path) =>
+        (await this.adapter.exists(path)) ? this.adapter.list(path) : { files: [], folders: [] },
+      ),
+    );
+    const found: string[] = [];
+    for (const listing of listings) {
       for (const file of listing.files) {
         if (isSyncConflictCopyPath(file)) found.push(file);
       }
-      queue.push(...listing.folders);
     }
     return found;
   }
 
   private async countInvalidReplicas(epoch: SyncV3Epoch, replicaIds: string[]): Promise<number> {
-    let invalid = 0;
-    for (const replicaId of replicaIds) {
-      const config = await this.readConfigLog(this.configPath(replicaId), epoch);
-      if (!config) invalid += 1;
-    }
-    return invalid;
+    const configs = await Promise.all(
+      replicaIds.map((replicaId) => this.readConfigLog(this.configPath(replicaId), epoch)),
+    );
+    return configs.filter((config) => !config).length;
   }
 
   private enqueueWrite(work: () => Promise<void>): Promise<void> {
