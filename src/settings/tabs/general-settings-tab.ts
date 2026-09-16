@@ -616,6 +616,20 @@ export function renderGeneralSettingsTab(
         }),
     );
 
+  new Setting(containerEl)
+    .setName("Use first-seen date for undated items")
+    .setDesc(
+      "When an article has no publish date (common with some proxied feeds), use the date it was first seen instead of hiding it from sorting and auto-delete. Off by default.",
+    )
+    .addToggle((toggle) =>
+      toggle
+        .setValue(plugin.settings.useFirstSeenDateFallback)
+        .onChange(async (value) => {
+          plugin.settings.useFirstSeenDateFallback = value;
+          await plugin.saveSettings();
+        }),
+    );
+
   // ── Proxy ─────────────────────────────────────────────────────────────────
   new Setting(containerEl).setName("Proxy").setHeading();
 

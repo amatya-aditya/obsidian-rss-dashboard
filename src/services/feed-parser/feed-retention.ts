@@ -7,6 +7,24 @@ export function getPubDateMs(pubDate: string | undefined | null): number {
   return Number.isFinite(ms) ? ms : 0;
 }
 
+/**
+ * The single date an item sorts and retains by: its real `pubDate` when
+ * parseable, falling back to its `firstSeenMs` timestamp when
+ * `useFirstSeenDateFallback` is enabled and no real date exists. Returns 0
+ * (sorts last, eligible for retention cutoff) when neither is available.
+ */
+export function getEffectiveDateMs(
+  item: Pick<FeedItem, "pubDate" | "firstSeenMs">,
+  useFirstSeenDateFallback?: boolean,
+): number {
+  const pubDateMs = getPubDateMs(item.pubDate);
+  if (pubDateMs > 0) return pubDateMs;
+  if (useFirstSeenDateFallback && typeof item.firstSeenMs === "number") {
+    return item.firstSeenMs;
+  }
+  return 0;
+}
+
 export function isProtectedItem(
   item: FeedItem,
   protections?: FeedRetentionProtections,
@@ -32,7 +50,31 @@ export function isProtectedItem(
 export function mergeFeedHistoryItems(
   existingItems: FeedItem[] | null | undefined,
   refreshedItems: FeedItem[],
+  options?: { nowMs?: number },
 ): FeedItem[] {
+  const nowMs = options?.nowMs ?? Date.now();
+
+  const existingByKey = new Map<string, FeedItem>();
+  for (const item of existingItems || []) {
+    const key = canonicalizeItemIdentityUrl(item.guid || item.link || "");
+    if (key && !existingByKey.has(key)) {
+      existingByKey.set(key, item);
+    }
+  }
+
+  // Never regenerated once set: inherit the prior record's firstSeenMs by
+  // identity key even if the incoming item itself doesn't carry it (e.g. a
+  // freshly re-parsed item that hasn't been merged with its own history yet).
+  const stampFirstSeen = (item: FeedItem, key: string): FeedItem => {
+    if (typeof item.firstSeenMs === "number") return item;
+    const priorFirstSeenMs = existingByKey.get(key)?.firstSeenMs;
+    return {
+      ...item,
+      firstSeenMs:
+        typeof priorFirstSeenMs === "number" ? priorFirstSeenMs : nowMs,
+    };
+  };
+
   const seen = new Set<string>();
   const uniqueRefreshed: FeedItem[] = [];
 
@@ -41,7 +83,7 @@ export function mergeFeedHistoryItems(
     if (!key) continue;
     if (seen.has(key)) continue;
     seen.add(key);
-    uniqueRefreshed.push(item);
+    uniqueRefreshed.push(stampFirstSeen(item, key));
   }
 
   const carriedForward: FeedItem[] = [];
@@ -49,7 +91,7 @@ export function mergeFeedHistoryItems(
     const key = canonicalizeItemIdentityUrl(item.guid || item.link || "");
     if (!key) continue;
     if (!seen.has(key)) {
-      carriedForward.push(item);
+      carriedForward.push(stampFirstSeen(item, key));
       seen.add(key);
     }
   }
@@ -59,10 +101,15 @@ export function mergeFeedHistoryItems(
 
 export function applyFeedRetentionLimits(
   feed: Feed,
-  options?: { nowMs?: number; protections?: FeedRetentionProtections },
+  options?: {
+    nowMs?: number;
+    protections?: FeedRetentionProtections;
+    useFirstSeenDateFallback?: boolean;
+  },
 ): Feed {
   const nowMs = options?.nowMs ?? Date.now();
   const protections = options?.protections;
+  const useFirstSeenDateFallback = options?.useFirstSeenDateFallback ?? false;
   const maxItemsLimit =
     typeof feed.maxItemsLimit === "number" ? feed.maxItemsLimit : undefined;
   const autoDeleteDuration =
@@ -74,8 +121,8 @@ export function applyFeedRetentionLimits(
     isProtectedItem(item, protections);
 
   const byNewest = (a: FeedItem, b: FeedItem): number => {
-    const aMs = getPubDateMs(a.pubDate);
-    const bMs = getPubDateMs(b.pubDate);
+    const aMs = getEffectiveDateMs(a, useFirstSeenDateFallback);
+    const bMs = getEffectiveDateMs(b, useFirstSeenDateFallback);
     if (aMs !== bMs) return bMs - aMs;
     return (a.guid || "").localeCompare(b.guid || "");
   };
@@ -86,7 +133,7 @@ export function applyFeedRetentionLimits(
     const cutoffMs = nowMs - autoDeleteDuration * 24 * 60 * 60 * 1000;
     items = items.filter((item) => {
       if (isProtected(item)) return true;
-      return getPubDateMs(item.pubDate) > cutoffMs;
+      return getEffectiveDateMs(item, useFirstSeenDateFallback) > cutoffMs;
     });
   }
 

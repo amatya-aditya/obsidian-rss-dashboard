@@ -322,6 +322,7 @@ export default class RssDashboardPlugin extends Plugin {
         protectTagged: this.settings.protectTagged,
         protectUnread: this.settings.protectUnread,
       }),
+      () => this.settings.useFirstSeenDateFallback,
     );
     this.articleSaver = new ArticleSaver(this.app, this.settings.articleSaving);
     this.importExportService = new ImportExportService({
@@ -1589,6 +1590,7 @@ export default class RssDashboardPlugin extends Plugin {
             protectTagged: this.settings.protectTagged,
             protectUnread: this.settings.protectUnread,
           },
+          useFirstSeenDateFallback: this.settings.useFirstSeenDateFallback,
         });
         feed.items = updated.items;
 
@@ -2709,6 +2711,7 @@ export default class RssDashboardPlugin extends Plugin {
 
       const didNormalizeAndDedupeItems = dedupeAndNormalizeFeedItems(
         this.settings.feeds,
+        { useFirstSeenDateFallback: this.settings.useFirstSeenDateFallback },
       );
 
       // Guard: skip the early write if we loaded from null defaults.

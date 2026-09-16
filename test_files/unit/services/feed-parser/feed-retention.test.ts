@@ -4,6 +4,7 @@ import {
   mergeFeedHistoryItems,
   applyFeedRetentionLimits,
   isProtectedItem,
+  getEffectiveDateMs,
 } from "../../../../src/services/feed-parser/feed-retention.js";
 
 describe("isProtectedItem", () => {
@@ -103,6 +104,76 @@ describe("mergeFeedHistoryItems", () => {
     expect(new Set(merged.map((i) => i.guid)).size).toBe(60);
     expect(merged.some((i) => i.guid === "id-1")).toBe(true);
     expect(merged.some((i) => i.guid === "id-60")).toBe(true);
+  });
+
+  it("stamps firstSeenMs once for a newly observed item, dated or not", () => {
+    const nowMs = Date.UTC(2026, 0, 1);
+    const dated = makeItem("dated", "2024-01-01T00:00:00Z");
+    const undated = makeItem("undated", "");
+
+    const merged = mergeFeedHistoryItems([], [dated, undated], { nowMs });
+
+    expect(merged.find((i) => i.guid === "dated")?.firstSeenMs).toBe(nowMs);
+    expect(merged.find((i) => i.guid === "undated")?.firstSeenMs).toBe(nowMs);
+  });
+
+  it("never regenerates firstSeenMs for an item that already has one", () => {
+    const originalFirstSeenMs = Date.UTC(2025, 5, 1);
+    const existingItems: FeedItem[] = [
+      makeItem("id-1", "", { firstSeenMs: originalFirstSeenMs }),
+    ];
+    const refreshedItems: FeedItem[] = [
+      makeItem("id-1", "", { title: "updated title" }),
+    ];
+
+    const merged = mergeFeedHistoryItems(existingItems, refreshedItems, {
+      nowMs: Date.UTC(2026, 0, 1),
+    });
+
+    expect(merged).toHaveLength(1);
+    expect(merged[0].firstSeenMs).toBe(originalFirstSeenMs);
+  });
+
+  it("lazily backfills firstSeenMs for a pre-existing undated item that predates this field", () => {
+    const nowMs = Date.UTC(2026, 0, 1);
+    // Simulates an item written before firstSeenMs existed: falls out of the
+    // server's latest-N window (not in refreshedItems), so it is carried
+    // forward rather than replaced.
+    const existingItems: FeedItem[] = [makeItem("legacy-undated", "")];
+
+    const merged = mergeFeedHistoryItems(existingItems, [], { nowMs });
+
+    expect(merged).toHaveLength(1);
+    expect(merged[0].firstSeenMs).toBe(nowMs);
+  });
+});
+
+describe("getEffectiveDateMs", () => {
+  it("returns the real pubDate when present, ignoring firstSeenMs", () => {
+    const pubDateMs = Date.parse("2024-01-01T00:00:00Z");
+    expect(
+      getEffectiveDateMs(
+        { pubDate: "2024-01-01T00:00:00Z", firstSeenMs: 999 },
+        true,
+      ),
+    ).toBe(pubDateMs);
+  });
+
+  it("falls back to firstSeenMs when pubDate is missing and the fallback is enabled", () => {
+    expect(
+      getEffectiveDateMs({ pubDate: "", firstSeenMs: 12345 }, true),
+    ).toBe(12345);
+  });
+
+  it("returns 0 when pubDate is missing and the fallback is disabled", () => {
+    expect(
+      getEffectiveDateMs({ pubDate: "", firstSeenMs: 12345 }, false),
+    ).toBe(0);
+  });
+
+  it("returns 0 when pubDate is missing and firstSeenMs is absent, fallback enabled or not", () => {
+    expect(getEffectiveDateMs({ pubDate: "" }, true)).toBe(0);
+    expect(getEffectiveDateMs({ pubDate: "" }, false)).toBe(0);
   });
 });
 
@@ -329,5 +400,90 @@ describe("applyFeedRetentionLimits", () => {
     } as Feed);
     expect(second.items).toHaveLength(50);
     expect(second.items[0]?.guid).toBe("id-60");
+  });
+
+  it("deletes an undated item immediately when useFirstSeenDateFallback is off (default/prior behavior)", () => {
+    const nowMs = Date.parse("2024-01-20T00:00:00Z");
+    const feed: Feed = {
+      title: "Test Feed",
+      url: "https://example.com/feed.xml",
+      folder: "Uncategorized",
+      lastUpdated: Date.now(),
+      autoDeleteDuration: 7,
+      maxItemsLimit: 0,
+      items: [makeItem("undated", "", { firstSeenMs: nowMs })],
+    };
+
+    const updated = applyFeedRetentionLimits(feed, { nowMs });
+    expect(updated.items).toHaveLength(0);
+  });
+
+  it("retains and correctly sorts an undated item by firstSeenMs when useFirstSeenDateFallback is on", () => {
+    const nowMs = Date.parse("2024-01-20T00:00:00Z");
+    const oneDayAgo = Date.parse("2024-01-19T00:00:00Z");
+    const feed: Feed = {
+      title: "Test Feed",
+      url: "https://example.com/feed.xml",
+      folder: "Uncategorized",
+      lastUpdated: Date.now(),
+      autoDeleteDuration: 7,
+      maxItemsLimit: 0,
+      items: [
+        makeItem("dated-older", "2024-01-15T00:00:00Z"),
+        makeItem("undated-recent", "", { firstSeenMs: oneDayAgo }),
+      ],
+    };
+
+    const updated = applyFeedRetentionLimits(feed, {
+      nowMs,
+      useFirstSeenDateFallback: true,
+    });
+
+    // Undated item's firstSeenMs (one day ago) is more recent than the dated
+    // item's pubDate (five days ago), so it sorts first and both survive the
+    // 7-day cutoff.
+    expect(updated.items.map((i) => i.guid)).toEqual([
+      "undated-recent",
+      "dated-older",
+    ]);
+  });
+
+  it("survives multiple refresh cycles with useFirstSeenDateFallback on, keeping a stable firstSeenMs", () => {
+    const feedBase: Omit<Feed, "items"> = {
+      title: "Test Feed",
+      url: "https://example.com/feed.xml",
+      folder: "Uncategorized",
+      lastUpdated: Date.now(),
+      autoDeleteDuration: 7,
+      maxItemsLimit: 0,
+    };
+
+    const day0 = Date.UTC(2026, 0, 1);
+    const undatedFromFeed = makeItem("undated", "");
+
+    const firstMerge = mergeFeedHistoryItems([], [undatedFromFeed], {
+      nowMs: day0,
+    });
+    const firstRetained = applyFeedRetentionLimits(
+      { ...feedBase, items: firstMerge } as Feed,
+      { nowMs: day0, useFirstSeenDateFallback: true },
+    );
+    expect(firstRetained.items).toHaveLength(1);
+    expect(firstRetained.items[0].firstSeenMs).toBe(day0);
+
+    // Three days later: item is still undated in the feed, still within the
+    // 7-day cutoff measured from its stable firstSeenMs, so it survives.
+    const day3 = day0 + 3 * 24 * 60 * 60 * 1000;
+    const secondMerge = mergeFeedHistoryItems(
+      firstRetained.items,
+      [makeItem("undated", "")],
+      { nowMs: day3 },
+    );
+    const secondRetained = applyFeedRetentionLimits(
+      { ...feedBase, items: secondMerge } as Feed,
+      { nowMs: day3, useFirstSeenDateFallback: true },
+    );
+    expect(secondRetained.items).toHaveLength(1);
+    expect(secondRetained.items[0].firstSeenMs).toBe(day0);
   });
 });

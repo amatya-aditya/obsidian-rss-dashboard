@@ -457,18 +457,33 @@ export function migrateSettings(settings: RssDashboardSettings): boolean {
  * @param {Feed[]} feeds Feeds whose `items` arrays are deduplicated and re-sorted in place
  * @returns {boolean} true if any feed's items were changed (deduped, re-keyed, or had a nullish entry dropped), false if nothing changed
  */
-export function dedupeAndNormalizeFeedItems(feeds: Feed[]): boolean {
+export function dedupeAndNormalizeFeedItems(
+  feeds: Feed[],
+  options?: { useFirstSeenDateFallback?: boolean },
+): boolean {
   let didChange = false;
+  const useFirstSeenDateFallback = options?.useFirstSeenDateFallback ?? false;
 
+  // Kept local rather than imported from services/feed-parser/feed-retention.js:
+  // this file lives in utils/, which does not depend on services/.
   const getPubDateMs = (pubDate: string | undefined | null): number => {
     if (!pubDate) return 0;
     const ms = Date.parse(pubDate);
     return Number.isFinite(ms) ? ms : 0;
   };
 
+  const getEffectiveDateMs = (item: FeedItem): number => {
+    const pubDateMs = getPubDateMs(item.pubDate);
+    if (pubDateMs > 0) return pubDateMs;
+    if (useFirstSeenDateFallback && typeof item.firstSeenMs === "number") {
+      return item.firstSeenMs;
+    }
+    return 0;
+  };
+
   const byNewest = (a: FeedItem, b: FeedItem): number => {
-    const aMs = getPubDateMs(a.pubDate);
-    const bMs = getPubDateMs(b.pubDate);
+    const aMs = getEffectiveDateMs(a);
+    const bMs = getEffectiveDateMs(b);
     if (aMs !== bMs) return bMs - aMs;
     return (a.guid || "").localeCompare(b.guid || "");
   };

@@ -568,6 +568,67 @@ describe("settings-loader", () => {
       expect(feeds[0].items[1].guid).toBe("old");
     });
 
+    it("sorts an undated item to the bottom when useFirstSeenDateFallback is off", async () => {
+      const { dedupeAndNormalizeFeedItems } =
+        await import("../../../src/utils/settings-loader");
+
+      const feeds: Feed[] = [
+        createFeed({
+          items: [
+            createFeedItem({
+              guid: "undated",
+              title: "Undated",
+              link: "https://example.com/undated",
+              pubDate: "",
+              firstSeenMs: Date.now(),
+            }),
+            createFeedItem({
+              guid: "old",
+              title: "Old",
+              link: "https://example.com/old",
+              pubDate: "Mon, 01 Jan 2024 00:00:00 GMT",
+            }),
+          ],
+        }),
+      ];
+
+      dedupeAndNormalizeFeedItems(feeds);
+
+      expect(feeds[0].items.map((i) => i.guid)).toEqual(["old", "undated"]);
+    });
+
+    it("sorts an undated item by firstSeenMs when useFirstSeenDateFallback is on", async () => {
+      const { dedupeAndNormalizeFeedItems } =
+        await import("../../../src/utils/settings-loader");
+
+      const feeds: Feed[] = [
+        createFeed({
+          items: [
+            createFeedItem({
+              guid: "old",
+              title: "Old",
+              link: "https://example.com/old",
+              pubDate: "Mon, 01 Jan 2024 00:00:00 GMT",
+            }),
+            createFeedItem({
+              guid: "undated-recent",
+              title: "Undated recent",
+              link: "https://example.com/undated-recent",
+              pubDate: "",
+              firstSeenMs: Date.parse("Mon, 01 Apr 2024 00:00:00 GMT"),
+            }),
+          ],
+        }),
+      ];
+
+      dedupeAndNormalizeFeedItems(feeds, { useFirstSeenDateFallback: true });
+
+      expect(feeds[0].items.map((i) => i.guid)).toEqual([
+        "undated-recent",
+        "old",
+      ]);
+    });
+
     it("canonicalizes item GUIDs via canonicalizeItemIdentityUrl", async () => {
       const { canonicalizeItemIdentityUrl } =
         await import("../../../src/utils/url-utils");
