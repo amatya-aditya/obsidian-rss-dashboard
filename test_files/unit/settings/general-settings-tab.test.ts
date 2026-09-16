@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { DEFAULT_SETTINGS } from "../../../src/types/types";
+import { App } from "obsidian";
+import {
+  DEFAULT_SETTINGS,
+  type RssDashboardSettings,
+} from "../../../src/types/types";
 import {
   renderGeneralSettingsTab,
   type GeneralSettingsPlugin,
@@ -287,5 +291,53 @@ describe("renderGeneralSettingsTab() retention protections", () => {
     expect(settings.defaultAutoDeleteDuration).toBe(60);
     expect(settings.protectUnread).toBe(true);
     expect(saveSettings).toHaveBeenCalledTimes(2);
+  });
+});
+
+function createStorageSetupPlugin(): GeneralSettingsPlugin {
+  const settings = JSON.parse(
+    JSON.stringify(DEFAULT_SETTINGS),
+  ) as RssDashboardSettings;
+  settings.corsProxyEnabled = false;
+
+  return {
+    app: App.createMock(),
+    settingTab: null,
+    settings,
+    saveSettings: vi.fn(async () => {}),
+    getActiveDashboardView: vi.fn(async () => null),
+    importPortableDataBundleFromFile: vi.fn(async () => {}),
+    exportPortableDataBundle: vi.fn(async () => {}),
+    applyFeedLimitsToAllFeeds: vi.fn(async () => {}),
+    refreshFeeds: vi.fn(async () => {}),
+    showStorageOnboardingWizard: vi.fn(),
+  } as unknown as GeneralSettingsPlugin;
+}
+
+describe("General settings storage setup", () => {
+  beforeEach(() => {
+    installObsidianDomPolyfills();
+    document.body.empty();
+    vi.restoreAllMocks();
+  });
+
+  it("opens the storage startup wizard without changing settings", () => {
+    const containerEl = document.body.createDiv();
+    const plugin = createStorageSetupPlugin();
+
+    renderGeneralSettingsTab(containerEl, plugin);
+
+    const setting = Array.from(
+      containerEl.querySelectorAll(".setting-item"),
+    ).find(
+      (candidate) =>
+        candidate.querySelector(".setting-item-name")?.textContent ===
+        "Show startup wizard",
+    );
+    const button = setting?.querySelector("button");
+    button?.click();
+
+    expect(plugin.showStorageOnboardingWizard).toHaveBeenCalledTimes(1);
+    expect(plugin.saveSettings).not.toHaveBeenCalled();
   });
 });

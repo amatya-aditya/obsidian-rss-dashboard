@@ -1,8 +1,12 @@
 # Vault Shards Storage Guide
 
-**Note:** This feature is still a work in progress. RSS Dashboard supports three storage modes: Legacy JSON, Vault Shards (v1), and Vault Shards v2. Updated 6/19/26
+**Note:** Legacy JSON and Vault Shards v1/v2 are recovery and migration formats. For concurrent multi-device use, follow the [Sync V3 manual walkthrough](sync-v3-manual-walkthrough.md).
 
 This guide explains the Vault Shards storage modes in RSS Dashboard: what they are, when to use each, and how to safely migrate between them.
+
+## Sync V3
+
+Sync V3 keeps shared configuration and article-state replicas in `rss-dashboard-data/sync-v3`, while refreshed content stays device-local. It is the recommended option for concurrent devices. The Storage screen reports replica health, not whether Obsidian Sync has completed. For setup, joining, verification, and rollback, use the [manual walkthrough](sync-v3-manual-walkthrough.md).
 
 ## What Vault Shards Is
 

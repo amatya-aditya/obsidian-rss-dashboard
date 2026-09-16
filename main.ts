@@ -56,6 +56,7 @@ import {
   type FeedStorageStatus,
   ShardFolderDeletionError,
 } from "./src/services/feed-storage-repository";
+import { SyncV3Storage } from "./src/services/sync-v3-storage";
 import { ImportExportService } from "./src/services/import-export-service";
 import type { ExportBlobResult } from "./src/utils/export-utils";
 import { BackgroundImportService } from "./src/services/background-import-service";
@@ -76,6 +77,7 @@ import { ImportStarredModal } from "./src/modals/import-starred-modal";
 import { AddFeedModal } from "./src/modals/feed-manager/add-feed-modal";
 import { StorageMigrationModal } from "./src/modals/storage-migration-modal";
 import { shouldShowStorageDeprecationPrompt } from "./src/utils/storage-deprecation-prompt";
+import { StorageOnboardingModal } from "./src/modals/storage-onboarding-modal";
 import { isValidUrl } from "./src/utils/validation";
 import {
   dedupeAndNormalizeFeedItems,
@@ -301,12 +303,17 @@ export default class RssDashboardPlugin extends Plugin {
   private imageCacheWorkers = 0;
   private imageCacheBatchHasUsableEntries = false;
   private suppressNextImageCacheDashboardRefresh = false;
+  private readonly syncV3Storage: SyncV3Storage;
+  private wasFreshInstallAtLoad = false;
+  private static readonly STORAGE_ONBOARDING_COMPLETE_KEY =
+    "rss-dashboard-storage-onboarding-complete";
 
   constructor(app: App, manifest: ConstructorParameters<typeof Plugin>[1]) {
     super(app, manifest);
     this.feedStorageRepository = new FeedStorageRepository(app, {
       writeWrapper: (fn) => this.writeWithWatcherSuppressed(fn),
     });
+    this.syncV3Storage = new SyncV3Storage(app);
   }
 
   private initializeSettingsBackedServices(): void {
@@ -953,6 +960,13 @@ export default class RssDashboardPlugin extends Plugin {
       }
 
       this.scheduleStartupSavedArticleValidation();
+
+      this.app.workspace.onLayoutReady(() => {
+        if (this.shouldShowStorageOnboarding()) {
+          this.openStorageOnboarding(true);
+        }
+      });
+
 
       this.registerObsidianProtocolHandler(
         this.manifest.id,
@@ -2136,6 +2150,88 @@ export default class RssDashboardPlugin extends Plugin {
     return trimmed ? `${trimmed}/data.json` : "data.json";
   }
 
+  public showStorageOnboardingWizard(): void {
+    this.openStorageOnboarding(false);
+  }
+
+  private openStorageOnboarding(isFirstRun: boolean): void {
+    new StorageOnboardingModal(this.app, this, {
+      currentStorageMode: this.settings.storageMode,
+      isFirstRun,
+    }).open();
+  }
+
+  private shouldShowStorageOnboarding(): boolean {
+    if (!this.wasFreshInstallAtLoad) {
+      return false;
+    }
+
+    const appWithLocalStorage = this.app as unknown as {
+      loadLocalStorage?: (key: string) => unknown;
+    };
+    const completed = appWithLocalStorage.loadLocalStorage?.(
+      RssDashboardPlugin.STORAGE_ONBOARDING_COMPLETE_KEY,
+    );
+    return completed !== true && completed !== "true";
+  }
+
+  private markStorageOnboardingComplete(): void {
+    const appWithLocalStorage = this.app as unknown as {
+      saveLocalStorage?: (key: string, value: unknown) => void;
+    };
+    appWithLocalStorage.saveLocalStorage?.(
+      RssDashboardPlugin.STORAGE_ONBOARDING_COMPLETE_KEY,
+      true,
+    );
+  }
+
+  public async getSyncV3Status() {
+    return this.syncV3Storage.getStatus();
+  }
+
+  public async createSyncV3Set(): Promise<void> {
+    await this.syncV3Storage.createFromSettings(this.settings);
+    await this.saveData({
+      storageMode: "replicated-v3",
+      storageFolder: this.settings.storageFolder,
+    });
+    this.markStorageOnboardingComplete();
+    this.initializeSettingsBackedServices();
+    await this.refreshDashboardViews();
+  }
+
+  public async joinSyncV3Set(): Promise<boolean> {
+    const joined = await this.syncV3Storage.join(this.settings);
+    if (!joined) {
+      await this.prepareSyncV3Join();
+      return false;
+    }
+    await this.saveData({
+      storageMode: "replicated-v3",
+      storageFolder: this.settings.storageFolder,
+    });
+    this.markStorageOnboardingComplete();
+    this.initializeSettingsBackedServices();
+    await this.refreshDashboardViews();
+    return true;
+  }
+
+  public async configureLocalStorageForFirstRun(): Promise<void> {
+    this.settings.storageMode = "vault-shards-v2";
+    await this.saveSettings();
+    this.markStorageOnboardingComplete();
+  }
+
+  public async prepareSyncV3Join(): Promise<void> {
+    this.settings.storageMode = "replicated-v3";
+    await this.syncV3Storage.persistLocalCache(this.settings);
+    await this.saveData({
+      storageMode: "replicated-v3",
+      storageFolder: this.settings.storageFolder,
+    });
+    this.markStorageOnboardingComplete();
+  }
+
   public getFeedLocalStorageAddress(feed: Feed): FeedLocalStorageAddress {
     const resolved = this.feedStorageRepository.getFeedLocalStorageAddress(
       this.settings,
@@ -2690,6 +2786,7 @@ export default class RssDashboardPlugin extends Plugin {
 
       // Track whether we bootstrapped from null (possible pending sync)
       const wasNullLoad = data === null || vaultMetadataUnreadable;
+      this.wasFreshInstallAtLoad = this.wasFreshInstallAtLoad || wasNullLoad;
 
       const mergedSettings = Object.assign({}, DEFAULT_SETTINGS, data ?? {});
       const originalSettingsJson = JSON.stringify(mergedSettings);
@@ -2697,9 +2794,14 @@ export default class RssDashboardPlugin extends Plugin {
       this.settings = loadAndNormalizeSettings(data);
       const didMigrateKeywordRules = this.migrateLegacySettings();
       await this.repairMissingFolderPathsForFeeds();
-      const hydrated = await this.feedStorageRepository.hydrateSettings(
-        this.settings,
-      );
+      const isV3 = this.settings.storageMode === "replicated-v3";
+      const hydrated = isV3
+        ? {
+            didChange: false,
+            shardCount: 0,
+            userStateLoaded: await this.syncV3Storage.hydrate(this.settings),
+          }
+        : await this.feedStorageRepository.hydrateSettings(this.settings);
       storageLog("Settings hydrated", {
         mode: this.settings.storageMode,
         folder: this.settings.storageFolder,
@@ -2722,6 +2824,7 @@ export default class RssDashboardPlugin extends Plugin {
 
       const shouldSave =
         !wasNullLoad &&
+        !isV3 &&
         !isMissingUserState &&
         (didMigrateKeywordRules ||
           hydrated.didChange ||
@@ -2752,6 +2855,10 @@ export default class RssDashboardPlugin extends Plugin {
   }
 
   private isWatchedMetadataPath(filePath: string): boolean {
+    if (this.settings?.storageMode === "replicated-v3") {
+      const root = this.syncV3Storage.getRootPath();
+      return filePath.replace(/^\/+|\/+$/g, "").startsWith(`${root}/`);
+    }
     // When running in tests the settings.metadataStorageMode may be
     // "plugin-default" but tests expect the watcher to consider the
     // default vault folder (.rss-dashboard-data). Use the resolved
@@ -2797,13 +2904,17 @@ export default class RssDashboardPlugin extends Plugin {
         window.clearTimeout(this.vaultMetadataReloadTimer);
       }
 
+      const delay = this.settings?.storageMode === "replicated-v3" ? 0 : 1500;
       this.vaultMetadataReloadTimer = window.setTimeout(() => {
         this.vaultMetadataReloadTimer = null;
         void (async () => {
           await this.loadSettings();
+          if (this.settings?.storageMode === "replicated-v3") {
+            this.initializeSettingsBackedServices();
+          }
           await this.refreshDashboardViews();
         })();
-      }, 1500);
+      }, delay);
     };
 
     this.registerEvent(vault.on("modify", (file) => scheduleReload(file)));
@@ -3043,6 +3154,11 @@ export default class RssDashboardPlugin extends Plugin {
     });
 
     try {
+      if (this.settings.storageMode === "replicated-v3") {
+        await this.syncV3Storage.persist(this.settings);
+        storageLog("saveSettings completed for Sync V3 replica");
+        return;
+      }
       const result = await this.feedStorageRepository.persistSettings(
         this.settings,
         this.getMetadataSaveCallback(),
@@ -3244,7 +3360,11 @@ export default class RssDashboardPlugin extends Plugin {
       if (isExplicitGlobalRefresh) {
         this.settings.lastGlobalRefreshCompletedAt = Date.now();
       }
-      await this.saveSettings();
+      if (this.settings.storageMode === "replicated-v3") {
+        await this.syncV3Storage.persistLocalCache(this.settings);
+      } else {
+        await this.saveSettings();
+      }
       this.autoRefreshScheduler?.reschedule();
       throw error;
     } finally {
@@ -3256,7 +3376,11 @@ export default class RssDashboardPlugin extends Plugin {
     if (isExplicitGlobalRefresh) {
       this.settings.lastGlobalRefreshCompletedAt = Date.now();
     }
-    await this.saveSettings();
+    if (this.settings.storageMode === "replicated-v3") {
+      await this.syncV3Storage.persistLocalCache(this.settings);
+    } else {
+      await this.saveSettings();
+    }
     this.autoRefreshScheduler?.reschedule();
     const view = await this.getActiveDashboardView();
     if (view) {
@@ -3384,7 +3508,11 @@ export default class RssDashboardPlugin extends Plugin {
       if (intent === "global" && !this.isGlobalRefreshCancelled) {
         this.settings.lastGlobalRefreshCompletedAt = Date.now();
       }
-      await this.saveSettings();
+      if (this.settings.storageMode === "replicated-v3") {
+        await this.syncV3Storage.persistLocalCache(this.settings);
+      } else {
+        await this.saveSettings();
+      }
       this.autoRefreshScheduler?.reschedule();
       this.activeRefreshState.clear();
       this.isMultiFeedRefreshRunning = false;

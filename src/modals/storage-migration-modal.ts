@@ -9,6 +9,7 @@ import {
 
 /**
  * Shown on load while the vault is still on a deprecated feed storage mode.
+ * V2 and Sync V3 are already current modes and never trigger this prompt.
  *
  * "Skip this version" is withdrawn once the deferral cap is reached, so the
  * prompt can always be postponed to the next load but can never be silenced
