@@ -151,6 +151,30 @@ _Avoid_: Vault Shards, vault storage
 An experimental feed storage mode where each device owns its own replica file with explicit read/unread values, distinct from the shared-file model of Shard storage. Opt-in only, not a migration target for [[Deprecated storage mode]] vaults, and unaffected by [ADR 0006](docs/adr/0006-deprecate-legacy-json-and-shard-storage-v1.md)'s selector cleanup. Labeled "(experimental)" everywhere it's offered before a device commits to it (the storage-mode dropdown, the onboarding entry point) but not in the steady-state label shown once a device is already running it.
 _Avoid_: v3, replicated-v3 (as a display term), sync storage
 
+**Sync v3 set**:
+The shared `epoch.json`, `seed-manifest.json`, and per-device `replicas/<device>/` structure that one primary device creates and other devices join to use [[Sync v3 replicas]]. Scoped to `rss-dashboard-data/sync-v3`; the dot-prefixed local cache is never part of it.
+_Avoid_: Sync set, V3 set, sync configuration
+
+**Set adoption**:
+A device either creating a new [[Sync v3 set]] (becoming its primary) or joining an existing one (adopting its epoch). Deliberately not called "migration" — that term is reserved for [[Storage migration]], which is unrelated: a device adopting a Sync v3 set already has its feed content in Shard storage v2 and keeps it there.
+_Avoid_: Sync v3 migration, joining, onboarding
+
+**Adoption race**:
+Two devices independently creating a [[Sync v3 set]] because neither has yet seen the other's `epoch.json`, producing two divergent epochs with no shared history. Distinct from ordinary replica staleness, which resolves itself once sync delivers the missing files; an adoption race does not self-resolve because there is no single set for the second device to converge on.
+_Avoid_: Epoch conflict, dual-primary bug, split-brain
+
+**Sync conflict copy**:
+An Obsidian-Sync-generated `*.sync-conflict-<timestamp>.json` file appearing under a [[Sync v3 set]]'s shared paths. Almost always a symptom of the device's Conflict Resolution setting being "Automatically merge" instead of "Create conflict file" — the former performs a text-level merge that corrupts the set's JSON files rather than preserving both versions.
+_Avoid_: Conflict file, merge conflict, duplicate file
+
+**Sync v3 health report**:
+The exportable diagnostic snapshot of a device's `SyncV3Status`, plus any detected [[Adoption race]] or [[Sync conflict copy]], written as a single versioned JSON file via the same export mechanism as the [[Portable data bundle]]. Built for comparison across devices or attachment to a bug report — a live settings-tab status line alone can't do either.
+_Avoid_: Sync diagnostics, health export, status report
+
+**Sync v3 recovery**:
+The single, backup-first corrective action offered when a device's Sync v3 health is degraded or an [[Adoption race]]/[[Sync conflict copy]] is detected. Distinct from [[Storage repair]] and [[Storage revert]], which only ever act on Shard storage and do not touch a [[Sync v3 set]]'s epoch or replicas.
+_Avoid_: Sync repair, replica repair, resync
+
 **Deprecated storage mode**:
 A feed storage mode the plugin still reads but will stop writing to when 3.0 ships: Legacy JSON and Shard storage v1. A vault on one of these still opens and displays its articles, but no longer refreshes feeds, records stars, tags, or saves, or auto-deletes by retention rule. Export remains available, and migrating to Shard storage v2 remains possible after the cutoff. See [ADR 0006](docs/adr/0006-deprecate-legacy-json-and-shard-storage-v1.md).
 _Avoid_: Unsupported mode, legacy mode, read-only mode
