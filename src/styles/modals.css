@@ -414,6 +414,17 @@ body .modal.rss-dashboard-template-dialog {
   pointer-events: none;
 }
 
+/* What's New Modal */
+.rss-dashboard-whats-new-list {
+  margin: 0 0 0.5rem 0;
+  padding: 0 1.5rem 0.5rem;
+  color: var(--text-normal);
+}
+.rss-dashboard-whats-new-list li {
+  margin-bottom: 0.4rem;
+  line-height: 1.4;
+}
+
 /* ============================================
  * 6. Specific Modal Features
  * Edit Feed, Storage, Status, Tag modals

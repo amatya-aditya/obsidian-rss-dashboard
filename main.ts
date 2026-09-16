@@ -76,6 +76,8 @@ import { ImportStarredModal } from "./src/modals/import-starred-modal";
 import { AddFeedModal } from "./src/modals/feed-manager/add-feed-modal";
 import { StorageMigrationModal } from "./src/modals/storage-migration-modal";
 import { shouldShowStorageDeprecationPrompt } from "./src/utils/storage-deprecation-prompt";
+import { WhatsNewModal } from "./src/modals/whats-new-modal";
+import { decideWhatsNew, getWhatsNewFeatures } from "./src/utils/whats-new";
 import { isValidUrl } from "./src/utils/validation";
 import {
   dedupeAndNormalizeFeedItems,
@@ -286,6 +288,8 @@ export default class RssDashboardPlugin extends Plugin {
   private globalRefreshCompleted = 0;
   public vaultAbsolutePath = "";
   private hasCompletedStartupSavedArticleValidation = false;
+  private wasNullSettingsLoad = false;
+  private settingsLoadFailed = false;
   private vaultMetadataReloadTimer: number | null = null;
   private startupRefreshTimeoutId: number | null = null;
   private progressSaveDebounce: number | null = null;
@@ -932,12 +936,20 @@ export default class RssDashboardPlugin extends Plugin {
 
       this.scheduleStartupSavedArticleValidation();
 
+      // At most one startup modal shows per session: the storage
+      // deprecation warning takes priority over What's New when both would
+      // otherwise apply, since it names a hard cutoff the user must act on.
+      // A user who keeps deferring it will not see that release's What's
+      // New popup at all — accepted deliberately rather than stacking two
+      // modals or queuing one behind the other.
       this.app.workspace.onLayoutReady(() => {
         if (
           this.settings &&
           shouldShowStorageDeprecationPrompt(this.settings, this.manifest.version)
         ) {
           new StorageMigrationModal(this.app, this).open();
+        } else {
+          void this.maybeShowWhatsNew();
         }
       });
 
@@ -2642,7 +2654,47 @@ export default class RssDashboardPlugin extends Plugin {
     }
   }
 
+  /**
+   * Shows the What's New popup once per update. Skipped entirely on a null
+   * settings load — that covers both a genuine fresh install and a synced
+   * vault whose data.json hasn't arrived yet, and loadSettings() already
+   * defers writing in both cases until a real reload happens; recording
+   * lastShownVersion here would race that same sync-pending scenario. A
+   * fresh install is picked back up by the next load once real settings
+   * exist, which the "existing user, never seen it before" branch of
+   * decideWhatsNew treats the same as any other never-shown case.
+   *
+   * Also skipped when this session's settings load actually failed:
+   * loadSettings()'s catch path falls back to in-memory DEFAULT_SETTINGS
+   * without saving, and this method must not be the thing that turns that
+   * fallback into a real write — saveSettings() below would otherwise
+   * persist DEFAULT_SETTINGS over the user's real data.json on nothing more
+   * than a transient read error.
+   */
+  private async maybeShowWhatsNew(): Promise<void> {
+    if (!this.settings || this.wasNullSettingsLoad || this.settingsLoadFailed) {
+      return;
+    }
+
+    const features = getWhatsNewFeatures(this.manifest.version);
+    const decision = decideWhatsNew({
+      currentVersion: this.manifest.version,
+      lastShownVersion: this.settings.lastShownVersion,
+      features,
+    });
+
+    if (decision.shouldShow && features) {
+      new WhatsNewModal(this.app, this.manifest.version, features).open();
+    }
+
+    if (decision.nextLastShownVersion !== this.settings.lastShownVersion) {
+      this.settings.lastShownVersion = decision.nextLastShownVersion;
+      await this.saveSettings();
+    }
+  }
+
   async loadSettings() {
+    this.settingsLoadFailed = false;
     try {
       storageLog("Loading plugin settings");
 
@@ -2677,6 +2729,7 @@ export default class RssDashboardPlugin extends Plugin {
 
       // Track whether we bootstrapped from null (possible pending sync)
       const wasNullLoad = data === null || vaultMetadataUnreadable;
+      this.wasNullSettingsLoad = wasNullLoad;
 
       const mergedSettings = Object.assign({}, DEFAULT_SETTINGS, data ?? {});
       const originalSettingsJson = JSON.stringify(mergedSettings);
@@ -2727,6 +2780,7 @@ export default class RssDashboardPlugin extends Plugin {
         }`,
       );
       this.settings = DEFAULT_SETTINGS;
+      this.settingsLoadFailed = true;
     }
   }
 
