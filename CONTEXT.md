@@ -109,6 +109,30 @@ _Avoid_: Extracted metadata, page signals
 One value per metadata field (description, language) after precedence is applied across [[Raw article metadata]] and [[Feed metadata]]. Produced by `resolveArticleMetadata`, held only for the current render or save — not a `FeedItem` shape itself. Individual fields may be copied onto `FeedItem` by the ticket that defines that field; the object as a whole is never persisted wholesale.
 _Avoid_: Final metadata, merged metadata
 
+**Persisted article metadata**:
+The subset of [[Resolved article metadata]] fields written onto `FeedItem` once a full-article fetch resolves them: `description` (overwrites the feed-derived value), `language`, `author` (fills only when the feed carried none), and `canonicalUrl`. First-write-wins — once `metadataFetchedAt` is set on an item, a later feed refresh never overwrites these fields, since [[Feed metadata]] is the pre-fetch fallback, not a rival source. Distinct from `excerpt`, `siteName`, and `modifiedAt`, which stay unpersisted (transient [[Resolved article metadata]] only).
+_Avoid_: Enriched metadata (doesn't distinguish transient from persisted), saved metadata
+
+**Metadata provenance**:
+A `*Source` field on `FeedItem` recording which tier of [[Resolved article metadata]] a persisted value came from. Only `languageSource` earns persistence — the page/feed coverage gap (96% vs 57%) makes it load-bearing. `descriptionSource` stays internal-only: meta vs og agree 88% of the time, and the distinction that actually matters (description vs excerpt) is already implied by which `FeedItem` field the value landed in, not by a separate provenance string.
+_Avoid_: Source tracking, metadata source
+
+**Description tier**:
+The resolver's precedence chain for the `description` field of [[Resolved article metadata]] — `meta[name=description]` → `og:description` → `twitter:description` → guarded feed-supplied description — with every candidate filtered through the [[Degenerate description value]] guard before acceptance. Distinct from the [[Excerpt tier]], which the resolver only reaches once every [[Description tier]] candidate has been rejected.
+_Avoid_: Description hierarchy, description precedence
+
+**Excerpt tier**:
+The resolver's fallback chain for the `excerpt` field, reached only once the [[Description tier]] is exhausted: Readability's own `excerpt` (when it did not come from a page meta tag already tried), then the feed-supplied description, then truncated article text. Fills `excerpt`, never `description`, on [[Resolved article metadata]].
+_Avoid_: Fallback tier, summary tier
+
+**Degenerate description value**:
+A [[Description tier]] candidate the resolver rejects outright: under ~40 normalized characters, normalized-equal to the title, punctuation/ellipsis-only, or a [[Duplicate intro]] of the article body. Rejection advances to the next candidate in the [[Description tier]]; only a [[Duplicate intro]] rejection is eligible to seed the [[Excerpt tier]] afterward; the other rejection reasons are discarded outright.
+_Avoid_: Bad description, invalid description, junk value
+
+**Duplicate intro**:
+A description that restates the article's own opening text — exactly, or as a normalized prefix in either direction — rather than carrying independent publisher-authored prose. Detected identically wherever it's checked: the Reader's duplicate-suppression display and the resolver's [[Degenerate description value]] guard share one test.
+_Avoid_: Restated intro, redundant description, duplicate lead
+
 ## Storage
 
 **Feed storage**:
