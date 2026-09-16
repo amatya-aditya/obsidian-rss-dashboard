@@ -713,7 +713,7 @@ export class FeedParser {
             url,
           ),
           content: this.convertRelativeUrlsInContent(item.content || "", url),
-          pubDate: item.pubDate || new Date().toISOString(),
+          pubDate: item.pubDate || "",
           guid: itemGuid,
           read: false,
           starred: false,
