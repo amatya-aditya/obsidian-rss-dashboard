@@ -46,6 +46,11 @@ which would false-positive on ordinary WIP if automated into
       PR since the last release (`gh pr list --state merged`, filtered to
       merge dates after the previous tag — see
       [release-notes-workflow.md](release-notes-workflow.md)).
+- [ ] After renaming `CHANGELOG.md`'s `Unreleased` heading to the release
+      version, `npm run generate:whats-new` has been run and its output
+      (`src/generated/whats-new-content.ts`) committed — it is not run
+      automatically by `npm run build`, so skipping it ships an empty What's
+      New popup for the release.
 - [ ] `npm run build` passes clean on the branch you're about to cut from.
 
 ## Why the untracked-file check isn't automated

@@ -170,7 +170,7 @@ The modal shown once per plugin update, once the running version differs from th
 _Avoid_: Update notification, changelog viewer, whats-new dialog
 
 **Release summary**:
-The curated, Features-only excerpt of a version's CHANGELOG.md entry, extracted at build time and embedded into the plugin so the [[What's New popup]] can render it offline. Distinct from the full changelog entry, which also carries Fixes and Development/compliance notes and is never shipped with the installed plugin — only `main.js`, `manifest.json`, and `styles.css` are.
+The curated, Features-only excerpt of a version's CHANGELOG.md entry, extracted as a manual release-prep step and embedded into the plugin so the [[What's New popup]] can render it offline. Distinct from the full changelog entry, which also carries Fixes and Development/compliance notes and is never shipped with the installed plugin — only `main.js`, `manifest.json`, and `styles.css` are.
 _Avoid_: Changelog excerpt, release notes, what's-new text
 
 **Last shown version**:

@@ -65,13 +65,19 @@ whichever fit, rather than inventing new ones.
    only genuinely missing entries.
 4. Deduplicate and polish wording while preserving canonical GitHub issue URLs.
 5. Move the final entries into the new version heading, grouped by type and area.
-6. Create or update `docs/releases/<version>.md` as the public-facing summary.
+6. Run `npm run generate:whats-new` and commit its output
+   (`src/generated/whats-new-content.ts`) alongside the heading rename. This
+   is what feeds the in-app What's New popup; it is not run automatically by
+   `npm run build`/`npm run dev` (see
+   [ADR 0008](../adr/0008-embed-release-summaries-at-build-time.md)), so
+   skipping this step means the popup ships empty for the release.
+7. Create or update `docs/releases/<version>.md` as the public-facing summary.
    Consolidate related changelog bullets, lead with user impact, and omit
    implementation detail that does not help the wider audience.
-7. Preserve granular issue URLs in `CHANGELOG.md`. Include issue links in the
+8. Preserve granular issue URLs in `CHANGELOG.md`. Include issue links in the
    public release summary only when they add useful context.
-8. Exclude internal-only refactors unless they have direct user impact.
-9. Move release-bound implemented plans from
+9. Exclude internal-only refactors unless they have direct user impact.
+10. Move release-bound implemented plans from
    `docs/archive/plans/unreleased/` to
    `docs/archive/plans/v<version>/`; update `released_in`, repository links,
    and `docs/archive/README.md`.

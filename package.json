@@ -5,7 +5,7 @@
   "main": "main.js",
   "type": "commonjs",
   "scripts": {
-    "dev": "npm run generate:whats-new && node esbuild.config.mjs",
+    "dev": "node esbuild.config.mjs",
     "check:css-scope": "node scripts/check-css-scope.js",
     "check:platform": "node scripts/check-platform-compat.mjs",
     "check:important": "node scripts/check-css-important.mjs",
@@ -14,7 +14,7 @@
     "check:release-compatibility": "node scripts/check-release-compatibility.mjs",
     "check:pre-release": "node scripts/check-pre-release.mjs",
     "generate:whats-new": "node scripts/generate-whats-new-content.mjs",
-    "build": "npm run check:compliance && npm run lint && npm run generate:whats-new && tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
+    "build": "npm run check:compliance && npm run lint && tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
     "lint": "eslint . --max-warnings=0",
     "lint:dev": "eslint .",
     "test:unit": "vitest run --config vitest.config.mjs",
