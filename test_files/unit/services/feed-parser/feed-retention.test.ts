@@ -5,6 +5,8 @@ import {
   applyFeedRetentionLimits,
   isProtectedItem,
   getEffectiveDateMs,
+  getPubDateMs,
+  normalizeRfc822Zone,
 } from "../../../../src/services/feed-parser/feed-retention.js";
 
 describe("isProtectedItem", () => {
@@ -145,6 +147,36 @@ describe("mergeFeedHistoryItems", () => {
 
     expect(merged).toHaveLength(1);
     expect(merged[0].firstSeenMs).toBe(nowMs);
+  });
+});
+
+describe("getPubDateMs RFC822 named-zone handling", () => {
+  it("rewrites obsolete US zone abbreviations to explicit offsets", () => {
+    expect(normalizeRfc822Zone("Fri, 06 May 1983 09:00:00 CST")).toBe(
+      "Fri, 06 May 1983 09:00:00 -0600",
+    );
+    expect(normalizeRfc822Zone("Fri, 06 May 1983 09:00:00 PDT")).toBe(
+      "Fri, 06 May 1983 09:00:00 -0700",
+    );
+    expect(normalizeRfc822Zone("Fri, 06 May 1983 09:00:00 GMT")).toBe(
+      "Fri, 06 May 1983 09:00:00 +0000",
+    );
+  });
+
+  it("leaves dates with a numeric offset or no trailing zone name untouched", () => {
+    expect(normalizeRfc822Zone("Fri, 06 May 1983 09:00:00 -0600")).toBe(
+      "Fri, 06 May 1983 09:00:00 -0600",
+    );
+    expect(normalizeRfc822Zone("2024-01-01T00:00:00Z")).toBe(
+      "2024-01-01T00:00:00Z",
+    );
+  });
+
+  it("resolves a CST-zoned date to the correct UTC instant regardless of engine-native zone support", () => {
+    // CST = UTC-6, so 09:00 CST is 15:00 UTC.
+    expect(getPubDateMs("Fri, 06 May 1983 09:00:00 CST")).toBe(
+      Date.UTC(1983, 4, 6, 15, 0, 0),
+    );
   });
 });
 

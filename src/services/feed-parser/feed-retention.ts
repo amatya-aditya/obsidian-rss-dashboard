@@ -1,9 +1,41 @@
 import type { Feed, FeedItem, FeedRetentionProtections } from "../../types/types.js";
 import { canonicalizeItemIdentityUrl } from "../../utils/url-utils.js";
 
+// RFC 822/2822 obsolete named-zone offsets. Some Chromium/V8 builds don't
+// recognize these in Date.parse() (support is implementation-defined, not
+// part of any ECMAScript standard), silently producing NaN for otherwise
+// well-formed pubDate values like "Fri, 06 May 1983 09:00:00 CST". Rewriting
+// the abbreviation to an explicit offset before parsing sidesteps the engine
+// dependency entirely.
+const RFC822_ZONE_OFFSETS: Record<string, string> = {
+  UT: "+0000",
+  GMT: "+0000",
+  EST: "-0500",
+  EDT: "-0400",
+  CST: "-0600",
+  CDT: "-0500",
+  MST: "-0700",
+  MDT: "-0600",
+  PST: "-0800",
+  PDT: "-0700",
+};
+
+export function normalizeRfc822Zone(pubDate: string): string {
+  const match = pubDate.match(
+    /\s(UT|GMT|EST|EDT|CST|CDT|MST|MDT|PST|PDT)$/,
+  );
+  const zone = match?.[1];
+  if (!match || !zone) return pubDate;
+  const offset = RFC822_ZONE_OFFSETS[zone];
+  return pubDate.slice(0, match.index) + " " + offset;
+}
+
 export function getPubDateMs(pubDate: string | undefined | null): number {
   if (!pubDate) return 0;
-  const ms = Date.parse(pubDate);
+  let ms = Date.parse(pubDate);
+  if (!Number.isFinite(ms)) {
+    ms = Date.parse(normalizeRfc822Zone(pubDate));
+  }
   return Number.isFinite(ms) ? ms : 0;
 }
 
