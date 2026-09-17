@@ -619,7 +619,7 @@ export function renderGeneralSettingsTab(
   new Setting(containerEl)
     .setName("Use first-seen date for undated items")
     .setDesc(
-      "When an article has no publish date (common with some proxied feeds), use the date it was first seen instead of hiding it from sorting and auto-delete. Off by default.",
+      "When an article has no publish date (common with some proxied feeds), use the date it was first seen instead of hiding it from sorting and auto-delete. Off by default. Changes are applied on the next feed refresh.",
     )
     .addToggle((toggle) =>
       toggle

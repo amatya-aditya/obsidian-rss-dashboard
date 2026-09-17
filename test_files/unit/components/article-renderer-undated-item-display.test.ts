@@ -73,11 +73,25 @@ describe("ArticleRenderer undated-item date display", () => {
     document.body.appendChild(container);
   });
 
-  it("shows the first-seen date, not the literal string 'Invalid Date', when pubDate is empty", async () => {
+  it("shows the first-seen date, not the literal string 'Invalid Date', when pubDate is empty and the fallback setting is on", async () => {
     const firstSeenMs = Date.parse("2026-01-01T00:00:00Z");
     const item = makeItem({ firstSeenMs });
+    const mockApp = {
+      workspace: { getLeavesOfType: vi.fn().mockReturnValue([]) },
+      vault: { getAbstractFileByPath: vi.fn() },
+    };
+    const fallbackOnRenderer = new ArticleRenderer({
+      app: mockApp as never,
+      component: new Component(),
+      settings: {
+        ...DEFAULT_SETTINGS,
+        useFirstSeenDateFallback: true,
+      } as RssDashboardSettings,
+      onArticleSave: vi.fn(),
+      onArticleUpdate: vi.fn(),
+    });
 
-    await renderer.render(container, item);
+    await fallbackOnRenderer.render(container, item);
 
     const dateText = container.querySelector(".rss-reader-pub-date")?.textContent;
     expect(dateText).not.toBe("Invalid Date");
@@ -87,6 +101,16 @@ describe("ArticleRenderer undated-item date display", () => {
 
   it("shows 'Unknown date' rather than 'Invalid Date' when neither pubDate nor firstSeenMs exist", async () => {
     const item = makeItem({ firstSeenMs: undefined });
+
+    await renderer.render(container, item);
+
+    const dateText = container.querySelector(".rss-reader-pub-date")?.textContent;
+    expect(dateText).toBe("Unknown date");
+  });
+
+  it("shows 'Unknown date', not the first-seen date, when pubDate is empty and the fallback setting is off (default)", async () => {
+    const firstSeenMs = Date.parse("2026-01-01T00:00:00Z");
+    const item = makeItem({ firstSeenMs });
 
     await renderer.render(container, item);
 

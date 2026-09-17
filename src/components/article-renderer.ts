@@ -277,7 +277,8 @@ export class ArticleRenderer {
       cls: "rss-reader-feed-title",
       text: item.feedTitle,
     });
-    const displayDate = resolveDisplayDate(item);
+    const useFirstSeenDateFallback = this.settings.useFirstSeenDateFallback;
+    const displayDate = resolveDisplayDate(item, useFirstSeenDateFallback);
     const isFirstSeenFallback = getPubDateMs(item.pubDate) <= 0 && !!displayDate;
     metaContainer.createDiv({
       cls: "rss-reader-pub-date",

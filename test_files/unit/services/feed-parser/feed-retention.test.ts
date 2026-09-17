@@ -7,6 +7,7 @@ import {
   getEffectiveDateMs,
   getPubDateMs,
   normalizeRfc822Zone,
+  resolveDisplayDate,
 } from "../../../../src/services/feed-parser/feed-retention.js";
 
 describe("isProtectedItem", () => {
@@ -206,6 +207,35 @@ describe("getEffectiveDateMs", () => {
   it("returns 0 when pubDate is missing and firstSeenMs is absent, fallback enabled or not", () => {
     expect(getEffectiveDateMs({ pubDate: "" }, true)).toBe(0);
     expect(getEffectiveDateMs({ pubDate: "" }, false)).toBe(0);
+  });
+});
+
+describe("resolveDisplayDate", () => {
+  it("returns the real pubDate when present, regardless of the fallback setting", () => {
+    const pubDateMs = Date.parse("2024-01-01T00:00:00Z");
+    expect(
+      resolveDisplayDate(
+        { pubDate: "2024-01-01T00:00:00Z", firstSeenMs: 999 },
+        false,
+      ),
+    ).toEqual(new Date(pubDateMs));
+  });
+
+  it("falls back to firstSeenMs when pubDate is missing and the fallback setting is on", () => {
+    expect(
+      resolveDisplayDate({ pubDate: "", firstSeenMs: 12345 }, true),
+    ).toEqual(new Date(12345));
+  });
+
+  it("returns null (not a first-seen substitution) when pubDate is missing and the fallback setting is off", () => {
+    expect(
+      resolveDisplayDate({ pubDate: "", firstSeenMs: 12345 }, false),
+    ).toBeNull();
+  });
+
+  it("returns null when pubDate is missing and firstSeenMs is absent, fallback on or off", () => {
+    expect(resolveDisplayDate({ pubDate: "" }, true)).toBeNull();
+    expect(resolveDisplayDate({ pubDate: "" }, false)).toBeNull();
   });
 });
 

@@ -59,19 +59,22 @@ export function getEffectiveDateMs(
 
 /**
  * The date to show in UI chrome (reader header, date badges): the real
- * `pubDate` when parseable, otherwise the item's `firstSeenMs` so undated
- * items never render the literal string "Invalid Date". Unlike
- * {@link getEffectiveDateMs}, this always prefers `firstSeenMs` when it's
- * available — display is not gated by `useFirstSeenDateFallback`, which only
- * controls sorting/retention behavior. Returns null when there is truly
- * nothing to show (no pubDate and no firstSeenMs).
+ * `pubDate` when parseable, otherwise the item's `firstSeenMs` when
+ * `useFirstSeenDateFallback` is enabled. Mirrors {@link getEffectiveDateMs}'s
+ * gating so the setting means "off" everywhere, not just for sorting and
+ * retention — with it off, an undated item shows "Unknown date" rather than
+ * a first-seen substitution the user never opted into. Returns null when
+ * there is nothing to show (no pubDate, or no firstSeenMs / fallback disabled).
  */
 export function resolveDisplayDate(
   item: Pick<FeedItem, "pubDate" | "firstSeenMs">,
+  useFirstSeenDateFallback?: boolean,
 ): Date | null {
   const pubDateMs = getPubDateMs(item.pubDate);
   if (pubDateMs > 0) return new Date(pubDateMs);
-  if (typeof item.firstSeenMs === "number") return new Date(item.firstSeenMs);
+  if (useFirstSeenDateFallback && typeof item.firstSeenMs === "number") {
+    return new Date(item.firstSeenMs);
+  }
   return null;
 }
 

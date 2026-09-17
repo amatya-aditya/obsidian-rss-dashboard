@@ -32,7 +32,23 @@ describe("feed-view", () => {
     expect(item?.querySelector(".rss-dashboard-feed-footer")).toBeTruthy();
   });
 
-  it("shows the first-seen date, not 'Invalid Date' or 'Invalid date', in the feed footer when pubDate is empty", () => {
+  it("shows the first-seen date in the feed footer when pubDate is empty and the fallback setting is on", () => {
+    const firstSeenMs = Date.parse("2026-01-01T00:00:00Z");
+    const ctx = baseViewContext();
+    ctx.settings.useFirstSeenDateFallback = true;
+    renderFeedView(
+      container,
+      [makeArticle({ pubDate: "", firstSeenMs })],
+      ctx,
+      baseViewDeps(),
+    );
+
+    const dateEl = container.querySelector(".rss-dashboard-article-date");
+    expect(dateEl?.textContent).not.toMatch(/Invalid date/i);
+    expect(dateEl?.getAttribute("title")).toContain("First seen:");
+  });
+
+  it("shows 'Unknown date', not the first-seen date, in the feed footer when pubDate is empty and the fallback setting is off", () => {
     const firstSeenMs = Date.parse("2026-01-01T00:00:00Z");
     renderFeedView(
       container,
@@ -42,8 +58,8 @@ describe("feed-view", () => {
     );
 
     const dateEl = container.querySelector(".rss-dashboard-article-date");
-    expect(dateEl?.textContent).not.toMatch(/Invalid date/i);
-    expect(dateEl?.getAttribute("title")).toContain("First seen:");
+    expect(dateEl?.textContent).toBe("Unknown date");
+    expect(dateEl?.getAttribute("title")).not.toContain("First seen:");
   });
 
   it("schedules math rendering for a feed title while preserving its source", () => {

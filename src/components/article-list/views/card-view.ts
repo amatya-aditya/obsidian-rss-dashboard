@@ -209,7 +209,10 @@ export function renderCardView(
       const dateEl = cardFooter.createDiv({
         cls: "rss-dashboard-article-date",
       });
-      const displayDate = resolveDisplayDate(article);
+      const displayDate = resolveDisplayDate(
+        article,
+        ctx.settings.useFirstSeenDateFallback,
+      );
       const dateInfo = formatArticleDate(
         displayDate,
         ctx.settings.display.articleDateStyle ?? "relative",
