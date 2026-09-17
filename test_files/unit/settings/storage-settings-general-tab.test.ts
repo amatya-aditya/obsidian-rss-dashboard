@@ -118,6 +118,8 @@ function createPlugin() {
     exportPortableDataBundleChecked: vi.fn(async () => true),
     createSyncV3Set: vi.fn(async () => {}),
     joinSyncV3Set: vi.fn(async () => true),
+    deleteSyncV3Set: vi.fn(async () => true),
+    isSyncV3SetAlreadyExistsError: () => false,
     exportSyncV3HealthReport: vi.fn(async () => {}),
     recoverSyncV3: vi.fn(async () => ({
       recovered: true,
@@ -463,6 +465,64 @@ describe("General settings storage section", () => {
       getButtonByText(containerEl, "Export sync v3 health report").click();
 
       expect(plugin.exportSyncV3HealthReport).toHaveBeenCalledTimes(1);
+    });
+
+    it("shows the existing set's status inside the collapsed disclosure even when not adopted", async () => {
+      const containerEl = createTestContainer();
+      const plugin = createPlugin();
+      plugin.settings.storageMode = "vault-shards-v2";
+      plugin.getSyncV3Status = vi.fn(async () => ({
+        health: "not-adopted" as const,
+        root: "rss-dashboard-data/sync-v3",
+        deviceId: "device-987654321",
+        epochId: "epoch-orphaned",
+        replicaCount: 1,
+        invalidReplicaCount: 0,
+        conflictCopyPaths: [],
+        localCachePath: ".rss-dashboard-cache-v3/runtime.json",
+        lastLocalWrite: null,
+        lastIncomingMerge: null,
+      }));
+
+      renderStorageSettingsTab(containerEl, plugin as never);
+      await flushAsyncWork();
+
+      const disclosure = containerEl.querySelector(
+        ".rss-dashboard-sync-v3-departed-disclosure",
+      );
+      expect(disclosure?.textContent).toContain("epoch-orphaned");
+    });
+
+    it("deletes an existing sync v3 set through a confirmed, backup-first action", async () => {
+      const containerEl = createTestContainer();
+      const plugin = createPlugin();
+      plugin.settings.storageMode = "vault-shards-v2";
+      const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+
+      renderStorageSettingsTab(containerEl, plugin as never);
+
+      getButtonByText(containerEl, "Delete existing set").click();
+      await flushAsyncWork();
+
+      expect(confirmSpy).toHaveBeenCalledTimes(1);
+      expect(plugin.exportPortableDataBundleChecked).toHaveBeenCalledTimes(1);
+      expect(plugin.deleteSyncV3Set).toHaveBeenCalledTimes(1);
+      confirmSpy.mockRestore();
+    });
+
+    it("does not delete the sync v3 set when the destructive confirm is declined", async () => {
+      const containerEl = createTestContainer();
+      const plugin = createPlugin();
+      plugin.settings.storageMode = "vault-shards-v2";
+      const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
+
+      renderStorageSettingsTab(containerEl, plugin as never);
+
+      getButtonByText(containerEl, "Delete existing set").click();
+      await flushAsyncWork();
+
+      expect(plugin.deleteSyncV3Set).not.toHaveBeenCalled();
+      confirmSpy.mockRestore();
     });
   });
 

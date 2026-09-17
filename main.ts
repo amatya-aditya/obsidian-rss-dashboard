@@ -58,7 +58,7 @@ import {
   type FeedStorageStatus,
   ShardFolderDeletionError,
 } from "./src/services/feed-storage-repository";
-import { SyncV3Storage } from "./src/services/sync-v3-storage";
+import { SyncV3Storage, SyncV3SetAlreadyExistsError } from "./src/services/sync-v3-storage";
 import { ImportExportService } from "./src/services/import-export-service";
 import type { ExportBlobResult } from "./src/utils/export-utils";
 import { BackgroundImportService } from "./src/services/background-import-service";
@@ -2221,6 +2221,29 @@ export default class RssDashboardPlugin extends Plugin {
   public async createSyncV3Set(): Promise<void> {
     await this.syncV3Storage.createFromSettings(this.settings);
     await this.activateSyncV3Mode();
+  }
+
+  public isSyncV3SetAlreadyExistsError(error: unknown): error is SyncV3SetAlreadyExistsError {
+    return error instanceof SyncV3SetAlreadyExistsError;
+  }
+
+  /**
+   * Deletes the shared Sync v3 set outright -- the only way to clear a
+   * stuck or orphaned set once `createSyncV3Set` refuses to reseed over it.
+   * If this device was actively on Sync v3, it falls back to Shard storage
+   * v2 (a [[Set departure]]) rather than being left claiming a mode whose
+   * epoch no longer exists. Returns whether a set actually existed to
+   * delete, so callers can message a no-op distinctly from a real deletion.
+   */
+  public async deleteSyncV3Set(): Promise<boolean> {
+    const deleted = await this.syncV3Storage.deleteSet();
+    if (this.settings.storageMode === "replicated-v3") {
+      this.settings.storageMode = "vault-shards-v2";
+      await this.saveSettings();
+      this.initializeSettingsBackedServices();
+      await this.refreshDashboardViews();
+    }
+    return deleted;
   }
 
   public async joinSyncV3Set(): Promise<boolean> {

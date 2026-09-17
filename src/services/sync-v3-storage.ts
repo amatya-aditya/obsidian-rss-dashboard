@@ -51,6 +51,20 @@ export class SyncV3SetDeletionError extends Error {
   }
 }
 
+/**
+ * Thrown by `createFromSettings` when a shared epoch is already on disk --
+ * reseeding over it would fork the set. Its only prior remedy was "join
+ * instead", which is a dead end for a stale/orphaned set nothing has ever
+ * joined; callers can catch this specifically to offer viewing or deleting
+ * the existing set instead of just surfacing the message.
+ */
+export class SyncV3SetAlreadyExistsError extends Error {
+  constructor() {
+    super("A Sync V3 set already exists. Join it, or delete it and create a fresh one.");
+    this.name = "SyncV3SetAlreadyExistsError";
+  }
+}
+
 interface CachedProjection {
   version: 3;
   settings: RssDashboardSettings;
@@ -325,7 +339,7 @@ export class SyncV3Storage {
     };
     await this.enqueueWrite(async () => {
       if (await this.readEpoch()) {
-        throw new Error("A Sync V3 set already exists. Join it instead of reseeding.");
+        throw new SyncV3SetAlreadyExistsError();
       }
       this.lastConfigByFeedId.clear();
       this.lastFoldersJson = "";
@@ -361,9 +375,12 @@ export class SyncV3Storage {
    * end — `createFromSettings` refuses to reseed over an existing epoch,
    * and until this existed there was no way to clear one. Does not touch
    * this device's local cache or `storageMode`; callers decide what to do
-   * with this device's state after the shared set is gone.
+   * with this device's state after the shared set is gone. Returns whether
+   * a set actually existed to delete, so callers can message a no-op
+   * distinctly from a real deletion.
    */
-  public async deleteSet(): Promise<void> {
+  public async deleteSet(): Promise<boolean> {
+    const existedBefore = await this.adapter.exists(this.root);
     await this.enqueueWrite(async () => {
       if (!(await this.adapter.exists(this.root))) return;
       try {
@@ -383,6 +400,7 @@ export class SyncV3Storage {
         );
       }
     });
+    return existedBefore;
   }
 
   public async join(settings: RssDashboardSettings): Promise<boolean> {

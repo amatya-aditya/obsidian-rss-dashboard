@@ -32,6 +32,7 @@ import {
   type MetadataCleanupAction,
 } from "../modals/storage-settings-modals";
 import { StorageOnboardingModal } from "../../modals/storage-onboarding-modal";
+import { renderSyncV3HealthTable } from "../sync-v3-health-table";
 import type {
   FeedStorageStatus,
   ShardFolderDeletionError,
@@ -62,6 +63,8 @@ interface StorageSettingsPlugin {
   getSyncV3Status?(): Promise<SyncV3Status>;
   createSyncV3Set(): Promise<void>;
   joinSyncV3Set(): Promise<boolean>;
+  deleteSyncV3Set(): Promise<boolean>;
+  isSyncV3SetAlreadyExistsError(error: unknown): boolean;
   exportSyncV3HealthReport?(): Promise<void>;
   recoverSyncV3?(): Promise<SyncV3RecoveryResult>;
   exportPortableDataBundleChecked?(): Promise<boolean>;
@@ -155,66 +158,6 @@ const MODE_DISPLAY_NAMES: Record<RssDashboardSettings["storageMode"], string> = 
   "vault-shards-v2": "Shard storage v2",
   "replicated-v3": "Sync v3 (experimental)",
 };
-
-function renderSyncV3HealthTable(
-  container: HTMLElement,
-  status: SyncV3Status,
-): void {
-  container.empty();
-
-  const lastLocalWrite = status.lastLocalWrite
-    ? new Date(status.lastLocalWrite).toLocaleString()
-    : "not yet";
-  const lastIncomingMerge = status.lastIncomingMerge
-    ? new Date(status.lastIncomingMerge).toLocaleString()
-    : "not yet";
-
-  const rows: [string, string][] = [
-    ["Status", status.health],
-    ["Shared folder", status.root],
-    ["Device", status.deviceId.slice(0, 16)],
-    ["Epoch", status.epochId ?? "none"],
-    [
-      "Replicas",
-      `${status.replicaCount} (${status.invalidReplicaCount} invalid/incomplete)`,
-    ],
-    ["Local cache", status.localCachePath],
-    ["Last local write", lastLocalWrite],
-    ["Last incoming merge", lastIncomingMerge],
-  ];
-
-  const table = container.createEl("table", {
-    cls: "rss-dashboard-sync-v3-health-table",
-  });
-  const tbody = table.createEl("tbody");
-  for (const [label, value] of rows) {
-    const row = tbody.createEl("tr");
-    row.createEl("td", {
-      text: label,
-      cls: "rss-dashboard-sync-v3-health-label",
-    });
-    row.createEl("td", {
-      text: value,
-      cls: "rss-dashboard-sync-v3-health-value",
-    });
-  }
-
-  const setupGuidance =
-    status.health === "not-adopted"
-      ? "This device is local-only until you create or join a Sync v3 set."
-      : status.health === "waiting-for-primary"
-        ? "This device is waiting for the primary device's replica to sync in."
-        : "";
-  const conflictGuidance =
-    status.conflictCopyPaths.length > 0
-      ? `${status.conflictCopyPaths.length} sync conflict ${status.conflictCopyPaths.length === 1 ? "copy" : "copies"} found — ` +
-        "check every device's Settings → Sync → Conflict resolution is set to \"Create conflict file\", not \"Automatically merge\"."
-      : "";
-  const note = [setupGuidance, conflictGuidance].filter(Boolean).join(" ");
-  if (note) {
-    container.createEl("p", { text: note, cls: "rss-dashboard-settings-note" });
-  }
-}
 
 export function renderStorageSettingsTab(
   containerEl: HTMLElement,
@@ -409,20 +352,44 @@ function renderSyncV3RecoverySetting(
       // still reads as a hard-to-undo action on minAppVersion 1.8.7.
       button.buttonEl.addClass("mod-warning");
     });
+
+  new Setting(containerEl)
+    .setName("Delete existing sync v3 set")
+    .setDesc(
+      "Permanently removes the shared epoch and every device's replica folder — the only way to clear a stuck or stale set (for example, one left over from earlier testing) once create refuses to reseed over it. Backs up first. This cannot be undone; only do this if you're sure no other device still needs it.",
+    )
+    .addButton((button) => {
+      button.setButtonText("Delete existing set").onClick(() => {
+        runConfirmedBackupThenAction(plugin, {
+          confirmMessage: "Delete the existing Sync v3 set? This removes the shared epoch and every device's replica folder and cannot be undone.",
+          action: () => plugin.deleteSyncV3Set().then((deleted) => {
+            new Notice(
+              deleted
+                ? "Existing sync v3 set deleted."
+                : "No existing sync v3 set was found to delete.",
+            );
+          }),
+          onSuccess: () => plugin.settingTab?.display(),
+          errorPrefix: "Could not delete sync v3 set",
+        });
+      });
+      button.buttonEl.addClass("mod-warning");
+    });
 }
 
 /**
  * A device that just left Sync v3 (a Set departure back to Shard storage v2,
- * or further back to Legacy JSON/Shard v1) may still need the diagnostic
- * export or recovery action -- for a bug report, or to recover conflict
- * copies left behind before it departed. Keep those two actions reachable,
- * just collapsed, instead of hiding them outright.
+ * or further back to Legacy JSON/Shard v1) may still need to view the shared
+ * set's status, export a diagnostic report, run recovery, or delete a stuck
+ * set -- for a bug report, to recover conflict copies, or to clear a stale
+ * set from earlier testing. Keep all of that reachable, just collapsed,
+ * instead of hiding it outright.
  */
 function renderSyncV3DepartedDisclosure(
   containerEl: HTMLElement,
   plugin: StorageSettingsPlugin,
 ): void {
-  if (!plugin.exportSyncV3HealthReport && !plugin.recoverSyncV3) {
+  if (!plugin.exportSyncV3HealthReport && !plugin.recoverSyncV3 && !plugin.getSyncV3Status) {
     return;
   }
 
@@ -431,6 +398,20 @@ function renderSyncV3DepartedDisclosure(
   });
   details.createEl("summary", { text: "Sync v3 diagnostics (this device is not currently on sync v3)" });
   const body = details.createDiv();
+
+  const statusBody = body.createDiv({ cls: "rss-dashboard-sync-v3-health-body" });
+  statusBody.setText("Checking for an existing sync v3 set…");
+  if (plugin.getSyncV3Status) {
+    void plugin.getSyncV3Status()
+      .then((status) => renderSyncV3HealthTable(statusBody, status))
+      .catch(() => {
+        statusBody.empty();
+        statusBody.setText("Sync v3 status could not be read.");
+      });
+  } else {
+    statusBody.empty();
+  }
+
   renderSyncV3RecoverySetting(body, plugin);
 }
 

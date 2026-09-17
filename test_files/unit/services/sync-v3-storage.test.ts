@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { App } from "obsidian";
-import { isSyncConflictCopyPath, SyncV3Storage } from "../../../src/services/sync-v3-storage";
+import {
+  isSyncConflictCopyPath,
+  SyncV3SetAlreadyExistsError,
+  SyncV3Storage,
+} from "../../../src/services/sync-v3-storage";
 import {
   DEFAULT_SETTINGS,
   type Feed,
@@ -68,6 +72,15 @@ describe("SyncV3Storage", () => {
     expect(settings.storageMode).toBe("replicated-v3");
     expect(epoch.primaryDeviceId).toBe(deviceId);
     expect(config.operations).not.toHaveLength(0);
+  });
+
+  it("refuses to reseed over an existing epoch with a typed, catchable error", async () => {
+    const storage = new SyncV3Storage(primaryApp);
+    await storage.createFromSettings(settingsWithFeeds([feed("feed-1", "article-1")]));
+
+    await expect(
+      storage.createFromSettings(settingsWithFeeds([feed("feed-1", "article-1")])),
+    ).rejects.toBeInstanceOf(SyncV3SetAlreadyExistsError);
   });
 
   it("keeps state for same-GUID articles independent by feed identity", async () => {
@@ -173,7 +186,7 @@ describe("SyncV3Storage", () => {
       };
       expect(await adapter.exists("rss-dashboard-data/sync-v3/epoch.json")).toBe(true);
 
-      await storage.deleteSet();
+      await expect(storage.deleteSet()).resolves.toBe(true);
 
       expect(await adapter.exists("rss-dashboard-data/sync-v3/epoch.json")).toBe(false);
       expect(await adapter.exists("rss-dashboard-data/sync-v3")).toBe(false);
@@ -182,10 +195,10 @@ describe("SyncV3Storage", () => {
       await expect(storage.createFromSettings(freshSettings)).resolves.toBeUndefined();
     });
 
-    it("does nothing when no set exists yet", async () => {
+    it("reports false and does nothing when no set exists yet", async () => {
       const storage = new SyncV3Storage(primaryApp);
 
-      await expect(storage.deleteSet()).resolves.toBeUndefined();
+      await expect(storage.deleteSet()).resolves.toBe(false);
     });
 
     it("removes every device's replica, not just the deleting device's own", async () => {

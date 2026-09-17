@@ -6,6 +6,7 @@ import {
 } from "../../../src/modals/storage-onboarding-modal";
 import { StorageTransitionModal } from "../../../src/settings/modals/storage-settings-modals";
 import { ShardFolderDeletionError } from "../../../src/services/feed-storage-repository";
+import { SyncV3SetAlreadyExistsError } from "../../../src/services/sync-v3-storage";
 import type { FeedStorageMode } from "../../../src/types/types";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 
@@ -14,6 +15,22 @@ function createPlugin(): StorageOnboardingPlugin {
     configureLocalStorageForFirstRun: vi.fn(async () => {}),
     createSyncV3Set: vi.fn(async () => {}),
     prepareSyncV3Join: vi.fn(async () => {}),
+    joinSyncV3Set: vi.fn(async () => true),
+    isSyncV3SetAlreadyExistsError: (error: unknown): boolean =>
+      error instanceof SyncV3SetAlreadyExistsError,
+    deleteSyncV3Set: vi.fn(async () => true),
+    getSyncV3Status: vi.fn(async () => ({
+      health: "not-adopted" as const,
+      root: "rss-dashboard-data/sync-v3",
+      deviceId: "device-123456789",
+      epochId: "epoch-1",
+      replicaCount: 1,
+      invalidReplicaCount: 0,
+      conflictCopyPaths: [],
+      localCachePath: ".rss-dashboard-cache-v3/runtime.json",
+      lastLocalWrite: null,
+      lastIncomingMerge: null,
+    })),
     migrateToVaultStorage: vi.fn(async () => {}),
     revertToLegacyJsonStorageWithOptions: vi.fn(async () => {}),
     exportDataJson: vi.fn(async () => {}),
@@ -407,6 +424,107 @@ describe("StorageOnboardingModal", () => {
       await flushAsyncWork();
 
       expect(onStorageChanged).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("Sync v3 set already exists recovery", () => {
+    function createPluginWithExistingSet(): StorageOnboardingPlugin {
+      const plugin = createPlugin();
+      plugin.createSyncV3Set = vi.fn(async () => {
+        throw new SyncV3SetAlreadyExistsError();
+      });
+      return plugin;
+    }
+
+    async function reachRecoveryScreen(
+      plugin: StorageOnboardingPlugin,
+    ): Promise<StorageOnboardingModal> {
+      const modal = new StorageOnboardingModal(App.createMock(), plugin);
+      modal.open();
+
+      Array.from(modal.contentEl.querySelectorAll("button"))
+        .find((candidate) => candidate.textContent === "Set up sync v3")?.click();
+      Array.from(modal.contentEl.querySelectorAll("button"))
+        .find((candidate) => candidate.textContent === "Create sync v3 set")?.click();
+      Array.from(modal.contentEl.querySelectorAll("button"))
+        .find((candidate) => candidate.textContent === "Set up sync v3")?.click();
+      await flushAsyncWork();
+
+      return modal;
+    }
+
+    it("shows a recovery screen instead of just a Notice when a set already exists", async () => {
+      const plugin = createPluginWithExistingSet();
+      const modal = await reachRecoveryScreen(plugin);
+
+      expect(modal.contentEl.textContent).toContain("Sync v3 set already exists");
+      expect(plugin.getSyncV3Status).toHaveBeenCalledTimes(1);
+    });
+
+    it("joins the existing set immediately instead of only offering to wait", async () => {
+      const onStorageChanged = vi.fn();
+      const plugin = createPluginWithExistingSet();
+      const modal = new StorageOnboardingModal(App.createMock(), plugin, {
+        currentStorageMode: "vault-shards-v2",
+        isFirstRun: true,
+        onStorageChanged,
+      });
+      modal.open();
+      Array.from(modal.contentEl.querySelectorAll("button"))
+        .find((candidate) => candidate.textContent === "Set up sync v3")?.click();
+      Array.from(modal.contentEl.querySelectorAll("button"))
+        .find((candidate) => candidate.textContent === "Create sync v3 set")?.click();
+      Array.from(modal.contentEl.querySelectorAll("button"))
+        .find((candidate) => candidate.textContent === "Set up sync v3")?.click();
+      await flushAsyncWork();
+
+      Array.from(modal.contentEl.querySelectorAll("button"))
+        .find((candidate) => candidate.textContent === "Join now")?.click();
+      await flushAsyncWork();
+
+      expect(plugin.joinSyncV3Set).toHaveBeenCalledTimes(1);
+      expect(plugin.prepareSyncV3Join).not.toHaveBeenCalled();
+      expect(onStorageChanged).toHaveBeenCalledTimes(1);
+    });
+
+    it("deletes the existing set and retries create when confirmed", async () => {
+      const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+      const plugin = createPluginWithExistingSet();
+      const modal = await reachRecoveryScreen(plugin);
+
+      Array.from(modal.contentEl.querySelectorAll("button"))
+        .find((candidate) => candidate.textContent === "Delete and create fresh")?.click();
+      await flushAsyncWork();
+
+      expect(plugin.deleteSyncV3Set).toHaveBeenCalledTimes(1);
+      expect(plugin.createSyncV3Set).toHaveBeenCalledTimes(2);
+      confirmSpy.mockRestore();
+    });
+
+    it("does not delete when the destructive confirm is declined", async () => {
+      const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
+      const plugin = createPluginWithExistingSet();
+      const modal = await reachRecoveryScreen(plugin);
+
+      Array.from(modal.contentEl.querySelectorAll("button"))
+        .find((candidate) => candidate.textContent === "Delete and create fresh")?.click();
+      await flushAsyncWork();
+
+      expect(plugin.deleteSyncV3Set).not.toHaveBeenCalled();
+      confirmSpy.mockRestore();
+    });
+
+    it("returns to the sync choice screen on cancel without deleting or joining", async () => {
+      const plugin = createPluginWithExistingSet();
+      const modal = await reachRecoveryScreen(plugin);
+
+      Array.from(modal.contentEl.querySelectorAll("button"))
+        .find((candidate) => candidate.textContent === "Cancel")?.click();
+      await flushAsyncWork();
+
+      expect(modal.contentEl.textContent).toContain("Set up sync v3 (experimental)");
+      expect(plugin.deleteSyncV3Set).not.toHaveBeenCalled();
+      expect(plugin.joinSyncV3Set).not.toHaveBeenCalled();
     });
   });
 });

@@ -1,16 +1,21 @@
 import { App, Modal, Notice, Setting } from "obsidian";
-import type { FeedStorageMode } from "../types/types";
+import type { FeedStorageMode, SyncV3Status } from "../types/types";
 import type { ShardFolderDeletionError } from "../services/feed-storage-repository";
 import {
   StorageTransitionModal,
   runShardDeletionFailureFlow,
   type StorageTransitionAction,
 } from "../settings/modals/storage-settings-modals";
+import { renderSyncV3HealthTable } from "../settings/sync-v3-health-table";
 
 export interface StorageOnboardingPlugin {
   configureLocalStorageForFirstRun(): Promise<void>;
   createSyncV3Set(): Promise<void>;
   prepareSyncV3Join(): Promise<void>;
+  joinSyncV3Set(): Promise<boolean>;
+  isSyncV3SetAlreadyExistsError(error: unknown): boolean;
+  deleteSyncV3Set(): Promise<boolean>;
+  getSyncV3Status?(): Promise<SyncV3Status>;
   // Advanced/legacy destinations (pre-3.0 only). See ADR 0006 -- these are
   // deleted at 3.0 along with the storage-mode selector entries that reach
   // them, so keep every call to them isolated to this interface segment and
@@ -428,11 +433,18 @@ export class StorageOnboardingModal extends Modal {
   }
 
   private async createPrimarySet(): Promise<void> {
-    await this.runAction(
-      () => this.plugin.createSyncV3Set(),
-      "Sync v3 set created. Join it from each other device.",
-      "Could not create sync v3",
-    );
+    try {
+      await this.plugin.createSyncV3Set();
+      new Notice("Sync v3 set created. Join it from each other device.");
+      this.options.onStorageChanged?.();
+      this.close();
+    } catch (error) {
+      if (this.plugin.isSyncV3SetAlreadyExistsError(error)) {
+        this.renderSetAlreadyExistsRecovery();
+        return;
+      }
+      new Notice(`Could not create sync v3${error instanceof Error ? `: ${error.message}` : ""}`);
+    }
   }
 
   private async prepareJoin(): Promise<void> {
@@ -441,5 +453,97 @@ export class StorageOnboardingModal extends Modal {
       "Waiting for the first device's sync v3 replica files.",
       "Could not prepare Sync v3",
     );
+  }
+
+  /**
+   * Reached when `createSyncV3Set` refuses to reseed over an existing
+   * epoch. The previous only escape was "join it instead" as a message with
+   * no action attached -- a dead end for a stale/orphaned set nothing has
+   * ever joined. Shows what the existing set actually looks like, then lets
+   * the user join it now (not "wait", since it's already present) or delete
+   * it and retry create.
+   */
+  private renderSetAlreadyExistsRecovery(): void {
+    this.contentEl.empty();
+    new Setting(this.contentEl).setName("Sync v3 set already exists").setHeading();
+    this.contentEl.createEl("p", {
+      text: "A shared sync v3 set already exists in this vault. Join it if it belongs to your other devices, or delete it if it's stale (for example, left over from earlier testing) and start fresh.",
+      cls: "rss-dashboard-modal-message",
+    });
+
+    const statusBody = this.contentEl.createDiv({
+      cls: "rss-dashboard-sync-v3-health-body",
+    });
+    statusBody.setText("Checking the existing set…");
+    if (this.plugin.getSyncV3Status) {
+      void this.plugin.getSyncV3Status()
+        .then((status) => renderSyncV3HealthTable(statusBody, status))
+        .catch(() => {
+          statusBody.empty();
+          statusBody.setText("Could not read the existing set's status.");
+        });
+    } else {
+      statusBody.empty();
+    }
+
+    new Setting(this.contentEl)
+      .setName("Join the existing set")
+      .setDesc("Adopt it as this device's sync v3 set right now.")
+      .addButton((button) =>
+        button.setButtonText("Join now").setCta().onClick(() => {
+          void this.joinExistingSet();
+        }),
+      );
+
+    new Setting(this.contentEl)
+      .setName("Delete the existing set")
+      .setDesc(
+        "Permanently removes the shared epoch and every device's replica folder, then lets you create a fresh set. This cannot be undone — only do this if no other device still needs it.",
+      )
+      .addButton((button) => {
+        button.setButtonText("Delete and create fresh").onClick(() => {
+          void this.deleteExistingSetThenRetryCreate();
+        });
+        button.buttonEl.addClass("mod-warning");
+      });
+
+    new Setting(this.contentEl).addButton((button) =>
+      button.setButtonText("Cancel").onClick(() => {
+        this.renderSyncChoice();
+      }),
+    );
+  }
+
+  private async joinExistingSet(): Promise<void> {
+    try {
+      const joined = await this.plugin.joinSyncV3Set();
+      if (!joined) {
+        new Notice("Could not join: no valid set was found after all.");
+        return;
+      }
+      new Notice("Joined the existing sync v3 set.");
+      this.options.onStorageChanged?.();
+      this.close();
+    } catch (error) {
+      new Notice(`Could not join sync v3${error instanceof Error ? `: ${error.message}` : ""}`);
+    }
+  }
+
+  private async deleteExistingSetThenRetryCreate(): Promise<void> {
+    const confirmed = activeWindow.confirm(
+      "Delete the existing Sync v3 set? This removes the shared epoch and every device's replica folder and cannot be undone.",
+    );
+    if (!confirmed) return;
+    try {
+      const deleted = await this.plugin.deleteSyncV3Set();
+      new Notice(
+        deleted
+          ? "Existing sync v3 set deleted."
+          : "No existing sync v3 set was found to delete.",
+      );
+      await this.createPrimarySet();
+    } catch (error) {
+      new Notice(`Could not delete the existing set${error instanceof Error ? `: ${error.message}` : ""}`);
+    }
   }
 }
