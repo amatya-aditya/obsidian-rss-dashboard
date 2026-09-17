@@ -1,4 +1,4 @@
-import { App, Modal, Setting } from "obsidian";
+import { App, Modal, Notice, Setting } from "obsidian";
 import type { FeedStorageMode } from "../../types/types";
 import { settingsUiCompatibility } from "../settings-ui-compat";
 
@@ -153,6 +153,40 @@ export class StorageTransitionModal extends Modal {
             this.close();
         });
       });
+  }
+}
+
+/**
+ * Loops the shard-deletion-failure recovery modal until the user cancels or
+ * chooses to apply the storage revert anyway (leaving the shard folder in
+ * place). Shared by the Storage settings tab and the Storage onboarding
+ * modal's legacy-destination flow so a Storage revert to Legacy JSON offers
+ * the same recovery path regardless of where it was triggered from.
+ */
+export async function runShardDeletionFailureFlow(
+  app: App,
+  storageFolder: string,
+  openStorageFolderInSystem: (folderPath?: string) => Promise<void>,
+): Promise<"cancel" | "apply-anyway"> {
+  while (true) {
+    const failureModal = new ShardDeletionFailureModal(app, storageFolder);
+    failureModal.open();
+    const action: ShardDeletionFailureAction = await failureModal.waitForClose();
+
+    if (action === "open-folder") {
+      try {
+        await openStorageFolderInSystem(storageFolder);
+      } catch (error) {
+        new Notice(
+          `Could not open shard folder${
+            error instanceof Error ? `: ${error.message}` : ""
+          }`,
+        );
+      }
+      continue;
+    }
+
+    return action;
   }
 }
 

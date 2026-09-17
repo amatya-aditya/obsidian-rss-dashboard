@@ -87,6 +87,25 @@
   flex-wrap: wrap;
 }
 
+/* Collapsed storage disclosures: advanced/legacy destinations in the
+ * Storage onboarding modal, and departed-mode Sync v3 diagnostics in the
+ * Storage settings tab. */
+.rss-dashboard-storage-legacy-disclosure,
+.rss-dashboard-sync-v3-departed-disclosure {
+  margin-top: 12px;
+  margin-bottom: 12px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  padding: 8px 12px;
+}
+
+.rss-dashboard-storage-legacy-disclosure > summary,
+.rss-dashboard-sync-v3-departed-disclosure > summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
 .rss-dashboard-template-input {
   width: 100%;
 }
