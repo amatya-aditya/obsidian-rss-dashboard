@@ -25,6 +25,24 @@ export function getEffectiveDateMs(
   return 0;
 }
 
+/**
+ * The date to show in UI chrome (reader header, date badges): the real
+ * `pubDate` when parseable, otherwise the item's `firstSeenMs` so undated
+ * items never render the literal string "Invalid Date". Unlike
+ * {@link getEffectiveDateMs}, this always prefers `firstSeenMs` when it's
+ * available — display is not gated by `useFirstSeenDateFallback`, which only
+ * controls sorting/retention behavior. Returns null when there is truly
+ * nothing to show (no pubDate and no firstSeenMs).
+ */
+export function resolveDisplayDate(
+  item: Pick<FeedItem, "pubDate" | "firstSeenMs">,
+): Date | null {
+  const pubDateMs = getPubDateMs(item.pubDate);
+  if (pubDateMs > 0) return new Date(pubDateMs);
+  if (typeof item.firstSeenMs === "number") return new Date(item.firstSeenMs);
+  return null;
+}
+
 export function isProtectedItem(
   item: FeedItem,
   protections?: FeedRetentionProtections,

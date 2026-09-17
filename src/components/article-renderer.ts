@@ -3,6 +3,7 @@ import { sanitizeAndAppendHtml } from "../utils/safe-html";
 import { scheduleProcessMathElements } from "../utils/math-rendering";
 import { FeedItem, RssDashboardSettings } from "../types/types";
 import { HighlightService } from "../services/highlight-service";
+import { getPubDateMs, resolveDisplayDate } from "../services/feed-parser/feed-retention";
 import { MediaService } from "../services/media-service";
 import { type FullArticleFetchFailureType } from "../utils/fetch-helpers";
 import {
@@ -276,9 +277,15 @@ export class ArticleRenderer {
       cls: "rss-reader-feed-title",
       text: item.feedTitle,
     });
+    const displayDate = resolveDisplayDate(item);
+    const isFirstSeenFallback = getPubDateMs(item.pubDate) <= 0 && !!displayDate;
     metaContainer.createDiv({
       cls: "rss-reader-pub-date",
-      text: new Date(item.pubDate).toLocaleString(),
+      text: displayDate
+        ? isFirstSeenFallback
+          ? `First seen: ${displayDate.toLocaleString()}`
+          : displayDate.toLocaleString()
+        : "Unknown date",
     });
 
     if (item.tags && item.tags.length > 0) {
