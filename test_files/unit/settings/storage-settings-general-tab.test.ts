@@ -1,10 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as obsidian from "obsidian";
 import { renderStorageSettingsTab } from "../../../src/settings/tabs/storage-settings-tab";
-import {
-  ShardDeletionFailureModal,
-  StorageTransitionModal,
-} from "../../../src/settings/modals/storage-settings-modals";
+import { StorageOnboardingModal } from "../../../src/modals/storage-onboarding-modal";
 import {
   ShardFolderDeletionError,
   type FeedStorageStatus,
@@ -50,6 +47,31 @@ function getSettingByName(containerEl: HTMLElement, name: string): HTMLElement {
   return match as HTMLElement;
 }
 
+function findSettingByName(
+  containerEl: HTMLElement,
+  name: string,
+): HTMLElement | null {
+  const settingEls = Array.from(containerEl.querySelectorAll(".setting-item"));
+  const match = settingEls.find((el) => {
+    const nameEl = el.querySelector(".setting-item-name");
+    return nameEl?.textContent === name;
+  });
+  return (match as HTMLElement) ?? null;
+}
+
+function getButtonByText(
+  containerEl: HTMLElement,
+  text: string,
+): HTMLButtonElement {
+  const button = Array.from(
+    containerEl.querySelectorAll<HTMLButtonElement>("button"),
+  ).find((candidate) => candidate.textContent === text);
+  if (!button) {
+    throw new Error(`Button not found: ${text}`);
+  }
+  return button;
+}
+
 function createPlugin() {
   return {
     app: obsidian.App.createMock() as unknown as obsidian.App,
@@ -84,7 +106,6 @@ function createPlugin() {
       lastIncomingMerge: null,
     })),
     migrateToVaultStorage: vi.fn(async () => {}),
-    revertToLegacyJsonStorage: vi.fn(async () => {}),
     revertToLegacyJsonStorageWithOptions: vi.fn(async () => {}),
     isShardFolderDeletionError: (
       error: unknown,
@@ -92,13 +113,19 @@ function createPlugin() {
       error instanceof ShardFolderDeletionError,
     openStorageFolderInSystem: vi.fn(async () => {}),
     repairVaultStorage: vi.fn(async () => {}),
-    importPortableDataBundleFromFile: vi.fn(async () => {}),
     exportDataJson: vi.fn(async () => {}),
     exportPortableDataBundle: vi.fn(async () => {}),
-    importFeedBundleFromFile: vi.fn(async () => {}),
-    exportFeedBundle: vi.fn(async () => {}),
-    importSettingsBundleFromFile: vi.fn(async () => {}),
-    exportSettingsBundle: vi.fn(async () => {}),
+    exportPortableDataBundleChecked: vi.fn(async () => true),
+    createSyncV3Set: vi.fn(async () => {}),
+    joinSyncV3Set: vi.fn(async () => true),
+    exportSyncV3HealthReport: vi.fn(async () => {}),
+    recoverSyncV3: vi.fn(async () => ({
+      recovered: true,
+      reason: "re-adopted",
+      clearedConflictCopies: 0,
+    })),
+    configureLocalStorageForFirstRun: vi.fn(async () => {}),
+    prepareSyncV3Join: vi.fn(async () => {}),
     migrateMetadataToVaultLocation: vi.fn(async () => {}),
     revertMetadataToPluginDefault: vi.fn(async () => {}),
     applyFeedLimitsToAllFeeds: vi.fn(async () => {}),
@@ -114,9 +141,10 @@ beforeEach(() => {
 });
 
 describe("General settings storage section", () => {
-  it("renders the Storage mode description as rich text, not a stringified fragment", () => {
+  it("renders the Storage mode description as rich text for only the active mode", () => {
     const containerEl = createTestContainer();
     const plugin = createPlugin();
+    plugin.settings.storageMode = "legacy-json";
 
     renderStorageSettingsTab(containerEl, plugin as never);
 
@@ -127,10 +155,11 @@ describe("General settings storage section", () => {
 
     expect(descEl.textContent).not.toContain("[object DocumentFragment]");
     expect(descEl.querySelector("strong")?.textContent).toBe("Legacy JSON:");
-    expect(descEl.textContent).toContain("Shard storage v2:");
+    expect(descEl.textContent).not.toContain("Shard storage v2:");
+    expect(descEl.textContent).not.toContain("shard storage v1");
   });
 
-  it("labels the Sync v3 dropdown option as experimental before a device commits to it", () => {
+  it("shows the Shard storage v2 description when it is the active mode", () => {
     const containerEl = createTestContainer();
     const plugin = createPlugin();
     plugin.settings.storageMode = "vault-shards-v2";
@@ -138,26 +167,14 @@ describe("General settings storage section", () => {
     renderStorageSettingsTab(containerEl, plugin as never);
 
     const storageModeSetting = getSettingByName(containerEl, "Storage mode");
-    const option = storageModeSetting.querySelector(
-      "option[value='replicated-v3']",
-    ) as HTMLOptionElement;
+    const descEl = storageModeSetting.querySelector(
+      ".setting-item-description",
+    ) as HTMLElement;
 
-    expect(option.textContent).toBe("Sync v3 replicas (experimental)");
-  });
-
-  it("drops the experimental label from the Sync v3 dropdown option once this device is already on it", () => {
-    const containerEl = createTestContainer();
-    const plugin = createPlugin();
-    plugin.settings.storageMode = "replicated-v3";
-
-    renderStorageSettingsTab(containerEl, plugin as never);
-
-    const storageModeSetting = getSettingByName(containerEl, "Storage mode");
-    const option = storageModeSetting.querySelector(
-      "option[value='replicated-v3']",
-    ) as HTMLOptionElement;
-
-    expect(option.textContent).toBe("Sync v3 replicas");
+    expect(descEl.querySelector("strong")?.textContent).toBe(
+      "Shard storage v2:",
+    );
+    expect(descEl.textContent).not.toContain("Legacy JSON:");
   });
 
   it("renders the Storage mode description correctly when containerEl.win resolves to a different window realm (e.g. a popped-out window)", () => {
@@ -173,10 +190,6 @@ describe("General settings storage section", () => {
     const foreignDom = new JSDOM(`<!doctype html><html><body></body></html>`);
     const foreignWindow = foreignDom.window;
     const foreignDoc = foreignWindow.document;
-    // Capture the native DOM factories as plain function references (rather
-    // than calling foreignDoc.createElement(...) directly) so this fixture
-    // reads as raw-DOM setup, not a production rendering path that should go
-    // through Obsidian's own createEl-family helpers.
     const foreignDocAsRecord = foreignDoc as unknown as Record<
       string,
       (...args: never[]) => never
@@ -192,10 +205,6 @@ describe("General settings storage section", () => {
       "createTextNode"
     ] as unknown as (this: Document, text: string) => Text;
 
-    // Minimal stand-in for Obsidian's own createFragment/createDiv globals
-    // in this *separate* realm, so foreignWindow.createFragment() returns a
-    // DocumentFragment whose constructor is foreignWindow.DocumentFragment,
-    // not this test file's global DocumentFragment.
     (foreignWindow as unknown as { createFragment: () => DocumentFragment })
       .createFragment = () => nativeCreateDocumentFragment.call(foreignDoc);
     (
@@ -238,6 +247,7 @@ describe("General settings storage section", () => {
     });
 
     const plugin = createPlugin();
+    plugin.settings.storageMode = "legacy-json";
     renderStorageSettingsTab(containerEl, plugin as never);
 
     const storageModeSetting = getSettingByName(containerEl, "Storage mode");
@@ -247,314 +257,58 @@ describe("General settings storage section", () => {
 
     expect(descEl.textContent).not.toContain("[object DocumentFragment]");
     expect(descEl.querySelector("strong")?.textContent).toBe("Legacy JSON:");
-    expect(descEl.textContent).toContain("Shard storage v2:");
   });
 
-  it("renders rich V3 and storage-mode descriptions without stringifying fragments", async () => {
+  it("opens the Storage onboarding modal when Change storage mode is clicked", () => {
     const containerEl = createTestContainer();
     const plugin = createPlugin();
+    plugin.settings.storageMode = "vault-shards-v2";
 
-    renderStorageSettingsTab(containerEl, plugin as never);
-    await flushAsyncWork();
-
-    expect(containerEl.textContent).not.toContain("[object DocumentFragment]");
-    expect(getSettingByName(containerEl, "Sync v3 replica health").textContent)
-      .toContain("rss-dashboard-data/sync-v3");
-    expect(getSettingByName(containerEl, "Storage mode").textContent)
-      .toContain("Sync v3 (experimental):");
-  });
-
-  it("marks the storage transition modal for mobile safe-area positioning", () => {
-    const app = obsidian.App.createMock();
-    const modal = new StorageTransitionModal(app, {
-      currentMode: "legacy-json",
-      targetMode: "vault-shards",
-      storageFolder: ".rss-dashboard-data/feeds",
-    });
-
-    modal.open();
-
-    expect(
-      modal.modalEl.classList.contains("rss-storage-transition-modal"),
-    ).toBe(true);
-    expect(
-      modal.contentEl.querySelector(".rss-storage-transition-buttons"),
-    ).toBeTruthy();
-  });
-
-  it("applies the pending legacy-to-shards storage change through the modal", async () => {
-    const containerEl = createTestContainer();
-    const plugin = createPlugin();
-    plugin.settings.storageMode = "legacy-json";
-    vi.spyOn(StorageTransitionModal.prototype, "open").mockImplementation(
-      () => {},
-    );
-    vi.spyOn(
-      StorageTransitionModal.prototype,
-      "waitForClose",
-    ).mockResolvedValue("apply");
+    const openSpy = vi
+      .spyOn(StorageOnboardingModal.prototype, "open")
+      .mockImplementation(() => {});
 
     renderStorageSettingsTab(containerEl, plugin as never);
 
-    const storageModeSetting = getSettingByName(containerEl, "Storage mode");
-    const select = storageModeSetting.querySelector(
-      "select",
-    ) as HTMLSelectElement;
-    select.value = "vault-shards";
-    select.dispatchEvent(new Event("change"));
+    getButtonByText(containerEl, "Change storage mode").click();
 
-    const buttons = Array.from(containerEl.querySelectorAll("button"));
-    const applyButton = buttons.find(
-      (button) => button.textContent === "Apply",
-    ) as HTMLButtonElement;
-    const repairButton = buttons.find(
-      (button) => button.textContent === "Repair/rebuild storage",
-    ) as HTMLButtonElement;
-    const importButton = buttons.find(
-      (button) => button.textContent === "Import portable data bundle",
-    ) as HTMLButtonElement;
-    const exportButton = buttons.find(
-      (button) => button.textContent === "Export portable data bundle",
-    ) as HTMLButtonElement;
-
-    applyButton.click();
-    repairButton.click();
-    importButton.click();
-    exportButton.click();
-
-    await Promise.resolve();
-
-    expect(plugin.migrateToVaultStorage).toHaveBeenCalledTimes(1);
-    expect(plugin.repairVaultStorage).toHaveBeenCalledTimes(1);
-    expect(plugin.exportPortableDataBundle).toHaveBeenCalledTimes(1);
+    expect(openSpy).toHaveBeenCalledTimes(1);
   });
 
-  it("does not trigger migration when the storage mode dropdown changes", async () => {
+  it("shows the Storage folder field only for Shard storage v1/v2", () => {
+    const containerEl = createTestContainer();
+    const plugin = createPlugin();
+    plugin.settings.storageMode = "vault-shards-v2";
+
+    renderStorageSettingsTab(containerEl, plugin as never);
+
+    expect(findSettingByName(containerEl, "Storage folder")).not.toBeNull();
+  });
+
+  it("hides the Storage folder field for Legacy JSON", () => {
     const containerEl = createTestContainer();
     const plugin = createPlugin();
     plugin.settings.storageMode = "legacy-json";
 
     renderStorageSettingsTab(containerEl, plugin as never);
 
-    const storageModeSetting = getSettingByName(containerEl, "Storage mode");
-    const select = storageModeSetting.querySelector(
-      "select",
-    ) as HTMLSelectElement;
-
-    select.value = "vault-shards";
-    select.dispatchEvent(new Event("change"));
-
-    await Promise.resolve();
-
-    expect(plugin.migrateToVaultStorage).not.toHaveBeenCalled();
-    expect(plugin.revertToLegacyJsonStorage).not.toHaveBeenCalled();
-    expect(select.value).toBe("vault-shards");
-    expect(plugin.settings.storageMode).toBe("legacy-json");
+    expect(findSettingByName(containerEl, "Storage folder")).toBeNull();
   });
 
-  it("exports data.json from the apply modal before migrating to shards", async () => {
+  it("hides the Storage folder field for Sync v3 replicas", () => {
     const containerEl = createTestContainer();
     const plugin = createPlugin();
-    plugin.settings.storageMode = "legacy-json";
-    vi.spyOn(StorageTransitionModal.prototype, "open").mockImplementation(
-      () => {},
-    );
-    vi.spyOn(
-      StorageTransitionModal.prototype,
-      "waitForClose",
-    ).mockResolvedValue("export-data-json");
+    plugin.settings.storageMode = "replicated-v3";
 
     renderStorageSettingsTab(containerEl, plugin as never);
 
-    const storageModeSetting = getSettingByName(containerEl, "Storage mode");
-    const select = storageModeSetting.querySelector(
-      "select",
-    ) as HTMLSelectElement;
-    select.value = "vault-shards";
-    select.dispatchEvent(new Event("change"));
-
-    const applyButton = Array.from(containerEl.querySelectorAll("button")).find(
-      (button) => button.textContent === "Apply",
-    ) as HTMLButtonElement;
-
-    applyButton.click();
-    await Promise.resolve();
-
-    expect(plugin.exportDataJson).toHaveBeenCalledTimes(1);
-    expect(plugin.migrateToVaultStorage).not.toHaveBeenCalled();
-  });
-
-  it("passes the delete-shard-folder choice when applying a shards-to-legacy change", async () => {
-    const containerEl = createTestContainer();
-    const plugin = createPlugin();
-    plugin.settings.storageMode = "vault-shards";
-    plugin.getStorageStatus = vi.fn(() => ({
-      mode: "vault-shards" as const,
-      folder: ".rss-dashboard-data/feeds",
-      shardCount: 3,
-      feedCount: 3,
-      migrationReady: false,
-      lastRepairResult: "Migration completed",
-    }));
-    vi.spyOn(StorageTransitionModal.prototype, "open").mockImplementation(
-      () => {},
-    );
-    vi.spyOn(
-      StorageTransitionModal.prototype,
-      "waitForClose",
-    ).mockResolvedValue("apply-delete-shards");
-
-    renderStorageSettingsTab(containerEl, plugin as never);
-
-    const storageModeSetting = getSettingByName(containerEl, "Storage mode");
-    const select = storageModeSetting.querySelector(
-      "select",
-    ) as HTMLSelectElement;
-    select.value = "legacy-json";
-    select.dispatchEvent(new Event("change"));
-
-    const applyButton = Array.from(containerEl.querySelectorAll("button")).find(
-      (button) => button.textContent === "Apply",
-    ) as HTMLButtonElement;
-
-    applyButton.click();
-    await Promise.resolve();
-
-    expect(plugin.revertToLegacyJsonStorageWithOptions).toHaveBeenCalledWith({
-      deleteShardFolder: true,
-    });
-  });
-
-  it("pauses revert when shard deletion fails and can continue with apply anyway", async () => {
-    const containerEl = createTestContainer();
-    const plugin = createPlugin();
-    plugin.settings.storageMode = "vault-shards";
-    plugin.getStorageStatus = vi.fn(() => ({
-      mode: "vault-shards" as const,
-      folder: ".rss-dashboard-data/feeds",
-      shardCount: 3,
-      feedCount: 3,
-      migrationReady: false,
-      lastRepairResult: "Migration completed",
-    }));
-    plugin.revertToLegacyJsonStorageWithOptions = vi
-      .fn()
-      .mockRejectedValueOnce(
-        new ShardFolderDeletionError(
-          ".rss-dashboard-data/feeds",
-          "Shard folder still exists after delete attempt",
-        ),
-      )
-      .mockResolvedValueOnce(undefined);
-
-    vi.spyOn(StorageTransitionModal.prototype, "open").mockImplementation(
-      () => {},
-    );
-    vi.spyOn(
-      StorageTransitionModal.prototype,
-      "waitForClose",
-    ).mockResolvedValue("apply-delete-shards");
-    vi.spyOn(ShardDeletionFailureModal.prototype, "open").mockImplementation(
-      () => {},
-    );
-    vi.spyOn(
-      ShardDeletionFailureModal.prototype,
-      "waitForClose",
-    ).mockResolvedValue("apply-anyway");
-
-    renderStorageSettingsTab(containerEl, plugin as never);
-
-    const storageModeSetting = getSettingByName(containerEl, "Storage mode");
-    const select = storageModeSetting.querySelector(
-      "select",
-    ) as HTMLSelectElement;
-    select.value = "legacy-json";
-    select.dispatchEvent(new Event("change"));
-
-    const applyButton = Array.from(containerEl.querySelectorAll("button")).find(
-      (button) => button.textContent === "Apply",
-    ) as HTMLButtonElement;
-
-    applyButton.click();
-    await flushAsyncWork();
-
-    expect(plugin.revertToLegacyJsonStorageWithOptions).toHaveBeenNthCalledWith(
-      1,
-      {
-        deleteShardFolder: true,
-      },
-    );
-    expect(plugin.revertToLegacyJsonStorageWithOptions).toHaveBeenNthCalledWith(
-      2,
-      {
-        deleteShardFolder: false,
-      },
-    );
-  });
-
-  it("can open the shard folder after delete failure before the user decides", async () => {
-    const containerEl = createTestContainer();
-    const plugin = createPlugin();
-    plugin.settings.storageMode = "vault-shards";
-    plugin.getStorageStatus = vi.fn(() => ({
-      mode: "vault-shards" as const,
-      folder: ".rss-dashboard-data/feeds",
-      shardCount: 3,
-      feedCount: 3,
-      migrationReady: false,
-      lastRepairResult: "Migration completed",
-    }));
-    plugin.revertToLegacyJsonStorageWithOptions = vi
-      .fn()
-      .mockRejectedValueOnce(
-        new ShardFolderDeletionError(
-          ".rss-dashboard-data/feeds",
-          "Shard folder still exists after delete attempt",
-        ),
-      );
-
-    vi.spyOn(StorageTransitionModal.prototype, "open").mockImplementation(
-      () => {},
-    );
-    vi.spyOn(
-      StorageTransitionModal.prototype,
-      "waitForClose",
-    ).mockResolvedValue("apply-delete-shards");
-    vi.spyOn(ShardDeletionFailureModal.prototype, "open").mockImplementation(
-      () => {},
-    );
-    vi.spyOn(ShardDeletionFailureModal.prototype, "waitForClose")
-      .mockResolvedValueOnce("open-folder")
-      .mockResolvedValueOnce("cancel");
-
-    renderStorageSettingsTab(containerEl, plugin as never);
-
-    const storageModeSetting = getSettingByName(containerEl, "Storage mode");
-    const select = storageModeSetting.querySelector(
-      "select",
-    ) as HTMLSelectElement;
-    select.value = "legacy-json";
-    select.dispatchEvent(new Event("change"));
-
-    const applyButton = Array.from(containerEl.querySelectorAll("button")).find(
-      (button) => button.textContent === "Apply",
-    ) as HTMLButtonElement;
-
-    applyButton.click();
-    await flushAsyncWork();
-
-    expect(plugin.openStorageFolderInSystem).toHaveBeenCalledWith(
-      ".rss-dashboard-data/feeds",
-    );
-    expect(plugin.revertToLegacyJsonStorageWithOptions).toHaveBeenCalledTimes(
-      1,
-    );
+    expect(findSettingByName(containerEl, "Storage folder")).toBeNull();
   });
 
   it("updates the storage folder setting through a standard text input", async () => {
     const containerEl = createTestContainer();
     const plugin = createPlugin();
-    plugin.settings.storageMode = "legacy-json";
+    plugin.settings.storageMode = "vault-shards-v2";
 
     renderStorageSettingsTab(containerEl, plugin as never);
 
@@ -569,10 +323,7 @@ describe("General settings storage section", () => {
     input.value = ".rss-dashboard-data/custom-feeds";
     input.dispatchEvent(new Event("input"));
 
-    const applyButton = Array.from(containerEl.querySelectorAll("button")).find(
-      (button) => button.textContent === "Apply",
-    ) as HTMLButtonElement;
-
+    const applyButton = getButtonByText(containerEl, "Apply");
     applyButton.click();
     await flushAsyncWork();
 
@@ -582,9 +333,74 @@ describe("General settings storage section", () => {
     expect(plugin.saveSettings).toHaveBeenCalledTimes(1);
   });
 
-  it("renders Feed bundle and Settings bundle import/export actions alongside the portable bundle", () => {
+  it("repairs vault storage instead of saving when applying a folder change in Shard storage v1", async () => {
     const containerEl = createTestContainer();
     const plugin = createPlugin();
+    plugin.settings.storageMode = "vault-shards";
+
+    renderStorageSettingsTab(containerEl, plugin as never);
+
+    const storageFolderSetting = getSettingByName(
+      containerEl,
+      "Storage folder",
+    );
+    const input = storageFolderSetting.querySelector(
+      "input",
+    ) as HTMLInputElement;
+    input.value = ".rss-dashboard-data/custom-feeds";
+    input.dispatchEvent(new Event("input"));
+
+    getButtonByText(containerEl, "Apply").click();
+    await flushAsyncWork();
+
+    expect(plugin.repairVaultStorage).toHaveBeenCalledTimes(1);
+    expect(plugin.saveSettings).not.toHaveBeenCalled();
+  });
+
+  it("does nothing when Apply is clicked without a folder change", async () => {
+    const containerEl = createTestContainer();
+    const plugin = createPlugin();
+    plugin.settings.storageMode = "vault-shards-v2";
+
+    renderStorageSettingsTab(containerEl, plugin as never);
+
+    getButtonByText(containerEl, "Apply").click();
+    await flushAsyncWork();
+
+    expect(plugin.saveSettings).not.toHaveBeenCalled();
+    expect(plugin.repairVaultStorage).not.toHaveBeenCalled();
+  });
+
+  it("runs storage repair from the Repair/rebuild storage button", async () => {
+    const containerEl = createTestContainer();
+    const plugin = createPlugin();
+    plugin.settings.storageMode = "vault-shards-v2";
+
+    renderStorageSettingsTab(containerEl, plugin as never);
+
+    getButtonByText(containerEl, "Repair/rebuild storage").click();
+    await flushAsyncWork();
+
+    expect(plugin.repairVaultStorage).toHaveBeenCalledTimes(1);
+  });
+
+  it("hides the Storage actions row (Apply/Repair) for Legacy JSON and Sync v3", () => {
+    for (const mode of ["legacy-json", "replicated-v3"] as const) {
+      const containerEl = createTestContainer();
+      const plugin = createPlugin();
+      plugin.settings.storageMode = mode;
+
+      renderStorageSettingsTab(containerEl, plugin as never);
+
+      expect(findSettingByName(containerEl, "Storage actions")).toBeNull();
+      resetDocumentBody();
+    }
+  });
+
+  it("no longer renders the duplicated portable/feed/settings bundle import-export buttons", () => {
+    const containerEl = createTestContainer();
+    const plugin = createPlugin();
+    plugin.settings.storageMode = "vault-shards-v2";
 
     renderStorageSettingsTab(containerEl, plugin as never);
 
@@ -592,100 +408,73 @@ describe("General settings storage section", () => {
       containerEl.querySelectorAll<HTMLButtonElement>("button"),
     ).map((button) => button.textContent?.trim());
 
-    expect(buttons).toContain("Import feed bundle");
-    expect(buttons).toContain("Export feed bundle");
-    expect(buttons).toContain("Import settings bundle");
-    expect(buttons).toContain("Export settings bundle");
+    expect(buttons).not.toContain("Import portable data bundle");
+    expect(buttons).not.toContain("Export portable data bundle");
+    expect(buttons).not.toContain("Import feed bundle");
+    expect(buttons).not.toContain("Export feed bundle");
+    expect(buttons).not.toContain("Import settings bundle");
+    expect(buttons).not.toContain("Export settings bundle");
   });
 
-  it("exports the Feed bundle when Export Feed bundle is clicked", () => {
-    const containerEl = createTestContainer();
-    const plugin = createPlugin();
+  describe("Sync v3 mode scoping", () => {
+    it("shows the full replica health/setup/recovery sections when Sync v3 is the active mode", async () => {
+      const containerEl = createTestContainer();
+      const plugin = createPlugin();
+      plugin.settings.storageMode = "replicated-v3";
 
-    renderStorageSettingsTab(containerEl, plugin as never);
+      renderStorageSettingsTab(containerEl, plugin as never);
+      await flushAsyncWork();
 
-    const exportButton = Array.from(
-      containerEl.querySelectorAll<HTMLButtonElement>("button"),
-    ).find(
-      (button) => button.textContent === "Export feed bundle",
-    ) as HTMLButtonElement;
-
-    exportButton.click();
-    expect(plugin.exportFeedBundle).toHaveBeenCalledTimes(1);
-  });
-
-  it("imports the Feed bundle from a chosen file when Import Feed bundle is clicked", async () => {
-    const containerEl = createTestContainer();
-    const plugin = createPlugin();
-
-    renderStorageSettingsTab(containerEl, plugin as never);
-
-    const importButton = Array.from(
-      containerEl.querySelectorAll<HTMLButtonElement>("button"),
-    ).find(
-      (button) => button.textContent === "Import feed bundle",
-    ) as HTMLButtonElement;
-
-    importButton.click();
-
-    const input = document.querySelector(
-      'input[type="file"]',
-    ) as HTMLInputElement;
-    expect(input).toBeTruthy();
-
-    const file = new File(["{}"], "feed-bundle.json", {
-      type: "application/json",
+      expect(getSettingByName(containerEl, "Sync v3 replica health").textContent)
+        .toContain("rss-dashboard-data/sync-v3");
+      expect(findSettingByName(containerEl, "Sync v3 setup")).not.toBeNull();
+      expect(findSettingByName(containerEl, "Sync v3 recovery")).not.toBeNull();
+      expect(
+        containerEl.querySelector(".rss-dashboard-sync-v3-departed-disclosure"),
+      ).toBeNull();
     });
-    Object.defineProperty(input, "files", { value: [file] });
-    input.dispatchEvent(new Event("change"));
 
-    await flushAsyncWork();
+    it("collapses only the recovery actions behind a disclosure when Sync v3 is not active", () => {
+      const containerEl = createTestContainer();
+      const plugin = createPlugin();
+      plugin.settings.storageMode = "vault-shards-v2";
 
-    expect(plugin.importFeedBundleFromFile).toHaveBeenCalledWith(file);
-  });
+      renderStorageSettingsTab(containerEl, plugin as never);
 
-  it("exports the Settings bundle when Export Settings bundle is clicked", () => {
-    const containerEl = createTestContainer();
-    const plugin = createPlugin();
+      expect(findSettingByName(containerEl, "Sync v3 replica health")).toBeNull();
+      expect(findSettingByName(containerEl, "Sync v3 setup")).toBeNull();
 
-    renderStorageSettingsTab(containerEl, plugin as never);
-
-    const exportButton = Array.from(
-      containerEl.querySelectorAll<HTMLButtonElement>("button"),
-    ).find(
-      (button) => button.textContent === "Export settings bundle",
-    ) as HTMLButtonElement;
-
-    exportButton.click();
-    expect(plugin.exportSettingsBundle).toHaveBeenCalledTimes(1);
-  });
-
-  it("imports the Settings bundle from a chosen file when Import Settings bundle is clicked", async () => {
-    const containerEl = createTestContainer();
-    const plugin = createPlugin();
-
-    renderStorageSettingsTab(containerEl, plugin as never);
-
-    const importButton = Array.from(
-      containerEl.querySelectorAll<HTMLButtonElement>("button"),
-    ).find(
-      (button) => button.textContent === "Import settings bundle",
-    ) as HTMLButtonElement;
-
-    importButton.click();
-
-    const inputs = document.querySelectorAll('input[type="file"]');
-    const input = inputs[inputs.length - 1] as HTMLInputElement;
-    expect(input).toBeTruthy();
-
-    const file = new File(["{}"], "settings-bundle.json", {
-      type: "application/json",
+      const disclosure = containerEl.querySelector(
+        ".rss-dashboard-sync-v3-departed-disclosure",
+      );
+      expect(disclosure).not.toBeNull();
+      expect(
+        disclosure?.querySelector(".setting-item-name")?.textContent,
+      ).toBe("Sync v3 recovery");
     });
-    Object.defineProperty(input, "files", { value: [file] });
-    input.dispatchEvent(new Event("change"));
 
-    await flushAsyncWork();
+    it("still exports the sync v3 health report from inside the collapsed disclosure", () => {
+      const containerEl = createTestContainer();
+      const plugin = createPlugin();
+      plugin.settings.storageMode = "vault-shards-v2";
 
-    expect(plugin.importSettingsBundleFromFile).toHaveBeenCalledWith(file);
+      renderStorageSettingsTab(containerEl, plugin as never);
+
+      getButtonByText(containerEl, "Export sync v3 health report").click();
+
+      expect(plugin.exportSyncV3HealthReport).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("Storage status and leftover state", () => {
+    it("always renders storage status regardless of active mode", () => {
+      const containerEl = createTestContainer();
+      const plugin = createPlugin();
+      plugin.settings.storageMode = "replicated-v3";
+
+      renderStorageSettingsTab(containerEl, plugin as never);
+
+      expect(findSettingByName(containerEl, "Storage status")).not.toBeNull();
+    });
   });
 });

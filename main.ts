@@ -2160,6 +2160,12 @@ export default class RssDashboardPlugin extends Plugin {
     new StorageOnboardingModal(this.app, this, {
       currentStorageMode: this.settings.storageMode,
       isFirstRun,
+      storageFolder: this.settings.storageFolder,
+      onStorageChanged: () => {
+        if (this.settingTab) {
+          this.settingTab.refresh();
+        }
+      },
     }).open();
   }
 

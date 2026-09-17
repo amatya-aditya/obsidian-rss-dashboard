@@ -1,21 +1,45 @@
 import { App, Modal, Notice, Setting } from "obsidian";
 import type { FeedStorageMode } from "../types/types";
+import type { ShardFolderDeletionError } from "../services/feed-storage-repository";
+import {
+  StorageTransitionModal,
+  runShardDeletionFailureFlow,
+  type StorageTransitionAction,
+} from "../settings/modals/storage-settings-modals";
 
 export interface StorageOnboardingPlugin {
   configureLocalStorageForFirstRun(): Promise<void>;
   createSyncV3Set(): Promise<void>;
   prepareSyncV3Join(): Promise<void>;
+  // Advanced/legacy destinations (pre-3.0 only). See ADR 0006 -- these are
+  // deleted at 3.0 along with the storage-mode selector entries that reach
+  // them, so keep every call to them isolated to this interface segment and
+  // the renderAdvancedLegacyDisclosure()/completeLegacyModeSwitch() methods
+  // below.
+  migrateToVaultStorage(): Promise<void>;
+  revertToLegacyJsonStorageWithOptions(options?: {
+    deleteShardFolder?: boolean;
+  }): Promise<void>;
+  exportDataJson(): Promise<void>;
+  isShardFolderDeletionError(error: unknown): error is ShardFolderDeletionError;
+  openStorageFolderInSystem(folderPath?: string): Promise<void>;
 }
 
 export interface StorageOnboardingModalOptions {
   currentStorageMode: FeedStorageMode;
   isFirstRun: boolean;
+  /** Vault-relative shard folder, used only by the advanced legacy destinations. */
+  storageFolder?: string;
+  /** Called once a storage change has actually been applied, before the modal closes. */
+  onStorageChanged?: () => void;
 }
 
 const FIRST_RUN_OPTIONS: StorageOnboardingModalOptions = {
   currentStorageMode: "vault-shards-v2",
   isFirstRun: true,
 };
+
+const DEFAULT_STORAGE_FOLDER = ".rss-dashboard-data/feeds";
 
 /** Guides a new or existing device to local V2 storage or an explicit V3 role. */
 export class StorageOnboardingModal extends Modal {
@@ -90,6 +114,145 @@ export class StorageOnboardingModal extends Modal {
           () => this.renderStorageChoice(),
         );
       }));
+
+    this.renderAdvancedLegacyDisclosure();
+  }
+
+  /**
+   * Legacy JSON and shard storage v1 are deprecated pre-3.0 destinations
+   * (ADR 0006), kept only for recovery and migration. They are gated behind
+   * this disclosure rather than offered in the primary picker above, and are
+   * deleted as a unit once 3.0 drops the storage-mode entries that reach them.
+   */
+  private renderAdvancedLegacyDisclosure(): void {
+    const details = this.contentEl.createEl("details", {
+      cls: "rss-dashboard-storage-legacy-disclosure",
+    });
+    details.createEl("summary", { text: "Advanced: legacy storage (pre-3.0)" });
+    const body = details.createDiv();
+    body.createEl("p", {
+      text: "Legacy JSON and shard storage v1 are deprecated pre-3.0 storage modes, kept for recovery and migration. They are removed at the next major release.",
+      cls: "rss-dashboard-modal-message",
+    });
+
+    new Setting(body)
+      .setName("Shard storage v1")
+      .setDesc("Per-feed vault files with read/starred state stored inside each feed file. Superseded by shard storage v2.")
+      .addButton((button) => button.setButtonText("Use shard storage v1").onClick(() => {
+        this.requestStorageChange(
+          "vault-shards",
+          () =>
+            this.completeLegacyModeSwitch(
+              "vault-shards",
+              () => this.plugin.migrateToVaultStorage(),
+              "Shard storage v1 is active.",
+              "Could not switch to shard storage v1",
+            ),
+          () => this.renderStorageChoice(),
+        );
+      }));
+
+    new Setting(body)
+      .setName("Legacy JSON")
+      .setDesc("Single monolith data.json file. Does not sync well across devices (often exceeds the 5mb sync limit).")
+      .addButton((button) => button.setButtonText("Use legacy JSON").onClick(() => {
+        this.requestStorageChange(
+          "legacy-json",
+          () =>
+            this.completeLegacyModeSwitch(
+              "legacy-json",
+              () =>
+                this.plugin.revertToLegacyJsonStorageWithOptions({
+                  deleteShardFolder: false,
+                }),
+              "Legacy JSON storage enabled.",
+              "Could not switch to legacy JSON",
+            ),
+          () => this.renderStorageChoice(),
+        );
+      }));
+  }
+
+  private storageFolder(): string {
+    return this.options.storageFolder ?? DEFAULT_STORAGE_FOLDER;
+  }
+
+  /**
+   * Shared by both advanced legacy destinations: when the switch crosses a
+   * shard folder boundary (legacy JSON <-> shard storage), reuses the same
+   * StorageTransitionModal + shard-deletion-failure recovery flow the
+   * Storage settings tab used to run inline, so a backup reminder or a
+   * blocked shard-folder delete is handled identically wherever the switch
+   * was started from.
+   */
+  private async completeLegacyModeSwitch(
+    targetMode: "vault-shards" | "legacy-json",
+    migrateAction: () => Promise<void>,
+    successMessage: string,
+    errorPrefix: string,
+  ): Promise<void> {
+    const crossesShardFolderBoundary =
+      (targetMode === "legacy-json" &&
+        (this.options.currentStorageMode === "vault-shards" ||
+          this.options.currentStorageMode === "vault-shards-v2")) ||
+      (targetMode === "vault-shards" &&
+        this.options.currentStorageMode === "legacy-json");
+
+    if (!crossesShardFolderBoundary) {
+      await this.runAction(migrateAction, successMessage, errorPrefix);
+      return;
+    }
+
+    const transitionModal = new StorageTransitionModal(this.app, {
+      currentMode: this.options.currentStorageMode,
+      targetMode,
+      storageFolder: this.storageFolder(),
+    });
+    transitionModal.open();
+    const action: StorageTransitionAction = await transitionModal.waitForClose();
+    if (action === "cancel") {
+      return;
+    }
+
+    try {
+      if (action === "export-data-json") {
+        await this.plugin.exportDataJson();
+        return;
+      }
+
+      if (action === "apply-delete-shards") {
+        try {
+          await this.plugin.revertToLegacyJsonStorageWithOptions({
+            deleteShardFolder: true,
+          });
+        } catch (error) {
+          if (!this.plugin.isShardFolderDeletionError(error)) {
+            throw error;
+          }
+
+          const followUpAction = await runShardDeletionFailureFlow(
+            this.app,
+            this.storageFolder(),
+            (folder) => this.plugin.openStorageFolderInSystem(folder),
+          );
+          if (followUpAction === "cancel") {
+            return;
+          }
+
+          await this.plugin.revertToLegacyJsonStorageWithOptions({
+            deleteShardFolder: false,
+          });
+        }
+      } else {
+        await migrateAction();
+      }
+
+      new Notice(successMessage);
+      this.options.onStorageChanged?.();
+      this.close();
+    } catch (error) {
+      new Notice(`${errorPrefix}${error instanceof Error ? `: ${error.message}` : ""}`);
+    }
   }
 
   private currentStorageModeDisplayLabel(): string {
@@ -247,6 +410,7 @@ export class StorageOnboardingModal extends Modal {
     try {
       await action();
       new Notice(successMessage);
+      this.options.onStorageChanged?.();
       this.close();
     } catch (error) {
       new Notice(`${errorPrefix}${error instanceof Error ? `: ${error.message}` : ""}`);
