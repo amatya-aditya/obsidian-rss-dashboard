@@ -880,6 +880,16 @@ export default class RssDashboardPlugin extends Plugin {
     this.initializeSettingsBackedServices();
     this.clearFactoryResetLocalStorage();
 
+    // A factory reset puts storage back in its unassigned, pre-onboarding
+    // state, so the storage choice should be re-asked the same way it is on
+    // a real fresh install rather than silently defaulting to vault shards.
+    this.wasFreshInstallAtLoad = true;
+    saveVaultLocalStorage(
+      this.app,
+      RssDashboardPlugin.STORAGE_ONBOARDING_COMPLETE_KEY,
+      null,
+    );
+
     await this.saveSettings();
 
     const dashboardView = await this.getActiveDashboardView();
@@ -897,6 +907,7 @@ export default class RssDashboardPlugin extends Plugin {
     }
 
     new Notice("Restored plugin to factory defaults.");
+    this.openStorageOnboarding(true);
   }
 
   /**

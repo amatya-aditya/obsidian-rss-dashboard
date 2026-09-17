@@ -159,6 +159,10 @@ _Avoid_: Sync set, V3 set, sync configuration
 A device either creating a new [[Sync v3 set]] (becoming its primary) or joining an existing one (adopting its epoch). Deliberately not called "migration" — that term is reserved for [[Storage migration]], which is unrelated: a device adopting a Sync v3 set already has its feed content in Shard storage v2 and keeps it there.
 _Avoid_: Sync v3 migration, joining, onboarding
 
+**Set departure**:
+A device switching its `storageMode` away from `replicated-v3` back to Shard storage v2, without deleting, altering, or being deleted from any existing [[Sync v3 set]] — the set and the device's own replica remain intact for future re-adoption. Distinct from [[Storage revert]] (Legacy-JSON-specific) and [[Storage migration]] (first-time move into shard files).
+_Avoid_: Downgrade, leaving sync, opting out
+
 **Not adopted**:
 A device's `SyncV3Status.health` value when its `storageMode` isn't `replicated-v3` — it has no relationship to a [[Sync v3 set]] at all, regardless of whether one already exists elsewhere in the shared vault folder. Replaces the `migration-required` value, which the [[Set adoption]] entry's avoid-list already ruled out as a term.
 _Avoid_: migration-required, unconfigured, inactive
@@ -184,8 +188,8 @@ The single, backup-first corrective action offered when a device's Sync v3 healt
 _Avoid_: Sync repair, replica repair, resync
 
 **Deprecated storage mode**:
-A feed storage mode the plugin still reads but will stop writing to when 3.0 ships: Legacy JSON and Shard storage v1. A vault on one of these still opens and displays its articles, but no longer refreshes feeds, records stars, tags, or saves, or auto-deletes by retention rule. Export remains available, and migrating to Shard storage v2 remains possible after the cutoff. See [ADR 0006](docs/adr/0006-deprecate-legacy-json-and-shard-storage-v1.md).
-_Avoid_: Unsupported mode, legacy mode, read-only mode
+A feed storage mode the plugin still reads but will stop writing to when 3.0 ships: Legacy JSON and Shard storage v1. A vault on one of these still opens and displays its articles, but no longer refreshes feeds, records stars, tags, or saves, or auto-deletes by retention rule. Export remains available, and migrating to Shard storage v2 remains possible after the cutoff. Still offered as a selectable target in the storage-mode-switch flow until 3.0, grouped behind an advanced disclosure rather than removed outright. See [ADR 0006](docs/adr/0006-deprecate-legacy-json-and-shard-storage-v1.md).
+_Avoid_: Unsupported mode, legacy mode, read-only mode, deprecated destination
 
 **Feed content**:
 The article or episode data (title, body, media, publish date) written into a feed's shard file under Shard storage v2. Distinct from that feed's article state, which v2 stores separately.

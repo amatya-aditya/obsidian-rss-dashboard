@@ -209,6 +209,35 @@
   white-space: nowrap;
 }
 
+.rss-dashboard-sync-v3-health-body {
+  width: 100%;
+}
+
+.rss-dashboard-sync-v3-health-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 4px;
+}
+
+.rss-dashboard-sync-v3-health-table td {
+  padding: 3px 0;
+  vertical-align: top;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.rss-dashboard-sync-v3-health-table .rss-dashboard-sync-v3-health-label {
+  color: var(--text-muted);
+  white-space: nowrap;
+  padding-right: 16px;
+  width: 1%;
+}
+
+.rss-dashboard-sync-v3-health-value {
+  color: var(--text-normal);
+  word-break: break-word;
+}
+
 /* ============================================
  * 5. Responsive Overrides
  * ============================================ */
@@ -277,6 +306,24 @@
   .rss-dashboard-import-export-actions .setting-item-control button,
   .rss-dashboard-storage-actions .setting-item-control button {
     width: 100%;
+  }
+
+  .rss-dashboard-sync-v3-health-table,
+  .rss-dashboard-sync-v3-health-table tbody,
+  .rss-dashboard-sync-v3-health-table tr,
+  .rss-dashboard-sync-v3-health-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .rss-dashboard-sync-v3-health-table tr {
+    margin-bottom: 6px;
+  }
+
+  .rss-dashboard-sync-v3-health-table .rss-dashboard-sync-v3-health-label {
+    padding-right: 0;
+    padding-bottom: 0;
+    font-weight: 600;
   }
 }
 

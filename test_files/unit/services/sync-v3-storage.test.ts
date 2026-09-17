@@ -162,6 +162,55 @@ describe("SyncV3Storage", () => {
     );
   });
 
+  describe("deleteSet", () => {
+    it("lets a device delete an existing Sync v3 set so create/join can start fresh", async () => {
+      const storage = new SyncV3Storage(primaryApp);
+      const settings = settingsWithFeeds([feed("feed-1", "article-1")]);
+      await storage.createFromSettings(settings);
+
+      const adapter = primaryApp.vault.adapter as {
+        exists(path: string): Promise<boolean>;
+      };
+      expect(await adapter.exists("rss-dashboard-data/sync-v3/epoch.json")).toBe(true);
+
+      await storage.deleteSet();
+
+      expect(await adapter.exists("rss-dashboard-data/sync-v3/epoch.json")).toBe(false);
+      expect(await adapter.exists("rss-dashboard-data/sync-v3")).toBe(false);
+
+      const freshSettings = settingsWithFeeds([feed("feed-1", "article-1")]);
+      await expect(storage.createFromSettings(freshSettings)).resolves.toBeUndefined();
+    });
+
+    it("does nothing when no set exists yet", async () => {
+      const storage = new SyncV3Storage(primaryApp);
+
+      await expect(storage.deleteSet()).resolves.toBeUndefined();
+    });
+
+    it("removes every device's replica, not just the deleting device's own", async () => {
+      const primary = new SyncV3Storage(primaryApp);
+      const primarySettings = settingsWithFeeds([feed("feed-1", "article-1")]);
+      await primary.createFromSettings(primarySettings);
+
+      const secondary = new SyncV3Storage(secondaryApp);
+      const secondarySettings = settingsWithFeeds([feed("feed-1", "article-1")]);
+      await secondary.join(secondarySettings);
+      await secondary.persist(secondarySettings);
+
+      const adapter = primaryApp.vault.adapter as {
+        exists(path: string): Promise<boolean>;
+      };
+      expect(
+        await adapter.exists(`rss-dashboard-data/sync-v3/replicas/${secondary.getDeviceId()}`),
+      ).toBe(true);
+
+      await primary.deleteSet();
+
+      expect(await adapter.exists("rss-dashboard-data/sync-v3")).toBe(false);
+    });
+  });
+
   describe("isSyncConflictCopyPath", () => {
     it("matches Obsidian Sync's conflict-copy naming", () => {
       expect(isSyncConflictCopyPath(

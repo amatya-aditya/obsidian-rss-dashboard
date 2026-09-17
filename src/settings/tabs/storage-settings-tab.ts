@@ -43,6 +43,7 @@ interface StorageSettingsPlugin {
     leaf: WorkspaceLeaf;
     render(): void;
   } | null>;
+  showStorageOnboardingWizard(): void;
   getStorageStatus(): FeedStorageStatus;
   getOrphanedUserStatePath(): Promise<string | null>;
   getMetadataFilePath(): string;
@@ -141,53 +142,110 @@ function renderFolderSetting(
     });
 }
 
+function renderSyncV3HealthTable(
+  container: HTMLElement,
+  status: SyncV3Status,
+): void {
+  container.empty();
+
+  const lastLocalWrite = status.lastLocalWrite
+    ? new Date(status.lastLocalWrite).toLocaleString()
+    : "not yet";
+  const lastIncomingMerge = status.lastIncomingMerge
+    ? new Date(status.lastIncomingMerge).toLocaleString()
+    : "not yet";
+
+  const rows: [string, string][] = [
+    ["Status", status.health],
+    ["Shared folder", status.root],
+    ["Device", status.deviceId.slice(0, 16)],
+    ["Epoch", status.epochId ?? "none"],
+    [
+      "Replicas",
+      `${status.replicaCount} (${status.invalidReplicaCount} invalid/incomplete)`,
+    ],
+    ["Local cache", status.localCachePath],
+    ["Last local write", lastLocalWrite],
+    ["Last incoming merge", lastIncomingMerge],
+  ];
+
+  const table = container.createEl("table", {
+    cls: "rss-dashboard-sync-v3-health-table",
+  });
+  const tbody = table.createEl("tbody");
+  for (const [label, value] of rows) {
+    const row = tbody.createEl("tr");
+    row.createEl("td", {
+      text: label,
+      cls: "rss-dashboard-sync-v3-health-label",
+    });
+    row.createEl("td", {
+      text: value,
+      cls: "rss-dashboard-sync-v3-health-value",
+    });
+  }
+
+  const setupGuidance =
+    status.health === "not-adopted"
+      ? "This device is local-only until you create or join a Sync v3 set."
+      : status.health === "waiting-for-primary"
+        ? "This device is waiting for the primary device's replica to sync in."
+        : "";
+  const conflictGuidance =
+    status.conflictCopyPaths.length > 0
+      ? `${status.conflictCopyPaths.length} sync conflict ${status.conflictCopyPaths.length === 1 ? "copy" : "copies"} found — ` +
+        "check every device's Settings → Sync → Conflict resolution is set to \"Create conflict file\", not \"Automatically merge\"."
+      : "";
+  const note = [setupGuidance, conflictGuidance].filter(Boolean).join(" ");
+  if (note) {
+    container.createEl("p", { text: note, cls: "rss-dashboard-settings-note" });
+  }
+}
+
 export function renderStorageSettingsTab(
   containerEl: HTMLElement,
   plugin: StorageSettingsPlugin,
 ): void {
   new Setting(containerEl).setName("Storage").setHeading();
 
-  const syncV3StatusText = activeWindow.createSpan();
-  syncV3StatusText.setText("Checking RSS dashboard sync v3 replica health…");
-  const syncV3StatusDescription = activeWindow.createFragment();
-  syncV3StatusDescription.appendChild(syncV3StatusText);
-  const syncV3StatusSetting = new Setting(containerEl)
-    .setName("Sync v3 replica health")
-    .setDesc("");
-  syncV3StatusSetting.descEl.empty();
-  syncV3StatusSetting.descEl.appendChild(syncV3StatusDescription);
-  if (plugin.getSyncV3Status) void plugin.getSyncV3Status().then((status) => {
-    const lastWrite = status.lastLocalWrite
-      ? new Date(status.lastLocalWrite).toLocaleString()
-      : "not yet";
-    const lastMerge = status.lastIncomingMerge
-      ? new Date(status.lastIncomingMerge).toLocaleString()
-      : "not yet";
-    const setupGuidance = status.health === "not-adopted"
-      ? " This device is local-only until you create or join a Sync v3 set."
-      : status.health === "waiting-for-primary"
-        ? " This device is waiting for the primary device's replica to sync in."
-        : "";
-    const conflictGuidance = status.conflictCopyPaths.length > 0
-      ? ` ${status.conflictCopyPaths.length} sync conflict ${status.conflictCopyPaths.length === 1 ? "copy" : "copies"} found — ` +
-        "check every device's Settings → Sync → Conflict resolution is set to \"Create conflict file\", not \"Automatically merge\"."
-      : "";
-    syncV3StatusText.setText(
-      `Status: ${status.health}. Shared folder: ${status.root}. Device: ${status.deviceId.slice(0, 16)}. Epoch: ${status.epochId ?? "none"}. ` +
-        `replicas: ${status.replicaCount}; invalid or incomplete: ${status.invalidReplicaCount}. ` +
-        `local cache: ${status.localCachePath}. Last local write: ${lastWrite}. Last incoming merge: ${lastMerge}.` +
-        setupGuidance + conflictGuidance,
+  new Setting(containerEl)
+    .setName("Storage setup wizard")
+    .setDesc(
+      "Review or change how this device stores feeds, including switching to or from sync v3.",
+    )
+    .addButton((button) =>
+      button.setButtonText("Show wizard").onClick(() => {
+        plugin.showStorageOnboardingWizard();
+      }),
     );
-  }).catch(() => {
-    syncV3StatusText.setText("Sync v3 status could not be read. Existing shared files were not changed.");
+
+  const syncV3StatusSetting = new Setting(containerEl).setName(
+    "Sync v3 replica health",
+  );
+  syncV3StatusSetting.descEl.empty();
+  const syncV3StatusBody = syncV3StatusSetting.descEl.createDiv({
+    cls: "rss-dashboard-sync-v3-health-body",
   });
-  else syncV3StatusText.setText("Sync v3 is unavailable in this plugin build.");
+  syncV3StatusBody.setText("Checking RSS dashboard sync v3 replica health…");
+  if (plugin.getSyncV3Status) void plugin.getSyncV3Status().then((status) => {
+    renderSyncV3HealthTable(syncV3StatusBody, status);
+  }).catch(() => {
+    syncV3StatusBody.empty();
+    syncV3StatusBody.setText(
+      "Sync v3 status could not be read. Existing shared files were not changed.",
+    );
+  });
+  else syncV3StatusBody.setText("Sync v3 is unavailable in this plugin build.");
 
   new Setting(containerEl)
     .setName("Sync v3 setup")
     .setDesc(
       "Sync v3 supports concurrent devices. This reports RSS dashboard replica health, not Obsidian sync completion. Enable sync all other types on every device, do not exclude RSS-dashboard-data, and upgrade every participating device before relying on v3.",
-    )
+    );
+
+  const syncV3SetupActions = new Setting(containerEl);
+  syncV3SetupActions.settingEl.addClass("rss-dashboard-storage-actions");
+  syncV3SetupActions
     .addButton((button) => button.setButtonText("Create v3 sync set from this device").setCta().onClick(() => {
       if (!plugin.createSyncV3Set) return;
       runConfirmedBackupThenAction(plugin, {
@@ -217,7 +275,11 @@ export function renderStorageSettingsTab(
         "Recovery always exports a portable backup first, then clears any detected sync conflict copies and either re-adopts " +
         "the current shared set (if this device fell behind in an adoption race) or re-derives this device's view from every " +
         "replica. It never touches another device's replica data.",
-    )
+    );
+
+  const syncV3RecoveryActions = new Setting(containerEl);
+  syncV3RecoveryActions.settingEl.addClass("rss-dashboard-storage-actions");
+  syncV3RecoveryActions
     .addButton((button) => button.setButtonText("Export sync v3 health report").onClick(() => {
       if (!plugin.exportSyncV3HealthReport) return;
       void plugin.exportSyncV3HealthReport().catch((error: unknown) => {

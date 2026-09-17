@@ -38,6 +38,17 @@ interface Adapter {
   read(path: string): Promise<string>;
   write(path: string, data: string): Promise<void>;
   remove(path: string): Promise<void>;
+  rmdir(path: string, recursive: boolean): Promise<void>;
+}
+
+export class SyncV3SetDeletionError extends Error {
+  constructor(
+    public readonly root: string,
+    message: string,
+  ) {
+    super(message);
+    this.name = "SyncV3SetDeletionError";
+  }
 }
 
 interface CachedProjection {
@@ -341,6 +352,36 @@ export class SyncV3Storage {
       settings.storageMode = "replicated-v3";
       await this.writeLocalCache(settings);
       this.captureProjection(settings);
+    });
+  }
+
+  /**
+   * Deletes this shared Sync v3 set (epoch, seed manifest, and every
+   * device's replica folder) so a stuck or stale set stops being a dead
+   * end — `createFromSettings` refuses to reseed over an existing epoch,
+   * and until this existed there was no way to clear one. Does not touch
+   * this device's local cache or `storageMode`; callers decide what to do
+   * with this device's state after the shared set is gone.
+   */
+  public async deleteSet(): Promise<void> {
+    await this.enqueueWrite(async () => {
+      if (!(await this.adapter.exists(this.root))) return;
+      try {
+        await this.adapter.rmdir(this.root, true);
+      } catch (error) {
+        throw new SyncV3SetDeletionError(
+          this.root,
+          error instanceof Error
+            ? `Failed to delete Sync v3 set at "${this.root}": ${error.message}`
+            : `Failed to delete Sync v3 set at "${this.root}"`,
+        );
+      }
+      if (await this.adapter.exists(this.root)) {
+        throw new SyncV3SetDeletionError(
+          this.root,
+          `Sync v3 set still exists after delete attempt: ${this.root}`,
+        );
+      }
     });
   }
 
