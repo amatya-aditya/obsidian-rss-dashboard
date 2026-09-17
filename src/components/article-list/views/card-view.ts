@@ -1,6 +1,10 @@
 import type { FeedItem } from "../../../types/types";
 import { formatArticleDate } from "../../../utils/platform-utils";
 import {
+  getPubDateMs,
+  resolveDisplayDate,
+} from "../../../services/feed-parser/feed-retention";
+import {
   getArticlePreviewSummaryText,
   shouldHighlightCardPreviewSummary,
   resolveArticlePreviewImage,
@@ -205,9 +209,11 @@ export function renderCardView(
       const dateEl = cardFooter.createDiv({
         cls: "rss-dashboard-article-date",
       });
+      const displayDate = resolveDisplayDate(article);
       const dateInfo = formatArticleDate(
-        article.pubDate,
+        displayDate,
         ctx.settings.display.articleDateStyle ?? "relative",
+        { isFirstSeenFallback: getPubDateMs(article.pubDate) <= 0 && !!displayDate },
       );
       dateEl.textContent = dateInfo.text;
       dateEl.setAttribute("title", dateInfo.title);

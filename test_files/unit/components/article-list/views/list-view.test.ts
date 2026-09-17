@@ -34,6 +34,24 @@ describe("list-view", () => {
     ).toBe("Test Article");
   });
 
+  it("shows the first-seen date, not 'Invalid Date' or 'Invalid date', in the date badge when pubDate is empty", () => {
+    const firstSeenMs = Date.parse("2026-01-01T00:00:00Z");
+    renderListView(
+      container,
+      [makeArticle({ pubDate: "", firstSeenMs })],
+      {
+        ...baseViewContext(),
+        showListToolbar: true,
+        listToolbarStyle: "left-grid",
+      },
+      baseViewDeps(),
+    );
+
+    const dateEl = container.querySelector(".rss-dashboard-article-date");
+    expect(dateEl?.textContent).not.toMatch(/Invalid date/i);
+    expect(dateEl?.getAttribute("title")).toContain("First seen:");
+  });
+
   it("schedules math rendering for a list title while preserving its source", () => {
     const scheduleMathRendering = vi.fn();
     const rawTitle = String.raw`Direct product of $\mathrm{GL}_n$`;

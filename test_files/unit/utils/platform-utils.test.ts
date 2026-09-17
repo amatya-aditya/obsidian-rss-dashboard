@@ -339,5 +339,31 @@ describe("platform-utils.misc", () => {
 
     vi.useRealTimers();
   });
+
+  it("formatArticleDate returns 'Unknown date' rather than 'Invalid Date' for null/empty input", () => {
+    expect(formatArticleDate(null)).toEqual({
+      text: "Unknown date",
+      title: "Unknown date",
+    });
+    expect(formatArticleDate("")).toEqual({
+      text: "Unknown date",
+      title: "Unknown date",
+    });
+  });
+
+  it("formatArticleDate prefixes the title with 'First seen:' when isFirstSeenFallback is set", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-15T12:00:00Z"));
+
+    const date = new Date("2026-05-15T10:00:00Z");
+    const result = formatArticleDate(date, "relative", {
+      isFirstSeenFallback: true,
+    });
+
+    expect(result.text).toBe("Today");
+    expect(result.title).toMatch(/^First seen: /);
+
+    vi.useRealTimers();
+  });
 });
 

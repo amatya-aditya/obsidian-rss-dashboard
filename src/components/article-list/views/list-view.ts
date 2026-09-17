@@ -1,5 +1,9 @@
 import type { FeedItem } from "../../../types/types";
 import { formatArticleDate } from "../../../utils/platform-utils";
+import {
+  getPubDateMs,
+  resolveDisplayDate,
+} from "../../../services/feed-parser/feed-retention";
 import { MAX_VISIBLE_TAGS } from "../utils/tag-layout-utils";
 import type { BaseViewContext, ViewDeps } from "./view-types";
 
@@ -54,9 +58,11 @@ export function renderListView(
     }
     titleEl.dataset.articleTitle = article.title;
     deps.scheduleMathRendering?.(titleEl);
+    const displayDate = resolveDisplayDate(article);
     const dateInfo = formatArticleDate(
-      article.pubDate,
+      displayDate,
       ctx.settings.display.articleDateStyle ?? "relative",
+      { isFirstSeenFallback: getPubDateMs(article.pubDate) <= 0 && !!displayDate },
     );
     if (!useBottomRow) {
       const timeEl = mainGrid.createDiv("rss-dashboard-grid-time");

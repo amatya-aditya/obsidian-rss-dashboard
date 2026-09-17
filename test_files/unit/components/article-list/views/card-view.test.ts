@@ -75,6 +75,23 @@ describe("card-view", () => {
     expect(container.querySelector(".rss-dashboard-card-tags-region")).toBeTruthy();
   });
 
+  it("shows the first-seen date, not 'Invalid Date' or 'Invalid date', in the card footer when pubDate is empty", () => {
+    const firstSeenMs = Date.parse("2026-01-01T00:00:00Z");
+    renderCardView(
+      container,
+      [makeArticle({ pubDate: "", firstSeenMs })],
+      {
+        ...baseViewContext(),
+        showCardToolbar: true,
+      },
+      baseViewDeps(),
+    );
+
+    const dateEl = container.querySelector(".rss-dashboard-article-date");
+    expect(dateEl?.textContent).not.toMatch(/Invalid date/i);
+    expect(dateEl?.getAttribute("title")).toContain("First seen:");
+  });
+
   it("renders cover image when coverImage is set", () => {
     renderCardView(
       container,
