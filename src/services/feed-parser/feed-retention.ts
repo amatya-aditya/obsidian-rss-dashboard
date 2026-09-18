@@ -78,6 +78,18 @@ export function resolveDisplayDate(
   return null;
 }
 
+/**
+ * Locale-invariant ordinal comparator for GUID strings: plain UTF-16
+ * code-unit comparison via `<`/`>`, not `localeCompare`. `localeCompare`'s
+ * ordering is locale/ICU-sensitive by spec, so two hosts with different
+ * locale or ICU data could order tied items differently.
+ */
+export function compareGuidOrdinal(a: string, b: string): number {
+  if (a < b) return -1;
+  if (a > b) return 1;
+  return 0;
+}
+
 export function isProtectedItem(
   item: FeedItem,
   protections?: FeedRetentionProtections,
@@ -177,7 +189,7 @@ export function applyFeedRetentionLimits(
     const aMs = getEffectiveDateMs(a, useFirstSeenDateFallback);
     const bMs = getEffectiveDateMs(b, useFirstSeenDateFallback);
     if (aMs !== bMs) return bMs - aMs;
-    return (a.guid || "").localeCompare(b.guid || "");
+    return compareGuidOrdinal(a.guid || "", b.guid || "");
   };
 
   let items = [...(feed.items || [])];
