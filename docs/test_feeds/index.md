@@ -38,11 +38,17 @@ Used during manual QA of the first-seen-date fallback feature (#283/#293/
   falling back to the article's first-seen date the way retention/sorting
   already did. Fixed in `article-renderer.ts`, `reader-view.ts`, and the
   three `article-list/views/*.ts` renderers.
-- **Not yet investigated.** Two items with no `<title>` at all (only
-  `<description>`/`<guid>`), and one item with no `<link>`. Worth a manual
-  pass to confirm the existing `"Untitled"`/`"#"` fallbacks in
-  `rss-parser.ts` behave sensibly for these end-to-end, not just at the
-  parser layer.
+- **Fixed.** Two items with no `<title>` and no `<link>` at all (only
+  `<description>` and a non-permalink `<guid>`, which the RSS 2.0 spec
+  permits). Title was already fine — new items fall back to `"No title"` in
+  `feed-parser-class.ts` (the `"Untitled"`/`"#"` fallbacks in
+  `rss-parser.ts` only apply to the separate RSS 1.0 parser, not RSS 2.0).
+  Link had no fallback at all: the article context menu's **Open in
+  browser** silently opened a blank tab, and **Copy article URL** copied an
+  empty string while still showing a "copied to clipboard" success notice.
+  Fixed by omitting both menu items when the article has no link
+  (`article-context-menu.ts`), matching how **Copy feed URL** is already
+  omitted when a feed has no URL.
 
 ### `heraldsun.rss`
 
