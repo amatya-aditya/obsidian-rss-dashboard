@@ -1525,6 +1525,7 @@ export class ReaderView extends ItemView {
         },
         this.onPlaybackProgress,
         this.settings.media.rememberPlaybackProgress,
+        this.settings.useFirstSeenDateFallback,
       );
       this.videoPlayer.loadVideo(item);
       if (this.relatedItems.length > 0) {
@@ -1590,6 +1591,7 @@ export class ReaderView extends ItemView {
         this.onPlaybackProgress,
         this.settings.media.rememberPlaybackProgress,
         this.settings.media.defaultPlaySpeed ?? 1,
+        this.settings.useFirstSeenDateFallback,
       );
       this.podcastPlayer.loadEpisode(item, fullFeedEpisodes);
     } else {
@@ -1608,6 +1610,7 @@ export class ReaderView extends ItemView {
           this.onPlaybackProgress,
           this.settings.media.rememberPlaybackProgress,
           this.settings.media.defaultPlaySpeed ?? 1,
+          this.settings.useFirstSeenDateFallback,
         );
         this.podcastPlayer.loadEpisode(podcastItem, fullFeedEpisodes);
       } else {
@@ -3559,8 +3562,14 @@ export class ReaderView extends ItemView {
     titleSetting.settingEl.addClass("rss-video-title");
     const metaRow = infoSection.createDiv({ cls: "rss-video-meta-row" });
     metaRow.createDiv({ text: item.feedTitle, cls: "rss-video-channel" });
+    const videoDisplayDate = resolveDisplayDate(
+      item,
+      this.settings.useFirstSeenDateFallback,
+    );
     metaRow.createDiv({
-      text: new Date(item.pubDate).toLocaleDateString(),
+      text: videoDisplayDate
+        ? videoDisplayDate.toLocaleDateString()
+        : "Unknown date",
       cls: "rss-video-date",
     });
 
@@ -3601,9 +3610,15 @@ export class ReaderView extends ItemView {
           cls: "rss-video-related-title",
           text: video.title,
         });
+        const relatedDisplayDate = resolveDisplayDate(
+          video,
+          this.settings.useFirstSeenDateFallback,
+        );
         videoInfo.createDiv({
           cls: "rss-video-related-date",
-          text: new Date(video.pubDate).toLocaleDateString(),
+          text: relatedDisplayDate
+            ? relatedDisplayDate.toLocaleDateString()
+            : "Unknown date",
         });
         videoItem.addEventListener("click", () => {
           void this.displayItem(video, relatedVideos);

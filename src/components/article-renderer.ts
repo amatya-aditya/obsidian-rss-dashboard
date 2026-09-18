@@ -166,6 +166,7 @@ export class ArticleRenderer {
         },
         this.onPlaybackProgress,
         this.settings.media.rememberPlaybackProgress,
+        this.settings.useFirstSeenDateFallback,
       );
       this.videoPlayer.loadVideo(item);
       if (this.relatedItems.length > 0) {
@@ -232,6 +233,7 @@ export class ArticleRenderer {
         this.onPlaybackProgress,
         this.settings.media.rememberPlaybackProgress,
         this.settings.media.defaultPlaySpeed ?? 1,
+        this.settings.useFirstSeenDateFallback,
       );
       this.podcastPlayer.loadEpisode(item, fullFeedEpisodes);
     } else {
