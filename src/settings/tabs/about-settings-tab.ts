@@ -28,8 +28,11 @@ export function renderAboutTab(
 
   const features = getWhatsNewFeatures(plugin.manifest.version);
   if (features) {
-    const whatsNewButton = aboutContainer.createEl("button", {
-      text: "What's new",
+    const whatsNewRow = aboutContainer.createDiv({
+      cls: "rss-dashboard-about-btn-row rss-dashboard-about-whats-new-row",
+    });
+    const whatsNewButton = whatsNewRow.createEl("button", {
+      text: `What's new in v${plugin.manifest.version}?`,
       cls: "rss-dashboard-about-btn",
     });
     whatsNewButton.onclick = () => {

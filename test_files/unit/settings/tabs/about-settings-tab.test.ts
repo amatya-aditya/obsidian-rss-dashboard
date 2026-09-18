@@ -34,7 +34,11 @@ describe("renderAboutTab", () => {
     const containerEl = document.body.createDiv();
     renderAboutTab(containerEl, createPlugin("2.7.0"));
 
-    expect(findWhatsNewButton(containerEl)).toBeDefined();
+    const button = findWhatsNewButton(containerEl);
+    expect(button).toBeDefined();
+    expect(button?.textContent).toBe("What's new in v2.7.0?");
+    expect(button?.classList.contains("rss-dashboard-about-btn")).toBe(true);
+    expect(button?.parentElement?.classList.contains("rss-dashboard-about-btn-row")).toBe(true);
   });
 
   it("omits the link when the running version has no embedded features", () => {
