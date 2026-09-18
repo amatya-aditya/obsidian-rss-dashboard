@@ -28,6 +28,7 @@ import type {
 import { Sidebar } from "../components/sidebar";
 import { ArticleList } from "../components/article-list";
 import { ArticleSaver } from "../services/article-saver";
+import { getEffectiveDateMs } from "../services/feed-parser/feed-retention.js";
 import { ArticleRenderer } from "../components/article-renderer";
 import { ReaderView, RSS_READER_VIEW_TYPE } from "./reader-view";
 import { FeedManagerModal } from "../modals/feed-manager-modal";
@@ -1682,11 +1683,11 @@ export class RssDashboardView extends ItemView {
 
     if (this.settings.articleSort === "oldest") {
       articles.sort(
-        (a, b) => new Date(a.pubDate).getTime() - new Date(b.pubDate).getTime(),
+        (a, b) => getEffectiveDateMs(a, this.settings.useFirstSeenDateFallback) - getEffectiveDateMs(b, this.settings.useFirstSeenDateFallback),
       );
     } else {
       articles.sort(
-        (a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime(),
+        (a, b) => getEffectiveDateMs(b, this.settings.useFirstSeenDateFallback) - getEffectiveDateMs(a, this.settings.useFirstSeenDateFallback),
       );
     }
 
@@ -2832,7 +2833,7 @@ export class RssDashboardView extends ItemView {
     return feed.items
       .filter((item) => item.guid !== article.guid)
       .sort(
-        (a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime(),
+        (a, b) => getEffectiveDateMs(b, this.settings.useFirstSeenDateFallback) - getEffectiveDateMs(a, this.settings.useFirstSeenDateFallback),
       )
       .slice(0, 5);
   }
@@ -3428,7 +3429,7 @@ export class RssDashboardView extends ItemView {
       this.settings.articleFilter.value > 0
     ) {
       const maxAge = Date.now() - this.settings.articleFilter.value;
-      if (new Date(item.pubDate).getTime() <= maxAge) return false;
+      if (getEffectiveDateMs(item, this.settings.useFirstSeenDateFallback) <= maxAge) return false;
     }
 
     return true;
@@ -4357,7 +4358,7 @@ export class RssDashboardView extends ItemView {
       this.settings.articleFilter.value > 0
     ) {
       const maxAge = Date.now() - this.settings.articleFilter.value;
-      articles = articles.filter((a) => new Date(a.pubDate).getTime() > maxAge);
+      articles = articles.filter((a) => getEffectiveDateMs(a, this.settings.useFirstSeenDateFallback) > maxAge);
     }
 
     return articles.length;
