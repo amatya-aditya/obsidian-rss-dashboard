@@ -31,6 +31,7 @@
 - Renamed the exported user-settings file from `usersettings.json` to `rss-dashboard-user-preferences.json` to match its "User preferences file" section heading, and renamed that section's Import/Export buttons from "Import/Export usersettings.json" to "Import user preferences"/"Export user preferences" for the same reason. Auto-backup of this file still recognizes an existing `usersettings.json` on disk as a fallback. Added copy-to-clipboard buttons to the Shard data (Portable bundle), Feed bundle, and Settings bundle sections of the Import/Export settings tab, matching the copy button already present for the legacy data.json, user preferences, and OPML sections; and each of the Feed bundle, Settings bundle, and User preferences file section descriptions now names its default export filename. [GH Issue #254](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/254)
 
 - Dashboard card/list/feed date badges now append a visible `*` to a date shown via the first-seen-date fallback, so it's discoverable at a glance instead of only on hover over the "First seen:" tooltip.
+- Added a `{{firstSeen}}` template variable for saved articles, available in both the body template and the frontmatter template, showing the date the article was first seen in the dashboard (falling back to the publish date, then to the save date, if unavailable). Independent of the **Use first-seen date for undated items** display setting — it works whether or not that setting is on, since typing `{{firstSeen}}` into a save template is itself the opt-in.
 
 ### Fixes
 

@@ -263,7 +263,11 @@ export class ArticleSaver {
 
     const pubDate = item.pubDate ? new Date(item.pubDate) : new Date();
 
-    frontmatter = this.replaceDatePlaceholders(frontmatter, pubDate)
+    frontmatter = this.replaceDatePlaceholders(
+      frontmatter,
+      pubDate,
+      item.firstSeenMs,
+    )
       .replace(/{{title}}/g, escapeYamlDoubleQuoted(item.title))
       .replace(/{{tags}}/g, tagsString)
       .replace(/{{source}}/g, escapeYamlDoubleQuoted(item.feedTitle))
@@ -296,15 +300,29 @@ export class ArticleSaver {
     return (moment as unknown as MomentFactory)(date).format(formatStr);
   }
 
-  private replaceDatePlaceholders(text: string, date: Date): string {
-    const validDate = Number.isNaN(date.getTime()) ? new Date() : date;
-    const isoDateTime = validDate.toISOString();
-
-    const longFormattedDate = validDate.toLocaleDateString(undefined, {
+  private formatLongDate(date: Date): string {
+    return date.toLocaleDateString(undefined, {
       year: "numeric",
       month: "long",
       day: "numeric",
     });
+  }
+
+  private replaceDatePlaceholders(
+    text: string,
+    date: Date,
+    firstSeenMs?: number,
+  ): string {
+    const validDate = Number.isNaN(date.getTime()) ? new Date() : date;
+    const isoDateTime = validDate.toISOString();
+
+    const longFormattedDate = this.formatLongDate(validDate);
+
+    const firstSeenDate =
+      typeof firstSeenMs === "number" && !Number.isNaN(firstSeenMs)
+        ? new Date(firstSeenMs)
+        : validDate;
+    const longFormattedFirstSeen = this.formatLongDate(firstSeenDate);
 
     const now = new Date();
     const saveDate = this.formatMoment(now, "YYYY-MM-DD");
@@ -316,6 +334,7 @@ export class ArticleSaver {
       .replace(/{{dateShort}}/g, this.formatMoment(validDate, "YYYY-MM-DD"))
       .replace(/{{isoDate}}/g, isoDateTime)
       .replace(/{{isoDateTime}}/g, isoDateTime)
+      .replace(/{{firstSeen}}/g, longFormattedFirstSeen)
       .replace(/{{saveDate}}/g, saveDate)
       .replace(/{{saveTime12}}/g, saveTime12)
       .replace(/{{saveTime24}}/g, saveTime24);
@@ -355,7 +374,11 @@ export class ArticleSaver {
       ? withSavedTagName(tagNames).join(", ")
       : tagNames.join(", ");
 
-    const replacedWithDates = this.replaceDatePlaceholders(template, pubDate);
+    const replacedWithDates = this.replaceDatePlaceholders(
+      template,
+      pubDate,
+      item.firstSeenMs,
+    );
 
     return replacedWithDates
       .replace(/{{title}}/g, item.title)

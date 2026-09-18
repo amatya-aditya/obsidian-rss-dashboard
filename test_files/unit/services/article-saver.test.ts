@@ -137,6 +137,30 @@ describe("ArticleSaver.saveArticle", () => {
     expect(item.tags?.map((tag) => tag.name)).toEqual(["tech", "Saved"]);
   });
 
+  it("substitutes {{firstSeen}} in both the body template and the frontmatter template", async () => {
+    const app = App.createMock();
+    const settings = createSettings({
+      includeFrontmatter: true,
+      defaultTemplate: "First seen: {{firstSeen}}\n\n{{content}}",
+      frontmatterTemplate: `---
+title: "{{title}}"
+firstSeen: "{{firstSeen}}"
+---`,
+    });
+    const saver = new ArticleSaver(app, settings);
+
+    const item = createItem({
+      firstSeenMs: Date.parse("2024-05-01T12:00:00Z"),
+    });
+
+    const createSpy = vi.spyOn(app.vault, "create");
+    await saver.saveArticle(item, undefined, undefined, "BODY");
+
+    const written = createSpy.mock.calls[0][1];
+    expect(written).toContain("First seen: May 1, 2024");
+    expect(written).toContain('firstSeen: "May 1, 2024"');
+  });
+
   it("escapes quotes, backslashes, and line breaks in frontmatter values", async () => {
     const app = App.createMock();
     const settings = createSettings({
@@ -337,7 +361,11 @@ title: "{{title}}"
 
 /** Typed accessor for private ArticleSaver methods tested in isolation. */
 type PrivateSaverAPI = {
-  replaceDatePlaceholders(template: string, date: Date): string;
+  replaceDatePlaceholders(
+    template: string,
+    date: Date,
+    firstSeenMs?: number,
+  ): string;
 };
 
 describe("ArticleSaver.replaceDatePlaceholders", () => {
@@ -434,6 +462,70 @@ describe("ArticleSaver.replaceDatePlaceholders", () => {
     expect(result).toBe(
       "Saved on 2026-08-29 at 14:45 (12h: 02:45 PM), published 2024-04-21",
     );
+    vi.useRealTimers();
+  });
+
+  it("replaces {{firstSeen}} with the long format of firstSeenMs when provided", () => {
+    const app = App.createMock();
+    const settings = createSettings();
+    const saver = new ArticleSaver(app, settings);
+    const pubDate = new Date("2024-04-21T12:00:00Z");
+    const firstSeenMs = Date.parse("2024-05-01T12:00:00Z");
+
+    const input = "First seen: {{firstSeen}}";
+    const result = (
+      saver as unknown as PrivateSaverAPI
+    ).replaceDatePlaceholders(input, pubDate, firstSeenMs);
+
+    expect(result).toBe("First seen: May 1, 2024");
+  });
+
+  it("falls back to the pubDate for {{firstSeen}} when firstSeenMs is not provided", () => {
+    const app = App.createMock();
+    const settings = createSettings();
+    const saver = new ArticleSaver(app, settings);
+    const pubDate = new Date("2024-04-21T12:00:00Z");
+
+    const input = "First seen: {{firstSeen}}";
+    const result = (
+      saver as unknown as PrivateSaverAPI
+    ).replaceDatePlaceholders(input, pubDate);
+
+    expect(result).toBe("First seen: April 21, 2024");
+  });
+
+  it("treats firstSeenMs of 0 (epoch) as provided rather than falling back", () => {
+    const app = App.createMock();
+    const settings = createSettings();
+    const saver = new ArticleSaver(app, settings);
+    const pubDate = new Date("2024-04-21T12:00:00Z");
+
+    const input = "First seen: {{firstSeen}}";
+    const result = (
+      saver as unknown as PrivateSaverAPI
+    ).replaceDatePlaceholders(input, pubDate, 0);
+
+    // Not "April 21, 2024" (the pubDate) — epoch 0 must not fall through to
+    // the pubDate fallback. Exact day/month can shift by timezone, so assert
+    // the epoch year rather than a hardcoded locale-formatted string.
+    expect(result).toMatch(/First seen: (December 31, 1969|January 1, 1970)/);
+  });
+
+  it("falls back to 'now' for {{firstSeen}} when both pubDate and firstSeenMs are unusable", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-15T12:00:00Z"));
+
+    const app = App.createMock();
+    const settings = createSettings();
+    const saver = new ArticleSaver(app, settings);
+    const invalidPubDate = new Date(NaN);
+
+    const input = "First seen: {{firstSeen}}";
+    const result = (
+      saver as unknown as PrivateSaverAPI
+    ).replaceDatePlaceholders(input, invalidPubDate);
+
+    expect(result).toBe("First seen: June 15, 2026");
     vi.useRealTimers();
   });
 });
