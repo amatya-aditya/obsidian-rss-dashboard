@@ -1614,5 +1614,156 @@ describe("EditFeedModal", () => {
     expect(onSave).toHaveBeenCalledTimes(1);
     expect(closeModalSpy).toHaveBeenCalledTimes(1);
   });
+
+  it("truncates items using effective date (respects firstSeenMs when useFirstSeenDateFallback is enabled)", async () => {
+    const app = createMockApp();
+    // Create 12 items: 1 undated with recent firstSeenMs, 11 dated items from oldest to newest
+    const undatedItem = makeArticle("undated-item", "", {
+      firstSeenMs: 1700000000000, // Timestamp between mid-item and recent-item
+    }) as unknown as FeedItem;
+    const veryOldItem = makeArticle("very-old-item", "2015-01-01T00:00:00Z") as unknown as FeedItem;
+    const oldItem1 = makeArticle("old-item-1", "2018-01-01T00:00:00Z") as unknown as FeedItem;
+    const oldItem2 = makeArticle("old-item-2", "2019-01-01T00:00:00Z") as unknown as FeedItem;
+    const oldItem3 = makeArticle("old-item-3", "2020-01-01T00:00:00Z") as unknown as FeedItem;
+    const midItem1 = makeArticle("mid-item-1", "2021-01-01T00:00:00Z") as unknown as FeedItem;
+    const midItem2 = makeArticle("mid-item-2", "2022-01-01T00:00:00Z") as unknown as FeedItem;
+    const midItem3 = makeArticle("mid-item-3", "2023-01-01T00:00:00Z") as unknown as FeedItem;
+    const recentItem1 = makeArticle("recent-item-1", "2024-01-01T00:00:00Z") as unknown as FeedItem;
+    const recentItem2 = makeArticle("recent-item-2", "2024-08-01T00:00:00Z") as unknown as FeedItem;
+    const recentItem3 = makeArticle("recent-item-3", "2024-12-01T00:00:00Z") as unknown as FeedItem;
+
+    const feed: Feed = {
+      title: "Test feed",
+      url: "https://example.com/feed.xml",
+      folder: "Tech",
+      items: [
+        veryOldItem, oldItem1, oldItem2, oldItem3, midItem1, midItem2,
+        undatedItem, midItem3, recentItem1, recentItem2, recentItem3,
+      ],
+      lastUpdated: 0,
+      maxItemsLimit: 0,
+    } as unknown as Feed;
+
+    const plugin: PluginTestFixture = {
+      app,
+      settings: {
+        folders: [],
+        maxItems: 50,
+        useFirstSeenDateFallback: true,
+        corsProxyEnabled: false,
+        corsProxyUrl: "",
+        articleSaving: { savedTemplates: [] },
+      } as PluginTestFixture["settings"] & { useFirstSeenDateFallback: boolean },
+      ensureFolderExists: vi.fn(async () => {}),
+      saveSettings: vi.fn(async () => {}),
+      notifyFiltersUpdated: vi.fn(),
+    };
+
+    const modal = new EditFeedModal(
+      app,
+      asRssDashboardPlugin(plugin),
+      feed,
+      vi.fn(),
+    );
+    modal.open();
+
+    const maxItemsSelect = getSelectBySettingName(
+      modal.contentEl,
+      "Max items limit",
+    );
+    // Change from unlimited to 10 items
+    maxItemsSelect.value = "10";
+    maxItemsSelect.dispatchEvent(new Event("change"));
+
+    getButtonByText(modal.contentEl, "Save").click();
+    await flushPromises();
+
+    // Should keep 10 most recent by effective date:
+    // With useFirstSeenDateFallback, undated-item uses firstSeenMs (1700000000000 ≈ 2023-11-14)
+    // So ordering should be: recentItem3, recentItem2, recentItem1, undatedItem, midItem3, ...
+    // After keeping top 10, should drop the oldest 1 (veryOldItem)
+    const guids = feed.items.map((item) => item.guid);
+    expect(guids.length).toBe(10);
+    expect(guids).not.toContain("very-old-item");
+    expect(guids).toContain("undated-item");
+    expect(guids).toContain("recent-item-3");
+    expect(guids).toContain("old-item-1");
+  });
+
+  it("truncates fully-dated feeds using pubDate (regression test)", async () => {
+    const app = createMockApp();
+    // Create 12 fully-dated items to verify sorting and truncation works correctly
+    const veryOldItem = makeArticle("very-old-item", "2015-01-01T00:00:00Z") as unknown as FeedItem;
+    const oldItem1 = makeArticle("old-item-1", "2018-01-01T00:00:00Z") as unknown as FeedItem;
+    const oldItem2 = makeArticle("old-item-2", "2019-01-01T00:00:00Z") as unknown as FeedItem;
+    const oldItem3 = makeArticle("old-item-3", "2020-01-01T00:00:00Z") as unknown as FeedItem;
+    const midItem1 = makeArticle("mid-item-1", "2021-01-01T00:00:00Z") as unknown as FeedItem;
+    const midItem2 = makeArticle("mid-item-2", "2022-01-01T00:00:00Z") as unknown as FeedItem;
+    const midItem3 = makeArticle("mid-item-3", "2023-01-01T00:00:00Z") as unknown as FeedItem;
+    const recentItem1 = makeArticle("recent-item-1", "2024-01-01T00:00:00Z") as unknown as FeedItem;
+    const recentItem2 = makeArticle("recent-item-2", "2024-08-01T00:00:00Z") as unknown as FeedItem;
+    const recentItem3 = makeArticle("recent-item-3", "2024-12-01T00:00:00Z") as unknown as FeedItem;
+    const extraItem1 = makeArticle("extra-item-1", "2024-07-01T00:00:00Z") as unknown as FeedItem;
+    const extraItem2 = makeArticle("extra-item-2", "2024-06-01T00:00:00Z") as unknown as FeedItem;
+
+    const feed: Feed = {
+      title: "Test feed",
+      url: "https://example.com/feed.xml",
+      folder: "Tech",
+      items: [
+        veryOldItem, oldItem1, oldItem2, oldItem3, midItem1, midItem2,
+        midItem3, recentItem1, extraItem1, extraItem2, recentItem2, recentItem3,
+      ],
+      lastUpdated: 0,
+      maxItemsLimit: 0,
+    } as unknown as Feed;
+
+    const plugin: PluginTestFixture = {
+      app,
+      settings: {
+        folders: [],
+        maxItems: 50,
+        useFirstSeenDateFallback: false,
+        corsProxyEnabled: false,
+        corsProxyUrl: "",
+        articleSaving: { savedTemplates: [] },
+      } as PluginTestFixture["settings"] & { useFirstSeenDateFallback: boolean },
+      ensureFolderExists: vi.fn(async () => {}),
+      saveSettings: vi.fn(async () => {}),
+      notifyFiltersUpdated: vi.fn(),
+    };
+
+    const modal = new EditFeedModal(
+      app,
+      asRssDashboardPlugin(plugin),
+      feed,
+      vi.fn(),
+    );
+    modal.open();
+
+    const maxItemsSelect = getSelectBySettingName(
+      modal.contentEl,
+      "Max items limit",
+    );
+    // Change from unlimited to 10 items to trigger truncation
+    maxItemsSelect.value = "10";
+    maxItemsSelect.dispatchEvent(new Event("change"));
+
+    getButtonByText(modal.contentEl, "Save").click();
+    await flushPromises();
+
+    // Should keep 10 most recent by pubDate
+    // Sorted descending: recentItem3, recentItem2, extraItem1, extraItem2, recentItem1, midItem3, midItem2, midItem1, oldItem3, oldItem2
+    // So should drop: oldItem1, veryOldItem
+    const guids = feed.items.map((item) => item.guid);
+    expect(guids.length).toBe(10);
+    expect(guids).not.toContain("very-old-item");
+    expect(guids).not.toContain("old-item-1");
+    expect(guids).toContain("recent-item-3");
+    expect(guids).toContain("old-item-2");
+    // Verify order: most recent first
+    expect(guids[0]).toBe("recent-item-3");
+    expect(guids[1]).toBe("recent-item-2");
+  });
 });
 
