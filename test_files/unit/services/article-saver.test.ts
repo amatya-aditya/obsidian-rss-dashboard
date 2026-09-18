@@ -161,6 +161,87 @@ firstSeen: "{{firstSeen}}"
     expect(written).toContain('firstSeen: "May 1, 2024"');
   });
 
+  it("resolves a pubDate that fails Date.parse cleanly instead of silently using the save time (#303)", async () => {
+    const app = App.createMock();
+    const settings = createSettings({
+      includeFrontmatter: true,
+      defaultTemplate: "iso={{isoDateTime}}\n\n{{content}}",
+      frontmatterTemplate: `---
+date: "{{date}}"
+dateShort: "{{dateShort}}"
+isoDate: "{{isoDate}}"
+---`,
+    });
+    const saver = new ArticleSaver(app, settings);
+
+    // CST = UTC-6, so 09:00 CST is 15:00 UTC. Some engines fail to parse the
+    // obsolete named zone via Date.parse() and produce NaN; getPubDateMs
+    // normalizes it to an explicit offset first.
+    const item = createItem({
+      pubDate: "Fri, 06 May 1983 09:00:00 CST",
+    });
+
+    const createSpy = vi.spyOn(app.vault, "create");
+    await saver.saveArticle(item, undefined, undefined, "BODY");
+
+    const written = createSpy.mock.calls[0][1];
+    expect(written).toContain('date: "May 6, 1983"');
+    expect(written).toContain('dateShort: "1983-05-06"');
+    expect(written).toContain('isoDate: "1983-05-06T15:00:00.000Z"');
+    expect(written).toContain("iso=1983-05-06T15:00:00.000Z");
+  });
+
+  it("falls back to firstSeenMs (not the save time) when pubDate is unparseable but a first-seen timestamp exists (#303)", async () => {
+    const app = App.createMock();
+    const settings = createSettings({
+      includeFrontmatter: true,
+      frontmatterTemplate: `---
+date: "{{date}}"
+isoDate: "{{isoDate}}"
+---`,
+    });
+    const saver = new ArticleSaver(app, settings);
+
+    const item = createItem({
+      pubDate: "not a real date",
+      firstSeenMs: Date.parse("2024-05-01T12:00:00Z"),
+    });
+
+    const createSpy = vi.spyOn(app.vault, "create");
+    await saver.saveArticle(item, undefined, undefined, "BODY");
+
+    const written = createSpy.mock.calls[0][1];
+    expect(written).toContain('date: "May 1, 2024"');
+    expect(written).toContain('isoDate: "2024-05-01T12:00:00.000Z"');
+  });
+
+  it("falls back to the current time only when there is genuinely no pubDate and no firstSeenMs (#303)", async () => {
+    const app = App.createMock();
+    const settings = createSettings({
+      includeFrontmatter: true,
+      frontmatterTemplate: `---
+isoDate: "{{isoDate}}"
+---`,
+    });
+    const saver = new ArticleSaver(app, settings);
+
+    const item = createItem({ pubDate: undefined, firstSeenMs: undefined });
+
+    const now = Date.parse("2026-09-18T00:00:00.000Z");
+    vi.useFakeTimers();
+    vi.setSystemTime(now);
+
+    try {
+      const createSpy = vi.spyOn(app.vault, "create");
+      await saver.saveArticle(item, undefined, undefined, "BODY");
+
+      const written = createSpy.mock.calls[0][1];
+      expect(written).toContain(`isoDate: "${new Date(now).toISOString()}"`);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("escapes quotes, backslashes, and line breaks in frontmatter values", async () => {
     const app = App.createMock();
     const settings = createSettings({

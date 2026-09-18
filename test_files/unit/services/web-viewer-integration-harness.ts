@@ -64,6 +64,7 @@ export function buildFeedItem(overrides: Partial<FeedItem> = {}): FeedItem {
     feedUrl: overrides.feedUrl ?? "https://example.com/feed",
     coverImage: overrides.coverImage ?? "",
     image: overrides.image ?? "",
+    firstSeenMs: overrides.firstSeenMs,
   };
 }
 

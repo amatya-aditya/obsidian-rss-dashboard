@@ -16,6 +16,7 @@ import {
   stripNonContentHtmlNodes,
 } from "../utils/html-text";
 import { normalizeSubstackImageUrl } from "../utils/substack-image-url";
+import { getPubDateMs } from "./feed-parser/feed-retention";
 import {
   addMathTurndownRule,
   protectMathForMarkdown,
@@ -92,6 +93,26 @@ export class ArticleSaver {
     } catch {
       return html;
     }
+  }
+
+  /**
+   * The date to stamp into saved-note frontmatter/templates: the real
+   * `pubDate` when it resolves to an actual instant (via {@link getPubDateMs},
+   * which tolerates engine-dependent parsing quirks that raw `new Date()`
+   * doesn't), falling back to `firstSeenMs` when there's no real date, and
+   * only reaching for "now" when neither exists. Unlike display-only date
+   * resolution, this substitution isn't gated by the `useFirstSeenDateFallback`
+   * setting: a saved note's frontmatter has to record some concrete date, and
+   * a true first-seen timestamp is a better answer than silently recording
+   * the save time.
+   */
+  private resolveSavedArticleDate(item: FeedItem): Date {
+    const pubDateMs = getPubDateMs(item.pubDate);
+    if (pubDateMs > 0) return new Date(pubDateMs);
+    if (typeof item.firstSeenMs === "number" && !Number.isNaN(item.firstSeenMs)) {
+      return new Date(item.firstSeenMs);
+    }
+    return new Date();
   }
 
   private getPreferredFeedHtml(item: FeedItem): string {
@@ -261,7 +282,7 @@ export class ArticleSaver {
 
     const tagsString = tagNames.join(", ");
 
-    const pubDate = item.pubDate ? new Date(item.pubDate) : new Date();
+    const pubDate = this.resolveSavedArticleDate(item);
 
     frontmatter = this.replaceDatePlaceholders(
       frontmatter,
@@ -362,7 +383,7 @@ export class ArticleSaver {
           this.cleanHtml(this.getPreferredFeedHtml(item)),
         );
 
-    const pubDate = item.pubDate ? new Date(item.pubDate) : new Date();
+    const pubDate = this.resolveSavedArticleDate(item);
 
     const tagNames = (item.tags ?? [])
       .map((tag) => tag.name)
