@@ -485,7 +485,7 @@ isoDate: "{{isoDate}}"
       h.cleanup();
     });
 
-    it("falls back to firstSeenMs (not the save time) when pubDate is unparseable but a first-seen timestamp exists (#303)", () => {
+    it("falls back to firstSeenMs (not the save time) when pubDate is unparseable, a first-seen timestamp exists, and useFirstSeenDateFallback is enabled (#303)", () => {
       vi.useFakeTimers();
       vi.setSystemTime(new Date("2026-03-31T12:00:00Z"));
 
@@ -496,6 +496,7 @@ date: "{{date}}"
 isoDate: "{{isoDate}}"
 ---`,
         },
+        useFirstSeenDateFallback: true,
       });
       const integration = h.integration as unknown as {
         generateFrontmatter: (item: FeedItem) => string;
@@ -511,6 +512,35 @@ isoDate: "{{isoDate}}"
       const out = generateFrontmatter(item);
       expect(out).toContain('date: "May 1, 2024"');
       expect(out).toContain('isoDate: "2024-05-01T12:00:00.000Z"');
+
+      h.cleanup();
+    });
+
+    it("does not substitute firstSeenMs for the frontmatter date when useFirstSeenDateFallback is disabled (default) (#303)", () => {
+      const now = new Date("2026-03-31T12:00:00Z");
+      vi.useFakeTimers();
+      vi.setSystemTime(now);
+
+      const h = createWebViewerIntegrationHarness({
+        settings: {
+          frontmatterTemplate: `---
+isoDate: "{{isoDate}}"
+---`,
+        },
+      });
+      const integration = h.integration as unknown as {
+        generateFrontmatter: (item: FeedItem) => string;
+      };
+      const generateFrontmatter = integration.generateFrontmatter.bind(h.integration);
+
+      const item = buildFeedItem({
+        title: "No Fallback",
+        pubDate: "not-a-date",
+        firstSeenMs: Date.parse("2024-05-01T12:00:00Z"),
+      });
+
+      const out = generateFrontmatter(item);
+      expect(out).toContain(`isoDate: "${now.toISOString()}"`);
 
       h.cleanup();
     });

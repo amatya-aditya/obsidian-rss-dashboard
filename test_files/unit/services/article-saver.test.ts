@@ -191,7 +191,7 @@ isoDate: "{{isoDate}}"
     expect(written).toContain("iso=1983-05-06T15:00:00.000Z");
   });
 
-  it("falls back to firstSeenMs (not the save time) when pubDate is unparseable but a first-seen timestamp exists (#303)", async () => {
+  it("falls back to firstSeenMs (not the save time) when pubDate is unparseable, a first-seen timestamp exists, and useFirstSeenDateFallback is enabled (#303)", async () => {
     const app = App.createMock();
     const settings = createSettings({
       includeFrontmatter: true,
@@ -200,7 +200,7 @@ date: "{{date}}"
 isoDate: "{{isoDate}}"
 ---`,
     });
-    const saver = new ArticleSaver(app, settings);
+    const saver = new ArticleSaver(app, settings, undefined, () => true);
 
     const item = createItem({
       pubDate: "not a real date",
@@ -213,6 +213,36 @@ isoDate: "{{isoDate}}"
     const written = createSpy.mock.calls[0][1];
     expect(written).toContain('date: "May 1, 2024"');
     expect(written).toContain('isoDate: "2024-05-01T12:00:00.000Z"');
+  });
+
+  it("does not substitute firstSeenMs for the frontmatter date when useFirstSeenDateFallback is disabled (default) (#303)", async () => {
+    const app = App.createMock();
+    const settings = createSettings({
+      includeFrontmatter: true,
+      frontmatterTemplate: `---
+isoDate: "{{isoDate}}"
+---`,
+    });
+    const saver = new ArticleSaver(app, settings);
+
+    const item = createItem({
+      pubDate: "not a real date",
+      firstSeenMs: Date.parse("2024-05-01T12:00:00Z"),
+    });
+
+    const now = Date.parse("2026-09-18T00:00:00.000Z");
+    vi.useFakeTimers();
+    vi.setSystemTime(now);
+
+    try {
+      const createSpy = vi.spyOn(app.vault, "create");
+      await saver.saveArticle(item, undefined, undefined, "BODY");
+
+      const written = createSpy.mock.calls[0][1];
+      expect(written).toContain(`isoDate: "${new Date(now).toISOString()}"`);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("falls back to the current time only when there is genuinely no pubDate and no firstSeenMs (#303)", async () => {

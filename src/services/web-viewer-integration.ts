@@ -3,7 +3,7 @@ import { FeedItem, ArticleSavingSettings } from "../types/types";
 import { sanitizeFilename } from "./article-saver";
 import { normalizeSubstackImageUrl } from "../utils/substack-image-url";
 import { escapeYamlDoubleQuoted } from "../utils/yaml-escape";
-import { getPubDateMs } from "./feed-parser/feed-retention";
+import { resolveDisplayDate } from "./feed-parser/feed-retention";
 
 interface WebViewerPlugin {
   openWebpage?(url: string, title: string): Promise<void>;
@@ -26,10 +26,16 @@ interface ObsidianApp extends App {
 export class WebViewerIntegration {
   private app: ObsidianApp;
   private settings: ArticleSavingSettings;
+  private getUseFirstSeenDateFallback: () => boolean;
 
-  constructor(app: ObsidianApp, settings: ArticleSavingSettings) {
+  constructor(
+    app: ObsidianApp,
+    settings: ArticleSavingSettings,
+    getUseFirstSeenDateFallback: () => boolean = () => false,
+  ) {
     this.app = app;
     this.settings = settings;
+    this.getUseFirstSeenDateFallback = getUseFirstSeenDateFallback;
   }
 
   async openInWebViewer(url: string, title: string): Promise<boolean> {
@@ -277,18 +283,15 @@ export class WebViewerIntegration {
 
   /**
    * The date to stamp into saved-note frontmatter/templates: the real
-   * `pubDate` when it resolves to an actual instant (via {@link getPubDateMs},
-   * which tolerates engine-dependent parsing quirks that raw `new Date()`
-   * doesn't), falling back to `firstSeenMs` when there's no real date, and
-   * only reaching for "now" when neither exists.
+   * `pubDate` when it resolves to an actual instant, falling back to
+   * `firstSeenMs` (when `useFirstSeenDateFallback` is enabled) when there's
+   * no real date, and only reaching for "now" when neither is available.
    */
   private resolveSavedArticleDate(item: FeedItem): Date {
-    const pubDateMs = getPubDateMs(item.pubDate);
-    if (pubDateMs > 0) return new Date(pubDateMs);
-    if (typeof item.firstSeenMs === "number" && !Number.isNaN(item.firstSeenMs)) {
-      return new Date(item.firstSeenMs);
-    }
-    return new Date();
+    return (
+      resolveDisplayDate(item, this.getUseFirstSeenDateFallback()) ??
+      new Date()
+    );
   }
 
   protected generateFrontmatter(item: FeedItem): string {

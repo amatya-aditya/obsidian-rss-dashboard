@@ -16,7 +16,7 @@ import {
   stripNonContentHtmlNodes,
 } from "../utils/html-text";
 import { normalizeSubstackImageUrl } from "../utils/substack-image-url";
-import { getPubDateMs } from "./feed-parser/feed-retention";
+import { resolveDisplayDate } from "./feed-parser/feed-retention";
 import {
   addMathTurndownRule,
   protectMathForMarkdown,
@@ -41,15 +41,18 @@ export class ArticleSaver {
   private settings: ArticleSavingSettings;
   private turndownService: TurndownService;
   private corsProxyUrl: string | undefined;
+  private getUseFirstSeenDateFallback: () => boolean;
 
   constructor(
     app: App,
     settings: ArticleSavingSettings,
     corsProxyUrl?: string,
+    getUseFirstSeenDateFallback: () => boolean = () => false,
   ) {
     this.app = app;
     this.settings = settings;
     this.corsProxyUrl = corsProxyUrl;
+    this.getUseFirstSeenDateFallback = getUseFirstSeenDateFallback;
     this.turndownService = new TurndownService();
     addMathTurndownRule(this.turndownService);
   }
@@ -97,22 +100,15 @@ export class ArticleSaver {
 
   /**
    * The date to stamp into saved-note frontmatter/templates: the real
-   * `pubDate` when it resolves to an actual instant (via {@link getPubDateMs},
-   * which tolerates engine-dependent parsing quirks that raw `new Date()`
-   * doesn't), falling back to `firstSeenMs` when there's no real date, and
-   * only reaching for "now" when neither exists. Unlike display-only date
-   * resolution, this substitution isn't gated by the `useFirstSeenDateFallback`
-   * setting: a saved note's frontmatter has to record some concrete date, and
-   * a true first-seen timestamp is a better answer than silently recording
-   * the save time.
+   * `pubDate` when it resolves to an actual instant, falling back to
+   * `firstSeenMs` (when `useFirstSeenDateFallback` is enabled) when there's
+   * no real date, and only reaching for "now" when neither is available.
    */
   private resolveSavedArticleDate(item: FeedItem): Date {
-    const pubDateMs = getPubDateMs(item.pubDate);
-    if (pubDateMs > 0) return new Date(pubDateMs);
-    if (typeof item.firstSeenMs === "number" && !Number.isNaN(item.firstSeenMs)) {
-      return new Date(item.firstSeenMs);
-    }
-    return new Date();
+    return (
+      resolveDisplayDate(item, this.getUseFirstSeenDateFallback()) ??
+      new Date()
+    );
   }
 
   private getPreferredFeedHtml(item: FeedItem): string {
