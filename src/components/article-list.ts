@@ -1373,8 +1373,11 @@ export class ArticleList {
     articles: FeedItem[],
     groupBy: ArticleGroupByOption,
   ): Record<string, FeedItem[]> {
-    return groupArticlesUtil(articles, groupBy, (feedUrl: string) =>
-      this.getFeedFolder(feedUrl),
+    return groupArticlesUtil(
+      articles,
+      groupBy,
+      (feedUrl: string) => this.getFeedFolder(feedUrl),
+      this.settings.useFirstSeenDateFallback,
     );
   }
 
