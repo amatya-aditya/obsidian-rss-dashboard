@@ -166,7 +166,7 @@ _Avoid_: Backup cleanup, orphan file
 ## Update notifications
 
 **What's New popup**:
-The modal shown once per plugin update, once the running version differs from the [[Last shown version]], displaying that version's [[Release summary]]. Suppressed on a fresh install and for a version whose changelog entry has no Features. Reachable again afterward from the About tab's "What's new" link, which reopens the same content rather than linking out.
+The modal shown once per plugin update, the first time the dashboard is the active tab in a session while the running version differs from the [[Last shown version]], displaying that version's [[Release summary]]. Never shown merely because Obsidian or the plugin loaded. Suppressed on a fresh install and for a version whose changelog entry has no Features. Reachable again afterward from the About tab's "What's new" link, which reopens the same content rather than linking out.
 _Avoid_: Update notification, changelog viewer, whats-new dialog
 
 **Release summary**:

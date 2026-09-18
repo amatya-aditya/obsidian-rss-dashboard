@@ -572,6 +572,10 @@ export class MockWorkspace {
     return {};
   }
 
+  getActiveViewOfType(_type: unknown): unknown {
+    return null;
+  }
+
   offref(_ref: unknown): void {}
 }
 

@@ -290,6 +290,7 @@ export default class RssDashboardPlugin extends Plugin {
   private hasCompletedStartupSavedArticleValidation = false;
   private wasNullSettingsLoad = false;
   private settingsLoadFailed = false;
+  private whatsNewHandledThisSession = false;
   private vaultMetadataReloadTimer: number | null = null;
   private startupRefreshTimeoutId: number | null = null;
   private progressSaveDebounce: number | null = null;
@@ -940,18 +941,28 @@ export default class RssDashboardPlugin extends Plugin {
       // deprecation warning takes priority over What's New when both would
       // otherwise apply, since it names a hard cutoff the user must act on.
       // A user who keeps deferring it will not see that release's What's
-      // New popup at all â€” accepted deliberately rather than stacking two
+      // New popup at all — accepted deliberately rather than stacking two
       // modals or queuing one behind the other.
       this.app.workspace.onLayoutReady(() => {
         if (
           this.settings &&
           shouldShowStorageDeprecationPrompt(this.settings, this.manifest.version)
         ) {
+          this.whatsNewHandledThisSession = true;
           new StorageMigrationModal(this.app, this).open();
         } else {
-          void this.maybeShowWhatsNew();
+          this.maybeShowWhatsNewForActiveDashboard();
         }
       });
+
+      // Gotcha: "Obsidian finished loading" (onload / onLayoutReady) is not
+      // "the user is using this plugin" — a restored session fires both
+      // without the dashboard ever being opened, so gate on the view.
+      this.registerEvent(
+        this.app.workspace.on("active-leaf-change", () => {
+          this.maybeShowWhatsNewForActiveDashboard();
+        }),
+      );
 
       this.registerObsidianProtocolHandler(
         this.manifest.id,
@@ -2655,6 +2666,21 @@ export default class RssDashboardPlugin extends Plugin {
   }
 
   /**
+   * Entry point for the What's New popup: runs the check once per session,
+   * and only once the dashboard view is the active tab.
+   */
+  private maybeShowWhatsNewForActiveDashboard(): void {
+    if (this.whatsNewHandledThisSession) {
+      return;
+    }
+    if (!this.app.workspace.getActiveViewOfType(RssDashboardView)) {
+      return;
+    }
+    this.whatsNewHandledThisSession = true;
+    void this.maybeShowWhatsNew();
+  }
+
+  /**
    * Shows the What's New popup once per update. Skipped entirely on a null
    * settings load â€” that covers both a genuine fresh install and a synced
    * vault whose data.json hasn't arrived yet, and loadSettings() already
@@ -3167,8 +3193,9 @@ export default class RssDashboardPlugin extends Plugin {
       // Current settings are already in memory, just switch the mode
       this.settings.metadataStorageMode = "plugin-default";
 
-      // Save using Plugin.saveData() (plugin-default location)
-      await this.saveData(this.settings);
+      // No direct saveData(this.settings) here: it would write every
+      // article into data.json even in a shard mode. saveSettings() below
+      // persists through the repository, which is mode-aware.
 
       // Optionally clean up the vault-location file
       const oldMetadataPath = this.settings.metadataStorageFolder;
