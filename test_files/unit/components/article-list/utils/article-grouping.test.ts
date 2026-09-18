@@ -74,6 +74,64 @@ describe("article-grouping utils", () => {
       expect(Object.keys(result)).toHaveLength(1);
     });
 
+    it("buckets an undated item with a firstSeenMs under its first-seen date when the fallback is enabled", () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-09-15T10:46:00Z"));
+
+      const articles: FeedItem[] = [
+        {
+          guid: "1",
+          title: "A1",
+          feedTitle: "Feed A",
+          feedUrl: "url-a",
+          pubDate: "",
+          firstSeenMs: new Date("2026-08-25T10:00:00Z").getTime(),
+          read: false,
+          starred: false,
+          tags: [],
+          coverImage: "",
+        },
+      ];
+
+      const result = groupArticles(articles, "date", undefined, true);
+
+      expect(Object.keys(result)).toEqual(["Aug 25, 2026"]);
+    });
+
+    it("buckets an undated item under 'Unknown date' when the first-seen fallback is disabled", () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-09-15T10:46:00Z"));
+
+      const articles: FeedItem[] = [
+        {
+          guid: "1",
+          title: "A1",
+          feedTitle: "Feed A",
+          feedUrl: "url-a",
+          pubDate: "",
+          firstSeenMs: new Date("2026-08-25T10:00:00Z").getTime(),
+          read: false,
+          starred: false,
+          tags: [],
+          coverImage: "",
+        },
+      ];
+
+      const result = groupArticles(articles, "date", undefined, false);
+
+      expect(Object.keys(result)).toEqual(["Unknown date"]);
+    });
+
+    it("buckets an undated item under 'Unknown date' when there is no firstSeenMs, even with the fallback enabled", () => {
+      const articles: FeedItem[] = [
+        { guid: "1", title: "A1", feedTitle: "Feed A", feedUrl: "url-a", pubDate: "", read: false, starred: false, tags: [], coverImage: "" },
+      ];
+
+      const result = groupArticles(articles, "date", undefined, true);
+
+      expect(Object.keys(result)).toEqual(["Unknown date"]);
+    });
+
     it("groups articles with no tags under 'All articles' when groupBy is 'none'", () => {
       const articles: FeedItem[] = [
         { guid: "1", title: "A1", feedTitle: "Feed A", feedUrl: "url-a", pubDate: "2024-01-01", read: false, starred: false, tags: [], coverImage: "" },
