@@ -290,6 +290,7 @@ export default class RssDashboardPlugin extends Plugin {
   private hasCompletedStartupSavedArticleValidation = false;
   private wasNullSettingsLoad = false;
   private settingsLoadFailed = false;
+  private warnedSaveBlockedByLoadFailure = false;
   private whatsNewHandledThisSession = false;
   private vaultMetadataReloadTimer: number | null = null;
   private startupRefreshTimeoutId: number | null = null;
@@ -941,7 +942,7 @@ export default class RssDashboardPlugin extends Plugin {
       // deprecation warning takes priority over What's New when both would
       // otherwise apply, since it names a hard cutoff the user must act on.
       // A user who keeps deferring it will not see that release's What's
-      // New popup at all — accepted deliberately rather than stacking two
+      // New popup at all â€” accepted deliberately rather than stacking two
       // modals or queuing one behind the other.
       this.app.workspace.onLayoutReady(() => {
         if (
@@ -956,7 +957,7 @@ export default class RssDashboardPlugin extends Plugin {
       });
 
       // Gotcha: "Obsidian finished loading" (onload / onLayoutReady) is not
-      // "the user is using this plugin" — a restored session fires both
+      // "the user is using this plugin" â€” a restored session fires both
       // without the dashboard ever being opened, so gate on the view.
       this.registerEvent(
         this.app.workspace.on("active-leaf-change", () => {
@@ -2805,7 +2806,9 @@ export default class RssDashboardPlugin extends Plugin {
           error instanceof Error ? error.message : "Unknown error"
         }`,
       );
-      this.settings = DEFAULT_SETTINGS;
+      this.settings = JSON.parse(
+        JSON.stringify(DEFAULT_SETTINGS),
+      ) as RssDashboardSettings;
       this.settingsLoadFailed = true;
     }
   }
@@ -3102,6 +3105,21 @@ export default class RssDashboardPlugin extends Plugin {
   }
 
   async saveSettings() {
+    // After a failed load this.settings is an in-memory fallback, not the
+    // user's data. Any later save (a refresh, a read-state change) would
+    // write it over their real data.json, so hold all writes until a load
+    // succeeds.
+    if (this.settingsLoadFailed) {
+      storageLog("saveSettings skipped: settings failed to load");
+      if (!this.warnedSaveBlockedByLoadFailure) {
+        this.warnedSaveBlockedByLoadFailure = true;
+        new Notice(
+          "Could not read plugin settings, so changes are not being saved. Fix data.json, then reload the plugin.",
+        );
+      }
+      return;
+    }
+
     storageLog("saveSettings invoked", {
       mode: this.settings.storageMode,
       folder: this.settings.storageFolder,
