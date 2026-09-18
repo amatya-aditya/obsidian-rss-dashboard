@@ -16,6 +16,7 @@ import {
   stripNonContentHtmlNodes,
 } from "../utils/html-text";
 import { normalizeSubstackImageUrl } from "../utils/substack-image-url";
+import { resolveDisplayDate } from "./feed-parser/feed-retention";
 import {
   addMathTurndownRule,
   protectMathForMarkdown,
@@ -40,15 +41,18 @@ export class ArticleSaver {
   private settings: ArticleSavingSettings;
   private turndownService: TurndownService;
   private corsProxyUrl: string | undefined;
+  private getUseFirstSeenDateFallback: () => boolean;
 
   constructor(
     app: App,
     settings: ArticleSavingSettings,
     corsProxyUrl?: string,
+    getUseFirstSeenDateFallback: () => boolean = () => false,
   ) {
     this.app = app;
     this.settings = settings;
     this.corsProxyUrl = corsProxyUrl;
+    this.getUseFirstSeenDateFallback = getUseFirstSeenDateFallback;
     this.turndownService = new TurndownService();
     addMathTurndownRule(this.turndownService);
   }
@@ -92,6 +96,19 @@ export class ArticleSaver {
     } catch {
       return html;
     }
+  }
+
+  /**
+   * The date to stamp into saved-note frontmatter/templates: the real
+   * `pubDate` when it resolves to an actual instant, falling back to
+   * `firstSeenMs` (when `useFirstSeenDateFallback` is enabled) when there's
+   * no real date, and only reaching for "now" when neither is available.
+   */
+  private resolveSavedArticleDate(item: FeedItem): Date {
+    return (
+      resolveDisplayDate(item, this.getUseFirstSeenDateFallback()) ??
+      new Date()
+    );
   }
 
   private getPreferredFeedHtml(item: FeedItem): string {
@@ -261,7 +278,7 @@ export class ArticleSaver {
 
     const tagsString = tagNames.join(", ");
 
-    const pubDate = item.pubDate ? new Date(item.pubDate) : new Date();
+    const pubDate = this.resolveSavedArticleDate(item);
 
     frontmatter = this.replaceDatePlaceholders(
       frontmatter,
@@ -362,7 +379,7 @@ export class ArticleSaver {
           this.cleanHtml(this.getPreferredFeedHtml(item)),
         );
 
-    const pubDate = item.pubDate ? new Date(item.pubDate) : new Date();
+    const pubDate = this.resolveSavedArticleDate(item);
 
     const tagNames = (item.tags ?? [])
       .map((tag) => tag.name)

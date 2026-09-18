@@ -245,6 +245,7 @@ export class ReaderView extends ItemView {
         this.webViewerIntegration = new WebViewerIntegration(
           this.app as unknown as ObsidianApp,
           settings.articleSaving,
+          () => settings.useFirstSeenDateFallback,
         );
       }
     } catch {

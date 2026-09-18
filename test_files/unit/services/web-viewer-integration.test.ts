@@ -453,6 +453,98 @@ guid: "{{guid}}"
       h.cleanup();
     });
 
+    it("resolves a pubDate that fails Date.parse cleanly instead of silently using the save time (#303)", () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-03-31T12:00:00Z"));
+
+      const h = createWebViewerIntegrationHarness({
+        settings: {
+          frontmatterTemplate: `---
+date: "{{date}}"
+isoDate: "{{isoDate}}"
+---`,
+        },
+      });
+      const integration = h.integration as unknown as {
+        generateFrontmatter: (item: FeedItem) => string;
+      };
+      const generateFrontmatter = integration.generateFrontmatter.bind(h.integration);
+
+      // CST = UTC-6, so 09:00 CST is 15:00 UTC. Some engines fail to parse
+      // the obsolete named zone via Date.parse() and produce NaN;
+      // getPubDateMs normalizes it to an explicit offset first.
+      const item = buildFeedItem({
+        title: "Zoned Date",
+        pubDate: "Fri, 06 May 1983 09:00:00 CST",
+      });
+
+      const out = generateFrontmatter(item);
+      expect(out).toContain('date: "May 6, 1983"');
+      expect(out).toContain('isoDate: "1983-05-06T15:00:00.000Z"');
+
+      h.cleanup();
+    });
+
+    it("falls back to firstSeenMs (not the save time) when pubDate is unparseable, a first-seen timestamp exists, and useFirstSeenDateFallback is enabled (#303)", () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-03-31T12:00:00Z"));
+
+      const h = createWebViewerIntegrationHarness({
+        settings: {
+          frontmatterTemplate: `---
+date: "{{date}}"
+isoDate: "{{isoDate}}"
+---`,
+        },
+        useFirstSeenDateFallback: true,
+      });
+      const integration = h.integration as unknown as {
+        generateFrontmatter: (item: FeedItem) => string;
+      };
+      const generateFrontmatter = integration.generateFrontmatter.bind(h.integration);
+
+      const item = buildFeedItem({
+        title: "First Seen Fallback",
+        pubDate: "not-a-date",
+        firstSeenMs: Date.parse("2024-05-01T12:00:00Z"),
+      });
+
+      const out = generateFrontmatter(item);
+      expect(out).toContain('date: "May 1, 2024"');
+      expect(out).toContain('isoDate: "2024-05-01T12:00:00.000Z"');
+
+      h.cleanup();
+    });
+
+    it("does not substitute firstSeenMs for the frontmatter date when useFirstSeenDateFallback is disabled (default) (#303)", () => {
+      const now = new Date("2026-03-31T12:00:00Z");
+      vi.useFakeTimers();
+      vi.setSystemTime(now);
+
+      const h = createWebViewerIntegrationHarness({
+        settings: {
+          frontmatterTemplate: `---
+isoDate: "{{isoDate}}"
+---`,
+        },
+      });
+      const integration = h.integration as unknown as {
+        generateFrontmatter: (item: FeedItem) => string;
+      };
+      const generateFrontmatter = integration.generateFrontmatter.bind(h.integration);
+
+      const item = buildFeedItem({
+        title: "No Fallback",
+        pubDate: "not-a-date",
+        firstSeenMs: Date.parse("2024-05-01T12:00:00Z"),
+      });
+
+      const out = generateFrontmatter(item);
+      expect(out).toContain(`isoDate: "${now.toISOString()}"`);
+
+      h.cleanup();
+    });
+
     it("ensureFolderExists creates folder only when missing", async () => {
       const h = createWebViewerIntegrationHarness();
       const integration = h.integration as unknown as {

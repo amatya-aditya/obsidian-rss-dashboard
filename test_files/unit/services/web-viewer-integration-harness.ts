@@ -15,6 +15,7 @@ export interface WebViewerIntegrationHarnessOverrides {
   settings?: Partial<ArticleSavingSettings>;
   webViewerPlugin?: WebViewerPluginStub | null;
   webpageContainer?: HTMLElement | null;
+  useFirstSeenDateFallback?: boolean;
 }
 
 export type TestWebViewerIntegration = WebViewerIntegration & {
@@ -64,6 +65,7 @@ export function buildFeedItem(overrides: Partial<FeedItem> = {}): FeedItem {
     feedUrl: overrides.feedUrl ?? "https://example.com/feed",
     coverImage: overrides.coverImage ?? "",
     image: overrides.image ?? "",
+    firstSeenMs: overrides.firstSeenMs,
   };
 }
 
@@ -110,7 +112,11 @@ export function createWebViewerIntegrationHarness(
     Object.assign(settings, overrides.settings);
   }
 
-  const integration = new WebViewerIntegration(app, settings);
+  const integration = new WebViewerIntegration(
+    app,
+    settings,
+    () => overrides.useFirstSeenDateFallback ?? false,
+  );
 
   const createdContainer = overrides.webpageContainer === undefined;
   const webpageContainer =
