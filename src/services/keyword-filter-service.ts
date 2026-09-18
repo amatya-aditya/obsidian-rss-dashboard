@@ -150,7 +150,7 @@ export class KeywordFilterService {
     }
 
     if (matchMode === "partial") {
-      return text.toLocaleLowerCase().includes(keyword.toLocaleLowerCase());
+      return text.toLowerCase().includes(keyword.toLowerCase());
     }
 
     const escapedKeyword = this.escapeRegex(keyword);
