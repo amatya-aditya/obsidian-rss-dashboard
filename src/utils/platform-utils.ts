@@ -125,7 +125,7 @@ export function formatArticleDate(
   const base = formatDateWithRelative(date);
   const result = style === "absolute" ? { text: base.title, title: base.text } : base;
   if (options?.isFirstSeenFallback) {
-    return { ...result, title: `First seen: ${result.title}` };
+    return { text: `${result.text} *`, title: `First seen: ${result.title}` };
   }
   return result;
 }

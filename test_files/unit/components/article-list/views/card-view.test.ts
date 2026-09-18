@@ -91,6 +91,7 @@ describe("card-view", () => {
 
     const dateEl = container.querySelector(".rss-dashboard-article-date");
     expect(dateEl?.textContent).not.toMatch(/Invalid date/i);
+    expect(dateEl?.textContent).toMatch(/\*$/);
     expect(dateEl?.getAttribute("title")).toContain("First seen:");
   });
 
@@ -109,6 +110,7 @@ describe("card-view", () => {
     const dateEl = container.querySelector(".rss-dashboard-article-date");
     expect(dateEl?.textContent).not.toMatch(/Invalid date/i);
     expect(dateEl?.textContent).toBe("Unknown date");
+    expect(dateEl?.textContent).not.toMatch(/\*$/);
     expect(dateEl?.getAttribute("title")).not.toContain("First seen:");
   });
 

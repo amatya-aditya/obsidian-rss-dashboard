@@ -351,7 +351,7 @@ describe("platform-utils.misc", () => {
     });
   });
 
-  it("formatArticleDate prefixes the title with 'First seen:' when isFirstSeenFallback is set", () => {
+  it("prefixes the title with 'First seen:' and appends '*' to the visible text when isFirstSeenFallback is set", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-05-15T12:00:00Z"));
 
@@ -360,8 +360,36 @@ describe("platform-utils.misc", () => {
       isFirstSeenFallback: true,
     });
 
-    expect(result.text).toBe("Today");
+    expect(result.text).toBe("Today *");
     expect(result.title).toMatch(/^First seen: /);
+
+    vi.useRealTimers();
+  });
+
+  it("appends '*' to the absolute-style visible text too when isFirstSeenFallback is set", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-15T12:00:00Z"));
+
+    const date = new Date("2026-05-15T10:00:00Z");
+    const result = formatArticleDate(date, "absolute", {
+      isFirstSeenFallback: true,
+    });
+
+    expect(result.text).toMatch(/\*$/);
+    expect(result.title).toBe("First seen: Today");
+
+    vi.useRealTimers();
+  });
+
+  it("leaves the visible text and title untouched when isFirstSeenFallback is not set", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-15T12:00:00Z"));
+
+    const date = new Date("2026-05-15T10:00:00Z");
+    const result = formatArticleDate(date, "relative");
+
+    expect(result.text).toBe("Today");
+    expect(result.title).not.toMatch(/^First seen: /);
 
     vi.useRealTimers();
   });
