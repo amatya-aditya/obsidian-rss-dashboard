@@ -8,7 +8,24 @@ import {
   getPubDateMs,
   normalizeRfc822Zone,
   resolveDisplayDate,
+  compareGuidOrdinal,
 } from "../../../../src/services/feed-parser/feed-retention.js";
+
+describe("compareGuidOrdinal", () => {
+  it("orders strings by plain UTF-16 code-unit comparison", () => {
+    expect(compareGuidOrdinal("a", "b")).toBeLessThan(0);
+    expect(compareGuidOrdinal("b", "a")).toBeGreaterThan(0);
+    expect(compareGuidOrdinal("a", "a")).toBe(0);
+  });
+
+  it("does not depend on Intl/locale-sensitive collation", () => {
+    // Under locale-aware collation (e.g. Swedish/German), "z" < "ä" is a
+    // classic example of ordering that flips relative to plain code-unit
+    // comparison. The ordinal comparator must ignore that entirely.
+    expect(compareGuidOrdinal("z", "ä")).toBeLessThan(0);
+    expect(compareGuidOrdinal("ä", "z")).toBeGreaterThan(0);
+  });
+});
 
 describe("isProtectedItem", () => {
   const makeItem = (overrides?: Partial<FeedItem>): FeedItem => ({
@@ -281,6 +298,34 @@ describe("applyFeedRetentionLimits", () => {
       nowMs: Date.parse("2024-01-10T00:00:00Z"),
     });
     expect(updated.items.map((i) => i.guid)).toEqual(["new", "saved-old"]);
+  });
+
+  it("breaks ties between same-effective-date items by ordinal guid, independent of locale", () => {
+    const sameDate = "2024-01-05T00:00:00Z";
+    const feed: Feed = {
+      title: "Test Feed",
+      url: "https://example.com/feed.xml",
+      folder: "Uncategorized",
+      lastUpdated: Date.now(),
+      items: [
+        makeItem("z-item", sameDate),
+        makeItem("a-item", sameDate),
+        makeItem("ä-item", sameDate),
+      ],
+    };
+
+    const updated = applyFeedRetentionLimits(feed, {
+      nowMs: Date.parse("2024-01-10T00:00:00Z"),
+    });
+
+    // Ordinal (code-unit) order: "a-item" < "z-item" < "ä-item". A
+    // locale-aware collation (e.g. Swedish) would sort "ä-item" before
+    // "z-item" instead — this asserts the ordinal, locale-independent order.
+    expect(updated.items.map((i) => i.guid)).toEqual([
+      "a-item",
+      "z-item",
+      "ä-item",
+    ]);
   });
 
   it("auto-deletes unread and read items older than cutoff by default while keeping protected items", () => {

@@ -18,6 +18,10 @@ import {
 } from "./settings-migration";
 import { canonicalizeItemIdentityUrl } from "./url-utils";
 import { normalizeRefreshIntervalMinutes } from "./validation";
+import {
+  getEffectiveDateMs,
+  compareGuidOrdinal,
+} from "../services/feed-parser/feed-retention";
 
 const DEFAULT_FEED_KEYWORD_RULES = {
   overrideGlobalRules: false,
@@ -464,28 +468,11 @@ export function dedupeAndNormalizeFeedItems(
   let didChange = false;
   const useFirstSeenDateFallback = options?.useFirstSeenDateFallback ?? false;
 
-  // Kept local rather than imported from services/feed-parser/feed-retention.js:
-  // this file lives in utils/, which does not depend on services/.
-  const getPubDateMs = (pubDate: string | undefined | null): number => {
-    if (!pubDate) return 0;
-    const ms = Date.parse(pubDate);
-    return Number.isFinite(ms) ? ms : 0;
-  };
-
-  const getEffectiveDateMs = (item: FeedItem): number => {
-    const pubDateMs = getPubDateMs(item.pubDate);
-    if (pubDateMs > 0) return pubDateMs;
-    if (useFirstSeenDateFallback && typeof item.firstSeenMs === "number") {
-      return item.firstSeenMs;
-    }
-    return 0;
-  };
-
   const byNewest = (a: FeedItem, b: FeedItem): number => {
-    const aMs = getEffectiveDateMs(a);
-    const bMs = getEffectiveDateMs(b);
+    const aMs = getEffectiveDateMs(a, useFirstSeenDateFallback);
+    const bMs = getEffectiveDateMs(b, useFirstSeenDateFallback);
     if (aMs !== bMs) return bMs - aMs;
-    return (a.guid || "").localeCompare(b.guid || "");
+    return compareGuidOrdinal(a.guid || "", b.guid || "");
   };
 
   const pickLonger = (a: string, b: string): string => {
