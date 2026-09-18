@@ -629,6 +629,55 @@ describe("settings-loader", () => {
       ]);
     });
 
+    it("orders items identically to feed-retention.ts's byNewest (via applyFeedRetentionLimits)", async () => {
+      const { dedupeAndNormalizeFeedItems } =
+        await import("../../../src/utils/settings-loader");
+      const { applyFeedRetentionLimits } = await import(
+        "../../../src/services/feed-parser/feed-retention"
+      );
+
+      const items: FeedItem[] = [
+        // RFC 822 obsolete named-zone edge case (Date.parse alone is NaN in
+        // some engines; getPubDateMs normalizes it before parsing).
+        createFeedItem({
+          guid: "rfc822-cst",
+          title: "RFC 822 CST",
+          link: "https://example.com/rfc822-cst",
+          pubDate: "Fri, 06 May 1983 09:00:00 CST",
+        }),
+        // RFC 3339 / ISO 8601 date.
+        createFeedItem({
+          guid: "rfc3339",
+          title: "RFC 3339",
+          link: "https://example.com/rfc3339",
+          pubDate: "2024-06-01T00:00:00Z",
+        }),
+        // Tied-effective-date pair, distinguished only by guid tie-break.
+        createFeedItem({
+          guid: "tied-z",
+          title: "Tied z",
+          link: "https://example.com/tied-z",
+          pubDate: "2024-01-05T00:00:00Z",
+        }),
+        createFeedItem({
+          guid: "tied-a",
+          title: "Tied a",
+          link: "https://example.com/tied-a",
+          pubDate: "2024-01-05T00:00:00Z",
+        }),
+      ];
+
+      const feeds: Feed[] = [createFeed({ items: [...items] })];
+      dedupeAndNormalizeFeedItems(feeds);
+      const loaderOrder = feeds[0].items.map((i) => i.guid);
+
+      const retentionOrder = applyFeedRetentionLimits(
+        createFeed({ items: [...items] }),
+      ).items.map((i) => i.guid);
+
+      expect(loaderOrder).toEqual(retentionOrder);
+    });
+
     it("canonicalizes item GUIDs via canonicalizeItemIdentityUrl", async () => {
       const { canonicalizeItemIdentityUrl } =
         await import("../../../src/utils/url-utils");
