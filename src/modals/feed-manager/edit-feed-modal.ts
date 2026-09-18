@@ -36,6 +36,7 @@ import {
   removeTagsFromItemsByName,
 } from "../../services/tag-applier";
 import { resolveTagObjects } from "../../utils/tag-resolver";
+import { getEffectiveDateMs } from "../../services/feed-parser/feed-retention.js";
 
 const EMPTY_FEED_VALIDATION_WARNING =
   "Feed validation passed, however no content detected.";
@@ -927,7 +928,8 @@ export class EditFeedModal extends Modal {
         if (newMaxItemsLimit > 0 && this.feed.items.length > newMaxItemsLimit) {
           this.feed.items.sort(
             (a, b) =>
-              new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime(),
+              getEffectiveDateMs(b, this.plugin.settings.useFirstSeenDateFallback) -
+              getEffectiveDateMs(a, this.plugin.settings.useFirstSeenDateFallback),
           );
           this.feed.items = this.feed.items.slice(0, newMaxItemsLimit);
           new Notice(

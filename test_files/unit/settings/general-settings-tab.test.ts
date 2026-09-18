@@ -85,6 +85,40 @@ describe("renderGeneralSettingsTab() retention protections", () => {
     expect(saveSettings).toHaveBeenCalledTimes(4);
   });
 
+  it("renders the first-seen-date fallback toggle, off by default, and persists changes immediately", async () => {
+    const containerEl = createDiv();
+    document.body.appendChild(containerEl);
+    const settings = cloneSettings();
+    const saveSettings = vi.fn(async () => {});
+    const plugin = {
+      app: { workspace: { revealLeaf: vi.fn(async () => {}) } },
+      settings,
+      saveSettings,
+      getActiveDashboardView: vi.fn(async () => null),
+      importPortableDataBundleFromFile: vi.fn(async () => {}),
+      exportPortableDataBundle: vi.fn(async () => {}),
+      applyFeedLimitsToAllFeeds: vi.fn(async () => {}),
+      refreshFeeds: vi.fn(async () => {}),
+      settingTab: null,
+    } as unknown as GeneralSettingsPlugin;
+
+    renderGeneralSettingsTab(containerEl, plugin);
+
+    const toggle = getSettingByName(
+      containerEl,
+      "Use first-seen date for undated items",
+    ).querySelector('input[type="checkbox"]') as HTMLInputElement;
+    expect(toggle.checked).toBe(false);
+    expect(settings.useFirstSeenDateFallback).toBe(false);
+
+    toggle.checked = true;
+    toggle.dispatchEvent(new Event("change"));
+    await flushPromises();
+
+    expect(settings.useFirstSeenDateFallback).toBe(true);
+    expect(saveSettings).toHaveBeenCalledTimes(1);
+  });
+
   it("confirms and immediately applies a disabled retention protection", async () => {
     const containerEl = createDiv();
     document.body.appendChild(containerEl);

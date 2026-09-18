@@ -28,7 +28,7 @@ export function parseJSON(
               title: item.title || "",
               link: itemUrl,
               description: item.summary || "",
-              pubDate: item.date_published || new Date().toISOString(),
+              pubDate: item.date_published || "",
               guid: item.id || itemUrl || "",
               author: item.authors?.[0]?.name,
               content: item.content_html || item.content_text || "",

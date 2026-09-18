@@ -115,14 +115,19 @@ export function formatDateWithRelative(date: Date | string): {
  * use formatDateWithRelative() directly for that.
  */
 export function formatArticleDate(
-  date: Date | string,
+  date: Date | string | null | undefined,
   style: "relative" | "absolute" = "relative",
+  options?: { isFirstSeenFallback?: boolean },
 ): { text: string; title: string } {
-  const base = formatDateWithRelative(date);
-  if (style === "absolute") {
-    return { text: base.title, title: base.text };
+  if (!date) {
+    return { text: "Unknown date", title: "Unknown date" };
   }
-  return base;
+  const base = formatDateWithRelative(date);
+  const result = style === "absolute" ? { text: base.title, title: base.text } : base;
+  if (options?.isFirstSeenFallback) {
+    return { text: `${result.text} *`, title: `First seen: ${result.title}` };
+  }
+  return result;
 }
 
 export function ensureUtf8Meta(html: string): string {

@@ -137,11 +137,10 @@ export class KagiSmallwebView extends ItemView {
     const feedUpdatedStr =
       doc.querySelector("feed > updated")?.textContent || "";
     if (feedUpdatedStr) {
-      try {
-        this.smallwebFeedUpdatedAt = new Date(feedUpdatedStr);
-      } catch {
-        this.smallwebFeedUpdatedAt = null;
-      }
+      const feedUpdatedAt = new Date(feedUpdatedStr);
+      this.smallwebFeedUpdatedAt = Number.isNaN(feedUpdatedAt.getTime())
+        ? null
+        : feedUpdatedAt;
     }
 
     const entryElements = Array.from(doc.querySelectorAll("entry"));
@@ -175,12 +174,10 @@ export class KagiSmallwebView extends ItemView {
         const blogName = authorName || domain;
 
         const updatedStr = entry.querySelector("updated")?.textContent || "";
-        let updatedAt: Date;
-        try {
-          updatedAt = new Date(updatedStr);
-        } catch {
-          updatedAt = new Date();
-        }
+        const parsedUpdatedAt = new Date(updatedStr);
+        const updatedAt: Date = Number.isNaN(parsedUpdatedAt.getTime())
+          ? new Date()
+          : parsedUpdatedAt;
 
         const summaryEl = entry.querySelector("summary");
         const contentEl = entry.querySelector("content");
@@ -329,7 +326,10 @@ export class KagiSmallwebView extends ItemView {
     });
 
     // Last update time with link to API
-    if (this.smallwebFeedUpdatedAt) {
+    if (
+      this.smallwebFeedUpdatedAt &&
+      !Number.isNaN(this.smallwebFeedUpdatedAt.getTime())
+    ) {
       const lastUpdateSection = titleSection.createDiv({
         cls: "rss-smallweb-last-update",
       });

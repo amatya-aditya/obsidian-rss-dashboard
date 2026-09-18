@@ -1,8 +1,12 @@
 import type { ArticleGroupByOption, Feed, FeedItem } from "../../../types/types";
+import { resolveDisplayDate } from "../../../services/feed-parser/feed-retention";
 
-export function getArticleDateGroupKey(pubDate: string): string {
-  const target = new Date(pubDate);
-  if (isNaN(target.getTime())) return "Unknown date";
+export function getArticleDateGroupKey(
+  item: Pick<FeedItem, "pubDate" | "firstSeenMs">,
+  useFirstSeenDateFallback?: boolean,
+): string {
+  const target = resolveDisplayDate(item, useFirstSeenDateFallback);
+  if (!target) return "Unknown date";
 
   const now = new Date();
   if (now.toDateString() === target.toDateString()) return "Today";
@@ -22,6 +26,7 @@ export function groupArticles(
   articles: FeedItem[],
   groupBy: ArticleGroupByOption,
   getFeedFolderFn?: (feedUrl: string) => string | undefined,
+  useFirstSeenDateFallback?: boolean,
 ): Record<string, FeedItem[]> {
   if (groupBy === "none") return { "All articles": articles };
 
@@ -34,7 +39,7 @@ export function groupArticles(
           break;
         case "date":
         case "date_feed":
-          key = getArticleDateGroupKey(article.pubDate);
+          key = getArticleDateGroupKey(article, useFirstSeenDateFallback);
           break;
 
         case "folder":

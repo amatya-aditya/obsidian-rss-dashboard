@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import type { FeedItem } from "../../../../../src/types/types";
 import { showArticleContextMenu } from "../../../../../src/components/article-list/utils/article-context-menu";
+import { Menu } from "obsidian";
 
 function buildContext(overrides: {
   callbacks?: {
@@ -117,5 +118,27 @@ describe("article-context-menu utils", () => {
     showArticleContextMenu(new MouseEvent("contextmenu") as unknown as MouseEvent, article, ctx);
 
     expect(true).toBe(true);
+  });
+
+  it("omits 'Open in browser' and 'Copy article URL' for a linkless article", () => {
+    article.link = "";
+    const ctx = buildContext();
+
+    showArticleContextMenu(new MouseEvent("contextmenu") as unknown as MouseEvent, article, ctx);
+
+    const titles = Menu.lastItems.map((item) => item.title);
+    expect(titles).not.toContain("Open in browser");
+    expect(titles).not.toContain("Copy article URL");
+    expect(titles).toContain("Open in split view");
+  });
+
+  it("includes 'Open in browser' and 'Copy article URL' for an article with a link", () => {
+    const ctx = buildContext();
+
+    showArticleContextMenu(new MouseEvent("contextmenu") as unknown as MouseEvent, article, ctx);
+
+    const titles = Menu.lastItems.map((item) => item.title);
+    expect(titles).toContain("Open in browser");
+    expect(titles).toContain("Copy article URL");
   });
 });

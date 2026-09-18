@@ -127,6 +127,7 @@ export function renderArticleSavingSettingsTab(
     "{{dateShort}} (YYYY-MM-DD)",
     "{{date:FORMAT}} (Moment.js format, e.g. {{date:YYYY/MM/DD}})",
     "{{isoDate}}",
+    "{{firstSeen}} (Date this article was first seen in the dashboard, independent of the 'Use first-seen date for undated items' display setting; falls back to the publish date if unavailable)",
     "{{saveDate}} (Local save date YYYY-MM-DD)",
     "{{saveTime12}} (Local save time 12-hour format, e.g. 02:45 PM)",
     "{{saveTime24}} (Local save time 24-hour military format, e.g. 14:45)",

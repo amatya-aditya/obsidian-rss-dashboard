@@ -16,6 +16,7 @@ import {
   stripNonContentHtmlNodes,
 } from "../utils/html-text";
 import { normalizeSubstackImageUrl } from "../utils/substack-image-url";
+import { resolveDisplayDate } from "./feed-parser/feed-retention";
 import {
   addMathTurndownRule,
   protectMathForMarkdown,
@@ -40,15 +41,18 @@ export class ArticleSaver {
   private settings: ArticleSavingSettings;
   private turndownService: TurndownService;
   private corsProxyUrl: string | undefined;
+  private getUseFirstSeenDateFallback: () => boolean;
 
   constructor(
     app: App,
     settings: ArticleSavingSettings,
     corsProxyUrl?: string,
+    getUseFirstSeenDateFallback: () => boolean = () => false,
   ) {
     this.app = app;
     this.settings = settings;
     this.corsProxyUrl = corsProxyUrl;
+    this.getUseFirstSeenDateFallback = getUseFirstSeenDateFallback;
     this.turndownService = new TurndownService();
     addMathTurndownRule(this.turndownService);
   }
@@ -92,6 +96,19 @@ export class ArticleSaver {
     } catch {
       return html;
     }
+  }
+
+  /**
+   * The date to stamp into saved-note frontmatter/templates: the real
+   * `pubDate` when it resolves to an actual instant, falling back to
+   * `firstSeenMs` (when `useFirstSeenDateFallback` is enabled) when there's
+   * no real date, and only reaching for "now" when neither is available.
+   */
+  private resolveSavedArticleDate(item: FeedItem): Date {
+    return (
+      resolveDisplayDate(item, this.getUseFirstSeenDateFallback()) ??
+      new Date()
+    );
   }
 
   private getPreferredFeedHtml(item: FeedItem): string {
@@ -261,9 +278,13 @@ export class ArticleSaver {
 
     const tagsString = tagNames.join(", ");
 
-    const pubDate = item.pubDate ? new Date(item.pubDate) : new Date();
+    const pubDate = this.resolveSavedArticleDate(item);
 
-    frontmatter = this.replaceDatePlaceholders(frontmatter, pubDate)
+    frontmatter = this.replaceDatePlaceholders(
+      frontmatter,
+      pubDate,
+      item.firstSeenMs,
+    )
       .replace(/{{title}}/g, escapeYamlDoubleQuoted(item.title))
       .replace(/{{tags}}/g, tagsString)
       .replace(/{{source}}/g, escapeYamlDoubleQuoted(item.feedTitle))
@@ -296,15 +317,29 @@ export class ArticleSaver {
     return (moment as unknown as MomentFactory)(date).format(formatStr);
   }
 
-  private replaceDatePlaceholders(text: string, date: Date): string {
-    const validDate = Number.isNaN(date.getTime()) ? new Date() : date;
-    const isoDateTime = validDate.toISOString();
-
-    const longFormattedDate = validDate.toLocaleDateString(undefined, {
+  private formatLongDate(date: Date): string {
+    return date.toLocaleDateString(undefined, {
       year: "numeric",
       month: "long",
       day: "numeric",
     });
+  }
+
+  private replaceDatePlaceholders(
+    text: string,
+    date: Date,
+    firstSeenMs?: number,
+  ): string {
+    const validDate = Number.isNaN(date.getTime()) ? new Date() : date;
+    const isoDateTime = validDate.toISOString();
+
+    const longFormattedDate = this.formatLongDate(validDate);
+
+    const firstSeenDate =
+      typeof firstSeenMs === "number" && !Number.isNaN(firstSeenMs)
+        ? new Date(firstSeenMs)
+        : validDate;
+    const longFormattedFirstSeen = this.formatLongDate(firstSeenDate);
 
     const now = new Date();
     const saveDate = this.formatMoment(now, "YYYY-MM-DD");
@@ -316,6 +351,7 @@ export class ArticleSaver {
       .replace(/{{dateShort}}/g, this.formatMoment(validDate, "YYYY-MM-DD"))
       .replace(/{{isoDate}}/g, isoDateTime)
       .replace(/{{isoDateTime}}/g, isoDateTime)
+      .replace(/{{firstSeen}}/g, longFormattedFirstSeen)
       .replace(/{{saveDate}}/g, saveDate)
       .replace(/{{saveTime12}}/g, saveTime12)
       .replace(/{{saveTime24}}/g, saveTime24);
@@ -343,7 +379,7 @@ export class ArticleSaver {
           this.cleanHtml(this.getPreferredFeedHtml(item)),
         );
 
-    const pubDate = item.pubDate ? new Date(item.pubDate) : new Date();
+    const pubDate = this.resolveSavedArticleDate(item);
 
     const tagNames = (item.tags ?? [])
       .map((tag) => tag.name)
@@ -355,7 +391,11 @@ export class ArticleSaver {
       ? withSavedTagName(tagNames).join(", ")
       : tagNames.join(", ");
 
-    const replacedWithDates = this.replaceDatePlaceholders(template, pubDate);
+    const replacedWithDates = this.replaceDatePlaceholders(
+      template,
+      pubDate,
+      item.firstSeenMs,
+    );
 
     return replacedWithDates
       .replace(/{{title}}/g, item.title)

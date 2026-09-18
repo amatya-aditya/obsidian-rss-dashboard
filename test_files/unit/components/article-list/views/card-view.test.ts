@@ -75,6 +75,45 @@ describe("card-view", () => {
     expect(container.querySelector(".rss-dashboard-card-tags-region")).toBeTruthy();
   });
 
+  it("shows the first-seen date in the card footer when pubDate is empty and the fallback setting is on", () => {
+    const firstSeenMs = Date.parse("2026-01-01T00:00:00Z");
+    const ctx = baseViewContext();
+    ctx.settings.useFirstSeenDateFallback = true;
+    renderCardView(
+      container,
+      [makeArticle({ pubDate: "", firstSeenMs })],
+      {
+        ...ctx,
+        showCardToolbar: true,
+      },
+      baseViewDeps(),
+    );
+
+    const dateEl = container.querySelector(".rss-dashboard-article-date");
+    expect(dateEl?.textContent).not.toMatch(/Invalid date/i);
+    expect(dateEl?.textContent).toMatch(/\*$/);
+    expect(dateEl?.getAttribute("title")).toContain("First seen:");
+  });
+
+  it("shows 'Unknown date', not the first-seen date, in the card footer when pubDate is empty and the fallback setting is off", () => {
+    const firstSeenMs = Date.parse("2026-01-01T00:00:00Z");
+    renderCardView(
+      container,
+      [makeArticle({ pubDate: "", firstSeenMs })],
+      {
+        ...baseViewContext(),
+        showCardToolbar: true,
+      },
+      baseViewDeps(),
+    );
+
+    const dateEl = container.querySelector(".rss-dashboard-article-date");
+    expect(dateEl?.textContent).not.toMatch(/Invalid date/i);
+    expect(dateEl?.textContent).toBe("Unknown date");
+    expect(dateEl?.textContent).not.toMatch(/\*$/);
+    expect(dateEl?.getAttribute("title")).not.toContain("First seen:");
+  });
+
   it("renders cover image when coverImage is set", () => {
     renderCardView(
       container,

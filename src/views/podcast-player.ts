@@ -27,6 +27,7 @@ export class PodcastPlayer {
   private previousVolume = 1;
   private progressTrackingEnabled: boolean;
   private defaultPlaySpeed: number;
+  private useFirstSeenDateFallback: boolean;
   private isAutoplayEnabled = false;
   private playlistWindowStart: number | undefined;
   private episodeVisibleCount = 20;
@@ -77,12 +78,14 @@ export class PodcastPlayer {
     ) => void,
     progressTrackingEnabled = true,
     defaultPlaySpeed = 1,
+    useFirstSeenDateFallback = false,
   ) {
     this.container = container;
     this.app = app;
     this.theme = theme || "obsidian";
     this.progressTrackingEnabled = progressTrackingEnabled;
     this.defaultPlaySpeed = defaultPlaySpeed ?? 1;
+    this.useFirstSeenDateFallback = useFirstSeenDateFallback;
     if (playlist) {
       this.playlist = playlist;
       this.originalPlaylist = [...playlist];
@@ -822,6 +825,7 @@ export class PodcastPlayer {
       episodes: this.playlist,
       activeEpisodeGuid: this.currentItem?.guid,
       theme: this.theme,
+      useFirstSeenDateFallback: this.useFirstSeenDateFallback,
       isAutoplayEnabled: this.isAutoplayEnabled,
       sortOrder: this.sortOrder,
       visibleCount: this.episodeVisibleCount,
