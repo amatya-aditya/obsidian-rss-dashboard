@@ -87,6 +87,14 @@ export interface FeedItem {
     fileSize?: string;
     authors?: string;
   };
+
+  /**
+   * Epoch-millisecond timestamp of when this vault's local storage first
+   * recorded this item, stamped once by `mergeFeedHistoryItems` and never
+   * regenerated afterward. Used as the effective-date fallback for items
+   * with no parseable `pubDate`, when `useFirstSeenDateFallback` is enabled.
+   */
+  firstSeenMs?: number;
 }
 
 export type FeedEncoding = "auto" | "windows-1251";
@@ -488,6 +496,12 @@ export interface RssDashboardSettings {
   protectSaved: boolean;
   protectTagged: boolean;
   protectUnread: boolean;
+  /**
+   * When enabled, articles with no declared `pubDate` sort and retain by
+   * their `firstSeenMs` timestamp instead of sorting to the bottom and
+   * being deleted immediately once auto-delete is enabled. Off by default.
+   */
+  useFirstSeenDateFallback: boolean;
   viewStyle: "list" | "card" | "feed";
   showFeedArt: boolean;
   showThumbnails: boolean;
@@ -676,6 +690,7 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
   protectSaved: true,
   protectTagged: false,
   protectUnread: false,
+  useFirstSeenDateFallback: false,
   viewStyle: "card",
   showFeedArt: true,
   showThumbnails: true,

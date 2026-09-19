@@ -4,9 +4,9 @@
 
 Branch and create worktrees off `dev`, never `master`. PRs target `dev`.
 `master` takes no direct commits — it receives only merged `release/x.x.x`
-branches, and every commit on it is a tagged release. Branch names use
-`feature/`, `fix/`, `docs/`, or `chore/` plus a short description. See
-**Branch Descriptions** in `CONTRIBUTING.md`.
+branches, and every commit on it is a tagged release. Branch and worktree
+naming follows `docs/agents/branch-naming.md`. See also **Branch
+Descriptions** in `CONTRIBUTING.md`.
 
 Verify the base before writing code. `refs/remotes/origin/HEAD` points at
 `origin/master`, so a newly created worktree — and the branch an agent session
@@ -55,6 +55,7 @@ Before making or reviewing a code or test change, read these files in full:
 1. `.instructions.md`
 2. `eslint.config.mjs`
 3. `docs/development/test_coverage/testing-guide.md`
+4. `docs/agents/branch-naming.md`
 
 Before scoping or implementing a feature or bug fix, also read
 `.agents/project-context.md` for the repository map and change workflow.

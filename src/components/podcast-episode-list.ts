@@ -1,4 +1,5 @@
 import type { FeedItem } from "../types/types";
+import { resolveDisplayDate } from "../services/feed-parser/feed-retention";
 
 const EPISODE_BATCH_SIZE = 20;
 
@@ -7,6 +8,7 @@ export interface PodcastEpisodeListOptions {
   activeEpisodeGuid?: string;
   theme: string;
   sortOrder: "recent" | "oldest";
+  useFirstSeenDateFallback?: boolean;
   isAutoplayEnabled?: boolean;
   visibleCount?: number;
   progressData?: ReadonlyMap<string, { position: number; duration: number }>;
@@ -146,10 +148,14 @@ export class PodcastEpisodeList {
     const info = row.createDiv({ cls: "episode-list-row-info" });
     info.createDiv({ cls: "episode-list-row-title", text: episode.title });
     const meta = info.createDiv({ cls: "episode-list-row-meta" });
-    if (episode.pubDate) {
+    const displayDate = resolveDisplayDate(
+      episode,
+      this.options.useFirstSeenDateFallback,
+    );
+    if (displayDate) {
       meta.createSpan({
         cls: "episode-list-row-date",
-        text: new Date(episode.pubDate).toLocaleDateString(),
+        text: displayDate.toLocaleDateString(),
       });
     }
     const duration = episode.duration || episode.itunes?.duration;

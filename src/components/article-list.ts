@@ -10,6 +10,7 @@ import { ArticleEmptyState } from "./article-empty-state";
 import { setCssProps } from "../utils/platform-utils";
 import type { FilterContext } from "../utils/filter-detection";
 import { HighlightService } from "../services/highlight-service";
+import { getEffectiveDateMs } from "../services/feed-parser/feed-retention";
 import { createTagsDropdownPortal } from "../utils/tags-dropdown-portal";
 import {
   groupArticles as groupArticlesUtil,
@@ -680,13 +681,17 @@ export class ArticleList {
     article: FeedItem,
     sortOrder: "newest" | "oldest",
   ): number {
-    const newTime = new Date(article.pubDate).getTime();
+    const useFirstSeenDateFallback = this.settings.useFirstSeenDateFallback;
+    const newTime = getEffectiveDateMs(article, useFirstSeenDateFallback);
     for (let i = 0; i < this.articles.length; i++) {
       const existingArticle = this.articles[i];
       if (!existingArticle) {
         continue;
       }
-      const existingTime = new Date(existingArticle.pubDate).getTime();
+      const existingTime = getEffectiveDateMs(
+        existingArticle,
+        useFirstSeenDateFallback,
+      );
       if (
         sortOrder === "newest" ? newTime > existingTime : newTime < existingTime
       ) {
@@ -1368,8 +1373,11 @@ export class ArticleList {
     articles: FeedItem[],
     groupBy: ArticleGroupByOption,
   ): Record<string, FeedItem[]> {
-    return groupArticlesUtil(articles, groupBy, (feedUrl: string) =>
-      this.getFeedFolder(feedUrl),
+    return groupArticlesUtil(
+      articles,
+      groupBy,
+      (feedUrl: string) => this.getFeedFolder(feedUrl),
+      this.settings.useFirstSeenDateFallback,
     );
   }
 

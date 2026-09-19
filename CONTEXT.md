@@ -54,6 +54,14 @@ _Avoid_: Expiration date, purge limit
 The user-selected set of article states (such as starred, saved to vault, or tagged) that shield an article from automatic deletion and feed capacity trimming.
 _Avoid_: Pinned articles, whitelisted items, lock state
 
+**First-seen timestamp**:
+The moment this vault's local storage first recorded a given article. Scoped to local observation, not publication: an article deleted by auto-delete and later re-fetched under the same identity gets a new first-seen timestamp, since no prior local record survives to carry forward. Distinct from `pubDate`, which (when present) reflects the publisher's own claimed publish time.
+_Avoid_: First-fetched date, discovery date, seen-at
+
+**Effective date**:
+The single date an article sorts and retains by: its `pubDate` when the source provides one, falling back to its first-seen timestamp when it does not (gated by the "use first-seen date for undated items" setting). The resolved value that sorting and auto-delete logic actually consume, as opposed to either of its two possible sources.
+_Avoid_: Sort date, resolved date, display date
+
 ## Import preview
 
 **Existing feed**:

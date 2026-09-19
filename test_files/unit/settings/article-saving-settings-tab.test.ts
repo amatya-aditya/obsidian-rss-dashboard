@@ -344,4 +344,21 @@ describe("Article Saving settings help text", () => {
 
     expect(listItems).toContain("{{image}}");
   });
+
+  it("includes {{firstSeen}} in the available variables list", () => {
+    const containerEl = createDiv();
+    const plugin = createPlugin();
+    const onRefresh = vi.fn();
+
+    renderArticleSavingSettingsTab(containerEl, plugin, onRefresh);
+
+    const helpText = containerEl.querySelector(".rss-dashboard-template-help");
+    const listItems = Array.from(
+      helpText?.querySelectorAll(".rss-dashboard-variable-list li") ?? [],
+    ).map((li) => li.textContent);
+
+    expect(
+      listItems.some((text) => text?.startsWith("{{firstSeen}}")),
+    ).toBe(true);
+  });
 });

@@ -325,8 +325,14 @@ export default class RssDashboardPlugin extends Plugin {
         protectTagged: this.settings.protectTagged,
         protectUnread: this.settings.protectUnread,
       }),
+      () => this.settings.useFirstSeenDateFallback,
     );
-    this.articleSaver = new ArticleSaver(this.app, this.settings.articleSaving);
+    this.articleSaver = new ArticleSaver(
+      this.app,
+      this.settings.articleSaving,
+      undefined,
+      () => this.settings.useFirstSeenDateFallback,
+    );
     this.importExportService = new ImportExportService({
       settings: this.settings,
       isMobile: Platform.isMobileApp,
@@ -375,6 +381,7 @@ export default class RssDashboardPlugin extends Plugin {
 
   private async initializeImageCache(): Promise<void> {
     if (this.imageCacheService) return;
+    if (!this.settings.display.allowImageCaching) return;
 
     const adapter = this.app.vault.adapter;
     if (
@@ -388,7 +395,7 @@ export default class RssDashboardPlugin extends Plugin {
     this.imageCacheService = new ImageCacheService({
       adapter,
       cacheRoot: normalizePath(
-        `${this.app.vault.configDir}/plugins/${this.manifest.id}/image-cache`,
+        `${this.manifest.dir ?? `${this.app.vault.configDir}/plugins/${this.manifest.id}`}/image-cache`,
       ),
       fetchImage: async (url) => {
         const response = await requestUrl({ url, method: "GET" });
@@ -469,8 +476,12 @@ export default class RssDashboardPlugin extends Plugin {
 
   public async setImageCachingEnabled(enabled: boolean): Promise<void> {
     this.settings.display.allowImageCaching = enabled;
-    if (!enabled) {
+    if (enabled) {
+      await this.initializeImageCache();
+    } else {
       await this.clearImageCache();
+      await this.imageCacheService?.destroy();
+      this.imageCacheService = null;
     }
     await this.saveSettings();
   }
@@ -1596,6 +1607,7 @@ export default class RssDashboardPlugin extends Plugin {
             protectTagged: this.settings.protectTagged,
             protectUnread: this.settings.protectUnread,
           },
+          useFirstSeenDateFallback: this.settings.useFirstSeenDateFallback,
         });
         feed.items = updated.items;
 
@@ -2716,6 +2728,7 @@ export default class RssDashboardPlugin extends Plugin {
 
       const didNormalizeAndDedupeItems = dedupeAndNormalizeFeedItems(
         this.settings.feeds,
+        { useFirstSeenDateFallback: this.settings.useFirstSeenDateFallback },
       );
 
       // Guard: skip the early write if we loaded from null defaults.

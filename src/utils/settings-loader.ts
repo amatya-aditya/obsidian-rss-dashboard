@@ -18,6 +18,10 @@ import {
 } from "./settings-migration";
 import { canonicalizeItemIdentityUrl } from "./url-utils";
 import { normalizeRefreshIntervalMinutes } from "./validation";
+import {
+  getEffectiveDateMs,
+  compareGuidOrdinal,
+} from "../services/feed-parser/feed-retention";
 
 const DEFAULT_FEED_KEYWORD_RULES = {
   overrideGlobalRules: false,
@@ -457,20 +461,18 @@ export function migrateSettings(settings: RssDashboardSettings): boolean {
  * @param {Feed[]} feeds Feeds whose `items` arrays are deduplicated and re-sorted in place
  * @returns {boolean} true if any feed's items were changed (deduped, re-keyed, or had a nullish entry dropped), false if nothing changed
  */
-export function dedupeAndNormalizeFeedItems(feeds: Feed[]): boolean {
+export function dedupeAndNormalizeFeedItems(
+  feeds: Feed[],
+  options?: { useFirstSeenDateFallback?: boolean },
+): boolean {
   let didChange = false;
-
-  const getPubDateMs = (pubDate: string | undefined | null): number => {
-    if (!pubDate) return 0;
-    const ms = Date.parse(pubDate);
-    return Number.isFinite(ms) ? ms : 0;
-  };
+  const useFirstSeenDateFallback = options?.useFirstSeenDateFallback ?? false;
 
   const byNewest = (a: FeedItem, b: FeedItem): number => {
-    const aMs = getPubDateMs(a.pubDate);
-    const bMs = getPubDateMs(b.pubDate);
+    const aMs = getEffectiveDateMs(a, useFirstSeenDateFallback);
+    const bMs = getEffectiveDateMs(b, useFirstSeenDateFallback);
     if (aMs !== bMs) return bMs - aMs;
-    return (a.guid || "").localeCompare(b.guid || "");
+    return compareGuidOrdinal(a.guid || "", b.guid || "");
   };
 
   const pickLonger = (a: string, b: string): string => {

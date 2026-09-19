@@ -2,6 +2,10 @@ import { setIcon } from "obsidian";
 import type { FeedItem } from "../../../types/types";
 import { formatArticleDate } from "../../../utils/platform-utils";
 import {
+  getPubDateMs,
+  resolveDisplayDate,
+} from "../../../services/feed-parser/feed-retention";
+import {
   getArticlePreviewSummaryText,
   resolveArticlePreviewImage,
 } from "../utils/article-preview-utils";
@@ -146,9 +150,14 @@ function renderArticleCard(
   const dateEl = feedFooter.createDiv({
     cls: "rss-dashboard-article-date",
   });
+  const displayDate = resolveDisplayDate(
+    article,
+    ctx.settings.useFirstSeenDateFallback,
+  );
   const dateInfo = formatArticleDate(
-    article.pubDate,
+    displayDate,
     ctx.settings.display.articleDateStyle ?? "relative",
+    { isFirstSeenFallback: getPubDateMs(article.pubDate) <= 0 && !!displayDate },
   );
   dateEl.textContent = dateInfo.text;
   dateEl.setAttribute("title", dateInfo.title);

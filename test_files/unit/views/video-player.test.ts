@@ -110,6 +110,31 @@ describe("VideoPlayer", () => {
     );
   });
 
+  it("shows 'Unknown date', not 'Invalid Date', for an undated video when the first-seen fallback is off", () => {
+    const container = createContainer();
+    const player = new VideoPlayer(container);
+
+    player.loadVideo(
+      baseItem({ description: "", pubDate: "", firstSeenMs: Date.now() }),
+    );
+
+    const date = container.querySelector<HTMLElement>(".rss-video-date");
+    expect(date?.textContent).toBe("Unknown date");
+  });
+
+  it("shows the first-seen date for an undated video when the fallback is on", () => {
+    const container = createContainer();
+    const player = new VideoPlayer(container, undefined, undefined, true, true);
+    const firstSeenMs = Date.parse("2026-01-01T00:00:00Z");
+
+    player.loadVideo(
+      baseItem({ description: "", pubDate: "", firstSeenMs }),
+    );
+
+    const date = container.querySelector<HTMLElement>(".rss-video-date");
+    expect(date?.textContent).toBe(new Date(firstSeenMs).toLocaleDateString());
+  });
+
   it("sanitizes description by removing scripts and constraining anchor attributes (current behavior)", () => {
     const container = createContainer();
     const player = new VideoPlayer(container);

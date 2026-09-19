@@ -28,6 +28,7 @@ import type {
 import { Sidebar } from "../components/sidebar";
 import { ArticleList } from "../components/article-list";
 import { ArticleSaver } from "../services/article-saver";
+import { getEffectiveDateMs } from "../services/feed-parser/feed-retention.js";
 import { ArticleRenderer } from "../components/article-renderer";
 import { ReaderView, RSS_READER_VIEW_TYPE } from "./reader-view";
 import { FeedManagerModal } from "../modals/feed-manager-modal";
@@ -165,6 +166,7 @@ export class RssDashboardView extends ItemView {
       this.app,
       this.settings.articleSaving,
       this.settings.corsProxyEnabled ? this.settings.corsProxyUrl : undefined,
+      () => this.settings.useFirstSeenDateFallback,
     );
 
     // Always open the dashboard in All Feeds view. Any startup filtering is
@@ -1699,11 +1701,11 @@ export class RssDashboardView extends ItemView {
 
     if (this.settings.articleSort === "oldest") {
       articles.sort(
-        (a, b) => new Date(a.pubDate).getTime() - new Date(b.pubDate).getTime(),
+        (a, b) => getEffectiveDateMs(a, this.settings.useFirstSeenDateFallback) - getEffectiveDateMs(b, this.settings.useFirstSeenDateFallback),
       );
     } else {
       articles.sort(
-        (a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime(),
+        (a, b) => getEffectiveDateMs(b, this.settings.useFirstSeenDateFallback) - getEffectiveDateMs(a, this.settings.useFirstSeenDateFallback),
       );
     }
 
@@ -2286,7 +2288,7 @@ export class RssDashboardView extends ItemView {
 
   private handleToggleTagsCollapse(): void {
     this.tagsCollapsed = !this.tagsCollapsed;
-    void this.render();
+    this.rerenderSidebarOnly();
   }
 
   private handleToggleFolderCollapse(
@@ -2321,7 +2323,27 @@ export class RssDashboardView extends ItemView {
 
     this.settings.collapsedFolders = this.collapsedFolders;
     void this.plugin.saveSettings();
-    void this.render();
+    this.rerenderSidebarOnly();
+  }
+
+  /**
+   * Re-render only the sidebar with current view state. For changes that
+   * affect nothing outside the sidebar (folder/tags collapse state).
+   */
+  private rerenderSidebarOnly(): void {
+    if (!this.sidebar) return;
+    this.sidebar.clearFolderPathCache();
+    this.sidebar["options"] = {
+      currentFolder: this.currentFolder,
+      currentFeed: this.currentFeed,
+      selectedTags: this.selectedTags,
+      tagsCollapsed: this.tagsCollapsed,
+      collapsedFolders: this.collapsedFolders,
+      selectedFolders: this.selectedFolders,
+      selectedFeeds: this.selectedFeeds,
+    };
+    this.sidebar["settings"] = this.settings;
+    this.sidebar.render();
   }
 
   private handleFolderMultiSelect(folders: string[]): void {
@@ -2729,7 +2751,19 @@ export class RssDashboardView extends ItemView {
     }
     this.settings.sidebarCollapsed = !this.settings.sidebarCollapsed;
     void this.plugin.saveSettings();
-    this.scheduleRender();
+    this.applySidebarCollapsedState();
+  }
+
+  /**
+   * Collapsed state is purely presentational (CSS class + sidebar width/handle),
+   * so toggling it must not rebuild the article list or content area.
+   */
+  private applySidebarCollapsedState(): void {
+    this.containerEl.toggleClass(
+      "sidebar-collapsed",
+      this.settings.sidebarCollapsed,
+    );
+    this.applySidebarWidth();
   }
 
   // --- Article open/save actions ---
@@ -2849,7 +2883,7 @@ export class RssDashboardView extends ItemView {
     return feed.items
       .filter((item) => item.guid !== article.guid)
       .sort(
-        (a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime(),
+        (a, b) => getEffectiveDateMs(b, this.settings.useFirstSeenDateFallback) - getEffectiveDateMs(a, this.settings.useFirstSeenDateFallback),
       )
       .slice(0, 5);
   }
@@ -3445,7 +3479,7 @@ export class RssDashboardView extends ItemView {
       this.settings.articleFilter.value > 0
     ) {
       const maxAge = Date.now() - this.settings.articleFilter.value;
-      if (new Date(item.pubDate).getTime() <= maxAge) return false;
+      if (getEffectiveDateMs(item, this.settings.useFirstSeenDateFallback) <= maxAge) return false;
     }
 
     return true;
@@ -4374,7 +4408,7 @@ export class RssDashboardView extends ItemView {
       this.settings.articleFilter.value > 0
     ) {
       const maxAge = Date.now() - this.settings.articleFilter.value;
-      articles = articles.filter((a) => new Date(a.pubDate).getTime() > maxAge);
+      articles = articles.filter((a) => getEffectiveDateMs(a, this.settings.useFirstSeenDateFallback) > maxAge);
     }
 
     return articles.length;

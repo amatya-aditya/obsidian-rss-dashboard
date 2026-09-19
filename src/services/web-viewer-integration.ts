@@ -3,6 +3,7 @@ import { FeedItem, ArticleSavingSettings } from "../types/types";
 import { sanitizeFilename } from "./article-saver";
 import { normalizeSubstackImageUrl } from "../utils/substack-image-url";
 import { escapeYamlDoubleQuoted } from "../utils/yaml-escape";
+import { resolveDisplayDate } from "./feed-parser/feed-retention";
 
 interface WebViewerPlugin {
   openWebpage?(url: string, title: string): Promise<void>;
@@ -25,10 +26,16 @@ interface ObsidianApp extends App {
 export class WebViewerIntegration {
   private app: ObsidianApp;
   private settings: ArticleSavingSettings;
+  private getUseFirstSeenDateFallback: () => boolean;
 
-  constructor(app: ObsidianApp, settings: ArticleSavingSettings) {
+  constructor(
+    app: ObsidianApp,
+    settings: ArticleSavingSettings,
+    getUseFirstSeenDateFallback: () => boolean = () => false,
+  ) {
     this.app = app;
     this.settings = settings;
+    this.getUseFirstSeenDateFallback = getUseFirstSeenDateFallback;
   }
 
   async openInWebViewer(url: string, title: string): Promise<boolean> {
@@ -274,6 +281,19 @@ export class WebViewerIntegration {
     return file;
   }
 
+  /**
+   * The date to stamp into saved-note frontmatter/templates: the real
+   * `pubDate` when it resolves to an actual instant, falling back to
+   * `firstSeenMs` (when `useFirstSeenDateFallback` is enabled) when there's
+   * no real date, and only reaching for "now" when neither is available.
+   */
+  private resolveSavedArticleDate(item: FeedItem): Date {
+    return (
+      resolveDisplayDate(item, this.getUseFirstSeenDateFallback()) ??
+      new Date()
+    );
+  }
+
   protected generateFrontmatter(item: FeedItem): string {
     let frontmatter = this.settings.frontmatterTemplate;
 
@@ -307,21 +327,13 @@ guid: "{{guid}}"
 
     const tagsString = tagNames.join(", ");
 
-    const pubDate = item.pubDate ? new Date(item.pubDate) : new Date();
-    const isoDateTime = Number.isNaN(pubDate.getTime())
-      ? new Date().toISOString()
-      : pubDate.toISOString();
-    const dateString = Number.isNaN(pubDate.getTime())
-      ? new Date().toLocaleDateString(undefined, {
-          year: "numeric",
-          month: "long",
-          day: "numeric",
-        })
-      : pubDate.toLocaleDateString(undefined, {
-          year: "numeric",
-          month: "long",
-          day: "numeric",
-        });
+    const pubDate = this.resolveSavedArticleDate(item);
+    const isoDateTime = pubDate.toISOString();
+    const dateString = pubDate.toLocaleDateString(undefined, {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
 
     const now = new Date();
     const saveDate = this.formatMoment(now, "YYYY-MM-DD");
@@ -359,10 +371,8 @@ guid: "{{guid}}"
   }
 
   protected applyTemplate(item: FeedItem, template: string): string {
-    const pubDate = item.pubDate ? new Date(item.pubDate) : new Date();
-    const isoDateTime = Number.isNaN(pubDate.getTime())
-      ? new Date().toISOString()
-      : pubDate.toISOString();
+    const pubDate = this.resolveSavedArticleDate(item);
+    const isoDateTime = pubDate.toISOString();
 
     const formattedDate = new Date().toLocaleDateString(undefined, {
       year: "numeric",

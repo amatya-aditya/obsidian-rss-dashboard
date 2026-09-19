@@ -447,6 +447,79 @@ describe("FeedParser.parseFeed", () => {
     requestUrlSpy.mockRestore();
   });
 
+  it("does not fabricate a pubDate for an undated item on a feed's first-ever fetch", async () => {
+    const feedUrl = "https://example.com/undated-feed.xml";
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Undated Feed</title>
+    <link>https://example.com</link>
+    <item>
+      <title>Undated Article</title>
+      <link>https://example.com/undated</link>
+      <description>desc</description>
+      <guid>https://example.com/undated</guid>
+    </item>
+  </channel>
+</rss>`;
+
+    const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
+    requestUrlSpy.mockResolvedValueOnce(mockResponse(200, xml));
+
+    const parser = new FeedParser(DEFAULT_SETTINGS.display, [], mediaSettings);
+
+    // No existingFeed passed: this is the very first fetch of a brand-new subscription.
+    const result = await parser.parseFeed(feedUrl, null);
+
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0].pubDate).toBeFalsy();
+
+    requestUrlSpy.mockRestore();
+  });
+
+  it("does not skip-and-lose an undated item appearing during a refresh with auto-delete enabled", async () => {
+    const feedUrl = "https://example.com/undated-refresh.xml";
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Undated Feed</title>
+    <link>https://example.com</link>
+    <item>
+      <title>Undated Article</title>
+      <link>https://example.com/undated</link>
+      <description>desc</description>
+      <guid>https://example.com/undated</guid>
+    </item>
+  </channel>
+</rss>`;
+
+    const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
+    requestUrlSpy.mockResolvedValueOnce(mockResponse(200, xml));
+
+    const parser = new FeedParser(DEFAULT_SETTINGS.display, [], mediaSettings);
+
+    const existingFeed: Feed = {
+      title: "Undated Feed",
+      url: feedUrl,
+      folder: "Uncategorized",
+      items: [],
+      lastUpdated: Date.now(),
+      autoDeleteDuration: 30,
+    };
+
+    const result = await parser.parseFeed(feedUrl, existingFeed);
+
+    // Today, an undated item is a "new" item during refresh (there is no prior
+    // record to update), and the refresh-cutoff pre-filter in feed-parser-class.ts
+    // treats it as maximally old (getPubDateMs returns 0) — so it is skipped here,
+    // just as it would have been "deleted immediately" had it been stored first.
+    // This is the pre-#293 baseline this ticket restores: consistent, not fabricated.
+    expect(result.items).toHaveLength(0);
+    expect(result.lastRefreshDiagnostics?.skippedByRefreshCutoffCount).toBe(1);
+
+    requestUrlSpy.mockRestore();
+  });
+
   it("hides restored old unread items again when autoDeleteDuration is re-enabled", async () => {
     const feedUrl = "https://example.com/feed.xml";
     const fixedNowMs = Date.parse("2026-05-01T00:00:00Z");

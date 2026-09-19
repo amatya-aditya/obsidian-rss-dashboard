@@ -26,7 +26,7 @@ import { globalFetchSemaphore } from "./fetch-semaphore.js";
 import {
   applyFeedRetentionLimits,
   mergeFeedHistoryItems,
-  getPubDateMs,
+  getEffectiveDateMs,
   isProtectedItem,
 } from "./feed-retention.js";
 import type { FeedParseOptions, ParsedFeed, ParsedItem } from "./types.js";
@@ -73,6 +73,7 @@ export class FeedParser {
   private getFolders: () => Folder[];
   private getCorsProxyEnabled: () => boolean;
   private getRetentionProtections: () => FeedRetentionProtections;
+  private getUseFirstSeenDateFallback: () => boolean;
 
   constructor(
     displaySettings: DisplaySettings,
@@ -86,6 +87,7 @@ export class FeedParser {
       protectTagged: false,
       protectUnread: false,
     }),
+    getUseFirstSeenDateFallback: () => boolean = () => false,
   ) {
     this.displaySettings = displaySettings;
     this.availableTags = availableTags;
@@ -93,6 +95,7 @@ export class FeedParser {
     this.getFolders = getFolders;
     this.getCorsProxyEnabled = getCorsProxyEnabled;
     this.getRetentionProtections = getRetentionProtections;
+    this.getUseFirstSeenDateFallback = getUseFirstSeenDateFallback;
     this.mediaSettings = mediaSettings ?? {
       autoTagVideos: true,
       defaultVideoTag: "Video",
@@ -557,8 +560,13 @@ export class FeedParser {
         if (
           autoDeleteCutoffMs > 0 &&
           !isProtectedItem(existingItem, this.getRetentionProtections()) &&
-          getPubDateMs(item.pubDate || existingItem.pubDate) <=
-            autoDeleteCutoffMs
+          getEffectiveDateMs(
+            {
+              pubDate: item.pubDate || existingItem.pubDate,
+              firstSeenMs: existingItem.firstSeenMs,
+            },
+            this.getUseFirstSeenDateFallback(),
+          ) <= autoDeleteCutoffMs
         ) {
           skippedByRefreshCutoffCount++;
           continue;
@@ -663,7 +671,10 @@ export class FeedParser {
             { read: false } as FeedItem,
             this.getRetentionProtections(),
           ) &&
-          getPubDateMs(item.pubDate) <= autoDeleteCutoffMs
+          getEffectiveDateMs(
+            { pubDate: item.pubDate, firstSeenMs: Date.now() },
+            this.getUseFirstSeenDateFallback(),
+          ) <= autoDeleteCutoffMs
         ) {
           skippedByRefreshCutoffCount++;
           continue;
@@ -713,7 +724,7 @@ export class FeedParser {
             url,
           ),
           content: this.convertRelativeUrlsInContent(item.content || "", url),
-          pubDate: item.pubDate || new Date().toISOString(),
+          pubDate: item.pubDate || "",
           guid: itemGuid,
           read: false,
           starred: false,
@@ -759,7 +770,8 @@ export class FeedParser {
           !(
             autoDeleteCutoffMs > 0 &&
             !isProtectedItem(item, this.getRetentionProtections()) &&
-            getPubDateMs(item.pubDate) <= autoDeleteCutoffMs
+            getEffectiveDateMs(item, this.getUseFirstSeenDateFallback()) <=
+              autoDeleteCutoffMs
           )
         ) {
           carriedForward.push(item);
@@ -869,6 +881,7 @@ export class FeedParser {
   private applyFeedLimits(feed: Feed): void {
     const updated = applyFeedRetentionLimits(feed, {
       protections: this.getRetentionProtections(),
+      useFirstSeenDateFallback: this.getUseFirstSeenDateFallback(),
     });
     feed.items = updated.items;
   }

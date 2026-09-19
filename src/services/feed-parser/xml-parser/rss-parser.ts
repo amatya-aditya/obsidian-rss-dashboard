@@ -259,7 +259,7 @@ export function parseRSS1(doc: Document, deps: RssParserDeps): ParsedFeed {
       title: itemTitle || "Untitled",
       link: itemLink || "#",
       description: itemDescription || "",
-      pubDate: pubDate || new Date().toISOString(),
+      pubDate: pubDate || "",
       guid: guid || itemLink || `item-${items.length}`,
       author: itemAuthor || undefined,
       content: contentValue || itemDescription || "",

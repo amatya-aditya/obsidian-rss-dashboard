@@ -61,6 +61,37 @@ describe("PodcastEpisodeList", () => {
     );
   });
 
+  it("omits the date row rather than showing 'Invalid Date' for an undated episode, and shows first-seen when the fallback is on", () => {
+    const undated: FeedItem = { ...episode(1), pubDate: "" };
+    const other = episode(2);
+
+    const containerOff = document.body.createDiv();
+    new PodcastEpisodeList(containerOff, {
+      episodes: [undated, other],
+      theme: "obsidian",
+      sortOrder: "recent",
+      onEpisodeSelected: vi.fn(),
+      onSortRequested: vi.fn(),
+    }).render();
+    const rowOff = containerOff.querySelectorAll(".episode-list-row")[0];
+    expect(rowOff?.querySelector(".episode-list-row-date")).toBeNull();
+
+    const firstSeenMs = Date.parse("2026-01-01T00:00:00Z");
+    const containerOn = document.body.createDiv();
+    new PodcastEpisodeList(containerOn, {
+      episodes: [{ ...undated, firstSeenMs }, other],
+      theme: "obsidian",
+      sortOrder: "recent",
+      useFirstSeenDateFallback: true,
+      onEpisodeSelected: vi.fn(),
+      onSortRequested: vi.fn(),
+    }).render();
+    const rowOn = containerOn.querySelectorAll(".episode-list-row")[0];
+    const dateEl = rowOn?.querySelector(".episode-list-row-date");
+    expect(dateEl?.textContent).not.toMatch(/Invalid date/i);
+    expect(dateEl?.textContent).toBe(new Date(firstSeenMs).toLocaleDateString());
+  });
+
   it("restores the active episode's batch without selecting it", () => {
     const container = document.body.createDiv();
     const onEpisodeSelected = vi.fn();

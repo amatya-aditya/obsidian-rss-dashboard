@@ -3,6 +3,7 @@ import { sanitizeAndAppendHtml } from "../utils/safe-html";
 import { scheduleProcessMathElements } from "../utils/math-rendering";
 import { FeedItem, RssDashboardSettings } from "../types/types";
 import { HighlightService } from "../services/highlight-service";
+import { getPubDateMs, resolveDisplayDate } from "../services/feed-parser/feed-retention";
 import { MediaService } from "../services/media-service";
 import { type FullArticleFetchFailureType } from "../utils/fetch-helpers";
 import {
@@ -165,6 +166,7 @@ export class ArticleRenderer {
         },
         this.onPlaybackProgress,
         this.settings.media.rememberPlaybackProgress,
+        this.settings.useFirstSeenDateFallback,
       );
       this.videoPlayer.loadVideo(item);
       if (this.relatedItems.length > 0) {
@@ -231,6 +233,7 @@ export class ArticleRenderer {
         this.onPlaybackProgress,
         this.settings.media.rememberPlaybackProgress,
         this.settings.media.defaultPlaySpeed ?? 1,
+        this.settings.useFirstSeenDateFallback,
       );
       this.podcastPlayer.loadEpisode(item, fullFeedEpisodes);
     } else {
@@ -276,9 +279,16 @@ export class ArticleRenderer {
       cls: "rss-reader-feed-title",
       text: item.feedTitle,
     });
+    const useFirstSeenDateFallback = this.settings.useFirstSeenDateFallback;
+    const displayDate = resolveDisplayDate(item, useFirstSeenDateFallback);
+    const isFirstSeenFallback = getPubDateMs(item.pubDate) <= 0 && !!displayDate;
     metaContainer.createDiv({
       cls: "rss-reader-pub-date",
-      text: new Date(item.pubDate).toLocaleString(),
+      text: displayDate
+        ? isFirstSeenFallback
+          ? `First seen: ${displayDate.toLocaleString()}`
+          : displayDate.toLocaleString()
+        : "Unknown date",
     });
 
     if (item.tags && item.tags.length > 0) {
