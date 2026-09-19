@@ -7,6 +7,7 @@ import {
   type RssDashboardSettings,
 } from "../../../src/types/types";
 import { shouldShowStorageDeprecationPrompt } from "../../../src/utils/storage-deprecation-prompt";
+import { applyFeedRetentionLimits } from "../../../src/services/feed-parser/feed-retention";
 
 interface VaultAdapterStub {
   write(path: string, content: string): Promise<void>;
@@ -1054,6 +1055,7 @@ describe("shard storage v2 user-state.json persistence (issue #278)", () => {
   const userStatePath = ".rss-dashboard-data/user-state.json";
 
   beforeEach(() => {
+    vi.restoreAllMocks();
     app = App.createMock();
     repository = new FeedStorageRepository(app);
   });
@@ -1078,57 +1080,145 @@ describe("shard storage v2 user-state.json persistence (issue #278)", () => {
     };
   }
 
-  it("does not drop a feed's article state when that feed has not hydrated in this session", async () => {
+  it("does not drop a feed's article state when its shard is corrupt and it hydrates with no items", async () => {
     const settings = v2Settings();
     settings.feeds = [
-      makeFeed({ feedId: "feed-loaded", items: [] }),
-      // Simulates a shard that failed to read, or hasn't synced to this
-      // device yet: the feed is configured but currently has no items.
-      makeFeed({ feedId: "feed-not-hydrated", items: [] }),
+      makeFeed({ feedId: "feed-ok", items: [] }),
+      makeFeed({ feedId: "feed-corrupt", items: [] }),
     ];
 
+    await vaultAdapter(app).write(
+      ".rss-dashboard-data/feeds/feed-corrupt.json",
+      "{not valid json",
+    );
     await vaultAdapter(app).write(
       userStatePath,
       JSON.stringify({
         version: 2,
-        states: {
-          "feed-not-hydrated:guid-1": { starred: true },
-        },
+        states: { "feed-corrupt:guid-1": { starred: true } },
       }),
     );
 
+    await repository.hydrateSettings(settings);
     await repository.saveUserStateFromFeeds(settings);
 
     const written = await readUserState();
-    expect(written.states["feed-not-hydrated:guid-1"]).toEqual({
+    expect(written.states["feed-corrupt:guid-1"]).toMatchObject({
       starred: true,
     });
   });
 
-  it("does not drop state for an item that retention pruned from an otherwise-hydrated feed's shard", async () => {
+  it("keeps state when a corrupt shard leaves a stale in-memory item list in place", async () => {
     const settings = v2Settings();
-    settings.feeds = [
-      makeFeed({
-        feedId: "feed-1",
-        // The pruned article's GUID ("guid-old") is no longer present.
-        items: [makeFeed().items[0]],
-      }),
-    ];
+    // The feed already has items in memory (defaults) when its shard fails.
+    const staleItem = { ...makeFeed().items[0], guid: "guid-1" };
+    settings.feeds = [makeFeed({ feedId: "feed-1", items: [staleItem] })];
 
+    await vaultAdapter(app).write(
+      ".rss-dashboard-data/feeds/feed-1.json",
+      "{not valid json",
+    );
     await vaultAdapter(app).write(
       userStatePath,
       JSON.stringify({
         version: 2,
-        states: {
-          "feed-1:guid-old": { read: true },
-        },
+        states: { "feed-1:guid-1": { read: true, starred: true } },
       }),
     );
 
+    await repository.hydrateSettings(settings);
     await repository.saveUserStateFromFeeds(settings);
 
     const written = await readUserState();
-    expect(written.states["feed-1:guid-old"]).toEqual({ read: true });
+    expect(written.states["feed-1:guid-1"]).toMatchObject({
+      read: true,
+      starred: true,
+    });
+    expect(settings.feeds[0].items[0].read).toBe(true);
+  });
+
+  it("does not drop state for an item that real retention pruning removed from a feed", async () => {
+    const settings = v2Settings();
+    const saveData = vi
+      .fn<(...args: unknown[]) => Promise<void>>()
+      .mockResolvedValue(undefined);
+    const base = makeFeed().items[0];
+    const oldItem = {
+      ...base,
+      guid: "guid-old",
+      pubDate: "2020-01-01T00:00:00Z",
+      read: true,
+    };
+    const newItem = {
+      ...base,
+      guid: "guid-new",
+      pubDate: "2026-01-01T00:00:00Z",
+    };
+    const feed = makeFeed({
+      feedId: "feed-1",
+      maxItemsLimit: 1,
+      items: [oldItem, newItem],
+    });
+    settings.feeds = [feed];
+
+    await repository.persistSettings(settings, saveData);
+    expect((await readUserState()).states["feed-1:guid-old"]).toMatchObject({
+      read: true,
+    });
+
+    settings.feeds = [applyFeedRetentionLimits(feed)];
+    expect(settings.feeds[0].items.map((item) => item.guid)).toEqual([
+      "guid-new",
+    ]);
+
+    await repository.persistSettings(settings, saveData);
+
+    expect((await readUserState()).states["feed-1:guid-old"]).toMatchObject({
+      read: true,
+    });
+  });
+
+  it("never overwrites a user-state.json that exists but cannot be read", async () => {
+    const settings = v2Settings();
+    settings.feeds = [
+      makeFeed({
+        feedId: "feed-1",
+        items: [{ ...makeFeed().items[0], guid: "guid-1", starred: true }],
+      }),
+    ];
+    const corrupt = "{not valid json";
+    await vaultAdapter(app).write(userStatePath, corrupt);
+
+    await repository.saveUserStateFromFeeds(settings);
+
+    expect(await vaultAdapter(app).read(userStatePath)).toBe(corrupt);
+  });
+
+  it("keeps a read-then-unread article unread after a real persist and rehydrate", async () => {
+    const settings = v2Settings();
+    const saveData = vi
+      .fn<(...args: unknown[]) => Promise<void>>()
+      .mockResolvedValue(undefined);
+    const item = { ...makeFeed().items[0], guid: "guid-toggle", read: true };
+    settings.feeds = [makeFeed({ feedId: "feed-1", items: [item] })];
+
+    await repository.persistSettings(settings, saveData);
+    item.read = false;
+    await repository.persistSettings(settings, saveData);
+
+    expect(
+      (await readUserState()).states["feed-1:guid-toggle"].read,
+    ).toBe(false);
+
+    // A fresh repository stands in for a restart: nothing is remembered but
+    // what was written to the vault.
+    const restarted = new FeedStorageRepository(app);
+    const reloaded = v2Settings();
+    reloaded.feeds = [makeFeed({ feedId: "feed-1", items: [] })];
+    await restarted.hydrateSettings(reloaded);
+
+    expect(reloaded.feeds[0].items[0].guid).toBe("guid-toggle");
+    expect(reloaded.feeds[0].items[0].read).toBe(false);
   });
 
   it("removes a feed's article state only when the feed itself is removed from settings", async () => {

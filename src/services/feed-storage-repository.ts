@@ -319,6 +319,7 @@ export class FeedStorageRepository {
    * overwritten with those defaults (issue #278).
    */
   private syncedUserStateKeys = new Set<string>();
+  private warnedUserStateUnreadable = false;
   private app: App;
 
   constructor(app: App, options?: { writeWrapper?: <T>(fn: () => Promise<T>) => Promise<T> }) {
@@ -444,7 +445,12 @@ export class FeedStorageRepository {
     
     let userStateLoaded = false;
     if (settings.storageMode === "vault-shards-v2") {
-      const userState = await this.loadUserState(settings);
+      const userStateResult = await this.readUserState(settings);
+      if (userStateResult.status === "unreadable") {
+        this.warnUserStateUnreadable();
+      }
+      const userState =
+        userStateResult.status === "ok" ? userStateResult.file : null;
       userStateLoaded = Boolean(userState);
       const { states: resolvedStates } = this.resolvePersistedUserState(userState, settings);
       for (const feed of settings.feeds) {
@@ -1307,21 +1313,44 @@ export class FeedStorageRepository {
     return (await this.app.vault.adapter.exists(path)) ? path : null;
   }
 
-  public async loadUserState(settings: RssDashboardSettings): Promise<UserStateFile | null> {
+  private async readUserState(
+    settings: RssDashboardSettings,
+  ): Promise<
+    | { status: "missing" }
+    | { status: "unreadable" }
+    | { status: "ok"; file: UserStateFile }
+  > {
     const path = this.getUserStatePath(settings);
     if (!(await this.app.vault.adapter.exists(path))) {
-      return null;
+      return { status: "missing" };
     }
     try {
       const raw = await this.app.vault.adapter.read(path);
       const parsed = JSON.parse(raw) as UserStateFile;
       if (parsed && typeof parsed.states === "object") {
-        return parsed;
+        return { status: "ok", file: parsed };
       }
     } catch (e) {
       storageError("Failed to parse user-state.json", e);
     }
-    return null;
+    return { status: "unreadable" };
+  }
+
+  public async loadUserState(settings: RssDashboardSettings): Promise<UserStateFile | null> {
+    const result = await this.readUserState(settings);
+    return result.status === "ok" ? result.file : null;
+  }
+
+  // An existing but unreadable file is the only copy of the user's article
+  // state, so it is never overwritten; warn once per session instead.
+  private warnUserStateUnreadable(): void {
+    if (this.warnedUserStateUnreadable) {
+      return;
+    }
+    this.warnedUserStateUnreadable = true;
+    new Notice(
+      "RSS Dashboard: user-state.json could not be read. Read, starred, and tag changes will not be saved until it is fixed or removed.",
+    );
   }
 
   /**
@@ -1382,8 +1411,15 @@ export class FeedStorageRepository {
     // hasn't synced yet, or whose item retention pruned) must not read as
     // intent to delete its state (issue #278). Start from what's already on
     // disk and only touch entries for items actually loaded right now.
-    const existingUserState = await this.loadUserState(settings);
-    const { states, unattributed } = this.resolvePersistedUserState(existingUserState, settings);
+    const existing = await this.readUserState(settings);
+    if (existing.status === "unreadable") {
+      this.warnUserStateUnreadable();
+      return;
+    }
+    const { states, unattributed } = this.resolvePersistedUserState(
+      existing.status === "ok" ? existing.file : null,
+      settings,
+    );
 
     const currentFeedIds = new Set<string>();
     for (const feed of settings.feeds) {
