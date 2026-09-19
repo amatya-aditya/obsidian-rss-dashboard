@@ -2271,7 +2271,7 @@ export class RssDashboardView extends ItemView {
 
   private handleToggleTagsCollapse(): void {
     this.tagsCollapsed = !this.tagsCollapsed;
-    void this.render();
+    this.rerenderSidebarOnly();
   }
 
   private handleToggleFolderCollapse(
@@ -2306,7 +2306,27 @@ export class RssDashboardView extends ItemView {
 
     this.settings.collapsedFolders = this.collapsedFolders;
     void this.plugin.saveSettings();
-    void this.render();
+    this.rerenderSidebarOnly();
+  }
+
+  /**
+   * Re-render only the sidebar with current view state. For changes that
+   * affect nothing outside the sidebar (folder/tags collapse state).
+   */
+  private rerenderSidebarOnly(): void {
+    if (!this.sidebar) return;
+    this.sidebar.clearFolderPathCache();
+    this.sidebar["options"] = {
+      currentFolder: this.currentFolder,
+      currentFeed: this.currentFeed,
+      selectedTags: this.selectedTags,
+      tagsCollapsed: this.tagsCollapsed,
+      collapsedFolders: this.collapsedFolders,
+      selectedFolders: this.selectedFolders,
+      selectedFeeds: this.selectedFeeds,
+    };
+    this.sidebar["settings"] = this.settings;
+    this.sidebar.render();
   }
 
   private handleFolderMultiSelect(folders: string[]): void {
@@ -2714,7 +2734,19 @@ export class RssDashboardView extends ItemView {
     }
     this.settings.sidebarCollapsed = !this.settings.sidebarCollapsed;
     void this.plugin.saveSettings();
-    this.scheduleRender();
+    this.applySidebarCollapsedState();
+  }
+
+  /**
+   * Collapsed state is purely presentational (CSS class + sidebar width/handle),
+   * so toggling it must not rebuild the article list or content area.
+   */
+  private applySidebarCollapsedState(): void {
+    this.containerEl.toggleClass(
+      "sidebar-collapsed",
+      this.settings.sidebarCollapsed,
+    );
+    this.applySidebarWidth();
   }
 
   // --- Article open/save actions ---
