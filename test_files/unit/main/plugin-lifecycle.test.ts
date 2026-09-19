@@ -365,6 +365,8 @@ describe("onload() initialization", () => {
   beforeEach(async () => {
     const app = createMockApp();
     plugin = await createPluginInstance(app);
+    // Several onload tests mock loadSettings(); onload() still reads settings.
+    plugin.settings = structuredClone(DEFAULT_SETTINGS);
     vi.clearAllMocks();
     mockRefreshAllFeeds.mockClear();
     mockParseFeed.mockClear();

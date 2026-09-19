@@ -220,6 +220,22 @@ export class ImageCacheService {
     return { cleared, failed };
   }
 
+  /** Deletes every cached file, the index, and the cache folder itself. */
+  async destroy(): Promise<void> {
+    this.cancelPendingWrites();
+    this.entries.clear();
+    this.initialized = false;
+
+    try {
+      if (await this.adapter.exists(this.cacheRoot)) {
+        await this.adapter.rmdir(this.cacheRoot, true);
+      }
+    } catch (error) {
+      console.warn("[RSS dashboard] Unable to remove image cache folder", error);
+    }
+    this.onChange?.();
+  }
+
   async removeUrls(rawUrls: Iterable<string>): Promise<{ cleared: number; failed: number }> {
     const urls = new Set(
       Array.from(rawUrls, (rawUrl) => this.normalizeUrl(rawUrl)).filter(

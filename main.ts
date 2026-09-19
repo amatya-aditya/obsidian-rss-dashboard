@@ -378,6 +378,7 @@ export default class RssDashboardPlugin extends Plugin {
 
   private async initializeImageCache(): Promise<void> {
     if (this.imageCacheService) return;
+    if (!this.settings.display.allowImageCaching) return;
 
     const adapter = this.app.vault.adapter;
     if (
@@ -391,7 +392,7 @@ export default class RssDashboardPlugin extends Plugin {
     this.imageCacheService = new ImageCacheService({
       adapter,
       cacheRoot: normalizePath(
-        `${this.app.vault.configDir}/plugins/${this.manifest.id}/image-cache`,
+        `${this.manifest.dir ?? `${this.app.vault.configDir}/plugins/${this.manifest.id}`}/image-cache`,
       ),
       fetchImage: async (url) => {
         const response = await requestUrl({ url, method: "GET" });
@@ -472,8 +473,12 @@ export default class RssDashboardPlugin extends Plugin {
 
   public async setImageCachingEnabled(enabled: boolean): Promise<void> {
     this.settings.display.allowImageCaching = enabled;
-    if (!enabled) {
+    if (enabled) {
+      await this.initializeImageCache();
+    } else {
       await this.clearImageCache();
+      await this.imageCacheService?.destroy();
+      this.imageCacheService = null;
     }
     await this.saveSettings();
   }
