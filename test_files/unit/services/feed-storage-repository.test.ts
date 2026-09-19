@@ -1438,3 +1438,88 @@ describe("shard storage v2 user-state.json persistence (issue #278)", () => {
     expect(written.unattributedLegacyStates?.["guid-late"]).toBeUndefined();
   });
 });
+
+describe("user-state.json health flag", () => {
+  const userStatePath = ".rss-dashboard-data/user-state.json";
+  let app: App;
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    app = App.createMock();
+  });
+
+  function v2Settings(): RssDashboardSettings {
+    const settings = cloneSettings();
+    settings.storageMode = "vault-shards-v2";
+    settings.feeds = [
+      makeFeed({
+        feedId: "feed-1",
+        items: [{ ...makeFeed().items[0], guid: "guid-1", starred: true }],
+      }),
+    ];
+    return settings;
+  }
+
+  it("reports unreadable and notifies once when hydrate finds a corrupt file", async () => {
+    const onUserStateHealthChange = vi.fn();
+    const repository = new FeedStorageRepository(app, {
+      onUserStateHealthChange,
+    });
+    await vaultAdapter(app).write(userStatePath, "{not valid json");
+
+    expect(repository.isUserStateUnreadable()).toBe(false);
+    await repository.hydrateSettings(v2Settings());
+
+    expect(repository.isUserStateUnreadable()).toBe(true);
+    expect(onUserStateHealthChange).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the flag set without re-notifying while the file stays corrupt", async () => {
+    const onUserStateHealthChange = vi.fn();
+    const repository = new FeedStorageRepository(app, {
+      onUserStateHealthChange,
+    });
+    const settings = v2Settings();
+    await vaultAdapter(app).write(userStatePath, "{not valid json");
+
+    await repository.hydrateSettings(settings);
+    await repository.saveUserStateFromFeeds(settings);
+    await repository.saveUserStateFromFeeds(settings);
+
+    expect(repository.isUserStateUnreadable()).toBe(true);
+    expect(onUserStateHealthChange).toHaveBeenCalledTimes(1);
+  });
+
+  it("clears the flag and notifies once the file is readable again", async () => {
+    const onUserStateHealthChange = vi.fn();
+    const repository = new FeedStorageRepository(app, {
+      onUserStateHealthChange,
+    });
+    const settings = v2Settings();
+    await vaultAdapter(app).write(userStatePath, "{not valid json");
+    await repository.hydrateSettings(settings);
+
+    await vaultAdapter(app).write(
+      userStatePath,
+      JSON.stringify({ version: 2, states: {} }),
+    );
+    await repository.saveUserStateFromFeeds(settings);
+
+    expect(repository.isUserStateUnreadable()).toBe(false);
+    expect(onUserStateHealthChange).toHaveBeenCalledTimes(2);
+  });
+
+  it("stays healthy when there is simply no user-state.json yet", async () => {
+    const onUserStateHealthChange = vi.fn();
+    const repository = new FeedStorageRepository(app, {
+      onUserStateHealthChange,
+    });
+    const settings = v2Settings();
+
+    await repository.hydrateSettings(settings);
+    await repository.saveUserStateFromFeeds(settings);
+
+    expect(repository.isUserStateUnreadable()).toBe(false);
+    expect(onUserStateHealthChange).not.toHaveBeenCalled();
+  });
+});

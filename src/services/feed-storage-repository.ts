@@ -320,11 +320,38 @@ export class FeedStorageRepository {
    */
   private syncedUserStateKeys = new Set<string>();
   private warnedUserStateUnreadable = false;
+  private userStateUnreadable = false;
+  private onUserStateHealthChange?: () => void;
   private app: App;
 
-  constructor(app: App, options?: { writeWrapper?: <T>(fn: () => Promise<T>) => Promise<T> }) {
+  constructor(
+    app: App,
+    options?: {
+      writeWrapper?: <T>(fn: () => Promise<T>) => Promise<T>;
+      onUserStateHealthChange?: () => void;
+    },
+  ) {
     this.app = app;
     this.writeWrapper = options?.writeWrapper;
+    this.onUserStateHealthChange = options?.onUserStateHealthChange;
+  }
+
+  public isUserStateUnreadable(): boolean {
+    return this.userStateUnreadable;
+  }
+
+  private recordUserStateHealth(
+    status: "missing" | "unreadable" | "ok",
+  ): void {
+    const unreadable = status === "unreadable";
+    if (unreadable) {
+      this.warnUserStateUnreadable();
+    }
+    if (unreadable === this.userStateUnreadable) {
+      return;
+    }
+    this.userStateUnreadable = unreadable;
+    this.onUserStateHealthChange?.();
   }
 
   public ensureFeedIds(settings: RssDashboardSettings): boolean {
@@ -446,9 +473,7 @@ export class FeedStorageRepository {
     let userStateLoaded = false;
     if (settings.storageMode === "vault-shards-v2") {
       const userStateResult = await this.readUserState(settings);
-      if (userStateResult.status === "unreadable") {
-        this.warnUserStateUnreadable();
-      }
+      this.recordUserStateHealth(userStateResult.status);
       const userState =
         userStateResult.status === "ok" ? userStateResult.file : null;
       userStateLoaded = Boolean(userState);
@@ -1412,8 +1437,8 @@ export class FeedStorageRepository {
     // intent to delete its state (issue #278). Start from what's already on
     // disk and only touch entries for items actually loaded right now.
     const existing = await this.readUserState(settings);
+    this.recordUserStateHealth(existing.status);
     if (existing.status === "unreadable") {
-      this.warnUserStateUnreadable();
       return;
     }
     const { states, unattributed } = this.resolvePersistedUserState(

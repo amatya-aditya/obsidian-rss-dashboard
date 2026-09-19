@@ -1149,7 +1149,9 @@ export class RssDashboardView extends ItemView {
    * Collapse state persisted in this.isFilterSubheaderCollapsed across renders.
    */
   private renderFilterSubheader(container: HTMLElement): void {
-    if (this.settings.display.showFilterStatusBar === false) {
+    const userStateUnreadable = this.plugin.isUserStateUnreadable;
+    const statusBarHidden = this.settings.display.showFilterStatusBar === false;
+    if (statusBarHidden && !userStateUnreadable) {
       return;
     }
 
@@ -1163,6 +1165,21 @@ export class RssDashboardView extends ItemView {
     const subheader = container.createDiv({
       cls: "rss-dashboard-filter-subheader",
     });
+    if (userStateUnreadable) {
+      // Sits outside the collapsible content and ignores the status-bar
+      // preference: this warns of possible data loss.
+      const alertEl = subheader.createDiv({
+        cls: "rss-dashboard-user-state-alert",
+        attr: { role: "alert" },
+      });
+      setIcon(alertEl.createSpan(), "alert-triangle");
+      alertEl.createSpan({
+        text: "user-state.json could not be read. Read, starred, and tag changes are not being saved. Fix or remove the file, then reload the plugin.",
+      });
+    }
+    if (statusBarHidden) {
+      return;
+    }
     // subheaderContent animates between open/collapsed via CSS max-height transition.
     const subheaderContent = subheader.createDiv({
       cls: "rss-dashboard-filter-subheader-content",

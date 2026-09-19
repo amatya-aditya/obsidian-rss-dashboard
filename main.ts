@@ -306,6 +306,9 @@ export default class RssDashboardPlugin extends Plugin {
     super(app, manifest);
     this.feedStorageRepository = new FeedStorageRepository(app, {
       writeWrapper: (fn) => this.writeWithWatcherSuppressed(fn),
+      onUserStateHealthChange: () => {
+        void this.notifyRefreshStatusChanged();
+      },
     });
   }
 
@@ -751,6 +754,10 @@ export default class RssDashboardPlugin extends Plugin {
         view.refreshFilterStatusBarOnly();
       }
     }
+  }
+
+  public get isUserStateUnreadable(): boolean {
+    return this.feedStorageRepository.isUserStateUnreadable();
   }
 
   public get isMultiFeedRefreshActive(): boolean {
