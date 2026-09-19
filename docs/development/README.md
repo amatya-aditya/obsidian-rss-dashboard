@@ -4,6 +4,7 @@ Internal developer documentation for the RSS Dashboard plugin.
 
 ## Core References
 
+- [Architecture Policy](./architecture.md)
 - [Compliance Patterns and Audit Guardrails](./compliance-patterns.md)
 - [Feed Data Lifecycle](./data-flow.md)
 - [Feed Validation](./feed-validation.md)
@@ -164,6 +165,7 @@ catalog and repository links, and include the user-facing summary under
 
 ### Additional Development Notes
 
+- [Main TypeScript architecture audit](../archive/investigations/2026/main-ts-architecture-audit.md)
 - [Automatic deletion](./auto-deletion.md)
 - [Audit remediation 2.3.0](../archive/investigations/2026/audit-remediation-2.3.0.md)
 - [Defuddle evaluation](../archive/investigations/2026/defuddle-evaluation.md)
