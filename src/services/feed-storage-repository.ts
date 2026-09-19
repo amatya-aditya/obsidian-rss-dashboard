@@ -14,6 +14,17 @@ import type {
 
 const SHARD_VERSION = 1;
 
+/**
+ * `user-state.json` schema version. Version 2 keys `states` by
+ * `${feedId}:${guid}` instead of a bare GUID, so two feeds carrying the same
+ * GUID no longer overwrite each other's article state (issue #278).
+ */
+const USER_STATE_KEY_VERSION = 2;
+
+function userStateKey(feedId: string, guid: string): string {
+  return `${feedId}:${guid}`;
+}
+
 export interface FeedStorageStatus {
   mode: RssDashboardSettings["storageMode"];
   folder: string;
@@ -298,11 +309,49 @@ export class FeedStorageRepository {
   private lastStorageFolderPath: string | null = null;
   private lastRepairResult = "Not yet run";
   private writeWrapper?: <T>(fn: () => Promise<T>) => Promise<T>;
+  /**
+   * `${feedId}:${guid}` keys of items whose in-memory flags are known to
+   * reflect persisted user state this session (applied by `hydrateSettings`,
+   * or adopted lazily by `saveUserStateFromFeeds` the first time a feed's
+   * item becomes available after missing that hydration pass). Until an
+   * item is in this set, its default `false` flags are unread parser output,
+   * not a deliberate reset, so a persisted entry for it must not be
+   * overwritten with those defaults (issue #278).
+   */
+  private syncedUserStateKeys = new Set<string>();
+  private warnedUserStateUnreadable = false;
+  private userStateUnreadable = false;
+  private onUserStateHealthChange?: () => void;
   private app: App;
 
-  constructor(app: App, options?: { writeWrapper?: <T>(fn: () => Promise<T>) => Promise<T> }) {
+  constructor(
+    app: App,
+    options?: {
+      writeWrapper?: <T>(fn: () => Promise<T>) => Promise<T>;
+      onUserStateHealthChange?: () => void;
+    },
+  ) {
     this.app = app;
     this.writeWrapper = options?.writeWrapper;
+    this.onUserStateHealthChange = options?.onUserStateHealthChange;
+  }
+
+  public isUserStateUnreadable(): boolean {
+    return this.userStateUnreadable;
+  }
+
+  private recordUserStateHealth(
+    status: "missing" | "unreadable" | "ok",
+  ): void {
+    const unreadable = status === "unreadable";
+    if (unreadable) {
+      this.warnUserStateUnreadable();
+    }
+    if (unreadable === this.userStateUnreadable) {
+      return;
+    }
+    this.userStateUnreadable = unreadable;
+    this.onUserStateHealthChange?.();
   }
 
   public ensureFeedIds(settings: RssDashboardSettings): boolean {
@@ -423,33 +472,24 @@ export class FeedStorageRepository {
     
     let userStateLoaded = false;
     if (settings.storageMode === "vault-shards-v2") {
-      const userState = await this.loadUserState(settings);
-      if (userState) {
-        userStateLoaded = true;
-        for (const feed of settings.feeds) {
-          for (const item of feed.items) {
-            const state = userState.states[item.guid];
-            if (state) {
-              item.read = state.read ?? false;
-              item.starred = state.starred ?? false;
-              item.tags = state.tags ? cloneJson(state.tags) : [];
-              item.saved = state.saved ?? false;
-              if (state.savedFilePath) item.savedFilePath = state.savedFilePath;
-              if (state.playbackProgress) item.playbackProgress = cloneJson(state.playbackProgress);
-            } else {
-              item.read = false;
-              item.starred = false;
-              item.tags = [];
-              item.saved = false;
-              delete item.savedFilePath;
-              delete item.playbackProgress;
-            }
-          }
-        }
-      } else {
-        // Fallback to default if missing
-        for (const feed of settings.feeds) {
-          for (const item of feed.items) {
+      const userStateResult = await this.readUserState(settings);
+      this.recordUserStateHealth(userStateResult.status);
+      const userState =
+        userStateResult.status === "ok" ? userStateResult.file : null;
+      userStateLoaded = Boolean(userState);
+      const { states: resolvedStates } = this.resolvePersistedUserState(userState, settings);
+      for (const feed of settings.feeds) {
+        const feedId = feed.feedId ?? "";
+        for (const item of feed.items) {
+          const state = resolvedStates[userStateKey(feedId, item.guid)];
+          if (state) {
+            item.read = state.read ?? false;
+            item.starred = state.starred ?? false;
+            item.tags = state.tags ? cloneJson(state.tags) : [];
+            item.saved = state.saved ?? false;
+            if (state.savedFilePath) item.savedFilePath = state.savedFilePath;
+            if (state.playbackProgress) item.playbackProgress = cloneJson(state.playbackProgress);
+          } else {
             item.read = false;
             item.starred = false;
             item.tags = [];
@@ -457,6 +497,7 @@ export class FeedStorageRepository {
             delete item.savedFilePath;
             delete item.playbackProgress;
           }
+          this.syncedUserStateKeys.add(userStateKey(feedId, item.guid));
         }
       }
     }
@@ -1297,54 +1338,178 @@ export class FeedStorageRepository {
     return (await this.app.vault.adapter.exists(path)) ? path : null;
   }
 
-  public async loadUserState(settings: RssDashboardSettings): Promise<UserStateFile | null> {
+  private async readUserState(
+    settings: RssDashboardSettings,
+  ): Promise<
+    | { status: "missing" }
+    | { status: "unreadable" }
+    | { status: "ok"; file: UserStateFile }
+  > {
     const path = this.getUserStatePath(settings);
     if (!(await this.app.vault.adapter.exists(path))) {
-      return null;
+      return { status: "missing" };
     }
     try {
       const raw = await this.app.vault.adapter.read(path);
       const parsed = JSON.parse(raw) as UserStateFile;
       if (parsed && typeof parsed.states === "object") {
-        return parsed;
+        return { status: "ok", file: parsed };
       }
     } catch (e) {
       storageError("Failed to parse user-state.json", e);
     }
-    return null;
+    return { status: "unreadable" };
   }
 
-  public async saveUserStateFromFeeds(settings: RssDashboardSettings): Promise<void> {
-    const activeGuids = new Set<string>();
-    const states: Record<string, ArticleUserState> = {};
+  public async loadUserState(settings: RssDashboardSettings): Promise<UserStateFile | null> {
+    const result = await this.readUserState(settings);
+    return result.status === "ok" ? result.file : null;
+  }
 
-    for (const feed of settings.feeds) {
-      for (const item of feed.items) {
-        activeGuids.add(item.guid);
-        const hasState = item.read || item.starred || (item.tags && item.tags.length > 0) || item.saved || item.playbackProgress;
-        if (hasState) {
-          const state: ArticleUserState = {};
-          if (item.read) state.read = true;
-          if (item.starred) state.starred = true;
-          if (item.tags && item.tags.length > 0) state.tags = cloneJson(item.tags);
-          if (item.saved) {
-            state.saved = true;
-            if (item.savedFilePath) state.savedFilePath = item.savedFilePath;
+  // An existing but unreadable file is the only copy of the user's article
+  // state, so it is never overwritten; warn once per session instead.
+  private warnUserStateUnreadable(): void {
+    if (this.warnedUserStateUnreadable) {
+      return;
+    }
+    this.warnedUserStateUnreadable = true;
+    new Notice(
+      "RSS Dashboard: user-state.json could not be read. Read, starred, and tag changes will not be saved until it is fixed or removed.",
+    );
+  }
+
+  /**
+   * Resolves `user-state.json` into the current `${feedId}:${guid}` keyed
+   * shape, migrating a pre-#278 file (bare-GUID keys, `version: 1`) in
+   * memory: every bare-GUID entry — from a legacy file's `states`, or from a
+   * previous migration's leftover `unattributedLegacyStates` — is retried
+   * against every currently-loaded item. Because the legacy format could not
+   * distinguish feeds, a GUID currently loaded by more than one feed is
+   * applied to each of them once, reproducing the old (ambiguous) lookup;
+   * from that point each feed's copy diverges independently.
+   *
+   * A bare-GUID entry whose feed has not hydrated yet in this session
+   * matches nothing and is returned in `unattributed` instead of being
+   * dropped, so it survives to be retried on a later hydrate or save once
+   * that feed's items are available.
+   */
+  private resolvePersistedUserState(
+    userState: UserStateFile | null,
+    settings: RssDashboardSettings,
+  ): {
+    states: Record<string, ArticleUserState>;
+    unattributed: Record<string, ArticleUserState>;
+  } {
+    if (!userState) {
+      return { states: {}, unattributed: {} };
+    }
+
+    const isMigrated = userState.version >= USER_STATE_KEY_VERSION;
+    const states = isMigrated ? cloneJson(userState.states) : {};
+    const pendingLegacy = isMigrated
+      ? cloneJson(userState.unattributedLegacyStates ?? {})
+      : cloneJson(userState.states);
+
+    const unattributed: Record<string, ArticleUserState> = {};
+    for (const [guid, legacyState] of Object.entries(pendingLegacy)) {
+      let matchedAny = false;
+      for (const feed of settings.feeds) {
+        const feedId = feed.feedId ?? "";
+        for (const item of feed.items) {
+          if (item.guid === guid) {
+            states[userStateKey(feedId, guid)] = cloneJson(legacyState);
+            matchedAny = true;
           }
-          if (item.playbackProgress) state.playbackProgress = cloneJson(item.playbackProgress);
-          states[item.guid] = state;
         }
+      }
+      if (!matchedAny) {
+        unattributed[guid] = legacyState;
       }
     }
 
-    // Attempt to load existing to preserve any items that are currently pruned from feed shards
-    // wait, the GC logic says "cross-reference active GUIDs in all feeds... if GUID doesn't exist in any feed, delete it"
-    // So we don't preserve items not in activeGuids. This implicitly handles GC!
-    // But wait, are there items in user-state that are NOT in feeds but we WANT to keep? No, the plan says GC them.
+    return { states, unattributed };
+  }
+
+  public async saveUserStateFromFeeds(settings: RssDashboardSettings): Promise<void> {
+    // `user-state.json` is a durable store that gets updated, not rebuilt: an
+    // item absent from memory (a feed that failed to hydrate, whose shard
+    // hasn't synced yet, or whose item retention pruned) must not read as
+    // intent to delete its state (issue #278). Start from what's already on
+    // disk and only touch entries for items actually loaded right now.
+    const existing = await this.readUserState(settings);
+    this.recordUserStateHealth(existing.status);
+    if (existing.status === "unreadable") {
+      return;
+    }
+    const { states, unattributed } = this.resolvePersistedUserState(
+      existing.status === "ok" ? existing.file : null,
+      settings,
+    );
+
+    const currentFeedIds = new Set<string>();
+    for (const feed of settings.feeds) {
+      const feedId = feed.feedId ?? "";
+      currentFeedIds.add(feedId);
+
+      for (const item of feed.items) {
+        const key = userStateKey(feedId, item.guid);
+        const baseline = states[key];
+
+        // An item this session has never synced with persisted state (it
+        // arrived via a refresh after its feed missed the one
+        // `hydrateSettings` pass, e.g. a shard that failed to read at
+        // startup and only succeeded later) still carries default `false`
+        // parser output, not a deliberate reset. Adopt the disk truth for it
+        // instead of overwriting that truth with those defaults, then treat
+        // it as synced from here on so a genuine later reset is trusted.
+        if (!this.syncedUserStateKeys.has(key)) {
+          this.syncedUserStateKeys.add(key);
+          if (baseline) {
+            item.read = baseline.read ?? false;
+            item.starred = baseline.starred ?? false;
+            item.tags = baseline.tags ? cloneJson(baseline.tags) : [];
+            item.saved = baseline.saved ?? false;
+            if (baseline.savedFilePath) item.savedFilePath = baseline.savedFilePath;
+            if (baseline.playbackProgress) item.playbackProgress = cloneJson(baseline.playbackProgress);
+            continue;
+          }
+        }
+
+        const hasSignal = Boolean(
+          item.read || item.starred || (item.tags && item.tags.length > 0) || item.saved || item.playbackProgress,
+        );
+        if (!hasSignal && !baseline) {
+          continue;
+        }
+
+        const state: ArticleUserState = {
+          read: Boolean(item.read),
+          starred: Boolean(item.starred),
+          saved: Boolean(item.saved),
+        };
+        if (item.tags && item.tags.length > 0) state.tags = cloneJson(item.tags);
+        if (item.savedFilePath) state.savedFilePath = item.savedFilePath;
+        if (item.playbackProgress) state.playbackProgress = cloneJson(item.playbackProgress);
+        states[key] = state;
+      }
+    }
+
+    // A feed only loses its article state when it is explicitly removed from
+    // settings, never merely because it didn't hydrate this time.
+    for (const key of Object.keys(states)) {
+      const separatorIndex = key.indexOf(":");
+      const feedId = separatorIndex === -1 ? "" : key.slice(0, separatorIndex);
+      if (!currentFeedIds.has(feedId)) {
+        delete states[key];
+      }
+    }
 
     const userStateFile: UserStateFile = withSyncNonce({
-      version: 1,
-      states
+      version: USER_STATE_KEY_VERSION,
+      states,
+      ...(Object.keys(unattributed).length > 0
+        ? { unattributedLegacyStates: unattributed }
+        : {}),
     });
 
     const path = this.getUserStatePath(settings);

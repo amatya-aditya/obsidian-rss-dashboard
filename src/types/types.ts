@@ -443,6 +443,14 @@ export interface ArticleUserState {
 export interface UserStateFile {
   version: number;
   states: Record<string, ArticleUserState>;
+  /**
+   * Bare-GUID state from a pre-#278 `user-state.json` that has not yet been
+   * attributed to a `feedId:guid` key in `states` because its owning feed
+   * had not hydrated when the migration ran. Re-attempted on every hydrate
+   * and save until that feed's items become available, then folded into
+   * `states` and removed from here.
+   */
+  unattributedLegacyStates?: Record<string, ArticleUserState>;
   _syncNonce?: string;
   _syncPad?: string;
 }
