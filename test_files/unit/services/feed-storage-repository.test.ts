@@ -1523,3 +1523,86 @@ describe("user-state.json health flag", () => {
     expect(onUserStateHealthChange).not.toHaveBeenCalled();
   });
 });
+
+describe("removing a feed deletes its shard file", () => {
+  let app: App;
+  let repository: FeedStorageRepository;
+  const saveData = vi
+    .fn<(...args: unknown[]) => Promise<void>>()
+    .mockResolvedValue(undefined);
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    app = App.createMock();
+    repository = new FeedStorageRepository(app);
+  });
+
+  async function shardExists(feedId: string): Promise<boolean> {
+    const adapter = app.vault.adapter as unknown as {
+      exists: (path: string) => Promise<boolean>;
+    };
+    return adapter.exists(`.rss-dashboard-data/feeds/${feedId}.json`);
+  }
+
+  for (const storageMode of ["vault-shards", "vault-shards-v2"] as const) {
+    it(`removes the shard from disk after the feed is deleted (${storageMode})`, async () => {
+      const settings = cloneSettings();
+      settings.storageMode = storageMode;
+      settings.feeds = [
+        makeFeed({ feedId: "feed-keep" }),
+        makeFeed({ feedId: "feed-delete", url: "https://example.com/other.xml" }),
+      ];
+
+      await repository.persistSettings(settings, saveData);
+      expect(await shardExists("feed-delete")).toBe(true);
+
+      settings.feeds = settings.feeds.filter((f) => f.feedId !== "feed-delete");
+      await repository.persistSettings(settings, saveData);
+
+      expect(await shardExists("feed-delete")).toBe(false);
+      expect(await shardExists("feed-keep")).toBe(true);
+    });
+  }
+
+  it("removes shards from the previous folder when the storage folder changes", async () => {
+    const settings = cloneSettings();
+    settings.storageMode = "vault-shards-v2";
+    settings.feeds = [makeFeed({ feedId: "feed-1" })];
+
+    await repository.persistSettings(settings, saveData);
+    expect(await shardExists("feed-1")).toBe(true);
+
+    settings.storageFolder = ".rss-dashboard-data/moved-feeds";
+    await repository.persistSettings(settings, saveData);
+
+    expect(await shardExists("feed-1")).toBe(false);
+    const adapter = app.vault.adapter as unknown as {
+      exists: (path: string) => Promise<boolean>;
+    };
+    expect(
+      await adapter.exists(".rss-dashboard-data/moved-feeds/feed-1.json"),
+    ).toBe(true);
+  });
+
+  it("still trashes an indexed shard through the file manager", async () => {
+    const settings = cloneSettings();
+    settings.storageMode = "vault-shards-v2";
+    settings.feeds = [
+      makeFeed({ feedId: "feed-keep" }),
+      makeFeed({ feedId: "feed-delete", url: "https://example.com/other.xml" }),
+    ];
+    await repository.persistSettings(settings, saveData);
+
+    // Outside a dot-folder Obsidian indexes the file, giving it a TFile.
+    await app.vault.create(".rss-dashboard-data/feeds/feed-delete.json", "{}");
+    const trashSpy = vi.spyOn(app.fileManager, "trashFile");
+    const removeSpy = vi.spyOn(app.vault.adapter, "remove");
+
+    settings.feeds = settings.feeds.filter((f) => f.feedId !== "feed-delete");
+    await repository.persistSettings(settings, saveData);
+
+    expect(trashSpy).toHaveBeenCalledTimes(1);
+    expect(removeSpy).not.toHaveBeenCalled();
+    expect(await shardExists("feed-delete")).toBe(false);
+  });
+});

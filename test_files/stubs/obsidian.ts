@@ -344,6 +344,7 @@ interface MockVaultAdapter {
   on(name: string, callback: (...args: unknown[]) => unknown): unknown;
   list(path: string): Promise<{ files: string[]; folders: string[] }>;
   rmdir(path: string, recursive: boolean): Promise<void>;
+  remove(path: string): Promise<void>;
 }
 
 export class MockDataVault {
@@ -407,6 +408,10 @@ export class MockDataVault {
         });
 
         return { files, folders };
+      },
+      remove: async (path: string) => {
+        this.adapterFiles.delete(path);
+        this.files.delete(path);
       },
       rmdir: async (path: string, recursive: boolean) => {
         const cleanPath = path.replace(/^\/+|\/+$/g, "");
