@@ -1910,14 +1910,14 @@ describe("onunload()", () => {
     vi.restoreAllMocks();
   });
 
-  it("calls async performAutoBackups on onunload", () => {
-    // When: onunload is called
+  it("does not write a backup on unload when the session has no persisted changes", () => {
+    // When: onunload is called before any settings persistence
     plugin.onunload();
 
-    // Then: performAutoBackups should be called
+    // Then: no recovery snapshot is needed
     expect(
       (plugin as unknown as PluginPrivateAPI).backupService.performAutoBackups,
-    ).toHaveBeenCalled();
+    ).not.toHaveBeenCalled();
   });
 
   it("does not throw when autoBackup is disabled", () => {
@@ -2185,6 +2185,64 @@ describe("saveSettings()", () => {
         refreshInterval: 120,
       }),
     );
+  });
+
+  it("completes configured backups after persisting settings", async () => {
+    let resolveBackup: (() => void) | undefined;
+    const backupPromise = new Promise<void>((resolve) => {
+      resolveBackup = resolve;
+    });
+    const performAutoBackups = vi.fn().mockReturnValue(backupPromise);
+    (plugin as unknown as PluginPrivateAPI).backupService.performAutoBackups =
+      performAutoBackups;
+
+    let saveCompleted = false;
+    const savePromise = plugin.saveSettings().then(() => {
+      saveCompleted = true;
+    });
+
+    await vi.waitFor(() => {
+      expect(performAutoBackups).toHaveBeenCalledTimes(1);
+    });
+
+    expect(saveCompleted).toBe(false);
+
+    resolveBackup?.();
+    await savePromise;
+
+    expect(saveCompleted).toBe(true);
+  });
+
+  it("keeps persisted settings when a backup fails", async () => {
+    const backupError = new Error("disk full");
+    const performAutoBackups = vi.fn().mockRejectedValue(backupError);
+    (plugin as unknown as PluginPrivateAPI).backupService.performAutoBackups =
+      performAutoBackups;
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await expect(plugin.saveSettings()).resolves.toBeUndefined();
+
+    expect(errorSpy).toHaveBeenCalledWith(
+      "[RSS Dashboard] Backup after save failed:",
+      backupError,
+    );
+  });
+
+  it("writes one recovery snapshot during a session and flushes later changes on unload", async () => {
+    const performAutoBackups = vi.fn().mockResolvedValue(undefined);
+    (plugin as unknown as PluginPrivateAPI).backupService.performAutoBackups =
+      performAutoBackups;
+
+    await plugin.saveSettings();
+    await plugin.saveSettings();
+
+    expect(performAutoBackups).toHaveBeenCalledTimes(1);
+
+    plugin.onunload();
+
+    await vi.waitFor(() => {
+      expect(performAutoBackups).toHaveBeenCalledTimes(2);
+    });
   });
 });
 

@@ -143,6 +143,21 @@ _Avoid_: Restated intro, redundant description, duplicate lead
 
 ## Storage
 
+**Automatic backup**:
+A low-write recovery copy of the current legacy backup artifacts. Until the
+[[Portable data bundle]] backup supersedes them, it exists to preserve a
+recoverable snapshot without mirroring every persistence write. A plugin
+session writes one snapshot after its first meaningful change and a second,
+final snapshot on unload only when a later meaningful change made the first
+snapshot stale. Every successful settings persistence is a meaningful change
+for this transitional mechanism. A storage migration forces a pre-migration
+snapshot and makes that snapshot current for the session. A snapshot is current
+only after every enabled artifact writes successfully; a failure stays stale and
+retries on a later save or unload. Snapshot writes are serialized.
+Unload requests a final stale snapshot on a best-effort basis; the first-change
+snapshot is the reliable recovery baseline.
+_Avoid_: Continuous persistence, write-through backup
+
 **Feed storage**:
 Where and how feed content (articles and episodes) is persisted, independent of where plugin metadata is persisted. Its mode is one of Legacy JSON or Shard storage (v1 or v2).
 _Avoid_: Storage (unqualified), article storage

@@ -54,7 +54,6 @@ describe("BackupService", () => {
         manifest: mockManifest,
         vaultAbsolutePath,
         vault: mockVault,
-        getPortableDataBundleJson: () => JSON.stringify({ bundle: true }),
       });
 
       await service.performAutoBackups();
@@ -91,32 +90,36 @@ describe("BackupService", () => {
       );
     });
 
-    it("writes a portable bundle backup when shard storage is enabled", async () => {
-      const { BackupService } =
-        await import("../../../src/services/backup-service");
-      const settings = {
-        storageMode: "vault-shards",
-        autoBackup: {
-          backupDataJson: true,
-          backupOpml: false,
-          backupUserdata: false,
-        },
-      } as unknown as RssDashboardSettings;
-      const service = new BackupService({
-        settings,
-        manifest: mockManifest,
-        vaultAbsolutePath,
-        vault: mockVault,
-        getPortableDataBundleJson: () => JSON.stringify({ bundle: true }),
-      });
+    it.each(["vault-shards", "vault-shards-v2"] as const)(
+      "does not write a portable bundle backup when all automatic backups are enabled in %s",
+      async (storageMode) => {
+        const { BackupService } =
+          await import("../../../src/services/backup-service");
+        const settings = {
+          storageMode,
+          feeds: [],
+          folders: [],
+          autoBackup: {
+            backupDataJson: true,
+            backupOpml: true,
+            backupUserdata: true,
+          },
+        } as unknown as RssDashboardSettings;
+        const service = new BackupService({
+          settings,
+          manifest: mockManifest,
+          vaultAbsolutePath,
+          vault: mockVault,
+        });
 
-      await service.performAutoBackups();
+        await service.performAutoBackups();
 
-      expect(mockVault.adapter.write).toHaveBeenCalledWith(
-        "configDir/plugins/obsidian-rss-dashboard/portable-data-bundle.json.backup",
-        JSON.stringify({ bundle: true }),
-      );
-    });
+        expect(mockVault.adapter.write).not.toHaveBeenCalledWith(
+          "configDir/plugins/obsidian-rss-dashboard/portable-data-bundle.json.backup",
+          expect.any(String),
+        );
+      },
+    );
 
     it("writes feeds.opml.backup when backupOpml is true", async () => {
       const { BackupService } =
@@ -244,6 +247,35 @@ describe("BackupService", () => {
       expect(mockVault.adapter.write).toHaveBeenCalledWith(
         expect.stringContaining("backup"),
         expect.any(String),
+      );
+    });
+
+    it("creates a current preferences backup when no preference file exists", async () => {
+      const { BackupService } =
+        await import("../../../src/services/backup-service");
+      const settings = {
+        autoBackup: {
+          backupDataJson: false,
+          backupOpml: false,
+          backupUserdata: true,
+        },
+      } as unknown as RssDashboardSettings;
+      const preferencesJson = JSON.stringify({ theme: "dark" });
+      const service = new BackupService({
+        settings,
+        manifest: mockManifest,
+        vaultAbsolutePath,
+        vault: mockVault,
+        getUserSettingsJson: () => preferencesJson,
+      });
+
+      vi.mocked(mockVault.adapter.exists).mockResolvedValue(false);
+
+      await service.performAutoBackups();
+
+      expect(mockVault.adapter.write).toHaveBeenCalledWith(
+        "configDir/plugins/obsidian-rss-dashboard/rss-dashboard-user-preferences.json.backup",
+        preferencesJson,
       );
     });
 

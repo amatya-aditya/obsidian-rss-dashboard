@@ -49,6 +49,7 @@ import {
 } from "./src/services/feed-parser";
 import { ArticleSaver } from "./src/services/article-saver";
 import { BackupService } from "./src/services/backup-service";
+import { AutoBackupCoordinator } from "./src/services/auto-backup-coordinator";
 import { FolderService } from "./src/services/folder-service";
 import {
   FeedStorageRepository,
@@ -274,6 +275,7 @@ export default class RssDashboardPlugin extends Plugin {
   feedParser!: FeedParser;
   articleSaver!: ArticleSaver;
   private backupService!: BackupService;
+  private readonly autoBackupCoordinator: AutoBackupCoordinator;
   protected folderService!: FolderService;
   private importExportService!: ImportExportService;
   private backgroundImportService!: BackgroundImportService;
@@ -304,6 +306,18 @@ export default class RssDashboardPlugin extends Plugin {
 
   constructor(app: App, manifest: ConstructorParameters<typeof Plugin>[1]) {
     super(app, manifest);
+    this.autoBackupCoordinator = new AutoBackupCoordinator({
+      writeSnapshot: () => this.backupService.performAutoBackups(),
+      shouldWriteSnapshot: () => {
+        const autoBackup = this.settings.autoBackup;
+        return Boolean(
+          autoBackup &&
+            (autoBackup.backupDataJson ||
+              autoBackup.backupOpml ||
+              autoBackup.backupUserdata),
+        );
+      },
+    });
     this.feedStorageRepository = new FeedStorageRepository(app, {
       writeWrapper: (fn) => this.writeWithWatcherSuppressed(fn),
       onUserStateHealthChange: () => {
@@ -350,8 +364,6 @@ export default class RssDashboardPlugin extends Plugin {
       vaultAbsolutePath: this.vaultAbsolutePath,
       vault: this.app.vault,
       getUserSettingsJson: () => this.importExportService.getUserSettingsJson(),
-      getPortableDataBundleJson: () =>
-        JSON.stringify(this.getPortableDataBundle(), null, 2),
     });
     this.folderService = new FolderService(this.settings);
     this.backgroundImportService = new BackgroundImportService({
@@ -2269,7 +2281,7 @@ export default class RssDashboardPlugin extends Plugin {
   public async backupAndMigrateStorageToV2(): Promise<void> {
     storageLog("Running backup before migrating to vault-shards-v2");
     try {
-      await this.backupService.performAutoBackups();
+      await this.autoBackupCoordinator.backupBeforeMigration();
     } catch (e) {
       storageError("Backup failed before migration", e);
       new Notice("Backup failed, proceeding with migration...");
@@ -3068,6 +3080,11 @@ export default class RssDashboardPlugin extends Plugin {
         this.getMetadataSaveCallback(),
       );
       storageLog("saveSettings completed", result);
+      try {
+        await this.autoBackupCoordinator.recordPersistedChange();
+      } catch (error) {
+        console.error("[RSS Dashboard] Backup after save failed:", error);
+      }
       this.autoRefreshScheduler?.reschedule();
     } catch (error) {
       storageError("saveSettings failed", error, {
@@ -3565,11 +3582,15 @@ export default class RssDashboardPlugin extends Plugin {
 
   onunload() {
     this.autoRefreshScheduler?.stop();
-    if (this.progressSaveDebounce !== null) {
-      window.clearTimeout(this.progressSaveDebounce);
-      this.progressSaveDebounce = null;
-      void this.saveSettings();
-    }
+    const flushBackups = async (): Promise<void> => {
+      if (this.progressSaveDebounce !== null) {
+        window.clearTimeout(this.progressSaveDebounce);
+        this.progressSaveDebounce = null;
+        await this.saveSettings();
+      }
+
+      await this.autoBackupCoordinator.flushOnUnload();
+    };
 
     if (this.vaultMetadataReloadTimer !== null) {
       window.clearTimeout(this.vaultMetadataReloadTimer);
@@ -3578,9 +3599,9 @@ export default class RssDashboardPlugin extends Plugin {
 
     this.cancelPendingStartupRefresh();
 
-    // Run backups asynchronously on plugin disable/unload (best effort: log
-    // and move on, there is no view left to notify by the time this runs).
-    this.backupService.performAutoBackups().catch((e: unknown) => {
+    // Obsidian does not await onunload. Request the final stale snapshot on a
+    // best-effort basis after any pending progress persistence completes.
+    void flushBackups().catch((e: unknown) => {
       console.error("[RSS Dashboard] Backup on unload failed:", e);
     });
   }
