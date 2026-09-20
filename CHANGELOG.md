@@ -35,6 +35,7 @@
 
 ### Fixes
 
+- Added a sidebar warning for feeds with missing or corrupted shard files, with hover guidance to repair/rebuild storage and refetch the feed.
 - Fixed deleted or corrupted feed shards becoming permanently unfetchable: every settings save now verifies unchanged shard files still exist and contain the expected feed data, rebuilding them when needed.
 - Fixed configured backups creating a portable data bundle when the data backup toggle was enabled, including in Shard storage v2. Backups now create one recovery snapshot after the first settings save in a plugin session, then write one final snapshot on unload only when later changes made it stale. [GH Issue #320](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/320)
 - The image cache folder (`image-cache/` and its `index.json`) is no longer created when **Allow image caching** is off, and it is now created inside the folder the plugin is actually installed in rather than a separate `rss-dashboard` folder derived from the plugin id. Turning the setting off now removes the cache folder, and turning it on creates it. A stray `plugins/rss-dashboard/image-cache` folder from an earlier build is not migrated and must be deleted by hand.
