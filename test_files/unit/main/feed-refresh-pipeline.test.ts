@@ -246,6 +246,61 @@ describe("refreshFeeds() pipeline behavior", () => {
     expect(plugin.settings.lastGlobalRefreshCompletedAt).toBe(123);
   });
 
+  it("updates per-feed refresh status while other batch feeds are still active", async () => {
+    vi.useFakeTimers();
+    const firstFeed = createFeed({
+      title: "First feed",
+      url: "https://example.com/first.xml",
+    });
+    const secondFeed = createFeed({
+      title: "Second feed",
+      url: "https://example.com/second.xml",
+    });
+    const plugin = createPluginWithSettings([firstFeed, secondFeed]);
+    const refreshStatusSpy = vi
+      .spyOn(
+        plugin as unknown as {
+          notifySidebarRefreshStatusChanged: () => Promise<void>;
+        },
+        "notifySidebarRefreshStatusChanged",
+      )
+      .mockResolvedValue(undefined);
+
+    const resolvers: Record<string, (feed: Feed) => void> = {};
+    (
+      plugin.feedParser.refreshFeed as unknown as {
+        mockImplementation: (fn: (feed: Feed) => Promise<Feed>) => void;
+      }
+    ).mockImplementation(
+      (feed: Feed) =>
+        new Promise<Feed>((resolve) => {
+          resolvers[feed.url] = resolve;
+        }),
+    );
+
+    const refreshPromise = plugin.refreshFeeds();
+    await flushMicrotasks();
+    await vi.advanceTimersByTimeAsync(250);
+
+    expect(refreshStatusSpy).toHaveBeenCalledTimes(1);
+    expect(plugin.activeRefreshState.has(firstFeed.url)).toBe(true);
+    expect(plugin.activeRefreshState.has(secondFeed.url)).toBe(true);
+
+    resolvers[firstFeed.url]?.(firstFeed);
+    await flushMicrotasks();
+
+    expect(plugin.activeRefreshState.has(firstFeed.url)).toBe(false);
+    expect(plugin.activeRefreshState.has(secondFeed.url)).toBe(true);
+    expect(refreshStatusSpy).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(250);
+
+    expect(refreshStatusSpy).toHaveBeenCalledTimes(2);
+
+    resolvers[secondFeed.url]?.(secondFeed);
+    await refreshPromise;
+  });
+
   it("refreshes multi-feed selections with bounded concurrency, incremental merges, and a final save + refresh", async () => {
     vi.useFakeTimers();
     const feedA = createFeed({

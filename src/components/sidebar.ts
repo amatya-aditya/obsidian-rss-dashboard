@@ -446,6 +446,16 @@ export class Sidebar {
     this.syncFocusedSidebarTargetAfterRender();
     this.applySidebarFocusState();
 
+    // Restore synchronously so a coalesced status redraw never snapshots the
+    // transient zero scroll position left by the previous DOM rebuild.
+    this.container.scrollTop = scrollPosition;
+    const newFoldersSection = this.container.querySelector(
+      ".rss-dashboard-feed-folders-section",
+    );
+    if (newFoldersSection) {
+      newFoldersSection.scrollTop = foldersScroll;
+    }
+
     // Attach ResizeObserver once; keep it across re-renders
     if (!this.resizeObserver) {
       this.resizeObserver = new ResizeObserver(() => {

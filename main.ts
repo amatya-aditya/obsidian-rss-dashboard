@@ -293,6 +293,7 @@ export default class RssDashboardPlugin extends Plugin {
   private vaultMetadataReloadTimer: number | null = null;
   private startupRefreshTimeoutId: number | null = null;
   private progressSaveDebounce: number | null = null;
+  private refreshStatusRenderTimeoutId: number | null = null;
   private autoRefreshScheduler: FeedRefreshScheduler | null = null;
   private suppressWatcherUntil = 0;
   private static readonly FEED_REFRESH_RENDER_THROTTLE_MS = 250;
@@ -778,6 +779,39 @@ export default class RssDashboardPlugin extends Plugin {
         view.refreshFilterStatusBarOnly();
       }
     }
+  }
+
+  /** Updates navigation affordances without rebuilding dashboard content. */
+  private async notifySidebarRefreshStatusChanged(): Promise<void> {
+    const leaves = this.app.workspace.getLeavesOfType(RSS_DASHBOARD_VIEW_TYPE);
+    for (const leaf of leaves) {
+      if (requireApiVersion("1.7.2")) {
+        await leaf.loadIfDeferred();
+      }
+      const view = leaf.view;
+      if (view instanceof RssDashboardView) {
+        view.refreshSidebarOnly();
+      }
+    }
+  }
+
+  /** Coalesces sidebar-only status redraws without delaying final settlement. */
+  private scheduleRefreshStatusChanged(flush = false): void {
+    if (flush) {
+      if (this.refreshStatusRenderTimeoutId !== null) {
+        window.clearTimeout(this.refreshStatusRenderTimeoutId);
+        this.refreshStatusRenderTimeoutId = null;
+      }
+      void this.notifySidebarRefreshStatusChanged();
+      return;
+    }
+
+    if (this.refreshStatusRenderTimeoutId !== null) return;
+
+    this.refreshStatusRenderTimeoutId = window.setTimeout(() => {
+      this.refreshStatusRenderTimeoutId = null;
+      void this.notifySidebarRefreshStatusChanged();
+    }, RssDashboardPlugin.FEED_REFRESH_RENDER_THROTTLE_MS);
   }
 
   public get isUserStateUnreadable(): boolean {
@@ -3493,6 +3527,7 @@ export default class RssDashboardPlugin extends Plugin {
       status: "processing",
       startedAt: Date.now(),
     });
+    this.scheduleRefreshStatusChanged();
 
     try {
       const updatedFeed = await this.refreshFeedWithTimeout(currentFeed, {
@@ -3521,10 +3556,8 @@ export default class RssDashboardPlugin extends Plugin {
       );
     } finally {
       this.activeRefreshState.delete(currentFeed.url);
-
-      if (this.activeRefreshState.size > 0) {
-        await refreshView();
-      }
+      this.scheduleRefreshStatusChanged(this.activeRefreshState.size === 0);
+      await refreshView();
     }
   }
 
@@ -3608,6 +3641,11 @@ export default class RssDashboardPlugin extends Plugin {
     if (this.vaultMetadataReloadTimer !== null) {
       window.clearTimeout(this.vaultMetadataReloadTimer);
       this.vaultMetadataReloadTimer = null;
+    }
+
+    if (this.refreshStatusRenderTimeoutId !== null) {
+      window.clearTimeout(this.refreshStatusRenderTimeoutId);
+      this.refreshStatusRenderTimeoutId = null;
     }
 
     this.cancelPendingStartupRefresh();

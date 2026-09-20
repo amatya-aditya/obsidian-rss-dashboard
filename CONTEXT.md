@@ -26,6 +26,14 @@ _Avoid_: Full-list rendering, unbounded scrolling
 
 ## Sidebar feed management
 
+**Per-feed refresh status**:
+The transient status of one feed within a refresh batch: queued, actively fetching, or settled. A settled feed has completed fetch, parse, and in-memory merge successfully, or has recorded its fetch failure, and must no longer display an in-progress indicator even while other feeds continue. The batch persists settings once after all feeds settle.
+_Avoid_: Global refresh status, fetch progress
+
+**Global refresh batch**:
+One user-initiated refresh of the eligible feed set. It remains active until every selected feed has settled; its progress control is independent of each [[Per-feed refresh status]].
+_Avoid_: Feed refresh, all feeds spinner
+
 **Sidebar selection**:
 The active group of feeds and folders selected in the sidebar via click, modifier-click, or range-selection.
 _Avoid_: Active feeds, multi-selection target, highlighted list
