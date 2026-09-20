@@ -41,6 +41,7 @@ import {
 } from "../utils/platform-utils";
 import { formatDashboardMultiFiltersTitle } from "../utils/filter-title-format";
 import { computePagination } from "../utils/pagination-utils";
+import { removeFolderByPath } from "../utils/folder-tree";
 import { applyAutomaticArticleTags } from "../utils/tag-utils";
 import { resolveItemExternalUrl } from "../utils/item-url-utils";
 import { buildArticleEmptyStateContext } from "../utils/filter-detection";
@@ -2586,12 +2587,17 @@ export class RssDashboardView extends ItemView {
   }
 
   private handleDeleteFolder(folder: string): void {
+    const folderPaths = new Set([
+      folder,
+      ...this.getAllDescendantFolders(folder),
+    ]);
     this.plugin.settings.feeds = this.plugin.settings.feeds.filter(
-      (feed: Feed) => feed.folder !== folder,
+      (feed: Feed) => !feed.folder || !folderPaths.has(feed.folder),
     );
 
-    this.plugin.settings.folders = this.plugin.settings.folders.filter(
-      (f: { name: string }) => f.name !== folder,
+    this.plugin.settings.folders = removeFolderByPath(
+      this.plugin.settings.folders,
+      folder,
     );
 
     void this.plugin.saveSettings();

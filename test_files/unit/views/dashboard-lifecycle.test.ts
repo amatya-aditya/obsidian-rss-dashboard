@@ -340,7 +340,7 @@ describe("Dashboard lifecycle", () => {
       view.currentFolder = "Tech";
       const result = view.getFilteredArticles();
       expect(result).toHaveLength(1);
-      expect(result[0].feedUrl).toBe("https://a.com/feed");
+      expect(result[0]!.feedUrl).toBe("https://a.com/feed");
     });
 
     it("sorts articles newest-first by default", async () => {
@@ -355,8 +355,8 @@ describe("Dashboard lifecycle", () => {
       settings.articleSort = "newest";
       const view = await makeView(settings);
       const result = view.getFilteredArticles();
-      expect(new Date(result[0].pubDate).getTime()).toBeGreaterThan(
-        new Date(result[1].pubDate).getTime(),
+      expect(new Date(result[0]!.pubDate).getTime()).toBeGreaterThan(
+        new Date(result[1]!.pubDate).getTime(),
       );
     });
 
@@ -372,8 +372,8 @@ describe("Dashboard lifecycle", () => {
       settings.articleSort = "oldest";
       const view = await makeView(settings);
       const result = view.getFilteredArticles();
-      expect(new Date(result[0].pubDate).getTime()).toBeLessThan(
-        new Date(result[1].pubDate).getTime(),
+      expect(new Date(result[0]!.pubDate).getTime()).toBeLessThan(
+        new Date(result[1]!.pubDate).getTime(),
       );
     });
   });
@@ -542,7 +542,7 @@ describe("Dashboard lifecycle", () => {
       ];
       view.computeHighlightMatchCounts(articles);
       expect(view.highlightMatchCounts).toHaveLength(1);
-      expect(view.highlightMatchCounts[0].count).toBe(2);
+      expect(view.highlightMatchCounts[0]!.count).toBe(2);
     });
 
     it("skips disabled highlight words", async () => {
@@ -666,7 +666,7 @@ describe("Dashboard lifecycle", () => {
       const view = await makeView(settings);
       view.handleDeleteFeed(feed1);
       expect(settings.feeds).toHaveLength(1);
-      expect(settings.feeds[0].url).toBe("https://b.com/feed");
+      expect(settings.feeds[0]!.url).toBe("https://b.com/feed");
     });
 
     it("removes cached preview images for the deleted feed", async () => {
@@ -703,15 +703,26 @@ describe("Dashboard lifecycle", () => {
   describe("handleDeleteFolder()", () => {
     it("removes the folder from settings and its feeds", async () => {
       const settings = cloneSettings();
-      settings.feeds = [makeFeed("https://a.com/feed", "Tech")];
+      settings.feeds = [
+        makeFeed("https://a.com/feed", "Tech"),
+        makeFeed("https://a.com/nested-feed", "Tech/Nested"),
+        makeFeed("https://a.com/other-feed", "News"),
+      ];
       settings.folders = [
-        { name: "Tech", subfolders: [], pinned: false },
+        {
+          name: "Tech",
+          subfolders: [{ name: "Nested", subfolders: [], pinned: false }],
+          pinned: false,
+        },
         { name: "News", subfolders: [], pinned: false },
       ];
       const view = await makeView(settings);
       view.handleDeleteFolder("Tech");
       expect(settings.folders.map((f) => f.name)).not.toContain("Tech");
-      expect(settings.feeds.some((f) => f.folder === "Tech")).toBe(false);
+      expect(
+        settings.feeds.some((f) => f.folder === "Tech" || f.folder === "Tech/Nested"),
+      ).toBe(false);
+      expect(settings.feeds.some((f) => f.folder === "News")).toBe(true);
     });
 
     it("clears currentFolder if the deleted folder was active", async () => {

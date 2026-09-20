@@ -2285,12 +2285,7 @@ export class Sidebar {
           this.showConfirmModal(
             `Are you sure you want to delete the folder '${folderName}' and all its subfolders and feeds?`,
             () => {
-              const allPaths = this.getAllDescendantFolderPaths(fullPath);
-              this.settings.feeds = this.settings.feeds.filter(
-                (feed) => !allPaths.includes(feed.folder),
-              );
-              this.removeFolderByPath(fullPath);
-              this.render();
+              this.callbacks.onDeleteFolder(fullPath);
             },
           );
         });
@@ -2441,12 +2436,7 @@ export class Sidebar {
       this.showConfirmModal(
         `Are you sure you want to delete the folder '${row.folderName}' and all its subfolders and feeds?`,
         () => {
-          const allPaths = this.getAllDescendantFolderPaths(row.folderPath!);
-          this.settings.feeds = this.settings.feeds.filter(
-            (feed) => !allPaths.includes(feed.folder),
-          );
-          this.removeFolderByPath(row.folderPath!);
-          this.render();
+          this.callbacks.onDeleteFolder(row.folderPath!);
         },
       );
     }
