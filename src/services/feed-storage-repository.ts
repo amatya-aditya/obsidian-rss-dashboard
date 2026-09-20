@@ -10,6 +10,7 @@ import type {
   SettingsBundle,
   ArticleUserState,
   UserStateFile,
+  FeedShardHealth,
 } from "../types/types";
 
 const SHARD_VERSION = 1;
@@ -308,6 +309,7 @@ export class FeedStorageRepository {
   private lastPersistedShardJsonByFeedId = new Map<string, string>();
   private lastStorageFolderPath: string | null = null;
   private lastRepairResult = "Not yet run";
+  private feedShardHealthById = new Map<string, FeedShardHealth>();
   private writeWrapper?: <T>(fn: () => Promise<T>) => Promise<T>;
   /**
    * `${feedId}:${guid}` keys of items whose in-memory flags are known to
@@ -338,6 +340,14 @@ export class FeedStorageRepository {
 
   public isUserStateUnreadable(): boolean {
     return this.userStateUnreadable;
+  }
+
+  public getFeedShardHealth(feed: Feed): FeedShardHealth | null {
+    return feed.feedId ? (this.feedShardHealthById.get(feed.feedId) ?? null) : null;
+  }
+
+  public clearFeedShardHealth(feed: Feed): void {
+    if (feed.feedId) this.feedShardHealthById.delete(feed.feedId);
   }
 
   private recordUserStateHealth(
@@ -408,12 +418,14 @@ export class FeedStorageRepository {
     let shardCount = 0;
 
     if (settings.storageMode !== "vault-shards" && settings.storageMode !== "vault-shards-v2") {
+      this.feedShardHealthById.clear();
       storageLog("Skipping shard hydration because legacy JSON mode is active");
       this.capturePersistedState(settings);
       return { didChange: didAssignFeedIds, shardCount };
     }
 
     const feedsById = new Map<string, Feed>();
+    this.feedShardHealthById.clear();
     for (const feed of settings.feeds) {
       if (feed.feedId) {
         feedsById.set(feed.feedId, feed);
@@ -427,6 +439,7 @@ export class FeedStorageRepository {
       );
       const shardExists = await this.app.vault.adapter.exists(shardPath);
       if (!shardExists) {
+        if (feed.feedId) this.feedShardHealthById.set(feed.feedId, "missing");
         storageLog("Shard file not found during hydration", {
           feedId: feed.feedId,
           title: feed.title,
@@ -438,11 +451,16 @@ export class FeedStorageRepository {
       try {
         const raw = await this.app.vault.adapter.read(shardPath);
         const parsed = JSON.parse(raw) as Partial<FeedItemsShard>;
-        if (!parsed || !Array.isArray(parsed.items)) {
+        if (
+          !parsed ||
+          parsed.feedId !== feed.feedId ||
+          !Array.isArray(parsed.items)
+        ) {
           throw new Error("Invalid shard data");
         }
 
         feed.items = parsed.items;
+        if (feed.feedId) this.feedShardHealthById.delete(feed.feedId);
         shardCount += 1;
         storageLog("Hydrated feed from shard", {
           feedId: feed.feedId,
@@ -451,6 +469,7 @@ export class FeedStorageRepository {
           itemCount: feed.items.length,
         });
       } catch (error) {
+        if (feed.feedId) this.feedShardHealthById.set(feed.feedId, "corrupt");
         storageError("Failed to hydrate feed shard", error, {
           feedId: feed.feedId,
           title: feed.title,
@@ -568,16 +587,29 @@ export class FeedStorageRepository {
       const currentComparableJson = createComparableFeedShardJson(feed, isV2);
       const previousJson = this.lastPersistedShardJsonByFeedId.get(feed.feedId);
 
-      if (forceAllShards || previousJson !== currentComparableJson) {
-        const shardPath = getFeedShardPath(
-          normalizedStorageFolder,
-          feed.feedId,
-        );
+      const shardPath = getFeedShardPath(
+        normalizedStorageFolder,
+        feed.feedId,
+      );
+      const shardWriteDecision = await this.getShardWriteDecision(
+        shardPath,
+        forceAllShards || previousJson !== currentComparableJson,
+        currentComparableJson,
+        feed.feedId,
+      );
+
+      if (shardWriteDecision.needsWrite) {
         await this.app.vault.adapter.write(shardPath, shardJson);
         this.lastPersistedShardJsonByFeedId.set(
           feed.feedId,
           currentComparableJson,
         );
+        const recoveredHealth =
+          shardWriteDecision.recoveredHealth ??
+          this.feedShardHealthById.get(feed.feedId);
+        if (recoveredHealth === "missing" || recoveredHealth === "corrupt") {
+          this.feedShardHealthById.set(feed.feedId, "rebuilt");
+        }
         shardWriteCount += 1;
         storageLog("Wrote feed shard", {
           feedId: feed.feedId,
@@ -765,6 +797,7 @@ export class FeedStorageRepository {
       forceAllShards: true,
       forceMetadata: true,
     });
+    for (const feed of settings.feeds) this.clearFeedShardHealth(feed);
     this.lastRepairResult = `Last repair succeeded at ${new Date().toLocaleString()}`;
     storageLog("Completed vault shard repair", {
       folder: settings.storageFolder,
@@ -1311,6 +1344,45 @@ export class FeedStorageRepository {
       return true;
     }
     return false;
+  }
+
+  private async getShardWriteDecision(
+    shardPath: string,
+    alreadyChanged: boolean,
+    expectedComparableJson: string,
+    feedId: string,
+  ): Promise<{
+    needsWrite: boolean;
+    recoveredHealth: "missing" | "corrupt" | null;
+  }> {
+    if (alreadyChanged) {
+      return { needsWrite: true, recoveredHealth: null };
+    }
+
+    if (!(await this.app.vault.adapter.exists(shardPath))) {
+      return { needsWrite: true, recoveredHealth: "missing" };
+    }
+
+    try {
+      const parsed = JSON.parse(await this.app.vault.adapter.read(shardPath)) as {
+        updatedAt?: unknown;
+        feedId?: unknown;
+        items?: unknown;
+      };
+      if (parsed.feedId !== feedId || !Array.isArray(parsed.items)) {
+        return { needsWrite: true, recoveredHealth: "corrupt" };
+      }
+      const { updatedAt: _updatedAt, ...existingWithoutTimestamp } = parsed;
+      void _updatedAt;
+      return {
+        needsWrite:
+          JSON.stringify(existingWithoutTimestamp, null, 2) !==
+          expectedComparableJson,
+        recoveredHealth: null,
+      };
+    } catch {
+      return { needsWrite: true, recoveredHealth: "corrupt" };
+    }
   }
 
   private getParentFolderPath(folderPath: string): string | null {

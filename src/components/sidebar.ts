@@ -6,6 +6,7 @@ import {
   RssDashboardSettings,
   FeedKeywordRulesSettings,
   FeedEncoding,
+  FeedShardHealth,
 } from "../types/types";
 import {
   SIDEBAR_ICON_IDS,
@@ -245,6 +246,9 @@ export class Sidebar {
       }
       if (feed.lastFetchError)
         lines.push(`Last attempt failed: ${feed.lastFetchError}`);
+      const shardHealth = this.plugin.getFeedShardHealth?.(feed) ?? null;
+      if (shardHealth)
+        lines.push(this.getFeedShardWarningMessage(shardHealth));
       if (status.refreshingCount > 0) lines.push("In progress");
       if (feed.excludeFromRefresh) lines.push("Excluded from global refresh");
       return lines;
@@ -1482,6 +1486,7 @@ export class Sidebar {
     const refreshState = this.plugin.activeRefreshState?.get(feed.url);
     const isRefreshProcessing = refreshState?.status === "processing";
     const isQueuedForRefresh = refreshState?.status === "pending";
+    const shardHealth = this.plugin.getFeedShardHealth?.(feed) ?? null;
 
     if (isProcessing) {
       // Show loading spinner for processing feeds
@@ -1561,6 +1566,13 @@ export class Sidebar {
         },
       });
       setIcon(errorBadge, "alert-circle");
+    }
+
+    if (shardHealth) {
+      const shardWarning = feedNameContainer.createDiv({
+        cls: "rss-dashboard-feed-shard-warning-badge",
+      });
+      setIcon(shardWarning, "alert-triangle");
     }
 
     if (isQueuedForImport && !isProcessing) {
@@ -1723,6 +1735,14 @@ export class Sidebar {
 
       void this.plugin.saveSettings().then(() => this.render());
     });
+  }
+
+  private getFeedShardWarningMessage(health: FeedShardHealth): string {
+    if (health === "rebuilt") {
+      return "Feed shard file was missing or corrupted and was rebuilt. Restore the shard from the last known backup if one exists, or refresh the feed to fetch newest articles.";
+    }
+    const problem = health === "missing" ? "missing" : "missing or corrupted";
+    return `Feed shard file is ${problem}. Please run Settings > Storage > Repair/rebuild storage and refetch the feed.`;
   }
 
   private attachLongPressContextMenu(

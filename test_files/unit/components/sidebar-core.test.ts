@@ -38,6 +38,7 @@ interface TestPlugin extends Partial<RssDashboardPlugin> {
   backgroundImportQueue?: FeedMetadata[];
   refreshFeeds: Mock<() => Promise<void>>;
   refreshFailedFeeds: Mock<() => Promise<void>>;
+  getFeedShardHealth?: (feed: Feed) => "missing" | "corrupt" | "rebuilt" | null;
   cancelPendingStartupRefresh: Mock<() => void>;
   cancelGlobalRefresh: Mock<() => void>;
   isMultiFeedRefreshActive?: boolean;
@@ -58,6 +59,7 @@ type TestSidebar = {
   resizeObserver: ResizeObserver | null;
   destroy: () => void;
   render: () => void;
+  renderFeed: (feed: Feed, container: HTMLElement) => void;
   refreshGlobalRefreshProgressOnly: () => void;
   clearFolderPathCache: () => void;
   focusSidebar: () => void;
@@ -131,6 +133,7 @@ describe("Sidebar Core", () => {
       saveSettings: vi.fn().mockResolvedValue(undefined),
       refreshFeeds: vi.fn().mockResolvedValue(undefined),
       refreshFailedFeeds: vi.fn().mockResolvedValue(undefined),
+      getFeedShardHealth: vi.fn().mockReturnValue(null),
       cancelPendingStartupRefresh: vi.fn(),
       cancelGlobalRefresh: vi.fn(),
       isGlobalRefreshCancellable: false,
@@ -416,6 +419,34 @@ describe("Sidebar Core", () => {
         ...overrides,
       };
     }
+
+    it("shows rebuilt shard guidance in the feed refresh details without a native tooltip", () => {
+      const rebuiltFeed = createFeed({
+        title: "Rebuilt shard",
+        feedId: "feed-rebuilt",
+      });
+      settings.feeds = [rebuiltFeed];
+      plugin.getFeedShardHealth = vi.fn().mockReturnValue("rebuilt");
+
+      const sidebar = new Sidebar(
+        app,
+        container,
+        plugin as unknown as RssDashboardPlugin,
+        settings,
+        options,
+        callbacks,
+      );
+      sidebar.render();
+
+      const warnings = Array.from(
+        container.querySelectorAll(".rss-dashboard-feed-shard-warning-badge"),
+      );
+      expect(warnings).toHaveLength(1);
+      expect(warnings[0]?.hasAttribute("title")).toBe(false);
+      expect(document.body.textContent).toContain(
+        "Feed shard file was missing or corrupted and was rebuilt. Restore the shard from the last known backup if one exists, or refresh the feed to fetch newest articles.",
+      );
+    });
 
     it("shows the all-feeds spinner and per-feed queued/processing indicators from plugin refresh state", () => {
       const processingFeed = createFeed({

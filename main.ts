@@ -27,6 +27,7 @@ import {
   FeedIngestionCandidate,
   FeedIngestionOptions,
   FeedEncoding,
+  FeedShardHealth,
 } from "./src/types/types";
 import { RssDashboardSettingTab } from "./src/settings/settings-tab";
 import {
@@ -2221,6 +2222,14 @@ export default class RssDashboardPlugin extends Plugin {
     };
   }
 
+  public getFeedShardHealth(feed: Feed): FeedShardHealth | null {
+    return this.feedStorageRepository.getFeedShardHealth(feed);
+  }
+
+  public clearFeedShardHealth(feed: Feed): void {
+    this.feedStorageRepository.clearFeedShardHealth(feed);
+  }
+
   private resolveVaultRelativePathToOsPath(
     vaultRelativePath: string,
   ): string | null {
@@ -3256,6 +3265,7 @@ export default class RssDashboardPlugin extends Plugin {
       }
       this.settings.feeds[index] = {
         ...updatedFeed,
+        feedId: updatedFeed.feedId ?? storedFeed.feedId,
         excludeFromRefresh:
           updatedFeed.excludeFromRefresh ?? storedFeed.excludeFromRefresh,
       };
@@ -3274,6 +3284,9 @@ export default class RssDashboardPlugin extends Plugin {
         lastRefreshAttemptCompletedAt: completedAt,
         lastFetchError: updatedFeed.lastFetchError,
       });
+      if (!updatedFeed.lastFetchError) {
+        this.clearFeedShardHealth(feed);
+      }
       this.queuePreviewImageCaching(updatedFeed);
       return;
     }

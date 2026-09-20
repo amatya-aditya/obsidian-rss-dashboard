@@ -875,6 +875,37 @@ body .rss-dashboard-sidebar .rss-dashboard-feed-folders-section {
   height: 14px;
 }
 
+.rss-dashboard-feed-shard-warning-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  color: var(--text-warning);
+  opacity: 0.9;
+  margin-left: 4px;
+}
+
+.rss-dashboard-feed-shard-warning-badge:hover {
+  opacity: 1;
+}
+
+.rss-dashboard-feed-shard-warning-badge svg {
+  width: 14px;
+  height: 14px;
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .rss-dashboard-feed-shard-warning-badge {
+    min-width: 44px;
+    min-height: 44px;
+    width: auto;
+    height: auto;
+    padding: 4px;
+  }
+}
+
 /* Mobile touch target for error badge */
 @media (hover: none) and (pointer: coarse) {
   .rss-dashboard-feed-error-badge {

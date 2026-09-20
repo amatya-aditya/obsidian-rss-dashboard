@@ -463,6 +463,8 @@ export interface FeedItemsShard {
   items: FeedItem[];
 }
 
+export type FeedShardHealth = "missing" | "corrupt" | "rebuilt";
+
 export type PersistedFeedConfig = Omit<Feed, "items"> & {
   feedId: string;
 };
