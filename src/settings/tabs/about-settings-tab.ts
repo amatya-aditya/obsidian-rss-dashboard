@@ -6,6 +6,8 @@
  *   - renderAboutTab(containerEl, plugin)
  */
 import RssDashboardPlugin from "../../../main";
+import { WhatsNewModal } from "../../modals/whats-new-modal";
+import { getReleaseNoteForVersion } from "../../release-notes";
 
 export function renderAboutTab(
   containerEl: HTMLElement,
@@ -23,6 +25,20 @@ export function renderAboutTab(
     cls: "rss-dashboard-about-version",
     text: `v${plugin.manifest.version}`,
   });
+
+  const releaseNote = getReleaseNoteForVersion(plugin.manifest.version);
+  if (releaseNote) {
+    const whatsNewRow = aboutContainer.createDiv({
+      cls: "rss-dashboard-about-btn-row rss-dashboard-about-whats-new-row",
+    });
+    const whatsNewButton = whatsNewRow.createEl("button", {
+      text: `What's new in v${plugin.manifest.version}?`,
+      cls: "rss-dashboard-about-btn",
+    });
+    whatsNewButton.onclick = () => {
+      new WhatsNewModal(plugin.app, plugin.manifest.version, releaseNote).open();
+    };
+  }
 
   const descriptionContainer = aboutContainer.createDiv({
     cls: "rss-dashboard-about-description",

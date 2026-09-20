@@ -23,6 +23,12 @@
   opacity: 1;
 }
 
+/* Opened from a plugin modal (for example What's New), the lightbox must sit
+   above the modal layer rather than behind it. */
+body .rss-reader-lightbox-backdrop.rss-reader-lightbox-above-modal {
+  z-index: var(--z-index-modal-child);
+}
+
 .rss-reader-lightbox-toolbar {
   position: absolute;
   top: 0;

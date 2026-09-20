@@ -1,8 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
+  findMissingNoteIssue,
+  findReleaseNoteFilenameIssues,
+  findNoteIssues,
   findPlanStatusIssues,
   findStrayFiles,
   isLifecyclePlanFilename,
+  isMajorMinorRelease,
+  releaseLineOf,
 } from "../../scripts/check-pre-release.mjs";
 
 describe("findStrayFiles", () => {
@@ -98,5 +103,121 @@ describe("findPlanStatusIssues", () => {
     ];
 
     expect(findPlanStatusIssues(planFiles)).toEqual([]);
+  });
+});
+
+describe("releaseLineOf", () => {
+  it("reads the major.minor line from a full version", () => {
+    expect(releaseLineOf("2.7.0")).toBe("2.7");
+  });
+
+  it("returns null for a value that is not a version", () => {
+    expect(releaseLineOf("banana")).toBeNull();
+  });
+});
+
+describe("isMajorMinorRelease", () => {
+  it("is true when the patch part is zero", () => {
+    expect(isMajorMinorRelease("2.7.0")).toBe(true);
+    expect(isMajorMinorRelease("2.7.0-beta.1")).toBe(true);
+  });
+
+  it("is false for a patch release", () => {
+    expect(isMajorMinorRelease("2.7.1")).toBe(false);
+  });
+});
+
+describe("findNoteIssues", () => {
+  it("accepts a note with a heading and an HTTPS image with alt text", () => {
+    const noteFiles = [
+      {
+        fileName: "2.7.md",
+        filePath: "src/release-notes/notes/2.7.md",
+        source:
+          "# RSS Dashboard 2.7.0\n\n![A screenshot](https://example.com/shot.png)\n",
+      },
+    ];
+
+    expect(findNoteIssues(noteFiles)).toEqual([]);
+  });
+
+  it("flags a note with no top-level heading", () => {
+    const noteFiles = [
+      {
+        fileName: "2.7.md",
+        filePath: "src/release-notes/notes/2.7.md",
+        source: "Just some prose.\n",
+      },
+    ];
+
+    expect(findNoteIssues(noteFiles)).toEqual([
+      expect.objectContaining({ reason: expect.stringContaining("heading") }),
+    ]);
+  });
+
+  it("flags a non-HTTPS image URL", () => {
+    const noteFiles = [
+      {
+        fileName: "2.7.md",
+        filePath: "src/release-notes/notes/2.7.md",
+        source: "# Note\n\n![A screenshot](http://example.com/shot.png)\n",
+      },
+    ];
+
+    expect(findNoteIssues(noteFiles)).toEqual([
+      expect.objectContaining({ reason: expect.stringContaining("HTTPS") }),
+    ]);
+  });
+
+  it("flags an image with no alt text", () => {
+    const noteFiles = [
+      {
+        fileName: "2.7.md",
+        filePath: "src/release-notes/notes/2.7.md",
+        source: "# Note\n\n![](https://example.com/shot.png)\n",
+      },
+    ];
+
+    expect(findNoteIssues(noteFiles)).toEqual([
+      expect.objectContaining({ reason: expect.stringContaining("alt text") }),
+    ]);
+  });
+});
+
+describe("findReleaseNoteFilenameIssues", () => {
+  it("accepts release-line and exact patch note names", () => {
+    expect(
+      findReleaseNoteFilenameIssues([
+        { fileName: "2.7.md", filePath: "src/release-notes/notes/2.7.md" },
+        { fileName: "2.7.1.md", filePath: "src/release-notes/notes/2.7.1.md" },
+      ]),
+    ).toEqual([]);
+  });
+
+  it("rejects templates, prerelease names, and non-markdown files", () => {
+    expect(
+      findReleaseNoteFilenameIssues([
+        { fileName: "template.md", filePath: "src/release-notes/notes/template.md" },
+        {
+          fileName: "2.7.0-beta.1.md",
+          filePath: "src/release-notes/notes/2.7.0-beta.1.md",
+        },
+        { fileName: "2.7.0.md", filePath: "src/release-notes/notes/2.7.0.md" },
+        { fileName: "2.7.1.txt", filePath: "src/release-notes/notes/2.7.1.txt" },
+      ]),
+    ).toHaveLength(4);
+  });
+});
+
+describe("findMissingNoteIssue", () => {
+  it("requires a note for a major/minor release", () => {
+    expect(findMissingNoteIssue("2.7.0", ["2.7.md"])).toBeNull();
+    expect(findMissingNoteIssue("2.8.0", ["2.7.md"])).toEqual(
+      expect.objectContaining({ reason: expect.stringContaining("2.8") }),
+    );
+  });
+
+  it("does not require a note for a patch release", () => {
+    expect(findMissingNoteIssue("2.7.1", [])).toBeNull();
   });
 });

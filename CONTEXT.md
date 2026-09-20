@@ -221,13 +221,17 @@ _Avoid_: Backup cleanup, orphan file
 ## Update notifications
 
 **What's New popup**:
-The modal shown once per plugin update, once the running version differs from the [[Last shown version]], displaying that version's [[Release summary]]. Suppressed on a fresh install and for a version whose changelog entry has no Features. Reachable again afterward from the About tab's "What's new" link, which reopens the same content rather than linking out.
+The modal shown after an update when a curated [[Release summary]] is due: a major/minor release shows its [[Release line]] note once, while a meaningful patch may show an exact-version note. An unnoted patch does not interrupt or advance the marker; a user who skips a release line still receives that line's note when updating directly to a patch. It is dropped for the session — without recording anything — when the storage-upgrade warning applies, so the two startup modals never stack. Reachable again afterward from the About tab's "What's new" button, which reopens the most specific available note rather than linking out.
 _Avoid_: Update notification, changelog viewer, whats-new dialog
 
+**Release line**:
+The `major.minor` part of a version, for example `2.7` for `2.7.0` and `2.7.1`. Release-line [[Release summary]] content is keyed by this value; an optional exact-version patch note can override it for a meaningful bug-fix release.
+_Avoid_: Version series, minor version
+
 **Release summary**:
-The curated, Features-only excerpt of a version's CHANGELOG.md entry, extracted at build time and embedded into the plugin so the [[What's New popup]] can render it offline. Distinct from the full changelog entry, which also carries Fixes and Development/compliance notes and is never shipped with the installed plugin — only `main.js`, `manifest.json`, and `styles.css` are.
+The curated, hand-authored markdown note for a [[Release line]] or optional exact-version patch, embedded into the plugin at build time as text so the [[What's New popup]] can render it offline; images stay remote. Distinct from `CHANGELOG.md`, which remains the full history and the target of "Read full changelog", and from `docs/releases/<version>.md`, the consolidated public summary written at release-cut time.
 _Avoid_: Changelog excerpt, release notes, what's-new text
 
 **Last shown version**:
-The persisted setting recording the most recent plugin version for which the [[What's New popup]] has already been displayed to this user. Compared against the running version on load to decide whether to show the popup. Distinct from `manifest.json`'s version, which always reflects the installed code regardless of what the user has seen.
+The persisted setting recording the running version whose [[Release summary]] was last shown or whose new release line was evaluated. Compared against the running version to decide whether the popup opens; an unnoted patch leaves it unchanged, while a shown exact patch or a newer release line records it. Distinct from `manifest.json`'s version, which always reflects the installed code regardless of what the user has seen.
 _Avoid_: lastSeenVersion, seen version

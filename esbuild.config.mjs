@@ -42,7 +42,10 @@ const context = await esbuild.context({
 	minify: prod,
 	loader: {
 		".json": "json",
-		".wasm": "binary"
+		".wasm": "binary",
+		// Curated What's New notes are bundled as plain text; only the text is
+		// embedded, images stay remote.
+		".md": "text"
 	}
 });
 

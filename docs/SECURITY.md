@@ -127,6 +127,12 @@ RSS feeds are hosted on external servers — the plugin must fetch feed content 
 - Invalid or malformed feeds are handled gracefully
 - Large feeds are truncated to prevent memory issues
 
+**Release Images**: ✅ HTTPS only
+
+- The What's New popup loads its note's images from GitHub (`raw.githubusercontent.com`) over HTTPS when the popup opens
+- The note text itself is bundled with the plugin and needs no network access
+- An image that fails to load is hidden; the note text is unaffected
+
 **No Telemetry**: ✅
 
 - RSS Dashboard does **not** collect usage data

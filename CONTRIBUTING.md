@@ -235,7 +235,7 @@ Deliberate, hard-to-reverse, non-obvious decisions are recorded in `docs/adr/` a
 - **Surprising without context** — a future reader would look at the code and wonder why it's built this way.
 - **The result of a real trade-off** — genuine alternatives existed and one was picked for specific reasons.
 
-Skip an ADR for anything obvious, easily reversed, or where there was no real alternative. See [ADR 0006](docs/adr/0006-deprecate-legacy-json-and-shard-storage-v1.md) (a deprecation policy with real trade-offs) or [ADR 0008](docs/adr/0008-embed-release-summaries-at-build-time.md) (a build-vs-runtime choice with rejected alternatives) for what a good one looks like.
+Skip an ADR for anything obvious, easily reversed, or where there was no real alternative. See [ADR 0006](docs/adr/0006-deprecate-legacy-json-and-shard-storage-v1.md) (a deprecation policy with real trade-offs) or [ADR 0009](docs/adr/0009-curated-whats-new-release-notes.md) (a build-vs-runtime choice with rejected alternatives) for what a good one looks like.
 
 `CONTEXT.md` at the repo root is the companion glossary — sharpen or add a term there when a PR introduces or clarifies project-specific vocabulary; general programming concepts don't belong in it.
 
@@ -248,7 +248,8 @@ Before Step 6 — Ship, finalize the changelog per
 work through the
 [pre-release checklist](docs/development/pre-release-checklist.md) —
 including renaming `CHANGELOG.md`'s `## Unreleased` heading to the release
-version and running `npm run generate:whats-new`.
+version and adding the release line's curated What's New note under
+`src/release-notes/notes/`.
 
 ### Step 1 — Feature Complete
 
@@ -352,8 +353,9 @@ When confidence is high and no new issues are surfacing:
 
 Before running the commands below, confirm the changelog is already
 finalized and committed on its own: `CHANGELOG.md`'s `## Unreleased` heading
-renamed to this release's version, and `npm run generate:whats-new` run and
-its output committed. Neither is part of the version-bump commit below — see
+renamed to this release's version, and the release line's curated What's New
+note added under `src/release-notes/notes/`. Neither is part of the
+version-bump commit below — see
 [release-notes-workflow.md](docs/development/release-notes-workflow.md).
 
 ```
