@@ -18,9 +18,12 @@ const SHARD_VERSION = 1;
 /**
  * `user-state.json` schema version. Version 2 keys `states` by
  * `${feedId}:${guid}` instead of a bare GUID, so two feeds carrying the same
- * GUID no longer overwrite each other's article state (issue #278).
+ * GUID no longer overwrite each other's article state (issue #278). Version 3
+ * adds hydration-gated garbage-collection timestamps (issue #315).
  */
-const USER_STATE_KEY_VERSION = 2;
+const USER_STATE_KEY_VERSION = 3;
+const USER_STATE_QUALIFIED_VERSION = 2;
+const USER_STATE_GC_HORIZON_MS = 90 * 24 * 60 * 60 * 1000;
 
 function userStateKey(feedId: string, guid: string): string {
   return `${feedId}:${guid}`;
@@ -310,6 +313,11 @@ export class FeedStorageRepository {
   private lastStorageFolderPath: string | null = null;
   private lastRepairResult = "Not yet run";
   private feedShardHealthById = new Map<string, FeedShardHealth>();
+  /**
+   * Feed IDs whose shard was successfully read and structurally validated in
+   * this plugin session, with the GUIDs present in that validated read.
+   */
+  private hydratedShardGuidsByFeedId = new Map<string, Set<string>>();
   private writeWrapper?: <T>(fn: () => Promise<T>) => Promise<T>;
   /**
    * `${feedId}:${guid}` keys of items whose in-memory flags are known to
@@ -419,6 +427,7 @@ export class FeedStorageRepository {
 
     if (settings.storageMode !== "vault-shards" && settings.storageMode !== "vault-shards-v2") {
       this.feedShardHealthById.clear();
+      this.hydratedShardGuidsByFeedId.clear();
       storageLog("Skipping shard hydration because legacy JSON mode is active");
       this.capturePersistedState(settings);
       return { didChange: didAssignFeedIds, shardCount };
@@ -426,6 +435,7 @@ export class FeedStorageRepository {
 
     const feedsById = new Map<string, Feed>();
     this.feedShardHealthById.clear();
+    this.hydratedShardGuidsByFeedId.clear();
     for (const feed of settings.feeds) {
       if (feed.feedId) {
         feedsById.set(feed.feedId, feed);
@@ -433,6 +443,9 @@ export class FeedStorageRepository {
     }
 
     for (const feed of settings.feeds) {
+      if (feed.feedId) {
+        this.hydratedShardGuidsByFeedId.delete(feed.feedId);
+      }
       const shardPath = getFeedShardPath(
         settings.storageFolder,
         feed.feedId ?? "",
@@ -460,7 +473,13 @@ export class FeedStorageRepository {
         }
 
         feed.items = parsed.items;
-        if (feed.feedId) this.feedShardHealthById.delete(feed.feedId);
+        if (feed.feedId) {
+          this.feedShardHealthById.delete(feed.feedId);
+          this.hydratedShardGuidsByFeedId.set(
+            feed.feedId,
+            new Set(feed.items.map(item => item.guid)),
+          );
+        }
         shardCount += 1;
         storageLog("Hydrated feed from shard", {
           feedId: feed.feedId,
@@ -488,7 +507,7 @@ export class FeedStorageRepository {
       didAssignFeedIds,
       shardCount,
     });
-    
+
     let userStateLoaded = false;
     if (settings.storageMode === "vault-shards-v2") {
       const userStateResult = await this.readUserState(settings);
@@ -1466,10 +1485,11 @@ export class FeedStorageRepository {
    * shape, migrating a pre-#278 file (bare-GUID keys, `version: 1`) in
    * memory: every bare-GUID entry — from a legacy file's `states`, or from a
    * previous migration's leftover `unattributedLegacyStates` — is retried
-   * against every currently-loaded item. Because the legacy format could not
-   * distinguish feeds, a GUID currently loaded by more than one feed is
-   * applied to each of them once, reproducing the old (ambiguous) lookup;
-   * from that point each feed's copy diverges independently.
+   * against every feed whose shard has been successfully validated this
+   * session. Because the legacy format could not distinguish feeds, a GUID
+   * present in more than one validated shard is applied to each of them once,
+   * reproducing the old (ambiguous) lookup; from that point each feed's copy
+   * diverges independently.
    *
    * A bare-GUID entry whose feed has not hydrated yet in this session
    * matches nothing and is returned in `unattributed` instead of being
@@ -1487,7 +1507,7 @@ export class FeedStorageRepository {
       return { states: {}, unattributed: {} };
     }
 
-    const isMigrated = userState.version >= USER_STATE_KEY_VERSION;
+    const isMigrated = userState.version >= USER_STATE_QUALIFIED_VERSION;
     const states = isMigrated ? cloneJson(userState.states) : {};
     const pendingLegacy = isMigrated
       ? cloneJson(userState.unattributedLegacyStates ?? {})
@@ -1498,11 +1518,10 @@ export class FeedStorageRepository {
       let matchedAny = false;
       for (const feed of settings.feeds) {
         const feedId = feed.feedId ?? "";
-        for (const item of feed.items) {
-          if (item.guid === guid) {
-            states[userStateKey(feedId, guid)] = cloneJson(legacyState);
-            matchedAny = true;
-          }
+        const hydratedGuids = this.hydratedShardGuidsByFeedId.get(feedId);
+        if (hydratedGuids?.has(guid)) {
+          states[userStateKey(feedId, guid)] = cloneJson(legacyState);
+          matchedAny = true;
         }
       }
       if (!matchedAny) {
@@ -1528,6 +1547,15 @@ export class FeedStorageRepository {
       existing.status === "ok" ? existing.file : null,
       settings,
     );
+    const missingSinceByStateKey =
+      existing.status === "ok"
+        ? cloneJson(existing.file.missingSinceByStateKey ?? {})
+        : {};
+    const unattributedFirstObservedAtByGuid =
+      existing.status === "ok"
+        ? cloneJson(existing.file.unattributedFirstObservedAtByGuid ?? {})
+        : {};
+    const now = Date.now();
 
     const currentFeedIds = new Set<string>();
     for (const feed of settings.feeds) {
@@ -1584,6 +1612,64 @@ export class FeedStorageRepository {
       const feedId = separatorIndex === -1 ? "" : key.slice(0, separatorIndex);
       if (!currentFeedIds.has(feedId)) {
         delete states[key];
+        delete missingSinceByStateKey[key];
+      }
+    }
+
+    for (const key of Object.keys(states)) {
+      const separatorIndex = key.indexOf(":");
+      const feedId = separatorIndex === -1 ? "" : key.slice(0, separatorIndex);
+      const guid = separatorIndex === -1 ? "" : key.slice(separatorIndex + 1);
+      const hydratedGuids = this.hydratedShardGuidsByFeedId.get(feedId);
+
+      // Missing or corrupt shards do not provide deletion evidence. Keep any
+      // existing timestamp dormant until a later successful hydrate proves the
+      // feed's current contents.
+      if (!hydratedGuids) {
+        continue;
+      }
+
+      if (hydratedGuids.has(guid)) {
+        delete missingSinceByStateKey[key];
+        continue;
+      }
+
+      let missingSince = missingSinceByStateKey[key];
+      if (typeof missingSince !== "number" || !Number.isFinite(missingSince)) {
+        missingSince = now;
+        missingSinceByStateKey[key] = missingSince;
+      }
+
+      if (now - missingSince >= USER_STATE_GC_HORIZON_MS) {
+        delete states[key];
+        delete missingSinceByStateKey[key];
+        storageLog("Expired missing article state", { key, missingSince });
+      }
+    }
+
+    for (const guid of Object.keys(unattributedFirstObservedAtByGuid)) {
+      if (!unattributed[guid]) {
+        delete unattributedFirstObservedAtByGuid[guid];
+      }
+    }
+
+    for (const guid of Object.keys(unattributed)) {
+      let firstObservedAt = unattributedFirstObservedAtByGuid[guid];
+      if (
+        typeof firstObservedAt !== "number" ||
+        !Number.isFinite(firstObservedAt)
+      ) {
+        firstObservedAt = now;
+        unattributedFirstObservedAtByGuid[guid] = firstObservedAt;
+      }
+
+      if (now - firstObservedAt >= USER_STATE_GC_HORIZON_MS) {
+        delete unattributed[guid];
+        delete unattributedFirstObservedAtByGuid[guid];
+        storageLog("Expired unattributed legacy article state", {
+          guid,
+          firstObservedAt,
+        });
       }
     }
 
@@ -1593,10 +1679,16 @@ export class FeedStorageRepository {
       ...(Object.keys(unattributed).length > 0
         ? { unattributedLegacyStates: unattributed }
         : {}),
+      ...(Object.keys(missingSinceByStateKey).length > 0
+        ? { missingSinceByStateKey }
+        : {}),
+      ...(Object.keys(unattributedFirstObservedAtByGuid).length > 0
+        ? { unattributedFirstObservedAtByGuid }
+        : {}),
     });
 
     const path = this.getUserStatePath(settings);
-    
+
     // Ensure metadata folder exists
     let folder = settings.metadataStorageFolder.trim();
     if (!folder) {

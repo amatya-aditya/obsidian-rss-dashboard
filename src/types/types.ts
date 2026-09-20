@@ -451,6 +451,16 @@ export interface UserStateFile {
    * `states` and removed from here.
    */
   unattributedLegacyStates?: Record<string, ArticleUserState>;
+  /**
+   * First observation timestamps for feed-qualified state absent from a
+   * successfully hydrated shard.
+   */
+  missingSinceByStateKey?: Record<string, number>;
+  /**
+   * First observation timestamps for legacy bare-GUID state that has not yet
+   * been attributed by a successfully hydrated shard.
+   */
+  unattributedFirstObservedAtByGuid?: Record<string, number>;
   _syncNonce?: string;
   _syncPad?: string;
 }
