@@ -2285,12 +2285,7 @@ export class Sidebar {
           this.showConfirmModal(
             `Are you sure you want to delete the folder '${folderName}' and all its subfolders and feeds?`,
             () => {
-              const allPaths = this.getAllDescendantFolderPaths(fullPath);
-              this.settings.feeds = this.settings.feeds.filter(
-                (feed) => !allPaths.includes(feed.folder),
-              );
-              this.removeFolderByPath(fullPath);
-              this.render();
+              this.callbacks.onDeleteFolder(fullPath);
             },
           );
         });
@@ -2441,12 +2436,7 @@ export class Sidebar {
       this.showConfirmModal(
         `Are you sure you want to delete the folder '${row.folderName}' and all its subfolders and feeds?`,
         () => {
-          const allPaths = this.getAllDescendantFolderPaths(row.folderPath!);
-          this.settings.feeds = this.settings.feeds.filter(
-            (feed) => !allPaths.includes(feed.folder),
-          );
-          this.removeFolderByPath(row.folderPath!);
-          this.render();
+          this.callbacks.onDeleteFolder(row.folderPath!);
         },
       );
     }
@@ -2710,32 +2700,6 @@ export class Sidebar {
     // Delegate to FolderNameModal (extends Obsidian Modal) for focus stability.
     // See FolderNameModal class comments for context on why Modal is required.
     new FolderNameModal(this.app, options).open();
-  }
-
-  private removeFolderByPath(path: string) {
-    const parts = path.split("/");
-    const parentPath = parts.slice(0, -1).join("/");
-    function removeRecursive(folders: Folder[], depth: number): Folder[] {
-      return folders.filter((folder: Folder) => {
-        if (folder.name === parts[depth]) {
-          if (depth === parts.length - 1) {
-            return false;
-          } else {
-            folder.subfolders = removeRecursive(folder.subfolders, depth + 1);
-            return true;
-          }
-        } else {
-          return true;
-        }
-      });
-    }
-    this.settings.folders = removeRecursive(this.settings.folders, 0);
-    if (parentPath) {
-      const parent = this.findFolderByPath(parentPath);
-      if (parent) parent.modifiedAt = Date.now();
-    }
-    this.clearFolderPathCache();
-    this.render();
   }
 
   private getAllDescendantFolderPaths(path: string): string[] {

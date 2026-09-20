@@ -592,10 +592,7 @@ export class FeedStorageRepository {
           this.lastStorageFolderPath,
           feed.feedId,
         );
-        const previousShard =
-          this.app.vault.getAbstractFileByPath(previousShardPath);
-        if (previousShard) {
-          await this.app.fileManager.trashFile(previousShard);
+        if (await this.removeShardFile(previousShardPath)) {
           storageLog("Deleted shard from previous storage folder", {
             feedId: feed.feedId,
             previousShardPath,
@@ -615,9 +612,7 @@ export class FeedStorageRepository {
         normalizedStorageFolder,
         previousFeedId,
       );
-      const existing = this.app.vault.getAbstractFileByPath(shardPath);
-      if (existing) {
-        await this.app.fileManager.trashFile(existing);
+      if (await this.removeShardFile(shardPath)) {
         storageLog("Deleted shard for removed feed", {
           feedId: previousFeedId,
           shardPath,
@@ -1300,6 +1295,22 @@ export class FeedStorageRepository {
 
       currentPath = this.getParentFolderPath(currentPath);
     }
+  }
+
+  private async removeShardFile(shardPath: string): Promise<boolean> {
+    const indexed = this.app.vault.getAbstractFileByPath(shardPath);
+    if (indexed) {
+      await this.app.fileManager.trashFile(indexed);
+      return true;
+    }
+
+    // Obsidian never indexes dot-folders, so a shard in the default
+    // `.rss-dashboard-data/feeds` has no TFile and can only be removed by path.
+    if (await this.app.vault.adapter.exists(shardPath)) {
+      await this.app.vault.adapter.remove(shardPath);
+      return true;
+    }
+    return false;
   }
 
   private getParentFolderPath(folderPath: string): string | null {
