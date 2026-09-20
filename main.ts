@@ -3068,6 +3068,11 @@ export default class RssDashboardPlugin extends Plugin {
         this.getMetadataSaveCallback(),
       );
       storageLog("saveSettings completed", result);
+      try {
+        await this.backupService.performAutoBackups();
+      } catch (error) {
+        console.error("[RSS Dashboard] Backup after save failed:", error);
+      }
       this.autoRefreshScheduler?.reschedule();
     } catch (error) {
       storageError("saveSettings failed", error, {

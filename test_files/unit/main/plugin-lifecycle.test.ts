@@ -2186,6 +2186,47 @@ describe("saveSettings()", () => {
       }),
     );
   });
+
+  it("completes configured backups after persisting settings", async () => {
+    let resolveBackup: (() => void) | undefined;
+    const backupPromise = new Promise<void>((resolve) => {
+      resolveBackup = resolve;
+    });
+    const performAutoBackups = vi.fn().mockReturnValue(backupPromise);
+    (plugin as unknown as PluginPrivateAPI).backupService.performAutoBackups =
+      performAutoBackups;
+
+    let saveCompleted = false;
+    const savePromise = plugin.saveSettings().then(() => {
+      saveCompleted = true;
+    });
+
+    await vi.waitFor(() => {
+      expect(performAutoBackups).toHaveBeenCalledTimes(1);
+    });
+
+    expect(saveCompleted).toBe(false);
+
+    resolveBackup?.();
+    await savePromise;
+
+    expect(saveCompleted).toBe(true);
+  });
+
+  it("keeps persisted settings when a backup fails", async () => {
+    const backupError = new Error("disk full");
+    const performAutoBackups = vi.fn().mockRejectedValue(backupError);
+    (plugin as unknown as PluginPrivateAPI).backupService.performAutoBackups =
+      performAutoBackups;
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await expect(plugin.saveSettings()).resolves.toBeUndefined();
+
+    expect(errorSpy).toHaveBeenCalledWith(
+      "[RSS Dashboard] Backup after save failed:",
+      backupError,
+    );
+  });
 });
 
 // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€

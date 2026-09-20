@@ -476,8 +476,10 @@ export function renderImportExportSettingsTab(
     );
 
   new Setting(backupSection)
-    .setName("Back up user preferences (userdata.json)")
-    .setDesc("Saves a copy to userdata.json.backup in the plugin folder.")
+    .setName("Back up user preferences")
+    .setDesc(
+      "Saves a copy to the user preferences backup file in the plugin folder.",
+    )
     .addToggle((toggle) =>
       toggle
         .setValue(plugin.settings.autoBackup.backupUserdata)

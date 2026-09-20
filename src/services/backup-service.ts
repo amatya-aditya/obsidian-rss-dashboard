@@ -77,7 +77,10 @@ export class BackupService {
           }
         }
 
-        if (this.settings.storageMode === "vault-shards") {
+        if (
+          this.settings.storageMode === "vault-shards" ||
+          this.settings.storageMode === "vault-shards-v2"
+        ) {
           await this.vault.adapter.write(
             `${pluginDir}/portable-data-bundle.json.backup`,
             this.getPortableDataBundleJsonFn(),
@@ -128,6 +131,11 @@ export class BackupService {
             if (userDataExists) {
               const content = await this.vault.adapter.read(userDataPath);
               await this.vault.adapter.write(`${userDataPath}.backup`, content);
+            } else {
+              await this.vault.adapter.write(
+                `${userPreferencesPath}.backup`,
+                this.getUserSettingsJsonFn(),
+              );
             }
           }
         }
