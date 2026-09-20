@@ -193,6 +193,50 @@ describe("FeedStorageRepository", () => {
     expect(saveData).not.toHaveBeenCalled();
   });
 
+  it("recreates a shard removed externally even when feed data is unchanged", async () => {
+    const settings = cloneSettings();
+    settings.storageMode = "vault-shards";
+    settings.storageFolder = "RSS Data/Feeds";
+    settings.feeds = [makeFeed({ feedId: "feed-1" })];
+
+    await repository.persistSettings(settings, saveData, {
+      forceAllShards: true,
+      forceMetadata: true,
+    });
+    await (app.vault.adapter as unknown as { remove(path: string): Promise<void> }).remove(
+      "RSS Data/Feeds/feed-1.json",
+    );
+
+    const result = await repository.persistSettings(settings, saveData);
+
+    expect(result.shardWriteCount).toBe(1);
+    expect(
+      await (app.vault.adapter as unknown as {
+        exists(path: string): Promise<boolean>;
+      }).exists("RSS Data/Feeds/feed-1.json"),
+    ).toBe(true);
+  });
+
+  it("recreates a shard corrupted externally even when feed data is unchanged", async () => {
+    const settings = cloneSettings();
+    settings.storageMode = "vault-shards";
+    settings.storageFolder = "RSS Data/Feeds";
+    settings.feeds = [makeFeed({ feedId: "feed-1" })];
+
+    await repository.persistSettings(settings, saveData, {
+      forceAllShards: true,
+      forceMetadata: true,
+    });
+    await vaultAdapter(app).write("RSS Data/Feeds/feed-1.json", "not json");
+
+    const result = await repository.persistSettings(settings, saveData);
+
+    expect(result.shardWriteCount).toBe(1);
+    expect(await vaultAdapter(app).read("RSS Data/Feeds/feed-1.json")).toContain(
+      '"feedId": "feed-1"',
+    );
+  });
+
   it("migrates legacy settings to shard storage and strips items from persisted metadata", async () => {
     const settings = cloneSettings();
     settings.storageMode = "legacy-json";

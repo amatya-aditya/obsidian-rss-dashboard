@@ -568,11 +568,17 @@ export class FeedStorageRepository {
       const currentComparableJson = createComparableFeedShardJson(feed, isV2);
       const previousJson = this.lastPersistedShardJsonByFeedId.get(feed.feedId);
 
-      if (forceAllShards || previousJson !== currentComparableJson) {
-        const shardPath = getFeedShardPath(
-          normalizedStorageFolder,
-          feed.feedId,
-        );
+      const shardPath = getFeedShardPath(
+        normalizedStorageFolder,
+        feed.feedId,
+      );
+      const shardNeedsWrite = await this.shardNeedsWrite(
+        shardPath,
+        forceAllShards || previousJson !== currentComparableJson,
+        currentComparableJson,
+      );
+
+      if (shardNeedsWrite) {
         await this.app.vault.adapter.write(shardPath, shardJson);
         this.lastPersistedShardJsonByFeedId.set(
           feed.feedId,
@@ -1311,6 +1317,27 @@ export class FeedStorageRepository {
       return true;
     }
     return false;
+  }
+
+  private async shardNeedsWrite(
+    shardPath: string,
+    alreadyChanged: boolean,
+    expectedComparableJson: string,
+  ): Promise<boolean> {
+    if (alreadyChanged || !(await this.app.vault.adapter.exists(shardPath))) {
+      return true;
+    }
+
+    try {
+      const parsed = JSON.parse(await this.app.vault.adapter.read(shardPath)) as {
+        updatedAt?: unknown;
+      };
+      const { updatedAt: _updatedAt, ...existingWithoutTimestamp } = parsed;
+      void _updatedAt;
+      return JSON.stringify(existingWithoutTimestamp, null, 2) !== expectedComparableJson;
+    } catch {
+      return true;
+    }
   }
 
   private getParentFolderPath(folderPath: string): string | null {
