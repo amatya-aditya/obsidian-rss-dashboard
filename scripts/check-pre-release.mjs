@@ -5,6 +5,10 @@ import { fileURLToPath } from "node:url";
 
 const ROOT_DIR = join(import.meta.dirname, "..");
 const PLANS_DIR = join(ROOT_DIR, "docs", "plans");
+const RELEASE_NOTES_DIR = join(ROOT_DIR, "src", "release-notes", "notes");
+
+const RELEASE_LINE_PATTERN = /^(\d+)\.(\d+)(?:\.|$)/;
+const IMAGE_PATTERN = /!\[([^\]]*)\]\(\s*([^)\s]+)(?:\s+["'][^"']*["'])?\s*\)/g;
 
 const STRAY_FILE_PATTERNS = [
   /\.bak$/i,
@@ -90,6 +94,78 @@ export function findPlanStatusIssues(planFiles) {
   return issues;
 }
 
+/**
+ * The `major.minor` release line a version belongs to, or null when the string
+ * is not a version this check can read.
+ */
+export function releaseLineOf(version) {
+  const match = RELEASE_LINE_PATTERN.exec(String(version).trim());
+  return match ? `${match[1]}.${match[2]}` : null;
+}
+
+/** Whether a version is a major/minor release, i.e. its patch part is zero. */
+export function isMajorMinorRelease(version) {
+  const core = String(version).split("-")[0] ?? "";
+  const parts = core.split(".");
+  return parts.length >= 3 && Number(parts[2]) === 0;
+}
+
+/**
+ * Validates every curated What's New note: a top-level heading, and images
+ * that are HTTPS and carry alt text.
+ */
+export function findNoteIssues(noteFiles) {
+  const issues = [];
+
+  for (const { filePath, source } of noteFiles) {
+    if (!/^#\s+\S/m.test(source)) {
+      issues.push({
+        filePath,
+        reason: "missing a top-level markdown heading",
+      });
+    }
+
+    for (const match of source.matchAll(IMAGE_PATTERN)) {
+      const alt = match[1] ?? "";
+      const url = match[2] ?? "";
+      if (!url.startsWith("https://")) {
+        issues.push({
+          filePath,
+          reason: `image "${url}" is not an HTTPS URL`,
+        });
+      }
+      if (alt.trim().length === 0) {
+        issues.push({
+          filePath,
+          reason: `image "${url}" is missing alt text`,
+        });
+      }
+    }
+  }
+
+  return issues;
+}
+
+/**
+ * A major/minor release must ship a note for its release line. Patch releases
+ * need none, so the check stays out of the way of bug-fix releases.
+ */
+export function findMissingNoteIssue(manifestVersion, noteFileNames) {
+  if (!isMajorMinorRelease(manifestVersion)) {
+    return null;
+  }
+
+  const releaseLine = releaseLineOf(manifestVersion);
+  if (releaseLine && noteFileNames.includes(`${releaseLine}.md`)) {
+    return null;
+  }
+
+  return {
+    filePath: "src/release-notes/notes",
+    reason: `no What's New note for release line ${releaseLine ?? manifestVersion}`,
+  };
+}
+
 function getTrackedFiles() {
   const output = execFileSync("git", ["ls-files"], {
     cwd: ROOT_DIR,
@@ -121,11 +197,49 @@ function listActivePlanFiles() {
     });
 }
 
+function listReleaseNoteFiles() {
+  let entries;
+  try {
+    entries = readdirSync(RELEASE_NOTES_DIR, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+
+  return entries
+    .filter((entry) => entry.isFile() && entry.name.endsWith(".md"))
+    .map((entry) => {
+      const absolutePath = join(RELEASE_NOTES_DIR, entry.name);
+      return {
+        fileName: entry.name,
+        filePath: relative(ROOT_DIR, absolutePath).replace(/\\/g, "/"),
+        source: readFileSync(absolutePath, "utf8"),
+      };
+    });
+}
+
+function readManifestVersion() {
+  try {
+    return JSON.parse(readFileSync(join(ROOT_DIR, "manifest.json"), "utf8"))
+      .version;
+  } catch {
+    return null;
+  }
+}
+
 function main() {
   const trackedFiles = getTrackedFiles();
   const strayFiles = findStrayFiles(trackedFiles);
   const activePlanFiles = listActivePlanFiles();
   const planStatusIssues = findPlanStatusIssues(activePlanFiles);
+  const releaseNoteFiles = listReleaseNoteFiles();
+  const noteIssues = findNoteIssues(releaseNoteFiles);
+  const manifestVersion = readManifestVersion();
+  const missingNoteIssue = manifestVersion
+    ? findMissingNoteIssue(
+        manifestVersion,
+        releaseNoteFiles.map((note) => note.fileName),
+      )
+    : null;
 
   let failed = false;
 
@@ -150,6 +264,25 @@ function main() {
     }
   }
 
+  if (noteIssues.length > 0) {
+    failed = true;
+    console.error(
+      `Pre-release check failed: ${noteIssues.length} issue(s) in curated What's New notes.`,
+    );
+    for (const issue of noteIssues) {
+      console.error(`- ${issue.filePath}: ${issue.reason}`);
+    }
+  }
+
+  if (missingNoteIssue) {
+    failed = true;
+    console.error(
+      "Pre-release check failed: the running version is a major/minor release " +
+        "with no curated What's New note.",
+    );
+    console.error(`- ${missingNoteIssue.filePath}: ${missingNoteIssue.reason}`);
+  }
+
   if (failed) {
     console.error(
       "\nSee docs/development/pre-release-checklist.md for the full pre-release checklist, " +
@@ -160,7 +293,8 @@ function main() {
 
   console.log(
     `Pre-release check passed (${trackedFiles.length} tracked file(s) scanned, ` +
-      `${activePlanFiles.length} active plan(s) validated).`,
+      `${activePlanFiles.length} active plan(s) validated, ` +
+      `${releaseNoteFiles.length} What's New note(s) validated).`,
   );
 }
 

@@ -222,18 +222,89 @@ export class MarkdownRenderer {
     _component: Component,
   ): Promise<void> {
     const doc = el.ownerDocument;
-    const display = markdown.startsWith("$$");
-    const delimiterLength = display ? 2 : 1;
-    const latex = markdown
-      .slice(delimiterLength, -delimiterLength)
-      .trim();
-    const math = display
-      ? doc.createDiv({ cls: "math math-block" })
-      : doc.createSpan({ cls: "math math-inline" });
-    const mathJax = doc.createEl("mjx-container" as keyof HTMLElementTagNameMap, { text: latex });
-    math.appendChild(mathJax);
-    el.appendChild(math);
+    const trimmed = markdown.trim();
+    if (trimmed.startsWith("$") && trimmed.endsWith("$")) {
+      const display = markdown.startsWith("$$");
+      const delimiterLength = display ? 2 : 1;
+      const latex = markdown
+        .slice(delimiterLength, -delimiterLength)
+        .trim();
+      const math = display
+        ? doc.createDiv({ cls: "math math-block" })
+        : doc.createSpan({ cls: "math math-inline" });
+      const mathJax = doc.createEl("mjx-container" as keyof HTMLElementTagNameMap, { text: latex });
+      math.appendChild(mathJax);
+      el.appendChild(math);
+      return Promise.resolve();
+    }
+
+    renderSimpleMarkdown(doc, markdown, el);
     return Promise.resolve();
+  }
+}
+
+/**
+ * Minimal markdown renderer for tests: headings, bullet lists, paragraphs, and
+ * images. Enough for components that render a short markdown body; it is not a
+ * general-purpose parser.
+ */
+function renderSimpleMarkdown(
+  doc: Document,
+  markdown: string,
+  el: HTMLElement,
+): void {
+  const headingTags = ["h1", "h2", "h3", "h4", "h5", "h6"] as const;
+  let list: HTMLElement | null = null;
+
+  for (const rawLine of markdown.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line) {
+      list = null;
+      continue;
+    }
+
+    const heading = /^(#{1,6})\s+(.*)$/.exec(line);
+    if (heading) {
+      list = null;
+      const tag = headingTags[heading[1].length - 1];
+      el.createEl(tag, { text: heading[2] });
+      continue;
+    }
+
+    const bullet = /^[-*]\s+(.*)$/.exec(line);
+    if (bullet) {
+      if (!list) {
+        list = el.createEl("ul");
+      }
+      list.createEl("li", { text: bullet[1] });
+      continue;
+    }
+
+    list = null;
+    const paragraph = el.createEl("p");
+    appendInlineMarkdown(doc, paragraph, line);
+  }
+}
+
+function appendInlineMarkdown(
+  doc: Document,
+  parent: HTMLElement,
+  text: string,
+): void {
+  const imagePattern = /!\[([^\]]*)\]\(([^)\s]+)\)/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = imagePattern.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parent.appendChild(doc.createTextNode(text.slice(lastIndex, match.index)));
+    }
+    parent.createEl("img", { attr: { src: match[2], alt: match[1] } });
+    lastIndex = match.index + match[0].length;
+  }
+
+  if (lastIndex < text.length) {
+    parent.appendChild(doc.createTextNode(text.slice(lastIndex)));
   }
 }
 
@@ -575,6 +646,10 @@ export class MockWorkspace {
 
   on(_name: string, _callback: (...args: unknown[]) => unknown): unknown {
     return {};
+  }
+
+  getActiveViewOfType(_type: unknown): unknown {
+    return null;
   }
 
   offref(_ref: unknown): void {}

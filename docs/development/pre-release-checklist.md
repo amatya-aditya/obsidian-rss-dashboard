@@ -27,6 +27,11 @@ it is safe to run in CI and on a normal dev machine mid-feature:
   to `docs/archive/plans/` per the
   [Plan Lifecycle and Archive](README.md#plan-lifecycle-and-archive) policy;
   the script flags one left behind instead.
+- Every curated What's New note under `src/release-notes/notes/` has a
+  top-level heading and uses only HTTPS images with alt text, and the version
+  in `manifest.json` — when it is a major/minor release — has a note for its
+  release line. A missing note fails the build instead of shipping an empty
+  popup.
 
 Non-lifecycle documents in `docs/plans/` (for example `public-roadmap.md`,
 which carries no frontmatter by design) are left alone.
