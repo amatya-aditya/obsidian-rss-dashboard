@@ -80,7 +80,10 @@ import { StorageMigrationModal } from "./src/modals/storage-migration-modal";
 import { WhatsNewModal } from "./src/modals/whats-new-modal";
 import { shouldShowStorageDeprecationPrompt } from "./src/utils/storage-deprecation-prompt";
 import { decideWhatsNew } from "./src/utils/whats-new";
-import { getReleaseNoteForVersion } from "./src/release-notes";
+import {
+  getReleaseNoteForVersion,
+  hasExactReleaseNoteForVersion,
+} from "./src/release-notes";
 import { isValidUrl } from "./src/utils/validation";
 import {
   dedupeAndNormalizeFeedItems,
@@ -778,9 +781,9 @@ export default class RssDashboardPlugin extends Plugin {
   }
 
   /**
-   * Shows the current release line's curated note once. Skipped on a null
-   * settings load (a genuine fresh install, or a synced vault whose data.json
-   * has not arrived yet) and on a failed load, because both cases would write
+   * Shows a due curated release note. Skipped on a null settings load (a
+   * genuine fresh install, or a synced vault whose data.json has not arrived
+   * yet) and on a failed load, because both cases would write
    * `lastShownVersion` into settings that are not the user's real data.
    */
   private async maybeShowWhatsNew(): Promise<void> {
@@ -793,6 +796,7 @@ export default class RssDashboardPlugin extends Plugin {
       currentVersion: this.manifest.version,
       lastShownVersion: this.settings.lastShownVersion,
       hasNote: note !== null,
+      hasExactPatchNote: hasExactReleaseNoteForVersion(this.manifest.version),
     });
 
     if (decision.shouldShow && note) {

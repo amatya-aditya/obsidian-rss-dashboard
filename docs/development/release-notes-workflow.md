@@ -69,11 +69,14 @@ whichever fit, rather than inventing new ones.
    Consolidate related changelog bullets, lead with user impact, and omit
    implementation detail that does not help the wider audience.
 7. Add or update the release line's curated What's New note at
-   `src/release-notes/notes/<major.minor>.md`. It is separate from
-   `docs/releases/<version>.md`: shorter, written for the in-plugin popup, and
-   embedded into the bundle at build time. A major/minor release with no note
-   fails `npm run check:pre-release`, and every note needs a top-level heading
-   and HTTPS images with alt text.
+   `src/release-notes/notes/<major.minor>.md`. For a meaningful bug fix, an
+   optional exact patch note may be added at
+   `src/release-notes/notes/<major.minor>.<patch>.md`. Follow the
+   [curated note template](release-note-template.md). These notes are separate
+   from `docs/releases/<version>.md`: shorter, written for the in-plugin popup,
+   and embedded into the bundle at build time. A major/minor release with no
+   line note fails `npm run check:pre-release`; every note needs a valid
+   filename, top-level heading, and HTTPS images with alt text.
 8. Preserve granular issue URLs in `CHANGELOG.md`. Include issue links in the
    public release summary only when they add useful context.
 9. Exclude internal-only refactors unless they have direct user impact.

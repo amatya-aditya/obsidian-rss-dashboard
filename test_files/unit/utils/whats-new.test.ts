@@ -6,6 +6,7 @@ interface Case {
   currentVersion: string;
   lastShownVersion: string | undefined;
   hasNote: boolean;
+  hasExactPatchNote?: boolean;
   shouldShow: boolean;
   nextLastShownVersion: string | undefined;
 }
@@ -32,6 +33,25 @@ const CASES: Case[] = [
     currentVersion: "2.7.1",
     lastShownVersion: "2.7.0",
     hasNote: true,
+    hasExactPatchNote: false,
+    shouldShow: false,
+    nextLastShownVersion: "2.7.0",
+  },
+  {
+    name: "shows an explicitly authored exact patch note within the same line",
+    currentVersion: "2.7.1",
+    lastShownVersion: "2.7.0",
+    hasNote: true,
+    hasExactPatchNote: true,
+    shouldShow: true,
+    nextLastShownVersion: "2.7.1",
+  },
+  {
+    name: "does not advance the marker for an unnoted patch",
+    currentVersion: "2.7.1",
+    lastShownVersion: "2.7.0",
+    hasNote: false,
+    hasExactPatchNote: false,
     shouldShow: false,
     nextLastShownVersion: "2.7.0",
   },
@@ -116,6 +136,7 @@ describe("decideWhatsNew", () => {
         currentVersion: testCase.currentVersion,
         lastShownVersion: testCase.lastShownVersion,
         hasNote: testCase.hasNote,
+        hasExactPatchNote: testCase.hasExactPatchNote ?? false,
       }),
     ).toEqual({
       shouldShow: testCase.shouldShow,

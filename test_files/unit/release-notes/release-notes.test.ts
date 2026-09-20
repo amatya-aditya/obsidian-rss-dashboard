@@ -28,6 +28,15 @@ describe("getReleaseNoteForVersion", () => {
     expect(note?.trim().length).toBeGreaterThan(0);
   });
 
+  it("prefers an exact patch note over the release line note", () => {
+    const note = getReleaseNoteForVersion("2.7.1", {
+      releaseLine: { "2.7": "line note" },
+      exactVersion: { "2.7.1": "patch note" },
+    });
+
+    expect(note).toBe("patch note");
+  });
+
   it("returns null when the release line has no note", () => {
     expect(getReleaseNoteForVersion("2.8.0")).toBeNull();
   });

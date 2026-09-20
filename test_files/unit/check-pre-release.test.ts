@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   findMissingNoteIssue,
+  findReleaseNoteFilenameIssues,
   findNoteIssues,
   findPlanStatusIssues,
   findStrayFiles,
@@ -180,6 +181,31 @@ describe("findNoteIssues", () => {
     expect(findNoteIssues(noteFiles)).toEqual([
       expect.objectContaining({ reason: expect.stringContaining("alt text") }),
     ]);
+  });
+});
+
+describe("findReleaseNoteFilenameIssues", () => {
+  it("accepts release-line and exact patch note names", () => {
+    expect(
+      findReleaseNoteFilenameIssues([
+        { fileName: "2.7.md", filePath: "src/release-notes/notes/2.7.md" },
+        { fileName: "2.7.1.md", filePath: "src/release-notes/notes/2.7.1.md" },
+      ]),
+    ).toEqual([]);
+  });
+
+  it("rejects templates, prerelease names, and non-markdown files", () => {
+    expect(
+      findReleaseNoteFilenameIssues([
+        { fileName: "template.md", filePath: "src/release-notes/notes/template.md" },
+        {
+          fileName: "2.7.0-beta.1.md",
+          filePath: "src/release-notes/notes/2.7.0-beta.1.md",
+        },
+        { fileName: "2.7.0.md", filePath: "src/release-notes/notes/2.7.0.md" },
+        { fileName: "2.7.1.txt", filePath: "src/release-notes/notes/2.7.1.txt" },
+      ]),
+    ).toHaveLength(4);
   });
 });
 

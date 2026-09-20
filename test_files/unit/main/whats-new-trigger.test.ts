@@ -3,6 +3,7 @@ import { App, type PluginManifest } from "obsidian";
 
 const whatsNew = vi.hoisted(() => ({ open: vi.fn() }));
 const storagePrompt = vi.hoisted(() => ({ open: vi.fn() }));
+const releaseNotes = vi.hoisted(() => ({ hasExact: vi.fn(() => false) }));
 
 vi.mock("../../../src/modals/whats-new-modal", () => ({
   WhatsNewModal: class {
@@ -15,6 +16,16 @@ vi.mock("../../../src/modals/storage-migration-modal", () => ({
     open = storagePrompt.open;
   },
 }));
+
+vi.mock("../../../src/release-notes", async () => {
+  const actual = await vi.importActual<typeof import("../../../src/release-notes")>(
+    "../../../src/release-notes",
+  );
+  return {
+    ...actual,
+    hasExactReleaseNoteForVersion: releaseNotes.hasExact,
+  };
+});
 
 import RssDashboardPlugin from "../../../main";
 import { DEFAULT_SETTINGS } from "../../../src/types/types";
@@ -69,6 +80,7 @@ function dashboardActive(workspace: WorkspaceStub): void {
 beforeEach(() => {
   whatsNew.open.mockClear();
   storagePrompt.open.mockClear();
+  releaseNotes.hasExact.mockReturnValue(false);
 });
 
 describe("What's New trigger", () => {
@@ -108,6 +120,21 @@ describe("What's New trigger", () => {
     expect(whatsNew.open).not.toHaveBeenCalled();
     expect(plugin.saveSettings).not.toHaveBeenCalled();
     expect(plugin.settings.lastShownVersion).toBe("2.7.0");
+  });
+
+  it("shows and records an explicitly authored patch note", async () => {
+    releaseNotes.hasExact.mockReturnValue(true);
+    const { plugin, workspace } = await loadedPlugin({
+      version: "2.7.1",
+      settings: { lastShownVersion: "2.7.0" },
+    });
+    dashboardActive(workspace);
+
+    (plugin as unknown as Trigger).maybeShowWhatsNewForActiveDashboard();
+    await vi.waitFor(() => expect(whatsNew.open).toHaveBeenCalledTimes(1));
+
+    expect(plugin.settings.lastShownVersion).toBe("2.7.1");
+    expect(plugin.saveSettings).toHaveBeenCalledTimes(1);
   });
 
   it("gives the storage warning precedence and does not record the release line", async () => {

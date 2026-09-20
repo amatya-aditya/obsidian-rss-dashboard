@@ -8,6 +8,7 @@ const PLANS_DIR = join(ROOT_DIR, "docs", "plans");
 const RELEASE_NOTES_DIR = join(ROOT_DIR, "src", "release-notes", "notes");
 
 const RELEASE_LINE_PATTERN = /^(\d+)\.(\d+)(?:\.|$)/;
+const RELEASE_NOTE_FILENAME_PATTERN = /^(\d+)\.(\d+)(?:\.(\d+))?\.md$/;
 const IMAGE_PATTERN = /!\[([^\]]*)\]\(\s*([^)\s]+)(?:\s+["'][^"']*["'])?\s*\)/g;
 
 const STRAY_FILE_PATTERNS = [
@@ -147,6 +148,28 @@ export function findNoteIssues(noteFiles) {
 }
 
 /**
+ * Validates the release-note naming contract: one note per release line, plus
+ * optional notes for non-zero patch releases.
+ */
+export function findReleaseNoteFilenameIssues(noteFiles) {
+  const issues = [];
+
+  for (const { fileName, filePath } of noteFiles) {
+    const match = RELEASE_NOTE_FILENAME_PATTERN.exec(fileName);
+    const patch = match?.[3];
+    if (!match || (patch !== undefined && Number(patch) === 0)) {
+      issues.push({
+        filePath,
+        reason:
+          "filename must be <major>.<minor>.md or <major>.<minor>.<non-zero-patch>.md",
+      });
+    }
+  }
+
+  return issues;
+}
+
+/**
  * A major/minor release must ship a note for its release line. Patch releases
  * need none, so the check stays out of the way of bug-fix releases.
  */
@@ -186,7 +209,7 @@ function listActivePlanFiles() {
   }
 
   return entries
-    .filter((entry) => entry.isFile() && entry.name.endsWith(".md"))
+    .filter((entry) => entry.isFile())
     .map((entry) => {
       const absolutePath = join(PLANS_DIR, entry.name);
       return {
@@ -232,6 +255,7 @@ function main() {
   const activePlanFiles = listActivePlanFiles();
   const planStatusIssues = findPlanStatusIssues(activePlanFiles);
   const releaseNoteFiles = listReleaseNoteFiles();
+  const noteFilenameIssues = findReleaseNoteFilenameIssues(releaseNoteFiles);
   const noteIssues = findNoteIssues(releaseNoteFiles);
   const manifestVersion = readManifestVersion();
   const missingNoteIssue = manifestVersion
@@ -270,6 +294,16 @@ function main() {
       `Pre-release check failed: ${noteIssues.length} issue(s) in curated What's New notes.`,
     );
     for (const issue of noteIssues) {
+      console.error(`- ${issue.filePath}: ${issue.reason}`);
+    }
+  }
+
+  if (noteFilenameIssues.length > 0) {
+    failed = true;
+    console.error(
+      `Pre-release check failed: ${noteFilenameIssues.length} invalid What's New note filename(s).`,
+    );
+    for (const issue of noteFilenameIssues) {
       console.error(`- ${issue.filePath}: ${issue.reason}`);
     }
   }

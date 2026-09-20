@@ -587,9 +587,9 @@ export interface RssDashboardSettings {
    */
   storageMigrationDeferralCount?: number;
   /**
-   * Most recent plugin version whose release line has already been evaluated
-   * for the What's New popup. Unset means an existing user who has never been
-   * shown one, which is treated as due.
+   * Most recent plugin version whose curated What's New note was shown, or
+   * whose new release line was evaluated without a note. Unset means an
+   * existing user who has never been shown one, which is treated as due.
    */
   lastShownVersion?: string;
   storageFolder: string;

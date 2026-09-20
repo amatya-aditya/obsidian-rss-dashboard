@@ -5,8 +5,8 @@ const FULL_CHANGELOG_URL =
   "https://github.com/amatya-aditya/obsidian-rss-dashboard/blob/master/CHANGELOG.md";
 
 /**
- * Renders one curated release note. Opened once per release line after an
- * update, and reopenable any time from the About settings tab.
+ * Renders one curated release note. Opened automatically when its release
+ * policy says it is due, and reopenable any time from the About settings tab.
  */
 export class WhatsNewModal extends Modal {
   private readonly version: string;

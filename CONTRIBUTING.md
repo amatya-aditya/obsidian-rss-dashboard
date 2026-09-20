@@ -235,7 +235,7 @@ Deliberate, hard-to-reverse, non-obvious decisions are recorded in `docs/adr/` a
 - **Surprising without context** — a future reader would look at the code and wonder why it's built this way.
 - **The result of a real trade-off** — genuine alternatives existed and one was picked for specific reasons.
 
-Skip an ADR for anything obvious, easily reversed, or where there was no real alternative. See [ADR 0006](docs/adr/0006-deprecate-legacy-json-and-shard-storage-v1.md) (a deprecation policy with real trade-offs) or [ADR 0008](docs/adr/0008-embed-release-summaries-at-build-time.md) (a build-vs-runtime choice with rejected alternatives) for what a good one looks like.
+Skip an ADR for anything obvious, easily reversed, or where there was no real alternative. See [ADR 0006](docs/adr/0006-deprecate-legacy-json-and-shard-storage-v1.md) (a deprecation policy with real trade-offs) or [ADR 0009](docs/adr/0009-curated-whats-new-release-notes.md) (a build-vs-runtime choice with rejected alternatives) for what a good one looks like.
 
 `CONTEXT.md` at the repo root is the companion glossary — sharpen or add a term there when a PR introduces or clarifies project-specific vocabulary; general programming concepts don't belong in it.
 

@@ -32,7 +32,7 @@
 
 - Dashboard card/list/feed date badges now append a visible `*` to a date shown via the first-seen-date fallback, so it's discoverable at a glance instead of only on hover over the "First seen:" tooltip.
 - Added a `{{firstSeen}}` template variable for saved articles, available in both the body template and the frontmatter template, showing the date the article was first seen in the dashboard (falling back to the publish date, then to the save date, if unavailable). Independent of the **Use first-seen date for undated items** display setting — it works whether or not that setting is on, since typing `{{firstSeen}}` into a save template is itself the opt-in.
-- The What's New popup now shows a curated, hand-authored release summary for the running release line instead of extracted changelog bullets, with remote screenshots that open in the reader's full-screen viewer. It appears once per major/minor release, never for patch releases, and **Settings → About → What's new in vX.Y.Z?** reopens it. [GH Issue #314](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/314)
+- The What's New popup now shows a curated, hand-authored release summary for the running release line instead of extracted changelog bullets, with remote screenshots that open in the reader's full-screen viewer. It appears once for a new release line, or for a meaningful patch with an exact note, and **Settings → About → What's new in vX.Y.Z?** reopens the most specific available summary. [GH Issue #314](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/314)
 
 ### Fixes
 
