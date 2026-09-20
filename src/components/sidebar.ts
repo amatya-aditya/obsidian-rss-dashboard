@@ -2702,32 +2702,6 @@ export class Sidebar {
     new FolderNameModal(this.app, options).open();
   }
 
-  private removeFolderByPath(path: string) {
-    const parts = path.split("/");
-    const parentPath = parts.slice(0, -1).join("/");
-    function removeRecursive(folders: Folder[], depth: number): Folder[] {
-      return folders.filter((folder: Folder) => {
-        if (folder.name === parts[depth]) {
-          if (depth === parts.length - 1) {
-            return false;
-          } else {
-            folder.subfolders = removeRecursive(folder.subfolders, depth + 1);
-            return true;
-          }
-        } else {
-          return true;
-        }
-      });
-    }
-    this.settings.folders = removeRecursive(this.settings.folders, 0);
-    if (parentPath) {
-      const parent = this.findFolderByPath(parentPath);
-      if (parent) parent.modifiedAt = Date.now();
-    }
-    this.clearFolderPathCache();
-    this.render();
-  }
-
   private getAllDescendantFolderPaths(path: string): string[] {
     const result: string[] = [path];
     const folder = this.findFolderByPath(path);
