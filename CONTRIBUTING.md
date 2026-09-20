@@ -248,7 +248,8 @@ Before Step 6 — Ship, finalize the changelog per
 work through the
 [pre-release checklist](docs/development/pre-release-checklist.md) —
 including renaming `CHANGELOG.md`'s `## Unreleased` heading to the release
-version and running `npm run generate:whats-new`.
+version and adding the release line's curated What's New note under
+`src/release-notes/notes/`.
 
 ### Step 1 — Feature Complete
 
@@ -352,8 +353,9 @@ When confidence is high and no new issues are surfacing:
 
 Before running the commands below, confirm the changelog is already
 finalized and committed on its own: `CHANGELOG.md`'s `## Unreleased` heading
-renamed to this release's version, and `npm run generate:whats-new` run and
-its output committed. Neither is part of the version-bump commit below — see
+renamed to this release's version, and the release line's curated What's New
+note added under `src/release-notes/notes/`. Neither is part of the
+version-bump commit below — see
 [release-notes-workflow.md](docs/development/release-notes-workflow.md).
 
 ```

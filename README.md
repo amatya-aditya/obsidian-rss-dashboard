@@ -391,6 +391,12 @@ YouTube embeds and API usage are subject to:
 - [YouTube API Services Terms of Service](https://developers.google.com/youtube/terms/api-services-terms-of-service)
 - [YouTube Terms of Service](https://www.youtube.com/t/terms)
 
+## Network Use
+
+RSS Dashboard makes network requests only for content it needs to show you: the feeds you subscribe to, and the images inside articles or feed previews. There is no telemetry and no usage reporting.
+
+The **What's New** popup is the one request that is not tied to a feed. Its note text is bundled with the plugin, but the note's screenshots are remote images hosted on GitHub, so opening the popup loads them from `raw.githubusercontent.com`. If you are offline, the note still renders and any image that fails to load is hidden rather than shown broken.
+
 ## Support the Development
 
 If you find this plugin useful, consider supporting its long-term development:

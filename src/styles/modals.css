@@ -414,6 +414,38 @@ body .modal.rss-dashboard-template-dialog {
   pointer-events: none;
 }
 
+/* What's New Modal: the curated note is rendered as markdown, so only the
+   note body and its images need styling here. */
+.rss-dashboard-whats-new-body {
+  padding: 0 1.5rem 0.5rem;
+  color: var(--text-normal);
+}
+.rss-dashboard-whats-new-body > :first-child {
+  margin-top: 0;
+}
+.rss-dashboard-whats-new-image {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 320px;
+  margin: 0.25rem auto 0.75rem;
+  object-fit: contain;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  background: var(--background-secondary);
+  cursor: pointer;
+}
+
+@media (max-width: 768px) {
+  .rss-dashboard-whats-new-body {
+    padding: 0 1rem 0.5rem;
+  }
+  .rss-dashboard-whats-new-image {
+    max-height: 220px;
+  }
+}
+
 /* ============================================
  * 6. Specific Modal Features
  * Edit Feed, Storage, Status, Tag modals

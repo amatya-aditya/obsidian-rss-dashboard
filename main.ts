@@ -76,7 +76,10 @@ import { ImportOpmlModal } from "./src/modals/import-opml-modal";
 import { ImportStarredModal } from "./src/modals/import-starred-modal";
 import { AddFeedModal } from "./src/modals/feed-manager/add-feed-modal";
 import { StorageMigrationModal } from "./src/modals/storage-migration-modal";
+import { WhatsNewModal } from "./src/modals/whats-new-modal";
 import { shouldShowStorageDeprecationPrompt } from "./src/utils/storage-deprecation-prompt";
+import { decideWhatsNew } from "./src/utils/whats-new";
+import { getReleaseNoteForVersion } from "./src/release-notes";
 import { isValidUrl } from "./src/utils/validation";
 import {
   dedupeAndNormalizeFeedItems,
@@ -289,6 +292,9 @@ export default class RssDashboardPlugin extends Plugin {
   public vaultAbsolutePath = "";
   private hasCompletedStartupSavedArticleValidation = false;
   private hasShownStorageDeprecationPromptThisSession = false;
+  private whatsNewHandledThisSession = false;
+  private wasNullSettingsLoad = false;
+  private settingsLoadFailed = false;
   private vaultMetadataReloadTimer: number | null = null;
   private startupRefreshTimeoutId: number | null = null;
   private progressSaveDebounce: number | null = null;
@@ -734,7 +740,70 @@ export default class RssDashboardPlugin extends Plugin {
     }
 
     this.hasShownStorageDeprecationPromptThisSession = true;
+    // The storage warning owns the session: What's New is dropped for now and
+    // is not queued behind it. Because nothing is recorded here, the note is
+    // shown in a later session once the warning no longer applies.
+    this.whatsNewHandledThisSession = true;
     new StorageMigrationModal(this.app, this).open();
+  }
+
+  /**
+   * Entry point for the What's New popup. Runs once per session, and only
+   * once the dashboard view is the active tab, so a restored background pane
+   * never interrupts an Obsidian launch the user is not using the plugin in.
+   */
+  public maybeShowWhatsNewForActiveDashboard(): void {
+    if (this.whatsNewHandledThisSession) {
+      return;
+    }
+    if (!this.settings) {
+      return;
+    }
+    if (!this.app.workspace.getActiveViewOfType(RssDashboardView)) {
+      return;
+    }
+
+    // The storage warning takes precedence even if it has not opened yet, so
+    // the two never stack. Marking it handled here is what keeps What's New
+    // from being queued behind the warning for this session.
+    if (shouldShowStorageDeprecationPrompt(this.settings, this.manifest.version)) {
+      this.whatsNewHandledThisSession = true;
+      return;
+    }
+
+    this.whatsNewHandledThisSession = true;
+    void this.maybeShowWhatsNew();
+  }
+
+  /**
+   * Shows the current release line's curated note once. Skipped on a null
+   * settings load (a genuine fresh install, or a synced vault whose data.json
+   * has not arrived yet) and on a failed load, because both cases would write
+   * `lastShownVersion` into settings that are not the user's real data.
+   */
+  private async maybeShowWhatsNew(): Promise<void> {
+    if (!this.settings || this.wasNullSettingsLoad || this.settingsLoadFailed) {
+      return;
+    }
+
+    const note = getReleaseNoteForVersion(this.manifest.version);
+    const decision = decideWhatsNew({
+      currentVersion: this.manifest.version,
+      lastShownVersion: this.settings.lastShownVersion,
+      hasNote: note !== null,
+    });
+
+    if (decision.shouldShow && note) {
+      new WhatsNewModal(this.app, this.manifest.version, note).open();
+    }
+
+    if (
+      decision.nextLastShownVersion !== undefined &&
+      decision.nextLastShownVersion !== this.settings.lastShownVersion
+    ) {
+      this.settings.lastShownVersion = decision.nextLastShownVersion;
+      await this.saveSettings();
+    }
   }
 
   public async getActiveDashboardView(): Promise<RssDashboardView | null> {
@@ -983,6 +1052,18 @@ export default class RssDashboardPlugin extends Plugin {
       }
 
       this.scheduleStartupSavedArticleValidation();
+
+      // What's New is gated on the dashboard being the active tab, unlike the
+      // storage warning's own trigger. A restored session can already have the
+      // dashboard active without an `active-leaf-change`, so check both.
+      this.registerEvent(
+        this.app.workspace.on("active-leaf-change", () => {
+          this.maybeShowWhatsNewForActiveDashboard();
+        }),
+      );
+      this.app.workspace.onLayoutReady(() => {
+        this.maybeShowWhatsNewForActiveDashboard();
+      });
 
       this.registerObsidianProtocolHandler(
         this.manifest.id,
@@ -2687,6 +2768,8 @@ export default class RssDashboardPlugin extends Plugin {
   }
 
   async loadSettings() {
+    this.wasNullSettingsLoad = false;
+    this.settingsLoadFailed = false;
     try {
       storageLog("Loading plugin settings");
 
@@ -2721,6 +2804,7 @@ export default class RssDashboardPlugin extends Plugin {
 
       // Track whether we bootstrapped from null (possible pending sync)
       const wasNullLoad = data === null || vaultMetadataUnreadable;
+      this.wasNullSettingsLoad = wasNullLoad;
 
       const mergedSettings = Object.assign({}, DEFAULT_SETTINGS, data ?? {});
       const originalSettingsJson = JSON.stringify(mergedSettings);
@@ -2772,6 +2856,7 @@ export default class RssDashboardPlugin extends Plugin {
         }`,
       );
       this.settings = DEFAULT_SETTINGS;
+      this.settingsLoadFailed = true;
     }
   }
 

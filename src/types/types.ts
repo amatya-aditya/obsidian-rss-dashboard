@@ -584,6 +584,12 @@ export interface RssDashboardSettings {
    * reaches the cap, deferring by version is no longer offered.
    */
   storageMigrationDeferralCount?: number;
+  /**
+   * Most recent plugin version whose release line has already been evaluated
+   * for the What's New popup. Unset means an existing user who has never been
+   * shown one, which is treated as due.
+   */
+  lastShownVersion?: string;
   storageFolder: string;
   storageSchemaVersion: number;
   /**

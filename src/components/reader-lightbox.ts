@@ -4,12 +4,18 @@ import type { ResolvedImageSource } from "../utils/full-size-image-resolver";
 export interface ReaderLightboxOptions {
   source: ResolvedImageSource;
   doc?: Document;
+  /**
+   * Extra class for the backdrop. Used by callers that open the lightbox from
+   * inside a modal, where it must sit above the modal layer.
+   */
+  backdropClass?: string;
 }
 
 export class ReaderLightbox {
   private readonly source: ResolvedImageSource;
   private readonly doc: Document;
   private readonly win: Window;
+  private readonly backdropClass: string | undefined;
 
   private backdropEl: HTMLElement | null = null;
   private viewportEl: HTMLElement | null = null;
@@ -41,6 +47,7 @@ export class ReaderLightbox {
     this.source = options.source;
     this.doc = options.doc ?? activeDocument;
     this.win = this.doc.defaultView ?? window;
+    this.backdropClass = options.backdropClass;
   }
 
   open(): void {
@@ -50,6 +57,9 @@ export class ReaderLightbox {
     this.backdropEl = this.doc.body.createDiv({
       cls: "rss-reader-lightbox-backdrop",
     });
+    if (this.backdropClass) {
+      this.backdropEl.addClass(this.backdropClass);
+    }
 
     this.renderToolbar();
     this.renderViewport();
