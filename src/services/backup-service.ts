@@ -14,7 +14,6 @@ export class BackupService {
   private vaultAbsolutePath: string;
   private vault: VaultInterface;
   private getUserSettingsJsonFn: () => string;
-  private getPortableDataBundleJsonFn: () => string;
 
   /**
    * Creates a new BackupService instance
@@ -24,7 +23,6 @@ export class BackupService {
    * @param {string} options.vaultAbsolutePath Absolute path to the vault
    * @param {VaultInterface} options.vault Vault adapter for file operations
    * @param {Function} [options.getUserSettingsJson] Optional function to serialize user settings
-   * @param {Function} [options.getPortableDataBundleJson] Optional function to serialize portable data bundle
    */
   constructor(options: {
     settings: RssDashboardSettings;
@@ -32,7 +30,6 @@ export class BackupService {
     vaultAbsolutePath: string;
     vault: VaultInterface;
     getUserSettingsJson?: () => string;
-    getPortableDataBundleJson?: () => string;
   }) {
     this.settings = options.settings;
     this.manifest = options.manifest;
@@ -40,8 +37,6 @@ export class BackupService {
     this.vault = options.vault;
     this.getUserSettingsJsonFn =
       options.getUserSettingsJson || (() => JSON.stringify({}));
-    this.getPortableDataBundleJsonFn =
-      options.getPortableDataBundleJson || (() => JSON.stringify({}));
   }
 
   /**
@@ -77,15 +72,6 @@ export class BackupService {
           }
         }
 
-        if (
-          this.settings.storageMode === "vault-shards" ||
-          this.settings.storageMode === "vault-shards-v2"
-        ) {
-          await this.vault.adapter.write(
-            `${pluginDir}/portable-data-bundle.json.backup`,
-            this.getPortableDataBundleJsonFn(),
-          );
-        }
       }
 
       // 2. feeds.opml

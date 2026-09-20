@@ -39,16 +39,15 @@ that the plugin lifecycle completes the backup operation.
   persistence or unload.
 - Force one configured snapshot before a storage migration, then treat it as
   current for the session.
-- Ensure portable-bundle backup behavior covers the current supported storage
-  modes without changing its existing format.
+- Keep portable-bundle export separate from automatic backups.
 - Preserve the current backup filenames and settings semantics for this fix.
 - Add focused service and lifecycle regression tests.
 - Report backup failures without blocking normal plugin shutdown.
 
 ## Implementation progress
 
-- Bug 1: in progress. Portable-bundle backup now covers both supported shard
-  storage modes with a focused service regression test.
+- Bug 1: in progress. Portable-bundle export is not produced by automatic
+  backups in either shard storage mode.
 - Bug 2: in progress. Configured backups complete after settings persistence;
   one initial snapshot establishes a recovery baseline and unload writes only
   when a later persistence made it stale. Unload remains best effort because
@@ -75,7 +74,7 @@ that the plugin lifecycle completes the backup operation.
 - A storage migration writes one configured pre-migration snapshot.
 - Snapshot writes never overlap, and a failed snapshot remains eligible for a
   later retry.
-- The supported v2 storage mode does not skip portable-bundle backup creation.
+- Automatic backups never create `portable-data-bundle.json.backup`.
 - A failed backup is logged and does not throw an unhandled rejection during
   unload.
 - Tests cover direct service behavior and plugin lifecycle invocation.

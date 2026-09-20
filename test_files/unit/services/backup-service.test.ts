@@ -54,7 +54,6 @@ describe("BackupService", () => {
         manifest: mockManifest,
         vaultAbsolutePath,
         vault: mockVault,
-        getPortableDataBundleJson: () => JSON.stringify({ bundle: true }),
       });
 
       await service.performAutoBackups();
@@ -92,16 +91,18 @@ describe("BackupService", () => {
     });
 
     it.each(["vault-shards", "vault-shards-v2"] as const)(
-      "writes a portable bundle backup when %s storage is enabled",
+      "does not write a portable bundle backup when all automatic backups are enabled in %s",
       async (storageMode) => {
         const { BackupService } =
           await import("../../../src/services/backup-service");
         const settings = {
           storageMode,
+          feeds: [],
+          folders: [],
           autoBackup: {
             backupDataJson: true,
-            backupOpml: false,
-            backupUserdata: false,
+            backupOpml: true,
+            backupUserdata: true,
           },
         } as unknown as RssDashboardSettings;
         const service = new BackupService({
@@ -109,14 +110,13 @@ describe("BackupService", () => {
           manifest: mockManifest,
           vaultAbsolutePath,
           vault: mockVault,
-          getPortableDataBundleJson: () => JSON.stringify({ bundle: true }),
         });
 
         await service.performAutoBackups();
 
-        expect(mockVault.adapter.write).toHaveBeenCalledWith(
+        expect(mockVault.adapter.write).not.toHaveBeenCalledWith(
           "configDir/plugins/obsidian-rss-dashboard/portable-data-bundle.json.backup",
-          JSON.stringify({ bundle: true }),
+          expect.any(String),
         );
       },
     );

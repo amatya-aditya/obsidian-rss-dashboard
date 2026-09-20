@@ -364,8 +364,6 @@ export default class RssDashboardPlugin extends Plugin {
       vaultAbsolutePath: this.vaultAbsolutePath,
       vault: this.app.vault,
       getUserSettingsJson: () => this.importExportService.getUserSettingsJson(),
-      getPortableDataBundleJson: () =>
-        JSON.stringify(this.getPortableDataBundle(), null, 2),
     });
     this.folderService = new FolderService(this.settings);
     this.backgroundImportService = new BackgroundImportService({
