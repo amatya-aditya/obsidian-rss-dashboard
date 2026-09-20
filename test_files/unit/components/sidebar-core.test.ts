@@ -306,7 +306,9 @@ describe("Sidebar Core", () => {
     });
 
     it("focuses the current feed by default and scrolls it into view", () => {
-      options.currentFeed = settings.feeds[1];
+      const currentFeed = settings.feeds[1];
+      if (!currentFeed) throw new Error("Expected second feed fixture");
+      options.currentFeed = currentFeed;
       const scrollIntoViewSpy = vi.spyOn(Element.prototype, "scrollIntoView");
       const sidebar = new Sidebar(
         app,
@@ -696,6 +698,33 @@ describe("Sidebar Core", () => {
       expect(container.querySelector(`[data-feed-url="${feed.url}"]`)).toBe(
         originalFeedRow,
       );
+    });
+
+    it("restores sidebar scroll before a subsequent status redraw", () => {
+      const feed = createFeed({ url: "https://example.com/a.xml" });
+      settings.feeds = [feed];
+      vi.spyOn(window, "requestAnimationFrame").mockImplementation(() => 0);
+      const empty = container.empty.bind(container);
+      vi.spyOn(container, "empty").mockImplementation(() => {
+        empty();
+        container.scrollTop = 0;
+        return container;
+      });
+
+      const sidebar = new Sidebar(
+        app,
+        container,
+        plugin as unknown as RssDashboardPlugin,
+        settings,
+        options,
+        callbacks,
+      );
+      sidebar.render();
+      container.scrollTop = 180;
+
+      sidebar.render();
+
+      expect(container.scrollTop).toBe(180);
     });
 
     it("does not show stop icon when refresh is active but not cancellable", () => {
