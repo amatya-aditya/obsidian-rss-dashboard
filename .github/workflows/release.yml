@@ -5,24 +5,26 @@ on:
     tags:
       - "*"
 
+permissions: {}
+
 jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
-      attestations: write
-      id-token: write
+      contents: read
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
       - name: Use Node.js
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: "22.x"
           cache: npm
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --ignore-scripts
 
       - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=high
@@ -35,22 +37,51 @@ jobs:
 
       - name: Create release assets
         run: |
-          # Create a release directory
           mkdir -p release
 
           # Copy main files
           cp main.js manifest.json styles.css release/
 
+      - name: Upload release assets
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: rss-dashboard-release
+          path: release/
+          if-no-files-found: error
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: write
+      attestations: write
+      id-token: write
+    steps:
+      - name: Download release assets
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: rss-dashboard-release
+          path: release
+
+      - name: Validate release assets
+        shell: bash
+        run: |
+          test -s release/main.js
+          test -s release/manifest.json
+          test -s release/styles.css
+
       - name: Attest build provenance for release assets
-        uses: actions/attest-build-provenance@v4
+        uses: actions/attest-build-provenance@8beda2b7ed98355c0e97c0a63bec38ae472e66c4 # v4
         with:
           subject-path: |
-            main.js
-            styles.css
+            release/main.js
+            release/styles.css
+            release/manifest.json
 
       - name: Create release
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           tag="${GITHUB_REF#refs/tags/}"
 
@@ -72,6 +103,6 @@ jobs:
           # Create release with all assets
           gh release create "$tag" \
             "${release_flags[@]}" \
-            main.js \
-            manifest.json \
-            styles.css \
+            release/main.js \
+            release/manifest.json \
+            release/styles.css
