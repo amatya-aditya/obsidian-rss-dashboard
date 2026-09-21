@@ -251,7 +251,7 @@ describe("FeedStorageRepository", () => {
 
     expect(repository.getFeedShardHealth(settings.feeds[0])).toBe("rebuilt");
     expect(await vaultAdapter(app).read("RSS Data/Feeds/feed-1.json")).toContain(
-      '"feedId": "feed-1"',
+      "\"feedId\": \"feed-1\"",
     );
   });
 
@@ -295,7 +295,7 @@ describe("FeedStorageRepository", () => {
 
     expect(result.shardWriteCount).toBe(1);
     expect(await vaultAdapter(app).read("RSS Data/Feeds/feed-1.json")).toContain(
-      '"feedId": "feed-1"',
+      "\"feedId\": \"feed-1\"",
     );
     expect(repository.getFeedShardHealth(settings.feeds[0])).toBe("rebuilt");
   });
@@ -336,7 +336,7 @@ describe("FeedStorageRepository", () => {
     expect(settings.storageMode).toBe("vault-shards");
     expect(app.vault.getAbstractFileByPath("RSS Data/Feeds")).toBeTruthy();
     expect(await vaultAdapter(app).read("RSS Data/Feeds/feed-1.json")).toContain(
-      "\"feedId\": \"feed-1\"",
+      '"feedId": "feed-1"',
     );
   });
 
@@ -359,7 +359,7 @@ describe("FeedStorageRepository", () => {
     expect(createFolderSpy).toHaveBeenCalledWith("RSS Data/Feeds");
     expect(settings.storageMode).toBe("vault-shards");
     expect(await vaultAdapter(app).read("RSS Data/Feeds/feed-1.json")).toContain(
-      "\"feedId\": \"feed-1\"",
+      '"feedId": "feed-1"',
     );
   });
 
@@ -1176,15 +1176,70 @@ describe("shard storage v2 user-state.json persistence (issue #278)", () => {
 
   async function readUserState(): Promise<{
     version: number;
-    states: Record<string, { read?: boolean; starred?: boolean }>;
-    unattributedLegacyStates?: Record<string, { read?: boolean; starred?: boolean }>;
+    states: Record<
+      string,
+      {
+        read?: boolean;
+        starred?: boolean;
+        tags?: unknown[];
+        saved?: boolean;
+        savedFilePath?: string;
+        playbackProgress?: {
+          position: number;
+          duration: number;
+          lastUpdated: number;
+        };
+      }
+    >;
+    unattributedLegacyStates?: Record<
+      string,
+      { read?: boolean; starred?: boolean }
+    >;
+    missingSinceByStateKey?: Record<string, number>;
+    unattributedFirstObservedAtByGuid?: Record<string, number>;
   }> {
     const raw = await vaultAdapter(app).read(userStatePath);
     return JSON.parse(raw) as {
       version: number;
-      states: Record<string, { read?: boolean; starred?: boolean }>;
-      unattributedLegacyStates?: Record<string, { read?: boolean; starred?: boolean }>;
+      states: Record<
+        string,
+        {
+          read?: boolean;
+          starred?: boolean;
+          tags?: unknown[];
+          saved?: boolean;
+          savedFilePath?: string;
+          playbackProgress?: {
+            position: number;
+            duration: number;
+            lastUpdated: number;
+          };
+        }
+      >;
+      unattributedLegacyStates?: Record<
+        string,
+        { read?: boolean; starred?: boolean }
+      >;
+      missingSinceByStateKey?: Record<string, number>;
+      unattributedFirstObservedAtByGuid?: Record<string, number>;
     };
+  }
+
+  async function writeFeedShard(
+    settings: RssDashboardSettings,
+    feedId: string,
+    items: Feed["items"],
+  ): Promise<void> {
+    await vaultAdapter(app).write(
+      `${settings.storageFolder}/${feedId}.json`,
+      JSON.stringify({
+        version: 1,
+        feedId,
+        feedUrl: "https://example.com/feed.xml",
+        updatedAt: Date.now(),
+        items,
+      }),
+    );
   }
 
   it("does not drop a feed's article state when its shard is corrupt and it hydrates with no items", async () => {
@@ -1284,6 +1339,170 @@ describe("shard storage v2 user-state.json persistence (issue #278)", () => {
       read: true,
     });
   });
+
+  it("migrates version-2 state values to version 3 without changing them", async () => {
+    const settings = v2Settings();
+    settings.storageFolder = ".rss-dashboard-data/feeds";
+    settings.feeds = [makeFeed({ feedId: "feed-1", items: [] })];
+    const state = {
+      read: false,
+      starred: true,
+      tags: [],
+      saved: true,
+      savedFilePath: "Saved/article.md",
+      playbackProgress: { position: 12, duration: 60, lastUpdated: 42 },
+    };
+
+    await vaultAdapter(app).write(
+      userStatePath,
+      JSON.stringify({ version: 2, states: { "feed-1:guid-1": state } }),
+    );
+
+    await repository.saveUserStateFromFeeds(settings);
+
+    const written = await readUserState();
+    expect(written.version).toBe(3);
+    expect(written.states["feed-1:guid-1"]).toEqual(state);
+  });
+
+  it("starts and expires missing-state cleanup only after a proved empty shard", async () => {
+    const settings = v2Settings();
+    settings.storageFolder = ".rss-dashboard-data/feeds";
+    settings.feeds = [makeFeed({ feedId: "feed-1", items: [] })];
+    const baseTime = Date.parse("2026-01-01T00:00:00Z");
+    const horizon = 90 * 24 * 60 * 60 * 1000;
+    vi.spyOn(Date, "now").mockReturnValue(baseTime);
+
+    await writeFeedShard(settings, "feed-1", []);
+    await vaultAdapter(app).write(
+      userStatePath,
+      JSON.stringify({
+        version: 2,
+        states: { "feed-1:guid-old": { starred: true } },
+      }),
+    );
+
+    await repository.hydrateSettings(settings);
+    await repository.saveUserStateFromFeeds(settings);
+    let written = await readUserState();
+    expect(written.states["feed-1:guid-old"]).toEqual({ starred: true });
+    expect(written.missingSinceByStateKey?.["feed-1:guid-old"]).toBe(baseTime);
+
+    vi.spyOn(Date, "now").mockReturnValue(baseTime + horizon - 1);
+    await repository.saveUserStateFromFeeds(settings);
+    expect((await readUserState()).states["feed-1:guid-old"]).toEqual({
+      starred: true,
+    });
+
+    vi.spyOn(Date, "now").mockReturnValue(baseTime + horizon);
+    await repository.saveUserStateFromFeeds(settings);
+    written = await readUserState();
+    expect(written.states["feed-1:guid-old"]).toBeUndefined();
+    expect(written.missingSinceByStateKey?.["feed-1:guid-old"]).toBeUndefined();
+  });
+
+  it("expires every supported article-state signal through the same lifecycle", async () => {
+    const settings = v2Settings();
+    settings.storageFolder = ".rss-dashboard-data/feeds";
+    settings.feeds = [makeFeed({ feedId: "feed-1", items: [] })];
+    const states = {
+      "feed-1:read": { read: true },
+      "feed-1:starred": { starred: true },
+      "feed-1:tagged": { tags: [{ name: "keep", color: "#fff" }] },
+      "feed-1:saved": { saved: true },
+      "feed-1:saved-file": { savedFilePath: "Saved/article.md" },
+      "feed-1:playback": {
+        playbackProgress: { position: 12, duration: 60, lastUpdated: 42 },
+      },
+    };
+    const baseTime = Date.parse("2026-01-01T00:00:00Z");
+    const horizon = 90 * 24 * 60 * 60 * 1000;
+    vi.spyOn(Date, "now").mockReturnValue(baseTime);
+
+    await writeFeedShard(settings, "feed-1", []);
+    await vaultAdapter(app).write(
+      userStatePath,
+      JSON.stringify({ version: 2, states }),
+    );
+    await repository.hydrateSettings(settings);
+    await repository.saveUserStateFromFeeds(settings);
+
+    vi.spyOn(Date, "now").mockReturnValue(baseTime + horizon);
+    await repository.saveUserStateFromFeeds(settings);
+
+    expect((await readUserState()).states).toEqual({});
+  });
+
+  it("clears a missing marker when a later proved hydrate contains the article", async () => {
+    const settings = v2Settings();
+    settings.storageFolder = ".rss-dashboard-data/feeds";
+    settings.feeds = [makeFeed({ feedId: "feed-1", items: [] })];
+    const baseTime = Date.parse("2026-01-01T00:00:00Z");
+    vi.spyOn(Date, "now").mockReturnValue(baseTime);
+
+    await writeFeedShard(settings, "feed-1", []);
+    await vaultAdapter(app).write(
+      userStatePath,
+      JSON.stringify({
+        version: 2,
+        states: { "feed-1:guid-reappeared": { starred: true } },
+      }),
+    );
+    await repository.hydrateSettings(settings);
+    await repository.saveUserStateFromFeeds(settings);
+    expect(
+      (await readUserState()).missingSinceByStateKey?.[
+        "feed-1:guid-reappeared"
+      ],
+    ).toBe(baseTime);
+
+    await writeFeedShard(settings, "feed-1", [
+      { ...makeFeed().items[0], guid: "guid-reappeared" },
+    ]);
+    await repository.hydrateSettings(settings);
+    await repository.saveUserStateFromFeeds(settings);
+
+    const written = await readUserState();
+    expect(written.states["feed-1:guid-reappeared"]).toMatchObject({
+      starred: true,
+    });
+    expect(
+      written.missingSinceByStateKey?.["feed-1:guid-reappeared"],
+    ).toBeUndefined();
+  });
+
+  it.each(["missing", "corrupt", "never-hydrated"] as const)(
+    "preserves state and creates no deletion metadata for a %s shard",
+    async (shardStatus) => {
+      const settings = v2Settings();
+      settings.storageFolder = ".rss-dashboard-data/feeds";
+      settings.feeds = [makeFeed({ feedId: "feed-1", items: [] })];
+      await vaultAdapter(app).write(
+        userStatePath,
+        JSON.stringify({
+          version: 2,
+          states: { "feed-1:guid-preserved": { starred: true } },
+        }),
+      );
+      if (shardStatus === "corrupt") {
+        await vaultAdapter(app).write(
+          ".rss-dashboard-data/feeds/feed-1.json",
+          "{not valid json",
+        );
+      }
+      if (shardStatus !== "never-hydrated") {
+        await repository.hydrateSettings(settings);
+      }
+
+      await repository.saveUserStateFromFeeds(settings);
+
+      const written = await readUserState();
+      expect(written.states["feed-1:guid-preserved"]).toEqual({
+        starred: true,
+      });
+      expect(written.missingSinceByStateKey).toBeUndefined();
+    },
+  );
 
   it("never overwrites a user-state.json that exists but cannot be read", async () => {
     const settings = v2Settings();
@@ -1500,7 +1719,7 @@ describe("shard storage v2 user-state.json persistence (issue #278)", () => {
     await repository.saveUserStateFromFeeds(settings);
     const written = await readUserState();
 
-    expect(written.version).toBe(2);
+    expect(written.version).toBe(3);
     expect(written.states["guid-legacy"]).toBeUndefined();
     expect(written.states["feed-1:guid-legacy"]).toMatchObject({
       starred: true,
@@ -1533,9 +1752,13 @@ describe("shard storage v2 user-state.json persistence (issue #278)", () => {
     settings.feeds.push(
       makeFeed({
         feedId: "feed-late",
-        items: [{ ...makeFeed().items[0], guid: "guid-late" }],
+        items: [],
       }),
     );
+    await writeFeedShard(settings, "feed-late", [
+      { ...makeFeed().items[0], guid: "guid-late" },
+    ]);
+    await repository.hydrateSettings(settings);
     await repository.saveUserStateFromFeeds(settings);
     written = await readUserState();
 
@@ -1543,6 +1766,46 @@ describe("shard storage v2 user-state.json persistence (issue #278)", () => {
       starred: true,
     });
     expect(written.unattributedLegacyStates?.["guid-late"]).toBeUndefined();
+  });
+
+  it("does not let an unproved in-memory item claim legacy state, then expires it", async () => {
+    const settings = v2Settings();
+    settings.storageFolder = ".rss-dashboard-data/feeds";
+    settings.feeds = [
+      makeFeed({
+        feedId: "feed-stale",
+        items: [{ ...makeFeed().items[0], guid: "guid-legacy" }],
+      }),
+    ];
+    const baseTime = Date.parse("2026-01-01T00:00:00Z");
+    const horizon = 90 * 24 * 60 * 60 * 1000;
+    vi.spyOn(Date, "now").mockReturnValue(baseTime);
+    await vaultAdapter(app).write(
+      userStatePath,
+      JSON.stringify({
+        version: 1,
+        states: { "guid-legacy": { starred: true } },
+      }),
+    );
+
+    await repository.hydrateSettings(settings);
+    await repository.saveUserStateFromFeeds(settings);
+    let written = await readUserState();
+    expect(written.states["feed-stale:guid-legacy"]).toBeUndefined();
+    expect(written.unattributedLegacyStates?.["guid-legacy"]).toEqual({
+      starred: true,
+    });
+    expect(written.unattributedFirstObservedAtByGuid?.["guid-legacy"]).toBe(
+      baseTime,
+    );
+
+    vi.spyOn(Date, "now").mockReturnValue(baseTime + horizon);
+    await repository.saveUserStateFromFeeds(settings);
+    written = await readUserState();
+    expect(written.unattributedLegacyStates?.["guid-legacy"]).toBeUndefined();
+    expect(
+      written.unattributedFirstObservedAtByGuid?.["guid-legacy"],
+    ).toBeUndefined();
   });
 });
 
