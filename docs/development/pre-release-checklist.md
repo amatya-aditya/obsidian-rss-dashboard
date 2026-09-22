@@ -37,6 +37,26 @@ it is safe to run in CI and on a normal dev machine mid-feature:
 Non-lifecycle documents in `docs/plans/` (for example `public-roadmap.md`,
 which carries no frontmatter by design) are left alone.
 
+## At the release cut
+
+```bash
+npm run check:release-ready -- 2.7.0
+```
+
+Run this at [Step 6 — Ship Stable](../../CONTRIBUTING.md#step-6--ship-stable),
+after release prep and immediately before `npm version`. Unlike
+`check:pre-release`, it is not part of `check:compliance` and never runs on an
+ordinary build — it asks a question that only makes sense at a release cut, so
+it takes the target version as an argument rather than reading `manifest.json`
+(which is still on the previous version at that point).
+
+It fails when the changelog heading has not been renamed, entries are still
+stranded under `Unreleased`, `docs/releases/<version>.md` is missing, the
+release line has no curated What's New note, `versions.json` already lists the
+target version, the working tree is dirty, or a release-bound plan is still in
+`docs/archive/plans/unreleased/`. A prerelease bump skips the public-summary
+check, since `docs/releases/` only carries stable versions.
+
 ## Manual
 
 These are either about local/working-tree state (which CI can't see, and
@@ -45,6 +65,7 @@ which would false-positive on ordinary WIP if automated into
 
 - [ ] `git status --porcelain` is clean on the branch you're about to cut
       from — no forgotten untracked files, no uncommitted changes.
+      (`check:release-ready` also enforces this at the ship step.)
 - [ ] `docs/archive/README.md`'s catalog matches what's actually under
       `docs/archive/plans/` (no archived plan missing an entry, no entry
       pointing at a moved/renamed file).
