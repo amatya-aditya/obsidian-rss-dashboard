@@ -141,6 +141,19 @@ RSS feeds are hosted on external servers — the plugin must fetch feed content 
 
 ---
 
+## YouTube Embeds and Terms
+
+RSS Dashboard resolves YouTube feed items to a canonical `videoId`, renders the embedded player through Privacy Enhanced Mode (`https://www.youtube-nocookie.com/embed/...`), and provides a standard **Watch on YouTube** link that opens the original video in your browser or native YouTube app.
+
+The plugin does not add YouTube download features, background audio-only playback, or ad-blocking behavior around the embedded player.
+
+YouTube embeds and API usage are subject to:
+
+- [YouTube API Services Terms of Service](https://developers.google.com/youtube/terms/api-services-terms-of-service)
+- [YouTube Terms of Service](https://www.youtube.com/t/terms)
+
+---
+
 ## Media Playback Progress Tracking
 
 ### What This Feature Does (Plain English)
