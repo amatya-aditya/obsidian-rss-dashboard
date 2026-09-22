@@ -75,6 +75,7 @@ records the documentation classification.
 - [YouTube Shorts tagging failure](investigations/2026/youtube-shorts-tagging-failure.md) and [YouTube watch progress](investigations/2026/youtube-watch-progress.md).
 - [Substack CDATA entity encoding](investigations/2026/substack-cdata-entity-encoding.md), [Defuddle evaluation](investigations/2026/defuddle-evaluation.md), [coverage comparison](investigations/2026/coverage-comparison.md), and [testing closeout checklist](investigations/2026/final-testing-pr-closeout-checklist.md).
 - [2.3.0 audit working checklist](investigations/2026/audit-remediation-2.3.0.md), [2.3.0 audit records](investigations/2026/2.3.0-audit/), and [2.4.0 audit records](investigations/2026/2.4.0-audit/).
+- [FreshRSS connector-extraction architecture audit](investigations/2026/freshrss-connector-extraction-audit.md) — informs the open Core/Connectors boundary decision tracked by [Wayfinder map #341](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/341) and the unnumbered draft ADR at `docs/adr/draft-freshrss-integration-boundary.md`.
 
 ## Unresolved historical evidence
 
