@@ -81,6 +81,7 @@ records the documentation classification.
 
 | Plan | Status | Decision |
 | --- | --- | --- |
+| [Legacy public roadmap](plans/unshipped/public-roadmap-legacy.md) | Superseded 2026-09-21 | Replaced by [`docs/plans/public-roadmap.md`](../plans/public-roadmap.md). |
 | [MP4 hero images](plans/unshipped/mp4-hero-images.md) | Deferred 2026-03-27 | The original attempt was reverted because video URL parsing needed more investigation. |
 
 ## Rejected plans

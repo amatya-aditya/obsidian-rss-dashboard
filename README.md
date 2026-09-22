@@ -7,99 +7,48 @@
 Only the feeds you need. Stream the world's knowledge into your vault: RSS, podcasts, YouTube, and more, all in one dashboard.
 
 [![Latest release](https://img.shields.io/github/v/release/amatya-aditya/obsidian-rss-dashboard?style=flat-square&color=573E7A&label=release)](https://github.com/amatya-aditya/obsidian-rss-dashboard/releases/latest)
-![Release date](https://img.shields.io/github/release-date/amatya-aditya/obsidian-rss-dashboard)
 [![License](https://img.shields.io/github/license/amatya-aditya/obsidian-rss-dashboard)](https://github.com/amatya-aditya/obsidian-rss-dashboard/blob/main/LICENSE)
 ![Total downloads](https://img.shields.io/github/downloads/amatya-aditya/obsidian-rss-dashboard/total)
-[![Open issues](https://img.shields.io/github/issues/amatya-aditya/obsidian-rss-dashboard)](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues)
 
-[Version 2.2.0 Showcase Video](https://www.youtube.com/watch?v=Lq2TRCZlqlQ)
+**[Install](#installation)** · **[Documentation](docs/)** · **[Discord](https://discord.gg/9bu7V9BBbs)** · **[Latest Release](https://github.com/amatya-aditya/obsidian-rss-dashboard/releases/latest)** · **[Contributing](CONTRIBUTING.md)**
 
-## Table of Contents
+![RSS Dashboard reader view](assets/2.2/2.2_Dashboard_reader.jpg)
 
-- [About](#about)
-- [Community](#community)
-- [Features](#features)
-- [Screenshots](#screenshots)
-- [Roadmap](#roadmap)
-- [Vault Shards Storage Guide](#vault-shards-storage-guide)
-- [Tags Guide](#tags-guide)
-- [Import Starred Articles Guide](#import-starred-articles-guide)
-- [Installation](#installation)
-- [Getting Started](#getting-started)
-- [One-Click Subscribe URI](#one-click-subscribe-uri)
-- [Keyboard Shortcuts](#keyboard-shortcuts)
-- [Syncing across devices](#syncing-across-devices)
-- [Development](#development)
-- [Troubleshooting](#troubleshooting)
-- [YouTube Embeds and Terms](#youtube-embeds-and-terms)
-- [Support the Development](#support-the-development)
-- [Other Plugins by Me](#other-plugins-by-me)
-- [License](#license)
+## What is RSS Dashboard?
 
-## About
+A free, open-source Obsidian plugin that streams RSS, podcasts, YouTube, and more directly into your vault. Read, organize, and save content without leaving Obsidian.
 
-RSS Dashboard is a free, open-source community plugin for Obsidian that makes it easy to manage your RSS feeds, YouTube subscriptions, and podcasts in one place.
+**No ads. No trackers. No pop-ups. Open source.**
 
-- Data is stored locally.
-- Content can be saved directly to your vault.
-- No ads, no tracking, no paywalls.
+## Community & Philosophy
 
-## Community
+Built for people who value privacy and data ownership. Part of the Obsidian ecosystem—developed in the open, funded by the community, and designed to integrate seamlessly with your vault.
 
-Want to help shape the next release? Join the Discord server: <https://discord.gg/9bu7V9BBbs>
+Want to help shape the next release? [Join Discord](https://discord.gg/9bu7V9BBbs)
 
-Community highlights:
+## Read Without Distraction
 
-- Build the manually curated Discover page with one-click subscriptions grouped by category.
-- Discuss ideas, questions, and best practices in real time.
-- Share sneak peeks of upcoming features and gather early feedback.
+Full article content fetched and rendered right in Obsidian. No ads, no distracting sidebars—just the text you came to read. Track your progress through articles, videos, and podcasts. Resume where you left off, distraction-free.
 
-## Features
+## Build Your Reading System
 
-### Feed and Media Support
+Your feeds, organized your way. Create folders and subfolders, add custom tags, filter by read status or feed, sort by date or category. Automatic refresh keeps your subscriptions current. Discover new feeds from our curated Discover page or browse smaller independent blogs through Kagi Smallweb.
 
-| Feature                  | Description                                                                         |
-| ------------------------ | ----------------------------------------------------------------------------------- |
-| Multi-Format RSS Support | Support for RSS, Atom, XML and JSON feeds with automatic feed discovery and parsing |
-| YouTube Integration      | Convert YouTube channels to RSS feeds with embedded video playback                  |
-| Podcast Support          | Full podcast feed support with an integrated podcast player                         |
-| Mastodon Support         | Auto-discover and resolve Mastodon profile RSS feeds                                |
-| Media Detection          | Automatic detection of video and podcast content                                    |
+![RSS Dashboard dashboard and organization](assets/2.2/2.2_Dashboard.jpg)
 
-### Reading and Saving
+## Keep What Matters
 
-| Feature               | Description                                                                 |
-| --------------------- | --------------------------------------------------------------------------- |
-| Article Reader View   | Built-in reader with full article content fetching and Markdown conversion  |
-| Article Saving        | Save articles as Markdown files with customizable templates and frontmatter |
-| Custom Templates      | Customize saved article output with variable substitution                   |
-| Media Progress        | Resume from where you left off in videos and podcasts                       |
-| Pagination            | Paginated article lists with configurable page sizes                        |
-| Android/Apple Support | Responsive support for cross-platform mobile devices                        |
+Save articles directly to your vault as Markdown. Customize what gets saved with templates, frontmatter variables, and automatic tagging. Your archive, perfectly formatted.
 
-### Organization and Workflow
+## Own Your Data
 
-| Feature             | Description                                                            |
-| ------------------- | ---------------------------------------------------------------------- |
-| Folder Organization | Organize feeds into folders and subfolders with hierarchical structure |
-| Tag Management      | Add custom tags to feeds and articles for better organization          |
-| Article Filtering   | Filter articles by read status, age, starred, saved, and more          |
-| Article Sorting     | Sort articles by newest, oldest, and group by feed, date, or folder    |
-| Auto-Refresh        | Automatic feed refresh with configurable intervals                     |
-| OPML Import/Export  | Import and export feed subscriptions in OPML format                    |
+Completely local. Completely open source. No ads, no tracking, no paywalls—just your data, stored on your device. Full control over what you read and how it's organized.
 
-### Discovery
+## Move Your Data Freely
 
-| Feature       | Description                                                                        |
-| ------------- | ---------------------------------------------------------------------------------- |
-| Discover Page | Curated collection of RSS feeds organized by categories                            |
-| Kagi Smallweb | Browse and subscribe to a curated stream of smaller independent blogs and websites |
+Import and export your subscriptions as OPML. Support for RSS, Atom, JSON feeds, YouTube channels, podcasts, and Mastodon accounts. Migrating from Inoreader? [Import your starred articles](docs/inoreader-starred-import-guide.md) directly. Switch tools anytime—your data comes with you.
 
 ## Screenshots
-
-![RSS Dashboard main dashboard view](assets/2.2/2.2_Dashboard.jpg)
-
-![Article reader view](assets/2.2/2.2_Dashboard_reader.jpg)
 
 ![RSS Dashboard Discover page](assets/2.2/2.2_Discover.jpg)
 
@@ -107,309 +56,56 @@ Community highlights:
 
 ![YouTube integration in light mode](assets/2.2/2.2_Dashboard_youtube_light.jpg)
 
-## Video Showcase
+## Version 2.2.0 Demo
+
+Version 2.2.0 demo (core experience remains similar).
 
 [![What's New in 2.2.0?](assets/2.2/video_thumbnail/2.2_Dashboard_video_thumbnail_youtube_icon.png)](https://www.youtube.com/watch?v=Lq2TRCZlqlQ)
 
-## Roadmap
-
-Looking for upcoming features? The old README planned-features list now lives in [docs/plans/public-roadmap.md](docs/plans/public-roadmap.md), along with links to other public-facing plans that have not been implemented yet.
-
-## Vault Shards Storage Guide
-
-Using the new Vault Shards storage mode? See the user-facing guide here: [docs/storage-vault-shards-guide.md](docs/storage-vault-shards-guide.md).
-
-## Tags Guide
-
-Tags let you label and filter articles the way that works best for you. Automatic tagging is available at three levels: feed-type defaults (Settings), folder rules (right-click a folder → **Auto tag feeds in folder...**), and per-feed custom tags (Add/Edit feed). For a full walkthrough of precedence, backfill, and filter modes, see [docs/tags-primer.md](docs/tags-primer.md).
-
-## Import Starred Articles Guide
-
-Migrating starred articles from Inoreader or FreshRSS? Import a
-Google Reader-compatible `starred.json` export from **Import starred
-articles** (command palette, Settings tab, or Feed Manager), review new
-feeds, tags, and full-content fetching before committing, then fetch full
-content on demand from the reader afterward. For the full walkthrough of the
-Options toggles and why fetching is manual, see
-[docs/starred-import-guide.md](docs/starred-import-guide.md).
-
 ## Installation
 
-### Community Plugins Directory
-
 1. Open **Settings** in Obsidian.
-2. Go to **Community plugins** and disable **Restricted mode** if it is enabled.
+2. Go to **Community plugins** → disable **Restricted mode** (if enabled).
 3. Click **Browse**.
-4. Search for **RSS Dashboard**.
-5. Click **Install**, then **Enable**.
+4. Search **RSS Dashboard** and click **Install**.
+5. Enable the plugin in Community plugins list.
 
-### Installing Through BRAT
-
-1. Install BRAT from Obsidian's Community Plugins browser.
-2. Copy the repository URL: `https://github.com/amatya-aditya/obsidian-rss-dashboard`
-3. Open the command palette and run `BRAT: Add a beta plugin for testing`.
-4. Paste the repository URL into the modal and select the latest version.
-5. Click **Add Plugin** and wait for BRAT to finish.
-6. Open **Settings** > **Community plugins**.
-7. Refresh the plugin list if needed.
-8. Find **RSS Dashboard** and enable it.
-
-### Manual Installation
-
-1. Download the latest release files (`manifest.json`, `styles.css`, `main.js`) from the [Releases page](https://github.com/amatya-aditya/obsidian-rss-dashboard/releases).
-2. Create a folder named `rss-dashboard` in your vault's `.obsidian/plugins` directory.
-3. Copy the downloaded files into that folder.
-4. Enable the plugin in **Settings** > **Community plugins**. You may need to restart Obsidian before it appears.
+For BRAT beta testing or manual installation, see [Installation Methods](docs/installation.md).
 
 ## Getting Started
 
-### Adding Your First Feed
+1. Open RSS Dashboard from the ribbon or command palette.
+2. Click **+** to add your first feed. Try a familiar URL (e.g., a news site or YouTube channel).
+3. Click an article to read in the built-in reader.
+4. Optionally save articles to your vault.
 
-1. Open the RSS Dashboard view using the ribbon icon or the command palette.
-2. Click the `+` button in the sidebar to add a new feed.
-3. Enter a feed URL or website URL. The plugin will try to auto-discover the feed for you.
-4. Choose a folder to organize the feed.
-5. Click **Add Feed** to subscribe.
+For detailed workflows, see [Getting Started Guide](docs/getting-started.md).
 
-### Using the Discover Page
+## Documentation
 
-1. Open the RSS Discover view using the Discover icon or the command palette.
-2. Browse curated feeds organized by category.
-3. Use the Kagi Smallweb button at the top of the Discover sidebar to open a curated collection of smaller independent blogs and websites.
-4. Use filters or search to find content you want to follow.
-5. Click **Add Feed** on any feed card to subscribe instantly.
+Complete guides, workflows, and reference: [Read the Docs](docs/)
 
-### Reading Articles
+## Roadmap
 
-1. Click any article in the dashboard to open it in the reader view.
-2. Use the built-in reader for a cleaner reading experience.
-3. Save articles as Markdown files for long-term storage in your vault.
-4. Use the video player for YouTube content or the audio player for podcasts.
-5. YouTube embeds use Privacy Enhanced Mode through `youtube-nocookie.com`, and each video includes a visible **Watch on YouTube** link.
+Feature direction and what's being explored: [Public Roadmap](docs/plans/public-roadmap.md)
 
-## One-Click Subscribe URI
+## Support & Community
 
-RSS Dashboard supports adding feeds directly from external apps and browser extensions through Obsidian's URI protocol handler.
+- 💬 [Discord Community](https://discord.gg/9bu7V9BBbs)
+- 🐛 [GitHub Issues](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues)
+- ❓ [Troubleshooting](docs/troubleshooting.md)
 
-Use this format:
+## Contributing
 
-```text
-obsidian://rss-dashboard?action=add-feed&url=<encoded-feed-url>
-```
+Want to help? [See CONTRIBUTING.md](CONTRIBUTING.md)
 
-Example:
+## Support Development
 
-```text
-obsidian://rss-dashboard?action=add-feed&url=https%3A%2F%2Fexample.com%2Frss.xml
-```
+If you find this plugin useful:
 
-Browser-extension mapping example:
-
-- Set your extension's subscribe/open URL target to `obsidian://rss-dashboard?action=add-feed&url=${encodeURIComponent(feedUrl)}` (replace `feedUrl` with your extension's feed URL variable).
-
-Notes:
-
-- The `url` query parameter is required.
-- Feed URLs must be URL-encoded before being inserted into the URI.
-- The URI opens the Add Feed modal with the URL prefilled so you can confirm settings before saving.
-
-Troubleshooting:
-
-- `Unsupported RSS Dashboard URI action`: verify `action=add-feed`.
-- `Missing required URL parameter for add-feed.`: include `url=<encoded-feed-url>`.
-- `URL must start with http:// or https://`: pass a valid web feed URL.
-- `Feed URL is malformed. Ensure the url parameter is URL-encoded.`: encode the feed URL before launching the URI.
-
-### Organizing Your Feeds
-
-1. Create folders and subfolders to organize your subscriptions.
-2. Drag and drop feeds and folders to reorder them and build the structure you want more directly.
-3. Add tags to categorize your content.
-4. Use the filtering and sorting options to find specific articles quickly.
-5. Export your feed list as OPML for backup or migration.
-
-### Keyboard Shortcuts
-
-To quickly access the keyboard shortcuts help file, press `?` (Shift + /) within the app. This will display a comprehensive list of available shortcuts and their functions.
-
-For a preview of the keyboard shortcuts, see [Keyboard Shortcuts](docs/keyboard-shortcuts.md).
-
-## Syncing Across Devices
-
-RSS Dashboard supports Obsidian Sync and some other third-party sync solutions, but requires
-a specific setup order on new devices to prevent feed data from being overwritten.
-
-### Before you begin: folder naming requirements
-
-For sync to work reliably across devices, two naming rules must be followed in General
-Settings → Storage > Storage Mode **as well as** Metadata storage > Metadata data.json location:
-
-- **No dot prefix on folder names.** Folders beginning with `.` are hidden by the
-  operating system and ignored by most sync tools. For example, use `rss-dashboard-data`
-  not `.rss-dashboard-data`.
-- **Folder names must match exactly across all devices.** Your shard storage location
-  and your data folder must use identical names on every device you sync to.
-
-### How to set up a new device
-
-Let's assume your desktop PC is your **existing device** and your phone or tablet is
-your **new device**.
-
-1. If you already have RSS Dashboard installed on your **new device** (phone/tablet), disable it there before beginning these steps: (Obsidian settings > Community Plugins > RSS Dashboard > Toggle 'Off').
-2. If you do not yet have the plugin installed on your **new device**, install it but **do not enable it yet**.
-
-> ⚠️ **Important:** Enabling the plugin before Obsidian Sync finishes its initial pull
-> will cause it to write empty defaults to disk. Sync will treat this empty file as the
-> authoritative state and propagate it to all your devices, wiping your feeds.
-
-> ⚠️ **Important:** Sync will only work on legacy mode if your data.json file is below 5mb. It is highly recommended to use Shard Storage v2 since it is currently the most robust version for data storage.
-
-3. On your **existing device** (PC): Set up RSS Dashboard with all the feeds, folders, and tags you want to sync.
-4. On your **existing device** (PC): Confirm your storage folder names follow the requirements above (Settings → RSS Dashboard → Storage, **as well as** Storage → Metadata storage > Metadata data.json location).
-5. On your **existing device** (PC): Open Obsidian Settings → Core Plugins → Sync → Activity Log and wait until it shows today's date and time with the text "Fully synced"
-
-6. On your **new device** (phone/tablet): Open Obsidian and check the same Sync Activity Log. Wait until it shows today's date and time with the text "Fully synced". Close the sync window.
-7. On your **new device** (phone/tablet): Enable the RSS Dashboard plugin. Your data should now be synced.
-
-> ⚠️ **Important:** If feeds do not appear after enabling, disable the plugin, wait two minutes, and re-enable it. If the issue persists, see [Troubleshooting] or open an issue.
-
-8. On your **new device** (phone/tablet): Verify that the storage folder paths match your **existing device**'s (PC) folder structure exactly. These settings sync automatically, but a mismatch here will cause future sync issues.
-
-If you've already hit this issue, disable the plugin on the affected device, wait for
-"Fully synced", then re-enable it.
-
-### Why this happens
-
-Obsidian Sync has no public API to signal when a sync is in progress. On a clean install,
-if the plugin loads before your data has arrived from the server, it falls back to empty
-defaults and immediately writes them to disk — giving Sync a newer timestamp to treat as
-authoritative.
-
-### Ongoing sync reliability
-
-To ensure minor changes (feed reorders, tag edits, folder renames) are always detected
-by Obsidian Sync, the plugin appends a variable-length sync nonce to every write. This
-guarantees the file size changes on each save, which Obsidian Sync uses alongside
-modification time to detect changes.
-
-## Development
-
-Before opening a PR, read the contributor policy in [CONTRIBUTING.md](CONTRIBUTING.md), especially the **Compliance Declarations (Audit Guardrails)** section.
-
-For implementation examples and approved patterns used in recent compliance passes, see [docs/development/compliance-patterns.md](docs/development/compliance-patterns.md).
-
-Developer plans remain in `docs/plans/` while active, then move through the
-versioned archive workflow documented in [Development Docs](docs/development/README.md#plan-lifecycle-and-archive).
-
-### Local Setup
-
-This repo targets Node 22 for local development and CI. Both `.nvmrc` and `.node-version` are pinned to `22`.
-
-If you use `nvm`, run:
-
-```bash
-nvm use
-npm ci
-```
-
-### Local Development
-
-Use the development build while making changes locally:
-
-```bash
-nvm use
-npm ci
-npm run dev
-```
-
-### Local CI-Equivalent Commands
-
-Run the same install and unit test flow used in GitHub Actions:
-
-```bash
-nvm use
-npm ci
-npm run test:unit -- --coverage
-```
-
-See [testing-guide.md](docs/development/test_coverage/testing-guide.md) for details.
-
-### Production Build
-
-To mirror the release workflow build step locally:
-
-```bash
-nvm use
-npm ci
-npm run build
-```
-
-`main.js` and `styles.css` are generated build artifacts and are intentionally
-ignored by Git. Commit their source files instead, including `main.ts` and
-`src/styles/`; the release workflow builds and publishes fresh artifacts from
-the tagged source.
-
-## Troubleshooting
-
-### Common Issues
-
-**Feed not loading**
-
-- Check that the feed URL is correct.
-- Try refreshing the feed manually.
-- Some feeds require authentication.
-
-**YouTube feeds not working**
-
-- Make sure you are using a valid YouTube channel, user, or playlist URL.
-- Try using the channel ID instead of a custom URL.
-- Some channels have disabled RSS feeds.
-- YouTube feed retrieval is currently limited, and only about 15 YouTube feeds can usually be fetched at a time.
-- Embedded playback uses `youtube-nocookie.com` with a strict referrer policy to satisfy current YouTube embed requirements.
-
-**Podcast audio not playing**
-
-- Check that the audio URL is accessible.
-- Some podcasts require authentication.
-- Try opening the audio URL in a browser.
-
-### Getting Help
-
-If you run into an issue or have a suggestion:
-
-- Create an issue on [GitHub](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues)
-- Join the [Discord community](https://discord.com/invite/9bu7V9BBbs)
-- Check existing issues for known fixes and workarounds
-
-## YouTube Embeds and Terms
-
-RSS Dashboard resolves YouTube feed items to a canonical `videoId`, renders the embedded player through Privacy Enhanced Mode (`https://www.youtube-nocookie.com/embed/...`), and provides a standard **Watch on YouTube** link that opens the original video in your browser or native YouTube app.
-
-The plugin does not add YouTube download features, background audio-only playback, or ad-blocking behavior around the embedded player.
-
-YouTube embeds and API usage are subject to:
-
-- [YouTube API Services Terms of Service](https://developers.google.com/youtube/terms/api-services-terms-of-service)
-- [YouTube Terms of Service](https://www.youtube.com/t/terms)
-
-## Network Use
-
-RSS Dashboard makes network requests only for content it needs to show you: the feeds you subscribe to, and the images inside articles or feed previews. There is no telemetry and no usage reporting.
-
-The **What's New** popup is the one request that is not tied to a feed. Its note text is bundled with the plugin, but the note's screenshots are remote images hosted on GitHub, so opening the popup loads them from `raw.githubusercontent.com`. If you are offline, the note still renders and any image that fails to load is hidden rather than shown broken.
-
-## Support the Development
-
-If you find this plugin useful, consider supporting its long-term development:
-
-- Buy me a coffee: <https://www.buymeacoffee.com/amatya_aditya>
-- Ko-fi: <https://ko-fi.com/Y8Y41FV4WI>
-
-## Other Plugins by Me
-
-1. [Media Slider](https://github.com/amatya-aditya/obsidian-media-slider)
-2. [Zen Space](https://github.com/amatya-aditya/obsidian-zen-space)
+- [Buy me a coffee](https://www.buymeacoffee.com/amatya_aditya)
+- [Ko-fi](https://ko-fi.com/Y8Y41FV4WI)
 
 ## License
 
-This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
+MIT. See [LICENSE](LICENSE) for details.

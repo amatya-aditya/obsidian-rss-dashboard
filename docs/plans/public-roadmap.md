@@ -1,46 +1,69 @@
 # Public Roadmap
 
-This document collects public-facing ideas, compatibility notes, and upcoming work that is still tracked in `docs/plans`. Priorities may change, but this is the best place to track what is likely coming next without digging through older planning folders.
+This roadmap highlights product areas that are actively being explored, planned, or considered for future development.
 
-## Future Feature Ideas
+It is **not a release commitment**. Priorities, implementation details, and scope may change as features are researched, tested, and discussed with the community.
 
-These items were previously listed in the README:
+For work that has already shipped, see the release notes in [`docs/releases`](../releases). For the full development backlog, see the [GitHub issues](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues).
 
-| Feature                      | Description                                                      |
-| ---------------------------- | ---------------------------------------------------------------- |
-| Advanced Analytics           | Track reading time, articles read, and other high-level insights |
-| Text-to-Speech (TTS) Support | Add built-in article narration support                           |
-| Newsletter Integration       | Support newsletter subscriptions and management                  |
-| YouTube Transcripts          | Extract and display YouTube video transcripts                    |
-| NoteStamp Integration        | Improve note-taking with timestamps and annotations              |
-| Advanced Search              | Add deeper search across saved articles and feeds                |
-| Progress Tracking            | Track reading progress                                           |
-| Playlist Curation            | Ability to create custom playlists from Youtube or Podcasts      |
+## Active / Near-Term Exploration
 
+These areas have active GitHub issues and represent some of the more concrete directions currently being explored.
 
-### Recorded from triage
+| Feature                                  | Description                                                                                                                                                                    | Tracking                                                                   |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------- |
+| FreshRSS / Google Reader API integration | Connect RSS Dashboard to FreshRSS and other services implementing the Google Reader API, allowing feeds and article state to work with an existing server-backed RSS setup.    | [#50](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/50)   |
+| Article language metadata                | Add normalized language metadata for saved articles using publisher-provided signals where available, with local detection considered as a fallback.                           | [#246](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/246) |
+| Article metadata enrichment              | Improve article metadata extraction and semantics for descriptions, excerpts, authors, canonical URLs, publication information, saving templates, and related Reader behavior. | [#247](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/247) |
 
-Ideas that came out of issue triage rather than the README. Kept here rather
-than as open issues, so the backlog reflects work that is actually queued.
+## Storage & Sync
 
-| Feature                    | Description                                                                                                                                                                                                                       | Source                                                                 |
-| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| Local language detection   | Detect an article's language from its text when no publisher signal exists. Ruled out of the metadata pipeline seam as a third runtime dependency on a mobile plugin, serving only the tier where no publisher declared a language. | [#272](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/272) |
-| Reading-view translation   | Translate article content within the reader.                                                                                                                                                                                       | [#133](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/133) |
-| Per-feed first-seen-date fallback override | Add "Use first-seen date for undated items" to the add/edit feed modal, superseding the global `useFirstSeenDateFallback` setting when set on a specific feed. | Deferred follow-up from #283/#296 manual QA — no issue filed, no date set |
-| Undated-item placement setting | With the first-seen-date fallback on, undated items currently sort to the top under "newest" order (intentional, decided during #283's original grilling). Add an option to instead pin undated items to the bottom regardless of sort direction, or sort them purely by first-seen among themselves. | Deferred follow-up from #283/#296 manual QA — no issue filed, no date set |
-| "Show first seen" reader-wide display toggle | A new setting under Settings → Display → Reader that always shows an article's first-seen date in the reader, for all RSS articles — not just as a fallback when pubDate is missing. Distinct from `useFirstSeenDateFallback`, which only substitutes first-seen when there's no real pubDate. | Deferred follow-up from #283/#296 manual QA — no issue filed, no date set |
+Storage reliability and multi-device behavior remain an important area of ongoing development.
 
-## Documented Upcoming Ideas
+| Feature                                  | Description                                                                                                                                                                                      | Status                                                                                        |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------- |
+| Sync V3                                  | Experimental device-owned replica architecture designed to avoid shared-file overwrite conflicts and improve deterministic multi-device state convergence. Shard storage v2 remains the default. | **Experimental** · [#274](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/274) |
+| Storage health check and cleanup         | Detect mismatches between configured feeds and on-disk storage, surface storage warnings, and provide a recoverable cleanup workflow for orphaned or stale data.                                 | [#318](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/318)                    |
+| Plugin-local storage and backup redesign | Change new-install storage defaults, simplify automatic backups, improve portable recovery, and integrate cleanup support. Existing installations would not be automatically migrated.           | **Post-2.7.0** · [#319](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/319)   |
 
-These features already have draft plan documents and are still not implemented:
+## Ideas Under Consideration
 
-- Media notes for podcast and video playback: [Media notes feature](media-notes-podcast-video-player.md)
-- Better handling for `.mp4` hero images in feed view is [deferred](../archive/plans/unshipped/mp4-hero-images.md).
-- Cover image fallback | Send GET requests to articles to grab hero image if not present in feed item | [cover-image-fallback-og-fetch.md](cover-image-fallback-og-fetch.md)
+These are product directions we continue to consider, but they are not currently committed to a particular release.
 
-## Notes
+| Feature                        | Description                                                                                                                                                     |
+| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Text-to-Speech                 | Add built-in article narration or integrate with suitable platform capabilities.                                                                                |
+| YouTube transcripts            | Extract and display transcript text for supported YouTube content.                                                                                              |
+| Reading analytics and progress | Explore useful local statistics such as reading activity, reading time, completion, and progress without turning RSS Dashboard into an analytics-heavy product. |
+| Expanded search                | Improve search across feeds, article metadata, saved content, and other locally available article information.                                                  |
+| Newsletter support             | Explore better workflows for newsletter subscriptions and newsletter-derived content.                                                                           |
+| Media playlist curation        | Allow users to organize podcast or video content into custom listening or viewing queues.                                                                       |
 
-- This roadmap focuses mostly on user-facing features, with a small amount of major-version cleanup context where it affects planning.
-- Some items are exploratory and may be split, renamed, or reprioritized before implementation.
-- For shipped changes, see the release notes in [`docs/releases`](../releases).
+## Deferred / Exploratory
+
+These ideas have come out of previous planning, issue triage, or implementation discussions. They remain possible future work but are not currently prioritized.
+
+| Feature                              | Description                                                                                                                                                                              | Source                                                                     |
+| ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| Reading-view translation             | Translate article content directly within the Reader.                                                                                                                                    | [#133](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/133) |
+| Per-feed first-seen fallback         | Allow individual feeds to override the global behavior that uses an article's first-seen date when no publication date is available.                                                     | Follow-up from #283 / #296                                                 |
+| Undated-item placement               | Provide more control over where articles without publication dates appear when sorting by date.                                                                                          | Follow-up from #283 / #296                                                 |
+| Show first-seen date                 | Optionally display an article's first-seen date in the Reader even when a publication date exists.                                                                                       | Follow-up from #283 / #296                                                 |
+| Media notes                          | Explore timestamped or playback-aware notes for podcast and video content.                                                                                                               | [Media notes feature](media-notes-podcast-video-player.md)                 |
+| Cover-image fallback                 | Fetch article-page metadata when feed data does not provide a usable hero image.                                                                                                         | [Cover image fallback](cover-image-fallback-og-fetch.md)                   |
+| MP4 hero-image handling              | Improve handling of feeds that expose MP4 or video media where a normal article image is expected.                                                                                       | [Deferred plan](../archive/plans/unshipped/mp4-hero-images.md)             |
+| Regex Search Support                 | Add optional regular-expression matching to RSS Dashboard article search while preserving existing plain-text search behavior.                                                           | [Draft plan](draft-20260921-regex-search.md)                               |
+| Search Scope & Global Article Search | Improve RSS Dashboard's existing article search so users can choose between the current fast page-level search and a broader search across all articles in the active dashboard context. | [Draft plan](draft-20260921-search-scope-and-global-search.md)             |
+
+## How to Read This Roadmap
+
+The categories reflect different levels of certainty:
+
+- **Active / Near-Term Exploration** means there is an active issue and meaningful investigation or planning around the feature.
+- **Experimental** means implementation work may already exist, but the feature is not considered the default or stable path.
+- **Ideas Under Consideration** are directions that may be worth pursuing but do not currently have a committed implementation plan.
+- **Deferred / Exploratory** items have been discussed or partially designed but are intentionally not prioritized right now.
+
+A feature appearing here should not be interpreted as a guarantee that it will ship, or that it will ship in its currently described form.
+
+Implementation discussion, feature requests, and detailed technical planning continue to live in GitHub issues and `docs/plans`.

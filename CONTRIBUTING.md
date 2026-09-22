@@ -1,220 +1,184 @@
-# Git Branching Strategy
+# Contributing to RSS Dashboard
 
-## Table of Contents
-- [Overview](#overview)
-- [Branch Structure](#branch-structure)
-- [Branch Descriptions](#branch-descriptions)
-- [Contributor Workflow](#contributor-workflow)
-- [Testing and TDD Approach](#testing-and-tdd-approach)
-- [Compliance Declarations (Audit Guardrails)](#compliance-declarations-audit-guardrails)
-- [Architecture Decision Records (ADRs)](#architecture-decision-records-adrs)
-- [Release Process](#release-process)
-- [Versioning (SemVer)](#versioning-semver)
-- [Naming Conventions and Validation](#naming-conventions-and-validation)
-- [Key Rules](#key-rules)
-- [Quick Reference](#quick-reference)
-
-## Overview
-
-This document outlines the branching strategy for all contributors. Following these conventions keeps our codebase stable, our release process predictable, and collaboration smooth.
+Thank you for your interest in contributing! This guide walks you through how to set up your development environment, make changes, and submit your work. Whether you're fixing a bug, adding a feature, or improving documentation, we appreciate your help.
 
 ---
 
-## Branch Structure
+## Before You Start
 
+### Code of Conduct
+
+We are committed to providing a welcoming and inspiring community for all. Please treat everyone with respect and create a harassment-free environment for participation.
+
+### Ways to Contribute
+
+- **Report bugs** — Found something broken? [Open an issue](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues) with details and steps to reproduce.
+- **Suggest features** — Have an idea? [Start a discussion](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues) or chat on [Discord](https://discord.gg/9bu7V9BBbs).
+- **Fix bugs** — Pick an open issue labeled `bug` or `good-first-issue`.
+- **Add features** — Check the [public roadmap](docs/plans/public-roadmap.md) and coordinate before starting large work.
+- **Improve docs** — Clarify guides, add examples, fix typos. Documentation PRs are always welcome.
+- **Write tests** — Help increase test coverage and prevent regressions.
+
+---
+
+## Development Setup
+
+### Prerequisites
+
+- **Node.js 22** — Required for all development and CI.
+  - If you use `nvm` (Mac/Linux): `nvm use` (reads `.nvmrc`)
+  - If you use `nvm-windows` (Windows): `nvm use 22`
+  - Check your version: `node --version` (should be v22.x.x)
+
+### Clone & Install
+
+```bash
+git clone https://github.com/amatya-aditya/obsidian-rss-dashboard.git
+cd obsidian-rss-dashboard
+nvm use
+npm ci
 ```
-master                                     ← stable, tagged releases only
-└── dev                                    ← active development, always current with master
-      ├── feat/123-your-feature            ← contributor work branches
-      ├── fix/124-your-fix
-      └── ...
-            ↓  PRs merge into dev
-           dev
-            ↓  when features are complete, cut a release branch
-      release/x.x.x
-            ↓  stable → merge to master, then back to dev
-           master (tag x.x.x)
+
+Use `npm ci` (clean install) instead of `npm install` to ensure locked dependency versions match CI.
+
+### Local Development
+
+```bash
+npm run dev
 ```
 
----
-
-## Branch Descriptions
-
-### `master`
-
-- Always production-ready and stable
-- **No direct commits** — changes arrive only via merged release branches
-- Every commit on master corresponds to a tagged release
-
-### `dev`
-
-- The living integration branch — all contributor work lands here
-- Must always be **at or ahead of master**
-- After every stable release, **merge `master` back into `dev` immediately**
-- **Do not rebase shared `dev`** after it has diverged or after others have based work on it
-- Should be stable enough to cut a release branch from at any time
-
-### Feature / Fix Branches
-
-- All contributor work happens here
-- Always branch off `dev`, never off master
-- Naming convention: `<type>/<issue-number>-<short-slug>` — see
-  `docs/agents/branch-naming.md` for full detail and worktree naming
-  - `feat/231-short-slug` — new functionality
-  - `fix/231-short-slug` — bug fixes
-  - `docs/231-short-slug` — documentation only
-  - `chore/231-short-slug` — maintenance, dependencies, config
-- PR back into `dev` when work is complete and self-tested
-
-### `release/x.x.x`
-
-- Cut from `dev` when features for a release are complete
-- Only stabilization work (bug fixes from Beta testing) happens here — no new features
-- Merges into `master` when stable, then immediately back into `dev`
+This runs the development build in watch mode. Open Obsidian, enable the plugin, and changes will hot-reload.
 
 ---
 
-## Contributor Workflow
+## Repository Structure
 
-1. **Sync your local dev** with the latest remote before starting work:
+The codebase is organized for clarity and scalability:
 
-   ```
-   git checkout dev
-   git pull origin dev
-   ```
+- **`src/`** — All plugin source code (TypeScript)
+  - `services/` — Core business logic (feed fetching, storage, article processing)
+  - `views/` — UI components (dashboard, reader, discover)
+  - `modals/` — Dialog windows (feed manager, settings, etc.)
+  - `settings/` — Plugin settings and configuration tabs
+  - `utils/` — Shared utilities and helpers
+- **`test_files/unit/`** — Unit and integration tests (matching `src/` structure)
+- **`docs/`** — User-facing documentation and guides
+- **`docs/development/`** — Developer documentation and architecture
 
-2. **Create a branch** off dev using whichever method you prefer:
-
-   **Command line:**
-
-   ```
-   git checkout -b feat/231-your-feature-name
-   ```
-
-   **GitHub Desktop:**
-   - Confirm you're on `dev` in the branch dropdown
-   - Click the dropdown → **New Branch**
-   - Type your branch name — Desktop automatically bases it off your current branch
-
-   **GitHub website:**
-   - Navigate to the repo and switch to the `dev` branch using the branch dropdown (top left of the file list)
-   - Once you're viewing `dev`, open the dropdown again
-   - Type your new branch name in the **"Find or create a branch"** box — it will show "Create branch from **'dev'**"
-   - Hit Enter
-
-   > **Note on branch names:** The slash in `feat/231-your-name` is just a naming convention, not a folder path. Type the full name including the slash — e.g. `feat/231-youtube-shorts-autotag`. Do not prefix it with `dev/`. See `docs/agents/branch-naming.md` for the full convention.
-
-3. **Make commits** — keep them small and focused. One concern per commit.
-
-4. **Stay current while working on your own branch** — if `dev` moves forward while you're working, rebase your feature/fix branch onto `origin/dev`:
-
-   ```
-   git fetch origin
-   git rebase origin/dev
-   ```
-
-   This guidance applies to **your personal work branch**, not to shared branches like `dev`. To sync shared `dev` after a stable release, merge `origin/master` into `dev` instead of rebasing `dev`.
-
-5. **Open a Pull Request** targeting `dev` when your work is:
-   - Complete and self-tested
-   - Not breaking any existing functionality
-   - Reviewed by at least one other contributor
-
-6. **Delete your branch** after it merges.
+For detailed architecture and design decisions, see [Development Docs](docs/development/README.md).
 
 ---
 
-## Testing and TDD Approach
+## Development Workflow
 
-We strongly encourage a **Test-Driven Development (TDD)** workflow. When adding new features or fixing bugs, follow the Red-Green-Refactor cycle:
+### 1. Branch from `dev`
 
-1. **Red**: Write a failing test for the new functionality or bug reproduction.
-2. **Green**: Write the minimal code required to pass the test.
-3. **Refactor**: Clean up the code while ensuring the test stays green.
+Always create a new branch off `dev`:
 
-### Test Coverage Philosophy
+```bash
+git checkout dev
+git pull origin dev
+git checkout -b feat/231-your-feature-name
+```
 
-Coverage is a **floor, not a goal**. We use coverage to prevent regressions and to make refactors safe, but we value **meaningful assertions** over chasing percentages.
+**Branch naming convention:** `<type>/<issue-number>-<short-slug>` — see [docs/agents/branch-naming.md](docs/agents/branch-naming.md) for full detail and worktree naming.
+- `feat/231-short-slug` — new functionality
+- `fix/231-short-slug` — bug fixes
+- `docs/231-short-slug` — documentation only
+- `chore/231-short-slug` — maintenance, dependencies, config
 
-- Prefer tests around critical user flows, bug fixes, and pure business logic.
-- For refactors (especially large files), start with **characterization tests** that lock in current behavior, then refactor behind that safety net.
-- Keep tests deterministic (avoid real network/time; use stubs/fixtures).
+Do not prefix with `dev/`. The slash is just a naming convention, not a folder. Example: `feat/231-youtube-shorts-autotag`.
+
+### 2. Make Focused Commits
+
+Keep commits small and focused on one concern:
+
+```bash
+git add src/path/to/file.ts
+git commit -m "feat: brief, clear description of what changed"
+```
+
+Write commit messages that explain the _why_, not just the _what_. Your future self will thank you.
+
+### 3. Stay Current
+
+While you're working, if `dev` moves forward, rebase your branch to stay current:
+
+```bash
+git fetch origin
+git rebase origin/dev
+```
+
+This keeps your feature history linear and readable. (This guidance applies to your personal branch, not shared branches like `dev`.)
+
+### 4. Test Before Opening a PR
+
+Run the full test suite and linter locally:
+
+```bash
+npm run test:unit
+npm run lint
+npx tsc -noEmit
+```
+
+All must pass before you open a PR.
+
+---
+
+## Testing
+
+We use **Test-Driven Development (TDD)** and value meaningful assertions over chasing coverage percentages.
+
+### Running Tests
+
+```bash
+npm run test:unit                          # Run all tests once
+npx vitest                                  # Watch mode (recommended while developing)
+npm run test:unit -- --coverage            # Generate coverage report
+```
+
+### Writing Tests
+
+- **Test organization:** Place tests in `test_files/unit/` mirroring the `src/` structure. For example:
+  - Source: `src/services/feed-fetcher.ts`
+  - Tests: `test_files/unit/services/feed-fetcher.test.ts`
+- **Coverage focus:** Prioritize critical user flows, bug fixes, and pure business logic. Coverage is a floor, not a goal.
+- **Deterministic tests:** Avoid real network/time; use stubs and fixtures.
 
 ### Coverage Gate (Ratcheting)
 
 CI enforces global coverage thresholds (configured in `vitest.config.mjs`). We use a ratchet so the minimum acceptable coverage rises over time and cannot silently drift downward.
 
-- Only raise thresholds when the measured global metric is comfortably above the current threshold (see the ratchet rules in `docs/development/test_coverage/test-coverage-improvement-plan.md`).
+- Only raise thresholds when the measured global metric is comfortably above the current threshold.
 - Avoid raising thresholds in the same PR that significantly expands the measured surface area (e.g., broadening `coverage.include`).
 
-### Current Test Suite
+For deeper guidance and current priorities, see [Testing Guide](docs/development/test_coverage/testing-guide.md).
 
-Most tests are **unit tests** plus fast **integration-style** tests (JSDOM + Obsidian stubs) that validate UI rendering and business logic without launching the full Obsidian app. Tests live under `test_files/unit/`. Run `npm run test:unit -- --coverage` for the current file/test count and coverage numbers — the coverage gate above is the enforced source of truth, not a point-in-time snapshot here.
+---
 
-### Running and Writing Tests
+## Code Quality & Compliance
 
-- **Run all tests**: `npm run test:unit`
-- **Generate coverage reports**: `npm run test:unit -- --coverage`
-- **Recommended**: Keep the test runner open in watch mode (`npx vitest`) while developing.
-- **Organization**: Please organize new tests into domain folders (e.g., `services/`, `views/`, `utils/`) matching the `src/` directory to prevent clutter in the root `test_files/unit/` folder.
-- For deeper context and current priorities, see `docs/development/test_coverage/test-coverage-improvement-plan.md` and `docs/development/refactorability-testing.md`.
+Before opening a PR, address all lint and type errors:
 
-## Compliance Declarations (Audit Guardrails)
-
-To prevent repeat audit regressions, every PR must follow these declarations. Treat these as codebase policy, not suggestions.
-
-### Non-Negotiable Rules
-
-1. **No unsafe HTML rendering in production code**
-   - Do not use direct `innerHTML` assignment for feed/article content paths.
-   - Use approved safe rendering utilities (for example, `sanitizeAndAppendHtml(...)`) used in current rendering flows.
-
-2. **No undocumented lint disables**
-   - If an `eslint-disable` is absolutely required, include an inline reason that explains the necessity and scope.
-   - Prefer refactoring over disabling whenever possible.
-
-3. **Avoid `any` sprawl; use boundary typing**
-   - Do not spread `as any` through implementation or tests.
-   - Use a single boundary cast pattern (`as unknown as TypedInterface`) at the adapter boundary, then keep downstream code typed.
-
-4. **Use popout-safe window/document APIs in production UI paths**
-   - Prefer `activeDocument` instead of global `document` where required for popout compatibility.
-   - Prefer `window.setTimeout(...)`, `window.clearTimeout(...)`, and the other `window.*` timer APIs over `activeWindow.*` or bare timer functions, as enforced by `npm run check:platform`.
-   - Avoid `globalThis` in production UI paths.
-
-5. **Follow Obsidian DOM helper conventions in production code**
-   - Prefer framework helpers such as `createDiv()`, `createEl(...)`, `createSpan()`, and `createFragment()` where applicable.
-   - Keep test-only polyfill exceptions scoped to test files and documented.
-
-6. **Prefer Obsidian-safe imports and APIs**
-   - Follow existing import restrictions and approved API surfaces (for example, import guidance around `moment`).
-
-### AI-Assisted Contributions
-
-- AI-generated patches must satisfy the same declarations as hand-written code.
-- If generated output conflicts with these rules, correct the patch before opening a PR.
-- Keep fixes policy-aligned, minimal, and test-backed.
-
-### CSS Specificity Guidelines
-
-The source stylesheet must contain zero `!important` declarations. The
-`npm run check:important` gate rejects every declaration; an `audit-ok` comment
-does not create an exception.
-
-Resolve conflicts by first checking cascade order and ownership, then construct
-a narrowly scoped selector from an existing plugin root, component, and state
-or element selector. For example:
-
-```css
-.rss-dashboard-container .rss-feed-card.is-selected > .rss-card-action {
-  color: var(--text-accent);
-}
+```bash
+npm run lint                   # Check for style violations
+npx tsc -noEmit               # Type check without emitting files
+npm run check:platform        # Platform compatibility check
+npm run check:important       # CSS !important declarations check
 ```
 
-Do not introduce IDs, duplicated classes, or unscoped `body` selectors merely
-to inflate specificity. If an Obsidian core rule cannot be overridden without
-`!important`, change the local wrapper, state class, or styled property so the
-plugin owns the cascade instead of adding an exception.
+### Compliance Declarations
+
+Every PR must follow these non-negotiable rules:
+
+1. **No unsafe HTML rendering** — Use `sanitizeAndAppendHtml(...)` for feed/article content; never direct `innerHTML`.
+2. **No undocumented lint disables** — If you need `eslint-disable`, include an inline reason explaining why.
+3. **Avoid `any` sprawl** — Use boundary typing (a single `as unknown as TypedInterface` cast at the adapter boundary) instead of spreading `as any` through code.
+4. **Platform-safe APIs** — Use `activeDocument`, `window.setTimeout(...)`/`window.clearTimeout(...)`, and the other `window.*` timer APIs instead of `activeWindow.*` or bare timers, as enforced by `npm run check:platform`. Avoid `globalThis` in production UI paths.
+5. **Obsidian DOM helper conventions** — Prefer `createDiv()`, `createEl(...)`, `createSpan()`, and `createFragment()` over manual DOM construction in production code. Keep test-only polyfill exceptions scoped to test files and documented.
+6. **Obsidian-safe imports and APIs** — Follow existing import restrictions and approved API surfaces (for example, import guidance around `moment`).
+7. **No `!important` in CSS** — Resolve conflicts by checking cascade order and ownership first, then build a narrowly scoped selector from an existing plugin root, component, and state or element selector. `npm run check:important` rejects every declaration; an `audit-ok` comment does not create an exception.
+8. **AI-generated patches** — Must satisfy the same rules as hand-written code. Fix violations before opening a PR.
 
 ### Required Before PR
 
@@ -223,7 +187,8 @@ plugin owns the cascade instead of adding an exception.
 - When code parses or generates from a real repository file (`CHANGELOG.md`, `package.json`, config files, etc.), verify against the actual checked-in file — not just hand-written test fixtures. Line-ending style, encoding, and other real-world formatting quirks won't show up in a synthetic test string. A changelog parser here once passed its full test suite and still shipped broken, because every test fixture used plain `\n` while the repo's actual `CHANGELOG.md` is CRLF-terminated — the parser silently matched nothing against the real file.
 - If you add or change lint suppressions, verify each has a specific inline explanation.
 - Check `docs/plugin-scorecard.md` for current high-priority compliance backlog items relevant to your changes.
-- For implementation patterns and examples, use `docs/development/compliance-patterns.md`.
+
+For implementation examples and approved patterns, see [Compliance Patterns](docs/development/compliance-patterns.md).
 
 ---
 
@@ -241,42 +206,110 @@ Skip an ADR for anything obvious, easily reversed, or where there was no real al
 
 ---
 
+## Pull Requests
+
+### Opening a PR
+
+1. Push your branch: `git push -u origin feat/231-your-feature`
+2. Open a PR targeting `dev` on GitHub.
+3. Fill in the PR template with:
+   - Clear description of what changed and why
+   - How to test the change (steps or test commands)
+   - Any related issues (e.g., "Fixes #123")
+4. Ensure CI checks pass (tests, lint, type checking).
+
+### Review Process
+
+- At least one maintainer review is required before merge.
+- Address feedback in new commits; don't force-push (it helps reviewers see what changed).
+- Keep conversations constructive and collaborative.
+
+### Merge & Cleanup
+
+- Maintainers will merge when approved.
+- Delete your branch after merge: `git branch -d feat/231-your-feature`
+
+---
+
+## Branching Strategy
+
+We use a stable `master` branch with active development on `dev`. This section documents the complete branching model for contributors and maintainers.
+
+### Branch Types
+
+**`master`**
+- Always production-ready and stable
+- **No direct commits** — changes arrive only via merged release branches
+- Every commit on master corresponds to a tagged release
+- Protected branch; PRs require review and all checks passing
+
+**`dev`**
+- The living integration branch — all contributor work lands here
+- Must always be **at or ahead of master**
+- After every stable release, `master` is merged back into `dev` immediately
+- **Do not rebase shared `dev`** — use merge if syncing with master
+- Should be stable enough to cut a release branch from at any time
+
+**Feature / Fix Branches** (`feat/...`, `fix/...`, `docs/...`, `chore/...`)
+- Always branch off `dev`, never off master
+- PR back into `dev` when work is complete and self-tested
+- Delete after merge to keep the repo clean
+
+**Release Branches** (`release/x.x.x`)
+- Cut from `dev` when features for a release are complete
+- Only stabilization work (bug fixes from beta testing) happens here — no new features
+- Merge into `master` when stable, then immediately back into `dev`
+
+### Contributing Workflow
+
+1. **Sync dev:**
+   ```bash
+   git checkout dev && git pull origin dev
+   ```
+
+2. **Create branch:**
+   ```bash
+   git checkout -b feat/231-your-feature
+   ```
+
+3. **Stay current (while working):**
+   ```bash
+   git fetch origin && git rebase origin/dev
+   ```
+
+4. **Open PR** targeting `dev` when complete and tested.
+
+5. **Delete branch** after merge.
+
+---
+
 ## Release Process
 
-Before Step 6 — Ship, finalize the changelog per
-[release-notes-workflow.md](docs/development/release-notes-workflow.md) and
-work through the
-[pre-release checklist](docs/development/pre-release-checklist.md) —
-including renaming `CHANGELOG.md`'s `## Unreleased` heading to the release
-version and adding the release line's curated What's New note under
-`src/release-notes/notes/`.
+This section documents how releases are cut, tested, and published.
 
 ### Step 1 — Feature Complete
 
 All planned features and fixes for the release have merged into `dev`.
 
-### Step 2 — Cut the Release Branch
+### Step 2 — Cut Release Branch
 
+```bash
+git checkout dev && git checkout -b release/2.3.0
 ```
-git checkout dev
-git checkout -b release/2.3.0
-```
 
-### Step 3 — Bump the Version First
+### Step 3 — Bump Version
 
-Before tagging a Beta or Stable release, bump the version with `npm version` so `package.json`, `package-lock.json`, `manifest.json`, and `versions.json` stay in sync.
+Before tagging, bump the version with `npm version` to keep `package.json`, `package-lock.json`, `manifest.json`, and `versions.json` in sync:
 
-For the first Beta on a new release branch:
-
-```
+**For first Beta:**
+```bash
 npm version 2.3.0-beta.1 --no-git-tag-version
 git add package.json package-lock.json manifest.json versions.json
 git commit -m "2.3.0-beta.1"
 ```
 
-For the final Stable release:
-
-```
+**For Stable release:**
+```bash
 npm version 2.3.0 --no-git-tag-version
 git add package.json package-lock.json manifest.json versions.json
 git commit -m "2.3.0"
@@ -284,182 +317,124 @@ git commit -m "2.3.0"
 
 ### Step 4 — Tag and Announce Beta
 
-```
+```bash
 git tag 2.3.0-beta.1
 git push --set-upstream origin release/2.3.0 --tags
 ```
 
-Pushing the Beta tag triggers this repo's GitHub Actions release workflow, which builds the plugin and creates a GitHub pre-release with the standard Obsidian assets attached:
-
-- `main.js`
-- `manifest.json`
-- `styles.css`
-
-The release workflow also emits GitHub artifact attestations for `main.js` and `styles.css` so release assets have verifiable build provenance.
-
-If the workflow is unavailable for any reason, create the GitHub release manually from the same tag and upload those files yourself.
-
-Note: manual uploads do not create GitHub artifact attestations. For compliance, re-run the release workflow from the tag so attestations are generated in GitHub Actions.
-
 Use `--set-upstream` on the first push of a new release branch so your local branch tracks `origin/release/...` and tools like VS Code stop showing `Publish Branch`.
 
-Announce to testers via BRAT. Collect feedback.
+Pushing the Beta tag triggers this repo's GitHub Actions release workflow, which builds the plugin and creates a GitHub pre-release with the standard Obsidian assets attached (`main.js`, `manifest.json`, `styles.css`). The workflow also emits GitHub artifact attestations for `main.js` and `styles.css` so release assets have verifiable build provenance.
 
-### Step 5 — Stabilize
+If the workflow is unavailable for any reason, create the GitHub release manually from the same tag and upload those files yourself. Manual uploads do not create attestations — for compliance, re-run the release workflow from the tag afterward so attestations are generated in GitHub Actions.
 
-Fix any issues found during Beta testing **on the release branch**, not on dev. Tag new beta versions as needed:
+Announce to testers via BRAT and collect feedback.
 
-```
+### Step 5 — Stabilize (if needed)
+
+Fix beta issues on the release branch only:
+
+```bash
 npm version 2.3.0-beta.2 --no-git-tag-version
 git add package.json package-lock.json manifest.json versions.json
 git commit -m "2.3.0-beta.2"
-git tag 2.3.0-beta.2
-git push origin release/2.3.0 --tags
+git tag 2.3.0-beta.2 && git push origin release/2.3.0 --tags
 ```
 
-Each pushed Beta tag should produce or be matched by a GitHub pre-release from that same tag.
+If `release/x.x.x` already exists and you need to cut another Beta:
 
-If the `release/x.x.x` branch already exists and you need to cut another Beta (for example, `2.3.0-beta.3` after `2.3.0-beta.2`):
+1. Open a PR to bring the release-bound work from `dev` into `release/x.x.x` first, and merge it **without squashing** so the release branch keeps the same commit history that was tested on `dev` (use **Create a merge commit**, never **Squash and merge**, for release-branch integration PRs).
+2. Only open a full `dev` → `release/x.x.x` PR when every new commit on `dev` is intended for that release. If `dev` already contains work meant for a later release, open a narrower PR or cherry-pick only the fixes/features that belong in the current one.
+3. After the release branch contains the exact changes you want to ship, bump to the next Beta version on the release branch, tag it, and push it.
 
-1. Open a PR to bring the release-bound work into `release/x.x.x` first.
-2. Preserve the original commits when doing this work. If you open a PR from `dev` to `release/x.x.x`, **merge it without squashing** so the release branch keeps the same commit history that was tested on `dev`.
-3. Only open a full `dev` → `release/x.x.x` PR when every new commit on `dev` is intended for that release. If `dev` already contains work meant for the next release, open a narrower PR or cherry-pick only the fixes/features that belong in the current release.
-4. After the release branch contains the exact changes you want to ship, bump to the next Beta version on the release branch, tag it, and push it.
+### Step 6 — Ship Stable
 
-Preferred shared-branch workflow:
+Before running the commands below, finalize the changelog per [release-notes-workflow.md](docs/development/release-notes-workflow.md) and work through the [pre-release checklist](docs/development/pre-release-checklist.md) — including renaming `CHANGELOG.md`'s `## Unreleased` heading to the release version and adding the release line's curated What's New note under `src/release-notes/notes/`. Neither is part of the version-bump commit below.
 
-- Open a PR into `release/x.x.x`.
-- Merge it with **Create a merge commit**.
-- Do **not** use **Squash and merge** for release-branch integration PRs.
-- After that PR is merged, bump/tag the next Beta on `release/x.x.x`.
+When confident:
 
-Alternative local command-line flow if you are performing that same integration directly instead of through a PR, when `release/2.3.0` already exists and `dev` contains the next approved `2.3.0` changes:
-
-```
-git checkout release/2.3.0
-git pull origin release/2.3.0
-git merge origin/dev
-
-npm version 2.3.0-beta.3 --no-git-tag-version
-git add package.json package-lock.json manifest.json versions.json
-git commit -m "2.3.0-beta.3"
-git tag 2.3.0-beta.3
-git push origin release/2.3.0 --tags
-```
-
-### Step 6 — Ship
-
-When confidence is high and no new issues are surfacing:
-
-Before running the commands below, confirm the changelog is already
-finalized and committed on its own: `CHANGELOG.md`'s `## Unreleased` heading
-renamed to this release's version, and the release line's curated What's New
-note added under `src/release-notes/notes/`. Neither is part of the
-version-bump commit below — see
-[release-notes-workflow.md](docs/development/release-notes-workflow.md).
-
-```
-# Bump to the final stable version on the release branch first
+```bash
 npm version 2.3.0 --no-git-tag-version
 git add package.json package-lock.json manifest.json versions.json
 git commit -m "2.3.0"
 
-# Merge to master and tag
-git checkout master
-git merge release/2.3.0
-git tag 2.3.0
-git push origin master --tags
+git checkout master && git merge release/2.3.0
+git tag 2.3.0 && git push origin master --tags
 
-# Sync shared dev with the released history from master
-git checkout dev
-git pull --ff-only origin dev
-git merge origin/master
-git push origin dev
+git checkout dev && git pull --ff-only origin dev
+git merge origin/master && git push origin dev
 
-# Clean up
 git branch -d release/2.3.0
 ```
 
-Pushing the stable tag triggers this repo's release workflow, which creates a GitHub release from that tag and attaches the standard Obsidian plugin assets. If you ever need to do it manually, create the GitHub release from tag `2.3.0` and upload `main.js`, `manifest.json`, and `styles.css`.
+Pushing the stable tag triggers GitHub Actions to build and create a release with plugin assets (`main.js`, `manifest.json`, `styles.css`). Stable releases should be published through the workflow path so attestation records exist for `main.js` and `styles.css`; if you ever need to do it manually, upload those same files to a release created from tag `2.3.0`.
 
-Stable releases should be published through the workflow path so attestation records exist for `main.js` and `styles.css`.
+### Tag Retention
 
-### Tag Retention Policy
-
-Published release tags (including Beta tags) should be treated as immutable release history and kept in the repository after a Stable release ships.
-
-- Keep all published `x.x.x-beta.n` tags to preserve traceability for bug reports, changelog links, and bisecting regressions.
-- Do not move, retarget, or reuse an existing published tag name.
+- Keep all published `x.x.x-beta.n` tags for traceability and bisecting regressions.
+- Do not move, retarget, or reuse published tags, and do not recreate a deleted tag name at a different commit.
 - If a tag was created by mistake and must be removed, document the removal in the changelog or release notes.
-- Do not recreate a deleted tag name at a different commit.
+- Having many tags in a mature project is normal and preferred over rewriting history.
 
-Having many tags in a mature open-source project is normal and preferred over rewriting release history.
+### Versioning (SemVer)
+
+We follow [Semantic Versioning](https://semver.org):
+
+| Part | When to bump |
+|------|--------------|
+| **MAJOR** | Incompatible API changes or breaking user setups |
+| **MINOR** | New functionality in a backward-compatible manner |
+| **PATCH** | Backward-compatible bug fixes |
+
+Pre-release labels: `x.x.x-beta.n` (testing) and `x.x.x` (stable). No Alphas or RCs.
 
 ---
 
-## Versioning (SemVer)
+## Naming Conventions & Validation
 
-We follow [Semantic Versioning](https://semver.org). Given `MAJOR.MINOR.PATCH`, increment:
+Folder and feed titles must adhere to these rules for Obsidian compatibility:
 
-| Part      | When to bump                                      |
-| --------- | ------------------------------------------------- |
-| **MAJOR** | Incompatible API changes or breaking user setups  |
-| **MINOR** | New functionality in a backward compatible manner |
-| **PATCH** | Backward compatible bug fixes                     |
+**Forbidden characters:** `[ ] # ^ | / \ : * " < > ?`  
+**No leading dots** (e.g., `.rss-data` is invalid; use `rss-data`)  
+**No empty names**
 
-_Note: Only **Beta** and **Stable** releases are permitted. No Alphas or RCs._
+### Implementation
 
-### Pre-release Labels
-
-| Label          | Meaning                             |
-| -------------- | ----------------------------------- |
-| `x.x.x-beta.n` | Feature testing, expect rough edges |
-| `x.x.x`        | Stable release                      |
-
-## Naming Conventions and Validation
-
-To ensure compatibility across different operating systems and Obsidian's internal linking system, all folder and feed titles must adhere to the following rules:
-
-1.  **Forbidden Characters**: The following characters are strictly prohibited in folder names and feed titles:
-    `[ ] # ^ | / \ : * " < > ?`
-2.  **Leading Dots**: Names cannot start with a dot (`.`).
-3.  **Empty Names**: Names cannot be empty or consist only of whitespace.
-
-### Implementation Guidelines
-
-- **User Input**: Always validate user-provided folder names and feed titles using `isValidFolderName(name)` or `isValidFeedTitle(title)` from `src/utils/validation.ts`. Provide immediate feedback via `Notice`.
-- **Automated Imports**: When importing data (e.g., OPML), use `sanitizeName(name)` to automatically replace forbidden characters with underscores and strip leading dots.
-- **Testing**: Any changes to validation logic must be accompanied by updates to `test_files/unit/validation.test.ts`.
+- **User input:** Validate with `isValidFolderName(name)` or `isValidFeedTitle(title)` from `src/utils/validation.ts`. Provide feedback via `Notice`.
+- **Automated imports:** Use `sanitizeName(name)` to replace forbidden characters and strip leading dots.
+- **Tests:** Update `test_files/unit/validation.test.ts` when changing validation logic.
 
 ---
 
 ## Key Rules
 
-- **Never commit directly to `master` or `dev`** — always via PR or merge
-- **One concern per branch** — don't mix a feature with unrelated fixes
+- **Never commit directly to `master` or `dev`** — always via PR
+- **One concern per branch** — don't mix features with unrelated fixes
 - **Keep branches short-lived** — long-running branches cause merge conflicts
-- **Rebase your personal work branch to stay current** — keeps feature/fix history linear and readable
-- **Merge `master` into shared `dev` after every stable release** — preserves shared history and avoids rewriting teammates' commits
-- **Dev must always reflect master** — sync immediately after every stable release
-- **Beta fixes go on the release branch** — not back on dev until the release branch merges
-- **No Alpha/RC versions** — only Beta and Stable releases are permitted.
+- **Rebase your personal feat/fix branch** — keeps history linear and readable
+- **Merge `master` into shared `dev` after every stable release** — preserves history
+- **Beta fixes go on the release branch** — not back on dev until the release merges
+- **Only Beta and Stable releases** — no Alphas or RCs
 
 ---
 
 ## Quick Reference
 
-```
+```bash
 # Start new work
 git checkout dev && git pull origin dev
 git checkout -b feat/231-my-feature
 
-# Stay current while working on your branch
+# While working, stay current
 git fetch origin && git rebase origin/dev
+
+# Before PR: test and lint
+npm run test:unit && npm run lint && npx tsc -noEmit
 
 # Cut a release branch
 git checkout dev && git checkout -b release/2.3.0
 
-# Bump and tag the Beta
+# Bump and tag Beta
 npm version 2.3.0-beta.1 --no-git-tag-version
 git add package.json package-lock.json manifest.json versions.json
 git commit -m "2.3.0-beta.1"
@@ -474,3 +449,16 @@ git tag 2.3.0 && git push origin master --tags
 git checkout dev && git pull --ff-only origin dev
 git merge origin/master && git push origin dev
 ```
+
+---
+
+## Need Help?
+
+- 💬 **[Discord Community](https://discord.gg/9bu7V9BBbs)** — Ask questions and connect with other contributors.
+- 📖 **[Development Docs](docs/development/README.md)** — Architecture, design patterns, and internal guides.
+- 🐛 **[GitHub Issues](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues)** — Report issues or browse ongoing work.
+- 📋 **[Public Roadmap](docs/plans/public-roadmap.md)** — See what's being planned.
+
+---
+
+**Thank you for contributing!** We're excited to work with you and grateful for your help making RSS Dashboard better.
