@@ -410,6 +410,51 @@ describe("applyFeedRetentionLimits", () => {
     expect(protectedWithToggle.items.map((i) => i.guid)).toEqual(["tagged-old"]);
   });
 
+  // GH Issue #333 AC: a starred, untagged article is protected only by
+  // protectStarred; a tagged, unstarred article is protected only when
+  // protectTagged applies — proven side by side so neither flag leaks into
+  // protecting the other article.
+  it("protects a starred/untagged item and a tagged/unstarred item independently via their own protection flags", () => {
+    const nowMs = Date.parse("2024-01-20T00:00:00Z");
+    const tenDaysAgo = "2024-01-10T00:00:00Z";
+
+    const feed: Feed = {
+      title: "Test Feed",
+      url: "https://example.com/feed.xml",
+      folder: "Uncategorized",
+      lastUpdated: Date.now(),
+      autoDeleteDuration: 7,
+      items: [
+        makeItem("starred-untagged", tenDaysAgo, {
+          read: true,
+          starred: true,
+          tags: [],
+        }),
+        makeItem("tagged-unstarred", tenDaysAgo, {
+          read: true,
+          starred: false,
+          tags: ["research"],
+        }),
+      ],
+    };
+
+    const starredProtectedOnly = applyFeedRetentionLimits(feed, {
+      nowMs,
+      protections: { protectStarred: true, protectTagged: false },
+    });
+    expect(starredProtectedOnly.items.map((i) => i.guid)).toEqual([
+      "starred-untagged",
+    ]);
+
+    const taggedProtectedOnly = applyFeedRetentionLimits(feed, {
+      nowMs,
+      protections: { protectStarred: false, protectTagged: true },
+    });
+    expect(taggedProtectedOnly.items.map((i) => i.guid)).toEqual([
+      "tagged-unstarred",
+    ]);
+  });
+
   it("purges starred and saved items older than cutoff when their protections are disabled", () => {
     const nowMs = Date.parse("2024-01-20T00:00:00Z");
     const tenDaysAgo = "2024-01-10T00:00:00Z";
