@@ -17,8 +17,8 @@ By doing this, the production plugin code will have **zero direct filesystem acc
 
 We will remove Electron remote dialogs and Node `fs` imports from:
 
-- [main.ts](file:///c:/Obsidian/Obsidian_Main/.obsidian/plugins/obsidian-rss-dashboard/main.ts#L1204) (in `importOpml()`)
-- [src/modals/import-opml-modal.ts](file:///c:/Obsidian/Obsidian_Main/.obsidian/plugins/obsidian-rss-dashboard/src/modals/import-opml-modal.ts#L173) (in `openFilePicker()`)
+- [main.ts](../../../../../main.ts#L1204) (in `importOpml()`)
+- [src/modals/import-opml-modal.ts](../../../../../src/modals/import-opml-modal.ts#L173) (in `openFilePicker()`)
 
 Both files will use the standard HTML file input element. This opens the OS file picker natively, runs inside the browser sandbox, is fully cross-platform, and returns a standard `File` object that can be read with `file.text()`.
 
@@ -46,26 +46,26 @@ We will clean up the backup service to use only Obsidian APIs:
 
 ## Proposed File Changes
 
-### [MODIFY] [main.ts](file:///c:/Obsidian/Obsidian_Main/.obsidian/plugins/obsidian-rss-dashboard/main.ts)
+### [MODIFY] [main.ts](../../../../../main.ts)
 
 - Remove `_beforeUnloadHandler` setup.
 - Replace `importOpml` implementation with standard HTML file input picker.
 - Remove `performAutoBackupsSyncDesktop` method.
 - Update `onunload()` to only trigger `performAutoBackups()`.
 
-### [MODIFY] [import-opml-modal.ts](file:///c:/Obsidian/Obsidian_Main/.obsidian/plugins/obsidian-rss-dashboard/src/modals/import-opml-modal.ts)
+### [MODIFY] [import-opml-modal.ts](../../../../../src/modals/import-opml-modal.ts)
 
 - Replace `openFilePicker` implementation with standard HTML file input picker.
 
-### [MODIFY] [backup-service.ts](file:///c:/Obsidian/Obsidian_Main/.obsidian/plugins/obsidian-rss-dashboard/src/services/backup-service.ts)
+### [MODIFY] [backup-service.ts](../../../../../src/services/backup-service.ts)
 
 - Delete `performAutoBackupsSyncDesktop()` method.
 
-### [MODIFY] [backup-service.test.ts](file:///c:/Obsidian/Obsidian_Main/.obsidian/plugins/obsidian-rss-dashboard/test_files/unit/services/backup-service.test.ts)
+### [MODIFY] [backup-service.test.ts](../../../../../test_files/unit/services/backup-service.test.ts)
 
 - Delete `performAutoBackupsSyncDesktop` test suite.
 
-### [MODIFY] [plugin-lifecycle.test.ts](file:///c:/Obsidian/Obsidian_Main/.obsidian/plugins/obsidian-rss-dashboard/test_files/unit/main/plugin-lifecycle.test.ts)
+### [MODIFY] [plugin-lifecycle.test.ts](../../../../../test_files/unit/main/plugin-lifecycle.test.ts)
 
 - Remove `performAutoBackupsSyncDesktop` test cases.
 

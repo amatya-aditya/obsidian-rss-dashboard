@@ -165,6 +165,7 @@ npm run lint                   # Check for style violations
 npx tsc -noEmit               # Type check without emitting files
 npm run check:platform        # Platform compatibility check
 npm run check:important       # CSS !important declarations check
+npm run check:doc-links       # Relative links in Markdown resolve
 ```
 
 ### Compliance Declarations

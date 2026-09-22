@@ -34,6 +34,13 @@ it is safe to run in CI and on a normal dev machine mid-feature:
   release line. A missing note fails the build instead of shipping an empty
   popup; patch notes remain optional.
 
+`check:compliance` also runs `npm run check:doc-links`, which resolves every
+relative Markdown link in the tracked docs and fails on one that points at a
+file that does not exist. Historical records under `docs/archive/` are
+excluded: they describe the repository as it was, and their links were written
+against a layout that has since moved, so rewriting them would falsify the
+record.
+
 Non-lifecycle documents in `docs/plans/` (for example `public-roadmap.md`,
 which carries no frontmatter by design) are left alone.
 
