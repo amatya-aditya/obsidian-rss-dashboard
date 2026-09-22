@@ -170,4 +170,25 @@ describe("applyStarredImportCandidateToFeed", () => {
     expect(feed.items[0].tags).toEqual([userTag, newLabelTag]);
     expect(feed.items[0].starred).toBe(true);
   });
+
+  it("repeated re-imports of an unchanged export are idempotent and never manufacture a Favorite tag (GH Issue #334)", () => {
+    // A user-created "Favorite" tag on the article predates this import and
+    // must survive untouched; the importer itself never adds one.
+    const userFavoriteTag: Tag = { name: "Favorite", color: "#e67e22" };
+    const feed = makeFeed([]);
+    const candidate = makeCandidateItem({ tags: [userFavoriteTag] });
+
+    applyStarredImportCandidateToFeed(feed, candidate);
+    const afterFirstImport = { ...feed.items[0] };
+
+    // Re-run the exact same import twice more, as a user re-running the
+    // import against an unchanged source export would.
+    applyStarredImportCandidateToFeed(feed, makeCandidateItem({ tags: [userFavoriteTag] }));
+    applyStarredImportCandidateToFeed(feed, makeCandidateItem({ tags: [userFavoriteTag] }));
+
+    expect(feed.items).toHaveLength(1);
+    expect(feed.items[0]).toEqual(afterFirstImport);
+    expect(feed.items[0].starred).toBe(true);
+    expect(feed.items[0].tags).toEqual([userFavoriteTag]);
+  });
 });

@@ -50,3 +50,22 @@ No migration runs against already-persisted data. A vault's existing
 user assigned by hand. Only `DEFAULT_SETTINGS.availableTags` (the palette
 seeded for a fresh install) dropped "Favorite"; existing vaults are
 unaffected.
+
+## Test coverage of the boundary
+
+The independence described above is proven at three layers, not just
+asserted:
+
+- **Import mapping**: `test_files/unit/services/starred-import-mapper.test.ts`
+  covers that Google Reader/Inoreader system-star state maps to `starred`
+  without ever producing a "Favorite"/"Starred" tag, and that label
+  categories map to tags independently of starred state.
+- **Re-import idempotency**: `test_files/unit/services/starred-import-merge.test.ts`
+  covers that re-running the same import repeatedly leaves an
+  already-imported article's `starred` and `tags` unchanged, and never
+  manufactures a tag from starred state on merge either.
+- **Shard v2 reload**: `test_files/unit/services/feed-storage-repository.test.ts`
+  (describe block "shard storage v2 user-state.json persistence") covers
+  that a real `persistSettings` → restart → `hydrateSettings` cycle preserves
+  `starred` and `tags` as independent values — tagging an article never
+  stars it, and starring/unstarring never touches its tags.
