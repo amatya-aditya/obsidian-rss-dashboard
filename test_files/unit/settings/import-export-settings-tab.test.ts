@@ -366,19 +366,19 @@ describe("Auto Backup Helpers", () => {
 
       const starredSetting = getSettingByName(
         containerEl,
-        "Inoreader starred articles",
+        "Starred imports",
       );
       expect(starredSetting.textContent).toContain("starred.json");
 
       const buttons = Array.from(
         containerEl.querySelectorAll<HTMLButtonElement>("button"),
       ).map((button) => button.textContent?.trim());
-      expect(buttons).toContain("Import starred articles from Inoreader");
+      expect(buttons).toContain("Import starred articles");
 
       const settingNames = Array.from(
         containerEl.querySelectorAll<HTMLElement>(".setting-item-name"),
       ).map((el) => el.textContent?.trim());
-      expect(settingNames.indexOf("Inoreader starred articles")).toBeGreaterThan(
+      expect(settingNames.indexOf("Starred imports")).toBeGreaterThan(
         settingNames.indexOf("OPML"),
       );
     });

@@ -1,0 +1,94 @@
+{
+  "direction": "ltr",
+  "id": "user/-/state/com.google/starred",
+  "title": "Read later",
+  "description": "",
+  "self": {
+    "href": "https://www.inoreader.com/reader/api/0/stream/contents/user/-/state/com.google/starred?output=json&n=1000"
+  },
+  "updated": 1700000200,
+  "updatedUsec": "1700000200000000",
+  "items": [
+    {
+      "crawlTimeMsec": "1700000201000",
+      "timestampUsec": "1700000201000000",
+      "id": "tag:google.com,2005:reader/item/00000000000000b1",
+      "categories": [
+        "user/1000000099/state/com.google/reading-list",
+        "user/1000000099/state/com.google/read",
+        "user/1000000099/state/com.google/starred",
+        "user/1000000099/label/Misc"
+      ],
+      "title": "Inoreader Article One With Label",
+      "published": 1699999200,
+      "updated": 1700000250,
+      "starred": 1700000201,
+      "canonical": [
+        {
+          "href": "https://inoreader-example.test/articles/one-with-label"
+        }
+      ],
+      "alternate": [
+        {
+          "href": "https://inoreader-example.test/articles/one-with-label",
+          "type": "text/html"
+        }
+      ],
+      "summary": {
+        "direction": "ltr",
+        "content": "<p>Placeholder summary content for Inoreader article one.</p>"
+      },
+      "author": "Example Author",
+      "likingUsers": [],
+      "comments": [],
+      "commentsNum": -1,
+      "annotations": [],
+      "origin": {
+        "streamId": "feed/https://inoreader-example.test/feed",
+        "title": "Inoreader Example Source One",
+        "htmlUrl": "https://inoreader-example.test/"
+      },
+      "summaries": []
+    },
+    {
+      "crawlTimeMsec": "1700000202000",
+      "timestampUsec": "1700000202000000",
+      "id": "tag:google.com,2005:reader/item/00000000000000b2",
+      "categories": [
+        "user/1000000099/state/com.google/reading-list",
+        "user/1000000099/state/com.google/read",
+        "user/1000000099/state/com.google/starred"
+      ],
+      "title": "Inoreader Article Two No Label",
+      "published": 1699999100,
+      "updated": 0,
+      "starred": 1700000202,
+      "canonical": [
+        {
+          "href": "https://inoreader-example-two.test/articles/two-no-label"
+        }
+      ],
+      "alternate": [
+        {
+          "href": "https://inoreader-example-two.test/articles/two-no-label",
+          "type": "text/html"
+        }
+      ],
+      "summary": {
+        "direction": "ltr",
+        "content": "<p>Placeholder summary content for Inoreader article two.</p>"
+      },
+      "author": "",
+      "likingUsers": [],
+      "comments": [],
+      "commentsNum": -1,
+      "annotations": [],
+      "origin": {
+        "streamId": "feed/https://inoreader-example-two.test/feed",
+        "title": "Inoreader Example Source Two",
+        "htmlUrl": "https://inoreader-example-two.test/"
+      },
+      "summaries": []
+    }
+  ]
+}

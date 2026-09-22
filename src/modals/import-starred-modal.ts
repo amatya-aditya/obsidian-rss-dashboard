@@ -20,20 +20,24 @@ import { decorateFolderSelectorInput } from "./feed-manager/folder-selector-fiel
 
 /**
  * Default target folder for every feed created by a starred-article import.
- * A single shared destination, editable once via the Options panel's
- * "New-feed folder" field — not per new-feed group (see
- * `StarredImportPreviewModel`'s class doc for why per-group editing was
- * dropped).
+ * Only future imports pick up this default — an existing feed/folder
+ * already named "Inoreader starred imports" (this constant's
+ * pre-generalization value) is never renamed or migrated. A single shared
+ * destination, editable once via the Options panel's "New-feed folder"
+ * field — not per new-feed group (see `StarredImportPreviewModel`'s class
+ * doc for why per-group editing was dropped).
  */
-export const DEFAULT_NEW_FEED_FOLDER = "Inoreader starred imports";
+export const DEFAULT_NEW_FEED_FOLDER = "Starred imports";
 
 /**
  * Import Starred Articles Modal.
  *
  * A second consumer of the shared importer shell (see `ImporterShell`),
  * alongside `ImportOpmlModal`. Reads a Google-Reader-API-compatible
- * `starred.json` export (Inoreader "Read later"/starred-items format) and
- * inserts starred articles into feeds the user already subscribes to. For
+ * `starred.json` export (the "Read later"/starred-items format Inoreader
+ * popularized, also produced by other compatible services such as
+ * FreshRSS) and inserts starred articles into feeds the user already
+ * subscribes to. For
  * source feeds the user does not already subscribe to, the preview marks
  * their group with a "*" and groups them the same as any other feed; on
  * execute, the feed is created unconditionally using only the export's own
@@ -150,12 +154,12 @@ export class ImportStarredModal extends Modal {
 
     contentEl.empty();
     new Setting(contentEl)
-      .setName("Import starred articles from Inoreader")
+      .setName("Import starred articles")
       .setHeading();
 
     const subtitle = contentEl.createDiv({ cls: "add-feed-subtitle" });
     subtitle.textContent =
-      "Import starred articles from an exported starred.json (the Google Reader API's 'Read later' format, as exported by Inoreader). Articles for feeds you don't already subscribe to will create the source feed too.";
+      "Import starred articles from a Google Reader-compatible starred.json export. Articles for feeds you don't already subscribe to will create the source feed too.";
 
     this.renderStarredJsonInstructions(contentEl);
 
@@ -423,7 +427,7 @@ export class ImportStarredModal extends Modal {
     const tagImportSetting = new Setting(panel)
       .setName("Import labels as tags")
       .setDesc(
-        "Inoreader labels become tags on each starred article, reusing a matching tag's color when your palette already has one. Any new tags this creates appear below before you import.",
+        "Labels become tags on each starred article, reusing a matching tag's color when your palette already has one. Any new tags this creates appear below before you import.",
       )
       .addToggle((toggle) => {
         toggle.setValue(this.tagImportEnabled).onChange((value) => {

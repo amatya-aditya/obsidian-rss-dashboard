@@ -96,13 +96,13 @@ export class FeedManagerModal extends Modal {
       this.plugin.exportOpml();
     };
 
-    // Import starred articles from Inoreader button
+    // Import starred articles button
     const importStarredBtn = buttonRow.createEl("button", {
       cls: "feed-manager-import-starred-button",
     });
     setIcon(importStarredBtn, "star");
     importStarredBtn.createSpan({
-      text: "Import starred articles from Inoreader",
+      text: "Import starred articles",
     });
     importStarredBtn.onclick = () => {
       new ImportStarredModal(this.app, this.plugin, () => this.close()).open();

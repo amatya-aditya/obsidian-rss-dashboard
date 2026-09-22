@@ -1200,7 +1200,7 @@ export default class RssDashboardPlugin extends Plugin {
 
       this.addCommand({
         id: "import-starred",
-        name: "Import starred articles from Inoreader",
+        name: "Import starred articles",
         callback: () => {
           new ImportStarredModal(this.app, this).open();
         },

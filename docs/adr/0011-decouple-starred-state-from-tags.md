@@ -39,7 +39,7 @@ Concretely:
 - The starred-import mapper is unaffected by this ADR: it already maps
   Google Reader/Inoreader system starred state to `starred` and label
   categories to tags separately (see
-  [ADR 0003](0003-name-starred-import-explicitly-for-inoreader.md)), and it
+  [ADR 0003](0003-generalize-starred-import-to-google-reader-compatible-naming.md)), and it
   must not manufacture a Favorite tag from starred state either.
 - Starred-based retention protection and starred-status filtering continue
   to read `starred` directly; tag filtering continues to read `tags`

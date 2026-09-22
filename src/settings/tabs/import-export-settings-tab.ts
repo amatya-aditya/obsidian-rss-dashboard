@@ -420,12 +420,12 @@ export function renderImportExportSettingsTab(
         }),
     );
 
-  // ── Inoreader starred articles ──────────────────────────────────────────────
+  // ── Starred imports ──────────────────────────────────────────────────────
   const starredSection = containerEl.createDiv();
   new Setting(starredSection)
-    .setName("Inoreader starred articles")
+    .setName("Starred imports")
     .setDesc(
-      "Import starred articles from an exported starred.json (the Google Reader API's 'Read later' format, as exported by Inoreader) into feeds you already subscribe to.",
+      "Import starred articles from a Google Reader-compatible starred.json export into feeds you already subscribe to.",
     )
     .setHeading();
 
@@ -436,7 +436,7 @@ export function renderImportExportSettingsTab(
   starredActionsSetting.addButton((button) =>
     button
       .setIcon("star")
-      .setButtonText("Import starred articles from Inoreader")
+      .setButtonText("Import starred articles")
       .onClick(() => {
         new ImportStarredModal(plugin.app, plugin).open();
       }),

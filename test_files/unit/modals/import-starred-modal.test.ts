@@ -401,6 +401,59 @@ describe("ImportStarredModal", () => {
     );
   });
 
+  it("never renames or migrates an existing 'Inoreader starred imports' folder or feed now that the default folder is generalized to 'Starred imports' (GH Issue #337)", async () => {
+    const app = createMockApp();
+    const settings = cloneSettings();
+    const legacyFolderName = "Inoreader starred imports";
+    settings.folders = [{ name: legacyFolderName, subfolders: [] }];
+    settings.feeds = [
+      {
+        title: "Example Feed",
+        url: "https://example-feed.test/rss",
+        folder: legacyFolderName,
+        items: [],
+        lastUpdated: 0,
+      },
+      makeFeed("https://example.com/blog/feed.xml", "Example Blog"),
+    ];
+    const plugin = createTestPlugin(settings);
+    const modal = new ImportStarredModal(
+      app,
+      plugin as unknown as ConstructorParameters<typeof ImportStarredModal>[1],
+    );
+    (modal as unknown as TestModal).open();
+
+    await (modal as unknown as TestModal).handleFileSelection(
+      new File([readFixture()], "starred.json"),
+    );
+
+    const content = (modal as unknown as TestModal).contentEl;
+    const importButton = content.querySelector<HTMLButtonElement>(
+      ".rss-dashboard-modal-buttons .rss-dashboard-primary-button",
+    )!;
+    importButton.click();
+    await flushPromises();
+
+    // The pre-existing feed/folder named after the old, Inoreader-specific
+    // default is left completely untouched by this import.
+    expect(settings.folders).toEqual([
+      { name: legacyFolderName, subfolders: [] },
+    ]);
+    const existingFeed = settings.feeds.find(
+      (f) => f.url === "https://example-feed.test/rss",
+    );
+    expect(existingFeed?.folder).toBe(legacyFolderName);
+
+    // A brand-new source feed created by this same import instead lands in
+    // the new generic default, not the legacy Inoreader-specific one.
+    const newFeed = settings.feeds.find(
+      (f) => f.url === "https://not-subscribed.example.test/feed",
+    );
+    expect(newFeed?.folder).toBe(DEFAULT_NEW_FEED_FOLDER);
+    expect(newFeed?.folder).toBe("Starred imports");
+    expect(newFeed?.folder).not.toBe(legacyFolderName);
+  });
+
   it("renders an Options panel above Preview containing the new-feed metadata-refresh toggle, off by default", async () => {
     const app = createMockApp();
     const settings = cloneSettings();
