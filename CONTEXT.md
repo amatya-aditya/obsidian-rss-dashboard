@@ -52,6 +52,16 @@ _Avoid_: Modal dialog, photo popup, preview card, photo gallery
 The unconstrained original media URL extracted by resolving direct image links, selecting the highest-resolution candidate in a srcset, or stripping CDN resize transformations.
 _Avoid_: Thumbnail, cached preview, compressed version
 
+## Article state
+
+**Starred state**:
+A per-article boolean, independent of tags, toggled solely by the star action. The filled star is its only visual indicator. Never derived from, or used to derive, any tag. See [ADR 0011](docs/adr/0011-decouple-starred-state-from-tags.md).
+_Avoid_: Favorite, bookmarked, pinned
+
+**Article tag**:
+A user-assigned classification on an article, added or removed only through a tag action. A tag named "Favorite" or "Starred" carries no reserved meaning and behaves like any other tag. See [ADR 0011](docs/adr/0011-decouple-starred-state-from-tags.md).
+_Avoid_: Label (reserved for imported Inoreader labels; see [[Label-derived tag]])
+
 ## Data retention and article lifecycle
 
 **Auto-delete cutoff**:

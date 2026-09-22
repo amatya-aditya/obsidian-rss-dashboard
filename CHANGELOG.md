@@ -37,6 +37,7 @@
 
 ### Fixes
 
+- Starring an article no longer adds or removes a "Favorite" tag, and unstarring no longer deletes one — starring now changes only starred state, and tagging (including a tag named "Favorite") now changes only tags, so the two never affect each other. Fresh installs no longer seed "Favorite" into the default tag palette; existing "Favorite" tags and palette entries on already-installed vaults are left untouched. See [ADR 0011](docs/adr/0011-decouple-starred-state-from-tags.md). [GH Issue #331](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/331)
 - Fixed global refresh leaving a completed feed's sidebar hourglass visible until every other feed finished. Feed rows now update within 250 ms as each fetch settles, while the global progress control remains active for the whole batch. [GH Issue #324](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/324)
 - Added a sidebar warning for feeds with missing or corrupted shard files, with hover guidance to repair/rebuild storage and refetch the feed.
 - Fixed deleted or corrupted feed shards becoming permanently unfetchable: every settings save now verifies unchanged shard files still exist and contain the expected feed data, rebuilding them when needed.

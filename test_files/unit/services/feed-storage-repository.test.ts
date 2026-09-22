@@ -1547,6 +1547,71 @@ describe("shard storage v2 user-state.json persistence (issue #278)", () => {
     expect(reloaded.feeds[0].items[0].read).toBe(false);
   });
 
+  it("preserves starred state and tags independently across a real persist and rehydrate (GH Issue #334)", async () => {
+    const settings = v2Settings();
+    const saveData = vi
+      .fn<(...args: unknown[]) => Promise<void>>()
+      .mockResolvedValue(undefined);
+    const item = {
+      ...makeFeed().items[0],
+      guid: "guid-star-tag-independence",
+      starred: false,
+      tags: [],
+    };
+    settings.feeds = [makeFeed({ feedId: "feed-1", items: [item] })];
+
+    // Tag the article without starring it; the tag must survive on its own.
+    item.tags = [{ name: "Favorite", color: "#111111" }];
+    await repository.persistSettings(settings, saveData);
+
+    let written = await readUserState();
+    expect(written.states["feed-1:guid-star-tag-independence"]).toEqual({
+      read: false,
+      starred: false,
+      saved: false,
+      tags: [{ name: "Favorite", color: "#111111" }],
+    });
+
+    // Star the article without touching its tags; both must now persist.
+    item.starred = true;
+    await repository.persistSettings(settings, saveData);
+
+    written = await readUserState();
+    expect(written.states["feed-1:guid-star-tag-independence"]).toEqual({
+      read: false,
+      starred: true,
+      saved: false,
+      tags: [{ name: "Favorite", color: "#111111" }],
+    });
+
+    // Unstar the article; its tag must be untouched by the star change.
+    item.starred = false;
+    await repository.persistSettings(settings, saveData);
+
+    written = await readUserState();
+    expect(written.states["feed-1:guid-star-tag-independence"]).toEqual({
+      read: false,
+      starred: false,
+      saved: false,
+      tags: [{ name: "Favorite", color: "#111111" }],
+    });
+
+    // A fresh repository stands in for a restart: nothing is remembered but
+    // what was written to the vault.
+    const restarted = new FeedStorageRepository(app);
+    const reloaded = v2Settings();
+    reloaded.feeds = [makeFeed({ feedId: "feed-1", items: [] })];
+    await restarted.hydrateSettings(reloaded);
+
+    expect(reloaded.feeds[0].items[0].guid).toBe(
+      "guid-star-tag-independence",
+    );
+    expect(reloaded.feeds[0].items[0].starred).toBe(false);
+    expect(reloaded.feeds[0].items[0].tags).toEqual([
+      { name: "Favorite", color: "#111111" },
+    ]);
+  });
+
   it("removes a feed's article state only when the feed itself is removed from settings", async () => {
     const settings = v2Settings();
     settings.feeds = [makeFeed({ feedId: "feed-kept", items: [] })];
