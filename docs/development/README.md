@@ -31,7 +31,7 @@ docs/
       unshipped/                 # Deferred, rejected, or superseded plans
     investigations/
       <YYYY>/                    # Incident, bug, and research records
-  decisions/
+  adr/
     NNNN-<slug>.md               # Durable architectural decisions
 ```
 
