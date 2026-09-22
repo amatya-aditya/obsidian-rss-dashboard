@@ -14,6 +14,7 @@
     "check:release-compatibility": "node scripts/check-release-compatibility.mjs",
     "check:pre-release": "node scripts/check-pre-release.mjs",
     "check:doc-links": "node scripts/check-doc-links.mjs",
+    "check:release-ready": "node scripts/check-release-ready.mjs",
     "build": "npm run check:compliance && npm run lint && tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
     "lint": "eslint . --max-warnings=0",
     "lint:dev": "eslint .",

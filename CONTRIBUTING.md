@@ -352,6 +352,14 @@ If `release/x.x.x` already exists and you need to cut another Beta:
 
 Before running the commands below, finalize the changelog per [release-notes-workflow.md](docs/development/release-notes-workflow.md) and work through the [pre-release checklist](docs/development/pre-release-checklist.md) — including renaming `CHANGELOG.md`'s `## Unreleased` heading to the release version and adding the release line's curated What's New note under `src/release-notes/notes/`. Neither is part of the version-bump commit below.
 
+Then confirm that release prep is actually complete:
+
+```bash
+npm run check:release-ready -- 2.3.0
+```
+
+This verifies the pieces that must exist *before* the bump: the changelog heading has been renamed and nothing is left under `Unreleased`, `docs/releases/2.3.0.md` exists, the release line has a curated What's New note, `versions.json` does not already list the target version (which would make the bump a partial no-op), the working tree is clean, and no release-bound plan is still sitting in `docs/archive/plans/unreleased/`. Pass the version you are about to ship — the repo is still on the previous version at this point, so the check cannot infer it.
+
 When confident:
 
 ```bash
@@ -442,6 +450,7 @@ git commit -m "2.3.0-beta.1"
 git tag 2.3.0-beta.1 && git push --set-upstream origin release/2.3.0 --tags
 
 # Ship a release
+npm run check:release-ready -- 2.3.0
 npm version 2.3.0 --no-git-tag-version
 git add package.json package-lock.json manifest.json versions.json
 git commit -m "2.3.0"
