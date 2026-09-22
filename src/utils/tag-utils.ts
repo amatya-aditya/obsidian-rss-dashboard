@@ -8,7 +8,6 @@ import type {
 
 const AUTO_TAG_DEFINITIONS = {
   saved: { name: "Saved", fallbackColor: "#3498db" },
-  favorite: { name: "Favorite", fallbackColor: "#f1c40f" },
 } as const;
 
 function cloneTags(tags: readonly Tag[] | undefined): Tag[] {
@@ -55,22 +54,14 @@ function ensureCanonicalTag(
   return { changed: true, tags: nextTags };
 }
 
-function removeCanonicalTag(
-  tags: readonly Tag[] | undefined,
-  tagKey: keyof typeof AUTO_TAG_DEFINITIONS,
-): { changed: boolean; tags: Tag[] } {
-  const definition = AUTO_TAG_DEFINITIONS[tagKey];
-  const nextTags = cloneTags(tags);
-  const filteredTags = nextTags.filter(
-    (tag) => tag.name.toLowerCase() !== definition.name.toLowerCase(),
-  );
-
-  return {
-    changed: filteredTags.length !== nextTags.length,
-    tags: filteredTags,
-  };
-}
-
+/**
+ * Normalizes an article update before it is persisted.
+ *
+ * Starred state and tags are orthogonal (ADR 0011): a star action changes
+ * only `starred`, and this function never derives tags from it. The only
+ * automatic tag behavior left is the independently configured Saved-tag
+ * convenience, which is opt-in via `articleSaving.addSavedTag`.
+ */
 export function applyAutomaticArticleTags(
   article: Readonly<FeedItem>,
   updates: Partial<FeedItem>,
@@ -85,20 +76,6 @@ export function applyAutomaticArticleTags(
       settings.availableTags,
       "saved",
     );
-    nextTags = result.tags;
-    tagsChanged = tagsChanged || result.changed;
-  }
-
-  if (updates.starred === true) {
-    const result = ensureCanonicalTag(
-      nextTags,
-      settings.availableTags,
-      "favorite",
-    );
-    nextTags = result.tags;
-    tagsChanged = tagsChanged || result.changed;
-  } else if (updates.starred === false) {
-    const result = removeCanonicalTag(nextTags, "favorite");
     nextTags = result.tags;
     tagsChanged = tagsChanged || result.changed;
   }

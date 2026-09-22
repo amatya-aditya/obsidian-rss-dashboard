@@ -728,7 +728,6 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
   availableTags: [
     { name: "Important", color: "#e74c3c" },
     { name: "Read later", color: "#3498db" },
-    { name: "Favorite", color: "#f1c40f" },
     { name: "Video", color: "#d04747" },
     { name: "Podcast", color: "#8e44ad" },
   ],

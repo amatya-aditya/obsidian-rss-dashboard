@@ -1,0 +1,52 @@
+# Starred State and Tags
+
+Starred state and tags are independent article properties. See
+[ADR 0011](adr/0011-decouple-starred-state-from-tags.md) for the decision
+record and rationale; this page is the short practical reference for
+developers and for anyone integrating with import/export.
+
+## The model
+
+- `starred` is a boolean on an article. It is toggled only by the star
+  action (dashboard star button, reader star button, hotkey).
+- `tags` is an array on an article. It is changed only by tag actions (the
+  tag menu, tag portal, per-article tag chips, or import label mapping).
+- Neither field is derived from the other. A tag named "Favorite" or
+  "Starred" has no special meaning to the plugin — it is an ordinary tag.
+
+All article-update paths (dashboard actions, reader actions, background
+import) funnel through `applyAutomaticArticleTags` in
+[`src/utils/tag-utils.ts`](../../src/utils/tag-utils.ts), which is the single
+seam where automatic tag behavior is applied. It no longer branches on
+`starred`; the only automatic tag behavior left there is the independently
+configured Saved-tag convenience (`articleSaving.addSavedTag`), which is
+unrelated to starring.
+
+## Valid combinations
+
+| | Untagged | Tagged |
+| --- | --- | --- |
+| **Starred** | Valid: a keep/revisit marker, no classification. | Valid: both persist and change independently. |
+| **Unstarred** | Valid: the default state. | Valid: classified without implying read-later intent. |
+
+## Import mapping (Inoreader / Google Reader-compatible)
+
+The starred-import mapper (`src/services/starred-import-mapper.ts`) follows
+the same separation: a Google Reader system-star category
+(`user/-/state/com.google/starred`) sets `starred`, and label categories
+become tags. Import must not manufacture a "Favorite" tag from starred
+state, and re-importing the same export stays idempotent for both fields
+independently. See the
+[Inoreader starred-import guide](../inoreader-starred-import-guide.md) for
+the user-facing behavior of that feature, and
+[ADR 0003](adr/0003-name-starred-import-explicitly-for-inoreader.md) for why
+the importer is named explicitly for Inoreader.
+
+## Migration note
+
+No migration runs against already-persisted data. A vault's existing
+"Favorite" tag, on articles or in the tag palette, is left exactly as it is
+— there is no reliable way to tell a tag the old code generated from one the
+user assigned by hand. Only `DEFAULT_SETTINGS.availableTags` (the palette
+seeded for a fresh install) dropped "Favorite"; existing vaults are
+unaffected.
