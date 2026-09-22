@@ -107,7 +107,9 @@ service produced it:
 - **Inoreader** — the first exporter this importer was built and tested
   against ([GH Issue #234](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/234)).
   Ships `origin.streamId` as an already-usable feed URL and article HTML in
-  `summary.content`.
+  `summary.content`. Inoreader's own UI calls this collection "Read later"
+  (toggled via a yellow-filled bookmark icon); in an Inoreader account-data
+  export (zip), the corresponding file is named `starred.json`.
 - **FreshRSS** — a self-hosted RSS reader that implements a Google Reader-
   compatible API (for third-party client compatibility) and produces a
   `starred.json`-shaped export via that API. Verified per
@@ -129,7 +131,11 @@ below overstates what has actually been verified.
   fixture (`test_files/fixtures/starred/starred.json`) and the regression
   test suite in `test_files/unit/services/starred-import-mapper.test.ts`
   and `test_files/unit/modals/import-starred-modal.test.ts`. This is the
-  longest-standing and most thoroughly covered path.
+  longest-standing and most thoroughly covered path. A second, sanitized
+  fixture derived from a real Inoreader account export
+  (`test_files/fixtures/starred/starred-inoreader.json`) is kept alongside
+  it as a real-world shape reference; it is not separately wired into the
+  regression suite, since it matches the same shape already covered above.
 - **FreshRSS** — tested against the specific export shape FreshRSS's
   Google Reader-compatible API produces (instance-local numeric stream ID,
   `content.content`, read state, an explicit `/label/` category, and a
