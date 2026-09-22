@@ -37,7 +37,7 @@ the same separation: a Google Reader system-star category
 become tags. Import must not manufacture a "Favorite" tag from starred
 state, and re-importing the same export stays idempotent for both fields
 independently. See the
-[Inoreader starred-import guide](../inoreader-starred-import-guide.md) for
+[Starred-import guide](../starred-import-guide.md) for
 the user-facing behavior of that feature, and
 [docs/starred-import-compatibility.md](../starred-import-compatibility.md)
 for the parser contract and which exporters (Inoreader, FreshRSS) are

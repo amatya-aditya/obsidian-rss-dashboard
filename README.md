@@ -125,12 +125,13 @@ Tags let you label and filter articles the way that works best for you. Automati
 
 ## Import Starred Articles Guide
 
-Migrating starred articles from Inoreader? Import a `starred.json` export
-from **Import starred articles from Inoreader** (command palette, Settings
-tab, or Feed Manager), review new feeds, tags, and full-content fetching
-before committing, then fetch full content on demand from the reader
-afterward. For the full walkthrough of the Options toggles and why fetching
-is manual, see [docs/starred-import-guide.md](docs/starred-import-guide.md).
+Migrating starred articles from Inoreader or FreshRSS? Import a
+Google Reader-compatible `starred.json` export from **Import starred
+articles** (command palette, Settings tab, or Feed Manager), review new
+feeds, tags, and full-content fetching before committing, then fetch full
+content on demand from the reader afterward. For the full walkthrough of the
+Options toggles and why fetching is manual, see
+[docs/starred-import-guide.md](docs/starred-import-guide.md).
 
 ## Installation
 
