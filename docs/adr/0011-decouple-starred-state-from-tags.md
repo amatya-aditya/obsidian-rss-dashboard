@@ -84,6 +84,27 @@ combinations are valid and meaningful:
   operations behave, not a data cleanup, and it never destroys something
   that might be a user's own tag.
 
+## Historical precedent
+
+Star/label separation is not invented for this project. It is documented,
+long-standing behavior in the Google Reader-compatible ecosystem this
+project already interoperates with for starred import (ADR 0003):
+
+- [Google Reader's own announcement of starring](https://googlereader.blogspot.com/2008/11/)
+  introduced starred items as a distinct concept from labels from the start.
+- [Inoreader's tag-editing API docs](https://www.inoreader.com/developers/edit-tag)
+  and [its "use stars like never before" post](https://www.inoreader.com/nl/blog/2014/12/use-stars-like-never-before.html)
+  document system starred state (`user/-/state/com.google/starred`) as
+  separate from user-defined labels/tags.
+- [FreshRSS's Google Reader-compatible API docs](https://freshrss.github.io/FreshRSS/en/developers/06_GoogleReader_API.html)
+  expose the same separation for any client speaking that protocol.
+
+These references support the model adopted here but do not replace this
+repository's own reasoning above: the decisive arguments for this project
+are the duplicate-UI, tag-menu-pollution, and un-starring-deletes-user-data
+problems named in the Decision section, not compatibility with another
+product's design.
+
 ## Consequences
 
 A star action and a tag action are now fully independent inputs to article
