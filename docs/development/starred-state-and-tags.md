@@ -39,8 +39,11 @@ state, and re-importing the same export stays idempotent for both fields
 independently. See the
 [Inoreader starred-import guide](../inoreader-starred-import-guide.md) for
 the user-facing behavior of that feature, and
-[ADR 0003](adr/0003-name-starred-import-explicitly-for-inoreader.md) for why
-the importer is named explicitly for Inoreader.
+[docs/starred-import-compatibility.md](../starred-import-compatibility.md)
+for the parser contract and which exporters (Inoreader, FreshRSS) are
+actually confirmed compatible. [ADR 0003](../adr/0003-generalize-starred-import-to-google-reader-compatible-naming.md)
+covers the move from Inoreader-only naming to generic Google
+Reader-compatible naming.
 
 ## Migration note
 
