@@ -1,7 +1,7 @@
 # Starred State and Tags
 
 Starred state and tags are independent article properties. See
-[ADR 0011](adr/0011-decouple-starred-state-from-tags.md) for the decision
+[ADR 0011](../adr/0011-decouple-starred-state-from-tags.md) for the decision
 record and rationale; this page is the short practical reference for
 developers and for anyone integrating with import/export.
 
