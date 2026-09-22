@@ -31,6 +31,7 @@ type ReaderViewInternals = {
   currentItem: FeedItem;
   fetchFullArticleContent: ReturnType<typeof vi.fn>;
   actionToggleStarStatus: () => void;
+  toggleTag: (item: FeedItem, tag: { name: string; color: string }, add: boolean) => void;
 };
 
 function getInternals(view: ReaderView): ReaderViewInternals {
@@ -130,5 +131,57 @@ describe("ReaderView star/tag independence (GH Issue #332)", () => {
     ];
     expect(updates).toEqual({ starred: false });
     expect(updates.tags).toBeUndefined();
+  });
+
+  // GH Issue #333 AC: normal tag-menu actions, including a "Favorite" tag,
+  // must leave starred state unchanged (the reverse direction of the tests
+  // above, which prove star actions leave tags unchanged).
+  it("adding a Favorite tag via the tag menu requests only a tags update and leaves starred unchanged", async () => {
+    const item = makeItem({ starred: false, tags: [] });
+    getInternals(readerView).fetchFullArticleContent = vi
+      .fn()
+      .mockResolvedValue("<p>Content</p>");
+    await readerView.displayItem(item);
+
+    getInternals(readerView).toggleTag(
+      item,
+      { name: "Favorite", color: "#f1c40f" },
+      true,
+    );
+
+    expect(item.starred).toBe(false);
+    expect(onArticleUpdate).toHaveBeenCalledTimes(1);
+    const [, updates] = onArticleUpdate.mock.calls[0] as [
+      FeedItem,
+      Partial<FeedItem>,
+    ];
+    expect(updates.tags).toEqual([{ name: "Favorite", color: "#f1c40f" }]);
+    expect(updates.starred).toBeUndefined();
+  });
+
+  it("removing a Favorite tag via the tag menu requests only a tags update and leaves starred unchanged", async () => {
+    const item = makeItem({
+      starred: true,
+      tags: [{ name: "Favorite", color: "#f1c40f" }],
+    });
+    getInternals(readerView).fetchFullArticleContent = vi
+      .fn()
+      .mockResolvedValue("<p>Content</p>");
+    await readerView.displayItem(item);
+
+    getInternals(readerView).toggleTag(
+      item,
+      { name: "Favorite", color: "#f1c40f" },
+      false,
+    );
+
+    expect(item.starred).toBe(true);
+    expect(onArticleUpdate).toHaveBeenCalledTimes(1);
+    const [, updates] = onArticleUpdate.mock.calls[0] as [
+      FeedItem,
+      Partial<FeedItem>,
+    ];
+    expect(updates.tags).toEqual([]);
+    expect(updates.starred).toBeUndefined();
   });
 });
