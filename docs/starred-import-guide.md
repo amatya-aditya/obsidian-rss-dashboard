@@ -1,15 +1,19 @@
-# Import Starred Articles from Inoreader
+# Import Starred Articles
 
-This guide explains the **Import starred articles from Inoreader** feature:
-what it brings in from an Inoreader `starred.json` export, the two Options
+This guide explains the **Import starred articles** feature: what it brings
+in from a Google Reader-compatible `starred.json` export, the two Options
 toggles that control optional side effects, how full article content gets
 fetched, and how tagging works during the import preview. Reach it from the
 command palette, the Settings tab, or the Feed Manager's button row.
 
+Inoreader and FreshRSS exports are both confirmed to work today — see
+[docs/starred-import-compatibility.md](starred-import-compatibility.md) for
+exactly what's tested per service and the policy for confirming a new one.
+
 ## What it does
 
-Point RSS Dashboard at an Inoreader `starred.json` export and it builds a
-preview of every starred article inside it. From that preview you can:
+Point RSS Dashboard at a `starred.json` export and it builds a preview of
+every starred article inside it. From that preview you can:
 
 - See which articles belong to feeds you already follow, and which belong to
   feeds that don't exist yet (grouped as **new feed** rows).
@@ -56,9 +60,8 @@ asked for.
 
 ### Import labels as tags (on by default)
 
-Inoreader labels on a starred article become tags on the imported article,
-reusing a matching tag's color if your palette already has one with that
-name.
+Labels on a starred article become tags on the imported article, reusing a
+matching tag's color if your palette already has one with that name.
 
 - **On** (default): matches the tagging behavior that's always shipped with
   this feature — labels map to tags, and any tag name that doesn't already
@@ -88,7 +91,7 @@ chip style used on dashboard article cards), with a "+N" indicator if there
 are more than fit on the row. Click a chip to open the same tag-editing
 control used elsewhere in the app — add an existing tag, remove one, or type
 a brand-new tag name to create it on the fly (handy for marking where an
-article came from, e.g. tagging everything from this import `inoreader`).
+article came from, e.g. tagging everything from this import `starred-import`).
 
 Edits here apply directly to that article's pending import — there's no
 separate sync step, and no separate confirmation beyond the **New tags (N)**
