@@ -1,12 +1,19 @@
 import type { Feed, FeedItem, Tag } from "../types/types";
+import { isOpenableHttpUrl } from "../utils/url-utils";
 
 /**
- * Shapes for a Google-Reader-API-compatible `starred.json` export
- * (Inoreader "Read later"/starred-items export format).
+ * Shapes for a Google-Reader-API-compatible `starred.json` export — the
+ * "Read later"/starred-items format Inoreader popularized, also produced by
+ * other compatible services such as FreshRSS. FreshRSS differs in a few
+ * fields tolerated below: it can emit an instance-local numeric
+ * `origin.streamId` (e.g. `feed/6`) instead of a URL, and puts article HTML
+ * in `content.content` rather than `summary.content`. See
+ * `resolveSourceUrl` and `pickContent`.
  *
  * This mapper is intentionally a pure function/class with no network or
  * Obsidian API dependency, so it can be unit tested directly against the
- * exported fixture data. See `test_files/fixtures/starred/starred.json`.
+ * exported fixture data. See `test_files/fixtures/starred/starred.json` and
+ * `test_files/fixtures/starred/starred-freshrss.json`.
  */
 export interface StarredJsonHref {
   href: string;
@@ -24,6 +31,15 @@ export interface StarredJsonSummary {
   content?: string;
 }
 
+/**
+ * FreshRSS (and other Google-Reader-API-compatible services) emit article
+ * HTML here instead of in `summary.content`. See `pickContent`.
+ */
+export interface StarredJsonContent {
+  direction?: string;
+  content?: string;
+}
+
 export interface StarredJsonItem {
   crawlTimeMsec?: string;
   timestampUsec?: string;
@@ -36,6 +52,7 @@ export interface StarredJsonItem {
   canonical?: StarredJsonHref[];
   alternate?: StarredJsonHref[];
   summary?: StarredJsonSummary;
+  content?: StarredJsonContent;
   author?: string;
   origin?: StarredJsonOrigin;
 }
@@ -128,6 +145,48 @@ export const DEFAULT_LABEL_TAG_COLOR = "#3498db";
  */
 function normalizeStreamIdToFeedUrl(streamId: string): string {
   return streamId.startsWith("feed/") ? streamId.slice("feed/".length) : streamId;
+}
+
+function isHttpUrl(value: string | undefined): value is string {
+  return typeof value === "string" && isOpenableHttpUrl(value);
+}
+
+/**
+ * Resolves a portable source URL for an item's feed, tolerating the
+ * instance-local numeric stream IDs some Google-Reader-API-compatible
+ * services (notably FreshRSS, e.g. `feed/6`) emit instead of a real feed URL.
+ *
+ * Prefers `origin.streamId` (with its `feed/` prefix stripped) when that
+ * value is itself an HTTP(S) URL — this is the only path for the historical
+ * Inoreader-shaped export, where `streamId` already *is* the feed URL. When
+ * it isn't (missing, or an opaque/numeric instance-local ID), falls back to
+ * `origin.htmlUrl` when that is an HTTP(S) URL — the article's site, not its
+ * feed, but the best portable identifier a caller can key a new local feed
+ * record on. Returns `undefined` when neither yields a usable URL, so the
+ * caller classifies the entry as `no_source_feed` rather than persisting a
+ * non-URL value as a `Feed.url`.
+ */
+function resolveSourceUrl(item: StarredJsonItem): string | undefined {
+  const streamId = item.origin?.streamId;
+  const normalizedStreamId = streamId
+    ? normalizeStreamIdToFeedUrl(streamId)
+    : undefined;
+  if (isHttpUrl(normalizedStreamId)) return normalizedStreamId;
+
+  const htmlUrl = item.origin?.htmlUrl;
+  if (isHttpUrl(htmlUrl)) return htmlUrl;
+
+  return undefined;
+}
+
+/**
+ * Prefers `summary.content` (the Inoreader-shaped export's article HTML);
+ * falls back to `content.content` (the field FreshRSS uses instead) when
+ * `summary.content` is absent. Neither present retains the existing
+ * empty-content behavior.
+ */
+function pickContent(item: StarredJsonItem): string {
+  return item.summary?.content ?? item.content?.content ?? "";
 }
 
 /**
@@ -224,7 +283,7 @@ function toFeedItem(
   feed: Pick<Feed, "url" | "title">,
   tags: Tag[] | undefined,
 ): FeedItem {
-  const content = item.summary?.content ?? "";
+  const content = pickContent(item);
 
   return {
     title: item.title ?? "",
@@ -253,21 +312,26 @@ function toFeedItem(
  * Maps a parsed `starred.json` export to candidate `FeedItem`s and a
  * parallel list of unimportable entries.
  *
- * Items whose `origin.streamId` (feed URL) already matches one of the
- * caller's currently-known feeds are matched to that feed (`isNewFeed:
- * false`). Items whose source feed is not already subscribed to locally are
- * no longer excluded (234-01's behavior) — they instead become `isNewFeed:
- * true` candidates grouped by their normalized `origin.streamId`, using
- * `origin.title` (falling back to the feed URL) as the feed title and
- * `origin.htmlUrl` as the candidate feed's site URL (234-02).
+ * A portable source URL is resolved per item via `resolveSourceUrl`:
+ * `origin.streamId` (feed URL, stripped of its `feed/` prefix) when that
+ * value is itself an HTTP(S) URL, otherwise `origin.htmlUrl` when *that* is
+ * an HTTP(S) URL — the fallback that makes an instance-local numeric stream
+ * ID (e.g. FreshRSS's `feed/6`) still resolvable. Items whose resolved
+ * source URL already matches one of the caller's currently-known feeds are
+ * matched to that feed (`isNewFeed: false`). Items whose source feed is not
+ * already subscribed to locally are no longer excluded (234-01's behavior)
+ * — they instead become `isNewFeed: true` candidates grouped by their
+ * resolved source URL, using `origin.title` (falling back to the URL) as
+ * the feed title and `origin.htmlUrl` as the candidate feed's site URL
+ * (234-02).
  *
  * Entries that can never produce a candidate under any circumstance — no
- * `origin.streamId` at all (`no_source_feed`), or neither a `canonical` nor
- * an `alternate` href (`no_article_url`) — are classified into the returned
- * `unimportable` list with a reason, so the caller can surface them instead
- * of silently dropping them (234-03). This is distinct from a well-formed
- * entry whose source feed isn't yet subscribed to: that becomes an
- * `isNewFeed: true` candidate instead, not an unimportable entry.
+ * resolvable source URL at all (`no_source_feed`), or neither a `canonical`
+ * nor an `alternate` href (`no_article_url`) — are classified into the
+ * returned `unimportable` list with a reason, so the caller can surface them
+ * instead of silently dropping them (234-03). This is distinct from a
+ * well-formed entry whose source feed isn't yet subscribed to: that becomes
+ * an `isNewFeed: true` candidate instead, not an unimportable entry.
  *
  * `.../label/X` categories become `Tag` entries on the resulting `FeedItem`
  * (`candidate.item.tags`), reusing the color of a matching entry in
@@ -303,8 +367,8 @@ export function mapStarredExportToCandidates(
   const unimportable: StarredImportUnimportableEntry[] = [];
 
   for (const item of parsed.items ?? []) {
-    const streamId = item.origin?.streamId;
-    if (!streamId) {
+    const feedUrl = resolveSourceUrl(item);
+    if (!feedUrl) {
       unimportable.push({
         id: item.id,
         title: item.title,
@@ -329,7 +393,6 @@ export function mapStarredExportToCandidates(
     );
     const labelDerivedTagNames = tags?.map((tag) => tag.name.toLowerCase());
 
-    const feedUrl = normalizeStreamIdToFeedUrl(streamId);
     const existingFeed = feedByUrl.get(feedUrl);
 
     if (existingFeed) {

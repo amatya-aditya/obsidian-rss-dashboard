@@ -166,7 +166,7 @@ describe("FeedManagerModal", () => {
     expect(closeSpy).toHaveBeenCalledTimes(1);
   });
 
-  it("opens the Import starred articles from Inoreader modal from its Feed Manager button", () => {
+  it("opens the Import starred articles modal from its Feed Manager button", () => {
     const app = obsidian.App.createMock();
     const plugin = {
       app,

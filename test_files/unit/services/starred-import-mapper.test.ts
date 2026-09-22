@@ -33,6 +33,10 @@ function loadUnimportableFixture(): StarredJsonExport {
   return loadFixtureFile("starred-unimportable.json");
 }
 
+function loadFreshRssFixture(): StarredJsonExport {
+  return loadFixtureFile("starred-freshrss.json");
+}
+
 const EXISTING_FEEDS = [
   { url: "https://example-feed.test/rss", title: "Example Feed" },
   { url: "https://example.com/blog/feed.xml", title: "Example Blog" },
@@ -416,6 +420,196 @@ describe("mapStarredExportToCandidates", () => {
         unimportable.some((entry) => entry.title === "Unsubscribed Source Article"),
       ).toBe(false);
     });
+  });
+});
+
+describe("FreshRSS-compatible export shape", () => {
+  it("imports the FreshRSS item using origin.htmlUrl as the source-URL fallback for its instance-local numeric streamId", () => {
+    const parsed = loadFreshRssFixture();
+
+    const { candidates, unimportable } = mapStarredExportToCandidates(
+      parsed,
+      EXISTING_FEEDS,
+    );
+
+    expect(unimportable).toHaveLength(0);
+    expect(candidates).toHaveLength(1);
+
+    const candidate = candidates[0];
+    expect(candidate.isNewFeed).toBe(true);
+    expect(candidate.feedUrl).toBe("https://freshrss-example.test/blog/");
+    expect(candidate.feedTitle).toBe("FreshRSS Source");
+    expect(candidate.feedSiteUrl).toBe("https://freshrss-example.test/blog/");
+    // The instance-local numeric stream ID is never persisted as a feed URL.
+    expect(candidate.feedUrl).not.toContain("feed/6");
+    expect(candidate.feedUrl).not.toBe("6");
+  });
+
+  it("maps the FreshRSS item's article URL, content.content fallback, author, starred/read state, and label tag", () => {
+    const parsed = loadFreshRssFixture();
+
+    const { candidates } = mapStarredExportToCandidates(parsed, EXISTING_FEEDS);
+    const item = candidates[0].item;
+
+    expect(item.link).toBe(
+      "https://freshrss-example.test/articles/freshrss-article",
+    );
+    expect(item.content).toBe("<p>Placeholder FreshRSS article content.</p>");
+    expect(item.description).toBe(
+      "<p>Placeholder FreshRSS article content.</p>",
+    );
+    expect(item.author).toBe("FreshRSS Author");
+    expect(item.starred).toBe(true);
+    expect(item.read).toBe(true);
+    expect(item.tags).toEqual([
+      { name: "test_tag", color: DEFAULT_LABEL_TAG_COLOR },
+    ]);
+  });
+
+  it("does not import the unqualified 'Product' category as a tag", () => {
+    const parsed = loadFreshRssFixture();
+
+    const { candidates } = mapStarredExportToCandidates(parsed, EXISTING_FEEDS);
+    const tagNames = (candidates[0].item.tags ?? []).map((tag) =>
+      tag.name.toLowerCase(),
+    );
+
+    expect(tagNames).not.toContain("product");
+    expect(tagNames).toEqual(["test_tag"]);
+  });
+
+  it("prefers summary.content over content.content when both are present", () => {
+    const parsed: StarredJsonExport = {
+      items: [
+        {
+          id: "tag:google.com,2005:reader/item/both-contents",
+          title: "Both contents",
+          canonical: [{ href: "https://freshrss-example.test/articles/both" }],
+          summary: { content: "<p>Summary content wins.</p>" },
+          content: { content: "<p>Content.content loses.</p>" },
+          origin: { streamId: "feed/https://freshrss-example.test/rss" },
+        },
+      ],
+    };
+
+    const { candidates } = mapStarredExportToCandidates(parsed, EXISTING_FEEDS);
+
+    expect(candidates[0].item.content).toBe("<p>Summary content wins.</p>");
+  });
+
+  it("does not fall back to content.content when summary.content is present but an empty string", () => {
+    const parsed: StarredJsonExport = {
+      items: [
+        {
+          id: "tag:google.com,2005:reader/item/empty-summary",
+          title: "Empty summary content",
+          canonical: [{ href: "https://freshrss-example.test/articles/empty" }],
+          summary: { content: "" },
+          content: { content: "<p>Should not be used.</p>" },
+          origin: { streamId: "feed/https://freshrss-example.test/rss" },
+        },
+      ],
+    };
+
+    const { candidates } = mapStarredExportToCandidates(parsed, EXISTING_FEEDS);
+
+    expect(candidates[0].item.content).toBe("");
+  });
+
+  it("retains the existing empty-content behavior when neither summary.content nor content.content is present", () => {
+    const parsed: StarredJsonExport = {
+      items: [
+        {
+          id: "tag:google.com,2005:reader/item/no-content",
+          title: "No content",
+          canonical: [{ href: "https://freshrss-example.test/articles/none" }],
+          origin: { streamId: "feed/https://freshrss-example.test/rss" },
+        },
+      ],
+    };
+
+    const { candidates } = mapStarredExportToCandidates(parsed, EXISTING_FEEDS);
+
+    expect(candidates[0].item.content).toBe("");
+    expect(candidates[0].item.description).toBe("");
+  });
+
+  it("classifies a numeric/opaque stream ID with no URL-bearing origin.htmlUrl fallback as no_source_feed and never persists it as a feed URL", () => {
+    const parsed: StarredJsonExport = {
+      items: [
+        {
+          id: "tag:google.com,2005:reader/item/opaque-stream",
+          title: "Opaque Stream Item",
+          canonical: [{ href: "https://example-feed.test/articles/opaque" }],
+          origin: { streamId: "feed/6" },
+        },
+      ],
+    };
+
+    const { candidates, unimportable } = mapStarredExportToCandidates(
+      parsed,
+      EXISTING_FEEDS,
+    );
+
+    expect(candidates).toHaveLength(0);
+    expect(unimportable).toContainEqual({
+      id: "tag:google.com,2005:reader/item/opaque-stream",
+      title: "Opaque Stream Item",
+      reason: "no_source_feed",
+    });
+  });
+
+  it("classifies an item with neither a streamId nor an origin.htmlUrl as no_source_feed", () => {
+    const parsed: StarredJsonExport = {
+      items: [
+        {
+          id: "tag:google.com,2005:reader/item/no-origin-url",
+          title: "No Origin Url Item",
+          canonical: [{ href: "https://example-feed.test/articles/no-origin" }],
+          origin: { title: "Some Source" },
+        },
+      ],
+    };
+
+    const { candidates, unimportable } = mapStarredExportToCandidates(
+      parsed,
+      EXISTING_FEEDS,
+    );
+
+    expect(candidates).toHaveLength(0);
+    expect(unimportable).toContainEqual({
+      id: "tag:google.com,2005:reader/item/no-origin-url",
+      title: "No Origin Url Item",
+      reason: "no_source_feed",
+    });
+  });
+
+  it("falls back to origin.htmlUrl when origin.streamId is entirely absent", () => {
+    const parsed: StarredJsonExport = {
+      items: [
+        {
+          id: "tag:google.com,2005:reader/item/no-stream-id",
+          title: "No Stream Id Item",
+          canonical: [{ href: "https://freshrss-example.test/articles/x" }],
+          origin: {
+            title: "Streamless Source",
+            htmlUrl: "https://freshrss-example.test/streamless/",
+          },
+        },
+      ],
+    };
+
+    const { candidates, unimportable } = mapStarredExportToCandidates(
+      parsed,
+      EXISTING_FEEDS,
+    );
+
+    expect(unimportable).toHaveLength(0);
+    expect(candidates).toHaveLength(1);
+    expect(candidates[0].feedUrl).toBe(
+      "https://freshrss-example.test/streamless/",
+    );
+    expect(candidates[0].isNewFeed).toBe(true);
   });
 });
 
