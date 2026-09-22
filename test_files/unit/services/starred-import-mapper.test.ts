@@ -303,6 +303,27 @@ describe("mapStarredExportToCandidates", () => {
     expect(candidates[0].item.read).toBe(true);
   });
 
+  it("never manufactures a Favorite tag from system-star state, with or without labels (GH Issue #334)", () => {
+    const parsed = loadFixture();
+
+    const { candidates } = mapStarredExportToCandidates(parsed, EXISTING_FEEDS);
+
+    for (const candidate of candidates) {
+      expect(candidate.item.starred).toBe(true);
+      const tagNames = (candidate.item.tags ?? []).map((tag) => tag.name.toLowerCase());
+      expect(tagNames).not.toContain("favorite");
+      expect(tagNames).not.toContain("starred");
+    }
+
+    // The labeled item's tags come from its labels only, independent of it
+    // also being starred.
+    const labeled = candidates.find((c) => c.item.guid.endsWith("0002"));
+    expect(labeled?.item.tags).toEqual([
+      { name: "Design", color: DEFAULT_LABEL_TAG_COLOR },
+      { name: "art", color: DEFAULT_LABEL_TAG_COLOR },
+    ]);
+  });
+
   it("groups candidates under the matching local feed's url and title", () => {
     const parsed = loadFixture();
 
