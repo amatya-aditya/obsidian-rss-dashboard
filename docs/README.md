@@ -20,7 +20,7 @@ Master the everyday tasks that make RSS Dashboard powerful.
 - **[Tags Primer](./tags-primer.md)** — Organize feeds and articles with automatic and manual tags. Learn precedence, backfill strategies, and filter modes.
 - **[Keyboard Shortcuts](./keyboard-shortcuts.md)** — Quick reference for all available shortcuts. Press `?` in the app to see the full list.
 - **[Syncing Guide](./syncing.md)** — Set up RSS Dashboard on multiple devices with Obsidian Sync or other sync solutions, including essential setup order and naming rules.
-- **[Import Starred Articles from Inoreader](./inoreader-starred-import-guide.md)** — Migrate a `starred.json` export: what gets imported, the Options toggles, and how full-content fetching works.
+- **[Import Starred Articles](./starred-import-guide.md)** — Migrate a Google Reader-compatible `starred.json` export (Inoreader, FreshRSS): what gets imported, the Options toggles, and how full-content fetching works.
 
 ---
 

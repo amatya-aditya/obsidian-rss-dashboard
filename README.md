@@ -46,7 +46,7 @@ Completely local. Completely open source. No ads, no tracking, no paywalls—jus
 
 ## Move Your Data Freely
 
-Import and export your subscriptions as OPML. Support for RSS, Atom, JSON feeds, YouTube channels, podcasts, and Mastodon accounts. Migrating from Inoreader? [Import your starred articles](docs/inoreader-starred-import-guide.md) directly. Switch tools anytime—your data comes with you.
+Import and export your subscriptions as OPML. Support for RSS, Atom, JSON feeds, YouTube channels, podcasts, and Mastodon accounts. Migrating from Inoreader or FreshRSS? [Import your starred articles](docs/starred-import-guide.md) directly. Switch tools anytime—your data comes with you.
 
 ## Screenshots
 
