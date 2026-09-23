@@ -18,6 +18,19 @@ it is safe to run in CI and on a normal dev machine mid-feature:
 
 - No `.bak`, `.orig`, `.swp`/`.swo`, `~`-suffixed, `.DS_Store`, or `Thumbs.db`
   file is tracked in the repo.
+- No tracked filename contains a space, bracket, backtick, em- or en-dash, or
+  a character Windows rejects. These break unquoted shell and glob use, and an
+  em-dash is indistinguishable from a hyphen in a terminal while matching
+  nothing. Use kebab-case.
+- No tracked file is also matched by `.gitignore`. Git honours the index over
+  `.gitignore`, so such a file keeps working while a *new* file beside it
+  silently fails to stage — a contradiction that stays invisible until it
+  costs someone an afternoon.
+- Every plan under `docs/archive/plans/` appears in the catalog in
+  `docs/archive/README.md`. Coordination roadmaps (`public-roadmap.md`,
+  `release-v<x.y.z>-roadmap.md`) are exempt: `docs/archive/document-inventory.md`
+  records them as living documents rather than archived implementation
+  records.
 - Every file under `docs/plans/` whose name matches the Plan Filename
   Convention (`<issue-number>-<slug>.md` or `draft-YYYYMMDD-<slug>.md`, see
   [docs/development/README.md](README.md#plan-filename-convention)) has a
@@ -52,9 +65,9 @@ which would false-positive on ordinary WIP if automated into
 
 - [ ] `git status --porcelain` is clean on the branch you're about to cut
       from — no forgotten untracked files, no uncommitted changes.
-- [ ] `docs/archive/README.md`'s catalog matches what's actually under
-      `docs/archive/plans/` (no archived plan missing an entry, no entry
-      pointing at a moved/renamed file).
+- [ ] No catalog entry in `docs/archive/README.md` points at a moved or
+      renamed file. (The reverse direction — an archived plan missing from the
+      catalog — is now automated above.)
 - [ ] `CHANGELOG.md`'s `Unreleased` section reflects every user-visible merged
       PR since the last release (`gh pr list --state merged`, filtered to
       merge dates after the previous tag — see

@@ -32,6 +32,12 @@ const VALID_ACTIVE_PLAN_STATUSES = new Set([
   "in-progress",
 ]);
 
+// eslint-disable-next-line no-control-regex -- control characters in a path are exactly what this flags
+const HOSTILE_NAME_PATTERN = /[ [\]`:*?"<>|–—\u0000-\u001f]/g;
+const CATALOG_LINK_PATTERN = /\(([^)]+\.md)\)/g;
+const CATALOG_EXEMPT_FILENAMES = /^(public-roadmap|release-v[\d.]+-roadmap)\.md$/;
+const ARCHIVED_PLANS_PREFIX = "docs/archive/plans/";
+
 const ISSUE_PLAN_FILENAME = /^\d+-[a-z0-9-]+\.md$/;
 const DRAFT_PLAN_FILENAME = /^draft-\d{8}-[a-z0-9-]+\.md$/;
 
@@ -39,6 +45,62 @@ export function findStrayFiles(filePaths) {
   return filePaths.filter((filePath) =>
     STRAY_FILE_PATTERNS.some((pattern) => pattern.test(basename(filePath))),
   );
+}
+
+/**
+ * Characters that make a path awkward to handle: spaces and brackets break
+ * unquoted shell and glob use, backticks invite command substitution, and the
+ * rest are illegal in Windows filenames. Em- and en-dashes are included
+ * because they look identical to a hyphen in a terminal but do not match one.
+ */
+export function findHostileFilenames(filePaths) {
+  return filePaths
+    .map((filePath) => {
+      const fileName = basename(filePath);
+      const offenders = [...new Set(fileName.match(HOSTILE_NAME_PATTERN) ?? [])];
+
+      if (offenders.length === 0) {
+        return null;
+      }
+
+      return {
+        filePath,
+        reason: `filename contains ${offenders
+          .map((character) => (character === " " ? "a space" : `"${character}"`))
+          .join(", ")}; use kebab-case`,
+      };
+    })
+    .filter((issue) => issue !== null);
+}
+
+/**
+ * Every archived plan must appear in the archive catalog, and every catalog
+ * entry must point at a file that exists. Coordination roadmaps are exempt:
+ * docs/archive/document-inventory.md records them as living documents rather
+ * than archived implementation records.
+ */
+export function findCatalogParityIssues(catalogSource, archivedPlanPaths) {
+  const listed = new Set();
+
+  for (const match of catalogSource.matchAll(CATALOG_LINK_PATTERN)) {
+    const target = match[1].split("#")[0];
+
+    if (!target.startsWith("http")) {
+      listed.add(normalizeCatalogPath(target));
+    }
+  }
+
+  return archivedPlanPaths
+    .filter((filePath) => !CATALOG_EXEMPT_FILENAMES.test(basename(filePath)))
+    .filter((filePath) => !listed.has(filePath.replace(/\\/g, "/")))
+    .map((filePath) => ({
+      filePath,
+      reason: "archived but missing from the catalog in docs/archive/README.md",
+    }));
+}
+
+function normalizeCatalogPath(target) {
+  return join("docs", "archive", target).replace(/\\/g, "/");
 }
 
 export function isLifecyclePlanFilename(fileName) {
@@ -189,15 +251,42 @@ export function findMissingNoteIssue(manifestVersion, noteFileNames) {
   };
 }
 
+function readFileOrEmpty(filePath) {
+  try {
+    return readFileSync(filePath, "utf8");
+  } catch {
+    return "";
+  }
+}
+
 function getTrackedFiles() {
-  const output = execFileSync("git", ["ls-files"], {
+  // -z keeps paths raw: without it git quotes and escapes any path holding a
+  // space or non-ASCII character, which is exactly what the filename check
+  // below is looking for.
+  const output = execFileSync("git", ["ls-files", "-z"], {
     cwd: ROOT_DIR,
     encoding: "utf8",
+    maxBuffer: 10 * 1024 * 1024,
   });
-  return output
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean);
+  return output.split("\0").filter(Boolean);
+}
+
+/**
+ * Tracked paths still matched by .gitignore. Git honours the index over
+ * .gitignore, so these keep working while a *new* sibling file would silently
+ * fail to stage — the contradiction is invisible until it bites.
+ */
+function getTrackedButIgnoredFiles() {
+  try {
+    const output = execFileSync(
+      "git",
+      ["ls-files", "-z", "-i", "-c", "--exclude-standard"],
+      { cwd: ROOT_DIR, encoding: "utf8", maxBuffer: 10 * 1024 * 1024 },
+    );
+    return output.split("\0").filter(Boolean);
+  } catch {
+    return [];
+  }
 }
 
 function listActivePlanFiles() {
@@ -252,6 +341,18 @@ function readManifestVersion() {
 function main() {
   const trackedFiles = getTrackedFiles();
   const strayFiles = findStrayFiles(trackedFiles);
+  const hostileNameIssues = findHostileFilenames(trackedFiles);
+  const trackedButIgnored = getTrackedButIgnoredFiles();
+  const archivedPlanPaths = trackedFiles.filter(
+    (filePath) =>
+      filePath.startsWith(ARCHIVED_PLANS_PREFIX) &&
+      filePath.endsWith(".md") &&
+      !filePath.toLowerCase().endsWith("/readme.md"),
+  );
+  const catalogParityIssues = findCatalogParityIssues(
+    readFileOrEmpty(join(ROOT_DIR, "docs", "archive", "README.md")),
+    archivedPlanPaths,
+  );
   const activePlanFiles = listActivePlanFiles();
   const planStatusIssues = findPlanStatusIssues(activePlanFiles);
   const releaseNoteFiles = listReleaseNoteFiles();
@@ -274,6 +375,41 @@ function main() {
     );
     for (const filePath of strayFiles) {
       console.error(`- ${filePath}`);
+    }
+  }
+
+  if (hostileNameIssues.length > 0) {
+    failed = true;
+    console.error(
+      `Pre-release check failed: ${hostileNameIssues.length} tracked file(s) with a ` +
+        "filename that is awkward to handle.",
+    );
+    for (const issue of hostileNameIssues) {
+      console.error(`- ${issue.filePath}: ${issue.reason}`);
+    }
+  }
+
+  if (trackedButIgnored.length > 0) {
+    failed = true;
+    console.error(
+      `Pre-release check failed: ${trackedButIgnored.length} tracked file(s) are also ` +
+        "matched by .gitignore.",
+    );
+    for (const filePath of trackedButIgnored) {
+      console.error(
+        `- ${filePath}: tracked but ignored; a new file beside it would not stage`,
+      );
+    }
+  }
+
+  if (catalogParityIssues.length > 0) {
+    failed = true;
+    console.error(
+      `Pre-release check failed: ${catalogParityIssues.length} archived plan(s) missing ` +
+        "from the archive catalog.",
+    );
+    for (const issue of catalogParityIssues) {
+      console.error(`- ${issue.filePath}: ${issue.reason}`);
     }
   }
 
