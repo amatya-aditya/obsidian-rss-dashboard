@@ -35,6 +35,12 @@ jobs:
       - name: Lint and build plugin
         run: npm run build
 
+      # The tagged commit is the version actually shipping, so this is where
+      # the note-per-release-line rule belongs. It is deliberately excluded
+      # from check:compliance, which runs on every ordinary build.
+      - name: Verify release-line What's New note
+        run: npm run check:pre-release -- --release
+
       - name: Create release assets
         run: |
           mkdir -p release

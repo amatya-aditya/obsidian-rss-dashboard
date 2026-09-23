@@ -42,10 +42,7 @@ it is safe to run in CI and on a normal dev machine mid-feature:
   the script flags one left behind instead.
 - Every curated What's New note under `src/release-notes/notes/` has a
   valid `major.minor.md` or non-zero `major.minor.patch.md` filename, a
-  top-level heading, and only HTTPS images with alt text, and the version in
-  `manifest.json` — when it is a major/minor release — has a note for its
-  release line. A missing note fails the build instead of shipping an empty
-  popup; patch notes remain optional.
+  top-level heading, and only HTTPS images with alt text.
 
 `check:compliance` also runs `npm run check:doc-links`, which resolves every
 relative Markdown link in the tracked docs and fails on one that points at a
@@ -53,6 +50,24 @@ file that does not exist. Historical records under `docs/archive/` are
 excluded: they describe the repository as it was, and their links were written
 against a layout that has since moved, so rewriting them would falsify the
 record.
+
+## Release mode
+
+```bash
+npm run check:pre-release -- --release
+```
+
+One rule is off by default: that the version in `manifest.json`, when it is a
+major/minor release, has a curated note for its release line. It asks whether
+the working version is fit to ship, which is only meaningful when something is
+shipping. Running it on every build forced `dev` to carry a note for a version
+that had not been released, and made it impossible for `dev` to sit at the
+last shipped version whenever that version predates the curated-notes feature.
+
+`--release` turns it on. The release workflow passes it on tag push, where the
+tagged commit is the version actually shipping, so a release cannot publish
+with an empty popup. `check:release-ready` covers the same ground locally
+before the bump, against the version you are about to ship.
 
 Non-lifecycle documents in `docs/plans/` (for example `public-roadmap.md`,
 which carries no frontmatter by design) are left alone.

@@ -103,6 +103,16 @@ function normalizeCatalogPath(target) {
   return join("docs", "archive", target).replace(/\\/g, "/");
 }
 
+/**
+ * Whether this run is gating an actual release. Off by default, so an
+ * ordinary build never asks whether the working version is fit to ship;
+ * `release.yml` passes `--release` when a tag is pushed, and
+ * `check:release-ready` covers the same ground locally before the bump.
+ */
+export function isReleaseMode(args) {
+  return args.includes("--release");
+}
+
 export function isLifecyclePlanFilename(fileName) {
   return ISSUE_PLAN_FILENAME.test(fileName) || DRAFT_PLAN_FILENAME.test(fileName);
 }
@@ -359,12 +369,19 @@ function main() {
   const noteFilenameIssues = findReleaseNoteFilenameIssues(releaseNoteFiles);
   const noteIssues = findNoteIssues(releaseNoteFiles);
   const manifestVersion = readManifestVersion();
-  const missingNoteIssue = manifestVersion
-    ? findMissingNoteIssue(
-        manifestVersion,
-        releaseNoteFiles.map((note) => note.fileName),
-      )
-    : null;
+  // The note-per-release-line rule asks "is this version fit to ship?", which
+  // is only meaningful when something is actually shipping. Running it on
+  // every build forced dev to carry a note for a version that had not been
+  // released, and made it impossible for dev to sit at the last shipped
+  // version whenever that version predates the curated-notes feature.
+  const releaseMode = isReleaseMode(process.argv.slice(2));
+  const missingNoteIssue =
+    releaseMode && manifestVersion
+      ? findMissingNoteIssue(
+          manifestVersion,
+          releaseNoteFiles.map((note) => note.fileName),
+        )
+      : null;
 
   let failed = false;
 

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   findCatalogParityIssues,
+  isReleaseMode,
   findHostileFilenames,
   findMissingNoteIssue,
   findReleaseNoteFilenameIssues,
@@ -294,5 +295,16 @@ describe("findCatalogParityIssues", () => {
     expect(
       findCatalogParityIssues(withHttp, ["docs/archive/plans/v1/a-plan.md"]),
     ).toHaveLength(1);
+  });
+});
+
+describe("isReleaseMode", () => {
+  it("is off for an ordinary build", () => {
+    expect(isReleaseMode([])).toBe(false);
+    expect(isReleaseMode(["--verbose"])).toBe(false);
+  });
+
+  it("is on when the release workflow asks for it", () => {
+    expect(isReleaseMode(["--release"])).toBe(true);
   });
 });
