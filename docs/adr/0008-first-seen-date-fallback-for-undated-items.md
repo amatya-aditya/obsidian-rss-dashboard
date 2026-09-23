@@ -10,7 +10,7 @@ option (c), deferred from #281 to this decision. #283 adds an opt-in
 
 ## Status
 
-implemented
+accepted
 
 ## Decision
 

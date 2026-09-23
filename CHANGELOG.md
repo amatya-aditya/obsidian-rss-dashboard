@@ -1,5 +1,7 @@
 ## 2.7.0 - September 23, 2026
 
+For a user-facing overview, see the [RSS Dashboard 2.7.0 release notes](docs/releases/2.7.0.md).
+
 ### Features
 
 #### Starred article import
@@ -36,7 +38,7 @@
 
 - Added **Date > Feed** and **Folder > Feed** grouping options. **Date** and **Folder** now show a flat list of cards within each group, while the **> Feed** variants nest collapsible per-feed sections under each group. [GH Issue #195](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/195)
 - Added **Move selection to folder** to the sidebar's multi-selection context menu, so selected feeds and folders can be moved to a folder or the root without dragging.
-- The Feed Manager's buttons are split into a primary row (Add new feed, Import OPML/XML, Export OPML, Import starred articles) and a separate destructive row, which adds **Delete feeds + folders** to clear the whole sidebar behind the same confirmation as **Delete all feeds**. The buttons now stack and size to their content, and the Feed Manager closes when a starred import started from it completes. [GH Issue #234](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/234)
+- The sidebar's 'Manage Feeds' buttons are split into a primary row (Add new feed, Import OPML/XML, Export OPML, Import starred articles) and a separate destructive row, which adds **Delete feeds + folders** to clear the whole sidebar behind the same confirmation as **Delete all feeds**. The buttons now stack and size to their content, and the Feed Manager closes when a starred import started from it completes. [GH Issue #234](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/234)
 - **Import OPML** is renamed **Import OPML/XML** everywhere it appears, because the importer already accepts `.xml` files such as the `subscriptions.xml` in an Inoreader archive. [GH Issue #244](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/244)
 - The Edit feed modal has a red **Delete** button, with actions stacking vertically on mobile, and the **Save** button in the Add feed and Edit feed modals now uses the same purple as the **Load** button.
 - Added **AI Weekly** (`https://aiweekly.co/feed`), a free curated AI newsletter, to the Discover catalog under Technology → Artificial Intelligence. [GH Issue #206](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/206)
