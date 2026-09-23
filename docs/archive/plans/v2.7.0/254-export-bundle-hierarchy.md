@@ -2,7 +2,7 @@
 status: implemented
 created: "2026-09-12"
 completed: "2026-09-12"
-released_in: unreleased
+released_in: 2.7.0
 issue: "https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/254"
 milestone: ""
 owner: unassigned
