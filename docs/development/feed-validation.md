@@ -42,14 +42,14 @@ To ensure feeds load even when servers have strict cross-origin (CORS) policies:
 The following files manage the feed validation and redirection logic:
 
 ### Core Services
-*   [media-service.ts](file:///c:/Obsidian/Obsidian_Main/.obsidian/plugins/obsidian-rss-dashboard/src/services/media-service.ts): Contains platform-specific detection and URL transformation logic (e.g., `isYouTubeFeed`).
-*   [feed-parser.ts](file:///c:/Obsidian/Obsidian_Main/.obsidian/plugins/obsidian-rss-dashboard/src/services/feed-parser.ts): Handles low-level XML parsing, signature detection (`isValidFeed`), and proxy fallbacks for fetching.
-*   [opml-manager.ts](file:///c:/Obsidian/Obsidian_Main/.obsidian/plugins/obsidian-rss-dashboard/src/services/opml-manager.ts): Logic for parsing and merging OPML files.
+*   [media-service.ts](../../src/services/media-service.ts): Contains platform-specific detection and URL transformation logic (e.g., `isYouTubeFeed`).
+*   [feed-parser.ts](../../src/services/feed-parser.ts): Handles low-level XML parsing, signature detection (`isValidFeed`), and proxy fallbacks for fetching.
+*   [opml-manager.ts](../../src/services/opml-manager.ts): Logic for parsing and merging OPML files.
 
 ### UI Components
-*   [feed-manager-modal.ts](file:///c:/Obsidian/Obsidian_Main/.obsidian/plugins/obsidian-rss-dashboard/src/modals/feed-manager-modal.ts): Implements the `AddFeedModal` and `EditFeedModal` which orchestrate the resolution process and display status updates.
-*   [import-opml-modal.ts](file:///c:/Obsidian/Obsidian_Main/.obsidian/plugins/obsidian-rss-dashboard/src/modals/import-opml-modal.ts): Manages the file selection and preliminary validation of OPML files.
-*   [feed-preview-modal.ts](file:///c:/Obsidian/Obsidian_Main/.obsidian/plugins/obsidian-rss-dashboard/src/modals/feed-preview-modal.ts): Provides a visual preview of feed content before finalizing additions.
+*   [feed-manager-modal.ts](../../src/modals/feed-manager-modal.ts): Implements the `AddFeedModal` and `EditFeedModal` which orchestrate the resolution process and display status updates.
+*   [import-opml-modal.ts](../../src/modals/import-opml-modal.ts): Manages the file selection and preliminary validation of OPML files.
+*   [feed-preview-modal.ts](../../src/modals/feed-preview-modal.ts): Provides a visual preview of feed content before finalizing additions.
 
 ## 5. Implementation Notes
 

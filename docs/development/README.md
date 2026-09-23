@@ -11,6 +11,7 @@ Internal developer documentation for the RSS Dashboard plugin.
 - [Obsidian Settings Reference](./obsidian-settings-reference.md)
 - [Release Notes Workflow](./release-notes-workflow.md)
 - [Starred State and Tags](./starred-state-and-tags.md)
+- [Test Feeds for Manual QA](./test-feeds/index.md)
 - [Testing Guide](./test_coverage/testing-guide.md)
 - [Pull Request Template](../../.github/PULL_REQUEST_TEMPLATE.md)
 

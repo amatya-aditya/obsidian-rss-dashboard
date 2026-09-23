@@ -71,7 +71,7 @@ However, **`currentTime` and `getDuration` are not sent by the iframe proactivel
 
 ## Proposed Changes (Option B)
 
-### [MODIFY] [video-player.ts](file:///c:/Obsidian/Obsidian_Main/.obsidian/plugins/obsidian-rss-dashboard/src/views/video-player.ts)
+### [MODIFY] [video-player.ts](../../../../../src/views/video-player.ts)
 
 - Delete `loadYouTubeApi()` method entirely.
 - Remove `YTPlayer`, `YTPlayerEvent`, `YTPlayerOptions`, `YTNamespace` interfaces and `window.YT` global declaration.
@@ -83,7 +83,7 @@ However, **`currentTime` and `getDuration` are not sent by the iframe proactivel
 - After render, send a `seekTo` command via postMessage if `item.playbackProgress?.position` exists.
 - In `destroy()`, remove the message event listener.
 
-### [MODIFY] [video-player.test.ts](file:///c:/Obsidian/Obsidian_Main/.obsidian/plugins/obsidian-rss-dashboard/test_files/unit/views/video-player.test.ts)
+### [MODIFY] [video-player.test.ts](../../../../../test_files/unit/views/video-player.test.ts)
 
 - Remove all `window.YT = { Player: MockYouTubePlayer }` mock setup.
 - Replace the two progress-tracking tests with tests that dispatch `MessageEvent` objects simulating YouTube `onStateChange` events.

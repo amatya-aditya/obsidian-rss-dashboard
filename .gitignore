@@ -37,8 +37,10 @@ lint_target.json
 scratch/sum_errors_new.ps1
 eslint_test_report_new.json
 scratch/sum_errors.ps1
-.agents/*
+# .agents/ holds agent instructions that MUST be tracked (AGENTS.md points
+# contributors at .agents/project-context.md). Ignore only the local lockfile.
 skills-lock.json
+.cursor/
 docs/archive/beads-export/*
 image-cache/*
 *.backup

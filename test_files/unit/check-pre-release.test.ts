@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  findCatalogParityIssues,
+  isReleaseMode,
+  findHostileFilenames,
   findMissingNoteIssue,
   findReleaseNoteFilenameIssues,
   findNoteIssues,
@@ -219,5 +222,89 @@ describe("findMissingNoteIssue", () => {
 
   it("does not require a note for a patch release", () => {
     expect(findMissingNoteIssue("2.7.1", [])).toBeNull();
+  });
+});
+
+describe("findHostileFilenames", () => {
+  it("flags spaces, brackets, backticks, and em-dashes", () => {
+    const issues = findHostileFilenames([
+      "docs/archive/2.4.0 audit.md",
+      "docs/archive/[TARGET_FILE.css] plan.md",
+      "docs/archive/`modals.css` checklist.md",
+      "docs/archive/controls.css — split plan.md",
+    ]);
+
+    expect(issues).toHaveLength(4);
+    expect(issues[0].reason).toContain("a space");
+  });
+
+  it("does not flag ordinary kebab-case paths", () => {
+    expect(
+      findHostileFilenames([
+        "docs/development/pre-release-checklist.md",
+        "src/services/feed-parser.ts",
+        "docs/archive/plans/v2.6.0/draft-20260816-thing.md",
+      ]),
+    ).toEqual([]);
+  });
+
+  it("reports the path, not just the filename", () => {
+    const issues = findHostileFilenames(["docs/a/b/c d.md"]);
+
+    expect(issues[0].filePath).toBe("docs/a/b/c d.md");
+  });
+});
+
+describe("findCatalogParityIssues", () => {
+  const catalog = [
+    "- [A plan](plans/v2.6.0/a-plan.md)",
+    "- [Another](plans/unreleased/b-plan.md)",
+  ].join("\n");
+
+  it("passes when every archived plan is listed", () => {
+    expect(
+      findCatalogParityIssues(catalog, [
+        "docs/archive/plans/v2.6.0/a-plan.md",
+        "docs/archive/plans/unreleased/b-plan.md",
+      ]),
+    ).toEqual([]);
+  });
+
+  it("flags an archived plan missing from the catalog", () => {
+    const issues = findCatalogParityIssues(catalog, [
+      "docs/archive/plans/v2.6.0/a-plan.md",
+      "docs/archive/plans/v2.6.0/forgotten.md",
+    ]);
+
+    expect(issues).toHaveLength(1);
+    expect(issues[0].filePath).toBe("docs/archive/plans/v2.6.0/forgotten.md");
+  });
+
+  it("exempts coordination roadmaps, which are living documents", () => {
+    expect(
+      findCatalogParityIssues(catalog, [
+        "docs/archive/plans/v2.6.0/release-v2.6.0-roadmap.md",
+        "docs/archive/plans/public-roadmap.md",
+      ]),
+    ).toEqual([]);
+  });
+
+  it("ignores external links in the catalog", () => {
+    const withHttp = "- [Spec](https://example.com/a-plan.md)";
+
+    expect(
+      findCatalogParityIssues(withHttp, ["docs/archive/plans/v1/a-plan.md"]),
+    ).toHaveLength(1);
+  });
+});
+
+describe("isReleaseMode", () => {
+  it("is off for an ordinary build", () => {
+    expect(isReleaseMode([])).toBe(false);
+    expect(isReleaseMode(["--verbose"])).toBe(false);
+  });
+
+  it("is on when the release workflow asks for it", () => {
+    expect(isReleaseMode(["--release"])).toBe(true);
   });
 });
