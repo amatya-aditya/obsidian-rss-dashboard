@@ -12,14 +12,6 @@ import {
 const ROOT_DIR = join(import.meta.dirname, "..");
 const RELEASE_NOTES_DIR = join(ROOT_DIR, "src", "release-notes", "notes");
 const PUBLIC_RELEASE_NOTES_DIR = join(ROOT_DIR, "docs", "releases");
-const UNRELEASED_ARCHIVE_DIR = join(
-  ROOT_DIR,
-  "docs",
-  "archive",
-  "plans",
-  "unreleased",
-);
-
 const TARGET_VERSION_PATTERN = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/;
 
 /**
@@ -131,9 +123,9 @@ export function findPrematureBumpIssue(version, versionsMap) {
  * Release-bound plans move from docs/archive/plans/unreleased/ into the
  * version's own archive folder at ship time (release-notes-workflow.md step 10).
  */
-export function findUnarchivedPlanIssues(unreleasedPlanFileNames, version) {
-  return unreleasedPlanFileNames.map((fileName) => ({
-    filePath: `docs/archive/plans/unreleased/${fileName}`,
+export function findUnarchivedPlanIssues(unreleasedPlanPaths, version) {
+  return unreleasedPlanPaths.map((filePath) => ({
+    filePath,
     reason: `still unreleased; move it to docs/archive/plans/v${version}/ and update released_in`,
   }));
 }
@@ -175,6 +167,31 @@ function listMarkdownFileNames(directory) {
   return readdirSync(directory, { withFileTypes: true })
     .filter((entry) => entry.isFile() && entry.name.endsWith(".md"))
     .map((entry) => entry.name);
+}
+
+/**
+ * Every tracked plan still under docs/archive/plans/unreleased/, including
+ * ones nested in a plan's own ticket folder. Enumerated through git so the
+ * listing recurses and ignores anything untracked.
+ */
+function listUnreleasedPlanPaths() {
+  try {
+    const output = execFileSync(
+      "git",
+      ["ls-files", "-z", "docs/archive/plans/unreleased"],
+      { cwd: ROOT_DIR, encoding: "utf8" },
+    );
+
+    return output
+      .split("\0")
+      .filter(
+        (filePath) =>
+          filePath.endsWith(".md") &&
+          !filePath.toLowerCase().endsWith("/readme.md"),
+      );
+  } catch {
+    return [];
+  }
 }
 
 function readVersionsMap() {
@@ -225,12 +242,7 @@ function main() {
     ),
     findPrematureBumpIssue(targetVersion, readVersionsMap()),
     findWorkingTreeIssue(readWorkingTreeStatus()),
-    ...findUnarchivedPlanIssues(
-      listMarkdownFileNames(UNRELEASED_ARCHIVE_DIR).filter(
-        (fileName) => fileName.toLowerCase() !== "readme.md",
-      ),
-      targetVersion,
-    ),
+    ...findUnarchivedPlanIssues(listUnreleasedPlanPaths(), targetVersion),
   ].filter((issue) => issue !== null);
 
   if (issues.length > 0) {

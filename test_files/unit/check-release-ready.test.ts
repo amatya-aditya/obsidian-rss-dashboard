@@ -117,7 +117,10 @@ describe("findUnarchivedPlanIssues", () => {
 
   it("flags each plan still sitting under unreleased", () => {
     const issues = findUnarchivedPlanIssues(
-      ["315-shard-state-gc.md", "331-decouple-star-from-tags.md"],
+      [
+        "docs/archive/plans/unreleased/315-shard-state-gc.md",
+        "docs/archive/plans/unreleased/331-decouple-star-from-tags.md",
+      ],
       "2.7.0",
     );
 
@@ -126,6 +129,14 @@ describe("findUnarchivedPlanIssues", () => {
       "docs/archive/plans/unreleased/315-shard-state-gc.md",
     );
     expect(issues[0].reason).toContain("docs/archive/plans/v2.7.0/");
+  });
+
+  it("flags a plan nested in its own ticket folder", () => {
+    const nested =
+      "docs/archive/plans/unreleased/254-export-bundle-hierarchy/tickets/01-build.md";
+    const issues = findUnarchivedPlanIssues([nested], "2.7.0");
+
+    expect(issues[0].filePath).toBe(nested);
   });
 });
 
