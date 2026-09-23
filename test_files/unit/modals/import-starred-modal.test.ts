@@ -218,6 +218,93 @@ describe("ImportStarredModal", () => {
     ).toContain("Please select a valid starred.json file");
   });
 
+  describe("starred.json instructions", () => {
+    async function chooseFileViaPicker(
+      content: HTMLElement,
+      file: File,
+    ): Promise<void> {
+      content.querySelector<HTMLButtonElement>(".import-file-button")!.click();
+      const picker = document.body.querySelector<HTMLInputElement>(
+        'input[type="file"]',
+      )!;
+      Object.defineProperty(picker, "files", { value: [file] });
+      picker.dispatchEvent(new Event("change"));
+      await flushPromises();
+    }
+
+    function openModal(): HTMLElement {
+      const modal = new ImportStarredModal(
+        createMockApp(),
+        createTestPlugin(cloneSettings()) as unknown as ConstructorParameters<
+          typeof ImportStarredModal
+        >[1],
+      );
+      (modal as unknown as TestModal).open();
+      return (modal as unknown as TestModal).contentEl;
+    }
+
+    function instructionsHidden(content: HTMLElement): boolean {
+      return content
+        .querySelector(".import-starred-instructions")!
+        .hasClass("import-hidden");
+    }
+
+    it("shows the instructions before a file is chosen", () => {
+      expect(instructionsHidden(openModal())).toBe(false);
+    });
+
+    it("hides the instructions but keeps the file row once the preview renders", async () => {
+      const content = openModal();
+
+      await chooseFileViaPicker(
+        content,
+        new File([readFixture()], "starred.json"),
+      );
+
+      expect(
+        content
+          .querySelector(".import-preview-container")!
+          .hasClass("import-visible"),
+      ).toBe(true);
+      expect(instructionsHidden(content)).toBe(true);
+      expect(content.querySelector(".import-file-button")).not.toBeNull();
+    });
+
+    it("shows the instructions again when a replacement file is invalid", async () => {
+      const content = openModal();
+      await chooseFileViaPicker(
+        content,
+        new File([readFixture()], "starred.json"),
+      );
+
+      await chooseFileViaPicker(content, new File(["not json"], "starred.json"));
+
+      expect(instructionsHidden(content)).toBe(false);
+    });
+
+    it("expands every feed group again when a new file is chosen from the picker", async () => {
+      const content = openModal();
+      await chooseFileViaPicker(
+        content,
+        new File([readFixture()], "starred.json"),
+      );
+      const collapseAll = Array.from(
+        content.querySelectorAll<HTMLButtonElement>(".import-preview-toolbar button"),
+      ).find((button) => button.textContent === "Collapse all")!;
+      collapseAll.click();
+      expect(
+        content.querySelectorAll('[aria-label="Expand feed"]').length,
+      ).toBeGreaterThan(0);
+
+      await chooseFileViaPicker(
+        content,
+        new File([readFixture()], "starred.json"),
+      );
+
+      expect(content.querySelectorAll('[aria-label="Expand feed"]')).toHaveLength(0);
+    });
+  });
+
   it("shows the no-items error when the export has no items at all", async () => {
     const app = createMockApp();
     const plugin = createTestPlugin(cloneSettings());

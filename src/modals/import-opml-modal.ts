@@ -57,6 +57,7 @@ export class ImportOpmlModal extends Modal {
     this.onImportStarted = onImportStarted;
     this.importerShell = new ImporterShell({
       acceptedFileTypes: ".opml,.xml,.backup",
+      onFileSelected: (file) => this.resetFileState(file),
       validate: (content, file) => this.validateOpml(content, file),
       parse: (content) => this.parseOpml(content),
       createPreviewModel: (parsed) => {
@@ -133,7 +134,7 @@ export class ImportOpmlModal extends Modal {
     this.createModeSelector(this.modeSelectorContainer);
   }
 
-  private async handleFileSelection(file: File) {
+  private resetFileState(file: File): void {
     this.selectedFile = file;
     this.validationErrorKind = null;
     this.parsedFeeds = [];
@@ -141,6 +142,9 @@ export class ImportOpmlModal extends Modal {
     this.opmlContent = null;
     this.previewModel = null;
     this.collapsedFolderPaths.clear();
+  }
+
+  private async handleFileSelection(file: File) {
     await this.importerShell.handleFileSelection(file);
   }
 
