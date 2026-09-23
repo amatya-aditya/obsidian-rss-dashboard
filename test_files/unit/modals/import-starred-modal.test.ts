@@ -1189,6 +1189,7 @@ describe("ImportStarredModal", () => {
       );
       return {
         settings,
+        plugin,
         content: (modal as unknown as TestModal).contentEl,
       };
     }
@@ -1241,6 +1242,22 @@ describe("ImportStarredModal", () => {
       expect(call.anchor).toBe(control);
       expect(call.item.guid).toBe(labeledGuid);
       expect(call.item.tags?.map((t) => t.name)).toEqual(["Design", "art"]);
+    });
+
+    it("the portal's tag-settings button opens the plugin's Tags settings instead of doing nothing", async () => {
+      const { plugin, content } = await setUpModal();
+      const openTagsSettings = vi.fn(async () => {});
+      (plugin as unknown as { openTagsSettings: () => Promise<void> })
+        .openTagsSettings = openTagsSettings;
+
+      getItemTagsControl(content, labeledGuid).click();
+
+      const call = createTagsDropdownPortalMock.mock.calls[0][0] as {
+        onOpenTagsSettings?: () => Promise<void> | void;
+      };
+      expect(call.onOpenTagsSettings).toBeTypeOf("function");
+      await call.onOpenTagsSettings?.();
+      expect(openTagsSettings).toHaveBeenCalledTimes(1);
     });
 
     it("adding a tag through the portal mutates the underlying candidate article's tags directly, which carry through to the imported item", async () => {

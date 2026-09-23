@@ -897,6 +897,7 @@ export class ImportStarredModal extends Modal {
         this.renderItemTagsChips(anchor, candidate);
         this.refreshNewTagsSection();
       },
+      onOpenTagsSettings: () => this.plugin.openTagsSettings(),
       appContainer: this.previewContainer,
       onClosed: () => {
         if (this.itemTagsDropdownCleanup === cleanup) {
