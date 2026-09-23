@@ -60,7 +60,7 @@ The decision is intended to preserve these core user expectations:
 3. As a [user], I want [goal], so that [reason].
 
 For the complete set of user stories identified for this decision, see
-[GitHub Issue #NNN](...).
+[GitHub Issue #NNN](#).
 
 ## Decision
 
@@ -154,6 +154,6 @@ Link related ADRs, GitHub issues or pull requests, user documentation,
 investigations, standards, or other useful context.
 -->
 
-- [ADR NNNN — Related decision](...)
-- [GitHub Issue #NNN](...)
-- [Relevant documentation](...)
+- [ADR NNNN — Related decision](#)
+- [GitHub Issue #NNN](#)
+- [Relevant documentation](#)
