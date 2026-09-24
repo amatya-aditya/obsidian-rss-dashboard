@@ -694,6 +694,25 @@ describe("FeedStorageRepository", () => {
     expect(app.vault.getAbstractFileByPath("RSS Data/Feeds")).toBeNull();
   });
 
+  it("also removes a parent folder the revert left empty", async () => {
+    const settings = cloneSettings();
+    settings.storageMode = "vault-shards";
+    settings.storageFolder = "RSS Data/Feeds";
+    settings.feeds = [makeFeed({ feedId: "feed-1" })];
+    await app.vault.createFolder("RSS Data/Feeds");
+    await app.vault.create("RSS Data/Feeds/feed-1.json", "{\"items\":[]}");
+
+    await repository.revertToLegacyJson(settings, saveData, {
+      deleteShardFolder: true,
+    });
+
+    expect(
+      await (app.vault.adapter as unknown as {
+        exists(path: string): Promise<boolean>;
+      }).exists("RSS Data"),
+    ).toBe(false);
+  });
+
   it("halts revert when the shard folder still exists after delete attempt", async () => {
     const settings = cloneSettings();
     settings.storageMode = "vault-shards";
@@ -2283,6 +2302,17 @@ describe("removing a feed deletes its shard file", () => {
       await moveFeeds(".rss-test/feeds", ".rss-test2/feeds");
 
       expect(await adapter().exists(".rss-test")).toBe(false);
+    });
+
+    it("sends a visible folder to the user's trash rather than deleting it", async () => {
+      const trashFile = vi.spyOn(app.fileManager, "trashFile");
+
+      await moveFeeds("RSS Data/Feeds", "RSS Data/Moved");
+
+      expect(trashFile).toHaveBeenCalledWith(
+        expect.objectContaining({ path: "RSS Data/Feeds" }),
+      );
+      expect(await adapter().exists("RSS Data/Feeds")).toBe(false);
     });
 
     it("is kept when it still contains a file that is not a moved shard", async () => {

@@ -727,7 +727,11 @@ export class FeedStorageRepository {
     }
 
     if (storageFolderChanged && this.lastStorageFolderPath) {
-      await this.removeFolderIfEmpty(this.lastStorageFolderPath);
+      // Once every shard has moved out, drop the emptied folder and any
+      // parent the move left empty.
+      if (await this.removeFolderIfEmpty(this.lastStorageFolderPath)) {
+        await this.pruneEmptyParentFolders(this.lastStorageFolderPath);
+      }
     }
 
     for (const previousFeedId of [
@@ -1459,57 +1463,51 @@ export class FeedStorageRepository {
   }
 
   /**
-   * Removes a previous storage folder once a folder change has moved every
-   * shard out of it, then any parent the removal left empty. A folder that
-   * still holds anything (a shard skipped because its feed never loaded,
+   * Removes `folderPath` if it is empty and reports whether it did. A folder
+   * that still holds anything (a shard skipped because its feed never loaded,
    * `user-state.json`, or a user's own file) is kept.
+   *
+   * An indexed folder goes to the user's trash through the file manager, as
+   * Obsidian's guidelines require for deletions. A dot-prefixed folder is not
+   * indexed, so it can only be removed by path. That call passes
+   * `recursive: true` because desktop Obsidian implements `rmdir` with
+   * `fs.rm`, which refuses any directory otherwise, even an empty one, and
+   * mobile always removes recursively. The emptiness check just before it is
+   * therefore the only guard, on every platform.
    */
-  private async removeFolderIfEmpty(folderPath: string): Promise<void> {
-    if (!(await this.app.vault.adapter.exists(folderPath))) return;
+  private async removeFolderIfEmpty(folderPath: string): Promise<boolean> {
+    if (!(await this.app.vault.adapter.exists(folderPath))) return false;
+    // `adapter.list` also sees hidden entries the vault index leaves out.
     const { files, folders } = await this.app.vault.adapter.list(folderPath);
-    if (files.length > 0 || folders.length > 0) return;
+    if (files.length > 0 || folders.length > 0) return false;
 
     try {
-      await this.app.vault.adapter.rmdir(folderPath, false);
+      const indexed = this.app.vault.getAbstractFileByPath(folderPath);
+      if (indexed instanceof TFolder) {
+        await this.app.fileManager.trashFile(indexed);
+      } else {
+        await this.app.vault.adapter.rmdir(folderPath, true);
+      }
     } catch (error) {
-      storageError("Failed to remove previous storage folder", error, {
+      storageError("Failed to remove empty storage folder", error, {
         folderPath,
       });
-      return;
+      return false;
     }
-    storageLog("Removed empty previous storage folder", { folderPath });
-    await this.pruneEmptyParentFolders(folderPath);
+    storageLog("Removed empty storage folder", { folderPath });
+    return true;
   }
 
   private async pruneEmptyParentFolders(folderPath: string): Promise<void> {
     let currentPath = this.getParentFolderPath(folderPath);
 
     while (currentPath) {
-      const exists = await this.app.vault.adapter.exists(currentPath);
-      if (!exists) {
-        currentPath = this.getParentFolderPath(currentPath);
-        continue;
-      }
-
-      const contents = await this.app.vault.adapter.list(currentPath);
-      const hasChildren =
-        contents.files.length > 0 || contents.folders.length > 0;
-      if (hasChildren) {
+      if (
+        (await this.app.vault.adapter.exists(currentPath)) &&
+        !(await this.removeFolderIfEmpty(currentPath))
+      ) {
         break;
       }
-
-      try {
-        await this.app.vault.adapter.rmdir(currentPath, false);
-        storageLog("Deleted empty parent storage folder", {
-          folderPath: currentPath,
-        });
-      } catch (error) {
-        storageError("Failed to delete empty parent storage folder", error, {
-          folderPath: currentPath,
-        });
-        break;
-      }
-
       currentPath = this.getParentFolderPath(currentPath);
     }
   }

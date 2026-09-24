@@ -491,13 +491,11 @@ export class MockDataVault {
       },
       rmdir: async (path: string, recursive: boolean) => {
         const cleanPath = path.replace(/^\/+|\/+$/g, "");
-        if (
-          !recursive &&
-          Array.from(this.adapterFiles.keys()).some((filePath) =>
-            filePath.startsWith(`${cleanPath}/`),
-          )
-        ) {
-          throw new Error("Directory not empty");
+        // Desktop Obsidian implements rmdir with fs.promises.rm, which refuses
+        // to remove any directory, even an empty one, unless `recursive` is
+        // true.
+        if (!recursive) {
+          throw new Error(`EISDIR: Path is a directory: ${cleanPath}`);
         }
 
         for (const filePath of [...this.adapterFiles.keys()]) {
@@ -583,7 +581,14 @@ export class MockDataVault {
   }
 
   getAbstractFileByPath(path: string): TFile | TFolder | null {
-    return this.files.get(path) || this.folders.get(path) || null;
+    const file = this.files.get(path);
+    if (file) return file;
+    // Obsidian leaves dot-prefixed folders out of its vault index; they exist
+    // on disk and are reachable only through the adapter.
+    if (path.split("/").some((segment) => segment.startsWith("."))) {
+      return null;
+    }
+    return this.folders.get(path) || null;
   }
 
   getRoot(): TFolder {
