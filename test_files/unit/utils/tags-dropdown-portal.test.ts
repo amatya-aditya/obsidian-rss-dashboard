@@ -77,3 +77,50 @@ describe("createTagsDropdownPortal inside a modal", () => {
     close();
   });
 });
+
+describe("createTagsDropdownPortal tag editing", () => {
+  beforeEach(() => {
+    installObsidianDomPolyfills();
+    document.body.empty();
+    vi.restoreAllMocks();
+    vi.spyOn(console, "debug").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    document.body.empty();
+  });
+
+  it("reports the previous and updated tag after an edit is saved", async () => {
+    const { anchor } = createModalWithAnchor();
+    const settings = JSON.parse(JSON.stringify(DEFAULT_SETTINGS)) as typeof DEFAULT_SETTINGS;
+    settings.availableTags = [{ name: "News", color: "#ff0000" }];
+    const onTagEdited = vi.fn();
+
+    const close = createTagsDropdownPortal({
+      anchor,
+      settings,
+      item: makeItem(),
+      onTagAssignmentChange: vi.fn(),
+      onTagEdited,
+    });
+
+    document
+      .querySelector<HTMLElement>(".rss-dashboard-tag-edit-button")!
+      .click();
+    document.querySelector<HTMLInputElement>(
+      ".rss-dashboard-tag-modal-color-picker",
+    )!.value = "#00ff00";
+    document
+      .querySelector<HTMLButtonElement>(
+        ".rss-dashboard-tag-modal-form .rss-dashboard-primary-button",
+      )!
+      .click();
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(onTagEdited).toHaveBeenCalledWith(
+      { name: "News", color: "#ff0000" },
+      { name: "News", color: "#00ff00" },
+    );
+    close();
+  });
+});

@@ -1378,6 +1378,133 @@ describe("ImportStarredModal", () => {
       expect(importedItem?.tags?.map((t) => t.name)).toEqual(["inoreader"]);
     });
 
+    it("editing a tag's color through the portal recolors that tag's chip in the preview and on the imported article", async () => {
+      const { settings, content } = await setUpModal();
+
+      const control = getItemTagsControl(content, labeledGuid);
+      control.click();
+      const call = createTagsDropdownPortalMock.mock.calls[0][0] as {
+        item: { tags?: Tag[] };
+        onTagEdited?: (previous: Tag, updated: Tag) => void;
+      };
+      const previous = call.item.tags!.find((t) => t.name === "Design")!;
+      expect(call.onTagEdited).toBeTypeOf("function");
+      call.onTagEdited?.(
+        { ...previous },
+        { name: "Design", color: "#00ff00" },
+      );
+
+      const designChip = Array.from(
+        getItemTagsControl(content, labeledGuid).querySelectorAll<HTMLElement>(
+          ".rss-dashboard-tag-badge",
+        ),
+      ).find((el) => el.textContent === "Design");
+      expect(designChip?.style.getPropertyValue("--tag-color")).toBe(
+        "#00ff00",
+      );
+
+      content
+        .querySelector<HTMLButtonElement>(
+          ".rss-dashboard-modal-buttons .rss-dashboard-primary-button",
+        )!
+        .click();
+      await flushPromises();
+
+      const importedItem = settings.feeds
+        .flatMap((feed) => feed.items)
+        .find((item) => item.guid === labeledGuid);
+      expect(
+        importedItem?.tags?.find((t) => t.name === "Design")?.color,
+      ).toBe("#00ff00");
+      expect(
+        settings.availableTags.find((t) => t.name === "Design")?.color,
+      ).toBe("#00ff00");
+    });
+
+    it("the 'New tags (N)' section shows each new tag as a colored chip that recolors in place when the tag is edited", async () => {
+      const { content } = await setUpModal();
+
+      const newTagChip = (name: string) =>
+        Array.from(
+          getNewTagsSection(content)!.querySelectorAll<HTMLElement>(
+            ".rss-dashboard-tag-badge",
+          ),
+        ).find((el) => el.textContent === name);
+
+      getItemTagsControl(content, labeledGuid).click();
+      const call = createTagsDropdownPortalMock.mock.calls[0][0] as {
+        item: { tags?: Tag[] };
+        onTagEdited?: (previous: Tag, updated: Tag) => void;
+      };
+      const previous = call.item.tags!.find((t) => t.name === "Design")!;
+      expect(newTagChip("Design")?.style.getPropertyValue("--tag-color")).toBe(
+        previous.color,
+      );
+
+      call.onTagEdited?.(
+        { ...previous },
+        { name: "Design", color: "#00ff00" },
+      );
+
+      expect(newTagChip("Design")?.style.getPropertyValue("--tag-color")).toBe(
+        "#00ff00",
+      );
+    });
+
+    it("clicking a chip in the 'New tags (N)' section opens the tag editor, and saving recolors it there and on every article row", async () => {
+      vi.spyOn(console, "debug").mockImplementation(() => {});
+      const { content } = await setUpModal();
+
+      const newTagChip = (name: string) =>
+        Array.from(
+          getNewTagsSection(content)!.querySelectorAll<HTMLElement>(
+            ".rss-dashboard-tag-badge",
+          ),
+        ).find((el) => el.textContent === name);
+
+      newTagChip("Design")!.click();
+      document.querySelector<HTMLInputElement>(
+        ".rss-dashboard-tag-modal-color-picker",
+      )!.value = "#00ff00";
+      document
+        .querySelector<HTMLButtonElement>(
+          ".rss-dashboard-tag-modal-form .rss-dashboard-primary-button",
+        )!
+        .click();
+      await flushPromises();
+
+      expect(document.querySelector(".rss-dashboard-tag-modal-form")).toBeNull();
+      expect(newTagChip("Design")?.style.getPropertyValue("--tag-color")).toBe(
+        "#00ff00",
+      );
+      const rowChip = Array.from(
+        getItemTagsControl(content, labeledGuid).querySelectorAll<HTMLElement>(
+          ".rss-dashboard-tag-badge",
+        ),
+      ).find((el) => el.textContent === "Design");
+      expect(rowChip?.style.getPropertyValue("--tag-color")).toBe("#00ff00");
+    });
+
+    it("editing a tag that already exists in the palette updates the palette entry and saves settings", async () => {
+      const base = cloneSettings();
+      base.availableTags = [{ name: "Design", color: "#111111" }];
+      const { plugin, settings, content } = await setUpModal(base);
+
+      getItemTagsControl(content, labeledGuid).click();
+      const call = createTagsDropdownPortalMock.mock.calls[0][0] as {
+        onTagEdited?: (previous: Tag, updated: Tag) => void;
+      };
+      call.onTagEdited?.(
+        { name: "Design", color: "#111111" },
+        { name: "Design", color: "#00ff00" },
+      );
+
+      expect(settings.availableTags).toEqual([
+        { name: "Design", color: "#00ff00" },
+      ]);
+      expect(plugin.saveSettings).toHaveBeenCalled();
+    });
+
     it("removing a tag through the portal removes it from the underlying candidate article", async () => {
       const { content } = await setUpModal();
 

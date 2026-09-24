@@ -10,6 +10,12 @@ export type TagsDropdownPortalOptions = {
   onTagAssignmentChange: (tag: Tag, checked: boolean) => void;
   onPersistSettings?: () => Promise<void> | void;
   onAfterSettingsTagsMutated?: () => void;
+  /**
+   * Called after a tag is edited through the portal, with the tag as it was
+   * and as it is now. Lets callers whose items are not in `settings.feeds`
+   * (e.g. the starred-import preview) apply the same rename/recolor.
+   */
+  onTagEdited?: (previous: Tag, updated: Tag) => void;
   onOpenTagsSettings?: () => Promise<void> | void;
   appContainer?: HTMLElement | null;
   onClosed?: () => void;
@@ -25,6 +31,7 @@ export function createTagsDropdownPortal(
     onTagAssignmentChange,
     onPersistSettings,
     onAfterSettingsTagsMutated,
+    onTagEdited,
     onOpenTagsSettings,
     appContainer,
     onClosed,
@@ -229,12 +236,14 @@ export function createTagsDropdownPortal(
     editButton.addEventListener("click", (e) => {
       e.preventDefault();
       e.stopPropagation();
+      const previousTag = { ...tag };
       showEditTagModal({
         settings,
         tag,
-        onSave: async () => {
+        onSave: async (updatedTag) => {
           persistSettings();
           notifySettingsTagsMutated();
+          onTagEdited?.(previousTag, updatedTag);
           rerenderTagItems();
         },
       });

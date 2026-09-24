@@ -179,8 +179,7 @@
 
 /* "New tags" section (234-11) — the single inline confirmation of every
  * tag about to be added to `settings.availableTags` before execute,
- * deliberately matching the "Unable to import" section's visual pattern
- * above (same heading/list/row shape) rather than introducing a new one. */
+ * sharing the "Unable to import" section's heading style above. */
 .import-new-tags-section {
   margin-top: 1rem;
   padding-top: 0.75rem;
@@ -193,43 +192,31 @@
   color: var(--text-muted);
 }
 
+/* New tags render as the same colored chips used on article rows, on one
+ * horizontal row; a long list scrolls sideways instead of growing the
+ * modal downward. */
 .import-new-tags-list {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.import-new-tags-row {
-  display: flex;
+  flex-wrap: nowrap;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.35rem 0.5rem;
-  border-radius: 4px;
+  gap: 6px;
+  overflow-x: auto;
 }
 
-.import-new-tags-row:hover {
-  background: var(--background-modifier-hover);
-}
-
-.import-new-tags-icon {
-  display: flex;
-  align-items: center;
-  color: var(--text-accent, var(--text-muted));
-  flex-shrink: 0;
-}
-
-.import-new-tags-icon svg {
-  width: 14px;
-  height: 14px;
-}
-
-.import-new-tags-name {
-  flex: 1 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.import-new-tags-list .rss-dashboard-tag-badge {
+  flex: 0 0 auto;
   white-space: nowrap;
-  color: var(--text-normal);
+}
+
+.import-new-tags-list .import-new-tags-chip {
+  cursor: pointer;
+}
+
+.import-new-tags-list .import-new-tags-chip:hover,
+.import-new-tags-list .import-new-tags-chip:focus-visible {
+  filter: brightness(1.1);
+  outline: 1px solid var(--background-modifier-border-hover);
+  outline-offset: 1px;
 }
 
 /* Per-article tag chip (234-12), replacing the old "Read"/"Unread" text in
