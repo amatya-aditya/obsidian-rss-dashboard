@@ -53,7 +53,7 @@ describe("tag-layout-utils", () => {
 
       const overflow = container.querySelector<HTMLElement>(".rss-dashboard-tag-overflow");
       expect(overflow?.textContent).toBe("+1");
-      expect(overflow?.title).toBe("Tag7");
+      expect(overflow?.getAttribute("aria-label")).toBe("Tag7");
     });
 
     it("applies tag color as CSS variable", () => {
@@ -100,7 +100,7 @@ describe("tag-layout-utils", () => {
       expect(chip.textContent).toBe("+2");
     });
 
-    it("sets title with comma-separated hidden tag names", () => {
+    it("sets a tooltip with comma-separated hidden tag names", () => {
       const hiddenTags: Tag[] = [
         { name: "Hidden1", color: "#111" },
         { name: "Hidden2", color: "#222" },
@@ -108,7 +108,7 @@ describe("tag-layout-utils", () => {
 
       const chip = createTagOverflowChip(container, hiddenTags);
 
-      expect(chip.title).toBe("Hidden1, Hidden2");
+      expect(chip.getAttribute("aria-label")).toBe("Hidden1, Hidden2");
     });
   });
 

@@ -1042,7 +1042,7 @@ export class Setting {
       }
 
       setTooltip(tooltip: string): this {
-        this.buttonEl.title = tooltip;
+        this.buttonEl.setAttribute("aria-label", tooltip);
         return this;
       }
 

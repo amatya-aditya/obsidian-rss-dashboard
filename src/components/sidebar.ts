@@ -1,4 +1,4 @@
-import { Menu, MenuItem, Notice, App, Modal, setIcon, Setting } from "obsidian";
+import { Menu, MenuItem, Notice, App, Modal, setIcon, Setting, setTooltip } from "obsidian";
 import {
   Feed,
   Folder,
@@ -900,7 +900,7 @@ export class Sidebar {
         (isCancellable ? " stop" : isRefreshActive ? " refreshing" : ""),
       attr: {
         type: "button",
-        title: isCancellable ? "Stop refresh" : "Refresh all feeds",
+        "aria-label": isCancellable ? "Stop refresh" : "Refresh all feeds",
         "aria-labelledby": refreshLabelId,
       },
     });
@@ -1580,10 +1580,7 @@ export class Sidebar {
         cls: "rss-dashboard-feed-processing-indicator",
         text: "⏳",
       });
-      processingIndicator.setAttribute(
-        "title",
-        "Articles being fetched in background",
-      );
+      setTooltip(processingIndicator, "Articles being fetched in background");
     } else if (
       isQueuedForRefresh &&
       !isRefreshProcessing &&
@@ -1594,7 +1591,7 @@ export class Sidebar {
         cls: "rss-dashboard-feed-processing-indicator",
         text: "⏳",
       });
-      processingIndicator.setAttribute("title", "Feed queued for refresh");
+      setTooltip(processingIndicator, "Feed queued for refresh");
     }
 
     feedEl.addEventListener("click", (e) => {
@@ -3512,7 +3509,7 @@ export class Sidebar {
     const addFolderButton = sidebarToolbar.createDiv({
       cls: "rss-dashboard-toolbar-button",
       attr: {
-        title: "Add folder",
+        "aria-label": "Add folder",
       },
     });
     setIcon(addFolderButton, "folder-plus");
@@ -3529,7 +3526,7 @@ export class Sidebar {
     const sortButton = sidebarToolbar.createDiv({
       cls: "rss-dashboard-toolbar-button",
       attr: {
-        title: "Sort folders",
+        "aria-label": "Sort folders",
       },
     });
     setIcon(sortButton, "sort-asc");
@@ -3593,7 +3590,7 @@ export class Sidebar {
     const collapseAllButton = sidebarToolbar.createDiv({
       cls: "rss-dashboard-toolbar-button",
       attr: {
-        title: "Collapse/Expand all Folders",
+        "aria-label": "Collapse/Expand all Folders",
       },
     });
 

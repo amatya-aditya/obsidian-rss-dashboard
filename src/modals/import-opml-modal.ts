@@ -470,7 +470,7 @@ export class ImportOpmlModal extends Modal {
     const nameValidation = isValidFolderName(node.name);
     if (!nameValidation.valid) {
       folderRow.addClass("is-invalid");
-      nameText.setAttr("title", nameValidation.error ?? "Invalid folder name");
+      setTooltip(nameText, nameValidation.error ?? "Invalid folder name");
     }
 
     const edit = nameWrap.createDiv({
@@ -496,10 +496,7 @@ export class ImportOpmlModal extends Modal {
         const validation = isValidFolderName(next);
         if (!validation.valid) {
           input.classList.add("is-invalid");
-          input.setAttribute(
-            "title",
-            validation.error ?? "Invalid folder name",
-          );
+          setTooltip(input, validation.error ?? "Invalid folder name");
           input.focus();
           return;
         }
@@ -629,7 +626,7 @@ export class ImportOpmlModal extends Modal {
     const titleValidation = isValidFeedTitle(feed.title);
     if (!titleValidation.valid && selected && !duplicate) {
       row.addClass("is-invalid");
-      titleText.setAttr("title", titleValidation.error ?? "Invalid feed title");
+      setTooltip(titleText, titleValidation.error ?? "Invalid feed title");
     }
 
     const edit = nameWrap.createDiv({
@@ -655,7 +652,7 @@ export class ImportOpmlModal extends Modal {
         const validation = isValidFeedTitle(next);
         if (!validation.valid) {
           input.classList.add("is-invalid");
-          input.setAttribute("title", validation.error ?? "Invalid feed title");
+          setTooltip(input, validation.error ?? "Invalid feed title");
           input.focus();
           return;
         }

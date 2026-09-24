@@ -1,4 +1,4 @@
-import { App, Notice, TFile, setIcon, Setting, moment } from "obsidian";
+import { App, Notice, TFile, setIcon, Setting, moment, setTooltip } from "obsidian";
 import { FeedItem, ArticleSavingSettings } from "../types/types";
 import { sanitizeFilename } from "./article-saver";
 import { normalizeSubstackImageUrl } from "../utils/substack-image-url";
@@ -86,7 +86,7 @@ export class WebViewerIntegration {
       text: "Save with template",
     });
 
-    saveButton.title = "Save with custom template";
+    setTooltip(saveButton, "Save with custom template");
 
     saveButton.addEventListener("click", () => {
       this.showSaveDialog();

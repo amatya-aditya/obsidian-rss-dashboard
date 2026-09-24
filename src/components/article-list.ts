@@ -1575,7 +1575,7 @@ export class ArticleList {
 
   updateRefreshButtonText(text: string): void {
     if (this.refreshButton) {
-      this.refreshButton.setAttribute("title", text);
+      setTooltip(this.refreshButton, text);
     }
   }
 

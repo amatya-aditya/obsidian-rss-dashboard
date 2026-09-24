@@ -8,6 +8,7 @@ import {
   setIcon,
   Scope,
   type EventRef,
+  setTooltip,
 } from "obsidian";
 import {
   Feed,
@@ -1188,7 +1189,7 @@ export class RssDashboardView extends ItemView {
       cls: "rss-dashboard-filter-subheader-content",
     });
     if (this.keywordFilterTooltip) {
-      subheaderContent.setAttribute("title", this.keywordFilterTooltip);
+      setTooltip(subheaderContent, this.keywordFilterTooltip);
     }
 
     const refreshStatus = this.getCurrentRefreshStatus();
@@ -4249,7 +4250,7 @@ export class RssDashboardView extends ItemView {
 
       const saveButton = actions.createDiv({
         cls: `rss-reader-action-button${this.inlineArticle.saved ? " saved" : ""}`,
-        attr: { title: "Save article" },
+        attr: { "aria-label": "Save article" },
       });
       setIcon(saveButton, "save");
       saveButton.addEventListener("click", () => {
@@ -4260,7 +4261,7 @@ export class RssDashboardView extends ItemView {
 
       const readToggleButton = actions.createDiv({
         cls: `rss-reader-action-button rss-reader-read-toggle${this.inlineArticle.read ? " read" : ""}`,
-        attr: { title: "Mark as read/unread" },
+        attr: { "aria-label": "Mark as read/unread" },
       });
       setIcon(
         readToggleButton,
@@ -4278,7 +4279,7 @@ export class RssDashboardView extends ItemView {
 
       const starToggleButton = actions.createDiv({
         cls: `rss-reader-action-button rss-reader-star-toggle${this.inlineArticle.starred ? " starred" : ""}`,
-        attr: { title: "Star/unstar article" },
+        attr: { "aria-label": "Star/unstar article" },
       });
       setIcon(
         starToggleButton,
@@ -4296,7 +4297,7 @@ export class RssDashboardView extends ItemView {
 
       const browserButton = actions.createDiv({
         cls: "rss-reader-action-button",
-        attr: { title: "Open in Browser" },
+        attr: { "aria-label": "Open in Browser" },
       });
       setIcon(browserButton, "external-link");
       browserButton.addEventListener("click", () => {

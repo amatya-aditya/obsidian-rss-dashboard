@@ -642,7 +642,7 @@ export class DiscoverView extends ItemView {
 
     const sidebarToggleButton = leftSection.createDiv({
       cls: "rss-dashboard-sidebar-toggle clickable-icon",
-      attr: { title: "Toggle filters" },
+      attr: { "aria-label": "Toggle filters" },
     });
     setIcon(sidebarToggleButton, "sidebar");
     sidebarToggleButton.addEventListener("click", () => {

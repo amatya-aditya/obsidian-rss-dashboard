@@ -299,7 +299,7 @@ export function createTagsDropdownPortal(
 
     const addButton = inlineAddRow.createDiv({
       cls: "rss-dashboard-tag-inline-button clickable-icon",
-      attr: { title: "Add tag", role: "button", tabindex: "0" },
+      attr: { "aria-label": "Add tag", role: "button", tabindex: "0" },
     });
     setIcon(addButton, "plus");
 

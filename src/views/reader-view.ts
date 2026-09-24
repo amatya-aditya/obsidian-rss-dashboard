@@ -8,6 +8,7 @@ import {
   requireApiVersion,
   TFile,
   Notice,
+  setTooltip,
 } from "obsidian";
 import { setIcon, Scope } from "obsidian";
 import {
@@ -850,7 +851,7 @@ export class ReaderView extends ItemView {
     // Save button
     this.saveButton = actions.createDiv({
       cls: "rss-reader-action-button",
-      attr: { title: "Save article" },
+      attr: { "aria-label": "Save article" },
     });
 
     setIcon(this.saveButton, "save");
@@ -875,7 +876,7 @@ export class ReaderView extends ItemView {
     // Read toggle button
     this.readToggleButton = actions.createDiv({
       cls: "rss-reader-action-button rss-reader-read-toggle",
-      attr: { title: "Mark as read/unread" },
+      attr: { "aria-label": "Mark as read/unread" },
     });
     setIcon(this.readToggleButton, "circle");
     this.readToggleButton.addEventListener("click", () => {
@@ -887,7 +888,7 @@ export class ReaderView extends ItemView {
     // Star toggle button
     this.starToggleButton = actions.createDiv({
       cls: "rss-reader-action-button rss-reader-star-toggle",
-      attr: { title: "Star/unstar article" },
+      attr: { "aria-label": "Star/unstar article" },
     });
     setIcon(this.starToggleButton, "star-off");
     this.starToggleButton.addEventListener("click", () => {
@@ -949,7 +950,7 @@ export class ReaderView extends ItemView {
     // Open in browser button
     const browserButton = actions.createDiv({
       cls: "rss-reader-action-button",
-      attr: { title: "Open in Browser" },
+      attr: { "aria-label": "Open in Browser" },
     });
     setIcon(browserButton, "external-link");
     browserButton.addEventListener("click", (e) => {
@@ -979,7 +980,7 @@ export class ReaderView extends ItemView {
 
             if (destination.url) {
               const dom = (menuItem as unknown as { dom?: HTMLElement }).dom;
-              dom?.setAttribute("title", destination.url);
+              if (dom) setTooltip(dom, destination.url);
             }
 
             if (destination.id === "apple_podcasts") {
@@ -3022,8 +3023,8 @@ export class ReaderView extends ItemView {
 
     if (this.saveButton) {
       this.saveButton.toggleClass("saved", saved);
-      this.saveButton.setAttr(
-        "title",
+      setTooltip(
+        this.saveButton,
         saved ? "Click to open saved article" : "Save article",
       );
     }
@@ -3440,8 +3441,8 @@ export class ReaderView extends ItemView {
       );
       this.readToggleButton.classList.toggle("read", this.currentItem.read);
       this.readToggleButton.classList.toggle("unread", !this.currentItem.read);
-      this.readToggleButton.setAttr(
-        "title",
+      setTooltip(
+        this.readToggleButton,
         this.currentItem.read ? "Mark as unread" : "Mark as read",
       );
     }
@@ -3460,8 +3461,8 @@ export class ReaderView extends ItemView {
         "unstarred",
         !this.currentItem.starred,
       );
-      this.starToggleButton.setAttr(
-        "title",
+      setTooltip(
+        this.starToggleButton,
         this.currentItem.starred ? "Remove from starred" : "Add to starred",
       );
     }
@@ -3470,8 +3471,8 @@ export class ReaderView extends ItemView {
     if (this.saveButton) {
       const isSaved = Boolean(this.currentItem.saved);
       this.saveButton.toggleClass("saved", isSaved);
-      this.saveButton.setAttr(
-        "title",
+      setTooltip(
+        this.saveButton,
         isSaved ? "Click to open saved article" : "Save article",
       );
     }
