@@ -81,6 +81,7 @@ For a user-facing overview, see the [RSS Dashboard 2.7.0 release notes](docs/rel
 
 #### Starring, tags, and saving
 
+- Fixed an article's read toggle needing two clicks to mark it unread after **Mark page read** marked it read; the first click now marks it unread.
 - Starring an article no longer adds a "Favorite" tag, and unstarring no longer removes one; starring and tagging are now independent. New installs no longer include "Favorite" in the default tag palette, and existing "Favorite" tags are left untouched. See [ADR 0011](docs/adr/0011-decouple-starred-state-from-tags.md). [GH Issue #331](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/331)
 - Fixed saved-note frontmatter breaking when an article's title, author, feed title, or link contained a `"`, which also let a crafted title inject frontmatter keys. [GH Issue #286](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/286)
 - Fixed turning off **Import labels as tags** in the starred import preview leaving label chips visible on each row, and discarding tags you had added by hand. [GH Issue #234](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/234)
