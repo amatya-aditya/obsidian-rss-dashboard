@@ -122,7 +122,7 @@ function normalizeFolderPath(path: string): string {
  * Obsidian Sync and most file-sync tools skip files and folders whose name
  * begins with ".", so shards under such a path never reach other devices.
  */
-function isHiddenFromSync(folderPath: string): boolean {
+export function isHiddenFromSync(folderPath: string): boolean {
   return normalizeFolderPath(folderPath)
     .split("/")
     .some(segment => segment.startsWith("."));

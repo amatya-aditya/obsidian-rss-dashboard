@@ -26,11 +26,12 @@ import {
   type StorageTransitionAction,
   type StorageTransitionOptions,
 } from "../modals/storage-settings-modals";
-import type {
-  FeedStorageStatus,
-  RepairPreview,
-  RepairResult,
-  ShardFolderDeletionError,
+import {
+  isHiddenFromSync,
+  type FeedStorageStatus,
+  type RepairPreview,
+  type RepairResult,
+  type ShardFolderDeletionError,
 } from "../../services/feed-storage-repository";
 
 interface StorageSettingsPlugin {
@@ -64,6 +65,33 @@ interface StorageSettingsPlugin {
   openStorageFolderInSystem(folderPath?: string): Promise<void>;
   migrateMetadataToVaultLocation(): Promise<void>;
   revertMetadataToPluginDefault(): Promise<void>;
+}
+
+/**
+ * Shard storage v2 keeps article state in `user-state.json` inside the
+ * metadata folder, not the storage folder (ADR 0004). Returns a hint when the
+ * feeds sync (visible storage folder) but that state file does not (hidden
+ * metadata folder), otherwise null.
+ */
+export function getHiddenUserStateHint(
+  settings: Pick<
+    RssDashboardSettings,
+    "storageMode" | "storageFolder" | "metadataStorageFolder"
+  >,
+): string | null {
+  if (settings.storageMode !== "vault-shards-v2") {
+    return null;
+  }
+  const metadataFolder =
+    settings.metadataStorageFolder.trim().replace(/^\/+|\/+$/g, "") ||
+    ".rss-dashboard-data";
+  if (
+    isHiddenFromSync(settings.storageFolder) ||
+    !isHiddenFromSync(metadataFolder)
+  ) {
+    return null;
+  }
+  return `Your feeds sync, but read, starred, and tag state (user-state.json) stays in the hidden folder ${metadataFolder}, which sync tools skip. To sync it too, set Metadata data.json location to a folder without a leading '.'.`;
 }
 
 function storageLog(_message: string, _details?: unknown): void {}
@@ -130,6 +158,13 @@ export function renderStorageSettingsTab(
       migrationState,
       status.lastRepairResult,
     ].join(" • ");
+  };
+
+  const noticeHiddenUserState = (): void => {
+    const hint = getHiddenUserStateHint(plugin.settings);
+    if (hint) {
+      new Notice(hint, 15000);
+    }
   };
 
   const runShardDeletionFailureFlow = async (
@@ -446,6 +481,7 @@ export function renderStorageSettingsTab(
                 new Notice(
                   `Storage folder updated to "${pendingStorageFolder}".`,
                 );
+                noticeHiddenUserState();
               } catch (error) {
                 storageError("Storage folder apply failed", error, {
                   pendingStorageFolder,
@@ -509,6 +545,7 @@ export function renderStorageSettingsTab(
                 } else {
                   new Notice("Vault storage v2 migration completed.");
                 }
+                noticeHiddenUserState();
               } else {
                 if (action === "apply-delete-shards") {
                   try {
@@ -791,6 +828,14 @@ export function renderStorageSettingsTab(
           pendingMetadataStorageFolder = value;
         });
     });
+
+  const hiddenStateHint = getHiddenUserStateHint(plugin.settings);
+  if (hiddenStateHint) {
+    containerEl.createDiv({
+      cls: "setting-item-description rss-dashboard-hidden-user-state-hint",
+      text: hiddenStateHint,
+    });
+  }
 
   new Setting(containerEl)
     .setName("Metadata actions")
