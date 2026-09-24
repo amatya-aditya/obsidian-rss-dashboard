@@ -28,7 +28,6 @@ import { VideoPlayer } from "../views/video-player";
 const VIDEO_ARTICLE_BANNER =
   "This item appears to be a video. Open the source page to watch.";
 const VIDEO_ARTICLE_LINK_TEXT = "Open video at source";
-const FEED_DESCRIPTION_UNAVAILABLE_TEXT = "No feed description available.";
 
 export interface ArticleRendererOptions {
   app: App;
@@ -322,7 +321,7 @@ export class ArticleRenderer {
       (!hasMeaningfulDescription ||
         !this.isEquivalentHtml(mainHtml, descriptionHtml));
 
-    if (hasDistinctMainContent) {
+    if (hasDistinctMainContent && hasMeaningfulDescription) {
       const descriptionCallout = container.createEl("details", {
         cls: "rss-reader-description-callout",
       });
@@ -331,20 +330,16 @@ export class ArticleRenderer {
       const descriptionBody = descriptionCallout.createDiv({
         cls: "rss-reader-description rss-reader-description-body",
       });
-      if (hasMeaningfulDescription) {
-        this.populateArticleHtml(
-          descriptionBody,
-          descriptionHtml,
-          item.link,
-          fallbackHeroUrl,
-          displayTitle,
-          heroSlot,
-          false,
-          undefined,
-        );
-      } else {
-        descriptionBody.setText(FEED_DESCRIPTION_UNAVAILABLE_TEXT);
-      }
+      this.populateArticleHtml(
+        descriptionBody,
+        descriptionHtml,
+        item.link,
+        fallbackHeroUrl,
+        displayTitle,
+        heroSlot,
+        false,
+        undefined,
+      );
     }
 
     const contentToRender = hasDistinctMainContent

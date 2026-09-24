@@ -245,7 +245,7 @@ describe("ArticleRenderer – summary de-duplication", () => {
     expect(body).toBeTruthy();
   });
 
-  it("shows a placeholder in the feed description callout when the description is missing", async () => {
+  it("omits the feed description callout when the description is missing", async () => {
     const item = makeItem({
       description: "",
       content: "<p>Extended body paragraph that should still render in the article body.</p>",
@@ -253,26 +253,16 @@ describe("ArticleRenderer – summary de-duplication", () => {
 
     await renderer.render(container, item);
 
-    const callout = container.querySelector<HTMLElement>(
-      ".rss-reader-description-callout",
-    );
-    const descriptionBody = container.querySelector<HTMLElement>(
-      ".rss-reader-description-body",
-    );
-    const body = container.querySelector<HTMLElement>(
-      ".rss-reader-article-content",
-    );
+    const body = container.querySelector<HTMLElement>(".rss-reader-article-content");
 
-    expect(callout).toBeTruthy();
-    expect(descriptionBody?.textContent || "").toContain(
-      "No feed description available.",
-    );
+    expect(container.querySelector(".rss-reader-description-callout")).toBeNull();
+    expect(container.textContent || "").not.toContain("No feed description available.");
     expect(body?.textContent || "").toContain(
       "Extended body paragraph that should still render in the article body.",
     );
   });
 
-  it("shows the placeholder when the feed description is only an ellipsis placeholder", async () => {
+  it("omits the feed description callout when the description is only an ellipsis placeholder", async () => {
     const item = makeItem({
       description: "<p>...</p>",
       content: "<p>Extended body paragraph that should still render in the article body.</p>",
@@ -280,12 +270,11 @@ describe("ArticleRenderer – summary de-duplication", () => {
 
     await renderer.render(container, item);
 
-    const descriptionBody = container.querySelector<HTMLElement>(
-      ".rss-reader-description-body",
-    );
+    const body = container.querySelector<HTMLElement>(".rss-reader-article-content");
 
-    expect(descriptionBody?.textContent || "").toContain(
-      "No feed description available.",
+    expect(container.querySelector(".rss-reader-description-callout")).toBeNull();
+    expect(body?.textContent || "").toContain(
+      "Extended body paragraph that should still render in the article body.",
     );
   });
 

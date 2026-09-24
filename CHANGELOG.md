@@ -80,6 +80,10 @@ For a user-facing overview, see the [RSS Dashboard 2.7.0 release notes](docs/rel
 - **Open in browser** and **Copy article URL** are now hidden from the article context menu for articles with no link, instead of opening a blank tab or copying an empty string.
 - Removed the Nitter integration and automatic X/Twitter-to-Nitter feed conversion, following the [shutdown of Nitter](https://github.com/zedeus/nitter) on August 24, 2026. Adding an `x.com`, `twitter.com`, or `nitter.*` URL now explains this and suggests a third-party RSS bridge such as RSSHub.
 
+#### Reader
+
+- The reader no longer shows a **Feed description** box reading "No feed description available." when an article's feed supplies no usable description; the article body now follows the header directly. [GH Issue #247](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/247)
+
 #### Starring, tags, and saving
 
 - Fixed an article's read toggle needing two clicks to mark it unread after **Mark page read** marked it read; the first click now marks it unread.
