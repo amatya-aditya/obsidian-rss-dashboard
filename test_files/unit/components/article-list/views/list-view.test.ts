@@ -52,7 +52,7 @@ describe("list-view", () => {
     const dateEl = container.querySelector(".rss-dashboard-article-date");
     expect(dateEl?.textContent).not.toMatch(/Invalid date/i);
     expect(dateEl?.textContent).toMatch(/\*$/);
-    expect(dateEl?.getAttribute("title")).toContain("First seen:");
+    expect(dateEl?.getAttribute("aria-label")).toContain("First seen:");
   });
 
   it("shows 'Unknown date', not the first-seen date, in the date badge when pubDate is empty and the fallback setting is off", () => {
@@ -71,7 +71,7 @@ describe("list-view", () => {
     const dateEl = container.querySelector(".rss-dashboard-article-date");
     expect(dateEl?.textContent).toBe("Unknown date");
     expect(dateEl?.textContent).not.toMatch(/\*$/);
-    expect(dateEl?.getAttribute("title")).not.toContain("First seen:");
+    expect(dateEl?.getAttribute("aria-label")).not.toContain("First seen:");
   });
 
   it("schedules math rendering for a list title while preserving its source", () => {

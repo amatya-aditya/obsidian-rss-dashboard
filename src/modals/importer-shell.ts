@@ -1,4 +1,4 @@
-import { setIcon } from "obsidian";
+import { setIcon, setTooltip } from "obsidian";
 
 export type ImporterShellState =
   | "idle"
@@ -157,7 +157,11 @@ export class ImporterShell<TParsed, TModel extends ImporterPreviewModel> {
     this.actionButton.textContent = action.text;
     this.actionButton.disabled = action.disabled || this.state === "executing";
     this.actionButton.classList.toggle("is-disabled", this.actionButton.disabled);
-    this.actionButton.title = action.title ?? "";
+    if (action.title) {
+      setTooltip(this.actionButton, action.title);
+    } else {
+      this.actionButton.removeAttribute("aria-label");
+    }
   }
 
   private openFilePicker(): void {

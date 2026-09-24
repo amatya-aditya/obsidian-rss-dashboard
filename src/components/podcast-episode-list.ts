@@ -54,7 +54,7 @@ export class PodcastEpisodeList {
     const autoplayLabel = autoplayRow.createEl("label", {
       cls: "podcast-autoplay-container",
       attr: {
-        title: "Continues in the current feed and selected episode order",
+        "aria-label": "Continues in the current feed and selected episode order",
       },
     });
     const autoplayCheckbox = autoplayLabel.createEl("input", {
@@ -183,7 +183,7 @@ export class PodcastEpisodeList {
       tagsWrap.createSpan({
         cls: "episode-list-row-tag episode-list-row-tag-more",
         text: `+${tags.length - 3}`,
-        attr: { title: remainingTags, "aria-label": remainingTags },
+        attr: { "aria-label": remainingTags },
       });
     }
   }

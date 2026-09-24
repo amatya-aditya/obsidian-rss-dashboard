@@ -1,4 +1,5 @@
 import type { Feed, FeedItem, Tag } from "../types/types";
+import { DEFAULT_TAG_COLOR } from "../utils/tag-colors";
 import { isOpenableHttpUrl } from "../utils/url-utils";
 
 /**
@@ -129,17 +130,6 @@ const READ_CATEGORY_SUFFIX = "/state/com.google/read";
 const LABEL_CATEGORY_MARKER = "/label/";
 
 /**
- * Default color applied to a label-derived tag that does not already exist in
- * `settings.availableTags`. Matches the fixed default color offered to the
- * user when manually creating a tag elsewhere in the plugin (see the color
- * picker defaults in `src/settings/tabs/tags-settings-tab.ts` and
- * `src/components/sidebar.ts`'s "Add new tag" modal). Kept as a local
- * constant, rather than importing a shared helper, because this module must
- * stay free of any Obsidian API dependency.
- */
-export const DEFAULT_LABEL_TAG_COLOR = "#3498db";
-
-/**
  * Strips the Google-Reader-API `feed/` stream-id prefix, if present, so the
  * remaining value can be compared against a plugin `Feed.url`.
  */
@@ -219,7 +209,7 @@ function extractLabelNames(item: StarredJsonItem): string[] {
 /**
  * Resolves an item's label names to `Tag` objects, preferring the color of
  * an already-known tag (case-insensitive name match) and otherwise falling
- * back to `DEFAULT_LABEL_TAG_COLOR`. `newTagsByLowerName` is shared across a
+ * back to `DEFAULT_TAG_COLOR`. `newTagsByLowerName` is shared across a
  * single `mapStarredExportToCandidates` call so that two items referencing
  * the same brand-new label within one import batch get the identical `Tag`
  * object (same color) rather than two independently-colored ones.
@@ -248,7 +238,7 @@ function resolveLabelTags(
 
     let newTag = newTagsByLowerName.get(lowerName);
     if (!newTag) {
-      newTag = { name, color: DEFAULT_LABEL_TAG_COLOR };
+      newTag = { name, color: DEFAULT_TAG_COLOR };
       newTagsByLowerName.set(lowerName, newTag);
     }
     tags.push(newTag);
@@ -336,7 +326,7 @@ function toFeedItem(
  * `.../label/X` categories become `Tag` entries on the resulting `FeedItem`
  * (`candidate.item.tags`), reusing the color of a matching entry in
  * `availableTags` (case-insensitive name match) when one exists, or
- * `DEFAULT_LABEL_TAG_COLOR` otherwise. `.../state/com.google/starred` and
+ * `DEFAULT_TAG_COLOR` otherwise. `.../state/com.google/starred` and
  * `.../state/com.google/read` only ever set the `starred`/`read` booleans,
  * and `.../state/com.google/reading-list` is ignored entirely — neither
  * produces a tag.

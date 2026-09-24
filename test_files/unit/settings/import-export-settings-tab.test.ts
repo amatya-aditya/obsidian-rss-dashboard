@@ -204,7 +204,7 @@ describe("Auto Backup Helpers", () => {
       renderImportExportSettingsTab(containerEl, plugin as unknown as RssDashboardPlugin);
 
       const copyButton = containerEl.querySelector<HTMLButtonElement>(
-        'button[title="Copy shard data to clipboard"]',
+        'button[aria-label="Copy shard data to clipboard"]',
       );
       expect(copyButton).not.toBeNull();
 
@@ -238,7 +238,7 @@ describe("Auto Backup Helpers", () => {
       renderImportExportSettingsTab(containerEl, plugin as unknown as RssDashboardPlugin);
 
       const copyButton = containerEl.querySelector<HTMLButtonElement>(
-        'button[title="Copy feed bundle to clipboard"]',
+        'button[aria-label="Copy feed bundle to clipboard"]',
       );
       expect(copyButton).not.toBeNull();
 
@@ -291,7 +291,7 @@ describe("Auto Backup Helpers", () => {
       renderImportExportSettingsTab(containerEl, plugin as unknown as RssDashboardPlugin);
 
       const copyButton = containerEl.querySelector<HTMLButtonElement>(
-        'button[title="Copy settings bundle to clipboard"]',
+        'button[aria-label="Copy settings bundle to clipboard"]',
       );
       expect(copyButton).not.toBeNull();
 
@@ -351,7 +351,7 @@ describe("Auto Backup Helpers", () => {
       expect(plugin.exportUserSettingsJson).toHaveBeenCalledTimes(1);
 
       const copyButton = containerEl.querySelector<HTMLButtonElement>(
-        'button[title="Copy user preferences to clipboard"]',
+        'button[aria-label="Copy user preferences to clipboard"]',
       );
       expect(copyButton).not.toBeNull();
       copyButton?.click();

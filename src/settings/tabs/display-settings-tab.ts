@@ -5,7 +5,7 @@
  * Exports:
  *   - renderDisplaySettingsTab(containerEl, plugin, onRefresh) — main render fn
  */
-import { Modal, Notice, Setting, setIcon } from "obsidian";
+import { Modal, Notice, Setting, setIcon, setTooltip } from "obsidian";
 import RssDashboardPlugin from "../../../main";
 import {
   DEFAULT_SETTINGS,
@@ -493,7 +493,7 @@ export function renderDisplaySettingsTab(
       const initial = formatStartupFiltersButton();
       btn.setButtonText(initial.text);
       if (initial.tooltip) {
-        btn.buttonEl.setAttribute("title", initial.tooltip);
+        setTooltip(btn.buttonEl, initial.tooltip);
       }
 
       const openMenu = () => {
@@ -893,9 +893,9 @@ export function renderDisplaySettingsTab(
             const updated = formatStartupFiltersButton();
             btn.setButtonText(updated.text);
             if (updated.tooltip) {
-              btn.buttonEl.setAttribute("title", updated.tooltip);
+              setTooltip(btn.buttonEl, updated.tooltip);
             } else {
-              btn.buttonEl.removeAttribute("title");
+              btn.buttonEl.removeAttribute("aria-label");
             }
 
             const view = await plugin.getActiveDashboardView();

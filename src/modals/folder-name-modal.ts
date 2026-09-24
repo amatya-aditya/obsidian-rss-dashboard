@@ -54,7 +54,6 @@ export class FolderNameModal extends Modal {
       attr: {
         type: "button",
         "aria-label": "Clear folder name",
-        title: "Clear",
       },
     });
     setIcon(clearInputButton, "x");

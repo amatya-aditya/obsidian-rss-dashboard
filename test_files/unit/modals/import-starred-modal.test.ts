@@ -1378,6 +1378,248 @@ describe("ImportStarredModal", () => {
       expect(importedItem?.tags?.map((t) => t.name)).toEqual(["inoreader"]);
     });
 
+    it("editing a tag's color through the portal recolors that tag's chip in the preview and on the imported article", async () => {
+      const { settings, content } = await setUpModal();
+
+      const control = getItemTagsControl(content, labeledGuid);
+      control.click();
+      const call = createTagsDropdownPortalMock.mock.calls[0][0] as {
+        item: { tags?: Tag[] };
+        onTagEdited?: (previous: Tag, updated: Tag) => void;
+      };
+      const previous = call.item.tags!.find((t) => t.name === "Design")!;
+      expect(call.onTagEdited).toBeTypeOf("function");
+      call.onTagEdited?.(
+        { ...previous },
+        { name: "Design", color: "#00ff00" },
+      );
+
+      const designChip = Array.from(
+        getItemTagsControl(content, labeledGuid).querySelectorAll<HTMLElement>(
+          ".rss-dashboard-tag-badge",
+        ),
+      ).find((el) => el.textContent === "Design");
+      expect(designChip?.style.getPropertyValue("--tag-color")).toBe(
+        "#00ff00",
+      );
+
+      content
+        .querySelector<HTMLButtonElement>(
+          ".rss-dashboard-modal-buttons .rss-dashboard-primary-button",
+        )!
+        .click();
+      await flushPromises();
+
+      const importedItem = settings.feeds
+        .flatMap((feed) => feed.items)
+        .find((item) => item.guid === labeledGuid);
+      expect(
+        importedItem?.tags?.find((t) => t.name === "Design")?.color,
+      ).toBe("#00ff00");
+      expect(
+        settings.availableTags.find((t) => t.name === "Design")?.color,
+      ).toBe("#00ff00");
+    });
+
+    it("the 'New tags (N)' section shows each new tag as a colored chip that recolors in place when the tag is edited", async () => {
+      const { content } = await setUpModal();
+
+      const newTagChip = (name: string) =>
+        Array.from(
+          getNewTagsSection(content)!.querySelectorAll<HTMLElement>(
+            ".rss-dashboard-tag-badge",
+          ),
+        ).find((el) => el.textContent === name);
+
+      getItemTagsControl(content, labeledGuid).click();
+      const call = createTagsDropdownPortalMock.mock.calls[0][0] as {
+        item: { tags?: Tag[] };
+        onTagEdited?: (previous: Tag, updated: Tag) => void;
+      };
+      const previous = call.item.tags!.find((t) => t.name === "Design")!;
+      expect(newTagChip("Design")?.style.getPropertyValue("--tag-color")).toBe(
+        previous.color,
+      );
+
+      call.onTagEdited?.(
+        { ...previous },
+        { name: "Design", color: "#00ff00" },
+      );
+
+      expect(newTagChip("Design")?.style.getPropertyValue("--tag-color")).toBe(
+        "#00ff00",
+      );
+    });
+
+    it("clicking a chip in the 'New tags (N)' section opens the tag editor, and saving recolors it there and on every article row", async () => {
+      vi.spyOn(console, "debug").mockImplementation(() => {});
+      const { content } = await setUpModal();
+
+      const newTagChip = (name: string) =>
+        Array.from(
+          getNewTagsSection(content)!.querySelectorAll<HTMLElement>(
+            ".rss-dashboard-tag-badge",
+          ),
+        ).find((el) => el.textContent === name);
+
+      newTagChip("Design")!.click();
+      document.querySelector<HTMLInputElement>(
+        ".rss-dashboard-tag-modal-color-picker",
+      )!.value = "#00ff00";
+      document
+        .querySelector<HTMLButtonElement>(
+          ".rss-dashboard-tag-modal-form .rss-dashboard-primary-button",
+        )!
+        .click();
+      await flushPromises();
+
+      expect(document.querySelector(".rss-dashboard-tag-modal-form")).toBeNull();
+      expect(newTagChip("Design")?.style.getPropertyValue("--tag-color")).toBe(
+        "#00ff00",
+      );
+      const rowChip = Array.from(
+        getItemTagsControl(content, labeledGuid).querySelectorAll<HTMLElement>(
+          ".rss-dashboard-tag-badge",
+        ),
+      ).find((el) => el.textContent === "Design");
+      expect(rowChip?.style.getPropertyValue("--tag-color")).toBe("#00ff00");
+    });
+
+    describe("'New tags (N)' color buttons", () => {
+      const newTagChipColors = (content: HTMLElement) =>
+        Object.fromEntries(
+          Array.from(
+            getNewTagsSection(content)!.querySelectorAll<HTMLElement>(
+              ".rss-dashboard-tag-badge",
+            ),
+          ).map((el) => [
+            el.textContent,
+            el.style.getPropertyValue("--tag-color"),
+          ]),
+        );
+      const rowChipColor = (content: HTMLElement, name: string) =>
+        Array.from(
+          getItemTagsControl(content, labeledGuid).querySelectorAll<HTMLElement>(
+            ".rss-dashboard-tag-badge",
+          ),
+        )
+          .find((el) => el.textContent === name)
+          ?.style.getPropertyValue("--tag-color");
+      const button = (content: HTMLElement, cls: string) =>
+        getNewTagsSection(content)!.querySelector<HTMLElement>(cls)!;
+
+      it("shows palette, dice, and reset buttons, in that order, on the heading line", async () => {
+        const { content } = await setUpModal();
+        const actions = getNewTagsSection(content)!.querySelector(
+          ".import-new-tags-header .import-new-tags-actions",
+        );
+        expect(
+          Array.from(actions?.children ?? []).map(
+            (el) =>
+              el.getAttribute("aria-label") ??
+              el.querySelector("[aria-label]")?.getAttribute("aria-label"),
+          ),
+        ).toEqual([
+          "Set one color for all new tags",
+          "Randomize tag colors",
+          "Reset tag colors",
+        ]);
+      });
+
+      it("gives each chip and button a single tooltip source (aria-label, never also title)", async () => {
+        const { content } = await setUpModal();
+        const section = getNewTagsSection(content)!;
+        const labelled = Array.from(
+          section.querySelectorAll<HTMLElement>("[aria-label]"),
+        );
+        expect(labelled.length).toBeGreaterThan(0);
+        labelled.forEach((el) => {
+          expect(el.hasAttribute("title")).toBe(false);
+          expect(el.parentElement?.closest("[aria-label]")).toBeNull();
+        });
+      });
+
+      it("reset sets every new tag back to the default color, on the chips and the article rows", async () => {
+        const { content } = await setUpModal();
+        button(content, ".import-new-tags-randomize").click();
+        expect(Object.values(newTagChipColors(content))).not.toContain(
+          "#8a5cf5",
+        );
+
+        button(content, ".import-new-tags-reset").click();
+
+        expect(newTagChipColors(content)).toEqual({
+          Design: "#8a5cf5",
+          art: "#8a5cf5",
+        });
+        expect(rowChipColor(content, "Design")).toBe("#8a5cf5");
+      });
+
+      it("dice gives the new tags fresh, distinct colors, on the chips and the article rows", async () => {
+        const { content } = await setUpModal();
+        const before = newTagChipColors(content);
+
+        button(content, ".import-new-tags-randomize").click();
+
+        const after = newTagChipColors(content);
+        expect(after.Design).not.toBe(before.Design);
+        expect(after.Design).not.toBe(after.art);
+        expect(rowChipColor(content, "Design")).toBe(after.Design);
+      });
+
+      it("the palette picker applies one chosen color to every new tag when it closes", async () => {
+        const { content } = await setUpModal();
+        const picker = button(content, ".import-new-tags-set-color input[type='color']");
+        expect(picker.getAttribute("value") ?? (picker as HTMLInputElement).value).toBe("#8a5cf5");
+
+        (picker as HTMLInputElement).value = "#123456";
+        picker.dispatchEvent(new Event("change"));
+
+        expect(newTagChipColors(content)).toEqual({
+          Design: "#123456",
+          art: "#123456",
+        });
+        expect(rowChipColor(content, "Design")).toBe("#123456");
+      });
+
+      it("the palette picker opens on the tags' shared color, or the default when they differ", async () => {
+        const { content } = await setUpModal();
+        const pickerValue = () =>
+          button(
+            content,
+            ".import-new-tags-set-color input[type='color']",
+          ) as HTMLInputElement;
+
+        const picker = pickerValue();
+        picker.value = "#123456";
+        picker.dispatchEvent(new Event("change"));
+        expect(pickerValue().value).toBe("#123456");
+
+        button(content, ".import-new-tags-randomize").click();
+        expect(pickerValue().value).toBe("#8a5cf5");
+      });
+    });
+
+    it("editing a tag that already exists in the palette updates the palette entry and saves settings", async () => {
+      const base = cloneSettings();
+      base.availableTags = [{ name: "Design", color: "#111111" }];
+      const { plugin, settings, content } = await setUpModal(base);
+
+      getItemTagsControl(content, labeledGuid).click();
+      const call = createTagsDropdownPortalMock.mock.calls[0][0] as {
+        onTagEdited?: (previous: Tag, updated: Tag) => void;
+      };
+      call.onTagEdited?.(
+        { name: "Design", color: "#111111" },
+        { name: "Design", color: "#00ff00" },
+      );
+
+      expect(settings.availableTags).toEqual([
+        { name: "Design", color: "#00ff00" },
+      ]);
+      expect(plugin.saveSettings).toHaveBeenCalled();
+    });
+
     it("removing a tag through the portal removes it from the underlying candidate article", async () => {
       const { content } = await setUpModal();
 

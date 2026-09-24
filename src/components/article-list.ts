@@ -1,4 +1,4 @@
-import { Notice, setIcon } from "obsidian";
+import { Notice, setIcon, setTooltip } from "obsidian";
 import {
   ArticleGroupByOption,
   FeedItem,
@@ -1026,10 +1026,7 @@ export class ArticleList {
     if (readToggle) {
       readToggle.classList.toggle("read", !!article.read);
       readToggle.classList.toggle("unread", !article.read);
-      readToggle.setAttr(
-        "title",
-        article.read ? "Mark as unread" : "Mark as read",
-      );
+      setTooltip(readToggle, article.read ? "Mark as unread" : "Mark as read");
       setIcon(readToggle, article.read ? "check-circle" : "circle");
     }
 
@@ -1038,8 +1035,8 @@ export class ArticleList {
     );
     if (saveToggle) {
       saveToggle.classList.toggle("saved", !!article.saved);
-      saveToggle.setAttr(
-        "title",
+      setTooltip(
+        saveToggle,
         article.saved
           ? "Click to open saved article"
           : this.settings.articleSaving.saveFullContent
@@ -1054,8 +1051,8 @@ export class ArticleList {
     if (starToggle) {
       starToggle.classList.toggle("starred", !!article.starred);
       starToggle.classList.toggle("unstarred", !article.starred);
-      starToggle.setAttr(
-        "title",
+      setTooltip(
+        starToggle,
         article.starred ? "Remove from starred items" : "Add to starred items",
       );
       const starIcon = starToggle.querySelector<HTMLElement>(
@@ -1578,7 +1575,7 @@ export class ArticleList {
 
   updateRefreshButtonText(text: string): void {
     if (this.refreshButton) {
-      this.refreshButton.setAttribute("title", text);
+      setTooltip(this.refreshButton, text);
     }
   }
 

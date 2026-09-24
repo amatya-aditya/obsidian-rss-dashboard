@@ -210,7 +210,7 @@ describe("MobileNavigationModal", () => {
       // Simulate the icon element that Sidebar.render() creates
       const icon = createEl("button");
       icon.className = "rss-dashboard-all-feeds-icon";
-      icon.setAttribute("title", "Refresh all feeds");
+      icon.setAttribute("aria-label", "Refresh all feeds");
       modal.contentEl
         .querySelector(".rss-dashboard-sidebar-container")!
         .appendChild(icon);
@@ -233,7 +233,7 @@ describe("MobileNavigationModal", () => {
 
         expect(icon.classList.contains("stop")).toBe(false);
         expect(icon.classList.contains("refreshing")).toBe(false);
-        expect(icon.getAttribute("title")).toBe("Refresh all feeds");
+        expect(icon.getAttribute("aria-label")).toBe("Refresh all feeds");
         expect(icon.dataset.icon).toBe("refresh-cw");
       } finally {
         modal?.close();
@@ -257,7 +257,7 @@ describe("MobileNavigationModal", () => {
 
         expect(icon.classList.contains("refreshing")).toBe(true);
         expect(icon.classList.contains("stop")).toBe(false);
-        expect(icon.getAttribute("title")).toBe("Refresh all feeds");
+        expect(icon.getAttribute("aria-label")).toBe("Refresh all feeds");
         expect(icon.dataset.icon).toBe("refresh-cw");
       } finally {
         modal?.close();
@@ -281,7 +281,7 @@ describe("MobileNavigationModal", () => {
 
         expect(icon.classList.contains("stop")).toBe(true);
         expect(icon.classList.contains("refreshing")).toBe(false);
-        expect(icon.getAttribute("title")).toBe("Stop refresh");
+        expect(icon.getAttribute("aria-label")).toBe("Stop refresh");
         expect(icon.dataset.icon).toBe("square-stop");
       } finally {
         modal?.close();

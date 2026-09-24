@@ -7,7 +7,7 @@
  *   - isHighlightWordDuplicate(words, text, excludeIndex?)  — testable pure helper
  *   - buildDefaultHighlights()                              — testable pure helper
  */
-import { Notice, Setting } from "obsidian";
+import { Notice, Setting, setTooltip } from "obsidian";
 import RssDashboardPlugin from "../../../main";
 import { HighlightWordEditModal, ConfirmDeleteModal } from "../modals/settings-modals";
 
@@ -326,7 +326,7 @@ export function renderHighlightsSettingsTab(
         );
 
       wordSetting.nameEl.addClass("rss-dashboard-highlight-word-name-click");
-      wordSetting.nameEl.setAttr("title", `Edit "${word.text}"`);
+      setTooltip(wordSetting.nameEl, `Edit "${word.text}"`);
       wordSetting.nameEl.addEventListener("click", openEditModal);
     });
   }
