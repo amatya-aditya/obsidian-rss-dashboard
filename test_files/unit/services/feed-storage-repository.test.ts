@@ -2241,6 +2241,61 @@ describe("removing a feed deletes its shard file", () => {
     ).toBe(true);
   });
 
+  describe("the previous storage folder after a folder change", () => {
+    const adapter = () =>
+      app.vault.adapter as unknown as {
+        exists: (path: string) => Promise<boolean>;
+        write: (path: string, content: string) => Promise<void>;
+      };
+
+    async function moveFeeds(from: string, to: string, extraFile?: string) {
+      const settings = cloneSettings();
+      settings.storageMode = "vault-shards-v2";
+      settings.storageFolder = from;
+      settings.metadataStorageFolder = ".rss-dashboard-data";
+      settings.feeds = [makeFeed({ feedId: "feed-1" })];
+      await repository.persistSettings(settings, saveData);
+      if (extraFile) await adapter().write(extraFile, "user content");
+
+      settings.storageFolder = to;
+      await repository.persistSettings(settings, saveData);
+    }
+
+    it("is removed once the move leaves it empty", async () => {
+      await moveFeeds(".rss-dashboard-data/feeds", ".rss-test/feeds");
+
+      expect(await adapter().exists(".rss-dashboard-data/feeds")).toBe(false);
+      expect(await adapter().exists(".rss-test/feeds/feed-1.json")).toBe(true);
+    });
+
+    it("keeps its parent while the parent still holds user-state.json", async () => {
+      await moveFeeds(
+        ".rss-dashboard-data/feeds",
+        ".rss-test/feeds",
+        ".rss-dashboard-data/user-state.json",
+      );
+
+      expect(await adapter().exists(".rss-dashboard-data/user-state.json")).toBe(true);
+      expect(await adapter().exists(".rss-dashboard-data")).toBe(true);
+    });
+
+    it("removes a parent folder the move left empty", async () => {
+      await moveFeeds(".rss-test/feeds", ".rss-test2/feeds");
+
+      expect(await adapter().exists(".rss-test")).toBe(false);
+    });
+
+    it("is kept when it still contains a file that is not a moved shard", async () => {
+      await moveFeeds(
+        ".rss-dashboard-data/feeds",
+        ".rss-test/feeds",
+        ".rss-dashboard-data/feeds/notes.txt",
+      );
+
+      expect(await adapter().exists(".rss-dashboard-data/feeds/notes.txt")).toBe(true);
+    });
+  });
+
   it("still trashes an indexed shard through the file manager", async () => {
     const settings = cloneSettings();
     settings.storageMode = "vault-shards-v2";

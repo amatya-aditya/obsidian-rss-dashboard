@@ -726,6 +726,10 @@ export class FeedStorageRepository {
       }
     }
 
+    if (storageFolderChanged && this.lastStorageFolderPath) {
+      await this.removeFolderIfEmpty(this.lastStorageFolderPath);
+    }
+
     for (const previousFeedId of [
       ...this.lastPersistedShardJsonByFeedId.keys(),
     ]) {
@@ -1452,6 +1456,29 @@ export class FeedStorageRepository {
     storageLog("Deleted shard storage folder", {
       folderPath,
     });
+  }
+
+  /**
+   * Removes a previous storage folder once a folder change has moved every
+   * shard out of it, then any parent the removal left empty. A folder that
+   * still holds anything (a shard skipped because its feed never loaded,
+   * `user-state.json`, or a user's own file) is kept.
+   */
+  private async removeFolderIfEmpty(folderPath: string): Promise<void> {
+    if (!(await this.app.vault.adapter.exists(folderPath))) return;
+    const { files, folders } = await this.app.vault.adapter.list(folderPath);
+    if (files.length > 0 || folders.length > 0) return;
+
+    try {
+      await this.app.vault.adapter.rmdir(folderPath, false);
+    } catch (error) {
+      storageError("Failed to remove previous storage folder", error, {
+        folderPath,
+      });
+      return;
+    }
+    storageLog("Removed empty previous storage folder", { folderPath });
+    await this.pruneEmptyParentFolders(folderPath);
   }
 
   private async pruneEmptyParentFolders(folderPath: string): Promise<void> {
