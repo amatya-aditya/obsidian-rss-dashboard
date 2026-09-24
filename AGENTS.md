@@ -91,7 +91,8 @@ Before handing off a code change, run the relevant checks and report their resul
 
 - Run ESLint for every changed TypeScript file, or `npm run lint` when practical.
 - Run `npm run check:platform` whenever a `src/` TypeScript file changes.
-- Run the focused unit tests covering the change; run `npm run test:unit` when the change has broad impact.
+- Run the focused unit tests covering the change (`npm exec -- vitest related --run <changed files>` selects them from the import graph); run `npm run test:unit` when the change has broad impact.
+- The pre-commit hook lints only staged files and runs only their related tests; the pre-push hook runs `npm run build` and the full unit suite. A passing commit hook is not full validation. See **Git Hooks** in `CONTRIBUTING.md`.
 - Run TypeScript type-checking for TypeScript changes.
 - Use `npm run build` for the repository's complete validation, or invoke the compiler directly as `tsc --noEmit --skipLibCheck`.
 - If using `npm exec`, separate forwarded compiler arguments with `--` (for example, `npm exec -- tsc --noEmit --skipLibCheck`); never use `npm exec tsc --noEmit ...` because npm may consume the flags and allow TypeScript to emit generated `.js` files into `src/`.

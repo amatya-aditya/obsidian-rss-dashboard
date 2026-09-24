@@ -42,6 +42,9 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["test_files/unit/vitest.setup.ts"],
     cache: false,
+    // Worker threads start faster than the default child processes; each test
+    // file still gets a fresh module graph and jsdom.
+    pool: "threads",
     coverage: {
       provider: "v8",
       reporter: [

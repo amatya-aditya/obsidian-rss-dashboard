@@ -15,7 +15,7 @@
     "check:pre-release": "node scripts/check-pre-release.mjs",
     "check:doc-links": "node scripts/check-doc-links.mjs",
     "check:release-ready": "node scripts/check-release-ready.mjs",
-    "build": "npm run check:compliance && npm run lint && tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
+    "build": "npm run check:compliance && npm run lint && tsc -noEmit -skipLibCheck -incremental -tsBuildInfoFile node_modules/.cache/tsc/main.tsbuildinfo && node esbuild.config.mjs production",
     "lint": "eslint . --max-warnings=0",
     "lint:dev": "eslint .",
     "test:unit": "vitest run --config vitest.config.mjs",

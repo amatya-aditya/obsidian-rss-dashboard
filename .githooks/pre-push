@@ -7,3 +7,9 @@ fi
 
 echo "[pre-push] Running full build gate..."
 npm run --silent build
+if [ $? -ne 0 ]; then
+  exit 1
+fi
+
+echo "[pre-push] Running full unit suite..."
+npm run --silent test:unit
