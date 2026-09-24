@@ -6,7 +6,7 @@
 
 ## Status
 
-Proposed
+proposed
 
 ## Date
 
