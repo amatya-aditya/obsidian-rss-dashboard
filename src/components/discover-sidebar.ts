@@ -150,7 +150,6 @@ export class DiscoverSidebar {
     const button = container.createDiv({
       cls: `rss-dashboard-nav-button clickable-icon rss-discover-header-nav-button ${variantClass}`,
       attr: {
-        title: label,
         "aria-label": label,
         role: "button",
         tabindex: "0",

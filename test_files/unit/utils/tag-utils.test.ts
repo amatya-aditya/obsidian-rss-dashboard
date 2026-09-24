@@ -133,6 +133,28 @@ describe("tag-utils.showEditTagModal", () => {
   });
 });
 
+describe("tag-utils.showEditTagModal submit button", () => {
+  it("reads 'Save changes' and hands the updated tag to onSave", async () => {
+    vi.spyOn(console, "debug").mockImplementation(() => {});
+    const settings = makeSettings([{ name: "Tech", color: "#111111" }]);
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    showEditTagModal({ settings, tag: settings.availableTags[0], onSave });
+
+    const saveButton = document.querySelector<HTMLButtonElement>(
+      "button.rss-dashboard-primary-button",
+    )!;
+    expect(saveButton.textContent).toBe("Save changes");
+
+    document.querySelector<HTMLInputElement>(
+      ".rss-dashboard-tag-modal-color-picker",
+    )!.value = "#00ff00";
+    saveButton.click();
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(onSave).toHaveBeenCalledWith({ name: "Tech", color: "#00ff00" });
+  });
+});
+
 describe("tag-utils.applyAutomaticArticleTags", () => {
   it("starring an article leaves its tags unchanged", () => {
     const article = {

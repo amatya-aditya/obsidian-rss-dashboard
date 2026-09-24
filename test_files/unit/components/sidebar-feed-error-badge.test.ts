@@ -119,7 +119,7 @@ describe("Feed Error Badge Rendering", () => {
     ) as HTMLElement;
     
     expect(errorBadge).not.toBeNull();
-    expect(errorBadge.getAttribute("title")).toBe("Request failed, status 429");
+    expect(errorBadge.hasAttribute("title")).toBe(false);
     expect(errorBadge.getAttribute("aria-label")).toContain("Request failed, status 429");
     
     // Check it rendered the icon

@@ -1,4 +1,4 @@
-import { Menu, MenuItem, Notice, App, Modal, setIcon, Setting } from "obsidian";
+import { Menu, MenuItem, Notice, App, Modal, setIcon, Setting, setTooltip } from "obsidian";
 import {
   Feed,
   Folder,
@@ -21,6 +21,7 @@ import {
   removeAllTagsFromFeeds,
   syncFolderAutoTagsOnFeeds,
 } from "../utils/folder-tag-sync";
+import { DEFAULT_TAG_COLOR } from "../utils/tag-colors";
 import { showEditTagModal } from "../utils/tag-utils";
 import {
   attachInputClearButton,
@@ -781,7 +782,7 @@ export class Sidebar {
         cls: "rss-dashboard-sidebar-add-tag-row",
       });
       const cp = addRow.createEl("input", {
-        attr: { type: "color", value: "#3498db" },
+        attr: { type: "color", value: DEFAULT_TAG_COLOR },
         cls: "rss-dashboard-tag-color-picker",
       });
       const input = addRow.createEl("input", {
@@ -899,7 +900,7 @@ export class Sidebar {
         (isCancellable ? " stop" : isRefreshActive ? " refreshing" : ""),
       attr: {
         type: "button",
-        title: isCancellable ? "Stop refresh" : "Refresh all feeds",
+        "aria-label": isCancellable ? "Stop refresh" : "Refresh all feeds",
         "aria-labelledby": refreshLabelId,
       },
     });
@@ -1561,7 +1562,6 @@ export class Sidebar {
       const errorBadge = feedNameContainer.createDiv({
         cls: "rss-dashboard-feed-error-badge",
         attr: {
-          title: feed.lastFetchError,
           "aria-label": `Feed error: ${feed.lastFetchError}`,
         },
       });
@@ -1580,10 +1580,7 @@ export class Sidebar {
         cls: "rss-dashboard-feed-processing-indicator",
         text: "⏳",
       });
-      processingIndicator.setAttribute(
-        "title",
-        "Articles being fetched in background",
-      );
+      setTooltip(processingIndicator, "Articles being fetched in background");
     } else if (
       isQueuedForRefresh &&
       !isRefreshProcessing &&
@@ -1594,7 +1591,7 @@ export class Sidebar {
         cls: "rss-dashboard-feed-processing-indicator",
         text: "⏳",
       });
-      processingIndicator.setAttribute("title", "Feed queued for refresh");
+      setTooltip(processingIndicator, "Feed queued for refresh");
     }
 
     feedEl.addEventListener("click", (e) => {
@@ -2828,7 +2825,7 @@ export class Sidebar {
     const colorInput = formContainer.createEl("input", {
       attr: {
         type: "color",
-        value: "#3498db",
+        value: DEFAULT_TAG_COLOR,
       },
       cls: "rss-dashboard-tag-modal-color-picker",
     });
@@ -3512,7 +3509,7 @@ export class Sidebar {
     const addFolderButton = sidebarToolbar.createDiv({
       cls: "rss-dashboard-toolbar-button",
       attr: {
-        title: "Add folder",
+        "aria-label": "Add folder",
       },
     });
     setIcon(addFolderButton, "folder-plus");
@@ -3529,7 +3526,7 @@ export class Sidebar {
     const sortButton = sidebarToolbar.createDiv({
       cls: "rss-dashboard-toolbar-button",
       attr: {
-        title: "Sort folders",
+        "aria-label": "Sort folders",
       },
     });
     setIcon(sortButton, "sort-asc");
@@ -3593,7 +3590,7 @@ export class Sidebar {
     const collapseAllButton = sidebarToolbar.createDiv({
       cls: "rss-dashboard-toolbar-button",
       attr: {
-        title: "Collapse/Expand all Folders",
+        "aria-label": "Collapse/Expand all Folders",
       },
     });
 
@@ -3626,7 +3623,6 @@ export class Sidebar {
     const searchButton = sidebarToolbar.createDiv({
       cls: "rss-dashboard-toolbar-button",
       attr: {
-        title: "Search feeds",
         "aria-label": "Search feeds",
         role: "button",
         tabindex: "0",

@@ -209,7 +209,7 @@ export class PodcastPlayer {
       tagsStrip.createDiv({
         cls: "podcast-tag podcast-tag-more",
         text: `+${remainingCount} more`,
-        attr: { title: overflowTitle, "aria-label": overflowTitle },
+        attr: { "aria-label": overflowTitle },
       });
     }
   }
@@ -303,7 +303,6 @@ export class PodcastPlayer {
     this.shuffleButton = transportSection.createDiv({
       cls: "rss-shuffle-btn clickable-icon",
       attr: {
-        title: "Shuffle",
         role: "button",
         tabindex: "0",
         "aria-label": "Shuffle",
@@ -322,7 +321,6 @@ export class PodcastPlayer {
     const rewindBtn = transportSection.createDiv({
       cls: "rss-rewind clickable-icon",
       attr: {
-        title: "Rewind 30s",
         role: "button",
         tabindex: "0",
         "aria-label": "Rewind 30 seconds",
@@ -355,7 +353,6 @@ export class PodcastPlayer {
     this.playButton = transportSection.createDiv({
       cls: "rss-play-pause clickable-icon",
       attr: {
-        title: "Play/Pause",
         role: "button",
         tabindex: "0",
         "aria-label": "Play/Pause",
@@ -388,7 +385,6 @@ export class PodcastPlayer {
     const forwardBtn = transportSection.createDiv({
       cls: "rss-forward clickable-icon",
       attr: {
-        title: "Forward 30s",
         role: "button",
         tabindex: "0",
         "aria-label": "Forward 30 seconds",
@@ -421,7 +417,6 @@ export class PodcastPlayer {
     this.repeatButton = transportSection.createDiv({
       cls: "rss-repeat-btn clickable-icon",
       attr: {
-        title: "Repeat",
         role: "button",
         tabindex: "0",
         "aria-label": "Repeat",
@@ -465,7 +460,6 @@ export class PodcastPlayer {
     this.sleepTimerButton = toolsSection.createDiv({
       cls: "rss-sleep-timer-btn clickable-icon",
       attr: {
-        title: "Sleep Timer",
         role: "button",
         tabindex: "0",
         "aria-label": "Sleep Timer",
@@ -488,7 +482,6 @@ export class PodcastPlayer {
     const volumeBtn = this.volumeContainer.createDiv({
       cls: "rss-volume clickable-icon",
       attr: {
-        title: "Volume",
         role: "button",
         tabindex: "0",
         "aria-label": "Adjust volume",
@@ -1069,7 +1062,6 @@ export class PodcastPlayer {
     if (this.stopAtEndOfEpisode) {
       this.sleepTimerTextEl.textContent = "End of ep";
       this.sleepTimerButton.setAttribute("aria-label", "Sleep timer: end of episode");
-      this.sleepTimerButton.setAttribute("title", "Sleep timer: end of episode");
     } else if (this.sleepTimerEndTime) {
       const remainingSecs = Math.max(
         0,
@@ -1078,11 +1070,9 @@ export class PodcastPlayer {
       const remaining = this.formatTime(remainingSecs);
       this.sleepTimerTextEl.textContent = remaining;
       this.sleepTimerButton.setAttribute("aria-label", `Sleep timer: ${remaining}`);
-      this.sleepTimerButton.setAttribute("title", `Sleep timer: ${remaining}`);
     } else {
       this.sleepTimerTextEl.empty();
       this.sleepTimerButton.setAttribute("aria-label", "Sleep timer");
-      this.sleepTimerButton.setAttribute("title", "Sleep timer");
     }
   }
 

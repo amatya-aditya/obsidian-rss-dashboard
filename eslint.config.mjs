@@ -4,6 +4,9 @@ import { defineConfig } from "eslint/config";
 import obsidianmd from "eslint-plugin-obsidianmd";
 import globals from "globals";
 
+const TITLE_TOOLTIP_MESSAGE =
+  "Use setTooltip(el, text) from 'obsidian' instead of a title attribute. Obsidian draws its tooltip from aria-label, so title shows a second, browser-drawn popup.";
+
 export default defineConfig([
   {
     ignores: [
@@ -78,6 +81,33 @@ export default defineConfig([
           selector: "TSAsExpression > TSAnyKeyword",
           message:
             "Avoid 'as any' casts. Use a specific type, 'as unknown as T', or '@ts-expect-error' with a comment.",
+        },
+        // Tooltips: Obsidian draws its tooltip from aria-label (which is all
+        // setTooltip() sets), so a title attribute adds a second popup.
+        {
+          selector:
+            "CallExpression[callee.property.name=/^(setAttr|setAttribute)$/][arguments.0.value='title']",
+          message: TITLE_TOOLTIP_MESSAGE,
+        },
+        {
+          selector:
+            "Property[key.name='attr'] > ObjectExpression > Property:matches([key.name='title'], [key.value='title'])",
+          message: TITLE_TOOLTIP_MESSAGE,
+        },
+        {
+          selector:
+            "CallExpression[callee.property.name=/^create(El|Div|Span)$/] > ObjectExpression > Property[key.name='title']",
+          message: TITLE_TOOLTIP_MESSAGE,
+        },
+        {
+          selector:
+            "AssignmentExpression[left.property.name='title']:matches([left.object.name=/(El|Button|Btn|Icon|Badge|Chip|Tag|Toggle)$/], [left.object.property.name=/(El|Button|Btn|Icon|Badge|Chip|Tag|Toggle)$/])",
+          message: TITLE_TOOLTIP_MESSAGE,
+        },
+        {
+          selector:
+            "ObjectExpression:has(> Property[key.value='aria-label']):has(> Property[key.name='title'])",
+          message: TITLE_TOOLTIP_MESSAGE,
         },
       ],
     },
