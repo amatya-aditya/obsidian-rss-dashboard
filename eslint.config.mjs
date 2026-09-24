@@ -199,7 +199,6 @@ export default defineConfig([
       "@typescript-eslint/unbound-method": "warn",
       "@typescript-eslint/no-base-to-string": "warn",
       "@typescript-eslint/no-unused-expressions": "warn",
-      "no-empty": ["warn", { allowEmptyCatch: true }],
       "no-case-declarations": "warn",
       "no-useless-escape": "warn",
       "obsidianmd/settings-tab/no-manual-html-headings": "warn",
