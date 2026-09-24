@@ -112,6 +112,7 @@ For a user-facing overview, see the [RSS Dashboard 2.7.0 release notes](docs/rel
 
 ### Development and compliance
 
+- Article HTML sanitization now applies the same URL check used for links to every URL-bearing attribute.
 - ESLint now rejects `title` attributes used as tooltips, since Obsidian draws its own tooltip from `aria-label`; use `setTooltip()` from `obsidian` instead.
 - Hardened the release workflow by separating read-only build validation from privileged publishing and provenance, pinning workflow Actions to reviewed commits, and attesting `manifest.json` alongside the bundle. The test workflow now runs on pushes to `master` and `dev`.
 - Aligned tooling with the Obsidian sample-plugin baseline: TypeScript targets ES2021, Node maintenance scripts are linted under a scoped policy, and repeat version bumps keep existing `versions.json` mappings. [GH Issue #240](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/240)

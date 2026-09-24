@@ -163,6 +163,41 @@ describe("safe-html.sanitizeAndAppendHtml", () => {
     });
   });
 
+  it("rich mode drops unsafe URLs from every URL-bearing attribute, not only href and src", () => {
+    const container = createContainer();
+
+    sanitizeAndAppendHtml(
+      container,
+      [
+        '<form action="javascript:alert(1)"><button formaction="javascript:alert(2)">Go</button></form>',
+        '<blockquote cite="javascript:alert(3)">Quote</blockquote>',
+        '<table background="javascript:alert(4)"><tbody><tr><td>Cell</td></tr></tbody></table>',
+        '<a ping="javascript:alert(5)" href="https://example.com">Link</a>',
+      ].join(""),
+      { mode: "rich" },
+    );
+
+    expect(container.innerHTML).not.toContain("javascript:");
+    expect(container.querySelector("form")?.hasAttribute("action")).toBe(false);
+    expect(container.querySelector("button")?.hasAttribute("formaction")).toBe(false);
+    expect(container.querySelector("button")?.textContent).toBe("Go");
+    expect(container.querySelector("blockquote")?.textContent).toBe("Quote");
+  });
+
+  it("rich mode keeps safe http(s) values in URL-bearing attributes", () => {
+    const container = createContainer();
+
+    sanitizeAndAppendHtml(
+      container,
+      '<blockquote cite="https://example.com/source">Quote</blockquote>',
+      { mode: "rich" },
+    );
+
+    expect(container.querySelector("blockquote")?.getAttribute("cite")).toBe(
+      "https://example.com/source",
+    );
+  });
+
   it("allows http/https/mailto links and applies target+rel", () => {
     const container = createContainer();
 

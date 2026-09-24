@@ -28,6 +28,32 @@ const STRICT_ALLOWED_TAGS = new Set([
   "a",
 ]);
 
+/**
+ * Attributes that take a URL the browser may navigate to or fetch, other than
+ * `href`, `src`, `poster`, and `srcset`, which have their own handling below.
+ * Rich mode copies unknown attributes through as-is, so each of these must
+ * pass the same check as `href` or it would carry e.g. a `javascript:` URL.
+ */
+const URL_ATTRIBUTES = new Set([
+  "action",
+  "formaction",
+  "cite",
+  "background",
+  "ping",
+  "longdesc",
+  "lowsrc",
+  "dynsrc",
+  "data",
+  "codebase",
+  "classid",
+  "archive",
+  "manifest",
+  "icon",
+  "profile",
+  "xlink:href",
+  "xml:base",
+]);
+
 export interface SafeHtmlOptions {
   mode?: "strict" | "rich";
 }
@@ -141,6 +167,13 @@ function copySafeAttributes(fromEl: HTMLElement, toEl: HTMLElement): void {
       const normalizedSrc = normalizeSubstackImageUrl(value);
       if (isSafeSrc(normalizedSrc)) {
         toEl.setAttribute(name, normalizedSrc.trim());
+      }
+      return;
+    }
+
+    if (URL_ATTRIBUTES.has(name)) {
+      if (isSafeHref(value)) {
+        toEl.setAttribute(name, value.trim());
       }
       return;
     }
