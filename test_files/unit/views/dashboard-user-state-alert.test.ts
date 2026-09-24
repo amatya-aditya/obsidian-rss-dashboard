@@ -156,6 +156,7 @@ describe("Dashboard hidden storage folder alert", () => {
     expect(alert?.getAttribute("role")).toBe("alert");
     expect(alert?.textContent).toContain(DEFAULT_SETTINGS.storageFolder);
     expect(alert?.textContent).toContain("Repair");
+    expect(alert?.textContent).toContain("renamed or moved the folder yourself");
     expect(alert?.closest(".rss-dashboard-filter-subheader-content")).toBeNull();
   });
 

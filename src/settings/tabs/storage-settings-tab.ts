@@ -19,6 +19,7 @@ import {
   MetadataCleanupModal,
   RepairPreviewModal,
   ShardDeletionFailureModal,
+  UnloadedFeedsFolderChangeModal,
   StorageTransitionModal,
   type MetadataCleanupAction,
   type ShardDeletionFailureAction,
@@ -46,6 +47,7 @@ interface StorageSettingsPlugin {
   getMetadataFilePath(): string;
   migrateToVaultStorage(): Promise<void>;
   migrateToVaultShardsV2(): Promise<void>;
+  getUnloadedShardFeedCount(): number;
   previewRepairVaultStorage(): Promise<RepairPreview>;
   repairVaultStorage(): Promise<RepairResult>;
   importPortableDataBundleFromFile(file: File): Promise<void>;
@@ -407,6 +409,30 @@ export function renderStorageSettingsTab(
             if (!modeChanged && !folderChanged) {
               new Notice("No storage changes to apply.");
               return;
+            }
+
+            // The storage folder syncs to every device through data.json, so
+            // changing it where feeds never loaded points all devices at a
+            // folder without this device's missing articles (ADR 0012).
+            const unloadedFeedCount = folderChanged
+              ? plugin.getUnloadedShardFeedCount()
+              : 0;
+            if (unloadedFeedCount > 0) {
+              const warningModal = new UnloadedFeedsFolderChangeModal(
+                plugin.app,
+                {
+                  unloadedFeedCount,
+                  totalFeedCount: plugin.settings.feeds.length,
+                },
+              );
+              const warningClosed = warningModal.waitForClose();
+              warningModal.open();
+              if ((await warningClosed) !== "apply") {
+                storageLog("Storage folder change cancelled: feeds not loaded", {
+                  unloadedFeedCount,
+                });
+                return;
+              }
             }
 
             if (!modeChanged && folderChanged) {

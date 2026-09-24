@@ -4,6 +4,7 @@ import { renderStorageSettingsTab } from "../../../src/settings/tabs/storage-set
 import {
   RepairPreviewModal,
   ShardDeletionFailureModal,
+  UnloadedFeedsFolderChangeModal,
   StorageTransitionModal,
 } from "../../../src/settings/modals/storage-settings-modals";
 import {
@@ -86,6 +87,7 @@ function createPlugin() {
       shrinkingFeeds: [],
     })),
     repairVaultStorage: vi.fn(async () => ({ skippedFeedCount: 0 })),
+    getUnloadedShardFeedCount: vi.fn(() => 0),
     importPortableDataBundleFromFile: vi.fn(async () => {}),
     exportDataJson: vi.fn(async () => {}),
     exportPortableDataBundle: vi.fn(async () => {}),
@@ -579,6 +581,95 @@ describe("General settings storage section", () => {
       ".rss-dashboard-data/custom-feeds",
     );
     expect(plugin.saveSettings).toHaveBeenCalledTimes(1);
+  });
+
+  describe("changing the storage folder on a device whose feeds have not loaded", () => {
+    async function applyFolderChange(
+      plugin: ReturnType<typeof createPlugin>,
+      nextFolder: string,
+    ): Promise<void> {
+      const containerEl = createTestContainer();
+      renderStorageSettingsTab(containerEl, plugin as never);
+      const input = getSettingByName(containerEl, "Storage folder").querySelector(
+        "input",
+      ) as HTMLInputElement;
+      input.value = nextFolder;
+      input.dispatchEvent(new Event("input"));
+      (
+        Array.from(containerEl.querySelectorAll("button")).find(
+          (button) => button.textContent === "Apply",
+        ) as HTMLButtonElement
+      ).click();
+      await flushAsyncWork();
+    }
+
+    it("keeps the current folder when the user cancels the warning", async () => {
+      const plugin = createPlugin();
+      plugin.settings.storageMode = "vault-shards-v2";
+      plugin.settings.storageFolder = ".rss-dashboard-data/feeds";
+      plugin.getUnloadedShardFeedCount.mockReturnValue(3);
+      const open = vi
+        .spyOn(UnloadedFeedsFolderChangeModal.prototype, "open")
+        .mockImplementation(() => {});
+      vi.spyOn(
+        UnloadedFeedsFolderChangeModal.prototype,
+        "waitForClose",
+      ).mockResolvedValue("cancel");
+
+      await applyFolderChange(plugin, "rss-dashboard-data/feeds");
+
+      expect(open).toHaveBeenCalledTimes(1);
+      expect(plugin.settings.storageFolder).toBe(".rss-dashboard-data/feeds");
+      expect(plugin.saveSettings).not.toHaveBeenCalled();
+    });
+
+    it("changes the folder when the user confirms the warning", async () => {
+      const plugin = createPlugin();
+      plugin.settings.storageMode = "vault-shards-v2";
+      plugin.settings.storageFolder = ".rss-dashboard-data/feeds";
+      plugin.getUnloadedShardFeedCount.mockReturnValue(3);
+      vi.spyOn(UnloadedFeedsFolderChangeModal.prototype, "open").mockImplementation(
+        () => {},
+      );
+      vi.spyOn(
+        UnloadedFeedsFolderChangeModal.prototype,
+        "waitForClose",
+      ).mockResolvedValue("apply");
+
+      await applyFolderChange(plugin, "rss-dashboard-data/feeds");
+
+      expect(plugin.settings.storageFolder).toBe("rss-dashboard-data/feeds");
+      expect(plugin.saveSettings).toHaveBeenCalledTimes(1);
+    });
+
+    it("changes the folder without a warning when every feed has loaded", async () => {
+      const plugin = createPlugin();
+      plugin.settings.storageMode = "vault-shards-v2";
+      const open = vi.spyOn(UnloadedFeedsFolderChangeModal.prototype, "open");
+
+      await applyFolderChange(plugin, "rss-dashboard-data/feeds");
+
+      expect(open).not.toHaveBeenCalled();
+      expect(plugin.settings.storageFolder).toBe("rss-dashboard-data/feeds");
+    });
+
+    it("tells the user how many feeds have not loaded and that the change reaches every synced device", () => {
+      const modal = new UnloadedFeedsFolderChangeModal(new obsidian.App(), {
+        unloadedFeedCount: 59,
+        totalFeedCount: 59,
+      });
+
+      modal.onOpen();
+
+      const text = modal.contentEl.textContent ?? "";
+      expect(text).toContain("59 of 59 feeds");
+      expect(text).toContain("every device");
+      expect(
+        Array.from(modal.contentEl.querySelectorAll("button")).map(
+          (button) => button.textContent,
+        ),
+      ).toEqual(["Cancel", "Change folder anyway"]);
+    });
   });
 
   it("renders Feed bundle and Settings bundle import/export actions alongside the portable bundle", () => {

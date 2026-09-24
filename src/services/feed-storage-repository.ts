@@ -391,6 +391,18 @@ export class FeedStorageRepository {
   }
 
   /**
+   * Number of feeds this device has neither loaded from their shard nor
+   * refetched since, i.e. feeds it holds no articles for.
+   */
+  public countUnloadedFeeds(settings: RssDashboardSettings): number {
+    return settings.feeds.filter(
+      feed =>
+        Boolean(feed.feedId) &&
+        this.hasNothingToRebuild(feed as Feed & { feedId: string }),
+    ).length;
+  }
+
+  /**
    * A feed whose shard could not be loaded at startup and that has gained no
    * articles since has nothing real to write. Writing its empty in-memory
    * copy would replace a shard that is still syncing in, or that another

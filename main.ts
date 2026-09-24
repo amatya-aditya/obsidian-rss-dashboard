@@ -2426,6 +2426,10 @@ export default class RssDashboardPlugin extends Plugin {
     await this.migrateToVaultShardsV2();
   }
 
+  public getUnloadedShardFeedCount(): number {
+    return this.feedStorageRepository.countUnloadedFeeds(this.settings);
+  }
+
   public previewRepairVaultStorage(): Promise<RepairPreview> {
     return this.feedStorageRepository.previewRepairVaultShards(this.settings);
   }

@@ -1190,7 +1190,7 @@ export class RssDashboardView extends ItemView {
       });
       setIcon(alertEl.createSpan(), "alert-triangle");
       alertEl.createSpan({
-        text: `No feed articles have reached this device because they are stored in the hidden folder "${this.settings.storageFolder}", which Obsidian sync and most sync tools skip. Do not run Repair here. On the device where your articles appear, change the storage folder and the metadata data.json location in Settings > Storage to folders without a leading ".", then let sync finish and reload the plugin here.`,
+        text: `No feed articles have reached this device because they are stored in the hidden folder "${this.settings.storageFolder}", which Obsidian sync and most sync tools skip. Do not run Repair here. On the device where your articles appear, change the storage folder and the metadata data.json location in Settings > Storage to folders without a leading ".", then let sync finish and reload the plugin here. If you renamed or moved the folder yourself, update the storage folder in Settings > Storage to match.`,
       });
     }
     if (statusBarHidden) {

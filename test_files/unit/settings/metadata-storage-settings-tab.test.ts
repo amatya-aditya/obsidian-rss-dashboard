@@ -62,6 +62,7 @@ function createPlugin() {
       shrinkingFeeds: [],
     })),
     repairVaultStorage: vi.fn(async () => ({ skippedFeedCount: 0 })),
+    getUnloadedShardFeedCount: vi.fn(() => 0),
     importPortableDataBundleFromFile: vi.fn(async () => {}),
     exportPortableDataBundle: vi.fn(async () => {}),
     exportDataJson: vi.fn(async () => {}),

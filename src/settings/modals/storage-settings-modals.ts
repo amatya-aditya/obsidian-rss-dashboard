@@ -374,3 +374,75 @@ export class RepairPreviewModal extends Modal {
     });
   }
 }
+
+export type UnloadedFeedsFolderChangeAction = "cancel" | "apply";
+
+export interface UnloadedFeedsFolderChangeOptions {
+  unloadedFeedCount: number;
+  totalFeedCount: number;
+}
+
+/**
+ * Warns before the storage folder is changed on a device that holds no
+ * articles for some feeds. The folder setting reaches every synced device, so
+ * the change would point them all at a folder without those articles.
+ */
+export class UnloadedFeedsFolderChangeModal extends Modal {
+  private readonly options: UnloadedFeedsFolderChangeOptions;
+  private action: UnloadedFeedsFolderChangeAction = "cancel";
+  private resolvePromise:
+    | ((value: UnloadedFeedsFolderChangeAction) => void)
+    | null = null;
+
+  constructor(app: App, options: UnloadedFeedsFolderChangeOptions) {
+    super(app);
+    this.options = options;
+  }
+
+  onOpen(): void {
+    const { contentEl } = this;
+    contentEl.empty();
+
+    this.modalEl.addClass("rss-dashboard-modal");
+    this.modalEl.addClass("rss-dashboard-modal-container");
+
+    const { unloadedFeedCount, totalFeedCount } = this.options;
+    contentEl.createEl("h2", { text: "Change the storage folder here?" });
+    contentEl.createEl("p", {
+      text: `${unloadedFeedCount} of ${totalFeedCount} feeds have not loaded their articles on this device.`,
+    });
+    contentEl.createEl("p", {
+      text: "The storage folder setting syncs to every device, so changing it here points every device at the new folder, which will not contain the articles this device is missing. Make this change on the device where your articles appear instead.",
+    });
+
+    const buttonsSetting = new Setting(contentEl);
+    buttonsSetting.controlEl.addClass("rss-dashboard-modal-buttons");
+    buttonsSetting
+      .addButton((btn) =>
+        btn.setButtonText("Cancel").onClick(() => {
+          this.action = "cancel";
+          this.close();
+        }),
+      )
+      .addButton((btn) => {
+        btn.setButtonText("Change folder anyway");
+        settingsUiCompatibility.markDestructive(btn);
+        btn.onClick(() => {
+          this.action = "apply";
+          this.close();
+        });
+      });
+  }
+
+  onClose(): void {
+    const { contentEl } = this;
+    contentEl.empty();
+    this.resolvePromise?.(this.action);
+  }
+
+  waitForClose(): Promise<UnloadedFeedsFolderChangeAction> {
+    return new Promise((resolve) => {
+      this.resolvePromise = resolve;
+    });
+  }
+}

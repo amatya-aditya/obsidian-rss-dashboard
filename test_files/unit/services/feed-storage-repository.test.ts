@@ -396,6 +396,25 @@ describe("FeedStorageRepository", () => {
       );
     });
 
+    it("counts the feeds this device has not loaded and has nothing to rebuild from", async () => {
+      const settings = cloneSettings();
+      settings.storageMode = "vault-shards-v2";
+      settings.storageFolder = "RSS Data/Feeds";
+      settings.feeds = [
+        makeFeed({ feedId: "feed-1", items: [] }),
+        makeFeed({ feedId: "feed-2", url: "https://example.com/two.xml" }),
+      ];
+      await app.vault.createFolder("RSS Data/Feeds");
+      await vaultAdapter(app).write(
+        "RSS Data/Feeds/feed-2.json",
+        JSON.stringify({ version: 1, feedId: "feed-2", items: [makeItem()] }),
+      );
+
+      await repository.hydrateSettings(settings);
+
+      expect(repository.countUnloadedFeeds(settings)).toBe(1);
+    });
+
     it("does not create an empty user-state.json before sync delivers the real one", async () => {
       const settings = cloneSettings();
       settings.storageMode = "vault-shards-v2";
