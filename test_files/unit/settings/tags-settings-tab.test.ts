@@ -104,6 +104,24 @@ describe("renderTagsSettingsTab()", () => {
     );
   });
 
+  it("starts the 'Add new tag' color picker at the default tag color", () => {
+    const containerEl = document.body.appendChild(createDiv());
+    const plugin = {
+      app: obsidian.App.createMock(),
+      settings: cloneSettings(),
+      saveSettings: vi.fn(async () => {}),
+      refreshOpenTagColorViews: vi.fn(async () => {}),
+    } as unknown as RssDashboardPlugin;
+
+    renderTagsSettingsTab(containerEl, plugin, vi.fn());
+
+    expect(
+      getSettingByName(containerEl, "Tag color").querySelector<HTMLInputElement>(
+        "input[type='color']",
+      )?.value,
+    ).toBe("#8a5cf5");
+  });
+
   it("renders all auto-tag rows as tag multi-select triggers instead of native selects", () => {
     const containerEl = document.body.appendChild(
       createDiv(),

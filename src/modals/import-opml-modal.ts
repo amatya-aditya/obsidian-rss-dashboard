@@ -1,4 +1,4 @@
-import { Modal, App, Setting, Notice, setIcon } from "obsidian";
+import { Modal, App, Setting, Notice, setIcon, setTooltip } from "obsidian";
 import type RssDashboardPlugin from "../../main";
 import type { Feed, Folder } from "../types/types";
 import { OpmlManager } from "../services/opml-manager";
@@ -368,7 +368,6 @@ export class ImportOpmlModal extends Modal {
         role: "button",
         tabindex: "0",
         "aria-label": "Open OPML cleaner in browser",
-        title: "Open OPML cleaner in browser",
       },
     });
     setIcon(external, "external-link");
@@ -471,7 +470,7 @@ export class ImportOpmlModal extends Modal {
     const nameValidation = isValidFolderName(node.name);
     if (!nameValidation.valid) {
       folderRow.addClass("is-invalid");
-      nameText.setAttr("title", nameValidation.error ?? "Invalid folder name");
+      setTooltip(nameText, nameValidation.error ?? "Invalid folder name");
     }
 
     const edit = nameWrap.createDiv({
@@ -480,7 +479,6 @@ export class ImportOpmlModal extends Modal {
         role: "button",
         tabindex: "0",
         "aria-label": "Rename folder",
-        title: "Rename folder",
       },
     });
     setIcon(edit, "pencil");
@@ -498,10 +496,7 @@ export class ImportOpmlModal extends Modal {
         const validation = isValidFolderName(next);
         if (!validation.valid) {
           input.classList.add("is-invalid");
-          input.setAttribute(
-            "title",
-            validation.error ?? "Invalid folder name",
-          );
+          setTooltip(input, validation.error ?? "Invalid folder name");
           input.focus();
           return;
         }
@@ -548,7 +543,6 @@ export class ImportOpmlModal extends Modal {
         role: "button",
         tabindex: hasChildren ? "0" : "-1",
         "aria-label": collapsed ? "Expand folder" : "Collapse folder",
-        title: collapsed ? "Expand" : "Collapse",
       },
     });
     setIcon(toggle, collapsed ? "chevron-right" : "chevron-down");
@@ -609,7 +603,7 @@ export class ImportOpmlModal extends Modal {
     checkbox.checked = selected;
     checkbox.disabled = duplicate;
     if (duplicate) {
-      row.setAttr("title", "Already exists — unavailable in Update mode.");
+      setTooltip(row, "Already exists — unavailable in Update mode.");
       checkbox.setAttr(
         "aria-label",
         `${feed.title}: already exists, unavailable in Update mode`,
@@ -632,7 +626,7 @@ export class ImportOpmlModal extends Modal {
     const titleValidation = isValidFeedTitle(feed.title);
     if (!titleValidation.valid && selected && !duplicate) {
       row.addClass("is-invalid");
-      titleText.setAttr("title", titleValidation.error ?? "Invalid feed title");
+      setTooltip(titleText, titleValidation.error ?? "Invalid feed title");
     }
 
     const edit = nameWrap.createDiv({
@@ -641,7 +635,6 @@ export class ImportOpmlModal extends Modal {
         role: "button",
         tabindex: "0",
         "aria-label": "Rename feed",
-        title: "Rename feed",
       },
     });
     setIcon(edit, "pencil");
@@ -659,7 +652,7 @@ export class ImportOpmlModal extends Modal {
         const validation = isValidFeedTitle(next);
         if (!validation.valid) {
           input.classList.add("is-invalid");
-          input.setAttribute("title", validation.error ?? "Invalid feed title");
+          setTooltip(input, validation.error ?? "Invalid feed title");
           input.focus();
           return;
         }

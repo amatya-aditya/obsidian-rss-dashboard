@@ -1,3 +1,4 @@
+import { setTooltip } from "obsidian";
 import type { FeedItem } from "../../../types/types";
 import { formatArticleDate } from "../../../utils/platform-utils";
 import {
@@ -80,7 +81,7 @@ export function renderCardView(
       feedContainer.createDiv({
         cls: "rss-dashboard-article-feed",
         text: article.feedTitle,
-        attr: { title: article.feedTitle },
+        attr: { "aria-label": article.feedTitle },
       });
     }
 
@@ -219,7 +220,7 @@ export function renderCardView(
         { isFirstSeenFallback: getPubDateMs(article.pubDate) <= 0 && !!displayDate },
       );
       dateEl.textContent = dateInfo.text;
-      dateEl.setAttribute("title", dateInfo.title);
+      setTooltip(dateEl, dateInfo.title);
     }
 
     card.addEventListener("click", () => {

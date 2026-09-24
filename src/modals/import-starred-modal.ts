@@ -13,8 +13,13 @@ import { StarredImportPreviewModel } from "../services/starred-import-preview-mo
 import { applyStarredImportCandidateToFeed } from "../services/starred-import-merge";
 import { shouldUseMobileSidebarLayout } from "../utils/platform-utils";
 import { ImporterShell } from "./importer-shell";
-import { renderSingleRowCardTagChips } from "../components/article-list/utils/tag-layout-utils";
+import {
+  createTagChip,
+  renderSingleRowCardTagChips,
+} from "../components/article-list/utils/tag-layout-utils";
 import { createTagsDropdownPortal } from "../utils/tags-dropdown-portal";
+import { DEFAULT_TAG_COLOR, randomTagColors } from "../utils/tag-colors";
+import { showEditTagModal, updateTagInSettings } from "../utils/tag-utils";
 import { FolderSuggest } from "../components/folder-suggest";
 import { decorateFolderSelectorInput } from "./feed-manager/folder-selector-field";
 
@@ -626,23 +631,154 @@ export class ImportStarredModal extends Modal {
     if (newTags.length === 0) return;
 
     const section = container.createDiv({ cls: "import-new-tags-section" });
-    section.createEl("h4", {
+    const header = section.createDiv({ cls: "import-new-tags-header" });
+    header.createEl("h4", {
       cls: "import-new-tags-heading",
       text: `New tags (${newTags.length})`,
     });
+    this.renderNewTagsColorActions(header, newTags);
 
     const list = section.createDiv({ cls: "import-new-tags-list" });
     for (const tag of newTags) {
-      const row = list.createDiv({ cls: "import-new-tags-row" });
-
-      const icon = row.createDiv({ cls: "import-new-tags-icon" });
-      setIcon(icon, "tag");
-
-      row.createDiv({
-        cls: "import-new-tags-name",
-        text: tag.name,
+      const chip = createTagChip(list, tag);
+      chip.addClass("import-new-tags-chip");
+      chip.setAttr("role", "button");
+      chip.setAttr("tabindex", "0");
+      chip.setAttr("aria-label", `Edit "${tag.name}" tag`);
+      const openEditor = (e: Event) => {
+        e.preventDefault();
+        e.stopPropagation();
+        this.showNewTagEditor(tag, newTags);
+      };
+      chip.addEventListener("click", openEditor);
+      chip.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          openEditor(e);
+        }
       });
     }
+  }
+
+  /**
+   * The "New tags (N)" heading's color buttons: set one color for every new
+   * tag, randomize them, or reset them to the default. Each recolors the
+   * listed tags on every candidate, exactly like editing them one by one.
+   *
+   * The palette button is a transparent native color input laid over the
+   * icon, so a direct tap opens the system picker (mobile webviews do not
+   * reliably open a hidden input from script). The input, not its wrapper,
+   * carries the focus and the aria-label, so there is one tooltip source
+   * and keyboard users reach the real control. It applies on `change`, not
+   * `input`: applying redraws this section, which would close the picker
+   * mid-drag.
+   */
+  private renderNewTagsColorActions(
+    header: HTMLElement,
+    newTags: readonly Tag[],
+  ): void {
+    const actions = header.createDiv({ cls: "import-new-tags-actions" });
+
+    const setColor = actions.createDiv({
+      cls: "import-new-tags-action clickable-icon import-new-tags-set-color",
+    });
+    setIcon(setColor, "palette");
+    const firstColor = newTags[0]?.color;
+    const sharedColor = newTags.every((tag) => tag.color === firstColor)
+      ? firstColor
+      : undefined;
+    const colorInput = setColor.createEl("input", {
+      cls: "import-new-tags-color-input",
+      attr: {
+        type: "color",
+        value: sharedColor ?? DEFAULT_TAG_COLOR,
+        "aria-label": "Set one color for all new tags",
+      },
+    });
+    colorInput.addEventListener("change", () => {
+      this.recolorNewTags(
+        newTags,
+        newTags.map(() => colorInput.value),
+      );
+    });
+
+    const randomize = this.createNewTagsActionButton(
+      actions,
+      "import-new-tags-randomize",
+      "dices",
+      "Randomize tag colors",
+    );
+    this.onActivate(randomize, () =>
+      this.recolorNewTags(newTags, randomTagColors(newTags.length)),
+    );
+
+    const reset = this.createNewTagsActionButton(
+      actions,
+      "import-new-tags-reset",
+      "rotate-ccw",
+      "Reset tag colors",
+    );
+    this.onActivate(reset, () =>
+      this.recolorNewTags(
+        newTags,
+        newTags.map(() => DEFAULT_TAG_COLOR),
+      ),
+    );
+  }
+
+  private createNewTagsActionButton(
+    parent: HTMLElement,
+    cls: string,
+    icon: string,
+    label: string,
+  ): HTMLElement {
+    const button = parent.createDiv({
+      cls: `import-new-tags-action clickable-icon ${cls}`,
+    });
+    button.setAttr("role", "button");
+    button.setAttr("tabindex", "0");
+    button.setAttr("aria-label", label);
+    setIcon(button, icon);
+    return button;
+  }
+
+  private onActivate(el: HTMLElement, action: () => void): void {
+    el.addEventListener("click", (e) => {
+      e.preventDefault();
+      action();
+    });
+    el.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        action();
+      }
+    });
+  }
+
+  private recolorNewTags(tags: readonly Tag[], colors: readonly string[]): void {
+    tags.forEach((tag, index) => {
+      const color = colors[index];
+      if (color) this.applyTagEditToCandidates(tag, { ...tag, color });
+    });
+    this.redrawCandidateTags();
+  }
+
+  /**
+   * Opens the standard Edit tag modal for a chip in the "New tags (N)"
+   * section. Duplicate-name checks run against the real palette plus every
+   * pending tag (the same list a row's portal shows), and the saved edit is
+   * applied to every candidate through `applyItemTagEdit`, exactly as an
+   * edit made from a row's portal is.
+   */
+  private showNewTagEditor(tag: Tag, pendingTags: readonly Tag[]): void {
+    const previous = { ...tag };
+    showEditTagModal({
+      settings: {
+        ...this.plugin.settings,
+        availableTags: [...this.plugin.settings.availableTags, ...pendingTags],
+      },
+      tag,
+      onSave: (updated) => this.applyItemTagEdit(previous, updated),
+    });
   }
 
   /**
@@ -698,7 +834,7 @@ export class ImportStarredModal extends Modal {
       nameWrap.createSpan({
         cls: "import-preview-new-feed-marker",
         text: "*",
-        attr: { "aria-label": "New feed", title: "New feed" },
+        attr: { "aria-label": "New feed" },
       });
     }
 
@@ -713,7 +849,6 @@ export class ImportStarredModal extends Modal {
         role: "button",
         tabindex: "0",
         "aria-label": collapsed ? "Expand feed" : "Collapse feed",
-        title: collapsed ? "Expand" : "Collapse",
       },
     });
     setIcon(toggle, collapsed ? "chevron-right" : "chevron-down");
@@ -808,7 +943,6 @@ export class ImportStarredModal extends Modal {
         role: "button",
         tabindex: "0",
         "aria-label": "Manage tags",
-        title: "Manage tags",
       },
     });
 
@@ -911,6 +1045,8 @@ export class ImportStarredModal extends Modal {
         this.renderItemTagsChips(anchor, candidate);
         this.refreshNewTagsSection();
       },
+      onTagEdited: (previous, updated) =>
+        this.applyItemTagEdit(previous, updated),
       onOpenTagsSettings: () => this.plugin.openTagsSettings(),
       appContainer: this.previewContainer,
       onClosed: () => {
@@ -921,6 +1057,65 @@ export class ImportStarredModal extends Modal {
       },
     });
     this.itemTagsDropdownCleanup = cleanup;
+  }
+
+  /**
+   * Carries a tag edit made through a row's portal onto the preview. The
+   * portal edits a copy of the palette, and candidate articles are not in
+   * `settings.feeds`, so neither the real palette nor the candidates see the
+   * change on their own. Renames/recolors the tag on every candidate (and
+   * its label-derived name, so the tag-import toggle still recognises it),
+   * updates and saves the real palette entry if there is one, then redraws
+   * every row's chips and the "New tags (N)" section.
+   */
+  private applyItemTagEdit(previous: Tag, updated: Tag): void {
+    this.applyTagEditToCandidates(previous, updated);
+    this.redrawCandidateTags();
+  }
+
+  private applyTagEditToCandidates(previous: Tag, updated: Tag): void {
+    const model = this.previewModel;
+    if (!model) return;
+
+    const paletteTag = this.plugin.settings.availableTags.find(
+      (tag) => tag.name === previous.name,
+    );
+    if (paletteTag) {
+      updateTagInSettings(this.plugin.settings, paletteTag, updated);
+      void this.plugin.saveSettings();
+    }
+
+    const previousLowerName = previous.name.toLowerCase();
+    for (const group of model.getGroups()) {
+      for (const { guid } of group.items) {
+        const candidate = model.getCandidate(guid);
+        if (!candidate?.item.tags) continue;
+        candidate.item.tags = candidate.item.tags.map((tag) =>
+          tag.name === previous.name ? { ...tag, ...updated } : tag,
+        );
+        candidate.labelDerivedTagNames = candidate.labelDerivedTagNames?.map(
+          (name) =>
+            name === previousLowerName ? updated.name.toLowerCase() : name,
+        );
+      }
+    }
+  }
+
+  private redrawCandidateTags(): void {
+    const model = this.previewModel;
+    if (!model) return;
+
+    this.previewContainer
+      .querySelectorAll<HTMLElement>("[data-guid]")
+      .forEach((row) => {
+        const guid = row.dataset.guid;
+        const candidate = guid ? model.getCandidate(guid) : undefined;
+        const control = row.querySelector<HTMLElement>(
+          ".import-preview-tags-control",
+        );
+        if (candidate && control) this.renderItemTagsChips(control, candidate);
+      });
+    this.refreshNewTagsSection();
   }
 
   private getImportActionState(model: StarredImportPreviewModel | null): {

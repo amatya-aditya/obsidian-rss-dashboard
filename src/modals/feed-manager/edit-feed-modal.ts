@@ -484,7 +484,6 @@ export class EditFeedModal extends Modal {
       attr: {
         role: "button",
         tabindex: "0",
-        title: "Copy local storage address",
         "aria-label": "Copy local storage address",
       },
     });

@@ -9,7 +9,7 @@ describe("Phase 7 - ArticleList in-place updates", () => {
     vi.useRealTimers();
   });
 
-  it("updateArticleInPlace should sync read/saved/starred classes and toggle titles", () => {
+  it("updateArticleInPlace should sync read/saved/starred classes and toggle tooltips", () => {
     const h = createArticleListHarness({
       settings: {
         viewStyle: "list",
@@ -47,9 +47,9 @@ describe("Phase 7 - ArticleList in-place updates", () => {
       ".rss-dashboard-star-toggle",
     );
 
-    expect(readToggle?.getAttribute("title")).toBe("Mark as read");
-    expect(saveToggle?.getAttribute("title")).toContain("Save");
-    expect(starToggle?.getAttribute("title")).toBe("Add to starred items");
+    expect(readToggle?.getAttribute("aria-label")).toBe("Mark as read");
+    expect(saveToggle?.getAttribute("aria-label")).toContain("Save");
+    expect(starToggle?.getAttribute("aria-label")).toBe("Add to starred items");
 
     h.list.updateArticleInPlace({
       ...h.articles[0],
@@ -64,11 +64,11 @@ describe("Phase 7 - ArticleList in-place updates", () => {
     expect(articleEl?.classList.contains("starred")).toBe(true);
     expect(articleEl?.classList.contains("unstarred")).toBe(false);
 
-    expect(readToggle?.getAttribute("title")).toBe("Mark as unread");
-    expect(saveToggle?.getAttribute("title")).toBe(
+    expect(readToggle?.getAttribute("aria-label")).toBe("Mark as unread");
+    expect(saveToggle?.getAttribute("aria-label")).toBe(
       "Click to open saved article",
     );
-    expect(starToggle?.getAttribute("title")).toBe("Remove from starred items");
+    expect(starToggle?.getAttribute("aria-label")).toBe("Remove from starred items");
 
     h.cleanup();
   });

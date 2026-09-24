@@ -9,6 +9,7 @@ import { Notice, Setting } from "obsidian";
 import RssDashboardPlugin from "../../../main";
 import { addTagMultiSelectControl } from "../../components/tag-multi-select-control";
 import { DEFAULT_SETTINGS } from "../../types/types";
+import { DEFAULT_TAG_COLOR } from "../../utils/tag-colors";
 import { updateTagInSettings } from "../../utils/tag-utils";
 
 interface AutoTagSettingConfig {
@@ -171,7 +172,7 @@ export function renderTagsSettingsTab(
 
   const tagColorSetting = new Setting(newTagContainer)
     .setName("Tag color")
-    .addColorPicker((colorPicker) => colorPicker.setValue("#3498db"));
+    .addColorPicker((colorPicker) => colorPicker.setValue(DEFAULT_TAG_COLOR));
 
   new Setting(newTagContainer).addButton((button) =>
     button.setButtonText("Add tag").onClick(async () => {

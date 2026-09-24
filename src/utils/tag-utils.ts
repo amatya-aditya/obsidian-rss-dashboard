@@ -145,11 +145,11 @@ export function showEditTagModal({
   settings,
   tag,
   onSave,
-  submitLabel = "Save Changes",
+  submitLabel = "Save changes",
 }: {
   settings: Readonly<RssDashboardSettings>;
   tag: Readonly<Tag>;
-  onSave?: () => Promise<void> | void;
+  onSave?: (updatedTag: Tag) => Promise<void> | void;
   submitLabel?: string;
 }): void {
   const modal = activeDocument.body.createDiv({
@@ -226,13 +226,11 @@ export function showEditTagModal({
         return;
       }
 
-      updateTagInSettings(settings, tag, {
-        name: newTagName,
-        color: newTagColor,
-      });
+      const tagUpdate = { name: newTagName, color: newTagColor };
+      updateTagInSettings(settings, tag, tagUpdate);
 
       if (onSave) {
-        await onSave();
+        await onSave({ ...tag, ...tagUpdate });
       }
       closeModal();
 

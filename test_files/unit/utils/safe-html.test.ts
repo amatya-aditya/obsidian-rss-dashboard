@@ -115,6 +115,33 @@ describe("safe-html.sanitizeAndAppendHtml", () => {
     expect(container.querySelector("span")?.textContent).toBe("Text");
   });
 
+  it("keeps Reddit post code blocks and paragraphs intact in rich mode", () => {
+    const container = createContainer();
+    // Trimmed from a live r/archlinux Atom entry. Reddit's RSS collapses the
+    // newlines inside code blocks to spaces, so the text arrives on one line.
+    const redditContent =
+      `<!-- SC_OFF --><div class="md"><p>Is there anyone who has it working with iwd?</p> ` +
+      `<pre><code>[Security] EAP-Method=PEAP EAP-Identity=anonymous@&lt;myunidomain&gt; [Settings] AutoConnect=true </code></pre> ` +
+      `<p>When I restart iwd I get these errors.</p> ` +
+      `<pre><code>4-Way handshake failed for ifindex: 594, reason: 15 </code></pre> </div><!-- SC_ON --> ` +
+      `&#32; submitted by &#32; <a href="https://www.reddit.com/user/example"> /u/example </a> <br/> ` +
+      `<span><a href="https://www.reddit.com/r/archlinux/comments/abc/post/">[link]</a></span>`;
+
+    sanitizeAndAppendHtml(container, redditContent, { mode: "rich" });
+
+    const codeBlocks = Array.from(container.querySelectorAll("pre > code"));
+    expect(codeBlocks.map((code) => code.textContent)).toEqual([
+      "[Security] EAP-Method=PEAP EAP-Identity=anonymous@<myunidomain> [Settings] AutoConnect=true ",
+      "4-Way handshake failed for ifindex: 594, reason: 15 ",
+    ]);
+    expect(
+      Array.from(container.querySelectorAll("p")).map((p) => p.textContent),
+    ).toEqual([
+      "Is there anyone who has it working with iwd?",
+      "When I restart iwd I get these errors.",
+    ]);
+  });
+
   it("strips event handler attributes and constrains safe links", () => {
     const container = createContainer();
 
@@ -161,6 +188,41 @@ describe("safe-html.sanitizeAndAppendHtml", () => {
       expect(a.getAttribute("target")).toBeNull();
       expect(a.getAttribute("rel")).toBeNull();
     });
+  });
+
+  it("rich mode drops unsafe URLs from every URL-bearing attribute, not only href and src", () => {
+    const container = createContainer();
+
+    sanitizeAndAppendHtml(
+      container,
+      [
+        '<form action="javascript:alert(1)"><button formaction="javascript:alert(2)">Go</button></form>',
+        '<blockquote cite="javascript:alert(3)">Quote</blockquote>',
+        '<table background="javascript:alert(4)"><tbody><tr><td>Cell</td></tr></tbody></table>',
+        '<a ping="javascript:alert(5)" href="https://example.com">Link</a>',
+      ].join(""),
+      { mode: "rich" },
+    );
+
+    expect(container.innerHTML).not.toContain("javascript:");
+    expect(container.querySelector("form")?.hasAttribute("action")).toBe(false);
+    expect(container.querySelector("button")?.hasAttribute("formaction")).toBe(false);
+    expect(container.querySelector("button")?.textContent).toBe("Go");
+    expect(container.querySelector("blockquote")?.textContent).toBe("Quote");
+  });
+
+  it("rich mode keeps safe http(s) values in URL-bearing attributes", () => {
+    const container = createContainer();
+
+    sanitizeAndAppendHtml(
+      container,
+      '<blockquote cite="https://example.com/source">Quote</blockquote>',
+      { mode: "rich" },
+    );
+
+    expect(container.querySelector("blockquote")?.getAttribute("cite")).toBe(
+      "https://example.com/source",
+    );
   });
 
   it("allows http/https/mailto links and applies target+rel", () => {
