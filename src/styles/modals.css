@@ -21,6 +21,8 @@
   --z-index-dropdown: 99999;
   --z-index-drawer: 99999;
   --z-index-modal: 100000;
+  --z-index-modal-dropdown-backdrop: 100001; /* tag popover backdrop mounted inside a modal */
+  --z-index-modal-dropdown: 100002; /* tag popover mounted inside a modal, above that modal */
   --z-index-modal-child: 100104;
   --z-index-folder-popup: 100102; /* above modal and feed-manager overlays so the folder selector popup renders on top */
 

@@ -73,6 +73,39 @@ describe("Phase 7 - ArticleList in-place updates", () => {
     h.cleanup();
   });
 
+  it("marks an article unread on the first toggle click after an in-place update marked it read", () => {
+    const h = createArticleListHarness({
+      settings: {
+        viewStyle: "list",
+        articleGroupBy: "none",
+        articleSort: "newest",
+        display: {
+          mobileListToolbarStyle: "left-grid",
+        } as unknown as RssDashboardSettings["display"],
+      },
+      articles: [buildArticle({ guid: "1", title: "One", read: false })],
+    });
+    h.list.render();
+
+    // Mark page as read hands the list a fresh copy of each article, not the
+    // object the rendered card was built from.
+    h.list.updateArticleInPlace({ ...h.articles[0], read: true });
+
+    const readToggle = h
+      .getArticleEl("1")
+      ?.querySelector<HTMLElement>(".rss-dashboard-read-toggle");
+    readToggle?.click();
+
+    expect(h.callbacks.onArticleUpdate).toHaveBeenLastCalledWith(
+      expect.objectContaining({ guid: "1" }),
+      { read: false },
+      false,
+    );
+    expect(readToggle?.classList.contains("unread")).toBe(true);
+
+    h.cleanup();
+  });
+
   it("syncVisibleArticlesFromSource should refresh tag colors for cloned visible articles", () => {
     const visibleArticle = buildArticle({
       guid: "1",

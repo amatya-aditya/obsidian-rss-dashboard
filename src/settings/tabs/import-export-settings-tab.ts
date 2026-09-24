@@ -425,7 +425,7 @@ export function renderImportExportSettingsTab(
   new Setting(starredSection)
     .setName("Starred imports")
     .setDesc(
-      "Import starred articles from a Google Reader-compatible starred.json export into feeds you already subscribe to.",
+      "Import starred articles from a Google Reader-compatible starred.json export. Feeds you don't already subscribe to are created for you.",
     )
     .setHeading();
 

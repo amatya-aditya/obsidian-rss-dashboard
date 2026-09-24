@@ -14,6 +14,8 @@ import type { App } from "obsidian";
 export interface SettingManager {
   open: () => void;
   openTabById: (pluginId: string) => void;
+  close?: () => void;
+  containerEl?: HTMLElement;
 }
 
 type AppWithInternalSetting = App & {
@@ -44,4 +46,31 @@ export function openSettingsPanel(app: App, pluginId: string): boolean {
   setting.open();
   setting.openTabById(pluginId);
   return true;
+}
+
+/**
+ * Opens the settings modal so it sits above every other open modal.
+ *
+ * Obsidian leaves an already-open settings modal where it is, so a modal
+ * launched from a settings tab (such as the starred import) keeps covering
+ * it. Reopening moves settings to the top of the modal stack and its focus
+ * scope, leaving the other modal open underneath.
+ *
+ * @param setting Internal settings manager from getSettingManager
+ */
+export function openSettingsOnTop(setting: SettingManager): void {
+  if (setting.close && hasModalAbove(setting.containerEl)) {
+    setting.close();
+  }
+  setting.open();
+}
+
+function hasModalAbove(containerEl: HTMLElement | undefined): boolean {
+  if (!containerEl?.isConnected) return false;
+  let sibling = containerEl.nextElementSibling;
+  while (sibling) {
+    if (sibling.matches(".modal-container")) return true;
+    sibling = sibling.nextElementSibling;
+  }
+  return false;
 }

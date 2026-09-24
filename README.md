@@ -50,6 +50,9 @@ Import and export your subscriptions as OPML. Support for RSS, Atom, JSON feeds,
 
 ## Screenshots
 
+> [!NOTE]
+> These screenshots predate 2.7.0. The **Twitter** folder and the X/Twitter feeds in the sidebar relied on the Nitter integration, which was removed in 2.7.0 after Nitter shut down. See the [changelog](CHANGELOG.md) for details and alternatives.
+
 ![RSS Dashboard Discover page](assets/2.2/2.2_Discover.jpg)
 
 ![RSS Dashboard feed view in light mode](assets/2.2/2.2_Dashboard_feedview_light.jpg)

@@ -25,7 +25,7 @@ Public listing and review status:
 - `docs/development/`: compliance patterns, data flow, testing, and release workflow.
 - `docs/plans/`: active or future implementation plans only.
 - `docs/archive/`: indexed historical plans and investigations.
-- `docs/decisions/`: durable architectural decisions that remain discoverable by status.
+- `docs/adr/`: durable architectural decisions that remain discoverable by status.
 - `docs/releases/`: consolidated, public-facing summaries produced at release cut.
 
 ## Sources of Truth

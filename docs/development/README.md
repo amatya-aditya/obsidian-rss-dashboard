@@ -38,7 +38,7 @@ docs/
 
 Use release versions as the primary grouping for implemented feature and bug
 plans. Use calendar years for investigations whose value is chronological.
-Keep durable architectural decisions in `docs/decisions/`; update their status
+Keep durable architectural decisions in `docs/adr/`; update their status
 to `superseded` and link the replacement instead of archiving them.
 
 ### Plan Metadata
@@ -117,7 +117,7 @@ or GitHub rather than filenames.
 
 Release roadmaps are durable coordination artifacts and use
 `release-v<version>-roadmap.md`, or `release-vnext-roadmap.md` before the version
-is chosen. ADRs retain `NNNN-<slug>.md` under `docs/decisions/`.
+is chosen. ADRs retain `NNNN-<slug>.md` under `docs/adr/`.
 
 Legacy plans do not need opportunistic renaming. Normalize them through a
 dedicated documentation migration so every inbound link is updated together.

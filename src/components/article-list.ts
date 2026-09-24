@@ -989,9 +989,12 @@ export class ArticleList {
   }
 
   public updateArticleInPlace(article: FeedItem): void {
-    const index = this.articles.findIndex((a) => a.guid === article.guid);
-    if (index !== -1) {
-      this.articles[index] = article;
+    // Merge into the rendered object rather than replacing it: each card's
+    // action handlers hold that object, and callers such as Mark page as read
+    // pass a fresh copy.
+    const existingArticle = this.articles.find((a) => a.guid === article.guid);
+    if (existingArticle && existingArticle !== article) {
+      Object.assign(existingArticle, article);
     }
 
     const targetId = `article-${article.guid}`;
