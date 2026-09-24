@@ -15,7 +15,9 @@ export class RefreshDetailsModal extends Modal {
   onOpen(): void {
     const { contentEl } = this;
     contentEl.empty();
-    this.modalEl.addClass("rss-dashboard-modal");
+    // Only a scoped class: Obsidian lays out and animates phone modals itself,
+    // and the shared `rss-dashboard-modal` class re-centers with a transform
+    // that pushes a phone modal off-screen.
     this.modalEl.addClass("rss-dashboard-refresh-details-modal");
 
     this.setTitle("Refresh details");

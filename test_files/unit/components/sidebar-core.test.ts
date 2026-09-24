@@ -636,6 +636,10 @@ describe("Sidebar Core", () => {
         expect(
           document.querySelector(".rss-dashboard-refresh-details-manual"),
         ).toBeNull();
+        // Obsidian positions and animates phone modals itself. The plugin's
+        // `rss-dashboard-modal` class re-centers with a transform on top of
+        // that, which pushed this modal mostly off an iPhone screen.
+        expect(modal?.classList.contains("rss-dashboard-modal")).toBe(false);
         vi.useRealTimers();
       });
 
