@@ -1,6 +1,7 @@
 import esbuild from "esbuild";
 import process from "process";
 import { builtinModules as builtins } from "module";
+import { execSync } from "child_process";
 
 const banner =
 `/*
@@ -10,6 +11,24 @@ if you want to view the source, please visit the github repository of this plugi
 `;
 
 const prod = (process.argv[2] === "production");
+
+// Build stamp shown in Settings → About so builds can be compared across
+// devices (issue #373). Falls back to "unknown" when git is unavailable. In
+// watch mode it is captured once, when watching starts.
+function git(args) {
+	try {
+		return execSync(`git ${args}`, { stdio: ["ignore", "pipe", "ignore"] })
+			.toString()
+			.trim();
+	} catch {
+		return "";
+	}
+}
+const buildInfo = {
+	commit: git("rev-parse --short HEAD") || "unknown",
+	dirty: git("status --porcelain") !== "",
+	builtAt: new Date().toISOString(),
+};
 
 const context = await esbuild.context({
 	banner: {
@@ -40,6 +59,9 @@ const context = await esbuild.context({
 	treeShaking: true,
 	outfile: "main.js",
 	minify: prod,
+	define: {
+		__RSS_DASHBOARD_BUILD__: JSON.stringify(buildInfo),
+	},
 	loader: {
 		".json": "json",
 		".wasm": "binary",

@@ -65,6 +65,7 @@ RSS Dashboard is an Obsidian plugin that requires access to certain sensitive Ob
 - Importing feeds via clipboard paste
 - Copying article URLs or content snippets for quick sharing
 - Copying selected Reader content with rendered formulas represented as their retained LaTeX source
+- Copying the build details shown in Settings → About (version, commit, build time) for bug reports
 
 **Data Protection**:
 
