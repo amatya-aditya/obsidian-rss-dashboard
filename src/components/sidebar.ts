@@ -134,6 +134,24 @@ type SidebarRowDescriptor = {
   expandable?: boolean;
 };
 
+/**
+ * Reads a JSON string-array drag payload. Returns an empty list when the
+ * payload is absent or malformed, so the caller falls back to the
+ * single-item key.
+ */
+function parseDraggedStringList(raw: string): string[] {
+  if (!raw) return [];
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    return Array.isArray(parsed) &&
+      parsed.every((item): item is string => typeof item === "string")
+      ? parsed
+      : [];
+  } catch {
+    return [];
+  }
+}
+
 export class Sidebar {
   private container: HTMLElement;
   private settings: RssDashboardSettings;
@@ -1947,37 +1965,15 @@ export class Sidebar {
   } {
     if (!dataTransfer) return { feedUrls: [], folderPaths: [] };
 
-    let feedUrls: string[] = [];
-    const feedUrlsRaw = dataTransfer.getData("feed-urls");
-    if (feedUrlsRaw) {
-      try {
-        const parsed: unknown = JSON.parse(feedUrlsRaw);
-        if (
-          Array.isArray(parsed) &&
-          parsed.every((item): item is string => typeof item === "string")
-        ) {
-          feedUrls = parsed;
-        }
-      } catch {}
-    }
+    let feedUrls = parseDraggedStringList(dataTransfer.getData("feed-urls"));
     if (feedUrls.length === 0) {
       const singleFeed = dataTransfer.getData("feed-url");
       if (singleFeed) feedUrls = [singleFeed];
     }
 
-    let folderPaths: string[] = [];
-    const folderPathsRaw = dataTransfer.getData("folder-paths");
-    if (folderPathsRaw) {
-      try {
-        const parsed: unknown = JSON.parse(folderPathsRaw);
-        if (
-          Array.isArray(parsed) &&
-          parsed.every((item): item is string => typeof item === "string")
-        ) {
-          folderPaths = parsed;
-        }
-      } catch {}
-    }
+    let folderPaths = parseDraggedStringList(
+      dataTransfer.getData("folder-paths"),
+    );
     if (folderPaths.length === 0) {
       const singleFolder = dataTransfer.getData("folder-path");
       if (singleFolder) folderPaths = [singleFolder];

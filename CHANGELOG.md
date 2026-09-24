@@ -112,6 +112,7 @@ For a user-facing overview, see the [RSS Dashboard 2.7.0 release notes](docs/rel
 
 - Hardened the release workflow by separating read-only build validation from privileged publishing and provenance, pinning workflow Actions to reviewed commits, and attesting `manifest.json` alongside the bundle. The test workflow now runs on pushes to `master` and `dev`.
 - Aligned tooling with the Obsidian sample-plugin baseline: TypeScript targets ES2021, Node maintenance scripts are linted under a scoped policy, and repeat version bumps keep existing `versions.json` mappings. [GH Issue #240](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/240)
+- Adopted the sample plugin's `noImplicitReturns` compiler check, and restored the recommended `no-empty` lint rule so empty `catch` blocks are no longer allowed; the two in the sidebar's drag-and-drop handling now return an explicit empty result.
 - CI now verifies the Obsidian support floor and that the current release's `versions.json` mapping matches `manifest.json`.
 - Limited the legacy settings-renderer deprecation allowance to the code that needs it while Obsidian 1.8.7 through 1.12.x are supported. [GH Issue #232](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/232)
 - Resolved post-2.6.0 community plugin scorecard findings: replaced `document.createElement` with Obsidian DOM helpers, replaced the unknown `mjx-container` CSS type selector with class and attribute selectors, and removed an unnecessary type assertion in `settings-loader.ts`.

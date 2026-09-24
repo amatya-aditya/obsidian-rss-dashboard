@@ -192,6 +192,28 @@ describe("Sidebar Batch Move (TDD)", () => {
     expect(plugin.saveSettings).toHaveBeenCalled();
   });
 
+  it("falls back to the single dragged feed when the multi-feed payload is malformed", () => {
+    const folderCEl = container.querySelector('[data-folder-path="FolderC"]') as HTMLElement;
+
+    const dataTransfer = {
+      getData: vi.fn((key: string) => {
+        if (key === "feed-urls") return "not json";
+        if (key === "feed-url") return "https://feed1.com";
+        return "";
+      }),
+      types: ["feed-urls", "feed-url"],
+    };
+
+    const dropEvent = new Event("drop", { bubbles: true, cancelable: true }) as DragEvent;
+    Object.defineProperty(dropEvent, "dataTransfer", { value: dataTransfer });
+    Object.defineProperty(dropEvent, "clientY", { value: 100 });
+
+    folderCEl.dispatchEvent(dropEvent);
+
+    expect(settings.feeds.find((f) => f.url === "https://feed1.com")?.folder).toBe("FolderC");
+    expect(settings.feeds.find((f) => f.url === "https://feed2.com")?.folder).not.toBe("FolderC");
+  });
+
   it("dropping multiple feeds onto root moves all of them to root", () => {
     const rootSection = container.querySelector(".rss-dashboard-feed-folders-section") as HTMLElement;
     expect(rootSection).toBeTruthy();

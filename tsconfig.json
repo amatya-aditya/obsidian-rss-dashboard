@@ -6,6 +6,7 @@
     "target": "ES2021",
     "strict": true,
     "noImplicitAny": true,
+    "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
     "noUncheckedIndexedAccess": true,
     "moduleResolution": "bundler",
