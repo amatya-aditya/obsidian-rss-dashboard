@@ -104,6 +104,7 @@ export class ImportStarredModal extends Modal {
   >;
 
   private previewContainer!: HTMLDivElement;
+  private instructionsEl!: HTMLDivElement;
   private itemTagsDropdownCleanup: (() => void) | null = null;
   private itemTagsDropdownAnchor: HTMLElement | null = null;
 
@@ -117,6 +118,7 @@ export class ImportStarredModal extends Modal {
     this.onImportStarted = onImportStarted;
     this.importerShell = new ImporterShell({
       acceptedFileTypes: ".json",
+      onFileSelected: () => this.resetFileState(),
       validate: (content, file) => this.validateStarredJson(content, file),
       parse: (content) => this.parseStarredJson(content),
       createPreviewModel: (parsed) => {
@@ -135,6 +137,8 @@ export class ImportStarredModal extends Modal {
       renderer: { render: () => this.renderPreview() },
       execute: (model) => this.performImport(model),
       noItemsError: "No importable starred articles were found in this file.",
+      onPreviewVisibilityChange: (visible) =>
+        this.setInstructionsVisibility(!visible),
       getActionState: (model) => this.getImportActionState(model),
     });
   }
@@ -184,12 +188,15 @@ export class ImportStarredModal extends Modal {
    * only exposes starred.json bundled inside its full account archive
    * (alongside subscriptions.xml and a README) — there's no dedicated
    * "export starred items" download — so first-time users otherwise have
-   * no way to know where that file even comes from.
+   * no way to know where that file even comes from. Hidden while a preview
+   * is showing (the file row stays, so the user can still swap files) and
+   * shown again if a replacement file fails to load.
    */
   private renderStarredJsonInstructions(container: HTMLElement): void {
     const wrapper = container.createDiv({
       cls: "import-starred-instructions",
     });
+    this.instructionsEl = wrapper;
     wrapper.createDiv({
       cls: "import-starred-instructions-title",
       text: "How to get starred.json from Inoreader",
@@ -231,11 +238,18 @@ export class ImportStarredModal extends Modal {
     step4.appendText(".");
   }
 
-  private async handleFileSelection(file: File): Promise<void> {
+  private setInstructionsVisibility(visible: boolean): void {
+    this.instructionsEl.toggleClass("import-hidden", !visible);
+  }
+
+  private resetFileState(): void {
     this.validationErrorKind = null;
     this.previewModel = null;
     this.unimportableEntries = [];
     this.collapsedFeedUrls.clear();
+  }
+
+  private async handleFileSelection(file: File): Promise<void> {
     await this.importerShell.handleFileSelection(file);
   }
 
@@ -897,6 +911,7 @@ export class ImportStarredModal extends Modal {
         this.renderItemTagsChips(anchor, candidate);
         this.refreshNewTagsSection();
       },
+      onOpenTagsSettings: () => this.plugin.openTagsSettings(),
       appContainer: this.previewContainer,
       onClosed: () => {
         if (this.itemTagsDropdownCleanup === cleanup) {

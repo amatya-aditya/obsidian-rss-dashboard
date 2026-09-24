@@ -25,6 +25,12 @@ export interface ImporterPreviewRenderer<TModel extends ImporterPreviewModel> {
 
 export interface ImporterShellOptions<TParsed, TModel extends ImporterPreviewModel> {
   acceptedFileTypes: string;
+  /**
+   * Runs at the start of every file selection, including ones made through
+   * the shell's own "Import file..." picker, so importers can reset
+   * per-file state before the new file is validated.
+   */
+  onFileSelected?: (file: File) => void;
   validate: (content: string, file: File) => ImporterShellValidation;
   parse: (content: string) => TParsed;
   createPreviewModel: (parsed: TParsed) => TModel | null;
@@ -99,6 +105,7 @@ export class ImporterShell<TParsed, TModel extends ImporterPreviewModel> {
   }
 
   async handleFileSelection(file: File): Promise<void> {
+    this.options.onFileSelected?.(file);
     this.selectedFile = file;
     this.filePathInput.value = file.name;
     this.model = null;

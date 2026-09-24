@@ -34,6 +34,10 @@ export function createTagsDropdownPortal(
   const targetBody = targetDocument.body;
   const targetWindow = targetDocument.defaultView || activeWindow;
   const isMobile = targetWindow.matchMedia("(max-width: 768px)").matches;
+  // Inside a modal, mount within its container: Obsidian's modal focus trap
+  // pulls focus back into the modal whenever it lands outside that element.
+  const mountEl =
+    anchor.closest<HTMLElement>(".modal-container") ?? targetBody;
 
   targetDocument
     .querySelectorAll(
@@ -44,12 +48,12 @@ export function createTagsDropdownPortal(
     });
 
   const sheetBackdrop = isMobile
-    ? targetBody.createDiv({
+    ? mountEl.createDiv({
         cls: "rss-dashboard-tags-sheet-backdrop",
       })
     : null;
 
-  const portalDropdown = targetBody.createDiv({
+  const portalDropdown = mountEl.createDiv({
     cls: "rss-dashboard-tags-dropdown-content rss-dashboard-tags-dropdown-content-portal",
   });
 
@@ -376,7 +380,7 @@ export function createTagsDropdownPortal(
     });
   }
 
-  targetBody.appendChild(portalDropdown);
+  mountEl.appendChild(portalDropdown);
   portalDropdown.addClass("rss-dashboard-tags-dropdown-content-portal");
 
   let removeDesktopListener: (() => void) | null = null;

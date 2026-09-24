@@ -86,6 +86,8 @@ For a user-facing overview, see the [RSS Dashboard 2.7.0 release notes](docs/rel
 - Fixed turning off **Import labels as tags** in the starred import preview leaving label chips visible on each row, and discarding tags you had added by hand. [GH Issue #234](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/234)
 - Fixed the OPML and starred import modals keeping a stale error or preview on screen after you pick a different file. [GH Issue #234](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/234)
 - The Import OPML preview now labels a feed without a folder as `<None>` instead of `Uncategorized`, which implied a folder of that name would be created. [GH Issue #234](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/234)
+- The **How to get starred.json from Inoreader** instructions in the Import starred articles modal now hide once a file loads into the preview, leaving the **Import file…** row in place so you can still switch files; they reappear if a replacement file fails to load. [PR #353](https://github.com/amatya-aditya/obsidian-rss-dashboard/pull/353)
+- Choosing a new file with **Import file…** in the Import starred articles or Import OPML/XML modal now resets the preview's expanded/collapsed groups instead of carrying over the previous file's state. [PR #353](https://github.com/amatya-aditya/obsidian-rss-dashboard/pull/353)
 
 #### Discover, sidebar, and folders
 
