@@ -54,6 +54,7 @@ interface ViewWithSubheader {
 
 async function renderSubheader(options: {
   userStateUnreadable: boolean;
+  shardFolderHiddenFromSync?: boolean;
   showFilterStatusBar?: boolean;
 }): Promise<HTMLElement> {
   const { RssDashboardView } = await import("../../../src/views/dashboard-view");
@@ -65,6 +66,7 @@ async function renderSubheader(options: {
     settings,
     saveSettings: vi.fn(async () => {}),
     isUserStateUnreadable: options.userStateUnreadable,
+    isShardFolderHiddenFromSync: options.shardFolderHiddenFromSync ?? false,
   };
   const leaf = { app: new App() } as unknown as import("obsidian").WorkspaceLeaf;
   const view = new RssDashboardView(
@@ -133,5 +135,47 @@ describe("Dashboard unreadable user-state alert", () => {
     });
 
     expect(container.querySelector(".rss-dashboard-filter-subheader")).toBeNull();
+  });
+});
+
+describe("Dashboard hidden storage folder alert", () => {
+  beforeEach(() => {
+    installObsidianDomPolyfills();
+    document.body.empty();
+  });
+
+  it("explains that the hidden storage folder is not synced and warns against repairing on this device", async () => {
+    const container = await renderSubheader({
+      userStateUnreadable: false,
+      shardFolderHiddenFromSync: true,
+    });
+
+    const alert = container.querySelector<HTMLElement>(
+      ".rss-dashboard-hidden-storage-alert",
+    );
+    expect(alert?.getAttribute("role")).toBe("alert");
+    expect(alert?.textContent).toContain(DEFAULT_SETTINGS.storageFolder);
+    expect(alert?.textContent).toContain("Repair");
+    expect(alert?.closest(".rss-dashboard-filter-subheader-content")).toBeNull();
+  });
+
+  it("still shows the alert when the user has turned the filter status bar off", async () => {
+    const container = await renderSubheader({
+      userStateUnreadable: false,
+      shardFolderHiddenFromSync: true,
+      showFilterStatusBar: false,
+    });
+
+    expect(
+      container.querySelector(".rss-dashboard-hidden-storage-alert"),
+    ).not.toBeNull();
+  });
+
+  it("shows no alert when the storage folder's shards loaded", async () => {
+    const container = await renderSubheader({ userStateUnreadable: false });
+
+    expect(
+      container.querySelector(".rss-dashboard-hidden-storage-alert"),
+    ).toBeNull();
   });
 });

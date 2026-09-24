@@ -39,6 +39,7 @@ interface TestPlugin extends Partial<RssDashboardPlugin> {
   refreshFeeds: Mock<() => Promise<void>>;
   refreshFailedFeeds: Mock<() => Promise<void>>;
   getFeedShardHealth?: (feed: Feed) => "missing" | "corrupt" | "rebuilt" | null;
+  isShardFolderHiddenFromSync?: boolean;
   cancelPendingStartupRefresh: Mock<() => void>;
   cancelGlobalRefresh: Mock<() => void>;
   isMultiFeedRefreshActive?: boolean;
@@ -448,6 +449,30 @@ describe("Sidebar Core", () => {
       );
     });
 
+    it("leaves per-feed missing-shard warnings to the dashboard's single alert when the storage folder is hidden from sync", () => {
+      settings.feeds = [
+        createFeed({ title: "Missing one", feedId: "feed-1" }),
+        createFeed({ title: "Missing two", feedId: "feed-2" }),
+      ];
+      plugin.getFeedShardHealth = vi.fn().mockReturnValue("missing");
+      plugin.isShardFolderHiddenFromSync = true;
+
+      const sidebar = new Sidebar(
+        app,
+        container,
+        plugin as unknown as RssDashboardPlugin,
+        settings,
+        options,
+        callbacks,
+      );
+      sidebar.render();
+
+      expect(
+        container.querySelectorAll(".rss-dashboard-feed-shard-warning-badge"),
+      ).toHaveLength(0);
+      expect(document.body.textContent).not.toContain("Repair/rebuild storage");
+    });
+
     it("shows the all-feeds spinner and per-feed queued/processing indicators from plugin refresh state", () => {
       const processingFeed = createFeed({
         title: "Processing Feed",
@@ -562,6 +587,69 @@ describe("Sidebar Core", () => {
       expect(retryItem).toBeDefined();
       retryItem?.trigger();
       expect(plugin.refreshFailedFeeds).toHaveBeenCalledTimes(1);
+    });
+
+    describe("refresh details from the all-feeds context menu", () => {
+      function openRefreshDetails(): void {
+        const sidebar = new Sidebar(
+          app,
+          container,
+          plugin as unknown as RssDashboardPlugin,
+          settings,
+          options,
+          callbacks,
+        );
+        sidebar.render();
+        container
+          .querySelector(".rss-dashboard-all-feeds-button")
+          ?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+        ObsidianStubs.Menu.lastItems
+          .find((item) => item.title === "Refresh details")
+          ?.trigger();
+      }
+
+      afterEach(() => {
+        ObsidianStubs.Platform.isMobile = false;
+        activeDocument
+          .querySelectorAll(
+            ".modal-container, .rss-dashboard-refresh-details-manual",
+          )
+          .forEach((el) => el.remove());
+      });
+
+      it("opens a readable modal on mobile that stays open until dismissed", async () => {
+        vi.useFakeTimers();
+        ObsidianStubs.Platform.isMobile = true;
+        settings.feeds = [createFeed({ title: "Example feed" })];
+
+        openRefreshDetails();
+        await vi.advanceTimersByTimeAsync(10_000);
+
+        const modal = document.querySelector<HTMLElement>(
+          ".rss-dashboard-refresh-details-modal",
+        );
+        expect(modal?.textContent).toContain("Refresh details");
+        expect(
+          modal?.querySelectorAll(".rss-dashboard-refresh-details-line").length,
+        ).toBeGreaterThan(0);
+        expect(
+          document.querySelector(".rss-dashboard-refresh-details-manual"),
+        ).toBeNull();
+        vi.useRealTimers();
+      });
+
+      it("keeps the anchored popover on desktop", () => {
+        settings.feeds = [createFeed({ title: "Example feed" })];
+
+        openRefreshDetails();
+
+        expect(
+          document.querySelector(".rss-dashboard-refresh-details-manual"),
+        ).not.toBeNull();
+        expect(
+          document.querySelector(".rss-dashboard-refresh-details-modal"),
+        ).toBeNull();
+      });
     });
 
     it("prefers import processing visuals over refresh visuals when both exist", () => {

@@ -202,7 +202,7 @@ In addition to feed storage, RSS Dashboard now allows you to configure where plu
 - Syncs with your vault
 - Good for multi-device workflows
 
-> **Note about dot-prefixed folders:** Folder names starting with `.` (for example, `.rss-dashboard-data`) are hidden from Obsidian's vault file explorer. If you use Obsidian Sync, the sync engine can still sync these hidden folders, so you do not need to rename or unhide the folder. If you use third-party sync software, it may ignore hidden folders. In that case, rename the folder to remove the leading `.` (for example, `rss-dashboard-data`) before syncing, and update the metadata location setting accordingly.
+> **Note about dot-prefixed folders:** Folder names starting with `.` (for example, `.rss-dashboard-data`) are hidden from Obsidian's vault file explorer, and Obsidian Sync does not sync them: its documentation states that files and folders beginning with `.` are treated as hidden and excluded from sync. Most third-party sync tools skip them too. To use RSS Dashboard on more than one device, change both the storage folder and the metadata location to folders without a leading `.` (for example, `rss-dashboard-data/feeds` and `rss-dashboard-data`) on the device where your articles appear, before setting up the other device. Shard storage v2 keeps `user-state.json` in the metadata folder even when metadata itself stays in the plugin directory. See [Syncing across devices](syncing.md).
 
 ### How to Configure Metadata Storage
 

@@ -48,6 +48,18 @@ export interface PersistSettingsOptions {
   forceAllShards?: boolean;
 }
 
+export interface RepairResult {
+  /** Feeds left untouched because their shard is missing or unreadable and nothing is loaded to rebuild it from. */
+  skippedFeedCount: number;
+}
+
+export interface RepairPreview {
+  rewriteCount: number;
+  skippedFeedTitles: string[];
+  /** Feeds whose readable shard on disk holds more articles than repair would write. */
+  shrinkingFeeds: { title: string; onDiskCount: number; afterRepairCount: number }[];
+}
+
 export interface RevertToLegacyJsonOptions {
   deleteShardFolder?: boolean;
 }
@@ -104,6 +116,16 @@ function normalizeFolderPath(path: string): string {
   }
 
   return normalizePath(trimmed.replace(/^\/+|\/+$/g, ""));
+}
+
+/**
+ * Obsidian Sync and most file-sync tools skip files and folders whose name
+ * begins with ".", so shards under such a path never reach other devices.
+ */
+function isHiddenFromSync(folderPath: string): boolean {
+  return normalizeFolderPath(folderPath)
+    .split("/")
+    .some(segment => segment.startsWith("."));
 }
 
 function getFeedShardPath(storageFolder: string, feedId: string): string {
@@ -313,6 +335,7 @@ export class FeedStorageRepository {
   private lastStorageFolderPath: string | null = null;
   private lastRepairResult = "Not yet run";
   private feedShardHealthById = new Map<string, FeedShardHealth>();
+  private shardFolderHiddenFromSync = false;
   /**
    * Feed IDs whose shard was successfully read and structurally validated in
    * this plugin session, with the GUIDs present in that validated read.
@@ -356,6 +379,28 @@ export class FeedStorageRepository {
 
   public clearFeedShardHealth(feed: Feed): void {
     if (feed.feedId) this.feedShardHealthById.delete(feed.feedId);
+  }
+
+  /**
+   * True when the last hydration found no shard for any feed and the storage
+   * folder is hidden, the signature of a second device whose sync tool skips
+   * dot-prefixed folders rather than of individually damaged shards.
+   */
+  public isShardFolderHiddenFromSync(): boolean {
+    return this.shardFolderHiddenFromSync;
+  }
+
+  /**
+   * A feed whose shard could not be loaded at startup and that has gained no
+   * articles since has nothing real to write. Writing its empty in-memory
+   * copy would replace a shard that is still syncing in, or that another
+   * device holds, with an empty one.
+   */
+  private hasNothingToRebuild(feed: Feed & { feedId: string }): boolean {
+    const health = this.feedShardHealthById.get(feed.feedId);
+    return (
+      (health === "missing" || health === "corrupt") && feed.items.length === 0
+    );
   }
 
   private recordUserStateHealth(
@@ -425,6 +470,7 @@ export class FeedStorageRepository {
     const didAssignFeedIds = this.ensureFeedIds(settings);
     let shardCount = 0;
 
+    this.shardFolderHiddenFromSync = false;
     if (settings.storageMode !== "vault-shards" && settings.storageMode !== "vault-shards-v2") {
       this.feedShardHealthById.clear();
       this.hydratedShardGuidsByFeedId.clear();
@@ -502,6 +548,14 @@ export class FeedStorageRepository {
         );
       }
     }
+
+    const feedsWithIds = settings.feeds.filter(feed => Boolean(feed.feedId));
+    this.shardFolderHiddenFromSync =
+      feedsWithIds.length > 0 &&
+      isHiddenFromSync(settings.storageFolder) &&
+      feedsWithIds.every(
+        feed => this.feedShardHealthById.get(feed.feedId ?? "") === "missing",
+      );
 
     storageLog("Completed shard hydration", {
       didAssignFeedIds,
@@ -600,6 +654,15 @@ export class FeedStorageRepository {
       }
 
       currentFeedIds.add(feed.feedId);
+      // Also leaves the shard in a previous storage folder in place: it may
+      // be the only copy of this feed's articles.
+      if (this.hasNothingToRebuild(feed as Feed & { feedId: string })) {
+        storageLog("Skipped writing empty shard for unloaded feed", {
+          feedId: feed.feedId,
+          title: feed.title,
+        });
+        continue;
+      }
       const isV2 = settings.storageMode === "vault-shards-v2";
       const shard = createFeedShard(feed, isV2);
       const shardJson = JSON.stringify(shard, null, 2);
@@ -613,7 +676,6 @@ export class FeedStorageRepository {
       const shardWriteDecision = await this.getShardWriteDecision(
         shardPath,
         forceAllShards || previousJson !== currentComparableJson,
-        currentComparableJson,
         feed.feedId,
       );
 
@@ -805,7 +867,7 @@ export class FeedStorageRepository {
   public async repairVaultShards(
     settings: RssDashboardSettings,
     saveData: (data: unknown) => Promise<void>,
-  ): Promise<void> {
+  ): Promise<RepairResult> {
     storageLog("Repairing vault shards", {
       mode: settings.storageMode,
       folder: normalizeFolderPath(settings.storageFolder),
@@ -816,11 +878,75 @@ export class FeedStorageRepository {
       forceAllShards: true,
       forceMetadata: true,
     });
-    for (const feed of settings.feeds) this.clearFeedShardHealth(feed);
-    this.lastRepairResult = `Last repair succeeded at ${new Date().toLocaleString()}`;
+    let skippedFeedCount = 0;
+    for (const feed of settings.feeds) {
+      if (feed.feedId && this.hasNothingToRebuild(feed as Feed & { feedId: string })) {
+        skippedFeedCount += 1;
+      } else {
+        this.clearFeedShardHealth(feed);
+      }
+    }
+    this.lastRepairResult =
+      skippedFeedCount > 0
+        ? `Last repair at ${new Date().toLocaleString()} skipped ${skippedFeedCount} feeds with no articles to rebuild from`
+        : `Last repair succeeded at ${new Date().toLocaleString()}`;
     storageLog("Completed vault shard repair", {
       folder: settings.storageFolder,
+      skippedFeedCount,
     });
+    return { skippedFeedCount };
+  }
+
+  /**
+   * Describes what `repairVaultShards` would do without writing anything, so
+   * the user can back out before shards are rewritten from memory.
+   */
+  public async previewRepairVaultShards(
+    settings: RssDashboardSettings,
+  ): Promise<RepairPreview> {
+    const preview: RepairPreview = {
+      rewriteCount: 0,
+      skippedFeedTitles: [],
+      shrinkingFeeds: [],
+    };
+    for (const feed of settings.feeds) {
+      if (!feed.feedId) continue;
+      if (this.hasNothingToRebuild(feed as Feed & { feedId: string })) {
+        preview.skippedFeedTitles.push(feed.title);
+        continue;
+      }
+      preview.rewriteCount += 1;
+      const onDiskCount = await this.readShardItemCount(
+        getFeedShardPath(settings.storageFolder, feed.feedId),
+        feed.feedId,
+      );
+      if (onDiskCount !== null && onDiskCount > feed.items.length) {
+        preview.shrinkingFeeds.push({
+          title: feed.title,
+          onDiskCount,
+          afterRepairCount: feed.items.length,
+        });
+      }
+    }
+    return preview;
+  }
+
+  /** Article count of a readable shard for `feedId`, otherwise null. */
+  private async readShardItemCount(
+    shardPath: string,
+    feedId: string,
+  ): Promise<number | null> {
+    if (!(await this.app.vault.adapter.exists(shardPath))) return null;
+    try {
+      const parsed = JSON.parse(
+        await this.app.vault.adapter.read(shardPath),
+      ) as Partial<FeedItemsShard>;
+      return parsed.feedId === feedId && Array.isArray(parsed.items)
+        ? parsed.items.length
+        : null;
+    } catch {
+      return null;
+    }
   }
 
   public buildFeedBundle(settings: RssDashboardSettings): FeedBundle {
@@ -1368,7 +1494,6 @@ export class FeedStorageRepository {
   private async getShardWriteDecision(
     shardPath: string,
     alreadyChanged: boolean,
-    expectedComparableJson: string,
     feedId: string,
   ): Promise<{
     needsWrite: boolean;
@@ -1391,14 +1516,11 @@ export class FeedStorageRepository {
       if (parsed.feedId !== feedId || !Array.isArray(parsed.items)) {
         return { needsWrite: true, recoveredHealth: "corrupt" };
       }
-      const { updatedAt: _updatedAt, ...existingWithoutTimestamp } = parsed;
-      void _updatedAt;
-      return {
-        needsWrite:
-          JSON.stringify(existingWithoutTimestamp, null, 2) !==
-          expectedComparableJson,
-        recoveredHealth: null,
-      };
+      // A valid shard whose content differs while this device's copy of the
+      // feed is unchanged was written elsewhere, typically by another device
+      // through sync. Rewriting it would replace newer data with this
+      // device's stale copy.
+      return { needsWrite: false, recoveredHealth: null };
     } catch {
       return { needsWrite: true, recoveredHealth: "corrupt" };
     }
@@ -1671,6 +1793,16 @@ export class FeedStorageRepository {
           firstObservedAt,
         });
       }
+    }
+
+    // With no file on disk and nothing to record, creating an empty one would
+    // only race the real file still syncing in from another device.
+    if (
+      existing.status === "missing" &&
+      Object.keys(states).length === 0 &&
+      Object.keys(unattributed).length === 0
+    ) {
+      return;
     }
 
     const userStateFile: UserStateFile = withSyncNonce({

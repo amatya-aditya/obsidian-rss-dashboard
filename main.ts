@@ -59,6 +59,8 @@ import {
   FeedStorageRepository,
   type FeedLocalStorageAddress,
   type FeedStorageStatus,
+  type RepairPreview,
+  type RepairResult,
   ShardFolderDeletionError,
 } from "./src/services/feed-storage-repository";
 import { ImportExportService } from "./src/services/import-export-service";
@@ -892,6 +894,10 @@ export default class RssDashboardPlugin extends Plugin {
 
   public get isUserStateUnreadable(): boolean {
     return this.feedStorageRepository.isUserStateUnreadable();
+  }
+
+  public get isShardFolderHiddenFromSync(): boolean {
+    return this.feedStorageRepository.isShardFolderHiddenFromSync();
   }
 
   public get isMultiFeedRefreshActive(): boolean {
@@ -2420,7 +2426,11 @@ export default class RssDashboardPlugin extends Plugin {
     await this.migrateToVaultShardsV2();
   }
 
-  public async repairVaultShards(): Promise<void> {
+  public previewRepairVaultStorage(): Promise<RepairPreview> {
+    return this.feedStorageRepository.previewRepairVaultShards(this.settings);
+  }
+
+  public async repairVaultShards(): Promise<RepairResult> {
     storageLog("Plugin repair requested", {
       currentMode: this.settings.storageMode,
       folder: this.settings.storageFolder,
@@ -2428,7 +2438,7 @@ export default class RssDashboardPlugin extends Plugin {
     });
 
     try {
-      await this.feedStorageRepository.repairVaultShards(
+      const result = await this.feedStorageRepository.repairVaultShards(
         this.settings,
         (data) => this.saveData(data),
       );
@@ -2436,6 +2446,7 @@ export default class RssDashboardPlugin extends Plugin {
         this.settingTab.refresh();
       }
       storageLog("Plugin repair completed");
+      return result;
     } catch (error) {
       storageError("Plugin repair failed", error, {
         currentMode: this.settings.storageMode,
@@ -2446,7 +2457,7 @@ export default class RssDashboardPlugin extends Plugin {
   }
 
   /** Alias required by StorageSettingsPlugin interface. Delegates to repairVaultShards(). */
-  public async repairVaultStorage(): Promise<void> {
+  public async repairVaultStorage(): Promise<RepairResult> {
     return this.repairVaultShards();
   }
 

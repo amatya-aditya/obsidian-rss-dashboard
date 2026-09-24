@@ -4,6 +4,7 @@ import { FeedStorageRepository } from "../../../src/services/feed-storage-reposi
 import {
   DEFAULT_SETTINGS,
   type Feed,
+  type FeedItem,
   type RssDashboardSettings,
 } from "../../../src/types/types";
 import { shouldShowStorageDeprecationPrompt } from "../../../src/utils/storage-deprecation-prompt";
@@ -45,6 +46,10 @@ function makeFeed(overrides?: Partial<Feed>): Feed {
     lastUpdated: 0,
     ...overrides,
   };
+}
+
+function makeItem(overrides?: Partial<FeedItem>): FeedItem {
+  return { ...(makeFeed().items[0] as FeedItem), ...overrides };
 }
 
 describe("FeedStorageRepository", () => {
@@ -238,21 +243,217 @@ describe("FeedStorageRepository", () => {
     expect(repository.getFeedShardHealth(settings.feeds[0])).toBe("corrupt");
   });
 
-  it("marks a missing shard as rebuilt after persistence recreates it", async () => {
+  it("marks a missing shard as rebuilt once its feed has articles to write again", async () => {
     const settings = cloneSettings();
     settings.storageMode = "vault-shards";
     settings.storageFolder = "RSS Data/Feeds";
-    settings.feeds = [makeFeed({ feedId: "feed-1", items: [] })];
+    const feed = makeFeed({ feedId: "feed-1", items: [] });
+    settings.feeds = [feed];
 
     await repository.hydrateSettings(settings);
-    expect(repository.getFeedShardHealth(settings.feeds[0])).toBe("missing");
+    expect(repository.getFeedShardHealth(feed)).toBe("missing");
 
+    // A refresh repopulates the feed that failed to hydrate.
+    feed.items = [makeItem()];
     await repository.persistSettings(settings, saveData);
 
-    expect(repository.getFeedShardHealth(settings.feeds[0])).toBe("rebuilt");
+    expect(repository.getFeedShardHealth(feed)).toBe("rebuilt");
     expect(await vaultAdapter(app).read("RSS Data/Feeds/feed-1.json")).toContain(
-      "\"feedId\": \"feed-1\"",
+      "Article 1",
     );
+  });
+
+  describe("shards that have not arrived yet (sync still pending)", () => {
+    function adapterHas(path: string): Promise<boolean> {
+      return (app.vault.adapter as unknown as {
+        exists(path: string): Promise<boolean>;
+      }).exists(path);
+    }
+
+    it("does not create an empty shard for a feed whose shard was missing at startup", async () => {
+      const settings = cloneSettings();
+      settings.storageMode = "vault-shards";
+      settings.storageFolder = "RSS Data/Feeds";
+      const feed = makeFeed({ feedId: "feed-1", items: [] });
+      settings.feeds = [feed];
+
+      await repository.hydrateSettings(settings);
+      settings.refreshInterval += 1; // any unrelated settings save
+      const result = await repository.persistSettings(settings, saveData);
+
+      expect(result.shardWriteCount).toBe(0);
+      expect(await adapterHas("RSS Data/Feeds/feed-1.json")).toBe(false);
+      expect(repository.getFeedShardHealth(feed)).toBe("missing");
+    });
+
+    it("keeps a shard that sync delivers after startup instead of overwriting it with empty data", async () => {
+      const settings = cloneSettings();
+      settings.storageMode = "vault-shards";
+      settings.storageFolder = "RSS Data/Feeds";
+      settings.feeds = [makeFeed({ feedId: "feed-1", items: [] })];
+
+      await repository.hydrateSettings(settings);
+      const deliveredShard = JSON.stringify({
+        version: 1,
+        feedId: "feed-1",
+        feedUrl: "https://example.com/feed.xml",
+        updatedAt: Date.now(),
+        items: [makeItem()],
+      });
+      await app.vault.createFolder("RSS Data/Feeds");
+      await vaultAdapter(app).write("RSS Data/Feeds/feed-1.json", deliveredShard);
+
+      await repository.persistSettings(settings, saveData);
+
+      expect(await vaultAdapter(app).read("RSS Data/Feeds/feed-1.json")).toBe(
+        deliveredShard,
+      );
+    });
+
+    it("keeps a valid shard another device changed on disk when this device's copy of the feed is unchanged", async () => {
+      const settings = cloneSettings();
+      settings.storageMode = "vault-shards";
+      settings.storageFolder = "RSS Data/Feeds";
+      settings.feeds = [makeFeed({ feedId: "feed-1" })];
+      await repository.persistSettings(settings, saveData, {
+        forceAllShards: true,
+        forceMetadata: true,
+      });
+      const newerShard = JSON.stringify({
+        version: 1,
+        feedId: "feed-1",
+        feedUrl: "https://example.com/feed.xml",
+        updatedAt: Date.now(),
+        items: [makeItem(), makeItem({ guid: "newer", title: "Newer article" })],
+      });
+      await vaultAdapter(app).write("RSS Data/Feeds/feed-1.json", newerShard);
+
+      const result = await repository.persistSettings(settings, saveData);
+
+      expect(result.shardWriteCount).toBe(0);
+      expect(await vaultAdapter(app).read("RSS Data/Feeds/feed-1.json")).toBe(
+        newerShard,
+      );
+    });
+
+    it("repair skips feeds with nothing to rebuild from and keeps their warning", async () => {
+      const settings = cloneSettings();
+      settings.storageMode = "vault-shards";
+      settings.storageFolder = "RSS Data/Feeds";
+      const unloaded = makeFeed({ feedId: "feed-1", items: [] });
+      const loaded = makeFeed({ feedId: "feed-2", url: "https://example.com/two.xml" });
+      settings.feeds = [unloaded, loaded];
+      await app.vault.createFolder("RSS Data/Feeds");
+      await vaultAdapter(app).write(
+        "RSS Data/Feeds/feed-2.json",
+        JSON.stringify({ version: 1, feedId: "feed-2", items: [makeItem()] }),
+      );
+      await repository.hydrateSettings(settings);
+
+      const result = await repository.repairVaultShards(settings, saveData);
+
+      expect(result).toEqual({ skippedFeedCount: 1 });
+      expect(await adapterHas("RSS Data/Feeds/feed-1.json")).toBe(false);
+      expect(repository.getFeedShardHealth(unloaded)).toBe("missing");
+      expect(repository.getFeedShardHealth(loaded)).toBeNull();
+    });
+
+    it("previews repair without writing, listing skipped feeds and shards that would lose articles", async () => {
+      const settings = cloneSettings();
+      settings.storageMode = "vault-shards";
+      settings.storageFolder = "RSS Data/Feeds";
+      const twoArticles = [
+        makeItem(),
+        makeItem({ guid: "second", title: "Article 2" }),
+      ];
+      const shrinking = makeFeed({ feedId: "feed-2", title: "Shrinking", items: twoArticles });
+      settings.feeds = [
+        makeFeed({ feedId: "feed-1", title: "Unloaded", items: [] }),
+        shrinking,
+      ];
+      await repository.persistSettings(settings, saveData, {
+        forceAllShards: true,
+        forceMetadata: true,
+      });
+      await (app.vault.adapter as unknown as { remove(path: string): Promise<void> }).remove(
+        "RSS Data/Feeds/feed-1.json",
+      );
+      await repository.hydrateSettings(settings);
+      shrinking.items = twoArticles.slice(0, 1);
+      const shardBefore = await vaultAdapter(app).read("RSS Data/Feeds/feed-2.json");
+
+      const preview = await repository.previewRepairVaultShards(settings);
+
+      expect(preview).toEqual({
+        rewriteCount: 1,
+        skippedFeedTitles: ["Unloaded"],
+        shrinkingFeeds: [
+          { title: "Shrinking", onDiskCount: 2, afterRepairCount: 1 },
+        ],
+      });
+      expect(await vaultAdapter(app).read("RSS Data/Feeds/feed-2.json")).toBe(
+        shardBefore,
+      );
+    });
+
+    it("does not create an empty user-state.json before sync delivers the real one", async () => {
+      const settings = cloneSettings();
+      settings.storageMode = "vault-shards-v2";
+      settings.storageFolder = "RSS Data/Feeds";
+      settings.metadataStorageFolder = "RSS Data";
+      settings.feeds = [makeFeed({ feedId: "feed-1", items: [] })];
+
+      await repository.hydrateSettings(settings);
+      await repository.persistSettings(settings, saveData, { forceMetadata: true });
+
+      expect(await adapterHas("RSS Data/user-state.json")).toBe(false);
+    });
+  });
+
+  describe("hidden storage folder detection", () => {
+    it("flags a hidden storage folder when no feed's shard is present", async () => {
+      const settings = cloneSettings();
+      settings.storageMode = "vault-shards-v2";
+      settings.storageFolder = ".rss-dashboard-data/feeds";
+      settings.feeds = [
+        makeFeed({ feedId: "feed-1", items: [] }),
+        makeFeed({ feedId: "feed-2", items: [] }),
+      ];
+
+      await repository.hydrateSettings(settings);
+
+      expect(repository.isShardFolderHiddenFromSync()).toBe(true);
+    });
+
+    it("does not flag a visible storage folder whose shards are missing", async () => {
+      const settings = cloneSettings();
+      settings.storageMode = "vault-shards-v2";
+      settings.storageFolder = "rss-dashboard-data/feeds";
+      settings.feeds = [makeFeed({ feedId: "feed-1", items: [] })];
+
+      await repository.hydrateSettings(settings);
+
+      expect(repository.isShardFolderHiddenFromSync()).toBe(false);
+    });
+
+    it("does not flag a hidden storage folder when some shards loaded", async () => {
+      const settings = cloneSettings();
+      settings.storageMode = "vault-shards-v2";
+      settings.storageFolder = ".rss-dashboard-data/feeds";
+      settings.feeds = [
+        makeFeed({ feedId: "feed-1", items: [] }),
+        makeFeed({ feedId: "feed-2", items: [] }),
+      ];
+      await app.vault.createFolder(".rss-dashboard-data/feeds");
+      await vaultAdapter(app).write(
+        ".rss-dashboard-data/feeds/feed-2.json",
+        JSON.stringify({ version: 1, feedId: "feed-2", items: [] }),
+      );
+
+      await repository.hydrateSettings(settings);
+
+      expect(repository.isShardFolderHiddenFromSync()).toBe(false);
+    });
   });
 
   it("recreates a shard removed externally even when feed data is unchanged", async () => {
@@ -429,7 +630,9 @@ describe("FeedStorageRepository", () => {
     await repository.repairVaultShards(settings, saveData);
     saveData.mockClear();
 
-    await expect(repository.repairVaultShards(settings, saveData)).resolves.toBeUndefined();
+    await expect(repository.repairVaultShards(settings, saveData)).resolves.toEqual({
+      skippedFeedCount: 0,
+    });
     expect(saveData).toHaveBeenCalledTimes(1);
   });
 

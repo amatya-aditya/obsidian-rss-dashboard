@@ -56,7 +56,12 @@ function createPlugin() {
       lastRepairResult: "Not yet run",
     })),
     migrateToVaultStorage: vi.fn(async () => {}),
-    repairVaultStorage: vi.fn(async () => {}),
+    previewRepairVaultStorage: vi.fn(async () => ({
+      rewriteCount: 1,
+      skippedFeedTitles: [],
+      shrinkingFeeds: [],
+    })),
+    repairVaultStorage: vi.fn(async () => ({ skippedFeedCount: 0 })),
     importPortableDataBundleFromFile: vi.fn(async () => {}),
     exportPortableDataBundle: vi.fn(async () => {}),
     exportDataJson: vi.fn(async () => {}),

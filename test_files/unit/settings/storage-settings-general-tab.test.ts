@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as obsidian from "obsidian";
 import { renderStorageSettingsTab } from "../../../src/settings/tabs/storage-settings-tab";
 import {
+  RepairPreviewModal,
   ShardDeletionFailureModal,
   StorageTransitionModal,
 } from "../../../src/settings/modals/storage-settings-modals";
@@ -79,7 +80,12 @@ function createPlugin() {
     ): error is ShardFolderDeletionError =>
       error instanceof ShardFolderDeletionError,
     openStorageFolderInSystem: vi.fn(async () => {}),
-    repairVaultStorage: vi.fn(async () => {}),
+    previewRepairVaultStorage: vi.fn(async () => ({
+      rewriteCount: 1,
+      skippedFeedTitles: [],
+      shrinkingFeeds: [],
+    })),
+    repairVaultStorage: vi.fn(async () => ({ skippedFeedCount: 0 })),
     importPortableDataBundleFromFile: vi.fn(async () => {}),
     exportDataJson: vi.fn(async () => {}),
     exportPortableDataBundle: vi.fn(async () => {}),
@@ -237,6 +243,10 @@ describe("General settings storage section", () => {
       StorageTransitionModal.prototype,
       "waitForClose",
     ).mockResolvedValue("apply");
+    vi.spyOn(RepairPreviewModal.prototype, "open").mockImplementation(() => {});
+    vi.spyOn(RepairPreviewModal.prototype, "waitForClose").mockResolvedValue(
+      "repair",
+    );
 
     renderStorageSettingsTab(containerEl, plugin as never);
 
@@ -269,8 +279,53 @@ describe("General settings storage section", () => {
     await Promise.resolve();
 
     expect(plugin.migrateToVaultStorage).toHaveBeenCalledTimes(1);
-    expect(plugin.repairVaultStorage).toHaveBeenCalledTimes(1);
+    await vi.waitFor(() =>
+      expect(plugin.repairVaultStorage).toHaveBeenCalledTimes(1),
+    );
     expect(plugin.exportPortableDataBundle).toHaveBeenCalledTimes(1);
+  });
+
+  it("previews repair and leaves storage untouched when the user cancels", async () => {
+    const containerEl = createTestContainer();
+    const plugin = createPlugin();
+    vi.spyOn(RepairPreviewModal.prototype, "open").mockImplementation(() => {});
+    vi.spyOn(RepairPreviewModal.prototype, "waitForClose").mockResolvedValue(
+      "cancel",
+    );
+
+    renderStorageSettingsTab(containerEl, plugin as never);
+    const repairButton = Array.from(containerEl.querySelectorAll("button")).find(
+      (button) => button.textContent === "Repair/rebuild storage",
+    ) as HTMLButtonElement;
+    repairButton.click();
+
+    await vi.waitFor(() =>
+      expect(plugin.previewRepairVaultStorage).toHaveBeenCalledTimes(1),
+    );
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(plugin.repairVaultStorage).not.toHaveBeenCalled();
+  });
+
+  it("warns in the repair preview which feeds would lose articles and which would be skipped", () => {
+    const modal = new RepairPreviewModal(new obsidian.App(), {
+      rewriteCount: 2,
+      skippedFeedTitles: ["Unsynced feed"],
+      shrinkingFeeds: [
+        { title: "Stale feed", onDiskCount: 40, afterRepairCount: 3 },
+      ],
+    });
+
+    modal.onOpen();
+
+    const text = modal.contentEl.textContent ?? "";
+    expect(text).toContain("Nothing has been changed yet");
+    expect(text).toContain("Stale feed: 40 → 3 articles");
+    expect(text).toContain("Unsynced feed");
+    const buttonLabels = Array.from(
+      modal.contentEl.querySelectorAll("button"),
+    ).map((button) => button.textContent);
+    expect(buttonLabels).toEqual(["Cancel", "Repair"]);
   });
 
   it("does not trigger migration when the storage mode dropdown changes", async () => {

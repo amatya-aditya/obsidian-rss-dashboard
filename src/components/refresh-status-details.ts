@@ -1,3 +1,28 @@
+const POPUP_GUTTER_PX = 8;
+const MIN_SIDE_POPUP_WIDTH_PX = 240;
+
+/**
+ * Positions a refresh-details popup beside `anchor`, or below it across the
+ * window when the space beside it is too narrow to read, as on a phone where
+ * the sidebar fills most of the screen.
+ */
+export function positionRefreshDetailsPopup(
+  popup: HTMLElement,
+  anchor: HTMLElement,
+): void {
+  const rect = anchor.getBoundingClientRect();
+  const windowWidth = anchor.ownerDocument.defaultView?.innerWidth ?? 0;
+  const sideLeft = rect.right + POPUP_GUTTER_PX;
+  if (windowWidth - sideLeft - POPUP_GUTTER_PX >= MIN_SIDE_POPUP_WIDTH_PX) {
+    popup.style.setProperty("top", `${Math.max(POPUP_GUTTER_PX, rect.top)}px`);
+    popup.style.setProperty("left", `${sideLeft}px`);
+    return;
+  }
+  popup.style.setProperty("top", `${rect.bottom + 4}px`);
+  popup.style.setProperty("left", `${POPUP_GUTTER_PX}px`);
+  popup.style.setProperty("right", `${POPUP_GUTTER_PX}px`);
+}
+
 /**
  * Lightweight, owning-document detail popup for sidebar refresh status.
  * It uses no timers other than the interaction delay and never polls time.
@@ -46,9 +71,7 @@ export function attachRefreshStatusDetails(options: {
       attr: { id: popupId, role: "status" },
     });
     options.render(popup);
-    const rect = row.getBoundingClientRect();
-    popup.style.setProperty("top", `${Math.max(8, rect.top)}px`);
-    popup.style.setProperty("left", `${Math.max(8, rect.right + 8)}px`);
+    positionRefreshDetailsPopup(popup, row);
     popup.addEventListener("mouseenter", clearTimers);
     popup.addEventListener("mouseleave", scheduleClose);
     popup.addEventListener("focusin", clearTimers);

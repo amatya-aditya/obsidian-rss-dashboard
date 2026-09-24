@@ -927,6 +927,7 @@ interface ButtonSettingComponent extends SettingComponent {
   onClick(handler: (evt: MouseEvent) => void): this;
   setCta(): this;
   setWarning(): this;
+  setDestructive(): this;
   _triggerClick(evt?: MouseEvent): void;
 }
 
@@ -1054,6 +1055,11 @@ export class Setting {
 
       setWarning(): this {
         this.buttonEl.classList.add("mod-warning");
+        return this;
+      }
+
+      setDestructive(): this {
+        this.buttonEl.classList.add("mod-destructive");
         return this;
       }
 
@@ -1312,12 +1318,19 @@ export class Modal {
   app: App;
   containerEl: HTMLDivElement;
   modalEl: HTMLDivElement;
+  titleEl: HTMLDivElement;
   contentEl: HTMLDivElement;
   constructor(app: App) {
     this.app = app;
     this.containerEl = activeDocument.createDiv({ cls: "modal-container" });
     this.modalEl = this.containerEl.createDiv({ cls: "modal" });
+    this.titleEl = this.modalEl.createDiv({ cls: "modal-title" });
     this.contentEl = this.modalEl.createDiv({ cls: "modal-content" });
+  }
+
+  setTitle(title: string): this {
+    this.titleEl.setText(title);
+    return this;
   }
 
   onOpen(): void {}

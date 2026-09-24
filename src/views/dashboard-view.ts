@@ -1153,8 +1153,9 @@ export class RssDashboardView extends ItemView {
    */
   private renderFilterSubheader(container: HTMLElement): void {
     const userStateUnreadable = this.plugin.isUserStateUnreadable;
+    const shardFolderHiddenFromSync = this.plugin.isShardFolderHiddenFromSync;
     const statusBarHidden = this.settings.display.showFilterStatusBar === false;
-    if (statusBarHidden && !userStateUnreadable) {
+    if (statusBarHidden && !userStateUnreadable && !shardFolderHiddenFromSync) {
       return;
     }
 
@@ -1178,6 +1179,18 @@ export class RssDashboardView extends ItemView {
       setIcon(alertEl.createSpan(), "alert-triangle");
       alertEl.createSpan({
         text: "user-state.json could not be read. Read, starred, and tag changes are not being saved. Fix or remove the file, then reload the plugin.",
+      });
+    }
+    if (shardFolderHiddenFromSync) {
+      // Replaces the per-feed missing-shard badges: every shard is absent
+      // because the folder is hidden from sync, not because any one is damaged.
+      const alertEl = subheader.createDiv({
+        cls: "rss-dashboard-user-state-alert rss-dashboard-hidden-storage-alert",
+        attr: { role: "alert" },
+      });
+      setIcon(alertEl.createSpan(), "alert-triangle");
+      alertEl.createSpan({
+        text: `No feed articles have reached this device because they are stored in the hidden folder "${this.settings.storageFolder}", which Obsidian sync and most sync tools skip. Do not run Repair here. On the device where your articles appear, change the storage folder and the metadata data.json location in Settings > Storage to folders without a leading ".", then let sync finish and reload the plugin here.`,
       });
     }
     if (statusBarHidden) {
