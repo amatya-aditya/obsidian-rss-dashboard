@@ -186,10 +186,47 @@
   border-top: 1px solid var(--background-modifier-border);
 }
 
-.import-new-tags-heading {
+.import-new-tags-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   margin: 0 0 0.5rem;
+}
+
+.import-new-tags-heading {
+  margin: 0;
   font-size: var(--font-ui-small);
   color: var(--text-muted);
+}
+
+/* Palette, dice, and reset buttons beside the heading. */
+.import-new-tags-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.import-new-tags-actions .import-new-tags-action {
+  position: relative;
+  padding: 2px;
+}
+
+.import-new-tags-actions .import-new-tags-action svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* The palette button's native color input covers the icon, invisibly, so a
+ * direct tap opens the system picker on every platform. */
+.import-new-tags-actions .import-new-tags-color-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: none;
+  opacity: 0;
+  cursor: pointer;
 }
 
 /* New tags render as the same colored chips used on article rows, on one

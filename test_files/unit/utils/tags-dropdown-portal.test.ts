@@ -90,6 +90,23 @@ describe("createTagsDropdownPortal tag editing", () => {
     document.body.empty();
   });
 
+  it("starts the inline 'Add new tag' color at the default tag color", () => {
+    const { anchor } = createModalWithAnchor();
+    const close = createTagsDropdownPortal({
+      anchor,
+      settings: JSON.parse(JSON.stringify(DEFAULT_SETTINGS)),
+      item: makeItem(),
+      onTagAssignmentChange: vi.fn(),
+    });
+
+    expect(
+      document.querySelector<HTMLInputElement>(
+        ".rss-dashboard-tag-inline-color",
+      )?.value,
+    ).toBe("#8a5cf5");
+    close();
+  });
+
   it("reports the previous and updated tag after an edit is saved", async () => {
     const { anchor } = createModalWithAnchor();
     const settings = JSON.parse(JSON.stringify(DEFAULT_SETTINGS)) as typeof DEFAULT_SETTINGS;

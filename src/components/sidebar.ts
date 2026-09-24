@@ -21,6 +21,7 @@ import {
   removeAllTagsFromFeeds,
   syncFolderAutoTagsOnFeeds,
 } from "../utils/folder-tag-sync";
+import { DEFAULT_TAG_COLOR } from "../utils/tag-colors";
 import { showEditTagModal } from "../utils/tag-utils";
 import {
   attachInputClearButton,
@@ -781,7 +782,7 @@ export class Sidebar {
         cls: "rss-dashboard-sidebar-add-tag-row",
       });
       const cp = addRow.createEl("input", {
-        attr: { type: "color", value: "#3498db" },
+        attr: { type: "color", value: DEFAULT_TAG_COLOR },
         cls: "rss-dashboard-tag-color-picker",
       });
       const input = addRow.createEl("input", {
@@ -2828,7 +2829,7 @@ export class Sidebar {
     const colorInput = formContainer.createEl("input", {
       attr: {
         type: "color",
-        value: "#3498db",
+        value: DEFAULT_TAG_COLOR,
       },
       cls: "rss-dashboard-tag-modal-color-picker",
     });

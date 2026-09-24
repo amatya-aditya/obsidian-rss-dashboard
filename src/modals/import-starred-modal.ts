@@ -18,6 +18,7 @@ import {
   renderSingleRowCardTagChips,
 } from "../components/article-list/utils/tag-layout-utils";
 import { createTagsDropdownPortal } from "../utils/tags-dropdown-portal";
+import { DEFAULT_TAG_COLOR, randomTagColors } from "../utils/tag-colors";
 import { showEditTagModal, updateTagInSettings } from "../utils/tag-utils";
 import { FolderSuggest } from "../components/folder-suggest";
 import { decorateFolderSelectorInput } from "./feed-manager/folder-selector-field";
@@ -630,10 +631,12 @@ export class ImportStarredModal extends Modal {
     if (newTags.length === 0) return;
 
     const section = container.createDiv({ cls: "import-new-tags-section" });
-    section.createEl("h4", {
+    const header = section.createDiv({ cls: "import-new-tags-header" });
+    header.createEl("h4", {
       cls: "import-new-tags-heading",
       text: `New tags (${newTags.length})`,
     });
+    this.renderNewTagsColorActions(header, newTags);
 
     const list = section.createDiv({ cls: "import-new-tags-list" });
     for (const tag of newTags) {
@@ -655,6 +658,111 @@ export class ImportStarredModal extends Modal {
         }
       });
     }
+  }
+
+  /**
+   * The "New tags (N)" heading's color buttons: set one color for every new
+   * tag, randomize them, or reset them to the default. Each recolors the
+   * listed tags on every candidate, exactly like editing them one by one.
+   *
+   * The palette button is a transparent native color input laid over the
+   * icon, so a direct tap opens the system picker (mobile webviews do not
+   * reliably open a hidden input from script). It applies on `change`, not
+   * `input`: applying redraws this section, which would close the picker
+   * mid-drag.
+   */
+  private renderNewTagsColorActions(
+    header: HTMLElement,
+    newTags: readonly Tag[],
+  ): void {
+    const actions = header.createDiv({ cls: "import-new-tags-actions" });
+
+    const setColor = this.createNewTagsActionButton(
+      actions,
+      "import-new-tags-set-color",
+      "palette",
+      "Set one color for all new tags",
+    );
+    const firstColor = newTags[0]?.color;
+    const sharedColor = newTags.every((tag) => tag.color === firstColor)
+      ? firstColor
+      : undefined;
+    const colorInput = setColor.createEl("input", {
+      cls: "import-new-tags-color-input",
+      attr: {
+        type: "color",
+        value: sharedColor ?? DEFAULT_TAG_COLOR,
+        "aria-label": "Set one color for all new tags",
+        tabindex: "-1",
+      },
+    });
+    colorInput.addEventListener("change", () => {
+      this.recolorNewTags(
+        newTags,
+        newTags.map(() => colorInput.value),
+      );
+    });
+
+    const randomize = this.createNewTagsActionButton(
+      actions,
+      "import-new-tags-randomize",
+      "dices",
+      "Randomize tag colors",
+    );
+    this.onActivate(randomize, () =>
+      this.recolorNewTags(newTags, randomTagColors(newTags.length)),
+    );
+
+    const reset = this.createNewTagsActionButton(
+      actions,
+      "import-new-tags-reset",
+      "rotate-ccw",
+      "Reset tag colors",
+    );
+    this.onActivate(reset, () =>
+      this.recolorNewTags(
+        newTags,
+        newTags.map(() => DEFAULT_TAG_COLOR),
+      ),
+    );
+  }
+
+  private createNewTagsActionButton(
+    parent: HTMLElement,
+    cls: string,
+    icon: string,
+    label: string,
+  ): HTMLElement {
+    const button = parent.createDiv({
+      cls: `import-new-tags-action clickable-icon ${cls}`,
+    });
+    button.setAttr("role", "button");
+    button.setAttr("tabindex", "0");
+    button.setAttr("aria-label", label);
+    button.setAttr("title", label);
+    setIcon(button, icon);
+    return button;
+  }
+
+  private onActivate(el: HTMLElement, action: () => void): void {
+    el.addEventListener("click", (e) => {
+      e.preventDefault();
+      action();
+    });
+    el.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        action();
+      }
+    });
+  }
+
+  private recolorNewTags(tags: readonly Tag[], colors: readonly string[]): void {
+    tags.forEach((tag, index) => {
+      const color = colors[index];
+      if (color) this.applyTagEditToCandidates(tag, { ...tag, color });
+    });
+    this.redrawCandidateTags();
   }
 
   /**
@@ -966,6 +1074,11 @@ export class ImportStarredModal extends Modal {
    * every row's chips and the "New tags (N)" section.
    */
   private applyItemTagEdit(previous: Tag, updated: Tag): void {
+    this.applyTagEditToCandidates(previous, updated);
+    this.redrawCandidateTags();
+  }
+
+  private applyTagEditToCandidates(previous: Tag, updated: Tag): void {
     const model = this.previewModel;
     if (!model) return;
 
@@ -991,6 +1104,11 @@ export class ImportStarredModal extends Modal {
         );
       }
     }
+  }
+
+  private redrawCandidateTags(): void {
+    const model = this.previewModel;
+    if (!model) return;
 
     this.previewContainer
       .querySelectorAll<HTMLElement>("[data-guid]")

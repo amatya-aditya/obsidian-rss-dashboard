@@ -1,5 +1,6 @@
 import { Notice, setIcon } from "obsidian";
 import type { FeedItem, RssDashboardSettings, Tag } from "../types/types";
+import { DEFAULT_TAG_COLOR } from "./tag-colors";
 import { showEditTagModal } from "./tag-utils";
 import { windowInstanceOf } from "./platform-utils";
 
@@ -283,7 +284,7 @@ export function createTagsDropdownPortal(
     const colorInput = inlineAddRow.createEl("input", {
       attr: {
         type: "color",
-        value: "#8b5cf6",
+        value: DEFAULT_TAG_COLOR,
       },
       cls: "rss-dashboard-tag-inline-color",
     });

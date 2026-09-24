@@ -1485,6 +1485,106 @@ describe("ImportStarredModal", () => {
       expect(rowChip?.style.getPropertyValue("--tag-color")).toBe("#00ff00");
     });
 
+    describe("'New tags (N)' color buttons", () => {
+      const newTagChipColors = (content: HTMLElement) =>
+        Object.fromEntries(
+          Array.from(
+            getNewTagsSection(content)!.querySelectorAll<HTMLElement>(
+              ".rss-dashboard-tag-badge",
+            ),
+          ).map((el) => [
+            el.textContent,
+            el.style.getPropertyValue("--tag-color"),
+          ]),
+        );
+      const rowChipColor = (content: HTMLElement, name: string) =>
+        Array.from(
+          getItemTagsControl(content, labeledGuid).querySelectorAll<HTMLElement>(
+            ".rss-dashboard-tag-badge",
+          ),
+        )
+          .find((el) => el.textContent === name)
+          ?.style.getPropertyValue("--tag-color");
+      const button = (content: HTMLElement, cls: string) =>
+        getNewTagsSection(content)!.querySelector<HTMLElement>(cls)!;
+
+      it("shows palette, dice, and reset buttons, in that order, on the heading line", async () => {
+        const { content } = await setUpModal();
+        const actions = getNewTagsSection(content)!.querySelector(
+          ".import-new-tags-header .import-new-tags-actions",
+        );
+        expect(
+          Array.from(actions?.children ?? []).map((el) =>
+            el.getAttribute("aria-label"),
+          ),
+        ).toEqual([
+          "Set one color for all new tags",
+          "Randomize tag colors",
+          "Reset tag colors",
+        ]);
+      });
+
+      it("reset sets every new tag back to the default color, on the chips and the article rows", async () => {
+        const { content } = await setUpModal();
+        button(content, ".import-new-tags-randomize").click();
+        expect(Object.values(newTagChipColors(content))).not.toContain(
+          "#8a5cf5",
+        );
+
+        button(content, ".import-new-tags-reset").click();
+
+        expect(newTagChipColors(content)).toEqual({
+          Design: "#8a5cf5",
+          art: "#8a5cf5",
+        });
+        expect(rowChipColor(content, "Design")).toBe("#8a5cf5");
+      });
+
+      it("dice gives the new tags fresh, distinct colors, on the chips and the article rows", async () => {
+        const { content } = await setUpModal();
+        const before = newTagChipColors(content);
+
+        button(content, ".import-new-tags-randomize").click();
+
+        const after = newTagChipColors(content);
+        expect(after.Design).not.toBe(before.Design);
+        expect(after.Design).not.toBe(after.art);
+        expect(rowChipColor(content, "Design")).toBe(after.Design);
+      });
+
+      it("the palette picker applies one chosen color to every new tag when it closes", async () => {
+        const { content } = await setUpModal();
+        const picker = button(content, ".import-new-tags-set-color input[type='color']");
+        expect(picker.getAttribute("value") ?? (picker as HTMLInputElement).value).toBe("#8a5cf5");
+
+        (picker as HTMLInputElement).value = "#123456";
+        picker.dispatchEvent(new Event("change"));
+
+        expect(newTagChipColors(content)).toEqual({
+          Design: "#123456",
+          art: "#123456",
+        });
+        expect(rowChipColor(content, "Design")).toBe("#123456");
+      });
+
+      it("the palette picker opens on the tags' shared color, or the default when they differ", async () => {
+        const { content } = await setUpModal();
+        const pickerValue = () =>
+          button(
+            content,
+            ".import-new-tags-set-color input[type='color']",
+          ) as HTMLInputElement;
+
+        const picker = pickerValue();
+        picker.value = "#123456";
+        picker.dispatchEvent(new Event("change"));
+        expect(pickerValue().value).toBe("#123456");
+
+        button(content, ".import-new-tags-randomize").click();
+        expect(pickerValue().value).toBe("#8a5cf5");
+      });
+    });
+
     it("editing a tag that already exists in the palette updates the palette entry and saves settings", async () => {
       const base = cloneSettings();
       base.availableTags = [{ name: "Design", color: "#111111" }];
