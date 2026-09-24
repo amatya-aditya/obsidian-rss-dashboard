@@ -5,7 +5,9 @@
  * Exports:
  *   - renderAboutTab(containerEl, plugin)
  */
+import { Notice, setIcon, setTooltip } from "obsidian";
 import RssDashboardPlugin from "../../../main";
+import { formatBuildLabel, getBuildInfo } from "../../utils/build-info";
 import { WhatsNewModal } from "../../modals/whats-new-modal";
 import { getReleaseNoteForVersion } from "../../release-notes";
 
@@ -25,6 +27,26 @@ export function renderAboutTab(
     cls: "rss-dashboard-about-version",
     text: `v${plugin.manifest.version}`,
   });
+
+  const buildLabel = formatBuildLabel(plugin.manifest.version, getBuildInfo());
+  const buildRow = aboutContainer.createDiv({
+    cls: "rss-dashboard-about-build",
+  });
+  buildRow.createSpan({
+    cls: "rss-dashboard-about-build-label",
+    text: buildLabel,
+  });
+  const copyBuildButton = buildRow.createEl("button", {
+    cls: "rss-dashboard-about-build-copy clickable-icon",
+    attr: { type: "button" },
+  });
+  setIcon(copyBuildButton, "copy");
+  setTooltip(copyBuildButton, "Copy build details");
+  copyBuildButton.onclick = () => {
+    void navigator.clipboard.writeText(buildLabel).then(() => {
+      new Notice("Build details copied");
+    });
+  };
 
   const releaseNote = getReleaseNoteForVersion(plugin.manifest.version);
   if (releaseNote) {

@@ -29,6 +29,16 @@
   color: var(--text-muted);
 }
 
+.rss-dashboard-about-build {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin-top: 2px;
+  font-size: var(--font-ui-smaller);
+  color: var(--text-faint);
+}
+
 .rss-dashboard-about-section-title {
   margin-top: 24px;
   margin-bottom: 8px;
