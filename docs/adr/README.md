@@ -49,6 +49,7 @@ See the [ADR Policy](POLICY.md) for the complete lifecycle, authoring, and maint
 | [0009](0009-curated-whats-new-release-notes.md)                              | Curated What's New Release Notes                                        | accepted | Use hand-authored, build-embedded What's New notes instead of generating user-facing update copy from the technical changelog.        |
 | [0010](0010-hydration-gated-user-state-garbage-collection.md)                | Hydration-Gated User-State Garbage Collection                           | accepted | Remove stale article state only after validated feed data provides sufficient evidence that the article has truly disappeared.        |
 | [0011](0011-decouple-starred-state-from-tags.md)                             | Starred State Is Independent from Tags                                  | accepted | Treat stars and tags as independent article state so starring never creates, removes, or reserves a user tag.                         |
+| [0013](0013-render-reddit-posts-from-rss-content.md)                         | Render Reddit Posts from RSS Content                                    | accepted | Show Reddit posts from their RSS content, without spoofing a crawler to reach Reddit's formatted pages; the official API is deferred. |
 
 ## Creating a new ADR
 
