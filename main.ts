@@ -12,7 +12,10 @@ import {
   requestUrl,
 } from "obsidian";
 
-import { getSettingManager } from "./src/utils/settings-manager";
+import {
+  getSettingManager,
+  openSettingsOnTop,
+} from "./src/utils/settings-manager";
 
 import {
   RssDashboardSettings,
@@ -1037,7 +1040,7 @@ export default class RssDashboardPlugin extends Plugin {
   public async openTagsSettings(): Promise<void> {
     const setting = getSettingManager(this.app);
     if (setting) {
-      setting.open();
+      openSettingsOnTop(setting);
       setting.openTabById(this.manifest.id);
       if (this.settingTab) {
         this.settingTab.activateTab("Tags");
@@ -1057,7 +1060,7 @@ export default class RssDashboardPlugin extends Plugin {
   ): Promise<void> {
     const setting = getSettingManager(this.app);
     if (setting) {
-      setting.open();
+      openSettingsOnTop(setting);
       setting.openTabById(this.manifest.id);
       if (this.settingTab) {
         this.settingTab.activateTab(tabName, sectionName);
