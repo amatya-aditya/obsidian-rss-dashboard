@@ -702,6 +702,9 @@ export class FeedStorageRepository {
           this.feedShardHealthById.get(feed.feedId);
         if (recoveredHealth === "missing" || recoveredHealth === "corrupt") {
           this.feedShardHealthById.set(feed.feedId, "rebuilt");
+          // A feed has articles again, so the folder is no longer wholly
+          // unsynced; per-feed warnings cover the feeds still missing.
+          this.shardFolderHiddenFromSync = false;
         }
         shardWriteCount += 1;
         storageLog("Wrote feed shard", {
