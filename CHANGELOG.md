@@ -106,7 +106,7 @@ For a user-facing overview, see the [RSS Dashboard 2.7.0 release notes](docs/rel
 
 #### Reader
 
-- Fixed code blocks in the reader running off the right edge as one clipped line with no background. Code blocks now render as a shaded monospace box that wraps within the reader width, and inline code is shaded. Reddit's RSS removes the line breaks inside code blocks before the plugin receives them, so Reddit code still arrives as run-on text, but it now wraps and is clearly set apart. [GH Issue #363](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/363)
+- Fixed code blocks in the reader running off the right edge as one clipped line with no background. Code blocks now render as a shaded monospace box that wraps within the reader width, and inline code is shaded. Reddit code blocks still read as run-on text because Reddit's RSS strips their line breaks. [GH Issue #363](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/363) [GH Issue #365](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/365)
 
 #### Obsidian compatibility and settings
 
