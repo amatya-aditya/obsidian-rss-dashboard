@@ -1,4 +1,14 @@
-import { Menu, MenuItem, Notice, App, Modal, setIcon, Setting, setTooltip } from "obsidian";
+import {
+  Menu,
+  MenuItem,
+  Notice,
+  App,
+  Modal,
+  Platform,
+  setIcon,
+  setTooltip,
+  Setting,
+} from "obsidian";
 import {
   Feed,
   Folder,
@@ -51,7 +61,11 @@ import {
   setFolderFeedSortCustom,
   setFolderSortCustom,
 } from "../services/sidebar-ordering-controller";
-import { attachRefreshStatusDetails } from "./refresh-status-details";
+import {
+  attachRefreshStatusDetails,
+  positionRefreshDetailsPopup,
+} from "./refresh-status-details";
+import { RefreshDetailsModal } from "../modals/refresh-details-modal";
 import {
   formatRefreshStatusTime,
   getRefreshStatus,
@@ -265,7 +279,7 @@ export class Sidebar {
       }
       if (feed.lastFetchError)
         lines.push(`Last attempt failed: ${feed.lastFetchError}`);
-      const shardHealth = this.plugin.getFeedShardHealth?.(feed) ?? null;
+      const shardHealth = this.getReportedShardHealth(feed);
       if (shardHealth)
         lines.push(this.getFeedShardWarningMessage(shardHealth));
       if (status.refreshingCount > 0) lines.push("In progress");
@@ -350,6 +364,14 @@ export class Sidebar {
     feeds: Feed[],
     scope: "all" | "feed" | "aggregate",
   ): void {
+    if (Platform.isMobile) {
+      new RefreshDetailsModal(
+        this.app,
+        this.getRefreshDetailLines(feeds, scope),
+      ).open();
+      return;
+    }
+
     const ownerDocument = anchor.ownerDocument;
     const popup = ownerDocument.body.createDiv({
       cls: "rss-dashboard-refresh-details rss-dashboard-refresh-details-manual",
@@ -362,9 +384,7 @@ export class Sidebar {
         text: line,
       });
     }
-    const rect = anchor.getBoundingClientRect();
-    popup.style.setProperty("top", `${Math.max(8, rect.top)}px`);
-    popup.style.setProperty("left", `${Math.max(8, rect.right + 8)}px`);
+    positionRefreshDetailsPopup(popup, anchor);
     const ownerWindow = ownerDocument.defaultView;
     const dismiss = (event?: KeyboardEvent) => {
       if (event && event.key !== "Escape") return;
@@ -1505,7 +1525,7 @@ export class Sidebar {
     const refreshState = this.plugin.activeRefreshState?.get(feed.url);
     const isRefreshProcessing = refreshState?.status === "processing";
     const isQueuedForRefresh = refreshState?.status === "pending";
-    const shardHealth = this.plugin.getFeedShardHealth?.(feed) ?? null;
+    const shardHealth = this.getReportedShardHealth(feed);
 
     if (isProcessing) {
       // Show loading spinner for processing feeds
@@ -1750,6 +1770,16 @@ export class Sidebar {
 
       void this.plugin.saveSettings().then(() => this.render());
     });
+  }
+
+  /**
+   * Per-feed shard health to surface. When every shard is missing because
+   * the storage folder is hidden from sync, the dashboard shows one alert
+   * explaining that instead of a repair prompt on every feed.
+   */
+  private getReportedShardHealth(feed: Feed): FeedShardHealth | null {
+    if (this.plugin.isShardFolderHiddenFromSync) return null;
+    return this.plugin.getFeedShardHealth?.(feed) ?? null;
   }
 
   private getFeedShardWarningMessage(health: FeedShardHealth): string {

@@ -17,7 +17,9 @@ import { setCssProps } from "../../utils/platform-utils";
 import { DEFAULT_SETTINGS, type RssDashboardSettings } from "../../types/types";
 import {
   MetadataCleanupModal,
+  RepairPreviewModal,
   ShardDeletionFailureModal,
+  UnloadedFeedsFolderChangeModal,
   StorageTransitionModal,
   type MetadataCleanupAction,
   type ShardDeletionFailureAction,
@@ -26,6 +28,8 @@ import {
 } from "../modals/storage-settings-modals";
 import type {
   FeedStorageStatus,
+  RepairPreview,
+  RepairResult,
   ShardFolderDeletionError,
 } from "../../services/feed-storage-repository";
 
@@ -43,7 +47,9 @@ interface StorageSettingsPlugin {
   getMetadataFilePath(): string;
   migrateToVaultStorage(): Promise<void>;
   migrateToVaultShardsV2(): Promise<void>;
-  repairVaultStorage(): Promise<void>;
+  getUnloadedShardFeedCount(): number;
+  previewRepairVaultStorage(): Promise<RepairPreview>;
+  repairVaultStorage(): Promise<RepairResult>;
   importPortableDataBundleFromFile(file: File): Promise<void>;
   exportPortableDataBundle(): Promise<void>;
   importFeedBundleFromFile(file: File): Promise<void>;
@@ -405,6 +411,30 @@ export function renderStorageSettingsTab(
               return;
             }
 
+            // The storage folder syncs to every device through data.json, so
+            // changing it where feeds never loaded points all devices at a
+            // folder without this device's missing articles (ADR 0012).
+            const unloadedFeedCount = folderChanged
+              ? plugin.getUnloadedShardFeedCount()
+              : 0;
+            if (unloadedFeedCount > 0) {
+              const warningModal = new UnloadedFeedsFolderChangeModal(
+                plugin.app,
+                {
+                  unloadedFeedCount,
+                  totalFeedCount: plugin.settings.feeds.length,
+                },
+              );
+              const warningClosed = warningModal.waitForClose();
+              warningModal.open();
+              if ((await warningClosed) !== "apply") {
+                storageLog("Storage folder change cancelled: feeds not loaded", {
+                  unloadedFeedCount,
+                });
+                return;
+              }
+            }
+
             if (!modeChanged && folderChanged) {
               try {
                 plugin.settings.storageFolder = pendingStorageFolder;
@@ -542,11 +572,24 @@ export function renderStorageSettingsTab(
             feedCount: plugin.settings.feeds.length,
           });
           try {
-            await plugin.repairVaultStorage();
+            const preview = await plugin.previewRepairVaultStorage();
+            const previewModal = new RepairPreviewModal(plugin.app, preview);
+            const previewClosed = previewModal.waitForClose();
+            previewModal.open();
+            if ((await previewClosed) !== "repair") {
+              storageLog("Repair cancelled from preview");
+              return;
+            }
+
+            const { skippedFeedCount } = await plugin.repairVaultStorage();
             if (plugin.settingTab) {
               plugin.settingTab.display();
             }
-            new Notice("Storage repair completed.");
+            new Notice(
+              skippedFeedCount > 0
+                ? `Storage repair completed. ${skippedFeedCount} feeds were skipped because this device has no articles loaded to rebuild them from.`
+                : "Storage repair completed.",
+            );
           } catch (error) {
             storageError("Repair button action failed", error, {
               currentMode: plugin.settings.storageMode,
@@ -738,7 +781,7 @@ export function renderStorageSettingsTab(
   new Setting(containerEl)
     .setName("Metadata data.json location")
     .setDesc(
-      "Optional vault folder for metadata data.json. Leave empty to keep metadata in the plugin directory.",
+      "Optional vault folder for metadata data.json. Leave empty to keep metadata in the plugin directory. Shard storage v2 keeps article state (user-state.json) in this folder either way, so remove any '.' prefix for Obsidian sync to carry it to other devices.",
     )
     .addText((text) => {
       text
