@@ -104,6 +104,10 @@ For a user-facing overview, see the [RSS Dashboard 2.7.0 release notes](docs/rel
 - Fixed shift-click range selection over feeds whose folder no longer exists turning into a selection of that missing folder.
 - Fixed collapsing or expanding the sidebar, and **Collapse/Expand all folders**, rebuilding the whole dashboard instead of only the sidebar.
 
+#### Reader
+
+- Fixed code blocks in the reader running off the right edge as one clipped line with no background. Code blocks now render as a shaded monospace box that wraps within the reader width, and inline code is shaded. Reddit's RSS removes the line breaks inside code blocks before the plugin receives them, so Reddit code still arrives as run-on text, but it now wraps and is clearly set apart. [GH Issue #363](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/363)
+
 #### Obsidian compatibility and settings
 
 - The minimum supported Obsidian version is now 1.8.7, and release compatibility mappings are corrected so unsupported Obsidian versions are not offered an unverified build. [GH Issue #228](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/228)

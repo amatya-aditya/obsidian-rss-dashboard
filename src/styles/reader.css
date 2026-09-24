@@ -425,6 +425,43 @@
   text-decoration: none;
   cursor: inherit;
 }
+/* Wrap rather than clip: some feeds (e.g. Reddit) collapse a code block's
+   newlines, leaving one long line. Out-specifies the line-height inherit rule. */
+.rss-reader-article-content pre,
+.rss-reader-description-body pre {
+  box-sizing: border-box;
+  max-width: 100%;
+  margin: 1em 0;
+  padding: 0.75em 1em;
+  border-radius: var(--code-radius, 4px);
+  background-color: var(--code-background);
+  font-family: var(--font-monospace);
+  font-size: var(--code-size, 0.875em);
+  line-height: 1.5;
+  text-align: left;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  overflow-x: auto;
+}
+
+.rss-reader-article-content pre code,
+.rss-reader-description-body pre code {
+  padding: 0;
+  border-radius: 0;
+  background-color: transparent;
+  font-size: inherit;
+}
+
+.rss-reader-article-content :not(pre) > code,
+.rss-reader-description-body :not(pre) > code {
+  padding: 0.1em 0.3em;
+  border-radius: var(--code-radius, 4px);
+  background-color: var(--code-background);
+  font-family: var(--font-monospace);
+  font-size: var(--code-size, 0.875em);
+  overflow-wrap: anywhere;
+}
+
 .rss-reader-responsive-img {
   max-width: 100%;
   height: auto;
