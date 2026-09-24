@@ -1,4 +1,4 @@
-import { App, Modal, Platform, setIcon } from "obsidian";
+import { App, Modal, Platform, setIcon, setTooltip } from "obsidian";
 import {
   Sidebar,
   SidebarOptions,
@@ -145,8 +145,8 @@ export class MobileNavigationModal extends Modal {
     if (allFeedsIcon instanceof HTMLElement) {
       allFeedsIcon.classList.toggle("stop", isCancellable);
       allFeedsIcon.classList.toggle("refreshing", isRefreshActive);
-      allFeedsIcon.setAttribute(
-        "title",
+      setTooltip(
+        allFeedsIcon,
         isCancellable ? "Stop refresh" : "Refresh all feeds",
       );
       setIcon(allFeedsIcon, isCancellable ? "square-stop" : "refresh-cw");

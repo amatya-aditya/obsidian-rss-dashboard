@@ -53,7 +53,7 @@ export class ArticleHeaderMenu {
 
     const hamburgerBtn = hamburgerMenu.createDiv({
       cls: "rss-dashboard-hamburger-button clickable-icon",
-      attr: { title: "Menu", role: "button", tabindex: "0" },
+      attr: { "aria-label": "Menu", role: "button", tabindex: "0" },
     });
     setIcon(hamburgerBtn, "menu");
 

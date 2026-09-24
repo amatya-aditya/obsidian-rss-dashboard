@@ -425,6 +425,42 @@
   text-decoration: none;
   cursor: inherit;
 }
+.rss-reader-article-content pre,
+.rss-reader-article-content code,
+.rss-reader-description-body pre,
+.rss-reader-description-body code {
+  border-radius: var(--code-radius);
+  background-color: var(--code-background);
+  font-family: var(--font-monospace);
+  font-size: var(--code-size);
+  overflow-wrap: anywhere;
+}
+/* Wrap rather than clip: some feeds (e.g. Reddit) collapse a code block's
+   newlines, leaving one long line. Out-specifies the line-height inherit rule. */
+.rss-reader-article-content pre,
+.rss-reader-description-body pre {
+  box-sizing: border-box;
+  max-width: 100%;
+  margin: 1em 0;
+  padding: 0.75em 1em;
+  line-height: 1.5;
+  text-align: left;
+  white-space: pre-wrap;
+  overflow-x: auto;
+}
+.rss-reader-article-content code,
+.rss-reader-description-body code {
+  padding: 0.1em 0.3em;
+}
+/* After the inline rule so it wins at equal specificity, at any nesting depth. */
+.rss-reader-article-content pre code,
+.rss-reader-description-body pre code {
+  padding: 0;
+  border-radius: 0;
+  background-color: transparent;
+  font-size: inherit;
+}
+
 .rss-reader-responsive-img {
   max-width: 100%;
   height: auto;

@@ -179,57 +179,86 @@
 
 /* "New tags" section (234-11) — the single inline confirmation of every
  * tag about to be added to `settings.availableTags` before execute,
- * deliberately matching the "Unable to import" section's visual pattern
- * above (same heading/list/row shape) rather than introducing a new one. */
+ * sharing the "Unable to import" section's heading style above. */
 .import-new-tags-section {
   margin-top: 1rem;
   padding-top: 0.75rem;
   border-top: 1px solid var(--background-modifier-border);
 }
 
-.import-new-tags-heading {
+.import-new-tags-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   margin: 0 0 0.5rem;
+}
+
+.import-new-tags-heading {
+  margin: 0;
   font-size: var(--font-ui-small);
   color: var(--text-muted);
 }
 
-.import-new-tags-list {
+/* Palette, dice, and reset buttons beside the heading. */
+.import-new-tags-actions {
   display: flex;
-  flex-direction: column;
+  align-items: center;
   gap: 2px;
 }
 
-.import-new-tags-row {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.35rem 0.5rem;
-  border-radius: 4px;
+.import-new-tags-actions .import-new-tags-action {
+  position: relative;
+  padding: 2px;
 }
 
-.import-new-tags-row:hover {
-  background: var(--background-modifier-hover);
-}
-
-.import-new-tags-icon {
-  display: flex;
-  align-items: center;
-  color: var(--text-accent, var(--text-muted));
-  flex-shrink: 0;
-}
-
-.import-new-tags-icon svg {
+.import-new-tags-actions .import-new-tags-action svg {
   width: 14px;
   height: 14px;
 }
 
-.import-new-tags-name {
-  flex: 1 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
+/* The palette button's native color input covers the icon, invisibly, so a
+ * direct tap opens the system picker on every platform. */
+.import-new-tags-actions .import-new-tags-color-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: none;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.import-new-tags-actions .import-new-tags-set-color:focus-within {
+  outline: 2px solid var(--background-modifier-border-focus);
+  outline-offset: 1px;
+}
+
+/* New tags render as the same colored chips used on article rows, on one
+ * horizontal row; a long list scrolls sideways instead of growing the
+ * modal downward. */
+.import-new-tags-list {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+}
+
+.import-new-tags-list .rss-dashboard-tag-badge {
+  flex: 0 0 auto;
   white-space: nowrap;
-  color: var(--text-normal);
+}
+
+.import-new-tags-list .import-new-tags-chip {
+  cursor: pointer;
+}
+
+.import-new-tags-list .import-new-tags-chip:hover,
+.import-new-tags-list .import-new-tags-chip:focus-visible {
+  filter: brightness(1.1);
+  outline: 1px solid var(--background-modifier-border-hover);
+  outline-offset: 1px;
 }
 
 /* Per-article tag chip (234-12), replacing the old "Read"/"Unread" text in

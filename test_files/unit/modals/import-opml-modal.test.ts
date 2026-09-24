@@ -228,7 +228,10 @@ describe("ImportOpmlModal", () => {
     )!;
     expect(checkbox.disabled).toBe(true);
     expect(checkbox.checked).toBe(false);
-    expect(row.title).toBe("Already exists — unavailable in Update mode.");
+    expect(row.getAttribute("aria-label")).toBe(
+      "Already exists — unavailable in Update mode.",
+    );
+    expect(row.hasAttribute("title")).toBe(false);
   });
 
   it("imports a valid OPML file in update mode and persists once", async () => {

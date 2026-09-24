@@ -1,3 +1,4 @@
+import { setTooltip } from "obsidian";
 import type { FeedItem, Tag } from "../../../types/types";
 import { windowInstanceOf } from "../../../utils/platform-utils";
 
@@ -23,10 +24,13 @@ export function renderTagChips(container: HTMLElement, tags: Tag[]): void {
       cls: "rss-dashboard-tag-overflow",
       text: `+${tags.length - MAX_VISIBLE_TAGS}`,
     });
-    overflow.title = tags
-      .slice(MAX_VISIBLE_TAGS)
-      .map((t) => t.name)
-      .join(", ");
+    setTooltip(
+      overflow,
+      tags
+        .slice(MAX_VISIBLE_TAGS)
+        .map((t) => t.name)
+        .join(", "),
+    );
   }
 }
 
@@ -50,7 +54,7 @@ export function createTagOverflowChip(
     cls: "rss-dashboard-tag-overflow",
     text: `+${hiddenTags.length}`,
   });
-  overflow.title = hiddenTags.map((tag) => tag.name).join(", ");
+  setTooltip(overflow, hiddenTags.map((tag) => tag.name).join(", "));
   return overflow;
 }
 

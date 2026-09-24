@@ -1,3 +1,4 @@
+import { setTooltip } from "obsidian";
 import type { FeedItem } from "../../../types/types";
 import { formatArticleDate } from "../../../utils/platform-utils";
 import {
@@ -71,7 +72,7 @@ export function renderListView(
       const timeEl = mainGrid.createDiv("rss-dashboard-grid-time");
       const dateEl = timeEl.createSpan("rss-dashboard-article-date");
       dateEl.textContent = dateInfo.text;
-      dateEl.setAttribute("title", dateInfo.title);
+      setTooltip(dateEl, dateInfo.title);
     }
     const actionsEl = mainGrid.createDiv("rss-dashboard-grid-actions");
     if (ctx.showListToolbar && !useBottomRow) {
@@ -107,7 +108,7 @@ export function renderListView(
       deps.renderFeedIcon(metaEl, article.feedUrl, article.mediaType);
       const sourceSpan = metaEl.createSpan("rss-dashboard-article-source");
       sourceSpan.setText(article.feedTitle);
-      sourceSpan.setAttribute("title", article.feedTitle);
+      setTooltip(sourceSpan, article.feedTitle);
     }
     if (ctx.showListToolbar && useBottomRow) {
       if (article.tags && article.tags.length > 0) {
@@ -130,10 +131,13 @@ export function renderListView(
             cls: "rss-dashboard-tag-overflow",
             text: `+${article.tags.length - MAX_VISIBLE_TAGS}`,
           });
-          overflowTag.title = article.tags
-            .slice(MAX_VISIBLE_TAGS)
-            .map((t) => t.name)
-            .join(", ");
+          setTooltip(
+            overflowTag,
+            article.tags
+              .slice(MAX_VISIBLE_TAGS)
+              .map((t) => t.name)
+              .join(", "),
+          );
         }
       }
 
@@ -152,7 +156,7 @@ export function renderListView(
         cls: "rss-dashboard-article-date rss-dashboard-list-footer-date",
       });
       footerDateEl.textContent = dateInfo.text;
-      footerDateEl.setAttribute("title", dateInfo.title);
+      setTooltip(footerDateEl, dateInfo.title);
     }
     articleEl.addEventListener("click", () => {
       ctx.callbacks.onArticleClick(article);

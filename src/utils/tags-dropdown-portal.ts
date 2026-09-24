@@ -1,5 +1,6 @@
 import { Notice, setIcon } from "obsidian";
 import type { FeedItem, RssDashboardSettings, Tag } from "../types/types";
+import { DEFAULT_TAG_COLOR } from "./tag-colors";
 import { showEditTagModal } from "./tag-utils";
 import { windowInstanceOf } from "./platform-utils";
 
@@ -10,6 +11,12 @@ export type TagsDropdownPortalOptions = {
   onTagAssignmentChange: (tag: Tag, checked: boolean) => void;
   onPersistSettings?: () => Promise<void> | void;
   onAfterSettingsTagsMutated?: () => void;
+  /**
+   * Called after a tag is edited through the portal, with the tag as it was
+   * and as it is now. Lets callers whose items are not in `settings.feeds`
+   * (e.g. the starred-import preview) apply the same rename/recolor.
+   */
+  onTagEdited?: (previous: Tag, updated: Tag) => void;
   onOpenTagsSettings?: () => Promise<void> | void;
   appContainer?: HTMLElement | null;
   onClosed?: () => void;
@@ -25,6 +32,7 @@ export function createTagsDropdownPortal(
     onTagAssignmentChange,
     onPersistSettings,
     onAfterSettingsTagsMutated,
+    onTagEdited,
     onOpenTagsSettings,
     appContainer,
     onClosed,
@@ -170,7 +178,6 @@ export function createTagsDropdownPortal(
     const editButton = tagItem.createDiv({
       cls: "rss-dashboard-tag-action-button rss-dashboard-tag-edit-button clickable-icon",
       attr: {
-        title: `Edit "${tag.name}" tag`,
         "aria-label": "Edit tag",
         role: "button",
         tabindex: "0",
@@ -181,7 +188,6 @@ export function createTagsDropdownPortal(
     const deleteButton = tagItem.createDiv({
       cls: "rss-dashboard-tag-action-button rss-dashboard-tag-delete-button clickable-icon",
       attr: {
-        title: `Delete "${tag.name}" tag`,
         "aria-label": "Delete tag",
         role: "button",
         tabindex: "0",
@@ -229,12 +235,14 @@ export function createTagsDropdownPortal(
     editButton.addEventListener("click", (e) => {
       e.preventDefault();
       e.stopPropagation();
+      const previousTag = { ...tag };
       showEditTagModal({
         settings,
         tag,
-        onSave: async () => {
+        onSave: async (updatedTag) => {
           persistSettings();
           notifySettingsTagsMutated();
+          onTagEdited?.(previousTag, updatedTag);
           rerenderTagItems();
         },
       });
@@ -274,7 +282,7 @@ export function createTagsDropdownPortal(
     const colorInput = inlineAddRow.createEl("input", {
       attr: {
         type: "color",
-        value: "#8b5cf6",
+        value: DEFAULT_TAG_COLOR,
       },
       cls: "rss-dashboard-tag-inline-color",
     });
@@ -291,14 +299,13 @@ export function createTagsDropdownPortal(
 
     const addButton = inlineAddRow.createDiv({
       cls: "rss-dashboard-tag-inline-button clickable-icon",
-      attr: { title: "Add tag", role: "button", tabindex: "0" },
+      attr: { "aria-label": "Add tag", role: "button", tabindex: "0" },
     });
     setIcon(addButton, "plus");
 
     const settingsButton = inlineAddRow.createDiv({
       cls: "rss-dashboard-tag-inline-settings rss-dashboard-tag-inline-button clickable-icon",
       attr: {
-        title: "Tag settings",
         "aria-label": "Open tag settings",
         role: "button",
         tabindex: "0",

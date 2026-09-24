@@ -1,4 +1,4 @@
-import { setIcon } from "obsidian";
+import { setIcon, setTooltip } from "obsidian";
 import { ArticleGroupByOption, RssDashboardSettings } from "../types/types";
 import { TABLET_LAYOUT_MAX_WIDTH } from "../utils/platform-utils";
 import { ArticleFilterMenu, FilterChangeEvent } from "./article-filter-menu";
@@ -101,9 +101,9 @@ export class ArticleHeader {
     if (this.headerTitleEl) {
       this.headerTitleEl.textContent = title;
       if (tooltip) {
-        this.headerTitleEl.setAttribute("title", tooltip);
+        setTooltip(this.headerTitleEl, tooltip);
       } else {
-        this.headerTitleEl.removeAttribute("title");
+        this.headerTitleEl.removeAttribute("aria-label");
       }
     }
   }
@@ -168,7 +168,7 @@ export class ArticleHeader {
     });
     const sidebarToggle = leftSection.createDiv({
       cls: "rss-dashboard-sidebar-toggle clickable-icon",
-      attr: { title: "Toggle sidebar", role: "button", tabindex: "0" },
+      attr: { "aria-label": "Toggle sidebar", role: "button", tabindex: "0" },
     });
     setIcon(sidebarToggle, "sidebar");
     sidebarToggle.addEventListener("click", () =>
@@ -197,7 +197,7 @@ export class ArticleHeader {
 
     const mobileFilterBtn = rightSection.createEl("button", {
       cls: "rss-dashboard-mobile-filter-button rss-dashboard-filter-trigger clickable-icon",
-      attr: { title: "Filters", role: "button", tabindex: "0" },
+      attr: { "aria-label": "Filters", role: "button", tabindex: "0" },
     });
     setIcon(
       mobileFilterBtn.createDiv({ cls: "rss-dashboard-mobile-filter-icon" }),

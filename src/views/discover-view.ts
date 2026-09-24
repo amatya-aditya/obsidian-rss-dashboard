@@ -605,7 +605,6 @@ export class DiscoverView extends ItemView {
     const dashboardBtn = navContainer.createDiv({
       cls: "rss-dashboard-nav-button clickable-icon rss-discover-return-home",
       attr: {
-        title: "Return to Dashboard",
         "aria-label": "Return to Dashboard",
         role: "button",
         tabindex: "0",
@@ -643,7 +642,7 @@ export class DiscoverView extends ItemView {
 
     const sidebarToggleButton = leftSection.createDiv({
       cls: "rss-dashboard-sidebar-toggle clickable-icon",
-      attr: { title: "Toggle filters" },
+      attr: { "aria-label": "Toggle filters" },
     });
     setIcon(sidebarToggleButton, "sidebar");
     sidebarToggleButton.addEventListener("click", () => {

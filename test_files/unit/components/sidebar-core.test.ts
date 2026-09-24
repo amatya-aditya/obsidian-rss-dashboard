@@ -547,8 +547,9 @@ describe("Sidebar Core", () => {
       const icon = container.querySelector(
         ".rss-dashboard-all-feeds-icon",
       ) as HTMLElement;
-      expect(icon.getAttribute("title")).toBe("Refresh all feeds");
-      expect(icon.hasAttribute("aria-label")).toBe(false);
+      // aria-label is the short hover tooltip; aria-labelledby still wins as
+      // the accessible name, so screen readers get the full description.
+      expect(icon.getAttribute("aria-label")).toBe("Refresh all feeds");
       const labelId = icon.getAttribute("aria-labelledby") ?? "";
       expect(container.querySelector(`#${labelId}`)?.textContent).toBe(
         "Refresh all feeds. Shift+click to retry failed feeds.",
@@ -713,7 +714,7 @@ describe("Sidebar Core", () => {
       ) as HTMLElement;
       expect(icon.tagName).toBe("BUTTON");
       expect(icon.getAttribute("type")).toBe("button");
-      expect(icon.getAttribute("title")).toBe("Stop refresh");
+      expect(icon.getAttribute("aria-label")).toBe("Stop refresh");
       expect(icon.getAttribute("aria-labelledby")).toBeTruthy();
       expect(icon.classList.contains("stop")).toBe(true);
       expect(icon.classList.contains("refreshing")).toBe(false);
@@ -758,7 +759,7 @@ describe("Sidebar Core", () => {
       expect(
         container
           .querySelector(".rss-dashboard-all-feeds-icon")
-          ?.getAttribute("title"),
+          ?.getAttribute("aria-label"),
       ).toBe("Refresh all feeds");
     });
 
