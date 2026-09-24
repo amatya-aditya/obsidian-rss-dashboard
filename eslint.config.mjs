@@ -79,6 +79,12 @@ export default defineConfig([
           message:
             "Avoid 'as any' casts. Use a specific type, 'as unknown as T', or '@ts-expect-error' with a comment.",
         },
+        {
+          selector:
+            "ObjectExpression:has(> Property[key.value='aria-label']):has(> Property[key.name='title'])",
+          message:
+            "Don't set both 'aria-label' and 'title': Obsidian draws a tooltip from aria-label and the browser draws a second one from title. Drop 'title', or use setTooltip(el, text) from 'obsidian'.",
+        },
       ],
     },
   },

@@ -605,7 +605,6 @@ export class DiscoverView extends ItemView {
     const dashboardBtn = navContainer.createDiv({
       cls: "rss-dashboard-nav-button clickable-icon rss-discover-return-home",
       attr: {
-        title: "Return to Dashboard",
         "aria-label": "Return to Dashboard",
         role: "button",
         tabindex: "0",

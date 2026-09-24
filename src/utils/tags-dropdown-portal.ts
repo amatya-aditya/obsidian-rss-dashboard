@@ -178,7 +178,6 @@ export function createTagsDropdownPortal(
     const editButton = tagItem.createDiv({
       cls: "rss-dashboard-tag-action-button rss-dashboard-tag-edit-button clickable-icon",
       attr: {
-        title: `Edit "${tag.name}" tag`,
         "aria-label": "Edit tag",
         role: "button",
         tabindex: "0",
@@ -189,7 +188,6 @@ export function createTagsDropdownPortal(
     const deleteButton = tagItem.createDiv({
       cls: "rss-dashboard-tag-action-button rss-dashboard-tag-delete-button clickable-icon",
       attr: {
-        title: `Delete "${tag.name}" tag`,
         "aria-label": "Delete tag",
         role: "button",
         tabindex: "0",
@@ -308,7 +306,6 @@ export function createTagsDropdownPortal(
     const settingsButton = inlineAddRow.createDiv({
       cls: "rss-dashboard-tag-inline-settings rss-dashboard-tag-inline-button clickable-icon",
       attr: {
-        title: "Tag settings",
         "aria-label": "Open tag settings",
         role: "button",
         tabindex: "0",

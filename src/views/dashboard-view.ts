@@ -1216,7 +1216,6 @@ export class RssDashboardView extends ItemView {
         cls: "rss-dashboard-filter-edit-btn clickable-icon",
         attr: {
           type: "button",
-          title: "Edit keyword rules",
           "aria-label": "Edit keyword rules",
         },
       });
@@ -1250,7 +1249,6 @@ export class RssDashboardView extends ItemView {
         cls: "rss-dashboard-highlight-edit-btn clickable-icon",
         attr: {
           type: "button",
-          title: "Edit highlights",
           "aria-label": "Edit highlights",
         },
       });
@@ -1299,7 +1297,6 @@ export class RssDashboardView extends ItemView {
         attr: {
           role: "button",
           tabindex: "0",
-          title: "Open viewing filters",
           "aria-label": "Open viewing filters",
         },
       });
@@ -4234,7 +4231,7 @@ export class RssDashboardView extends ItemView {
     });
     const backButton = header.createDiv({
       cls: "rss-reader-back-button clickable-icon",
-      attr: { title: "Back to dashboard", "aria-label": "Back to dashboard" },
+      attr: { "aria-label": "Back to dashboard" },
     });
     setIcon(backButton, "arrow-left");
     backButton.addEventListener("click", () => {

@@ -1514,14 +1514,29 @@ describe("ImportStarredModal", () => {
           ".import-new-tags-header .import-new-tags-actions",
         );
         expect(
-          Array.from(actions?.children ?? []).map((el) =>
-            el.getAttribute("aria-label"),
+          Array.from(actions?.children ?? []).map(
+            (el) =>
+              el.getAttribute("aria-label") ??
+              el.querySelector("[aria-label]")?.getAttribute("aria-label"),
           ),
         ).toEqual([
           "Set one color for all new tags",
           "Randomize tag colors",
           "Reset tag colors",
         ]);
+      });
+
+      it("gives each chip and button a single tooltip source (aria-label, never also title)", async () => {
+        const { content } = await setUpModal();
+        const section = getNewTagsSection(content)!;
+        const labelled = Array.from(
+          section.querySelectorAll<HTMLElement>("[aria-label]"),
+        );
+        expect(labelled.length).toBeGreaterThan(0);
+        labelled.forEach((el) => {
+          expect(el.hasAttribute("title")).toBe(false);
+          expect(el.parentElement?.closest("[aria-label]")).toBeNull();
+        });
       });
 
       it("reset sets every new tag back to the default color, on the chips and the article rows", async () => {

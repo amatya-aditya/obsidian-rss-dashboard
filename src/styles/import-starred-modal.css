@@ -229,6 +229,11 @@
   cursor: pointer;
 }
 
+.import-new-tags-actions .import-new-tags-set-color:focus-within {
+  outline: 2px solid var(--background-modifier-border-focus);
+  outline-offset: 1px;
+}
+
 /* New tags render as the same colored chips used on article rows, on one
  * horizontal row; a long list scrolls sideways instead of growing the
  * modal downward. */

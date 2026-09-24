@@ -197,6 +197,11 @@ export function setIcon(el: HTMLElement, iconName: string): void {
   el.dataset.icon = iconName;
 }
 
+/** Mirrors Obsidian: the tooltip text is stored as the element's aria-label. */
+export function setTooltip(el: HTMLElement, tooltip: string): void {
+  el.setAttribute("aria-label", tooltip);
+}
+
 export function normalizePath(path: string): string {
   return path;
 }

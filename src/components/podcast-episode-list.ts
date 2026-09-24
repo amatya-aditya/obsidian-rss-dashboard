@@ -183,7 +183,7 @@ export class PodcastEpisodeList {
       tagsWrap.createSpan({
         cls: "episode-list-row-tag episode-list-row-tag-more",
         text: `+${tags.length - 3}`,
-        attr: { title: remainingTags, "aria-label": remainingTags },
+        attr: { "aria-label": remainingTags },
       });
     }
   }

@@ -149,7 +149,6 @@ export function createReaderFormatPortal(options: ReaderFormatPortalOptions): {
           "rss-reader-format-icon-button rss-reader-format-stepper-button rss-reader-format-stepper-decrease",
         attr: {
           "aria-label": `Decrease ${label.toLowerCase()}`,
-          title: `Decrease ${label.toLowerCase()}`,
         },
       }),
       () => stepValue(-1),
@@ -164,7 +163,6 @@ export function createReaderFormatPortal(options: ReaderFormatPortalOptions): {
           "rss-reader-format-icon-button rss-reader-format-stepper-button rss-reader-format-stepper-increase",
         attr: {
           "aria-label": `Increase ${label.toLowerCase()}`,
-          title: `Increase ${label.toLowerCase()}`,
         },
       }),
       () => stepValue(1),
@@ -273,7 +271,6 @@ export function createReaderFormatPortal(options: ReaderFormatPortalOptions): {
       cls: "rss-reader-format-icon-button rss-reader-format-reset-button",
       attr: {
         "aria-label": "Reset reader format",
-        title: "Reset reader format",
       },
     }),
     () => {
@@ -294,7 +291,6 @@ export function createReaderFormatPortal(options: ReaderFormatPortalOptions): {
       cls: "rss-reader-format-icon-button rss-reader-format-settings-button",
       attr: {
         "aria-label": "Open reader display settings",
-        title: "Open reader display settings",
       },
     }),
     () => {

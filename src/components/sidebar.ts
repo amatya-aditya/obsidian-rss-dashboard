@@ -1562,7 +1562,6 @@ export class Sidebar {
       const errorBadge = feedNameContainer.createDiv({
         cls: "rss-dashboard-feed-error-badge",
         attr: {
-          title: feed.lastFetchError,
           "aria-label": `Feed error: ${feed.lastFetchError}`,
         },
       });
@@ -3627,7 +3626,6 @@ export class Sidebar {
     const searchButton = sidebarToolbar.createDiv({
       cls: "rss-dashboard-toolbar-button",
       attr: {
-        title: "Search feeds",
         "aria-label": "Search feeds",
         role: "button",
         tabindex: "0",

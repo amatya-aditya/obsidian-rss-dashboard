@@ -315,7 +315,6 @@ export function attachInputClearButton(
         attr: {
           type: "button",
           "aria-label": "Clear search",
-          title: "Clear search",
         },
       })
     : wrapper.createDiv({

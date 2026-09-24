@@ -645,7 +645,6 @@ export class ImportStarredModal extends Modal {
       chip.setAttr("role", "button");
       chip.setAttr("tabindex", "0");
       chip.setAttr("aria-label", `Edit "${tag.name}" tag`);
-      chip.setAttr("title", `Edit "${tag.name}" tag`);
       const openEditor = (e: Event) => {
         e.preventDefault();
         e.stopPropagation();
@@ -667,7 +666,9 @@ export class ImportStarredModal extends Modal {
    *
    * The palette button is a transparent native color input laid over the
    * icon, so a direct tap opens the system picker (mobile webviews do not
-   * reliably open a hidden input from script). It applies on `change`, not
+   * reliably open a hidden input from script). The input, not its wrapper,
+   * carries the focus and the aria-label, so there is one tooltip source
+   * and keyboard users reach the real control. It applies on `change`, not
    * `input`: applying redraws this section, which would close the picker
    * mid-drag.
    */
@@ -677,12 +678,10 @@ export class ImportStarredModal extends Modal {
   ): void {
     const actions = header.createDiv({ cls: "import-new-tags-actions" });
 
-    const setColor = this.createNewTagsActionButton(
-      actions,
-      "import-new-tags-set-color",
-      "palette",
-      "Set one color for all new tags",
-    );
+    const setColor = actions.createDiv({
+      cls: "import-new-tags-action clickable-icon import-new-tags-set-color",
+    });
+    setIcon(setColor, "palette");
     const firstColor = newTags[0]?.color;
     const sharedColor = newTags.every((tag) => tag.color === firstColor)
       ? firstColor
@@ -693,7 +692,6 @@ export class ImportStarredModal extends Modal {
         type: "color",
         value: sharedColor ?? DEFAULT_TAG_COLOR,
         "aria-label": "Set one color for all new tags",
-        tabindex: "-1",
       },
     });
     colorInput.addEventListener("change", () => {
@@ -739,7 +737,6 @@ export class ImportStarredModal extends Modal {
     button.setAttr("role", "button");
     button.setAttr("tabindex", "0");
     button.setAttr("aria-label", label);
-    button.setAttr("title", label);
     setIcon(button, icon);
     return button;
   }
@@ -837,7 +834,7 @@ export class ImportStarredModal extends Modal {
       nameWrap.createSpan({
         cls: "import-preview-new-feed-marker",
         text: "*",
-        attr: { "aria-label": "New feed", title: "New feed" },
+        attr: { "aria-label": "New feed" },
       });
     }
 
@@ -852,7 +849,6 @@ export class ImportStarredModal extends Modal {
         role: "button",
         tabindex: "0",
         "aria-label": collapsed ? "Expand feed" : "Collapse feed",
-        title: collapsed ? "Expand" : "Collapse",
       },
     });
     setIcon(toggle, collapsed ? "chevron-right" : "chevron-down");
@@ -947,7 +943,6 @@ export class ImportStarredModal extends Modal {
         role: "button",
         tabindex: "0",
         "aria-label": "Manage tags",
-        title: "Manage tags",
       },
     });
 

@@ -903,7 +903,6 @@ export class ReaderView extends ItemView {
     const tagsButton = tagsDropdown.createDiv({
       cls: "rss-dashboard-tags-toggle clickable-icon",
       attr: {
-        title: "Manage tags",
         role: "button",
         tabindex: "0",
         "aria-label": "Manage tags",
@@ -929,7 +928,6 @@ export class ReaderView extends ItemView {
     const readerFormatButton = actions.createDiv({
       cls: "rss-reader-action-button rss-reader-format-button",
       attr: {
-        title: "Reader settings",
         "aria-label": "Reader settings",
         role: "button",
         tabindex: "0",

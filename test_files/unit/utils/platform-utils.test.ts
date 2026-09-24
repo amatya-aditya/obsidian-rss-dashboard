@@ -260,7 +260,7 @@ describe("platform-utils.attachInputClearButton", () => {
     expect(clearButton.tagName).toBe("BUTTON");
     expect(clearButton.getAttribute("type")).toBe("button");
     expect(clearButton.getAttribute("aria-label")).toBe("Clear search");
-    expect(clearButton.getAttribute("title")).toBe("Clear search");
+    expect(clearButton.hasAttribute("title")).toBe(false);
     expect(clearButton.classList.contains("my-clear")).toBe(true);
     expect(clearButton.classList.contains("my-hidden")).toBe(false);
 

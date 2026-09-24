@@ -108,9 +108,11 @@ For a user-facing overview, see the [RSS Dashboard 2.7.0 release notes](docs/rel
 - The minimum supported Obsidian version is now 1.8.7, and release compatibility mappings are corrected so unsupported Obsidian versions are not offered an unverified build. [GH Issue #228](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/228)
 - Settings controls now adapt to the running Obsidian version: destructive settings, modal, and feed-management confirmations use version-aware controls with unchanged actions, and sliders on older supported versions show their formatted value while dragging, using the keyboard, or editing a paired input. [GH Issue #229](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/229) [GH Issue #230](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/230) [GH Issue #231](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/231)
 - Fixed the **Storage mode** description in Settings → Storage showing `[object DocumentFragment]`, notably in popped-out windows. [GH Issue #248](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/248)
+- Fixed buttons and badges across the dashboard, reader, podcast player, sidebar, and import modals showing two tooltips on hover, Obsidian's and the browser's. They now show only Obsidian's tooltip.
 
 ### Development and compliance
 
+- ESLint now rejects setting both `aria-label` and `title` on one element, since that shows two tooltips; use `setTooltip()` from `obsidian` instead.
 - Hardened the release workflow by separating read-only build validation from privileged publishing and provenance, pinning workflow Actions to reviewed commits, and attesting `manifest.json` alongside the bundle. The test workflow now runs on pushes to `master` and `dev`.
 - Aligned tooling with the Obsidian sample-plugin baseline: TypeScript targets ES2021, Node maintenance scripts are linted under a scoped policy, and repeat version bumps keep existing `versions.json` mappings. [GH Issue #240](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/240)
 - CI now verifies the Obsidian support floor and that the current release's `versions.json` mapping matches `manifest.json`.
