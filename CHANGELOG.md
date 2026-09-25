@@ -70,6 +70,7 @@ For a user-facing overview, see the [RSS Dashboard 2.7.0 release notes](docs/rel
 - The image cache folder is no longer created while **Allow image caching** is off, and it now lives inside the plugin's actual install folder. Turning the setting off removes the cache folder. A stray `plugins/rss-dashboard/image-cache` folder from an earlier build is not migrated and can be deleted by hand.
 - Fixed automatic retention keeping unread articles older than a feed's auto-delete cutoff indefinitely when the source feed still lists them. They are now deleted by default; turn on the unread protection under **Data Retention** to keep them. [GH Issue #213](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/213)
 - Fixed cancelling a background import leaving its unfetched feeds permanently excluded from global refresh. [GH Issue #249](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/249)
+- Fixed settings that sync in from another device being ignored by parts of the plugin until Obsidian restarted. After the reload, auto-backups could write the pre-sync feed list to `feeds.opml.backup`, new folders were added to the old folder list and lost, and feeds that arrived with a folder this device lacked did not get that folder created.
 
 #### Refresh
 
