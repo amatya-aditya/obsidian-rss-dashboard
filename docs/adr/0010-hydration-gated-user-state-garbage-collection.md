@@ -51,7 +51,7 @@ The existing feed-qualified state values are retained; only compact lifecycle me
 
 Only an explicit feed removal on this device — deleting or unsubscribing a feed, singly, by folder, or all at once — removes that feed's state immediately. The removal is remembered in memory for the current session and applied on the next state save; it is not persisted.
 
-State for any other feed absent from the device's feed list is unrecognized, not deleted. It is retained for the same 90-day horizon and removed on a later normal state save. If the feed reappears in the device's feed list first, its marker is cleared and its state is retained. Replacing the feed list by importing a bundle or a preferences file that includes feeds, which is also how a backup is restored, is not an explicit removal, so state for feeds it drops follows the horizon and matches again if those feeds return.
+State for any other feed absent from the device's feed list is unrecognized, not deleted. It is retained for the same 90-day horizon and removed on a later normal state save. If the feed reappears in the device's feed list first, its marker is cleared and its state is retained. Replacing the feed list by importing a bundle, a legacy `data.json`, or a preferences file that includes feeds, which is also how a backup is restored, is not an explicit removal, so state for feeds it drops follows the horizon and matches again if those feeds return.
 
 ### Unchanged behavior
 
