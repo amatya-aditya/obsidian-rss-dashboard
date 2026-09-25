@@ -1,5 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { attachRefreshStatusDetails } from "../../../src/components/refresh-status-details";
+import {
+  attachRefreshStatusDetails,
+  showRefreshDetailsPopup,
+} from "../../../src/components/refresh-status-details";
 
 afterEach(() => {
   vi.useRealTimers();
@@ -123,5 +126,118 @@ describe("refresh status details", () => {
     await vi.advanceTimersByTimeAsync(100);
     expect(document.querySelector(".rss-dashboard-refresh-details")).toBeNull();
     cleanup();
+  });
+});
+
+describe("refresh status details - one popup at a time", () => {
+  const attachRow = (label: string) => {
+    // Sidebar rows use tabindex -1, so a mouse click focuses them.
+    const row = document.body.createDiv({ text: label });
+    row.setAttribute("tabindex", "-1");
+    const cleanup = attachRefreshStatusDetails({
+      row,
+      description: () => `Refresh details for ${label}`,
+      render: (popup) => popup.createDiv({ text: `Details for ${label}` }),
+    });
+    return { row, cleanup };
+  };
+  const openPopups = () =>
+    Array.from(
+      document.querySelectorAll<HTMLElement>(".rss-dashboard-refresh-details"),
+    ).map((popup) => popup.textContent);
+
+  it("closes a clicked row's popup once the pointer moves to another row", async () => {
+    vi.useFakeTimers();
+    const first = attachRow("First feed");
+    const second = attachRow("Second feed");
+
+    first.row.dispatchEvent(new MouseEvent("mouseenter"));
+    await vi.advanceTimersByTimeAsync(350);
+    first.row.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+    first.row.focus();
+    first.row.dispatchEvent(new MouseEvent("mouseleave"));
+    second.row.dispatchEvent(new MouseEvent("mouseenter"));
+    await vi.advanceTimersByTimeAsync(450);
+
+    expect(openPopups()).toEqual(["Details for Second feed"]);
+    first.cleanup();
+    second.cleanup();
+  });
+
+  it("closes a clicked row's popup when the pointer leaves it", async () => {
+    vi.useFakeTimers();
+    const first = attachRow("First feed");
+
+    first.row.dispatchEvent(new MouseEvent("mouseenter"));
+    await vi.advanceTimersByTimeAsync(350);
+    first.row.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+    first.row.focus();
+    first.row.dispatchEvent(new MouseEvent("mouseleave"));
+    await vi.advanceTimersByTimeAsync(100);
+
+    expect(openPopups()).toEqual([]);
+    first.cleanup();
+  });
+
+  it("replaces a keyboard-focused row's popup when another row is hovered", async () => {
+    vi.useFakeTimers();
+    const first = attachRow("First feed");
+    const second = attachRow("Second feed");
+
+    first.row.focus();
+    await vi.advanceTimersByTimeAsync(350);
+    expect(openPopups()).toEqual(["Details for First feed"]);
+
+    second.row.dispatchEvent(new MouseEvent("mouseenter"));
+    await vi.advanceTimersByTimeAsync(350);
+
+    expect(openPopups()).toEqual(["Details for Second feed"]);
+    first.cleanup();
+    second.cleanup();
+  });
+
+  it("keeps a keyboard-focused row's popup open when the pointer passes over and leaves", async () => {
+    vi.useFakeTimers();
+    const first = attachRow("First feed");
+
+    first.row.focus();
+    await vi.advanceTimersByTimeAsync(350);
+    first.row.dispatchEvent(new MouseEvent("mouseenter"));
+    first.row.dispatchEvent(new MouseEvent("mouseleave"));
+    await vi.advanceTimersByTimeAsync(200);
+
+    expect(openPopups()).toEqual(["Details for First feed"]);
+    first.cleanup();
+  });
+
+  it("closes a context-menu refresh details popup when a hover popup opens", async () => {
+    vi.useFakeTimers();
+    const anchor = document.body.createDiv({ text: "Folder" });
+    const second = attachRow("Second feed");
+
+    showRefreshDetailsPopup({
+      anchor,
+      render: (popup) => popup.createDiv({ text: "Details for Folder" }),
+    });
+    expect(openPopups()).toEqual(["Details for Folder"]);
+
+    second.row.dispatchEvent(new MouseEvent("mouseenter"));
+    await vi.advanceTimersByTimeAsync(350);
+
+    expect(openPopups()).toEqual(["Details for Second feed"]);
+    second.cleanup();
+  });
+
+  it("dismisses a context-menu refresh details popup after five seconds", async () => {
+    vi.useFakeTimers();
+    const anchor = document.body.createDiv({ text: "Folder" });
+
+    showRefreshDetailsPopup({
+      anchor,
+      render: (popup) => popup.createDiv({ text: "Details for Folder" }),
+    });
+    await vi.advanceTimersByTimeAsync(5000);
+
+    expect(openPopups()).toEqual([]);
   });
 });
