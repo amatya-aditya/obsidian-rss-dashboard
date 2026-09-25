@@ -120,7 +120,7 @@ For a user-facing overview, see the [RSS Dashboard 2.7.0 release notes](docs/rel
 - Fixed deleting a feed or folder from the sidebar on mobile leaving it listed until Obsidian restarted; it now disappears immediately. [GH Issue #378](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/378)
 - Fixed sidebar keyboard shortcuts (such as `Shift+D` to delete) still running while a dialog was open, which could stack a second delete confirmation under the first so a quick **OK** deleted a feed you were no longer looking at. Dashboard shortcuts now pause while any dialog is open, and only one sidebar delete confirmation shows at a time.
 - Fixed sidebar keyboard navigation (`Shift+J`/`Shift+L`) stepping onto hidden feeds inside collapsed folders.
-- Fixed a sidebar **Refresh details** popup staying on screen after you clicked its row and moved to another row, which left two popups showing. Only one popup shows at a time now, including the one opened from the context menu, and moving to another row replaces it. A row focused from the keyboard still keeps its popup open.
+- Fixed a sidebar **Refresh details** popup staying on screen after you clicked its row and moved to another row, which left two popups showing. Only one popup shows at a time now, including the one opened from the context menu, and moving to another row replaces it. A row focused from the keyboard still keeps its popup open. [PR #394](https://github.com/amatya-aditya/obsidian-rss-dashboard/pull/394)
 
 #### Obsidian compatibility and settings
 
