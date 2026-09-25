@@ -344,6 +344,43 @@ export default class RssDashboardPlugin extends Plugin {
   }
 
   private initializeSettingsBackedServices(): void {
+    this.bindSettingsBackedServices();
+    this.backgroundImportService = new BackgroundImportService({
+      // Forward to the current parser so a rebind after a settings reload
+      // reaches an import that is already running.
+      feedParser: {
+        parseFeed: (url, existingFeed, options) =>
+          this.feedParser.parseFeed(url, existingFeed, options),
+      },
+      getSettings: () => this.settings,
+      getView: () => this.getActiveDashboardView(),
+      saveSettings: () => this.saveSettings(),
+      ensureFolderExists: (folder, opts) =>
+        this.ensureFolderExists(folder, opts),
+      addStatusBarItem: () => this.addStatusBarItem(),
+      beginGlobalOperation: (total) => this.beginGlobalOperation(total),
+      updateGlobalOperationProgress: (completed, total) => {
+        this.globalRefreshCompleted = completed;
+        this.globalRefreshTotal = total;
+        void this.notifyRefreshStatusChanged();
+      },
+      endGlobalOperation: () => this.endGlobalOperation(),
+      isGlobalOperationCancelled: () => this.isGlobalRefreshCancelled,
+      onFeedImported: (feed) => this.queuePreviewImageCaching(feed),
+      onImportQueueDrained: (processedCount) => {
+        new Notice(
+          `Background import completed. Processed ${processedCount} feeds.`,
+        );
+      },
+    });
+  }
+
+  /**
+   * Rebuild the services that hold the settings object, or parts of it, so
+   * they follow a reassigned `this.settings`. BackgroundImportService is left
+   * alone because replacing it would drop a running import's queue.
+   */
+  private bindSettingsBackedServices(): void {
     this.feedParser = new FeedParser(
       this.settings.display,
       this.settings.availableTags,
@@ -383,29 +420,6 @@ export default class RssDashboardPlugin extends Plugin {
       getUserSettingsJson: () => this.importExportService.getUserSettingsJson(),
     });
     this.folderService = new FolderService(this.settings);
-    this.backgroundImportService = new BackgroundImportService({
-      feedParser: this.feedParser,
-      getSettings: () => this.settings,
-      getView: () => this.getActiveDashboardView(),
-      saveSettings: () => this.saveSettings(),
-      ensureFolderExists: (folder, opts) =>
-        this.ensureFolderExists(folder, opts),
-      addStatusBarItem: () => this.addStatusBarItem(),
-      beginGlobalOperation: (total) => this.beginGlobalOperation(total),
-      updateGlobalOperationProgress: (completed, total) => {
-        this.globalRefreshCompleted = completed;
-        this.globalRefreshTotal = total;
-        void this.notifyRefreshStatusChanged();
-      },
-      endGlobalOperation: () => this.endGlobalOperation(),
-      isGlobalOperationCancelled: () => this.isGlobalRefreshCancelled,
-      onFeedImported: (feed) => this.queuePreviewImageCaching(feed),
-      onImportQueueDrained: (processedCount) => {
-        new Notice(
-          `Background import completed. Processed ${processedCount} feeds.`,
-        );
-      },
-    });
   }
 
   private async initializeImageCache(): Promise<void> {
@@ -2878,6 +2892,11 @@ export default class RssDashboardPlugin extends Plugin {
       const originalSettingsJson = JSON.stringify(mergedSettings);
 
       this.settings = loadAndNormalizeSettings(data);
+      // A reload after startup (e.g. a synced data.json) replaces the settings
+      // object, so services built from the previous one must follow it.
+      if (this.folderService) {
+        this.bindSettingsBackedServices();
+      }
       const didMigrateKeywordRules = this.migrateLegacySettings();
       await this.repairMissingFolderPathsForFeeds();
       const hydrated = await this.feedStorageRepository.hydrateSettings(
