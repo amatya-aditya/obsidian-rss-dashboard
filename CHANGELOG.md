@@ -124,6 +124,7 @@ For a user-facing overview, see the [RSS Dashboard 2.7.0 release notes](docs/rel
 - Fixed sidebar keyboard navigation (`Shift+J`/`Shift+L`) stepping onto hidden feeds inside collapsed folders.
 - Fixed a sidebar **Refresh details** popup staying on screen after you clicked its row and moved to another row, which left two popups showing. Only one popup shows at a time now, including the one opened from the context menu, and moving to another row replaces it. A row focused from the keyboard still keeps its popup open. [PR #394](https://github.com/amatya-aditya/obsidian-rss-dashboard/pull/394)
 - Fixed the sidebar **Refresh details** popup, on hover and from the context menu, being hidden behind the sidebar drawer when the dashboard is narrow enough to open the sidebar as a drawer, such as in a narrow popout window.
+- Fixed the sidebar after moving the dashboard to a popout window: hovering a feed showed its **Refresh details** popup in the main window instead of the popout, and widening a narrow popout left the sidebar drawer floating open over the inline sidebar. Both now follow the window that shows the dashboard.
 
 #### Obsidian compatibility and settings
 

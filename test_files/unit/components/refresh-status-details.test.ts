@@ -303,3 +303,101 @@ describe("refresh status details - one popup at a time", () => {
     ).toBe(true);
   });
 });
+
+// Obsidian moves a leaf's DOM into a popout window's document without
+// rebuilding the view, so rows attached in the main window end up in another
+// document. jsdom documents from createHTMLDocument have no window, so give
+// this one a window whose timers run on the (possibly faked) test clock.
+function createPopoutDocument(): Document {
+  const popoutDocument = document.implementation.createHTMLDocument("Popout");
+  const popoutWindow = {
+    document: popoutDocument,
+    innerWidth: 1400,
+    setTimeout: (handler: () => void, delay?: number) =>
+      window.setTimeout(handler, delay),
+    clearTimeout: (id?: number) => window.clearTimeout(id),
+  };
+  Object.defineProperty(popoutDocument, "defaultView", {
+    configurable: true,
+    value: popoutWindow,
+  });
+  return popoutDocument;
+}
+
+describe("refresh status details after the sidebar moves to a popout window", () => {
+  it("opens the hover popup in the popout window the row was moved to", async () => {
+    vi.useFakeTimers();
+    const popoutDocument = createPopoutDocument();
+    const row = document.body.createDiv({ text: "Feed" });
+    const cleanup = attachRefreshStatusDetails({
+      row,
+      description: () => "Refresh details",
+      render: (popup) => popup.createDiv({ text: "Last checked: Not yet" }),
+    });
+
+    popoutDocument.body.appendChild(row);
+    row.dispatchEvent(new MouseEvent("mouseenter"));
+    await vi.advanceTimersByTimeAsync(350);
+
+    expect(
+      popoutDocument.querySelector(".rss-dashboard-refresh-details")
+        ?.textContent,
+    ).toContain("Last checked: Not yet");
+    expect(document.querySelector(".rss-dashboard-refresh-details")).toBeNull();
+
+    popoutDocument.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Escape" }),
+    );
+    expect(
+      popoutDocument.querySelector(".rss-dashboard-refresh-details"),
+    ).toBeNull();
+    cleanup();
+  });
+
+  it("closes the popout's popup once the pointer leaves the moved row", async () => {
+    vi.useFakeTimers();
+    const popoutDocument = createPopoutDocument();
+    const row = document.body.createDiv({ text: "Feed" });
+    const cleanup = attachRefreshStatusDetails({
+      row,
+      description: () => "Refresh details",
+      render: (popup) => popup.createDiv({ text: "Last checked: Not yet" }),
+    });
+
+    popoutDocument.body.appendChild(row);
+    row.dispatchEvent(new MouseEvent("mouseenter"));
+    await vi.advanceTimersByTimeAsync(350);
+    expect(
+      popoutDocument.querySelector(".rss-dashboard-refresh-details"),
+    ).not.toBeNull();
+    row.dispatchEvent(new MouseEvent("mouseleave"));
+    await vi.advanceTimersByTimeAsync(100);
+
+    expect(
+      popoutDocument.querySelector(".rss-dashboard-refresh-details"),
+    ).toBeNull();
+    cleanup();
+  });
+
+  it("keeps the row's screen-reader description in the popout window's document", () => {
+    const popoutDocument = createPopoutDocument();
+    const row = document.body.createDiv({ text: "Feed" });
+    const cleanup = attachRefreshStatusDetails({
+      row,
+      description: () => "Refresh details. Last checked: Not yet",
+      render: () => undefined,
+    });
+
+    popoutDocument.body.appendChild(row);
+    row.dispatchEvent(new FocusEvent("focusin"));
+
+    const descriptionId = row.getAttribute("aria-describedby") ?? "";
+    expect(popoutDocument.getElementById(descriptionId)?.textContent).toBe(
+      "Refresh details. Last checked: Not yet",
+    );
+    expect(document.getElementById(descriptionId)).toBeNull();
+
+    cleanup();
+    expect(popoutDocument.getElementById(descriptionId)).toBeNull();
+  });
+});

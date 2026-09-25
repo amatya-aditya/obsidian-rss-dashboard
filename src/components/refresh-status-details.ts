@@ -87,9 +87,19 @@ export function showRefreshDetailsPopup(options: {
   }
 }
 
+/** A timer together with the window that owns it, so it is cleared there. */
+interface WindowTimer {
+  win: Window;
+  id: number;
+}
+
 /**
  * Lightweight, owning-document detail popup for sidebar refresh status.
  * It uses no timers other than the interaction delay and never polls time.
+ *
+ * Obsidian moves a leaf's DOM into a popout window's document without
+ * rebuilding the view, so the row's document and window are read each time
+ * they are needed rather than captured when the row is attached.
  */
 export function attachRefreshStatusDetails(options: {
   row: HTMLElement;
@@ -97,13 +107,11 @@ export function attachRefreshStatusDetails(options: {
   render: (popup: HTMLElement) => void;
 }): () => void {
   const { row } = options;
-  const ownerDocument = row.ownerDocument;
-  const ownerWindow = ownerDocument.defaultView;
-  if (!ownerWindow) return () => undefined;
+  if (!row.ownerDocument.defaultView) return () => undefined;
 
   let popup: HTMLElement | null = null;
-  let showTimer: number | null = null;
-  let closeTimer: number | null = null;
+  let showTimer: WindowTimer | null = null;
+  let closeTimer: WindowTimer | null = null;
   // Only keyboard focus keeps the popup open after the pointer leaves. Focus
   // from a mouse click must not, or the clicked row's popup never closes.
   let focusFromPointer = false;
@@ -114,7 +122,7 @@ export function attachRefreshStatusDetails(options: {
   const popupId = `rss-refresh-details-${Math.random().toString(36).slice(2)}`;
   const descriptionId = `${popupId}-description`;
   const previousDescriptionIds = row.getAttribute("aria-describedby");
-  const description = ownerDocument.body.createSpan({
+  const description = row.ownerDocument.body.createSpan({
     cls: "rss-dashboard-refresh-details-sr-only",
     text: options.description(),
     attr: { id: descriptionId },
@@ -124,23 +132,48 @@ export function attachRefreshStatusDetails(options: {
     [previousDescriptionIds, descriptionId].filter(Boolean).join(" "),
   );
 
+  // aria-describedby only resolves within the row's own document.
+  const keepDescriptionWithRow = () => {
+    const rowDocument = row.ownerDocument;
+    if (description.ownerDocument !== rowDocument) {
+      rowDocument.body.appendChild(description);
+    }
+  };
+  const startTimer = (
+    callback: () => void,
+    delayMs: number,
+  ): WindowTimer | null => {
+    const win = row.ownerDocument.defaultView;
+    return win ? { win, id: win.setTimeout(callback, delayMs) } : null;
+  };
+  const cancelTimer = (timer: WindowTimer | null) => {
+    if (timer) timer.win.clearTimeout(timer.id);
+  };
   const clearTimers = () => {
-    if (showTimer !== null) ownerWindow.clearTimeout(showTimer);
-    if (closeTimer !== null) ownerWindow.clearTimeout(closeTimer);
+    cancelTimer(showTimer);
+    cancelTimer(closeTimer);
     showTimer = null;
     closeTimer = null;
   };
+  const onKeyDown = (event: KeyboardEvent) => {
+    if (event.key === "Escape") close();
+  };
   const close = () => {
     clearTimers();
-    popup?.remove();
+    if (popup) {
+      const popupDocument = popup.ownerDocument;
+      popupDocument.removeEventListener("keydown", onKeyDown);
+      releaseRefreshDetailsPopup(popupDocument, close);
+      popup.remove();
+    }
     popup = null;
     pointerOverPopup = false;
-    releaseRefreshDetailsPopup(ownerDocument, close);
   };
   const show = () => {
     if (popup || !row.isConnected) return;
-    claimRefreshDetailsPopup(ownerDocument, close);
-    popup = ownerDocument.body.createDiv({
+    const rowDocument = row.ownerDocument;
+    claimRefreshDetailsPopup(rowDocument, close);
+    popup = rowDocument.body.createDiv({
       cls: "rss-dashboard-refresh-details",
       attr: { id: popupId, role: "status" },
     });
@@ -156,24 +189,25 @@ export function attachRefreshStatusDetails(options: {
     });
     popup.addEventListener("focusin", clearTimers);
     popup.addEventListener("focusout", scheduleClose);
+    rowDocument.addEventListener("keydown", onKeyDown);
   };
   const scheduleShow = () => {
+    keepDescriptionWithRow();
     if (popup || showTimer !== null) return;
-    if (closeTimer !== null) ownerWindow.clearTimeout(closeTimer);
+    cancelTimer(closeTimer);
     closeTimer = null;
-    showTimer = ownerWindow.setTimeout(() => {
+    showTimer = startTimer(() => {
       showTimer = null;
       show();
     }, 350);
   };
   const scheduleClose = () => {
-    if (showTimer !== null) {
-      ownerWindow.clearTimeout(showTimer);
-      showTimer = null;
-    }
+    cancelTimer(showTimer);
+    showTimer = null;
     if (!popup || closeTimer !== null) return;
-    closeTimer = ownerWindow.setTimeout(() => {
-      const activeElement = ownerDocument.activeElement;
+    closeTimer = startTimer(() => {
+      closeTimer = null;
+      const activeElement = row.ownerDocument.activeElement;
       if (
         !pointerOverRow &&
         !pointerOverPopup &&
@@ -183,9 +217,6 @@ export function attachRefreshStatusDetails(options: {
         close();
       }
     }, 100);
-  };
-  const onKeyDown = (event: KeyboardEvent) => {
-    if (event.key === "Escape") close();
   };
   const onMouseEnter = () => {
     pointerOverRow = true;
@@ -208,17 +239,14 @@ export function attachRefreshStatusDetails(options: {
   row.addEventListener("mousedown", onMouseDown);
   row.addEventListener("focusin", scheduleShow);
   row.addEventListener("focusout", onFocusOut);
-  ownerDocument.addEventListener("keydown", onKeyDown);
 
   return () => {
-    clearTimers();
     close();
     row.removeEventListener("mouseenter", onMouseEnter);
     row.removeEventListener("mouseleave", onMouseLeave);
     row.removeEventListener("mousedown", onMouseDown);
     row.removeEventListener("focusin", scheduleShow);
     row.removeEventListener("focusout", onFocusOut);
-    ownerDocument.removeEventListener("keydown", onKeyDown);
     description.remove();
     if (previousDescriptionIds) {
       row.setAttribute("aria-describedby", previousDescriptionIds);

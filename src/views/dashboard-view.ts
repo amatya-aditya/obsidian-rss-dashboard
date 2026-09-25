@@ -132,6 +132,10 @@ export class RssDashboardView extends ItemView {
   private isFilterSubheaderCollapsed = false;
   private mobileSidebarModal: MobileNavigationModal | null = null;
   private lastViewportMobileSidebarMode: boolean | null = null;
+  private viewportResizeBinding: {
+    win: Window;
+    listener: () => void;
+  } | null = null;
   private inlineArticle: FeedItem | null = null;
   private articleRenderer: ArticleRenderer | null = null;
   private lastClickAnchorKey: string | null = null;
@@ -751,12 +755,14 @@ export class RssDashboardView extends ItemView {
       }) as never,
     );
 
-    this.lastViewportMobileSidebarMode = this.shouldUseMobileSidebarMode(
-      activeWindow.innerWidth,
+    this.bindViewportResizeListener();
+    // Obsidian moves a leaf between the main window and popouts without
+    // reopening its view; follow the view to whichever window now shows it.
+    this.registerEvent(
+      this.app.workspace.on("layout-change", () => {
+        this.bindViewportResizeListener();
+      }),
     );
-    this.registerDomEvent(activeWindow, "resize", () => {
-      this.handleViewportResizeModeTransition();
-    });
 
     // Make the view container focusable so keyboard events are routed through
     // Obsidian's scope system when this view is active.
@@ -892,7 +898,7 @@ export class RssDashboardView extends ItemView {
       this.syncDashboardMultiFiltersFromSettings();
       this.verifySavedArticles();
 
-      if (!this.shouldUseMobileSidebarMode(activeWindow.innerWidth)) {
+      if (!this.shouldUseMobileSidebarMode()) {
         this.closeMobileSidebarModal();
       }
 
@@ -2742,8 +2748,37 @@ export class RssDashboardView extends ItemView {
     modal.open();
   }
 
-  private shouldUseMobileSidebarMode(viewportWidth?: number): boolean {
+  /** Decides drawer vs inline sidebar from the window showing this view. */
+  private shouldUseMobileSidebarMode(
+    viewportWidth = this.containerEl.win.innerWidth,
+  ): boolean {
     return shouldUseMobileSidebarLayout(viewportWidth);
+  }
+
+  /**
+   * Listens for viewport resizes on the window that currently shows this
+   * view, moving the listener when the view has moved to another window.
+   */
+  private bindViewportResizeListener(): void {
+    const win = this.containerEl.win;
+    if (this.viewportResizeBinding?.win === win) {
+      return;
+    }
+    this.unbindViewportResizeListener();
+    const listener = () => this.handleViewportResizeModeTransition();
+    win.addEventListener("resize", listener);
+    this.viewportResizeBinding = { win, listener };
+    // The new window may be a different width than the old one.
+    this.handleViewportResizeModeTransition();
+  }
+
+  private unbindViewportResizeListener(): void {
+    if (!this.viewportResizeBinding) {
+      return;
+    }
+    const { win, listener } = this.viewportResizeBinding;
+    win.removeEventListener("resize", listener);
+    this.viewportResizeBinding = null;
   }
 
   private closeMobileSidebarModal(): void {
@@ -2755,9 +2790,7 @@ export class RssDashboardView extends ItemView {
   }
 
   private handleViewportResizeModeTransition(): void {
-    const currentMode = this.shouldUseMobileSidebarMode(
-      activeWindow.innerWidth,
-    );
+    const currentMode = this.shouldUseMobileSidebarMode();
 
     if (this.lastViewportMobileSidebarMode === null) {
       this.lastViewportMobileSidebarMode = currentMode;
@@ -3627,6 +3660,7 @@ export class RssDashboardView extends ItemView {
 
   async onClose(): Promise<void> {
     this.closeMobileSidebarModal();
+    this.unbindViewportResizeListener();
     this.lastViewportMobileSidebarMode = null;
 
     if (this.verificationTimeout) {
