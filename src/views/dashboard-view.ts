@@ -80,6 +80,7 @@ export class RssDashboardView extends ItemView {
   private static readonly CARD_LAYOUT_SAVE_DELAY_MS = 120;
   private settings: RssDashboardSettings;
   private saver: ArticleSaver;
+  private listenForHotkeysInHostDocument: () => void = () => {};
   public currentFolder: string | null = null;
   public selectedFolders: string[] = [];
   public selectedFeeds: string[] = [];
@@ -193,7 +194,7 @@ export class RssDashboardView extends ItemView {
   }
 
   private setupScope() {
-    setupDashboardHotkeys(this);
+    this.listenForHotkeysInHostDocument = setupDashboardHotkeys(this);
   }
 
   /**
@@ -639,6 +640,7 @@ export class RssDashboardView extends ItemView {
 
   // --- Render pipeline ---
   onOpen(): Promise<void> {
+    this.listenForHotkeysInHostDocument();
     this.articleRenderer = new ArticleRenderer({
       app: this.app,
       component: this,
