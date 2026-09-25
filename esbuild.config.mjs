@@ -25,7 +25,7 @@ function git(args) {
 	}
 }
 const buildInfo = {
-	commit: git("rev-parse --short HEAD") || "unknown",
+	commit: git("rev-parse --short=7 HEAD") || "unknown",
 	dirty: git("status --porcelain") !== "",
 	builtAt: new Date().toISOString(),
 };
