@@ -29,6 +29,11 @@ function userStateKey(feedId: string, guid: string): string {
   return `${feedId}:${guid}`;
 }
 
+function feedIdOfStateKey(key: string): string {
+  const separatorIndex = key.indexOf(":");
+  return separatorIndex === -1 ? "" : key.slice(0, separatorIndex);
+}
+
 export interface FeedStorageStatus {
   mode: RssDashboardSettings["storageMode"];
   folder: string;
@@ -1804,22 +1809,17 @@ export class FeedStorageRepository {
         this.pendingFeedRemovals.delete(feedId);
       }
     };
-    for (const key of Object.keys(states)) {
-      const separatorIndex = key.indexOf(":");
-      const feedId = separatorIndex === -1 ? "" : key.slice(0, separatorIndex);
-      if (removedFeedIds.has(feedId)) {
-        delete states[key];
-        delete missingSinceByStateKey[key];
-      }
-    }
-
     // Any other feed missing from this device's list keeps its state for the
     // same horizon as a missing article, so a device that has not received
     // the feed yet, or restored an older list, cannot erase it.
     const stateKeysByUnrecognizedFeedId = new Map<string, string[]>();
     for (const key of Object.keys(states)) {
-      const separatorIndex = key.indexOf(":");
-      const feedId = separatorIndex === -1 ? "" : key.slice(0, separatorIndex);
+      const feedId = feedIdOfStateKey(key);
+      if (removedFeedIds.has(feedId)) {
+        delete states[key];
+        delete missingSinceByStateKey[key];
+        continue;
+      }
       if (currentFeedIds.has(feedId)) {
         continue;
       }
