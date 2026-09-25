@@ -133,31 +133,40 @@ commit.
 - The full suite passes under the `threads` pool locally and in CI, with the
   same test count as the base commit.
 - `npm run build` passes, and a second run type-checks incrementally.
-- The benchmark reports, for base and head: each stage, `npm run build`, the
-  pre-push hook, and the pre-commit hook for a prose-only commit, a single
-  source-file commit, and a whole-suite-trigger commit.
+- The pull request reports before and after times for a code commit, a
+  prose-only commit, and a push.
 - Contributor docs and the skill match the new hooks.
 
-### Expected results (to be confirmed by the benchmark)
+### Measured results
 
-| Path | Before | Expected after |
+Single runs on a quiet machine (Ryzen 7 1700, 16 GB, Windows 11, Node 24.12),
+base `dev` at `9f09a92` against this track's head. The full multi-run
+benchmark was waived in favor of these rough numbers; the script remains for
+later tracks.
+
+| Path | Before | After |
 | --- | --- | --- |
-| Commit touching one source file | ~3-4.5 min | ~20-55s |
-| Commit touching only prose | ~3-4.5 min | ~3s |
-| Push | ~1-2 min (no tests) | ~2.5 min (includes the full suite) |
-| Full unit suite | ~126-158s | ~95s |
+| Commit, one source file (`src/views/reader-view.ts`) | 221s | ~45s (128s on the first run after a cache clear) |
+| Commit, prose only | 221s | 10s |
+| Push | 77s (no tests) | 182s (includes the full suite) |
+| One commit and push | ~5 min | ~3.75 min |
+| Three commits and push | ~12 min | ~5 min |
+
+Keeping the full suite in pre-push was a deliberate choice: failures surface
+before code leaves the machine, at the cost of a slower push.
 
 ### Validation
 
 - Unit tests for the staged-file planner.
 - `npm run build`, full `npm run test:unit`, and `npm run test:unit -- --coverage`.
-- Manual hook scenarios: each commit case above, a push, `SKIP_GIT_HOOKS=1`,
-  and `npm install` reinstalling the hooks path.
+- Manual hook scenarios: a prose-only commit, a source-file commit, a
+  whole-suite-trigger commit, a push, `SKIP_GIT_HOOKS=1`, and `npm install`
+  reinstalling the hooks path.
 
 ### Deliverable
 
-A before/after report (Markdown table plus raw JSON) from the benchmark script,
-attached to the pull request and shared with the dev team.
+The measured results above, in the pull request description, for the dev
+team.
 
 ## Track 2: Shared-worker unit-test mode (deferred)
 
