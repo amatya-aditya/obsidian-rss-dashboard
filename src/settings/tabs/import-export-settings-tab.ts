@@ -118,7 +118,10 @@ export function renderImportExportSettingsTab(
               try {
                 const data = JSON.parse(text) as Partial<RssDashboardSettings>;
                 plugin.settings = Object.assign({}, plugin.settings, data);
-                await plugin.saveSettings();
+                // The imported file replaces the feed list, so feeds it lacks
+                // keep their article state rather than counting as removed
+                // (issue #374).
+                await plugin.saveSettings({ replacesFeedList: true });
                 const view = await plugin.getActiveDashboardView();
                 if (view) {
                   await plugin.app.workspace.revealLeaf(view.leaf);

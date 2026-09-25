@@ -14,7 +14,9 @@ vi.mock("../../../src/modals/storage-migration-modal", () => ({
 }));
 
 import RssDashboardPlugin from "../../../main";
+import { renderImportExportSettingsTab } from "../../../src/settings/tabs/import-export-settings-tab";
 import { DEFAULT_SETTINGS, type Feed } from "../../../src/types/types";
+import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 
 interface VaultAdapterStub {
   write(path: string, content: string): Promise<void>;
@@ -131,6 +133,53 @@ describe("importing a preferences file that carries feeds (issue #374)", () => {
     expect(plugin.settings.feeds.map((feed) => feed.feedId)).toEqual([
       "feed-kept",
     ]);
+    const written = JSON.parse(await adapter().read(userStatePath)) as {
+      states: Record<string, { starred?: boolean }>;
+    };
+    expect(written.states["feed-left-out:feed-left-out-guid"]?.starred).toBe(
+      true,
+    );
+  });
+
+  it("keeps article state for a feed that an imported legacy data.json leaves out", async () => {
+    installObsidianDomPolyfills();
+    const containerEl = (document.body as HTMLElement & {
+      createDiv: () => HTMLDivElement;
+    }).createDiv();
+    renderImportExportSettingsTab(containerEl, plugin);
+
+    // Capture the hidden file input the button creates, then hand it a file
+    // as the browser's picker would.
+    const inputClick = vi
+      .spyOn(HTMLInputElement.prototype, "click")
+      .mockImplementation(() => {});
+    const importButton = Array.from(
+      containerEl.querySelectorAll<HTMLButtonElement>("button"),
+    ).find((button) => button.textContent === "Import legacy data.json");
+    importButton?.click();
+    const fileInput = inputClick.mock.contexts[0] as HTMLInputElement | undefined;
+    expect(fileInput).toBeDefined();
+
+    const file = new File(
+      [JSON.stringify({ feeds: [persistedFeed("feed-kept")] })],
+      "data.json",
+    );
+    Object.defineProperty(fileInput, "files", { value: [file] });
+    fileInput?.dispatchEvent(new Event("change"));
+    await vi.waitFor(() =>
+      expect(plugin.settings.feeds.map((feed) => feed.feedId)).toEqual([
+        "feed-kept",
+      ]),
+    );
+    await vi.waitFor(async () => {
+      const written = JSON.parse(await adapter().read(userStatePath)) as {
+        unrecognizedFeedSinceByFeedId?: Record<string, number>;
+      };
+      expect(written.unrecognizedFeedSinceByFeedId?.["feed-left-out"]).toEqual(
+        expect.any(Number),
+      );
+    });
+
     const written = JSON.parse(await adapter().read(userStatePath)) as {
       states: Record<string, { starred?: boolean }>;
     };
