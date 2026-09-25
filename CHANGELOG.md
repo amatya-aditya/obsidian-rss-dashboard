@@ -112,7 +112,7 @@ For a user-facing overview, see the [RSS Dashboard 2.7.0 release notes](docs/rel
 - Fixed Discover pagination stacking vertically; it now matches the Dashboard's horizontal layout.
 - Fixed dragging several selected sidebar feeds moving only one; all selected feeds now move together and keep their order.
 - Fixed right-clicking a feed selected through its parent folder opening the single-feed menu, where **Delete feed** removed only that feed.
-- Fixed the **Delete selection** confirmation counting only individually selected feeds. It now includes every feed inside the selected folders and their subfolders, counting each feed once.
+- Fixed the **Delete selection** confirmation counting only individually selected feeds. It now tallies everything the delete removes in plain language, such as "Delete 7 folders (and 2 subfolders) containing 47 feeds, plus 11 other feeds?", counting each feed and nested folder once.
 - Fixed the dashboard header still listing deleted folders and feeds, such as `Folders: News, Tech (Feeds: 12)`, after deleting a sidebar selection. Deleted folders and feeds now leave the selection immediately.
 - Fixed shift-click range selection over feeds whose folder no longer exists turning into a selection of that missing folder.
 - Fixed collapsing or expanding the sidebar, and **Collapse/Expand all folders**, rebuilding the whole dashboard instead of only the sidebar.

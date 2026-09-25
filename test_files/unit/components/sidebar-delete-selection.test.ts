@@ -176,11 +176,74 @@ describe("Sidebar Delete Selection", () => {
       "https://root-del.com",
     ];
 
-    (sidebar as unknown as { deleteSelection: () => void }).deleteSelection();
-
-    const message = document.querySelector(".rss-sidebar-confirm-message");
-    expect(message?.textContent).toBe(
-      "Are you sure you want to delete 3 folder(s) and 8 feed(s)?",
+    expect(openDeleteSelectionMessage()).toBe(
+      "Delete 3 folders (and 2 subfolders) containing 6 feeds, plus 2 other feeds? This can't be undone.",
     );
   });
+
+  it("describes a folders-only selection with the feeds they contain", () => {
+    options.selectedFolders = ["FolderA", "FolderB"];
+    options.selectedFeeds = [];
+
+    expect(openDeleteSelectionMessage()).toBe(
+      "Delete 2 folders containing 3 feeds? This can't be undone.",
+    );
+  });
+
+  it("describes a feeds-only selection", () => {
+    expect(openDeleteSelectionMessage()).toBe(
+      "Delete 3 feeds? This can't be undone.",
+    );
+  });
+
+  it("uses singular wording for one folder and one feed", () => {
+    options.selectedFolders = ["FolderB"];
+    options.selectedFeeds = ["https://feed4.com"];
+
+    expect(openDeleteSelectionMessage()).toBe(
+      "Delete 1 folder containing 1 feed, plus 1 other feed? This can't be undone.",
+    );
+  });
+
+  it("counts a selected subfolder of a selected folder once", () => {
+    settings.folders = [
+      { name: "FolderA", subfolders: [{ name: "Sub", subfolders: [] }] },
+      { name: "FolderB", subfolders: [] },
+    ] as Folder[];
+    options.selectedFolders = ["FolderA", "FolderA/Sub"];
+    options.selectedFeeds = [];
+
+    expect(openDeleteSelectionMessage()).toBe(
+      "Delete 1 folder (and 1 subfolder) containing 2 feeds? This can't be undone.",
+    );
+  });
+
+  it("calls out empty folders", () => {
+    settings.folders = [
+      { name: "EmptyA", subfolders: [] },
+      { name: "EmptyB", subfolders: [] },
+    ] as Folder[];
+    options.selectedFolders = ["EmptyA", "EmptyB"];
+    options.selectedFeeds = [];
+
+    expect(openDeleteSelectionMessage()).toBe(
+      "Delete 2 empty folders? This can't be undone.",
+    );
+  });
+
+  it("lists feeds alongside empty folders", () => {
+    settings.folders = [{ name: "EmptyA", subfolders: [] }] as Folder[];
+    options.selectedFolders = ["EmptyA"];
+    options.selectedFeeds = ["https://feed1.com", "https://feed4.com"];
+
+    expect(openDeleteSelectionMessage()).toBe(
+      "Delete 1 empty folder and 2 feeds? This can't be undone.",
+    );
+  });
+
+  function openDeleteSelectionMessage(): string | null {
+    (sidebar as unknown as { deleteSelection: () => void }).deleteSelection();
+    const messages = document.querySelectorAll(".rss-sidebar-confirm-message");
+    return messages[messages.length - 1]?.textContent ?? null;
+  }
 });

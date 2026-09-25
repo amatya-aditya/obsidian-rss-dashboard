@@ -1954,20 +1954,11 @@ export class Sidebar {
   private deleteSelection(): void {
     const { selectedFolders, selectedFeeds } = this.options;
     const folderCount = selectedFolders?.length || 0;
-    // Count every feed the delete removes: explicitly selected feeds plus
-    // feeds inside selected folders, not just the explicit selection.
-    const feedCount = this.getEffectiveSelectedFeeds().length;
+    const feedCount = selectedFeeds?.length || 0;
 
-    if (folderCount === 0 && (selectedFeeds?.length || 0) === 0) return;
+    if (folderCount === 0 && feedCount === 0) return;
 
-    let msg = `Are you sure you want to delete the selected items? This action cannot be undone.`;
-    if (folderCount > 0 && feedCount === 0) {
-      msg = `Are you sure you want to delete ${folderCount} selected folder(s) and all their subfolders and feeds?`;
-    } else if (feedCount > 0 && folderCount === 0) {
-      msg = `Are you sure you want to delete ${feedCount} selected feed(s)?`;
-    } else {
-      msg = `Are you sure you want to delete ${folderCount} folder(s) and ${feedCount} feed(s)?`;
-    }
+    const msg = this.describeSelectionDeletion();
 
     this.showConfirmModal(msg, () => {
       if (selectedFolders) {
@@ -1987,6 +1978,70 @@ export class Sidebar {
       this.options.selectedFeeds = [];
       this.render();
     });
+  }
+
+  /**
+   * Confirmation text naming everything "Delete selection" removes: the
+   * selected folders (a selected subfolder of a selected folder counts once),
+   * their subfolders, the feeds inside them, and the other selected feeds.
+   */
+  private describeSelectionDeletion(): string {
+    const selectedFolders = this.options.selectedFolders || [];
+    const selectedFeeds = new Set(this.options.selectedFeeds || []);
+    const isInside = (path: string, folder: string) =>
+      path === folder || path.startsWith(`${folder}/`);
+
+    const folders = selectedFolders.filter(
+      (path) =>
+        !selectedFolders.some(
+          (other) => other !== path && path.startsWith(`${other}/`),
+        ),
+    );
+    const allFolderPaths: string[] = [];
+    const collectPaths = (list: Folder[], parent: string) => {
+      for (const folder of list) {
+        const path = parent ? `${parent}/${folder.name}` : folder.name;
+        allFolderPaths.push(path);
+        collectPaths(folder.subfolders || [], path);
+      }
+    };
+    collectPaths(this.settings.folders, "");
+    const subfolderCount = allFolderPaths.filter((path) =>
+      folders.some((folder) => path.startsWith(`${folder}/`)),
+    ).length;
+
+    let folderFeedCount = 0;
+    let otherFeedCount = 0;
+    for (const feed of this.settings.feeds) {
+      const feedFolder = feed.folder;
+      if (feedFolder && folders.some((folder) => isInside(feedFolder, folder))) {
+        folderFeedCount++;
+      } else if (selectedFeeds.has(feed.url)) {
+        otherFeedCount++;
+      }
+    }
+
+    const count = (n: number, noun: string) =>
+      `${n} ${noun}${n === 1 ? "" : "s"}`;
+    const undo = "This can't be undone.";
+
+    if (folders.length === 0) {
+      return `Delete ${count(otherFeedCount, "feed")}? ${undo}`;
+    }
+
+    const subfolders =
+      subfolderCount > 0 ? ` (and ${count(subfolderCount, "subfolder")})` : "";
+    if (folderFeedCount === 0) {
+      const feeds =
+        otherFeedCount > 0 ? ` and ${count(otherFeedCount, "feed")}` : "";
+      return `Delete ${count(folders.length, "empty folder")}${subfolders}${feeds}? ${undo}`;
+    }
+
+    const others =
+      otherFeedCount > 0
+        ? `, plus ${count(otherFeedCount, "other feed")}`
+        : "";
+    return `Delete ${count(folders.length, "folder")}${subfolders} containing ${count(folderFeedCount, "feed")}${others}? ${undo}`;
   }
 
   private extractDragPayload(dataTransfer: DataTransfer | null): {
