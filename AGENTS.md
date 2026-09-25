@@ -8,8 +8,8 @@ branches, and every commit on it is a tagged release. Branch and worktree
 naming follows `docs/agents/branch-naming.md`. See also **Branch
 Descriptions** in `CONTRIBUTING.md`.
 
-Verify the base before writing code. `refs/remotes/origin/HEAD` points at
-`origin/master`, so a newly created worktree — and the branch an agent session
+Verify the base before writing code. A local `refs/remotes/origin/HEAD` may still
+point at `origin/master`, so a newly created worktree — and the branch an agent session
 reports as "main" — default to `master` even when the main checkout is on
 `dev`:
 
@@ -41,12 +41,11 @@ commits are there:
 
     git log --oneline origin/dev..HEAD
 
-### Close issues by hand
+### Closing issues
 
-`Fixes #NNN` does not close anything here. GitHub fires closing keywords only
-when a pull request merges into the repository's default branch, which is
-`master`, and every pull request targets `dev`. Keep the keyword for the link
-it creates, then close the issue manually once the PR is merged.
+`dev` is the repository's default branch, so `Fixes #NNN` in a pull request
+description closes the issue when the PR merges. Confirm the issue closed after
+merging.
 
 ## Mandatory guidance
 
