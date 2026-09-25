@@ -112,6 +112,7 @@ For a user-facing overview, see the [RSS Dashboard 2.7.0 release notes](docs/rel
 - Fixed right-clicking a feed selected through its parent folder opening the single-feed menu, where **Delete feed** removed only that feed.
 - Fixed shift-click range selection over feeds whose folder no longer exists turning into a selection of that missing folder.
 - Fixed collapsing or expanding the sidebar, and **Collapse/Expand all folders**, rebuilding the whole dashboard instead of only the sidebar.
+- Fixed deleting a feed or folder from the sidebar on mobile leaving it listed until Obsidian restarted; it now disappears immediately. [GH Issue #378](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/378)
 
 #### Reader
 
