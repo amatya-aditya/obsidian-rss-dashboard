@@ -131,4 +131,23 @@ describe("Shard storage v2 - cross-device sync", () => {
     );
     expect(writtenShards).toEqual([]);
   });
+
+  it("clears the hidden-folder alert once a refresh gives the second device articles, without a restart", async () => {
+    const { mobileSettings, mobileRepository } = await setUpSecondDevice({
+      storageFolder: DEFAULT_SETTINGS.storageFolder,
+      metadataStorageFolder: DEFAULT_SETTINGS.metadataStorageFolder,
+    });
+    const saveData = vi.fn(async () => {});
+    expect(mobileRepository.isShardFolderHiddenFromSync()).toBe(true);
+
+    await mobileRepository.persistSettings(mobileSettings, saveData);
+    expect(mobileRepository.isShardFolderHiddenFromSync()).toBe(true);
+
+    const feed = mobileSettings.feeds[0] as Feed;
+    feed.items = [{ ...(feed.items[0] ?? {}), guid: "fresh", title: "Fresh" } as Feed["items"][number]];
+    await mobileRepository.persistSettings(mobileSettings, saveData);
+
+    expect(mobileRepository.isShardFolderHiddenFromSync()).toBe(false);
+    expect(mobileRepository.getFeedShardHealth(feed)).toBe("rebuilt");
+  });
 });
