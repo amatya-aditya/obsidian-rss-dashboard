@@ -29,6 +29,11 @@ function userStateKey(feedId: string, guid: string): string {
   return `${feedId}:${guid}`;
 }
 
+function feedIdOfStateKey(key: string): string {
+  const separatorIndex = key.indexOf(":");
+  return separatorIndex === -1 ? "" : key.slice(0, separatorIndex);
+}
+
 export interface FeedStorageStatus {
   mode: RssDashboardSettings["storageMode"];
   folder: string;
@@ -46,6 +51,12 @@ export interface FeedLocalStorageAddress {
 export interface PersistSettingsOptions {
   forceMetadata?: boolean;
   forceAllShards?: boolean;
+  /**
+   * The feed list was replaced wholesale (a bundle import or restore), so a
+   * feed it drops is not a feed removal: its shard is deleted, but its
+   * article state is kept on the unrecognized-feed horizon (issue #374).
+   */
+  replacesFeedList?: boolean;
 }
 
 export interface RepairResult {
@@ -341,6 +352,14 @@ export class FeedStorageRepository {
    * this plugin session, with the GUIDs present in that validated read.
    */
   private hydratedShardGuidsByFeedId = new Map<string, Set<string>>();
+  /**
+   * Feed IDs this device removed this session (a feed it loaded or persisted
+   * that has since left its feed list) whose article state has not yet been
+   * removed by a successful `user-state.json` save. Only these lose their
+   * state immediately; any other feed missing from the list may exist on
+   * another device (issue #374). Held in memory only.
+   */
+  private pendingFeedRemovals = new Set<string>();
   private writeWrapper?: <T>(fn: () => Promise<T>) => Promise<T>;
   /**
    * `${feedId}:${guid}` keys of items whose in-memory flags are known to
@@ -755,6 +774,9 @@ export class FeedStorageRepository {
         });
       }
       this.lastPersistedShardJsonByFeedId.delete(previousFeedId);
+      if (!options.replacesFeedList) {
+        this.pendingFeedRemovals.add(previousFeedId);
+      }
       shardDeleteCount += 1;
     }
 
@@ -1081,6 +1103,7 @@ export class FeedStorageRepository {
       await this.persistSettings(settings, saveData, {
         forceAllShards: true,
         forceMetadata: true,
+        replacesFeedList: true,
       });
 
       storageLog("Completed portable bundle import", {
@@ -1125,6 +1148,7 @@ export class FeedStorageRepository {
         await this.persistSettings(settings, saveData, {
           forceAllShards: true,
           forceMetadata: true,
+          replacesFeedList: true,
         });
         storageLog(
           "Restored previous state after failed portable bundle import",
@@ -1178,6 +1202,7 @@ export class FeedStorageRepository {
       await this.persistSettings(settings, saveData, {
         forceAllShards: true,
         forceMetadata: true,
+        replacesFeedList: true,
       });
 
       storageLog("Completed feed bundle import", {
@@ -1208,6 +1233,7 @@ export class FeedStorageRepository {
         await this.persistSettings(settings, saveData, {
           forceAllShards: true,
           forceMetadata: true,
+          replacesFeedList: true,
         });
         storageLog("Restored previous state after failed feed bundle import");
       } catch (rollbackError) {
@@ -1717,6 +1743,10 @@ export class FeedStorageRepository {
       existing.status === "ok"
         ? cloneJson(existing.file.unattributedFirstObservedAtByGuid ?? {})
         : {};
+    const unrecognizedFeedSinceByFeedId =
+      existing.status === "ok"
+        ? cloneJson(existing.file.unrecognizedFeedSinceByFeedId ?? {})
+        : {};
     const now = Date.now();
 
     const currentFeedIds = new Set<string>();
@@ -1767,14 +1797,63 @@ export class FeedStorageRepository {
       }
     }
 
-    // A feed only loses its article state when it is explicitly removed from
-    // settings, never merely because it didn't hydrate this time.
+    // A feed loses its article state immediately only when this device removed
+    // it. A feed merely absent from this device's list may still be listed on
+    // another device sharing this file (issue #374).
+    const consideredRemovals = [...this.pendingFeedRemovals];
+    const removedFeedIds = new Set(
+      consideredRemovals.filter((feedId) => !currentFeedIds.has(feedId)),
+    );
+    const settleRemovals = () => {
+      for (const feedId of consideredRemovals) {
+        this.pendingFeedRemovals.delete(feedId);
+      }
+    };
+    // Any other feed missing from this device's list keeps its state for the
+    // same horizon as a missing article, so a device that has not received
+    // the feed yet, or restored an older list, cannot erase it.
+    const stateKeysByUnrecognizedFeedId = new Map<string, string[]>();
     for (const key of Object.keys(states)) {
-      const separatorIndex = key.indexOf(":");
-      const feedId = separatorIndex === -1 ? "" : key.slice(0, separatorIndex);
-      if (!currentFeedIds.has(feedId)) {
+      const feedId = feedIdOfStateKey(key);
+      if (removedFeedIds.has(feedId)) {
         delete states[key];
         delete missingSinceByStateKey[key];
+        continue;
+      }
+      if (currentFeedIds.has(feedId)) {
+        continue;
+      }
+      const keys = stateKeysByUnrecognizedFeedId.get(feedId) ?? [];
+      keys.push(key);
+      stateKeysByUnrecognizedFeedId.set(feedId, keys);
+    }
+
+    for (const feedId of Object.keys(unrecognizedFeedSinceByFeedId)) {
+      if (!stateKeysByUnrecognizedFeedId.has(feedId)) {
+        delete unrecognizedFeedSinceByFeedId[feedId];
+      }
+    }
+
+    for (const [feedId, keys] of stateKeysByUnrecognizedFeedId) {
+      let unrecognizedSince = unrecognizedFeedSinceByFeedId[feedId];
+      if (
+        typeof unrecognizedSince !== "number" ||
+        !Number.isFinite(unrecognizedSince)
+      ) {
+        unrecognizedSince = now;
+        unrecognizedFeedSinceByFeedId[feedId] = unrecognizedSince;
+      }
+
+      if (now - unrecognizedSince >= USER_STATE_GC_HORIZON_MS) {
+        for (const key of keys) {
+          delete states[key];
+          delete missingSinceByStateKey[key];
+        }
+        delete unrecognizedFeedSinceByFeedId[feedId];
+        storageLog("Expired unrecognized feed state", {
+          feedId,
+          unrecognizedSince,
+        });
       }
     }
 
@@ -1786,8 +1865,9 @@ export class FeedStorageRepository {
 
       // Missing or corrupt shards do not provide deletion evidence. Keep any
       // existing timestamp dormant until a later successful hydrate proves the
-      // feed's current contents.
-      if (!hydratedGuids) {
+      // feed's current contents. An unrecognized feed's state follows the
+      // feed-level horizon above instead.
+      if (!hydratedGuids || !currentFeedIds.has(feedId)) {
         continue;
       }
 
@@ -1842,6 +1922,7 @@ export class FeedStorageRepository {
       Object.keys(states).length === 0 &&
       Object.keys(unattributed).length === 0
     ) {
+      settleRemovals();
       return;
     }
 
@@ -1856,6 +1937,9 @@ export class FeedStorageRepository {
         : {}),
       ...(Object.keys(unattributedFirstObservedAtByGuid).length > 0
         ? { unattributedFirstObservedAtByGuid }
+        : {}),
+      ...(Object.keys(unrecognizedFeedSinceByFeedId).length > 0
+        ? { unrecognizedFeedSinceByFeedId }
         : {}),
     });
 
@@ -1883,6 +1967,7 @@ export class FeedStorageRepository {
     } else {
       await writeUserState();
     }
+    settleRemovals();
     storageLog("Saved user-state.json with " + Object.keys(states).length + " entries.");
   }
 }

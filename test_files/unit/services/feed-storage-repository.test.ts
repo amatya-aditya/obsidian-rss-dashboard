@@ -1438,6 +1438,7 @@ describe("shard storage v2 user-state.json persistence (issue #278)", () => {
     >;
     missingSinceByStateKey?: Record<string, number>;
     unattributedFirstObservedAtByGuid?: Record<string, number>;
+    unrecognizedFeedSinceByFeedId?: Record<string, number>;
   }> {
     const raw = await vaultAdapter(app).read(userStatePath);
     return JSON.parse(raw) as {
@@ -1463,6 +1464,7 @@ describe("shard storage v2 user-state.json persistence (issue #278)", () => {
       >;
       missingSinceByStateKey?: Record<string, number>;
       unattributedFirstObservedAtByGuid?: Record<string, number>;
+      unrecognizedFeedSinceByFeedId?: Record<string, number>;
     };
   }
 
@@ -1853,26 +1855,377 @@ describe("shard storage v2 user-state.json persistence (issue #278)", () => {
     ]);
   });
 
-  it("removes a feed's article state only when the feed itself is removed from settings", async () => {
-    const settings = v2Settings();
-    settings.feeds = [makeFeed({ feedId: "feed-kept", items: [] })];
+  describe("feed removal versus unrecognized feed state (issue #374)", () => {
+    const saveData = vi
+      .fn<(...args: unknown[]) => Promise<void>>()
+      .mockResolvedValue(undefined);
 
-    await vaultAdapter(app).write(
-      userStatePath,
-      JSON.stringify({
-        version: 2,
-        states: {
-          "feed-kept:guid-1": { starred: true },
-          "feed-removed:guid-1": { starred: true },
-        },
-      }),
-    );
+    it("keeps article state for a feed this device has never had", async () => {
+      const settings = v2Settings();
+      settings.feeds = [makeFeed({ feedId: "feed-kept", items: [] })];
 
-    await repository.saveUserStateFromFeeds(settings);
+      await vaultAdapter(app).write(
+        userStatePath,
+        JSON.stringify({
+          version: 2,
+          states: {
+            "feed-kept:guid-1": { starred: true },
+            "feed-elsewhere:guid-1": { starred: true },
+          },
+        }),
+      );
 
-    const written = await readUserState();
-    expect(written.states["feed-kept:guid-1"]).toEqual({ starred: true });
-    expect(written.states["feed-removed:guid-1"]).toBeUndefined();
+      await repository.persistSettings(settings, saveData);
+
+      const written = await readUserState();
+      expect(written.states["feed-kept:guid-1"]).toEqual({ starred: true });
+      expect(written.states["feed-elsewhere:guid-1"]).toEqual({ starred: true });
+    });
+
+    it("never lets two devices with different feed lists erase each other's state", async () => {
+      // Two repositories over one vault stand in for two devices, or two
+      // plugin folders, sharing user-state.json but not their feed lists.
+      const desktop = v2Settings();
+      desktop.feeds = [
+        makeFeed({
+          feedId: "desktop-feed",
+          items: [makeItem({ guid: "desktop-guid", read: true })],
+        }),
+      ];
+      const phone = v2Settings();
+      phone.feeds = [
+        makeFeed({
+          feedId: "phone-feed",
+          url: "https://example.com/phone.xml",
+          items: [makeItem({ guid: "phone-guid", starred: true })],
+        }),
+      ];
+      const phoneRepository = new FeedStorageRepository(app);
+
+      await repository.persistSettings(desktop, saveData);
+      await phoneRepository.persistSettings(phone, saveData);
+      await repository.persistSettings(desktop, saveData);
+
+      const written = await readUserState();
+      expect(written.states["desktop-feed:desktop-guid"]?.read).toBe(true);
+      expect(written.states["phone-feed:phone-guid"]?.starred).toBe(true);
+    });
+
+    it("removes a feed's article state and shard as soon as this device removes the feed", async () => {
+      const settings = v2Settings();
+      settings.storageFolder = ".rss-dashboard-data/feeds";
+      settings.feeds = [
+        makeFeed({
+          feedId: "feed-kept",
+          items: [makeItem({ guid: "kept-guid", starred: true })],
+        }),
+        makeFeed({
+          feedId: "feed-removed",
+          url: "https://example.com/removed.xml",
+          items: [makeItem({ guid: "removed-guid", starred: true })],
+        }),
+      ];
+      await repository.persistSettings(settings, saveData);
+
+      settings.feeds = settings.feeds.filter((f) => f.feedId !== "feed-removed");
+      await repository.persistSettings(settings, saveData);
+
+      const written = await readUserState();
+      expect(written.states["feed-kept:kept-guid"]?.starred).toBe(true);
+      expect(written.states["feed-removed:removed-guid"]).toBeUndefined();
+      expect(
+        await (app.vault.adapter as unknown as {
+          exists: (path: string) => Promise<boolean>;
+        }).exists(".rss-dashboard-data/feeds/feed-removed.json"),
+      ).toBe(false);
+    });
+
+    function threeStarredFeeds(): Feed[] {
+      return ["feed-a", "feed-b", "feed-c"].map((feedId) =>
+        makeFeed({
+          feedId,
+          url: `https://example.com/${feedId}.xml`,
+          folder: feedId === "feed-a" ? "Keep" : "Drop",
+          items: [makeItem({ guid: `${feedId}-guid`, starred: true })],
+        }),
+      );
+    }
+
+    it("removes the state of every feed when a folder of feeds is deleted at once", async () => {
+      const settings = v2Settings();
+      settings.feeds = threeStarredFeeds();
+      await repository.persistSettings(settings, saveData);
+
+      settings.feeds = settings.feeds.filter((f) => f.folder !== "Drop");
+      await repository.persistSettings(settings, saveData);
+
+      const written = await readUserState();
+      expect(Object.keys(written.states)).toEqual(["feed-a:feed-a-guid"]);
+    });
+
+    it("removes nothing when the sidebar re-sorts the same feeds", async () => {
+      const settings = v2Settings();
+      settings.feeds = threeStarredFeeds();
+      await repository.persistSettings(settings, saveData);
+
+      // Sorting a folder filters its feeds out, then pushes them back sorted.
+      const dropFeeds = settings.feeds.filter((f) => f.folder === "Drop");
+      settings.feeds = settings.feeds.filter((f) => f.folder !== "Drop");
+      settings.feeds.push(...dropFeeds.reverse());
+      await repository.persistSettings(settings, saveData);
+
+      const written = await readUserState();
+      expect(Object.keys(written.states).sort()).toEqual([
+        "feed-a:feed-a-guid",
+        "feed-b:feed-b-guid",
+        "feed-c:feed-c-guid",
+      ]);
+    });
+
+    it("keeps a feed's state when a synced feed list without it is reloaded", async () => {
+      const settings = v2Settings();
+      settings.feeds = threeStarredFeeds();
+      await repository.persistSettings(settings, saveData);
+
+      // Another device's data.json arrives without feed-c and is reloaded.
+      const reloaded = v2Settings();
+      reloaded.feeds = threeStarredFeeds().filter((f) => f.feedId !== "feed-c");
+      await repository.hydrateSettings(reloaded);
+      await repository.persistSettings(reloaded, saveData);
+
+      const written = await readUserState();
+      expect(written.states["feed-c:feed-c-guid"]).toEqual({
+        read: false,
+        starred: true,
+        saved: false,
+      });
+    });
+
+    it("applies a removal on the next successful save when the first save was skipped", async () => {
+      const settings = v2Settings();
+      settings.feeds = threeStarredFeeds();
+      await repository.persistSettings(settings, saveData);
+      const healthy = await vaultAdapter(app).read(userStatePath);
+
+      // An unreadable user-state.json is never overwritten, so the save that
+      // follows the removal is skipped.
+      await vaultAdapter(app).write(userStatePath, "{ not json");
+      settings.feeds = settings.feeds.filter((f) => f.feedId !== "feed-c");
+      await repository.persistSettings(settings, saveData);
+      expect(await vaultAdapter(app).read(userStatePath)).toBe("{ not json");
+
+      await vaultAdapter(app).write(userStatePath, healthy);
+      await repository.persistSettings(settings, saveData);
+
+      const written = await readUserState();
+      expect(written.states["feed-c:feed-c-guid"]).toBeUndefined();
+      expect(written.states["feed-b:feed-b-guid"]?.starred).toBe(true);
+    });
+
+    describe("replacing the feed list is not a feed removal", () => {
+      function exportOf(feeds: Feed[]): RssDashboardSettings {
+        const exported = v2Settings();
+        exported.feeds = JSON.parse(JSON.stringify(feeds)) as Feed[];
+        return exported;
+      }
+
+      it("keeps state for a feed that a feed bundle import drops", async () => {
+        const settings = v2Settings();
+        settings.feeds = threeStarredFeeds();
+        await repository.persistSettings(settings, saveData);
+        const bundle = repository.buildFeedBundle(
+          exportOf(settings.feeds.filter((f) => f.feedId !== "feed-c")),
+        );
+
+        await repository.importFeedBundle(bundle, settings, saveData);
+
+        const written = await readUserState();
+        expect(written.states["feed-c:feed-c-guid"]?.starred).toBe(true);
+        expect(written.unrecognizedFeedSinceByFeedId?.["feed-c"]).toEqual(
+          expect.any(Number),
+        );
+      });
+
+      it("keeps state for a feed that a portable data bundle import drops, and still deletes its shard", async () => {
+        const settings = v2Settings();
+        settings.storageFolder = ".rss-dashboard-data/feeds";
+        settings.feeds = threeStarredFeeds();
+        await repository.persistSettings(settings, saveData);
+        const exported = exportOf(
+          settings.feeds.filter((f) => f.feedId !== "feed-c"),
+        );
+        exported.storageFolder = settings.storageFolder;
+        const bundle = repository.buildPortableDataBundle(exported);
+
+        await repository.importPortableDataBundle(bundle, settings, saveData);
+
+        const written = await readUserState();
+        expect(written.states["feed-c:feed-c-guid"]?.starred).toBe(true);
+        expect(
+          await (app.vault.adapter as unknown as {
+            exists: (path: string) => Promise<boolean>;
+          }).exists(".rss-dashboard-data/feeds/feed-c.json"),
+        ).toBe(false);
+      });
+
+      it("brings a dropped feed's state back when a later import lists the feed again", async () => {
+        const settings = v2Settings();
+        settings.feeds = threeStarredFeeds();
+        await repository.persistSettings(settings, saveData);
+        const fullBundle = repository.buildFeedBundle(exportOf(settings.feeds));
+        const partialBundle = repository.buildFeedBundle(
+          exportOf(settings.feeds.filter((f) => f.feedId !== "feed-c")),
+        );
+
+        await repository.importFeedBundle(partialBundle, settings, saveData);
+        await repository.importFeedBundle(fullBundle, settings, saveData);
+
+        const written = await readUserState();
+        expect(written.states["feed-c:feed-c-guid"]?.starred).toBe(true);
+        expect(written.unrecognizedFeedSinceByFeedId).toBeUndefined();
+      });
+
+      it("still treats a delete after an import as a feed removal", async () => {
+        const settings = v2Settings();
+        settings.feeds = threeStarredFeeds();
+        await repository.persistSettings(settings, saveData);
+        await repository.importFeedBundle(
+          repository.buildFeedBundle(exportOf(settings.feeds)),
+          settings,
+          saveData,
+        );
+
+        settings.feeds = settings.feeds.filter((f) => f.feedId !== "feed-b");
+        await repository.persistSettings(settings, saveData);
+
+        const written = await readUserState();
+        expect(written.states["feed-b:feed-b-guid"]).toBeUndefined();
+      });
+    });
+
+    describe("expiry of unrecognized feed state", () => {
+      const baseTime = Date.parse("2026-01-01T00:00:00Z");
+      const horizon = 90 * 24 * 60 * 60 * 1000;
+
+      async function seedStateFor(feedIds: string[]): Promise<void> {
+        await vaultAdapter(app).write(
+          userStatePath,
+          JSON.stringify({
+            version: 3,
+            states: Object.fromEntries(
+              feedIds.map((feedId) => [`${feedId}:guid-1`, { starred: true }]),
+            ),
+          }),
+        );
+      }
+
+      function feedWithoutItems(feedId: string): Feed {
+        return makeFeed({
+          feedId,
+          url: `https://example.com/${feedId}.xml`,
+          items: [],
+        });
+      }
+
+      it("expires state for a feed this device never lists once 90 days pass", async () => {
+        const settings = v2Settings();
+        settings.feeds = [feedWithoutItems("feed-here")];
+        await seedStateFor(["feed-here", "feed-elsewhere"]);
+
+        vi.spyOn(Date, "now").mockReturnValue(baseTime);
+        await repository.persistSettings(settings, saveData);
+        vi.spyOn(Date, "now").mockReturnValue(baseTime + horizon - 1);
+        await repository.persistSettings(settings, saveData);
+        expect(
+          (await readUserState()).states["feed-elsewhere:guid-1"],
+        ).toEqual({ starred: true });
+
+        vi.spyOn(Date, "now").mockReturnValue(baseTime + horizon);
+        await repository.persistSettings(settings, saveData);
+
+        const written = await readUserState();
+        expect(written.states["feed-elsewhere:guid-1"]).toBeUndefined();
+        expect(written.states["feed-here:guid-1"]).toEqual({ starred: true });
+      });
+
+      it("restarts the clock when an unrecognized feed joins this device's list and later leaves it", async () => {
+        const settings = v2Settings();
+        settings.feeds = [feedWithoutItems("feed-here")];
+        await seedStateFor(["feed-here", "feed-arriving"]);
+
+        vi.spyOn(Date, "now").mockReturnValue(baseTime);
+        await repository.persistSettings(settings, saveData);
+
+        // The synced feed list that includes the feed arrives 60 days later.
+        const later = baseTime + horizon * (2 / 3);
+        vi.spyOn(Date, "now").mockReturnValue(later);
+        const arrived = v2Settings();
+        arrived.feeds = [
+          feedWithoutItems("feed-here"),
+          feedWithoutItems("feed-arriving"),
+        ];
+        await repository.hydrateSettings(arrived);
+        await repository.persistSettings(arrived, saveData);
+        let written = await readUserState();
+        expect(written.states["feed-arriving:guid-1"]).toEqual({ starred: true });
+        expect(written.unrecognizedFeedSinceByFeedId).toBeUndefined();
+
+        // A later reload drops it again: a fresh 90-day clock, not the old one.
+        const dropped = v2Settings();
+        dropped.feeds = [feedWithoutItems("feed-here")];
+        await repository.hydrateSettings(dropped);
+        await repository.persistSettings(dropped, saveData);
+        vi.spyOn(Date, "now").mockReturnValue(baseTime + horizon);
+        await repository.persistSettings(dropped, saveData);
+
+        written = await readUserState();
+        expect(written.states["feed-arriving:guid-1"]).toEqual({ starred: true });
+        expect(written.unrecognizedFeedSinceByFeedId?.["feed-arriving"]).toBe(
+          later,
+        );
+      });
+
+      it("restarts the clock when the stored timestamp is not a valid time", async () => {
+        const settings = v2Settings();
+        settings.feeds = [feedWithoutItems("feed-here")];
+        await vaultAdapter(app).write(
+          userStatePath,
+          JSON.stringify({
+            version: 3,
+            states: { "feed-elsewhere:guid-1": { starred: true } },
+            unrecognizedFeedSinceByFeedId: { "feed-elsewhere": "soon" },
+          }),
+        );
+
+        vi.spyOn(Date, "now").mockReturnValue(baseTime + horizon * 2);
+        await repository.persistSettings(settings, saveData);
+
+        const written = await readUserState();
+        expect(written.states["feed-elsewhere:guid-1"]).toEqual({ starred: true });
+        expect(written.unrecognizedFeedSinceByFeedId?.["feed-elsewhere"]).toBe(
+          baseTime + horizon * 2,
+        );
+      });
+    });
+
+    it("keeps a removed feed's state when the feed returns before the removal is saved", async () => {
+      const settings = v2Settings();
+      settings.feeds = threeStarredFeeds();
+      await repository.persistSettings(settings, saveData);
+      const healthy = await vaultAdapter(app).read(userStatePath);
+
+      await vaultAdapter(app).write(userStatePath, "{ not json");
+      const removed = settings.feeds.find((f) => f.feedId === "feed-c") as Feed;
+      settings.feeds = settings.feeds.filter((f) => f !== removed);
+      await repository.persistSettings(settings, saveData);
+
+      settings.feeds.push(removed);
+      await vaultAdapter(app).write(userStatePath, healthy);
+      await repository.persistSettings(settings, saveData);
+
+      const written = await readUserState();
+      expect(written.states["feed-c:feed-c-guid"]?.starred).toBe(true);
+    });
   });
 
   it("does not clobber preserved state with default flags when a feed's items become available mid-session", async () => {
