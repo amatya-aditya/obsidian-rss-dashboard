@@ -258,4 +258,38 @@ describe("DashboardView Hotkeys", () => {
 
     expect(refreshSpy).not.toHaveBeenCalled();
   });
+
+  it("ignores dashboard hotkeys while a modal is open", () => {
+    const { view, spy } = makeViewWithRegisterSpy(leaf, plugin);
+    (leaf as unknown as { view: unknown }).view = view;
+    const keydownHandler = getKeydownHandler(spy);
+
+    const moveSpy = vi
+      .spyOn(view, "actionSidebarMoveNext")
+      .mockImplementation(() => {});
+    const deleteSpy = vi
+      .spyOn(view, "actionSidebarDeleteFocused")
+      .mockImplementation(() => {});
+
+    // Obsidian mounts every open modal as a .modal-container under <body>.
+    const modalContainer = document.body.createDiv({ cls: "modal-container" });
+    const okButton = modalContainer.createEl("button");
+
+    const fromButton = new KeyboardEvent("keydown", { key: "D", shiftKey: true });
+    Object.defineProperty(fromButton, "target", { value: okButton });
+    keydownHandler!(fromButton);
+
+    // Focus can also sit outside the modal (e.g. before it takes focus).
+    const fromBody = new KeyboardEvent("keydown", { key: "L", shiftKey: true });
+    Object.defineProperty(fromBody, "target", { value: document.body });
+    keydownHandler!(fromBody);
+
+    expect(deleteSpy).not.toHaveBeenCalled();
+    expect(moveSpy).not.toHaveBeenCalled();
+    expect(fromButton.defaultPrevented).toBe(false);
+
+    modalContainer.remove();
+    keydownHandler!(new KeyboardEvent("keydown", { key: "L", shiftKey: true }));
+    expect(moveSpy).toHaveBeenCalledTimes(1);
+  });
 });

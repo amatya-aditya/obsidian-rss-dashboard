@@ -186,6 +186,7 @@ export class Sidebar {
   private iconActions = new Map<string, (e?: MouseEvent) => void>();
   private resizeObserver: ResizeObserver | null = null;
   private sidebarRows: SidebarRowDescriptor[] = [];
+  private openConfirmModal: Modal | null = null;
   private focusedSidebarTarget: SidebarFocusTarget | null = null;
   private isSidebarKeyboardFocused = false;
   private refreshStatusDetailCleanups: Array<() => void> = [];
@@ -2643,15 +2644,25 @@ export class Sidebar {
         )
       : -1;
     const startIndex = currentIndex >= 0 ? currentIndex : 0;
-    const nextIndex = Math.min(
-      this.sidebarRows.length - 1,
-      Math.max(0, startIndex + offset),
-    );
 
-    const nextRow = this.sidebarRows[nextIndex];
-    if (!nextRow) return;
-    this.focusedSidebarTarget = nextRow.target;
-    this.applySidebarFocusState();
+    for (
+      let idx = startIndex + offset;
+      idx >= 0 && idx < this.sidebarRows.length;
+      idx += offset
+    ) {
+      const row = this.sidebarRows[idx];
+      if (!row || this.isSidebarRowHidden(row)) continue;
+      this.focusedSidebarTarget = row.target;
+      this.applySidebarFocusState();
+      return;
+    }
+  }
+
+  /** Rows inside a collapsed folder stay rendered but are hidden by CSS. */
+  private isSidebarRowHidden(row: SidebarRowDescriptor): boolean {
+    return (
+      row.element.closest(".rss-dashboard-folder-feeds.collapsed") !== null
+    );
   }
 
   private jumpToFolder(direction: 1 | -1): void {
@@ -2675,7 +2686,7 @@ export class Sidebar {
       idx += direction
     ) {
       const row = this.sidebarRows[idx];
-      if (!row) continue;
+      if (!row || this.isSidebarRowHidden(row)) continue;
       if (row.target.type !== "feed") {
         this.focusedSidebarTarget = row.target;
         this.applySidebarFocusState();
@@ -2770,7 +2781,17 @@ export class Sidebar {
   }
 
   private showConfirmModal(message: string, onConfirm: () => void): void {
+    // One confirmation at a time: a second one stacked underneath would be
+    // confirmed by the next OK click without the user seeing its message.
+    if (this.openConfirmModal) return;
+
     const confirmModal = new Modal(this.app);
+    this.openConfirmModal = confirmModal;
+    confirmModal.onClose = () => {
+      if (this.openConfirmModal === confirmModal) {
+        this.openConfirmModal = null;
+      }
+    };
     confirmModal.modalEl.addClass("rss-sidebar-confirm-modal");
 
     const { contentEl } = confirmModal;

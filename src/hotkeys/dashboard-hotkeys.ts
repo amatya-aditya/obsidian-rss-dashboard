@@ -18,6 +18,25 @@ export function isTypingTarget(target: EventTarget | null): boolean {
 }
 
 /**
+ * Returns true while an Obsidian modal is open in the document that received
+ * the event. Obsidian's keymap gives an open modal's scope first refusal in
+ * the capture phase, but that scope only claims Escape, so every other key
+ * still bubbles to this listener.
+ */
+export function isModalOpen(e: KeyboardEvent): boolean {
+  const target = e.target;
+  if (target instanceof Element && target.closest(".modal-container")) {
+    return true;
+  }
+
+  const ownerDocument =
+    target instanceof Node && target.ownerDocument
+      ? target.ownerDocument
+      : activeDocument;
+  return ownerDocument.body?.querySelector(":scope > .modal-container") != null;
+}
+
+/**
  * Registers keyboard shortcuts scoped to the RSS Dashboard view.
  * Decouples the hotkey routing logic from the monolithic dashboard view.
  * Uses a bubbling-phase document listener to avoid Obsidian Scope capture-phase issues.
@@ -28,6 +47,9 @@ export function setupDashboardHotkeys(view: RssDashboardView): void {
 
     // Guard 2: user is typing somewhere — let the input own the event
     if (isTypingTarget(e.target)) return;
+
+    // Guard 2b: a modal owns the keyboard until it closes
+    if (isModalOpen(e)) return;
 
     // Guard 3: skip OS modified keys (Ctrl/Cmd/Alt) to preserve native shortcuts
     if (e.ctrlKey || e.metaKey || e.altKey) return;

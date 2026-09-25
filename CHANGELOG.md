@@ -116,6 +116,8 @@ For a user-facing overview, see the [RSS Dashboard 2.7.0 release notes](docs/rel
 - Fixed shift-click range selection over feeds whose folder no longer exists turning into a selection of that missing folder.
 - Fixed collapsing or expanding the sidebar, and **Collapse/Expand all folders**, rebuilding the whole dashboard instead of only the sidebar.
 - Fixed deleting a feed or folder from the sidebar on mobile leaving it listed until Obsidian restarted; it now disappears immediately. [GH Issue #378](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/378)
+- Fixed sidebar keyboard shortcuts (such as `Shift+D` to delete) still running while a dialog was open, which could stack a second delete confirmation under the first so a quick **OK** deleted a feed you were no longer looking at. Dashboard shortcuts now pause while any dialog is open, and only one sidebar delete confirmation shows at a time.
+- Fixed sidebar keyboard navigation (`Shift+J`/`Shift+L`) stepping onto hidden feeds inside collapsed folders.
 
 #### Obsidian compatibility and settings
 

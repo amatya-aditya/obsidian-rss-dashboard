@@ -69,6 +69,7 @@ type TestSidebar = {
   moveFocusToPreviousItem: () => void;
   jumpToNextFolder: () => void;
   jumpToPreviousFolder: () => void;
+  deleteFocusedItem: () => void;
   openFocusedItem: () => void;
   focusedSidebarTarget: { type: string; path?: string; url?: string } | null;
 };
@@ -401,6 +402,101 @@ describe("Sidebar Core", () => {
       });
 
       ts.jumpToPreviousFolder();
+      expect(ts.focusedSidebarTarget).toEqual({
+        type: "folder",
+        path: "Folder 1",
+      });
+    });
+    describe("delete confirmation", () => {
+      afterEach(() => {
+        document.body.empty();
+      });
+
+      const openConfirms = () =>
+        document.body.querySelectorAll(".rss-sidebar-confirm-modal");
+
+      it("shows at most one delete confirmation when the delete hotkey repeats", () => {
+        const sidebar = new Sidebar(
+          app,
+          container,
+          plugin as unknown as RssDashboardPlugin,
+          settings,
+          options,
+          callbacks,
+        );
+
+        sidebar.render();
+        const ts = sidebar as unknown as TestSidebar;
+        ts.focusSidebar();
+        ts.moveFocusToNextItem();
+        ts.moveFocusToNextItem();
+        ts.deleteFocusedItem();
+        // Focus moves while the first confirmation is still open.
+        ts.moveFocusToNextItem();
+        ts.deleteFocusedItem();
+
+        expect(openConfirms()).toHaveLength(1);
+        expect(openConfirms()[0]?.textContent).toContain("Feed 1");
+      });
+
+      it("allows a new delete confirmation once the previous one is dismissed", () => {
+        const sidebar = new Sidebar(
+          app,
+          container,
+          plugin as unknown as RssDashboardPlugin,
+          settings,
+          options,
+          callbacks,
+        );
+
+        sidebar.render();
+        const ts = sidebar as unknown as TestSidebar;
+        ts.focusSidebar();
+        ts.moveFocusToNextItem();
+        ts.moveFocusToNextItem();
+        ts.deleteFocusedItem();
+        openConfirms()[0]
+          ?.querySelector<HTMLButtonElement>(".rss-folder-name-modal-cancel")
+          ?.click();
+        expect(openConfirms()).toHaveLength(0);
+
+        ts.deleteFocusedItem();
+        openConfirms()[0]
+          ?.querySelector<HTMLButtonElement>(".rss-folder-name-modal-ok")
+          ?.click();
+
+        expect(callbacks.onDeleteFeed).toHaveBeenCalledTimes(1);
+        expect(callbacks.onDeleteFeed).toHaveBeenCalledWith(settings.feeds[0]);
+      });
+    });
+
+    it("skips feeds inside collapsed folders when moving focus", () => {
+      settings.collapsedFolders = ["Folder 1"];
+      const sidebar = new Sidebar(
+        app,
+        container,
+        plugin as unknown as RssDashboardPlugin,
+        settings,
+        options,
+        callbacks,
+      );
+
+      sidebar.render();
+      const ts = sidebar as unknown as TestSidebar;
+      ts.focusSidebar();
+      ts.moveFocusToNextItem();
+      expect(ts.focusedSidebarTarget).toEqual({
+        type: "folder",
+        path: "Folder 1",
+      });
+
+      ts.moveFocusToNextItem();
+      expect(ts.focusedSidebarTarget).toEqual({
+        type: "folder",
+        path: "Folder 2",
+      });
+
+      ts.moveFocusToPreviousItem();
       expect(ts.focusedSidebarTarget).toEqual({
         type: "folder",
         path: "Folder 1",
