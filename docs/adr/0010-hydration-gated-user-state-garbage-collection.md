@@ -121,7 +121,7 @@ The lifecycle metadata is introduced as version 3 of the `user-state.json` forma
 
 - `missingSinceByStateKey` records when feed-qualified state was absent from a successfully validated shard.
 - `unattributedFirstObservedAtByGuid` records when legacy bare-GUID state was first observed without a validated owner.
-- A per-feed-ID map records when a feed's state was first found without the feed in the saving device's feed list. It is kept separate from `missingSinceByStateKey` so a feed that returns does not carry stale article-level timestamps.
+- `unrecognizedFeedSinceByFeedId` records when a feed's state was first found without the feed in the saving device's feed list. It is kept separate from `missingSinceByStateKey` so a feed that returns does not carry stale article-level timestamps.
 
 ## Related
 

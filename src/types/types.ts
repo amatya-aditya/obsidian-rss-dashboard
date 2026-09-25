@@ -461,6 +461,11 @@ export interface UserStateFile {
    * been attributed by a successfully hydrated shard.
    */
   unattributedFirstObservedAtByGuid?: Record<string, number>;
+  /**
+   * First observation timestamps, by feed ID, for state whose feed was not in
+   * the saving device's feed list and was not removed by that device.
+   */
+  unrecognizedFeedSinceByFeedId?: Record<string, number>;
   _syncNonce?: string;
   _syncPad?: string;
 }

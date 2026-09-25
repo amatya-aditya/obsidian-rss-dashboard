@@ -1438,6 +1438,7 @@ describe("shard storage v2 user-state.json persistence (issue #278)", () => {
     >;
     missingSinceByStateKey?: Record<string, number>;
     unattributedFirstObservedAtByGuid?: Record<string, number>;
+    unrecognizedFeedSinceByFeedId?: Record<string, number>;
   }> {
     const raw = await vaultAdapter(app).read(userStatePath);
     return JSON.parse(raw) as {
@@ -1463,6 +1464,7 @@ describe("shard storage v2 user-state.json persistence (issue #278)", () => {
       >;
       missingSinceByStateKey?: Record<string, number>;
       unattributedFirstObservedAtByGuid?: Record<string, number>;
+      unrecognizedFeedSinceByFeedId?: Record<string, number>;
     };
   }
 
@@ -2018,6 +2020,111 @@ describe("shard storage v2 user-state.json persistence (issue #278)", () => {
       const written = await readUserState();
       expect(written.states["feed-c:feed-c-guid"]).toBeUndefined();
       expect(written.states["feed-b:feed-b-guid"]?.starred).toBe(true);
+    });
+
+    describe("expiry of unrecognized feed state", () => {
+      const baseTime = Date.parse("2026-01-01T00:00:00Z");
+      const horizon = 90 * 24 * 60 * 60 * 1000;
+
+      async function seedStateFor(feedIds: string[]): Promise<void> {
+        await vaultAdapter(app).write(
+          userStatePath,
+          JSON.stringify({
+            version: 3,
+            states: Object.fromEntries(
+              feedIds.map((feedId) => [`${feedId}:guid-1`, { starred: true }]),
+            ),
+          }),
+        );
+      }
+
+      function feedWithoutItems(feedId: string): Feed {
+        return makeFeed({
+          feedId,
+          url: `https://example.com/${feedId}.xml`,
+          items: [],
+        });
+      }
+
+      it("expires state for a feed this device never lists once 90 days pass", async () => {
+        const settings = v2Settings();
+        settings.feeds = [feedWithoutItems("feed-here")];
+        await seedStateFor(["feed-here", "feed-elsewhere"]);
+
+        vi.spyOn(Date, "now").mockReturnValue(baseTime);
+        await repository.persistSettings(settings, saveData);
+        vi.spyOn(Date, "now").mockReturnValue(baseTime + horizon - 1);
+        await repository.persistSettings(settings, saveData);
+        expect(
+          (await readUserState()).states["feed-elsewhere:guid-1"],
+        ).toEqual({ starred: true });
+
+        vi.spyOn(Date, "now").mockReturnValue(baseTime + horizon);
+        await repository.persistSettings(settings, saveData);
+
+        const written = await readUserState();
+        expect(written.states["feed-elsewhere:guid-1"]).toBeUndefined();
+        expect(written.states["feed-here:guid-1"]).toEqual({ starred: true });
+      });
+
+      it("restarts the clock when an unrecognized feed joins this device's list and later leaves it", async () => {
+        const settings = v2Settings();
+        settings.feeds = [feedWithoutItems("feed-here")];
+        await seedStateFor(["feed-here", "feed-arriving"]);
+
+        vi.spyOn(Date, "now").mockReturnValue(baseTime);
+        await repository.persistSettings(settings, saveData);
+
+        // The synced feed list that includes the feed arrives 60 days later.
+        const later = baseTime + horizon * (2 / 3);
+        vi.spyOn(Date, "now").mockReturnValue(later);
+        const arrived = v2Settings();
+        arrived.feeds = [
+          feedWithoutItems("feed-here"),
+          feedWithoutItems("feed-arriving"),
+        ];
+        await repository.hydrateSettings(arrived);
+        await repository.persistSettings(arrived, saveData);
+        let written = await readUserState();
+        expect(written.states["feed-arriving:guid-1"]).toEqual({ starred: true });
+        expect(written.unrecognizedFeedSinceByFeedId).toBeUndefined();
+
+        // A later reload drops it again: a fresh 90-day clock, not the old one.
+        const dropped = v2Settings();
+        dropped.feeds = [feedWithoutItems("feed-here")];
+        await repository.hydrateSettings(dropped);
+        await repository.persistSettings(dropped, saveData);
+        vi.spyOn(Date, "now").mockReturnValue(baseTime + horizon);
+        await repository.persistSettings(dropped, saveData);
+
+        written = await readUserState();
+        expect(written.states["feed-arriving:guid-1"]).toEqual({ starred: true });
+        expect(written.unrecognizedFeedSinceByFeedId?.["feed-arriving"]).toBe(
+          later,
+        );
+      });
+
+      it("restarts the clock when the stored timestamp is not a valid time", async () => {
+        const settings = v2Settings();
+        settings.feeds = [feedWithoutItems("feed-here")];
+        await vaultAdapter(app).write(
+          userStatePath,
+          JSON.stringify({
+            version: 3,
+            states: { "feed-elsewhere:guid-1": { starred: true } },
+            unrecognizedFeedSinceByFeedId: { "feed-elsewhere": "soon" },
+          }),
+        );
+
+        vi.spyOn(Date, "now").mockReturnValue(baseTime + horizon * 2);
+        await repository.persistSettings(settings, saveData);
+
+        const written = await readUserState();
+        expect(written.states["feed-elsewhere:guid-1"]).toEqual({ starred: true });
+        expect(written.unrecognizedFeedSinceByFeedId?.["feed-elsewhere"]).toBe(
+          baseTime + horizon * 2,
+        );
+      });
     });
 
     it("keeps a removed feed's state when the feed returns before the removal is saved", async () => {

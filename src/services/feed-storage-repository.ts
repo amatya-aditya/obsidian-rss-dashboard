@@ -1726,6 +1726,10 @@ export class FeedStorageRepository {
       existing.status === "ok"
         ? cloneJson(existing.file.unattributedFirstObservedAtByGuid ?? {})
         : {};
+    const unrecognizedFeedSinceByFeedId =
+      existing.status === "ok"
+        ? cloneJson(existing.file.unrecognizedFeedSinceByFeedId ?? {})
+        : {};
     const now = Date.now();
 
     const currentFeedIds = new Set<string>();
@@ -1797,6 +1801,50 @@ export class FeedStorageRepository {
       }
     }
 
+    // Any other feed missing from this device's list keeps its state for the
+    // same horizon as a missing article, so a device that has not received
+    // the feed yet, or restored an older list, cannot erase it.
+    const stateKeysByUnrecognizedFeedId = new Map<string, string[]>();
+    for (const key of Object.keys(states)) {
+      const separatorIndex = key.indexOf(":");
+      const feedId = separatorIndex === -1 ? "" : key.slice(0, separatorIndex);
+      if (currentFeedIds.has(feedId)) {
+        continue;
+      }
+      const keys = stateKeysByUnrecognizedFeedId.get(feedId) ?? [];
+      keys.push(key);
+      stateKeysByUnrecognizedFeedId.set(feedId, keys);
+    }
+
+    for (const feedId of Object.keys(unrecognizedFeedSinceByFeedId)) {
+      if (!stateKeysByUnrecognizedFeedId.has(feedId)) {
+        delete unrecognizedFeedSinceByFeedId[feedId];
+      }
+    }
+
+    for (const [feedId, keys] of stateKeysByUnrecognizedFeedId) {
+      let unrecognizedSince = unrecognizedFeedSinceByFeedId[feedId];
+      if (
+        typeof unrecognizedSince !== "number" ||
+        !Number.isFinite(unrecognizedSince)
+      ) {
+        unrecognizedSince = now;
+        unrecognizedFeedSinceByFeedId[feedId] = unrecognizedSince;
+      }
+
+      if (now - unrecognizedSince >= USER_STATE_GC_HORIZON_MS) {
+        for (const key of keys) {
+          delete states[key];
+          delete missingSinceByStateKey[key];
+        }
+        delete unrecognizedFeedSinceByFeedId[feedId];
+        storageLog("Expired unrecognized feed state", {
+          feedId,
+          unrecognizedSince,
+        });
+      }
+    }
+
     for (const key of Object.keys(states)) {
       const separatorIndex = key.indexOf(":");
       const feedId = separatorIndex === -1 ? "" : key.slice(0, separatorIndex);
@@ -1805,8 +1853,9 @@ export class FeedStorageRepository {
 
       // Missing or corrupt shards do not provide deletion evidence. Keep any
       // existing timestamp dormant until a later successful hydrate proves the
-      // feed's current contents.
-      if (!hydratedGuids) {
+      // feed's current contents. An unrecognized feed's state follows the
+      // feed-level horizon above instead.
+      if (!hydratedGuids || !currentFeedIds.has(feedId)) {
         continue;
       }
 
@@ -1876,6 +1925,9 @@ export class FeedStorageRepository {
         : {}),
       ...(Object.keys(unattributedFirstObservedAtByGuid).length > 0
         ? { unattributedFirstObservedAtByGuid }
+        : {}),
+      ...(Object.keys(unrecognizedFeedSinceByFeedId).length > 0
+        ? { unrecognizedFeedSinceByFeedId }
         : {}),
     });
 
