@@ -93,3 +93,12 @@ We use `jsdom` alongside custom polyfills (`test_files/unit/test-dom-polyfills.t
 - **Run all tests**: `npm run test:unit`
 - **Watch mode**: `npx vitest`
 - **Coverage report**: `npm run test:unit -- --coverage`
+- **Tests affected by a change**: `npx vitest related --run <changed files>`
+
+`vitest related` runs every test file whose imports reach the files you name,
+including What's New notes and repository scripts. A change to a widely
+imported utility can select most of the suite.
+
+The pre-commit hook runs only the tests related to the staged files; the
+pre-push hook and CI run the whole suite. See **Git Hooks** in
+[CONTRIBUTING.md](../../../CONTRIBUTING.md#git-hooks).

@@ -11,11 +11,6 @@ if [ $? -ne 0 ]; then
   exit 1
 fi
 
-echo "[pre-commit] Running lint..."
-npm run --silent lint
-if [ $? -ne 0 ]; then
-  exit 1
-fi
-
-echo "[pre-commit] Running unit tests..."
-npm run --silent test:unit
+# Lints staged files and runs the unit tests related to them. The full lint,
+# type-check, build, and test suite run in pre-push and CI.
+node scripts/run-staged-checks.mjs
