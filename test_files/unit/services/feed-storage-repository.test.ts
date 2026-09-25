@@ -2022,6 +2022,87 @@ describe("shard storage v2 user-state.json persistence (issue #278)", () => {
       expect(written.states["feed-b:feed-b-guid"]?.starred).toBe(true);
     });
 
+    describe("replacing the feed list is not a feed removal", () => {
+      function exportOf(feeds: Feed[]): RssDashboardSettings {
+        const exported = v2Settings();
+        exported.feeds = JSON.parse(JSON.stringify(feeds)) as Feed[];
+        return exported;
+      }
+
+      it("keeps state for a feed that a feed bundle import drops", async () => {
+        const settings = v2Settings();
+        settings.feeds = threeStarredFeeds();
+        await repository.persistSettings(settings, saveData);
+        const bundle = repository.buildFeedBundle(
+          exportOf(settings.feeds.filter((f) => f.feedId !== "feed-c")),
+        );
+
+        await repository.importFeedBundle(bundle, settings, saveData);
+
+        const written = await readUserState();
+        expect(written.states["feed-c:feed-c-guid"]?.starred).toBe(true);
+        expect(written.unrecognizedFeedSinceByFeedId?.["feed-c"]).toEqual(
+          expect.any(Number),
+        );
+      });
+
+      it("keeps state for a feed that a portable data bundle import drops, and still deletes its shard", async () => {
+        const settings = v2Settings();
+        settings.storageFolder = ".rss-dashboard-data/feeds";
+        settings.feeds = threeStarredFeeds();
+        await repository.persistSettings(settings, saveData);
+        const exported = exportOf(
+          settings.feeds.filter((f) => f.feedId !== "feed-c"),
+        );
+        exported.storageFolder = settings.storageFolder;
+        const bundle = repository.buildPortableDataBundle(exported);
+
+        await repository.importPortableDataBundle(bundle, settings, saveData);
+
+        const written = await readUserState();
+        expect(written.states["feed-c:feed-c-guid"]?.starred).toBe(true);
+        expect(
+          await (app.vault.adapter as unknown as {
+            exists: (path: string) => Promise<boolean>;
+          }).exists(".rss-dashboard-data/feeds/feed-c.json"),
+        ).toBe(false);
+      });
+
+      it("brings a dropped feed's state back when a later import lists the feed again", async () => {
+        const settings = v2Settings();
+        settings.feeds = threeStarredFeeds();
+        await repository.persistSettings(settings, saveData);
+        const fullBundle = repository.buildFeedBundle(exportOf(settings.feeds));
+        const partialBundle = repository.buildFeedBundle(
+          exportOf(settings.feeds.filter((f) => f.feedId !== "feed-c")),
+        );
+
+        await repository.importFeedBundle(partialBundle, settings, saveData);
+        await repository.importFeedBundle(fullBundle, settings, saveData);
+
+        const written = await readUserState();
+        expect(written.states["feed-c:feed-c-guid"]?.starred).toBe(true);
+        expect(written.unrecognizedFeedSinceByFeedId).toBeUndefined();
+      });
+
+      it("still treats a delete after an import as a feed removal", async () => {
+        const settings = v2Settings();
+        settings.feeds = threeStarredFeeds();
+        await repository.persistSettings(settings, saveData);
+        await repository.importFeedBundle(
+          repository.buildFeedBundle(exportOf(settings.feeds)),
+          settings,
+          saveData,
+        );
+
+        settings.feeds = settings.feeds.filter((f) => f.feedId !== "feed-b");
+        await repository.persistSettings(settings, saveData);
+
+        const written = await readUserState();
+        expect(written.states["feed-b:feed-b-guid"]).toBeUndefined();
+      });
+    });
+
     describe("expiry of unrecognized feed state", () => {
       const baseTime = Date.parse("2026-01-01T00:00:00Z");
       const horizon = 90 * 24 * 60 * 60 * 1000;

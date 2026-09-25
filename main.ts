@@ -59,6 +59,7 @@ import {
   FeedStorageRepository,
   type FeedLocalStorageAddress,
   type FeedStorageStatus,
+  type PersistSettingsOptions,
   type RepairPreview,
   type RepairResult,
   ShardFolderDeletionError,
@@ -1987,7 +1988,9 @@ export default class RssDashboardPlugin extends Plugin {
         }
 
         this.initializeSettingsBackedServices();
-        await this.saveSettings();
+        // The imported file replaces the feed list, so feeds it lacks keep
+        // their article state rather than counting as removed (issue #374).
+        await this.saveSettings({ replacesFeedList: true });
         await this.refreshDashboardViews();
         const discoverView = await this.getActiveDiscoverView();
         discoverView?.render();
@@ -3216,7 +3219,7 @@ export default class RssDashboardPlugin extends Plugin {
     };
   }
 
-  async saveSettings() {
+  async saveSettings(options: PersistSettingsOptions = {}) {
     storageLog("saveSettings invoked", {
       mode: this.settings.storageMode,
       folder: this.settings.storageFolder,
@@ -3228,6 +3231,7 @@ export default class RssDashboardPlugin extends Plugin {
       const result = await this.feedStorageRepository.persistSettings(
         this.settings,
         this.getMetadataSaveCallback(),
+        options,
       );
       storageLog("saveSettings completed", result);
       try {

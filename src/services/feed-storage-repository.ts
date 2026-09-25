@@ -46,6 +46,12 @@ export interface FeedLocalStorageAddress {
 export interface PersistSettingsOptions {
   forceMetadata?: boolean;
   forceAllShards?: boolean;
+  /**
+   * The feed list was replaced wholesale (a bundle import or restore), so a
+   * feed it drops is not a feed removal: its shard is deleted, but its
+   * article state is kept on the unrecognized-feed horizon (issue #374).
+   */
+  replacesFeedList?: boolean;
 }
 
 export interface RepairResult {
@@ -763,7 +769,9 @@ export class FeedStorageRepository {
         });
       }
       this.lastPersistedShardJsonByFeedId.delete(previousFeedId);
-      this.pendingFeedRemovals.add(previousFeedId);
+      if (!options.replacesFeedList) {
+        this.pendingFeedRemovals.add(previousFeedId);
+      }
       shardDeleteCount += 1;
     }
 
@@ -1090,6 +1098,7 @@ export class FeedStorageRepository {
       await this.persistSettings(settings, saveData, {
         forceAllShards: true,
         forceMetadata: true,
+        replacesFeedList: true,
       });
 
       storageLog("Completed portable bundle import", {
@@ -1134,6 +1143,7 @@ export class FeedStorageRepository {
         await this.persistSettings(settings, saveData, {
           forceAllShards: true,
           forceMetadata: true,
+          replacesFeedList: true,
         });
         storageLog(
           "Restored previous state after failed portable bundle import",
@@ -1187,6 +1197,7 @@ export class FeedStorageRepository {
       await this.persistSettings(settings, saveData, {
         forceAllShards: true,
         forceMetadata: true,
+        replacesFeedList: true,
       });
 
       storageLog("Completed feed bundle import", {
@@ -1217,6 +1228,7 @@ export class FeedStorageRepository {
         await this.persistSettings(settings, saveData, {
           forceAllShards: true,
           forceMetadata: true,
+          replacesFeedList: true,
         });
         storageLog("Restored previous state after failed feed bundle import");
       } catch (rollbackError) {
