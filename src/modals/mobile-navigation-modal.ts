@@ -92,6 +92,16 @@ export class MobileNavigationModal extends Modal {
         this.callbacks.onRangeSelect?.(clickedKey, visibleKeys);
         this.close();
       },
+      // The dashboard re-renders its own sidebar after a delete, not this
+      // modal's, so re-render here or the deleted row stays until reopen.
+      onDeleteFeed: (feed) => {
+        this.callbacks.onDeleteFeed(feed);
+        this.sidebar?.render();
+      },
+      onDeleteFolder: (folder: string) => {
+        this.callbacks.onDeleteFolder(folder);
+        this.sidebar?.render();
+      },
       onClearTags: () => {
         this.callbacks.onClearTags();
       },
