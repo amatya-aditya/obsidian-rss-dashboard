@@ -1,6 +1,6 @@
 # RSS Dashboard 2.7.0 — RSS Dashboard Discord
 
-Published: 2026-09-23
+Published: 2026-09-25
 Platform: RSS Dashboard Discord
 Release: 2.7.0
 

@@ -1,4 +1,4 @@
-## 2.7.0 - September 23, 2026
+## 2.7.0 - September 25, 2026
 
 For a user-facing overview, see the [RSS Dashboard 2.7.0 release notes](docs/releases/2.7.0.md).
 

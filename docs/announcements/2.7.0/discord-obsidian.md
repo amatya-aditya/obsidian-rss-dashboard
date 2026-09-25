@@ -1,6 +1,6 @@
 # RSS Dashboard 2.7.0 — Obsidian Discord
 
-Published: 2026-09-23
+Published: 2026-09-25
 Platform: Obsidian Discord
 Release: 2.7.0
 
