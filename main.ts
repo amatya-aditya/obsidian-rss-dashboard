@@ -2913,6 +2913,11 @@ export default class RssDashboardPlugin extends Plugin {
           JSON.stringify(this.settings) !== originalSettingsJson);
 
       if (shouldSave) {
+        // On the first load, onload() has not initialized the services yet,
+        // and this save's backup snapshot needs the backup service.
+        if (!this.backupService) {
+          this.initializeSettingsBackedServices();
+        }
         await this.saveSettings();
       }
       this.autoRefreshScheduler?.reschedule();
