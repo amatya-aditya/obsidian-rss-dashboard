@@ -436,6 +436,87 @@ export function installObsidianDomPolyfills(): void {
     window.ResizeObserver =
       MockResizeObserver;
   }
+
+  installWindowNodePolyfills(window);
+}
+
+const windowMigrationListeners = new WeakMap<
+  HTMLElement,
+  Set<(win: Window) => unknown>
+>();
+
+/**
+ * Installs Obsidian's cross-window Node helpers on a window's prototypes.
+ * Obsidian patches every popout window as well as the main one, so tests that
+ * build a second jsdom window for a popout call this on it too.
+ */
+export function installWindowNodePolyfills(win: Window): void {
+  const scope = win as unknown as {
+    Node: { prototype: Record<string, unknown> };
+    HTMLElement: { prototype: Record<string, unknown> };
+    Document: { prototype: Record<string, unknown> };
+  };
+
+  // A popout's own Document class; the main window gets the full helper above.
+  if (typeof scope.Document.prototype.createEl !== "function") {
+    const nativeCreate = scope.Document.prototype.createElement as (
+      tag: string,
+    ) => HTMLElement;
+    scope.Document.prototype.createEl = function createEl(
+      this: Document,
+      tag: string,
+    ): HTMLElement {
+      return nativeCreate.call(this, tag);
+    };
+    scope.Document.prototype.createDiv = function createDiv(
+      this: Document,
+      opts?: { cls?: string },
+    ): HTMLElement {
+      const el = nativeCreate.call(this, "div");
+      if (opts?.cls) el.className = opts.cls;
+      return el;
+    };
+  }
+
+  if (typeof scope.Node.prototype.instanceOf !== "function") {
+    // Like Obsidian: match the constructor in the node's own window, so an
+    // element created in a popout still counts as an HTMLElement.
+    scope.Node.prototype.instanceOf = function instanceOf(
+      this: Node,
+      type: { new (): unknown; name: string },
+    ): boolean {
+      if (this instanceof type) return true;
+      const nodeWindow = (this.ownerDocument ?? (this as Document)).defaultView;
+      const local = (nodeWindow as unknown as Record<string, unknown> | null)?.[
+        type.name
+      ];
+      return typeof local === "function" && this instanceof local;
+    };
+  }
+
+  if (typeof scope.HTMLElement.prototype.onWindowMigrated !== "function") {
+    scope.HTMLElement.prototype.onWindowMigrated = function onWindowMigrated(
+      this: HTMLElement,
+      listener: (win: Window) => unknown,
+    ): () => void {
+      let listeners = windowMigrationListeners.get(this);
+      if (!listeners) {
+        listeners = new Set();
+        windowMigrationListeners.set(this, listeners);
+      }
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    };
+  }
+}
+
+/**
+ * Moves an element into another window's document and fires its
+ * onWindowMigrated listeners, as Obsidian does for "Move to new window".
+ */
+export function migrateElementToWindow(el: HTMLElement, win: Window): void {
+  win.document.body.appendChild(el);
+  windowMigrationListeners.get(el)?.forEach((listener) => listener(win));
 }
 
 export function installMediaElementPolyfills(): void {

@@ -129,6 +129,7 @@ For a user-facing overview, see the [RSS Dashboard 2.7.0 release notes](docs/rel
 - Settings controls now adapt to the running Obsidian version: destructive settings, modal, and feed-management confirmations use version-aware controls with unchanged actions, and sliders on older supported versions show their formatted value while dragging, using the keyboard, or editing a paired input. [GH Issue #229](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/229) [GH Issue #230](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/230) [GH Issue #231](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/231)
 - Fixed the **Storage mode** description in Settings → Storage showing `[object DocumentFragment]`, notably in popped-out windows. [GH Issue #248](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/248)
 - Fixed buttons and badges across the dashboard, reader, podcast player, sidebar, and import modals showing two tooltips on hover, Obsidian's and the browser's. Every tooltip in the plugin now uses Obsidian's own themed tooltip.
+- Fixed dashboard keyboard shortcuts doing nothing after **Move to new window**. Shortcuts now follow the dashboard into a popped-out window and back, keys typed into a text field in the popped-out window stay in that field, and a dialog open in the popped-out window pauses them there.
 
 ### Development and compliance
 
