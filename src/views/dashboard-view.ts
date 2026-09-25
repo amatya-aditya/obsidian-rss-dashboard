@@ -2593,6 +2593,9 @@ export class RssDashboardView extends ItemView {
     if (this.currentFeed === feed) {
       this.currentFeed = null;
     }
+    // Drop the deleted feed from a multi-selection so the header title
+    // stops listing it.
+    this.selectedFeeds = this.selectedFeeds.filter((url) => url !== feed.url);
 
     void this.render();
   }
@@ -2602,8 +2605,21 @@ export class RssDashboardView extends ItemView {
       folder,
       ...this.getAllDescendantFolders(folder),
     ]);
+    const removedFeedUrls = new Set(
+      this.plugin.settings.feeds
+        .filter((feed: Feed) => feed.folder && folderPaths.has(feed.folder))
+        .map((feed: Feed) => feed.url),
+    );
     this.plugin.settings.feeds = this.plugin.settings.feeds.filter(
       (feed: Feed) => !feed.folder || !folderPaths.has(feed.folder),
+    );
+    // Drop the deleted folders and their feeds from a multi-selection so the
+    // header title stops listing them.
+    this.selectedFolders = this.selectedFolders.filter(
+      (path) => !folderPaths.has(path),
+    );
+    this.selectedFeeds = this.selectedFeeds.filter(
+      (url) => !removedFeedUrls.has(url),
     );
 
     this.plugin.settings.folders = removeFolderByPath(
