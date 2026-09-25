@@ -1485,6 +1485,12 @@ body .rss-folder-name-modal {
   pointer-events: auto;
 }
 
+/* Rows in the narrow-layout sidebar drawer live inside a modal; sit above
+   the modal layer but below menus and tooltips. */
+.rss-dashboard-refresh-details.rss-dashboard-refresh-details-over-modal {
+  z-index: calc(var(--layer-modal) + 1);
+}
+
 .rss-dashboard-refresh-details-line {
   margin-top: 4px;
   overflow-wrap: anywhere;

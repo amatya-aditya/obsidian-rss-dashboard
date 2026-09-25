@@ -27,12 +27,18 @@ function releaseRefreshDetailsPopup(
 /**
  * Positions a refresh-details popup beside `anchor`, or below it across the
  * window when the space beside it is too narrow to read, as on a phone where
- * the sidebar fills most of the screen.
+ * the sidebar fills most of the screen. When `anchor` sits inside a modal,
+ * such as the narrow-layout sidebar drawer, the popup is lifted above the
+ * modal layer so the modal does not cover it.
  */
 export function positionRefreshDetailsPopup(
   popup: HTMLElement,
   anchor: HTMLElement,
 ): void {
+  popup.toggleClass(
+    "rss-dashboard-refresh-details-over-modal",
+    anchor.closest(".modal-container") !== null,
+  );
   const rect = anchor.getBoundingClientRect();
   const windowWidth = anchor.ownerDocument.defaultView?.innerWidth ?? 0;
   const sideLeft = rect.right + POPUP_GUTTER_PX;
