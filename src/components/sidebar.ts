@@ -63,7 +63,7 @@ import {
 } from "../services/sidebar-ordering-controller";
 import {
   attachRefreshStatusDetails,
-  positionRefreshDetailsPopup,
+  showRefreshDetailsPopup,
 } from "./refresh-status-details";
 import { RefreshDetailsModal } from "../modals/refresh-details-modal";
 import {
@@ -373,27 +373,18 @@ export class Sidebar {
       return;
     }
 
-    const ownerDocument = anchor.ownerDocument;
-    const popup = ownerDocument.body.createDiv({
-      cls: "rss-dashboard-refresh-details rss-dashboard-refresh-details-manual",
-      attr: { role: "status" },
+    showRefreshDetailsPopup({
+      anchor,
+      render: (popup) => {
+        popup.createEl("strong", { text: "Refresh details" });
+        for (const line of this.getRefreshDetailLines(feeds, scope)) {
+          popup.createDiv({
+            cls: "rss-dashboard-refresh-details-line",
+            text: line,
+          });
+        }
+      },
     });
-    popup.createEl("strong", { text: "Refresh details" });
-    for (const line of this.getRefreshDetailLines(feeds, scope)) {
-      popup.createDiv({
-        cls: "rss-dashboard-refresh-details-line",
-        text: line,
-      });
-    }
-    positionRefreshDetailsPopup(popup, anchor);
-    const ownerWindow = ownerDocument.defaultView;
-    const dismiss = (event?: KeyboardEvent) => {
-      if (event && event.key !== "Escape") return;
-      popup.remove();
-      ownerDocument.removeEventListener("keydown", dismiss);
-    };
-    ownerDocument.addEventListener("keydown", dismiss);
-    if (ownerWindow) ownerWindow.setTimeout(dismiss, 5000);
   }
 
   constructor(

@@ -1,5 +1,28 @@
 const POPUP_GUTTER_PX = 8;
 const MIN_SIDE_POPUP_WIDTH_PX = 240;
+const MANUAL_POPUP_DISMISS_MS = 5000;
+
+// Each document shows at most one refresh-details popup. Opening one closes
+// whichever popup is already open in that document.
+const openPopupClosers = new WeakMap<Document, () => void>();
+
+function claimRefreshDetailsPopup(
+  ownerDocument: Document,
+  close: () => void,
+): void {
+  const previousClose = openPopupClosers.get(ownerDocument);
+  if (previousClose && previousClose !== close) previousClose();
+  openPopupClosers.set(ownerDocument, close);
+}
+
+function releaseRefreshDetailsPopup(
+  ownerDocument: Document,
+  close: () => void,
+): void {
+  if (openPopupClosers.get(ownerDocument) === close) {
+    openPopupClosers.delete(ownerDocument);
+  }
+}
 
 /**
  * Positions a refresh-details popup beside `anchor`, or below it across the
@@ -24,6 +47,41 @@ export function positionRefreshDetailsPopup(
 }
 
 /**
+ * Shows the refresh-details popup opened from a context menu. It replaces any
+ * other open refresh-details popup and dismisses itself after five seconds or
+ * on Escape.
+ */
+export function showRefreshDetailsPopup(options: {
+  anchor: HTMLElement;
+  render: (popup: HTMLElement) => void;
+}): void {
+  const ownerDocument = options.anchor.ownerDocument;
+  const ownerWindow = ownerDocument.defaultView;
+  let dismissTimer: number | null = null;
+  const popup = ownerDocument.body.createDiv({
+    cls: "rss-dashboard-refresh-details rss-dashboard-refresh-details-manual",
+    attr: { role: "status" },
+  });
+  const onKeyDown = (event: KeyboardEvent) => {
+    if (event.key === "Escape") close();
+  };
+  const close = () => {
+    if (dismissTimer !== null) ownerWindow?.clearTimeout(dismissTimer);
+    dismissTimer = null;
+    popup.remove();
+    ownerDocument.removeEventListener("keydown", onKeyDown);
+    releaseRefreshDetailsPopup(ownerDocument, close);
+  };
+  claimRefreshDetailsPopup(ownerDocument, close);
+  options.render(popup);
+  positionRefreshDetailsPopup(popup, options.anchor);
+  ownerDocument.addEventListener("keydown", onKeyDown);
+  if (ownerWindow) {
+    dismissTimer = ownerWindow.setTimeout(close, MANUAL_POPUP_DISMISS_MS);
+  }
+}
+
+/**
  * Lightweight, owning-document detail popup for sidebar refresh status.
  * It uses no timers other than the interaction delay and never polls time.
  */
@@ -40,6 +98,13 @@ export function attachRefreshStatusDetails(options: {
   let popup: HTMLElement | null = null;
   let showTimer: number | null = null;
   let closeTimer: number | null = null;
+  // Only keyboard focus keeps the popup open after the pointer leaves. Focus
+  // from a mouse click must not, or the clicked row's popup never closes.
+  let focusFromPointer = false;
+  // Hover is tracked from enter/leave events rather than `:hover`, which some
+  // DOM implementations also match on a focused element.
+  let pointerOverRow = false;
+  let pointerOverPopup = false;
   const popupId = `rss-refresh-details-${Math.random().toString(36).slice(2)}`;
   const descriptionId = `${popupId}-description`;
   const previousDescriptionIds = row.getAttribute("aria-describedby");
@@ -63,17 +128,26 @@ export function attachRefreshStatusDetails(options: {
     clearTimers();
     popup?.remove();
     popup = null;
+    pointerOverPopup = false;
+    releaseRefreshDetailsPopup(ownerDocument, close);
   };
   const show = () => {
     if (popup || !row.isConnected) return;
+    claimRefreshDetailsPopup(ownerDocument, close);
     popup = ownerDocument.body.createDiv({
       cls: "rss-dashboard-refresh-details",
       attr: { id: popupId, role: "status" },
     });
     options.render(popup);
     positionRefreshDetailsPopup(popup, row);
-    popup.addEventListener("mouseenter", clearTimers);
-    popup.addEventListener("mouseleave", scheduleClose);
+    popup.addEventListener("mouseenter", () => {
+      pointerOverPopup = true;
+      clearTimers();
+    });
+    popup.addEventListener("mouseleave", () => {
+      pointerOverPopup = false;
+      scheduleClose();
+    });
     popup.addEventListener("focusin", clearTimers);
     popup.addEventListener("focusout", scheduleClose);
   };
@@ -95,9 +169,9 @@ export function attachRefreshStatusDetails(options: {
     closeTimer = ownerWindow.setTimeout(() => {
       const activeElement = ownerDocument.activeElement;
       if (
-        !row.matches(":hover") &&
-        !popup?.matches(":hover") &&
-        activeElement !== row &&
+        !pointerOverRow &&
+        !pointerOverPopup &&
+        (activeElement !== row || focusFromPointer) &&
         !popup?.contains(activeElement)
       ) {
         close();
@@ -107,20 +181,37 @@ export function attachRefreshStatusDetails(options: {
   const onKeyDown = (event: KeyboardEvent) => {
     if (event.key === "Escape") close();
   };
+  const onMouseEnter = () => {
+    pointerOverRow = true;
+    scheduleShow();
+  };
+  const onMouseLeave = () => {
+    pointerOverRow = false;
+    scheduleClose();
+  };
+  const onMouseDown = () => {
+    focusFromPointer = true;
+  };
+  const onFocusOut = () => {
+    focusFromPointer = false;
+    scheduleClose();
+  };
 
-  row.addEventListener("mouseenter", scheduleShow);
-  row.addEventListener("mouseleave", scheduleClose);
+  row.addEventListener("mouseenter", onMouseEnter);
+  row.addEventListener("mouseleave", onMouseLeave);
+  row.addEventListener("mousedown", onMouseDown);
   row.addEventListener("focusin", scheduleShow);
-  row.addEventListener("focusout", scheduleClose);
+  row.addEventListener("focusout", onFocusOut);
   ownerDocument.addEventListener("keydown", onKeyDown);
 
   return () => {
     clearTimers();
     close();
-    row.removeEventListener("mouseenter", scheduleShow);
-    row.removeEventListener("mouseleave", scheduleClose);
+    row.removeEventListener("mouseenter", onMouseEnter);
+    row.removeEventListener("mouseleave", onMouseLeave);
+    row.removeEventListener("mousedown", onMouseDown);
     row.removeEventListener("focusin", scheduleShow);
-    row.removeEventListener("focusout", scheduleClose);
+    row.removeEventListener("focusout", onFocusOut);
     ownerDocument.removeEventListener("keydown", onKeyDown);
     description.remove();
     if (previousDescriptionIds) {
