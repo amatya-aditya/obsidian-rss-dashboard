@@ -216,6 +216,14 @@ _Avoid_: Shard content, feed data
 The per-article interaction data — read, starred, tags, saved-to-vault, playback progress — that Shard storage v2 stores in a separate `user-state.json` rather than inside the feed's shard file. The same states referenced by [[retention protection]].
 _Avoid_: User state (as a standalone term outside v2), read state
 
+**Feed removal**:
+A user's deliberate deletion or unsubscription of a feed on this device, singly, by folder, or all at once. Only a feed removal ends a feed's [[Article state]] immediately. Replacing the feed list through an import or restore is not a feed removal. See [ADR 0010](docs/adr/0010-hydration-gated-user-state-garbage-collection.md).
+_Avoid_: Deleted feed (as a state), unsubscribed feed
+
+**Unrecognized feed state**:
+[[Article state]] whose feed is not in this device's feed list and was not the subject of a [[Feed removal]] here. It is kept, because the feed may exist on another device or return through a restore, and expires only after the 90-day horizon without the feed reappearing.
+_Avoid_: Orphaned state (reserved for a leftover `user-state.json` file), stale state
+
 **Portable data bundle**:
 A combined export equivalent to a [[Feed bundle]] plus a [[Settings bundle]] together, used to move a full Shard storage setup between devices. Currently exposed identically on both the storage tab and the Import/Export tab; nothing about the bundle's content is tab-specific. See [ADR 0005](docs/adr/0005-split-portable-data-bundle-into-feed-and-settings-bundles.md) for the split, now implemented.
 _Avoid_: Shard data, shard export

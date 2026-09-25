@@ -341,6 +341,14 @@ export class FeedStorageRepository {
    * this plugin session, with the GUIDs present in that validated read.
    */
   private hydratedShardGuidsByFeedId = new Map<string, Set<string>>();
+  /**
+   * Feed IDs this device removed this session (a feed it loaded or persisted
+   * that has since left its feed list) whose article state has not yet been
+   * removed by a successful `user-state.json` save. Only these lose their
+   * state immediately; any other feed missing from the list may exist on
+   * another device (issue #374). Held in memory only.
+   */
+  private pendingFeedRemovals = new Set<string>();
   private writeWrapper?: <T>(fn: () => Promise<T>) => Promise<T>;
   /**
    * `${feedId}:${guid}` keys of items whose in-memory flags are known to
@@ -755,6 +763,7 @@ export class FeedStorageRepository {
         });
       }
       this.lastPersistedShardJsonByFeedId.delete(previousFeedId);
+      this.pendingFeedRemovals.add(previousFeedId);
       shardDeleteCount += 1;
     }
 
@@ -1767,12 +1776,22 @@ export class FeedStorageRepository {
       }
     }
 
-    // A feed only loses its article state when it is explicitly removed from
-    // settings, never merely because it didn't hydrate this time.
+    // A feed loses its article state immediately only when this device removed
+    // it. A feed merely absent from this device's list may still be listed on
+    // another device sharing this file (issue #374).
+    const consideredRemovals = [...this.pendingFeedRemovals];
+    const removedFeedIds = new Set(
+      consideredRemovals.filter((feedId) => !currentFeedIds.has(feedId)),
+    );
+    const settleRemovals = () => {
+      for (const feedId of consideredRemovals) {
+        this.pendingFeedRemovals.delete(feedId);
+      }
+    };
     for (const key of Object.keys(states)) {
       const separatorIndex = key.indexOf(":");
       const feedId = separatorIndex === -1 ? "" : key.slice(0, separatorIndex);
-      if (!currentFeedIds.has(feedId)) {
+      if (removedFeedIds.has(feedId)) {
         delete states[key];
         delete missingSinceByStateKey[key];
       }
@@ -1842,6 +1861,7 @@ export class FeedStorageRepository {
       Object.keys(states).length === 0 &&
       Object.keys(unattributed).length === 0
     ) {
+      settleRemovals();
       return;
     }
 
@@ -1883,6 +1903,7 @@ export class FeedStorageRepository {
     } else {
       await writeUserState();
     }
+    settleRemovals();
     storageLog("Saved user-state.json with " + Object.keys(states).length + " entries.");
   }
 }
