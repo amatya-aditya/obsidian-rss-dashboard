@@ -143,4 +143,44 @@ describe("Sidebar Delete Selection", () => {
       "https://feed3.com",
     ]);
   });
+  it("counts feeds inside selected and nested folders in the confirmation message", () => {
+    settings.feeds = [
+      makeFeed("A1", "https://a1.com", "FolderA"),
+      makeFeed("A2", "https://a2.com", "FolderA"),
+      makeFeed("A Sub", "https://asub.com", "FolderA/Sub"),
+      makeFeed("A Sub Deep", "https://asubdeep.com", "FolderA/Sub/Deep"),
+      makeFeed("B1", "https://b1.com", "FolderB"),
+      makeFeed("Tech delete", "https://tech-del.com", "Tech"),
+      makeFeed("Tech keep 1", "https://tech-keep1.com", "Tech"),
+      makeFeed("Tech keep 2", "https://tech-keep2.com", "Tech"),
+      makeFeed("Tech archive", "https://tech-archive.com", "Tech/Archive"),
+      makeFeed("Root delete", "https://root-del.com", ""),
+    ];
+    settings.folders = [
+      {
+        name: "FolderA",
+        subfolders: [
+          { name: "Sub", subfolders: [{ name: "Deep", subfolders: [] }] },
+        ],
+      },
+      { name: "FolderB", subfolders: [] },
+      { name: "Tech", subfolders: [{ name: "Archive", subfolders: [] }] },
+    ] as Folder[];
+    // FolderA's nested subfolders are covered through their ancestor; the
+    // kept Tech folder has one nested subfolder selected on its own.
+    options.selectedFolders = ["FolderA", "FolderB", "Tech/Archive"];
+    // One explicit feed also lives in a selected folder: count it once.
+    options.selectedFeeds = [
+      "https://a1.com",
+      "https://tech-del.com",
+      "https://root-del.com",
+    ];
+
+    (sidebar as unknown as { deleteSelection: () => void }).deleteSelection();
+
+    const message = document.querySelector(".rss-sidebar-confirm-message");
+    expect(message?.textContent).toBe(
+      "Are you sure you want to delete 3 folder(s) and 8 feed(s)?",
+    );
+  });
 });

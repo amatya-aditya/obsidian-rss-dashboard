@@ -1909,31 +1909,32 @@ export class Sidebar {
     });
   }
 
-  private markSelectionReadStatus(read: boolean): void {
-    let count = 0;
+  /**
+   * Feeds covered by the current multi-selection: those selected explicitly
+   * plus those inside a selected folder or any of its subfolders.
+   */
+  private getEffectiveSelectedFeeds(): Feed[] {
     const { selectedFolders, selectedFeeds } = this.options;
 
-    const feedsToUpdate = new Set<Feed>();
-    for (const feed of this.settings.feeds) {
-      if (selectedFeeds && selectedFeeds.includes(feed.url)) {
-        feedsToUpdate.add(feed);
-      } else if (feed.folder && selectedFolders && selectedFolders.length > 0) {
-        let current = feed.folder;
-        while (current) {
-          if (selectedFolders.includes(current)) {
-            feedsToUpdate.add(feed);
-            break;
-          }
-          if (current.includes("/")) {
-            current = current.substring(0, current.lastIndexOf("/"));
-          } else {
-            break;
-          }
-        }
+    return this.settings.feeds.filter((feed) => {
+      if (selectedFeeds?.includes(feed.url)) return true;
+      if (!feed.folder || !selectedFolders || selectedFolders.length === 0) {
+        return false;
       }
-    }
+      let current = feed.folder;
+      while (current) {
+        if (selectedFolders.includes(current)) return true;
+        if (!current.includes("/")) break;
+        current = current.substring(0, current.lastIndexOf("/"));
+      }
+      return false;
+    });
+  }
 
-    for (const feed of feedsToUpdate) {
+  private markSelectionReadStatus(read: boolean): void {
+    let count = 0;
+
+    for (const feed of this.getEffectiveSelectedFeeds()) {
       for (const item of feed.items) {
         if (item.read !== read) {
           item.read = read;
@@ -1953,9 +1954,11 @@ export class Sidebar {
   private deleteSelection(): void {
     const { selectedFolders, selectedFeeds } = this.options;
     const folderCount = selectedFolders?.length || 0;
-    const feedCount = selectedFeeds?.length || 0;
+    // Count every feed the delete removes: explicitly selected feeds plus
+    // feeds inside selected folders, not just the explicit selection.
+    const feedCount = this.getEffectiveSelectedFeeds().length;
 
-    if (folderCount === 0 && feedCount === 0) return;
+    if (folderCount === 0 && (selectedFeeds?.length || 0) === 0) return;
 
     let msg = `Are you sure you want to delete the selected items? This action cannot be undone.`;
     if (folderCount > 0 && feedCount === 0) {
