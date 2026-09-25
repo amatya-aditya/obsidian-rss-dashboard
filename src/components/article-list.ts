@@ -1434,11 +1434,8 @@ export class ArticleList {
         article.tags = article.tags.filter((t) => t.name !== tag.name);
       }
 
-      const index = this.articles.findIndex((a) => a.guid === article.guid);
-      if (index !== -1) {
-        this.articles[index] = { ...article };
-      }
-
+      // Keep the rendered object in `this.articles`: the card's handlers hold
+      // it, and tag edits resync only the objects listed there.
       this.updateArticleInPlace(article);
 
       this.callbacks.onArticleUpdate(
