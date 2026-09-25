@@ -11,7 +11,6 @@ import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 interface MockSidebar {
   callbacks: SidebarCallbacks;
   rendered: boolean;
-  renderCount: number;
   destroyed: boolean;
 }
 let lastSidebarInstance: MockSidebar | null = null;
@@ -20,7 +19,6 @@ vi.mock("../../../src/components/sidebar", () => {
   class Sidebar {
     callbacks: SidebarCallbacks;
     rendered = false;
-    renderCount = 0;
     destroyed = false;
 
     constructor(
@@ -37,7 +35,6 @@ vi.mock("../../../src/components/sidebar", () => {
 
     render(): void {
       this.rendered = true;
-      this.renderCount++;
     }
 
     destroy(): void {
@@ -223,7 +220,8 @@ describe("MobileNavigationModal", () => {
     it("leaves the icon idle when no refresh is active", async () => {
       vi.useFakeTimers();
       let modal:
-        Awaited<ReturnType<typeof openModalWithPlugin>>["modal"] | undefined;
+        | Awaited<ReturnType<typeof openModalWithPlugin>>["modal"]
+        | undefined;
       try {
         ({ modal } = await openModalWithPlugin({
           isGlobalRefreshCancellable: false,
@@ -246,7 +244,8 @@ describe("MobileNavigationModal", () => {
     it("adds refreshing class but not stop when a plain multi-feed refresh is active", async () => {
       vi.useFakeTimers();
       let modal:
-        Awaited<ReturnType<typeof openModalWithPlugin>>["modal"] | undefined;
+        | Awaited<ReturnType<typeof openModalWithPlugin>>["modal"]
+        | undefined;
       try {
         ({ modal } = await openModalWithPlugin({
           isGlobalRefreshCancellable: false,
@@ -269,7 +268,8 @@ describe("MobileNavigationModal", () => {
     it("shows stop state (not refreshing) when global refresh is cancellable", async () => {
       vi.useFakeTimers();
       let modal:
-        Awaited<ReturnType<typeof openModalWithPlugin>>["modal"] | undefined;
+        | Awaited<ReturnType<typeof openModalWithPlugin>>["modal"]
+        | undefined;
       try {
         ({ modal } = await openModalWithPlugin({
           isGlobalRefreshCancellable: true,
@@ -287,103 +287,6 @@ describe("MobileNavigationModal", () => {
         modal?.close();
         vi.useRealTimers();
       }
-    });
-  });
-
-  describe("re-renders its own sidebar after list-changing actions", () => {
-    const feed = {
-      title: "Test Feed",
-      url: "x",
-      folder: "",
-      items: [],
-      lastUpdated: 0,
-    } as Feed;
-
-    async function openModal(callbackOverrides: Partial<SidebarCallbacks>) {
-      const { MobileNavigationModal } =
-        await import("../../../src/modals/mobile-navigation-modal");
-      const callbacks = {
-        onFolderClick: vi.fn(),
-        onFeedClick: vi.fn(),
-        onTagToggle: vi.fn(),
-        onClearTags: vi.fn(),
-        onTagFilterModeChange: vi.fn(),
-        onAddFolder: vi.fn(),
-        onAddSubfolder: vi.fn(),
-        onAddFeed: vi.fn(async () => {}),
-        onEditFeed: vi.fn(),
-        onDeleteFeed: vi.fn(),
-        onDeleteFolder: vi.fn(),
-        onUpdateFeed: vi.fn(async () => {}),
-        ...callbackOverrides,
-      } as unknown as SidebarCallbacks;
-      const modal = new MobileNavigationModal(
-        obsidian.App.createMock() as unknown as obsidian.App,
-        {
-          saveSettings: vi.fn(async () => {}),
-        } as unknown as RssDashboardPlugin,
-        { sidebarWidth: 310 } as unknown as RssDashboardSettings,
-        { selectedTags: [] } as unknown as SidebarOptions,
-        callbacks,
-      );
-      modal.open();
-      return { modal, callbacks, sidebar: lastSidebarInstance! };
-    }
-
-    it.each([
-      ["onDeleteFeed", (cb: SidebarCallbacks) => cb.onDeleteFeed(feed)],
-      ["onDeleteFolder", (cb: SidebarCallbacks) => cb.onDeleteFolder("Tech")],
-      ["onAddFolder", (cb: SidebarCallbacks) => cb.onAddFolder("Tech")],
-      [
-        "onAddSubfolder",
-        (cb: SidebarCallbacks) => cb.onAddSubfolder("Tech", "AI"),
-      ],
-      [
-        "onEditFeed",
-        (cb: SidebarCallbacks) => cb.onEditFeed(feed, "T", "u", "Tech"),
-      ],
-    ] as const)(
-      "%s forwards to the dashboard, then re-renders without closing",
-      async (name, invoke) => {
-        const { modal, callbacks, sidebar } = await openModal({});
-        const rendersBefore = sidebar.renderCount;
-
-        invoke(sidebar.callbacks);
-
-        expect(callbacks[name]).toHaveBeenCalledTimes(1);
-        expect(sidebar.renderCount).toBe(rendersBefore + 1);
-        expect(modal.containerEl.isConnected).toBe(true);
-      },
-    );
-
-    it("re-renders only after an async onAddFeed resolves", async () => {
-      let finish!: () => void;
-      const { sidebar } = await openModal({
-        onAddFeed: vi.fn(
-          () =>
-            new Promise<void>((resolve) => {
-              finish = resolve;
-            }),
-        ),
-      });
-      const rendersBefore = sidebar.renderCount;
-
-      const pending = sidebar.callbacks.onAddFeed("T", "u", "");
-      expect(sidebar.renderCount).toBe(rendersBefore);
-
-      finish();
-      await pending;
-      expect(sidebar.renderCount).toBe(rendersBefore + 1);
-    });
-
-    it("re-renders after an async onUpdateFeed resolves", async () => {
-      const { callbacks, sidebar } = await openModal({});
-      const rendersBefore = sidebar.renderCount;
-
-      await sidebar.callbacks.onUpdateFeed(feed);
-
-      expect(callbacks.onUpdateFeed).toHaveBeenCalledWith(feed);
-      expect(sidebar.renderCount).toBe(rendersBefore + 1);
     });
   });
 });

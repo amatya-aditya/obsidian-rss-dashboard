@@ -92,34 +92,14 @@ export class MobileNavigationModal extends Modal {
         this.callbacks.onRangeSelect?.(clickedKey, visibleKeys);
         this.close();
       },
-      // The dashboard re-renders its own sidebar after these, not this modal's,
-      // so re-render here or the deleted/renamed row stays until reopen.
-      onAddFolder: (name: string) => {
-        this.callbacks.onAddFolder(name);
-        this.sidebar?.render();
-      },
-      onAddSubfolder: (parent: string, name: string) => {
-        this.callbacks.onAddSubfolder(parent, name);
-        this.sidebar?.render();
-      },
-      onAddFeed: async (...args: Parameters<SidebarCallbacks["onAddFeed"]>) => {
-        await this.callbacks.onAddFeed(...args);
-        this.sidebar?.render();
-      },
-      onEditFeed: (feed, title, url, folder) => {
-        this.callbacks.onEditFeed(feed, title, url, folder);
-        this.sidebar?.render();
-      },
+      // The dashboard re-renders its own sidebar after a delete, not this
+      // modal's, so re-render here or the deleted row stays until reopen.
       onDeleteFeed: (feed) => {
         this.callbacks.onDeleteFeed(feed);
         this.sidebar?.render();
       },
       onDeleteFolder: (folder: string) => {
         this.callbacks.onDeleteFolder(folder);
-        this.sidebar?.render();
-      },
-      onUpdateFeed: async (feed) => {
-        await this.callbacks.onUpdateFeed(feed);
         this.sidebar?.render();
       },
       onClearTags: () => {
