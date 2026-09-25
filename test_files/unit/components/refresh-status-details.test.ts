@@ -127,6 +127,50 @@ describe("refresh status details", () => {
     expect(document.querySelector(".rss-dashboard-refresh-details")).toBeNull();
     cleanup();
   });
+
+  it("lifts the popup above the modal layer only for rows inside a modal such as the sidebar drawer", async () => {
+    vi.useFakeTimers();
+    const inlineRow = document.body.createDiv({ text: "Inline feed" });
+    const drawerRow = document.body
+      .createDiv({ cls: "modal-container mod-dim" })
+      .createDiv({ cls: "modal" })
+      .createDiv({ text: "Drawer feed" });
+    const cleanups = [inlineRow, drawerRow].map((row) =>
+      attachRefreshStatusDetails({
+        row,
+        description: () => "Refresh details",
+        render: (popup) => popup.createDiv({ text: row.textContent ?? "" }),
+      }),
+    );
+
+    const hoverAndReadPopup = async (row: HTMLElement) => {
+      row.dispatchEvent(new MouseEvent("mouseenter"));
+      await vi.advanceTimersByTimeAsync(350);
+      const popup = document.querySelector<HTMLElement>(
+        ".rss-dashboard-refresh-details",
+      );
+      row.dispatchEvent(new MouseEvent("mouseleave"));
+      await vi.advanceTimersByTimeAsync(100);
+      return popup;
+    };
+
+    const inlinePopup = await hoverAndReadPopup(inlineRow);
+    const drawerPopup = await hoverAndReadPopup(drawerRow);
+
+    expect(inlinePopup?.textContent).toBe("Inline feed");
+    expect(
+      inlinePopup?.classList.contains(
+        "rss-dashboard-refresh-details-over-modal",
+      ),
+    ).toBe(false);
+    expect(drawerPopup?.textContent).toBe("Drawer feed");
+    expect(
+      drawerPopup?.classList.contains(
+        "rss-dashboard-refresh-details-over-modal",
+      ),
+    ).toBe(true);
+    cleanups.forEach((cleanup) => cleanup());
+  });
 });
 
 describe("refresh status details - one popup at a time", () => {
@@ -239,5 +283,23 @@ describe("refresh status details - one popup at a time", () => {
     await vi.advanceTimersByTimeAsync(5000);
 
     expect(openPopups()).toEqual([]);
+  });
+
+  it("lifts the context-menu popup above the modal layer when its row is in the sidebar drawer", () => {
+    const anchor = document.body
+      .createDiv({ cls: "modal-container mod-dim" })
+      .createDiv({ cls: "modal" })
+      .createDiv({ text: "Drawer feed" });
+
+    showRefreshDetailsPopup({
+      anchor,
+      render: (popup) => popup.createDiv({ text: "Last checked: Not yet" }),
+    });
+
+    expect(
+      document
+        .querySelector(".rss-dashboard-refresh-details-manual")
+        ?.classList.contains("rss-dashboard-refresh-details-over-modal"),
+    ).toBe(true);
   });
 });
