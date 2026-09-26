@@ -198,8 +198,8 @@ describe("DashboardView hotkeys in a popout window", () => {
       .mockImplementation(() => {});
 
     migrateElementToWindow(view.containerEl, popout);
-    // Created by the popout's own document, so it belongs to the popout's realm
-    const input = popout.document.createEl("input");
+    // Created by the popout's own helper, so it belongs to the popout's realm
+    const input = popout.createEl("input");
     view.containerEl.appendChild(input);
     pressKey(input, popout, "j");
 
@@ -212,7 +212,7 @@ describe("DashboardView hotkeys in a popout window", () => {
 
     migrateElementToWindow(view.containerEl, popout);
     // Obsidian mounts every open modal as a .modal-container under <body>
-    const modal = popout.document.createDiv({ cls: "modal-container" });
+    const modal = popout.createDiv({ cls: "modal-container" });
     popout.document.body.appendChild(modal);
     pressKey(popout.document.body, popout, "j");
 

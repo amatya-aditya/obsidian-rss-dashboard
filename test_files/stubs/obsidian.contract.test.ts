@@ -95,4 +95,22 @@ describe("Obsidian stub contract", () => {
       expect(await vault.adapter.exists(manifestPath)).toBe(true);
     });
   });
+
+  describe("DOM helpers on a Document", () => {
+    // Observed on Obsidian 1.13.7 desktop: `activeDocument.createDiv()` throws
+    // `HierarchyRequestError` ("Only one element on document allowed"). The
+    // Node helpers append the new element to their receiver, and the document
+    // already has its <html> element. The stack trace shows createDiv going
+    // through createEl; createSpan is the same Node helper (#409).
+    it.each([
+      ["createDiv", () => activeDocument.createDiv()],
+      ["createSpan", () => activeDocument.createSpan()],
+      ["createEl", () => activeDocument.createEl("p")],
+    ])("%s throws HierarchyRequestError on a document that has a root", (_name, create) => {
+      expect(create).toThrow(
+        expect.objectContaining({ name: "HierarchyRequestError" }),
+      );
+      expect(activeDocument.childElementCount).toBe(1);
+    });
+  });
 });

@@ -42,38 +42,57 @@ export function installObsidianDomPolyfills(): void {
     unknown
   >;
 
-  if (typeof documentProto.createEl !== "function") {
-    documentProto.createEl = function createEl<
-      K extends keyof HTMLElementTagNameMap,
-    >(
-      this: Document,
-      tag: K,
-      opts?: {
+  type HelperOptions =
+    | string
+    | {
         cls?: string;
         text?: string;
         attr?: Record<string, string>;
         // Keep permissive to mirror Obsidian's helper behavior in tests.
         [key: string]: unknown;
-      },
-    ): HTMLElementTagNameMap[K] {
-      const el = nativeCreateElement.call(this, tag) as HTMLElementTagNameMap[K];
-      if (opts?.cls) el.className = opts.cls;
-      if (opts?.text !== undefined) el.textContent = opts.text;
-      if (opts?.attr) {
-        Object.entries(opts.attr).forEach(([k, v]) => el.setAttribute(k, v));
-      }
-      if (opts) {
-        Object.entries(opts).forEach(([key, value]) => {
-          if (key === "cls" || key === "text" || key === "attr") return;
-          if (tag === "input" && key === "type" && typeof value === "string") {
-            (el as unknown as HTMLInputElement).type = value;
-            return;
-          }
-          if (key in el) {
-            (el as unknown as Record<string, unknown>)[key] = value;
-          }
-        });
-      }
+      };
+
+  // Builds a detached element the way Obsidian's helpers configure one.
+  const createDetachedEl = <K extends keyof HTMLElementTagNameMap>(
+    doc: Document,
+    tag: K,
+    opts?: HelperOptions,
+  ): HTMLElementTagNameMap[K] => {
+    const el = nativeCreateElement.call(doc, tag) as HTMLElementTagNameMap[K];
+    if (typeof opts === "string") {
+      el.className = opts;
+      return el;
+    }
+    if (opts?.cls) el.className = opts.cls;
+    if (opts?.text !== undefined) el.textContent = opts.text;
+    if (opts?.attr) {
+      Object.entries(opts.attr).forEach(([k, v]) => el.setAttribute(k, v));
+    }
+    if (opts) {
+      Object.entries(opts).forEach(([key, value]) => {
+        if (key === "cls" || key === "text" || key === "attr") return;
+        if (tag === "input" && key === "type" && typeof value === "string") {
+          (el as unknown as HTMLInputElement).type = value;
+          return;
+        }
+        if (key in el) {
+          (el as unknown as Record<string, unknown>)[key] = value;
+        }
+      });
+    }
+    return el;
+  };
+
+  // Like Obsidian, the Node helpers on a Document append the new element to
+  // the document itself. A document that already has <html> throws
+  // HierarchyRequestError (observed on 1.13.7, #409). Use the Window helpers
+  // (`el.win.createDiv()`) or createElement for a detached element.
+  if (typeof documentProto.createEl !== "function") {
+    documentProto.createEl = function createEl<
+      K extends keyof HTMLElementTagNameMap,
+    >(this: Document, tag: K, opts?: HelperOptions): HTMLElementTagNameMap[K] {
+      const el = createDetachedEl(this, tag, opts);
+      this.appendChild(el);
       return el;
     };
   }
@@ -81,20 +100,10 @@ export function installObsidianDomPolyfills(): void {
   if (typeof documentProto.createDiv !== "function") {
     documentProto.createDiv = function createDiv(
       this: Document,
-      opts?:
-        | string
-        | { cls?: string; text?: string; attr?: Record<string, string> },
+      opts?: HelperOptions,
     ): HTMLDivElement {
-      const el = nativeCreateElement.call(this, "div") as HTMLDivElement;
-      if (typeof opts === "string") {
-        el.className = opts;
-      } else {
-        if (opts?.cls) el.className = opts.cls;
-        if (opts?.text !== undefined) el.textContent = opts.text;
-        if (opts?.attr) {
-          Object.entries(opts.attr).forEach(([k, v]) => el.setAttribute(k, v));
-        }
-      }
+      const el = createDetachedEl(this, "div", opts);
+      this.appendChild(el);
       return el;
     };
   }
@@ -102,20 +111,10 @@ export function installObsidianDomPolyfills(): void {
   if (typeof documentProto.createSpan !== "function") {
     documentProto.createSpan = function createSpan(
       this: Document,
-      opts?:
-        | string
-        | { cls?: string; text?: string; attr?: Record<string, string> },
+      opts?: HelperOptions,
     ): HTMLSpanElement {
-      const el = nativeCreateElement.call(this, "span") as HTMLSpanElement;
-      if (typeof opts === "string") {
-        el.className = opts;
-      } else {
-        if (opts?.cls) el.className = opts.cls;
-        if (opts?.text !== undefined) el.textContent = opts.text;
-        if (opts?.attr) {
-          Object.entries(opts.attr).forEach(([k, v]) => el.setAttribute(k, v));
-        }
-      }
+      const el = createDetachedEl(this, "span", opts);
+      this.appendChild(el);
       return el;
     };
   }
@@ -131,45 +130,33 @@ export function installObsidianDomPolyfills(): void {
   const ensureWindowDomHelpers = (target: Window): Window => {
     const helperTarget = target as unknown as Record<string, unknown>;
 
+    // The global Window helpers return detached elements.
     if (typeof helperTarget.createEl !== "function") {
       helperTarget.createEl = function createEl<
         K extends keyof HTMLElementTagNameMap,
-      >(
-        this: Window,
-        tag: K,
-        opts?: {
-          cls?: string;
-          text?: string;
-          attr?: Record<string, string>;
-          [key: string]: unknown;
-        },
-      ): HTMLElementTagNameMap[K] {
+      >(this: Window, tag: K, opts?: HelperOptions): HTMLElementTagNameMap[K] {
         const doc = this?.document ?? globalScope.activeDocument ?? window.document;
-        return doc.createEl(tag, opts);
+        return createDetachedEl(doc, tag, opts);
       };
     }
 
     if (typeof helperTarget.createDiv !== "function") {
       helperTarget.createDiv = function createDiv(
         this: Window,
-        opts?:
-          | string
-          | { cls?: string; text?: string; attr?: Record<string, string> },
+        opts?: HelperOptions,
       ): HTMLDivElement {
         const doc = this?.document ?? globalScope.activeDocument ?? window.document;
-        return doc.createDiv(opts);
+        return createDetachedEl(doc, "div", opts);
       };
     }
 
     if (typeof helperTarget.createSpan !== "function") {
       helperTarget.createSpan = function createSpan(
         this: Window,
-        opts?:
-          | string
-          | { cls?: string; text?: string; attr?: Record<string, string> },
+        opts?: HelperOptions,
       ): HTMLSpanElement {
         const doc = this?.document ?? globalScope.activeDocument ?? window.document;
-        return doc.createSpan(opts);
+        return createDetachedEl(doc, "span", opts);
       };
     }
 
@@ -458,6 +445,8 @@ export function installWindowNodePolyfills(win: Window): void {
   };
 
   // A popout's own Document class; the main window gets the full helper above.
+  // Like Obsidian, these append to the document, so they throw once it has
+  // its <html> element (#409).
   if (typeof scope.Document.prototype.createEl !== "function") {
     const nativeCreate = scope.Document.prototype.createElement as (
       tag: string,
@@ -466,7 +455,7 @@ export function installWindowNodePolyfills(win: Window): void {
       this: Document,
       tag: string,
     ): HTMLElement {
-      return nativeCreate.call(this, tag);
+      return this.appendChild(nativeCreate.call(this, tag));
     };
     scope.Document.prototype.createDiv = function createDiv(
       this: Document,
@@ -474,8 +463,24 @@ export function installWindowNodePolyfills(win: Window): void {
     ): HTMLElement {
       const el = nativeCreate.call(this, "div");
       if (opts?.cls) el.className = opts.cls;
+      return this.appendChild(el);
+    };
+  }
+
+  // A popout's global helpers, which return detached elements.
+  const windowHelpers = win as unknown as Record<string, unknown>;
+  if (typeof windowHelpers.createEl !== "function") {
+    const nativeCreate = scope.Document.prototype.createElement as (
+      tag: string,
+    ) => HTMLElement;
+    const createDetached = (tag: string, opts?: { cls?: string }): HTMLElement => {
+      const el = nativeCreate.call(win.document, tag);
+      if (opts?.cls) el.className = opts.cls;
       return el;
     };
+    windowHelpers.createEl = createDetached;
+    windowHelpers.createDiv = (opts?: { cls?: string }): HTMLElement =>
+      createDetached("div", opts);
   }
 
   if (typeof scope.Node.prototype.instanceOf !== "function") {

@@ -347,4 +347,36 @@ describe("Phase 7 - ArticleList in-place updates", () => {
 
     h.cleanup();
   });
+  // #409: in Obsidian, activeDocument.createDiv() appends to the document and
+  // throws, so the insert must build the new row in a detached element.
+  it.each(["list", "card", "feed"] as const)(
+    "inserts a newly matching article into an ungrouped %s view without touching the document",
+    (viewStyle) => {
+      vi.useFakeTimers();
+      const h = createArticleListHarness({
+        settings: { viewStyle, articleGroupBy: "none", articleSort: "newest" },
+        articles: [
+          buildArticle({
+            guid: "older",
+            pubDate: new Date("2024-01-01T00:00:00Z").toISOString(),
+          }),
+        ],
+        pageSize: 50,
+        totalArticles: 1,
+      });
+      h.list.render();
+
+      const starred = buildArticle({
+        guid: "starred",
+        starred: true,
+        pubDate: new Date("2024-01-02T00:00:00Z").toISOString(),
+      });
+
+      expect(h.list.insertArticleInPlace(starred, "newest")).toBe(true);
+      vi.runOnlyPendingTimers();
+
+      expect(h.getArticlesListEl()?.querySelector("#article-starred")).not.toBeNull();
+      expect(document.childElementCount).toBe(1);
+    },
+  );
 });

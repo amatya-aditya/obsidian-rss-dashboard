@@ -4,6 +4,7 @@
 
 - Fixed full articles from sites that block direct requests with HTTP 401 or 403 never being retried through the configured CORS proxy. Obsidian reports those responses as errors, so the reader gave up and showed the feed excerpt without trying the proxy. It now retries through the proxy first. [GH Issue #408](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/408)
 - Fixed moving the metadata `data.json` out of a hidden vault folder, such as `.rss-meta`, never offering to delete the previous copy and leaving it on disk. **Delete previous metadata copy?** now appears for a previous copy in a hidden folder too, and **Delete previous copy** moves it to the trash. The plugin folder's own `data.json`, which points to the new location after a move, is never offered for deletion. [GH Issue #410](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/410)
+- Fixed an article not appearing in an ungrouped dashboard list when a change from the reader, such as starring it while the dashboard is filtered to Starred, made it match the current filters. The update stopped with an error, leaving the list and the status bar count stale until the next refresh. [GH Issue #409](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/409)
 
 ## 2.7.0 - September 25, 2026
 
