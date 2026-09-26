@@ -184,10 +184,60 @@ export interface RequestUrlParam {
   throw?: boolean;
 }
 
+/** What a test's fake server answers; the stub turns it into a response. */
+export interface RequestUrlHandlerResult {
+  status: number;
+  headers?: Record<string, string>;
+  text?: string;
+}
+
+export type RequestUrlHandler = (
+  param: RequestUrlParam,
+) => RequestUrlHandlerResult | Promise<RequestUrlHandlerResult>;
+
+let requestUrlHandler: RequestUrlHandler | null = null;
+
+/**
+ * Test-only: set the fake server `requestUrl` talks to, or `null` to clear it.
+ * Unlike mocking `requestUrl` itself, this keeps Obsidian's status handling.
+ */
+export function setRequestUrlHandler(handler: RequestUrlHandler | null): void {
+  requestUrlHandler = handler;
+}
+
+/**
+ * Models Obsidian 1.13.7: a status of 400 or above rejects with an Error
+ * carrying own `status` and `headers` properties, unless `throw: false`.
+ */
 export async function requestUrl(
-  _param?: unknown,
+  param: RequestUrlParam | string,
 ): Promise<RequestUrlResponse> {
-  throw new Error("requestUrl stub - configure mock in test if needed");
+  if (!requestUrlHandler) {
+    throw new Error("requestUrl stub - configure mock in test if needed");
+  }
+  const request = typeof param === "string" ? { url: param } : param;
+  const result = await requestUrlHandler(request);
+  const headers = result.headers ?? {};
+  const text = result.text ?? "";
+  if (result.status >= 400 && request.throw !== false) {
+    throw Object.assign(
+      new Error(`Request failed, status ${result.status}`),
+      { status: result.status, headers },
+    );
+  }
+  let json: unknown = null;
+  try {
+    json = text ? JSON.parse(text) : null;
+  } catch {
+    json = null;
+  }
+  return {
+    status: result.status,
+    headers,
+    arrayBuffer: new TextEncoder().encode(text).buffer,
+    json,
+    text,
+  };
 }
 
 export const Platform = {
