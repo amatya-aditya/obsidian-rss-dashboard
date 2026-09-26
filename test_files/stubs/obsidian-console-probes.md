@@ -109,3 +109,37 @@ try {
 }
 // Clean up: delete probe-folder from the file explorer.
 ```
+
+## Adapter file system model
+
+Observed on 1.13.7 (Windows): `adapter.write` under a missing parent folder
+throws an `Error` with `code: "ENOENT"` and the message `ENOENT: no such file
+or directory, open '<absolute path>'`. `adapter.mkdir` creates nested folders
+and resolves `undefined`, and `exists` then reports them. `adapter.list` sees
+folders made by `mkdir` (not only `vault.createFolder`) and returns the full
+vault paths of the direct children. After `adapter.write`, `exists` is true
+and `getAbstractFileByPath` returns the file.
+
+```js
+const A = app.vault.adapter;
+const root = "probe-adapter";
+if (await A.exists(root)) await A.rmdir(root, true);
+await A.mkdir(root);
+try {
+  await A.write(`${root}/nope/x.md`, "x");
+  console.log("missing parent: wrote");
+} catch (e) {
+  console.log("missing parent threw", e.code, e.message);
+}
+console.log("mkdir resolved", await A.mkdir(`${root}/m1/m2`));
+console.log("exists after mkdir", await A.exists(`${root}/m1/m2`));
+console.log("list after mkdir", await A.list(root));
+await A.write(`${root}/w.md`, "w");
+console.log(
+  "after write: exists",
+  await A.exists(`${root}/w.md`),
+  "indexed",
+  !!app.vault.getAbstractFileByPath(`${root}/w.md`),
+);
+// Clean up: await A.rmdir(root, true);
+```

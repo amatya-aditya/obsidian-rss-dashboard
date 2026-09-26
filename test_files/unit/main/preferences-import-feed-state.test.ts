@@ -62,6 +62,7 @@ describe("importing a preferences file that carries feeds (issue #374)", () => {
     app = App.createMock();
 
     // A Shard storage v2 vault with two feeds, each with a starred article.
+    await app.vault.adapter.mkdir(storageFolder);
     await adapter().write(
       `${metadataFolder}/data.json`,
       JSON.stringify({

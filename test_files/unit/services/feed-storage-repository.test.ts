@@ -145,6 +145,7 @@ describe("FeedStorageRepository", () => {
       }),
     ];
 
+    await app.vault.adapter.mkdir("RSS Data/Feeds");
     await vaultAdapter(app).write(
       "RSS Data/Feeds/feed-1.json",
       JSON.stringify({
@@ -601,18 +602,11 @@ describe("FeedStorageRepository", () => {
     settings.storageFolder = "RSS Data/Feeds";
     settings.feeds = [makeFeed({ feedId: "feed-1" })];
 
+    await app.vault.adapter.mkdir("RSS Data/Feeds");
     vi.spyOn(app.vault, "getAbstractFileByPath").mockReturnValue(null);
     vi.spyOn(app.vault, "createFolder").mockRejectedValueOnce(
       new Error("Folder already exists"),
     );
-    const adapterWithExists = app.vault.adapter as unknown as { exists: (p: string) => Promise<boolean> };
-    vi.spyOn(adapterWithExists, "exists").mockImplementation((path: string) => {
-      if (path === "RSS Data/Feeds") {
-        return Promise.resolve(true);
-      }
-
-      return Promise.resolve(false);
-    });
 
     await repository.migrateToVaultShards(settings, saveData);
 
@@ -1415,10 +1409,12 @@ describe("shard storage v2 user-state.json persistence (issue #278)", () => {
   let repository: FeedStorageRepository;
   const userStatePath = ".rss-dashboard-data/user-state.json";
 
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.restoreAllMocks();
     app = App.createMock();
     repository = new FeedStorageRepository(app);
+    // The folders the tests seed shard and user-state files into.
+    await app.vault.adapter.mkdir(".rss-dashboard-data/feeds");
   });
 
   function v2Settings(): RssDashboardSettings {
@@ -2485,9 +2481,11 @@ describe("user-state.json health flag", () => {
   const userStatePath = ".rss-dashboard-data/user-state.json";
   let app: App;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.restoreAllMocks();
     app = App.createMock();
+    // The folder the tests seed user-state.json into.
+    await app.vault.adapter.mkdir(".rss-dashboard-data");
   });
 
   function v2Settings(): RssDashboardSettings {

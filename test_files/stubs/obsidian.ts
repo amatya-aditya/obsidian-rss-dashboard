@@ -474,6 +474,14 @@ class TFolderStub {
 // Mock DataVault (Enhanced)
 // =============================================================================
 
+/** Node's error for a missing path, e.g. `ENOENT: ..., open '<path>'`. */
+function enoentError(syscall: string, fullPath: string): Error {
+  return Object.assign(
+    new Error(`ENOENT: no such file or directory, ${syscall} '${fullPath}'`),
+    { code: "ENOENT" },
+  );
+}
+
 /** True when any segment of `path` starts with a dot (Obsidian doesn't index it). */
 function isHiddenVaultPath(path: string): boolean {
   return path.split("/").some((segment) => segment.startsWith("."));
@@ -485,6 +493,7 @@ interface MockVaultAdapter {
   exists(path: string): Promise<boolean>;
   read(path: string): Promise<string>;
   write(path: string, content: string): Promise<void>;
+  mkdir(path: string): Promise<void>;
   on(name: string, callback: (...args: unknown[]) => unknown): unknown;
   list(path: string): Promise<{ files: string[]; folders: string[] }>;
   rmdir(path: string, recursive: boolean): Promise<void>;
@@ -526,7 +535,25 @@ export class MockDataVault {
       exists: async (path: string) => this.existsOnDisk(path),
       read: async (path: string) => this.adapterFiles.get(path) ?? "",
       write: async (path: string, content: string) => {
+        // Observed on Obsidian 1.13.7 desktop (Windows): a missing parent
+        // folder throws Node's ENOENT, and a written file outside dot folders
+        // joins the vault index.
+        const parentPath = path.includes("/")
+          ? path.slice(0, path.lastIndexOf("/"))
+          : "";
+        if (parentPath && !this.folderExistsOnDisk(parentPath)) {
+          throw enoentError("open", `${this.adapter.getBasePath()}/${path}`);
+        }
         this.adapterFiles.set(path, content);
+        if (!this.files.has(path)) {
+          this.files.set(path, new TFileStub(path));
+        }
+      },
+      // Observed on Obsidian 1.13.7 desktop (Windows): creates missing parent
+      // folders too. Not observed: mkdir on an existing folder is modeled as
+      // a no-op, and the new folders join the vault index like written files.
+      mkdir: async (path: string) => {
+        this.makeFolders(path);
       },
       on: (
         _name: string,
@@ -699,9 +726,22 @@ export class MockDataVault {
       throw new Error("Folder already exists.");
     }
 
+    return this.makeFolders(cleanPath);
+  }
+
+  /**
+   * Test setup, not Obsidian API: puts a folder on disk without going through
+   * the adapter, so a test's adapter spy doesn't record it.
+   */
+  addFolderOnDisk(path: string): void {
+    this.makeFolders(path);
+  }
+
+  /** Creates `path` and any missing parent folders, reusing existing ones. */
+  private makeFolders(path: string): TFolderStub {
     let currentPath = "";
     let parent = this.root;
-    for (const part of cleanPath.split("/").filter(Boolean)) {
+    for (const part of path.split("/").filter(Boolean)) {
       currentPath = currentPath ? `${currentPath}/${part}` : part;
       // Missing parents are created; an existing one is reused, whatever
       // case the caller used for it.
@@ -885,6 +925,10 @@ class PluginStub {
   constructor(app: AppStub, manifest: PluginManifest) {
     this.app = app;
     this.manifest = manifest;
+    // Obsidian loads a plugin from its folder, so the folder exists on disk.
+    if (manifest.dir) {
+      app.vault.addFolderOnDisk(manifest.dir);
+    }
   }
 
   async onload(): Promise<void> {}
