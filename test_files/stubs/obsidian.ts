@@ -1,5 +1,10 @@
 // =============================================================================
 // Core Obsidian API Stubs
+//
+// Reference version: Obsidian 1.13.7 desktop (installer 1.13.7, Electron 43.3.0).
+// The stub models observed Obsidian behavior (ADR 0014). Each modeled behavior
+// has an expectation in obsidian.contract.test.ts; the console probes used to
+// observe it live in obsidian-console-probes.md.
 // =============================================================================
 
 declare global {

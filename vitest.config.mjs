@@ -37,7 +37,7 @@ export default defineConfig({
     },
   },
   test: {
-    include: ["test_files/unit/**/*.test.ts"],
+    include: ["test_files/unit/**/*.test.ts", "test_files/stubs/**/*.test.ts"],
     globals: true,
     environment: "jsdom",
     setupFiles: ["test_files/unit/vitest.setup.ts"],
