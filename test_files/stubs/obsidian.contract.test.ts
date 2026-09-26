@@ -113,4 +113,68 @@ describe("Obsidian stub contract", () => {
       expect(activeDocument.childElementCount).toBe(1);
     });
   });
+
+  describe("vault: existing paths and case", () => {
+    // Observed on Obsidian 1.13.7 desktop (Windows): `createFolder` throws
+    // `Folder already exists.` for an existing path and for a case variant.
+    it("createFolder throws for an existing folder and its case variant", async () => {
+      const { vault } = new App();
+      await vault.createFolder("probe-folder");
+
+      await expect(vault.createFolder("probe-folder")).rejects.toThrow(
+        "Folder already exists.",
+      );
+      await expect(vault.createFolder("PROBE-Folder")).rejects.toThrow(
+        "Folder already exists.",
+      );
+    });
+
+    // Observed on Obsidian 1.13.7 desktop (Windows): `create` throws
+    // `File already exists.` for an existing path and for a case variant.
+    it("create throws for an existing file and its case variant", async () => {
+      const { vault } = new App();
+      await vault.create("probe.md", "");
+
+      await expect(vault.create("probe.md", "")).rejects.toThrow(
+        "File already exists.",
+      );
+      await expect(vault.create("PROBE.md", "")).rejects.toThrow(
+        "File already exists.",
+      );
+    });
+
+    // Observed on Obsidian 1.13.7 desktop (Windows): the vault index is
+    // case-sensitive, but the file system is not, so a case variant has no
+    // indexed entry while `adapter.exists` reports it on disk.
+    it("looks paths up case-sensitively while the adapter sees case variants", async () => {
+      const { vault } = new App();
+      await vault.createFolder("probe-folder");
+
+      expect(vault.getAbstractFileByPath("probe-folder")).not.toBeNull();
+      expect(vault.getAbstractFileByPath("PROBE-Folder")).toBeNull();
+      expect(await vault.adapter.exists("PROBE-Folder")).toBe(true);
+    });
+
+    // Observed on Obsidian 1.13.7 desktop (Windows): `create` under a missing
+    // parent folder throws Node's `ENOENT` error rather than creating it.
+    it("create throws ENOENT when the parent folder is missing", async () => {
+      const { vault } = new App();
+
+      await expect(vault.create("probe-missing/x.md", "")).rejects.toThrow(
+        /^ENOENT: no such file or directory, open '.*probe-missing\/x\.md'$/,
+      );
+    });
+
+    // Not observed: Linux file systems are case-sensitive, so there a case
+    // variant is a different path. The stub defaults to Windows and macOS
+    // behavior; set `caseSensitiveFileSystem` to model Linux.
+    it("treats case variants as different paths on a case-sensitive file system", async () => {
+      const { vault } = new App();
+      vault.caseSensitiveFileSystem = true;
+      await vault.createFolder("probe-folder");
+
+      expect(await vault.adapter.exists("PROBE-Folder")).toBe(false);
+      await expect(vault.createFolder("PROBE-Folder")).resolves.toBeDefined();
+    });
+  });
 });

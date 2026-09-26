@@ -23,6 +23,7 @@ import {
 } from "../utils/math-rendering";
 import { firstNonFormulaImageUrl } from "../utils/image-url-utils";
 import { escapeYamlDoubleQuoted } from "../utils/yaml-escape";
+import { ensureVaultFolder } from "../utils/vault-files";
 
 const MAX_FILENAME_LENGTH = 100;
 
@@ -436,26 +437,18 @@ export class ArticleSaver {
     );
   }
 
-  private async ensureFolderExists(folderPath: string): Promise<void> {
-    if (!folderPath || folderPath.trim() === "") {
-      return;
-    }
-
+  /**
+   * Makes sure the save folder exists and returns its path as it is on disk,
+   * which may differ in case from `folderPath` (see `ensureVaultFolder`).
+   */
+  private async ensureFolderExists(folderPath: string): Promise<string> {
     const cleanPath = this.normalizePath(folderPath);
     if (!cleanPath) {
-      return;
+      return "";
     }
 
     try {
-      const parts = cleanPath.split("/").filter((part) => part.trim() !== "");
-      let currentPath = "";
-
-      for (const part of parts) {
-        currentPath = currentPath ? `${currentPath}/${part}` : part;
-        if (this.app.vault.getAbstractFileByPath(currentPath) === null) {
-          await this.app.vault.createFolder(currentPath);
-        }
-      }
+      return await ensureVaultFolder(this.app, cleanPath);
     } catch {
       throw new Error(`Failed to create folder: ${cleanPath}`);
     }
@@ -747,7 +740,7 @@ export class ArticleSaver {
       folder = this.normalizePath(folder);
 
       if (folder && folder.trim() !== "") {
-        await this.ensureFolderExists(folder);
+        folder = await this.ensureFolderExists(folder);
       }
 
       const filename = sanitizeFilename(item.title);

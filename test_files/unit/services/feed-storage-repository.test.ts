@@ -614,6 +614,7 @@ describe("FeedStorageRepository", () => {
     settings.storageFolder = "RSS Data/Feeds";
     settings.feeds = [makeFeed({ feedId: "feed-1" })];
 
+    await app.vault.createFolder("RSS Data");
     await app.vault.create("RSS Data/Feeds", "not a folder");
 
     await expect(repository.migrateToVaultShards(settings, saveData)).rejects.toThrow(
@@ -2689,7 +2690,9 @@ describe("removing a feed deletes its shard file", () => {
     ];
     await repository.persistSettings(settings, saveData);
 
-    // Outside a dot-folder Obsidian indexes the file, giving it a TFile.
+    // Outside a dot-folder Obsidian indexes the file, giving it a TFile. The
+    // stub doesn't index adapter writes, so recreate the shard through the vault.
+    await app.vault.adapter.remove("RSS Data/Feeds/feed-delete.json");
     await app.vault.create("RSS Data/Feeds/feed-delete.json", "{}");
     const trashSpy = vi.spyOn(app.fileManager, "trashFile");
     const removeSpy = vi.spyOn(app.vault.adapter, "remove");

@@ -1,5 +1,6 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
 import { App } from "obsidian";
+import { DEFAULT_SETTINGS, type RssDashboardSettings } from "../../../src/types/types";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 import { ShortcutHelpModal } from "../../../src/modals/shortcut-help-modal";
 
@@ -50,5 +51,69 @@ describe("ShortcutHelpModal", () => {
     }
     
     modal.onClose();
+  });
+
+  describe("saving the shortcuts to a vault note", () => {
+    function createSettings(defaultFolder: string): RssDashboardSettings {
+      const settings = JSON.parse(
+        JSON.stringify(DEFAULT_SETTINGS),
+      ) as RssDashboardSettings;
+      settings.articleSaving.defaultFolder = defaultFolder;
+      return settings;
+    }
+
+    async function clickSaveLink(modal: ShortcutHelpModal): Promise<void> {
+      const link = modal.contentEl.querySelector(
+        ".rss-dashboard-save-shortcuts-link",
+      ) as HTMLElement;
+      link.click();
+      await vi.waitFor(() => {
+        expect(debugSpy).toHaveBeenCalledWith(
+          "[Stub Notice]",
+          expect.any(String),
+        );
+      });
+    }
+
+    let debugSpy: ReturnType<typeof vi.spyOn>;
+    beforeEach(() => {
+      debugSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
+    });
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it("saves into an existing folder whose name differs only in case", async () => {
+      const app = App.createMock();
+      await app.vault.createFolder("RSS Articles");
+      const modal = new ShortcutHelpModal(app, createSettings("rss articles"));
+      modal.onOpen();
+
+      await clickSaveLink(modal);
+
+      expect(
+        app.vault.getAbstractFileByPath("RSS Articles/keyboard-shortcuts.md"),
+      ).not.toBeNull();
+      expect(debugSpy).toHaveBeenCalledWith(
+        "[Stub Notice]",
+        expect.stringContaining(
+          'Keyboard shortcuts saved to "RSS Articles/keyboard-shortcuts.md"',
+        ),
+      );
+      modal.onClose();
+    });
+
+    it("creates the save folder when it doesn't exist", async () => {
+      const app = App.createMock();
+      const modal = new ShortcutHelpModal(app, createSettings("Notes/RSS"));
+      modal.onOpen();
+
+      await clickSaveLink(modal);
+
+      expect(
+        app.vault.getAbstractFileByPath("Notes/RSS/keyboard-shortcuts.md"),
+      ).not.toBeNull();
+      modal.onClose();
+    });
   });
 });
