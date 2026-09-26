@@ -1,3 +1,9 @@
+## Unreleased
+
+### Fixes
+
+- Fixed full articles from sites that block direct requests with HTTP 401 or 403 never being retried through the configured CORS proxy. Obsidian reports those responses as errors, so the reader gave up and showed the feed excerpt without trying the proxy. It now retries through the proxy first. [GH Issue #408](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/408)
+
 ## 2.7.0 - September 25, 2026
 
 For a user-facing overview, see the [RSS Dashboard 2.7.0 release notes](docs/releases/2.7.0.md).
