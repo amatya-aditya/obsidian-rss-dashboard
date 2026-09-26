@@ -183,12 +183,12 @@ export class ImageCacheService {
     try {
       await this.adapter.writeBinary(this.getEntryPath(entry), response.arrayBuffer);
       if (writeGeneration !== this.writeGeneration) {
-        await this.adapter.remove(this.getEntryPath(entry));
+        await this.removeCachedFile(entry);
         return false;
       }
       this.entries.set(url, entry);
       if (existingEntry && existingEntry.fileName !== entry.fileName) {
-        await this.adapter.remove(this.getEntryPath(existingEntry));
+        await this.removeCachedFile(existingEntry);
       }
       await this.persistIndex();
       this.onChange?.();
@@ -206,7 +206,7 @@ export class ImageCacheService {
 
     for (const [url, entry] of this.entries) {
       try {
-        await this.adapter.remove(this.getEntryPath(entry));
+        await this.removeCachedFile(entry);
         this.entries.delete(url);
         cleared += 1;
       } catch (error) {
@@ -253,7 +253,7 @@ export class ImageCacheService {
       if (!entry) continue;
 
       try {
-        await this.adapter.remove(this.getEntryPath(entry));
+        await this.removeCachedFile(entry);
         this.entries.delete(url);
         cleared += 1;
       } catch (error) {
@@ -311,6 +311,18 @@ export class ImageCacheService {
     );
   }
 
+  /**
+   * Deletes an entry's file. A file that is already gone, for example deleted
+   * by the user or a sync tool during the session, counts as removed.
+   */
+  private async removeCachedFile(entry: ImageCacheEntry): Promise<void> {
+    try {
+      await this.adapter.remove(this.getEntryPath(entry));
+    } catch (error) {
+      if (!isMissingFileError(error)) throw error;
+    }
+  }
+
   private async evictUntilFits(
     incomingBytes: number,
     replacingBytes: number,
@@ -324,7 +336,7 @@ export class ImageCacheService {
 
     for (const [url, entry] of entries) {
       if (size + incomingBytes <= this.maxCacheBytes) break;
-      await this.adapter.remove(this.getEntryPath(entry));
+      await this.removeCachedFile(entry);
       this.entries.delete(url);
       size -= entry.byteLength;
     }
@@ -368,4 +380,9 @@ export class ImageCacheService {
     const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(url));
     return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
   }
+}
+
+/** True for the ENOENT error that `adapter.remove` rejects with for a missing path. */
+function isMissingFileError(error: unknown): boolean {
+  return error instanceof Error && "code" in error && error.code === "ENOENT";
 }
