@@ -123,8 +123,11 @@ function renderFolderSetting(
       text
         .setValue(plugin.settings.media[key] || DEFAULT_SETTINGS.media[key])
         .onChange(async (value) => {
-          const nextValue = typeof value === "string" ? value : "";
-          plugin.settings.media[key] = normalizePath(nextValue);
+          const nextValue = typeof value === "string" ? value.trim() : "";
+          // normalizePath returns "/" for an empty path; keep "" so a cleared
+          // field means the root, not a feed folder named "/".
+          const normalized = normalizePath(nextValue);
+          plugin.settings.media[key] = normalized === "/" ? "" : normalized;
           await plugin.saveSettings();
         });
       new FolderSuggest(plugin.app, text.inputEl, plugin.settings.folders);

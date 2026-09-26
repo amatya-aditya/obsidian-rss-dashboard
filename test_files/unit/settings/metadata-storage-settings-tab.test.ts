@@ -142,6 +142,41 @@ describe("renderStorageSettingsTab() - default folders and metadata", () => {
     expect(vi.mocked(plugin.saveSettings)).toHaveBeenCalledTimes(2);
   });
 
+  // Real `normalizePath("")` returns "/" (#372), which would put new video
+  // and podcast feeds in a feed folder named "/" instead of the root.
+  it("stores an empty default folder, not '/', when the field is cleared", async () => {
+    const containerEl = document.body.appendChild(createDiv());
+    const settings = cloneSettings();
+    settings.media.defaultYouTubeFolder = "YouTube";
+    settings.media.defaultPodcastFolder = "Podcast";
+
+    const plugin = {
+      ...createPlugin(),
+      settings,
+    } as unknown as RssDashboardPlugin;
+
+    renderStorageSettingsTab(containerEl, plugin);
+
+    const youtubeInput = getSettingByName(
+      containerEl,
+      "Default YouTube folder",
+    ).querySelector('input[type="text"]') as HTMLInputElement;
+    youtubeInput.value = "";
+    youtubeInput.dispatchEvent(new Event("input"));
+
+    const podcastInput = getSettingByName(
+      containerEl,
+      "Default podcast folder",
+    ).querySelector('input[type="text"]') as HTMLInputElement;
+    podcastInput.value = " / ";
+    podcastInput.dispatchEvent(new Event("input"));
+
+    await flushPromises();
+
+    expect(plugin.settings.media.defaultYouTubeFolder).toBe("");
+    expect(plugin.settings.media.defaultPodcastFolder).toBe("");
+  });
+
   it("restores the default folder names from the reset action", async () => {
     const containerEl = document.body.appendChild(createDiv());
     const settings = cloneSettings();

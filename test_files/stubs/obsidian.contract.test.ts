@@ -9,7 +9,14 @@
  * `obsidian-console-probes.md` to observe the behavior, and name the version.
  */
 import { afterEach, describe, expect, it } from "vitest";
-import { App, Modal, Scope, requestUrl, setRequestUrlHandler } from "obsidian";
+import {
+  App,
+  Modal,
+  Scope,
+  normalizePath,
+  requestUrl,
+  setRequestUrlHandler,
+} from "obsidian";
 
 describe("Obsidian stub contract", () => {
   describe("globals", () => {
@@ -513,5 +520,55 @@ describe("Obsidian stub contract", () => {
         createEl("img", { attr: { src: "x.png" } }).getAttribute("src"),
       ).toBe("x.png");
     });
+  });
+});
+
+describe("Obsidian stub contract: normalizePath", () => {
+  // Observed on Obsidian 1.13.7 desktop (Windows), indirectly:
+  // `fileManager.renameFile(f, "a//r3.md")` left `f.path` as "a/r3.md".
+  // `normalizePath` itself is not reachable from the console.
+  it("collapses repeated forward slashes", () => {
+    expect(normalizePath("a//r3.md")).toBe("a/r3.md");
+    expect(normalizePath("a///b////c.md")).toBe("a/b/c.md");
+  });
+
+  // From the 1.13.7 source audit (#372); not reachable from the console.
+  it("treats backslashes as separators and turns them into forward slashes", () => {
+    expect(normalizePath("a\\b.md")).toBe("a/b.md");
+    expect(normalizePath("a\\\\b/\\c.md")).toBe("a/b/c.md");
+  });
+
+  // From the 1.13.7 source audit (#372); not reachable from the console.
+  it("trims leading and trailing slashes", () => {
+    expect(normalizePath("/a/b/")).toBe("a/b");
+    expect(normalizePath("//a/b.md//")).toBe("a/b.md");
+    expect(normalizePath("\\a\\")).toBe("a");
+  });
+
+  // From the 1.13.7 source audit (#372); not reachable from the console.
+  it("returns the vault root '/' for an empty path or a path of only slashes", () => {
+    expect(normalizePath("")).toBe("/");
+    expect(normalizePath("/")).toBe("/");
+    expect(normalizePath("//\\\\")).toBe("/");
+  });
+
+  // From the 1.13.7 source audit (#372); not reachable from the console.
+  it("turns non-breaking spaces into regular spaces", () => {
+    expect(normalizePath("My\u00a0Folder/a\u202fb.md")).toBe(
+      "My Folder/a b.md",
+    );
+  });
+
+  // From the 1.13.7 source audit (#372); not reachable from the console.
+  it("applies Unicode NFC normalization", () => {
+    const decomposed = "Cafe\u0301/re\u0301sume\u0301.md";
+    expect(normalizePath(decomposed)).toBe("Caf\u00e9/r\u00e9sum\u00e9.md");
+  });
+
+  // From the 1.13.7 source audit (#372); not reachable from the console.
+  it("leaves an already normalized path unchanged", () => {
+    expect(normalizePath("RSS articles/Feed name/a.md")).toBe(
+      "RSS articles/Feed name/a.md",
+    );
   });
 });

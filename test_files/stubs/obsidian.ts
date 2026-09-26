@@ -263,8 +263,19 @@ function setTooltipImpl(el: HTMLElement, tooltip: string): void {
   el.setAttribute("aria-label", tooltip);
 }
 
+/**
+ * Models Obsidian 1.13.7's `normalizePath` as read in the #372 source audit
+ * (the function isn't reachable from the console; `renameFile(f, "a//r3.md")`
+ * yielding "a/r3.md" confirms the slash collapse). Written independently:
+ * `/` and `\` are both separators, runs of them become one `/`, leading and
+ * trailing separators are trimmed, an empty result is the vault root `/`,
+ * non-breaking spaces (U+00A0, U+202F) become spaces, then NFC normalization.
+ */
 function normalizePathImpl(path: string): string {
-  return path;
+  const segments = path.split(/[/\\]+/).filter((segment) => segment !== "");
+  const joined = segments.join("/");
+  if (joined === "") return "/";
+  return joined.replace(/[\u00a0\u202f]/g, " ").normalize("NFC");
 }
 
 function requireApiVersionImpl(_version: string): boolean {
