@@ -781,7 +781,7 @@ describe("FeedParser.parseFeed", () => {
           read: true,
           starred: false,
           saved: false,
-          tags: [{ name: "research" }],
+          tags: [{ name: "research", color: "#3498db" }],
           feedTitle: "Test Feed",
           feedUrl,
           coverImage: "",

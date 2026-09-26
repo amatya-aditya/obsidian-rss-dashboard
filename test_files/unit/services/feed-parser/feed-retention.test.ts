@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
-import type { Feed, FeedItem } from "../../../../src/types/types";
+import type { Feed, FeedItem, Tag } from "../../../../src/types/types";
+
+const makeTag = (name: string): Tag => ({ name, color: "#3498db" });
 import {
   mergeFeedHistoryItems,
   applyFeedRetentionLimits,
@@ -47,7 +49,7 @@ describe("isProtectedItem", () => {
   it("evaluates default protections (starred and saved protected, tagged and unread not protected)", () => {
     expect(isProtectedItem(makeItem({ starred: true }))).toBe(true);
     expect(isProtectedItem(makeItem({ saved: true }))).toBe(true);
-    expect(isProtectedItem(makeItem({ tags: ["tag1"] }))).toBe(false);
+    expect(isProtectedItem(makeItem({ tags: [makeTag("tag1")] }))).toBe(false);
     expect(isProtectedItem(makeItem({ read: false }))).toBe(false);
     expect(isProtectedItem(makeItem())).toBe(false);
   });
@@ -65,7 +67,7 @@ describe("isProtectedItem", () => {
   });
 
   it("respects protectTagged toggle", () => {
-    const tagged = makeItem({ tags: ["focus"] });
+    const tagged = makeItem({ tags: [makeTag("focus")] });
     const emptyTags = makeItem({ tags: [] });
     const noTags = makeItem({ tags: undefined });
 
@@ -395,7 +397,7 @@ describe("applyFeedRetentionLimits", () => {
       lastUpdated: Date.now(),
       autoDeleteDuration: 7,
       items: [
-        makeItem("tagged-old", tenDaysAgo, { read: true, tags: ["research"] }),
+        makeItem("tagged-old", tenDaysAgo, { read: true, tags: [makeTag("research")] }),
         makeItem("untagged-old", tenDaysAgo, { read: true, tags: [] }),
       ],
     };
@@ -433,7 +435,7 @@ describe("applyFeedRetentionLimits", () => {
         makeItem("tagged-unstarred", tenDaysAgo, {
           read: true,
           starred: false,
-          tags: ["research"],
+          tags: [makeTag("research")],
         }),
       ],
     };
@@ -496,7 +498,7 @@ describe("applyFeedRetentionLimits", () => {
       maxItemsLimit: 1,
       items: [
         makeItem("unread-old", "2024-01-01T00:00:00Z", { read: false }),
-        makeItem("tagged-old", "2024-01-02T00:00:00Z", { read: true, tags: ["important"] }),
+        makeItem("tagged-old", "2024-01-02T00:00:00Z", { read: true, tags: [makeTag("important")] }),
         makeItem("read-mid", "2024-01-03T00:00:00Z", { read: true }),
         makeItem("read-new", "2024-01-04T00:00:00Z", { read: true }),
       ],

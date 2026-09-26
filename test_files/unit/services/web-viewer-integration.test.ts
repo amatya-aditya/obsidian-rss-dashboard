@@ -8,6 +8,11 @@ import {
   createWebViewerIntegrationHarness,
 } from "./web-viewer-integration-harness";
 
+// The real `obsidian` types `moment` as the moment namespace, which is not
+// callable; production code casts it the same way.
+type MomentFactory = (input?: Date) => { format: (fmt: string) => string };
+const callMoment = moment as unknown as MomentFactory;
+
 describe("Phase 8 - WebViewerIntegration", () => {
   beforeAll(() => {
     installObsidianDomPolyfills();
@@ -390,9 +395,9 @@ author: "{{author}}"
         month: "long",
         day: "numeric",
       });
-      const expectedSaveDate = moment().format("YYYY-MM-DD");
-      const expectedSaveTime12 = moment().format("hh:mm A");
-      const expectedSaveTime24 = moment().format("HH:mm");
+      const expectedSaveDate = callMoment().format("YYYY-MM-DD");
+      const expectedSaveTime12 = callMoment().format("hh:mm A");
+      const expectedSaveTime24 = callMoment().format("HH:mm");
       expect(out).toContain(`T|${expectedDate}|`);
       expect(out).toContain(new Date(item.pubDate).toISOString());
       expect(out).toContain(
@@ -438,9 +443,9 @@ guid: "{{guid}}"
         pubDate: "not-a-date",
       });
 
-      const expectedSaveDate = moment().format("YYYY-MM-DD");
-      const expectedSaveTime12 = moment().format("hh:mm A");
-      const expectedSaveTime24 = moment().format("HH:mm");
+      const expectedSaveDate = callMoment().format("YYYY-MM-DD");
+      const expectedSaveTime12 = callMoment().format("hh:mm A");
+      const expectedSaveTime24 = callMoment().format("HH:mm");
 
       const out = generateFrontmatter(item);
       expect(out).toContain('title: "My Article"');

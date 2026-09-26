@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, vi, type Mock } from "vitest";
 import { App } from "obsidian";
 import { FeedStorageRepository } from "../../../src/services/feed-storage-repository";
 import {
@@ -43,7 +43,7 @@ describe("fresh install storage layout", () => {
   let app: App;
   let repository: FeedStorageRepository;
   let adapterWrites: string[];
-  let pluginSaveData: ReturnType<typeof vi.fn>;
+  let pluginSaveData: Mock<(data: unknown) => Promise<void>>;
 
   beforeEach(() => {
     app = App.createMock();
@@ -55,7 +55,9 @@ describe("fresh install storage layout", () => {
       adapterWrites.push(path);
       return originalWrite(path, content);
     };
-    pluginSaveData = vi.fn().mockResolvedValue(undefined);
+    pluginSaveData = vi
+      .fn<(data: unknown) => Promise<void>>()
+      .mockResolvedValue(undefined);
   });
 
   it("defaults to Shard v2 with plugin-default metadata", () => {
