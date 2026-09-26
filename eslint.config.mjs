@@ -217,6 +217,19 @@ export default defineConfig([
     },
   },
   {
+    // Architecture guardrails (#253, #436). Existing violations are recorded
+    // in eslint-suppressions.json; new ones fail the build. Prune it with
+    // `npx eslint . --prune-suppressions` after a refactor removes one.
+    files: ["main.ts", "src/**/*.ts"],
+    rules: {
+      "max-lines-per-function": [
+        "error",
+        { max: 150, skipBlankLines: true, skipComments: true },
+      ],
+      complexity: ["error", 20],
+    },
+  },
+  {
     files: ["src/settings/settings-tab.ts"],
     rules: {
       // Obsidian 1.8.7 through 1.12.x need this imperative renderer and its
