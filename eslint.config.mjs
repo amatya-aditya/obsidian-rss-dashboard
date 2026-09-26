@@ -18,6 +18,8 @@ export default defineConfig([
       ".kilo/**",
       ".claude/**",
       ".tmp-*",
+      // Working copy of the fixture vault, holding a copied build (main.js).
+      ".fixture-vault/**",
     ],
   },
   ...obsidianmd.configs.recommended,
