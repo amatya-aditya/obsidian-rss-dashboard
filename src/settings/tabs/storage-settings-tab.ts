@@ -8,12 +8,12 @@ import {
   App,
   Notice,
   Setting,
-  TFolder,
   normalizePath,
   type WorkspaceLeaf,
 } from "obsidian";
 import { FolderSuggest } from "../../components/folder-suggest";
 import { setCssProps } from "../../utils/platform-utils";
+import { trashVaultFile, vaultFileExists } from "../../utils/vault-files";
 import { DEFAULT_SETTINGS, type RssDashboardSettings } from "../../types/types";
 import {
   MetadataCleanupModal,
@@ -206,26 +206,32 @@ export function renderStorageSettingsTab(
       : "";
   let lastSavedMetadataStorageFolder = pendingMetadataStorageFolder;
 
+  // After a move, the plugin-default data.json holds the bootstrap pointer
+  // to the new location, so it must never be offered for deletion.
+  const isPluginDefaultMetadataFile = (dataFilePath: string): boolean =>
+    normalizePath(dataFilePath) === normalizePath(pluginDefaultMetadataFilePath);
+
   const deleteMetadataFileAtPath = async (
     dataFilePath: string,
   ): Promise<boolean> => {
-    const file = plugin.app.vault.getAbstractFileByPath(dataFilePath);
-    if (!file || file instanceof TFolder) {
+    if (isPluginDefaultMetadataFile(dataFilePath)) {
       return false;
     }
-    await plugin.app.fileManager.trashFile(file);
-    return true;
+    return trashVaultFile(plugin.app, dataFilePath);
   };
 
   const maybeOfferMetadataCleanup = async (
     previousDataFilePath: string | null,
   ): Promise<void> => {
-    if (!previousDataFilePath) {
+    if (
+      !previousDataFilePath ||
+      isPluginDefaultMetadataFile(previousDataFilePath)
+    ) {
       return;
     }
-    const previousFile =
-      plugin.app.vault.getAbstractFileByPath(previousDataFilePath);
-    if (!previousFile || previousFile instanceof TFolder) {
+    // The previous copy may sit in a dot-prefixed folder the vault index
+    // leaves out, so check the disk rather than the index.
+    if (!(await vaultFileExists(plugin.app, previousDataFilePath))) {
       return;
     }
 

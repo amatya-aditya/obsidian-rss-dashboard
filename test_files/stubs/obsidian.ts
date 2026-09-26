@@ -466,6 +466,11 @@ export class TFolder {
 // Mock DataVault (Enhanced)
 // =============================================================================
 
+/** True when any segment of `path` starts with a dot (Obsidian doesn't index it). */
+function isHiddenVaultPath(path: string): boolean {
+  return path.split("/").some((segment) => segment.startsWith("."));
+}
+
 interface MockVaultAdapter {
   getBasePath(): string;
   getFullPath(path: string): string;
@@ -476,6 +481,8 @@ interface MockVaultAdapter {
   list(path: string): Promise<{ files: string[]; folders: string[] }>;
   rmdir(path: string, recursive: boolean): Promise<void>;
   remove(path: string): Promise<void>;
+  trashSystem(path: string): Promise<boolean>;
+  trashLocal(path: string): Promise<void>;
 }
 
 export class MockDataVault {
@@ -483,6 +490,12 @@ export class MockDataVault {
   private folders: Map<string, TFolder> = new Map();
   private root: TFolder;
   private adapterFiles: Map<string, string> = new Map();
+  /**
+   * The vault's config folder. Users can rename it, but Obsidian only accepts
+   * a dot-prefixed name, so it's always hidden from the vault index. The stub
+   * uses a non-default name so tests read it rather than hardcoding it.
+   */
+  configDir = ".vault-config";
   on: (name: string, callback: (...args: unknown[]) => unknown) => unknown =
     () => ({});
 
@@ -543,6 +556,22 @@ export class MockDataVault {
       remove: async (path: string) => {
         this.adapterFiles.delete(path);
         this.files.delete(path);
+      },
+      // Not yet observed against Obsidian: trashSystem is modeled as always
+      // succeeding, and trashLocal as moving a file into the vault's `.trash`.
+      trashSystem: async (path: string) => {
+        this.adapterFiles.delete(path);
+        this.files.delete(path);
+        return true;
+      },
+      trashLocal: async (path: string) => {
+        const content = this.adapterFiles.get(path);
+        this.adapterFiles.delete(path);
+        this.files.delete(path);
+        if (content !== undefined) {
+          const name = path.split("/").pop() ?? path;
+          this.adapterFiles.set(`.trash/${name}`, content);
+        }
       },
       rmdir: async (path: string, recursive: boolean) => {
         const cleanPath = path.replace(/^\/+|\/+$/g, "");
@@ -636,14 +665,12 @@ export class MockDataVault {
   }
 
   getAbstractFileByPath(path: string): TFile | TFolder | null {
-    const file = this.files.get(path);
-    if (file) return file;
-    // Obsidian leaves dot-prefixed folders out of its vault index; they exist
-    // on disk and are reachable only through the adapter.
-    if (path.split("/").some((segment) => segment.startsWith("."))) {
+    // Obsidian leaves anything under a dot-prefixed folder out of its vault
+    // index; it exists on disk and is reachable only through the adapter.
+    if (isHiddenVaultPath(path)) {
       return null;
     }
-    return this.folders.get(path) || null;
+    return this.files.get(path) || this.folders.get(path) || null;
   }
 
   getRoot(): TFolder {
@@ -651,7 +678,9 @@ export class MockDataVault {
   }
 
   getFiles(): TFile[] {
-    return Array.from(this.files.values());
+    return Array.from(this.files.values()).filter(
+      (file) => !isHiddenVaultPath(file.path),
+    );
   }
 
   // Event system
