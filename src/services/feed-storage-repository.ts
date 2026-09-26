@@ -120,7 +120,7 @@ function createFeedId(): string {
   return `feed-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
-function normalizeFolderPath(path: string): string {
+export function normalizeFolderPath(path: string): string {
   const trimmed = path.trim().replace(/\\/g, "/");
   if (!trimmed) {
     return ".rss-dashboard-data/feeds";
@@ -178,7 +178,7 @@ function storageError(
   _details?: unknown,
 ): void {}
 
-function parsePortableDataBundle(input: unknown): PortableDataBundle {
+export function parsePortableDataBundle(input: unknown): PortableDataBundle {
   if (!input || typeof input !== "object") {
     throw new Error("Portable bundle must be a JSON object");
   }
@@ -251,7 +251,7 @@ function assertValidShards(shards: unknown): asserts shards is FeedItemsShard[] 
   }
 }
 
-function parseFeedBundle(input: unknown): FeedBundle {
+export function parseFeedBundle(input: unknown): FeedBundle {
   if (!input || typeof input !== "object") {
     throw new Error("Feed bundle must be a JSON object");
   }
@@ -291,7 +291,7 @@ function parseFeedBundle(input: unknown): FeedBundle {
   };
 }
 
-function parseSettingsBundle(input: unknown): SettingsBundle {
+export function parseSettingsBundle(input: unknown): SettingsBundle {
   if (!input || typeof input !== "object") {
     throw new Error("Settings bundle must be a JSON object");
   }

@@ -236,6 +236,22 @@ _Avoid_: Feed data bundle, subscriptions export
 An export containing app preferences only (display, retention, storage config, auto-backup, etc.), with no feeds, folders, tags, or articles. The re-scoped counterpart to the [[Feed bundle]] that together make up the [[Portable data bundle]]; matches the existing `usersettings.json` shape. Introduced by ADR 0005.
 _Avoid_: usersettings bundle, preferences export
 
+**Replacing import**:
+An import that discards the current feeds, folders, tags, articles, and article state and puts the file's in their place: a [[Portable data bundle]], a [[Feed bundle]], or a user preferences file that carries feeds, folders, or tags. What the user had before and did not export is gone once it completes.
+_Avoid_: Restore, overwrite (reserved for [[Overwriting import]])
+
+**Overwriting import**:
+An import that sets each app preference present in the file to the file's value and leaves every preference the file omits unchanged: a [[Settings bundle]], or a user preferences file with no feeds, folders, or tags. Never touches feeds, articles, or article state.
+_Avoid_: Replace, settings restore
+
+**Merging import**:
+An import that adds to the current feeds or articles without removing any: OPML and starred-article imports.
+_Avoid_: Append, sync
+
+**Import confirmation**:
+The last-chance prompt shown after an import file has been read and validated, and before anything is written, for every [[Replacing import]] and [[Overwriting import]]. It compares what the user has now with what the file brings, names any change to the storage location, and lets the user cancel or export a [[Portable data bundle]] first. Cancelling leaves every setting, shard file, and article state exactly as it was.
+_Avoid_: Import preview (reserved for the feed-selection preview of OPML imports), warning
+
 **Storage migration**:
 Moving feed content from its current feed storage mode into shard files for the first time, or upgrading from Shard storage v1 to v2. Distinct from storage repair and storage revert.
 _Avoid_: Migrate, storage change

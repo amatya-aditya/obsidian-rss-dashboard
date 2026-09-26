@@ -1,7 +1,12 @@
 ## Unreleased
 
+### Features
+
+- Imports that replace your feeds or overwrite your preferences now ask first. After the file is read and validated, and before anything is written, **Replace your feeds?** compares the feeds, articles, starred articles, folders, and tags you have now with what the file brings, and **Overwrite your preferences?** says how many preferences will change and lists the retention and auto-backup ones by name. Either dialog names any change to the storage location, notes feeds that haven't loaded their articles on this device, and offers **Export backup first**, which exports a full Portable data bundle and keeps the dialog open. **Cancel** is focused and changes nothing. This covers the Portable data bundle, Feed bundle, Settings bundle, and user preferences imports. [GH Issue #377](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/377) [GH Issue #390](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/390)
+
 ### Fixes
 
+- Fixed **Import user preferences** in **Settings → Import/Export** showing **Import successful** after an invalid file had already been rejected. It now shows only the error. [GH Issue #377](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/377)
 - Fixed full articles from sites that block direct requests with HTTP 401 or 403 never being retried through the configured CORS proxy. Obsidian reports those responses as errors, so the reader gave up and showed the feed excerpt without trying the proxy. It now retries through the proxy first. [GH Issue #408](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/408)
 - Fixed moving the metadata `data.json` out of a hidden vault folder, such as `.rss-meta`, never offering to delete the previous copy and leaving it on disk. **Delete previous metadata copy?** now appears for a previous copy in a hidden folder too, and **Delete previous copy** moves it to the trash. The plugin folder's own `data.json`, which points to the new location after a move, is never offered for deletion. [GH Issue #410](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/410)
 - Fixed an article not appearing in an ungrouped dashboard list when a change from the reader, such as starring it while the dashboard is filtered to Starred, made it match the current filters. The update stopped with an error, leaving the list and the status bar count stale until the next refresh. [GH Issue #409](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/409)

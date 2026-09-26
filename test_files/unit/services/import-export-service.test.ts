@@ -542,7 +542,7 @@ describe("ImportExportService", () => {
           JSON.stringify({
             version: 1,
             exportedAt: 123,
-            settings: { refreshInterval: 60 },
+            settings: { refreshInterval: 60, storageMode: "vault-shards-v2" },
           }),
         ],
         "settings-bundle.json",
