@@ -490,13 +490,13 @@ How each column was measured:
 
 `addYouTubeFeed` (2806–2831) and the private `folderPathExists` (2617–2619)
 have no callers. They are not moved into new modules; a small PR of their own
-deletes them.
+deletes them ([#454](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/454)).
 
 ### Per step: characterization first, and UI surfaces
 
 | Step | Characterization tests needed first | UI surfaces for the manual checklist |
 |---|---|---|
-| P0 | None new. Leave a re-export at the old path so `card-view.ts`, `feed-view.ts` and the helper's existing test don't change. | Card and feed layouts: preview images and summaries |
+| P0 ([#453](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/453)) | None new. The file and its existing test move to `src/utils/` and `test_files/unit/utils/`, and the three importers follow. The test isn't a characterization test, so moving it is allowed. | Card and feed layouts: preview images and summaries |
 | 1 | Rewrite the tests that set `imageCacheService`, `queuePreviewImageCaching` or `initializeImageCache` directly (`image-cache-lifecycle`, `feed-refresh-pipeline`, `background-import-orchestration`, `plugin-lifecycle`). Pin queue deduplication, the two-worker limit, no dashboard redraw during a refresh batch, `forgetFeed` keeping URLs another feed still uses, limit normalization, and that a reload doesn't change the size limit of a running cache. | Settings → Display (image caching toggle, limit, clear, size); feed manager cache size and clear; deleting a feed; card images after refresh, add and import |
 | 2 | Refusal notices for both ways of starting; cancel order (defer schedule, abort, notice); progress written by background import; the 250 ms trailing coalesce and final flush; factory reset clearing only the map and the running flag; an import started while an operation runs (behavior 5). | Sidebar "All feeds" progress and Stop; per-feed spinners; mobile navigation modal; filter status bar; OPML import and Discover "add all" progress; Discover single-feed add (progress 0/1 and Stop) |
 | 3 | Rewrite spies on `validateSavedArticles`, `notifySidebarRefreshStatusChanged` and `getRefreshableFeeds` only where the spied member moves. Pin folder prefix matching; exclusion and pending-import filtering; the leading-edge 250 ms progress throttle; soft-timeout detach; the failure-summary text; that cancelling the startup delay also leaves automatic refresh off. | Refresh command; sidebar refresh of a feed, folder, all feeds and retry failed; dashboard toolbar refresh of the current feed, folder, tag or all, and retry; edit-feed refresh; Settings → General "apply and refresh" for maximum items; scheduled and startup refresh |
