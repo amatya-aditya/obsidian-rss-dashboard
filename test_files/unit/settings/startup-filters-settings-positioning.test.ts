@@ -1,10 +1,11 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 import {
   DEFAULT_SETTINGS,
   type RssDashboardSettings,
 } from "../../../src/types/types";
 import type RssDashboardPlugin from "../../../main";
+import { renderDisplaySettingsTab } from "../../../src/settings/tabs/display-settings-tab";
 
 type ObsidianHTMLElement = HTMLElement & {
   empty: () => void;
@@ -32,6 +33,11 @@ describe("Startup filters settings popover positioning (integration)", () => {
     (document.body as ObsidianHTMLElement).empty();
   });
 
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
   it("opens above when anchor is near bottom and follows scroll reposition", async () => {
     vi.useFakeTimers();
     // Drive rAF through timers for deterministic tests.
@@ -40,9 +46,6 @@ describe("Startup filters settings popover positioning (integration)", () => {
       (cb: FrameRequestCallback) =>
         window.setTimeout(() => cb(0), 0) as unknown as number,
     );
-
-    const { renderDisplaySettingsTab } =
-      await import("../../../src/settings/tabs/display-settings-tab");
 
     const container = (document.body as ObsidianHTMLElement).createDiv();
     const settings = cloneSettings();
@@ -153,9 +156,6 @@ describe("Startup filters settings popover positioning (integration)", () => {
       (cb: FrameRequestCallback) =>
         window.setTimeout(() => cb(0), 0) as unknown as number,
     );
-
-    const { renderDisplaySettingsTab } =
-      await import("../../../src/settings/tabs/display-settings-tab");
 
     const container = (document.body as ObsidianHTMLElement).createDiv();
     const settings = cloneSettings();
