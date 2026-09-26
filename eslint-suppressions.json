@@ -1,0 +1,300 @@
+{
+  "main.ts": {
+    "complexity": {
+      "count": 2
+    },
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/components/article-filter-menu.ts": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/components/article-list.ts": {
+    "complexity": {
+      "count": 2
+    }
+  },
+  "src/components/article-list/views/card-view.ts": {
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/components/article-list/views/feed-view.ts": {
+    "complexity": {
+      "count": 1
+    }
+  },
+  "src/components/article-list/views/list-view.ts": {
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/components/article-renderer.ts": {
+    "complexity": {
+      "count": 3
+    }
+  },
+  "src/components/folder-selector-popup.ts": {
+    "complexity": {
+      "count": 1
+    }
+  },
+  "src/components/keyword-filter-editor.ts": {
+    "max-lines-per-function": {
+      "count": 2
+    }
+  },
+  "src/components/sidebar.ts": {
+    "complexity": {
+      "count": 4
+    },
+    "max-lines-per-function": {
+      "count": 5
+    }
+  },
+  "src/components/tag-multi-select-control.ts": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/hotkeys/dashboard-hotkeys.ts": {
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/modals/feed-manager/add-feed-modal.ts": {
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/modals/feed-manager/edit-feed-modal.ts": {
+    "complexity": {
+      "count": 2
+    },
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/modals/feed-manager/feed-manager-modal.ts": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/modals/feed-preview-modal.ts": {
+    "complexity": {
+      "count": 2
+    }
+  },
+  "src/services/article-saver.ts": {
+    "complexity": {
+      "count": 1
+    }
+  },
+  "src/services/background-import-service.ts": {
+    "complexity": {
+      "count": 3
+    }
+  },
+  "src/services/feed-parser/feed-fetch.ts": {
+    "complexity": {
+      "count": 3
+    },
+    "max-lines-per-function": {
+      "count": 2
+    }
+  },
+  "src/services/feed-parser/feed-parser-class.ts": {
+    "complexity": {
+      "count": 2
+    },
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/services/feed-parser/podcast-platform-resolver.ts": {
+    "complexity": {
+      "count": 1
+    }
+  },
+  "src/services/feed-parser/xml-parser/custom-xml-parser.ts": {
+    "complexity": {
+      "count": 2
+    }
+  },
+  "src/services/feed-parser/xml-parser/rss-parser.ts": {
+    "complexity": {
+      "count": 2
+    }
+  },
+  "src/services/feed-parser/xml-parser/xml-preprocessing.ts": {
+    "complexity": {
+      "count": 2
+    },
+    "max-lines-per-function": {
+      "count": 2
+    }
+  },
+  "src/services/feed-storage-repository.ts": {
+    "complexity": {
+      "count": 3
+    },
+    "max-lines-per-function": {
+      "count": 2
+    }
+  },
+  "src/services/image-cache-service.ts": {
+    "complexity": {
+      "count": 1
+    }
+  },
+  "src/services/media-service.ts": {
+    "complexity": {
+      "count": 2
+    }
+  },
+  "src/services/sidebar-ordering-controller.ts": {
+    "complexity": {
+      "count": 1
+    }
+  },
+  "src/settings/tabs/article-saving-settings-tab.ts": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/settings/tabs/display-settings-tab.ts": {
+    "max-lines-per-function": {
+      "count": 3
+    }
+  },
+  "src/settings/tabs/general-settings-tab.ts": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/settings/tabs/highlights-settings-tab.ts": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/settings/tabs/import-export-settings-tab.ts": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/settings/tabs/sidebar-settings-tab.ts": {
+    "max-lines-per-function": {
+      "count": 3
+    }
+  },
+  "src/settings/tabs/storage-settings-tab.ts": {
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 3
+    }
+  },
+  "src/settings/tabs/tags-settings-tab.ts": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/utils/fetch-helpers.ts": {
+    "complexity": {
+      "count": 1
+    }
+  },
+  "src/utils/full-size-image-resolver.ts": {
+    "complexity": {
+      "count": 1
+    }
+  },
+  "src/utils/platform-utils.ts": {
+    "complexity": {
+      "count": 1
+    }
+  },
+  "src/utils/podcast-open-destinations.ts": {
+    "complexity": {
+      "count": 1
+    }
+  },
+  "src/utils/reader-format-portal.ts": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/utils/settings-loader.ts": {
+    "complexity": {
+      "count": 3
+    }
+  },
+  "src/utils/settings-migration.ts": {
+    "complexity": {
+      "count": 1
+    }
+  },
+  "src/utils/substack-image-url.ts": {
+    "complexity": {
+      "count": 1
+    }
+  },
+  "src/utils/tags-dropdown-portal.ts": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/views/dashboard-view.ts": {
+    "complexity": {
+      "count": 8
+    },
+    "max-lines-per-function": {
+      "count": 4
+    }
+  },
+  "src/views/discover-view.ts": {
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/views/kagi-smallweb-view.ts": {
+    "complexity": {
+      "count": 1
+    }
+  },
+  "src/views/podcast-player.ts": {
+    "complexity": {
+      "count": 2
+    },
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/views/reader-view.ts": {
+    "complexity": {
+      "count": 3
+    },
+    "max-lines-per-function": {
+      "count": 2
+    }
+  }
+}

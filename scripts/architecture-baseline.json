@@ -1,8 +1,6 @@
 {
   "thresholds": {
     "fileLines": 1000,
-    "functionLines": 150,
-    "complexity": 20,
     "parameters": 5
   },
   "ratchets": {

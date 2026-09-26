@@ -59,44 +59,6 @@ function getFunctionName(node, sourceFile) {
   return "<anonymous>";
 }
 
-function measureComplexity(functionNode) {
-  let complexity = 1;
-
-  function visit(node) {
-    if (node !== functionNode && isFunctionNode(node)) return;
-
-    if (
-      ts.isIfStatement(node) ||
-      ts.isForStatement(node) ||
-      ts.isForInStatement(node) ||
-      ts.isForOfStatement(node) ||
-      ts.isWhileStatement(node) ||
-      ts.isDoStatement(node) ||
-      ts.isConditionalExpression(node) ||
-      ts.isCatchClause(node) ||
-      ts.isCaseClause(node)
-    ) {
-      complexity += 1;
-    }
-
-    if (
-      ts.isBinaryExpression(node) &&
-      [
-        ts.SyntaxKind.AmpersandAmpersandToken,
-        ts.SyntaxKind.BarBarToken,
-        ts.SyntaxKind.QuestionQuestionToken,
-      ].includes(node.operatorToken.kind)
-    ) {
-      complexity += 1;
-    }
-
-    ts.forEachChild(node, visit);
-  }
-
-  if (functionNode.body) visit(functionNode.body);
-  return complexity;
-}
-
 function isTypeOnlyImport(importDeclaration) {
   const importClause = importDeclaration.importClause;
   if (!importClause) return false;
@@ -127,7 +89,6 @@ function analyzeFile(repositoryPath, sourceText) {
       const start =
         sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile))
           .line + 1;
-      const end = sourceFile.getLineAndCharacterOfPosition(node.end).line + 1;
       const name = getFunctionName(node, sourceFile);
       const occurrence = (nameCounts.get(name) ?? 0) + 1;
       nameCounts.set(name, occurrence);
@@ -136,8 +97,6 @@ function analyzeFile(repositoryPath, sourceText) {
         file: repositoryPath,
         name,
         start,
-        lines: end - start + 1,
-        complexity: measureComplexity(node),
         parameters: node.parameters?.length ?? 0,
       });
     }
@@ -329,22 +288,6 @@ for (const file of [...largeFiles].sort((a, b) => b.lines - a.lines)) {
 }
 
 printOutliers(
-  "function size",
-  currentSnapshot.functions.filter(
-    (entry) => entry.lines > thresholds.functionLines,
-  ),
-  "lines",
-  thresholds.functionLines,
-);
-printOutliers(
-  "branch complexity",
-  currentSnapshot.functions.filter(
-    (entry) => entry.complexity > thresholds.complexity,
-  ),
-  "complexity",
-  thresholds.complexity,
-);
-printOutliers(
   "parameter count",
   currentSnapshot.functions.filter(
     (entry) => entry.parameters > thresholds.parameters,
@@ -490,9 +433,8 @@ function printArchitectureDiff(reference) {
   const baseFunctions = new Map(
     baseSnapshot.functions.map((entry) => [entry.key, entry]),
   );
+  // Function length and complexity are ESLint errors (eslint.config.mjs).
   const crossingDefinitions = [
-    ["function lines", "lines", thresholds.functionLines],
-    ["branch complexity", "complexity", thresholds.complexity],
     ["parameters", "parameters", thresholds.parameters],
   ];
   const crossings = [];
