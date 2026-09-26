@@ -426,6 +426,30 @@ export class MockEvent {
 // Mock TFile
 // =============================================================================
 
+/**
+ * A file's `name`, `basename`, and `extension`, derived from its path.
+ * Observed on Obsidian 1.13.7 desktop (Windows): `basename` is the name up to
+ * its last dot and `extension` follows it ("my.file.name.md" -> "my.file.name"
+ * and "md"); a name without a dot is its own basename with extension "".
+ * Names starting with a dot weren't probed (Obsidian doesn't index them).
+ */
+function fileNameParts(path: string): {
+  name: string;
+  basename: string;
+  extension: string;
+} {
+  const name = path.split("/").pop() ?? "";
+  const lastDot = name.lastIndexOf(".");
+  if (lastDot === -1) {
+    return { name, basename: name, extension: "" };
+  }
+  return {
+    name,
+    basename: name.slice(0, lastDot),
+    extension: name.slice(lastDot + 1),
+  };
+}
+
 class TFileStub {
   path: string;
   basename: string;
@@ -439,9 +463,10 @@ class TFileStub {
 
   constructor(path: string = "/test/file.md") {
     this.path = path;
-    this.basename = path.split("/").pop() || "file.md";
-    this.name = this.basename;
-    this.extension = "md";
+    const { name, basename, extension } = fileNameParts(path);
+    this.name = name;
+    this.basename = basename;
+    this.extension = extension;
     this.stat = {
       mtime: Date.now(),
       ctime: Date.now(),
@@ -542,8 +567,12 @@ export class MockDataVault {
     this.folders.set("/", this.root);
 
     this.adapter = {
+      // Observed on Obsidian 1.13.7 desktop (Windows): `getFullPath` joins
+      // the vault path onto `getBasePath()` with OS separators. The stub is
+      // OS-independent and always joins with "/". Mobile has no
+      // `getBasePath` (not modeled; the stub is the desktop adapter).
       getBasePath: () => "/test/vault",
-      getFullPath: (p: string) => p,
+      getFullPath: (p: string) => `${this.adapter.getBasePath()}/${p}`,
       exists: async (path: string) => this.existsOnDisk(path),
       // Observed on Obsidian 1.13.7 desktop (Windows): a missing path throws
       // Node's ENOENT.
@@ -834,8 +863,7 @@ export class MockDataVault {
     this.adapterFiles.delete(oldPath);
 
     file.path = newPath;
-    file.basename = newPath.split("/").pop() || file.basename;
-    file.name = file.basename;
+    Object.assign(file, fileNameParts(newPath));
 
     this.files.set(newPath, file);
   }

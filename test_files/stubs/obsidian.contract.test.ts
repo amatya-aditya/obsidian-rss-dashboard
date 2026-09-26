@@ -808,3 +808,51 @@ describe("Obsidian stub contract: trashing a folder", () => {
     });
   });
 });
+
+describe("Obsidian stub contract: TFile names and adapter paths", () => {
+  describe("TFile names and adapter paths", () => {
+    // Observed on Obsidian 1.13.7 desktop (Windows): `basename` is the name
+    // up to its last dot, and `extension` is what follows it.
+    it("splits a dotted file name at its last dot", async () => {
+      const { vault } = new App();
+      await vault.createFolder("dir");
+
+      const file = await vault.create("dir/my.file.name.md", "");
+
+      expect(file.path).toBe("dir/my.file.name.md");
+      expect(file.name).toBe("my.file.name.md");
+      expect(file.basename).toBe("my.file.name");
+      expect(file.extension).toBe("md");
+    });
+
+    // Observed on Obsidian 1.13.7 desktop (Windows): a name without a dot
+    // is its own basename, with an empty extension.
+    it("gives an extensionless file an empty extension", async () => {
+      const { vault } = new App();
+      await vault.createFolder("dir");
+
+      const file = await vault.create("dir/noext", "");
+
+      expect(file.name).toBe("noext");
+      expect(file.basename).toBe("noext");
+      expect(file.extension).toBe("");
+    });
+
+    // Observed on Obsidian 1.13.7 desktop (Windows): `getBasePath` is a
+    // function returning the vault's absolute path, and `getFullPath("a/b.md")`
+    // is the vault path joined onto it, in OS separators
+    // (`C:\Obsidian\rss-372-scratch\a\b.md`). The stub is OS-independent, so
+    // it always joins with "/".
+    it("resolves a vault path against the base path", () => {
+      const adapter = new App().vault.adapter as unknown as {
+        getBasePath(): string;
+        getFullPath(path: string): string;
+      };
+
+      const basePath = adapter.getBasePath();
+
+      expect(basePath.length).toBeGreaterThan(0);
+      expect(adapter.getFullPath("a/b.md")).toBe(`${basePath}/a/b.md`);
+    });
+  });
+});

@@ -485,3 +485,38 @@ console.log({
 // Clean up: await A.rmdir(root, true); then empty the trashed folder from
 // the system trash or the vault's .trash folder.
 ```
+
+## TFile names and adapter paths
+
+Observed on 1.13.7 desktop (Windows): for `dir/my.file.name.md`, `name` is
+`my.file.name.md`, `basename` is `my.file.name` (up to the last dot), and
+`extension` is `md`. For `dir/noext`, `name` and `basename` are `noext` and
+`extension` is `""`. `adapter.getBasePath` is a function that returns the
+vault's absolute path, and `adapter.getFullPath("a/b.md")` returns it joined
+with the vault path in OS separators (`C:\Obsidian\rss-372-scratch\a\b.md`).
+The stub always joins with `/`. Mobile wasn't probed; its adapter has no
+`getBasePath`.
+
+```js
+const V = app.vault;
+const A = V.adapter;
+const root = "probe-names";
+await V.createFolder(root).catch(() => {});
+const files = [
+  await V.create(`${root}/my.file.name.md`, ""),
+  await V.create(`${root}/noext`, ""),
+];
+console.log(
+  files.map((f) => ({
+    path: f.path,
+    name: f.name,
+    basename: f.basename,
+    extension: f.extension,
+  })),
+);
+console.log({
+  getBasePath: typeof A.getBasePath,
+  basePath: A.getBasePath?.(),
+  getFullPath: A.getFullPath?.("a/b.md"),
+});
+```
