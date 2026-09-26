@@ -5,12 +5,13 @@
 // The stub models observed Obsidian behavior (ADR 0014). Each modeled behavior
 // has an expectation in obsidian.contract.test.ts; the console probes used to
 // observe it live in obsidian-console-probes.md.
+// The real API's types, for checking the stub against them (#362). Type-only:
+// importing it also brings in Obsidian's global DOM helper declarations.
+import type * as ObsidianApi from "obsidian-api";
+
 // =============================================================================
 
-declare global {
-  var activeWindow: Window;
-  var activeDocument: Document;
-}
+// `activeWindow` and `activeDocument` are declared by the real API's types.
 
 // =============================================================================
 
@@ -159,30 +160,13 @@ const createMoment = (input?: string | number | Date) => {
   };
 };
 
-export const moment = createMoment;
+const momentStub = createMoment;
 
-export interface RequestUrlResponse {
-  status: number;
-  headers: Record<string, string>;
-  arrayBuffer: ArrayBuffer;
-  json: unknown;
-  text: string;
-}
+export type RequestUrlResponse = ObsidianApi.RequestUrlResponse;
 
-export interface RequestUrlResponsePromise extends Promise<RequestUrlResponse> {
-  arrayBuffer: Promise<ArrayBuffer>;
-  json: Promise<unknown>;
-  text: Promise<string>;
-}
+export type RequestUrlResponsePromise = ObsidianApi.RequestUrlResponsePromise;
 
-export interface RequestUrlParam {
-  url: string;
-  method?: string;
-  contentType?: string;
-  body?: string | ArrayBuffer;
-  headers?: Record<string, string>;
-  throw?: boolean;
-}
+export type RequestUrlParam = ObsidianApi.RequestUrlParam;
 
 /** What a test's fake server answers; the stub turns it into a response. */
 export interface RequestUrlHandlerResult {
@@ -209,7 +193,20 @@ export function setRequestUrlHandler(handler: RequestUrlHandler | null): void {
  * Models Obsidian 1.13.7: a status of 400 or above rejects with an Error
  * carrying own `status` and `headers` properties, unless `throw: false`.
  */
-export async function requestUrl(
+/** Obsidian's `requestUrl` promise also exposes `.json`, `.text` and `.arrayBuffer`. */
+function requestUrlImpl(
+  param: RequestUrlParam | string,
+): ObsidianApi.RequestUrlResponsePromise {
+  const promise = requestUrlAsync(param);
+  // Getters, so a rejected request doesn't also reject three unobserved promises.
+  return Object.defineProperties(promise, {
+    arrayBuffer: { get: () => promise.then((r) => r.arrayBuffer) },
+    json: { get: () => promise.then((r) => r.json as unknown) },
+    text: { get: () => promise.then((r) => r.text) },
+  }) as ObsidianApi.RequestUrlResponsePromise;
+}
+
+async function requestUrlAsync(
   param: RequestUrlParam | string,
 ): Promise<RequestUrlResponse> {
   if (!requestUrlHandler) {
@@ -240,46 +237,55 @@ export async function requestUrl(
   };
 }
 
-export const Platform = {
-  isAndroidApp: false,
-  // Common flags used by plugins
-  isMobile: false,
-  isMobileApp: false,
+const PlatformStub = {
   isDesktop: true,
+  isMobile: false,
+  isDesktopApp: true,
+  isMobileApp: false,
+  isIosApp: false,
+  isAndroidApp: false,
+  isPhone: false,
+  isTablet: false,
+  // OS flags stay false so no test depends on the machine running it.
+  isMacOS: false,
+  isWin: false,
+  isLinux: false,
+  isSafari: false,
+  resourcePathPrefix: "app://local/",
 };
 
-export function setIcon(el: HTMLElement, iconName: string): void {
+function setIconImpl(el: HTMLElement, iconName: string): void {
   el.dataset.icon = iconName;
 }
 
 /** Mirrors Obsidian: the tooltip text is stored as the element's aria-label. */
-export function setTooltip(el: HTMLElement, tooltip: string): void {
+function setTooltipImpl(el: HTMLElement, tooltip: string): void {
   el.setAttribute("aria-label", tooltip);
 }
 
-export function normalizePath(path: string): string {
+function normalizePathImpl(path: string): string {
   return path;
 }
 
-export function requireApiVersion(): boolean {
+function requireApiVersionImpl(_version: string): boolean {
   return false;
 }
 
-export function renderMath(source: string, display: boolean): HTMLElement {
+function renderMathImpl(source: string, display: boolean): HTMLElement {
   return createSpan({ cls: "math", text: source });
 }
 
-export function finishRenderMath(): Promise<void> {
+function finishRenderMathImpl(): Promise<void> {
   return Promise.resolve();
 }
 
-export class MarkdownRenderer {
+class MarkdownRendererStub {
   static render(
-    _app: App,
+    _app: AppStub,
     markdown: string,
     el: HTMLElement,
     _sourcePath: string,
-    _component: Component,
+    _component: ComponentStub,
   ): Promise<void> {
     const doc = el.ownerDocument;
     const trimmed = markdown.trim();
@@ -368,7 +374,6 @@ function appendInlineMarkdown(
   }
 }
 
-
 // =============================================================================
 // Mock Event System
 // =============================================================================
@@ -404,10 +409,10 @@ export class MockEvent {
 }
 
 // =============================================================================
-// Mock TFile
+// Mock TFileStub
 // =============================================================================
 
-export class TFile {
+class TFileStub {
   path: string;
   basename: string;
   extension: string;
@@ -432,11 +437,11 @@ export class TFile {
 }
 
 // =============================================================================
-// Mock TFolder
+// Mock TFolderStub
 // =============================================================================
 
-export class TFolder {
-  children: (TFile | TFolder)[] = [];
+class TFolderStub {
+  children: (TFileStub | TFolderStub)[] = [];
   path: string;
   name: string;
 
@@ -445,19 +450,19 @@ export class TFolder {
     this.name = path.split("/").pop() || "folder";
   }
 
-  createFile(name: string): TFile {
-    const file = new TFile(`${this.path}/${name}`);
+  createFile(name: string): TFileStub {
+    const file = new TFileStub(`${this.path}/${name}`);
     this.children.push(file);
     return file;
   }
 
-  createFolder(name: string): TFolder {
-    const folder = new TFolder(`${this.path}/${name}`);
+  createFolder(name: string): TFolderStub {
+    const folder = new TFolderStub(`${this.path}/${name}`);
     this.children.push(folder);
     return folder;
   }
 
-  getChild(name: string): TFile | TFolder | undefined {
+  getChild(name: string): TFileStub | TFolderStub | undefined {
     return this.children.find((c) => c.name === name);
   }
 }
@@ -486,9 +491,9 @@ interface MockVaultAdapter {
 }
 
 export class MockDataVault {
-  private files: Map<string, TFile> = new Map();
-  private folders: Map<string, TFolder> = new Map();
-  private root: TFolder;
+  private files: Map<string, TFileStub> = new Map();
+  private folders: Map<string, TFolderStub> = new Map();
+  private root: TFolderStub;
   private adapterFiles: Map<string, string> = new Map();
   /**
    * The vault's config folder. Users can rename it, but Obsidian only accepts
@@ -509,7 +514,7 @@ export class MockDataVault {
   adapter: MockVaultAdapter;
 
   constructor() {
-    this.root = new TFolder("/");
+    this.root = new TFolderStub("/");
     this.folders.set("/", this.root);
 
     this.adapter = {
@@ -610,7 +615,7 @@ export class MockDataVault {
     return this.caseSensitiveFileSystem ? cleanPath : cleanPath.toLowerCase();
   }
 
-  private findFolderOnDisk(path: string): TFolder | undefined {
+  private findFolderOnDisk(path: string): TFolderStub | undefined {
     const key = this.diskKey(path);
     for (const [folderPath, folder] of this.folders) {
       if (this.diskKey(folderPath) === key) return folder;
@@ -647,7 +652,7 @@ export class MockDataVault {
     }
   }
 
-  async create(path: string, content: string): Promise<TFile> {
+  async create(path: string, content: string): Promise<TFileStub> {
     // Observed on Obsidian 1.13.7 desktop: an existing path, or a case variant
     // of one on a case-insensitive file system, throws; a missing parent
     // folder throws Node's ENOENT.
@@ -662,26 +667,26 @@ export class MockDataVault {
         `ENOENT: no such file or directory, open '${this.adapter.getBasePath()}/${path}'`,
       );
     }
-    const file = new TFile(path);
+    const file = new TFileStub(path);
     this.files.set(path, file);
     this.adapterFiles.set(path, content);
     return file;
   }
 
-  async read(file: TFile | string): Promise<string> {
+  async read(file: TFileStub | string): Promise<string> {
     const path = typeof file === "string" ? file : file.path;
     return this.adapterFiles.get(path) ?? "# Test Article\n\nContent here";
   }
 
-  async delete(file: TFile | string): Promise<void> {
+  async delete(file: TFileStub | string): Promise<void> {
     const path = typeof file === "string" ? file : file.path;
     this.files.delete(path);
     this.adapterFiles.delete(path);
   }
 
-  async modify(_file: TFile, _content: string): Promise<void> {}
+  async modify(_file: TFileStub, _content: string): Promise<void> {}
 
-  async createFolder(folderPath: string): Promise<TFolder> {
+  async createFolder(folderPath: string): Promise<TFolderStub> {
     const cleanPath = folderPath.replace(/^\/+|\/+$/g, "");
     if (!cleanPath) return this.root;
 
@@ -701,7 +706,7 @@ export class MockDataVault {
       if (folder) {
         currentPath = folder.path;
       } else {
-        folder = new TFolder(currentPath);
+        folder = new TFolderStub(currentPath);
         parent.children.push(folder);
         this.folders.set(currentPath, folder);
       }
@@ -711,15 +716,15 @@ export class MockDataVault {
     return parent;
   }
 
-  async trashAbstractFile(file: TFile | TFolder): Promise<void> {
-    if (file instanceof TFile) {
+  async trashAbstractFile(file: TFileStub | TFolderStub): Promise<void> {
+    if (file instanceof TFileStub) {
       await this.delete(file);
       return;
     }
     this.forgetFolder(file.path);
   }
 
-  async renameAbstractFile(file: TFile, newPath: string): Promise<void> {
+  async renameAbstractFile(file: TFileStub, newPath: string): Promise<void> {
     const oldPath = file.path;
     this.files.delete(oldPath);
     this.adapterFiles.delete(oldPath);
@@ -731,7 +736,7 @@ export class MockDataVault {
     this.files.set(newPath, file);
   }
 
-  getAbstractFileByPath(path: string): TFile | TFolder | null {
+  getAbstractFileByPath(path: string): TFileStub | TFolderStub | null {
     // Obsidian leaves anything under a dot-prefixed folder out of its vault
     // index; it exists on disk and is reachable only through the adapter.
     if (isHiddenVaultPath(path)) {
@@ -740,11 +745,11 @@ export class MockDataVault {
     return this.files.get(path) || this.folders.get(path) || null;
   }
 
-  getRoot(): TFolder {
+  getRoot(): TFolderStub {
     return this.root;
   }
 
-  getFiles(): TFile[] {
+  getFiles(): TFileStub[] {
     return Array.from(this.files.values()).filter(
       (file) => !isHiddenVaultPath(file.path),
     );
@@ -817,10 +822,10 @@ export class MockWorkspace {
 }
 
 // =============================================================================
-// App Class (Enhanced with full mocks)
+// AppStub Class (Enhanced with full mocks)
 // =============================================================================
 
-export class App {
+class AppStub {
   private localStorage = new Map<string, unknown>();
 
   /** Full vault mock for file operations */
@@ -828,8 +833,8 @@ export class App {
 
   /** Minimal fileManager mock for trash/rename */
   fileManager: {
-    trashFile: (file: TFile | TFolder) => Promise<void>;
-    renameFile: (file: TFile, newPath: string) => Promise<void>;
+    trashFile: (file: TFileStub | TFolderStub) => Promise<void>;
+    renameFile: (file: TFileStub, newPath: string) => Promise<void>;
   };
 
   /** Full workspace mock for view management */
@@ -838,10 +843,10 @@ export class App {
   constructor() {
     this.vault = new MockDataVault();
     this.fileManager = {
-      trashFile: async (file: TFile | TFolder) => {
+      trashFile: async (file: TFileStub | TFolderStub) => {
         await this.vault.trashAbstractFile(file);
       },
-      renameFile: async (file: TFile, newPath: string) => {
+      renameFile: async (file: TFileStub, newPath: string) => {
         await this.vault.renameAbstractFile(file, newPath);
       },
     };
@@ -856,38 +861,25 @@ export class App {
     return this.localStorage.get(key);
   }
 
-  /** Create a fresh mock App instance for tests */
-  static createMock(): App {
-    return new App();
+  /** Create a fresh mock AppStub instance for tests */
+  static createMock(): AppStub {
+    return new AppStub();
   }
 }
 
 // =============================================================================
-// Plugin Base Classes
+// PluginStub Base Classes
 // =============================================================================
 
-export interface PluginManifest {
-  id: string;
-  name: string;
-  version: string;
-  author?: string;
-  description?: string;
-  dir?: string;
-}
+export type PluginManifest = ObsidianApi.PluginManifest;
 
-export type EventRef = unknown;
+export type EventRef = ObsidianApi.EventRef;
 
-interface CommandDefinition {
-  id: string;
-  name: string;
-  [key: string]: unknown;
-}
-
-export class Plugin {
-  app: App;
+class PluginStub {
+  app: AppStub;
   manifest: PluginManifest;
 
-  constructor(app: App, manifest: PluginManifest) {
+  constructor(app: AppStub, manifest: PluginManifest) {
     this.app = app;
     this.manifest = manifest;
   }
@@ -895,35 +887,34 @@ export class Plugin {
   async onload(): Promise<void> {}
   onunload(): void {}
 
-  registerView(
-    _type: string,
-    _creator: (leaf: WorkspaceLeaf) => ItemView,
-  ): void {}
+  registerView(_type: string, _creator: ObsidianApi.ViewCreator): void {}
 
-  addCommand(_command: CommandDefinition): void {}
+  addCommand(command: ObsidianApi.Command): ObsidianApi.Command {
+    return command;
+  }
 
   addRibbonIcon(
     _icon: string,
     _title: string,
-    _callback: (...args: unknown[]) => unknown,
-  ): unknown {
-    return {};
+    _callback: (evt: MouseEvent) => unknown,
+  ): HTMLElement {
+    return createDiv();
   }
 
-  addSettingTab(_tab: PluginSettingTab): void {}
+  addSettingTab(_tab: ObsidianApi.PluginSettingTab): void {}
 
   registerInterval(id: number): number {
     return id;
   }
 
-  // Minimal stub for Obsidian's Plugin.registerEvent to allow tests to
+  // Minimal stub for Obsidian's PluginStub.registerEvent to allow tests to
   // register EventRef objects without throwing. This mirrors the runtime
   // API surface used by plugins; tests do not rely on the behavior here.
   registerEvent(_evt: EventRef): void {}
 
   registerObsidianProtocolHandler(
     _action: string,
-    _handler: (params: Record<string, string>) => unknown,
+    _handler: ObsidianApi.ObsidianProtocolHandler,
   ): void {}
 
   // Data API (overridden in tests when needed)
@@ -933,12 +924,12 @@ export class Plugin {
   async saveData(_data: unknown): Promise<void> {}
 }
 
-export class PluginSettingTab {
-  app: App;
-  plugin: Plugin;
+class PluginSettingTabStub {
+  app: AppStub;
+  plugin: PluginStub;
   containerEl: HTMLElement;
 
-  constructor(app: App, plugin: Plugin) {
+  constructor(app: AppStub, plugin: PluginStub) {
     this.app = app;
     this.plugin = plugin;
     this.containerEl = createDiv();
@@ -952,7 +943,7 @@ export class PluginSettingTab {
 // UI Components
 // =============================================================================
 
-export class Notice {
+class NoticeStub {
   constructor(message: string, _timeout?: number) {
     console.debug("[Stub Notice]", message);
   }
@@ -960,17 +951,19 @@ export class Notice {
   hide(): void {}
 }
 
-export class WorkspaceLeaf {
-  app: App;
-  constructor(app: App) {
+class WorkspaceLeafStub {
+  /** Type-only: tests assign views; nothing is set at runtime. */
+  declare view: unknown;
+  app: AppStub;
+  constructor(app: AppStub) {
     this.app = app;
   }
 
   updateHeader(): void {}
 }
 
-export class Component {
-  private children = new Set<Component>();
+class ComponentStub {
+  private children = new Set<ObsidianApi.Component>();
 
   load(): void {
     this.onload();
@@ -987,12 +980,12 @@ export class Component {
 
   onunload(): void {}
 
-  addChild<T extends Component>(component: T): T {
+  addChild<T extends ObsidianApi.Component>(component: T): T {
     this.children.add(component);
     return component;
   }
 
-  removeChild<T extends Component>(component: T): T {
+  removeChild<T extends ObsidianApi.Component>(component: T): T {
     if (this.children.delete(component)) {
       component.unload();
     }
@@ -1002,12 +995,12 @@ export class Component {
   register(_cb: () => unknown): void {}
 }
 
-export class ItemView extends Component {
-  app: App;
-  leaf: WorkspaceLeaf;
+class ItemViewStub extends ComponentStub {
+  app: AppStub;
+  leaf: WorkspaceLeafStub;
   containerEl: HTMLElement;
 
-  constructor(leaf: WorkspaceLeaf) {
+  constructor(leaf: WorkspaceLeafStub) {
     super();
     this.leaf = leaf;
     this.app = leaf.app;
@@ -1037,32 +1030,32 @@ export class ItemView extends Component {
   }
 }
 
-export class Menu {
-  static lastItems: MenuItem[] = [];
+class MenuStub {
+  static lastItems: MenuItemStub[] = [];
 
   constructor() {
-    Menu.lastItems = [];
+    MenuStub.lastItems = [];
   }
 
   addSeparator(): this {
     return this;
   }
-  addItem(cb: (item: MenuItem) => void): this {
-    const item = new MenuItem();
-    cb(item);
-    Menu.lastItems.push(item);
+  addItem(cb: (item: ObsidianApi.MenuItem) => unknown): this {
+    const item = new MenuItemStub();
+    cb(item as unknown as ObsidianApi.MenuItem);
+    MenuStub.lastItems.push(item);
     return this;
   }
   showAtPosition(): void {}
   showAtMouseEvent(_event: MouseEvent): void {}
 }
 
-export class MenuItem {
+class MenuItemStub {
   title = "";
   callback: ((evt: MouseEvent) => unknown) | undefined;
 
-  setTitle(title: string): this {
-    this.title = title;
+  setTitle(title: string | DocumentFragment): this {
+    this.title = typeof title === "string" ? title : (title.textContent ?? "");
     return this;
   }
   setIcon(): this {
@@ -1080,61 +1073,7 @@ export class MenuItem {
 
 type SettingComponent = object;
 
-interface ButtonSettingComponent extends SettingComponent {
-  buttonEl: HTMLButtonElement;
-  setButtonText(text: string): this;
-  setIcon(icon: string): this;
-  setTooltip(tooltip: string): this;
-  onClick(handler: (evt: MouseEvent) => void): this;
-  setCta(): this;
-  setWarning(): this;
-  setDestructive(): this;
-  _triggerClick(evt?: MouseEvent): void;
-}
-
-interface SliderSettingComponent extends SettingComponent {
-  sliderEl: HTMLInputElement;
-  setLimits(min: number, max: number, step: number): this;
-  setValue(value: number): this;
-  getValue(): number;
-  setDisplayFormat(format: (value: number) => string): this;
-  setDynamicTooltip(): this;
-  onChange(handler: (value: number) => void): this;
-}
-
-interface ColorSettingComponent extends SettingComponent {
-  inputEl: HTMLInputElement;
-  setValue(value: string): this;
-  getValue(): string;
-  setPlaceholder(value: string): this;
-  onChange(handler: (value: string) => void): this;
-}
-
-interface ToggleSettingComponent extends SettingComponent {
-  toggleEl: HTMLInputElement;
-  setValue(value: boolean): this;
-  onChange(handler: (value: boolean) => void): this;
-  _triggerChange(value: boolean): void;
-}
-
-interface TextSettingComponent extends SettingComponent {
-  inputEl: HTMLInputElement;
-  setValue(value: string): this;
-  setPlaceholder(value: string): this;
-  getValue(): string;
-  onChange(handler: (value: string) => void): this;
-  _triggerChange(value: string): void;
-}
-
-interface DropdownSettingComponent extends SettingComponent {
-  selectEl: HTMLSelectElement;
-  addOption(value: string, label: string): this;
-  setValue(value: string): this;
-  onChange(handler: (value: string) => void): this;
-  _triggerChange(value: string): void;
-}
-
-export class Setting {
+class SettingStub {
   settingEl: HTMLDivElement;
   nameEl: HTMLDivElement;
   descEl: HTMLDivElement;
@@ -1150,9 +1089,12 @@ export class Setting {
     this.controlEl = this.settingEl.createDiv({ cls: "setting-item-control" });
   }
 
-  setName(_name?: string): this {
-    if (_name !== undefined) {
+  setName(_name?: string | DocumentFragment): this {
+    if (typeof _name === "string") {
       this.nameEl.textContent = _name;
+    } else if (_name !== undefined) {
+      this.nameEl.empty();
+      this.nameEl.appendChild(_name);
     }
     return this;
   }
@@ -1179,7 +1121,7 @@ export class Setting {
   setDisabled(_disabled?: boolean): this {
     return this;
   }
-  addButton(cb: (component: ButtonSettingComponent) => unknown): this {
+  addButton(cb: (component: ObsidianApi.ButtonComponent) => unknown): this {
     class ButtonComponent {
       buttonEl: HTMLButtonElement;
       private clickHandler: ((evt: MouseEvent) => void) | null = null;
@@ -1235,15 +1177,19 @@ export class Setting {
 
     const component = new ButtonComponent(this.controlEl);
     this.components.push(component);
-    cb(component);
+    cb(component as unknown as Parameters<typeof cb>[0]);
     return this;
   }
 
-  addExtraButton(cb: (component: ButtonSettingComponent) => unknown): this {
-    return this.addButton(cb);
+  addExtraButton(
+    cb: (component: ObsidianApi.ExtraButtonComponent) => unknown,
+  ): this {
+    return this.addButton((component) =>
+      cb(component as unknown as ObsidianApi.ExtraButtonComponent),
+    );
   }
 
-  addSlider(cb: (component: SliderSettingComponent) => unknown): this {
+  addSlider(cb: (component: ObsidianApi.SliderComponent) => unknown): this {
     class SliderComponent {
       sliderEl: HTMLInputElement;
       private changeHandler: ((value: number) => void) | null = null;
@@ -1288,11 +1234,11 @@ export class Setting {
 
     const component = new SliderComponent(this.controlEl);
     this.components.push(component);
-    cb(component);
+    cb(component as unknown as Parameters<typeof cb>[0]);
     return this;
   }
 
-  addColorPicker(cb: (component: ColorSettingComponent) => unknown): this {
+  addColorPicker(cb: (component: ObsidianApi.ColorComponent) => unknown): this {
     class ColorComponent {
       inputEl: HTMLInputElement;
       private changeHandler: ((value: string) => void) | null = null;
@@ -1326,10 +1272,10 @@ export class Setting {
 
     const component = new ColorComponent(this.controlEl);
     this.components.push(component);
-    cb(component);
+    cb(component as unknown as Parameters<typeof cb>[0]);
     return this;
   }
-  addToggle(cb: (component: ToggleSettingComponent) => unknown): this {
+  addToggle(cb: (component: ObsidianApi.ToggleComponent) => unknown): this {
     class ToggleComponent {
       toggleEl: HTMLInputElement;
       private changeHandler: ((value: boolean) => void) | null = null;
@@ -1359,11 +1305,11 @@ export class Setting {
 
     const component = new ToggleComponent(this.controlEl);
     this.components.push(component);
-    cb(component);
+    cb(component as unknown as Parameters<typeof cb>[0]);
     return this;
   }
-  addText(cb: (component: TextSettingComponent) => unknown): this {
-    class TextComponent {
+  addText(cb: (component: ObsidianApi.TextComponent) => unknown): this {
+    class TextComponentStub {
       inputEl: HTMLInputElement;
       private changeHandler: ((value: string) => void) | null = null;
 
@@ -1399,12 +1345,12 @@ export class Setting {
       }
     }
 
-    const component = new TextComponent(this.controlEl);
+    const component = new TextComponentStub(this.controlEl);
     this.components.push(component);
-    cb(component);
+    cb(component as unknown as Parameters<typeof cb>[0]);
     return this;
   }
-  addDropdown(cb: (component: DropdownSettingComponent) => unknown): this {
+  addDropdown(cb: (component: ObsidianApi.DropdownComponent) => unknown): this {
     class DropdownComponent {
       selectEl: HTMLSelectElement;
       private changeHandler: ((value: string) => void) | null = null;
@@ -1439,12 +1385,12 @@ export class Setting {
 
     const component = new DropdownComponent(this.controlEl);
     this.components.push(component);
-    cb(component);
+    cb(component as unknown as Parameters<typeof cb>[0]);
     return this;
   }
 }
 
-export class TextComponent {
+class TextComponentStub {
   inputEl: HTMLInputElement;
   private changeHandler: ((value: string) => void) | null = null;
 
@@ -1475,13 +1421,13 @@ export class TextComponent {
   }
 }
 
-export class Modal {
-  app: App;
+class ModalStub {
+  app: AppStub;
   containerEl: HTMLDivElement;
   modalEl: HTMLDivElement;
   titleEl: HTMLDivElement;
   contentEl: HTMLDivElement;
-  constructor(app: App) {
+  constructor(app: AppStub) {
     this.app = app;
     this.containerEl = createDiv({ cls: "modal-container" });
     this.modalEl = this.containerEl.createDiv({ cls: "modal" });
@@ -1510,10 +1456,10 @@ export class Modal {
   }
 }
 
-export class AbstractInputSuggest<T> {
-  protected app: App;
+class AbstractInputSuggestStub<T> {
+  app: AppStub;
   protected inputEl: HTMLInputElement;
-  constructor(app: App, inputEl: HTMLInputElement) {
+  constructor(app: AppStub, inputEl: HTMLInputElement) {
     this.app = app;
     this.inputEl = inputEl;
   }
@@ -1525,27 +1471,121 @@ export class AbstractInputSuggest<T> {
   selectSuggestion(_value: T, _evt: MouseEvent | KeyboardEvent): void {}
   close(): void {}
 }
-export class Scope {
-  public handlers: Array<{
-    modifiers: string[] | null;
-    key: string | null;
-    func: (...args: unknown[]) => void;
-  }> = [];
-  constructor(public parent?: Scope) {}
+class ScopeStub {
+  public handlers: ObsidianApi.KeymapEventHandler[] = [];
+  constructor(public parent?: ScopeStub) {}
   register(
-    modifiers: string[] | null,
+    modifiers: ObsidianApi.Modifier[] | null,
     key: string | null,
-    func: (...args: unknown[]) => void,
-  ) {
-    const handler = { modifiers, key, func };
+    func: ObsidianApi.KeymapEventListener,
+  ): ObsidianApi.KeymapEventHandler {
+    // Not yet observed: real Obsidian stores `modifiers` as a string; the stub
+    // keeps the array that tests inspect (Track B, #372).
+    const handler = {
+      scope: this,
+      modifiers,
+      key,
+      func,
+    } as unknown as ObsidianApi.KeymapEventHandler;
     this.handlers.push(handler);
     return handler;
   }
-  unregister(handler: {
-    modifiers: string[] | null;
-    key: string | null;
-    func: (...args: unknown[]) => void;
-  }) {
+  unregister(handler: ObsidianApi.KeymapEventHandler): void {
     this.handlers = this.handlers.filter((h) => h !== handler);
   }
 }
+
+// =============================================================================
+// Exports typed as the real API (#362)
+//
+// Production code sees Obsidian's own types; at runtime it gets the stub
+// classes above. `StubMatches` checks at compile time that every method a
+// stub defines accepts the real method's parameters, so a mistyped stub
+// member fails to compile. A member the stub lacks fails the test that
+// needs it, at runtime.
+// =============================================================================
+
+/** Each member the stub defines accepts the real member's parameters. */
+type StubShape<Real> = {
+  [K in keyof Real]?: Real[K] extends (...args: infer A) => unknown
+    ? (...args: A) => unknown
+    : unknown;
+};
+type StubMatches<Real, Stub extends StubShape<Real>> = Stub;
+
+export const moment = momentStub as unknown as typeof ObsidianApi.moment;
+export const Platform: typeof ObsidianApi.Platform = PlatformStub;
+export const requestUrl: typeof ObsidianApi.requestUrl = requestUrlImpl;
+export const setIcon: typeof ObsidianApi.setIcon = setIconImpl;
+export const setTooltip: typeof ObsidianApi.setTooltip = setTooltipImpl;
+export const normalizePath: typeof ObsidianApi.normalizePath = normalizePathImpl;
+export const requireApiVersion: typeof ObsidianApi.requireApiVersion = requireApiVersionImpl;
+export const renderMath: typeof ObsidianApi.renderMath = renderMathImpl;
+export const finishRenderMath: typeof ObsidianApi.finishRenderMath = finishRenderMathImpl;
+export type ObsidianProtocolData = ObsidianApi.ObsidianProtocolData;
+export type ButtonComponent = ObsidianApi.ButtonComponent;
+export type { MenuItemStub };
+
+export type MarkdownRenderer = ObsidianApi.MarkdownRenderer;
+export const MarkdownRenderer = MarkdownRendererStub as unknown as typeof ObsidianApi.MarkdownRenderer;
+export type TFile = ObsidianApi.TFile;
+export const TFile = TFileStub as unknown as typeof ObsidianApi.TFile;
+export type TFolder = ObsidianApi.TFolder;
+export const TFolder = TFolderStub as unknown as typeof ObsidianApi.TFolder;
+export type App = ObsidianApi.App;
+/** Tests get the real `App` type plus the stub's mock helpers (`app.vault` etc.). */
+export type MockApp = ObsidianApi.App & AppStub;
+export const App = AppStub as unknown as {
+  new (): MockApp;
+  createMock(): MockApp;
+} & typeof ObsidianApi.App;
+export type Plugin = ObsidianApi.Plugin;
+export const Plugin = PluginStub as unknown as typeof ObsidianApi.Plugin;
+export type PluginSettingTab = ObsidianApi.PluginSettingTab;
+export const PluginSettingTab = PluginSettingTabStub as unknown as typeof ObsidianApi.PluginSettingTab;
+export type Notice = ObsidianApi.Notice;
+export const Notice = NoticeStub as unknown as typeof ObsidianApi.Notice;
+export type WorkspaceLeaf = ObsidianApi.WorkspaceLeaf;
+export const WorkspaceLeaf = WorkspaceLeafStub as unknown as typeof ObsidianApi.WorkspaceLeaf;
+export type Component = ObsidianApi.Component;
+export const Component = ComponentStub as unknown as typeof ObsidianApi.Component;
+export type ItemView = ObsidianApi.ItemView;
+export const ItemView = ItemViewStub as unknown as typeof ObsidianApi.ItemView;
+export type Menu = ObsidianApi.Menu;
+export const Menu = MenuStub as unknown as typeof ObsidianApi.Menu & {
+  /** Test-only: the items added to the most recently created menu. */
+  lastItems: MenuItemStub[];
+};
+export type MenuItem = ObsidianApi.MenuItem;
+export const MenuItem = MenuItemStub as unknown as typeof ObsidianApi.MenuItem;
+export type Setting = ObsidianApi.Setting;
+export const Setting = SettingStub as unknown as typeof ObsidianApi.Setting;
+export type TextComponent = ObsidianApi.TextComponent;
+export const TextComponent = TextComponentStub as unknown as typeof ObsidianApi.TextComponent;
+export type Modal = ObsidianApi.Modal;
+export const Modal = ModalStub as unknown as typeof ObsidianApi.Modal;
+export type AbstractInputSuggest<T> = ObsidianApi.AbstractInputSuggest<T>;
+export const AbstractInputSuggest = AbstractInputSuggestStub as unknown as typeof ObsidianApi.AbstractInputSuggest;
+export type Scope = ObsidianApi.Scope;
+export const Scope = ScopeStub as unknown as typeof ObsidianApi.Scope;
+
+/** Compile-time checks only; see `StubMatches`. */
+export type StubSignatureChecks = [
+  StubMatches<ObsidianApi.MarkdownRenderer, MarkdownRendererStub>,
+  StubMatches<ObsidianApi.TFile, TFileStub>,
+  StubMatches<ObsidianApi.TFolder, TFolderStub>,
+  StubMatches<ObsidianApi.App, AppStub>,
+  StubMatches<ObsidianApi.Plugin, PluginStub>,
+  StubMatches<ObsidianApi.PluginSettingTab, PluginSettingTabStub>,
+  StubMatches<ObsidianApi.Notice, NoticeStub>,
+  StubMatches<ObsidianApi.WorkspaceLeaf, WorkspaceLeafStub>,
+  StubMatches<ObsidianApi.Component, ComponentStub>,
+  StubMatches<ObsidianApi.ItemView, ItemViewStub>,
+  StubMatches<ObsidianApi.Menu, MenuStub>,
+  StubMatches<ObsidianApi.MenuItem, MenuItemStub>,
+  StubMatches<ObsidianApi.Setting, SettingStub>,
+  StubMatches<ObsidianApi.TextComponent, TextComponentStub>,
+  StubMatches<ObsidianApi.Modal, ModalStub>,
+  StubMatches<ObsidianApi.AbstractInputSuggest<unknown>, AbstractInputSuggestStub<unknown>>,
+  StubMatches<ObsidianApi.Scope, ScopeStub>,
+];

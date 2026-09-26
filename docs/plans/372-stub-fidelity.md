@@ -43,9 +43,16 @@ infrastructure.
 
 In order:
 
-1. **Types (#362).** Type the stub against the real `obsidian.d.ts`, so each
-   stub class `implements` the real type and missing or mistyped members fail to
-   compile. This clears most of the roughly 437 `src/` errors #362 reports.
+1. **Types (#362).** Type the stub's exports as the real `obsidian.d.ts`, so
+   production code type-checks against Obsidian's own API in tests too. Each
+   stub class stays private (`NoticeStub`), and its export is cast to the real
+   type. A compile-time `StubMatches` check compares every method the stub
+   defines with the real one: a mistyped member fails to compile, and a missing
+   member fails the test that needs it, at runtime. This clears all of the
+   roughly 437 `src/` errors #362 reports. `npm run build` runs the test
+   type-check (`scripts/check-test-types.mjs`): `src/`, `main.ts` and the stub
+   must have no errors, and test files may not exceed the recorded baseline,
+   which is lowered as they are fixed.
 2. **Behavior.** One divergence per PR, highest risk first (the order of
    #372's lists). Each PR adds the divergence's contract expectation.
 3. **Rest of the audit.** Cover #372's "Suspected, not verified" and "Not yet
@@ -68,8 +75,22 @@ In order:
 - **Breaking tests.** When a faithful stub breaks a test, fix the production
   code. Never weaken the stub again. If the bug doesn't reproduce in real
   Obsidian, correct the contract expectation instead, with a note.
+- **Triage on breakage.** Don't audit the suite up front. When a stub or type
+  change breaks a test, fix the test if it checks behavior a user can see.
+  Delete it if it only checks wiring (that a mock was called), and list each
+  deletion in the PR description.
 - **Probes in the repo.** Keep the console probes from the runbook with the
   contract test, so the next audit doesn't depend on a lost scratchpad.
+
+## Follow-ups
+
+- **Mutation testing.** Once Track B is done, try a mutation tester (such as
+  Stryker) on two or three critical modules, like feed refresh and article
+  saving, to see which tests would catch a real bug. Adopt it only if the
+  signal is worth the run time.
+- **`Scope` modifiers.** The stub stores a registered hotkey's `modifiers` as
+  an array. Real Obsidian appears to store a string. Verify it with a console
+  probe before changing the stub.
 
 ## Reproduction runbook
 

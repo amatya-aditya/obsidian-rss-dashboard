@@ -329,8 +329,6 @@ describe("Dashboard reader location", () => {
       setActiveLeaf,
     });
 
-    view.app.workspace.activeLeaf = dashboardLeaf as never;
-
     await view.handleArticleClick(feed.items[0]);
 
     expect(mainLeaf.setViewState).toHaveBeenCalledWith({

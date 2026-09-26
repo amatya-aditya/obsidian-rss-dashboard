@@ -7,6 +7,10 @@
 - Fixed an article not appearing in an ungrouped dashboard list when a change from the reader, such as starring it while the dashboard is filtered to Starred, made it match the current filters. The update stopped with an error, leaving the list and the status bar count stale until the next refresh. [GH Issue #409](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/409)
 - Fixed saving an article, exporting the keyboard shortcuts, and saving from the web viewer failing with "Failed to create folder" or "Could not create folder" when the save folder differs from an existing folder only in case, such as `rss articles` and `RSS Articles`, on Windows and macOS. They now save into the existing folder. [GH Issue #411](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/411)
 
+### Development and compliance
+
+- The Obsidian test stub's exports are now typed as the real Obsidian API, so production code type-checks against Obsidian's own types in tests, and `npm run build` fails on any type error in production code or the stub under the test configuration. Type errors in test files are held to a baseline that can only go down. [GH Issue #362](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/362)
+
 ## 2.7.0 - September 25, 2026
 
 For a user-facing overview, see the [RSS Dashboard 2.7.0 release notes](docs/releases/2.7.0.md).
