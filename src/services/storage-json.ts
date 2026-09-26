@@ -1,3 +1,5 @@
+export const SHARD_VERSION = 1;
+
 export function cloneJson<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
