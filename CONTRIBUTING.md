@@ -369,6 +369,15 @@ If `release/x.x.x` already exists and you need to cut another Beta:
 2. Only open a full `dev` → `release/x.x.x` PR when every new commit on `dev` is intended for that release. If `dev` already contains work meant for a later release, open a narrower PR or cherry-pick only the fixes/features that belong in the current one.
 3. After the release branch contains the exact changes you want to ship, bump to the next Beta version on the release branch, tag it, and push it.
 
+#### Freezing the release branch
+
+When `dev` needs to take work meant for a later release (for example, a refactor program) while a release is still in Beta, freeze the release branch:
+
+1. Announce the freeze point: the Beta tag after which nothing more comes from `dev` into `release/x.x.x`.
+2. From then on, fix beta issues in PRs that target `release/x.x.x`, and merge them with **Create a merge commit**.
+3. Cherry-pick each merged fix to `dev` right away (`git cherry-pick -x <sha>` on a branch off `origin/dev`, then open a PR to `dev`), instead of waiting for the release to merge back. Code on `dev` keeps moving, and a fix that waits for the merge-back can conflict with it.
+4. After the stable release, hotfixes follow the normal path: cut `release/x.x.y` from `master`.
+
 ### Step 6 — Ship Stable
 
 Before running the commands below, finalize the changelog per [release-notes-workflow.md](docs/development/release-notes-workflow.md) and work through the [pre-release checklist](docs/development/pre-release-checklist.md) — including renaming `CHANGELOG.md`'s `## Unreleased` heading to the release version and adding the release line's curated What's New note under `src/release-notes/notes/`. Neither is part of the version-bump commit below.
@@ -443,7 +452,7 @@ Folder and feed titles must adhere to these rules for Obsidian compatibility:
 - **Keep branches short-lived** — long-running branches cause merge conflicts
 - **Rebase your personal feat/fix branch** — keeps history linear and readable
 - **Merge `master` into shared `dev` after every stable release** — preserves history
-- **Beta fixes go on the release branch** — not back on dev until the release merges
+- **Beta fixes go on the release branch** — not back on dev until the release merges, unless the release branch is frozen (see **Freezing the release branch**), in which case cherry-pick each fix to dev right away
 - **Only Beta and Stable releases** — no Alphas or RCs
 
 ---
