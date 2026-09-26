@@ -9,7 +9,7 @@
  * `obsidian-console-probes.md` to observe the behavior, and name the version.
  */
 import { afterEach, describe, expect, it } from "vitest";
-import { App, requestUrl, setRequestUrlHandler } from "obsidian";
+import { App, Modal, Scope, requestUrl, setRequestUrlHandler } from "obsidian";
 
 describe("Obsidian stub contract", () => {
   describe("globals", () => {
@@ -108,12 +108,15 @@ describe("Obsidian stub contract", () => {
       ["createDiv", () => activeDocument.createDiv()],
       ["createSpan", () => activeDocument.createSpan()],
       ["createEl", () => activeDocument.createEl("p")],
-    ])("%s throws HierarchyRequestError on a document that has a root", (_name, create) => {
-      expect(create).toThrow(
-        expect.objectContaining({ name: "HierarchyRequestError" }),
-      );
-      expect(activeDocument.childElementCount).toBe(1);
-    });
+    ])(
+      "%s throws HierarchyRequestError on a document that has a root",
+      (_name, create) => {
+        expect(create).toThrow(
+          expect.objectContaining({ name: "HierarchyRequestError" }),
+        );
+        expect(activeDocument.childElementCount).toBe(1);
+      },
+    );
   });
 
   describe("vault: existing paths and case", () => {
@@ -239,6 +242,95 @@ describe("Obsidian stub contract", () => {
         path: "probe/w.md",
       });
       expect(await vault.adapter.read("probe/w.md")).toBe("hello");
+    });
+  });
+
+  describe("Modal", () => {
+    afterEach(() => {
+      document.body.empty();
+    });
+
+    // Observed on Obsidian 1.13.7 desktop (Windows): `onOpen` runs with
+    // `containerEl.isConnected === true`.
+    it("runs onOpen with the container attached", () => {
+      const modal = new Modal(new App());
+      let connectedInOnOpen: boolean | null = null;
+      modal.onOpen = () => {
+        connectedInOnOpen = modal.containerEl.isConnected;
+      };
+
+      modal.open();
+
+      expect(connectedInOnOpen).toBe(true);
+    });
+
+    // Observed on Obsidian 1.13.7 desktop (Windows): `close()` detaches
+    // `containerEl` first, then runs `onClose` (so `isConnected` is false
+    // inside it), synchronously before `close()` returns.
+    it("detaches the container before onClose, synchronously", () => {
+      const modal = new Modal(new App());
+      const log: string[] = [];
+      modal.onClose = () => {
+        log.push(`onClose connected=${modal.containerEl.isConnected}`);
+      };
+      modal.open();
+
+      modal.close();
+      log.push("close returned");
+
+      expect(log).toEqual(["onClose connected=false", "close returned"]);
+      expect(modal.containerEl.isConnected).toBe(false);
+    });
+
+    // Observed on Obsidian 1.13.7 desktop (Windows): `scope` is a Scope,
+    // `headerEl` has class `modal-header`, and `titleEl` is inside `headerEl`.
+    it("has a scope and a header that holds the title", () => {
+      const modal = new Modal(new App());
+      // `headerEl` isn't in obsidian.d.ts (1.13.1).
+      const { headerEl } = modal as Modal & { headerEl: HTMLElement };
+
+      expect(modal.scope).toBeInstanceOf(Scope);
+      expect(headerEl.className).toBe("modal-header");
+      expect(modal.titleEl.parentElement).toBe(headerEl);
+    });
+
+    // Observed on Obsidian 1.13.7 desktop (Windows): `modalEl`'s children
+    // are, in order, the close button, the header, and the content. There
+    // is no `.modal-close-button` element, and `containerEl`'s class is
+    // `modal-container mod-dim`.
+    it("builds the 1.13.7 modal DOM", () => {
+      const modal = new Modal(new App());
+
+      expect(modal.containerEl.className).toBe("modal-container mod-dim");
+      expect(
+        Array.from(modal.modalEl.children).map((el) => el.className),
+      ).toEqual([
+        "modal-header-button mod-raised clickable-icon",
+        "modal-header",
+        "modal-content",
+      ]);
+      expect(modal.modalEl.children[1]).toBe(modal.titleEl.parentElement);
+      expect(modal.modalEl.children[2]).toBe(modal.contentEl);
+      expect(modal.containerEl.querySelector(".modal-close-button")).toBeNull();
+    });
+
+    // Not probed: clicking the close button closes the modal (standard
+    // Obsidian behavior).
+    it("closes when the close button is clicked", () => {
+      const modal = new Modal(new App());
+      let closed = false;
+      modal.onClose = () => {
+        closed = true;
+      };
+      modal.open();
+
+      const closeButton = modal.modalEl.querySelector<HTMLElement>(
+        ".modal-header-button",
+      );
+      closeButton?.click();
+
+      expect(closed).toBe(true);
+      expect(modal.containerEl.isConnected).toBe(false);
     });
   });
 });

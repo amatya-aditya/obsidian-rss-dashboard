@@ -1471,15 +1471,27 @@ class TextComponentStub {
 
 class ModalStub {
   app: AppStub;
+  scope: ScopeStub;
   containerEl: HTMLDivElement;
   modalEl: HTMLDivElement;
+  /** Not in obsidian.d.ts (1.13.1), but present in 1.13.7. */
+  headerEl: HTMLDivElement;
   titleEl: HTMLDivElement;
   contentEl: HTMLDivElement;
   constructor(app: AppStub) {
     this.app = app;
-    this.containerEl = createDiv({ cls: "modal-container" });
+    this.scope = new ScopeStub();
+    // Observed on Obsidian 1.13.7 desktop (Windows): containerEl is
+    // `modal-container mod-dim`, and modalEl holds the close button, the
+    // header (with the title), and the content, in that order.
+    this.containerEl = createDiv({ cls: "modal-container mod-dim" });
     this.modalEl = this.containerEl.createDiv({ cls: "modal" });
-    this.titleEl = this.modalEl.createDiv({ cls: "modal-title" });
+    const closeButton = this.modalEl.createDiv({
+      cls: "modal-header-button mod-raised clickable-icon",
+    });
+    closeButton.addEventListener("click", () => this.close());
+    this.headerEl = this.modalEl.createDiv({ cls: "modal-header" });
+    this.titleEl = this.headerEl.createDiv({ cls: "modal-title" });
     this.contentEl = this.modalEl.createDiv({ cls: "modal-content" });
   }
 
@@ -1499,8 +1511,10 @@ class ModalStub {
   }
 
   close(): void {
-    this.onClose();
+    // Observed on Obsidian 1.13.7 desktop (Windows): the container is
+    // detached before onClose runs, synchronously.
     this.containerEl.remove();
+    this.onClose();
   }
 }
 

@@ -87,9 +87,11 @@ describe("MobileNavigationModal", () => {
       callbacks,
     );
 
-    const closeBtn = createEl("button");
-    closeBtn.className = "modal-header-button mod-raised clickable-icon";
-    modal.modalEl.appendChild(closeBtn);
+    // The native close button Obsidian 1.13.7 renders in modalEl.
+    const closeBtn = modal.modalEl.querySelector(
+      ".modal-header-button.mod-raised.clickable-icon",
+    );
+    expect(closeBtn).not.toBeNull();
 
     modal.open();
 

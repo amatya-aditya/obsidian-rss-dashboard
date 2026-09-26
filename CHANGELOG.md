@@ -7,6 +7,7 @@
 - Fixed an article not appearing in an ungrouped dashboard list when a change from the reader, such as starring it while the dashboard is filtered to Starred, made it match the current filters. The update stopped with an error, leaving the list and the status bar count stale until the next refresh. [GH Issue #409](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/409)
 - Fixed saving an article, exporting the keyboard shortcuts, and saving from the web viewer failing with "Failed to create folder" or "Could not create folder" when the save folder differs from an existing folder only in case, such as `rss articles` and `RSS Articles`, on Windows and macOS. They now save into the existing folder. [GH Issue #411](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/411)
 - Fixed **Import user preferences** deleting every feed when the file lists folders or tags but no feeds. A file without a feed list now keeps your current feeds, as it already kept your folders and tags. [GH Issue #386](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/386)
+- Fixed the **Add feed** and **Auto tag feeds in folder** modals keeping Obsidian's built-in close button in the phone and tablet layout. Obsidian 1.13 renamed that button, so the plugin no longer found it to remove it. [GH Issue #372](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/372)
 
 ## 2.7.0 - September 25, 2026
 
