@@ -695,7 +695,7 @@ intended and are raised in this ADR's review first.
      defaults over the user's data.
 2. **Stale reader view** ([#448](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/448)). An open reader view keeps the settings object and
    `ArticleSaver` from before a reload.
-3. **Nothing stopped on unload** ([#449](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/449)). `onunload` leaves image-cache workers,
+3. **Nothing stopped on unload** ([#444](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/444)). `onunload` leaves image-cache workers,
    refresh batches and background imports running.
 4. **Automatic refresh stays off after an early refresh** ([#450](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/450)). A manual refresh
    during the startup delay leaves automatic refresh off for the whole
