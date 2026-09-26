@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, vi, type Mock } from "vitest";
 import { ReaderView } from "../../../src/views/reader-view";
 import {
   FeedItem,
@@ -61,7 +61,12 @@ function makeItem(overrides: Partial<FeedItem> = {}): FeedItem {
 describe("ReaderView star/tag independence (GH Issue #332)", () => {
   let readerView: ReaderView;
   let mockSettings: RssDashboardSettings;
-  let onArticleUpdate: ReturnType<typeof vi.fn>;
+  type OnArticleUpdate = (
+    item: FeedItem,
+    updates: Partial<FeedItem>,
+    shouldRerender?: boolean,
+  ) => void;
+  let onArticleUpdate: Mock<OnArticleUpdate>;
 
   beforeEach(async () => {
     const mockApp = {
@@ -76,7 +81,7 @@ describe("ReaderView star/tag independence (GH Issue #332)", () => {
     };
 
     mockSettings = { ...DEFAULT_SETTINGS, useWebViewer: false };
-    onArticleUpdate = vi.fn();
+    onArticleUpdate = vi.fn<OnArticleUpdate>();
 
     const mockLeaf = new MockLeaf(mockApp);
     readerView = new ReaderView(

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import { ReaderView } from "../../../src/views/reader-view";
 import {
   FeedItem,
@@ -67,13 +67,18 @@ function makeMockApp() {
 
 describe("ReaderView starred-import cached-preview banner", () => {
   let readerView: ReaderView;
-  let onArticleUpdate: ReturnType<typeof vi.fn>;
+  type OnArticleUpdate = (
+    item: FeedItem,
+    updates: Partial<FeedItem>,
+    shouldRerender?: boolean,
+  ) => void;
+  let onArticleUpdate: Mock<OnArticleUpdate>;
 
   beforeEach(() => {
     vi.clearAllMocks();
     document.body.innerHTML = "";
 
-    onArticleUpdate = vi.fn();
+    onArticleUpdate = vi.fn<OnArticleUpdate>();
 
     readerView = new ReaderView(
       new MockLeaf(makeMockApp()) as never,

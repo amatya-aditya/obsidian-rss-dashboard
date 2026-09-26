@@ -108,6 +108,9 @@ describe("Sidebar Batch Move (TDD)", () => {
       onRefreshFeeds: vi.fn(),
       onRetryFailedFeeds: vi.fn(),
       onUpdateFeed: vi.fn(),
+      onImportOpml: vi.fn(),
+      onExportOpml: vi.fn(),
+      onToggleSidebar: vi.fn(),
     };
 
     sidebar = new Sidebar(app, container, plugin as unknown as RssDashboardPlugin, settings, options, callbacks);

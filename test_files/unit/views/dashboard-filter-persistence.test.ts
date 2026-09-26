@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { App } from "obsidian";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
-import { DEFAULT_SETTINGS, type Feed, type RssDashboardSettings } from "../../../src/types/types";
+import { DEFAULT_SETTINGS, type Feed, type FeedItem, type RssDashboardSettings } from "../../../src/types/types";
 
 // Keep platform-utils mocked so other tests that expect robustFetch to be a vi.fn
 // (e.g. fetch-helpers.test.ts) don't end up importing the real module first.
@@ -67,6 +67,20 @@ function createMockFeed(url: string): Feed {
     folder: "Uncategorized",
     items: [],
     lastUpdated: Date.now(),
+  };
+}
+
+function createMockItem(guid: string, title: string, read: boolean): FeedItem {
+  return {
+    guid,
+    title,
+    read,
+    link: `https://example.com/${guid}`,
+    description: "",
+    pubDate: "",
+    feedTitle: "Feed",
+    feedUrl: "https://example.com/feed",
+    coverImage: "",
   };
 }
 
@@ -158,16 +172,8 @@ describe("Dashboard multi-filter persistence (TDD)", () => {
 
     const app = new App();
     const settings = cloneSettings();
-    const unreadItem = {
-      guid: "unread-item",
-      title: "Unread item",
-      read: false,
-    };
-    const readItem = {
-      guid: "read-item",
-      title: "Read item",
-      read: true,
-    };
+    const unreadItem = createMockItem("unread-item", "Unread item", false);
+    const readItem = createMockItem("read-item", "Read item", true);
     settings.feeds = [
       {
         ...createMockFeed("https://example.com/feed"),
