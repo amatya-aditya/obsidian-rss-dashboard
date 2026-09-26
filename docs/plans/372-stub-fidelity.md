@@ -49,10 +49,10 @@ In order:
    type. A compile-time `StubMatches` check compares every method the stub
    defines with the real one: a mistyped member fails to compile, and a missing
    member fails the test that needs it, at runtime. This clears all of the
-   roughly 437 `src/` errors #362 reports. `npm run build` runs the test
-   type-check (`scripts/check-test-types.mjs`): `src/`, `main.ts` and the stub
-   must have no errors, and test files may not exceed the recorded baseline,
-   which is lowered as they are fixed.
+   roughly 437 `src/` errors #362 reports. The remaining test-file errors are
+   fixed too, and `npm run build` runs the test type-check
+   (`npm run check:test-types`), so any type error in tests fails the build.
+   Done.
 2. **Behavior.** One divergence per PR, highest risk first (the order of
    #372's lists). Each PR adds the divergence's contract expectation.
 3. **Rest of the audit.** Cover #372's "Suspected, not verified" and "Not yet

@@ -75,13 +75,14 @@ describe("settings-loader", () => {
       const { loadAndNormalizeSettings } =
         await import("../../../src/utils/settings-loader");
 
+      // Saved data can hold a partial `display` group; the loader merges it
+      // with the defaults.
       const result = loadAndNormalizeSettings({
         display: {
-          ...DEFAULT_SETTINGS.display,
           imageCacheLimitMiB: 0,
           imageCacheUnlimited: true,
         },
-      });
+      } as unknown as Partial<RssDashboardSettings>);
 
       expect(result.display.imageCacheLimitMiB).toBe(100);
       expect(result.display.imageCacheUnlimited).toBe(true);
@@ -92,11 +93,8 @@ describe("settings-loader", () => {
         await import("../../../src/utils/settings-loader");
 
       const result = loadAndNormalizeSettings({
-        display: {
-          ...DEFAULT_SETTINGS.display,
-          imageCacheLimitMiB: 2_048,
-        },
-      });
+        display: { imageCacheLimitMiB: 2_048 },
+      } as unknown as Partial<RssDashboardSettings>);
 
       expect(result.display.imageCacheLimitMiB).toBe(1_024);
     });
