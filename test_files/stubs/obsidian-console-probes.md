@@ -549,3 +549,45 @@ try {
 console.log("folder still exists:", await A.exists("probe-remove/m1"));
 // Clean up: delete probe-remove from the file explorer.
 ```
+
+## Renaming a file
+
+Observed on 1.13.7 desktop (Windows): after `fileManager.renameFile(f, newPath)`,
+`vault.read(f)` returns the old content, `f.path` is the new path, and the old
+path is no longer indexed. `renameFile(f, "probe-rename//r3.md")` leaves
+`f.path` as `probe-rename/r3.md` (normalized). Renaming onto an existing path
+throws "Destination file already exists!", from both `fileManager.renameFile`
+and `vault.rename`. Not probed: `adapter.exists` for the old and new paths,
+whether `vault.rename` normalizes, a case-only rename, a missing destination
+folder, and renaming a folder.
+
+```js
+const V = app.vault;
+const root = "probe-rename";
+await V.createFolder(root).catch(() => {});
+const f = await V.create(`${root}/r1.md`, "hello");
+await app.fileManager.renameFile(f, `${root}/r2.md`);
+console.log({
+  path: f.path,
+  content: await V.read(f),
+  oldIndexed: !!V.getAbstractFileByPath(`${root}/r1.md`),
+});
+// Observed: { path: "probe-rename/r2.md", content: "hello", oldIndexed: false }
+await app.fileManager.renameFile(f, `${root}//r3.md`);
+console.log(f.path);
+// Observed: "probe-rename/r3.md"
+const other = await V.create(`${root}/r4.md`, "4");
+for (const [label, rename] of [
+  ["renameFile", () => app.fileManager.renameFile(other, `${root}/r3.md`)],
+  ["vault.rename", () => V.rename(other, `${root}/r3.md`)],
+]) {
+  try {
+    await rename();
+    console.log(label, "resolved");
+  } catch (e) {
+    console.log(label, "threw", e.message);
+  }
+}
+// Observed: both threw "Destination file already exists!"
+// Clean up: await V.adapter.rmdir(root, true);
+```
