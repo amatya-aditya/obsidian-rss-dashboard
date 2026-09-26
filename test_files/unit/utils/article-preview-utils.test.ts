@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { extractFirstImageSrc, looksLikeStylesheetText } from '../../../../../src/components/article-list/utils/article-preview-utils';
+import { extractFirstImageSrc, looksLikeStylesheetText } from '../../../src/utils/article-preview-utils';
 
 describe('article-preview-utils', () => {
   describe('extractFirstImageSrc', () => {
