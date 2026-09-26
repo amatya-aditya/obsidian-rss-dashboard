@@ -1959,9 +1959,13 @@ export default class RssDashboardPlugin extends Plugin {
           this.settings,
           parsed,
         );
-        this.settings.feeds = Array.isArray(parsedWithCollections.feeds)
-          ? parsedWithCollections.feeds
-          : [];
+        // A file without a feed list keeps the current feeds, as it keeps
+        // the current folders and tags (issue #386).
+        const importedFeeds = parsedWithCollections.feeds;
+        const replacesFeedList = Array.isArray(importedFeeds);
+        if (replacesFeedList) {
+          this.settings.feeds = importedFeeds;
+        }
         this.settings.folders = Array.isArray(parsedWithCollections.folders)
           ? parsedWithCollections.folders
           : this.settings.folders;
@@ -2002,9 +2006,9 @@ export default class RssDashboardPlugin extends Plugin {
         }
 
         this.initializeSettingsBackedServices();
-        // The imported file replaces the feed list, so feeds it lacks keep
+        // When the imported file replaces the feed list, feeds it lacks keep
         // their article state rather than counting as removed (issue #374).
-        await this.saveSettings({ replacesFeedList: true });
+        await this.saveSettings({ replacesFeedList });
         await this.refreshDashboardViews();
         const discoverView = await this.getActiveDiscoverView();
         discoverView?.render();

@@ -142,6 +142,33 @@ describe("importing a preferences file that carries feeds (issue #374)", () => {
     );
   });
 
+  it.each([
+    ["folders", { folders: [{ name: "Imported", subfolders: [] }] }],
+    ["tags", { availableTags: [{ name: "imported", color: "#000000" }] }],
+  ])(
+    "keeps the current feeds when the imported file has %s but no feed list (issue #386)",
+    async (_label, collections) => {
+      const file = new File(
+        [JSON.stringify({ refreshInterval: 45, ...collections })],
+        "rss-dashboard-user-preferences.json",
+      );
+      await plugin.importUserSettingsJsonFromFile(file);
+
+      expect(plugin.settings.refreshInterval).toBe(45);
+      expect(plugin.settings.feeds.map((feed) => feed.feedId)).toEqual([
+        "feed-kept",
+        "feed-left-out",
+      ]);
+      const saved = JSON.parse(
+        await adapter().read(`${metadataFolder}/data.json`),
+      ) as { feeds?: Array<{ feedId: string }> };
+      expect(saved.feeds?.map((feed) => feed.feedId)).toEqual([
+        "feed-kept",
+        "feed-left-out",
+      ]);
+    },
+  );
+
   it("keeps article state for a feed that an imported legacy data.json leaves out", async () => {
     installObsidianDomPolyfills();
     const containerEl = (document.body as HTMLElement & {
