@@ -2,6 +2,9 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { App } from "obsidian";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 import { DEFAULT_SETTINGS, type RssDashboardSettings } from "../../../src/types/types";
+// Static import: vi.mock calls are hoisted above it, and loading the view's
+// large module graph here keeps it out of the first test's 5 s timeout.
+import { RssDashboardView } from "../../../src/views/dashboard-view";
 
 vi.mock("../../../src/utils/platform-utils", () => ({
   robustFetch: vi.fn(),
@@ -57,7 +60,6 @@ async function renderSubheader(options: {
   shardFolderHiddenFromSync?: boolean;
   showFilterStatusBar?: boolean;
 }): Promise<HTMLElement> {
-  const { RssDashboardView } = await import("../../../src/views/dashboard-view");
   const settings = cloneSettings();
   if (options.showFilterStatusBar !== undefined) {
     settings.display.showFilterStatusBar = options.showFilterStatusBar;

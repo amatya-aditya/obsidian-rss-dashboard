@@ -14,7 +14,14 @@ import {
   type FeedIngestionCandidate,
   type FeedMetadata,
 } from "../../../src/types/types";
-import type { BackgroundImportServiceDeps } from "../../../src/services/background-import-service";
+// Static import: vi.mock is hoisted above it, so this is the spied module.
+// Importing inside each test put the cold load of the service's module graph
+// inside the first test's timeout; under CPU load it overran, and the
+// half-loaded module then failed every later test in the file.
+import {
+  BackgroundImportService,
+  type BackgroundImportServiceDeps,
+} from "../../../src/services/background-import-service";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 
 // Testable interface for accessing private members of BackgroundImportService
@@ -93,8 +100,6 @@ describe("BackgroundImportService", () => {
 
   describe("createPlaceholderFeed", () => {
     it("sets folder to defaultYouTubeFolder when mediaType is 'video' and no folder is provided", async () => {
-      const { BackgroundImportService } =
-        await import("../../../src/services/background-import-service");
       const deps = makeDeps();
       const service = new BackgroundImportService(deps);
 
@@ -111,8 +116,6 @@ describe("BackgroundImportService", () => {
     });
 
     it("sets folder to defaultPodcastFolder when mediaType is 'podcast' and no folder is provided", async () => {
-      const { BackgroundImportService } =
-        await import("../../../src/services/background-import-service");
       const deps = makeDeps();
       const service = new BackgroundImportService(deps);
 
@@ -129,8 +132,6 @@ describe("BackgroundImportService", () => {
     });
 
     it("falls back to settings.defaultAutoDeleteDuration when candidate has no autoDeleteDuration", async () => {
-      const { BackgroundImportService } =
-        await import("../../../src/services/background-import-service");
       const deps = makeDeps({ defaultAutoDeleteDuration: 14 });
       const service = new BackgroundImportService(deps);
 
@@ -145,8 +146,6 @@ describe("BackgroundImportService", () => {
     });
 
     it("falls back to settings.maxItems when candidate has no maxItemsLimit", async () => {
-      const { BackgroundImportService } =
-        await import("../../../src/services/background-import-service");
       const deps = makeDeps({ maxItems: 75 });
       const service = new BackgroundImportService(deps);
 
@@ -161,8 +160,6 @@ describe("BackgroundImportService", () => {
     });
 
     it("preserves an explicit Off scanInterval sentinel from the candidate", async () => {
-      const { BackgroundImportService } =
-        await import("../../../src/services/background-import-service");
       const deps = makeDeps();
       const service = new BackgroundImportService(deps);
 
@@ -178,8 +175,6 @@ describe("BackgroundImportService", () => {
     });
 
     it("preserves exclude-from-refresh from the candidate", async () => {
-      const { BackgroundImportService } =
-        await import("../../../src/services/background-import-service");
       const deps = makeDeps();
       const service = new BackgroundImportService(deps);
 
@@ -195,8 +190,6 @@ describe("BackgroundImportService", () => {
     });
 
     it("preserves an explicit article mediaType instead of relying on the default fallback", async () => {
-      const { BackgroundImportService } =
-        await import("../../../src/services/background-import-service");
       const deps = makeDeps();
       const service = new BackgroundImportService(deps);
 
@@ -217,8 +210,6 @@ describe("BackgroundImportService", () => {
     // feeds, on from there to Videos/Podcast) because an explicit "" folder
     // was treated the same as "no folder specified".
     it("keeps an explicit Root (empty-string) folder instead of defaulting to Uncategorized", async () => {
-      const { BackgroundImportService } =
-        await import("../../../src/services/background-import-service");
       const deps = makeDeps();
       const service = new BackgroundImportService(deps);
 
@@ -235,8 +226,6 @@ describe("BackgroundImportService", () => {
     });
 
     it("keeps an explicit Root (empty-string) folder for a video feed instead of defaulting to the Videos folder", async () => {
-      const { BackgroundImportService } =
-        await import("../../../src/services/background-import-service");
       const deps = makeDeps();
       const service = new BackgroundImportService(deps);
 
@@ -254,8 +243,6 @@ describe("BackgroundImportService", () => {
     });
 
     it("keeps an explicit Root (empty-string) folder for a podcast feed instead of defaulting to the Podcast folder", async () => {
-      const { BackgroundImportService } =
-        await import("../../../src/services/background-import-service");
       const deps = makeDeps();
       const service = new BackgroundImportService(deps);
 
@@ -275,8 +262,6 @@ describe("BackgroundImportService", () => {
 
   describe("parseFeedWithTimeout", () => {
     it("reports a successfully hydrated imported feed for post-import work", async () => {
-      const { BackgroundImportService } =
-        await import("../../../src/services/background-import-service");
       const onFeedImported = vi.fn();
       const importedFeed: Feed = {
         title: "Imported Feed",
@@ -334,8 +319,6 @@ describe("BackgroundImportService", () => {
     });
 
     it("does not retry timeout failures", async () => {
-      const { BackgroundImportService } =
-        await import("../../../src/services/background-import-service");
       const deps = makeDeps();
       const parsedFeed: Feed = {
         title: "Recovered Feed",
@@ -360,8 +343,6 @@ describe("BackgroundImportService", () => {
     });
 
     it("marks a feed as timed out after exhausting the hard timeout", async () => {
-      const { BackgroundImportService } =
-        await import("../../../src/services/background-import-service");
       const deps = makeDeps({
         feeds: [
           {
@@ -404,8 +385,6 @@ describe("BackgroundImportService", () => {
 
   describe("mergeBackgroundImportedFeed", () => {
     it("updates title, author, and items from parsedFeed when feed URL matches", async () => {
-      const { BackgroundImportService } =
-        await import("../../../src/services/background-import-service");
       const existingFeed: Feed = {
         title: "Old Title",
         url: "https://example.com/feed.xml",
@@ -459,8 +438,6 @@ describe("BackgroundImportService", () => {
     });
 
     it("is a no-op when the feed URL is not in settings.feeds", async () => {
-      const { BackgroundImportService } =
-        await import("../../../src/services/background-import-service");
       const deps = makeDeps();
       deps._settings.feeds = [];
       const service = new BackgroundImportService(deps);
@@ -493,8 +470,6 @@ describe("BackgroundImportService", () => {
 
   describe("updateBackgroundImportProgress", () => {
     it("updates the .import-statusbar-text span with current/total and feed title", async () => {
-      const { BackgroundImportService } =
-        await import("../../../src/services/background-import-service");
       const statusBarItem = createDiv();
       const textSpan = createSpan();
       textSpan.className = "import-statusbar-text";
@@ -520,8 +495,6 @@ describe("BackgroundImportService", () => {
 
   describe("processBackgroundImportFeed error handling", () => {
     it("logs a per-feed failure with the feed URL instead of throwing", async () => {
-      const { BackgroundImportService } =
-        await import("../../../src/services/background-import-service");
       const consoleErrorSpy = vi
         .spyOn(console, "error")
         .mockImplementation(() => {});
@@ -569,8 +542,6 @@ describe("BackgroundImportService", () => {
 
   describe("processBackgroundImportQueue", () => {
     it("calls onImportQueueDrained with the processed count instead of showing a Notice", async () => {
-      const { BackgroundImportService } =
-        await import("../../../src/services/background-import-service");
       const onImportQueueDrained = vi.fn();
       const feed: Feed = {
         title: "Feed",
@@ -602,8 +573,6 @@ describe("BackgroundImportService", () => {
     });
 
     it("does not call onImportQueueDrained when the run was cancelled", async () => {
-      const { BackgroundImportService } =
-        await import("../../../src/services/background-import-service");
       const onImportQueueDrained = vi.fn();
       const feed: Feed = {
         title: "Feed",
@@ -636,8 +605,6 @@ describe("BackgroundImportService", () => {
     });
 
     it("does not self-restart when the run owned and cancelled the global operation, even though endGlobalOperation resets the cancellation flag", async () => {
-      const { BackgroundImportService } =
-        await import("../../../src/services/background-import-service");
       const feed: Feed = {
         title: "Feed",
         url: "https://example.com/feed.xml",
@@ -688,8 +655,6 @@ describe("BackgroundImportService", () => {
       // "pending" forever — silently excluding them from every future global
       // refresh (main.ts's getRefreshableFeeds()) until the exact same feed
       // happened to be re-queued and this time drain without cancellation.
-      const { BackgroundImportService } =
-        await import("../../../src/services/background-import-service");
       const feedA: Feed = {
         title: "Feed A",
         url: "https://example.com/a.xml",
