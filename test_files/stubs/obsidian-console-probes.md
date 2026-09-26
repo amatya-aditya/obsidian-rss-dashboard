@@ -281,3 +281,65 @@ r.byTag = {
 };
 console.log(JSON.stringify(r, null, 1));
 ```
+
+## normalizePath
+
+**Not yet run.** `normalizePath` isn't a console global, so the contract
+expectations come from the 1.13.7 source audit (#372): `/` and `\` are both
+separators, runs of them collapse to one `/`, leading and trailing separators
+are trimmed, an empty path (or one of only slashes) becomes `/`, non-breaking
+spaces (U+00A0, U+202F) become spaces, and the result is NFC-normalized.
+
+Observed on 1.13.7 (Windows), indirectly: `fileManager.renameFile(f,
+"a//r3.md")` left `f.path` as `a/r3.md`.
+
+This probe reaches `normalizePath` through vault APIs. It only shows the
+normalization where the API applies it, so an input that comes back unchanged
+means that API doesn't normalize, not that `normalizePath` doesn't. Record the
+result of each line.
+
+```js
+await app.vault.createFolder("probe-np");
+const cases = [
+  ["probe-np//double.md", "probe-np/double.md"],
+  ["/probe-np/lead.md", "probe-np/lead.md"],
+  ["probe-np/trail.md/", "probe-np/trail.md"],
+  ["probe-np\\back.md", "probe-np/back.md"],
+  ["probe-np/nb sp.md", "probe-np/nb sp.md"],
+  ["probe-np/nnb sp.md", "probe-np/nnb sp.md"],
+  ["probe-np/café.md", "probe-np/café.md"],
+];
+for (const [input, expected] of cases) {
+  try {
+    const f = await app.vault.create(input, "x");
+    console.log(
+      JSON.stringify(input),
+      "created",
+      JSON.stringify(f.path),
+      f.path === expected ? "(normalized)" : "(not normalized)",
+    );
+  } catch (e) {
+    console.log(JSON.stringify(input), "threw", e.message);
+  }
+}
+for (const [input] of cases) {
+  console.log(
+    "lookup",
+    JSON.stringify(input),
+    "->",
+    JSON.stringify(app.vault.getAbstractFileByPath(input)?.path ?? null),
+  );
+}
+console.log(
+  "root lookups:",
+  JSON.stringify(app.vault.getAbstractFileByPath("")?.path ?? null),
+  JSON.stringify(app.vault.getAbstractFileByPath("/")?.path ?? null),
+);
+const target = app.vault
+  .getAllLoadedFiles()
+  .find((f) => f.path.startsWith("probe-np/") && f.name.endsWith(".md"));
+await app.fileManager.renameFile(target, "\\probe-np\\\\renamed café.md/");
+console.log("renamed to", JSON.stringify(target.path));
+// Expected if renameFile normalizes fully: "probe-np/renamed café.md".
+// Clean up: delete probe-np from the file explorer.
+```
