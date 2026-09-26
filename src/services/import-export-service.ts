@@ -21,12 +21,12 @@ import {
   type ImportKind,
   type ImportResult,
 } from "./import-confirmation-model";
+import { normalizeFolderPath } from "./feed-storage-repository";
 import {
-  normalizeFolderPath,
   parseFeedBundle,
   parsePortableDataBundle,
   parseSettingsBundle,
-} from "./feed-storage-repository";
+} from "./storage-bundle-parsers";
 
 export type {
   ImportConfirmation,

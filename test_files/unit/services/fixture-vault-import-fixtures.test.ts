@@ -7,7 +7,7 @@ import {
   parseFeedBundle,
   parsePortableDataBundle,
   parseSettingsBundle,
-} from "../../../src/services/feed-storage-repository";
+} from "../../../src/services/storage-bundle-parsers";
 import {
   ImportExportService,
   type ImportConfirmation,
