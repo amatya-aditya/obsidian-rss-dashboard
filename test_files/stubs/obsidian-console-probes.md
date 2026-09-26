@@ -459,3 +459,29 @@ console.log({
   getLeafLength: app.workspace.getLeaf.length,
 });
 ```
+
+## fileManager.trashFile on a folder
+
+Observed on 1.13.7 (Windows): after `fileManager.trashFile(folder)` where the
+folder holds `c.md`, the folder and the child are gone from the vault index,
+and `adapter.exists` reports the child gone on disk. Not probed: descendants
+nested more than one level down, and `adapter.exists` for the folder itself.
+
+```js
+const V = app.vault;
+const A = V.adapter;
+const root = "probe-trash";
+if (await A.exists(root)) await A.rmdir(root, true);
+await V.createFolder(`${root}/tf`);
+await V.create(`${root}/tf/c.md`, "c");
+await app.fileManager.trashFile(V.getAbstractFileByPath(`${root}/tf`));
+await new Promise((r) => setTimeout(r, 300));
+console.log({
+  folder: !!V.getAbstractFileByPath(`${root}/tf`),
+  child: !!V.getAbstractFileByPath(`${root}/tf/c.md`),
+  childOnDisk: await A.exists(`${root}/tf/c.md`),
+});
+// Observed: { folder: false, child: false, childOnDisk: false }
+// Clean up: await A.rmdir(root, true); then empty the trashed folder from
+// the system trash or the vault's .trash folder.
+```

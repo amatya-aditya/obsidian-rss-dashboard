@@ -16,6 +16,7 @@ import {
   Modal,
   Plugin,
   Scope,
+  TFolder,
   normalizePath,
   type WorkspaceLeaf,
   requestUrl,
@@ -781,6 +782,29 @@ describe("Obsidian stub contract: lifecycle and workspace", () => {
 
       expect(typeof app.workspace.revealLeaf).toBe("function");
       await expect(app.workspace.revealLeaf(leaf)).resolves.toBeUndefined();
+    });
+  });
+});
+
+describe("Obsidian stub contract: trashing a folder", () => {
+  describe("fileManager.trashFile on a folder", () => {
+    // Observed on Obsidian 1.13.7 desktop (Windows): after
+    // `fileManager.trashFile(folder)` where the folder holds `c.md`, the
+    // folder and the child are gone from the vault index, and the child is
+    // gone on disk (`adapter.exists` is false).
+    it("removes the folder and its child from the index and disk", async () => {
+      const app = new App();
+      const { vault } = app;
+      await vault.createFolder("probe/tf");
+      await vault.create("probe/tf/c.md", "c");
+      const folder = vault.getAbstractFileByPath("probe/tf");
+      if (!(folder instanceof TFolder)) throw new Error("folder not indexed");
+
+      await app.fileManager.trashFile(folder);
+
+      expect(vault.getAbstractFileByPath("probe/tf")).toBeNull();
+      expect(vault.getAbstractFileByPath("probe/tf/c.md")).toBeNull();
+      expect(await vault.adapter.exists("probe/tf/c.md")).toBe(false);
     });
   });
 });
