@@ -64,7 +64,14 @@ import {
   type RepairResult,
   ShardFolderDeletionError,
 } from "./src/services/feed-storage-repository";
-import { ImportExportService } from "./src/services/import-export-service";
+import {
+  ImportExportService,
+  type ImportConfirmation,
+  type ImportDecision,
+  type ImportKind,
+  type ImportResult,
+} from "./src/services/import-export-service";
+import { ImportConfirmationModal } from "./src/settings/modals/import-confirmation-modal";
 import type { ExportBlobResult } from "./src/utils/export-utils";
 import { BackgroundImportService } from "./src/services/background-import-service";
 import { FeedRefreshScheduler } from "./src/services/feed-refresh-scheduler";
@@ -411,6 +418,10 @@ export default class RssDashboardPlugin extends Plugin {
       importFeedBundle: (bundle) => this.applyFeedBundleImport(bundle),
       getSettingsBundle: () => this.getSettingsBundle(),
       importSettingsBundle: (bundle) => this.applySettingsBundleImport(bundle),
+      importUserPreferences: (preferences, kind) =>
+        this.applyUserPreferencesImport(preferences, kind),
+      confirmImport: (confirmation) => this.confirmImport(confirmation),
+      getUnloadedFeedCount: () => this.getUnloadedShardFeedCount(),
     });
     this.backupService = new BackupService({
       settings: this.settings,
@@ -1928,132 +1939,131 @@ export default class RssDashboardPlugin extends Plugin {
     input.onchange = () => {
       const file = input.files?.[0];
       if (!file) return;
-      void this.importUserSettingsJsonFromFile(file);
+      void this.importUserSettingsJsonFromFile(file).catch((error) => {
+        new Notice(
+          `Invalid rss-dashboard-user-preferences.json file${error instanceof Error ? `: ${error.message}` : ""}`,
+        );
+      });
     };
 
     input.click();
   }
 
-  public async importUserSettingsJsonFromFile(file: File): Promise<void> {
-    try {
-      const text = await file.text();
-      const parsed = JSON.parse(text) as Partial<RssDashboardSettings>;
-      if (!parsed || typeof parsed !== "object") {
-        throw new Error("Invalid rss-dashboard-user-preferences.json");
-      }
+  public async importUserSettingsJsonFromFile(file: File): Promise<ImportResult> {
+    const result =
+      await this.importExportService.importUserPreferencesFromFile(file);
+    if (result === "canceled") this.showImportCanceledNotice();
+    return result;
+  }
 
-      const parsedWithCollections = parsed as Partial<RssDashboardSettings> & {
-        feeds?: unknown;
-        folders?: unknown;
-        availableTags?: unknown;
-      };
-      const hasFeedCollections =
-        Array.isArray(parsedWithCollections.feeds) ||
-        Array.isArray(parsedWithCollections.folders) ||
-        Array.isArray(parsedWithCollections.availableTags);
+  private async applyUserPreferencesImport(
+    parsed: Partial<RssDashboardSettings>,
+    kind: ImportKind,
+  ): Promise<void> {
+    const parsedWithCollections = parsed as Partial<RssDashboardSettings> & {
+      feeds?: unknown;
+      folders?: unknown;
+      availableTags?: unknown;
+    };
 
-      if (hasFeedCollections) {
-        this.settings = Object.assign(
-          {},
-          DEFAULT_SETTINGS,
-          this.settings,
-          parsed,
-        );
-        // A file without a feed list keeps the current feeds, as it keeps
-        // the current folders and tags (issue #386).
-        const importedFeeds = parsedWithCollections.feeds;
-        const replacesFeedList = Array.isArray(importedFeeds);
-        if (replacesFeedList) {
-          this.settings.feeds = importedFeeds;
-        }
-        this.settings.folders = Array.isArray(parsedWithCollections.folders)
-          ? parsedWithCollections.folders
-          : this.settings.folders;
-        this.settings.availableTags = Array.isArray(
-          parsedWithCollections.availableTags,
-        )
-          ? parsedWithCollections.availableTags
-          : this.settings.availableTags;
-
-        this.migrateLegacySettings();
-        for (const feed of this.settings.feeds) {
-          if (!feed.keywordRules) {
-            feed.keywordRules = {
-              overrideGlobalRules: false,
-              includeLogic: "AND",
-              rules: [],
-            };
-            continue;
-          }
-          feed.keywordRules = Object.assign(
-            {},
-            {
-              overrideGlobalRules: false,
-              includeLogic: "AND",
-              rules: [],
-            },
-            feed.keywordRules,
-          );
-
-          // Migrate legacy feeds: apply default auto-delete and maxItems if not set
-          // This ensures feeds imported before the fix will respect the global defaults
-          if (typeof feed.autoDeleteDuration !== "number") {
-            feed.autoDeleteDuration = this.settings.defaultAutoDeleteDuration;
-          }
-          if (typeof feed.maxItemsLimit !== "number") {
-            feed.maxItemsLimit = this.settings.maxItems;
-          }
-        }
-
-        this.initializeSettingsBackedServices();
-        // When the imported file replaces the feed list, feeds it lacks keep
-        // their article state rather than counting as removed (issue #374).
-        await this.saveSettings({ replacesFeedList });
-        await this.refreshDashboardViews();
-        const discoverView = await this.getActiveDiscoverView();
-        discoverView?.render();
-
-        new Notice("Imported JSON with feeds and settings");
-        return;
-      }
-
-      const {
-        feeds: _feeds,
-        folders: _folders,
-        availableTags: _availableTags,
-        ...settingsOnly
-      } = parsed as Partial<RssDashboardSettings> & {
-        feeds?: unknown;
-        folders?: unknown;
-        availableTags?: unknown;
-      };
-      void _feeds;
-      void _folders;
-      void _availableTags;
-
+    if (kind === "replacing") {
       this.settings = Object.assign(
         {},
         DEFAULT_SETTINGS,
         this.settings,
-        settingsOnly,
+        parsed,
       );
+      // A file without a feed list keeps the current feeds, as it keeps
+      // the current folders and tags (issue #386).
+      const importedFeeds = parsedWithCollections.feeds;
+      const replacesFeedList = Array.isArray(importedFeeds);
+      if (replacesFeedList) {
+        this.settings.feeds = importedFeeds;
+      }
+      this.settings.folders = Array.isArray(parsedWithCollections.folders)
+        ? parsedWithCollections.folders
+        : this.settings.folders;
+      this.settings.availableTags = Array.isArray(
+        parsedWithCollections.availableTags,
+      )
+        ? parsedWithCollections.availableTags
+        : this.settings.availableTags;
 
-      // Keep legacy keys and nested defaults normalized after import.
       this.migrateLegacySettings();
+      for (const feed of this.settings.feeds) {
+        if (!feed.keywordRules) {
+          feed.keywordRules = {
+            overrideGlobalRules: false,
+            includeLogic: "AND",
+            rules: [],
+          };
+          continue;
+        }
+        feed.keywordRules = Object.assign(
+          {},
+          {
+            overrideGlobalRules: false,
+            includeLogic: "AND",
+            rules: [],
+          },
+          feed.keywordRules,
+        );
+
+        // Migrate legacy feeds: apply default auto-delete and maxItems if not set
+        // This ensures feeds imported before the fix will respect the global defaults
+        if (typeof feed.autoDeleteDuration !== "number") {
+          feed.autoDeleteDuration = this.settings.defaultAutoDeleteDuration;
+        }
+        if (typeof feed.maxItemsLimit !== "number") {
+          feed.maxItemsLimit = this.settings.maxItems;
+        }
+      }
 
       this.initializeSettingsBackedServices();
-      await this.saveSettings();
+      // When the imported file replaces the feed list, feeds it lacks keep
+      // their article state rather than counting as removed (issue #374).
+      await this.saveSettings({ replacesFeedList });
       await this.refreshDashboardViews();
       const discoverView = await this.getActiveDiscoverView();
       discoverView?.render();
 
-      new Notice("Imported rss-dashboard-user-preferences.json");
-    } catch (error) {
-      new Notice(
-        `Invalid rss-dashboard-user-preferences.json file${error instanceof Error ? `: ${error.message}` : ""}`,
-      );
+      new Notice("Imported JSON with feeds and settings");
+      return;
     }
+
+    const {
+      feeds: _feeds,
+      folders: _folders,
+      availableTags: _availableTags,
+      ...settingsOnly
+    } = parsed as Partial<RssDashboardSettings> & {
+      feeds?: unknown;
+      folders?: unknown;
+      availableTags?: unknown;
+    };
+    void _feeds;
+    void _folders;
+    void _availableTags;
+
+    this.settings = Object.assign(
+      {},
+      DEFAULT_SETTINGS,
+      this.settings,
+      settingsOnly,
+    );
+
+    // Keep legacy keys and nested defaults normalized after import.
+    this.migrateLegacySettings();
+
+    this.initializeSettingsBackedServices();
+    await this.saveSettings();
+    await this.refreshDashboardViews();
+    const discoverView = await this.getActiveDiscoverView();
+    discoverView?.render();
+
+    new Notice("Imported rss-dashboard-user-preferences.json");
   }
+
 
   // ✅ ImportExportService extracted — delegates to service
   public getUserSettingsJson(): string {
@@ -2182,6 +2192,27 @@ export default class RssDashboardPlugin extends Plugin {
   }
 
   /**
+   * Ask the user to confirm a Replacing or Overwriting import (issue #377).
+   * The dialog's backup action exports a full Portable data bundle, the only
+   * format that also covers article state and storage configuration.
+   */
+  private confirmImport(
+    confirmation: ImportConfirmation,
+  ): Promise<ImportDecision> {
+    const modal = new ImportConfirmationModal(this.app, {
+      confirmation,
+      exportBackup: () => this.exportPortableDataBundle(),
+    });
+    const decision = modal.waitForClose();
+    modal.open();
+    return decision;
+  }
+
+  private showImportCanceledNotice(): void {
+    new Notice("Import canceled. Nothing was changed.");
+  }
+
+  /**
    * Show a Notice reflecting the outcome of an export attempt. Export
    * services return their result rather than notifying directly; this is the
    * caller-side translation into user-facing feedback.
@@ -2236,9 +2267,14 @@ export default class RssDashboardPlugin extends Plugin {
     this.showExportNotice(result, "rss-dashboard-portable-bundle.json");
   }
 
-  public async importPortableDataBundleFromFile(file: File): Promise<void> {
-    await this.importExportService.importPortableDataBundleFromFile(file);
-    new Notice("Portable data bundle imported");
+  public async importPortableDataBundleFromFile(file: File): Promise<ImportResult> {
+    const result = await this.importExportService.importPortableDataBundleFromFile(file);
+    if (result === "canceled") {
+      this.showImportCanceledNotice();
+    } else {
+      new Notice("Portable data bundle imported");
+    }
+    return result;
   }
 
   public async exportFeedBundle(): Promise<void> {
@@ -2246,9 +2282,14 @@ export default class RssDashboardPlugin extends Plugin {
     this.showExportNotice(result, "rss-dashboard-feed-bundle.json");
   }
 
-  public async importFeedBundleFromFile(file: File): Promise<void> {
-    await this.importExportService.importFeedBundleFromFile(file);
-    new Notice("Feed bundle imported");
+  public async importFeedBundleFromFile(file: File): Promise<ImportResult> {
+    const result = await this.importExportService.importFeedBundleFromFile(file);
+    if (result === "canceled") {
+      this.showImportCanceledNotice();
+    } else {
+      new Notice("Feed bundle imported");
+    }
+    return result;
   }
 
   public async exportSettingsBundle(): Promise<void> {
@@ -2256,9 +2297,14 @@ export default class RssDashboardPlugin extends Plugin {
     this.showExportNotice(result, "rss-dashboard-settings-bundle.json");
   }
 
-  public async importSettingsBundleFromFile(file: File): Promise<void> {
-    await this.importExportService.importSettingsBundleFromFile(file);
-    new Notice("Settings bundle imported");
+  public async importSettingsBundleFromFile(file: File): Promise<ImportResult> {
+    const result = await this.importExportService.importSettingsBundleFromFile(file);
+    if (result === "canceled") {
+      this.showImportCanceledNotice();
+    } else {
+      new Notice("Settings bundle imported");
+    }
+    return result;
   }
 
   exportOpml(): void {

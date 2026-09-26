@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App, type PluginManifest } from "obsidian";
 
 vi.mock("../../../src/modals/whats-new-modal", () => ({
@@ -56,6 +56,10 @@ describe("importing a preferences file that carries feeds (issue #374)", () => {
   function adapter(): VaultAdapterStub {
     return app.vault.adapter as unknown as VaultAdapterStub;
   }
+
+  afterEach(() => {
+    document.body.replaceChildren();
+  });
 
   beforeEach(async () => {
     vi.restoreAllMocks();
@@ -130,7 +134,10 @@ describe("importing a preferences file that carries feeds (issue #374)", () => {
       [JSON.stringify({ feeds: [persistedFeed("feed-kept")] })],
       "rss-dashboard-user-preferences.json",
     );
-    await plugin.importUserSettingsJsonFromFile(file);
+    installObsidianDomPolyfills();
+    const result = plugin.importUserSettingsJsonFromFile(file);
+    (await findDialogButton("Replace")).click();
+    await expect(result).resolves.toBe("committed");
 
     expect(plugin.settings.feeds.map((feed) => feed.feedId)).toEqual([
       "feed-kept",
@@ -153,7 +160,10 @@ describe("importing a preferences file that carries feeds (issue #374)", () => {
         [JSON.stringify({ refreshInterval: 45, ...collections })],
         "rss-dashboard-user-preferences.json",
       );
-      await plugin.importUserSettingsJsonFromFile(file);
+      installObsidianDomPolyfills();
+      const result = plugin.importUserSettingsJsonFromFile(file);
+      (await findDialogButton("Replace")).click();
+      await expect(result).resolves.toBe("committed");
 
       expect(plugin.settings.refreshInterval).toBe(45);
       expect(plugin.settings.feeds.map((feed) => feed.feedId)).toEqual([
@@ -216,4 +226,42 @@ describe("importing a preferences file that carries feeds (issue #374)", () => {
       true,
     );
   });
+
+  it("changes nothing when the user cancels the import confirmation (issue #377)", async () => {
+    installObsidianDomPolyfills();
+    const noticeSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
+    const userStateBefore = await adapter().read(userStatePath);
+    const file = new File(
+      [JSON.stringify({ feeds: [persistedFeed("feed-kept")] })],
+      "rss-dashboard-user-preferences.json",
+    );
+
+    const result = plugin.importUserSettingsJsonFromFile(file);
+    (await findDialogButton("Cancel")).click();
+
+    await expect(result).resolves.toBe("canceled");
+    expect(plugin.settings.feeds.map((feed) => feed.feedId)).toEqual([
+      "feed-kept",
+      "feed-left-out",
+    ]);
+    expect(plugin.saveData).not.toHaveBeenCalled();
+    expect(await adapter().read(userStatePath)).toBe(userStateBefore);
+    expect(noticeSpy).toHaveBeenCalledWith(
+      "[Stub Notice]",
+      "Import canceled. Nothing was changed.",
+    );
+    noticeSpy.mockRestore();
+  });
 });
+
+async function findDialogButton(label: string): Promise<HTMLButtonElement> {
+  let found: HTMLButtonElement | undefined;
+  await vi.waitFor(() => {
+    found = Array.from(
+      document.querySelectorAll<HTMLButtonElement>("button"),
+    ).find((button) => button.textContent?.trim() === label);
+    expect(found).toBeDefined();
+  });
+  if (!found) throw new Error(`No "${label}" button`);
+  return found;
+}

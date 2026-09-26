@@ -183,7 +183,8 @@ export function renderImportExportSettingsTab(
               const file = input.files?.[0];
               if (!file) return;
               try {
-                await plugin.importPortableDataBundleFromFile(file);
+                const result = await plugin.importPortableDataBundleFromFile(file);
+                if (result !== "committed") return;
                 new ImportSuccessModal(
                   plugin.app,
                   "Shard data imported successfully!",
@@ -240,7 +241,8 @@ export function renderImportExportSettingsTab(
               const file = input.files?.[0];
               if (!file) return;
               try {
-                await plugin.importFeedBundleFromFile(file);
+                const result = await plugin.importFeedBundleFromFile(file);
+                if (result !== "committed") return;
                 new ImportSuccessModal(
                   plugin.app,
                   "Feed bundle imported successfully!",
@@ -299,7 +301,8 @@ export function renderImportExportSettingsTab(
               const file = input.files?.[0];
               if (!file) return;
               try {
-                await plugin.importSettingsBundleFromFile(file);
+                const result = await plugin.importSettingsBundleFromFile(file);
+                if (result !== "committed") return;
                 new ImportSuccessModal(
                   plugin.app,
                   "Settings bundle imported successfully!",
@@ -356,7 +359,8 @@ export function renderImportExportSettingsTab(
               const file = input.files?.[0];
               if (!file) return;
               try {
-                await plugin.importUserSettingsJsonFromFile(file);
+                const result = await plugin.importUserSettingsJsonFromFile(file);
+                if (result !== "committed") return;
                 new ImportSuccessModal(
                   plugin.app,
                   "User preferences imported successfully!",

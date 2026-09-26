@@ -11,6 +11,7 @@ import {
   normalizePath,
   type WorkspaceLeaf,
 } from "obsidian";
+import type { ImportResult } from "../../services/import-export-service";
 import { FolderSuggest } from "../../components/folder-suggest";
 import { setCssProps } from "../../utils/platform-utils";
 import { trashVaultFile, vaultFileExists } from "../../utils/vault-files";
@@ -51,11 +52,11 @@ interface StorageSettingsPlugin {
   getUnloadedShardFeedCount(): number;
   previewRepairVaultStorage(): Promise<RepairPreview>;
   repairVaultStorage(): Promise<RepairResult>;
-  importPortableDataBundleFromFile(file: File): Promise<void>;
+  importPortableDataBundleFromFile(file: File): Promise<ImportResult>;
   exportPortableDataBundle(): Promise<void>;
-  importFeedBundleFromFile(file: File): Promise<void>;
+  importFeedBundleFromFile(file: File): Promise<ImportResult>;
   exportFeedBundle(): Promise<void>;
-  importSettingsBundleFromFile(file: File): Promise<void>;
+  importSettingsBundleFromFile(file: File): Promise<ImportResult>;
   exportSettingsBundle(): Promise<void>;
   exportDataJson(): Promise<void>;
   revertToLegacyJsonStorageWithOptions(options?: {

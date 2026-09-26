@@ -24,6 +24,7 @@ import {
   ApplyMaxItemsToExistingFeedsModal,
   RetentionChangeConfirmModal,
 } from "../modals/settings-modals";
+import type { ImportResult } from "../../services/import-export-service";
 import type { RssDashboardSettings } from "../../types/types";
 import { PREDEFINED_PROXIES } from "../../utils/proxy-utils";
 
@@ -36,7 +37,7 @@ export interface GeneralSettingsPlugin {
     leaf: WorkspaceLeaf;
     render(): void;
   } | null>;
-  importPortableDataBundleFromFile(file: File): Promise<void>;
+  importPortableDataBundleFromFile(file: File): Promise<ImportResult>;
   exportPortableDataBundle(): Promise<void>;
   applyFeedLimitsToAllFeeds(): Promise<void>;
   refreshFeeds(): Promise<void>;
