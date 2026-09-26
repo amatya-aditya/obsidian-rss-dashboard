@@ -13,6 +13,9 @@ class MockLeaf {
   }
 }
 
+// MathJax's custom element is not in the DOM lib's tag map; the stub uses the same cast.
+const MATHJAX_TAG = "mjx-container" as keyof HTMLElementTagNameMap;
+
 type ReaderViewInternals = {
   contentEl: HTMLElement;
   readingContainer: HTMLElement;
@@ -53,7 +56,7 @@ describe("ReaderView math copy", () => {
     const formula = createSpan();
     formula.className = "math math-inline";
     formula.setAttribute("data-math", "$x$");
-    formula.appendChild(createEl("mjx-container"));
+    formula.appendChild(createEl(MATHJAX_TAG));
     paragraph.append("Copy ", formula, ".");
     readerRoot.appendChild(paragraph);
     const range = document.createRange();
@@ -81,7 +84,7 @@ describe("ReaderView math copy", () => {
     const formula = createSpan();
     formula.className = "math math-inline";
     formula.setAttribute("data-math", "$x$");
-    formula.appendChild(createEl("mjx-container"));
+    formula.appendChild(createEl(MATHJAX_TAG));
     readerRoot.appendChild(formula);
 
     const range = document.createRange();

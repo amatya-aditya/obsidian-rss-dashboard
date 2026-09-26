@@ -257,13 +257,15 @@ describe("ImageCacheService", () => {
 
   it("does not write a response that completes after pending writes are cancelled", async () => {
     const adapter = createAdapter();
-    let resolveFetch: ((response: ImageCacheFetchResponse) => void) | null = null;
+    const fetchControl: {
+      resolve?: (response: ImageCacheFetchResponse) => void;
+    } = {};
     const cache = new ImageCacheService({
       adapter,
       cacheRoot: "config/plugins/rss-dashboard/image-cache",
       fetchImage: () =>
         new Promise<ImageCacheFetchResponse>((resolve) => {
-          resolveFetch = resolve;
+          fetchControl.resolve = resolve;
         }),
       now: () => 100,
     });
@@ -271,7 +273,7 @@ describe("ImageCacheService", () => {
     await cache.initialize();
     const pending = cache.cacheUrl("https://example.com/cover.jpg");
     cache.cancelPendingWrites();
-    resolveFetch?.(jpegResponse());
+    fetchControl.resolve?.(jpegResponse());
 
     await expect(pending).resolves.toBe(false);
     expect(cache.getSizeBytes()).toBe(0);

@@ -87,10 +87,6 @@ export function createWebViewerIntegrationHarness(
 } {
   installObsidianDomPolyfills();
 
-  const app = new App() as App & {
-    plugins: { plugins: Record<string, unknown> };
-  };
-
   const webViewerPlugin: WebViewerPluginStub | null =
     overrides.webViewerPlugin === undefined
       ? {
@@ -101,11 +97,10 @@ export function createWebViewerIntegrationHarness(
     }
       : overrides.webViewerPlugin;
 
-  app.plugins = {
-    plugins: {
-      ...(webViewerPlugin ? { "webpage-html-export": webViewerPlugin } : {}),
-    },
-  };
+  const plugins: Record<string, unknown> = webViewerPlugin
+    ? { "webpage-html-export": webViewerPlugin }
+    : {};
+  const app = Object.assign(new App(), { plugins: { plugins } });
 
   const settings = cloneDefaultSettings();
   if (overrides.settings) {

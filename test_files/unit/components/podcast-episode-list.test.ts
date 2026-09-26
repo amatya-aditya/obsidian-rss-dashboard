@@ -15,6 +15,7 @@ function episode(index: number): FeedItem {
     tags: [],
     feedTitle: "AI Data",
     feedUrl: "https://example.com/feed.xml",
+    coverImage: "",
     mediaType: "podcast",
   };
 }

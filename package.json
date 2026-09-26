@@ -9,7 +9,7 @@
     "check:css-scope": "node scripts/check-css-scope.js",
     "check:platform": "node scripts/check-platform-compat.mjs",
     "check:important": "node scripts/check-css-important.mjs",
-    "check:test-types": "node scripts/check-test-types.mjs",
+    "check:test-types": "tsc -noEmit -skipLibCheck -incremental -tsBuildInfoFile node_modules/.cache/tsc/tests.tsbuildinfo -p test_files/tsconfig.json",
     "check:compliance": "npm run check:css-scope && npm run check:platform && npm run check:important && npm run check:commit-message && npm run check:release-compatibility && npm run check:pre-release && npm run check:doc-links",
     "check:commit-message": "node scripts/check-commit-message.mjs",
     "check:release-compatibility": "node scripts/check-release-compatibility.mjs",

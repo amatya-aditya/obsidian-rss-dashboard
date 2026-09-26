@@ -12,6 +12,7 @@ function manifest(): PluginManifest {
     id: "rss-dashboard",
     name: "RSS Dashboard",
     version: "2.7.0",
+    minAppVersion: "1.8.7",
     author: "test",
     description: "test",
     dir: PLUGIN_DIR,

@@ -8,6 +8,11 @@ import {
 import * as fetchHelpers from "../../../src/utils/fetch-helpers";
 import { RESTRICTED_ARTICLE_REASON } from "../../../src/utils/full-article-fetch";
 
+// The real `obsidian` types `moment` as the moment namespace, which is not
+// callable; production code casts it the same way.
+type MomentFactory = (input?: Date) => { format: (fmt: string) => string };
+const callMoment = moment as unknown as MomentFactory;
+
 function createSettings(
   overrides: Partial<ArticleSavingSettings> = {},
 ): ArticleSavingSettings {
@@ -573,8 +578,8 @@ describe("ArticleSaver.replaceDatePlaceholders", () => {
       saver as unknown as PrivateSaverAPI
     ).replaceDatePlaceholders(input, date);
 
-    const expectedDate = moment(date).format("YYYY/MM/DD");
-    const expectedTime = moment(date).format("HH:mm");
+    const expectedDate = callMoment(date).format("YYYY/MM/DD");
+    const expectedTime = callMoment(date).format("HH:mm");
     expect(result).toBe(`Custom: ${expectedDate} Time: ${expectedTime}`);
   });
 
@@ -589,7 +594,7 @@ describe("ArticleSaver.replaceDatePlaceholders", () => {
       saver as unknown as PrivateSaverAPI
     ).replaceDatePlaceholders(input, date);
 
-    const expected = moment(date).format("dddd, MMMM Do YYYY");
+    const expected = callMoment(date).format("dddd, MMMM Do YYYY");
     expect(result).toBe(expected);
   });
 

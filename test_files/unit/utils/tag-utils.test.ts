@@ -124,7 +124,7 @@ describe("tag-utils.showEditTagModal", () => {
 
     expect(onSave).toHaveBeenCalledTimes(1);
     expect(settings.availableTags[0].name).toBe("Technology");
-    expect(settings.feeds[0].items[0].tags[0].name).toBe("Technology");
+    expect(settings.feeds[0].items[0].tags?.[0].name).toBe("Technology");
     expect(document.querySelector(".rss-dashboard-modal")).toBeNull();
     expect(consoleSpy).toHaveBeenCalledWith(
       "[Stub Notice]",

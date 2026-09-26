@@ -1,16 +1,18 @@
 import { describe, expect, it } from "vitest";
+import type { App } from "obsidian";
 import {
   loadVaultLocalStorage,
   saveVaultLocalStorage,
 } from "../../../src/utils/vault-local-storage";
 
-function createApp(overrides: Record<string, unknown> = {}) {
+/** Minimal fake: only the surface `vault-local-storage` reads. */
+function createApp(overrides: Record<string, unknown> = {}): App {
   return {
     vault: {
       getName: () => "compatibility-test-vault",
     },
     ...overrides,
-  };
+  } as unknown as App;
 }
 
 describe("vault local-storage compatibility", () => {

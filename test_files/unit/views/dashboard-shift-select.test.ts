@@ -68,7 +68,6 @@ describe("Dashboard Shift+Click Range Select", () => {
     const view = new RssDashboardView(leaf, plugin);
 
     // Simulate setting initial anchor
-    // @ts-expect-error accessing private field for white-box test
     (view as unknown as { lastClickAnchorKey: string | null }).lastClickAnchorKey = "folder:A";
 
     const visibleKeys = [
@@ -82,7 +81,6 @@ describe("Dashboard Shift+Click Range Select", () => {
     ];
 
     // Simulate shift-click on feed B2
-    // @ts-expect-error accessing private method for white-box test
     (view as unknown as { handleSidebarRangeSelect: (key: string, keys: string[]) => void }).handleSidebarRangeSelect("feed:https://feed.B2", visibleKeys);
 
     // Folder A should be selected (all its feeds are in range)

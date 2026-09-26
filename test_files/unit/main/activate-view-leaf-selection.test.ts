@@ -14,7 +14,7 @@
  */
 import { describe, it, expect, beforeEach, vi, type Mock } from "vitest";
 import type { RssDashboardSettings } from "../../../src/types/types";
-import { App, PluginManifest } from "obsidian";
+import { App, type MockApp, PluginManifest } from "obsidian";
 import type { FolderService } from "../../../src/services/folder-service";
 
 // ─── Module mocks (must precede the main.ts import) ──────────────────────────
@@ -50,14 +50,15 @@ import RssDashboardPlugin from "../../../main";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-const MANIFEST = {
+const MANIFEST: PluginManifest = {
   id: "rss-dashboard",
   name: "RSS Dashboard",
   version: "1.0.0",
+  minAppVersion: "1.8.7",
   author: "Test",
   description: "Test",
   dir: ".",
-} as unknown as PluginManifest;
+};
 
 /** Typed interface for the mocked App workspace surface */
 interface TestAppWorkspace {
@@ -69,12 +70,12 @@ interface TestAppWorkspace {
 }
 
 /** Typed interface for the mocked App surface */
-interface TestApp extends App {
-  workspace: TestAppWorkspace & App["workspace"];
-}
+type TestApp = MockApp & {
+  workspace: TestAppWorkspace & MockApp["workspace"];
+};
 
 /** Typed interface for the plugin surface under test */
-interface TestPlugin extends Partial<RssDashboardPlugin> {
+interface TestPlugin {
   settings: RssDashboardSettings;
   folderService: FolderService;
   loadData: Mock<() => Promise<any>>;
