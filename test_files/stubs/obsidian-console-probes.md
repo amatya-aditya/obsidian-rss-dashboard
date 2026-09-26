@@ -369,3 +369,93 @@ try {
   console.log("vault.read threw", e.code, e.message);
 }
 ```
+
+## Component lifecycle
+
+Observed on 1.13.7 (Windows): a `register` callback runs on `unload()`, and
+`unload()` removes a `registerDomEvent` listener (1 click counted before
+unload, none after). `addChild` on a loaded parent loads the child at once,
+and the parent's `unload()` unloads it (its `onunload` runs, `_loaded` is
+`false`). `addChild` on an unloaded parent doesn't load the child; the
+parent's later `load()` does.
+
+`Component` isn't a console global. Reach it as the base class of a plugin
+instance: the prototype that owns `load`, `unload`, `register`,
+`registerDomEvent`, and `addChild`.
+
+```js
+const findCtor = (o, needs) => {
+  let p = Object.getPrototypeOf(o);
+  while (p && p !== Object.prototype) {
+    const own = Object.getOwnPropertyNames(p);
+    if (needs.every((n) => own.includes(n))) return p.constructor;
+    p = Object.getPrototypeOf(p);
+  }
+  return null;
+};
+const Component = findCtor(Object.values(app.plugins.plugins)[0], [
+  "load",
+  "unload",
+  "register",
+  "registerDomEvent",
+  "addChild",
+]);
+
+const log = [];
+const c = new Component();
+c.load();
+c.register(() => log.push("register cb ran"));
+const el = createDiv();
+document.body.appendChild(el);
+let clicks = 0;
+c.registerDomEvent(el, "click", () => clicks++);
+el.click();
+c.unload();
+el.click();
+el.remove();
+
+const child = new Component();
+child.onunload = () => log.push("child onunload");
+const parent = new Component();
+parent.load();
+parent.addChild(child);
+const loadedAfterAdd = child._loaded;
+parent.unload();
+
+const late = new Component();
+const idle = new Component();
+idle.addChild(late);
+const lateBeforeLoad = late._loaded;
+idle.load();
+console.log({
+  log,
+  clicks,
+  loadedAfterAdd,
+  loadedAfterParentUnload: child._loaded,
+  lateBeforeLoad,
+  lateAfterLoad: late._loaded,
+});
+```
+
+## Workspace leaves by type
+
+Observed on 1.13.7 (Windows), with rss-dashboard-view, file-explorer, and
+backlink leaves open: `getLeavesOfType` returned 0 leaves for `"markdown"` and
+for an unknown type, so it filters by view type.
+`revealLeaf` is a function, and `getLeaf.length` is 2.
+`openViewTypes` lists the open leaves as a check; it was added after the
+recorded run.
+
+```js
+console.log({
+  unknownType: app.workspace.getLeavesOfType("definitely-not-a-view").length,
+  markdown: app.workspace.getLeavesOfType("markdown").length,
+  openViewTypes: (() => {
+    const types = [];
+    app.workspace.iterateAllLeaves((l) => types.push(l.view.getViewType()));
+    return types;
+  })(),
+  revealLeaf: typeof app.workspace.revealLeaf,
+  getLeafLength: app.workspace.getLeaf.length,
+});
+```

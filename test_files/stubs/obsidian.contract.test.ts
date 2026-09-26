@@ -11,9 +11,13 @@
 import { afterEach, describe, expect, it } from "vitest";
 import {
   App,
+  Component,
+  ItemView,
   Modal,
+  Plugin,
   Scope,
   normalizePath,
+  type WorkspaceLeaf,
   requestUrl,
   setRequestUrlHandler,
 } from "obsidian";
@@ -607,6 +611,176 @@ describe("Obsidian stub contract: vault reads", () => {
       expect((error as Error).message).toMatch(
         /^ENOENT: no such file or directory, open '.*probe-read\.md'$/,
       );
+    });
+  });
+});
+
+describe("Obsidian stub contract: lifecycle and workspace", () => {
+  describe("component lifecycle", () => {
+    /** Counts `onload` and `onunload` calls, the observable signs of loading. */
+    const trackLifecycle = (
+      component: Component,
+    ): { loads: number; unloads: number } => {
+      const counts = { loads: 0, unloads: 0 };
+      component.onload = () => {
+        counts.loads++;
+      };
+      component.onunload = () => {
+        counts.unloads++;
+      };
+      return counts;
+    };
+
+    // Observed on Obsidian 1.13.7 desktop (Windows): a callback passed to
+    // `register` runs when the component unloads.
+    it("runs registered callbacks on unload", () => {
+      const component = new Component();
+      component.load();
+      let ran = 0;
+      component.register(() => {
+        ran++;
+      });
+
+      expect(ran).toBe(0);
+      component.unload();
+      expect(ran).toBe(1);
+    });
+
+    // Observed on Obsidian 1.13.7 desktop (Windows): a `registerDomEvent`
+    // listener fires before `unload()` and is removed by it (1 click counted
+    // before unload, none after).
+    it("removes registered DOM listeners on unload", () => {
+      const component = new Component();
+      component.load();
+      const el = createDiv();
+      let clicks = 0;
+      component.registerDomEvent(el, "click", () => {
+        clicks++;
+      });
+
+      el.click();
+      component.unload();
+      el.click();
+
+      expect(clicks).toBe(1);
+    });
+
+    // Observed on Obsidian 1.13.7 desktop (Windows): `addChild` on a loaded
+    // parent loads the child immediately, and the parent's `unload()` unloads
+    // the child (its `onunload` runs).
+    it("loads a child added to a loaded parent and unloads it with the parent", () => {
+      const parent = new Component();
+      parent.load();
+      const child = new Component();
+      const counts = trackLifecycle(child);
+
+      parent.addChild(child);
+      expect(counts).toEqual({ loads: 1, unloads: 0 });
+
+      parent.unload();
+      expect(counts).toEqual({ loads: 1, unloads: 1 });
+    });
+
+    // Observed on Obsidian 1.13.7 desktop (Windows): `addChild` on an unloaded
+    // parent does not load the child; the parent's later `load()` does.
+    it("defers loading a child added to an unloaded parent until the parent loads", () => {
+      const parent = new Component();
+      const child = new Component();
+      const counts = trackLifecycle(child);
+
+      parent.addChild(child);
+      expect(counts.loads).toBe(0);
+
+      parent.load();
+      expect(counts.loads).toBe(1);
+    });
+
+    // Observed on Obsidian 1.13.7 desktop (Windows): the probe reached
+    // `Component` as the base class of a plugin instance, so a plugin gets the
+    // same unload cleanup.
+    it("gives plugins the component unload cleanup", () => {
+      class ProbePlugin extends Plugin {}
+      const plugin = new ProbePlugin(new App(), {
+        id: "probe",
+        name: "Probe",
+        version: "0.0.0",
+        minAppVersion: "1.0.0",
+        author: "probe",
+        description: "",
+      });
+      plugin.load();
+      let ran = 0;
+      plugin.register(() => {
+        ran++;
+      });
+
+      plugin.unload();
+
+      expect(ran).toBe(1);
+    });
+
+    // Not probed: views extend `Component` in the API typings
+    // (`ItemView extends View extends Component`), so they share its cleanup.
+    it("gives views the component unload cleanup", () => {
+      class ProbeView extends ItemView {
+        getViewType(): string {
+          return "probe-view";
+        }
+        getDisplayText(): string {
+          return "Probe";
+        }
+      }
+      const leaf = { app: new App() } as unknown as WorkspaceLeaf;
+      const view = new ProbeView(leaf);
+      view.load();
+      const el = createDiv();
+      let clicks = 0;
+      view.registerDomEvent(el, "click", () => {
+        clicks++;
+      });
+
+      view.unload();
+      el.click();
+
+      expect(clicks).toBe(0);
+    });
+  });
+
+  describe("workspace leaves", () => {
+    /** A leaf the workspace tracks, showing a view of the given type. */
+    const openLeaf = (app: App, viewType: string): WorkspaceLeaf => {
+      const leaf = app.workspace.getLeaf("tab");
+      leaf.view = { getViewType: () => viewType } as unknown as ItemView;
+      return leaf;
+    };
+
+    // Observed on Obsidian 1.13.7 desktop (Windows): `getLeavesOfType`
+    // returns only leaves showing a view of that type. It returned 0 leaves
+    // for "markdown" and for an unknown type while rss-dashboard-view,
+    // file-explorer and backlink leaves were open.
+    it("returns only leaves whose view has the requested type", () => {
+      const app = new App();
+      const dashboard = openLeaf(app, "rss-dashboard-view");
+      openLeaf(app, "file-explorer");
+      openLeaf(app, "backlink");
+
+      expect(app.workspace.getLeavesOfType("markdown")).toEqual([]);
+      expect(app.workspace.getLeavesOfType("definitely-not-a-view")).toEqual(
+        [],
+      );
+      expect(app.workspace.getLeavesOfType("rss-dashboard-view")).toEqual([
+        dashboard,
+      ]);
+    });
+
+    // Observed on Obsidian 1.13.7 desktop (Windows): `revealLeaf` is a
+    // function. Its Promise<void> return comes from the API typings.
+    it("has revealLeaf, which resolves", async () => {
+      const app = new App();
+      const leaf = openLeaf(app, "rss-dashboard-view");
+
+      expect(typeof app.workspace.revealLeaf).toBe("function");
+      await expect(app.workspace.revealLeaf(leaf)).resolves.toBeUndefined();
     });
   });
 });
