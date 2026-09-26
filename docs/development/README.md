@@ -8,6 +8,7 @@ Internal developer documentation for the RSS Dashboard plugin.
 - [Compliance Patterns and Audit Guardrails](./compliance-patterns.md)
 - [Feed Data Lifecycle](./data-flow.md)
 - [Feed Validation](./feed-validation.md)
+- [Fixture Vault for Manual Testing](./fixture-vault.md)
 - [Obsidian Settings Reference](./obsidian-settings-reference.md)
 - [Release Notes Workflow](./release-notes-workflow.md)
 - [Starred State and Tags](./starred-state-and-tags.md)
