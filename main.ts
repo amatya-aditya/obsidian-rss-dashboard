@@ -2614,10 +2614,6 @@ export default class RssDashboardPlugin extends Plugin {
     }
   }
 
-  private folderPathExists(folderPath: string): boolean {
-    return this.folderService.folderPathExists(folderPath);
-  }
-
   private async repairMissingFolderPathsForFeeds(): Promise<void> {
     if (!this.folderService) return; // guard: service not yet initialized during first loadSettings()
     // ✅ FolderService extracted — delegates to service
@@ -2800,33 +2796,6 @@ export default class RssDashboardPlugin extends Plugin {
         );
       }
       return false;
-    }
-  }
-
-  async addYouTubeFeed(input: string, customTitle?: string) {
-    try {
-      const feedUrl = await MediaService.getYouTubeRssFeed(input);
-
-      if (!feedUrl) {
-        new Notice("Unable to determine YouTube feed URL from input");
-        return;
-      }
-
-      if (this.settings.feeds.some((f) => f.url === feedUrl)) {
-        new Notice("This YouTube feed already exists");
-        return;
-      }
-
-      const title = customTitle || `YouTube: ${input}`;
-      await this.addFeed(
-        title,
-        feedUrl,
-        this.settings.media.defaultYouTubeFolder,
-      );
-    } catch (error) {
-      new Notice(
-        `Error adding YouTube feed: ${error instanceof Error ? error.message : "Unknown error"}`,
-      );
     }
   }
 

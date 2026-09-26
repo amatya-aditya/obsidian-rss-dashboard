@@ -5,7 +5,7 @@
   },
   "ratchets": {
     "fileMaxLines": {
-      "main.ts": 3911,
+      "main.ts": 3880,
       "src/components/sidebar.ts": 4603,
       "src/services/feed-storage-repository.ts": 1974,
       "src/views/dashboard-view.ts": 4685,
