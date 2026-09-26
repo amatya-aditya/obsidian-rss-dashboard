@@ -343,3 +343,29 @@ console.log("renamed to", JSON.stringify(target.path));
 // Expected if renameFile normalizes fully: "probe-np/renamed café.md".
 // Clean up: delete probe-np from the file explorer.
 ```
+
+## Reading a missing file
+
+Observed on 1.13.7 (Windows): `adapter.read` of a missing path throws an
+`Error` with `code: "ENOENT"` and the message `ENOENT: no such file or
+directory, open '<absolute path>'`. `vault.read` of a `TFile` whose file was
+removed on disk through the adapter throws the same way. `vault.cachedRead`,
+`vault.readBinary`, and `adapter.readBinary` weren't probed.
+
+```js
+const A = app.vault.adapter;
+try {
+  await A.read("probe-read-missing.md");
+  console.log("adapter.read: returned");
+} catch (e) {
+  console.log("adapter.read threw", e.code, e.message);
+}
+const f = await app.vault.create("probe-read.md", "hello");
+await A.remove("probe-read.md");
+try {
+  await app.vault.read(f);
+  console.log("vault.read: returned");
+} catch (e) {
+  console.log("vault.read threw", e.code, e.message);
+}
+```
