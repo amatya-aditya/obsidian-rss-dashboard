@@ -354,25 +354,36 @@ printOutliers(
 );
 
 const errors = [];
-const mainFile = currentSnapshot.files.find((file) => file.file === "main.ts");
-if (!mainFile) {
-  errors.push("main.ts is missing from the production source set.");
-} else if (mainFile.lines > baseline.ratchets.mainTsMaxLines) {
-  errors.push(
-    "main.ts grew to " +
-      mainFile.lines +
-      " lines; ratchet maximum is " +
-      baseline.ratchets.mainTsMaxLines +
-      ".",
+for (const [ratchetPath, maxLines] of Object.entries(
+  baseline.ratchets.fileMaxLines ?? {},
+)) {
+  const ratchetFile = currentSnapshot.files.find(
+    (file) => file.file === ratchetPath,
   );
-} else if (mainFile.lines < baseline.ratchets.mainTsMaxLines) {
-  errors.push(
-    "main.ts shrank to " +
-      mainFile.lines +
-      " lines; lower the ratchet from " +
-      baseline.ratchets.mainTsMaxLines +
-      " in the same change.",
-  );
+  if (!ratchetFile) {
+    errors.push(
+      ratchetPath +
+        " is missing from the production source set; remove or rename its line ratchet.",
+    );
+  } else if (ratchetFile.lines > maxLines) {
+    errors.push(
+      ratchetPath +
+        " grew to " +
+        ratchetFile.lines +
+        " lines; ratchet maximum is " +
+        maxLines +
+        ".",
+    );
+  } else if (ratchetFile.lines < maxLines) {
+    errors.push(
+      ratchetPath +
+        " shrank to " +
+        ratchetFile.lines +
+        " lines; lower its ratchet from " +
+        maxLines +
+        " in the same change.",
+    );
+  }
 }
 
 const allowedMainImporters = new Set(
@@ -520,12 +531,18 @@ function printArchitectureDiff(reference) {
 
   console.log("");
   console.log("Architecture diff against " + reference);
-  const mainDelta =
-    (currentSnapshot.files.find((file) => file.file === "main.ts")?.lines ??
-      0) - (baseFiles.get("main.ts")?.lines ?? 0);
-  console.log(
-    "  main.ts LOC delta: " + (mainDelta >= 0 ? "+" : "") + mainDelta,
-  );
+  for (const ratchetPath of Object.keys(baseline.ratchets.fileMaxLines ?? {})) {
+    const ratchetDelta =
+      (currentSnapshot.files.find((file) => file.file === ratchetPath)
+        ?.lines ?? 0) - (baseFiles.get(ratchetPath)?.lines ?? 0);
+    console.log(
+      "  " +
+        ratchetPath +
+        " LOC delta: " +
+        (ratchetDelta >= 0 ? "+" : "") +
+        ratchetDelta,
+    );
+  }
   console.log("  changed production files: " + changedFiles.length);
   for (const entry of changedFiles.slice(0, 10)) {
     console.log(
@@ -557,7 +574,7 @@ console.log("");
 console.log("Architecture guardrails");
 if (errors.length === 0) {
   console.log(
-    "PASS main.ts ratchet, main.ts importer ratchet, service dependency direction, and runtime-cycle ratchet.",
+    "PASS file line ratchets, main.ts importer ratchet, service dependency direction, and runtime-cycle ratchet.",
   );
 } else {
   for (const error of errors) console.error("ERROR " + error);
