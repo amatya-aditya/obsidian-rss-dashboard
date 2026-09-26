@@ -8,7 +8,7 @@ import {
 import {
   getArticlePreviewSummaryText,
   resolveArticlePreviewImage,
-} from "../utils/article-preview-utils";
+} from "../../../utils/article-preview-utils";
 import { renderSingleRowCardTagChips } from "../utils/tag-layout-utils";
 import { groupArticles } from "../utils/article-grouping";
 import type { BaseViewContext, ViewDeps } from "./view-types";

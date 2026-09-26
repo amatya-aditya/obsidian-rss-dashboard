@@ -84,7 +84,7 @@ import { globalFetchSemaphore } from "./src/services/feed-parser/fetch-semaphore
 import { OpmlManager } from "./src/services/opml-manager";
 import { MediaService } from "./src/services/media-service";
 import { ImageCacheService } from "./src/services/image-cache-service";
-import { resolveArticlePreviewImage } from "./src/components/article-list/utils/article-preview-utils";
+import { resolveArticlePreviewImage } from "./src/utils/article-preview-utils";
 
 import { ImportOpmlModal } from "./src/modals/import-opml-modal";
 import { ImportStarredModal } from "./src/modals/import-starred-modal";

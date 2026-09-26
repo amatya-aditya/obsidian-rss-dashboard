@@ -9,7 +9,7 @@ import {
   getArticlePreviewSummaryText,
   shouldHighlightCardPreviewSummary,
   resolveArticlePreviewImage,
-} from "../utils/article-preview-utils";
+} from "../../../utils/article-preview-utils";
 import { renderSingleRowCardTagChips } from "../utils/tag-layout-utils";
 import type { BaseViewContext, ViewDeps } from "./view-types";
 
