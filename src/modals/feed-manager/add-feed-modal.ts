@@ -17,6 +17,7 @@ import {
 } from "./feed-preview-loader";
 import { renderKeywordFilterEditor } from "../../components/keyword-filter-editor";
 import { shouldUseMobileSidebarLayout } from "../../utils/platform-utils";
+import { removeNativeModalCloseButton } from "../../utils/modal-close-button";
 import { isValidFeedTitle } from "../../utils/validation";
 import {
   FEED_REFRESH_DISABLED_INTERVAL,
@@ -139,10 +140,7 @@ export class AddFeedModal extends Modal {
     if (shouldUseMobileSidebarLayout()) {
       this.modalEl.addClass("rss-mobile-feed-manager-modal");
       // Remove Obsidian's default floating close button on mobile
-      const closeBtn = this.modalEl.querySelector(".modal-close-button");
-      if (closeBtn) {
-        closeBtn.remove();
-      }
+      removeNativeModalCloseButton(this.modalEl);
     }
     this.contentEl.empty();
   }

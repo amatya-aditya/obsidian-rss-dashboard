@@ -143,3 +143,48 @@ console.log(
 );
 // Clean up: await A.rmdir(root, true);
 ```
+
+## Modal lifecycle and DOM
+
+Observed on 1.13.7 (Windows): `onOpen` runs with `containerEl.isConnected`
+true. `close()` detaches `containerEl` first and then runs `onClose`
+synchronously, so `isConnected` is false inside `onClose`. `scope` exists,
+`headerEl` has class `modal-header` and holds `titleEl`. `modalEl`'s children
+are, in order, `modal-header-button mod-raised clickable-icon` (the close
+button), `modal-header`, and `modal-content`; there is no
+`.modal-close-button`. `containerEl`'s class is `modal-container mod-dim`.
+
+`Modal` isn't a console global. The probe reaches it as the base class of
+`app.setting`, the prototype that owns `open`, `close`, `onOpen`, and
+`onClose`.
+
+```js
+const findCtor = (o, needs) => {
+  let p = Object.getPrototypeOf(o);
+  while (p && p !== Object.prototype) {
+    const own = Object.getOwnPropertyNames(p);
+    if (needs.every((n) => own.includes(n))) return p.constructor;
+    p = Object.getPrototypeOf(p);
+  }
+  return null;
+};
+const Modal = findCtor(app.setting, ["open", "close", "onOpen", "onClose"]);
+const log = [];
+const m = new Modal(app);
+m.onOpen = () => log.push("onOpen connected=" + m.containerEl.isConnected);
+m.onClose = () => log.push("onClose connected=" + m.containerEl.isConnected);
+m.setTitle("T");
+m.open();
+await new Promise((r) => setTimeout(r, 100));
+console.log({
+  scope: !!m.scope,
+  containerElClass: m.containerEl.className,
+  headerElClass: m.headerEl?.className,
+  titleElParent: m.titleEl?.parentElement?.className,
+  modalElChildren: [...m.modalEl.children].map((e) => e.className),
+  hasModalCloseButton: !!m.modalEl.querySelector(".modal-close-button"),
+});
+m.close();
+log.push("after close() sync, connected=" + m.containerEl.isConnected);
+console.log(log);
+```
