@@ -4,6 +4,7 @@ import { sanitizeFilename } from "./article-saver";
 import { normalizeSubstackImageUrl } from "../utils/substack-image-url";
 import { escapeYamlDoubleQuoted } from "../utils/yaml-escape";
 import { resolveDisplayDate } from "./feed-parser/feed-retention";
+import { ensureVaultFolder } from "../utils/vault-files";
 
 interface WebViewerPlugin {
   openWebpage?(url: string, title: string): Promise<void>;
@@ -255,7 +256,7 @@ export class WebViewerIntegration {
     includeFrontmatter: boolean,
   ): Promise<TFile | null> {
     if (folder) {
-      await this.ensureFolderExists(folder);
+      folder = await this.ensureFolderExists(folder);
     }
 
     const filename = sanitizeFilename(item.title);
@@ -416,13 +417,15 @@ guid: "{{guid}}"
     );
   }
 
-  protected async ensureFolderExists(folderPath: string): Promise<void> {
+  /**
+   * Makes sure the folder exists and returns its path as it is on disk, which
+   * may differ in case from `folderPath` (see `ensureVaultFolder`).
+   */
+  protected async ensureFolderExists(folderPath: string): Promise<string> {
     if (!folderPath || folderPath.trim() === "") {
-      return;
+      return "";
     }
 
-    if (this.app.vault.getAbstractFileByPath(folderPath) === null) {
-      await this.app.vault.createFolder(folderPath);
-    }
+    return ensureVaultFolder(this.app, folderPath);
   }
 }

@@ -496,6 +496,12 @@ export class MockDataVault {
    * uses a non-default name so tests read it rather than hardcoding it.
    */
   configDir = ".vault-config";
+  /**
+   * Whether the file system distinguishes paths that differ only in case.
+   * Windows and macOS don't (the default, observed on Obsidian 1.13.7
+   * Windows); Linux does, so set this to model a Linux desktop.
+   */
+  caseSensitiveFileSystem = false;
   on: (name: string, callback: (...args: unknown[]) => unknown) => unknown =
     () => ({});
 
@@ -509,9 +515,7 @@ export class MockDataVault {
     this.adapter = {
       getBasePath: () => "/test/vault",
       getFullPath: (p: string) => p,
-      exists: async (path: string) =>
-        this.adapterFiles.has(path) ||
-        this.folders.has(path.replace(/^\/+|\/+$/g, "")),
+      exists: async (path: string) => this.existsOnDisk(path),
       read: async (path: string) => this.adapterFiles.get(path) ?? "",
       write: async (path: string, content: string) => {
         this.adapterFiles.set(path, content);
@@ -594,14 +598,70 @@ export class MockDataVault {
             folderPath === cleanPath ||
             folderPath.startsWith(`${cleanPath}/`)
           ) {
-            this.folders.delete(folderPath);
+            this.forgetFolder(folderPath);
           }
         }
       },
     };
   }
 
+  private diskKey(path: string): string {
+    const cleanPath = path.replace(/^\/+|\/+$/g, "");
+    return this.caseSensitiveFileSystem ? cleanPath : cleanPath.toLowerCase();
+  }
+
+  private findFolderOnDisk(path: string): TFolder | undefined {
+    const key = this.diskKey(path);
+    for (const [folderPath, folder] of this.folders) {
+      if (this.diskKey(folderPath) === key) return folder;
+    }
+    return undefined;
+  }
+
+  private folderExistsOnDisk(path: string): boolean {
+    const key = this.diskKey(path);
+    if (!key) return true;
+    if (this.findFolderOnDisk(path)) return true;
+    // A file written through the adapter implies its parent folders.
+    return [...this.adapterFiles.keys()].some((filePath) =>
+      this.diskKey(filePath).startsWith(`${key}/`),
+    );
+  }
+
+  /** Whether `path` exists on disk, as the file system (not the index) sees it. */
+  private existsOnDisk(path: string): boolean {
+    const key = this.diskKey(path);
+    return (
+      [...this.adapterFiles.keys()].some(
+        (filePath) => this.diskKey(filePath) === key,
+      ) || this.folderExistsOnDisk(path)
+    );
+  }
+
+  private forgetFolder(folderPath: string): void {
+    const folder = this.folders.get(folderPath);
+    this.folders.delete(folderPath);
+    if (!folder) return;
+    for (const parent of this.folders.values()) {
+      parent.children = parent.children.filter((child) => child !== folder);
+    }
+  }
+
   async create(path: string, content: string): Promise<TFile> {
+    // Observed on Obsidian 1.13.7 desktop: an existing path, or a case variant
+    // of one on a case-insensitive file system, throws; a missing parent
+    // folder throws Node's ENOENT.
+    if (this.existsOnDisk(path)) {
+      throw new Error("File already exists.");
+    }
+    const parentPath = path.includes("/")
+      ? path.slice(0, path.lastIndexOf("/"))
+      : "";
+    if (parentPath && !this.folderExistsOnDisk(parentPath)) {
+      throw new Error(
+        `ENOENT: no such file or directory, open '${this.adapter.getBasePath()}/${path}'`,
+      );
+    }
     const file = new TFile(path);
     this.files.set(path, file);
     this.adapterFiles.set(path, content);
@@ -625,15 +685,22 @@ export class MockDataVault {
     const cleanPath = folderPath.replace(/^\/+|\/+$/g, "");
     if (!cleanPath) return this.root;
 
-    const existing = this.folders.get(cleanPath);
-    if (existing) return existing;
+    // Observed on Obsidian 1.13.7 desktop: an existing folder, or a case
+    // variant of one on a case-insensitive file system, throws.
+    if (this.existsOnDisk(cleanPath)) {
+      throw new Error("Folder already exists.");
+    }
 
     let currentPath = "";
     let parent = this.root;
     for (const part of cleanPath.split("/").filter(Boolean)) {
       currentPath = currentPath ? `${currentPath}/${part}` : part;
-      let folder = this.folders.get(currentPath);
-      if (!folder) {
+      // Missing parents are created; an existing one is reused, whatever
+      // case the caller used for it.
+      let folder = this.findFolderOnDisk(currentPath);
+      if (folder) {
+        currentPath = folder.path;
+      } else {
         folder = new TFolder(currentPath);
         parent.children.push(folder);
         this.folders.set(currentPath, folder);
@@ -649,7 +716,7 @@ export class MockDataVault {
       await this.delete(file);
       return;
     }
-    this.folders.delete(file.path);
+    this.forgetFolder(file.path);
   }
 
   async renameAbstractFile(file: TFile, newPath: string): Promise<void> {

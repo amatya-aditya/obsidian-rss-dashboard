@@ -43,3 +43,76 @@ export async function trashVaultFile(app: App, path: string): Promise<boolean> {
   }
   return true;
 }
+
+/**
+ * Finds the indexed child folder of `parent` named `name`, preferring an exact
+ * match and otherwise one that differs only in case.
+ */
+function findChildFolder(parent: TFolder, name: string): TFolder | null {
+  let caseVariant: TFolder | null = null;
+  const lowerName = name.toLowerCase();
+  for (const child of parent.children) {
+    if (!(child instanceof TFolder)) continue;
+    if (child.name === name) return child;
+    if (!caseVariant && child.name.toLowerCase() === lowerName) {
+      caseVariant = child;
+    }
+  }
+  return caseVariant;
+}
+
+/**
+ * Makes sure the folder at `path` exists, creating each missing segment, and
+ * returns the folder's path as it is on disk.
+ *
+ * `createFolder` throws for a folder that already exists, including one whose
+ * name differs only in case on Windows and macOS, where the file system
+ * ignores case but the vault index doesn't. So each segment is checked on
+ * disk first. When the disk already has it, the existing folder's own
+ * spelling is reused, so callers build file paths the vault index knows. On
+ * a case-sensitive file system (Linux) a case variant doesn't exist on disk,
+ * so a separate folder is created, as the user typed it.
+ */
+export async function ensureVaultFolder(app: App, path: string): Promise<string> {
+  const segments = normalizePath(path)
+    .split("/")
+    .filter((segment) => segment !== "");
+  const { vault } = app;
+  let resolved = "";
+  let parent: TFolder | null = vault.getRoot();
+
+  for (const segment of segments) {
+    const candidate = resolved ? `${resolved}/${segment}` : segment;
+    const exact = vault.getAbstractFileByPath(candidate);
+    if (exact instanceof TFolder) {
+      resolved = exact.path;
+      parent = exact;
+      continue;
+    }
+
+    if (await vault.adapter.exists(candidate)) {
+      // On disk but not indexed under this spelling: a case variant, or a
+      // dot-prefixed folder the vault index leaves out.
+      const variant: TFolder | null = parent
+        ? findChildFolder(parent, segment)
+        : null;
+      resolved = variant ? variant.path : candidate;
+      parent = variant;
+      continue;
+    }
+
+    try {
+      await vault.createFolder(candidate);
+    } catch (error) {
+      // Another writer (or sync) may have created it in the meantime.
+      if (!(await vault.adapter.exists(candidate))) {
+        throw error;
+      }
+    }
+    resolved = candidate;
+    const created = vault.getAbstractFileByPath(candidate);
+    parent = created instanceof TFolder ? created : null;
+  }
+
+  return resolved;
+}

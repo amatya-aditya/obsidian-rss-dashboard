@@ -371,8 +371,13 @@ title: "{{title}}"
     const item = createItem({ title: "Race Condition" });
     await saver.saveArticle(item, undefined, undefined, "FIRST");
 
-    vi.spyOn(app.fileManager, "trashFile").mockRejectedValueOnce(
-      new Error("ENONET: no such file exists"),
+    // The file disappears between the lookup and the trash call (for example,
+    // removed by sync), so trashing it fails with a missing-path error.
+    vi.spyOn(app.fileManager, "trashFile").mockImplementationOnce(
+      async (file) => {
+        if (file instanceof TFile) await app.vault.delete(file);
+        throw new Error("ENONET: no such file exists");
+      },
     );
 
     const result = await saver.saveArticle(
@@ -383,6 +388,40 @@ title: "{{title}}"
     );
 
     expect(result).toBeInstanceOf(TFile);
+  });
+
+  it("saves into an existing folder whose name differs only in case", async () => {
+    const app = App.createMock();
+    await app.vault.createFolder("RSS Articles");
+    const settings = createSettings({
+      defaultFolder: "rss articles",
+      defaultTemplate: "{{content}}",
+    });
+    const saver = new ArticleSaver(app, settings);
+
+    const item = createItem({ title: "Case Variant" });
+    const result = await saver.saveArticle(item, undefined, undefined, "BODY");
+
+    expect(result).toBeInstanceOf(TFile);
+    expect(result?.path).toBe("RSS Articles/Case Variant.md");
+    expect(item.savedFilePath).toBe("RSS Articles/Case Variant.md");
+  });
+
+  it("creates a separate folder for a case variant on a case-sensitive file system", async () => {
+    const app = App.createMock();
+    // Linux file systems treat "rss articles" and "RSS Articles" as different.
+    app.vault.caseSensitiveFileSystem = true;
+    await app.vault.createFolder("RSS Articles");
+    const settings = createSettings({
+      defaultFolder: "rss articles",
+      defaultTemplate: "{{content}}",
+    });
+    const saver = new ArticleSaver(app, settings);
+
+    const item = createItem({ title: "Case Variant" });
+    const result = await saver.saveArticle(item, undefined, undefined, "BODY");
+
+    expect(result?.path).toBe("rss articles/Case Variant.md");
   });
 
   it("creates nested folders one segment at a time", async () => {
@@ -1153,6 +1192,7 @@ describe("ArticleSaver.verifySavedArticle", () => {
 
     const item = createItem({ title: "Exists" });
     const filePath = "Articles/Exists.md";
+    await app.vault.createFolder("Articles");
     await app.vault.create(filePath, "x");
 
     item.saved = true;
@@ -1189,6 +1229,7 @@ describe("ArticleSaver.fixSavedFilePaths", () => {
     const settings = createSettings();
     const saver = new ArticleSaver(app, settings);
 
+    await app.vault.createFolder("Folder");
     await app.vault.create("Folder/Item.md", "x");
 
     const item = createItem({ title: "Item" });
@@ -1208,6 +1249,7 @@ describe("ArticleSaver.fixSavedFilePaths", () => {
     const saver = new ArticleSaver(app, settings);
 
     const oldPath = "/Old Folder/Weird.md";
+    await app.vault.createFolder("Old Folder");
     const file = await app.vault.create(oldPath, "x");
 
     const item = createItem({
@@ -1259,6 +1301,7 @@ describe("ArticleSaver saved file lookups", () => {
       savedFilePath: "Archive/Already Saved.md",
     });
 
+    await app.vault.createFolder("Archive");
     await app.vault.create("Archive/Already Saved.md", "content");
 
     expect(saver.checkSavedFileExists(item)).toBe(true);
@@ -1275,6 +1318,7 @@ describe("ArticleSaver saved file lookups", () => {
       saved: true,
     });
 
+    await app.vault.createFolder("Articles");
     await app.vault.create("Articles/Legacy Saved Article.md", "content");
 
     expect(saver.checkSavedFileExists(item)).toBe(true);
@@ -1292,6 +1336,7 @@ describe("ArticleSaver saved file lookups", () => {
       savedFilePath: "Custom Folder/My Article.md",
     });
 
+    await app.vault.createFolder("Custom Folder");
     await app.vault.create("Custom Folder/My Article.md", "content");
 
     const file = await saver.findSavedArticleFile(item);

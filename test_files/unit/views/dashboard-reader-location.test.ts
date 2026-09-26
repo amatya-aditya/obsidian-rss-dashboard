@@ -644,7 +644,9 @@ describe("Dashboard reader location", () => {
       getRightLeaf: vi.fn(() => rightLeaf),
       revealLeaf,
     });
-    const savedFile = await App.createMock().vault.create(
+    const scratchVault = App.createMock().vault;
+    await scratchVault.createFolder("RSS articles");
+    const savedFile = await scratchVault.create(
       "RSS articles/saved-article.md",
       "# Saved article",
     );
@@ -669,7 +671,9 @@ describe("Dashboard reader location", () => {
       getRightLeaf: vi.fn(),
       revealLeaf: vi.fn(async () => {}),
     });
-    const savedFile = await App.createMock().vault.create(
+    const scratchVault = App.createMock().vault;
+    await scratchVault.createFolder("RSS articles");
+    const savedFile = await scratchVault.create(
       "RSS articles/saved-inline.md",
       "# Saved inline",
     );
