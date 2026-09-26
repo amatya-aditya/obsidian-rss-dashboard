@@ -821,8 +821,12 @@ export function renderStorageSettingsTab(
       "Optional vault folder for metadata data.json. Leave empty to keep metadata in the plugin directory. Shard storage v2 keeps article state (user-state.json) in this folder either way, so remove any '.' prefix for Obsidian sync to carry it to other devices.",
     )
     .addText((text) => {
+      // Show the folder user-state.json is actually in: a fresh install
+      // keeps it inside the plugin folder rather than .rss-dashboard-data.
       text
-        .setPlaceholder(".rss-dashboard-data")
+        .setPlaceholder(
+          plugin.settings.metadataStorageFolder.trim() || ".rss-dashboard-data",
+        )
         .setValue(lastSavedMetadataStorageFolder)
         .onChange((value) => {
           pendingMetadataStorageFolder = value;

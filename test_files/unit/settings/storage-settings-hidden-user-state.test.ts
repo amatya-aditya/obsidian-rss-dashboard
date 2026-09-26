@@ -147,3 +147,32 @@ describe("renderStorageSettingsTab() - hidden user-state hint", () => {
     expect(messages.some(m => m.includes("user-state.json") && m.includes(".rss-dashboard-data"))).toBe(true);
   });
 });
+
+describe("renderStorageSettingsTab() - metadata location hint", () => {
+  function metadataInput(containerEl: HTMLElement): HTMLInputElement {
+    return findByText(
+      containerEl,
+      ".setting-item",
+      "Metadata data.json location",
+    )!.querySelector("input")!;
+  }
+
+  it("shows the plugin folder a fresh install actually uses", () => {
+    const containerEl = document.body.appendChild(createDiv());
+    renderStorageSettingsTab(
+      containerEl,
+      createPlugin({
+        metadataStorageFolder: "my-config/plugins/rss-dashboard/data",
+      }) as never,
+    );
+    expect(metadataInput(containerEl).placeholder).toBe(
+      "my-config/plugins/rss-dashboard/data",
+    );
+  });
+
+  it("keeps showing the vault folder an existing install uses", () => {
+    const containerEl = document.body.appendChild(createDiv());
+    renderStorageSettingsTab(containerEl, createPlugin() as never);
+    expect(metadataInput(containerEl).placeholder).toBe(".rss-dashboard-data");
+  });
+});

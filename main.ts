@@ -2904,6 +2904,18 @@ export default class RssDashboardPlugin extends Plugin {
       if (this.folderService) {
         this.bindSettingsBackedServices();
       }
+      // A fresh install keeps its feed shards and article state inside the
+      // plugin folder, so uninstalling the plugin removes them too. Only a
+      // null load is changed: existing installs keep the vault folder they
+      // already use, and a synced data.json that arrives later replaces this.
+      if (data === null) {
+        const pluginDir = normalizePath(
+          this.manifest.dir ??
+            `${this.app.vault.configDir}/plugins/${this.manifest.id}`,
+        );
+        this.settings.metadataStorageFolder = `${pluginDir}/data`;
+        this.settings.storageFolder = `${pluginDir}/data/feeds`;
+      }
       const didMigrateKeywordRules = this.migrateLegacySettings();
       await this.repairMissingFolderPathsForFeeds();
       const hydrated = await this.feedStorageRepository.hydrateSettings(
