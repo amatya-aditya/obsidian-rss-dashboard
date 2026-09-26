@@ -151,10 +151,10 @@
   },
   "src/services/feed-storage-repository.ts": {
     "complexity": {
-      "count": 3
+      "count": 2
     },
     "max-lines-per-function": {
-      "count": 2
+      "count": 1
     }
   },
   "src/services/image-cache-service.ts": {
