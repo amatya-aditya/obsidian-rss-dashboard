@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "feedId": "fx-atom-releases",
+  "feedUrl": "https://github.com/amatya-aditya/obsidian-rss-dashboard/releases.atom",
+  "updatedAt": 1788177600000,
+  "items": [
+    {
+      "title": "Fixture release 0.3.0",
+      "link": "https://example.com/rss-dashboard-fixture/releases/0.3.0",
+      "description": "<p>Lantern ember cipher stanza vector module mirror simple clover thread bramble forest steady. Zephyr cipher atlas lantern window stanza builds useful rapid timber marks granite copper forest meadow. Brief beacon compass moves ember token granite pilot sorts island window index thread kernel. Anchor reader draft steady corridor table yarrow stanza summit.</p>\n<p>Finds simple useful keeps useful reader orbit trail draft gallery steady field granite zephyr pebble reader. Ribbon pebble beacon bramble rapid reads compass simple careful crescent tangent calm checks field folder. Tangent clover gentle harbor builds yarrow notebook radar token velvet amber draft pebble. Mirror orbit window steady bramble stanza sorts brief curious careful linen.</p>",
+      "content": "<p>Lantern ember cipher stanza vector module mirror simple clover thread bramble forest steady. Zephyr cipher atlas lantern window stanza builds useful rapid timber marks granite copper forest meadow. Brief beacon compass moves ember token granite pilot sorts island window index thread kernel. Anchor reader draft steady corridor table yarrow stanza summit.</p>\n<p>Finds simple useful keeps useful reader orbit trail draft gallery steady field granite zephyr pebble reader. Ribbon pebble beacon bramble rapid reads compass simple careful crescent tangent calm checks field folder. Tangent clover gentle harbor builds yarrow notebook radar token velvet amber draft pebble. Mirror orbit window steady bramble stanza sorts brief curious careful linen.</p>",
+      "pubDate": "2026-08-31T12:00:00.000Z",
+      "guid": "tag:example.com,2026:rss-dashboard-fixture-release-0.3.0",
+      "feedTitle": "RSS Dashboard releases (fixture)",
+      "feedUrl": "https://github.com/amatya-aditya/obsidian-rss-dashboard/releases.atom",
+      "coverImage": "",
+      "summary": "Lantern ember cipher stanza vector module mirror simple clover thread bramble forest steady. Zephyr cipher atlas lantern window stanza builds useful rapid timber marks granite copper forest meadow. Brief beacon compass moves ember token granite pilot sorts island window index thread kernel. Anchor reader draft steady corridor table yarrow stanza summit.",
+      "author": "Fixture Maintainer",
+      "mediaType": "article"
+    },
+    {
+      "title": "Fixture release 0.2.0",
+      "link": "https://example.com/rss-dashboard-fixture/releases/0.2.0",
+      "description": "<p>Thread stanza draft table sample anchor cipher fixture. Crescent river window marble zephyr steady orbit gentle useful. Index tangent paper ribbon crescent marks sketch cipher kernel ledger folder ribbon folder module reader. Gentle draft orbit sorts thread clover beacon rapid plain rapid ribbon mirror gentle garden outline vector.</p>\n<p>Quarry trail window mirror index cedar quiet orbit. Orbit pixel folder pilot crescent reads timber lantern token opens folder. Clover moves outline kernel quiet token meadow simple checks simple module compass compass quarry ember simple. Checks rapid delta simple river cipher builds granite stanza quiet engine gentle copper trail shows.</p>",
+      "content": "<p>Thread stanza draft table sample anchor cipher fixture. Crescent river window marble zephyr steady orbit gentle useful. Index tangent paper ribbon crescent marks sketch cipher kernel ledger folder ribbon folder module reader. Gentle draft orbit sorts thread clover beacon rapid plain rapid ribbon mirror gentle garden outline vector.</p>\n<p>Quarry trail window mirror index cedar quiet orbit. Orbit pixel folder pilot crescent reads timber lantern token opens folder. Clover moves outline kernel quiet token meadow simple checks simple module compass compass quarry ember simple. Checks rapid delta simple river cipher builds granite stanza quiet engine gentle copper trail shows.</p>",
+      "pubDate": "2026-08-17T12:00:00.000Z",
+      "guid": "tag:example.com,2026:rss-dashboard-fixture-release-0.2.0",
+      "feedTitle": "RSS Dashboard releases (fixture)",
+      "feedUrl": "https://github.com/amatya-aditya/obsidian-rss-dashboard/releases.atom",
+      "coverImage": "",
+      "summary": "Thread stanza draft table sample anchor cipher fixture. Crescent river window marble zephyr steady orbit gentle useful. Index tangent paper ribbon crescent marks sketch cipher kernel ledger folder ribbon folder module reader. Gentle draft orbit sorts thread clover beacon rapid plain rapid ribbon mirror gentle garden outline vector.",
+      "author": "Fixture Maintainer",
+      "mediaType": "article"
+    },
+    {
+      "title": "Fixture release 0.1.0",
+      "link": "https://example.com/rss-dashboard-fixture/releases/0.1.0",
+      "description": "<p>Rapid field timber plain tangent sorts module careful quill rapid finds. Corridor anchor thread keeps lantern velvet useful planner trail thread table sketch delta forest bramble. Lantern checks pilot notebook opens module quiet garden. Island clover lantern reader garden trail ribbon patient builds pilot checks timber pebble crescent fixture.</p>\n<p>Garden summit marble river finds useful steady lantern corridor ribbon zephyr useful marble. Cipher useful mirror mirror moves cedar pilot tests marble delta quiet thread. Keeps pixel plain clover forest stanza ribbon garden forest atlas reader. Trail delta thread pebble paper fixture builds paper saves thread quarry summit channel radar field curious.</p>",
+      "content": "<p>Rapid field timber plain tangent sorts module careful quill rapid finds. Corridor anchor thread keeps lantern velvet useful planner trail thread table sketch delta forest bramble. Lantern checks pilot notebook opens module quiet garden. Island clover lantern reader garden trail ribbon patient builds pilot checks timber pebble crescent fixture.</p>\n<p>Garden summit marble river finds useful steady lantern corridor ribbon zephyr useful marble. Cipher useful mirror mirror moves cedar pilot tests marble delta quiet thread. Keeps pixel plain clover forest stanza ribbon garden forest atlas reader. Trail delta thread pebble paper fixture builds paper saves thread quarry summit channel radar field curious.</p>",
+      "pubDate": "2026-08-03T12:00:00.000Z",
+      "guid": "tag:example.com,2026:rss-dashboard-fixture-release-0.1.0",
+      "feedTitle": "RSS Dashboard releases (fixture)",
+      "feedUrl": "https://github.com/amatya-aditya/obsidian-rss-dashboard/releases.atom",
+      "coverImage": "",
+      "summary": "Rapid field timber plain tangent sorts module careful quill rapid finds. Corridor anchor thread keeps lantern velvet useful planner trail thread table sketch delta forest bramble. Lantern checks pilot notebook opens module quiet garden. Island clover lantern reader garden trail ribbon patient builds pilot checks timber pebble crescent fixture.",
+      "author": "Fixture Maintainer",
+      "mediaType": "article"
+    }
+  ]
+}

@@ -1,0 +1,140 @@
+{
+  "version": 1,
+  "exportedAt": 1788350400000,
+  "storageMode": "vault-shards-v2",
+  "storageFolder": "rss-dashboard-data/feeds",
+  "metadataStorageMode": "vault-location",
+  "metadataStorageFolder": "rss-dashboard-data",
+  "metadata": {
+    "viewStyle": "list",
+    "articleSort": "oldest",
+    "sidebarWidth": 360,
+    "articleGroupBy": "feed",
+    "refreshInterval": 0,
+    "feeds": [
+      {
+        "feedId": "fx-import-gamma",
+        "title": "Imported feed gamma",
+        "url": "https://example.com/rss-dashboard-fixture/imported/fx-import-gamma.xml",
+        "folder": "Portable",
+        "lastUpdated": 1788264000000,
+        "mediaType": "article",
+        "autoDeleteDuration": 0,
+        "maxItemsLimit": 0,
+        "keywordRules": {
+          "overrideGlobalRules": false,
+          "includeLogic": "AND",
+          "rules": []
+        },
+        "lastRefreshAttemptCompletedAt": 1788264000000
+      }
+    ],
+    "folders": [
+      {
+        "name": "Portable",
+        "subfolders": [],
+        "createdAt": 1783080000000,
+        "modifiedAt": 1783080000000
+      }
+    ],
+    "availableTags": [
+      {
+        "name": "Read later",
+        "color": "#3498db"
+      },
+      {
+        "name": "Reference",
+        "color": "#16a085"
+      }
+    ],
+    "storageMode": "vault-shards-v2",
+    "storageFolder": "rss-dashboard-data/feeds",
+    "metadataStorageMode": "vault-location",
+    "metadataStorageFolder": "rss-dashboard-data",
+    "metadataStorageSchemaVersion": 2
+  },
+  "shards": [
+    {
+      "version": 1,
+      "feedId": "fx-import-gamma",
+      "feedUrl": "https://example.com/rss-dashboard-fixture/imported/fx-import-gamma.xml",
+      "updatedAt": 1788350400000,
+      "items": [
+        {
+          "title": "Imported feed gamma article 1",
+          "link": "https://example.com/rss-dashboard-fixture/imported/fx-import-gamma/1",
+          "description": "<p>Paper island stanza archive tangent curious useful thread atlas mirror island. Timber planner radar marks reader marble amber planner planner stanza. Velvet island river metric bramble steady sketch simple velvet simple amber tests sketch yarrow. Careful sorts compass radar patient anchor steady finds outline metric field ember.</p>",
+          "content": "<p>Paper island stanza archive tangent curious useful thread atlas mirror island. Timber planner radar marks reader marble amber planner planner stanza. Velvet island river metric bramble steady sketch simple velvet simple amber tests sketch yarrow. Careful sorts compass radar patient anchor steady finds outline metric field ember.</p>",
+          "pubDate": "Mon, 31 Aug 2026 12:00:00 GMT",
+          "guid": "https://example.com/rss-dashboard-fixture/imported/fx-import-gamma/1",
+          "read": true,
+          "starred": false,
+          "tags": [],
+          "saved": false,
+          "feedTitle": "Imported feed gamma",
+          "feedUrl": "https://example.com/rss-dashboard-fixture/imported/fx-import-gamma.xml",
+          "coverImage": "",
+          "summary": "Paper island stanza archive tangent curious useful thread atlas mirror island. Timber planner radar marks reader marble amber planner planner stanza. Velvet island river metric bramble steady sketch simple velvet simple amber tests sketch yarrow. Careful sorts compass radar patient anchor steady finds outline metric field ember.",
+          "mediaType": "article"
+        },
+        {
+          "title": "Imported feed gamma article 2",
+          "link": "https://example.com/rss-dashboard-fixture/imported/fx-import-gamma/2",
+          "description": "<p>Keeps yarrow compass quill granite table keeps beacon outline harbor forest. Field simple shows ribbon simple mirror mirror sorts token timber summit saves. Quiet kernel module sample cipher gentle amber gallery fixture quill reads. Tests module sample copper crescent rapid cipher crescent island.</p>",
+          "content": "<p>Keeps yarrow compass quill granite table keeps beacon outline harbor forest. Field simple shows ribbon simple mirror mirror sorts token timber summit saves. Quiet kernel module sample cipher gentle amber gallery fixture quill reads. Tests module sample copper crescent rapid cipher crescent island.</p>",
+          "pubDate": "Sun, 30 Aug 2026 12:00:00 GMT",
+          "guid": "https://example.com/rss-dashboard-fixture/imported/fx-import-gamma/2",
+          "read": false,
+          "starred": true,
+          "tags": [
+            {
+              "name": "Important",
+              "color": "#e74c3c"
+            }
+          ],
+          "saved": false,
+          "feedTitle": "Imported feed gamma",
+          "feedUrl": "https://example.com/rss-dashboard-fixture/imported/fx-import-gamma.xml",
+          "coverImage": "",
+          "summary": "Keeps yarrow compass quill granite table keeps beacon outline harbor forest. Field simple shows ribbon simple mirror mirror sorts token timber summit saves. Quiet kernel module sample cipher gentle amber gallery fixture quill reads. Tests module sample copper crescent rapid cipher crescent island.",
+          "mediaType": "article"
+        },
+        {
+          "title": "Imported feed gamma article 3",
+          "link": "https://example.com/rss-dashboard-fixture/imported/fx-import-gamma/3",
+          "description": "<p>Orbit pixel pebble timber field crescent mirror reader notebook. Finds opens cipher gallery moves outline forest thread simple thread binder corridor curious draft. Pilot cipher token compass outline quiet harbor pilot shows finds. Mirror patient pebble checks signal velvet beacon forest corridor.</p>",
+          "content": "<p>Orbit pixel pebble timber field crescent mirror reader notebook. Finds opens cipher gallery moves outline forest thread simple thread binder corridor curious draft. Pilot cipher token compass outline quiet harbor pilot shows finds. Mirror patient pebble checks signal velvet beacon forest corridor.</p>",
+          "pubDate": "Sat, 29 Aug 2026 12:00:00 GMT",
+          "guid": "https://example.com/rss-dashboard-fixture/imported/fx-import-gamma/3",
+          "read": false,
+          "starred": false,
+          "tags": [],
+          "saved": false,
+          "feedTitle": "Imported feed gamma",
+          "feedUrl": "https://example.com/rss-dashboard-fixture/imported/fx-import-gamma.xml",
+          "coverImage": "",
+          "summary": "Orbit pixel pebble timber field crescent mirror reader notebook. Finds opens cipher gallery moves outline forest thread simple thread binder corridor curious draft. Pilot cipher token compass outline quiet harbor pilot shows finds. Mirror patient pebble checks signal velvet beacon forest corridor.",
+          "mediaType": "article"
+        },
+        {
+          "title": "Imported feed gamma article 4",
+          "link": "https://example.com/rss-dashboard-fixture/imported/fx-import-gamma/4",
+          "description": "<p>Quill finds gentle crescent marble forest beacon archive velvet. Checks harbor spindle gallery beacon signal paper pixel rapid. Zephyr careful signal opens mirror summit simple corridor field. Metric marks quiet token useful compass module engine.</p>",
+          "content": "<p>Quill finds gentle crescent marble forest beacon archive velvet. Checks harbor spindle gallery beacon signal paper pixel rapid. Zephyr careful signal opens mirror summit simple corridor field. Metric marks quiet token useful compass module engine.</p>",
+          "pubDate": "Fri, 28 Aug 2026 12:00:00 GMT",
+          "guid": "https://example.com/rss-dashboard-fixture/imported/fx-import-gamma/4",
+          "read": false,
+          "starred": false,
+          "tags": [],
+          "saved": false,
+          "feedTitle": "Imported feed gamma",
+          "feedUrl": "https://example.com/rss-dashboard-fixture/imported/fx-import-gamma.xml",
+          "coverImage": "",
+          "summary": "Quill finds gentle crescent marble forest beacon archive velvet. Checks harbor spindle gallery beacon signal paper pixel rapid. Zephyr careful signal opens mirror summit simple corridor field. Metric marks quiet token useful compass module engine.",
+          "mediaType": "article"
+        }
+      ]
+    }
+  ],
+  "markdownMirrorFallbackPlanned": true
+}

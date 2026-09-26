@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "feedId": "fx-broken",
+  "feedUrl": "https://example.invalid/rss-dashboard-fixture/feed.xml",
+  "updatedAt": 1787400000000,
+  "items": [
+    {
+      "title": "Article kept from before the feed broke 1",
+      "link": "https://example.com/rss-dashboard-fixture/broken/1",
+      "description": "<p>Pilot compass fixture river paper ledger gallery clover. Copper notebook thread mirror velvet sorts archive anchor. Notebook ember steady ember draft reads simple saves timber. Pebble saves folder thread compass useful cipher quarry binder quarry module marble mirror anchor pixel bramble.</p>",
+      "content": "<p>Pilot compass fixture river paper ledger gallery clover. Copper notebook thread mirror velvet sorts archive anchor. Notebook ember steady ember draft reads simple saves timber. Pebble saves folder thread compass useful cipher quarry binder quarry module marble mirror anchor pixel bramble.</p>",
+      "pubDate": "Sat, 22 Aug 2026 12:00:00 GMT",
+      "guid": "https://example.com/rss-dashboard-fixture/broken/1",
+      "feedTitle": "Unreachable feed (fixture)",
+      "feedUrl": "https://example.invalid/rss-dashboard-fixture/feed.xml",
+      "coverImage": "",
+      "summary": "Pilot compass fixture river paper ledger gallery clover. Copper notebook thread mirror velvet sorts archive anchor. Notebook ember steady ember draft reads simple saves timber. Pebble saves folder thread compass useful cipher quarry binder quarry module marble mirror anchor pixel bramble.",
+      "mediaType": "article"
+    },
+    {
+      "title": "Article kept from before the feed broke 2",
+      "link": "https://example.com/rss-dashboard-fixture/broken/2",
+      "description": "<p>Bramble yarrow corridor meadow rapid harbor channel river careful planner sketch kernel stanza ledger. Island channel cedar folder fixture marble module crescent radar. Pilot channel granite keeps cipher corridor tests table module index corridor tangent ribbon. Velvet quarry index channel gentle index island cipher marks island.</p>",
+      "content": "<p>Bramble yarrow corridor meadow rapid harbor channel river careful planner sketch kernel stanza ledger. Island channel cedar folder fixture marble module crescent radar. Pilot channel granite keeps cipher corridor tests table module index corridor tangent ribbon. Velvet quarry index channel gentle index island cipher marks island.</p>",
+      "pubDate": "Wed, 12 Aug 2026 12:00:00 GMT",
+      "guid": "https://example.com/rss-dashboard-fixture/broken/2",
+      "feedTitle": "Unreachable feed (fixture)",
+      "feedUrl": "https://example.invalid/rss-dashboard-fixture/feed.xml",
+      "coverImage": "",
+      "summary": "Bramble yarrow corridor meadow rapid harbor channel river careful planner sketch kernel stanza ledger. Island channel cedar folder fixture marble module crescent radar. Pilot channel granite keeps cipher corridor tests table module index corridor tangent ribbon. Velvet quarry index channel gentle index island cipher marks island.",
+      "mediaType": "article"
+    }
+  ]
+}

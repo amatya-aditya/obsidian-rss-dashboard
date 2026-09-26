@@ -1,0 +1,16 @@
+{
+  "viewStyle": "list",
+  "articleSort": "oldest",
+  "sidebarWidth": 360,
+  "articleGroupBy": "feed",
+  "refreshInterval": 0,
+  "display": {
+    "articleDateStyle": "absolute",
+    "cardSpacing": 24
+  },
+  "storageMode": "vault-shards-v2",
+  "storageFolder": "rss-dashboard-data/feeds",
+  "metadataStorageMode": "vault-location",
+  "metadataStorageFolder": "rss-dashboard-data",
+  "metadataStorageSchemaVersion": 2
+}

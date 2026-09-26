@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "feedId": "fx-smallweb",
+  "feedUrl": "https://kagi.com/api/v1/smallweb/feed?limit=50",
+  "updatedAt": 1788224400000,
+  "items": [
+    {
+      "title": "Small web post 1",
+      "link": "https://example.com/rss-dashboard-fixture/smallweb/1",
+      "description": "<p>Archive paper archive engine sorts vector steady useful quarry. Amber module pebble pilot atlas beacon keeps checks. Marks clover saves field ember simple kernel meadow patient amber cedar brief signal metric anchor planner. Useful field module quill meadow calm sketch table rapid index harbor summit.</p>\n<p>Ribbon zephyr crescent compass careful signal planner meadow calm simple. Archive metric cedar useful notebook steady orbit velvet field fixture delta tests spindle bramble kernel marks. Paper summit ledger binder crescent notebook gallery ledger mirror river finds folder engine archive thread. Spindle pebble notebook useful token atlas spindle river compass patient planner.</p>",
+      "content": "<p>Archive paper archive engine sorts vector steady useful quarry. Amber module pebble pilot atlas beacon keeps checks. Marks clover saves field ember simple kernel meadow patient amber cedar brief signal metric anchor planner. Useful field module quill meadow calm sketch table rapid index harbor summit.</p>\n<p>Ribbon zephyr crescent compass careful signal planner meadow calm simple. Archive metric cedar useful notebook steady orbit velvet field fixture delta tests spindle bramble kernel marks. Paper summit ledger binder crescent notebook gallery ledger mirror river finds folder engine archive thread. Spindle pebble notebook useful token atlas spindle river compass patient planner.</p>",
+      "pubDate": "2026-09-01T01:00:00.000Z",
+      "guid": "https://example.com/rss-dashboard-fixture/smallweb/1",
+      "feedTitle": "Kagi Small Web (fixture)",
+      "feedUrl": "https://kagi.com/api/v1/smallweb/feed?limit=50",
+      "coverImage": "",
+      "summary": "Archive paper archive engine sorts vector steady useful quarry. Amber module pebble pilot atlas beacon keeps checks. Marks clover saves field ember simple kernel meadow patient amber cedar brief signal metric anchor planner. Useful field module quill meadow calm sketch table rapid index harbor summit.",
+      "author": "Fixture Blogger",
+      "mediaType": "article"
+    },
+    {
+      "title": "Small web post 2",
+      "link": "https://example.com/rss-dashboard-fixture/smallweb/2",
+      "description": "<p>Shows simple quiet checks ember reader binder compass crescent ledger atlas gallery sorts timber. Reader kernel beacon archive stanza stanza rapid lantern radar ledger sample vector zephyr. Paper velvet clover radar tangent tangent radar moves metric. Radar timber outline velvet bramble timber token patient calm useful curious linen.</p>\n<p>Outline sketch copper module builds binder delta forest marks sketch pixel curious sample pixel summit mirror. Stanza granite index token outline fixture thread ledger builds velvet thread simple pixel. Sorts moves yarrow signal folder pebble island tests. Quill patient copper quarry builds steady archive radar builds spindle linen checks anchor engine harbor.</p>",
+      "content": "<p>Shows simple quiet checks ember reader binder compass crescent ledger atlas gallery sorts timber. Reader kernel beacon archive stanza stanza rapid lantern radar ledger sample vector zephyr. Paper velvet clover radar tangent tangent radar moves metric. Radar timber outline velvet bramble timber token patient calm useful curious linen.</p>\n<p>Outline sketch copper module builds binder delta forest marks sketch pixel curious sample pixel summit mirror. Stanza granite index token outline fixture thread ledger builds velvet thread simple pixel. Sorts moves yarrow signal folder pebble island tests. Quill patient copper quarry builds steady archive radar builds spindle linen checks anchor engine harbor.</p>",
+      "pubDate": "2026-08-31T14:00:00.000Z",
+      "guid": "https://example.com/rss-dashboard-fixture/smallweb/2",
+      "feedTitle": "Kagi Small Web (fixture)",
+      "feedUrl": "https://kagi.com/api/v1/smallweb/feed?limit=50",
+      "coverImage": "",
+      "summary": "Shows simple quiet checks ember reader binder compass crescent ledger atlas gallery sorts timber. Reader kernel beacon archive stanza stanza rapid lantern radar ledger sample vector zephyr. Paper velvet clover radar tangent tangent radar moves metric. Radar timber outline velvet bramble timber token patient calm useful curious linen.",
+      "author": "Fixture Blogger",
+      "mediaType": "article"
+    },
+    {
+      "title": "Small web post 3",
+      "link": "https://example.com/rss-dashboard-fixture/smallweb/3",
+      "description": "<p>Ribbon garden patient notebook tests useful window fixture patient table. Copper brief tests ledger marble metric steady quill shows linen granite bramble reads keeps ember. Simple tests lantern folder delta reads shows shows patient crescent tangent sample. Finds plain orbit planner stanza gentle tangent corridor table mirror forest rapid stanza tests.</p>\n<p>Mirror useful calm pilot cedar keeps harbor anchor steady plain binder paper keeps quill marble. Simple mirror atlas anchor delta vector clover rapid tests beacon sketch zephyr paper. Table patient zephyr anchor field field compass table. Calm island river checks folder linen fixture garden brief reads compass granite.</p>",
+      "content": "<p>Ribbon garden patient notebook tests useful window fixture patient table. Copper brief tests ledger marble metric steady quill shows linen granite bramble reads keeps ember. Simple tests lantern folder delta reads shows shows patient crescent tangent sample. Finds plain orbit planner stanza gentle tangent corridor table mirror forest rapid stanza tests.</p>\n<p>Mirror useful calm pilot cedar keeps harbor anchor steady plain binder paper keeps quill marble. Simple mirror atlas anchor delta vector clover rapid tests beacon sketch zephyr paper. Table patient zephyr anchor field field compass table. Calm island river checks folder linen fixture garden brief reads compass granite.</p>",
+      "pubDate": "2026-08-31T03:00:00.000Z",
+      "guid": "https://example.com/rss-dashboard-fixture/smallweb/3",
+      "feedTitle": "Kagi Small Web (fixture)",
+      "feedUrl": "https://kagi.com/api/v1/smallweb/feed?limit=50",
+      "coverImage": "",
+      "summary": "Ribbon garden patient notebook tests useful window fixture patient table. Copper brief tests ledger marble metric steady quill shows linen granite bramble reads keeps ember. Simple tests lantern folder delta reads shows shows patient crescent tangent sample. Finds plain orbit planner stanza gentle tangent corridor table mirror forest rapid stanza tests.",
+      "author": "Fixture Blogger",
+      "mediaType": "article"
+    }
+  ]
+}

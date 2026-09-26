@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<opml version="2.0">
+  <head>
+    <title>RSS Dashboard fixture vault OPML import</title>
+  </head>
+  <body>
+    <outline text="Comics" title="Comics">
+      <outline
+        text="xkcd"
+        title="xkcd"
+        type="rss"
+        xmlUrl="https://xkcd.com/atom.xml"
+        htmlUrl="https://xkcd.com/"
+      />
+    </outline>
+    <outline text="News" title="News">
+      <outline text="Tech" title="Tech">
+        <outline
+          text="GitHub Blog (already subscribed)"
+          title="GitHub Blog (already subscribed)"
+          type="rss"
+          xmlUrl="https://github.blog/feed/"
+          htmlUrl="https://github.blog/"
+        />
+        <outline
+          text="Hacker News front page"
+          title="Hacker News front page"
+          type="rss"
+          xmlUrl="https://hnrss.org/frontpage?points=100&amp;count=20"
+          htmlUrl="https://news.ycombinator.com/"
+        />
+      </outline>
+    </outline>
+    <outline
+      text="Mozilla Blog"
+      title="Mozilla Blog"
+      type="rss"
+      xmlUrl="https://blog.mozilla.org/en/feed/"
+      htmlUrl="https://blog.mozilla.org/"
+    />
+  </body>
+</opml>

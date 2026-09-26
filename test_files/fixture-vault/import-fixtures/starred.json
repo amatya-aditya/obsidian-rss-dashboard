@@ -1,0 +1,93 @@
+{
+  "direction": "ltr",
+  "id": "user/-/state/com.google/starred",
+  "title": "Starred",
+  "description": "",
+  "updated": 1788350400,
+  "items": [
+    {
+      "crawlTimeMsec": "1788264000000",
+      "timestampUsec": "1788264000000000",
+      "id": "tag:google.com,2005:reader/item/00000000fa000001",
+      "categories": [
+        "user/1000000001/state/com.google/reading-list",
+        "user/1000000001/state/com.google/starred",
+        "user/1000000001/label/Read%20later"
+      ],
+      "title": "Starred article from a feed already in the vault",
+      "published": 1788177600,
+      "updated": 0,
+      "starred": 1788264000,
+      "canonical": [
+        { "href": "https://example.com/rss-dashboard-fixture/starred/existing-feed" }
+      ],
+      "alternate": [
+        {
+          "href": "https://example.com/rss-dashboard-fixture/starred/existing-feed",
+          "type": "text/html"
+        }
+      ],
+      "summary": {
+        "direction": "ltr",
+        "content": "<p>Placeholder starred summary for an article whose feed the fixture vault already follows.</p>"
+      },
+      "author": "Fixture Author",
+      "origin": {
+        "streamId": "feed/https://github.blog/feed/",
+        "title": "GitHub Blog",
+        "htmlUrl": "https://github.blog/"
+      }
+    },
+    {
+      "crawlTimeMsec": "1788264001000",
+      "timestampUsec": "1788264001000000",
+      "id": "tag:google.com,2005:reader/item/00000000fa000002",
+      "categories": [
+        "user/1000000001/state/com.google/reading-list",
+        "user/1000000001/state/com.google/read",
+        "user/1000000001/state/com.google/starred",
+        "user/1000000001/label/Starred%20import"
+      ],
+      "title": "Starred article from a feed the vault does not follow yet",
+      "published": 1788091200,
+      "updated": 0,
+      "starred": 1788264001,
+      "canonical": [
+        { "href": "https://example.com/rss-dashboard-fixture/starred/new-feed" }
+      ],
+      "content": {
+        "direction": "ltr",
+        "content": "<p>Placeholder starred content, stored in content.content as some Google Reader compatible services do.</p>"
+      },
+      "author": "",
+      "origin": {
+        "streamId": "feed/https://example.com/rss-dashboard-fixture/starred-source.xml",
+        "title": "Starred source (fixture)",
+        "htmlUrl": "https://example.com/rss-dashboard-fixture/starred-source"
+      }
+    },
+    {
+      "crawlTimeMsec": "1788264002000",
+      "timestampUsec": "1788264002000000",
+      "id": "tag:google.com,2005:reader/item/00000000fa000003",
+      "categories": [
+        "user/1000000001/state/com.google/reading-list",
+        "user/1000000001/state/com.google/starred"
+      ],
+      "title": "Starred entry with no article link, which the importer rejects",
+      "published": 1788004800,
+      "updated": 0,
+      "starred": 1788264002,
+      "summary": {
+        "direction": "ltr",
+        "content": "<p>This entry has neither a canonical nor an alternate link.</p>"
+      },
+      "author": "",
+      "origin": {
+        "streamId": "feed/https://github.blog/feed/",
+        "title": "GitHub Blog",
+        "htmlUrl": "https://github.blog/"
+      }
+    }
+  ]
+}

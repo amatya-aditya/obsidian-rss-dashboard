@@ -1,0 +1,72 @@
+{
+  "version": 1,
+  "feedId": "fx-youtube",
+  "feedUrl": "https://www.youtube.com/feeds/videos.xml?channel_id=UC_x5XG1OV2P6uZZ5FSM9Ttw",
+  "updatedAt": 1788242400000,
+  "items": [
+    {
+      "title": "Placeholder video one",
+      "link": "https://www.youtube.com/watch?v=fxVideo0001",
+      "description": "<p>Plain reads pilot marble harbor corridor timber marble opens meadow radar vector. Granite copper amber tests token anchor archive radar island finds island. Forest cedar corridor pebble compass careful window saves shows harbor stanza vector anchor stanza orbit shows. Careful careful ember finds token draft compass shows archive steady channel ribbon.</p>",
+      "content": "<p>Plain reads pilot marble harbor corridor timber marble opens meadow radar vector. Granite copper amber tests token anchor archive radar island finds island. Forest cedar corridor pebble compass careful window saves shows harbor stanza vector anchor stanza orbit shows. Careful careful ember finds token draft compass shows archive steady channel ribbon.</p>",
+      "pubDate": "2026-09-01T06:00:00.000Z",
+      "guid": "yt:video:fxVideo0001",
+      "feedTitle": "Google for Developers (fixture)",
+      "feedUrl": "https://www.youtube.com/feeds/videos.xml?channel_id=UC_x5XG1OV2P6uZZ5FSM9Ttw",
+      "coverImage": "https://img.youtube.com/vi/fxVideo0001/hqdefault.jpg",
+      "summary": "Plain reads pilot marble harbor corridor timber marble opens meadow radar vector. Granite copper amber tests token anchor archive radar island finds island. Forest cedar corridor pebble compass careful window saves shows harbor stanza vector anchor stanza orbit shows. Careful careful ember finds token draft compass shows archive steady channel ribbon.",
+      "author": "Fixture Channel",
+      "mediaType": "video",
+      "videoId": "fxVideo0001",
+      "videoUrl": "https://www.youtube.com/embed/fxVideo0001"
+    },
+    {
+      "title": "Placeholder video two, half watched",
+      "link": "https://www.youtube.com/watch?v=fxVideo0002",
+      "description": "<p>Vector moves quiet quiet steady spindle metric sample. Quiet yarrow summit tests yarrow builds binder copper paper engine draft. Notebook engine ribbon token pixel shows gallery mirror. Moves gallery tangent vector river granite sorts token moves.</p>",
+      "content": "<p>Vector moves quiet quiet steady spindle metric sample. Quiet yarrow summit tests yarrow builds binder copper paper engine draft. Notebook engine ribbon token pixel shows gallery mirror. Moves gallery tangent vector river granite sorts token moves.</p>",
+      "pubDate": "2026-08-31T06:00:00.000Z",
+      "guid": "yt:video:fxVideo0002",
+      "feedTitle": "Google for Developers (fixture)",
+      "feedUrl": "https://www.youtube.com/feeds/videos.xml?channel_id=UC_x5XG1OV2P6uZZ5FSM9Ttw",
+      "coverImage": "https://img.youtube.com/vi/fxVideo0002/hqdefault.jpg",
+      "summary": "Vector moves quiet quiet steady spindle metric sample. Quiet yarrow summit tests yarrow builds binder copper paper engine draft. Notebook engine ribbon token pixel shows gallery mirror. Moves gallery tangent vector river granite sorts token moves.",
+      "author": "Fixture Channel",
+      "mediaType": "video",
+      "videoId": "fxVideo0002",
+      "videoUrl": "https://www.youtube.com/embed/fxVideo0002"
+    },
+    {
+      "title": "Placeholder video three, starred",
+      "link": "https://www.youtube.com/watch?v=fxVideo0003",
+      "description": "<p>Crescent corridor archive mirror simple harbor pebble brief granite signal useful signal. Sketch ledger anchor amber ribbon pixel finds index planner. Signal corridor anchor cipher harbor thread cipher marble marble. Corridor ribbon metric calm cedar moves steady marble marks finds zephyr beacon copper.</p>",
+      "content": "<p>Crescent corridor archive mirror simple harbor pebble brief granite signal useful signal. Sketch ledger anchor amber ribbon pixel finds index planner. Signal corridor anchor cipher harbor thread cipher marble marble. Corridor ribbon metric calm cedar moves steady marble marks finds zephyr beacon copper.</p>",
+      "pubDate": "2026-08-29T04:00:00.000Z",
+      "guid": "yt:video:fxVideo0003",
+      "feedTitle": "Google for Developers (fixture)",
+      "feedUrl": "https://www.youtube.com/feeds/videos.xml?channel_id=UC_x5XG1OV2P6uZZ5FSM9Ttw",
+      "coverImage": "https://img.youtube.com/vi/fxVideo0003/hqdefault.jpg",
+      "summary": "Crescent corridor archive mirror simple harbor pebble brief granite signal useful signal. Sketch ledger anchor amber ribbon pixel finds index planner. Signal corridor anchor cipher harbor thread cipher marble marble. Corridor ribbon metric calm cedar moves steady marble marks finds zephyr beacon copper.",
+      "author": "Fixture Channel",
+      "mediaType": "video",
+      "videoId": "fxVideo0003",
+      "videoUrl": "https://www.youtube.com/embed/fxVideo0003"
+    },
+    {
+      "title": "Placeholder video four",
+      "link": "https://www.youtube.com/watch?v=fxVideo0004",
+      "description": "<p>Marble kernel compass stanza ledger sketch sorts meadow atlas. Summit stanza pilot quill rapid harbor tests quill anchor quarry. Copper crescent kernel quiet summit signal window outline spindle plain. Forest fixture timber brief compass metric harbor sketch patient marks fixture finds.</p>",
+      "content": "<p>Marble kernel compass stanza ledger sketch sorts meadow atlas. Summit stanza pilot quill rapid harbor tests quill anchor quarry. Copper crescent kernel quiet summit signal window outline spindle plain. Forest fixture timber brief compass metric harbor sketch patient marks fixture finds.</p>",
+      "pubDate": "2026-08-24T04:00:00.000Z",
+      "guid": "yt:video:fxVideo0004",
+      "feedTitle": "Google for Developers (fixture)",
+      "feedUrl": "https://www.youtube.com/feeds/videos.xml?channel_id=UC_x5XG1OV2P6uZZ5FSM9Ttw",
+      "coverImage": "https://img.youtube.com/vi/fxVideo0004/hqdefault.jpg",
+      "summary": "Marble kernel compass stanza ledger sketch sorts meadow atlas. Summit stanza pilot quill rapid harbor tests quill anchor quarry. Copper crescent kernel quiet summit signal window outline spindle plain. Forest fixture timber brief compass metric harbor sketch patient marks fixture finds.",
+      "author": "Fixture Channel",
+      "mediaType": "video",
+      "videoId": "fxVideo0004",
+      "videoUrl": "https://www.youtube.com/embed/fxVideo0004"
+    }
+  ]
+}

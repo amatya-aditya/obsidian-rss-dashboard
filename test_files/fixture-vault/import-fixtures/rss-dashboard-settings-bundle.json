@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "exportedAt": 1788350400000,
+  "metadataStorageMode": "vault-location",
+  "metadataStorageFolder": "rss-dashboard-data",
+  "settings": {
+    "viewStyle": "list",
+    "articleSort": "oldest",
+    "sidebarWidth": 360,
+    "articleGroupBy": "feed",
+    "refreshInterval": 0,
+    "storageMode": "vault-shards-v2",
+    "storageFolder": "rss-dashboard-data/feeds",
+    "metadataStorageMode": "vault-location",
+    "metadataStorageFolder": "rss-dashboard-data",
+    "metadataStorageSchemaVersion": 2
+  }
+}
