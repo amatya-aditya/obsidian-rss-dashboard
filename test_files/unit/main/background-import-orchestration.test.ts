@@ -90,12 +90,6 @@ function createPlugin(): RssDashboardPlugin {
     saveSettings: () => plugin.saveSettings(),
     ensureFolderExists: vi.fn().mockResolvedValue(false),
     addStatusBarItem: () => pluginInternal.addStatusBarItem(),
-    onFeedImported: (feed) =>
-      (
-        plugin as unknown as {
-          queuePreviewImageCaching(importedFeed: Feed): void;
-        }
-      ).queuePreviewImageCaching(feed),
   });
 
   return plugin;
@@ -157,17 +151,6 @@ describe("background import orchestration", () => {
       ],
     } satisfies Feed;
     plugin.settings.feeds = [existingFeed];
-    plugin.settings.display = {
-      ...plugin.settings.display,
-      allowImageCaching: true,
-      showCoverImage: true,
-    };
-    const cacheUrl = vi.fn().mockResolvedValue(true);
-    (
-      plugin as unknown as {
-        imageCacheService: { cacheUrl: typeof cacheUrl };
-      }
-    ).imageCacheService = { cacheUrl };
 
     let resolveInitialSave: (() => void) | undefined;
     vi.mocked(plugin.saveData)
@@ -260,10 +243,6 @@ describe("background import orchestration", () => {
         (feed) => feed.url === "https://example.com/discovered.xml",
       )?.items,
     ).toEqual([importedArticle]);
-    expect(cacheUrl).toHaveBeenCalledWith(
-      "https://example.com/discovered-cover.jpg",
-      true,
-    );
     expect(mockRefreshFeed).not.toHaveBeenCalledWith(
       expect.objectContaining({ url: "https://example.com/discovered.xml" }),
       expect.anything(),
