@@ -808,7 +808,24 @@ export class MockDataVault {
       await this.delete(file);
       return;
     }
-    this.forgetFolder(file.path);
+    // Observed on Obsidian 1.13.7 desktop (Windows): trashing a folder takes
+    // its child file with it, out of the index and off disk. Not probed:
+    // descendants nested more than one level down are modeled the same way,
+    // and so is the folder itself on disk.
+    const key = this.diskKey(file.path);
+    const isInside = (path: string): boolean => {
+      const pathKey = this.diskKey(path);
+      return pathKey === key || pathKey.startsWith(`${key}/`);
+    };
+    for (const filePath of [...this.adapterFiles.keys()]) {
+      if (isInside(filePath)) this.adapterFiles.delete(filePath);
+    }
+    for (const filePath of [...this.files.keys()]) {
+      if (isInside(filePath)) this.files.delete(filePath);
+    }
+    for (const folderPath of [...this.folders.keys()]) {
+      if (isInside(folderPath)) this.forgetFolder(folderPath);
+    }
   }
 
   async renameAbstractFile(file: TFileStub, newPath: string): Promise<void> {
