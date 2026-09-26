@@ -68,7 +68,7 @@ export class ImportConfirmationModal extends Modal {
     if (replacing && confirmation.unloadedFeedCount > 0) {
       const count = confirmation.unloadedFeedCount;
       contentEl.createEl("p", {
-        text: `${count} ${count === 1 ? "feed hasn't" : "feeds haven't"} loaded their articles on this device, so the current article counts leave them out.`,
+        text: `${count} ${count === 1 ? "feed hasn't loaded its" : "feeds haven't loaded their"} articles on this device, so the current article counts leave ${count === 1 ? "it" : "them"} out.`,
       });
     }
     if (confirmation.preferences) {

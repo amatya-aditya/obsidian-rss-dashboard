@@ -121,6 +121,16 @@ describe("ImportConfirmationModal", () => {
       );
     });
 
+    it("uses the singular when one feed has not loaded its articles", () => {
+      const { modal } = openModal(
+        feedBundleConfirmation({ unloadedFeedCount: 1 }),
+      );
+
+      expect(text(modal)).toContain(
+        "1 feed hasn't loaded its articles on this device",
+      );
+    });
+
     it("leaves out the unloaded-feed note when every feed has loaded", () => {
       const { modal } = openModal(feedBundleConfirmation());
 
