@@ -856,3 +856,54 @@ describe("Obsidian stub contract: TFile names and adapter paths", () => {
     });
   });
 });
+
+describe("Obsidian stub contract: adapter.remove", () => {
+  // Observed on Obsidian 1.13.7 desktop (Windows): `adapter.remove` of a
+  // missing path rejects with Node's ENOENT error (with `code`), naming the
+  // absolute path and the `unlink` syscall.
+  it("throws ENOENT for a missing path", async () => {
+    const { vault } = new App();
+
+    const error: unknown = await vault.adapter
+      .remove("probe-missing.md")
+      .catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(Error);
+    expect(error).toMatchObject({ code: "ENOENT" });
+    expect((error as Error).message).toMatch(
+      /^ENOENT: no such file or directory, unlink '.*probe-missing\.md'$/,
+    );
+  });
+
+  // Observed on Obsidian 1.13.7 desktop (Windows): `adapter.remove` of a
+  // folder rejects with EPERM (with `code`) and leaves the folder in place.
+  // Node on Linux and macOS reports EISDIR instead; the stub models the
+  // observed Windows error, and callers should rely only on it throwing.
+  it("throws EPERM for a folder and keeps it", async () => {
+    const { vault } = new App();
+    await vault.adapter.mkdir("probe-folder");
+
+    const error: unknown = await vault.adapter
+      .remove("probe-folder")
+      .catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(Error);
+    expect(error).toMatchObject({ code: "EPERM" });
+    expect((error as Error).message).toMatch(
+      /^EPERM: operation not permitted, unlink '.*probe-folder'$/,
+    );
+    expect(await vault.adapter.exists("probe-folder")).toBe(true);
+  });
+
+  // Observed on Obsidian 1.13.7 desktop (Windows): `adapter.remove` of an
+  // existing file deletes it (a later read throws ENOENT, see "vault reads").
+  it("removes an existing file", async () => {
+    const { vault } = new App();
+    await vault.adapter.mkdir("probe");
+    await vault.adapter.write("probe/r.md", "hello");
+
+    await expect(vault.adapter.remove("probe/r.md")).resolves.toBeUndefined();
+
+    expect(await vault.adapter.exists("probe/r.md")).toBe(false);
+  });
+});
