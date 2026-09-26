@@ -7,7 +7,7 @@
     "fileMaxLines": {
       "main.ts": 3880,
       "src/components/sidebar.ts": 4603,
-      "src/services/feed-storage-repository.ts": 1974,
+      "src/services/feed-storage-repository.ts": 1521,
       "src/views/dashboard-view.ts": 4685,
       "src/views/reader-view.ts": 3469
     },
