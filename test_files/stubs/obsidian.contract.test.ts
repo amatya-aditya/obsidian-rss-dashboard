@@ -9,7 +9,7 @@
  * `obsidian-console-probes.md` to observe the behavior, and name the version.
  */
 import { afterEach, describe, expect, it } from "vitest";
-import { requestUrl, setRequestUrlHandler } from "obsidian";
+import { App, requestUrl, setRequestUrlHandler } from "obsidian";
 
 describe("Obsidian stub contract", () => {
   describe("globals", () => {
@@ -62,6 +62,37 @@ describe("Obsidian stub contract", () => {
 
       expect(response.status).toBe(200);
       expect(response.text).toBe("ok");
+    });
+  });
+
+  describe("vault: hidden paths", () => {
+    // Observed on Obsidian 1.13.7 desktop: `getAbstractFileByPath` returns
+    // `null` for anything under a dot-prefixed folder (including `configDir`),
+    // even when `adapter.exists` reports it on disk.
+    it("leaves files and folders under a dot folder out of the vault index", async () => {
+      const { vault } = new App();
+      await vault.createFolder(".rss-meta");
+      await vault.create(".rss-meta/data.json", "{}");
+
+      expect(vault.getAbstractFileByPath(".rss-meta")).toBeNull();
+      expect(vault.getAbstractFileByPath(".rss-meta/data.json")).toBeNull();
+      expect(vault.getFiles().map((file) => file.path)).not.toContain(
+        ".rss-meta/data.json",
+      );
+      expect(await vault.adapter.exists(".rss-meta")).toBe(true);
+      expect(await vault.adapter.exists(".rss-meta/data.json")).toBe(true);
+    });
+
+    // Observed on Obsidian 1.13.7 desktop: `configDir` is a dot folder, so
+    // the plugin's own folder is hidden from the vault index too.
+    it("keeps the config folder, a dot folder, out of the vault index", async () => {
+      const { vault } = new App();
+      const manifestPath = `${vault.configDir}/plugins/rss-dashboard/manifest.json`;
+      await vault.adapter.write(manifestPath, "{}");
+
+      expect(vault.configDir.startsWith(".")).toBe(true);
+      expect(vault.getAbstractFileByPath(manifestPath)).toBeNull();
+      expect(await vault.adapter.exists(manifestPath)).toBe(true);
     });
   });
 });

@@ -182,3 +182,97 @@ describe("renderStorageSettingsTab() - default folders and metadata", () => {
     expect(vi.mocked(plugin.saveSettings)).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("renderStorageSettingsTab() - previous metadata copy cleanup", () => {
+  async function applyMetadataLocation(
+    containerEl: HTMLElement,
+    folder: string,
+  ): Promise<void> {
+    const input = getSettingByName(
+      containerEl,
+      "Metadata data.json location",
+    ).querySelector('input[type="text"]') as HTMLInputElement;
+    input.value = folder;
+    input.dispatchEvent(new Event("input"));
+    const applyButton = getSettingByName(
+      containerEl,
+      "Metadata actions",
+    ).querySelector("button") as HTMLButtonElement;
+    applyButton.click();
+    await flushPromises();
+  }
+
+  function findCleanupModal(): HTMLElement | null {
+    const heading = Array.from(document.querySelectorAll(".modal h2")).find(
+      (el) => el.textContent === "Delete previous metadata copy?",
+    );
+    return (heading?.closest(".modal") as HTMLElement | null) ?? null;
+  }
+
+  function clickModalButton(modal: HTMLElement, text: string): void {
+    const button = Array.from(modal.querySelectorAll("button")).find(
+      (el) => el.textContent === text,
+    );
+    if (!button) {
+      throw new Error(`Button not found: ${text}`);
+    }
+    button.click();
+  }
+
+  function createVaultLocationPlugin(folder: string) {
+    const plugin = createPlugin();
+    plugin.settings.metadataStorageMode = "vault-location";
+    plugin.settings.metadataStorageFolder = folder;
+    return plugin;
+  }
+
+  it("offers to delete the previous copy in a hidden vault folder and removes it", async () => {
+    const containerEl = document.body.appendChild(createDiv());
+    const plugin = createVaultLocationPlugin(".rss-meta");
+    const { vault } = plugin.app;
+    await vault.createFolder(".rss-meta");
+    await vault.create(".rss-meta/data.json", "{}");
+
+    renderStorageSettingsTab(containerEl, plugin);
+    await applyMetadataLocation(containerEl, "rss-meta2");
+
+    const modal = findCleanupModal();
+    expect(modal).not.toBeNull();
+    clickModalButton(modal as HTMLElement, "Delete previous copy");
+    await flushPromises();
+
+    expect(await vault.adapter.exists(".rss-meta/data.json")).toBe(false);
+  });
+
+  it("offers to delete the previous copy in a visible vault folder", async () => {
+    const containerEl = document.body.appendChild(createDiv());
+    const plugin = createVaultLocationPlugin("rss-meta");
+    const { vault } = plugin.app;
+    await vault.createFolder("rss-meta");
+    await vault.create("rss-meta/data.json", "{}");
+
+    renderStorageSettingsTab(containerEl, plugin);
+    await applyMetadataLocation(containerEl, "rss-meta2");
+
+    const modal = findCleanupModal();
+    expect(modal).not.toBeNull();
+    clickModalButton(modal as HTMLElement, "Delete previous copy");
+    await flushPromises();
+
+    expect(await vault.adapter.exists("rss-meta/data.json")).toBe(false);
+  });
+
+  it("never offers to delete the plugin-default data.json, which becomes the bootstrap pointer", async () => {
+    const containerEl = document.body.appendChild(createDiv());
+    const plugin = createPlugin();
+    const { vault } = plugin.app;
+    const bootstrapPath = `${vault.configDir}/plugins/rss-dashboard/data.json`;
+    await vault.adapter.write(bootstrapPath, "{}");
+
+    renderStorageSettingsTab(containerEl, plugin);
+    await applyMetadataLocation(containerEl, "rss-meta");
+
+    expect(findCleanupModal()).toBeNull();
+    expect(await vault.adapter.exists(bootstrapPath)).toBe(true);
+  });
+});

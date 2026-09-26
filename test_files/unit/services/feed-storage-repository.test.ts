@@ -2682,6 +2682,7 @@ describe("removing a feed deletes its shard file", () => {
   it("still trashes an indexed shard through the file manager", async () => {
     const settings = cloneSettings();
     settings.storageMode = "vault-shards-v2";
+    settings.storageFolder = "RSS Data/Feeds";
     settings.feeds = [
       makeFeed({ feedId: "feed-keep" }),
       makeFeed({ feedId: "feed-delete", url: "https://example.com/other.xml" }),
@@ -2689,7 +2690,7 @@ describe("removing a feed deletes its shard file", () => {
     await repository.persistSettings(settings, saveData);
 
     // Outside a dot-folder Obsidian indexes the file, giving it a TFile.
-    await app.vault.create(".rss-dashboard-data/feeds/feed-delete.json", "{}");
+    await app.vault.create("RSS Data/Feeds/feed-delete.json", "{}");
     const trashSpy = vi.spyOn(app.fileManager, "trashFile");
     const removeSpy = vi.spyOn(app.vault.adapter, "remove");
 
@@ -2698,6 +2699,8 @@ describe("removing a feed deletes its shard file", () => {
 
     expect(trashSpy).toHaveBeenCalledTimes(1);
     expect(removeSpy).not.toHaveBeenCalled();
-    expect(await shardExists("feed-delete")).toBe(false);
+    expect(await app.vault.adapter.exists("RSS Data/Feeds/feed-delete.json")).toBe(
+      false,
+    );
   });
 });
