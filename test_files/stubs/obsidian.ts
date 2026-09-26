@@ -638,10 +638,9 @@ export class MockDataVault {
 
         return { files, folders };
       },
-      remove: async (path: string) => {
-        this.adapterFiles.delete(path);
-        this.files.delete(path);
-      },
+      // Observed on Obsidian 1.13.7 desktop (Windows): a missing path throws
+      // Node's ENOENT, and a folder throws EPERM and stays.
+      remove: async (path: string) => this.removeFromDisk(path),
       // Not yet observed against Obsidian: trashSystem is modeled as always
       // succeeding, and trashLocal as moving a file into the vault's `.trash`.
       trashSystem: async (path: string) => {
@@ -732,6 +731,31 @@ export class MockDataVault {
       if (this.diskKey(filePath) === key) return content;
     }
     throw enoentError("open", `${this.adapter.getBasePath()}/${path}`);
+  }
+
+  /**
+   * Deletes the file at `path` from disk, found the way the file system finds
+   * it (a case variant on a case-insensitive one; not probed). Throws what
+   * Node's `unlink` throws on Windows: EPERM for a folder (Linux and macOS
+   * report EISDIR), ENOENT for a missing path.
+   */
+  private removeFromDisk(path: string): void {
+    const fullPath = `${this.adapter.getBasePath()}/${path}`;
+    if (this.folderExistsOnDisk(path)) {
+      throw Object.assign(
+        new Error(`EPERM: operation not permitted, unlink '${fullPath}'`),
+        { code: "EPERM" },
+      );
+    }
+    const key = this.diskKey(path);
+    const filePath = [...this.adapterFiles.keys()].find(
+      (candidate) => this.diskKey(candidate) === key,
+    );
+    if (filePath === undefined) {
+      throw enoentError("unlink", fullPath);
+    }
+    this.adapterFiles.delete(filePath);
+    this.files.delete(filePath);
   }
 
   private forgetFolder(folderPath: string): void {

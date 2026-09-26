@@ -520,3 +520,32 @@ console.log({
   getFullPath: A.getFullPath?.("a/b.md"),
 });
 ```
+
+## Removing a missing path or a folder
+
+Observed on 1.13.7 (Windows): `adapter.remove` of a missing path throws an
+`Error` with `code: "ENOENT"` and the message `ENOENT: no such file or
+directory, unlink '<absolute path>'`. `adapter.remove` of a folder throws an
+`Error` with `code: "EPERM"` and the message `EPERM: operation not permitted,
+unlink '<absolute path>'`, and the folder stays. Node's `unlink` on Linux and
+macOS reports `EISDIR` for a folder instead; that wasn't probed. Removing a
+case variant of an existing file's path wasn't probed either.
+
+```js
+const A = app.vault.adapter;
+await A.mkdir("probe-remove/m1");
+try {
+  await A.remove("probe-remove/missing.md");
+  console.log("remove missing: returned");
+} catch (e) {
+  console.log("remove missing threw", e.code, e.message);
+}
+try {
+  await A.remove("probe-remove/m1");
+  console.log("remove folder: returned");
+} catch (e) {
+  console.log("remove folder threw", e.code, e.message);
+}
+console.log("folder still exists:", await A.exists("probe-remove/m1"));
+// Clean up: delete probe-remove from the file explorer.
+```
