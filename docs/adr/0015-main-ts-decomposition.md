@@ -56,8 +56,8 @@ and extraction order. These constraints shape the answer:
 - **The refactor must not change behavior** (#436 rules 1–3). Characterization
   tests that pin current behavior come first, must pass on the untouched code,
   and are read-only while the extraction runs.
-- **One extraction per PR** (rule 5), committed as move, then wiring, then a
-  simplify pass (rule 6).
+- **One extraction per PR** (rule 5), committed as a move commit, then a
+  wiring commit (rule 6).
 - **Public plugin methods stay as one-line delegates** until a separate ticket
   moves their callers (rule 7). 23 production files import `main.ts`.
 - **Only the plugin calls `registerEvent`, `registerInterval` or
@@ -245,8 +245,7 @@ change while it moves.
    - Pins known bugs with `// BUG: pinned, see #<issue>`.
 2. **The extraction PR** (`refactor(main): extract <module>`, from a
    `refactor/<issue>-<slug>` branch).
-   - Three commits, following the #436 contributor loop: move, then wiring,
-     then simplify.
+   - Two commits, following the #436 contributor loop: move, then wiring.
    - Modifies no characterization test, which CI enforces. It may add unit
      tests for the new module.
 
@@ -266,7 +265,6 @@ The pilot (#467) set the commit shape that meets that:
   It reroutes the other references inside `main.ts`, deletes the originals,
   lowers the ratchet to the new line count, and prunes
   `eslint-suppressions.json` for anything that left `main.ts`.
-- **Simplify** tidies the moved code without changing behavior.
 
 `eslint-suppressions.json` counts suppressions per file, so a function over
 the length or complexity limit can't move unchanged: it would be a new
