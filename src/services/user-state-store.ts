@@ -26,6 +26,19 @@ function feedIdOfStateKey(key: string): string {
   return separatorIndex === -1 ? "" : key.slice(0, separatorIndex);
 }
 
+/**
+ * Copies a persisted entry's article state onto a loaded item. Used both when
+ * hydrating and when adopting disk state for an item that missed hydration.
+ */
+function applyPersistedState(item: FeedItem, state: ArticleUserState): void {
+  item.read = state.read ?? false;
+  item.starred = state.starred ?? false;
+  item.tags = state.tags ? cloneJson(state.tags) : [];
+  item.saved = state.saved ?? false;
+  if (state.savedFilePath) item.savedFilePath = state.savedFilePath;
+  if (state.playbackProgress) item.playbackProgress = cloneJson(state.playbackProgress);
+}
+
 function storageLog(_message: string, _details?: unknown): void {}
 
 function storageError(
@@ -121,12 +134,7 @@ export class UserStateStore {
       for (const item of feed.items) {
         const state = resolvedStates[userStateKey(feedId, item.guid)];
         if (state) {
-          item.read = state.read ?? false;
-          item.starred = state.starred ?? false;
-          item.tags = state.tags ? cloneJson(state.tags) : [];
-          item.saved = state.saved ?? false;
-          if (state.savedFilePath) item.savedFilePath = state.savedFilePath;
-          if (state.playbackProgress) item.playbackProgress = cloneJson(state.playbackProgress);
+          applyPersistedState(item, state);
         } else {
           item.read = false;
           item.starred = false;
@@ -141,12 +149,13 @@ export class UserStateStore {
     return userStateLoaded;
   }
 
+  private getMetadataFolder(settings: RssDashboardSettings): string {
+    const folder = settings.metadataStorageFolder.trim() || ".rss-dashboard-data";
+    return folder.replace(/^\/+|\/+$/g, "");
+  }
+
   private getUserStatePath(settings: RssDashboardSettings): string {
-    let folder = settings.metadataStorageFolder.trim();
-    if (!folder) {
-      folder = ".rss-dashboard-data";
-    }
-    return normalizePath(`${folder.replace(/^\/+|\/+$/g, "")}/user-state.json`);
+    return normalizePath(`${this.getMetadataFolder(settings)}/user-state.json`);
   }
 
   /**
@@ -381,12 +390,7 @@ export class UserStateStore {
     if (!this.syncedUserStateKeys.has(key)) {
       this.syncedUserStateKeys.add(key);
       if (baseline) {
-        item.read = baseline.read ?? false;
-        item.starred = baseline.starred ?? false;
-        item.tags = baseline.tags ? cloneJson(baseline.tags) : [];
-        item.saved = baseline.saved ?? false;
-        if (baseline.savedFilePath) item.savedFilePath = baseline.savedFilePath;
-        if (baseline.playbackProgress) item.playbackProgress = cloneJson(baseline.playbackProgress);
+        applyPersistedState(item, baseline);
         return;
       }
     }
@@ -565,11 +569,7 @@ export class UserStateStore {
     const path = this.getUserStatePath(settings);
 
     // Ensure metadata folder exists
-    let folder = settings.metadataStorageFolder.trim();
-    if (!folder) {
-      folder = ".rss-dashboard-data";
-    }
-    const normalizedFolder = normalizePath(folder.replace(/^\/+|\/+$/g, ""));
+    const normalizedFolder = normalizePath(this.getMetadataFolder(settings));
     const folderExists = await this.app.vault.adapter.exists(normalizedFolder);
     if (!folderExists) {
       try {
