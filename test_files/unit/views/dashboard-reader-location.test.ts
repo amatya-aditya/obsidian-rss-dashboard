@@ -8,6 +8,7 @@ import {
   type RssDashboardSettings,
 } from "../../../src/types/types";
 import { ReaderView } from "../../../src/views/reader-view";
+import { RssDashboardView } from "../../../src/views/dashboard-view";
 
 vi.mock("../../../src/utils/platform-utils", () => ({
   robustFetch: vi.fn(),
@@ -163,8 +164,6 @@ async function createDashboardView(
   view: TestDashboardView;
   dashboardLeaf: unknown;
 }> {
-  const { RssDashboardView } =
-    await import("../../../src/views/dashboard-view");
   const app = new App();
   Object.assign(app.workspace, workspaceOverrides);
 

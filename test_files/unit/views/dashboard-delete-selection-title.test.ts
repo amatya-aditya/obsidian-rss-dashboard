@@ -7,6 +7,7 @@ import {
   type FeedItem,
   type RssDashboardSettings,
 } from "../../../src/types/types";
+import { RssDashboardView } from "../../../src/views/dashboard-view";
 
 // ── Module mocks (same pattern as dashboard-lifecycle.test.ts) ────────────────
 vi.mock("../../../src/utils/platform-utils", () => ({
@@ -113,8 +114,6 @@ interface DashViewTestAPI {
 async function makeView(
   settings: RssDashboardSettings,
 ): Promise<DashViewTestAPI> {
-  const { RssDashboardView } =
-    await import("../../../src/views/dashboard-view");
   const app = new App();
   const plugin = {
     settings,

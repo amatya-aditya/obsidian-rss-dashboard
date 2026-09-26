@@ -7,6 +7,7 @@ import {
   type FeedItem,
   type RssDashboardSettings,
 } from "../../../src/types/types";
+import { RssDashboardView } from "../../../src/views/dashboard-view";
 
 vi.mock("../../../src/utils/platform-utils", () => ({
   robustFetch: vi.fn(),
@@ -93,9 +94,6 @@ describe("Dashboard effective date sorting (getEffectiveDateMs)", () => {
 
   describe("Oldest/newest sort with undated items", () => {
     it("sorts undated items by firstSeenMs when useFirstSeenDateFallback is enabled (newest first)", async () => {
-      const { RssDashboardView } =
-        await import("../../../src/views/dashboard-view");
-
       const app = new App();
       const settings = cloneSettings();
       settings.useFirstSeenDateFallback = true;
@@ -140,9 +138,6 @@ describe("Dashboard effective date sorting (getEffectiveDateMs)", () => {
     });
 
     it("sorts undated items last when useFirstSeenDateFallback is disabled (baseline)", async () => {
-      const { RssDashboardView } =
-        await import("../../../src/views/dashboard-view");
-
       const app = new App();
       const settings = cloneSettings();
       settings.useFirstSeenDateFallback = false;
@@ -189,9 +184,6 @@ describe("Dashboard effective date sorting (getEffectiveDateMs)", () => {
     });
 
     it("respects oldest sort with firstSeenMs fallback", async () => {
-      const { RssDashboardView } =
-        await import("../../../src/views/dashboard-view");
-
       const app = new App();
       const settings = cloneSettings();
       settings.useFirstSeenDateFallback = true;
@@ -235,9 +227,6 @@ describe("Dashboard effective date sorting (getEffectiveDateMs)", () => {
 
   describe("Related articles sort with undated items", () => {
     it("sorts related articles by firstSeenMs when fallback enabled", async () => {
-      const { RssDashboardView } =
-        await import("../../../src/views/dashboard-view");
-
       const app = new App();
       const settings = cloneSettings();
       settings.useFirstSeenDateFallback = true;
@@ -283,9 +272,6 @@ describe("Dashboard effective date sorting (getEffectiveDateMs)", () => {
 
   describe("Age filter with undated items", () => {
     it("filters undated items by firstSeenMs when fallback enabled", async () => {
-      const { RssDashboardView } =
-        await import("../../../src/views/dashboard-view");
-
       const app = new App();
       const settings = cloneSettings();
       settings.useFirstSeenDateFallback = true;
@@ -339,9 +325,6 @@ describe("Dashboard effective date sorting (getEffectiveDateMs)", () => {
     });
 
     it("excludes undated items by age when fallback disabled (baseline)", async () => {
-      const { RssDashboardView } =
-        await import("../../../src/views/dashboard-view");
-
       const app = new App();
       const settings = cloneSettings();
       settings.useFirstSeenDateFallback = false;
@@ -388,9 +371,6 @@ describe("Dashboard effective date sorting (getEffectiveDateMs)", () => {
     });
 
     it("count-only age filter (getTotalArticlesCountForCurrentView) counts undated items by firstSeenMs when fallback enabled", async () => {
-      const { RssDashboardView } =
-        await import("../../../src/views/dashboard-view");
-
       const app = new App();
       const settings = cloneSettings();
       settings.useFirstSeenDateFallback = true;
@@ -440,9 +420,6 @@ describe("Dashboard effective date sorting (getEffectiveDateMs)", () => {
     });
 
     it("count-only age filter excludes undated items when fallback disabled (baseline)", async () => {
-      const { RssDashboardView } =
-        await import("../../../src/views/dashboard-view");
-
       const app = new App();
       const settings = cloneSettings();
       settings.useFirstSeenDateFallback = false;
@@ -485,9 +462,6 @@ describe("Dashboard effective date sorting (getEffectiveDateMs)", () => {
 
   describe("Regression: fully-dated feeds", () => {
     it("maintains sort order for fully-dated feeds (newest first)", async () => {
-      const { RssDashboardView } =
-        await import("../../../src/views/dashboard-view");
-
       const app = new App();
       const settings = cloneSettings();
       settings.useFirstSeenDateFallback = true; // on or off doesn't matter for dated items
@@ -529,9 +503,6 @@ describe("Dashboard effective date sorting (getEffectiveDateMs)", () => {
     });
 
     it("maintains sort order for fully-dated feeds (oldest first)", async () => {
-      const { RssDashboardView } =
-        await import("../../../src/views/dashboard-view");
-
       const app = new App();
       const settings = cloneSettings();
       settings.useFirstSeenDateFallback = true;
