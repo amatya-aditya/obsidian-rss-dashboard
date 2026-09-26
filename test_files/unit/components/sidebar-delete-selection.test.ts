@@ -111,6 +111,9 @@ describe("Sidebar Delete Selection", () => {
       onRefreshFeeds: vi.fn(),
       onRetryFailedFeeds: vi.fn(),
       onUpdateFeed: vi.fn(),
+      onImportOpml: vi.fn(),
+      onExportOpml: vi.fn(),
+      onToggleSidebar: vi.fn(),
     };
 
     sidebar = new Sidebar(

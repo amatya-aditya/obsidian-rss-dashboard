@@ -8,6 +8,7 @@ import {
   type RssDashboardSettings,
 } from "../../../src/types/types";
 import { RESTRICTED_ARTICLE_REASON } from "../../../src/utils/full-article-fetch";
+import { RssDashboardView } from "../../../src/views/dashboard-view";
 
 vi.mock("../../../src/utils/platform-utils", () => ({
   robustFetch: vi.fn(),
@@ -111,8 +112,6 @@ interface DashboardViewInternal {
 async function makeView(
   settings: RssDashboardSettings,
 ): Promise<DashboardViewInternal> {
-  const { RssDashboardView } =
-    await import("../../../src/views/dashboard-view");
   const app = new App();
   const plugin = {
     settings,

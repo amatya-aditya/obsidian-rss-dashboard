@@ -8,6 +8,7 @@ import {
   type HighlightWord,
   type RssDashboardSettings,
 } from "../../../src/types/types";
+import { RssDashboardView } from "../../../src/views/dashboard-view";
 
 vi.mock("../../../src/utils/platform-utils", () => ({
   robustFetch: vi.fn(),
@@ -138,8 +139,6 @@ interface DashViewTestAPI {
 async function makeView(
   settings: RssDashboardSettings,
 ): Promise<DashViewTestAPI> {
-  const { RssDashboardView } =
-    await import("../../../src/views/dashboard-view");
   const app = new App();
   const plugin = {
     settings,
@@ -340,7 +339,7 @@ describe("Dashboard lifecycle", () => {
       view.currentFolder = "Tech";
       const result = view.getFilteredArticles();
       expect(result).toHaveLength(1);
-      expect(result[0]!.feedUrl).toBe("https://a.com/feed");
+      expect(result[0].feedUrl).toBe("https://a.com/feed");
     });
 
     it("sorts articles newest-first by default", async () => {
@@ -355,8 +354,8 @@ describe("Dashboard lifecycle", () => {
       settings.articleSort = "newest";
       const view = await makeView(settings);
       const result = view.getFilteredArticles();
-      expect(new Date(result[0]!.pubDate).getTime()).toBeGreaterThan(
-        new Date(result[1]!.pubDate).getTime(),
+      expect(new Date(result[0].pubDate).getTime()).toBeGreaterThan(
+        new Date(result[1].pubDate).getTime(),
       );
     });
 
@@ -372,8 +371,8 @@ describe("Dashboard lifecycle", () => {
       settings.articleSort = "oldest";
       const view = await makeView(settings);
       const result = view.getFilteredArticles();
-      expect(new Date(result[0]!.pubDate).getTime()).toBeLessThan(
-        new Date(result[1]!.pubDate).getTime(),
+      expect(new Date(result[0].pubDate).getTime()).toBeLessThan(
+        new Date(result[1].pubDate).getTime(),
       );
     });
   });
@@ -542,7 +541,7 @@ describe("Dashboard lifecycle", () => {
       ];
       view.computeHighlightMatchCounts(articles);
       expect(view.highlightMatchCounts).toHaveLength(1);
-      expect(view.highlightMatchCounts[0]!.count).toBe(2);
+      expect(view.highlightMatchCounts[0].count).toBe(2);
     });
 
     it("skips disabled highlight words", async () => {
@@ -666,7 +665,7 @@ describe("Dashboard lifecycle", () => {
       const view = await makeView(settings);
       view.handleDeleteFeed(feed1);
       expect(settings.feeds).toHaveLength(1);
-      expect(settings.feeds[0]!.url).toBe("https://b.com/feed");
+      expect(settings.feeds[0].url).toBe("https://b.com/feed");
     });
 
     it("removes cached preview images for the deleted feed", async () => {

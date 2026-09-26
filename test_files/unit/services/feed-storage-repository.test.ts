@@ -3,12 +3,24 @@ import { App } from "obsidian";
 import { FeedStorageRepository } from "../../../src/services/feed-storage-repository";
 import {
   DEFAULT_SETTINGS,
+  type AutoBackupSettings,
   type Feed,
   type FeedItem,
   type RssDashboardSettings,
 } from "../../../src/types/types";
 import { shouldShowStorageDeprecationPrompt } from "../../../src/utils/storage-deprecation-prompt";
 import { applyFeedRetentionLimits } from "../../../src/services/feed-parser/feed-retention";
+
+const BACKUP_ALL: AutoBackupSettings = {
+  backupDataJson: true,
+  backupOpml: true,
+  backupUserdata: true,
+};
+const BACKUP_NONE: AutoBackupSettings = {
+  backupDataJson: false,
+  backupOpml: false,
+  backupUserdata: false,
+};
 
 interface VaultAdapterStub {
   write(path: string, content: string): Promise<void>;
@@ -49,7 +61,7 @@ function makeFeed(overrides?: Partial<Feed>): Feed {
 }
 
 function makeItem(overrides?: Partial<FeedItem>): FeedItem {
-  return { ...(makeFeed().items[0] as FeedItem), ...overrides };
+  return { ...(makeFeed().items[0]), ...overrides };
 }
 
 describe("FeedStorageRepository", () => {
@@ -133,6 +145,7 @@ describe("FeedStorageRepository", () => {
       }),
     ];
 
+    await app.vault.adapter.mkdir("RSS Data/Feeds");
     await vaultAdapter(app).write(
       "RSS Data/Feeds/feed-1.json",
       JSON.stringify({
@@ -589,18 +602,11 @@ describe("FeedStorageRepository", () => {
     settings.storageFolder = "RSS Data/Feeds";
     settings.feeds = [makeFeed({ feedId: "feed-1" })];
 
+    await app.vault.adapter.mkdir("RSS Data/Feeds");
     vi.spyOn(app.vault, "getAbstractFileByPath").mockReturnValue(null);
     vi.spyOn(app.vault, "createFolder").mockRejectedValueOnce(
       new Error("Folder already exists"),
     );
-    const adapterWithExists = app.vault.adapter as unknown as { exists: (p: string) => Promise<boolean> };
-    vi.spyOn(adapterWithExists, "exists").mockImplementation((path: string) => {
-      if (path === "RSS Data/Feeds") {
-        return Promise.resolve(true);
-      }
-
-      return Promise.resolve(false);
-    });
 
     await repository.migrateToVaultShards(settings, saveData);
 
@@ -614,6 +620,7 @@ describe("FeedStorageRepository", () => {
     settings.storageFolder = "RSS Data/Feeds";
     settings.feeds = [makeFeed({ feedId: "feed-1" })];
 
+    await app.vault.createFolder("RSS Data");
     await app.vault.create("RSS Data/Feeds", "not a folder");
 
     await expect(repository.migrateToVaultShards(settings, saveData)).rejects.toThrow(
@@ -959,7 +966,7 @@ describe("FeedStorageRepository", () => {
     it("applies feeds, folders, and tags but leaves app settings untouched", async () => {
       const settings = cloneSettings();
       settings.storageMode = "legacy-json";
-      settings.autoBackup = true;
+      settings.autoBackup = { ...BACKUP_ALL };
       settings.feeds = [makeFeed({ feedId: "old-feed", items: [] })];
 
       const bundle = {
@@ -1006,13 +1013,13 @@ describe("FeedStorageRepository", () => {
       expect(settings.folders).toEqual(bundle.folders);
       expect(settings.availableTags).toEqual(bundle.availableTags);
       expect(settings.storageMode).toBe("legacy-json");
-      expect(settings.autoBackup).toBe(true);
+      expect(settings.autoBackup).toEqual(BACKUP_ALL);
     });
 
     it("ignores settings-shaped fields present in the input", async () => {
       const settings = cloneSettings();
       settings.storageMode = "legacy-json";
-      settings.autoBackup = true;
+      settings.autoBackup = { ...BACKUP_ALL };
       settings.feeds = [makeFeed({ feedId: "old-feed", items: [] })];
 
       const bundle = {
@@ -1023,13 +1030,13 @@ describe("FeedStorageRepository", () => {
         availableTags: [],
         shards: [],
         storageMode: "vault-shards",
-        autoBackup: false,
+        autoBackup: { ...BACKUP_NONE },
       };
 
       await repository.importFeedBundle(bundle, settings, saveData);
 
       expect(settings.storageMode).toBe("legacy-json");
-      expect(settings.autoBackup).toBe(true);
+      expect(settings.autoBackup).toEqual(BACKUP_ALL);
     });
 
     it("rejects feed bundle imports with unsupported schema versions", async () => {
@@ -1134,7 +1141,7 @@ describe("FeedStorageRepository", () => {
     it("applies app settings but leaves feeds, folders, and tags untouched", async () => {
       const settings = cloneSettings();
       settings.storageMode = "legacy-json";
-      settings.autoBackup = false;
+      settings.autoBackup = { ...BACKUP_NONE };
       const previousFeeds = [makeFeed({ feedId: "kept-feed" })];
       settings.feeds = previousFeeds;
       const previousFolders = settings.folders;
@@ -1149,7 +1156,7 @@ describe("FeedStorageRepository", () => {
           ...cloneSettings(),
           storageMode: "vault-shards" as const,
           storageFolder: "RSS Data/Feeds",
-          autoBackup: true,
+          autoBackup: { ...BACKUP_ALL },
         },
       };
       delete (bundle.settings as unknown as Record<string, unknown>).feeds;
@@ -1161,7 +1168,7 @@ describe("FeedStorageRepository", () => {
 
       expect(settings.storageMode).toBe("vault-shards");
       expect(settings.storageFolder).toBe("RSS Data/Feeds");
-      expect(settings.autoBackup).toBe(true);
+      expect(settings.autoBackup).toEqual(BACKUP_ALL);
       expect(settings.metadataStorageMode).toBe("vault-location");
       expect(settings.metadataStorageFolder).toBe("RSS Data/Meta");
       expect(settings.feeds).toBe(previousFeeds);
@@ -1211,7 +1218,7 @@ describe("FeedStorageRepository", () => {
     it("restores previous app settings when persistence fails", async () => {
       const settings = cloneSettings();
       settings.storageMode = "legacy-json";
-      settings.autoBackup = false;
+      settings.autoBackup = { ...BACKUP_NONE };
       settings.feeds = [makeFeed({ feedId: "kept-feed" })];
 
       const bundle = {
@@ -1220,7 +1227,7 @@ describe("FeedStorageRepository", () => {
         settings: {
           ...cloneSettings(),
           storageMode: "vault-shards" as const,
-          autoBackup: true,
+          autoBackup: { ...BACKUP_ALL },
         },
       };
 
@@ -1233,7 +1240,7 @@ describe("FeedStorageRepository", () => {
       ).rejects.toThrow("save failed");
 
       expect(settings.storageMode).toBe("legacy-json");
-      expect(settings.autoBackup).toBe(false);
+      expect(settings.autoBackup).toEqual(BACKUP_NONE);
       expect(settings.feeds[0].feedId).toBe("kept-feed");
     });
 
@@ -1241,7 +1248,7 @@ describe("FeedStorageRepository", () => {
       const settings = cloneSettings();
       settings.storageMode = "vault-shards";
       settings.storageFolder = "RSS Data/Feeds";
-      settings.autoBackup = true;
+      settings.autoBackup = { ...BACKUP_ALL };
 
       const bundle = repository.buildSettingsBundle(settings);
 
@@ -1252,7 +1259,7 @@ describe("FeedStorageRepository", () => {
 
       expect(target.storageMode).toBe("vault-shards");
       expect(target.storageFolder).toBe("RSS Data/Feeds");
-      expect(target.autoBackup).toBe(true);
+      expect(target.autoBackup).toEqual(BACKUP_ALL);
       expect(target.feeds[0].feedId).toBe("kept-feed");
     });
   });
@@ -1402,10 +1409,12 @@ describe("shard storage v2 user-state.json persistence (issue #278)", () => {
   let repository: FeedStorageRepository;
   const userStatePath = ".rss-dashboard-data/user-state.json";
 
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.restoreAllMocks();
     app = App.createMock();
     repository = new FeedStorageRepository(app);
+    // The folders the tests seed shard and user-state files into.
+    await app.vault.adapter.mkdir(".rss-dashboard-data/feeds");
   });
 
   function v2Settings(): RssDashboardSettings {
@@ -1795,7 +1804,7 @@ describe("shard storage v2 user-state.json persistence (issue #278)", () => {
     const saveData = vi
       .fn<(...args: unknown[]) => Promise<void>>()
       .mockResolvedValue(undefined);
-    const item = {
+    const item: FeedItem = {
       ...makeFeed().items[0],
       guid: "guid-star-tag-independence",
       starred: false,
@@ -2472,9 +2481,11 @@ describe("user-state.json health flag", () => {
   const userStatePath = ".rss-dashboard-data/user-state.json";
   let app: App;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.restoreAllMocks();
     app = App.createMock();
+    // The folder the tests seed user-state.json into.
+    await app.vault.adapter.mkdir(".rss-dashboard-data");
   });
 
   function v2Settings(): RssDashboardSettings {
@@ -2682,14 +2693,17 @@ describe("removing a feed deletes its shard file", () => {
   it("still trashes an indexed shard through the file manager", async () => {
     const settings = cloneSettings();
     settings.storageMode = "vault-shards-v2";
+    settings.storageFolder = "RSS Data/Feeds";
     settings.feeds = [
       makeFeed({ feedId: "feed-keep" }),
       makeFeed({ feedId: "feed-delete", url: "https://example.com/other.xml" }),
     ];
     await repository.persistSettings(settings, saveData);
 
-    // Outside a dot-folder Obsidian indexes the file, giving it a TFile.
-    await app.vault.create(".rss-dashboard-data/feeds/feed-delete.json", "{}");
+    // Outside a dot-folder Obsidian indexes the file, giving it a TFile. The
+    // stub doesn't index adapter writes, so recreate the shard through the vault.
+    await app.vault.adapter.remove("RSS Data/Feeds/feed-delete.json");
+    await app.vault.create("RSS Data/Feeds/feed-delete.json", "{}");
     const trashSpy = vi.spyOn(app.fileManager, "trashFile");
     const removeSpy = vi.spyOn(app.vault.adapter, "remove");
 
@@ -2698,6 +2712,8 @@ describe("removing a feed deletes its shard file", () => {
 
     expect(trashSpy).toHaveBeenCalledTimes(1);
     expect(removeSpy).not.toHaveBeenCalled();
-    expect(await shardExists("feed-delete")).toBe(false);
+    expect(await app.vault.adapter.exists("RSS Data/Feeds/feed-delete.json")).toBe(
+      false,
+    );
   });
 });

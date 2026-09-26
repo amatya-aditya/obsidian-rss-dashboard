@@ -104,8 +104,8 @@ describe("Dashboard multi-select: root-displayed feeds", () => {
     feedEls.forEach((el) => expect(el).toBeTruthy());
 
     // Click the first feed normally to set the range anchor, then shift-click the second.
-    feedEls[0]!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    feedEls[1]!.dispatchEvent(new MouseEvent("click", { bubbles: true, shiftKey: true }));
+    feedEls[0].dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    feedEls[1].dispatchEvent(new MouseEvent("click", { bubbles: true, shiftKey: true }));
 
     // The user selected two feeds, not a folder — the resulting selection
     // state (and the resulting confirm message) must reflect that.

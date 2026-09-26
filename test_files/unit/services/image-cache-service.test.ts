@@ -1,11 +1,18 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   ImageCacheService,
   type ImageCacheAdapter,
   type ImageCacheFetchResponse,
 } from "../../../src/services/image-cache-service";
 
-function createAdapter(): ImageCacheAdapter {
+interface FakeImageCacheAdapter extends ImageCacheAdapter {
+  /** Paths of the cached image files currently on disk. */
+  binaryPaths(): string[];
+  /** Deletes a file behind the cache's back, as a user or sync tool would. */
+  deleteExternally(path: string): void;
+}
+
+function createAdapter(): FakeImageCacheAdapter {
   const textFiles = new Map<string, string>();
   const binaryFiles = new Map<string, ArrayBuffer>();
   const directories = new Set<string>();
@@ -25,13 +32,24 @@ function createAdapter(): ImageCacheAdapter {
       directories.add(path);
     }),
     remove: vi.fn(async (path: string) => {
-      textFiles.delete(path);
-      binaryFiles.delete(path);
+      // Observed on Obsidian 1.13.7 desktop (Windows): adapter.remove on a
+      // missing path rejects with an ENOENT error.
+      if (!textFiles.delete(path) && !binaryFiles.delete(path)) {
+        throw Object.assign(
+          new Error(`ENOENT: no such file or directory, unlink '${path}'`),
+          { code: "ENOENT" },
+        );
+      }
     }),
     rmdir: vi.fn(async (path: string) => {
       directories.delete(path);
     }),
     getResourcePath: vi.fn((path: string) => `app://local/${path}`),
+    binaryPaths: () => Array.from(binaryFiles.keys()),
+    deleteExternally: (path: string) => {
+      textFiles.delete(path);
+      binaryFiles.delete(path);
+    },
   };
 }
 
@@ -257,13 +275,15 @@ describe("ImageCacheService", () => {
 
   it("does not write a response that completes after pending writes are cancelled", async () => {
     const adapter = createAdapter();
-    let resolveFetch: ((response: ImageCacheFetchResponse) => void) | null = null;
+    const fetchControl: {
+      resolve?: (response: ImageCacheFetchResponse) => void;
+    } = {};
     const cache = new ImageCacheService({
       adapter,
       cacheRoot: "config/plugins/rss-dashboard/image-cache",
       fetchImage: () =>
         new Promise<ImageCacheFetchResponse>((resolve) => {
-          resolveFetch = resolve;
+          fetchControl.resolve = resolve;
         }),
       now: () => 100,
     });
@@ -271,9 +291,127 @@ describe("ImageCacheService", () => {
     await cache.initialize();
     const pending = cache.cacheUrl("https://example.com/cover.jpg");
     cache.cancelPendingWrites();
-    resolveFetch?.(jpegResponse());
+    fetchControl.resolve?.(jpegResponse());
 
     await expect(pending).resolves.toBe(false);
     expect(cache.getSizeBytes()).toBe(0);
+  });
+
+  describe("when a cached file was deleted during the session", () => {
+    const cacheRoot = "config/plugins/rss-dashboard/image-cache";
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it("evicts the missing entry and keeps caching new images", async () => {
+      const adapter = createAdapter();
+      let currentTime = 100;
+      const cache = new ImageCacheService({
+        adapter,
+        cacheRoot,
+        fetchImage: async () => jpegResponse(8),
+        maxCacheBytes: 12,
+        now: () => currentTime,
+      });
+
+      await cache.initialize();
+      await cache.cacheUrl("https://example.com/older.jpg");
+      const [olderPath] = adapter.binaryPaths();
+      adapter.deleteExternally(olderPath);
+      currentTime = 200;
+
+      await expect(cache.cacheUrl("https://example.com/newer.jpg")).resolves.toBe(true);
+      expect(cache.resolveCachedUrl("https://example.com/older.jpg")).toBeNull();
+      currentTime = 300;
+      await expect(cache.cacheUrl("https://example.com/latest.jpg")).resolves.toBe(true);
+      expect(cache.resolveCachedUrl("https://example.com/latest.jpg")).toContain(".jpg");
+      expect(cache.getSizeBytes()).toBe(8);
+    });
+
+    it("drops the missing entry when a lower limit is saved", async () => {
+      const adapter = createAdapter();
+      let currentTime = 100;
+      const cache = new ImageCacheService({
+        adapter,
+        cacheRoot,
+        fetchImage: async () => jpegResponse(8),
+        maxCacheBytes: 24,
+        now: () => currentTime,
+      });
+
+      await cache.initialize();
+      await cache.cacheUrl("https://example.com/older.jpg");
+      const [olderPath] = adapter.binaryPaths();
+      currentTime = 200;
+      await cache.cacheUrl("https://example.com/newer.jpg");
+      adapter.deleteExternally(olderPath);
+
+      await expect(cache.setMaxCacheBytes(8)).resolves.toBeUndefined();
+      expect(cache.resolveCachedUrl("https://example.com/older.jpg")).toBeNull();
+      expect(cache.getSizeBytes()).toBe(8);
+    });
+
+    it("counts the missing file as cleared on clear()", async () => {
+      const adapter = createAdapter();
+      const cache = new ImageCacheService({
+        adapter,
+        cacheRoot,
+        fetchImage: async () => jpegResponse(),
+        now: () => 100,
+      });
+
+      await cache.initialize();
+      await cache.cacheUrl("https://example.com/deleted.jpg");
+      const [deletedPath] = adapter.binaryPaths();
+      await cache.cacheUrl("https://example.com/present.jpg");
+      adapter.deleteExternally(deletedPath);
+
+      await expect(cache.clear()).resolves.toEqual({ cleared: 2, failed: 0 });
+      expect(cache.getSizeBytes()).toBe(0);
+      expect(cache.resolveCachedUrl("https://example.com/deleted.jpg")).toBeNull();
+    });
+
+    it("counts the missing file as cleared on removeUrls()", async () => {
+      const adapter = createAdapter();
+      const cache = new ImageCacheService({
+        adapter,
+        cacheRoot,
+        fetchImage: async () => jpegResponse(),
+        now: () => 100,
+      });
+
+      await cache.initialize();
+      await cache.cacheUrl("https://example.com/deleted.jpg");
+      const [deletedPath] = adapter.binaryPaths();
+      await cache.cacheUrl("https://example.com/retained.jpg");
+      adapter.deleteExternally(deletedPath);
+
+      await expect(
+        cache.removeUrls(["https://example.com/deleted.jpg"]),
+      ).resolves.toEqual({ cleared: 1, failed: 0 });
+      expect(cache.resolveCachedUrl("https://example.com/deleted.jpg")).toBeNull();
+      expect(cache.resolveCachedUrl("https://example.com/retained.jpg")).toContain(".jpg");
+    });
+
+    it("still reports other removal errors as failures and keeps the entry", async () => {
+      const adapter = createAdapter();
+      const cache = new ImageCacheService({
+        adapter,
+        cacheRoot,
+        fetchImage: async () => jpegResponse(),
+        now: () => 100,
+      });
+      vi.spyOn(console, "warn").mockImplementation(() => undefined);
+
+      await cache.initialize();
+      await cache.cacheUrl("https://example.com/locked.jpg");
+      vi.mocked(adapter.remove).mockRejectedValueOnce(
+        Object.assign(new Error("EPERM: operation not permitted"), { code: "EPERM" }),
+      );
+
+      await expect(cache.clear()).resolves.toEqual({ cleared: 0, failed: 1 });
+      expect(cache.resolveCachedUrl("https://example.com/locked.jpg")).toContain(".jpg");
+    });
   });
 });

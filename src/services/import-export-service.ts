@@ -1,4 +1,5 @@
 import type {
+  Feed,
   FeedBundle,
   PortableDataBundle,
   RssDashboardSettings,
@@ -10,6 +11,29 @@ import {
   copyTextToClipboard,
   type ExportBlobResult,
 } from "../utils/export-utils";
+import {
+  comparePreferences,
+  compareStorageLocation,
+  countFeedData,
+  feedsWithBundleItems,
+  type ImportConfirmation,
+  type ImportDecision,
+  type ImportKind,
+  type ImportResult,
+} from "./import-confirmation-model";
+import {
+  normalizeFolderPath,
+  parseFeedBundle,
+  parsePortableDataBundle,
+  parseSettingsBundle,
+} from "./feed-storage-repository";
+
+export type {
+  ImportConfirmation,
+  ImportDecision,
+  ImportKind,
+  ImportResult,
+} from "./import-confirmation-model";
 
 /**
  * Service for import/export functionality: JSON settings, OPML feeds, and clipboard operations.
@@ -24,6 +48,14 @@ export class ImportExportService {
   private importFeedBundle?: (bundle: unknown) => Promise<void>;
   private getSettingsBundle?: () => SettingsBundle;
   private importSettingsBundle?: (bundle: unknown) => Promise<void>;
+  private importUserPreferences?: (
+    preferences: Record<string, unknown>,
+    kind: ImportKind,
+  ) => Promise<void>;
+  private confirmImport: (
+    confirmation: ImportConfirmation,
+  ) => Promise<ImportDecision>;
+  private getUnloadedFeedCount: () => number;
 
   /**
    * Creates a new ImportExportService instance
@@ -36,6 +68,9 @@ export class ImportExportService {
    * @param {Function} [options.importFeedBundle] Optional function to import a feed bundle
    * @param {Function} [options.getSettingsBundle] Optional function to retrieve the settings bundle
    * @param {Function} [options.importSettingsBundle] Optional function to import a settings bundle
+   * @param {Function} [options.importUserPreferences] Optional function to apply a user preferences file, as a Replacing or Overwriting import
+   * @param {Function} [options.confirmImport] Asks the user to confirm a Replacing or Overwriting import; without it, imports commit unasked
+   * @param {Function} [options.getUnloadedFeedCount] Number of feeds whose articles this device has not loaded
    */
   constructor(options: {
     settings: RssDashboardSettings;
@@ -46,6 +81,14 @@ export class ImportExportService {
     importFeedBundle?: (bundle: unknown) => Promise<void>;
     getSettingsBundle?: () => SettingsBundle;
     importSettingsBundle?: (bundle: unknown) => Promise<void>;
+    importUserPreferences?: (
+      preferences: Record<string, unknown>,
+      kind: ImportKind,
+    ) => Promise<void>;
+    confirmImport?: (
+      confirmation: ImportConfirmation,
+    ) => Promise<ImportDecision>;
+    getUnloadedFeedCount?: () => number;
   }) {
     this.settings = options.settings;
     this.isMobile = options.isMobile;
@@ -55,6 +98,10 @@ export class ImportExportService {
     this.importFeedBundle = options.importFeedBundle;
     this.getSettingsBundle = options.getSettingsBundle;
     this.importSettingsBundle = options.importSettingsBundle;
+    this.importUserPreferences = options.importUserPreferences;
+    this.confirmImport =
+      options.confirmImport ?? (() => Promise.resolve("confirm"));
+    this.getUnloadedFeedCount = options.getUnloadedFeedCount ?? (() => 0);
   }
 
   /**
@@ -148,12 +195,13 @@ export class ImportExportService {
   }
 
   /**
-   * Import a portable data bundle from a file
+   * Import a portable data bundle from a file, once the user confirms the
+   * replacement
    * @param {File} file The bundle file to import
-   * @returns {Promise<void>}
+   * @returns {Promise<ImportResult>} Whether the import was committed or canceled
    * @throws {Error} If JSON parsing fails or import handler is not available
    */
-  async importPortableDataBundleFromFile(file: File): Promise<void> {
+  async importPortableDataBundleFromFile(file: File): Promise<ImportResult> {
     const text = await file.text();
     let parsed: unknown;
 
@@ -171,7 +219,45 @@ export class ImportExportService {
       );
     }
 
+    const bundle = parsePortableDataBundle(parsed);
+    const current = this.currentPreferences();
+    // The preferences as the import applies them: the bundle's own storage
+    // mode and data.json location override the copies inside its metadata.
+    const incoming: Record<string, unknown> = {
+      ...bundle.metadata,
+      storageMode: bundle.storageMode,
+      metadataStorageMode:
+        bundle.metadataStorageMode ?? current.metadataStorageMode,
+      metadataStorageFolder:
+        bundle.metadataStorageFolder ?? current.metadataStorageFolder,
+    };
+    if (typeof bundle.metadata.storageFolder === "string") {
+      incoming.storageFolder = normalizeFolderPath(bundle.metadata.storageFolder);
+    }
+
+    const decision = await this.confirmImport({
+      kind: "replacing",
+      bundleType: "portable-data-bundle",
+      fileName: file.name,
+      feedData: {
+        current: this.countCurrentFeedData(),
+        incoming: countFeedData(
+          feedsWithBundleItems({
+            feeds: asArray(bundle.metadata.feeds),
+            shards: bundle.shards,
+          }),
+          asArray(bundle.metadata.folders),
+          asArray(bundle.metadata.availableTags),
+        ),
+      },
+      unloadedFeedCount: this.getUnloadedFeedCount(),
+      preferences: comparePreferences(current, incoming),
+      storageLocationChange: compareStorageLocation(current, incoming),
+    });
+    if (decision !== "confirm") return "canceled";
+
     await this.importPortableDataBundle(parsed);
+    return "committed";
   }
 
   /**
@@ -198,12 +284,12 @@ export class ImportExportService {
   }
 
   /**
-   * Import a feed bundle from a file
+   * Import a feed bundle from a file, once the user confirms the replacement
    * @param {File} file The bundle file to import
-   * @returns {Promise<void>}
+   * @returns {Promise<ImportResult>} Whether the import was committed or canceled
    * @throws {Error} If JSON parsing fails or import handler is not available
    */
-  async importFeedBundleFromFile(file: File): Promise<void> {
+  async importFeedBundleFromFile(file: File): Promise<ImportResult> {
     const text = await file.text();
     let parsed: unknown;
 
@@ -219,7 +305,35 @@ export class ImportExportService {
       throw new Error("Feed bundle import is not available in this context");
     }
 
+    const bundle = parseFeedBundle(parsed);
+    const decision = await this.confirmImport({
+      kind: "replacing",
+      bundleType: "feed-bundle",
+      fileName: file.name,
+      feedData: {
+        current: this.countCurrentFeedData(),
+        incoming: countFeedData(
+          feedsWithBundleItems(bundle),
+          bundle.folders,
+          bundle.availableTags,
+        ),
+      },
+      unloadedFeedCount: this.getUnloadedFeedCount(),
+      preferences: null,
+      storageLocationChange: null,
+    });
+    if (decision !== "confirm") return "canceled";
+
     await this.importFeedBundle(parsed);
+    return "committed";
+  }
+
+  private countCurrentFeedData() {
+    return countFeedData(
+      this.settings.feeds,
+      this.settings.folders,
+      this.settings.availableTags,
+    );
   }
 
   /**
@@ -248,12 +362,13 @@ export class ImportExportService {
   }
 
   /**
-   * Import a settings bundle from a file
+   * Import a settings bundle from a file, once the user confirms overwriting
+   * their preferences
    * @param {File} file The bundle file to import
-   * @returns {Promise<void>}
+   * @returns {Promise<ImportResult>} Whether the import was committed or canceled
    * @throws {Error} If JSON parsing fails or import handler is not available
    */
-  async importSettingsBundleFromFile(file: File): Promise<void> {
+  async importSettingsBundleFromFile(file: File): Promise<ImportResult> {
     const text = await file.text();
     let parsed: unknown;
 
@@ -271,7 +386,112 @@ export class ImportExportService {
       );
     }
 
+    const bundle = parseSettingsBundle(parsed);
+    const incoming: Record<string, unknown> = { ...bundle.settings };
+    if (typeof bundle.settings.storageFolder === "string") {
+      incoming.storageFolder = normalizeFolderPath(bundle.settings.storageFolder);
+    }
+    if (bundle.metadataStorageMode !== undefined) {
+      incoming.metadataStorageMode = bundle.metadataStorageMode;
+    }
+    if (bundle.metadataStorageFolder !== undefined) {
+      incoming.metadataStorageFolder = bundle.metadataStorageFolder;
+    }
+
+    const current = this.currentPreferences();
+    const decision = await this.confirmImport({
+      kind: "overwriting",
+      bundleType: "settings-bundle",
+      fileName: file.name,
+      feedData: null,
+      unloadedFeedCount: this.getUnloadedFeedCount(),
+      preferences: comparePreferences(current, incoming),
+      storageLocationChange: compareStorageLocation(current, incoming),
+    });
+    if (decision !== "confirm") return "canceled";
+
     await this.importSettingsBundle(parsed);
+    return "committed";
+  }
+
+  /**
+   * Import a user preferences file, once the user confirms. A file carrying
+   * feeds, folders, or tags replaces the feed list (a Replacing import);
+   * any other file only sets the preferences it carries (an Overwriting one).
+   * @param {File} file The preferences file to import
+   * @returns {Promise<ImportResult>} Whether the import was committed or canceled
+   * @throws {Error} If the file is not a JSON object or import handler is not available
+   */
+  async importUserPreferencesFromFile(file: File): Promise<ImportResult> {
+    const text = await file.text();
+    let parsed: unknown;
+
+    try {
+      parsed = JSON.parse(text);
+    } catch (error) {
+      throw new Error(
+        `Invalid user preferences JSON${error instanceof Error ? `: ${error.message}` : ""}`,
+      );
+    }
+
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      throw new Error("User preferences file must be a JSON object");
+    }
+
+    if (!this.importUserPreferences) {
+      throw new Error(
+        "User preferences import is not available in this context",
+      );
+    }
+
+    const preferences = parsed as Record<string, unknown>;
+    const { feeds, folders, availableTags } = preferences;
+    const kind: ImportKind =
+      Array.isArray(feeds) || Array.isArray(folders) || Array.isArray(availableTags)
+        ? "replacing"
+        : "overwriting";
+
+    const current = this.currentPreferences();
+    const incoming: Record<string, unknown> = { ...preferences };
+    if (typeof preferences.storageFolder === "string") {
+      incoming.storageFolder = normalizeFolderPath(preferences.storageFolder);
+    }
+
+    const decision = await this.confirmImport({
+      kind,
+      bundleType: "user-preferences",
+      fileName: file.name,
+      // Mirrors the import: feeds, folders, and tags the file omits are
+      // kept (#386).
+      feedData:
+        kind === "replacing"
+          ? {
+              current: this.countCurrentFeedData(),
+              incoming: countFeedData(
+                Array.isArray(feeds) ? (feeds as Feed[]) : this.settings.feeds,
+                Array.isArray(folders) ? folders : this.settings.folders,
+                Array.isArray(availableTags)
+                  ? availableTags
+                  : this.settings.availableTags,
+              ),
+            }
+          : null,
+      unloadedFeedCount: this.getUnloadedFeedCount(),
+      preferences: comparePreferences(current, incoming),
+      storageLocationChange: compareStorageLocation(current, incoming),
+    });
+    if (decision !== "confirm") return "canceled";
+
+    await this.importUserPreferences(preferences, kind);
+    return "committed";
+  }
+
+  /** Current preferences, with the storage folder normalized as on import. */
+  private currentPreferences(): Record<string, unknown> {
+    return {
+      ...this.settings,
+      storageFolder: normalizeFolderPath(this.settings.storageFolder ?? ""),
+    };
   }
 
   /**
@@ -353,4 +573,9 @@ export class ImportExportService {
     }
     return copyTextToClipboard(JSON.stringify(bundle, null, 2));
   }
+}
+
+/** A bundle list the validator does not check, read as empty when absent. */
+function asArray<T>(value: T[] | undefined): T[] {
+  return Array.isArray(value) ? value : [];
 }

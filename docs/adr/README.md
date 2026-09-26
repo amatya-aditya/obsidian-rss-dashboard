@@ -51,6 +51,7 @@ See the [ADR Policy](POLICY.md) for the complete lifecycle, authoring, and maint
 | [0011](0011-decouple-starred-state-from-tags.md)                               | Starred State Is Independent from Tags                                  | accepted | Treat stars and tags as independent article state so starring never creates, removes, or reserves a user tag.                         |
 | [0012](0012-guard-storage-folder-changes-instead-of-detecting-twin-folders.md) | Guard Storage Folder Changes Instead of Detecting Twin Folders          | accepted | Warn before a storage folder change on a device missing articles, rather than detecting and switching to a dotted or undotted twin folder. |
 | [0013](0013-render-reddit-posts-from-rss-content.md)                           | Render Reddit Posts from RSS Content                                    | accepted | Show Reddit posts from their RSS content, without spoofing a crawler to reach Reddit's formatted pages; the official API is deferred. |
+| [0014](0014-obsidian-test-stub-fidelity.md)                                    | The Obsidian Test Stub Models Observed Obsidian Behavior                | accepted | Base the unit-test stub on contract-tested observations of real Obsidian, never its source, and fix production code when a faithful stub breaks a test. |
 
 ## Creating a new ADR
 

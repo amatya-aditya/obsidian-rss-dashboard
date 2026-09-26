@@ -8,6 +8,11 @@ import {
   createWebViewerIntegrationHarness,
 } from "./web-viewer-integration-harness";
 
+// The real `obsidian` types `moment` as the moment namespace, which is not
+// callable; production code casts it the same way.
+type MomentFactory = (input?: Date) => { format: (fmt: string) => string };
+const callMoment = moment as unknown as MomentFactory;
+
 describe("Phase 8 - WebViewerIntegration", () => {
   beforeAll(() => {
     installObsidianDomPolyfills();
@@ -322,6 +327,7 @@ author: "{{author}}"
       const h = createWebViewerIntegrationHarness();
       const item = buildFeedItem({ title: "Dupe" });
 
+      await h.app.vault.createFolder("Folder");
       await h.app.vault.create("Folder/Dupe.md", "existing");
 
       const integration = h.integration as unknown as {
@@ -389,9 +395,9 @@ author: "{{author}}"
         month: "long",
         day: "numeric",
       });
-      const expectedSaveDate = moment().format("YYYY-MM-DD");
-      const expectedSaveTime12 = moment().format("hh:mm A");
-      const expectedSaveTime24 = moment().format("HH:mm");
+      const expectedSaveDate = callMoment().format("YYYY-MM-DD");
+      const expectedSaveTime12 = callMoment().format("hh:mm A");
+      const expectedSaveTime24 = callMoment().format("HH:mm");
       expect(out).toContain(`T|${expectedDate}|`);
       expect(out).toContain(new Date(item.pubDate).toISOString());
       expect(out).toContain(
@@ -437,9 +443,9 @@ guid: "{{guid}}"
         pubDate: "not-a-date",
       });
 
-      const expectedSaveDate = moment().format("YYYY-MM-DD");
-      const expectedSaveTime12 = moment().format("hh:mm A");
-      const expectedSaveTime24 = moment().format("HH:mm");
+      const expectedSaveDate = callMoment().format("YYYY-MM-DD");
+      const expectedSaveTime12 = callMoment().format("hh:mm A");
+      const expectedSaveTime24 = callMoment().format("HH:mm");
 
       const out = generateFrontmatter(item);
       expect(out).toContain('title: "My Article"');
@@ -541,6 +547,32 @@ isoDate: "{{isoDate}}"
 
       const out = generateFrontmatter(item);
       expect(out).toContain(`isoDate: "${now.toISOString()}"`);
+
+      h.cleanup();
+    });
+
+    it("saves into an existing folder whose name differs only in case", async () => {
+      vi.spyOn(console, "debug").mockImplementation(() => {});
+      const h = createWebViewerIntegrationHarness();
+      await h.app.vault.createFolder("RSS Articles");
+      const item = buildFeedItem({ title: "Case Variant" });
+
+      const integration = h.integration as unknown as {
+        saveArticle: (
+          item: FeedItem,
+          folder: string,
+          template: string,
+          includeFrontmatter: boolean,
+        ) => Promise<{ path: string } | null>;
+      };
+      const file = await integration.saveArticle.bind(h.integration)(
+        item,
+        "rss articles",
+        "{{title}}",
+        false,
+      );
+
+      expect(file?.path).toBe("RSS Articles/Case Variant.md");
 
       h.cleanup();
     });

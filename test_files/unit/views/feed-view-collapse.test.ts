@@ -72,6 +72,7 @@ function createContext(overrides?: Partial<BaseViewContext>): BaseViewContext {
     settings: {
       highlights: settings.highlights,
       display: settings.display,
+      useFirstSeenDateFallback: settings.useFirstSeenDateFallback,
       articleGroupBy: "feed",
       collapsedFeedSections: settings.collapsedFeedSections,
     },
@@ -361,14 +362,12 @@ describe("Feed View - Collapsible Section Headers", () => {
     ) as RssDashboardSettings;
     settings.collapsedFeedSections = ["TechCrunch"];
 
-    const overrideSettings = {
+    const overrideSettings: BaseViewContext["settings"] = {
       highlights: settings.highlights,
       display: settings.display,
+      useFirstSeenDateFallback: settings.useFirstSeenDateFallback,
       collapsedFeedSections: settings.collapsedFeedSections,
-    } as Pick<
-      RssDashboardSettings,
-      "highlights" | "display" | "collapsedFeedSections"
-    >;
+    };
 
     const ctx = createContext({
       settings: overrideSettings,

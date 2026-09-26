@@ -107,6 +107,9 @@ describe("Right-clicking a feed inside a fully-selected folder", () => {
       onRefreshFeeds: vi.fn(),
       onRetryFailedFeeds: vi.fn(),
       onUpdateFeed: vi.fn(),
+      onImportOpml: vi.fn(),
+      onExportOpml: vi.fn(),
+      onToggleSidebar: vi.fn(),
     };
 
     sidebar = new Sidebar(

@@ -10,8 +10,8 @@ describe("article-grouping utils", () => {
   describe("groupArticles", () => {
     it("returns all articles under 'All articles' when groupBy is 'none'", () => {
       const articles: FeedItem[] = [
-        { guid: "1", title: "A1", feedTitle: "Feed A", feedUrl: "url-a", pubDate: "2024-01-01", read: false, starred: false, tags: [], coverImage: "" },
-        { guid: "2", title: "A2", feedTitle: "Feed B", feedUrl: "url-b", pubDate: "2024-01-02", read: false, starred: false, tags: [], coverImage: "" },
+        { guid: "1", link: "", description: "", title: "A1", feedTitle: "Feed A", feedUrl: "url-a", pubDate: "2024-01-01", read: false, starred: false, tags: [], coverImage: "" },
+        { guid: "2", link: "", description: "", title: "A2", feedTitle: "Feed B", feedUrl: "url-b", pubDate: "2024-01-02", read: false, starred: false, tags: [], coverImage: "" },
       ];
       
       const result = groupArticles(articles, "none");
@@ -22,9 +22,9 @@ describe("article-grouping utils", () => {
 
     it("groups articles by feed title when groupBy is 'feed'", () => {
       const articles: FeedItem[] = [
-        { guid: "1", title: "A1", feedTitle: "Feed A", feedUrl: "url-a", pubDate: "2024-01-01", read: false, starred: false, tags: [], coverImage: "" },
-        { guid: "2", title: "A2", feedTitle: "Feed A", feedUrl: "url-a", pubDate: "2024-01-02", read: false, starred: false, tags: [], coverImage: "" },
-        { guid: "3", title: "B1", feedTitle: "Feed B", feedUrl: "url-b", pubDate: "2024-01-03", read: false, starred: false, tags: [], coverImage: "" },
+        { guid: "1", link: "", description: "", title: "A1", feedTitle: "Feed A", feedUrl: "url-a", pubDate: "2024-01-01", read: false, starred: false, tags: [], coverImage: "" },
+        { guid: "2", link: "", description: "", title: "A2", feedTitle: "Feed A", feedUrl: "url-a", pubDate: "2024-01-02", read: false, starred: false, tags: [], coverImage: "" },
+        { guid: "3", link: "", description: "", title: "B1", feedTitle: "Feed B", feedUrl: "url-b", pubDate: "2024-01-03", read: false, starred: false, tags: [], coverImage: "" },
       ];
       
       const result = groupArticles(articles, "feed");
@@ -36,7 +36,7 @@ describe("article-grouping utils", () => {
 
     it("groups articles with missing feed title under 'Uncategorized'", () => {
       const articles: FeedItem[] = [
-        { guid: "1", title: "A1", feedTitle: "", feedUrl: "url-a", pubDate: "2024-01-01", read: false, starred: false, tags: [], coverImage: "" },
+        { guid: "1", link: "", description: "", title: "A1", feedTitle: "", feedUrl: "url-a", pubDate: "2024-01-01", read: false, starred: false, tags: [], coverImage: "" },
       ];
       
       const result = groupArticles(articles, "feed");
@@ -46,8 +46,8 @@ describe("article-grouping utils", () => {
 
     it("groups articles by date when groupBy is 'date'", () => {
       const articles: FeedItem[] = [
-        { guid: "1", title: "A1", feedTitle: "Feed A", feedUrl: "url-a", pubDate: new Date().toISOString(), read: false, starred: false, tags: [], coverImage: "" },
-        { guid: "2", title: "A2", feedTitle: "Feed A", feedUrl: "url-a", pubDate: new Date().toISOString(), read: false, starred: false, tags: [], coverImage: "" },
+        { guid: "1", link: "", description: "", title: "A1", feedTitle: "Feed A", feedUrl: "url-a", pubDate: new Date().toISOString(), read: false, starred: false, tags: [], coverImage: "" },
+        { guid: "2", link: "", description: "", title: "A2", feedTitle: "Feed A", feedUrl: "url-a", pubDate: new Date().toISOString(), read: false, starred: false, tags: [], coverImage: "" },
       ];
       
       const result = groupArticles(articles, "date");
@@ -65,8 +65,8 @@ describe("article-grouping utils", () => {
       vi.setSystemTime(new Date("2026-09-15T10:46:00Z"));
 
       const articles: FeedItem[] = [
-        { guid: "1", title: "A1", feedTitle: "Feed A", feedUrl: "url-a", pubDate: "2026-08-25T10:00:00Z", read: false, starred: false, tags: [], coverImage: "" },
-        { guid: "2", title: "A2", feedTitle: "Feed B", feedUrl: "url-b", pubDate: "2026-08-25T11:00:00Z", read: false, starred: false, tags: [], coverImage: "" },
+        { guid: "1", link: "", description: "", title: "A1", feedTitle: "Feed A", feedUrl: "url-a", pubDate: "2026-08-25T10:00:00Z", read: false, starred: false, tags: [], coverImage: "" },
+        { guid: "2", link: "", description: "", title: "A2", feedTitle: "Feed B", feedUrl: "url-b", pubDate: "2026-08-25T11:00:00Z", read: false, starred: false, tags: [], coverImage: "" },
       ];
 
       const result = groupArticles(articles, "date");
@@ -81,6 +81,8 @@ describe("article-grouping utils", () => {
       const articles: FeedItem[] = [
         {
           guid: "1",
+          link: "",
+          description: "",
           title: "A1",
           feedTitle: "Feed A",
           feedUrl: "url-a",
@@ -105,6 +107,8 @@ describe("article-grouping utils", () => {
       const articles: FeedItem[] = [
         {
           guid: "1",
+          link: "",
+          description: "",
           title: "A1",
           feedTitle: "Feed A",
           feedUrl: "url-a",
@@ -124,7 +128,7 @@ describe("article-grouping utils", () => {
 
     it("buckets an undated item under 'Unknown date' when there is no firstSeenMs, even with the fallback enabled", () => {
       const articles: FeedItem[] = [
-        { guid: "1", title: "A1", feedTitle: "Feed A", feedUrl: "url-a", pubDate: "", read: false, starred: false, tags: [], coverImage: "" },
+        { guid: "1", link: "", description: "", title: "A1", feedTitle: "Feed A", feedUrl: "url-a", pubDate: "", read: false, starred: false, tags: [], coverImage: "" },
       ];
 
       const result = groupArticles(articles, "date", undefined, true);
@@ -134,7 +138,7 @@ describe("article-grouping utils", () => {
 
     it("groups articles with no tags under 'All articles' when groupBy is 'none'", () => {
       const articles: FeedItem[] = [
-        { guid: "1", title: "A1", feedTitle: "Feed A", feedUrl: "url-a", pubDate: "2024-01-01", read: false, starred: false, tags: [], coverImage: "" },
+        { guid: "1", link: "", description: "", title: "A1", feedTitle: "Feed A", feedUrl: "url-a", pubDate: "2024-01-01", read: false, starred: false, tags: [], coverImage: "" },
       ];
       
       const result = groupArticles(articles, "none");

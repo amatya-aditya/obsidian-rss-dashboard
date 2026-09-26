@@ -96,6 +96,33 @@ function parseArticleContent(html: string): string {
   return article?.content ?? "";
 }
 
+interface FetchErrorDetails {
+  message: string;
+  status: number;
+  restricted: boolean;
+}
+
+/**
+ * Reads the status and message from a thrown fetch error. Obsidian's
+ * `requestUrl` throws for any status of 400 or above, with the status on
+ * `error.status`.
+ */
+function describeFetchError(e: unknown): FetchErrorDetails {
+  const error = e as {
+    status?: number;
+    statusCode?: number;
+    response?: { status?: number };
+  };
+  const message = e instanceof Error ? e.message : String(e);
+  const status =
+    error?.status ?? error?.statusCode ?? error?.response?.status ?? 0;
+  return {
+    message,
+    status,
+    restricted: isRestrictedStatus(status) || isRestrictedSignal(message),
+  };
+}
+
 /**
  * Fetches article content with a direct request and optional proxy fallback.
  * Returns a structured result so callers can distinguish restricted pages
@@ -107,26 +134,44 @@ export async function fetchWithProxyFallbackDetailed(
 ): Promise<FullArticleFetchResult> {
   try {
     // 1. Direct fetch
-    const directResponse = await robustFetchDetailed(url, {
-      headers: DEFAULT_HEADERS,
-    });
-    const directHtml = directResponse.text;
-    const directBlocked =
-      isBlockedResponse(directHtml) || isRestrictedStatus(directResponse.status);
+    let directRestricted: boolean;
+    try {
+      const directResponse = await robustFetchDetailed(url, {
+        headers: DEFAULT_HEADERS,
+      });
+      const directHtml = directResponse.text;
+      const directBlocked =
+        isBlockedResponse(directHtml) ||
+        isRestrictedStatus(directResponse.status);
 
-    if (!directBlocked) {
-      console.debug(
-        `[RSS Dashboard] Direct fetch succeeded for ${url} (${directHtml.length} chars).`,
+      if (!directBlocked) {
+        console.debug(
+          `[RSS Dashboard] Direct fetch succeeded for ${url} (${directHtml.length} chars).`,
+        );
+        return {
+          content: parseArticleContent(directHtml),
+          failureType: "none",
+        };
+      }
+
+      directRestricted =
+        isRestrictedStatus(directResponse.status) ||
+        isRestrictedSignal(directHtml);
+      console.warn(
+        `[RSS Dashboard] Direct fetch returned blocked/empty response for ${url} (${directHtml?.length ?? 0} chars). Attempting proxy...`,
       );
-      return { content: parseArticleContent(directHtml), failureType: "none" };
+    } catch (directError: unknown) {
+      // requestUrl throws on 401/403 instead of returning the response, so a
+      // restricted page arrives here. Other failures skip the proxy.
+      const failure = describeFetchError(directError);
+      if (!failure.restricted) {
+        throw directError;
+      }
+      directRestricted = true;
+      console.warn(
+        `[RSS Dashboard] Direct fetch was restricted for ${url} (${failure.status || "no-status"}): ${failure.message}. Attempting proxy...`,
+      );
     }
-
-    const directRestricted =
-      isRestrictedStatus(directResponse.status) ||
-      isRestrictedSignal(directHtml);
-    console.warn(
-      `[RSS Dashboard] Direct fetch returned blocked/empty response for ${url} (${directHtml?.length ?? 0} chars). Attempting proxy...`,
-    );
 
     // 2. Proxy fallback (silent, logs only)
     if (!proxyUrl || proxyUrl.trim() === "") {
@@ -170,16 +215,7 @@ export async function fetchWithProxyFallbackDetailed(
     );
     return { content: parseArticleContent(proxyHtml), failureType: "none" };
   } catch (e: unknown) {
-    const error = e as {
-      message?: string;
-      status?: number;
-      statusCode?: number;
-      response?: { status?: number };
-    };
-    const msg = e instanceof Error ? e.message : String(e);
-    const status =
-      error?.status ?? error?.statusCode ?? error?.response?.status ?? 0;
-    const restricted = isRestrictedStatus(status) || isRestrictedSignal(msg);
+    const { message: msg, status, restricted } = describeFetchError(e);
     const logMessage = restricted
       ? `[RSS Dashboard] Restricted article fetch blocked (${status || "no-status"}): ${msg}`
       : `[RSS Dashboard] fetchWithProxyFallback error: ${msg}`;

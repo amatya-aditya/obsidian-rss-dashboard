@@ -62,9 +62,7 @@ vi.mock("../../../src/utils/settings-migration", () => ({
 import RssDashboardPlugin from "../../../main";
 
 // Use App from obsidian stub (provided via Vitest alias)
-import { App, Platform, type PluginManifest } from "obsidian";
-
-type MockApp = App;
+import { App, Platform, type MockApp, type PluginManifest } from "obsidian";
 
 function flushPromises(): Promise<void> {
   return new Promise((resolve) => {
@@ -89,6 +87,7 @@ function createMockManifest(): PluginManifest {
     id: "rss-dashboard",
     name: "RSS Dashboard",
     version: "1.0.0",
+    minAppVersion: "1.8.7",
     author: "Test",
     description: "Test plugin",
     dir: ".",
@@ -359,11 +358,12 @@ describe("loadSettings()", () => {
 
 describe("onload() initialization", () => {
   let plugin: RssDashboardPlugin;
+  let app: MockApp;
   let originalPlatformIsMobile: boolean;
   let originalPlatformIsDesktop: boolean;
 
   beforeEach(async () => {
-    const app = createMockApp();
+    app = createMockApp();
     plugin = await createPluginInstance(app);
     // Several onload tests mock loadSettings(); onload() still reads settings.
     plugin.settings = structuredClone(DEFAULT_SETTINGS);
@@ -835,7 +835,7 @@ describe("onload() initialization", () => {
       (plugin as unknown as PluginPrivateAPI).articleSaver.fixSavedFilePaths,
     ).not.toHaveBeenCalled();
 
-    plugin.app.workspace.triggerLayoutReady();
+    app.workspace.triggerLayoutReady();
     await flushPromises();
 
     expect(

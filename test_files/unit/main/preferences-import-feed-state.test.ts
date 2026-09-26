@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App, type PluginManifest } from "obsidian";
 
 vi.mock("../../../src/modals/whats-new-modal", () => ({
@@ -32,6 +32,7 @@ function manifest(): PluginManifest {
     id: "rss-dashboard",
     name: "RSS Dashboard",
     version: "2.7.0",
+    minAppVersion: "1.8.7",
     author: "test",
     description: "test",
     dir: ".",
@@ -56,11 +57,16 @@ describe("importing a preferences file that carries feeds (issue #374)", () => {
     return app.vault.adapter as unknown as VaultAdapterStub;
   }
 
+  afterEach(() => {
+    document.body.replaceChildren();
+  });
+
   beforeEach(async () => {
     vi.restoreAllMocks();
     app = App.createMock();
 
     // A Shard storage v2 vault with two feeds, each with a starred article.
+    await app.vault.adapter.mkdir(storageFolder);
     await adapter().write(
       `${metadataFolder}/data.json`,
       JSON.stringify({
@@ -128,7 +134,10 @@ describe("importing a preferences file that carries feeds (issue #374)", () => {
       [JSON.stringify({ feeds: [persistedFeed("feed-kept")] })],
       "rss-dashboard-user-preferences.json",
     );
-    await plugin.importUserSettingsJsonFromFile(file);
+    installObsidianDomPolyfills();
+    const result = plugin.importUserSettingsJsonFromFile(file);
+    (await findDialogButton("Replace")).click();
+    await expect(result).resolves.toBe("committed");
 
     expect(plugin.settings.feeds.map((feed) => feed.feedId)).toEqual([
       "feed-kept",
@@ -140,6 +149,36 @@ describe("importing a preferences file that carries feeds (issue #374)", () => {
       true,
     );
   });
+
+  it.each([
+    ["folders", { folders: [{ name: "Imported", subfolders: [] }] }],
+    ["tags", { availableTags: [{ name: "imported", color: "#000000" }] }],
+  ])(
+    "keeps the current feeds when the imported file has %s but no feed list (issue #386)",
+    async (_label, collections) => {
+      const file = new File(
+        [JSON.stringify({ refreshInterval: 45, ...collections })],
+        "rss-dashboard-user-preferences.json",
+      );
+      installObsidianDomPolyfills();
+      const result = plugin.importUserSettingsJsonFromFile(file);
+      (await findDialogButton("Replace")).click();
+      await expect(result).resolves.toBe("committed");
+
+      expect(plugin.settings.refreshInterval).toBe(45);
+      expect(plugin.settings.feeds.map((feed) => feed.feedId)).toEqual([
+        "feed-kept",
+        "feed-left-out",
+      ]);
+      const saved = JSON.parse(
+        await adapter().read(`${metadataFolder}/data.json`),
+      ) as { feeds?: Array<{ feedId: string }> };
+      expect(saved.feeds?.map((feed) => feed.feedId)).toEqual([
+        "feed-kept",
+        "feed-left-out",
+      ]);
+    },
+  );
 
   it("keeps article state for a feed that an imported legacy data.json leaves out", async () => {
     installObsidianDomPolyfills();
@@ -187,4 +226,42 @@ describe("importing a preferences file that carries feeds (issue #374)", () => {
       true,
     );
   });
+
+  it("changes nothing when the user cancels the import confirmation (issue #377)", async () => {
+    installObsidianDomPolyfills();
+    const noticeSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
+    const userStateBefore = await adapter().read(userStatePath);
+    const file = new File(
+      [JSON.stringify({ feeds: [persistedFeed("feed-kept")] })],
+      "rss-dashboard-user-preferences.json",
+    );
+
+    const result = plugin.importUserSettingsJsonFromFile(file);
+    (await findDialogButton("Cancel")).click();
+
+    await expect(result).resolves.toBe("canceled");
+    expect(plugin.settings.feeds.map((feed) => feed.feedId)).toEqual([
+      "feed-kept",
+      "feed-left-out",
+    ]);
+    expect(plugin.saveData).not.toHaveBeenCalled();
+    expect(await adapter().read(userStatePath)).toBe(userStateBefore);
+    expect(noticeSpy).toHaveBeenCalledWith(
+      "[Stub Notice]",
+      "Import canceled. Nothing was changed.",
+    );
+    noticeSpy.mockRestore();
+  });
 });
+
+async function findDialogButton(label: string): Promise<HTMLButtonElement> {
+  let found: HTMLButtonElement | undefined;
+  await vi.waitFor(() => {
+    found = Array.from(
+      document.querySelectorAll<HTMLButtonElement>("button"),
+    ).find((button) => button.textContent?.trim() === label);
+    expect(found).toBeDefined();
+  });
+  if (!found) throw new Error(`No "${label}" button`);
+  return found;
+}

@@ -91,11 +91,6 @@ const STARRED_IMPORT_FETCH_FAILED_NOTICE =
 
 export const RSS_READER_VIEW_TYPE = "rss-reader-view";
 
-const RAW_SUBSTACK_FETCH_URL_RE =
-  /https:\/\/substackcdn\.com\/image\/fetch\//gi;
-const ENCODED_SUBSTACK_S3_URL_RE =
-  /https%3A%2F%2Fsubstack-post-media\.s3\.amazonaws\.com/gi;
-
 export class ReaderView extends ItemView {
   private currentItem: FeedItem | null = null;
   private readingContainer!: HTMLElement;
@@ -1667,13 +1662,6 @@ export class ReaderView extends ItemView {
       Boolean(this.webViewerIntegration) &&
       !shouldBypassWebViewer;
 
-    this.debugLogSubstackReaderEntry(
-      item,
-      fullContent,
-      shouldUseWebViewer,
-      shouldBypassWebViewer,
-    );
-
     if (shouldUseWebViewer && this.webViewerIntegration) {
       try {
         const success = await this.webViewerIntegration.openInWebViewer(
@@ -2144,13 +2132,6 @@ export class ReaderView extends ItemView {
         )
         .forEach((el) => el.remove());
 
-      this.debugLogSubstackDomState(
-        "after-normalize",
-        doc,
-        doc.body.innerHTML,
-        fallbackHeroUrl,
-      );
-
       // Clean up fetched full-article HTML before hero extraction so we don't pick
       // navigation icons / breadcrumbs as the hero image.
       if (stripTopHeadline) {
@@ -2252,13 +2233,6 @@ export class ReaderView extends ItemView {
       sanitizeAndAppendHtml(container, html, { mode: "rich" });
     }
 
-    this.debugLogSubstackDomState(
-      "after-sanitize",
-      container,
-      container.innerHTML,
-      fallbackHeroUrl,
-    );
-
     // Add classes to images for styling
     container.querySelectorAll("img").forEach((img) => {
       img.addClass("rss-reader-responsive-img");
@@ -2349,141 +2323,6 @@ export class ReaderView extends ItemView {
 
     return !/^(?:\.{3,}|…+|\[\s*(?:\.{3,}|…+)\s*\])$/.test(text);
   }
-
-
-
-  private debugLogSubstackReaderEntry(
-    item: FeedItem,
-    fullContent: string | undefined,
-    shouldUseWebViewer: boolean,
-    shouldBypassWebViewer: boolean,
-  ): void {
-    const fieldCounts = {
-      fullContent: this.countRawSubstackFetchUrls(fullContent),
-      content: this.countRawSubstackFetchUrls(item.content),
-      description: this.countRawSubstackFetchUrls(item.description),
-      coverImage: this.countRawSubstackFetchUrls(item.coverImage),
-      image: this.countRawSubstackFetchUrls(item.image),
-    };
-
-    if (!Object.values(fieldCounts).some((count) => count > 0)) {
-      return;
-    }
-
-    console.debug("[RSS Dashboard] ReaderView Substack entry", {
-      title: item.title,
-      link: item.link,
-      guid: item.guid,
-      shouldUseWebViewer,
-      shouldBypassWebViewer,
-      fieldCounts,
-      samples: {
-        fullContent: this.extractFirstRawSubstackFetchUrl(fullContent),
-        content: this.extractFirstRawSubstackFetchUrl(item.content),
-        description: this.extractFirstRawSubstackFetchUrl(item.description),
-        coverImage: this.extractFirstRawSubstackFetchUrl(item.coverImage),
-        image: this.extractFirstRawSubstackFetchUrl(item.image),
-      },
-    });
-  }
-
-  private debugLogSubstackDomState(
-    stage: string,
-    root: Document | HTMLElement,
-    serializedHtml: string,
-    fallbackHeroUrl?: string,
-  ): void {
-    const scopedRoot = root instanceof Document ? root.body : root;
-    const fieldCounts = {
-      serializedHtml: this.countRawSubstackFetchUrls(serializedHtml),
-      fallbackHeroUrl: this.countRawSubstackFetchUrls(fallbackHeroUrl),
-      imgSrc: this.countElementsWithRawSubstackAttr(
-        scopedRoot.querySelectorAll("img[src]"),
-        "src",
-      ),
-      imgSrcset: this.countElementsWithRawSubstackAttr(
-        scopedRoot.querySelectorAll("img[srcset]"),
-        "srcset",
-      ),
-      sourceSrcset: this.countElementsWithRawSubstackAttr(
-        scopedRoot.querySelectorAll("source[srcset]"),
-        "srcset",
-      ),
-      anchorHref: this.countElementsWithRawSubstackAttr(
-        scopedRoot.querySelectorAll("a[href]"),
-        "href",
-      ),
-      inlineStyle: this.countElementsWithRawSubstackAttr(
-        scopedRoot.querySelectorAll("[style]"),
-        "style",
-      ),
-      poster: this.countElementsWithRawSubstackAttr(
-        scopedRoot.querySelectorAll("[poster]"),
-        "poster",
-      ),
-    };
-
-    if (!Object.values(fieldCounts).some((count) => count > 0)) {
-      return;
-    }
-
-    console.debug(`[RSS Dashboard] ReaderView Substack ${stage}`, {
-      fieldCounts,
-      samples: {
-        serializedHtml: this.extractFirstRawSubstackFetchUrl(serializedHtml),
-        fallbackHeroUrl: this.extractFirstRawSubstackFetchUrl(fallbackHeroUrl),
-      },
-    });
-  }
-
-  private countElementsWithRawSubstackAttr(
-    elements: ArrayLike<Element> | Iterable<Element>,
-    attrName: string,
-  ): number {
-    let count = 0;
-    for (const el of Array.from(elements)) {
-      if (this.countRawSubstackFetchUrls(el.getAttribute(attrName)) > 0) {
-        count += 1;
-      }
-    }
-    return count;
-  }
-
-  private countRawSubstackFetchUrls(value: string | null | undefined): number {
-    if (!value) {
-      return 0;
-    }
-
-    return this.countSuspiciousSubstackUrls(value);
-  }
-
-  private extractFirstRawSubstackFetchUrl(
-    value: string | null | undefined,
-  ): string | undefined {
-    if (!value) {
-      return undefined;
-    }
-
-    const match = value.match(
-      /https:\/\/substackcdn\.com\/image\/fetch\/[^\s"'<>)]*|https%3A%2F%2Fsubstack-post-media\.s3\.amazonaws\.com[^\s"'<>)]*/i,
-    );
-    return match?.[0]?.slice(0, 240);
-  }
-
-  private countSuspiciousSubstackUrls(
-    value: string | null | undefined,
-  ): number {
-    if (!value) {
-      return 0;
-    }
-
-    const rawFetchMatches = value.match(RAW_SUBSTACK_FETCH_URL_RE)?.length ?? 0;
-    const encodedS3Matches =
-      value.match(ENCODED_SUBSTACK_S3_URL_RE)?.length ?? 0;
-    return rawFetchMatches + encodedS3Matches;
-  }
-
-
 
   private stripTopHeadlineFromHtml(html: string): string {
     if (!html) return html;

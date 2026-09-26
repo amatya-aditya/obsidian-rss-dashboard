@@ -8,12 +8,13 @@ import {
   App,
   Notice,
   Setting,
-  TFolder,
   normalizePath,
   type WorkspaceLeaf,
 } from "obsidian";
+import type { ImportResult } from "../../services/import-export-service";
 import { FolderSuggest } from "../../components/folder-suggest";
 import { setCssProps } from "../../utils/platform-utils";
+import { trashVaultFile, vaultFileExists } from "../../utils/vault-files";
 import { DEFAULT_SETTINGS, type RssDashboardSettings } from "../../types/types";
 import {
   MetadataCleanupModal,
@@ -51,11 +52,11 @@ interface StorageSettingsPlugin {
   getUnloadedShardFeedCount(): number;
   previewRepairVaultStorage(): Promise<RepairPreview>;
   repairVaultStorage(): Promise<RepairResult>;
-  importPortableDataBundleFromFile(file: File): Promise<void>;
+  importPortableDataBundleFromFile(file: File): Promise<ImportResult>;
   exportPortableDataBundle(): Promise<void>;
-  importFeedBundleFromFile(file: File): Promise<void>;
+  importFeedBundleFromFile(file: File): Promise<ImportResult>;
   exportFeedBundle(): Promise<void>;
-  importSettingsBundleFromFile(file: File): Promise<void>;
+  importSettingsBundleFromFile(file: File): Promise<ImportResult>;
   exportSettingsBundle(): Promise<void>;
   exportDataJson(): Promise<void>;
   revertToLegacyJsonStorageWithOptions(options?: {
@@ -123,8 +124,11 @@ function renderFolderSetting(
       text
         .setValue(plugin.settings.media[key] || DEFAULT_SETTINGS.media[key])
         .onChange(async (value) => {
-          const nextValue = typeof value === "string" ? value : "";
-          plugin.settings.media[key] = normalizePath(nextValue);
+          const nextValue = typeof value === "string" ? value.trim() : "";
+          // normalizePath returns "/" for an empty path; keep "" so a cleared
+          // field means the root, not a feed folder named "/".
+          const normalized = normalizePath(nextValue);
+          plugin.settings.media[key] = normalized === "/" ? "" : normalized;
           await plugin.saveSettings();
         });
       new FolderSuggest(plugin.app, text.inputEl, plugin.settings.folders);
@@ -206,26 +210,32 @@ export function renderStorageSettingsTab(
       : "";
   let lastSavedMetadataStorageFolder = pendingMetadataStorageFolder;
 
+  // After a move, the plugin-default data.json holds the bootstrap pointer
+  // to the new location, so it must never be offered for deletion.
+  const isPluginDefaultMetadataFile = (dataFilePath: string): boolean =>
+    normalizePath(dataFilePath) === normalizePath(pluginDefaultMetadataFilePath);
+
   const deleteMetadataFileAtPath = async (
     dataFilePath: string,
   ): Promise<boolean> => {
-    const file = plugin.app.vault.getAbstractFileByPath(dataFilePath);
-    if (!file || file instanceof TFolder) {
+    if (isPluginDefaultMetadataFile(dataFilePath)) {
       return false;
     }
-    await plugin.app.fileManager.trashFile(file);
-    return true;
+    return trashVaultFile(plugin.app, dataFilePath);
   };
 
   const maybeOfferMetadataCleanup = async (
     previousDataFilePath: string | null,
   ): Promise<void> => {
-    if (!previousDataFilePath) {
+    if (
+      !previousDataFilePath ||
+      isPluginDefaultMetadataFile(previousDataFilePath)
+    ) {
       return;
     }
-    const previousFile =
-      plugin.app.vault.getAbstractFileByPath(previousDataFilePath);
-    if (!previousFile || previousFile instanceof TFolder) {
+    // The previous copy may sit in a dot-prefixed folder the vault index
+    // leaves out, so check the disk rather than the index.
+    if (!(await vaultFileExists(plugin.app, previousDataFilePath))) {
       return;
     }
 
@@ -821,8 +831,12 @@ export function renderStorageSettingsTab(
       "Optional vault folder for metadata data.json. Leave empty to keep metadata in the plugin directory. Shard storage v2 keeps article state (user-state.json) in this folder either way, so remove any '.' prefix for Obsidian sync to carry it to other devices.",
     )
     .addText((text) => {
+      // Show the folder user-state.json is actually in: a fresh install
+      // keeps it inside the plugin folder rather than .rss-dashboard-data.
       text
-        .setPlaceholder(".rss-dashboard-data")
+        .setPlaceholder(
+          plugin.settings.metadataStorageFolder.trim() || ".rss-dashboard-data",
+        )
         .setValue(lastSavedMetadataStorageFolder)
         .onChange((value) => {
           pendingMetadataStorageFolder = value;

@@ -8,6 +8,7 @@ import {
   type RssDashboardSettings,
 } from "../../../src/types/types";
 import { ReaderView } from "../../../src/views/reader-view";
+import { RssDashboardView } from "../../../src/views/dashboard-view";
 
 vi.mock("../../../src/utils/platform-utils", () => ({
   robustFetch: vi.fn(),
@@ -163,8 +164,6 @@ async function createDashboardView(
   view: TestDashboardView;
   dashboardLeaf: unknown;
 }> {
-  const { RssDashboardView } =
-    await import("../../../src/views/dashboard-view");
   const app = new App();
   Object.assign(app.workspace, workspaceOverrides);
 
@@ -328,8 +327,6 @@ describe("Dashboard reader location", () => {
       revealLeaf,
       setActiveLeaf,
     });
-
-    view.app.workspace.activeLeaf = dashboardLeaf as never;
 
     await view.handleArticleClick(feed.items[0]);
 
@@ -644,7 +641,9 @@ describe("Dashboard reader location", () => {
       getRightLeaf: vi.fn(() => rightLeaf),
       revealLeaf,
     });
-    const savedFile = await App.createMock().vault.create(
+    const scratchVault = App.createMock().vault;
+    await scratchVault.createFolder("RSS articles");
+    const savedFile = await scratchVault.create(
       "RSS articles/saved-article.md",
       "# Saved article",
     );
@@ -669,7 +668,9 @@ describe("Dashboard reader location", () => {
       getRightLeaf: vi.fn(),
       revealLeaf: vi.fn(async () => {}),
     });
-    const savedFile = await App.createMock().vault.create(
+    const scratchVault = App.createMock().vault;
+    await scratchVault.createFolder("RSS articles");
+    const savedFile = await scratchVault.create(
       "RSS articles/saved-inline.md",
       "# Saved inline",
     );

@@ -113,6 +113,27 @@ beforeEach(() => {
 });
 
 describe("AddFeedModal", () => {
+  it("removes the native close button in the mobile layout", () => {
+    Object.defineProperty(window, "innerWidth", {
+      value: 500,
+      configurable: true,
+    });
+    const modal = new AddFeedModal(createMockApp(), [], vi.fn(), vi.fn());
+
+    modal.open();
+
+    expect(modal.modalEl.querySelector(".modal-header-button")).toBeNull();
+    expect(modal.containerEl.isConnected).toBe(true);
+  });
+
+  it("keeps the native close button in the desktop layout", () => {
+    const modal = new AddFeedModal(createMockApp(), [], vi.fn(), vi.fn());
+
+    modal.open();
+
+    expect(modal.modalEl.querySelector(".modal-header-button")).not.toBeNull();
+  });
+
   it("uses the selected feed encoding for preview and save", async () => {
     const app = createMockApp();
     const onAdd: OnAddFn = vi.fn(async () => true);

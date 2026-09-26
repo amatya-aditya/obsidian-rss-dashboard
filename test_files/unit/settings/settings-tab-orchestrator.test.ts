@@ -56,7 +56,7 @@ describe("RssDashboardSettingTab (orchestrator)", () => {
     const tab = new RssDashboardSettingTab(app, plugin);
 
     tab.containerEl = document.body.appendChild(createDiv());
-    tab.display();
+    tab.refresh();
 
     const tabButtons = Array.from(
       tab.containerEl.querySelectorAll(".rss-dashboard-settings-tab-btn"),
@@ -79,7 +79,7 @@ describe("RssDashboardSettingTab (orchestrator)", () => {
     const tab = new RssDashboardSettingTab(app, plugin);
     tab.containerEl = document.body.appendChild(createDiv());
 
-    tab.display();
+    tab.refresh();
 
     const aboutBtn = Array.from(
       tab.containerEl.querySelectorAll("button"),
@@ -116,7 +116,7 @@ describe("RssDashboardSettingTab (orchestrator)", () => {
     const tab = new RssDashboardSettingTab(app, plugin);
     tab.containerEl = document.body.appendChild(createDiv());
 
-    tab.display();
+    tab.refresh();
     expect(vi.mocked(general.renderGeneralSettingsTab)).toHaveBeenCalledTimes(1);
 
     const contentEl = tab.containerEl.querySelector(
@@ -139,7 +139,7 @@ describe("RssDashboardSettingTab (orchestrator)", () => {
     const tab = new RssDashboardSettingTab(app, plugin);
     tab.containerEl = document.body.appendChild(createDiv());
 
-    tab.display();
+    tab.refresh();
     tab.refresh();
 
     expect(vi.mocked(general.renderGeneralSettingsTab)).toHaveBeenCalledTimes(2);

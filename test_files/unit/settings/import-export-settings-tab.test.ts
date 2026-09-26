@@ -13,6 +13,7 @@ import {
 } from "../../../src/utils/settings-loader";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 import type RssDashboardPlugin from "../../../main";
+import type { ImportResult } from "../../../src/services/import-confirmation-model";
 
 type ObsidianHTMLElement = HTMLElement & {
   empty: () => void;
@@ -52,19 +53,19 @@ function createPlugin() {
     saveSettings: vi.fn(async () => {}),
     exportDataJson: vi.fn(async () => {}),
     copyDataJsonToClipboard: vi.fn(async () => {}),
-    importUserSettingsJsonFromFile: vi.fn(async () => {}),
+    importUserSettingsJsonFromFile: vi.fn(async (): Promise<ImportResult> => "committed"),
     exportUserSettingsJson: vi.fn(async () => {}),
     copyUserSettingsJsonToClipboard: vi.fn(async () => {}),
     exportOpml: vi.fn(async () => {}),
     copyOpmlToClipboard: vi.fn(async () => {}),
     exportPortableDataBundle: vi.fn(async () => {}),
-    importPortableDataBundleFromFile: vi.fn(async () => {}),
+    importPortableDataBundleFromFile: vi.fn(async (): Promise<ImportResult> => "committed"),
     copyPortableDataBundleToClipboard: vi.fn(async () => {}),
     exportFeedBundle: vi.fn(async () => {}),
-    importFeedBundleFromFile: vi.fn(async () => {}),
+    importFeedBundleFromFile: vi.fn(async (): Promise<ImportResult> => "committed"),
     copyFeedBundleToClipboard: vi.fn(async () => {}),
     exportSettingsBundle: vi.fn(async () => {}),
-    importSettingsBundleFromFile: vi.fn(async () => {}),
+    importSettingsBundleFromFile: vi.fn(async (): Promise<ImportResult> => "committed"),
     copySettingsBundleToClipboard: vi.fn(async () => {}),
     getActiveDashboardView: vi.fn(async () => null),
     performFactoryReset: vi.fn(async () => {}),
@@ -356,6 +357,67 @@ describe("Auto Backup Helpers", () => {
       expect(copyButton).not.toBeNull();
       copyButton?.click();
       expect(plugin.copyUserSettingsJsonToClipboard).toHaveBeenCalledTimes(1);
+    });
+
+    describe("a canceled Replacing or Overwriting import (issue #377)", () => {
+      const imports = [
+        ["Import shard data", "importPortableDataBundleFromFile"],
+        ["Import feed bundle", "importFeedBundleFromFile"],
+        ["Import settings bundle", "importSettingsBundleFromFile"],
+        ["Import user preferences", "importUserSettingsJsonFromFile"],
+      ] as const;
+
+      /** Clicks an import button and picks a file in the file picker it opens. */
+      async function pickImportFile(containerEl: HTMLElement, label: string) {
+        const importButton = Array.from(
+          containerEl.querySelectorAll<HTMLButtonElement>("button"),
+        ).find((button) => button.textContent === label) as HTMLButtonElement;
+        importButton.click();
+
+        const input = document.body.querySelector<HTMLInputElement>(
+          'input[type="file"]',
+        ) as HTMLInputElement;
+        Object.defineProperty(input, "files", {
+          value: [new File(["{}"], "picked.json")],
+        });
+        input.onchange?.(new Event("change"));
+        await flushPromises();
+      }
+
+      it.each(imports)(
+        "%s shows no success message when the user cancels",
+        async (label, method) => {
+          const containerEl = createContainerEl();
+          const plugin = createPlugin();
+          plugin[method].mockResolvedValue("canceled");
+          renderImportExportSettingsTab(
+            containerEl,
+            plugin as unknown as RssDashboardPlugin,
+          );
+
+          await pickImportFile(containerEl, label);
+
+          expect(plugin[method]).toHaveBeenCalledTimes(1);
+          expect(document.body.textContent).not.toContain("Import successful");
+        },
+      );
+
+      it.each(imports)(
+        "%s shows the success message once the import is committed",
+        async (label, method) => {
+          const containerEl = createContainerEl();
+          const plugin = createPlugin();
+          plugin[method].mockResolvedValue("committed");
+          renderImportExportSettingsTab(
+            containerEl,
+            plugin as unknown as RssDashboardPlugin,
+          );
+
+          await pickImportFile(containerEl, label);
+
+          expect(document.body.textContent).toContain("Import successful");
+        },
+      );
     });
 
     it("renders the Import starred articles entry point next to Import OPML", () => {

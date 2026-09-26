@@ -41,6 +41,27 @@ commits are there:
 
     git log --oneline origin/dev..HEAD
 
+### Worktree dependencies
+
+A new worktree has no `node_modules`, and the build, tests, lint and git hooks
+all need it. If the branch's `package-lock.json` matches the main checkout's,
+link the main checkout's `node_modules` instead of running `npm ci`:
+
+    # In the main checkout: exit code 0 means the lockfiles match
+    git diff --quiet <branch> -- package-lock.json
+
+    # PowerShell
+    New-Item -ItemType Junction -Path <worktree>\node_modules -Target <main-checkout>\node_modules
+
+Run `npm ci` in the worktree only when the branch changes `package.json` or
+`package-lock.json`, and remove the junction first: `npm ci` through a link
+rewrites the main checkout's packages.
+
+`git worktree remove` leaves the junction behind. Unlink it with a plain `rm`
+(or `cmd /c rmdir` without `/s`) on the link itself, then remove the empty
+folder. Never `rm -rf` or `Remove-Item -Recurse` it: that deletes the main
+checkout's packages through the link.
+
 ### Closing issues
 
 `dev` is the repository's default branch, so `Fixes #NNN` in a pull request

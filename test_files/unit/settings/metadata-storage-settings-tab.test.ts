@@ -142,6 +142,41 @@ describe("renderStorageSettingsTab() - default folders and metadata", () => {
     expect(vi.mocked(plugin.saveSettings)).toHaveBeenCalledTimes(2);
   });
 
+  // Real `normalizePath("")` returns "/" (#372), which would put new video
+  // and podcast feeds in a feed folder named "/" instead of the root.
+  it("stores an empty default folder, not '/', when the field is cleared", async () => {
+    const containerEl = document.body.appendChild(createDiv());
+    const settings = cloneSettings();
+    settings.media.defaultYouTubeFolder = "YouTube";
+    settings.media.defaultPodcastFolder = "Podcast";
+
+    const plugin = {
+      ...createPlugin(),
+      settings,
+    } as unknown as RssDashboardPlugin;
+
+    renderStorageSettingsTab(containerEl, plugin);
+
+    const youtubeInput = getSettingByName(
+      containerEl,
+      "Default YouTube folder",
+    ).querySelector('input[type="text"]') as HTMLInputElement;
+    youtubeInput.value = "";
+    youtubeInput.dispatchEvent(new Event("input"));
+
+    const podcastInput = getSettingByName(
+      containerEl,
+      "Default podcast folder",
+    ).querySelector('input[type="text"]') as HTMLInputElement;
+    podcastInput.value = " / ";
+    podcastInput.dispatchEvent(new Event("input"));
+
+    await flushPromises();
+
+    expect(plugin.settings.media.defaultYouTubeFolder).toBe("");
+    expect(plugin.settings.media.defaultPodcastFolder).toBe("");
+  });
+
   it("restores the default folder names from the reset action", async () => {
     const containerEl = document.body.appendChild(createDiv());
     const settings = cloneSettings();
@@ -180,5 +215,101 @@ describe("renderStorageSettingsTab() - default folders and metadata", () => {
       defaults.defaultSmallwebFolder,
     );
     expect(vi.mocked(plugin.saveSettings)).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("renderStorageSettingsTab() - previous metadata copy cleanup", () => {
+  async function applyMetadataLocation(
+    containerEl: HTMLElement,
+    folder: string,
+  ): Promise<void> {
+    const input = getSettingByName(
+      containerEl,
+      "Metadata data.json location",
+    ).querySelector('input[type="text"]') as HTMLInputElement;
+    input.value = folder;
+    input.dispatchEvent(new Event("input"));
+    const applyButton = getSettingByName(
+      containerEl,
+      "Metadata actions",
+    ).querySelector("button") as HTMLButtonElement;
+    applyButton.click();
+    await flushPromises();
+  }
+
+  function findCleanupModal(): HTMLElement | null {
+    const heading = Array.from(document.querySelectorAll(".modal h2")).find(
+      (el) => el.textContent === "Delete previous metadata copy?",
+    );
+    return (heading?.closest(".modal") as HTMLElement | null) ?? null;
+  }
+
+  function clickModalButton(modal: HTMLElement, text: string): void {
+    const button = Array.from(modal.querySelectorAll("button")).find(
+      (el) => el.textContent === text,
+    );
+    if (!button) {
+      throw new Error(`Button not found: ${text}`);
+    }
+    button.click();
+  }
+
+  function createVaultLocationPlugin(folder: string) {
+    const plugin = createPlugin();
+    plugin.settings.metadataStorageMode = "vault-location";
+    plugin.settings.metadataStorageFolder = folder;
+    return plugin;
+  }
+
+  it("offers to delete the previous copy in a hidden vault folder and removes it", async () => {
+    const containerEl = document.body.appendChild(createDiv());
+    const plugin = createVaultLocationPlugin(".rss-meta");
+    const { vault } = plugin.app;
+    await vault.createFolder(".rss-meta");
+    await vault.create(".rss-meta/data.json", "{}");
+
+    renderStorageSettingsTab(containerEl, plugin);
+    await applyMetadataLocation(containerEl, "rss-meta2");
+
+    const modal = findCleanupModal();
+    expect(modal).not.toBeNull();
+    clickModalButton(modal as HTMLElement, "Delete previous copy");
+    await flushPromises();
+
+    expect(await vault.adapter.exists(".rss-meta/data.json")).toBe(false);
+  });
+
+  it("offers to delete the previous copy in a visible vault folder", async () => {
+    const containerEl = document.body.appendChild(createDiv());
+    const plugin = createVaultLocationPlugin("rss-meta");
+    const { vault } = plugin.app;
+    await vault.createFolder("rss-meta");
+    await vault.create("rss-meta/data.json", "{}");
+
+    renderStorageSettingsTab(containerEl, plugin);
+    await applyMetadataLocation(containerEl, "rss-meta2");
+
+    const modal = findCleanupModal();
+    expect(modal).not.toBeNull();
+    clickModalButton(modal as HTMLElement, "Delete previous copy");
+    await flushPromises();
+
+    expect(await vault.adapter.exists("rss-meta/data.json")).toBe(false);
+  });
+
+  it("never offers to delete the plugin-default data.json, which becomes the bootstrap pointer", async () => {
+    const containerEl = document.body.appendChild(createDiv());
+    const plugin = createPlugin();
+    const { vault } = plugin.app;
+    const pluginDir = `${vault.configDir}/plugins/rss-dashboard`;
+    const bootstrapPath = `${pluginDir}/data.json`;
+    await vault.adapter.mkdir(pluginDir);
+    await vault.adapter.write(bootstrapPath, "{}");
+
+    renderStorageSettingsTab(containerEl, plugin);
+    await applyMetadataLocation(containerEl, "rss-meta");
+
+    expect(findCleanupModal()).toBeNull();
+    expect(await vault.adapter.exists(bootstrapPath)).toBe(true);
   });
 });

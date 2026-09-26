@@ -3,6 +3,7 @@ import type RssDashboardPlugin from "../../../main";
 import type { Tag } from "../../types/types";
 import type { FolderExistingArticleAction } from "../../utils/folder-tag-sync";
 import { shouldUseMobileSidebarLayout } from "../../utils/platform-utils";
+import { removeNativeModalCloseButton } from "../../utils/modal-close-button";
 import { addTagMultiSelectControl } from "../../components/tag-multi-select-control";
 
 export class FolderAutoTagModal extends Modal {
@@ -42,10 +43,7 @@ export class FolderAutoTagModal extends Modal {
 
     if (shouldUseMobileSidebarLayout()) {
       this.modalEl.addClass("rss-mobile-feed-manager-modal");
-      const closeBtn = this.modalEl.querySelector(".modal-close-button");
-      if (closeBtn) {
-        closeBtn.remove();
-      }
+      removeNativeModalCloseButton(this.modalEl);
     }
 
     contentEl.empty();

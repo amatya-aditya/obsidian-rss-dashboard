@@ -127,7 +127,7 @@ export function createArticleListHarness(
 
   const createdContainer = !overrides.container;
   const container: HTMLElement =
-    overrides.container ?? activeDocument.createDiv();
+    overrides.container ?? createDiv();
 
   const settings = cloneSettings();
   if (overrides.settings) {

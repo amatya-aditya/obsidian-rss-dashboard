@@ -35,6 +35,7 @@ function manifestFor(version: string): PluginManifest {
     id: "rss-dashboard",
     name: "RSS Dashboard",
     version,
+    minAppVersion: "1.8.7",
     author: "test",
     description: "test",
     dir: ".",
@@ -164,7 +165,37 @@ describe("What's New trigger", () => {
 
     expect(whatsNew.open).not.toHaveBeenCalled();
     expect(plugin.saveSettings).not.toHaveBeenCalled();
-    expect(plugin.settings.lastShownVersion).toBeUndefined();
+  });
+
+  it("does not show on the second launch of a fresh install", async () => {
+    let persisted: unknown = null;
+
+    // First launch: a fresh install ships no data.json, so the load is null.
+    const firstApp = App.createMock();
+    const firstLaunch = new RssDashboardPlugin(firstApp, manifestFor("2.7.0"));
+    firstLaunch.loadData = vi.fn().mockResolvedValue(null);
+    firstLaunch.saveData = vi.fn().mockImplementation(async (data: unknown) => {
+      persisted = JSON.parse(JSON.stringify(data));
+    });
+    await firstLaunch.loadSettings();
+    dashboardActive(firstApp.workspace as unknown as WorkspaceStub);
+    (firstLaunch as unknown as Trigger).maybeShowWhatsNewForActiveDashboard();
+
+    // Any user change is the first write of data.json.
+    firstLaunch.settings.useFirstSeenDateFallback =
+      !firstLaunch.settings.useFirstSeenDateFallback;
+    await firstLaunch.saveSettings();
+    expect(persisted).not.toBeNull();
+
+    // Second launch reads the data.json the first launch wrote.
+    const { plugin, workspace } = await loadedPlugin({
+      loadData: async () => persisted,
+    });
+    dashboardActive(workspace);
+    (plugin as unknown as Trigger).maybeShowWhatsNewForActiveDashboard();
+    await Promise.resolve();
+
+    expect(whatsNew.open).not.toHaveBeenCalled();
   });
 
   it("shows nothing and writes nothing when the settings load failed", async () => {
