@@ -250,32 +250,31 @@ change while it moves.
    - Modifies no characterization test, which CI enforces. It may add unit
      tests for the new module.
 
-In this epic, a **move** commit must pass the repository's pre-commit hook on
-its own. The hook runs the compliance checks, lints the staged files, and runs
-the tests related to them. So the move commit does all of the following:
+Every commit must pass the repository's pre-commit checks on its own: the
+compliance checks, lint on the staged files, and the tests related to them.
+The pilot (#467) set the commit shape that meets that:
 
-- It moves the code into the module file verbatim, except for mechanical
-  rewrites of `this.x` into the module's own state or its dependencies.
-- It adds the delegates and the module's construction to the plugin.
-- It reroutes every remaining reference to the moved members inside
-  `main.ts`, mechanically, so the commit compiles and every test passes.
-- It lowers the ratchet to the new line count, because #253's check fails
-  whenever `main.ts` shrinks without the ratchet moving.
-- It leaves `eslint-suppressions.json` alone, because a function over a limit
-  is never moved while it is over (see below).
+- **Move** copies the code verbatim into the new module, and nothing imports
+  it yet. `main.ts` is untouched, so the ratchet doesn't move. The only
+  changes are mechanical:
+  - public methods take the ticket's names;
+  - `this.settings` becomes a `getSettings()` call;
+  - plugin members become late-bound option callbacks.
+- **Wiring** builds the module in the plugin constructor, and replaces the
+  originals with one-statement delegates. Each delegate returns the module's
+  promise directly, with no extra `async` wrapper, so timing doesn't change.
+  It reroutes the other references inside `main.ts`, deletes the originals,
+  lowers the ratchet to the new line count, and prunes
+  `eslint-suppressions.json` for anything that left `main.ts`.
+- **Simplify** tidies the moved code without changing behavior.
 
-The **wiring** commit is only for wiring that isn't mechanical. Examples are
-replacing step 1's temporary "is an operation running" callback with the
-tracker, and ordering construction in the constructor. The **simplify**
-commit tidies the moved code without changing behavior.
-
-A function that is over the length or complexity limit is not moved while it
-is over. Moving it would need a new suppression in the destination file,
-which is an architecture exception. Instead, a separate `refactor/*` PR first
-splits it inside `main.ts`, guarded by the same characterization tests, and
-prunes its suppression with `npx eslint . --prune-suppressions`. This applies to `addFeed` before step 4 and to
-`loadSettings` before step 7. `onload` stays in `main.ts` and is split by
-step 8.
+`eslint-suppressions.json` counts suppressions per file, so a function over
+the length or complexity limit can't move unchanged: it would be a new
+violation in the destination file, and adding a suppression is an
+architecture exception. The move commit splits such a function into its
+existing blocks, and moves each one unchanged. This applies to `addFeed` in
+step 4 and `loadSettings` in step 7. `onload` stays in `main.ts`, so step 8
+splits it in place.
 
 ### Extraction order
 
@@ -337,9 +336,9 @@ manual checklist covers, are listed under *Implementation notes*.
 - **The file gets substantially smaller.** Steps 1–7 take `main.ts` from 3,910
   lines to roughly 2,500–2,700, with the facades and wiring kept. Moving the
   callers takes it further.
-- **All three suppressions in `main.ts` go.** The in-place splits before steps
-  4 and 7 remove the `addFeed` and `loadSettings` suppressions, and step 8
-  removes the `onload` one.
+- **All three suppressions in `main.ts` go.** Steps 4 and 7 remove the
+  `addFeed` and `loadSettings` suppressions when they split and move those
+  functions, and step 8 removes the `onload` one.
 
 ### Trade-offs
 
@@ -543,8 +542,8 @@ deletes them ([#454](https://github.com/amatya-aditya/obsidian-rss-dashboard/iss
   - the public getters (930–943);
   - the image cache (572) and the scheduler (721).
 
-  The tracker needs an operation for each of these. The step's move commit
-  reroutes them all, so that commit passes the tests on its own.
+  The tracker needs an operation for each of these. The step's wiring commit
+  reroutes them all when it deletes the originals.
   `FEED_REFRESH_RENDER_THROTTLE_MS` (321) is used by both the tracker (918)
   and the runner (3600). It becomes a single exported constant in the
   tracker.
@@ -733,24 +732,20 @@ questions. The answers are folded into the decision above:
 - The bugs below are filed so pinned tests can cite them.
 - Extraction waits for the pilot PR.
 
+Settled since:
+
+- **The pilot's patterns.** The merged pilot (#467) uses
+  `constructor(app, options)`, keeps settings out of the module's state, and
+  lands as a copy-only move commit followed by a wiring commit. This record
+  follows it, and step 1 (#455) was extracted the same way.
+- **Splits and the ratchet.** Over-limit functions are split into their
+  existing blocks by the move commit itself, so `main.ts` only ever shrinks.
+
 Still open:
 
-1. **Pilot patterns.** Does the pilot use the same patterns as this ADR:
-   dependency objects, getters for anything replaced at runtime, and modules
-   built once? If it settles on something else, this ADR is amended before it
-   is accepted.
-2. **Possibly unintended behaviors.** Were items 6–9 in the list above
+1. **Possibly unintended behaviors.** Were items 6–9 in the list above
    intended? Item 6 is filed as #452; items 7–9 are raised here rather than
    filed. All four are pinned either way.
-3. **In-place splits and the line ratchet.** Splitting `addFeed`,
-   `loadSettings` or `onload` into helpers inside `main.ts` usually adds a
-   few lines (helper signatures), and the ratchet forbids any growth. Each
-   PR would try to stay at net zero or less, for example by folding repeated
-   code in the function it splits. If a split can't, should it raise the
-   ratchet by that small amount as a recorded exception, given that the next
-   extraction removes far more? The ratchet is always lowered to the exact
-   count, so an extraction never leaves spare room. The alternative is to
-   pair each split with an unrelated shrink of `main.ts` in the same PR.
 
 ## Related
 
