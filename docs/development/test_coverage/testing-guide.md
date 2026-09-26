@@ -31,6 +31,10 @@ Our tests live in the `test_files/unit/` directory. Historically, tests were kep
 
 _Note: Grouping tests by feature or module makes it much easier to maintain the suite and understand coverage._
 
+### Characterization tests
+
+A test that pins current behavior before a refactor, bugs included, is named `*.characterization.test.ts` and lives in the same folder as the module's other tests. Mark each pinned bug with `// BUG: pinned, see #<issue>`. CI keeps these files read-only on `refactor/*` pull requests; see **Characterization tests** in the [architecture guardrails](../architecture.md#characterization-tests).
+
 ## 4. Test Suites Reference
 
 ### Core Services

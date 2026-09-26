@@ -6,13 +6,19 @@ and shutdown orchestration, and thin compatibility delegation. Feature logic,
 persistence implementations, migrations, UI construction, and substantial
 state machines belong behind focused module interfaces under `src/`.
 
+These guardrails stop new drift while the monolithic files are broken up
+([#436](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/436)).
+They are not extraction mandates: existing debt is recorded and can only
+shrink.
+
 ## Architecture Preflight
 
 Before a meaningful implementation change, identify:
 
 - the module that owns the behavior and the files likely to change;
 - whether the change introduces a new responsibility or crosses an existing seam;
-- whether a touched file is already reported as unusually large or complex;
+- whether a touched file is ratcheted, or a touched function is suppressed in
+  `eslint-suppressions.json`;
 - whether the change adds coupling, a runtime cycle, or an import of `main.ts`;
 - whether any `main.ts` change is composition/delegation or implementation.
 
@@ -20,29 +26,85 @@ Tiny, local changes need only a sentence when none of these signals apply.
 When ownership is unclear, prefer a small interface that gives callers useful
 behavior without exposing the plugin class or a cluster of pass-through modules.
 
-## Executable Checks
+## Enforced Checks
 
-Run `npm run check:architecture`. The check has two kinds of output:
+Every check below fails the build. Test files and `test_files/stubs/` are
+never measured.
 
-- **Warnings** expose current outliers without failing the build: production
-  files over 1,000 physical lines, functions over 150 lines, branch complexity
-  over 20, and functions with more than 5 parameters.
-- **Errors** stop new drift: `main.ts` growing beyond its baseline, a new
-  production importer of `main.ts`, a service importing UI/settings or
-  `main.ts`, or a new runtime import cycle.
+| Check | Where | Fails when |
+| --- | --- | --- |
+| File line ratchet | `npm run check:architecture` | A ratcheted file grows, or shrinks without its baseline being lowered in the same change |
+| `main.ts` importer ratchet | `npm run check:architecture` | A new production module imports `main.ts`, or an allowance is no longer needed |
+| Service dependency direction | `npm run check:architecture` | A service imports a view, component, modal, settings module, or `main.ts` |
+| Runtime-cycle ratchet | `npm run check:architecture` | A new runtime import cycle appears, or an allowance is no longer needed |
+| Function length | ESLint `max-lines-per-function` | A function in `main.ts` or `src/` exceeds 150 lines, not counting blank lines and comments |
+| Complexity | ESLint `complexity` | A function in `main.ts` or `src/` exceeds cyclomatic complexity 20 |
+| Characterization tests | CI, `refactor/*` PRs only | A `*.characterization.test.ts` file is modified, deleted, or renamed |
 
-The warning thresholds are repository-derived observability levels, not style
-targets. At the 2026-09-12 baseline they flag 12 of 161 production files
-(7.45%), 60 of 4,425 functions by size (1.36%), 51 functions by complexity
-(1.15%), and 23 functions by parameter count (0.52%). Declarative UI builders,
-type catalogs, and other cohesive exceptions still require human judgment.
+`check:architecture` runs in `check:compliance`, so it is part of
+`npm run build`, the pre-push hook, and CI. `check:architecture` also prints
+two non-failing observations: production files over 1,000 lines and functions
+with more than 5 parameters.
 
-The baseline is stored in `scripts/architecture-baseline.json`. Lower
-`mainTsMaxLines` whenever `main.ts` shrinks, and remove importer or cycle
-allowances in the same change that eliminates them. Increasing the line limit
-or expanding an allow-list is an architecture exception: explain the
-responsibility, why the existing seams cannot own it, and the follow-up that
-restores the ratchet.
+### Line ratchets
+
+`scripts/architecture-baseline.json` → `ratchets.fileMaxLines` holds the
+current physical line count of each refactor target:
+
+- `main.ts`
+- `src/components/sidebar.ts`
+- `src/services/feed-storage-repository.ts`
+- `src/views/dashboard-view.ts`
+- `src/views/reader-view.ts`
+
+The ratchet only goes down. When a change shrinks one of these files, lower
+its baseline to the new count in the same change; the check fails until you
+do. Remove importer or cycle allowances in the same change that eliminates
+them.
+
+### ESLint suppressions
+
+Functions that already broke the length or complexity limit when the rules
+were introduced are recorded in `eslint-suppressions.json`, as a count per
+file and rule. ESLint reads it automatically. A new violation in any file
+fails lint; so does one more violation in a file that already has
+suppressions.
+
+After a refactor removes a violation, prune the file in the same PR:
+
+```bash
+npx eslint . --prune-suppressions
+```
+
+Never add suppressions by hand or with `--suppress-all` or `--suppress-rule`
+to make a change pass. That is an exception (see below).
+
+### Characterization tests
+
+A characterization test pins current behavior, bugs included, before a
+refactor. Name it `*.characterization.test.ts` and keep it in the matching
+`test_files/unit/` folder. Mark a pinned bug with
+`// BUG: pinned, see #<issue>`.
+
+On a pull request from a `refactor/*` branch, CI runs
+`scripts/check-characterization-tests.mjs` against the PR base. Adding a
+characterization test, copying one, or renaming a test to the suffix is
+allowed; modifying, deleting, or renaming one away fails. If pinned behavior
+must change, do it in a separate, non-refactor PR first.
+
+## Exceptions
+
+Raising a line ratchet, expanding an importer or cycle allowance, or adding
+an ESLint suppression is an architecture exception. It needs a stated
+justification in the PR description, approved by a maintainer: the
+responsibility being added, why the existing seams cannot own it, and the
+follow-up issue that restores the guardrail.
+
+A baseline correction, where the baseline is regenerated because it was
+measured against a different base, is recorded in the commit message rather
+than treated as an exception.
+
+## Change Report
 
 For a change report relative to a Git ref, run:
 
@@ -51,8 +113,20 @@ npm run check:architecture -- --base HEAD
 ```
 
 Use the branch merge-base instead of `HEAD` when reviewing a committed branch.
-Report the `main.ts` LOC delta, threshold crossings, new `main.ts` importers,
-dependency-direction results, and runtime-cycle results at handoff.
+Report each ratcheted file's line delta, parameter-count crossings, new
+`main.ts` importers, dependency-direction results, and runtime-cycle results
+at handoff, for example:
+
+```text
+main.ts LOC delta: -74
+src/services/feed-storage-repository.ts LOC delta: +0
+new threshold crossings: 0
+new main.ts importers: none
+new runtime cycles: none
+```
+
+For documentation-only or tiny local changes, state why the report is not
+applicable.
 
 ## Dependency Direction
 
@@ -75,8 +149,10 @@ source graph demonstrates a stable seam.
 
 ## Interpreting Size and Complexity
 
-Metrics are prompts for architectural review. A warning should lead to these
-questions:
+The limits are prompts for architectural review, chosen near the
+repository's upper tail: at the 2026-09-12 baseline they flagged about 1.4%
+of functions by size and 1.2% by complexity. A limit being hit should lead to
+these questions:
 
 1. Does the module still have one coherent responsibility?
 2. Is its interface smaller and easier to use than its implementation?
@@ -88,23 +164,6 @@ questions:
 File size alone cannot answer those questions. A cohesive type catalog may be
 large without being a god object, while several small modules in a runtime
 cycle still represent architectural debt.
-
-## Handoff Architecture Diff
-
-For meaningful code changes, handoff includes either the output of
-`check:architecture -- --base <ref>` or an equivalent concise report:
-
-```text
-main.ts: -74 LOC
-new feed-refresh-coordinator.ts: +122 LOC
-threshold crossings: none
-new main.ts importers: none
-service-to-UI dependencies: none
-new runtime cycles: none
-```
-
-For documentation-only or tiny local changes, state why an architecture diff
-is not applicable.
 
 ## Architectural Lessons
 
