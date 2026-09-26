@@ -503,6 +503,7 @@ interface MockVaultAdapter {
   getFullPath(path: string): string;
   exists(path: string): Promise<boolean>;
   read(path: string): Promise<string>;
+  readBinary(path: string): Promise<ArrayBuffer>;
   write(path: string, content: string): Promise<void>;
   mkdir(path: string): Promise<void>;
   on(name: string, callback: (...args: unknown[]) => unknown): unknown;
@@ -544,7 +545,12 @@ export class MockDataVault {
       getBasePath: () => "/test/vault",
       getFullPath: (p: string) => p,
       exists: async (path: string) => this.existsOnDisk(path),
-      read: async (path: string) => this.adapterFiles.get(path) ?? "",
+      // Observed on Obsidian 1.13.7 desktop (Windows): a missing path throws
+      // Node's ENOENT.
+      read: async (path: string) => this.readFromDisk(path),
+      // Not probed: modeled like `read`, throwing ENOENT for a missing path.
+      readBinary: async (path: string) =>
+        new TextEncoder().encode(this.readFromDisk(path)).buffer,
       write: async (path: string, content: string) => {
         // Observed on Obsidian 1.13.7 desktop (Windows): a missing parent
         // folder throws Node's ENOENT, and a written file outside dot folders
@@ -684,6 +690,21 @@ export class MockDataVault {
     );
   }
 
+  /**
+   * The content of the file at `path` on disk, found the way the file system
+   * finds it (a case variant on a case-insensitive one). Throws Node's ENOENT
+   * when there's no such file.
+   */
+  private readFromDisk(path: string): string {
+    const exact = this.adapterFiles.get(path);
+    if (exact !== undefined) return exact;
+    const key = this.diskKey(path);
+    for (const [filePath, content] of this.adapterFiles) {
+      if (this.diskKey(filePath) === key) return content;
+    }
+    throw enoentError("open", `${this.adapter.getBasePath()}/${path}`);
+  }
+
   private forgetFolder(folderPath: string): void {
     const folder = this.folders.get(folderPath);
     this.folders.delete(folderPath);
@@ -714,9 +735,21 @@ export class MockDataVault {
     return file;
   }
 
+  // Observed on Obsidian 1.13.7 desktop (Windows): reading a TFile whose file
+  // was removed on disk throws Node's ENOENT.
   async read(file: TFileStub | string): Promise<string> {
     const path = typeof file === "string" ? file : file.path;
-    return this.adapterFiles.get(path) ?? "# Test Article\n\nContent here";
+    return this.readFromDisk(path);
+  }
+
+  // Not probed: modeled like `read`, throwing ENOENT for a missing file.
+  async cachedRead(file: TFileStub): Promise<string> {
+    return this.readFromDisk(file.path);
+  }
+
+  // Not probed: modeled like `read`, throwing ENOENT for a missing file.
+  async readBinary(file: TFileStub): Promise<ArrayBuffer> {
+    return new TextEncoder().encode(this.readFromDisk(file.path)).buffer;
   }
 
   async delete(file: TFileStub | string): Promise<void> {

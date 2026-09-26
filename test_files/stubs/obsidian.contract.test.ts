@@ -572,3 +572,41 @@ describe("Obsidian stub contract: normalizePath", () => {
     );
   });
 });
+
+describe("Obsidian stub contract: vault reads", () => {
+  describe("vault: reading a missing file", () => {
+    // Observed on Obsidian 1.13.7 desktop (Windows): `adapter.read` of a
+    // missing path rejects with Node's ENOENT error (with `code`), naming the
+    // absolute path.
+    it("adapter.read throws ENOENT for a missing path", async () => {
+      const { vault } = new App();
+
+      const error: unknown = await vault.adapter
+        .read("probe-missing.md")
+        .catch((e: unknown) => e);
+
+      expect(error).toBeInstanceOf(Error);
+      expect(error).toMatchObject({ code: "ENOENT" });
+      expect((error as Error).message).toMatch(
+        /^ENOENT: no such file or directory, open '.*probe-missing\.md'$/,
+      );
+    });
+
+    // Observed on Obsidian 1.13.7 desktop (Windows): `vault.read` of a TFile
+    // whose file was removed on disk through the adapter rejects with the same
+    // ENOENT error.
+    it("vault.read throws ENOENT for a file removed on disk", async () => {
+      const { vault } = new App();
+      const file = await vault.create("probe-read.md", "hello");
+      await vault.adapter.remove("probe-read.md");
+
+      const error: unknown = await vault.read(file).catch((e: unknown) => e);
+
+      expect(error).toBeInstanceOf(Error);
+      expect(error).toMatchObject({ code: "ENOENT" });
+      expect((error as Error).message).toMatch(
+        /^ENOENT: no such file or directory, open '.*probe-read\.md'$/,
+      );
+    });
+  });
+});
