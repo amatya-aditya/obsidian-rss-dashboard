@@ -742,6 +742,15 @@ Still open:
 2. **Possibly unintended behaviors.** Were items 6–9 in the list above
    intended? Item 6 is filed as #452; items 7–9 are raised here rather than
    filed. All four are pinned either way.
+3. **In-place splits and the line ratchet.** Splitting `addFeed`,
+   `loadSettings` or `onload` into helpers inside `main.ts` usually adds a
+   few lines (helper signatures), and the ratchet forbids any growth. Each
+   PR would try to stay at net zero or less, for example by folding repeated
+   code in the function it splits. If a split can't, should it raise the
+   ratchet by that small amount as a recorded exception, given that the next
+   extraction removes far more? The ratchet is always lowered to the exact
+   count, so an extraction never leaves spare room. The alternative is to
+   pair each split with an unrelated shrink of `main.ts` in the same PR.
 
 ## Related
 
