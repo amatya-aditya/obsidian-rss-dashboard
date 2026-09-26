@@ -186,7 +186,7 @@ export function installObsidianDomPolyfills(): void {
         this: Window,
       ): DocumentFragment {
         const doc = this?.document ?? globalScope.activeDocument ?? window.document;
-        return doc.createFragment();
+        return nativeCreateDocumentFragment.call(doc);
       };
     }
 

@@ -106,7 +106,7 @@ describe("Shard storage v2 - cross-device sync", () => {
       metadataStorageFolder: "rss-dashboard-data",
     });
 
-    const feed = mobileSettings.feeds[0] as Feed;
+    const feed = mobileSettings.feeds[0];
     expect(mobileRepository.getFeedShardHealth(feed)).toBeNull();
     expect(feed.items.map(item => item.title)).toEqual(["Article 1"]);
     expect(feed.items[0]).toMatchObject({ read: true, starred: true });
@@ -143,7 +143,7 @@ describe("Shard storage v2 - cross-device sync", () => {
     await mobileRepository.persistSettings(mobileSettings, saveData);
     expect(mobileRepository.isShardFolderHiddenFromSync()).toBe(true);
 
-    const feed = mobileSettings.feeds[0] as Feed;
+    const feed = mobileSettings.feeds[0];
     feed.items = [{ ...(feed.items[0] ?? {}), guid: "fresh", title: "Fresh" } as Feed["items"][number]];
     await mobileRepository.persistSettings(mobileSettings, saveData);
 

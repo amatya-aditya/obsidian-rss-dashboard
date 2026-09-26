@@ -49,7 +49,7 @@ function makeFeed(overrides?: Partial<Feed>): Feed {
 }
 
 function makeItem(overrides?: Partial<FeedItem>): FeedItem {
-  return { ...(makeFeed().items[0] as FeedItem), ...overrides };
+  return { ...(makeFeed().items[0]), ...overrides };
 }
 
 describe("FeedStorageRepository", () => {
