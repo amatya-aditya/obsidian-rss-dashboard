@@ -189,10 +189,6 @@ export function setRequestUrlHandler(handler: RequestUrlHandler | null): void {
   requestUrlHandler = handler;
 }
 
-/**
- * Models Obsidian 1.13.7: a status of 400 or above rejects with an Error
- * carrying own `status` and `headers` properties, unless `throw: false`.
- */
 /** Obsidian's `requestUrl` promise also exposes `.json`, `.text` and `.arrayBuffer`. */
 function requestUrlImpl(
   param: RequestUrlParam | string,
@@ -206,6 +202,10 @@ function requestUrlImpl(
   }) as ObsidianApi.RequestUrlResponsePromise;
 }
 
+/**
+ * Models Obsidian 1.13.7: a status of 400 or above rejects with an Error
+ * carrying own `status` and `headers` properties, unless `throw: false`.
+ */
 async function requestUrlAsync(
   param: RequestUrlParam | string,
 ): Promise<RequestUrlResponse> {
@@ -217,10 +217,10 @@ async function requestUrlAsync(
   const headers = result.headers ?? {};
   const text = result.text ?? "";
   if (result.status >= 400 && request.throw !== false) {
-    throw Object.assign(
-      new Error(`Request failed, status ${result.status}`),
-      { status: result.status, headers },
-    );
+    throw Object.assign(new Error(`Request failed, status ${result.status}`), {
+      status: result.status,
+      headers,
+    });
   }
   let json: unknown = null;
   try {
@@ -292,13 +292,14 @@ class MarkdownRendererStub {
     if (trimmed.startsWith("$") && trimmed.endsWith("$")) {
       const display = markdown.startsWith("$$");
       const delimiterLength = display ? 2 : 1;
-      const latex = markdown
-        .slice(delimiterLength, -delimiterLength)
-        .trim();
+      const latex = markdown.slice(delimiterLength, -delimiterLength).trim();
       const math = display
         ? doc.win.createDiv({ cls: "math math-block" })
         : doc.win.createSpan({ cls: "math math-inline" });
-      const mathJax = doc.win.createEl("mjx-container" as keyof HTMLElementTagNameMap, { text: latex });
+      const mathJax = doc.win.createEl(
+        "mjx-container" as keyof HTMLElementTagNameMap,
+        { text: latex },
+      );
       math.appendChild(mathJax);
       el.appendChild(math);
       return Promise.resolve();
@@ -363,7 +364,9 @@ function appendInlineMarkdown(
 
   while ((match = imagePattern.exec(text)) !== null) {
     if (match.index > lastIndex) {
-      parent.appendChild(doc.createTextNode(text.slice(lastIndex, match.index)));
+      parent.appendChild(
+        doc.createTextNode(text.slice(lastIndex, match.index)),
+      );
     }
     parent.createEl("img", { attr: { src: match[2], alt: match[1] } });
     lastIndex = match.index + match[0].length;
@@ -409,7 +412,7 @@ export class MockEvent {
 }
 
 // =============================================================================
-// Mock TFileStub
+// Mock TFile
 // =============================================================================
 
 class TFileStub {
@@ -437,7 +440,7 @@ class TFileStub {
 }
 
 // =============================================================================
-// Mock TFolderStub
+// Mock TFolder
 // =============================================================================
 
 class TFolderStub {
@@ -822,7 +825,7 @@ export class MockWorkspace {
 }
 
 // =============================================================================
-// AppStub Class (Enhanced with full mocks)
+// App Class (Enhanced with full mocks)
 // =============================================================================
 
 class AppStub {
@@ -861,14 +864,14 @@ class AppStub {
     return this.localStorage.get(key);
   }
 
-  /** Create a fresh mock AppStub instance for tests */
+  /** Create a fresh mock App instance for tests */
   static createMock(): AppStub {
     return new AppStub();
   }
 }
 
 // =============================================================================
-// PluginStub Base Classes
+// Plugin Base Classes
 // =============================================================================
 
 export type PluginManifest = ObsidianApi.PluginManifest;
@@ -907,7 +910,7 @@ class PluginStub {
     return id;
   }
 
-  // Minimal stub for Obsidian's PluginStub.registerEvent to allow tests to
+  // Minimal stub for Obsidian's Plugin.registerEvent to allow tests to
   // register EventRef objects without throwing. This mirrors the runtime
   // API surface used by plugins; tests do not rely on the behavior here.
   registerEvent(_evt: EventRef): void {}
@@ -1081,6 +1084,19 @@ class SettingStub {
   // Obsidian stores created components here; many settings tabs access it.
   components: SettingComponent[] = [];
 
+  /**
+   * Records a stub component and hands it to the caller's callback, which is
+   * typed for the real Obsidian component.
+   */
+  private attach<C>(
+    component: SettingComponent,
+    cb: (component: C) => unknown,
+  ): this {
+    this.components.push(component);
+    cb(component as C);
+    return this;
+  }
+
   constructor(containerEl: HTMLElement) {
     this.settingEl = containerEl.createDiv({ cls: "setting-item" });
     const infoEl = this.settingEl.createDiv({ cls: "setting-item-info" });
@@ -1176,9 +1192,7 @@ class SettingStub {
     }
 
     const component = new ButtonComponent(this.controlEl);
-    this.components.push(component);
-    cb(component as unknown as Parameters<typeof cb>[0]);
-    return this;
+    return this.attach(component, cb);
   }
 
   addExtraButton(
@@ -1233,9 +1247,7 @@ class SettingStub {
     }
 
     const component = new SliderComponent(this.controlEl);
-    this.components.push(component);
-    cb(component as unknown as Parameters<typeof cb>[0]);
-    return this;
+    return this.attach(component, cb);
   }
 
   addColorPicker(cb: (component: ObsidianApi.ColorComponent) => unknown): this {
@@ -1271,9 +1283,7 @@ class SettingStub {
     }
 
     const component = new ColorComponent(this.controlEl);
-    this.components.push(component);
-    cb(component as unknown as Parameters<typeof cb>[0]);
-    return this;
+    return this.attach(component, cb);
   }
   addToggle(cb: (component: ObsidianApi.ToggleComponent) => unknown): this {
     class ToggleComponent {
@@ -1304,12 +1314,10 @@ class SettingStub {
     }
 
     const component = new ToggleComponent(this.controlEl);
-    this.components.push(component);
-    cb(component as unknown as Parameters<typeof cb>[0]);
-    return this;
+    return this.attach(component, cb);
   }
   addText(cb: (component: ObsidianApi.TextComponent) => unknown): this {
-    class TextComponentStub {
+    class TextComponent {
       inputEl: HTMLInputElement;
       private changeHandler: ((value: string) => void) | null = null;
 
@@ -1345,10 +1353,8 @@ class SettingStub {
       }
     }
 
-    const component = new TextComponentStub(this.controlEl);
-    this.components.push(component);
-    cb(component as unknown as Parameters<typeof cb>[0]);
-    return this;
+    const component = new TextComponent(this.controlEl);
+    return this.attach(component, cb);
   }
   addDropdown(cb: (component: ObsidianApi.DropdownComponent) => unknown): this {
     class DropdownComponent {
@@ -1384,9 +1390,7 @@ class SettingStub {
     }
 
     const component = new DropdownComponent(this.controlEl);
-    this.components.push(component);
-    cb(component as unknown as Parameters<typeof cb>[0]);
-    return this;
+    return this.attach(component, cb);
   }
 }
 
@@ -1518,16 +1522,20 @@ export const Platform: typeof ObsidianApi.Platform = PlatformStub;
 export const requestUrl: typeof ObsidianApi.requestUrl = requestUrlImpl;
 export const setIcon: typeof ObsidianApi.setIcon = setIconImpl;
 export const setTooltip: typeof ObsidianApi.setTooltip = setTooltipImpl;
-export const normalizePath: typeof ObsidianApi.normalizePath = normalizePathImpl;
-export const requireApiVersion: typeof ObsidianApi.requireApiVersion = requireApiVersionImpl;
+export const normalizePath: typeof ObsidianApi.normalizePath =
+  normalizePathImpl;
+export const requireApiVersion: typeof ObsidianApi.requireApiVersion =
+  requireApiVersionImpl;
 export const renderMath: typeof ObsidianApi.renderMath = renderMathImpl;
-export const finishRenderMath: typeof ObsidianApi.finishRenderMath = finishRenderMathImpl;
+export const finishRenderMath: typeof ObsidianApi.finishRenderMath =
+  finishRenderMathImpl;
 export type ObsidianProtocolData = ObsidianApi.ObsidianProtocolData;
 export type ButtonComponent = ObsidianApi.ButtonComponent;
 export type { MenuItemStub };
 
 export type MarkdownRenderer = ObsidianApi.MarkdownRenderer;
-export const MarkdownRenderer = MarkdownRendererStub as unknown as typeof ObsidianApi.MarkdownRenderer;
+export const MarkdownRenderer =
+  MarkdownRendererStub as unknown as typeof ObsidianApi.MarkdownRenderer;
 export type TFile = ObsidianApi.TFile;
 export const TFile = TFileStub as unknown as typeof ObsidianApi.TFile;
 export type TFolder = ObsidianApi.TFolder;
@@ -1542,13 +1550,16 @@ export const App = AppStub as unknown as {
 export type Plugin = ObsidianApi.Plugin;
 export const Plugin = PluginStub as unknown as typeof ObsidianApi.Plugin;
 export type PluginSettingTab = ObsidianApi.PluginSettingTab;
-export const PluginSettingTab = PluginSettingTabStub as unknown as typeof ObsidianApi.PluginSettingTab;
+export const PluginSettingTab =
+  PluginSettingTabStub as unknown as typeof ObsidianApi.PluginSettingTab;
 export type Notice = ObsidianApi.Notice;
 export const Notice = NoticeStub as unknown as typeof ObsidianApi.Notice;
 export type WorkspaceLeaf = ObsidianApi.WorkspaceLeaf;
-export const WorkspaceLeaf = WorkspaceLeafStub as unknown as typeof ObsidianApi.WorkspaceLeaf;
+export const WorkspaceLeaf =
+  WorkspaceLeafStub as unknown as typeof ObsidianApi.WorkspaceLeaf;
 export type Component = ObsidianApi.Component;
-export const Component = ComponentStub as unknown as typeof ObsidianApi.Component;
+export const Component =
+  ComponentStub as unknown as typeof ObsidianApi.Component;
 export type ItemView = ObsidianApi.ItemView;
 export const ItemView = ItemViewStub as unknown as typeof ObsidianApi.ItemView;
 export type Menu = ObsidianApi.Menu;
@@ -1561,11 +1572,13 @@ export const MenuItem = MenuItemStub as unknown as typeof ObsidianApi.MenuItem;
 export type Setting = ObsidianApi.Setting;
 export const Setting = SettingStub as unknown as typeof ObsidianApi.Setting;
 export type TextComponent = ObsidianApi.TextComponent;
-export const TextComponent = TextComponentStub as unknown as typeof ObsidianApi.TextComponent;
+export const TextComponent =
+  TextComponentStub as unknown as typeof ObsidianApi.TextComponent;
 export type Modal = ObsidianApi.Modal;
 export const Modal = ModalStub as unknown as typeof ObsidianApi.Modal;
 export type AbstractInputSuggest<T> = ObsidianApi.AbstractInputSuggest<T>;
-export const AbstractInputSuggest = AbstractInputSuggestStub as unknown as typeof ObsidianApi.AbstractInputSuggest;
+export const AbstractInputSuggest =
+  AbstractInputSuggestStub as unknown as typeof ObsidianApi.AbstractInputSuggest;
 export type Scope = ObsidianApi.Scope;
 export const Scope = ScopeStub as unknown as typeof ObsidianApi.Scope;
 
@@ -1586,6 +1599,9 @@ export type StubSignatureChecks = [
   StubMatches<ObsidianApi.Setting, SettingStub>,
   StubMatches<ObsidianApi.TextComponent, TextComponentStub>,
   StubMatches<ObsidianApi.Modal, ModalStub>,
-  StubMatches<ObsidianApi.AbstractInputSuggest<unknown>, AbstractInputSuggestStub<unknown>>,
+  StubMatches<
+    ObsidianApi.AbstractInputSuggest<unknown>,
+    AbstractInputSuggestStub<unknown>
+  >,
   StubMatches<ObsidianApi.Scope, ScopeStub>,
 ];

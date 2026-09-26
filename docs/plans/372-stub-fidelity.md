@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: in-progress
 created: 2026-09-25
 issue: "https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/372"
 milestone: "vNext"

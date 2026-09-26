@@ -69,9 +69,10 @@ imitate, and what to do when a more faithful stub makes existing tests fail.
   such as which calls throw, and on which version each was confirmed.
 - Divergences become findable. A drift check
   ([#253](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/253))
-  can run the contract test, and typing the stub against the real
+  can run the contract test, and typing the stub's exports as the real
   `obsidian.d.ts` ([#362](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/362))
-  catches missing or mistyped members at compile time.
+  catches mistyped stub members at compile time. A member the stub lacks
+  fails the test that needs it.
 
 ### Trade-offs
 
