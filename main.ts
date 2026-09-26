@@ -2892,6 +2892,13 @@ export default class RssDashboardPlugin extends Plugin {
       const originalSettingsJson = JSON.stringify(mergedSettings);
 
       this.settings = loadAndNormalizeSettings(data);
+      // A fresh install has no data.json yet. Record the installed release
+      // in memory so the first real save stores it, and What's New does not
+      // treat a brand-new user as upgrading on their next launch. A synced
+      // data.json that arrives later replaces these settings entirely.
+      if (data === null) {
+        this.settings.lastShownVersion = this.manifest.version;
+      }
       // A reload after startup (e.g. a synced data.json) replaces the settings
       // object, so services built from the previous one must follow it.
       if (this.folderService) {
