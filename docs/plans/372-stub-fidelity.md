@@ -55,9 +55,12 @@ In order:
    Done.
 2. **Behavior.** One divergence per PR, highest risk first (the order of
    #372's lists). Each PR adds the divergence's contract expectation.
+   Done: #420 to #430. It found and fixed three production bugs (#421, #423,
+   #429).
 3. **Rest of the audit.** Cover #372's "Suspected, not verified" and "Not yet
-   audited" lists the same way.
+   audited" lists the same way. Moved to #431.
 4. **Drift check (#253).** Run the contract test as one of #253's guardrails.
+   Moved to #431.
 
 ## Rules for every Track B PR
 
@@ -83,6 +86,8 @@ In order:
   contract test, so the next audit doesn't depend on a lost scratchpad.
 
 ## Follow-ups
+
+These and the remaining small probes are tracked in #431.
 
 - **Mutation testing.** Once Track B is done, try a mutation tester (such as
   Stryker) on two or three critical modules, like feed refresh and article
