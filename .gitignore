@@ -15,6 +15,11 @@ userdata.json.backup
 feeds.opml.backup
 tsconfig.tsbuildinfo
 
+# fixture vault: the template's seeded data.json files are tracked; the
+# working copy made by `npm run fixture:vault` is not
+!test_files/fixture-vault/**/data.json
+.fixture-vault/
+
 # build artifacts
 release/
 *.zip

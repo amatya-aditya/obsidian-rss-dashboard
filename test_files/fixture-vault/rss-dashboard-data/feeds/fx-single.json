@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "feedId": "fx-single",
+  "feedUrl": "https://www.rssboard.org/files/sample-rss-2.xml",
+  "updatedAt": 1788220800000,
+  "items": [
+    {
+      "title": "The only article in this feed",
+      "link": "https://example.com/rss-dashboard-fixture/single/1",
+      "description": "<p>Keeps thread gentle granite compass kernel marks binder bramble quarry island amber beacon outline gallery. Planner linen curious window ember gallery token vector metric gallery compass signal anchor finds quiet thread. Paper curious tangent moves beacon channel ribbon archive moves. Bramble zephyr gallery paper simple linen delta tests forest forest.</p>\n<p>Marks token window rapid brief linen harbor cipher granite. Quarry thread window moves gentle zephyr shows steady simple module vector forest. Brief curious draft zephyr opens curious brief marble island pixel window quarry. Trail outline fixture anchor shows atlas saves spindle sample linen cipher lantern forest marks atlas.</p>",
+      "content": "<p>Keeps thread gentle granite compass kernel marks binder bramble quarry island amber beacon outline gallery. Planner linen curious window ember gallery token vector metric gallery compass signal anchor finds quiet thread. Paper curious tangent moves beacon channel ribbon archive moves. Bramble zephyr gallery paper simple linen delta tests forest forest.</p>\n<p>Marks token window rapid brief linen harbor cipher granite. Quarry thread window moves gentle zephyr shows steady simple module vector forest. Brief curious draft zephyr opens curious brief marble island pixel window quarry. Trail outline fixture anchor shows atlas saves spindle sample linen cipher lantern forest marks atlas.</p>",
+      "pubDate": "Tue, 01 Sep 2026 00:00:00 GMT",
+      "guid": "https://example.com/rss-dashboard-fixture/single/1",
+      "feedTitle": "RSS 2.0 sample (fixture, one article)",
+      "feedUrl": "https://www.rssboard.org/files/sample-rss-2.xml",
+      "coverImage": "",
+      "summary": "Keeps thread gentle granite compass kernel marks binder bramble quarry island amber beacon outline gallery. Planner linen curious window ember gallery token vector metric gallery compass signal anchor finds quiet thread. Paper curious tangent moves beacon channel ribbon archive moves. Bramble zephyr gallery paper simple linen delta tests forest forest.",
+      "mediaType": "article"
+    }
+  ]
+}

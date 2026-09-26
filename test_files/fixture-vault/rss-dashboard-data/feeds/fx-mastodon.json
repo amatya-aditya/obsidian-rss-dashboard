@@ -1,0 +1,64 @@
+{
+  "version": 1,
+  "feedId": "fx-mastodon",
+  "feedUrl": "https://mastodon.social/@Mastodon.rss",
+  "updatedAt": 1788238800000,
+  "items": [
+    {
+      "title": "No title",
+      "link": "https://example.com/rss-dashboard-fixture/mastodon/100001",
+      "description": "<p>Marble marks crescent ember opens quiet saves shows forest quiet tests forest thread calm.</p>",
+      "content": "<p>Marble marks crescent ember opens quiet saves shows forest quiet tests forest thread calm.</p>",
+      "pubDate": "Tue, 01 Sep 2026 05:00:00 GMT",
+      "guid": "https://example.com/rss-dashboard-fixture/mastodon/100001",
+      "feedTitle": "Mastodon (fixture)",
+      "feedUrl": "https://mastodon.social/@Mastodon.rss",
+      "coverImage": "",
+      "summary": "Marble marks crescent ember opens quiet saves shows forest quiet tests forest thread calm.",
+      "author": "@fixture@example.com",
+      "mediaType": "article"
+    },
+    {
+      "title": "No title",
+      "link": "https://example.com/rss-dashboard-fixture/mastodon/100002",
+      "description": "<p>Quill table ledger careful paper fixture steady copper compass planner river gallery quiet.</p><p><img src=\"https://picsum.photos/seed/rss-fixture-toot-2/800/450\" alt=\"Placeholder attachment\"></p>",
+      "content": "<p>Quill table ledger careful paper fixture steady copper compass planner river gallery quiet.</p><p><img src=\"https://picsum.photos/seed/rss-fixture-toot-2/800/450\" alt=\"Placeholder attachment\"></p>",
+      "pubDate": "Mon, 31 Aug 2026 22:00:00 GMT",
+      "guid": "https://example.com/rss-dashboard-fixture/mastodon/100002",
+      "feedTitle": "Mastodon (fixture)",
+      "feedUrl": "https://mastodon.social/@Mastodon.rss",
+      "coverImage": "",
+      "summary": "Quill table ledger careful paper fixture steady copper compass planner river gallery quiet.",
+      "author": "@fixture@example.com",
+      "mediaType": "article"
+    },
+    {
+      "title": "No title",
+      "link": "https://example.com/rss-dashboard-fixture/mastodon/100003",
+      "description": "<p>Atlas crescent cedar anchor planner gallery mirror marble archive pebble channel.</p>",
+      "content": "<p>Atlas crescent cedar anchor planner gallery mirror marble archive pebble channel.</p>",
+      "pubDate": "Mon, 31 Aug 2026 15:00:00 GMT",
+      "guid": "https://example.com/rss-dashboard-fixture/mastodon/100003",
+      "feedTitle": "Mastodon (fixture)",
+      "feedUrl": "https://mastodon.social/@Mastodon.rss",
+      "coverImage": "",
+      "summary": "Atlas crescent cedar anchor planner gallery mirror marble archive pebble channel.",
+      "author": "@fixture@example.com",
+      "mediaType": "article"
+    },
+    {
+      "title": "No title",
+      "link": "https://example.com/rss-dashboard-fixture/mastodon/100004",
+      "description": "<p>Garden thread token useful quarry index reader token checks copper ember island sorts reads outline orbit keeps fixture tangent sample.</p>",
+      "content": "<p>Garden thread token useful quarry index reader token checks copper ember island sorts reads outline orbit keeps fixture tangent sample.</p>",
+      "pubDate": "Mon, 31 Aug 2026 08:00:00 GMT",
+      "guid": "https://example.com/rss-dashboard-fixture/mastodon/100004",
+      "feedTitle": "Mastodon (fixture)",
+      "feedUrl": "https://mastodon.social/@Mastodon.rss",
+      "coverImage": "",
+      "summary": "Garden thread token useful quarry index reader token checks copper ember island sorts reads outline orbit keeps fixture tangent sample.",
+      "author": "@fixture@example.com",
+      "mediaType": "article"
+    }
+  ]
+}

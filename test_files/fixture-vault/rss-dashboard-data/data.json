@@ -1,0 +1,307 @@
+{
+  "feeds": [
+    {
+      "feedId": "fx-rss-tech",
+      "title": "GitHub Blog (fixture)",
+      "url": "https://github.blog/feed/",
+      "siteUrl": "https://github.blog/",
+      "folder": "News/Tech",
+      "lastUpdated": 1788256800000,
+      "mediaType": "article",
+      "autoDeleteDuration": 0,
+      "maxItemsLimit": 0,
+      "keywordRules": {
+        "overrideGlobalRules": false,
+        "includeLogic": "AND",
+        "rules": []
+      },
+      "lastRefreshAttemptCompletedAt": 1788256800000
+    },
+    {
+      "feedId": "fx-atom-releases",
+      "title": "RSS Dashboard releases (fixture)",
+      "url": "https://github.com/amatya-aditya/obsidian-rss-dashboard/releases.atom",
+      "siteUrl": "https://github.com/amatya-aditya/obsidian-rss-dashboard",
+      "folder": "News/Tech/Releases",
+      "lastUpdated": 1788177600000,
+      "mediaType": "article",
+      "autoDeleteDuration": 0,
+      "maxItemsLimit": 0,
+      "keywordRules": {
+        "overrideGlobalRules": false,
+        "includeLogic": "AND",
+        "rules": []
+      },
+      "lastRefreshAttemptCompletedAt": 1788177600000
+    },
+    {
+      "feedId": "fx-json-feed",
+      "title": "JSON Feed (fixture)",
+      "url": "https://www.jsonfeed.org/feed.json",
+      "siteUrl": "https://www.jsonfeed.org/",
+      "folder": "News",
+      "lastUpdated": 1788249600000,
+      "mediaType": "article",
+      "autoDeleteDuration": 0,
+      "maxItemsLimit": 0,
+      "keywordRules": {
+        "overrideGlobalRules": false,
+        "includeLogic": "AND",
+        "rules": []
+      },
+      "lastRefreshAttemptCompletedAt": 1788249600000
+    },
+    {
+      "feedId": "fx-broken",
+      "title": "Unreachable feed (fixture)",
+      "url": "https://example.invalid/rss-dashboard-fixture/feed.xml",
+      "folder": "News",
+      "lastUpdated": 1787400000000,
+      "mediaType": "article",
+      "autoDeleteDuration": 0,
+      "maxItemsLimit": 0,
+      "keywordRules": {
+        "overrideGlobalRules": false,
+        "includeLogic": "AND",
+        "rules": []
+      },
+      "lastRefreshAttemptCompletedAt": 1787400000000,
+      "lastFetchError": "Request failed: the host could not be resolved."
+    },
+    {
+      "feedId": "fx-empty",
+      "title": "Hacker News (fixture, no articles)",
+      "url": "https://news.ycombinator.com/rss",
+      "siteUrl": "https://news.ycombinator.com/",
+      "folder": "News/Tech",
+      "lastUpdated": 1788264000000,
+      "mediaType": "article",
+      "autoDeleteDuration": 0,
+      "maxItemsLimit": 0,
+      "keywordRules": {
+        "overrideGlobalRules": false,
+        "includeLogic": "AND",
+        "rules": []
+      },
+      "lastRefreshAttemptCompletedAt": 1788264000000
+    },
+    {
+      "feedId": "fx-youtube",
+      "title": "Google for Developers (fixture)",
+      "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC_x5XG1OV2P6uZZ5FSM9Ttw",
+      "siteUrl": "https://www.youtube.com/channel/UC_x5XG1OV2P6uZZ5FSM9Ttw",
+      "folder": "Videos",
+      "lastUpdated": 1788242400000,
+      "mediaType": "video",
+      "autoDeleteDuration": 0,
+      "maxItemsLimit": 0,
+      "keywordRules": {
+        "overrideGlobalRules": false,
+        "includeLogic": "AND",
+        "rules": []
+      },
+      "lastRefreshAttemptCompletedAt": 1788242400000
+    },
+    {
+      "feedId": "fx-podcast",
+      "title": "The Changelog (fixture)",
+      "url": "https://changelog.com/podcast/feed",
+      "siteUrl": "https://changelog.com/podcast",
+      "folder": "Podcasts",
+      "lastUpdated": 1788177600000,
+      "mediaType": "podcast",
+      "autoDeleteDuration": 0,
+      "maxItemsLimit": 0,
+      "keywordRules": {
+        "overrideGlobalRules": false,
+        "includeLogic": "AND",
+        "rules": []
+      },
+      "lastRefreshAttemptCompletedAt": 1788177600000
+    },
+    {
+      "feedId": "fx-mastodon",
+      "title": "Mastodon (fixture)",
+      "url": "https://mastodon.social/@Mastodon.rss",
+      "siteUrl": "https://mastodon.social/@Mastodon",
+      "folder": "Mastodon",
+      "lastUpdated": 1788238800000,
+      "mediaType": "article",
+      "autoDeleteDuration": 0,
+      "maxItemsLimit": 0,
+      "keywordRules": {
+        "overrideGlobalRules": false,
+        "includeLogic": "AND",
+        "rules": []
+      },
+      "lastRefreshAttemptCompletedAt": 1788238800000
+    },
+    {
+      "feedId": "fx-smallweb",
+      "title": "Kagi Small Web (fixture)",
+      "url": "https://kagi.com/api/v1/smallweb/feed?limit=50",
+      "siteUrl": "https://kagi.com/smallweb",
+      "folder": "Smallweb",
+      "lastUpdated": 1788224400000,
+      "mediaType": "article",
+      "autoDeleteDuration": 0,
+      "maxItemsLimit": 0,
+      "keywordRules": {
+        "overrideGlobalRules": false,
+        "includeLogic": "AND",
+        "rules": []
+      },
+      "lastRefreshAttemptCompletedAt": 1788224400000
+    },
+    {
+      "feedId": "fx-single",
+      "title": "RSS 2.0 sample (fixture, one article)",
+      "url": "https://www.rssboard.org/files/sample-rss-2.xml",
+      "siteUrl": "https://www.rssboard.org/",
+      "folder": "",
+      "lastUpdated": 1788220800000,
+      "mediaType": "article",
+      "autoDeleteDuration": 0,
+      "maxItemsLimit": 0,
+      "keywordRules": {
+        "overrideGlobalRules": false,
+        "includeLogic": "AND",
+        "rules": []
+      },
+      "lastRefreshAttemptCompletedAt": 1788220800000
+    },
+    {
+      "feedId": "fx-bulk",
+      "title": "BBC Technology (fixture, 120 articles)",
+      "url": "https://feeds.bbci.co.uk/news/technology/rss.xml",
+      "siteUrl": "https://www.bbc.co.uk/news/technology",
+      "folder": "Bulk",
+      "lastUpdated": 1788242400000,
+      "mediaType": "article",
+      "autoDeleteDuration": 0,
+      "maxItemsLimit": 0,
+      "keywordRules": {
+        "overrideGlobalRules": false,
+        "includeLogic": "AND",
+        "rules": []
+      },
+      "lastRefreshAttemptCompletedAt": 1788242400000
+    }
+  ],
+  "folders": [
+    {
+      "name": "News",
+      "subfolders": [
+        {
+          "name": "Tech",
+          "subfolders": [
+            {
+              "name": "Releases",
+              "subfolders": [],
+              "createdAt": 1783080000000,
+              "modifiedAt": 1783080000000
+            }
+          ],
+          "createdAt": 1783080000000,
+          "modifiedAt": 1783080000000,
+          "autoTags": [
+            {
+              "name": "Research",
+              "color": "#27ae60"
+            }
+          ]
+        }
+      ],
+      "createdAt": 1783080000000,
+      "modifiedAt": 1783080000000,
+      "pinned": true
+    },
+    {
+      "name": "Videos",
+      "subfolders": [],
+      "createdAt": 1783080000000,
+      "modifiedAt": 1783080000000
+    },
+    {
+      "name": "Podcasts",
+      "subfolders": [],
+      "createdAt": 1783080000000,
+      "modifiedAt": 1783080000000
+    },
+    {
+      "name": "Mastodon",
+      "subfolders": [],
+      "createdAt": 1783080000000,
+      "modifiedAt": 1783080000000
+    },
+    {
+      "name": "Smallweb",
+      "subfolders": [],
+      "createdAt": 1783080000000,
+      "modifiedAt": 1783080000000
+    },
+    {
+      "name": "Bulk",
+      "subfolders": [],
+      "createdAt": 1783080000000,
+      "modifiedAt": 1783080000000
+    },
+    {
+      "name": "Empty",
+      "subfolders": [],
+      "createdAt": 1783080000000,
+      "modifiedAt": 1783080000000
+    }
+  ],
+  "availableTags": [
+    {
+      "name": "Important",
+      "color": "#e74c3c"
+    },
+    {
+      "name": "Read later",
+      "color": "#3498db"
+    },
+    {
+      "name": "Video",
+      "color": "#d04747"
+    },
+    {
+      "name": "Podcast",
+      "color": "#8e44ad"
+    },
+    {
+      "name": "Research",
+      "color": "#27ae60"
+    },
+    {
+      "name": "Reference",
+      "color": "#16a085"
+    },
+    {
+      "name": "RSS",
+      "color": "#f39c12"
+    },
+    {
+      "name": "Unused",
+      "color": "#7f8c8d"
+    }
+  ],
+  "refreshInterval": 0,
+  "lastRefreshTimestamp": 1788264000000,
+  "lastGlobalRefreshCompletedAt": 1788264000000,
+  "articleSaving": {
+    "addSavedTag": true,
+    "defaultFolder": "saved-articles/",
+    "includeFrontmatter": true,
+    "saveFullContent": true,
+    "fetchTimeout": 10,
+    "savedTemplates": []
+  },
+  "storageMode": "vault-shards-v2",
+  "storageFolder": "rss-dashboard-data/feeds",
+  "storageSchemaVersion": 1,
+  "metadataStorageMode": "vault-location",
+  "metadataStorageFolder": "rss-dashboard-data",
+  "metadataStorageSchemaVersion": 2
+}

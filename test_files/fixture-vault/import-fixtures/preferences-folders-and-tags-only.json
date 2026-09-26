@@ -1,0 +1,112 @@
+{
+  "folders": [
+    {
+      "name": "News",
+      "subfolders": [
+        {
+          "name": "Tech",
+          "subfolders": [
+            {
+              "name": "Releases",
+              "subfolders": [],
+              "createdAt": 1783080000000,
+              "modifiedAt": 1783080000000
+            }
+          ],
+          "createdAt": 1783080000000,
+          "modifiedAt": 1783080000000,
+          "autoTags": [
+            {
+              "name": "Research",
+              "color": "#27ae60"
+            }
+          ]
+        }
+      ],
+      "createdAt": 1783080000000,
+      "modifiedAt": 1783080000000,
+      "pinned": true
+    },
+    {
+      "name": "Videos",
+      "subfolders": [],
+      "createdAt": 1783080000000,
+      "modifiedAt": 1783080000000
+    },
+    {
+      "name": "Podcasts",
+      "subfolders": [],
+      "createdAt": 1783080000000,
+      "modifiedAt": 1783080000000
+    },
+    {
+      "name": "Mastodon",
+      "subfolders": [],
+      "createdAt": 1783080000000,
+      "modifiedAt": 1783080000000
+    },
+    {
+      "name": "Smallweb",
+      "subfolders": [],
+      "createdAt": 1783080000000,
+      "modifiedAt": 1783080000000
+    },
+    {
+      "name": "Bulk",
+      "subfolders": [],
+      "createdAt": 1783080000000,
+      "modifiedAt": 1783080000000
+    },
+    {
+      "name": "Empty",
+      "subfolders": [],
+      "createdAt": 1783080000000,
+      "modifiedAt": 1783080000000
+    },
+    {
+      "name": "From preferences file",
+      "subfolders": [],
+      "createdAt": 1783080000000,
+      "modifiedAt": 1783080000000
+    }
+  ],
+  "availableTags": [
+    {
+      "name": "Important",
+      "color": "#e74c3c"
+    },
+    {
+      "name": "Read later",
+      "color": "#3498db"
+    },
+    {
+      "name": "Video",
+      "color": "#d04747"
+    },
+    {
+      "name": "Podcast",
+      "color": "#8e44ad"
+    },
+    {
+      "name": "Research",
+      "color": "#27ae60"
+    },
+    {
+      "name": "Reference",
+      "color": "#16a085"
+    },
+    {
+      "name": "RSS",
+      "color": "#f39c12"
+    },
+    {
+      "name": "Unused",
+      "color": "#7f8c8d"
+    },
+    {
+      "name": "From preferences",
+      "color": "#d35400"
+    }
+  ],
+  "viewStyle": "card"
+}

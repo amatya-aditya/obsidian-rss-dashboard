@@ -1,0 +1,176 @@
+{
+  "version": 1,
+  "exportedAt": 1788350400000,
+  "feeds": [
+    {
+      "feedId": "fx-import-alpha",
+      "title": "Imported feed alpha",
+      "url": "https://example.com/rss-dashboard-fixture/imported/fx-import-alpha.xml",
+      "folder": "Imported",
+      "lastUpdated": 1788264000000,
+      "mediaType": "article",
+      "autoDeleteDuration": 0,
+      "maxItemsLimit": 0,
+      "keywordRules": {
+        "overrideGlobalRules": false,
+        "includeLogic": "AND",
+        "rules": []
+      },
+      "lastRefreshAttemptCompletedAt": 1788264000000
+    },
+    {
+      "feedId": "fx-import-beta",
+      "title": "Imported feed beta",
+      "url": "https://example.com/rss-dashboard-fixture/imported/fx-import-beta.xml",
+      "folder": "Imported/Nested",
+      "lastUpdated": 1788264000000,
+      "mediaType": "article",
+      "autoDeleteDuration": 0,
+      "maxItemsLimit": 0,
+      "keywordRules": {
+        "overrideGlobalRules": false,
+        "includeLogic": "AND",
+        "rules": []
+      },
+      "lastRefreshAttemptCompletedAt": 1788264000000
+    }
+  ],
+  "folders": [
+    {
+      "name": "Imported",
+      "subfolders": [
+        {
+          "name": "Nested",
+          "subfolders": [],
+          "createdAt": 1783080000000,
+          "modifiedAt": 1783080000000
+        }
+      ],
+      "createdAt": 1783080000000,
+      "modifiedAt": 1783080000000
+    }
+  ],
+  "availableTags": [
+    {
+      "name": "Important",
+      "color": "#e74c3c"
+    },
+    {
+      "name": "Imported",
+      "color": "#2c3e50"
+    }
+  ],
+  "shards": [
+    {
+      "version": 1,
+      "feedId": "fx-import-alpha",
+      "feedUrl": "https://example.com/rss-dashboard-fixture/imported/fx-import-alpha.xml",
+      "updatedAt": 1788350400000,
+      "items": [
+        {
+          "title": "Imported feed alpha article 1",
+          "link": "https://example.com/rss-dashboard-fixture/imported/fx-import-alpha/1",
+          "description": "<p>Curious careful garden folder archive velvet velvet lantern orbit atlas bramble. Tangent atlas quarry reads ember careful ember summit draft plain reader fixture. Checks calm builds calm mirror pilot planner anchor pilot paper tangent garden index. Radar cedar builds atlas atlas fixture sketch corridor finds.</p>",
+          "content": "<p>Curious careful garden folder archive velvet velvet lantern orbit atlas bramble. Tangent atlas quarry reads ember careful ember summit draft plain reader fixture. Checks calm builds calm mirror pilot planner anchor pilot paper tangent garden index. Radar cedar builds atlas atlas fixture sketch corridor finds.</p>",
+          "pubDate": "Mon, 31 Aug 2026 12:00:00 GMT",
+          "guid": "https://example.com/rss-dashboard-fixture/imported/fx-import-alpha/1",
+          "read": true,
+          "starred": false,
+          "tags": [],
+          "saved": false,
+          "feedTitle": "Imported feed alpha",
+          "feedUrl": "https://example.com/rss-dashboard-fixture/imported/fx-import-alpha.xml",
+          "coverImage": "",
+          "summary": "Curious careful garden folder archive velvet velvet lantern orbit atlas bramble. Tangent atlas quarry reads ember careful ember summit draft plain reader fixture. Checks calm builds calm mirror pilot planner anchor pilot paper tangent garden index. Radar cedar builds atlas atlas fixture sketch corridor finds.",
+          "mediaType": "article"
+        },
+        {
+          "title": "Imported feed alpha article 2",
+          "link": "https://example.com/rss-dashboard-fixture/imported/fx-import-alpha/2",
+          "description": "<p>Tests simple crescent sorts field quiet checks engine atlas signal. Builds keeps mirror forest garden gentle copper forest pixel fixture signal finds field. Quill spindle amber token granite delta field signal. Table kernel atlas zephyr useful ledger crescent sorts.</p>",
+          "content": "<p>Tests simple crescent sorts field quiet checks engine atlas signal. Builds keeps mirror forest garden gentle copper forest pixel fixture signal finds field. Quill spindle amber token granite delta field signal. Table kernel atlas zephyr useful ledger crescent sorts.</p>",
+          "pubDate": "Sun, 30 Aug 2026 12:00:00 GMT",
+          "guid": "https://example.com/rss-dashboard-fixture/imported/fx-import-alpha/2",
+          "read": false,
+          "starred": true,
+          "tags": [
+            {
+              "name": "Important",
+              "color": "#e74c3c"
+            }
+          ],
+          "saved": false,
+          "feedTitle": "Imported feed alpha",
+          "feedUrl": "https://example.com/rss-dashboard-fixture/imported/fx-import-alpha.xml",
+          "coverImage": "",
+          "summary": "Tests simple crescent sorts field quiet checks engine atlas signal. Builds keeps mirror forest garden gentle copper forest pixel fixture signal finds field. Quill spindle amber token granite delta field signal. Table kernel atlas zephyr useful ledger crescent sorts.",
+          "mediaType": "article"
+        },
+        {
+          "title": "Imported feed alpha article 3",
+          "link": "https://example.com/rss-dashboard-fixture/imported/fx-import-alpha/3",
+          "description": "<p>Marble stanza cedar saves marble careful ember tests delta velvet quiet channel. Beacon reader sample folder pebble trail folder copper window. Forest delta velvet marble module planner gentle simple moves sorts. Token module saves cipher zephyr reader mirror useful gentle checks module saves plain corridor tangent.</p>",
+          "content": "<p>Marble stanza cedar saves marble careful ember tests delta velvet quiet channel. Beacon reader sample folder pebble trail folder copper window. Forest delta velvet marble module planner gentle simple moves sorts. Token module saves cipher zephyr reader mirror useful gentle checks module saves plain corridor tangent.</p>",
+          "pubDate": "Sat, 29 Aug 2026 12:00:00 GMT",
+          "guid": "https://example.com/rss-dashboard-fixture/imported/fx-import-alpha/3",
+          "read": false,
+          "starred": false,
+          "tags": [],
+          "saved": false,
+          "feedTitle": "Imported feed alpha",
+          "feedUrl": "https://example.com/rss-dashboard-fixture/imported/fx-import-alpha.xml",
+          "coverImage": "",
+          "summary": "Marble stanza cedar saves marble careful ember tests delta velvet quiet channel. Beacon reader sample folder pebble trail folder copper window. Forest delta velvet marble module planner gentle simple moves sorts. Token module saves cipher zephyr reader mirror useful gentle checks module saves plain corridor tangent.",
+          "mediaType": "article"
+        }
+      ]
+    },
+    {
+      "version": 1,
+      "feedId": "fx-import-beta",
+      "feedUrl": "https://example.com/rss-dashboard-fixture/imported/fx-import-beta.xml",
+      "updatedAt": 1788350400000,
+      "items": [
+        {
+          "title": "Imported feed beta article 1",
+          "link": "https://example.com/rss-dashboard-fixture/imported/fx-import-beta/1",
+          "description": "<p>Token ember radar vector vector plain binder spindle copper bramble keeps. Sketch beacon quarry quill index forest reads checks opens ember brief cipher clover ledger. Atlas cipher meadow ribbon harbor reader river rapid delta amber copper calm gentle. Archive careful saves token delta engine simple orbit rapid token trail velvet.</p>",
+          "content": "<p>Token ember radar vector vector plain binder spindle copper bramble keeps. Sketch beacon quarry quill index forest reads checks opens ember brief cipher clover ledger. Atlas cipher meadow ribbon harbor reader river rapid delta amber copper calm gentle. Archive careful saves token delta engine simple orbit rapid token trail velvet.</p>",
+          "pubDate": "Mon, 31 Aug 2026 12:00:00 GMT",
+          "guid": "https://example.com/rss-dashboard-fixture/imported/fx-import-beta/1",
+          "read": true,
+          "starred": false,
+          "tags": [],
+          "saved": false,
+          "feedTitle": "Imported feed beta",
+          "feedUrl": "https://example.com/rss-dashboard-fixture/imported/fx-import-beta.xml",
+          "coverImage": "",
+          "summary": "Token ember radar vector vector plain binder spindle copper bramble keeps. Sketch beacon quarry quill index forest reads checks opens ember brief cipher clover ledger. Atlas cipher meadow ribbon harbor reader river rapid delta amber copper calm gentle. Archive careful saves token delta engine simple orbit rapid token trail velvet.",
+          "mediaType": "article"
+        },
+        {
+          "title": "Imported feed beta article 2",
+          "link": "https://example.com/rss-dashboard-fixture/imported/fx-import-beta/2",
+          "description": "<p>Brief module steady gentle fixture keeps plain lantern careful marble gentle corridor archive paper gallery. Atlas pilot spindle anchor patient fixture sample engine pebble engine bramble finds saves. Meadow notebook token island corridor vector bramble river quarry timber reader sorts sample. Field pilot useful binder planner compass lantern copper ribbon channel reader granite ember spindle.</p>",
+          "content": "<p>Brief module steady gentle fixture keeps plain lantern careful marble gentle corridor archive paper gallery. Atlas pilot spindle anchor patient fixture sample engine pebble engine bramble finds saves. Meadow notebook token island corridor vector bramble river quarry timber reader sorts sample. Field pilot useful binder planner compass lantern copper ribbon channel reader granite ember spindle.</p>",
+          "pubDate": "Sun, 30 Aug 2026 12:00:00 GMT",
+          "guid": "https://example.com/rss-dashboard-fixture/imported/fx-import-beta/2",
+          "read": false,
+          "starred": true,
+          "tags": [
+            {
+              "name": "Important",
+              "color": "#e74c3c"
+            }
+          ],
+          "saved": false,
+          "feedTitle": "Imported feed beta",
+          "feedUrl": "https://example.com/rss-dashboard-fixture/imported/fx-import-beta.xml",
+          "coverImage": "",
+          "summary": "Brief module steady gentle fixture keeps plain lantern careful marble gentle corridor archive paper gallery. Atlas pilot spindle anchor patient fixture sample engine pebble engine bramble finds saves. Meadow notebook token island corridor vector bramble river quarry timber reader sorts sample. Field pilot useful binder planner compass lantern copper ribbon channel reader granite ember spindle.",
+          "mediaType": "article"
+        }
+      ]
+    }
+  ]
+}

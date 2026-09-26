@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "feedId": "fx-json-feed",
+  "feedUrl": "https://www.jsonfeed.org/feed.json",
+  "updatedAt": 1788249600000,
+  "items": [
+    {
+      "title": "JSON Feed article with an image",
+      "link": "https://example.com/rss-dashboard-fixture/json/1",
+      "description": "<p>Binder ribbon paper field token sorts signal tests island crescent atlas binder plain draft folder shows. Curious cedar patient careful delta calm table paper lantern index cipher zephyr tangent orbit ribbon. Fixture reads forest amber signal token marks amber. Harbor paper patient delta cedar gallery calm compass paper keeps quiet.</p>\n<p>Zephyr table bramble island garden velvet tests opens calm island signal harbor ribbon garden quill kernel. Plain signal shows delta ember granite saves island opens thread keeps pilot folder crescent sorts. Meadow spindle builds quiet sorts tests sorts brief garden field forest outline harbor linen orbit careful. Gentle cipher finds field linen island curious useful pilot steady notebook folder steady engine river spindle.</p>",
+      "content": "<p>Binder ribbon paper field token sorts signal tests island crescent atlas binder plain draft folder shows. Curious cedar patient careful delta calm table paper lantern index cipher zephyr tangent orbit ribbon. Fixture reads forest amber signal token marks amber. Harbor paper patient delta cedar gallery calm compass paper keeps quiet.</p>\n<p>Zephyr table bramble island garden velvet tests opens calm island signal harbor ribbon garden quill kernel. Plain signal shows delta ember granite saves island opens thread keeps pilot folder crescent sorts. Meadow spindle builds quiet sorts tests sorts brief garden field forest outline harbor linen orbit careful. Gentle cipher finds field linen island curious useful pilot steady notebook folder steady engine river spindle.</p>",
+      "pubDate": "2026-09-01T08:00:00.000Z",
+      "guid": "https://example.com/rss-dashboard-fixture/json/1",
+      "feedTitle": "JSON Feed (fixture)",
+      "feedUrl": "https://www.jsonfeed.org/feed.json",
+      "coverImage": "https://picsum.photos/seed/rss-fixture-json-1/800/450",
+      "summary": "Binder ribbon paper field token sorts signal tests island crescent atlas binder plain draft folder shows. Curious cedar patient careful delta calm table paper lantern index cipher zephyr tangent orbit ribbon. Fixture reads forest amber signal token marks amber. Harbor paper patient delta cedar gallery calm compass paper keeps quiet.",
+      "mediaType": "article"
+    },
+    {
+      "title": "JSON Feed article tagged for later",
+      "link": "https://example.com/rss-dashboard-fixture/json/2",
+      "description": "<p>Curious channel sample copper atlas cipher archive module compass opens engine gentle. Linen yarrow spindle marble forest compass sketch careful builds marble planner summit. Delta signal channel atlas index vector finds stanza linen orbit velvet vector useful. Stanza signal sketch island rapid lantern opens corridor quiet crescent ember table moves.</p>\n<p>Yarrow planner zephyr token token patient quill linen gentle island thread index. Gentle thread pebble brief index copper forest bramble channel summit module quill island pebble mirror zephyr. Fixture shows reads archive quarry yarrow careful ribbon pixel signal. Sample quarry sorts reader atlas island trail compass timber module plain gallery quill marks yarrow quarry.</p>",
+      "content": "<p>Curious channel sample copper atlas cipher archive module compass opens engine gentle. Linen yarrow spindle marble forest compass sketch careful builds marble planner summit. Delta signal channel atlas index vector finds stanza linen orbit velvet vector useful. Stanza signal sketch island rapid lantern opens corridor quiet crescent ember table moves.</p>\n<p>Yarrow planner zephyr token token patient quill linen gentle island thread index. Gentle thread pebble brief index copper forest bramble channel summit module quill island pebble mirror zephyr. Fixture shows reads archive quarry yarrow careful ribbon pixel signal. Sample quarry sorts reader atlas island trail compass timber module plain gallery quill marks yarrow quarry.</p>",
+      "pubDate": "2026-08-31T06:00:00.000Z",
+      "guid": "https://example.com/rss-dashboard-fixture/json/2",
+      "feedTitle": "JSON Feed (fixture)",
+      "feedUrl": "https://www.jsonfeed.org/feed.json",
+      "coverImage": "",
+      "summary": "Curious channel sample copper atlas cipher archive module compass opens engine gentle. Linen yarrow spindle marble forest compass sketch careful builds marble planner summit. Delta signal channel atlas index vector finds stanza linen orbit velvet vector useful. Stanza signal sketch island rapid lantern opens corridor quiet crescent ember table moves.",
+      "mediaType": "article"
+    },
+    {
+      "title": "Starred article imported from starred.json",
+      "link": "https://example.com/rss-dashboard-fixture/json/3",
+      "description": "<p>Rapid brief spindle quarry careful quill careful checks tangent ribbon saves useful. Planner gentle rapid fixture stanza anchor module clover. Folder notebook shows pilot notebook table copper simple tangent forest. Garden sorts signal keeps marble useful linen saves linen curious curious ledger tests kernel cipher saves.</p>",
+      "content": "<p>Rapid brief spindle quarry careful quill careful checks tangent ribbon saves useful. Planner gentle rapid fixture stanza anchor module clover. Folder notebook shows pilot notebook table copper simple tangent forest. Garden sorts signal keeps marble useful linen saves linen curious curious ledger tests kernel cipher saves.</p>",
+      "pubDate": "2026-08-12T12:00:00.000Z",
+      "guid": "https://example.com/rss-dashboard-fixture/json/3",
+      "feedTitle": "JSON Feed (fixture)",
+      "feedUrl": "https://www.jsonfeed.org/feed.json",
+      "coverImage": "",
+      "summary": "Rapid brief spindle quarry careful quill careful checks tangent ribbon saves useful. Planner gentle rapid fixture stanza anchor module clover. Folder notebook shows pilot notebook table copper simple tangent forest. Garden sorts signal keeps marble useful linen saves linen curious curious ledger tests kernel cipher saves.",
+      "mediaType": "article",
+      "starredImportContentState": "unfetched",
+      "starredImportedAt": 1788091200000
+    }
+  ]
+}

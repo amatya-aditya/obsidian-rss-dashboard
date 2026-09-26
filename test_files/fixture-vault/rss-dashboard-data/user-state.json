@@ -1,0 +1,385 @@
+{
+  "version": 3,
+  "states": {
+    "fx-rss-tech:https://example.com/rss-dashboard-fixture/rss-tech/2": {
+      "read": true,
+      "starred": false,
+      "saved": false
+    },
+    "fx-rss-tech:https://example.com/rss-dashboard-fixture/rss-tech/3": {
+      "read": false,
+      "starred": true,
+      "saved": false,
+      "tags": [
+        {
+          "name": "Important",
+          "color": "#e74c3c"
+        },
+        {
+          "name": "Research",
+          "color": "#27ae60"
+        }
+      ]
+    },
+    "fx-rss-tech:https://example.com/rss-dashboard-fixture/rss-tech/4": {
+      "read": true,
+      "starred": false,
+      "saved": true,
+      "tags": [
+        {
+          "name": "Read later",
+          "color": "#3498db"
+        },
+        {
+          "name": "Saved",
+          "color": "#3498db"
+        }
+      ],
+      "savedFilePath": "saved-articles/fixture-guide-to-offline-reading.md"
+    },
+    "fx-rss-tech:https://example.com/rss-dashboard-fixture/rss-tech/5": {
+      "read": false,
+      "starred": false,
+      "saved": false,
+      "tags": [
+        {
+          "name": "Reference",
+          "color": "#16a085"
+        },
+        {
+          "name": "Research",
+          "color": "#27ae60"
+        },
+        {
+          "name": "RSS",
+          "color": "#f39c12"
+        }
+      ]
+    },
+    "fx-atom-releases:tag:example.com,2026:rss-dashboard-fixture-release-0.1.0": {
+      "read": true,
+      "starred": false,
+      "saved": false
+    },
+    "fx-json-feed:https://example.com/rss-dashboard-fixture/json/2": {
+      "read": false,
+      "starred": false,
+      "saved": false,
+      "tags": [
+        {
+          "name": "Read later",
+          "color": "#3498db"
+        }
+      ]
+    },
+    "fx-json-feed:https://example.com/rss-dashboard-fixture/json/3": {
+      "read": true,
+      "starred": true,
+      "saved": false
+    },
+    "fx-youtube:yt:video:fxVideo0002": {
+      "read": true,
+      "starred": false,
+      "saved": false,
+      "playbackProgress": {
+        "position": 312,
+        "duration": 624,
+        "lastUpdated": 1788192000000
+      }
+    },
+    "fx-youtube:yt:video:fxVideo0003": {
+      "read": false,
+      "starred": true,
+      "saved": false,
+      "tags": [
+        {
+          "name": "Video",
+          "color": "#d04747"
+        },
+        {
+          "name": "Important",
+          "color": "#e74c3c"
+        }
+      ]
+    },
+    "fx-podcast:https://example.com/rss-dashboard-fixture/podcast/guid-4": {
+      "read": false,
+      "starred": false,
+      "saved": false,
+      "tags": [
+        {
+          "name": "Podcast",
+          "color": "#8e44ad"
+        }
+      ],
+      "playbackProgress": {
+        "position": 1520,
+        "duration": 3765,
+        "lastUpdated": 1788091200000
+      }
+    },
+    "fx-podcast:https://example.com/rss-dashboard-fixture/podcast/guid-3": {
+      "read": true,
+      "starred": true,
+      "saved": false
+    },
+    "fx-podcast:https://example.com/rss-dashboard-fixture/podcast/guid-2": {
+      "read": true,
+      "starred": false,
+      "saved": false
+    },
+    "fx-mastodon:https://example.com/rss-dashboard-fixture/mastodon/100003": {
+      "read": true,
+      "starred": false,
+      "saved": false
+    },
+    "fx-smallweb:https://example.com/rss-dashboard-fixture/smallweb/1": {
+      "read": false,
+      "starred": true,
+      "saved": false
+    },
+    "fx-bulk:https://example.com/rss-dashboard-fixture/bulk/003": {
+      "read": true,
+      "starred": false,
+      "saved": false
+    },
+    "fx-bulk:https://example.com/rss-dashboard-fixture/bulk/006": {
+      "read": true,
+      "starred": false,
+      "saved": false
+    },
+    "fx-bulk:https://example.com/rss-dashboard-fixture/bulk/009": {
+      "read": true,
+      "starred": false,
+      "saved": false
+    },
+    "fx-bulk:https://example.com/rss-dashboard-fixture/bulk/012": {
+      "read": true,
+      "starred": false,
+      "saved": false
+    },
+    "fx-bulk:https://example.com/rss-dashboard-fixture/bulk/015": {
+      "read": true,
+      "starred": false,
+      "saved": false
+    },
+    "fx-bulk:https://example.com/rss-dashboard-fixture/bulk/018": {
+      "read": true,
+      "starred": false,
+      "saved": false
+    },
+    "fx-bulk:https://example.com/rss-dashboard-fixture/bulk/021": {
+      "read": true,
+      "starred": false,
+      "saved": false
+    },
+    "fx-bulk:https://example.com/rss-dashboard-fixture/bulk/024": {
+      "read": true,
+      "starred": false,
+      "saved": false
+    },
+    "fx-bulk:https://example.com/rss-dashboard-fixture/bulk/025": {
+      "read": false,
+      "starred": true,
+      "saved": false
+    },
+    "fx-bulk:https://example.com/rss-dashboard-fixture/bulk/027": {
+      "read": true,
+      "starred": false,
+      "saved": false
+    },
+    "fx-bulk:https://example.com/rss-dashboard-fixture/bulk/030": {
+      "read": true,
+      "starred": false,
+      "saved": false
+    },
+    "fx-bulk:https://example.com/rss-dashboard-fixture/bulk/033": {
+      "read": true,
+      "starred": false,
+      "saved": false
+    },
+    "fx-bulk:https://example.com/rss-dashboard-fixture/bulk/036": {
+      "read": true,
+      "starred": false,
+      "saved": false
+    },
+    "fx-bulk:https://example.com/rss-dashboard-fixture/bulk/039": {
+      "read": true,
+      "starred": false,
+      "saved": false
+    },
+    "fx-bulk:https://example.com/rss-dashboard-fixture/bulk/040": {
+      "read": false,
+      "starred": false,
+      "saved": false,
+      "tags": [
+        {
+          "name": "Research",
+          "color": "#27ae60"
+        }
+      ]
+    },
+    "fx-bulk:https://example.com/rss-dashboard-fixture/bulk/042": {
+      "read": true,
+      "starred": false,
+      "saved": false
+    },
+    "fx-bulk:https://example.com/rss-dashboard-fixture/bulk/045": {
+      "read": true,
+      "starred": false,
+      "saved": false
+    },
+    "fx-bulk:https://example.com/rss-dashboard-fixture/bulk/048": {
+      "read": true,
+      "starred": false,
+      "saved": false
+    },
+    "fx-bulk:https://example.com/rss-dashboard-fixture/bulk/050": {
+      "read": false,
+      "starred": true,
+      "saved": false
+    },
+    "fx-bulk:https://example.com/rss-dashboard-fixture/bulk/051": {
+      "read": true,
+      "starred": false,
+      "saved": false
+    },
+    "fx-bulk:https://example.com/rss-dashboard-fixture/bulk/054": {
+      "read": true,
+      "starred": false,
+      "saved": false
+    },
+    "fx-bulk:https://example.com/rss-dashboard-fixture/bulk/057": {
+      "read": true,
+      "starred": false,
+      "saved": false
+    },
+    "fx-bulk:https://example.com/rss-dashboard-fixture/bulk/060": {
+      "read": true,
+      "starred": false,
+      "saved": false
+    },
+    "fx-bulk:https://example.com/rss-dashboard-fixture/bulk/063": {
+      "read": true,
+      "starred": false,
+      "saved": false
+    },
+    "fx-bulk:https://example.com/rss-dashboard-fixture/bulk/066": {
+      "read": true,
+      "starred": false,
+      "saved": false
+    },
+    "fx-bulk:https://example.com/rss-dashboard-fixture/bulk/069": {
+      "read": true,
+      "starred": false,
+      "saved": false
+    },
+    "fx-bulk:https://example.com/rss-dashboard-fixture/bulk/072": {
+      "read": true,
+      "starred": false,
+      "saved": false
+    },
+    "fx-bulk:https://example.com/rss-dashboard-fixture/bulk/075": {
+      "read": true,
+      "starred": true,
+      "saved": false
+    },
+    "fx-bulk:https://example.com/rss-dashboard-fixture/bulk/078": {
+      "read": true,
+      "starred": false,
+      "saved": false
+    },
+    "fx-bulk:https://example.com/rss-dashboard-fixture/bulk/080": {
+      "read": false,
+      "starred": false,
+      "saved": false,
+      "tags": [
+        {
+          "name": "Research",
+          "color": "#27ae60"
+        }
+      ]
+    },
+    "fx-bulk:https://example.com/rss-dashboard-fixture/bulk/081": {
+      "read": true,
+      "starred": false,
+      "saved": false
+    },
+    "fx-bulk:https://example.com/rss-dashboard-fixture/bulk/084": {
+      "read": true,
+      "starred": false,
+      "saved": false
+    },
+    "fx-bulk:https://example.com/rss-dashboard-fixture/bulk/087": {
+      "read": true,
+      "starred": false,
+      "saved": false
+    },
+    "fx-bulk:https://example.com/rss-dashboard-fixture/bulk/090": {
+      "read": true,
+      "starred": false,
+      "saved": false
+    },
+    "fx-bulk:https://example.com/rss-dashboard-fixture/bulk/093": {
+      "read": true,
+      "starred": false,
+      "saved": false
+    },
+    "fx-bulk:https://example.com/rss-dashboard-fixture/bulk/096": {
+      "read": true,
+      "starred": false,
+      "saved": false
+    },
+    "fx-bulk:https://example.com/rss-dashboard-fixture/bulk/099": {
+      "read": true,
+      "starred": false,
+      "saved": false
+    },
+    "fx-bulk:https://example.com/rss-dashboard-fixture/bulk/100": {
+      "read": false,
+      "starred": true,
+      "saved": false
+    },
+    "fx-bulk:https://example.com/rss-dashboard-fixture/bulk/102": {
+      "read": true,
+      "starred": false,
+      "saved": false
+    },
+    "fx-bulk:https://example.com/rss-dashboard-fixture/bulk/105": {
+      "read": true,
+      "starred": false,
+      "saved": false
+    },
+    "fx-bulk:https://example.com/rss-dashboard-fixture/bulk/108": {
+      "read": true,
+      "starred": false,
+      "saved": false
+    },
+    "fx-bulk:https://example.com/rss-dashboard-fixture/bulk/111": {
+      "read": true,
+      "starred": false,
+      "saved": false
+    },
+    "fx-bulk:https://example.com/rss-dashboard-fixture/bulk/114": {
+      "read": true,
+      "starred": false,
+      "saved": false
+    },
+    "fx-bulk:https://example.com/rss-dashboard-fixture/bulk/117": {
+      "read": true,
+      "starred": false,
+      "saved": false
+    },
+    "fx-bulk:https://example.com/rss-dashboard-fixture/bulk/120": {
+      "read": true,
+      "starred": false,
+      "saved": false,
+      "tags": [
+        {
+          "name": "Research",
+          "color": "#27ae60"
+        }
+      ]
+    }
+  }
+}
