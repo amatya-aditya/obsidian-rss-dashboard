@@ -34,6 +34,10 @@ _Avoid_: Global refresh status, fetch progress
 One user-initiated refresh of the eligible feed set. It remains active until every selected feed has settled; its progress control is independent of each [[Per-feed refresh status]].
 _Avoid_: Feed refresh, all feeds spinner
 
+**Global feed operation**:
+A cancellable operation over many feeds whose progress and Stop control appear on the sidebar's All feeds row: a refresh of all feeds (started by the user or by the schedule), or adding feeds from Discover or an OPML import and fetching their articles. It shares one lock with every other refresh of several feeds: a new one the user starts is refused with a notice, and a scheduled refresh waits until the lock is free. See [ADR 0015](docs/adr/0015-main-ts-decomposition.md).
+_Avoid_: Global operation (unqualified), bulk job, background task
+
 **Sidebar selection**:
 The active group of feeds and folders selected in the sidebar via click, modifier-click, or range-selection.
 _Avoid_: Active feeds, multi-selection target, highlighted list
