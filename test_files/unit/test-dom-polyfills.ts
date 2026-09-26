@@ -42,15 +42,77 @@ export function installObsidianDomPolyfills(): void {
     unknown
   >;
 
-  type HelperOptions =
-    | string
-    | {
-        cls?: string;
-        text?: string;
-        attr?: Record<string, string>;
-        // Keep permissive to mirror Obsidian's helper behavior in tests.
-        [key: string]: unknown;
-      };
+  type HelperOptions = string | DomElementInfo;
+  type AttrValue = string | number | boolean | null;
+
+  // Obsidian applies these createEl options only on these tags and ignores
+  // them elsewhere (observed on 1.13.7): a textarea gets no placeholder, and a
+  // select, textarea or button gets no value.
+  const TYPE_TAGS = new Set(["input", "button"]);
+  const VALUE_TAGS = new Set(["input", "option"]);
+  const PLACEHOLDER_TAGS = new Set(["input"]);
+  const HREF_TAGS = new Set(["a"]);
+
+  // Like Obsidian's setAttr: null removes the attribute, and other values are
+  // stringified (false -> "false", 0 -> "0").
+  const setAttrValue = (
+    el: Element,
+    name: string,
+    value: AttrValue | undefined,
+  ): void => {
+    if (value === null || value === undefined) {
+      el.removeAttribute(name);
+      return;
+    }
+    el.setAttribute(name, String(value));
+  };
+
+  // A string sets the text; a DocumentFragment replaces the children with the
+  // fragment's nodes.
+  const setTextValue = (el: Node, text: string | DocumentFragment): void => {
+    if (typeof text === "string") {
+      el.textContent = text;
+      return;
+    }
+    el.textContent = "";
+    el.appendChild(text);
+  };
+
+  const applyElementInfo = (
+    el: HTMLElement,
+    tag: string,
+    opts?: HelperOptions,
+  ): void => {
+    if (opts === undefined) return;
+    if (typeof opts === "string") {
+      el.className = opts;
+      return;
+    }
+    if (opts.cls !== undefined) {
+      el.className = Array.isArray(opts.cls) ? opts.cls.join(" ") : opts.cls;
+    }
+    if (opts.text !== undefined) setTextValue(el, opts.text);
+    if (opts.attr) {
+      Object.entries(opts.attr).forEach(([name, value]) =>
+        setAttrValue(el, name, value),
+      );
+    }
+    if (opts.title !== undefined) el.title = opts.title;
+    const props = el as unknown as Record<string, unknown>;
+    const tagName = tag.toLowerCase();
+    if (opts.type !== undefined && TYPE_TAGS.has(tagName)) {
+      props.type = opts.type;
+    }
+    if (opts.value !== undefined && VALUE_TAGS.has(tagName)) {
+      props.value = opts.value;
+    }
+    if (opts.placeholder !== undefined && PLACEHOLDER_TAGS.has(tagName)) {
+      props.placeholder = opts.placeholder;
+    }
+    if (opts.href !== undefined && HREF_TAGS.has(tagName)) {
+      props.href = opts.href;
+    }
+  };
 
   // Builds a detached element the way Obsidian's helpers configure one.
   const createDetachedEl = <K extends keyof HTMLElementTagNameMap>(
@@ -59,27 +121,29 @@ export function installObsidianDomPolyfills(): void {
     opts?: HelperOptions,
   ): HTMLElementTagNameMap[K] => {
     const el = nativeCreateElement.call(doc, tag) as HTMLElementTagNameMap[K];
-    if (typeof opts === "string") {
-      el.className = opts;
-      return el;
+    applyElementInfo(el, tag, opts);
+    return el;
+  };
+
+  // Like Obsidian's Node helpers: create the element, add it to the receiver
+  // (as the first child with `prepend`), then call the callback with it.
+  const createChildEl = <K extends keyof HTMLElementTagNameMap>(
+    parent: Node,
+    tag: K,
+    opts?: HelperOptions,
+    callback?: (el: HTMLElementTagNameMap[K]) => void,
+  ): HTMLElementTagNameMap[K] => {
+    const doc =
+      parent.nodeType === Node.DOCUMENT_NODE
+        ? (parent as Document)
+        : (parent.ownerDocument ?? globalScope.activeDocument ?? window.document);
+    const el = createDetachedEl(doc, tag, opts);
+    if (typeof opts === "object" && opts.prepend) {
+      parent.insertBefore(el, parent.firstChild);
+    } else {
+      parent.appendChild(el);
     }
-    if (opts?.cls) el.className = opts.cls;
-    if (opts?.text !== undefined) el.textContent = opts.text;
-    if (opts?.attr) {
-      Object.entries(opts.attr).forEach(([k, v]) => el.setAttribute(k, v));
-    }
-    if (opts) {
-      Object.entries(opts).forEach(([key, value]) => {
-        if (key === "cls" || key === "text" || key === "attr") return;
-        if (tag === "input" && key === "type" && typeof value === "string") {
-          (el as unknown as HTMLInputElement).type = value;
-          return;
-        }
-        if (key in el) {
-          (el as unknown as Record<string, unknown>)[key] = value;
-        }
-      });
-    }
+    callback?.(el);
     return el;
   };
 
@@ -90,10 +154,13 @@ export function installObsidianDomPolyfills(): void {
   if (typeof documentProto.createEl !== "function") {
     documentProto.createEl = function createEl<
       K extends keyof HTMLElementTagNameMap,
-    >(this: Document, tag: K, opts?: HelperOptions): HTMLElementTagNameMap[K] {
-      const el = createDetachedEl(this, tag, opts);
-      this.appendChild(el);
-      return el;
+    >(
+      this: Document,
+      tag: K,
+      opts?: HelperOptions,
+      callback?: (el: HTMLElementTagNameMap[K]) => void,
+    ): HTMLElementTagNameMap[K] {
+      return createChildEl(this, tag, opts, callback);
     };
   }
 
@@ -101,10 +168,9 @@ export function installObsidianDomPolyfills(): void {
     documentProto.createDiv = function createDiv(
       this: Document,
       opts?: HelperOptions,
+      callback?: (el: HTMLDivElement) => void,
     ): HTMLDivElement {
-      const el = createDetachedEl(this, "div", opts);
-      this.appendChild(el);
-      return el;
+      return createChildEl(this, "div", opts, callback);
     };
   }
 
@@ -112,51 +178,65 @@ export function installObsidianDomPolyfills(): void {
     documentProto.createSpan = function createSpan(
       this: Document,
       opts?: HelperOptions,
+      callback?: (el: HTMLSpanElement) => void,
     ): HTMLSpanElement {
-      const el = createDetachedEl(this, "span", opts);
-      this.appendChild(el);
-      return el;
+      return createChildEl(this, "span", opts, callback);
     };
   }
 
   if (typeof documentProto.createFragment !== "function") {
     documentProto.createFragment = function createFragment(
       this: Document,
+      callback?: (fragment: DocumentFragment) => void,
     ): DocumentFragment {
-      return nativeCreateDocumentFragment.call(this);
+      const fragment = nativeCreateDocumentFragment.call(this);
+      callback?.(fragment);
+      return fragment;
     };
   }
 
   const ensureWindowDomHelpers = (target: Window): Window => {
     const helperTarget = target as unknown as Record<string, unknown>;
+    const documentOf = (win: Window | undefined): Document =>
+      win?.document ?? globalScope.activeDocument ?? window.document;
 
     // The global Window helpers return detached elements.
     if (typeof helperTarget.createEl !== "function") {
       helperTarget.createEl = function createEl<
         K extends keyof HTMLElementTagNameMap,
-      >(this: Window, tag: K, opts?: HelperOptions): HTMLElementTagNameMap[K] {
-        const doc = this?.document ?? globalScope.activeDocument ?? window.document;
-        return createDetachedEl(doc, tag, opts);
+      >(
+        this: Window | undefined,
+        tag: K,
+        opts?: HelperOptions,
+        callback?: (el: HTMLElementTagNameMap[K]) => void,
+      ): HTMLElementTagNameMap[K] {
+        const el = createDetachedEl(documentOf(this), tag, opts);
+        callback?.(el);
+        return el;
       };
     }
 
     if (typeof helperTarget.createDiv !== "function") {
       helperTarget.createDiv = function createDiv(
-        this: Window,
+        this: Window | undefined,
         opts?: HelperOptions,
+        callback?: (el: HTMLDivElement) => void,
       ): HTMLDivElement {
-        const doc = this?.document ?? globalScope.activeDocument ?? window.document;
-        return createDetachedEl(doc, "div", opts);
+        const el = createDetachedEl(documentOf(this), "div", opts);
+        callback?.(el);
+        return el;
       };
     }
 
     if (typeof helperTarget.createSpan !== "function") {
       helperTarget.createSpan = function createSpan(
-        this: Window,
+        this: Window | undefined,
         opts?: HelperOptions,
+        callback?: (el: HTMLSpanElement) => void,
       ): HTMLSpanElement {
-        const doc = this?.document ?? globalScope.activeDocument ?? window.document;
-        return createDetachedEl(doc, "span", opts);
+        const el = createDetachedEl(documentOf(this), "span", opts);
+        callback?.(el);
+        return el;
       };
     }
 
@@ -164,13 +244,12 @@ export function installObsidianDomPolyfills(): void {
       helperTarget.createSvg = function createSvg<
         K extends keyof SVGElementTagNameMap,
       >(
-        this: Window,
+        this: Window | undefined,
         tag: K,
         attrs?: Record<string, string>,
       ): SVGElementTagNameMap[K] {
-        const doc = this?.document ?? globalScope.activeDocument ?? window.document;
         const el = nativeCreateElementNS.call(
-          doc,
+          documentOf(this),
           "http://www.w3.org/2000/svg",
           tag,
         ) as SVGElementTagNameMap[K];
@@ -183,10 +262,12 @@ export function installObsidianDomPolyfills(): void {
 
     if (typeof helperTarget.createFragment !== "function") {
       helperTarget.createFragment = function createFragment(
-        this: Window,
+        this: Window | undefined,
+        callback?: (fragment: DocumentFragment) => void,
       ): DocumentFragment {
-        const doc = this?.document ?? globalScope.activeDocument ?? window.document;
-        return nativeCreateDocumentFragment.call(doc);
+        const fragment = nativeCreateDocumentFragment.call(documentOf(this));
+        callback?.(fragment);
+        return fragment;
       };
     }
 
@@ -234,177 +315,210 @@ export function installObsidianDomPolyfills(): void {
     });
   }
 
-  if (typeof proto.empty !== "function") {
-    proto.empty = function empty(this: HTMLElement): void {
-      this.textContent = "";
+  const nodeProto = Node.prototype as unknown as Record<string, unknown>;
+  const elementProto = Element.prototype as unknown as Record<string, unknown>;
+  const fragmentProto = DocumentFragment.prototype as unknown as Record<
+    string,
+    unknown
+  >;
+
+  // Node helpers. Obsidian defines these on Node, so a DocumentFragment has
+  // them too (`createFragment((f) => f.createSpan())`).
+  if (typeof nodeProto.createEl !== "function") {
+    nodeProto.createEl = function createEl<
+      K extends keyof HTMLElementTagNameMap,
+    >(
+      this: Node,
+      tag: K,
+      opts?: HelperOptions,
+      callback?: (el: HTMLElementTagNameMap[K]) => void,
+    ): HTMLElementTagNameMap[K] {
+      return createChildEl(this, tag, opts, callback);
+    };
+  }
+
+  if (typeof nodeProto.createDiv !== "function") {
+    nodeProto.createDiv = function createDiv(
+      this: Node,
+      opts?: HelperOptions,
+      callback?: (el: HTMLDivElement) => void,
+    ): HTMLDivElement {
+      return createChildEl(this, "div", opts, callback);
+    };
+  }
+
+  if (typeof nodeProto.createSpan !== "function") {
+    nodeProto.createSpan = function createSpan(
+      this: Node,
+      opts?: HelperOptions,
+      callback?: (el: HTMLSpanElement) => void,
+    ): HTMLSpanElement {
+      return createChildEl(this, "span", opts, callback);
+    };
+  }
+
+  if (typeof nodeProto.empty !== "function") {
+    nodeProto.empty = function empty(this: Node): void {
       while (this.firstChild) {
         this.removeChild(this.firstChild);
       }
     };
   }
 
-  if (typeof proto["setText"] !== "function") {
-    proto["setText"] = function setText(this: HTMLElement, text: string): void {
-      this.textContent = text;
+  if (typeof nodeProto.appendText !== "function") {
+    nodeProto.appendText = function appendText(this: Node, text: string): void {
+      const doc =
+        this.ownerDocument ?? globalScope.activeDocument ?? window.document;
+      this.appendChild(doc.createTextNode(text));
     };
   }
 
-  if (typeof proto.addClass !== "function") {
-    proto.addClass = function addClass(
-      this: HTMLElement,
+  if (typeof nodeProto.detach !== "function") {
+    nodeProto.detach = function detach(this: Node): void {
+      this.parentNode?.removeChild(this);
+    };
+  }
+
+  if (!Object.getOwnPropertyDescriptor(Node.prototype, "doc")) {
+    Object.defineProperty(Node.prototype, "doc", {
+      configurable: true,
+      get(this: Node): Document {
+        return this.nodeType === Node.DOCUMENT_NODE
+          ? (this as Document)
+          : (this.ownerDocument ?? window.document);
+      },
+    });
+  }
+
+  // Element helpers.
+  if (typeof elementProto.setText !== "function") {
+    elementProto.setText = function setText(
+      this: Element,
+      text: string | DocumentFragment,
+    ): void {
+      setTextValue(this, text);
+    };
+  }
+
+  if (typeof elementProto.addClass !== "function") {
+    elementProto.addClass = function addClass(
+      this: Element,
       ...classes: string[]
     ): void {
       this.classList.add(...classes);
     };
   }
 
-  if (typeof proto["addClasses"] !== "function") {
-    proto["addClasses"] = function addClasses(
-      this: HTMLElement,
+  if (typeof elementProto.addClasses !== "function") {
+    elementProto.addClasses = function addClasses(
+      this: Element,
       classes: string[],
     ): void {
       this.classList.add(...classes);
     };
   }
 
-  if (typeof proto.removeClass !== "function") {
-    proto.removeClass = function removeClass(
-      this: HTMLElement,
+  if (typeof elementProto.removeClass !== "function") {
+    elementProto.removeClass = function removeClass(
+      this: Element,
       ...classes: string[]
     ): void {
       this.classList.remove(...classes);
     };
   }
 
-  if (typeof proto["hasClass"] !== "function") {
-    proto["hasClass"] = function hasClass(
-      this: HTMLElement,
+  if (typeof elementProto.hasClass !== "function") {
+    elementProto.hasClass = function hasClass(
+      this: Element,
       cls: string,
     ): boolean {
       return this.classList.contains(cls);
     };
   }
 
-  if (typeof proto.toggleClass !== "function") {
-    proto.toggleClass = function toggleClass(
-      this: HTMLElement,
-      cls: string,
-      force?: boolean,
+  // Not a toggle: without `value`, Obsidian removes the classes whether or
+  // not they were present (observed on 1.13.7).
+  if (typeof elementProto.toggleClass !== "function") {
+    elementProto.toggleClass = function toggleClass(
+      this: Element,
+      classes: string | string[],
+      value?: boolean,
     ): void {
-      this.classList.toggle(cls, force);
+      const list = Array.isArray(classes) ? classes : [classes];
+      if (value) {
+        this.classList.add(...list);
+      } else {
+        this.classList.remove(...list);
+      }
     };
   }
 
-  if (typeof proto.setAttr !== "function") {
-    proto.setAttr = function setAttr(
-      this: HTMLElement,
-      key: string,
-      value: string,
+  if (typeof elementProto.setAttr !== "function") {
+    elementProto.setAttr = function setAttr(
+      this: Element,
+      name: string,
+      value: AttrValue,
     ): void {
-      this.setAttribute(key, value);
+      setAttrValue(this, name, value);
     };
   }
 
-  if (typeof proto["getAttr"] !== "function") {
-    proto["getAttr"] = function getAttr(
-      this: HTMLElement,
-      key: string,
+  if (typeof elementProto.getAttr !== "function") {
+    elementProto.getAttr = function getAttr(
+      this: Element,
+      name: string,
     ): string | null {
-      return this.getAttribute(key);
+      return this.getAttribute(name);
     };
   }
 
-  if (typeof proto.createDiv !== "function") {
-    proto.createDiv = function createDiv(
-      this: HTMLElement,
-      opts?:
-        | string
-        | { cls?: string; text?: string; attr?: Record<string, string> },
-    ): HTMLDivElement {
-      const doc = this.ownerDocument ?? globalScope.activeDocument ?? window.document;
-      const el = nativeCreateElement.call(doc, "div") as HTMLDivElement;
-      if (typeof opts === "string") {
-        el.className = opts;
-      } else {
-        if (opts?.cls) el.className = opts.cls;
-        if (opts?.text !== undefined) el.textContent = opts.text;
-        if (opts?.attr) {
-          Object.entries(opts.attr).forEach(([k, v]) => el.setAttribute(k, v));
-        }
-      }
-      this.appendChild(el);
-      return el;
+  const find = function find(
+    this: ParentNode,
+    selector: string,
+  ): Element | null {
+    return this.querySelector(selector);
+  };
+  const findAll = function findAll(
+    this: ParentNode,
+    selector: string,
+  ): HTMLElement[] {
+    return Array.from(this.querySelectorAll<HTMLElement>(selector));
+  };
+  [elementProto, fragmentProto].forEach((target) => {
+    if (typeof target.find !== "function") target.find = find;
+    if (typeof target.findAll !== "function") target.findAll = findAll;
+  });
+
+  // HTMLElement helpers.
+  if (typeof proto.show !== "function") {
+    proto.show = function show(this: HTMLElement): void {
+      this.setCssProps({ display: "" });
     };
   }
 
-  if (typeof proto.createSpan !== "function") {
-    proto.createSpan = function createSpan(
-      this: HTMLElement,
-      opts?:
-        | string
-        | { cls?: string; text?: string; attr?: Record<string, string> },
-    ): HTMLSpanElement {
-      const doc = this.ownerDocument ?? globalScope.activeDocument ?? window.document;
-      const el = nativeCreateElement.call(doc, "span") as HTMLSpanElement;
-      if (typeof opts === "string") {
-        el.className = opts;
-      } else {
-        if (opts?.cls) el.className = opts.cls;
-        if (opts?.text !== undefined) el.textContent = opts.text;
-        if (opts?.attr) {
-          Object.entries(opts.attr).forEach(([k, v]) => el.setAttribute(k, v));
-        }
-      }
-      this.appendChild(el);
-      return el;
+  if (typeof proto.hide !== "function") {
+    proto.hide = function hide(this: HTMLElement): void {
+      this.setCssProps({ display: "none" });
     };
   }
 
-  if (typeof proto["appendText"] !== "function") {
-    proto["appendText"] = function appendText(
+  if (typeof proto.setCssProps !== "function") {
+    proto.setCssProps = function setCssProps(
       this: HTMLElement,
-      text: string,
+      props: Record<string, string>,
     ): void {
-      const doc = this.ownerDocument ?? globalScope.activeDocument ?? window.document;
-      this.append(doc.createTextNode(text));
+      Object.entries(props).forEach(([name, value]) => {
+        this.style.setProperty(name, value);
+      });
     };
   }
 
-  if (typeof proto.createEl !== "function") {
-    proto.createEl = function createEl<K extends keyof HTMLElementTagNameMap>(
+  if (typeof proto.setCssStyles !== "function") {
+    proto.setCssStyles = function setCssStyles(
       this: HTMLElement,
-      tag: K,
-      opts?: {
-        cls?: string;
-        text?: string;
-        attr?: Record<string, string>;
-        // Obsidian's createEl supports passing through common element props (e.g. value/placeholder).
-        // Keep this permissive so unit tests behave like plugin runtime.
-        [key: string]: unknown;
-      },
-    ): HTMLElementTagNameMap[K] {
-      const doc = this.ownerDocument ?? globalScope.activeDocument ?? window.document;
-      const el = nativeCreateElement.call(doc, tag) as HTMLElementTagNameMap[K];
-      if (opts?.cls) el.className = opts.cls;
-      if (opts?.text !== undefined) el.textContent = opts.text;
-      if (opts?.attr) {
-        Object.entries(opts.attr).forEach(([k, v]) => el.setAttribute(k, v));
-      }
-      if (opts) {
-        Object.entries(opts).forEach(([key, value]) => {
-          if (key === "cls" || key === "text" || key === "attr") return;
-          if (tag === "input" && key === "type" && typeof value === "string") {
-            (el as unknown as HTMLInputElement).type = value;
-            return;
-          }
-          // Pass through common properties like value/placeholder/disabled/etc.
-          if (key in el) {
-            (el as unknown as Record<string, unknown>)[key] = value;
-          }
-        });
-      }
-      this.appendChild(el);
-      return el;
+      styles: Partial<CSSStyleDeclaration>,
+    ): void {
+      Object.assign(this.style, styles);
     };
   }
 

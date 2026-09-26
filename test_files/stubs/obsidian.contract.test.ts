@@ -333,4 +333,185 @@ describe("Obsidian stub contract", () => {
       expect(modal.containerEl.isConnected).toBe(false);
     });
   });
+
+  describe("DOM helpers on elements", () => {
+    // Observed on Obsidian 1.13.7 desktop (Windows): a `cls` array is joined
+    // with spaces, so `cls: ["a", "b"]` gives className "a b".
+    it("joins a cls array with spaces", () => {
+      expect(createDiv({ cls: ["a", "b"] }).className).toBe("a b");
+      expect(createDiv({ cls: "a b" }).className).toBe("a b");
+    });
+
+    // Observed on Obsidian 1.13.7 desktop (Windows): an `attr` value of null
+    // leaves the attribute out; false, true and 0 become "false", "true" and
+    // "0".
+    it("skips null attr values and stringifies the rest", () => {
+      const el = createDiv({
+        attr: { x: null, y: "1", z: false, w: true, n: 0 },
+      });
+
+      expect(el.hasAttribute("x")).toBe(false);
+      expect(el.getAttribute("y")).toBe("1");
+      expect(el.getAttribute("z")).toBe("false");
+      expect(el.getAttribute("w")).toBe("true");
+      expect(el.getAttribute("n")).toBe("0");
+    });
+
+    // Observed on Obsidian 1.13.7 desktop (Windows): `setAttr(k, null)`
+    // removes the attribute.
+    it("removes an attribute when setAttr gets null", () => {
+      const el = createDiv();
+      el.setAttr("k", "v");
+      el.setAttr("k", null);
+
+      expect(el.hasAttribute("k")).toBe(false);
+    });
+
+    // Observed on Obsidian 1.13.7 desktop (Windows): a DocumentFragment passed
+    // to `setText` or as the `text` option inserts the fragment's nodes.
+    it("inserts a DocumentFragment given to setText or the text option", () => {
+      const el = createDiv();
+      el.setText(createFragment((f) => f.createSpan({ text: "S" })));
+      expect(el.innerHTML).toBe("<span>S</span>");
+
+      const fromOption = createDiv({
+        text: createFragment((f) => f.appendText("T")),
+      });
+      expect(fromOption.innerHTML).toBe("T");
+    });
+
+    // Observed on Obsidian 1.13.7 desktop (Windows): `createEl(tag, opts, cb)`
+    // calls `cb` with the new element.
+    it("calls the createEl callback with the new element", () => {
+      const host = createDiv();
+      let received: HTMLElement | null = null;
+      const el = host.createEl("p", { text: "X" }, (created) => {
+        received = created;
+      });
+
+      expect(received).toBe(el);
+    });
+
+    // Observed on Obsidian 1.13.7 desktop (Windows): `prepend: true` inserts
+    // the new element as the receiver's first child.
+    it("inserts the new element first with prepend", () => {
+      const host = createDiv();
+      host.createDiv({ cls: "first" });
+      host.createDiv({ cls: "pre", prepend: true });
+
+      expect([...host.children].map((c) => c.className)).toEqual([
+        "pre",
+        "first",
+      ]);
+    });
+
+    // Observed on Obsidian 1.13.7 desktop (Windows): `toggleClass(c)` without
+    // a force argument removes the class, whether or not it was present. It
+    // does not toggle.
+    it("removes the class when toggleClass has no force argument", () => {
+      const had = createDiv({ cls: "c" });
+      const lacked = createDiv();
+      const toggle = (el: HTMLElement): void =>
+        (el.toggleClass as (cls: string) => void)("c");
+
+      toggle(had);
+      toggle(lacked);
+
+      expect(had.className).toBe("");
+      expect(lacked.className).toBe("");
+    });
+
+    // Not probed: the declared API (`toggleClass(classes, value)`). Production
+    // always passes `value`, so this guards the stub's add and remove paths.
+    it("adds or removes the class by the force argument", () => {
+      const el = createDiv();
+      el.toggleClass("c", true);
+      expect(el.hasClass("c")).toBe(true);
+      el.toggleClass("c", false);
+      expect(el.hasClass("c")).toBe(false);
+    });
+
+    // Observed on Obsidian 1.13.7 desktop (Windows): elements have detach,
+    // instanceOf, doc, win, show, hide, find, findAll, setCssProps and
+    // setCssStyles.
+    it("has the node and element helpers", () => {
+      const host = createDiv();
+      const first = host.createDiv({ cls: "first" });
+      host.createDiv({ cls: "first" });
+
+      expect(host.doc).toBe(document);
+      expect(host.win).toBe(window);
+      expect(host.instanceOf(HTMLDivElement)).toBe(true);
+      expect(host.find(".first")).toBe(first);
+      expect(host.findAll(".first")).toHaveLength(2);
+      expect(typeof host.setCssStyles).toBe("function");
+
+      first.detach();
+      expect(first.parentNode).toBeNull();
+      expect(host.findAll(".first")).toHaveLength(1);
+    });
+
+    // Observed on Obsidian 1.13.7 desktop (Windows): `hide()` sets
+    // style.display to "none" and `show()` sets it to "".
+    it("hides and shows through style.display", () => {
+      const el = createDiv();
+      el.hide();
+      expect(el.style.display).toBe("none");
+      el.show();
+      expect(el.style.display).toBe("");
+    });
+
+    // Observed on Obsidian 1.13.7 desktop (Windows):
+    // `setCssProps({ "--x": "1", color: "red" })` gives the style attribute
+    // "--x: 1; color: red;".
+    it("sets CSS properties, including custom properties, with setCssProps", () => {
+      const el = createDiv();
+      el.setCssProps({ "--x": "1", color: "red" });
+
+      expect(el.style.getPropertyValue("--x")).toBe("1");
+      expect(el.style.getPropertyValue("color")).toBe("red");
+    });
+
+    // Observed on Obsidian 1.13.7 desktop (Windows): createEl applies `type`
+    // to input and button only, `value` to input and option only, and
+    // `placeholder` to input only (not textarea, neither the property nor
+    // the attribute). `title` applies to any element, and `href` to a link.
+    it("applies createEl options by tag", () => {
+      expect(createEl("input", { type: "checkbox" }).type).toBe("checkbox");
+      expect(createEl("button", { type: "submit" }).type).toBe("submit");
+      expect(createDiv({ type: "text" }).getAttribute("type")).toBeNull();
+
+      expect(createEl("input", { value: "v" }).value).toBe("v");
+      expect(createEl("option", { value: "o" }).value).toBe("o");
+      expect(createDiv({ value: "v" }).getAttribute("value")).toBeNull();
+      expect(
+        createEl("select", { value: "s" }).getAttribute("value"),
+      ).toBeNull();
+      const textarea = createEl("textarea", { value: "t" });
+      expect(textarea.value).toBe("");
+      expect(textarea.getAttribute("value")).toBeNull();
+      const button = createEl("button", { value: "b" });
+      expect(button.value).toBe("");
+      expect(button.getAttribute("value")).toBeNull();
+
+      expect(createEl("input", { placeholder: "p" }).placeholder).toBe("p");
+      const textareaWithPlaceholder = createEl("textarea", {
+        placeholder: "p",
+      });
+      expect(textareaWithPlaceholder.placeholder).toBe("");
+      expect(textareaWithPlaceholder.getAttribute("placeholder")).toBeNull();
+      expect(
+        createDiv({ placeholder: "p" }).getAttribute("placeholder"),
+      ).toBeNull();
+
+      expect(createEl("input", { title: "T" }).title).toBe("T");
+      expect(createDiv({ title: "T" }).title).toBe("T");
+      expect(
+        createEl("a", { href: "https://example.com/" }).getAttribute("href"),
+      ).toBe("https://example.com/");
+      expect(
+        createEl("img", { attr: { src: "x.png" } }).getAttribute("src"),
+      ).toBe("x.png");
+    });
+  });
 });
