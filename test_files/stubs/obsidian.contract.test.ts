@@ -87,7 +87,9 @@ describe("Obsidian stub contract", () => {
     // the plugin's own folder is hidden from the vault index too.
     it("keeps the config folder, a dot folder, out of the vault index", async () => {
       const { vault } = new App();
-      const manifestPath = `${vault.configDir}/plugins/rss-dashboard/manifest.json`;
+      const pluginDir = `${vault.configDir}/plugins/rss-dashboard`;
+      const manifestPath = `${pluginDir}/manifest.json`;
+      await vault.adapter.mkdir(pluginDir);
       await vault.adapter.write(manifestPath, "{}");
 
       expect(vault.configDir.startsWith(".")).toBe(true);
@@ -175,6 +177,68 @@ describe("Obsidian stub contract", () => {
 
       expect(await vault.adapter.exists("PROBE-Folder")).toBe(false);
       await expect(vault.createFolder("PROBE-Folder")).resolves.toBeDefined();
+    });
+  });
+
+  describe("vault adapter: file system model", () => {
+    // Observed on Obsidian 1.13.7 desktop (Windows): `adapter.write` under a
+    // missing parent folder throws Node's ENOENT error (with `code`) rather
+    // than creating the folder.
+    it("write throws ENOENT when the parent folder is missing", async () => {
+      const { vault } = new App();
+
+      const error: unknown = await vault.adapter
+        .write("probe-missing/x.md", "")
+        .catch((e: unknown) => e);
+
+      expect(error).toBeInstanceOf(Error);
+      expect(error).toMatchObject({ code: "ENOENT" });
+      expect((error as Error).message).toMatch(
+        /^ENOENT: no such file or directory, open '.*probe-missing\/x\.md'$/,
+      );
+      expect(await vault.adapter.exists("probe-missing")).toBe(false);
+      expect(await vault.adapter.exists("probe-missing/x.md")).toBe(false);
+    });
+
+    // Observed on Obsidian 1.13.7 desktop (Windows): `adapter.mkdir` creates
+    // nested folders and resolves `undefined`; `exists` then reports them.
+    it("mkdir creates nested folders", async () => {
+      const { vault } = new App();
+
+      await expect(vault.adapter.mkdir("probe/m1/m2")).resolves.toBeUndefined();
+
+      expect(await vault.adapter.exists("probe")).toBe(true);
+      expect(await vault.adapter.exists("probe/m1")).toBe(true);
+      expect(await vault.adapter.exists("probe/m1/m2")).toBe(true);
+    });
+
+    // Observed on Obsidian 1.13.7 desktop (Windows): `adapter.list` sees
+    // folders made by `adapter.mkdir` and files written by `adapter.write`,
+    // and returns the full vault paths of the direct children only.
+    it("list returns the direct children the adapter created", async () => {
+      const { vault } = new App();
+      await vault.adapter.mkdir("probe/m1/m2");
+      await vault.adapter.write("probe/w.md", "hello");
+
+      expect(await vault.adapter.list("probe")).toEqual({
+        folders: ["probe/m1"],
+        files: ["probe/w.md"],
+      });
+    });
+
+    // Observed on Obsidian 1.13.7 desktop (Windows): after `adapter.write` of
+    // a path outside dot folders, `exists` is true and the vault index
+    // returns the file.
+    it("indexes a file written through the adapter", async () => {
+      const { vault } = new App();
+      await vault.adapter.mkdir("probe");
+      await vault.adapter.write("probe/w.md", "hello");
+
+      expect(await vault.adapter.exists("probe/w.md")).toBe(true);
+      expect(vault.getAbstractFileByPath("probe/w.md")).toMatchObject({
+        path: "probe/w.md",
+      });
+      expect(await vault.adapter.read("probe/w.md")).toBe("hello");
     });
   });
 });

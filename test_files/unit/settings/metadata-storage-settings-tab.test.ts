@@ -266,7 +266,9 @@ describe("renderStorageSettingsTab() - previous metadata copy cleanup", () => {
     const containerEl = document.body.appendChild(createDiv());
     const plugin = createPlugin();
     const { vault } = plugin.app;
-    const bootstrapPath = `${vault.configDir}/plugins/rss-dashboard/data.json`;
+    const pluginDir = `${vault.configDir}/plugins/rss-dashboard`;
+    const bootstrapPath = `${pluginDir}/data.json`;
+    await vault.adapter.mkdir(pluginDir);
     await vault.adapter.write(bootstrapPath, "{}");
 
     renderStorageSettingsTab(containerEl, plugin);
