@@ -881,8 +881,25 @@ export class MockDataVault {
     }
   }
 
-  async renameAbstractFile(file: TFileStub, newPath: string): Promise<void> {
+  /**
+   * Observed on Obsidian 1.13.7 desktop (Windows): the file keeps its content
+   * at the new path, its name parts follow the path, and the old path leaves
+   * the index; renaming onto an existing path throws "Destination file
+   * already exists!". Not probed: whether `vault.rename` itself normalizes
+   * the path (the stub doesn't; `fileManager.renameFile` does), a rename
+   * that only changes case (allowed here), a missing destination folder
+   * (allowed here), and renaming folders (not modeled).
+   */
+  async rename(file: TFileStub, newPath: string): Promise<void> {
     const oldPath = file.path;
+    if (
+      this.diskKey(newPath) !== this.diskKey(oldPath) &&
+      this.existsOnDisk(newPath)
+    ) {
+      throw new Error("Destination file already exists!");
+    }
+
+    const content = this.adapterFiles.get(oldPath);
     this.files.delete(oldPath);
     this.adapterFiles.delete(oldPath);
 
@@ -890,6 +907,9 @@ export class MockDataVault {
     Object.assign(file, fileNameParts(newPath));
 
     this.files.set(newPath, file);
+    if (content !== undefined) {
+      this.adapterFiles.set(newPath, content);
+    }
   }
 
   getAbstractFileByPath(path: string): TFileStub | TFolderStub | null {
@@ -1019,8 +1039,11 @@ class AppStub {
       trashFile: async (file: TFileStub | TFolderStub) => {
         await this.vault.trashAbstractFile(file);
       },
+      // Observed on Obsidian 1.13.7 desktop (Windows): the new path is
+      // normalized ("a//r3.md" -> "a/r3.md"). Updating links in other notes
+      // isn't modeled.
       renameFile: async (file: TFileStub, newPath: string) => {
-        await this.vault.renameAbstractFile(file, newPath);
+        await this.vault.rename(file, normalizePathImpl(newPath));
       },
     };
     this.workspace = new MockWorkspace(this);
