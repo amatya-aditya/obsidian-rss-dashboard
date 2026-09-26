@@ -6,6 +6,7 @@ import {
   type FeedItem,
   type RssDashboardSettings,
 } from "../../../src/types/types";
+import { RssDashboardView } from "../../../src/views/dashboard-view";
 
 // GH Issue #333: proves the Starred status filter and ordinary tag filters
 // (including a "Favorite" tag, which is a plain tag post-#332) are
@@ -96,7 +97,6 @@ interface TestDashboardView {
 }
 
 async function makeView(): Promise<TestDashboardView> {
-  const { RssDashboardView } = await import("../../../src/views/dashboard-view");
   const app = new App();
   const settings = cloneSettings();
   const plugin = { settings, saveSettings: vi.fn(async () => {}) };

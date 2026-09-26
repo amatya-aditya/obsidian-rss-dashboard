@@ -8,6 +8,7 @@ import {
   type HighlightWord,
   type RssDashboardSettings,
 } from "../../../src/types/types";
+import { RssDashboardView } from "../../../src/views/dashboard-view";
 
 vi.mock("../../../src/utils/platform-utils", () => ({
   robustFetch: vi.fn(),
@@ -138,8 +139,6 @@ interface DashViewTestAPI {
 async function makeView(
   settings: RssDashboardSettings,
 ): Promise<DashViewTestAPI> {
-  const { RssDashboardView } =
-    await import("../../../src/views/dashboard-view");
   const app = new App();
   const plugin = {
     settings,

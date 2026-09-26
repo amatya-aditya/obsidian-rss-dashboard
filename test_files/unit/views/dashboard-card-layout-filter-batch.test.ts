@@ -6,6 +6,7 @@ import {
   type RssDashboardSettings,
 } from "../../../src/types/types";
 import type RssDashboardPlugin from "../../../main";
+import { RssDashboardView } from "../../../src/views/dashboard-view";
 
 vi.mock("../../../src/utils/platform-utils", () => ({
   robustFetch: vi.fn(),
@@ -88,9 +89,6 @@ describe("Dashboard card layout filter batch", () => {
   });
 
   it("persists card layout values from a batch and rerenders once", async () => {
-    const { RssDashboardView } =
-      await import("../../../src/views/dashboard-view");
-
     const app = new obsidian.App();
     const settings = cloneSettings();
     settings.display.cardColumnsPerRow = 0;
@@ -124,9 +122,6 @@ describe("Dashboard card layout filter batch", () => {
   });
 
   it("does not save or rerender when batch card layout values are unchanged", async () => {
-    const { RssDashboardView } =
-      await import("../../../src/views/dashboard-view");
-
     const app = new obsidian.App();
     const settings = cloneSettings();
     settings.display.cardColumnsPerRow = 3;
@@ -168,9 +163,6 @@ describe("Dashboard card layout filter batch", () => {
 
   it("updates card spacing live without a full rerender", async () => {
     vi.useFakeTimers();
-
-    const { RssDashboardView } =
-      await import("../../../src/views/dashboard-view");
 
     const app = new obsidian.App();
     const settings = cloneSettings();
@@ -220,9 +212,6 @@ describe("Dashboard card layout filter batch", () => {
 
   it("commits card spacing without a full rerender and refreshes visible tag layout immediately", async () => {
     vi.useFakeTimers();
-
-    const { RssDashboardView } =
-      await import("../../../src/views/dashboard-view");
 
     const app = new obsidian.App();
     const settings = cloneSettings();

@@ -5,6 +5,7 @@ import {
   type FeedItem,
   type RssDashboardSettings,
 } from "../../../src/types/types";
+import { RssDashboardView } from "../../../src/views/dashboard-view";
 
 // Keep platform-utils mocked so other tests that expect robustFetch to be a vi.fn
 // (e.g. fetch-helpers.test.ts) don't end up importing the real module first.
@@ -126,8 +127,6 @@ describe("Filter Status Bar counts (TDD)", () => {
   });
 
   it("computes shown/filtered-out/total for dashboard multi-filters", async () => {
-    const { RssDashboardView } = await import("../../../src/views/dashboard-view");
-
     const settings = cloneSettings();
     const plugin: TestPlugin = {
       settings,
@@ -156,8 +155,6 @@ describe("Filter Status Bar counts (TDD)", () => {
   });
 
   it("renders viewing-filter counts when dashboard multi-filters are active", async () => {
-    const { RssDashboardView } = await import("../../../src/views/dashboard-view");
-
     const settings = cloneSettings();
     const plugin: TestPlugin = {
       settings,
@@ -205,8 +202,6 @@ describe("Filter Status Bar counts (TDD)", () => {
   });
 
   it("renders the no-filters message when dashboard multi-filters are enabled but empty", async () => {
-    const { RssDashboardView } = await import("../../../src/views/dashboard-view");
-
     const settings = cloneSettings();
     const plugin: TestPlugin = {
       settings,
@@ -254,8 +249,6 @@ describe("Filter Status Bar counts (TDD)", () => {
   });
 
   it("filter-menu apply path refreshes the status bar", async () => {
-    const { RssDashboardView } = await import("../../../src/views/dashboard-view");
-
     const settings = cloneSettings();
     const plugin: TestPlugin = {
       settings,
@@ -279,8 +272,6 @@ describe("Filter Status Bar counts (TDD)", () => {
   });
 
   it("in-place read toggle refreshes the status bar (regression)", async () => {
-    const { RssDashboardView } = await import("../../../src/views/dashboard-view");
-
     const settings = cloneSettings();
     const plugin: TestPlugin = {
       settings,

@@ -7,6 +7,7 @@ import {
   type FeedItem,
   type RssDashboardSettings,
 } from "../../../src/types/types";
+import { RssDashboardView } from "../../../src/views/dashboard-view";
 
 // Regression coverage for GH Issue #332: starring/unstarring from the
 // dashboard's primary star entry point (the selected-article action, which
@@ -111,8 +112,6 @@ interface DashboardViewInternal {
 async function makeView(
   settings: RssDashboardSettings,
 ): Promise<{ view: DashboardViewInternal; updateArticle: ReturnType<typeof vi.fn> }> {
-  const { RssDashboardView } =
-    await import("../../../src/views/dashboard-view");
   const app = new App();
   const updateArticle = vi.fn(async () => {});
   const plugin = {
