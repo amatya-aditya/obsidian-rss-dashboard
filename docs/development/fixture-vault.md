@@ -91,6 +91,41 @@ plugin's own `data.json`. `--storage shard-v1` keeps settings in the plugin's
 after running the storage migration the dashboard should look exactly as it
 does in a Shard storage v2 vault.
 
+## Testing a refactor
+
+A refactor's scoped checklist compares the build before and after, so every
+result must come from a known build and a clean vault.
+
+- **Before a reset, check whether Obsidian has the vault open.** An open vault
+  keeps the old build in memory, so results taken after the reset belong to
+  the old code. If you reset under a running app, run
+  `app.commands.executeCommandById('app:reload')` in the developer console,
+  then confirm the new code is loaded (for example, that a method the change
+  added or removed is present or gone on
+  `app.plugins.plugins['rss-dashboard']`) before testing.
+- **Drive import dialogs from the console.** Pass a `File` built from text to
+  the plugin's import method, which opens the real confirmation modal without
+  the native file picker:
+
+  ```js
+  const plugin = app.plugins.plugins['rss-dashboard'];
+  const text = await app.vault.adapter.read('import-fixtures/rss-dashboard-feed-bundle.json');
+  await plugin.importFeedBundleFromFile(new File([text], 'rss-dashboard-feed-bundle.json'));
+  ```
+
+  The other entry points are `importPortableDataBundleFromFile`,
+  `importSettingsBundleFromFile`, and `importUserSettingsJsonFromFile`.
+- **Use top-level `await` in the console.** An async IIFE prints only
+  `Promise {<pending>}`.
+- **Check the files on disk, not only the UI.** Open the file the refactor
+  writes (for a storage change, `rss-dashboard-data/user-state.json` or a feed
+  shard) in the folder you opened, and confirm it holds what the UI shows.
+- **Run the ticket's extra checks.** The baseline checklist covers ordinary
+  use; the ticket's **Scoped checklist** adds the edge cases the moved code
+  handles. For [#467](https://github.com/amatya-aditya/obsidian-rss-dashboard/pull/467)
+  those were a corrupt `user-state.json`, the orphaned file left after
+  reverting to Legacy JSON, and removed versus unrecognized feed state.
+
 ## Seeded scenarios
 
 11 feeds, 153 articles: 48 read, 9 starred, 9 tagged, 1 saved, 2 with playback

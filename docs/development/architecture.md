@@ -92,6 +92,51 @@ characterization test, copying one, or renaming a test to the suffix is
 allowed; modifying, deleting, or renaming one away fails. If pinned behavior
 must change, do it in a separate, non-refactor PR first.
 
+## Refactor Commits
+
+A refactor PR ([#436](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/436))
+has two commits, and each one must build: the pre-commit hook lints the staged
+files and runs their related tests. Run the gates after each commit.
+
+1. **Move only.** Add the new module as an unused, verbatim copy of the code
+   it takes over. Callers and the originals stay untouched.
+2. **Wiring.** Switch the callers to the new module, delete the originals,
+   lower the ratchet, and prune suppressions.
+
+Reviewers read the pair with `git diff --color-moved`, so the move commit
+shows up as moved lines and the wiring commit carries every real edit.
+
+### Over-limit functions
+
+Suppressions are a count per file and rule, so a suppressed function stays
+suppressed only in its original file. Moved verbatim into a new file, it is a
+new violation and the pre-commit hook rejects it. The move commit splits an
+over-limit function along its existing blocks, each one moved verbatim into a
+function under the limits. Keep the edits to the ones the split forces: in
+[#467](https://github.com/amatya-aditya/obsidian-rss-dashboard/pull/467), the
+per-item loop body became a function, so its `continue` became `return`. The
+ticket names each over-limit function and its planned split up front.
+
+### Shared helpers and owner state
+
+- **Helpers both sides use** move to a leaf module that imports neither side.
+  That avoids an import cycle and keeps a module-level singleton single. In
+  #467, `cloneJson` and `withSyncNonce`, with its sync-nonce counter, moved to
+  `src/services/storage-json.ts`.
+- **State the owner keeps** stays with the owner. When one half of a workflow
+  must stay behind (hydrate and persist together), pass the new module
+  read-only access, such as a `ReadonlyMap`, rather than moving or copying the
+  state. Confirm the owner never reassigns the field, or the new module keeps
+  reading the old object.
+
+### Ratchet and suppressions
+
+Both go in the wiring commit. Lower the file's entry in
+`scripts/architecture-baseline.json` to the count `npm run check:architecture`
+reports, which runs one more than `wc -l`. Then run
+`npx eslint . --prune-suppressions` and confirm it touched only the target
+file's entries.
+
 ## Exceptions
 
 Raising a line ratchet, expanding an importer or cycle allowance, or adding
