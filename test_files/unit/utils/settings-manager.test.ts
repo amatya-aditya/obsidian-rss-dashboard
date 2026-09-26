@@ -12,7 +12,7 @@ import {
 function createSettingsModal(): SettingManager & {
   containerEl: HTMLElement;
 } {
-  const containerEl = document.createDiv({
+  const containerEl = createDiv({
     cls: "modal-container mod-settings-container",
   });
   const setting = {

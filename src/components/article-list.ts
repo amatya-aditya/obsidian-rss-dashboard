@@ -717,7 +717,9 @@ export class ArticleList {
     }
 
     const insertIdx = this.findSortedInsertIndex(article, sortOrder);
-    const temp = activeDocument.createDiv();
+    // Build the row in a detached element: createDiv() on a Document appends to
+    // the document itself, which throws once <html> exists (#409).
+    const temp = listEl.win.createDiv();
 
     if (this.settings.viewStyle === "list") {
       this.renderListView(temp, [article]);

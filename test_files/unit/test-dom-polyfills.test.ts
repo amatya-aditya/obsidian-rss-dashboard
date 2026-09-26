@@ -27,6 +27,33 @@ describe("Obsidian DOM polyfills", () => {
     expect(fragment.ownerDocument).toBe(document);
   });
 
+  it("appends Document helper elements to the document, like Obsidian (#409)", () => {
+    installObsidianDomPolyfills();
+    const emptyDoc = document.implementation.createDocument(null, null, null);
+
+    const root = emptyDoc.createDiv({ cls: "root" });
+
+    expect(emptyDoc.documentElement).toBe(root);
+    expect(() => emptyDoc.createSpan()).toThrow(
+      expect.objectContaining({ name: "HierarchyRequestError" }),
+    );
+    expect(() => document.createEl("p")).toThrow(
+      expect.objectContaining({ name: "HierarchyRequestError" }),
+    );
+  });
+
+  it("keeps window helper elements detached from the document", () => {
+    installObsidianDomPolyfills();
+
+    const div = window.createDiv({ cls: "detached" });
+    const span = window.createSpan();
+
+    expect(div.parentNode).toBeNull();
+    expect(div.className).toBe("detached");
+    expect(span.parentNode).toBeNull();
+    expect(document.childElementCount).toBe(1);
+  });
+
   it("creates helper descendants in the active document when an element has no owner", () => {
     const globalScope = window as Window & { activeDocument?: Document };
     const originalActiveDocument = globalScope.activeDocument;

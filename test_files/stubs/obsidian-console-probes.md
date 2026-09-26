@@ -41,6 +41,10 @@ console.log("throw:false returned", r.status);
 
 Observed on 1.13.7: throws `HierarchyRequestError` ("Only one element on
 document allowed"), because the document already has its `<html>` element.
+The stack trace shows `createDiv` going through `createEl`, and `createSpan`
+is the same Node helper. The global `createDiv()` (a Window helper) returns a
+detached element instead; use it, or `el.win.createDiv()`, for a temporary
+container (#409).
 
 ```js
 try {

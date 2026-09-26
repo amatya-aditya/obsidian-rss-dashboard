@@ -266,7 +266,7 @@ export function requireApiVersion(): boolean {
 }
 
 export function renderMath(source: string, display: boolean): HTMLElement {
-  return activeDocument.createSpan({ cls: "math", text: source });
+  return createSpan({ cls: "math", text: source });
 }
 
 export function finishRenderMath(): Promise<void> {
@@ -290,9 +290,9 @@ export class MarkdownRenderer {
         .slice(delimiterLength, -delimiterLength)
         .trim();
       const math = display
-        ? doc.createDiv({ cls: "math math-block" })
-        : doc.createSpan({ cls: "math math-inline" });
-      const mathJax = doc.createEl("mjx-container" as keyof HTMLElementTagNameMap, { text: latex });
+        ? doc.win.createDiv({ cls: "math math-block" })
+        : doc.win.createSpan({ cls: "math math-inline" });
+      const mathJax = doc.win.createEl("mjx-container" as keyof HTMLElementTagNameMap, { text: latex });
       math.appendChild(mathJax);
       el.appendChild(math);
       return Promise.resolve();
@@ -874,7 +874,7 @@ export class PluginSettingTab {
   constructor(app: App, plugin: Plugin) {
     this.app = app;
     this.plugin = plugin;
-    this.containerEl = activeDocument.createDiv();
+    this.containerEl = createDiv();
   }
 
   display(): void {}
@@ -945,7 +945,7 @@ export class ItemView extends Component {
     this.leaf = leaf;
     this.app = leaf.app;
 
-    this.containerEl = activeDocument.createDiv();
+    this.containerEl = createDiv();
     this.containerEl.createDiv();
     this.containerEl.createDiv();
   }
@@ -1416,7 +1416,7 @@ export class Modal {
   contentEl: HTMLDivElement;
   constructor(app: App) {
     this.app = app;
-    this.containerEl = activeDocument.createDiv({ cls: "modal-container" });
+    this.containerEl = createDiv({ cls: "modal-container" });
     this.modalEl = this.containerEl.createDiv({ cls: "modal" });
     this.titleEl = this.modalEl.createDiv({ cls: "modal-title" });
     this.contentEl = this.modalEl.createDiv({ cls: "modal-content" });
