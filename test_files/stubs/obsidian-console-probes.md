@@ -188,3 +188,96 @@ m.close();
 log.push("after close() sync, connected=" + m.containerEl.isConnected);
 console.log(log);
 ```
+
+## DOM helpers on elements
+
+Observed on 1.13.7 (Windows):
+
+- A `cls` array is joined with spaces (`"a b"`).
+- An `attr` value of `null` leaves the attribute out; `false`, `true` and `0`
+  become `"false"`, `"true"` and `"0"`. `setAttr(k, null)` removes `k`.
+- A `DocumentFragment` given to `setText` or as the `text` option inserts the
+  fragment's nodes.
+- `createEl(tag, opts, cb)` calls `cb` with the new element, and
+  `prepend: true` inserts it as the first child.
+- `toggleClass(c)` without a second argument removes `c`, whether or not it
+  was there. It doesn't toggle.
+- Elements have `detach`, `instanceOf`, `doc` (`=== document`), `win`
+  (`=== window`), `show`, `hide`, `toggle`, `isShown`, `find`, `findAll`,
+  `setCssProps` and `setCssStyles`. `hide()` sets `style.display` to `"none"`
+  and `show()` sets it to `""`. `setCssProps` sets custom properties too.
+- `createEl` applies `type` to input and button only, `value` to input and
+  option only (not select, textarea, button or div), and `placeholder` to
+  input only (a textarea gets neither the property nor the attribute; use
+  `attr: { placeholder }`). `title` applies to any element, `href` to a link.
+
+```js
+const r = {};
+r.clsArray = createEl("div", { cls: ["a", "b"] }).className;
+const e1 = createEl("div", { attr: { x: null, z: false, w: true, n: 0 } });
+r.attr = {
+  hasX: e1.hasAttribute("x"),
+  z: e1.getAttribute("z"),
+  w: e1.getAttribute("w"),
+  n: e1.getAttribute("n"),
+};
+const e2 = createDiv();
+e2.setAttr("k", "v");
+e2.setAttr("k", null);
+r.setAttrNull = e2.hasAttribute("k");
+const e3 = createDiv();
+e3.setText(createFragment((f) => f.createSpan({ text: "S" })));
+r.setTextFragment = e3.innerHTML;
+r.textFragment = createDiv({
+  text: createFragment((f) => f.appendText("T")),
+}).innerHTML;
+const host = createDiv();
+let cbArg = null;
+const e5 = host.createEl("span", { text: "x" }, (el) => {
+  cbArg = el;
+});
+r.callbackArg = cbArg === e5;
+host.createDiv({ cls: "first" });
+host.createDiv({ cls: "pre", prepend: true });
+r.prepend = [...host.children].map((c) => c.className);
+const had = createDiv({ cls: "c" });
+had.toggleClass("c");
+const lacked = createDiv();
+lacked.toggleClass("c");
+r.toggleNoForce = [had.className, lacked.className];
+r.helpers = Object.fromEntries(
+  [
+    "detach",
+    "instanceOf",
+    "show",
+    "hide",
+    "find",
+    "findAll",
+    "setCssProps",
+    "setCssStyles",
+  ].map((n) => [n, typeof host[n]]),
+);
+r.docWin = [host.doc === document, host.win === window];
+r.find = host.find(".first")?.className ?? null;
+const e8 = createDiv();
+e8.hide();
+r.hide = e8.style.display;
+e8.show();
+r.show = e8.style.display;
+const e9 = createDiv();
+e9.setCssProps({ "--x": "1", color: "red" });
+r.setCssProps = e9.getAttribute("style");
+r.byTag = {
+  divType: createEl("div", { type: "text" }).getAttribute("type"),
+  inputType: createEl("input", { type: "checkbox" }).type,
+  buttonType: createEl("button", { type: "submit" }).type,
+  inputValue: createEl("input", { value: "v" }).value,
+  optionValue: createEl("option", { value: "o" }).value,
+  selectValue: createEl("select", { value: "s" }).getAttribute("value"),
+  inputPlaceholder: createEl("input", { placeholder: "p" }).placeholder,
+  textareaPlaceholder: createEl("textarea", { placeholder: "p" }).placeholder,
+  divTitle: createEl("div", { title: "t" }).title,
+  aHref: createEl("a", { href: "https://example.com/" }).getAttribute("href"),
+};
+console.log(JSON.stringify(r, null, 1));
+```
