@@ -855,7 +855,7 @@ export class MockDataVault {
 // =============================================================================
 
 export class MockWorkspace {
-  private leaves: Map<string, unknown> = new Map();
+  private leaves: WorkspaceLeafStub[] = [];
   public activeLeaf: unknown = null;
   private layoutReadyCallbacks: Array<() => void> = [];
 
@@ -863,8 +863,24 @@ export class MockWorkspace {
   onActiveLeafChange = new MockEvent();
   onWindowResize = new MockEvent();
 
-  getLeavesOfType(_type: string): unknown[] {
-    return Array.from(this.leaves.values());
+  constructor(private readonly app: AppStub) {}
+
+  /** Tracks a new leaf, so getLeavesOfType can find it once it has a view. */
+  private openLeaf(): WorkspaceLeafStub {
+    const leaf = new WorkspaceLeafStub(this.app);
+    this.leaves.push(leaf);
+    return leaf;
+  }
+
+  getLeavesOfType(type: string): WorkspaceLeafStub[] {
+    return this.leaves.filter((leaf) => {
+      const view = leaf.view as { getViewType?: () => string } | undefined;
+      return view?.getViewType?.() === type;
+    });
+  }
+
+  revealLeaf(_leaf: ObsidianApi.WorkspaceLeaf): Promise<void> {
+    return Promise.resolve();
   }
 
   getMostRecentLeaf(): unknown {
@@ -875,16 +891,17 @@ export class MockWorkspace {
     this.activeLeaf = leaf;
   }
 
-  getLeaf(_type?: "split" | "tab"): unknown {
-    return {};
+  getLeaf(_type?: "split" | "tab"): WorkspaceLeafStub {
+    return this.openLeaf();
   }
 
-  getLeftLeaf(_force?: boolean): unknown {
-    return {};
+  // Not probed: whether these reuse an existing sidebar leaf.
+  getLeftLeaf(_force?: boolean): WorkspaceLeafStub {
+    return this.openLeaf();
   }
 
-  getRightLeaf(_force?: boolean): unknown {
-    return {};
+  getRightLeaf(_force?: boolean): WorkspaceLeafStub {
+    return this.openLeaf();
   }
 
   onLayoutReady(callback: () => void): void {
@@ -937,7 +954,7 @@ class AppStub {
         await this.vault.renameAbstractFile(file, newPath);
       },
     };
-    this.workspace = new MockWorkspace();
+    this.workspace = new MockWorkspace(this);
   }
 
   saveLocalStorage(key: string, value: unknown): void {
@@ -962,11 +979,80 @@ export type PluginManifest = ObsidianApi.PluginManifest;
 
 export type EventRef = ObsidianApi.EventRef;
 
-class PluginStub {
+class ComponentStub {
+  private children = new Set<ObsidianApi.Component>();
+  private cleanups: Array<() => unknown> = [];
+  /** Obsidian's own flag name; the probes read it to observe loading. */
+  _loaded = false;
+
+  // Not probed: calling load() or unload() twice in a row.
+  load(): void {
+    this._loaded = true;
+    this.onload();
+    this.children.forEach((child) => child.load());
+  }
+
+  onload(): void {}
+
+  unload(): void {
+    this._loaded = false;
+    this.children.forEach((child) => child.unload());
+    this.children.clear();
+    const cleanups = this.cleanups;
+    this.cleanups = [];
+    cleanups.forEach((cleanup) => cleanup());
+    this.onunload();
+  }
+
+  onunload(): void {}
+
+  addChild<T extends ObsidianApi.Component>(component: T): T {
+    this.children.add(component);
+    if (this._loaded) {
+      component.load();
+    }
+    return component;
+  }
+
+  removeChild<T extends ObsidianApi.Component>(component: T): T {
+    if (this.children.delete(component)) {
+      component.unload();
+    }
+    return component;
+  }
+
+  register(cb: () => unknown): void {
+    this.cleanups.push(cb);
+  }
+
+  registerDomEvent(
+    el: EventTarget,
+    type: string,
+    callback: EventListenerOrEventListenerObject,
+    options?: boolean | AddEventListenerOptions,
+  ): void {
+    el.addEventListener(type, callback, options);
+    this.register(() => el.removeEventListener(type, callback, options));
+  }
+
+  // Not probed: modeled on registerDomEvent, the interval is cleared on
+  // unload.
+  registerInterval(id: number): number {
+    this.register(() => window.clearInterval(id));
+    return id;
+  }
+
+  // Not probed. The stub's EventRefs carry no emitter to detach from, so
+  // there is nothing to clean up on unload.
+  registerEvent(_evt: EventRef): void {}
+}
+
+class PluginStub extends ComponentStub {
   app: AppStub;
   manifest: PluginManifest;
 
   constructor(app: AppStub, manifest: PluginManifest) {
+    super();
     this.app = app;
     this.manifest = manifest;
     // Obsidian loads a plugin from its folder, so the folder exists on disk.
@@ -975,7 +1061,7 @@ class PluginStub {
     }
   }
 
-  async onload(): Promise<void> {}
+  onload(): void {}
   onunload(): void {}
 
   registerView(_type: string, _creator: ObsidianApi.ViewCreator): void {}
@@ -993,15 +1079,6 @@ class PluginStub {
   }
 
   addSettingTab(_tab: ObsidianApi.PluginSettingTab): void {}
-
-  registerInterval(id: number): number {
-    return id;
-  }
-
-  // Minimal stub for Obsidian's Plugin.registerEvent to allow tests to
-  // register EventRef objects without throwing. This mirrors the runtime
-  // API surface used by plugins; tests do not rely on the behavior here.
-  registerEvent(_evt: EventRef): void {}
 
   registerObsidianProtocolHandler(
     _action: string,
@@ -1053,39 +1130,6 @@ class WorkspaceLeafStub {
   updateHeader(): void {}
 }
 
-class ComponentStub {
-  private children = new Set<ObsidianApi.Component>();
-
-  load(): void {
-    this.onload();
-    this.children.forEach((child) => child.load());
-  }
-
-  onload(): void {}
-
-  unload(): void {
-    this.children.forEach((child) => child.unload());
-    this.children.clear();
-    this.onunload();
-  }
-
-  onunload(): void {}
-
-  addChild<T extends ObsidianApi.Component>(component: T): T {
-    this.children.add(component);
-    return component;
-  }
-
-  removeChild<T extends ObsidianApi.Component>(component: T): T {
-    if (this.children.delete(component)) {
-      component.unload();
-    }
-    return component;
-  }
-
-  register(_cb: () => unknown): void {}
-}
-
 class ItemViewStub extends ComponentStub {
   app: AppStub;
   leaf: WorkspaceLeafStub;
@@ -1108,23 +1152,14 @@ class ItemViewStub extends ComponentStub {
   onClose(): Promise<void> {
     return Promise.resolve();
   }
-
-  registerEvent(_evt: EventRef): void {}
-
-  registerDomEvent(
-    el: HTMLElement,
-    type: string,
-    callback: EventListenerOrEventListenerObject,
-    options?: boolean | AddEventListenerOptions,
-  ): void {
-    el.addEventListener(type, callback, options);
-  }
 }
 
-class MenuStub {
+// Menu extends Component in the API typings.
+class MenuStub extends ComponentStub {
   static lastItems: MenuItemStub[] = [];
 
   constructor() {
+    super();
     MenuStub.lastItems = [];
   }
 
