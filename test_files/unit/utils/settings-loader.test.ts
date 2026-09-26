@@ -77,9 +77,10 @@ describe("settings-loader", () => {
 
       const result = loadAndNormalizeSettings({
         display: {
+          ...DEFAULT_SETTINGS.display,
           imageCacheLimitMiB: 0,
           imageCacheUnlimited: true,
-        } as Partial<RssDashboardSettings["display"]>,
+        },
       });
 
       expect(result.display.imageCacheLimitMiB).toBe(100);
@@ -92,8 +93,9 @@ describe("settings-loader", () => {
 
       const result = loadAndNormalizeSettings({
         display: {
+          ...DEFAULT_SETTINGS.display,
           imageCacheLimitMiB: 2_048,
-        } as Partial<RssDashboardSettings["display"]>,
+        },
       });
 
       expect(result.display.imageCacheLimitMiB).toBe(1_024);

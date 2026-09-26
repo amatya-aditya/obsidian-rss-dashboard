@@ -16,7 +16,7 @@ describe("ShortcutHelpModal", () => {
 
   it("renders the help modal with correct sections", () => {
     const app = createMockApp();
-    const modal = new ShortcutHelpModal(app);
+    const modal = new ShortcutHelpModal(app, structuredClone(DEFAULT_SETTINGS));
     
     // Simulate Obsidian Modal open behavior
     modal.onOpen();
@@ -39,7 +39,7 @@ describe("ShortcutHelpModal", () => {
 
   it("has a compliant clickable-icon for the close button", () => {
     const app = createMockApp();
-    const modal = new ShortcutHelpModal(app);
+    const modal = new ShortcutHelpModal(app, structuredClone(DEFAULT_SETTINGS));
     
     modal.onOpen();
     

@@ -63,6 +63,7 @@ function createPlugin(adapter: FakeAdapter, allowImageCaching: boolean) {
     id: "rss-dashboard",
     name: "RSS Dashboard",
     version: "1.0.0",
+    minAppVersion: "1.8.7",
     author: "Test",
     description: "Test plugin",
     dir: INSTALL_DIR,

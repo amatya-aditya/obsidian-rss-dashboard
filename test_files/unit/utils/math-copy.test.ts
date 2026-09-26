@@ -7,6 +7,9 @@ import {
   updateReaderMathSelectionHighlight,
 } from "../../../src/utils/math-copy";
 
+// MathJax renders into a custom element that the DOM tag map does not list.
+const MATHJAX_TAG = "mjx-container" as keyof HTMLElementTagNameMap;
+
 describe("Reader math copy", () => {
   afterEach(() => {
     document.body.empty();
@@ -17,7 +20,7 @@ describe("Reader math copy", () => {
     const formula = createSpan();
     formula.className = "math math-inline";
     formula.setAttribute("data-math", String.raw`$x_1$`);
-    const mathJax = createEl("mjx-container");
+    const mathJax = createEl(MATHJAX_TAG);
     mathJax.textContent = "12";
     formula.appendChild(mathJax);
     reader.append("Before ", formula, " after.");
@@ -39,7 +42,7 @@ describe("Reader math copy", () => {
     const inlineFormula = createSpan();
     inlineFormula.className = "math math-inline";
     inlineFormula.setAttribute("data-math", "$x$");
-    inlineFormula.appendChild(createEl("mjx-container"));
+    inlineFormula.appendChild(createEl(MATHJAX_TAG));
     const emphasis = createEl("em");
     emphasis.textContent = "After";
     firstParagraph.append("Before ", inlineFormula, " ", emphasis, ".");
@@ -47,7 +50,7 @@ describe("Reader math copy", () => {
     const displayFormula = createSpan();
     displayFormula.className = "math math-block";
     displayFormula.setAttribute("data-math", String.raw`\[y < z\]`);
-    displayFormula.appendChild(createEl("mjx-container"));
+    displayFormula.appendChild(createEl(MATHJAX_TAG));
     displayParagraph.appendChild(displayFormula);
     const lastParagraph = createEl("p");
     lastParagraph.textContent = "Next.";
@@ -71,7 +74,7 @@ Next.`,
     const formula = createSpan();
     formula.className = "math math-inline";
     formula.setAttribute("data-math", "$x$");
-    formula.appendChild(createEl("mjx-container"));
+    formula.appendChild(createEl(MATHJAX_TAG));
     paragraph.append("Copy ", formula, ".");
     reader.appendChild(paragraph);
     document.body.appendChild(reader);
@@ -105,7 +108,7 @@ Next.`,
     const formula = createSpan();
     formula.className = "math math-inline";
     formula.setAttribute("data-math", String.raw`\(x\)`);
-    formula.appendChild(createEl("mjx-container"));
+    formula.appendChild(createEl(MATHJAX_TAG));
     const first = createEl("p");
     first.append("First ", formula, ".");
     const second = createEl("p");
@@ -130,7 +133,7 @@ Second.`,
     const formula = createSpan();
     formula.className = "math math-inline";
     formula.setAttribute("data-math", "$x$");
-    formula.appendChild(createEl("mjx-container"));
+    formula.appendChild(createEl(MATHJAX_TAG));
     reader.appendChild(formula);
     document.body.appendChild(reader);
 
@@ -160,11 +163,11 @@ Second.`,
     const firstFormula = createSpan();
     firstFormula.className = "math math-inline";
     firstFormula.setAttribute("data-math", "$x$");
-    firstFormula.appendChild(createEl("mjx-container"));
+    firstFormula.appendChild(createEl(MATHJAX_TAG));
     const secondFormula = createSpan();
     secondFormula.className = "math math-inline";
     secondFormula.setAttribute("data-math", "$y$");
-    secondFormula.appendChild(createEl("mjx-container"));
+    secondFormula.appendChild(createEl(MATHJAX_TAG));
     const paragraph = createEl("p");
     paragraph.append("Before ", firstFormula, " between ", secondFormula, " after.");
     reader.appendChild(paragraph);
@@ -186,7 +189,7 @@ Second.`,
     const formula = createSpan();
     formula.className = "math math-inline";
     formula.setAttribute("data-math", "$x$");
-    formula.appendChild(createEl("mjx-container"));
+    formula.appendChild(createEl(MATHJAX_TAG));
     const paragraph = createEl("p");
     paragraph.append("Before ", formula, " after.");
     reader.appendChild(paragraph);

@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi, type Mock } from "vitest";
 import {
   openSettingsOnTop,
   type SettingManager,
@@ -11,6 +11,8 @@ import {
 // container at the end of <body>, close() removes it.
 function createSettingsModal(): SettingManager & {
   containerEl: HTMLElement;
+  open: Mock<() => void>;
+  close: Mock<() => void>;
 } {
   const containerEl = createDiv({
     cls: "modal-container mod-settings-container",
