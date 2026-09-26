@@ -683,28 +683,28 @@ and the image cache is not destroyed.
 
 ### Behavior to pin, not fix
 
-Each of these gets its own issue before the characterization tests that pin
-it. The issue links replace this list once they are filed.
+Items 1–6 are filed as issues, so pinned tests can cite them. Items 7–9 may be
+intended and are raised in this ADR's review first.
 
-1. **A failed settings load.**
+1. **A failed settings load** ([#447](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/447)).
    - It assigns the shared, unfrozen `DEFAULT_SETTINGS` constant itself
      (3019).
    - After a reload, it does so without rebuilding services that may already
      have been rebuilt around the loaded object.
    - No later save checks for the failure, so the next save can write the
      defaults over the user's data.
-2. **Stale reader view.** An open reader view keeps the settings object and
+2. **Stale reader view** ([#448](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/448)). An open reader view keeps the settings object and
    `ArticleSaver` from before a reload.
-3. **Nothing stopped on unload.** `onunload` leaves image-cache workers,
+3. **Nothing stopped on unload** ([#449](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/449)). `onunload` leaves image-cache workers,
    refresh batches and background imports running.
-4. **Automatic refresh stays off after an early refresh.** A manual refresh
+4. **Automatic refresh stays off after an early refresh** ([#450](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/450)). A manual refresh
    during the startup delay leaves automatic refresh off for the whole
    session (1305–1310, 3864–3869, and the scheduler's `started` check).
-5. **Busy OPML or Discover import.** When one starts while an operation runs,
+5. **Busy OPML or Discover import** ([#451](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/451)). When one starts while an operation runs,
    it saves the new feeds but does not fetch them. The notice still says
    articles will be fetched in the background (`background-import-service.ts`
    266–281, main.ts 1886).
-6. **Possibly unintended: folder repair.** The first load skips folder-path
+6. **Possibly unintended: folder repair** ([#452](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/452)). The first load skips folder-path
    repair (2621–2622).
 7. **Possibly unintended: orphaned imports.** Imports and factory reset
    replace the background import service and orphan a running import's
@@ -740,8 +740,8 @@ Still open:
    built once? If it settles on something else, this ADR is amended before it
    is accepted.
 2. **Possibly unintended behaviors.** Were items 6–9 in the list above
-   intended? Items 7–9 are raised here rather than filed, and are pinned
-   either way.
+   intended? Item 6 is filed as #452; items 7–9 are raised here rather than
+   filed. All four are pinned either way.
 
 ## Related
 
