@@ -130,6 +130,40 @@ When a new issue arrives:
    `status: blocked` plus a "Blocked by #…" line in the body.
 4. Add a milestone once it's scheduled.
 
+## Labels through the workflow
+
+Labels track an issue through the **Idea-to-Release Workflow** in
+[`README.md`](./README.md#idea-to-release-workflow). Each stage changes them as
+follows.
+
+| Stage | Label and milestone changes |
+| --- | --- |
+| Issue opened | The bug and feature templates apply `bug` or `enhancement` plus `status: needs-triage`; the refactor template applies `refactor` |
+| Triaged | Follow the triage checklist above: `status: accepted` (or `blocked`, `needs-info`, `wontfix`), plus a priority and an area |
+| Scheduled | A release milestone, or `vNext` if it's accepted but not scheduled |
+| Ready to pick up | Add `ready-for-agent` or `ready-for-human` once the issue is specified well enough to hand off |
+| Work starts | `status: in-progress`, and an issue branch named per [`branch-naming.md`](../agents/branch-naming.md) |
+| Fix needs manual checks | `status: ready-for-testing` while a pull request waits on a fixture-vault or beta checklist |
+| Merged | A pull request that says `Fixes #…` closes the issue on merge to `dev` (the default branch). Closed issues don't need a status. Use `status: pending-release` only for an issue that stays open until a release, for example a fix on a release branch |
+
+### Suggested agent workflow (optional)
+
+Contributors choose their own tools, and nothing here is required. The
+maintainers use [Matt Pocock's skills](https://github.com/mattpocock/skills),
+plus local variants of some of them (`grill`, `to-issue`). Each step in that
+flow keeps the labels above:
+
+1. `grill-with-docs` and `to-spec` to settle an idea, then `to-tickets` to turn
+   the spec into issues (`status: accepted`, plus `ready-for-agent` or
+   `ready-for-human`).
+2. `triage` for issues that arrive from outside (`status: needs-triage` to a
+   decision).
+3. `implement` on an issue branch (`status: in-progress`), then `code-review`
+   before the pull request.
+4. `wayfinder` maps for larger, multi-issue efforts (`wayfinder:` labels).
+
+Whatever tools you use, apply the same label changes at each stage.
+
 ## Agent triage roles
 
 The agent skills we use come from Matt Pocock's
