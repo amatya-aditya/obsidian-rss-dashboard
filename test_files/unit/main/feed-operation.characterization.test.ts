@@ -80,6 +80,7 @@ interface HeldFetch {
   url: string;
   signal?: AbortSignal;
   settle: () => void;
+  fail: (error: Error) => void;
 }
 
 /** Plugin members the tests replace or call. All of them stay in main.ts. */
@@ -180,13 +181,17 @@ function createDashboardDouble(calls: ViewCall[]): DashboardDouble {
 
 function createParser(held: HeldFetch[]): ParserDouble {
   const hold = (url: string, result: Feed, signal?: AbortSignal) =>
-    new Promise<Feed>((resolve) => {
+    new Promise<Feed>((resolve, reject) => {
       const fetch: HeldFetch = {
         url,
         signal,
         settle: () => {
           held.splice(held.indexOf(fetch), 1);
           resolve(result);
+        },
+        fail: (error) => {
+          held.splice(held.indexOf(fetch), 1);
+          reject(error);
         },
       };
       held.push(fetch);
@@ -329,6 +334,13 @@ async function settle(harness: Harness, url: string): Promise<void> {
 
 function heldUrls(harness: Harness): string[] {
   return harness.held.map((fetch) => fetch.url);
+}
+
+function fetchedUrls(fetch: Mock<(...args: never[]) => unknown>): string[] {
+  return fetch.mock.calls.map((call) => {
+    const [target] = call as unknown[];
+    return typeof target === "string" ? target : (target as Feed).url;
+  });
 }
 
 function isSettled(promise: Promise<unknown>): () => boolean {
@@ -477,6 +489,25 @@ describe("global feed operation: refresh-all batch", () => {
     await refresh;
 
     expect(plugin.globalRefreshProgress).toEqual({ completed: 0, total: 0 });
+  });
+
+  it("counts a feed whose fetch fails as settled", async () => {
+    const feeds = [createFeed("a"), createFeed("b")];
+    const harness = createHarness(feeds);
+    const { plugin } = harness;
+
+    const refresh = plugin.refreshFeeds();
+    await flush();
+    heldFetch(harness, feeds[0].url).fail(new Error("network down"));
+    await flush();
+
+    expect(plugin.globalRefreshProgress).toEqual({ completed: 1, total: 2 });
+
+    await settle(harness, feeds[1].url);
+    await refresh;
+    expect(notices()).toContain(
+      "Feeds refreshed: 2 feeds (1 failed) Shift+click Refresh all feeds to retry failed feeds.",
+    );
   });
 
   it("marks every feed pending when the batch starts, and processing once its fetch begins", async () => {
@@ -1006,6 +1037,46 @@ describe("global feed operation: background import (OPML import, Discover add al
     expect(statusRedraws(harness).slice(-1)).toEqual(["full"]);
   });
 
+  it("stops the import: feeds still queued are never fetched, nothing reports completion, and they can be refreshed later", async () => {
+    // One more feed than the fetch limit (8), so the last one is still queued.
+    const urls = Array.from(
+      { length: 9 },
+      (_, index) => `https://example.com/imported-${index}.xml`,
+    );
+    const harness = createHarness();
+    const { plugin, parser } = harness;
+
+    await plugin.ingestFeedsForBackgroundImport(
+      urls.map((url) => ({ title: url, url })),
+      { globalOperation: true },
+    );
+    await flush();
+    expect(heldUrls(harness)).toEqual(urls.slice(0, 8));
+
+    plugin.cancelGlobalRefresh();
+    for (const url of heldUrls(harness)) await settle(harness, url);
+    await until(() => !plugin.isMultiFeedRefreshActive);
+    await flush();
+
+    expect(fetchedUrls(parser.parseFeed)).not.toContain(urls[8]);
+    expect(
+      notices().some((notice) =>
+        notice.startsWith("Background import completed."),
+      ),
+    ).toBe(false);
+    expect(plugin.backgroundImportQueue).toEqual([]);
+
+    // Nothing still counts it as being imported, so it refreshes normally.
+    const queued = plugin.settings.feeds.find((feed) => feed.url === urls[8]);
+    if (!queued) throw new Error("The queued feed was not saved");
+    const refresh = plugin.refreshFeeds([queued]);
+    await flush();
+    expect(fetchedUrls(parser.refreshFeed)).toEqual([urls[8]]);
+
+    await settle(harness, urls[8]);
+    await refresh;
+  });
+
   it("saves the imported feeds but never fetches them when another operation runs", async () => {
     // BUG: pinned, see #451. The import is refused as a global operation, but
     // its placeholder feeds are saved and reported as added, and nothing ever
@@ -1159,6 +1230,55 @@ describe("global feed operation: Stop", () => {
     );
   });
 
+  it("leaves a stopped feed's last error and last attempt time as they were", async () => {
+    const harness = createHarness([
+      createFeed("a", {
+        lastFetchError: "old error a",
+        lastRefreshAttemptCompletedAt: 123,
+      }),
+      createFeed("b", {
+        lastFetchError: "old error b",
+        lastRefreshAttemptCompletedAt: 456,
+      }),
+    ]);
+    const { plugin } = harness;
+
+    const refresh = plugin.refreshFeeds();
+    await flush();
+    plugin.cancelGlobalRefresh();
+    // Both fetches give up on the abort; neither ever settles.
+    await refresh;
+
+    expect(
+      plugin.settings.feeds.map((feed) => [
+        feed.lastFetchError,
+        feed.lastRefreshAttemptCompletedAt,
+      ]),
+    ).toEqual([
+      ["old error a", 123],
+      ["old error b", 456],
+    ]);
+  });
+
+  it("never starts a feed that was still waiting for a fetch slot when stopped", async () => {
+    // One more feed than the fetch limit (8), so the last one has to wait.
+    const feeds = Array.from({ length: 9 }, (_, index) =>
+      createFeed(`feed-${index}`),
+    );
+    const harness = createHarness(feeds);
+    const { plugin, parser } = harness;
+
+    const refresh = plugin.refreshFeeds();
+    await flush();
+    expect(heldUrls(harness)).toEqual(feeds.slice(0, 8).map((feed) => feed.url));
+
+    plugin.cancelGlobalRefresh();
+    await refresh;
+
+    expect(fetchedUrls(parser.refreshFeed)).not.toContain(feeds[8].url);
+    expect(plugin.settings.feeds[8].lastUpdated).toBe(1);
+  });
+
   it("stops a scheduled global refresh promptly when a feed ignores its abort signal", async () => {
     const harness = createHarness([createFeed("slow")]);
     const { plugin } = harness;
@@ -1189,6 +1309,36 @@ describe("global feed operation: Stop", () => {
     await refresh;
 
     expect(plugin.settings.lastGlobalRefreshCompletedAt).toBe(42);
+  });
+});
+
+describe("global feed operation: automatic refresh", () => {
+  it("holds a due automatic refresh while an operation runs, and starts it within a second of the end", async () => {
+    const due = createFeed("due");
+    const url = "https://example.com/discovered.xml";
+    const harness = createHarness([due]);
+    const { plugin, parser } = harness;
+    // Refresh every 60 minutes; never refreshed, so the global refresh is due.
+    plugin.settings.refreshInterval = 60;
+
+    const added = addFeed(plugin, url, {
+      showNotice: false,
+      globalOperation: true,
+    });
+    await flush();
+    (plugin as unknown as PluginSeams).ensureAutoRefreshScheduler().start();
+    await vi.advanceTimersByTimeAsync(3_000);
+
+    expect(parser.refreshFeed).not.toHaveBeenCalled();
+    expect(notices()).toEqual([]);
+
+    await settle(harness, url);
+    expect(await added).toBe(true);
+    await vi.advanceTimersByTimeAsync(1_000);
+
+    expect(notices()).toContain("Refreshing 2 feeds...");
+    expect(fetchedUrls(parser.refreshFeed)).toEqual([due.url, url]);
+    expect(plugin.isGlobalRefreshCancellable).toBe(true);
   });
 });
 
