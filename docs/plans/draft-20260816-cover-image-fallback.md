@@ -1,12 +1,13 @@
 ---
 status: proposed
-created: ""
+created: 2026-08-16
 issue: ""
 milestone: ""
 owner: unassigned
-workstream: ""
+workstream: "article metadata"
 sequence: null
-depends_on: ["#263", "#247"]
+depends_on:
+  - "https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/247"
 release_requirement: ""
 implementation: ""
 ---

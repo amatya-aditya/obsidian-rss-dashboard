@@ -38,6 +38,10 @@ records the documentation classification.
 | [Ticket 02: Add JSDoc to high-risk modules](plans/v2.7.0/249-02-add-jsdoc-high-risk-modules.md) | 2026-09-11 | [GH Issue #249](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/249) | [PR #250](https://github.com/amatya-aditya/obsidian-rss-dashboard/pull/250) |
 | [Ticket 03: Standardize error handling](plans/v2.7.0/249-03-standardize-error-handling.md) | 2026-09-11 | [GH Issue #249](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/249) | [PR #250](https://github.com/amatya-aditya/obsidian-rss-dashboard/pull/250) |
 | [Ticket 04: Final validation and commit](plans/v2.7.0/249-04-final-validation-commit.md) | 2026-09-11 | [GH Issue #249](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/249) | [PR #250](https://github.com/amatya-aditya/obsidian-rss-dashboard/pull/250) |
+| [Pre-release repo-hygiene checklist and scan script](plans/v2.7.0/262-pre-release-checklist.md) | 2026-09-15 | [GH Issue #262](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/262) | `180edeec` |
+| [Auto-backup reliability](plans/v2.7.0/320-auto-backup-reliability.md) | 2026-09-20 | [GH Issue #320](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/320) | [PR #321](https://github.com/amatya-aditya/obsidian-rss-dashboard/pull/321) |
+| [Real-time per-feed refresh status](plans/v2.7.0/324-real-time-feed-refresh-status.md) | 2026-09-20 | [GH Issue #324](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/324) | [PR #325](https://github.com/amatya-aditya/obsidian-rss-dashboard/pull/325) |
+| [Obsidian test stub fidelity](plans/v2.7.0/372-stub-fidelity.md) | 2026-09-26 | [GH Issue #372](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/372) | PRs #406 to #430; follow-ups in [#431](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/431) |
 | [Export Bundle Hierarchy Plan](plans/v2.7.0/254-export-bundle-hierarchy.md) | 2026-09-12 | [GH Issue #254](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/254) | - |
 | [Ticket 01: Build Feed and Settings bundles](plans/v2.7.0/254-export-bundle-hierarchy/tickets/01-build-feed-and-settings-bundles.md) | 2026-09-12 | [GH Issue #254](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/254) | - |
 | [Ticket 02: Import Feed and Settings bundles](plans/v2.7.0/254-export-bundle-hierarchy/tickets/02-import-feed-and-settings-bundles.md) | 2026-09-12 | [GH Issue #254](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/254) | - |
@@ -88,6 +92,7 @@ _Empty: every implemented plan has been archived under its release._
 | --- | --- | --- |
 | [Legacy public roadmap](plans/unshipped/public-roadmap-legacy.md) | Superseded 2026-09-21 | Replaced by [`docs/plans/public-roadmap.md`](../plans/public-roadmap.md). |
 | [MP4 hero images](plans/unshipped/mp4-hero-images.md) | Deferred 2026-03-27 | The original attempt was reverted because video URL parsing needed more investigation. |
+| [Shard storage v2 sync mitigations](plans/unshipped/v2-sync-mitigations.md) | Deferred 2026-09-27 | A conditional fallback: do it only if Sync V3 ([#274](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/274)) slips so far that v2 stays the only sync mode for another release cycle. |
 
 ## Rejected plans
 

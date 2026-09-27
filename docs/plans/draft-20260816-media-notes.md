@@ -1,10 +1,10 @@
 ---
 status: idea
-created: ""
+created: 2026-08-16
 issue: ""
 milestone: ""
 owner: unassigned
-workstream: ""
+workstream: "media"
 sequence: null
 depends_on: []
 release_requirement: ""

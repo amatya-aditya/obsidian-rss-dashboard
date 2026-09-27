@@ -1,14 +1,9 @@
 ---
-status: accepted
-created: 2026-09-14
+status: implemented
+completed: 2026-09-15
+released_in: 2.7.0
 issue: "https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/262"
-milestone: "2.7.0"
-owner: unassigned
-workstream: ""
-sequence: null
-depends_on: []
-release_requirement: ""
-implementation: ""
+implementation: "180edeec"
 ---
 
 # Pre-release repo-hygiene checklist and scan script

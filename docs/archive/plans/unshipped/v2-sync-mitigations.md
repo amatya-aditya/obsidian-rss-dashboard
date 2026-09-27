@@ -1,12 +1,13 @@
 ---
-status: proposed
+status: deferred
 created: 2026-09-15
 issue: ""
 milestone: ""
 owner: unassigned
 workstream: "storage"
 sequence: null
-depends_on: [278]
+depends_on:
+  - "https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/274"
 release_requirement: ""
 implementation: ""
 ---

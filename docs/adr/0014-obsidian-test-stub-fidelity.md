@@ -136,4 +136,4 @@ instead of re-deriving it.
   — type-checking test files against the real API
 - [GitHub Issue #253](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/253)
   — architecture drift guardrails
-- [Plan: Obsidian test stub fidelity](../plans/372-stub-fidelity.md)
+- [Plan: Obsidian test stub fidelity](../archive/plans/v2.7.0/372-stub-fidelity.md)
