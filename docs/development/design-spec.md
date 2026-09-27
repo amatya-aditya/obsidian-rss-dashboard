@@ -1,7 +1,21 @@
+---
+status: active
+owner: maintainers
+last_reviewed: 2026-09-27
+obsidian_reference: "1.13.7 desktop"
+min_app_version: "1.8.7"
+related:
+  - docs/adr/0014-obsidian-test-stub-fidelity.md
+  - docs/development/compliance-patterns.md
+  - docs/development/test_coverage/testing-guide.md
+  - docs/development/fixture-vault.md
+---
+
 # RSS Dashboard Design Spec
 
 ## Update History
 
+- 2026-09-27: Fact-check against the code: stylesheet ownership after the CSS split, Tier 1 navigation (Home, Kagi Small Web, back to Discover), breakpoints, token snapshot, destructive tokens, and the Obsidian 1.13 modal close button. Add metadata, **Testing UI Changes**, and **Open Questions**
 - 2026-05-31: Replace !important icon rendering workaround with contain/will-change pattern; add §Android WebView SVG Rendering
 - 2026-04-25: Add branding guidance for logo typography and asset storage
 - 2026-03-17: Standardize icon rendering using clickable-icon pattern for Android compatibility
@@ -26,12 +40,21 @@ This document defines the UI design rules for the plugin so visual changes are c
 
 ## Source of Truth Files
 
-- `src/styles/layout.css`
-- `src/styles/discover.css`
-- `src/styles/modals.css`
-- `src/styles/controls.css`
-- `src/styles/reader.css`
-- `src/styles/sidebar.css`
+Styles live in `src/styles/`, one file per surface, imported in order by
+`src/styles/index.css`. The files this spec governs most directly:
+
+- `src/styles/layout.css`: dashboard shell and Tier 1 navigation buttons
+- `src/styles/sidebar.css`: dashboard sidebar, feed and folder rows, toolbar icons
+- `src/styles/modals.css`: shared modal shell, mobile modal headers and insets, shared primary and danger buttons
+- Per-modal files: `add-feed-modal.css`, `edit-feed-modal.css`, `feed-manager-modal.css`, `feed-preview-modal.css`, `import-opml-modal.css`, `import-starred-modal.css`
+- `src/styles/controls.css`, `controls-dropdown.css`, `controls-filter-bar.css`: shared controls
+- `src/styles/discover.css`: Discover cards
+- `src/styles/discover-sidebar.css`, `discover-sidebar-nav.css`, `discover-sidebar-filters.css`: Discover sidebar, secondary tabs, and filters
+- `src/styles/kagi-smallweb.css`: Kagi Small Web view
+- `src/styles/reader.css`: Reader, including the format menu and status banners
+
+Breakpoint values come from `src/utils/platform-utils.ts` (see
+**Responsive Intent by Breakpoint**).
 
 If this spec conflicts with existing CSS, update CSS to match this spec unless there is a documented exception.
 
@@ -70,11 +93,11 @@ Use this format when adding or updating governed surfaces:
 Current governed surfaces:
 
 - Dashboard primary navigation
-  - Canonical selector / owner: `.rss-dashboard-nav-button` in `src/styles/layout.css`
-  - Purpose: global top-level view switching and return navigation
+  - Canonical selector / owner: `.rss-dashboard-nav-button` in `src/styles/layout.css` (overridden for modals in `src/styles/modals.css`); used by `src/components/discover-sidebar.ts` and `src/views/kagi-smallweb-view.ts`
+  - Purpose: switching between the Dashboard, Discover, and Kagi Small Web views
   - Visual hierarchy role: Tier 1 primary navigation
 - Discover secondary navigation
-  - Canonical selector / owner: `.rss-discover-sidebar-nav button` in `src/styles/discover.css` and `src/components/discover-sidebar.ts`
+  - Canonical selector / owner: `.rss-discover-sidebar-nav button` in `src/styles/discover-sidebar-nav.css` and `src/components/discover-sidebar.ts`
   - Purpose: local content-mode switching inside Discover
   - Visual hierarchy role: Tier 2 secondary navigation
 - Mobile modal headers and close affordances
@@ -82,7 +105,7 @@ Current governed surfaces:
   - Purpose: mobile-specific top bar layout, safe-area ownership, dismiss action
   - Visual hierarchy role: structural shell controls
 - Accent CTA buttons
-  - Canonical selector / owner: `.rss-dashboard-primary-button`, `.rss-discover-ok-button` in `src/styles/modals.css` and `src/styles/discover.css`
+  - Canonical selector / owner: `.rss-dashboard-primary-button` in `src/styles/modals.css` (with import-modal variants in `import-opml-modal.css` and `import-starred-modal.css`), `.rss-discover-ok-button` in `src/styles/discover-sidebar-filters.css`
   - Purpose: confirm, save, proceed, or commit actions
   - Visual hierarchy role: primary action
 - Neutral buttons
@@ -90,7 +113,7 @@ Current governed surfaces:
   - Purpose: secondary actions that should not visually outrank primary CTAs
   - Visual hierarchy role: supporting action
 - Destructive buttons
-  - Canonical selector / owner: `.rss-dashboard-danger-button`, `.rss-clear-filter-button`, `.rss-discover-card-remove-btn`
+  - Canonical selector / owner: `.rss-dashboard-danger-button` in `src/styles/modals.css` (plus the import modals), `.rss-clear-filter-button` in `src/styles/discover-sidebar-filters.css`, `.rss-discover-card-remove-btn` in `src/styles/discover.css`
   - Purpose: delete, clear, cancel-destructive, or unfollow/remove actions
   - Visual hierarchy role: destructive action
 - Clickable-icon controls
@@ -102,7 +125,7 @@ Current governed surfaces:
   - Purpose: feed and Smallweb result presentation with metadata and actions
   - Visual hierarchy role: content container
 - Discover filter controls
-  - Canonical selector / owner: `.rss-discover-filter-header`, `.rss-discover-filter-controls`, `.rss-discover-filter-container`
+  - Canonical selector / owner: `.rss-discover-filter-header` and `.rss-discover-filter-controls` in `src/styles/discover-sidebar-filters.css`; `.rss-discover-filter-container` in `src/styles/discover-sidebar.css` (no code applies this class today; see **Open Questions**)
   - Purpose: search, sort, filter, and bulk action grouping
   - Visual hierarchy role: supportive control surface
 - Reader restricted banner
@@ -119,7 +142,15 @@ Reader restricted banner styling note:
 
 ### Tier 1: Primary Tabs
 
-Primary tabs are `Dashboard` and `Discover`.
+Tier 1 navigation moves between the plugin's views:
+
+- In Discover's header: **Home** (back to the Dashboard) and **Kagi** (Kagi Small Web).
+- In the Kagi Small Web view: **← Discover**.
+
+The Dashboard itself reaches Discover through the **Discover** icon in the
+sidebar toolbar (`src/components/sidebar.ts`), whose position users can change
+in settings. That icon follows the clickable-icon pattern, not the Tier 1
+button style.
 
 Visual rules:
 
@@ -149,7 +180,7 @@ Canonical selector:
 
 ## Tab Component Specs
 
-### Primary Tabs (Dashboard/Discover)
+### Primary Navigation Buttons (Tier 1)
 
 - Display: centered inline-flex
 - Active treatment: filled accent background
@@ -175,8 +206,17 @@ Canonical selector:
 ## Responsive Intent by Breakpoint
 
 - Desktop: `> 1200px`
-- Tablet and below: `<= 1200px`
-- Mobile: `<= 768px`
+- Tablet and below: `<= 1200px` (`TABLET_LAYOUT_MAX_WIDTH` in `src/utils/platform-utils.ts`)
+- Mobile: `<= 768px` (`PHONE_MAX_WIDTH`)
+
+These tiers use the width of the window showing the view, not the device. At
+tablet width and below, the dashboard sidebar becomes a drawer
+(`shouldUseMobileSidebarLayout`), including in a narrow desktop window.
+
+Some components also use their own breakpoints (`600px`, `400px`,
+`1024px`, `1600px`) and a touch query, `(hover: none) and (pointer: coarse)`.
+New rules should use the three tiers above unless a component has a documented
+reason to differ.
 
 Rules:
 
@@ -225,18 +265,22 @@ Preferred tokens:
 - `--background-secondary`
 - `--background-modifier-border`
 
-Most-used tokens in current stylesheet usage snapshot:
+Most-used Obsidian tokens, by `var()` uses in `src/styles/` on 2026-09-27 (count in parentheses):
 
-- `--background-modifier-border`: default borders, dividers, and neutral outlines
-- `--text-normal`: primary body and control text
-- `--text-muted`: secondary text, helper copy, and subdued icon color
-- `--interactive-accent`: primary interactive accent for active states, pills, and CTA surfaces
-- `--background-secondary`: raised neutral surfaces such as cards, controls, and grouped rows
-- `--background-modifier-hover`: hover fill for neutral controls
-- `--background-primary`: base app surface and input backgrounds
-- `--text-on-accent`: high-contrast text/icon color on accent-filled surfaces
-- `--text-accent`: accent-colored text treatment without a filled background
-- `--color-accent`: theme accent used by nav tabs and some legacy/high-emphasis surfaces
+- `--background-modifier-border` (256): default borders, dividers, and neutral outlines
+- `--text-normal` (219): primary body and control text
+- `--interactive-accent` (200): primary interactive accent for active states, pills, and CTA surfaces
+- `--text-muted` (171): secondary text, helper copy, and subdued icon color
+- `--background-modifier-hover` (87): hover fill for neutral controls
+- `--background-secondary` (86): raised neutral surfaces such as cards, controls, and grouped rows
+- `--background-primary` (75): base app surface and input backgrounds
+- `--text-on-accent` (67): high-contrast text/icon color on accent-filled surfaces
+- `--text-accent` (46): accent-colored text treatment without a filled background
+- `--icon-size` (40): icon dimensions; see **Icon Rendering Standards**
+- `--interactive-normal` (25) and `--interactive-hover` (18): Obsidian's neutral button fill and its hover
+- `--color-accent` (20): theme accent used by Tier 1 navigation and some legacy high-emphasis surfaces
+
+Destructive and error states use `--text-error` and `--background-modifier-error`.
 
 Accent button pairing rule:
 
@@ -481,6 +525,67 @@ unscoped `body` prefix. If a core property is itself important, redesign the
 plugin-owned wrapper or style a different local property rather than entering
 a specificity escalation that requires the same declaration.
 
+## Obsidian Core Surfaces and Version Differences
+
+Plugin styles and code sometimes touch Obsidian's own elements. Obsidian's DOM
+changes between versions, and the plugin supports everything from
+`minAppVersion` (1.8.7) to the current release, so target both shapes.
+
+- **Modal close button.** In Obsidian 1.13 it's `.modal-header-button.mod-raised.clickable-icon`,
+  a direct child of `modalEl`, and the title sits in `.modal-header`. Older
+  releases render `.modal-close-button` instead. When a modal replaces the
+  native close button, use `removeNativeModalCloseButton` in
+  `src/utils/modal-close-button.ts`, which handles both. CSS that styles or hides
+  the native button must list both selectors.
+- **Checking a version difference.** `test_files/stubs/obsidian.contract.test.ts`
+  records the Obsidian behavior the test stub models, with the version it was
+  observed on. Check it before styling or querying a core element, and add an
+  expectation when you rely on a new one (ADR 0014).
+
+## Testing UI Changes
+
+Unit tests run in jsdom against `test_files/stubs/obsidian.ts`, which models
+Obsidian 1.13.7 desktop (ADR 0014). It's accurate for structure and behavior,
+but jsdom doesn't lay out or paint anything. Split checks accordingly:
+
+- **Test in unit tests:** element structure and classes, `aria-label` and
+  `role`, which icon was set, and keyboard parity. For an icon button, dispatch
+  `Enter` and `Space` `keydown` events and assert the action ran. The stub's
+  `setIcon` records the icon name in `data-icon` and doesn't insert an SVG,
+  so assert on `data-icon`, not on SVG markup. `setTooltip` stores its text
+  in `aria-label`, as Obsidian does. Use `activeDocument` and the element's
+  own window so tests also cover popouts.
+- **Check by hand:** layout, breakpoints, colors in light and dark themes,
+  focus rings, and Android and iOS icon rendering. Use the fixture vault
+  (`npm run fixture:vault`, see `docs/development/fixture-vault.md`) at
+  desktop width, at tablet width (a window of 1200px or less), and with
+  `app.emulateMobile(true)`. Test real devices for the Android WebView SVG
+  fixes.
+
+See `docs/development/test_coverage/testing-guide.md` for the testing rules.
+
+## Open Questions
+
+Found in the 2026-09-27 review. Each needs a decision or its own issue.
+
+- **Icon button element.** This spec requires a `div.clickable-icon` with
+  `role="button"` and `tabindex="0"`. About 34 controls follow it, but
+  29 files build icon buttons from a native `<button>` plus `setIcon`. Native
+  buttons get keyboard support and semantics without extra code, which WAI-ARIA
+  prefers. Decide whether new code may use either form, then update
+  **Icon Rendering Standards**.
+- **Native close button CSS.** Rules in `src/styles/modals.css` style or hide
+  only `.modal-close-button` (for example the shortcut help modal hides it, and
+  mobile modals reposition it). Those rules don't match Obsidian 1.13's
+  `.modal-header-button`. Verify in the fixture vault, then fix under its own
+  issue.
+- **Keyboard access in Kagi Small Web.** The view's **← Discover** button is a
+  `div` without `role` or `tabindex`, so it can't be reached by keyboard.
+- **Unused classes.** `.rss-discover-filter-container` has CSS but no code
+  applies it. `.rss-mobile-platform-android` is applied but has no CSS rules.
+- **Dead code.** `src/views/discover-view.ts` builds a "✦ Smallweb" button
+  and removes it on the next line.
+
 ---
 
 ## Change Management
@@ -494,7 +599,7 @@ When a visual pattern changes:
 ## Known Exceptions / Legacy Patterns
 
 - `--color-accent` remains an approved token for established high-emphasis nav surfaces and a small number of legacy accent-forward controls. Do not treat that as the default accent choice for all new buttons.
-- Some destructive controls still use hardcoded red values in Discover and adjacent surfaces. These are tolerated as legacy exceptions, but new destructive patterns should prefer documented destructive tokens when available or be explicitly justified.
+- Destructive controls use `--text-error` and `--background-modifier-error` (or `--color-red` with a fallback). The remaining hardcoded reds are `#e74c3c` borders in `src/styles/podcast-themes.css` and the YouTube badge color `--rss-color-youtube-badge: #ff0000` in `src/styles/modals.css`, which is a brand color. New destructive styles use the Obsidian tokens.
 - Discover header nav buttons and related accent-forward controls intentionally inherit parts of the primary nav visual language. Reuse this pattern only when the control is acting as high-emphasis navigation, not as a generic action button.
 - Transitional legacy patterns may remain in place when replacing them immediately would create broad visual churn, but they should not be copied into new components without documenting the reason.
 
@@ -505,8 +610,8 @@ When a visual pattern changes:
 - Icon-only quick actions in the reader format menu must use scoped `.rss-reader-format-*` selectors together with the `clickable-icon` pattern.
 - Lower-frequency reader format controls belong in the `Display` settings tab under the `Reader` section.
 
-## Known Current Conventions (March 2026)
+## Known Current Conventions (September 2026)
 
-- Primary tabs are implemented in `layout.css` and overridden in `modals.css`.
-- Discover secondary tabs are implemented in `discover.css`, including modal-specific rules.
+- Tier 1 navigation buttons are implemented in `layout.css` and overridden in `modals.css`.
+- Discover secondary tabs are implemented in `discover-sidebar-nav.css`, including modal-specific rules.
 - Discover secondary tabs use an underline active state to remain visually subordinate to primary tabs.
