@@ -11,7 +11,20 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    # Major versions are planned upgrades, not automatic PRs (see issue #512).
+    # Security updates still arrive: ignore rules apply to version updates only.
+    ignore:
+      - dependency-name: "*"
+        update-types:
+          - version-update:semver-major
     groups:
+      # vitest and its plugins pin each other exactly, so they must update
+      # together. A dependency joins the first group it matches, so this
+      # group stays above the catch-all.
+      vitest:
+        patterns:
+          - "vitest"
+          - "@vitest/*"
       npm-minor-and-patch:
         patterns:
           - "*"
