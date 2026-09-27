@@ -437,7 +437,7 @@ Added collapsible headers when viewing feeds in "feed" grouping ([GH Issue #149]
 - Added a new `Compliance Declarations (Audit Guardrails)` policy section to `CONTRIBUTING.md` with required pre-PR compliance checks.
 - Added `docs/development/compliance-patterns.md` as the canonical implementation reference for audit-sensitive patterns (safe HTML rendering, boundary typing, popout-safe APIs, and DOM helper conventions).
 - Added root `.instructions.md` and linked policy references in README/development docs/scorecard so AI-assisted and human contributions follow the same compliance guardrails.
-- See: [docs/development/test-lint-backlog-tracker.md](docs/development/test-lint-backlog-tracker.md) for detailed test-file lint debt burn-down progress (54 passes, 2686 → 0 errors).
+- See: [docs/archive/investigations/2026/test-lint-backlog-tracker.md](docs/archive/investigations/2026/test-lint-backlog-tracker.md) for detailed test-file lint debt burn-down progress (54 passes, 2686 → 0 errors).
 
 ## [2.3.0-beta.1] - May 11, 2026
 

@@ -58,7 +58,7 @@ Likely files:
 - `.github/workflows/test.yml`
 - `.github/workflows/release.yml`
 - `.github/dependabot.yml` (new)
-- `docs/development/security-hardening-tracker.md`
+- `docs/archive/plans/v2.6.0/181-security-hardening-tracker.md` (archived; remaining work in #495)
 
 Sequence the work so dependency remediation precedes the blocking audit gates.
 Keep the audit commands explicit in the workflows instead of hiding them in a
