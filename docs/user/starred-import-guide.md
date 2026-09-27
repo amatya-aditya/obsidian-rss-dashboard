@@ -7,7 +7,7 @@ fetched, and how tagging works during the import preview. Reach it from the
 command palette, the Settings tab, or the Feed Manager's button row.
 
 Inoreader and FreshRSS exports are both confirmed to work today — see
-[docs/starred-import-compatibility.md](starred-import-compatibility.md) for
+[docs/user/starred-import-compatibility.md](starred-import-compatibility.md) for
 exactly what's tested per service and the policy for confirming a new one.
 
 ## What it does

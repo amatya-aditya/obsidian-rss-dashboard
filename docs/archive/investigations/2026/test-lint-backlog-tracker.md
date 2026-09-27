@@ -12,7 +12,7 @@ Scope:
 
 Out of scope:
 
-- Direct plugin audit checklist ownership (tracked in `docs/plugin-scorecard.md`).
+- Direct plugin audit checklist ownership (tracked in `docs/development/plugin-scorecard.md`).
 
 ## Baseline and Handoff
 

@@ -30,7 +30,7 @@ For a user-facing overview, see the [RSS Dashboard 2.7.0 release notes](docs/rel
 
 #### Starred article import
 
-- Added **Import starred articles**, which reads a Google Reader-compatible `starred.json` export (confirmed with Inoreader and FreshRSS) from the command palette, the Feed Manager, or **Settings → Import/Export**. The preview groups articles by source feed with per-article and per-feed selection, and imported articles keep their starred state and the export's read state. Articles for feeds you already follow go straight into those feeds; feeds you don't follow are marked with a trailing `*` in the preview and created in one shared **New-feed folder** (default **Starred imports**). See the [Import Starred Articles Guide](docs/starred-import-guide.md), the [compatibility notes](docs/starred-import-compatibility.md), and [ADR 0003](docs/adr/0003-generalize-starred-import-to-google-reader-compatible-naming.md). [GH Issue #234](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/234) [GH Issue #330](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/330) [GH Issue #337](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/337)
+- Added **Import starred articles**, which reads a Google Reader-compatible `starred.json` export (confirmed with Inoreader and FreshRSS) from the command palette, the Feed Manager, or **Settings → Import/Export**. The preview groups articles by source feed with per-article and per-feed selection, and imported articles keep their starred state and the export's read state. Articles for feeds you already follow go straight into those feeds; feeds you don't follow are marked with a trailing `*` in the preview and created in one shared **New-feed folder** (default **Starred imports**). See the [Import Starred Articles Guide](docs/user/starred-import-guide.md), the [compatibility notes](docs/user/starred-import-compatibility.md), and [ADR 0003](docs/adr/0003-generalize-starred-import-to-google-reader-compatible-naming.md). [GH Issue #234](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/234) [GH Issue #330](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/330) [GH Issue #337](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/337)
 - The import's **Options** panel has two toggles. **New-feed metadata refresh** (off by default) runs one background fetch for each newly created feed's title, icon, and current items; while it is off, a new feed uses the export's own title and site URL until its next normal refresh. **Import labels as tags** (on by default) turns exported `label/…` categories into tags, reusing a matching palette tag's color (case-insensitive) or adding the label to the palette; state categories such as `starred`, `read`, and `reading-list` never become tags. [GH Issue #234](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/234)
 - Before importing, a **New tags (N)** section lists every tag the import will add to the palette and updates live as you change the selection or the options. Each preview row carries a tag chip that opens the standard tag editor, so you can add, remove, or create tags for an article before it is imported; renaming or recoloring a tag there updates every preview row that carries it. The New tags section shows each tag as a colored chip you can click to edit, with buttons beside its heading to give every new tag one color, random colors, or the default color. [GH Issue #234](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/234)
 - Export entries the importer cannot use, such as those missing a source feed or any article link, are listed in an **Unable to import (N)** section with a specific reason instead of being silently dropped. [GH Issue #234](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/234)
@@ -269,14 +269,14 @@ Added collapsible headers when viewing feeds in "feed" grouping ([GH Issue #149]
 - You may now apply multiple auto-tags to articles based upon the sidebar folder they are stored in. This feature is available in the sidebar via right click -> Auto-tag feeds in folder.. You may also target subfolders and may choose to apply tags to all current articles or only future articles.
 - 'Sync folder auto-tags' option adds newly selected folder tags where missing, and remove tag names you deselected from this folder's rule. Other tags (manual tags, per-feed tags, parent folder tags not removed here) are left unchanged.
 - Remove all tags — strip every tag from existing articles in the selected scope, including manual tags and tags from other rules.-
-- This adds to the already existing "auto-tag by feed source" feature introduced in 2.4.0-beta.2. A full guide on all the tagging options are available: [docs/tags-primer.md](docs/tags-primer.md)
+- This adds to the already existing "auto-tag by feed source" feature introduced in 2.4.0-beta.2. A full guide on all the tagging options are available: [docs/user/tags-primer.md](docs/user/tags-primer.md)
 
 #### Shard Storage version 2 (v2)
 
 - Added Shard Storage mode v2 to improve sync reliability across devices. This mode introduces a new user-state.json file alongside data.json, which stores per-article state — read/unread, favorited, saved, tags, and play progress. Feed shard files now contain only article content and the GUID used to link back to user-state.json. data.json now stores only plugin settings.
 - This separation resolves race conditions that previously caused some sync tools (e.g. Remotely Save, WebDAV-based sync) to overwrite read/star/tag changes when a feed refresh on another device landed at the same time.
 - v2 is opt-in: existing users on legacy or v1 storage can migrate via the new "Vault location (v2 — split user state)" option in the Storage settings tab. A confirmation prompt explains the change before migration runs.
-- updated [docs/storage-vault-shards-guide.md](docs/storage-vault-shards-guide.md) to include v2 documentation and comparison of all 3 existing storage modes.
+- updated [docs/user/storage-vault-shards-guide.md](docs/user/storage-vault-shards-guide.md) to include v2 documentation and comparison of all 3 existing storage modes.
 
 #### Sidebar feed fetch status
 
@@ -319,7 +319,7 @@ Added collapsible headers when viewing feeds in "feed" grouping ([GH Issue #149]
   - If no feed-source auto-tags are configured, only the individual feed tags apply.
 
 - Within the Edit feed window, the "Feed options" dropdown now shows a section for inherited feed-source auto-tags where applicable.
-- **Folder auto-tags**: Right-click any folder in the sidebar and choose **Auto tag feeds in folder...** to assign tags that cascade to all feeds in that folder and its descendants. Tags are stored on the configured folder only; child folders inherit parent tags dynamically. Use **Existing articles** to sync folder auto-tags to stored articles (adds new rule tags and removes deselected rule tags while leaving other tags intact) or remove all tags in scope. See [docs/tags-primer.md](docs/tags-primer.md) for precedence and examples.
+- **Folder auto-tags**: Right-click any folder in the sidebar and choose **Auto tag feeds in folder...** to assign tags that cascade to all feeds in that folder and its descendants. Tags are stored on the configured folder only; child folders inherit parent tags dynamically. Use **Existing articles** to sync folder auto-tags to stored articles (adds new rule tags and removes deselected rule tags while leaving other tags intact) or remove all tags in scope. See [docs/user/tags-primer.md](docs/user/tags-primer.md) for precedence and examples.
 
 #### Podcast Player
 
@@ -403,7 +403,7 @@ Added collapsible headers when viewing feeds in "feed" grouping ([GH Issue #149]
 
 ### Features
 
-- Added configurable metadata `data.json` location with dedicated migration controls and backup/import-export support. See: [docs/storage-vault-shards-guide.md](docs/storage-vault-shards-guide.md).
+- Added configurable metadata `data.json` location with dedicated migration controls and backup/import-export support. See: [docs/user/storage-vault-shards-guide.md](docs/user/storage-vault-shards-guide.md).
 - Fixed Bloomberg-style video feed items being misclassified as restricted articles by improving media type detection (including image-first `media:content` handling and conservative video-route fallback), and added regression coverage for parser, media classification, reader surfaces, and save flow to prevent false paywall notices/banners.
 - Added paywall/restricted-content detection so the Reader shows a banner when only excerpted content is available.
 - Added automatic `Video` tagging for detected non-YouTube video items, plus a new **Settings > Media > Auto-tag videos** toggle (enabled by default). Existing users are migrated/backfilled safely.
@@ -427,7 +427,7 @@ Added collapsible headers when viewing feeds in "feed" grouping ([GH Issue #149]
   - Replaced third-party `builtin-modules` dependency with native `module.builtinModules`.
   - Removed all deprecated Clipboard API fallbacks.
   - Final validation: ESLint clean (0 errors, 0 warnings), 130/130 test files passing (1180 tests).
-  - See: [docs/plugin-scorecard.md](docs/plugin-scorecard.md)
+  - See: [docs/development/plugin-scorecard.md](docs/development/plugin-scorecard.md)
 
 - Relaxed eslint.config.mjs to now include testing files.
 - Completed full burn-down of test-file ESLint backlog (2686 errors → 0 errors across 130 test files).
@@ -443,7 +443,7 @@ Added collapsible headers when viewing feeds in "feed" grouping ([GH Issue #149]
 
 - New **Vault Shards storage mode**: Store article history in separate per-feed files instead of one large data.json file, with easy migration between modes.
 - Enhanced storage controls: Manage storage mode, repair shards, and import/export data directly from General settings.
-- Added a user-facing setup and FAQ guide for Vault Shards storage: [docs/storage-vault-shards-guide.md](docs/storage-vault-shards-guide.md).
+- Added a user-facing setup and FAQ guide for Vault Shards storage: [docs/user/storage-vault-shards-guide.md](docs/user/storage-vault-shards-guide.md).
 
 ## [2.2.0] - May 9, 2026
 

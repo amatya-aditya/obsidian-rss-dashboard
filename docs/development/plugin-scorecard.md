@@ -35,7 +35,7 @@ Remediation is in progress following the post-2.6.0 community plugin scorecard r
 | Documented / Informational            | `PluginSettingTab` does not implement `getSettingDefinitions()`           | Architectural note: RSS Dashboard settings use a multi-tab tabbed orchestrator architecture (`RssDashboardSettingTab`) across 11 distinct tabs. The Obsidian 1.13.0+ `getSettingDefinitions()` is an optional declarative search index enhancement. Retained existing standard `PluginSettingTab` implementation compatible with minimum Obsidian target 1.8.7.                                                                                                                                                                                                                                                                                                                                                                                      | Retain current settings tab structure. Consider declarative search definitions in a future milestone targeting Obsidian >= 1.13.0.                                                                                                                                                                                                                                                                                                                                                                                 |
 | Done locally; awaiting release/rescan | Build verification failed during clean environment run                     | Verified: all pipeline gates (`check:compliance`, `check:css-scope`, `check:platform`, `check:important`, `check:commit-message`, `lint`, `tsc`, and `esbuild`) pass with exit code 0.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | Production bundle verified locally via `npm run build`.                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | Done locally; awaiting release/rescan | Missing contributing guide                                                 | Remediated in current source: the root guide is tracked as `CONTRIBUTING.md`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Documentation/repository-metadata remediation complete locally.                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| Deferred. See link in comments.       | Clipboard access disclosure                                                | Genuine, intentional runtime capability. Current code has no programmatic clipboard read; native paste remains user-mediated. Writes support settings-export copy buttons, article/feed URL context-menu actions, copying a local-storage address, Reader copy with LaTeX source preservation, and a YouTube embed `clipboard-write` permission. The [clipboard removal assessment](development/clipboard-removal-assessment.md) itemizes each path and its removal impact.                                                                                                                                                                                                                                                                             | Retain capability and maintain disclosure.                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| Deferred. See link in comments.       | Clipboard access disclosure                                                | Genuine, intentional runtime capability. Current code has no programmatic clipboard read; native paste remains user-mediated. Writes support settings-export copy buttons, article/feed URL context-menu actions, copying a local-storage address, Reader copy with LaTeX source preservation, and a YouTube embed `clipboard-write` permission. The [clipboard removal assessment](clipboard-removal-assessment.md) itemizes each path and its removal impact.                                                                                                                                                                                                                                                                             | Retain capability and maintain disclosure.                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 
 Clipboard decision: retain all identified clipboard behavior unchanged. The
 remaining work is transparent disclosure and confirmation in the next
@@ -43,14 +43,14 @@ community rescan.
 
 ## Historical Compliance Score
 
-Earlier public scorecard snapshots are archived: [post-2.5.0](archive/investigations/2026/post-2.5.0-plugin-scorecard-snapshot.md).
+Earlier public scorecard snapshots are archived: [post-2.5.0](../archive/investigations/2026/post-2.5.0-plugin-scorecard-snapshot.md).
 
 | Version | Score | Date         | Status                                                                                                                                      |
 | ------- | ----- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------- |
 | 2.2.0   | 46%   | May 15, 2026 | ✅ Remediated — 100% target verified                                                                                                        |
-| 2.3.0   | 72%   | May 26, 2026 | ✅ Remediated — see[audit-remediation-2.3.0.md](archive/investigations/2026/audit-remediation-2.3.0.md)                                     |
+| 2.3.0   | 72%   | May 26, 2026 | ✅ Remediated — see[audit-remediation-2.3.0.md](../archive/investigations/2026/audit-remediation-2.3.0.md)                                     |
 | 2.4.0   | Risks | Jul 2, 2026  | 🔄 Remediated in 2.4.1 — pending community rescan                                                                                           |
-| 2.4.1   | TBD   | Jul 2, 2026  | ✅ Local compliance gates pass — see[2.4.0 audit remediation plan](archive/investigations/2026/2.4.0-audit/2.4.0_audit_remediation_plan.md) |
+| 2.4.1   | TBD   | Jul 2, 2026  | ✅ Local compliance gates pass — see[2.4.0 audit remediation plan](../archive/investigations/2026/2.4.0-audit/2.4.0_audit_remediation_plan.md) |
 
 ---
 
@@ -80,7 +80,7 @@ All audit findings from the 46% audit were addressed through seven systematic co
 - **Lint Disable Descriptions**: Added explicit audit guardrails with inline justifications to all 37 `eslint-disable` comments
 - **Parameter Hygiene**: Removed 10+ unused parameters across core services
 
-**Detailed remediation history**: See [test-lint backlog tracker](archive/investigations/2026/test-lint-backlog-tracker.md) (Passes 1–7)
+**Detailed remediation history**: See [test-lint backlog tracker](../archive/investigations/2026/test-lint-backlog-tracker.md) (Passes 1–7)
 
 ---
 
@@ -120,7 +120,7 @@ Per project policy (see `CONTRIBUTING.md`), warnings that cannot be eliminated a
 
 ## Historical v2.3.0 Re-Audit Checklist
 
-Remediation was tracked in [audit-remediation-2.3.0.md](archive/investigations/2026/audit-remediation-2.3.0.md).
+Remediation was tracked in [audit-remediation-2.3.0.md](../archive/investigations/2026/audit-remediation-2.3.0.md).
 
 The community audit should re-scan to verify:
 
@@ -171,9 +171,9 @@ Closed 87% of 77 issues. 3 contributors active in the past year.
 
 ## Documentation & Governance
 
-- **[CONTRIBUTING.md](../CONTRIBUTING.md)** — Canonical source of truth for compliance declarations, audit guardrails, and zero-`!important` CSS policy
-- **[Compliance patterns](development/compliance-patterns.md)** — Approved implementation patterns and anti-patterns for audit-sensitive code
-- **[Test-lint backlog tracker](archive/investigations/2026/test-lint-backlog-tracker.md)** — Historical record of all compliance remediation passes
-- **[2.3.0 remediation working checklist](archive/investigations/2026/audit-remediation-2.3.0.md)** — Historical audit record
-- **[SECURITY.md](SECURITY.md)** — Security disclosures (vault access, clipboard, external domains)
-- **[.instructions.md](../.instructions.md)** — AI-first compliance policy card for generated patches
+- **[CONTRIBUTING.md](../../CONTRIBUTING.md)** — Canonical source of truth for compliance declarations, audit guardrails, and zero-`!important` CSS policy
+- **[Compliance patterns](compliance-patterns.md)** — Approved implementation patterns and anti-patterns for audit-sensitive code
+- **[Test-lint backlog tracker](../archive/investigations/2026/test-lint-backlog-tracker.md)** — Historical record of all compliance remediation passes
+- **[2.3.0 remediation working checklist](../archive/investigations/2026/audit-remediation-2.3.0.md)** — Historical audit record
+- **[SECURITY.md](../SECURITY.md)** — Security disclosures (vault access, clipboard, external domains)
+- **[.instructions.md](../../.instructions.md)** — AI-first compliance policy card for generated patches

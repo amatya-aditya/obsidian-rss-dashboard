@@ -208,7 +208,7 @@ Every PR must follow these non-negotiable rules:
 - Run `npm run test:unit` (or targeted tests with rationale) and confirm passing status.
 - When code parses or generates from a real repository file (`CHANGELOG.md`, `package.json`, config files, etc.), verify against the actual checked-in file — not just hand-written test fixtures. Line-ending style, encoding, and other real-world formatting quirks won't show up in a synthetic test string. A changelog parser here once passed its full test suite and still shipped broken, because every test fixture used plain `\n` while the repo's actual `CHANGELOG.md` is CRLF-terminated — the parser silently matched nothing against the real file.
 - If you add or change lint suppressions, verify each has a specific inline explanation.
-- Check `docs/plugin-scorecard.md` for current high-priority compliance backlog items relevant to your changes.
+- Check `docs/development/plugin-scorecard.md` for current high-priority compliance backlog items relevant to your changes.
 
 For implementation examples and approved patterns, see [Compliance Patterns](docs/development/compliance-patterns.md).
 

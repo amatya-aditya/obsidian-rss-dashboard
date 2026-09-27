@@ -21,7 +21,7 @@ Parent issue: [#234](https://github.com/amatya-aditya/obsidian-rss-dashboard/iss
 
 A short user-facing document explaining the Import Starred Articles feature: what it does, what each Options toggle controls, and the reasoning behind key decisions (why full-content fetch is manual and scoped to starred/saved articles, why new-feed metadata refresh is off by default). Written against the final, real behavior of tickets 234-07 through 234-12, not the plan. Placement (a README section vs. a dedicated docs page) is decided during this ticket.
 
-Placement decided: a dedicated page at `docs/starred-import-guide.md` (matching the existing `docs/tags-primer.md` and `docs/storage-vault-shards-guide.md` pattern), linked from a new "Import Starred Articles Guide" section in the README's feature-guide list (alongside the existing "Vault Shards Storage Guide" and "Tags Guide" sections).
+Placement decided: a dedicated page at `docs/user/starred-import-guide.md` (matching the existing `docs/user/tags-primer.md` and `docs/user/storage-vault-shards-guide.md` pattern), linked from a new "Import Starred Articles Guide" section in the README's feature-guide list (alongside the existing "Vault Shards Storage Guide" and "Tags Guide" sections).
 
 ## Blocked by
 

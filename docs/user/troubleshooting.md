@@ -113,7 +113,7 @@ Can't find a solution? Try these resources:
 - **[GitHub Issues](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues)** — Report bugs or ask questions
 - **[Discord Community](https://discord.gg/9bu7V9BBbs)** — Get real-time help from the community
 - **[Getting Started Guide](./getting-started.md)** — Step-by-step walkthrough
-- **[Documentation Hub](./README.md)** — All available guides and references
+- **[Documentation Hub](../README.md)** — All available guides and references
 
 When reporting an issue, include:
 - RSS Dashboard version (from Settings)

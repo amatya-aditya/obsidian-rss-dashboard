@@ -37,12 +37,12 @@ For a complete list of all 21 user stories that were identified, visit [GitHub I
 
 All user-facing copy for the starred-article import feature — the command name, the Settings-tab section heading and button, the Feed Manager button, the modal title and description, and the default new-feed folder — uses generic language ("Import starred articles," "Starred imports," "Import labels as tags") rather than naming Inoreader explicitly. The parser is correspondingly generalized to tolerate the `starred.json` shape produced by FreshRSS, alongside the Inoreader shape it already handled.
 
-Generic naming here is deliberately narrower than "supports every Google Reader-compatible service." It reflects that the underlying `starred.json` shape is a de facto lineage (Google Reader's original "Read later" API format, carried forward by Inoreader and adopted by FreshRSS and other readers) rather than a claim that every service emitting a similarly shaped export has been verified. The [starred import compatibility document](../starred-import-compatibility.md) carries the narrow, per-service compatibility wording this project commits to, and the fixture policy for confirming a new exporter.
+Generic naming here is deliberately narrower than "supports every Google Reader-compatible service." It reflects that the underlying `starred.json` shape is a de facto lineage (Google Reader's original "Read later" API format, carried forward by Inoreader and adopted by FreshRSS and other readers) rather than a claim that every service emitting a similarly shaped export has been verified. The [starred import compatibility document](../user/starred-import-compatibility.md) carries the narrow, per-service compatibility wording this project commits to, and the fixture policy for confirming a new exporter.
 
 ## Consequences
 
 - Internal identifiers were already generic before this decision (see step 1 above) and are unaffected: `StarredImportCandidate`, `starred-import-mapper.ts`, `starredImportContentState`, etc.
-- Any future addition of a third confirmed-compatible exporter should update the [starred import compatibility document](../starred-import-compatibility.md) with its own fixture-backed evidence rather than assuming the generic product copy already covers it — the copy is generic, but the compatibility claims behind it are not, and stay per-service.
+- Any future addition of a third confirmed-compatible exporter should update the [starred import compatibility document](../user/starred-import-compatibility.md) with its own fixture-backed evidence rather than assuming the generic product copy already covers it — the copy is generic, but the compatibility claims behind it are not, and stay per-service.
 
 ### Existing users and data
 
@@ -60,7 +60,7 @@ Rejected. This overstates verified compatibility. Only Inoreader and FreshRSS ha
 
 ### Generic product copy, paired with a per-service compatibility document
 
-Chosen. The UI names the accepted data shape ("Google Reader-compatible `starred.json`") without naming a specific service, while the [starred import compatibility document](../starred-import-compatibility.md) states confirmed-versus-potential compatibility per service and carries the accountability for which services are actually tested — so a future support claim is falsifiable rather than a doc-free assumption.
+Chosen. The UI names the accepted data shape ("Google Reader-compatible `starred.json`") without naming a specific service, while the [starred import compatibility document](../user/starred-import-compatibility.md) states confirmed-versus-potential compatibility per service and carries the accountability for which services are actually tested — so a future support claim is falsifiable rather than a doc-free assumption.
 
 ## Implementation notes
 
@@ -68,8 +68,8 @@ The parser resolves a portable source URL from `origin.streamId` only when that 
 
 ## Related
 
-- [Starred import compatibility](../starred-import-compatibility.md) — per-service compatibility claims and fixture policy
-- [Starred import guide](../starred-import-guide.md) — user documentation
+- [Starred import compatibility](../user/starred-import-compatibility.md) — per-service compatibility claims and fixture policy
+- [Starred import guide](../user/starred-import-guide.md) — user documentation
 - [ADR 0011 — Starred state is independent from tags](0011-decouple-starred-state-from-tags.md)
 - [GitHub Issue #330](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/330) — generalize starred article import for Google Reader-compatible exports
 - [GitHub Issue #337](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/337) — FreshRSS-compatible parsing and generic product copy

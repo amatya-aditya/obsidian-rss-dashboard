@@ -110,7 +110,7 @@ Now that you've added your first feed, explore these guides:
 - **[Storage Guide](./storage-vault-shards-guide.md)** — Learn about data storage options
 - **[Keyboard Shortcuts](./keyboard-shortcuts.md)** — Speed up your workflow
 - **[Troubleshooting](./troubleshooting.md)** — Common issues and solutions
-- **[Documentation Hub](./README.md)** — Full documentation index
+- **[Documentation Hub](../README.md)** — Full documentation index
 
 ## Tips & Tricks
 

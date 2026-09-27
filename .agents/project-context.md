@@ -35,11 +35,11 @@ Read the files required by `AGENTS.md` before changing code or tests. Consult
 these additional documents only when their area is affected:
 
 - `CONTRIBUTING.md` and `docs/development/compliance-patterns.md`: audit-sensitive implementation rules.
-- `docs/plugin-scorecard.md`: local audit history and current public-status snapshot.
+- `docs/development/plugin-scorecard.md`: local audit history and current public-status snapshot.
 - `docs/development/data-flow.md`: feed refresh, merge, retention, and persistence behavior.
 - `docs/development/architecture.md`: module ownership, composition-root policy,
   dependency direction, architecture preflight, and executable ratchets.
-- `docs/storage-vault-shards-guide.md`: storage modes and sync-facing behavior.
+- `docs/user/storage-vault-shards-guide.md`: storage modes and sync-facing behavior.
 - `docs/SECURITY.md`: external-domain, clipboard, and vault-access disclosures.
 - `docs/development/obsidian-settings-reference.md`: settings UI patterns.
 

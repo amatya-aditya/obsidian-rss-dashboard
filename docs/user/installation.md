@@ -1,6 +1,6 @@
 # Installation Methods
 
-The easiest way to install RSS Dashboard is through the [Community Plugins Directory](../README.md#installation). For beta testing or manual setup, see the methods below.
+The easiest way to install RSS Dashboard is through the [Community Plugins Directory](../../README.md#installation). For beta testing or manual setup, see the methods below.
 
 ## BRAT Beta Testing
 
