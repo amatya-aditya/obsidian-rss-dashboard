@@ -11,7 +11,7 @@ This is the durable audit record for [GH Issue #169](https://github.com/amatya-a
 Keep the following in their topical `docs/` areas:
 
 - `docs/SECURITY.md`, `docs/storage-vault-shards-guide.md`, `docs/tags-primer.md`, `docs/keyboard-shortcuts.md`, `docs/design/design-spec.md`, and `docs/plugin-scorecard.md`.
-- `docs/development/README.md`, `docs/development/auto-deletion.md`, `docs/development/compliance-patterns.md`, `docs/development/data-flow.md`, `docs/development/feed-validation.md`, `docs/development/obsidian-settings-reference.md`, `docs/development/release-notes-workflow.md`, `docs/development/test-lint-backlog-tracker.md`, and `docs/development/test_coverage/testing-guide.md`.
+- `docs/development/README.md`, `docs/development/auto-deletion.md`, `docs/development/compliance-patterns.md`, `docs/development/data-flow.md`, `docs/development/feed-validation.md`, `docs/development/obsidian-settings-reference.md`, `docs/development/release-notes-workflow.md`, `docs/archive/investigations/2026/test-lint-backlog-tracker.md` (archived), and `docs/development/test_coverage/testing-guide.md`.
 
 ## Public release summaries
 

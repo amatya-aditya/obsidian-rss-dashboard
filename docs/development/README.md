@@ -175,7 +175,7 @@ catalog and repository links, and include the user-facing summary under
 - [Description-signal precedence](../archive/investigations/2026/description-signal-precedence.md)
 - [Language-signal coverage](../archive/investigations/2026/language-signal-coverage.md)
 - [Substack CDATA entity encoding](../archive/investigations/2026/substack-cdata-entity-encoding.md)
-- [Test-lint backlog tracker](./test-lint-backlog-tracker.md)
+- [Test-lint backlog tracker](../archive/investigations/2026/test-lint-backlog-tracker.md) (archived)
 
 ### Design and Bug References
 

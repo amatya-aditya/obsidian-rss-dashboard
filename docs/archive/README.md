@@ -52,6 +52,7 @@ records the documentation classification.
 | [Mark all read/unread controls](plans/v2.6.0/185-mark-all-read-unread-controls.md) | 2026-08-24 | [GH Issue #185](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/185) | - |
 | [Podcast playlist windowing](plans/v2.6.0/183-podcast-playlist-windowing.md) | 2026-08-22 | [GH Issue #183](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/183) | [PR #184](https://github.com/amatya-aditya/obsidian-rss-dashboard/pull/184) |
 | [CI security hardening baseline](plans/v2.6.0/181-ci-security-hardening.md) | 2026-08-22 | [GH Issue #181](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/181) | - |
+| [Security hardening tracker](plans/v2.6.0/181-security-hardening-tracker.md) (remaining work in [#495](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/495)) | 2026-08-22 | [GH Issue #181](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/181) | - |
 | [Image preview disk cache](plans/v2.6.0/177-image-preview-disk-cache.md) | 2026-08-21 | [GH Issue #177](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/177) | - |
 | [Independent dashboard preview settings](plans/v2.6.0/175-independent-dashboard-preview-settings.md) | 2026-08-21 | [GH Issue #175](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/175) | - |
 | [Documentation archive cleanup](plans/v2.6.0/169-documentation-archive-cleanup.md) | 2026-08-16 | [GH Issue #169](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/169) | `314ae6f` |
@@ -101,6 +102,7 @@ _Empty: every implemented plan has been archived under its release._
 - [Math rendering](investigations/2026/math-rendering.md), [sidebar visibility and row compression](investigations/2026/sidebar-visibility-row-compression-regression.md), and [2.4.1 errors](investigations/2026/2.4.1-errors.md).
 - [YouTube Shorts tagging failure](investigations/2026/youtube-shorts-tagging-failure.md) and [YouTube watch progress](investigations/2026/youtube-watch-progress.md).
 - [Substack CDATA entity encoding](investigations/2026/substack-cdata-entity-encoding.md), [Defuddle evaluation](investigations/2026/defuddle-evaluation.md), [coverage comparison](investigations/2026/coverage-comparison.md), and [testing closeout checklist](investigations/2026/final-testing-pr-closeout-checklist.md).
+- [Test-lint backlog tracker](investigations/2026/test-lint-backlog-tracker.md): the burn-down of test-file ESLint errors from 2,686 to 0.
 - [2.3.0 audit working checklist](investigations/2026/audit-remediation-2.3.0.md), [2.3.0 audit records](investigations/2026/2.3.0-audit/), and [2.4.0 audit records](investigations/2026/2.4.0-audit/).
 
 ## Unresolved historical evidence
