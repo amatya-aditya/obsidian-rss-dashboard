@@ -283,15 +283,15 @@ export function getTotalArticleScopeCount(state: ArticleScopeState): number {
 
 function getTotalScopePool(state: ArticleScopeState): FeedItem[] {
   let articles: FeedItem[] = [];
-
-  if (
-    state.currentFolder === "starred" ||
-    state.currentFolder === "unread" ||
-    state.currentFolder === "read" ||
-    state.currentFolder === "saved" ||
-    state.currentFolder === "videos" ||
-    state.currentFolder === "podcasts"
-  ) {
+  const specialFolders = [
+    "starred",
+    "unread",
+    "read",
+    "saved",
+    "videos",
+    "podcasts",
+  ];
+  if (state.currentFolder && specialFolders.includes(state.currentFolder)) {
     articles = getSpecialTotalPool(state);
   } else if (state.selectedTags.length > 0) {
     const mode = state.settings.sidebarTagFilterMode || "or";

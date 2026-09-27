@@ -30,6 +30,12 @@ import { Sidebar } from "../components/sidebar";
 import { ArticleList } from "../components/article-list";
 import { ArticleSaver } from "../services/article-saver";
 import { getEffectiveDateMs } from "../services/feed-parser/feed-retention.js";
+import {
+  getFilteredArticleScope,
+  getUnfilteredArticleScope,
+  getTotalArticleScopeCount,
+  type ArticleScopeState,
+} from "../services/article-scope";
 import { ArticleRenderer } from "../components/article-renderer";
 import { ReaderView, RSS_READER_VIEW_TYPE } from "./reader-view";
 import { FeedManagerModal } from "../modals/feed-manager-modal";
@@ -1601,115 +1607,12 @@ export class RssDashboardView extends ItemView {
   }
 
   private getFilteredArticles(): FeedItem[] {
+    return this.buildFilteredArticles();
+  }
+
+  private buildFilteredArticles(): FeedItem[] {
     this.syncCurrentFeedReference();
-    let articles: FeedItem[] = [];
-
-    if (this.currentFeed) {
-      const currentFeed = this.currentFeed;
-      articles = this.currentFeed.items.map((item) => ({
-        ...item,
-        feedTitle: item.feedTitle || currentFeed.title,
-        feedUrl: item.feedUrl || currentFeed.url,
-      }));
-    } else if (
-      (this.selectedFolders && this.selectedFolders.length > 0) ||
-      (this.selectedFeeds && this.selectedFeeds.length > 0)
-    ) {
-      const allFolders = new Set<string>();
-      if (this.selectedFolders) {
-        for (const path of this.selectedFolders) {
-          allFolders.add(path);
-          for (const f of this.getAllDescendantFolders(path)) {
-            allFolders.add(f);
-          }
-        }
-      }
-      for (const feed of this.settings.feeds) {
-        if (
-          (feed.folder && allFolders.has(feed.folder)) ||
-          (this.selectedFeeds && this.selectedFeeds.includes(feed.url))
-        ) {
-          articles = articles.concat(
-            feed.items.map((item) => ({
-              ...item,
-              feedTitle: feed.title,
-              feedUrl: feed.url,
-            })),
-          );
-        }
-      }
-    } else if (this.currentFolder) {
-      const specialFolders = [
-        "read",
-        "unread",
-        "starred",
-        "saved",
-        "videos",
-        "podcasts",
-      ];
-      if (specialFolders.includes(this.currentFolder)) {
-        for (const feed of this.settings.feeds) {
-          articles = articles.concat(
-            feed.items
-              .filter((item) => {
-                if (this.currentFolder === "starred") return item.starred;
-                if (this.currentFolder === "unread") return !item.read;
-                if (this.currentFolder === "read") return item.read;
-                if (this.currentFolder === "saved") return item.saved;
-                if (this.currentFolder === "videos")
-                  return item.mediaType === "video";
-                if (this.currentFolder === "podcasts")
-                  return item.mediaType === "podcast";
-                return true;
-              })
-              .map((item) => ({
-                ...item,
-                feedTitle: feed.title,
-                feedUrl: feed.url,
-              })),
-          );
-        }
-      } else {
-        const allFolders = this.getAllDescendantFolders(this.currentFolder);
-        allFolders.push(this.currentFolder);
-        for (const feed of this.settings.feeds) {
-          if (feed.folder && allFolders.includes(feed.folder)) {
-            articles = articles.concat(
-              feed.items.map((item) => ({
-                ...item,
-                feedTitle: feed.title,
-                feedUrl: feed.url,
-              })),
-            );
-          }
-        }
-      }
-    } else {
-      for (const feed of this.settings.feeds) {
-        articles = articles.concat(
-          feed.items.map((item) => ({
-            ...item,
-            feedTitle: feed.title,
-            feedUrl: feed.url,
-          })),
-        );
-      }
-    }
-
-    if (this.selectedTags.length > 0) {
-      const mode = this.settings.sidebarTagFilterMode || "or";
-      articles = articles.filter((item) => {
-        const itemTags = (item.tags ?? []).map((t) => t.name);
-        if (mode === "or") {
-          return this.selectedTags.some((tag) => itemTags.includes(tag));
-        } else if (mode === "and") {
-          return this.selectedTags.every((tag) => itemTags.includes(tag));
-        } else if (mode === "not") {
-          return !this.selectedTags.some((tag) => itemTags.includes(tag));
-        }
-        return false;
-      });
-    }
+    let articles = getFilteredArticleScope(this.getArticleScopeState());
 
     // Apply keyword rules (global/per-feed) before status/tag/age filters.
     articles = this.applyKeywordFiltersWithStats(articles);
@@ -1733,111 +1636,34 @@ export class RssDashboardView extends ItemView {
     return articles;
   }
 
+  private getArticleScopeState(): ArticleScopeState {
+    return {
+      currentFeed: this.currentFeed,
+      currentFolder: this.currentFolder,
+      selectedFolders: this.selectedFolders,
+      selectedFeeds: this.selectedFeeds,
+      selectedTags: this.selectedTags,
+      settings: {
+        feeds: this.settings.feeds,
+        sidebarTagFilterMode: this.settings.sidebarTagFilterMode,
+        articleFilter: this.settings.articleFilter,
+        useFirstSeenDateFallback: this.settings.useFirstSeenDateFallback,
+      },
+      getAllDescendantFolders: (path) => this.getAllDescendantFolders(path),
+    };
+  }
+
   /**
    * Get all articles in the current view BEFORE filter matching is applied.
    * Used for empty state detection to determine if articles exist but are filtered out.
    */
   private getUnfilteredArticles(): FeedItem[] {
+    return this.buildUnfilteredArticles();
+  }
+
+  private buildUnfilteredArticles(): FeedItem[] {
     this.syncCurrentFeedReference();
-    let articles: FeedItem[] = [];
-
-    if (this.currentFeed) {
-      const currentFeed = this.currentFeed;
-      articles = this.currentFeed.items.map((item) => ({
-        ...item,
-        feedTitle: item.feedTitle || currentFeed.title,
-        feedUrl: item.feedUrl || currentFeed.url,
-      }));
-    } else if (
-      (this.selectedFolders && this.selectedFolders.length > 0) ||
-      (this.selectedFeeds && this.selectedFeeds.length > 0)
-    ) {
-      const allFolders = new Set<string>();
-      if (this.selectedFolders) {
-        for (const path of this.selectedFolders) {
-          allFolders.add(path);
-          for (const f of this.getAllDescendantFolders(path)) {
-            allFolders.add(f);
-          }
-        }
-      }
-      for (const feed of this.settings.feeds) {
-        if (
-          (feed.folder && allFolders.has(feed.folder)) ||
-          (this.selectedFeeds && this.selectedFeeds.includes(feed.url))
-        ) {
-          articles = articles.concat(
-            feed.items.map((item) => ({
-              ...item,
-              feedTitle: feed.title,
-              feedUrl: feed.url,
-            })),
-          );
-        }
-      }
-    } else if (this.currentFolder) {
-      const specialFolders = [
-        "read",
-        "unread",
-        "starred",
-        "saved",
-        "videos",
-        "podcasts",
-      ];
-      if (specialFolders.includes(this.currentFolder)) {
-        // Special folders are view filters, not scope reducers, for empty-state
-        // detection. Keep the full article pool here so the empty state can
-        // explain that items exist but none match the active view filter.
-        for (const feed of this.settings.feeds) {
-          articles = articles.concat(
-            feed.items.map((item) => ({
-              ...item,
-              feedTitle: feed.title,
-              feedUrl: feed.url,
-            })),
-          );
-        }
-      } else {
-        const allFolders = this.getAllDescendantFolders(this.currentFolder);
-        allFolders.push(this.currentFolder);
-        for (const feed of this.settings.feeds) {
-          if (feed.folder && allFolders.includes(feed.folder)) {
-            articles = articles.concat(
-              feed.items.map((item) => ({
-                ...item,
-                feedTitle: feed.title,
-                feedUrl: feed.url,
-              })),
-            );
-          }
-        }
-      }
-    } else {
-      for (const feed of this.settings.feeds) {
-        articles = articles.concat(
-          feed.items.map((item) => ({
-            ...item,
-            feedTitle: feed.title,
-            feedUrl: feed.url,
-          })),
-        );
-      }
-    }
-
-    if (this.selectedTags.length > 0) {
-      const mode = this.settings.sidebarTagFilterMode || "or";
-      articles = articles.filter((item) => {
-        const itemTags = (item.tags ?? []).map((t) => t.name);
-        if (mode === "or") {
-          return this.selectedTags.some((tag) => itemTags.includes(tag));
-        } else if (mode === "and") {
-          return this.selectedTags.every((tag) => itemTags.includes(tag));
-        } else if (mode === "not") {
-          return !this.selectedTags.some((tag) => itemTags.includes(tag));
-        }
-        return false;
-      });
-    }
+    let articles = getUnfilteredArticleScope(this.getArticleScopeState());
 
     // Apply keyword rules but not filter matching
     articles = this.applyKeywordFiltersWithStats(articles);
@@ -4279,80 +4105,7 @@ export class RssDashboardView extends ItemView {
   }
 
   private getTotalArticlesCountForCurrentView(): number {
-    let articles: FeedItem[] = [];
-
-    if (this.currentFeed) {
-      return this.currentFeed.items.length;
-    }
-
-    if (this.currentFolder === "starred") {
-      for (const feed of this.settings.feeds) {
-        articles = articles.concat(feed.items.filter((item) => item.starred));
-      }
-    } else if (this.currentFolder === "unread") {
-      for (const feed of this.settings.feeds) {
-        articles = articles.concat(feed.items.filter((item) => !item.read));
-      }
-    } else if (this.currentFolder === "read") {
-      for (const feed of this.settings.feeds) {
-        articles = articles.concat(feed.items.filter((item) => item.read));
-      }
-    } else if (this.currentFolder === "saved") {
-      for (const feed of this.settings.feeds) {
-        articles = articles.concat(feed.items.filter((item) => item.saved));
-      }
-    } else if (this.currentFolder === "videos") {
-      for (const feed of this.settings.feeds) {
-        articles = articles.concat(
-          feed.items.filter((item) => item.mediaType === "video"),
-        );
-      }
-    } else if (this.currentFolder === "podcasts") {
-      for (const feed of this.settings.feeds) {
-        articles = articles.concat(
-          feed.items.filter((item) => item.mediaType === "podcast"),
-        );
-      }
-    } else if (this.selectedTags.length > 0) {
-      const mode = this.settings.sidebarTagFilterMode || "or";
-      for (const feed of this.settings.feeds) {
-        articles = articles.concat(
-          feed.items.filter((item) => {
-            const itemTags = (item.tags ?? []).map((t) => t.name);
-            if (mode === "or") {
-              return this.selectedTags.some((tag) => itemTags.includes(tag));
-            } else if (mode === "and") {
-              return this.selectedTags.every((tag) => itemTags.includes(tag));
-            } else if (mode === "not") {
-              return !this.selectedTags.some((tag) => itemTags.includes(tag));
-            }
-            return false;
-          }),
-        );
-      }
-    } else if (this.currentFolder) {
-      const allFolders = this.getAllDescendantFolders(this.currentFolder);
-      for (const feed of this.settings.feeds) {
-        if (feed.folder && allFolders.includes(feed.folder)) {
-          articles = articles.concat(feed.items);
-        }
-      }
-    } else {
-      for (const feed of this.settings.feeds) {
-        articles = articles.concat(feed.items);
-      }
-    }
-
-    if (
-      this.settings.articleFilter.type === "age" &&
-      typeof this.settings.articleFilter.value === "number" &&
-      this.settings.articleFilter.value > 0
-    ) {
-      const maxAge = Date.now() - this.settings.articleFilter.value;
-      articles = articles.filter((a) => getEffectiveDateMs(a, this.settings.useFirstSeenDateFallback) > maxAge);
-    }
-
-    return articles.length;
+    return getTotalArticleScopeCount(this.getArticleScopeState());
   }
 
   // --- Saved article file lookup and reader handoff ---
