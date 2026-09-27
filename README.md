@@ -46,7 +46,7 @@ Completely local. Completely open source. No ads, no tracking, no paywalls—jus
 
 ## Move Your Data Freely
 
-Import and export your subscriptions as OPML. Support for RSS, Atom, JSON feeds, YouTube channels, podcasts, and Mastodon accounts. Migrating from Inoreader or FreshRSS? [Import your starred articles](docs/starred-import-guide.md) directly. Switch tools anytime—your data comes with you.
+Import and export your subscriptions as OPML. Support for RSS, Atom, JSON feeds, YouTube channels, podcasts, and Mastodon accounts. Migrating from Inoreader or FreshRSS? [Import your starred articles](docs/user/starred-import-guide.md) directly. Switch tools anytime—your data comes with you.
 
 ## Screenshots
 
@@ -73,7 +73,7 @@ Version 2.2.0 demo (core experience remains similar).
 4. Search **RSS Dashboard** and click **Install**.
 5. Enable the plugin in Community plugins list.
 
-For BRAT beta testing or manual installation, see [Installation Methods](docs/installation.md).
+For BRAT beta testing or manual installation, see [Installation Methods](docs/user/installation.md).
 
 ## Getting Started
 
@@ -82,7 +82,7 @@ For BRAT beta testing or manual installation, see [Installation Methods](docs/in
 3. Click an article to read in the built-in reader.
 4. Optionally save articles to your vault.
 
-For detailed workflows, see [Getting Started Guide](docs/getting-started.md).
+For detailed workflows, see [Getting Started Guide](docs/user/getting-started.md).
 
 ## Documentation
 
@@ -96,7 +96,7 @@ Feature direction and what's being explored: [Public Roadmap](docs/plans/public-
 
 - 💬 [Discord Community](https://discord.gg/9bu7V9BBbs)
 - 🐛 [GitHub Issues](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues)
-- ❓ [Troubleshooting](docs/troubleshooting.md)
+- ❓ [Troubleshooting](docs/user/troubleshooting.md)
 
 ## Contributing
 

@@ -45,7 +45,7 @@ Related docs:
 
 - `docs/plans/feed-manager-modal-refactor-tdd.md`
 - `docs/plans/Icon Replacement Plan for feed-manager.md`
-- `docs/design/design-spec.md` (icon rendering standards)
+- `docs/development/design-spec.md` (icon rendering standards)
 
 ## Current State (2.x)
 

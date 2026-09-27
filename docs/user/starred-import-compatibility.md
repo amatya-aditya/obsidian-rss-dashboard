@@ -3,7 +3,7 @@
 This document is the durable reference for what **Import starred articles**
 actually accepts, what "Google Reader-compatible" means and doesn't mean
 here, which exporters are actually tested, and the policy for confirming a
-new one. See [ADR 0003](adr/0003-generalize-starred-import-to-google-reader-compatible-naming.md)
+new one. See [ADR 0003](../adr/0003-generalize-starred-import-to-google-reader-compatible-naming.md)
 for why the feature's product copy is generic rather than naming a specific
 service.
 

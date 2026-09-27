@@ -10,7 +10,7 @@
  * CSS scoped with rss-dashboard- prefix to prevent global collision with Obsidian core.
  * Uses design-spec tokenized colors and accessibility patterns.
  * 
- * @see docs/design/design-spec.md - CSS Scoping, Color and Token Usage, Accessibility
+ * @see docs/development/design-spec.md - CSS Scoping, Color and Token Usage, Accessibility
  */
 
 .rss-dashboard-empty-state {

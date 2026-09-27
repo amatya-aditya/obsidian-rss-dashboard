@@ -1,6 +1,6 @@
 # Compliance Patterns and Audit Guardrails
 
-This document defines approved patterns for audit-sensitive changes. Use it with `CONTRIBUTING.md` and `docs/plugin-scorecard.md`.
+This document defines approved patterns for audit-sensitive changes. Use it with `CONTRIBUTING.md` and `docs/development/plugin-scorecard.md`.
 
 ## Scope
 
@@ -131,5 +131,5 @@ Before opening a PR:
 ## Related Docs
 
 - `CONTRIBUTING.md` (Compliance Declarations)
-- `docs/plugin-scorecard.md` (live backlog and priorities)
+- `docs/development/plugin-scorecard.md` (live backlog and priorities)
 - `docs/SECURITY.md` (stakeholder-facing security disclosures)

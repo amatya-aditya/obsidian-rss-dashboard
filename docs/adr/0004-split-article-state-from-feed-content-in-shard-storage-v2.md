@@ -48,5 +48,5 @@ Chosen, as Shard storage v2: opt-in and backwards compatible with v1 via auto-mi
 
 - [ADR 0006 — Deprecate Legacy JSON and Shard storage v1](0006-deprecate-legacy-json-and-shard-storage-v1.md) — resolves the storage-mode proliferation described above
 - [ADR 0010 — Hydration-gated user-state garbage collection](0010-hydration-gated-user-state-garbage-collection.md) — lifecycle of state held in `user-state.json`
-- [Vault Shards storage guide](../storage-vault-shards-guide.md) — user documentation for the storage modes
-- [Syncing across devices](../syncing.md) — user documentation for multi-device sync
+- [Vault Shards storage guide](../user/storage-vault-shards-guide.md) — user documentation for the storage modes
+- [Syncing across devices](../user/syncing.md) — user documentation for multi-device sync

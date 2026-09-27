@@ -235,7 +235,7 @@ plugin owns the cascade instead of adding an exception.
 - Run `npm run lint` and address violations in changed files.
 - Run `npm run test:unit` (or targeted tests with rationale) and confirm passing status.
 - If you add or change lint suppressions, verify each has a specific inline explanation.
-- Check `docs/plugin-scorecard.md` for current high-priority compliance backlog items relevant to your changes.
+- Check `docs/development/plugin-scorecard.md` for current high-priority compliance backlog items relevant to your changes.
 - For implementation patterns and examples, use `docs/development/compliance-patterns.md`.
 
 ---

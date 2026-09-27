@@ -73,4 +73,4 @@ Avoid listing every implementation-level change here. The changelog remains the 
 - [Relevant ADR, if the decision is useful to curious users](#)
 - [Migration or compatibility guide](#)
 
-The complete technical history for this release is available in the [changelog](../../CHANGELOG.md).
+The complete technical history for this release is available in the [changelog](../../../CHANGELOG.md).

@@ -72,7 +72,7 @@ whichever fit, rather than inventing new ones.
    `src/release-notes/notes/<major.minor>.md`. For a meaningful bug fix, an
    optional exact patch note may be added at
    `src/release-notes/notes/<major.minor>.<patch>.md`. Follow the
-   [curated note template](release-note-template.md). These notes are separate
+   [curated note template](whats-new-note-template.md). These notes are separate
    from `docs/releases/<version>.md`: shorter, written for the in-plugin popup,
    and embedded into the bundle at build time. A major/minor release with no
    line note fails `npm run check:pre-release`; every note needs a valid

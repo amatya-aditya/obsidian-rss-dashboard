@@ -73,7 +73,7 @@ Each row is a way the configured storage folder and the folder holding the artic
 
 | # | How the mismatch happens | How likely | Option B (twin detection) | Option C (chosen) |
 |---|---|---|---|---|
-| 1 | The storage folder is changed on a device that does not hold the articles. The setting syncs through `data.json`, so every device points at the new, empty folder. | Plausible: it is the natural reaction to an empty second device, and `docs/syncing.md` tells users to remove the dot. | Catches it, but only after every device has been re-pointed. | The warning appears before the change is saved. |
+| 1 | The storage folder is changed on a device that does not hold the articles. The setting syncs through `data.json`, so every device points at the new, empty folder. | Plausible: it is the natural reaction to an empty second device, and `docs/user/syncing.md` tells users to remove the dot. | Catches it, but only after every device has been re-pointed. | The warning appears before the change is saved. |
 | 2 | The folder is renamed outside Obsidian (for example, unhidden in the operating system's file manager) without updating the setting. | Uncommon | Catches it. | The alert text tells the user to update the setting to match. |
 | 3 | Empty article files exist in the configured folder while the real articles are in the twin (the state reported in #360). | Only on pre-release builds: #360 stopped the empty writes, and the code that caused them never shipped. | Catches a state that can no longer arise. | Not needed. |
 | 4 | The folder is changed correctly on the device that holds the articles, but a second device loads the plugin before sync delivers the moved files, while its old hidden folder still holds local copies. | Common, and temporary | **False positive, and harmful:** one tap re-points that device back to the old folder, the setting syncs, and the first device is pointed at a folder it has just emptied. | No action: nothing is triggered unless the user applies a folder change. |
@@ -91,5 +91,5 @@ Revisit this decision if scenarios 2 or 5 turn out to be common in support reque
 - [ADR 0004: Split Article State from Feed Content in Shard Storage v2](0004-split-article-state-from-feed-content-in-shard-storage-v2.md)
 - [ADR 0006: Deprecate Legacy JSON and Shard Storage v1](0006-deprecate-legacy-json-and-shard-storage-v1.md)
 - [PR #360: stop empty shard writes on unsynced devices](https://github.com/amatya-aditya/obsidian-rss-dashboard/pull/360)
-- [Syncing across devices](../syncing.md)
-- [Storage and Vault Shards guide](../storage-vault-shards-guide.md)
+- [Syncing across devices](../user/syncing.md)
+- [Storage and Vault Shards guide](../user/storage-vault-shards-guide.md)

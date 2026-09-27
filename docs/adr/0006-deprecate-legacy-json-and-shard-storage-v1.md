@@ -86,5 +86,5 @@ The existing `storageMigrationDismissedPermanently` boolean is replaced by a ver
 ## Related
 
 - [ADR 0004 — Split article state from feed content in Shard storage v2](0004-split-article-state-from-feed-content-in-shard-storage-v2.md)
-- [Vault Shards storage guide](../storage-vault-shards-guide.md) — user documentation for the storage modes
+- [Vault Shards storage guide](../user/storage-vault-shards-guide.md) — user documentation for the storage modes
 - [Glossary: Storage](../../CONTEXT.md#storage) — defines _Deprecated storage mode_
