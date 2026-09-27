@@ -2,7 +2,7 @@
 status: in-progress
 created: 2026-09-24
 issue: "https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/370"
-milestone: ""
+milestone: "vNext"
 owner: unassigned
 workstream: performance
 sequence: null

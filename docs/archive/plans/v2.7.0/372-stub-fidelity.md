@@ -1,15 +1,9 @@
 ---
-status: in-progress
-created: 2026-09-25
+status: implemented
+completed: 2026-09-26
+released_in: 2.7.0
 issue: "https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/372"
-milestone: "vNext"
-owner: unassigned
-workstream: test-infrastructure
-sequence: null
-depends_on:
-  - "https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/362"
-release_requirement: ""
-implementation: ""
+implementation: "PRs #406 to #430; follow-ups in https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/431"
 ---
 
 # Obsidian test stub fidelity

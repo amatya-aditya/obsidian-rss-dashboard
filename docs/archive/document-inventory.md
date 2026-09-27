@@ -23,10 +23,10 @@ validation and publication are complete.
 
 Keep these implementation plans and coordination documents in `docs/plans/`:
 
-- `cover-image-fallback-og-fetch.md` - proposed future work.
+- `draft-20260816-cover-image-fallback.md` - proposed future work.
 - `deprecate-feed-manager-modal.md` - proposed 3.0 work.
 - `main-ts-refactor.md` - in progress; no canonical issue or final implementation evidence.
-- `media-notes-podcast-video-player.md` - idea awaiting product decisions.
+- `draft-20260816-media-notes.md` - idea awaiting product decisions.
 - `public-roadmap.md` and `release-v2.6.0-roadmap.md` - active coordination roadmaps, not archived implementation records.
 
 ## Archived implementation plans

@@ -1,14 +1,9 @@
 ---
-status: in-progress
-created: 2026-09-20
+status: implemented
+completed: 2026-09-20
+released_in: 2.7.0
 issue: "https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/324"
-milestone: "2.7.0"
-owner: unassigned
-workstream: sidebar refresh feedback
-sequence: null
-depends_on: []
-release_requirement: required
-implementation: ""
+implementation: "https://github.com/amatya-aditya/obsidian-rss-dashboard/pull/325"
 ---
 
 # Real-time per-feed refresh status
