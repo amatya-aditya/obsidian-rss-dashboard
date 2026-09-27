@@ -2,10 +2,11 @@ version: 2
 updates:
   - package-ecosystem: npm
     directory: "/"
-    # master takes no direct commits: it receives merged release branches
-    # only, and every commit on it is a tagged release (see AGENTS.md and
-    # CONTRIBUTING.md). Without this, dependabot targets the repository
-    # default branch, which is master.
+    # Dependency updates land on dev, the default branch. master takes no
+    # direct commits: it receives merged release branches only, and every
+    # commit on it is a tagged release (see AGENTS.md and CONTRIBUTING.md).
+    # target-branch stays explicit so updates keep going to dev even if the
+    # default branch changes again.
     target-branch: "dev"
     schedule:
       interval: weekly

@@ -43,6 +43,8 @@ community rescan.
 
 ## Historical Compliance Score
 
+Earlier public scorecard snapshots are archived: [post-2.5.0](archive/investigations/2026/post-2.5.0-plugin-scorecard-snapshot.md).
+
 | Version | Score | Date         | Status                                                                                                                                      |
 | ------- | ----- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------- |
 | 2.2.0   | 46%   | May 15, 2026 | ✅ Remediated — 100% target verified                                                                                                        |
