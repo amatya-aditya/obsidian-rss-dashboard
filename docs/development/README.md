@@ -9,6 +9,7 @@ Internal developer documentation for the RSS Dashboard plugin.
 - [Feed Data Lifecycle](./data-flow.md)
 - [Feed Validation](./feed-validation.md)
 - [Fixture Vault for Manual Testing](./fixture-vault.md)
+- [Issue Labels and Milestones](./labels.md)
 - [Obsidian Settings Reference](./obsidian-settings-reference.md)
 - [Release Notes Workflow](./release-notes-workflow.md)
 - [Starred State and Tags](./starred-state-and-tags.md)
