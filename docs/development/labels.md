@@ -132,8 +132,17 @@ When a new issue arrives:
 
 ## Agent triage roles
 
-Agent skills refer to five canonical triage roles. They map to these labels;
-see `docs/agents/triage-labels.md`.
+The agent skills we use come from Matt Pocock's
+[skills](https://github.com/mattpocock/skills). They refer to five canonical
+triage roles: `needs-triage`, `needs-info`, `ready-for-agent`,
+`ready-for-human`, and `wontfix`. `docs/agents/triage-labels.md` maps those
+roles to our labels.
+
+In that system an issue carries exactly one state role. Here,
+`status: needs-triage` and `status: needs-info` are status labels, while
+`ready-for-agent` and `ready-for-human` are flags on an issue that is
+`status: accepted`: they say who can pick it up. The `wayfinder:` labels come
+from the same skills.
 
 ## References
 
@@ -144,6 +153,10 @@ see `docs/agents/triage-labels.md`.
 - GitHub Docs, [Encouraging helpful contributions to your project with labels](https://docs.github.com/en/communities/setting-up-your-project-for-healthy-contributions/encouraging-helpful-contributions-to-your-project-with-labels):
   why `good first issue` matters: GitHub uses it to surface approachable
   issues to new contributors.
+- Matt Pocock's skills, [triage](https://github.com/mattpocock/skills/blob/main/docs/engineering/triage.md)
+  and [wayfinder](https://github.com/mattpocock/skills/blob/main/docs/engineering/wayfinder.md):
+  the canonical triage roles and their state machine, and the `wayfinder:`
+  ticket labels.
 - [obsidian-tasks labels](https://github.com/obsidian-tasks-group/obsidian-tasks/labels):
   prefixed families (`scope: …`, `status: …`, `priority: …`) in a large
   Obsidian plugin.
