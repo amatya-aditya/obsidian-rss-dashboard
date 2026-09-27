@@ -14,7 +14,7 @@ We are committed to providing a welcoming and inspiring community for all. Pleas
 
 - **Report bugs** — Found something broken? [Open an issue](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues) with details and steps to reproduce.
 - **Suggest features** — Have an idea? [Start a discussion](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues) or chat on [Discord](https://discord.gg/9bu7V9BBbs).
-- **Fix bugs** — Pick an open issue labeled `bug` or `good-first-issue`.
+- **Fix bugs** — Pick an open issue labeled `bug` or `good first issue`. [Issue Labels and Milestones](docs/development/labels.md) explains what each label means.
 - **Add features** — Check the [public roadmap](docs/plans/public-roadmap.md) and coordinate before starting large work.
 - **Improve docs** — Clarify guides, add examples, fix typos. Documentation PRs are always welcome.
 - **Write tests** — Help increase test coverage and prevent regressions.

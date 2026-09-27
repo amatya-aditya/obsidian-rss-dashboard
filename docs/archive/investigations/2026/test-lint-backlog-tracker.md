@@ -1,5 +1,7 @@
 # Test-Lint Backlog Tracker
 
+> **Archived 2026-09-27.** The burn-down is complete: 54 passes took the test-file ESLint backlog from 2,686 errors to 0, and test files are now linted like production code. Kept as a history of the approach.
+
 This document tracks the test-file ESLint debt burn-down that branched from the audit scorecard after Pass 4.
 
 Scope:

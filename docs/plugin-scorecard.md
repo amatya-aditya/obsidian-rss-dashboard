@@ -80,7 +80,7 @@ All audit findings from the 46% audit were addressed through seven systematic co
 - **Lint Disable Descriptions**: Added explicit audit guardrails with inline justifications to all 37 `eslint-disable` comments
 - **Parameter Hygiene**: Removed 10+ unused parameters across core services
 
-**Detailed remediation history**: See [test-lint backlog tracker](development/test-lint-backlog-tracker.md) (Passes 1–7)
+**Detailed remediation history**: See [test-lint backlog tracker](archive/investigations/2026/test-lint-backlog-tracker.md) (Passes 1–7)
 
 ---
 
@@ -173,7 +173,7 @@ Closed 87% of 77 issues. 3 contributors active in the past year.
 
 - **[CONTRIBUTING.md](../CONTRIBUTING.md)** — Canonical source of truth for compliance declarations, audit guardrails, and zero-`!important` CSS policy
 - **[Compliance patterns](development/compliance-patterns.md)** — Approved implementation patterns and anti-patterns for audit-sensitive code
-- **[Test-lint backlog tracker](development/test-lint-backlog-tracker.md)** — Historical record of all compliance remediation passes
+- **[Test-lint backlog tracker](archive/investigations/2026/test-lint-backlog-tracker.md)** — Historical record of all compliance remediation passes
 - **[2.3.0 remediation working checklist](archive/investigations/2026/audit-remediation-2.3.0.md)** — Historical audit record
 - **[SECURITY.md](SECURITY.md)** — Security disclosures (vault access, clipboard, external domains)
 - **[.instructions.md](../.instructions.md)** — AI-first compliance policy card for generated patches

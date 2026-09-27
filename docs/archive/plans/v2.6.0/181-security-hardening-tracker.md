@@ -1,5 +1,7 @@
 # Security hardening tracker
 
+> **Archived 2026-09-27.** Items `dsm.1` to `dsm.4` shipped with #181. The remaining work, `dsm.5` to `dsm.10`, is tracked publicly in [#495](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/495). The project no longer uses Beads, so the Bead IDs below are historical. The branch names `main` and `develop` in `dsm.9` mean `master` and `dev`.
+
 This document is the human-readable index for the security-hardening epic
 `obsidian-rss-dashboard-dsm`. The maintainer implementation baseline is
 [GitHub issue #181](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/181).

@@ -2,7 +2,7 @@
 name: Refactor
 about: One behavior-preserving extraction under #436
 title: 'refactor(<file>): <extraction>'
-labels: ''
+labels: refactor
 assignees: ''
 
 ---
