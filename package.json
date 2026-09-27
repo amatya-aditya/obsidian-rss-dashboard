@@ -34,7 +34,7 @@
     "node": ">=20.19.0"
   },
   "devDependencies": {
-    "@types/jsdom": "^28.0.3",
+    "@types/jsdom": "^30.0.0",
     "@types/node": "^24.0.0",
     "@typescript-eslint/parser": "^8.70.1",
     "@typescript-eslint/utils": "^8.70.1",
@@ -43,7 +43,7 @@
     "eslint": "^9.39.2",
     "eslint-plugin-obsidianmd": "^0.4.2",
     "globals": "^17.12.0",
-    "jsdom": "^28.1.0",
+    "jsdom": "^30.1.1",
     "moment": "^2.31.0",
     "obsidian": "1.13.1",
     "postcss": "^8.5.28",
