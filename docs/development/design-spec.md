@@ -412,7 +412,9 @@ Rules:
 
 ### Implementation Structure
 
-Always use a `div` (or `span` if inline) with the following attributes:
+> **Changing:** new icon buttons use a native `<button>`; see **Open Questions** and [#502](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/502). The `div` pattern below describes existing controls until they're migrated.
+
+Existing controls use a `div` (or `span` if inline) with the following attributes:
 
 - **Class**: `clickable-icon`
 - **Role**: `button`
@@ -566,25 +568,28 @@ See `docs/development/test_coverage/testing-guide.md` for the testing rules.
 
 ## Open Questions
 
-Found in the 2026-09-27 review. Each needs a decision or its own issue.
+Found in the 2026-09-27 review, each with its own issue.
 
-- **Icon button element.** This spec requires a `div.clickable-icon` with
-  `role="button"` and `tabindex="0"`. About 34 controls follow it, but
-  29 files build icon buttons from a native `<button>` plus `setIcon`. Native
-  buttons get keyboard support and semantics without extra code, which WAI-ARIA
-  prefers. Decide whether new code may use either form, then update
-  **Icon Rendering Standards**.
-- **Native close button CSS.** Rules in `src/styles/modals.css` style or hide
-  only `.modal-close-button` (for example the shortcut help modal hides it, and
-  mobile modals reposition it). Those rules don't match Obsidian 1.13's
-  `.modal-header-button`. Verify in the fixture vault, then fix under its own
-  issue.
-- **Keyboard access in Kagi Small Web.** The view's **← Discover** button is a
-  `div` without `role` or `tabindex`, so it can't be reached by keyboard.
-- **Unused classes.** `.rss-discover-filter-container` has CSS but no code
+- **Icon button element: decided, migration pending ([#502](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/502)).** Follow
+  the accessibility guidelines: new icon buttons use a native
+  `<button type="button" class="clickable-icon">` with an `aria-label`, not a
+  `div` with `role="button"`. The `div` rule dates from 2.3.0-alpha.3
+  (commit `8b0c7d5d`), which blamed the element type for broken icons on
+  Android. The Android bug was later fixed in CSS (**Android WebView SVG
+  Rendering**), and that fix works with either element. **Icon Rendering
+  Standards** below is updated once #502's spike confirms Obsidian's base button
+  styles don't leak in. Until then, don't add new `div[role=button]` controls.
+- **Native close button CSS ([#500](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/500)).** Rules in
+  `src/styles/modals.css` style or hide only `.modal-close-button`, which
+  Obsidian 1.13 no longer renders. On 1.13 the shortcut help modal shows two
+  close buttons (confirmed), and the mobile modals' close-button positioning
+  doesn't apply.
+- **Keyboard access in Kagi Small Web, unused classes, and dead code
+  ([#503](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/503)).** The view's **← Discover** button is a `div` without
+  `role` or `tabindex`. `.rss-discover-filter-container` has CSS but no code
   applies it. `.rss-mobile-platform-android` is applied but has no CSS rules.
-- **Dead code.** `src/views/discover-view.ts` builds a "✦ Smallweb" button
-  and removes it on the next line.
+  `src/views/discover-view.ts` builds a "✦ Smallweb" button and removes it on
+  the next line.
 
 ---
 
