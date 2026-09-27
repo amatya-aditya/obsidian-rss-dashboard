@@ -36,6 +36,7 @@ import { FeedManagerModal } from "../modals/feed-manager-modal";
 import { MobileNavigationModal } from "../modals/mobile-navigation-modal";
 import { ShortcutHelpModal } from "../modals/shortcut-help-modal";
 import { KeywordFilterService } from "../services/keyword-filter-service";
+import { matchesArticleFilters } from "../services/article-filters";
 import {
   shouldUseMobileSidebarLayout,
   setCssProps,
@@ -3410,147 +3411,18 @@ export class RssDashboardView extends ItemView {
       ignoreAgeFilter?: boolean;
     } = {},
   ): boolean {
-    // 1. Check selected tags (if any)
-    if (this.selectedTags.length > 0) {
-      const mode = this.settings.sidebarTagFilterMode || "or";
-      const itemTags = (item.tags ?? []).map((t) => t.name);
-      if (mode === "or") {
-        if (!this.selectedTags.some((tag) => itemTags.includes(tag)))
-          return false;
-      } else if (mode === "and") {
-        if (!this.selectedTags.every((tag) => itemTags.includes(tag)))
-          return false;
-      } else if (mode === "not") {
-        if (this.selectedTags.some((tag) => itemTags.includes(tag)))
-          return false;
-      }
-    }
-
-    // 2. Check special folder status (if selected in sidebar)
-    const specialFolders = [
-      "read",
-      "unread",
-      "starred",
-      "saved",
-      "videos",
-      "podcasts",
-    ];
-    if (this.currentFolder && specialFolders.includes(this.currentFolder)) {
-      if (this.currentFolder === "starred" && !item.starred) return false;
-      if (this.currentFolder === "unread" && item.read) return false;
-      if (this.currentFolder === "read" && !item.read) return false;
-      if (this.currentFolder === "saved" && !item.saved) return false;
-      if (this.currentFolder === "videos" && item.mediaType !== "video")
-        return false;
-      if (this.currentFolder === "podcasts" && item.mediaType !== "podcast")
-        return false;
-    }
-
-    // 3. Check multi-filters (header checkboxes)
-    if (
-      !options.ignoreDashboardMultiFilters &&
-      (this.activeStatusFilters.size > 0 || this.activeTagFilters.size > 0)
-    ) {
-      const isRead = !!item.read;
-      const isSaved = !!item.saved;
-      const isStarred = !!item.starred;
-
-      if (this.filterLogic === "AND") {
-        // Strict matching: Item MUST satisfy EVERY checked status filter
-        if (this.activeStatusFilters.has("unread") && isRead) return false;
-        if (this.activeStatusFilters.has("read") && !isRead) return false;
-        if (this.activeStatusFilters.has("saved") && !isSaved) return false;
-        if (this.activeStatusFilters.has("starred") && !isStarred) return false;
-        if (
-          this.activeStatusFilters.has("videos") &&
-          item.mediaType !== "video"
-        )
-          return false;
-        if (
-          this.activeStatusFilters.has("podcasts") &&
-          item.mediaType !== "podcast"
-        )
-          return false;
-        if (
-          this.activeStatusFilters.has("tagged") &&
-          (!item.tags || item.tags.length === 0)
-        )
-          return false;
-        if (
-          this.activeStatusFilters.has("untagged") &&
-          item.tags &&
-          item.tags.length > 0
-        )
-          return false;
-
-        // Specific tag checks (AND mode: match ANY of the selected tags)
-        if (this.activeTagFilters.size > 0) {
-          if (!item.tags || item.tags.length === 0) return false;
-          const itemTagNames = item.tags.map((t) => t.name);
-          const tagMatch = Array.from(this.activeTagFilters).some((tagName) =>
-            itemTagNames.includes(tagName),
-          );
-          if (!tagMatch) return false;
-        }
-      } else {
-        // "Or" (OR) logic: Item matches if it satisfies ANY checked filter.
-        let match = false;
-        if (this.activeStatusFilters.has("unread") && !isRead) match = true;
-        else if (this.activeStatusFilters.has("read") && isRead) match = true;
-        else if (this.activeStatusFilters.has("saved") && isSaved) match = true;
-        else if (this.activeStatusFilters.has("starred") && isStarred)
-          match = true;
-        else if (
-          this.activeStatusFilters.has("videos") &&
-          item.mediaType === "video"
-        )
-          match = true;
-        else if (
-          this.activeStatusFilters.has("podcasts") &&
-          item.mediaType === "podcast"
-        )
-          match = true;
-        else if (
-          this.activeStatusFilters.has("tagged") &&
-          item.tags &&
-          item.tags.length > 0
-        )
-          match = true;
-        else if (
-          this.activeStatusFilters.has("untagged") &&
-          (!item.tags || item.tags.length === 0)
-        )
-          match = true;
-        else if (
-          this.activeTagFilters.size > 0 &&
-          item.tags &&
-          item.tags.length > 0
-        ) {
-          const itemTagNames = item.tags.map((t) => t.name);
-          if (
-            Array.from(this.activeTagFilters).some((tagName) =>
-              itemTagNames.includes(tagName),
-            )
-          ) {
-            match = true;
-          }
-        }
-        if (!match) return false;
-      }
-    }
-
-    // 4. Check age filter
-    if (
-      !options.ignoreAgeFilter &&
-      this.settings.articleFilter.type === "age" &&
-      typeof this.settings.articleFilter.value === "number" &&
-      this.settings.articleFilter.value > 0
-    ) {
-      const maxAge = Date.now() - this.settings.articleFilter.value;
-      if (getEffectiveDateMs(item, this.settings.useFirstSeenDateFallback) <= maxAge) return false;
-    }
-
-    return true;
+    return matchesArticleFilters(
+      item,
+      {
+        selectedTags: this.selectedTags,
+        currentFolder: this.currentFolder,
+        activeStatusFilters: this.activeStatusFilters,
+        activeTagFilters: this.activeTagFilters,
+        filterLogic: this.filterLogic,
+        settings: this.settings,
+      },
+      options,
+    );
   }
 
   private computeDashboardMultiFilterCounts(

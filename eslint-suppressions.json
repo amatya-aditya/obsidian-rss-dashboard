@@ -262,7 +262,7 @@
   },
   "src/views/dashboard-view.ts": {
     "complexity": {
-      "count": 8
+      "count": 7
     },
     "max-lines-per-function": {
       "count": 4
