@@ -315,7 +315,7 @@ describe("loadSettings()", () => {
     expect(plugin.settings.feeds[0].maxItemsLimit).toBeDefined();
   });
 
-  it("falls back to DEFAULT_SETTINGS on error", async () => {
+  it("uses an independent copy of DEFAULT_SETTINGS on error", async () => {
     // Given: loadData throws an error
     (plugin.loadData as ReturnType<typeof vi.fn>).mockRejectedValue(
       new Error("Load failed"),
@@ -324,8 +324,148 @@ describe("loadSettings()", () => {
     // When: loadSettings is called
     await plugin.loadSettings();
 
-    // Then: settings should be DEFAULT_SETTINGS
+    // Then: settings should match defaults without sharing their mutable state
     expect(plugin.settings).toEqual(DEFAULT_SETTINGS);
+    expect(plugin.settings).not.toBe(DEFAULT_SETTINGS);
+    expect(plugin.settings.feeds).not.toBe(DEFAULT_SETTINGS.feeds);
+    expect(plugin.settings.folders).not.toBe(DEFAULT_SETTINGS.folders);
+  });
+
+  it("does not persist fallback settings after a load failure", async () => {
+    (plugin.loadData as ReturnType<typeof vi.fn>).mockRejectedValue(
+      new Error("Load failed"),
+    );
+
+    await plugin.loadSettings();
+    await plugin.saveSettings();
+
+    expect(plugin.saveData).not.toHaveBeenCalled();
+  });
+
+  it("does not persist fallback settings through a storage operation", async () => {
+    (plugin.loadData as ReturnType<typeof vi.fn>).mockRejectedValue(
+      new Error("Load failed"),
+    );
+
+    const rmdirSpy = vi.spyOn(plugin.app.vault.adapter, "rmdir");
+    await plugin.loadSettings();
+    await plugin.app.vault.adapter.mkdir(plugin.settings.storageFolder);
+    await plugin.revertToLegacyJsonStorageWithOptions({
+      deleteShardFolder: true,
+    });
+
+    expect(plugin.saveData).not.toHaveBeenCalled();
+    expect(rmdirSpy).not.toHaveBeenCalled();
+  });
+
+  it("keeps saves blocked until a later load succeeds", async () => {
+    (plugin.loadData as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+      new Error("Load failed"),
+    );
+    await plugin.loadSettings();
+
+    let resolveLoad: ((settings: RssDashboardSettings) => void) | undefined;
+    const pendingLoad = new Promise<RssDashboardSettings>((resolve) => {
+      resolveLoad = resolve;
+    });
+    (plugin.loadData as ReturnType<typeof vi.fn>).mockReturnValueOnce(
+      pendingLoad,
+    );
+
+    const retry = plugin.loadSettings();
+    await plugin.saveSettings();
+    expect(plugin.saveData).not.toHaveBeenCalled();
+
+    const recoveredSettings = structuredClone(DEFAULT_SETTINGS);
+    recoveredSettings.storageMode = "legacy-json";
+    resolveLoad?.(recoveredSettings);
+    await retry;
+    (plugin.saveData as ReturnType<typeof vi.fn>).mockClear();
+
+    await plugin.saveSettings();
+    expect(plugin.saveData).toHaveBeenCalledTimes(1);
+  });
+
+  it("blocks saves throughout a load that later fails hydration", async () => {
+    const loadedSettings = structuredClone(DEFAULT_SETTINGS);
+    loadedSettings.storageMode = "legacy-json";
+    (plugin.loadData as ReturnType<typeof vi.fn>).mockResolvedValue(
+      loadedSettings,
+    );
+
+    let rejectHydration: ((error: Error) => void) | undefined;
+    const hydration = new Promise<never>((_resolve, reject) => {
+      rejectHydration = reject;
+    });
+    const repository = (
+      plugin as unknown as {
+        feedStorageRepository: {
+          hydrateSettings: () => typeof hydration;
+        };
+      }
+    ).feedStorageRepository;
+    const hydrateSpy = vi
+      .spyOn(repository, "hydrateSettings")
+      .mockReturnValue(hydration);
+
+    const loading = plugin.loadSettings();
+    await vi.waitFor(() => expect(hydrateSpy).toHaveBeenCalled());
+    await plugin.saveSettings();
+    rejectHydration?.(new Error("Hydration failed"));
+    await loading;
+    expect(plugin.saveData).not.toHaveBeenCalled();
+  });
+
+  it("keeps saves blocked when an older overlapping load finishes first", async () => {
+    const loadedSettings = structuredClone(DEFAULT_SETTINGS);
+    loadedSettings.storageMode = "legacy-json";
+    (plugin.loadData as ReturnType<typeof vi.fn>).mockResolvedValue(
+      loadedSettings,
+    );
+
+    let resolveOlder:
+      | ((result: {
+          didChange: boolean;
+          shardCount: number;
+          userStateLoaded: boolean;
+        }) => void)
+      | undefined;
+    let rejectNewer: ((error: Error) => void) | undefined;
+    const olderHydration = new Promise<{
+      didChange: boolean;
+      shardCount: number;
+      userStateLoaded: boolean;
+    }>((resolve) => {
+      resolveOlder = resolve;
+    });
+    const newerHydration = new Promise<never>((_resolve, reject) => {
+      rejectNewer = reject;
+    });
+    const repository = (
+      plugin as unknown as {
+        feedStorageRepository: {
+          hydrateSettings: () => Promise<unknown>;
+        };
+      }
+    ).feedStorageRepository;
+    const hydrateSpy = vi
+      .spyOn(repository, "hydrateSettings")
+      .mockReturnValueOnce(olderHydration)
+      .mockReturnValueOnce(newerHydration);
+
+    const olderLoad = plugin.loadSettings();
+    await vi.waitFor(() => expect(hydrateSpy).toHaveBeenCalledTimes(1));
+    const newerLoad = plugin.loadSettings();
+    await vi.waitFor(() => expect(hydrateSpy).toHaveBeenCalledTimes(2));
+    resolveOlder?.({ didChange: false, shardCount: 0, userStateLoaded: true });
+    await olderLoad;
+    (plugin.saveData as ReturnType<typeof vi.fn>).mockClear();
+
+    await plugin.saveSettings();
+    rejectNewer?.(new Error("Newer hydration failed"));
+    await newerLoad;
+
+    expect(plugin.saveData).not.toHaveBeenCalled();
   });
 
   it("normalizes page sizes to a single global value", async () => {
@@ -2297,12 +2437,75 @@ describe("loadSettings() vault metadata guard", () => {
 
     const adapter = plugin.app.vault.adapter as unknown as {
       read: (path: string) => Promise<string>;
+      write: (path: string, data: string) => Promise<void>;
     };
     vi.spyOn(adapter, "read").mockRejectedValue(new Error("ENOENT"));
+    const writeSpy = vi.spyOn(adapter, "write");
 
     await plugin.loadSettings();
+    expect(plugin.settings.folders).not.toBe(DEFAULT_SETTINGS.folders);
+    expect(plugin.settings.availableTags).not.toBe(
+      DEFAULT_SETTINGS.availableTags,
+    );
+    const defaultFolderName = DEFAULT_SETTINGS.folders[0]?.name;
+    if (plugin.settings.folders[0]) {
+      plugin.settings.folders[0].name = "Changed fallback";
+    }
+    expect(DEFAULT_SETTINGS.folders[0]?.name).toBe(defaultFolderName);
+    plugin.settings.storageMode = "legacy-json";
+    await plugin.saveSettings();
 
     expect(plugin.saveData).not.toHaveBeenCalled();
+    expect(writeSpy).not.toHaveBeenCalled();
+  });
+
+  it("blocks saves while unreadable vault metadata is still hydrating", async () => {
+    (plugin.loadData as ReturnType<typeof vi.fn>).mockResolvedValue({
+      metadataStorageMode: "vault-location",
+      metadataStorageFolder: ".rss-dashboard-data",
+      metadataStorageSchemaVersion: 2,
+    });
+    vi.spyOn(plugin.app.vault.adapter, "read").mockRejectedValue(
+      new Error("ENOENT"),
+    );
+
+    let resolveHydration:
+      | ((result: {
+          didChange: boolean;
+          shardCount: number;
+          userStateLoaded: boolean;
+        }) => void)
+      | undefined;
+    const hydration = new Promise<{
+      didChange: boolean;
+      shardCount: number;
+      userStateLoaded: boolean;
+    }>((resolve) => {
+      resolveHydration = resolve;
+    });
+    const repository = (
+      plugin as unknown as {
+        feedStorageRepository: {
+          hydrateSettings: () => typeof hydration;
+        };
+      }
+    ).feedStorageRepository;
+    const hydrateSpy = vi
+      .spyOn(repository, "hydrateSettings")
+      .mockReturnValue(hydration);
+
+    const loading = plugin.loadSettings();
+    await vi.waitFor(() => expect(hydrateSpy).toHaveBeenCalled());
+    plugin.settings.storageMode = "legacy-json";
+    await plugin.saveSettings();
+
+    expect(plugin.saveData).not.toHaveBeenCalled();
+    resolveHydration?.({
+      didChange: false,
+      shardCount: 0,
+      userStateLoaded: true,
+    });
+    await loading;
   });
 });
 
