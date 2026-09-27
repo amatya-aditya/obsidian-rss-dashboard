@@ -9,6 +9,7 @@ Internal developer documentation for the RSS Dashboard plugin.
 - [Feed Data Lifecycle](./data-flow.md)
 - [Feed Validation](./feed-validation.md)
 - [Fixture Vault for Manual Testing](./fixture-vault.md)
+- [Issue Labels and Milestones](./labels.md)
 - [Obsidian Settings Reference](./obsidian-settings-reference.md)
 - [Release Notes Workflow](./release-notes-workflow.md)
 - [Starred State and Tags](./starred-state-and-tags.md)
@@ -128,8 +129,10 @@ dedicated documentation migration so every inbound link is updated together.
 1. Capture an uncommitted idea in a GitHub Discussion or a dated draft plan.
 2. Triage it as accepted, deferred, rejected, superseded, or still proposed.
 3. For accepted work, create a GitHub issue, rename the plan with the issue
-   number, and replace draft dependencies with issue URLs.
-4. Keep accepted backlog issues unassigned and unmilestoned when appropriate.
+   number, and replace draft dependencies with issue URLs. Label it as
+   described in [Issue Labels and Milestones](./labels.md).
+4. Keep accepted backlog issues unassigned, in the `vNext` milestone until
+   they're scheduled for a release.
 5. Add only intended release work to the release milestone; mark it Required or
    Stretch in the Project and plan metadata.
 6. Use an issue branch and pull request that link the canonical issue. Update
