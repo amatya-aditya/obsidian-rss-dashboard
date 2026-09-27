@@ -295,10 +295,18 @@ This prevents thrashing the vault adapter during long playback sessions while en
 
 ## Build & Distribution
 
-**Build Verification**: Status: Not yet available
+**Build Verification**: ✅ GitHub artifact attestations
 
-- Future: GitHub artifact attestation will be added to release artifacts
-- Allows verification that release builds match source code in this repository
+- Every release built by the release workflow attests `main.js`, `styles.css`, and `manifest.json` with signed build provenance, which ties each file to the commit and workflow run that built it
+- Each release also publishes a software bill of materials, `rss-dashboard.spdx.json` (SPDX), listing the third-party packages bundled into `main.js`, attested against the same files
+- To verify a downloaded release file with the [GitHub CLI](https://cli.github.com/):
+
+  ```bash
+  gh attestation verify main.js --repo amatya-aditya/obsidian-rss-dashboard
+  gh attestation verify main.js --repo amatya-aditya/obsidian-rss-dashboard --predicate-type https://spdx.dev/Document/v2.3
+  ```
+
+  The first command checks build provenance, the second the SBOM attestation. Releases published before the SBOM was added carry provenance only.
 
 **Obfuscation**: Status: Not used
 
@@ -307,7 +315,8 @@ This prevents thrashing the vault adapter during long playback sessions while en
 
 **Dependency Security**: ✅
 
-- Dependencies are regularly updated
+- Dependencies are regularly updated; Dependabot opens weekly version-update pull requests
+- Pull requests and releases fail on high or critical `npm audit` findings
 - See `package.json` for complete dependency list
 - Vulnerable dependencies scans are planned
 
@@ -326,8 +335,8 @@ This prevents thrashing the vault adapter during long playback sessions while en
 
 **Responsible Disclosure**:
 
-- If you discover a security vulnerability, please report it responsibly
-- See `CONTRIBUTING.md` for security reporting guidelines
+- If you discover a security vulnerability, please report it privately: open the repository's **Security** tab and choose **Report a vulnerability**
+- Please don't open a public issue for a vulnerability. If private reporting isn't available, ask a maintainer for a private contact on [Discord](https://discord.gg/9bu7V9BBbs)
 
 ---
 
@@ -380,8 +389,9 @@ This prevents thrashing the vault adapter during long playback sessions while en
 
 ## Future Improvements
 
-- [ ] GitHub artifact attestation for release verification
-- [ ] Automated vulnerability scanning in CI/CD pipeline
+- [x] GitHub artifact attestation for release verification
+- [x] Automated dependency vulnerability scanning in CI/CD (`npm audit` gates)
+- [x] Attested software bill of materials (SBOM) for releases
 - [ ] Malware scanning integration
 - [ ] Detailed request logging option (opt-in)
 - [ ] Feed-level security warnings for untrusted sources
@@ -399,6 +409,6 @@ If you have questions about this security policy or concerns about data privacy,
 
 ---
 
-**Last Updated**: May 13, 2026  
+**Last Updated**: September 27, 2026  
 **Document Version**: 1.0  
 **Plugin**: RSS Dashboard for Obsidian
