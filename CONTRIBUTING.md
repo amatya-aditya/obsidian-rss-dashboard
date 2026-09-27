@@ -346,7 +346,7 @@ git push --set-upstream origin release/2.3.0 --tags
 
 Use `--set-upstream` on the first push of a new release branch so your local branch tracks `origin/release/...` and tools like VS Code stop showing `Publish Branch`.
 
-Pushing the Beta tag triggers this repo's GitHub Actions release workflow, which builds the plugin and creates a GitHub pre-release with the standard Obsidian assets attached (`main.js`, `manifest.json`, `styles.css`). The workflow also emits GitHub artifact attestations for `main.js` and `styles.css` so release assets have verifiable build provenance.
+Pushing the Beta tag triggers this repo's GitHub Actions release workflow, which builds the plugin and creates a GitHub pre-release with the standard Obsidian assets attached (`main.js`, `manifest.json`, `styles.css`). The workflow also attaches an SBOM (`rss-dashboard.spdx.json`) and emits GitHub artifact attestations (build provenance and the SBOM) for `main.js`, `styles.css`, and `manifest.json`, so release assets are verifiable. See **Build & Distribution** in [docs/SECURITY.md](docs/SECURITY.md) for the verification commands.
 
 If the workflow is unavailable for any reason, create the GitHub release manually from the same tag and upload those files yourself. Manual uploads do not create attestations — for compliance, re-run the release workflow from the tag afterward so attestations are generated in GitHub Actions.
 
@@ -406,7 +406,7 @@ git merge origin/master && git push origin dev
 git branch -d release/2.3.0
 ```
 
-Pushing the stable tag triggers GitHub Actions to build and create a release with plugin assets (`main.js`, `manifest.json`, `styles.css`). Stable releases should be published through the workflow path so attestation records exist for `main.js` and `styles.css`; if you ever need to do it manually, upload those same files to a release created from tag `2.3.0`.
+Pushing the stable tag triggers GitHub Actions to build and create a release with plugin assets (`main.js`, `manifest.json`, `styles.css`). Stable releases should be published through the workflow path so attestation records and the SBOM exist for the release assets; if you ever need to do it manually, upload those same files to a release created from tag `2.3.0`.
 
 ### Tag Retention
 

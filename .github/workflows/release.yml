@@ -48,6 +48,12 @@ jobs:
           # Copy main files
           cp main.js manifest.json styles.css release/
 
+      # esbuild bundles only production dependencies into main.js, so the
+      # SBOM leaves out dev dependencies. It's published with the release and
+      # attested against the release assets below.
+      - name: Generate SBOM for bundled dependencies
+        run: npm sbom --omit dev --sbom-format spdx --sbom-type library > release/rss-dashboard.spdx.json
+
       - name: Upload release assets
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
@@ -76,6 +82,7 @@ jobs:
           test -s release/main.js
           test -s release/manifest.json
           test -s release/styles.css
+          test -s release/rss-dashboard.spdx.json
 
       - name: Attest build provenance for release assets
         uses: actions/attest-build-provenance@8beda2b7ed98355c0e97c0a63bec38ae472e66c4 # v4
@@ -84,6 +91,15 @@ jobs:
             release/main.js
             release/styles.css
             release/manifest.json
+
+      - name: Attest SBOM for release assets
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: |
+            release/main.js
+            release/styles.css
+            release/manifest.json
+          sbom-path: release/rss-dashboard.spdx.json
 
       - name: Create release
         env:
@@ -112,4 +128,5 @@ jobs:
             "${release_flags[@]}" \
             release/main.js \
             release/manifest.json \
-            release/styles.css
+            release/styles.css \
+            release/rss-dashboard.spdx.json
