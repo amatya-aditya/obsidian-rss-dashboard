@@ -73,6 +73,7 @@ rare data-loss bug can be `data-loss` and still `priority: medium`.
 | `data-loss` | Can lose or overwrite user data. These are the major fixes that may still target a frozen release branch (#436, phase 2); see **Freezing the release branch** in `CONTRIBUTING.md` |
 | `regression` | Worked in an earlier release and is broken now. Name the last working version in the issue |
 | `breaking change` | Changes behavior, stored data, or requirements (such as `minAppVersion`) in a way users must adapt to. Ships only in a major release, bundled with the other breaking changes in its milestone |
+| `accessibility` | A barrier for keyboard, screen-reader, low-vision, or other assistive-technology users. Fix it the way the accessibility guidelines recommend, such as native elements before ARIA roles |
 
 ## Area
 
