@@ -4,10 +4,6 @@ import { PodcastEpisodeList } from "../components/podcast-episode-list";
 import { MediaService } from "../services/media-service";
 import { sanitizeAndAppendHtml } from "../utils/safe-html";
 import { windowInstanceOf } from "../utils/platform-utils";
-import {
-  loadVaultLocalStorage,
-  saveVaultLocalStorage,
-} from "../utils/vault-local-storage";
 
 export class PodcastPlayer {
   private container: HTMLElement;
@@ -87,19 +83,26 @@ export class PodcastPlayer {
     this.defaultPlaySpeed = defaultPlaySpeed ?? 1;
     this.useFirstSeenDateFallback = useFirstSeenDateFallback;
     if (playlist) {
-      this.playlist = playlist;
-      this.originalPlaylist = [...playlist];
+      this.setPlaylist(playlist);
     }
     this.onEpisodeSelected = onEpisodeSelected;
     this.onPlaybackProgress = onPlaybackProgress;
-    if (this.progressTrackingEnabled) {
-      this.loadProgressData();
-    }
   }
 
   setPlaylist(playlist: FeedItem[]) {
     this.playlist = playlist;
     this.originalPlaylist = [...playlist];
+    this.progressData.clear();
+    if (this.progressTrackingEnabled) {
+      playlist.forEach((item) => {
+        if (item.playbackProgress) {
+          this.progressData.set(item.guid, {
+            position: item.playbackProgress.position,
+            duration: item.playbackProgress.duration,
+          });
+        }
+      });
+    }
     this.currentPlaylistIndex = 0;
     this.isShuffled = false;
     this.episodeVisibleCount = 20;
@@ -1192,48 +1195,6 @@ export class PodcastPlayer {
         flush,
       );
     }
-
-    this.saveProgressData();
-  }
-
-  private saveProgressData(): void {
-    if (!this.progressTrackingEnabled) {
-      return;
-    }
-
-    try {
-      const data: Record<string, { position: number; duration: number }> = {};
-      this.progressData.forEach((value, key) => {
-        data[key] = value;
-      });
-      saveVaultLocalStorage(this.app, "rss-podcast-progress", data);
-    } catch (error) {
-      console.error("Failed to save podcast progress:", error);
-    }
-  }
-
-  private loadProgressData(): void {
-    if (!this.progressTrackingEnabled) {
-      this.progressData.clear();
-      return;
-    }
-
-    try {
-      const data = loadVaultLocalStorage(this.app, "rss-podcast-progress");
-      if (data && typeof data === "object") {
-        const parsed = data as Record<
-          string,
-          { position: number; duration: number }
-        >;
-
-        this.progressData.clear();
-        Object.entries(parsed).forEach(([key, value]) => {
-          this.progressData.set(key, value);
-        });
-      }
-    } catch (error) {
-      console.error("Failed to load podcast progress:", error);
-    }
   }
 
   updateTheme(theme: string): void {
@@ -1259,7 +1220,5 @@ export class PodcastPlayer {
       this.audioElement.remove();
       this.audioElement = null;
     }
-
-    this.saveProgressData();
   }
 }
