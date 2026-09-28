@@ -138,6 +138,22 @@ describe("services after settings are reloaded from another device", () => {
     ]);
   });
 
+  it("keeps settings-backed services aligned after a reload failure", async () => {
+    (plugin.loadData as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+      new Error("Reload failed"),
+    );
+    handlers.modify?.({ path: ".rss-dashboard-data/data.json" });
+    await vi.advanceTimersByTimeAsync(1_500);
+
+    await plugin.ensureFolderExists("Added after failed sync", {
+      saveSettings: false,
+    });
+
+    expect(plugin.settings.folders.map((folder) => folder.name)).toContain(
+      "Added after failed sync",
+    );
+  });
+
   it("keeps a queued background import through the reload", async () => {
     plugin.backgroundImportQueue = [
       {
