@@ -369,7 +369,7 @@ export default class RssDashboardPlugin extends Plugin {
       },
       isSettingsLoadFailed: () => this.settingsLoadFailed,
       getFeedStorageRepository: () => this.feedStorageRepository,
-      savePluginData: (data) => this.savePluginData(data),
+      getMetadataSaveCallback: () => this.getMetadataSaveCallback(),
       saveSettings: (...args) => this.saveSettings(...args),
       migrateLegacySettings: () => this.migrateLegacySettings(),
       initializeSettingsBackedServices: () =>

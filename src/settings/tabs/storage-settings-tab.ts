@@ -35,9 +35,6 @@ import {
   type ShardFolderDeletionError,
 } from "../../services/feed-storage-repository";
 
-const VAULT_METADATA_IMPORT_WARNING =
-  "Known issue: with metadata in a vault folder, an import can be lost if Obsidian closes before anything else is saved. After importing, change a setting or mark an article as read before closing.";
-
 interface StorageSettingsPlugin {
   app: App;
   settingTab: { display(): void } | null;
@@ -313,9 +310,6 @@ export function renderStorageSettingsTab(
       lastSavedMetadataStorageFolder = nextFolder;
       pendingMetadataStorageFolder = nextFolder;
       await maybeOfferMetadataCleanup(previousDataFilePath);
-      // Known issue #474: in a vault folder, a bundle import is saved only
-      // to the plugin folder until the next settings save.
-      new Notice(VAULT_METADATA_IMPORT_WARNING, 15000);
     } catch (error) {
       plugin.settings.metadataStorageMode = previousMode;
       plugin.settings.metadataStorageFolder = previousFolder;

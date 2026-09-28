@@ -26,15 +26,12 @@
 - Fixed clearing a **Default folders** setting, such as **Default YouTube folder**, saving the folder as `/`. New feeds of that type were filed under a folder named `/` that doesn't exist, so they showed at the top level while **Move to folder** didn't mark them as in the root, and the setting showed `/` instead of the default. A cleared field now files new feeds in the root again. [GH Issue #372](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/372)
 - Fixed podcast playback progress being replaced by an older saved resume point when Obsidian starts. Existing episode progress is preserved, and the obsolete `rss-podcast-progress` local-storage entry is cleared after it is checked. [GH Issue #468](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/468)
 - Fixed preview images no longer being cached after a cached image file was deleted outside the plugin, for example by you or a sync tool, until Obsidian was restarted. Lowering the image cache limit could also fail without saving, and **Clear image cache** said the deleted image could not be removed and kept counting it in the cache size. A cached image file that is already gone now counts as removed. [GH Issue #372](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/372)
+- Fixed Portable data bundle, Feed bundle, and Settings bundle imports writing metadata to Obsidian's plugin folder instead of the configured vault `data.json` location. Imported data now persists where the plugin will read it after restart. [GH Issue #474](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/474)
 
 ### Developer
 
 - HTML entities in feed text, feed previews, and podcast title lookups are now decoded in one pass by a shared decoder. Text that was escaped twice keeps one level of escaping, and feed previews show named entities such as `&eacute;` as letters.
 - Rich article rendering now keeps a fixed set of HTML tags; other tags are unwrapped and their text is kept.
-
-### Known issues
-
-- With the metadata `data.json` in a vault folder, a Portable data bundle, Feed bundle, or Settings bundle import can be lost if Obsidian closes before anything else is saved. Applying a vault folder under **Settings → Storage → Metadata data.json location** now shows a notice about this: after importing, change a setting or mark an article as read before closing Obsidian. The default location in the plugin folder isn't affected. [GH Issue #474](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/474)
 
 ## 2.7.0 - September 25, 2026
 

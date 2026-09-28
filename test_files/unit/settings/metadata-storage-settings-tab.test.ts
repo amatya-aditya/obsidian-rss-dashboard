@@ -315,13 +315,7 @@ describe("renderStorageSettingsTab() - previous metadata copy cleanup", () => {
   });
 });
 
-// Known issue #474: a bundle import made while metadata is in a vault folder
-// is lost if Obsidian closes before the next settings save. Users who move the
-// metadata into a vault folder are warned when they apply the move.
-describe("renderStorageSettingsTab() - vault folder import warning", () => {
-  const WARNING =
-    "Known issue: with metadata in a vault folder, an import can be lost if Obsidian closes before anything else is saved. After importing, change a setting or mark an article as read before closing.";
-
+describe("renderStorageSettingsTab() - metadata folder changes", () => {
   // The Notice stub reports each notice through console.debug.
   function spyOnNotices() {
     const spy = vi.spyOn(console, "debug").mockImplementation(() => {});
@@ -331,49 +325,51 @@ describe("renderStorageSettingsTab() - vault folder import warning", () => {
         .map(([, message]) => message as string);
   }
 
-  it("warns about imports after metadata moves into a vault folder", async () => {
+  it("migrates metadata when a vault folder is applied", async () => {
     const containerEl = document.body.appendChild(createDiv());
     const plugin = createPlugin();
-    const notices = spyOnNotices();
 
     renderStorageSettingsTab(containerEl, plugin);
     await applyMetadataLocation(containerEl, "rss-meta");
 
     expect(vi.mocked(plugin.migrateMetadataToVaultLocation)).toHaveBeenCalled();
-    expect(notices()).toContain(WARNING);
+    expect(plugin.settings.metadataStorageFolder).toBe("rss-meta");
   });
 
-  it("does not warn when the location is cleared back to the plugin folder", async () => {
+  it("reverts metadata when the vault folder is cleared", async () => {
     const containerEl = document.body.appendChild(createDiv());
     const plugin = createPlugin();
     plugin.settings.metadataStorageMode = "vault-location";
     plugin.settings.metadataStorageFolder = "rss-meta";
-    const notices = spyOnNotices();
 
     renderStorageSettingsTab(containerEl, plugin);
     await applyMetadataLocation(containerEl, "");
 
     expect(vi.mocked(plugin.revertMetadataToPluginDefault)).toHaveBeenCalled();
-    expect(notices()).not.toContain(WARNING);
+    expect(plugin.settings.metadataStorageFolder).toBe(".rss-dashboard-data");
+    expect(vi.mocked(plugin.saveSettings)).toHaveBeenCalled();
   });
 
-  it("does not warn when the move fails", async () => {
+  it("restores the previous location and reports a migration failure", async () => {
     const containerEl = document.body.appendChild(createDiv());
     const plugin = createPlugin();
     vi.mocked(plugin.migrateMetadataToVaultLocation).mockRejectedValueOnce(
       new Error("disk full"),
     );
     const notices = spyOnNotices();
-    // The failed apply rethrows out of the click handler's promise.
     const ignoreRejection = () => {};
     process.on("unhandledRejection", ignoreRejection);
 
-    renderStorageSettingsTab(containerEl, plugin);
-    await applyMetadataLocation(containerEl, "rss-meta");
-    await flushPromises();
-    process.off("unhandledRejection", ignoreRejection);
+    try {
+      renderStorageSettingsTab(containerEl, plugin);
+      await applyMetadataLocation(containerEl, "rss-meta");
+      await flushPromises();
+    } finally {
+      process.off("unhandledRejection", ignoreRejection);
+    }
 
+    expect(plugin.settings.metadataStorageMode).toBe("plugin-default");
+    expect(plugin.settings.metadataStorageFolder).toBe(".rss-dashboard-data");
     expect(notices()).toContain("Metadata storage update failed: disk full");
-    expect(notices()).not.toContain(WARNING);
   });
 });
