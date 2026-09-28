@@ -307,6 +307,8 @@ export default class RssDashboardPlugin extends Plugin {
   private whatsNewHandledThisSession = false;
   private wasNullSettingsLoad = false;
   private settingsLoadFailed = false;
+  private hasNotifiedVaultMetadataFailure = false;
+  private settingsLoadGeneration = 0;
   private vaultMetadataReloadTimer: number | null = null;
   private startupRefreshTimeoutId: number | null = null;
   private progressSaveDebounce: number | null = null;
@@ -1835,8 +1837,6 @@ export default class RssDashboardPlugin extends Plugin {
 
     new Notice("Imported rss-dashboard-user-preferences.json");
   }
-
-
   // ✅ ImportExportService extracted — delegates to service
   public getUserSettingsJson(): string {
     return this.importExportService.getUserSettingsJson();
@@ -1855,21 +1855,20 @@ export default class RssDashboardPlugin extends Plugin {
   }
 
   private async applyPortableDataBundleImport(bundle: unknown): Promise<void> {
+    if (this.settingsLoadFailed) return;
     storageLog("Plugin portable bundle import requested", {
       currentMode: this.settings.storageMode,
       folder: this.settings.storageFolder,
       feedCount: this.settings.feeds.length,
     });
-
     try {
       await this.feedStorageRepository.importPortableDataBundle(
         bundle,
         this.settings,
-        (data) => this.saveData(data),
+        (data) => this.savePluginData(data),
       );
       this.migrateLegacySettings();
       this.initializeSettingsBackedServices();
-
       if (this.settingTab) {
         this.settingTab.refresh();
       }
@@ -1877,7 +1876,6 @@ export default class RssDashboardPlugin extends Plugin {
       await this.refreshDashboardViews();
       const discoverView = await this.getActiveDiscoverView();
       discoverView?.render();
-
       storageLog("Plugin portable bundle import completed", {
         currentMode: this.settings.storageMode,
         folder: this.settings.storageFolder,
@@ -1893,21 +1891,20 @@ export default class RssDashboardPlugin extends Plugin {
   }
 
   private async applyFeedBundleImport(bundle: unknown): Promise<void> {
+    if (this.settingsLoadFailed) return;
     storageLog("Plugin Feed bundle import requested", {
       currentMode: this.settings.storageMode,
       folder: this.settings.storageFolder,
       feedCount: this.settings.feeds.length,
     });
-
     try {
       await this.feedStorageRepository.importFeedBundle(
         bundle,
         this.settings,
-        (data) => this.saveData(data),
+        (data) => this.savePluginData(data),
       );
       this.migrateLegacySettings();
       this.initializeSettingsBackedServices();
-
       if (this.settingTab) {
         this.settingTab.refresh();
       }
@@ -1915,7 +1912,6 @@ export default class RssDashboardPlugin extends Plugin {
       await this.refreshDashboardViews();
       const discoverView = await this.getActiveDiscoverView();
       discoverView?.render();
-
       storageLog("Plugin Feed bundle import completed", {
         feedCount: this.settings.feeds.length,
       });
@@ -1929,20 +1925,19 @@ export default class RssDashboardPlugin extends Plugin {
   }
 
   private async applySettingsBundleImport(bundle: unknown): Promise<void> {
+    if (this.settingsLoadFailed) return;
     storageLog("Plugin Settings bundle import requested", {
       currentMode: this.settings.storageMode,
       folder: this.settings.storageFolder,
     });
-
     try {
       await this.feedStorageRepository.importSettingsBundle(
         bundle,
         this.settings,
-        (data) => this.saveData(data),
+        (data) => this.savePluginData(data),
       );
       this.migrateLegacySettings();
       this.initializeSettingsBackedServices();
-
       if (this.settingTab) {
         this.settingTab.refresh();
       }
@@ -1950,7 +1945,6 @@ export default class RssDashboardPlugin extends Plugin {
       await this.refreshDashboardViews();
       const discoverView = await this.getActiveDiscoverView();
       discoverView?.render();
-
       storageLog("Plugin Settings bundle import completed", {
         mode: this.settings.storageMode,
       });
@@ -2197,16 +2191,16 @@ export default class RssDashboardPlugin extends Plugin {
   }
 
   public async migrateToVaultStorage(): Promise<void> {
+    if (this.settingsLoadFailed) return;
     storageLog("Plugin migration requested", {
       currentMode: this.settings.storageMode,
       folder: this.settings.storageFolder,
       feedCount: this.settings.feeds.length,
     });
-
     try {
       await this.feedStorageRepository.migrateToVaultShards(
         this.settings,
-        (data) => this.saveData(data),
+        (data) => this.savePluginData(data),
       );
       this.initializeSettingsBackedServices();
       await this.refreshDashboardViews();
@@ -2226,12 +2220,12 @@ export default class RssDashboardPlugin extends Plugin {
   }
 
   public async migrateToVaultShardsV2(): Promise<void> {
+    if (this.settingsLoadFailed) return;
     storageLog("Plugin migration v2 requested", {
       currentMode: this.settings.storageMode,
       folder: this.settings.storageFolder,
       feedCount: this.settings.feeds.length,
     });
-
     try {
       await this.feedStorageRepository.migrateToVaultShardsV2(
         this.settings,
@@ -2255,6 +2249,7 @@ export default class RssDashboardPlugin extends Plugin {
   }
 
   public async backupAndMigrateStorageToV2(): Promise<void> {
+    if (this.settingsLoadFailed) return;
     storageLog("Running backup before migrating to vault-shards-v2");
     try {
       await this.autoBackupCoordinator.backupBeforeMigration();
@@ -2274,16 +2269,18 @@ export default class RssDashboardPlugin extends Plugin {
   }
 
   public async repairVaultShards(): Promise<RepairResult> {
+    if (this.settingsLoadFailed) {
+      return { skippedFeedCount: this.settings.feeds.length };
+    }
     storageLog("Plugin repair requested", {
       currentMode: this.settings.storageMode,
       folder: this.settings.storageFolder,
       feedCount: this.settings.feeds.length,
     });
-
     try {
       const result = await this.feedStorageRepository.repairVaultShards(
         this.settings,
-        (data) => this.saveData(data),
+        (data) => this.savePluginData(data),
       );
       if (this.settingTab) {
         this.settingTab.refresh();
@@ -2311,13 +2308,13 @@ export default class RssDashboardPlugin extends Plugin {
   public async revertToLegacyJsonStorageWithOptions(options?: {
     deleteShardFolder?: boolean;
   }): Promise<void> {
+    if (this.settingsLoadFailed) return;
     storageLog("Plugin revert requested", {
       currentMode: this.settings.storageMode,
       folder: this.settings.storageFolder,
       feedCount: this.settings.feeds.length,
       deleteShardFolder: Boolean(options?.deleteShardFolder),
     });
-
     try {
       await this.feedStorageRepository.revertToLegacyJson(
         this.settings,
@@ -2641,18 +2638,15 @@ export default class RssDashboardPlugin extends Plugin {
   }
 
   async loadSettings() {
+    const loadGeneration = ++this.settingsLoadGeneration;
     this.wasNullSettingsLoad = false;
-    this.settingsLoadFailed = false;
+    this.settingsLoadFailed = true;
     try {
       storageLog("Loading plugin settings");
-
       // Step 1: load bootstrap pointer from plugin-default location
       let data = (await this.loadData()) as RssDashboardSettings | null;
-
       let vaultMetadataUnreadable = false;
-
-      // Step 2: if pointer indicates vault-location mode, load full
-      // settings from the vault path stored in the pointer
+      // Step 2: load full settings from the vault path named by the pointer
       if (data?.metadataStorageMode === "vault-location") {
         const vaultData = await loadMetadata(
           this.app,
@@ -2665,23 +2659,24 @@ export default class RssDashboardPlugin extends Plugin {
             folder: data.metadataStorageFolder,
           });
         } else {
-          // The pointer names a vault file we cannot read. Falling through
-          // here would load DEFAULT_SETTINGS and then save them over the
-          // user's config, so treat it like a null load instead.
+          // Falling through would save defaults over the unreadable vault file,
+          // so treat the pointer like a null load instead.
           vaultMetadataUnreadable = true;
-          new Notice(
-            "Could not read plugin metadata from the configured vault folder. Settings were not loaded and nothing has been overwritten.",
-          );
+          data = structuredClone({ ...DEFAULT_SETTINGS, ...data });
+          if (!this.hasNotifiedVaultMetadataFailure) {
+            new Notice(
+              "Could not read plugin metadata from the configured vault folder. Settings were not loaded and nothing has been overwritten.",
+            );
+            this.hasNotifiedVaultMetadataFailure = true;
+          }
         }
       }
-
+      if (loadGeneration !== this.settingsLoadGeneration) return;
       // Track whether we bootstrapped from null (possible pending sync)
       const wasNullLoad = data === null || vaultMetadataUnreadable;
       this.wasNullSettingsLoad = wasNullLoad;
-
       const mergedSettings = Object.assign({}, DEFAULT_SETTINGS, data ?? {});
       const originalSettingsJson = JSON.stringify(mergedSettings);
-
       this.settings = loadAndNormalizeSettings(data);
       // A fresh install has no data.json yet. Record the installed release
       // in memory so the first real save stores it, and What's New does not
@@ -2718,12 +2713,13 @@ export default class RssDashboardPlugin extends Plugin {
         feedCount: this.settings.feeds.length,
         hydratedShardCount: hydrated.shardCount,
       });
-
       const didNormalizeAndDedupeItems = dedupeAndNormalizeFeedItems(
         this.settings.feeds,
         { useFirstSeenDateFallback: this.settings.useFirstSeenDateFallback },
       );
-
+      if (loadGeneration !== this.settingsLoadGeneration) return;
+      if (!vaultMetadataUnreadable) this.hasNotifiedVaultMetadataFailure = false;
+      this.settingsLoadFailed = vaultMetadataUnreadable;
       // Guard: skip the early write if we loaded from null defaults.
       // A null load on a synced vault likely means sync hasn't delivered
       // data.json yet — writing empty defaults here would clobber it.
@@ -2732,7 +2728,6 @@ export default class RssDashboardPlugin extends Plugin {
       // Similarly, skip if we are in v2 mode and user-state.json is missing.
       const isV2 = this.settings.storageMode === "vault-shards-v2";
       const isMissingUserState = isV2 && hydrated.userStateLoaded === false;
-
       const shouldSave =
         !wasNullLoad &&
         !isMissingUserState &&
@@ -2740,7 +2735,6 @@ export default class RssDashboardPlugin extends Plugin {
           hydrated.didChange ||
           didNormalizeAndDedupeItems ||
           JSON.stringify(this.settings) !== originalSettingsJson);
-
       if (shouldSave) {
         // On the first load, onload() has not initialized the services yet,
         // and this save's backup snapshot needs the backup service.
@@ -2751,13 +2745,15 @@ export default class RssDashboardPlugin extends Plugin {
       }
       this.autoRefreshScheduler?.reschedule();
     } catch (error) {
+      if (loadGeneration !== this.settingsLoadGeneration) return;
       storageError("Error loading plugin settings", error);
       new Notice(
         `Error loading settings: ${
           error instanceof Error ? error.message : "Unknown error"
         }`,
       );
-      this.settings = DEFAULT_SETTINGS;
+      this.settings = structuredClone(DEFAULT_SETTINGS);
+      if (this.folderService) this.bindSettingsBackedServices();
       this.settingsLoadFailed = true;
     }
   }
@@ -3017,8 +3013,12 @@ export default class RssDashboardPlugin extends Plugin {
    * Creates a save callback that persists metadata to the appropriate location
    * based on the current metadataStorageMode.
    */
+  private async savePluginData(data: unknown): Promise<void> {
+    if (!this.settingsLoadFailed) await this.saveData(data);
+  }
   public getMetadataSaveCallback(): (data: unknown) => Promise<void> {
     return async (data: unknown): Promise<void> => {
+      if (this.settingsLoadFailed) return;
       const settingsData = data as RssDashboardSettings;
       const metadataPath = getMetadataPath(this.settings);
       if (metadataPath) {
@@ -3036,7 +3036,7 @@ export default class RssDashboardPlugin extends Plugin {
           // Bootstrap pointer only — just enough for loadSettings to
           // find the vault data.json on restart. Does NOT write full
           // settings to .obsidian, preventing the stale-read bug on mobile.
-          await this.saveData({
+          await this.savePluginData({
             metadataStorageMode: this.settings.metadataStorageMode,
             metadataStorageFolder: this.settings.metadataStorageFolder,
             metadataStorageSchemaVersion:
@@ -3047,13 +3047,14 @@ export default class RssDashboardPlugin extends Plugin {
           throw error;
         }
       } else {
-        await this.saveData(settingsData);
+        await this.savePluginData(settingsData);
         storageLog("Metadata saved to plugin default location");
       }
     };
   }
 
   async saveSettings(options: PersistSettingsOptions = {}) {
+    if (this.settingsLoadFailed) return;
     storageLog("saveSettings invoked", {
       mode: this.settings.storageMode,
       folder: this.settings.storageFolder,
@@ -3093,6 +3094,7 @@ export default class RssDashboardPlugin extends Plugin {
    * 4. Persist updated settings
    */
   async migrateMetadataToVaultLocation(): Promise<void> {
+    if (this.settingsLoadFailed) return;
     if (this.settings.metadataStorageMode === "vault-location") {
       new Notice("Already using vault location for metadata storage");
       return;
@@ -3142,18 +3144,16 @@ export default class RssDashboardPlugin extends Plugin {
    * 4. Optionally clean up vault-location data.json
    */
   async revertMetadataToPluginDefault(): Promise<void> {
+    if (this.settingsLoadFailed) return;
     if (this.settings.metadataStorageMode === "plugin-default") {
       new Notice("Already using plugin default for metadata storage");
       return;
     }
-
     try {
       // Current settings are already in memory, just switch the mode
       this.settings.metadataStorageMode = "plugin-default";
-
       // Save using Plugin.saveData() (plugin-default location)
-      await this.saveData(this.settings);
-
+      await this.savePluginData(this.settings);
       // Optionally clean up the vault-location file
       const oldMetadataPath = this.settings.metadataStorageFolder;
       if (oldMetadataPath) {
