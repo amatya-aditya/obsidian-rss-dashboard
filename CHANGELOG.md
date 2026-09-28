@@ -7,6 +7,7 @@
 
 ### Fixes
 
+- Fixed JSON Feed subscriptions failing to refresh because valid JSON Feed responses were rejected by XML-only validation. JSON Feed version documents now pass validation, and feed requests advertise `application/feed+json`. [GH Issue #462](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/462)
 - Fixed **What's New** appearing on the second launch after a fresh install, as if the new user had just upgraded. A fresh install now records its version on first launch, so the popup shows only after a real update. [GH Issue #402](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/402)
 - Fixed **Import user preferences** in **Settings → Import/Export** showing **Import successful** after an invalid file had already been rejected. It now shows only the error. [GH Issue #377](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/377)
 - Fixed full articles from sites that block direct requests with HTTP 401 or 403 never being retried through the configured CORS proxy. Obsidian reports those responses as errors, so the reader gave up and showed the feed excerpt without trying the proxy. It now retries through the proxy first. [GH Issue #408](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/408)

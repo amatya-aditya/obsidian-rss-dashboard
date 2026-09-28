@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { RequestUrlResponse } from "obsidian";
 import * as obsidian from "obsidian";
 import { fetchFeedXml } from "../../../../src/services/feed-parser/feed-fetch.js";
-import { RSS2_BASIC } from "./fixtures/rss-fixtures.js";
+import { JSON_FEED_BASIC, RSS2_BASIC } from "./fixtures/rss-fixtures.js";
 
 function mockRequestUrlResponse(text: string): RequestUrlResponse {
   const bytes = new TextEncoder().encode(text);
@@ -53,6 +53,60 @@ describe("fetchFeedXml", () => {
 
     const xml = await fetchFeedXml("https://example.com/feed.xml");
     expect(xml).toContain("<rss");
+  });
+
+  it("returns a valid JSON Feed from a direct fetch", async () => {
+    vi.spyOn(obsidian, "requestUrl").mockResolvedValueOnce(
+      mockRequestUrlResponse(JSON_FEED_BASIC),
+    );
+
+    const text = await fetchFeedXml("https://example.com/feed.json", {
+      enabled: false,
+      url: "",
+    });
+
+    expect(text).toBe(JSON_FEED_BASIC);
+    expect(obsidian.requestUrl).toHaveBeenCalledWith(
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Accept: expect.stringContaining("application/feed+json"),
+        }),
+      }),
+    );
+  });
+
+  it("returns a valid JSON Feed from a configured proxy", async () => {
+    vi.spyOn(obsidian, "requestUrl")
+      .mockRejectedValueOnce(new Error("direct fetch failed"))
+      .mockResolvedValueOnce(mockRequestUrlResponse(JSON_FEED_BASIC));
+
+    const text = await fetchFeedXml(
+      "https://example.com/feed.json",
+      { enabled: true, url: "https://my-proxy.com/?url=" },
+    );
+
+    expect(text).toBe(JSON_FEED_BASIC);
+    expect(obsidian.requestUrl).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Accept: expect.stringContaining("application/feed+json"),
+        }),
+      }),
+    );
+  });
+
+  it("returns a valid JSON Feed from the AllOrigins fallback", async () => {
+    vi.spyOn(obsidian, "requestUrl")
+      .mockRejectedValueOnce(new Error("direct fetch failed"))
+      .mockResolvedValueOnce(
+        mockRequestUrlResponse(JSON.stringify({ contents: JSON_FEED_BASIC })),
+      );
+
+    const text = await fetchFeedXml("https://example.com/feed.json");
+
+    expect(text).toBe(JSON_FEED_BASIC);
+    expect(obsidian.requestUrl).toHaveBeenCalledTimes(2);
   });
 
   it("decodes a declared windows-1251 feed from raw response bytes", async () => {

@@ -87,6 +87,10 @@ async function fetchThroughProxy(
     proxyUrl.includes("allorigins.win/get") || proxyUrl.includes("rss2json");
   const responseText = await robustFetch(requestUrlParam, {
     method: "GET",
+    headers: {
+      Accept:
+        "application/feed+json, application/rss+xml, application/atom+xml, application/rdf+xml, application/xml, text/xml;q=0.9, */*;q=0.8",
+    },
     encodingOverride: isJsonEnvelope ? undefined : encodingOverride,
   });
 
@@ -162,7 +166,7 @@ async function discoverFeedUrl(
                 "User-Agent":
                   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
                 Accept:
-                  "application/rss+xml, application/atom+xml, application/rdf+xml, application/xml, text/xml;q=0.9, */*;q=0.8",
+                  "application/feed+json, application/rss+xml, application/atom+xml, application/rdf+xml, application/xml, text/xml;q=0.9, */*;q=0.8",
               },
               encodingOverride,
             });
@@ -311,7 +315,7 @@ export async function fetchFeedXml(
                 "User-Agent":
                   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
                 Accept:
-                  "application/rss+xml, application/xml, application/atom+xml, text/xml;q=0.9, */*;q=0.8",
+                  "application/feed+json, application/rss+xml, application/xml, application/atom+xml, text/xml;q=0.9, */*;q=0.8",
               },
               encodingOverride,
             });
@@ -335,7 +339,7 @@ export async function fetchFeedXml(
           "User-Agent":
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Feedbro/4.0",
           Accept:
-            "application/rss+xml, application/atom+xml, application/rdf+xml, application/xml, text/xml;q=0.9, */*;q=0.8",
+            "application/feed+json, application/rss+xml, application/atom+xml, application/rdf+xml, application/xml, text/xml;q=0.9, */*;q=0.8",
         },
         encodingOverride,
       });
@@ -365,7 +369,7 @@ export async function fetchFeedXml(
                   "User-Agent":
                     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Feedbro/4.0",
                   Accept:
-                    "application/rss+xml, application/atom+xml, application/rdf+xml, application/xml, text/xml;q=0.9, */*;q=0.8",
+                    "application/feed+json, application/rss+xml, application/atom+xml, application/rdf+xml, application/xml, text/xml;q=0.9, */*;q=0.8",
                 },
                 encodingOverride,
               });
@@ -395,7 +399,7 @@ export async function fetchFeedXml(
               "User-Agent":
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Feedbro/4.0",
               Accept:
-                "application/rss+xml, application/atom+xml, application/rdf+xml, application/xml, text/xml;q=0.9, */*;q=0.8",
+                "application/feed+json, application/rss+xml, application/atom+xml, application/rdf+xml, application/xml, text/xml;q=0.9, */*;q=0.8",
             },
             encodingOverride,
           });
@@ -454,7 +458,7 @@ export async function fetchFeedXml(
                 "User-Agent":
                   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Feedbro/4.0",
                 Accept:
-                  "application/rss+xml, application/atom+xml, application/rdf+xml, application/xml, text/xml;q=0.9, */*;q=0.8",
+                  "application/feed+json, application/rss+xml, application/atom+xml, application/rdf+xml, application/xml, text/xml;q=0.9, */*;q=0.8",
               },
               encodingOverride,
             });
@@ -620,7 +624,7 @@ export async function fetchFeedXml(
                   "User-Agent":
                     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Feedbro/4.0",
                   Accept:
-                    "application/rss+xml, application/xml, application/atom+xml, text/xml;q=0.9, */*;q=0.8",
+                    "application/feed+json, application/rss+xml, application/xml, application/atom+xml, text/xml;q=0.9, */*;q=0.8",
                 },
                 encodingOverride,
               });
@@ -660,7 +664,7 @@ export async function fetchFeedXml(
         method: "GET",
         headers: {
           Accept:
-            "application/rss+xml, application/atom+xml, application/rdf+xml, application/xml, text/xml;q=0.9, */*;q=0.8",
+            "application/feed+json, application/rss+xml, application/atom+xml, application/rdf+xml, application/xml, text/xml;q=0.9, */*;q=0.8",
         },
         encodingOverride,
       });

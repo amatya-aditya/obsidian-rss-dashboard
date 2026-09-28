@@ -19,7 +19,11 @@ describe("isValidFeed", () => {
     expect(isValidFeed("")).toBe(false);
   });
 
-  it("rejects JSON content", () => {
-    expect(isValidFeed(JSON_FEED_BASIC)).toBe(false);
+  it("accepts JSON Feed version documents", () => {
+    expect(isValidFeed(JSON_FEED_BASIC)).toBe(true);
+  });
+
+  it("rejects arbitrary JSON content", () => {
+    expect(isValidFeed('{"title":"Not a feed"}')).toBe(false);
   });
 });

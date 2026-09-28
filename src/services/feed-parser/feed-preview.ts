@@ -2,6 +2,7 @@ import { requestUrl } from "obsidian";
 import { robustFetch } from "../../utils/platform-utils.js";
 import type { FeedEncoding } from "../../types/types.js";
 import { isValidFeed } from "./feed-validation.js";
+import { CustomXMLParser } from "./xml-parser/custom-xml-parser.js";
 import type { FeedPreviewData, Rss2JsonResponse } from "./types.js";
 
 export type { FeedPreviewData } from "./types.js";
@@ -36,21 +37,48 @@ export async function loadFeedForPreview(
         "User-Agent":
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         Accept:
-          "application/rss+xml, application/atom+xml, application/xml, text/xml;q=0.9, */*;q=0.8",
+          "application/feed+json, application/rss+xml, application/atom+xml, application/xml, text/xml;q=0.9, */*;q=0.8",
       },
       encodingOverride:
         feedEncoding === "windows-1251" ? feedEncoding : undefined,
     });
 
-    if (responseText && isValidFeed(responseText)) {
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(responseText, "text/xml");
-      return parseFeedDoc(doc, feedUrl);
-    }
+    const preview = parseFeedPreviewResponse(responseText, feedUrl);
+    if (preview) return preview;
   } catch {
     // Fall through to rss2json
   }
 
+  return loadFeedPreviewFromRss2Json(feedUrl);
+}
+
+function parseFeedPreviewResponse(
+  responseText: string,
+  feedUrl: string,
+): FeedPreviewData | null {
+  if (!responseText || !isValidFeed(responseText)) return null;
+
+  if (responseText.trimStart().startsWith("{")) {
+    const parsed = new CustomXMLParser().parseString(responseText);
+    return {
+      title: parsed.title,
+      description: parsed.description || "",
+      link: parsed.link || "",
+      image: parsed.image?.url || "",
+      latestPubDate: parsed.items[0]?.pubDate || "",
+      hasEntries: parsed.items.length > 0,
+      feedUrl,
+    };
+  }
+
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(responseText, "text/xml");
+  return parseFeedDoc(doc, feedUrl);
+}
+
+async function loadFeedPreviewFromRss2Json(
+  feedUrl: string,
+): Promise<FeedPreviewData> {
   // Fallback to rss2json
   const rss2jsonUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feedUrl)}`;
 
