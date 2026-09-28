@@ -23,13 +23,6 @@
   flex-shrink: 0;
 }
 
-.rss-discover-filter-container {
-  position: sticky;
-  top: -10px;
-  background: var(--background-primary);
-  border-radius: 6px;
-}
-
 .rss-discover-header {
   display: flex;
   justify-content: space-between;
@@ -331,10 +324,6 @@ body .rss-discover-controls-container.is-narrow .rss-discover-mobile-header {
   .rss-discover-sidebar {
     border-right: none;
     border-bottom: 1px solid var(--background-modifier-border);
-  }
-
-  .rss-discover-filter-container {
-    flex: none;
   }
 
   .modal.rss-mobile-discover-filters-modal .rss-discover-sidebar-content {

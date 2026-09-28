@@ -125,7 +125,7 @@ Current governed surfaces:
   - Purpose: feed and Smallweb result presentation with metadata and actions
   - Visual hierarchy role: content container
 - Discover filter controls
-  - Canonical selector / owner: `.rss-discover-filter-header` and `.rss-discover-filter-controls` in `src/styles/discover-sidebar-filters.css`; `.rss-discover-filter-container` in `src/styles/discover-sidebar.css` (no code applies this class today; see **Open Questions**)
+  - Canonical selector / owner: `.rss-discover-filter-header` and `.rss-discover-filter-controls` in `src/styles/discover-sidebar-filters.css`
   - Purpose: search, sort, filter, and bulk action grouping
   - Visual hierarchy role: supportive control surface
 - Reader restricted banner
@@ -248,6 +248,7 @@ Rules:
 ### Modal Header Inset Ownership
 
 - Platform marker classes (`.rss-mobile-platform-ios`, `.rss-mobile-platform-android`) live on mobile modal root elements.
+- The Android marker is retained as an explicit platform hook. It currently has no built-in CSS rules; Android uses the shared modal styling.
 - Mobile sidebar header top-padding tokens and rules are defined in `src/styles/modals.css`, including `.modal.rss-mobile-navigation-modal .rss-dashboard-header` and `.modal.rss-mobile-discover-filters-modal .rss-discover-header`.
 - iPhone modal header top spacing must use normalized safe-area tokens (not direct raw `env(safe-area-inset-top)` additions) to avoid duplicate status-bar clearance/headroom.
 
@@ -584,12 +585,6 @@ Found in the 2026-09-27 review, each with its own issue.
   Obsidian 1.13 no longer renders. On 1.13 the shortcut help modal shows two
   close buttons (confirmed), and the mobile modals' close-button positioning
   doesn't apply.
-- **Keyboard access in Kagi Small Web, unused classes, and dead code
-  ([#503](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/503)).** The view's **← Discover** button is a `div` without
-  `role` or `tabindex`. `.rss-discover-filter-container` has CSS but no code
-  applies it. `.rss-mobile-platform-android` is applied but has no CSS rules.
-  `src/views/discover-view.ts` builds a "✦ Smallweb" button and removes it on
-  the next line.
 
 ---
 

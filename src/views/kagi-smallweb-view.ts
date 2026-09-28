@@ -274,8 +274,9 @@ export class KagiSmallwebView extends ItemView {
     const header = container.createDiv({ cls: "rss-smallweb-header" });
 
     // Back button
-    const backBtn = header.createDiv({
+    const backBtn = header.createEl("button", {
       cls: "rss-dashboard-nav-button",
+      attr: { type: "button" },
     });
     backBtn.appendText("← Discover");
     backBtn.addEventListener("click", () => {
