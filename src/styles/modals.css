@@ -98,7 +98,8 @@
 }
 
 /* Close button positioning for modal container */
-.modal-container .modal.rss-dashboard-modal-container .modal-close-button {
+.modal-container .modal.rss-dashboard-modal-container .modal-close-button,
+.modal-container .modal.rss-dashboard-modal-container .modal-header-button {
   position: absolute;
   top: 12px;
   right: 12px;
@@ -770,7 +771,8 @@ body .rss-dashboard-tag-modal-color-picker::-moz-color-swatch {
 }
 
 /* Hide Obsidian's default close button for ShortcutHelpModal since we use a custom one inside the header */
-body .rss-shortcut-help-modal .modal-close-button {
+body .rss-shortcut-help-modal .modal-close-button,
+body .rss-shortcut-help-modal .modal-header-button {
   display: none;
 }
 .rss-shortcut-help-modal .rss-dashboard-header {
@@ -938,7 +940,9 @@ body .modal.rss-mobile-discover-filters-modal .rss-dashboard-sidebar {
     overflow: hidden;
   }
   .modal.rss-mobile-navigation-modal .modal-close-button,
-  .modal.rss-mobile-discover-filters-modal .modal-close-button {
+  .modal.rss-mobile-navigation-modal .modal-header-button,
+  .modal.rss-mobile-discover-filters-modal .modal-close-button,
+  .modal.rss-mobile-discover-filters-modal .modal-header-button {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -949,7 +953,9 @@ body .modal.rss-mobile-discover-filters-modal .rss-dashboard-sidebar {
     z-index: var(--z-index-close-button);
   }
   .modal.rss-mobile-navigation-modal .modal-close-button::before,
-  .modal.rss-mobile-discover-filters-modal .modal-close-button::before {
+  .modal.rss-mobile-navigation-modal .modal-header-button::before,
+  .modal.rss-mobile-discover-filters-modal .modal-close-button::before,
+  .modal.rss-mobile-discover-filters-modal .modal-header-button::before {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1175,7 +1181,8 @@ body .modal.rss-mobile-discover-filters-modal .rss-dashboard-sidebar {
     white-space: normal;
     line-height: 1.2;
   }
-  .modal-container .modal.rss-dashboard-modal-container .modal-close-button {
+  .modal-container .modal.rss-dashboard-modal-container .modal-close-button,
+  .modal-container .modal.rss-dashboard-modal-container .modal-header-button {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1187,7 +1194,10 @@ body .modal.rss-mobile-discover-filters-modal .rss-dashboard-sidebar {
   }
   .modal-container
     .modal.rss-dashboard-modal-container
-    .modal-close-button::before {
+    .modal-close-button::before,
+  .modal-container
+    .modal.rss-dashboard-modal-container
+    .modal-header-button::before {
     display: flex;
     align-items: center;
     justify-content: center;
