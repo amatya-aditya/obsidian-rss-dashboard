@@ -185,6 +185,34 @@ describe("metadata and feed-state imports (issues #374 and #474)", () => {
     expect(written.refreshInterval).toBe(bundle.settings.refreshInterval);
   });
 
+  it("writes shard migration metadata to the configured vault metadata file", async () => {
+    const metadataPath = `${metadataFolder}/data.json`;
+    const nextRefreshInterval = plugin.settings.refreshInterval + 1;
+    plugin.settings.refreshInterval = nextRefreshInterval;
+
+    await plugin.migrateToVaultStorage();
+
+    const written = JSON.parse(await adapter().read(metadataPath)) as {
+      refreshInterval: number;
+      storageMode: string;
+    };
+    expect(written.refreshInterval).toBe(nextRefreshInterval);
+    expect(written.storageMode).toBe("vault-shards");
+  });
+
+  it("writes repaired shard metadata to the configured vault metadata file", async () => {
+    const metadataPath = `${metadataFolder}/data.json`;
+    const nextRefreshInterval = plugin.settings.refreshInterval + 1;
+    plugin.settings.refreshInterval = nextRefreshInterval;
+
+    await plugin.repairVaultShards();
+
+    const written = JSON.parse(await adapter().read(metadataPath)) as {
+      refreshInterval: number;
+    };
+    expect(written.refreshInterval).toBe(nextRefreshInterval);
+  });
+
   it("keeps article state for a feed the imported file leaves out", async () => {
     expect(plugin.settings.feeds.map((feed) => feed.feedId)).toEqual([
       "feed-kept",

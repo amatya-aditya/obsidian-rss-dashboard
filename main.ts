@@ -1936,7 +1936,7 @@ export default class RssDashboardPlugin extends Plugin {
     try {
       await this.feedStorageRepository.migrateToVaultShards(
         this.settings,
-        (data) => this.savePluginData(data),
+        this.getMetadataSaveCallback(),
       );
       this.initializeSettingsBackedServices();
       await this.refreshDashboardViews();
@@ -2016,7 +2016,7 @@ export default class RssDashboardPlugin extends Plugin {
     try {
       const result = await this.feedStorageRepository.repairVaultShards(
         this.settings,
-        (data) => this.savePluginData(data),
+        this.getMetadataSaveCallback(),
       );
       if (this.settingTab) {
         this.settingTab.refresh();

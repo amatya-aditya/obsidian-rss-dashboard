@@ -846,7 +846,7 @@ export function renderStorageSettingsTab(
   new Setting(containerEl)
     .setName("Metadata data.json location")
     .setDesc(
-      "Optional vault folder for metadata data.json. Leave empty to keep metadata in the plugin directory. Shard storage v2 keeps article state (user-state.json) in this folder either way, so remove any '.' prefix for Obsidian sync to carry it to other devices.",
+      "Optional vault folder for metadata data.json. Leave empty to keep metadata in the plugin folder. Shard storage v2 keeps article state (user-state.json) in this folder too. After a location change, you can delete the previous data.json and, in v2, user-state.json, or keep them as a backup. Outside v2, an orphaned user-state.json is kept as a backup. Use a folder without a '.' prefix for Obsidian Sync.",
     )
     .addText((text) => {
       // Show the folder user-state.json is actually in: a fresh install
