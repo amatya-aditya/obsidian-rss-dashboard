@@ -307,6 +307,7 @@ export default class RssDashboardPlugin extends Plugin {
   private whatsNewHandledThisSession = false;
   private wasNullSettingsLoad = false;
   private settingsLoadFailed = false;
+  private hasNotifiedVaultMetadataFailure = false;
   private settingsLoadGeneration = 0;
   private vaultMetadataReloadTimer: number | null = null;
   private startupRefreshTimeoutId: number | null = null;
@@ -2645,8 +2646,7 @@ export default class RssDashboardPlugin extends Plugin {
       // Step 1: load bootstrap pointer from plugin-default location
       let data = (await this.loadData()) as RssDashboardSettings | null;
       let vaultMetadataUnreadable = false;
-      // Step 2: if pointer indicates vault-location mode, load full
-      // settings from the vault path stored in the pointer
+      // Step 2: load full settings from the vault path named by the pointer
       if (data?.metadataStorageMode === "vault-location") {
         const vaultData = await loadMetadata(
           this.app,
@@ -2659,14 +2659,16 @@ export default class RssDashboardPlugin extends Plugin {
             folder: data.metadataStorageFolder,
           });
         } else {
-          // The pointer names a vault file we cannot read. Falling through
-          // here would load DEFAULT_SETTINGS and then save them over the
-          // user's config, so treat it like a null load instead.
+          // Falling through would save defaults over the unreadable vault file,
+          // so treat the pointer like a null load instead.
           vaultMetadataUnreadable = true;
           data = structuredClone({ ...DEFAULT_SETTINGS, ...data });
-          new Notice(
-            "Could not read plugin metadata from the configured vault folder. Settings were not loaded and nothing has been overwritten.",
-          );
+          if (!this.hasNotifiedVaultMetadataFailure) {
+            new Notice(
+              "Could not read plugin metadata from the configured vault folder. Settings were not loaded and nothing has been overwritten.",
+            );
+            this.hasNotifiedVaultMetadataFailure = true;
+          }
         }
       }
       if (loadGeneration !== this.settingsLoadGeneration) return;
@@ -2711,12 +2713,12 @@ export default class RssDashboardPlugin extends Plugin {
         feedCount: this.settings.feeds.length,
         hydratedShardCount: hydrated.shardCount,
       });
-
       const didNormalizeAndDedupeItems = dedupeAndNormalizeFeedItems(
         this.settings.feeds,
         { useFirstSeenDateFallback: this.settings.useFirstSeenDateFallback },
       );
       if (loadGeneration !== this.settingsLoadGeneration) return;
+      if (!vaultMetadataUnreadable) this.hasNotifiedVaultMetadataFailure = false;
       this.settingsLoadFailed = vaultMetadataUnreadable;
       // Guard: skip the early write if we loaded from null defaults.
       // A null load on a synced vault likely means sync hasn't delivered
@@ -2726,7 +2728,6 @@ export default class RssDashboardPlugin extends Plugin {
       // Similarly, skip if we are in v2 mode and user-state.json is missing.
       const isV2 = this.settings.storageMode === "vault-shards-v2";
       const isMissingUserState = isV2 && hydrated.userStateLoaded === false;
-
       const shouldSave =
         !wasNullLoad &&
         !isMissingUserState &&
@@ -2734,7 +2735,6 @@ export default class RssDashboardPlugin extends Plugin {
           hydrated.didChange ||
           didNormalizeAndDedupeItems ||
           JSON.stringify(this.settings) !== originalSettingsJson);
-
       if (shouldSave) {
         // On the first load, onload() has not initialized the services yet,
         // and this save's backup snapshot needs the backup service.

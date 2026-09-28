@@ -614,6 +614,67 @@ describe("onload() initialization", () => {
     expect(onMock).toHaveBeenCalledWith("rename", expect.any(Function));
   });
 
+  it("warns once per vault metadata failure incident", async () => {
+    vi.useFakeTimers();
+    const handlers: Record<string, (...args: unknown[]) => void> = {};
+    plugin.app.vault.on = vi.fn(
+      (event: string, callback: (...args: unknown[]) => void) => {
+        handlers[event] = callback;
+        return {};
+      },
+    );
+    plugin.loadData = vi.fn().mockResolvedValue({
+      metadataStorageMode: "vault-location",
+      metadataStorageFolder: "rss-dashboard-data",
+      metadataStorageSchemaVersion: 2,
+    });
+    let metadataAvailable = false;
+    vi.spyOn(plugin.app.vault.adapter, "read").mockImplementation((path) => {
+      if (metadataAvailable && path === "rss-dashboard-data/data.json") {
+        return Promise.resolve(
+          JSON.stringify({
+            ...structuredClone(DEFAULT_SETTINGS),
+            storageMode: "legacy-json",
+            metadataStorageMode: "vault-location",
+            metadataStorageFolder: "rss-dashboard-data",
+            metadataStorageSchemaVersion: 2,
+          }),
+        );
+      }
+      return Promise.reject(new Error("ENOENT"));
+    });
+    const noticeSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
+
+    await plugin.onload();
+    handlers.rename?.(
+      { path: "rss-dashboard-data/data.json.withheld" },
+      "rss-dashboard-data/data.json",
+    );
+    await vi.advanceTimersByTimeAsync(1_500);
+
+    const warning =
+      "Could not read plugin metadata from the configured vault folder. Settings were not loaded and nothing has been overwritten.";
+    const warningCalls = () =>
+      noticeSpy.mock.calls.filter(
+        ([prefix, message]) => prefix === "[Stub Notice]" && message === warning,
+      );
+    expect(warningCalls()).toHaveLength(1);
+
+    metadataAvailable = true;
+    handlers.create?.({ path: "rss-dashboard-data/data.json" });
+    await vi.advanceTimersByTimeAsync(1_500);
+    await vi.advanceTimersByTimeAsync(3_000);
+    metadataAvailable = false;
+    handlers.rename?.(
+      { path: "rss-dashboard-data/data.json.withheld" },
+      "rss-dashboard-data/data.json",
+    );
+    await vi.advanceTimersByTimeAsync(1_500);
+
+    expect(warningCalls()).toHaveLength(2);
+    vi.useRealTimers();
+  });
+
   it("reloads settings and refreshes dashboard on watched data.json modify", async () => {
     vi.useFakeTimers();
     const handlers: Record<string, (...args: unknown[]) => void> = {};
