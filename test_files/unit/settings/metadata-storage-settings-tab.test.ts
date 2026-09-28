@@ -268,6 +268,7 @@ describe("renderStorageSettingsTab() - previous metadata copy cleanup", () => {
     const { vault } = plugin.app;
     await vault.createFolder(".rss-meta");
     await vault.create(".rss-meta/data.json", "{}");
+    await vault.create(".rss-meta/user-state.json", "{}");
 
     renderStorageSettingsTab(containerEl, plugin);
     await applyMetadataLocation(containerEl, "rss-meta2");
@@ -278,6 +279,7 @@ describe("renderStorageSettingsTab() - previous metadata copy cleanup", () => {
     await flushPromises();
 
     expect(await vault.adapter.exists(".rss-meta/data.json")).toBe(false);
+    expect(await vault.adapter.exists(".rss-meta/user-state.json")).toBe(false);
   });
 
   it("offers to delete the previous copy in a visible vault folder", async () => {
@@ -286,6 +288,7 @@ describe("renderStorageSettingsTab() - previous metadata copy cleanup", () => {
     const { vault } = plugin.app;
     await vault.createFolder("rss-meta");
     await vault.create("rss-meta/data.json", "{}");
+    await vault.create("rss-meta/user-state.json", "{}");
 
     renderStorageSettingsTab(containerEl, plugin);
     await applyMetadataLocation(containerEl, "rss-meta2");
@@ -296,6 +299,56 @@ describe("renderStorageSettingsTab() - previous metadata copy cleanup", () => {
     await flushPromises();
 
     expect(await vault.adapter.exists("rss-meta/data.json")).toBe(false);
+    expect(await vault.adapter.exists("rss-meta/user-state.json")).toBe(false);
+  });
+
+  it("keeps orphaned user state when cleaning up outside Shard storage v2", async () => {
+    const containerEl = document.body.appendChild(createDiv());
+    const plugin = createVaultLocationPlugin("rss-meta");
+    plugin.settings.storageMode = "legacy-json";
+    const { vault } = plugin.app;
+    await vault.createFolder("rss-meta");
+    await vault.create("rss-meta/data.json", "{}");
+    await vault.create("rss-meta/user-state.json", "{}");
+
+    renderStorageSettingsTab(containerEl, plugin);
+    await applyMetadataLocation(containerEl, "rss-meta2");
+
+    const modal = findCleanupModal();
+    expect(modal).not.toBeNull();
+    clickModalButton(modal as HTMLElement, "Delete previous copy");
+    await flushPromises();
+
+    expect(await vault.adapter.exists("rss-meta/data.json")).toBe(false);
+    expect(await vault.adapter.exists("rss-meta/user-state.json")).toBe(true);
+  });
+
+  it("offers to delete the old user-state file after reverting metadata storage", async () => {
+    const containerEl = document.body.appendChild(createDiv());
+    const plugin = createVaultLocationPlugin("rss-meta");
+    const { vault } = plugin.app;
+    await vault.createFolder("rss-meta");
+    await vault.create("rss-meta/data.json", "{}");
+    await vault.create("rss-meta/user-state.json", "{}");
+    vi.mocked(plugin.revertMetadataToPluginDefault).mockImplementation(
+      async () => {
+        const oldDataFile = vault.getAbstractFileByPath("rss-meta/data.json");
+        if (oldDataFile) {
+          await plugin.app.fileManager.trashFile(oldDataFile);
+        }
+      },
+    );
+
+    renderStorageSettingsTab(containerEl, plugin);
+    await applyMetadataLocation(containerEl, "");
+
+    const modal = findCleanupModal();
+    expect(modal).not.toBeNull();
+    clickModalButton(modal as HTMLElement, "Delete previous copy");
+    await flushPromises();
+
+    expect(await vault.adapter.exists("rss-meta/data.json")).toBe(false);
+    expect(await vault.adapter.exists("rss-meta/user-state.json")).toBe(false);
   });
 
   it("never offers to delete the plugin-default data.json, which becomes the bootstrap pointer", async () => {

@@ -224,6 +224,14 @@ export function renderStorageSettingsTab(
     return trashVaultFile(plugin.app, dataFilePath);
   };
 
+  const getPreviousMetadataCopyPaths = (dataFilePath: string): string[] => {
+    const paths = [dataFilePath];
+    if (plugin.settings.storageMode === "vault-shards-v2") {
+      paths.push(dataFilePath.replace(/\/data\.json$/i, "/user-state.json"));
+    }
+    return paths;
+  };
+
   const maybeOfferMetadataCleanup = async (
     previousDataFilePath: string | null,
   ): Promise<void> => {
@@ -235,12 +243,21 @@ export function renderStorageSettingsTab(
     }
     // The previous copy may sit in a dot-prefixed folder the vault index
     // leaves out, so check the disk rather than the index.
-    if (!(await vaultFileExists(plugin.app, previousDataFilePath))) {
+    const previousMetadataPaths = getPreviousMetadataCopyPaths(
+      previousDataFilePath,
+    );
+    const existingPaths: string[] = [];
+    for (const path of previousMetadataPaths) {
+      if (await vaultFileExists(plugin.app, path)) {
+        existingPaths.push(path);
+      }
+    }
+    if (existingPaths.length === 0) {
       return;
     }
 
     const cleanupModal = new MetadataCleanupModal(plugin.app, {
-      previousLocationLabel: previousDataFilePath,
+      previousLocationLabel: previousDataFilePath.replace(/\/data\.json$/i, ""),
     });
     cleanupModal.open();
     const cleanupAction: MetadataCleanupAction =
@@ -250,20 +267,21 @@ export function renderStorageSettingsTab(
       return;
     }
 
-    try {
-      const deleted = await deleteMetadataFileAtPath(previousDataFilePath);
-      if (deleted) {
-        new Notice("Previous metadata data.json copy deleted.");
+    let cleanupFailed = false;
+    for (const path of existingPaths) {
+      try {
+        await deleteMetadataFileAtPath(path);
+      } catch (error) {
+        cleanupFailed = true;
+        storageError("Failed to delete previous metadata copy", error, {
+          path,
+        });
       }
-    } catch (error) {
-      storageError("Failed to delete previous metadata copy", error, {
-        previousDataFilePath,
-      });
-      new Notice(
-        `Failed to delete previous metadata copy${
-          error instanceof Error ? `: ${error.message}` : ""
-        }`,
-      );
+    }
+    if (cleanupFailed) {
+      new Notice("Failed to delete one or more previous metadata files.");
+    } else {
+      new Notice("Previous metadata files deleted.");
     }
   };
 
