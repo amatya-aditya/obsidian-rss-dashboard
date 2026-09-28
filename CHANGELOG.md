@@ -7,6 +7,7 @@
 
 ### Fixes
 
+- Fixed articles saved from an open reader after settings reloads, imports, or factory reset using the old save folder and template. The reader now uses current settings and the current article saver. [GH Issue #448](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/448)
 - Fixed Shortcut help showing two close buttons on Obsidian 1.13 and restored native close-button positioning in the mobile Navigation and Discover filters modals. [GH Issue #500](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/500)
 - Fixed JSON Feed subscriptions failing to refresh because valid JSON Feed responses were rejected by XML-only validation. JSON Feed version documents now pass validation, and feed requests advertise `application/feed+json`. [GH Issue #462](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/462)
 - Fixed a settings load failure allowing a later setting or feed change to overwrite `data.json` with defaults. Failed loads now use isolated fallback settings, keep services aligned with them, block saves until a later load succeeds, and show the unavailable-metadata warning only once per failure incident. [GH Issue #447](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/447)

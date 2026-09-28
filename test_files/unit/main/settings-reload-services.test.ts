@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { App, type PluginManifest } from "obsidian";
+import { App, type PluginManifest, type WorkspaceLeaf } from "obsidian";
 
 vi.mock("../../../src/modals/whats-new-modal", () => ({
   WhatsNewModal: class {
@@ -17,8 +17,13 @@ import RssDashboardPlugin from "../../../main";
 import {
   DEFAULT_SETTINGS,
   type Feed,
+  type FeedItem,
   type RssDashboardSettings,
 } from "../../../src/types/types";
+import {
+  ReaderView,
+  RSS_READER_VIEW_TYPE,
+} from "../../../src/views/reader-view";
 
 type VaultEventHandler = (...args: unknown[]) => void;
 
@@ -75,6 +80,7 @@ describe("services after settings are reloaded from another device", () => {
   let plugin: RssDashboardPlugin;
   let handlers: Record<string, VaultEventHandler>;
   let storedData: RssDashboardSettings;
+  let createReaderView: ((leaf: WorkspaceLeaf) => ReaderView) | undefined;
 
   beforeEach(async () => {
     vi.useFakeTimers();
@@ -92,6 +98,11 @@ describe("services after settings are reloaded from another device", () => {
       Promise.resolve(JSON.parse(JSON.stringify(storedData)) as unknown),
     );
     plugin.saveData = vi.fn().mockResolvedValue(undefined);
+    vi.spyOn(plugin, "registerView").mockImplementation((type, creator) => {
+      if (type === RSS_READER_VIEW_TYPE) {
+        createReaderView = (leaf) => creator(leaf) as ReaderView;
+      }
+    });
     await plugin.onload();
   });
 
@@ -121,6 +132,64 @@ describe("services after settings are reloaded from another device", () => {
     ).read("./feeds.opml.backup");
     expect(opml).toContain("after-sync");
     expect(opml).not.toContain("before-sync");
+  });
+
+  it("saves from an open reader with the reloaded folder and template", async () => {
+    const existingFeed = storedData.feeds[0];
+    existingFeed.customTemplate = "old-template";
+    storedData.articleSaving = {
+      ...storedData.articleSaving,
+      defaultFolder: "Old articles",
+      defaultTemplate: "# Old {{title}}\n\n{{content}}",
+      savedTemplates: [
+        {
+          id: "old-template",
+          name: "Old template",
+          template: "# Old custom {{title}}\n\n{{content}}",
+        },
+      ],
+    };
+    await plugin.loadSettings();
+    const reader = createReaderView!({ app } as never);
+    const item: FeedItem = {
+      title: "Reloaded article",
+      link: "https://example.com/article",
+      description: "Article body",
+      pubDate: "2026-09-28",
+      guid: "reloaded-article",
+      feedTitle: "Example feed",
+      feedUrl: existingFeed.url,
+      coverImage: "",
+    };
+    (reader as unknown as { currentItem: FeedItem | null }).currentItem = item;
+
+    const oldArticleSaver = plugin.articleSaver;
+    const updatedFeed = feed("before-sync", "Synced");
+    updatedFeed.customTemplate = "new-template";
+    await syncFromAnotherDevice({
+      ...savedSettings([updatedFeed], ["Synced"]),
+      articleSaving: {
+        ...DEFAULT_SETTINGS.articleSaving,
+        defaultFolder: "Updated articles",
+        defaultTemplate: "# Updated {{title}}\n\n{{content}}",
+        savedTemplates: [
+          {
+            id: "new-template",
+            name: "Updated template",
+            template: "# Updated custom {{title}}\n\n{{content}}",
+          },
+        ],
+      },
+    });
+    expect(plugin.articleSaver).not.toBe(oldArticleSaver);
+
+    await reader.actionSaveCurrentArticle();
+
+    expect(item.savedFilePath).toBe("Updated articles/Reloaded article.md");
+    const savedArticle = await (
+      app.vault.adapter as unknown as VaultAdapterStub
+    ).read(item.savedFilePath!);
+    expect(savedArticle).toContain("# Updated custom Reloaded article");
   });
 
   it("adds new folders to the reloaded folder list", async () => {

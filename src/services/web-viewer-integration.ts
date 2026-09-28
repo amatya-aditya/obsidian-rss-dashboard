@@ -26,16 +26,41 @@ interface ObsidianApp extends App {
 
 export class WebViewerIntegration {
   private app: ObsidianApp;
-  private settings: ArticleSavingSettings;
+  private settingsProvider: () => ArticleSavingSettings;
   private getUseFirstSeenDateFallback: () => boolean;
+
+  private get settings(): ArticleSavingSettings {
+    return this.settingsProvider();
+  }
+
+  static createIfAvailable(
+    app: App,
+    settings: () => ArticleSavingSettings,
+    getUseFirstSeenDateFallback: () => boolean,
+  ): WebViewerIntegration | null {
+    try {
+      const plugins = (app as unknown as { plugins?: { plugins?: Record<string, unknown> } })
+        .plugins?.plugins;
+      return plugins && "webpage-html-export" in plugins
+        ? new WebViewerIntegration(
+            app as unknown as ObsidianApp,
+            settings,
+            getUseFirstSeenDateFallback,
+          )
+        : null;
+    } catch {
+      return null;
+    }
+  }
 
   constructor(
     app: ObsidianApp,
-    settings: ArticleSavingSettings,
+    settings: ArticleSavingSettings | (() => ArticleSavingSettings),
     getUseFirstSeenDateFallback: () => boolean = () => false,
   ) {
     this.app = app;
-    this.settings = settings;
+    this.settingsProvider =
+      typeof settings === "function" ? settings : () => settings;
     this.getUseFirstSeenDateFallback = getUseFirstSeenDateFallback;
   }
 

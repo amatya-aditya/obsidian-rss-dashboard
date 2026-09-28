@@ -3,7 +3,6 @@ import {
   WorkspaceLeaf,
   Menu,
   MenuItem,
-  App,
   Setting,
   requireApiVersion,
   TFile,
@@ -95,8 +94,8 @@ export class ReaderView extends ItemView {
   private currentItem: FeedItem | null = null;
   private readingContainer!: HTMLElement;
   private titleElement!: HTMLElement;
-  private articleSaver: ArticleSaver;
-  private settings: RssDashboardSettings;
+  private articleSaverProvider: () => ArticleSaver;
+  private settingsProvider: () => RssDashboardSettings;
   private onArticleSave: (item: FeedItem) => void;
   private onArticleUpdate: (
     item: FeedItem,
@@ -129,6 +128,14 @@ export class ReaderView extends ItemView {
   private readerFormatPortal: { close: (flushSave: boolean) => void } | null =
     null;
   private readerFormatSaveTimeout: number | null = null;
+
+  private get articleSaver(): ArticleSaver {
+    return this.articleSaverProvider();
+  }
+
+  private get settings(): RssDashboardSettings {
+    return this.settingsProvider();
+  }
 
   public setReturnLeaf(leaf: WorkspaceLeaf | null): void {
     this.returnLeaf = leaf;
@@ -188,8 +195,8 @@ export class ReaderView extends ItemView {
 
   constructor(
     leaf: WorkspaceLeaf,
-    settings: RssDashboardSettings,
-    articleSaver: ArticleSaver,
+    settings: RssDashboardSettings | (() => RssDashboardSettings),
+    articleSaver: ArticleSaver | (() => ArticleSaver),
     onArticleSave: (item: FeedItem) => void,
     onArticleUpdate: (
       item: FeedItem,
@@ -206,8 +213,10 @@ export class ReaderView extends ItemView {
     },
   ) {
     super(leaf);
-    this.settings = settings;
-    this.articleSaver = articleSaver;
+    this.settingsProvider =
+      typeof settings === "function" ? settings : () => settings;
+    this.articleSaverProvider =
+      typeof articleSaver === "function" ? articleSaver : () => articleSaver;
     this.onArticleSave = onArticleSave;
     this.onArticleUpdate = onArticleUpdate;
     this.onPlaybackProgress = options?.onPlaybackProgress;
@@ -216,36 +225,11 @@ export class ReaderView extends ItemView {
     this.scope = new Scope(this.app.scope);
     this.setupScope();
 
-    try {
-      const appWithPlugins = this.app as unknown as {
-        plugins?: { plugins?: Record<string, unknown> };
-      };
-      const plugins = appWithPlugins.plugins?.plugins;
-      if (plugins && "webpage-html-export" in plugins) {
-        interface WebViewerPlugin {
-          openWebpage?(url: string, title: string): Promise<void>;
-          currentTitle?: string;
-          currentUrl?: string;
-          cleanedHtml?: string;
-        }
-        interface ObsidianPlugins {
-          plugins: {
-            [key: string]: unknown;
-            "webpage-html-export"?: WebViewerPlugin;
-          };
-        }
-        interface ObsidianApp extends App {
-          plugins: ObsidianPlugins;
-        }
-        this.webViewerIntegration = new WebViewerIntegration(
-          this.app as unknown as ObsidianApp,
-          settings.articleSaving,
-          () => settings.useFirstSeenDateFallback,
-        );
-      }
-    } catch {
-      // Web viewer integration not available
-    }
+    this.webViewerIntegration = WebViewerIntegration.createIfAvailable(
+      this.app,
+      () => this.settings.articleSaving,
+      () => this.settings.useFirstSeenDateFallback,
+    );
   }
 
   private setupScope() {
