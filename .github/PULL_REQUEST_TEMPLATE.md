@@ -2,6 +2,12 @@
 
 <!-- What changed and why? Keep this focused and user-oriented. -->
 
+## Related issues
+
+<!-- Use `Fixes #123` to close an issue on merge, or `Refs #123` for context without closing it. Include each issue reference once. -->
+
+-
+
 ## Type
 
 - [ ] Feature
@@ -63,3 +69,15 @@ Rollback plan:
 - [ ] No unrelated files included
 - [ ] If validation logic changed, tests updated
 - [ ] User-facing changes are recorded under `CHANGELOG.md` > `Unreleased`, or marked N/A
+
+## Manual test checklist
+
+Status:
+
+- [ ] Completed
+- [ ] Not completed (explain why and list remaining steps)
+- [ ] Not applicable (explain why)
+
+<!-- When completed, append the manual-test-checklist and its results below. When not completed, state the blocker and remaining steps; do not claim unchecked items passed. -->
+
+-
