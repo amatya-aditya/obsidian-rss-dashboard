@@ -104,7 +104,7 @@ export function getDefaultFolderForResolvedFeed(
   }
 
   if (preview.detectedType === "podcast") {
-    return media?.defaultPodcastFolder || "Podcast";
+    return media?.defaultPodcastFolder || "Podcasts";
   }
 
   return media?.defaultRssFolder || "RSS";
