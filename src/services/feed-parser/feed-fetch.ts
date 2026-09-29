@@ -3,6 +3,7 @@ import { PREDEFINED_PROXIES } from "../../utils/proxy-utils.js";
 import { robustFetch } from "../../utils/platform-utils.js";
 import { escapeCdata, escapeXml } from "../../utils/xml-escape.js";
 import { hostMatches } from "../../utils/url-host.js";
+import { resolveAbsoluteHttpUrl } from "../../utils/url-utils.js";
 import type { FeedEncoding } from "../../types/types.js";
 import { isValidFeed } from "./feed-validation.js";
 import type {
@@ -355,9 +356,11 @@ export async function fetchFeedXml(
           const channelLinkMatch = responseText.match(
             /<channel[^>]*>[\s\S]*?<link[^>]*>([^<]+)<\/link>/i,
           );
-          const candidateUrl =
-            atomLinkMatch?.[1] || channelLinkMatch?.[1] || "";
-          if (candidateUrl && /arxiv\.org\//i.test(candidateUrl)) {
+          const candidateUrl = resolveAbsoluteHttpUrl(
+            atomLinkMatch?.[1] || channelLinkMatch?.[1],
+            targetUrl,
+          );
+          if (candidateUrl && hostMatches(candidateUrl, "arxiv.org")) {
             if (signal?.aborted) throw new Error("Timed out");
             try {
               const arxivText = await robustFetch(candidateUrl, {
