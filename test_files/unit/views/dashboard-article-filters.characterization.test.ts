@@ -499,16 +499,13 @@ describe("Dashboard article filters (characterization, #476)", () => {
       );
     });
 
-    it("Tagged plus one tag still shows every tagged article", () => {
-      // BUG: pinned, see #463
+    it("Tagged plus one tag narrows to that tag", () => {
       const result = renderDashboard({
         statusFilters: ["tagged"],
         tagFilters: ["Research"],
         logic: "OR",
       });
-      expect(result.guids).toEqual(
-        sorted(["starred-important", "video", "important-research", "research"]),
-      );
+      expect(result.guids).toEqual(sorted(["important-research", "research"]));
     });
 
     it("Untagged or a tag unions both groups", () => {
