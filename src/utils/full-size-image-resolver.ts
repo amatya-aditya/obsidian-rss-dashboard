@@ -1,6 +1,6 @@
 import { isLatexFormulaImageElement } from "./image-url-utils";
 import { normalizeSubstackImageUrl } from "./substack-image-url";
-import { hostMatches } from "./url-host";
+import { hostMatches, hostPathMatches } from "./url-host";
 
 export interface ResolvedImageSource {
   previewUrl: string;
@@ -10,6 +10,10 @@ export interface ResolvedImageSource {
 }
 
 const COMMON_IMAGE_EXTENSIONS = /\.(?:jpe?g|png|webp|gif|avif|svg|bmp)(?:[?#]|$)/i;
+
+function isSubstackImageFetchUrl(url: string): boolean {
+  return hostPathMatches(url, "substackcdn.com", "/image/fetch/");
+}
 
 /**
  * Checks whether an image element in reader content should trigger the full-resolution lightbox.
@@ -108,7 +112,7 @@ export function stripCdnResizeParameters(rawUrl: string): string {
   if (!trimmed) return "";
 
   // Substack CDN fetch URLs
-  if (trimmed.includes("substackcdn.com/image/fetch/")) {
+  if (isSubstackImageFetchUrl(trimmed)) {
     const normalizedSubstack = normalizeSubstackImageUrl(trimmed);
     if (normalizedSubstack) {
       return stripCdnResizeParameters(normalizedSubstack);
@@ -178,7 +182,7 @@ export function resolveFullResolutionImageSource(img: HTMLImageElement): Resolve
     const href = (anchor.getAttribute("href") || "").trim();
     if (
       COMMON_IMAGE_EXTENSIONS.test(href) ||
-      href.includes("substackcdn.com/image/fetch/") ||
+      isSubstackImageFetchUrl(href) ||
       /^data:image\//i.test(href)
     ) {
       candidateUrl = href;

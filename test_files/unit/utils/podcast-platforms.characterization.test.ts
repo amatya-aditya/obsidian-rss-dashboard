@@ -80,9 +80,8 @@ describe.each([
     expect(platform.detect(url)).toBe(true);
   });
 
-  it("does not detect an address with an explicit port", () => {
-    // Pinned as-is: matches by substring; replaced by hostname matching
-    expect(platform.detect(`https://${host}:8443${path}`)).toBe(false);
+  it("detects an address with an explicit port", () => {
+    expect(platform.detect(`https://${host}:8443${path}`)).toBe(true);
   });
 
   it("does not detect an unrelated host with the same path", () => {
@@ -97,29 +96,26 @@ describe.each([
     expect(platform.detect(`https://${host}.example.net${path}`)).toBe(false);
   });
 
-  it("does not detect an uppercase host", () => {
-    // Pinned as-is: matches by substring; replaced by hostname matching
-    expect(platform.detect(`https://${host.toUpperCase()}${path}`)).toBe(false);
+  it("detects an uppercase host", () => {
+    expect(platform.detect(`https://${host.toUpperCase()}${path}`)).toBe(true);
   });
 
-  it("detects a scheme-less address", () => {
-    // Pinned as-is: matches by substring; replaced by hostname matching
-    expect(platform.detect(`${host}${path}`)).toBe(true);
+  it("does not detect a scheme-less address", () => {
+    expect(platform.detect(`${host}${path}`)).toBe(false);
   });
 
-  it("detects a host that ends with the domain preceded by other text", () => {
-    // Pinned as-is: matches by substring; replaced by hostname matching
-    expect(platform.detect(`https://x${host}${path}`)).toBe(true);
+  it("does not detect a host that ends with the domain preceded by other text", () => {
+    expect(platform.detect(`https://x${host}${path}`)).toBe(false);
   });
 
-  it("detects a URL whose query merely mentions the domain and path", () => {
-    // Pinned as-is: matches by substring; replaced by hostname matching
-    expect(platform.detect(`https://example.net/?u=${host}${path}`)).toBe(true);
+  it("does not detect a URL whose query merely mentions the domain and path", () => {
+    expect(platform.detect(`https://example.net/?u=${host}${path}`)).toBe(
+      false,
+    );
   });
 
-  it("detects a URL whose path holds the domain and path", () => {
-    // Pinned as-is: matches by substring; replaced by hostname matching
-    expect(platform.detect(`https://example.net/${host}${path}`)).toBe(true);
+  it("does not detect a URL whose path holds the domain and path", () => {
+    expect(platform.detect(`https://example.net/${host}${path}`)).toBe(false);
   });
 });
 

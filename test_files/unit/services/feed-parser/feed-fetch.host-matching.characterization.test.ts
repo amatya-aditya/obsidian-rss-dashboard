@@ -206,12 +206,14 @@ describe("fetchFeedXml host handling", () => {
       expect(requested).toContain(href);
     });
 
-    it("does not follow a link with an explicit port", async () => {
-      // Pinned as-is: matches by substring; replaced by hostname matching
+    it("follows a link with an explicit port", async () => {
       const href = "https://rss.arxiv.org:8443/atom/cs";
-      const requested = serve({ [base]: stubWithAtomLink(href) });
+      const requested = serve({
+        [base]: stubWithAtomLink(href),
+        [href]: RSS2_BASIC,
+      });
       await fetchFeedXml(base, DIRECT);
-      expect(requested).toEqual([base]);
+      expect(requested).toContain(href);
     });
 
     it("follows the channel link when there is no atom link", async () => {
@@ -241,27 +243,28 @@ describe("fetchFeedXml host handling", () => {
       "https://notarxiv.org/atom/cs",
       "https://example.net/?u=arxiv.org/atom/cs",
       "https://example.net/arxiv.org/atom/cs",
-    ])("follows the look-alike link %s", async (href) => {
-      // Pinned as-is: matches by substring; replaced by hostname matching
+    ])("does not follow the look-alike link %s", async (href) => {
       const requested = serve({ [base]: stubWithAtomLink(href) });
       await fetchFeedXml(base, DIRECT);
-      expect(requested).toContain(href);
+      expect(requested).toEqual([base]);
     });
 
-    it("requests a scheme-less link as given", async () => {
-      // Pinned as-is: matches by substring; replaced by hostname matching
+    it("resolves a scheme-less link against the feed address", async () => {
       const href = "arxiv.org/atom/cs";
       const requested = serve({ [base]: stubWithAtomLink(href) });
       await fetchFeedXml(base, DIRECT);
-      expect(requested).toContain(href);
+      expect(requested).toEqual([base]);
     });
 
-    it("does not follow a relative link on an arXiv feed", async () => {
-      // Pinned as-is: matches by substring; replaced by hostname matching
+    it("resolves a relative link against the feed address", async () => {
       const arxivBase = "https://export.arxiv.org/api/query?search_query=cat";
-      const requested = serve({ [arxivBase]: stubWithAtomLink("/atom/cs") });
+      const resolved = "https://export.arxiv.org/atom/cs";
+      const requested = serve({
+        [arxivBase]: stubWithAtomLink("/atom/cs"),
+        [resolved]: RSS2_BASIC,
+      });
       await fetchFeedXml(arxivBase, DIRECT);
-      expect(requested).toEqual([arxivBase]);
+      expect(requested).toContain(resolved);
     });
   });
 });

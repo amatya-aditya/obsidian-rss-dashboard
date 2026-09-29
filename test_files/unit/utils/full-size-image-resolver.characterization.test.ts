@@ -110,43 +110,29 @@ describe("stripCdnResizeParameters host handling", () => {
       expect(stripCdnResizeParameters(url)).toBe(url);
     });
 
-    it("does not unwrap an uppercase host", () => {
-      // Pinned as-is: matches by substring; replaced by hostname matching
+    it("unwraps an uppercase host", () => {
       const url = `https://SUBSTACKCDN.COM/image/fetch/w_1456,c_limit/${target}`;
-      expect(stripCdnResizeParameters(url)).toBe(url);
+      expect(stripCdnResizeParameters(url)).toBe(decoded);
     });
 
-    it("does not unwrap an address with an explicit port", () => {
-      // Pinned as-is: matches by substring; replaced by hostname matching
+    it("unwraps an address with an explicit port", () => {
       const url = `https://substackcdn.com:8443/image/fetch/w_1456,c_limit/${target}`;
+      expect(stripCdnResizeParameters(url)).toBe(decoded);
+    });
+
+    it("leaves a host that ends with the domain preceded by other text untouched", () => {
+      const url = `https://xsubstackcdn.com/image/fetch/w_1,c_limit/${target}`;
       expect(stripCdnResizeParameters(url)).toBe(url);
     });
 
-    it("unwraps a host that ends with the domain preceded by other text", () => {
-      // Pinned as-is: matches by substring; replaced by hostname matching
-      expect(
-        stripCdnResizeParameters(
-          `https://xsubstackcdn.com/image/fetch/w_1,c_limit/${target}`,
-        ),
-      ).toBe(decoded);
+    it("leaves a URL whose query merely mentions the domain and path untouched", () => {
+      const url = `https://example.net/?u=substackcdn.com/image/fetch/${target}`;
+      expect(stripCdnResizeParameters(url)).toBe(url);
     });
 
-    it("unwraps a URL whose query merely mentions the domain and path", () => {
-      // Pinned as-is: matches by substring; replaced by hostname matching
-      expect(
-        stripCdnResizeParameters(
-          `https://example.net/?u=substackcdn.com/image/fetch/${target}`,
-        ),
-      ).toBe(decoded);
-    });
-
-    it("unwraps a URL whose path holds the domain and fetch path", () => {
-      // Pinned as-is: matches by substring; replaced by hostname matching
-      expect(
-        stripCdnResizeParameters(
-          `https://example.net/substackcdn.com/image/fetch/${target}`,
-        ),
-      ).toBe(decoded);
+    it("leaves a URL whose path holds the domain and fetch path untouched", () => {
+      const url = `https://example.net/substackcdn.com/image/fetch/${target}`;
+      expect(stripCdnResizeParameters(url)).toBe(url);
     });
   });
 });
@@ -183,12 +169,10 @@ describe("resolveFullResolutionImageSource Substack anchors", () => {
     expect(resolved.externalHref).toBe("https://example.com/article");
   });
 
-  it("uses an anchor whose query merely mentions the domain and path", () => {
-    // Pinned as-is: matches by substring; replaced by hostname matching
-    const resolved = resolve(
-      `https://example.net/?u=substackcdn.com/image/fetch/${target}`,
-    );
-    expect(resolved.fullUrl).toBe(decoded);
-    expect(resolved.externalHref).toBeUndefined();
+  it("treats an anchor whose query merely mentions the domain and path as an external link", () => {
+    const href = `https://example.net/?u=substackcdn.com/image/fetch/${target}`;
+    const resolved = resolve(href);
+    expect(resolved.fullUrl).toBe(thumb);
+    expect(resolved.externalHref).toBe(href);
   });
 });
