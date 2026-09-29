@@ -935,8 +935,8 @@ export default class RssDashboardPlugin extends Plugin {
         (leaf) =>
           new ReaderView(
             leaf,
-            this.settings,
-            this.articleSaver,
+            () => this.settings,
+            () => this.articleSaver,
             (item: FeedItem) => {
               void this.onArticleSaved(item);
             },
