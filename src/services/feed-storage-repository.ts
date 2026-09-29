@@ -12,6 +12,7 @@ import type {
   UserStateFile,
   FeedShardHealth,
 } from "../types/types";
+import { trimSurroundingSlashes } from "../utils/folder-paths";
 
 const SHARD_VERSION = 1;
 
@@ -122,11 +123,9 @@ function createFeedId(): string {
 
 export function normalizeFolderPath(path: string): string {
   const trimmed = path.trim().replace(/\\/g, "/");
-  if (!trimmed) {
-    return ".rss-dashboard-data/feeds";
-  }
+  if (!trimmed) return ".rss-dashboard-data/feeds";
 
-  return normalizePath(trimmed.replace(/^\/+|\/+$/g, ""));
+  return normalizePath(trimSurroundingSlashes(trimmed));
 }
 
 /**
