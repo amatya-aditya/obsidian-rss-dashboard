@@ -1,8 +1,18 @@
+import { hostMatches } from "./url-host";
+
+// Image sources in feed HTML are often protocol-relative ("//host/path").
+function imageHostMatches(url: string, domain: string): boolean {
+  return hostMatches(url.startsWith("//") ? `https:${url}` : url, domain);
+}
+
 export function optimizeImageUrl(url: string, maxWidth = 600): string {
   if (!url) return url;
 
   // NPR / Brightspot CDN
-  if (url.includes("brightspotcdn.com") || url.includes("media.npr.org")) {
+  if (
+    imageHostMatches(url, "brightspotcdn.com") ||
+    imageHostMatches(url, "media.npr.org")
+  ) {
     return url
       .replace(/\/resize\/\d+x\d+!?\//g, `/resize/${maxWidth}x/`)
       .replace(
@@ -13,9 +23,9 @@ export function optimizeImageUrl(url: string, maxWidth = 600): string {
 
   // WordPress Photon / Jetpack CDN
   if (
-    url.includes("i0.wp.com") ||
-    url.includes("i1.wp.com") ||
-    url.includes("i2.wp.com")
+    imageHostMatches(url, "i0.wp.com") ||
+    imageHostMatches(url, "i1.wp.com") ||
+    imageHostMatches(url, "i2.wp.com")
   ) {
     try {
       const parsed = new URL(url);
@@ -28,7 +38,7 @@ export function optimizeImageUrl(url: string, maxWidth = 600): string {
   }
 
   // Cloudinary
-  if (url.includes("cloudinary.com")) {
+  if (imageHostMatches(url, "cloudinary.com")) {
     return url.replace(/\/upload\//, `/upload/w_${maxWidth},c_scale/`);
   }
 
