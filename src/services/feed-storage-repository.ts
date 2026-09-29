@@ -18,6 +18,7 @@ import {
   parseSettingsBundle,
 } from "./storage-bundle-parsers";
 import { UserStateStore } from "./user-state-store";
+import { trimSurroundingSlashes } from "../utils/folder-paths";
 
 export interface FeedStorageStatus {
   mode: RssDashboardSettings["storageMode"];
@@ -87,11 +88,9 @@ function createFeedId(): string {
 
 export function normalizeFolderPath(path: string): string {
   const trimmed = path.trim().replace(/\\/g, "/");
-  if (!trimmed) {
-    return ".rss-dashboard-data/feeds";
-  }
+  if (!trimmed) return ".rss-dashboard-data/feeds";
 
-  return normalizePath(trimmed.replace(/^\/+|\/+$/g, ""));
+  return normalizePath(trimSurroundingSlashes(trimmed));
 }
 
 /**

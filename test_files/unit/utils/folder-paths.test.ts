@@ -1,6 +1,9 @@
 import { describe, it, expect } from "vitest";
 import type { Folder } from "../../../src/types/types";
-import { collectFolderPaths } from "../../../src/utils/folder-paths";
+import {
+  collectFolderPaths,
+  trimSurroundingSlashes,
+} from "../../../src/utils/folder-paths";
 
 describe("collectFolderPaths()", () => {
   it("collects nested folder paths in traversal order by default", () => {
@@ -55,3 +58,11 @@ describe("collectFolderPaths()", () => {
   });
 });
 
+describe("trimSurroundingSlashes()", () => {
+  it("removes only leading and trailing slashes", () => {
+    expect(trimSurroundingSlashes("//a//b//")).toBe("a//b");
+    expect(trimSurroundingSlashes("a")).toBe("a");
+    expect(trimSurroundingSlashes("///")).toBe("");
+    expect(trimSurroundingSlashes("")).toBe("");
+  });
+});
