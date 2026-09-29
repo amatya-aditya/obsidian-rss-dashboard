@@ -14,7 +14,15 @@
  * tab, `refreshDashboardViews`, `getActiveDiscoverView`, and the identity of
  * `plugin.feedParser`, which a rebuild replaces.
  */
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+  type MockInstance,
+} from "vitest";
 import { App, type PluginManifest } from "obsidian";
 
 vi.mock("../../../src/modals/whats-new-modal", () => ({
@@ -94,7 +102,7 @@ describe("applying a confirmed settings import (issue #535)", () => {
   let app: App;
   let plugin: RssDashboardPlugin;
   let calls: string[];
-  let noticeSpy: ReturnType<typeof vi.spyOn>;
+  let noticeSpy: MockInstance<typeof console.debug>;
 
   function adapter(): VaultAdapterStub {
     return app.vault.adapter as unknown as VaultAdapterStub;
