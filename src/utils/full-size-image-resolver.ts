@@ -129,7 +129,7 @@ export function stripCdnResizeParameters(rawUrl: string): string {
 
     // Cloudinary /upload/w_...,c_scale/
     if (url.hostname.includes("cloudinary.com") && url.pathname.includes("/upload/")) {
-      url.pathname = url.pathname.replace(/\/upload\/(?:[a-z]_[^/]+,?)+\//i, "/upload/");
+      url.pathname = url.pathname.replace(/\/upload\/[a-z]_[^/]+\//i, "/upload/");
       return url.toString();
     }
 
