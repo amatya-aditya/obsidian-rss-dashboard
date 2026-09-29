@@ -194,7 +194,12 @@ describe("isLatexFormulaImage with unparseable URLs", () => {
   });
 
   it("handles long paths quickly", () => {
-    for (const rest of ["/latex.php?".repeat(5000), "/latex.php?a".repeat(4200)]) {
+    for (const rest of [
+      "/latex.php?".repeat(5000),
+      "/latex.php?a".repeat(4200),
+      "/latex.php?#".repeat(4200),
+      "/latex.php?latex#".repeat(3000),
+    ]) {
       const started = performance.now();
       expect(detect(rest)).toBe(false);
       expect(performance.now() - started).toBeLessThan(200);

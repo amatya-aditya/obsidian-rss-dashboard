@@ -52,13 +52,14 @@ function isWordCode(code: number): boolean {
   );
 }
 
-/** Index of `needle` (lowercase ASCII) in `text` at or after `from`, ignoring ASCII case. */
+/** Index of `needle` (lowercase ASCII) in `text[from, limit)`, ignoring ASCII case, or -1. */
 function indexOfAsciiInsensitive(
   text: string,
   needle: string,
   from: number,
+  limit = text.length,
 ): number {
-  const last = text.length - needle.length;
+  const last = limit - needle.length;
   for (let i = from; i <= last; i++) {
     let j = 0;
     while (
@@ -74,10 +75,10 @@ function indexOfAsciiInsensitive(
 
 /** True when a `latex=` parameter (not part of a longer word) sits in `text[from, end)`. */
 function hasLatexParam(text: string, from: number, end: number): boolean {
-  let at = indexOfAsciiInsensitive(text, LATEX_PARAM, from);
-  while (at >= 0 && at + LATEX_PARAM.length <= end) {
+  let at = indexOfAsciiInsensitive(text, LATEX_PARAM, from, end);
+  while (at >= 0) {
     if (!isWordCode(text.charCodeAt(at - 1))) return true;
-    at = indexOfAsciiInsensitive(text, LATEX_PARAM, at + 1);
+    at = indexOfAsciiInsensitive(text, LATEX_PARAM, at + 1, end);
   }
   return false;
 }
