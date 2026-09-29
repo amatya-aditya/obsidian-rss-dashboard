@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import type { Folder } from "../../../src/types/types";
 import {
   collectFolderPaths,
+  findSelectedAncestorFolder,
   trimSurroundingSlashes,
 } from "../../../src/utils/folder-paths";
 
@@ -64,5 +65,22 @@ describe("trimSurroundingSlashes()", () => {
     expect(trimSurroundingSlashes("a")).toBe("a");
     expect(trimSurroundingSlashes("///")).toBe("");
     expect(trimSurroundingSlashes("")).toBe("");
+  });
+});
+
+describe("findSelectedAncestorFolder()", () => {
+  it("returns the folder itself when it is selected", () => {
+    expect(findSelectedAncestorFolder("News", ["News"])).toBe("News");
+  });
+
+  it("returns the nearest selected ancestor of a nested folder", () => {
+    expect(
+      findSelectedAncestorFolder("News/Tech/Releases", ["News", "News/Tech"]),
+    ).toBe("News/Tech");
+  });
+
+  it("returns null when no ancestor is selected or the path is empty", () => {
+    expect(findSelectedAncestorFolder("News/Tech", ["Videos"])).toBeNull();
+    expect(findSelectedAncestorFolder("", ["News"])).toBeNull();
   });
 });
