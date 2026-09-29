@@ -199,8 +199,10 @@ function matchesAnyTagFilter(
   state: ArticleFilterState,
 ): boolean {
   let match = false;
+  // In OR mode, selected tags refine the broad Tagged status.
   if (
     state.activeStatusFilters.has("tagged") &&
+    state.activeTagFilters.size === 0 &&
     item.tags &&
     item.tags.length > 0
   )

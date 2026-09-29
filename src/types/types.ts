@@ -136,6 +136,12 @@ export interface Feed {
    * Cleared (set to undefined) on the next successful fetch.
    */
   lastFetchError?: string;
+  /**
+   * True while a background import placeholder is waiting for its first
+   * fetch. Persisted so an import interrupted by an unload resumes on the
+   * next load; cleared once the fetch succeeds or fails.
+   */
+  importPending?: boolean;
 }
 
 export type FeedRefreshStatus =
@@ -763,7 +769,7 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
     defaultVideoTags: ["Video"],
     defaultYouTubeTag: "Video",
     defaultYouTubeTags: ["Video"],
-    defaultPodcastFolder: "Podcast",
+    defaultPodcastFolder: "Podcasts",
     defaultPodcastTags: ["podcast"],
     defaultRssFolder: "RSS",
     defaultRssTag: "RSS",

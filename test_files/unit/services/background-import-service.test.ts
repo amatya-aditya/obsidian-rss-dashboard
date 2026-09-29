@@ -47,6 +47,7 @@ interface TestableBackgroundImportService {
   backgroundImportTotalCount: number;
   backgroundImportInFlightUrls: Set<string>;
   backgroundImportProcessedCount: number;
+  backgroundImportSignal: AbortSignal | null;
   importStatusBarItem: HTMLElement | null;
   ownsGlobalOperation: boolean;
 }
@@ -313,7 +314,11 @@ describe("BackgroundImportService", () => {
       expect(onFeedImported).toHaveBeenCalledWith(
         expect.objectContaining({
           url: "https://example.com/imported.xml",
-          items: [expect.objectContaining({ coverImage: "https://example.com/cover.jpg" })],
+          items: [
+            expect.objectContaining({
+              coverImage: "https://example.com/cover.jpg",
+            }),
+          ],
         }),
       );
     });
@@ -541,6 +546,53 @@ describe("BackgroundImportService", () => {
   // ── processBackgroundImportQueue completion signaling ───────────────────────
 
   describe("processBackgroundImportQueue", () => {
+    it("clears the import worker timers when unload cancels a pending request", async () => {
+      vi.useFakeTimers();
+      try {
+        const feed: Feed = {
+          title: "Feed",
+          url: "https://example.com/feed.xml",
+          folder: "Inbox",
+          items: [],
+          lastUpdated: 0,
+          mediaType: "article",
+        };
+        const deps = makeDeps({ feeds: [feed] });
+        const controller = new AbortController();
+        const service = new BackgroundImportService({
+          ...deps,
+          isGlobalOperationCancelled: () => controller.signal.aborted,
+        });
+        deps.feedParser.parseFeed = vi.fn(
+          (_url, _existingFeed, options) =>
+            new Promise<Feed>((_resolve, reject) => {
+              options?.signal?.addEventListener(
+                "abort",
+                () => reject(new DOMException("Aborted", "AbortError")),
+                { once: true },
+              );
+            }),
+        );
+        const testable = service as unknown as TestableBackgroundImportService;
+        testable.backgroundImportSignal = controller.signal;
+        testable.backgroundImportQueue = [{ ...feed, importStatus: "pending" }];
+        testable.backgroundImportTotalCount = 1;
+
+        const queue = testable.processBackgroundImportQueue();
+        await vi.advanceTimersByTimeAsync(0);
+        expect(deps.feedParser.parseFeed).toHaveBeenCalled();
+        expect(vi.getTimerCount()).toBeGreaterThan(0);
+
+        controller.abort();
+        await queue;
+
+        expect(vi.getTimerCount()).toBe(0);
+        expect(deps.saveSettings).not.toHaveBeenCalled();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
     it("calls onImportQueueDrained with the processed count instead of showing a Notice", async () => {
       const onImportQueueDrained = vi.fn();
       const feed: Feed = {
@@ -602,6 +654,7 @@ describe("BackgroundImportService", () => {
       ).processBackgroundImportQueue();
 
       expect(onImportQueueDrained).not.toHaveBeenCalled();
+      expect(deps.saveSettings).not.toHaveBeenCalled();
     });
 
     it("does not self-restart when the run owned and cancelled the global operation, even though endGlobalOperation resets the cancellation flag", async () => {
@@ -637,7 +690,10 @@ describe("BackgroundImportService", () => {
       testable.backgroundImportQueue = [{ ...feed, importStatus: "pending" }];
       testable.backgroundImportTotalCount = 1;
 
-      const processQueueSpy = vi.spyOn(testable, "processBackgroundImportQueue");
+      const processQueueSpy = vi.spyOn(
+        testable,
+        "processBackgroundImportQueue",
+      );
 
       await testable.processBackgroundImportQueue();
       // Flush the microtask queue so a wrongful `void this.processBackgroundImportQueue()`
@@ -689,6 +745,149 @@ describe("BackgroundImportService", () => {
         (service as unknown as TestableBackgroundImportService)
           .backgroundImportQueue,
       ).toHaveLength(0);
+    });
+  });
+
+  // ── resuming interrupted imports ─────────────────────────────────────────────
+
+  describe("resumePendingImports", () => {
+    const placeholder = (): Feed => ({
+      title: "Imported",
+      url: "https://example.com/imported.xml",
+      folder: "Inbox",
+      items: [],
+      lastUpdated: 0,
+      mediaType: "article",
+      importPending: true,
+    });
+    const parsed = (): Feed => ({
+      ...placeholder(),
+      importPending: undefined,
+      items: [
+        {
+          title: "Item",
+          link: "https://example.com/item",
+          description: "",
+          pubDate: new Date(0).toISOString(),
+          guid: "item-1",
+          read: false,
+          starred: false,
+          tags: [],
+          feedTitle: "Imported",
+          feedUrl: "https://example.com/imported.xml",
+          coverImage: "",
+        },
+      ],
+    });
+
+    function drained(): {
+      promise: Promise<void>;
+      onImportQueueDrained: () => void;
+    } {
+      let resolve: () => void = () => {};
+      const promise = new Promise<void>((r) => (resolve = r));
+      return { promise, onImportQueueDrained: () => resolve() };
+    }
+
+    it("marks new placeholders as pending until their first fetch succeeds", async () => {
+      const deps = makeDeps({ feeds: [] });
+      const done = drained();
+      deps.feedParser.parseFeed = vi.fn().mockResolvedValue(parsed());
+      const service = new BackgroundImportService({ ...deps, ...done });
+
+      await service.ingestFeedsForBackgroundImport([
+        { title: "Imported", url: "https://example.com/imported.xml" },
+      ]);
+      await done.promise;
+
+      const feed = deps._settings.feeds[0];
+      expect(feed.items).toHaveLength(1);
+      expect(feed.importPending).toBeUndefined();
+    });
+
+    it("fetches placeholders left pending by an interrupted import", async () => {
+      const deps = makeDeps({ feeds: [placeholder()] });
+      const done = drained();
+      deps.feedParser.parseFeed = vi.fn().mockResolvedValue(parsed());
+      const service = new BackgroundImportService({ ...deps, ...done });
+
+      expect(service.resumePendingImports()).toBe(1);
+      await done.promise;
+
+      const feed = deps._settings.feeds[0];
+      expect(vi.mocked(deps.feedParser.parseFeed).mock.calls[0]?.[0]).toBe(
+        "https://example.com/imported.xml",
+      );
+      expect(feed.items).toHaveLength(1);
+      expect(feed.importPending).toBeUndefined();
+      expect(deps.saveSettings).toHaveBeenCalled();
+    });
+
+    it("stops treating a feed as pending once its import fails", async () => {
+      vi.spyOn(console, "error").mockImplementation(() => {});
+      const deps = makeDeps({ feeds: [placeholder()] });
+      const done = drained();
+      deps.feedParser.parseFeed = vi.fn().mockRejectedValue(new Error("Gone"));
+      const service = new BackgroundImportService({ ...deps, ...done });
+
+      service.resumePendingImports();
+      await done.promise;
+
+      expect(deps._settings.feeds[0].importPending).toBeUndefined();
+    });
+
+    it("keeps the pending mark when an unload cancels the fetch", async () => {
+      const deps = makeDeps({ feeds: [placeholder()] });
+      const controller = new AbortController();
+      deps.feedParser.parseFeed = vi.fn(
+        (_url, _existingFeed, options) =>
+          new Promise<Feed>((_resolve, reject) => {
+            options?.signal?.addEventListener(
+              "abort",
+              () => reject(new DOMException("Aborted", "AbortError")),
+              { once: true },
+            );
+          }),
+      );
+      const service = new BackgroundImportService({
+        ...deps,
+        beginGlobalOperation: () => controller.signal,
+        isGlobalOperationCancelled: () => controller.signal.aborted,
+      });
+
+      service.resumePendingImports();
+      await vi.waitFor(() =>
+        expect(deps.feedParser.parseFeed).toHaveBeenCalled(),
+      );
+      controller.abort();
+      await vi.waitFor(() =>
+        expect(
+          service.isFeedPendingImport("https://example.com/imported.xml"),
+        ).toBe(false),
+      );
+
+      expect(deps._settings.feeds[0].importPending).toBe(true);
+      expect(deps.saveSettings).not.toHaveBeenCalled();
+    });
+
+    it("waits for a later load when another global operation is running", () => {
+      const deps = makeDeps({ feeds: [placeholder()] });
+      const service = new BackgroundImportService({
+        ...deps,
+        beginGlobalOperation: () => null,
+      });
+
+      expect(service.resumePendingImports()).toBe(0);
+      expect(deps.feedParser.parseFeed).not.toHaveBeenCalled();
+    });
+
+    it("does nothing when no import was interrupted", () => {
+      const deps = makeDeps({
+        feeds: [{ ...placeholder(), importPending: undefined }],
+      });
+      const service = new BackgroundImportService(deps);
+
+      expect(service.resumePendingImports()).toBe(0);
     });
   });
 });

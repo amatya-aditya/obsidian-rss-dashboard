@@ -9,7 +9,7 @@
       "src/components/sidebar.ts": 4603,
       "src/services/feed-storage-repository.ts": 1362,
       "src/views/dashboard-view.ts": 4191,
-      "src/views/reader-view.ts": 3469
+      "src/views/reader-view.ts": 3453
     },
     "allowedMainImporters": [
       "src/components/discover-sidebar.ts",

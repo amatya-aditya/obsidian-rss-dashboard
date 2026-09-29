@@ -105,7 +105,7 @@ export class FeedParser {
       defaultYouTubeFolder: "Videos",
       defaultYouTubeTag: "Video",
       defaultYouTubeTags: ["Video"],
-      defaultPodcastFolder: "Podcast",
+      defaultPodcastFolder: "Podcasts",
       defaultPodcastTags: ["Podcast"],
       defaultRssFolder: "RSS",
       defaultRssTag: "",
@@ -897,7 +897,13 @@ export class FeedParser {
       if (options.signal.aborted) {
         abortController.abort();
       } else {
-        externalAbortHandler = () => abortController.abort();
+        externalAbortHandler = () => {
+          if (timeoutId !== null) {
+            window.clearTimeout(timeoutId);
+            timeoutId = null;
+          }
+          abortController.abort();
+        };
         options.signal.addEventListener("abort", externalAbortHandler);
       }
     }

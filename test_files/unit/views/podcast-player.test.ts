@@ -415,6 +415,66 @@ describe("PodcastPlayer", () => {
   });
 
   describe("playback progress persistence", () => {
+    it("shows saved episode progress in the episode list", () => {
+      const container: HTMLDivElement = createDiv();
+      document.body.appendChild(container);
+      const app = new App();
+      const player = new PodcastPlayer(container, app, "obsidian");
+      const ep = {
+        ...baseEpisode(),
+        playbackProgress: {
+          position: 30,
+          duration: 120,
+          lastUpdated: 1,
+        },
+      };
+      const otherEpisode = {
+        ...baseEpisode(),
+        title: "Ep 2",
+        guid: "guid-ep2",
+      };
+
+      player.loadEpisode(ep, [ep, otherEpisode]);
+
+      const row = container.querySelector<HTMLElement>(
+        `.episode-list-row[data-episode-guid="${ep.guid}"]`,
+      );
+      expect(row?.classList.contains("has-progress")).toBe(true);
+      expect(row?.style.getPropertyValue("--progress-width")).toBe("25%");
+      player.destroy();
+    });
+
+    it("does not recreate the legacy key when playback progress is saved", () => {
+      vi.useFakeTimers();
+      const container: HTMLDivElement = createDiv();
+      document.body.appendChild(container);
+      const app = new App();
+      const saveLocalStorage = vi.spyOn(app, "saveLocalStorage");
+      const player = new PodcastPlayer(container, app, "obsidian");
+      const ep = baseEpisode();
+      player.loadEpisode(ep);
+
+      const audio = container.querySelector<HTMLAudioElement>("audio");
+      expect(audio).not.toBeNull();
+      if (audio) {
+        Object.defineProperty(audio, "duration", {
+          configurable: true,
+          value: 120,
+        });
+        audio.currentTime = 12;
+        audio.dispatchEvent(new Event("play"));
+      }
+
+      vi.advanceTimersByTime(1000);
+      player.destroy();
+
+      expect(saveLocalStorage).not.toHaveBeenCalledWith(
+        "rss-podcast-progress",
+        expect.anything(),
+      );
+      vi.useRealTimers();
+    });
+
     it("starts tracking on play and flushes on pause", () => {
       vi.useFakeTimers();
 

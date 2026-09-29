@@ -5,6 +5,7 @@ import {
   type AddFeedRequest,
 } from "../../../src/modals/feed-manager/add-feed-modal";
 import * as feedPreviewLoader from "../../../src/modals/feed-manager/feed-preview-loader";
+import { DEFAULT_SETTINGS } from "../../../src/types/types";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 
 type MockApp = obsidian.App;
@@ -132,6 +133,50 @@ describe("AddFeedModal", () => {
     modal.open();
 
     expect(modal.modalEl.querySelector(".modal-header-button")).not.toBeNull();
+  });
+
+  it("adds a podcast feed to the default Podcasts folder on a fresh install", async () => {
+    const onAdd: OnAddFn = vi.fn(async () => true);
+    const onSave = vi.fn();
+    const plugin = {
+      settings: DEFAULT_SETTINGS,
+      ensureFolderExists: vi.fn(async () => undefined),
+    };
+
+    vi.spyOn(feedPreviewLoader, "resolveAndLoadPreview").mockResolvedValue({
+      detectedType: "podcast",
+      inputUrl: "https://example.com/podcast.xml",
+      finalUrl: "https://example.com/podcast.xml",
+      isMastodonConversion: false,
+      title: "Example podcast",
+      hasEntries: true,
+    });
+
+    const modal = new AddFeedModal(
+      createMockApp(),
+      DEFAULT_SETTINGS.folders,
+      onAdd,
+      onSave,
+      "",
+      plugin as never,
+    );
+    modal.open();
+
+    const urlInput = getTextInputBySettingName(modal.contentEl, "Feed URL");
+    urlInput.value = "https://example.com/podcast.xml";
+    urlInput.dispatchEvent(new Event("input"));
+    getButtonByText(modal.contentEl, "Load").click();
+    await flushPromises();
+
+    const titleInput = getTextInputBySettingName(modal.contentEl, "Title");
+    titleInput.value = "Example podcast";
+    titleInput.dispatchEvent(new Event("input"));
+    getButtonByText(modal.contentEl, "Save").click();
+    await flushPromises();
+
+    expect(onAdd).toHaveBeenCalledWith(
+      expect.objectContaining({ folder: "Podcasts" }),
+    );
   });
 
   it("uses the selected feed encoding for preview and save", async () => {
