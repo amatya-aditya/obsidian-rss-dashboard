@@ -129,6 +129,7 @@ type VaultAdapterPathAccess = {
 type LegacyLocalStorageApi = {
   loadLocalStorage?: (key: string) => unknown;
   removeLocalStorage?: (key: string) => void;
+  saveLocalStorage?: (key: string, value: unknown) => void;
 };
 type LegacyPlaybackProgressEntry = {
   position: number;
@@ -142,11 +143,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function isLegacyPlaybackProgressEntry(
   value: unknown,
 ): value is LegacyPlaybackProgressEntry {
-  return (
-    isRecord(value) &&
-    typeof value.position === "number" &&
-    typeof value.duration === "number"
-  );
+  return isRecord(value) && typeof value.position === "number" &&
+    Number.isFinite(value.position) && value.position >= 0 &&
+    typeof value.duration === "number" && Number.isFinite(value.duration) &&
+    value.duration > 0;
 }
 
 function isDesktopShell(value: unknown): value is DesktopShell {
@@ -3235,16 +3235,15 @@ export default class RssDashboardPlugin extends Plugin {
     const legacyProgress = appWithLocalStorage.loadLocalStorage(
       "rss-podcast-progress",
     );
-    if (!isRecord(legacyProgress)) return;
-
+    const migrationProgress = isRecord(legacyProgress) ? legacyProgress : {};
     let migratedCount = 0;
-    for (const guid in legacyProgress) {
-      const data = legacyProgress[guid];
+    for (const guid in migrationProgress) {
+      const data = migrationProgress[guid];
       if (!isLegacyPlaybackProgressEntry(data)) continue;
 
       for (const feed of this.settings.feeds) {
         const item = feed.items.find((i) => i.guid === guid);
-        if (!item) continue;
+        if (!item || item.playbackProgress) continue;
 
         item.playbackProgress = {
           position: data.position,
@@ -3255,7 +3254,6 @@ export default class RssDashboardPlugin extends Plugin {
         break;
       }
     }
-
     if (migratedCount > 0) {
       storageLog(
         `[RSS Dashboard] Migrated ${migratedCount} media progress items.`,
@@ -3265,6 +3263,8 @@ export default class RssDashboardPlugin extends Plugin {
 
     if (typeof appWithLocalStorage.removeLocalStorage === "function") {
       appWithLocalStorage.removeLocalStorage("rss-podcast-progress");
+    } else {
+      appWithLocalStorage.saveLocalStorage?.("rss-podcast-progress", null);
     }
   }
 
