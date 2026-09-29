@@ -129,7 +129,15 @@ export async function resolveAndLoadPreview(
     );
   }
 
-  if (MediaService.isMastodonUrl(url)) {
+  if (isYouTubePageUrl(url)) {
+    detectedType = "youtube";
+    const rssUrl = await MediaService.getYouTubeRssFeed(url);
+    if (!rssUrl) {
+      throw new Error("Could not resolve YouTube channel. Please check the URL.");
+    }
+    url = rssUrl;
+    finalUrl = rssUrl;
+  } else if (MediaService.isMastodonUrl(url)) {
     const mastodonFeedUrl = await MediaService.getMastodonRssFeed(url);
     if (!mastodonFeedUrl) {
       throw new Error(
@@ -142,15 +150,7 @@ export async function resolveAndLoadPreview(
     isMastodonConversion = true;
   }
 
-  if (isYouTubePageUrl(url)) {
-    detectedType = "youtube";
-    const rssUrl = await MediaService.getYouTubeRssFeed(url);
-    if (!rssUrl) {
-      throw new Error("Could not resolve YouTube channel. Please check the URL.");
-    }
-    url = rssUrl;
-    finalUrl = rssUrl;
-  } else if (MediaService.isYouTubeFeed(url) && isYouTubeRssFeedUrl(url)) {
+  if (detectedType !== "youtube" && MediaService.isYouTubeFeed(url) && isYouTubeRssFeedUrl(url)) {
     detectedType = "youtube";
   } else {
     const platform = detectPodcastPlatform(url);
