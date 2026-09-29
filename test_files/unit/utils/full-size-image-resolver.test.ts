@@ -111,6 +111,32 @@ describe("full-size-image-resolver", () => {
       );
     });
 
+    it("strips a Cloudinary transformation segment made of a single parameter", () => {
+      const cloudinary = "https://res.cloudinary.com/demo/image/upload/w_600/v1/sample.jpg";
+      expect(stripCdnResizeParameters(cloudinary)).toBe(
+        "https://res.cloudinary.com/demo/image/upload/v1/sample.jpg",
+      );
+    });
+
+    it("keeps Cloudinary paths that have no transformation segment", () => {
+      const cloudinary = "https://res.cloudinary.com/demo/image/upload/v1234/sample.jpg";
+      expect(stripCdnResizeParameters(cloudinary)).toBe(cloudinary);
+    });
+
+    it("handles a long Cloudinary transformation segment that ends the path", () => {
+      const segment = `a_${",a_".repeat(5000)}`;
+      const cloudinary = `https://res.cloudinary.com/demo/image/upload/${segment}x.jpg`;
+      expect(stripCdnResizeParameters(cloudinary)).toBe(cloudinary);
+    });
+
+    it("strips a long Cloudinary transformation segment followed by more path", () => {
+      const segment = `a_${",a_".repeat(5000)}`;
+      const cloudinary = `https://res.cloudinary.com/demo/image/upload/${segment}/sample.jpg`;
+      expect(stripCdnResizeParameters(cloudinary)).toBe(
+        "https://res.cloudinary.com/demo/image/upload/sample.jpg",
+      );
+    });
+
     it("strips Brightspot resize paths", () => {
       const brightspot =
         "https://media.npr.brightspotcdn.com/dims4/default/resize/600x!/photo.jpg";
