@@ -67,9 +67,7 @@ describe("safe-html tag handling (characterization)", () => {
           String.raw`<p><span class="math-container">$a<b$</span></p>`,
           "rich",
         ),
-      ).toBe(
-        String.raw`<p><span class="math-container">$a&lt;b$</span></p>`,
-      );
+      ).toBe(String.raw`<p><span class="math-container">$a&lt;b$</span></p>`);
     });
 
     it("keeps footnote and syntax-highlight markup", () => {
@@ -82,28 +80,46 @@ describe("safe-html tag handling (characterization)", () => {
   });
 
   describe("rich mode with tags outside the common set", () => {
-    // Pinned as-is: rich mode keeps every tag that is not blocked; replaced by an allowlist
     // A leading paragraph keeps template and noscript out of the parsed head.
-    const unusual: Record<string, [string, string]> = {
-      font: ["font", "<font>text</font>"],
-      center: ["center", "<center>text</center>"],
-      marquee: ["marquee", "<marquee>text</marquee>"],
-      form: ["form", "<form>text</form>"],
-      input: ["input", "<input>"],
-      button: ["button", "<button>text</button>"],
-      svg: ["svg", "<svg><title>icon</title></svg>"],
-      math: ["math", "<math><mi>x</mi></math>"],
-      dialog: ["dialog", "<dialog>text</dialog>"],
-      template: ["template", "<p>a</p><template><p>text</p></template>"],
-      noscript: ["noscript", "<p>a</p><noscript><img src=x></noscript>"],
-      "custom element": ["x-widget", "<x-widget>text</x-widget>"],
+    const unwrapped: Record<string, [string, string]> = {
+      font: ["<font>text</font>", "text"],
+      center: ["<center>text</center>", "text"],
+      marquee: ["<marquee>text</marquee>", "text"],
+      form: ["<form>text</form>", "text"],
+      input: ["<p>a</p><input>", "<p>a</p>"],
+      button: ["<button>text</button>", "text"],
+      math: ["<math><mi>x</mi></math>", "x"],
+      dialog: ["<dialog>text</dialog>", "text"],
+      template: ["<p>a</p><template><p>text</p></template>", "<p>a</p>"],
+      "custom element": ["<x-widget>text</x-widget>", "text"],
+      "nested unknown tags": [
+        "<div>a<font><marquee>b</marquee></font><em>c</em></div>",
+        "<div>ab<em>c</em></div>",
+      ],
     };
 
-    for (const [name, [tag, html]] of Object.entries(unusual)) {
-      it(`currently keeps ${name} as an element`, () => {
-        expect(tagsOf(render(html, "rich"))).toContain(tag);
+    for (const [name, [html, expected]] of Object.entries(unwrapped)) {
+      it(`unwraps ${name} and keeps its text`, () => {
+        expect(render(html, "rich")).toBe(expected);
       });
     }
+
+    it("drops svg and noscript together with their content", () => {
+      expect(
+        render(
+          "<p>a</p><svg><title>icon</title></svg><noscript><img src=x></noscript><p>b</p>",
+          "rich",
+        ),
+      ).toBe("<p>a</p><p>b</p>");
+    });
+
+    it("still keeps allowed tags nested inside an unwrapped tag", () => {
+      expect(
+        render('<font><a href="https://example.com/">l</a></font>', "rich"),
+      ).toBe(
+        '<a href="https://example.com/" target="_blank" rel="noopener noreferrer">l</a>',
+      );
+    });
   });
 
   describe("strict mode", () => {
@@ -122,7 +138,7 @@ describe("safe-html tag handling (characterization)", () => {
       ).toBe("abcdefg");
     });
 
-    it("unwraps custom elements, dialog, math, and svg text", () => {
+    it("unwraps custom elements, dialog, math, and noscript text", () => {
       expect(
         render(
           "<x-widget>a</x-widget><dialog>b</dialog><math><mi>c</mi></math><p>d</p><noscript>e</noscript>",

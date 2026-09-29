@@ -30,6 +30,7 @@
 ### Developer
 
 - HTML entities in feed text, feed previews, and podcast title lookups are now decoded in one pass by a shared decoder. Text that was escaped twice keeps one level of escaping, and feed previews show named entities such as `&eacute;` as letters.
+- Rich article rendering now keeps a fixed set of HTML tags; other tags are unwrapped and their text is kept.
 
 ### Known issues
 
