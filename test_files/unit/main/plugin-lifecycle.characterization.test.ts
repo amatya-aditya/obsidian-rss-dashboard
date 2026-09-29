@@ -180,7 +180,7 @@ async function seedStore(
   await plugin.onload();
   plugin.settings.refreshInterval = 60;
   plugin.settings.startupRefreshDelaySeconds = startupRefreshDelaySeconds;
-  plugin.settings.feeds.push({
+  plugin.settings.feeds = [{
     title: "Example",
     url: FEED_URL,
     folder: "",
@@ -200,7 +200,7 @@ async function seedStore(
         coverImage: "",
       },
     ],
-  } as unknown as Feed);
+  } as unknown as Feed];
   await plugin.saveSettings();
   plugin.unload();
   return store;
@@ -307,9 +307,7 @@ describe("plugin lifecycle (characterization)", () => {
       });
     });
 
-    it("does not stop a refresh that is already running", async () => {
-      // BUG: pinned, see #444. A running refresh outlives unload, keeps its
-      // timers, and saves from the unloaded instance when it finishes.
+    it("stops a refresh that is already running", async () => {
       const store = await seedStore(app, 0);
       const { spy, release } = mockFeedRequests({ held: true });
       const { plugin, log } = createHarness(store, app);
@@ -319,12 +317,62 @@ describe("plugin lifecycle (characterization)", () => {
 
       plugin.unload();
       const logLength = log.length;
-      expect(vi.getTimerCount()).toBeGreaterThan(0);
+      expect(vi.getTimerCount()).toBe(0);
 
       release();
       await vi.advanceTimersByTimeAsync(20_000);
 
-      expect(log.slice(logLength)).toContain("saveData");
+      expect(log.slice(logLength)).not.toContain("saveData");
+    });
+
+    it("stops a manually selected feed refresh when the plugin unloads", async () => {
+      const store = await seedStore(app, 5);
+      const { spy, release } = mockFeedRequests({ held: true });
+      const { plugin, log } = createHarness(store, app);
+      await plugin.onload();
+      plugin.cancelPendingStartupRefresh();
+      const feed = plugin.settings.feeds[0];
+      expect(feed).toBeDefined();
+
+      const refresh = plugin.refreshSelectedFeed(feed);
+      await vi.waitFor(() => expect(spy).toHaveBeenCalled());
+
+      plugin.unload();
+      const logLength = log.length;
+      expect(vi.getTimerCount()).toBe(0);
+
+      release();
+      await refresh;
+      await vi.advanceTimersByTimeAsync(20_000);
+
+      expect(log.slice(logLength)).not.toContain("saveData");
+    });
+
+    it("stops a due multi-feed refresh when the plugin unloads", async () => {
+      const store = await seedStore(app, 0);
+      const { spy, release } = mockFeedRequests({ held: true });
+      const { plugin, log } = createHarness(store, app);
+      await plugin.onload();
+      const firstFeed = plugin.settings.feeds[0];
+      expect(firstFeed).toBeDefined();
+      plugin.settings.feeds.push({
+        ...firstFeed,
+        title: "Example 2",
+        url: "https://example.com/second.xml",
+        items: [],
+      });
+
+      await vi.advanceTimersByTimeAsync(100);
+      await vi.waitFor(() => expect(spy).toHaveBeenCalledTimes(2));
+
+      plugin.unload();
+      const logLength = log.length;
+      expect(vi.getTimerCount()).toBe(0);
+
+      release();
+      await vi.advanceTimersByTimeAsync(20_000);
+
+      expect(log.slice(logLength)).not.toContain("saveData");
     });
   });
 

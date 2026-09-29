@@ -490,7 +490,7 @@ describe("refreshFeeds() pipeline behavior", () => {
 
     expect(plugin.feedParser.refreshFeed).toHaveBeenCalledWith(
       feedB,
-      undefined,
+      { signal: expect.any(AbortSignal) },
     );
     expect(plugin.feedParser.refreshAllFeeds).not.toHaveBeenCalled();
     expect(plugin.settings.feeds[0].lastUpdated).toBe(100);

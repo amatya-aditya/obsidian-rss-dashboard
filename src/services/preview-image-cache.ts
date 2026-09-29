@@ -62,6 +62,7 @@ export class PreviewImageCache {
   private activeWorkers = 0;
   private batchCachedAny = false;
   private suppressNextRedraw = false;
+  private disposed = false;
 
   constructor(
     private readonly app: App,
@@ -69,7 +70,7 @@ export class PreviewImageCache {
   ) {}
 
   public async initialize(): Promise<void> {
-    if (this.service) return;
+    if (this.disposed || this.service) return;
     if (!this.options.getSettings().display.allowImageCaching) return;
 
     const adapter = this.app.vault.adapter;
@@ -174,7 +175,7 @@ export class PreviewImageCache {
   }
 
   public warmFeed(feed: Feed): void {
-    if (!this.isWarmingEnabled() || !this.service) {
+    if (this.disposed || !this.isWarmingEnabled() || !this.service) {
       return;
     }
 
@@ -192,6 +193,15 @@ export class PreviewImageCache {
     }
 
     this.startWorkers();
+  }
+
+  public dispose(): void {
+    this.disposed = true;
+    this.warmQueue = [];
+    this.queuedUrls.clear();
+    this.batchCachedAny = false;
+    this.suppressNextRedraw = true;
+    this.service?.cancelPendingWrites();
   }
 
   private isWarmingEnabled(): boolean {
@@ -212,6 +222,7 @@ export class PreviewImageCache {
   }
 
   private startWorkers(): void {
+    if (this.disposed) return;
     while (
       this.activeWorkers < MAX_CONCURRENT_WARM_FETCHES &&
       this.warmQueue.length > 0
@@ -223,7 +234,7 @@ export class PreviewImageCache {
 
   private async runWorker(): Promise<void> {
     try {
-      while (this.isWarmingEnabled()) {
+      while (!this.disposed && this.isWarmingEnabled()) {
         const previewUrl = this.warmQueue.shift();
         if (!previewUrl) return;
 
@@ -237,7 +248,8 @@ export class PreviewImageCache {
       this.activeWorkers -= 1;
       this.startWorkers();
       if (this.activeWorkers === 0 && this.warmQueue.length === 0) {
-        const shouldRedraw = this.batchCachedAny && !this.suppressNextRedraw;
+        const shouldRedraw =
+          !this.disposed && this.batchCachedAny && !this.suppressNextRedraw;
         this.batchCachedAny = false;
         this.suppressNextRedraw = false;
         if (shouldRedraw) {

@@ -734,7 +734,7 @@ describe("global feed operation: batches Stop cannot end (targeted, due, retry f
 
     expect(plugin.isGlobalRefreshCancellable).toBe(false);
     expect(parser.refreshFeed.mock.calls[0]?.[1]).toEqual({
-      signal: undefined,
+      signal: expect.any(AbortSignal),
     });
 
     for (const url of heldUrls(harness)) await settle(harness, url);
@@ -769,7 +769,7 @@ describe("global feed operation: batches Stop cannot end (targeted, due, retry f
     expect(plugin.isMultiFeedRefreshActive).toBe(true);
     expect(plugin.isGlobalRefreshCancellable).toBe(false);
     expect(parser.refreshFeed.mock.calls[0]?.[1]).toEqual({
-      signal: undefined,
+      signal: expect.any(AbortSignal),
     });
 
     plugin.cancelGlobalRefresh();
@@ -835,7 +835,9 @@ describe("global feed operation: single-feed refresh", () => {
     const refresh = plugin.refreshSelectedFeed(single);
     await flush();
 
-    expect(parser.refreshFeed).toHaveBeenCalledWith(single, undefined);
+    expect(parser.refreshFeed).toHaveBeenCalledWith(single, {
+      signal: expect.any(AbortSignal),
+    });
     expect(notices()).not.toContain(BUSY_REFRESH_NOTICE);
     expect(notices()).not.toContain(BUSY_OPERATION_NOTICE);
 
