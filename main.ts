@@ -65,7 +65,6 @@ import {
   ImportExportService,
   type ImportConfirmation,
   type ImportDecision,
-  type ImportKind,
   type ImportResult,
 } from "./src/services/import-export-service";
 import { ImportConfirmationModal } from "./src/settings/modals/import-confirmation-modal";
@@ -80,6 +79,7 @@ import {
   FeedRefreshRunner,
   type FeedRefreshIntent,
 } from "./src/services/feed-refresh-runner";
+import { SettingsImportApplier } from "./src/services/settings-import-applier";
 
 import { ImportOpmlModal } from "./src/modals/import-opml-modal";
 import { ImportStarredModal } from "./src/modals/import-starred-modal";
@@ -313,6 +313,7 @@ export default class RssDashboardPlugin extends Plugin {
   private readonly feedOperationTracker: FeedOperationTracker;
   private readonly previewImageCache: PreviewImageCache;
   private readonly feedRefreshRunner: FeedRefreshRunner;
+  private readonly settingsImportApplier: SettingsImportApplier;
 
   constructor(app: App, manifest: ConstructorParameters<typeof Plugin>[1]) {
     super(app, manifest);
@@ -360,6 +361,25 @@ export default class RssDashboardPlugin extends Plugin {
       getActiveDashboardView: () => this.getActiveDashboardView(),
       refreshFeeds: (selectedFeeds, intent) =>
         this.refreshFeeds(selectedFeeds, intent),
+    });
+    this.settingsImportApplier = new SettingsImportApplier({
+      getSettings: () => this.settings,
+      setSettings: (settings) => {
+        this.settings = settings;
+      },
+      isSettingsLoadFailed: () => this.settingsLoadFailed,
+      getFeedStorageRepository: () => this.feedStorageRepository,
+      savePluginData: (data) => this.savePluginData(data),
+      saveSettings: (...args) => this.saveSettings(...args),
+      migrateLegacySettings: () => this.migrateLegacySettings(),
+      initializeSettingsBackedServices: () =>
+        this.initializeSettingsBackedServices(),
+      refreshSettingTab: () => this.settingTab?.refresh(),
+      refreshDashboardViews: () => this.refreshDashboardViews(),
+      renderDiscoverView: async () => {
+        const discoverView = await this.getActiveDiscoverView();
+        discoverView?.render();
+      },
     });
   }
 
@@ -423,13 +443,15 @@ export default class RssDashboardPlugin extends Plugin {
       isMobile: Platform.isMobileApp,
       getPortableDataBundle: () => this.getPortableDataBundle(),
       importPortableDataBundle: (bundle) =>
-        this.applyPortableDataBundleImport(bundle),
+        this.settingsImportApplier.applyPortableDataBundleImport(bundle),
       getFeedBundle: () => this.getFeedBundle(),
-      importFeedBundle: (bundle) => this.applyFeedBundleImport(bundle),
+      importFeedBundle: (bundle) =>
+        this.settingsImportApplier.applyFeedBundleImport(bundle),
       getSettingsBundle: () => this.getSettingsBundle(),
-      importSettingsBundle: (bundle) => this.applySettingsBundleImport(bundle),
+      importSettingsBundle: (bundle) =>
+        this.settingsImportApplier.applySettingsBundleImport(bundle),
       importUserPreferences: (preferences, kind) =>
-        this.applyUserPreferencesImport(preferences, kind),
+        this.settingsImportApplier.applyUserPreferencesImport(preferences, kind),
       confirmImport: (confirmation) => this.confirmImport(confirmation),
       getUnloadedFeedCount: () => this.getUnloadedShardFeedCount(),
     });
@@ -1654,113 +1676,6 @@ export default class RssDashboardPlugin extends Plugin {
     return result;
   }
 
-  private async applyUserPreferencesImport(
-    parsed: Partial<RssDashboardSettings>,
-    kind: ImportKind,
-  ): Promise<void> {
-    const parsedWithCollections = parsed as Partial<RssDashboardSettings> & {
-      feeds?: unknown;
-      folders?: unknown;
-      availableTags?: unknown;
-    };
-
-    if (kind === "replacing") {
-      this.settings = Object.assign(
-        {},
-        DEFAULT_SETTINGS,
-        this.settings,
-        parsed,
-      );
-      // A file without a feed list keeps the current feeds, as it keeps
-      // the current folders and tags (issue #386).
-      const importedFeeds = parsedWithCollections.feeds;
-      const replacesFeedList = Array.isArray(importedFeeds);
-      if (replacesFeedList) {
-        this.settings.feeds = importedFeeds;
-      }
-      this.settings.folders = Array.isArray(parsedWithCollections.folders)
-        ? parsedWithCollections.folders
-        : this.settings.folders;
-      this.settings.availableTags = Array.isArray(
-        parsedWithCollections.availableTags,
-      )
-        ? parsedWithCollections.availableTags
-        : this.settings.availableTags;
-
-      this.migrateLegacySettings();
-      for (const feed of this.settings.feeds) {
-        if (!feed.keywordRules) {
-          feed.keywordRules = {
-            overrideGlobalRules: false,
-            includeLogic: "AND",
-            rules: [],
-          };
-          continue;
-        }
-        feed.keywordRules = Object.assign(
-          {},
-          {
-            overrideGlobalRules: false,
-            includeLogic: "AND",
-            rules: [],
-          },
-          feed.keywordRules,
-        );
-
-        // Migrate legacy feeds: apply default auto-delete and maxItems if not set
-        // This ensures feeds imported before the fix will respect the global defaults
-        if (typeof feed.autoDeleteDuration !== "number") {
-          feed.autoDeleteDuration = this.settings.defaultAutoDeleteDuration;
-        }
-        if (typeof feed.maxItemsLimit !== "number") {
-          feed.maxItemsLimit = this.settings.maxItems;
-        }
-      }
-
-      this.initializeSettingsBackedServices();
-      // When the imported file replaces the feed list, feeds it lacks keep
-      // their article state rather than counting as removed (issue #374).
-      await this.saveSettings({ replacesFeedList });
-      await this.refreshDashboardViews();
-      const discoverView = await this.getActiveDiscoverView();
-      discoverView?.render();
-
-      new Notice("Imported JSON with feeds and settings");
-      return;
-    }
-
-    const {
-      feeds: _feeds,
-      folders: _folders,
-      availableTags: _availableTags,
-      ...settingsOnly
-    } = parsed as Partial<RssDashboardSettings> & {
-      feeds?: unknown;
-      folders?: unknown;
-      availableTags?: unknown;
-    };
-    void _feeds;
-    void _folders;
-    void _availableTags;
-
-    this.settings = Object.assign(
-      {},
-      DEFAULT_SETTINGS,
-      this.settings,
-      settingsOnly,
-    );
-
-    // Keep legacy keys and nested defaults normalized after import.
-    this.migrateLegacySettings();
-
-    this.initializeSettingsBackedServices();
-    await this.saveSettings();
-    await this.refreshDashboardViews();
-    const discoverView = await this.getActiveDiscoverView();
-    discoverView?.render();
-
-    new Notice("Imported rss-dashboard-user-preferences.json");
-  }
   // ✅ ImportExportService extracted — delegates to service
   public getUserSettingsJson(): string {
     return this.importExportService.getUserSettingsJson();
@@ -1776,109 +1691,6 @@ export default class RssDashboardPlugin extends Plugin {
 
   public getSettingsBundle() {
     return this.feedStorageRepository.buildSettingsBundle(this.settings);
-  }
-
-  private async applyPortableDataBundleImport(bundle: unknown): Promise<void> {
-    if (this.settingsLoadFailed) return;
-    storageLog("Plugin portable bundle import requested", {
-      currentMode: this.settings.storageMode,
-      folder: this.settings.storageFolder,
-      feedCount: this.settings.feeds.length,
-    });
-    try {
-      await this.feedStorageRepository.importPortableDataBundle(
-        bundle,
-        this.settings,
-        (data) => this.savePluginData(data),
-      );
-      this.migrateLegacySettings();
-      this.initializeSettingsBackedServices();
-      if (this.settingTab) {
-        this.settingTab.refresh();
-      }
-
-      await this.refreshDashboardViews();
-      const discoverView = await this.getActiveDiscoverView();
-      discoverView?.render();
-      storageLog("Plugin portable bundle import completed", {
-        currentMode: this.settings.storageMode,
-        folder: this.settings.storageFolder,
-        feedCount: this.settings.feeds.length,
-      });
-    } catch (error) {
-      storageError("Plugin portable bundle import failed", error, {
-        currentMode: this.settings.storageMode,
-        folder: this.settings.storageFolder,
-      });
-      throw error instanceof Error ? error : new Error(String(error));
-    }
-  }
-
-  private async applyFeedBundleImport(bundle: unknown): Promise<void> {
-    if (this.settingsLoadFailed) return;
-    storageLog("Plugin Feed bundle import requested", {
-      currentMode: this.settings.storageMode,
-      folder: this.settings.storageFolder,
-      feedCount: this.settings.feeds.length,
-    });
-    try {
-      await this.feedStorageRepository.importFeedBundle(
-        bundle,
-        this.settings,
-        (data) => this.savePluginData(data),
-      );
-      this.migrateLegacySettings();
-      this.initializeSettingsBackedServices();
-      if (this.settingTab) {
-        this.settingTab.refresh();
-      }
-
-      await this.refreshDashboardViews();
-      const discoverView = await this.getActiveDiscoverView();
-      discoverView?.render();
-      storageLog("Plugin Feed bundle import completed", {
-        feedCount: this.settings.feeds.length,
-      });
-    } catch (error) {
-      storageError("Plugin Feed bundle import failed", error, {
-        currentMode: this.settings.storageMode,
-        folder: this.settings.storageFolder,
-      });
-      throw error instanceof Error ? error : new Error(String(error));
-    }
-  }
-
-  private async applySettingsBundleImport(bundle: unknown): Promise<void> {
-    if (this.settingsLoadFailed) return;
-    storageLog("Plugin Settings bundle import requested", {
-      currentMode: this.settings.storageMode,
-      folder: this.settings.storageFolder,
-    });
-    try {
-      await this.feedStorageRepository.importSettingsBundle(
-        bundle,
-        this.settings,
-        (data) => this.savePluginData(data),
-      );
-      this.migrateLegacySettings();
-      this.initializeSettingsBackedServices();
-      if (this.settingTab) {
-        this.settingTab.refresh();
-      }
-
-      await this.refreshDashboardViews();
-      const discoverView = await this.getActiveDiscoverView();
-      discoverView?.render();
-      storageLog("Plugin Settings bundle import completed", {
-        mode: this.settings.storageMode,
-      });
-    } catch (error) {
-      storageError("Plugin Settings bundle import failed", error, {
-        currentMode: this.settings.storageMode,
-        folder: this.settings.storageFolder,
-      });
-      throw error instanceof Error ? error : new Error(String(error));
-    }
   }
 
   /**
