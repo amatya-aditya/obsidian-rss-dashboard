@@ -1,5 +1,6 @@
 import { isLatexFormulaImageElement } from "./image-url-utils";
 import { normalizeSubstackImageUrl } from "./substack-image-url";
+import { hostMatches } from "./url-host";
 
 export interface ResolvedImageSource {
   previewUrl: string;
@@ -128,13 +129,13 @@ export function stripCdnResizeParameters(rawUrl: string): string {
     }
 
     // Cloudinary /upload/w_...,c_scale/
-    if (url.hostname.includes("cloudinary.com") && url.pathname.includes("/upload/")) {
+    if (hostMatches(trimmed, "cloudinary.com") && url.pathname.includes("/upload/")) {
       url.pathname = url.pathname.replace(/\/upload\/[a-z]_[^/]+\//i, "/upload/");
       return url.toString();
     }
 
     // Brightspot / NPR CDN resize
-    if (url.hostname.includes("brightspotcdn.com") || url.hostname.includes("media.npr.org")) {
+    if (hostMatches(trimmed, "brightspotcdn.com") || hostMatches(trimmed, "media.npr.org")) {
       url.pathname = url.pathname.replace(/\/resize\/\d+x\d*!?\//g, "/");
       return url.toString();
     }

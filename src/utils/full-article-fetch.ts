@@ -2,6 +2,7 @@ import {
   fetchWithProxyFallbackDetailed,
   type FullArticleFetchResult,
 } from "./fetch-helpers";
+import { hostMatches } from "./url-host";
 
 export const RESTRICTED_ARTICLE_REASON = "paywall or restricted";
 export const RESTRICTED_ARTICLE_NOTICE =
@@ -15,7 +16,7 @@ export async function fetchFullArticleContentWithOutcome(
   proxyUrl?: string,
 ): Promise<FullArticleFetchResult> {
   const isSagepubFull =
-    url.includes("journals.sagepub.com") && url.includes("/doi/full/");
+    hostMatches(url, "journals.sagepub.com") && url.includes("/doi/full/");
 
   const result = await fetchWithProxyFallbackDetailed(url, proxyUrl);
 

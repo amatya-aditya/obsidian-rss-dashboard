@@ -1,3 +1,5 @@
+import { hostMatches } from "./url-host";
+
 export interface PodcastPlatform {
     name: string;
     id: string;
@@ -9,7 +11,7 @@ export const APPLE_PODCASTS: PodcastPlatform = {
     name: "Apple Podcasts",
     id: "apple",
     detect(url: string): boolean {
-        return url.includes("podcasts.apple.com");
+        return hostMatches(url, "podcasts.apple.com");
     },
     extractId(url: string): string | null {
         const match = url.match(/id(\d+)(?:\?|$)/);

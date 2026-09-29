@@ -1,5 +1,6 @@
 import type { ParsedFeed } from "../types.js";
 import { isLatexFormulaImage } from "../../../utils/image-url-utils.js";
+import { hostMatches } from "../../../utils/url-host.js";
 import {
   decodeHtmlEntities as decodeHtmlEntitiesUtil,
   sanitizeCDATA as sanitizeCDATAUtil,
@@ -440,7 +441,7 @@ export class CustomXMLParser {
   }
 
   private transformSageUrl(url: string): string {
-    if (url.includes("journals.sagepub.com")) {
+    if (hostMatches(url, "journals.sagepub.com")) {
       if (url.includes("/doi/abs/")) {
         const transformedUrl = url.replace("/doi/abs/", "/doi/full/");
 
