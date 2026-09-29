@@ -534,8 +534,8 @@ describe("background import orchestration", () => {
   it("stops excluding feeds from a later global refresh once a cancelled background-import run finishes draining", async () => {
     // Regression test: a cancelled worker used to return without ever
     // shifting its claimed feed off backgroundImportQueue, leaving those
-    // URLs marked "pending import" forever — getRefreshableFeeds() (used by
-    // refreshFeeds()) would then silently exclude them from every future
+    // URLs marked "pending import" forever — the refresh eligibility check in
+    // refreshFeeds() would then silently exclude them from every future
     // global refresh, with no way to recover short of manually refreshing
     // each feed individually.
     const plugin = createPlugin();
@@ -569,14 +569,12 @@ describe("background import orchestration", () => {
       ),
     );
 
-    const getRefreshableFeeds = (
-      plugin as unknown as { getRefreshableFeeds(feeds: Feed[]): Feed[] }
-    ).getRefreshableFeeds.bind(plugin);
+    mockRefreshFeed.mockImplementation((feed: Feed) => Promise.resolve(feed));
+    await plugin.refreshFeeds();
 
-    expect(getRefreshableFeeds([feedA, feedB]).map((f) => f.url)).toEqual([
-      feedA.url,
-      feedB.url,
-    ]);
+    expect(
+      mockRefreshFeed.mock.calls.map(([feed]) => (feed as Feed).url),
+    ).toEqual([feedA.url, feedB.url]);
   });
 });
 
