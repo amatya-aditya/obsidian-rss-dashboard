@@ -95,6 +95,19 @@ describe("stripCdnResizeParameters host handling", () => {
       expect(stripCdnResizeParameters(url)).toBe(decoded);
     });
 
+    it("unwraps a protocol-relative address", () => {
+      expect(
+        stripCdnResizeParameters(
+          `//substackcdn.com/image/fetch/w_1456,c_limit/${target}`,
+        ),
+      ).toBe(decoded);
+    });
+
+    it("leaves a protocol-relative look-alike host untouched", () => {
+      const url = `//example.net/?u=substackcdn.com/image/fetch/${target}`;
+      expect(stripCdnResizeParameters(url)).toBe(url);
+    });
+
     it("leaves an unrelated host's fetch path alone", () => {
       const url = `https://example.com/image/fetch/w_1456,c_limit/${target}`;
       expect(stripCdnResizeParameters(url)).toBe(url);

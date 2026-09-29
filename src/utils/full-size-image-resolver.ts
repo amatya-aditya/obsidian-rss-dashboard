@@ -12,7 +12,8 @@ export interface ResolvedImageSource {
 const COMMON_IMAGE_EXTENSIONS = /\.(?:jpe?g|png|webp|gif|avif|svg|bmp)(?:[?#]|$)/i;
 
 function isSubstackImageFetchUrl(url: string): boolean {
-  return hostPathMatches(url, "substackcdn.com", "/image/fetch/");
+  const absolute = url.startsWith("//") ? `https:${url}` : url;
+  return hostPathMatches(absolute, "substackcdn.com", "/image/fetch/");
 }
 
 /**
