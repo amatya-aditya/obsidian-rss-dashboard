@@ -72,19 +72,14 @@ import { ImportConfirmationModal } from "./src/settings/modals/import-confirmati
 import type { ExportBlobResult } from "./src/utils/export-utils";
 import { BackgroundImportService } from "./src/services/background-import-service";
 import { FeedRefreshScheduler } from "./src/services/feed-refresh-scheduler";
-import {
-  FEED_REQUEST_TIMEOUT_MS,
-  FEED_SOFT_TIMEOUT_MS,
-  MAX_CONCURRENT_FETCHES,
-} from "./src/services/feed-timeout";
-import { globalFetchSemaphore } from "./src/services/feed-parser/fetch-semaphore";
 import { OpmlManager } from "./src/services/opml-manager";
 import { MediaService } from "./src/services/media-service";
 import { PreviewImageCache } from "./src/services/preview-image-cache";
+import { FeedOperationTracker } from "./src/services/feed-operation-tracker";
 import {
-  FEED_REFRESH_RENDER_THROTTLE_MS,
-  FeedOperationTracker,
-} from "./src/services/feed-operation-tracker";
+  FeedRefreshRunner,
+  type FeedRefreshIntent,
+} from "./src/services/feed-refresh-runner";
 
 import { ImportOpmlModal } from "./src/modals/import-opml-modal";
 import { ImportStarredModal } from "./src/modals/import-starred-modal";
@@ -317,6 +312,7 @@ export default class RssDashboardPlugin extends Plugin {
   private readonly feedStorageRepository: FeedStorageRepository;
   private readonly feedOperationTracker: FeedOperationTracker;
   private readonly previewImageCache: PreviewImageCache;
+  private readonly feedRefreshRunner: FeedRefreshRunner;
 
   constructor(app: App, manifest: ConstructorParameters<typeof Plugin>[1]) {
     super(app, manifest);
@@ -350,6 +346,20 @@ export default class RssDashboardPlugin extends Plugin {
       saveSettings: () => this.saveSettings(),
       isRefreshBatchRunning: () => this.feedOperationTracker.isRunning,
       getDashboardView: () => this.getActiveDashboardView(),
+    });
+    this.feedRefreshRunner = new FeedRefreshRunner({
+      feedOperationTracker: this.feedOperationTracker,
+      previewImageCache: this.previewImageCache,
+      getSettings: () => this.settings,
+      getFeedParser: () => this.feedParser,
+      getBackgroundImportService: () => this.backgroundImportService,
+      getAutoRefreshScheduler: () => this.autoRefreshScheduler,
+      saveSettings: () => this.saveSettings(),
+      validateSavedArticles: () => this.validateSavedArticles(),
+      clearFeedShardHealth: (feed) => this.clearFeedShardHealth(feed),
+      getActiveDashboardView: () => this.getActiveDashboardView(),
+      refreshFeeds: (selectedFeeds, intent) =>
+        this.refreshFeeds(selectedFeeds, intent),
     });
   }
 
@@ -1460,77 +1470,15 @@ export default class RssDashboardPlugin extends Plugin {
     }
   }
 
-  async refreshFeeds(
+  refreshFeeds(
     selectedFeeds?: Feed[],
-    intent: "global" | "targeted" | "due" | "failed" = selectedFeeds
-      ? "targeted"
-      : "global",
-  ) {
-    try {
-      const candidateFeeds = selectedFeeds || this.settings.feeds;
-      if (candidateFeeds.length === 0) {
-        return;
-      }
-
-      const feedsToRefresh = this.getRefreshableFeeds(candidateFeeds);
-      if (feedsToRefresh.length === 0) {
-        new Notice(
-          selectedFeeds
-            ? "All selected feeds are excluded from refresh."
-            : "All feeds are excluded from refresh.",
-        );
-        return;
-      }
-
-      if (!this.feedParser) {
-        console.warn(
-          "[RSS dashboard] Feed parser not initialized; skipping refresh.",
-        );
-        return;
-      }
-
-      let feedNoticeText = "";
-      if (feedsToRefresh.length === 1) {
-        const singleFeed = feedsToRefresh[0];
-        if (!singleFeed) {
-          return;
-        }
-        feedNoticeText = singleFeed.title;
-      } else {
-        feedNoticeText = `${feedsToRefresh.length} feeds`;
-      }
-
-      new Notice(`Refreshing ${feedNoticeText}...`);
-      if (feedsToRefresh.length === 1 && intent !== "global") {
-        const singleFeed = feedsToRefresh[0];
-        if (!singleFeed) {
-          return;
-        }
-        await this.refreshSingleFeed(singleFeed, feedNoticeText, false);
-        return;
-      }
-
-      await this.refreshFeedBatch(feedsToRefresh, feedNoticeText, intent);
-    } catch (error) {
-      console.error(`[RSS dashboard] Error refreshing feeds:`, error);
-      new Notice(
-        `Error refreshing  ${error instanceof Error ? error.message : "Unknown error"}`,
-      );
-    }
+    intent?: FeedRefreshIntent,
+  ): Promise<void> {
+    return this.feedRefreshRunner.refreshFeeds(selectedFeeds, intent);
   }
 
-  async refreshFailedFeeds(): Promise<void> {
-    const failedFeeds = this.settings.feeds.filter(
-      (feed) =>
-        Boolean(feed.lastFetchError) && !this.isFeedExcludedFromRefresh(feed),
-    );
-
-    if (failedFeeds.length === 0) {
-      new Notice("No failed feeds to retry.");
-      return;
-    }
-
-    await this.refreshFeeds(failedFeeds, "failed");
+  refreshFailedFeeds(): Promise<void> {
+    return this.feedRefreshRunner.refreshFailedFeeds();
   }
 
   /**
@@ -1577,38 +1525,12 @@ export default class RssDashboardPlugin extends Plugin {
     }
   }
 
-  async refreshSelectedFeed(feed: Feed) {
-    try {
-      if (!this.feedParser) {
-        console.warn(
-          "[RSS dashboard] Feed parser not initialized; skipping refresh.",
-        );
-        return;
-      }
-
-      new Notice(`Refreshing ${feed.title}...`);
-      await this.refreshSingleFeed(feed, feed.title, false);
-    } catch (error) {
-      console.error(`[RSS dashboard] Error refreshing feeds:`, error);
-      new Notice(
-        `Error refreshing  ${error instanceof Error ? error.message : "Unknown error"}`,
-      );
-    }
+  refreshSelectedFeed(feed: Feed): Promise<void> {
+    return this.feedRefreshRunner.refreshSelectedFeed(feed);
   }
 
-  async refreshFeedsInFolder(folderPath: string) {
-    const feedsInFolder = this.settings.feeds.filter((feed) => {
-      if (!feed.folder) return false;
-      return (
-        feed.folder === folderPath || feed.folder.startsWith(folderPath + "/")
-      );
-    });
-
-    if (feedsInFolder.length > 0) {
-      await this.refreshFeeds(feedsInFolder);
-    } else {
-      new Notice("No feeds found in the selected folder");
-    }
+  refreshFeedsInFolder(folderPath: string): Promise<void> {
+    return this.feedRefreshRunner.refreshFeedsInFolder(folderPath);
   }
 
   async updateArticle(
@@ -3187,363 +3109,6 @@ export default class RssDashboardPlugin extends Plugin {
       new Notice(`Revert failed: ${errorMessage}`);
       throw error;
     }
-  }
-
-  private isFeedExcludedFromRefresh(feed: Feed): boolean {
-    return feed.excludeFromRefresh === true;
-  }
-
-  private getRefreshableFeeds(feeds: Feed[]): Feed[] {
-    return feeds.filter(
-      (feed) =>
-        !this.isFeedExcludedFromRefresh(feed) &&
-        !this.backgroundImportService?.isFeedPendingImport(feed.url),
-    );
-  }
-
-  private mergeRefreshedFeed(updatedFeed: Feed): void {
-    const index = this.settings.feeds.findIndex(
-      (f) => f.url === updatedFeed.url,
-    );
-    if (index >= 0) {
-      const storedFeed = this.settings.feeds[index];
-      if (!storedFeed) {
-        return;
-      }
-      this.settings.feeds[index] = {
-        ...updatedFeed,
-        feedId: updatedFeed.feedId ?? storedFeed.feedId,
-        excludeFromRefresh:
-          updatedFeed.excludeFromRefresh ?? storedFeed.excludeFromRefresh,
-      };
-    }
-  }
-
-  private finalizeRefreshAttempt(
-    feed: Feed,
-    updatedFeed?: Feed,
-    error?: unknown,
-  ): void {
-    const completedAt = Date.now();
-    if (updatedFeed) {
-      this.mergeRefreshedFeed({
-        ...updatedFeed,
-        lastRefreshAttemptCompletedAt: completedAt,
-        lastFetchError: updatedFeed.lastFetchError,
-      });
-      if (!updatedFeed.lastFetchError) {
-        this.clearFeedShardHealth(feed);
-      }
-      this.previewImageCache.warmFeed(updatedFeed);
-      return;
-    }
-
-    const index = this.settings.feeds.findIndex(
-      (storedFeed) => storedFeed === feed || storedFeed.url === feed.url,
-    );
-    if (index < 0) {
-      return;
-    }
-
-    const storedFeed = this.settings.feeds[index];
-    if (!storedFeed) {
-      return;
-    }
-
-    this.settings.feeds[index] = {
-      ...storedFeed,
-      lastRefreshAttemptCompletedAt: completedAt,
-      lastFetchError: error instanceof Error ? error.message : String(error),
-    };
-  }
-
-  private async refreshSingleFeed(
-    feed: Feed,
-    feedNoticeText: string,
-    isExplicitGlobalRefresh: boolean,
-  ): Promise<void> {
-    const operation = this.feedOperationTracker.trackOperation();
-    const cancelSignal = operation.signal;
-    try {
-      this.feedOperationTracker.setFeedStatus(feed.url, {
-        status: "processing",
-        startedAt: Date.now(),
-      });
-      try {
-        await this.feedOperationTracker.renderStatus();
-        if (cancelSignal.aborted) return;
-        const updatedFeed = await this.refreshFeedWithTimeout(feed, {
-          signal: cancelSignal,
-        });
-        this.finalizeRefreshAttempt(feed, updatedFeed);
-      } catch (error) {
-        if (cancelSignal.aborted) return;
-        this.finalizeRefreshAttempt(feed, undefined, error);
-        if (isExplicitGlobalRefresh) {
-          this.settings.lastGlobalRefreshCompletedAt = Date.now();
-        }
-        await this.saveSettings();
-        if (cancelSignal.aborted) return;
-        this.autoRefreshScheduler?.reschedule();
-        throw error;
-      } finally {
-        this.feedOperationTracker.clearFeedStatus(feed.url);
-        await this.feedOperationTracker.renderStatus();
-      }
-      if (cancelSignal.aborted) return;
-      await this.validateSavedArticles();
-      if (cancelSignal.aborted) return;
-      if (isExplicitGlobalRefresh) {
-        this.settings.lastGlobalRefreshCompletedAt = Date.now();
-      }
-      await this.saveSettings();
-      if (cancelSignal.aborted) return;
-      this.autoRefreshScheduler?.reschedule();
-      const view = await this.getActiveDashboardView();
-      if (cancelSignal.aborted) return;
-      if (view) {
-        view.refresh();
-        new Notice(`Feeds refreshed: ${feedNoticeText}`);
-      }
-    } finally {
-      operation.release();
-    }
-  }
-
-  private async refreshFeedBatch(
-    feedsToRefresh: Feed[],
-    feedNoticeText: string,
-    intent: "global" | "targeted" | "due" | "failed",
-  ): Promise<void> {
-    if (this.feedOperationTracker.isDisposed) return;
-    if (this.feedOperationTracker.isRunning) {
-      new Notice("A multi-feed refresh is already in progress.");
-      return;
-    }
-
-    const cancelSignal = this.feedOperationTracker.startBatch(
-      feedsToRefresh.length,
-      intent === "global",
-    );
-    if (!cancelSignal) return;
-
-    const refreshSummary = {
-      failed: 0,
-      timedOut: 0,
-    };
-
-    for (const feed of feedsToRefresh) {
-      this.feedOperationTracker.setFeedStatus(feed.url, {
-        status: "pending",
-        startedAt: Date.now(),
-      });
-    }
-
-    let nextFeedIndex = 0;
-    let lastRenderAt = 0;
-
-    const refreshView = async (force = false): Promise<void> => {
-      const now = Date.now();
-      if (
-        !force &&
-        now - lastRenderAt < FEED_REFRESH_RENDER_THROTTLE_MS
-      ) {
-        return;
-      }
-
-      const view = await this.getActiveDashboardView();
-      if (view) {
-        if (force) {
-          if (typeof view.refreshSidebarOnly === "function") {
-            view.refreshSidebarOnly();
-            if (typeof view.refreshFilterStatusBarOnly === "function") {
-              view.refreshFilterStatusBarOnly();
-            }
-          } else {
-            view.refresh();
-          }
-        } else if (
-          typeof view.refreshGlobalRefreshProgressOnly === "function"
-        ) {
-          view.refreshGlobalRefreshProgressOnly();
-        }
-      }
-      lastRenderAt = now;
-    };
-
-    const backgroundPromises: Promise<void>[] = [];
-
-    const worker = async (): Promise<void> => {
-      while (true) {
-        await globalFetchSemaphore.acquire();
-
-        if (this.feedOperationTracker.isCancelled) {
-          globalFetchSemaphore.release();
-          return;
-        }
-
-        const currentFeed = feedsToRefresh[nextFeedIndex];
-        nextFeedIndex += 1;
-        if (!currentFeed) {
-          globalFetchSemaphore.release();
-          return;
-        }
-
-        const refreshPromise = this.processRefreshBatchFeed(
-          currentFeed,
-          refreshSummary,
-          refreshView,
-          cancelSignal,
-        ).finally(() => {
-          globalFetchSemaphore.release();
-        });
-
-        const softTimeout = this.feedOperationTracker.createSoftTimeout(FEED_SOFT_TIMEOUT_MS, cancelSignal);
-        const winner = await Promise.race([refreshPromise.then(() => "fetch" as const), softTimeout.promise]);
-        softTimeout.cancel();
-
-        if (winner === "timeout") backgroundPromises.push(refreshPromise);
-        if (winner === "cancelled") return;
-      }
-    };
-
-    const workerCount = Math.min(MAX_CONCURRENT_FETCHES, feedsToRefresh.length);
-
-    try {
-      const workers = Array.from({ length: workerCount }, () => worker());
-      await refreshView(true);
-      await Promise.all(workers);
-      await Promise.all(backgroundPromises);
-
-      if (this.feedOperationTracker.isDisposed) return;
-      await this.validateSavedArticles();
-      if (this.feedOperationTracker.isDisposed) return;
-      if (intent === "global" && !this.feedOperationTracker.isCancelled) {
-        this.settings.lastGlobalRefreshCompletedAt = Date.now();
-      }
-      await this.saveSettings();
-      if (this.feedOperationTracker.isDisposed) return;
-      this.autoRefreshScheduler?.reschedule();
-      this.feedOperationTracker.markIdle();
-      const view = await this.getActiveDashboardView();
-      if (view) {
-        view.refresh();
-      }
-
-      if (!this.feedOperationTracker.isCancelled) {
-        const failureSuffix = this.buildRefreshFailureSummary(
-          refreshSummary,
-          intent === "global",
-        );
-        new Notice(`Feeds refreshed: ${feedNoticeText}${failureSuffix}`);
-      }
-    } finally {
-      await this.feedOperationTracker.end();
-    }
-  }
-
-  private buildRefreshFailureSummary(
-    summary: { failed: number; timedOut: number },
-    includeRetryHint: boolean,
-  ): string {
-    const parts: string[] = [];
-    if (summary.timedOut > 0) {
-      parts.push(`${summary.timedOut} timed out`);
-    }
-    if (summary.failed > 0) {
-      parts.push(`${summary.failed} failed`);
-    }
-
-    if (parts.length === 0) {
-      return "";
-    }
-
-    const suffix = ` (${parts.join(", ")})`;
-    return includeRetryHint
-      ? `${suffix} Shift+click Refresh all feeds to retry failed feeds.`
-      : suffix;
-  }
-
-  private async processRefreshBatchFeed(
-    currentFeed: Feed,
-    refreshSummary: { failed: number; timedOut: number },
-    refreshView: () => Promise<void>,
-    signal?: AbortSignal,
-  ): Promise<void> {
-    this.feedOperationTracker.setFeedStatus(currentFeed.url, {
-      status: "processing",
-      startedAt: Date.now(),
-    });
-    this.feedOperationTracker.scheduleSidebarRender();
-
-    try {
-      const updatedFeed = await this.refreshFeedWithTimeout(currentFeed, {
-        signal,
-      });
-      this.feedOperationTracker.recordSettled();
-      if (!this.feedOperationTracker.isCancelled) {
-        this.finalizeRefreshAttempt(currentFeed, updatedFeed);
-      }
-    } catch (error) {
-      this.feedOperationTracker.recordSettled();
-      if (!this.feedOperationTracker.isCancelled) {
-        this.finalizeRefreshAttempt(currentFeed, undefined, error);
-      }
-      const isTimedOut =
-        error instanceof Error && error.message === "Timed out";
-      if (isTimedOut) {
-        refreshSummary.timedOut += 1;
-      } else {
-        refreshSummary.failed += 1;
-      }
-
-      console.error(
-        `[RSS dashboard] Error refreshing feed ${currentFeed.title}:`,
-        error,
-      );
-    } finally {
-      this.feedOperationTracker.clearFeedStatus(currentFeed.url);
-      this.feedOperationTracker.scheduleSidebarRender(
-        this.feedOperationTracker.activeFeedCount === 0,
-      );
-      if (!this.feedOperationTracker.isDisposed) await refreshView();
-    }
-  }
-
-  private async refreshFeedWithTimeout(
-    feed: Feed,
-    options?: { signal?: AbortSignal },
-  ): Promise<Feed> {
-    const timeout = this.feedOperationTracker.createSoftTimeout(
-      FEED_REQUEST_TIMEOUT_MS,
-      options?.signal,
-    );
-    try {
-      const winner = await Promise.race([
-        this.refreshFeedDirect(feed, options).then((value) => ({
-          kind: "feed" as const,
-          value,
-        })),
-        timeout.promise,
-      ]);
-      if (winner === "timeout") throw new Error("Timed out");
-      if (winner === "cancelled") throw new Error("Refresh stopped");
-      return winner.value;
-    } finally {
-      timeout.cancel();
-    }
-  }
-
-  private async refreshFeedDirect(
-    feed: Feed,
-    options?: { signal?: AbortSignal },
-  ): Promise<Feed> {
-    if (typeof this.feedParser.refreshFeed === "function") {
-      return await this.feedParser.refreshFeed(feed, options);
-    }
-
-    const updatedFeeds = await this.feedParser.refreshAllFeeds([feed]);
-    return updatedFeeds[0] ?? feed;
   }
 
   /**
