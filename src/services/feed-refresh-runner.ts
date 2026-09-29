@@ -38,6 +38,14 @@ export interface FeedRefreshRunnerOptions {
   validateSavedArticles: () => Promise<void>;
   clearFeedShardHealth: (feed: Feed) => void;
   getActiveDashboardView: () => Promise<RefreshDashboardViewLike | null>;
+  /**
+   * The plugin's refreshFeeds facade. Retry-failed and folder refreshes go
+   * through it, so a caller that replaces plugin.refreshFeeds still sees them.
+   */
+  refreshFeeds: (
+    selectedFeeds?: Feed[],
+    intent?: FeedRefreshIntent,
+  ) => Promise<void>;
 }
 
 /**
@@ -140,7 +148,7 @@ export class FeedRefreshRunner {
       return;
     }
 
-    await this.refreshFeeds(failedFeeds, "failed");
+    await this.options.refreshFeeds(failedFeeds, "failed");
   }
 
   public async refreshSelectedFeed(feed: Feed) {
@@ -171,7 +179,7 @@ export class FeedRefreshRunner {
     });
 
     if (feedsInFolder.length > 0) {
-      await this.refreshFeeds(feedsInFolder);
+      await this.options.refreshFeeds(feedsInFolder);
     } else {
       new Notice("No feeds found in the selected folder");
     }
