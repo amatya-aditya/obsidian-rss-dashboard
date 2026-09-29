@@ -178,4 +178,90 @@ describe("fetchFeedXml host handling", () => {
       expect(requested[0]).toBe(stub);
     });
   });
+
+  describe("arXiv stub feeds that name the real feed", () => {
+    const base = "https://example.com/feed.xml";
+    const target = "https://rss.arxiv.org/atom/cs";
+
+    function stubWithAtomLink(href: string): string {
+      return `<?xml version="1.0"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Stub</title><atom:link href="${href}" rel="self"/></channel></rss>`;
+    }
+
+    function stubWithChannelLink(href: string): string {
+      return `<?xml version="1.0"?><rss version="2.0"><channel><title>Stub</title><link>${href}</link></channel></rss>`;
+    }
+
+    it.each([
+      "https://rss.arxiv.org/atom/cs",
+      "http://rss.arxiv.org/atom/cs",
+      "https://arxiv.org/atom/cs",
+      "https://rss.arxiv.org/atom/cs?x=1#frag",
+      "https://RSS.ARXIV.ORG/atom/cs",
+    ])("follows the atom link %s", async (href) => {
+      const requested = serve({
+        [base]: stubWithAtomLink(href),
+        [href]: RSS2_BASIC,
+      });
+      await fetchFeedXml(base, DIRECT);
+      expect(requested).toContain(href);
+    });
+
+    it("does not follow a link with an explicit port", async () => {
+      // Pinned as-is: matches by substring; replaced by hostname matching
+      const href = "https://rss.arxiv.org:8443/atom/cs";
+      const requested = serve({ [base]: stubWithAtomLink(href) });
+      await fetchFeedXml(base, DIRECT);
+      expect(requested).toEqual([base]);
+    });
+
+    it("follows the channel link when there is no atom link", async () => {
+      const requested = serve({
+        [base]: stubWithChannelLink(target),
+        [target]: RSS2_BASIC,
+      });
+      await fetchFeedXml(base, DIRECT);
+      expect(requested).toContain(target);
+    });
+
+    it("does not follow a link to an unrelated host", async () => {
+      const href = "https://example.net/atom/cs";
+      const requested = serve({ [base]: stubWithAtomLink(href) });
+      await fetchFeedXml(base, DIRECT);
+      expect(requested).toEqual([base]);
+    });
+
+    it("does not follow a link to a host that contains the domain as a prefix", async () => {
+      const href = "https://arxiv.org.example.net/atom/cs";
+      const requested = serve({ [base]: stubWithAtomLink(href) });
+      await fetchFeedXml(base, DIRECT);
+      expect(requested).toEqual([base]);
+    });
+
+    it.each([
+      "https://notarxiv.org/atom/cs",
+      "https://example.net/?u=arxiv.org/atom/cs",
+      "https://example.net/arxiv.org/atom/cs",
+    ])("follows the look-alike link %s", async (href) => {
+      // Pinned as-is: matches by substring; replaced by hostname matching
+      const requested = serve({ [base]: stubWithAtomLink(href) });
+      await fetchFeedXml(base, DIRECT);
+      expect(requested).toContain(href);
+    });
+
+    it("requests a scheme-less link as given", async () => {
+      // Pinned as-is: matches by substring; replaced by hostname matching
+      const href = "arxiv.org/atom/cs";
+      const requested = serve({ [base]: stubWithAtomLink(href) });
+      await fetchFeedXml(base, DIRECT);
+      expect(requested).toContain(href);
+    });
+
+    it("does not follow a relative link on an arXiv feed", async () => {
+      // Pinned as-is: matches by substring; replaced by hostname matching
+      const arxivBase = "https://export.arxiv.org/api/query?search_query=cat";
+      const requested = serve({ [arxivBase]: stubWithAtomLink("/atom/cs") });
+      await fetchFeedXml(arxivBase, DIRECT);
+      expect(requested).toEqual([arxivBase]);
+    });
+  });
 });
