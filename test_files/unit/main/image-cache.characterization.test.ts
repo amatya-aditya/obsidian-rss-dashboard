@@ -940,8 +940,7 @@ describe("image cache: deleting a feed", () => {
 });
 
 describe("image cache: unload", () => {
-  it("keeps warming queued previews after the plugin unloads", async () => {
-    // BUG: pinned, see #444
+  it("stops warming queued previews after the plugin unloads", async () => {
     const urls = [1, 2, 3].map((n) => `https://example.com/${n}.gif`);
     const feed = createFeed("https://example.com/feed.xml", urls);
     const { plugin } = createHarness({ feeds: [feed] });
@@ -952,13 +951,13 @@ describe("image cache: unload", () => {
 
     plugin.onunload();
     server.releaseAll();
+    await Promise.resolve();
+    await Promise.resolve();
 
-    await vi.waitFor(() => expect(server.requested).toHaveLength(3));
-    server.releaseAll();
-    await vi.waitFor(() => {
-      for (const url of urls) {
-        expect(plugin.resolveCachedImageUrl(url)).not.toBeNull();
-      }
-    });
+    expect(server.requested).toHaveLength(2);
+    expect(plugin.getImageCacheSizeBytes()).toBe(0);
+    for (const url of urls) {
+      expect(plugin.resolveCachedImageUrl(url)).toBeNull();
+    }
   });
 });

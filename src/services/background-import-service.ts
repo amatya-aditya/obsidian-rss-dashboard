@@ -107,8 +107,7 @@ export class BackgroundImportService {
   private backgroundImportProcessedCount = 0;
   private backgroundImportTotalCount = 0;
   private backgroundImportPersistMode:
-    | RssDashboardSettings["storageMode"]
-    | null = null;
+    RssDashboardSettings["storageMode"] | null = null;
   private backgroundImportSignal: AbortSignal | null = null;
   private ownsGlobalOperation = false;
 
@@ -175,6 +174,28 @@ export class BackgroundImportService {
     if (!this.isBackgroundImporting) {
       void this.processBackgroundImportQueue();
     }
+  }
+
+  /**
+   * Queue the placeholders of an import that was interrupted before their
+   * first fetch, such as by the plugin unloading, as a new global operation.
+   * @returns {number} Number of feeds queued; 0 when none are pending or another global operation is running
+   */
+  public resumePendingImports(): number {
+    const pendingFeeds = this.getSettings().feeds.filter(
+      (feed) =>
+        feed.importPending === true && !this.isFeedPendingImport(feed.url),
+    );
+    if (pendingFeeds.length === 0) return 0;
+
+    if (this.beginGlobalOperation) {
+      const signal = this.beginGlobalOperation(pendingFeeds.length);
+      if (!signal) return 0;
+      this.backgroundImportSignal = signal;
+      this.ownsGlobalOperation = true;
+    }
+    this.startBackgroundImport(pendingFeeds);
+    return pendingFeeds.length;
   }
 
   /**
@@ -363,13 +384,14 @@ export class BackgroundImportService {
       );
       await Promise.all(backgroundPromises);
 
-      await this.saveSettingsWithMode(this.getPersistModeForBackgroundImport());
-      const view = await this.getView();
-      if (view) {
-        view.render();
-      }
-
       if (!this.isGlobalOperationCancelled?.()) {
+        await this.saveSettingsWithMode(
+          this.getPersistModeForBackgroundImport(),
+        );
+        const view = await this.getView();
+        if (view) {
+          view.render();
+        }
         this.onImportQueueDrained?.(this.backgroundImportProcessedCount);
       }
     } finally {
@@ -467,14 +489,19 @@ export class BackgroundImportService {
         globalFetchSemaphore.release();
       });
 
+      const softTimeout = this.waitForSoftTimeout(
+        this.backgroundImportSignal ?? undefined,
+      );
       const winner = await Promise.race([
-        importPromise.then(() => "fetch"),
-        this.waitForSoftTimeout().then(() => "timeout"),
+        importPromise.then(() => "fetch" as const),
+        softTimeout.promise,
       ]);
+      softTimeout.cancel();
 
       if (winner === "timeout") {
         backgroundPromises.push(importPromise);
       }
+      if (winner === "cancelled") return;
     }
   }
 
@@ -540,6 +567,7 @@ export class BackgroundImportService {
         !this.backgroundImportSignal?.aborted &&
         !this.isGlobalOperationCancelled?.()
       ) {
+        this.clearImportPending(feedMetadata.url);
         feedMetadata.importError = getFeedErrorMessage(
           error instanceof Error ? error : new Error(String(error)),
         );
@@ -559,14 +587,18 @@ export class BackgroundImportService {
       );
     }
 
-    if (this.backgroundImportProcessedCount % saveEvery === 0) {
-      await this.saveSettingsWithMode(
-        this.getPersistModeForBackgroundImport(),
-      );
+    if (
+      !this.backgroundImportSignal?.aborted &&
+      !this.isGlobalOperationCancelled?.() &&
+      this.backgroundImportProcessedCount % saveEvery === 0
+    ) {
+      await this.saveSettingsWithMode(this.getPersistModeForBackgroundImport());
     }
 
     if (
       shouldRenderDuringImport &&
+      !this.backgroundImportSignal?.aborted &&
+      !this.isGlobalOperationCancelled?.() &&
       this.backgroundImportProcessedCount % renderEvery === 0
     ) {
       const view = await this.getView();
@@ -585,10 +617,53 @@ export class BackgroundImportService {
    * feed fetch so a slow feed doesn't block the worker pool.
    * @returns {Promise<void>} Resolves after the soft timeout elapses
    */
-  private async waitForSoftTimeout(): Promise<void> {
-    return new Promise((resolve) => {
-      window.setTimeout(resolve, FEED_SOFT_TIMEOUT_MS);
+  private waitForSoftTimeout(signal?: AbortSignal): {
+    promise: Promise<"timeout" | "cancelled">;
+    cancel: () => void;
+  } {
+    let timeoutId: number | null = null;
+    let abortHandler: (() => void) | null = null;
+    let resolveTimeout: (result: "timeout" | "cancelled") => void = () => {};
+
+    const promise = new Promise<"timeout" | "cancelled">((resolve) => {
+      resolveTimeout = resolve;
+      const finish = (result: "timeout" | "cancelled"): void => {
+        if (timeoutId !== null) window.clearTimeout(timeoutId);
+        timeoutId = null;
+        if (abortHandler && signal) {
+          signal.removeEventListener("abort", abortHandler);
+          abortHandler = null;
+        }
+        resolve(result);
+      };
+
+      if (signal?.aborted) {
+        finish("cancelled");
+        return;
+      }
+
+      timeoutId = window.setTimeout(
+        () => finish("timeout"),
+        FEED_SOFT_TIMEOUT_MS,
+      );
+      if (signal) {
+        abortHandler = () => finish("cancelled");
+        signal.addEventListener("abort", abortHandler, { once: true });
+      }
     });
+
+    return {
+      promise,
+      cancel: () => {
+        if (timeoutId !== null) window.clearTimeout(timeoutId);
+        timeoutId = null;
+        if (abortHandler && signal) {
+          signal.removeEventListener("abort", abortHandler);
+          abortHandler = null;
+        }
+        resolveTimeout("cancelled");
+      },
+    };
   }
 
   /**
@@ -710,6 +785,7 @@ export class BackgroundImportService {
       ),
       lastUpdated: Date.now(),
     };
+    delete importedFeed.importPending;
     settings.feeds[feedIndex] = importedFeed;
     return importedFeed;
   }
@@ -785,7 +861,13 @@ export class BackgroundImportService {
         includeLogic: "AND",
         rules: [],
       },
+      importPending: true,
     };
+  }
+
+  private clearImportPending(url: string): void {
+    const feed = this.getSettings().feeds.find((f) => f.url === url);
+    if (feed) delete feed.importPending;
   }
 
   /**

@@ -1078,9 +1078,11 @@ export default class RssDashboardPlugin extends Plugin {
       if (delay > 0) {
         this.startupRefreshTimeoutId = window.setTimeout(() => {
           this.startupRefreshTimeoutId = null;
+          this.backgroundImportService.resumePendingImports();
           autoRefreshScheduler.start();
         }, delay * 1000);
       } else {
+        this.backgroundImportService.resumePendingImports();
         autoRefreshScheduler.start();
       }
     } catch (err: unknown) {
@@ -3260,37 +3262,51 @@ export default class RssDashboardPlugin extends Plugin {
     feedNoticeText: string,
     isExplicitGlobalRefresh: boolean,
   ): Promise<void> {
-    this.feedOperationTracker.setFeedStatus(feed.url, {
-      status: "processing",
-      startedAt: Date.now(),
-    });
-    await this.feedOperationTracker.renderStatus();
+    const operation = this.feedOperationTracker.trackOperation();
+    const cancelSignal = operation.signal;
     try {
-      const updatedFeed = await this.refreshFeedWithTimeout(feed);
-      this.finalizeRefreshAttempt(feed, updatedFeed);
-    } catch (error) {
-      this.finalizeRefreshAttempt(feed, undefined, error);
+      this.feedOperationTracker.setFeedStatus(feed.url, {
+        status: "processing",
+        startedAt: Date.now(),
+      });
+      try {
+        await this.feedOperationTracker.renderStatus();
+        if (cancelSignal.aborted) return;
+        const updatedFeed = await this.refreshFeedWithTimeout(feed, {
+          signal: cancelSignal,
+        });
+        this.finalizeRefreshAttempt(feed, updatedFeed);
+      } catch (error) {
+        if (cancelSignal.aborted) return;
+        this.finalizeRefreshAttempt(feed, undefined, error);
+        if (isExplicitGlobalRefresh) {
+          this.settings.lastGlobalRefreshCompletedAt = Date.now();
+        }
+        await this.saveSettings();
+        if (cancelSignal.aborted) return;
+        this.autoRefreshScheduler?.reschedule();
+        throw error;
+      } finally {
+        this.feedOperationTracker.clearFeedStatus(feed.url);
+        await this.feedOperationTracker.renderStatus();
+      }
+      if (cancelSignal.aborted) return;
+      await this.validateSavedArticles();
+      if (cancelSignal.aborted) return;
       if (isExplicitGlobalRefresh) {
         this.settings.lastGlobalRefreshCompletedAt = Date.now();
       }
       await this.saveSettings();
+      if (cancelSignal.aborted) return;
       this.autoRefreshScheduler?.reschedule();
-      throw error;
+      const view = await this.getActiveDashboardView();
+      if (cancelSignal.aborted) return;
+      if (view) {
+        view.refresh();
+        new Notice(`Feeds refreshed: ${feedNoticeText}`);
+      }
     } finally {
-      this.feedOperationTracker.clearFeedStatus(feed.url);
-      await this.feedOperationTracker.renderStatus();
-    }
-
-    await this.validateSavedArticles();
-    if (isExplicitGlobalRefresh) {
-      this.settings.lastGlobalRefreshCompletedAt = Date.now();
-    }
-    await this.saveSettings();
-    this.autoRefreshScheduler?.reschedule();
-    const view = await this.getActiveDashboardView();
-    if (view) {
-      view.refresh();
-      new Notice(`Feeds refreshed: ${feedNoticeText}`);
+      operation.release();
     }
   }
 
@@ -3299,6 +3315,7 @@ export default class RssDashboardPlugin extends Plugin {
     feedNoticeText: string,
     intent: "global" | "targeted" | "due" | "failed",
   ): Promise<void> {
+    if (this.feedOperationTracker.isDisposed) return;
     if (this.feedOperationTracker.isRunning) {
       new Notice("A multi-feed refresh is already in progress.");
       return;
@@ -3308,6 +3325,7 @@ export default class RssDashboardPlugin extends Plugin {
       feedsToRefresh.length,
       intent === "global",
     );
+    if (!cancelSignal) return;
 
     const refreshSummary = {
       failed: 0,
@@ -3380,14 +3398,12 @@ export default class RssDashboardPlugin extends Plugin {
           globalFetchSemaphore.release();
         });
 
-        const winner = await Promise.race([
-          refreshPromise.then(() => "fetch"),
-          this.waitForFeedSoftTimeout().then(() => "timeout"),
-        ]);
+        const softTimeout = this.feedOperationTracker.createSoftTimeout(FEED_SOFT_TIMEOUT_MS, cancelSignal);
+        const winner = await Promise.race([refreshPromise.then(() => "fetch" as const), softTimeout.promise]);
+        softTimeout.cancel();
 
-        if (winner === "timeout") {
-          backgroundPromises.push(refreshPromise);
-        }
+        if (winner === "timeout") backgroundPromises.push(refreshPromise);
+        if (winner === "cancelled") return;
       }
     };
 
@@ -3399,11 +3415,14 @@ export default class RssDashboardPlugin extends Plugin {
       await Promise.all(workers);
       await Promise.all(backgroundPromises);
 
+      if (this.feedOperationTracker.isDisposed) return;
       await this.validateSavedArticles();
+      if (this.feedOperationTracker.isDisposed) return;
       if (intent === "global" && !this.feedOperationTracker.isCancelled) {
         this.settings.lastGlobalRefreshCompletedAt = Date.now();
       }
       await this.saveSettings();
+      if (this.feedOperationTracker.isDisposed) return;
       this.autoRefreshScheduler?.reschedule();
       this.feedOperationTracker.markIdle();
       const view = await this.getActiveDashboardView();
@@ -3487,51 +3506,31 @@ export default class RssDashboardPlugin extends Plugin {
       this.feedOperationTracker.scheduleSidebarRender(
         this.feedOperationTracker.activeFeedCount === 0,
       );
-      await refreshView();
+      if (!this.feedOperationTracker.isDisposed) await refreshView();
     }
-  }
-
-  private async waitForFeedSoftTimeout(): Promise<void> {
-    return new Promise((resolve) => {
-      window.setTimeout(resolve, FEED_SOFT_TIMEOUT_MS);
-    });
   }
 
   private async refreshFeedWithTimeout(
     feed: Feed,
     options?: { signal?: AbortSignal },
   ): Promise<Feed> {
-    let timeoutId: number | null = null;
-    let abortHandler: (() => void) | null = null;
-
+    const timeout = this.feedOperationTracker.createSoftTimeout(
+      FEED_REQUEST_TIMEOUT_MS,
+      options?.signal,
+    );
     try {
-      return await Promise.race([
-        this.refreshFeedDirect(feed, options),
-        new Promise<Feed>((_, reject) => {
-          timeoutId = window.setTimeout(
-            () => reject(new Error("Timed out")),
-            FEED_REQUEST_TIMEOUT_MS,
-          );
-        }),
-        new Promise<Feed>((_, reject) => {
-          const signal = options?.signal;
-          if (!signal) return;
-          if (signal.aborted) {
-            reject(new Error("Refresh stopped"));
-            return;
-          }
-
-          abortHandler = () => reject(new Error("Refresh stopped"));
-          signal.addEventListener("abort", abortHandler, { once: true });
-        }),
+      const winner = await Promise.race([
+        this.refreshFeedDirect(feed, options).then((value) => ({
+          kind: "feed" as const,
+          value,
+        })),
+        timeout.promise,
       ]);
+      if (winner === "timeout") throw new Error("Timed out");
+      if (winner === "cancelled") throw new Error("Refresh stopped");
+      return winner.value;
     } finally {
-      if (timeoutId !== null) {
-        window.clearTimeout(timeoutId);
-      }
-      if (abortHandler && options?.signal) {
-        options.signal.removeEventListener("abort", abortHandler);
-      }
+      timeout.cancel();
     }
   }
 
@@ -3573,6 +3572,7 @@ export default class RssDashboardPlugin extends Plugin {
       this.vaultMetadataReloadTimer = null;
     }
 
+    this.previewImageCache.dispose();
     this.feedOperationTracker.dispose();
 
     this.cancelPendingStartupRefresh();
