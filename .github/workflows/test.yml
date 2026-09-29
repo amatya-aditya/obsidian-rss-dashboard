@@ -35,6 +35,12 @@ jobs:
       - name: Enforce compliance checks
         run: npm run check:compliance
 
+      # Obsidian's community directory reads manifest.json from the default
+      # branch, so dev and master must never carry a Beta version (#529).
+      - name: Keep dev and master on a stable manifest version
+        if: github.event_name == 'push' || github.base_ref == 'dev' || github.base_ref == 'master'
+        run: node scripts/check-release-compatibility.mjs --stable-branch
+
       - name: Keep characterization tests read-only on refactor PRs
         if: github.event_name == 'pull_request' && startsWith(github.head_ref, 'refactor/')
         env:

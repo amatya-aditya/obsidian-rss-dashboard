@@ -74,15 +74,39 @@ export function findReleaseCompatibilityViolations(manifest, versions) {
   return violations;
 }
 
+/**
+ * Obsidian's community directory reads manifest.json from the default branch,
+ * so dev and master must advertise a shipped stable version. A pre-release
+ * version there delists the plugin (#529). Beta bumps belong on release/x.x.x.
+ */
+export function findStableBranchViolations(manifest) {
+  if (!manifest.version.includes("-")) {
+    return [];
+  }
+
+  return [
+    {
+      rule: "stable-branch-version",
+      version: manifest.version,
+      message:
+        "manifest.json on dev and master must carry the last stable release, not a pre-release. Bump Beta versions on the release branch only.",
+    },
+  ];
+}
+
 function readJson(fileName) {
   return JSON.parse(readFileSync(fileName, "utf8"));
 }
 
 if (process.argv[1]?.endsWith("check-release-compatibility.mjs")) {
+  const manifest = readJson("manifest.json");
   const violations = findReleaseCompatibilityViolations(
-    readJson("manifest.json"),
+    manifest,
     readJson("versions.json"),
   );
+  if (process.argv.includes("--stable-branch")) {
+    violations.push(...findStableBranchViolations(manifest));
+  }
 
   if (violations.length > 0) {
     for (const violation of violations) {

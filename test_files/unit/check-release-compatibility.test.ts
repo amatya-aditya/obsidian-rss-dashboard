@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { findReleaseCompatibilityViolations } from "../../scripts/check-release-compatibility.mjs";
+import {
+  findReleaseCompatibilityViolations,
+  findStableBranchViolations,
+} from "../../scripts/check-release-compatibility.mjs";
 
 describe("release compatibility metadata", () => {
   it("accepts a release whose map and manifest honor the support floor", () => {
@@ -57,5 +60,27 @@ describe("release compatibility metadata", () => {
     ).toContainEqual(
       expect.objectContaining({ rule: "current-release-version" }),
     );
+  });
+});
+
+describe("stable branch manifest version", () => {
+  it("accepts a stable manifest version", () => {
+    expect(
+      findStableBranchViolations({ version: "2.6.0", minAppVersion: "1.8.7" }),
+    ).toEqual([]);
+  });
+
+  it("rejects a pre-release manifest version", () => {
+    expect(
+      findStableBranchViolations({
+        version: "2.7.0-beta.1",
+        minAppVersion: "1.8.7",
+      }),
+    ).toEqual([
+      expect.objectContaining({
+        rule: "stable-branch-version",
+        version: "2.7.0-beta.1",
+      }),
+    ]);
   });
 });
