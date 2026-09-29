@@ -128,7 +128,7 @@ result must come from a known build and a clean vault.
 
 ## Seeded scenarios
 
-11 feeds, 153 articles: 48 read, 9 starred, 9 tagged, 1 saved, 2 with playback
+11 feeds, 154 articles: 48 read, 9 starred, 9 tagged, 1 saved, 2 with playback
 progress. The automated test in
 `test_files/unit/main/fixture-vault-loading.test.ts` checks these counts.
 
@@ -153,6 +153,7 @@ progress. The automated test in
 | Starred, several tags | GitHub Blog: "Starred article with two tags" (Important, Research) |
 | Saved article | GitHub Blog: "Fixture guide to offline reading", saved to `saved-articles/` |
 | Long article | GitHub Blog: "A very long article for reader layout checks": headings, figure, list, quote, code, table |
+| Resized CDN image | GitHub Blog: "CDN image resizing": an inline Cloudinary demo image with `w_300,c_scale` in its URL; the lightbox should load the original (`.../image/upload/sample.jpg`) |
 | Paywalled article | GitHub Blog: "Paywalled article showing only an excerpt" |
 | Undated articles | GitHub Blog: two undated articles, one with a first-seen date and one without |
 | Imported starred article | JSON Feed: "Starred article imported from starred.json" (cached preview banner) |
@@ -162,8 +163,8 @@ progress. The automated test in
 
 Every feed URL is a real public feed, so a manual refresh works and adds that
 feed's current articles next to the seeded ones. Everything above displays
-offline from the seeded data. Preview images come from Lorem Picsum and need a
-network connection, as do the audio and video: the podcast audio and YouTube
+offline from the seeded data. Preview images come from Lorem Picsum and the resized CDN image from
+Cloudinary's public demo account; both need a network connection, as do the audio and video: the podcast audio and YouTube
 video IDs are placeholders that do not play.
 
 Retention is off for every seeded feed (**Auto delete** and **Max items** are

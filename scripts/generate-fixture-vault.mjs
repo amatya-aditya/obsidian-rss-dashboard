@@ -6,7 +6,8 @@
 //
 // Every article is placeholder text built from the word list below. Links and
 // media point at example.com (reserved for documentation, RFC 2606) except
-// preview images, which use Lorem Picsum's seeded placeholders.
+// preview images, which use Lorem Picsum's seeded placeholders and the
+// "CDN image resizing" article, which uses Cloudinary's public demo image.
 
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -113,6 +114,11 @@ function htmlParagraphs(seedText, count) {
     .join("\n");
 }
 
+// Cloudinary's public demo account, with a resize transformation in the path.
+// The reader's lightbox should strip `w_300,c_scale/` to load the original.
+const CDN_RESIZED_IMAGE =
+  "https://res.cloudinary.com/demo/image/upload/w_300,c_scale/sample.jpg";
+
 function previewImage(seed) {
   return `https://picsum.photos/seed/rss-fixture-${seed}/800/450`;
 }
@@ -142,7 +148,7 @@ function longArticleHtml(seedText) {
     }
     if (section === 8) {
       sections.push(
-        "<pre><code>const fixture = { feeds: 11, articles: 153 };\nconsole.log(fixture);</code></pre>",
+        "<pre><code>const fixture = { feeds: 11, articles: 154 };\nconsole.log(fixture);</code></pre>",
       );
     }
     if (section === 10) {
@@ -372,6 +378,18 @@ function rssTechItems() {
       link: link(8),
       pubDate: "",
       ...articleText("rss-tech-8", 1),
+    }),
+    item(feed, {
+      title: "CDN image resizing",
+      link: link(9),
+      pubDate: at(100),
+      author: "Fixture Author",
+      description: htmlParagraphs("rss-tech-9", 1),
+      content:
+        htmlParagraphs("rss-tech-9", 1) +
+        `
+<p><img src="${CDN_RESIZED_IMAGE}" alt="Cloudinary demo sample, resized to 300 pixels wide"></p>`,
+      summary: paragraphs("rss-tech-9", 1)[0],
     }),
   ];
 }
