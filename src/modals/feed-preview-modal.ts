@@ -1,6 +1,7 @@
 import { Modal, App, setIcon, Setting } from "obsidian";
 import { FeedMetadata } from "../types/discover-types";
 import { fetchFeedXml } from "../services/feed-parser";
+import { decodeHtmlEntities } from "../services/feed-parser/xml-parser/xml-html-utils";
 
 interface PreviewArticle {
     title: string;
@@ -196,29 +197,8 @@ export class FeedPreviewModal extends Modal {
     private sanitizeText(text: string): string {
         if (!text) return '';
         
-        return text
-            .replace(/<[^>]*>/g, '') 
-            .replace(/&nbsp;/g, ' ')
-            .replace(/&amp;/g, '&')
-            .replace(/&lt;/g, '<')
-            .replace(/&gt;/g, '>')
-            .replace(/&quot;/g, '"')
-            .replace(/&#39;/g, "'")
-            .replace(/&#x27;/g, "'")
-            .replace(/&#x2F;/g, '/')
-            .replace(/&#(\d+);/g, (match: string, dec: string) => {
-                const num = parseInt(dec, 10);
-                return Number.isFinite(num) && num >= 0 && num <= 0x10ffff
-                    ? String.fromCodePoint(num)
-                    : match;
-            })
-            .replace(/&#x([0-9a-fA-F]+);/g, (match: string, hex: string) => {
-                const num = parseInt(hex, 16);
-                return Number.isFinite(num) && num >= 0 && num <= 0x10ffff
-                    ? String.fromCodePoint(num)
-                    : match;
-            })
-            .replace(/\s+/g, ' ') 
+        return decodeHtmlEntities(text.replace(/<[^>]*>/g, ''))
+            .replace(/\s+/g, ' ')
             .trim();
     }
 

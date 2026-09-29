@@ -26,14 +26,14 @@ describe("FeedPreviewModal description text", () => {
     ["generic hex references", "&#x41;&#x1F600;", "A\u{1F600}"],
     ["an out-of-range reference", "&#1114112;", "&#1114112;"],
     ["escaped markup after tag removal", "&lt;b&gt;bold&lt;/b&gt;", "<b>bold</b>"],
-    ["named letters left as written", "caf&eacute; &rsquo;", "caf&eacute; &rsquo;"],
-    ["an ellipsis reference", "wait&#8230;", "wait…"],
+    ["named letters", "caf&eacute; &rsquo;", "café ’"],
+    ["an ellipsis reference", "wait&#8230;", "wait..."],
   ])("cleans %s", (_name, input, expected) => {
     expect(sanitize(input)).toBe(expected);
   });
 
-  // Pinned as-is: text that is escaped twice is decoded twice.
-  it("currently decodes twice for an escaped lt entity", () => {
-    expect(sanitize("&amp;lt;")).toBe("<");
+  // Text that is escaped twice loses one level of escaping, not two.
+  it("decodes only once for an escaped lt entity", () => {
+    expect(sanitize("&amp;lt;")).toBe("&lt;");
   });
 });

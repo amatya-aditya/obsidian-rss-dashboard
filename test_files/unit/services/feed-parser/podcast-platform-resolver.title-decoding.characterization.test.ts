@@ -42,14 +42,14 @@ describe("podcast title lookup text", () => {
     ["an ampersand", "Tom &amp; Jerry", "Tom & Jerry"],
     ["quotes", "The &quot;Best&quot; Show", "The \"Best\" Show"],
     ["an apostrophe", "Marc&#39;s Show", "Marc's Show"],
-    ["angle brackets left as written", "A &lt;b&gt; Show", "A &lt;b&gt; Show"],
-    ["a numeric reference left as written", "It&#8217;s", "It&#8217;s"],
-    ["a named letter left as written", "Caf&eacute;", "Caf&eacute;"],
+    ["angle brackets", "A &lt;b&gt; Show", "A <b> Show"],
+    ["a numeric reference", "It&#8217;s", "It’s"],
+    ["a named letter", "Caf&eacute;", "Café"],
   ])("searches with %s", async (_name, input, expected) => {
     expect(await searchedTerm(input)).toBe(expected);
   });
 
-  // Pinned as-is: an ampersand entity is decoded once and stops there.
+  // An ampersand entity is decoded once and stops there.
   it("keeps an escaped entity after a single decode", async () => {
     expect(await searchedTerm("A &amp;lt; B")).toBe("A &lt; B");
   });

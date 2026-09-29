@@ -35,13 +35,13 @@ describe("decodeHtmlEntities", () => {
     expect(decodeHtmlEntities(input)).toBe(expected);
   });
 
-  // Pinned as-is: text that is escaped twice is decoded twice.
+  // Text that is escaped twice loses one level of escaping, not two.
   it.each([
-    ["an escaped lt entity", "&amp;lt;b&amp;gt;", "<b>"],
-    ["an escaped quote entity", "&amp;quot;", "\""],
-    ["an escaped decimal reference", "&amp;#65;", "A"],
-    ["an escaped named letter", "&amp;eacute;", "é"],
-  ])("currently decodes twice for %s", (_name, input, expected) => {
+    ["an escaped lt entity", "&amp;lt;b&amp;gt;", "&lt;b&gt;"],
+    ["an escaped quote entity", "&amp;quot;", "&quot;"],
+    ["an escaped decimal reference", "&amp;#65;", "&#65;"],
+    ["an escaped named letter", "&amp;eacute;", "&eacute;"],
+  ])("decodes only once for %s", (_name, input, expected) => {
     expect(decodeHtmlEntities(input)).toBe(expected);
   });
 
