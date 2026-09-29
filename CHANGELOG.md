@@ -27,6 +27,10 @@
 - Fixed podcast playback progress being replaced by an older saved resume point when Obsidian starts. Existing episode progress is preserved, and the obsolete `rss-podcast-progress` local-storage entry is cleared after it is checked. [GH Issue #468](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/468)
 - Fixed preview images no longer being cached after a cached image file was deleted outside the plugin, for example by you or a sync tool, until Obsidian was restarted. Lowering the image cache limit could also fail without saving, and **Clear image cache** said the deleted image could not be removed and kept counting it in the cache size. A cached image file that is already gone now counts as removed. [GH Issue #372](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/372)
 
+### Developer
+
+- HTML entities in feed text, feed previews, and podcast title lookups are now decoded in one pass by a shared decoder. Text that was escaped twice keeps one level of escaping, and feed previews show named entities such as `&eacute;` as letters.
+
 ### Known issues
 
 - With the metadata `data.json` in a vault folder, a Portable data bundle, Feed bundle, or Settings bundle import can be lost if Obsidian closes before anything else is saved. Applying a vault folder under **Settings → Storage → Metadata data.json location** now shows a notice about this: after importing, change a setting or mark an article as read before closing Obsidian. The default location in the plugin folder isn't affected. [GH Issue #474](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/474)

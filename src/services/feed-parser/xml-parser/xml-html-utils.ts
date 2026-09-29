@@ -1,152 +1,141 @@
+// Named entities the feed parser understands. Numeric references are decoded
+// generically; the one numeric reference that maps to something other than its
+// own code point is listed here by its literal spelling.
+const KNOWN_ENTITIES = new Map<string, string>([
+  ["nbsp", " "],
+  ["amp", "&"],
+  ["lt", "<"],
+  ["gt", ">"],
+  ["quot", "\""],
+  ["apos", "'"],
+  ["lsquo", "\u2018"],
+  ["rsquo", "\u2019"],
+  ["ldquo", "\u201C"],
+  ["rdquo", "\u201D"],
+  ["ndash", "\u2013"],
+  ["mdash", "\u2014"],
+  ["hellip", "..."],
+  ["copy", "\u00A9"],
+  ["reg", "\u00AE"],
+  ["trade", "\u2122"],
+  ["deg", "\u00B0"],
+  ["plusmn", "\u00B1"],
+  ["times", "\u00D7"],
+  ["divide", "\u00F7"],
+  ["frac12", "\u00BD"],
+  ["frac14", "\u00BC"],
+  ["frac34", "\u00BE"],
+  ["sup1", "\u00B9"],
+  ["sup2", "\u00B2"],
+  ["sup3", "\u00B3"],
+  ["micro", "\u00B5"],
+  ["para", "\u00B6"],
+  ["middot", "\u00B7"],
+  ["bull", "\u2022"],
+  ["dagger", "\u2020"],
+  ["Dagger", "\u2021"],
+  ["permil", "\u2030"],
+  ["lsaquo", "\u2039"],
+  ["rsaquo", "\u203A"],
+  ["euro", "\u20AC"],
+  ["pound", "\u00A3"],
+  ["cent", "\u00A2"],
+  ["curren", "\u00A4"],
+  ["yen", "\u00A5"],
+  ["brvbar", "\u00A6"],
+  ["sect", "\u00A7"],
+  ["uml", "\u00A8"],
+  ["ordf", "\u00AA"],
+  ["laquo", "\u00AB"],
+  ["not", "\u00AC"],
+  ["shy", "\u00AD"],
+  ["macr", "\u00AF"],
+  ["ordm", "\u00BA"],
+  ["raquo", "\u00BB"],
+  ["iquest", "\u00BF"],
+  ["Agrave", "\u00C0"],
+  ["Aacute", "\u00C1"],
+  ["Acirc", "\u00C2"],
+  ["Atilde", "\u00C3"],
+  ["Auml", "\u00C4"],
+  ["Aring", "\u00C5"],
+  ["AElig", "\u00C6"],
+  ["Ccedil", "\u00C7"],
+  ["Egrave", "\u00C8"],
+  ["Eacute", "\u00C9"],
+  ["Ecirc", "\u00CA"],
+  ["Euml", "\u00CB"],
+  ["Igrave", "\u00CC"],
+  ["Iacute", "\u00CD"],
+  ["Icirc", "\u00CE"],
+  ["Iuml", "\u00CF"],
+  ["ETH", "\u00D0"],
+  ["Ntilde", "\u00D1"],
+  ["Ograve", "\u00D2"],
+  ["Oacute", "\u00D3"],
+  ["Ocirc", "\u00D4"],
+  ["Otilde", "\u00D5"],
+  ["Ouml", "\u00D6"],
+  ["Oslash", "\u00D8"],
+  ["Ugrave", "\u00D9"],
+  ["Uacute", "\u00DA"],
+  ["Ucirc", "\u00DB"],
+  ["Uuml", "\u00DC"],
+  ["Yacute", "\u00DD"],
+  ["THORN", "\u00DE"],
+  ["szlig", "\u00DF"],
+  ["agrave", "\u00E0"],
+  ["aacute", "\u00E1"],
+  ["acirc", "\u00E2"],
+  ["atilde", "\u00E3"],
+  ["auml", "\u00E4"],
+  ["aring", "\u00E5"],
+  ["aelig", "\u00E6"],
+  ["ccedil", "\u00E7"],
+  ["egrave", "\u00E8"],
+  ["eacute", "\u00E9"],
+  ["ecirc", "\u00EA"],
+  ["euml", "\u00EB"],
+  ["igrave", "\u00EC"],
+  ["iacute", "\u00ED"],
+  ["icirc", "\u00EE"],
+  ["iuml", "\u00EF"],
+  ["eth", "\u00F0"],
+  ["ntilde", "\u00F1"],
+  ["ograve", "\u00F2"],
+  ["oacute", "\u00F3"],
+  ["ocirc", "\u00F4"],
+  ["otilde", "\u00F5"],
+  ["ouml", "\u00F6"],
+  ["oslash", "\u00F8"],
+  ["ugrave", "\u00F9"],
+  ["uacute", "\u00FA"],
+  ["ucirc", "\u00FB"],
+  ["uuml", "\u00FC"],
+  ["yacute", "\u00FD"],
+  ["thorn", "\u00FE"],
+  ["yuml", "\u00FF"],
+  ["#8230", "..."],
+]);
+
+function decodeEntity(match: string, body: string): string {
+  const known = KNOWN_ENTITIES.get(body);
+  if (known !== undefined) return known;
+  if (!body.startsWith("#")) return match;
+
+  const isHex = body[1] === "x" || body[1] === "X";
+  const num = parseInt(body.slice(isHex ? 2 : 1), isHex ? 16 : 10);
+  return num >= 0 && num <= 0x10ffff ? String.fromCodePoint(num) : match;
+}
+
+/** Decodes each entity once; decoded text is never scanned again. */
 export function decodeHtmlEntities(text: string): string {
   if (!text) return "";
 
-  const decoded = text
-    .replace(/&nbsp;/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&#x27;/g, "'")
-    .replace(/&#x2F;/g, "/")
-    .replace(/&#8230;/g, "...")
-    .replace(/&#8217;/g, "\u2019")
-    .replace(/&#8216;/g, "\u2018")
-    .replace(/&#8220;/g, "\u201C")
-    .replace(/&#8221;/g, "\u201D")
-    .replace(/&#8211;/g, "\u2013")
-    .replace(/&#8212;/g, "\u2014")
-    .replace(/&#038;/g, "&")
-    .replace(/&#x26;/g, "&")
-    .replace(/&#x3c;/g, "<")
-    .replace(/&#x3e;/g, ">")
-    .replace(/&#x22;/g, '"')
-    .replace(/&#x27;/g, "'")
-    .replace(/&#x2f;/g, "/")
-    .replace(/&apos;/g, "'")
-    .replace(/&lsquo;/g, "\u2018")
-    .replace(/&rsquo;/g, "\u2019")
-    .replace(/&ldquo;/g, "\u201C")
-    .replace(/&rdquo;/g, "\u201D")
-    .replace(/&ndash;/g, "\u2013")
-    .replace(/&mdash;/g, "\u2014")
-    .replace(/&hellip;/g, "...")
-    .replace(/&copy;/g, "\u00A9")
-    .replace(/&reg;/g, "\u00AE")
-    .replace(/&trade;/g, "\u2122")
-    .replace(/&deg;/g, "\u00B0")
-    .replace(/&plusmn;/g, "\u00B1")
-    .replace(/&times;/g, "\u00D7")
-    .replace(/&divide;/g, "\u00F7")
-    .replace(/&frac12;/g, "\u00BD")
-    .replace(/&frac14;/g, "\u00BC")
-    .replace(/&frac34;/g, "\u00BE")
-    .replace(/&sup1;/g, "\u00B9")
-    .replace(/&sup2;/g, "\u00B2")
-    .replace(/&sup3;/g, "\u00B3")
-    .replace(/&micro;/g, "\u00B5")
-    .replace(/&para;/g, "\u00B6")
-    .replace(/&middot;/g, "\u00B7")
-    .replace(/&bull;/g, "\u2022")
-    .replace(/&dagger;/g, "\u2020")
-    .replace(/&Dagger;/g, "\u2021")
-    .replace(/&permil;/g, "\u2030")
-    .replace(/&lsaquo;/g, "\u2039")
-    .replace(/&rsaquo;/g, "\u203A")
-    .replace(/&euro;/g, "\u20AC")
-    .replace(/&pound;/g, "\u00A3")
-    .replace(/&cent;/g, "\u00A2")
-    .replace(/&curren;/g, "\u00A4")
-    .replace(/&yen;/g, "\u00A5")
-    .replace(/&brvbar;/g, "\u00A6")
-    .replace(/&sect;/g, "\u00A7")
-    .replace(/&uml;/g, "\u00A8")
-    .replace(/&ordf;/g, "\u00AA")
-    .replace(/&laquo;/g, "\u00AB")
-    .replace(/&not;/g, "\u00AC")
-    .replace(/&shy;/g, "\u00AD")
-    .replace(/&macr;/g, "\u00AF")
-    .replace(/&ordm;/g, "\u00BA")
-    .replace(/&raquo;/g, "\u00BB")
-    .replace(/&frac14;/g, "\u00BC")
-    .replace(/&frac12;/g, "\u00BD")
-    .replace(/&frac34;/g, "\u00BE")
-    .replace(/&iquest;/g, "\u00BF")
-    .replace(/&Agrave;/g, "\u00C0")
-    .replace(/&Aacute;/g, "\u00C1")
-    .replace(/&Acirc;/g, "\u00C2")
-    .replace(/&Atilde;/g, "\u00C3")
-    .replace(/&Auml;/g, "\u00C4")
-    .replace(/&Aring;/g, "\u00C5")
-    .replace(/&AElig;/g, "\u00C6")
-    .replace(/&Ccedil;/g, "\u00C7")
-    .replace(/&Egrave;/g, "\u00C8")
-    .replace(/&Eacute;/g, "\u00C9")
-    .replace(/&Ecirc;/g, "\u00CA")
-    .replace(/&Euml;/g, "\u00CB")
-    .replace(/&Igrave;/g, "\u00CC")
-    .replace(/&Iacute;/g, "\u00CD")
-    .replace(/&Icirc;/g, "\u00CE")
-    .replace(/&Iuml;/g, "\u00CF")
-    .replace(/&ETH;/g, "\u00D0")
-    .replace(/&Ntilde;/g, "\u00D1")
-    .replace(/&Ograve;/g, "\u00D2")
-    .replace(/&Oacute;/g, "\u00D3")
-    .replace(/&Ocirc;/g, "\u00D4")
-    .replace(/&Otilde;/g, "\u00D5")
-    .replace(/&Ouml;/g, "\u00D6")
-    .replace(/&times;/g, "\u00D7")
-    .replace(/&Oslash;/g, "\u00D8")
-    .replace(/&Ugrave;/g, "\u00D9")
-    .replace(/&Uacute;/g, "\u00DA")
-    .replace(/&Ucirc;/g, "\u00DB")
-    .replace(/&Uuml;/g, "\u00DC")
-    .replace(/&Yacute;/g, "\u00DD")
-    .replace(/&THORN;/g, "\u00DE")
-    .replace(/&szlig;/g, "\u00DF")
-    .replace(/&agrave;/g, "\u00E0")
-    .replace(/&aacute;/g, "\u00E1")
-    .replace(/&acirc;/g, "\u00E2")
-    .replace(/&atilde;/g, "\u00E3")
-    .replace(/&auml;/g, "\u00E4")
-    .replace(/&aring;/g, "\u00E5")
-    .replace(/&aelig;/g, "\u00E6")
-    .replace(/&ccedil;/g, "\u00E7")
-    .replace(/&egrave;/g, "\u00E8")
-    .replace(/&eacute;/g, "\u00E9")
-    .replace(/&ecirc;/g, "\u00EA")
-    .replace(/&euml;/g, "\u00EB")
-    .replace(/&igrave;/g, "\u00EC")
-    .replace(/&iacute;/g, "\u00ED")
-    .replace(/&icirc;/g, "\u00EE")
-    .replace(/&iuml;/g, "\u00EF")
-    .replace(/&eth;/g, "\u00F0")
-    .replace(/&ntilde;/g, "\u00F1")
-    .replace(/&ograve;/g, "\u00F2")
-    .replace(/&oacute;/g, "\u00F3")
-    .replace(/&ocirc;/g, "\u00F4")
-    .replace(/&otilde;/g, "\u00F5")
-    .replace(/&ouml;/g, "\u00F6")
-    .replace(/&divide;/g, "\u00F7")
-    .replace(/&oslash;/g, "\u00F8")
-    .replace(/&ugrave;/g, "\u00F9")
-    .replace(/&uacute;/g, "\u00FA")
-    .replace(/&ucirc;/g, "\u00FB")
-    .replace(/&uuml;/g, "\u00FC")
-    .replace(/&yacute;/g, "\u00FD")
-    .replace(/&thorn;/g, "\u00FE")
-    .replace(/&yuml;/g, "\u00FF")
-    .replace(/&#(\d+);/g, (match: string, dec: string) => {
-      const num = parseInt(dec, 10);
-      return num >= 0 && num <= 0x10ffff ? String.fromCodePoint(num) : match;
-    })
-    .replace(/&#x([0-9a-fA-F]+);/g, (match: string, hex: string) => {
-      const num = parseInt(hex, 16);
-      return num >= 0 && num <= 0x10ffff ? String.fromCodePoint(num) : match;
-    });
-
-  return decoded;
+  return text.replace(
+    /&(#[0-9]+|#[xX][0-9a-fA-F]+|[A-Za-z][A-Za-z0-9]*);/g,
+    decodeEntity,
+  );
 }
 
 export function decodeSubstackImageFetchUrl(url: string | null): string | null {
