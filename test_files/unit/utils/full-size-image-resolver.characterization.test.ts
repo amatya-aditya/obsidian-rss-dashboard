@@ -30,22 +30,15 @@ describe("stripCdnResizeParameters host handling", () => {
       ).toBe("https://res.cloudinary.com/demo/image/upload/v1/pic.jpg");
     });
 
-    it("strips a host that contains the domain as a prefix", () => {
-      // Pinned as-is: matches by substring; replaced by hostname matching
-      expect(
-        stripCdnResizeParameters(
-          "https://cloudinary.com.example.net/i/upload/w_300,c_scale/v1/p.jpg",
-        ),
-      ).toBe("https://cloudinary.com.example.net/i/upload/v1/p.jpg");
+    it("leaves a host that contains the domain as a prefix untouched", () => {
+      const url =
+        "https://cloudinary.com.example.net/i/upload/w_300,c_scale/v1/p.jpg";
+      expect(stripCdnResizeParameters(url)).toBe(url);
     });
 
-    it("strips a host that ends with the domain preceded by other text", () => {
-      // Pinned as-is: matches by substring; replaced by hostname matching
-      expect(
-        stripCdnResizeParameters(
-          "https://xcloudinary.com/i/upload/w_300,c_scale/v1/p.jpg",
-        ),
-      ).toBe("https://xcloudinary.com/i/upload/v1/p.jpg");
+    it("leaves a host that ends with the domain preceded by other text untouched", () => {
+      const url = "https://xcloudinary.com/i/upload/w_300,c_scale/v1/p.jpg";
+      expect(stripCdnResizeParameters(url)).toBe(url);
     });
   });
 
@@ -70,22 +63,14 @@ describe("stripCdnResizeParameters host handling", () => {
       ).toBe("https://media.npr.org/a/pic.jpg");
     });
 
-    it("strips a host that contains the domain as a prefix", () => {
-      // Pinned as-is: matches by substring; replaced by hostname matching
-      expect(
-        stripCdnResizeParameters(
-          "https://media.npr.org.example.net/a/resize/1200x800/p.jpg",
-        ),
-      ).toBe("https://media.npr.org.example.net/a/p.jpg");
+    it("leaves a host that contains the domain as a prefix untouched", () => {
+      const url = "https://media.npr.org.example.net/a/resize/1200x800/p.jpg";
+      expect(stripCdnResizeParameters(url)).toBe(url);
     });
 
-    it("strips a host that ends with the domain preceded by other text", () => {
-      // Pinned as-is: matches by substring; replaced by hostname matching
-      expect(
-        stripCdnResizeParameters(
-          "https://xbrightspotcdn.com/a/resize/1200x800/p.jpg",
-        ),
-      ).toBe("https://xbrightspotcdn.com/a/p.jpg");
+    it("leaves a host that ends with the domain preceded by other text untouched", () => {
+      const url = "https://xbrightspotcdn.com/a/resize/1200x800/p.jpg";
+      expect(stripCdnResizeParameters(url)).toBe(url);
     });
 
     it("leaves an unrelated host's resize path alone", () => {

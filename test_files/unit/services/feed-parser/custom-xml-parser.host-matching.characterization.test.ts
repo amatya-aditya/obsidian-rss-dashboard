@@ -36,23 +36,19 @@ describe("CustomXMLParser article link host handling", () => {
     expect(transform(url)).toBe(url);
   });
 
-  it("does not rewrite an uppercase host", () => {
-    // Pinned as-is: matches by substring; replaced by hostname matching
-    const url = "https://JOURNALS.SAGEPUB.COM/doi/abs/10.1/abc";
+  it("rewrites an uppercase host", () => {
+    expect(transform("https://JOURNALS.SAGEPUB.COM/doi/abs/10.1/abc")).toBe(
+      "https://JOURNALS.SAGEPUB.COM/doi/full/10.1/abc",
+    );
+  });
+
+  it("leaves a host that contains the domain as a prefix untouched", () => {
+    const url = "https://journals.sagepub.com.example.net/doi/abs/10.1/abc";
     expect(transform(url)).toBe(url);
   });
 
-  it("rewrites a host that contains the domain as a prefix", () => {
-    // Pinned as-is: matches by substring; replaced by hostname matching
-    expect(
-      transform("https://journals.sagepub.com.example.net/doi/abs/10.1/abc"),
-    ).toBe("https://journals.sagepub.com.example.net/doi/full/10.1/abc");
-  });
-
-  it("rewrites a URL whose query merely mentions the domain", () => {
-    // Pinned as-is: matches by substring; replaced by hostname matching
-    expect(
-      transform("https://example.net/doi/abs/10.1/abc?u=journals.sagepub.com"),
-    ).toBe("https://example.net/doi/full/10.1/abc?u=journals.sagepub.com");
+  it("leaves a URL whose query merely mentions the domain untouched", () => {
+    const url = "https://example.net/doi/abs/10.1/abc?u=journals.sagepub.com";
+    expect(transform(url)).toBe(url);
   });
 });

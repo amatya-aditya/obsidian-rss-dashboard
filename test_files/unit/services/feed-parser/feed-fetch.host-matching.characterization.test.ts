@@ -81,23 +81,18 @@ describe("fetchFeedXml host handling", () => {
       expect(requested[0]).toBe(url);
     });
 
-    it("asks for the FeedBurner address when only the query mentions it", async () => {
-      // Pinned as-is: matches by substring; replaced by hostname matching
-      const requested = serve({
-        "https://feeds.feedburner.com/show?format=xml": RSS2_BASIC,
-        "https://example.net/?u=feeds.feedburner.com/show": RSS2_BASIC,
-      });
-      await fetchFeedXml("https://example.net/?u=feeds.feedburner.com/show", DIRECT);
-      expect(requested[0]).toBe("https://feeds.feedburner.com/show?format=xml");
+    it("requests the address as given when only the query mentions FeedBurner", async () => {
+      const url = "https://example.net/?u=feeds.feedburner.com/show";
+      const requested = serve({ [url]: RSS2_BASIC });
+      await fetchFeedXml(url, DIRECT);
+      expect(requested[0]).toBe(url);
     });
 
-    it("asks for the FeedBurner address when the path holds the host name", async () => {
-      // Pinned as-is: matches by substring; replaced by hostname matching
-      const requested = serve({
-        "https://feeds.feedburner.com/show?format=xml": RSS2_BASIC,
-      });
-      await fetchFeedXml("https://example.net/feeds.feedburner.com/show", DIRECT);
-      expect(requested[0]).toBe("https://feeds.feedburner.com/show?format=xml");
+    it("requests the address as given when the path holds the FeedBurner host name", async () => {
+      const url = "https://example.net/feeds.feedburner.com/show";
+      const requested = serve({ [url]: RSS2_BASIC });
+      await fetchFeedXml(url, DIRECT);
+      expect(requested[0]).toBe(url);
     });
 
     // The discovery step runs after a page that is not a feed and every
@@ -120,16 +115,15 @@ describe("fetchFeedXml host handling", () => {
       expect(requested.some((u) => u.includes("feedburner"))).toBe(false);
     });
 
-    it("uses the discovery list when only the query mentions the host", async () => {
-      // Pinned as-is: matches by substring; replaced by hostname matching
+    it("skips the discovery list when only the query mentions the host", async () => {
       const url = "https://example.net/page?u=feeds.feedburner.com/show";
       const requested = serve({
         [url]: NOT_A_FEED,
         "https://feeds.feedburner.com/show/atom.xml": RSS2_BASIC,
       });
-      await fetchFeedXml(url, DIRECT).catch(() => undefined);
-      expect(requested.some((u) => u.includes("feeds.feedburner.com/show"))).toBe(
-        true,
+      await expect(fetchFeedXml(url, DIRECT)).rejects.toThrow();
+      expect(requested).not.toContain(
+        "https://feeds.feedburner.com/show/atom.xml",
       );
     });
   });
@@ -169,12 +163,13 @@ describe("fetchFeedXml host handling", () => {
       expect(requested.some((u) => u.includes("rss.arxiv.org"))).toBe(false);
     });
 
-    it("falls back for a host that contains the domain as a prefix", async () => {
-      // Pinned as-is: matches by substring; replaced by hostname matching
+    it("does not fall back for a host that contains the domain as a prefix", async () => {
       const url = "https://export.arxiv.org.example.net/api/query";
       const requested = serve({ [url]: NOT_A_FEED });
       await fetchFeedXml(url, DIRECT).catch(() => undefined);
-      expect(requested).toContain("https://rss.arxiv.org.example.net/api/query");
+      expect(requested).not.toContain(
+        "https://rss.arxiv.org.example.net/api/query",
+      );
     });
 
     it("keeps the export host for a stub that is not a feed", async () => {

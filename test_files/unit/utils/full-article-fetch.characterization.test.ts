@@ -46,27 +46,24 @@ describe("fetchFullArticleContentWithOutcome host handling", () => {
     expect(requestedUrls()).toHaveLength(1);
   });
 
-  it("does not retry for an uppercase host", async () => {
-    // Pinned as-is: matches by substring; replaced by hostname matching
+  it("retries the abstract page for an uppercase host", async () => {
     await fetchFullArticleContentWithOutcome(
       "https://JOURNALS.SAGEPUB.COM/doi/full/10.1/abc",
+    );
+    expect(requestedUrls()).toHaveLength(2);
+  });
+
+  it("does not retry for a host that contains the domain as a prefix", async () => {
+    await fetchFullArticleContentWithOutcome(
+      "https://journals.sagepub.com.example.net/doi/full/10.1/abc",
     );
     expect(requestedUrls()).toHaveLength(1);
   });
 
-  it("retries for a host that contains the domain as a prefix", async () => {
-    // Pinned as-is: matches by substring; replaced by hostname matching
-    await fetchFullArticleContentWithOutcome(
-      "https://journals.sagepub.com.example.net/doi/full/10.1/abc",
-    );
-    expect(requestedUrls()).toHaveLength(2);
-  });
-
-  it("retries when the query merely mentions the domain", async () => {
-    // Pinned as-is: matches by substring; replaced by hostname matching
+  it("does not retry when the query merely mentions the domain", async () => {
     await fetchFullArticleContentWithOutcome(
       "https://example.net/doi/full/10.1/abc?u=journals.sagepub.com",
     );
-    expect(requestedUrls()).toHaveLength(2);
+    expect(requestedUrls()).toHaveLength(1);
   });
 });

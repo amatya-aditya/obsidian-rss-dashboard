@@ -43,30 +43,20 @@ describe("optimizeImageUrl host handling", () => {
       expect(optimizeImageUrl(url, 300)).toBe(url);
     });
 
-    it("does not rewrite an uppercase host", () => {
-      // Pinned as-is: matches by substring; replaced by hostname matching
-      const url = "https://MEDIA.NPR.ORG/a/resize/900x600/pic.jpg";
+    it("rewrites an uppercase host", () => {
+      expect(
+        optimizeImageUrl("https://MEDIA.NPR.ORG/a/resize/900x600/pic.jpg", 300),
+      ).toBe("https://MEDIA.NPR.ORG/a/resize/300x/pic.jpg");
+    });
+
+    it("leaves a host that contains the domain as a prefix untouched", () => {
+      const url = "https://media.npr.org.example.net/resize/900x600/p.jpg";
       expect(optimizeImageUrl(url, 300)).toBe(url);
     });
 
-    it("rewrites a host that contains the domain as a prefix", () => {
-      // Pinned as-is: matches by substring; replaced by hostname matching
-      expect(
-        optimizeImageUrl(
-          "https://media.npr.org.example.net/resize/900x600/p.jpg",
-          300,
-        ),
-      ).toBe("https://media.npr.org.example.net/resize/300x/p.jpg");
-    });
-
-    it("rewrites a URL whose query merely mentions the domain", () => {
-      // Pinned as-is: matches by substring; replaced by hostname matching
-      expect(
-        optimizeImageUrl(
-          "https://example.net/resize/900x600/p.jpg?u=media.npr.org",
-          300,
-        ),
-      ).toBe("https://example.net/resize/300x/p.jpg?u=media.npr.org");
+    it("leaves a URL whose query merely mentions the domain untouched", () => {
+      const url = "https://example.net/resize/900x600/p.jpg?u=media.npr.org";
+      expect(optimizeImageUrl(url, 300)).toBe(url);
     });
   });
 
@@ -94,24 +84,20 @@ describe("optimizeImageUrl host handling", () => {
       expect(optimizeImageUrl(url, 300)).toBe(url);
     });
 
-    it("does not rewrite an uppercase host", () => {
-      // Pinned as-is: matches by substring; replaced by hostname matching
-      const url = "https://I0.WP.COM/example.com/pic.jpg?w=1000";
+    it("rewrites an uppercase host", () => {
+      expect(
+        optimizeImageUrl("https://I0.WP.COM/example.com/pic.jpg?w=1000", 300),
+      ).toBe("https://i0.wp.com/example.com/pic.jpg?w=300");
+    });
+
+    it("leaves a host that contains the domain as a prefix untouched", () => {
+      const url = "https://i0.wp.com.example.net/pic.jpg?w=1000";
       expect(optimizeImageUrl(url, 300)).toBe(url);
     });
 
-    it("rewrites a host that contains the domain as a prefix", () => {
-      // Pinned as-is: matches by substring; replaced by hostname matching
-      expect(
-        optimizeImageUrl("https://i0.wp.com.example.net/pic.jpg?w=1000", 300),
-      ).toBe("https://i0.wp.com.example.net/pic.jpg?w=300");
-    });
-
-    it("rewrites a host that ends with the domain preceded by other text", () => {
-      // Pinned as-is: matches by substring; replaced by hostname matching
-      expect(optimizeImageUrl("https://xi0.wp.com/pic.jpg?w=1000", 300)).toBe(
-        "https://xi0.wp.com/pic.jpg?w=300",
-      );
+    it("leaves a host that ends with the domain preceded by other text untouched", () => {
+      const url = "https://xi0.wp.com/pic.jpg?w=1000";
+      expect(optimizeImageUrl(url, 300)).toBe(url);
     });
   });
 
@@ -141,34 +127,25 @@ describe("optimizeImageUrl host handling", () => {
       expect(optimizeImageUrl(url, 300)).toBe(url);
     });
 
-    it("does not rewrite an uppercase host", () => {
-      // Pinned as-is: matches by substring; replaced by hostname matching
-      const url = "https://RES.CLOUDINARY.COM/demo/image/upload/v1/pic.jpg";
+    it("rewrites an uppercase host", () => {
+      expect(
+        optimizeImageUrl(
+          "https://RES.CLOUDINARY.COM/demo/image/upload/v1/pic.jpg",
+          300,
+        ),
+      ).toBe(
+        "https://RES.CLOUDINARY.COM/demo/image/upload/w_300,c_scale/v1/pic.jpg",
+      );
+    });
+
+    it("leaves a host that contains the domain as a prefix untouched", () => {
+      const url = "https://cloudinary.com.example.net/image/upload/v1/p.jpg";
       expect(optimizeImageUrl(url, 300)).toBe(url);
     });
 
-    it("rewrites a host that contains the domain as a prefix", () => {
-      // Pinned as-is: matches by substring; replaced by hostname matching
-      expect(
-        optimizeImageUrl(
-          "https://cloudinary.com.example.net/image/upload/v1/p.jpg",
-          300,
-        ),
-      ).toBe(
-        "https://cloudinary.com.example.net/image/upload/w_300,c_scale/v1/p.jpg",
-      );
-    });
-
-    it("rewrites a URL whose query merely mentions the domain", () => {
-      // Pinned as-is: matches by substring; replaced by hostname matching
-      expect(
-        optimizeImageUrl(
-          "https://example.net/image/upload/v1/p.jpg?u=cloudinary.com",
-          300,
-        ),
-      ).toBe(
-        "https://example.net/image/upload/w_300,c_scale/v1/p.jpg?u=cloudinary.com",
-      );
+    it("leaves a URL whose query merely mentions the domain untouched", () => {
+      const url = "https://example.net/image/upload/v1/p.jpg?u=cloudinary.com";
+      expect(optimizeImageUrl(url, 300)).toBe(url);
     });
   });
 });
