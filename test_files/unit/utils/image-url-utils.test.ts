@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  hasLatexPhpQuery,
   isLatexFormulaImage,
   optimizeImageUrl,
 } from "../../../src/utils/image-url-utils.js";
@@ -99,3 +100,126 @@ describe("optimizeImageUrl", () => {
   });
 });
 
+
+// Fallback path: a "[" host never parses, so these inputs reach the text check.
+const UNPARSEABLE = "http://[";
+
+function seededRandom(seed: number): () => number {
+  let state = seed >>> 0;
+  return () => {
+    state = (state + 0x6d2b79f5) >>> 0;
+    let t = state;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+// The original regex, kept as a reference for the differential test.
+function originalLatexUrlText(src: string): boolean {
+  return /(?:^|\/)latex\.php\?[^#]*\blatex=/i.test(src);
+}
+
+const LATEX_FRAGMENTS = [
+  "latex.php?",
+  "/latex.php?",
+  "LaTeX.PHP?",
+  "latex=",
+  "LATEX=",
+  "xlatex=",
+  "_latex=",
+  "1latex=",
+  "latex.php",
+  "#",
+  "/",
+  "?",
+  "&",
+  "=",
+  "a",
+  "b",
+  "Z",
+  "9",
+  "_",
+  "-",
+  ".",
+  "%",
+];
+
+function randomLatexString(random: () => number): string {
+  const count = Math.floor(random() * 10);
+  let out = "";
+  for (let i = 0; i < count; i++) {
+    out += LATEX_FRAGMENTS[Math.floor(random() * LATEX_FRAGMENTS.length)];
+  }
+  return out;
+}
+
+describe("isLatexFormulaImage with unparseable URLs", () => {
+  const detect = (rest: string) => isLatexFormulaImage(UNPARSEABLE + rest);
+
+  it("matches latex.php with a latex parameter after a slash", () => {
+    expect(detect("/x/latex.php?latex=y")).toBe(true);
+    expect(detect("/latex.php?bg=fff&latex=y")).toBe(true);
+    expect(detect("/LaTeX.PHP?LATEX=y")).toBe(true);
+  });
+
+  it("requires a word boundary before the latex parameter", () => {
+    expect(detect("/latex.php?xlatex=y")).toBe(false);
+    expect(detect("/latex.php?_latex=y")).toBe(false);
+    expect(detect("/latex.php?a&latex=y")).toBe(true);
+  });
+
+  it("requires latex.php to start a path segment", () => {
+    expect(detect("/xlatex.php?latex=y")).toBe(false);
+    expect(detect("/x/latex.php?latex=y")).toBe(true);
+  });
+
+  it("stops looking at a fragment marker", () => {
+    expect(detect("/latex.php?a#latex=y")).toBe(false);
+    expect(detect("/latex.php?a#/latex.php?latex=y")).toBe(true);
+  });
+
+  it("finds a later match after an earlier one failed", () => {
+    expect(detect("/latex.php?a/latex.php?xlatex=/latex.php?latex=")).toBe(true);
+    expect(detect("/latex.php?a#b/latex.php?c")).toBe(false);
+  });
+
+  it("matches the previous behavior on generated inputs", () => {
+    const random = seededRandom(20260929);
+    for (let i = 0; i < 4000; i++) {
+      const rest = randomLatexString(random);
+      const expected = originalLatexUrlText((UNPARSEABLE + rest).trim());
+      expect(detect(rest), JSON.stringify(rest)).toBe(expected);
+    }
+  });
+
+  it("handles long paths quickly", () => {
+    for (const rest of [
+      "/latex.php?".repeat(5000),
+      "/latex.php?a".repeat(4200),
+      "/latex.php?#".repeat(4200),
+      "/latex.php?latex#".repeat(3000),
+    ]) {
+      const started = performance.now();
+      expect(detect(rest)).toBe(false);
+      expect(performance.now() - started).toBeLessThan(200);
+    }
+  });
+});
+
+describe("hasLatexPhpQuery", () => {
+  it("matches the previous behavior on generated inputs", () => {
+    const random = seededRandom(7);
+    for (let i = 0; i < 5000; i++) {
+      const text = randomLatexString(random);
+      expect(hasLatexPhpQuery(text), JSON.stringify(text)).toBe(
+        originalLatexUrlText(text),
+      );
+    }
+  });
+
+  it("accepts latex.php at the very start of the text", () => {
+    expect(hasLatexPhpQuery("latex.php?latex=y")).toBe(true);
+    expect(hasLatexPhpQuery("xlatex.php?latex=y")).toBe(false);
+  });
+});
