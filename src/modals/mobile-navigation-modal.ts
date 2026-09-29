@@ -37,6 +37,7 @@ export class MobileNavigationModal extends Modal {
       "rss-mobile-platform-ios",
       "rss-mobile-platform-android",
     );
+    // Keep the Android marker as a platform hook; it has no built-in CSS rules.
     this.modalEl.classList.add(
       Platform.isAndroidApp
         ? "rss-mobile-platform-android"

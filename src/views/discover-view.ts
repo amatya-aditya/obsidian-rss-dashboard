@@ -1090,16 +1090,6 @@ export class DiscoverView extends ItemView {
       cls: "rss-discover-filter-header-right",
     });
 
-    // Smallweb navigation button
-    const smallwebBtn = rightSection.createDiv({
-      cls: "rss-dashboard-nav-button",
-    });
-    smallwebBtn.appendText("✦ Smallweb");
-    smallwebBtn.addEventListener("click", () => {
-      void this.plugin.activateSmallwebView();
-    });
-    smallwebBtn.remove();
-
     const desktopFilterControls = rightSection.createDiv({
       cls: "rss-discover-filter-controls",
     });
