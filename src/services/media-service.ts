@@ -10,6 +10,7 @@ import { isKnownVideoUrl } from "../utils/video-detection";
 import { MastodonService } from "./mastodon-service";
 import { resolveArticleTags } from "../utils/tag-utils";
 import { resolveTagObjects } from "../utils/tag-resolver";
+import { findPodcastAudioUrl, findPodcastDuration } from "../utils/podcast-text-scan";
 
 export interface YouTubeEmbedConfig {
   videoId: string;
@@ -377,63 +378,14 @@ export class MediaService {
   }
 
   static extractPodcastAudio(description: string): string | undefined {
-    if (!description) return undefined;
-
-    try {
-      const enclosureMatch = description.match(
-        /<enclosure[^>]*url=["']([^"']*\.(?:mp3|m4a|wav|ogg|opus|aac|flac))["']/i,
-      );
-      if (enclosureMatch?.[1]) {
-        return enclosureMatch[1];
-      }
-
-      const audioMatch = description.match(
-        /<audio[^>]*src=["']([^"']*\.(?:mp3|m4a|wav|ogg|opus|aac|flac))["']/i,
-      );
-      if (audioMatch?.[1]) {
-        return audioMatch[1];
-      }
-
-      const audioLinkMatch = description.match(
-        /href=["']([^"']*\.(?:mp3|m4a|wav|ogg|opus|aac|flac))["']/i,
-      );
-      if (audioLinkMatch?.[1]) {
-        return audioLinkMatch[1];
-      }
-
-      const sourceMatch = description.match(
-        /<source[^>]*src=["']([^"']*\.(?:mp3|m4a|wav|ogg|opus|aac|flac))["']/i,
-      );
-      if (sourceMatch?.[1]) {
-        return sourceMatch[1];
-      }
-    } catch {
-      // Regex matching failed, return undefined
-    }
-
-    return undefined;
+    if (typeof description !== "string" || !description) return undefined;
+    return findPodcastAudioUrl(description);
   }
 
   static extractPodcastDuration(description: string): string | undefined {
-    if (!description) return undefined;
-
-    try {
-      const durationMatch =
-        description.match(/duration[^0-9]*(\d+:\d+(?::\d+)?)/i) ||
-        description.match(/length[^0-9]*(\d+:\d+(?::\d+)?)/i) ||
-        description.match(/time[^0-9]*(\d+:\d+(?::\d+)?)/i) ||
-        description.match(/(\d+:\d+(?::\d+)?)\s*(?:min|minutes|mins)/i);
-
-      if (durationMatch?.[1]) {
-        return durationMatch[1];
-      }
-    } catch {
-      // Regex matching failed, return undefined
-    }
-
-    return undefined;
+    if (typeof description !== "string" || !description) return undefined;
+    return findPodcastDuration(description);
   }
-
   static processYouTubeFeed(feed: Feed): Feed {
     feed.mediaType = "video";
 
