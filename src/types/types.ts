@@ -763,7 +763,7 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
     defaultVideoTags: ["Video"],
     defaultYouTubeTag: "Video",
     defaultYouTubeTags: ["Video"],
-    defaultPodcastFolder: "Podcast",
+    defaultPodcastFolder: "Podcasts",
     defaultPodcastTags: ["podcast"],
     defaultRssFolder: "RSS",
     defaultRssTag: "RSS",
