@@ -323,6 +323,8 @@ git checkout dev && git checkout -b release/2.3.0
 
 Before tagging, bump the version with `npm version` to keep `package.json`, `package-lock.json`, `manifest.json`, and `versions.json` in sync:
 
+Run Beta bumps on the release branch only. Obsidian's community directory reads `manifest.json` from the default branch (`dev`), and a pre-release version there removes the plugin from the directory (#529). `dev` and `master` stay on the last shipped stable version, and CI enforces this with `node scripts/check-release-compatibility.mjs --stable-branch`.
+
 **For first Beta:**
 ```bash
 npm version 2.3.0-beta.1 --no-git-tag-version
