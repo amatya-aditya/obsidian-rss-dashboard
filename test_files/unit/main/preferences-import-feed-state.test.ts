@@ -49,7 +49,7 @@ function persistedFeed(feedId: string): Omit<Feed, "items"> {
   };
 }
 
-describe("importing a preferences file that carries feeds (issue #374)", () => {
+describe("metadata and feed-state imports (issues #374 and #474)", () => {
   let app: App;
   let plugin: RssDashboardPlugin;
 
@@ -122,6 +122,95 @@ describe("importing a preferences file that carries feeds (issue #374)", () => {
     });
     plugin.saveData = vi.fn().mockResolvedValue(undefined);
     await plugin.loadSettings();
+  });
+
+  it("writes a portable bundle import to the configured vault metadata file", async () => {
+    const metadataPath = `${metadataFolder}/data.json`;
+    const current = JSON.parse(await adapter().read(metadataPath)) as {
+      refreshInterval: number;
+    };
+    const bundle = plugin.getPortableDataBundle();
+    bundle.metadata.refreshInterval = current.refreshInterval + 1;
+
+    installObsidianDomPolyfills();
+    const result = plugin.importPortableDataBundleFromFile(
+      new File([JSON.stringify(bundle)], "portable-bundle.json"),
+    );
+    (await findDialogButton("Replace")).click();
+    await expect(result).resolves.toBe("committed");
+
+    const written = JSON.parse(await adapter().read(metadataPath)) as {
+      refreshInterval: number;
+    };
+    expect(written.refreshInterval).toBe(bundle.metadata.refreshInterval);
+  });
+
+  it("writes a Feed bundle import to the configured vault metadata file", async () => {
+    const metadataPath = `${metadataFolder}/data.json`;
+    const bundle = plugin.getFeedBundle();
+    const importedTitle = "Imported feed title";
+    bundle.feeds[0].title = importedTitle;
+
+    installObsidianDomPolyfills();
+    const result = plugin.importFeedBundleFromFile(
+      new File([JSON.stringify(bundle)], "feed-bundle.json"),
+    );
+    (await findDialogButton("Replace")).click();
+    await expect(result).resolves.toBe("committed");
+
+    const written = JSON.parse(await adapter().read(metadataPath)) as {
+      feeds: Array<{ title: string }>;
+    };
+    expect(written.feeds[0]?.title).toBe(importedTitle);
+  });
+
+  it("writes a Settings bundle import to the configured vault metadata file", async () => {
+    const metadataPath = `${metadataFolder}/data.json`;
+    const current = JSON.parse(await adapter().read(metadataPath)) as {
+      refreshInterval: number;
+    };
+    const bundle = plugin.getSettingsBundle();
+    bundle.settings.refreshInterval = current.refreshInterval + 1;
+
+    installObsidianDomPolyfills();
+    const result = plugin.importSettingsBundleFromFile(
+      new File([JSON.stringify(bundle)], "settings-bundle.json"),
+    );
+    (await findDialogButton("Overwrite")).click();
+    await expect(result).resolves.toBe("committed");
+
+    const written = JSON.parse(await adapter().read(metadataPath)) as {
+      refreshInterval: number;
+    };
+    expect(written.refreshInterval).toBe(bundle.settings.refreshInterval);
+  });
+
+  it("writes shard migration metadata to the configured vault metadata file", async () => {
+    const metadataPath = `${metadataFolder}/data.json`;
+    const nextRefreshInterval = plugin.settings.refreshInterval + 1;
+    plugin.settings.refreshInterval = nextRefreshInterval;
+
+    await plugin.migrateToVaultStorage();
+
+    const written = JSON.parse(await adapter().read(metadataPath)) as {
+      refreshInterval: number;
+      storageMode: string;
+    };
+    expect(written.refreshInterval).toBe(nextRefreshInterval);
+    expect(written.storageMode).toBe("vault-shards");
+  });
+
+  it("writes repaired shard metadata to the configured vault metadata file", async () => {
+    const metadataPath = `${metadataFolder}/data.json`;
+    const nextRefreshInterval = plugin.settings.refreshInterval + 1;
+    plugin.settings.refreshInterval = nextRefreshInterval;
+
+    await plugin.repairVaultShards();
+
+    const written = JSON.parse(await adapter().read(metadataPath)) as {
+      refreshInterval: number;
+    };
+    expect(written.refreshInterval).toBe(nextRefreshInterval);
   });
 
   it("keeps article state for a feed the imported file leaves out", async () => {
