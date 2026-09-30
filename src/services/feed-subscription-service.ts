@@ -149,28 +149,13 @@ export class FeedSubscriptionService {
         return false;
       }
 
-      // Try to parse the feed BEFORE adding it to settings
-      try {
-        const parsedFeed = await this.feedParser.parseFeed(url, newFeed, {
-          allowEmpty: true,
-          signal: operationSignal ?? undefined,
-        });
-        if (operationSignal?.aborted || this.feedOperationTracker.isCancelled) {
-          return false;
-        }
-        const feedToStore = this.mergeParsedFeed(newFeed, parsedFeed);
-        await this.storeAddedFeed(feedToStore, title, showNotice);
-        return true;
-      } catch (error) {
-        if (showNotice) {
-          new Notice(formatFeedParseNoticeMessage(error));
-        }
-        return false;
-      } finally {
-        if (operationSignal) {
-          await this.feedOperationTracker.end();
-        }
-      }
+      return await this.parseAndStoreFeed(
+        url,
+        newFeed,
+        title,
+        showNotice,
+        operationSignal,
+      );
     } catch (error) {
       if (showNotice) {
         new Notice(
@@ -178,6 +163,77 @@ export class FeedSubscriptionService {
         );
       }
       return false;
+    }
+  }
+
+  private async parseAndStoreFeed(
+    url: string,
+    newFeed: Feed,
+    title: string,
+    showNotice: boolean,
+    operationSignal: AbortSignal | null,
+  ): Promise<boolean> {
+    try {
+      const parsedFeed = await this.parseFeedWithAbort(
+        url,
+        newFeed,
+        operationSignal,
+      );
+      if (operationSignal?.aborted || this.feedOperationTracker.isCancelled) {
+        return false;
+      }
+      const feedToStore = this.mergeParsedFeed(newFeed, parsedFeed);
+      await this.storeAddedFeed(feedToStore, title, showNotice);
+      return true;
+    } catch (error) {
+      if (operationSignal?.aborted || this.feedOperationTracker.isCancelled) {
+        return false;
+      }
+      if (showNotice) {
+        new Notice(formatFeedParseNoticeMessage(error));
+      }
+      return false;
+    } finally {
+      if (operationSignal) {
+        await this.feedOperationTracker.end();
+      }
+    }
+  }
+
+  private async parseFeedWithAbort(
+    url: string,
+    newFeed: Feed,
+    signal: AbortSignal | null,
+  ): Promise<Feed> {
+    if (!signal) {
+      return await this.feedParser.parseFeed(url, newFeed, {
+        allowEmpty: true,
+      });
+    }
+
+    if (signal.aborted) {
+      throw new DOMException("The operation was aborted", "AbortError");
+    }
+
+    let abortHandler: (() => void) | null = null;
+    const abortPromise = new Promise<never>((_, reject) => {
+      abortHandler = () =>
+        reject(new DOMException("The operation was aborted", "AbortError"));
+      signal.addEventListener("abort", abortHandler, { once: true });
+    });
+
+    try {
+      return await Promise.race([
+        this.feedParser.parseFeed(url, newFeed, {
+          allowEmpty: true,
+          signal,
+        }),
+        abortPromise,
+      ]);
+    } finally {
+      if (abortHandler) {
+        signal.removeEventListener("abort", abortHandler);
+      }
     }
   }
 
