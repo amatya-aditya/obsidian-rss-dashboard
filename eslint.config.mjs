@@ -220,8 +220,9 @@ export default defineConfig([
   },
   {
     // Architecture guardrails (#253, #436). Existing violations are recorded
-    // in eslint-suppressions.json; new ones fail the build. Prune it with
-    // `npx eslint . --prune-suppressions` after a refactor removes one.
+    // in scripts/eslint-suppressions.json, kept out of the repo root so the
+    // community directory scanner never loads it; new ones fail the build.
+    // Prune it with `npm run lint:prune` after a refactor removes one.
     files: ["main.ts", "src/**/*.ts"],
     rules: {
       "max-lines-per-function": [

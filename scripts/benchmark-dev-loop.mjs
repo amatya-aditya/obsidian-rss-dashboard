@@ -210,7 +210,7 @@ function runBenchmark({ cwd, label, runs, only }) {
 
   const plain = {
     compliance: "npm run --silent check:compliance",
-    lint: "npm exec -- eslint . --max-warnings=0",
+    lint: "npm run --silent lint",
     ...(typecheck ? { typecheck: `npm exec -- ${typecheck}` } : {}),
     bundle: "node esbuild.config.mjs production",
     test: "npm run --silent test:unit",
