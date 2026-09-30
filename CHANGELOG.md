@@ -7,6 +7,7 @@
 
 ### Fixes
 
+- Fixed Shift+click range selection and Ctrl/Cmd+click folder selection in the navigation drawer failing to update the dashboard. [GH Issue #493](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/493)
 - Fixed articles saved from an open reader after settings reloads, imports, or factory reset using the old save folder and template. The reader now uses current settings and the current article saver. [GH Issue #448](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/448)
 - Fixed new podcast feeds being assigned to a separate **Podcast** folder instead of the default **Podcasts** folder. Existing folder preferences are preserved. [GH Issue #461](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/461)
 - Fixed the dashboard filter menu so selecting **Tagged** with a specific tag in **Or** mode shows only articles carrying that tag. [GH Issue #463](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/463)
