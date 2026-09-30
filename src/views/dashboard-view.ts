@@ -84,6 +84,24 @@ type SidebarKeyboardController = {
   renameFocusedItem: () => void;
 };
 
+interface DashboardFilterChange {
+  type: string;
+  value: unknown;
+  checked?: boolean;
+  isTag?: boolean;
+  logic?: "AND" | "OR";
+  batch?: {
+    statusFilters?: Set<string>;
+    tagFilters?: Set<string>;
+    logic?: "AND" | "OR";
+    bypassAll?: boolean;
+    highlightsEnabled?: boolean;
+    statusBarVisible?: boolean;
+    cardColumnsPerRow?: number;
+    cardSpacing?: number;
+  };
+}
+
 export class RssDashboardView extends ItemView {
   private static readonly CARD_LAYOUT_RELAYOUT_DELAY_MS = 90;
   private static readonly CARD_LAYOUT_SAVE_DELAY_MS = 120;
@@ -3440,127 +3458,50 @@ export class RssDashboardView extends ItemView {
     void this.render();
   }
 
-  private handleFilterChange(filter: {
-    type: string;
-    value: unknown;
-    checked?: boolean;
-    isTag?: boolean;
-    logic?: "AND" | "OR";
-    batch?: {
-      statusFilters?: Set<string>;
-      tagFilters?: Set<string>;
-      logic?: "AND" | "OR";
-      bypassAll?: boolean;
-      highlightsEnabled?: boolean;
-      statusBarVisible?: boolean;
-      cardColumnsPerRow?: number;
-      cardSpacing?: number;
-    };
-  }): void {
+  private handleFilterChange(filter: DashboardFilterChange): void {
     if (filter.type === "batch" && filter.batch) {
-      const b = filter.batch;
-      if (b.logic) this.filterLogic = b.logic;
-      if (b.statusFilters) this.activeStatusFilters = new Set(b.statusFilters);
-      if (b.tagFilters) this.activeTagFilters = new Set(b.tagFilters);
-
-      let needsFullRender = false;
-      if (b.bypassAll !== undefined) {
-        if (!this.settings.keywordRules) {
-          this.settings.keywordRules = {
-            includeLogic: "AND",
-            bypassAll: false,
-            rules: [],
-          };
-        }
-        if (this.settings.keywordRules.bypassAll !== b.bypassAll) {
-          this.settings.keywordRules.bypassAll = b.bypassAll;
-          needsFullRender = true;
-        }
-      }
-      if (b.highlightsEnabled !== undefined) {
-        if (!this.settings.highlights) {
-          this.settings.highlights = {
-            enabled: false,
-            defaultColor: "#ffd700",
-            highlightInContent: true,
-            highlightInTitles: true,
-            highlightInSummaries: true,
-            words: [],
-          };
-        }
-        if (this.settings.highlights.enabled !== b.highlightsEnabled) {
-          this.settings.highlights.enabled = b.highlightsEnabled;
-          needsFullRender = true;
-        }
-      }
-      if (b.statusBarVisible !== undefined) {
-        if (this.settings.display.showFilterStatusBar !== b.statusBarVisible) {
-          this.settings.display.showFilterStatusBar = b.statusBarVisible;
-          needsFullRender = true;
-        }
-      }
-      if (b.cardColumnsPerRow !== undefined) {
-        const nextCardColumnsPerRow = Math.max(
-          0,
-          Math.min(6, Math.round(b.cardColumnsPerRow)),
-        );
-        if (this.settings.display.cardColumnsPerRow !== nextCardColumnsPerRow) {
-          this.settings.display.cardColumnsPerRow = nextCardColumnsPerRow;
-          needsFullRender = true;
-        }
-      }
-      if (b.cardSpacing !== undefined) {
-        const nextCardSpacing = Math.max(
-          0,
-          Math.min(40, Math.round(b.cardSpacing)),
-        );
-        if (this.settings.display.cardSpacing !== nextCardSpacing) {
-          this.settings.display.cardSpacing = nextCardSpacing;
-          needsFullRender = true;
-        }
-      }
-
-      if (needsFullRender) {
-        void this.plugin.saveSettings();
-        void this.render();
+      if (this.applyBatchFilterChange(filter.batch)) {
         return;
       }
     } else if (
       filter.type === "card-spacing-live" ||
       filter.type === "card-spacing-commit"
     ) {
-      const nextCardSpacing = Math.max(
-        0,
-        Math.min(40, Math.round(Number(filter.value))),
-      );
-      if (!Number.isFinite(nextCardSpacing)) {
-        return;
-      }
-
-      if (this.settings.display.cardSpacing !== nextCardSpacing) {
-        this.settings.display.cardSpacing = nextCardSpacing;
-      }
-
-      this.articleList?.updateCardSpacingLayout(nextCardSpacing);
-
-      if (filter.type === "card-spacing-live") {
-        this.scheduleCardLayoutRefresh();
-        this.scheduleCardLayoutSave();
-      } else {
-        this.clearCardLayoutRefreshTimeout();
-        this.articleList?.refreshCardTagLayout();
-        this.clearCardLayoutSaveTimeout();
-        void this.plugin.saveSettings();
-      }
+      this.applyCardSpacingChange(filter);
       return;
     } else if (filter.type === "logic" && filter.logic) {
       this.filterLogic = filter.logic;
     } else if (filter.type === "status-bar-visibility") {
-      this.settings.display.showFilterStatusBar = filter.checked ?? true;
-      void this.plugin.saveSettings();
-      void this.render();
+      this.applyStatusBarVisibility(filter);
       return;
     } else if (filter.type === "bypass-filters") {
+      this.applyBypassFilters(filter);
+      return;
+    } else if (filter.type === "highlights") {
+      this.applyHighlightsToggle(filter);
+      return;
+    } else if (filter.isTag) {
+      this.applyTagFilterToggle(filter);
+    } else if (filter.checked !== undefined) {
+      this.applyStatusFilterToggle(filter);
+    } else {
+      this.applyAgeFilter(filter);
+      return;
+    }
+
+    this.refilterAfterFilterChange();
+  }
+
+  /** Returns true when a setting changed and the view was fully re-rendered. */
+  private applyBatchFilterChange(
+    b: NonNullable<DashboardFilterChange["batch"]>,
+  ): boolean {
+    if (b.logic) this.filterLogic = b.logic;
+    if (b.statusFilters) this.activeStatusFilters = new Set(b.statusFilters);
+    if (b.tagFilters) this.activeTagFilters = new Set(b.tagFilters);
+
+    let needsFullRender = false;
+    if (b.bypassAll !== undefined) {
       if (!this.settings.keywordRules) {
         this.settings.keywordRules = {
           includeLogic: "AND",
@@ -3568,12 +3509,12 @@ export class RssDashboardView extends ItemView {
           rules: [],
         };
       }
-      this.settings.keywordRules.bypassAll = filter.checked ?? false;
-      void this.plugin.saveSettings();
-      void this.render();
-      return;
-    } else if (filter.type === "highlights") {
-      // Highlights toggle - requires saving settings and full re-render
+      if (this.settings.keywordRules.bypassAll !== b.bypassAll) {
+        this.settings.keywordRules.bypassAll = b.bypassAll;
+        needsFullRender = true;
+      }
+    }
+    if (b.highlightsEnabled !== undefined) {
       if (!this.settings.highlights) {
         this.settings.highlights = {
           enabled: false,
@@ -3584,40 +3525,141 @@ export class RssDashboardView extends ItemView {
           words: [],
         };
       }
-      this.settings.highlights.enabled = filter.checked ?? false;
+      if (this.settings.highlights.enabled !== b.highlightsEnabled) {
+        this.settings.highlights.enabled = b.highlightsEnabled;
+        needsFullRender = true;
+      }
+    }
+    if (b.statusBarVisible !== undefined) {
+      if (this.settings.display.showFilterStatusBar !== b.statusBarVisible) {
+        this.settings.display.showFilterStatusBar = b.statusBarVisible;
+        needsFullRender = true;
+      }
+    }
+    if (b.cardColumnsPerRow !== undefined) {
+      const nextCardColumnsPerRow = Math.max(
+        0,
+        Math.min(6, Math.round(b.cardColumnsPerRow)),
+      );
+      if (this.settings.display.cardColumnsPerRow !== nextCardColumnsPerRow) {
+        this.settings.display.cardColumnsPerRow = nextCardColumnsPerRow;
+        needsFullRender = true;
+      }
+    }
+    if (b.cardSpacing !== undefined) {
+      const nextCardSpacing = Math.max(
+        0,
+        Math.min(40, Math.round(b.cardSpacing)),
+      );
+      if (this.settings.display.cardSpacing !== nextCardSpacing) {
+        this.settings.display.cardSpacing = nextCardSpacing;
+        needsFullRender = true;
+      }
+    }
+
+    if (needsFullRender) {
       void this.plugin.saveSettings();
       void this.render();
-      return;
-    } else if (filter.isTag) {
-      if (filter.checked) {
-        this.activeTagFilters.add(filter.type);
-      } else {
-        this.activeTagFilters.delete(filter.type);
-      }
-    } else if (filter.checked !== undefined) {
-      const filterType = filter.type.toLowerCase();
-      if (filter.checked) {
-        this.activeStatusFilters.add(filterType);
-      } else {
-        this.activeStatusFilters.delete(filterType);
-      }
-    } else {
-      // Age filter - requires saving settings and full re-render
-      this.settings.articleFilter = {
-        type: filter.type as
-          | "age"
-          | "read"
-          | "unread"
-          | "starred"
-          | "saved"
-          | "none",
-        value: filter.value,
-      };
-      void this.plugin.saveSettings();
-      void this.render();
+    }
+    return needsFullRender;
+  }
+
+  private applyCardSpacingChange(filter: DashboardFilterChange): void {
+    const nextCardSpacing = Math.max(
+      0,
+      Math.min(40, Math.round(Number(filter.value))),
+    );
+    if (!Number.isFinite(nextCardSpacing)) {
       return;
     }
 
+    if (this.settings.display.cardSpacing !== nextCardSpacing) {
+      this.settings.display.cardSpacing = nextCardSpacing;
+    }
+
+    this.articleList?.updateCardSpacingLayout(nextCardSpacing);
+
+    if (filter.type === "card-spacing-live") {
+      this.scheduleCardLayoutRefresh();
+      this.scheduleCardLayoutSave();
+    } else {
+      this.clearCardLayoutRefreshTimeout();
+      this.articleList?.refreshCardTagLayout();
+      this.clearCardLayoutSaveTimeout();
+      void this.plugin.saveSettings();
+    }
+  }
+
+  private applyStatusBarVisibility(filter: DashboardFilterChange): void {
+    this.settings.display.showFilterStatusBar = filter.checked ?? true;
+    void this.plugin.saveSettings();
+    void this.render();
+  }
+
+  private applyBypassFilters(filter: DashboardFilterChange): void {
+    if (!this.settings.keywordRules) {
+      this.settings.keywordRules = {
+        includeLogic: "AND",
+        bypassAll: false,
+        rules: [],
+      };
+    }
+    this.settings.keywordRules.bypassAll = filter.checked ?? false;
+    void this.plugin.saveSettings();
+    void this.render();
+  }
+
+  private applyHighlightsToggle(filter: DashboardFilterChange): void {
+    // Highlights toggle - requires saving settings and full re-render
+    if (!this.settings.highlights) {
+      this.settings.highlights = {
+        enabled: false,
+        defaultColor: "#ffd700",
+        highlightInContent: true,
+        highlightInTitles: true,
+        highlightInSummaries: true,
+        words: [],
+      };
+    }
+    this.settings.highlights.enabled = filter.checked ?? false;
+    void this.plugin.saveSettings();
+    void this.render();
+  }
+
+  private applyTagFilterToggle(filter: DashboardFilterChange): void {
+    if (filter.checked) {
+      this.activeTagFilters.add(filter.type);
+    } else {
+      this.activeTagFilters.delete(filter.type);
+    }
+  }
+
+  private applyStatusFilterToggle(filter: DashboardFilterChange): void {
+    const filterType = filter.type.toLowerCase();
+    if (filter.checked) {
+      this.activeStatusFilters.add(filterType);
+    } else {
+      this.activeStatusFilters.delete(filterType);
+    }
+  }
+
+  private applyAgeFilter(filter: DashboardFilterChange): void {
+    // Age filter - requires saving settings and full re-render
+    this.settings.articleFilter = {
+      type: filter.type as
+        | "age"
+        | "read"
+        | "unread"
+        | "starred"
+        | "saved"
+        | "none",
+      value: filter.value,
+    };
+    void this.plugin.saveSettings();
+    void this.render();
+  }
+
+  private refilterAfterFilterChange(): void {
     this.schedulePersistDashboardMultiFilters();
 
     // For status/tag/logic changes, do a partial re-render

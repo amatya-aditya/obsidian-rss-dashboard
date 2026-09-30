@@ -259,10 +259,10 @@
   },
   "src/views/dashboard-view.ts": {
     "complexity": {
-      "count": 3
+      "count": 2
     },
     "max-lines-per-function": {
-      "count": 4
+      "count": 3
     }
   },
   "src/views/discover-view.ts": {
