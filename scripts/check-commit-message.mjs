@@ -133,7 +133,14 @@ function runESLintOnFiles(files) {
     return 0;
   }
 
-  const args = [ESLINT_BIN, "--max-warnings=0", "--no-warn-ignored", ...files];
+  const args = [
+    ESLINT_BIN,
+    "--max-warnings=0",
+    "--no-warn-ignored",
+    "--suppressions-location",
+    "scripts/eslint-suppressions.json",
+    ...files,
+  ];
   try {
     execFileSync(process.execPath, args, { cwd: ROOT_DIR, stdio: "inherit" });
     return 0;
