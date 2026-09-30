@@ -241,13 +241,13 @@ export class MetadataCleanupModal extends Modal {
 
     contentEl.createEl("h2", { text: "Delete previous metadata copy?" });
     contentEl.createEl("p", {
-      text: "Metadata migration completed successfully.",
+      text: "Metadata location change completed successfully.",
     });
     contentEl.createEl("p", {
-      text: `A previous data.json copy still exists at: ${this.previousLocationLabel}`,
+      text: `Previous data files still exist in: ${this.previousLocationLabel}`,
     });
     contentEl.createEl("p", {
-      text: "Do you want to delete the previous copy, or keep it as a backup?",
+      text: "Do you want to delete the previous files, or keep them as a backup?",
     });
 
     const buttonsSetting = new Setting(contentEl);

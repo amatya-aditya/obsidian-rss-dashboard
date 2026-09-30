@@ -25,6 +25,24 @@ export function collectFolderPaths(
   return paths;
 }
 
+/**
+ * Returns the nearest entry of `selectedFolders` that is `folderPath` or one of
+ * its ancestors, or null when none of them is selected.
+ */
+export function findSelectedAncestorFolder(
+  folderPath: string,
+  selectedFolders: readonly string[],
+): string | null {
+  let current = folderPath;
+  while (current) {
+    if (selectedFolders.includes(current)) return current;
+    const slash = current.lastIndexOf("/");
+    if (slash === -1) return null;
+    current = current.slice(0, slash);
+  }
+  return null;
+}
+
 /** Removes every leading and trailing "/" from `path`. */
 export function trimSurroundingSlashes(path: string): string {
   let start = 0;
