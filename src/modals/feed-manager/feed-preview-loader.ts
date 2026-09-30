@@ -129,19 +129,6 @@ export async function resolveAndLoadPreview(
     );
   }
 
-  if (MediaService.isMastodonUrl(url)) {
-    const mastodonFeedUrl = await MediaService.getMastodonRssFeed(url);
-    if (!mastodonFeedUrl) {
-      throw new Error(
-        "Could not resolve Mastodon profile feed. Please check the profile URL.",
-      );
-    }
-
-    url = mastodonFeedUrl;
-    finalUrl = mastodonFeedUrl;
-    isMastodonConversion = true;
-  }
-
   if (isYouTubePageUrl(url)) {
     detectedType = "youtube";
     const rssUrl = await MediaService.getYouTubeRssFeed(url);
@@ -152,6 +139,17 @@ export async function resolveAndLoadPreview(
     finalUrl = rssUrl;
   } else if (MediaService.isYouTubeFeed(url) && isYouTubeRssFeedUrl(url)) {
     detectedType = "youtube";
+  } else if (MediaService.isMastodonUrl(url)) {
+    const mastodonFeedUrl = await MediaService.getMastodonRssFeed(url);
+    if (!mastodonFeedUrl) {
+      throw new Error(
+        "Could not resolve Mastodon profile feed. Please check the profile URL.",
+      );
+    }
+
+    url = mastodonFeedUrl;
+    finalUrl = mastodonFeedUrl;
+    isMastodonConversion = true;
   } else {
     const platform = detectPodcastPlatform(url);
     if (platform) {

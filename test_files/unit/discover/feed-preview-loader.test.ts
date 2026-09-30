@@ -186,6 +186,67 @@ describe("resolveAndLoadPreview()", () => {
       }),
     ).rejects.toThrow(/Pocket Casts resolution requires the CORS Proxy/i);
   });
+
+  it("detects a YouTube handle URL as YouTube, not Mastodon (#548)", async () => {
+    vi.restoreAllMocks();
+
+    vi.spyOn(MediaService, "isXUrl").mockReturnValue(false);
+    vi.spyOn(MediaService, "isNitterUrl").mockReturnValue(false);
+    vi.spyOn(MediaService, "getMastodonRssFeed").mockResolvedValue(null);
+    vi.spyOn(MediaService, "getYouTubeRssFeed").mockResolvedValue(
+      "https://www.youtube.com/feeds/videos.xml?channel_id=UCsBjURrPoezykLs9EqgamOA",
+    );
+    detectPodcastPlatformMock.mockReturnValue(null);
+    loadFeedForPreviewMock.mockResolvedValue({
+      title: "Fireship",
+      latestPubDate: "2026-09-29T00:00:00.000Z",
+      hasEntries: true,
+    });
+
+    const { resolveAndLoadPreview } = await import(
+      "../../../src/modals/feed-manager/feed-preview-loader"
+    );
+
+    const result = await resolveAndLoadPreview(
+      "https://www.youtube.com/@Fireship",
+    );
+
+    expect(result.detectedType).toBe("youtube");
+    expect(result.isMastodonConversion).toBe(false);
+    expect(result.finalUrl).toBe(
+      "https://www.youtube.com/feeds/videos.xml?channel_id=UCsBjURrPoezykLs9EqgamOA",
+    );
+    expect(MediaService.getMastodonRssFeed).not.toHaveBeenCalled();
+  });
+
+  it("still detects a real Mastodon profile URL as Mastodon (#548)", async () => {
+    vi.restoreAllMocks();
+
+    vi.spyOn(MediaService, "isXUrl").mockReturnValue(false);
+    vi.spyOn(MediaService, "isNitterUrl").mockReturnValue(false);
+    vi.spyOn(MediaService, "getMastodonRssFeed").mockResolvedValue(
+      "https://mastodon.social/@Gargron.rss",
+    );
+    vi.spyOn(MediaService, "getYouTubeRssFeed").mockResolvedValue(null);
+    detectPodcastPlatformMock.mockReturnValue(null);
+    loadFeedForPreviewMock.mockResolvedValue({
+      title: "Eugen Rochko",
+      latestPubDate: "2026-09-29T00:00:00.000Z",
+      hasEntries: true,
+    });
+
+    const { resolveAndLoadPreview } = await import(
+      "../../../src/modals/feed-manager/feed-preview-loader"
+    );
+
+    const result = await resolveAndLoadPreview(
+      "https://mastodon.social/@Gargron",
+    );
+
+    expect(result.detectedType).toBe("rss");
+    expect(result.isMastodonConversion).toBe(true);
+    expect(result.finalUrl).toBe("https://mastodon.social/@Gargron.rss");
+  });
 });
 
 describe("formatLatestEntryLabel()", () => {
@@ -262,6 +323,41 @@ describe("Mastodon folder defaults", () => {
     );
 
     expect(folder).toBe("Social/Mastodon");
+  });
+
+  it("routes a resolved YouTube handle feed to the Videos folder, not Mastodon (#548)", async () => {
+    const { getDefaultFolderForResolvedFeed } = await import(
+      "../../../src/modals/feed-manager/feed-preview-loader"
+    );
+
+    const folder = getDefaultFolderForResolvedFeed(
+      {
+        detectedType: "youtube",
+        inputUrl: "https://www.youtube.com/@Fireship",
+        finalUrl:
+          "https://www.youtube.com/feeds/videos.xml?channel_id=UCsBjURrPoezykLs9EqgamOA",
+        isMastodonConversion: false,
+      },
+      {
+        defaultYouTubeFolder: "Videos",
+        defaultMastodonFolder: "Social/Mastodon",
+        defaultRssFolder: "RSS",
+      },
+    );
+
+    expect(folder).toBe("Videos");
+  });
+
+  it("shows no Mastodon conversion notice for a YouTube handle preview (#548)", async () => {
+    const { getPreviewConversionNotice } = await import(
+      "../../../src/modals/feed-manager/feed-preview-loader"
+    );
+
+    const notice = getPreviewConversionNotice({
+      isMastodonConversion: false,
+    });
+
+    expect(notice).toBe("");
   });
 });
 
