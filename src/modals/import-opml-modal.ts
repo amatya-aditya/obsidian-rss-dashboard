@@ -937,6 +937,11 @@ export class ImportOpmlModal extends Modal {
         },
       );
 
+      if (result.refused) {
+        this.close();
+        return;
+      }
+
       this.onImportStarted?.();
 
       if (this.importMode === "update" && result.addedCount === 0) {

@@ -214,6 +214,13 @@ export interface FeedIngestionOptions {
   globalOperation?: boolean;
 }
 
+export interface FeedIngestionResult {
+  addedCount: number;
+  skippedCount: number;
+  queuedFeeds: Feed[];
+  refused?: boolean;
+}
+
 export interface Tag {
   name: string;
   color: string;

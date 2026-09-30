@@ -697,6 +697,40 @@ describe("DiscoverView (P1-3)", () => {
     expect(view.pageSize).toBe(10);
     expect(view.currentPage).toBe(1);
   });
+
+  it("does not show added feeds notice when Add all is refused due to active operation", async () => {
+    const { plugin, view } = await createView();
+    view.loadData();
+    view.render();
+
+    plugin.ingestFeedsForBackgroundImport.mockResolvedValueOnce({
+      addedCount: 0,
+      skippedCount: 0,
+      queuedFeeds: [],
+      refused: true,
+    });
+
+    const addAllButton = view.containerEl.querySelector(
+      ".rss-discover-add-all-btn",
+    );
+    expect(addAllButton).not.toBeNull();
+    if (!addAllButton) throw new Error("addAllButton not found");
+
+    if (typeof (addAllButton as HTMLElement).click === "function") {
+      (addAllButton as HTMLElement).click();
+    } else {
+      throw new Error("addAllButton does not have a click method");
+    }
+    folderSelectorSpy.calls[0].onSelect("Uncategorized");
+    await flushPromises();
+
+    expect(plugin.ingestFeedsForBackgroundImport).toHaveBeenCalledTimes(1);
+    expect(console.debug).not.toHaveBeenCalledWith(
+      "[Stub Notice]",
+      expect.stringContaining("Articles will be fetched in the background"),
+    );
+    expect((view as unknown as { isAddingAllFeeds: boolean }).isAddingAllFeeds).toBe(false);
+  });
 });
 
 
