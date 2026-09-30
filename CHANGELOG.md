@@ -7,6 +7,8 @@
 
 ### Fixes
 
+- Fixed Stop during a Discover single-feed add leaving the global feed operation active until the fetch timed out. The add now races its parse against Stop the same way a refresh-all does, so the sidebar clears promptly and another feed operation can start. [GH Issue #482](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/482)
+
 - Fixed Ctrl+click (Cmd+click on macOS) on a feed replacing a folder opened with a plain click instead of adding to it. The article list now shows the folder's articles plus the feed's, the same as when the folder was Ctrl+clicked first. [GH Issue #489](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/489)
 - Fixed Shift+click range selection and Ctrl/Cmd+click folder selection in the navigation drawer failing to update the dashboard. [GH Issue #493](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/493)
 - Fixed articles saved from an open reader after settings reloads, imports, or factory reset using the old save folder and template. The reader now uses current settings and the current article saver. [GH Issue #448](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/448)

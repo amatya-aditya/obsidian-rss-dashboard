@@ -11,6 +11,7 @@ import {
   type FeedParser,
 } from "./feed-parser";
 import type { FeedOperationTracker } from "./feed-operation-tracker";
+import { FEED_REQUEST_TIMEOUT_MS } from "./feed-timeout";
 import { MediaService } from "./media-service";
 import type { PreviewImageCache } from "./preview-image-cache";
 
@@ -151,10 +152,35 @@ export class FeedSubscriptionService {
 
       // Try to parse the feed BEFORE adding it to settings
       try {
-        const parsedFeed = await this.feedParser.parseFeed(url, newFeed, {
+        const parseOptions = {
           allowEmpty: true,
           signal: operationSignal ?? undefined,
-        });
+        };
+        let parsedFeed;
+        if (operationSignal) {
+          // requestUrl cannot be cancelled mid-flight; race the parse against
+          // Stop (and the soft timeout) the same way refreshFeedWithTimeout does.
+          const abortRace = this.feedOperationTracker.createSoftTimeout(
+            FEED_REQUEST_TIMEOUT_MS,
+            operationSignal,
+          );
+          try {
+            const winner = await Promise.race([
+              this.feedParser.parseFeed(url, newFeed, parseOptions).then(
+                (value) => ({ kind: "feed" as const, value }),
+              ),
+              abortRace.promise,
+            ]);
+            if (winner === "cancelled" || winner === "timeout") {
+              return false;
+            }
+            parsedFeed = winner.value;
+          } finally {
+            abortRace.cancel();
+          }
+        } else {
+          parsedFeed = await this.feedParser.parseFeed(url, newFeed, parseOptions);
+        }
         if (operationSignal?.aborted || this.feedOperationTracker.isCancelled) {
           return false;
         }
