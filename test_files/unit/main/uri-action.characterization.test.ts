@@ -520,8 +520,8 @@ describe("URI action: what the Add feed modal is given", () => {
       customTemplate: "tpl",
       excludeFromRefresh: true,
       customTags: ["a"],
-      feedEncoding: "utf-8",
-    } as AddFeedRequest;
+      feedEncoding: "windows-1251",
+    };
 
     const result = await onlyModal(harness).onAdd(request);
 
@@ -538,7 +538,7 @@ describe("URI action: what the Add feed modal is given", () => {
       "tpl",
       true,
       ["a"],
-      { feedEncoding: "utf-8" },
+      { feedEncoding: "windows-1251" },
     );
   });
 
