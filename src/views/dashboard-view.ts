@@ -21,6 +21,7 @@ import {
   ViewLocation,
   FeedEncoding,
   ArticleGroupByOption,
+  DEFAULT_SETTINGS,
 } from "../types/types";
 import type {
   FiltersUpdatedEventPayload,
@@ -3492,6 +3493,26 @@ export class RssDashboardView extends ItemView {
     this.refilterAfterFilterChange();
   }
 
+  /** Creates the default global keyword rules when settings lack them. */
+  private ensureKeywordRules(): RssDashboardSettings["keywordRules"] {
+    // A saved data.json may predate these settings, so guard despite the type.
+    this.settings.keywordRules ??= structuredClone(
+      DEFAULT_SETTINGS.keywordRules,
+    );
+    return this.settings.keywordRules;
+  }
+
+  /** Creates the default highlight settings when settings lack them. */
+  private ensureHighlights(): RssDashboardSettings["highlights"] {
+    this.settings.highlights ??= structuredClone(DEFAULT_SETTINGS.highlights);
+    return this.settings.highlights;
+  }
+
+  /** Rounds a card layout value, then clamps it to 0..max. NaN stays NaN. */
+  private clampCardLayoutValue(value: number, max: number): number {
+    return Math.max(0, Math.min(max, Math.round(value)));
+  }
+
   /** Returns true when a setting changed and the view was fully re-rendered. */
   private applyBatchFilterChange(
     b: NonNullable<DashboardFilterChange["batch"]>,
@@ -3502,31 +3523,16 @@ export class RssDashboardView extends ItemView {
 
     let needsFullRender = false;
     if (b.bypassAll !== undefined) {
-      if (!this.settings.keywordRules) {
-        this.settings.keywordRules = {
-          includeLogic: "AND",
-          bypassAll: false,
-          rules: [],
-        };
-      }
-      if (this.settings.keywordRules.bypassAll !== b.bypassAll) {
-        this.settings.keywordRules.bypassAll = b.bypassAll;
+      const keywordRules = this.ensureKeywordRules();
+      if (keywordRules.bypassAll !== b.bypassAll) {
+        keywordRules.bypassAll = b.bypassAll;
         needsFullRender = true;
       }
     }
     if (b.highlightsEnabled !== undefined) {
-      if (!this.settings.highlights) {
-        this.settings.highlights = {
-          enabled: false,
-          defaultColor: "#ffd700",
-          highlightInContent: true,
-          highlightInTitles: true,
-          highlightInSummaries: true,
-          words: [],
-        };
-      }
-      if (this.settings.highlights.enabled !== b.highlightsEnabled) {
-        this.settings.highlights.enabled = b.highlightsEnabled;
+      const highlights = this.ensureHighlights();
+      if (highlights.enabled !== b.highlightsEnabled) {
+        highlights.enabled = b.highlightsEnabled;
         needsFullRender = true;
       }
     }
@@ -3537,9 +3543,9 @@ export class RssDashboardView extends ItemView {
       }
     }
     if (b.cardColumnsPerRow !== undefined) {
-      const nextCardColumnsPerRow = Math.max(
-        0,
-        Math.min(6, Math.round(b.cardColumnsPerRow)),
+      const nextCardColumnsPerRow = this.clampCardLayoutValue(
+        b.cardColumnsPerRow,
+        6,
       );
       if (this.settings.display.cardColumnsPerRow !== nextCardColumnsPerRow) {
         this.settings.display.cardColumnsPerRow = nextCardColumnsPerRow;
@@ -3547,10 +3553,7 @@ export class RssDashboardView extends ItemView {
       }
     }
     if (b.cardSpacing !== undefined) {
-      const nextCardSpacing = Math.max(
-        0,
-        Math.min(40, Math.round(b.cardSpacing)),
-      );
+      const nextCardSpacing = this.clampCardLayoutValue(b.cardSpacing, 40);
       if (this.settings.display.cardSpacing !== nextCardSpacing) {
         this.settings.display.cardSpacing = nextCardSpacing;
         needsFullRender = true;
@@ -3565,9 +3568,9 @@ export class RssDashboardView extends ItemView {
   }
 
   private applyCardSpacingChange(filter: DashboardFilterChange): void {
-    const nextCardSpacing = Math.max(
-      0,
-      Math.min(40, Math.round(Number(filter.value))),
+    const nextCardSpacing = this.clampCardLayoutValue(
+      Number(filter.value),
+      40,
     );
     if (!Number.isFinite(nextCardSpacing)) {
       return;
@@ -3597,31 +3600,14 @@ export class RssDashboardView extends ItemView {
   }
 
   private applyBypassFilters(filter: DashboardFilterChange): void {
-    if (!this.settings.keywordRules) {
-      this.settings.keywordRules = {
-        includeLogic: "AND",
-        bypassAll: false,
-        rules: [],
-      };
-    }
-    this.settings.keywordRules.bypassAll = filter.checked ?? false;
+    this.ensureKeywordRules().bypassAll = filter.checked ?? false;
     void this.plugin.saveSettings();
     void this.render();
   }
 
   private applyHighlightsToggle(filter: DashboardFilterChange): void {
     // Highlights toggle - requires saving settings and full re-render
-    if (!this.settings.highlights) {
-      this.settings.highlights = {
-        enabled: false,
-        defaultColor: "#ffd700",
-        highlightInContent: true,
-        highlightInTitles: true,
-        highlightInSummaries: true,
-        words: [],
-      };
-    }
-    this.settings.highlights.enabled = filter.checked ?? false;
+    this.ensureHighlights().enabled = filter.checked ?? false;
     void this.plugin.saveSettings();
     void this.render();
   }
