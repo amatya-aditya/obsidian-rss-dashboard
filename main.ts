@@ -76,6 +76,10 @@ import {
 import { FeedSubscriptionService } from "./src/services/feed-subscription-service";
 import { SettingsImportApplier } from "./src/services/settings-import-applier";
 import { SettingsStore } from "./src/services/settings-store";
+import {
+  UriActionHandler,
+  type AddFeedUriRequest,
+} from "./src/services/uri-action-handler";
 import { getMetadataPath } from "./src/services/metadata-location";
 
 import { ImportOpmlModal } from "./src/modals/import-opml-modal";
@@ -89,7 +93,6 @@ import {
   getReleaseNoteForVersion,
   hasExactReleaseNoteForVersion,
 } from "./src/release-notes";
-import { isValidUrl } from "./src/utils/validation";
 import { migrateSettings } from "./src/utils/settings-loader";
 import { applyAutomaticArticleTags } from "./src/utils/tag-utils";
 
@@ -172,7 +175,6 @@ export default class RssDashboardPlugin extends Plugin {
     "rss-podcast-progress",
     "rss-first-launch-coachmark-shown",
   ] as const;
-  private static readonly URI_ACTION_ADD_FEED = "add-feed";
 
   settings!: RssDashboardSettings;
   feedParser!: FeedParser;
@@ -193,6 +195,7 @@ export default class RssDashboardPlugin extends Plugin {
   private autoRefreshScheduler: FeedRefreshScheduler | null = null;
   private readonly feedStorageRepository: FeedStorageRepository;
   private readonly settingsStore: SettingsStore;
+  private readonly uriActionHandler: UriActionHandler;
   private readonly feedOperationTracker: FeedOperationTracker;
   private readonly previewImageCache: PreviewImageCache;
   private readonly feedRefreshRunner: FeedRefreshRunner;
@@ -241,6 +244,11 @@ export default class RssDashboardPlugin extends Plugin {
         this.initializeSettingsBackedServices(),
       getAutoRefreshScheduler: () => this.autoRefreshScheduler,
       refreshDashboardViews: () => this.refreshDashboardViews(),
+    });
+    this.uriActionHandler = new UriActionHandler({
+      pluginId: manifest.id,
+      openAddFeed: (request) => this.openAddFeedFromUri(request),
+      getDefaultRssFolder: () => this.settings.media.defaultRssFolder,
     });
     this.feedOperationTracker = new FeedOperationTracker(app, {
       activeRefreshState: this.activeRefreshState,
@@ -1058,133 +1066,36 @@ export default class RssDashboardPlugin extends Plugin {
   }
 
   private async dispatchUriAction(params: ObsidianProtocolData): Promise<void> {
-    const action = this.resolveRequestedUriAction(params);
-
-    if (!action) {
-      new Notice(
-        "Missing URI action. Use action=add-feed with a URL parameter.",
-      );
-      return;
-    }
-
-    try {
-      switch (action) {
-        case RssDashboardPlugin.URI_ACTION_ADD_FEED:
-          await this.handleAddFeedUriAction(params);
-          return;
-        default:
-          new Notice(`Unsupported RSS Dashboard URI action: ${action}`);
-      }
-    } catch (error) {
-      console.error("[RSS Dashboard] URI action failed:", error);
-      new Notice(
-        `RSS Dashboard URI action failed: ${error instanceof Error ? error.message : "Unknown error"}`,
-      );
-    }
+    return this.uriActionHandler.dispatch(params);
   }
 
-  private resolveRequestedUriAction(params: ObsidianProtocolData): string {
-    const routeAction = (params.action ?? "").trim().toLowerCase();
-    const queryAction =
-      typeof params.uriAction === "string"
-        ? params.uriAction.trim().toLowerCase()
-        : "";
-
-    if (queryAction) {
-      return queryAction;
-    }
-
-    // Obsidian protocol reserves `action` for the route itself.
-    // For links like `obsidian://rss-dashboard?...`, infer add-feed when a URL
-    // parameter is present so browser-triggered links work reliably.
-    if (
-      routeAction === this.manifest.id.toLowerCase() &&
-      typeof params.url === "string" &&
-      params.url.trim().length > 0
-    ) {
-      return RssDashboardPlugin.URI_ACTION_ADD_FEED;
-    }
-
-    if (routeAction === this.manifest.id.toLowerCase()) {
-      return "";
-    }
-
-    return routeAction;
-  }
-
-  private decodeUriFeedUrl(rawUrl: string): string {
-    const candidate = rawUrl.trim();
-    if (!candidate) {
-      throw new Error("Missing required URL parameter for add-feed.");
-    }
-
-    if (!candidate.includes("%")) {
-      return candidate;
-    }
-
-    try {
-      return decodeURIComponent(candidate);
-    } catch {
-      throw new Error(
-        "Feed URL is malformed. Ensure the url parameter is URL-encoded.",
-      );
-    }
-  }
-
-  private buildUriAddFeedTitle(feedUrl: string): string {
-    try {
-      const parsed = new URL(feedUrl);
-      const hostname = parsed.hostname.replace(/^www\./i, "").trim();
-      return hostname || feedUrl;
-    } catch {
-      return feedUrl;
-    }
-  }
-
-  private async handleAddFeedUriAction(
-    params: ObsidianProtocolData,
-  ): Promise<void> {
-    const rawUrl = typeof params.url === "string" ? params.url : "";
-    if (!rawUrl.trim()) {
-      new Notice("Missing required URL parameter for add-feed.");
-      return;
-    }
-
-    const decodedUrl = this.decodeUriFeedUrl(rawUrl);
-    const urlValidation = isValidUrl(decodedUrl);
-    if (!urlValidation.valid) {
-      new Notice(urlValidation.error ?? "Invalid feed URL.");
-      return;
-    }
-
-    const defaultFolder = this.settings.media.defaultRssFolder?.trim() || "RSS";
-
+  private async openAddFeedFromUri(request: AddFeedUriRequest): Promise<void> {
     await this.activateView();
 
     new AddFeedModal(
       this.app,
       this.settings.folders,
-      async (request) =>
+      async (addRequest) =>
         await this.addFeed(
-          request.title,
-          request.url,
-          request.folder,
-          request.autoDeleteDuration,
-          request.maxItemsLimit,
-          request.scanInterval,
-          request.feedKeywordRules,
-          request.customTemplate,
-          request.excludeFromRefresh,
-          request.customTags,
-          { feedEncoding: request.feedEncoding },
+          addRequest.title,
+          addRequest.url,
+          addRequest.folder,
+          addRequest.autoDeleteDuration,
+          addRequest.maxItemsLimit,
+          addRequest.scanInterval,
+          addRequest.feedKeywordRules,
+          addRequest.customTemplate,
+          addRequest.excludeFromRefresh,
+          addRequest.customTags,
+          { feedEncoding: addRequest.feedEncoding },
         ),
       () => {
         void this.refreshDashboardViews();
       },
-      defaultFolder,
+      request.defaultFolder,
       this,
-      decodedUrl,
-      this.buildUriAddFeedTitle(decodedUrl),
+      request.url,
+      request.title,
     ).open();
   }
 
