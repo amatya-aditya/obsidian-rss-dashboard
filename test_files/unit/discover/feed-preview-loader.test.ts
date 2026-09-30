@@ -265,3 +265,193 @@ describe("Mastodon folder defaults", () => {
   });
 });
 
+describe("YouTube handle URL is not misidentified as Mastodon (#548)", () => {
+  beforeEach(() => {
+    loadFeedForPreviewMock.mockReset();
+    resolvePodcastPlatformUrlMock.mockReset();
+    detectPodcastPlatformMock.mockReset();
+
+    // Do NOT mock isMastodonUrl or isYouTubeFeed — we want real detection
+    // to ensure precedence is correct.
+    vi.spyOn(MediaService, "isXUrl").mockReturnValue(false);
+    vi.spyOn(MediaService, "isNitterUrl").mockReturnValue(false);
+    vi.spyOn(MediaService, "getYouTubeRssFeed").mockResolvedValue(
+      "https://www.youtube.com/feeds/videos.xml?channel_id=UCsBjURrPoezykLs9EqgamOA",
+    );
+    vi.spyOn(MediaService, "getMastodonRssFeed").mockResolvedValue(
+      "https://mastodon.social/@user.rss",
+    );
+
+    detectPodcastPlatformMock.mockReturnValue(null);
+
+    loadFeedForPreviewMock.mockResolvedValue({
+      title: "Test Feed",
+      latestPubDate: "2026-09-29T00:00:00.000Z",
+      hasEntries: true,
+    });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("detects a YouTube /@handle URL as youtube, not Mastodon", async () => {
+    const { resolveAndLoadPreview } = await import(
+      "../../../src/modals/feed-manager/feed-preview-loader"
+    );
+
+    const result = await resolveAndLoadPreview(
+      "https://www.youtube.com/@Fireship",
+    );
+
+    expect(result.detectedType).toBe("youtube");
+    expect(result.isMastodonConversion).toBe(false);
+    expect(result.finalUrl).toBe(
+      "https://www.youtube.com/feeds/videos.xml?channel_id=UCsBjURrPoezykLs9EqgamOA",
+    );
+    expect(MediaService.getYouTubeRssFeed).toHaveBeenCalled();
+    expect(MediaService.getMastodonRssFeed).not.toHaveBeenCalled();
+  });
+
+  it("still detects a genuine Mastodon /@user URL as Mastodon", async () => {
+    const { resolveAndLoadPreview } = await import(
+      "../../../src/modals/feed-manager/feed-preview-loader"
+    );
+
+    const result = await resolveAndLoadPreview(
+      "https://mastodon.social/@Gargron",
+    );
+
+    expect(result.detectedType).toBe("rss");
+    expect(result.isMastodonConversion).toBe(true);
+    expect(result.finalUrl).toBe("https://mastodon.social/@user.rss");
+    expect(MediaService.getMastodonRssFeed).toHaveBeenCalled();
+  });
+
+  it("assigns the Videos folder, not Mastodon, for a YouTube handle preview", async () => {
+    const { getDefaultFolderForResolvedFeed } = await import(
+      "../../../src/modals/feed-manager/feed-preview-loader"
+    );
+
+    const folder = getDefaultFolderForResolvedFeed(
+      {
+        detectedType: "youtube",
+        inputUrl: "https://www.youtube.com/@Fireship",
+        finalUrl:
+          "https://www.youtube.com/feeds/videos.xml?channel_id=UCsBjURrPoezykLs9EqgamOA",
+        isMastodonConversion: false,
+      },
+      {
+        defaultYouTubeFolder: "Videos",
+        defaultMastodonFolder: "Mastodon",
+      },
+    );
+
+    expect(folder).toBe("Videos");
+  });
+
+  it("shows no Mastodon conversion notice for a YouTube handle preview", async () => {
+    const { getPreviewConversionNotice } = await import(
+      "../../../src/modals/feed-manager/feed-preview-loader"
+    );
+
+    const notice = getPreviewConversionNotice({
+      isMastodonConversion: false,
+    });
+
+    expect(notice).toBe("");
+  });
+
+  it("suggests the Videos folder for a resolved YouTube handle preview", async () => {
+    const { resolveAndLoadPreview, getDefaultFolderForResolvedFeed } =
+      await import("../../../src/modals/feed-manager/feed-preview-loader");
+
+    const preview = await resolveAndLoadPreview(
+      "https://www.youtube.com/@Fireship",
+    );
+
+    expect(
+      getDefaultFolderForResolvedFeed(preview, {
+        defaultYouTubeFolder: "Videos",
+        defaultMastodonFolder: "Mastodon",
+      }),
+    ).toBe("Videos");
+  });
+
+  it("shows no Mastodon notice for a resolved YouTube handle preview", async () => {
+    const { resolveAndLoadPreview, getPreviewConversionNotice } = await import(
+      "../../../src/modals/feed-manager/feed-preview-loader"
+    );
+
+    const preview = await resolveAndLoadPreview(
+      "https://www.youtube.com/@Fireship",
+    );
+
+    expect(getPreviewConversionNotice(preview)).toBe("");
+  });
+
+  it("shows the Mastodon notice and folder for a genuine Mastodon profile", async () => {
+    const {
+      resolveAndLoadPreview,
+      getPreviewConversionNotice,
+      getDefaultFolderForResolvedFeed,
+    } = await import("../../../src/modals/feed-manager/feed-preview-loader");
+
+    const preview = await resolveAndLoadPreview(
+      "https://mastodon.social/@Gargron",
+    );
+
+    expect(getPreviewConversionNotice(preview)).toBe(
+      " (Mastodon > RSS auto-discovery)",
+    );
+    expect(
+      getDefaultFolderForResolvedFeed(preview, {
+        defaultYouTubeFolder: "Videos",
+        defaultMastodonFolder: "Mastodon",
+      }),
+    ).toBe("Mastodon");
+  });
+
+  it("keeps a YouTube RSS feed URL as youtube without Mastodon or channel lookups", async () => {
+    const { resolveAndLoadPreview } = await import(
+      "../../../src/modals/feed-manager/feed-preview-loader"
+    );
+    const feedUrl =
+      "https://www.youtube.com/feeds/videos.xml?channel_id=UCsBjURrPoezykLs9EqgamOA";
+
+    const result = await resolveAndLoadPreview(feedUrl);
+
+    expect(result.detectedType).toBe("youtube");
+    expect(result.isMastodonConversion).toBe(false);
+    expect(result.finalUrl).toBe(feedUrl);
+    expect(MediaService.getYouTubeRssFeed).not.toHaveBeenCalled();
+    expect(MediaService.getMastodonRssFeed).not.toHaveBeenCalled();
+  });
+
+  it("detects a YouTube /channel/ URL as youtube, not Mastodon", async () => {
+    const { resolveAndLoadPreview } = await import(
+      "../../../src/modals/feed-manager/feed-preview-loader"
+    );
+
+    const result = await resolveAndLoadPreview(
+      "https://www.youtube.com/channel/UCsBjURrPoezykLs9EqgamOA",
+    );
+
+    expect(result.detectedType).toBe("youtube");
+    expect(result.isMastodonConversion).toBe(false);
+    expect(MediaService.getYouTubeRssFeed).toHaveBeenCalled();
+    expect(MediaService.getMastodonRssFeed).not.toHaveBeenCalled();
+  });
+
+  it("reports an unresolvable YouTube handle instead of falling back to Mastodon", async () => {
+    vi.spyOn(MediaService, "getYouTubeRssFeed").mockResolvedValue(null);
+    const { resolveAndLoadPreview } = await import(
+      "../../../src/modals/feed-manager/feed-preview-loader"
+    );
+
+    await expect(
+      resolveAndLoadPreview("https://www.youtube.com/@Fireship"),
+    ).rejects.toThrow("Could not resolve YouTube channel");
+    expect(MediaService.getMastodonRssFeed).not.toHaveBeenCalled();
+  });
+});
