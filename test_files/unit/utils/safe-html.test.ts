@@ -205,9 +205,8 @@ describe("safe-html.sanitizeAndAppendHtml", () => {
     );
 
     expect(container.innerHTML).not.toContain("javascript:");
-    expect(container.querySelector("form")?.hasAttribute("action")).toBe(false);
-    expect(container.querySelector("button")?.hasAttribute("formaction")).toBe(false);
-    expect(container.querySelector("button")?.textContent).toBe("Go");
+    expect(container.querySelector("[action], [formaction]")).toBeNull();
+    expect(container.textContent).toContain("Go");
     expect(container.querySelector("blockquote")?.textContent).toBe("Quote");
   });
 

@@ -617,19 +617,13 @@ describe("applying a confirmed settings import (issue #535)", () => {
       ).rejects.toEqual(new Error("disk full"));
     });
 
-    it("saves through the plugin's own data file, not the vault data.json", async () => {
+    it("saves to the configured vault data.json", async () => {
       const dataJsonBefore = await adapter().read(dataJsonPath);
-      const saveData = vi.mocked(plugin.saveData);
-      saveData.mockClear();
 
       await importFile(kind, jsonFile(`${kind}.json`, bundle()), confirmLabel);
 
-      // BUG: pinned, see #474
-      expect(saveData).toHaveBeenCalled();
-      expect(saveData.mock.calls.some(([data]) => "feeds" in (data as object))).toBe(
-        true,
-      );
-      expect(await adapter().read(dataJsonPath)).toBe(dataJsonBefore);
+      // Fixed by #474: the import used to reach only the plugin's own file.
+      expect(await adapter().read(dataJsonPath)).not.toBe(dataJsonBefore);
     });
   });
 });

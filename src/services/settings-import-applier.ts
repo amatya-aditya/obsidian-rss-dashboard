@@ -25,7 +25,7 @@ export interface SettingsImportApplierOptions {
   isSettingsLoadFailed: () => boolean;
   /** Read on every call. */
   getFeedStorageRepository: () => FeedStorageRepository;
-  savePluginData: (data: unknown) => Promise<void>;
+  getMetadataSaveCallback: () => (data: unknown) => Promise<void>;
   saveSettings: (options?: PersistSettingsOptions) => Promise<void>;
   migrateLegacySettings: () => boolean;
   initializeSettingsBackedServices: () => void;
@@ -161,7 +161,7 @@ export class SettingsImportApplier {
       await this.feedStorageRepository.importPortableDataBundle(
         bundle,
         this.settings,
-        (data) => this.options.savePluginData(data),
+        this.options.getMetadataSaveCallback(),
       );
       this.options.migrateLegacySettings();
       this.options.initializeSettingsBackedServices();
@@ -194,7 +194,7 @@ export class SettingsImportApplier {
       await this.feedStorageRepository.importFeedBundle(
         bundle,
         this.settings,
-        (data) => this.options.savePluginData(data),
+        this.options.getMetadataSaveCallback(),
       );
       this.options.migrateLegacySettings();
       this.options.initializeSettingsBackedServices();
@@ -224,7 +224,7 @@ export class SettingsImportApplier {
       await this.feedStorageRepository.importSettingsBundle(
         bundle,
         this.settings,
-        (data) => this.options.savePluginData(data),
+        this.options.getMetadataSaveCallback(),
       );
       this.options.migrateLegacySettings();
       this.options.initializeSettingsBackedServices();

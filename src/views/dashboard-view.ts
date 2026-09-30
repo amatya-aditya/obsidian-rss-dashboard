@@ -2419,6 +2419,8 @@ export class RssDashboardView extends ItemView {
       {
         onFolderClick: this.handleFolderClick.bind(this),
         onFeedClick: this.handleFeedClick.bind(this),
+        onRangeSelect: this.handleSidebarRangeSelect.bind(this),
+        onFolderMultiSelect: this.handleFolderMultiSelect.bind(this),
         onTagToggle: this.handleTagToggle.bind(this),
         onClearTags: this.handleClearTags.bind(this),
         onTagFilterModeChange: this.handleTagFilterModeChange.bind(this),
@@ -2436,9 +2438,7 @@ export class RssDashboardView extends ItemView {
         onImportOpml: this.handleImportOpml.bind(this),
         onExportOpml: this.handleExportOpml.bind(this),
         onToggleSidebar: this.handleToggleSidebar.bind(this),
-        onManageFeeds: () => {
-          new FeedManagerModal(this.app, this.plugin).open();
-        },
+        onManageFeeds: () => new FeedManagerModal(this.app, this.plugin).open(),
         onActivateDashboard: () => void this.plugin.activateView(),
         onActivateDiscover: () => void this.plugin.activateDiscoverView(),
       },

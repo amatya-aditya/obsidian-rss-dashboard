@@ -35,9 +35,6 @@ import {
   type ShardFolderDeletionError,
 } from "../../services/feed-storage-repository";
 
-const VAULT_METADATA_IMPORT_WARNING =
-  "Known issue: with metadata in a vault folder, an import can be lost if Obsidian closes before anything else is saved. After importing, change a setting or mark an article as read before closing.";
-
 interface StorageSettingsPlugin {
   app: App;
   settingTab: { display(): void } | null;
@@ -227,6 +224,14 @@ export function renderStorageSettingsTab(
     return trashVaultFile(plugin.app, dataFilePath);
   };
 
+  const getPreviousMetadataCopyPaths = (dataFilePath: string): string[] => {
+    const paths = [dataFilePath];
+    if (plugin.settings.storageMode === "vault-shards-v2") {
+      paths.push(dataFilePath.replace(/\/data\.json$/i, "/user-state.json"));
+    }
+    return paths;
+  };
+
   const maybeOfferMetadataCleanup = async (
     previousDataFilePath: string | null,
   ): Promise<void> => {
@@ -238,12 +243,21 @@ export function renderStorageSettingsTab(
     }
     // The previous copy may sit in a dot-prefixed folder the vault index
     // leaves out, so check the disk rather than the index.
-    if (!(await vaultFileExists(plugin.app, previousDataFilePath))) {
+    const previousMetadataPaths = getPreviousMetadataCopyPaths(
+      previousDataFilePath,
+    );
+    const existingPaths: string[] = [];
+    for (const path of previousMetadataPaths) {
+      if (await vaultFileExists(plugin.app, path)) {
+        existingPaths.push(path);
+      }
+    }
+    if (existingPaths.length === 0) {
       return;
     }
 
     const cleanupModal = new MetadataCleanupModal(plugin.app, {
-      previousLocationLabel: previousDataFilePath,
+      previousLocationLabel: previousDataFilePath.replace(/\/data\.json$/i, ""),
     });
     cleanupModal.open();
     const cleanupAction: MetadataCleanupAction =
@@ -253,20 +267,21 @@ export function renderStorageSettingsTab(
       return;
     }
 
-    try {
-      const deleted = await deleteMetadataFileAtPath(previousDataFilePath);
-      if (deleted) {
-        new Notice("Previous metadata data.json copy deleted.");
+    let cleanupFailed = false;
+    for (const path of existingPaths) {
+      try {
+        await deleteMetadataFileAtPath(path);
+      } catch (error) {
+        cleanupFailed = true;
+        storageError("Failed to delete previous metadata copy", error, {
+          path,
+        });
       }
-    } catch (error) {
-      storageError("Failed to delete previous metadata copy", error, {
-        previousDataFilePath,
-      });
-      new Notice(
-        `Failed to delete previous metadata copy${
-          error instanceof Error ? `: ${error.message}` : ""
-        }`,
-      );
+    }
+    if (cleanupFailed) {
+      new Notice("Failed to delete one or more previous metadata files.");
+    } else {
+      new Notice("Previous metadata files deleted.");
     }
   };
 
@@ -313,9 +328,6 @@ export function renderStorageSettingsTab(
       lastSavedMetadataStorageFolder = nextFolder;
       pendingMetadataStorageFolder = nextFolder;
       await maybeOfferMetadataCleanup(previousDataFilePath);
-      // Known issue #474: in a vault folder, a bundle import is saved only
-      // to the plugin folder until the next settings save.
-      new Notice(VAULT_METADATA_IMPORT_WARNING, 15000);
     } catch (error) {
       plugin.settings.metadataStorageMode = previousMode;
       plugin.settings.metadataStorageFolder = previousFolder;
@@ -834,7 +846,7 @@ export function renderStorageSettingsTab(
   new Setting(containerEl)
     .setName("Metadata data.json location")
     .setDesc(
-      "Optional vault folder for metadata data.json. Leave empty to keep metadata in the plugin directory. Shard storage v2 keeps article state (user-state.json) in this folder either way, so remove any '.' prefix for Obsidian sync to carry it to other devices.",
+      "Optional vault folder for metadata data.json. Leave empty to keep metadata in the plugin folder. Shard storage v2 keeps article state (user-state.json) in this folder too. After a location change, you can delete the previous data.json and, in v2, user-state.json, or keep them as a backup. Outside v2, an orphaned user-state.json is kept as a backup. Use a folder without a '.' prefix for Obsidian Sync.",
     )
     .addText((text) => {
       // Show the folder user-state.json is actually in: a fresh install
