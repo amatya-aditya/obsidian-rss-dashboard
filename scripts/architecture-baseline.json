@@ -8,7 +8,7 @@
       "main.ts": 2295,
       "src/components/sidebar.ts": 4603,
       "src/services/feed-storage-repository.ts": 1361,
-      "src/views/dashboard-view.ts": 4217,
+      "src/views/dashboard-view.ts": 4175,
       "src/views/reader-view.ts": 3453
     },
     "allowedMainImporters": [
