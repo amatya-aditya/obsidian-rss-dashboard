@@ -45,8 +45,6 @@ import {
 import { ReaderView, RSS_READER_VIEW_TYPE } from "./src/views/reader-view";
 import {
   FeedParser,
-  applyFeedRetentionLimits,
-  formatFeedParseNoticeMessage,
 } from "./src/services/feed-parser";
 import { ArticleSaver } from "./src/services/article-saver";
 import { BackupService } from "./src/services/backup-service";
@@ -72,13 +70,13 @@ import type { ExportBlobResult } from "./src/utils/export-utils";
 import { BackgroundImportService } from "./src/services/background-import-service";
 import { FeedRefreshScheduler } from "./src/services/feed-refresh-scheduler";
 import { OpmlManager } from "./src/services/opml-manager";
-import { MediaService } from "./src/services/media-service";
 import { PreviewImageCache } from "./src/services/preview-image-cache";
 import { FeedOperationTracker } from "./src/services/feed-operation-tracker";
 import {
   FeedRefreshRunner,
   type FeedRefreshIntent,
 } from "./src/services/feed-refresh-runner";
+import { FeedSubscriptionService } from "./src/services/feed-subscription-service";
 import { SettingsImportApplier } from "./src/services/settings-import-applier";
 
 import { ImportOpmlModal } from "./src/modals/import-opml-modal";
@@ -313,6 +311,7 @@ export default class RssDashboardPlugin extends Plugin {
   private readonly feedOperationTracker: FeedOperationTracker;
   private readonly previewImageCache: PreviewImageCache;
   private readonly feedRefreshRunner: FeedRefreshRunner;
+  private readonly feedSubscriptionService: FeedSubscriptionService;
   private readonly settingsImportApplier: SettingsImportApplier;
 
   constructor(app: App, manifest: ConstructorParameters<typeof Plugin>[1]) {
@@ -361,6 +360,16 @@ export default class RssDashboardPlugin extends Plugin {
       getActiveDashboardView: () => this.getActiveDashboardView(),
       refreshFeeds: (selectedFeeds, intent) =>
         this.refreshFeeds(selectedFeeds, intent),
+    });
+    this.feedSubscriptionService = new FeedSubscriptionService({
+      feedOperationTracker: this.feedOperationTracker,
+      previewImageCache: this.previewImageCache,
+      getSettings: () => this.settings,
+      getFeedParser: () => this.feedParser,
+      saveSettings: () => this.saveSettings(),
+      ensureFolderExists: (folderPath, options) =>
+        this.ensureFolderExists(folderPath, options),
+      getActiveDashboardView: () => this.getActiveDashboardView(),
     });
     this.settingsImportApplier = new SettingsImportApplier({
       getSettings: () => this.settings,
@@ -1507,44 +1516,8 @@ export default class RssDashboardPlugin extends Plugin {
    * Apply feed limits (maxItemsLimit and autoDeleteDuration) to all feeds
    * This is useful when users want to apply their current settings to existing feeds
    */
-  async applyFeedLimitsToAllFeeds() {
-    try {
-      let updatedCount = 0;
-
-      for (const feed of this.settings.feeds) {
-        const originalCount = feed.items.length;
-        const updated = applyFeedRetentionLimits(feed, {
-          protections: {
-            protectStarred: this.settings.protectStarred,
-            protectSaved: this.settings.protectSaved,
-            protectTagged: this.settings.protectTagged,
-            protectUnread: this.settings.protectUnread,
-          },
-          useFirstSeenDateFallback: this.settings.useFirstSeenDateFallback,
-        });
-        feed.items = updated.items;
-
-        if (feed.items.length !== originalCount) {
-          updatedCount++;
-        }
-      }
-
-      await this.saveSettings();
-      const view = await this.getActiveDashboardView();
-      if (view) {
-        view.refresh();
-      }
-
-      if (updatedCount > 0) {
-        new Notice(`Applied limits to ${updatedCount} feeds`);
-      } else {
-        new Notice("No feeds needed limit adjustments");
-      }
-    } catch (error) {
-      new Notice(
-        `Error applying feed limits: ${error instanceof Error ? error.message : "Unknown error"}`,
-      );
-    }
+  applyFeedLimitsToAllFeeds(): Promise<void> {
+    return this.feedSubscriptionService.applyFeedLimitsToAllFeeds();
   }
 
   refreshSelectedFeed(feed: Feed): Promise<void> {
@@ -2151,7 +2124,7 @@ export default class RssDashboardPlugin extends Plugin {
 
   // ✅ FolderService extracted — all 865 tests passing
 
-  async addFeed(
+  addFeed(
     title: string,
     url: string,
     folder: string,
@@ -2167,210 +2140,44 @@ export default class RssDashboardPlugin extends Plugin {
       feedEncoding?: FeedEncoding;
       globalOperation?: boolean;
     },
-  ) {
-    const showNotice = options?.showNotice !== false;
-    try {
-      if (this.settings.feeds.some((f) => f.url === url)) {
-        if (showNotice) {
-          new Notice("This feed URL already exists");
-        }
-        return false;
-      }
-
-      let mediaType: "article" | "video" | "podcast" = "article";
-      if (folder === this.settings.media.defaultYouTubeFolder) {
-        mediaType = "video";
-      } else if (folder === this.settings.media.defaultPodcastFolder) {
-        mediaType = "podcast";
-      }
-
-      const newFeed: Feed = {
-        title,
-        url,
-        folder,
-        items: [],
-        lastUpdated: Date.now(),
-        autoDeleteDuration:
-          typeof autoDeleteDuration === "number"
-            ? autoDeleteDuration
-            : this.settings.defaultAutoDeleteDuration,
-        maxItemsLimit:
-          typeof maxItemsLimit === "number"
-            ? maxItemsLimit
-            : this.settings.maxItems,
-        scanInterval: typeof scanInterval === "number" ? scanInterval : 0,
-        excludeFromRefresh: excludeFromRefresh === true,
-        mediaType: mediaType,
-        customTemplate: customTemplate || undefined,
-        customTags:
-          Array.isArray(customTags) && customTags.length > 0
-            ? [...customTags]
-            : undefined,
-        feedEncoding:
-          options?.feedEncoding === "windows-1251"
-            ? options.feedEncoding
-            : undefined,
-        keywordRules: feedKeywordRules || {
-          overrideGlobalRules: false,
-          includeLogic: "AND",
-          rules: [],
-        },
-      };
-
-      const operationSignal = options?.globalOperation
-        ? this.feedOperationTracker.begin(1)
-        : null;
-      if (options?.globalOperation && !operationSignal) {
-        return false;
-      }
-
-      // Try to parse the feed BEFORE adding it to settings
-      try {
-        const parsedFeed = await this.feedParser.parseFeed(url, newFeed, {
-          allowEmpty: true,
-          signal: operationSignal ?? undefined,
-        });
-        if (operationSignal?.aborted || this.feedOperationTracker.isCancelled) {
-          return false;
-        }
-        const feedToStore: Feed = {
-          ...newFeed,
-          ...parsedFeed,
-          autoDeleteDuration:
-            typeof parsedFeed.autoDeleteDuration === "number"
-              ? parsedFeed.autoDeleteDuration
-              : newFeed.autoDeleteDuration,
-          maxItemsLimit:
-            typeof parsedFeed.maxItemsLimit === "number"
-              ? parsedFeed.maxItemsLimit
-              : newFeed.maxItemsLimit,
-          scanInterval:
-            typeof parsedFeed.scanInterval === "number"
-              ? parsedFeed.scanInterval
-              : newFeed.scanInterval,
-          excludeFromRefresh:
-            parsedFeed.excludeFromRefresh ?? newFeed.excludeFromRefresh,
-          customTemplate: parsedFeed.customTemplate ?? newFeed.customTemplate,
-          customTags: parsedFeed.customTags ?? newFeed.customTags,
-          keywordRules: parsedFeed.keywordRules ?? newFeed.keywordRules,
-        };
-        if (feedToStore.folder) {
-          await this.ensureFolderExists(feedToStore.folder, {
-            saveSettings: false,
-            refreshView: false,
-          });
-        }
-
-        // Re-apply tags after ensureFolderExists so folder auto-tags resolve
-        // against the current folder tree (parseFeed also tags, but may run
-        // before missing folder paths are created).
-        const feedWithTags = MediaService.applyMediaTags(
-          feedToStore,
-          this.settings.availableTags,
-          this.settings.media,
-          this.settings.folders,
-        );
-
-        // Only add to settings if parsing succeeded
-        this.settings.feeds.push(feedWithTags);
-        await this.saveSettings();
-        this.previewImageCache.warmFeed(feedWithTags);
-
-        const view = await this.getActiveDashboardView();
-        if (view) {
-          void view.refresh();
-        }
-        if (showNotice) {
-          new Notice(`Feed "${title}" added`);
-        }
-        return true;
-      } catch (error) {
-        if (showNotice) {
-          new Notice(formatFeedParseNoticeMessage(error));
-        }
-        return false;
-      } finally {
-        if (operationSignal) {
-          await this.feedOperationTracker.end();
-        }
-      }
-    } catch (error) {
-      if (showNotice) {
-        new Notice(
-          `Error adding feed: ${error instanceof Error ? error.message : "Unknown error"}`,
-        );
-      }
-      return false;
-    }
-  }
-
-  async addSubfolder(parentFolderName: string, subfolderName: string) {
-    const parentFolder = this.settings.folders.find(
-      (f) => f.name === parentFolderName,
+  ): Promise<boolean> {
+    return this.feedSubscriptionService.addFeed(
+      title,
+      url,
+      folder,
+      autoDeleteDuration,
+      maxItemsLimit,
+      scanInterval,
+      feedKeywordRules,
+      customTemplate,
+      excludeFromRefresh,
+      customTags,
+      options,
     );
-
-    if (parentFolder) {
-      if (!parentFolder.subfolders.some((sf) => sf.name === subfolderName)) {
-        parentFolder.subfolders.push({
-          name: subfolderName,
-          subfolders: [],
-        });
-
-        await this.saveSettings();
-
-        const view = await this.getActiveDashboardView();
-        if (view) {
-          void view.refresh();
-          new Notice(
-            `Subfolder "${subfolderName}" created under "${parentFolderName}"`,
-          );
-        }
-      } else {
-        new Notice(
-          `Subfolder "${subfolderName}" already exists in "${parentFolderName}"`,
-        );
-      }
-    }
   }
 
-  async editFeed(
+  addSubfolder(
+    parentFolderName: string,
+    subfolderName: string,
+  ): Promise<void> {
+    return this.feedSubscriptionService.addSubfolder(
+      parentFolderName,
+      subfolderName,
+    );
+  }
+
+  editFeed(
     feed: Feed,
     newTitle: string,
     newUrl: string,
     newFolder: string,
-  ) {
-    if (newFolder) {
-      await this.ensureFolderExists(newFolder, {
-        saveSettings: false,
-        refreshView: false,
-      });
-    }
-
-    const oldTitle = feed.title;
-    const oldUrl = feed.url;
-    feed.title = newTitle;
-    feed.url = newUrl;
-    feed.folder = newFolder;
-
-    if (oldUrl !== newUrl) {
-      feed.lastRefreshAttemptCompletedAt = 0;
-      feed.lastFetchError = undefined;
-    }
-
-    // Update feedTitle for all articles in this feed when the title changes
-    if (oldTitle !== newTitle) {
-      for (const item of feed.items) {
-        item.feedTitle = newTitle;
-      }
-    }
-
-    await this.saveSettings();
-
-    const view = await this.getActiveDashboardView();
-    if (view) {
-      void view.refresh();
-      new Notice(`Feed "${newTitle}" updated`);
-    }
+  ): Promise<void> {
+    return this.feedSubscriptionService.editFeed(
+      feed,
+      newTitle,
+      newUrl,
+      newFolder,
+    );
   }
 
   async loadSettings() {
