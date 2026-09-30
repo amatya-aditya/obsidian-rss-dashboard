@@ -49,7 +49,10 @@ import {
   shouldUseMobileSidebarLayout,
   setCssProps,
 } from "../utils/platform-utils";
-import { formatDashboardMultiFiltersTitle } from "../utils/filter-title-format";
+import {
+  formatArticlesTitle,
+  formatDashboardMultiFiltersTitle,
+} from "../utils/filter-title-format";
 import { computePagination } from "../utils/pagination-utils";
 import { removeFolderByPath } from "../utils/folder-tree";
 import { findSelectedAncestorFolder } from "../utils/folder-paths";
@@ -1543,60 +1546,15 @@ export class RssDashboardView extends ItemView {
   }
 
   private getArticlesTitle(): string {
-    if (this.currentFeed) {
-      return this.currentFeed.title;
-    } else if (this.currentFolder === "starred") {
-      return "Starred items";
-    } else if (this.currentFolder === "unread") {
-      return "Unread items";
-    } else if (this.currentFolder === "read") {
-      return "Read items";
-    } else if (this.currentFolder === "saved") {
-      return "Saved items";
-    } else if (this.currentFolder === "videos") {
-      return "Videos";
-    } else if (this.currentFolder === "podcasts") {
-      return "Podcasts";
-    } else if (this.selectedTags.length > 0) {
-      const mode = (this.settings.sidebarTagFilterMode || "or").toUpperCase();
-      const tagsPart = `Tags (${mode}): ${this.selectedTags.join(", ")}`;
-      if (
-        (this.selectedFolders && this.selectedFolders.length > 0) ||
-        (this.selectedFeeds && this.selectedFeeds.length > 0)
-      ) {
-        // Combine folders/feeds and tags when both are active
-        const parts = [];
-        const totalFeeds = this.getTotalFeedsInSelection();
-        if (this.selectedFolders && this.selectedFolders.length > 0) {
-          parts.push(
-            `Folders: ${this.selectedFolders.join(", ")} (Feeds: ${totalFeeds})`,
-          );
-        } else {
-          parts.push(`${totalFeeds} feeds`);
-        }
-        const selectionPart = parts.join(" & ");
-        return `${selectionPart} & ${tagsPart}`;
-      }
-      return tagsPart;
-    } else if (
-      (this.selectedFolders && this.selectedFolders.length > 0) ||
-      (this.selectedFeeds && this.selectedFeeds.length > 0)
-    ) {
-      const totalFeeds = this.getTotalFeedsInSelection();
-      const parts = [];
-      if (this.selectedFolders && this.selectedFolders.length > 0) {
-        parts.push(
-          `Folders: ${this.selectedFolders.join(", ")} (Feeds: ${totalFeeds})`,
-        );
-      } else {
-        parts.push(`${totalFeeds} feeds`);
-      }
-      return parts.join(" & ");
-    } else if (this.currentFolder) {
-      return this.currentFolder;
-    } else {
-      return "All articles";
-    }
+    return formatArticlesTitle({
+      currentFeedTitle: this.currentFeed ? this.currentFeed.title : null,
+      currentFolder: this.currentFolder,
+      selectedTags: this.selectedTags,
+      selectedFolders: this.selectedFolders,
+      selectedFeeds: this.selectedFeeds,
+      tagFilterMode: this.settings.sidebarTagFilterMode,
+      getTotalFeedsInSelection: () => this.getTotalFeedsInSelection(),
+    });
   }
 
   private getArticlesTitleInfo(): { title: string; tooltip: string | null } {
