@@ -18,7 +18,7 @@ Before a meaningful implementation change, identify:
 - the module that owns the behavior and the files likely to change;
 - whether the change introduces a new responsibility or crosses an existing seam;
 - whether a touched file is ratcheted, or a touched function is suppressed in
-  `eslint-suppressions.json`;
+  `scripts/eslint-suppressions.json`;
 - whether the change adds coupling, a runtime cycle, or an import of `main.ts`;
 - whether any `main.ts` change is composition/delegation or implementation.
 
@@ -65,15 +65,22 @@ them.
 ### ESLint suppressions
 
 Functions that already broke the length or complexity limit when the rules
-were introduced are recorded in `eslint-suppressions.json`, as a count per
-file and rule. ESLint reads it automatically. A new violation in any file
-fails lint; so does one more violation in a file that already has
-suppressions.
+were introduced are recorded in `scripts/eslint-suppressions.json`, as a
+count per file and rule. `npm run lint` passes it with
+`--suppressions-location`. A new violation in any file fails lint; so does one
+more violation in a file that already has suppressions.
+
+The file stays out of the repo root on purpose. The Obsidian community
+directory scanner lints the default branch without loading
+`eslint.config.mjs`, so it never runs these two rules. A root
+`eslint-suppressions.json`, which ESLint loads automatically, would look
+entirely unused to it, and the scanner rejects the release and delists the
+plugin.
 
 After a refactor removes a violation, prune the file in the same PR:
 
 ```bash
-npx eslint . --prune-suppressions
+npm run lint:prune
 ```
 
 Never add suppressions by hand or with `--suppress-all` or `--suppress-rule`
@@ -134,7 +141,7 @@ ticket names each over-limit function and its planned split up front.
 Both go in the wiring commit. Lower the file's entry in
 `scripts/architecture-baseline.json` to the count `npm run check:architecture`
 reports, which runs one more than `wc -l`. Then run
-`npx eslint . --prune-suppressions` and confirm it touched only the target
+`npm run lint:prune` and confirm it touched only the target
 file's entries.
 
 ## Exceptions
