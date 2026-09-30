@@ -51,6 +51,7 @@ import {
 import { formatDashboardMultiFiltersTitle } from "../utils/filter-title-format";
 import { computePagination } from "../utils/pagination-utils";
 import { removeFolderByPath } from "../utils/folder-tree";
+import { findSelectedAncestorFolder } from "../utils/folder-paths";
 import { applyAutomaticArticleTags } from "../utils/tag-utils";
 import { resolveItemExternalUrl } from "../utils/item-url-utils";
 import { buildArticleEmptyStateContext } from "../utils/filter-detection";
@@ -2016,26 +2017,23 @@ export class RssDashboardView extends ItemView {
 
   private handleFeedClick(feed: Feed, e?: MouseEvent): void {
     if (e && (Platform.isMacOS ? e.metaKey : e.ctrlKey)) {
-      // Ctrl/Meta + Click logic for multi-selection toggle
-      const isExplicitlySelected = this.selectedFeeds.includes(feed.url);
-
-      let parentFolderIsSelected = false;
-      let selectedParentFolder: string | null = null;
-      if (feed.folder) {
-        let current = feed.folder;
-        while (current) {
-          if (this.selectedFolders.includes(current)) {
-            parentFolderIsSelected = true;
-            selectedParentFolder = current;
-            break;
-          }
-          if (current.includes("/")) {
-            current = current.substring(0, current.lastIndexOf("/"));
-          } else {
-            break;
-          }
-        }
+      // Ctrl/Meta + Click logic for multi-selection toggle. A real folder
+      // opened with a plain click (not a view such as Starred) seeds the
+      // selection, so the click adds to it instead of replacing it.
+      if (
+        this.currentFolder &&
+        this.findFolderByPath(this.currentFolder) &&
+        this.selectedFolders.length === 0 &&
+        this.selectedFeeds.length === 0
+      ) {
+        this.selectedFolders = [this.currentFolder];
       }
+      const isExplicitlySelected = this.selectedFeeds.includes(feed.url);
+      const selectedParentFolder = findSelectedAncestorFolder(
+        feed.folder,
+        this.selectedFolders,
+      );
+      const parentFolderIsSelected = selectedParentFolder !== null;
 
       const isSelected = isExplicitlySelected || parentFolderIsSelected;
 
