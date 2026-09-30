@@ -294,13 +294,12 @@ describe("Dashboard getArticlesTitle characterization", () => {
       expect(view.getArticlesTitle()).toBe("2 feeds & Tags (OR): a");
     });
 
-    it("says '1 feeds' for a single selected feed", () => {
+    it("says '1 feed' for a single selected feed", () => {
       const { view } = createView();
       view.selectedTags = ["a"];
       view.selectedFeeds = [ROOT_ONE];
 
-      // BUG: pinned, see #582
-      expect(view.getArticlesTitle()).toBe("1 feeds & Tags (OR): a");
+      expect(view.getArticlesTitle()).toBe("1 feed & Tags (OR): a");
     });
 
     it("counts selected feeds in the folder total without naming them", () => {
@@ -379,20 +378,18 @@ describe("Dashboard getArticlesTitle characterization", () => {
       expect(view.getArticlesTitle()).toBe("3 feeds");
     });
 
-    it("says '1 feeds' for a single selected feed", () => {
+    it("says '1 feed' for a single selected feed", () => {
       const { view } = createView();
       view.selectedFeeds = [ROOT_ONE];
 
-      // BUG: pinned, see #582
-      expect(view.getArticlesTitle()).toBe("1 feeds");
+      expect(view.getArticlesTitle()).toBe("1 feed");
     });
 
     it("counts a selected feed URL that matches no feed", () => {
       const { view } = createView();
       view.selectedFeeds = ["https://unknown.example/feed"];
 
-      // BUG: pinned, see #582
-      expect(view.getArticlesTitle()).toBe("1 feeds");
+      expect(view.getArticlesTitle()).toBe("1 feed");
     });
 
     it("treats empty selections as no selection", () => {

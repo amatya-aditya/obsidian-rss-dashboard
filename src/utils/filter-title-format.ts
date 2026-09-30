@@ -215,6 +215,10 @@ function getSpecialFolderTitle(currentFolder: string | null): string | null {
   return null;
 }
 
+function formatFeedCount(totalFeeds: number): string {
+  return totalFeeds === 1 ? "1 feed" : `${totalFeeds} feeds`;
+}
+
 function formatTagSelectionTitle(input: ArticlesTitleInput): string {
   const mode = (input.tagFilterMode || "or").toUpperCase();
   const tagsPart = `Tags (${mode}): ${input.selectedTags.join(", ")}`;
@@ -230,7 +234,7 @@ function formatTagSelectionTitle(input: ArticlesTitleInput): string {
         `Folders: ${input.selectedFolders.join(", ")} (Feeds: ${totalFeeds})`,
       );
     } else {
-      parts.push(`${totalFeeds} feeds`);
+      parts.push(formatFeedCount(totalFeeds));
     }
     const selectionPart = parts.join(" & ");
     return `${selectionPart} & ${tagsPart}`;
@@ -246,7 +250,7 @@ function formatFolderFeedSelectionTitle(input: ArticlesTitleInput): string {
       `Folders: ${input.selectedFolders.join(", ")} (Feeds: ${totalFeeds})`,
     );
   } else {
-    parts.push(`${totalFeeds} feeds`);
+    parts.push(formatFeedCount(totalFeeds));
   }
   return parts.join(" & ");
 }

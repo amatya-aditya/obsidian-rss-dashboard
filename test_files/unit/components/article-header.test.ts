@@ -417,4 +417,74 @@ describe("ArticleHeader Component", () => {
       })
     );
   });
+
+  describe("title tooltip", () => {
+    function createHeader(tooltip: string | null): ArticleHeader {
+      return new ArticleHeader(
+        container,
+        settings,
+        "All Unread articles",
+        tooltip,
+        null,
+        new Set(),
+        new Set(),
+        "OR",
+        mockCallbacks,
+      );
+    }
+
+    function getTitleEl(): HTMLElement {
+      return container.querySelector(
+        ".rss-dashboard-articles-title",
+      ) as HTMLElement;
+    }
+
+    it("draws the first-render tooltip from aria-label, with no title attribute", () => {
+      createHeader("Active filters (OR): Unread").render();
+
+      const titleEl = getTitleEl();
+      expect(titleEl.getAttribute("aria-label")).toBe(
+        "Active filters (OR): Unread",
+      );
+      // A title attribute would add a second, browser-drawn popup.
+      expect(titleEl.hasAttribute("title")).toBe(false);
+    });
+
+    it("renders no tooltip attributes when there is no tooltip", () => {
+      createHeader(null).render();
+
+      const titleEl = getTitleEl();
+      expect(titleEl.hasAttribute("aria-label")).toBe(false);
+      expect(titleEl.hasAttribute("title")).toBe(false);
+    });
+
+    it("replaces the tooltip and text on update without leaving a stale title", () => {
+      const header = createHeader("Active filters (OR): Unread");
+      header.render();
+
+      header.updateTitle(
+        "All Unread or Starred articles",
+        "Active filters (OR): Unread, Starred",
+      );
+
+      const titleEl = getTitleEl();
+      expect(titleEl.textContent).toBe("All Unread or Starred articles");
+      expect(titleEl.getAttribute("aria-label")).toBe(
+        "Active filters (OR): Unread, Starred",
+      );
+      expect(titleEl.hasAttribute("title")).toBe(false);
+    });
+
+    it("clears the tooltip when an update has none", () => {
+      const header = createHeader("Active filters (OR): Unread");
+      header.render();
+
+      header.updateTitle("All articles", null);
+
+      const titleEl = getTitleEl();
+      expect(titleEl.textContent).toBe("All articles");
+      expect(titleEl.hasAttribute("aria-label")).toBe(false);
+      expect(titleEl.hasAttribute("title")).toBe(false);
+    });
+  });
 });
