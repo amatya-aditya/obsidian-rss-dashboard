@@ -914,13 +914,12 @@ describe("feed subscription: applyFeedLimitsToAllFeeds", () => {
     expect(harness.events).toEqual(["save", "refresh", "notice: Applied limits to 2 feeds"]);
   });
 
-  it("says 1 feeds for a single trimmed feed", async () => {
+  it("uses singular feed for one trimmed feed", async () => {
     const harness = createHarness([feedOfArticles("a", 4)]);
 
     await harness.plugin.applyFeedLimitsToAllFeeds();
 
-    // BUG: pinned, see #556
-    expect(notices(harness)).toEqual(["Applied limits to 1 feeds"]);
+    expect(notices(harness)).toEqual(["Applied limits to 1 feed"]);
   });
 
   it("still saves and redraws when nothing needs trimming, and says so", async () => {
@@ -941,7 +940,7 @@ describe("feed subscription: applyFeedLimitsToAllFeeds", () => {
 
     await harness.plugin.applyFeedLimitsToAllFeeds();
 
-    expect(harness.events).toEqual(["save", "notice: Applied limits to 1 feeds"]);
+    expect(harness.events).toEqual(["save", "notice: Applied limits to 1 feed"]);
   });
 
   it("reports a failing save, with the articles already trimmed in memory", async () => {

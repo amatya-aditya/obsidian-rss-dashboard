@@ -102,7 +102,8 @@ export class FeedSubscriptionService {
       }
 
       if (updatedCount > 0) {
-        new Notice(`Applied limits to ${updatedCount} feeds`);
+        const feedLabel = updatedCount === 1 ? "feed" : "feeds";
+        new Notice(`Applied limits to ${updatedCount} ${feedLabel}`);
       } else {
         new Notice("No feeds needed limit adjustments");
       }
