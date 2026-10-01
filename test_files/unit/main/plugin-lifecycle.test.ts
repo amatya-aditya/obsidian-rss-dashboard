@@ -1094,6 +1094,39 @@ describe("onload() initialization", () => {
     expect(duplicateGuidItem.saved).toBe(false);
     expect(readerItem.feedUrl).toBe(currentFeedUrl);
   });
+
+  it("persists a Reader save to the item's own feed when two feeds share a GUID and link", async () => {
+    const make = (feedUrl: string): FeedItem => ({
+      guid: "shared",
+      title: "Cross-posted",
+      link: "https://example.com/shared",
+      description: "",
+      pubDate: "2024-01-01T00:00:00.000Z",
+      read: false,
+      starred: false,
+      saved: false,
+      tags: [],
+      feedTitle: "Feed",
+      feedUrl,
+      coverImage: "",
+    });
+    const first = make("https://a.example.com/feed.xml");
+    const second = make("https://b.example.com/feed.xml");
+    plugin.settings.feeds = [
+      { title: "A", url: first.feedUrl, folder: "", items: [first] } as Feed,
+      { title: "B", url: second.feedUrl, folder: "", items: [second] } as Feed,
+    ];
+
+    await (plugin as unknown as PluginPrivateAPI).onArticleSaved({
+      ...second,
+      saved: true,
+      savedFilePath: "Articles/Cross-posted.md",
+    });
+
+    expect(second.saved).toBe(true);
+    expect(second.savedFilePath).toBe("Articles/Cross-posted.md");
+    expect(first.saved).toBe(false);
+  });
 });
 
 describe("URI add-feed handling", () => {

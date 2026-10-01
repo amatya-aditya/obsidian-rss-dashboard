@@ -824,6 +824,16 @@ describe("feed subscription: addSubfolder", () => {
       'notice: Subfolder "World" created under "News/Tech"',
     ]);
   });
+
+  it("finds a top-level folder whose name contains a slash", async () => {
+    const harness = createHarness([], [{ name: "A/B", subfolders: [] }]);
+
+    await harness.plugin.addSubfolder("A/B", "World");
+
+    expect(harness.plugin.settings.folders[0].subfolders).toEqual([
+      { name: "World", subfolders: [] },
+    ]);
+  });
 });
 
 describe("feed subscription: applyFeedLimitsToAllFeeds", () => {

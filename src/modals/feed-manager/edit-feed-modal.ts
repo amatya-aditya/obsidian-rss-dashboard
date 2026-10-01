@@ -1,4 +1,5 @@
 import { Modal, App, Setting, Notice, setIcon } from "obsidian";
+import { syncFeedItemMetadata } from "../../services/stored-article-lookup";
 import type RssDashboardPlugin from "../../../main";
 import type {
   Feed,
@@ -40,25 +41,6 @@ import { getEffectiveDateMs } from "../../services/feed-parser/feed-retention.js
 
 const EMPTY_FEED_VALIDATION_WARNING =
   "Feed validation passed, however no content detected.";
-
-function updateFeedItemMetadata(
-  feed: Feed,
-  oldTitle: string,
-  newTitle: string,
-  oldUrl: string,
-  newUrl: string,
-): void {
-  if (oldTitle === newTitle && oldUrl === newUrl) return;
-
-  for (const item of feed.items) {
-    if (oldTitle !== newTitle) {
-      item.feedTitle = newTitle;
-    }
-    if (oldUrl !== newUrl) {
-      item.feedUrl = newUrl;
-    }
-  }
-}
 
 export interface EditFeedModalOptions {
   expandSection?: "per-feed" | "rules";
@@ -915,12 +897,10 @@ export class EditFeedModal extends Modal {
         this.feed.autoDeleteDuration = this.autoDeleteDuration;
 
         // Keep article metadata aligned when the feed's title or URL changes.
-        updateFeedItemMetadata(
+        syncFeedItemMetadata(
           this.feed,
-          oldTitle,
-          this.title,
-          oldUrl,
-          this.url,
+          { title: oldTitle, url: oldUrl },
+          { title: this.title, url: this.url },
         );
 
         const newMaxItemsLimit = Number.isFinite(this.maxItemsLimit)

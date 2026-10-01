@@ -95,6 +95,7 @@ import {
 } from "./src/release-notes";
 import { migrateSettings } from "./src/utils/settings-loader";
 import { applyAutomaticArticleTags } from "./src/utils/tag-utils";
+import { findStoredArticle } from "./src/services/stored-article-lookup";
 
 export interface FiltersUpdatedEventPayload {
   source: string;
@@ -1223,9 +1224,7 @@ export default class RssDashboardPlugin extends Plugin {
   }
 
   private async onArticleSaved(item: FeedItem): Promise<void> {
-    const guidMatches = this.settings.feeds.flatMap((feed) => feed.items.filter((storedItem) => storedItem.guid === item.guid));
-    const linkMatches = guidMatches.filter((storedItem) => storedItem.link === item.link);
-    const originalItem = linkMatches.length === 1 || guidMatches.length === 1 ? linkMatches[0] ?? guidMatches[0] : undefined;
+    const originalItem = findStoredArticle(this.settings.feeds, item);
     if (!originalItem) return;
 
     item.feedUrl = originalItem.feedUrl;

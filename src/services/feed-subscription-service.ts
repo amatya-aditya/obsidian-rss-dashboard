@@ -1,4 +1,5 @@
 import { Notice } from "obsidian";
+import { syncFeedItemMetadata } from "./stored-article-lookup";
 import type {
   Feed,
   FeedEncoding,
@@ -328,9 +329,12 @@ export class FeedSubscriptionService {
       .map((part) => part.trim())
       .filter((part) => part.length > 0);
     let parentLevel = this.settings.folders;
-    let parentFolder = parentLevel.find((folder) => folder.name === parentParts[0]);
+    let parentFolder =
+      parentLevel.find((folder) => folder.name === parentFolderName) ??
+      parentLevel.find((folder) => folder.name === parentParts[0]);
 
-    for (const part of parentParts.slice(1)) {
+    const exactTopLevel = parentFolder?.name === parentFolderName;
+    for (const part of exactTopLevel ? [] : parentParts.slice(1)) {
       if (!parentFolder) break;
       parentLevel = parentFolder.subfolders;
       parentFolder = parentLevel.find((folder) => folder.name === part);
@@ -385,17 +389,13 @@ export class FeedSubscriptionService {
     if (oldUrl !== newUrl) {
       feed.lastRefreshAttemptCompletedAt = 0;
       feed.lastFetchError = undefined;
-      for (const item of feed.items) {
-        item.feedUrl = newUrl;
-      }
     }
 
-    // Update feedTitle for all articles in this feed when the title changes
-    if (oldTitle !== newTitle) {
-      for (const item of feed.items) {
-        item.feedTitle = newTitle;
-      }
-    }
+    syncFeedItemMetadata(
+      feed,
+      { title: oldTitle, url: oldUrl },
+      { title: newTitle, url: newUrl },
+    );
 
     await this.options.saveSettings();
 
