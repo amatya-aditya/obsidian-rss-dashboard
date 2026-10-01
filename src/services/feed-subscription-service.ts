@@ -40,6 +40,13 @@ export interface FeedSubscriptionServiceOptions {
   getActiveDashboardView: () => Promise<FeedSubscriptionViewLike | null>;
 }
 
+class FeedSettingsSaveError extends Error {
+  constructor(error: unknown) {
+    super(error instanceof Error ? error.message : "Unknown error");
+    this.name = "FeedSettingsSaveError";
+  }
+}
+
 /**
  * Changes which feeds and folders the user subscribes to: adds and edits
  * feeds, creates subfolders, and re-applies the retention limits to every
@@ -151,21 +158,24 @@ export class FeedSubscriptionService {
 
       // Try to parse the feed BEFORE adding it to settings
       try {
-        const parsedFeed = await this.feedParser.parseFeed(url, newFeed, {
-          allowEmpty: true,
-          signal: operationSignal ?? undefined,
-        });
+        let parsedFeed: Feed;
+        try {
+          parsedFeed = await this.feedParser.parseFeed(url, newFeed, {
+            allowEmpty: true,
+            signal: operationSignal ?? undefined,
+          });
+        } catch (error) {
+          if (showNotice) {
+            new Notice(formatFeedParseNoticeMessage(error));
+          }
+          return false;
+        }
         if (operationSignal?.aborted || this.feedOperationTracker.isCancelled) {
           return false;
         }
         const feedToStore = this.mergeParsedFeed(newFeed, parsedFeed);
         await this.storeAddedFeed(feedToStore, title, showNotice);
         return true;
-      } catch (error) {
-        if (showNotice) {
-          new Notice(formatFeedParseNoticeMessage(error));
-        }
-        return false;
       } finally {
         if (operationSignal) {
           await this.feedOperationTracker.end();
@@ -173,9 +183,11 @@ export class FeedSubscriptionService {
       }
     } catch (error) {
       if (showNotice) {
-        new Notice(
-          `Error adding feed: ${error instanceof Error ? error.message : "Unknown error"}`,
-        );
+        const message =
+          error instanceof FeedSettingsSaveError
+            ? `Error saving feed: ${error.message}`
+            : `Error adding feed: ${error instanceof Error ? error.message : "Unknown error"}`;
+        new Notice(message);
       }
       return false;
     }
@@ -284,8 +296,17 @@ export class FeedSubscriptionService {
     );
 
     // Only add to settings if parsing succeeded
-    this.settings.feeds.push(feedWithTags);
-    await this.options.saveSettings();
+    const feeds = this.settings.feeds;
+    feeds.push(feedWithTags);
+    try {
+      await this.options.saveSettings();
+    } catch (error) {
+      const feedIndex = feeds.indexOf(feedWithTags);
+      if (feedIndex !== -1) {
+        feeds.splice(feedIndex, 1);
+      }
+      throw new FeedSettingsSaveError(error);
+    }
     this.previewImageCache.warmFeed(feedWithTags);
 
     const view = await this.options.getActiveDashboardView();
