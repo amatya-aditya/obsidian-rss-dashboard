@@ -212,6 +212,17 @@ describe("ReaderView HTML cleanup helpers (characterization)", () => {
       expect(strip(`<div ${attrs}>Home</div>${LONG}`)).toBe(LONG);
     });
 
+    it("removes a body that is a single nav element", () => {
+      expect(strip("<nav>x</nav>")).toBe("");
+    });
+
+    it.each([
+      ["class", "BreadCrumb-Wrap"],
+      ["id", "BREADCRUMBS"],
+    ])("reads the %s attribute case-insensitively", (attr, value) => {
+      expect(strip(`<div ${attr}="${value}">Home</div>${LONG}`)).toBe(LONG);
+    });
+
     it("matches the breadcrumb word as a substring of a longer token", () => {
       expect(strip(`<div class="mybreadcrumbs-x">Home</div>${LONG}`)).toBe(LONG);
     });
@@ -382,6 +393,16 @@ describe("ReaderView HTML cleanup helpers (characterization)", () => {
       it("keeps a nav that follows a late substantial paragraph", () => {
         const html = `${spans(40)}${para(200)}<nav>x</nav>`;
         expect(strip(html)).toContain("<nav");
+      });
+
+      it("keeps the substantial paragraph itself even when it carries a chrome signal", () => {
+        const html = `${spans(40)}<p class="breadcrumb">${"x".repeat(200)}</p>`;
+        expect(strip(html)).toBe(html);
+      });
+
+      it("trims the paragraph text before measuring it", () => {
+        const padded = `<p>  ${"x".repeat(119)}  </p>`;
+        expect(strip(`${spans(40)}<nav>x</nav>${padded}`)).toContain("<nav");
       });
     });
 
@@ -1249,6 +1270,147 @@ describe("ReaderView HTML cleanup helpers (characterization)", () => {
           `<div class="${"c".repeat(300)}"><img src="${"s".repeat(300)}">short</div>`,
         ),
       ).toBe(false);
+    });
+  });
+
+  describe("whitespace and boundary details", () => {
+    const parseBlock = (html: string): HTMLElement => {
+      const el = parse(html).body.firstElementChild;
+      if (!el) throw new Error("fixture has no element");
+      return el as HTMLElement;
+    };
+    const stripNav = (html: string): string => {
+      const doc = parse(html);
+      c.stripNavigationChromeFromDocument(doc);
+      return bodyOf(doc);
+    };
+    const li = (text: string): string => `<li><a href="/x">${text}</a></li>`;
+
+    it("collapses runs of whitespace before measuring a breadcrumb list's text", () => {
+      const gap = " ".repeat(40);
+      const html = `<ul>${li("a".repeat(30))}${gap}${li("b".repeat(30))}${gap}${li("c".repeat(30))}</ul>${LONG}`;
+      expect(stripNav(html)).toBe(LONG);
+    });
+
+    it("trims a breadcrumb list's text before the 140-character limit", () => {
+      const four = `${li("a".repeat(35))}${li("b".repeat(35))}${li("c".repeat(35))}${li("d".repeat(35))}`;
+      expect(stripNav(`<ul> ${four} </ul>${LONG}`)).toBe(LONG);
+    });
+
+    it("trims and collapses a breadcrumb link's text before the 40-character limit", () => {
+      const padded = `<ul><li><a href="/x"> ${"a".repeat(40)} </a></li><li><a href="/x">\n${"b".repeat(40)}\n</a></li></ul>${LONG}`;
+      expect(stripNav(padded)).toBe(LONG);
+      const gapped = `<ul><li><a href="/x">a${" ".repeat(45)}b</a></li><li><a href="/x">c${" ".repeat(45)}d</a></li></ul>${LONG}`;
+      expect(stripNav(gapped)).toBe(LONG);
+    });
+
+    it("trims and collapses a link-only header's text before the 200-character limit", () => {
+      const sep = " ".repeat(20);
+      const links = `<a href="/1">${"a".repeat(100)}</a>${sep}<a href="/2">${"b".repeat(60)}</a>${sep}<a href="/3">${"c".repeat(37)}</a>`;
+      expect(stripNav(`<header>     ${links}     </header>${LONG}`)).toBe(LONG);
+    });
+
+    it("isAcceptableDisplayTitle collapses and trims before measuring", () => {
+      expect(c.isAcceptableDisplayTitle("a  b   cdefg")).toBe(false);
+      expect(c.isAcceptableDisplayTitle(" a b cdefg ")).toBe(false);
+    });
+
+    it("getNormalizedBlockText reads the block's html, so escaped markup stays text", () => {
+      expect(
+        c.getNormalizedBlockText(parseBlock("<p>&lt;i&gt;Hello&lt;/i&gt;</p>")),
+      ).toBe("<i>hello</i>");
+    });
+
+    it("isLeadMediaBlock finds a figure or picture inside a plain wrapper", () => {
+      expect(c.isLeadMediaBlock(parseBlock("<div><figure></figure></div>"))).toBe(true);
+      expect(c.isLeadMediaBlock(parseBlock("<div><picture></picture></div>"))).toBe(true);
+    });
+
+    it("isShortLeadInBlock is false for a short media wrapper", () => {
+      expect(c.isShortLeadInBlock(parseBlock('<div><img src="a.jpg">cap</div>'))).toBe(false);
+    });
+
+    it("keeps a block equal to a long description when it is the first substantial block", () => {
+      const html = `<p>intro</p>${LONG}`;
+      const doc = parse(html);
+      c.stripDuplicateLeadContentFromDocument(doc, "x".repeat(200));
+      expect(bodyOf(doc)).toBe(html);
+    });
+
+    it("starts removing lead-ins from the block above a description that is itself long", () => {
+      const desc = "d".repeat(90);
+      const doc = parse(`<p>Byline</p><p>${desc}</p>${LONG}`);
+      c.stripDuplicateLeadContentFromDocument(doc, desc);
+      expect(bodyOf(doc)).toBe(LONG);
+    });
+
+    it("does not treat a missing description as the text Z", () => {
+      const html = `<p>Z</p>${LONG}`;
+      const doc = parse(html);
+      c.stripDuplicateLeadContentFromDocument(doc);
+      expect(bodyOf(doc)).toBe(html);
+    });
+
+    it("stripLeadMediaBeforeContent counts 120 characters, not 119 or 121, as substantial", () => {
+      const run = (p: string): string => {
+        const doc = parse(`<img src="a.jpg">${p}`);
+        c.stripLeadMediaBeforeContent(doc);
+        return bodyOf(doc);
+      };
+      expect(run(para(120))).toBe(para(120));
+      expect(run(para(119))).toBe(`<img src="a.jpg">${para(119)}`);
+    });
+
+    it("stripLeadMediaBeforeContent keeps a figure that is itself the first substantial block", () => {
+      const figure = `<figure><img src="b.jpg"><figcaption>${"x".repeat(200)}</figcaption></figure>`;
+      const doc = parse(`<img src="a.jpg">${figure}`);
+      c.stripLeadMediaBeforeContent(doc);
+      expect(bodyOf(doc)).toBe(figure);
+    });
+
+    it("matches skip-link text after trimming leading whitespace", () => {
+      const doc = parse(`<a href="#main">\n  Skip to navigation</a><p>kept</p>`);
+      c.stripSkipLinksFromDocument(doc);
+      expect(bodyOf(doc)).toBe("<p>kept</p>");
+    });
+
+    it("matches a skip id case-insensitively", () => {
+      const doc = parse(`<a href="#x" id="SKIP-MAIN">Go</a><p>kept</p>`);
+      c.stripSkipLinksFromDocument(doc);
+      expect(bodyOf(doc)).toBe("<p>kept</p>");
+    });
+
+    it.each(["credit", "photo", "image", "source"])(
+      "removes a lead paragraph repeating a %s caption, matching case-insensitively",
+      (word) => {
+        const doc = parse(
+          `<figcaption>${word}: Jane</figcaption><p>${word.toUpperCase()}: JANE</p>${LONG}`,
+        );
+        c.stripDuplicateLeadCaptionBlocks(doc);
+        expect(bodyOf(doc)).toBe(LONG);
+      },
+    );
+
+    it("findFirstSubstantialParagraph collapses and trims whitespace", () => {
+      const gappy = parse(`<p>${"x".repeat(60)}${" ".repeat(70)}yyyyy</p>`);
+      expect(c.findFirstSubstantialParagraph(gappy)).toBeNull();
+      const padded = parse(`<p>  ${"x".repeat(119)}  </p>`);
+      expect(c.findFirstSubstantialParagraph(padded)).toBeNull();
+    });
+
+    it("strips a size suffix only when the extension ends the path, for digits too", () => {
+      expect(c.normalizeImageSourceKey("https://x.test/a-300x200.jpg.bak")).toBe(
+        "x.test/a-300x200.jpg.bak",
+      );
+      expect(c.normalizeImageSourceKey("https://x.test/a-300x200.mp4")).toBe(
+        "x.test/a.mp4",
+      );
+      expect(c.normalizeImageSourceKey("http://[bad/a-300x200.jpg.bak")).toBe(
+        "http://[bad/a-300x200.jpg.bak",
+      );
+      expect(c.normalizeImageSourceKey("http://[bad/a-300x200.mp4")).toBe(
+        "http://[bad/a.mp4",
+      );
     });
   });
 
