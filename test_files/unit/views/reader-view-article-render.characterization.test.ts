@@ -418,7 +418,7 @@ describe("ReaderView article rendering (characterization)", () => {
 
       expect(original.saved).toBe(false);
       expect(original.tags).toEqual([otherTag]);
-      // BUG: pinned, see #601 — the feed's copy keeps its savedFilePath; only
+      // BUG: pinned, see #605 — the feed's copy keeps its savedFilePath; only
       // the displayed item's path is cleared.
       expect(original.savedFilePath).toBe("Saved/note.md");
     });
