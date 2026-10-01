@@ -322,7 +322,6 @@ export interface DisplaySettings {
     | "videos"
     | "podcasts";
   hiddenFilters: string[];
-  useDomainFavicons: boolean;
   useDomainIconsPodcast: boolean;
   useDomainIconsMastodon: boolean;
   useDomainIconsRss: boolean;
@@ -843,7 +842,6 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
     mobileListToolbarStyle: "minimal",
     defaultFilter: "all",
     hiddenFilters: [],
-    useDomainFavicons: true,
     useDomainIconsPodcast: false,
     useDomainIconsMastodon: false,
     useDomainIconsRss: false,

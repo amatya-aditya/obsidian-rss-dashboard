@@ -335,8 +335,7 @@ describe("settings store (issue #563)", () => {
     });
 
     describe("the startup save", () => {
-      // BUG: pinned, see #564
-      it("saves on every load, and turns site icons for RSS feeds back on", async () => {
+      it("preserves the saved site-icon preference without saving unchanged settings", async () => {
         const settings = savedSettings();
         settings.display.useDomainIconsRss = false;
         delete (settings.display as unknown as Record<string, unknown>)
@@ -345,32 +344,12 @@ describe("settings store (issue #563)", () => {
 
         await plugin.loadSettings();
 
-        expect(saveData).toHaveBeenCalledTimes(1);
-        expect(plugin.settings.display.useDomainIconsRss).toBe(true);
-        expect(
-          (savedPayloads()[0]?.display as Record<string, unknown>)
-            .useDomainIconsRss,
-        ).toBe(true);
+        expect(saveData).not.toHaveBeenCalled();
+        expect(plugin.settings.display.useDomainIconsRss).toBe(false);
+        expect("useDomainFavicons" in plugin.settings.display).toBe(false);
       });
 
-      // #564 makes every load save. These tests take the legacy flag out of
-      // the defaults, as its fix would, to pin what else decides the save.
-      describe("with the legacy display flag out of the defaults", () => {
-        const display = DEFAULT_SETTINGS.display as unknown as Record<
-          string,
-          unknown
-        >;
-        let legacyFlag: unknown;
-
-        beforeEach(() => {
-          legacyFlag = display.useDomainFavicons;
-          delete display.useDomainFavicons;
-        });
-
-        afterEach(() => {
-          display.useDomainFavicons = legacyFlag;
-        });
-
+      describe("when a load changes settings", () => {
         async function normalizedSettings(
           overrides: Partial<RssDashboardSettings> = {},
         ): Promise<RssDashboardSettings> {
@@ -526,8 +505,8 @@ describe("settings store (issue #563)", () => {
 
         await plugin.loadSettings();
 
-        // Once for the load's own save, once at the end of the load.
-        expect(reschedule).toHaveBeenCalledTimes(2);
+        // The load reschedules once after replacing settings.
+        expect(reschedule).toHaveBeenCalledTimes(1);
       });
 
       // BUG: pinned, see #452
@@ -579,7 +558,7 @@ describe("settings store (issue #563)", () => {
         return { spy, settle };
       }
 
-      it("keeps the newer load's settings, and only it saves, when an older load finishes last", async () => {
+      it("keeps the newer load's settings without saving unchanged data when an older load finishes last", async () => {
         createPlugin(savedSettings({ refreshInterval: 10 }));
         const { spy, settle } = holdHydrations();
 
@@ -594,7 +573,7 @@ describe("settings store (issue #563)", () => {
         await older;
 
         expect(plugin.settings.refreshInterval).toBe(20);
-        expect(savedPayloads().map((p) => p.refreshInterval)).toEqual([20]);
+        expect(savedPayloads()).toEqual([]);
       });
 
       it("blocks saves while a load is still running", async () => {
@@ -987,7 +966,7 @@ describe("settings store (issue #563)", () => {
         expect(watcherReloads()).toBe(1);
       });
 
-      it("finishes the reload, including its save, before redrawing the dashboards", async () => {
+      it("finishes the reload before redrawing the dashboards without saving unchanged settings", async () => {
         const order: string[] = [];
         saveData.mockImplementation(() => {
           order.push("saveData");
@@ -1002,7 +981,7 @@ describe("settings store (issue #563)", () => {
         handlers.modify?.({ path: ".rss-dashboard-data/data.json" });
         await vi.advanceTimersByTimeAsync(1_500);
 
-        expect(order).toEqual(["saveData", "redraw:77"]);
+        expect(order).toEqual(["redraw:77"]);
       });
 
       it("ignores events until exactly the end of a plugin write's suppression window", async () => {
@@ -1085,27 +1064,24 @@ describe("settings store (issue #563)", () => {
         savedSettings(pointer() as Partial<RssDashboardSettings>),
       );
       await start(pointer() as unknown as RssDashboardSettings);
-      // The startup save wrote the vault data.json, which suppresses the
-      // watcher for 3 s.
+      // A settings load without changes must not write data.json or suppress
+      // an external vault update.
       handlers.modify?.({ path: `${VAULT_FOLDER}/data.json` });
-      await vi.advanceTimersByTimeAsync(2_999);
-      expect(watcherReloads()).toBe(0);
-      await vi.advanceTimersByTimeAsync(1);
-
-      handlers.modify?.({ path: ".rss-dashboard-data/data.json" });
-      await vi.advanceTimersByTimeAsync(1_500);
-      expect(watcherReloads()).toBe(0);
-
-      handlers.modify?.({ path: `/${VAULT_FOLDER}/user-state.json` });
       await vi.advanceTimersByTimeAsync(1_500);
       expect(watcherReloads()).toBe(1);
 
-      // That reload's own save suppresses the watcher for 3 s again.
-      await vi.advanceTimersByTimeAsync(3_000);
+      handlers.modify?.({ path: ".rss-dashboard-data/data.json" });
+      await vi.advanceTimersByTimeAsync(1_500);
+      expect(watcherReloads()).toBe(1);
+
+      handlers.modify?.({ path: `/${VAULT_FOLDER}/user-state.json` });
+      await vi.advanceTimersByTimeAsync(1_500);
+      expect(watcherReloads()).toBe(2);
+
       plugin.settings.metadataStorageFolder = "/Elsewhere/";
       handlers.modify?.({ path: "Elsewhere/data.json" });
       await vi.advanceTimersByTimeAsync(1_500);
-      expect(watcherReloads()).toBe(2);
+      expect(watcherReloads()).toBe(3);
     });
 
     it("registers no watcher when the vault has no event API", async () => {
