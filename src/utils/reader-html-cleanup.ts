@@ -319,7 +319,19 @@ export function isLeadMediaBlock(block: HTMLElement): boolean {
 
 export function removeLeadImageElement(imageEl: Element): void {
   const wrapper = imageEl.closest("figure, picture, a");
-  (wrapper || imageEl).remove();
+  const hasOtherText = !!wrapper?.textContent?.trim();
+  const hasOtherMedia =
+    !!wrapper &&
+    Array.from(
+      wrapper.querySelectorAll("img, video, audio, iframe, object, embed, canvas, svg"),
+    ).some((media) => media !== imageEl);
+
+  if (wrapper && !hasOtherText && !hasOtherMedia) {
+    wrapper.remove();
+    return;
+  }
+
+  imageEl.remove();
 }
 
 export function stripSkipLinksFromDocument(doc: Document): void {

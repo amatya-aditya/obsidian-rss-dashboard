@@ -17,6 +17,7 @@ import {
   normalizeSubstackImageUrl,
   normalizeSubstackImageUrlsInDocument,
 } from "../utils/substack-image-url";
+import { removeLeadImageElement } from "../utils/reader-html-cleanup";
 import {
   containsLatexFormulaImage,
   findFirstNonFormulaImage,
@@ -508,7 +509,7 @@ export class ArticleRenderer {
               firstImgSrc &&
               this.isLikelySameImageSource(firstImgSrc, heroUrl)
             ) {
-              this.removeLeadImageElement(firstImg);
+              removeLeadImageElement(firstImg);
             }
           }
         }
@@ -822,11 +823,6 @@ export class ArticleRenderer {
     );
   }
 
-  private removeLeadImageElement(imageEl: Element): void {
-    const wrapper = imageEl.closest("figure, picture, a");
-    (wrapper || imageEl).remove();
-  }
-
   private stripSkipLinksFromDocument(doc: Document): void {
     if (!doc.body) return;
 
@@ -868,7 +864,7 @@ export class ArticleRenderer {
       if (!src) return;
 
       if (this.isLikelySameImageSource(src, heroUrl)) {
-        this.removeLeadImageElement(img);
+        removeLeadImageElement(img);
       }
     });
   }
