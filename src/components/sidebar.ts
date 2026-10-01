@@ -2737,7 +2737,6 @@ export class Sidebar {
 
   public showTagContextMenu(event: MouseEvent, tag: Tag): void {
     const menu = new Menu();
-
     menu.addItem((item: MenuItem) => {
       item
         .setTitle("Edit tag")
@@ -2766,6 +2765,7 @@ export class Sidebar {
 
   private showEditTagModal(tag: Tag): void {
     showEditTagModal({
+      app: this.app,
       settings: this.settings,
       tag,
       onSave: async () => {

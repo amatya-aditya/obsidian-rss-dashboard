@@ -1,10 +1,11 @@
-import { Notice, setIcon } from "obsidian";
+import { type App, Notice, setIcon } from "obsidian";
 import type { FeedItem, RssDashboardSettings, Tag } from "../types/types";
 import { DEFAULT_TAG_COLOR } from "./tag-colors";
 import { showEditTagModal } from "./tag-utils";
 import { windowInstanceOf } from "./platform-utils";
 
 export type TagsDropdownPortalOptions = {
+  app: App;
   anchor: HTMLElement;
   settings: RssDashboardSettings;
   item: FeedItem;
@@ -26,6 +27,7 @@ export function createTagsDropdownPortal(
   options: TagsDropdownPortalOptions,
 ): () => void {
   const {
+    app,
     anchor,
     settings,
     item,
@@ -237,6 +239,7 @@ export function createTagsDropdownPortal(
       e.stopPropagation();
       const previousTag = { ...tag };
       showEditTagModal({
+        app,
         settings,
         tag,
         onSave: async (updatedTag) => {

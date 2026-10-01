@@ -1,4 +1,5 @@
 import { vi } from "vitest";
+import { App } from "obsidian";
 import { ArticleList } from "../../../src/components/article-list";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 import {
@@ -272,5 +273,8 @@ export function createArticleListInstance(
     new Set(),
     new Set(),
     "OR",
+    null,
+    true,
+    new App(),
   );
 }

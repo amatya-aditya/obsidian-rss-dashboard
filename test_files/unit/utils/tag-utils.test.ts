@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { App } from "obsidian";
 import {
   applyAutomaticArticleTags,
   getFolderAutoTags,
@@ -82,10 +83,10 @@ describe("tag-utils.showEditTagModal", () => {
     const tag = settings.availableTags[0];
 
     const onSave = vi.fn().mockResolvedValue(undefined);
-    showEditTagModal({ settings, tag, onSave });
+    showEditTagModal({ app: new App(), settings, tag, onSave });
 
     const modal = document.querySelector<HTMLElement>(
-      ".rss-dashboard-modal",
+      ".rss-dashboard-edit-tag-modal",
     );
     expect(modal).not.toBeNull();
 
@@ -106,7 +107,7 @@ describe("tag-utils.showEditTagModal", () => {
       "[Stub Notice]",
       "Please enter a tag name!",
     );
-    expect(document.querySelector(".rss-dashboard-modal")).not.toBeNull();
+    expect(document.querySelector(".rss-dashboard-edit-tag-modal")).not.toBeNull();
 
     // Duplicate (case-insensitive, and not same tag ref)
     nameInput!.value = "news";
@@ -115,7 +116,7 @@ describe("tag-utils.showEditTagModal", () => {
       "[Stub Notice]",
       "A tag with this name already exists!",
     );
-    expect(document.querySelector(".rss-dashboard-modal")).not.toBeNull();
+    expect(document.querySelector(".rss-dashboard-edit-tag-modal")).not.toBeNull();
 
     // Success
     nameInput!.value = "Technology";
@@ -125,7 +126,7 @@ describe("tag-utils.showEditTagModal", () => {
     expect(onSave).toHaveBeenCalledTimes(1);
     expect(settings.availableTags[0].name).toBe("Technology");
     expect(settings.feeds[0].items[0].tags?.[0].name).toBe("Technology");
-    expect(document.querySelector(".rss-dashboard-modal")).toBeNull();
+    expect(document.querySelector(".rss-dashboard-edit-tag-modal")).toBeNull();
     expect(consoleSpy).toHaveBeenCalledWith(
       "[Stub Notice]",
       'Tag "Technology" updated successfully!',
@@ -138,7 +139,12 @@ describe("tag-utils.showEditTagModal submit button", () => {
     vi.spyOn(console, "debug").mockImplementation(() => {});
     const settings = makeSettings([{ name: "Tech", color: "#111111" }]);
     const onSave = vi.fn().mockResolvedValue(undefined);
-    showEditTagModal({ settings, tag: settings.availableTags[0], onSave });
+    showEditTagModal({
+      app: new App(),
+      settings,
+      tag: settings.availableTags[0],
+      onSave,
+    });
 
     const saveButton = document.querySelector<HTMLButtonElement>(
       "button.rss-dashboard-primary-button",
