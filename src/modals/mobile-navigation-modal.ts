@@ -65,8 +65,14 @@ export class MobileNavigationModal extends Modal {
         this.callbacks.onFolderClick(folder);
         this.close();
       },
-      onFeedClick: (feed) => {
-        this.callbacks.onFeedClick(feed);
+      onFeedClick: (feed, e) => {
+        this.callbacks.onFeedClick(feed, e);
+        // Ctrl/Cmd+click toggles multi-selection, so keep the drawer open and
+        // redraw it (as a folder Ctrl/Cmd+click does) instead of closing.
+        if (e && (Platform.isMacOS ? e.metaKey : e.ctrlKey)) {
+          this.sidebar?.render();
+          return;
+        }
         this.close();
       },
       onTagToggle: (tag: string) => {
