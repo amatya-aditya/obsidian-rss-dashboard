@@ -28,6 +28,7 @@ release/
 CLAUDE.md
 .kilo/
 .claude/
+.worktrees/
 .agent/*
 userdata.json.backup
 feeds.opml.backup
