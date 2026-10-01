@@ -2276,7 +2276,6 @@ export default class RssDashboardPlugin extends Plugin {
     }
   }
 
-
   private async validateSavedArticles(): Promise<void> {
     let updatedCount = 0;
 
