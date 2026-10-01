@@ -30,11 +30,14 @@
 - Fixed preview images no longer being cached after a cached image file was deleted outside the plugin, for example by you or a sync tool, until Obsidian was restarted. Lowering the image cache limit could also fail without saving, and **Clear image cache** said the deleted image could not be removed and kept counting it in the cache size. A cached image file that is already gone now counts as removed. [GH Issue #372](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/372)
 - Fixed YouTube handle URLs such as `https://www.youtube.com/@Fireship` in **Add feed** being reported as Mastodon profiles. The preview status read "Mastodon > RSS auto-discovery" and the feed defaulted to the Mastodon folder. It is now detected as YouTube and defaults to the YouTube folder, while real Mastodon profiles are unchanged. [GH Issue #548](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/548)
 - Fixed Portable data bundle, Feed bundle, and Settings bundle imports, shard migrations, and shard repairs writing metadata to Obsidian's plugin folder instead of the configured vault `data.json` location. These operations now persist where the plugin will read metadata after restart. [GH Issue #474](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/474)
+- Fixed the article list header saying **1 feeds** when exactly one feed is selected. It now says **1 feed**, alone and combined with tags. [GH Issue #582](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/582)
+- Fixed the article list header drawing a second, browser-drawn tooltip on top of Obsidian's when a filter is active. The first render set the tooltip with a `title` attribute, which then went stale after a filter change. It now uses Obsidian's tooltip only. [GH Issue #587](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/587)
 
 ### Developer
 
 - HTML entities in feed text, feed previews, and podcast title lookups are now decoded in one pass by a shared decoder. Text that was escaped twice keeps one level of escaping, and feed previews show named entities such as `&eacute;` as letters.
 - Rich article rendering now keeps a fixed set of HTML tags; other tags are unwrapped and their text is kept.
+- The lint rule against a `title` attribute now also catches one inside a conditional or otherwise nested `attr` value. [GH Issue #587](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/587)
 
 ## 2.7.0 - September 25, 2026
 

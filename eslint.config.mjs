@@ -93,7 +93,7 @@ export default defineConfig([
         },
         {
           selector:
-            "Property[key.name='attr'] > ObjectExpression > Property:matches([key.name='title'], [key.value='title'])",
+            "Property[key.name='attr'] ObjectExpression > Property:matches([key.name='title'], [key.value='title'])",
           message: TITLE_TOOLTIP_MESSAGE,
         },
         {
