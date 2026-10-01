@@ -55,11 +55,15 @@ import { applyFolderSortOrder } from "../utils/sidebar-folder-sort-utils";
 import { renderFeedBadges, renderFeedIcon } from "./sidebar-feed-row";
 import {
   moveFeedsAndInsert,
-  moveFeedsToFolderAppend,
   moveFolder,
   setFolderFeedSortCustom,
   setFolderSortCustom,
 } from "../services/sidebar-ordering-controller";
+import {
+  BATCH_MOVE_SKIPPED_NOTICE,
+  batchMoveFeedsAndFolders,
+  describeBatchMove,
+} from "../services/sidebar-batch-move";
 import {
   attachRefreshStatusDetails,
   showRefreshDetailsPopup,
@@ -2002,89 +2006,26 @@ export class Sidebar {
     feedUrls: string[],
     folderPaths: string[] = [],
   ): void {
-    let movedFeedsCount = 0;
-    let movedFoldersCount = 0;
-    let skippedFoldersCount = 0;
-
-    // 1. Move folders first (if any)
-    for (const folderPath of folderPaths) {
-      if (
-        destinationFolderPath === folderPath ||
-        destinationFolderPath.startsWith(`${folderPath}/`)
-      ) {
-        skippedFoldersCount++;
-        continue;
-      }
-
-      const placement = destinationFolderPath ? "nest" : "rootAppend";
-      const result = moveFolder(this.settings, {
-        draggedPath: folderPath,
-        targetPath: destinationFolderPath,
-        placement,
-      });
-
-      if (result.ok) {
-        movedFoldersCount++;
-      } else {
-        skippedFoldersCount++;
-      }
-    }
-
-    // 2. Move feeds
-    const feedsToMove = feedUrls.filter((url) => {
-      const feed = this.settings.feeds.find((f) => f.url === url);
-      return feed && (feed.folder || "") !== destinationFolderPath;
+    const result = batchMoveFeedsAndFolders(this.settings, {
+      destinationFolderPath,
+      feedUrls,
+      folderPaths,
+      findFolder: (path) => this.findFolderByPath(path),
     });
 
-    if (feedsToMove.length > 0) {
-      const oldFolderPaths = new Set<string>();
-      for (const url of feedsToMove) {
-        const f = this.settings.feeds.find((item) => item.url === url);
-        if (f?.folder) oldFolderPaths.add(f.folder);
-      }
-
-      const result = moveFeedsToFolderAppend(this.settings, {
-        draggedUrls: feedsToMove,
-        destinationFolderPath,
-      });
-
-      if (result.ok) {
-        movedFeedsCount = feedsToMove.length;
-        for (const oldPath of oldFolderPaths) {
-          const oldFolder = this.findFolderByPath(oldPath);
-          if (oldFolder) oldFolder.modifiedAt = Date.now();
-        }
-      } else {
-        new Notice(result.error || "Unable to move feeds.");
-      }
-    }
-
-    if (destinationFolderPath) {
-      const destFolder = this.findFolderByPath(destinationFolderPath);
-      if (destFolder) destFolder.modifiedAt = Date.now();
+    if (result.feedMoveError) {
+      new Notice(result.feedMoveError);
     }
 
     this.clearFolderPathCache();
 
-    if (skippedFoldersCount > 0) {
-      new Notice("Skipped moving folder into itself or its subfolder.");
+    if (result.skippedFolders > 0) {
+      new Notice(BATCH_MOVE_SKIPPED_NOTICE);
     }
 
-    const totalMoved = movedFeedsCount + movedFoldersCount;
-    if (totalMoved > 0) {
-      const destLabel = destinationFolderPath
-        ? `"${destinationFolderPath}"`
-        : "root";
-      const parts: string[] = [];
-      if (movedFeedsCount > 0) {
-        parts.push(`${movedFeedsCount} feed${movedFeedsCount === 1 ? "" : "s"}`);
-      }
-      if (movedFoldersCount > 0) {
-        parts.push(
-          `${movedFoldersCount} folder${movedFoldersCount === 1 ? "" : "s"}`,
-        );
-      }
-      new Notice(`Moved ${parts.join(" and ")} to ${destLabel}`);
+    const summary = describeBatchMove(result, destinationFolderPath);
+    if (summary) {
+      new Notice(summary);
     }
 
     this.options.selectedFeeds = [];
