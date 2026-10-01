@@ -8,6 +8,8 @@
 
 -
 
+- [ ] I checked that no other open pull request already targets these issues, and I claimed them in a comment first (see [Claim an Issue Before You Start](../CONTRIBUTING.md#claim-an-issue-before-you-start)).
+
 ## Type
 
 - [ ] Feature

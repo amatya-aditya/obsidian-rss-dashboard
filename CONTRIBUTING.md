@@ -14,10 +14,21 @@ We are committed to providing a welcoming and inspiring community for all. Pleas
 
 - **Report bugs** — Found something broken? [Open an issue](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues) with details and steps to reproduce.
 - **Suggest features** — Have an idea? [Start a discussion](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues) or chat on [Discord](https://discord.gg/9bu7V9BBbs).
-- **Fix bugs** — Pick an open issue labeled `bug` or `good first issue`. [Issue Labels and Milestones](docs/development/labels.md) explains what each label means.
+- **Fix bugs** — Pick an open issue labeled `bug` or `good first issue`, and [claim it first](#claim-an-issue-before-you-start). [Issue Labels and Milestones](docs/development/labels.md) explains what each label means.
 - **Add features** — Check the [public roadmap](docs/plans/public-roadmap.md) and coordinate before starting large work.
 - **Improve docs** — Clarify guides, add examples, fix typos. Documentation PRs are always welcome.
 - **Write tests** — Help increase test coverage and prevent regressions.
+
+### Claim an Issue Before You Start
+
+Two people working on the same issue wastes both of their time, and GitHub doesn't warn you when it happens. Before you write code:
+
+1. **Look for an existing claim or PR.** Read the issue's comments and check the **Development** section in its sidebar. You can also search open pull requests for the issue number. If someone has claimed it or opened a PR, review that PR or offer to help instead of starting a second one.
+2. **Comment to claim it.** Say you're taking it, for example "I'll take this". Do this before you open a PR, not after.
+3. **Wait for the marker.** A maintainer adds the `status: in-progress` label and replies. Repository assignment isn't used, because GitHub only lets collaborators be assigned. The label and your comment are the claim.
+4. **Open your PR promptly and link it.** Put `Fixes #123` in the description so the PR shows in the issue's Development section.
+
+A claim lapses, and a maintainer may release the issue, when there's no PR within 7 days of the claim or no response within 7 days of a review. If two PRs do target one issue, the earlier claim goes first, and the later PR stays open as a fallback while the maintainers decide. A workflow comments on a new PR when another open PR already closes the same issue.
 
 ---
 

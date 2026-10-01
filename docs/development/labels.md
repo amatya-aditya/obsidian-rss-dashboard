@@ -44,7 +44,7 @@ when it changes; don't stack them.
 | `status: needs-info` | Waiting on the reporter for more information |
 | `status: accepted` | Confirmed and ready to work on |
 | `status: blocked` | Waiting on another issue or decision; the issue body names it (for example "Blocked by #436") |
-| `status: in-progress` | Someone is working on it |
+| `status: in-progress` | Someone is working on it. A maintainer adds it when a contributor claims the issue in a comment; it is the claim marker, because only collaborators can be assigned. See [Claim an Issue Before You Start](../../CONTRIBUTING.md#claim-an-issue-before-you-start) |
 | `status: ready-for-testing` | A fix is available and needs manual testing |
 | `status: pending-release` | Merged; ships in the next release |
 
@@ -94,9 +94,9 @@ issue spans parts.
 
 | Label | Meaning |
 | --- | --- |
-| `good first issue` | Small and well scoped; a good place to start. GitHub surfaces these to new contributors |
+| `good first issue` | Small and well scoped; a good place to start. GitHub surfaces these to new contributors. Check for a claim or an open PR before starting |
 | `help wanted` | Maintainers would welcome a contribution |
-| `ready-for-agent` | Fully specified, ready for an AFK agent |
+| `ready-for-agent` | Fully specified, ready for an AFK agent. Check for a claim or an open PR before starting |
 | `ready-for-human` | Fully specified, but needs a human to implement |
 
 ## Other labels
@@ -143,7 +143,7 @@ follows.
 | Triaged | Follow the triage checklist above: `status: accepted` (or `blocked`, `needs-info`, `wontfix`), plus a priority and an area |
 | Scheduled | A release milestone, or `vNext` if it's accepted but not scheduled |
 | Ready to pick up | Add `ready-for-agent` or `ready-for-human` once the issue is specified well enough to hand off |
-| Work starts | `status: in-progress`, and an issue branch named per [`branch-naming.md`](../agents/branch-naming.md) |
+| Work starts | The contributor claims it in a comment; add `status: in-progress`, and an issue branch named per [`branch-naming.md`](../agents/branch-naming.md) |
 | Fix needs manual checks | `status: ready-for-testing` while a pull request waits on a fixture-vault or beta checklist |
 | Merged | A pull request that says `Fixes #…` closes the issue on merge to `dev` (the default branch). Closed issues don't need a status. Use `status: pending-release` only for an issue that stays open until a release, for example a fix on a release branch |
 
