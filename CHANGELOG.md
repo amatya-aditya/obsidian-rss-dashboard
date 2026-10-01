@@ -22,6 +22,9 @@
 
 - HTML entities in feed text, feed previews, and podcast title lookups are now decoded in one pass by a shared decoder. Text that was escaped twice keeps one level of escaping, and feed previews show named entities such as `&eacute;` as letters.
 - Rich article rendering now keeps a fixed set of HTML tags; other tags are unwrapped and their text is kept.
+- Feed, image, and podcast host checks now compare the URL's hostname instead of searching the whole URL.
+- Long feed text and Cloudinary image URLs are now matched with simpler patterns that run in linear time.
+- Patched development dependencies for new npm audit advisories (`brace-expansion`, `undici`, `fast-uri`) and removed the unused `moment` development dependency. The plugin still uses Obsidian's built-in `moment`.
 
 ### Known issues
 

@@ -29,7 +29,12 @@ export function installObsidianDomPolyfills(): void {
       (tagName: string) => HTMLElement
     >
   )["createElement"];
-  const nativeCreateElementNS = Document.prototype.createElementNS;
+  const nativeCreateElementNS = (
+    Document.prototype as unknown as Record<
+      string,
+      (namespace: string, qualifiedName: string) => Element
+    >
+  )["createElementNS"];
   const nativeCreateDocumentFragment = (
     Document.prototype as unknown as Record<
       string,
