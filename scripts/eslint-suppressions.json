@@ -269,7 +269,7 @@
   },
   "src/views/reader-view.ts": {
     "max-lines-per-function": {
-      "count": 2
+      "count": 1
     }
   }
 }

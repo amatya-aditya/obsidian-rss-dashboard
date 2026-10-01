@@ -97,13 +97,12 @@ import {
 import { PodcastPlayer } from "./podcast-player";
 import { VideoPlayer } from "./video-player";
 import { RSS_DASHBOARD_VIEW_TYPE, RssDashboardView } from "./dashboard-view";
-import { VaultFolderSuggest } from "../components/folder-suggest";
+import {
+  ReaderCustomSaveModal,
+  type ReaderCustomSaveRequest,
+} from "../modals/reader-custom-save-modal";
 import { ShortcutHelpModal } from "../modals/shortcut-help-modal";
 import { setupReaderHotkeys } from "../hotkeys/reader-hotkeys";
-import {
-  ConfirmTemplateAssignmentModal,
-  TemplateNameModal,
-} from "../settings/modals/settings-modals";
 
 const VIDEO_ARTICLE_BANNER =
   "This item appears to be a video. Open the source page to watch.";
@@ -1162,263 +1161,59 @@ export class ReaderView extends ItemView {
   }
 
   private showCustomSaveModal(item: FeedItem): void {
-    const displayTitle = this.currentDisplayTitle;
-    const modal = activeDocument.body.createDiv({
-      cls: "rss-dashboard-modal rss-dashboard-modal-container rss-dashboard-custom-save-modal",
-    });
+    new ReaderCustomSaveModal(this.app, {
+      settings: this.settings,
+      item,
+      displayTitle: this.currentDisplayTitle,
+      feedTemplate: this.getCustomTemplateForArticle(item),
+      onSave: (request) => this.saveToCustomFolder(request),
+    }).open();
+  }
 
-    const modalContent = modal.createDiv({
-      cls: "rss-dashboard-modal-content",
-    });
-
-    new Setting(modalContent).setName("Save article").setHeading();
-
-    const folderLabel = modalContent.createEl("label", {
-      text: "Save to folder:",
-    });
-
-    const folderInputContainer = modalContent.createDiv({
-      cls: "rss-dashboard-folder-input-container",
-    });
-
-    const folderInput = folderInputContainer.createEl("input", {
-      attr: {
-        type: "text",
-        placeholder: "Enter folder path",
-        value: this.settings.articleSaving.defaultFolder || "",
-      },
-    });
-
-    const clearIcon = folderInputContainer.createDiv({
-      cls: "clickable-icon rss-dashboard-clear-icon",
-      attr: {
-        "aria-label": "Clear input",
-        role: "button",
-        tabindex: "0",
-      },
-    });
-    setIcon(clearIcon, "x");
-    const clearAction = () => {
-      folderInput.value = "";
-      folderInput.focus();
-    };
-    clearIcon.addEventListener("click", clearAction);
-    clearIcon.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        clearAction();
-      }
-    });
-
-    new VaultFolderSuggest(this.app, folderInput);
-
-    const savedTemplateLabel = modalContent.createEl("label", {
-      text: "Saved template:",
-      attr: { for: "rss-dashboard-saved-template" },
-    });
-
-    const savedTemplateSelectWrapper = modalContent.createDiv({
-      cls: "rss-dashboard-template-select-wrapper",
-    });
-    const savedTemplateSelect = savedTemplateSelectWrapper.createEl("select", {
-      cls: "rss-dashboard-template-select",
-      attr: { id: "rss-dashboard-saved-template" },
-    });
-    savedTemplateSelect.createEl("option", {
-      text: "Current template",
-      value: "",
-    });
-    for (const savedTemplate of this.settings.articleSaving.savedTemplates) {
-      savedTemplateSelect.createEl("option", {
-        text: savedTemplate.name,
-        value: savedTemplate.id,
-      });
-    }
-    const feedTemplateId = this.settings.feeds.find(
-      (feed) => feed.url === item.feedUrl,
-    )?.customTemplate;
-    const initialSelectedTemplateId =
-      this.settings.articleSaving.savedTemplates.some(
-        (template) => template.id === feedTemplateId,
-      )
-        ? (feedTemplateId ?? "")
-        : "";
-    savedTemplateSelect.value = initialSelectedTemplateId;
-
-    const templateLabel = modalContent.createEl("label", {
-      text: "Use template:",
-    });
-    const templateInput = modalContent.createEl("textarea", {
-      attr: {
-        placeholder: "Enter template",
-        rows: "6",
-      },
-    });
-    // Pre-populate with feed's custom template if available, otherwise use default
-    const feedTemplate = this.getCustomTemplateForArticle(item);
-    templateInput.value =
-      feedTemplate || this.settings.articleSaving.defaultTemplate || "";
-    let templateBaseline = templateInput.value;
-    let selectedTemplateId = initialSelectedTemplateId;
-    let pendingNewTemplate: {
-      id: string;
-      name: string;
-      template: string;
-      assignToFeed: boolean;
-      previousSelectedTemplateId: string;
-    } | null = null;
-
-    const discardPendingNewTemplate = () => {
-      if (!pendingNewTemplate) return;
-
-      const pendingOption = Array.from(savedTemplateSelect.options).find(
-        (option) => option.value === pendingNewTemplate?.id,
-      );
-      pendingOption?.remove();
-      selectedTemplateId = pendingNewTemplate.previousSelectedTemplateId;
-      savedTemplateSelect.value = selectedTemplateId;
-      pendingNewTemplate = null;
-    };
-
-    const saveAsTemplateButton = modalContent.createEl("button", {
-      text: "Save as new template",
-      cls: "rss-dashboard-custom-save-template-button",
-    });
-    saveAsTemplateButton.hidden = true;
-
-    const refreshSaveAsTemplateButton = () => {
-      if (
-        pendingNewTemplate &&
-        pendingNewTemplate.template !== templateInput.value
-      ) {
-        discardPendingNewTemplate();
-      }
-
-      saveAsTemplateButton.hidden = templateInput.value === templateBaseline;
-      saveAsTemplateButton.textContent = pendingNewTemplate
-        ? "New template will be saved"
-        : "Save as new template";
-    };
-
-    savedTemplateSelect.addEventListener("change", () => {
-      discardPendingNewTemplate();
-      selectedTemplateId = savedTemplateSelect.value;
-      const selectedTemplate =
-        this.settings.articleSaving.savedTemplates.find(
-          (template) => template.id === selectedTemplateId,
-        );
-      if (selectedTemplate) {
-        templateInput.value = selectedTemplate.template;
-        templateBaseline = selectedTemplate.template;
-      }
-      pendingNewTemplate = null;
-      refreshSaveAsTemplateButton();
-    });
-
-    templateInput.addEventListener("input", refreshSaveAsTemplateButton);
-
-    saveAsTemplateButton.addEventListener("click", () => {
-      void (async () => {
-        const nameModal = new TemplateNameModal(this.app);
-        nameModal.open();
-        const name = await nameModal.waitForClose();
-        if (!name) return;
-
-        const assignmentModal = new ConfirmTemplateAssignmentModal(this.app);
-        assignmentModal.open();
-        const assignToFeed = await assignmentModal.waitForClose();
-        const id = "template-" + Date.now();
-        pendingNewTemplate = {
-          id,
-          name,
-          template: templateInput.value,
-          assignToFeed,
-          previousSelectedTemplateId: selectedTemplateId,
+  private async saveToCustomFolder({
+    item,
+    displayTitle,
+    folder,
+    template,
+    pendingNewTemplate,
+    selectedTemplateId,
+  }: ReaderCustomSaveRequest): Promise<void> {
+    const markdownContent = this.buildReaderSaveMarkdown(item);
+    const saveItem = displayTitle ? { ...item, title: displayTitle } : item;
+    const file = await this.articleSaver.saveArticle(
+      saveItem,
+      folder,
+      template,
+      markdownContent,
+    );
+    if (file) {
+      const feed = this.settings.feeds.find((f) => f.url === item.feedUrl);
+      if (pendingNewTemplate) {
+        const newTemplate = {
+          id: pendingNewTemplate.id,
+          name: pendingNewTemplate.name,
+          template: pendingNewTemplate.template,
         };
-        savedTemplateSelect.createEl("option", { text: name, value: id });
-        savedTemplateSelect.value = id;
-        selectedTemplateId = id;
-        templateBaseline = templateInput.value;
-        refreshSaveAsTemplateButton();
-      })();
-    });
-
-    const buttonContainer = modalContent.createDiv({
-      cls: "rss-dashboard-modal-buttons",
-    });
-
-    const cancelButton = buttonContainer.createEl("button", {
-      text: "Cancel",
-      cls: "rss-dashboard-custom-save-cancel-button",
-    });
-    cancelButton.addEventListener("click", () => {
-      activeDocument.body.removeChild(modal);
-    });
-
-    const saveButton = buttonContainer.createEl("button", {
-      text: "Save",
-      cls: "rss-dashboard-primary-button rss-dashboard-custom-save-confirm-button",
-    });
-    saveButton.addEventListener("click", () => {
-      void (async () => {
-        const folder = folderInput.value.trim();
-        const template = templateInput.value.trim() || undefined;
-
-        const markdownContent = this.buildReaderSaveMarkdown(item);
-        const saveItem = displayTitle ? { ...item, title: displayTitle } : item;
-        const file = await this.articleSaver.saveArticle(
-          saveItem,
-          folder,
-          template,
-          markdownContent,
-        );
-        if (file) {
-          const feed = this.settings.feeds.find((f) => f.url === item.feedUrl);
-          if (pendingNewTemplate) {
-            const newTemplate = {
-              id: pendingNewTemplate.id,
-              name: pendingNewTemplate.name,
-              template: pendingNewTemplate.template,
-            };
-            this.settings.articleSaving.savedTemplates.push(newTemplate);
-            if (pendingNewTemplate.assignToFeed && feed) {
-              feed.customTemplate = newTemplate.id;
-            }
-          } else if (selectedTemplateId && feed) {
-            const selectedTemplate =
-              this.settings.articleSaving.savedTemplates.find(
-                (template) => template.id === selectedTemplateId,
-              );
-            if (selectedTemplate) {
-              feed.customTemplate = selectedTemplate.id;
-            }
-          }
-
-          item.saved = true;
-          item.savedFilePath = file.path;
-          this.onArticleSave(item);
-
-          this.updateSavedLabel(true);
+        this.settings.articleSaving.savedTemplates.push(newTemplate);
+        if (pendingNewTemplate.assignToFeed && feed) {
+          feed.customTemplate = newTemplate.id;
         }
+      } else if (selectedTemplateId && feed) {
+        const selectedTemplate =
+          this.settings.articleSaving.savedTemplates.find(
+            (savedTemplate) => savedTemplate.id === selectedTemplateId,
+          );
+        if (selectedTemplate) {
+          feed.customTemplate = selectedTemplate.id;
+        }
+      }
 
-        activeDocument.body.removeChild(modal);
-      })();
-    });
+      item.saved = true;
+      item.savedFilePath = file.path;
+      this.onArticleSave(item);
 
-    buttonContainer.appendChild(cancelButton);
-    buttonContainer.appendChild(saveButton);
-
-    modalContent.appendChild(folderLabel);
-    modalContent.appendChild(folderInputContainer);
-    modalContent.appendChild(savedTemplateLabel);
-    modalContent.appendChild(savedTemplateSelectWrapper);
-    modalContent.appendChild(templateLabel);
-    modalContent.appendChild(templateInput);
-    modalContent.appendChild(saveAsTemplateButton);
-    modalContent.appendChild(buttonContainer);
-
-    modal.appendChild(modalContent);
-    activeDocument.body.appendChild(modal);
+      this.updateSavedLabel(true);
+    }
   }
 
   async displayItem(
