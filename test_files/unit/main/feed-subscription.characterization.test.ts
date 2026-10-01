@@ -800,23 +800,29 @@ describe("feed subscription: addSubfolder", () => {
     expect(harness.plugin.settings.folders[0].subfolders).toHaveLength(1);
   });
 
-  it("does nothing at all for an unknown parent", async () => {
+  it("notices an unknown parent without changing folders, saving or refreshing", async () => {
     const harness = folderHarness();
+    const foldersBefore = structuredClone(harness.plugin.settings.folders);
 
     await harness.plugin.addSubfolder("Missing", "World");
 
-    // BUG: pinned, see #555
-    expect(harness.events).toEqual([]);
+    expect(harness.plugin.settings.folders).toEqual(foldersBefore);
+    expect(harness.events).toEqual(['notice: Parent folder "Missing" not found']);
   });
 
-  it("does nothing at all for a nested parent path", async () => {
+  it("creates a subfolder under a nested parent path", async () => {
     const harness = folderHarness();
 
     await harness.plugin.addSubfolder("News/Tech", "World");
 
-    // BUG: pinned, see #555
-    expect(harness.events).toEqual([]);
-    expect(harness.plugin.settings.folders[0].subfolders[0].subfolders).toEqual([]);
+    expect(harness.plugin.settings.folders[0].subfolders[0].subfolders).toEqual([
+      { name: "World", subfolders: [] },
+    ]);
+    expect(harness.events).toEqual([
+      "save",
+      "refresh",
+      'notice: Subfolder "World" created under "News/Tech"',
+    ]);
   });
 });
 

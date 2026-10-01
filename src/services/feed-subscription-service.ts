@@ -322,31 +322,43 @@ export class FeedSubscriptionService {
     parentFolderName: string,
     subfolderName: string,
   ): Promise<void> {
-    const parentFolder = this.settings.folders.find(
-      (f) => f.name === parentFolderName,
-    );
+    const parentParts = parentFolderName
+      .split("/")
+      .map((part) => part.trim())
+      .filter((part) => part.length > 0);
+    let parentLevel = this.settings.folders;
+    let parentFolder = parentLevel.find((folder) => folder.name === parentParts[0]);
 
-    if (parentFolder) {
-      if (!parentFolder.subfolders.some((sf) => sf.name === subfolderName)) {
-        parentFolder.subfolders.push({
-          name: subfolderName,
-          subfolders: [],
-        });
+    for (const part of parentParts.slice(1)) {
+      if (!parentFolder) break;
+      parentLevel = parentFolder.subfolders;
+      parentFolder = parentLevel.find((folder) => folder.name === part);
+    }
 
-        await this.options.saveSettings();
+    if (!parentFolder) {
+      new Notice(`Parent folder "${parentFolderName}" not found`);
+      return;
+    }
 
-        const view = await this.options.getActiveDashboardView();
-        if (view) {
-          void view.refresh();
-          new Notice(
-            `Subfolder "${subfolderName}" created under "${parentFolderName}"`,
-          );
-        }
-      } else {
+    if (!parentFolder.subfolders.some((sf) => sf.name === subfolderName)) {
+      parentFolder.subfolders.push({
+        name: subfolderName,
+        subfolders: [],
+      });
+
+      await this.options.saveSettings();
+
+      const view = await this.options.getActiveDashboardView();
+      if (view) {
+        void view.refresh();
         new Notice(
-          `Subfolder "${subfolderName}" already exists in "${parentFolderName}"`,
+          `Subfolder "${subfolderName}" created under "${parentFolderName}"`,
         );
       }
+    } else {
+      new Notice(
+        `Subfolder "${subfolderName}" already exists in "${parentFolderName}"`,
+      );
     }
   }
 
