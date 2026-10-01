@@ -5,6 +5,7 @@ import {
   POCKET_CASTS,
 } from "../../utils/podcast-platforms.js";
 import type { ItunesLookupResponse } from "./types.js";
+import { decodeHtmlEntities } from "./xml-parser/xml-html-utils.js";
 export async function resolvePodcastPlatformUrl(
   url: string,
   corsProxyUrl?: string,
@@ -107,10 +108,7 @@ async function resolvePocketCastsUrl(
 
       if (titleMatch?.[1]) {
         const rawTitle = titleMatch[1];
-        const decodedTitle = rawTitle
-          .replace(/&amp;/g, "&")
-          .replace(/&quot;/g, '"')
-          .replace(/&#39;/g, "'");
+        const decodedTitle = decodeHtmlEntities(rawTitle);
         console.debug(
           `[RSS Dashboard] Extracted title for iTunes search: "${decodedTitle}"`,
         );

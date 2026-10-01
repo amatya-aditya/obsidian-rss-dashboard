@@ -18,6 +18,14 @@
 - Fixed clearing a **Default folders** setting, such as **Default YouTube folder**, saving the folder as `/`. New feeds of that type were filed under a folder named `/` that doesn't exist, so they showed at the top level while **Move to folder** didn't mark them as in the root, and the setting showed `/` instead of the default. A cleared field now files new feeds in the root again. [GH Issue #372](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/372)
 - Fixed preview images no longer being cached after a cached image file was deleted outside the plugin, for example by you or a sync tool, until Obsidian was restarted. Lowering the image cache limit could also fail without saving, and **Clear image cache** said the deleted image could not be removed and kept counting it in the cache size. A cached image file that is already gone now counts as removed. [GH Issue #372](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/372)
 
+### Developer
+
+- HTML entities in feed text, feed previews, and podcast title lookups are now decoded in one pass by a shared decoder. Text that was escaped twice keeps one level of escaping, and feed previews show named entities such as `&eacute;` as letters.
+- Rich article rendering now keeps a fixed set of HTML tags; other tags are unwrapped and their text is kept.
+- Feed, image, and podcast host checks now compare the URL's hostname instead of searching the whole URL.
+- Long feed text and Cloudinary image URLs are now matched with simpler patterns that run in linear time.
+- Patched development dependencies for new npm audit advisories (`brace-expansion`, `undici`, `fast-uri`) and removed the unused `moment` development dependency. The plugin still uses Obsidian's built-in `moment`.
+
 ### Known issues
 
 - With the metadata `data.json` in a vault folder, a Portable data bundle, Feed bundle, or Settings bundle import can be lost if Obsidian closes before anything else is saved. Applying a vault folder under **Settings → Storage → Metadata data.json location** now shows a notice about this: after importing, change a setting or mark an article as read before closing Obsidian. The default location in the plugin folder isn't affected. [GH Issue #474](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/474)

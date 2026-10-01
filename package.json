@@ -1,6 +1,6 @@
 {
   "name": "rss-dashboard",
-  "version": "2.7.0-beta.2",
+  "version": "2.7.0-beta.3",
   "description": "RSS dashboard for Obsidian",
   "main": "main.js",
   "type": "commonjs",
@@ -41,7 +41,6 @@
     "eslint-plugin-obsidianmd": "^0.4.2",
     "globals": "^17.12.0",
     "jsdom": "^28.1.0",
-    "moment": "^2.30.1",
     "obsidian": "1.13.1",
     "postcss": "^8.5.28",
     "postcss-selector-parser": "^7.1.6",

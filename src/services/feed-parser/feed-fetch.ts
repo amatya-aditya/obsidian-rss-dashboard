@@ -2,6 +2,8 @@ import { requestUrl, Platform } from "obsidian";
 import { PREDEFINED_PROXIES } from "../../utils/proxy-utils.js";
 import { robustFetch } from "../../utils/platform-utils.js";
 import { escapeCdata, escapeXml } from "../../utils/xml-escape.js";
+import { hostMatches } from "../../utils/url-host.js";
+import { resolveAbsoluteHttpUrl } from "../../utils/url-utils.js";
 import type { FeedEncoding } from "../../types/types.js";
 import { isValidFeed } from "./feed-validation.js";
 import type {
@@ -136,7 +138,7 @@ async function discoverFeedUrl(
 
     if (!responseText) return null;
 
-    if (baseUrl.includes("feeds.feedburner.com")) {
+    if (hostMatches(baseUrl, "feeds.feedburner.com")) {
       const feedNameMatch = baseUrl.match(/feeds\.feedburner\.com\/([^/?]+)/);
       if (feedNameMatch) {
         const feedName = feedNameMatch[1];
@@ -291,7 +293,7 @@ export async function fetchFeedXml(
   ): Promise<string> {
     if (signal?.aborted) throw new Error("Timed out");
 
-    if (targetUrl.includes("feeds.feedburner.com")) {
+    if (hostMatches(targetUrl, "feeds.feedburner.com")) {
       const httpsUrl = targetUrl.replace(/^http:\/\//i, "https://");
       const feedNameMatch = httpsUrl.match(/feeds\.feedburner\.com\/([^/?]+)/);
       if (feedNameMatch) {
@@ -354,9 +356,11 @@ export async function fetchFeedXml(
           const channelLinkMatch = responseText.match(
             /<channel[^>]*>[\s\S]*?<link[^>]*>([^<]+)<\/link>/i,
           );
-          const candidateUrl =
-            atomLinkMatch?.[1] || channelLinkMatch?.[1] || "";
-          if (candidateUrl && /arxiv\.org\//i.test(candidateUrl)) {
+          const candidateUrl = resolveAbsoluteHttpUrl(
+            atomLinkMatch?.[1] || channelLinkMatch?.[1],
+            targetUrl,
+          );
+          if (candidateUrl && hostMatches(candidateUrl, "arxiv.org")) {
             if (signal?.aborted) throw new Error("Timed out");
             try {
               const arxivText = await robustFetch(candidateUrl, {
@@ -471,7 +475,7 @@ export async function fetchFeedXml(
 
         const discoveredUrl =
           (await discoverFeedUrl(baseUrl, signal, encodingOverride)) ||
-          (baseUrl.includes("arxiv.org")
+          (hostMatches(baseUrl, "arxiv.org")
             ? baseUrl.replace("export.arxiv.org", "rss.arxiv.org")
             : null);
         if (discoveredUrl) {

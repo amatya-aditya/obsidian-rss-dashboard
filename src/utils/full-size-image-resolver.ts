@@ -1,5 +1,6 @@
 import { isLatexFormulaImageElement } from "./image-url-utils";
 import { normalizeSubstackImageUrl } from "./substack-image-url";
+import { hostMatches, hostPathMatches } from "./url-host";
 
 export interface ResolvedImageSource {
   previewUrl: string;
@@ -9,6 +10,11 @@ export interface ResolvedImageSource {
 }
 
 const COMMON_IMAGE_EXTENSIONS = /\.(?:jpe?g|png|webp|gif|avif|svg|bmp)(?:[?#]|$)/i;
+
+function isSubstackImageFetchUrl(url: string): boolean {
+  const absolute = url.startsWith("//") ? `https:${url}` : url;
+  return hostPathMatches(absolute, "substackcdn.com", "/image/fetch/");
+}
 
 /**
  * Checks whether an image element in reader content should trigger the full-resolution lightbox.
@@ -107,7 +113,7 @@ export function stripCdnResizeParameters(rawUrl: string): string {
   if (!trimmed) return "";
 
   // Substack CDN fetch URLs
-  if (trimmed.includes("substackcdn.com/image/fetch/")) {
+  if (isSubstackImageFetchUrl(trimmed)) {
     const normalizedSubstack = normalizeSubstackImageUrl(trimmed);
     if (normalizedSubstack) {
       return stripCdnResizeParameters(normalizedSubstack);
@@ -128,13 +134,13 @@ export function stripCdnResizeParameters(rawUrl: string): string {
     }
 
     // Cloudinary /upload/w_...,c_scale/
-    if (url.hostname.includes("cloudinary.com") && url.pathname.includes("/upload/")) {
+    if (hostMatches(trimmed, "cloudinary.com") && url.pathname.includes("/upload/")) {
       url.pathname = url.pathname.replace(/\/upload\/[a-z]_[^/]+\//i, "/upload/");
       return url.toString();
     }
 
     // Brightspot / NPR CDN resize
-    if (url.hostname.includes("brightspotcdn.com") || url.hostname.includes("media.npr.org")) {
+    if (hostMatches(trimmed, "brightspotcdn.com") || hostMatches(trimmed, "media.npr.org")) {
       url.pathname = url.pathname.replace(/\/resize\/\d+x\d*!?\//g, "/");
       return url.toString();
     }
@@ -177,7 +183,7 @@ export function resolveFullResolutionImageSource(img: HTMLImageElement): Resolve
     const href = (anchor.getAttribute("href") || "").trim();
     if (
       COMMON_IMAGE_EXTENSIONS.test(href) ||
-      href.includes("substackcdn.com/image/fetch/") ||
+      isSubstackImageFetchUrl(href) ||
       /^data:image\//i.test(href)
     ) {
       candidateUrl = href;
