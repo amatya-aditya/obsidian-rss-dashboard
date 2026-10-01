@@ -39,24 +39,8 @@ import {
 } from "./feed-finalize.js";
 import type { FeedParseOptions, ParsedFeed, ParsedItem } from "./types.js";
 import { decodeHtmlEntities } from "./xml-parser/xml-html-utils.js";
-import {
-  isLatexFormulaImage,
-  isLatexFormulaImageElement,
-  optimizeImageUrl,
-} from "../../utils/image-url-utils.js";
-
-const TRACKING_PIXEL_PATTERNS = [
-  "tracking/",
-  "pixel.gif",
-  "beacon.",
-  "1x1",
-  "/track/",
-  "rss-pixel",
-];
-
-function isTrackingPixel(url: string): boolean {
-  return TRACKING_PIXEL_PATTERNS.some((p) => url.includes(p));
-}
+import { optimizeImageUrl } from "../../utils/image-url-utils.js";
+import { extractCoverImage } from "./feed-cover-image.js";
 
 export type { FeedParseOptions } from "./types.js";
 export class FeedParser {
@@ -247,105 +231,9 @@ export class FeedParser {
   }
 
   private extractCoverImage(html: string, baseUrl = ""): string {
-    if (!html) return "";
-
-    /** Reject known junk/placeholder src values before any URL resolution. */
-    const isJunkSrc = (src: string | null): boolean => {
-      if (!src) return true;
-      const t = src.trim();
-      return (
-        !t ||
-        t === "undefined" ||
-        t === "null" ||
-        t === "#" ||
-        t === "about:blank"
-      );
-    };
-
-    try {
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(html, "text/html");
-
-      const ogImage = doc.querySelector('meta[property="og:image"]');
-      if (ogImage?.getAttribute("content")) {
-        const content = ogImage.getAttribute("content");
-        // Debug: log og:image URL for troubleshooting double-encoding
-        if (content && content.includes("%25")) {
-          console.debug(
-            `[RSS Dashboard] extractCoverImage: og:image contains double-encoded: ${content}`,
-          );
-        }
-        const resolvedContent = content?.startsWith("http")
-          ? content
-          : content && baseUrl
-            ? this.convertToAbsoluteUrl(content, baseUrl)
-            : "";
-        if (resolvedContent && !isLatexFormulaImage(resolvedContent)) {
-          return optimizeImageUrl(resolvedContent);
-        }
-      }
-
-      const firstImg = Array.from(doc.querySelectorAll("img")).find(
-        (image) => !isLatexFormulaImageElement(image),
-      );
-      if (firstImg) {
-        const src = firstImg.getAttribute("src");
-        // Debug: log first img src for troubleshooting double-encoding
-        if (src && src.includes("%25")) {
-          console.debug(
-            `[RSS Dashboard] extractCoverImage: first img src contains double-encoded: ${src}`,
-          );
-        }
-        if (!isJunkSrc(src)) {
-          if (src && src.startsWith("http") && !isTrackingPixel(src)) {
-            return optimizeImageUrl(src);
-          } else if (src && baseUrl && !isTrackingPixel(src)) {
-            return optimizeImageUrl(this.convertToAbsoluteUrl(src, baseUrl));
-          }
-        }
-      }
-
-      const imgTags = doc.querySelectorAll("img");
-      for (const img of Array.from(imgTags)) {
-        const src = img.getAttribute("src");
-        // Debug: log each img src for troubleshooting double-encoding
-        if (src && src.includes("%25")) {
-          console.debug(
-            `[RSS Dashboard] extractCoverImage: img src contains double-encoded: ${src}`,
-          );
-        }
-        if (isJunkSrc(src) || isLatexFormulaImageElement(img)) continue;
-        if (
-          src &&
-          src.startsWith("http") &&
-          (src.endsWith(".jpg") ||
-            src.endsWith(".jpeg") ||
-            src.endsWith(".png") ||
-            src.endsWith(".gif") ||
-            src.endsWith(".webp") ||
-            src.includes("image")) &&
-          !isTrackingPixel(src)
-        ) {
-          return optimizeImageUrl(src);
-        } else if (
-          src &&
-          baseUrl &&
-          (src.endsWith(".jpg") ||
-            src.endsWith(".jpeg") ||
-            src.endsWith(".png") ||
-            src.endsWith(".gif") ||
-            src.endsWith(".webp") ||
-            src.includes("image")) &&
-          !isTrackingPixel(src)
-        ) {
-          return optimizeImageUrl(this.convertToAbsoluteUrl(src, baseUrl));
-        }
-      }
-    } catch {
-      // Image extraction failed
-    }
-
-    return "";
+    return extractCoverImage(html, baseUrl, (relativeUrl, base) =>
+      this.convertToAbsoluteUrl(relativeUrl, base),
+    );
   }
 
   private extractPodcastCoverImage(
