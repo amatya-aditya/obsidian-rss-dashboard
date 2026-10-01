@@ -31,7 +31,7 @@ import {
   ViewLocation,
 } from "../types/types";
 import { HighlightService } from "../services/highlight-service";
-import { getPubDateMs, resolveDisplayDate } from "../services/feed-parser/feed-retention";
+import { resolveDisplayDate } from "../services/feed-parser/feed-retention";
 import { ArticleSaver } from "../services/article-saver";
 import { setCssProps } from "../utils/platform-utils";
 import {
@@ -42,6 +42,16 @@ import {
   RESTRICTED_ARTICLE_REASON,
 } from "../utils/full-article-fetch";
 import { isLikelyVideoItem } from "../utils/video-detection";
+import {
+  clearSavedStateIfFileMissing,
+  formatReaderDateText,
+  placeHeroImage,
+  resolveFallbackHeroUrl,
+  resolveReaderMediaRoute,
+  resolveRelativeUrlsInDocument,
+  selectArticleSections,
+  stripEmbeddedTooltipAttributes,
+} from "../utils/reader-article-render";
 import TurndownService from "turndown";
 import { WebViewerIntegration } from "../services/web-viewer-integration";
 import { MediaService } from "../services/media-service";
@@ -56,7 +66,6 @@ import {
 } from "../utils/substack-image-url";
 import {
   containsLatexFormulaImage,
-  findFirstNonFormulaImage,
   firstNonFormulaImageUrl,
 } from "../utils/image-url-utils";
 import { ReaderLightbox } from "../components/reader-lightbox";
@@ -1414,50 +1423,16 @@ export class ReaderView extends ItemView {
     // Update toggle button states
     this.updateToggleButtons();
 
-    if (item.saved) {
-      const fileExists = this.articleSaver.checkSavedFileExists(item);
-      if (!fileExists) {
-        item.saved = false;
-        item.savedFilePath = undefined;
-        if (item.tags) {
-          item.tags = item.tags.filter(
-            (tag) => tag.name.toLowerCase() !== "saved",
-          );
-        }
-        if (item.feedUrl) {
-          const feed = this.settings.feeds.find((f) => f.url === item.feedUrl);
-          if (feed) {
-            const originalItem = feed.items.find((i) => i.guid === item.guid);
-            if (originalItem) {
-              originalItem.saved = false;
-              if (originalItem.tags) {
-                originalItem.tags = originalItem.tags.filter(
-                  (tag) => tag.name.toLowerCase() !== "saved",
-                );
-              }
-            }
-          }
-        }
-      }
-    }
+    clearSavedStateIfFileMissing(item, this.settings.feeds, () =>
+      this.articleSaver.checkSavedFileExists(item),
+    );
 
-    if (item.mediaType === "video" && !item.videoId && item.link) {
-      const vid = MediaService.extractYouTubeVideoId(item.link);
-      if (vid) item.videoId = vid;
-    }
-
-    if (item.mediaType === "video" && item.videoId) {
+    const route = resolveReaderMediaRoute(item);
+    if (route === "video") {
       await this.displayVideo(item);
-    } else if (item.mediaType === "video" && item.videoUrl) {
+    } else if (route === "video-podcast") {
       await this.displayVideoPodcast(item);
-    } else if (
-      item.mediaType === "podcast" &&
-      (item.audioUrl || MediaService.extractPodcastAudio(item.description))
-    ) {
-      if (!item.audioUrl) {
-        const aud = MediaService.extractPodcastAudio(item.description);
-        if (aud) item.audioUrl = aud;
-      }
+    } else if (route === "podcast") {
       await this.displayPodcast(item);
     } else {
       const fetchedContent = this.shouldSkipFullArticleFetch(item)
@@ -1788,16 +1763,9 @@ export class ReaderView extends ItemView {
       text: item.feedTitle,
     });
 
-    const useFirstSeenDateFallback = this.settings.useFirstSeenDateFallback;
-    const displayDate = resolveDisplayDate(item, useFirstSeenDateFallback);
-    const isFirstSeenFallback = getPubDateMs(item.pubDate) <= 0 && !!displayDate;
     metaContainer.createDiv({
       cls: "rss-reader-pub-date",
-      text: displayDate
-        ? isFirstSeenFallback
-          ? `First seen: ${displayDate.toLocaleString()}`
-          : displayDate.toLocaleString()
-        : "Unknown date",
+      text: formatReaderDateText(item, this.settings.useFirstSeenDateFallback),
     });
 
     if (item.tags && item.tags.length > 0) {
@@ -1818,33 +1786,16 @@ export class ReaderView extends ItemView {
       cls: "rss-reader-hero-slot",
     });
 
-    const descriptionHtml = (item.description || "").trim();
-    const hasMeaningfulDescription =
-      this.hasMeaningfulFeedDescription(descriptionHtml);
-    const mainHtml = (fullContent || item.content || "").trim();
-    let fallbackHeroUrl = firstNonFormulaImageUrl([
-      item.coverImage,
-      item.image,
-      item.itunes?.image?.href,
-    ]);
-
-    // Avoid using the feed icon (logo) as the article hero image.
-    if (fallbackHeroUrl && item.feedUrl) {
-      const feedIconUrl =
-        this.settings.feeds.find((f) => f.url === item.feedUrl)?.iconUrl || "";
-      const normalize = (u: string) => u.trim().replace(/\/$/, "");
-      if (
-        feedIconUrl &&
-        normalize(fallbackHeroUrl) === normalize(feedIconUrl)
-      ) {
-        fallbackHeroUrl = undefined;
-      }
-    }
-
-    const hasDistinctMainContent =
-      mainHtml !== "" &&
-      (!hasMeaningfulDescription ||
-        !this.isEquivalentHtml(mainHtml, descriptionHtml));
+    const {
+      descriptionHtml,
+      mainHtml,
+      hasMeaningfulDescription,
+      hasDistinctMainContent,
+      contentToRender,
+    } = selectArticleSections(item, fullContent, (a, b) =>
+      this.isEquivalentHtml(a, b),
+    );
+    const fallbackHeroUrl = resolveFallbackHeroUrl(item, this.settings.feeds);
 
     if (hasDistinctMainContent && hasMeaningfulDescription) {
       const descriptionCallout = this.readingContainer.createEl("details", {
@@ -1867,9 +1818,6 @@ export class ReaderView extends ItemView {
       );
     }
 
-    const contentToRender = hasDistinctMainContent
-      ? mainHtml
-      : mainHtml || descriptionHtml;
 
     if (contentToRender) {
       const contentContainer = this.readingContainer.createDiv({
@@ -2083,30 +2031,7 @@ export class ReaderView extends ItemView {
       const parser = new DOMParser();
       const doc = parser.parseFromString(html, "text/html");
 
-      // Resolve relative URLs (for correct link/image navigation in Obsidian)
-      if (baseUrl) {
-        const base = new URL(baseUrl);
-
-        doc.querySelectorAll("a").forEach((el) => {
-          const href = el.getAttribute("href");
-          if (!href) return;
-          try {
-            el.setAttribute("href", new URL(href, base).toString());
-          } catch {
-            /* ignore */
-          }
-        });
-
-        doc.querySelectorAll("img").forEach((el) => {
-          const src = el.getAttribute("src");
-          if (!src) return;
-          try {
-            el.setAttribute("src", new URL(src, base).toString());
-          } catch {
-            /* ignore */
-          }
-        });
-      }
+      resolveRelativeUrlsInDocument(doc, baseUrl);
 
       normalizeSubstackImageUrlsInDocument(doc);
 
@@ -2135,71 +2060,15 @@ export class ReaderView extends ItemView {
 
       // Attempt to extract and place hero image
       if (heroSlot) {
-        const firstImg = findFirstNonFormulaImage(doc.body);
-
-        if (heroSlot.childElementCount === 0) {
-          let heroUrl = normalizeSubstackImageUrl(fallbackHeroUrl);
-          const firstImgSrc = normalizeSubstackImageUrl(
-            firstImg?.getAttribute("src")?.trim() || "",
-          );
-          if (!heroUrl && firstImgSrc) {
-            heroUrl = firstImgSrc;
-          }
-
-          if (heroUrl) {
-            const heroImg = heroSlot.createEl("img", {
-              cls: "rss-reader-fallback-hero",
-              attr: { src: heroUrl, alt: title || "Hero image" },
-            });
-            this.setupLightboxForImage(heroImg);
-
-            // Remove the first image from the body if it's the hero image to avoid duplication
-            if (
-              firstImg &&
-              firstImgSrc &&
-              this.isLikelySameImageSource(firstImgSrc, heroUrl)
-            ) {
-              this.removeLeadImageElement(firstImg);
-            }
-          }
-        } else {
-          // Hero slot already filled by a previous section (e.g. description)
-          // If the current section starts with the same image as the hero image, remove it to avoid duplication
-          const existingHeroSrc = normalizeSubstackImageUrl(
-            heroSlot.querySelector("img")?.getAttribute("src")?.trim() || "",
-          );
-          const firstImgSrc = normalizeSubstackImageUrl(
-            firstImg?.getAttribute("src")?.trim() || "",
-          );
-          if (
-            existingHeroSrc &&
-            firstImg &&
-            this.isLikelySameImageSource(firstImgSrc, existingHeroSrc)
-          ) {
-            this.removeLeadImageElement(firstImg);
-          }
-        }
+        placeHeroImage(doc, heroSlot, fallbackHeroUrl, title, {
+          setupLightbox: (img) => this.setupLightboxForImage(img),
+          isLikelySameImageSource: (a, b) =>
+            this.isLikelySameImageSource(a, b),
+          removeLeadImageElement: (el) => this.removeLeadImageElement(el),
+        });
       }
 
-      // Obsidian shows tooltips for many elements with `aria-label` / `data-tooltip*`.
-      // Embedded article HTML frequently includes accessibility labels like "Breadcrumbs" and "Article body",
-      // which then appear as noisy tooltips on hover throughout the reader view.
-      doc.body.querySelectorAll<HTMLElement>("[aria-label]").forEach((el) => {
-        el.removeAttribute("aria-label");
-      });
-      doc.body.querySelectorAll<HTMLElement>("[data-tooltip]").forEach((el) => {
-        el.removeAttribute("data-tooltip");
-      });
-      doc.body
-        .querySelectorAll<HTMLElement>("[data-tooltip-position]")
-        .forEach((el) => {
-          el.removeAttribute("data-tooltip-position");
-        });
-      doc.body
-        .querySelectorAll<HTMLElement>("[data-tooltip-delay]")
-        .forEach((el) => {
-          el.removeAttribute("data-tooltip-delay");
-        });
+      stripEmbeddedTooltipAttributes(doc);
 
       html = doc.body.innerHTML;
     } catch {
@@ -2292,20 +2161,6 @@ export class ReaderView extends ItemView {
     replacement.setAttribute("src", recoverySrc);
     img.replaceWith(replacement);
     return true;
-  }
-
-  private hasMeaningfulFeedDescription(html: string): boolean {
-    if (!html) {
-      return false;
-    }
-
-    const doc = new DOMParser().parseFromString(html, "text/html");
-    const text = (doc.body.textContent || "").replace(/\s+/g, " ").trim();
-    if (!text) {
-      return false;
-    }
-
-    return !/^(?:\.{3,}|…+|\[\s*(?:\.{3,}|…+)\s*\])$/.test(text);
   }
 
   private stripTopHeadlineFromHtml(html: string): string {
