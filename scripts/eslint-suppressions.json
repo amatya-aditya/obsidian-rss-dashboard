@@ -279,9 +279,6 @@
     }
   },
   "src/views/reader-view.ts": {
-    "complexity": {
-      "count": 3
-    },
     "max-lines-per-function": {
       "count": 2
     }
