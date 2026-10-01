@@ -36,6 +36,7 @@
 - Fixed Portable data bundle, Feed bundle, and Settings bundle imports, shard migrations, and shard repairs writing metadata to Obsidian's plugin folder instead of the configured vault `data.json` location. These operations now persist where the plugin will read metadata after restart. [GH Issue #474](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/474)
 - Fixed the article list header saying **1 feeds** when exactly one feed is selected. It now says **1 feed**, alone and combined with tags. [GH Issue #582](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/582)
 - Fixed the article list header showing an unthemed browser tooltip instead of Obsidian's when a filter is active. The first render set the tooltip with a `title` attribute, so the browser drew it. After a filter change both tooltips appeared at once, with the browser's one stale. It now uses Obsidian's tooltip only. [GH Issue #587](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/587)
+- Fixed the **Edit tag**, **Add new tag**, **Save article**, **Save with template**, and **Overwrite all feeds** dialogs not closing with Escape and letting clicks reach the app behind them, so repeated clicks could open several copies. They now close with Escape without saving and block the app behind them. [GH Issue #355](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/355)
 
 ### Developer
 
