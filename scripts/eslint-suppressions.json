@@ -47,10 +47,10 @@
   },
   "src/components/sidebar.ts": {
     "complexity": {
-      "count": 4
+      "count": 2
     },
     "max-lines-per-function": {
-      "count": 5
+      "count": 3
     }
   },
   "src/components/tag-multi-select-control.ts": {

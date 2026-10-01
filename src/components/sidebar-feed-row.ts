@@ -13,7 +13,7 @@ import {
   getFaviconUrl,
 } from "../utils/favicon-utils";
 
-function renderFallbackFeedIcon(
+export function renderFallbackFeedIcon(
   feedIcon: HTMLElement,
   settings: RssDashboardSettings,
 ): void {

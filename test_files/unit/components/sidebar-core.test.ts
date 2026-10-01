@@ -12,6 +12,7 @@ import {
   SidebarOptions,
   SidebarCallbacks,
 } from "../../../src/components/sidebar";
+import { renderFallbackFeedIcon } from "../../../src/components/sidebar-feed-row";
 import * as ObsidianStubs from "../../stubs/obsidian";
 import type { App } from "../../stubs/obsidian";
 import {
@@ -53,7 +54,6 @@ type TestSidebar = {
   container: HTMLElement;
   settings: RssDashboardSettings;
   options: SidebarOptions;
-  renderFallbackFeedIcon: (el: HTMLElement) => void;
   cachedFolderPaths: string[] | null;
   getCachedFolderPaths: () => string[];
   renderHeader: (el: HTMLElement) => void;
@@ -163,32 +163,21 @@ describe("Sidebar Core", () => {
   });
 
   describe("renderFallbackFeedIcon", () => {
-    let sidebar: Sidebar;
     let iconEl: HTMLElement;
 
     beforeEach(() => {
-      sidebar = new Sidebar(
-        app,
-        container,
-        plugin as unknown as RssDashboardPlugin,
-        settings,
-        options,
-        callbacks,
-      );
       iconEl = createDiv();
     });
 
     it("should add rss icon by default", () => {
-      const ts = sidebar as unknown as TestSidebar;
-      ts.renderFallbackFeedIcon(iconEl);
+      renderFallbackFeedIcon(iconEl, settings);
       expect(iconEl.dataset.icon).toBe("rss");
       expect(iconEl.classList.contains("rss-icon-hidden")).toBe(false);
     });
 
     it("should hide icon if setting enabled", () => {
       settings.display.hideDefaultRssIcon = true;
-      const ts = sidebar as unknown as TestSidebar;
-      ts.renderFallbackFeedIcon(iconEl);
+      renderFallbackFeedIcon(iconEl, settings);
       expect(iconEl.classList.contains("rss-icon-hidden")).toBe(true);
     });
   });
