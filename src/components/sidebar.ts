@@ -17,11 +17,6 @@ import {
   FeedEncoding,
   FeedShardHealth,
 } from "../types/types";
-import {
-  SIDEBAR_ICON_IDS,
-  getIconById,
-  createToolbarButton,
-} from "../utils/sidebar-icon-registry";
 import { collectFolderPaths } from "../utils/folder-paths";
 import { AddFeedModal, EditFeedModal } from "../modals/feed-manager-modal";
 import { FolderAutoTagModal } from "../modals/feed-manager/folder-auto-tag-modal";
@@ -38,10 +33,6 @@ import {
 } from "../utils/platform-utils";
 import { SidebarSearchService } from "../services/sidebar-search-service";
 import { FolderNameModal } from "../modals/folder-name-modal";
-import {
-  loadVaultLocalStorage,
-  saveVaultLocalStorage,
-} from "../utils/vault-local-storage";
 import type RssDashboardPlugin from "../../main";
 import { applyFeedSortOrder } from "../utils/sidebar-sort-utils";
 import {
@@ -53,6 +44,7 @@ import {
 } from "../utils/sidebar-row-interactions";
 import { applyFolderSortOrder } from "../utils/sidebar-folder-sort-utils";
 import { renderFeedBadges, renderFeedIcon } from "./sidebar-feed-row";
+import { renderSidebarHeader, type SidebarHeaderHost } from "./sidebar-header";
 import {
   moveFeedsAndInsert,
   moveFolder,
@@ -129,13 +121,6 @@ export interface SidebarCallbacks {
   onFolderMultiSelect?: (folders: string[]) => void;
   onRangeSelect?: (clickedKey: string, visibleKeys: string[]) => void;
 }
-
-type AppWithInternalSettings = App & {
-  setting?: {
-    open?: () => void;
-    openTabById?: (id: string) => void;
-  };
-};
 
 type SidebarFocusTarget =
   | { type: "all-feeds" }
@@ -3009,232 +2994,38 @@ export class Sidebar {
   }
 
   public renderHeader(parentEl: HTMLElement = this.container): void {
-    const header = parentEl.createDiv({ cls: "rss-dashboard-header" });
-    this.iconBtnEls.clear();
-    this.iconActions.clear();
+    renderSidebarHeader(parentEl, this.buildHeaderHost());
+  }
 
-    if (this.settings.display.hideToolbarEntirely) return;
-
-    const iconRowWrapper = header.createDiv({ cls: "rss-icon-row-wrapper" });
-    const iconRow = iconRowWrapper.createDiv({
-      cls: "rss-dashboard-header-icon-row",
-    });
-    const display = this.settings.display;
-    const iconOrder: string[] = display.iconOrder?.length
-      ? display.iconOrder
-      : [...SIDEBAR_ICON_IDS];
-
-    // collapseAll needs a ref to its own button to update the icon dynamically
-    let collapseAllBtnRef: HTMLElement | null = null;
-    let cachedCollapseAllPaths: string[] | null = null;
-    const updateCollapseAllIcon = () => {
-      if (!collapseAllBtnRef) return;
-      if (!cachedCollapseAllPaths) {
-        cachedCollapseAllPaths = this.getCachedFolderPaths();
-      }
-      const collapsedFolders = this.settings.collapsedFolders || [];
-      const allCollapsed =
-        cachedCollapseAllPaths.length > 0 &&
-        cachedCollapseAllPaths.every((path) => collapsedFolders.includes(path));
-      setIcon(
-        collapseAllBtnRef,
-        allCollapsed ? "chevrons-down-up" : "chevrons-up-down",
-      );
+  private buildHeaderHost(): SidebarHeaderHost {
+    return {
+      app: this.app,
+      container: this.container,
+      settings: this.settings,
+      callbacks: this.callbacks,
+      iconBtnEls: this.iconBtnEls,
+      iconActions: this.iconActions,
+      isSearchExpanded: () => this.isSearchExpanded,
+      isTagsExpanded: () => this.isTagsExpanded,
+      toggleSearch: () => {
+        this.isSearchExpanded = !this.isSearchExpanded;
+      },
+      toggleTags: () => {
+        this.isTagsExpanded = !this.isTagsExpanded;
+      },
+      render: () => this.render(),
+      getPluginId: () => this.plugin.manifest.id,
+      activateDiscoverView: () => void this.plugin.activateDiscoverView(),
+      getCachedFolderPaths: () => this.getCachedFolderPaths(),
+      toggleAllFolders: () => this.toggleAllFolders(),
+      showAddFeedModal: () => this.showAddFeedModal(),
+      showFolderNameModal: (options) => this.showFolderNameModal(options),
+      addTopLevelFolder: (name) => this.addTopLevelFolder(name),
+      fireIconAction: (id, e) => this.fireIconAction(id, e),
+      updateIconRowFades: () => this.updateIconRowFades(),
+      addHorizontalScrollBehavior: (iconRow) =>
+        this.addHorizontalScrollBehavior(iconRow),
     };
-
-    for (const id of iconOrder) {
-      const iconConfig = getIconById(id);
-      if (!iconConfig) continue;
-
-      const hideKey = iconConfig.settingKey;
-      if (display[hideKey]) continue;
-
-      let btn: HTMLElement;
-
-      switch (id) {
-        case "divider": {
-          // Render the divider as a separate element based on iconOrder position
-          const divider = iconRow.createDiv({ cls: "rss-nav-divider" });
-          iconRow.appendChild(divider);
-          this.iconBtnEls.set(id, divider);
-          continue;
-        }
-
-        case "discover": {
-          const action = () => {
-            if (this.callbacks.onActivateDiscover) {
-              this.callbacks.onActivateDiscover();
-            } else {
-              void this.plugin.activateDiscoverView();
-            }
-          };
-          this.iconActions.set("discover", action);
-          btn = createToolbarButton(iconConfig, action);
-          btn.addClass("clickable-icon");
-          break;
-        }
-
-        case "addFeed": {
-          const action = () => {
-            this.showAddFeedModal();
-            if (
-              !loadVaultLocalStorage(
-                this.app,
-                "rss-first-launch-coachmark-shown",
-              )
-            ) {
-              saveVaultLocalStorage(
-                this.app,
-                "rss-first-launch-coachmark-shown",
-                "true",
-              );
-              const coachmark = this.iconBtnEls
-                .get("addFeed")
-                ?.querySelector(".rss-dashboard-coachmark");
-              if (coachmark) coachmark.remove();
-            }
-          };
-          this.iconActions.set("addFeed", action);
-          btn = createToolbarButton(iconConfig, action);
-          break;
-        }
-
-        case "manageFeeds": {
-          const action = () => {
-            if (this.callbacks.onManageFeeds) {
-              this.callbacks.onManageFeeds();
-            }
-          };
-          this.iconActions.set("manageFeeds", action);
-          btn = createToolbarButton(iconConfig, action);
-          break;
-        }
-
-        case "search": {
-          const action = () => {
-            this.isSearchExpanded = !this.isSearchExpanded;
-            this.render();
-            if (this.isSearchExpanded) {
-              window.requestAnimationFrame(() => {
-                const searchInput =
-                  this.container.querySelector<HTMLInputElement>(
-                    ".rss-dashboard-search-input",
-                  );
-                if (!searchInput) return;
-                searchInput.focus();
-                searchInput.select();
-                searchInput.scrollIntoView({ block: "nearest" });
-              });
-            }
-          };
-          this.iconActions.set("search", action);
-          btn = createToolbarButton(iconConfig, action);
-          btn.toggleClass("is-active", this.isSearchExpanded);
-          btn.setAttr("aria-pressed", this.isSearchExpanded ? "true" : "false");
-          break;
-        }
-
-        case "tags": {
-          const action = () => {
-            this.isTagsExpanded = !this.isTagsExpanded;
-            this.render();
-          };
-          this.iconActions.set("tags", action);
-          btn = createToolbarButton(iconConfig, action);
-          btn.toggleClass("is-active", this.isTagsExpanded);
-          btn.setAttr("aria-pressed", this.isTagsExpanded ? "true" : "false");
-          break;
-        }
-
-        case "addFolder": {
-          const action = () => {
-            this.showFolderNameModal({
-              title: "Add folder",
-              existingNames: this.settings.folders.map((f) => f.name),
-              onSubmit: (folderName) => {
-                void this.addTopLevelFolder(folderName).then(() =>
-                  this.render(),
-                );
-              },
-            });
-          };
-          this.iconActions.set("addFolder", action);
-          btn = createToolbarButton(iconConfig, action);
-          break;
-        }
-
-        case "sort":
-          // sort requires the MouseEvent for menu positioning; action stored in fireIconAction
-          btn = createToolbarButton(iconConfig, () => {
-            /* keyboard: no-op */
-          });
-          btn.addEventListener("click", (e: MouseEvent) =>
-            this.fireIconAction("sort", e),
-          );
-          break;
-
-        case "collapseAll": {
-          const action = () => {
-            cachedCollapseAllPaths = null;
-            this.toggleAllFolders();
-            window.setTimeout(updateCollapseAllIcon, 0);
-          };
-          this.iconActions.set("collapseAll", action);
-          btn = createToolbarButton(iconConfig, action);
-          collapseAllBtnRef = btn;
-          updateCollapseAllIcon();
-          break;
-        }
-
-        case "settings": {
-          const action = () => {
-            const appWithSettings = this.app as AppWithInternalSettings;
-            appWithSettings.setting?.open?.();
-            appWithSettings.setting?.openTabById?.(this.plugin.manifest.id);
-          };
-          this.iconActions.set("settings", action);
-          btn = createToolbarButton(iconConfig, action);
-          break;
-        }
-
-        default:
-          continue;
-      }
-
-      iconRow.appendChild(btn);
-      this.iconBtnEls.set(id, btn);
-    }
-
-    // Hamburger button — always last; hidden until responsive collapse needs it
-    // Set up scroll-fade indicators on the icon row wrapper
-    iconRow.addEventListener("scroll", () => this.updateIconRowFades());
-
-    // First-launch coachmark for the Add Feed button
-    const addFeedBtn = this.iconBtnEls.get("addFeed");
-    if (
-      addFeedBtn &&
-      !loadVaultLocalStorage(this.app, "rss-first-launch-coachmark-shown")
-    ) {
-      const coachmark = addFeedBtn.createDiv({
-        cls: "rss-dashboard-coachmark",
-        text: "Add your first feed here",
-      });
-      window.setTimeout(() => {
-        if (
-          !loadVaultLocalStorage(this.app, "rss-first-launch-coachmark-shown")
-        ) {
-          saveVaultLocalStorage(
-            this.app,
-            "rss-first-launch-coachmark-shown",
-            "true",
-          );
-          if (coachmark.parentNode) coachmark.remove();
-        }
-      }, 5000);
-    }
-
-    this.addHorizontalScrollBehavior(iconRow);
-
   }
 
   private addHorizontalScrollBehavior(iconRow: HTMLElement): void {
