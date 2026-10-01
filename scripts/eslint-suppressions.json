@@ -107,11 +107,6 @@
       "count": 2
     }
   },
-  "src/services/feed-parser/feed-parser-class.ts": {
-    "complexity": {
-      "count": 1
-    }
-  },
   "src/services/feed-parser/podcast-platform-resolver.ts": {
     "complexity": {
       "count": 1
