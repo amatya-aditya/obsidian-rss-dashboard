@@ -372,6 +372,9 @@ export class FeedSubscriptionService {
     if (oldUrl !== newUrl) {
       feed.lastRefreshAttemptCompletedAt = 0;
       feed.lastFetchError = undefined;
+      for (const item of feed.items) {
+        item.feedUrl = newUrl;
+      }
     }
 
     // Update feedTitle for all articles in this feed when the title changes

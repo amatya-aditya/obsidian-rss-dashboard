@@ -1223,53 +1223,47 @@ export default class RssDashboardPlugin extends Plugin {
   }
 
   private async onArticleSaved(item: FeedItem): Promise<void> {
-    if (item.feedUrl) {
-      const feed = this.settings.feeds.find((f) => f.url === item.feedUrl);
-      if (feed) {
-        const originalItem = feed.items.find((i) => i.guid === item.guid);
-        if (originalItem) {
-          originalItem.saved = true;
-          originalItem.savedFilePath = item.savedFilePath;
+    const guidMatches = this.settings.feeds.flatMap((feed) => feed.items.filter((storedItem) => storedItem.guid === item.guid));
+    const linkMatches = guidMatches.filter((storedItem) => storedItem.link === item.link);
+    const originalItem = linkMatches.length === 1 || guidMatches.length === 1 ? linkMatches[0] ?? guidMatches[0] : undefined;
+    if (!originalItem) return;
 
-          if (this.settings.articleSaving.addSavedTag) {
-            if (!originalItem.tags) {
-              originalItem.tags = [];
-            }
+    item.feedUrl = originalItem.feedUrl;
+    originalItem.saved = true;
+    originalItem.savedFilePath = item.savedFilePath;
 
-            if (
-              !originalItem.tags.some((t) => t.name.toLowerCase() === "saved")
-            ) {
-              const savedTag = this.settings.availableTags.find(
-                (t) => t.name.toLowerCase() === "saved",
-              );
-              if (savedTag) {
-                originalItem.tags.push({ ...savedTag });
-              } else {
-                originalItem.tags.push({ name: "saved", color: "#3498db" });
-              }
-            }
-          }
+    if (this.settings.articleSaving.addSavedTag) {
+      if (!originalItem.tags) {
+        originalItem.tags = [];
+      }
 
-          await this.saveSettings();
-
-          await this.syncDashboardArticleUpdate(
-            item.guid,
-            item.feedUrl,
-            {
-              saved: true,
-              savedFilePath: originalItem.savedFilePath,
-              tags: originalItem.tags ? [...originalItem.tags] : [],
-            },
-            false,
-          );
-          await this.syncReaderArticleUpdate(item.guid, {
-            saved: true,
-            savedFilePath: originalItem.savedFilePath,
-            tags: originalItem.tags ? [...originalItem.tags] : [],
-          });
+      if (!originalItem.tags.some((t) => t.name.toLowerCase() === "saved")) {
+        const savedTag = this.settings.availableTags.find(
+          (t) => t.name.toLowerCase() === "saved",
+        );
+        if (savedTag) {
+          originalItem.tags.push({ ...savedTag });
+        } else {
+          originalItem.tags.push({ name: "saved", color: "#3498db" });
         }
       }
     }
+
+    await this.saveSettings();
+
+    const updates: Partial<FeedItem> = {
+      feedUrl: originalItem.feedUrl,
+      saved: true,
+      savedFilePath: originalItem.savedFilePath,
+      tags: originalItem.tags ? [...originalItem.tags] : [],
+    };
+    await this.syncDashboardArticleUpdate(
+      item.guid,
+      originalItem.feedUrl,
+      updates,
+      false,
+    );
+    await this.syncReaderArticleUpdate(item.guid, updates);
   }
 
   private async updateArticleFromReader(

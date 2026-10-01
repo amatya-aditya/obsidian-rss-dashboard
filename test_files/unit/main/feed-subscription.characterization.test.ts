@@ -679,14 +679,34 @@ describe("feed subscription: editFeed", () => {
     expect(feed.items[0].feedTitle).toBe("New title");
   });
 
-  it("leaves the feed URL on the articles when the URL changes", async () => {
+  it("updates every article's feed URL while preserving article data and state", async () => {
     const { harness, feed } = editHarness();
-    const oldUrl = feed.url;
+    const newUrl = "https://example.com/other.xml";
+    feed.items = [
+      createItem(feed.url, "a", {
+        feedTitle: "Old title",
+        read: false,
+        starred: true,
+        tags: [{ name: "Keep", color: "#abcdef" }],
+        saved: true,
+        savedFilePath: "saved/a.md",
+        playbackProgress: { position: 12, duration: 90, lastUpdated: 34 },
+      }),
+      createItem(feed.url, "b", {
+        feedTitle: "Old title",
+        read: true,
+        starred: false,
+        tags: [{ name: "Other", color: "#123456" }],
+      }),
+    ];
+    const expectedItems = structuredClone(feed.items).map((item) => ({
+      ...item,
+      feedUrl: newUrl,
+    }));
 
-    await harness.plugin.editFeed(feed, "Old title", "https://example.com/other.xml", "News");
+    await harness.plugin.editFeed(feed, "Old title", newUrl, "News");
 
-    // BUG: pinned, see #553
-    expect(feed.items[0].feedUrl).toBe(oldUrl);
+    expect(feed.items).toEqual(expectedItems);
   });
 
   it("lets a feed be edited onto another feed's URL", async () => {
