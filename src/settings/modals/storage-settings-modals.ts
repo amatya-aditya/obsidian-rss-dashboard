@@ -72,8 +72,12 @@ export class StorageTransitionModal extends Modal {
   private renderLegacyToShardsModal(contentEl: HTMLElement): void {
     contentEl.createEl("h2", { text: "Apply storage change?" });
     if (this.currentMode === "legacy-json") {
+      const targetLabel =
+        this.targetMode === "vault-shards-v2"
+          ? "shard storage v2"
+          : "shard storage v1";
       contentEl.createEl("p", {
-        text: "You are switching from legacy data.json storage to shard storage v1.",
+        text: `You are switching from legacy data.json storage to ${targetLabel}.`,
       });
       contentEl.createEl("p", {
         text: "Before continuing, back up your current data.json file. You can use the existing export action here first, then come back and apply the change.",

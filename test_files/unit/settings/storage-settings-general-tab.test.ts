@@ -234,6 +234,48 @@ describe("General settings storage section", () => {
     ).toBeTruthy();
   });
 
+  it("renders the correct target mode text when switching from legacy-json to shard storage v1 or v2", () => {
+    const app = obsidian.App.createMock();
+
+    const modalV1 = new StorageTransitionModal(app, {
+      currentMode: "legacy-json",
+      targetMode: "vault-shards",
+      storageFolder: ".rss-dashboard-data/feeds",
+    });
+    modalV1.open();
+    const paragraphsV1 = Array.from(modalV1.contentEl.querySelectorAll("p")).map(
+      (p) => p.textContent,
+    );
+    expect(paragraphsV1[0]).toBe(
+      "You are switching from legacy data.json storage to shard storage v1.",
+    );
+    expect(paragraphsV1[1]).toBe(
+      "Before continuing, back up your current data.json file. You can use the existing export action here first, then come back and apply the change.",
+    );
+    expect(paragraphsV1[2]).toBe(
+      "Shard files will be written into: .rss-dashboard-data/feeds",
+    );
+
+    const modalV2 = new StorageTransitionModal(app, {
+      currentMode: "legacy-json",
+      targetMode: "vault-shards-v2",
+      storageFolder: ".rss-dashboard-data/feeds",
+    });
+    modalV2.open();
+    const paragraphsV2 = Array.from(modalV2.contentEl.querySelectorAll("p")).map(
+      (p) => p.textContent,
+    );
+    expect(paragraphsV2[0]).toBe(
+      "You are switching from legacy data.json storage to shard storage v2.",
+    );
+    expect(paragraphsV2[1]).toBe(
+      "Before continuing, back up your current data.json file. You can use the existing export action here first, then come back and apply the change.",
+    );
+    expect(paragraphsV2[2]).toBe(
+      "Shard files will be written into: .rss-dashboard-data/feeds",
+    );
+  });
+
   it("applies the pending legacy-to-shards storage change through the modal", async () => {
     const containerEl = createTestContainer();
     const plugin = createPlugin();
