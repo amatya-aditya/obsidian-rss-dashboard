@@ -46,11 +46,8 @@
     }
   },
   "src/components/sidebar.ts": {
-    "complexity": {
-      "count": 1
-    },
     "max-lines-per-function": {
-      "count": 3
+      "count": 2
     }
   },
   "src/components/tag-multi-select-control.ts": {
