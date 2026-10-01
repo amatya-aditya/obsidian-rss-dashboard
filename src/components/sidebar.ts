@@ -46,6 +46,10 @@ import { applyFolderSortOrder } from "../utils/sidebar-folder-sort-utils";
 import { renderFeedBadges, renderFeedIcon } from "./sidebar-feed-row";
 import { renderSidebarHeader, type SidebarHeaderHost } from "./sidebar-header";
 import {
+  showSidebarFolderContextMenu,
+  type SidebarFolderMenuHost,
+} from "./sidebar-folder-menu";
+import {
   moveFeedsAndInsert,
   moveFolder,
   setFolderFeedSortCustom,
@@ -2098,170 +2102,44 @@ export class Sidebar {
     fullPath: string,
     folderName: string,
   ): void {
-    const menu = new Menu();
-    const anchor = event.currentTarget;
+    showSidebarFolderContextMenu(
+      event,
+      folderObj,
+      fullPath,
+      folderName,
+      this.buildFolderMenuHost(),
+    );
+  }
 
-    menu.addItem((item: MenuItem) => {
-      item
-        .setTitle("Refresh details")
-        .setIcon("info")
-        .onClick(() => {
-          this.showRefreshDetails(
-            anchor instanceof HTMLElement ? anchor : this.container,
-            this.settings.feeds.filter((feed) => {
-              const paths = this.getAllDescendantFolderPaths(fullPath);
-              return Boolean(feed.folder) && paths.includes(feed.folder);
-            }),
-            "aggregate",
-          );
-        });
-    });
-
-    if (this.isMultiSelectionTarget("folder", fullPath)) {
-      this.appendSelectionContextMenu(menu);
-      menu.showAtMouseEvent(event);
-      return;
-    }
-    menu.addItem((item: MenuItem) => {
-      item
-        .setTitle("Add feed")
-        .setIcon("rss")
-        .onClick(() => {
-          this.showAddFeedModal(fullPath);
-        });
-    });
-    menu.addItem((item: MenuItem) => {
-      item
-        .setTitle("Add subfolder")
-        .setIcon("folder-plus")
-        .onClick(() => {
-          this.showFolderNameModal({
-            title: "Add subfolder",
-            existingNames:
-              this.findFolderByPath(fullPath)?.subfolders.map((f) => f.name) ??
-              [],
-            onSubmit: (subfolderName) => {
-              void this.addSubfolderByPath(fullPath, subfolderName).then(() =>
-                this.render(),
-              );
-            },
-          });
-        });
-    });
-    menu.addItem((item: MenuItem) => {
-      item
-        .setTitle("Rename folder")
-        .setIcon("edit")
-        .onClick(() => {
-          this.showFolderNameModal({
-            title: "Rename folder",
-            defaultValue: folderName,
-            existingNames: (() => {
-              const parentPath = fullPath.includes("/")
-                ? fullPath.split("/").slice(0, -1).join("/")
-                : "";
-              return parentPath
-                ? (this.findFolderByPath(parentPath)?.subfolders.map(
-                    (f) => f.name,
-                  ) ?? [])
-                : this.settings.folders.map((f) => f.name);
-            })(),
-            onSubmit: (newName) => {
-              if (newName !== folderName) {
-                void this.renameFolderByPath(fullPath, newName).then(() =>
-                  this.render(),
-                );
-              }
-            },
-          });
-        });
-    });
-    menu.addItem((item: MenuItem) => {
-      item
-        .setTitle("Sort feeds (a to z)")
-        .setIcon("sort-asc")
-        .onClick(() => {
-          void this.sortFeedsInFolder(fullPath, "name", true);
-        });
-    });
-    menu.addItem((item: MenuItem) => {
-      item
-        .setTitle("Sort feeds (z to a)")
-        .setIcon("sort-desc")
-        .onClick(() => {
-          void this.sortFeedsInFolder(fullPath, "name", false);
-        });
-    });
-    menu.addItem((item: MenuItem) => {
-      item
-        .setTitle("Mark all as read")
-        .setIcon("check-circle")
-        .onClick(() => {
-          const allPaths = this.getAllDescendantFolderPaths(fullPath);
-          this.settings.feeds.forEach((feed) => {
-            if (feed.folder && allPaths.includes(feed.folder)) {
-              feed.items.forEach((item) => {
-                item.read = true;
-              });
-            }
-          });
-          void this.plugin.saveSettings().then(() => this.render());
-        });
-    });
-    menu.addItem((item: MenuItem) => {
-      item
-        .setTitle(`Refresh feeds in folder`)
-        .setIcon("refresh-cw")
-        .onClick(() => {
-          void this.plugin.refreshFeedsInFolder(fullPath);
-        });
-    });
-    menu.addItem((item: MenuItem) => {
-      item
-        .setTitle("Auto tag feeds in folder...")
-        .setIcon("tags")
-        .onClick(() => {
-          this.showFolderAutoTagModal(fullPath);
-        });
-    });
-    menu.addItem((item: MenuItem) => {
-      item
-        .setTitle("Refresh all feeds")
-        .setIcon("refresh-cw")
-        .onClick(() => {
-          this.plugin.cancelPendingStartupRefresh();
-          void this.plugin.refreshFeeds();
-        });
-    });
-    menu.addItem((item: MenuItem) => {
-      const isPinned = folderObj.pinned;
-      item
-        .setTitle(isPinned ? "Unpin folder" : "Pin folder")
-        .setIcon(isPinned ? "unlock" : "lock")
-        .onClick(() => {
-          folderObj.pinned = !isPinned;
-          folderObj.modifiedAt = Date.now();
-          void this.plugin.saveSettings().then(() => this.render());
-        });
-    });
-    menu.addItem((item: MenuItem) => {
-      item
-        .setTitle("Delete folder")
-        .setIcon("trash")
-        .onClick(() => {
-          this.showConfirmModal(
-            `Are you sure you want to delete the folder '${folderName}' and all its subfolders and feeds?`,
-            () => {
-              this.callbacks.onDeleteFolder(fullPath);
-            },
-          );
-        });
-    });
-    if (typeof menu.showAtMouseEvent === "function") {
-      menu.showAtMouseEvent(event);
-    } else {
-      menu.showAtPosition({ x: event.clientX, y: event.clientY });
-    }
+  private buildFolderMenuHost(): SidebarFolderMenuHost {
+    return {
+      container: this.container,
+      settings: this.settings,
+      callbacks: this.callbacks,
+      plugin: this.plugin,
+      render: () => this.render(),
+      showRefreshDetails: (anchor, feeds, scope) =>
+        this.showRefreshDetails(anchor, feeds, scope),
+      getAllDescendantFolderPaths: (path) =>
+        this.getAllDescendantFolderPaths(path),
+      isMultiSelectionTarget: (targetType, targetKey) =>
+        this.isMultiSelectionTarget(targetType, targetKey),
+      appendSelectionContextMenu: (menu) =>
+        this.appendSelectionContextMenu(menu),
+      showAddFeedModal: (defaultFolder) => this.showAddFeedModal(defaultFolder),
+      showFolderNameModal: (options) => this.showFolderNameModal(options),
+      findFolderByPath: (path) => this.findFolderByPath(path),
+      addSubfolderByPath: (parentPath, subfolderName) =>
+        this.addSubfolderByPath(parentPath, subfolderName),
+      renameFolderByPath: (oldPath, newName) =>
+        this.renameFolderByPath(oldPath, newName),
+      sortFeedsInFolder: (folderPath, by, ascending) =>
+        this.sortFeedsInFolder(folderPath, by, ascending),
+      showFolderAutoTagModal: (folderPath) =>
+        this.showFolderAutoTagModal(folderPath),
+      showConfirmModal: (message, onConfirm) =>
+        this.showConfirmModal(message, onConfirm),
+    };
   }
 
   private findFolderByPath(path: string): Folder | null {
