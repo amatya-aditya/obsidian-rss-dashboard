@@ -1041,6 +1041,92 @@ describe("onload() initialization", () => {
       "Articles/Saved article.md",
     );
   });
+
+  it("persists a Reader save when its article has a stale feed URL", async () => {
+    const currentFeedUrl = "https://example.com/moved.xml";
+    const staleFeedUrl = "https://example.com/old.xml";
+    const originalItem: FeedItem = {
+      guid: "moved-article",
+      title: "Saved article",
+      link: "https://example.com/article",
+      description: "",
+      pubDate: "2024-01-01T00:00:00.000Z",
+      read: false,
+      starred: false,
+      saved: false,
+      tags: [],
+      feedTitle: "Feed",
+      feedUrl: currentFeedUrl,
+      coverImage: "",
+    };
+    const duplicateGuidItem: FeedItem = {
+      ...originalItem,
+      title: "Different article from another feed",
+      link: "https://other.example.com/article",
+      feedTitle: "Other feed",
+      feedUrl: "https://other.example.com/feed.xml",
+    };
+    plugin.settings.feeds = [
+      {
+        title: "Other feed",
+        url: "https://other.example.com/feed.xml",
+        folder: "",
+        items: [duplicateGuidItem],
+      } as Feed,
+      {
+        title: "Feed",
+        url: currentFeedUrl,
+        folder: "",
+        items: [originalItem],
+      } as Feed,
+    ];
+    const readerItem: FeedItem = {
+      ...originalItem,
+      feedUrl: staleFeedUrl,
+      saved: true,
+      savedFilePath: "Articles/Saved article.md",
+    };
+
+    await (plugin as unknown as PluginPrivateAPI).onArticleSaved(readerItem);
+
+    expect(originalItem.saved).toBe(true);
+    expect(originalItem.savedFilePath).toBe("Articles/Saved article.md");
+    expect(duplicateGuidItem.saved).toBe(false);
+    expect(readerItem.feedUrl).toBe(currentFeedUrl);
+  });
+
+  it("persists a Reader save to the item's own feed when two feeds share a GUID and link", async () => {
+    const make = (feedUrl: string): FeedItem => ({
+      guid: "shared",
+      title: "Cross-posted",
+      link: "https://example.com/shared",
+      description: "",
+      pubDate: "2024-01-01T00:00:00.000Z",
+      read: false,
+      starred: false,
+      saved: false,
+      tags: [],
+      feedTitle: "Feed",
+      feedUrl,
+      coverImage: "",
+    });
+    const first = make("https://a.example.com/feed.xml");
+    const second = make("https://b.example.com/feed.xml");
+    plugin.settings.feeds = [
+      { title: "A", url: first.feedUrl, folder: "", items: [first] } as Feed,
+      { title: "B", url: second.feedUrl, folder: "", items: [second] } as Feed,
+    ];
+
+    await (plugin as unknown as PluginPrivateAPI).onArticleSaved({
+      ...second,
+      saved: true,
+      savedFilePath: "Articles/Cross-posted.md",
+    });
+
+    expect(second.saved).toBe(true);
+    expect(second.savedFilePath).toBe("Articles/Cross-posted.md");
+    expect(first.saved).toBe(false);
+  });
 });
 
 describe("URI add-feed handling", () => {

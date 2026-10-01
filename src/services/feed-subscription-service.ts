@@ -1,4 +1,5 @@
 import { Notice } from "obsidian";
+import { syncFeedItemMetadata } from "./stored-article-lookup";
 import type {
   Feed,
   FeedEncoding,
@@ -38,6 +39,13 @@ export interface FeedSubscriptionServiceOptions {
     options?: { saveSettings?: boolean; refreshView?: boolean },
   ) => Promise<boolean>;
   getActiveDashboardView: () => Promise<FeedSubscriptionViewLike | null>;
+}
+
+class FeedSettingsSaveError extends Error {
+  constructor(error: unknown) {
+    super(error instanceof Error ? error.message : "Unknown error");
+    this.name = "FeedSettingsSaveError";
+  }
 }
 
 /**
@@ -95,7 +103,8 @@ export class FeedSubscriptionService {
       }
 
       if (updatedCount > 0) {
-        new Notice(`Applied limits to ${updatedCount} feeds`);
+        const feedLabel = updatedCount === 1 ? "feed" : "feeds";
+        new Notice(`Applied limits to ${updatedCount} ${feedLabel}`);
       } else {
         new Notice("No feeds needed limit adjustments");
       }
@@ -151,21 +160,24 @@ export class FeedSubscriptionService {
 
       // Try to parse the feed BEFORE adding it to settings
       try {
-        const parsedFeed = await this.feedParser.parseFeed(url, newFeed, {
-          allowEmpty: true,
-          signal: operationSignal ?? undefined,
-        });
+        let parsedFeed: Feed;
+        try {
+          parsedFeed = await this.feedParser.parseFeed(url, newFeed, {
+            allowEmpty: true,
+            signal: operationSignal ?? undefined,
+          });
+        } catch (error) {
+          if (showNotice) {
+            new Notice(formatFeedParseNoticeMessage(error));
+          }
+          return false;
+        }
         if (operationSignal?.aborted || this.feedOperationTracker.isCancelled) {
           return false;
         }
         const feedToStore = this.mergeParsedFeed(newFeed, parsedFeed);
         await this.storeAddedFeed(feedToStore, title, showNotice);
         return true;
-      } catch (error) {
-        if (showNotice) {
-          new Notice(formatFeedParseNoticeMessage(error));
-        }
-        return false;
       } finally {
         if (operationSignal) {
           await this.feedOperationTracker.end();
@@ -173,9 +185,11 @@ export class FeedSubscriptionService {
       }
     } catch (error) {
       if (showNotice) {
-        new Notice(
-          `Error adding feed: ${error instanceof Error ? error.message : "Unknown error"}`,
-        );
+        const message =
+          error instanceof FeedSettingsSaveError
+            ? `Error saving feed: ${error.message}`
+            : `Error adding feed: ${error instanceof Error ? error.message : "Unknown error"}`;
+        new Notice(message);
       }
       return false;
     }
@@ -284,8 +298,17 @@ export class FeedSubscriptionService {
     );
 
     // Only add to settings if parsing succeeded
-    this.settings.feeds.push(feedWithTags);
-    await this.options.saveSettings();
+    const feeds = this.settings.feeds;
+    feeds.push(feedWithTags);
+    try {
+      await this.options.saveSettings();
+    } catch (error) {
+      const feedIndex = feeds.indexOf(feedWithTags);
+      if (feedIndex !== -1) {
+        feeds.splice(feedIndex, 1);
+      }
+      throw new FeedSettingsSaveError(error);
+    }
     this.previewImageCache.warmFeed(feedWithTags);
 
     const view = await this.options.getActiveDashboardView();
@@ -301,31 +324,46 @@ export class FeedSubscriptionService {
     parentFolderName: string,
     subfolderName: string,
   ): Promise<void> {
-    const parentFolder = this.settings.folders.find(
-      (f) => f.name === parentFolderName,
-    );
+    const parentParts = parentFolderName
+      .split("/")
+      .map((part) => part.trim())
+      .filter((part) => part.length > 0);
+    let parentLevel = this.settings.folders;
+    let parentFolder =
+      parentLevel.find((folder) => folder.name === parentFolderName) ??
+      parentLevel.find((folder) => folder.name === parentParts[0]);
 
-    if (parentFolder) {
-      if (!parentFolder.subfolders.some((sf) => sf.name === subfolderName)) {
-        parentFolder.subfolders.push({
-          name: subfolderName,
-          subfolders: [],
-        });
+    const exactTopLevel = parentFolder?.name === parentFolderName;
+    for (const part of exactTopLevel ? [] : parentParts.slice(1)) {
+      if (!parentFolder) break;
+      parentLevel = parentFolder.subfolders;
+      parentFolder = parentLevel.find((folder) => folder.name === part);
+    }
 
-        await this.options.saveSettings();
+    if (!parentFolder) {
+      new Notice(`Parent folder "${parentFolderName}" not found`);
+      return;
+    }
 
-        const view = await this.options.getActiveDashboardView();
-        if (view) {
-          void view.refresh();
-          new Notice(
-            `Subfolder "${subfolderName}" created under "${parentFolderName}"`,
-          );
-        }
-      } else {
+    if (!parentFolder.subfolders.some((sf) => sf.name === subfolderName)) {
+      parentFolder.subfolders.push({
+        name: subfolderName,
+        subfolders: [],
+      });
+
+      await this.options.saveSettings();
+
+      const view = await this.options.getActiveDashboardView();
+      if (view) {
+        void view.refresh();
         new Notice(
-          `Subfolder "${subfolderName}" already exists in "${parentFolderName}"`,
+          `Subfolder "${subfolderName}" created under "${parentFolderName}"`,
         );
       }
+    } else {
+      new Notice(
+        `Subfolder "${subfolderName}" already exists in "${parentFolderName}"`,
+      );
     }
   }
 
@@ -353,12 +391,11 @@ export class FeedSubscriptionService {
       feed.lastFetchError = undefined;
     }
 
-    // Update feedTitle for all articles in this feed when the title changes
-    if (oldTitle !== newTitle) {
-      for (const item of feed.items) {
-        item.feedTitle = newTitle;
-      }
-    }
+    syncFeedItemMetadata(
+      feed,
+      { title: oldTitle, url: oldUrl },
+      { title: newTitle, url: newUrl },
+    );
 
     await this.options.saveSettings();
 

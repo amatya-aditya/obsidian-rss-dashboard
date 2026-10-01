@@ -244,6 +244,58 @@ beforeEach(() => {
 });
 
 describe("EditFeedModal", () => {
+  it("updates article feed URLs when saving an edited feed URL", async () => {
+    const app = createMockApp();
+    const oldUrl = "https://example.com/old.xml";
+    const newUrl = "https://example.com/new.xml";
+    const article = makeArticle("article-1", "2026-05-01T00:00:00Z", {
+      feedUrl: oldUrl,
+      feedTitle: "Example feed",
+      read: true,
+      saved: true,
+      starred: true,
+    }) as unknown as FeedItem;
+    const feed: Feed = {
+      title: "Example feed",
+      url: oldUrl,
+      folder: "Tech",
+      items: [article],
+      lastUpdated: 0,
+    };
+    const plugin: PluginTestFixture = {
+      app,
+      settings: {
+        folders: [],
+        maxItems: 50,
+        corsProxyEnabled: false,
+        corsProxyUrl: "",
+        articleSaving: { savedTemplates: [] },
+      },
+      ensureFolderExists: vi.fn(async () => {}),
+      saveSettings: vi.fn(async () => {}),
+      notifyFiltersUpdated: vi.fn(),
+    };
+
+    const modal = new EditFeedModal(app, asRssDashboardPlugin(plugin), feed, vi.fn());
+    modal.open();
+
+    const urlInput = getTextInputBySettingName(modal.contentEl, "Feed URL");
+    urlInput.value = newUrl;
+    urlInput.dispatchEvent(new Event("input"));
+    getButtonByText(modal.contentEl, "Save").click();
+    await flushPromises();
+
+    expect(feed.url).toBe(newUrl);
+    expect(article.feedUrl).toBe(newUrl);
+    expect(article).toMatchObject({
+      feedTitle: "Example feed",
+      read: true,
+      saved: true,
+      starred: true,
+    });
+    expect(plugin.saveSettings).toHaveBeenCalledTimes(1);
+  });
+
   it("persists an encoding change and immediately refreshes the feed", async () => {
     const app = createMockApp();
     const feed: Feed = {

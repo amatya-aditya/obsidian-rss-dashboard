@@ -1,4 +1,5 @@
 import { Modal, App, Setting, Notice, setIcon } from "obsidian";
+import { syncFeedItemMetadata } from "../../services/stored-article-lookup";
 import type RssDashboardPlugin from "../../../main";
 import type {
   Feed,
@@ -895,12 +896,12 @@ export class EditFeedModal extends Modal {
         }
         this.feed.autoDeleteDuration = this.autoDeleteDuration;
 
-        // Update feedTitle for all articles in this feed when the title changes
-        if (oldTitle !== this.title) {
-          for (const item of this.feed.items) {
-            item.feedTitle = this.title;
-          }
-        }
+        // Keep article metadata aligned when the feed's title or URL changes.
+        syncFeedItemMetadata(
+          this.feed,
+          { title: oldTitle, url: oldUrl },
+          { title: this.title, url: this.url },
+        );
 
         const newMaxItemsLimit = Number.isFinite(this.maxItemsLimit)
           ? this.maxItemsLimit

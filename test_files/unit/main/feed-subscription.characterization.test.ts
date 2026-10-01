@@ -543,7 +543,7 @@ describe("feed subscription: addFeed failures", () => {
     expect(notices(harness)).toEqual([]);
   });
 
-  it("reports a failing save as a parse failure and leaves the feed unsaved in memory", async () => {
+  it("reports a failing save as an add error and removes the feed from memory", async () => {
     const harness = createHarness();
     harness.save.mockImplementationOnce(async () => {
       harness.events.push("save");
@@ -552,10 +552,10 @@ describe("feed subscription: addFeed failures", () => {
 
     const added = await addFeed(harness);
 
-    // BUG: pinned, see #552
     expect(added).toBe(false);
-    expect(notices(harness)).toEqual(["Error parsing feed: disk full"]);
-    expect(harness.plugin.settings.feeds).toHaveLength(1);
+    expect(notices(harness)).toEqual(["Error saving feed: disk full"]);
+    expect(harness.plugin.settings.feeds).toHaveLength(0);
+    expect(harness.refresh).not.toHaveBeenCalled();
   });
 
   it("reports a failure before the parse as an add error", async () => {
@@ -679,14 +679,34 @@ describe("feed subscription: editFeed", () => {
     expect(feed.items[0].feedTitle).toBe("New title");
   });
 
-  it("leaves the feed URL on the articles when the URL changes", async () => {
+  it("updates every article's feed URL while preserving article data and state", async () => {
     const { harness, feed } = editHarness();
-    const oldUrl = feed.url;
+    const newUrl = "https://example.com/other.xml";
+    feed.items = [
+      createItem(feed.url, "a", {
+        feedTitle: "Old title",
+        read: false,
+        starred: true,
+        tags: [{ name: "Keep", color: "#abcdef" }],
+        saved: true,
+        savedFilePath: "saved/a.md",
+        playbackProgress: { position: 12, duration: 90, lastUpdated: 34 },
+      }),
+      createItem(feed.url, "b", {
+        feedTitle: "Old title",
+        read: true,
+        starred: false,
+        tags: [{ name: "Other", color: "#123456" }],
+      }),
+    ];
+    const expectedItems = structuredClone(feed.items).map((item) => ({
+      ...item,
+      feedUrl: newUrl,
+    }));
 
-    await harness.plugin.editFeed(feed, "Old title", "https://example.com/other.xml", "News");
+    await harness.plugin.editFeed(feed, "Old title", newUrl, "News");
 
-    // BUG: pinned, see #553
-    expect(feed.items[0].feedUrl).toBe(oldUrl);
+    expect(feed.items).toEqual(expectedItems);
   });
 
   it("lets a feed be edited onto another feed's URL", async () => {
@@ -780,23 +800,39 @@ describe("feed subscription: addSubfolder", () => {
     expect(harness.plugin.settings.folders[0].subfolders).toHaveLength(1);
   });
 
-  it("does nothing at all for an unknown parent", async () => {
+  it("notices an unknown parent without changing folders, saving or refreshing", async () => {
     const harness = folderHarness();
+    const foldersBefore = structuredClone(harness.plugin.settings.folders);
 
     await harness.plugin.addSubfolder("Missing", "World");
 
-    // BUG: pinned, see #555
-    expect(harness.events).toEqual([]);
+    expect(harness.plugin.settings.folders).toEqual(foldersBefore);
+    expect(harness.events).toEqual(['notice: Parent folder "Missing" not found']);
   });
 
-  it("does nothing at all for a nested parent path", async () => {
+  it("creates a subfolder under a nested parent path", async () => {
     const harness = folderHarness();
 
     await harness.plugin.addSubfolder("News/Tech", "World");
 
-    // BUG: pinned, see #555
-    expect(harness.events).toEqual([]);
-    expect(harness.plugin.settings.folders[0].subfolders[0].subfolders).toEqual([]);
+    expect(harness.plugin.settings.folders[0].subfolders[0].subfolders).toEqual([
+      { name: "World", subfolders: [] },
+    ]);
+    expect(harness.events).toEqual([
+      "save",
+      "refresh",
+      'notice: Subfolder "World" created under "News/Tech"',
+    ]);
+  });
+
+  it("finds a top-level folder whose name contains a slash", async () => {
+    const harness = createHarness([], [{ name: "A/B", subfolders: [] }]);
+
+    await harness.plugin.addSubfolder("A/B", "World");
+
+    expect(harness.plugin.settings.folders[0].subfolders).toEqual([
+      { name: "World", subfolders: [] },
+    ]);
   });
 });
 
@@ -888,13 +924,12 @@ describe("feed subscription: applyFeedLimitsToAllFeeds", () => {
     expect(harness.events).toEqual(["save", "refresh", "notice: Applied limits to 2 feeds"]);
   });
 
-  it("says 1 feeds for a single trimmed feed", async () => {
+  it("uses singular feed for one trimmed feed", async () => {
     const harness = createHarness([feedOfArticles("a", 4)]);
 
     await harness.plugin.applyFeedLimitsToAllFeeds();
 
-    // BUG: pinned, see #556
-    expect(notices(harness)).toEqual(["Applied limits to 1 feeds"]);
+    expect(notices(harness)).toEqual(["Applied limits to 1 feed"]);
   });
 
   it("still saves and redraws when nothing needs trimming, and says so", async () => {
@@ -915,7 +950,7 @@ describe("feed subscription: applyFeedLimitsToAllFeeds", () => {
 
     await harness.plugin.applyFeedLimitsToAllFeeds();
 
-    expect(harness.events).toEqual(["save", "notice: Applied limits to 1 feeds"]);
+    expect(harness.events).toEqual(["save", "notice: Applied limits to 1 feed"]);
   });
 
   it("reports a failing save, with the articles already trimmed in memory", async () => {
