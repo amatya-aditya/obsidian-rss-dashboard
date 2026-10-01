@@ -2270,8 +2270,12 @@ export default class RssDashboardPlugin extends Plugin {
     if (this.startupRefreshTimeoutId === null) return;
     window.clearTimeout(this.startupRefreshTimeoutId);
     this.startupRefreshTimeoutId = null;
-    if (!isUnloading) { this.backgroundImportService?.resumePendingImports(); this.autoRefreshScheduler?.start(); }
+    if (!isUnloading) {
+      this.backgroundImportService?.resumePendingImports();
+      this.autoRefreshScheduler?.start();
+    }
   }
+
 
   private async validateSavedArticles(): Promise<void> {
     let updatedCount = 0;
