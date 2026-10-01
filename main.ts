@@ -1065,6 +1065,205 @@ export default class RssDashboardPlugin extends Plugin {
     }
   }
 
+  private registerWhatsNewTriggers(): void {
+    // What's New is gated on the dashboard being the active tab, unlike the
+    // storage warning's own trigger. A restored session can already have the
+    // dashboard active without an `active-leaf-change`, so check both.
+    this.registerEvent(
+      this.app.workspace.on("active-leaf-change", () => {
+        this.maybeShowWhatsNewForActiveDashboard();
+      }),
+    );
+    this.app.workspace.onLayoutReady(() => {
+      this.maybeShowWhatsNewForActiveDashboard();
+    });
+  }
+
+  private registerProtocolHandler(): void {
+    this.registerObsidianProtocolHandler(
+      this.manifest.id,
+      (params: ObsidianProtocolData) => {
+        void this.dispatchUriAction(params);
+      },
+    );
+  }
+
+  private registerViews(): void {
+    this.registerView(
+      RSS_DASHBOARD_VIEW_TYPE,
+      (leaf) => new RssDashboardView(leaf, this),
+    );
+
+    this.registerView(
+      RSS_DISCOVER_VIEW_TYPE,
+      (leaf) => new DiscoverView(leaf, this),
+    );
+
+    this.registerView(
+      RSS_READER_VIEW_TYPE,
+      (leaf) =>
+        new ReaderView(
+          leaf,
+          () => this.settings,
+          () => this.articleSaver,
+          (item: FeedItem) => {
+            void this.onArticleSaved(item);
+          },
+          (
+            item: FeedItem,
+            updates: Partial<FeedItem>,
+            shouldRerender?: boolean,
+          ) => {
+            void this.updateArticleFromReader(item, updates, shouldRerender);
+          },
+          {
+            onPlaybackProgress: (item, position, duration, flush) => {
+              this.updatePlaybackProgress(
+                item.feedUrl,
+                item.guid,
+                position,
+                duration,
+                flush,
+                item,
+              );
+            },
+          },
+        ),
+    );
+
+    this.registerView(
+      RSS_SMALLWEB_VIEW_TYPE,
+      (leaf) => new KagiSmallwebView(leaf, this),
+    );
+  }
+
+  private registerRibbonIconAndSettingTab(): void {
+    this.addRibbonIcon("compass", "RSS dashboard", () => {
+      void this.activateView();
+    });
+
+    this.settingTab = new RssDashboardSettingTab(this.app, this);
+    this.addSettingTab(this.settingTab);
+  }
+
+  private registerCommands(): void {
+    this.addCommand({
+      id: "open-dashboard",
+      name: "Open dashboard",
+      callback: () => {
+        void this.activateView();
+      },
+    });
+
+    this.addCommand({
+      id: "open-discover",
+      name: "Open discover",
+      callback: () => {
+        void this.activateDiscoverView();
+      },
+    });
+
+    this.addCommand({
+      id: "refresh-feeds",
+      name: "Refresh feeds",
+      callback: () => {
+        this.cancelPendingStartupRefresh();
+        void this.refreshFeeds();
+      },
+    });
+
+    this.addCommand({
+      id: "import-opml",
+      name: "Import OPML/XML",
+      callback: () => {
+        new ImportOpmlModal(this.app, this).open();
+      },
+    });
+
+    this.addCommand({
+      id: "import-starred",
+      name: "Import starred articles",
+      callback: () => {
+        new ImportStarredModal(this.app, this).open();
+      },
+    });
+
+    this.addCommand({
+      id: "export-opml",
+      name: "Export OPML",
+      callback: () => {
+        void this.exportOpml();
+      },
+    });
+
+    this.addCommand({
+      id: "import-usersettings-json",
+      name: "Import user preferences",
+      callback: () => {
+        this.importUserSettingsJson();
+      },
+    });
+
+    this.addCommand({
+      id: "export-usersettings-json",
+      name: "Export user preferences",
+      callback: () => {
+        void this.exportUserSettingsJson();
+      },
+    });
+
+    this.addCommand({
+      id: "apply-feed-limits",
+      name: "Apply feed limits to all feeds",
+      callback: () => {
+        void this.applyFeedLimitsToAllFeeds();
+      },
+    });
+
+    this.addCommand({
+      id: "toggle-sidebar",
+      name: "Toggle sidebar",
+      checkCallback: (checking: boolean) => {
+        const leaves = this.app.workspace.getLeavesOfType(
+          RSS_DASHBOARD_VIEW_TYPE,
+        );
+        if (leaves.length > 0) {
+          if (!checking) {
+            void (async () => {
+              const view = await this.getActiveDashboardView();
+              if (view) {
+                this.settings.sidebarCollapsed =
+                  !this.settings.sidebarCollapsed;
+                await this.saveSettings();
+                view.render();
+              }
+            })();
+          }
+          return true;
+        }
+        return false;
+      },
+    });
+  }
+
+  private scheduleStartupRefresh(
+    autoRefreshScheduler: FeedRefreshScheduler,
+  ): void {
+    const delay = Number.isFinite(this.settings.startupRefreshDelaySeconds)
+      ? this.settings.startupRefreshDelaySeconds
+      : DEFAULT_SETTINGS.startupRefreshDelaySeconds;
+    if (delay > 0) {
+      this.startupRefreshTimeoutId = window.setTimeout(() => {
+        this.startupRefreshTimeoutId = null;
+        this.backgroundImportService.resumePendingImports();
+        autoRefreshScheduler.start();
+      }, delay * 1000);
+    } else {
+      this.backgroundImportService.resumePendingImports();
+      autoRefreshScheduler.start();
+    }
+  }
+
   private async dispatchUriAction(params: ObsidianProtocolData): Promise<void> {
     return this.uriActionHandler.dispatch(params);
   }
