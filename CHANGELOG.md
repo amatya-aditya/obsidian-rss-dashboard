@@ -7,6 +7,7 @@
 
 ### Fixes
 
+- Fixed editing a feed to another subscribed feed's URL creating a duplicate subscription. The edit is now refused without changing either feed. [GH Issue #554](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/554)
 - Fixed importing user preferences with non-list folders or tags discarding your current lists and preventing an OPML auto-backup. [GH Issue #537](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/537)
 - Fixed Ctrl+click (Cmd+click on macOS) on a feed replacing a folder opened with a plain click instead of adding to it. The article list now shows the folder's articles plus the feed's, the same as when the folder was Ctrl+clicked first. [GH Issue #489](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/489)
 - Fixed Shift+click range selection and Ctrl/Cmd+click folder selection in the navigation drawer failing to update the dashboard. [GH Issue #493](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/493)

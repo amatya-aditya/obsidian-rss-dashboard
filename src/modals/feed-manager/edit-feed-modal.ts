@@ -841,6 +841,14 @@ export class EditFeedModal extends Modal {
         new Notice(validation.error || "Invalid feed title");
         return;
       }
+      if (
+        this.plugin.settings.feeds.some(
+          (other) => other !== this.feed && other.url === this.url,
+        )
+      ) {
+        new Notice("This feed URL already exists");
+        return;
+      }
 
       void (async () => {
         // --- Determine if customTags changed ---
