@@ -102,6 +102,7 @@ import {
   type ReaderCustomSaveRequest,
 } from "../modals/reader-custom-save-modal";
 import { ShortcutHelpModal } from "../modals/shortcut-help-modal";
+import { openWebViewerSaveModal } from "../modals/web-viewer-save-modal";
 import { setupReaderHotkeys } from "../hotkeys/reader-hotkeys";
 
 const VIDEO_ARTICLE_BANNER =
@@ -258,6 +259,7 @@ export class ReaderView extends ItemView {
       this.app,
       () => this.settings.articleSaving,
       () => this.settings.useFirstSeenDateFallback,
+      openWebViewerSaveModal(this.app),
     );
   }
 
@@ -1207,11 +1209,9 @@ export class ReaderView extends ItemView {
           feed.customTemplate = selectedTemplate.id;
         }
       }
-
       item.saved = true;
       item.savedFilePath = file.path;
       this.onArticleSave(item);
-
       this.updateSavedLabel(true);
     }
   }

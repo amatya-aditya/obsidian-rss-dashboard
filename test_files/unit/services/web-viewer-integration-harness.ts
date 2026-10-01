@@ -1,6 +1,7 @@
 import { App, type TFile } from "obsidian";
 import { vi } from "vitest";
 import { WebViewerIntegration } from "../../../src/services/web-viewer-integration";
+import { openWebViewerSaveModal } from "../../../src/modals/web-viewer-save-modal";
 import type { ArticleSavingSettings, FeedItem } from "../../../src/types/types";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 
@@ -111,6 +112,8 @@ export function createWebViewerIntegrationHarness(
     app,
     settings,
     () => overrides.useFirstSeenDateFallback ?? false,
+    // The view layer supplies the dialog opener in production.
+    openWebViewerSaveModal(app),
   );
 
   const createdContainer = overrides.webpageContainer === undefined;
