@@ -184,7 +184,7 @@ export function extractDisplayTitleFromHtml(html: string): string | null {
   }
 }
 
-function isAcceptableDisplayTitle(text: string): boolean {
+export function isAcceptableDisplayTitle(text: string): boolean {
   const t = (text || "").replace(/\s+/g, " ").trim();
   if (!t) return false;
   if (t.length < 10 || t.length > 200) return false;
@@ -213,7 +213,7 @@ export function isEquivalentHtml(html1: string, html2: string): boolean {
   );
 }
 
-function normalizeComparableText(html: string): string {
+export function normalizeComparableText(html: string): string {
   const doc = new DOMParser().parseFromString(html, "text/html");
   return (doc.body.textContent || "")
     .replace(/[\u2018\u2019]/g, "'")
@@ -293,13 +293,13 @@ export function stripLeadMediaBeforeContent(doc: Document): void {
   }
 }
 
-function getNormalizedBlockText(block: HTMLElement): string {
+export function getNormalizedBlockText(block: HTMLElement): string {
   return normalizeComparableText(
     block.innerHTML || block.textContent || "",
   );
 }
 
-function isShortLeadInBlock(block: HTMLElement): boolean {
+export function isShortLeadInBlock(block: HTMLElement): boolean {
   if (containsLatexFormulaImage(block)) return false;
   if (isLeadMediaBlock(block)) return false;
   const text = getNormalizedBlockText(block);
@@ -307,7 +307,7 @@ function isShortLeadInBlock(block: HTMLElement): boolean {
   return text.length < 80 && text.split(" ").filter(Boolean).length <= 12;
 }
 
-function isLeadMediaBlock(block: HTMLElement): boolean {
+export function isLeadMediaBlock(block: HTMLElement): boolean {
   if (containsLatexFormulaImage(block)) return false;
   const tag = block.tagName.toLowerCase();
   if (["img", "figure", "picture"].includes(tag)) return true;
@@ -406,7 +406,7 @@ export function stripDuplicateLeadCaptionBlocks(doc: Document): void {
   });
 }
 
-function findFirstSubstantialParagraph(doc: Document): HTMLElement | null {
+export function findFirstSubstantialParagraph(doc: Document): HTMLElement | null {
   return (
     Array.from(doc.body.querySelectorAll<HTMLElement>("p")).find(
       (p) => (p.textContent || "").replace(/\s+/g, " ").trim().length >= 120,
@@ -414,7 +414,7 @@ function findFirstSubstantialParagraph(doc: Document): HTMLElement | null {
   );
 }
 
-function isBeforeBoundary(el: Element, boundary: HTMLElement | null): boolean {
+export function isBeforeBoundary(el: Element, boundary: HTMLElement | null): boolean {
   if (!boundary) return true;
   return !!(
     el.compareDocumentPosition(boundary) & Node.DOCUMENT_POSITION_FOLLOWING
@@ -428,7 +428,7 @@ export function isLikelySameImageSource(urlA: string, urlB: string): boolean {
   return keyA === keyB;
 }
 
-function normalizeImageSourceKey(rawUrl: string): string {
+export function normalizeImageSourceKey(rawUrl: string): string {
   const normalizedUrl = normalizeSubstackImageUrl(rawUrl);
   const fallback = normalizedUrl.trim().toLowerCase();
   if (!fallback) return "";
