@@ -2257,7 +2257,7 @@ export default class RssDashboardPlugin extends Plugin {
     this.previewImageCache.dispose();
     this.feedOperationTracker.dispose();
 
-    this.cancelPendingStartupRefresh();
+    this.cancelPendingStartupRefresh(true);
 
     // Obsidian does not await onunload. Request the final stale snapshot on a
     // best-effort basis after any pending progress persistence completes.
@@ -2266,11 +2266,11 @@ export default class RssDashboardPlugin extends Plugin {
     });
   }
 
-  public cancelPendingStartupRefresh(): void {
-    if (this.startupRefreshTimeoutId !== null) {
-      window.clearTimeout(this.startupRefreshTimeoutId);
-      this.startupRefreshTimeoutId = null;
-    }
+  public cancelPendingStartupRefresh(isUnloading = false): void {
+    if (this.startupRefreshTimeoutId === null) return;
+    window.clearTimeout(this.startupRefreshTimeoutId);
+    this.startupRefreshTimeoutId = null;
+    if (!isUnloading) { this.backgroundImportService?.resumePendingImports(); this.autoRefreshScheduler?.start(); }
   }
 
   private async validateSavedArticles(): Promise<void> {

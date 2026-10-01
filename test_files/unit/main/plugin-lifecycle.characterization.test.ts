@@ -260,6 +260,43 @@ describe("plugin lifecycle (characterization)", () => {
 
       expect(spy).toHaveBeenCalled();
     });
+
+    it("resumes scheduled auto-refreshes when a manual refresh cancels the startup delay", async () => {
+      const store = await seedStore(app, 5);
+      const { spy } = mockFeedRequests();
+      const { plugin } = createHarness(store, app);
+
+      await plugin.onload();
+      await vi.advanceTimersByTimeAsync(2000);
+      expect(spy).not.toHaveBeenCalled();
+
+      plugin.cancelPendingStartupRefresh();
+      await plugin.refreshFeeds();
+      expect(spy).toHaveBeenCalledTimes(1);
+
+      await vi.advanceTimersByTimeAsync(60 * 60 * 1000);
+      expect(spy).toHaveBeenCalledTimes(2);
+    });
+
+    it("starts the scheduler without deferring global refresh when a partial refresh cancels startup delay", async () => {
+      const store = await seedStore(app, 5);
+      const { spy } = mockFeedRequests();
+      const { plugin } = createHarness(store, app);
+
+      await plugin.onload();
+      await vi.advanceTimersByTimeAsync(2000);
+      expect(spy).not.toHaveBeenCalled();
+
+      plugin.cancelPendingStartupRefresh();
+      await plugin.refreshFailedFeeds();
+
+      // Scheduler starts and does not push global refresh out by a full 60-minute interval
+      await vi.advanceTimersByTimeAsync(100);
+      expect(spy).toHaveBeenCalledTimes(1);
+
+      await vi.advanceTimersByTimeAsync(60 * 60 * 1000);
+      expect(spy).toHaveBeenCalledTimes(2);
+    });
   });
 
   describe("unload", () => {
@@ -284,6 +321,20 @@ describe("plugin lifecycle (characterization)", () => {
       await vi.advanceTimersByTimeAsync(4000);
       plugin.unload();
       await vi.advanceTimersByTimeAsync(10_000);
+
+      expect(spy).not.toHaveBeenCalled();
+      expect(vi.getTimerCount()).toBe(0);
+    });
+
+    it("ensures no scheduled refresh fires afterwards when unloaded during startup delay", async () => {
+      const store = await seedStore(app, 5);
+      const { spy } = mockFeedRequests();
+      const { plugin } = createHarness(store, app);
+      await plugin.onload();
+
+      await vi.advanceTimersByTimeAsync(3000);
+      plugin.unload();
+      await vi.advanceTimersByTimeAsync(60 * 60 * 1000 + 10_000);
 
       expect(spy).not.toHaveBeenCalled();
       expect(vi.getTimerCount()).toBe(0);
