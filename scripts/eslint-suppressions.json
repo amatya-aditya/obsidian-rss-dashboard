@@ -96,7 +96,7 @@
   },
   "src/services/background-import-service.ts": {
     "complexity": {
-      "count": 3
+      "count": 2
     }
   },
   "src/services/feed-parser/feed-fetch.ts": {

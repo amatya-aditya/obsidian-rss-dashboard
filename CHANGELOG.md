@@ -36,6 +36,7 @@
 - Fixed Portable data bundle, Feed bundle, and Settings bundle imports, shard migrations, and shard repairs writing metadata to Obsidian's plugin folder instead of the configured vault `data.json` location. These operations now persist where the plugin will read metadata after restart. [GH Issue #474](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/474)
 - Fixed the article list header saying **1 feeds** when exactly one feed is selected. It now says **1 feed**, alone and combined with tags. [GH Issue #582](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/582)
 - Fixed the article list header showing an unthemed browser tooltip instead of Obsidian's when a filter is active. The first render set the tooltip with a `title` attribute, so the browser drew it. After a filter change both tooltips appeared at once, with the browser's one stale. It now uses Obsidian's tooltip only. [GH Issue #587](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/587)
+- Fixed an OPML import or Discover **Add all** started while another feed operation, such as **Refresh all feeds**, was running saving the feeds but never fetching their articles, while still reporting success. The import is now refused before anything is saved, and only the "A feed operation is already in progress" notice is shown. [GH Issue #451](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/451)
 
 ### Developer
 
