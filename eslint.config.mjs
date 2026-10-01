@@ -17,6 +17,7 @@ export default defineConfig([
       "scripts/**/*.js",
       ".kilo/**",
       ".claude/**",
+      ".worktrees/**",
       ".tmp-*",
       // Working copy of the fixture vault, holding a copied build (main.js).
       ".fixture-vault/**",
