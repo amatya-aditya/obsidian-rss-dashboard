@@ -1,0 +1,68 @@
+name: Duplicate PR notice
+
+# Comments on a pull request when another open pull request already closes the
+# same issue. It uses pull_request_target so fork PRs get a token that can
+# comment. Nothing from the pull request is checked out or executed: the job
+# only calls the GitHub API with the PR number.
+
+on:
+  pull_request_target:
+    types: [opened, reopened, edited]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: duplicate-pr-notice-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  notice:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Comment when another open PR targets the same issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          marker='<!-- duplicate-pr-notice -->'
+
+          others=$(gh pr list --repo "$REPO" --state open --limit 200 \
+            --json number,author,closingIssuesReferences |
+            jq -c --argjson pr "$PR_NUMBER" '
+              . as $all
+              | ([$all[] | select(.number == $pr)
+                  | .closingIssuesReferences[].number]) as $mine
+              | [$all[]
+                 | select(.number != $pr)
+                 | select([.closingIssuesReferences[].number]
+                          | any(. as $n | $mine | index($n)))
+                 | {number, author: .author.login,
+                    issues: [.closingIssuesReferences[].number]
+                            | map(select(. as $n | $mine | index($n)))}]')
+
+          if [ "$(echo "$others" | jq 'length')" -eq 0 ]; then
+            echo "No other open PR targets the same issue."
+            exit 0
+          fi
+
+          already=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json comments \
+            --jq "[.comments[].body | select(contains(\"$marker\"))] | length")
+          if [ "$already" -gt 0 ]; then
+            echo "Notice already posted."
+            exit 0
+          fi
+
+          list=$(echo "$others" | jq -r '.[]
+            | "- #\(.number) by \(.author), for " +
+              (.issues | map("#\(.)") | join(", "))')
+
+          body=$(printf '%s\n%s\n\n%s\n\n%s\n' "$marker" \
+            "Another open pull request already closes the same issue:" \
+            "$list" \
+            "A maintainer will decide which one to keep. The earlier claim goes first (see [Claim an Issue Before You Start](https://github.com/$REPO/blob/dev/CONTRIBUTING.md#claim-an-issue-before-you-start)). Please don't close either PR yourself; you're welcome to review the other one or coordinate on the issue.")
+
+          gh pr comment "$PR_NUMBER" --repo "$REPO" --body "$body"
