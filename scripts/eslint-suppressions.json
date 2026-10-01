@@ -112,9 +112,6 @@
   },
   "src/services/feed-parser/feed-parser-class.ts": {
     "complexity": {
-      "count": 2
-    },
-    "max-lines-per-function": {
       "count": 1
     }
   },
