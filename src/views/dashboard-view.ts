@@ -27,7 +27,7 @@ import type {
   FiltersUpdatedEventPayload,
   default as RssDashboardPlugin,
 } from "../../main";
-import { Sidebar } from "../components/sidebar";
+import { Sidebar, type SidebarOptions } from "../components/sidebar";
 import { ArticleList } from "../components/article-list";
 import { ArticleSaver } from "../services/article-saver";
 import { getEffectiveDateMs } from "../services/feed-parser/feed-retention.js";
@@ -55,7 +55,7 @@ import {
 } from "../utils/filter-title-format";
 import { computePagination } from "../utils/pagination-utils";
 import { removeFolderByPath } from "../utils/folder-tree";
-import { findSelectedAncestorFolder } from "../utils/folder-paths";
+import { toggleFeedInMultiSelection } from "../utils/feed-multi-select";
 import { applyAutomaticArticleTags } from "../utils/tag-utils";
 import { resolveItemExternalUrl } from "../utils/item-url-utils";
 import { buildArticleEmptyStateContext } from "../utils/filter-detection";
@@ -1604,11 +1604,15 @@ export class RssDashboardView extends ItemView {
 
     if (this.settings.articleSort === "oldest") {
       articles.sort(
-        (a, b) => getEffectiveDateMs(a, this.settings.useFirstSeenDateFallback) - getEffectiveDateMs(b, this.settings.useFirstSeenDateFallback),
+        (a, b) =>
+          getEffectiveDateMs(a, this.settings.useFirstSeenDateFallback) -
+          getEffectiveDateMs(b, this.settings.useFirstSeenDateFallback),
       );
     } else {
       articles.sort(
-        (a, b) => getEffectiveDateMs(b, this.settings.useFirstSeenDateFallback) - getEffectiveDateMs(a, this.settings.useFirstSeenDateFallback),
+        (a, b) =>
+          getEffectiveDateMs(b, this.settings.useFirstSeenDateFallback) -
+          getEffectiveDateMs(a, this.settings.useFirstSeenDateFallback),
       );
     }
 
@@ -1992,64 +1996,32 @@ export class RssDashboardView extends ItemView {
     void this.render();
   }
 
+  private handleFeedMultiSelectClick(feed: Feed): void {
+    const next = toggleFeedInMultiSelection(
+      {
+        currentFolder: this.currentFolder,
+        currentFeed: this.currentFeed,
+        selectedFolders: this.selectedFolders,
+        selectedFeeds: this.selectedFeeds,
+      },
+      feed,
+      {
+        feeds: this.settings.feeds,
+        isRealFolder: (path) => !!this.findFolderByPath(path),
+        getDescendantFolders: (path) => this.getAllDescendantFolders(path),
+      },
+    );
+    this.currentFeed = next.currentFeed;
+    this.selectedFolders = next.selectedFolders;
+    this.selectedFeeds = next.selectedFeeds;
+    this.lastClickAnchorKey = `feed:${feed.url}`;
+    void this.plugin.saveSettings();
+    void this.render();
+  }
+
   private handleFeedClick(feed: Feed, e?: MouseEvent): void {
     if (e && (Platform.isMacOS ? e.metaKey : e.ctrlKey)) {
-      // Ctrl/Meta + Click logic for multi-selection toggle. A real folder
-      // opened with a plain click (not a view such as Starred) seeds the
-      // selection, so the click adds to it instead of replacing it.
-      if (
-        this.currentFolder &&
-        this.findFolderByPath(this.currentFolder) &&
-        this.selectedFolders.length === 0 &&
-        this.selectedFeeds.length === 0
-      ) {
-        this.selectedFolders = [this.currentFolder];
-      }
-      const isExplicitlySelected = this.selectedFeeds.includes(feed.url);
-      const selectedParentFolder = findSelectedAncestorFolder(
-        feed.folder,
-        this.selectedFolders,
-      );
-      const parentFolderIsSelected = selectedParentFolder !== null;
-
-      const isSelected = isExplicitlySelected || parentFolderIsSelected;
-
-      if (isSelected) {
-        // Deselect
-        if (parentFolderIsSelected && selectedParentFolder) {
-          // Remove the parent folder from selectedFolders
-          this.selectedFolders = this.selectedFolders.filter(
-            (f) => f !== selectedParentFolder,
-          );
-
-          // Add all other descendants of that folder to selectedFeeds
-          const descendantFolders =
-            this.getAllDescendantFolders(selectedParentFolder);
-          descendantFolders.push(selectedParentFolder);
-          for (const f of this.settings.feeds) {
-            if (f.folder && descendantFolders.includes(f.folder)) {
-              if (f.url !== feed.url && !this.selectedFeeds.includes(f.url)) {
-                this.selectedFeeds.push(f.url);
-              }
-            }
-          }
-        }
-
-        if (isExplicitlySelected) {
-          this.selectedFeeds = this.selectedFeeds.filter(
-            (url) => url !== feed.url,
-          );
-        }
-      } else {
-        // Select
-        if (!this.selectedFeeds.includes(feed.url)) {
-          this.selectedFeeds.push(feed.url);
-        }
-      }
-
-      this.lastClickAnchorKey = `feed:${feed.url}`;
-      void this.plugin.saveSettings();
-      void this.render();
+      this.handleFeedMultiSelectClick(feed);
       return;
     }
 
@@ -2198,8 +2170,7 @@ export class RssDashboardView extends ItemView {
       clickedKey,
       visibleKeys,
       feeds: this.settings.feeds,
-      getAllDescendantFolders: (path) =>
-        this.getAllDescendantFolders(path),
+      getAllDescendantFolders: (path) => this.getAllDescendantFolders(path),
       findFolderByPath: (path) => this.findFolderByPath(path),
     });
 
@@ -2381,21 +2352,29 @@ export class RssDashboardView extends ItemView {
       return;
     }
 
+    const drawerOptions: SidebarOptions = {
+      currentFolder: this.currentFolder,
+      currentFeed: this.currentFeed,
+      selectedTags: this.selectedTags,
+      tagsCollapsed: this.tagsCollapsed,
+      collapsedFolders: this.collapsedFolders,
+      selectedFolders: this.selectedFolders,
+      selectedFeeds: this.selectedFeeds,
+    };
     const modal = new MobileNavigationModal(
       this.app,
       this.plugin,
       this.settings,
-      {
-        currentFolder: this.currentFolder,
-        currentFeed: this.currentFeed,
-        selectedTags: this.selectedTags,
-        tagsCollapsed: this.tagsCollapsed,
-        collapsedFolders: this.collapsedFolders,
-        selectedFolders: this.selectedFolders,
-      },
+      drawerOptions,
       {
         onFolderClick: this.handleFolderClick.bind(this),
-        onFeedClick: this.handleFeedClick.bind(this),
+        onFeedClick: (feed, e) => {
+          this.handleFeedClick(feed, e);
+          // A Ctrl/Cmd+click keeps the drawer open, so mirror the selection
+          // the click changed into the options it redraws from.
+          drawerOptions.selectedFolders = this.selectedFolders;
+          drawerOptions.selectedFeeds = this.selectedFeeds;
+        },
         onRangeSelect: this.handleSidebarRangeSelect.bind(this),
         onFolderMultiSelect: this.handleFolderMultiSelect.bind(this),
         onTagToggle: this.handleTagToggle.bind(this),
@@ -2634,7 +2613,9 @@ export class RssDashboardView extends ItemView {
     return feed.items
       .filter((item) => item.guid !== article.guid)
       .sort(
-        (a, b) => getEffectiveDateMs(b, this.settings.useFirstSeenDateFallback) - getEffectiveDateMs(a, this.settings.useFirstSeenDateFallback),
+        (a, b) =>
+          getEffectiveDateMs(b, this.settings.useFirstSeenDateFallback) -
+          getEffectiveDateMs(a, this.settings.useFirstSeenDateFallback),
       )
       .slice(0, 5);
   }
@@ -3526,10 +3507,7 @@ export class RssDashboardView extends ItemView {
   }
 
   private applyCardSpacingChange(filter: DashboardFilterChange): void {
-    const nextCardSpacing = this.clampCardLayoutValue(
-      Number(filter.value),
-      40,
-    );
+    const nextCardSpacing = this.clampCardLayoutValue(Number(filter.value), 40);
     if (!Number.isFinite(nextCardSpacing)) {
       return;
     }
@@ -3591,12 +3569,7 @@ export class RssDashboardView extends ItemView {
     // Age filter - requires saving settings and full re-render
     this.settings.articleFilter = {
       type: filter.type as
-        | "age"
-        | "read"
-        | "unread"
-        | "starred"
-        | "saved"
-        | "none",
+        "age" | "read" | "unread" | "starred" | "saved" | "none",
       value: filter.value,
     };
     void this.plugin.saveSettings();
@@ -3716,11 +3689,7 @@ export class RssDashboardView extends ItemView {
   }
 
   private getReaderViewLocation():
-    | "main"
-    | "right-sidebar"
-    | "left-sidebar"
-    | "inline"
-    | "external-browser" {
+    "main" | "right-sidebar" | "left-sidebar" | "inline" | "external-browser" {
     const location = this.settings.readerViewLocation;
     if (
       location === "left-sidebar" ||
