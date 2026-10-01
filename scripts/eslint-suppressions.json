@@ -1,9 +1,4 @@
 {
-  "main.ts": {
-    "max-lines-per-function": {
-      "count": 1
-    }
-  },
   "src/components/article-filter-menu.ts": {
     "max-lines-per-function": {
       "count": 1
