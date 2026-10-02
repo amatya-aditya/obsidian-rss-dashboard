@@ -7,6 +7,7 @@
 
 ### Fixes
 
+- Fixed the reader removing story text or other media along with a duplicate lead image when both were wrapped in a link or figure. [GH Issue #629](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/629)
 - Fixed **Use site icons/favicons for RSS feeds** turning itself back on after a settings reload. Loading unchanged settings no longer saves them on every startup. [GH Issue #564](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/564)
 - Fixed importing user preferences with non-list folders or tags discarding your current lists and preventing an OPML auto-backup. [GH Issue #537](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/537)
 - Fixed Ctrl+click (Cmd+click on macOS) on a feed replacing a folder opened with a plain click instead of adding to it. The article list now shows the folder's articles plus the feed's, the same as when the folder was Ctrl+clicked first. [GH Issue #489](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/489)
@@ -37,6 +38,7 @@
 - Fixed the article list header saying **1 feeds** when exactly one feed is selected. It now says **1 feed**, alone and combined with tags. [GH Issue #582](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/582)
 - Fixed the article list header showing an unthemed browser tooltip instead of Obsidian's when a filter is active. The first render set the tooltip with a `title` attribute, so the browser drew it. After a filter change both tooltips appeared at once, with the browser's one stale. It now uses Obsidian's tooltip only. [GH Issue #587](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/587)
 - Fixed an OPML import or Discover **Add all** started while another feed operation, such as **Refresh all feeds**, was running saving the feeds but never fetching their articles, while still reporting success. The import is now refused before anything is saved, and only the "A feed operation is already in progress" notice is shown. [GH Issue #451](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/451)
+- Fixed moving a multi-selection of folders or feeds, by dragging it or with **Move selection to folder**, leaving the article list on the moved selection. The sidebar cleared its selection, but the article list kept its old heading and articles, and after the next redraw it showed the old folder names with no feeds and no articles. The dashboard now clears its selection too and shows **All articles**, from the sidebar and from the navigation drawer. [GH Issue #615](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/615)
 
 ### Developer
 

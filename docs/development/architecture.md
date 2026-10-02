@@ -31,15 +31,15 @@ behavior without exposing the plugin class or a cluster of pass-through modules.
 Every check below fails the build. Test files and `test_files/stubs/` are
 never measured.
 
-| Check | Where | Fails when |
-| --- | --- | --- |
-| File line ratchet | `npm run check:architecture` | A ratcheted file grows, or shrinks without its baseline being lowered in the same change |
-| `main.ts` importer ratchet | `npm run check:architecture` | A new production module imports `main.ts`, or an allowance is no longer needed |
-| Service dependency direction | `npm run check:architecture` | A service imports a view, component, modal, settings module, or `main.ts` |
-| Runtime-cycle ratchet | `npm run check:architecture` | A new runtime import cycle appears, or an allowance is no longer needed |
-| Function length | ESLint `max-lines-per-function` | A function in `main.ts` or `src/` exceeds 150 lines, not counting blank lines and comments |
-| Complexity | ESLint `complexity` | A function in `main.ts` or `src/` exceeds cyclomatic complexity 20 |
-| Characterization tests | CI, `refactor/*` PRs only | A `*.characterization.test.ts` file is modified, deleted, or renamed |
+| Check                        | Where                           | Fails when                                                                                 |
+| ---------------------------- | ------------------------------- | ------------------------------------------------------------------------------------------ |
+| File line ratchet            | `npm run check:architecture`    | A ratcheted file grows, or shrinks without its baseline being lowered in the same change   |
+| `main.ts` importer ratchet   | `npm run check:architecture`    | A new production module imports `main.ts`, or an allowance is no longer needed             |
+| Service dependency direction | `npm run check:architecture`    | A service imports a view, component, modal, settings module, or `main.ts`                  |
+| Runtime-cycle ratchet        | `npm run check:architecture`    | A new runtime import cycle appears, or an allowance is no longer needed                    |
+| Function length              | ESLint `max-lines-per-function` | A function in `main.ts` or `src/` exceeds 150 lines, not counting blank lines and comments |
+| Complexity                   | ESLint `complexity`             | A function in `main.ts` or `src/` exceeds cyclomatic complexity 20                         |
+| Characterization tests       | CI, `refactor/*` PRs only       | A `*.characterization.test.ts` file is modified, deleted, or renamed                       |
 
 `check:architecture` runs in `check:compliance`, so it is part of
 `npm run build`, the pre-push hook, and CI. `check:architecture` also prints
@@ -48,19 +48,7 @@ with more than 5 parameters.
 
 ### Line ratchets
 
-`scripts/architecture-baseline.json` → `ratchets.fileMaxLines` holds the
-current physical line count of each refactor target:
-
-- `main.ts`
-- `src/components/sidebar.ts`
-- `src/services/feed-storage-repository.ts`
-- `src/views/dashboard-view.ts`
-- `src/views/reader-view.ts`
-
-The ratchet only goes down. When a change shrinks one of these files, lower
-its baseline to the new count in the same change; the check fails until you
-do. Remove importer or cycle allowances in the same change that eliminates
-them.
+File-size ratchets have been removed. They blocked routine bug fixes based on arbitrary line-count ceilings. ESLint’s max-lines-per-function and complexity rules still constrain oversized functions, while the importer, dependency-direction, and runtime-cycle ratchets continue to protect main.ts’s role as the composition root.
 
 ### ESLint suppressions
 
@@ -170,7 +158,7 @@ Report each ratcheted file's line delta, parameter-count crossings, new
 at handoff, for example:
 
 ```text
-main.ts LOC delta: -74
+src/components/sidebar.ts LOC delta: -74
 src/services/feed-storage-repository.ts LOC delta: +0
 new threshold crossings: 0
 new main.ts importers: none
