@@ -44,6 +44,7 @@ import {
 } from "../utils/sidebar-row-interactions";
 import { applyFolderSortOrder } from "../utils/sidebar-folder-sort-utils";
 import { renderFeedBadges, renderFeedIcon } from "./sidebar-feed-row";
+import { clearMovedSelection } from "./sidebar-selection";
 import { renderSidebarHeader, type SidebarHeaderHost } from "./sidebar-header";
 import {
   showSidebarFolderContextMenu,
@@ -1689,8 +1690,7 @@ export class Sidebar {
       if (newFolder) newFolder.modifiedAt = Date.now();
     }
 
-    this.options.selectedFeeds = [];
-    this.options.selectedFolders = [];
+    clearMovedSelection(this.options, this.callbacks.onFolderMultiSelect);
 
     void this.plugin.saveSettings().then(() => this.render());
   }
@@ -2017,8 +2017,7 @@ export class Sidebar {
       new Notice(summary);
     }
 
-    this.options.selectedFeeds = [];
-    this.options.selectedFolders = [];
+    clearMovedSelection(this.options, this.callbacks.onFolderMultiSelect);
 
     void this.plugin.saveSettings().then(() => this.render());
   }
