@@ -8,6 +8,8 @@
 ### Fixes
 
 - Fixed vertical misalignment among Reader toolbar icons and removed the dashboard-style circle from the Tags action. [GH Issue #680](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/680)
+- Fixed Discover's mobile **Add to...** picker opening away from its button. It now keeps its calculated vertical position while using the mobile-width layout.
+- Fixed Discover's **Add to...** picker silently attempting to add a feed that had already been added while the picker was open, and overlapping add requests creating duplicate subscriptions. Duplicate URLs are now refused and reported.
 - Fixed the navigation drawer keeping every closed copy of itself, with its full feed list and the previous article list, in memory. On desktop windows narrower than 1200px each folder change leaked about 2,000 elements, which slowed Obsidian down over a long session and could end in an out-of-memory crash. [GH Issue #664](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/664)
 - Fixed editing a feed to another subscribed feed's URL creating a duplicate subscription. The URL change is now refused without changing either feed. Existing duplicates can still be edited when their URL stays the same. [GH Issue #554](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/554)
 - Fixed the reader removing story text or other media along with a duplicate lead image when both were wrapped in a link or figure. [GH Issue #629](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/629)

@@ -48,6 +48,7 @@ export interface FeedSubscriptionServiceOptions {
 export class FeedSubscriptionService {
   private readonly feedOperationTracker: FeedOperationTracker;
   private readonly previewImageCache: PreviewImageCache;
+  private readonly pendingFeedUrls = new Set<string>();
 
   constructor(private readonly options: FeedSubscriptionServiceOptions) {
     this.feedOperationTracker = options.feedOperationTracker;
@@ -60,6 +61,31 @@ export class FeedSubscriptionService {
 
   private get feedParser(): FeedParser {
     return this.options.getFeedParser();
+  }
+
+  private reserveFeedUrl(
+    url: string,
+    showNotice: boolean,
+    reportPendingDuplicate: boolean,
+  ): (() => void) | null {
+    if (this.settings.feeds.some((feed) => feed.url === url)) {
+      if (showNotice) {
+        new Notice("This feed URL already exists");
+      }
+      return null;
+    }
+
+    if (this.pendingFeedUrls.has(url)) {
+      if (showNotice || reportPendingDuplicate) {
+        new Notice("This feed URL already exists");
+      }
+      return null;
+    }
+
+    this.pendingFeedUrls.add(url);
+    return () => {
+      this.pendingFeedUrls.delete(url);
+    };
   }
 
   /**
@@ -120,13 +146,15 @@ export class FeedSubscriptionService {
     options?: FeedSubscriptionAddOptions,
   ): Promise<boolean> {
     const showNotice = options?.showNotice !== false;
+    let releaseReservation = () => {};
     try {
-      if (this.settings.feeds.some((f) => f.url === url)) {
-        if (showNotice) {
-          new Notice("This feed URL already exists");
-        }
-        return false;
-      }
+      const reservation = this.reserveFeedUrl(
+        url,
+        showNotice,
+        options?.globalOperation === true,
+      );
+      if (!reservation) return false;
+      releaseReservation = reservation;
 
       const newFeed = this.buildNewFeed(
         title,
@@ -178,6 +206,8 @@ export class FeedSubscriptionService {
         );
       }
       return false;
+    } finally {
+      releaseReservation();
     }
   }
 
