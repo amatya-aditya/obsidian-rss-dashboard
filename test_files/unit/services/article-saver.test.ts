@@ -685,6 +685,33 @@ describe("ArticleSaver.replaceDatePlaceholders", () => {
   });
 });
 
+describe("ArticleSaver date variables", () => {
+  it("uses the save time for the dates when neither pubDate nor firstSeenMs gives a real date", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-15T12:00:00Z"));
+    try {
+      const app = App.createMock();
+      // The first-seen fallback reaches firstSeenMs, which is not a real date.
+      const saver = new ArticleSaver(app, createSettings(), undefined, () => true);
+      const item = createItem({ pubDate: "", firstSeenMs: Number.NaN });
+
+      const file = await saver.saveArticle(
+        item,
+        undefined,
+        "{{date}}|{{firstSeen}}|{{isoDate}}",
+        "x",
+      );
+
+      if (!(file instanceof TFile)) throw new Error("expected TFile");
+      expect(await app.vault.read(file)).toBe(
+        "June 15, 2026|June 15, 2026|2026-06-15T12:00:00.000Z",
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
 describe("ArticleSaver.fetchFullArticleContent", () => {
   it("retries sagepub full-text URLs via /doi/abs/ when the full-text fetch returns empty", async () => {
     const app = App.createMock();
