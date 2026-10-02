@@ -173,6 +173,80 @@ describe("MobileNavigationModal", () => {
     expect(plugin.saveSettings).toHaveBeenCalledTimes(1);
   });
 
+  // #664: the document-level resize listeners kept every closed modal (and
+  // its sidebar rows) reachable from the document.
+  it("stops reacting to document mouse events after it closes", async () => {
+    const { MobileNavigationModal } =
+      await import("../../../src/modals/mobile-navigation-modal");
+
+    const app = obsidian.App.createMock();
+    const plugin = { saveSettings: vi.fn(async () => {}) };
+    const settings = { sidebarWidth: 310 } as unknown as RssDashboardSettings;
+
+    const modal = new MobileNavigationModal(
+      app as unknown as obsidian.App,
+      plugin as unknown as RssDashboardPlugin,
+      settings,
+      { selectedTags: [] } as unknown as SidebarOptions,
+      {} as unknown as SidebarCallbacks,
+    );
+    modal.open();
+
+    const handle = modal.contentEl.querySelector(
+      ".rss-dashboard-sidebar-resize-handle",
+    ) as HTMLDivElement;
+    handle.dispatchEvent(
+      new MouseEvent("mousedown", { clientX: 1100, bubbles: true }),
+    );
+    modal.close();
+
+    document.dispatchEvent(
+      new MouseEvent("mousemove", { clientX: 1000, bubbles: true }),
+    );
+    document.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
+    await flushPromises();
+
+    expect(settings.sidebarWidth).toBe(310);
+    expect(plugin.saveSettings).not.toHaveBeenCalled();
+  });
+
+  it("resizes again after being closed and reopened", async () => {
+    const { MobileNavigationModal } =
+      await import("../../../src/modals/mobile-navigation-modal");
+
+    const app = obsidian.App.createMock();
+    const plugin = { saveSettings: vi.fn(async () => {}) };
+    const settings = { sidebarWidth: 310 } as unknown as RssDashboardSettings;
+
+    const modal = new MobileNavigationModal(
+      app as unknown as obsidian.App,
+      plugin as unknown as RssDashboardPlugin,
+      settings,
+      { selectedTags: [] } as unknown as SidebarOptions,
+      {} as unknown as SidebarCallbacks,
+    );
+    modal.open();
+    modal.close();
+    modal.open();
+
+    const handle = modal.contentEl.querySelector(
+      ".rss-dashboard-sidebar-resize-handle",
+    ) as HTMLDivElement;
+    handle.dispatchEvent(
+      new MouseEvent("mousedown", { clientX: 1100, bubbles: true }),
+    );
+    document.dispatchEvent(
+      new MouseEvent("mousemove", { clientX: 1000, bubbles: true }),
+    );
+    document.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
+    await flushPromises();
+
+    expect(settings.sidebarWidth).toBe(400);
+    expect(plugin.saveSettings).toHaveBeenCalledTimes(1);
+
+    modal.close();
+  });
+
   describe("updateAllFeedsIconRefreshState polling (stop button)", () => {
     async function openModalWithPlugin(
       pluginOverrides: Record<string, unknown>,
