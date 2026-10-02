@@ -335,7 +335,10 @@ export class FeedSubscriptionService {
     newUrl: string,
     newFolder: string,
   ): Promise<void> {
-    if (this.settings.feeds.some((other) => other !== feed && other.url === newUrl)) {
+    if (
+      newUrl !== feed.url &&
+      this.settings.feeds.some((other) => other !== feed && other.url === newUrl)
+    ) {
       new Notice("This feed URL already exists");
       return;
     }

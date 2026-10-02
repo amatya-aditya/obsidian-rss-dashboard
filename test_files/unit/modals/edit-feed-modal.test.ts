@@ -245,7 +245,7 @@ beforeEach(() => {
 });
 
 describe("EditFeedModal", () => {
-  it("keeps duplicate URL edits open without changing data, and lets the user correct the URL", async () => {
+  it.each([false, true])("keeps duplicate URL edits open without changing data, and lets the user correct the URL (pre-existing duplicate: %s)", async (hasDuplicate) => {
     const app = createMockApp();
     const feed: Feed = {
       title: "Existing feed",
@@ -271,6 +271,9 @@ describe("EditFeedModal", () => {
       saveSettings: vi.fn(async () => {}),
       notifyFiltersUpdated: vi.fn(),
     };
+    if (hasDuplicate) {
+      plugin.settings.feeds.push({ ...feed, title: "Duplicate feed", items: [] });
+    }
     const before = structuredClone(plugin.settings);
     const onSave = vi.fn();
     const modal = new EditFeedModal(app, asRssDashboardPlugin(plugin), feed, onSave);
@@ -287,6 +290,9 @@ describe("EditFeedModal", () => {
       input.value = value;
       input.dispatchEvent(new Event("input"));
     }
+    const excludeToggle = getToggleBySettingName(modal.contentEl, "Exclude from refresh");
+    excludeToggle.checked = true;
+    excludeToggle.dispatchEvent(new Event("change"));
     getButtonByText(modal.contentEl, "Save").click();
     await flushPromises();
 
@@ -304,7 +310,15 @@ describe("EditFeedModal", () => {
     getButtonByText(modal.contentEl, "Save").click();
     await flushPromises();
 
-    expect(feed).toMatchObject({ title: "Edited title", url: before.feeds[0].url, folder: "New folder" });
+    expect(feed).toMatchObject({
+      title: "Edited title",
+      url: before.feeds[0].url,
+      folder: "New folder",
+      excludeFromRefresh: true,
+      lastRefreshAttemptCompletedAt: 123,
+      lastFetchError: "Timed out",
+    });
+    expect(plugin.settings.feeds.slice(1)).toEqual(before.feeds.slice(1));
     expect(plugin.saveSettings).toHaveBeenCalledTimes(1);
     expect(onSave).toHaveBeenCalledTimes(1);
     expect(close).toHaveBeenCalledTimes(1);

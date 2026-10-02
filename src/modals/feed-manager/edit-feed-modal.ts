@@ -842,6 +842,7 @@ export class EditFeedModal extends Modal {
         return;
       }
       if (
+        this.url !== this.feed.url &&
         this.plugin.settings.feeds.some(
           (other) => other !== this.feed && other.url === this.url,
         )

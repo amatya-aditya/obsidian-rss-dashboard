@@ -689,10 +689,13 @@ describe("feed subscription: editFeed", () => {
     expect(feed.items[0].feedUrl).toBe(oldUrl);
   });
 
-  it("refuses another feed's URL without changing feeds or creating a folder", async () => {
+  it.each([false, true])("refuses another feed's URL without changing feeds or creating a folder (pre-existing duplicate: %s)", async (hasDuplicate) => {
     const { harness, feed } = editHarness();
     const other = createFeed("other");
     harness.plugin.settings.feeds.push(other);
+    if (hasDuplicate) {
+      harness.plugin.settings.feeds.push(createFeed("duplicate", { url: feed.url }));
+    }
     const before = structuredClone(harness.plugin.settings);
 
     await harness.plugin.editFeed(feed, "New title", other.url, "News/New sub");
@@ -703,14 +706,24 @@ describe("feed subscription: editFeed", () => {
     expect(harness.events).toEqual(["notice: This feed URL already exists"]);
   });
 
-  it("allows title and folder edits while keeping the feed's own URL", async () => {
+  it.each([false, true])("allows title and folder edits while keeping the feed's own URL (pre-existing duplicate: %s)", async (hasDuplicate) => {
     const { harness, feed } = editHarness();
     harness.plugin.settings.feeds.push(createFeed("other"));
+    if (hasDuplicate) {
+      harness.plugin.settings.feeds.push(createFeed("duplicate", { url: feed.url }));
+    }
     const oldUrl = feed.url;
 
     await harness.plugin.editFeed(feed, "New title", oldUrl, "News/New sub");
 
-    expect(feed).toMatchObject({ title: "New title", url: oldUrl, folder: "News/New sub" });
+    expect(feed).toMatchObject({
+      title: "New title",
+      url: oldUrl,
+      folder: "News/New sub",
+      lastRefreshAttemptCompletedAt: 123,
+      lastFetchError: "boom",
+    });
+    expect(feed.items[0].feedTitle).toBe("New title");
     expect(harness.events).toEqual(["save", "refresh", 'notice: Feed "New title" updated']);
   });
 
