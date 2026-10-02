@@ -689,16 +689,42 @@ describe("feed subscription: editFeed", () => {
     expect(feed.items[0].feedUrl).toBe(oldUrl);
   });
 
-  it("lets a feed be edited onto another feed's URL", async () => {
+  it.each([false, true])("refuses another feed's URL without changing feeds or creating a folder (pre-existing duplicate: %s)", async (hasDuplicate) => {
     const { harness, feed } = editHarness();
     const other = createFeed("other");
     harness.plugin.settings.feeds.push(other);
+    if (hasDuplicate) {
+      harness.plugin.settings.feeds.push(createFeed("duplicate", { url: feed.url }));
+    }
+    const before = structuredClone(harness.plugin.settings);
 
-    await harness.plugin.editFeed(feed, "Old title", other.url, "News");
+    await harness.plugin.editFeed(feed, "New title", other.url, "News/New sub");
 
-    // BUG: pinned, see #554
-    expect(harness.plugin.settings.feeds.map((f) => f.url)).toEqual([other.url, other.url]);
-    expect(notices(harness)).toEqual(['Feed "Old title" updated']);
+    expect(harness.plugin.settings).toEqual(before);
+    expect(harness.save).not.toHaveBeenCalled();
+    expect(harness.refresh).not.toHaveBeenCalled();
+    expect(harness.events).toEqual(["notice: This feed URL already exists"]);
+  });
+
+  it.each([false, true])("allows title and folder edits while keeping the feed's own URL (pre-existing duplicate: %s)", async (hasDuplicate) => {
+    const { harness, feed } = editHarness();
+    harness.plugin.settings.feeds.push(createFeed("other"));
+    if (hasDuplicate) {
+      harness.plugin.settings.feeds.push(createFeed("duplicate", { url: feed.url }));
+    }
+    const oldUrl = feed.url;
+
+    await harness.plugin.editFeed(feed, "New title", oldUrl, "News/New sub");
+
+    expect(feed).toMatchObject({
+      title: "New title",
+      url: oldUrl,
+      folder: "News/New sub",
+      lastRefreshAttemptCompletedAt: 123,
+      lastFetchError: "boom",
+    });
+    expect(feed.items[0].feedTitle).toBe("New title");
+    expect(harness.events).toEqual(["save", "refresh", 'notice: Feed "New title" updated']);
   });
 
   it("creates a missing target folder without a save or redraw of its own", async () => {

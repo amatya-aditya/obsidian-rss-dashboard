@@ -7,6 +7,7 @@
 
 ### Fixes
 
+- Fixed editing a feed to another subscribed feed's URL creating a duplicate subscription. The URL change is now refused without changing either feed. Existing duplicates can still be edited when their URL stays the same. [GH Issue #554](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/554)
 - Fixed the reader removing story text or other media along with a duplicate lead image when both were wrapped in a link or figure. [GH Issue #629](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/629)
 - Fixed **Use site icons/favicons for RSS feeds** turning itself back on after a settings reload. Loading unchanged settings no longer saves them on every startup. [GH Issue #564](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/564)
 - Fixed importing user preferences with non-list folders or tags discarding your current lists and preventing an OPML auto-backup. [GH Issue #537](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/537)
