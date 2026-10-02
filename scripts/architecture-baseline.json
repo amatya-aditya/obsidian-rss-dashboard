@@ -4,12 +4,6 @@
     "parameters": 5
   },
   "ratchets": {
-    "fileMaxLines": {
-      "src/components/sidebar.ts": 4151,
-      "src/services/feed-storage-repository.ts": 1361,
-      "src/views/dashboard-view.ts": 4144,
-      "src/views/reader-view.ts": 2977
-    },
     "allowedMainImporters": [
       "src/components/discover-sidebar.ts",
       "src/components/folder-selector-popup.ts",
@@ -36,10 +30,7 @@
       "src/views/kagi-smallweb-view.ts"
     ],
     "allowedRuntimeCycleNodeSets": [
-      [
-        "src/views/dashboard-view.ts",
-        "src/views/reader-view.ts"
-      ],
+      ["src/views/dashboard-view.ts", "src/views/reader-view.ts"],
       [
         "main.ts",
         "src/settings/settings-tab.ts",
