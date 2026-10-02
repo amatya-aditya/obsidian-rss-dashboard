@@ -204,7 +204,8 @@ export function describeRefusedFolders(
 
 /**
  * Where the open folder is after the batch: its new path when it, or a folder
- * it sits in, moved, or null when the batch left it where it was.
+ * it sits in, moved, or null when the batch left it where it was. A folder
+ * dropped on its own parent keeps its path, so it counts as not moved.
  */
 export function resolveBatchMovedFolder(
   currentFolder: string | null,
@@ -213,7 +214,7 @@ export function resolveBatchMovedFolder(
   for (const { oldPath, newPath } of result.folders) {
     if (newPath === null) continue;
     const moved = resolveMovedCurrentFolder(currentFolder, oldPath, newPath);
-    if (moved !== null) return moved;
+    if (moved !== null && moved !== currentFolder) return moved;
   }
   return null;
 }
