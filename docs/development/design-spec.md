@@ -360,6 +360,8 @@ Rules:
 
 ## Accessibility
 
+This section gives implementation guidance within the project-wide [Accessibility scope and support](../../ACCESSIBILITY.md).
+
 Minimum expectations:
 
 1. `:focus-visible` outlines on keyboard-focusable nav controls.
@@ -413,14 +415,14 @@ Rules:
 
 ### Implementation Structure
 
-> **Changing:** new icon buttons use a native `<button>`; see **Open Questions** and [#502](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/502). The `div` pattern below describes existing controls until they're migrated.
+> **Legacy controls only:** the `div` pattern below describes existing controls until they're migrated. Do not use it for new interactive controls. New icon buttons use a native `<button>`; see **Open Questions** and [#502](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/502). The migration remains gated on that issue's styling spike.
 
 Existing controls use a `div` (or `span` if inline) with the following attributes:
 
 - **Class**: `clickable-icon`
 - **Role**: `button`
 - **Tabindex**: `0`
-- **Accessibility**: Provide an `aria-label` or `title`.
+- **Accessible name**: Provide an `aria-label`; never use `title` (see [`.instructions.md`](../../.instructions.md#compliance-declarations-required)).
 
 ```typescript
 const iconButton = container.createDiv({
@@ -435,6 +437,8 @@ setIcon(iconButton, "lucide-icon-name");
 ```
 
 ### Keyboard Interactivity
+
+This custom keyboard handling applies only to the existing legacy elements shown above. New interactive controls should use native semantic elements so the browser supplies standard keyboard behavior.
 
 Interactive icons MUST handle keyboard events to maintain 1:1 parity with standard buttons:
 
