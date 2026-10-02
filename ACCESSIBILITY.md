@@ -24,6 +24,8 @@ Automated checks, DOM tests, accessibility-tree inspection, and screenshot revie
 
 For interactive changes, verify the changed user flow with the keyboard. Use targeted screen-reader checks when a change affects a control's name or state, focus behavior, or dynamic announcement. Use role, accessible name, state, and keyboard pathways for automated UI interactions where possible. CDP accessibility-tree inspection can verify runtime semantics; screenshots can verify visual focus, contrast, clipping, and layout. These are complementary checks, and AI-driven testing remains an aid to human accessibility rather than its driver.
 
+For each tracked accessibility implementation change, link the applicable WCAG 2.2 success criterion or criteria and any more specific RSS Dashboard baseline that shapes acceptance. If no single criterion directly describes the change, state the project or platform expectation and why it applies. A criterion link explains the change's scope and verification; it does not establish product-wide conformance.
+
 The rollout plan records how to extend these checks across existing surfaces and contexts. Environment combinations that have not been checked are unknown, not verified support claims.
 
 ## Current limitations and reporting barriers

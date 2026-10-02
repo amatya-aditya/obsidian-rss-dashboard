@@ -62,6 +62,7 @@ The scope and governing decision are recorded in [ACCESSIBILITY.md](../../ACCESS
 
 - For changed interactive flows, verify the keyboard path and visible focus in the running plugin.
 - Use targeted screen-reader checks when a change affects names, state, focus management, or dynamic announcements.
+- For each implementation issue and PR, cite the applicable WCAG 2.2 success criterion or criteria and the relevant project baseline. If no single criterion directly applies, state the local or platform expectation and why; the reference scopes the acceptance check and is not a conformance claim.
 - Keep jsdom tests for DOM structure and behavior. Treat lint, automated accessibility scans, and unit tests as partial regression signals rather than conformance proof.
 - Where runtime automation is available, prefer user-facing role/name/state and keyboard paths. CDP accessibility-tree inspection checks exposed semantics; screenshots check focus visibility, contrast, clipping, and layout. Test-only selectors may assist setup or disambiguation but must not conceal an inaccessible user path.
 - Record the environment and evidence for each manual or automated check. Mark combinations not yet checked as unknown.
