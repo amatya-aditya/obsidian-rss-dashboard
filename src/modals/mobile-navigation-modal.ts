@@ -14,6 +14,9 @@ export class MobileNavigationModal extends Modal {
   private modalWidth: number;
   private sidebarWrapper!: HTMLElement;
   private refreshIntervalId: number | null = null;
+  // Aborted on close: document listeners would otherwise keep every closed
+  // modal, and its sidebar rows, reachable from the document (#664).
+  private documentListenerAbort = new AbortController();
 
   constructor(
     app: App,
@@ -177,13 +180,23 @@ export class MobileNavigationModal extends Modal {
       this.handleResizeStart(e);
     });
 
-    activeDocument.addEventListener("mousemove", (e) => {
-      this.handleResizeMove(e);
-    });
+    const { signal } = this.documentListenerAbort;
 
-    activeDocument.addEventListener("mouseup", () => {
-      this.handleResizeEnd();
-    });
+    activeDocument.addEventListener(
+      "mousemove",
+      (e) => {
+        this.handleResizeMove(e);
+      },
+      { signal },
+    );
+
+    activeDocument.addEventListener(
+      "mouseup",
+      () => {
+        this.handleResizeEnd();
+      },
+      { signal },
+    );
   }
 
   private handleResizeStart(e: MouseEvent): void {
@@ -232,6 +245,10 @@ export class MobileNavigationModal extends Modal {
       window.clearInterval(this.refreshIntervalId);
       this.refreshIntervalId = null;
     }
+
+    this.documentListenerAbort.abort();
+    this.documentListenerAbort = new AbortController();
+    this.isResizing = false;
 
     this.sidebar?.destroy();
     const { contentEl } = this;
