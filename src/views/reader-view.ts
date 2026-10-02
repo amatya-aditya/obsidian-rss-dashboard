@@ -98,10 +98,11 @@ import { PodcastPlayer } from "./podcast-player";
 import { VideoPlayer } from "./video-player";
 import { RSS_DASHBOARD_VIEW_TYPE, RssDashboardView } from "./dashboard-view";
 import {
-  openReaderCustomSaveModal,
+  ReaderCustomSaveModal,
   type ReaderCustomSaveModalContext,
 } from "../modals/reader-custom-save-modal";
 import { ShortcutHelpModal } from "../modals/shortcut-help-modal";
+import { openWebViewerSaveModal } from "../modals/web-viewer-save-modal";
 import { setupReaderHotkeys } from "../hotkeys/reader-hotkeys";
 
 const VIDEO_ARTICLE_BANNER =
@@ -258,6 +259,7 @@ export class ReaderView extends ItemView {
       this.app,
       () => this.settings.articleSaving,
       () => this.settings.useFirstSeenDateFallback,
+      openWebViewerSaveModal(this.app),
     );
   }
 
@@ -1161,13 +1163,15 @@ export class ReaderView extends ItemView {
   }
 
   private showCustomSaveModal(item: FeedItem): void {
-    openReaderCustomSaveModal(item, this.getReaderCustomSaveModalContext());
+    new ReaderCustomSaveModal(
+      this.app,
+      item,
+      this.getReaderCustomSaveModalContext(),
+    ).open();
   }
 
   private getReaderCustomSaveModalContext(): ReaderCustomSaveModalContext {
     return {
-      app: this.app,
-      getActiveDocument: () => activeDocument,
       getSettings: () => this.settings,
       getArticleSaver: () => this.articleSaver,
       displayTitle: this.currentDisplayTitle,
@@ -2141,9 +2145,9 @@ export class ReaderView extends ItemView {
       this.tagsDropdownCleanup = null;
       return;
     }
-
     const item = this.currentItem;
     const cleanup = createTagsDropdownPortal({
+      app: this.app,
       anchor,
       settings: this.settings,
       item,

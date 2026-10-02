@@ -866,6 +866,16 @@ describe("Sidebar batch move (characterization)", () => {
       );
     });
 
+    it("leaves the open folder alone when the batch drops it on its current parent", async () => {
+      options.currentFolder = "News/Tech";
+      build();
+
+      await drop(folderFeedsList("News"), listPayload([], ["News/Tech"]));
+
+      expect(folderAt("News/Tech")).toBeDefined();
+      expect(callbacks.onFolderClick).not.toHaveBeenCalled();
+    });
+
     it("leaves the open folder alone when the batch did not move it", async () => {
       options.currentFolder = "Newsletter";
       build();

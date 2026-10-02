@@ -333,7 +333,7 @@ describe("ImportOpmlModal", () => {
 
     await vi.waitFor(() => {
       expect((modal as unknown as ModalElements).containerEl.isConnected).toBe(false);
-      expect(document.querySelector(".rss-dashboard-modal-overlay")).toBeNull();
+      expect(document.querySelector(".rss-dashboard-confirm-modal")).toBeNull();
     });
   });
 

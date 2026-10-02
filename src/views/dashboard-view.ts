@@ -1024,7 +1024,6 @@ export class RssDashboardView extends ItemView {
         pagination.startIdx,
         pagination.endIdx,
       );
-
       const titleInfo = this.getArticlesTitleInfo();
       this.articleList = new ArticleList(
         articlesContainer,
@@ -1115,6 +1114,7 @@ export class RssDashboardView extends ItemView {
         this.filterLogic,
         this.currentFeed?.url,
         this.currentFeed === null,
+        this.app,
       );
 
       this.articleList.setEmptyStateContext(

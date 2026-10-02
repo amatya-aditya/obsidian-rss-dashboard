@@ -217,15 +217,16 @@ afterEach(() => {
 });
 
 describe("ReaderView custom save dialog behavior", () => {
-  it("opens the hand-built dialog from the reader save menu", async () => {
+  it("opens the dialog as an Obsidian modal from the reader save menu", async () => {
     const { view } = createHarness();
     const modal = await openCustomSaveDialog({ view, item: createItem() } as CustomSaveHarness);
 
-    expect(modal.parentElement).toBe(activeDocument.body);
-    expect(modal.className).toBe(
-      "rss-dashboard-modal rss-dashboard-modal-container rss-dashboard-custom-save-modal",
+    expect(modal.parentElement?.classList.contains("modal-container")).toBe(
+      true,
     );
-    expect(modal.querySelector(".rss-dashboard-modal-content")).not.toBeNull();
+    expect(modal.parentElement?.parentElement).toBe(activeDocument.body);
+    expect(modal.className).toBe("modal rss-dashboard-custom-save-modal");
+    expect(modal.querySelector(".modal-content")).not.toBeNull();
     expect(modal.querySelector(".setting-item-name")?.textContent).toBe(
       "Save article",
     );
@@ -353,7 +354,9 @@ describe("ReaderView custom save dialog behavior", () => {
       harness.item,
       { saved: true },
     );
-    expect(modal.isConnected).toBe(false);
+    await vi.waitFor(() => {
+      expect(modal.isConnected).toBe(false);
+    });
   });
 
   it("passes an empty folder and undefined when the template is blank", async () => {
@@ -445,17 +448,6 @@ describe("ReaderView custom save dialog behavior", () => {
     expect(harness.feed.customTemplate).toBe("one");
     expect(harness.onArticleSave).not.toHaveBeenCalled();
     expect(harness.onArticleUpdate).not.toHaveBeenCalled();
-  });
-
-  it("keeps the hand-built dialog open on Escape and backdrop clicks", async () => {
-    const { view } = createHarness();
-    const modal = await openCustomSaveDialog({ view, item: createItem() } as CustomSaveHarness);
-    modal.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    activeDocument.dispatchEvent(
-      new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
-    );
-
-    expect(modal.isConnected).toBe(true);
   });
 
   it.each([true, false])(
@@ -580,7 +572,6 @@ describe("ReaderView custom save dialog behavior", () => {
     const globalScope = window as Window & { activeDocument?: Document };
     const previousDocument = globalScope.activeDocument;
     globalScope.activeDocument = popoutDocument;
-    const createDivInPopout = vi.spyOn(popoutDocument.body, "createDiv");
 
     try {
       const saveButton = harness.view.containerEl.querySelector<HTMLElement>(
@@ -595,9 +586,8 @@ describe("ReaderView custom save dialog behavior", () => {
       const modal = popoutDocument.querySelector<HTMLElement>(
         ".rss-dashboard-custom-save-modal",
       );
-      expect(createDivInPopout).toHaveBeenCalledTimes(1);
       expect(modal?.ownerDocument).toBe(popoutDocument);
-      expect(modal?.parentElement).toBe(popoutDocument.body);
+      expect(modal?.parentElement?.parentElement).toBe(popoutDocument.body);
       if (!modal) throw new Error("Popout save dialog was not opened");
       const cancel = modal.querySelector<HTMLButtonElement>(
         ".rss-dashboard-custom-save-cancel-button",

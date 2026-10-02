@@ -730,52 +730,13 @@
 }
 
 /* ============================================
-   OPML Overwrite Confirmation Modal Overlay
+   OPML Overwrite Confirmation Modal
    ============================================ */
 
-/* Overlay that appears on top of Import OPML modal when user attempts to overwrite existing feeds */
-.rss-dashboard-modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5); /* Dimming background for overlay */
-  z-index: var(--feed-manager-z-index-modal-overlay);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  animation: fade-in 0.15s ease-out;
-}
-
-@keyframes fade-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-/* Confirmation modal inside overlay */
-.rss-dashboard-modal-overlay .rss-dashboard-confirm-modal {
-  z-index: var(--feed-manager-z-index-modal-overlay-container);
-  animation: modal-slide-in 0.2s ease-out;
+/* Opens on top of the Import OPML modal when the user attempts to overwrite existing feeds */
+.modal.rss-opml-overwrite-confirm-modal {
   width: 450px;
   max-width: 90vw;
-  height: auto;
-  max-height: 85vh;
-}
-
-@keyframes modal-slide-in {
-  from {
-    opacity: 0;
-    transform: translate(-50%, -50%) scale(0.95);
-  }
-  to {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
-  }
 }
 
 /* Confirmation modal buttons row */

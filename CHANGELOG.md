@@ -7,6 +7,7 @@
 
 ### Fixes
 
+- Fixed editing a feed to another subscribed feed's URL creating a duplicate subscription. The URL change is now refused without changing either feed. Existing duplicates can still be edited when their URL stays the same. [GH Issue #554](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/554)
 - Fixed the reader removing story text or other media along with a duplicate lead image when both were wrapped in a link or figure. [GH Issue #629](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/629)
 - Fixed **Use site icons/favicons for RSS feeds** turning itself back on after a settings reload. Loading unchanged settings no longer saves them on every startup. [GH Issue #564](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/564)
 - Fixed importing user preferences with non-list folders or tags discarding your current lists and preventing an OPML auto-backup. [GH Issue #537](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/537)
@@ -41,6 +42,7 @@
 - Fixed moving a multi-selection of folders or feeds, by dragging it or with **Move selection to folder**, leaving the article list on the moved selection. The sidebar cleared its selection, but the article list kept its old heading and articles, and after the next redraw it showed the old folder names with no feeds and no articles. The dashboard now clears its selection too, from the sidebar and from the navigation drawer, and shows **All articles**; a sidebar tag filter that was on stays on. [GH Issue #615](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/615) [GH Issue #659](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/659)
 - Fixed moving several folders at once saying "Skipped moving folder into itself or its subfolder." for any folder it couldn't move. A folder refused for another reason now shows that reason, such as "A folder named "Tech" already exists at the destination level.", once for each distinct reason. A subfolder moved together with its parent no longer shows a skip notice. [GH Issue #610](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/610)
 - Fixed the dashboard staying on a folder's old path after the folder was moved by dropping it on another folder's feed list or with **Move selection to folder**. The article list kept the old name and, after the next redraw, showed no articles. It now follows the folder to its new location, as dragging a folder onto a folder name already did. [GH Issue #611](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/611)
+- Fixed the **Edit tag**, **Add new tag**, **Save article**, **Save with template**, and **Overwrite all feeds** dialogs not closing with Escape and letting clicks reach the app behind them, so repeated clicks could open several copies. They now close with Escape without saving and block the app behind them. [GH Issue #355](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/355)
 
 ### Developer
 

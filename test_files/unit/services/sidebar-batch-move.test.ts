@@ -206,4 +206,12 @@ describe("resolveBatchMovedFolder", () => {
   it("compares whole path segments, so 'News' does not move 'Newsletter'", () => {
     expect(resolveBatchMovedFolder("Newsletter/Tech", { folders })).toBeNull();
   });
+
+  it("is null when a folder dropped on its own parent kept its path", () => {
+    const samePlace = [{ oldPath: "News/Tech", newPath: "News/Tech", error: null }];
+    expect(resolveBatchMovedFolder("News/Tech", { folders: samePlace })).toBeNull();
+    expect(
+      resolveBatchMovedFolder("News/Tech/Deep", { folders: samePlace }),
+    ).toBeNull();
+  });
 });
