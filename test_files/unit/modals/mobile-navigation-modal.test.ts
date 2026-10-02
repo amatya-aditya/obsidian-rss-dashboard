@@ -45,10 +45,6 @@ vi.mock("../../../src/components/sidebar", () => {
   return { Sidebar };
 });
 
-function flushPromises(): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, 0));
-}
-
 describe("MobileNavigationModal", () => {
   beforeEach(() => {
     installObsidianDomPolyfills();
@@ -127,55 +123,7 @@ describe("MobileNavigationModal", () => {
     expect(modal.containerEl.isConnected).toBe(false);
   });
 
-  it("updates width during drag and persists on mouseup", async () => {
-    const { MobileNavigationModal } =
-      await import("../../../src/modals/mobile-navigation-modal");
-
-    const app = obsidian.App.createMock();
-    const plugin = { saveSettings: vi.fn(async () => {}) };
-    const settings = { sidebarWidth: 310 } as unknown as RssDashboardSettings;
-    const callbacks = {
-      onFolderClick: vi.fn(),
-      onFeedClick: vi.fn(),
-      onTagToggle: vi.fn(),
-      onClearTags: vi.fn(),
-      onTagFilterModeChange: vi.fn(),
-    } as unknown as SidebarCallbacks;
-
-    const modal = new MobileNavigationModal(
-      app as unknown as obsidian.App,
-      plugin as unknown as RssDashboardPlugin,
-      settings,
-      { selectedTags: [] } as unknown as SidebarOptions,
-      callbacks,
-    );
-    modal.open();
-
-    const handle = modal.contentEl.querySelector(
-      ".rss-dashboard-sidebar-resize-handle",
-    ) as HTMLDivElement;
-    expect(handle).toBeTruthy();
-
-    handle.dispatchEvent(
-      new MouseEvent("mousedown", { clientX: 1100, bubbles: true }),
-    );
-    document.dispatchEvent(
-      new MouseEvent("mousemove", { clientX: 1000, bubbles: true }),
-    );
-    await flushPromises();
-
-    expect(settings.sidebarWidth).toBe(400);
-    expect(modal.modalEl.style.width).toBe("400px");
-
-    document.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
-    await flushPromises();
-
-    expect(plugin.saveSettings).toHaveBeenCalledTimes(1);
-  });
-
-  // #664: the document-level resize listeners kept every closed modal (and
-  // its sidebar rows) reachable from the document.
-  it("stops reacting to document mouse events after it closes", async () => {
+  it("opens at 80% of the window width, and never narrower than 240px", async () => {
     const { MobileNavigationModal } =
       await import("../../../src/modals/mobile-navigation-modal");
 
@@ -191,32 +139,31 @@ describe("MobileNavigationModal", () => {
       {} as unknown as SidebarCallbacks,
     );
     modal.open();
-
-    const handle = modal.contentEl.querySelector(
-      ".rss-dashboard-sidebar-resize-handle",
-    ) as HTMLDivElement;
-    handle.dispatchEvent(
-      new MouseEvent("mousedown", { clientX: 1100, bubbles: true }),
-    );
+    expect(modal.modalEl.style.width).toBe("1120px");
+    expect(modal.modalEl.style.maxWidth).toBe("1120px");
     modal.close();
 
-    document.dispatchEvent(
-      new MouseEvent("mousemove", { clientX: 1000, bubbles: true }),
-    );
-    document.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
-    await flushPromises();
+    Object.defineProperty(window, "innerWidth", {
+      value: 250,
+      configurable: true,
+    });
+    modal.open();
+    expect(modal.modalEl.style.width).toBe("240px");
+    modal.close();
 
     expect(settings.sidebarWidth).toBe(310);
-    expect(plugin.saveSettings).not.toHaveBeenCalled();
   });
 
-  it("resizes again after being closed and reopened", async () => {
+  // #664: document-level listeners kept every closed drawer (and its sidebar
+  // rows) reachable from the document. The drawer needs none (#670).
+  it("adds no listeners to the document", async () => {
     const { MobileNavigationModal } =
       await import("../../../src/modals/mobile-navigation-modal");
 
     const app = obsidian.App.createMock();
     const plugin = { saveSettings: vi.fn(async () => {}) };
     const settings = { sidebarWidth: 310 } as unknown as RssDashboardSettings;
+    const addListener = vi.spyOn(activeDocument, "addEventListener");
 
     const modal = new MobileNavigationModal(
       app as unknown as obsidian.App,
@@ -227,24 +174,8 @@ describe("MobileNavigationModal", () => {
     );
     modal.open();
     modal.close();
-    modal.open();
 
-    const handle = modal.contentEl.querySelector(
-      ".rss-dashboard-sidebar-resize-handle",
-    ) as HTMLDivElement;
-    handle.dispatchEvent(
-      new MouseEvent("mousedown", { clientX: 1100, bubbles: true }),
-    );
-    document.dispatchEvent(
-      new MouseEvent("mousemove", { clientX: 1000, bubbles: true }),
-    );
-    document.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
-    await flushPromises();
-
-    expect(settings.sidebarWidth).toBe(400);
-    expect(plugin.saveSettings).toHaveBeenCalledTimes(1);
-
-    modal.close();
+    expect(addListener).not.toHaveBeenCalled();
   });
 
   describe("updateAllFeedsIconRefreshState polling (stop button)", () => {

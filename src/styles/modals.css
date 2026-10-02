@@ -1041,9 +1041,6 @@ body .modal.rss-mobile-discover-filters-modal .rss-dashboard-sidebar {
     border: 1px solid var(--background-modifier-border);
     border-left: none;
   }
-  body .modal.rss-mobile-navigation-modal .rss-dashboard-sidebar-resize-handle {
-    display: none;
-  }
   .modal.rss-mobile-navigation-modal.rss-mobile-platform-ios,
   .modal.rss-mobile-discover-filters-modal.rss-mobile-platform-ios {
     --rss-ios-top-safe-raw: env(safe-area-inset-top, 0px);
@@ -1276,12 +1273,6 @@ body .modal.rss-mobile-discover-filters-modal .rss-dashboard-sidebar {
   .rss-dashboard-modal-buttons button {
     width: 100%;
   }
-}
-
-body .modal.rss-mobile-navigation-modal .rss-dashboard-sidebar-resize-handle {
-  display: block;
-  left: 0;
-  right: auto;
 }
 
 @keyframes rss-mobile-drawer-in {

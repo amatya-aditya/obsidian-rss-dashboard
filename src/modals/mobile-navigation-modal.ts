@@ -9,14 +9,8 @@ import { RssDashboardSettings } from "../types/types";
 
 export class MobileNavigationModal extends Modal {
   private sidebar!: Sidebar;
-  private isResizing: boolean = false;
-  private resizeHandle: HTMLElement | null = null;
-  private modalWidth: number;
   private sidebarWrapper!: HTMLElement;
   private refreshIntervalId: number | null = null;
-  // Aborted on close: document listeners would otherwise keep every closed
-  // modal, and its sidebar rows, reachable from the document (#664).
-  private documentListenerAbort = new AbortController();
 
   constructor(
     app: App,
@@ -26,15 +20,12 @@ export class MobileNavigationModal extends Modal {
     private callbacks: SidebarCallbacks,
   ) {
     super(app);
-    // Use saved width or default
-    this.modalWidth = settings.sidebarWidth || 280;
   }
 
   onOpen() {
     const { contentEl } = this;
 
     contentEl.empty();
-    this.modalWidth = Math.floor(activeWindow.innerWidth * 0.8);
     this.modalEl.addClass("rss-mobile-navigation-modal");
     this.modalEl.classList.remove(
       "rss-mobile-platform-ios",
@@ -51,16 +42,7 @@ export class MobileNavigationModal extends Modal {
       cls: "rss-dashboard-sidebar-container",
     });
 
-    // Create resize handle for modal (positioned on left side)
-    this.resizeHandle = this.sidebarWrapper.createDiv({
-      cls: "rss-dashboard-sidebar-resize-handle",
-    });
-
-    // Apply initial width
     this.applyModalWidth();
-
-    // Setup resize handlers
-    this.setupModalResize();
 
     const wrappedCallbacks: SidebarCallbacks = {
       ...this.callbacks,
@@ -173,69 +155,8 @@ export class MobileNavigationModal extends Modal {
     }
   }
 
-  private setupModalResize(): void {
-    if (!this.resizeHandle) return;
-
-    this.resizeHandle.addEventListener("mousedown", (e) => {
-      this.handleResizeStart(e);
-    });
-
-    const { signal } = this.documentListenerAbort;
-
-    activeDocument.addEventListener(
-      "mousemove",
-      (e) => {
-        this.handleResizeMove(e);
-      },
-      { signal },
-    );
-
-    activeDocument.addEventListener(
-      "mouseup",
-      () => {
-        this.handleResizeEnd();
-      },
-      { signal },
-    );
-  }
-
-  private handleResizeStart(e: MouseEvent): void {
-    e.preventDefault();
-    e.stopPropagation();
-    this.isResizing = true;
-    this.resizeHandle?.addClass("dragging");
-  }
-
-  private handleResizeMove(e: MouseEvent): void {
-    if (!this.isResizing) return;
-
-    // For modal, calculate width from right edge
-    const windowWidth = activeWindow.innerWidth;
-    let newWidth = windowWidth - e.clientX;
-
-    // Apply constraints
-    const minWidth = 200;
-    const maxWidth = Math.min(500, windowWidth * 0.8);
-    newWidth = Math.max(minWidth, Math.min(maxWidth, newWidth));
-
-    this.modalWidth = newWidth;
-    this.settings.sidebarWidth = newWidth;
-    this.applyModalWidth();
-  }
-
-  private handleResizeEnd(): void {
-    if (!this.isResizing) return;
-
-    this.isResizing = false;
-    this.resizeHandle?.removeClass("dragging");
-
-    // Save width to settings
-    void this.plugin.saveSettings();
-  }
-
   private applyModalWidth(): void {
-    const maxAllowedWidth = Math.floor(activeWindow.innerWidth * 0.8);
-    const width = Math.max(240, Math.min(this.modalWidth, maxAllowedWidth));
+    const width = Math.max(240, Math.floor(activeWindow.innerWidth * 0.8));
     this.modalEl.style.width = `${width}px`;
     this.modalEl.style.maxWidth = `${width}px`;
   }
@@ -246,13 +167,8 @@ export class MobileNavigationModal extends Modal {
       this.refreshIntervalId = null;
     }
 
-    this.documentListenerAbort.abort();
-    this.documentListenerAbort = new AbortController();
-    this.isResizing = false;
-
     this.sidebar?.destroy();
     const { contentEl } = this;
     contentEl.empty();
-    this.resizeHandle = null;
   }
 }
