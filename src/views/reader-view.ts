@@ -911,7 +911,7 @@ export class ReaderView extends ItemView {
       cls: "rss-dashboard-tags-dropdown",
     });
     const tagsButton = tagsDropdown.createDiv({
-      cls: "rss-dashboard-tags-toggle clickable-icon",
+      cls: "rss-dashboard-tags-toggle clickable-icon rss-reader-action-button",
       attr: {
         role: "button",
         tabindex: "0",
