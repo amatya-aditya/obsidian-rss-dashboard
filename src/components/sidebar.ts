@@ -17,11 +17,6 @@ import {
   FeedEncoding,
   FeedShardHealth,
 } from "../types/types";
-import {
-  SIDEBAR_ICON_IDS,
-  getIconById,
-  createToolbarButton,
-} from "../utils/sidebar-icon-registry";
 import { collectFolderPaths } from "../utils/folder-paths";
 import { AddFeedModal, EditFeedModal } from "../modals/feed-manager-modal";
 import { FolderAutoTagModal } from "../modals/feed-manager/folder-auto-tag-modal";
@@ -38,10 +33,6 @@ import {
 } from "../utils/platform-utils";
 import { SidebarSearchService } from "../services/sidebar-search-service";
 import { FolderNameModal } from "../modals/folder-name-modal";
-import {
-  loadVaultLocalStorage,
-  saveVaultLocalStorage,
-} from "../utils/vault-local-storage";
 import type RssDashboardPlugin from "../../main";
 import { applyFeedSortOrder } from "../utils/sidebar-sort-utils";
 import {
@@ -53,13 +44,23 @@ import {
 } from "../utils/sidebar-row-interactions";
 import { applyFolderSortOrder } from "../utils/sidebar-folder-sort-utils";
 import { renderFeedBadges, renderFeedIcon } from "./sidebar-feed-row";
+import { clearMovedSelection } from "./sidebar-selection";
+import { renderSidebarHeader, type SidebarHeaderHost } from "./sidebar-header";
+import {
+  showSidebarFolderContextMenu,
+  type SidebarFolderMenuHost,
+} from "./sidebar-folder-menu";
 import {
   moveFeedsAndInsert,
-  moveFeedsToFolderAppend,
   moveFolder,
   setFolderFeedSortCustom,
   setFolderSortCustom,
 } from "../services/sidebar-ordering-controller";
+import {
+  batchMoveFeedsAndFolders,
+  describeBatchMove,
+  describeRefusedFolders,
+} from "../services/sidebar-batch-move";
 import {
   attachRefreshStatusDetails,
   showRefreshDetailsPopup,
@@ -125,13 +126,6 @@ export interface SidebarCallbacks {
   onFolderMultiSelect?: (folders: string[]) => void;
   onRangeSelect?: (clickedKey: string, visibleKeys: string[]) => void;
 }
-
-type AppWithInternalSettings = App & {
-  setting?: {
-    open?: () => void;
-    openTabById?: (id: string) => void;
-  };
-};
 
 type SidebarFocusTarget =
   | { type: "all-feeds" }
@@ -1696,8 +1690,7 @@ export class Sidebar {
       if (newFolder) newFolder.modifiedAt = Date.now();
     }
 
-    this.options.selectedFeeds = [];
-    this.options.selectedFolders = [];
+    clearMovedSelection(this.options, this.callbacks.onFolderMultiSelect);
 
     void this.plugin.saveSettings().then(() => this.render());
   }
@@ -2002,93 +1995,29 @@ export class Sidebar {
     feedUrls: string[],
     folderPaths: string[] = [],
   ): void {
-    let movedFeedsCount = 0;
-    let movedFoldersCount = 0;
-    let skippedFoldersCount = 0;
-
-    // 1. Move folders first (if any)
-    for (const folderPath of folderPaths) {
-      if (
-        destinationFolderPath === folderPath ||
-        destinationFolderPath.startsWith(`${folderPath}/`)
-      ) {
-        skippedFoldersCount++;
-        continue;
-      }
-
-      const placement = destinationFolderPath ? "nest" : "rootAppend";
-      const result = moveFolder(this.settings, {
-        draggedPath: folderPath,
-        targetPath: destinationFolderPath,
-        placement,
-      });
-
-      if (result.ok) {
-        movedFoldersCount++;
-      } else {
-        skippedFoldersCount++;
-      }
-    }
-
-    // 2. Move feeds
-    const feedsToMove = feedUrls.filter((url) => {
-      const feed = this.settings.feeds.find((f) => f.url === url);
-      return feed && (feed.folder || "") !== destinationFolderPath;
+    const result = batchMoveFeedsAndFolders(this.settings, {
+      destinationFolderPath,
+      feedUrls,
+      folderPaths,
+      findFolder: (path) => this.findFolderByPath(path),
     });
 
-    if (feedsToMove.length > 0) {
-      const oldFolderPaths = new Set<string>();
-      for (const url of feedsToMove) {
-        const f = this.settings.feeds.find((item) => item.url === url);
-        if (f?.folder) oldFolderPaths.add(f.folder);
-      }
-
-      const result = moveFeedsToFolderAppend(this.settings, {
-        draggedUrls: feedsToMove,
-        destinationFolderPath,
-      });
-
-      if (result.ok) {
-        movedFeedsCount = feedsToMove.length;
-        for (const oldPath of oldFolderPaths) {
-          const oldFolder = this.findFolderByPath(oldPath);
-          if (oldFolder) oldFolder.modifiedAt = Date.now();
-        }
-      } else {
-        new Notice(result.error || "Unable to move feeds.");
-      }
-    }
-
-    if (destinationFolderPath) {
-      const destFolder = this.findFolderByPath(destinationFolderPath);
-      if (destFolder) destFolder.modifiedAt = Date.now();
+    if (result.feedMoveError) {
+      new Notice(result.feedMoveError);
     }
 
     this.clearFolderPathCache();
 
-    if (skippedFoldersCount > 0) {
-      new Notice("Skipped moving folder into itself or its subfolder.");
+    for (const reason of describeRefusedFolders(result)) {
+      new Notice(reason);
     }
 
-    const totalMoved = movedFeedsCount + movedFoldersCount;
-    if (totalMoved > 0) {
-      const destLabel = destinationFolderPath
-        ? `"${destinationFolderPath}"`
-        : "root";
-      const parts: string[] = [];
-      if (movedFeedsCount > 0) {
-        parts.push(`${movedFeedsCount} feed${movedFeedsCount === 1 ? "" : "s"}`);
-      }
-      if (movedFoldersCount > 0) {
-        parts.push(
-          `${movedFoldersCount} folder${movedFoldersCount === 1 ? "" : "s"}`,
-        );
-      }
-      new Notice(`Moved ${parts.join(" and ")} to ${destLabel}`);
+    const summary = describeBatchMove(result, destinationFolderPath);
+    if (summary) {
+      new Notice(summary);
     }
 
-    this.options.selectedFeeds = [];
-    this.options.selectedFolders = [];
+    clearMovedSelection(this.options, this.callbacks.onFolderMultiSelect);
 
     void this.plugin.saveSettings().then(() => this.render());
   }
@@ -2172,170 +2101,44 @@ export class Sidebar {
     fullPath: string,
     folderName: string,
   ): void {
-    const menu = new Menu();
-    const anchor = event.currentTarget;
+    showSidebarFolderContextMenu(
+      event,
+      folderObj,
+      fullPath,
+      folderName,
+      this.buildFolderMenuHost(),
+    );
+  }
 
-    menu.addItem((item: MenuItem) => {
-      item
-        .setTitle("Refresh details")
-        .setIcon("info")
-        .onClick(() => {
-          this.showRefreshDetails(
-            anchor instanceof HTMLElement ? anchor : this.container,
-            this.settings.feeds.filter((feed) => {
-              const paths = this.getAllDescendantFolderPaths(fullPath);
-              return Boolean(feed.folder) && paths.includes(feed.folder);
-            }),
-            "aggregate",
-          );
-        });
-    });
-
-    if (this.isMultiSelectionTarget("folder", fullPath)) {
-      this.appendSelectionContextMenu(menu);
-      menu.showAtMouseEvent(event);
-      return;
-    }
-    menu.addItem((item: MenuItem) => {
-      item
-        .setTitle("Add feed")
-        .setIcon("rss")
-        .onClick(() => {
-          this.showAddFeedModal(fullPath);
-        });
-    });
-    menu.addItem((item: MenuItem) => {
-      item
-        .setTitle("Add subfolder")
-        .setIcon("folder-plus")
-        .onClick(() => {
-          this.showFolderNameModal({
-            title: "Add subfolder",
-            existingNames:
-              this.findFolderByPath(fullPath)?.subfolders.map((f) => f.name) ??
-              [],
-            onSubmit: (subfolderName) => {
-              void this.addSubfolderByPath(fullPath, subfolderName).then(() =>
-                this.render(),
-              );
-            },
-          });
-        });
-    });
-    menu.addItem((item: MenuItem) => {
-      item
-        .setTitle("Rename folder")
-        .setIcon("edit")
-        .onClick(() => {
-          this.showFolderNameModal({
-            title: "Rename folder",
-            defaultValue: folderName,
-            existingNames: (() => {
-              const parentPath = fullPath.includes("/")
-                ? fullPath.split("/").slice(0, -1).join("/")
-                : "";
-              return parentPath
-                ? (this.findFolderByPath(parentPath)?.subfolders.map(
-                    (f) => f.name,
-                  ) ?? [])
-                : this.settings.folders.map((f) => f.name);
-            })(),
-            onSubmit: (newName) => {
-              if (newName !== folderName) {
-                void this.renameFolderByPath(fullPath, newName).then(() =>
-                  this.render(),
-                );
-              }
-            },
-          });
-        });
-    });
-    menu.addItem((item: MenuItem) => {
-      item
-        .setTitle("Sort feeds (a to z)")
-        .setIcon("sort-asc")
-        .onClick(() => {
-          void this.sortFeedsInFolder(fullPath, "name", true);
-        });
-    });
-    menu.addItem((item: MenuItem) => {
-      item
-        .setTitle("Sort feeds (z to a)")
-        .setIcon("sort-desc")
-        .onClick(() => {
-          void this.sortFeedsInFolder(fullPath, "name", false);
-        });
-    });
-    menu.addItem((item: MenuItem) => {
-      item
-        .setTitle("Mark all as read")
-        .setIcon("check-circle")
-        .onClick(() => {
-          const allPaths = this.getAllDescendantFolderPaths(fullPath);
-          this.settings.feeds.forEach((feed) => {
-            if (feed.folder && allPaths.includes(feed.folder)) {
-              feed.items.forEach((item) => {
-                item.read = true;
-              });
-            }
-          });
-          void this.plugin.saveSettings().then(() => this.render());
-        });
-    });
-    menu.addItem((item: MenuItem) => {
-      item
-        .setTitle(`Refresh feeds in folder`)
-        .setIcon("refresh-cw")
-        .onClick(() => {
-          void this.plugin.refreshFeedsInFolder(fullPath);
-        });
-    });
-    menu.addItem((item: MenuItem) => {
-      item
-        .setTitle("Auto tag feeds in folder...")
-        .setIcon("tags")
-        .onClick(() => {
-          this.showFolderAutoTagModal(fullPath);
-        });
-    });
-    menu.addItem((item: MenuItem) => {
-      item
-        .setTitle("Refresh all feeds")
-        .setIcon("refresh-cw")
-        .onClick(() => {
-          this.plugin.cancelPendingStartupRefresh();
-          void this.plugin.refreshFeeds();
-        });
-    });
-    menu.addItem((item: MenuItem) => {
-      const isPinned = folderObj.pinned;
-      item
-        .setTitle(isPinned ? "Unpin folder" : "Pin folder")
-        .setIcon(isPinned ? "unlock" : "lock")
-        .onClick(() => {
-          folderObj.pinned = !isPinned;
-          folderObj.modifiedAt = Date.now();
-          void this.plugin.saveSettings().then(() => this.render());
-        });
-    });
-    menu.addItem((item: MenuItem) => {
-      item
-        .setTitle("Delete folder")
-        .setIcon("trash")
-        .onClick(() => {
-          this.showConfirmModal(
-            `Are you sure you want to delete the folder '${folderName}' and all its subfolders and feeds?`,
-            () => {
-              this.callbacks.onDeleteFolder(fullPath);
-            },
-          );
-        });
-    });
-    if (typeof menu.showAtMouseEvent === "function") {
-      menu.showAtMouseEvent(event);
-    } else {
-      menu.showAtPosition({ x: event.clientX, y: event.clientY });
-    }
+  private buildFolderMenuHost(): SidebarFolderMenuHost {
+    return {
+      container: this.container,
+      settings: this.settings,
+      callbacks: this.callbacks,
+      plugin: this.plugin,
+      render: () => this.render(),
+      showRefreshDetails: (anchor, feeds, scope) =>
+        this.showRefreshDetails(anchor, feeds, scope),
+      getAllDescendantFolderPaths: (path) =>
+        this.getAllDescendantFolderPaths(path),
+      isMultiSelectionTarget: (targetType, targetKey) =>
+        this.isMultiSelectionTarget(targetType, targetKey),
+      appendSelectionContextMenu: (menu) =>
+        this.appendSelectionContextMenu(menu),
+      showAddFeedModal: (defaultFolder) => this.showAddFeedModal(defaultFolder),
+      showFolderNameModal: (options) => this.showFolderNameModal(options),
+      findFolderByPath: (path) => this.findFolderByPath(path),
+      addSubfolderByPath: (parentPath, subfolderName) =>
+        this.addSubfolderByPath(parentPath, subfolderName),
+      renameFolderByPath: (oldPath, newName) =>
+        this.renameFolderByPath(oldPath, newName),
+      sortFeedsInFolder: (folderPath, by, ascending) =>
+        this.sortFeedsInFolder(folderPath, by, ascending),
+      showFolderAutoTagModal: (folderPath) =>
+        this.showFolderAutoTagModal(folderPath),
+      showConfirmModal: (message, onConfirm) =>
+        this.showConfirmModal(message, onConfirm),
+    };
   }
 
   private findFolderByPath(path: string): Folder | null {
@@ -3068,232 +2871,38 @@ export class Sidebar {
   }
 
   public renderHeader(parentEl: HTMLElement = this.container): void {
-    const header = parentEl.createDiv({ cls: "rss-dashboard-header" });
-    this.iconBtnEls.clear();
-    this.iconActions.clear();
+    renderSidebarHeader(parentEl, this.buildHeaderHost());
+  }
 
-    if (this.settings.display.hideToolbarEntirely) return;
-
-    const iconRowWrapper = header.createDiv({ cls: "rss-icon-row-wrapper" });
-    const iconRow = iconRowWrapper.createDiv({
-      cls: "rss-dashboard-header-icon-row",
-    });
-    const display = this.settings.display;
-    const iconOrder: string[] = display.iconOrder?.length
-      ? display.iconOrder
-      : [...SIDEBAR_ICON_IDS];
-
-    // collapseAll needs a ref to its own button to update the icon dynamically
-    let collapseAllBtnRef: HTMLElement | null = null;
-    let cachedCollapseAllPaths: string[] | null = null;
-    const updateCollapseAllIcon = () => {
-      if (!collapseAllBtnRef) return;
-      if (!cachedCollapseAllPaths) {
-        cachedCollapseAllPaths = this.getCachedFolderPaths();
-      }
-      const collapsedFolders = this.settings.collapsedFolders || [];
-      const allCollapsed =
-        cachedCollapseAllPaths.length > 0 &&
-        cachedCollapseAllPaths.every((path) => collapsedFolders.includes(path));
-      setIcon(
-        collapseAllBtnRef,
-        allCollapsed ? "chevrons-down-up" : "chevrons-up-down",
-      );
+  private buildHeaderHost(): SidebarHeaderHost {
+    return {
+      app: this.app,
+      container: this.container,
+      settings: this.settings,
+      callbacks: this.callbacks,
+      iconBtnEls: this.iconBtnEls,
+      iconActions: this.iconActions,
+      isSearchExpanded: () => this.isSearchExpanded,
+      isTagsExpanded: () => this.isTagsExpanded,
+      toggleSearch: () => {
+        this.isSearchExpanded = !this.isSearchExpanded;
+      },
+      toggleTags: () => {
+        this.isTagsExpanded = !this.isTagsExpanded;
+      },
+      render: () => this.render(),
+      getPluginId: () => this.plugin.manifest.id,
+      activateDiscoverView: () => void this.plugin.activateDiscoverView(),
+      getCachedFolderPaths: () => this.getCachedFolderPaths(),
+      toggleAllFolders: () => this.toggleAllFolders(),
+      showAddFeedModal: () => this.showAddFeedModal(),
+      showFolderNameModal: (options) => this.showFolderNameModal(options),
+      addTopLevelFolder: (name) => this.addTopLevelFolder(name),
+      fireIconAction: (id, e) => this.fireIconAction(id, e),
+      updateIconRowFades: () => this.updateIconRowFades(),
+      addHorizontalScrollBehavior: (iconRow) =>
+        this.addHorizontalScrollBehavior(iconRow),
     };
-
-    for (const id of iconOrder) {
-      const iconConfig = getIconById(id);
-      if (!iconConfig) continue;
-
-      const hideKey = iconConfig.settingKey;
-      if (display[hideKey]) continue;
-
-      let btn: HTMLElement;
-
-      switch (id) {
-        case "divider": {
-          // Render the divider as a separate element based on iconOrder position
-          const divider = iconRow.createDiv({ cls: "rss-nav-divider" });
-          iconRow.appendChild(divider);
-          this.iconBtnEls.set(id, divider);
-          continue;
-        }
-
-        case "discover": {
-          const action = () => {
-            if (this.callbacks.onActivateDiscover) {
-              this.callbacks.onActivateDiscover();
-            } else {
-              void this.plugin.activateDiscoverView();
-            }
-          };
-          this.iconActions.set("discover", action);
-          btn = createToolbarButton(iconConfig, action);
-          btn.addClass("clickable-icon");
-          break;
-        }
-
-        case "addFeed": {
-          const action = () => {
-            this.showAddFeedModal();
-            if (
-              !loadVaultLocalStorage(
-                this.app,
-                "rss-first-launch-coachmark-shown",
-              )
-            ) {
-              saveVaultLocalStorage(
-                this.app,
-                "rss-first-launch-coachmark-shown",
-                "true",
-              );
-              const coachmark = this.iconBtnEls
-                .get("addFeed")
-                ?.querySelector(".rss-dashboard-coachmark");
-              if (coachmark) coachmark.remove();
-            }
-          };
-          this.iconActions.set("addFeed", action);
-          btn = createToolbarButton(iconConfig, action);
-          break;
-        }
-
-        case "manageFeeds": {
-          const action = () => {
-            if (this.callbacks.onManageFeeds) {
-              this.callbacks.onManageFeeds();
-            }
-          };
-          this.iconActions.set("manageFeeds", action);
-          btn = createToolbarButton(iconConfig, action);
-          break;
-        }
-
-        case "search": {
-          const action = () => {
-            this.isSearchExpanded = !this.isSearchExpanded;
-            this.render();
-            if (this.isSearchExpanded) {
-              window.requestAnimationFrame(() => {
-                const searchInput =
-                  this.container.querySelector<HTMLInputElement>(
-                    ".rss-dashboard-search-input",
-                  );
-                if (!searchInput) return;
-                searchInput.focus();
-                searchInput.select();
-                searchInput.scrollIntoView({ block: "nearest" });
-              });
-            }
-          };
-          this.iconActions.set("search", action);
-          btn = createToolbarButton(iconConfig, action);
-          btn.toggleClass("is-active", this.isSearchExpanded);
-          btn.setAttr("aria-pressed", this.isSearchExpanded ? "true" : "false");
-          break;
-        }
-
-        case "tags": {
-          const action = () => {
-            this.isTagsExpanded = !this.isTagsExpanded;
-            this.render();
-          };
-          this.iconActions.set("tags", action);
-          btn = createToolbarButton(iconConfig, action);
-          btn.toggleClass("is-active", this.isTagsExpanded);
-          btn.setAttr("aria-pressed", this.isTagsExpanded ? "true" : "false");
-          break;
-        }
-
-        case "addFolder": {
-          const action = () => {
-            this.showFolderNameModal({
-              title: "Add folder",
-              existingNames: this.settings.folders.map((f) => f.name),
-              onSubmit: (folderName) => {
-                void this.addTopLevelFolder(folderName).then(() =>
-                  this.render(),
-                );
-              },
-            });
-          };
-          this.iconActions.set("addFolder", action);
-          btn = createToolbarButton(iconConfig, action);
-          break;
-        }
-
-        case "sort":
-          // sort requires the MouseEvent for menu positioning; action stored in fireIconAction
-          btn = createToolbarButton(iconConfig, () => {
-            /* keyboard: no-op */
-          });
-          btn.addEventListener("click", (e: MouseEvent) =>
-            this.fireIconAction("sort", e),
-          );
-          break;
-
-        case "collapseAll": {
-          const action = () => {
-            cachedCollapseAllPaths = null;
-            this.toggleAllFolders();
-            window.setTimeout(updateCollapseAllIcon, 0);
-          };
-          this.iconActions.set("collapseAll", action);
-          btn = createToolbarButton(iconConfig, action);
-          collapseAllBtnRef = btn;
-          updateCollapseAllIcon();
-          break;
-        }
-
-        case "settings": {
-          const action = () => {
-            const appWithSettings = this.app as AppWithInternalSettings;
-            appWithSettings.setting?.open?.();
-            appWithSettings.setting?.openTabById?.(this.plugin.manifest.id);
-          };
-          this.iconActions.set("settings", action);
-          btn = createToolbarButton(iconConfig, action);
-          break;
-        }
-
-        default:
-          continue;
-      }
-
-      iconRow.appendChild(btn);
-      this.iconBtnEls.set(id, btn);
-    }
-
-    // Hamburger button — always last; hidden until responsive collapse needs it
-    // Set up scroll-fade indicators on the icon row wrapper
-    iconRow.addEventListener("scroll", () => this.updateIconRowFades());
-
-    // First-launch coachmark for the Add Feed button
-    const addFeedBtn = this.iconBtnEls.get("addFeed");
-    if (
-      addFeedBtn &&
-      !loadVaultLocalStorage(this.app, "rss-first-launch-coachmark-shown")
-    ) {
-      const coachmark = addFeedBtn.createDiv({
-        cls: "rss-dashboard-coachmark",
-        text: "Add your first feed here",
-      });
-      window.setTimeout(() => {
-        if (
-          !loadVaultLocalStorage(this.app, "rss-first-launch-coachmark-shown")
-        ) {
-          saveVaultLocalStorage(
-            this.app,
-            "rss-first-launch-coachmark-shown",
-            "true",
-          );
-          if (coachmark.parentNode) coachmark.remove();
-        }
-      }, 5000);
-    }
-
-    this.addHorizontalScrollBehavior(iconRow);
-
   }
 
   private addHorizontalScrollBehavior(iconRow: HTMLElement): void {

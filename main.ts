@@ -23,6 +23,7 @@ import {
   FeedKeywordRulesSettings,
   FeedIngestionCandidate,
   FeedIngestionOptions,
+  FeedIngestionResult,
   FeedEncoding,
   FeedShardHealth,
 } from "./src/types/types";
@@ -1421,6 +1422,9 @@ export default class RssDashboardPlugin extends Plugin {
             },
           );
 
+          if (result.refused) {
+            return;
+          }
           if (result.addedCount === 0) {
             new Notice("No new feeds found in the file.");
             return;
@@ -1460,11 +1464,7 @@ export default class RssDashboardPlugin extends Plugin {
   public async ingestFeedsForBackgroundImport(
     candidates: FeedIngestionCandidate[],
     options?: FeedIngestionOptions,
-  ): Promise<{
-    addedCount: number;
-    skippedCount: number;
-    queuedFeeds: Feed[];
-  }> {
+  ): Promise<FeedIngestionResult> {
     return this.backgroundImportService.ingestFeedsForBackgroundImport(
       candidates,
       options,
@@ -2257,7 +2257,7 @@ export default class RssDashboardPlugin extends Plugin {
     this.previewImageCache.dispose();
     this.feedOperationTracker.dispose();
 
-    this.cancelPendingStartupRefresh();
+    this.cancelPendingStartupRefresh(true);
 
     // Obsidian does not await onunload. Request the final stale snapshot on a
     // best-effort basis after any pending progress persistence completes.
@@ -2266,10 +2266,13 @@ export default class RssDashboardPlugin extends Plugin {
     });
   }
 
-  public cancelPendingStartupRefresh(): void {
-    if (this.startupRefreshTimeoutId !== null) {
-      window.clearTimeout(this.startupRefreshTimeoutId);
-      this.startupRefreshTimeoutId = null;
+  public cancelPendingStartupRefresh(isUnloading = false): void {
+    if (this.startupRefreshTimeoutId === null) return;
+    window.clearTimeout(this.startupRefreshTimeoutId);
+    this.startupRefreshTimeoutId = null;
+    if (!isUnloading) {
+      this.backgroundImportService?.resumePendingImports();
+      this.autoRefreshScheduler?.start();
     }
   }
 

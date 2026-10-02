@@ -1669,6 +1669,10 @@ export class DiscoverView extends ItemView {
         },
       );
 
+      if (result.refused) {
+        return;
+      }
+
       this.refreshViewAfterFollowStateChange();
       new Notice(
         `Added ${result.addedCount} feeds. Articles will be fetched in the background. Skipped ${skippedAlreadyFollowed + result.skippedCount} already-followed feeds.`,

@@ -52,6 +52,30 @@ import {
   selectArticleSections,
   stripEmbeddedTooltipAttributes,
 } from "../utils/reader-article-render";
+import {
+  extractDisplayTitleFromHtml,
+  findFirstSubstantialParagraph,
+  getNormalizedBlockText,
+  hasMeaningfulArticleContent,
+  isAcceptableDisplayTitle,
+  isBeforeBoundary,
+  isEquivalentHtml,
+  isLeadMediaBlock,
+  isLikelySameImageSource,
+  isShortLeadInBlock,
+  normalizeComparableText,
+  normalizeImageSourceKey,
+  removeLeadImageElement,
+  stripDuplicateLeadCaptionBlocks,
+  stripDuplicateLeadContentFromDocument,
+  stripDuplicateLeadMediaMatchingHero,
+  stripLeadMediaBeforeContent,
+  stripNavigationChromeFromDocument,
+  stripNavigationChromeFromHtml,
+  stripSkipLinksFromDocument,
+  stripTopHeadlineFromDocument,
+  stripTopHeadlineFromHtml,
+} from "../utils/reader-html-cleanup";
 import TurndownService from "turndown";
 import { WebViewerIntegration } from "../services/web-viewer-integration";
 import { MediaService } from "../services/media-service";
@@ -64,10 +88,7 @@ import {
   normalizeSubstackImageUrl,
   normalizeSubstackImageUrlsInDocument,
 } from "../utils/substack-image-url";
-import {
-  containsLatexFormulaImage,
-  firstNonFormulaImageUrl,
-} from "../utils/image-url-utils";
+import { firstNonFormulaImageUrl } from "../utils/image-url-utils";
 import { ReaderLightbox } from "../components/reader-lightbox";
 import {
   isLightboxEligibleImage,
@@ -76,13 +97,12 @@ import {
 import { PodcastPlayer } from "./podcast-player";
 import { VideoPlayer } from "./video-player";
 import { RSS_DASHBOARD_VIEW_TYPE, RssDashboardView } from "./dashboard-view";
-import { VaultFolderSuggest } from "../components/folder-suggest";
+import {
+  openReaderCustomSaveModal,
+  type ReaderCustomSaveModalContext,
+} from "../modals/reader-custom-save-modal";
 import { ShortcutHelpModal } from "../modals/shortcut-help-modal";
 import { setupReaderHotkeys } from "../hotkeys/reader-hotkeys";
-import {
-  ConfirmTemplateAssignmentModal,
-  TemplateNameModal,
-} from "../settings/modals/settings-modals";
 
 const VIDEO_ARTICLE_BANNER =
   "This item appears to be a video. Open the source page to watch.";
@@ -1141,263 +1161,23 @@ export class ReaderView extends ItemView {
   }
 
   private showCustomSaveModal(item: FeedItem): void {
-    const displayTitle = this.currentDisplayTitle;
-    const modal = activeDocument.body.createDiv({
-      cls: "rss-dashboard-modal rss-dashboard-modal-container rss-dashboard-custom-save-modal",
-    });
+    openReaderCustomSaveModal(item, this.getReaderCustomSaveModalContext());
+  }
 
-    const modalContent = modal.createDiv({
-      cls: "rss-dashboard-modal-content",
-    });
-
-    new Setting(modalContent).setName("Save article").setHeading();
-
-    const folderLabel = modalContent.createEl("label", {
-      text: "Save to folder:",
-    });
-
-    const folderInputContainer = modalContent.createDiv({
-      cls: "rss-dashboard-folder-input-container",
-    });
-
-    const folderInput = folderInputContainer.createEl("input", {
-      attr: {
-        type: "text",
-        placeholder: "Enter folder path",
-        value: this.settings.articleSaving.defaultFolder || "",
-      },
-    });
-
-    const clearIcon = folderInputContainer.createDiv({
-      cls: "clickable-icon rss-dashboard-clear-icon",
-      attr: {
-        "aria-label": "Clear input",
-        role: "button",
-        tabindex: "0",
-      },
-    });
-    setIcon(clearIcon, "x");
-    const clearAction = () => {
-      folderInput.value = "";
-      folderInput.focus();
+  private getReaderCustomSaveModalContext(): ReaderCustomSaveModalContext {
+    return {
+      app: this.app,
+      getActiveDocument: () => activeDocument,
+      getSettings: () => this.settings,
+      getArticleSaver: () => this.articleSaver,
+      displayTitle: this.currentDisplayTitle,
+      getCustomTemplateForArticle: (article) =>
+        this.getCustomTemplateForArticle(article),
+      buildReaderSaveMarkdown: (article) =>
+        this.buildReaderSaveMarkdown(article),
+      onArticleSave: (article) => this.onArticleSave(article),
+      updateSavedLabel: (saved) => this.updateSavedLabel(saved),
     };
-    clearIcon.addEventListener("click", clearAction);
-    clearIcon.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        clearAction();
-      }
-    });
-
-    new VaultFolderSuggest(this.app, folderInput);
-
-    const savedTemplateLabel = modalContent.createEl("label", {
-      text: "Saved template:",
-      attr: { for: "rss-dashboard-saved-template" },
-    });
-
-    const savedTemplateSelectWrapper = modalContent.createDiv({
-      cls: "rss-dashboard-template-select-wrapper",
-    });
-    const savedTemplateSelect = savedTemplateSelectWrapper.createEl("select", {
-      cls: "rss-dashboard-template-select",
-      attr: { id: "rss-dashboard-saved-template" },
-    });
-    savedTemplateSelect.createEl("option", {
-      text: "Current template",
-      value: "",
-    });
-    for (const savedTemplate of this.settings.articleSaving.savedTemplates) {
-      savedTemplateSelect.createEl("option", {
-        text: savedTemplate.name,
-        value: savedTemplate.id,
-      });
-    }
-    const feedTemplateId = this.settings.feeds.find(
-      (feed) => feed.url === item.feedUrl,
-    )?.customTemplate;
-    const initialSelectedTemplateId =
-      this.settings.articleSaving.savedTemplates.some(
-        (template) => template.id === feedTemplateId,
-      )
-        ? (feedTemplateId ?? "")
-        : "";
-    savedTemplateSelect.value = initialSelectedTemplateId;
-
-    const templateLabel = modalContent.createEl("label", {
-      text: "Use template:",
-    });
-    const templateInput = modalContent.createEl("textarea", {
-      attr: {
-        placeholder: "Enter template",
-        rows: "6",
-      },
-    });
-    // Pre-populate with feed's custom template if available, otherwise use default
-    const feedTemplate = this.getCustomTemplateForArticle(item);
-    templateInput.value =
-      feedTemplate || this.settings.articleSaving.defaultTemplate || "";
-    let templateBaseline = templateInput.value;
-    let selectedTemplateId = initialSelectedTemplateId;
-    let pendingNewTemplate: {
-      id: string;
-      name: string;
-      template: string;
-      assignToFeed: boolean;
-      previousSelectedTemplateId: string;
-    } | null = null;
-
-    const discardPendingNewTemplate = () => {
-      if (!pendingNewTemplate) return;
-
-      const pendingOption = Array.from(savedTemplateSelect.options).find(
-        (option) => option.value === pendingNewTemplate?.id,
-      );
-      pendingOption?.remove();
-      selectedTemplateId = pendingNewTemplate.previousSelectedTemplateId;
-      savedTemplateSelect.value = selectedTemplateId;
-      pendingNewTemplate = null;
-    };
-
-    const saveAsTemplateButton = modalContent.createEl("button", {
-      text: "Save as new template",
-      cls: "rss-dashboard-custom-save-template-button",
-    });
-    saveAsTemplateButton.hidden = true;
-
-    const refreshSaveAsTemplateButton = () => {
-      if (
-        pendingNewTemplate &&
-        pendingNewTemplate.template !== templateInput.value
-      ) {
-        discardPendingNewTemplate();
-      }
-
-      saveAsTemplateButton.hidden = templateInput.value === templateBaseline;
-      saveAsTemplateButton.textContent = pendingNewTemplate
-        ? "New template will be saved"
-        : "Save as new template";
-    };
-
-    savedTemplateSelect.addEventListener("change", () => {
-      discardPendingNewTemplate();
-      selectedTemplateId = savedTemplateSelect.value;
-      const selectedTemplate =
-        this.settings.articleSaving.savedTemplates.find(
-          (template) => template.id === selectedTemplateId,
-        );
-      if (selectedTemplate) {
-        templateInput.value = selectedTemplate.template;
-        templateBaseline = selectedTemplate.template;
-      }
-      pendingNewTemplate = null;
-      refreshSaveAsTemplateButton();
-    });
-
-    templateInput.addEventListener("input", refreshSaveAsTemplateButton);
-
-    saveAsTemplateButton.addEventListener("click", () => {
-      void (async () => {
-        const nameModal = new TemplateNameModal(this.app);
-        nameModal.open();
-        const name = await nameModal.waitForClose();
-        if (!name) return;
-
-        const assignmentModal = new ConfirmTemplateAssignmentModal(this.app);
-        assignmentModal.open();
-        const assignToFeed = await assignmentModal.waitForClose();
-        const id = "template-" + Date.now();
-        pendingNewTemplate = {
-          id,
-          name,
-          template: templateInput.value,
-          assignToFeed,
-          previousSelectedTemplateId: selectedTemplateId,
-        };
-        savedTemplateSelect.createEl("option", { text: name, value: id });
-        savedTemplateSelect.value = id;
-        selectedTemplateId = id;
-        templateBaseline = templateInput.value;
-        refreshSaveAsTemplateButton();
-      })();
-    });
-
-    const buttonContainer = modalContent.createDiv({
-      cls: "rss-dashboard-modal-buttons",
-    });
-
-    const cancelButton = buttonContainer.createEl("button", {
-      text: "Cancel",
-      cls: "rss-dashboard-custom-save-cancel-button",
-    });
-    cancelButton.addEventListener("click", () => {
-      activeDocument.body.removeChild(modal);
-    });
-
-    const saveButton = buttonContainer.createEl("button", {
-      text: "Save",
-      cls: "rss-dashboard-primary-button rss-dashboard-custom-save-confirm-button",
-    });
-    saveButton.addEventListener("click", () => {
-      void (async () => {
-        const folder = folderInput.value.trim();
-        const template = templateInput.value.trim() || undefined;
-
-        const markdownContent = this.buildReaderSaveMarkdown(item);
-        const saveItem = displayTitle ? { ...item, title: displayTitle } : item;
-        const file = await this.articleSaver.saveArticle(
-          saveItem,
-          folder,
-          template,
-          markdownContent,
-        );
-        if (file) {
-          const feed = this.settings.feeds.find((f) => f.url === item.feedUrl);
-          if (pendingNewTemplate) {
-            const newTemplate = {
-              id: pendingNewTemplate.id,
-              name: pendingNewTemplate.name,
-              template: pendingNewTemplate.template,
-            };
-            this.settings.articleSaving.savedTemplates.push(newTemplate);
-            if (pendingNewTemplate.assignToFeed && feed) {
-              feed.customTemplate = newTemplate.id;
-            }
-          } else if (selectedTemplateId && feed) {
-            const selectedTemplate =
-              this.settings.articleSaving.savedTemplates.find(
-                (template) => template.id === selectedTemplateId,
-              );
-            if (selectedTemplate) {
-              feed.customTemplate = selectedTemplate.id;
-            }
-          }
-
-          item.saved = true;
-          item.savedFilePath = file.path;
-          this.onArticleSave(item);
-
-          this.updateSavedLabel(true);
-        }
-
-        activeDocument.body.removeChild(modal);
-      })();
-    });
-
-    buttonContainer.appendChild(cancelButton);
-    buttonContainer.appendChild(saveButton);
-
-    modalContent.appendChild(folderLabel);
-    modalContent.appendChild(folderInputContainer);
-    modalContent.appendChild(savedTemplateLabel);
-    modalContent.appendChild(savedTemplateSelectWrapper);
-    modalContent.appendChild(templateLabel);
-    modalContent.appendChild(templateInput);
-    modalContent.appendChild(saveAsTemplateButton);
-    modalContent.appendChild(buttonContainer);
-
-    modal.appendChild(modalContent);
-    activeDocument.body.appendChild(modal);
   }
 
   async displayItem(
@@ -2164,449 +1944,97 @@ export class ReaderView extends ItemView {
   }
 
   private stripTopHeadlineFromHtml(html: string): string {
-    if (!html) return html;
-    try {
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(html, "text/html");
-      this.stripTopHeadlineFromDocument(doc);
-      return doc.body.innerHTML;
-    } catch {
-      return html;
-    }
+    return stripTopHeadlineFromHtml(html);
   }
 
   private stripNavigationChromeFromHtml(html: string): string {
-    if (!html) return html;
-    try {
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(html, "text/html");
-      this.stripNavigationChromeFromDocument(doc);
-      return doc.body.innerHTML;
-    } catch {
-      return html;
-    }
+    return stripNavigationChromeFromHtml(html);
   }
 
   private stripTopHeadlineFromDocument(doc: Document): void {
-    const h1 = doc.body?.querySelector("h1");
-    if (!h1) return;
-
-    const elements = Array.from(doc.body.querySelectorAll("*"));
-    const idx = elements.indexOf(h1);
-    if (idx === -1 || idx > 9) return;
-
-    h1.remove();
+    stripTopHeadlineFromDocument(doc);
   }
 
   private stripNavigationChromeFromDocument(doc: Document): void {
-    const body = doc.body;
-    if (!body) return;
-
-    const elements = Array.from(body.querySelectorAll<HTMLElement>("*"));
-    if (elements.length === 0) return;
-
-    const indexByEl = new Map<HTMLElement, number>();
-    elements.forEach((el, idx) => indexByEl.set(el, idx));
-
-    const substantialParagraphIndex = elements.findIndex((el) => {
-      if (el.tagName.toLowerCase() !== "p") return false;
-      const text = (el.textContent || "").replace(/\s+/g, " ").trim();
-      return text.length >= 120;
-    });
-
-    const cutoffIndex = Math.max(
-      29,
-      substantialParagraphIndex >= 0 ? substantialParagraphIndex - 1 : 29,
-    );
-
-    const hasBreadcrumbSignal = (el: HTMLElement): boolean => {
-      const aria = (el.getAttribute("aria-label") || "").toLowerCase();
-      const testId = (el.getAttribute("data-testid") || "").toLowerCase();
-      const cls = (el.getAttribute("class") || "").toLowerCase();
-      const id = (el.getAttribute("id") || "").toLowerCase();
-      return (
-        aria.includes("breadcrumb") ||
-        testId.includes("breadcrumb") ||
-        cls.includes("breadcrumb") ||
-        cls.includes("breadcrumbs") ||
-        id.includes("breadcrumb") ||
-        id.includes("breadcrumbs")
-      );
-    };
-
-    const looksLikeBreadcrumbList = (el: HTMLElement): boolean => {
-      const tag = el.tagName.toLowerCase();
-      if (tag !== "ol" && tag !== "ul") return false;
-
-      const liEls = Array.from(el.children).filter(
-        (c) => (c as HTMLElement).tagName?.toLowerCase() === "li",
-      ) as HTMLElement[];
-      if (liEls.length < 2 || liEls.length > 10) return false;
-
-      const totalText = (el.textContent || "").replace(/\s+/g, " ").trim();
-      if (totalText.length > 140) return false;
-
-      let linkish = 0;
-      for (const li of liEls) {
-        const kids = Array.from(li.children) as HTMLElement[];
-        if (kids.length !== 1) continue;
-        const only = kids[0];
-        if (!only) continue;
-        if (only.tagName.toLowerCase() !== "a") continue;
-        const t = (only.textContent || "").replace(/\s+/g, " ").trim();
-        if (t.length < 1 || t.length > 40) continue;
-        linkish++;
-      }
-
-      return linkish / liEls.length >= 0.7;
-    };
-
-    const looksLikeChromeContainer = (el: HTMLElement): boolean => {
-      if (hasBreadcrumbSignal(el)) return true;
-
-      const role = (el.getAttribute("role") || "").toLowerCase();
-      if (role === "navigation") return true;
-
-      if (
-        el.querySelector(
-          "nav, [role='navigation'], [aria-label*='breadcrumb' i], [data-testid*='breadcrumb' i]",
-        )
-      ) {
-        return true;
-      }
-
-      const linkCount = el.querySelectorAll("a").length;
-      const paragraphCount = el.querySelectorAll("p").length;
-      const textLen = (el.textContent || "").replace(/\s+/g, " ").trim().length;
-      return linkCount >= 3 && paragraphCount === 0 && textLen < 200;
-    };
-
-    const shouldRemove = (el: HTMLElement): boolean => {
-      const tag = el.tagName.toLowerCase();
-
-      if (tag === "nav") return true;
-
-      const role = (el.getAttribute("role") || "").toLowerCase();
-      if (role === "navigation") return true;
-
-      if (hasBreadcrumbSignal(el)) return true;
-
-      if (tag === "header" || tag === "footer" || tag === "aside") {
-        return looksLikeChromeContainer(el);
-      }
-
-      if (looksLikeBreadcrumbList(el)) return true;
-
-      return false;
-    };
-
-    const candidates = elements.filter((el) => {
-      const idx = indexByEl.get(el);
-      if (idx === undefined || idx > cutoffIndex) return false;
-      return shouldRemove(el);
-    });
-
-    if (candidates.length === 0) return;
-
-    const removeSet = new Set(candidates);
-    const topLevel = candidates.filter((el) => {
-      let p = el.parentElement;
-      while (p) {
-        if (removeSet.has(p)) return false;
-        p = p.parentElement;
-      }
-      return true;
-    });
-
-    topLevel.forEach((el) => el.remove());
+    stripNavigationChromeFromDocument(doc);
   }
 
   private extractDisplayTitleFromHtml(html: string): string | null {
-    if (!html) return null;
-
-    try {
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(html, "text/html");
-      const h1 = doc.body?.querySelector("h1");
-      if (!h1) return null;
-
-      const elements = Array.from(doc.body.querySelectorAll("*"));
-      const idx = elements.indexOf(h1);
-      if (idx === -1 || idx > 9) return null;
-
-      const raw = (h1.textContent || "").replace(/\s+/g, " ").trim();
-      if (!this.isAcceptableDisplayTitle(raw)) return null;
-      return raw;
-    } catch {
-      return null;
-    }
+    return extractDisplayTitleFromHtml(html);
   }
 
   private isAcceptableDisplayTitle(text: string): boolean {
-    const t = (text || "").replace(/\s+/g, " ").trim();
-    if (!t) return false;
-    if (t.length < 10 || t.length > 200) return false;
-
-    const words = t.split(" ").filter(Boolean);
-    if (words.length < 3) return false;
-
-    const lower = t.toLowerCase();
-    const boilerplate = [
-      "sign in",
-      "log in",
-      "login",
-      "subscribe",
-      "advertisement",
-      "sponsored",
-    ];
-    if (boilerplate.some((b) => lower.includes(b))) return false;
-
-    return true;
+    return isAcceptableDisplayTitle(text);
   }
 
   private isEquivalentHtml(html1: string, html2: string): boolean {
-    return (
-      this.normalizeComparableText(html1) ===
-      this.normalizeComparableText(html2)
-    );
+    return isEquivalentHtml(html1, html2);
   }
 
   private normalizeComparableText(html: string): string {
-    const doc = new DOMParser().parseFromString(html, "text/html");
-    return (doc.body.textContent || "")
-      .replace(/[\u2018\u2019]/g, "'")
-      .replace(/[\u201C\u201D]/g, '"')
-      .replace(/\s+/g, " ")
-      .toLowerCase()
-      .trim();
+    return normalizeComparableText(html);
   }
 
   private stripDuplicateLeadContentFromDocument(
     doc: Document,
     feedDescriptionHtml?: string,
   ): void {
-    const normalizedDescription = this.normalizeComparableText(
-      feedDescriptionHtml || "",
-    );
-    if (!normalizedDescription || !doc.body) return;
-
-    const blocks = Array.from(doc.body.children) as HTMLElement[];
-    const firstSubstantialIndex = blocks.findIndex(
-      (block) => this.getNormalizedBlockText(block).length >= 120,
-    );
-
-    if (firstSubstantialIndex > 0) {
-      // Fast path: description appears as a direct child before the first substantial block.
-      const duplicateIndex = blocks.findIndex((block, index) => {
-        if (index >= firstSubstantialIndex) return false;
-        return this.getNormalizedBlockText(block) === normalizedDescription;
-      });
-      if (duplicateIndex !== -1) {
-        const duplicateBlock = blocks[duplicateIndex];
-        if (!duplicateBlock) return;
-        duplicateBlock.remove();
-        for (let index = duplicateIndex - 1; index >= 0; index--) {
-          const block = blocks[index];
-          if (!block) continue;
-          if (this.isShortLeadInBlock(block) || this.isLeadMediaBlock(block)) {
-            block.remove();
-            continue;
-          }
-          break;
-        }
-        return;
-      }
-    }
-
-    // Slow path: Readability wraps content in a single root div, so the
-    // description may be nested inside a <header> element inside the article.
-    // Scope the search to <header> descendants to avoid false positives in the
-    // article body.
-    doc.body
-      .querySelectorAll<HTMLElement>("header p, header div")
-      .forEach((el) => {
-        if (
-          this.normalizeComparableText(el.textContent || "") ===
-          normalizedDescription
-        ) {
-          el.remove();
-        }
-      });
+    stripDuplicateLeadContentFromDocument(doc, feedDescriptionHtml);
   }
 
   private stripLeadMediaBeforeContent(doc: Document): void {
-    if (!doc.body) return;
-    const blocks = Array.from(doc.body.children) as HTMLElement[];
-    const firstSubstantialIndex = blocks.findIndex(
-      (block) => this.getNormalizedBlockText(block).length >= 120,
-    );
-    if (firstSubstantialIndex <= 0) return;
-
-    for (let index = 0; index < firstSubstantialIndex; index++) {
-      const block = blocks[index];
-      if (!block) continue;
-      if (this.isLeadMediaBlock(block)) {
-        block.remove();
-      }
-    }
+    stripLeadMediaBeforeContent(doc);
   }
 
   private getNormalizedBlockText(block: HTMLElement): string {
-    return this.normalizeComparableText(
-      block.innerHTML || block.textContent || "",
-    );
+    return getNormalizedBlockText(block);
   }
 
   private isShortLeadInBlock(block: HTMLElement): boolean {
-    if (containsLatexFormulaImage(block)) return false;
-    if (this.isLeadMediaBlock(block)) return false;
-    const text = this.getNormalizedBlockText(block);
-    if (!text) return false;
-    return text.length < 80 && text.split(" ").filter(Boolean).length <= 12;
+    return isShortLeadInBlock(block);
   }
 
   private isLeadMediaBlock(block: HTMLElement): boolean {
-    if (containsLatexFormulaImage(block)) return false;
-    const tag = block.tagName.toLowerCase();
-    if (["img", "figure", "picture"].includes(tag)) return true;
-    return (
-      !!block.querySelector("img, figure, picture") &&
-      this.getNormalizedBlockText(block).length < 40
-    );
+    return isLeadMediaBlock(block);
   }
 
   private removeLeadImageElement(imageEl: Element): void {
-    const wrapper = imageEl.closest("figure, picture, a");
-    (wrapper || imageEl).remove();
+    removeLeadImageElement(imageEl);
   }
 
   private stripSkipLinksFromDocument(doc: Document): void {
-    if (!doc.body) return;
-
-    doc.body.querySelectorAll<HTMLAnchorElement>("a").forEach((anchor) => {
-      const href = (anchor.getAttribute("href") || "").trim().toLowerCase();
-      const text = (anchor.textContent || "")
-        .replace(/\s+/g, " ")
-        .trim()
-        .toLowerCase();
-      const aria = (anchor.getAttribute("aria-label") || "").toLowerCase();
-      const cls = (anchor.getAttribute("class") || "").toLowerCase();
-      const id = (anchor.getAttribute("id") || "").toLowerCase();
-
-      const looksLikeSkipLink =
-        text.includes("skip to content") ||
-        text.includes("skip to main content") ||
-        ((href.startsWith("#") || aria.includes("content")) &&
-          (text.startsWith("skip to") ||
-            aria.includes("skip") ||
-            cls.includes("skip") ||
-            id.includes("skip")));
-
-      if (looksLikeSkipLink) {
-        anchor.remove();
-      }
-    });
+    stripSkipLinksFromDocument(doc);
   }
 
   private stripDuplicateLeadMediaMatchingHero(
     doc: Document,
     heroUrl: string,
   ): void {
-    if (!doc.body || !heroUrl) return;
-
-    const firstSubstantial = this.findFirstSubstantialParagraph(doc);
-    doc.body.querySelectorAll<HTMLImageElement>("img").forEach((img) => {
-      if (!this.isBeforeBoundary(img, firstSubstantial)) return;
-      const src = (img.getAttribute("src") || "").trim();
-      if (!src) return;
-
-      if (this.isLikelySameImageSource(src, heroUrl)) {
-        this.removeLeadImageElement(img);
-      }
-    });
+    stripDuplicateLeadMediaMatchingHero(doc, heroUrl);
   }
 
   private stripDuplicateLeadCaptionBlocks(doc: Document): void {
-    if (!doc.body) return;
-
-    const firstSubstantial = this.findFirstSubstantialParagraph(doc);
-    const removedCaptionTexts = new Set<string>();
-
-    doc.body
-      .querySelectorAll<HTMLElement>(
-        "figcaption, [id^='caption-'], [id*='caption-']",
-      )
-      .forEach((el) => {
-        if (!this.isBeforeBoundary(el, firstSubstantial)) return;
-        const raw = (el.textContent || "").replace(/\s+/g, " ").trim();
-        const normalized = this.normalizeComparableText(raw);
-        if (!normalized) return;
-
-        const looksLikeCredit = /(credit|photo|image|source)/i.test(raw);
-        if (!looksLikeCredit || normalized.length > 300) return;
-
-        removedCaptionTexts.add(normalized);
-        el.remove();
-      });
-
-    if (removedCaptionTexts.size === 0) return;
-
-    doc.body.querySelectorAll<HTMLElement>("p").forEach((p) => {
-      if (!this.isBeforeBoundary(p, firstSubstantial)) return;
-      const raw = (p.textContent || "").replace(/\s+/g, " ").trim();
-      if (!raw) return;
-
-      const normalized = this.normalizeComparableText(raw);
-      if (!removedCaptionTexts.has(normalized)) return;
-      if (!/(credit|photo|image|source)/i.test(raw)) return;
-
-      p.remove();
-    });
+    stripDuplicateLeadCaptionBlocks(doc);
   }
 
   private findFirstSubstantialParagraph(doc: Document): HTMLElement | null {
-    return (
-      Array.from(doc.body.querySelectorAll<HTMLElement>("p")).find(
-        (p) => (p.textContent || "").replace(/\s+/g, " ").trim().length >= 120,
-      ) || null
-    );
+    return findFirstSubstantialParagraph(doc);
   }
 
   private isBeforeBoundary(el: Element, boundary: HTMLElement | null): boolean {
-    if (!boundary) return true;
-    return !!(
-      el.compareDocumentPosition(boundary) & Node.DOCUMENT_POSITION_FOLLOWING
-    );
+    return isBeforeBoundary(el, boundary);
   }
 
   private isLikelySameImageSource(urlA: string, urlB: string): boolean {
-    const keyA = this.normalizeImageSourceKey(urlA);
-    const keyB = this.normalizeImageSourceKey(urlB);
-    if (!keyA || !keyB) return false;
-    return keyA === keyB;
+    return isLikelySameImageSource(urlA, urlB);
   }
 
   private normalizeImageSourceKey(rawUrl: string): string {
-    const normalizedUrl = normalizeSubstackImageUrl(rawUrl);
-    const fallback = normalizedUrl.trim().toLowerCase();
-    if (!fallback) return "";
-
-    try {
-      const url = new URL(normalizedUrl, "https://example.invalid");
-      const normalizedPath = url.pathname
-        .toLowerCase()
-        .replace(/-\d+x\d+(?=\.[a-z0-9]+$)/, "");
-      return `${url.hostname.toLowerCase()}${normalizedPath}`;
-    } catch {
-      return fallback.replace(/-\d+x\d+(?=\.[a-z0-9]+$)/, "");
-    }
+    return normalizeImageSourceKey(rawUrl);
   }
 
   private hasMeaningfulArticleContent(html: string | null): boolean {
-    if (!html) return false;
-    const text =
-      new DOMParser().parseFromString(html, "text/html").body.textContent || "";
-    return text.trim().length > 200;
+    return hasMeaningfulArticleContent(html);
   }
 
   private async fetchFullArticleContent(url: string): Promise<string> {

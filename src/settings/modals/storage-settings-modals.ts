@@ -72,8 +72,12 @@ export class StorageTransitionModal extends Modal {
   private renderLegacyToShardsModal(contentEl: HTMLElement): void {
     contentEl.createEl("h2", { text: "Apply storage change?" });
     if (this.currentMode === "legacy-json") {
+      const targetLabel =
+        this.targetMode === "vault-shards-v2"
+          ? "shard storage v2"
+          : "shard storage v1";
       contentEl.createEl("p", {
-        text: "You are switching from legacy data.json storage to shard storage v1.",
+        text: `You are switching from legacy data.json storage to ${targetLabel}.`,
       });
       contentEl.createEl("p", {
         text: "Before continuing, back up your current data.json file. You can use the existing export action here first, then come back and apply the change.",
@@ -120,8 +124,12 @@ export class StorageTransitionModal extends Modal {
 
   private renderShardsToLegacyModal(contentEl: HTMLElement): void {
     contentEl.createEl("h2", { text: "Apply storage change?" });
+    const sourceLabel =
+      this.currentMode === "vault-shards-v2"
+        ? "shard storage v2"
+        : "shard storage v1";
     contentEl.createEl("p", {
-      text: "You are switching from shard storage v1 back to legacy data.json storage.",
+      text: `You are switching from ${sourceLabel} back to legacy data.json storage.`,
     });
     contentEl.createEl("p", {
       text: `All feeds will be stored in data.json again. If you choose cleanup, the shard folder "${this.storageFolder}" will be deleted.`,

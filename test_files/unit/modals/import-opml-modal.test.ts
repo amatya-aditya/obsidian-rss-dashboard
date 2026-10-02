@@ -533,4 +533,39 @@ expect(plugin.ingestFeedsForBackgroundImport).toHaveBeenCalledWith(
     expect(document.querySelector(".import-preview-list")).toBe(before);
     expect(before.scrollTop).toBe(72);
   });
+
+  it("closes modal without showing success notice when import is refused", async () => {
+    const app = createMockApp();
+    const noticeSpy = vi.spyOn(obsidian, "Notice");
+    const plugin: TestPlugin = {
+      settings: cloneSettings(),
+      saveSettings: vi.fn(async () => {}),
+      getActiveDashboardView: vi.fn(async () => null),
+      startBackgroundImport: vi.fn(),
+      ingestFeedsForBackgroundImport: vi.fn(async () => ({
+        addedCount: 0,
+        skippedCount: 0,
+        queuedFeeds: [],
+        refused: true,
+      })),
+    } as unknown as TestPlugin;
+    const modal = new ImportOpmlModal(
+      app,
+      plugin as unknown as ConstructorParameters<typeof ImportOpmlModal>[1],
+    );
+    const closeSpy = vi.spyOn(modal, "close");
+    (modal as unknown as TestModal).open();
+    await (modal as unknown as TestModal).handleFileSelection(
+      new File([readFixture("nested-folders.opml")], "nested-folders.opml", {
+        type: "text/xml",
+      }),
+    );
+    await (modal as unknown as TestModal).executeImport();
+    await flushPromises();
+
+    expect(closeSpy).toHaveBeenCalled();
+    expect(noticeSpy).not.toHaveBeenCalledWith(
+      expect.stringContaining("Articles will be fetched in the background"),
+    );
+  });
 });

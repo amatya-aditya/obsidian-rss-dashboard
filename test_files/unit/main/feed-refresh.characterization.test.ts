@@ -1190,8 +1190,8 @@ describe("feed refresh: startup delay", () => {
     plugin.unload();
   });
 
-  it("stops refreshing automatically after a refresh during the startup delay", async () => {
-    // BUG: pinned, see #450
+  it("continues refreshing automatically after a refresh during the startup delay", async () => {
+    // Verified fix for #450
     const { plugin, requests, commands } = await loadPlugin();
 
     commands.get("refresh-feeds")?.();
@@ -1199,8 +1199,8 @@ describe("feed refresh: startup delay", () => {
     const afterManual = requests.mock.calls.length;
     expect(afterManual).toBeGreaterThan(0);
 
-    await vi.advanceTimersByTimeAsync(10 * 60_000);
-    expect(requests.mock.calls.length).toBe(afterManual);
+    await vi.advanceTimersByTimeAsync(2 * 60_000);
+    expect(requests.mock.calls.length).toBeGreaterThan(afterManual);
     plugin.unload();
   });
 });

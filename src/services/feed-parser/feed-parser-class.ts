@@ -1,6 +1,5 @@
 import {
   Feed,
-  FeedItem,
   Folder,
   DisplaySettings,
   MediaSettings,
@@ -9,10 +8,7 @@ import {
 } from "../../types/types.js";
 import { MediaService } from "../media-service.js";
 import { MastodonService } from "../mastodon-service.js";
-import {
-  canonicalizeItemIdentityUrl,
-  resolveAbsoluteHttpUrl,
-} from "../../utils/url-utils.js";
+import { resolveAbsoluteHttpUrl } from "../../utils/url-utils.js";
 import { htmlToReadableText } from "../../utils/html-text.js";
 import { fetchFeedXml } from "./feed-fetch.js";
 import { parseFetchErrorMessage } from "./feed-errors.js";
@@ -26,43 +22,25 @@ import { globalFetchSemaphore } from "./fetch-semaphore.js";
 import {
   applyFeedRetentionLimits,
   mergeFeedHistoryItems,
-  getEffectiveDateMs,
-  isProtectedItem,
 } from "./feed-retention.js";
+import {
+  collectCarriedForwardItems,
+  collectRefreshedItems,
+  indexExistingItems,
+  type FeedItemContext,
+} from "./feed-item-builder.js";
+import {
+  applyFallbackIcons,
+  applyMediaDefaultFolder,
+  buildRefreshDiagnostics,
+  clearSharedLogoCoverImages,
+  collectFeedLogoCandidates,
+  firstFeedLogoUrl,
+} from "./feed-finalize.js";
 import type { FeedParseOptions, ParsedFeed, ParsedItem } from "./types.js";
 import { decodeHtmlEntities } from "./xml-parser/xml-html-utils.js";
-import {
-  isLatexFormulaImage,
-  isLatexFormulaImageElement,
-  optimizeImageUrl,
-  sanitizeImageUrl,
-} from "../../utils/image-url-utils.js";
-
-const TRACKING_PIXEL_PATTERNS = [
-  "tracking/",
-  "pixel.gif",
-  "beacon.",
-  "1x1",
-  "/track/",
-  "rss-pixel",
-];
-
-function isTrackingPixel(url: string): boolean {
-  return TRACKING_PIXEL_PATTERNS.some((p) => url.includes(p));
-}
-
-function sanitizeArticleImageUrl(raw: unknown): string {
-  const sanitized = sanitizeImageUrl(raw);
-  return isLatexFormulaImage(sanitized) ? "" : sanitized;
-}
-
-function firstSanitizedArticleImageUrl(candidates: unknown[]): string {
-  for (const candidate of candidates) {
-    const sanitized = sanitizeArticleImageUrl(candidate);
-    if (sanitized) return sanitized;
-  }
-  return "";
-}
+import { optimizeImageUrl } from "../../utils/image-url-utils.js";
+import { extractCoverImage } from "./feed-cover-image.js";
 
 export type { FeedParseOptions } from "./types.js";
 export class FeedParser {
@@ -253,105 +231,9 @@ export class FeedParser {
   }
 
   private extractCoverImage(html: string, baseUrl = ""): string {
-    if (!html) return "";
-
-    /** Reject known junk/placeholder src values before any URL resolution. */
-    const isJunkSrc = (src: string | null): boolean => {
-      if (!src) return true;
-      const t = src.trim();
-      return (
-        !t ||
-        t === "undefined" ||
-        t === "null" ||
-        t === "#" ||
-        t === "about:blank"
-      );
-    };
-
-    try {
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(html, "text/html");
-
-      const ogImage = doc.querySelector('meta[property="og:image"]');
-      if (ogImage?.getAttribute("content")) {
-        const content = ogImage.getAttribute("content");
-        // Debug: log og:image URL for troubleshooting double-encoding
-        if (content && content.includes("%25")) {
-          console.debug(
-            `[RSS Dashboard] extractCoverImage: og:image contains double-encoded: ${content}`,
-          );
-        }
-        const resolvedContent = content?.startsWith("http")
-          ? content
-          : content && baseUrl
-            ? this.convertToAbsoluteUrl(content, baseUrl)
-            : "";
-        if (resolvedContent && !isLatexFormulaImage(resolvedContent)) {
-          return optimizeImageUrl(resolvedContent);
-        }
-      }
-
-      const firstImg = Array.from(doc.querySelectorAll("img")).find(
-        (image) => !isLatexFormulaImageElement(image),
-      );
-      if (firstImg) {
-        const src = firstImg.getAttribute("src");
-        // Debug: log first img src for troubleshooting double-encoding
-        if (src && src.includes("%25")) {
-          console.debug(
-            `[RSS Dashboard] extractCoverImage: first img src contains double-encoded: ${src}`,
-          );
-        }
-        if (!isJunkSrc(src)) {
-          if (src && src.startsWith("http") && !isTrackingPixel(src)) {
-            return optimizeImageUrl(src);
-          } else if (src && baseUrl && !isTrackingPixel(src)) {
-            return optimizeImageUrl(this.convertToAbsoluteUrl(src, baseUrl));
-          }
-        }
-      }
-
-      const imgTags = doc.querySelectorAll("img");
-      for (const img of Array.from(imgTags)) {
-        const src = img.getAttribute("src");
-        // Debug: log each img src for troubleshooting double-encoding
-        if (src && src.includes("%25")) {
-          console.debug(
-            `[RSS Dashboard] extractCoverImage: img src contains double-encoded: ${src}`,
-          );
-        }
-        if (isJunkSrc(src) || isLatexFormulaImageElement(img)) continue;
-        if (
-          src &&
-          src.startsWith("http") &&
-          (src.endsWith(".jpg") ||
-            src.endsWith(".jpeg") ||
-            src.endsWith(".png") ||
-            src.endsWith(".gif") ||
-            src.endsWith(".webp") ||
-            src.includes("image")) &&
-          !isTrackingPixel(src)
-        ) {
-          return optimizeImageUrl(src);
-        } else if (
-          src &&
-          baseUrl &&
-          (src.endsWith(".jpg") ||
-            src.endsWith(".jpeg") ||
-            src.endsWith(".png") ||
-            src.endsWith(".gif") ||
-            src.endsWith(".webp") ||
-            src.includes("image")) &&
-          !isTrackingPixel(src)
-        ) {
-          return optimizeImageUrl(this.convertToAbsoluteUrl(src, baseUrl));
-        }
-      }
-    } catch {
-      // Image extraction failed
-    }
-
-    return "";
+    return extractCoverImage(html, baseUrl, (relativeUrl, base) =>
+      this.convertToAbsoluteUrl(relativeUrl, base),
+    );
   }
 
   private extractPodcastCoverImage(
@@ -494,24 +376,8 @@ export class FeedParser {
       newFeed.siteUrl = resolvedSiteUrl;
     }
 
-    const existingItems = new Map<string, FeedItem>();
-    if (existingFeed) {
-      existingFeed.items.forEach((item) => {
-        const rawKey = this.convertToAbsoluteUrl(
-          item.guid || item.link || "",
-          url,
-        );
-        const key = canonicalizeItemIdentityUrl(rawKey);
-        if (key) {
-          existingItems.set(key, item);
-        }
-      });
-    }
-
-    const newItems: FeedItem[] = [];
-    const updatedItems: FeedItem[] = [];
-    const seenGuids = new Set<string>();
-    let skippedByRefreshCutoffCount = 0;
+    const itemContext = this.getItemContext();
+    const existingItems = indexExistingItems(existingFeed, url, itemContext);
 
     // Compute auto-delete cutoff so we can skip "new" items that are actually
     // old entries re-appearing in the feed after being auto-deleted.
@@ -524,260 +390,31 @@ export class FeedParser {
         ? Date.now() - autoDeleteDays * 24 * 60 * 60 * 1000
         : 0;
 
-    for (const item of parsed.items) {
-      const isAudioEnclosure = item.enclosure?.type?.startsWith("audio/");
-      const isAudioLink = !!(item.link && item.link.includes(".mp3"));
-      const isPodcast = isAudioEnclosure || isAudioLink;
-
-      const audioUrl = isAudioEnclosure
-        ? this.convertToAbsoluteUrl(item.enclosure?.url || "", url)
-        : isAudioLink
-          ? this.convertToAbsoluteUrl(item.link || "", url)
-          : undefined;
-
-      const enclosure =
-        item.enclosure ||
-        (isAudioLink
-          ? {
-              url: this.convertToAbsoluteUrl(item.link || "", url),
-              type: "audio/mpeg",
-              length: "",
-            }
-          : undefined);
-
-      const rawItemGuid = this.convertToAbsoluteUrl(
-        item.guid || item.link || "",
-        url,
-      );
-      const itemGuid = canonicalizeItemIdentityUrl(rawItemGuid);
-      if (!itemGuid) continue;
-      if (seenGuids.has(itemGuid)) continue;
-      seenGuids.add(itemGuid);
-
-      const existingItem = existingItems.get(itemGuid);
-
-      if (existingItem) {
-        if (
-          autoDeleteCutoffMs > 0 &&
-          !isProtectedItem(existingItem, this.getRetentionProtections()) &&
-          getEffectiveDateMs(
-            {
-              pubDate: item.pubDate || existingItem.pubDate,
-              firstSeenMs: existingItem.firstSeenMs,
-            },
-            this.getUseFirstSeenDateFallback(),
-          ) <= autoDeleteCutoffMs
-        ) {
-          skippedByRefreshCutoffCount++;
-          continue;
-        }
-
-        let coverImage = existingItem.coverImage;
-        if (isPodcast) {
-          coverImage =
-            this.resolvePodcastCoverImage(item, parsed, url) ||
-            existingItem.coverImage;
-        } else {
-          coverImage =
-            firstSanitizedArticleImageUrl([
-              this.extractCoverImage(
-                item.content || item.description || "",
-                url,
-              ),
-              optimizeImageUrl(
-                this.convertToAbsoluteUrl(item.itunes?.image?.href || "", url),
-              ),
-              optimizeImageUrl(
-                this.convertToAbsoluteUrl(item.image?.url || "", url),
-              ),
-              item.enclosure?.type?.startsWith("image/")
-                ? optimizeImageUrl(
-                    this.convertToAbsoluteUrl(item.enclosure.url, url),
-                  )
-                : "",
-            ]) || sanitizeArticleImageUrl(existingItem.coverImage);
-        }
-        const updatedItem: FeedItem = {
-          ...existingItem,
-          guid: itemGuid,
-          link:
-            this.convertToAbsoluteUrl(item.link || "", url) ||
-            existingItem.link,
-          title: item.title || existingItem.title,
-          description: this.convertRelativeUrlsInContent(
-            item.description || "",
-            url,
-          ),
-          content: this.convertRelativeUrlsInContent(item.content || "", url),
-          pubDate: item.pubDate || existingItem.pubDate,
-          author: item.author || parsed.author || existingItem.author,
-          read: existingItem.read,
-          starred: existingItem.starred,
-          saved: existingItem.saved,
-          savedFilePath: existingItem.savedFilePath,
-          feedTitle: newFeed.title, // Update feedTitle to match the new feed title
-          coverImage,
-          summary:
-            this.extractSummary(item.content || item.description || "") ||
-            existingItem.summary,
-          image:
-            firstSanitizedArticleImageUrl([
-              optimizeImageUrl(
-                this.convertToAbsoluteUrl(item.itunes?.image?.href || "", url),
-              ),
-              optimizeImageUrl(
-                this.convertToAbsoluteUrl(item.image?.url || "", url),
-              ),
-              this.extractCoverImage(
-                item.content || item.description || "",
-                url,
-              ),
-              item.enclosure?.type?.startsWith("image/")
-                ? optimizeImageUrl(
-                    this.convertToAbsoluteUrl(item.enclosure.url, url),
-                  )
-                : "",
-            ]) || sanitizeArticleImageUrl(existingItem.image),
-          duration: item.itunes?.duration || existingItem.duration,
-          explicit: item.itunes?.explicit === "yes" || existingItem.explicit,
-          category: item.itunes?.category || existingItem.category,
-          episodeType: item.itunes?.episodeType || existingItem.episodeType,
-          season: item.itunes?.season
-            ? Number(item.itunes.season)
-            : existingItem.season,
-          episode: item.itunes?.episode
-            ? Number(item.itunes.episode)
-            : existingItem.episode,
-          enclosure: enclosure ? enclosure : existingItem.enclosure,
-          ieee: item.ieee || existingItem.ieee,
-          audioUrl: audioUrl ? audioUrl : existingItem.audioUrl,
-          mediaContentType:
-            item.mediaContentType || existingItem.mediaContentType,
-          mediaContentMedium:
-            item.mediaContentMedium || existingItem.mediaContentMedium,
-          mediaType: isPodcast
-            ? "podcast"
-            : existingItem.mediaType || "article",
-        };
-        updatedItems.push(updatedItem);
-      } else {
-        // Skip items older than the auto-delete cutoff during refresh.
-        // These were likely auto-deleted previously and should not reappear as unread.
-        // If unread items are protected, do not skip them.
-        if (
-          existingFeed &&
-          autoDeleteCutoffMs > 0 &&
-          !isProtectedItem(
-            { read: false } as FeedItem,
-            this.getRetentionProtections(),
-          ) &&
-          getEffectiveDateMs(
-            { pubDate: item.pubDate, firstSeenMs: Date.now() },
-            this.getUseFirstSeenDateFallback(),
-          ) <= autoDeleteCutoffMs
-        ) {
-          skippedByRefreshCutoffCount++;
-          continue;
-        }
-
-        let coverImage = "";
-        if (isPodcast) {
-          coverImage = this.resolvePodcastCoverImage(item, parsed, url);
-        } else {
-          coverImage = firstSanitizedArticleImageUrl([
-            this.extractCoverImage(item.content || item.description || "", url),
-            optimizeImageUrl(
-              this.convertToAbsoluteUrl(item.itunes?.image?.href || "", url),
-            ),
-            optimizeImageUrl(
-              this.convertToAbsoluteUrl(item.image?.url || "", url),
-            ),
-            item.enclosure?.type?.startsWith("image/")
-              ? optimizeImageUrl(
-                  this.convertToAbsoluteUrl(item.enclosure.url, url),
-                )
-              : "",
-          ]);
-        }
-        const image = firstSanitizedArticleImageUrl([
-          optimizeImageUrl(
-            this.convertToAbsoluteUrl(item.itunes?.image?.href || "", url),
-          ),
-          optimizeImageUrl(
-            this.convertToAbsoluteUrl(item.image?.url || "", url),
-          ),
-          this.extractCoverImage(item.content || item.description || "", url),
-          item.enclosure?.type?.startsWith("image/")
-            ? optimizeImageUrl(
-                this.convertToAbsoluteUrl(item.enclosure.url, url),
-              )
-            : "",
-        ]);
-        const summary = this.extractSummary(
-          item.content || item.description || "",
-        );
-        const newItem: FeedItem = {
-          title: item.title || "No title",
-          link: this.convertToAbsoluteUrl(item.link || "", url),
-          description: this.convertRelativeUrlsInContent(
-            item.description || "",
-            url,
-          ),
-          content: this.convertRelativeUrlsInContent(item.content || "", url),
-          pubDate: item.pubDate || "",
-          guid: itemGuid,
-          read: false,
-          starred: false,
-          tags: [],
-          feedTitle: newFeed.title,
-          feedUrl: newFeed.url,
-          coverImage,
-          summary,
-          author: item.author || parsed.author,
-          saved: false,
-          mediaType: isPodcast ? "podcast" : "article",
-          duration: item.itunes?.duration,
-          explicit: item.itunes?.explicit === "yes",
-          image: image,
-          category: item.itunes?.category,
-          episodeType: item.itunes?.episodeType,
-          season: item.itunes?.season ? Number(item.itunes.season) : undefined,
-          episode: item.itunes?.episode
-            ? Number(item.itunes.episode)
-            : undefined,
-          enclosure: enclosure,
-          ieee: item.ieee,
-          audioUrl: audioUrl,
-          mediaContentType: item.mediaContentType,
-          mediaContentMedium: item.mediaContentMedium,
-        };
-        newItems.push(newItem);
-      }
-    }
+    const {
+      newItems,
+      updatedItems,
+      seenGuids,
+      skippedByRefreshCutoffCount,
+    } = collectRefreshedItems(
+      {
+        parsed,
+        feedUrl: url,
+        existingFeed,
+        newFeed,
+        existingItems,
+        autoDeleteCutoffMs,
+      },
+      itemContext,
+    );
 
     const refreshedItems = [...updatedItems, ...newItems];
-    const carriedForward: FeedItem[] = [];
-    if (existingFeed) {
-      for (const item of existingFeed.items) {
-        const rawKey = this.convertToAbsoluteUrl(
-          item.guid || item.link || "",
-          url,
-        );
-        const key = canonicalizeItemIdentityUrl(rawKey);
-        if (
-          key &&
-          !seenGuids.has(key) &&
-          !(
-            autoDeleteCutoffMs > 0 &&
-            !isProtectedItem(item, this.getRetentionProtections()) &&
-            getEffectiveDateMs(item, this.getUseFirstSeenDateFallback()) <=
-              autoDeleteCutoffMs
-          )
-        ) {
-          carriedForward.push(item);
-        }
-      }
-    }
+    const carriedForward = collectCarriedForwardItems(
+      existingFeed,
+      url,
+      seenGuids,
+      autoDeleteCutoffMs,
+      itemContext,
+    );
 
     newFeed.items = mergeFeedHistoryItems(carriedForward, refreshedItems);
     newFeed.lastUpdated = Date.now();
@@ -786,62 +423,20 @@ export class FeedParser {
 
     this.applyFeedLimits(newFeed);
 
-    newFeed.lastRefreshDiagnostics = {
+    newFeed.lastRefreshDiagnostics = buildRefreshDiagnostics({
       fetchedItemCount: parsed.items.length,
       mergedItemCountBeforeRetention,
       retainedItemCount: newFeed.items.length,
-      retentionRemovedCount: Math.max(
-        0,
-        mergedItemCountBeforeRetention - newFeed.items.length,
-      ),
       skippedByRefreshCutoffCount,
-      autoDeleteDurationDays: autoDeleteDays > 0 ? autoDeleteDays : undefined,
-    };
+      autoDeleteDays,
+    });
 
-    const feedLogoCandidates = [
-      parsed.feedItunesImage,
-      parsed.feedImageUrl,
-      parsed.image && typeof parsed.image === "object" ? parsed.image.url : "",
-      typeof parsed.image === "string" ? parsed.image : "",
-    ].filter(Boolean);
-    const feedLogoUrl =
-      feedLogoCandidates.length > 0 ? String(feedLogoCandidates[0]) : "";
-    const coverImageCounts: Record<string, number> = {};
-    newFeed.items.forEach((item) => {
-      if (item.coverImage) {
-        coverImageCounts[item.coverImage] =
-          (coverImageCounts[item.coverImage] || 0) + 1;
-      }
-    });
-    const totalItems = newFeed.items.length;
-    Object.entries(coverImageCounts).forEach(([imgUrl, count]) => {
-      if (
-        imgUrl &&
-        (imgUrl === feedLogoUrl || feedLogoCandidates.includes(imgUrl)) &&
-        count >= Math.max(2, Math.floor(totalItems * 0.8))
-      ) {
-        newFeed.items.forEach((item) => {
-          if (item.coverImage === imgUrl && item.mediaType !== "podcast") {
-            item.coverImage = "";
-          }
-        });
-      }
-    });
+    const feedLogoCandidates = collectFeedLogoCandidates(parsed);
+    const feedLogoUrl = firstFeedLogoUrl(feedLogoCandidates);
+    clearSharedLogoCoverImages(newFeed.items, feedLogoCandidates);
 
     const processedFeed = MediaService.detectAndProcessFeed(newFeed);
-    // "Uncategorized" (or no folder field at all) means the caller never
-    // specified a folder, so it's fair game for the media-type default.
-    // An explicit "" is different: it means the user picked Root on purpose
-    // (via the folder popup's "Root (no folder)" action) and must be left
-    // alone, not silently redirected to Videos/Podcast.
-    const noFolderSpecified =
-      existingFeed?.folder === undefined ||
-      existingFeed?.folder === "Uncategorized";
-    if (processedFeed.mediaType === "video" && noFolderSpecified) {
-      processedFeed.folder = this.mediaSettings.defaultYouTubeFolder;
-    } else if (processedFeed.mediaType === "podcast" && noFolderSpecified) {
-      processedFeed.folder = this.mediaSettings.defaultPodcastFolder;
-    }
+    applyMediaDefaultFolder(processedFeed, existingFeed, this.mediaSettings);
 
     // Store the feed icon URL for display in sidebar
     processedFeed.iconUrl = this.resolveFeedIconUrl(
@@ -850,22 +445,9 @@ export class FeedParser {
       processedFeed.mediaType,
     );
 
-    const absoluteFeedLogoUrl = feedLogoUrl
-      ? this.convertToAbsoluteUrl(feedLogoUrl, url).replace(
-          /\.(png|jpe?g|gif|webp|svg|ico)\/+$/i,
-          ".$1",
-        )
-      : "";
-
-    if (absoluteFeedLogoUrl) {
-      processedFeed.items.forEach((item) => {
-        item.fallbackIconUrl = absoluteFeedLogoUrl;
-      });
-    } else if (processedFeed.iconUrl) {
-      processedFeed.items.forEach((item) => {
-        item.fallbackIconUrl = processedFeed.iconUrl;
-      });
-    }
+    applyFallbackIcons(processedFeed, feedLogoUrl, url, (relativeUrl, baseUrl) =>
+      this.convertToAbsoluteUrl(relativeUrl, baseUrl),
+    );
 
     return MediaService.applyMediaTags(
       processedFeed,
@@ -873,6 +455,22 @@ export class FeedParser {
       this.mediaSettings,
       this.getFolders(),
     );
+  }
+
+  /** The helpers the item pipeline calls, bound so they keep reading this parser. */
+  private getItemContext(): FeedItemContext {
+    return {
+      convertToAbsoluteUrl: (relativeUrl, baseUrl) =>
+        this.convertToAbsoluteUrl(relativeUrl, baseUrl),
+      convertRelativeUrlsInContent: (content, baseUrl) =>
+        this.convertRelativeUrlsInContent(content, baseUrl),
+      extractCoverImage: (html, baseUrl) => this.extractCoverImage(html, baseUrl),
+      extractSummary: (description) => this.extractSummary(description),
+      resolvePodcastCoverImage: (item, parsed, baseUrl) =>
+        this.resolvePodcastCoverImage(item, parsed, baseUrl),
+      getRetentionProtections: () => this.getRetentionProtections(),
+      getUseFirstSeenDateFallback: () => this.getUseFirstSeenDateFallback(),
+    };
   }
 
   /**

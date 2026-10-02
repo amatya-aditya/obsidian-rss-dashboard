@@ -31,6 +31,20 @@ function storageError(
   _details?: unknown,
 ): void {}
 
+/**
+ * Serializes settings for the "did loading change anything" comparison,
+ * leaving out each feed's articles. In shard storage `data.json` holds no
+ * articles and loading fills them in from the shards, so counting them would
+ * make every load look changed. Shard changes and merged duplicate articles
+ * are reported separately by `hydrateSettings` and `dedupeAndNormalizeFeedItems`.
+ */
+function serializeWithoutArticles(settings: RssDashboardSettings): string {
+  return JSON.stringify({
+    ...settings,
+    feeds: (settings.feeds ?? []).map((feed) => ({ ...feed, items: [] })),
+  });
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
@@ -179,7 +193,7 @@ export class SettingsStore {
       (didMigrateKeywordRules ||
         hydrated.didChange ||
         didNormalizeAndDedupeItems ||
-        JSON.stringify(this.settings) !== originalSettingsJson);
+        serializeWithoutArticles(this.settings) !== originalSettingsJson);
     return shouldSave;
   }
 
@@ -196,7 +210,7 @@ export class SettingsStore {
       const wasNullLoad = data === null || vaultMetadataUnreadable;
       this.wasNullSettingsLoad = wasNullLoad;
       const mergedSettings = Object.assign({}, DEFAULT_SETTINGS, data ?? {});
-      const originalSettingsJson = JSON.stringify(mergedSettings);
+      const originalSettingsJson = serializeWithoutArticles(mergedSettings);
       this.options.setSettings(loadAndNormalizeSettings(data));
       // A fresh install has no data.json yet. Record the installed release
       // in memory so the first real save stores it, and What's New does not

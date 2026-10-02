@@ -46,11 +46,8 @@
     }
   },
   "src/components/sidebar.ts": {
-    "complexity": {
-      "count": 2
-    },
     "max-lines-per-function": {
-      "count": 3
+      "count": 1
     }
   },
   "src/components/tag-multi-select-control.ts": {
@@ -99,7 +96,7 @@
   },
   "src/services/background-import-service.ts": {
     "complexity": {
-      "count": 3
+      "count": 2
     }
   },
   "src/services/feed-parser/feed-fetch.ts": {
@@ -108,14 +105,6 @@
     },
     "max-lines-per-function": {
       "count": 2
-    }
-  },
-  "src/services/feed-parser/feed-parser-class.ts": {
-    "complexity": {
-      "count": 2
-    },
-    "max-lines-per-function": {
-      "count": 1
     }
   },
   "src/services/feed-parser/podcast-platform-resolver.ts": {
@@ -280,7 +269,7 @@
   },
   "src/views/reader-view.ts": {
     "max-lines-per-function": {
-      "count": 2
+      "count": 1
     }
   }
 }
