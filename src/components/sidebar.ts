@@ -129,6 +129,8 @@ export interface SidebarCallbacks {
   onActivateDashboard?: () => void;
   onActivateDiscover?: () => void;
   onFolderMultiSelect?: (folders: string[]) => void;
+  // The sidebar moved its selection: clear it, and nothing else.
+  onSelectionCleared?: () => void;
   onRangeSelect?: (clickedKey: string, visibleKeys: string[]) => void;
 }
 
@@ -1587,7 +1589,7 @@ export class Sidebar {
       if (newFolder) newFolder.modifiedAt = Date.now();
     }
 
-    clearMovedSelection(this.options, this.callbacks.onFolderMultiSelect);
+    clearMovedSelection(this.options, this.callbacks.onSelectionCleared);
 
     void this.plugin.saveSettings().then(() => this.render());
   }

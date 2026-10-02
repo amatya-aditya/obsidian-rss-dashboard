@@ -2,10 +2,11 @@
  * After the sidebar moves a multi-selection (#615), the dashboard view's own
  * selection must be cleared too, and its article area must follow; when a
  * batch moves the open folder (#611), the view must follow it to its new path.
- * The view owns `selectedFolders`, `selectedFeeds` and `currentFolder` and
- * hands them to the inline sidebar and to the navigation drawer, so these
- * tests open the real view and drive the real sidebars rather than a sidebar
- * on its own.
+ * Clearing the moved selection leaves the sidebar tag filter alone (#659).
+ * The view owns `selectedFolders`, `selectedFeeds`, `currentFolder` and
+ * `selectedTags` and hands them to the inline sidebar and to the navigation
+ * drawer, so these tests open the real view and drive the real sidebars rather
+ * than a sidebar on its own.
  */
 import { vi, describe, it, expect, beforeEach, afterEach } from "vitest";
 import { RssDashboardView } from "../../../src/views/dashboard-view";
@@ -27,8 +28,10 @@ const KAGI = "https://kagi.example/feed";
 const ROOT = "https://root.example/feed";
 
 const NOTHING_SELECTED = "All articles";
+const IMPORTANT = "Important";
+const TAG_ONLY = `Tags (OR): ${IMPORTANT}`;
 
-function feed(url: string, folder: string): Feed {
+function feed(url: string, folder: string, tags: string[] = []): Feed {
   const item = {
     title: `${url} item`,
     link: `${url}/1`,
@@ -38,6 +41,7 @@ function feed(url: string, folder: string): Feed {
     feedTitle: url,
     feedUrl: url,
     coverImage: "",
+    tags: tags.map((name) => ({ name, color: "#e74c3c" })),
   } as FeedItem;
   return { url, title: url, folder, items: [item], lastUpdated: 0 };
 }
@@ -57,7 +61,8 @@ function createView(): { view: RssDashboardView; settings: RssDashboardSettings 
     app,
   } as unknown as WorkspaceLeaf;
   const settings = {
-    feeds: [feed(BBC, "Bulk"), feed(KAGI, "Smallweb"), feed(ROOT, "")],
+    // BBC's one article carries the tag the #659 tests filter by.
+    feeds: [feed(BBC, "Bulk", [IMPORTANT]), feed(KAGI, "Smallweb"), feed(ROOT, "")],
     folders: [
       { name: "Bulk", subfolders: [] },
       { name: "Empty", subfolders: [] },
@@ -70,7 +75,7 @@ function createView(): { view: RssDashboardView; settings: RssDashboardSettings 
       sidebarItemPaddingLeft: 2,
       sidebarItemPaddingRight: 2,
     },
-    availableTags: [],
+    availableTags: [{ name: IMPORTANT, color: "#e74c3c" }],
     dashboardMultiFilters: {},
     articleFilter: { type: "age", value: 0 },
     viewStyle: "list",
@@ -147,6 +152,27 @@ async function dragAndDrop(
   await flushPromises();
 }
 
+/** Opens the sidebar's tag list from the toolbar and toggles `tag` there. */
+function toggleSidebarTag(root: HTMLElement, tag: string): void {
+  find(root, '[aria-label="Tags"]').click();
+  const row = [
+    ...root.querySelectorAll<HTMLElement>(".rss-dashboard-sidebar-tag-row"),
+  ].find(
+    (r) =>
+      r.querySelector(".rss-dashboard-sidebar-tag-label")?.textContent === tag,
+  );
+  expect(row).toBeDefined();
+  row?.click();
+}
+
+function selectedSidebarTags(root: HTMLElement): string[] {
+  return [
+    ...root.querySelectorAll(
+      ".rss-dashboard-sidebar-tag-row.is-selected .rss-dashboard-sidebar-tag-label",
+    ),
+  ].map((label) => label.textContent ?? "");
+}
+
 function chooseMenuItem(title: string): void {
   const item = ObsidianStubs.Menu.lastItems.find((i) => i.title === title);
   expect(item).toBeDefined();
@@ -163,6 +189,8 @@ describe("Dashboard selection after the sidebar moves or deletes it (#615)", () 
     find(containerEl(), ".rss-dashboard-articles-title").textContent ?? "";
   const feedFolder = (url: string): string | undefined =>
     settings.feeds.find((f) => f.url === url)?.folder;
+  const viewTags = (): string[] =>
+    (view as unknown as { selectedTags: string[] }).selectedTags;
 
   afterEach(() => {
     (
@@ -346,6 +374,61 @@ describe("Dashboard selection after the sidebar moves or deletes it (#615)", () 
       expect(view.selectedFolders).toEqual([]);
       expect(view.selectedFeeds).toEqual([]);
       expect(heading()).toBe(NOTHING_SELECTED);
+    });
+
+    it("keeps the sidebar tag filter after moving the selection (#659)", async () => {
+      toggleSidebarTag(drawer, IMPORTANT);
+      expect(heading()).toBe(`Folders: Bulk, Empty (Feeds: 1) & ${TAG_ONLY}`);
+
+      await dragAndDrop(drawer, feedRow(ROOT), folderRow("Smallweb"));
+
+      expect(feedFolder(BBC)).toBe("Smallweb/Bulk");
+      expect(view.selectedFolders).toEqual([]);
+      expect(viewTags()).toEqual([IMPORTANT]);
+      expect(heading()).toBe(TAG_ONLY);
+      expect(selectedSidebarTags(drawer)).toEqual([IMPORTANT]);
+    });
+  });
+
+  describe("the sidebar tag filter after a moved selection (#659)", () => {
+    beforeEach(async () => {
+      ({ view, settings } = createView());
+      await view.onOpen();
+    });
+
+    it("keeps the tag filter when a dragged feed carries the selected folders", async () => {
+      ctrlClick(containerEl(), folderRow("Bulk"));
+      ctrlClick(containerEl(), folderRow("Empty"));
+      toggleSidebarTag(containerEl(), IMPORTANT);
+      expect(heading()).toBe(`Folders: Bulk, Empty (Feeds: 1) & ${TAG_ONLY}`);
+
+      // The selected folders travel with a drag of any sidebar row.
+      await dragAndDrop(containerEl(), feedRow(ROOT), folderRow("Smallweb"));
+
+      expect(feedFolder(ROOT)).toBe("Smallweb");
+      expect(feedFolder(BBC)).toBe("Smallweb/Bulk");
+      expect(view.selectedFolders).toEqual([]);
+      expect(view.selectedFeeds).toEqual([]);
+      expect(viewTags()).toEqual([IMPORTANT]);
+      expect(heading()).toBe(TAG_ONLY);
+      expect(selectedSidebarTags(containerEl())).toEqual([IMPORTANT]);
+      view.render();
+      expect(heading()).toBe(TAG_ONLY);
+    });
+
+    it("keeps the tag filter when selected feeds are dropped on another feed", async () => {
+      ctrlClick(containerEl(), feedRow(BBC));
+      ctrlClick(containerEl(), feedRow(ROOT));
+      toggleSidebarTag(containerEl(), IMPORTANT);
+      expect(view.selectedFeeds).toEqual([BBC, ROOT]);
+      expect(viewTags()).toEqual([IMPORTANT]);
+
+      await dragAndDrop(containerEl(), feedRow(BBC), feedRow(KAGI));
+
+      expect(feedFolder(BBC)).toBe("Smallweb");
+      expect(view.selectedFeeds).toEqual([]);
+      expect(viewTags()).toEqual([IMPORTANT]);
+      expect(heading()).toBe(TAG_ONLY);
     });
   });
 });
