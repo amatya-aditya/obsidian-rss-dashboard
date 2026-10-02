@@ -34,7 +34,7 @@ export interface SidebarRootAreaHost {
     onSubmit: (name: string) => void;
   }) => void;
   addTopLevelFolder: (folderName: string) => Promise<void>;
-  showAddFeedModal: (defaultFolder?: string) => void;
+  showAddFeedModal: () => void;
 }
 
 function handleRootDragOver(
