@@ -81,9 +81,6 @@
 .rss-reader-read-toggle.read {
   color: var(--color-green);
 }
-.rss-reader-star-toggle.starred {
-  color: var(--color-yellow);
-}
 .rss-reader-content {
   flex-grow: 1;
   overflow-y: auto;

@@ -84,7 +84,9 @@ records the documentation classification.
 
 ## Unreleased plans
 
-_Empty: every implemented plan has been archived under its release._
+| Plan | Completed | Issue | Implementation |
+| --- | --- | --- | --- |
+| [Standardize Article Star Toggle Hover Styling](plans/unreleased/684-standardize-article-star-toggle-hover.md) | 2026-10-02 | [GH Issue #684](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/684) | - |
 
 ## Unshipped plans
 

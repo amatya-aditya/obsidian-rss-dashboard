@@ -393,21 +393,29 @@ body .rss-dashboard-read-toggle.read svg {
 }
 
 /* Star toggle states */
-.rss-dashboard-star-toggle.starred {
-  color: #f1c40f;
+.rss-dashboard-star-toggle.starred,
+.rss-reader-star-toggle.starred {
+  color: var(--color-yellow);
 }
 
-.rss-dashboard-star-toggle.starred svg {
-  fill: #f1c40f;
+.rss-dashboard-star-toggle.starred svg,
+.rss-reader-star-toggle.starred svg {
+  fill: var(--color-yellow);
 }
 
-body .rss-dashboard-star-toggle.unstarred {
-  color: #888;
+.rss-dashboard-star-toggle.unstarred,
+.rss-reader-star-toggle.unstarred {
+  color: var(--text-muted);
   opacity: 1;
 }
 
 body .rss-dashboard-star-toggle svg {
   opacity: 1;
+}
+
+.rss-dashboard-star-toggle:hover svg,
+.rss-reader-star-toggle:hover svg {
+  stroke: color-mix(in srgb, var(--color-yellow) 50%, #000);
 }
 
 /* ============================================
