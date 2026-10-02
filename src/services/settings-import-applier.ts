@@ -118,7 +118,23 @@ export class SettingsImportApplier {
       await this.options.refreshDashboardViews();
       await this.options.renderDiscoverView();
 
-      new Notice("Imported JSON with feeds and settings");
+      if (replacesFeedList) {
+        new Notice("Imported JSON with feeds and settings");
+      } else {
+        const importedCollections: string[] = [];
+        if (Array.isArray(parsedWithCollections.folders)) {
+          importedCollections.push("folders");
+        }
+        if (Array.isArray(parsedWithCollections.availableTags)) {
+          importedCollections.push("tags");
+        }
+        const collectionSummary = importedCollections.join(", ");
+        new Notice(
+          collectionSummary
+            ? `Imported ${collectionSummary}${importedCollections.length === 2 ? "," : ""} and settings`
+            : "Imported settings",
+        );
+      }
       return;
     }
 
