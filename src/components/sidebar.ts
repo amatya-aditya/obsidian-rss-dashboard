@@ -44,7 +44,7 @@ import {
 } from "../utils/sidebar-row-interactions";
 import { applyFolderSortOrder } from "../utils/sidebar-folder-sort-utils";
 import { renderFeedBadges, renderFeedIcon } from "./sidebar-feed-row";
-import { clearMovedSelection } from "./sidebar-selection";
+import { clearMovedSelection, reportBatchMove } from "./sidebar-selection";
 import { renderSidebarHeader, type SidebarHeaderHost } from "./sidebar-header";
 import {
   showSidebarFolderContextMenu,
@@ -2017,7 +2017,7 @@ export class Sidebar {
       new Notice(summary);
     }
 
-    clearMovedSelection(this.options, this.callbacks.onFolderMultiSelect);
+    reportBatchMove(this.options, this.callbacks, result);
 
     void this.plugin.saveSettings().then(() => this.render());
   }

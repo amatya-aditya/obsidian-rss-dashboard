@@ -828,15 +828,57 @@ describe("Sidebar batch move (characterization)", () => {
       expect(clear).toHaveBeenCalledTimes(1);
     });
 
-    it("leaves the open folder pointing at its old path after a batch moves it", async () => {
+    it("reopens the open folder at its new path after a batch moves it", async () => {
       options.currentFolder = "News";
       build();
 
       await drop(folderHeader("Empty"), listPayload([], ["News", "Archive"]));
 
-      // BUG: pinned, see #611
       expect(folderAt("Empty/News")).toBeDefined();
-      expect(options.currentFolder).toBe("News");
+      expect(callbacks.onFolderClick).toHaveBeenCalledTimes(1);
+      expect(callbacks.onFolderClick).toHaveBeenCalledWith("Empty/News");
+    });
+
+    it("reopens a folder inside a moved folder at its new path", async () => {
+      options.currentFolder = "News/Tech";
+      build();
+
+      await drop(folderHeader("Empty"), listPayload([], ["News", "Archive"]));
+
+      expect(callbacks.onFolderClick).toHaveBeenCalledWith("Empty/News/Tech");
+    });
+
+    it("reports the open folder after clearing the selection, so the folder stays open", async () => {
+      options.currentFolder = "News";
+      options.selectedFolders = ["News", "Archive"];
+      build();
+
+      await drop(folderHeader("Empty"), listPayload([], ["News", "Archive"]));
+
+      const multiSelect = vi.mocked(callbacks.onFolderMultiSelect!);
+      const folderClick = vi.mocked(callbacks.onFolderClick);
+      expect(multiSelect).toHaveBeenCalledWith([]);
+      expect(folderClick).toHaveBeenCalledWith("Empty/News");
+      expect(multiSelect.mock.invocationCallOrder[0]).toBeLessThan(
+        folderClick.mock.invocationCallOrder[0],
+      );
+    });
+
+    it("leaves the open folder alone when the batch did not move it", async () => {
+      options.currentFolder = "Newsletter";
+      build();
+
+      await drop(folderHeader("Empty"), listPayload([], ["News", "Archive"]));
+
+      expect(callbacks.onFolderClick).not.toHaveBeenCalled();
+    });
+
+    it("leaves the open folder alone when its folder was refused", async () => {
+      options.currentFolder = "News";
+      build();
+
+      await drop(folderHeader("News/Tech"), listPayload([ROOTED], ["News"]));
+
       expect(callbacks.onFolderClick).not.toHaveBeenCalled();
     });
   });

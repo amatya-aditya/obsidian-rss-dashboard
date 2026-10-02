@@ -1,9 +1,11 @@
 /**
  * After the sidebar moves a multi-selection (#615), the dashboard view's own
- * selection must be cleared too, and its article area must follow. The view
- * owns `selectedFolders` and `selectedFeeds` and hands the same arrays to the
- * inline sidebar and to the navigation drawer, so these tests open the real
- * view and drive the real sidebars rather than a sidebar on its own.
+ * selection must be cleared too, and its article area must follow; when a
+ * batch moves the open folder (#611), the view must follow it to its new path.
+ * The view owns `selectedFolders`, `selectedFeeds` and `currentFolder` and
+ * hands them to the inline sidebar and to the navigation drawer, so these
+ * tests open the real view and drive the real sidebars rather than a sidebar
+ * on its own.
  */
 import { vi, describe, it, expect, beforeEach, afterEach } from "vitest";
 import { RssDashboardView } from "../../../src/views/dashboard-view";
@@ -111,6 +113,14 @@ async function flushPromises(): Promise<void> {
 
 const folderRow = (path: string) => `[data-folder-path="${path}"]`;
 const feedRow = (url: string) => `[data-feed-url="${url}"]`;
+// A folder's feed list: a drop there sends even one folder to the batch move.
+function folderFeedList(root: HTMLElement, path: string): HTMLElement {
+  const list = find(root, folderRow(path)).parentElement?.querySelector<HTMLElement>(
+    ":scope > .rss-dashboard-folder-feeds",
+  );
+  expect(list).toBeTruthy();
+  return list!;
+}
 
 function find(root: HTMLElement, selector: string): HTMLElement {
   const el = root.querySelector<HTMLElement>(selector);
@@ -128,11 +138,12 @@ function ctrlClick(root: HTMLElement, selector: string): void {
 async function dragAndDrop(
   root: HTMLElement,
   from: string,
-  onto: string,
+  onto: string | HTMLElement,
 ): Promise<void> {
   const dataTransfer = new FakeDataTransfer();
   find(root, from).dispatchEvent(dragEvent("dragstart", dataTransfer));
-  find(root, onto).dispatchEvent(dragEvent("drop", dataTransfer));
+  const target = typeof onto === "string" ? find(root, onto) : onto;
+  target.dispatchEvent(dragEvent("drop", dataTransfer));
   await flushPromises();
 }
 
@@ -245,6 +256,49 @@ describe("Dashboard selection after the sidebar moves or deletes it (#615)", () 
       expect(view.selectedFolders).toEqual([]);
       expect(view.selectedFeeds).toEqual([]);
       expect(heading()).toBe(NOTHING_SELECTED);
+    });
+  });
+
+  describe("the open folder after a batch moves it (#611)", () => {
+    beforeEach(async () => {
+      ({ view, settings } = createView());
+      await view.onOpen();
+    });
+
+    it("follows the open folder dropped on another folder's feed list", async () => {
+      find(containerEl(), folderRow("Bulk")).dispatchEvent(
+        new MouseEvent("click", { bubbles: true }),
+      );
+      expect(view.currentFolder).toBe("Bulk");
+
+      await dragAndDrop(
+        containerEl(),
+        folderRow("Bulk"),
+        folderFeedList(containerEl(), "Smallweb"),
+      );
+
+      expect(feedFolder(BBC)).toBe("Smallweb/Bulk");
+      expect(view.currentFolder).toBe("Smallweb/Bulk");
+      expect(heading()).toBe("Smallweb/Bulk");
+      view.render();
+      expect(heading()).toBe("Smallweb/Bulk");
+    });
+
+    it("follows a lone selected folder moved with 'Move selection to folder'", async () => {
+      ctrlClick(containerEl(), folderRow("Bulk"));
+      expect(view.currentFolder).toBe("Bulk");
+      expect(view.selectedFolders).toEqual(["Bulk"]);
+
+      find(containerEl(), folderRow("Bulk")).dispatchEvent(
+        new MouseEvent("contextmenu", { bubbles: true, cancelable: true }),
+      );
+      chooseMenuItem("Move selection to folder");
+      chooseMenuItem("Smallweb");
+      await flushPromises();
+
+      expect(view.currentFolder).toBe("Smallweb/Bulk");
+      expect(view.selectedFolders).toEqual([]);
+      expect(heading()).toBe("Smallweb/Bulk");
     });
   });
 

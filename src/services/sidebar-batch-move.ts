@@ -1,5 +1,8 @@
 import type { Folder, RssDashboardSettings } from "../types/types";
-import { remapPathPrefix } from "../utils/sidebar-row-interactions";
+import {
+  remapPathPrefix,
+  resolveMovedCurrentFolder,
+} from "../utils/sidebar-row-interactions";
 import {
   moveFeedsToFolderAppend,
   moveFolder,
@@ -197,4 +200,20 @@ export function describeRefusedFolders(
 ): string[] {
   const reasons = result.folders.flatMap(({ error }) => (error ? [error] : []));
   return [...new Set(reasons)];
+}
+
+/**
+ * Where the open folder is after the batch: its new path when it, or a folder
+ * it sits in, moved, or null when the batch left it where it was.
+ */
+export function resolveBatchMovedFolder(
+  currentFolder: string | null,
+  result: Pick<BatchMoveResult, "folders">,
+): string | null {
+  for (const { oldPath, newPath } of result.folders) {
+    if (newPath === null) continue;
+    const moved = resolveMovedCurrentFolder(currentFolder, oldPath, newPath);
+    if (moved !== null) return moved;
+  }
+  return null;
 }
