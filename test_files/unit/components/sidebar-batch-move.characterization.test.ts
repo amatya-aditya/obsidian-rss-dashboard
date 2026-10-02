@@ -493,17 +493,40 @@ describe("Sidebar batch move (characterization)", () => {
       expect(notices()).toEqual(['Moved 1 feed and 1 folder to "Newsletter"']);
     });
 
-    it("counts a refused folder move (duplicate name or unknown path) as skipped and words it as a nesting skip", async () => {
+    it("shows a refused folder move's own reason (duplicate name, unknown path) instead of the nesting skip", async () => {
       // A second "Tech" at the root, so moving it into News collides with News/Tech.
       settings.folders.push(makeFolder("Tech"));
       build();
 
       await drop(folderHeader("News"), listPayload([ROOTED], ["Tech", "Ghost"]));
 
-      // BUG: pinned, see #610
-      expect(notices()).toEqual([SKIPPED_NOTICE, 'Moved 1 feed to "News"']);
+      expect(notices()).toEqual([
+        'A folder named "Tech" already exists at the destination level.',
+        "Dragged folder not found.",
+        'Moved 1 feed to "News"',
+      ]);
       expect(rootNames()).toContain("Tech");
       expect(folderAt("News")?.subfolders.map((f) => f.name)).toEqual(["Tech"]);
+    });
+
+    it("shows a reason shared by several refused folders once", async () => {
+      build();
+
+      await drop(folderHeader("News"), listPayload([ROOTED], ["Ghost", "Phantom"]));
+
+      expect(notices()).toEqual([
+        "Dragged folder not found.",
+        'Moved 1 feed to "News"',
+      ]);
+    });
+
+    it("shows no refusal for a subfolder dragged with its parent, which moved with it", async () => {
+      build();
+
+      await drop(folderHeader("Empty"), listPayload([], ["News", "News/Tech"]));
+
+      expect(folderAt("Empty/News/Tech/Deep")).toBeDefined();
+      expect(notices()).toEqual(['Moved 1 folder to "Empty"']);
     });
   });
 

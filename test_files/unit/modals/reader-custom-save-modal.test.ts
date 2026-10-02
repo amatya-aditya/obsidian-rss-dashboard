@@ -1,111 +1,224 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { App } from "obsidian";
-import { installObsidianDomPolyfills } from "../test-dom-polyfills";
-import { ReaderCustomSaveModal } from "../../../src/modals/reader-custom-save-modal";
+// @vitest-environment jsdom
+
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   DEFAULT_SETTINGS,
+  type Feed,
   type FeedItem,
   type RssDashboardSettings,
 } from "../../../src/types/types";
+import { App } from "obsidian";
+import {
+  ReaderCustomSaveModal,
+  type ReaderCustomSaveModalContext,
+} from "../../../src/modals/reader-custom-save-modal";
 
-function makeItem(): FeedItem {
+vi.mock("../../../src/components/folder-suggest", () => ({
+  VaultFolderSuggest: class {
+    constructor() {}
+  },
+}));
+
+function createItem(): FeedItem {
   return {
-    title: "Article",
-    link: "https://example.com/a",
-    description: "Body",
+    title: "Fixture article",
+    link: "https://example.com/article",
+    description: "Fixture article body",
     pubDate: "2026-08-07",
-    guid: "a",
-    feedTitle: "Feed",
+    guid: "fixture-article",
+    feedTitle: "Example feed",
     feedUrl: "https://example.com/feed.xml",
     coverImage: "",
   };
 }
 
-function makeSettings(): RssDashboardSettings {
-  const settings = JSON.parse(
-    JSON.stringify(DEFAULT_SETTINGS),
-  ) as RssDashboardSettings;
-  settings.feeds = [];
-  settings.articleSaving.defaultFolder = "Saved";
-  settings.articleSaving.defaultTemplate = "Default template";
-  settings.articleSaving.savedTemplates = [];
-  return settings;
+function createHarness(options?: {
+  saveResult?: { path: string } | null;
+  displayTitle?: string;
+  savedTemplates?: RssDashboardSettings["articleSaving"]["savedTemplates"];
+  feedTemplate?: string;
+}): {
+  item: FeedItem;
+  feed: Feed;
+  settings: RssDashboardSettings;
+  saveArticle: ReturnType<typeof vi.fn>;
+  onArticleSave: ReturnType<typeof vi.fn>;
+  updateSavedLabel: ReturnType<typeof vi.fn>;
+  open: () => void;
+} {
+  const item = createItem();
+  const feed: Feed = {
+    title: "Example feed",
+    url: item.feedUrl,
+    folder: "Feeds",
+    items: [item],
+    lastUpdated: 0,
+    ...(options?.feedTemplate ? { customTemplate: options.feedTemplate } : {}),
+  };
+  const settings: RssDashboardSettings = {
+    ...DEFAULT_SETTINGS,
+    feeds: [feed],
+    articleSaving: {
+      ...DEFAULT_SETTINGS.articleSaving,
+      defaultFolder: "Reading/Queue",
+      defaultTemplate: "Default: {{title}}",
+      savedTemplates: options?.savedTemplates ?? [],
+    },
+  };
+  const saveArticle = vi.fn().mockResolvedValue(
+    options?.saveResult === undefined ? { path: "Saved/Fixture article.md" } : options.saveResult,
+  );
+  const onArticleSave = vi.fn();
+  const updateSavedLabel = vi.fn();
+  const context: ReaderCustomSaveModalContext = {
+    getSettings: () => settings,
+    getArticleSaver: () => ({ saveArticle } as never),
+    displayTitle: options?.displayTitle,
+    getCustomTemplateForArticle: () => undefined,
+    buildReaderSaveMarkdown: () => "Reader body",
+    onArticleSave,
+    updateSavedLabel,
+  };
+  return {
+    item,
+    feed,
+    settings,
+    saveArticle,
+    onArticleSave,
+    updateSavedLabel,
+    open: () => new ReaderCustomSaveModal(new App(), item, context).open(),
+  };
 }
 
+function modal(): HTMLElement {
+  const element = activeDocument.querySelector<HTMLElement>(
+    ".rss-dashboard-custom-save-modal",
+  );
+  if (!element) throw new Error("Custom save modal was not rendered");
+  return element;
+}
+
+afterEach(() => {
+  activeDocument.body.replaceChildren();
+  vi.restoreAllMocks();
+});
+
 describe("ReaderCustomSaveModal", () => {
-  beforeEach(() => {
-    installObsidianDomPolyfills();
-    document.body.empty();
-  });
+  it("renders the established fields, defaults, and saved template choices", () => {
+    const harness = createHarness({
+      savedTemplates: [
+        { id: "one", name: "First", template: "First: {{content}}" },
+        { id: "two", name: "Second", template: "Second: {{content}}" },
+      ],
+    });
+    harness.open();
+    const root = modal();
 
-  afterEach(() => {
-    document.body.empty();
-  });
-
-  function open(onSave = vi.fn()) {
-    const item = makeItem();
-    new ReaderCustomSaveModal(new App(), {
-      settings: makeSettings(),
-      item,
-      displayTitle: "Shown title",
-      feedTemplate: undefined,
-      onSave,
-    }).open();
-    return { item, onSave };
-  }
-
-  const clickButton = (label: string) =>
-    Array.from(document.querySelectorAll("button"))
-      .find((button) => button.textContent === label)!
-      .click();
-
-  it("opens inside a modal container carrying its own dialog class", () => {
-    open();
-
-    const dialog = document.querySelector(".rss-dashboard-custom-save-modal");
-    expect(dialog).not.toBeNull();
-    expect(dialog?.closest(".modal-container")).not.toBeNull();
+    expect(root.querySelector(".setting-item-name")?.textContent).toBe("Save article");
+    expect(Array.from(root.querySelectorAll("label"), (label) => label.textContent)).toEqual([
+      "Save to folder:",
+      "Saved template:",
+      "Use template:",
+    ]);
+    expect(root.querySelector<HTMLInputElement>("input")?.value).toBe("Reading/Queue");
     expect(
-      document.querySelector<HTMLTextAreaElement>("textarea")?.value,
-    ).toBe("Default template");
+      Array.from(root.querySelectorAll("select option"), (option) => [option.textContent, (option as HTMLOptionElement).value]),
+    ).toEqual([
+      ["Current template", ""],
+      ["First", "one"],
+      ["Second", "two"],
+    ]);
+    expect(root.querySelector("textarea")?.value).toBe("Default: {{title}}");
+    expect(Array.from(root.querySelectorAll("button"), (button) => button.textContent)).toEqual([
+      "Save as new template",
+      "Cancel",
+      "Save",
+    ]);
   });
 
-  it("closes on Cancel without calling the save callback", () => {
-    const { onSave } = open();
-
-    clickButton("Cancel");
-
-    expect(document.querySelector(".rss-dashboard-custom-save-modal")).toBeNull();
-    expect(onSave).not.toHaveBeenCalled();
+  it("clears the folder field by click or keyboard and closes when cancelled", () => {
+    createHarness().open();
+    const root = modal();
+    const folder = root.querySelector<HTMLInputElement>("input");
+    const clear = root.querySelector<HTMLElement>(".rss-dashboard-clear-icon");
+    if (!folder || !clear) throw new Error("Folder controls were not rendered");
+    clear.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(folder.value).toBe("");
+    folder.value = "Again";
+    clear.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    expect(folder.value).toBe("");
+    root.querySelector<HTMLButtonElement>(".rss-dashboard-custom-save-cancel-button")?.click();
+    expect(activeDocument.querySelector(".rss-dashboard-custom-save-modal")).toBeNull();
   });
 
-  it("hands the folder and template to the save callback once, then closes", async () => {
-    const onSave = vi.fn(() => {
-      // The dialog stays open until the save has finished.
-      expect(
-        document.querySelector(".rss-dashboard-custom-save-modal"),
-      ).not.toBeNull();
-    });
-    const { item } = open(onSave);
+  it("saves with trimmed fields and updates article state only after a successful save", async () => {
+    const harness = createHarness({ displayTitle: "Display title" });
+    harness.open();
+    const root = modal();
+    const folder = root.querySelector<HTMLInputElement>("input");
+    const template = root.querySelector<HTMLTextAreaElement>("textarea");
+    if (!folder || !template) throw new Error("Save fields were not rendered");
+    folder.value = "  Articles  ";
+    template.value = "  Custom {{title}}  ";
+    root.querySelector<HTMLButtonElement>(".rss-dashboard-custom-save-confirm-button")?.click();
+    await vi.waitFor(() => expect(harness.saveArticle).toHaveBeenCalledOnce());
 
-    document.querySelector<HTMLInputElement>(
-      ".rss-dashboard-folder-input-container input",
-    )!.value = " Notes ";
-    clickButton("Save");
+    expect(harness.saveArticle).toHaveBeenCalledWith(
+      expect.objectContaining({ guid: "fixture-article", title: "Display title" }),
+      "Articles",
+      "Custom {{title}}",
+      "Reader body",
+    );
+    expect(harness.item.saved).toBe(true);
+    expect(harness.item.savedFilePath).toBe("Saved/Fixture article.md");
+    expect(harness.onArticleSave).toHaveBeenCalledWith(harness.item);
+    expect(harness.updateSavedLabel).toHaveBeenCalledWith(true);
+    await vi.waitFor(() =>
+      expect(activeDocument.querySelector(".rss-dashboard-custom-save-modal")).toBeNull(),
+    );
+  });
 
-    await vi.waitFor(() => {
-      expect(
-        document.querySelector(".rss-dashboard-custom-save-modal"),
-      ).toBeNull();
-    });
-    expect(onSave).toHaveBeenCalledTimes(1);
-    expect(onSave).toHaveBeenCalledWith({
-      item,
-      displayTitle: "Shown title",
-      folder: "Notes",
-      template: "Default template",
-      pendingNewTemplate: null,
-      selectedTemplateId: "",
-    });
+  it("closes without marking the article saved when the saver returns no file", async () => {
+    const harness = createHarness({ saveResult: null });
+    harness.open();
+    modal().querySelector<HTMLButtonElement>(".rss-dashboard-custom-save-confirm-button")?.click();
+    await vi.waitFor(() => expect(harness.saveArticle).toHaveBeenCalledOnce());
+    expect(harness.item.saved).toBeUndefined();
+    expect(harness.onArticleSave).not.toHaveBeenCalled();
+    expect(harness.updateSavedLabel).not.toHaveBeenCalled();
+    await vi.waitFor(() =>
+      expect(activeDocument.querySelector(".rss-dashboard-custom-save-modal")).toBeNull(),
+    );
+  });
+
+  it("opens inside an Obsidian modal container", () => {
+    createHarness().open();
+
+    expect(modal().closest(".modal-container")).not.toBeNull();
+  });
+
+  it("keeps the dialog open until the save has finished, and does not save on Cancel", async () => {
+    const harness = createHarness();
+    let finishSave: (file: { path: string }) => void = () => {};
+    harness.saveArticle.mockReturnValue(
+      new Promise((resolve) => {
+        finishSave = resolve;
+      }),
+    );
+    harness.open();
+    modal().querySelector<HTMLButtonElement>(".rss-dashboard-custom-save-confirm-button")?.click();
+    await vi.waitFor(() => expect(harness.saveArticle).toHaveBeenCalledOnce());
+    expect(activeDocument.querySelector(".rss-dashboard-custom-save-modal")).not.toBeNull();
+
+    finishSave({ path: "Saved/Fixture article.md" });
+    await vi.waitFor(() =>
+      expect(activeDocument.querySelector(".rss-dashboard-custom-save-modal")).toBeNull(),
+    );
+    expect(harness.saveArticle).toHaveBeenCalledOnce();
+
+    const second = createHarness();
+    second.open();
+    modal().querySelector<HTMLButtonElement>(".rss-dashboard-custom-save-cancel-button")?.click();
+    expect(second.saveArticle).not.toHaveBeenCalled();
   });
 });

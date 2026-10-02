@@ -870,9 +870,15 @@ describe("ReaderView HTML cleanup helpers (characterization)", () => {
     };
 
     it("removes the closest figure", () => {
-      expect(run(`<figure><img src="a.jpg"><figcaption>c</figcaption></figure><p>t</p>`)).toBe(
+      expect(run(`<figure><img src="a.jpg"></figure><p>t</p>`)).toBe(
         "<p>t</p>",
       );
+    });
+
+    it("keeps a figure caption when removing its image", () => {
+      expect(
+        run(`<figure><img src="a.jpg"><figcaption>caption</figcaption></figure>`),
+      ).toBe("<figure><figcaption>caption</figcaption></figure>");
     });
 
     it("removes the closest picture, leaving an outer figure", () => {
@@ -887,10 +893,17 @@ describe("ReaderView HTML cleanup helpers (characterization)", () => {
       );
     });
 
-    it("removes the whole link even when it wraps more than the image", () => {
+    // BUG: pinned, see #629
+    it("keeps story text in a link when removing its lead image", () => {
       expect(
-        run(`<a href="/x"><div><img src="a.jpg"><p>story</p></div></a><p>t</p>`),
-      ).toBe("<p>t</p>");
+        run(`<a href="/x"><div><img src="a.jpg"><p>story</p></div></a>`),
+      ).toBe(`<a href="/x"><div><p>story</p></div></a>`);
+    });
+
+    it("keeps another image in a link when removing the lead image", () => {
+      expect(
+        run(`<a href="/x"><img src="a.jpg"><img src="b.jpg"></a>`),
+      ).toBe(`<a href="/x"><img src="b.jpg"></a>`);
     });
 
     it("removes just the image when it has no figure, picture or link around it", () => {
@@ -1439,6 +1452,27 @@ describe("ReaderView HTML cleanup helpers (characterization)", () => {
       expect(content?.textContent).toContain("Body sentence of the article.");
       expect(content?.textContent).not.toContain(description);
       expect(c.currentDisplayTitle).toBe("An Article Headline Worth Reading");
+    });
+
+    it("keeps story text inside a link when removing the fetched lead image", async () => {
+      const hero = "https://img.example.com/images/hero.jpg";
+      const leadText = "The first paragraph of the story, which is the content the reader came for. ".repeat(2);
+      const moreText = "Further article text. ".repeat(12);
+      c.fetchFullArticleContent = vi.fn().mockResolvedValue(
+        `<a href="/story"><div><img src="${hero}"><p>${leadText}</p></div></a><p>${moreText}</p>`,
+      );
+
+      await view.displayItem(makeItem({ coverImage: hero }));
+
+      const content = c.readingContainer.querySelector(
+        ".rss-reader-article-content",
+      );
+      expect(content).not.toBeNull();
+      expect(content?.querySelector("img")).toBeNull();
+      const leadParagraph = content?.querySelector("a p");
+      expect(leadParagraph).not.toBeNull();
+      expect(leadParagraph?.textContent).toContain("The first paragraph of the story");
+      expect(content?.textContent).toContain("Further article text.");
     });
   });
 });

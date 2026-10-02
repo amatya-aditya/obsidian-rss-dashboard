@@ -5,6 +5,8 @@ import type {
   FeedMetadata,
   FeedIngestionCandidate,
   FeedIngestionOptions,
+  FeedIngestionResult,
+  Folder,
 } from "../types/types";
 import { OpmlManager } from "./opml-manager";
 import { getFeedErrorMessage } from "./feed-parser";
@@ -220,91 +222,56 @@ export class BackgroundImportService {
    * before ingestion; otherwise new folders are merged into the existing set.
    * @param {FeedIngestionCandidate[]} candidates Feeds to ingest, keyed by URL
    * @param {FeedIngestionOptions} [options] Ingestion mode, folder merge data, progress callback, and whether to register a cancellable global operation
-   * @returns {Promise<{addedCount: number, skippedCount: number, queuedFeeds: Feed[]}>} Count of placeholders added, count of candidates skipped as duplicates, and the placeholder feeds that were queued
+   * @returns {Promise<FeedIngestionResult>} Count of placeholders added, count of candidates skipped as duplicates, and the placeholder feeds that were queued (or refused: true if busy)
    * @throws {Error} If persisting the placeholder feeds via `saveSettings` fails
    */
   public async ingestFeedsForBackgroundImport(
     candidates: FeedIngestionCandidate[],
     options?: FeedIngestionOptions,
-  ): Promise<{
-    addedCount: number;
-    skippedCount: number;
-    queuedFeeds: Feed[];
-  }> {
+  ): Promise<FeedIngestionResult> {
     const mode = options?.mode || "update";
-    const importPersistMode = this.getSettings().storageMode;
-    const placeholders: Feed[] = [];
-    let skippedCount = 0;
-    const seenUrls = new Set<string>();
-
-    if (mode === "overwrite") {
-      this.getSettings().feeds = [];
-      if (options?.folders) {
-        this.getSettings().folders = options.folders;
-      }
-    } else if (options?.folders) {
-      this.getSettings().folders = OpmlManager.mergeFolders(
-        this.getSettings().folders,
-        options.folders,
-      );
-    }
-
-    const existingUrls = new Set(
-      this.getSettings().feeds.map((feed) => feed.url),
+    const { toAdd, skippedCount } = this.partitionIngestionCandidates(
+      candidates,
+      mode,
     );
-    const totalCandidates = candidates.length;
 
-    for (const candidate of candidates) {
-      if (existingUrls.has(candidate.url) || seenUrls.has(candidate.url)) {
-        skippedCount += 1;
-        options?.onProgress?.(
-          placeholders.length + skippedCount,
-          totalCandidates,
-        );
-        continue;
+    if (options?.globalOperation && toAdd.length > 0) {
+      const signal = this.beginGlobalOperation?.(toAdd.length);
+      if (!signal) {
+        return {
+          addedCount: 0,
+          skippedCount,
+          queuedFeeds: [],
+          refused: true,
+        };
       }
-
-      const placeholder = this.createPlaceholderFeed(candidate);
-      placeholders.push(placeholder);
-      this.getSettings().feeds.push(placeholder);
-      this.backgroundImportPendingIngestionUrls.add(candidate.url);
-      existingUrls.add(candidate.url);
-      seenUrls.add(candidate.url);
-
-      if (placeholder.folder) {
-        await this.ensureFolderExists(placeholder.folder, {
-          saveSettings: false,
-          refreshView: false,
-        });
-      }
-
-      options?.onProgress?.(
-        placeholders.length + skippedCount,
-        totalCandidates,
-      );
+      this.backgroundImportSignal = signal;
+      this.ownsGlobalOperation = true;
     }
 
+    let placeholders: Feed[] = [];
     try {
+      const importPersistMode = this.getSettings().storageMode;
+      if (mode === "overwrite") {
+        this.getSettings().feeds = [];
+      }
+      this.applyImportFolders(mode, options?.folders);
+
+      placeholders = await this.processCandidates(
+        candidates,
+        mode,
+        options?.onProgress,
+      );
+
       await this.saveSettingsWithMode(importPersistMode);
       const view = await this.getView();
-      if (view) {
-        view.refresh?.();
-      }
+      view?.refresh?.();
 
       this.backgroundImportPersistMode = importPersistMode;
-      if (options?.globalOperation && placeholders.length > 0) {
-        const signal = this.beginGlobalOperation?.(placeholders.length);
-        if (!signal) {
-          return {
-            addedCount: placeholders.length,
-            skippedCount,
-            queuedFeeds: placeholders,
-          };
-        }
-        this.backgroundImportSignal = signal;
-        this.ownsGlobalOperation = true;
-      }
       this.startBackgroundImport(placeholders);
+    } catch (err) {
+      await this.cleanupGlobalOperationOnError();
+      throw err;
     } finally {
       for (const placeholder of placeholders) {
         this.backgroundImportPendingIngestionUrls.delete(placeholder.url);
@@ -316,6 +283,96 @@ export class BackgroundImportService {
       skippedCount,
       queuedFeeds: placeholders,
     };
+  }
+
+  private async cleanupGlobalOperationOnError(): Promise<void> {
+    if (this.ownsGlobalOperation && this.endGlobalOperation) {
+      this.ownsGlobalOperation = false;
+      this.backgroundImportSignal = null;
+      await this.endGlobalOperation();
+    }
+  }
+
+  private async processCandidates(
+    candidates: FeedIngestionCandidate[],
+    mode: "update" | "overwrite",
+    onProgress?: (completed: number, total: number) => void,
+  ): Promise<Feed[]> {
+    const placeholders: Feed[] = [];
+    const totalCandidates = candidates.length;
+    const existingUrls =
+      mode === "overwrite"
+        ? new Set<string>()
+        : new Set(this.getSettings().feeds.map((feed) => feed.url));
+    const seenUrls = new Set<string>();
+    let processedCount = 0;
+
+    for (const candidate of candidates) {
+      if (existingUrls.has(candidate.url) || seenUrls.has(candidate.url)) {
+        processedCount += 1;
+        onProgress?.(processedCount, totalCandidates);
+        continue;
+      }
+
+      seenUrls.add(candidate.url);
+      const placeholder = this.createPlaceholderFeed(candidate);
+      placeholders.push(placeholder);
+      this.getSettings().feeds.push(placeholder);
+      this.backgroundImportPendingIngestionUrls.add(candidate.url);
+
+      if (placeholder.folder) {
+        await this.ensureFolderExists(placeholder.folder, {
+          saveSettings: false,
+          refreshView: false,
+        });
+      }
+
+      processedCount += 1;
+      onProgress?.(processedCount, totalCandidates);
+    }
+
+    return placeholders;
+  }
+
+  private partitionIngestionCandidates(
+    candidates: FeedIngestionCandidate[],
+    mode: "update" | "overwrite",
+  ): { toAdd: FeedIngestionCandidate[]; skippedCount: number } {
+    const existingUrls =
+      mode === "overwrite"
+        ? new Set<string>()
+        : new Set(this.getSettings().feeds.map((feed) => feed.url));
+    const seenUrls = new Set<string>();
+    const toAdd: FeedIngestionCandidate[] = [];
+    let skippedCount = 0;
+
+    for (const candidate of candidates) {
+      if (existingUrls.has(candidate.url) || seenUrls.has(candidate.url)) {
+        skippedCount += 1;
+      } else {
+        seenUrls.add(candidate.url);
+        toAdd.push(candidate);
+      }
+    }
+
+    return { toAdd, skippedCount };
+  }
+
+  private applyImportFolders(
+    mode: "update" | "overwrite",
+    folders?: Folder[],
+  ): void {
+    if (!folders) {
+      return;
+    }
+    if (mode === "overwrite") {
+      this.getSettings().folders = folders;
+    } else {
+      this.getSettings().folders = OpmlManager.mergeFolders(
+        this.getSettings().folders,
+        folders,
+      );
+    }
   }
 
   // ── Private orchestration ──────────────────────────────────────────────────

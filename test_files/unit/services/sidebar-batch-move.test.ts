@@ -1,7 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
+  BATCH_MOVE_SKIPPED_NOTICE,
   batchMoveFeedsAndFolders,
   describeBatchMove,
+  describeRefusedFolders,
 } from "../../../src/services/sidebar-batch-move";
 import type { Feed, Folder, RssDashboardSettings } from "../../../src/types/types";
 
@@ -61,7 +63,7 @@ describe("batchMoveFeedsAndFolders", () => {
     expect(result).toEqual({
       movedFeeds: 2,
       movedFolders: 1,
-      skippedFolders: 0,
+      folders: [{ oldPath: "One", newPath: "Two/One", error: null }],
       feedMoveError: null,
     });
     expect(settings.folders.map((f) => f.name)).toEqual(["Two"]);
@@ -71,10 +73,41 @@ describe("batchMoveFeedsAndFolders", () => {
   it("skips a folder dropped on itself or a descendant but moves the rest", () => {
     const result = run("One/Inner", ["b"], ["One"]);
 
-    expect(result.skippedFolders).toBe(1);
+    expect(result.folders).toEqual([
+      { oldPath: "One", newPath: null, error: BATCH_MOVE_SKIPPED_NOTICE },
+    ]);
     expect(result.movedFolders).toBe(0);
     expect(result.movedFeeds).toBe(1);
     expect(settings.folders.map((f) => f.name)).toEqual(["One", "Two"]);
+  });
+
+  it("records a refused folder with moveFolder's own reason (#610)", () => {
+    // A root "Inner" collides with One/Inner when moved into One.
+    settings.folders.push({ name: "Inner", subfolders: [], modifiedAt: 1 } as Folder);
+
+    const result = run("One", [], ["Inner", "Ghost", "Two"]);
+
+    expect(result.folders).toEqual([
+      {
+        oldPath: "Inner",
+        newPath: null,
+        error: 'A folder named "Inner" already exists at the destination level.',
+      },
+      { oldPath: "Ghost", newPath: null, error: "Dragged folder not found." },
+      { oldPath: "Two", newPath: "One/Two", error: null },
+    ]);
+    expect(result.movedFolders).toBe(1);
+  });
+
+  it("records a subfolder dragged after its parent as moved with it, not refused", () => {
+    const result = run("Two", [], ["One", "One/Inner"]);
+
+    expect(result.folders).toEqual([
+      { oldPath: "One", newPath: "Two/One", error: null },
+      { oldPath: "One/Inner", newPath: "Two/One/Inner", error: null },
+    ]);
+    expect(result.movedFolders).toBe(1);
+    expect(findFolderIn(settings)("Two/One/Inner")).not.toBeNull();
   });
 
   it("does not count feeds already in the destination", () => {
@@ -120,5 +153,29 @@ describe("describeBatchMove", () => {
     expect(describeBatchMove({ movedFeeds: 1, movedFolders: 0 }, "")).toBe(
       "Moved 1 feed to root",
     );
+  });
+});
+
+describe("describeRefusedFolders", () => {
+  it("lists each distinct reason once, in the order the folders were dragged", () => {
+    expect(
+      describeRefusedFolders({
+        folders: [
+          { oldPath: "A", newPath: null, error: "Dragged folder not found." },
+          { oldPath: "B", newPath: "X/B", error: null },
+          { oldPath: "X", newPath: null, error: BATCH_MOVE_SKIPPED_NOTICE },
+          { oldPath: "C", newPath: null, error: "Dragged folder not found." },
+          { oldPath: "X/Y", newPath: null, error: BATCH_MOVE_SKIPPED_NOTICE },
+        ],
+      }),
+    ).toEqual(["Dragged folder not found.", BATCH_MOVE_SKIPPED_NOTICE]);
+  });
+
+  it("is empty when every folder moved", () => {
+    expect(
+      describeRefusedFolders({
+        folders: [{ oldPath: "A", newPath: "X/A", error: null }],
+      }),
+    ).toEqual([]);
   });
 });

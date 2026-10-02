@@ -45,6 +45,7 @@ import {
 } from "../utils/sidebar-row-interactions";
 import { applyFolderSortOrder } from "../utils/sidebar-folder-sort-utils";
 import { renderFeedBadges, renderFeedIcon } from "./sidebar-feed-row";
+import { clearMovedSelection } from "./sidebar-selection";
 import { renderSidebarHeader, type SidebarHeaderHost } from "./sidebar-header";
 import {
   showSidebarFolderContextMenu,
@@ -57,9 +58,9 @@ import {
   setFolderSortCustom,
 } from "../services/sidebar-ordering-controller";
 import {
-  BATCH_MOVE_SKIPPED_NOTICE,
   batchMoveFeedsAndFolders,
   describeBatchMove,
+  describeRefusedFolders,
 } from "../services/sidebar-batch-move";
 import {
   attachRefreshStatusDetails,
@@ -1690,8 +1691,7 @@ export class Sidebar {
       if (newFolder) newFolder.modifiedAt = Date.now();
     }
 
-    this.options.selectedFeeds = [];
-    this.options.selectedFolders = [];
+    clearMovedSelection(this.options, this.callbacks.onFolderMultiSelect);
 
     void this.plugin.saveSettings().then(() => this.render());
   }
@@ -2009,8 +2009,8 @@ export class Sidebar {
 
     this.clearFolderPathCache();
 
-    if (result.skippedFolders > 0) {
-      new Notice(BATCH_MOVE_SKIPPED_NOTICE);
+    for (const reason of describeRefusedFolders(result)) {
+      new Notice(reason);
     }
 
     const summary = describeBatchMove(result, destinationFolderPath);
@@ -2018,8 +2018,7 @@ export class Sidebar {
       new Notice(summary);
     }
 
-    this.options.selectedFeeds = [];
-    this.options.selectedFolders = [];
+    clearMovedSelection(this.options, this.callbacks.onFolderMultiSelect);
 
     void this.plugin.saveSettings().then(() => this.render());
   }

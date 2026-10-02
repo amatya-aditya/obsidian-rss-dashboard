@@ -99,7 +99,7 @@ import { VideoPlayer } from "./video-player";
 import { RSS_DASHBOARD_VIEW_TYPE, RssDashboardView } from "./dashboard-view";
 import {
   ReaderCustomSaveModal,
-  type ReaderCustomSaveRequest,
+  type ReaderCustomSaveModalContext,
 } from "../modals/reader-custom-save-modal";
 import { ShortcutHelpModal } from "../modals/shortcut-help-modal";
 import { openWebViewerSaveModal } from "../modals/web-viewer-save-modal";
@@ -1163,57 +1163,25 @@ export class ReaderView extends ItemView {
   }
 
   private showCustomSaveModal(item: FeedItem): void {
-    new ReaderCustomSaveModal(this.app, {
-      settings: this.settings,
+    new ReaderCustomSaveModal(
+      this.app,
       item,
-      displayTitle: this.currentDisplayTitle,
-      feedTemplate: this.getCustomTemplateForArticle(item),
-      onSave: (request) => this.saveToCustomFolder(request),
-    }).open();
+      this.getReaderCustomSaveModalContext(),
+    ).open();
   }
 
-  private async saveToCustomFolder({
-    item,
-    displayTitle,
-    folder,
-    template,
-    pendingNewTemplate,
-    selectedTemplateId,
-  }: ReaderCustomSaveRequest): Promise<void> {
-    const markdownContent = this.buildReaderSaveMarkdown(item);
-    const saveItem = displayTitle ? { ...item, title: displayTitle } : item;
-    const file = await this.articleSaver.saveArticle(
-      saveItem,
-      folder,
-      template,
-      markdownContent,
-    );
-    if (file) {
-      const feed = this.settings.feeds.find((f) => f.url === item.feedUrl);
-      if (pendingNewTemplate) {
-        const newTemplate = {
-          id: pendingNewTemplate.id,
-          name: pendingNewTemplate.name,
-          template: pendingNewTemplate.template,
-        };
-        this.settings.articleSaving.savedTemplates.push(newTemplate);
-        if (pendingNewTemplate.assignToFeed && feed) {
-          feed.customTemplate = newTemplate.id;
-        }
-      } else if (selectedTemplateId && feed) {
-        const selectedTemplate =
-          this.settings.articleSaving.savedTemplates.find(
-            (savedTemplate) => savedTemplate.id === selectedTemplateId,
-          );
-        if (selectedTemplate) {
-          feed.customTemplate = selectedTemplate.id;
-        }
-      }
-      item.saved = true;
-      item.savedFilePath = file.path;
-      this.onArticleSave(item);
-      this.updateSavedLabel(true);
-    }
+  private getReaderCustomSaveModalContext(): ReaderCustomSaveModalContext {
+    return {
+      getSettings: () => this.settings,
+      getArticleSaver: () => this.articleSaver,
+      displayTitle: this.currentDisplayTitle,
+      getCustomTemplateForArticle: (article) =>
+        this.getCustomTemplateForArticle(article),
+      buildReaderSaveMarkdown: (article) =>
+        this.buildReaderSaveMarkdown(article),
+      onArticleSave: (article) => this.onArticleSave(article),
+      updateSavedLabel: (saved) => this.updateSavedLabel(saved),
+    };
   }
 
   async displayItem(

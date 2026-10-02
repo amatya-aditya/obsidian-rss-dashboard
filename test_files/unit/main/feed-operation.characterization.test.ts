@@ -1079,10 +1079,8 @@ describe("global feed operation: background import (OPML import, Discover add al
     await refresh;
   });
 
-  it("saves the imported feeds but never fetches them when another operation runs", async () => {
-    // BUG: pinned, see #451. The import is refused as a global operation, but
-    // its placeholder feeds are saved and reported as added, and nothing ever
-    // fetches their articles.
+  it("refuses an import without saving feeds when another operation runs", async () => {
+    // Verified fix for #451: The import is refused before saving placeholders.
     const url = "https://example.com/imported.xml";
     const harness = createHarness([createFeed("a"), createFeed("b")]);
     const { plugin, parser } = harness;
@@ -1094,9 +1092,10 @@ describe("global feed operation: background import (OPML import, Discover add al
       { globalOperation: true },
     );
 
-    expect(result.addedCount).toBe(1);
-    expect(result.queuedFeeds.map((feed) => feed.url)).toEqual([url]);
-    expect(plugin.settings.feeds.some((feed) => feed.url === url)).toBe(true);
+    expect(result.refused).toBe(true);
+    expect(result.addedCount).toBe(0);
+    expect(result.queuedFeeds).toEqual([]);
+    expect(plugin.settings.feeds.some((feed) => feed.url === url)).toBe(false);
     expect(notices()).toContain(BUSY_OPERATION_NOTICE);
     expect(plugin.backgroundImportQueue).toEqual([]);
 
@@ -1106,12 +1105,12 @@ describe("global feed operation: background import (OPML import, Discover add al
 
     expect(parser.parseFeed).not.toHaveBeenCalled();
     expect(
-      plugin.settings.feeds.find((feed) => feed.url === url)?.items,
-    ).toEqual([]);
+      plugin.settings.feeds.find((feed) => feed.url === url),
+    ).toBeUndefined();
   });
 
-  it("tells the user an OPML import will be fetched in the background, next to the refusal", async () => {
-    // BUG: pinned, see #451.
+  it("refuses an OPML import without saving feeds or showing background fetch notice when busy", async () => {
+    // Verified fix for #451: OPML import is refused without misleading success notice or saved placeholder.
     const harness = createHarness([createFeed("a"), createFeed("b")]);
     const { plugin, parser } = harness;
     const opml =
@@ -1133,11 +1132,77 @@ describe("global feed operation: background import (OPML import, Discover add al
     await flush();
 
     expect(notices()).toContain(BUSY_OPERATION_NOTICE);
-    expect(notices()).toContain(
+    expect(notices()).not.toContain(
       "Imported 1 feeds. Articles will be fetched in the background.",
     );
+    expect(
+      plugin.settings.feeds.some(
+        (feed) => feed.url === "https://example.com/imported.xml",
+      ),
+    ).toBe(false);
     expect(parser.parseFeed).not.toHaveBeenCalled();
 
+    for (const heldUrl of heldUrls(harness)) await settle(harness, heldUrl);
+    await refresh;
+  });
+
+  it("refuses an overwrite import without clearing existing feeds when busy", async () => {
+    const harness = createHarness([createFeed("a"), createFeed("b")]);
+    const { plugin } = harness;
+
+    const refresh = plugin.refreshFeeds();
+    await flush();
+
+    const result = await plugin.ingestFeedsForBackgroundImport(
+      [{ title: "Imported", url: "https://example.com/imported.xml" }],
+      { mode: "overwrite", globalOperation: true },
+    );
+
+    expect(result.refused).toBe(true);
+    expect(result.addedCount).toBe(0);
+    expect(plugin.settings.feeds.map((f) => f.url)).toEqual([
+      "https://example.com/a.xml",
+      "https://example.com/b.xml",
+    ]);
+    expect(notices()).toContain(BUSY_OPERATION_NOTICE);
+
+    for (const heldUrl of heldUrls(harness)) await settle(harness, heldUrl);
+    await refresh;
+  });
+
+  it("cleans up global operation and signal if an error is thrown during ingestion", async () => {
+    const harness = createHarness([createFeed("a")]);
+    const { plugin } = harness;
+
+    vi.spyOn(plugin, "ensureFolderExists").mockRejectedValueOnce(
+      new Error("Folder creation failed"),
+    );
+
+    await expect(
+      plugin.ingestFeedsForBackgroundImport(
+        [
+          {
+            title: "Folder Feed",
+            url: "https://example.com/feed.xml",
+            folder: "NewFolder",
+          },
+        ],
+        { globalOperation: true },
+      ),
+    ).rejects.toThrow("Folder creation failed");
+
+    expect(plugin.isMultiFeedRefreshActive).toBe(false);
+    expect(
+      (
+        plugin as unknown as {
+          backgroundImportService: { backgroundImportSignal: unknown };
+        }
+      ).backgroundImportService.backgroundImportSignal,
+    ).toBeNull();
+
+    const refresh = plugin.refreshFeeds();
+    await flush();
+    expect(notices()).not.toContain(BUSY_OPERATION_NOTICE);
     for (const heldUrl of heldUrls(harness)) await settle(harness, heldUrl);
     await refresh;
   });
