@@ -131,12 +131,12 @@ export class FolderSelectorPopup {
       popup.addClass("rss-folder-selector-popup-above");
     }
 
-    // On mobile, the CSS @media sheet rule positions the popup — no inline override needed.
-    // On desktop, calculate and apply anchor-relative positioning.
+    // On mobile, CSS controls the popup's horizontal sheet layout while the
+    // inline top keeps it anchored to the button. Desktop uses both offsets.
     const isMobile = activeWindow.matchMedia("(max-width: 600px)").matches;
     if (isMobile) {
       popup.style.removeProperty("left");
-      popup.style.removeProperty("top");
+      popup.style.top = `${top}px`;
     } else {
       popup.style.left = `${left}px`;
       popup.style.top = `${top}px`;
