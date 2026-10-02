@@ -10,7 +10,7 @@ accepted
 
 ## Date
 
-2026-09-15
+2026-09-15. Amended 2026-10-02: two persisted field names (see _Amendment, 2026-10-02_).
 
 ## Context and problem
 
@@ -71,7 +71,7 @@ Author pollution is publisher-specific, not a general trait: measured across 16 
 - **Parse-time, no fetch needed.** The RSS/Atom/JSON-Feed parsers stop keeping only the first author element and collect every one; a new shared `splitAuthorElements` (`src/services/feed-parser/author-normalization.ts`) keeps the substring before the first comma or pipe **per element**. This alone resolves the comma/pipe-style pollution with zero page fetch.
 - **Post-fetch.** `article-metadata.ts` adds a fourth page-level author signal, schema.org microdata (`itemprop="author"`), alongside `meta[name=author]` / JSON-LD / `rel=author` (microdata is the only mechanism that resolves one of the three polluted publishers, which has neither of the other two markers). Priority is meta -> JSON-LD -> microdata -> `rel=author`. The page-level result overrides the feed-derived value only when the feed side resolved to a single author entry — a multi-element feed result is trusted as-is, since a page byline typically exposes only the primary author.
 
-`ResolvedArticleMetadata.author` and the persisted `FeedItem.author` are both `string[]`, not `string` — needed to hold multiple co-authors without re-concatenating them, and no storage migration is required for a new optional field under [ADR 0006](0006-deprecate-legacy-json-and-shard-storage-v1.md). `{{author}}` stays a single `", "`-joined string in the template output for now; per-name output is deferred with Web Clipper parity (out of scope). A natural-language pollution case with no comma or pipe (`"Name in City"`) has no parse-time fix and is caught only when the page fetch runs — an accepted gap, not a defect to chase further.
+`ResolvedArticleMetadata.authors` and the persisted `FeedItem.authors` are both `string[]` — needed to hold multiple co-authors without re-concatenating them, and no storage migration is required for a new optional field under [ADR 0006](0006-deprecate-legacy-json-and-shard-storage-v1.md). The existing `FeedItem.author` stays a `string` holding the same names joined with `", "`, so its stored type and its readers are unchanged (amended 2026-10-02). `{{author}}` stays a single `", "`-joined string in the template output for now; per-name output is deferred with Web Clipper parity (out of scope). A natural-language pollution case with no comma or pipe (`"Name in City"`) has no parse-time fix and is caught only when the page fetch runs — an accepted gap, not a defect to chase further.
 
 ### Duplicate-intro suppression
 
@@ -81,7 +81,7 @@ This one test (`isDuplicateIntro`, built on the existing `htmlToReadableText`) i
 
 ### What persists, and its staleness policy
 
-`FeedItem` gains six new optional fields, populated once a full-article fetch resolves them (#268, author shape revised by #291): `description` (overwrites the feed-derived value), `language`, `author` (`string[]`), `canonicalUrl`, `metadataFetchedAt`, and `languageSource`.
+`FeedItem` gains six new optional fields, populated once a full-article fetch resolves them (#268, author shape revised by #291, names amended 2026-10-02): `publisherDescription` (the resolved description, stored beside the feed-supplied `FeedItem.description` rather than over it), `language`, `authors` (`string[]`), `canonicalUrl`, `metadataFetchedAt`, and `languageSource`.
 
 **First-write-wins**: once `metadataFetchedAt` is set on an item, a later feed refresh never overwrites these fields — feed metadata is the pre-fetch fallback, not a rival source to reconcile against on every refresh.
 
@@ -95,18 +95,28 @@ No byte-budget concern was found or is needed: `content` already dwarfs six opti
 
 This is a blanket rule, not a case-by-case judgment: the plugin writes into the user's vault notes, so a template variable silently changing its output is unacceptable even when the new value is objectively better. `{{summary}}` stays absent from frontmatter templates by design — frontmatter is structured, a prose excerpt is body-shaped — while `{{description}}` and `{{excerpt}}` are the new, separately named variables #246/#247 expose through the template-variable registry (#266). The _Summary_, _Description_, _Excerpt_, and _Feed description_ glossary entries record the distinction.
 
+### Amendment, 2026-10-02
+
+Two persisted field names above were changed when implementation of #247 began, before any of this seam had shipped:
+
+- **`publisherDescription`, not `description`.** `FeedItem.description` already holds the feed-supplied HTML, the _Feed description_. The Reader falls back to it for the article body, podcast audio detection reads it, keyword filters match on it, and every refresh rewrites it. Overwriting it with a page-level description would break those readers, and the next refresh would undo it, so the resolved description gets its own field. Whether `FeedItem.description` should be renamed is audited separately in [#666](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/666), which doesn't block this seam.
+- **`authors`, beside `author`.** `FeedItem.author` is already a `string`, stored in every shard and read as a string across the codebase. Changing its type would need the storage migration that the "new optional field" reasoning above avoids. The co-author list is a new optional `authors: string[]`, and `author` keeps the names joined with `", "`.
+
+The project's policy is a new ADR that supersedes an accepted one. This record was amended in place instead, as [agreed on #247](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/247#issuecomment-5945262623), because none of the decisions it records had shipped or reached a stable branch.
+
 ## Consequences
 
 `article-saver.ts` and `feed-parser-class.ts` stay under their line-count threshold by construction — the new logic never lands in either file, and deleting the dead `extractContentFromDocument`/`convertRelativeUrlsInContent` pair shrinks `article-saver.ts` by roughly 50 lines instead of relocating them.
 
 `RawArticleMetadata` and `ResolvedArticleMetadata` get their own test file under `test_files/unit/utils/`, exercised directly against `Document` fixtures rather than through the full fetch-and-proxy machinery in `fetch-helpers.test.ts`.
 
-#246 and #247 can now be implemented without a further architectural decision: extraction interface, description/language/author precedence, the degenerate-value guard, duplicate-intro suppression, the persisted-field list and its staleness policy, and `{{summary}}` compatibility are all settled above. Both remain blocked on #253 (architecture-drift guardrails) landing before implementation starts; this ADR settles the shape, not the scheduling. Implementation is tracked in [GitHub Issue #247](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/247).
+#246 and #247 can now be implemented without a further architectural decision: extraction interface, description/language/author precedence, the degenerate-value guard, duplicate-intro suppression, the persisted-field list and its staleness policy, and `{{summary}}` compatibility are all settled above. Both were blocked on #253 (architecture-drift guardrails) landing before implementation started, and #253 has since landed; this ADR settles the shape, not the scheduling. Implementation is tracked in [GitHub Issue #247](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/247) and planned slice by slice in [the #247 plan](../plans/247-article-metadata-enrichment.md).
 
 ### Existing users and data
 
 - Existing saved-note templates keep producing byte-identical `{{summary}}` output.
 - The new `FeedItem` fields are optional and need no storage migration; articles are enriched only when a full-article fetch resolves them, and first-write-wins means a later refresh never overwrites that result.
+- `FeedItem.description` and `FeedItem.author` keep their current meaning and type.
 
 ## Considered options
 
@@ -163,4 +173,6 @@ Rejected (#271). A template variable's output changing silently in a vault note 
 - [GitHub Issue #268](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/268), [#269](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/269), [#271](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/271), [#275](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/275), [#290](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/290), and [#291](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/291) — persistence, duplicate-intro, `{{summary}}`, degenerate-value, and author decisions
 - [GitHub Issue #246](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/246) and [GitHub Issue #247](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/247) — the features this seam unblocks
 - [GitHub PR #253](https://github.com/amatya-aditya/obsidian-rss-dashboard/pull/253) — architecture-drift guardrails
+- [GitHub Issue #666](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/666) — audit of `FeedItem.description` and whether it needs a clearer name
+- [Article metadata enrichment plan](../plans/247-article-metadata-enrichment.md) — the #247 implementation slices
 - [Glossary: Article metadata pipeline](../../CONTEXT.md#article-metadata-pipeline)
