@@ -4,6 +4,7 @@ import {
   batchMoveFeedsAndFolders,
   describeBatchMove,
   describeRefusedFolders,
+  resolveBatchMovedFolder,
 } from "../../../src/services/sidebar-batch-move";
 import type { Feed, Folder, RssDashboardSettings } from "../../../src/types/types";
 
@@ -177,5 +178,40 @@ describe("describeRefusedFolders", () => {
         folders: [{ oldPath: "A", newPath: "X/A", error: null }],
       }),
     ).toEqual([]);
+  });
+});
+
+describe("resolveBatchMovedFolder", () => {
+  const folders = [
+    { oldPath: "News", newPath: "Empty/News", error: null },
+    { oldPath: "Old", newPath: null, error: "Dragged folder not found." },
+  ];
+
+  it("follows a moved folder to its new path", () => {
+    expect(resolveBatchMovedFolder("News", { folders })).toBe("Empty/News");
+  });
+
+  it("follows a folder inside a moved folder", () => {
+    expect(resolveBatchMovedFolder("News/Tech", { folders })).toBe(
+      "Empty/News/Tech",
+    );
+  });
+
+  it("is null when the folder did not move, its folder was refused, or nothing is open", () => {
+    expect(resolveBatchMovedFolder("Newsletter", { folders })).toBeNull();
+    expect(resolveBatchMovedFolder("Old", { folders })).toBeNull();
+    expect(resolveBatchMovedFolder(null, { folders })).toBeNull();
+  });
+
+  it("compares whole path segments, so 'News' does not move 'Newsletter'", () => {
+    expect(resolveBatchMovedFolder("Newsletter/Tech", { folders })).toBeNull();
+  });
+
+  it("is null when a folder dropped on its own parent kept its path", () => {
+    const samePlace = [{ oldPath: "News/Tech", newPath: "News/Tech", error: null }];
+    expect(resolveBatchMovedFolder("News/Tech", { folders: samePlace })).toBeNull();
+    expect(
+      resolveBatchMovedFolder("News/Tech/Deep", { folders: samePlace }),
+    ).toBeNull();
   });
 });

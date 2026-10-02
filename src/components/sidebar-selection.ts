@@ -1,3 +1,8 @@
+import {
+  resolveBatchMovedFolder,
+  type BatchMoveResult,
+} from "../services/sidebar-batch-move";
+
 /**
  * Clears the sidebar's multi-selection after the sidebar moved it. The
  * dashboard view owns the selection and hands the sidebar its arrays, so
@@ -17,4 +22,28 @@ export function clearMovedSelection(
   selection.selectedFeeds = [];
   selection.selectedFolders = [];
   if (hadSelection) onFolderMultiSelect?.([]);
+}
+
+/**
+ * Tells the dashboard what a batch move changed. The selection is cleared as
+ * above, then, when the batch moved the open folder or a folder it sits in,
+ * the folder is reopened at its new path through `onFolderClick`, as a
+ * single-folder drop does. The open folder is read before the selection is
+ * cleared, which redraws the sidebar, and reopened after it, so it stays open.
+ */
+export function reportBatchMove(
+  options: {
+    currentFolder: string | null;
+    selectedFolders?: string[];
+    selectedFeeds?: string[];
+  },
+  callbacks: {
+    onFolderClick: (folder: string | null) => void;
+    onFolderMultiSelect?: (folders: string[]) => void;
+  },
+  result: Pick<BatchMoveResult, "folders">,
+): void {
+  const movedOpenFolder = resolveBatchMovedFolder(options.currentFolder, result);
+  clearMovedSelection(options, callbacks.onFolderMultiSelect);
+  if (movedOpenFolder !== null) callbacks.onFolderClick(movedOpenFolder);
 }
