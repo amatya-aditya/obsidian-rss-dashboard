@@ -4,7 +4,7 @@ created: 2026-10-01
 completed: 2026-10-02
 released_in: unreleased
 issue: "https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/684"
-implementation: ""
+implementation: "https://github.com/amatya-aditya/obsidian-rss-dashboard/pull/690"
 ---
 
 # Standardize Article Star Toggle Hover Styling
