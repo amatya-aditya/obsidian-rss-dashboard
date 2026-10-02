@@ -51,6 +51,10 @@ import {
   type SidebarFolderMenuHost,
 } from "./sidebar-folder-menu";
 import {
+  attachSidebarRootAreaEvents,
+  type SidebarRootAreaHost,
+} from "./sidebar-root-area";
+import {
   moveFeedsAndInsert,
   moveFolder,
   setFolderFeedSortCustom,
@@ -553,141 +557,33 @@ export class Sidebar {
       });
     }
 
-    // Add drop handler for root area - only when dropping on the actual root section, not on folders
-    feedFoldersSection.addEventListener("dragover", (e) => {
-      // Only show drag-over if we're not over a folder header
-      // Only show drag-over if we're not over a folder header or folder feed area
-      const target = e.target as HTMLElement;
-      if (
-        !target.closest(".rss-dashboard-feed-folder-header") &&
-        !target.closest(".rss-dashboard-folder-feeds")
-      ) {
-        e.preventDefault();
-        feedFoldersSection.classList.add("drag-over");
-      }
-    });
+    attachSidebarRootAreaEvents(feedFoldersSection, this.buildRootAreaHost());
+  }
 
-    feedFoldersSection.addEventListener("dragleave", (e) => {
-      // Only remove drag-over if we're actually leaving the root section
-      // Only remove drag-over if we're actually leaving the root section
-      const target = e.target as HTMLElement;
-      if (
-        !target.closest(".rss-dashboard-feed-folder-header") &&
-        !target.closest(".rss-dashboard-folder-feeds")
-      ) {
-        feedFoldersSection.classList.remove("drag-over");
-      }
-    });
-
-    feedFoldersSection.addEventListener("drop", (e) => {
-      const target = e.target as HTMLElement;
-
-      // Only process drops on the root section, not on folder headers or folder feed areas
-      if (
-        target.closest(".rss-dashboard-feed-folder-header") ||
-        target.closest(".rss-dashboard-folder-feeds")
-      ) {
-        return; // Let the folder handle this drop
-      }
-
-      e.preventDefault();
-      feedFoldersSection.classList.remove("drag-over");
-      if (e.dataTransfer) {
-        const { feedUrls, folderPaths } = this.extractDragPayload(e.dataTransfer);
-        if (feedUrls.length > 0 || folderPaths.length > 1) {
-          this.batchMoveFeedsAndFoldersToFolder("", feedUrls, folderPaths);
-          return;
-        }
-
-        const draggedFolderPath = e.dataTransfer.getData("folder-path");
-        if (draggedFolderPath) {
-          const result = moveFolder(this.settings, {
-            draggedPath: draggedFolderPath,
-            targetPath: "",
-            placement: "rootAppend",
-          });
-
-          if (!result.ok || !result.newPath) {
-            new Notice(result.error || "Unable to move folder.");
-            return;
-          }
-
-          this.clearFolderPathCache();
-
-          const remapPathPrefix = (
-            path: string,
-            fromBase: string,
-            toBase: string,
-          ) => {
-            if (path === fromBase) return toBase;
-            if (path.startsWith(`${fromBase}/`)) {
-              return `${toBase}${path.substring(fromBase.length)}`;
-            }
-            return path;
-          };
-
-          const currentFolder = this.options.currentFolder;
-          if (
-            currentFolder &&
-            (currentFolder === draggedFolderPath ||
-              currentFolder.startsWith(`${draggedFolderPath}/`))
-          ) {
-            const nextFolder = remapPathPrefix(
-              currentFolder,
-              draggedFolderPath,
-              result.newPath,
-            );
-            this.callbacks.onFolderClick(nextFolder);
-          }
-
-          void this.plugin.saveSettings().then(() => this.render());
-          return;
-        }
-
-        const feedUrl = e.dataTransfer.getData("feed-url");
-        if (feedUrl) {
-          this.batchMoveFeedsAndFoldersToFolder("", [feedUrl], []);
-        }
-      }
-    });
-
-    feedFoldersSection.addEventListener("contextmenu", (e) => {
-      const target = e.target as HTMLElement;
-      const isItem =
-        target.closest(".rss-dashboard-feed") ||
-        target.closest(".rss-dashboard-feed-folder-header") ||
-        target.closest(".rss-dashboard-all-feeds-button");
-
-      if (!isItem) {
-        e.preventDefault();
-        const menu = new Menu();
-        menu.addItem((item: MenuItem) => {
-          item
-            .setTitle("Add folder")
-            .setIcon("folder-plus")
-            .onClick(() => {
-              this.showFolderNameModal({
-                title: "Add folder",
-                existingNames: this.settings.folders.map((f) => f.name),
-                onSubmit: (folderName) => {
-                  void this.addTopLevelFolder(folderName).then(() =>
-                    this.render(),
-                  );
-                },
-              });
-            });
-        });
-        menu.addItem((item: MenuItem) => {
-          item
-            .setTitle("Add feed")
-            .setIcon("rss")
-            .onClick(() => {
-              this.showAddFeedModal();
-            });
-        });
-        menu.showAtMouseEvent(e);
-      }
-    });
+  private buildRootAreaHost(): SidebarRootAreaHost {
+    return {
+      settings: this.settings,
+      options: this.options,
+      callbacks: this.callbacks,
+      plugin: this.plugin,
+      render: () => this.render(),
+      extractDragPayload: (dataTransfer) =>
+        this.extractDragPayload(dataTransfer),
+      batchMoveFeedsAndFoldersToFolder: (
+        destinationFolderPath,
+        feedUrls,
+        folderPaths,
+      ) =>
+        this.batchMoveFeedsAndFoldersToFolder(
+          destinationFolderPath,
+          feedUrls,
+          folderPaths,
+        ),
+      clearFolderPathCache: () => this.clearFolderPathCache(),
+      showFolderNameModal: (options) => this.showFolderNameModal(options),
+      addTopLevelFolder: (folderName) => this.addTopLevelFolder(folderName),
+      showAddFeedModal: () => this.showAddFeedModal(),
+    };
   }
 
   private renderTagsSection(container: HTMLElement): void {
