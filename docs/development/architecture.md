@@ -51,7 +51,6 @@ with more than 5 parameters.
 `scripts/architecture-baseline.json` → `ratchets.fileMaxLines` holds the
 current physical line count of each refactor target:
 
-- `main.ts`
 - `src/components/sidebar.ts`
 - `src/services/feed-storage-repository.ts`
 - `src/views/dashboard-view.ts`
@@ -61,6 +60,10 @@ The ratchet only goes down. When a change shrinks one of these files, lower
 its baseline to the new count in the same change; the check fails until you
 do. Remove importer or cycle allowances in the same change that eliminates
 them.
+
+`main.ts` has no line ratchet. ESLint `max-lines-per-function` and
+`complexity` bound its functions, and the importer, dependency-direction, and
+runtime-cycle ratchets still guard its role as the composition root.
 
 ### ESLint suppressions
 
@@ -170,7 +173,7 @@ Report each ratcheted file's line delta, parameter-count crossings, new
 at handoff, for example:
 
 ```text
-main.ts LOC delta: -74
+src/components/sidebar.ts LOC delta: -74
 src/services/feed-storage-repository.ts LOC delta: +0
 new threshold crossings: 0
 new main.ts importers: none
