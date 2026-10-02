@@ -1,4 +1,4 @@
-import { App, Notice, TFile, setIcon, Setting, moment, setTooltip } from "obsidian";
+import { App, Notice, TFile, setIcon, moment, setTooltip } from "obsidian";
 import { FeedItem, ArticleSavingSettings } from "../types/types";
 import { sanitizeFilename } from "./article-saver";
 import { normalizeSubstackImageUrl } from "../utils/substack-image-url";
@@ -24,10 +24,31 @@ interface ObsidianApp extends App {
   plugins: ObsidianPlugins;
 }
 
+export interface WebViewerSaveDialogOptions {
+  defaultFolder: string;
+  defaultTemplate: string;
+  includeFrontmatter: boolean;
+  /** Saves the page; the dialog closes once it resolves, and stays open if it throws. */
+  onSave: (
+    folder: string,
+    template: string,
+    includeFrontmatter: boolean,
+  ) => Promise<unknown>;
+}
+
+/**
+ * Opens the "Save with template" dialog. The view layer supplies it so this
+ * service does not import a modal.
+ */
+export type OpenWebViewerSaveDialog = (
+  options: WebViewerSaveDialogOptions,
+) => void;
+
 export class WebViewerIntegration {
   private app: ObsidianApp;
   private settingsProvider: () => ArticleSavingSettings;
   private getUseFirstSeenDateFallback: () => boolean;
+  private openSaveDialog: OpenWebViewerSaveDialog | null;
 
   private get settings(): ArticleSavingSettings {
     return this.settingsProvider();
@@ -37,6 +58,7 @@ export class WebViewerIntegration {
     app: App,
     settings: () => ArticleSavingSettings,
     getUseFirstSeenDateFallback: () => boolean,
+    openSaveDialog: OpenWebViewerSaveDialog | null = null,
   ): WebViewerIntegration | null {
     try {
       const plugins = (app as unknown as { plugins?: { plugins?: Record<string, unknown> } })
@@ -46,6 +68,7 @@ export class WebViewerIntegration {
             app as unknown as ObsidianApp,
             settings,
             getUseFirstSeenDateFallback,
+            openSaveDialog,
           )
         : null;
     } catch {
@@ -57,11 +80,13 @@ export class WebViewerIntegration {
     app: ObsidianApp,
     settings: ArticleSavingSettings | (() => ArticleSavingSettings),
     getUseFirstSeenDateFallback: () => boolean = () => false,
+    openSaveDialog: OpenWebViewerSaveDialog | null = null,
   ) {
     this.app = app;
     this.settingsProvider =
       typeof settings === "function" ? settings : () => settings;
     this.getUseFirstSeenDateFallback = getUseFirstSeenDateFallback;
+    this.openSaveDialog = openSaveDialog;
   }
 
   async openInWebViewer(url: string, title: string): Promise<boolean> {
@@ -129,148 +154,32 @@ export class WebViewerIntegration {
     const url = webViewerPlugin.currentUrl || "";
     const content = webViewerPlugin.cleanedHtml || "";
 
-    const modal = activeDocument.body.createDiv({
-      cls: "rss-dashboard-modal",
-    });
-
-    const modalContent = modal.createDiv({
-      cls: "rss-dashboard-modal-content",
-    });
-
-    new Setting(modalContent).setName("Save with template").setHeading();
-
-    const folderLabel = modalContent.createEl("label", {
-      text: "Save to folder:",
-    });
-
-    const folderInput = modalContent.createEl("input", {
-      attr: {
-        type: "text",
-        placeholder: "Enter folder path",
-        value: this.settings.defaultFolder || "RSS articles/",
-        autocomplete: "off",
-      },
-    });
-    folderInput.spellcheck = false;
-    folderInput.addEventListener("focus", () => folderInput.select());
-
-    const templateLabel = modalContent.createEl("label", {
-      text: "Use template:",
-    });
-
-    const templateInput = modalContent.createEl("textarea", {
-      attr: {
-        placeholder: "Enter template",
-        rows: "6",
-        autocomplete: "off",
-      },
-    });
-    templateInput.spellcheck = false;
-    templateInput.value =
-      this.settings.defaultTemplate ||
-      "---\ntitle: {{title}}\n---\n\n# {{title}}\n\n#rss #{{feedTitle}}\n\n{{content}}";
-    templateInput.addEventListener("focus", () => templateInput.select());
-
-    const includeFrontmatterCheck = modalContent.createDiv({
-      cls: "rss-dashboard-checkbox",
-    });
-
-    const frontmatterCheckbox = includeFrontmatterCheck.createEl("input", {
-      attr: {
-        type: "checkbox",
-        id: "include-frontmatter",
-      },
-    });
-    frontmatterCheckbox.checked = this.settings.includeFrontmatter !== false;
-
-    includeFrontmatterCheck.createEl("label", {
-      attr: { htmlFor: "include-frontmatter" },
-      text: "Include frontmatter",
-    });
-
-    const buttonContainer = modalContent.createDiv({
-      cls: "rss-dashboard-modal-buttons",
-    });
-
-    const cancelButton = buttonContainer.createEl("button", {
-      text: "Cancel",
-    });
-    cancelButton.addEventListener("click", () => {
-      activeDocument.body.removeChild(modal);
-    });
-
-    const saveButton = buttonContainer.createEl("button", {
-      text: "Save",
-      cls: "rss-dashboard-primary-button",
-    });
-    saveButton.addEventListener("click", () => {
-      void (async () => {
-        const folder = folderInput.value.trim();
-        const template = templateInput.value.trim();
-        const includeFrontmatter = frontmatterCheckbox.checked;
-
-        try {
-          await this.saveArticle(
-            {
-              title,
-              link: url,
-              description: content,
-              pubDate: new Date().toUTCString(),
-              guid: url,
-              feedTitle: "Web viewer",
-              feedUrl: "",
-              coverImage: "",
-              read: true,
-              starred: false,
-              tags: [],
-              saved: false,
-            },
-            folder,
-            template,
-            includeFrontmatter,
-          );
-
-          activeDocument.body.removeChild(modal);
-        } catch (error) {
-          const message =
-            error instanceof Error ? error.message : String(error);
-          new Notice(`Error saving article: ${message}`);
-        }
-      })();
-    });
-
-    folderInput.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") {
-        templateInput.focus();
-      } else if (e.key === "Escape") {
-        activeDocument.body.removeChild(modal);
-      }
-    });
-    templateInput.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" && !e.shiftKey) {
-        saveButton.click();
-        e.preventDefault();
-      } else if (e.key === "Escape") {
-        activeDocument.body.removeChild(modal);
-      }
-    });
-
-    buttonContainer.appendChild(cancelButton);
-    buttonContainer.appendChild(saveButton);
-
-    modalContent.appendChild(folderLabel);
-    modalContent.appendChild(folderInput);
-    modalContent.appendChild(templateLabel);
-    modalContent.appendChild(templateInput);
-    modalContent.appendChild(includeFrontmatterCheck);
-    modalContent.appendChild(buttonContainer);
-
-    modal.appendChild(modalContent);
-    activeDocument.body.appendChild(modal);
-
-    window.requestAnimationFrame(() => {
-      folderInput.focus();
-      folderInput.select();
+    this.openSaveDialog?.({
+      defaultFolder: this.settings.defaultFolder || "RSS articles/",
+      defaultTemplate:
+        this.settings.defaultTemplate ||
+        "---\ntitle: {{title}}\n---\n\n# {{title}}\n\n#rss #{{feedTitle}}\n\n{{content}}",
+      includeFrontmatter: this.settings.includeFrontmatter !== false,
+      onSave: (folder, template, includeFrontmatter) =>
+        this.saveArticle(
+          {
+            title,
+            link: url,
+            description: content,
+            pubDate: new Date().toUTCString(),
+            guid: url,
+            feedTitle: "Web viewer",
+            feedUrl: "",
+            coverImage: "",
+            read: true,
+            starred: false,
+            tags: [],
+            saved: false,
+          },
+          folder,
+          template,
+          includeFrontmatter,
+        ),
     });
   }
 

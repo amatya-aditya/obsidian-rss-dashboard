@@ -1,4 +1,4 @@
-import { App, Setting, setIcon } from "obsidian";
+import { App, Modal, Setting, setIcon } from "obsidian";
 import { FeedItem, RssDashboardSettings } from "../types/types";
 import { ArticleSaver } from "../services/article-saver";
 import { VaultFolderSuggest } from "../components/folder-suggest";
@@ -16,8 +16,6 @@ interface PendingTemplate {
 }
 
 export interface ReaderCustomSaveModalContext {
-  app: App;
-  getActiveDocument: () => Document;
   getSettings: () => RssDashboardSettings;
   getArticleSaver: () => ArticleSaver;
   displayTitle: string | undefined;
@@ -33,20 +31,8 @@ interface TemplateControls {
   saveAsButton: HTMLButtonElement;
 }
 
-function createModalShell(activeDocument: Document): {
-  modal: HTMLDivElement;
-  content: HTMLDivElement;
-} {
-  const modal = activeDocument.body.createDiv({
-    cls: "rss-dashboard-modal rss-dashboard-modal-container rss-dashboard-custom-save-modal",
-  });
-  return {
-    modal,
-    content: modal.createDiv({ cls: "rss-dashboard-modal-content" }),
-  };
-}
-
 function createFolderControls(
+  app: App,
   content: HTMLElement,
   context: ReaderCustomSaveModalContext,
 ): HTMLInputElement {
@@ -81,7 +67,7 @@ function createFolderControls(
       clearAction();
     }
   });
-  new VaultFolderSuggest(context.app, folderInput);
+  new VaultFolderSuggest(app, folderInput);
   return folderInput;
 }
 
@@ -150,6 +136,7 @@ function refreshSaveAsButton(
 }
 
 function createTemplateControls(
+  app: App,
   content: HTMLElement,
   item: FeedItem,
   context: ReaderCustomSaveModalContext,
@@ -200,11 +187,11 @@ function createTemplateControls(
   input.addEventListener("input", refresh);
   saveAsButton.addEventListener("click", () => {
     void (async () => {
-      const nameModal = new TemplateNameModal(context.app);
+      const nameModal = new TemplateNameModal(app);
       nameModal.open();
       const name = await nameModal.waitForClose();
       if (!name) return;
-      const assignmentModal = new ConfirmTemplateAssignmentModal(context.app);
+      const assignmentModal = new ConfirmTemplateAssignmentModal(app);
       assignmentModal.open();
       const assignToFeed = await assignmentModal.waitForClose();
       const id = "template-" + Date.now();
@@ -227,7 +214,7 @@ function createTemplateControls(
 
 function createActionButtons(
   content: HTMLElement,
-  modal: HTMLElement,
+  modal: Modal,
   item: FeedItem,
   folderInput: HTMLInputElement,
   templateControls: TemplateControls & { getPending: () => PendingTemplate | null },
@@ -239,7 +226,7 @@ function createActionButtons(
     cls: "rss-dashboard-custom-save-cancel-button",
   });
   cancelButton.addEventListener("click", () => {
-    context.getActiveDocument().body.removeChild(modal);
+    modal.close();
   });
   const saveButton = buttonContainer.createEl("button", {
     text: "Save",
@@ -282,22 +269,46 @@ function createActionButtons(
         context.onArticleSave(item);
         context.updateSavedLabel(true);
       }
-      context.getActiveDocument().body.removeChild(modal);
+      modal.close();
     })();
   });
   buttonContainer.appendChild(cancelButton);
   buttonContainer.appendChild(saveButton);
 }
 
-export function openReaderCustomSaveModal(
-  item: FeedItem,
-  context: ReaderCustomSaveModalContext,
-): void {
-  const activeDocument = context.getActiveDocument();
-  const { modal, content } = createModalShell(activeDocument);
-  new Setting(content).setName("Save article").setHeading();
-  const folderInput = createFolderControls(content, context);
-  const templateControls = createTemplateControls(content, item, context);
-  createActionButtons(content, modal, item, folderInput, templateControls, context);
-  activeDocument.body.appendChild(modal);
+export class ReaderCustomSaveModal extends Modal {
+  private readonly item: FeedItem;
+  private readonly context: ReaderCustomSaveModalContext;
+
+  constructor(app: App, item: FeedItem, context: ReaderCustomSaveModalContext) {
+    super(app);
+    this.item = item;
+    this.context = context;
+  }
+
+  onOpen() {
+    const { contentEl } = this;
+    contentEl.empty();
+    this.modalEl.addClass("rss-dashboard-custom-save-modal");
+    new Setting(contentEl).setName("Save article").setHeading();
+    const folderInput = createFolderControls(this.app, contentEl, this.context);
+    const templateControls = createTemplateControls(
+      this.app,
+      contentEl,
+      this.item,
+      this.context,
+    );
+    createActionButtons(
+      contentEl,
+      this,
+      this.item,
+      folderInput,
+      templateControls,
+      this.context,
+    );
+  }
+
+  onClose() {
+    this.contentEl.empty();
+  }
 }

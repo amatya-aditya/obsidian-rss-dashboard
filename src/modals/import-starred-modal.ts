@@ -772,6 +772,7 @@ export class ImportStarredModal extends Modal {
   private showNewTagEditor(tag: Tag, pendingTags: readonly Tag[]): void {
     const previous = { ...tag };
     showEditTagModal({
+      app: this.app,
       settings: {
         ...this.plugin.settings,
         availableTags: [...this.plugin.settings.availableTags, ...pendingTags],
@@ -1028,6 +1029,7 @@ export class ImportStarredModal extends Modal {
     };
 
     const cleanup = createTagsDropdownPortal({
+      app: this.app,
       anchor,
       settings: portalSettings,
       item: candidateItem,

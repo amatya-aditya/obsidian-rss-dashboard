@@ -153,7 +153,7 @@ describe("Phase 8 - WebViewerIntegration", () => {
       const h = createWebViewerIntegrationHarness({ webViewerPlugin: null });
 
       h.integration.showSaveDialog();
-      expect(document.querySelector(".rss-dashboard-modal")).toBeNull();
+      expect(document.querySelector(".rss-dashboard-web-viewer-save-modal")).toBeNull();
 
       h.cleanup();
     });
@@ -172,7 +172,7 @@ describe("Phase 8 - WebViewerIntegration", () => {
 
       h.integration.showSaveDialog();
 
-      const modal = document.querySelector<HTMLElement>(".rss-dashboard-modal");
+      const modal = document.querySelector<HTMLElement>(".rss-dashboard-web-viewer-save-modal");
       expect(modal).not.toBeNull();
 
       const folderInput = modal?.querySelector<HTMLInputElement>(
@@ -193,7 +193,7 @@ describe("Phase 8 - WebViewerIntegration", () => {
       expect(cancelButton).not.toBeUndefined();
       cancelButton?.click();
 
-      expect(document.querySelector(".rss-dashboard-modal")).toBeNull();
+      expect(document.querySelector(".rss-dashboard-web-viewer-save-modal")).toBeNull();
 
       rafSpy.mockRestore();
       h.cleanup();
@@ -223,7 +223,7 @@ describe("Phase 8 - WebViewerIntegration", () => {
 
       h.integration.showSaveDialog();
 
-      const modal = document.querySelector<HTMLElement>(".rss-dashboard-modal");
+      const modal = document.querySelector<HTMLElement>(".rss-dashboard-web-viewer-save-modal");
       const saveButton = Array.from(
         modal?.querySelectorAll<HTMLButtonElement>("button") ?? [],
       ).find((b) => b.textContent === "Save");
@@ -235,7 +235,7 @@ describe("Phase 8 - WebViewerIntegration", () => {
       await Promise.resolve();
 
       expect(saveSpy).toHaveBeenCalledTimes(1);
-      expect(document.querySelector(".rss-dashboard-modal")).toBeNull();
+      expect(document.querySelector(".rss-dashboard-web-viewer-save-modal")).toBeNull();
 
       rafSpy.mockRestore();
       h.cleanup();
