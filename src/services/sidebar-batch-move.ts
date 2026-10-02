@@ -1,4 +1,5 @@
 import type { Folder, RssDashboardSettings } from "../types/types";
+import { remapPathPrefix } from "../utils/sidebar-row-interactions";
 import {
   moveFeedsToFolderAppend,
   moveFolder,
@@ -7,10 +8,24 @@ import {
 export const BATCH_MOVE_SKIPPED_NOTICE =
   "Skipped moving folder into itself or its subfolder.";
 
+/** What a batch move did with one dragged folder. */
+export interface BatchMoveFolderOutcome {
+  /** The folder's path when the batch started. */
+  oldPath: string;
+  /** Its path after the batch, or null when it stayed where it was. */
+  newPath: string | null;
+  /**
+   * Why it stayed, worded for a notice: the skip notice for a drop on itself
+   * or a subfolder, otherwise `moveFolder`'s own error. Null when it moved.
+   */
+  error: string | null;
+}
+
 export interface BatchMoveResult {
   movedFeeds: number;
   movedFolders: number;
-  skippedFolders: number;
+  /** One outcome per dragged folder, in the order they were dragged. */
+  folders: BatchMoveFolderOutcome[];
   /** The feed mover's error (or a fallback), when it refused the move. */
   feedMoveError: string | null;
 }
@@ -22,39 +37,60 @@ export interface BatchMoveRequest {
   findFolder: (path: string) => Folder | null;
 }
 
+function moveOneFolder(
+  settings: RssDashboardSettings,
+  destinationFolderPath: string,
+  folderPath: string,
+): BatchMoveFolderOutcome {
+  if (
+    destinationFolderPath === folderPath ||
+    destinationFolderPath.startsWith(`${folderPath}/`)
+  ) {
+    return { oldPath: folderPath, newPath: null, error: BATCH_MOVE_SKIPPED_NOTICE };
+  }
+
+  const placement = destinationFolderPath ? "nest" : "rootAppend";
+  const result = moveFolder(settings, {
+    draggedPath: folderPath,
+    targetPath: destinationFolderPath,
+    placement,
+  });
+
+  return result.ok
+    ? { oldPath: folderPath, newPath: result.newPath ?? null, error: null }
+    : {
+        oldPath: folderPath,
+        newPath: null,
+        error: result.error || "Unable to move folder.",
+      };
+}
+
 function moveFolders(
   settings: RssDashboardSettings,
   destinationFolderPath: string,
   folderPaths: string[],
-): { moved: number; skipped: number } {
+): { moved: number; outcomes: BatchMoveFolderOutcome[] } {
   let movedFoldersCount = 0;
-  let skippedFoldersCount = 0;
+  const outcomes: BatchMoveFolderOutcome[] = [];
 
   // 1. Move folders first (if any)
   for (const folderPath of folderPaths) {
-    if (
-      destinationFolderPath === folderPath ||
-      destinationFolderPath.startsWith(`${folderPath}/`)
-    ) {
-      skippedFoldersCount++;
+    // A subfolder dragged after its parent already went with it.
+    const parent = outcomes.find(
+      (o) => o.newPath !== null && folderPath.startsWith(`${o.oldPath}/`),
+    );
+    if (parent?.newPath) {
+      const newPath = remapPathPrefix(folderPath, parent.oldPath, parent.newPath);
+      outcomes.push({ oldPath: folderPath, newPath, error: null });
       continue;
     }
 
-    const placement = destinationFolderPath ? "nest" : "rootAppend";
-    const result = moveFolder(settings, {
-      draggedPath: folderPath,
-      targetPath: destinationFolderPath,
-      placement,
-    });
-
-    if (result.ok) {
-      movedFoldersCount++;
-    } else {
-      skippedFoldersCount++;
-    }
+    const outcome = moveOneFolder(settings, destinationFolderPath, folderPath);
+    if (outcome.newPath !== null) movedFoldersCount++;
+    outcomes.push(outcome);
   }
 
-  return { moved: movedFoldersCount, skipped: skippedFoldersCount };
+  return { moved: movedFoldersCount, outcomes };
 }
 
 function moveFeeds(
@@ -120,7 +156,7 @@ export function batchMoveFeedsAndFolders(
   return {
     movedFeeds: feeds.moved,
     movedFolders: folders.moved,
-    skippedFolders: folders.skipped,
+    folders: folders.outcomes,
     feedMoveError: feeds.error,
   };
 }
@@ -150,4 +186,15 @@ export function describeBatchMove(
   }
 
   return null;
+}
+
+/**
+ * The notices for the dragged folders that stayed put: each distinct reason
+ * once, in the order the folders were dragged.
+ */
+export function describeRefusedFolders(
+  result: Pick<BatchMoveResult, "folders">,
+): string[] {
+  const reasons = result.folders.flatMap(({ error }) => (error ? [error] : []));
+  return [...new Set(reasons)];
 }

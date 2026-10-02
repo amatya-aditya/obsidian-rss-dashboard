@@ -57,9 +57,9 @@ import {
   setFolderSortCustom,
 } from "../services/sidebar-ordering-controller";
 import {
-  BATCH_MOVE_SKIPPED_NOTICE,
   batchMoveFeedsAndFolders,
   describeBatchMove,
+  describeRefusedFolders,
 } from "../services/sidebar-batch-move";
 import {
   attachRefreshStatusDetails,
@@ -2008,8 +2008,8 @@ export class Sidebar {
 
     this.clearFolderPathCache();
 
-    if (result.skippedFolders > 0) {
-      new Notice(BATCH_MOVE_SKIPPED_NOTICE);
+    for (const reason of describeRefusedFolders(result)) {
+      new Notice(reason);
     }
 
     const summary = describeBatchMove(result, destinationFolderPath);
