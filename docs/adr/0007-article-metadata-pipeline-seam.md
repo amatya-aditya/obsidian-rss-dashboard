@@ -99,7 +99,7 @@ This is a blanket rule, not a case-by-case judgment: the plugin writes into the 
 
 Two persisted field names above were changed when implementation of #247 began, before any of this seam had shipped:
 
-- **`publisherDescription`, not `description`.** `FeedItem.description` already holds the feed-supplied HTML, the _Feed description_. The Reader falls back to it for the article body, podcast audio detection reads it, keyword filters match on it, and every refresh rewrites it. Overwriting it with a page-level description would break those readers, and the next refresh would undo it, so the resolved description gets its own field. Whether `FeedItem.description` should be renamed is audited separately in [#666](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/666), which doesn't block this seam.
+- **`publisherDescription`, not `description`.** `FeedItem.description` already holds the feed-supplied HTML, the _Feed description_. The Reader falls back to it for the article body, podcast audio detection reads it, keyword filters match on it, and every refresh rewrites it. Overwriting it with a page-level description would break those readers, and the next refresh would undo it, so the resolved description gets its own field. Whether `FeedItem.description` should be renamed was audited in [#666](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/666); it keeps its name (see _Rename `FeedItem.description`_ under Considered options).
 - **`authors`, beside `author`.** `FeedItem.author` is already a `string`, stored in every shard and read as a string across the codebase. Changing its type would need the storage migration that the "new optional field" reasoning above avoids. The co-author list is a new optional `authors: string[]`, and `author` keeps the names joined with `", "`.
 
 The project's policy is a new ADR that supersedes an accepted one. This record was amended in place instead, as [agreed on #247](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/247#issuecomment-5945262623), because none of the decisions it records had shipped or reached a stable branch.
@@ -163,6 +163,10 @@ Rejected for lack of coverage data (#268) and, for `descriptionSource`, low entr
 ### Let `{{summary}}` cascade to `description`/`excerpt` once those exist
 
 Rejected (#271). A template variable's output changing silently in a vault note is unacceptable regardless of whether the new value is better; a future real-summarization feature gets its own variable name instead of reclaiming `summary`.
+
+### Rename `FeedItem.description`
+
+Rejected (#666). The field holds the feed-supplied item blurb (RSS `<description>`, Atom `<summary>`, JSON Feed `summary`), and the standards disagree on its name, with "summary" reserved above for the frozen `{{summary}}` value. A rename would touch about 30 `src` files and about 97 test files. The stored key is literally `description` in shards, legacy `data.json`, bundles and backups, because items are serialized with a raw `cloneJson`. A code-only rename would need a permanent mapping layer at every load and save boundary. A persisted rename needs either dual-write (shards carry the field twice, which can nearly double their size for feeds that put full HTML in the blurb) or a new-key-only write (older synced devices lose the Reader body fallback, podcast audio detection and keyword matching until they refresh). The benefit is naming clarity only, and `publisherDescription` beside `description` plus the _Feed description_ glossary entry already separate the two. Revisit if a storage schema change makes a rename cheap; `feedSynopsis` was the preferred name.
 
 ## Related
 
