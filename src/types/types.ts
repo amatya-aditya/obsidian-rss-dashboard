@@ -1,6 +1,11 @@
 export interface FeedItem {
   title: string;
   link: string;
+  /**
+   * The feed-supplied item blurb, rewritten on every refresh: RSS `<description>`,
+   * Atom `<summary>`, or JSON Feed `summary`. The body is `content`. See the
+   * "Feed description" entry in CONTEXT.md and #666 for why the name stays.
+   */
   description: string;
   pubDate: string;
   guid: string;

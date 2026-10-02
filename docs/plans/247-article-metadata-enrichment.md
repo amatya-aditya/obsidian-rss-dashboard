@@ -22,7 +22,7 @@ The plan was first written on 2026-09-16 in commit `80508d2`, which never reache
 - [#253](https://github.com/amatya-aditya/obsidian-rss-dashboard/pull/253) (architecture-drift guardrails) has landed, so this work runs under `check:architecture` and ESLint's function-length and complexity limits from the start. The new logic still goes in new modules rather than in `article-saver.ts` or `feed-parser-class.ts`.
 - [#266](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/266) settled the template-variable registry's design but never built it, so the registry is slice 1 here.
 - Dashboard preview resolution is deferred out of these slices until the questions in **Deferred** are settled on [#263](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/263).
-- [#666](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/666) audits `FeedItem.description` and whether it needs a clearer name. It runs alongside and blocks nothing here.
+- [#666](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/666) audited `FeedItem.description` and decided to keep its name. Nothing here depends on it.
 
 ## Delivery
 
