@@ -50,6 +50,22 @@ const QUOTED = {
   coverImage: 'https://img.example/c"c.png',
 };
 
+/**
+ * An item with `$&` in every string value. `String.replace` reads `$&` as
+ * "the matched text", so each value that goes through a plain-string
+ * replacement echoes its own placeholder (#672).
+ */
+const DOLLAR = {
+  title: "T $& t",
+  author: "A $& a",
+  feedTitle: "F $& f",
+  link: "https://example.com/$&",
+  guid: "g $& g",
+  summary: "S $& s",
+  coverImage: "https://img.example/$&.png",
+  tags: [{ name: "N $& n", color: "#e74c3c" }],
+};
+
 /** Every variable any chain knows, one per line, plus one no chain knows. */
 const ALL_VARIABLES = [
   "T={{title}}",
@@ -278,6 +294,20 @@ describe("ArticleSaver note template", () => {
     expect(note).toBe("[Price $100, and {{title}} too]");
   });
 
+  it("reads $ sequences as replacement patterns in every string value", async () => {
+    // BUG: pinned, see #672
+    const note = await saveWithArticleSaver(
+      createItem(DOLLAR),
+      {},
+      "{{title}}|{{link}}|{{author}}|{{source}}|{{feedTitle}}|{{summary}}|{{tags}}|{{guid}}|{{image}}",
+      "x",
+    );
+
+    expect(note).toBe(
+      "T {{title}} t|https://example.com/{{link}}|A {{author}} a|F {{source}} f|F {{feedTitle}} f|S {{summary}} s|N {{tags}} n|g {{guid}} g|https://img.example/{{image}}.png",
+    );
+  });
+
   it("fills a placeholder inside a value when a later step substitutes it", async () => {
     // Dates go first and {{link}} after {{title}}, so a title holding
     // "{{link}}" gets the link while one holding "{{date}}" keeps it.
@@ -502,6 +532,24 @@ describe("ArticleSaver frontmatter template", () => {
 
     expect(note).toBe('---\ntitle: "Price $100, and {{title}} too"\n---\nBODY');
   });
+
+  it("reads $ sequences as replacement patterns in every string value", async () => {
+    // BUG: pinned, see #672
+    const note = await saveWithArticleSaver(
+      createItem(DOLLAR),
+      {
+        includeFrontmatter: true,
+        frontmatterTemplate:
+          "---\n{{title}}|{{tags}}|{{source}}|{{link}}|{{author}}|{{feedTitle}}|{{guid}}|{{image}}\n---",
+      },
+      "BODY",
+      "x",
+    );
+
+    expect(note).toBe(
+      "---\nT {{title}} t|N {{tags}} n|F {{source}} f|https://example.com/{{link}}|A {{author}} a|F {{feedTitle}} f|g {{guid}} g|https://img.example/{{image}}.png\n---\nBODY",
+    );
+  });
 });
 
 describe("WebViewerIntegration note template", () => {
@@ -583,6 +631,19 @@ describe("WebViewerIntegration note template", () => {
     );
 
     expect(note).toBe("[Price $100, and {{title}} too]");
+  });
+
+  it("reads $ sequences as replacement patterns in every string value", async () => {
+    // BUG: pinned, see #672
+    const note = await saveWithWebViewer(
+      createItem(DOLLAR),
+      "{{title}}|{{link}}|{{author}}|{{source}}|{{summary}}|{{image}}",
+      false,
+    );
+
+    expect(note).toBe(
+      "T {{title}} t|https://example.com/{{link}}|A {{author}} a|F {{source}} f|S {{summary}} s|https://img.example/{{image}}.png",
+    );
   });
 
   it("fills a placeholder inside a value when a later step substitutes it", async () => {
@@ -724,5 +785,30 @@ describe("WebViewerIntegration frontmatter template", () => {
     );
 
     expect(note).toBe(`---\ntitle: "A ${longDate(PUB)} B"\n---\nBODY`);
+  });
+
+  it("interprets $ sequences in a title as replacement patterns", async () => {
+    // BUG: pinned, see #672
+    const note = await saveWithWebViewer(
+      createItem({ title: "Price $$100, and $& too" }),
+      "BODY",
+      true,
+      { frontmatterTemplate: '---\ntitle: "{{title}}"\n---' },
+    );
+
+    expect(note).toBe('---\ntitle: "Price $100, and {{title}} too"\n---\nBODY');
+  });
+
+  it("reads $ sequences as replacement patterns in every string value", async () => {
+    // BUG: pinned, see #672
+    const note = await saveWithWebViewer(createItem(DOLLAR), "BODY", true, {
+      addSavedTag: false,
+      frontmatterTemplate:
+        "---\n{{title}}|{{tags}}|{{source}}|{{link}}|{{author}}|{{feedTitle}}|{{guid}}|{{image}}\n---",
+    });
+
+    expect(note).toBe(
+      "---\nT {{title}} t|N {{tags}} n|F {{source}} f|https://example.com/{{link}}|A {{author}} a|F {{feedTitle}} f|g {{guid}} g|https://img.example/{{image}}.png\n---\nBODY",
+    );
   });
 });
