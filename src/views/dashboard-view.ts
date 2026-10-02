@@ -883,6 +883,7 @@ export class RssDashboardView extends ItemView {
           onFolderClick: this.handleFolderClick.bind(this),
           onRangeSelect: this.handleSidebarRangeSelect?.bind(this),
           onFolderMultiSelect: this.handleFolderMultiSelect?.bind(this),
+          onSelectionCleared: this.handleSelectionCleared.bind(this),
           onFeedClick: this.handleFeedClick.bind(this),
           onTagToggle: this.handleTagToggle.bind(this),
           onClearTags: this.handleClearTags.bind(this),
@@ -2160,6 +2161,13 @@ export class RssDashboardView extends ItemView {
     }
   }
 
+  // The sidebar moved the selection; the tag filter and open folder stay.
+  private handleSelectionCleared(): void {
+    this.selectedFolders = [];
+    this.selectedFeeds = [];
+    void this.render();
+  }
+
   private handleSidebarRangeSelect(
     clickedKey: string,
     visibleKeys: string[],
@@ -2377,6 +2385,7 @@ export class RssDashboardView extends ItemView {
         },
         onRangeSelect: this.handleSidebarRangeSelect.bind(this),
         onFolderMultiSelect: this.handleFolderMultiSelect.bind(this),
+        onSelectionCleared: this.handleSelectionCleared.bind(this),
         onTagToggle: this.handleTagToggle.bind(this),
         onClearTags: this.handleClearTags.bind(this),
         onTagFilterModeChange: this.handleTagFilterModeChange.bind(this),

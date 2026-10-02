@@ -210,6 +210,7 @@ describe("Sidebar batch move (characterization)", () => {
       onToggleSidebar: vi.fn(),
       onRangeSelect: vi.fn(),
       onFolderMultiSelect: vi.fn(),
+      onSelectionCleared: vi.fn(),
     } as unknown as SidebarCallbacks;
 
     plugin = {
@@ -855,11 +856,12 @@ describe("Sidebar batch move (characterization)", () => {
 
       await drop(folderHeader("Empty"), listPayload([], ["News", "Archive"]));
 
-      const multiSelect = vi.mocked(callbacks.onFolderMultiSelect!);
+      const selectionCleared = vi.mocked(callbacks.onSelectionCleared!);
       const folderClick = vi.mocked(callbacks.onFolderClick);
-      expect(multiSelect).toHaveBeenCalledWith([]);
+      expect(selectionCleared).toHaveBeenCalledTimes(1);
+      expect(callbacks.onFolderMultiSelect).not.toHaveBeenCalled();
       expect(folderClick).toHaveBeenCalledWith("Empty/News");
-      expect(multiSelect.mock.invocationCallOrder[0]).toBeLessThan(
+      expect(selectionCleared.mock.invocationCallOrder[0]).toBeLessThan(
         folderClick.mock.invocationCallOrder[0],
       );
     });
