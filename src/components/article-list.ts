@@ -1,4 +1,4 @@
-import { Notice, setIcon, setTooltip } from "obsidian";
+import { type App, Notice, setIcon, setTooltip } from "obsidian";
 import {
   ArticleGroupByOption,
   FeedItem,
@@ -125,8 +125,9 @@ export class ArticleList {
     statusFilters: Set<string>,
     tagFilters: Set<string>,
     filterLogic: "AND" | "OR",
-    currentFeedUrl?: string | null,
-    showFeedSource: boolean = true,
+    currentFeedUrl: string | null | undefined,
+    showFeedSource: boolean,
+    private readonly app: App,
   ) {
     this.container = container;
     this.settings = settings;
@@ -1551,6 +1552,7 @@ export class ArticleList {
     this.currentTagsDropdownAnchor = toggleElement;
 
     const cleanup = createTagsDropdownPortal({
+      app: this.app,
       anchor: toggleElement,
       settings: this.settings,
       item: article,

@@ -1,4 +1,5 @@
 import { vi } from "vitest";
+import { App } from "obsidian";
 import { ArticleList } from "../../../src/components/article-list";
 import {
   DEFAULT_SETTINGS,
@@ -188,6 +189,7 @@ export function createArticleListHarness(
     filterLogic,
     currentFeedUrl,
     showFeedSource,
+    new App(),
   );
 
   const getHeaderEl = () =>
