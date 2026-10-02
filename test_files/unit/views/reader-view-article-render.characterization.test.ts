@@ -1483,6 +1483,24 @@ describe("ReaderView article rendering (characterization)", () => {
       expect(qa(".rss-reader-article-content img")).toHaveLength(0);
     });
 
+    it("keeps linked story text when removing the body's duplicate hero image", async () => {
+      const hero = "https://img.example.com/images/hero.jpg";
+      await view.displayItem(
+        makeItem({
+          coverImage: hero,
+          content: `<a href="/story"><div><img src="${hero}"><p>${LONG_TEXT}</p></div></a><p>${LONG_TEXT}</p>`,
+        }),
+      );
+
+      expect(qa(".rss-reader-article-content img")).toHaveLength(0);
+      const leadParagraph = q(".rss-reader-article-content a p");
+      expect(leadParagraph).not.toBeNull();
+      expect(leadParagraph?.textContent).toContain("Sentence of article body text.");
+      expect(q(".rss-reader-article-content")?.textContent).toContain(
+        "Sentence of article body text.",
+      );
+    });
+
     it("keeps the body's lead image when it differs from the hero", async () => {
       await view.displayItem(
         makeItem({

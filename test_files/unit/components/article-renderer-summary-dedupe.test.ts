@@ -228,6 +228,53 @@ describe("ArticleRenderer – summary de-duplication", () => {
     expect(body?.textContent || "").toContain(realBodySnippet);
   });
 
+  it("keeps linked story text when the body image is removed from the hero slot", async () => {
+    const heroUrl = "https://img.example.com/images/hero.jpg";
+    const leadText = "The first paragraph of the story, which the reader came for. ".repeat(2);
+    const moreText = "Further article text remains visible. ".repeat(8);
+    const item = makeItem({
+      coverImage: heroUrl,
+      content: `<a href="/story"><div><img src="${heroUrl}"><p>${leadText}</p></div></a><p>${moreText}</p>`,
+    });
+
+    await renderer.render(container, item);
+
+    const body = container.querySelector<HTMLElement>(
+      ".rss-reader-article-content",
+    );
+    const leadParagraph = body?.querySelector("a p");
+    expect(body?.querySelector("img")).toBeNull();
+    expect(leadParagraph).not.toBeNull();
+    expect(leadParagraph?.textContent).toContain(
+      "The first paragraph of the story",
+    );
+    expect(body?.textContent).toContain("Further article text remains visible.");
+  });
+
+  it("keeps linked story text when removing a duplicate lead image from fetched HTML", async () => {
+    const heroUrl = "https://img.example.com/images/hero.jpg";
+    const leadText = "The first paragraph of the story, which the reader came for. ".repeat(2);
+    const moreText = "Further article text remains visible. ".repeat(8);
+    const item = makeItem({ coverImage: heroUrl, content: "" });
+    const rendererInternal = renderer as unknown as ArticleRendererWithPrivate;
+    rendererInternal.fetchFullArticleContent = vi.fn().mockResolvedValue(
+      `<a href="/story"><div><img src="${heroUrl}"><p>${leadText}</p></div></a><p>${moreText}</p>`,
+    );
+
+    await renderer.render(container, item);
+
+    const body = container.querySelector<HTMLElement>(
+      ".rss-reader-article-content",
+    );
+    const leadParagraph = body?.querySelector("a p");
+    expect(body?.querySelector("img")).toBeNull();
+    expect(leadParagraph).not.toBeNull();
+    expect(leadParagraph?.textContent).toContain(
+      "The first paragraph of the story",
+    );
+    expect(body?.textContent).toContain("Further article text remains visible.");
+  });
+
   // --------------------------------------------------------------- CONTROL ---
 
   it("CONTROL: renders both callout and body when description and content are genuinely distinct", async () => {
