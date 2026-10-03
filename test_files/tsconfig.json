@@ -2,9 +2,19 @@
   "extends": "../tsconfig.json",
   "compilerOptions": {
     "noEmit": true,
+    // Tests index into fixtures and mock calls (`feeds[0]`, `mock.calls[0][0]`)
+    // constantly, and an undefined index already fails the test loudly, so the
+    // strict index check adds noise without catching bugs. `src/` keeps it
+    // through the root tsconfig (#362).
+    "noUncheckedIndexedAccess": false,
+    // Lets tests import the `scripts/*.mjs` checks with inferred types; the
+    // scripts themselves are not type-checked.
+    "allowJs": true,
+    "checkJs": false,
     "types": ["vitest/globals", "node"],
     "paths": {
-      "obsidian": ["./stubs/obsidian.ts"]
+      "obsidian": ["./stubs/obsidian.ts"],
+      "obsidian-api": ["../node_modules/obsidian/obsidian.d.ts"]
     }
   },
   "include": ["**/*.ts", "**/*.d.ts", "../main.ts", "../src/**/*.ts"],

@@ -14,6 +14,90 @@ const BLOCKED_TAGS = new Set([
   "base",
 ]);
 
+// Rich mode never rendered these as their own element kind (createEl makes an
+// HTML element), so unwrapping them would only surface fallback copies and
+// icon titles that stayed hidden or empty before.
+const RICH_BLOCKED_TAGS = new Set(["noscript", "svg"]);
+
+const RICH_ALLOWED_TAGS = new Set([
+  "h1",
+  "h2",
+  "h3",
+  "h4",
+  "h5",
+  "h6",
+  "p",
+  "div",
+  "span",
+  "br",
+  "hr",
+  "wbr",
+  "a",
+  "img",
+  "picture",
+  "source",
+  "figure",
+  "figcaption",
+  "ul",
+  "ol",
+  "li",
+  "dl",
+  "dt",
+  "dd",
+  "blockquote",
+  "pre",
+  "code",
+  "kbd",
+  "samp",
+  "var",
+  "em",
+  "strong",
+  "b",
+  "i",
+  "u",
+  "s",
+  "del",
+  "ins",
+  "mark",
+  "small",
+  "sub",
+  "sup",
+  "abbr",
+  "cite",
+  "q",
+  "dfn",
+  "time",
+  "bdi",
+  "bdo",
+  "ruby",
+  "rt",
+  "rp",
+  "details",
+  "summary",
+  "table",
+  "thead",
+  "tbody",
+  "tfoot",
+  "tr",
+  "th",
+  "td",
+  "caption",
+  "colgroup",
+  "col",
+  "video",
+  "audio",
+  "track",
+  "article",
+  "section",
+  "header",
+  "footer",
+  "nav",
+  "aside",
+  "main",
+  "address",
+  "hgroup",
+]);
+
 const STRICT_ALLOWED_TAGS = new Set([
   "p",
   "br",
@@ -26,6 +110,32 @@ const STRICT_ALLOWED_TAGS = new Set([
   "pre",
   "blockquote",
   "a",
+]);
+
+/**
+ * Attributes that take a URL the browser may navigate to or fetch, other than
+ * `href`, `src`, `poster`, and `srcset`, which have their own handling below.
+ * Rich mode copies unknown attributes through as-is, so each of these must
+ * pass the same check as `href` or it would carry e.g. a `javascript:` URL.
+ */
+const URL_ATTRIBUTES = new Set([
+  "action",
+  "formaction",
+  "cite",
+  "background",
+  "ping",
+  "longdesc",
+  "lowsrc",
+  "dynsrc",
+  "data",
+  "codebase",
+  "classid",
+  "archive",
+  "manifest",
+  "icon",
+  "profile",
+  "xlink:href",
+  "xml:base",
 ]);
 
 export interface SafeHtmlOptions {
@@ -145,6 +255,13 @@ function copySafeAttributes(fromEl: HTMLElement, toEl: HTMLElement): void {
       return;
     }
 
+    if (URL_ATTRIBUTES.has(name)) {
+      if (isSafeHref(value)) {
+        toEl.setAttribute(name, value.trim());
+      }
+      return;
+    }
+
     if (name === "srcset") {
       const safeSrcset = sanitizeSrcset(normalizeSubstackImageSrcset(value));
       if (safeSrcset) {
@@ -203,11 +320,15 @@ function sanitizeAndAppendNode(
   const el = node as HTMLElement;
   const tag = el.tagName.toLowerCase();
 
-  if (BLOCKED_TAGS.has(tag)) {
+  if (
+    BLOCKED_TAGS.has(tag) ||
+    (mode === "rich" && RICH_BLOCKED_TAGS.has(tag))
+  ) {
     return;
   }
 
-  if (mode === "strict" && !STRICT_ALLOWED_TAGS.has(tag)) {
+  const allowed = mode === "rich" ? RICH_ALLOWED_TAGS : STRICT_ALLOWED_TAGS;
+  if (!allowed.has(tag)) {
     Array.from(el.childNodes).forEach((child) =>
       sanitizeAndAppendNode(ownerDoc, parent, child, mode),
     );

@@ -14,15 +14,22 @@ export class BackupService {
   private vaultAbsolutePath: string;
   private vault: VaultInterface;
   private getUserSettingsJsonFn: () => string;
-  private getPortableDataBundleJsonFn: () => string;
 
+  /**
+   * Creates a new BackupService instance
+   * @param {Object} options Configuration options
+   * @param {RssDashboardSettings} options.settings Plugin settings to backup
+   * @param {Object} options.manifest Plugin manifest with dir property
+   * @param {string} options.vaultAbsolutePath Absolute path to the vault
+   * @param {VaultInterface} options.vault Vault adapter for file operations
+   * @param {Function} [options.getUserSettingsJson] Optional function to serialize user settings
+   */
   constructor(options: {
     settings: RssDashboardSettings;
     manifest: { dir?: string };
     vaultAbsolutePath: string;
     vault: VaultInterface;
     getUserSettingsJson?: () => string;
-    getPortableDataBundleJson?: () => string;
   }) {
     this.settings = options.settings;
     this.manifest = options.manifest;
@@ -30,13 +37,13 @@ export class BackupService {
     this.vault = options.vault;
     this.getUserSettingsJsonFn =
       options.getUserSettingsJson || (() => JSON.stringify({}));
-    this.getPortableDataBundleJsonFn =
-      options.getPortableDataBundleJson || (() => JSON.stringify({}));
   }
 
   /**
-   * Perform async backups using the vault adapter
-   * Called during normal plugin operation
+   * Perform async backups of data.json, OPML, and user settings
+   * Called during normal plugin operation; backs up files based on autoBackup settings
+   * @returns {Promise<void>}
+   * @throws {Error} If reading or writing any backup file fails; the caller decides whether to notify the user, retry, or proceed anyway
    */
   public async performAutoBackups(): Promise<void> {
     const { autoBackup } = this.settings;
@@ -65,12 +72,6 @@ export class BackupService {
           }
         }
 
-        if (this.settings.storageMode === "vault-shards") {
-          await this.vault.adapter.write(
-            `${pluginDir}/portable-data-bundle.json.backup`,
-            this.getPortableDataBundleJsonFn(),
-          );
-        }
       }
 
       // 2. feeds.opml
@@ -83,30 +84,53 @@ export class BackupService {
         await this.vault.adapter.write(opmlPath, opmlContent);
       }
 
-      // 3. userdata.json / usersettings.json
+      // 3. rss-dashboard-user-preferences.json / usersettings.json (legacy) / userdata.json
       if (autoBackup.backupUserdata) {
-        // We look for both common names, prioritizing 'usersettings.json' since that's what's exported.
+        // 'rss-dashboard-user-preferences.json' is what's exported today; 'usersettings.json' is
+        // the pre-rename filename, kept as a fallback for files exported before it.
+        const userPreferencesPath = `${pluginDir}/rss-dashboard-user-preferences.json`;
         const userSettingsPath = `${pluginDir}/usersettings.json`;
         const userDataPath = `${pluginDir}/userdata.json`;
 
-        const userSettingsExists =
-          await this.vault.adapter.exists(userSettingsPath);
+        const userPreferencesExists =
+          await this.vault.adapter.exists(userPreferencesPath);
 
-        if (userSettingsExists) {
-          const content = await this.vault.adapter.read(userSettingsPath);
-          await this.vault.adapter.write(`${userSettingsPath}.backup`, content);
+        if (userPreferencesExists) {
+          const content = await this.vault.adapter.read(userPreferencesPath);
+          await this.vault.adapter.write(
+            `${userPreferencesPath}.backup`,
+            content,
+          );
         } else {
-          const userDataExists = await this.vault.adapter.exists(userDataPath);
-          if (userDataExists) {
-            const content = await this.vault.adapter.read(userDataPath);
-            await this.vault.adapter.write(`${userDataPath}.backup`, content);
+          const userSettingsExists =
+            await this.vault.adapter.exists(userSettingsPath);
+
+          if (userSettingsExists) {
+            const content = await this.vault.adapter.read(userSettingsPath);
+            await this.vault.adapter.write(
+              `${userSettingsPath}.backup`,
+              content,
+            );
+          } else {
+            const userDataExists =
+              await this.vault.adapter.exists(userDataPath);
+            if (userDataExists) {
+              const content = await this.vault.adapter.read(userDataPath);
+              await this.vault.adapter.write(`${userDataPath}.backup`, content);
+            } else {
+              await this.vault.adapter.write(
+                `${userPreferencesPath}.backup`,
+                this.getUserSettingsJsonFn(),
+              );
+            }
           }
         }
       }
     } catch (e) {
-      console.error("[RSS Dashboard] Auto-backup failed:", e);
+      const message = e instanceof Error ? e.message : String(e);
+      const wrapped = new Error(`Auto-backup failed: ${message}`);
+      (wrapped as Error & { cause?: unknown }).cause = e;
+      throw wrapped;
     }
   }
-
-
 }

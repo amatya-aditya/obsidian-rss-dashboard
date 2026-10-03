@@ -113,7 +113,9 @@ describe("ReaderView dashboard refocus", () => {
 
   it("routes saved article reopen through configured location helper", async () => {
     const { view, app, leaf } = createReaderView([]);
-    const file = await App.createMock().vault.create(
+    const scratchVault = App.createMock().vault;
+    await scratchVault.createFolder("RSS articles");
+    const file = await scratchVault.create(
       "RSS articles/saved.md",
       "# Saved",
     );

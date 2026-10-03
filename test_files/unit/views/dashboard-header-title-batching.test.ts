@@ -1,7 +1,10 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { App } from "obsidian";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 import { DEFAULT_SETTINGS, type RssDashboardSettings } from "../../../src/types/types";
+// Static import: vi.mock calls are hoisted above it, and loading the view's
+// large module graph here keeps it out of the first test's 5 s timeout.
+import { RssDashboardView } from "../../../src/views/dashboard-view";
 
 const sidebarRenderSpy = vi.fn();
 
@@ -61,10 +64,12 @@ describe("Dashboard header title batching", () => {
     sidebarRenderSpy.mockReset();
   });
 
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("coalesces Apply's batch of filter updates into a single header title update", async () => {
     vi.useFakeTimers();
-
-    const { RssDashboardView } = await import("../../../src/views/dashboard-view");
 
     const app = new App();
     const settings = cloneSettings();
@@ -113,13 +118,9 @@ describe("Dashboard header title batching", () => {
       "All Unread or Starred articles",
       "Active filters (OR): Unread, Starred",
     );
-
-    vi.useRealTimers();
   });
 
   it("refreshSidebarOnly rerenders the sidebar without rebuilding the article list", async () => {
-    const { RssDashboardView } = await import("../../../src/views/dashboard-view");
-
     const app = new App();
     const settings = cloneSettings();
     const plugin = {

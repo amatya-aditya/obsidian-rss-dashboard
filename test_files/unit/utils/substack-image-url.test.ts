@@ -10,7 +10,7 @@ describe("substack-image-url", () => {
   });
 
   it("normalizes raw Substack fetch URLs in a live DOM element tree", () => {
-    const container = document.createElement("div");
+    const container = createDiv();
     const fragment = document.createRange().createContextualFragment(`
       <picture>
         <source
@@ -38,13 +38,13 @@ describe("substack-image-url", () => {
   });
 
   it("recovers a failed image element by decoding raw Substack fetch URLs", () => {
-    const picture = document.createElement("picture");
-    const source = document.createElement("source");
+    const picture = createEl("picture");
+    const source = createEl("source");
     source.setAttribute(
       "srcset",
       "https://substackcdn.com/image/fetch/$s_!SA5R!,w_424,c_limit,f_webp,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F2ffc7282-03c5-4312-ae24-6fddb3050102_970x722.png 424w",
     );
-    const img = document.createElement("img");
+    const img = createEl("img");
     img.setAttribute(
       "src",
       "https://substackcdn.com/image/fetch/$s_!SA5R!,w_1456,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F2ffc7282-03c5-4312-ae24-6fddb3050102_970x722.png",
@@ -67,13 +67,13 @@ describe("substack-image-url", () => {
   });
 
   it("forces a fresh S3 img selection when currentSrc is a malformed custom-domain Substack URL", () => {
-    const picture = document.createElement("picture");
-    const source = document.createElement("source");
+    const picture = createEl("picture");
+    const source = createEl("source");
     source.setAttribute(
       "srcset",
       "https://substack-post-media.s3.amazonaws.com/public/images/09233796-bc94-4a3b-ac97-921397cef69c_850x496.png 424w, https://substack-post-media.s3.amazonaws.com/public/images/09233796-bc94-4a3b-ac97-921397cef69c_850x496.png 848w",
     );
-    const img = document.createElement("img");
+    const img = createEl("img");
     img.setAttribute(
       "src",
       "https://substack-post-media.s3.amazonaws.com/public/images/09233796-bc94-4a3b-ac97-921397cef69c_850x496.png",
@@ -102,13 +102,13 @@ describe("substack-image-url", () => {
   });
 
   it("forces a fresh S3 img selection when currentSrc is a truncated raw Substack candidate", () => {
-    const picture = document.createElement("picture");
-    const source = document.createElement("source");
+    const picture = createEl("picture");
+    const source = createEl("source");
     source.setAttribute(
       "srcset",
       "https://substack-post-media.s3.amazonaws.com/public/images/78bc0b7f-5818-4597-b47e-9178ac5df0f2_513x478.png 424w, https://substack-post-media.s3.amazonaws.com/public/images/78bc0b7f-5818-4597-b47e-9178ac5df0f2_513x478.png 848w",
     );
-    const img = document.createElement("img");
+    const img = createEl("img");
     img.setAttribute(
       "src",
       "https://substack-post-media.s3.amazonaws.com/public/images/78bc0b7f-5818-4597-b47e-9178ac5df0f2_513x478.png",

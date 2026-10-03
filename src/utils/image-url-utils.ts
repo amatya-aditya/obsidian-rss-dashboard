@@ -1,8 +1,18 @@
+import { hostMatches } from "./url-host";
+
+// Image sources in feed HTML are often protocol-relative ("//host/path").
+function imageHostMatches(url: string, domain: string): boolean {
+  return hostMatches(url.startsWith("//") ? `https:${url}` : url, domain);
+}
+
 export function optimizeImageUrl(url: string, maxWidth = 600): string {
   if (!url) return url;
 
   // NPR / Brightspot CDN
-  if (url.includes("brightspotcdn.com") || url.includes("media.npr.org")) {
+  if (
+    imageHostMatches(url, "brightspotcdn.com") ||
+    imageHostMatches(url, "media.npr.org")
+  ) {
     return url
       .replace(/\/resize\/\d+x\d+!?\//g, `/resize/${maxWidth}x/`)
       .replace(
@@ -13,9 +23,9 @@ export function optimizeImageUrl(url: string, maxWidth = 600): string {
 
   // WordPress Photon / Jetpack CDN
   if (
-    url.includes("i0.wp.com") ||
-    url.includes("i1.wp.com") ||
-    url.includes("i2.wp.com")
+    imageHostMatches(url, "i0.wp.com") ||
+    imageHostMatches(url, "i1.wp.com") ||
+    imageHostMatches(url, "i2.wp.com")
   ) {
     try {
       const parsed = new URL(url);
@@ -28,12 +38,82 @@ export function optimizeImageUrl(url: string, maxWidth = 600): string {
   }
 
   // Cloudinary
-  if (url.includes("cloudinary.com")) {
+  if (imageHostMatches(url, "cloudinary.com")) {
     return url.replace(/\/upload\//, `/upload/w_${maxWidth},c_scale/`);
   }
 
   // Generic: return unchanged (unknown CDN, no safe transform)
   return url;
+}
+
+const LATEX_PATH = "latex.php?";
+const LATEX_PARAM = "latex=";
+
+function asciiLower(code: number): number {
+  return code >= 65 && code <= 90 ? code + 32 : code;
+}
+
+function isWordCode(code: number): boolean {
+  return (
+    (code >= 48 && code <= 57) ||
+    (code >= 65 && code <= 90) ||
+    (code >= 97 && code <= 122) ||
+    code === 95
+  );
+}
+
+/** Index of `needle` (lowercase ASCII) in `text[from, limit)`, ignoring ASCII case, or -1. */
+function indexOfAsciiInsensitive(
+  text: string,
+  needle: string,
+  from: number,
+  limit = text.length,
+): number {
+  const last = limit - needle.length;
+  for (let i = from; i <= last; i++) {
+    let j = 0;
+    while (
+      j < needle.length &&
+      asciiLower(text.charCodeAt(i + j)) === needle.charCodeAt(j)
+    ) {
+      j++;
+    }
+    if (j === needle.length) return i;
+  }
+  return -1;
+}
+
+/** True when a `latex=` parameter (not part of a longer word) sits in `text[from, end)`. */
+function hasLatexParam(text: string, from: number, end: number): boolean {
+  let at = indexOfAsciiInsensitive(text, LATEX_PARAM, from, end);
+  while (at >= 0) {
+    if (!isWordCode(text.charCodeAt(at - 1))) return true;
+    at = indexOfAsciiInsensitive(text, LATEX_PARAM, at + 1, end);
+  }
+  return false;
+}
+
+/**
+ * Text-only check for a `latex.php?...latex=` URL, used when the source will
+ * not parse as a URL. `latex.php?` must start the text or follow a `/`, and no
+ * `#` may sit between it and the `latex=` parameter. Each query span is
+ * scanned once, so the cost grows linearly with the input length.
+ */
+export function hasLatexPhpQuery(text: string): boolean {
+  let scannedTo = 0;
+  let at = indexOfAsciiInsensitive(text, LATEX_PATH, 0);
+  while (at >= 0) {
+    const from = at + LATEX_PATH.length;
+    // A span inside one already scanned cannot hold a match the first missed.
+    if (from >= scannedTo && (at === 0 || text.charCodeAt(at - 1) === 47)) {
+      const hash = text.indexOf("#", from);
+      const end = hash < 0 ? text.length : hash;
+      if (hasLatexParam(text, from, end)) return true;
+      scannedTo = end;
+    }
+    at = indexOfAsciiInsensitive(text, LATEX_PATH, at + 1);
+  }
+  return false;
 }
 
 /** Returns whether an image is a WordPress-rendered LaTeX formula. */
@@ -56,7 +136,7 @@ export function isLatexFormulaImage(
       parsed.searchParams.has("latex")
     );
   } catch {
-    return /(?:^|\/)latex\.php\?[^#]*\blatex=/i.test(trimmedSrc);
+    return hasLatexPhpQuery(trimmedSrc);
   }
 }
 

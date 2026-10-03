@@ -55,8 +55,8 @@ describe("RssDashboardSettingTab (orchestrator)", () => {
     const plugin = { app } as unknown as RssDashboardPlugin;
     const tab = new RssDashboardSettingTab(app, plugin);
 
-    tab.containerEl = document.body.appendChild(document.createElement("div"));
-    tab.display();
+    tab.containerEl = document.body.appendChild(createDiv());
+    tab.refresh();
 
     const tabButtons = Array.from(
       tab.containerEl.querySelectorAll(".rss-dashboard-settings-tab-btn"),
@@ -77,9 +77,9 @@ describe("RssDashboardSettingTab (orchestrator)", () => {
     const app = obsidian.App.createMock();
     const plugin = { app } as unknown as RssDashboardPlugin;
     const tab = new RssDashboardSettingTab(app, plugin);
-    tab.containerEl = document.body.appendChild(document.createElement("div"));
+    tab.containerEl = document.body.appendChild(createDiv());
 
-    tab.display();
+    tab.refresh();
 
     const aboutBtn = Array.from(
       tab.containerEl.querySelectorAll("button"),
@@ -114,9 +114,9 @@ describe("RssDashboardSettingTab (orchestrator)", () => {
     const app = obsidian.App.createMock();
     const plugin = { app } as unknown as RssDashboardPlugin;
     const tab = new RssDashboardSettingTab(app, plugin);
-    tab.containerEl = document.body.appendChild(document.createElement("div"));
+    tab.containerEl = document.body.appendChild(createDiv());
 
-    tab.display();
+    tab.refresh();
     expect(vi.mocked(general.renderGeneralSettingsTab)).toHaveBeenCalledTimes(1);
 
     const contentEl = tab.containerEl.querySelector(
@@ -125,6 +125,23 @@ describe("RssDashboardSettingTab (orchestrator)", () => {
     expect(contentEl).toBeTruthy();
 
     contentEl.dispatchEvent(new CustomEvent("rss-settings-refresh"));
+    expect(vi.mocked(general.renderGeneralSettingsTab)).toHaveBeenCalledTimes(2);
+  });
+
+  it("refreshes the legacy settings renderer through its compatibility bridge", async () => {
+    const { RssDashboardSettingTab } = await import(
+      "../../../src/settings/settings-tab"
+    );
+    const general = await import("../../../src/settings/tabs/general-settings-tab");
+
+    const app = obsidian.App.createMock();
+    const plugin = { app } as unknown as RssDashboardPlugin;
+    const tab = new RssDashboardSettingTab(app, plugin);
+    tab.containerEl = document.body.appendChild(createDiv());
+
+    tab.refresh();
+    tab.refresh();
+
     expect(vi.mocked(general.renderGeneralSettingsTab)).toHaveBeenCalledTimes(2);
   });
 });

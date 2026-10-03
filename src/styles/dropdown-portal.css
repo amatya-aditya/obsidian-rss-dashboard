@@ -68,6 +68,16 @@
   z-index: var(--z-index-dropdown-backdrop);
 }
 
+/* Inside a modal the popover mounts in that modal's container, so it must
+   stack above the modal itself rather than above the workspace. */
+.modal-container .rss-dashboard-tags-sheet-backdrop {
+  z-index: var(--z-index-modal-dropdown-backdrop);
+}
+
+.modal-container .rss-dashboard-tags-dropdown-content-portal {
+  z-index: var(--z-index-modal-dropdown);
+}
+
 .rss-dashboard-tags-mobile-sheet {
   left: 8px;
   right: 8px;

@@ -22,6 +22,7 @@ import {
   showDomainIconToggleConfirm,
 } from "../../utils/domain-icon-helpers";
 import { FeedItem, Feed } from "../../types/types";
+import { settingsUiCompatibility } from "../settings-ui-compat";
 
 // ── Pure helpers (exported for unit tests) ────────────────────────────────────
 
@@ -344,9 +345,12 @@ export function renderSidebarSettingsTab(
         const idx = currentOrder.indexOf(id);
         if (idx > 0) {
           const newOrder = [...currentOrder];
+          const previousId = newOrder[idx - 1];
+          const currentId = newOrder[idx];
+          if (previousId === undefined || currentId === undefined) return;
           [newOrder[idx - 1], newOrder[idx]] = [
-            newOrder[idx],
-            newOrder[idx - 1],
+            currentId,
+            previousId,
           ];
           plugin.settings.display.iconOrder = newOrder;
           renderIconRows();
@@ -370,9 +374,12 @@ export function renderSidebarSettingsTab(
         const idx = currentOrder.indexOf(id);
         if (idx >= 0 && idx < currentOrder.length - 1) {
           const newOrder = [...currentOrder];
+          const currentId = newOrder[idx];
+          const nextId = newOrder[idx + 1];
+          if (currentId === undefined || nextId === undefined) return;
           [newOrder[idx], newOrder[idx + 1]] = [
-            newOrder[idx + 1],
-            newOrder[idx],
+            nextId,
+            currentId,
           ];
           plugin.settings.display.iconOrder = newOrder;
           renderIconRows();
@@ -529,7 +536,6 @@ export function renderSidebarSettingsTab(
         slider
           .setLimits(paddingMin, paddingMax, paddingStep)
           .setValue(plugin.settings.display[settingKey] ?? defaultValue)
-          .setDynamicTooltip()
           .onChange(async (value) => {
             if (isSyncing) return;
             isSyncing = true;
@@ -537,6 +543,10 @@ export function renderSidebarSettingsTab(
             isSyncing = false;
             await apply(value);
           });
+        settingsUiCompatibility.presentSliderValue(
+          slider,
+          (value) => `${value}px`,
+        );
       })
       .addText((text) => {
         paddingInput = text;
@@ -615,7 +625,6 @@ export function renderSidebarSettingsTab(
         slider
           .setLimits(min, max, 1)
           .setValue(plugin.settings.display[settingKey] ?? defaultValue)
-          .setDynamicTooltip()
           .onChange(async (value) => {
             if (isSyncing) return;
             isSyncing = true;
@@ -623,6 +632,10 @@ export function renderSidebarSettingsTab(
             isSyncing = false;
             await apply(value);
           });
+        settingsUiCompatibility.presentSliderValue(
+          slider,
+          (value) => `${value}px`,
+        );
       })
       .addText((text) => {
         spacingInput = text;
@@ -685,7 +698,6 @@ export function renderSidebarSettingsTab(
       settingKey:
         | "useDomainIconsRss"
         | "useDomainIconsPodcast"
-        | "useDomainIconsTwitter"
         | "useDomainIconsMastodon";
       domainName: string;
       heading: string;
@@ -839,8 +851,7 @@ export function renderSidebarSettingsTab(
     matchesDomain: (feed) =>
       !MastodonService.isResolvedFeedUrl(feed.url) &&
       !MediaService.isYouTubeFeed(feed.url) &&
-      feed.mediaType !== "podcast" &&
-      !MediaService.isTwitterOrNitterFeed(feed.url),
+      feed.mediaType !== "podcast",
     clearIconOnDisable: (entries) => {
       for (const { feed } of entries) {
         if (feed.iconUrl) {
@@ -859,24 +870,6 @@ export function renderSidebarSettingsTab(
     heading: "Clear Podcast artwork?",
     confirmLabel: "Clear artwork",
     matchesDomain: (feed) => feed.mediaType === "podcast",
-    clearIconOnDisable: (entries) => {
-      for (const { feed } of entries) {
-        if (feed.iconUrl) {
-          feed.iconUrl = "";
-        }
-      }
-    },
-  });
-
-  setupDomainIconToggle(containerEl, plugin, {
-    settingName: "Use profile images for Twitter/Nitter feeds",
-    settingDesc:
-      "Replace the standard Twitter/X icon with the feed profile image when one is available",
-    settingKey: "useDomainIconsTwitter",
-    domainName: "Twitter",
-    heading: "Clear Twitter profile images?",
-    confirmLabel: "Clear profile images",
-    matchesDomain: (feed) => MediaService.isTwitterOrNitterFeed(feed.url),
     clearIconOnDisable: (entries) => {
       for (const { feed } of entries) {
         if (feed.iconUrl) {

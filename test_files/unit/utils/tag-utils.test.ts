@@ -124,7 +124,7 @@ describe("tag-utils.showEditTagModal", () => {
 
     expect(onSave).toHaveBeenCalledTimes(1);
     expect(settings.availableTags[0].name).toBe("Technology");
-    expect(settings.feeds[0].items[0].tags[0].name).toBe("Technology");
+    expect(settings.feeds[0].items[0].tags?.[0].name).toBe("Technology");
     expect(document.querySelector(".rss-dashboard-modal")).toBeNull();
     expect(consoleSpy).toHaveBeenCalledWith(
       "[Stub Notice]",
@@ -133,8 +133,30 @@ describe("tag-utils.showEditTagModal", () => {
   });
 });
 
+describe("tag-utils.showEditTagModal submit button", () => {
+  it("reads 'Save changes' and hands the updated tag to onSave", async () => {
+    vi.spyOn(console, "debug").mockImplementation(() => {});
+    const settings = makeSettings([{ name: "Tech", color: "#111111" }]);
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    showEditTagModal({ settings, tag: settings.availableTags[0], onSave });
+
+    const saveButton = document.querySelector<HTMLButtonElement>(
+      "button.rss-dashboard-primary-button",
+    )!;
+    expect(saveButton.textContent).toBe("Save changes");
+
+    document.querySelector<HTMLInputElement>(
+      ".rss-dashboard-tag-modal-color-picker",
+    )!.value = "#00ff00";
+    saveButton.click();
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(onSave).toHaveBeenCalledWith({ name: "Tech", color: "#00ff00" });
+  });
+});
+
 describe("tag-utils.applyAutomaticArticleTags", () => {
-  it("adds a canonical Favorite tag when an article is starred", () => {
+  it("starring an article leaves its tags unchanged", () => {
     const article = {
       starred: false,
       tags: [{ name: "news", color: "#111111" }],
@@ -145,13 +167,10 @@ describe("tag-utils.applyAutomaticArticleTags", () => {
       articleSaving: { addSavedTag: true },
     } as unknown as RssDashboardSettings);
 
-    expect(updates.tags).toEqual([
-      { name: "news", color: "#111111" },
-      { name: "Favorite", color: "#f1c40f" },
-    ]);
+    expect(updates).toEqual({ starred: true });
   });
 
-  it("removes the canonical Favorite tag when an article is unstarred", () => {
+  it("unstarring an article leaves a manually assigned Favorite tag unchanged", () => {
     const article = {
       starred: true,
       tags: [
@@ -165,7 +184,37 @@ describe("tag-utils.applyAutomaticArticleTags", () => {
       articleSaving: { addSavedTag: true },
     } as unknown as RssDashboardSettings);
 
-    expect(updates.tags).toEqual([{ name: "news", color: "#111111" }]);
+    expect(updates).toEqual({ starred: false });
+  });
+
+  it("starring an article leaves tags unchanged even without any prior tags", () => {
+    const article = { starred: false };
+
+    const updates = applyAutomaticArticleTags(article as unknown as FeedItem, { starred: true }, {
+      availableTags: [],
+      articleSaving: { addSavedTag: true },
+    } as unknown as RssDashboardSettings);
+
+    expect(updates).toEqual({ starred: true });
+  });
+
+  it("adding a Favorite tag directly leaves starred state untouched", () => {
+    const article = {
+      starred: false,
+      tags: [],
+    };
+
+    const updates = applyAutomaticArticleTags(
+      article as unknown as FeedItem,
+      { tags: [{ name: "Favorite", color: "#f1c40f" }] },
+      {
+        availableTags: [{ name: "Favorite", color: "#f1c40f" }],
+        articleSaving: { addSavedTag: true },
+      } as unknown as RssDashboardSettings,
+    );
+
+    expect(updates.starred).toBeUndefined();
+    expect(updates.tags).toEqual([{ name: "Favorite", color: "#f1c40f" }]);
   });
 
   it("normalizes an existing lowercase saved tag when saving", () => {

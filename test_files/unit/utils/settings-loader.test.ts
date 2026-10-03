@@ -75,12 +75,14 @@ describe("settings-loader", () => {
       const { loadAndNormalizeSettings } =
         await import("../../../src/utils/settings-loader");
 
+      // Saved data can hold a partial `display` group; the loader merges it
+      // with the defaults.
       const result = loadAndNormalizeSettings({
         display: {
           imageCacheLimitMiB: 0,
           imageCacheUnlimited: true,
-        } as Partial<RssDashboardSettings["display"]>,
-      });
+        },
+      } as unknown as Partial<RssDashboardSettings>);
 
       expect(result.display.imageCacheLimitMiB).toBe(100);
       expect(result.display.imageCacheUnlimited).toBe(true);
@@ -91,10 +93,8 @@ describe("settings-loader", () => {
         await import("../../../src/utils/settings-loader");
 
       const result = loadAndNormalizeSettings({
-        display: {
-          imageCacheLimitMiB: 2_048,
-        } as Partial<RssDashboardSettings["display"]>,
-      });
+        display: { imageCacheLimitMiB: 2_048 },
+      } as unknown as Partial<RssDashboardSettings>);
 
       expect(result.display.imageCacheLimitMiB).toBe(1_024);
     });
@@ -302,11 +302,68 @@ describe("settings-loader", () => {
 
       expect(result.storageMode).toBe("vault-shards-v2");
     });
+
+    it("normalizes missing or non-boolean retention protection fields to default values", async () => {
+      const { loadAndNormalizeSettings } =
+        await import("../../../src/utils/settings-loader");
+
+      const emptyResult = loadAndNormalizeSettings({});
+      expect(emptyResult.protectStarred).toBe(true);
+      expect(emptyResult.protectSaved).toBe(true);
+      expect(emptyResult.protectTagged).toBe(false);
+      expect(emptyResult.protectUnread).toBe(false);
+
+      const invalidRaw = {
+        protectStarred: "invalid" as unknown as boolean,
+        protectSaved: null as unknown as boolean,
+        protectTagged: 123 as unknown as boolean,
+        protectUnread: undefined,
+      };
+      const normalizedResult = loadAndNormalizeSettings(invalidRaw);
+      expect(normalizedResult.protectStarred).toBe(true);
+      expect(normalizedResult.protectSaved).toBe(true);
+      expect(normalizedResult.protectTagged).toBe(false);
+      expect(normalizedResult.protectUnread).toBe(false);
+    });
+
+    it("preserves explicitly configured retention protection boolean values", async () => {
+      const { loadAndNormalizeSettings } =
+        await import("../../../src/utils/settings-loader");
+
+      const configured = {
+        protectStarred: false,
+        protectSaved: false,
+        protectTagged: true,
+        protectUnread: true,
+      };
+      const result = loadAndNormalizeSettings(configured);
+      expect(result.protectStarred).toBe(false);
+      expect(result.protectSaved).toBe(false);
+      expect(result.protectTagged).toBe(true);
+      expect(result.protectUnread).toBe(true);
+    });
   });
 
   // ── migrateSettings ──────────────────────────────────────────────────────────
 
   describe("migrateSettings", () => {
+    it("drops a permanent storage-migration dismissal so the prompt returns", async () => {
+      const { migrateSettings } =
+        await import("../../../src/utils/settings-loader");
+
+      const settings = {
+        ...DEFAULT_SETTINGS,
+        storageMigrationDismissedPermanently: true,
+      } as unknown as RssDashboardSettings & Record<string, unknown>;
+      const didChange = migrateSettings(
+        settings as unknown as RssDashboardSettings,
+      );
+
+      expect(didChange).toBe(true);
+      expect(settings.storageMigrationDismissedPermanently).toBeUndefined();
+      expect(settings.storageMigrationDismissedUntil).toBeUndefined();
+    });
+
     it("migrates savePath to articleSaving.defaultFolder", async () => {
       const { migrateSettings } =
         await import("../../../src/utils/settings-loader");
@@ -509,6 +566,116 @@ describe("settings-loader", () => {
 
       expect(feeds[0].items[0].guid).toBe("new");
       expect(feeds[0].items[1].guid).toBe("old");
+    });
+
+    it("sorts an undated item to the bottom when useFirstSeenDateFallback is off", async () => {
+      const { dedupeAndNormalizeFeedItems } =
+        await import("../../../src/utils/settings-loader");
+
+      const feeds: Feed[] = [
+        createFeed({
+          items: [
+            createFeedItem({
+              guid: "undated",
+              title: "Undated",
+              link: "https://example.com/undated",
+              pubDate: "",
+              firstSeenMs: Date.now(),
+            }),
+            createFeedItem({
+              guid: "old",
+              title: "Old",
+              link: "https://example.com/old",
+              pubDate: "Mon, 01 Jan 2024 00:00:00 GMT",
+            }),
+          ],
+        }),
+      ];
+
+      dedupeAndNormalizeFeedItems(feeds);
+
+      expect(feeds[0].items.map((i) => i.guid)).toEqual(["old", "undated"]);
+    });
+
+    it("sorts an undated item by firstSeenMs when useFirstSeenDateFallback is on", async () => {
+      const { dedupeAndNormalizeFeedItems } =
+        await import("../../../src/utils/settings-loader");
+
+      const feeds: Feed[] = [
+        createFeed({
+          items: [
+            createFeedItem({
+              guid: "old",
+              title: "Old",
+              link: "https://example.com/old",
+              pubDate: "Mon, 01 Jan 2024 00:00:00 GMT",
+            }),
+            createFeedItem({
+              guid: "undated-recent",
+              title: "Undated recent",
+              link: "https://example.com/undated-recent",
+              pubDate: "",
+              firstSeenMs: Date.parse("Mon, 01 Apr 2024 00:00:00 GMT"),
+            }),
+          ],
+        }),
+      ];
+
+      dedupeAndNormalizeFeedItems(feeds, { useFirstSeenDateFallback: true });
+
+      expect(feeds[0].items.map((i) => i.guid)).toEqual([
+        "undated-recent",
+        "old",
+      ]);
+    });
+
+    it("orders items identically to feed-retention.ts's byNewest (via applyFeedRetentionLimits)", async () => {
+      const { dedupeAndNormalizeFeedItems } =
+        await import("../../../src/utils/settings-loader");
+      const { applyFeedRetentionLimits } = await import(
+        "../../../src/services/feed-parser/feed-retention"
+      );
+
+      const items: FeedItem[] = [
+        // RFC 822 obsolete named-zone edge case (Date.parse alone is NaN in
+        // some engines; getPubDateMs normalizes it before parsing).
+        createFeedItem({
+          guid: "rfc822-cst",
+          title: "RFC 822 CST",
+          link: "https://example.com/rfc822-cst",
+          pubDate: "Fri, 06 May 1983 09:00:00 CST",
+        }),
+        // RFC 3339 / ISO 8601 date.
+        createFeedItem({
+          guid: "rfc3339",
+          title: "RFC 3339",
+          link: "https://example.com/rfc3339",
+          pubDate: "2024-06-01T00:00:00Z",
+        }),
+        // Tied-effective-date pair, distinguished only by guid tie-break.
+        createFeedItem({
+          guid: "tied-z",
+          title: "Tied z",
+          link: "https://example.com/tied-z",
+          pubDate: "2024-01-05T00:00:00Z",
+        }),
+        createFeedItem({
+          guid: "tied-a",
+          title: "Tied a",
+          link: "https://example.com/tied-a",
+          pubDate: "2024-01-05T00:00:00Z",
+        }),
+      ];
+
+      const feeds: Feed[] = [createFeed({ items: [...items] })];
+      dedupeAndNormalizeFeedItems(feeds);
+      const loaderOrder = feeds[0].items.map((i) => i.guid);
+
+      const retentionOrder = applyFeedRetentionLimits(
+        createFeed({ items: [...items] }),
+      ).items.map((i) => i.guid);
+
+      expect(loaderOrder).toEqual(retentionOrder);
     });
 
     it("canonicalizes item GUIDs via canonicalizeItemIdentityUrl", async () => {

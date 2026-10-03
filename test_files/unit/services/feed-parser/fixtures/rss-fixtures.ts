@@ -210,6 +210,21 @@ export const RSS2_EMPTY = `<?xml version="1.0" encoding="UTF-8"?>
   </channel>
 </rss>`;
 
+export const RSS2_WITHOUT_PUBDATE = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Undated Feed</title>
+    <description>A feed whose items have no pubDate</description>
+    <link>https://example.com</link>
+    <item>
+      <title>Undated Article</title>
+      <link>https://example.com/undated</link>
+      <description>Article with no pubDate</description>
+      <guid>https://example.com/undated</guid>
+    </item>
+  </channel>
+</rss>`;
+
 export const SUBSTACK_RSS = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:dc="http://purl.org/dc/elements/1.1/">
   <channel>
@@ -320,6 +335,21 @@ export const JSON_FEED_EMPTY_ITEMS = JSON.stringify({
   version: "https://jsonfeed.org/version/1.1",
   title: "Empty JSON Feed",
   items: [],
+});
+
+export const JSON_FEED_WITHOUT_DATE = JSON.stringify({
+  version: "https://jsonfeed.org/version/1.1",
+  title: "Undated JSON Feed",
+  home_page_url: "https://example.com",
+  items: [
+    {
+      id: "json-undated",
+      url: "https://example.com/json-undated",
+      title: "Undated JSON Item",
+      summary: "Item summary with no date_published",
+      content_html: "<p>Item content</p>",
+    },
+  ],
 });
 
 export const RSS2_SUBSTACK_QUOTED_ATTRS = `<?xml version="1.0" encoding="UTF-8"?>

@@ -214,7 +214,7 @@ function makeServerFeedItems(): FeedItem[] {
     makeArticle("very-old-read", "2026-03-01T00:00:00Z", { read: true }),
     makeArticle("mid-read", "2026-04-10T00:00:00Z", { read: true }),
     makeArticle("recent-read", "2026-04-28T00:00:00Z", { read: true }),
-    makeArticle("recent-unread", "2026-03-01T00:00:00Z", { read: false }),
+    makeArticle("old-unread", "2026-03-01T00:00:00Z", { read: false }),
   ] as FeedItem[];
 }
 
@@ -831,7 +831,7 @@ describe("EditFeedModal", () => {
       initialItems: getItemsForDuration(0),
       selections: ["30"],
       expectedDuration: 30,
-      expectedGuids: ["recent-read", "mid-read", "recent-unread"],
+      expectedGuids: ["recent-read", "mid-read"],
     },
     {
       label: "keeps current items when switching from 30 days to disabled",
@@ -842,18 +842,18 @@ describe("EditFeedModal", () => {
       expectedGuids: [
         "recent-read",
         "mid-read",
-        "recent-unread",
+        "old-unread",
         "very-old-read",
       ],
     },
     {
       label:
-        "prunes additional old read items when tightening from 30 days to 7 days",
+        "prunes additional old items when tightening from 30 days to 7 days",
       initialDuration: 30,
       initialItems: getItemsForDuration(30),
       selections: ["7"],
       expectedDuration: 7,
-      expectedGuids: ["recent-read", "recent-unread"],
+      expectedGuids: ["recent-read"],
     },
     {
       label:
@@ -862,7 +862,7 @@ describe("EditFeedModal", () => {
       initialItems: getItemsForDuration(7),
       selections: ["30"],
       expectedDuration: 30,
-      expectedGuids: ["recent-read", "mid-read", "recent-unread"],
+      expectedGuids: ["recent-read", "mid-read"],
     },
     {
       label:
@@ -871,7 +871,7 @@ describe("EditFeedModal", () => {
       initialItems: getItemsForDuration(45),
       selections: ["custom", "45", "7"],
       expectedDuration: 7,
-      expectedGuids: ["recent-read", "recent-unread"],
+      expectedGuids: ["recent-read"],
     },
   ])(
     "$label",
@@ -1067,125 +1067,7 @@ describe("EditFeedModal", () => {
     expect(closeSpy).toHaveBeenCalledTimes(1);
   });
 
-  it("auto-assigns the configured Twitter folder in Edit when the current folder is eligible", async () => {
-    const app = createMockApp();
-    const feed: Feed = {
-      title: "Old title",
-      url: "https://example.com/old.xml",
-      folder: "Uncategorized",
-      items: [],
-      lastUpdated: 0,
-    } as unknown as Feed;
 
-    vi.spyOn(feedPreviewLoader, "resolveAndLoadPreview").mockResolvedValue({
-      detectedType: "rss",
-      inputUrl: "https://x.com/user",
-      finalUrl: "https://nitter.net/user/rss",
-      isXConversion: true,
-      isMastodonConversion: false,
-      title: "User timeline",
-      latestPubDate: "2026-05-01T00:00:00.000Z",
-      hasEntries: true,
-    });
-
-    const plugin = {
-      app,
-      settings: {
-        folders: [],
-        maxItems: 50,
-        corsProxyEnabled: false,
-        corsProxyUrl: "",
-        articleSaving: { savedTemplates: [] },
-        media: {
-          defaultTwitterFolder: "Social/Twitter",
-          defaultYouTubeFolder: "Videos",
-          defaultPodcastFolder: "Podcast",
-          defaultRssFolder: "RSS",
-        },
-      },
-      ensureFolderExists: vi.fn(async () => {}),
-      saveSettings: vi.fn(async () => {}),
-      notifyFiltersUpdated: vi.fn(),
-    };
-
-    const modal = new EditFeedModal(
-      app,
-      asRssDashboardPlugin(plugin),
-      feed,
-      vi.fn(),
-    );
-    modal.open();
-
-    const urlInput = getTextInputBySettingName(modal.contentEl, "Feed URL");
-    urlInput.value = "https://x.com/user";
-    urlInput.dispatchEvent(new Event("input"));
-
-    getButtonByText(modal.contentEl, "Load").click();
-    await flushPromises();
-
-    const folderInput = getTextInputBySettingName(modal.contentEl, "Folder");
-    expect(folderInput.value).toBe("Social/Twitter");
-  });
-
-  it("preserves a custom folder in Edit when loading an X/Twitter feed", async () => {
-    const app = createMockApp();
-    const feed: Feed = {
-      title: "Old title",
-      url: "https://example.com/old.xml",
-      folder: "My Custom Folder",
-      items: [],
-      lastUpdated: 0,
-    } as unknown as Feed;
-
-    vi.spyOn(feedPreviewLoader, "resolveAndLoadPreview").mockResolvedValue({
-      detectedType: "rss",
-      inputUrl: "https://twitter.com/user",
-      finalUrl: "https://nitter.net/user/rss",
-      isXConversion: true,
-      isMastodonConversion: false,
-      title: "User timeline",
-      latestPubDate: "2026-05-01T00:00:00.000Z",
-      hasEntries: true,
-    });
-
-    const plugin = {
-      app,
-      settings: {
-        folders: [],
-        maxItems: 50,
-        corsProxyEnabled: false,
-        corsProxyUrl: "",
-        articleSaving: { savedTemplates: [] },
-        media: {
-          defaultTwitterFolder: "Social/Twitter",
-          defaultYouTubeFolder: "Videos",
-          defaultPodcastFolder: "Podcast",
-          defaultRssFolder: "RSS",
-        },
-      },
-      ensureFolderExists: vi.fn(async () => {}),
-      saveSettings: vi.fn(async () => {}),
-      notifyFiltersUpdated: vi.fn(),
-    };
-
-    const modal = new EditFeedModal(
-      app,
-      asRssDashboardPlugin(plugin),
-      feed,
-      vi.fn(),
-    );
-    modal.open();
-
-    const urlInput = getTextInputBySettingName(modal.contentEl, "Feed URL");
-    urlInput.value = "https://twitter.com/user";
-    urlInput.dispatchEvent(new Event("input"));
-
-    getButtonByText(modal.contentEl, "Load").click();
-    await flushPromises();
-
-    const folderInput = getTextInputBySettingName(modal.contentEl, "Folder");
-    expect(folderInput.value).toBe("My Custom Folder");
-  });
 
   it("shows a Mastodon conversion notice and routes to the configured Mastodon folder in Edit", async () => {
     const app = createMockApp();
@@ -1201,7 +1083,6 @@ describe("EditFeedModal", () => {
       detectedType: "rss",
       inputUrl: "https://mastodon.social/@user",
       finalUrl: "https://mastodon.social/@user.rss",
-      isXConversion: false,
       isMastodonConversion: true,
       title: "Mastodon timeline",
       latestPubDate: "2026-05-01T00:00:00.000Z",
@@ -1217,7 +1098,6 @@ describe("EditFeedModal", () => {
         corsProxyUrl: "",
         articleSaving: { savedTemplates: [] },
         media: {
-          defaultTwitterFolder: "Social/Twitter",
           defaultMastodonFolder: "Social/Mastodon",
           defaultYouTubeFolder: "Videos",
           defaultPodcastFolder: "Podcast",
@@ -1267,7 +1147,6 @@ describe("EditFeedModal", () => {
       detectedType: "rss",
       inputUrl: "https://mastodon.social/@user",
       finalUrl: "https://mastodon.social/@user.rss",
-      isXConversion: false,
       isMastodonConversion: true,
       title: "Mastodon timeline",
       latestPubDate: "2026-05-01T00:00:00.000Z",
@@ -1283,7 +1162,6 @@ describe("EditFeedModal", () => {
         corsProxyUrl: "",
         articleSaving: { savedTemplates: [] },
         media: {
-          defaultTwitterFolder: "Social/Twitter",
           defaultMastodonFolder: "Social/Mastodon",
           defaultYouTubeFolder: "Videos",
           defaultPodcastFolder: "Podcast",
@@ -1539,4 +1417,353 @@ describe("EditFeedModal", () => {
     expect(feed.items[0].tags).toEqual([{ name: "Tech", color: "#228811" }]);
     expect(plugin.saveSettings).not.toHaveBeenCalled();
   });
+
+  it("renders Save, Cancel, and Delete buttons with expected classes, icons, and layout container", () => {
+    const app = createMockApp();
+    const feed: Feed = {
+      title: "Example feed",
+      url: "https://example.com/rss.xml",
+      folder: "",
+      items: [],
+      lastUpdated: 0,
+      maxItemsLimit: 100,
+    };
+    const plugin = {
+      app,
+      settings: {
+        folders: [],
+        maxItems: 100,
+        corsProxyEnabled: false,
+        corsProxyUrl: "",
+        articleSaving: { savedTemplates: [] },
+      } as PluginTestFixture["settings"],
+      ensureFolderExists: vi.fn(async () => {}),
+      saveSettings: vi.fn(async () => {}),
+      notifyFiltersUpdated: vi.fn(),
+    };
+
+    const modal = new EditFeedModal(app, asRssDashboardPlugin(plugin), feed, vi.fn());
+    modal.open();
+
+    expect(modal.modalEl.classList.contains("rss-edit-feed-modal")).toBe(true);
+
+    const actionsContainer = modal.contentEl.querySelector(".rss-edit-feed-actions");
+    expect(actionsContainer).not.toBeNull();
+
+    const saveBtn = modal.contentEl.querySelector(".rss-edit-feed-save-button") as HTMLButtonElement;
+    expect(saveBtn).not.toBeNull();
+    expect(saveBtn.textContent).toBe("Save");
+    expect(saveBtn.classList.contains("rss-dashboard-primary-button")).toBe(true);
+
+    const cancelBtn = modal.contentEl.querySelector(".rss-edit-feed-cancel-button") as HTMLButtonElement;
+    expect(cancelBtn).not.toBeNull();
+    expect(cancelBtn.textContent).toBe("Cancel");
+    expect(cancelBtn.classList.contains("rss-dashboard-cancel-button")).toBe(true);
+    expect(cancelBtn.classList.contains("rss-dashboard-danger-button")).toBe(false);
+
+    const deleteBtn = modal.contentEl.querySelector(".rss-edit-feed-delete-button") as HTMLButtonElement;
+    expect(deleteBtn).not.toBeNull();
+    expect(deleteBtn.classList.contains("rss-dashboard-danger-button")).toBe(true);
+
+    const iconSpan = deleteBtn.querySelector(".rss-edit-feed-delete-icon");
+    expect(iconSpan).not.toBeNull();
+    expect((iconSpan as HTMLElement).dataset.icon).toBe("trash");
+    expect(deleteBtn.textContent).toContain("Delete");
+  });
+
+  it("opens confirmation modal on clicking Delete, and cancels deletion when Cancel is clicked", async () => {
+    const app = createMockApp();
+    const feed: Feed = {
+      title: "My Feed",
+      url: "https://example.com/rss.xml",
+      folder: "",
+      items: [],
+      lastUpdated: 0,
+      maxItemsLimit: 100,
+    };
+    const onDelete = vi.fn();
+    const plugin = {
+      app,
+      settings: {
+        feeds: [feed],
+        folders: [],
+        maxItems: 100,
+        corsProxyEnabled: false,
+        corsProxyUrl: "",
+        articleSaving: { savedTemplates: [] },
+      } as unknown as PluginTestFixture["settings"] & { feeds: Feed[] },
+      ensureFolderExists: vi.fn(async () => {}),
+      saveSettings: vi.fn(async () => {}),
+      notifyFiltersUpdated: vi.fn(),
+    };
+
+    const modal = new EditFeedModal(app, asRssDashboardPlugin(plugin), feed, vi.fn(), {
+      onDelete,
+    });
+    const closeModalSpy = vi.spyOn(modal, "close");
+    modal.open();
+
+    const deleteBtn = modal.contentEl.querySelector(".rss-edit-feed-delete-button") as HTMLButtonElement;
+    deleteBtn.click();
+    await flushPromises();
+
+    // Confirm modal should be open in document body
+    const confirmModalEl = document.body.querySelector(".rss-dashboard-confirm-modal");
+    expect(confirmModalEl).not.toBeNull();
+    expect(confirmModalEl?.textContent).toContain('Are you sure you want to delete the feed "My Feed"?');
+
+    // Click Cancel in the confirm modal
+    const cancelConfirmBtn = getButtonByText(confirmModalEl as HTMLElement, "Cancel");
+    cancelConfirmBtn.click();
+    await flushPromises();
+
+    expect(onDelete).not.toHaveBeenCalled();
+    expect(closeModalSpy).not.toHaveBeenCalled();
+    expect(plugin.saveSettings).not.toHaveBeenCalled();
+  });
+
+  it("deletes the feed via onDelete callback when confirmed", async () => {
+    const app = createMockApp();
+    const feed: Feed = {
+      title: "My Feed",
+      url: "https://example.com/rss.xml",
+      folder: "",
+      items: [],
+      lastUpdated: 0,
+      maxItemsLimit: 100,
+    };
+    const onDelete = vi.fn();
+    const plugin = {
+      app,
+      settings: {
+        feeds: [feed],
+        folders: [],
+        maxItems: 100,
+        corsProxyEnabled: false,
+        corsProxyUrl: "",
+        articleSaving: { savedTemplates: [] },
+      } as unknown as PluginTestFixture["settings"] & { feeds: Feed[] },
+      ensureFolderExists: vi.fn(async () => {}),
+      saveSettings: vi.fn(async () => {}),
+      notifyFiltersUpdated: vi.fn(),
+    };
+
+    const modal = new EditFeedModal(app, asRssDashboardPlugin(plugin), feed, vi.fn(), {
+      onDelete,
+    });
+    const closeModalSpy = vi.spyOn(modal, "close");
+    modal.open();
+
+    const deleteBtn = modal.contentEl.querySelector(".rss-edit-feed-delete-button") as HTMLButtonElement;
+    deleteBtn.click();
+    await flushPromises();
+
+    const confirmModalEl = document.body.querySelector(".rss-dashboard-confirm-modal");
+    const confirmDeleteBtn = getButtonByText(confirmModalEl as HTMLElement, "Delete");
+    confirmDeleteBtn.click();
+    await flushPromises();
+
+    expect(onDelete).toHaveBeenCalledTimes(1);
+    expect(closeModalSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("falls back to default deletion when onDelete option is not provided", async () => {
+    const app = createMockApp();
+    const feed: Feed = {
+      title: "My Feed",
+      url: "https://example.com/rss.xml",
+      folder: "",
+      items: [],
+      lastUpdated: 0,
+      maxItemsLimit: 100,
+    };
+    const onSave = vi.fn();
+    const removeCachedImages = vi.fn(async () => {});
+    const plugin = {
+      app,
+      settings: {
+        feeds: [feed],
+        folders: [],
+        maxItems: 100,
+        corsProxyEnabled: false,
+        corsProxyUrl: "",
+        articleSaving: { savedTemplates: [] },
+      } as unknown as PluginTestFixture["settings"] & { feeds: Feed[] },
+      removeCachedImagesForDeletedFeed: removeCachedImages,
+      ensureFolderExists: vi.fn(async () => {}),
+      saveSettings: vi.fn(async () => {}),
+      notifyFiltersUpdated: vi.fn(),
+    };
+
+    const modal = new EditFeedModal(app, asRssDashboardPlugin(plugin), feed, onSave);
+    const closeModalSpy = vi.spyOn(modal, "close");
+    modal.open();
+
+    const deleteBtn = modal.contentEl.querySelector(".rss-edit-feed-delete-button") as HTMLButtonElement;
+    deleteBtn.click();
+    await flushPromises();
+
+    const confirmModalEl = document.body.querySelector(".rss-dashboard-confirm-modal");
+    const confirmDeleteBtn = getButtonByText(confirmModalEl as HTMLElement, "Delete");
+    confirmDeleteBtn.click();
+    await flushPromises();
+
+    expect(plugin.settings.feeds).not.toContain(feed);
+    expect(removeCachedImages).toHaveBeenCalledWith(feed);
+    expect(plugin.saveSettings).toHaveBeenCalledTimes(1);
+    expect(onSave).toHaveBeenCalledTimes(1);
+    expect(closeModalSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("truncates items using effective date (respects firstSeenMs when useFirstSeenDateFallback is enabled)", async () => {
+    const app = createMockApp();
+    // Create 12 items: 1 undated with recent firstSeenMs, 11 dated items from oldest to newest
+    const undatedItem = makeArticle("undated-item", "", {
+      firstSeenMs: 1700000000000, // Timestamp between mid-item and recent-item
+    }) as unknown as FeedItem;
+    const veryOldItem = makeArticle("very-old-item", "2015-01-01T00:00:00Z") as unknown as FeedItem;
+    const oldItem1 = makeArticle("old-item-1", "2018-01-01T00:00:00Z") as unknown as FeedItem;
+    const oldItem2 = makeArticle("old-item-2", "2019-01-01T00:00:00Z") as unknown as FeedItem;
+    const oldItem3 = makeArticle("old-item-3", "2020-01-01T00:00:00Z") as unknown as FeedItem;
+    const midItem1 = makeArticle("mid-item-1", "2021-01-01T00:00:00Z") as unknown as FeedItem;
+    const midItem2 = makeArticle("mid-item-2", "2022-01-01T00:00:00Z") as unknown as FeedItem;
+    const midItem3 = makeArticle("mid-item-3", "2023-01-01T00:00:00Z") as unknown as FeedItem;
+    const recentItem1 = makeArticle("recent-item-1", "2024-01-01T00:00:00Z") as unknown as FeedItem;
+    const recentItem2 = makeArticle("recent-item-2", "2024-08-01T00:00:00Z") as unknown as FeedItem;
+    const recentItem3 = makeArticle("recent-item-3", "2024-12-01T00:00:00Z") as unknown as FeedItem;
+
+    const feed: Feed = {
+      title: "Test feed",
+      url: "https://example.com/feed.xml",
+      folder: "Tech",
+      items: [
+        veryOldItem, oldItem1, oldItem2, oldItem3, midItem1, midItem2,
+        undatedItem, midItem3, recentItem1, recentItem2, recentItem3,
+      ],
+      lastUpdated: 0,
+      maxItemsLimit: 0,
+    } as unknown as Feed;
+
+    const plugin: PluginTestFixture = {
+      app,
+      settings: {
+        folders: [],
+        maxItems: 50,
+        useFirstSeenDateFallback: true,
+        corsProxyEnabled: false,
+        corsProxyUrl: "",
+        articleSaving: { savedTemplates: [] },
+      } as PluginTestFixture["settings"] & { useFirstSeenDateFallback: boolean },
+      ensureFolderExists: vi.fn(async () => {}),
+      saveSettings: vi.fn(async () => {}),
+      notifyFiltersUpdated: vi.fn(),
+    };
+
+    const modal = new EditFeedModal(
+      app,
+      asRssDashboardPlugin(plugin),
+      feed,
+      vi.fn(),
+    );
+    modal.open();
+
+    const maxItemsSelect = getSelectBySettingName(
+      modal.contentEl,
+      "Max items limit",
+    );
+    // Change from unlimited to 10 items
+    maxItemsSelect.value = "10";
+    maxItemsSelect.dispatchEvent(new Event("change"));
+
+    getButtonByText(modal.contentEl, "Save").click();
+    await flushPromises();
+
+    // Should keep 10 most recent by effective date:
+    // With useFirstSeenDateFallback, undated-item uses firstSeenMs (1700000000000 ≈ 2023-11-14)
+    // So ordering should be: recentItem3, recentItem2, recentItem1, undatedItem, midItem3, ...
+    // After keeping top 10, should drop the oldest 1 (veryOldItem)
+    const guids = feed.items.map((item) => item.guid);
+    expect(guids.length).toBe(10);
+    expect(guids).not.toContain("very-old-item");
+    expect(guids).toContain("undated-item");
+    expect(guids).toContain("recent-item-3");
+    expect(guids).toContain("old-item-1");
+  });
+
+  it("truncates fully-dated feeds using pubDate (regression test)", async () => {
+    const app = createMockApp();
+    // Create 12 fully-dated items to verify sorting and truncation works correctly
+    const veryOldItem = makeArticle("very-old-item", "2015-01-01T00:00:00Z") as unknown as FeedItem;
+    const oldItem1 = makeArticle("old-item-1", "2018-01-01T00:00:00Z") as unknown as FeedItem;
+    const oldItem2 = makeArticle("old-item-2", "2019-01-01T00:00:00Z") as unknown as FeedItem;
+    const oldItem3 = makeArticle("old-item-3", "2020-01-01T00:00:00Z") as unknown as FeedItem;
+    const midItem1 = makeArticle("mid-item-1", "2021-01-01T00:00:00Z") as unknown as FeedItem;
+    const midItem2 = makeArticle("mid-item-2", "2022-01-01T00:00:00Z") as unknown as FeedItem;
+    const midItem3 = makeArticle("mid-item-3", "2023-01-01T00:00:00Z") as unknown as FeedItem;
+    const recentItem1 = makeArticle("recent-item-1", "2024-01-01T00:00:00Z") as unknown as FeedItem;
+    const recentItem2 = makeArticle("recent-item-2", "2024-08-01T00:00:00Z") as unknown as FeedItem;
+    const recentItem3 = makeArticle("recent-item-3", "2024-12-01T00:00:00Z") as unknown as FeedItem;
+    const extraItem1 = makeArticle("extra-item-1", "2024-07-01T00:00:00Z") as unknown as FeedItem;
+    const extraItem2 = makeArticle("extra-item-2", "2024-06-01T00:00:00Z") as unknown as FeedItem;
+
+    const feed: Feed = {
+      title: "Test feed",
+      url: "https://example.com/feed.xml",
+      folder: "Tech",
+      items: [
+        veryOldItem, oldItem1, oldItem2, oldItem3, midItem1, midItem2,
+        midItem3, recentItem1, extraItem1, extraItem2, recentItem2, recentItem3,
+      ],
+      lastUpdated: 0,
+      maxItemsLimit: 0,
+    } as unknown as Feed;
+
+    const plugin: PluginTestFixture = {
+      app,
+      settings: {
+        folders: [],
+        maxItems: 50,
+        useFirstSeenDateFallback: false,
+        corsProxyEnabled: false,
+        corsProxyUrl: "",
+        articleSaving: { savedTemplates: [] },
+      } as PluginTestFixture["settings"] & { useFirstSeenDateFallback: boolean },
+      ensureFolderExists: vi.fn(async () => {}),
+      saveSettings: vi.fn(async () => {}),
+      notifyFiltersUpdated: vi.fn(),
+    };
+
+    const modal = new EditFeedModal(
+      app,
+      asRssDashboardPlugin(plugin),
+      feed,
+      vi.fn(),
+    );
+    modal.open();
+
+    const maxItemsSelect = getSelectBySettingName(
+      modal.contentEl,
+      "Max items limit",
+    );
+    // Change from unlimited to 10 items to trigger truncation
+    maxItemsSelect.value = "10";
+    maxItemsSelect.dispatchEvent(new Event("change"));
+
+    getButtonByText(modal.contentEl, "Save").click();
+    await flushPromises();
+
+    // Should keep 10 most recent by pubDate
+    // Sorted descending: recentItem3, recentItem2, extraItem1, extraItem2, recentItem1, midItem3, midItem2, midItem1, oldItem3, oldItem2
+    // So should drop: oldItem1, veryOldItem
+    const guids = feed.items.map((item) => item.guid);
+    expect(guids.length).toBe(10);
+    expect(guids).not.toContain("very-old-item");
+    expect(guids).not.toContain("old-item-1");
+    expect(guids).toContain("recent-item-3");
+    expect(guids).toContain("old-item-2");
+    // Verify order: most recent first
+    expect(guids[0]).toBe("recent-item-3");
+    expect(guids[1]).toBe("recent-item-2");
+  });
 });
+

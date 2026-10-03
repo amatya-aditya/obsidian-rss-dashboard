@@ -11,7 +11,7 @@ beforeEach(() => {
 
 describe("renderAboutTab()", () => {
   it("renders name/version and link buttons with safe attrs", () => {
-    const containerEl = document.createElement("div");
+    const containerEl = createDiv();
     document.body.appendChild(containerEl);
     const plugin = {
       manifest: {
@@ -40,5 +40,40 @@ describe("renderAboutTab()", () => {
       expect(link.getAttribute("href")).toMatch(/^https?:\/\//);
       expect(link.textContent?.length).toBeGreaterThan(0);
     }
+  });
+});
+
+describe("renderAboutTab() build details", () => {
+  function renderWithVersion(version: string): HTMLElement {
+    const containerEl = createDiv();
+    document.body.appendChild(containerEl);
+    renderAboutTab(containerEl, {
+      manifest: { name: "RSS Dashboard", version },
+    } as unknown as import("../../../main").default);
+    return containerEl;
+  }
+
+  it("shows the build details under the version", () => {
+    const containerEl = renderWithVersion("9.9.9");
+
+    expect(
+      containerEl.querySelector(".rss-dashboard-about-build-label")?.textContent,
+    ).toBe("Version 9.9.9 · build unknown");
+  });
+
+  it("copies the build details for bug reports", async () => {
+    const writeText = vi.fn(async () => {});
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText },
+      configurable: true,
+    });
+    const containerEl = renderWithVersion("9.9.9");
+
+    containerEl
+      .querySelector<HTMLElement>(".rss-dashboard-about-build-copy")
+      ?.click();
+    await Promise.resolve();
+
+    expect(writeText).toHaveBeenCalledWith("Version 9.9.9 · build unknown");
   });
 });

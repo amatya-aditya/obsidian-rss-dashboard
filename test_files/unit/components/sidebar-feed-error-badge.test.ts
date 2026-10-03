@@ -30,7 +30,7 @@ describe("Feed Error Badge Rendering", () => {
 
   beforeEach(() => {
     app = ObsidianStubs.App.createMock();
-    container = document.createElement("div");
+    container = createDiv();
     document.body.appendChild(container);
 
     settings = {
@@ -47,6 +47,7 @@ describe("Feed Error Badge Rendering", () => {
       selectedTags: [],
       tagsCollapsed: false,
       collapsedFolders: [],
+      selectedFolders: [],
     };
 
     callbacks = {} as unknown as SidebarCallbacks;
@@ -118,7 +119,7 @@ describe("Feed Error Badge Rendering", () => {
     ) as HTMLElement;
     
     expect(errorBadge).not.toBeNull();
-    expect(errorBadge.getAttribute("title")).toBe("Request failed, status 429");
+    expect(errorBadge.hasAttribute("title")).toBe(false);
     expect(errorBadge.getAttribute("aria-label")).toContain("Request failed, status 429");
     
     // Check it rendered the icon

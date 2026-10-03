@@ -98,7 +98,9 @@ Use a staged validation ladder:
 
 1. During implementation, run ESLint against changed TypeScript files with
    `npm exec -- eslint <changed-files> --max-warnings=0` and run focused tests
-   with `npm run test:unit -- <matching-test-file>`.
+   with `npm run test:unit -- <matching-test-file>`, or let Vitest select every
+   test that imports the changed files with
+   `npm exec -- vitest related --run <changed-files>`.
 2. Run `npm run check:platform` early when `main.ts` or `src/**/*.ts` changes.
    For CSS changes, run `npm run check:css-scope` and
    `npm run check:important` early.
@@ -108,6 +110,10 @@ Use a staged validation ladder:
 4. Run `npm run build` once before handoff as the complete compliance, full
    lint, type-check, and production-bundle gate.
 5. Run `git status --short` and confirm no unexpected generated files appear.
+
+The git hooks mirror this ladder: pre-commit lints the staged files and runs
+their related tests, and pre-push runs `npm run build` plus the full unit
+suite. A commit passing its hook does not replace steps 3 and 4.
 
 If a check cannot run or fails, report the exact command and reason. Where
 possible, distinguish a reproducible pre-existing failure from a regression.

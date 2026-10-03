@@ -1,7 +1,5 @@
 # Why YouTube Shorts Auto-Tagging Is Fundamentally Brittle
 
-Last updated: March 18, 2026
-
 **Status**: Feature completely removed as of version 2.3.0-alpha.3. This document serves as a post-mortem and reference for future developers considering similar features.
 
 ## Executive Summary

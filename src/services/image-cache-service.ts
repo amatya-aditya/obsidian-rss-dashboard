@@ -183,12 +183,12 @@ export class ImageCacheService {
     try {
       await this.adapter.writeBinary(this.getEntryPath(entry), response.arrayBuffer);
       if (writeGeneration !== this.writeGeneration) {
-        await this.adapter.remove(this.getEntryPath(entry));
+        await this.removeCachedFile(entry);
         return false;
       }
       this.entries.set(url, entry);
       if (existingEntry && existingEntry.fileName !== entry.fileName) {
-        await this.adapter.remove(this.getEntryPath(existingEntry));
+        await this.removeCachedFile(existingEntry);
       }
       await this.persistIndex();
       this.onChange?.();
@@ -206,7 +206,7 @@ export class ImageCacheService {
 
     for (const [url, entry] of this.entries) {
       try {
-        await this.adapter.remove(this.getEntryPath(entry));
+        await this.removeCachedFile(entry);
         this.entries.delete(url);
         cleared += 1;
       } catch (error) {
@@ -218,6 +218,22 @@ export class ImageCacheService {
     await this.persistIndex();
     this.onChange?.();
     return { cleared, failed };
+  }
+
+  /** Deletes every cached file, the index, and the cache folder itself. */
+  async destroy(): Promise<void> {
+    this.cancelPendingWrites();
+    this.entries.clear();
+    this.initialized = false;
+
+    try {
+      if (await this.adapter.exists(this.cacheRoot)) {
+        await this.adapter.rmdir(this.cacheRoot, true);
+      }
+    } catch (error) {
+      console.warn("[RSS dashboard] Unable to remove image cache folder", error);
+    }
+    this.onChange?.();
   }
 
   async removeUrls(rawUrls: Iterable<string>): Promise<{ cleared: number; failed: number }> {
@@ -237,7 +253,7 @@ export class ImageCacheService {
       if (!entry) continue;
 
       try {
-        await this.adapter.remove(this.getEntryPath(entry));
+        await this.removeCachedFile(entry);
         this.entries.delete(url);
         cleared += 1;
       } catch (error) {
@@ -295,6 +311,18 @@ export class ImageCacheService {
     );
   }
 
+  /**
+   * Deletes an entry's file. A file that is already gone, for example deleted
+   * by the user or a sync tool during the session, counts as removed.
+   */
+  private async removeCachedFile(entry: ImageCacheEntry): Promise<void> {
+    try {
+      await this.adapter.remove(this.getEntryPath(entry));
+    } catch (error) {
+      if (!isMissingFileError(error)) throw error;
+    }
+  }
+
   private async evictUntilFits(
     incomingBytes: number,
     replacingBytes: number,
@@ -308,7 +336,7 @@ export class ImageCacheService {
 
     for (const [url, entry] of entries) {
       if (size + incomingBytes <= this.maxCacheBytes) break;
-      await this.adapter.remove(this.getEntryPath(entry));
+      await this.removeCachedFile(entry);
       this.entries.delete(url);
       size -= entry.byteLength;
     }
@@ -318,7 +346,8 @@ export class ImageCacheService {
     const contentType = Object.entries(response.headers).find(
       ([name]) => name.toLowerCase() === "content-type",
     )?.[1];
-    return IMAGE_TYPES.get(contentType?.split(";", 1)[0].trim().toLowerCase() ?? "") ?? null;
+    const mediaType = contentType?.split(";", 1)[0];
+    return IMAGE_TYPES.get(mediaType?.trim().toLowerCase() ?? "") ?? null;
   }
 
   private getDeclaredLength(headers: Record<string, string>): number | null {
@@ -351,4 +380,9 @@ export class ImageCacheService {
     const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(url));
     return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
   }
+}
+
+/** True for the ENOENT error that `adapter.remove` rejects with for a missing path. */
+function isMissingFileError(error: unknown): boolean {
+  return error instanceof Error && "code" in error && error.code === "ENOENT";
 }

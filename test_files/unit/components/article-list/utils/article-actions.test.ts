@@ -13,7 +13,7 @@ describe("article-actions utils", () => {
   let article: FeedItem;
 
   beforeEach(() => {
-    actionToolbar = document.createElement("div");
+    actionToolbar = createDiv();
     document.body.appendChild(actionToolbar);
 
     article = {

@@ -14,7 +14,7 @@ describe("Sidebar Horizontal Scrolling", () => {
   let mockSidebar: Sidebar;
 
   beforeEach(() => {
-    iconRow = document.createElement("div");
+    iconRow = createDiv();
     iconRow.classList.add("rss-dashboard-header-icon-row");
 
     // jsdom doesn't implement layout calculations well, mock them
@@ -32,7 +32,7 @@ describe("Sidebar Horizontal Scrolling", () => {
         loadLocalStorage: vi.fn(),
         saveLocalStorage: vi.fn(),
       } as unknown as App,
-      container: document.createElement("div"),
+      container: createDiv(),
       plugin: {} as RssDashboardPlugin,
       settings: {} as RssDashboardSettings,
       options: {},

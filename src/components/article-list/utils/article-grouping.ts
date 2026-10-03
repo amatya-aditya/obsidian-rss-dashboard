@@ -1,10 +1,32 @@
-import type { Feed, FeedItem } from "../../../types/types";
-import { formatDateWithRelative } from "../../../utils/platform-utils";
+import type { ArticleGroupByOption, Feed, FeedItem } from "../../../types/types";
+import { resolveDisplayDate } from "../../../services/feed-parser/feed-retention";
+
+export function getArticleDateGroupKey(
+  item: Pick<FeedItem, "pubDate" | "firstSeenMs">,
+  useFirstSeenDateFallback?: boolean,
+): string {
+  const target = resolveDisplayDate(item, useFirstSeenDateFallback);
+  if (!target) return "Unknown date";
+
+  const now = new Date();
+  if (now.toDateString() === target.toDateString()) return "Today";
+
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  if (yesterday.toDateString() === target.toDateString()) return "Yesterday";
+
+  return target.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
 
 export function groupArticles(
   articles: FeedItem[],
-  groupBy: "feed" | "date" | "folder" | "none",
+  groupBy: ArticleGroupByOption,
   getFeedFolderFn?: (feedUrl: string) => string | undefined,
+  useFirstSeenDateFallback?: boolean,
 ): Record<string, FeedItem[]> {
   if (groupBy === "none") return { "All articles": articles };
 
@@ -16,10 +38,12 @@ export function groupArticles(
           key = article.feedTitle || "Uncategorized";
           break;
         case "date":
-          key = formatDateWithRelative(article.pubDate).text;
+        case "date_feed":
+          key = getArticleDateGroupKey(article, useFirstSeenDateFallback);
           break;
 
         case "folder":
+        case "folder_feed":
           key = getFeedFolderFn?.(article.feedUrl) || "Uncategorized";
           break;
         default:
@@ -29,7 +53,8 @@ export function groupArticles(
       if (!acc[key]) {
         acc[key] = [];
       }
-      acc[key].push(article);
+      const group = acc[key];
+      if (group) group.push(article);
       return acc;
     },
     {} as Record<string, FeedItem[]>,

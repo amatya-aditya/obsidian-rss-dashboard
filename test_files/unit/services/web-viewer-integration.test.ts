@@ -1,4 +1,5 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { TFile, moment } from "obsidian";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 import { sanitizeFilename } from "../../../src/services/article-saver";
 import type { FeedItem } from "../../../src/types/types";
@@ -6,6 +7,11 @@ import {
   buildFeedItem,
   createWebViewerIntegrationHarness,
 } from "./web-viewer-integration-harness";
+
+// The real `obsidian` types `moment` as the moment namespace, which is not
+// callable; production code casts it the same way.
+type MomentFactory = (input?: Date) => { format: (fmt: string) => string };
+const callMoment = moment as unknown as MomentFactory;
 
 describe("Phase 8 - WebViewerIntegration", () => {
   beforeAll(() => {
@@ -278,12 +284,50 @@ describe("Phase 8 - WebViewerIntegration", () => {
       h.cleanup();
     });
 
+    it("escapes quotes in frontmatter values when saving a web article", async () => {
+      const h = createWebViewerIntegrationHarness({
+        settings: {
+          frontmatterTemplate: `---
+title: "{{title}}"
+author: "{{author}}"
+---`,
+        },
+      });
+
+      const item = buildFeedItem({
+        title: 'Quoted "Title"',
+        author: 'Ada "Lovelace"',
+        link: "https://example.com/a",
+      });
+
+      const integration = h.integration as unknown as {
+        saveArticle: (
+          item: FeedItem,
+          folder: string,
+          template: string,
+          includeFrontmatter: boolean,
+        ) => Promise<unknown>;
+      };
+      const saveArticle = integration.saveArticle.bind(h.integration);
+
+      const file = await saveArticle(item, "", "BODY\n", true);
+      expect(file).not.toBeNull();
+      if (!(file instanceof TFile)) throw new Error("expected TFile");
+      const written = await h.app.vault.read(file);
+
+      expect(written).toContain('title: "Quoted \\"Title\\""');
+      expect(written).toContain('author: "Ada \\"Lovelace\\""');
+
+      h.cleanup();
+    });
+
     it("returns null and emits a Notice when the file already exists", async () => {
       const logSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
 
       const h = createWebViewerIntegrationHarness();
       const item = buildFeedItem({ title: "Dupe" });
 
+      await h.app.vault.createFolder("Folder");
       await h.app.vault.create("Folder/Dupe.md", "existing");
 
       const integration = h.integration as unknown as {
@@ -343,7 +387,7 @@ describe("Phase 8 - WebViewerIntegration", () => {
 
       const out = applyTemplate(
         item,
-        "{{title}}|{{date}}|{{isoDateTime}}|{{link}}|{{author}}|{{source}}|{{summary}}|{{content}}",
+        "{{title}}|{{date}}|{{isoDateTime}}|{{saveDate}}|{{saveTime12}}|{{saveTime24}}|{{link}}|{{author}}|{{source}}|{{summary}}|{{content}}",
       );
 
       const expectedDate = new Date().toLocaleDateString(undefined, {
@@ -351,8 +395,14 @@ describe("Phase 8 - WebViewerIntegration", () => {
         month: "long",
         day: "numeric",
       });
+      const expectedSaveDate = callMoment().format("YYYY-MM-DD");
+      const expectedSaveTime12 = callMoment().format("hh:mm A");
+      const expectedSaveTime24 = callMoment().format("HH:mm");
       expect(out).toContain(`T|${expectedDate}|`);
       expect(out).toContain(new Date(item.pubDate).toISOString());
+      expect(out).toContain(
+        `${expectedSaveDate}|${expectedSaveTime12}|${expectedSaveTime24}|`,
+      );
       expect(out).toContain("https://example.com/a|A|F|S|<p>C</p>");
 
       h.cleanup();
@@ -362,23 +412,26 @@ describe("Phase 8 - WebViewerIntegration", () => {
       vi.useFakeTimers();
       vi.setSystemTime(new Date("2026-03-31T12:00:00Z"));
 
-const h = createWebViewerIntegrationHarness({
-          settings: {
-            addSavedTag: true,
-            frontmatterTemplate: `---
+      const h = createWebViewerIntegrationHarness({
+        settings: {
+          addSavedTag: true,
+          frontmatterTemplate: `---
 title: "{{title}}"
 date: "{{date}}"
+saveDate: "{{saveDate}}"
+saveTime12: "{{saveTime12}}"
+saveTime24: "{{saveTime24}}"
 iso: "{{isoDateTime}}"
 tags: [{{tags}}]
 guid: "{{guid}}"
 ---
 `,
-          },
-        });
-        const integration = h.integration as unknown as {
-          generateFrontmatter: (item: FeedItem) => string;
-        };
-        const generateFrontmatter = integration.generateFrontmatter.bind(h.integration);
+        },
+      });
+      const integration = h.integration as unknown as {
+        generateFrontmatter: (item: FeedItem) => string;
+      };
+      const generateFrontmatter = integration.generateFrontmatter.bind(h.integration);
 
       const item = buildFeedItem({
         title: "My Article",
@@ -390,11 +443,136 @@ guid: "{{guid}}"
         pubDate: "not-a-date",
       });
 
+      const expectedSaveDate = callMoment().format("YYYY-MM-DD");
+      const expectedSaveTime12 = callMoment().format("hh:mm A");
+      const expectedSaveTime24 = callMoment().format("HH:mm");
+
       const out = generateFrontmatter(item);
       expect(out).toContain('title: "My Article"');
+      expect(out).toContain(`saveDate: "${expectedSaveDate}"`);
+      expect(out).toContain(`saveTime12: "${expectedSaveTime12}"`);
+      expect(out).toContain(`saveTime24: "${expectedSaveTime24}"`);
       expect(out).toContain("tags: [Saved]");
       expect(out).toContain('guid: "g1"');
       expect(out).toContain(new Date().toISOString());
+
+      h.cleanup();
+    });
+
+    it("resolves a pubDate that fails Date.parse cleanly instead of silently using the save time (#303)", () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-03-31T12:00:00Z"));
+
+      const h = createWebViewerIntegrationHarness({
+        settings: {
+          frontmatterTemplate: `---
+date: "{{date}}"
+isoDate: "{{isoDate}}"
+---`,
+        },
+      });
+      const integration = h.integration as unknown as {
+        generateFrontmatter: (item: FeedItem) => string;
+      };
+      const generateFrontmatter = integration.generateFrontmatter.bind(h.integration);
+
+      // CST = UTC-6, so 09:00 CST is 15:00 UTC. Some engines fail to parse
+      // the obsolete named zone via Date.parse() and produce NaN;
+      // getPubDateMs normalizes it to an explicit offset first.
+      const item = buildFeedItem({
+        title: "Zoned Date",
+        pubDate: "Fri, 06 May 1983 09:00:00 CST",
+      });
+
+      const out = generateFrontmatter(item);
+      expect(out).toContain('date: "May 6, 1983"');
+      expect(out).toContain('isoDate: "1983-05-06T15:00:00.000Z"');
+
+      h.cleanup();
+    });
+
+    it("falls back to firstSeenMs (not the save time) when pubDate is unparseable, a first-seen timestamp exists, and useFirstSeenDateFallback is enabled (#303)", () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-03-31T12:00:00Z"));
+
+      const h = createWebViewerIntegrationHarness({
+        settings: {
+          frontmatterTemplate: `---
+date: "{{date}}"
+isoDate: "{{isoDate}}"
+---`,
+        },
+        useFirstSeenDateFallback: true,
+      });
+      const integration = h.integration as unknown as {
+        generateFrontmatter: (item: FeedItem) => string;
+      };
+      const generateFrontmatter = integration.generateFrontmatter.bind(h.integration);
+
+      const item = buildFeedItem({
+        title: "First Seen Fallback",
+        pubDate: "not-a-date",
+        firstSeenMs: Date.parse("2024-05-01T12:00:00Z"),
+      });
+
+      const out = generateFrontmatter(item);
+      expect(out).toContain('date: "May 1, 2024"');
+      expect(out).toContain('isoDate: "2024-05-01T12:00:00.000Z"');
+
+      h.cleanup();
+    });
+
+    it("does not substitute firstSeenMs for the frontmatter date when useFirstSeenDateFallback is disabled (default) (#303)", () => {
+      const now = new Date("2026-03-31T12:00:00Z");
+      vi.useFakeTimers();
+      vi.setSystemTime(now);
+
+      const h = createWebViewerIntegrationHarness({
+        settings: {
+          frontmatterTemplate: `---
+isoDate: "{{isoDate}}"
+---`,
+        },
+      });
+      const integration = h.integration as unknown as {
+        generateFrontmatter: (item: FeedItem) => string;
+      };
+      const generateFrontmatter = integration.generateFrontmatter.bind(h.integration);
+
+      const item = buildFeedItem({
+        title: "No Fallback",
+        pubDate: "not-a-date",
+        firstSeenMs: Date.parse("2024-05-01T12:00:00Z"),
+      });
+
+      const out = generateFrontmatter(item);
+      expect(out).toContain(`isoDate: "${now.toISOString()}"`);
+
+      h.cleanup();
+    });
+
+    it("saves into an existing folder whose name differs only in case", async () => {
+      vi.spyOn(console, "debug").mockImplementation(() => {});
+      const h = createWebViewerIntegrationHarness();
+      await h.app.vault.createFolder("RSS Articles");
+      const item = buildFeedItem({ title: "Case Variant" });
+
+      const integration = h.integration as unknown as {
+        saveArticle: (
+          item: FeedItem,
+          folder: string,
+          template: string,
+          includeFrontmatter: boolean,
+        ) => Promise<{ path: string } | null>;
+      };
+      const file = await integration.saveArticle.bind(h.integration)(
+        item,
+        "rss articles",
+        "{{title}}",
+        false,
+      );
+
+      expect(file?.path).toBe("RSS Articles/Case Variant.md");
 
       h.cleanup();
     });

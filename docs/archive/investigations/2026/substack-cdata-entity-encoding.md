@@ -1,7 +1,5 @@
 # Substack / RSS CDATA Entity Encoding
 
-Last updated: 2026-05-18
-
 ## Problem
 
 Substack and other richly-formatted RSS feeds use `content:encoded` CDATA sections containing HTML. Inside that HTML, JSON attribute values are double-quoted using `&quot;` entities to avoid breaking the XML attribute syntax:

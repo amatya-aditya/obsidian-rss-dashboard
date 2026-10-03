@@ -9,7 +9,7 @@ describe("Phase 7 - ArticleList in-place updates", () => {
     vi.useRealTimers();
   });
 
-  it("updateArticleInPlace should sync read/saved/starred classes and toggle titles", () => {
+  it("updateArticleInPlace should sync read/saved/starred classes and toggle tooltips", () => {
     const h = createArticleListHarness({
       settings: {
         viewStyle: "list",
@@ -47,9 +47,9 @@ describe("Phase 7 - ArticleList in-place updates", () => {
       ".rss-dashboard-star-toggle",
     );
 
-    expect(readToggle?.getAttribute("title")).toBe("Mark as read");
-    expect(saveToggle?.getAttribute("title")).toContain("Save");
-    expect(starToggle?.getAttribute("title")).toBe("Add to starred items");
+    expect(readToggle?.getAttribute("aria-label")).toBe("Mark as read");
+    expect(saveToggle?.getAttribute("aria-label")).toContain("Save");
+    expect(starToggle?.getAttribute("aria-label")).toBe("Add to starred items");
 
     h.list.updateArticleInPlace({
       ...h.articles[0],
@@ -64,11 +64,44 @@ describe("Phase 7 - ArticleList in-place updates", () => {
     expect(articleEl?.classList.contains("starred")).toBe(true);
     expect(articleEl?.classList.contains("unstarred")).toBe(false);
 
-    expect(readToggle?.getAttribute("title")).toBe("Mark as unread");
-    expect(saveToggle?.getAttribute("title")).toBe(
+    expect(readToggle?.getAttribute("aria-label")).toBe("Mark as unread");
+    expect(saveToggle?.getAttribute("aria-label")).toBe(
       "Click to open saved article",
     );
-    expect(starToggle?.getAttribute("title")).toBe("Remove from starred items");
+    expect(starToggle?.getAttribute("aria-label")).toBe("Remove from starred items");
+
+    h.cleanup();
+  });
+
+  it("marks an article unread on the first toggle click after an in-place update marked it read", () => {
+    const h = createArticleListHarness({
+      settings: {
+        viewStyle: "list",
+        articleGroupBy: "none",
+        articleSort: "newest",
+        display: {
+          mobileListToolbarStyle: "left-grid",
+        } as unknown as RssDashboardSettings["display"],
+      },
+      articles: [buildArticle({ guid: "1", title: "One", read: false })],
+    });
+    h.list.render();
+
+    // Mark page as read hands the list a fresh copy of each article, not the
+    // object the rendered card was built from.
+    h.list.updateArticleInPlace({ ...h.articles[0], read: true });
+
+    const readToggle = h
+      .getArticleEl("1")
+      ?.querySelector<HTMLElement>(".rss-dashboard-read-toggle");
+    readToggle?.click();
+
+    expect(h.callbacks.onArticleUpdate).toHaveBeenLastCalledWith(
+      expect.objectContaining({ guid: "1" }),
+      { read: false },
+      false,
+    );
+    expect(readToggle?.classList.contains("unread")).toBe(true);
 
     h.cleanup();
   });
@@ -314,4 +347,36 @@ describe("Phase 7 - ArticleList in-place updates", () => {
 
     h.cleanup();
   });
+  // #409: in Obsidian, activeDocument.createDiv() appends to the document and
+  // throws, so the insert must build the new row in a detached element.
+  it.each(["list", "card", "feed"] as const)(
+    "inserts a newly matching article into an ungrouped %s view without touching the document",
+    (viewStyle) => {
+      vi.useFakeTimers();
+      const h = createArticleListHarness({
+        settings: { viewStyle, articleGroupBy: "none", articleSort: "newest" },
+        articles: [
+          buildArticle({
+            guid: "older",
+            pubDate: new Date("2024-01-01T00:00:00Z").toISOString(),
+          }),
+        ],
+        pageSize: 50,
+        totalArticles: 1,
+      });
+      h.list.render();
+
+      const starred = buildArticle({
+        guid: "starred",
+        starred: true,
+        pubDate: new Date("2024-01-02T00:00:00Z").toISOString(),
+      });
+
+      expect(h.list.insertArticleInPlace(starred, "newest")).toBe(true);
+      vi.runOnlyPendingTimers();
+
+      expect(h.getArticlesListEl()?.querySelector("#article-starred")).not.toBeNull();
+      expect(document.childElementCount).toBe(1);
+    },
+  );
 });

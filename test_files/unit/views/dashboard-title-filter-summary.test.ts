@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { App } from "obsidian";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 import { DEFAULT_SETTINGS, type RssDashboardSettings } from "../../../src/types/types";
+import { RssDashboardView } from "../../../src/views/dashboard-view";
 
 vi.mock("../../../src/utils/platform-utils", () => ({
   robustFetch: vi.fn(),
@@ -72,8 +73,6 @@ describe("Dashboard title filter summary", () => {
   });
 
   it("builds a logic-aware title + tooltip when dashboard multi-filters are active in All Feeds view", async () => {
-    const { RssDashboardView } = await import("../../../src/views/dashboard-view");
-
     const app = new App();
     const settings = cloneSettings();
     const plugin = {
@@ -97,8 +96,6 @@ describe("Dashboard title filter summary", () => {
   });
 
   it("keeps the base title when no multi-filters are active", async () => {
-    const { RssDashboardView } = await import("../../../src/views/dashboard-view");
-
     const app = new App();
     const settings = cloneSettings();
     const plugin = {

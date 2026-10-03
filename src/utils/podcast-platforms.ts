@@ -1,3 +1,5 @@
+import { hostMatches, hostPathMatches } from "./url-host";
+
 export interface PodcastPlatform {
     name: string;
     id: string;
@@ -9,11 +11,11 @@ export const APPLE_PODCASTS: PodcastPlatform = {
     name: "Apple Podcasts",
     id: "apple",
     detect(url: string): boolean {
-        return url.includes("podcasts.apple.com");
+        return hostMatches(url, "podcasts.apple.com");
     },
     extractId(url: string): string | null {
         const match = url.match(/id(\d+)(?:\?|$)/);
-        return match ? match[1] : null;
+        return match?.[1] ?? null;
     }
 };
 
@@ -21,11 +23,11 @@ export const SPOTIFY: PodcastPlatform = {
     name: "Spotify",
     id: "spotify",
     detect(url: string): boolean {
-        return url.includes("open.spotify.com/show/");
+        return hostPathMatches(url, "open.spotify.com", "/show/");
     },
     extractId(url: string): string | null {
         const match = url.match(/show\/([a-zA-Z0-9]+)/);
-        return match ? match[1] : null;
+        return match?.[1] ?? null;
     }
 };
 
@@ -33,11 +35,11 @@ export const GOOGLE_PODCASTS: PodcastPlatform = {
     name: "Google Podcasts",
     id: "google",
     detect(url: string): boolean {
-        return url.includes("podcasts.google.com/feed/");
+        return hostPathMatches(url, "podcasts.google.com", "/feed/");
     },
     extractId(url: string): string | null {
         const match = url.match(/feed\/([a-zA-Z0-9_-]+)/);
-        return match ? match[1] : null;
+        return match?.[1] ?? null;
     }
 };
 
@@ -45,11 +47,11 @@ export const POCKET_CASTS: PodcastPlatform = {
     name: "Pocket Casts",
     id: "pocketcasts",
     detect(url: string): boolean {
-        return url.includes("pocketcasts.com/podcast/");
+        return hostPathMatches(url, "pocketcasts.com", "/podcast/");
     },
     extractId(url: string): string | null {
         const match = url.match(/pocketcasts\.com\/podcast\/[^/]+\/([0-9a-f-]{36})/i);
-        return match ? match[1] : null;
+        return match?.[1] ?? null;
     }
 };
 

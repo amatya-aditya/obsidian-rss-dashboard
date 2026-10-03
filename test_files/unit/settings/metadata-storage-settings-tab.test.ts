@@ -1,3 +1,4 @@
+import process from "node:process";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as obsidian from "obsidian";
 import {
@@ -33,10 +34,6 @@ function getSettingByName(containerEl: HTMLElement, name: string): HTMLElement {
 
 function sampleFolders(): Folder[] {
   return [
-    {
-      name: "Twitter",
-      subfolders: [{ name: "Lists", subfolders: [] }],
-    },
     { name: "YouTube", subfolders: [] },
     { name: "Podcast", subfolders: [] },
   ];
@@ -49,6 +46,8 @@ function createPlugin() {
     settings: cloneSettings(),
     saveSettings: vi.fn(async () => {}),
     getActiveDashboardView: vi.fn(async () => null),
+    getOrphanedUserStatePath: vi.fn(async () => null),
+    getMetadataFilePath: vi.fn(() => "rss-dashboard-data/data.json"),
     getStorageStatus: vi.fn(() => ({
       mode: "legacy-json" as const,
       folder: ".rss-dashboard-data/feeds",
@@ -58,7 +57,13 @@ function createPlugin() {
       lastRepairResult: "Not yet run",
     })),
     migrateToVaultStorage: vi.fn(async () => {}),
-    repairVaultStorage: vi.fn(async () => {}),
+    previewRepairVaultStorage: vi.fn(async () => ({
+      rewriteCount: 1,
+      skippedFeedTitles: [],
+      shrinkingFeeds: [],
+    })),
+    repairVaultStorage: vi.fn(async () => ({ skippedFeedCount: 0 })),
+    getUnloadedShardFeedCount: vi.fn(() => 0),
     importPortableDataBundleFromFile: vi.fn(async () => {}),
     exportPortableDataBundle: vi.fn(async () => {}),
     exportDataJson: vi.fn(async () => {}),
@@ -81,7 +86,7 @@ beforeEach(() => {
 
 describe("renderStorageSettingsTab() - default folders and metadata", () => {
   it("renders the storage section headings in the dedicated Storage tab", () => {
-    const containerEl = document.body.appendChild(document.createElement("div"));
+    const containerEl = document.body.appendChild(createDiv());
     const plugin = createPlugin();
 
     renderStorageSettingsTab(containerEl, plugin);
@@ -95,11 +100,10 @@ describe("renderStorageSettingsTab() - default folders and metadata", () => {
     expect(names).toContain("Default folders");
   });
 
-  it("renders and persists the default folder settings", async () => {
-    const containerEl = document.body.appendChild(document.createElement("div"));
+  it("renders and persists the supported default folder settings", async () => {
+    const containerEl = document.body.appendChild(createDiv());
     const settings = cloneSettings();
     settings.folders = sampleFolders();
-    settings.media.defaultTwitterFolder = "Twitter";
     settings.media.defaultYouTubeFolder = "YouTube";
     settings.media.defaultSmallwebFolder = "Smallweb";
 
@@ -113,13 +117,6 @@ describe("renderStorageSettingsTab() - default folders and metadata", () => {
     );
 
     renderStorageSettingsTab(containerEl, plugin);
-
-    const twitterInput = getSettingByName(
-      containerEl,
-      "Default Twitter folder",
-    ).querySelector('input[type="text"]') as HTMLInputElement;
-    twitterInput.value = "Social/Twitter";
-    twitterInput.dispatchEvent(new Event("input"));
 
     const youtubeInput = getSettingByName(
       containerEl,
@@ -137,22 +134,53 @@ describe("renderStorageSettingsTab() - default folders and metadata", () => {
 
     await flushPromises();
 
-    expect(plugin.settings.media.defaultTwitterFolder).toBe(
-      "norm:Social/Twitter",
-    );
     expect(plugin.settings.media.defaultYouTubeFolder).toBe(
       "norm:Media/YouTube",
     );
     expect(plugin.settings.media.defaultSmallwebFolder).toBe(
       "norm:Web/Smallweb",
     );
-    expect(vi.mocked(plugin.saveSettings)).toHaveBeenCalledTimes(3);
+    expect(vi.mocked(plugin.saveSettings)).toHaveBeenCalledTimes(2);
+  });
+
+  // Real `normalizePath("")` returns "/" (#372), which would put new video
+  // and podcast feeds in a feed folder named "/" instead of the root.
+  it("stores an empty default folder, not '/', when the field is cleared", async () => {
+    const containerEl = document.body.appendChild(createDiv());
+    const settings = cloneSettings();
+    settings.media.defaultYouTubeFolder = "YouTube";
+    settings.media.defaultPodcastFolder = "Podcast";
+
+    const plugin = {
+      ...createPlugin(),
+      settings,
+    } as unknown as RssDashboardPlugin;
+
+    renderStorageSettingsTab(containerEl, plugin);
+
+    const youtubeInput = getSettingByName(
+      containerEl,
+      "Default YouTube folder",
+    ).querySelector('input[type="text"]') as HTMLInputElement;
+    youtubeInput.value = "";
+    youtubeInput.dispatchEvent(new Event("input"));
+
+    const podcastInput = getSettingByName(
+      containerEl,
+      "Default podcast folder",
+    ).querySelector('input[type="text"]') as HTMLInputElement;
+    podcastInput.value = " / ";
+    podcastInput.dispatchEvent(new Event("input"));
+
+    await flushPromises();
+
+    expect(plugin.settings.media.defaultYouTubeFolder).toBe("");
+    expect(plugin.settings.media.defaultPodcastFolder).toBe("");
   });
 
   it("restores the default folder names from the reset action", async () => {
-    const containerEl = document.body.appendChild(document.createElement("div"));
+    const containerEl = document.body.appendChild(createDiv());
     const settings = cloneSettings();
-    settings.media.defaultTwitterFolder = "Custom/Twitter";
     settings.media.defaultMastodonFolder = "Custom/Mastodon";
     settings.media.defaultYouTubeFolder = "Custom/YouTube";
     settings.media.defaultPodcastFolder = "Custom/Podcast";
@@ -172,9 +200,6 @@ describe("renderStorageSettingsTab() - default folders and metadata", () => {
     await flushPromises();
 
     const defaults = DEFAULT_SETTINGS.media;
-    expect(plugin.settings.media.defaultTwitterFolder).toBe(
-      defaults.defaultTwitterFolder,
-    );
     expect(plugin.settings.media.defaultMastodonFolder).toBe(
       defaults.defaultMastodonFolder,
     );
@@ -191,5 +216,164 @@ describe("renderStorageSettingsTab() - default folders and metadata", () => {
       defaults.defaultSmallwebFolder,
     );
     expect(vi.mocked(plugin.saveSettings)).toHaveBeenCalledTimes(1);
+  });
+});
+
+async function applyMetadataLocation(
+  containerEl: HTMLElement,
+  folder: string,
+): Promise<void> {
+  const input = getSettingByName(
+    containerEl,
+    "Metadata data.json location",
+  ).querySelector('input[type="text"]') as HTMLInputElement;
+  input.value = folder;
+  input.dispatchEvent(new Event("input"));
+  const applyButton = getSettingByName(
+    containerEl,
+    "Metadata actions",
+  ).querySelector("button") as HTMLButtonElement;
+  applyButton.click();
+  await flushPromises();
+}
+
+describe("renderStorageSettingsTab() - previous metadata copy cleanup", () => {
+  function findCleanupModal(): HTMLElement | null {
+    const heading = Array.from(document.querySelectorAll(".modal h2")).find(
+      (el) => el.textContent === "Delete previous metadata copy?",
+    );
+    return (heading?.closest(".modal") as HTMLElement | null) ?? null;
+  }
+
+  function clickModalButton(modal: HTMLElement, text: string): void {
+    const button = Array.from(modal.querySelectorAll("button")).find(
+      (el) => el.textContent === text,
+    );
+    if (!button) {
+      throw new Error(`Button not found: ${text}`);
+    }
+    button.click();
+  }
+
+  function createVaultLocationPlugin(folder: string) {
+    const plugin = createPlugin();
+    plugin.settings.metadataStorageMode = "vault-location";
+    plugin.settings.metadataStorageFolder = folder;
+    return plugin;
+  }
+
+  it("offers to delete the previous copy in a hidden vault folder and removes it", async () => {
+    const containerEl = document.body.appendChild(createDiv());
+    const plugin = createVaultLocationPlugin(".rss-meta");
+    const { vault } = plugin.app;
+    await vault.createFolder(".rss-meta");
+    await vault.create(".rss-meta/data.json", "{}");
+
+    renderStorageSettingsTab(containerEl, plugin);
+    await applyMetadataLocation(containerEl, "rss-meta2");
+
+    const modal = findCleanupModal();
+    expect(modal).not.toBeNull();
+    clickModalButton(modal as HTMLElement, "Delete previous copy");
+    await flushPromises();
+
+    expect(await vault.adapter.exists(".rss-meta/data.json")).toBe(false);
+  });
+
+  it("offers to delete the previous copy in a visible vault folder", async () => {
+    const containerEl = document.body.appendChild(createDiv());
+    const plugin = createVaultLocationPlugin("rss-meta");
+    const { vault } = plugin.app;
+    await vault.createFolder("rss-meta");
+    await vault.create("rss-meta/data.json", "{}");
+
+    renderStorageSettingsTab(containerEl, plugin);
+    await applyMetadataLocation(containerEl, "rss-meta2");
+
+    const modal = findCleanupModal();
+    expect(modal).not.toBeNull();
+    clickModalButton(modal as HTMLElement, "Delete previous copy");
+    await flushPromises();
+
+    expect(await vault.adapter.exists("rss-meta/data.json")).toBe(false);
+  });
+
+  it("never offers to delete the plugin-default data.json, which becomes the bootstrap pointer", async () => {
+    const containerEl = document.body.appendChild(createDiv());
+    const plugin = createPlugin();
+    const { vault } = plugin.app;
+    const pluginDir = `${vault.configDir}/plugins/rss-dashboard`;
+    const bootstrapPath = `${pluginDir}/data.json`;
+    await vault.adapter.mkdir(pluginDir);
+    await vault.adapter.write(bootstrapPath, "{}");
+
+    renderStorageSettingsTab(containerEl, plugin);
+    await applyMetadataLocation(containerEl, "rss-meta");
+
+    expect(findCleanupModal()).toBeNull();
+    expect(await vault.adapter.exists(bootstrapPath)).toBe(true);
+  });
+});
+
+// Known issue #474: a bundle import made while metadata is in a vault folder
+// is lost if Obsidian closes before the next settings save. Users who move the
+// metadata into a vault folder are warned when they apply the move.
+describe("renderStorageSettingsTab() - vault folder import warning", () => {
+  const WARNING =
+    "Known issue: with metadata in a vault folder, an import can be lost if Obsidian closes before anything else is saved. After importing, change a setting or mark an article as read before closing.";
+
+  // The Notice stub reports each notice through console.debug.
+  function spyOnNotices() {
+    const spy = vi.spyOn(console, "debug").mockImplementation(() => {});
+    return () =>
+      spy.mock.calls
+        .filter(([tag]) => tag === "[Stub Notice]")
+        .map(([, message]) => message as string);
+  }
+
+  it("warns about imports after metadata moves into a vault folder", async () => {
+    const containerEl = document.body.appendChild(createDiv());
+    const plugin = createPlugin();
+    const notices = spyOnNotices();
+
+    renderStorageSettingsTab(containerEl, plugin);
+    await applyMetadataLocation(containerEl, "rss-meta");
+
+    expect(vi.mocked(plugin.migrateMetadataToVaultLocation)).toHaveBeenCalled();
+    expect(notices()).toContain(WARNING);
+  });
+
+  it("does not warn when the location is cleared back to the plugin folder", async () => {
+    const containerEl = document.body.appendChild(createDiv());
+    const plugin = createPlugin();
+    plugin.settings.metadataStorageMode = "vault-location";
+    plugin.settings.metadataStorageFolder = "rss-meta";
+    const notices = spyOnNotices();
+
+    renderStorageSettingsTab(containerEl, plugin);
+    await applyMetadataLocation(containerEl, "");
+
+    expect(vi.mocked(plugin.revertMetadataToPluginDefault)).toHaveBeenCalled();
+    expect(notices()).not.toContain(WARNING);
+  });
+
+  it("does not warn when the move fails", async () => {
+    const containerEl = document.body.appendChild(createDiv());
+    const plugin = createPlugin();
+    vi.mocked(plugin.migrateMetadataToVaultLocation).mockRejectedValueOnce(
+      new Error("disk full"),
+    );
+    const notices = spyOnNotices();
+    // The failed apply rethrows out of the click handler's promise.
+    const ignoreRejection = () => {};
+    process.on("unhandledRejection", ignoreRejection);
+
+    renderStorageSettingsTab(containerEl, plugin);
+    await applyMetadataLocation(containerEl, "rss-meta");
+    await flushPromises();
+    process.off("unhandledRejection", ignoreRejection);
+
+    expect(notices()).toContain("Metadata storage update failed: disk full");
+    expect(notices()).not.toContain(WARNING);
   });
 });

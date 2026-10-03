@@ -49,6 +49,49 @@ export function getEffectiveRefreshIntervalMinutes(
     : null;
 }
 
+/** Returns whether a feed participates in the shared global refresh cadence. */
+export function usesGlobalRefreshInterval(
+  feed: Pick<Feed, "scanInterval" | "excludeFromRefresh">,
+): boolean {
+  if (feed.excludeFromRefresh === true || feed.scanInterval === -1) {
+    return false;
+  }
+
+  if (
+    feed.scanInterval !== undefined &&
+    (!Number.isFinite(feed.scanInterval) || feed.scanInterval < 0)
+  ) {
+    return false;
+  }
+
+  return feed.scanInterval === undefined || feed.scanInterval === 0;
+}
+
+/** Derives the next shared global refresh time when an eligible feed inherits it. */
+export function getNextGlobalRefreshDueAt(
+  feeds: Feed[],
+  globalIntervalMinutes: number,
+  lastGlobalRefreshCompletedAt: number,
+): number | null {
+  if (
+    !Number.isFinite(globalIntervalMinutes) ||
+    globalIntervalMinutes <= 0 ||
+    !feeds.some(usesGlobalRefreshInterval)
+  ) {
+    return null;
+  }
+
+  if (
+    !Number.isFinite(lastGlobalRefreshCompletedAt) ||
+    !lastGlobalRefreshCompletedAt ||
+    lastGlobalRefreshCompletedAt < 0
+  ) {
+    return 0;
+  }
+
+  return lastGlobalRefreshCompletedAt + globalIntervalMinutes * MINUTE_MS;
+}
+
 /** Derives a feed's next automatic refresh time without persisting it. */
 export function getNextRefreshDueAt(
   feed: Pick<

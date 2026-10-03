@@ -35,8 +35,6 @@ export function renderFeedIcon(
     createSafeIconImage(iconContainer, feed.iconUrl, feed.title || feedUrl, () => {
       handleFeedIconFallback(iconContainer, feedUrl, context, feed, mediaType, isYouTubeFeed);
     }, "rss-dashboard-article-feed-icon-img");
-  } else if (MediaService.isTwitterOrNitterFeed(feedUrl)) {
-    renderTwitterFallbackIcon(iconContainer, context);
   } else if (MastodonService.isResolvedFeedUrl(feedUrl)) {
     renderMastodonFallbackIcon(iconContainer, feedUrl, context);
   } else if (mediaType === "video" && isYouTubeFeed) {
@@ -69,8 +67,6 @@ export function renderHeaderFeedIcon(
     createSafeIconImage(container, feed.iconUrl, feed.title || feedUrl, () => {
       handleHeaderFeedIconFallback(container, feedUrl, context, feed, mediaType, isYouTubeFeed);
     }, "rss-dashboard-header-feed-icon-img");
-  } else if (MediaService.isTwitterOrNitterFeed(feedUrl)) {
-    renderHeaderTwitterFallbackIcon(container, context);
   } else if (MastodonService.isResolvedFeedUrl(feedUrl)) {
     renderHeaderMastodonFallbackIcon(container, feedUrl, context);
   } else if (mediaType === "video" && isYouTubeFeed) {
@@ -94,9 +90,7 @@ function renderFallbackForFeed(
   isYouTubeFeed: boolean,
   context: FeedIconContext,
 ): void {
-  if (MediaService.isTwitterOrNitterFeed(feedUrl)) {
-    renderTwitterFallbackIcon(iconContainer, context);
-  } else if (MastodonService.isResolvedFeedUrl(feedUrl)) {
+  if (MastodonService.isResolvedFeedUrl(feedUrl)) {
     renderMastodonFallbackIcon(iconContainer, feedUrl, context);
   } else if (mediaType === "video" && isYouTubeFeed) {
     setIcon(iconContainer, "play");
@@ -119,9 +113,7 @@ function renderHeaderFallbackForFeed(
   isYouTubeFeed: boolean,
   context: FeedIconContext,
 ): void {
-  if (MediaService.isTwitterOrNitterFeed(feedUrl)) {
-    renderHeaderTwitterFallbackIcon(container, context);
-  } else if (MastodonService.isResolvedFeedUrl(feedUrl)) {
+  if (MastodonService.isResolvedFeedUrl(feedUrl)) {
     renderHeaderMastodonFallbackIcon(container, feedUrl, context);
   } else if (mediaType === "video" && isYouTubeFeed) {
     setIcon(container, "play");
@@ -145,18 +137,7 @@ function handleFeedIconFallback(
   _isYouTubeFeed: boolean,
 ): void {
   iconContainer.empty();
-  if (MediaService.isTwitterOrNitterFeed(feedUrl)) {
-    const faviconUrl = getFaviconUrl("twitter.com");
-    if (!failedFeedIconUrls.has(faviconUrl)) {
-      createSafeIconImage(iconContainer, faviconUrl, "Twitter/X", () => {
-        iconContainer.empty();
-        if (!context.display.hideDefaultRssIcon) {
-          setIcon(iconContainer, "rss");
-        }
-      }, "rss-dashboard-feed-favicon");
-      return;
-    }
-  } else if (MastodonService.isResolvedFeedUrl(feedUrl)) {
+  if (MastodonService.isResolvedFeedUrl(feedUrl)) {
     const domain = extractDomain(feedUrl);
     if (domain) {
       const faviconUrl = getFaviconUrl(domain);
@@ -185,18 +166,7 @@ function handleHeaderFeedIconFallback(
   _isYouTubeFeed: boolean,
 ): void {
   container.empty();
-  if (MediaService.isTwitterOrNitterFeed(feedUrl)) {
-    const faviconUrl = getFaviconUrl("twitter.com");
-    if (!failedFeedIconUrls.has(faviconUrl)) {
-      createSafeIconImage(container, faviconUrl, "Twitter/X", () => {
-        container.empty();
-        if (!context.display.hideDefaultRssIcon) {
-          setIcon(container, "rss");
-        }
-      }, "rss-dashboard-header-favicon");
-      return;
-    }
-  } else if (MastodonService.isResolvedFeedUrl(feedUrl)) {
+  if (MastodonService.isResolvedFeedUrl(feedUrl)) {
     const domain = extractDomain(feedUrl);
     if (domain) {
       const faviconUrl = getFaviconUrl(domain);
@@ -216,20 +186,6 @@ function handleHeaderFeedIconFallback(
   }
 }
 
-function renderTwitterFallbackIcon(iconContainer: HTMLElement, context: FeedIconContext): void {
-  const faviconUrl = getFaviconUrl("twitter.com");
-  if (!failedFeedIconUrls.has(faviconUrl)) {
-    createSafeIconImage(iconContainer, faviconUrl, "Twitter/X", () => {
-      iconContainer.empty();
-      if (!context.display.hideDefaultRssIcon) {
-        setIcon(iconContainer, "rss");
-      }
-    }, "rss-dashboard-feed-favicon");
-  } else if (!context.display.hideDefaultRssIcon) {
-    setIcon(iconContainer, "rss");
-  }
-}
-
 function renderMastodonFallbackIcon(iconContainer: HTMLElement, feedUrl: string, context: FeedIconContext): void {
   const domain = extractDomain(feedUrl);
   if (domain) {
@@ -246,20 +202,6 @@ function renderMastodonFallbackIcon(iconContainer: HTMLElement, feedUrl: string,
   }
   if (!context.display.hideDefaultRssIcon) {
     setIcon(iconContainer, "rss");
-  }
-}
-
-function renderHeaderTwitterFallbackIcon(container: HTMLElement, context: FeedIconContext): void {
-  const faviconUrl = getFaviconUrl("twitter.com");
-  if (!failedFeedIconUrls.has(faviconUrl)) {
-    createSafeIconImage(container, faviconUrl, "Twitter/X", () => {
-      container.empty();
-      if (!context.display.hideDefaultRssIcon) {
-        setIcon(container, "rss");
-      }
-    }, "rss-dashboard-header-favicon");
-  } else if (!context.display.hideDefaultRssIcon) {
-    setIcon(container, "rss");
   }
 }
 

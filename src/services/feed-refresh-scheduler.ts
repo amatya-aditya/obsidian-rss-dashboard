@@ -1,5 +1,10 @@
 import type { Feed } from "../types/types";
-import { getDueFeeds, getNextRefreshDueAt } from "../utils/refresh-intervals";
+import {
+  getDueFeeds,
+  getNextGlobalRefreshDueAt,
+  getNextRefreshDueAt,
+  usesGlobalRefreshInterval,
+} from "../utils/refresh-intervals";
 
 const MAX_TIMEOUT_MS = 2_147_483_647;
 const ACTIVE_BATCH_RECHECK_MS = 1_000;
@@ -7,7 +12,9 @@ const ACTIVE_BATCH_RECHECK_MS = 1_000;
 export interface FeedRefreshSchedulerOptions {
   getFeeds: () => Feed[];
   getGlobalIntervalMinutes: () => number;
+  getLastGlobalRefreshCompletedAt: () => number;
   isBatchRunning: () => boolean;
+  requestGlobalRefresh: () => Promise<void>;
   requestDueFeeds: (feeds: Feed[]) => Promise<void>;
 }
 
@@ -15,6 +22,7 @@ export interface FeedRefreshSchedulerOptions {
 export class FeedRefreshScheduler {
   private timeoutId: number | null = null;
   private started = false;
+  private globalRefreshDeferredUntil: number | null = null;
 
   constructor(private readonly options: FeedRefreshSchedulerOptions) {}
 
@@ -28,6 +36,18 @@ export class FeedRefreshScheduler {
     this.clearTimer();
   }
 
+  /** Delays the next automatic global attempt after the user cancels one. */
+  public deferGlobalRefresh(): void {
+    const intervalMinutes = this.options.getGlobalIntervalMinutes();
+    if (!Number.isFinite(intervalMinutes) || intervalMinutes <= 0) {
+      return;
+    }
+
+    this.globalRefreshDeferredUntil =
+      Date.now() + intervalMinutes * 60 * 1000;
+    this.reschedule();
+  }
+
   public reschedule(): void {
     this.clearTimer();
     if (!this.started) {
@@ -35,12 +55,24 @@ export class FeedRefreshScheduler {
     }
 
     const now = Date.now();
-    const dueTimes = this.options
-      .getFeeds()
-      .map((feed) =>
-        getNextRefreshDueAt(feed, this.options.getGlobalIntervalMinutes()),
-      )
-      .filter((dueAt): dueAt is number => dueAt !== null);
+    const feeds = this.options.getFeeds();
+    const globalIntervalMinutes = this.options.getGlobalIntervalMinutes();
+    const globalDueAt = this.getEffectiveGlobalRefreshDueAt(
+      getNextGlobalRefreshDueAt(
+        feeds,
+        globalIntervalMinutes,
+        this.options.getLastGlobalRefreshCompletedAt(),
+      ),
+      now,
+    );
+    const dueTimes = [
+      globalDueAt,
+      ...feeds
+        .filter((feed) => !usesGlobalRefreshInterval(feed))
+        .map((feed) =>
+          getNextRefreshDueAt(feed, globalIntervalMinutes),
+        ),
+    ].filter((dueAt): dueAt is number => dueAt !== null);
 
     if (dueTimes.length === 0) {
       return;
@@ -67,12 +99,27 @@ export class FeedRefreshScheduler {
       return;
     }
 
-    const dueFeeds = getDueFeeds(
-      this.options.getFeeds(),
-      this.options.getGlobalIntervalMinutes(),
-      Date.now(),
-    );
     try {
+      const feeds = this.options.getFeeds();
+      const globalIntervalMinutes = this.options.getGlobalIntervalMinutes();
+      const globalDueAt = this.getEffectiveGlobalRefreshDueAt(
+        getNextGlobalRefreshDueAt(
+          feeds,
+          globalIntervalMinutes,
+          this.options.getLastGlobalRefreshCompletedAt(),
+        ),
+        Date.now(),
+      );
+      if (globalDueAt !== null && globalDueAt <= Date.now()) {
+        await this.options.requestGlobalRefresh();
+        return;
+      }
+
+      const dueFeeds = getDueFeeds(
+        feeds.filter((feed) => !usesGlobalRefreshInterval(feed)),
+        globalIntervalMinutes,
+        Date.now(),
+      );
       if (dueFeeds.length > 0) {
         await this.options.requestDueFeeds(dueFeeds);
       }
@@ -86,5 +133,25 @@ export class FeedRefreshScheduler {
       window.clearTimeout(this.timeoutId);
       this.timeoutId = null;
     }
+  }
+
+  private getEffectiveGlobalRefreshDueAt(
+    globalDueAt: number | null,
+    now: number,
+  ): number | null {
+    if (globalDueAt === null) {
+      this.globalRefreshDeferredUntil = null;
+      return null;
+    }
+
+    if (
+      this.globalRefreshDeferredUntil !== null &&
+      now < this.globalRefreshDeferredUntil
+    ) {
+      return Math.max(globalDueAt, this.globalRefreshDeferredUntil);
+    }
+
+    this.globalRefreshDeferredUntil = null;
+    return globalDueAt;
   }
 }

@@ -53,14 +53,16 @@ export function showArticleContextMenu(
     menu.addSeparator();
   }
 
-  menu.addItem((item: MenuItem) => {
-    item
-      .setTitle("Open in browser")
-      .setIcon("external-link")
-      .onClick(() => {
-        activeWindow.open(article.link, "_blank");
-      });
-  });
+  if (article.link) {
+    menu.addItem((item: MenuItem) => {
+      item
+        .setTitle("Open in browser")
+        .setIcon("external-link")
+        .onClick(() => {
+          activeWindow.open(article.link, "_blank");
+        });
+    });
+  }
 
   menu.addItem((item: MenuItem) => {
     item
@@ -73,15 +75,17 @@ export function showArticleContextMenu(
       });
   });
 
-  menu.addItem((item: MenuItem) => {
-    item
-      .setTitle("Copy article URL")
-      .setIcon("link")
-      .onClick(() => {
-        void navigator.clipboard.writeText(article.link);
-        new Notice("Article URL copied to clipboard");
-      });
-  });
+  if (article.link) {
+    menu.addItem((item: MenuItem) => {
+      item
+        .setTitle("Copy article URL")
+        .setIcon("link")
+        .onClick(() => {
+          void navigator.clipboard.writeText(article.link);
+          new Notice("Article URL copied to clipboard");
+        });
+    });
+  }
 
   if (article.feedUrl) {
     menu.addItem((item: MenuItem) => {

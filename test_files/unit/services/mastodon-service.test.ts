@@ -1,6 +1,17 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import * as Obsidian from "obsidian";
+import type { RequestUrlResponse } from "obsidian";
 import { MastodonService } from "../../../src/services/mastodon-service";
+
+function htmlResponse(text: string): RequestUrlResponse {
+  return {
+    status: 200,
+    headers: {},
+    arrayBuffer: new ArrayBuffer(0),
+    json: null,
+    text,
+  };
+}
 
 describe("MastodonService", () => {
   beforeEach(() => {
@@ -63,16 +74,15 @@ describe("MastodonService", () => {
 
   describe("resolveProfileFeed", () => {
     it("extracts an absolute RSS URL from profile auto-discovery", async () => {
-      vi.spyOn(Obsidian, "requestUrl").mockResolvedValue({
-        status: 200,
-        text: `
+      vi.spyOn(Obsidian, "requestUrl").mockResolvedValue(
+        htmlResponse(`
           <html>
             <head>
               <link rel="alternate" type="application/rss+xml" title="RSS" href="https://mastodon.social/@Gargron.rss">
             </head>
           </html>
-        `,
-      });
+        `),
+      );
 
       await expect(
         MastodonService.resolveProfileFeed("https://mastodon.social/@Gargron"),
@@ -80,16 +90,15 @@ describe("MastodonService", () => {
     });
 
     it("resolves a relative RSS URL against the profile page", async () => {
-      vi.spyOn(Obsidian, "requestUrl").mockResolvedValue({
-        status: 200,
-        text: `
+      vi.spyOn(Obsidian, "requestUrl").mockResolvedValue(
+        htmlResponse(`
           <html>
             <head>
               <link href="/users/gargron.rss" rel="alternate" type="application/rss+xml">
             </head>
           </html>
-        `,
-      });
+        `),
+      );
 
       await expect(
         MastodonService.resolveProfileFeed("https://example.social/users/gargron"),
@@ -97,10 +106,9 @@ describe("MastodonService", () => {
     });
 
     it("returns null when the page does not advertise an RSS feed", async () => {
-      vi.spyOn(Obsidian, "requestUrl").mockResolvedValue({
-        status: 200,
-        text: "<html><head></head><body>No feed</body></html>",
-      });
+      vi.spyOn(Obsidian, "requestUrl").mockResolvedValue(
+        htmlResponse("<html><head></head><body>No feed</body></html>"),
+      );
 
       await expect(
         MastodonService.resolveProfileFeed("https://mastodon.social/@Gargron"),

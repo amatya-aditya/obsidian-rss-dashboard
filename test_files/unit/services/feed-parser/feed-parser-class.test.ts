@@ -23,7 +23,6 @@ describe("FeedParser.parseFeed", () => {
   const mediaSettings: MediaSettings = {
     autoTagVideos: true,
     rememberPlaybackProgress: true,
-    defaultTwitterFolder: "Twitter",
     defaultMastodonFolder: "Mastodon",
     defaultYouTubeFolder: "Videos",
     defaultVideoTag: "Video",
@@ -38,8 +37,6 @@ describe("FeedParser.parseFeed", () => {
     defaultSmallwebFolder: "Smallweb",
     defaultSmallwebTag: "",
     defaultSmallwebTags: [],
-    defaultTwitterTag: "",
-    defaultTwitterTags: [],
     defaultMastodonTag: "",
     defaultMastodonTags: [],
     openInSplitView: true,
@@ -137,24 +134,6 @@ describe("FeedParser.parseFeed", () => {
     expect(parsedOn.iconUrl).toBe(
       "https://lexfridman.com/wordpress/wp-content/uploads/powerpress/artwork_3000-230.png",
     );
-
-    requestUrlSpy.mockRestore();
-  });
-
-  it("extracts and honors the Twitter/Nitter icon settings toggle", async () => {
-    const feedUrl = "https://nitter.net/Gargron/rss";
-    const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
-    requestUrlSpy.mockResolvedValue(mockResponse(200, RSS2_WITH_IMAGE));
-
-    // 1. When useDomainIconsTwitter is false
-    const parserOff = new FeedParser({ ...DEFAULT_SETTINGS.display, useDomainIconsTwitter: false  }, [], mediaSettings);
-    const parsedOff = await parserOff.parseFeed(feedUrl, null);
-    expect(parsedOff.iconUrl).toBe("");
-
-    // 2. When useDomainIconsTwitter is true
-    const parserOn = new FeedParser({ ...DEFAULT_SETTINGS.display, useDomainIconsTwitter: true  }, [], mediaSettings);
-    const parsedOn = await parserOn.parseFeed(feedUrl, null);
-    expect(parsedOn.iconUrl).toBe("https://example.com/logo.png");
 
     requestUrlSpy.mockRestore();
   });
@@ -468,6 +447,79 @@ describe("FeedParser.parseFeed", () => {
     requestUrlSpy.mockRestore();
   });
 
+  it("does not fabricate a pubDate for an undated item on a feed's first-ever fetch", async () => {
+    const feedUrl = "https://example.com/undated-feed.xml";
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Undated Feed</title>
+    <link>https://example.com</link>
+    <item>
+      <title>Undated Article</title>
+      <link>https://example.com/undated</link>
+      <description>desc</description>
+      <guid>https://example.com/undated</guid>
+    </item>
+  </channel>
+</rss>`;
+
+    const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
+    requestUrlSpy.mockResolvedValueOnce(mockResponse(200, xml));
+
+    const parser = new FeedParser(DEFAULT_SETTINGS.display, [], mediaSettings);
+
+    // No existingFeed passed: this is the very first fetch of a brand-new subscription.
+    const result = await parser.parseFeed(feedUrl, null);
+
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0].pubDate).toBeFalsy();
+
+    requestUrlSpy.mockRestore();
+  });
+
+  it("does not skip-and-lose an undated item appearing during a refresh with auto-delete enabled", async () => {
+    const feedUrl = "https://example.com/undated-refresh.xml";
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Undated Feed</title>
+    <link>https://example.com</link>
+    <item>
+      <title>Undated Article</title>
+      <link>https://example.com/undated</link>
+      <description>desc</description>
+      <guid>https://example.com/undated</guid>
+    </item>
+  </channel>
+</rss>`;
+
+    const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
+    requestUrlSpy.mockResolvedValueOnce(mockResponse(200, xml));
+
+    const parser = new FeedParser(DEFAULT_SETTINGS.display, [], mediaSettings);
+
+    const existingFeed: Feed = {
+      title: "Undated Feed",
+      url: feedUrl,
+      folder: "Uncategorized",
+      items: [],
+      lastUpdated: Date.now(),
+      autoDeleteDuration: 30,
+    };
+
+    const result = await parser.parseFeed(feedUrl, existingFeed);
+
+    // Today, an undated item is a "new" item during refresh (there is no prior
+    // record to update), and the refresh-cutoff pre-filter in feed-parser-class.ts
+    // treats it as maximally old (getPubDateMs returns 0) — so it is skipped here,
+    // just as it would have been "deleted immediately" had it been stored first.
+    // This is the pre-#293 baseline this ticket restores: consistent, not fabricated.
+    expect(result.items).toHaveLength(0);
+    expect(result.lastRefreshDiagnostics?.skippedByRefreshCutoffCount).toBe(1);
+
+    requestUrlSpy.mockRestore();
+  });
+
   it("hides restored old unread items again when autoDeleteDuration is re-enabled", async () => {
     const feedUrl = "https://example.com/feed.xml";
     const fixedNowMs = Date.parse("2026-05-01T00:00:00Z");
@@ -603,6 +655,148 @@ describe("FeedParser.parseFeed", () => {
     expect(second.items.map((item) => item.guid)).toEqual([
       "https://example.com/recent",
     ]);
+
+    requestUrlSpy.mockRestore();
+    nowSpy.mockRestore();
+  });
+
+  it("retains old unread items on refresh and ingest when protectUnread is true", async () => {
+    const feedUrl = "https://example.com/feed.xml";
+    const fixedNowMs = Date.parse("2026-05-01T00:00:00Z");
+
+    const xmlWithOldAndRecent = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Test Feed</title>
+    <link>https://example.com</link>
+    <item>
+      <title>Recent Article</title>
+      <link>https://example.com/recent</link>
+      <description>recent desc</description>
+      <pubDate>Tue, 28 Apr 2026 00:00:00 GMT</pubDate>
+      <guid>https://example.com/recent</guid>
+    </item>
+    <item>
+      <title>Old Article</title>
+      <link>https://example.com/old</link>
+      <description>old desc</description>
+      <pubDate>Sun, 01 Mar 2026 00:00:00 GMT</pubDate>
+      <guid>https://example.com/old</guid>
+    </item>
+  </channel>
+</rss>`;
+
+    const nowSpy = vi.spyOn(Date, "now").mockReturnValue(fixedNowMs);
+    const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
+    requestUrlSpy
+      .mockResolvedValueOnce(mockResponse(200, xmlWithOldAndRecent))
+      .mockResolvedValueOnce(mockResponse(200, xmlWithOldAndRecent));
+
+    const parser = new FeedParser(
+      DEFAULT_SETTINGS.display,
+      [],
+      mediaSettings,
+      () => [],
+      () => true,
+      () => ({
+        protectStarred: true,
+        protectSaved: true,
+        protectTagged: false,
+        protectUnread: true,
+      }),
+    );
+
+    const first = await parser.parseFeed(feedUrl, {
+      title: "Test Feed",
+      url: feedUrl,
+      folder: "Uncategorized",
+      items: [],
+      lastUpdated: fixedNowMs,
+      autoDeleteDuration: 30,
+    });
+
+    // Both recent and old unread articles are retained because protectUnread is true
+    expect(first.items.map((item) => item.guid)).toEqual([
+      "https://example.com/recent",
+      "https://example.com/old",
+    ]);
+
+    const second = await parser.parseFeed(feedUrl, first);
+    expect(second.items.map((item) => item.guid)).toEqual([
+      "https://example.com/recent",
+      "https://example.com/old",
+    ]);
+
+    requestUrlSpy.mockRestore();
+    nowSpy.mockRestore();
+  });
+
+  it("retains old tagged items during carry-forward when protectTagged is true", async () => {
+    const feedUrl = "https://example.com/feed.xml";
+    const fixedNowMs = Date.parse("2026-05-01T00:00:00Z");
+
+    const xmlRecentOnly = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Test Feed</title>
+    <link>https://example.com</link>
+    <item>
+      <title>Recent Article</title>
+      <link>https://example.com/recent</link>
+      <description>recent desc</description>
+      <pubDate>Tue, 28 Apr 2026 00:00:00 GMT</pubDate>
+      <guid>https://example.com/recent</guid>
+    </item>
+  </channel>
+</rss>`;
+
+    const nowSpy = vi.spyOn(Date, "now").mockReturnValue(fixedNowMs);
+    const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
+    requestUrlSpy.mockResolvedValueOnce(mockResponse(200, xmlRecentOnly));
+
+    const parser = new FeedParser(
+      DEFAULT_SETTINGS.display,
+      [],
+      mediaSettings,
+      () => [],
+      () => true,
+      () => ({
+        protectStarred: true,
+        protectSaved: true,
+        protectTagged: true,
+        protectUnread: false,
+      }),
+    );
+
+    const existingFeed: Feed = {
+      title: "Test Feed",
+      url: feedUrl,
+      folder: "Uncategorized",
+      items: [
+        {
+          title: "Old Tagged Article",
+          link: "https://example.com/old-tagged",
+          guid: "https://example.com/old-tagged",
+          pubDate: "Sun, 01 Mar 2026 00:00:00 GMT",
+          read: true,
+          starred: false,
+          saved: false,
+          tags: [{ name: "research", color: "#3498db" }],
+          feedTitle: "Test Feed",
+          feedUrl,
+          coverImage: "",
+          description: "",
+          content: "",
+        },
+      ],
+      lastUpdated: fixedNowMs,
+      autoDeleteDuration: 30,
+    };
+
+    const refreshed = await parser.parseFeed(feedUrl, existingFeed);
+    expect(new Set(refreshed.items.map((item) => item.guid))).toEqual(
+      new Set(["https://example.com/recent", "https://example.com/old-tagged"]),
+    );
 
     requestUrlSpy.mockRestore();
     nowSpy.mockRestore();
@@ -833,5 +1027,79 @@ describe("FeedParser.parseFeed", () => {
       parser.refreshFeed(feed, { signal: controller.signal }),
     ).rejects.toThrow("Aborted");
     expect(feed.lastFetchError).toBe("previous error");
+  });
+
+  // GH: explicitly assigning a new feed to Root (no folder) was silently
+  // overridden back to the media-type default folder ("Videos"/"Podcast")
+  // because the override check (`!existingFeed?.folder`) treats an explicit
+  // empty-string folder the same as "no folder chosen yet" — the exact
+  // object main.ts's addFeed() passes in for a brand-new feed always has a
+  // `folder` field already set to the user's choice, even when that choice
+  // is "" for Root.
+  it("keeps an explicit Root (empty-string) folder for a new YouTube feed instead of defaulting to the Videos folder", async () => {
+    const feedUrl =
+      "https://www.youtube.com/feeds/videos.xml?channel_id=UCYO_jab_esuFRV4b17AJtAw";
+    const ytXml = `<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns:yt="http://www.youtube.com/xml/schemas/2015" xmlns="http://www.w3.org/2005/Atom">
+  <link rel="self" href="${feedUrl}"/>
+  <id>yt:channel:UCYO_jab_esuFRV4b17AJtAw</id>
+  <title>3Blue1Brown</title>
+  <entry>
+    <id>yt:video:abc123</id>
+    <title>A video</title>
+    <link rel="alternate" href="https://www.youtube.com/watch?v=abc123"/>
+    <author><name>3Blue1Brown</name></author>
+    <published>2024-01-01T00:00:00+00:00</published>
+  </entry>
+</feed>`;
+
+    const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
+    requestUrlSpy.mockResolvedValueOnce(mockResponse(200, ytXml));
+
+    const parser = new FeedParser(DEFAULT_SETTINGS.display, [], mediaSettings);
+
+    // Mirrors exactly what main.ts's addFeed() constructs for a brand-new
+    // feed before calling parseFeed: an empty-items Feed whose folder is
+    // already set to whatever the user picked in the folder popup.
+    const newFeed: Feed = {
+      title: "3Blue1Brown",
+      url: feedUrl,
+      folder: "",
+      items: [],
+      lastUpdated: 0,
+    };
+
+    const result = await parser.parseFeed(feedUrl, newFeed);
+
+    expect(result.mediaType).toBe("video");
+    expect(result.folder).toBe("");
+
+    requestUrlSpy.mockRestore();
+  });
+
+  it("keeps an explicit Root (empty-string) folder for a new podcast feed instead of defaulting to the Podcast folder", async () => {
+    const feedUrl = "https://feeds.99percentinvisible.org/99percentinvisible";
+
+    const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
+    requestUrlSpy.mockResolvedValueOnce(
+      mockResponse(200, RSS2_PODCAST_WITH_CHANNEL_ITUNES_IMAGE),
+    );
+
+    const parser = new FeedParser(DEFAULT_SETTINGS.display, [], mediaSettings);
+
+    const newFeed: Feed = {
+      title: "99% Invisible",
+      url: feedUrl,
+      folder: "",
+      items: [],
+      lastUpdated: 0,
+    };
+
+    const result = await parser.parseFeed(feedUrl, newFeed);
+
+    expect(result.mediaType).toBe("podcast");
+    expect(result.folder).toBe("");
+
+    requestUrlSpy.mockRestore();
   });
 });

@@ -186,9 +186,9 @@ describe("platform-utils.robustFetch", () => {
 
 describe("platform-utils.attachInputClearButton", () => {
   it("toggles visibility on input events and clears on click", () => {
-    const wrapper = document.createElement("div");
+    const wrapper = createDiv();
     document.body.appendChild(wrapper);
-    const input = document.createElement("input");
+    const input = createEl("input");
     input.type = "text";
     wrapper.appendChild(input);
     const onClear = vi.fn();
@@ -214,9 +214,9 @@ describe("platform-utils.attachInputClearButton", () => {
   });
 
   it("supports keyboard activation via Enter and Space", () => {
-    const wrapper = document.createElement("div");
+    const wrapper = createDiv();
     document.body.appendChild(wrapper);
-    const input = document.createElement("input");
+    const input = createEl("input");
     input.type = "text";
     wrapper.appendChild(input);
     input.value = "abc";
@@ -243,9 +243,9 @@ describe("platform-utils.attachInputClearButton", () => {
   });
 
   it("honors useButtonElement and custom classes", () => {
-    const wrapper = document.createElement("div");
+    const wrapper = createDiv();
     document.body.appendChild(wrapper);
-    const input = document.createElement("input");
+    const input = createEl("input");
     input.type = "text";
     wrapper.appendChild(input);
     input.value = "abc";
@@ -260,7 +260,7 @@ describe("platform-utils.attachInputClearButton", () => {
     expect(clearButton.tagName).toBe("BUTTON");
     expect(clearButton.getAttribute("type")).toBe("button");
     expect(clearButton.getAttribute("aria-label")).toBe("Clear search");
-    expect(clearButton.getAttribute("title")).toBe("Clear search");
+    expect(clearButton.hasAttribute("title")).toBe(false);
     expect(clearButton.classList.contains("my-clear")).toBe(true);
     expect(clearButton.classList.contains("my-hidden")).toBe(false);
 
@@ -289,7 +289,7 @@ describe("platform-utils.misc", () => {
   });
 
   it("setCssProps sets custom properties", () => {
-    const el = document.createElement("div");
+    const el = createDiv();
     setCssProps(el, { "--a": "1", "--b": "two" });
     expect(el.style.getPropertyValue("--a")).toBe("1");
     expect(el.style.getPropertyValue("--b")).toBe("two");
@@ -336,6 +336,60 @@ describe("platform-utils.misc", () => {
     expect(absoluteResult.text).toContain("2026");
     expect(absoluteResult.text).toContain("May");
     expect(absoluteResult.title).toBe("Today");
+
+    vi.useRealTimers();
+  });
+
+  it("formatArticleDate returns 'Unknown date' rather than 'Invalid Date' for null/empty input", () => {
+    expect(formatArticleDate(null)).toEqual({
+      text: "Unknown date",
+      title: "Unknown date",
+    });
+    expect(formatArticleDate("")).toEqual({
+      text: "Unknown date",
+      title: "Unknown date",
+    });
+  });
+
+  it("prefixes the title with 'First seen:' and appends '*' to the visible text when isFirstSeenFallback is set", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-15T12:00:00Z"));
+
+    const date = new Date("2026-05-15T10:00:00Z");
+    const result = formatArticleDate(date, "relative", {
+      isFirstSeenFallback: true,
+    });
+
+    expect(result.text).toBe("Today *");
+    expect(result.title).toMatch(/^First seen: /);
+
+    vi.useRealTimers();
+  });
+
+  it("appends '*' to the absolute-style visible text too when isFirstSeenFallback is set", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-15T12:00:00Z"));
+
+    const date = new Date("2026-05-15T10:00:00Z");
+    const result = formatArticleDate(date, "absolute", {
+      isFirstSeenFallback: true,
+    });
+
+    expect(result.text).toMatch(/\*$/);
+    expect(result.title).toBe("First seen: Today");
+
+    vi.useRealTimers();
+  });
+
+  it("leaves the visible text and title untouched when isFirstSeenFallback is not set", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-15T12:00:00Z"));
+
+    const date = new Date("2026-05-15T10:00:00Z");
+    const result = formatArticleDate(date, "relative");
+
+    expect(result.text).toBe("Today");
+    expect(result.title).not.toMatch(/^First seen: /);
 
     vi.useRealTimers();
   });

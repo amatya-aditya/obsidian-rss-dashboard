@@ -14,7 +14,7 @@ implementation: 78d54a7
 
 /plan # Multi-Folder Ctrl+Click Selection in Sidebar
 
-Ctrl+clicking a folder in the sidebar will toggle it in/out of a `selectedFolders` set. The dashboard article list then shows articles from **all** folders in the selection. A plain click always resets to single-folder mode (existing behaviour). All changes follow a strict Red → Green → Refactor TDD cycle per the [testing guide](file:///c:/Obsidian/Obsidian_Main/.obsidian/plugins/obsidian-rss-dashboard/docs/development/test_coverage/testing-guide.md).
+Ctrl+clicking a folder in the sidebar will toggle it in/out of a `selectedFolders` set. The dashboard article list then shows articles from **all** folders in the selection. A plain click always resets to single-folder mode (existing behaviour). All changes follow a strict Red → Green → Refactor TDD cycle per the [testing guide](../../../../docs/development/test_coverage/testing-guide.md).
 
 ---
 
@@ -34,7 +34,7 @@ Ctrl+clicking a folder in the sidebar will toggle it in/out of a `selectedFolder
 
 ### Phase 0 — TDD: Write failing tests first (RED)
 
-#### [MODIFY] [sidebar-core.test.ts](file:///c:/Obsidian/Obsidian_Main/.obsidian/plugins/obsidian-rss-dashboard/test_files/unit/components/sidebar-core.test.ts)
+#### [MODIFY] [sidebar-core.test.ts](../../../../test_files/unit/components/sidebar-core.test.ts)
 
 Add a new `describe("multi-folder ctrl+click selection")` block **before** implementation exists. Tests will fail (RED). Cases:
 
@@ -62,7 +62,7 @@ New file: unit-level tests for the dashboard article-filtering logic with multip
 
 ### Phase 1 — Types & Interfaces (GREEN step 1)
 
-#### [MODIFY] [sidebar.ts](file:///c:/Obsidian/Obsidian_Main/.obsidian/plugins/obsidian-rss-dashboard/src/components/sidebar.ts)
+#### [MODIFY] [sidebar.ts](../../../../src/components/sidebar.ts)
 
 **`SidebarOptions`** — add one field:
 
@@ -144,7 +144,7 @@ New file: unit-level tests for the dashboard article-filtering logic with multip
 
 ### Phase 3 — CSS (GREEN step 3)
 
-#### [MODIFY] [sidebar.css](file:///c:/Obsidian/Obsidian_Main/.obsidian/plugins/obsidian-rss-dashboard/src/styles/sidebar.css)
+#### [MODIFY] [sidebar.css](../../../../src/styles/sidebar.css)
 
 Add after the `.rss-dashboard-feed-folder-header.active` block (~L720):
 
@@ -169,7 +169,7 @@ Add after the `.rss-dashboard-feed-folder-header.active` block (~L720):
 
 ### Phase 4 — Dashboard-view wiring (GREEN step 4)
 
-#### [MODIFY] [dashboard-view.ts](file:///c:/Obsidian/Obsidian_Main/.obsidian/plugins/obsidian-rss-dashboard/src/views/dashboard-view.ts)
+#### [MODIFY] [dashboard-view.ts](../../../../src/views/dashboard-view.ts)
 
 **Add state field** (~L64, next to `currentFolder`):
 

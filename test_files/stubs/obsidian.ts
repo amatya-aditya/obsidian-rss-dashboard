@@ -1,11 +1,17 @@
 // =============================================================================
 // Core Obsidian API Stubs
+//
+// Reference version: Obsidian 1.13.7 desktop (installer 1.13.7, Electron 43.3.0).
+// The stub models observed Obsidian behavior (ADR 0014). Each modeled behavior
+// has an expectation in obsidian.contract.test.ts; the console probes used to
+// observe it live in obsidian-console-probes.md.
+// The real API's types, for checking the stub against them (#362). Type-only:
+// importing it also brings in Obsidian's global DOM helper declarations.
+import type * as ObsidianApi from "obsidian-api";
+
 // =============================================================================
 
-declare global {
-  var activeWindow: Window;
-  var activeDocument: Document;
-}
+// `activeWindow` and `activeDocument` are declared by the real API's types.
 
 // =============================================================================
 
@@ -98,9 +104,12 @@ const createMoment = (input?: string | number | Date) => {
             case "YY":
               return String(year).slice(-2);
             case "MMMM":
-              return monthNames[month];
+              // month is always 0-11 (Date.getMonth()) and monthNames has
+              // exactly 12 entries, so this index is never out of bounds;
+              // the fallback only satisfies noUncheckedIndexedAccess.
+              return monthNames[month] ?? String(month);
             case "MMM":
-              return shortMonthNames[month];
+              return shortMonthNames[month] ?? String(month);
             case "MM":
               return pad(month + 1);
             case "M":
@@ -110,9 +119,12 @@ const createMoment = (input?: string | number | Date) => {
             case "D":
               return String(day);
             case "dddd":
-              return weekdayNames[weekday];
+              // weekday is always 0-6 (Date.getDay()) and weekdayNames has
+              // exactly 7 entries, so this index is never out of bounds;
+              // the fallback only satisfies noUncheckedIndexedAccess.
+              return weekdayNames[weekday] ?? String(weekday);
             case "ddd":
-              return shortWeekdayNames[weekday];
+              return shortWeekdayNames[weekday] ?? String(weekday);
             case "Do":
               return `${day}${ordinalSuffix(day)}`;
             case "HH":
@@ -148,92 +160,233 @@ const createMoment = (input?: string | number | Date) => {
   };
 };
 
-export const moment = createMoment;
+const momentStub = createMoment;
 
-export interface RequestUrlResponse {
+export type RequestUrlResponse = ObsidianApi.RequestUrlResponse;
+
+export type RequestUrlResponsePromise = ObsidianApi.RequestUrlResponsePromise;
+
+export type RequestUrlParam = ObsidianApi.RequestUrlParam;
+
+/** What a test's fake server answers; the stub turns it into a response. */
+export interface RequestUrlHandlerResult {
   status: number;
-  headers: Record<string, string>;
-  arrayBuffer: ArrayBuffer;
-  json: unknown;
-  text: string;
-}
-
-export interface RequestUrlResponsePromise extends Promise<RequestUrlResponse> {
-  arrayBuffer: Promise<ArrayBuffer>;
-  json: Promise<unknown>;
-  text: Promise<string>;
-}
-
-export interface RequestUrlParam {
-  url: string;
-  method?: string;
-  contentType?: string;
-  body?: string | ArrayBuffer;
   headers?: Record<string, string>;
-  throw?: boolean;
+  text?: string;
 }
 
-export async function requestUrl(
-  _param?: unknown,
+export type RequestUrlHandler = (
+  param: RequestUrlParam,
+) => RequestUrlHandlerResult | Promise<RequestUrlHandlerResult>;
+
+let requestUrlHandler: RequestUrlHandler | null = null;
+
+/**
+ * Test-only: set the fake server `requestUrl` talks to, or `null` to clear it.
+ * Unlike mocking `requestUrl` itself, this keeps Obsidian's status handling.
+ */
+export function setRequestUrlHandler(handler: RequestUrlHandler | null): void {
+  requestUrlHandler = handler;
+}
+
+/** Obsidian's `requestUrl` promise also exposes `.json`, `.text` and `.arrayBuffer`. */
+function requestUrlImpl(
+  param: RequestUrlParam | string,
+): ObsidianApi.RequestUrlResponsePromise {
+  const promise = requestUrlAsync(param);
+  // Getters, so a rejected request doesn't also reject three unobserved promises.
+  return Object.defineProperties(promise, {
+    arrayBuffer: { get: () => promise.then((r) => r.arrayBuffer) },
+    json: { get: () => promise.then((r) => r.json as unknown) },
+    text: { get: () => promise.then((r) => r.text) },
+  }) as ObsidianApi.RequestUrlResponsePromise;
+}
+
+/**
+ * Models Obsidian 1.13.7: a status of 400 or above rejects with an Error
+ * carrying own `status` and `headers` properties, unless `throw: false`.
+ */
+async function requestUrlAsync(
+  param: RequestUrlParam | string,
 ): Promise<RequestUrlResponse> {
-  throw new Error("requestUrl stub - configure mock in test if needed");
+  if (!requestUrlHandler) {
+    throw new Error("requestUrl stub - configure mock in test if needed");
+  }
+  const request = typeof param === "string" ? { url: param } : param;
+  const result = await requestUrlHandler(request);
+  const headers = result.headers ?? {};
+  const text = result.text ?? "";
+  if (result.status >= 400 && request.throw !== false) {
+    throw Object.assign(new Error(`Request failed, status ${result.status}`), {
+      status: result.status,
+      headers,
+    });
+  }
+  let json: unknown = null;
+  try {
+    json = text ? JSON.parse(text) : null;
+  } catch {
+    json = null;
+  }
+  return {
+    status: result.status,
+    headers,
+    arrayBuffer: new TextEncoder().encode(text).buffer,
+    json,
+    text,
+  };
 }
 
-export const Platform = {
-  isAndroidApp: false,
-  // Common flags used by plugins
-  isMobile: false,
-  isMobileApp: false,
+const PlatformStub = {
   isDesktop: true,
+  isMobile: false,
+  isDesktopApp: true,
+  isMobileApp: false,
+  isIosApp: false,
+  isAndroidApp: false,
+  isPhone: false,
+  isTablet: false,
+  // OS flags stay false so no test depends on the machine running it.
+  isMacOS: false,
+  isWin: false,
+  isLinux: false,
+  isSafari: false,
+  resourcePathPrefix: "app://local/",
 };
 
-export function setIcon(el: HTMLElement, iconName: string): void {
+function setIconImpl(el: HTMLElement, iconName: string): void {
   el.dataset.icon = iconName;
 }
 
-export function normalizePath(path: string): string {
-  return path;
+/** Mirrors Obsidian: the tooltip text is stored as the element's aria-label. */
+function setTooltipImpl(el: HTMLElement, tooltip: string): void {
+  el.setAttribute("aria-label", tooltip);
 }
 
-export function requireApiVersion(): boolean {
+/**
+ * Models Obsidian 1.13.7's `normalizePath` as read in the #372 source audit
+ * (the function isn't reachable from the console; `renameFile(f, "a//r3.md")`
+ * yielding "a/r3.md" confirms the slash collapse). Written independently:
+ * `/` and `\` are both separators, runs of them become one `/`, leading and
+ * trailing separators are trimmed, an empty result is the vault root `/`,
+ * non-breaking spaces (U+00A0, U+202F) become spaces, then NFC normalization.
+ */
+function normalizePathImpl(path: string): string {
+  const segments = path.split(/[/\\]+/).filter((segment) => segment !== "");
+  const joined = segments.join("/");
+  if (joined === "") return "/";
+  return joined.replace(/[\u00a0\u202f]/g, " ").normalize("NFC");
+}
+
+function requireApiVersionImpl(_version: string): boolean {
   return false;
 }
 
-export function renderMath(source: string, display: boolean): HTMLElement {
-  const el = activeDocument.createElement("span");
-  el.className = "math";
-  el.textContent = source;
-  return el;
+function renderMathImpl(source: string, display: boolean): HTMLElement {
+  return createSpan({ cls: "math", text: source });
 }
 
-export function finishRenderMath(): Promise<void> {
+function finishRenderMathImpl(): Promise<void> {
   return Promise.resolve();
 }
 
-export class MarkdownRenderer {
+class MarkdownRendererStub {
   static render(
-    _app: App,
+    _app: AppStub,
     markdown: string,
     el: HTMLElement,
     _sourcePath: string,
-    _component: Component,
+    _component: ComponentStub,
   ): Promise<void> {
     const doc = el.ownerDocument;
-    const display = markdown.startsWith("$$");
-    const delimiterLength = display ? 2 : 1;
-    const latex = markdown
-      .slice(delimiterLength, -delimiterLength)
-      .trim();
-    const math = doc.createElement(display ? "div" : "span");
-    math.className = display ? "math math-block" : "math math-inline";
-    const mathJax = doc.createElement("mjx-container");
-    mathJax.textContent = latex;
-    math.appendChild(mathJax);
-    el.appendChild(math);
+    const trimmed = markdown.trim();
+    if (trimmed.startsWith("$") && trimmed.endsWith("$")) {
+      const display = markdown.startsWith("$$");
+      const delimiterLength = display ? 2 : 1;
+      const latex = markdown.slice(delimiterLength, -delimiterLength).trim();
+      const math = display
+        ? doc.win.createDiv({ cls: "math math-block" })
+        : doc.win.createSpan({ cls: "math math-inline" });
+      const mathJax = doc.win.createEl(
+        "mjx-container" as keyof HTMLElementTagNameMap,
+        { text: latex },
+      );
+      math.appendChild(mathJax);
+      el.appendChild(math);
+      return Promise.resolve();
+    }
+
+    renderSimpleMarkdown(doc, markdown, el);
     return Promise.resolve();
   }
 }
 
+/**
+ * Minimal markdown renderer for tests: headings, bullet lists, paragraphs, and
+ * images. Enough for components that render a short markdown body; it is not a
+ * general-purpose parser.
+ */
+function renderSimpleMarkdown(
+  doc: Document,
+  markdown: string,
+  el: HTMLElement,
+): void {
+  const headingTags = ["h1", "h2", "h3", "h4", "h5", "h6"] as const;
+  let list: HTMLElement | null = null;
+
+  for (const rawLine of markdown.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line) {
+      list = null;
+      continue;
+    }
+
+    const heading = /^(#{1,6})\s+(.*)$/.exec(line);
+    if (heading) {
+      list = null;
+      const tag = headingTags[heading[1].length - 1];
+      el.createEl(tag, { text: heading[2] });
+      continue;
+    }
+
+    const bullet = /^[-*]\s+(.*)$/.exec(line);
+    if (bullet) {
+      if (!list) {
+        list = el.createEl("ul");
+      }
+      list.createEl("li", { text: bullet[1] });
+      continue;
+    }
+
+    list = null;
+    const paragraph = el.createEl("p");
+    appendInlineMarkdown(doc, paragraph, line);
+  }
+}
+
+function appendInlineMarkdown(
+  doc: Document,
+  parent: HTMLElement,
+  text: string,
+): void {
+  const imagePattern = /!\[([^\]]*)\]\(([^)\s]+)\)/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = imagePattern.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parent.appendChild(
+        doc.createTextNode(text.slice(lastIndex, match.index)),
+      );
+    }
+    parent.createEl("img", { attr: { src: match[2], alt: match[1] } });
+    lastIndex = match.index + match[0].length;
+  }
+
+  if (lastIndex < text.length) {
+    parent.appendChild(doc.createTextNode(text.slice(lastIndex)));
+  }
+}
 
 // =============================================================================
 // Mock Event System
@@ -273,7 +426,31 @@ export class MockEvent {
 // Mock TFile
 // =============================================================================
 
-export class TFile {
+/**
+ * A file's `name`, `basename`, and `extension`, derived from its path.
+ * Observed on Obsidian 1.13.7 desktop (Windows): `basename` is the name up to
+ * its last dot and `extension` follows it ("my.file.name.md" -> "my.file.name"
+ * and "md"); a name without a dot is its own basename with extension "".
+ * Names starting with a dot weren't probed (Obsidian doesn't index them).
+ */
+function fileNameParts(path: string): {
+  name: string;
+  basename: string;
+  extension: string;
+} {
+  const name = path.split("/").pop() ?? "";
+  const lastDot = name.lastIndexOf(".");
+  if (lastDot === -1) {
+    return { name, basename: name, extension: "" };
+  }
+  return {
+    name,
+    basename: name.slice(0, lastDot),
+    extension: name.slice(lastDot + 1),
+  };
+}
+
+class TFileStub {
   path: string;
   basename: string;
   extension: string;
@@ -286,9 +463,10 @@ export class TFile {
 
   constructor(path: string = "/test/file.md") {
     this.path = path;
-    this.basename = path.split("/").pop() || "file.md";
-    this.name = this.basename;
-    this.extension = "md";
+    const { name, basename, extension } = fileNameParts(path);
+    this.name = name;
+    this.basename = basename;
+    this.extension = extension;
     this.stat = {
       mtime: Date.now(),
       ctime: Date.now(),
@@ -301,8 +479,8 @@ export class TFile {
 // Mock TFolder
 // =============================================================================
 
-export class TFolder {
-  children: (TFile | TFolder)[] = [];
+class TFolderStub {
+  children: (TFileStub | TFolderStub)[] = [];
   path: string;
   name: string;
 
@@ -311,19 +489,19 @@ export class TFolder {
     this.name = path.split("/").pop() || "folder";
   }
 
-  createFile(name: string): TFile {
-    const file = new TFile(`${this.path}/${name}`);
+  createFile(name: string): TFileStub {
+    const file = new TFileStub(`${this.path}/${name}`);
     this.children.push(file);
     return file;
   }
 
-  createFolder(name: string): TFolder {
-    const folder = new TFolder(`${this.path}/${name}`);
+  createFolder(name: string): TFolderStub {
+    const folder = new TFolderStub(`${this.path}/${name}`);
     this.children.push(folder);
     return folder;
   }
 
-  getChild(name: string): TFile | TFolder | undefined {
+  getChild(name: string): TFileStub | TFolderStub | undefined {
     return this.children.find((c) => c.name === name);
   }
 }
@@ -332,22 +510,52 @@ export class TFolder {
 // Mock DataVault (Enhanced)
 // =============================================================================
 
+/** Node's error for a missing path, e.g. `ENOENT: ..., open '<path>'`. */
+function enoentError(syscall: string, fullPath: string): Error {
+  return Object.assign(
+    new Error(`ENOENT: no such file or directory, ${syscall} '${fullPath}'`),
+    { code: "ENOENT" },
+  );
+}
+
+/** True when any segment of `path` starts with a dot (Obsidian doesn't index it). */
+function isHiddenVaultPath(path: string): boolean {
+  return path.split("/").some((segment) => segment.startsWith("."));
+}
+
 interface MockVaultAdapter {
   getBasePath(): string;
   getFullPath(path: string): string;
   exists(path: string): Promise<boolean>;
   read(path: string): Promise<string>;
+  readBinary(path: string): Promise<ArrayBuffer>;
   write(path: string, content: string): Promise<void>;
+  mkdir(path: string): Promise<void>;
   on(name: string, callback: (...args: unknown[]) => unknown): unknown;
   list(path: string): Promise<{ files: string[]; folders: string[] }>;
   rmdir(path: string, recursive: boolean): Promise<void>;
+  remove(path: string): Promise<void>;
+  trashSystem(path: string): Promise<boolean>;
+  trashLocal(path: string): Promise<void>;
 }
 
 export class MockDataVault {
-  private files: Map<string, TFile> = new Map();
-  private folders: Map<string, TFolder> = new Map();
-  private root: TFolder;
+  private files: Map<string, TFileStub> = new Map();
+  private folders: Map<string, TFolderStub> = new Map();
+  private root: TFolderStub;
   private adapterFiles: Map<string, string> = new Map();
+  /**
+   * The vault's config folder. Users can rename it, but Obsidian only accepts
+   * a dot-prefixed name, so it's always hidden from the vault index. The stub
+   * uses a non-default name so tests read it rather than hardcoding it.
+   */
+  configDir = ".vault-config";
+  /**
+   * Whether the file system distinguishes paths that differ only in case.
+   * Windows and macOS don't (the default, observed on Obsidian 1.13.7
+   * Windows); Linux does, so set this to model a Linux desktop.
+   */
+  caseSensitiveFileSystem = false;
   on: (name: string, callback: (...args: unknown[]) => unknown) => unknown =
     () => ({});
 
@@ -355,18 +563,43 @@ export class MockDataVault {
   adapter: MockVaultAdapter;
 
   constructor() {
-    this.root = new TFolder("/");
+    this.root = new TFolderStub("/");
     this.folders.set("/", this.root);
 
     this.adapter = {
+      // Observed on Obsidian 1.13.7 desktop (Windows): `getFullPath` joins
+      // the vault path onto `getBasePath()` with OS separators. The stub is
+      // OS-independent and always joins with "/". Mobile has no
+      // `getBasePath` (not modeled; the stub is the desktop adapter).
       getBasePath: () => "/test/vault",
-      getFullPath: (p: string) => p,
-      exists: async (path: string) =>
-        this.adapterFiles.has(path) ||
-        this.folders.has(path.replace(/^\/+|\/+$/g, "")),
-      read: async (path: string) => this.adapterFiles.get(path) ?? "",
+      getFullPath: (p: string) => `${this.adapter.getBasePath()}/${p}`,
+      exists: async (path: string) => this.existsOnDisk(path),
+      // Observed on Obsidian 1.13.7 desktop (Windows): a missing path throws
+      // Node's ENOENT.
+      read: async (path: string) => this.readFromDisk(path),
+      // Not probed: modeled like `read`, throwing ENOENT for a missing path.
+      readBinary: async (path: string) =>
+        new TextEncoder().encode(this.readFromDisk(path)).buffer,
       write: async (path: string, content: string) => {
+        // Observed on Obsidian 1.13.7 desktop (Windows): a missing parent
+        // folder throws Node's ENOENT, and a written file outside dot folders
+        // joins the vault index.
+        const parentPath = path.includes("/")
+          ? path.slice(0, path.lastIndexOf("/"))
+          : "";
+        if (parentPath && !this.folderExistsOnDisk(parentPath)) {
+          throw enoentError("open", `${this.adapter.getBasePath()}/${path}`);
+        }
         this.adapterFiles.set(path, content);
+        if (!this.files.has(path)) {
+          this.files.set(path, new TFileStub(path));
+        }
+      },
+      // Observed on Obsidian 1.13.7 desktop (Windows): creates missing parent
+      // folders too. Not observed: mkdir on an existing folder is modeled as
+      // a no-op, and the new folders join the vault index like written files.
+      mkdir: async (path: string) => {
+        this.makeFolders(path);
       },
       on: (
         _name: string,
@@ -405,15 +638,32 @@ export class MockDataVault {
 
         return { files, folders };
       },
+      // Observed on Obsidian 1.13.7 desktop (Windows): a missing path throws
+      // Node's ENOENT, and a folder throws EPERM and stays.
+      remove: async (path: string) => this.removeFromDisk(path),
+      // Not yet observed against Obsidian: trashSystem is modeled as always
+      // succeeding, and trashLocal as moving a file into the vault's `.trash`.
+      trashSystem: async (path: string) => {
+        this.adapterFiles.delete(path);
+        this.files.delete(path);
+        return true;
+      },
+      trashLocal: async (path: string) => {
+        const content = this.adapterFiles.get(path);
+        this.adapterFiles.delete(path);
+        this.files.delete(path);
+        if (content !== undefined) {
+          const name = path.split("/").pop() ?? path;
+          this.adapterFiles.set(`.trash/${name}`, content);
+        }
+      },
       rmdir: async (path: string, recursive: boolean) => {
         const cleanPath = path.replace(/^\/+|\/+$/g, "");
-        if (
-          !recursive &&
-          Array.from(this.adapterFiles.keys()).some((filePath) =>
-            filePath.startsWith(`${cleanPath}/`),
-          )
-        ) {
-          throw new Error("Directory not empty");
+        // Desktop Obsidian implements rmdir with fs.promises.rm, which refuses
+        // to remove any directory, even an empty one, unless `recursive` is
+        // true.
+        if (!recursive) {
+          throw new Error(`EISDIR: Path is a directory: ${cleanPath}`);
         }
 
         for (const filePath of [...this.adapterFiles.keys()]) {
@@ -428,47 +678,175 @@ export class MockDataVault {
             folderPath === cleanPath ||
             folderPath.startsWith(`${cleanPath}/`)
           ) {
-            this.folders.delete(folderPath);
+            this.forgetFolder(folderPath);
           }
         }
       },
     };
   }
 
-  async create(path: string, content: string): Promise<TFile> {
-    const file = new TFile(path);
+  private diskKey(path: string): string {
+    const cleanPath = path.replace(/^\/+|\/+$/g, "");
+    return this.caseSensitiveFileSystem ? cleanPath : cleanPath.toLowerCase();
+  }
+
+  private findFolderOnDisk(path: string): TFolderStub | undefined {
+    const key = this.diskKey(path);
+    for (const [folderPath, folder] of this.folders) {
+      if (this.diskKey(folderPath) === key) return folder;
+    }
+    return undefined;
+  }
+
+  private folderExistsOnDisk(path: string): boolean {
+    const key = this.diskKey(path);
+    if (!key) return true;
+    if (this.findFolderOnDisk(path)) return true;
+    // A file written through the adapter implies its parent folders.
+    return [...this.adapterFiles.keys()].some((filePath) =>
+      this.diskKey(filePath).startsWith(`${key}/`),
+    );
+  }
+
+  /** Whether `path` exists on disk, as the file system (not the index) sees it. */
+  private existsOnDisk(path: string): boolean {
+    const key = this.diskKey(path);
+    return (
+      [...this.adapterFiles.keys()].some(
+        (filePath) => this.diskKey(filePath) === key,
+      ) || this.folderExistsOnDisk(path)
+    );
+  }
+
+  /**
+   * The content of the file at `path` on disk, found the way the file system
+   * finds it (a case variant on a case-insensitive one). Throws Node's ENOENT
+   * when there's no such file.
+   */
+  private readFromDisk(path: string): string {
+    const exact = this.adapterFiles.get(path);
+    if (exact !== undefined) return exact;
+    const key = this.diskKey(path);
+    for (const [filePath, content] of this.adapterFiles) {
+      if (this.diskKey(filePath) === key) return content;
+    }
+    throw enoentError("open", `${this.adapter.getBasePath()}/${path}`);
+  }
+
+  /**
+   * Deletes the file at `path` from disk, found the way the file system finds
+   * it (a case variant on a case-insensitive one; not probed). Throws what
+   * Node's `unlink` throws on Windows: EPERM for a folder (Linux and macOS
+   * report EISDIR), ENOENT for a missing path.
+   */
+  private removeFromDisk(path: string): void {
+    const fullPath = `${this.adapter.getBasePath()}/${path}`;
+    if (this.folderExistsOnDisk(path)) {
+      throw Object.assign(
+        new Error(`EPERM: operation not permitted, unlink '${fullPath}'`),
+        { code: "EPERM" },
+      );
+    }
+    const key = this.diskKey(path);
+    const filePath = [...this.adapterFiles.keys()].find(
+      (candidate) => this.diskKey(candidate) === key,
+    );
+    if (filePath === undefined) {
+      throw enoentError("unlink", fullPath);
+    }
+    this.adapterFiles.delete(filePath);
+    this.files.delete(filePath);
+  }
+
+  private forgetFolder(folderPath: string): void {
+    const folder = this.folders.get(folderPath);
+    this.folders.delete(folderPath);
+    if (!folder) return;
+    for (const parent of this.folders.values()) {
+      parent.children = parent.children.filter((child) => child !== folder);
+    }
+  }
+
+  async create(path: string, content: string): Promise<TFileStub> {
+    // Observed on Obsidian 1.13.7 desktop: an existing path, or a case variant
+    // of one on a case-insensitive file system, throws; a missing parent
+    // folder throws Node's ENOENT.
+    if (this.existsOnDisk(path)) {
+      throw new Error("File already exists.");
+    }
+    const parentPath = path.includes("/")
+      ? path.slice(0, path.lastIndexOf("/"))
+      : "";
+    if (parentPath && !this.folderExistsOnDisk(parentPath)) {
+      throw new Error(
+        `ENOENT: no such file or directory, open '${this.adapter.getBasePath()}/${path}'`,
+      );
+    }
+    const file = new TFileStub(path);
     this.files.set(path, file);
     this.adapterFiles.set(path, content);
     return file;
   }
 
-  async read(file: TFile | string): Promise<string> {
+  // Observed on Obsidian 1.13.7 desktop (Windows): reading a TFile whose file
+  // was removed on disk throws Node's ENOENT.
+  async read(file: TFileStub | string): Promise<string> {
     const path = typeof file === "string" ? file : file.path;
-    return this.adapterFiles.get(path) ?? "# Test Article\n\nContent here";
+    return this.readFromDisk(path);
   }
 
-  async delete(file: TFile | string): Promise<void> {
+  // Not probed: modeled like `read`, throwing ENOENT for a missing file.
+  async cachedRead(file: TFileStub): Promise<string> {
+    return this.readFromDisk(file.path);
+  }
+
+  // Not probed: modeled like `read`, throwing ENOENT for a missing file.
+  async readBinary(file: TFileStub): Promise<ArrayBuffer> {
+    return new TextEncoder().encode(this.readFromDisk(file.path)).buffer;
+  }
+
+  async delete(file: TFileStub | string): Promise<void> {
     const path = typeof file === "string" ? file : file.path;
     this.files.delete(path);
     this.adapterFiles.delete(path);
   }
 
-  async modify(_file: TFile, _content: string): Promise<void> {}
+  async modify(_file: TFileStub, _content: string): Promise<void> {}
 
-  async createFolder(folderPath: string): Promise<TFolder> {
+  async createFolder(folderPath: string): Promise<TFolderStub> {
     const cleanPath = folderPath.replace(/^\/+|\/+$/g, "");
     if (!cleanPath) return this.root;
 
-    const existing = this.folders.get(cleanPath);
-    if (existing) return existing;
+    // Observed on Obsidian 1.13.7 desktop: an existing folder, or a case
+    // variant of one on a case-insensitive file system, throws.
+    if (this.existsOnDisk(cleanPath)) {
+      throw new Error("Folder already exists.");
+    }
 
+    return this.makeFolders(cleanPath);
+  }
+
+  /**
+   * Test setup, not Obsidian API: puts a folder on disk without going through
+   * the adapter, so a test's adapter spy doesn't record it.
+   */
+  addFolderOnDisk(path: string): void {
+    this.makeFolders(path);
+  }
+
+  /** Creates `path` and any missing parent folders, reusing existing ones. */
+  private makeFolders(path: string): TFolderStub {
     let currentPath = "";
     let parent = this.root;
-    for (const part of cleanPath.split("/").filter(Boolean)) {
+    for (const part of path.split("/").filter(Boolean)) {
       currentPath = currentPath ? `${currentPath}/${part}` : part;
-      let folder = this.folders.get(currentPath);
-      if (!folder) {
-        folder = new TFolder(currentPath);
+      // Missing parents are created; an existing one is reused, whatever
+      // case the caller used for it.
+      let folder = this.findFolderOnDisk(currentPath);
+      if (folder) {
+        currentPath = folder.path;
+      } else {
+        folder = new TFolderStub(currentPath);
         parent.children.push(folder);
         this.folders.set(currentPath, folder);
       }
@@ -478,36 +856,79 @@ export class MockDataVault {
     return parent;
   }
 
-  async trashAbstractFile(file: TFile | TFolder): Promise<void> {
-    if (file instanceof TFile) {
+  async trashAbstractFile(file: TFileStub | TFolderStub): Promise<void> {
+    if (file instanceof TFileStub) {
       await this.delete(file);
       return;
     }
-    this.folders.delete(file.path);
+    // Observed on Obsidian 1.13.7 desktop (Windows): trashing a folder takes
+    // its child file with it, out of the index and off disk. Not probed:
+    // descendants nested more than one level down are modeled the same way,
+    // and so is the folder itself on disk.
+    const key = this.diskKey(file.path);
+    const isInside = (path: string): boolean => {
+      const pathKey = this.diskKey(path);
+      return pathKey === key || pathKey.startsWith(`${key}/`);
+    };
+    for (const filePath of [...this.adapterFiles.keys()]) {
+      if (isInside(filePath)) this.adapterFiles.delete(filePath);
+    }
+    for (const filePath of [...this.files.keys()]) {
+      if (isInside(filePath)) this.files.delete(filePath);
+    }
+    for (const folderPath of [...this.folders.keys()]) {
+      if (isInside(folderPath)) this.forgetFolder(folderPath);
+    }
   }
 
-  async renameAbstractFile(file: TFile, newPath: string): Promise<void> {
+  /**
+   * Observed on Obsidian 1.13.7 desktop (Windows): the file keeps its content
+   * at the new path, its name parts follow the path, and the old path leaves
+   * the index; renaming onto an existing path throws "Destination file
+   * already exists!". Not probed: whether `vault.rename` itself normalizes
+   * the path (the stub doesn't; `fileManager.renameFile` does), a rename
+   * that only changes case (allowed here), a missing destination folder
+   * (allowed here), and renaming folders (not modeled).
+   */
+  async rename(file: TFileStub, newPath: string): Promise<void> {
     const oldPath = file.path;
+    if (
+      this.diskKey(newPath) !== this.diskKey(oldPath) &&
+      this.existsOnDisk(newPath)
+    ) {
+      throw new Error("Destination file already exists!");
+    }
+
+    const content = this.adapterFiles.get(oldPath);
     this.files.delete(oldPath);
     this.adapterFiles.delete(oldPath);
 
     file.path = newPath;
-    file.basename = newPath.split("/").pop() || file.basename;
-    file.name = file.basename;
+    Object.assign(file, fileNameParts(newPath));
 
     this.files.set(newPath, file);
+    if (content !== undefined) {
+      this.adapterFiles.set(newPath, content);
+    }
   }
 
-  getAbstractFileByPath(path: string): TFile | TFolder | null {
+  getAbstractFileByPath(path: string): TFileStub | TFolderStub | null {
+    // Obsidian leaves anything under a dot-prefixed folder out of its vault
+    // index; it exists on disk and is reachable only through the adapter.
+    if (isHiddenVaultPath(path)) {
+      return null;
+    }
     return this.files.get(path) || this.folders.get(path) || null;
   }
 
-  getRoot(): TFolder {
+  getRoot(): TFolderStub {
     return this.root;
   }
 
-  getFiles(): TFile[] {
-    return Array.from(this.files.values());
+  getFiles(): TFileStub[] {
+    return Array.from(this.files.values()).filter(
+      (file) => !isHiddenVaultPath(file.path),
+    );
   }
 
   // Event system
@@ -523,7 +944,7 @@ export class MockDataVault {
 // =============================================================================
 
 export class MockWorkspace {
-  private leaves: Map<string, unknown> = new Map();
+  private leaves: WorkspaceLeafStub[] = [];
   public activeLeaf: unknown = null;
   private layoutReadyCallbacks: Array<() => void> = [];
 
@@ -531,8 +952,24 @@ export class MockWorkspace {
   onActiveLeafChange = new MockEvent();
   onWindowResize = new MockEvent();
 
-  getLeavesOfType(_type: string): unknown[] {
-    return Array.from(this.leaves.values());
+  constructor(private readonly app: AppStub) {}
+
+  /** Tracks a new leaf, so getLeavesOfType can find it once it has a view. */
+  private openLeaf(): WorkspaceLeafStub {
+    const leaf = new WorkspaceLeafStub(this.app);
+    this.leaves.push(leaf);
+    return leaf;
+  }
+
+  getLeavesOfType(type: string): WorkspaceLeafStub[] {
+    return this.leaves.filter((leaf) => {
+      const view = leaf.view as { getViewType?: () => string } | undefined;
+      return view?.getViewType?.() === type;
+    });
+  }
+
+  revealLeaf(_leaf: ObsidianApi.WorkspaceLeaf): Promise<void> {
+    return Promise.resolve();
   }
 
   getMostRecentLeaf(): unknown {
@@ -543,16 +980,17 @@ export class MockWorkspace {
     this.activeLeaf = leaf;
   }
 
-  getLeaf(_type?: "split" | "tab"): unknown {
-    return {};
+  getLeaf(_type?: "split" | "tab"): WorkspaceLeafStub {
+    return this.openLeaf();
   }
 
-  getLeftLeaf(_force?: boolean): unknown {
-    return {};
+  // Not probed: whether these reuse an existing sidebar leaf.
+  getLeftLeaf(_force?: boolean): WorkspaceLeafStub {
+    return this.openLeaf();
   }
 
-  getRightLeaf(_force?: boolean): unknown {
-    return {};
+  getRightLeaf(_force?: boolean): WorkspaceLeafStub {
+    return this.openLeaf();
   }
 
   onLayoutReady(callback: () => void): void {
@@ -569,6 +1007,10 @@ export class MockWorkspace {
     return {};
   }
 
+  getActiveViewOfType(_type: unknown): unknown {
+    return null;
+  }
+
   offref(_ref: unknown): void {}
 }
 
@@ -576,7 +1018,7 @@ export class MockWorkspace {
 // App Class (Enhanced with full mocks)
 // =============================================================================
 
-export class App {
+class AppStub {
   private localStorage = new Map<string, unknown>();
 
   /** Full vault mock for file operations */
@@ -584,8 +1026,8 @@ export class App {
 
   /** Minimal fileManager mock for trash/rename */
   fileManager: {
-    trashFile: (file: TFile | TFolder) => Promise<void>;
-    renameFile: (file: TFile, newPath: string) => Promise<void>;
+    trashFile: (file: TFileStub | TFolderStub) => Promise<void>;
+    renameFile: (file: TFileStub, newPath: string) => Promise<void>;
   };
 
   /** Full workspace mock for view management */
@@ -594,14 +1036,17 @@ export class App {
   constructor() {
     this.vault = new MockDataVault();
     this.fileManager = {
-      trashFile: async (file: TFile | TFolder) => {
+      trashFile: async (file: TFileStub | TFolderStub) => {
         await this.vault.trashAbstractFile(file);
       },
-      renameFile: async (file: TFile, newPath: string) => {
-        await this.vault.renameAbstractFile(file, newPath);
+      // Observed on Obsidian 1.13.7 desktop (Windows): the new path is
+      // normalized ("a//r3.md" -> "a/r3.md"). Updating links in other notes
+      // isn't modeled.
+      renameFile: async (file: TFileStub, newPath: string) => {
+        await this.vault.rename(file, normalizePathImpl(newPath));
       },
     };
-    this.workspace = new MockWorkspace();
+    this.workspace = new MockWorkspace(this);
   }
 
   saveLocalStorage(key: string, value: unknown): void {
@@ -613,8 +1058,8 @@ export class App {
   }
 
   /** Create a fresh mock App instance for tests */
-  static createMock(): App {
-    return new App();
+  static createMock(): AppStub {
+    return new AppStub();
   }
 }
 
@@ -622,64 +1067,114 @@ export class App {
 // Plugin Base Classes
 // =============================================================================
 
-export interface PluginManifest {
-  id: string;
-  name: string;
-  version: string;
-  author?: string;
-  description?: string;
-  dir?: string;
-}
+export type PluginManifest = ObsidianApi.PluginManifest;
 
-export type EventRef = unknown;
+export type EventRef = ObsidianApi.EventRef;
 
-interface CommandDefinition {
-  id: string;
-  name: string;
-  [key: string]: unknown;
-}
+class ComponentStub {
+  private children = new Set<ObsidianApi.Component>();
+  private cleanups: Array<() => unknown> = [];
+  /** Obsidian's own flag name; the probes read it to observe loading. */
+  _loaded = false;
 
-export class Plugin {
-  app: App;
-  manifest: PluginManifest;
-
-  constructor(app: App, manifest: PluginManifest) {
-    this.app = app;
-    this.manifest = manifest;
+  // Not probed: calling load() or unload() twice in a row.
+  load(): void {
+    this._loaded = true;
+    this.onload();
+    this.children.forEach((child) => child.load());
   }
 
-  async onload(): Promise<void> {}
+  onload(): void {}
+
+  unload(): void {
+    this._loaded = false;
+    this.children.forEach((child) => child.unload());
+    this.children.clear();
+    const cleanups = this.cleanups;
+    this.cleanups = [];
+    cleanups.forEach((cleanup) => cleanup());
+    this.onunload();
+  }
+
   onunload(): void {}
 
-  registerView(
-    _type: string,
-    _creator: (leaf: WorkspaceLeaf) => ItemView,
-  ): void {}
+  addChild<T extends ObsidianApi.Component>(component: T): T {
+    this.children.add(component);
+    if (this._loaded) {
+      component.load();
+    }
+    return component;
+  }
 
-  addCommand(_command: CommandDefinition): void {}
+  removeChild<T extends ObsidianApi.Component>(component: T): T {
+    if (this.children.delete(component)) {
+      component.unload();
+    }
+    return component;
+  }
+
+  register(cb: () => unknown): void {
+    this.cleanups.push(cb);
+  }
+
+  registerDomEvent(
+    el: EventTarget,
+    type: string,
+    callback: EventListenerOrEventListenerObject,
+    options?: boolean | AddEventListenerOptions,
+  ): void {
+    el.addEventListener(type, callback, options);
+    this.register(() => el.removeEventListener(type, callback, options));
+  }
+
+  // Not probed: modeled on registerDomEvent, the interval is cleared on
+  // unload.
+  registerInterval(id: number): number {
+    this.register(() => window.clearInterval(id));
+    return id;
+  }
+
+  // Not probed. The stub's EventRefs carry no emitter to detach from, so
+  // there is nothing to clean up on unload.
+  registerEvent(_evt: EventRef): void {}
+}
+
+class PluginStub extends ComponentStub {
+  app: AppStub;
+  manifest: PluginManifest;
+
+  constructor(app: AppStub, manifest: PluginManifest) {
+    super();
+    this.app = app;
+    this.manifest = manifest;
+    // Obsidian loads a plugin from its folder, so the folder exists on disk.
+    if (manifest.dir) {
+      app.vault.addFolderOnDisk(manifest.dir);
+    }
+  }
+
+  onload(): void {}
+  onunload(): void {}
+
+  registerView(_type: string, _creator: ObsidianApi.ViewCreator): void {}
+
+  addCommand(command: ObsidianApi.Command): ObsidianApi.Command {
+    return command;
+  }
 
   addRibbonIcon(
     _icon: string,
     _title: string,
-    _callback: (...args: unknown[]) => unknown,
-  ): unknown {
-    return {};
+    _callback: (evt: MouseEvent) => unknown,
+  ): HTMLElement {
+    return createDiv();
   }
 
-  addSettingTab(_tab: PluginSettingTab): void {}
-
-  registerInterval(id: number): number {
-    return id;
-  }
-
-  // Minimal stub for Obsidian's Plugin.registerEvent to allow tests to
-  // register EventRef objects without throwing. This mirrors the runtime
-  // API surface used by plugins; tests do not rely on the behavior here.
-  registerEvent(_evt: EventRef): void {}
+  addSettingTab(_tab: ObsidianApi.PluginSettingTab): void {}
 
   registerObsidianProtocolHandler(
     _action: string,
-    _handler: (params: Record<string, string>) => unknown,
+    _handler: ObsidianApi.ObsidianProtocolHandler,
   ): void {}
 
   // Data API (overridden in tests when needed)
@@ -689,15 +1184,15 @@ export class Plugin {
   async saveData(_data: unknown): Promise<void> {}
 }
 
-export class PluginSettingTab {
-  app: App;
-  plugin: Plugin;
+class PluginSettingTabStub {
+  app: AppStub;
+  plugin: PluginStub;
   containerEl: HTMLElement;
 
-  constructor(app: App, plugin: Plugin) {
+  constructor(app: AppStub, plugin: PluginStub) {
     this.app = app;
     this.plugin = plugin;
-    this.containerEl = activeDocument.createElement("div");
+    this.containerEl = createDiv();
   }
 
   display(): void {}
@@ -708,7 +1203,7 @@ export class PluginSettingTab {
 // UI Components
 // =============================================================================
 
-export class Notice {
+class NoticeStub {
   constructor(message: string, _timeout?: number) {
     console.debug("[Stub Notice]", message);
   }
@@ -716,61 +1211,30 @@ export class Notice {
   hide(): void {}
 }
 
-export class WorkspaceLeaf {
-  app: App;
-  constructor(app: App) {
+class WorkspaceLeafStub {
+  /** Type-only: tests assign views; nothing is set at runtime. */
+  declare view: unknown;
+  app: AppStub;
+  constructor(app: AppStub) {
     this.app = app;
   }
 
   updateHeader(): void {}
 }
 
-export class Component {
-  private children = new Set<Component>();
-
-  load(): void {
-    this.onload();
-    this.children.forEach((child) => child.load());
-  }
-
-  onload(): void {}
-
-  unload(): void {
-    this.children.forEach((child) => child.unload());
-    this.children.clear();
-    this.onunload();
-  }
-
-  onunload(): void {}
-
-  addChild<T extends Component>(component: T): T {
-    this.children.add(component);
-    return component;
-  }
-
-  removeChild<T extends Component>(component: T): T {
-    if (this.children.delete(component)) {
-      component.unload();
-    }
-    return component;
-  }
-
-  register(_cb: () => unknown): void {}
-}
-
-export class ItemView extends Component {
-  app: App;
-  leaf: WorkspaceLeaf;
+class ItemViewStub extends ComponentStub {
+  app: AppStub;
+  leaf: WorkspaceLeafStub;
   containerEl: HTMLElement;
 
-  constructor(leaf: WorkspaceLeaf) {
+  constructor(leaf: WorkspaceLeafStub) {
     super();
     this.leaf = leaf;
     this.app = leaf.app;
 
-    this.containerEl = activeDocument.createElement("div");
-    this.containerEl.appendChild(activeDocument.createElement("div"));
-    this.containerEl.appendChild(activeDocument.createElement("div"));
+    this.containerEl = createDiv();
+    this.containerEl.createDiv();
+    this.containerEl.createDiv();
   }
 
   onOpen(): Promise<void> {
@@ -780,45 +1244,36 @@ export class ItemView extends Component {
   onClose(): Promise<void> {
     return Promise.resolve();
   }
-
-  registerEvent(_evt: EventRef): void {}
-
-  registerDomEvent(
-    el: HTMLElement,
-    type: string,
-    callback: EventListenerOrEventListenerObject,
-    options?: boolean | AddEventListenerOptions,
-  ): void {
-    el.addEventListener(type, callback, options);
-  }
 }
 
-export class Menu {
-  static lastItems: MenuItem[] = [];
+// Menu extends Component in the API typings.
+class MenuStub extends ComponentStub {
+  static lastItems: MenuItemStub[] = [];
 
   constructor() {
-    Menu.lastItems = [];
+    super();
+    MenuStub.lastItems = [];
   }
 
   addSeparator(): this {
     return this;
   }
-  addItem(cb: (item: MenuItem) => void): this {
-    const item = new MenuItem();
-    cb(item);
-    Menu.lastItems.push(item);
+  addItem(cb: (item: ObsidianApi.MenuItem) => unknown): this {
+    const item = new MenuItemStub();
+    cb(item as unknown as ObsidianApi.MenuItem);
+    MenuStub.lastItems.push(item);
     return this;
   }
   showAtPosition(): void {}
   showAtMouseEvent(_event: MouseEvent): void {}
 }
 
-export class MenuItem {
+class MenuItemStub {
   title = "";
   callback: ((evt: MouseEvent) => unknown) | undefined;
 
-  setTitle(title: string): this {
-    this.title = title;
+  setTitle(title: string | DocumentFragment): this {
+    this.title = typeof title === "string" ? title : (title.textContent ?? "");
     return this;
   }
   setIcon(): this {
@@ -836,58 +1291,7 @@ export class MenuItem {
 
 type SettingComponent = object;
 
-interface ButtonSettingComponent extends SettingComponent {
-  buttonEl: HTMLButtonElement;
-  setButtonText(text: string): this;
-  setIcon(icon: string): this;
-  setTooltip(tooltip: string): this;
-  onClick(handler: (evt: MouseEvent) => void): this;
-  setCta(): this;
-  setWarning(): this;
-  _triggerClick(evt?: MouseEvent): void;
-}
-
-interface SliderSettingComponent extends SettingComponent {
-  sliderEl: HTMLInputElement;
-  setLimits(min: number, max: number, step: number): this;
-  setValue(value: number): this;
-  setDynamicTooltip(): this;
-  onChange(handler: (value: number) => void): this;
-}
-
-interface ColorSettingComponent extends SettingComponent {
-  inputEl: HTMLInputElement;
-  setValue(value: string): this;
-  getValue(): string;
-  setPlaceholder(value: string): this;
-  onChange(handler: (value: string) => void): this;
-}
-
-interface ToggleSettingComponent extends SettingComponent {
-  toggleEl: HTMLInputElement;
-  setValue(value: boolean): this;
-  onChange(handler: (value: boolean) => void): this;
-  _triggerChange(value: boolean): void;
-}
-
-interface TextSettingComponent extends SettingComponent {
-  inputEl: HTMLInputElement;
-  setValue(value: string): this;
-  setPlaceholder(value: string): this;
-  getValue(): string;
-  onChange(handler: (value: string) => void): this;
-  _triggerChange(value: string): void;
-}
-
-interface DropdownSettingComponent extends SettingComponent {
-  selectEl: HTMLSelectElement;
-  addOption(value: string, label: string): this;
-  setValue(value: string): this;
-  onChange(handler: (value: string) => void): this;
-  _triggerChange(value: string): void;
-}
-
-export class Setting {
+class SettingStub {
   settingEl: HTMLDivElement;
   nameEl: HTMLDivElement;
   descEl: HTMLDivElement;
@@ -895,37 +1299,44 @@ export class Setting {
   // Obsidian stores created components here; many settings tabs access it.
   components: SettingComponent[] = [];
 
-  constructor(containerEl: HTMLElement) {
-    this.settingEl = activeDocument.createElement("div");
-    this.settingEl.className = "setting-item";
-    containerEl.appendChild(this.settingEl);
-
-    const infoEl = activeDocument.createElement("div");
-    infoEl.className = "setting-item-info";
-    this.settingEl.appendChild(infoEl);
-
-    this.nameEl = activeDocument.createElement("div");
-    this.nameEl.className = "setting-item-name";
-    infoEl.appendChild(this.nameEl);
-
-    this.descEl = activeDocument.createElement("div");
-    this.descEl.className = "setting-item-description";
-    infoEl.appendChild(this.descEl);
-
-    this.controlEl = activeDocument.createElement("div");
-    this.controlEl.className = "setting-item-control";
-    this.settingEl.appendChild(this.controlEl);
+  /**
+   * Records a stub component and hands it to the caller's callback, which is
+   * typed for the real Obsidian component.
+   */
+  private attach<C>(
+    component: SettingComponent,
+    cb: (component: C) => unknown,
+  ): this {
+    this.components.push(component);
+    cb(component as C);
+    return this;
   }
 
-  setName(_name?: string): this {
-    if (_name !== undefined) {
+  constructor(containerEl: HTMLElement) {
+    this.settingEl = containerEl.createDiv({ cls: "setting-item" });
+    const infoEl = this.settingEl.createDiv({ cls: "setting-item-info" });
+    this.nameEl = infoEl.createDiv({ cls: "setting-item-name" });
+    this.descEl = infoEl.createDiv({ cls: "setting-item-description" });
+    this.controlEl = this.settingEl.createDiv({ cls: "setting-item-control" });
+  }
+
+  setName(_name?: string | DocumentFragment): this {
+    if (typeof _name === "string") {
       this.nameEl.textContent = _name;
+    } else if (_name !== undefined) {
+      this.nameEl.empty();
+      this.nameEl.appendChild(_name);
     }
     return this;
   }
-  setDesc(_desc?: string): this {
+  setDesc(_desc?: string | DocumentFragment): this {
     if (_desc !== undefined) {
-      this.descEl.textContent = _desc;
+      this.descEl.empty();
+      if (_desc instanceof DocumentFragment) {
+        this.descEl.appendChild(_desc);
+      } else {
+        this.descEl.textContent = _desc;
+      }
     }
     return this;
   }
@@ -941,14 +1352,13 @@ export class Setting {
   setDisabled(_disabled?: boolean): this {
     return this;
   }
-  addButton(cb: (component: ButtonSettingComponent) => unknown): this {
+  addButton(cb: (component: ObsidianApi.ButtonComponent) => unknown): this {
     class ButtonComponent {
       buttonEl: HTMLButtonElement;
       private clickHandler: ((evt: MouseEvent) => void) | null = null;
 
       constructor(container: HTMLElement) {
-        this.buttonEl = activeDocument.createElement("button");
-        container.appendChild(this.buttonEl);
+        this.buttonEl = container.createEl("button");
       }
 
       setButtonText(text: string): this {
@@ -962,7 +1372,7 @@ export class Setting {
       }
 
       setTooltip(tooltip: string): this {
-        this.buttonEl.title = tooltip;
+        this.buttonEl.setAttribute("aria-label", tooltip);
         return this;
       }
 
@@ -982,6 +1392,11 @@ export class Setting {
         return this;
       }
 
+      setDestructive(): this {
+        this.buttonEl.classList.add("mod-destructive");
+        return this;
+      }
+
       _triggerClick(evt?: MouseEvent): void {
         if (this.clickHandler) {
           this.clickHandler(evt ?? new MouseEvent("click"));
@@ -992,20 +1407,24 @@ export class Setting {
     }
 
     const component = new ButtonComponent(this.controlEl);
-    this.components.push(component);
-    cb(component);
-    return this;
+    return this.attach(component, cb);
   }
 
-  addSlider(cb: (component: SliderSettingComponent) => unknown): this {
+  addExtraButton(
+    cb: (component: ObsidianApi.ExtraButtonComponent) => unknown,
+  ): this {
+    return this.addButton((component) =>
+      cb(component as unknown as ObsidianApi.ExtraButtonComponent),
+    );
+  }
+
+  addSlider(cb: (component: ObsidianApi.SliderComponent) => unknown): this {
     class SliderComponent {
       sliderEl: HTMLInputElement;
       private changeHandler: ((value: number) => void) | null = null;
 
       constructor(container: HTMLElement) {
-        this.sliderEl = activeDocument.createElement("input");
-        this.sliderEl.type = "range";
-        container.appendChild(this.sliderEl);
+        this.sliderEl = container.createEl("input", { type: "range" });
         this.sliderEl.addEventListener("input", () => {
           const value = Number(this.sliderEl.value);
           this.changeHandler?.(value);
@@ -1024,6 +1443,14 @@ export class Setting {
         return this;
       }
 
+      getValue(): number {
+        return Number(this.sliderEl.value);
+      }
+
+      setDisplayFormat(_format: (value: number) => string): this {
+        return this;
+      }
+
       setDynamicTooltip(): this {
         return this;
       }
@@ -1035,20 +1462,16 @@ export class Setting {
     }
 
     const component = new SliderComponent(this.controlEl);
-    this.components.push(component);
-    cb(component);
-    return this;
+    return this.attach(component, cb);
   }
 
-  addColorPicker(cb: (component: ColorSettingComponent) => unknown): this {
+  addColorPicker(cb: (component: ObsidianApi.ColorComponent) => unknown): this {
     class ColorComponent {
       inputEl: HTMLInputElement;
       private changeHandler: ((value: string) => void) | null = null;
 
       constructor(container: HTMLElement) {
-        this.inputEl = activeDocument.createElement("input");
-        this.inputEl.type = "color";
-        container.appendChild(this.inputEl);
+        this.inputEl = container.createEl("input", { type: "color" });
         this.inputEl.addEventListener("input", () => {
           this.changeHandler?.(this.inputEl.value);
         });
@@ -1075,19 +1498,15 @@ export class Setting {
     }
 
     const component = new ColorComponent(this.controlEl);
-    this.components.push(component);
-    cb(component);
-    return this;
+    return this.attach(component, cb);
   }
-  addToggle(cb: (component: ToggleSettingComponent) => unknown): this {
+  addToggle(cb: (component: ObsidianApi.ToggleComponent) => unknown): this {
     class ToggleComponent {
       toggleEl: HTMLInputElement;
       private changeHandler: ((value: boolean) => void) | null = null;
 
       constructor(container: HTMLElement) {
-        this.toggleEl = activeDocument.createElement("input");
-        this.toggleEl.type = "checkbox";
-        container.appendChild(this.toggleEl);
+        this.toggleEl = container.createEl("input", { type: "checkbox" });
         this.toggleEl.addEventListener("change", () => {
           this.changeHandler?.(this.toggleEl.checked);
         });
@@ -1110,19 +1529,15 @@ export class Setting {
     }
 
     const component = new ToggleComponent(this.controlEl);
-    this.components.push(component);
-    cb(component);
-    return this;
+    return this.attach(component, cb);
   }
-  addText(cb: (component: TextSettingComponent) => unknown): this {
+  addText(cb: (component: ObsidianApi.TextComponent) => unknown): this {
     class TextComponent {
       inputEl: HTMLInputElement;
       private changeHandler: ((value: string) => void) | null = null;
 
       constructor(container: HTMLElement) {
-        this.inputEl = activeDocument.createElement("input");
-        this.inputEl.type = "text";
-        container.appendChild(this.inputEl);
+        this.inputEl = container.createEl("input", { type: "text" });
         this.inputEl.addEventListener("input", () => {
           this.changeHandler?.(this.inputEl.value);
         });
@@ -1154,28 +1569,22 @@ export class Setting {
     }
 
     const component = new TextComponent(this.controlEl);
-    this.components.push(component);
-    cb(component);
-    return this;
+    return this.attach(component, cb);
   }
-  addDropdown(cb: (component: DropdownSettingComponent) => unknown): this {
+  addDropdown(cb: (component: ObsidianApi.DropdownComponent) => unknown): this {
     class DropdownComponent {
       selectEl: HTMLSelectElement;
       private changeHandler: ((value: string) => void) | null = null;
 
       constructor(container: HTMLElement) {
-        this.selectEl = activeDocument.createElement("select");
-        container.appendChild(this.selectEl);
+        this.selectEl = container.createEl("select");
         this.selectEl.addEventListener("change", () => {
           this.changeHandler?.(this.selectEl.value);
         });
       }
 
       addOption(value: string, label: string): this {
-        const opt = activeDocument.createElement("option");
-        opt.value = value;
-        opt.textContent = label;
-        this.selectEl.appendChild(opt);
+        this.selectEl.createEl("option", { value, text: label });
         return this;
       }
 
@@ -1196,20 +1605,16 @@ export class Setting {
     }
 
     const component = new DropdownComponent(this.controlEl);
-    this.components.push(component);
-    cb(component);
-    return this;
+    return this.attach(component, cb);
   }
 }
 
-export class TextComponent {
+class TextComponentStub {
   inputEl: HTMLInputElement;
   private changeHandler: ((value: string) => void) | null = null;
 
   constructor(container: HTMLElement) {
-    this.inputEl = activeDocument.createElement("input");
-    this.inputEl.type = "text";
-    container.appendChild(this.inputEl);
+    this.inputEl = container.createEl("input", { type: "text" });
     this.inputEl.addEventListener("input", () => {
       this.changeHandler?.(this.inputEl.value);
     });
@@ -1235,23 +1640,35 @@ export class TextComponent {
   }
 }
 
-export class Modal {
-  app: App;
+class ModalStub {
+  app: AppStub;
+  scope: ScopeStub;
   containerEl: HTMLDivElement;
   modalEl: HTMLDivElement;
+  /** Not in obsidian.d.ts (1.13.1), but present in 1.13.7. */
+  headerEl: HTMLDivElement;
+  titleEl: HTMLDivElement;
   contentEl: HTMLDivElement;
-  constructor(app: App) {
+  constructor(app: AppStub) {
     this.app = app;
-    this.containerEl = activeDocument.createElement("div");
-    this.containerEl.className = "modal-container";
+    this.scope = new ScopeStub();
+    // Observed on Obsidian 1.13.7 desktop (Windows): containerEl is
+    // `modal-container mod-dim`, and modalEl holds the close button, the
+    // header (with the title), and the content, in that order.
+    this.containerEl = createDiv({ cls: "modal-container mod-dim" });
+    this.modalEl = this.containerEl.createDiv({ cls: "modal" });
+    const closeButton = this.modalEl.createDiv({
+      cls: "modal-header-button mod-raised clickable-icon",
+    });
+    closeButton.addEventListener("click", () => this.close());
+    this.headerEl = this.modalEl.createDiv({ cls: "modal-header" });
+    this.titleEl = this.headerEl.createDiv({ cls: "modal-title" });
+    this.contentEl = this.modalEl.createDiv({ cls: "modal-content" });
+  }
 
-    this.modalEl = activeDocument.createElement("div");
-    this.modalEl.className = "modal";
-    this.containerEl.appendChild(this.modalEl);
-
-    this.contentEl = activeDocument.createElement("div");
-    this.contentEl.className = "modal-content";
-    this.modalEl.appendChild(this.contentEl);
+  setTitle(title: string): this {
+    this.titleEl.setText(title);
+    return this;
   }
 
   onOpen(): void {}
@@ -1265,15 +1682,17 @@ export class Modal {
   }
 
   close(): void {
-    this.onClose();
+    // Observed on Obsidian 1.13.7 desktop (Windows): the container is
+    // detached before onClose runs, synchronously.
     this.containerEl.remove();
+    this.onClose();
   }
 }
 
-export class AbstractInputSuggest<T> {
-  protected app: App;
+class AbstractInputSuggestStub<T> {
+  app: AppStub;
   protected inputEl: HTMLInputElement;
-  constructor(app: App, inputEl: HTMLInputElement) {
+  constructor(app: AppStub, inputEl: HTMLInputElement) {
     this.app = app;
     this.inputEl = inputEl;
   }
@@ -1285,27 +1704,133 @@ export class AbstractInputSuggest<T> {
   selectSuggestion(_value: T, _evt: MouseEvent | KeyboardEvent): void {}
   close(): void {}
 }
-export class Scope {
-  public handlers: Array<{
-    modifiers: string[] | null;
-    key: string | null;
-    func: (...args: unknown[]) => void;
-  }> = [];
-  constructor(public parent?: Scope) {}
+class ScopeStub {
+  public handlers: ObsidianApi.KeymapEventHandler[] = [];
+  constructor(public parent?: ScopeStub) {}
   register(
-    modifiers: string[] | null,
+    modifiers: ObsidianApi.Modifier[] | null,
     key: string | null,
-    func: (...args: unknown[]) => void,
-  ) {
-    const handler = { modifiers, key, func };
+    func: ObsidianApi.KeymapEventListener,
+  ): ObsidianApi.KeymapEventHandler {
+    // Not yet observed: real Obsidian stores `modifiers` as a string; the stub
+    // keeps the array that tests inspect (Track B, #372).
+    const handler = {
+      scope: this,
+      modifiers,
+      key,
+      func,
+    } as unknown as ObsidianApi.KeymapEventHandler;
     this.handlers.push(handler);
     return handler;
   }
-  unregister(handler: {
-    modifiers: string[] | null;
-    key: string | null;
-    func: (...args: unknown[]) => void;
-  }) {
+  unregister(handler: ObsidianApi.KeymapEventHandler): void {
     this.handlers = this.handlers.filter((h) => h !== handler);
   }
 }
+
+// =============================================================================
+// Exports typed as the real API (#362)
+//
+// Production code sees Obsidian's own types; at runtime it gets the stub
+// classes above. `StubMatches` checks at compile time that every method a
+// stub defines accepts the real method's parameters, so a mistyped stub
+// member fails to compile. A member the stub lacks fails the test that
+// needs it, at runtime.
+// =============================================================================
+
+/** Each member the stub defines accepts the real member's parameters. */
+type StubShape<Real> = {
+  [K in keyof Real]?: Real[K] extends (...args: infer A) => unknown
+    ? (...args: A) => unknown
+    : unknown;
+};
+type StubMatches<Real, Stub extends StubShape<Real>> = Stub;
+
+export const moment = momentStub as unknown as typeof ObsidianApi.moment;
+export const Platform: typeof ObsidianApi.Platform = PlatformStub;
+export const requestUrl: typeof ObsidianApi.requestUrl = requestUrlImpl;
+export const setIcon: typeof ObsidianApi.setIcon = setIconImpl;
+export const setTooltip: typeof ObsidianApi.setTooltip = setTooltipImpl;
+export const normalizePath: typeof ObsidianApi.normalizePath =
+  normalizePathImpl;
+export const requireApiVersion: typeof ObsidianApi.requireApiVersion =
+  requireApiVersionImpl;
+export const renderMath: typeof ObsidianApi.renderMath = renderMathImpl;
+export const finishRenderMath: typeof ObsidianApi.finishRenderMath =
+  finishRenderMathImpl;
+export type ObsidianProtocolData = ObsidianApi.ObsidianProtocolData;
+export type ButtonComponent = ObsidianApi.ButtonComponent;
+export type { MenuItemStub };
+
+export type MarkdownRenderer = ObsidianApi.MarkdownRenderer;
+export const MarkdownRenderer =
+  MarkdownRendererStub as unknown as typeof ObsidianApi.MarkdownRenderer;
+export type TFile = ObsidianApi.TFile;
+export const TFile = TFileStub as unknown as typeof ObsidianApi.TFile;
+export type TFolder = ObsidianApi.TFolder;
+export const TFolder = TFolderStub as unknown as typeof ObsidianApi.TFolder;
+export type App = ObsidianApi.App;
+/** Tests get the real `App` type plus the stub's mock helpers (`app.vault` etc.). */
+export type MockApp = ObsidianApi.App & AppStub;
+export const App = AppStub as unknown as {
+  new (): MockApp;
+  createMock(): MockApp;
+} & typeof ObsidianApi.App;
+export type Plugin = ObsidianApi.Plugin;
+export const Plugin = PluginStub as unknown as typeof ObsidianApi.Plugin;
+export type PluginSettingTab = ObsidianApi.PluginSettingTab;
+export const PluginSettingTab =
+  PluginSettingTabStub as unknown as typeof ObsidianApi.PluginSettingTab;
+export type Notice = ObsidianApi.Notice;
+export const Notice = NoticeStub as unknown as typeof ObsidianApi.Notice;
+export type WorkspaceLeaf = ObsidianApi.WorkspaceLeaf;
+export const WorkspaceLeaf =
+  WorkspaceLeafStub as unknown as typeof ObsidianApi.WorkspaceLeaf;
+export type Component = ObsidianApi.Component;
+export const Component =
+  ComponentStub as unknown as typeof ObsidianApi.Component;
+export type ItemView = ObsidianApi.ItemView;
+export const ItemView = ItemViewStub as unknown as typeof ObsidianApi.ItemView;
+export type Menu = ObsidianApi.Menu;
+export const Menu = MenuStub as unknown as typeof ObsidianApi.Menu & {
+  /** Test-only: the items added to the most recently created menu. */
+  lastItems: MenuItemStub[];
+};
+export type MenuItem = ObsidianApi.MenuItem;
+export const MenuItem = MenuItemStub as unknown as typeof ObsidianApi.MenuItem;
+export type Setting = ObsidianApi.Setting;
+export const Setting = SettingStub as unknown as typeof ObsidianApi.Setting;
+export type TextComponent = ObsidianApi.TextComponent;
+export const TextComponent =
+  TextComponentStub as unknown as typeof ObsidianApi.TextComponent;
+export type Modal = ObsidianApi.Modal;
+export const Modal = ModalStub as unknown as typeof ObsidianApi.Modal;
+export type AbstractInputSuggest<T> = ObsidianApi.AbstractInputSuggest<T>;
+export const AbstractInputSuggest =
+  AbstractInputSuggestStub as unknown as typeof ObsidianApi.AbstractInputSuggest;
+export type Scope = ObsidianApi.Scope;
+export const Scope = ScopeStub as unknown as typeof ObsidianApi.Scope;
+
+/** Compile-time checks only; see `StubMatches`. */
+export type StubSignatureChecks = [
+  StubMatches<ObsidianApi.MarkdownRenderer, MarkdownRendererStub>,
+  StubMatches<ObsidianApi.TFile, TFileStub>,
+  StubMatches<ObsidianApi.TFolder, TFolderStub>,
+  StubMatches<ObsidianApi.App, AppStub>,
+  StubMatches<ObsidianApi.Plugin, PluginStub>,
+  StubMatches<ObsidianApi.PluginSettingTab, PluginSettingTabStub>,
+  StubMatches<ObsidianApi.Notice, NoticeStub>,
+  StubMatches<ObsidianApi.WorkspaceLeaf, WorkspaceLeafStub>,
+  StubMatches<ObsidianApi.Component, ComponentStub>,
+  StubMatches<ObsidianApi.ItemView, ItemViewStub>,
+  StubMatches<ObsidianApi.Menu, MenuStub>,
+  StubMatches<ObsidianApi.MenuItem, MenuItemStub>,
+  StubMatches<ObsidianApi.Setting, SettingStub>,
+  StubMatches<ObsidianApi.TextComponent, TextComponentStub>,
+  StubMatches<ObsidianApi.Modal, ModalStub>,
+  StubMatches<
+    ObsidianApi.AbstractInputSuggest<unknown>,
+    AbstractInputSuggestStub<unknown>
+  >,
+  StubMatches<ObsidianApi.Scope, ScopeStub>,
+];

@@ -1,6 +1,10 @@
-import { setIcon } from "obsidian";
+import { setIcon, setTooltip } from "obsidian";
 import type { FeedItem } from "../../../types/types";
 import { formatArticleDate } from "../../../utils/platform-utils";
+import {
+  getPubDateMs,
+  resolveDisplayDate,
+} from "../../../services/feed-parser/feed-retention";
 import {
   getArticlePreviewSummaryText,
   resolveArticlePreviewImage,
@@ -106,7 +110,7 @@ function renderArticleCard(
     feedContainer.createDiv({
       cls: "rss-dashboard-article-feed",
       text: article.feedTitle,
-      attr: { title: article.feedTitle },
+      attr: { "aria-label": article.feedTitle },
     });
   }
 
@@ -146,12 +150,17 @@ function renderArticleCard(
   const dateEl = feedFooter.createDiv({
     cls: "rss-dashboard-article-date",
   });
+  const displayDate = resolveDisplayDate(
+    article,
+    ctx.settings.useFirstSeenDateFallback,
+  );
   const dateInfo = formatArticleDate(
-    article.pubDate,
+    displayDate,
     ctx.settings.display.articleDateStyle ?? "relative",
+    { isFirstSeenFallback: getPubDateMs(article.pubDate) <= 0 && !!displayDate },
   );
   dateEl.textContent = dateInfo.text;
-  dateEl.setAttribute("title", dateInfo.title);
+  setTooltip(dateEl, dateInfo.title);
 
   feedItem.addEventListener("click", () => {
     ctx.callbacks.onArticleClick(article);
@@ -169,6 +178,18 @@ export function renderFeedView(
   ctx: BaseViewContext,
   deps: ViewDeps,
 ): void {
+  const isNestedFeedGrouping =
+    ctx.settings.articleGroupBy === "feed" ||
+    ctx.settings.articleGroupBy === "date_feed" ||
+    ctx.settings.articleGroupBy === "folder_feed";
+
+  if (!isNestedFeedGrouping) {
+    for (const article of articles) {
+      renderArticleCard(container, article, ctx, deps);
+    }
+    return;
+  }
+
   // Group articles by feed source
   const groupedArticles = groupArticles(articles, "feed");
 
@@ -203,6 +224,15 @@ export function renderFeedView(
       },
     });
     setIcon(sectionToggle, isCollapsed ? "chevron-right" : "chevron-down");
+
+    // Feed icon from the first article in the group
+    const firstArticle = feedArticles[0];
+    if (firstArticle) {
+      const iconContainer = sectionHeader.createDiv({
+        cls: "rss-dashboard-feed-section-icon",
+      });
+      deps.renderFeedIcon(iconContainer, firstArticle.feedUrl, firstArticle.mediaType);
+    }
 
     // Create header text
     sectionHeader.createDiv({

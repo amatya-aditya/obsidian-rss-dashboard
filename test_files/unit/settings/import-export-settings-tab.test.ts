@@ -13,6 +13,7 @@ import {
 } from "../../../src/utils/settings-loader";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 import type RssDashboardPlugin from "../../../main";
+import type { ImportResult } from "../../../src/services/import-confirmation-model";
 
 type ObsidianHTMLElement = HTMLElement & {
   empty: () => void;
@@ -52,13 +53,20 @@ function createPlugin() {
     saveSettings: vi.fn(async () => {}),
     exportDataJson: vi.fn(async () => {}),
     copyDataJsonToClipboard: vi.fn(async () => {}),
-    importUserSettingsJsonFromFile: vi.fn(async () => {}),
+    importUserSettingsJsonFromFile: vi.fn(async (): Promise<ImportResult> => "committed"),
     exportUserSettingsJson: vi.fn(async () => {}),
     copyUserSettingsJsonToClipboard: vi.fn(async () => {}),
     exportOpml: vi.fn(async () => {}),
     copyOpmlToClipboard: vi.fn(async () => {}),
     exportPortableDataBundle: vi.fn(async () => {}),
-    importPortableDataBundleFromFile: vi.fn(async () => {}),
+    importPortableDataBundleFromFile: vi.fn(async (): Promise<ImportResult> => "committed"),
+    copyPortableDataBundleToClipboard: vi.fn(async () => {}),
+    exportFeedBundle: vi.fn(async () => {}),
+    importFeedBundleFromFile: vi.fn(async (): Promise<ImportResult> => "committed"),
+    copyFeedBundleToClipboard: vi.fn(async () => {}),
+    exportSettingsBundle: vi.fn(async () => {}),
+    importSettingsBundleFromFile: vi.fn(async (): Promise<ImportResult> => "committed"),
+    copySettingsBundleToClipboard: vi.fn(async () => {}),
     getActiveDashboardView: vi.fn(async () => null),
     performFactoryReset: vi.fn(async () => {}),
   };
@@ -188,6 +196,253 @@ describe("Auto Backup Helpers", () => {
 
       exportButton.click();
       expect(plugin.exportPortableDataBundle).toHaveBeenCalledTimes(1);
+    });
+
+    it("calls shard data clipboard copy when its copy button is clicked", () => {
+      const containerEl = createContainerEl();
+      const plugin = createPlugin();
+
+      renderImportExportSettingsTab(containerEl, plugin as unknown as RssDashboardPlugin);
+
+      const copyButton = containerEl.querySelector<HTMLButtonElement>(
+        'button[aria-label="Copy shard data to clipboard"]',
+      );
+      expect(copyButton).not.toBeNull();
+
+      copyButton?.click();
+      expect(plugin.copyPortableDataBundleToClipboard).toHaveBeenCalledTimes(1);
+    });
+
+    it("renders Feed bundle actions", () => {
+      const containerEl = createContainerEl();
+      const plugin = createPlugin();
+
+      renderImportExportSettingsTab(containerEl, plugin as unknown as RssDashboardPlugin);
+
+      const feedBundleSetting = getSettingByName(containerEl, "Feed bundle");
+      expect(feedBundleSetting.textContent).toContain("no app settings");
+      expect(feedBundleSetting.textContent).toContain(
+        "rss-dashboard-feed-bundle.json",
+      );
+
+      const buttons = Array.from(
+        containerEl.querySelectorAll<HTMLButtonElement>("button"),
+      ).map((button) => button.textContent?.trim());
+      expect(buttons).toContain("Import feed bundle");
+      expect(buttons).toContain("Export feed bundle");
+    });
+
+    it("calls Feed bundle clipboard copy when its copy button is clicked", () => {
+      const containerEl = createContainerEl();
+      const plugin = createPlugin();
+
+      renderImportExportSettingsTab(containerEl, plugin as unknown as RssDashboardPlugin);
+
+      const copyButton = containerEl.querySelector<HTMLButtonElement>(
+        'button[aria-label="Copy feed bundle to clipboard"]',
+      );
+      expect(copyButton).not.toBeNull();
+
+      copyButton?.click();
+      expect(plugin.copyFeedBundleToClipboard).toHaveBeenCalledTimes(1);
+    });
+
+    it("calls Feed bundle export when Export Feed bundle is clicked", () => {
+      const containerEl = createContainerEl();
+      const plugin = createPlugin();
+
+      renderImportExportSettingsTab(containerEl, plugin as unknown as RssDashboardPlugin);
+
+      const exportButton = Array.from(
+        containerEl.querySelectorAll<HTMLButtonElement>("button"),
+      ).find(
+        (button) => button.textContent === "Export feed bundle",
+      ) as HTMLButtonElement;
+
+      exportButton.click();
+      expect(plugin.exportFeedBundle).toHaveBeenCalledTimes(1);
+    });
+
+    it("renders Settings bundle actions", () => {
+      const containerEl = createContainerEl();
+      const plugin = createPlugin();
+
+      renderImportExportSettingsTab(containerEl, plugin as unknown as RssDashboardPlugin);
+
+      const settingsBundleSetting = getSettingByName(
+        containerEl,
+        "Settings bundle",
+      );
+      expect(settingsBundleSetting.textContent).toContain("app preferences");
+      expect(settingsBundleSetting.textContent).toContain(
+        "rss-dashboard-settings-bundle.json",
+      );
+
+      const buttons = Array.from(
+        containerEl.querySelectorAll<HTMLButtonElement>("button"),
+      ).map((button) => button.textContent?.trim());
+      expect(buttons).toContain("Import settings bundle");
+      expect(buttons).toContain("Export settings bundle");
+    });
+
+    it("calls Settings bundle clipboard copy when its copy button is clicked", () => {
+      const containerEl = createContainerEl();
+      const plugin = createPlugin();
+
+      renderImportExportSettingsTab(containerEl, plugin as unknown as RssDashboardPlugin);
+
+      const copyButton = containerEl.querySelector<HTMLButtonElement>(
+        'button[aria-label="Copy settings bundle to clipboard"]',
+      );
+      expect(copyButton).not.toBeNull();
+
+      copyButton?.click();
+      expect(plugin.copySettingsBundleToClipboard).toHaveBeenCalledTimes(1);
+    });
+
+    it("calls Settings bundle export when Export Settings bundle is clicked", () => {
+      const containerEl = createContainerEl();
+      const plugin = createPlugin();
+
+      renderImportExportSettingsTab(containerEl, plugin as unknown as RssDashboardPlugin);
+
+      const exportButton = Array.from(
+        containerEl.querySelectorAll<HTMLButtonElement>("button"),
+      ).find(
+        (button) => button.textContent === "Export settings bundle",
+      ) as HTMLButtonElement;
+
+      exportButton.click();
+      expect(plugin.exportSettingsBundle).toHaveBeenCalledTimes(1);
+    });
+
+    it("renders User preferences file actions naming rss-dashboard-user-preferences.json", () => {
+      const containerEl = createContainerEl();
+      const plugin = createPlugin();
+
+      renderImportExportSettingsTab(containerEl, plugin as unknown as RssDashboardPlugin);
+
+      const userPreferencesSetting = getSettingByName(
+        containerEl,
+        "User preferences file",
+      );
+      expect(userPreferencesSetting.textContent).toContain(
+        "rss-dashboard-user-preferences.json",
+      );
+
+      const buttons = Array.from(
+        containerEl.querySelectorAll<HTMLButtonElement>("button"),
+      ).map((button) => button.textContent?.trim());
+      expect(buttons).toContain("Import user preferences");
+      expect(buttons).toContain("Export user preferences");
+    });
+
+    it("calls user preferences import/export/copy when their buttons are used", () => {
+      const containerEl = createContainerEl();
+      const plugin = createPlugin();
+
+      renderImportExportSettingsTab(containerEl, plugin as unknown as RssDashboardPlugin);
+
+      const exportButton = Array.from(
+        containerEl.querySelectorAll<HTMLButtonElement>("button"),
+      ).find(
+        (button) => button.textContent === "Export user preferences",
+      ) as HTMLButtonElement;
+      exportButton.click();
+      expect(plugin.exportUserSettingsJson).toHaveBeenCalledTimes(1);
+
+      const copyButton = containerEl.querySelector<HTMLButtonElement>(
+        'button[aria-label="Copy user preferences to clipboard"]',
+      );
+      expect(copyButton).not.toBeNull();
+      copyButton?.click();
+      expect(plugin.copyUserSettingsJsonToClipboard).toHaveBeenCalledTimes(1);
+    });
+
+    describe("a canceled Replacing or Overwriting import (issue #377)", () => {
+      const imports = [
+        ["Import shard data", "importPortableDataBundleFromFile"],
+        ["Import feed bundle", "importFeedBundleFromFile"],
+        ["Import settings bundle", "importSettingsBundleFromFile"],
+        ["Import user preferences", "importUserSettingsJsonFromFile"],
+      ] as const;
+
+      /** Clicks an import button and picks a file in the file picker it opens. */
+      async function pickImportFile(containerEl: HTMLElement, label: string) {
+        const importButton = Array.from(
+          containerEl.querySelectorAll<HTMLButtonElement>("button"),
+        ).find((button) => button.textContent === label) as HTMLButtonElement;
+        importButton.click();
+
+        const input = document.body.querySelector<HTMLInputElement>(
+          'input[type="file"]',
+        ) as HTMLInputElement;
+        Object.defineProperty(input, "files", {
+          value: [new File(["{}"], "picked.json")],
+        });
+        input.onchange?.(new Event("change"));
+        await flushPromises();
+      }
+
+      it.each(imports)(
+        "%s shows no success message when the user cancels",
+        async (label, method) => {
+          const containerEl = createContainerEl();
+          const plugin = createPlugin();
+          plugin[method].mockResolvedValue("canceled");
+          renderImportExportSettingsTab(
+            containerEl,
+            plugin as unknown as RssDashboardPlugin,
+          );
+
+          await pickImportFile(containerEl, label);
+
+          expect(plugin[method]).toHaveBeenCalledTimes(1);
+          expect(document.body.textContent).not.toContain("Import successful");
+        },
+      );
+
+      it.each(imports)(
+        "%s shows the success message once the import is committed",
+        async (label, method) => {
+          const containerEl = createContainerEl();
+          const plugin = createPlugin();
+          plugin[method].mockResolvedValue("committed");
+          renderImportExportSettingsTab(
+            containerEl,
+            plugin as unknown as RssDashboardPlugin,
+          );
+
+          await pickImportFile(containerEl, label);
+
+          expect(document.body.textContent).toContain("Import successful");
+        },
+      );
+    });
+
+    it("renders the Import starred articles entry point next to Import OPML", () => {
+      const containerEl = createContainerEl();
+      const plugin = createPlugin();
+
+      renderImportExportSettingsTab(containerEl, plugin as unknown as RssDashboardPlugin);
+
+      const starredSetting = getSettingByName(
+        containerEl,
+        "Starred imports",
+      );
+      expect(starredSetting.textContent).toContain("starred.json");
+
+      const buttons = Array.from(
+        containerEl.querySelectorAll<HTMLButtonElement>("button"),
+      ).map((button) => button.textContent?.trim());
+      expect(buttons).toContain("Import starred articles");
+
+      const settingNames = Array.from(
+        containerEl.querySelectorAll<HTMLElement>(".setting-item-name"),
+      ).map((el) => el.textContent?.trim());
+      expect(settingNames.indexOf("Starred imports")).toBeGreaterThan(
+        settingNames.indexOf("OPML"),
+      );
     });
 
     it("renders Factory Reset after the Auto backups section", () => {

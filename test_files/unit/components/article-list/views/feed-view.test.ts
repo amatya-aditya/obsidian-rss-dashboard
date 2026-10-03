@@ -1,12 +1,13 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { renderFeedView } from "../../../../../src/components/article-list/views/feed-view";
+import type { BaseViewContext } from "../../../../../src/components/article-list/views/view-types";
 import { baseViewContext, baseViewDeps, makeArticle } from "./test-helpers";
 
 describe("feed-view", () => {
   let container: HTMLElement;
 
   beforeEach(() => {
-    container = document.createElement("div");
+    container = createDiv();
     document.body.appendChild(container);
   });
 
@@ -29,6 +30,38 @@ describe("feed-view", () => {
       "Test Article",
     );
     expect(item?.querySelector(".rss-dashboard-feed-footer")).toBeTruthy();
+  });
+
+  it("shows the first-seen date in the feed footer when pubDate is empty and the fallback setting is on", () => {
+    const firstSeenMs = Date.parse("2026-01-01T00:00:00Z");
+    const ctx = baseViewContext();
+    ctx.settings.useFirstSeenDateFallback = true;
+    renderFeedView(
+      container,
+      [makeArticle({ pubDate: "", firstSeenMs })],
+      ctx,
+      baseViewDeps(),
+    );
+
+    const dateEl = container.querySelector(".rss-dashboard-article-date");
+    expect(dateEl?.textContent).not.toMatch(/Invalid date/i);
+    expect(dateEl?.textContent).toMatch(/\*$/);
+    expect(dateEl?.getAttribute("aria-label")).toContain("First seen:");
+  });
+
+  it("shows 'Unknown date', not the first-seen date, in the feed footer when pubDate is empty and the fallback setting is off", () => {
+    const firstSeenMs = Date.parse("2026-01-01T00:00:00Z");
+    renderFeedView(
+      container,
+      [makeArticle({ pubDate: "", firstSeenMs })],
+      baseViewContext(),
+      baseViewDeps(),
+    );
+
+    const dateEl = container.querySelector(".rss-dashboard-article-date");
+    expect(dateEl?.textContent).toBe("Unknown date");
+    expect(dateEl?.textContent).not.toMatch(/\*$/);
+    expect(dateEl?.getAttribute("aria-label")).not.toContain("First seen:");
   });
 
   it("schedules math rendering for a feed title while preserving its source", () => {
@@ -146,7 +179,7 @@ describe("feed-view", () => {
               highlightInSummaries: false,
             },
             display: { showCoverImage, showSummary, articleDateStyle: "relative" },
-          },
+          } as unknown as BaseViewContext["settings"],
         }),
         baseViewDeps(),
       );
@@ -224,5 +257,109 @@ describe("feed-view", () => {
     );
 
     expect(onArticleClick).toHaveBeenCalledWith(article);
+  });
+
+  it("renders flat cards without feed headers when grouping by date", () => {
+    renderFeedView(
+      container,
+      [
+        makeArticle({ title: "Article 1", feedTitle: "Feed A" }),
+        makeArticle({ title: "Article 2", feedTitle: "Feed B" }),
+      ],
+      baseViewContext({
+        settings: {
+          ...baseViewContext().settings,
+          articleGroupBy: "date",
+        },
+      }),
+      baseViewDeps(),
+    );
+
+    expect(container.querySelectorAll(".rss-dashboard-feed-item").length).toBe(2);
+    expect(container.querySelector(".rss-dashboard-feed-section")).toBeFalsy();
+    expect(container.querySelector(".rss-dashboard-feed-section-header")).toBeFalsy();
+  });
+
+  it("renders flat cards without feed headers when grouping by folder", () => {
+    renderFeedView(
+      container,
+      [
+        makeArticle({ title: "Article 1", feedTitle: "Feed A" }),
+        makeArticle({ title: "Article 2", feedTitle: "Feed B" }),
+      ],
+      baseViewContext({
+        settings: {
+          ...baseViewContext().settings,
+          articleGroupBy: "folder",
+        },
+      }),
+      baseViewDeps(),
+    );
+
+    expect(container.querySelectorAll(".rss-dashboard-feed-item").length).toBe(2);
+    expect(container.querySelector(".rss-dashboard-feed-section")).toBeFalsy();
+    expect(container.querySelector(".rss-dashboard-feed-section-header")).toBeFalsy();
+  });
+
+  it("renders nested feed headers when grouping by date_feed", () => {
+    renderFeedView(
+      container,
+      [
+        makeArticle({ title: "Article 1", feedTitle: "Feed A" }),
+        makeArticle({ title: "Article 2", feedTitle: "Feed B" }),
+      ],
+      baseViewContext({
+        settings: {
+          ...baseViewContext().settings,
+          articleGroupBy: "date_feed",
+        },
+      }),
+      baseViewDeps(),
+    );
+
+    expect(container.querySelectorAll(".rss-dashboard-feed-section").length).toBe(2);
+    expect(container.querySelectorAll(".rss-dashboard-feed-section-header").length).toBe(2);
+  });
+
+  it("renders nested feed headers when grouping by folder_feed", () => {
+    renderFeedView(
+      container,
+      [
+        makeArticle({ title: "Article 1", feedTitle: "Feed A" }),
+        makeArticle({ title: "Article 2", feedTitle: "Feed B" }),
+      ],
+      baseViewContext({
+        settings: {
+          ...baseViewContext().settings,
+          articleGroupBy: "folder_feed",
+        },
+      }),
+      baseViewDeps(),
+    );
+
+    expect(container.querySelectorAll(".rss-dashboard-feed-section").length).toBe(2);
+    expect(container.querySelectorAll(".rss-dashboard-feed-section-header").length).toBe(2);
+  });
+
+  it("renders a feed icon in each section header when grouping by feed", () => {
+    const deps = baseViewDeps();
+    renderFeedView(
+      container,
+      [
+        makeArticle({ title: "Article 1", feedTitle: "Feed A", feedUrl: "https://a.example.com/rss" }),
+        makeArticle({ title: "Article 2", feedTitle: "Feed B", feedUrl: "https://b.example.com/rss" }),
+      ],
+      baseViewContext({
+        settings: {
+          ...baseViewContext().settings,
+          articleGroupBy: "feed",
+        },
+      }),
+      deps,
+    );
+
+    // One icon per section header (2) + one per article card meta (2, showFeedSource is true by default)
+    expect(container.querySelectorAll(".rss-dashboard-feed-section-icon").length).toBe(2);
+    expect(deps.renderFeedIcon).toHaveBeenCalledTimes(4);
   });
 });

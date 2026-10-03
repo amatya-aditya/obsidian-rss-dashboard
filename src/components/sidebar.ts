@@ -1,4 +1,14 @@
-import { Menu, MenuItem, Notice, App, Modal, setIcon, Setting } from "obsidian";
+import {
+  Menu,
+  MenuItem,
+  Notice,
+  App,
+  Modal,
+  Platform,
+  setIcon,
+  setTooltip,
+  Setting,
+} from "obsidian";
 import {
   Feed,
   Folder,
@@ -6,6 +16,7 @@ import {
   RssDashboardSettings,
   FeedKeywordRulesSettings,
   FeedEncoding,
+  FeedShardHealth,
 } from "../types/types";
 import {
   SIDEBAR_ICON_IDS,
@@ -20,13 +31,18 @@ import {
   removeAllTagsFromFeeds,
   syncFolderAutoTagsOnFeeds,
 } from "../utils/folder-tag-sync";
+import { DEFAULT_TAG_COLOR } from "../utils/tag-colors";
 import { showEditTagModal } from "../utils/tag-utils";
 import {
   attachInputClearButton,
   windowInstanceOf,
 } from "../utils/platform-utils";
 import { SidebarSearchService } from "../services/sidebar-search-service";
-import { isValidFolderName } from "../utils/validation";
+import { FolderNameModal } from "../modals/folder-name-modal";
+import {
+  loadVaultLocalStorage,
+  saveVaultLocalStorage,
+} from "../utils/vault-local-storage";
 import type RssDashboardPlugin from "../../main";
 import { applyFeedSortOrder } from "../utils/sidebar-sort-utils";
 import { applyFolderSortOrder } from "../utils/sidebar-folder-sort-utils";
@@ -39,13 +55,17 @@ import {
   getFaviconUrl,
 } from "../utils/favicon-utils";
 import {
-  moveFeedAndInsert,
-  moveFeedToFolderAppend,
+  moveFeedsAndInsert,
+  moveFeedsToFolderAppend,
   moveFolder,
   setFolderFeedSortCustom,
   setFolderSortCustom,
 } from "../services/sidebar-ordering-controller";
-import { attachRefreshStatusDetails } from "./refresh-status-details";
+import {
+  attachRefreshStatusDetails,
+  showRefreshDetailsPopup,
+} from "./refresh-status-details";
+import { RefreshDetailsModal } from "../modals/refresh-details-modal";
 import {
   formatRefreshStatusTime,
   getRefreshStatus,
@@ -129,157 +149,21 @@ type SidebarRowDescriptor = {
   expandable?: boolean;
 };
 
-// FolderNameModal — Uses Obsidian's Modal class to prevent mobile focus bugs.
-// ⚠️ DO NOT move the input to a raw document.body div or add event.stopPropagation()
-// guards. Previous attempts created race conditions with Obsidian's workspace handler,
-// causing text deletion, lag, and dropped keystrokes. See bug docs for history.
-class FolderNameModal extends Modal {
-  private readonly opts: {
-    title: string;
-    defaultValue?: string;
-    existingNames?: string[];
-    onSubmit: (name: string) => void;
-  };
-
-  constructor(
-    app: App,
-    opts: {
-      title: string;
-      defaultValue?: string;
-      existingNames?: string[];
-      onSubmit: (name: string) => void;
-    },
-  ) {
-    super(app);
-    this.opts = opts;
-  }
-
-  onOpen() {
-    const { contentEl } = this;
-    contentEl.empty();
-
-    // Scope CSS to this modal element (used for input iOS sizing rules).
-    this.modalEl.addClass("rss-folder-name-modal");
-
-    new Setting(contentEl).setName(this.opts.title).setHeading();
-
-    const inputWrapper = contentEl.createDiv({
-      cls: "rss-folder-name-modal-input-wrapper rss-input-margin-bottom",
-    });
-
-    const nameInput = inputWrapper.createEl("input", {
-      attr: {
-        type: "text",
-        value: this.opts.defaultValue ?? "",
-        placeholder: "Enter folder name",
-        autocomplete: "off",
-        autocorrect: "off",
-        autocapitalize: "off",
-        spellcheck: "false",
-      },
-      cls: "rss-full-width-input rss-folder-name-modal-input",
-    });
-    nameInput.spellcheck = false;
-
-    const clearInputButton = inputWrapper.createEl("button", {
-      cls: "rss-folder-name-modal-input-clear",
-      attr: {
-        type: "button",
-        "aria-label": "Clear folder name",
-        title: "Clear",
-      },
-    });
-    setIcon(clearInputButton, "x");
-
-    const updateClearButtonState = () => {
-      clearInputButton.classList.toggle(
-        "is-hidden",
-        nameInput.value.length === 0,
-      );
-    };
-
-    const errorMsg = contentEl.createDiv({
-      cls: "rss-folder-name-modal-error rss-folder-name-modal-error-hidden",
-    });
-
-    const showError = (msg: string) => {
-      errorMsg.textContent = msg;
-      errorMsg.removeClass("rss-folder-name-modal-error-hidden");
-      nameInput.classList.add("rss-folder-name-modal-input-error");
-    };
-    const clearError = () => {
-      errorMsg.addClass("rss-folder-name-modal-error-hidden");
-      nameInput.classList.remove("rss-folder-name-modal-input-error");
-    };
-
-    const submit = () => {
-      const name = nameInput.value.trim();
-      const validation = isValidFolderName(name);
-      if (!validation.valid) {
-        showError(validation.error || "Please enter a folder name.");
-        nameInput.focus();
-        return;
-      }
-      if (
-        this.opts.existingNames?.includes(name) &&
-        name !== this.opts.defaultValue
-      ) {
-        showError("A folder with this name already exists.");
-        nameInput.focus();
-        return;
-      }
-      this.close();
-      this.opts.onSubmit(name);
-    };
-
-    nameInput.addEventListener("input", () => {
-      clearError();
-      updateClearButtonState();
-    });
-    nameInput.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") submit();
-    });
-
-    clearInputButton.addEventListener("click", () => {
-      nameInput.value = "";
-      clearError();
-      updateClearButtonState();
-      nameInput.focus();
-    });
-
-    updateClearButtonState();
-
-    const buttonContainer = contentEl.createDiv({
-      cls: "rss-dashboard-modal-buttons rss-folder-name-modal-buttons",
-    });
-
-    const okButton = buttonContainer.createEl("button");
-    okButton.className = "rss-dashboard-primary-button";
-    okButton.addClass("rss-folder-name-modal-ok");
-    const okIcon = okButton.createSpan();
-    setIcon(okIcon, "check");
-    okButton.createSpan({ text: "OK" });
-    okButton.addEventListener("click", submit);
-
-    const cancelButton = buttonContainer.createEl("button");
-    cancelButton.addClass("rss-folder-name-modal-cancel");
-    const cancelIcon = cancelButton.createSpan();
-    setIcon(cancelIcon, "x");
-    cancelButton.createSpan({ text: "Cancel" });
-    cancelButton.addEventListener("click", () => this.close());
-
-    // Single focus+select; Obsidian's Modal handles focus isolation.
-    // ⚠️ Do NOT add rAF re-focus, blur recovery, or stopPropagation.
-    window.setTimeout(() => {
-      if (this.contentEl.isConnected) {
-        nameInput.focus();
-        nameInput.select();
-      }
-    }, 50);
-  }
-
-  onClose() {
-    this.contentEl.empty();
+/**
+ * Reads a JSON string-array drag payload. Returns an empty list when the
+ * payload is absent or malformed, so the caller falls back to the
+ * single-item key.
+ */
+function parseDraggedStringList(raw: string): string[] {
+  if (!raw) return [];
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    return Array.isArray(parsed) &&
+      parsed.every((item): item is string => typeof item === "string")
+      ? parsed
+      : [];
+  } catch {
+    return [];
   }
 }
 
@@ -302,6 +186,7 @@ export class Sidebar {
   private iconActions = new Map<string, (e?: MouseEvent) => void>();
   private resizeObserver: ResizeObserver | null = null;
   private sidebarRows: SidebarRowDescriptor[] = [];
+  private openConfirmModal: Modal | null = null;
   private focusedSidebarTarget: SidebarFocusTarget | null = null;
   private isSidebarKeyboardFocused = false;
   private refreshStatusDetailCleanups: Array<() => void> = [];
@@ -395,6 +280,9 @@ export class Sidebar {
       }
       if (feed.lastFetchError)
         lines.push(`Last attempt failed: ${feed.lastFetchError}`);
+      const shardHealth = this.getReportedShardHealth(feed);
+      if (shardHealth)
+        lines.push(this.getFeedShardWarningMessage(shardHealth));
       if (status.refreshingCount > 0) lines.push("In progress");
       if (feed.excludeFromRefresh) lines.push("Excluded from global refresh");
       return lines;
@@ -477,29 +365,26 @@ export class Sidebar {
     feeds: Feed[],
     scope: "all" | "feed" | "aggregate",
   ): void {
-    const ownerDocument = anchor.ownerDocument;
-    const popup = ownerDocument.body.createDiv({
-      cls: "rss-dashboard-refresh-details rss-dashboard-refresh-details-manual",
-      attr: { role: "status" },
-    });
-    popup.createEl("strong", { text: "Refresh details" });
-    for (const line of this.getRefreshDetailLines(feeds, scope)) {
-      popup.createDiv({
-        cls: "rss-dashboard-refresh-details-line",
-        text: line,
-      });
+    if (Platform.isMobile) {
+      new RefreshDetailsModal(
+        this.app,
+        this.getRefreshDetailLines(feeds, scope),
+      ).open();
+      return;
     }
-    const rect = anchor.getBoundingClientRect();
-    popup.style.setProperty("top", `${Math.max(8, rect.top)}px`);
-    popup.style.setProperty("left", `${Math.max(8, rect.right + 8)}px`);
-    const ownerWindow = ownerDocument.defaultView;
-    const dismiss = (event?: KeyboardEvent) => {
-      if (event && event.key !== "Escape") return;
-      popup.remove();
-      ownerDocument.removeEventListener("keydown", dismiss);
-    };
-    ownerDocument.addEventListener("keydown", dismiss);
-    if (ownerWindow) ownerWindow.setTimeout(dismiss, 5000);
+
+    showRefreshDetailsPopup({
+      anchor,
+      render: (popup) => {
+        popup.createEl("strong", { text: "Refresh details" });
+        for (const line of this.getRefreshDetailLines(feeds, scope)) {
+          popup.createDiv({
+            cls: "rss-dashboard-refresh-details-line",
+            text: line,
+          });
+        }
+      },
+    });
   }
 
   constructor(
@@ -591,6 +476,16 @@ export class Sidebar {
     this.applySearchFilterFromState();
     this.syncFocusedSidebarTargetAfterRender();
     this.applySidebarFocusState();
+
+    // Restore synchronously so a coalesced status redraw never snapshots the
+    // transient zero scroll position left by the previous DOM rebuild.
+    this.container.scrollTop = scrollPosition;
+    const newFoldersSection = this.container.querySelector(
+      ".rss-dashboard-feed-folders-section",
+    );
+    if (newFoldersSection) {
+      newFoldersSection.scrollTop = foldersScroll;
+    }
 
     // Attach ResizeObserver once; keep it across re-renders
     if (!this.resizeObserver) {
@@ -741,6 +636,12 @@ export class Sidebar {
       e.preventDefault();
       feedFoldersSection.classList.remove("drag-over");
       if (e.dataTransfer) {
+        const { feedUrls, folderPaths } = this.extractDragPayload(e.dataTransfer);
+        if (feedUrls.length > 0 || folderPaths.length > 1) {
+          this.batchMoveFeedsAndFoldersToFolder("", feedUrls, folderPaths);
+          return;
+        }
+
         const draggedFolderPath = e.dataTransfer.getData("folder-path");
         if (draggedFolderPath) {
           const result = moveFolder(this.settings, {
@@ -788,22 +689,7 @@ export class Sidebar {
 
         const feedUrl = e.dataTransfer.getData("feed-url");
         if (feedUrl) {
-          const feed = this.settings.feeds.find((f) => f.url === feedUrl);
-          if (!feed || !feed.folder) return;
-
-          const oldFolderPath = feed.folder;
-          const result = moveFeedToFolderAppend(this.settings, {
-            draggedUrl: feedUrl,
-            destinationFolderPath: "",
-          });
-          if (!result.ok) {
-            new Notice(result.error || "Unable to move feed.");
-            return;
-          }
-
-          const oldFolder = this.findFolderByPath(oldFolderPath);
-          if (oldFolder) oldFolder.modifiedAt = Date.now();
-          void this.plugin.saveSettings().then(() => this.render());
+          this.batchMoveFeedsAndFoldersToFolder("", [feedUrl], []);
         }
       }
     });
@@ -926,7 +812,7 @@ export class Sidebar {
         cls: "rss-dashboard-sidebar-add-tag-row",
       });
       const cp = addRow.createEl("input", {
-        attr: { type: "color", value: "#3498db" },
+        attr: { type: "color", value: DEFAULT_TAG_COLOR },
         cls: "rss-dashboard-tag-color-picker",
       });
       const input = addRow.createEl("input", {
@@ -1044,14 +930,14 @@ export class Sidebar {
         (isCancellable ? " stop" : isRefreshActive ? " refreshing" : ""),
       attr: {
         type: "button",
-        title: isCancellable ? "Stop refresh" : "Refresh all feeds",
+        "aria-label": isCancellable ? "Stop refresh" : "Refresh all feeds",
         "aria-labelledby": refreshLabelId,
       },
     });
     setIcon(feedIcon, isCancellable ? "square-stop" : "refresh-cw");
     feedIcon.addEventListener("click", (e) => {
       e.stopPropagation();
-      if (isCancellable) {
+      if (this.plugin.isGlobalRefreshCancellable) {
         this.plugin.cancelGlobalRefresh();
         return;
       }
@@ -1103,6 +989,19 @@ export class Sidebar {
       e.stopPropagation();
       this.showAllFeedsContextMenu(e);
     });
+  }
+
+  public refreshGlobalRefreshProgressOnly(): void {
+    const progress = this.plugin.globalRefreshProgress ?? {
+      completed: 0,
+      total: 0,
+    };
+    const progressEl = this.container.querySelector<HTMLElement>(
+      ".rss-dashboard-all-feeds-progress",
+    );
+    if (progressEl) {
+      progressEl.setText(`${progress.completed}/${progress.total}`);
+    }
   }
 
   private showAllFeedsContextMenu(event: MouseEvent): void {
@@ -1339,7 +1238,23 @@ export class Sidebar {
 
     folderHeader.addEventListener("dragstart", (e) => {
       if (!e.dataTransfer) return;
+      let folderPaths: string[] = [];
+      const selectedFolders = this.options.selectedFolders || [];
+      if (selectedFolders.length > 0) {
+        if (!selectedFolders.includes(fullPath)) {
+          selectedFolders.push(fullPath);
+        }
+        folderPaths = [...selectedFolders];
+      } else {
+        folderPaths = [fullPath];
+      }
       e.dataTransfer.setData("folder-path", fullPath);
+      e.dataTransfer.setData("folder-paths", JSON.stringify(folderPaths));
+
+      const selectedFeeds = this.options.selectedFeeds || [];
+      if (selectedFeeds.length > 0) {
+        e.dataTransfer.setData("feed-urls", JSON.stringify(selectedFeeds));
+      }
       e.dataTransfer.effectAllowed = "move";
     });
 
@@ -1364,8 +1279,12 @@ export class Sidebar {
       e.preventDefault();
       e.stopPropagation(); // Prevent event from bubbling up to root section
 
-      const isFolderDrag = e.dataTransfer.types.includes("folder-path");
-      const isFeedDrag = e.dataTransfer.types.includes("feed-url");
+      const isFolderDrag =
+        e.dataTransfer.types.includes("folder-path") ||
+        e.dataTransfer.types.includes("folder-paths");
+      const isFeedDrag =
+        e.dataTransfer.types.includes("feed-url") ||
+        e.dataTransfer.types.includes("feed-urls");
       if (!isFolderDrag && !isFeedDrag) return;
 
       clearFolderHeaderDropClasses();
@@ -1396,6 +1315,17 @@ export class Sidebar {
       clearFolderHeaderDropClasses();
 
       if (!e.dataTransfer) return;
+
+      const { feedUrls, folderPaths } = this.extractDragPayload(e.dataTransfer);
+      if (feedUrls.length > 0) {
+        this.batchMoveFeedsAndFoldersToFolder(fullPath, feedUrls, folderPaths);
+        return;
+      }
+
+      if (folderPaths.length > 1) {
+        this.batchMoveFeedsAndFoldersToFolder(fullPath, [], folderPaths);
+        return;
+      }
 
       const draggedFolderPath = e.dataTransfer.getData("folder-path");
       if (draggedFolderPath) {
@@ -1442,31 +1372,6 @@ export class Sidebar {
         void this.plugin.saveSettings().then(() => this.render());
         return;
       }
-
-      const feedUrl = e.dataTransfer.getData("feed-url");
-      if (!feedUrl) return;
-
-      const feed = this.settings.feeds.find((f) => f.url === feedUrl);
-      if (!feed || (feed.folder || "") === fullPath) return;
-
-      const oldFolderPath = feed.folder || "";
-      const op = moveFeedToFolderAppend(this.settings, {
-        draggedUrl: feedUrl,
-        destinationFolderPath: fullPath,
-      });
-      if (!op.ok) {
-        new Notice(op.error || "Unable to move feed.");
-        return;
-      }
-
-      if (oldFolderPath) {
-        const oldFolder = this.findFolderByPath(oldFolderPath);
-        if (oldFolder) oldFolder.modifiedAt = Date.now();
-      }
-      const newFolder = this.findFolderByPath(fullPath);
-      if (newFolder) newFolder.modifiedAt = Date.now();
-
-      void this.plugin.saveSettings().then(() => this.render());
     });
 
     // Create the container for both subfolders and feeds
@@ -1491,29 +1396,9 @@ export class Sidebar {
       e.stopPropagation();
       folderFeedsList.classList.remove("drag-over");
       if (e.dataTransfer) {
-        const feedUrl = e.dataTransfer.getData("feed-url");
-        if (feedUrl) {
-          const feed = this.settings.feeds.find((f) => f.url === feedUrl);
-          if (!feed || (feed.folder || "") === fullPath) return;
-
-          const oldFolderPath = feed.folder || "";
-          const result = moveFeedToFolderAppend(this.settings, {
-            draggedUrl: feedUrl,
-            destinationFolderPath: fullPath,
-          });
-          if (!result.ok) {
-            new Notice(result.error || "Unable to move feed.");
-            return;
-          }
-
-          if (oldFolderPath) {
-            const oldFolder = this.findFolderByPath(oldFolderPath);
-            if (oldFolder) oldFolder.modifiedAt = Date.now();
-          }
-          const newFolder = this.findFolderByPath(fullPath);
-          if (newFolder) newFolder.modifiedAt = Date.now();
-
-          void this.plugin.saveSettings().then(() => this.render());
+        const { feedUrls, folderPaths } = this.extractDragPayload(e.dataTransfer);
+        if (feedUrls.length > 0 || folderPaths.length > 0) {
+          this.batchMoveFeedsAndFoldersToFolder(fullPath, feedUrls, folderPaths);
         }
       }
     });
@@ -1632,6 +1517,7 @@ export class Sidebar {
     const refreshState = this.plugin.activeRefreshState?.get(feed.url);
     const isRefreshProcessing = refreshState?.status === "processing";
     const isQueuedForRefresh = refreshState?.status === "pending";
+    const shardHealth = this.getReportedShardHealth(feed);
 
     if (isProcessing) {
       // Show loading spinner for processing feeds
@@ -1663,9 +1549,6 @@ export class Sidebar {
       } else {
         this.renderFallbackFeedIcon(feedIcon);
       }
-    } else if (MediaService.isTwitterOrNitterFeed(feed.url)) {
-      this.renderFallbackFeedIcon(feedIcon);
-      this.renderDomainFavicon(feedIcon, "twitter.com");
     } else if (MastodonService.isResolvedFeedUrl(feed.url)) {
       const domain = extractDomain(feed.url);
       if (domain) {
@@ -1709,11 +1592,17 @@ export class Sidebar {
       const errorBadge = feedNameContainer.createDiv({
         cls: "rss-dashboard-feed-error-badge",
         attr: {
-          title: feed.lastFetchError,
           "aria-label": `Feed error: ${feed.lastFetchError}`,
         },
       });
       setIcon(errorBadge, "alert-circle");
+    }
+
+    if (shardHealth) {
+      const shardWarning = feedNameContainer.createDiv({
+        cls: "rss-dashboard-feed-shard-warning-badge",
+      });
+      setIcon(shardWarning, "alert-triangle");
     }
 
     if (isQueuedForImport && !isProcessing) {
@@ -1721,10 +1610,7 @@ export class Sidebar {
         cls: "rss-dashboard-feed-processing-indicator",
         text: "⏳",
       });
-      processingIndicator.setAttribute(
-        "title",
-        "Articles being fetched in background",
-      );
+      setTooltip(processingIndicator, "Articles being fetched in background");
     } else if (
       isQueuedForRefresh &&
       !isRefreshProcessing &&
@@ -1735,7 +1621,7 @@ export class Sidebar {
         cls: "rss-dashboard-feed-processing-indicator",
         text: "⏳",
       });
-      processingIndicator.setAttribute("title", "Feed queued for refresh");
+      setTooltip(processingIndicator, "Feed queued for refresh");
     }
 
     feedEl.addEventListener("click", (e) => {
@@ -1766,7 +1652,24 @@ export class Sidebar {
 
     feedEl.addEventListener("dragstart", (e) => {
       if (!e.dataTransfer) return;
+      let feedUrls: string[] = [];
+      const selectedFeeds = this.options.selectedFeeds || [];
+      if (selectedFeeds.length > 0) {
+        if (!selectedFeeds.includes(feed.url)) {
+          selectedFeeds.push(feed.url);
+        }
+        feedUrls = [...selectedFeeds];
+      } else {
+        feedUrls = [feed.url];
+      }
+
       e.dataTransfer.setData("feed-url", feed.url);
+      e.dataTransfer.setData("feed-urls", JSON.stringify(feedUrls));
+
+      const selectedFolders = this.options.selectedFolders || [];
+      if (selectedFolders.length > 0) {
+        e.dataTransfer.setData("folder-paths", JSON.stringify(selectedFolders));
+      }
       e.dataTransfer.effectAllowed = "move";
     });
 
@@ -1778,10 +1681,17 @@ export class Sidebar {
     feedEl.addEventListener("dragover", (e) => {
       if (!e.dataTransfer) return;
       // Ignore folder drags; those are handled on folder headers/root.
-      if (e.dataTransfer.types.includes("folder-path")) return;
+      if (
+        e.dataTransfer.types.includes("folder-path") ||
+        e.dataTransfer.types.includes("folder-paths")
+      ) {
+        return;
+      }
 
-      const draggedUrl = e.dataTransfer.getData("feed-url");
-      if (!draggedUrl) return;
+      const hasFeedDrag =
+        e.dataTransfer.types.includes("feed-url") ||
+        e.dataTransfer.types.includes("feed-urls");
+      if (!hasFeedDrag) return;
 
       e.preventDefault();
       e.stopPropagation();
@@ -1799,25 +1709,34 @@ export class Sidebar {
 
     feedEl.addEventListener("drop", (e) => {
       if (!e.dataTransfer) return;
-      if (e.dataTransfer.types.includes("folder-path")) return;
+      if (
+        e.dataTransfer.types.includes("folder-path") ||
+        e.dataTransfer.types.includes("folder-paths")
+      ) {
+        return;
+      }
 
-      const draggedUrl = e.dataTransfer.getData("feed-url");
-      if (!draggedUrl || draggedUrl === feed.url) return;
+      const { feedUrls } = this.extractDragPayload(e.dataTransfer);
+      if (feedUrls.length === 0) return;
+      if (feedUrls.includes(feed.url)) return; // No-op drop if target is one of the dragged feeds
 
       e.preventDefault();
       e.stopPropagation();
       clearFeedDropClasses();
 
-      const dragged = this.settings.feeds.find((f) => f.url === draggedUrl);
-      const oldFolderPath = dragged?.folder ?? "";
+      const oldFolderPaths = new Set<string>();
+      for (const u of feedUrls) {
+        const f = this.settings.feeds.find((item) => item.url === u);
+        if (f?.folder) oldFolderPaths.add(f.folder);
+      }
       const destinationFolderPath = feed.folder ?? "";
 
       const rect = feedEl.getBoundingClientRect();
       const before = e.clientY < rect.top + rect.height / 2;
       const placement = before ? "before" : "after";
 
-      const result = moveFeedAndInsert(this.settings, {
-        draggedUrl,
+      const result = moveFeedsAndInsert(this.settings, {
+        draggedUrls: feedUrls,
         targetUrl: feed.url,
         placement,
       });
@@ -1827,17 +1746,40 @@ export class Sidebar {
         return;
       }
 
-      if (oldFolderPath && oldFolderPath !== destinationFolderPath) {
-        const oldFolder = this.findFolderByPath(oldFolderPath);
-        if (oldFolder) oldFolder.modifiedAt = Date.now();
+      for (const oldPath of oldFolderPaths) {
+        if (oldPath !== destinationFolderPath) {
+          const oldFolder = this.findFolderByPath(oldPath);
+          if (oldFolder) oldFolder.modifiedAt = Date.now();
+        }
       }
-      if (destinationFolderPath && oldFolderPath !== destinationFolderPath) {
+      if (destinationFolderPath) {
         const newFolder = this.findFolderByPath(destinationFolderPath);
         if (newFolder) newFolder.modifiedAt = Date.now();
       }
 
+      this.options.selectedFeeds = [];
+      this.options.selectedFolders = [];
+
       void this.plugin.saveSettings().then(() => this.render());
     });
+  }
+
+  /**
+   * Per-feed shard health to surface. When every shard is missing because
+   * the storage folder is hidden from sync, the dashboard shows one alert
+   * explaining that instead of a repair prompt on every feed.
+   */
+  private getReportedShardHealth(feed: Feed): FeedShardHealth | null {
+    if (this.plugin.isShardFolderHiddenFromSync) return null;
+    return this.plugin.getFeedShardHealth?.(feed) ?? null;
+  }
+
+  private getFeedShardWarningMessage(health: FeedShardHealth): string {
+    if (health === "rebuilt") {
+      return "Feed shard file was missing or corrupted and was rebuilt. Restore the shard from the last known backup if one exists, or refresh the feed to fetch newest articles.";
+    }
+    const problem = health === "missing" ? "missing" : "missing or corrupted";
+    return `Feed shard file is ${problem}. Please run Settings > Storage > Repair/rebuild storage and refetch the feed.`;
   }
 
   private attachLongPressContextMenu(
@@ -1886,6 +1828,7 @@ export class Sidebar {
   private isMultiSelectionTarget(
     targetType: "folder" | "feed",
     targetKey: string,
+    feedFolder?: string,
   ): boolean {
     const { selectedFolders, selectedFeeds } = this.options;
     const folderCount = selectedFolders?.length || 0;
@@ -1897,9 +1840,27 @@ export class Sidebar {
 
     if (targetType === "folder") {
       return selectedFolders?.includes(targetKey) || false;
-    } else {
-      return selectedFeeds?.includes(targetKey) || false;
     }
+
+    if (selectedFeeds?.includes(targetKey)) return true;
+
+    // A feed with no explicit entry in selectedFeeds is still part of the
+    // multi-selection when its folder (or an ancestor folder) is selected —
+    // renderFeed shows it with the same "multi-selected" styling, so the
+    // context menu must treat it the same way.
+    if (feedFolder && selectedFolders && selectedFolders.length > 0) {
+      let current = feedFolder;
+      while (current) {
+        if (selectedFolders.includes(current)) return true;
+        if (current.includes("/")) {
+          current = current.substring(0, current.lastIndexOf("/"));
+        } else {
+          break;
+        }
+      }
+    }
+
+    return false;
   }
 
   private appendSelectionContextMenu(menu: Menu): void {
@@ -1919,6 +1880,16 @@ export class Sidebar {
           this.markSelectionReadStatus(false);
         });
     });
+    menu.addItem((item: MenuItem) => {
+      item
+        .setTitle("Move selection to folder")
+        .setIcon("folder-open")
+        .onClick((evt) => {
+          if (evt instanceof MouseEvent) {
+            this.showMoveSelectionToFolderMenu(evt);
+          }
+        });
+    });
     menu.addSeparator();
     menu.addItem((item: MenuItem) => {
       item
@@ -1930,31 +1901,32 @@ export class Sidebar {
     });
   }
 
-  private markSelectionReadStatus(read: boolean): void {
-    let count = 0;
+  /**
+   * Feeds covered by the current multi-selection: those selected explicitly
+   * plus those inside a selected folder or any of its subfolders.
+   */
+  private getEffectiveSelectedFeeds(): Feed[] {
     const { selectedFolders, selectedFeeds } = this.options;
 
-    const feedsToUpdate = new Set<Feed>();
-    for (const feed of this.settings.feeds) {
-      if (selectedFeeds && selectedFeeds.includes(feed.url)) {
-        feedsToUpdate.add(feed);
-      } else if (feed.folder && selectedFolders && selectedFolders.length > 0) {
-        let current = feed.folder;
-        while (current) {
-          if (selectedFolders.includes(current)) {
-            feedsToUpdate.add(feed);
-            break;
-          }
-          if (current.includes("/")) {
-            current = current.substring(0, current.lastIndexOf("/"));
-          } else {
-            break;
-          }
-        }
+    return this.settings.feeds.filter((feed) => {
+      if (selectedFeeds?.includes(feed.url)) return true;
+      if (!feed.folder || !selectedFolders || selectedFolders.length === 0) {
+        return false;
       }
-    }
+      let current = feed.folder;
+      while (current) {
+        if (selectedFolders.includes(current)) return true;
+        if (!current.includes("/")) break;
+        current = current.substring(0, current.lastIndexOf("/"));
+      }
+      return false;
+    });
+  }
 
-    for (const feed of feedsToUpdate) {
+  private markSelectionReadStatus(read: boolean): void {
+    let count = 0;
+
+    for (const feed of this.getEffectiveSelectedFeeds()) {
       for (const item of feed.items) {
         if (item.read !== read) {
           item.read = read;
@@ -1978,14 +1950,7 @@ export class Sidebar {
 
     if (folderCount === 0 && feedCount === 0) return;
 
-    let msg = `Are you sure you want to delete the selected items? This action cannot be undone.`;
-    if (folderCount > 0 && feedCount === 0) {
-      msg = `Are you sure you want to delete ${folderCount} selected folder(s) and all their subfolders and feeds?`;
-    } else if (feedCount > 0 && folderCount === 0) {
-      msg = `Are you sure you want to delete ${feedCount} selected feed(s)?`;
-    } else {
-      msg = `Are you sure you want to delete ${folderCount} folder(s) and ${feedCount} feed(s)?`;
-    }
+    const msg = this.describeSelectionDeletion();
 
     this.showConfirmModal(msg, () => {
       if (selectedFolders) {
@@ -2005,6 +1970,262 @@ export class Sidebar {
       this.options.selectedFeeds = [];
       this.render();
     });
+  }
+
+  /**
+   * Confirmation text naming everything "Delete selection" removes: the
+   * selected folders (a selected subfolder of a selected folder counts once),
+   * their subfolders, the feeds inside them, and the other selected feeds.
+   */
+  private describeSelectionDeletion(): string {
+    const selectedFolders = this.options.selectedFolders || [];
+    const selectedFeeds = new Set(this.options.selectedFeeds || []);
+    const isInside = (path: string, folder: string) =>
+      path === folder || path.startsWith(`${folder}/`);
+
+    const folders = selectedFolders.filter(
+      (path) =>
+        !selectedFolders.some(
+          (other) => other !== path && path.startsWith(`${other}/`),
+        ),
+    );
+    const allFolderPaths: string[] = [];
+    const collectPaths = (list: Folder[], parent: string) => {
+      for (const folder of list) {
+        const path = parent ? `${parent}/${folder.name}` : folder.name;
+        allFolderPaths.push(path);
+        collectPaths(folder.subfolders || [], path);
+      }
+    };
+    collectPaths(this.settings.folders, "");
+    const subfolderCount = allFolderPaths.filter((path) =>
+      folders.some((folder) => path.startsWith(`${folder}/`)),
+    ).length;
+
+    let folderFeedCount = 0;
+    let otherFeedCount = 0;
+    for (const feed of this.settings.feeds) {
+      const feedFolder = feed.folder;
+      if (feedFolder && folders.some((folder) => isInside(feedFolder, folder))) {
+        folderFeedCount++;
+      } else if (selectedFeeds.has(feed.url)) {
+        otherFeedCount++;
+      }
+    }
+
+    const count = (n: number, noun: string) =>
+      `${n} ${noun}${n === 1 ? "" : "s"}`;
+    const undo = "This can't be undone.";
+
+    if (folders.length === 0) {
+      return `Delete ${count(otherFeedCount, "feed")}? ${undo}`;
+    }
+
+    const subfolders =
+      subfolderCount > 0 ? ` (and ${count(subfolderCount, "subfolder")})` : "";
+    if (folderFeedCount === 0) {
+      const feeds =
+        otherFeedCount > 0 ? ` and ${count(otherFeedCount, "feed")}` : "";
+      return `Delete ${count(folders.length, "empty folder")}${subfolders}${feeds}? ${undo}`;
+    }
+
+    const others =
+      otherFeedCount > 0
+        ? `, plus ${count(otherFeedCount, "other feed")}`
+        : "";
+    return `Delete ${count(folders.length, "folder")}${subfolders} containing ${count(folderFeedCount, "feed")}${others}? ${undo}`;
+  }
+
+  private extractDragPayload(dataTransfer: DataTransfer | null): {
+    feedUrls: string[];
+    folderPaths: string[];
+  } {
+    if (!dataTransfer) return { feedUrls: [], folderPaths: [] };
+
+    let feedUrls = parseDraggedStringList(dataTransfer.getData("feed-urls"));
+    if (feedUrls.length === 0) {
+      const singleFeed = dataTransfer.getData("feed-url");
+      if (singleFeed) feedUrls = [singleFeed];
+    }
+
+    let folderPaths = parseDraggedStringList(
+      dataTransfer.getData("folder-paths"),
+    );
+    if (folderPaths.length === 0) {
+      const singleFolder = dataTransfer.getData("folder-path");
+      if (singleFolder) folderPaths = [singleFolder];
+    }
+
+    return { feedUrls, folderPaths };
+  }
+
+  private batchMoveFeedsAndFoldersToFolder(
+    destinationFolderPath: string,
+    feedUrls: string[],
+    folderPaths: string[] = [],
+  ): void {
+    let movedFeedsCount = 0;
+    let movedFoldersCount = 0;
+    let skippedFoldersCount = 0;
+
+    // 1. Move folders first (if any)
+    for (const folderPath of folderPaths) {
+      if (
+        destinationFolderPath === folderPath ||
+        destinationFolderPath.startsWith(`${folderPath}/`)
+      ) {
+        skippedFoldersCount++;
+        continue;
+      }
+
+      const placement = destinationFolderPath ? "nest" : "rootAppend";
+      const result = moveFolder(this.settings, {
+        draggedPath: folderPath,
+        targetPath: destinationFolderPath,
+        placement,
+      });
+
+      if (result.ok) {
+        movedFoldersCount++;
+      } else {
+        skippedFoldersCount++;
+      }
+    }
+
+    // 2. Move feeds
+    const feedsToMove = feedUrls.filter((url) => {
+      const feed = this.settings.feeds.find((f) => f.url === url);
+      return feed && (feed.folder || "") !== destinationFolderPath;
+    });
+
+    if (feedsToMove.length > 0) {
+      const oldFolderPaths = new Set<string>();
+      for (const url of feedsToMove) {
+        const f = this.settings.feeds.find((item) => item.url === url);
+        if (f?.folder) oldFolderPaths.add(f.folder);
+      }
+
+      const result = moveFeedsToFolderAppend(this.settings, {
+        draggedUrls: feedsToMove,
+        destinationFolderPath,
+      });
+
+      if (result.ok) {
+        movedFeedsCount = feedsToMove.length;
+        for (const oldPath of oldFolderPaths) {
+          const oldFolder = this.findFolderByPath(oldPath);
+          if (oldFolder) oldFolder.modifiedAt = Date.now();
+        }
+      } else {
+        new Notice(result.error || "Unable to move feeds.");
+      }
+    }
+
+    if (destinationFolderPath) {
+      const destFolder = this.findFolderByPath(destinationFolderPath);
+      if (destFolder) destFolder.modifiedAt = Date.now();
+    }
+
+    this.clearFolderPathCache();
+
+    if (skippedFoldersCount > 0) {
+      new Notice("Skipped moving folder into itself or its subfolder.");
+    }
+
+    const totalMoved = movedFeedsCount + movedFoldersCount;
+    if (totalMoved > 0) {
+      const destLabel = destinationFolderPath
+        ? `"${destinationFolderPath}"`
+        : "root";
+      const parts: string[] = [];
+      if (movedFeedsCount > 0) {
+        parts.push(`${movedFeedsCount} feed${movedFeedsCount === 1 ? "" : "s"}`);
+      }
+      if (movedFoldersCount > 0) {
+        parts.push(
+          `${movedFoldersCount} folder${movedFoldersCount === 1 ? "" : "s"}`,
+        );
+      }
+      new Notice(`Moved ${parts.join(" and ")} to ${destLabel}`);
+    }
+
+    this.options.selectedFeeds = [];
+    this.options.selectedFolders = [];
+
+    void this.plugin.saveSettings().then(() => this.render());
+  }
+
+  private showMoveSelectionToFolderMenu(event: MouseEvent): void {
+    const menu = new Menu();
+
+    const selectedFeeds = [...(this.options.selectedFeeds || [])];
+    const selectedFolders = [...(this.options.selectedFolders || [])];
+
+    // Add option to move to root (no folder)
+    menu.addItem((item: MenuItem) => {
+      item
+        .setTitle("Root (no folder)")
+        .setIcon("folder")
+        .onClick(() => {
+          this.batchMoveFeedsAndFoldersToFolder(
+            "",
+            selectedFeeds,
+            selectedFolders,
+          );
+        });
+    });
+
+    menu.addSeparator();
+
+    // Add all available folders
+    const allFolders = this.getCachedFolderPaths();
+    if (allFolders.length > 0) {
+      allFolders.sort((a, b) => a.localeCompare(b));
+
+      allFolders.forEach((folderPath) => {
+        menu.addItem((item: MenuItem) => {
+          item
+            .setTitle(folderPath)
+            .setIcon("folder")
+            .onClick(() => {
+              this.batchMoveFeedsAndFoldersToFolder(
+                folderPath,
+                selectedFeeds,
+                selectedFolders,
+              );
+            });
+        });
+      });
+    }
+
+    menu.addSeparator();
+    menu.addItem((item: MenuItem) => {
+      item
+        .setTitle("Create new folder...")
+        .setIcon("folder-plus")
+        .onClick(() => {
+          this.showFolderNameModal({
+            title: "Create new folder",
+            existingNames: this.settings.folders.map((f) => f.name),
+            onSubmit: (folderName) => {
+              void (async () => {
+                await this.addTopLevelFolder(folderName);
+                this.batchMoveFeedsAndFoldersToFolder(
+                  folderName,
+                  selectedFeeds,
+                  selectedFolders,
+                );
+              })();
+            },
+          });
+        });
+    });
+
+    if (typeof menu.showAtMouseEvent === "function") {
+      menu.showAtMouseEvent(event);
+    } else {
+      menu.showAtPosition({ x: event.clientX, y: event.clientY });
+    }
   }
 
   private showFolderContextMenu(
@@ -2167,12 +2388,7 @@ export class Sidebar {
           this.showConfirmModal(
             `Are you sure you want to delete the folder '${folderName}' and all its subfolders and feeds?`,
             () => {
-              const allPaths = this.getAllDescendantFolderPaths(fullPath);
-              this.settings.feeds = this.settings.feeds.filter(
-                (feed) => !allPaths.includes(feed.folder),
-              );
-              this.removeFolderByPath(fullPath);
-              this.render();
+              this.callbacks.onDeleteFolder(fullPath);
             },
           );
         });
@@ -2323,12 +2539,7 @@ export class Sidebar {
       this.showConfirmModal(
         `Are you sure you want to delete the folder '${row.folderName}' and all its subfolders and feeds?`,
         () => {
-          const allPaths = this.getAllDescendantFolderPaths(row.folderPath!);
-          this.settings.feeds = this.settings.feeds.filter(
-            (feed) => !allPaths.includes(feed.folder),
-          );
-          this.removeFolderByPath(row.folderPath!);
-          this.render();
+          this.callbacks.onDeleteFolder(row.folderPath!);
         },
       );
     }
@@ -2482,13 +2693,25 @@ export class Sidebar {
         )
       : -1;
     const startIndex = currentIndex >= 0 ? currentIndex : 0;
-    const nextIndex = Math.min(
-      this.sidebarRows.length - 1,
-      Math.max(0, startIndex + offset),
-    );
 
-    this.focusedSidebarTarget = this.sidebarRows[nextIndex].target;
-    this.applySidebarFocusState();
+    for (
+      let idx = startIndex + offset;
+      idx >= 0 && idx < this.sidebarRows.length;
+      idx += offset
+    ) {
+      const row = this.sidebarRows[idx];
+      if (!row || this.isSidebarRowHidden(row)) continue;
+      this.focusedSidebarTarget = row.target;
+      this.applySidebarFocusState();
+      return;
+    }
+  }
+
+  /** Rows inside a collapsed folder stay rendered but are hidden by CSS. */
+  private isSidebarRowHidden(row: SidebarRowDescriptor): boolean {
+    return (
+      row.element.closest(".rss-dashboard-folder-feeds.collapsed") !== null
+    );
   }
 
   private jumpToFolder(direction: 1 | -1): void {
@@ -2512,6 +2735,7 @@ export class Sidebar {
       idx += direction
     ) {
       const row = this.sidebarRows[idx];
+      if (!row || this.isSidebarRowHidden(row)) continue;
       if (row.target.type !== "feed") {
         this.focusedSidebarTarget = row.target;
         this.applySidebarFocusState();
@@ -2591,32 +2815,6 @@ export class Sidebar {
     new FolderNameModal(this.app, options).open();
   }
 
-  private removeFolderByPath(path: string) {
-    const parts = path.split("/");
-    const parentPath = parts.slice(0, -1).join("/");
-    function removeRecursive(folders: Folder[], depth: number): Folder[] {
-      return folders.filter((folder: Folder) => {
-        if (folder.name === parts[depth]) {
-          if (depth === parts.length - 1) {
-            return false;
-          } else {
-            folder.subfolders = removeRecursive(folder.subfolders, depth + 1);
-            return true;
-          }
-        } else {
-          return true;
-        }
-      });
-    }
-    this.settings.folders = removeRecursive(this.settings.folders, 0);
-    if (parentPath) {
-      const parent = this.findFolderByPath(parentPath);
-      if (parent) parent.modifiedAt = Date.now();
-    }
-    this.clearFolderPathCache();
-    this.render();
-  }
-
   private getAllDescendantFolderPaths(path: string): string[] {
     const result: string[] = [path];
     const folder = this.findFolderByPath(path);
@@ -2632,7 +2830,17 @@ export class Sidebar {
   }
 
   private showConfirmModal(message: string, onConfirm: () => void): void {
+    // One confirmation at a time: a second one stacked underneath would be
+    // confirmed by the next OK click without the user seeing its message.
+    if (this.openConfirmModal) return;
+
     const confirmModal = new Modal(this.app);
+    this.openConfirmModal = confirmModal;
+    confirmModal.onClose = () => {
+      if (this.openConfirmModal === confirmModal) {
+        this.openConfirmModal = null;
+      }
+    };
     confirmModal.modalEl.addClass("rss-sidebar-confirm-modal");
 
     const { contentEl } = confirmModal;
@@ -2713,7 +2921,7 @@ export class Sidebar {
     const colorInput = formContainer.createEl("input", {
       attr: {
         type: "color",
-        value: "#3498db",
+        value: DEFAULT_TAG_COLOR,
       },
       cls: "rss-dashboard-tag-modal-color-picker",
     });
@@ -2991,9 +3199,13 @@ export class Sidebar {
           const action = () => {
             this.showAddFeedModal();
             if (
-              !this.app.loadLocalStorage("rss-first-launch-coachmark-shown")
+              !loadVaultLocalStorage(
+                this.app,
+                "rss-first-launch-coachmark-shown",
+              )
             ) {
-              this.app.saveLocalStorage(
+              saveVaultLocalStorage(
+                this.app,
                 "rss-first-launch-coachmark-shown",
                 "true",
               );
@@ -3122,15 +3334,21 @@ export class Sidebar {
     const addFeedBtn = this.iconBtnEls.get("addFeed");
     if (
       addFeedBtn &&
-      !this.app.loadLocalStorage("rss-first-launch-coachmark-shown")
+      !loadVaultLocalStorage(this.app, "rss-first-launch-coachmark-shown")
     ) {
       const coachmark = addFeedBtn.createDiv({
         cls: "rss-dashboard-coachmark",
         text: "Add your first feed here",
       });
       window.setTimeout(() => {
-        if (!this.app.loadLocalStorage("rss-first-launch-coachmark-shown")) {
-          this.app.saveLocalStorage("rss-first-launch-coachmark-shown", "true");
+        if (
+          !loadVaultLocalStorage(this.app, "rss-first-launch-coachmark-shown")
+        ) {
+          saveVaultLocalStorage(
+            this.app,
+            "rss-first-launch-coachmark-shown",
+            "true",
+          );
           if (coachmark.parentNode) coachmark.remove();
         }
       }, 5000);
@@ -3163,7 +3381,8 @@ export class Sidebar {
       isDown = true;
       isDragging = false;
       const clientX =
-        e instanceof MouseEvent ? e.clientX : e.touches[0].clientX;
+        e instanceof MouseEvent ? e.clientX : e.touches[0]?.clientX;
+      if (clientX === undefined) return;
       startX = clientX - iconRow.offsetLeft;
       scrollLeft = iconRow.scrollLeft;
     };
@@ -3177,7 +3396,8 @@ export class Sidebar {
       if (!isDown) return;
       e.preventDefault();
       const clientX =
-        e instanceof MouseEvent ? e.clientX : e.touches[0].clientX;
+        e instanceof MouseEvent ? e.clientX : e.touches[0]?.clientX;
+      if (clientX === undefined) return;
       const x = clientX - iconRow.offsetLeft;
       const walk = (x - startX) * 2; // Scroll speed multiplier
       if (Math.abs(walk) > 5) {
@@ -3385,7 +3605,7 @@ export class Sidebar {
     const addFolderButton = sidebarToolbar.createDiv({
       cls: "rss-dashboard-toolbar-button",
       attr: {
-        title: "Add folder",
+        "aria-label": "Add folder",
       },
     });
     setIcon(addFolderButton, "folder-plus");
@@ -3402,7 +3622,7 @@ export class Sidebar {
     const sortButton = sidebarToolbar.createDiv({
       cls: "rss-dashboard-toolbar-button",
       attr: {
-        title: "Sort folders",
+        "aria-label": "Sort folders",
       },
     });
     setIcon(sortButton, "sort-asc");
@@ -3466,7 +3686,7 @@ export class Sidebar {
     const collapseAllButton = sidebarToolbar.createDiv({
       cls: "rss-dashboard-toolbar-button",
       attr: {
-        title: "Collapse/Expand all Folders",
+        "aria-label": "Collapse/Expand all Folders",
       },
     });
 
@@ -3499,7 +3719,6 @@ export class Sidebar {
     const searchButton = sidebarToolbar.createDiv({
       cls: "rss-dashboard-toolbar-button",
       attr: {
-        title: "Search feeds",
         "aria-label": "Search feeds",
         role: "button",
         tabindex: "0",
@@ -3568,6 +3787,7 @@ export class Sidebar {
     options?: {
       expandSection?: "per-feed" | "rules";
       highlightSection?: "per-feed" | "rules";
+      onDelete?: () => void;
     },
   ): void {
     new EditFeedModal(
@@ -3575,7 +3795,16 @@ export class Sidebar {
       this.plugin,
       feed,
       () => this.render(),
-      options,
+      {
+        ...options,
+        onDelete: () => {
+          if (options?.onDelete) {
+            options.onDelete();
+          } else {
+            this.callbacks.onDeleteFeed(feed);
+          }
+        },
+      },
     ).open();
   }
 
@@ -3669,7 +3898,7 @@ export class Sidebar {
         });
     });
 
-    if (this.isMultiSelectionTarget("feed", feed.url)) {
+    if (this.isMultiSelectionTarget("feed", feed.url, feed.folder)) {
       this.appendSelectionContextMenu(menu);
       menu.showAtMouseEvent(event);
       return;

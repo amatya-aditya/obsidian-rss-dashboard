@@ -5,7 +5,11 @@
  * Exports:
  *   - renderAboutTab(containerEl, plugin)
  */
+import { Notice, setIcon, setTooltip } from "obsidian";
 import RssDashboardPlugin from "../../../main";
+import { formatBuildLabel, getBuildInfo } from "../../utils/build-info";
+import { WhatsNewModal } from "../../modals/whats-new-modal";
+import { getReleaseNoteForVersion } from "../../release-notes";
 
 export function renderAboutTab(
   containerEl: HTMLElement,
@@ -24,12 +28,46 @@ export function renderAboutTab(
     text: `v${plugin.manifest.version}`,
   });
 
+  const buildLabel = formatBuildLabel(plugin.manifest.version, getBuildInfo());
+  const buildRow = aboutContainer.createDiv({
+    cls: "rss-dashboard-about-build",
+  });
+  buildRow.createSpan({
+    cls: "rss-dashboard-about-build-label",
+    text: buildLabel,
+  });
+  const copyBuildButton = buildRow.createEl("button", {
+    cls: "rss-dashboard-about-build-copy clickable-icon",
+    attr: { type: "button" },
+  });
+  setIcon(copyBuildButton, "copy");
+  setTooltip(copyBuildButton, "Copy build details");
+  copyBuildButton.onclick = () => {
+    void navigator.clipboard.writeText(buildLabel).then(() => {
+      new Notice("Build details copied");
+    });
+  };
+
+  const releaseNote = getReleaseNoteForVersion(plugin.manifest.version);
+  if (releaseNote) {
+    const whatsNewRow = aboutContainer.createDiv({
+      cls: "rss-dashboard-about-btn-row rss-dashboard-about-whats-new-row",
+    });
+    const whatsNewButton = whatsNewRow.createEl("button", {
+      text: `What's new in v${plugin.manifest.version}?`,
+      cls: "rss-dashboard-about-btn",
+    });
+    whatsNewButton.onclick = () => {
+      new WhatsNewModal(plugin.app, plugin.manifest.version, releaseNote).open();
+    };
+  }
+
   const descriptionContainer = aboutContainer.createDiv({
     cls: "rss-dashboard-about-description",
   });
 
   descriptionContainer.createEl("p", {
-    text: "RSS dashboard is a free, open source community plugin for Obsidian that makes it easy to manage your RSS feeds, YouTube subscriptions, podcasts, and twitter/x feeds in one place.",
+    text: "RSS dashboard is a free, open-source community plugin for Obsidian that makes it easy to manage your RSS feeds, YouTube subscriptions, and podcasts in one place.",
   });
 
   const featuresList = descriptionContainer.createEl("ul", {

@@ -36,6 +36,7 @@ export function baseViewContext(
         showSummary: true,
         articleDateStyle: "relative",
       },
+      useFirstSeenDateFallback: false,
     } as BaseViewContext["settings"],
     highlightService: null,
     callbacks: {

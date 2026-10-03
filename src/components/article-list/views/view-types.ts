@@ -28,7 +28,11 @@ export interface ViewDeps {
 export interface BaseViewContext {
   selectedArticle: FeedItem | null;
   showFeedSource: boolean;
-  settings: Pick<RssDashboardSettings, "highlights" | "display"> & {
+  settings: Pick<
+    RssDashboardSettings,
+    "highlights" | "display" | "useFirstSeenDateFallback"
+  > & {
+    articleGroupBy?: RssDashboardSettings["articleGroupBy"];
     collapsedFeedSections?: string[];
   };
   resolveCachedImageUrl?: (remoteUrl: string) => string | null;

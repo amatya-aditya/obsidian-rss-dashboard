@@ -8,6 +8,11 @@ import {
 import * as fetchHelpers from "../../../src/utils/fetch-helpers";
 import { RESTRICTED_ARTICLE_REASON } from "../../../src/utils/full-article-fetch";
 
+// The real `obsidian` types `moment` as the moment namespace, which is not
+// callable; production code casts it the same way.
+type MomentFactory = (input?: Date) => { format: (fmt: string) => string };
+const callMoment = moment as unknown as MomentFactory;
+
 function createSettings(
   overrides: Partial<ArticleSavingSettings> = {},
 ): ArticleSavingSettings {
@@ -137,6 +142,193 @@ describe("ArticleSaver.saveArticle", () => {
     expect(item.tags?.map((tag) => tag.name)).toEqual(["tech", "Saved"]);
   });
 
+  it("substitutes {{firstSeen}} in both the body template and the frontmatter template", async () => {
+    const app = App.createMock();
+    const settings = createSettings({
+      includeFrontmatter: true,
+      defaultTemplate: "First seen: {{firstSeen}}\n\n{{content}}",
+      frontmatterTemplate: `---
+title: "{{title}}"
+firstSeen: "{{firstSeen}}"
+---`,
+    });
+    const saver = new ArticleSaver(app, settings);
+
+    const item = createItem({
+      firstSeenMs: Date.parse("2024-05-01T12:00:00Z"),
+    });
+
+    const createSpy = vi.spyOn(app.vault, "create");
+    await saver.saveArticle(item, undefined, undefined, "BODY");
+
+    const written = createSpy.mock.calls[0][1];
+    expect(written).toContain("First seen: May 1, 2024");
+    expect(written).toContain('firstSeen: "May 1, 2024"');
+  });
+
+  it("resolves a pubDate that fails Date.parse cleanly instead of silently using the save time (#303)", async () => {
+    const app = App.createMock();
+    const settings = createSettings({
+      includeFrontmatter: true,
+      defaultTemplate: "iso={{isoDateTime}}\n\n{{content}}",
+      frontmatterTemplate: `---
+date: "{{date}}"
+dateShort: "{{dateShort}}"
+isoDate: "{{isoDate}}"
+---`,
+    });
+    const saver = new ArticleSaver(app, settings);
+
+    // CST = UTC-6, so 09:00 CST is 15:00 UTC. Some engines fail to parse the
+    // obsolete named zone via Date.parse() and produce NaN; getPubDateMs
+    // normalizes it to an explicit offset first.
+    const item = createItem({
+      pubDate: "Fri, 06 May 1983 09:00:00 CST",
+    });
+
+    const createSpy = vi.spyOn(app.vault, "create");
+    await saver.saveArticle(item, undefined, undefined, "BODY");
+
+    const written = createSpy.mock.calls[0][1];
+    expect(written).toContain('date: "May 6, 1983"');
+    expect(written).toContain('dateShort: "1983-05-06"');
+    expect(written).toContain('isoDate: "1983-05-06T15:00:00.000Z"');
+    expect(written).toContain("iso=1983-05-06T15:00:00.000Z");
+  });
+
+  it("falls back to firstSeenMs (not the save time) when pubDate is unparseable, a first-seen timestamp exists, and useFirstSeenDateFallback is enabled (#303)", async () => {
+    const app = App.createMock();
+    const settings = createSettings({
+      includeFrontmatter: true,
+      frontmatterTemplate: `---
+date: "{{date}}"
+isoDate: "{{isoDate}}"
+---`,
+    });
+    const saver = new ArticleSaver(app, settings, undefined, () => true);
+
+    const item = createItem({
+      pubDate: "not a real date",
+      firstSeenMs: Date.parse("2024-05-01T12:00:00Z"),
+    });
+
+    const createSpy = vi.spyOn(app.vault, "create");
+    await saver.saveArticle(item, undefined, undefined, "BODY");
+
+    const written = createSpy.mock.calls[0][1];
+    expect(written).toContain('date: "May 1, 2024"');
+    expect(written).toContain('isoDate: "2024-05-01T12:00:00.000Z"');
+  });
+
+  it("does not substitute firstSeenMs for the frontmatter date when useFirstSeenDateFallback is disabled (default) (#303)", async () => {
+    const app = App.createMock();
+    const settings = createSettings({
+      includeFrontmatter: true,
+      frontmatterTemplate: `---
+isoDate: "{{isoDate}}"
+---`,
+    });
+    const saver = new ArticleSaver(app, settings);
+
+    const item = createItem({
+      pubDate: "not a real date",
+      firstSeenMs: Date.parse("2024-05-01T12:00:00Z"),
+    });
+
+    const now = Date.parse("2026-09-18T00:00:00.000Z");
+    vi.useFakeTimers();
+    vi.setSystemTime(now);
+
+    try {
+      const createSpy = vi.spyOn(app.vault, "create");
+      await saver.saveArticle(item, undefined, undefined, "BODY");
+
+      const written = createSpy.mock.calls[0][1];
+      expect(written).toContain(`isoDate: "${new Date(now).toISOString()}"`);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("falls back to the current time only when there is genuinely no pubDate and no firstSeenMs (#303)", async () => {
+    const app = App.createMock();
+    const settings = createSettings({
+      includeFrontmatter: true,
+      frontmatterTemplate: `---
+isoDate: "{{isoDate}}"
+---`,
+    });
+    const saver = new ArticleSaver(app, settings);
+
+    const item = createItem({ pubDate: undefined, firstSeenMs: undefined });
+
+    const now = Date.parse("2026-09-18T00:00:00.000Z");
+    vi.useFakeTimers();
+    vi.setSystemTime(now);
+
+    try {
+      const createSpy = vi.spyOn(app.vault, "create");
+      await saver.saveArticle(item, undefined, undefined, "BODY");
+
+      const written = createSpy.mock.calls[0][1];
+      expect(written).toContain(`isoDate: "${new Date(now).toISOString()}"`);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("escapes quotes, backslashes, and line breaks in frontmatter values", async () => {
+    const app = App.createMock();
+    const settings = createSettings({
+      includeFrontmatter: true,
+      frontmatterTemplate: `---
+title: "{{title}}"
+author: "{{author}}"
+source: "{{source}}"
+---`,
+    });
+    const saver = new ArticleSaver(app, settings);
+
+    const item = createItem({
+      title: 'He said "hi"',
+      author: "A\\B",
+      feedTitle: "Line\nBreak Feed",
+    });
+
+    const createSpy = vi.spyOn(app.vault, "create");
+    await saver.saveArticle(item, undefined, undefined, "BODY");
+
+    const written = createSpy.mock.calls[0][1];
+    expect(written).toContain('title: "He said \\"hi\\""');
+    expect(written).toContain('author: "A\\\\B"');
+    expect(written).toContain('source: "Line\\nBreak Feed"');
+  });
+
+  it("keeps a title containing a line break and a fake key inside the quoted scalar", async () => {
+    const app = App.createMock();
+    const settings = createSettings({
+      includeFrontmatter: true,
+      frontmatterTemplate: `---
+title: "{{title}}"
+---`,
+    });
+    const saver = new ArticleSaver(app, settings);
+
+    const item = createItem({ title: 'Safe"\ninjected: true\n' });
+
+    const createSpy = vi.spyOn(app.vault, "create");
+    await saver.saveArticle(item, undefined, undefined, "BODY");
+
+    const written = createSpy.mock.calls[0][1];
+    // The body template interpolates the raw title, so scope the injection
+    // assertion to the frontmatter block, before the closing `---`.
+    const frontmatter = written.split("\n---")[0];
+    expect(frontmatter).toContain('title: "Safe\\"\\ninjected: true\\n"');
+    // Before escaping, the embedded quote and line breaks ended the scalar and
+    // left `injected: true` as a real frontmatter key.
+    expect(frontmatter).not.toMatch(/^injected: true$/m);
+  });
+
   it("trashes an existing file at the same path before creating a new one", async () => {
     const app = App.createMock();
     const settings = createSettings({
@@ -184,8 +376,13 @@ describe("ArticleSaver.saveArticle", () => {
     const item = createItem({ title: "Race Condition" });
     await saver.saveArticle(item, undefined, undefined, "FIRST");
 
-    vi.spyOn(app.fileManager, "trashFile").mockRejectedValueOnce(
-      new Error("ENONET: no such file exists"),
+    // The file disappears between the lookup and the trash call (for example,
+    // removed by sync), so trashing it fails with a missing-path error.
+    vi.spyOn(app.fileManager, "trashFile").mockImplementationOnce(
+      async (file) => {
+        if (file instanceof TFile) await app.vault.delete(file);
+        throw new Error("ENONET: no such file exists");
+      },
     );
 
     const result = await saver.saveArticle(
@@ -196,6 +393,40 @@ describe("ArticleSaver.saveArticle", () => {
     );
 
     expect(result).toBeInstanceOf(TFile);
+  });
+
+  it("saves into an existing folder whose name differs only in case", async () => {
+    const app = App.createMock();
+    await app.vault.createFolder("RSS Articles");
+    const settings = createSettings({
+      defaultFolder: "rss articles",
+      defaultTemplate: "{{content}}",
+    });
+    const saver = new ArticleSaver(app, settings);
+
+    const item = createItem({ title: "Case Variant" });
+    const result = await saver.saveArticle(item, undefined, undefined, "BODY");
+
+    expect(result).toBeInstanceOf(TFile);
+    expect(result?.path).toBe("RSS Articles/Case Variant.md");
+    expect(item.savedFilePath).toBe("RSS Articles/Case Variant.md");
+  });
+
+  it("creates a separate folder for a case variant on a case-sensitive file system", async () => {
+    const app = App.createMock();
+    // Linux file systems treat "rss articles" and "RSS Articles" as different.
+    app.vault.caseSensitiveFileSystem = true;
+    await app.vault.createFolder("RSS Articles");
+    const settings = createSettings({
+      defaultFolder: "rss articles",
+      defaultTemplate: "{{content}}",
+    });
+    const saver = new ArticleSaver(app, settings);
+
+    const item = createItem({ title: "Case Variant" });
+    const result = await saver.saveArticle(item, undefined, undefined, "BODY");
+
+    expect(result?.path).toBe("rss articles/Case Variant.md");
   });
 
   it("creates nested folders one segment at a time", async () => {
@@ -285,7 +516,11 @@ describe("ArticleSaver.saveArticle", () => {
 
 /** Typed accessor for private ArticleSaver methods tested in isolation. */
 type PrivateSaverAPI = {
-  replaceDatePlaceholders(template: string, date: Date): string;
+  replaceDatePlaceholders(
+    template: string,
+    date: Date,
+    firstSeenMs?: number,
+  ): string;
 };
 
 describe("ArticleSaver.replaceDatePlaceholders", () => {
@@ -343,8 +578,8 @@ describe("ArticleSaver.replaceDatePlaceholders", () => {
       saver as unknown as PrivateSaverAPI
     ).replaceDatePlaceholders(input, date);
 
-    const expectedDate = moment(date).format("YYYY/MM/DD");
-    const expectedTime = moment(date).format("HH:mm");
+    const expectedDate = callMoment(date).format("YYYY/MM/DD");
+    const expectedTime = callMoment(date).format("HH:mm");
     expect(result).toBe(`Custom: ${expectedDate} Time: ${expectedTime}`);
   });
 
@@ -359,8 +594,94 @@ describe("ArticleSaver.replaceDatePlaceholders", () => {
       saver as unknown as PrivateSaverAPI
     ).replaceDatePlaceholders(input, date);
 
-    const expected = moment(date).format("dddd, MMMM Do YYYY");
+    const expected = callMoment(date).format("dddd, MMMM Do YYYY");
     expect(result).toBe(expected);
+  });
+
+  it("replaces {{saveDate}}, {{saveTime12}}, and {{saveTime24}} with current local system time", () => {
+    vi.useFakeTimers();
+    const fakeNow = new Date(2026, 7, 29, 14, 45, 0); // August 29, 2026 14:45:00 local
+    vi.setSystemTime(fakeNow);
+
+    const app = App.createMock();
+    const settings = createSettings();
+    const saver = new ArticleSaver(app, settings);
+    const pubDate = new Date("2024-04-21T12:00:00Z");
+
+    const input =
+      "Saved on {{saveDate}} at {{saveTime24}} (12h: {{saveTime12}}), published {{dateShort}}";
+    const result = (
+      saver as unknown as PrivateSaverAPI
+    ).replaceDatePlaceholders(input, pubDate);
+
+    expect(result).toBe(
+      "Saved on 2026-08-29 at 14:45 (12h: 02:45 PM), published 2024-04-21",
+    );
+    vi.useRealTimers();
+  });
+
+  it("replaces {{firstSeen}} with the long format of firstSeenMs when provided", () => {
+    const app = App.createMock();
+    const settings = createSettings();
+    const saver = new ArticleSaver(app, settings);
+    const pubDate = new Date("2024-04-21T12:00:00Z");
+    const firstSeenMs = Date.parse("2024-05-01T12:00:00Z");
+
+    const input = "First seen: {{firstSeen}}";
+    const result = (
+      saver as unknown as PrivateSaverAPI
+    ).replaceDatePlaceholders(input, pubDate, firstSeenMs);
+
+    expect(result).toBe("First seen: May 1, 2024");
+  });
+
+  it("falls back to the pubDate for {{firstSeen}} when firstSeenMs is not provided", () => {
+    const app = App.createMock();
+    const settings = createSettings();
+    const saver = new ArticleSaver(app, settings);
+    const pubDate = new Date("2024-04-21T12:00:00Z");
+
+    const input = "First seen: {{firstSeen}}";
+    const result = (
+      saver as unknown as PrivateSaverAPI
+    ).replaceDatePlaceholders(input, pubDate);
+
+    expect(result).toBe("First seen: April 21, 2024");
+  });
+
+  it("treats firstSeenMs of 0 (epoch) as provided rather than falling back", () => {
+    const app = App.createMock();
+    const settings = createSettings();
+    const saver = new ArticleSaver(app, settings);
+    const pubDate = new Date("2024-04-21T12:00:00Z");
+
+    const input = "First seen: {{firstSeen}}";
+    const result = (
+      saver as unknown as PrivateSaverAPI
+    ).replaceDatePlaceholders(input, pubDate, 0);
+
+    // Not "April 21, 2024" (the pubDate) — epoch 0 must not fall through to
+    // the pubDate fallback. Exact day/month can shift by timezone, so assert
+    // the epoch year rather than a hardcoded locale-formatted string.
+    expect(result).toMatch(/First seen: (December 31, 1969|January 1, 1970)/);
+  });
+
+  it("falls back to 'now' for {{firstSeen}} when both pubDate and firstSeenMs are unusable", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-15T12:00:00Z"));
+
+    const app = App.createMock();
+    const settings = createSettings();
+    const saver = new ArticleSaver(app, settings);
+    const invalidPubDate = new Date(NaN);
+
+    const input = "First seen: {{firstSeen}}";
+    const result = (
+      saver as unknown as PrivateSaverAPI
+    ).replaceDatePlaceholders(input, invalidPubDate);
+
+    expect(result).toBe("First seen: June 15, 2026");
+    vi.useRealTimers();
   });
 });
 
@@ -876,6 +1197,7 @@ describe("ArticleSaver.verifySavedArticle", () => {
 
     const item = createItem({ title: "Exists" });
     const filePath = "Articles/Exists.md";
+    await app.vault.createFolder("Articles");
     await app.vault.create(filePath, "x");
 
     item.saved = true;
@@ -912,6 +1234,7 @@ describe("ArticleSaver.fixSavedFilePaths", () => {
     const settings = createSettings();
     const saver = new ArticleSaver(app, settings);
 
+    await app.vault.createFolder("Folder");
     await app.vault.create("Folder/Item.md", "x");
 
     const item = createItem({ title: "Item" });
@@ -931,6 +1254,7 @@ describe("ArticleSaver.fixSavedFilePaths", () => {
     const saver = new ArticleSaver(app, settings);
 
     const oldPath = "/Old Folder/Weird.md";
+    await app.vault.createFolder("Old Folder");
     const file = await app.vault.create(oldPath, "x");
 
     const item = createItem({
@@ -982,6 +1306,7 @@ describe("ArticleSaver saved file lookups", () => {
       savedFilePath: "Archive/Already Saved.md",
     });
 
+    await app.vault.createFolder("Archive");
     await app.vault.create("Archive/Already Saved.md", "content");
 
     expect(saver.checkSavedFileExists(item)).toBe(true);
@@ -998,6 +1323,7 @@ describe("ArticleSaver saved file lookups", () => {
       saved: true,
     });
 
+    await app.vault.createFolder("Articles");
     await app.vault.create("Articles/Legacy Saved Article.md", "content");
 
     expect(saver.checkSavedFileExists(item)).toBe(true);
@@ -1015,6 +1341,7 @@ describe("ArticleSaver saved file lookups", () => {
       savedFilePath: "Custom Folder/My Article.md",
     });
 
+    await app.vault.createFolder("Custom Folder");
     await app.vault.create("Custom Folder/My Article.md", "content");
 
     const file = await saver.findSavedArticleFile(item);

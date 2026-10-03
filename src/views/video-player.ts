@@ -1,6 +1,7 @@
 import { Notice, Setting, setIcon } from "obsidian";
 import { FeedItem } from "../types/types";
 import { MediaService } from "../services/media-service";
+import { resolveDisplayDate } from "../services/feed-parser/feed-retention";
 
 interface YouTubeMessagePayload {
   id?: string | number;
@@ -27,6 +28,7 @@ export class VideoPlayer {
   private messageHandler: ((event: MessageEvent) => void) | null = null;
   private playStartTime: number | null = null;
   private videoDuration: number | null = null;
+  private useFirstSeenDateFallback: boolean;
 
   constructor(
     container: HTMLElement,
@@ -38,12 +40,19 @@ export class VideoPlayer {
       flush?: boolean,
     ) => void,
     progressTrackingEnabled = true,
+    useFirstSeenDateFallback = false,
   ) {
     this.container = container;
     this.onVideoSelect = onVideoSelect;
     this.onPlaybackProgress = onPlaybackProgress;
     this.progressTrackingEnabled = progressTrackingEnabled;
+    this.useFirstSeenDateFallback = useFirstSeenDateFallback;
     this.setupMessageListener();
+  }
+
+  private formatVideoDate(item: FeedItem): string {
+    const displayDate = resolveDisplayDate(item, this.useFirstSeenDateFallback);
+    return displayDate ? displayDate.toLocaleDateString() : "Unknown date";
   }
 
   loadVideo(item: FeedItem): void {
@@ -100,7 +109,7 @@ export class VideoPlayer {
     });
     metaContainer.createDiv({
       cls: "rss-video-date",
-      text: new Date(this.currentItem.pubDate).toLocaleDateString(),
+      text: this.formatVideoDate(this.currentItem),
     });
 
     if (this.currentItem.description) {
@@ -382,7 +391,7 @@ export class VideoPlayer {
         });
         videoInfo.createDiv({
           cls: "rss-video-related-date",
-          text: new Date(video.pubDate).toLocaleDateString(),
+          text: this.formatVideoDate(video),
         });
 
         videoItem.addEventListener("click", () => {

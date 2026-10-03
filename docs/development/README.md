@@ -1,16 +1,17 @@
 # Development Docs
 
-Last updated: 2026-08-16
-
 Internal developer documentation for the RSS Dashboard plugin.
 
 ## Core References
 
+- [Architecture Policy](./architecture.md)
 - [Compliance Patterns and Audit Guardrails](./compliance-patterns.md)
 - [Feed Data Lifecycle](./data-flow.md)
 - [Feed Validation](./feed-validation.md)
 - [Obsidian Settings Reference](./obsidian-settings-reference.md)
 - [Release Notes Workflow](./release-notes-workflow.md)
+- [Starred State and Tags](./starred-state-and-tags.md)
+- [Test Feeds for Manual QA](./test-feeds/index.md)
 - [Testing Guide](./test_coverage/testing-guide.md)
 - [Pull Request Template](../../.github/PULL_REQUEST_TEMPLATE.md)
 
@@ -31,13 +32,13 @@ docs/
       unshipped/                 # Deferred, rejected, or superseded plans
     investigations/
       <YYYY>/                    # Incident, bug, and research records
-  decisions/
+  adr/
     NNNN-<slug>.md               # Durable architectural decisions
 ```
 
 Use release versions as the primary grouping for implemented feature and bug
 plans. Use calendar years for investigations whose value is chronological.
-Keep durable architectural decisions in `docs/decisions/`; update their status
+Keep durable architectural decisions in `docs/adr/`; update their status
 to `superseded` and link the replacement instead of archiving them.
 
 ### Plan Metadata
@@ -116,7 +117,7 @@ or GitHub rather than filenames.
 
 Release roadmaps are durable coordination artifacts and use
 `release-v<version>-roadmap.md`, or `release-vnext-roadmap.md` before the version
-is chosen. ADRs retain `NNNN-<slug>.md` under `docs/decisions/`.
+is chosen. ADRs retain `NNNN-<slug>.md` under `docs/adr/`.
 
 Legacy plans do not need opportunistic renaming. Normalize them through a
 dedicated documentation migration so every inbound link is updated together.
@@ -166,9 +167,12 @@ catalog and repository links, and include the user-facing summary under
 
 ### Additional Development Notes
 
+- [Main TypeScript architecture audit](../archive/investigations/2026/main-ts-architecture-audit.md)
 - [Automatic deletion](./auto-deletion.md)
 - [Audit remediation 2.3.0](../archive/investigations/2026/audit-remediation-2.3.0.md)
 - [Defuddle evaluation](../archive/investigations/2026/defuddle-evaluation.md)
+- [Description-signal precedence](../archive/investigations/2026/description-signal-precedence.md)
+- [Language-signal coverage](../archive/investigations/2026/language-signal-coverage.md)
 - [Substack CDATA entity encoding](../archive/investigations/2026/substack-cdata-entity-encoding.md)
 - [Test-lint backlog tracker](./test-lint-backlog-tracker.md)
 

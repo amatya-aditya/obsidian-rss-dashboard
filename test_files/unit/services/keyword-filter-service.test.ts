@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { KeywordFilterService } from "../../../src/services/keyword-filter-service";
 import type {
   Feed,
@@ -111,6 +111,29 @@ describe("KeywordFilterService.shouldApplyGlobalFilters", () => {
 });
 
 describe("KeywordFilterService.evaluateRules", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("partial matching uses locale-invariant toLowerCase, not toLocaleLowerCase", () => {
+    // Turkish/Azeri ICU locales case-fold "I" to a dotless "ı" instead of "i",
+    // which would silently change match results if the service depended on
+    // host locale. toLowerCase() per ECMA-262 always uses the locale-invariant
+    // Unicode default case mapping, so simulating that locale via a spy on
+    // toLocaleLowerCase must have no effect on the outcome.
+    const localeSpy = vi
+      .spyOn(String.prototype, "toLocaleLowerCase")
+      .mockImplementation(function (this: string) {
+        return this.replace(/I/g, "ı");
+      });
+
+    const item = createItem({ title: "Istanbul Traffic Report" });
+    const rule = createRule({ matchMode: "partial", keyword: "Traffic" });
+
+    expect(KeywordFilterService.evaluateRules(item, [rule], "AND")).toBe(true);
+    expect(localeSpy).not.toHaveBeenCalled();
+  });
+
   it("returns true when there are no active rules", () => {
     const item = createItem();
     const rules = [

@@ -875,6 +875,37 @@ body .rss-dashboard-sidebar .rss-dashboard-feed-folders-section {
   height: 14px;
 }
 
+.rss-dashboard-feed-shard-warning-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  color: var(--text-warning);
+  opacity: 0.9;
+  margin-left: 4px;
+}
+
+.rss-dashboard-feed-shard-warning-badge:hover {
+  opacity: 1;
+}
+
+.rss-dashboard-feed-shard-warning-badge svg {
+  width: 14px;
+  height: 14px;
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .rss-dashboard-feed-shard-warning-badge {
+    min-width: 44px;
+    min-height: 44px;
+    width: auto;
+    height: auto;
+    padding: 4px;
+  }
+}
+
 /* Mobile touch target for error badge */
 @media (hover: none) and (pointer: coarse) {
   .rss-dashboard-feed-error-badge {
@@ -1454,6 +1485,12 @@ body .rss-folder-name-modal {
   pointer-events: auto;
 }
 
+/* Rows in the narrow-layout sidebar drawer live inside a modal; sit above
+   the modal layer but below menus and tooltips. */
+.rss-dashboard-refresh-details.rss-dashboard-refresh-details-over-modal {
+  z-index: calc(var(--layer-modal) + 1);
+}
+
 .rss-dashboard-refresh-details-line {
   margin-top: 4px;
   overflow-wrap: anywhere;
@@ -1469,12 +1506,4 @@ body .rss-folder-name-modal {
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border: 0;
-}
-
-@media (hover: none) and (pointer: coarse) {
-  .rss-dashboard-refresh-details {
-    left: 8px;
-    right: 8px;
-    max-width: none;
-  }
 }

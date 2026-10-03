@@ -50,7 +50,7 @@ export const SIDEBAR_ICONS: SidebarIconConfig[] = [
   {
     id: "sort",
     label: "Sort",
-    lucideIcon: "arrow-up-down",
+    lucideIcon: "sort-asc",
     settingKey: "hideIconSort",
   },
   {

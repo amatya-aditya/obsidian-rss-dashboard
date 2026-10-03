@@ -70,13 +70,13 @@ describe("HighlightService", () => {
   describe("setHighlightedText (DOM Manipulation)", () => {
     it("should set textContent if highlighting is disabled", () => {
       settings.enabled = false;
-      const el = document.createElement("div");
+      const el = createDiv();
       service.setHighlightedText(el, "Important text");
       expect(el.innerHTML).toBe("Important text");
     });
 
     it("should append <mark> elements for matches", () => {
-      const el = document.createElement("div");
+      const el = createDiv();
       service.setHighlightedText(el, "This is important!");
       expect(el.childNodes.length).toBe(3); // text + mark + text
       const mark = el.querySelector("mark");
@@ -88,10 +88,10 @@ describe("HighlightService", () => {
 
   describe("highlightElement (TreeWalker DOM Traversal)", () => {
     it("should traverse and highlight text nodes within DOM", () => {
-      const container = document.createElement("div");
-      const p = document.createElement("p");
+      const container = createDiv();
+      const p = createEl("p");
       p.appendChild(document.createTextNode("This is extremely "));
-      const span = document.createElement("span");
+      const span = createSpan();
       span.textContent = "Important";
       p.appendChild(span);
       p.appendChild(document.createTextNode(" stuff."));
@@ -105,15 +105,15 @@ describe("HighlightService", () => {
     });
 
     it("should reject elements that should be skipped", () => {
-      const container = document.createElement("div");
+      const container = createDiv();
       
       // We know "shouldSkipElement" ignores code, pre, script, etc.
       container.innerHTML = ""; // Clear
-      const div = document.createElement("div");
+      const div = createDiv();
       div.textContent = "Important";
-      const pre = document.createElement("pre");
+      const pre = createEl("pre");
       pre.textContent = "Important pre";
-      const code = document.createElement("code");
+      const code = createEl("code");
       code.textContent = "Let important = true;";
       container.append(div, pre, code);
       

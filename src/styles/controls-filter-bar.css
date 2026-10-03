@@ -23,6 +23,24 @@
   flex-shrink: 0;
 }
 
+.rss-dashboard-filter-subheader .rss-dashboard-user-state-alert {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  padding: 6px 8px;
+  border: 1px solid var(--text-error);
+  border-radius: 4px;
+  color: var(--text-error);
+  background: var(--background-primary);
+  font-weight: 600;
+}
+
+.rss-dashboard-filter-subheader
+  .rss-dashboard-user-state-alert:last-child {
+  margin-bottom: 0;
+}
+
 .rss-dashboard-filter-subheader-content {
   max-height: 200px;
   transition:

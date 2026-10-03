@@ -13,6 +13,9 @@ class MockLeaf {
   }
 }
 
+// MathJax's custom element is not in the DOM lib's tag map; the stub uses the same cast.
+const MATHJAX_TAG = "mjx-container" as keyof HTMLElementTagNameMap;
+
 type ReaderViewInternals = {
   contentEl: HTMLElement;
   readingContainer: HTMLElement;
@@ -37,7 +40,7 @@ describe("ReaderView math copy", () => {
       vi.fn(),
       vi.fn(),
     );
-    getInternals(readerView).contentEl = document.createElement("div");
+    getInternals(readerView).contentEl = createDiv();
     await readerView.onOpen();
   });
 
@@ -49,11 +52,11 @@ describe("ReaderView math copy", () => {
   it("copies rendered Reader formulas as retained source", () => {
     const readerRoot = getInternals(readerView).readingContainer;
     document.body.appendChild(readerRoot);
-    const paragraph = document.createElement("p");
-    const formula = document.createElement("span");
+    const paragraph = createEl("p");
+    const formula = createSpan();
     formula.className = "math math-inline";
     formula.setAttribute("data-math", "$x$");
-    formula.appendChild(document.createElement("mjx-container"));
+    formula.appendChild(createEl(MATHJAX_TAG));
     paragraph.append("Copy ", formula, ".");
     readerRoot.appendChild(paragraph);
     const range = document.createRange();
@@ -78,10 +81,10 @@ describe("ReaderView math copy", () => {
   it("visually marks a formula while it is selected", () => {
     const readerRoot = getInternals(readerView).readingContainer;
     document.body.appendChild(readerRoot);
-    const formula = document.createElement("span");
+    const formula = createSpan();
     formula.className = "math math-inline";
     formula.setAttribute("data-math", "$x$");
-    formula.appendChild(document.createElement("mjx-container"));
+    formula.appendChild(createEl(MATHJAX_TAG));
     readerRoot.appendChild(formula);
 
     const range = document.createRange();

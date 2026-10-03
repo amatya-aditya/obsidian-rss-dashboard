@@ -31,8 +31,33 @@ beforeEach(() => {
 });
 
 describe("renderDisplaySettingsTab() reader section", () => {
+  it("shows formatted values for dashboard layout sliders", () => {
+    const containerEl = document.body.appendChild(createDiv());
+    const plugin = {
+      app: { workspace: { revealLeaf: vi.fn(async () => {}) } },
+      settings: cloneSettings(),
+      saveSettings: vi.fn(async () => {}),
+      getImageCacheSizeBytes: vi.fn(() => 0),
+      getActiveDashboardView: vi.fn(async () => null),
+      getActiveReaderView: vi.fn(async () => null),
+    } as unknown as RssDashboardPlugin;
+
+    renderDisplaySettingsTab(containerEl, plugin, () => {});
+
+    expect(
+      getSettingByName(containerEl, "Cards per row").querySelector(
+        ".rss-dashboard-slider-value",
+      )?.textContent,
+    ).toBe("Auto");
+    expect(
+      getSettingByName(containerEl, "Card spacing").querySelector(
+        ".rss-dashboard-slider-value",
+      )?.textContent,
+    ).toBe("15px");
+  });
+
   it("defaults image caching off and delegates enablement to the plugin", async () => {
-    const containerEl = document.createElement("div");
+    const containerEl = createDiv();
     document.body.appendChild(containerEl);
     const settings = cloneSettings();
     const setImageCachingEnabled = vi.fn(async () => {});
@@ -65,7 +90,7 @@ describe("renderDisplaySettingsTab() reader section", () => {
   });
 
   it("saves a custom finite cache limit and lets users remove the aggregate cap", async () => {
-    const containerEl = document.createElement("div");
+    const containerEl = createDiv();
     document.body.appendChild(containerEl);
     const settings = cloneSettings();
     const setImageCacheLimit = vi.fn(async () => {});
@@ -92,11 +117,17 @@ describe("renderDisplaySettingsTab() reader section", () => {
     expect(limitInput.value).toBe("100");
     expect(limitSlider.min).toBe("1");
     expect(limitSlider.max).toBe("1024");
+    expect(
+      limitSetting.querySelector(".rss-dashboard-slider-value")?.textContent,
+    ).toBe("100 MiB");
     limitSlider.value = "512";
     limitSlider.dispatchEvent(new Event("input"));
     await flushPromises();
 
     expect(limitInput.value).toBe("512");
+    expect(
+      limitSetting.querySelector(".rss-dashboard-slider-value")?.textContent,
+    ).toBe("512 MiB");
     expect(setImageCacheLimit).toHaveBeenCalledWith(512, false);
     limitInput.value = "25";
     limitInput.dispatchEvent(new Event("blur"));
@@ -121,7 +152,7 @@ describe("renderDisplaySettingsTab() reader section", () => {
   });
 
   it("describes dashboard previews and rerenders the active Feed dashboard after either preview preference changes", async () => {
-    const containerEl = document.createElement("div");
+    const containerEl = createDiv();
     document.body.appendChild(containerEl);
     const settings = cloneSettings();
     settings.viewStyle = "feed";
@@ -162,7 +193,7 @@ describe("renderDisplaySettingsTab() reader section", () => {
   });
 
   it("renders a Reader section without paragraph width", () => {
-    const containerEl = document.createElement("div");
+    const containerEl = createDiv();
     document.body.appendChild(containerEl);
     const plugin = {
       app: {},
@@ -186,7 +217,7 @@ describe("renderDisplaySettingsTab() reader section", () => {
   });
 
   it("persists reader format changes and refreshes the active reader view", async () => {
-    const containerEl = document.createElement("div");
+    const containerEl = createDiv();
     document.body.appendChild(containerEl);
     const settings = cloneSettings();
     const applyReaderFormat = vi.fn();
@@ -215,7 +246,7 @@ describe("renderDisplaySettingsTab() reader section", () => {
   });
 
   it("resets reader format settings back to defaults", async () => {
-    const containerEl = document.createElement("div");
+    const containerEl = createDiv();
     document.body.appendChild(containerEl);
     const settings = cloneSettings();
     settings.readerFormat.textAlign = "left";

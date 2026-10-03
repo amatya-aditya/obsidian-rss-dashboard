@@ -1,5 +1,6 @@
 import { Modal, App, setIcon, Notice } from "obsidian";
 import type { RssDashboardSettings } from "../types/types";
+import { ensureVaultFolder } from "../utils/vault-files";
 
 export class ShortcutHelpModal extends Modal {
   private settings: RssDashboardSettings;
@@ -204,16 +205,14 @@ export class ShortcutHelpModal extends Modal {
 
       // Normalize the path
       const vault = this.app.vault;
-      const folderPath =
+      let folderPath =
         saveFolder === "/" ? "" : saveFolder.replace(/^\/|\/$/g, "");
 
-      // Ensure folder exists (skip if saving to root)
+      // Ensure folder exists (skip if saving to root). The folder on disk may
+      // differ in case from the setting, so use the path it resolves to.
       if (folderPath) {
         try {
-          const folderExists = vault.getAbstractFileByPath(folderPath);
-          if (!folderExists) {
-            await vault.createFolder(folderPath);
-          }
+          folderPath = await ensureVaultFolder(this.app, folderPath);
         } catch (folderError) {
           console.error(
             "[RSS Dashboard] Failed to create folder:",

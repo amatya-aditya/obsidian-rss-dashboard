@@ -15,8 +15,8 @@ vi.mock("../../../src/utils/platform-utils", () => ({
     _input: HTMLInputElement,
     onClear: () => void,
   ) => {
-    const button = wrapper.appendChild(document.createElement("button"));
-    button.text = "Clear";
+    const button = wrapper.appendChild(createEl("button"));
+    button.textContent = "Clear";
     button.className = "rss-test-clear-button";
     button.addEventListener("click", () => onClear());
   },
@@ -58,7 +58,7 @@ function setupSidebar(opts?: {
   feeds?: FeedMetadata[];
 }) {
   const app = new App();
-  const container = document.createElement("div");
+  const container = createDiv();
 
   const callbacks = {
     onFilterChange: vi.fn(),
@@ -199,7 +199,11 @@ describe("DiscoverSidebar", () => {
     const feeds = [
       createFeed({ id: "n", type: "News", tags: ["tag-a", "tag-b"] }),
       createFeed({ id: "p", type: "Podcast", tags: ["tag-b"] }),
-      createFeed({ id: "e", type: "", tags: [] }), // empty type should be skipped
+      createFeed({
+        id: "e",
+        type: "" as unknown as FeedMetadata["type"],
+        tags: [],
+      }), // empty type should be skipped
     ];
 
     const { container, callbacks } = setupSidebar({

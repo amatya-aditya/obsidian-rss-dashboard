@@ -8,26 +8,35 @@ import {
   App,
   Notice,
   Setting,
-  TFolder,
   normalizePath,
   type WorkspaceLeaf,
 } from "obsidian";
+import type { ImportResult } from "../../services/import-export-service";
 import { FolderSuggest } from "../../components/folder-suggest";
 import { setCssProps } from "../../utils/platform-utils";
+import { trashVaultFile, vaultFileExists } from "../../utils/vault-files";
 import { DEFAULT_SETTINGS, type RssDashboardSettings } from "../../types/types";
 import {
   MetadataCleanupModal,
+  RepairPreviewModal,
   ShardDeletionFailureModal,
+  UnloadedFeedsFolderChangeModal,
   StorageTransitionModal,
   type MetadataCleanupAction,
   type ShardDeletionFailureAction,
   type StorageTransitionAction,
   type StorageTransitionOptions,
 } from "../modals/storage-settings-modals";
-import type {
-  FeedStorageStatus,
-  ShardFolderDeletionError,
+import {
+  isHiddenFromSync,
+  type FeedStorageStatus,
+  type RepairPreview,
+  type RepairResult,
+  type ShardFolderDeletionError,
 } from "../../services/feed-storage-repository";
+
+const VAULT_METADATA_IMPORT_WARNING =
+  "Known issue: with metadata in a vault folder, an import can be lost if Obsidian closes before anything else is saved. After importing, change a setting or mark an article as read before closing.";
 
 interface StorageSettingsPlugin {
   app: App;
@@ -39,11 +48,19 @@ interface StorageSettingsPlugin {
     render(): void;
   } | null>;
   getStorageStatus(): FeedStorageStatus;
+  getOrphanedUserStatePath(): Promise<string | null>;
+  getMetadataFilePath(): string;
   migrateToVaultStorage(): Promise<void>;
   migrateToVaultShardsV2(): Promise<void>;
-  repairVaultStorage(): Promise<void>;
-  importPortableDataBundleFromFile(file: File): Promise<void>;
+  getUnloadedShardFeedCount(): number;
+  previewRepairVaultStorage(): Promise<RepairPreview>;
+  repairVaultStorage(): Promise<RepairResult>;
+  importPortableDataBundleFromFile(file: File): Promise<ImportResult>;
   exportPortableDataBundle(): Promise<void>;
+  importFeedBundleFromFile(file: File): Promise<ImportResult>;
+  exportFeedBundle(): Promise<void>;
+  importSettingsBundleFromFile(file: File): Promise<ImportResult>;
+  exportSettingsBundle(): Promise<void>;
   exportDataJson(): Promise<void>;
   revertToLegacyJsonStorageWithOptions(options?: {
     deleteShardFolder?: boolean;
@@ -52,6 +69,33 @@ interface StorageSettingsPlugin {
   openStorageFolderInSystem(folderPath?: string): Promise<void>;
   migrateMetadataToVaultLocation(): Promise<void>;
   revertMetadataToPluginDefault(): Promise<void>;
+}
+
+/**
+ * Shard storage v2 keeps article state in `user-state.json` inside the
+ * metadata folder, not the storage folder (ADR 0004). Returns a hint when the
+ * feeds sync (visible storage folder) but that state file does not (hidden
+ * metadata folder), otherwise null.
+ */
+export function getHiddenUserStateHint(
+  settings: Pick<
+    RssDashboardSettings,
+    "storageMode" | "storageFolder" | "metadataStorageFolder"
+  >,
+): string | null {
+  if (settings.storageMode !== "vault-shards-v2") {
+    return null;
+  }
+  const metadataFolder =
+    settings.metadataStorageFolder.trim().replace(/^\/+|\/+$/g, "") ||
+    ".rss-dashboard-data";
+  if (
+    isHiddenFromSync(settings.storageFolder) ||
+    !isHiddenFromSync(metadataFolder)
+  ) {
+    return null;
+  }
+  return `Your feeds sync, but read, starred, and tag state (user-state.json) stays in the hidden folder ${metadataFolder}, which sync tools skip. To sync it too, set Metadata data.json location to a folder without a leading '.'.`;
 }
 
 function storageLog(_message: string, _details?: unknown): void {}
@@ -63,7 +107,6 @@ function storageError(
 ): void {}
 
 type MediaFolderSettingKey =
-  | "defaultTwitterFolder"
   | "defaultMastodonFolder"
   | "defaultYouTubeFolder"
   | "defaultPodcastFolder"
@@ -84,8 +127,11 @@ function renderFolderSetting(
       text
         .setValue(plugin.settings.media[key] || DEFAULT_SETTINGS.media[key])
         .onChange(async (value) => {
-          const nextValue = typeof value === "string" ? value : "";
-          plugin.settings.media[key] = normalizePath(nextValue);
+          const nextValue = typeof value === "string" ? value.trim() : "";
+          // normalizePath returns "/" for an empty path; keep "" so a cleared
+          // field means the root, not a feed folder named "/".
+          const normalized = normalizePath(nextValue);
+          plugin.settings.media[key] = normalized === "/" ? "" : normalized;
           await plugin.saveSettings();
         });
       new FolderSuggest(plugin.app, text.inputEl, plugin.settings.folders);
@@ -113,11 +159,19 @@ export function renderStorageSettingsTab(
     return [
       `Mode: ${status.mode}`,
       `Folder: ${status.folder}`,
+      `Metadata: ${plugin.getMetadataFilePath()}`,
       `Feeds: ${status.feedCount}`,
       `Shards: ${status.shardCount}`,
       migrationState,
       status.lastRepairResult,
     ].join(" • ");
+  };
+
+  const noticeHiddenUserState = (): void => {
+    const hint = getHiddenUserStateHint(plugin.settings);
+    if (hint) {
+      new Notice(hint, 15000);
+    }
   };
 
   const runShardDeletionFailureFlow = async (
@@ -159,26 +213,32 @@ export function renderStorageSettingsTab(
       : "";
   let lastSavedMetadataStorageFolder = pendingMetadataStorageFolder;
 
+  // After a move, the plugin-default data.json holds the bootstrap pointer
+  // to the new location, so it must never be offered for deletion.
+  const isPluginDefaultMetadataFile = (dataFilePath: string): boolean =>
+    normalizePath(dataFilePath) === normalizePath(pluginDefaultMetadataFilePath);
+
   const deleteMetadataFileAtPath = async (
     dataFilePath: string,
   ): Promise<boolean> => {
-    const file = plugin.app.vault.getAbstractFileByPath(dataFilePath);
-    if (!file || file instanceof TFolder) {
+    if (isPluginDefaultMetadataFile(dataFilePath)) {
       return false;
     }
-    await plugin.app.fileManager.trashFile(file);
-    return true;
+    return trashVaultFile(plugin.app, dataFilePath);
   };
 
   const maybeOfferMetadataCleanup = async (
     previousDataFilePath: string | null,
   ): Promise<void> => {
-    if (!previousDataFilePath) {
+    if (
+      !previousDataFilePath ||
+      isPluginDefaultMetadataFile(previousDataFilePath)
+    ) {
       return;
     }
-    const previousFile =
-      plugin.app.vault.getAbstractFileByPath(previousDataFilePath);
-    if (!previousFile || previousFile instanceof TFolder) {
+    // The previous copy may sit in a dot-prefixed folder the vault index
+    // leaves out, so check the disk rather than the index.
+    if (!(await vaultFileExists(plugin.app, previousDataFilePath))) {
       return;
     }
 
@@ -253,6 +313,9 @@ export function renderStorageSettingsTab(
       lastSavedMetadataStorageFolder = nextFolder;
       pendingMetadataStorageFolder = nextFolder;
       await maybeOfferMetadataCleanup(previousDataFilePath);
+      // Known issue #474: in a vault folder, a bundle import is saved only
+      // to the plugin folder until the next settings save.
+      new Notice(VAULT_METADATA_IMPORT_WARNING, 15000);
     } catch (error) {
       plugin.settings.metadataStorageMode = previousMode;
       plugin.settings.metadataStorageFolder = previousFolder;
@@ -297,9 +360,8 @@ export function renderStorageSettingsTab(
   );
   descFragment.appendChild(v2Div);
 
-  new Setting(containerEl)
+  const storageModeSetting = new Setting(containerEl)
     .setName("Storage mode")
-    .setDesc(descFragment)
     .addDropdown((dropdown) =>
       dropdown
         .addOption("legacy-json", "Legacy JSON")
@@ -315,6 +377,14 @@ export function renderStorageSettingsTab(
           pendingStorageMode = value as typeof plugin.settings.storageMode;
         }),
     );
+  // Obsidian's Setting.setDesc() routes through descEl.setText(), which only
+  // appends a DocumentFragment when `instanceof DocumentFragment` succeeds --
+  // that check fails when the fragment was built in a different window realm
+  // than descEl (e.g. a popped-out window), and silently falls back to
+  // stringifying it as "[object DocumentFragment]". Appending directly to
+  // descEl sidesteps that fragile realm-sensitive dispatch entirely.
+  storageModeSetting.descEl.empty();
+  storageModeSetting.descEl.appendChild(descFragment);
 
   new Setting(containerEl)
     .setName("Storage folder")
@@ -338,6 +408,20 @@ export function renderStorageSettingsTab(
     .setName("Storage status")
     .setDesc(renderStorageStatus());
 
+  const leftoverStateSetting = new Setting(containerEl).setName(
+    "Leftover article state file",
+  );
+  leftoverStateSetting.settingEl.hidden = true;
+  void plugin.getOrphanedUserStatePath().then((leftoverPath) => {
+    if (!leftoverPath) {
+      return;
+    }
+    leftoverStateSetting.setDesc(
+      `A user-state.json from a previous shard storage v2 setup is still at ${leftoverPath}. It is not read in the current storage mode, and is kept as a backup of read, starred, tagged, and saved state. Delete it manually once you no longer need it.`,
+    );
+    leftoverStateSetting.settingEl.hidden = false;
+  });
+
   new Setting(containerEl)
     .setName("Repair/rebuild storage")
     .setDesc(
@@ -349,7 +433,7 @@ export function renderStorageSettingsTab(
   storageActions
     .setName("Storage actions")
     .setDesc(
-      "Apply the selected storage mode, repair shard files, or export a portable bundle for desktop/mobile transfer workflows.",
+      "Apply the selected storage mode, repair shard files, or import/export a portable data bundle (everything), a feed bundle (feeds, folders, tags, articles, and article state — no app settings), or a settings bundle (app preferences only) for desktop/mobile transfer workflows.",
     )
     .addButton((button) =>
       button
@@ -378,6 +462,30 @@ export function renderStorageSettingsTab(
               return;
             }
 
+            // The storage folder syncs to every device through data.json, so
+            // changing it where feeds never loaded points all devices at a
+            // folder without this device's missing articles (ADR 0012).
+            const unloadedFeedCount = folderChanged
+              ? plugin.getUnloadedShardFeedCount()
+              : 0;
+            if (unloadedFeedCount > 0) {
+              const warningModal = new UnloadedFeedsFolderChangeModal(
+                plugin.app,
+                {
+                  unloadedFeedCount,
+                  totalFeedCount: plugin.settings.feeds.length,
+                },
+              );
+              const warningClosed = warningModal.waitForClose();
+              warningModal.open();
+              if ((await warningClosed) !== "apply") {
+                storageLog("Storage folder change cancelled: feeds not loaded", {
+                  unloadedFeedCount,
+                });
+                return;
+              }
+            }
+
             if (!modeChanged && folderChanged) {
               try {
                 plugin.settings.storageFolder = pendingStorageFolder;
@@ -389,6 +497,7 @@ export function renderStorageSettingsTab(
                 new Notice(
                   `Storage folder updated to "${pendingStorageFolder}".`,
                 );
+                noticeHiddenUserState();
               } catch (error) {
                 storageError("Storage folder apply failed", error, {
                   pendingStorageFolder,
@@ -452,6 +561,7 @@ export function renderStorageSettingsTab(
                 } else {
                   new Notice("Vault storage v2 migration completed.");
                 }
+                noticeHiddenUserState();
               } else {
                 if (action === "apply-delete-shards") {
                   try {
@@ -515,11 +625,24 @@ export function renderStorageSettingsTab(
             feedCount: plugin.settings.feeds.length,
           });
           try {
-            await plugin.repairVaultStorage();
+            const preview = await plugin.previewRepairVaultStorage();
+            const previewModal = new RepairPreviewModal(plugin.app, preview);
+            const previewClosed = previewModal.waitForClose();
+            previewModal.open();
+            if ((await previewClosed) !== "repair") {
+              storageLog("Repair cancelled from preview");
+              return;
+            }
+
+            const { skippedFeedCount } = await plugin.repairVaultStorage();
             if (plugin.settingTab) {
               plugin.settingTab.display();
             }
-            new Notice("Storage repair completed.");
+            new Notice(
+              skippedFeedCount > 0
+                ? `Storage repair completed. ${skippedFeedCount} feeds were skipped because this device has no articles loaded to rebuild them from.`
+                : "Storage repair completed.",
+            );
           } catch (error) {
             storageError("Repair button action failed", error, {
               currentMode: plugin.settings.storageMode,
@@ -533,7 +656,7 @@ export function renderStorageSettingsTab(
       }),
     )
     .addButton((button) =>
-      button.setButtonText("Import shard data").onClick(() => {
+      button.setButtonText("Import portable data bundle").onClick(() => {
         const input = activeDocument.body.createEl("input", {
           attr: { type: "file", accept: ".json,.backup,application/json" },
         });
@@ -541,19 +664,19 @@ export function renderStorageSettingsTab(
           void (async () => {
             const file = input.files?.[0];
             if (!file) return;
-            storageLog("Clicked import shard data", {
+            storageLog("Clicked import portable data bundle", {
               currentMode: plugin.settings.storageMode,
               folder: plugin.settings.storageFolder,
             });
             try {
               await plugin.importPortableDataBundleFromFile(file);
             } catch (error) {
-              storageError("Shard data import failed", error, {
+              storageError("Portable data bundle import failed", error, {
                 currentMode: plugin.settings.storageMode,
                 folder: plugin.settings.storageFolder,
               });
               new Notice(
-                `Shard data import failed${
+                `Portable data bundle import failed${
                   error instanceof Error ? `: ${error.message}` : ""
                 }`,
               );
@@ -564,21 +687,129 @@ export function renderStorageSettingsTab(
       }),
     )
     .addButton((button) =>
-      button.setButtonText("Export shard data").onClick(() => {
+      button.setButtonText("Export portable data bundle").onClick(() => {
         void (async () => {
-          storageLog("Clicked export shard data", {
+          storageLog("Clicked export portable data bundle", {
             currentMode: plugin.settings.storageMode,
             folder: plugin.settings.storageFolder,
           });
           try {
             await plugin.exportPortableDataBundle();
           } catch (error) {
-            storageError("Shard data export failed", error, {
+            storageError("Portable data bundle export failed", error, {
               currentMode: plugin.settings.storageMode,
               folder: plugin.settings.storageFolder,
             });
             new Notice(
-              `Shard data export failed${
+              `Portable data bundle export failed${
+                error instanceof Error ? `: ${error.message}` : ""
+              }`,
+            );
+          }
+        })();
+      }),
+    )
+    .addButton((button) =>
+      button.setButtonText("Import feed bundle").onClick(() => {
+        const input = activeDocument.body.createEl("input", {
+          attr: { type: "file", accept: ".json,.backup,application/json" },
+        });
+        input.onchange = () => {
+          void (async () => {
+            const file = input.files?.[0];
+            if (!file) return;
+            storageLog("Clicked import Feed bundle", {
+              currentMode: plugin.settings.storageMode,
+              folder: plugin.settings.storageFolder,
+            });
+            try {
+              await plugin.importFeedBundleFromFile(file);
+            } catch (error) {
+              storageError("Feed bundle import failed", error, {
+                currentMode: plugin.settings.storageMode,
+                folder: plugin.settings.storageFolder,
+              });
+              new Notice(
+                `Feed bundle import failed${
+                  error instanceof Error ? `: ${error.message}` : ""
+                }`,
+              );
+            }
+          })();
+        };
+        input.click();
+      }),
+    )
+    .addButton((button) =>
+      button.setButtonText("Export feed bundle").onClick(() => {
+        void (async () => {
+          storageLog("Clicked export Feed bundle", {
+            currentMode: plugin.settings.storageMode,
+            folder: plugin.settings.storageFolder,
+          });
+          try {
+            await plugin.exportFeedBundle();
+          } catch (error) {
+            storageError("Feed bundle export failed", error, {
+              currentMode: plugin.settings.storageMode,
+              folder: plugin.settings.storageFolder,
+            });
+            new Notice(
+              `Feed bundle export failed${
+                error instanceof Error ? `: ${error.message}` : ""
+              }`,
+            );
+          }
+        })();
+      }),
+    )
+    .addButton((button) =>
+      button.setButtonText("Import settings bundle").onClick(() => {
+        const input = activeDocument.body.createEl("input", {
+          attr: { type: "file", accept: ".json,.backup,application/json" },
+        });
+        input.onchange = () => {
+          void (async () => {
+            const file = input.files?.[0];
+            if (!file) return;
+            storageLog("Clicked import Settings bundle", {
+              currentMode: plugin.settings.storageMode,
+              folder: plugin.settings.storageFolder,
+            });
+            try {
+              await plugin.importSettingsBundleFromFile(file);
+            } catch (error) {
+              storageError("Settings bundle import failed", error, {
+                currentMode: plugin.settings.storageMode,
+                folder: plugin.settings.storageFolder,
+              });
+              new Notice(
+                `Settings bundle import failed${
+                  error instanceof Error ? `: ${error.message}` : ""
+                }`,
+              );
+            }
+          })();
+        };
+        input.click();
+      }),
+    )
+    .addButton((button) =>
+      button.setButtonText("Export settings bundle").onClick(() => {
+        void (async () => {
+          storageLog("Clicked export Settings bundle", {
+            currentMode: plugin.settings.storageMode,
+            folder: plugin.settings.storageFolder,
+          });
+          try {
+            await plugin.exportSettingsBundle();
+          } catch (error) {
+            storageError("Settings bundle export failed", error, {
+              currentMode: plugin.settings.storageMode,
+              folder: plugin.settings.storageFolder,
+            });
+            new Notice(
+              `Settings bundle export failed${
                 error instanceof Error ? `: ${error.message}` : ""
               }`,
             );
@@ -603,16 +834,28 @@ export function renderStorageSettingsTab(
   new Setting(containerEl)
     .setName("Metadata data.json location")
     .setDesc(
-      "Optional vault folder for metadata data.json. Leave empty to keep metadata in the plugin directory.",
+      "Optional vault folder for metadata data.json. Leave empty to keep metadata in the plugin directory. Shard storage v2 keeps article state (user-state.json) in this folder either way, so remove any '.' prefix for Obsidian sync to carry it to other devices.",
     )
     .addText((text) => {
+      // Show the folder user-state.json is actually in: a fresh install
+      // keeps it inside the plugin folder rather than .rss-dashboard-data.
       text
-        .setPlaceholder(".rss-dashboard-data")
+        .setPlaceholder(
+          plugin.settings.metadataStorageFolder.trim() || ".rss-dashboard-data",
+        )
         .setValue(lastSavedMetadataStorageFolder)
         .onChange((value) => {
           pendingMetadataStorageFolder = value;
         });
     });
+
+  const hiddenStateHint = getHiddenUserStateHint(plugin.settings);
+  if (hiddenStateHint) {
+    containerEl.createDiv({
+      cls: "setting-item-description rss-dashboard-hidden-user-state-hint",
+      text: hiddenStateHint,
+    });
+  }
 
   new Setting(containerEl)
     .setName("Metadata actions")
@@ -643,13 +886,6 @@ export function renderStorageSettingsTab(
 
   new Setting(containerEl).setName("Default folders").setHeading();
 
-  renderFolderSetting(
-    containerEl,
-    plugin,
-    "Default Twitter folder",
-    "Default folder for Twitter/X/Nitter feeds",
-    "defaultTwitterFolder",
-  );
   renderFolderSetting(
     containerEl,
     plugin,
@@ -692,7 +928,6 @@ export function renderStorageSettingsTab(
     .addButton((button) => {
       button.setButtonText("Default folder names").onClick(async () => {
         const d = DEFAULT_SETTINGS.media;
-        plugin.settings.media.defaultTwitterFolder = d.defaultTwitterFolder;
         plugin.settings.media.defaultMastodonFolder = d.defaultMastodonFolder;
         plugin.settings.media.defaultYouTubeFolder = d.defaultYouTubeFolder;
         plugin.settings.media.defaultPodcastFolder = d.defaultPodcastFolder;

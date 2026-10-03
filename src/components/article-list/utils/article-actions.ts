@@ -1,4 +1,4 @@
-import { Notice, setIcon } from "obsidian";
+import { Notice, setIcon, setTooltip } from "obsidian";
 import type { ArticleSavingSettings, DisplaySettings, FeedItem } from "../../../types/types";
 
 function toggleClickableIcon(
@@ -51,7 +51,6 @@ export function createReadToggle(
   const readToggle = arg.actionToolbar.createDiv({
     cls: `rss-dashboard-read-toggle clickable-icon ${arg.article.read ? "read" : "unread"}`,
     attr: {
-      title: arg.article.read ? "Mark as unread" : "Mark as read",
       role: "button",
       tabindex: "0",
       "aria-label": arg.article.read ? "Mark as unread" : "Mark as read",
@@ -82,14 +81,13 @@ export function createSaveButton(
   const saveButton = arg.actionToolbar.createDiv({
     cls: `rss-dashboard-save-toggle clickable-icon ${arg.article.saved ? "saved" : ""}`,
     attr: {
-      title: arg.article.saved
+      role: "button",
+      tabindex: "0",
+      "aria-label": arg.article.saved
         ? "Click to open saved article"
         : arg.settings.articleSaving?.saveFullContent
           ? "Save full article content to notes"
           : "Save article summary to notes",
-      role: "button",
-      tabindex: "0",
-      "aria-label": "Save article",
     },
   });
   setIcon(saveButton, "save");
@@ -113,7 +111,7 @@ export function createSaveButton(
       }
 
       saveButton.classList.add("saving");
-      saveButton.setAttribute("title", "Saving article...");
+      setTooltip(saveButton, "Saving article...");
 
       try {
         await arg.callbacks.onArticleSave(arg.article);
@@ -123,7 +121,7 @@ export function createSaveButton(
         if (!saveButton.querySelector("svg")) {
           saveButton.textContent = "S";
         }
-        saveButton.setAttribute("title", "Click to open saved article");
+        setTooltip(saveButton, "Click to open saved article");
       } catch (error) {
         console.error("Failed to save article via card button:", error);
         new Notice("Failed to save article.");
@@ -151,12 +149,11 @@ export function createStarToggle(
   const starToggle = arg.actionToolbar.createDiv({
     cls: `rss-dashboard-star-toggle clickable-icon ${arg.article.starred ? "starred" : "unstarred"}`,
     attr: {
-      title: arg.article.starred
-        ? "Remove from starred items"
-        : "Add to starred items",
       role: "button",
       tabindex: "0",
-      "aria-label": "Toggle star",
+      "aria-label": arg.article.starred
+        ? "Remove from starred items"
+        : "Add to starred items",
     },
   });
   const starIcon = starToggle.createSpan({
@@ -201,7 +198,6 @@ export function createTagsToggle(
   const tagsToggle = tagsDropdown.createDiv({
     cls: "rss-dashboard-tags-toggle clickable-icon",
     attr: {
-      title: "Manage tags",
       role: "button",
       tabindex: "0",
       "aria-label": "Manage tags",

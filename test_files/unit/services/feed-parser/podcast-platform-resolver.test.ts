@@ -16,15 +16,16 @@ describe("resolvePodcastPlatformUrl", () => {
   });
 
   it("resolves Apple Podcasts URLs via iTunes lookup", async () => {
+    const lookup = {
+      resultCount: 1,
+      results: [{ feedUrl: "https://feeds.example.com/podcast.rss" }],
+    };
     requestUrlSpy.mockResolvedValueOnce({
-      text: JSON.stringify({
-        resultCount: 1,
-        results: [{ feedUrl: "https://feeds.example.com/podcast.rss" }],
-      }),
+      text: JSON.stringify(lookup),
       status: 200,
       headers: {},
-      arrayBuffer: async () => new ArrayBuffer(0),
-      json: async () => ({}),
+      arrayBuffer: new ArrayBuffer(0),
+      json: lookup,
     });
 
     const result = await resolvePodcastPlatformUrl(

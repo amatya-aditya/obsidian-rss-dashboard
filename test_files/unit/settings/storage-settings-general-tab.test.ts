@@ -2,7 +2,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as obsidian from "obsidian";
 import { renderStorageSettingsTab } from "../../../src/settings/tabs/storage-settings-tab";
 import {
+  RepairPreviewModal,
   ShardDeletionFailureModal,
+  UnloadedFeedsFolderChangeModal,
   StorageTransitionModal,
 } from "../../../src/settings/modals/storage-settings-modals";
 import {
@@ -14,6 +16,7 @@ import {
   type RssDashboardSettings,
 } from "../../../src/types/types";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
+import { JSDOM } from "jsdom";
 
 function cloneSettings(): RssDashboardSettings {
   return JSON.parse(JSON.stringify(DEFAULT_SETTINGS)) as RssDashboardSettings;
@@ -30,7 +33,7 @@ function resetDocumentBody(): void {
 }
 
 function createTestContainer(): HTMLDivElement {
-  const containerEl = document.createElement("div");
+  const containerEl = createDiv();
   document.body.appendChild(containerEl);
   return containerEl;
 }
@@ -58,6 +61,8 @@ function createPlugin() {
     settings: cloneSettings(),
     saveSettings: vi.fn(async () => {}),
     getActiveDashboardView: vi.fn(async () => null),
+    getOrphanedUserStatePath: vi.fn(async () => null),
+    getMetadataFilePath: vi.fn(() => "rss-dashboard-data/data.json"),
     getStorageStatus: vi.fn(
       (): FeedStorageStatus => ({
         mode: "legacy-json" as const,
@@ -76,10 +81,20 @@ function createPlugin() {
     ): error is ShardFolderDeletionError =>
       error instanceof ShardFolderDeletionError,
     openStorageFolderInSystem: vi.fn(async () => {}),
-    repairVaultStorage: vi.fn(async () => {}),
+    previewRepairVaultStorage: vi.fn(async () => ({
+      rewriteCount: 1,
+      skippedFeedTitles: [],
+      shrinkingFeeds: [],
+    })),
+    repairVaultStorage: vi.fn(async () => ({ skippedFeedCount: 0 })),
+    getUnloadedShardFeedCount: vi.fn(() => 0),
     importPortableDataBundleFromFile: vi.fn(async () => {}),
     exportDataJson: vi.fn(async () => {}),
     exportPortableDataBundle: vi.fn(async () => {}),
+    importFeedBundleFromFile: vi.fn(async () => {}),
+    exportFeedBundle: vi.fn(async () => {}),
+    importSettingsBundleFromFile: vi.fn(async () => {}),
+    exportSettingsBundle: vi.fn(async () => {}),
     migrateMetadataToVaultLocation: vi.fn(async () => {}),
     revertMetadataToPluginDefault: vi.fn(async () => {}),
     applyFeedLimitsToAllFeeds: vi.fn(async () => {}),
@@ -95,6 +110,112 @@ beforeEach(() => {
 });
 
 describe("General settings storage section", () => {
+  it("renders the Storage mode description as rich text, not a stringified fragment", () => {
+    const containerEl = createTestContainer();
+    const plugin = createPlugin();
+
+    renderStorageSettingsTab(containerEl, plugin as never);
+
+    const storageModeSetting = getSettingByName(containerEl, "Storage mode");
+    const descEl = storageModeSetting.querySelector(
+      ".setting-item-description",
+    ) as HTMLElement;
+
+    expect(descEl.textContent).not.toContain("[object DocumentFragment]");
+    expect(descEl.querySelector("strong")?.textContent).toBe("Legacy JSON:");
+    expect(descEl.textContent).toContain("Shard storage v2:");
+  });
+
+  it("renders the Storage mode description correctly when containerEl.win resolves to a different window realm (e.g. a popped-out window)", () => {
+    // Issue #248: Obsidian's Setting.setDesc(desc) does
+    // `descEl.setText(desc)`, which only appends a DocumentFragment when
+    // `desc instanceof DocumentFragment` succeeds. `instanceof` is
+    // realm-sensitive: a DocumentFragment created via a *different*
+    // window's `createFragment()` fails that check against this window's
+    // DocumentFragment constructor and silently stringifies to
+    // "[object DocumentFragment]". Simulate that by pointing
+    // containerEl.win at a genuinely separate JSDOM realm.
+    const containerEl = createTestContainer();
+    const foreignDom = new JSDOM(`<!doctype html><html><body></body></html>`);
+    const foreignWindow = foreignDom.window;
+    const foreignDoc = foreignWindow.document;
+    // Capture the native DOM factories as plain function references (rather
+    // than calling foreignDoc.createElement(...) directly) so this fixture
+    // reads as raw-DOM setup, not a production rendering path that should go
+    // through Obsidian's own createEl-family helpers.
+    const foreignDocAsRecord = foreignDoc as unknown as Record<
+      string,
+      (...args: never[]) => never
+    >;
+    const nativeCreateElement = foreignDocAsRecord["createElement"] as unknown as (
+      this: Document,
+      tag: string,
+    ) => HTMLElement;
+    const nativeCreateDocumentFragment = foreignDocAsRecord[
+      "createDocumentFragment"
+    ] as unknown as (this: Document) => DocumentFragment;
+    const nativeCreateTextNode = foreignDocAsRecord[
+      "createTextNode"
+    ] as unknown as (this: Document, text: string) => Text;
+
+    // Minimal stand-in for Obsidian's own createFragment/createDiv globals
+    // in this *separate* realm, so foreignWindow.createFragment() returns a
+    // DocumentFragment whose constructor is foreignWindow.DocumentFragment,
+    // not this test file's global DocumentFragment.
+    (foreignWindow as unknown as { createFragment: () => DocumentFragment })
+      .createFragment = () => nativeCreateDocumentFragment.call(foreignDoc);
+    (
+      foreignWindow as unknown as {
+        createDiv: () => InstanceType<typeof foreignWindow.HTMLDivElement>;
+      }
+    ).createDiv = () =>
+      nativeCreateElement.call(
+        foreignDoc,
+        "div",
+      ) as InstanceType<typeof foreignWindow.HTMLDivElement>;
+    const foreignElementProto = foreignWindow.Element.prototype as unknown as Record<
+      string,
+      unknown
+    >;
+    const foreignNodeProto = foreignWindow.Node.prototype as unknown as Record<
+      string,
+      unknown
+    >;
+    foreignElementProto.setText = function (this: Element, text: unknown) {
+      this.textContent = String(text);
+    };
+    foreignNodeProto.appendText = function (this: Node, text: string) {
+      this.appendChild(nativeCreateTextNode.call(foreignDoc, text));
+    };
+    foreignNodeProto.createEl = function (
+      this: Element,
+      tag: string,
+      opts?: { text?: string },
+    ) {
+      const el = nativeCreateElement.call(foreignDoc, tag);
+      if (opts?.text !== undefined) el.textContent = opts.text;
+      this.appendChild(el);
+      return el;
+    };
+
+    Object.defineProperty(containerEl, "win", {
+      configurable: true,
+      value: foreignWindow,
+    });
+
+    const plugin = createPlugin();
+    renderStorageSettingsTab(containerEl, plugin as never);
+
+    const storageModeSetting = getSettingByName(containerEl, "Storage mode");
+    const descEl = storageModeSetting.querySelector(
+      ".setting-item-description",
+    ) as HTMLElement;
+
+    expect(descEl.textContent).not.toContain("[object DocumentFragment]");
+    expect(descEl.querySelector("strong")?.textContent).toBe("Legacy JSON:");
+    expect(descEl.textContent).toContain("Shard storage v2:");
+  });
+
   it("marks the storage transition modal for mobile safe-area positioning", () => {
     const app = obsidian.App.createMock();
     const modal = new StorageTransitionModal(app, {
@@ -124,6 +245,10 @@ describe("General settings storage section", () => {
       StorageTransitionModal.prototype,
       "waitForClose",
     ).mockResolvedValue("apply");
+    vi.spyOn(RepairPreviewModal.prototype, "open").mockImplementation(() => {});
+    vi.spyOn(RepairPreviewModal.prototype, "waitForClose").mockResolvedValue(
+      "repair",
+    );
 
     renderStorageSettingsTab(containerEl, plugin as never);
 
@@ -142,10 +267,10 @@ describe("General settings storage section", () => {
       (button) => button.textContent === "Repair/rebuild storage",
     ) as HTMLButtonElement;
     const importButton = buttons.find(
-      (button) => button.textContent === "Import shard data",
+      (button) => button.textContent === "Import portable data bundle",
     ) as HTMLButtonElement;
     const exportButton = buttons.find(
-      (button) => button.textContent === "Export shard data",
+      (button) => button.textContent === "Export portable data bundle",
     ) as HTMLButtonElement;
 
     applyButton.click();
@@ -156,8 +281,53 @@ describe("General settings storage section", () => {
     await Promise.resolve();
 
     expect(plugin.migrateToVaultStorage).toHaveBeenCalledTimes(1);
-    expect(plugin.repairVaultStorage).toHaveBeenCalledTimes(1);
+    await vi.waitFor(() =>
+      expect(plugin.repairVaultStorage).toHaveBeenCalledTimes(1),
+    );
     expect(plugin.exportPortableDataBundle).toHaveBeenCalledTimes(1);
+  });
+
+  it("previews repair and leaves storage untouched when the user cancels", async () => {
+    const containerEl = createTestContainer();
+    const plugin = createPlugin();
+    vi.spyOn(RepairPreviewModal.prototype, "open").mockImplementation(() => {});
+    vi.spyOn(RepairPreviewModal.prototype, "waitForClose").mockResolvedValue(
+      "cancel",
+    );
+
+    renderStorageSettingsTab(containerEl, plugin as never);
+    const repairButton = Array.from(containerEl.querySelectorAll("button")).find(
+      (button) => button.textContent === "Repair/rebuild storage",
+    ) as HTMLButtonElement;
+    repairButton.click();
+
+    await vi.waitFor(() =>
+      expect(plugin.previewRepairVaultStorage).toHaveBeenCalledTimes(1),
+    );
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(plugin.repairVaultStorage).not.toHaveBeenCalled();
+  });
+
+  it("warns in the repair preview which feeds would lose articles and which would be skipped", () => {
+    const modal = new RepairPreviewModal(new obsidian.App(), {
+      rewriteCount: 2,
+      skippedFeedTitles: ["Unsynced feed"],
+      shrinkingFeeds: [
+        { title: "Stale feed", onDiskCount: 40, afterRepairCount: 3 },
+      ],
+    });
+
+    modal.onOpen();
+
+    const text = modal.contentEl.textContent ?? "";
+    expect(text).toContain("Nothing has been changed yet");
+    expect(text).toContain("Stale feed: 40 → 3 articles");
+    expect(text).toContain("Unsynced feed");
+    const buttonLabels = Array.from(
+      modal.contentEl.querySelectorAll("button"),
+    ).map((button) => button.textContent);
+    expect(buttonLabels).toEqual(["Cancel", "Repair"]);
   });
 
   it("does not trigger migration when the storage mode dropdown changes", async () => {
@@ -411,5 +581,201 @@ describe("General settings storage section", () => {
       ".rss-dashboard-data/custom-feeds",
     );
     expect(plugin.saveSettings).toHaveBeenCalledTimes(1);
+  });
+
+  describe("changing the storage folder on a device whose feeds have not loaded", () => {
+    async function applyFolderChange(
+      plugin: ReturnType<typeof createPlugin>,
+      nextFolder: string,
+    ): Promise<void> {
+      const containerEl = createTestContainer();
+      renderStorageSettingsTab(containerEl, plugin as never);
+      const input = getSettingByName(containerEl, "Storage folder").querySelector(
+        "input",
+      ) as HTMLInputElement;
+      input.value = nextFolder;
+      input.dispatchEvent(new Event("input"));
+      (
+        Array.from(containerEl.querySelectorAll("button")).find(
+          (button) => button.textContent === "Apply",
+        ) as HTMLButtonElement
+      ).click();
+      await flushAsyncWork();
+    }
+
+    it("keeps the current folder when the user cancels the warning", async () => {
+      const plugin = createPlugin();
+      plugin.settings.storageMode = "vault-shards-v2";
+      plugin.settings.storageFolder = ".rss-dashboard-data/feeds";
+      plugin.getUnloadedShardFeedCount.mockReturnValue(3);
+      const open = vi
+        .spyOn(UnloadedFeedsFolderChangeModal.prototype, "open")
+        .mockImplementation(() => {});
+      vi.spyOn(
+        UnloadedFeedsFolderChangeModal.prototype,
+        "waitForClose",
+      ).mockResolvedValue("cancel");
+
+      await applyFolderChange(plugin, "rss-dashboard-data/feeds");
+
+      expect(open).toHaveBeenCalledTimes(1);
+      expect(plugin.settings.storageFolder).toBe(".rss-dashboard-data/feeds");
+      expect(plugin.saveSettings).not.toHaveBeenCalled();
+    });
+
+    it("changes the folder when the user confirms the warning", async () => {
+      const plugin = createPlugin();
+      plugin.settings.storageMode = "vault-shards-v2";
+      plugin.settings.storageFolder = ".rss-dashboard-data/feeds";
+      plugin.getUnloadedShardFeedCount.mockReturnValue(3);
+      vi.spyOn(UnloadedFeedsFolderChangeModal.prototype, "open").mockImplementation(
+        () => {},
+      );
+      vi.spyOn(
+        UnloadedFeedsFolderChangeModal.prototype,
+        "waitForClose",
+      ).mockResolvedValue("apply");
+
+      await applyFolderChange(plugin, "rss-dashboard-data/feeds");
+
+      expect(plugin.settings.storageFolder).toBe("rss-dashboard-data/feeds");
+      expect(plugin.saveSettings).toHaveBeenCalledTimes(1);
+    });
+
+    it("changes the folder without a warning when every feed has loaded", async () => {
+      const plugin = createPlugin();
+      plugin.settings.storageMode = "vault-shards-v2";
+      const open = vi.spyOn(UnloadedFeedsFolderChangeModal.prototype, "open");
+
+      await applyFolderChange(plugin, "rss-dashboard-data/feeds");
+
+      expect(open).not.toHaveBeenCalled();
+      expect(plugin.settings.storageFolder).toBe("rss-dashboard-data/feeds");
+    });
+
+    it("tells the user how many feeds have not loaded and that the change reaches every synced device", () => {
+      const modal = new UnloadedFeedsFolderChangeModal(new obsidian.App(), {
+        unloadedFeedCount: 59,
+        totalFeedCount: 59,
+      });
+
+      modal.onOpen();
+
+      const text = modal.contentEl.textContent ?? "";
+      expect(text).toContain("59 of 59 feeds");
+      expect(text).toContain("every device");
+      expect(
+        Array.from(modal.contentEl.querySelectorAll("button")).map(
+          (button) => button.textContent,
+        ),
+      ).toEqual(["Cancel", "Change folder anyway"]);
+    });
+  });
+
+  it("renders Feed bundle and Settings bundle import/export actions alongside the portable bundle", () => {
+    const containerEl = createTestContainer();
+    const plugin = createPlugin();
+
+    renderStorageSettingsTab(containerEl, plugin as never);
+
+    const buttons = Array.from(
+      containerEl.querySelectorAll<HTMLButtonElement>("button"),
+    ).map((button) => button.textContent?.trim());
+
+    expect(buttons).toContain("Import feed bundle");
+    expect(buttons).toContain("Export feed bundle");
+    expect(buttons).toContain("Import settings bundle");
+    expect(buttons).toContain("Export settings bundle");
+  });
+
+  it("exports the Feed bundle when Export Feed bundle is clicked", () => {
+    const containerEl = createTestContainer();
+    const plugin = createPlugin();
+
+    renderStorageSettingsTab(containerEl, plugin as never);
+
+    const exportButton = Array.from(
+      containerEl.querySelectorAll<HTMLButtonElement>("button"),
+    ).find(
+      (button) => button.textContent === "Export feed bundle",
+    ) as HTMLButtonElement;
+
+    exportButton.click();
+    expect(plugin.exportFeedBundle).toHaveBeenCalledTimes(1);
+  });
+
+  it("imports the Feed bundle from a chosen file when Import Feed bundle is clicked", async () => {
+    const containerEl = createTestContainer();
+    const plugin = createPlugin();
+
+    renderStorageSettingsTab(containerEl, plugin as never);
+
+    const importButton = Array.from(
+      containerEl.querySelectorAll<HTMLButtonElement>("button"),
+    ).find(
+      (button) => button.textContent === "Import feed bundle",
+    ) as HTMLButtonElement;
+
+    importButton.click();
+
+    const input = document.querySelector(
+      'input[type="file"]',
+    ) as HTMLInputElement;
+    expect(input).toBeTruthy();
+
+    const file = new File(["{}"], "feed-bundle.json", {
+      type: "application/json",
+    });
+    Object.defineProperty(input, "files", { value: [file] });
+    input.dispatchEvent(new Event("change"));
+
+    await flushAsyncWork();
+
+    expect(plugin.importFeedBundleFromFile).toHaveBeenCalledWith(file);
+  });
+
+  it("exports the Settings bundle when Export Settings bundle is clicked", () => {
+    const containerEl = createTestContainer();
+    const plugin = createPlugin();
+
+    renderStorageSettingsTab(containerEl, plugin as never);
+
+    const exportButton = Array.from(
+      containerEl.querySelectorAll<HTMLButtonElement>("button"),
+    ).find(
+      (button) => button.textContent === "Export settings bundle",
+    ) as HTMLButtonElement;
+
+    exportButton.click();
+    expect(plugin.exportSettingsBundle).toHaveBeenCalledTimes(1);
+  });
+
+  it("imports the Settings bundle from a chosen file when Import Settings bundle is clicked", async () => {
+    const containerEl = createTestContainer();
+    const plugin = createPlugin();
+
+    renderStorageSettingsTab(containerEl, plugin as never);
+
+    const importButton = Array.from(
+      containerEl.querySelectorAll<HTMLButtonElement>("button"),
+    ).find(
+      (button) => button.textContent === "Import settings bundle",
+    ) as HTMLButtonElement;
+
+    importButton.click();
+
+    const inputs = document.querySelectorAll('input[type="file"]');
+    const input = inputs[inputs.length - 1] as HTMLInputElement;
+    expect(input).toBeTruthy();
+
+    const file = new File(["{}"], "settings-bundle.json", {
+      type: "application/json",
+    });
+    Object.defineProperty(input, "files", { value: [file] });
+    input.dispatchEvent(new Event("change"));
+
+    await flushAsyncWork();
+
+    expect(plugin.importSettingsBundleFromFile).toHaveBeenCalledWith(file);
   });
 });

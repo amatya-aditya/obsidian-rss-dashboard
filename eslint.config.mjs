@@ -4,6 +4,9 @@ import { defineConfig } from "eslint/config";
 import obsidianmd from "eslint-plugin-obsidianmd";
 import globals from "globals";
 
+const TITLE_TOOLTIP_MESSAGE =
+  "Use setTooltip(el, text) from 'obsidian' instead of a title attribute. Obsidian draws its tooltip from aria-label, so title shows a second, browser-drawn popup.";
+
 export default defineConfig([
   {
     ignores: [
@@ -12,8 +15,8 @@ export default defineConfig([
       "main.js",
       "*.mjs",
       "scripts/**/*.js",
-      "scripts/**/*.mjs",
       ".kilo/**",
+      ".claude/**",
       ".tmp-*",
     ],
   },
@@ -26,13 +29,19 @@ export default defineConfig([
     },
   },
   {
-    files: ["scripts/check-platform-compat.mjs", "scripts/check-css-important.mjs"],
+    // These scripts run only in Node during repository maintenance and are
+    // never bundled into the mobile plugin runtime.
+    files: ["scripts/**/*.mjs"],
     languageOptions: {
       globals: {
         ...globals.node,
         console: "readonly",
         process: "readonly",
       },
+    },
+    rules: {
+      "obsidianmd/no-nodejs-modules": "off",
+      "obsidianmd/rule-custom-message": "off",
     },
   },
   {
@@ -73,6 +82,33 @@ export default defineConfig([
           message:
             "Avoid 'as any' casts. Use a specific type, 'as unknown as T', or '@ts-expect-error' with a comment.",
         },
+        // Tooltips: Obsidian draws its tooltip from aria-label (which is all
+        // setTooltip() sets), so a title attribute adds a second popup.
+        {
+          selector:
+            "CallExpression[callee.property.name=/^(setAttr|setAttribute)$/][arguments.0.value='title']",
+          message: TITLE_TOOLTIP_MESSAGE,
+        },
+        {
+          selector:
+            "Property[key.name='attr'] > ObjectExpression > Property:matches([key.name='title'], [key.value='title'])",
+          message: TITLE_TOOLTIP_MESSAGE,
+        },
+        {
+          selector:
+            "CallExpression[callee.property.name=/^create(El|Div|Span)$/] > ObjectExpression > Property[key.name='title']",
+          message: TITLE_TOOLTIP_MESSAGE,
+        },
+        {
+          selector:
+            "AssignmentExpression[left.property.name='title']:matches([left.object.name=/(El|Button|Btn|Icon|Badge|Chip|Tag|Toggle)$/], [left.object.property.name=/(El|Button|Btn|Icon|Badge|Chip|Tag|Toggle)$/])",
+          message: TITLE_TOOLTIP_MESSAGE,
+        },
+        {
+          selector:
+            "ObjectExpression:has(> Property[key.value='aria-label']):has(> Property[key.name='title'])",
+          message: TITLE_TOOLTIP_MESSAGE,
+        },
       ],
     },
   },
@@ -92,14 +128,13 @@ export default defineConfig([
         "warn",
         {
           acronyms: ["OPML", "XML", "API", "CORS", "URI", "URL", "RSS"],
-          brands: ["Obsidian"],
+          brands: ["Obsidian", "Inoreader", "RSS Dashboard"],
           allowAutoFix: true,
         },
       ],
       // Tests intentionally use jsdom/native DOM, Node fixtures, and same-window
       // assertions. Production code remains covered by these Obsidian rules.
       "obsidianmd/no-nodejs-modules": "off",
-      "obsidianmd/prefer-create-el": "off",
       "obsidianmd/prefer-instanceof": "off",
       "obsidianmd/prefer-window-timers": "off",
       "@typescript-eslint/unbound-method": "off",
@@ -137,7 +172,7 @@ export default defineConfig([
         "error",
         {
           acronyms: ["OPML", "XML", "API", "CORS", "URI", "URL", "RSS", "JSON"],
-          brands: ["Obsidian"],
+          brands: ["Obsidian", "Inoreader"],
           ignoreRegex: [
             "^\\d+(?:\\.\\d+)?x$",
             "^\\d+ (?:day|days|week|weeks|month|months|year|years|item|items|minute|minutes|hour|hours)$",
@@ -164,7 +199,6 @@ export default defineConfig([
       "@typescript-eslint/unbound-method": "warn",
       "@typescript-eslint/no-base-to-string": "warn",
       "@typescript-eslint/no-unused-expressions": "warn",
-      "no-empty": ["warn", { allowEmptyCatch: true }],
       "no-case-declarations": "warn",
       "no-useless-escape": "warn",
       "obsidianmd/settings-tab/no-manual-html-headings": "warn",
@@ -185,8 +219,9 @@ export default defineConfig([
   {
     files: ["src/settings/settings-tab.ts"],
     rules: {
-      // The plugin supports Obsidian 1.1.0. Keep the imperative display()
-      // orchestrator until the minimum app version can require the 1.13 API.
+      // Obsidian 1.8.7 through 1.12.x need this imperative renderer and its
+      // refresh bridge. Keep deprecation checking enabled outside this file.
+      "@typescript-eslint/no-deprecated": "off",
       "obsidianmd/settings-tab/prefer-setting-definitions": "off",
     },
   },

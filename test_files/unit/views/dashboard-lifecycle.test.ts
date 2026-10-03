@@ -8,6 +8,7 @@ import {
   type HighlightWord,
   type RssDashboardSettings,
 } from "../../../src/types/types";
+import { RssDashboardView } from "../../../src/views/dashboard-view";
 
 vi.mock("../../../src/utils/platform-utils", () => ({
   robustFetch: vi.fn(),
@@ -138,8 +139,6 @@ interface DashViewTestAPI {
 async function makeView(
   settings: RssDashboardSettings,
 ): Promise<DashViewTestAPI> {
-  const { RssDashboardView } =
-    await import("../../../src/views/dashboard-view");
   const app = new App();
   const plugin = {
     settings,
@@ -703,15 +702,26 @@ describe("Dashboard lifecycle", () => {
   describe("handleDeleteFolder()", () => {
     it("removes the folder from settings and its feeds", async () => {
       const settings = cloneSettings();
-      settings.feeds = [makeFeed("https://a.com/feed", "Tech")];
+      settings.feeds = [
+        makeFeed("https://a.com/feed", "Tech"),
+        makeFeed("https://a.com/nested-feed", "Tech/Nested"),
+        makeFeed("https://a.com/other-feed", "News"),
+      ];
       settings.folders = [
-        { name: "Tech", subfolders: [], pinned: false },
+        {
+          name: "Tech",
+          subfolders: [{ name: "Nested", subfolders: [], pinned: false }],
+          pinned: false,
+        },
         { name: "News", subfolders: [], pinned: false },
       ];
       const view = await makeView(settings);
       view.handleDeleteFolder("Tech");
       expect(settings.folders.map((f) => f.name)).not.toContain("Tech");
-      expect(settings.feeds.some((f) => f.folder === "Tech")).toBe(false);
+      expect(
+        settings.feeds.some((f) => f.folder === "Tech" || f.folder === "Tech/Nested"),
+      ).toBe(false);
+      expect(settings.feeds.some((f) => f.folder === "News")).toBe(true);
     });
 
     it("clears currentFolder if the deleted folder was active", async () => {

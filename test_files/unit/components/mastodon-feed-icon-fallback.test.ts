@@ -36,7 +36,7 @@ describe("Mastodon Feed Icon — Sidebar", () => {
 
   beforeEach(() => {
     app = ObsidianStubs.App.createMock();
-    container = document.createElement("div");
+    container = createDiv();
     document.body.appendChild(container);
 
     settings = {
@@ -63,6 +63,7 @@ describe("Mastodon Feed Icon — Sidebar", () => {
       selectedTags: [],
       tagsCollapsed: false,
       collapsedFolders: [],
+      selectedFolders: [],
     };
 
     callbacks = {
@@ -178,7 +179,7 @@ describe("Mastodon Feed Icon — ArticleList renderFeedIcon", () => {
 
   beforeEach(() => {
     installObsidianDomPolyfills();
-    container = document.createElement("div");
+    container = createDiv();
     document.body.appendChild(container);
 
     settings = {
@@ -325,7 +326,7 @@ describe("Mastodon Feed Icon — ArticleList renderFeedIcon", () => {
 
     settings.feeds = [mastodonFeed];
 
-    const headerIconContainer = document.createElement("div");
+    const headerIconContainer = createDiv();
     renderHeaderFeedIcon(headerIconContainer, mastodonFeed.url, {
       feeds: settings.feeds,
       display: settings.display,
@@ -351,7 +352,7 @@ describe("Mastodon Feed Icon — ArticleHeader renderHeaderFeedIcon", () => {
 
   beforeEach(() => {
     installObsidianDomPolyfills();
-    container = document.createElement("div");
+    container = createDiv();
     document.body.appendChild(container);
 
     settings = {

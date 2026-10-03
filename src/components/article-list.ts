@@ -1,10 +1,16 @@
-import { Notice, setIcon } from "obsidian";
-import { FeedItem, RssDashboardSettings, Tag } from "../types/types";
+import { Notice, setIcon, setTooltip } from "obsidian";
+import {
+  ArticleGroupByOption,
+  FeedItem,
+  RssDashboardSettings,
+  Tag,
+} from "../types/types";
 import { ArticleHeader } from "./article-header";
 import { ArticleEmptyState } from "./article-empty-state";
 import { setCssProps } from "../utils/platform-utils";
 import type { FilterContext } from "../utils/filter-detection";
 import { HighlightService } from "../services/highlight-service";
+import { getEffectiveDateMs } from "../services/feed-parser/feed-retention";
 import { createTagsDropdownPortal } from "../utils/tags-dropdown-portal";
 import {
   groupArticles as groupArticlesUtil,
@@ -47,7 +53,7 @@ interface ArticleListCallbacks {
   onOpenInBrowser?: (article: FeedItem) => void;
   onToggleSidebar: () => void;
   onSortChange: (value: "newest" | "oldest") => void;
-  onGroupChange: (value: "none" | "feed" | "date" | "folder") => void;
+  onGroupChange: (value: ArticleGroupByOption) => void;
   onFilterChange: (value: {
     type: string;
     value: unknown;
@@ -675,9 +681,17 @@ export class ArticleList {
     article: FeedItem,
     sortOrder: "newest" | "oldest",
   ): number {
-    const newTime = new Date(article.pubDate).getTime();
+    const useFirstSeenDateFallback = this.settings.useFirstSeenDateFallback;
+    const newTime = getEffectiveDateMs(article, useFirstSeenDateFallback);
     for (let i = 0; i < this.articles.length; i++) {
-      const existingTime = new Date(this.articles[i].pubDate).getTime();
+      const existingArticle = this.articles[i];
+      if (!existingArticle) {
+        continue;
+      }
+      const existingTime = getEffectiveDateMs(
+        existingArticle,
+        useFirstSeenDateFallback,
+      );
       if (
         sortOrder === "newest" ? newTime > existingTime : newTime < existingTime
       ) {
@@ -703,7 +717,9 @@ export class ArticleList {
     }
 
     const insertIdx = this.findSortedInsertIndex(article, sortOrder);
-    const temp = activeDocument.createDiv();
+    // Build the row in a detached element: createDiv() on a Document appends to
+    // the document itself, which throws once <html> exists (#409).
+    const temp = listEl.win.createDiv();
 
     if (this.settings.viewStyle === "list") {
       this.renderListView(temp, [article]);
@@ -817,7 +833,7 @@ export class ArticleList {
       (card) => card.dataset.articleGuid === currentGuid,
     );
     if (currentIndex === -1) {
-      return cards[0].dataset.articleGuid ?? null;
+      return cards[0]?.dataset.articleGuid ?? null;
     }
 
     const rowTolerance = 6;
@@ -833,7 +849,10 @@ export class ArticleList {
     const rows: Array<Array<{ guid: string; rect: DOMRect }>> = [];
     positionedCards.forEach((entry) => {
       const existingRow = rows.find(
-        (row) => Math.abs(row[0].rect.top - entry.rect.top) <= rowTolerance,
+        (row) => {
+          const rowTop = row[0]?.rect.top;
+          return rowTop !== undefined && Math.abs(rowTop - entry.rect.top) <= rowTolerance;
+        },
       );
       if (existingRow) {
         existingRow.push(entry);
@@ -842,7 +861,7 @@ export class ArticleList {
       rows.push([entry]);
     });
     rows.forEach((row) => row.sort((a, b) => a.rect.left - b.rect.left));
-    rows.sort((a, b) => a[0].rect.top - b[0].rect.top);
+    rows.sort((a, b) => (a[0]?.rect.top ?? 0) - (b[0]?.rect.top ?? 0));
 
     const currentRowIndex = rows.findIndex((row) =>
       row.some((entry) => entry.guid === currentGuid),
@@ -852,6 +871,9 @@ export class ArticleList {
     }
 
     const currentRow = rows[currentRowIndex];
+    if (!currentRow) {
+      return null;
+    }
     const currentColumnIndex = currentRow.findIndex(
       (entry) => entry.guid === currentGuid,
     );
@@ -861,13 +883,13 @@ export class ArticleList {
 
     if (direction === "left") {
       return currentColumnIndex > 0
-        ? currentRow[currentColumnIndex - 1].guid
+        ? currentRow[currentColumnIndex - 1]?.guid ?? null
         : null;
     }
 
     if (direction === "right") {
       return currentColumnIndex < currentRow.length - 1
-        ? currentRow[currentColumnIndex + 1].guid
+        ? currentRow[currentColumnIndex + 1]?.guid ?? null
         : null;
     }
 
@@ -878,6 +900,9 @@ export class ArticleList {
     }
 
     const targetRow = rows[targetRowIndex];
+    if (!targetRow) {
+      return null;
+    }
     const targetColumnIndex = Math.min(
       currentColumnIndex,
       targetRow.length - 1,
@@ -966,9 +991,12 @@ export class ArticleList {
   }
 
   public updateArticleInPlace(article: FeedItem): void {
-    const index = this.articles.findIndex((a) => a.guid === article.guid);
-    if (index !== -1) {
-      this.articles[index] = article;
+    // Merge into the rendered object rather than replacing it: each card's
+    // action handlers hold that object, and callers such as Mark page as read
+    // pass a fresh copy.
+    const existingArticle = this.articles.find((a) => a.guid === article.guid);
+    if (existingArticle && existingArticle !== article) {
+      Object.assign(existingArticle, article);
     }
 
     const targetId = `article-${article.guid}`;
@@ -1000,10 +1028,7 @@ export class ArticleList {
     if (readToggle) {
       readToggle.classList.toggle("read", !!article.read);
       readToggle.classList.toggle("unread", !article.read);
-      readToggle.setAttr(
-        "title",
-        article.read ? "Mark as unread" : "Mark as read",
-      );
+      setTooltip(readToggle, article.read ? "Mark as unread" : "Mark as read");
       setIcon(readToggle, article.read ? "check-circle" : "circle");
     }
 
@@ -1012,8 +1037,8 @@ export class ArticleList {
     );
     if (saveToggle) {
       saveToggle.classList.toggle("saved", !!article.saved);
-      saveToggle.setAttr(
-        "title",
+      setTooltip(
+        saveToggle,
         article.saved
           ? "Click to open saved article"
           : this.settings.articleSaving.saveFullContent
@@ -1028,8 +1053,8 @@ export class ArticleList {
     if (starToggle) {
       starToggle.classList.toggle("starred", !!article.starred);
       starToggle.classList.toggle("unstarred", !article.starred);
-      starToggle.setAttr(
-        "title",
+      setTooltip(
+        starToggle,
         article.starred ? "Remove from starred items" : "Add to starred items",
       );
       const starIcon = starToggle.querySelector<HTMLElement>(
@@ -1256,7 +1281,10 @@ export class ArticleList {
       return;
     }
 
-    if (this.settings.articleGroupBy === "none") {
+    const feedViewGroupsByFeed =
+      this.settings.viewStyle === "feed" &&
+      this.settings.articleGroupBy === "feed";
+    if (this.settings.articleGroupBy === "none" || feedViewGroupsByFeed) {
       if (this.settings.viewStyle === "list") {
         this.renderListView(articlesList, this.articles);
       } else if (this.settings.viewStyle === "feed") {
@@ -1306,7 +1334,7 @@ export class ArticleList {
           cls: `rss-dashboard-article-group-content ${isInitiallyCollapsed ? "collapsed" : ""}`,
         });
 
-        const groupArticles = groupedArticles[groupName];
+        const groupArticles = groupedArticles[groupName] ?? [];
         if (this.settings.viewStyle === "list") {
           this.renderListView(groupContent, groupArticles);
         } else if (this.settings.viewStyle === "feed") {
@@ -1345,10 +1373,13 @@ export class ArticleList {
 
   private groupArticles(
     articles: FeedItem[],
-    groupBy: "feed" | "date" | "folder" | "none",
+    groupBy: ArticleGroupByOption,
   ): Record<string, FeedItem[]> {
-    return groupArticlesUtil(articles, groupBy, (feedUrl: string) =>
-      this.getFeedFolder(feedUrl),
+    return groupArticlesUtil(
+      articles,
+      groupBy,
+      (feedUrl: string) => this.getFeedFolder(feedUrl),
+      this.settings.useFirstSeenDateFallback,
     );
   }
 
@@ -1405,11 +1436,8 @@ export class ArticleList {
         article.tags = article.tags.filter((t) => t.name !== tag.name);
       }
 
-      const index = this.articles.findIndex((a) => a.guid === article.guid);
-      if (index !== -1) {
-        this.articles[index] = { ...article };
-      }
-
+      // Keep the rendered object in `this.articles`: the card's handlers hold
+      // it, and tag edits resync only the objects listed there.
       this.updateArticleInPlace(article);
 
       this.callbacks.onArticleUpdate(
@@ -1546,7 +1574,7 @@ export class ArticleList {
 
   updateRefreshButtonText(text: string): void {
     if (this.refreshButton) {
-      this.refreshButton.setAttribute("title", text);
+      setTooltip(this.refreshButton, text);
     }
   }
 

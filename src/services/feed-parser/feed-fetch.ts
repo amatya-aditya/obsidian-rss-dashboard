@@ -1,6 +1,9 @@
 import { requestUrl, Platform } from "obsidian";
 import { PREDEFINED_PROXIES } from "../../utils/proxy-utils.js";
 import { robustFetch } from "../../utils/platform-utils.js";
+import { escapeCdata, escapeXml } from "../../utils/xml-escape.js";
+import { hostMatches } from "../../utils/url-host.js";
+import { resolveAbsoluteHttpUrl } from "../../utils/url-utils.js";
 import type { FeedEncoding } from "../../types/types.js";
 import { isValidFeed } from "./feed-validation.js";
 import type {
@@ -42,14 +45,32 @@ function rss2JsonToRss(data: Rss2JsonResponse): string {
   const feed = data.feed;
   const items = data.items || [];
 
-  let rss = `<?xml version="1.0" encoding="UTF-8"?>\n<rss version="2.0">\n<channel>\n    <title>${feed.title || "Unknown feed"}</title>\n    <description>${feed.description || ""}</description>\n    <link>${feed.link || ""}</link>\n    <language>${feed.language || "en"}</language>`;
+  // Every value below originates from a third-party feed relayed by the proxy,
+  // so it is escaped before interpolation. Unescaped markup would otherwise let
+  // a feed publisher close an element early and inject elements of their own.
+  const channelTitle = escapeXml(feed.title || "Unknown feed");
+  const channelLink = escapeXml(feed.link || "");
 
-  if (feed.image) {
-    rss += `\n    <image>\n        <url>${feed.image}</url>\n        <title>${feed.title || "Unknown feed"}</title>\n        <link>${feed.link || ""}</link>\n    </image>`;
+  let rss = `<?xml version="1.0" encoding="UTF-8"?>\n<rss version="2.0">\n<channel>\n    <title>${channelTitle}</title>\n    <description>${escapeXml(feed.description || "")}</description>\n    <link>${channelLink}</link>`;
+
+  if (feed.language) {
+    rss += `\n    <language>${escapeXml(feed.language)}</language>`;
   }
 
-  items.forEach((item: Rss2JsonFeedItem) => {
-    rss += `\n    <item>\n        <title>${item.title || ""}</title>\n        <link>${item.link || ""}</link>\n        <description><![CDATA[${item.description || ""}]]></description>\n        <pubDate>${item.pubDate || new Date().toISOString()}</pubDate>\n        <guid>${item.link || ""}</guid>\n    </item>`;
+  if (feed.image) {
+    rss += `\n    <image>\n        <url>${escapeXml(feed.image)}</url>\n        <title>${channelTitle}</title>\n        <link>${channelLink}</link>\n    </image>`;
+  }
+
+  items.forEach((item: Rss2JsonFeedItem, index: number) => {
+    const itemLink = escapeXml(item.link || "");
+    const itemGuid = escapeXml(item.guid || item.link || `item-${index}`);
+    rss += `\n    <item>\n        <title>${escapeXml(item.title || "")}</title>\n        <link>${itemLink}</link>\n        <description><![CDATA[${escapeCdata(item.description || "")}]]></description>`;
+
+    if (item.pubDate) {
+      rss += `\n        <pubDate>${escapeXml(item.pubDate)}</pubDate>`;
+    }
+
+    rss += `\n        <guid>${itemGuid}</guid>\n    </item>`;
   });
 
   rss += `\n</channel>\n</rss>`;
@@ -117,7 +138,7 @@ async function discoverFeedUrl(
 
     if (!responseText) return null;
 
-    if (baseUrl.includes("feeds.feedburner.com")) {
+    if (hostMatches(baseUrl, "feeds.feedburner.com")) {
       const feedNameMatch = baseUrl.match(/feeds\.feedburner\.com\/([^/?]+)/);
       if (feedNameMatch) {
         const feedName = feedNameMatch[1];
@@ -170,8 +191,9 @@ async function discoverFeedUrl(
     if (feedLinkMatches) {
       for (const match of feedLinkMatches) {
         const hrefMatch = match.match(/href="([^"]+)"/);
-        if (hrefMatch) {
-          let feedUrl = hrefMatch[1];
+        const href = hrefMatch?.[1];
+        if (href) {
+          let feedUrl = href;
 
           if (feedUrl.startsWith("/")) {
             const url = new URL(baseUrl);
@@ -198,8 +220,9 @@ async function discoverFeedUrl(
       if (matches) {
         for (const match of matches) {
           const hrefMatch = match.match(/href="([^"]+)"/);
-          if (hrefMatch) {
-            let feedUrl = hrefMatch[1];
+          const href = hrefMatch?.[1];
+          if (href) {
+            let feedUrl = href;
             if (feedUrl.startsWith("/")) {
               const url = new URL(baseUrl);
               feedUrl = `${url.protocol}//${url.host}${feedUrl}`;
@@ -270,7 +293,7 @@ export async function fetchFeedXml(
   ): Promise<string> {
     if (signal?.aborted) throw new Error("Timed out");
 
-    if (targetUrl.includes("feeds.feedburner.com")) {
+    if (hostMatches(targetUrl, "feeds.feedburner.com")) {
       const httpsUrl = targetUrl.replace(/^http:\/\//i, "https://");
       const feedNameMatch = httpsUrl.match(/feeds\.feedburner\.com\/([^/?]+)/);
       if (feedNameMatch) {
@@ -333,9 +356,11 @@ export async function fetchFeedXml(
           const channelLinkMatch = responseText.match(
             /<channel[^>]*>[\s\S]*?<link[^>]*>([^<]+)<\/link>/i,
           );
-          const candidateUrl =
-            atomLinkMatch?.[1] || channelLinkMatch?.[1] || "";
-          if (candidateUrl && /arxiv\.org\//i.test(candidateUrl)) {
+          const candidateUrl = resolveAbsoluteHttpUrl(
+            atomLinkMatch?.[1] || channelLinkMatch?.[1],
+            targetUrl,
+          );
+          if (candidateUrl && hostMatches(candidateUrl, "arxiv.org")) {
             if (signal?.aborted) throw new Error("Timed out");
             try {
               const arxivText = await robustFetch(candidateUrl, {
@@ -450,7 +475,7 @@ export async function fetchFeedXml(
 
         const discoveredUrl =
           (await discoverFeedUrl(baseUrl, signal, encodingOverride)) ||
-          (baseUrl.includes("arxiv.org")
+          (hostMatches(baseUrl, "arxiv.org")
             ? baseUrl.replace("export.arxiv.org", "rss.arxiv.org")
             : null);
         if (discoveredUrl) {

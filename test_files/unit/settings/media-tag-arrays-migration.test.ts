@@ -17,7 +17,6 @@ describe("migrateMediaDefaultTagArrays", () => {
       defaultVideoTags: ["Video"],
       defaultYouTubeTags: ["YT"],
       // Fields absent from legacy config → initialized to empty arrays
-      defaultTwitterTags: [],
       defaultMastodonTags: [],
       defaultPodcastTags: [],
       defaultRssTags: [],
@@ -38,7 +37,7 @@ describe("migrateMediaDefaultTagArrays", () => {
     expect(media.defaultRssTags).toEqual([]);
   });
 
-  it("sets empty arrays for all seven fields when media is empty", () => {
+  it("sets empty arrays for all supported fields when media is empty", () => {
     const settings: Record<string, unknown> = {
       media: {},
     };
@@ -52,14 +51,12 @@ describe("migrateMediaDefaultTagArrays", () => {
     expect(Array.isArray(media.defaultPodcastTags)).toBe(true);
     expect(Array.isArray(media.defaultRssTags)).toBe(true);
     expect(Array.isArray(media.defaultSmallwebTags)).toBe(true);
-    expect(Array.isArray(media.defaultTwitterTags)).toBe(true);
     expect(Array.isArray(media.defaultMastodonTags)).toBe(true);
     expect(media.defaultVideoTags).toEqual([]);
     expect(media.defaultYouTubeTags).toEqual([]);
     expect(media.defaultPodcastTags).toEqual([]);
     expect(media.defaultRssTags).toEqual([]);
     expect(media.defaultSmallwebTags).toEqual([]);
-    expect(media.defaultTwitterTags).toEqual([]);
     expect(media.defaultMastodonTags).toEqual([]);
   });
 
@@ -72,7 +69,6 @@ describe("migrateMediaDefaultTagArrays", () => {
         defaultPodcastTags: [],
         defaultRssTags: [],
         defaultSmallwebTags: [],
-        defaultTwitterTags: [],
         defaultMastodonTags: [],
       },
     };
@@ -94,7 +90,7 @@ describe("migrateMediaDefaultTagArrays", () => {
     expect(secondChanged).toBe(false);
   });
 
-  it("migrates all seven tag fields independently in one call", () => {
+  it("migrates all supported tag fields independently in one call", () => {
     const settings: Record<string, unknown> = {
       media: {
         defaultVideoTag: "Vid",
@@ -102,7 +98,6 @@ describe("migrateMediaDefaultTagArrays", () => {
         defaultPodcastTag: "Pod",
         defaultRssTag: "RSS",
         defaultSmallwebTag: "SW",
-        defaultTwitterTag: "Tw",
         defaultMastodonTag: "Ma",
       },
     };
@@ -116,7 +111,6 @@ describe("migrateMediaDefaultTagArrays", () => {
     expect(media.defaultPodcastTags).toEqual(["Pod"]);
     expect(media.defaultRssTags).toEqual(["RSS"]);
     expect(media.defaultSmallwebTags).toEqual(["SW"]);
-    expect(media.defaultTwitterTags).toEqual(["Tw"]);
     expect(media.defaultMastodonTags).toEqual(["Ma"]);
   });
 });

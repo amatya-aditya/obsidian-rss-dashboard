@@ -7,7 +7,7 @@
  *   - isHighlightWordDuplicate(words, text, excludeIndex?)  — testable pure helper
  *   - buildDefaultHighlights()                              — testable pure helper
  */
-import { Notice, Setting } from "obsidian";
+import { Notice, Setting, setTooltip } from "obsidian";
 import RssDashboardPlugin from "../../../main";
 import { HighlightWordEditModal, ConfirmDeleteModal } from "../modals/settings-modals";
 
@@ -230,7 +230,9 @@ export function renderHighlightsSettingsTab(
             return;
           }
           const h = ensureHighlights(plugin);
-          h.words[index].text = nextText;
+          const highlightWord = h.words[index];
+          if (!highlightWord) return;
+          highlightWord.text = nextText;
           await plugin.saveSettings();
           onRefresh();
           await rerenderHighlightViews();
@@ -250,7 +252,9 @@ export function renderHighlightsSettingsTab(
             )
             .onChange(async (value) => {
               const h = ensureHighlights(plugin);
-              h.words[index].color = value;
+              const highlightWord = h.words[index];
+              if (!highlightWord) return;
+              highlightWord.color = value;
               await plugin.saveSettings();
               await rerenderHighlightViews();
             }),
@@ -258,7 +262,9 @@ export function renderHighlightsSettingsTab(
         .addToggle((toggle) =>
           toggle.setValue(word.enabled).onChange(async (value) => {
             const h = ensureHighlights(plugin);
-            h.words[index].enabled = value;
+            const highlightWord = h.words[index];
+            if (!highlightWord) return;
+            highlightWord.enabled = value;
             await plugin.saveSettings();
             onRefresh();
             await rerenderHighlightViews();
@@ -270,7 +276,9 @@ export function renderHighlightsSettingsTab(
             .setTooltip("Toggle whole-word matching")
             .onClick(async () => {
               const h = ensureHighlights(plugin);
-              h.words[index].wholeWord = !word.wholeWord;
+              const highlightWord = h.words[index];
+              if (!highlightWord) return;
+              highlightWord.wholeWord = !highlightWord.wholeWord;
               await plugin.saveSettings();
               onRefresh();
               await rerenderHighlightViews();
@@ -283,7 +291,9 @@ export function renderHighlightsSettingsTab(
           if (word.caseSensitive) button.setCta();
           return button.onClick(async () => {
             const h = ensureHighlights(plugin);
-            h.words[index].caseSensitive = !word.caseSensitive;
+            const highlightWord = h.words[index];
+            if (!highlightWord) return;
+            highlightWord.caseSensitive = !highlightWord.caseSensitive;
             await plugin.saveSettings();
             onRefresh();
             await rerenderHighlightViews();
@@ -316,7 +326,7 @@ export function renderHighlightsSettingsTab(
         );
 
       wordSetting.nameEl.addClass("rss-dashboard-highlight-word-name-click");
-      wordSetting.nameEl.setAttr("title", `Edit "${word.text}"`);
+      setTooltip(wordSetting.nameEl, `Edit "${word.text}"`);
       wordSetting.nameEl.addEventListener("click", openEditModal);
     });
   }

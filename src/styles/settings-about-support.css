@@ -29,6 +29,16 @@
   color: var(--text-muted);
 }
 
+.rss-dashboard-about-build {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin-top: 2px;
+  font-size: var(--font-ui-smaller);
+  color: var(--text-faint);
+}
+
 .rss-dashboard-about-section-title {
   margin-top: 24px;
   margin-bottom: 8px;
@@ -48,8 +58,15 @@
 }
 
 .rss-dashboard-about-btn {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-width: 90px;
+  height: auto;
+  box-shadow: none;
+  font-family: inherit;
+  line-height: 1.4;
+  cursor: pointer;
   padding: 8px 16px;
   border-radius: 8px;
   border: 1px solid var(--background-modifier-border);
@@ -63,6 +80,10 @@
     border-color 0.2s ease,
     color 0.2s ease,
     transform 0.12s ease;
+}
+
+.rss-dashboard-about-btn-row.rss-dashboard-about-whats-new-row {
+  margin-top: 24px;
 }
 
 .rss-dashboard-about-btn:hover {

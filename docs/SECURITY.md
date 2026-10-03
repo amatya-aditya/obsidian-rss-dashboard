@@ -65,6 +65,7 @@ RSS Dashboard is an Obsidian plugin that requires access to certain sensitive Ob
 - Importing feeds via clipboard paste
 - Copying article URLs or content snippets for quick sharing
 - Copying selected Reader content with rendered formulas represented as their retained LaTeX source
+- Copying the build details shown in Settings → About (version, commit, build time) for bug reports
 
 **Data Protection**:
 
@@ -127,11 +128,30 @@ RSS feeds are hosted on external servers — the plugin must fetch feed content 
 - Invalid or malformed feeds are handled gracefully
 - Large feeds are truncated to prevent memory issues
 
+**Release Images**: ✅ HTTPS only
+
+- The What's New popup loads its note's images from GitHub (`raw.githubusercontent.com`) over HTTPS when the popup opens
+- The note text itself is bundled with the plugin and needs no network access
+- An image that fails to load is hidden; the note text is unaffected
+
 **No Telemetry**: ✅
 
 - RSS Dashboard does **not** collect usage data
 - No analytics or tracking of user activity
 - No plugin behavior is reported to external services
+
+---
+
+## YouTube Embeds and Terms
+
+RSS Dashboard resolves YouTube feed items to a canonical `videoId`, renders the embedded player through Privacy Enhanced Mode (`https://www.youtube-nocookie.com/embed/...`), and provides a standard **Watch on YouTube** link that opens the original video in your browser or native YouTube app.
+
+The plugin does not add YouTube download features, background audio-only playback, or ad-blocking behavior around the embedded player.
+
+YouTube embeds and API usage are subject to:
+
+- [YouTube API Services Terms of Service](https://developers.google.com/youtube/terms/api-services-terms-of-service)
+- [YouTube Terms of Service](https://www.youtube.com/t/terms)
 
 ---
 

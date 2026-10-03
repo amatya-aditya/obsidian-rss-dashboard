@@ -71,7 +71,7 @@ describe("ReaderView Image Duplication", () => {
     );
 
     // Initialize contentEl since it's used in onOpen
-    getHarness(readerView).contentEl = document.createElement("div");
+    getHarness(readerView).contentEl = createDiv();
   });
 
   afterEach(() => {
@@ -337,7 +337,7 @@ describe("ReaderView – summary de-duplication", () => {
       vi.fn(),
     );
 
-    getHarness(readerView).contentEl = document.createElement("div");
+    getHarness(readerView).contentEl = createDiv();
     // Prevent outbound HTTP — content comes from item fields only
     getHarness(readerView).fetchFullArticleContent = vi
       .fn()
@@ -580,7 +580,7 @@ describe("ReaderView – summary de-duplication", () => {
     expect(body).toBeTruthy();
   });
 
-  it("shows a placeholder in the feed description callout when the description is missing", async () => {
+  it("omits the feed description callout when the description is missing", async () => {
     const item = makeItem({
       description: "",
       content: "<p>Extended body paragraph that should still render in the article body.</p>",
@@ -589,24 +589,16 @@ describe("ReaderView – summary de-duplication", () => {
     await readerView.displayItem(item);
 
     const rc = getHarness(readerView).readingContainer;
-    const callout = rc.querySelector<HTMLElement>(
-      ".rss-reader-description-callout",
-    );
-    const descriptionBody = rc.querySelector<HTMLElement>(
-      ".rss-reader-description-body",
-    );
     const body = rc.querySelector<HTMLElement>(".rss-reader-article-content");
 
-    expect(callout).toBeTruthy();
-    expect(descriptionBody?.textContent || "").toContain(
-      "No feed description available.",
-    );
+    expect(rc.querySelector(".rss-reader-description-callout")).toBeNull();
+    expect(rc.textContent || "").not.toContain("No feed description available.");
     expect(body?.textContent || "").toContain(
       "Extended body paragraph that should still render in the article body.",
     );
   });
 
-  it("shows the placeholder when the feed description is only an ellipsis placeholder", async () => {
+  it("omits the feed description callout when the description is only an ellipsis placeholder", async () => {
     const item = makeItem({
       description: "<p>...</p>",
       content: "<p>Extended body paragraph that should still render in the article body.</p>",
@@ -615,12 +607,11 @@ describe("ReaderView – summary de-duplication", () => {
     await readerView.displayItem(item);
 
     const rc = getHarness(readerView).readingContainer;
-    const descriptionBody = rc.querySelector<HTMLElement>(
-      ".rss-reader-description-body",
-    );
+    const body = rc.querySelector<HTMLElement>(".rss-reader-article-content");
 
-    expect(descriptionBody?.textContent || "").toContain(
-      "No feed description available.",
+    expect(rc.querySelector(".rss-reader-description-callout")).toBeNull();
+    expect(body?.textContent || "").toContain(
+      "Extended body paragraph that should still render in the article body.",
     );
   });
 

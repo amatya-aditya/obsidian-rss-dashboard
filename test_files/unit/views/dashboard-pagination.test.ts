@@ -7,6 +7,7 @@ import {
   type FeedItem,
   type RssDashboardSettings,
 } from "../../../src/types/types";
+import { RssDashboardView } from "../../../src/views/dashboard-view";
 
 let latestArticleListArgs: unknown[] = [];
 let latestArticleListInstance: {
@@ -121,9 +122,6 @@ describe("Dashboard pagination", () => {
   });
 
   it("getFilteredArticles() returns all cached feed items (not maxItems)", async () => {
-    const { RssDashboardView } =
-      await import("../../../src/views/dashboard-view");
-
     const app = new App();
     const settings = cloneSettings();
     settings.maxItems = 25;
@@ -155,9 +153,6 @@ describe("Dashboard pagination", () => {
   }, 10000);
 
   it("handlePageSizeChange() resets active page to 1", async () => {
-    const { RssDashboardView } =
-      await import("../../../src/views/dashboard-view");
-
     const app = new App();
     const settings = cloneSettings();
 
@@ -199,9 +194,6 @@ describe("Dashboard pagination", () => {
   });
 
   it("handlePageSizeChange() applies globally to all dashboard page-size settings", async () => {
-    const { RssDashboardView } =
-      await import("../../../src/views/dashboard-view");
-
     const app = new App();
     const settings = cloneSettings();
     settings.allArticlesPageSize = 10;
@@ -231,9 +223,6 @@ describe("Dashboard pagination", () => {
   });
 
   it("mark-page-read updates current page items in place without full rerender when filters still match", async () => {
-    const { RssDashboardView } =
-      await import("../../../src/views/dashboard-view");
-
     const app = new App();
     const settings = cloneSettings();
     settings.allArticlesPageSize = 10;
@@ -296,9 +285,6 @@ describe("Dashboard pagination", () => {
   });
 
   it("mark-page-read refilters instead of full rerender when unread filtering removes current page items", async () => {
-    const { RssDashboardView } =
-      await import("../../../src/views/dashboard-view");
-
     const app = new App();
     const settings = cloneSettings();
     settings.unreadArticlesPageSize = 10;
@@ -366,9 +352,6 @@ describe("Dashboard pagination", () => {
   });
 
   it("mark-page-read still resolves unread items in filtered single-feed views", async () => {
-    const { RssDashboardView } =
-      await import("../../../src/views/dashboard-view");
-
     const app = new App();
     const settings = cloneSettings();
     settings.allArticlesPageSize = 10;
@@ -431,9 +414,6 @@ describe("Dashboard pagination", () => {
   });
 
   it("mark-page-read uses live page state after header unread refilter", async () => {
-    const { RssDashboardView } =
-      await import("../../../src/views/dashboard-view");
-
     const app = new App();
     const settings = cloneSettings();
     settings.allArticlesPageSize = 10;

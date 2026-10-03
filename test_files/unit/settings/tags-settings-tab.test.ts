@@ -63,7 +63,6 @@ function getTagOption(name: string): HTMLButtonElement {
 
 const autoTagRows = [
   "Tag for video articles",
-  "Default Twitter tag",
   "Default Mastodon tag",
   "Default YouTube tag",
   "Default podcast tag",
@@ -80,7 +79,7 @@ beforeEach(() => {
 describe("renderTagsSettingsTab()", () => {
   it("renders Auto Tagging before the tag list and add-tag section", () => {
     const containerEl = document.body.appendChild(
-      document.createElement("div"),
+      createDiv(),
     );
     const settings = cloneSettings();
     settings.availableTags = [{ name: "Video", color: "#d04747" }];
@@ -99,15 +98,33 @@ describe("renderTagsSettingsTab()", () => {
     ).map((el) => el.textContent?.trim());
 
     expect(names[0]).toBe("Auto tagging");
-    expect(names.slice(1, 8)).toEqual(autoTagRows);
+    expect(names.slice(1, 7)).toEqual(autoTagRows);
     expect(names.indexOf("Add new tag")).toBeGreaterThan(
       names.indexOf("Reset tag names"),
     );
   });
 
+  it("starts the 'Add new tag' color picker at the default tag color", () => {
+    const containerEl = document.body.appendChild(createDiv());
+    const plugin = {
+      app: obsidian.App.createMock(),
+      settings: cloneSettings(),
+      saveSettings: vi.fn(async () => {}),
+      refreshOpenTagColorViews: vi.fn(async () => {}),
+    } as unknown as RssDashboardPlugin;
+
+    renderTagsSettingsTab(containerEl, plugin, vi.fn());
+
+    expect(
+      getSettingByName(containerEl, "Tag color").querySelector<HTMLInputElement>(
+        "input[type='color']",
+      )?.value,
+    ).toBe("#8a5cf5");
+  });
+
   it("renders all auto-tag rows as tag multi-select triggers instead of native selects", () => {
     const containerEl = document.body.appendChild(
-      document.createElement("div"),
+      createDiv(),
     );
     const settings = cloneSettings();
     settings.availableTags = [
@@ -135,7 +152,7 @@ describe("renderTagsSettingsTab()", () => {
 
   it("renders selected summaries for single, multiple, and empty selections", () => {
     const containerEl = document.body.appendChild(
-      document.createElement("div"),
+      createDiv(),
     );
     const settings = cloneSettings();
     settings.availableTags = [
@@ -172,7 +189,7 @@ describe("renderTagsSettingsTab()", () => {
 
   it("toggles auto-tag selections, persists array settings, and updates aria state", async () => {
     const containerEl = document.body.appendChild(
-      document.createElement("div"),
+      createDiv(),
     );
     const settings = cloneSettings();
     settings.availableTags = [
@@ -219,7 +236,7 @@ describe("renderTagsSettingsTab()", () => {
 
   it("shows a disabled empty-state trigger when availableTags is empty", () => {
     const containerEl = document.body.appendChild(
-      document.createElement("div"),
+      createDiv(),
     );
     const settings = cloneSettings();
     settings.availableTags = [];
@@ -247,7 +264,7 @@ describe("renderTagsSettingsTab()", () => {
 
   it("restores default tag arrays on reset and refreshes the tab", async () => {
     const containerEl = document.body.appendChild(
-      document.createElement("div"),
+      createDiv(),
     );
     const settings = cloneSettings();
     settings.availableTags = [{ name: "Custom", color: "#123456" }];
@@ -281,7 +298,7 @@ describe("renderTagsSettingsTab()", () => {
 
   it("persists color changes, updates applied tags, and refreshes open tag views", async () => {
     const containerEl = document.body.appendChild(
-      document.createElement("div"),
+      createDiv(),
     );
     const settings = cloneSettings();
     settings.availableTags = [{ name: "tag1", color: "#000000" }];
@@ -340,7 +357,7 @@ describe("renderTagsSettingsTab()", () => {
 
   it("deletes an existing tag and refreshes", async () => {
     const containerEl = document.body.appendChild(
-      document.createElement("div"),
+      createDiv(),
     );
     const settings = cloneSettings();
     settings.availableTags = [{ name: "tag1", color: "#000000" }];
@@ -368,7 +385,7 @@ describe("renderTagsSettingsTab()", () => {
 
   it("adds a new tag and refreshes", async () => {
     const containerEl = document.body.appendChild(
-      document.createElement("div"),
+      createDiv(),
     );
     const settings = cloneSettings();
     settings.availableTags = [];

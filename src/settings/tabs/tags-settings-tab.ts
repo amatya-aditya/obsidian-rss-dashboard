@@ -9,6 +9,7 @@ import { Notice, Setting } from "obsidian";
 import RssDashboardPlugin from "../../../main";
 import { addTagMultiSelectControl } from "../../components/tag-multi-select-control";
 import { DEFAULT_SETTINGS } from "../../types/types";
+import { DEFAULT_TAG_COLOR } from "../../utils/tag-colors";
 import { updateTagInSettings } from "../../utils/tag-utils";
 
 interface AutoTagSettingConfig {
@@ -36,15 +37,6 @@ export function renderTagsSettingsTab(
       getSelectedTagNames: () => plugin.settings.media.defaultVideoTags ?? [],
       setSelectedTagNames: (selected) => {
         plugin.settings.media.defaultVideoTags = selected;
-      },
-    },
-    {
-      name: "Default Twitter tag",
-      description: "Default tag for Twitter/X/Nitter feeds",
-      menuTitle: "Select default Twitter tags",
-      getSelectedTagNames: () => plugin.settings.media.defaultTwitterTags ?? [],
-      setSelectedTagNames: (selected) => {
-        plugin.settings.media.defaultTwitterTags = selected;
       },
     },
     {
@@ -129,8 +121,6 @@ export function renderTagsSettingsTab(
         plugin.settings.media.defaultRssTags = d.defaultRssTags;
         plugin.settings.media.defaultSmallwebTag = d.defaultSmallwebTag;
         plugin.settings.media.defaultSmallwebTags = d.defaultSmallwebTags;
-        plugin.settings.media.defaultTwitterTag = d.defaultTwitterTag;
-        plugin.settings.media.defaultTwitterTags = d.defaultTwitterTags;
         plugin.settings.media.defaultMastodonTag = d.defaultMastodonTag;
         plugin.settings.media.defaultMastodonTags = d.defaultMastodonTags;
         await plugin.saveSettings();
@@ -148,6 +138,7 @@ export function renderTagsSettingsTab(
 
   for (let i = 0; i < plugin.settings.availableTags.length; i++) {
     const tag = plugin.settings.availableTags[i];
+    if (!tag) continue;
 
     new Setting(tagsContainer)
       .setName(tag.name)
@@ -181,7 +172,7 @@ export function renderTagsSettingsTab(
 
   const tagColorSetting = new Setting(newTagContainer)
     .setName("Tag color")
-    .addColorPicker((colorPicker) => colorPicker.setValue("#3498db"));
+    .addColorPicker((colorPicker) => colorPicker.setValue(DEFAULT_TAG_COLOR));
 
   new Setting(newTagContainer).addButton((button) =>
     button.setButtonText("Add tag").onClick(async () => {

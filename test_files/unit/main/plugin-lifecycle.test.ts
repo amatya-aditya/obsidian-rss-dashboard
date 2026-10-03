@@ -62,9 +62,7 @@ vi.mock("../../../src/utils/settings-migration", () => ({
 import RssDashboardPlugin from "../../../main";
 
 // Use App from obsidian stub (provided via Vitest alias)
-import { App, Platform, type PluginManifest } from "obsidian";
-
-type MockApp = App;
+import { App, Platform, type MockApp, type PluginManifest } from "obsidian";
 
 function flushPromises(): Promise<void> {
   return new Promise((resolve) => {
@@ -89,6 +87,7 @@ function createMockManifest(): PluginManifest {
     id: "rss-dashboard",
     name: "RSS Dashboard",
     version: "1.0.0",
+    minAppVersion: "1.8.7",
     author: "Test",
     description: "Test plugin",
     dir: ".",
@@ -174,11 +173,11 @@ async function createPluginInstance(app: MockApp): Promise<RssDashboardPlugin> {
       ensureFolderExists: (folder, opts) =>
         plugin.ensureFolderExists(folder, opts),
       addStatusBarItem: () => {
-        const el = document.createElement("div") as HTMLDivElement & {
+        const el = createDiv() as HTMLDivElement & {
           createSpan: (opts?: { cls?: string }) => HTMLSpanElement;
         };
         el.createSpan = (opts?: { cls?: string }) => {
-          const span = document.createElement("span");
+          const span = createSpan();
           if (opts?.cls) span.className = opts.cls;
           el.appendChild(span);
           return span;
@@ -359,12 +358,15 @@ describe("loadSettings()", () => {
 
 describe("onload() initialization", () => {
   let plugin: RssDashboardPlugin;
+  let app: MockApp;
   let originalPlatformIsMobile: boolean;
   let originalPlatformIsDesktop: boolean;
 
   beforeEach(async () => {
-    const app = createMockApp();
+    app = createMockApp();
     plugin = await createPluginInstance(app);
+    // Several onload tests mock loadSettings(); onload() still reads settings.
+    plugin.settings = structuredClone(DEFAULT_SETTINGS);
     vi.clearAllMocks();
     mockRefreshAllFeeds.mockClear();
     mockParseFeed.mockClear();
@@ -833,7 +835,7 @@ describe("onload() initialization", () => {
       (plugin as unknown as PluginPrivateAPI).articleSaver.fixSavedFilePaths,
     ).not.toHaveBeenCalled();
 
-    plugin.app.workspace.triggerLayoutReady();
+    app.workspace.triggerLayoutReady();
     await flushPromises();
 
     expect(
@@ -1335,9 +1337,9 @@ describe("addFeed()", () => {
     mockParseFeed.mockClear();
   });
 
-  it("rejects duplicate feed URLs", async () => {
-    // Given: Feed URL that already exists
-    const existingUrl = sampleFeed.url;
+    it("rejects duplicate feed URLs", async () => {
+      // Given: Feed URL that already exists
+      const existingUrl = sampleFeed.url;
 
     // When: addFeed is called with duplicate URL
     const result = await plugin.addFeed(
@@ -1346,11 +1348,69 @@ describe("addFeed()", () => {
       "Uncategorized",
     );
 
-    // Then: Should return false
-    expect(result).toBe(false);
-  });
+      // Then: Should return false
+      expect(result).toBe(false);
+    });
 
-  it("adds feed when URL is unique", async () => {
+    it("refuses a URL that another subscription is still parsing", async () => {
+      const newUrl = "https://example.com/concurrent-feed.xml";
+      let finishFirstParse: (feed: Feed) => void = () => {};
+      mockParseFeed.mockImplementationOnce(
+        () =>
+          new Promise<Feed>((resolve) => {
+            finishFirstParse = resolve;
+          }),
+      );
+      mockParseFeed.mockResolvedValueOnce({
+        ...sampleFeed,
+        title: "New Feed",
+        url: newUrl,
+      });
+
+      const firstAdd = plugin.addFeed(
+        "New Feed",
+        newUrl,
+        "Uncategorized",
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        { showNotice: false },
+      );
+      await vi.waitFor(() => expect(mockParseFeed).toHaveBeenCalledTimes(1));
+
+      const noticeSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
+      const duplicateAdd = await plugin.addFeed(
+        "New Feed",
+        newUrl,
+        "Uncategorized",
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        { showNotice: false, globalOperation: true },
+      );
+
+      finishFirstParse({ ...sampleFeed, title: "New Feed", url: newUrl });
+      expect(duplicateAdd).toBe(false);
+      expect(await firstAdd).toBe(true);
+      expect(mockParseFeed).toHaveBeenCalledTimes(1);
+      expect(
+        plugin.settings.feeds.filter((feed) => feed.url === newUrl),
+      ).toHaveLength(1);
+      expect(noticeSpy).toHaveBeenCalledWith(
+        "[Stub Notice]",
+        "This feed URL already exists",
+      );
+    });
+
+    it("adds feed when URL is unique", async () => {
     // Given: New unique URL
     const newUrl = "https://example.com/new-feed.xml";
 
@@ -1908,14 +1968,14 @@ describe("onunload()", () => {
     vi.restoreAllMocks();
   });
 
-  it("calls async performAutoBackups on onunload", () => {
-    // When: onunload is called
+  it("does not write a backup on unload when the session has no persisted changes", () => {
+    // When: onunload is called before any settings persistence
     plugin.onunload();
 
-    // Then: performAutoBackups should be called
+    // Then: no recovery snapshot is needed
     expect(
       (plugin as unknown as PluginPrivateAPI).backupService.performAutoBackups,
-    ).toHaveBeenCalled();
+    ).not.toHaveBeenCalled();
   });
 
   it("does not throw when autoBackup is disabled", () => {
@@ -2054,11 +2114,11 @@ describe("storage transition orchestration", () => {
     vi.clearAllMocks();
   });
 
-  it("revertToLegacyJsonStorageWithOptions refreshes dashboards before settings redisplay", async () => {
-    const displaySpy = vi.fn();
-    (plugin as unknown as { settingTab: { display: () => void } }).settingTab =
+  it("revertToLegacyJsonStorageWithOptions refreshes dashboards before settings refresh", async () => {
+    const settingsRefreshSpy = vi.fn();
+    (plugin as unknown as { settingTab: { refresh: () => void } }).settingTab =
       {
-        display: displaySpy,
+        refresh: settingsRefreshSpy,
       };
 
     const repoSpy = vi
@@ -2092,17 +2152,17 @@ describe("storage transition orchestration", () => {
     expect(repoSpy).toHaveBeenCalledTimes(1);
     expect(initSpy).toHaveBeenCalledTimes(1);
     expect(refreshSpy).toHaveBeenCalledTimes(1);
-    expect(displaySpy).toHaveBeenCalledTimes(1);
+    expect(settingsRefreshSpy).toHaveBeenCalledTimes(1);
     expect(refreshSpy.mock.invocationCallOrder[0]).toBeLessThan(
-      displaySpy.mock.invocationCallOrder[0],
+      settingsRefreshSpy.mock.invocationCallOrder[0],
     );
   });
 
-  it("migrateToVaultStorage refreshes dashboards before settings redisplay", async () => {
-    const displaySpy = vi.fn();
-    (plugin as unknown as { settingTab: { display: () => void } }).settingTab =
+  it("migrateToVaultStorage refreshes dashboards before settings refresh", async () => {
+    const settingsRefreshSpy = vi.fn();
+    (plugin as unknown as { settingTab: { refresh: () => void } }).settingTab =
       {
-        display: displaySpy,
+        refresh: settingsRefreshSpy,
       };
 
     const repoSpy = vi
@@ -2134,9 +2194,9 @@ describe("storage transition orchestration", () => {
     expect(repoSpy).toHaveBeenCalledTimes(1);
     expect(initSpy).toHaveBeenCalledTimes(1);
     expect(refreshSpy).toHaveBeenCalledTimes(1);
-    expect(displaySpy).toHaveBeenCalledTimes(1);
+    expect(settingsRefreshSpy).toHaveBeenCalledTimes(1);
     expect(refreshSpy.mock.invocationCallOrder[0]).toBeLessThan(
-      displaySpy.mock.invocationCallOrder[0],
+      settingsRefreshSpy.mock.invocationCallOrder[0],
     );
   });
 });
@@ -2183,6 +2243,64 @@ describe("saveSettings()", () => {
         refreshInterval: 120,
       }),
     );
+  });
+
+  it("completes configured backups after persisting settings", async () => {
+    let resolveBackup: (() => void) | undefined;
+    const backupPromise = new Promise<void>((resolve) => {
+      resolveBackup = resolve;
+    });
+    const performAutoBackups = vi.fn().mockReturnValue(backupPromise);
+    (plugin as unknown as PluginPrivateAPI).backupService.performAutoBackups =
+      performAutoBackups;
+
+    let saveCompleted = false;
+    const savePromise = plugin.saveSettings().then(() => {
+      saveCompleted = true;
+    });
+
+    await vi.waitFor(() => {
+      expect(performAutoBackups).toHaveBeenCalledTimes(1);
+    });
+
+    expect(saveCompleted).toBe(false);
+
+    resolveBackup?.();
+    await savePromise;
+
+    expect(saveCompleted).toBe(true);
+  });
+
+  it("keeps persisted settings when a backup fails", async () => {
+    const backupError = new Error("disk full");
+    const performAutoBackups = vi.fn().mockRejectedValue(backupError);
+    (plugin as unknown as PluginPrivateAPI).backupService.performAutoBackups =
+      performAutoBackups;
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await expect(plugin.saveSettings()).resolves.toBeUndefined();
+
+    expect(errorSpy).toHaveBeenCalledWith(
+      "[RSS Dashboard] Backup after save failed:",
+      backupError,
+    );
+  });
+
+  it("writes one recovery snapshot during a session and flushes later changes on unload", async () => {
+    const performAutoBackups = vi.fn().mockResolvedValue(undefined);
+    (plugin as unknown as PluginPrivateAPI).backupService.performAutoBackups =
+      performAutoBackups;
+
+    await plugin.saveSettings();
+    await plugin.saveSettings();
+
+    expect(performAutoBackups).toHaveBeenCalledTimes(1);
+
+    plugin.onunload();
+
+    await vi.waitFor(() => {
+      expect(performAutoBackups).toHaveBeenCalledTimes(2);
+    });
   });
 });
 
@@ -2236,5 +2354,119 @@ describe("applyFeedLimitsToAllFeeds()", () => {
 
     // Then: Notice should be shown
     expect(plugin.settings).toBeDefined();
+  });
+});
+
+// ─── Storage revert routing (regression) ──────────────────────────────────────
+describe("revertToLegacyJsonStorageWithOptions()", () => {
+  let plugin: RssDashboardPlugin;
+
+  beforeEach(async () => {
+    const app = createMockApp();
+    plugin = await createPluginInstance(app);
+    vi.clearAllMocks();
+  });
+
+  it("writes metadata through the configured location, not straight to plugin data", async () => {
+    plugin.settings = {
+      ...DEFAULT_SETTINGS,
+      storageMode: "vault-shards-v2",
+      metadataStorageMode: "vault-location",
+      metadataStorageFolder: ".rss-dashboard-data",
+      feeds: [sampleFeed],
+    } as RssDashboardSettings;
+
+    await plugin.revertToLegacyJsonStorageWithOptions();
+
+    expect(plugin.settings.storageMode).toBe("legacy-json");
+
+    // Reverting must not dump full settings into the plugin-default data.json:
+    // that file is the bootstrap pointer, and overwriting it with settings that
+    // still say "vault-location" makes the next load read a stale vault copy.
+    const saveDataCalls = (plugin.saveData as ReturnType<typeof vi.fn>).mock
+      .calls;
+    expect(saveDataCalls.length).toBeGreaterThan(0);
+    for (const [payload] of saveDataCalls) {
+      expect(payload).not.toHaveProperty("feeds");
+      expect(payload).toHaveProperty("metadataStorageMode");
+    }
+  });
+});
+
+// ─── loadSettings guards (regression) ─────────────────────────────────────────
+describe("loadSettings() vault metadata guard", () => {
+  let plugin: RssDashboardPlugin;
+
+  beforeEach(async () => {
+    const app = createMockApp();
+    plugin = await createPluginInstance(app);
+    vi.clearAllMocks();
+  });
+
+  it("does not overwrite anything when the pointed-to vault metadata is unreadable", async () => {
+    (plugin.loadData as ReturnType<typeof vi.fn>).mockResolvedValue({
+      metadataStorageMode: "vault-location",
+      metadataStorageFolder: ".rss-dashboard-data",
+      metadataStorageSchemaVersion: 2,
+    });
+
+    const adapter = plugin.app.vault.adapter as unknown as {
+      read: (path: string) => Promise<string>;
+    };
+    vi.spyOn(adapter, "read").mockRejectedValue(new Error("ENOENT"));
+
+    await plugin.loadSettings();
+
+    expect(plugin.saveData).not.toHaveBeenCalled();
+  });
+});
+
+// ─── Metadata path reporting ──────────────────────────────────────────────────
+describe("getMetadataFilePath()", () => {
+  let plugin: RssDashboardPlugin;
+
+  beforeEach(async () => {
+    const app = createMockApp();
+    plugin = await createPluginInstance(app);
+    vi.clearAllMocks();
+  });
+
+  it("points at the configured vault folder when metadata lives in the vault", () => {
+    plugin.settings = {
+      ...DEFAULT_SETTINGS,
+      metadataStorageMode: "vault-location",
+      metadataStorageFolder: "rss-dashboard-data",
+    } as RssDashboardSettings;
+
+    expect(plugin.getMetadataFilePath()).toBe("rss-dashboard-data/data.json");
+  });
+
+  it("trims a trailing separator from the configured folder", () => {
+    plugin.settings = {
+      ...DEFAULT_SETTINGS,
+      metadataStorageMode: "vault-location",
+      metadataStorageFolder: "rss-dashboard-data/",
+    } as RssDashboardSettings;
+
+    expect(plugin.getMetadataFilePath()).toBe("rss-dashboard-data/data.json");
+  });
+
+  it("falls back to the default vault folder when none is configured", () => {
+    plugin.settings = {
+      ...DEFAULT_SETTINGS,
+      metadataStorageMode: "vault-location",
+      metadataStorageFolder: "",
+    } as RssDashboardSettings;
+
+    expect(plugin.getMetadataFilePath()).toBe(".rss-dashboard-data/data.json");
+  });
+
+  it("points inside the plugin folder when metadata is plugin-default", () => {
+    plugin.settings = {
+      ...DEFAULT_SETTINGS,
+      metadataStorageMode: "plugin-default",
+    } as RssDashboardSettings;
+
+    expect(plugin.getMetadataFilePath()).toBe("./data.json");
   });
 });

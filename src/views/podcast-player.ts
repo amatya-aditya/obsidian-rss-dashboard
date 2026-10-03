@@ -1,9 +1,13 @@
 import { FeedItem } from "../types/types";
 import { App, setIcon, Menu, Notice } from "obsidian";
-import { PodcastPlaylist } from "../components/podcast-playlist";
+import { PodcastEpisodeList } from "../components/podcast-episode-list";
 import { MediaService } from "../services/media-service";
 import { sanitizeAndAppendHtml } from "../utils/safe-html";
 import { windowInstanceOf } from "../utils/platform-utils";
+import {
+  loadVaultLocalStorage,
+  saveVaultLocalStorage,
+} from "../utils/vault-local-storage";
 
 export class PodcastPlayer {
   private container: HTMLElement;
@@ -23,8 +27,10 @@ export class PodcastPlayer {
   private previousVolume = 1;
   private progressTrackingEnabled: boolean;
   private defaultPlaySpeed: number;
+  private useFirstSeenDateFallback: boolean;
   private isAutoplayEnabled = false;
   private playlistWindowStart: number | undefined;
+  private episodeVisibleCount = 20;
   private onEpisodeSelected?: (
     item: FeedItem,
     source: "playlist" | "nav" | "autoplay" | "external",
@@ -52,10 +58,8 @@ export class PodcastPlayer {
   private sleepTimerEndTime: number | null = null;
   private stopAtEndOfEpisode = false;
   private sleepTimerButton: HTMLElement | null = null;
-  private sleepTimerDisplayEl: HTMLElement | null = null;
+  private sleepTimerIconEl: HTMLElement | null = null;
   private sleepTimerTextEl: HTMLElement | null = null;
-  private sleepTimerRestartBtn: HTMLElement | null = null;
-  private lastSleepTimerDuration: number | "end" | null = null;
 
   constructor(
     container: HTMLElement,
@@ -74,12 +78,14 @@ export class PodcastPlayer {
     ) => void,
     progressTrackingEnabled = true,
     defaultPlaySpeed = 1,
+    useFirstSeenDateFallback = false,
   ) {
     this.container = container;
     this.app = app;
     this.theme = theme || "obsidian";
     this.progressTrackingEnabled = progressTrackingEnabled;
     this.defaultPlaySpeed = defaultPlaySpeed ?? 1;
+    this.useFirstSeenDateFallback = useFirstSeenDateFallback;
     if (playlist) {
       this.playlist = playlist;
       this.originalPlaylist = [...playlist];
@@ -96,6 +102,7 @@ export class PodcastPlayer {
     this.originalPlaylist = [...playlist];
     this.currentPlaylistIndex = 0;
     this.isShuffled = false;
+    this.episodeVisibleCount = 20;
   }
 
   loadEpisode(
@@ -202,7 +209,7 @@ export class PodcastPlayer {
       tagsStrip.createDiv({
         cls: "podcast-tag podcast-tag-more",
         text: `+${remainingCount} more`,
-        attr: { title: overflowTitle, "aria-label": overflowTitle },
+        attr: { "aria-label": overflowTitle },
       });
     }
   }
@@ -296,7 +303,6 @@ export class PodcastPlayer {
     this.shuffleButton = transportSection.createDiv({
       cls: "rss-shuffle-btn clickable-icon",
       attr: {
-        title: "Shuffle",
         role: "button",
         tabindex: "0",
         "aria-label": "Shuffle",
@@ -315,7 +321,6 @@ export class PodcastPlayer {
     const rewindBtn = transportSection.createDiv({
       cls: "rss-rewind clickable-icon",
       attr: {
-        title: "Rewind 30s",
         role: "button",
         tabindex: "0",
         "aria-label": "Rewind 30 seconds",
@@ -348,7 +353,6 @@ export class PodcastPlayer {
     this.playButton = transportSection.createDiv({
       cls: "rss-play-pause clickable-icon",
       attr: {
-        title: "Play/Pause",
         role: "button",
         tabindex: "0",
         "aria-label": "Play/Pause",
@@ -381,7 +385,6 @@ export class PodcastPlayer {
     const forwardBtn = transportSection.createDiv({
       cls: "rss-forward clickable-icon",
       attr: {
-        title: "Forward 30s",
         role: "button",
         tabindex: "0",
         "aria-label": "Forward 30 seconds",
@@ -414,7 +417,6 @@ export class PodcastPlayer {
     this.repeatButton = transportSection.createDiv({
       cls: "rss-repeat-btn clickable-icon",
       attr: {
-        title: "Repeat",
         role: "button",
         tabindex: "0",
         "aria-label": "Repeat",
@@ -458,13 +460,19 @@ export class PodcastPlayer {
     this.sleepTimerButton = toolsSection.createDiv({
       cls: "rss-sleep-timer-btn clickable-icon",
       attr: {
-        title: "Sleep Timer",
         role: "button",
         tabindex: "0",
         "aria-label": "Sleep Timer",
       },
     });
-    setIcon(this.sleepTimerButton, "moon");
+    this.sleepTimerIconEl = this.sleepTimerButton.createSpan({
+      cls: "rss-sleep-timer-icon",
+      attr: { "aria-hidden": "true" },
+    });
+    setIcon(this.sleepTimerIconEl, "moon");
+    this.sleepTimerTextEl = this.sleepTimerButton.createSpan({
+      cls: "rss-sleep-timer-inline-value",
+    });
     this.sleepTimerButton.onclick = (e) => this.showSleepTimerMenu(e);
     this.updateSleepTimerButtonState();
 
@@ -474,7 +482,6 @@ export class PodcastPlayer {
     const volumeBtn = this.volumeContainer.createDiv({
       cls: "rss-volume clickable-icon",
       attr: {
-        title: "Volume",
         role: "button",
         tabindex: "0",
         "aria-label": "Adjust volume",
@@ -564,31 +571,6 @@ export class PodcastPlayer {
 
     updateVolumeIcon();
 
-    // Sleep Timer Display
-    this.sleepTimerDisplayEl = toolsSection.createDiv({
-      cls: "rss-sleep-timer-display",
-    });
-    setIcon(this.sleepTimerDisplayEl.createSpan(), "hourglass");
-    this.sleepTimerTextEl = this.sleepTimerDisplayEl.createSpan({
-      cls: "rss-sleep-timer-text",
-    });
-
-    // Quick Restart Button
-    this.sleepTimerRestartBtn = this.sleepTimerDisplayEl.createDiv({
-      cls: "rss-sleep-timer-restart-btn",
-      attr: { title: "Restart sleep timer" },
-    });
-    setIcon(this.sleepTimerRestartBtn, "rotate-ccw");
-    this.sleepTimerRestartBtn.onclick = (e) => {
-      e.stopPropagation();
-      if (this.lastSleepTimerDuration) {
-        this.setSleepTimer(this.lastSleepTimerDuration);
-        if (this.audioElement && this.audioElement.paused) {
-          void this.audioElement.play();
-        }
-      }
-    };
-
     this.updateSleepTimerDisplay();
 
     // ROW 2: Progress Area
@@ -629,7 +611,9 @@ export class PodcastPlayer {
         if (windowInstanceOf(e, MouseEvent)) {
           clientX = e.clientX;
         } else {
-          clientX = e.touches[0].clientX;
+          const touch = e.touches[0];
+          if (!touch) return 0;
+          clientX = touch.clientX;
         }
         const percent = Math.max(
           0,
@@ -825,80 +809,19 @@ export class PodcastPlayer {
     }
   }
 
-  refreshPlaylistTags(episodeGuid?: string): void {
-    const playlistSection = this.container.querySelector<HTMLElement>(
-      ".podcast-playlist-section",
-    );
-    if (!playlistSection) return;
-
-    const rows = Array.from(
-      playlistSection.querySelectorAll<HTMLElement>(
-        ".playlist-episode-row[data-episode-guid]",
-      ),
-    ).filter((row) => {
-      if (!episodeGuid) return true;
-      return row.getAttribute("data-episode-guid") === episodeGuid;
-    });
-
-    for (const row of rows) {
-      const guid = row.getAttribute("data-episode-guid");
-      if (!guid) continue;
-      const episode = this.playlist.find((ep) => ep.guid === guid);
-      if (!episode) continue;
-
-      const epMeta = row.querySelector<HTMLElement>(".playlist-ep-meta");
-      if (!epMeta) continue;
-
-      const existing = epMeta.querySelector<HTMLElement>(
-        ".playlist-ep-meta-tags",
-      );
-      if (existing) {
-        existing.remove();
-      }
-      this.renderPlaylistTags(epMeta, episode.tags);
-    }
-  }
-
-  private renderPlaylistTags(
-    epMeta: HTMLElement,
-    tags: Array<{ name: string; color?: string }> | undefined,
-  ): void {
-    if (!tags || tags.length === 0) return;
-
-    const tagsWrap = epMeta.createDiv({ cls: "playlist-ep-meta-tags" });
-    const maxVisibleTags = 3;
-    const tagsToShow = tags.slice(0, maxVisibleTags);
-    const remainingCount = tags.length - maxVisibleTags;
-    const remainingTags = remainingCount > 0 ? tags.slice(maxVisibleTags) : [];
-
-    tagsToShow.forEach((tag) => {
-      const tagEl = tagsWrap.createDiv({
-        cls: "playlist-ep-tag",
-        text: tag.name,
-      });
-      if (tag.color) {
-        tagEl.style.backgroundColor = tag.color;
-      }
-    });
-
-    if (remainingCount > 0) {
-      const overflowTitle = remainingTags.map((t) => t.name).join("\n");
-      tagsWrap.createDiv({
-        cls: "playlist-ep-tag playlist-ep-tag-more",
-        text: `+${remainingCount}`,
-        attr: { title: overflowTitle, "aria-label": overflowTitle },
-      });
-    }
+  refreshPlaylistTags(_episodeGuid?: string): void {
+    this.replacePlaylistSection();
   }
 
   private renderPlaylistSection(): void {
-    new PodcastPlaylist(this.container, {
+    new PodcastEpisodeList(this.container, {
       episodes: this.playlist,
       activeEpisodeGuid: this.currentItem?.guid,
       theme: this.theme,
+      useFirstSeenDateFallback: this.useFirstSeenDateFallback,
       isAutoplayEnabled: this.isAutoplayEnabled,
       sortOrder: this.sortOrder,
-      windowStart: this.playlistWindowStart,
+      visibleCount: this.episodeVisibleCount,
       progressData: this.progressData,
       onEpisodeSelected: (episode) => {
         this.loadEpisode(episode, undefined, {
@@ -911,15 +834,15 @@ export class PodcastPlayer {
         new Notice(enabled ? "Autoplay enabled" : "Autoplay disabled");
       },
       onSortRequested: (order) => this.sortPlaylist(order),
-      onWindowChanged: (start) => {
-        this.playlistWindowStart = start;
+      onVisibleCountChanged: (count) => {
+        this.episodeVisibleCount = count;
       },
     }).render();
   }
 
   private replacePlaylistSection(): void {
     this.container
-      .querySelectorAll(".podcast-playlist-section, .playlist-empty")
+      .querySelectorAll(".podcast-episode-list-section, .episode-list-empty")
       .forEach((el) => el.remove());
 
     this.renderPlaylistSection();
@@ -998,7 +921,9 @@ export class PodcastPlayer {
     this.currentPlaylistIndex =
       (this.currentPlaylistIndex + 1) % this.playlist.length;
     const nextEpisode = this.playlist[this.currentPlaylistIndex];
-    this.loadEpisode(nextEpisode, undefined, { notify: true, source: "nav" });
+    if (nextEpisode) {
+      this.loadEpisode(nextEpisode, undefined, { notify: true, source: "nav" });
+    }
   }
 
   private playPrevious(): void {
@@ -1009,7 +934,9 @@ export class PodcastPlayer {
         ? this.playlist.length - 1
         : this.currentPlaylistIndex - 1;
     const prevEpisode = this.playlist[this.currentPlaylistIndex];
-    this.loadEpisode(prevEpisode, undefined, { notify: true, source: "nav" });
+    if (prevEpisode) {
+      this.loadEpisode(prevEpisode, undefined, { notify: true, source: "nav" });
+    }
   }
 
   private handleEpisodeEnd(): void {
@@ -1030,11 +957,13 @@ export class PodcastPlayer {
         this.currentPlaylistIndex =
           (this.currentPlaylistIndex + 1) % this.playlist.length;
         const nextEpisode = this.playlist[this.currentPlaylistIndex];
-        this.loadEpisode(nextEpisode, undefined, {
-          notify: true,
-          source: "autoplay",
-          autoplay: true,
-        });
+        if (nextEpisode) {
+          this.loadEpisode(nextEpisode, undefined, {
+            notify: true,
+            source: "autoplay",
+            autoplay: true,
+          });
+        }
       }
     }
 
@@ -1085,7 +1014,6 @@ export class PodcastPlayer {
   }
 
   private setSleepTimer(minutes: number | "end"): void {
-    this.lastSleepTimerDuration = minutes;
     this.clearSleepTimer();
 
     if (minutes === "end") {
@@ -1098,12 +1026,7 @@ export class PodcastPlayer {
         const remaining = (this.sleepTimerEndTime || 0) - Date.now();
         if (remaining <= 0) {
           this.audioElement?.pause();
-          if (this.sleepTimerId) {
-            window.clearInterval(this.sleepTimerId);
-            this.sleepTimerId = null;
-          }
-          this.updateSleepTimerDisplay();
-          this.updateSleepTimerButtonState();
+          this.clearSleepTimer();
         } else {
           this.updateSleepTimerDisplay();
         }
@@ -1121,56 +1044,35 @@ export class PodcastPlayer {
     }
     this.sleepTimerEndTime = null;
     this.stopAtEndOfEpisode = false;
-    if (this.sleepTimerDisplayEl) {
-      this.sleepTimerDisplayEl.removeClass("is-expired");
-    }
     this.updateSleepTimerButtonState();
     this.updateSleepTimerDisplay();
   }
 
   private updateSleepTimerButtonState(): void {
     if (this.sleepTimerButton) {
-      this.sleepTimerButton.classList.toggle(
-        "is-active",
-        !!this.sleepTimerEndTime || this.stopAtEndOfEpisode,
-      );
+      const isActive = !!this.sleepTimerEndTime || this.stopAtEndOfEpisode;
+      this.sleepTimerButton.classList.toggle("is-active", isActive);
+      this.sleepTimerButton.classList.toggle("has-countdown", isActive);
     }
   }
 
   private updateSleepTimerDisplay(): void {
-    if (
-      !this.sleepTimerDisplayEl ||
-      !this.sleepTimerTextEl ||
-      !this.sleepTimerRestartBtn
-    )
-      return;
+    if (!this.sleepTimerButton || !this.sleepTimerTextEl) return;
 
     if (this.stopAtEndOfEpisode) {
       this.sleepTimerTextEl.textContent = "End of ep";
-      this.sleepTimerDisplayEl.addClass("is-visible");
-      this.sleepTimerDisplayEl.removeClass("is-expired");
-      this.sleepTimerRestartBtn.addClass("hidden");
+      this.sleepTimerButton.setAttribute("aria-label", "Sleep timer: end of episode");
     } else if (this.sleepTimerEndTime) {
       const remainingSecs = Math.max(
         0,
         Math.floor((this.sleepTimerEndTime - Date.now()) / 1000),
       );
-      if (remainingSecs === 0) {
-        this.sleepTimerTextEl.textContent = "Times up!";
-        this.sleepTimerDisplayEl.addClass("is-expired");
-        this.sleepTimerDisplayEl.addClass("is-visible");
-        this.sleepTimerRestartBtn.removeClass("hidden");
-      } else {
-        this.sleepTimerTextEl.textContent = this.formatTime(remainingSecs);
-        this.sleepTimerDisplayEl.addClass("is-visible");
-        this.sleepTimerDisplayEl.removeClass("is-expired");
-        this.sleepTimerRestartBtn.addClass("hidden");
-      }
+      const remaining = this.formatTime(remainingSecs);
+      this.sleepTimerTextEl.textContent = remaining;
+      this.sleepTimerButton.setAttribute("aria-label", `Sleep timer: ${remaining}`);
     } else {
-      if (!this.sleepTimerDisplayEl.hasClass("is-expired")) {
-        this.sleepTimerDisplayEl.removeClass("is-visible");
-        this.sleepTimerRestartBtn.addClass("hidden");
-      }
+      this.sleepTimerTextEl.empty();
+      this.sleepTimerButton.setAttribute("aria-label", "Sleep timer");
     }
   }
 
@@ -1194,8 +1096,9 @@ export class PodcastPlayer {
     let nextIndex = speeds.findIndex((speed) => speed === currentSpeed) + 1;
     if (nextIndex >= speeds.length) nextIndex = 0;
 
-    this.audioElement.playbackRate = speeds[nextIndex];
-    this.speedButtonEl.textContent = `${speeds[nextIndex].toFixed(2)}x`;
+    const nextSpeed = speeds[nextIndex] ?? 1;
+    this.audioElement.playbackRate = nextSpeed;
+    this.speedButtonEl.textContent = `${nextSpeed.toFixed(2)}x`;
   }
 
   private startProgressTracking(): void {
@@ -1303,7 +1206,7 @@ export class PodcastPlayer {
       this.progressData.forEach((value, key) => {
         data[key] = value;
       });
-      this.app.saveLocalStorage("rss-podcast-progress", data);
+      saveVaultLocalStorage(this.app, "rss-podcast-progress", data);
     } catch (error) {
       console.error("Failed to save podcast progress:", error);
     }
@@ -1316,7 +1219,7 @@ export class PodcastPlayer {
     }
 
     try {
-      const data: unknown = this.app.loadLocalStorage("rss-podcast-progress");
+      const data = loadVaultLocalStorage(this.app, "rss-podcast-progress");
       if (data && typeof data === "object") {
         const parsed = data as Record<
           string,

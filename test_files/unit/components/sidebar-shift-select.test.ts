@@ -18,7 +18,7 @@ installObsidianDomPolyfills();
 
 function createMockEnv() {
   const app = ObsidianStubs.App.createMock() as unknown as App;
-  const container = document.createElement("div");
+  const container = createDiv();
   const settings = {
     feeds: [],
     folders: [],

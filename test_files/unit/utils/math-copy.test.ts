@@ -7,17 +7,20 @@ import {
   updateReaderMathSelectionHighlight,
 } from "../../../src/utils/math-copy";
 
+// MathJax renders into a custom element that the DOM tag map does not list.
+const MATHJAX_TAG = "mjx-container" as keyof HTMLElementTagNameMap;
+
 describe("Reader math copy", () => {
   afterEach(() => {
     document.body.empty();
   });
 
   it("copies the complete raw source when a selection starts inside rendered math", () => {
-    const reader = document.createElement("div");
-    const formula = document.createElement("span");
+    const reader = createDiv();
+    const formula = createSpan();
     formula.className = "math math-inline";
     formula.setAttribute("data-math", String.raw`$x_1$`);
-    const mathJax = document.createElement("mjx-container");
+    const mathJax = createEl(MATHJAX_TAG);
     mathJax.textContent = "12";
     formula.appendChild(mathJax);
     reader.append("Before ", formula, " after.");
@@ -34,22 +37,22 @@ describe("Reader math copy", () => {
   });
 
   it("keeps selected prose structured while substituting inline and display formulas", () => {
-    const reader = document.createElement("div");
-    const firstParagraph = document.createElement("p");
-    const inlineFormula = document.createElement("span");
+    const reader = createDiv();
+    const firstParagraph = createEl("p");
+    const inlineFormula = createSpan();
     inlineFormula.className = "math math-inline";
     inlineFormula.setAttribute("data-math", "$x$");
-    inlineFormula.appendChild(document.createElement("mjx-container"));
-    const emphasis = document.createElement("em");
+    inlineFormula.appendChild(createEl(MATHJAX_TAG));
+    const emphasis = createEl("em");
     emphasis.textContent = "After";
     firstParagraph.append("Before ", inlineFormula, " ", emphasis, ".");
-    const displayParagraph = document.createElement("p");
-    const displayFormula = document.createElement("span");
+    const displayParagraph = createEl("p");
+    const displayFormula = createSpan();
     displayFormula.className = "math math-block";
     displayFormula.setAttribute("data-math", String.raw`\[y < z\]`);
-    displayFormula.appendChild(document.createElement("mjx-container"));
+    displayFormula.appendChild(createEl(MATHJAX_TAG));
     displayParagraph.appendChild(displayFormula);
-    const lastParagraph = document.createElement("p");
+    const lastParagraph = createEl("p");
     lastParagraph.textContent = "Next.";
     reader.append(firstParagraph, displayParagraph, lastParagraph);
     document.body.appendChild(reader);
@@ -66,12 +69,12 @@ Next.`,
   });
 
   it("writes formula-aware plain and rich text during native copy", () => {
-    const reader = document.createElement("div");
-    const paragraph = document.createElement("p");
-    const formula = document.createElement("span");
+    const reader = createDiv();
+    const paragraph = createEl("p");
+    const formula = createSpan();
     formula.className = "math math-inline";
     formula.setAttribute("data-math", "$x$");
-    formula.appendChild(document.createElement("mjx-container"));
+    formula.appendChild(createEl(MATHJAX_TAG));
     paragraph.append("Copy ", formula, ".");
     reader.appendChild(paragraph);
     document.body.appendChild(reader);
@@ -101,14 +104,14 @@ Next.`,
   });
 
   it("keeps multiple selected ranges distinct after substituting formulas", () => {
-    const reader = document.createElement("div");
-    const formula = document.createElement("span");
+    const reader = createDiv();
+    const formula = createSpan();
     formula.className = "math math-inline";
     formula.setAttribute("data-math", String.raw`\(x\)`);
-    formula.appendChild(document.createElement("mjx-container"));
-    const first = document.createElement("p");
+    formula.appendChild(createEl(MATHJAX_TAG));
+    const first = createEl("p");
     first.append("First ", formula, ".");
-    const second = document.createElement("p");
+    const second = createEl("p");
     second.textContent = "Second.";
     reader.append(first, second);
     document.body.appendChild(reader);
@@ -126,11 +129,11 @@ Second.`,
   });
 
   it("does not prevent native copy when a clipboard format cannot be written", () => {
-    const reader = document.createElement("div");
-    const formula = document.createElement("span");
+    const reader = createDiv();
+    const formula = createSpan();
     formula.className = "math math-inline";
     formula.setAttribute("data-math", "$x$");
-    formula.appendChild(document.createElement("mjx-container"));
+    formula.appendChild(createEl(MATHJAX_TAG));
     reader.appendChild(formula);
     document.body.appendChild(reader);
 
@@ -156,16 +159,16 @@ Second.`,
   });
 
   it("visually marks every formula intersected by the Reader selection", () => {
-    const reader = document.createElement("div");
-    const firstFormula = document.createElement("span");
+    const reader = createDiv();
+    const firstFormula = createSpan();
     firstFormula.className = "math math-inline";
     firstFormula.setAttribute("data-math", "$x$");
-    firstFormula.appendChild(document.createElement("mjx-container"));
-    const secondFormula = document.createElement("span");
+    firstFormula.appendChild(createEl(MATHJAX_TAG));
+    const secondFormula = createSpan();
     secondFormula.className = "math math-inline";
     secondFormula.setAttribute("data-math", "$y$");
-    secondFormula.appendChild(document.createElement("mjx-container"));
-    const paragraph = document.createElement("p");
+    secondFormula.appendChild(createEl(MATHJAX_TAG));
+    const paragraph = createEl("p");
     paragraph.append("Before ", firstFormula, " between ", secondFormula, " after.");
     reader.appendChild(paragraph);
     document.body.appendChild(reader);
@@ -181,13 +184,13 @@ Second.`,
   });
 
   it("updates formula highlighting live and clears it when tracking stops", () => {
-    const eventRoot = document.createElement("div");
-    const reader = document.createElement("div");
-    const formula = document.createElement("span");
+    const eventRoot = createDiv();
+    const reader = createDiv();
+    const formula = createSpan();
     formula.className = "math math-inline";
     formula.setAttribute("data-math", "$x$");
-    formula.appendChild(document.createElement("mjx-container"));
-    const paragraph = document.createElement("p");
+    formula.appendChild(createEl(MATHJAX_TAG));
+    const paragraph = createEl("p");
     paragraph.append("Before ", formula, " after.");
     reader.appendChild(paragraph);
     eventRoot.appendChild(reader);

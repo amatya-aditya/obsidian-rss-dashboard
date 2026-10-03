@@ -1,0 +1,133 @@
+{
+  "direction": "ltr",
+  "id": "user/-/state/com.google/starred",
+  "title": "Read later",
+  "description": "",
+  "self": {
+    "href": "https://example.com/reader/api/0/stream/contents/user/-/state/com.google/starred?output=json&n=1000"
+  },
+  "updated": 1700000000,
+  "updatedUsec": "1700000000000000",
+  "items": [
+    {
+      "crawlTimeMsec": "1700000001000",
+      "timestampUsec": "1700000001000000",
+      "id": "tag:google.com,2005:reader/item/0000000000000001",
+      "categories": [
+        "user/1000000001/state/com.google/reading-list",
+        "user/1000000001/state/com.google/read",
+        "user/1000000001/state/com.google/starred"
+      ],
+      "title": "Existing Feed Article One",
+      "published": 1699999000,
+      "updated": 0,
+      "starred": 1700000001,
+      "canonical": [
+        {
+          "href": "https://example-feed.test/articles/one"
+        }
+      ],
+      "alternate": [
+        {
+          "href": "https://example-feed.test/articles/one",
+          "type": "text/html"
+        }
+      ],
+      "summary": {
+        "direction": "ltr",
+        "content": "<p>Placeholder summary content for article one.</p>"
+      },
+      "author": "",
+      "likingUsers": [],
+      "comments": [],
+      "commentsNum": -1,
+      "annotations": [],
+      "origin": {
+        "streamId": "feed/https://example-feed.test/rss",
+        "title": "Example Feed",
+        "htmlUrl": "https://example-feed.test/"
+      },
+      "summaries": []
+    },
+    {
+      "crawlTimeMsec": "1700000002000",
+      "timestampUsec": "1700000002000000",
+      "id": "tag:google.com,2005:reader/item/0000000000000002",
+      "categories": [
+        "user/1000000001/state/com.google/reading-list",
+        "user/1000000001/state/com.google/starred",
+        "user/1000000001/label/Design",
+        "user/1000000001/label/art"
+      ],
+      "title": "Existing Feed Article Two With Labels",
+      "published": 1699998000,
+      "updated": 1699999500,
+      "starred": 1700000002,
+      "canonical": [
+        {
+          "href": "https://example.com/blog/article-two"
+        }
+      ],
+      "alternate": [
+        {
+          "href": "https://example.com/blog/article-two",
+          "type": "text/html"
+        }
+      ],
+      "summary": {
+        "direction": "ltr",
+        "content": "<p>Placeholder summary content for article two.</p>"
+      },
+      "author": "Jane Example",
+      "likingUsers": [],
+      "comments": [],
+      "commentsNum": -1,
+      "annotations": [],
+      "origin": {
+        "streamId": "feed/https://example.com/blog/feed.xml",
+        "title": "Example Blog",
+        "htmlUrl": "https://example.com/blog/"
+      },
+      "summaries": []
+    },
+    {
+      "crawlTimeMsec": "1700000003000",
+      "timestampUsec": "1700000003000000",
+      "id": "tag:google.com,2005:reader/item/0000000000000003",
+      "categories": [
+        "user/1000000001/state/com.google/reading-list",
+        "user/1000000001/state/com.google/starred"
+      ],
+      "title": "Unsubscribed Source Article",
+      "published": 1699997000,
+      "updated": 0,
+      "starred": 1700000003,
+      "canonical": [
+        {
+          "href": "https://not-subscribed.example.test/articles/three"
+        }
+      ],
+      "alternate": [
+        {
+          "href": "https://not-subscribed.example.test/articles/three",
+          "type": "text/html"
+        }
+      ],
+      "summary": {
+        "direction": "ltr",
+        "content": "<p>Placeholder summary content for article three.</p>"
+      },
+      "author": "",
+      "likingUsers": [],
+      "comments": [],
+      "commentsNum": -1,
+      "annotations": [],
+      "origin": {
+        "streamId": "feed/https://not-subscribed.example.test/feed",
+        "title": "Not Subscribed Source",
+        "htmlUrl": "https://not-subscribed.example.test/"
+      },
+      "summaries": []
+    }
+  ]
+}

@@ -1,7 +1,5 @@
 # Compliance Patterns and Audit Guardrails
 
-Last updated: 2026-08-10
-
 This document defines approved patterns for audit-sensitive changes. Use it with `CONTRIBUTING.md` and `docs/plugin-scorecard.md`.
 
 ## Scope

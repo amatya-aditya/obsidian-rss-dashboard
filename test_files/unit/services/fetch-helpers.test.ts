@@ -13,6 +13,7 @@ import {
   afterEach,
   type MockInstance,
 } from "vitest";
+import { setRequestUrlHandler, type RequestUrlParam } from "obsidian";
 import * as platformUtils from "../../../src/utils/platform-utils";
 import { robustFetchDetailed } from "../../../src/utils/platform-utils";
 import {
@@ -322,13 +323,15 @@ describe("fetchWithProxyFallbackDetailed", () => {
   });
 
   it("classifies thrown 401 errors as restricted", async () => {
-    robustFetchMock.mockRejectedValueOnce(new Error("request failed 401"));
+    robustFetchMock.mockRejectedValueOnce(new Error("request failed 401")); // direct
+    robustFetchMock.mockRejectedValueOnce(new Error("request failed 401")); // proxy
 
     const result = await fetchWithProxyFallbackDetailed(
       "https://example.com/restricted",
       "https://proxy.example.com/?url=",
     );
 
+    expect(robustFetchMock).toHaveBeenCalledTimes(2);
     expect(result).toEqual({ content: "", failureType: "restricted" });
   });
 
@@ -353,5 +356,88 @@ describe("fetchWithProxyFallbackDetailed", () => {
     );
 
     expect(result).toEqual({ content: "", failureType: "restricted" });
+  });
+});
+
+// These go through the Obsidian stub's requestUrl, which throws on status 400
+// and above as Obsidian 1.13.7 does, instead of faking robustFetchDetailed.
+describe("fetchWithProxyFallbackDetailed with Obsidian requestUrl errors", () => {
+  const ARTICLE_URL = "https://example.com/blocked-article";
+  const PROXY_BASE = "https://proxy.example.com/?url=";
+  let requestedUrls: string[];
+
+  function serve(statusFor: (url: string) => number): void {
+    setRequestUrlHandler((param: RequestUrlParam) => {
+      requestedUrls.push(param.url);
+      const status = statusFor(param.url);
+      return {
+        status,
+        headers: { "content-type": "text/html; charset=utf-8" },
+        text: status < 400 ? ARTICLE_HTML : "",
+      };
+    });
+  }
+
+  beforeEach(() => {
+    requestedUrls = [];
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.spyOn(console, "error").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    setRequestUrlHandler(null);
+    vi.restoreAllMocks();
+  });
+
+  it.each([401, 403])(
+    "retries through the proxy when the direct fetch throws %i",
+    async (status) => {
+      serve((url) => (url.startsWith(PROXY_BASE) ? 200 : status));
+
+      const result = await fetchWithProxyFallbackDetailed(
+        ARTICLE_URL,
+        PROXY_BASE,
+      );
+
+      expect(requestedUrls).toEqual([
+        ARTICLE_URL,
+        PROXY_BASE + encodeURIComponent(ARTICLE_URL),
+      ]);
+      expect(result.failureType).toBe("none");
+      expect(result.content).toContain("Test Headline");
+    },
+  );
+
+  it("reports restricted when the proxy also throws 403", async () => {
+    serve(() => 403);
+
+    const result = await fetchWithProxyFallbackDetailed(
+      ARTICLE_URL,
+      PROXY_BASE,
+    );
+
+    expect(requestedUrls).toHaveLength(2);
+    expect(result).toEqual({ content: "", failureType: "restricted" });
+  });
+
+  it("reports restricted without a proxy when the direct fetch throws 403", async () => {
+    serve(() => 403);
+
+    const result = await fetchWithProxyFallbackDetailed(ARTICLE_URL);
+
+    expect(requestedUrls).toEqual([ARTICLE_URL]);
+    expect(result).toEqual({ content: "", failureType: "restricted" });
+  });
+
+  it("does not retry through the proxy when the direct fetch throws 404", async () => {
+    serve(() => 404);
+
+    const result = await fetchWithProxyFallbackDetailed(
+      ARTICLE_URL,
+      PROXY_BASE,
+    );
+
+    expect(requestedUrls).toEqual([ARTICLE_URL]);
+    expect(result).toEqual({ content: "", failureType: "network" });
   });
 });

@@ -200,7 +200,7 @@ describe("Phase 7 - ArticleList characterization", () => {
     const title = h
       .getArticleEl("math")
       ?.querySelector<HTMLElement>(".rss-dashboard-article-title");
-    title?.replaceChildren(title.ownerDocument.createElement("mjx-container"));
+    title?.replaceChildren(title.ownerDocument.win.createEl("mjx-container"));
 
     (h.list as unknown as TestableArticleList).filterArticlesBySearch("gl");
 
@@ -335,6 +335,61 @@ describe("Phase 7 - ArticleList characterization", () => {
     }
 
     newest.cleanup();
+    oldest.cleanup();
+  });
+
+  it("inserts an undated item last under newest sort, and first under oldest sort, when useFirstSeenDateFallback is off", () => {
+    vi.useFakeTimers();
+
+    const dated = buildArticle({
+      guid: "dated",
+      title: "Dated",
+      pubDate: new Date("2024-01-01T00:00:00Z").toISOString(),
+    });
+    const undated = { ...buildArticle({ guid: "undated", title: "Undated" }), pubDate: "" };
+
+    const newest = createArticleListHarness({
+      settings: {
+        viewStyle: "list",
+        articleGroupBy: "none",
+        articleSort: "newest",
+      },
+      articles: [dated],
+      pageSize: 50,
+      totalArticles: 1,
+    });
+    newest.list.render();
+    expect(newest.list.insertArticleInPlace(undated, "newest")).toBe(true);
+    vi.runOnlyPendingTimers();
+    expect(
+      Array.from(
+        newest.container.querySelectorAll<HTMLElement>(
+          ".rss-dashboard-article-item",
+        ),
+      ).map((el) => el.id),
+    ).toEqual(["article-dated", "article-undated"]);
+    newest.cleanup();
+
+    const oldest = createArticleListHarness({
+      settings: {
+        viewStyle: "list",
+        articleGroupBy: "none",
+        articleSort: "oldest",
+      },
+      articles: [dated],
+      pageSize: 50,
+      totalArticles: 1,
+    });
+    oldest.list.render();
+    expect(oldest.list.insertArticleInPlace(undated, "oldest")).toBe(true);
+    vi.runOnlyPendingTimers();
+    expect(
+      Array.from(
+        oldest.container.querySelectorAll<HTMLElement>(
+          ".rss-dashboard-article-item",
+        ),
+      ).map((el) => el.id),
+    ).toEqual(["article-undated", "article-dated"]);
     oldest.cleanup();
   });
 

@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { App } from "obsidian";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
-import { DEFAULT_SETTINGS, type Feed, type RssDashboardSettings } from "../../../src/types/types";
+import { DEFAULT_SETTINGS, type Feed, type FeedItem, type RssDashboardSettings } from "../../../src/types/types";
+import { RssDashboardView } from "../../../src/views/dashboard-view";
 
 // Keep platform-utils mocked so other tests that expect robustFetch to be a vi.fn
 // (e.g. fetch-helpers.test.ts) don't end up importing the real module first.
@@ -70,6 +71,20 @@ function createMockFeed(url: string): Feed {
   };
 }
 
+function createMockItem(guid: string, title: string, read: boolean): FeedItem {
+  return {
+    guid,
+    title,
+    read,
+    link: `https://example.com/${guid}`,
+    description: "",
+    pubDate: "",
+    feedTitle: "Feed",
+    feedUrl: "https://example.com/feed",
+    coverImage: "",
+  };
+}
+
 describe("Dashboard multi-filter persistence (TDD)", () => {
   beforeEach(() => {
     installObsidianDomPolyfills();
@@ -77,8 +92,6 @@ describe("Dashboard multi-filter persistence (TDD)", () => {
   });
 
   it("navigation sets selection state (baseline)", async () => {
-    const { RssDashboardView } = await import("../../../src/views/dashboard-view");
-
     const app = new App();
     const settings = cloneSettings();
     const plugin = {
@@ -98,8 +111,6 @@ describe("Dashboard multi-filter persistence (TDD)", () => {
   });
 
   it("folder navigation does not reset multi-filters (regression)", async () => {
-    const { RssDashboardView } = await import("../../../src/views/dashboard-view");
-
     const app = new App();
     const settings = cloneSettings();
     const plugin = {
@@ -125,8 +136,6 @@ describe("Dashboard multi-filter persistence (TDD)", () => {
   });
 
   it("feed navigation does not reset multi-filters (regression)", async () => {
-    const { RssDashboardView } = await import("../../../src/views/dashboard-view");
-
     const app = new App();
     const settings = cloneSettings();
     const plugin = {
@@ -154,20 +163,10 @@ describe("Dashboard multi-filter persistence (TDD)", () => {
   });
 
   it("marks the stored articles in the current view as read", async () => {
-    const { RssDashboardView } = await import("../../../src/views/dashboard-view");
-
     const app = new App();
     const settings = cloneSettings();
-    const unreadItem = {
-      guid: "unread-item",
-      title: "Unread item",
-      read: false,
-    };
-    const readItem = {
-      guid: "read-item",
-      title: "Read item",
-      read: true,
-    };
+    const unreadItem = createMockItem("unread-item", "Unread item", false);
+    const readItem = createMockItem("read-item", "Read item", true);
     settings.feeds = [
       {
         ...createMockFeed("https://example.com/feed"),

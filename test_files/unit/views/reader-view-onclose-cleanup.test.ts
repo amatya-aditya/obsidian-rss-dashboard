@@ -61,7 +61,7 @@ describe("ReaderView onClose cleanup", () => {
       vi.fn(),
     );
 
-    getInternals(readerView).contentEl = document.createElement("div");
+    getInternals(readerView).contentEl = createDiv();
     await readerView.onOpen();
   });
 
@@ -102,11 +102,11 @@ describe("ReaderView onClose cleanup", () => {
       { onPlaybackProgress },
     );
 
-    getInternals(inlineReaderView).contentEl = document.createElement("div");
+    getInternals(inlineReaderView).contentEl = createDiv();
     await inlineReaderView.onOpen();
 
     const readingContainer = getInternals(inlineReaderView).readingContainer;
-    const video = document.createElement("video");
+    const video = createEl("video");
     video.className = "rss-reader-video";
     Object.defineProperty(video, "duration", {
       configurable: true,

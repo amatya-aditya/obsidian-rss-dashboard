@@ -83,7 +83,7 @@ describe("ReaderView font scaling", () => {
       vi.fn(),
     );
 
-    getInternals(readerView).contentEl = document.createElement("div");
+    getInternals(readerView).contentEl = createDiv();
     await readerView.onOpen();
   });
 

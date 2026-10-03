@@ -6,7 +6,7 @@ milestone: ""
 owner: unassigned
 workstream: ""
 sequence: null
-depends_on: []
+depends_on: ["#263", "#247"]
 release_requirement: ""
 implementation: ""
 ---
@@ -15,9 +15,26 @@ implementation: ""
 
 This plan covers plugin-wide cover image retrieval when a feed item does not already carry a usable image. It is intentionally opt-in, off by default, and should follow the UI and interaction rules in [docs/design/design-spec.md](../design/design-spec.md).
 
+## Dependency note
+
+The extraction mechanism in this plan is superseded by the article-metadata
+pipeline being charted in [#263](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/263).
+
+That pipeline extracts `og:image` from the article page's `<head>` in the same
+pass that resolves description, author, canonical URL, and language, so this
+plan should **consume** a resolved `metadata.image` rather than implement its
+own fetch-and-parse in the refresh path. A second independent page-fetch path
+is precisely the sprawl [#247](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/247)
+exists to remove.
+
+The product decisions below stand unchanged and are the reason this plan
+survives: opt-in, off by default, no extra fetch when the toggle is off,
+bounded concurrency, feed-provided images always win, and the resolved URL
+persists on the item. Only the "how" is replaced.
+
 ## Goal
 
-Add a setting that lets the plugin fetch an article page once, read `og:image` first and `twitter:image` second, then persist the resolved URL onto the feed item so Card view and saved-item reuse can show a stable cover image.
+Add a setting that lets the plugin fetch an article page once, read `og:image`, then persist the resolved URL onto the feed item so Card view and saved-item reuse can show a stable cover image.
 
 ## Red-Green TDD Shape
 
@@ -26,7 +43,6 @@ Add a setting that lets the plugin fetch an article page once, read `og:image` f
 1. Add parser tests that fail when:
    - the new setting is off and no extra article-page request is made,
    - the setting is on and a missing feed image is resolved from `og:image`,
-   - the fallback uses `twitter:image` when `og:image` is absent,
    - the resolved image is persisted on the item after refresh,
    - existing feed-provided image data still wins over article-page fallback.
 2. Add card-view tests that fail when items with persisted `item.image` do not render a cover image after `coverImage` is empty.

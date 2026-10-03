@@ -3097,5 +3097,19 @@
     "createdAt": "2025-06-29T00:00:00Z",
     "summary": "Five-minute vignettes on the machines and ideas that shape our world.",
     "rating": 4
+  },
+  {
+    "id": "feed-209",
+    "title": "AI Weekly",
+    "url": "https://aiweekly.co/feed",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=aiweekly.co&sz=128",
+    "domain": ["Technology"],
+    "subdomain": ["Artificial Intelligence"],
+    "area": ["News"],
+    "topic": ["AI News"],
+    "tags": ["AI", "newsletter"],
+    "type": "Newsletter",
+    "createdAt": "2026-09-07T00:00:00Z",
+    "summary": "Free curated newsletter covering models, agents, funding, policy, research, and people shaping AI, published about three times per week."
   }
 ]

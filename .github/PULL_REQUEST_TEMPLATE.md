@@ -12,7 +12,7 @@
 
 ## Areas
 
-<!-- Add one or more labels like: area:reader, area:feeds, area:settings -->
+<!-- Add one or more labels like: area: reader, area: storage, area: sidebar -->
 
 ## User Impact
 
@@ -34,6 +34,7 @@
 - [ ] Unit tests added/updated
 - [ ] Existing tests pass locally
 - [ ] Manual smoke test completed
+- [ ] Settings → About build hash matches the PR's latest commit and shows no `+dirty`
 
 ### Test Evidence
 

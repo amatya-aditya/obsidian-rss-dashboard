@@ -8,6 +8,7 @@ import {
   requireApiVersion,
   TFile,
   Notice,
+  setTooltip,
 } from "obsidian";
 import { setIcon, Scope } from "obsidian";
 import {
@@ -31,6 +32,7 @@ import {
   ViewLocation,
 } from "../types/types";
 import { HighlightService } from "../services/highlight-service";
+import { getPubDateMs, resolveDisplayDate } from "../services/feed-parser/feed-retention";
 import { ArticleSaver } from "../services/article-saver";
 import { setCssProps } from "../utils/platform-utils";
 import {
@@ -58,6 +60,11 @@ import {
   findFirstNonFormulaImage,
   firstNonFormulaImageUrl,
 } from "../utils/image-url-utils";
+import { ReaderLightbox } from "../components/reader-lightbox";
+import {
+  isLightboxEligibleImage,
+  resolveFullResolutionImageSource,
+} from "../utils/full-size-image-resolver";
 import { PodcastPlayer } from "./podcast-player";
 import { VideoPlayer } from "./video-player";
 import { RSS_DASHBOARD_VIEW_TYPE, RssDashboardView } from "./dashboard-view";
@@ -72,14 +79,17 @@ import {
 const VIDEO_ARTICLE_BANNER =
   "This item appears to be a video. Open the source page to watch.";
 const VIDEO_ARTICLE_LINK_TEXT = "Open video at source";
-const FEED_DESCRIPTION_UNAVAILABLE_TEXT = "No feed description available.";
+
+const STARRED_IMPORT_UNFETCHED_BANNER_TEXT =
+  "This is a cached preview from the starred.json import";
+const STARRED_IMPORT_FAILED_BANNER_TEXT =
+  "The last attempt to fetch the full article failed. Showing the cached preview from the starred.json import";
+const STARRED_IMPORT_FETCH_NOW_TEXT = "Fetch now";
+const STARRED_IMPORT_OPEN_IN_BROWSER_TEXT = "Open in Browser";
+const STARRED_IMPORT_FETCH_FAILED_NOTICE =
+  "Could not fetch full article content.";
 
 export const RSS_READER_VIEW_TYPE = "rss-reader-view";
-
-const RAW_SUBSTACK_FETCH_URL_RE =
-  /https:\/\/substackcdn\.com\/image\/fetch\//gi;
-const ENCODED_SUBSTACK_S3_URL_RE =
-  /https%3A%2F%2Fsubstack-post-media\.s3\.amazonaws\.com/gi;
 
 export class ReaderView extends ItemView {
   private currentItem: FeedItem | null = null;
@@ -230,6 +240,7 @@ export class ReaderView extends ItemView {
         this.webViewerIntegration = new WebViewerIntegration(
           this.app as unknown as ObsidianApp,
           settings.articleSaving,
+          () => settings.useFirstSeenDateFallback,
         );
       }
     } catch {
@@ -255,7 +266,7 @@ export class ReaderView extends ItemView {
       steps.length - 1,
       (currentIndex >= 0 ? currentIndex : 2) + 1,
     );
-    format.fontScalePct = steps[nextIndex];
+    format.fontScalePct = steps[nextIndex] ?? 100;
     this.applyReaderFormat();
     void this.flushReaderFormatSave();
   }
@@ -269,7 +280,7 @@ export class ReaderView extends ItemView {
     const format = this.getReaderFormat();
     const currentIndex = steps.indexOf(format.fontScalePct);
     const nextIndex = Math.max(0, (currentIndex >= 0 ? currentIndex : 2) - 1);
-    format.fontScalePct = steps[nextIndex];
+    format.fontScalePct = steps[nextIndex] ?? 100;
     this.applyReaderFormat();
     void this.flushReaderFormatSave();
   }
@@ -834,7 +845,7 @@ export class ReaderView extends ItemView {
     // Save button
     this.saveButton = actions.createDiv({
       cls: "rss-reader-action-button",
-      attr: { title: "Save article" },
+      attr: { "aria-label": "Save article" },
     });
 
     setIcon(this.saveButton, "save");
@@ -859,7 +870,7 @@ export class ReaderView extends ItemView {
     // Read toggle button
     this.readToggleButton = actions.createDiv({
       cls: "rss-reader-action-button rss-reader-read-toggle",
-      attr: { title: "Mark as read/unread" },
+      attr: { "aria-label": "Mark as read/unread" },
     });
     setIcon(this.readToggleButton, "circle");
     this.readToggleButton.addEventListener("click", () => {
@@ -871,7 +882,7 @@ export class ReaderView extends ItemView {
     // Star toggle button
     this.starToggleButton = actions.createDiv({
       cls: "rss-reader-action-button rss-reader-star-toggle",
-      attr: { title: "Star/unstar article" },
+      attr: { "aria-label": "Star/unstar article" },
     });
     setIcon(this.starToggleButton, "star-off");
     this.starToggleButton.addEventListener("click", () => {
@@ -887,7 +898,6 @@ export class ReaderView extends ItemView {
     const tagsButton = tagsDropdown.createDiv({
       cls: "rss-dashboard-tags-toggle clickable-icon",
       attr: {
-        title: "Manage tags",
         role: "button",
         tabindex: "0",
         "aria-label": "Manage tags",
@@ -913,7 +923,6 @@ export class ReaderView extends ItemView {
     const readerFormatButton = actions.createDiv({
       cls: "rss-reader-action-button rss-reader-format-button",
       attr: {
-        title: "Reader settings",
         "aria-label": "Reader settings",
         role: "button",
         tabindex: "0",
@@ -935,7 +944,7 @@ export class ReaderView extends ItemView {
     // Open in browser button
     const browserButton = actions.createDiv({
       cls: "rss-reader-action-button",
-      attr: { title: "Open in Browser" },
+      attr: { "aria-label": "Open in Browser" },
     });
     setIcon(browserButton, "external-link");
     browserButton.addEventListener("click", (e) => {
@@ -965,7 +974,7 @@ export class ReaderView extends ItemView {
 
             if (destination.url) {
               const dom = (menuItem as unknown as { dom?: HTMLElement }).dom;
-              dom?.setAttribute("title", destination.url);
+              if (dom) setTooltip(dom, destination.url);
             }
 
             if (destination.id === "apple_podcasts") {
@@ -1413,9 +1422,7 @@ export class ReaderView extends ItemView {
     this.currentItem = item;
     this.relatedItems = relatedItems;
     this.currentDisplayTitle = undefined;
-    this.currentReaderTitle = this.isTweetLikeItem(item)
-      ? this.formatNitterReaderTitle(item)
-      : undefined;
+    this.currentReaderTitle = undefined;
     this.currentContentIsFullArticle = false;
     this.currentFullContentFailureType = "none";
     this.syncReaderTitle();
@@ -1512,6 +1519,7 @@ export class ReaderView extends ItemView {
         },
         this.onPlaybackProgress,
         this.settings.media.rememberPlaybackProgress,
+        this.settings.useFirstSeenDateFallback,
       );
       this.videoPlayer.loadVideo(item);
       if (this.relatedItems.length > 0) {
@@ -1560,9 +1568,7 @@ export class ReaderView extends ItemView {
     const onEpisodeSelected = (selectedEpisode: FeedItem) => {
       this.currentItem = selectedEpisode;
       this.currentDisplayTitle = undefined;
-      this.currentReaderTitle = this.isTweetLikeItem(selectedEpisode)
-        ? this.formatNitterReaderTitle(selectedEpisode)
-        : undefined;
+      this.currentReaderTitle = undefined;
       this.syncReaderTitle();
       this.updateToggleButtons();
       this.closeTagsDropdown();
@@ -1579,6 +1585,7 @@ export class ReaderView extends ItemView {
         this.onPlaybackProgress,
         this.settings.media.rememberPlaybackProgress,
         this.settings.media.defaultPlaySpeed ?? 1,
+        this.settings.useFirstSeenDateFallback,
       );
       this.podcastPlayer.loadEpisode(item, fullFeedEpisodes);
     } else {
@@ -1597,6 +1604,7 @@ export class ReaderView extends ItemView {
           this.onPlaybackProgress,
           this.settings.media.rememberPlaybackProgress,
           this.settings.media.defaultPlaySpeed ?? 1,
+          this.settings.useFirstSeenDateFallback,
         );
         this.podcastPlayer.loadEpisode(podcastItem, fullFeedEpisodes);
       } else {
@@ -1654,13 +1662,6 @@ export class ReaderView extends ItemView {
       Boolean(this.webViewerIntegration) &&
       !shouldBypassWebViewer;
 
-    this.debugLogSubstackReaderEntry(
-      item,
-      fullContent,
-      shouldUseWebViewer,
-      shouldBypassWebViewer,
-    );
-
     if (shouldUseWebViewer && this.webViewerIntegration) {
       try {
         const success = await this.webViewerIntegration.openInWebViewer(
@@ -1694,14 +1695,14 @@ export class ReaderView extends ItemView {
       return false;
     }
 
-    if (this.isTweetLikeItem(item)) {
-      return true;
-    }
-
     return this.prefersFeedContent(item, feedHtml);
   }
 
   private shouldSkipFullArticleFetch(item: FeedItem): boolean {
+    if (this.isStarredImportCachedPreview(item)) {
+      return true;
+    }
+
     if (this.isVideoMediaItem(item)) {
       return true;
     }
@@ -1709,15 +1710,27 @@ export class ReaderView extends ItemView {
     return this.prefersFeedContent(item);
   }
 
+  /**
+   * True for a starred.json-imported article (234-09) that has never had a
+   * full-content fetch attempted, or whose last attempt failed. The reader's
+   * automatic fetch-on-open is skipped in both cases — a fetch only happens
+   * when the user clicks "Fetch now" on the cached-preview banner. Articles
+   * that never came from a starred import (no `starredImportContentState`
+   * at all) always return false here, so their automatic fetch-on-open is
+   * completely unaffected.
+   */
+  private isStarredImportCachedPreview(item: FeedItem): boolean {
+    return (
+      item.starredImportContentState === "unfetched" ||
+      item.starredImportContentState === "failed"
+    );
+  }
+
   private isVideoMediaItem(item: FeedItem): boolean {
     return isLikelyVideoItem(item);
   }
 
   private prefersFeedContent(item: FeedItem, feedHtml?: string): boolean {
-    if (this.isTweetLikeItem(item)) {
-      return true;
-    }
-
     if (item.link) {
       try {
         const host = new URL(item.link).hostname.toLowerCase();
@@ -1740,8 +1753,7 @@ export class ReaderView extends ItemView {
       host === "aeon.co" ||
       host.endsWith(".aeon.co") ||
       host === "substack.com" ||
-      host.endsWith(".substack.com") ||
-      this.isNitterHost(host)
+      host.endsWith(".substack.com")
     );
   }
 
@@ -1761,7 +1773,6 @@ export class ReaderView extends ItemView {
       cls: "rss-reader-article-header",
     });
 
-    const isNitter = this.isTweetLikeItem(item);
     const displayTitle =
       this.currentReaderTitle || this.currentDisplayTitle || item.title;
     const articleTitleEl = headerContainer.createEl("h1", {
@@ -1784,21 +1795,26 @@ export class ReaderView extends ItemView {
       component: this,
     });
 
-    if (!isNitter) {
-      const metaContainer = headerContainer.createDiv({
-        cls: "rss-reader-meta",
-      });
+    const metaContainer = headerContainer.createDiv({
+      cls: "rss-reader-meta",
+    });
 
-      metaContainer.createDiv({
-        cls: "rss-reader-feed-title",
-        text: item.feedTitle,
-      });
+    metaContainer.createDiv({
+      cls: "rss-reader-feed-title",
+      text: item.feedTitle,
+    });
 
-      metaContainer.createDiv({
-        cls: "rss-reader-pub-date",
-        text: new Date(item.pubDate).toLocaleString(),
-      });
-    }
+    const useFirstSeenDateFallback = this.settings.useFirstSeenDateFallback;
+    const displayDate = resolveDisplayDate(item, useFirstSeenDateFallback);
+    const isFirstSeenFallback = getPubDateMs(item.pubDate) <= 0 && !!displayDate;
+    metaContainer.createDiv({
+      cls: "rss-reader-pub-date",
+      text: displayDate
+        ? isFirstSeenFallback
+          ? `First seen: ${displayDate.toLocaleString()}`
+          : displayDate.toLocaleString()
+        : "Unknown date",
+    });
 
     if (item.tags && item.tags.length > 0) {
       const tagsContainer = headerContainer.createDiv({
@@ -1846,7 +1862,7 @@ export class ReaderView extends ItemView {
       (!hasMeaningfulDescription ||
         !this.isEquivalentHtml(mainHtml, descriptionHtml));
 
-    if (!isNitter && hasDistinctMainContent) {
+    if (hasDistinctMainContent && hasMeaningfulDescription) {
       const descriptionCallout = this.readingContainer.createEl("details", {
         cls: "rss-reader-description-callout",
       });
@@ -1855,28 +1871,21 @@ export class ReaderView extends ItemView {
       const descriptionBody = descriptionCallout.createDiv({
         cls: "rss-reader-description rss-reader-description-body",
       });
-      if (hasMeaningfulDescription) {
-        this.populateArticleHtml(
-          descriptionBody,
-          descriptionHtml,
-          item.link,
-          fallbackHeroUrl,
-          displayTitle,
-          heroSlot,
-          false,
-          false,
-          undefined,
-        );
-      } else {
-        descriptionBody.setText(FEED_DESCRIPTION_UNAVAILABLE_TEXT);
-      }
+      this.populateArticleHtml(
+        descriptionBody,
+        descriptionHtml,
+        item.link,
+        fallbackHeroUrl,
+        displayTitle,
+        heroSlot,
+        false,
+        undefined,
+      );
     }
 
-    const contentToRender = isNitter
-      ? this.pickBestNitterTweetHtml(item, fullContent)
-      : hasDistinctMainContent
-        ? mainHtml
-        : mainHtml || descriptionHtml;
+    const contentToRender = hasDistinctMainContent
+      ? mainHtml
+      : mainHtml || descriptionHtml;
 
     if (contentToRender) {
       const contentContainer = this.readingContainer.createDiv({
@@ -1892,7 +1901,6 @@ export class ReaderView extends ItemView {
         displayTitle,
         heroSlot,
         shouldStripHeadline,
-        isNitter,
         descriptionHtml,
       );
     }
@@ -1901,7 +1909,123 @@ export class ReaderView extends ItemView {
       this.renderRestrictedBanner(item);
     } else if (this.shouldRenderVideoSourceBanner(item)) {
       this.renderVideoSourceBanner(item);
+    } else if (this.isStarredImportCachedPreview(item)) {
+      this.renderStarredImportBanner(item);
     }
+  }
+
+  /**
+   * Cached-preview banner (234-09) for a starred.json-imported article whose
+   * full content has never been fetched, or whose last fetch attempt
+   * failed. Offers a "Fetch now" action alongside the reader's existing
+   * "Open in Browser" affordance, since the header's browser button is easy
+   * to miss when the reader opened straight to an export-only preview.
+   */
+  private renderStarredImportBanner(item: FeedItem): void {
+    const banner = this.readingContainer.createDiv({
+      cls: "rss-reader-inline-banner rss-reader-starred-import-banner",
+    });
+
+    const message = banner.createDiv({
+      cls: "rss-reader-starred-import-banner-text",
+    });
+    const baseText =
+      item.starredImportContentState === "failed"
+        ? STARRED_IMPORT_FAILED_BANNER_TEXT
+        : STARRED_IMPORT_UNFETCHED_BANNER_TEXT;
+    const importedAtText =
+      typeof item.starredImportedAt === "number"
+        ? new Date(item.starredImportedAt).toLocaleString()
+        : null;
+    message.setText(
+      importedAtText ? `${baseText} (${importedAtText}).` : `${baseText}.`,
+    );
+
+    const actions = banner.createDiv({
+      cls: "rss-reader-starred-import-banner-actions",
+    });
+
+    const fetchNowButton = actions.createEl("button", {
+      cls: "rss-reader-starred-import-fetch-now",
+      text: STARRED_IMPORT_FETCH_NOW_TEXT,
+    });
+    fetchNowButton.addEventListener("click", () => {
+      void this.handleStarredImportFetchNow(item);
+    });
+
+    if (item.link) {
+      const openLink = actions.createEl("a", {
+        cls: "rss-reader-starred-import-open-link",
+        text: STARRED_IMPORT_OPEN_IN_BROWSER_TEXT,
+        href: item.link,
+      });
+      openLink.target = "_blank";
+      openLink.rel = "noopener noreferrer";
+    }
+  }
+
+  /**
+   * Handles the starred-import banner's "Fetch now" action (234-09). Reuses
+   * the same `fetchFullArticleContentWithOutcome` pipeline the reader's
+   * automatic fetch-on-open and the import-time opt-in fetch (234-06) both
+   * use. A successful fetch replaces the article's content, clears its
+   * content-state so the banner won't reappear, and persists that change via
+   * the normal `onArticleUpdate` settings-save path — but only when the
+   * article is starred or saved, per spec, rather than for every article the
+   * reader ever opens. A failed fetch moves the article to the "failed"
+   * state so the banner's wording can distinguish it from "never attempted"
+   * the next time this article is opened.
+   */
+  private async handleStarredImportFetchNow(item: FeedItem): Promise<void> {
+    const proxyUrl =
+      this.settings.corsProxyEnabled && this.settings.corsProxyUrl
+        ? this.settings.corsProxyUrl
+        : undefined;
+
+    const result = item.link
+      ? await fetchFullArticleContentWithOutcome(item.link, proxyUrl)
+      : { content: "", failureType: "none" as const };
+
+    const shouldPersist = Boolean(item.starred || item.saved);
+
+    if (result.content) {
+      item.content = result.content;
+      item.starredImportContentState = undefined;
+      if (shouldPersist) {
+        this.onArticleUpdate(
+          item,
+          { content: result.content, starredImportContentState: undefined },
+          false,
+        );
+      }
+    } else {
+      item.starredImportContentState = "failed";
+      if (shouldPersist) {
+        this.onArticleUpdate(
+          item,
+          { starredImportContentState: "failed" },
+          false,
+        );
+      }
+      new Notice(STARRED_IMPORT_FETCH_FAILED_NOTICE);
+    }
+
+    if (this.currentItem?.guid !== item.guid) {
+      return;
+    }
+
+    this.currentFullContent = result.content || item.content || item.description || "";
+    this.currentContentIsFullArticle = Boolean(result.content);
+    if (result.content) {
+      this.currentDisplayTitle =
+        this.extractDisplayTitleFromHtml(result.content) || undefined;
+    }
+    this.syncReaderTitle();
+
+    if (this.readingContainer) {
+      this.readingContainer.empty();
+    }
+    await this.displayArticle(item, this.currentFullContent);
   }
 
   private renderRestrictedBanner(item: FeedItem): void {
@@ -1965,7 +2089,6 @@ export class ReaderView extends ItemView {
     title?: string,
     heroSlot?: HTMLElement,
     stripTopHeadline = false,
-    isNitter = false,
     feedDescriptionHtml?: string,
   ): void {
     if (!rawHtml) return;
@@ -2009,13 +2132,6 @@ export class ReaderView extends ItemView {
         )
         .forEach((el) => el.remove());
 
-      this.debugLogSubstackDomState(
-        "after-normalize",
-        doc,
-        doc.body.innerHTML,
-        fallbackHeroUrl,
-      );
-
       // Clean up fetched full-article HTML before hero extraction so we don't pick
       // navigation icons / breadcrumbs as the hero image.
       if (stripTopHeadline) {
@@ -2047,10 +2163,11 @@ export class ReaderView extends ItemView {
           }
 
           if (heroUrl) {
-            heroSlot.createEl("img", {
+            const heroImg = heroSlot.createEl("img", {
               cls: "rss-reader-fallback-hero",
               attr: { src: heroUrl, alt: title || "Hero image" },
             });
+            this.setupLightboxForImage(heroImg);
 
             // Remove the first image from the body if it's the hero image to avoid duplication
             if (
@@ -2100,10 +2217,6 @@ export class ReaderView extends ItemView {
           el.removeAttribute("data-tooltip-delay");
         });
 
-      if (isNitter) {
-        this.transformNitterStatsMarkup(doc);
-      }
-
       html = doc.body.innerHTML;
     } catch {
       // Fall back to raw HTML if parsing fails
@@ -2120,16 +2233,10 @@ export class ReaderView extends ItemView {
       sanitizeAndAppendHtml(container, html, { mode: "rich" });
     }
 
-    this.debugLogSubstackDomState(
-      "after-sanitize",
-      container,
-      container.innerHTML,
-      fallbackHeroUrl,
-    );
-
     // Add classes to images for styling
     container.querySelectorAll("img").forEach((img) => {
       img.addClass("rss-reader-responsive-img");
+      this.setupLightboxForImage(img);
       img.addEventListener("error", () => {
         if (this.recoverFailedSubstackImageElement(img)) {
           console.warn(
@@ -2144,13 +2251,25 @@ export class ReaderView extends ItemView {
       });
     });
 
-    if (isNitter) {
-      this.hydrateNitterStatsIcons(container);
-    }
-
     void scheduleProcessMathElements(container, {
       app: this.app,
       component: this,
+    });
+  }
+
+  private setupLightboxForImage(img: HTMLImageElement): void {
+    if (!isLightboxEligibleImage(img)) return;
+
+    img.addClass("rss-reader-zoomable-img");
+    img.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const source = resolveFullResolutionImageSource(img);
+      const lightbox = new ReaderLightbox({
+        source,
+        doc: this.containerEl.ownerDocument,
+      });
+      lightbox.open();
     });
   }
 
@@ -2203,387 +2322,6 @@ export class ReaderView extends ItemView {
     }
 
     return !/^(?:\.{3,}|…+|\[\s*(?:\.{3,}|…+)\s*\])$/.test(text);
-  }
-
-  private isNitterHost(host: string): boolean {
-    return host.toLowerCase().includes("nitter");
-  }
-
-  private debugLogSubstackReaderEntry(
-    item: FeedItem,
-    fullContent: string | undefined,
-    shouldUseWebViewer: boolean,
-    shouldBypassWebViewer: boolean,
-  ): void {
-    const fieldCounts = {
-      fullContent: this.countRawSubstackFetchUrls(fullContent),
-      content: this.countRawSubstackFetchUrls(item.content),
-      description: this.countRawSubstackFetchUrls(item.description),
-      coverImage: this.countRawSubstackFetchUrls(item.coverImage),
-      image: this.countRawSubstackFetchUrls(item.image),
-    };
-
-    if (!Object.values(fieldCounts).some((count) => count > 0)) {
-      return;
-    }
-
-    console.debug("[RSS Dashboard] ReaderView Substack entry", {
-      title: item.title,
-      link: item.link,
-      guid: item.guid,
-      shouldUseWebViewer,
-      shouldBypassWebViewer,
-      fieldCounts,
-      samples: {
-        fullContent: this.extractFirstRawSubstackFetchUrl(fullContent),
-        content: this.extractFirstRawSubstackFetchUrl(item.content),
-        description: this.extractFirstRawSubstackFetchUrl(item.description),
-        coverImage: this.extractFirstRawSubstackFetchUrl(item.coverImage),
-        image: this.extractFirstRawSubstackFetchUrl(item.image),
-      },
-    });
-  }
-
-  private debugLogSubstackDomState(
-    stage: string,
-    root: Document | HTMLElement,
-    serializedHtml: string,
-    fallbackHeroUrl?: string,
-  ): void {
-    const scopedRoot = root instanceof Document ? root.body : root;
-    const fieldCounts = {
-      serializedHtml: this.countRawSubstackFetchUrls(serializedHtml),
-      fallbackHeroUrl: this.countRawSubstackFetchUrls(fallbackHeroUrl),
-      imgSrc: this.countElementsWithRawSubstackAttr(
-        scopedRoot.querySelectorAll("img[src]"),
-        "src",
-      ),
-      imgSrcset: this.countElementsWithRawSubstackAttr(
-        scopedRoot.querySelectorAll("img[srcset]"),
-        "srcset",
-      ),
-      sourceSrcset: this.countElementsWithRawSubstackAttr(
-        scopedRoot.querySelectorAll("source[srcset]"),
-        "srcset",
-      ),
-      anchorHref: this.countElementsWithRawSubstackAttr(
-        scopedRoot.querySelectorAll("a[href]"),
-        "href",
-      ),
-      inlineStyle: this.countElementsWithRawSubstackAttr(
-        scopedRoot.querySelectorAll("[style]"),
-        "style",
-      ),
-      poster: this.countElementsWithRawSubstackAttr(
-        scopedRoot.querySelectorAll("[poster]"),
-        "poster",
-      ),
-    };
-
-    if (!Object.values(fieldCounts).some((count) => count > 0)) {
-      return;
-    }
-
-    console.debug(`[RSS Dashboard] ReaderView Substack ${stage}`, {
-      fieldCounts,
-      samples: {
-        serializedHtml: this.extractFirstRawSubstackFetchUrl(serializedHtml),
-        fallbackHeroUrl: this.extractFirstRawSubstackFetchUrl(fallbackHeroUrl),
-      },
-    });
-  }
-
-  private countElementsWithRawSubstackAttr(
-    elements: ArrayLike<Element> | Iterable<Element>,
-    attrName: string,
-  ): number {
-    let count = 0;
-    for (const el of Array.from(elements)) {
-      if (this.countRawSubstackFetchUrls(el.getAttribute(attrName)) > 0) {
-        count += 1;
-      }
-    }
-    return count;
-  }
-
-  private countRawSubstackFetchUrls(value: string | null | undefined): number {
-    if (!value) {
-      return 0;
-    }
-
-    return this.countSuspiciousSubstackUrls(value);
-  }
-
-  private extractFirstRawSubstackFetchUrl(
-    value: string | null | undefined,
-  ): string | undefined {
-    if (!value) {
-      return undefined;
-    }
-
-    const match = value.match(
-      /https:\/\/substackcdn\.com\/image\/fetch\/[^\s"'<>)]*|https%3A%2F%2Fsubstack-post-media\.s3\.amazonaws\.com[^\s"'<>)]*/i,
-    );
-    return match?.[0]?.slice(0, 240);
-  }
-
-  private countSuspiciousSubstackUrls(
-    value: string | null | undefined,
-  ): number {
-    if (!value) {
-      return 0;
-    }
-
-    const rawFetchMatches = value.match(RAW_SUBSTACK_FETCH_URL_RE)?.length ?? 0;
-    const encodedS3Matches =
-      value.match(ENCODED_SUBSTACK_S3_URL_RE)?.length ?? 0;
-    return rawFetchMatches + encodedS3Matches;
-  }
-
-  private isTweetLikeItem(item: FeedItem): boolean {
-    if (this.isNitterItem(item)) {
-      return true;
-    }
-
-    return MediaService.isXUrl(item.link) || MediaService.isXUrl(item.feedUrl);
-  }
-
-  private isNitterItem(item: FeedItem): boolean {
-    const candidates = [item.feedUrl, item.link].filter(
-      (u): u is string => typeof u === "string" && u.trim().length > 0,
-    );
-
-    for (const url of candidates) {
-      try {
-        const host = new URL(url).hostname.toLowerCase();
-        if (this.isNitterHost(host)) {
-          return true;
-        }
-      } catch {
-        // ignore invalid urls
-      }
-    }
-
-    return false;
-  }
-
-  private formatNitterReaderTitle(item: FeedItem): string {
-    const { name, handle } = this.extractNitterNameAndHandle(item);
-    const date = this.formatIsoDate(item.pubDate);
-    const time = this.formatTimeOfDay(item.pubDate);
-    const dateTime = [date, time].filter(Boolean).join(" ");
-
-    if (name && handle && dateTime) return `${name} (${handle}) · ${dateTime}`;
-    if (name && handle) return `${name} (${handle})`;
-    if (name && dateTime) return `${name} · ${dateTime}`;
-    if (handle && dateTime) return `${handle} · ${dateTime}`;
-    return item.title;
-  }
-
-  private extractNitterNameAndHandle(item: FeedItem): {
-    name: string;
-    handle: string;
-  } {
-    const tryExtract = (source: string): { name: string; handle: string } => {
-      const handleMatch = source.match(/@[\w.]+/i);
-      const handle = handleMatch ? handleMatch[0] : "";
-      let name = source;
-
-      if (handle) {
-        name = name.replace(handle, "");
-      }
-
-      name = name
-        .replace(/[()]/g, " ")
-        .replace(/[|/]/g, " ")
-        .replace(/\s{2,}/g, " ")
-        .trim();
-
-      return { name, handle };
-    };
-
-    const author = (item.author || "").trim();
-    const feedTitle = (item.feedTitle || "").trim();
-
-    const authorParsed = author ? tryExtract(author) : { name: "", handle: "" };
-    const feedParsed = feedTitle
-      ? tryExtract(feedTitle)
-      : { name: "", handle: "" };
-
-    const urlHandle =
-      this.extractHandleFromUrl(item.link) ||
-      this.extractHandleFromUrl(item.feedUrl);
-
-    const handle =
-      (/^@[\w.]+$/i.test(author) ? author : authorParsed.handle) ||
-      feedParsed.handle ||
-      urlHandle;
-    const name = authorParsed.name || feedParsed.name;
-
-    return { name, handle };
-  }
-
-  private extractHandleFromUrl(url: string): string {
-    const trimmed = (url || "").trim();
-    if (!trimmed) return "";
-
-    try {
-      const u = new URL(trimmed);
-      const host = u.hostname.toLowerCase();
-      if (
-        !this.isNitterHost(host) &&
-        !host.includes("twitter.com") &&
-        !host.includes("x.com")
-      ) {
-        return "";
-      }
-      const parts = u.pathname.split("/").filter(Boolean);
-      const username = parts[0] || "";
-      if (!username) return "";
-      if (
-        /^(home|explore|messages|notifications|settings|search|i)$/i.test(
-          username,
-        )
-      ) {
-        return "";
-      }
-      return username.startsWith("@") ? username : `@${username}`;
-    } catch {
-      return "";
-    }
-  }
-
-  private formatIsoDate(dateInput: string): string {
-    const trimmed = (dateInput || "").trim();
-    if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) {
-      return trimmed.slice(0, 10);
-    }
-
-    const parsed = new Date(trimmed);
-    if (Number.isFinite(parsed.getTime())) {
-      return parsed.toISOString().slice(0, 10);
-    }
-
-    return "";
-  }
-
-  private formatTimeOfDay(dateInput: string): string {
-    const trimmed = (dateInput || "").trim();
-    const parsed = new Date(trimmed);
-    if (!Number.isFinite(parsed.getTime())) {
-      return "";
-    }
-
-    return parsed.toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  }
-
-  private pickBestNitterTweetHtml(
-    item: FeedItem,
-    fullContent?: string,
-  ): string {
-    const description = (item.description || "").trim();
-    const content = (item.content || "").trim();
-    const full = (fullContent || "").trim();
-
-    const hasRichFormatting = (html: string): boolean =>
-      /<(br|p|blockquote|img)\b/i.test(html);
-
-    if (
-      description &&
-      (hasRichFormatting(description) ||
-        description.length > (content ? content.length : 0))
-    ) {
-      return description;
-    }
-
-    return content || full || description;
-  }
-
-  private transformNitterStatsMarkup(doc: Document): void {
-    let target =
-      doc.body.querySelector<HTMLElement>(".tweet-stats") ||
-      doc.body.querySelector<HTMLElement>(".tweet-stats-container");
-
-    if (!target) {
-      const iconEl = doc.body.querySelector<HTMLElement>(
-        ".icon-comment, .icon-retweet, .icon-heart, .icon-views",
-      );
-      let cursor: HTMLElement | null = iconEl;
-      for (let i = 0; i < 6 && cursor; i++) {
-        const count = cursor.querySelectorAll(
-          ".icon-comment, .icon-retweet, .icon-heart, .icon-views",
-        ).length;
-        if (count >= 2) {
-          target = cursor;
-          break;
-        }
-        cursor = cursor.parentElement;
-      }
-    }
-
-    if (!target) return;
-
-    const extractCount = (markerClass: string): string => {
-      const marker = target.querySelector<HTMLElement>(`.${markerClass}`);
-      if (!marker) return "";
-      const text = (marker.parentElement?.textContent || "")
-        .replace(/\s+/g, " ")
-        .trim();
-      const match = text.match(/(\d[\d.,]*\s*[kKmMbB]?)/);
-      return (match ? match[1] : "").trim();
-    };
-
-    const statsEl = doc.createDiv();
-    statsEl.className = "rss-nitter-stats";
-
-    const pills: Array<{ key: string; icon: string; count: string }> = [
-      {
-        key: "comment",
-        icon: "message-circle",
-        count: extractCount("icon-comment"),
-      },
-      { key: "retweet", icon: "repeat-2", count: extractCount("icon-retweet") },
-      { key: "heart", icon: "heart", count: extractCount("icon-heart") },
-      { key: "views", icon: "bar-chart-2", count: extractCount("icon-views") },
-    ];
-
-    for (const pill of pills) {
-      const pillEl = doc.createSpan();
-      pillEl.className = "rss-nitter-stat";
-      pillEl.setAttribute("data-stat", pill.key);
-
-      const iconEl = doc.createSpan();
-      iconEl.className = "rss-nitter-stat-icon";
-      iconEl.setAttribute("data-rss-icon", pill.icon);
-
-      const countEl = doc.createSpan();
-      countEl.className = "rss-nitter-stat-count";
-      countEl.textContent = pill.count;
-
-      pillEl.appendChild(iconEl);
-      pillEl.appendChild(countEl);
-      statsEl.appendChild(pillEl);
-    }
-
-    target.parentElement?.insertBefore(statsEl, target);
-    target.remove();
-  }
-
-  private hydrateNitterStatsIcons(container: HTMLElement): void {
-    container
-      .querySelectorAll<HTMLElement>(".rss-nitter-stat-icon")
-      .forEach((el) => {
-        const iconName = el.dataset.rssIcon;
-        if (!iconName) return;
-        try {
-          setIcon(el, iconName);
-        } catch {
-          // ignore icon failures
-        }
-      });
   }
 
   private stripTopHeadlineFromHtml(html: string): string {
@@ -2674,6 +2412,7 @@ export class ReaderView extends ItemView {
         const kids = Array.from(li.children) as HTMLElement[];
         if (kids.length !== 1) continue;
         const only = kids[0];
+        if (!only) continue;
         if (only.tagName.toLowerCase() !== "a") continue;
         const t = (only.textContent || "").replace(/\s+/g, " ").trim();
         if (t.length < 1 || t.length > 40) continue;
@@ -2824,9 +2563,12 @@ export class ReaderView extends ItemView {
         return this.getNormalizedBlockText(block) === normalizedDescription;
       });
       if (duplicateIndex !== -1) {
-        blocks[duplicateIndex].remove();
+        const duplicateBlock = blocks[duplicateIndex];
+        if (!duplicateBlock) return;
+        duplicateBlock.remove();
         for (let index = duplicateIndex - 1; index >= 0; index--) {
           const block = blocks[index];
+          if (!block) continue;
           if (this.isShortLeadInBlock(block) || this.isLeadMediaBlock(block)) {
             block.remove();
             continue;
@@ -2863,6 +2605,7 @@ export class ReaderView extends ItemView {
 
     for (let index = 0; index < firstSubstantialIndex; index++) {
       const block = blocks[index];
+      if (!block) continue;
       if (this.isLeadMediaBlock(block)) {
         block.remove();
       }
@@ -3114,8 +2857,8 @@ export class ReaderView extends ItemView {
 
     if (this.saveButton) {
       this.saveButton.toggleClass("saved", saved);
-      this.saveButton.setAttr(
-        "title",
+      setTooltip(
+        this.saveButton,
         saved ? "Click to open saved article" : "Save article",
       );
     }
@@ -3532,8 +3275,8 @@ export class ReaderView extends ItemView {
       );
       this.readToggleButton.classList.toggle("read", this.currentItem.read);
       this.readToggleButton.classList.toggle("unread", !this.currentItem.read);
-      this.readToggleButton.setAttr(
-        "title",
+      setTooltip(
+        this.readToggleButton,
         this.currentItem.read ? "Mark as unread" : "Mark as read",
       );
     }
@@ -3552,8 +3295,8 @@ export class ReaderView extends ItemView {
         "unstarred",
         !this.currentItem.starred,
       );
-      this.starToggleButton.setAttr(
-        "title",
+      setTooltip(
+        this.starToggleButton,
         this.currentItem.starred ? "Remove from starred" : "Add to starred",
       );
     }
@@ -3562,8 +3305,8 @@ export class ReaderView extends ItemView {
     if (this.saveButton) {
       const isSaved = Boolean(this.currentItem.saved);
       this.saveButton.toggleClass("saved", isSaved);
-      this.saveButton.setAttr(
-        "title",
+      setTooltip(
+        this.saveButton,
         isSaved ? "Click to open saved article" : "Save article",
       );
     }
@@ -3653,8 +3396,14 @@ export class ReaderView extends ItemView {
     titleSetting.settingEl.addClass("rss-video-title");
     const metaRow = infoSection.createDiv({ cls: "rss-video-meta-row" });
     metaRow.createDiv({ text: item.feedTitle, cls: "rss-video-channel" });
+    const videoDisplayDate = resolveDisplayDate(
+      item,
+      this.settings.useFirstSeenDateFallback,
+    );
     metaRow.createDiv({
-      text: new Date(item.pubDate).toLocaleDateString(),
+      text: videoDisplayDate
+        ? videoDisplayDate.toLocaleDateString()
+        : "Unknown date",
       cls: "rss-video-date",
     });
 
@@ -3695,9 +3444,15 @@ export class ReaderView extends ItemView {
           cls: "rss-video-related-title",
           text: video.title,
         });
+        const relatedDisplayDate = resolveDisplayDate(
+          video,
+          this.settings.useFirstSeenDateFallback,
+        );
         videoInfo.createDiv({
           cls: "rss-video-related-date",
-          text: new Date(video.pubDate).toLocaleDateString(),
+          text: relatedDisplayDate
+            ? relatedDisplayDate.toLocaleDateString()
+            : "Unknown date",
         });
         videoItem.addEventListener("click", () => {
           void this.displayItem(video, relatedVideos);

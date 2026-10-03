@@ -1,7 +1,10 @@
-import { App, Notice, TFile, setIcon, Setting } from "obsidian";
+import { App, Notice, TFile, setIcon, Setting, moment, setTooltip } from "obsidian";
 import { FeedItem, ArticleSavingSettings } from "../types/types";
 import { sanitizeFilename } from "./article-saver";
 import { normalizeSubstackImageUrl } from "../utils/substack-image-url";
+import { escapeYamlDoubleQuoted } from "../utils/yaml-escape";
+import { resolveDisplayDate } from "./feed-parser/feed-retention";
+import { ensureVaultFolder } from "../utils/vault-files";
 
 interface WebViewerPlugin {
   openWebpage?(url: string, title: string): Promise<void>;
@@ -24,10 +27,16 @@ interface ObsidianApp extends App {
 export class WebViewerIntegration {
   private app: ObsidianApp;
   private settings: ArticleSavingSettings;
+  private getUseFirstSeenDateFallback: () => boolean;
 
-  constructor(app: ObsidianApp, settings: ArticleSavingSettings) {
+  constructor(
+    app: ObsidianApp,
+    settings: ArticleSavingSettings,
+    getUseFirstSeenDateFallback: () => boolean = () => false,
+  ) {
     this.app = app;
     this.settings = settings;
+    this.getUseFirstSeenDateFallback = getUseFirstSeenDateFallback;
   }
 
   async openInWebViewer(url: string, title: string): Promise<boolean> {
@@ -78,7 +87,7 @@ export class WebViewerIntegration {
       text: "Save with template",
     });
 
-    saveButton.title = "Save with custom template";
+    setTooltip(saveButton, "Save with custom template");
 
     saveButton.addEventListener("click", () => {
       this.showSaveDialog();
@@ -247,7 +256,7 @@ export class WebViewerIntegration {
     includeFrontmatter: boolean,
   ): Promise<TFile | null> {
     if (folder) {
-      await this.ensureFolderExists(folder);
+      folder = await this.ensureFolderExists(folder);
     }
 
     const filename = sanitizeFilename(item.title);
@@ -271,6 +280,19 @@ export class WebViewerIntegration {
     new Notice(`Article saved: ${filename}`);
 
     return file;
+  }
+
+  /**
+   * The date to stamp into saved-note frontmatter/templates: the real
+   * `pubDate` when it resolves to an actual instant, falling back to
+   * `firstSeenMs` (when `useFirstSeenDateFallback` is enabled) when there's
+   * no real date, and only reaching for "now" when neither is available.
+   */
+  private resolveSavedArticleDate(item: FeedItem): Date {
+    return (
+      resolveDisplayDate(item, this.getUseFirstSeenDateFallback()) ??
+      new Date()
+    );
   }
 
   protected generateFrontmatter(item: FeedItem): string {
@@ -306,43 +328,52 @@ guid: "{{guid}}"
 
     const tagsString = tagNames.join(", ");
 
-    const pubDate = item.pubDate ? new Date(item.pubDate) : new Date();
-    const isoDateTime = Number.isNaN(pubDate.getTime())
-      ? new Date().toISOString()
-      : pubDate.toISOString();
-    const dateString = Number.isNaN(pubDate.getTime())
-      ? new Date().toLocaleDateString(undefined, {
-          year: "numeric",
-          month: "long",
-          day: "numeric",
-        })
-      : pubDate.toLocaleDateString(undefined, {
-          year: "numeric",
-          month: "long",
-          day: "numeric",
-        });
+    const pubDate = this.resolveSavedArticleDate(item);
+    const isoDateTime = pubDate.toISOString();
+    const dateString = pubDate.toLocaleDateString(undefined, {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+
+    const now = new Date();
+    const saveDate = this.formatMoment(now, "YYYY-MM-DD");
+    const saveTime12 = this.formatMoment(now, "hh:mm A");
+    const saveTime24 = this.formatMoment(now, "HH:mm");
 
     frontmatter = frontmatter
-      .replace(/{{title}}/g, item.title)
+      .replace(/{{title}}/g, escapeYamlDoubleQuoted(item.title))
       .replace(/{{date}}/g, dateString)
       .replace(/{{isoDate}}/g, isoDateTime)
       .replace(/{{isoDateTime}}/g, isoDateTime)
+      .replace(/{{saveDate}}/g, saveDate)
+      .replace(/{{saveTime12}}/g, saveTime12)
+      .replace(/{{saveTime24}}/g, saveTime24)
       .replace(/{{tags}}/g, tagsString)
-      .replace(/{{source}}/g, item.feedTitle || "Web viewer")
-      .replace(/{{link}}/g, item.link)
-      .replace(/{{author}}/g, item.author || "")
-      .replace(/{{feedTitle}}/g, item.feedTitle || "Web viewer")
-      .replace(/{{guid}}/g, item.guid)
-      .replace(/{{image}}/g, this.getImage(item));
+      .replace(
+        /{{source}}/g,
+        escapeYamlDoubleQuoted(item.feedTitle || "Web viewer"),
+      )
+      .replace(/{{link}}/g, escapeYamlDoubleQuoted(item.link))
+      .replace(/{{author}}/g, escapeYamlDoubleQuoted(item.author || ""))
+      .replace(
+        /{{feedTitle}}/g,
+        escapeYamlDoubleQuoted(item.feedTitle || "Web viewer"),
+      )
+      .replace(/{{guid}}/g, escapeYamlDoubleQuoted(item.guid))
+      .replace(/{{image}}/g, escapeYamlDoubleQuoted(this.getImage(item)));
 
     return frontmatter.endsWith("\n") ? frontmatter : `${frontmatter}\n`;
   }
 
+  private formatMoment(date: Date, formatStr: string): string {
+    type MomentFactory = (input: Date) => { format: (fmt: string) => string };
+    return (moment as unknown as MomentFactory)(date).format(formatStr);
+  }
+
   protected applyTemplate(item: FeedItem, template: string): string {
-    const pubDate = item.pubDate ? new Date(item.pubDate) : new Date();
-    const isoDateTime = Number.isNaN(pubDate.getTime())
-      ? new Date().toISOString()
-      : pubDate.toISOString();
+    const pubDate = this.resolveSavedArticleDate(item);
+    const isoDateTime = pubDate.toISOString();
 
     const formattedDate = new Date().toLocaleDateString(undefined, {
       year: "numeric",
@@ -350,12 +381,20 @@ guid: "{{guid}}"
       day: "numeric",
     });
 
+    const now = new Date();
+    const saveDate = this.formatMoment(now, "YYYY-MM-DD");
+    const saveTime12 = this.formatMoment(now, "hh:mm A");
+    const saveTime24 = this.formatMoment(now, "HH:mm");
+
     const description = item.description;
     return template
       .replace(/{{title}}/g, item.title)
       .replace(/{{date}}/g, formattedDate)
       .replace(/{{isoDate}}/g, isoDateTime)
       .replace(/{{isoDateTime}}/g, isoDateTime)
+      .replace(/{{saveDate}}/g, saveDate)
+      .replace(/{{saveTime12}}/g, saveTime12)
+      .replace(/{{saveTime24}}/g, saveTime24)
       .replace(/{{link}}/g, item.link)
       .replace(/{{author}}/g, item.author || "")
       .replace(/{{source}}/g, item.feedTitle || "Web viewer")
@@ -378,13 +417,15 @@ guid: "{{guid}}"
     );
   }
 
-  protected async ensureFolderExists(folderPath: string): Promise<void> {
+  /**
+   * Makes sure the folder exists and returns its path as it is on disk, which
+   * may differ in case from `folderPath` (see `ensureVaultFolder`).
+   */
+  protected async ensureFolderExists(folderPath: string): Promise<string> {
     if (!folderPath || folderPath.trim() === "") {
-      return;
+      return "";
     }
 
-    if (this.app.vault.getAbstractFileByPath(folderPath) === null) {
-      await this.app.vault.createFolder(folderPath);
-    }
+    return ensureVaultFolder(this.app, folderPath);
   }
 }

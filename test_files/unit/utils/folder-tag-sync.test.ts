@@ -16,7 +16,11 @@ function createItem(tags?: Tag[]): FeedItem {
     guid: "item-1",
     title: "Item",
     link: "https://example.com/item",
+    description: "",
     pubDate: "Mon, 01 Jan 2024 00:00:00 GMT",
+    feedTitle: "Feed",
+    feedUrl: "https://example.com/feed",
+    coverImage: "",
     tags,
   };
 }

@@ -1,4 +1,4 @@
-import { App, Modal, Platform } from "obsidian";
+import { App, Modal, Platform, setIcon, setTooltip } from "obsidian";
 import {
   Sidebar,
   SidebarOptions,
@@ -92,6 +92,16 @@ export class MobileNavigationModal extends Modal {
         this.callbacks.onRangeSelect?.(clickedKey, visibleKeys);
         this.close();
       },
+      // The dashboard re-renders its own sidebar after a delete, not this
+      // modal's, so re-render here or the deleted row stays until reopen.
+      onDeleteFeed: (feed) => {
+        this.callbacks.onDeleteFeed(feed);
+        this.sidebar?.render();
+      },
+      onDeleteFolder: (folder: string) => {
+        this.callbacks.onDeleteFolder(folder);
+        this.sidebar?.render();
+      },
       onClearTags: () => {
         this.callbacks.onClearTags();
       },
@@ -133,15 +143,23 @@ export class MobileNavigationModal extends Modal {
   }
 
   private updateAllFeedsIconRefreshState(): void {
+    const isCancellable = this.plugin.isGlobalRefreshCancellable ?? false;
     const isRefreshActive =
-      this.plugin.isMultiFeedRefreshActive ||
-      (this.plugin.activeRefreshState?.size ?? 0) > 0;
+      !isCancellable &&
+      (this.plugin.isMultiFeedRefreshActive ||
+        (this.plugin.activeRefreshState?.size ?? 0) > 0);
 
     const allFeedsIcon = this.sidebarWrapper.querySelector(
       ".rss-dashboard-all-feeds-icon",
     );
-    if (allFeedsIcon) {
+    if (allFeedsIcon instanceof HTMLElement) {
+      allFeedsIcon.classList.toggle("stop", isCancellable);
       allFeedsIcon.classList.toggle("refreshing", isRefreshActive);
+      setTooltip(
+        allFeedsIcon,
+        isCancellable ? "Stop refresh" : "Refresh all feeds",
+      );
+      setIcon(allFeedsIcon, isCancellable ? "square-stop" : "refresh-cw");
     }
   }
 

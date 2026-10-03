@@ -16,11 +16,14 @@ import {
   stripNonContentHtmlNodes,
 } from "../utils/html-text";
 import { normalizeSubstackImageUrl } from "../utils/substack-image-url";
+import { resolveDisplayDate } from "./feed-parser/feed-retention";
 import {
   addMathTurndownRule,
   protectMathForMarkdown,
 } from "../utils/math-rendering";
 import { firstNonFormulaImageUrl } from "../utils/image-url-utils";
+import { escapeYamlDoubleQuoted } from "../utils/yaml-escape";
+import { ensureVaultFolder } from "../utils/vault-files";
 
 const MAX_FILENAME_LENGTH = 100;
 
@@ -39,15 +42,18 @@ export class ArticleSaver {
   private settings: ArticleSavingSettings;
   private turndownService: TurndownService;
   private corsProxyUrl: string | undefined;
+  private getUseFirstSeenDateFallback: () => boolean;
 
   constructor(
     app: App,
     settings: ArticleSavingSettings,
     corsProxyUrl?: string,
+    getUseFirstSeenDateFallback: () => boolean = () => false,
   ) {
     this.app = app;
     this.settings = settings;
     this.corsProxyUrl = corsProxyUrl;
+    this.getUseFirstSeenDateFallback = getUseFirstSeenDateFallback;
     this.turndownService = new TurndownService();
     addMathTurndownRule(this.turndownService);
   }
@@ -91,6 +97,19 @@ export class ArticleSaver {
     } catch {
       return html;
     }
+  }
+
+  /**
+   * The date to stamp into saved-note frontmatter/templates: the real
+   * `pubDate` when it resolves to an actual instant, falling back to
+   * `firstSeenMs` (when `useFirstSeenDateFallback` is enabled) when there's
+   * no real date, and only reaching for "now" when neither is available.
+   */
+  private resolveSavedArticleDate(item: FeedItem): Date {
+    return (
+      resolveDisplayDate(item, this.getUseFirstSeenDateFallback()) ??
+      new Date()
+    );
   }
 
   private getPreferredFeedHtml(item: FeedItem): string {
@@ -260,23 +279,30 @@ export class ArticleSaver {
 
     const tagsString = tagNames.join(", ");
 
-    const pubDate = item.pubDate ? new Date(item.pubDate) : new Date();
+    const pubDate = this.resolveSavedArticleDate(item);
 
-    frontmatter = this.replaceDatePlaceholders(frontmatter, pubDate)
-      .replace(/{{title}}/g, item.title)
+    frontmatter = this.replaceDatePlaceholders(
+      frontmatter,
+      pubDate,
+      item.firstSeenMs,
+    )
+      .replace(/{{title}}/g, escapeYamlDoubleQuoted(item.title))
       .replace(/{{tags}}/g, tagsString)
-      .replace(/{{source}}/g, item.feedTitle)
-      .replace(/{{link}}/g, item.link)
-      .replace(/{{author}}/g, item.author || "")
-      .replace(/{{feedTitle}}/g, item.feedTitle)
-      .replace(/{{guid}}/g, item.guid)
-      .replace(/{{image}}/g, this.getFallbackHeroUrl(item));
+      .replace(/{{source}}/g, escapeYamlDoubleQuoted(item.feedTitle))
+      .replace(/{{link}}/g, escapeYamlDoubleQuoted(item.link))
+      .replace(/{{author}}/g, escapeYamlDoubleQuoted(item.author || ""))
+      .replace(/{{feedTitle}}/g, escapeYamlDoubleQuoted(item.feedTitle))
+      .replace(/{{guid}}/g, escapeYamlDoubleQuoted(item.guid))
+      .replace(
+        /{{image}}/g,
+        escapeYamlDoubleQuoted(this.getFallbackHeroUrl(item)),
+      );
 
     if (item.mediaType === "video" && item.videoId) {
-      const injection = `mediaType: video\nvideoId: "${item.videoId}"\n`;
+      const injection = `mediaType: video\nvideoId: "${escapeYamlDoubleQuoted(item.videoId)}"\n`;
       frontmatter = frontmatter.replace(/^---\r?\n/, (m) => `${m}${injection}`);
     } else if (item.mediaType === "podcast" && item.audioUrl) {
-      const injection = `mediaType: podcast\naudioUrl: "${item.audioUrl}"\n`;
+      const injection = `mediaType: podcast\naudioUrl: "${escapeYamlDoubleQuoted(item.audioUrl)}"\n`;
       frontmatter = frontmatter.replace(/^---\r?\n/, (m) => `${m}${injection}`);
     }
 
@@ -292,21 +318,44 @@ export class ArticleSaver {
     return (moment as unknown as MomentFactory)(date).format(formatStr);
   }
 
-  private replaceDatePlaceholders(text: string, date: Date): string {
-    const validDate = Number.isNaN(date.getTime()) ? new Date() : date;
-    const isoDateTime = validDate.toISOString();
-
-    const longFormattedDate = validDate.toLocaleDateString(undefined, {
+  private formatLongDate(date: Date): string {
+    return date.toLocaleDateString(undefined, {
       year: "numeric",
       month: "long",
       day: "numeric",
     });
+  }
+
+  private replaceDatePlaceholders(
+    text: string,
+    date: Date,
+    firstSeenMs?: number,
+  ): string {
+    const validDate = Number.isNaN(date.getTime()) ? new Date() : date;
+    const isoDateTime = validDate.toISOString();
+
+    const longFormattedDate = this.formatLongDate(validDate);
+
+    const firstSeenDate =
+      typeof firstSeenMs === "number" && !Number.isNaN(firstSeenMs)
+        ? new Date(firstSeenMs)
+        : validDate;
+    const longFormattedFirstSeen = this.formatLongDate(firstSeenDate);
+
+    const now = new Date();
+    const saveDate = this.formatMoment(now, "YYYY-MM-DD");
+    const saveTime12 = this.formatMoment(now, "hh:mm A");
+    const saveTime24 = this.formatMoment(now, "HH:mm");
 
     let replaced = text
       .replace(/{{date}}/g, longFormattedDate)
       .replace(/{{dateShort}}/g, this.formatMoment(validDate, "YYYY-MM-DD"))
       .replace(/{{isoDate}}/g, isoDateTime)
-      .replace(/{{isoDateTime}}/g, isoDateTime);
+      .replace(/{{isoDateTime}}/g, isoDateTime)
+      .replace(/{{firstSeen}}/g, longFormattedFirstSeen)
+      .replace(/{{saveDate}}/g, saveDate)
+      .replace(/{{saveTime12}}/g, saveTime12)
+      .replace(/{{saveTime24}}/g, saveTime24);
 
     // Handle dynamic formats: {{date:FORMAT}}
     replaced = replaced.replace(
@@ -331,7 +380,7 @@ export class ArticleSaver {
           this.cleanHtml(this.getPreferredFeedHtml(item)),
         );
 
-    const pubDate = item.pubDate ? new Date(item.pubDate) : new Date();
+    const pubDate = this.resolveSavedArticleDate(item);
 
     const tagNames = (item.tags ?? [])
       .map((tag) => tag.name)
@@ -343,7 +392,11 @@ export class ArticleSaver {
       ? withSavedTagName(tagNames).join(", ")
       : tagNames.join(", ");
 
-    const replacedWithDates = this.replaceDatePlaceholders(template, pubDate);
+    const replacedWithDates = this.replaceDatePlaceholders(
+      template,
+      pubDate,
+      item.firstSeenMs,
+    );
 
     return replacedWithDates
       .replace(/{{title}}/g, item.title)
@@ -384,26 +437,18 @@ export class ArticleSaver {
     );
   }
 
-  private async ensureFolderExists(folderPath: string): Promise<void> {
-    if (!folderPath || folderPath.trim() === "") {
-      return;
-    }
-
+  /**
+   * Makes sure the save folder exists and returns its path as it is on disk,
+   * which may differ in case from `folderPath` (see `ensureVaultFolder`).
+   */
+  private async ensureFolderExists(folderPath: string): Promise<string> {
     const cleanPath = this.normalizePath(folderPath);
     if (!cleanPath) {
-      return;
+      return "";
     }
 
     try {
-      const parts = cleanPath.split("/").filter((part) => part.trim() !== "");
-      let currentPath = "";
-
-      for (const part of parts) {
-        currentPath = currentPath ? `${currentPath}/${part}` : part;
-        if (this.app.vault.getAbstractFileByPath(currentPath) === null) {
-          await this.app.vault.createFolder(currentPath);
-        }
-      }
+      return await ensureVaultFolder(this.app, cleanPath);
     } catch {
       throw new Error(`Failed to create folder: ${cleanPath}`);
     }
@@ -602,7 +647,7 @@ export class ArticleSaver {
         const trimmedPart = part.trim();
         const urlMatch = trimmedPart.match(/^([^\s]+)(\s+\d+w|\s+\d+x)?$/);
         if (urlMatch) {
-          const url = urlMatch[1];
+          const url = urlMatch[1] ?? "";
           const sizeDescriptor = urlMatch[2] || "";
           return (
             this.convertToAbsoluteUrl(url.trim(), baseUrl) + sizeDescriptor
@@ -695,7 +740,7 @@ export class ArticleSaver {
       folder = this.normalizePath(folder);
 
       if (folder && folder.trim() !== "") {
-        await this.ensureFolderExists(folder);
+        folder = await this.ensureFolderExists(folder);
       }
 
       const filename = sanitizeFilename(item.title);

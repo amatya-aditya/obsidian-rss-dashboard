@@ -34,7 +34,7 @@ describe("tag-applier service", () => {
     // Let's assert it keeps the original or replaces, but doesn't double-add.
     // Let's check that there's exactly one "News" tag and one "Tech" tag.
     expect(items[0].tags).toHaveLength(2);
-    const names = items[0].tags.map((t) => t.name);
+    const names = (items[0].tags ?? []).map((t) => t.name);
     expect(names).toContain("News");
     expect(names).toContain("Tech");
   });

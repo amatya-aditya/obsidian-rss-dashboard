@@ -38,6 +38,8 @@ interface TestPlugin extends Partial<RssDashboardPlugin> {
   backgroundImportQueue?: FeedMetadata[];
   refreshFeeds: Mock<() => Promise<void>>;
   refreshFailedFeeds: Mock<() => Promise<void>>;
+  getFeedShardHealth?: (feed: Feed) => "missing" | "corrupt" | "rebuilt" | null;
+  isShardFolderHiddenFromSync?: boolean;
   cancelPendingStartupRefresh: Mock<() => void>;
   cancelGlobalRefresh: Mock<() => void>;
   isMultiFeedRefreshActive?: boolean;
@@ -58,6 +60,8 @@ type TestSidebar = {
   resizeObserver: ResizeObserver | null;
   destroy: () => void;
   render: () => void;
+  renderFeed: (feed: Feed, container: HTMLElement) => void;
+  refreshGlobalRefreshProgressOnly: () => void;
   clearFolderPathCache: () => void;
   focusSidebar: () => void;
   hasKeyboardFocus: () => boolean;
@@ -65,6 +69,7 @@ type TestSidebar = {
   moveFocusToPreviousItem: () => void;
   jumpToNextFolder: () => void;
   jumpToPreviousFolder: () => void;
+  deleteFocusedItem: () => void;
   openFocusedItem: () => void;
   focusedSidebarTarget: { type: string; path?: string; url?: string } | null;
 };
@@ -79,7 +84,7 @@ describe("Sidebar Core", () => {
 
   beforeEach(() => {
     app = ObsidianStubs.App.createMock() as TestApp;
-    container = document.createElement("div");
+    container = createDiv();
 
     settings = {
       feeds: [],
@@ -130,6 +135,7 @@ describe("Sidebar Core", () => {
       saveSettings: vi.fn().mockResolvedValue(undefined),
       refreshFeeds: vi.fn().mockResolvedValue(undefined),
       refreshFailedFeeds: vi.fn().mockResolvedValue(undefined),
+      getFeedShardHealth: vi.fn().mockReturnValue(null),
       cancelPendingStartupRefresh: vi.fn(),
       cancelGlobalRefresh: vi.fn(),
       isGlobalRefreshCancellable: false,
@@ -169,7 +175,7 @@ describe("Sidebar Core", () => {
         options,
         callbacks,
       );
-      iconEl = document.createElement("div");
+      iconEl = createDiv();
     });
 
     it("should add rss icon by default", () => {
@@ -231,7 +237,7 @@ describe("Sidebar Core", () => {
         options,
         callbacks,
       );
-      const headerSurface = document.createElement("div");
+      const headerSurface = createDiv();
       const ts = sidebar as unknown as TestSidebar;
       ts.renderHeader(headerSurface);
 
@@ -250,7 +256,7 @@ describe("Sidebar Core", () => {
         options,
         callbacks,
       );
-      const headerSurface = document.createElement("div");
+      const headerSurface = createDiv();
       const ts = sidebar as unknown as TestSidebar;
 
       ts.renderHeader(headerSurface);
@@ -305,7 +311,9 @@ describe("Sidebar Core", () => {
     });
 
     it("focuses the current feed by default and scrolls it into view", () => {
-      options.currentFeed = settings.feeds[1];
+      const currentFeed = settings.feeds[1];
+      if (!currentFeed) throw new Error("Expected second feed fixture");
+      options.currentFeed = currentFeed;
       const scrollIntoViewSpy = vi.spyOn(Element.prototype, "scrollIntoView");
       const sidebar = new Sidebar(
         app,
@@ -399,6 +407,101 @@ describe("Sidebar Core", () => {
         path: "Folder 1",
       });
     });
+    describe("delete confirmation", () => {
+      afterEach(() => {
+        document.body.empty();
+      });
+
+      const openConfirms = () =>
+        document.body.querySelectorAll(".rss-sidebar-confirm-modal");
+
+      it("shows at most one delete confirmation when the delete hotkey repeats", () => {
+        const sidebar = new Sidebar(
+          app,
+          container,
+          plugin as unknown as RssDashboardPlugin,
+          settings,
+          options,
+          callbacks,
+        );
+
+        sidebar.render();
+        const ts = sidebar as unknown as TestSidebar;
+        ts.focusSidebar();
+        ts.moveFocusToNextItem();
+        ts.moveFocusToNextItem();
+        ts.deleteFocusedItem();
+        // Focus moves while the first confirmation is still open.
+        ts.moveFocusToNextItem();
+        ts.deleteFocusedItem();
+
+        expect(openConfirms()).toHaveLength(1);
+        expect(openConfirms()[0]?.textContent).toContain("Feed 1");
+      });
+
+      it("allows a new delete confirmation once the previous one is dismissed", () => {
+        const sidebar = new Sidebar(
+          app,
+          container,
+          plugin as unknown as RssDashboardPlugin,
+          settings,
+          options,
+          callbacks,
+        );
+
+        sidebar.render();
+        const ts = sidebar as unknown as TestSidebar;
+        ts.focusSidebar();
+        ts.moveFocusToNextItem();
+        ts.moveFocusToNextItem();
+        ts.deleteFocusedItem();
+        openConfirms()[0]
+          ?.querySelector<HTMLButtonElement>(".rss-folder-name-modal-cancel")
+          ?.click();
+        expect(openConfirms()).toHaveLength(0);
+
+        ts.deleteFocusedItem();
+        openConfirms()[0]
+          ?.querySelector<HTMLButtonElement>(".rss-folder-name-modal-ok")
+          ?.click();
+
+        expect(callbacks.onDeleteFeed).toHaveBeenCalledTimes(1);
+        expect(callbacks.onDeleteFeed).toHaveBeenCalledWith(settings.feeds[0]);
+      });
+    });
+
+    it("skips feeds inside collapsed folders when moving focus", () => {
+      settings.collapsedFolders = ["Folder 1"];
+      const sidebar = new Sidebar(
+        app,
+        container,
+        plugin as unknown as RssDashboardPlugin,
+        settings,
+        options,
+        callbacks,
+      );
+
+      sidebar.render();
+      const ts = sidebar as unknown as TestSidebar;
+      ts.focusSidebar();
+      ts.moveFocusToNextItem();
+      expect(ts.focusedSidebarTarget).toEqual({
+        type: "folder",
+        path: "Folder 1",
+      });
+
+      ts.moveFocusToNextItem();
+      expect(ts.focusedSidebarTarget).toEqual({
+        type: "folder",
+        path: "Folder 2",
+      });
+
+      ts.moveFocusToPreviousItem();
+      expect(ts.focusedSidebarTarget).toEqual({
+        type: "folder",
+        path: "Folder 1",
+      });
+    });
   });
 
   describe("refresh progress rendering", () => {
@@ -413,6 +516,58 @@ describe("Sidebar Core", () => {
         ...overrides,
       };
     }
+
+    it("shows rebuilt shard guidance in the feed refresh details without a native tooltip", () => {
+      const rebuiltFeed = createFeed({
+        title: "Rebuilt shard",
+        feedId: "feed-rebuilt",
+      });
+      settings.feeds = [rebuiltFeed];
+      plugin.getFeedShardHealth = vi.fn().mockReturnValue("rebuilt");
+
+      const sidebar = new Sidebar(
+        app,
+        container,
+        plugin as unknown as RssDashboardPlugin,
+        settings,
+        options,
+        callbacks,
+      );
+      sidebar.render();
+
+      const warnings = Array.from(
+        container.querySelectorAll(".rss-dashboard-feed-shard-warning-badge"),
+      );
+      expect(warnings).toHaveLength(1);
+      expect(warnings[0]?.hasAttribute("title")).toBe(false);
+      expect(document.body.textContent).toContain(
+        "Feed shard file was missing or corrupted and was rebuilt. Restore the shard from the last known backup if one exists, or refresh the feed to fetch newest articles.",
+      );
+    });
+
+    it("leaves per-feed missing-shard warnings to the dashboard's single alert when the storage folder is hidden from sync", () => {
+      settings.feeds = [
+        createFeed({ title: "Missing one", feedId: "feed-1" }),
+        createFeed({ title: "Missing two", feedId: "feed-2" }),
+      ];
+      plugin.getFeedShardHealth = vi.fn().mockReturnValue("missing");
+      plugin.isShardFolderHiddenFromSync = true;
+
+      const sidebar = new Sidebar(
+        app,
+        container,
+        plugin as unknown as RssDashboardPlugin,
+        settings,
+        options,
+        callbacks,
+      );
+      sidebar.render();
+
+      expect(
+        container.querySelectorAll(".rss-dashboard-feed-shard-warning-badge"),
+      ).toHaveLength(0);
+      expect(document.body.textContent).not.toContain("Repair/rebuild storage");
+    });
 
     it("shows the all-feeds spinner and per-feed queued/processing indicators from plugin refresh state", () => {
       const processingFeed = createFeed({
@@ -488,8 +643,9 @@ describe("Sidebar Core", () => {
       const icon = container.querySelector(
         ".rss-dashboard-all-feeds-icon",
       ) as HTMLElement;
-      expect(icon.getAttribute("title")).toBe("Refresh all feeds");
-      expect(icon.hasAttribute("aria-label")).toBe(false);
+      // aria-label is the short hover tooltip; aria-labelledby still wins as
+      // the accessible name, so screen readers get the full description.
+      expect(icon.getAttribute("aria-label")).toBe("Refresh all feeds");
       const labelId = icon.getAttribute("aria-labelledby") ?? "";
       expect(container.querySelector(`#${labelId}`)?.textContent).toBe(
         "Refresh all feeds. Shift+click to retry failed feeds.",
@@ -528,6 +684,73 @@ describe("Sidebar Core", () => {
       expect(retryItem).toBeDefined();
       retryItem?.trigger();
       expect(plugin.refreshFailedFeeds).toHaveBeenCalledTimes(1);
+    });
+
+    describe("refresh details from the all-feeds context menu", () => {
+      function openRefreshDetails(): void {
+        const sidebar = new Sidebar(
+          app,
+          container,
+          plugin as unknown as RssDashboardPlugin,
+          settings,
+          options,
+          callbacks,
+        );
+        sidebar.render();
+        container
+          .querySelector(".rss-dashboard-all-feeds-button")
+          ?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+        ObsidianStubs.Menu.lastItems
+          .find((item) => item.title === "Refresh details")
+          ?.trigger();
+      }
+
+      afterEach(() => {
+        ObsidianStubs.Platform.isMobile = false;
+        activeDocument
+          .querySelectorAll(
+            ".modal-container, .rss-dashboard-refresh-details-manual",
+          )
+          .forEach((el) => el.remove());
+      });
+
+      it("opens a readable modal on mobile that stays open until dismissed", async () => {
+        vi.useFakeTimers();
+        ObsidianStubs.Platform.isMobile = true;
+        settings.feeds = [createFeed({ title: "Example feed" })];
+
+        openRefreshDetails();
+        await vi.advanceTimersByTimeAsync(10_000);
+
+        const modal = document.querySelector<HTMLElement>(
+          ".rss-dashboard-refresh-details-modal",
+        );
+        expect(modal?.textContent).toContain("Refresh details");
+        expect(
+          modal?.querySelectorAll(".rss-dashboard-refresh-details-line").length,
+        ).toBeGreaterThan(0);
+        expect(
+          document.querySelector(".rss-dashboard-refresh-details-manual"),
+        ).toBeNull();
+        // Obsidian positions and animates phone modals itself. The plugin's
+        // `rss-dashboard-modal` class re-centers with a transform on top of
+        // that, which pushed this modal mostly off an iPhone screen.
+        expect(modal?.classList.contains("rss-dashboard-modal")).toBe(false);
+        vi.useRealTimers();
+      });
+
+      it("keeps the anchored popover on desktop", () => {
+        settings.feeds = [createFeed({ title: "Example feed" })];
+
+        openRefreshDetails();
+
+        expect(
+          document.querySelector(".rss-dashboard-refresh-details-manual"),
+        ).not.toBeNull();
+        expect(
+          document.querySelector(".rss-dashboard-refresh-details-modal"),
+        ).toBeNull();
+      });
     });
 
     it("prefers import processing visuals over refresh visuals when both exist", () => {
@@ -591,7 +814,7 @@ describe("Sidebar Core", () => {
       ) as HTMLElement;
       expect(icon.tagName).toBe("BUTTON");
       expect(icon.getAttribute("type")).toBe("button");
-      expect(icon.getAttribute("title")).toBe("Stop refresh");
+      expect(icon.getAttribute("aria-label")).toBe("Stop refresh");
       expect(icon.getAttribute("aria-labelledby")).toBeTruthy();
       expect(icon.classList.contains("stop")).toBe(true);
       expect(icon.classList.contains("refreshing")).toBe(false);
@@ -636,7 +859,7 @@ describe("Sidebar Core", () => {
       expect(
         container
           .querySelector(".rss-dashboard-all-feeds-icon")
-          ?.getAttribute("title"),
+          ?.getAttribute("aria-label"),
       ).toBe("Refresh all feeds");
     });
 
@@ -664,6 +887,64 @@ describe("Sidebar Core", () => {
       );
       expect(progressEl).not.toBeNull();
       expect(progressEl?.textContent).toContain("2/3");
+    });
+
+    it("updates global refresh progress without rebuilding feed rows", () => {
+      const feed = createFeed({ url: "https://example.com/a.xml" });
+      settings.feeds = [feed];
+      plugin.isGlobalRefreshCancellable = true;
+      plugin.globalRefreshProgress = { completed: 0, total: 1 };
+
+      const sidebar = new Sidebar(
+        app,
+        container,
+        plugin as unknown as RssDashboardPlugin,
+        settings,
+        options,
+        callbacks,
+      );
+      sidebar.render();
+      const originalFeedRow = container.querySelector(
+        `[data-feed-url="${feed.url}"]`,
+      );
+
+      plugin.globalRefreshProgress = { completed: 1, total: 1 };
+      (sidebar as unknown as TestSidebar).refreshGlobalRefreshProgressOnly();
+
+      expect(
+        container.querySelector(".rss-dashboard-all-feeds-progress")
+          ?.textContent,
+      ).toBe("1/1");
+      expect(container.querySelector(`[data-feed-url="${feed.url}"]`)).toBe(
+        originalFeedRow,
+      );
+    });
+
+    it("restores sidebar scroll before a subsequent status redraw", () => {
+      const feed = createFeed({ url: "https://example.com/a.xml" });
+      settings.feeds = [feed];
+      vi.spyOn(window, "requestAnimationFrame").mockImplementation(() => 0);
+      const empty = container.empty.bind(container);
+      vi.spyOn(container, "empty").mockImplementation(() => {
+        empty();
+        container.scrollTop = 0;
+        return container;
+      });
+
+      const sidebar = new Sidebar(
+        app,
+        container,
+        plugin as unknown as RssDashboardPlugin,
+        settings,
+        options,
+        callbacks,
+      );
+      sidebar.render();
+      container.scrollTop = 180;
+
+      sidebar.render();
+
+      expect(container.scrollTop).toBe(180);
     });
 
     it("does not show stop icon when refresh is active but not cancellable", () => {
@@ -720,7 +1001,7 @@ describe("Sidebar Core", () => {
       if (container.parentElement) {
         container.parentElement.removeChild(container);
       }
-      container = document.createElement("div");
+      container = createDiv();
     });
 
     it("ctrl+click on a folder calls onFolderMultiSelect with that folder added to the selection", () => {

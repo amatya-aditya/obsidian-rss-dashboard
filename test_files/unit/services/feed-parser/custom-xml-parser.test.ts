@@ -13,6 +13,7 @@ import {
   RSS2_WITH_MEDIA_CONTENT_VIDEO,
   RSS2_WITH_MEDIA_CONTENT_MEDIUM_ONLY,
   RSS2_EMPTY,
+  RSS2_WITHOUT_PUBDATE,
   SUBSTACK_RSS,
   ASTRAL_CODEX_BROKEN_SUBSTACK_CONTENT,
   BLOOMBERG_VIDEO_IMAGE_FIRST_RSS,
@@ -21,6 +22,7 @@ import {
   ATOM_WITH_LOGO,
   JSON_FEED_BASIC,
   JSON_FEED_EMPTY_ITEMS,
+  JSON_FEED_WITHOUT_DATE,
   RSS2_SUBSTACK_QUOTED_ATTRS,
 } from "./fixtures/rss-fixtures.js";
 
@@ -191,6 +193,33 @@ describe("CustomXMLParser - RSS 2.0 Parsing", () => {
     // This is the critical check - it should extract the long content even if description is present
     expect(result.items[0].content).toContain("full content");
     expect(result.items[0].content).toContain("</b>");
+  });
+
+  it("leaves pubDate empty for an item with no declared date, rather than fabricating one", () => {
+    const result = parser.parseString(RSS2_WITHOUT_PUBDATE);
+    expect(result.items[0].pubDate).toBeFalsy();
+  });
+
+  it("leaves pubDate empty for an undated item on the regex-based fallback path", () => {
+    // Force the parser down the regex-based fallback path by including a malformed channel description.
+    const brokenWithoutPubDate = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Broken Feed</title>
+    <description>Broken <b>description</description>
+    <link>https://example.com</link>
+    <item>
+      <title>Undated Outer</title>
+      <link>https://example.com/undated-outer</link>
+      <guid>undated-outer</guid>
+      <description>No pubDate here</description>
+    </item>
+  </channel>
+</rss>`;
+
+    const result = parser.parseString(brokenWithoutPubDate);
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0].pubDate).toBeFalsy();
   });
 });
 
@@ -392,6 +421,11 @@ describe("CustomXMLParser - JSON Feed Parsing", () => {
     // The parser gracefully falls back to regex-based parsing rather than throwing
     // for content that begins with '{' but is not valid JSON.
     expect(() => parser.parseString("{invalid json}")).not.toThrow();
+  });
+
+  it("leaves pubDate empty for a JSON Feed item with no date_published, rather than fabricating one", () => {
+    const result = parser.parseString(JSON_FEED_WITHOUT_DATE);
+    expect(result.items[0].pubDate).toBeFalsy();
   });
 });
 

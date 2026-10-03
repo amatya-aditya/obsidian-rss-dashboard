@@ -1,0 +1,51 @@
+{
+  "direction": "ltr",
+  "id": "user/-/state/com.google/starred",
+  "title": "Starred articles",
+  "description": "",
+  "updated": 1700000100,
+  "items": [
+    {
+      "crawlTimeMsec": "1700000010000",
+      "timestampUsec": "1700000010000000",
+      "id": "tag:google.com,2005:reader/item/00000000000000a1",
+      "categories": [
+        "user/-/state/com.google/reading-list",
+        "user/-/state/com.google/starred",
+        "user/-/state/com.google/read",
+        "user/-/label/test_tag",
+        "Product"
+      ],
+      "title": "FreshRSS Article",
+      "published": 1699990000,
+      "updated": 0,
+      "starred": 1700000010,
+      "canonical": [
+        {
+          "href": "https://freshrss-example.test/articles/freshrss-article"
+        }
+      ],
+      "alternate": [
+        {
+          "href": "https://freshrss-example.test/articles/freshrss-article",
+          "type": "text/html"
+        }
+      ],
+      "content": {
+        "direction": "ltr",
+        "content": "<p>Placeholder FreshRSS article content.</p>"
+      },
+      "author": "FreshRSS Author",
+      "likingUsers": [],
+      "comments": [],
+      "commentsNum": -1,
+      "annotations": [],
+      "origin": {
+        "streamId": "feed/6",
+        "title": "FreshRSS Source",
+        "htmlUrl": "https://freshrss-example.test/blog/"
+      },
+      "summaries": []
+    }
+  ]
+}

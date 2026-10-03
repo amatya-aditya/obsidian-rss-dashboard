@@ -58,6 +58,26 @@ export interface FeedItem {
    */
   restrictedReason?: string;
 
+  /**
+   * Full-content fetch state for an article imported from a starred.json
+   * export (234-09). Set to "unfetched" at import time for every imported
+   * article; "failed" once a fetch (either the opt-in import-time fetch from
+   * 234-06, or the reader's manual "Fetch now") has been attempted and did
+   * not return usable content; absent once a fetch succeeds and the article
+   * carries real full content. Only present on starred-imported articles —
+   * articles from a normal feed refresh never set this field, so the
+   * reader's automatic fetch-on-open is unaffected for them.
+   */
+  starredImportContentState?: "unfetched" | "failed";
+
+  /**
+   * Epoch-millisecond timestamp of when this article was imported from a
+   * starred.json export (234-09). Set alongside `starredImportContentState`
+   * at import time; used by the reader's cached-preview banner to show the
+   * user when the export was taken.
+   */
+  starredImportedAt?: number;
+
   ieee?: {
     pubYear?: string;
     volume?: string;
@@ -67,6 +87,14 @@ export interface FeedItem {
     fileSize?: string;
     authors?: string;
   };
+
+  /**
+   * Epoch-millisecond timestamp of when this vault's local storage first
+   * recorded this item, stamped once by `mergeFeedHistoryItems` and never
+   * regenerated afterward. Used as the effective-date fallback for items
+   * with no parseable `pubDate`, when `useFirstSeenDateFallback` is enabled.
+   */
+  firstSeenMs?: number;
 }
 
 export type FeedEncoding = "auto" | "windows-1251";
@@ -216,7 +244,6 @@ export type PodcastTheme =
 export interface MediaSettings {
   autoTagVideos: boolean;
   rememberPlaybackProgress: boolean;
-  defaultTwitterFolder: string;
   defaultMastodonFolder: string;
   defaultYouTubeFolder: string;
   defaultVideoTag: string;
@@ -231,8 +258,6 @@ export interface MediaSettings {
   defaultSmallwebFolder: string;
   defaultSmallwebTag: string;
   defaultSmallwebTags: string[];
-  defaultTwitterTag: string;
-  defaultTwitterTags: string[];
   defaultMastodonTag: string;
   defaultMastodonTags: string[];
   openInSplitView: boolean;
@@ -294,7 +319,6 @@ export interface DisplaySettings {
   useDomainFavicons: boolean;
   useDomainIconsPodcast: boolean;
   useDomainIconsMastodon: boolean;
-  useDomainIconsTwitter: boolean;
   useDomainIconsRss: boolean;
   useDomainIconsYouTube: boolean;
   hideDefaultRssIcon: boolean;
@@ -419,6 +443,29 @@ export interface ArticleUserState {
 export interface UserStateFile {
   version: number;
   states: Record<string, ArticleUserState>;
+  /**
+   * Bare-GUID state from a pre-#278 `user-state.json` that has not yet been
+   * attributed to a `feedId:guid` key in `states` because its owning feed
+   * had not hydrated when the migration ran. Re-attempted on every hydrate
+   * and save until that feed's items become available, then folded into
+   * `states` and removed from here.
+   */
+  unattributedLegacyStates?: Record<string, ArticleUserState>;
+  /**
+   * First observation timestamps for feed-qualified state absent from a
+   * successfully hydrated shard.
+   */
+  missingSinceByStateKey?: Record<string, number>;
+  /**
+   * First observation timestamps for legacy bare-GUID state that has not yet
+   * been attributed by a successfully hydrated shard.
+   */
+  unattributedFirstObservedAtByGuid?: Record<string, number>;
+  /**
+   * First observation timestamps, by feed ID, for state whose feed was not in
+   * the saving device's feed list and was not removed by that device.
+   */
+  unrecognizedFeedSinceByFeedId?: Record<string, number>;
   _syncNonce?: string;
   _syncPad?: string;
 }
@@ -431,9 +478,26 @@ export interface FeedItemsShard {
   items: FeedItem[];
 }
 
+export type FeedShardHealth = "missing" | "corrupt" | "rebuilt";
+
 export type PersistedFeedConfig = Omit<Feed, "items"> & {
   feedId: string;
 };
+
+export type ArticleGroupByOption =
+  | "none"
+  | "feed"
+  | "date"
+  | "folder"
+  | "date_feed"
+  | "folder_feed";
+
+export interface FeedRetentionProtections {
+  protectStarred?: boolean;
+  protectSaved?: boolean;
+  protectTagged?: boolean;
+  protectUnread?: boolean;
+}
 
 export interface RssDashboardSettings {
   feeds: Feed[];
@@ -445,6 +509,16 @@ export interface RssDashboardSettings {
   startupRefreshDelaySeconds: number;
   maxItems: number;
   defaultAutoDeleteDuration: number;
+  protectStarred: boolean;
+  protectSaved: boolean;
+  protectTagged: boolean;
+  protectUnread: boolean;
+  /**
+   * When enabled, articles with no declared `pubDate` sort and retain by
+   * their `firstSeenMs` timestamp instead of sorting to the bottom and
+   * being deleted immediately once auto-delete is enabled. Off by default.
+   */
+  useFirstSeenDateFallback: boolean;
   viewStyle: "list" | "card" | "feed";
   showFeedArt: boolean;
   showThumbnails: boolean;
@@ -458,7 +532,7 @@ export interface RssDashboardSettings {
     value: unknown;
   };
   articleSort: "newest" | "oldest";
-  articleGroupBy: "none" | "feed" | "date" | "folder";
+  articleGroupBy: ArticleGroupByOption;
   allArticlesPageSize: number;
   unreadArticlesPageSize: number;
   readArticlesPageSize: number;
@@ -517,11 +591,22 @@ export interface RssDashboardSettings {
   autoBackup: AutoBackupSettings;
   storageMode: FeedStorageMode;
   /**
-   * Set to true when the user explicitly clicks "Never Show Again" or completes
-   * the vault-shards-v2 migration. When false (default), the migration modal
-   * is shown on every plugin load until the user is on vault-shards-v2.
+   * Version at which the storage deprecation prompt becomes due again. Unset
+   * means due now; the prompt is suppressed only while the running version is
+   * below it.
    */
-  storageMigrationDismissedPermanently?: boolean;
+  storageMigrationDismissedUntil?: string;
+  /**
+   * How many times the prompt has been deferred by a whole version. Once this
+   * reaches the cap, deferring by version is no longer offered.
+   */
+  storageMigrationDeferralCount?: number;
+  /**
+   * Most recent plugin version whose curated What's New note was shown, or
+   * whose new release line was evaluated without a note. Unset means an
+   * existing user who has never been shown one, which is treated as due.
+   */
+  lastShownVersion?: string;
   storageFolder: string;
   storageSchemaVersion: number;
   /**
@@ -565,6 +650,31 @@ export type SettingsOnly = Omit<
   "feeds" | "folders" | "availableTags"
 >;
 
+/**
+ * Feeds, folders, tags, articles, and article state — no app settings.
+ * See ADR 0005 for the split from the combined PortableDataBundle.
+ */
+export interface FeedBundle {
+  version: number;
+  exportedAt: number;
+  feeds: PersistedFeedConfig[];
+  folders: Folder[];
+  availableTags: Tag[];
+  shards: FeedItemsShard[];
+}
+
+/**
+ * App preferences only — no feeds, folders, tags, or articles.
+ * See ADR 0005 for the split from the combined PortableDataBundle.
+ */
+export interface SettingsBundle {
+  version: number;
+  exportedAt: number;
+  metadataStorageMode?: "plugin-default" | "vault-location";
+  metadataStorageFolder?: string;
+  settings: SettingsOnly;
+}
+
 export const DEFAULT_SETTINGS: RssDashboardSettings = {
   feeds: [],
   folders: [
@@ -599,11 +709,16 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
   startupRefreshDelaySeconds: 5,
   maxItems: 50,
   defaultAutoDeleteDuration: 30,
+  protectStarred: true,
+  protectSaved: true,
+  protectTagged: false,
+  protectUnread: false,
+  useFirstSeenDateFallback: false,
   viewStyle: "card",
   showFeedArt: true,
   showThumbnails: true,
   sidebarCollapsed: false,
-  sidebarWidth: 280,
+  sidebarWidth: 310,
   collapsedFolders: [],
   collapsedFeedSections: [],
   tagsCollapsed: true,
@@ -618,7 +733,6 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
   availableTags: [
     { name: "Important", color: "#e74c3c" },
     { name: "Read later", color: "#3498db" },
-    { name: "Favorite", color: "#f1c40f" },
     { name: "Video", color: "#d04747" },
     { name: "Podcast", color: "#8e44ad" },
   ],
@@ -643,7 +757,6 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
   media: {
     autoTagVideos: true,
     rememberPlaybackProgress: true,
-    defaultTwitterFolder: "Twitter",
     defaultMastodonFolder: "Mastodon",
     defaultYouTubeFolder: "Videos",
     defaultVideoTag: "Video",
@@ -658,8 +771,6 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
     defaultSmallwebFolder: "Smallweb",
     defaultSmallwebTag: "smallweb",
     defaultSmallwebTags: ["smallweb"],
-    defaultTwitterTag: "",
-    defaultTwitterTags: [],
     defaultMastodonTag: "",
     defaultMastodonTags: [],
     openInSplitView: true,
@@ -729,7 +840,6 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
     useDomainFavicons: true,
     useDomainIconsPodcast: false,
     useDomainIconsMastodon: false,
-    useDomainIconsTwitter: false,
     useDomainIconsRss: false,
     useDomainIconsYouTube: false,
     hideDefaultRssIcon: false,
@@ -793,7 +903,7 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
     backupUserdata: true,
   },
   storageMode: "vault-shards-v2",
-  storageMigrationDismissedPermanently: false,
+  storageMigrationDeferralCount: 0,
   storageFolder: ".rss-dashboard-data/feeds",
   storageSchemaVersion: 1,
   metadataStorageMode: "plugin-default",

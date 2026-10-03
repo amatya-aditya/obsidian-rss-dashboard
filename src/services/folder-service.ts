@@ -1,5 +1,12 @@
 import type { Feed, Folder } from "../types/types";
 
+/**
+ * Options for configuring folder creation behavior
+ * @property {boolean} [saveSettings=true] Whether to trigger settings save after folder creation
+ * @property {boolean} [refreshView=true] Whether to trigger view refresh after folder creation
+ * @property {Function} [onSaveSettings] Async callback to save settings
+ * @property {Function} [onRefreshView] Async callback to refresh the view
+ */
 export interface EnsureFolderExistsOptions {
   saveSettings?: boolean;
   refreshView?: boolean;
@@ -7,6 +14,10 @@ export interface EnsureFolderExistsOptions {
   onRefreshView?: () => Promise<void>;
 }
 
+/**
+ * Options for repairing missing folder paths
+ * @property {Function} [onSaveSettings] Async callback to save settings after repair
+ */
 export interface RepairMissingFoldersOptions {
   onSaveSettings?: () => Promise<void>;
 }
@@ -19,6 +30,12 @@ export class FolderService {
   private settings: { folders: Folder[]; feeds?: Feed[] } | undefined;
   private feedsCache: Feed[] | undefined;
 
+  /**
+   * Creates a new FolderService instance
+   * @param {Object} [settings] Settings containing folders and optional feeds
+   * @param {Folder[]} [settings.folders] Array of folder objects
+   * @param {Feed[]} [settings.feeds] Optional array of feeds for repair operations
+   */
   constructor(settings?: { folders: Folder[]; feeds?: Feed[] }) {
     this.settings = settings;
     this.feedsCache = settings?.feeds;
@@ -26,8 +43,8 @@ export class FolderService {
 
   /**
    * Check whether a folder path exists in the settings hierarchy
-   * @param folderPath Path to check (e.g. "News/Tech")
-   * @returns true if path exists, false otherwise
+   * @param {string} folderPath Path to check (e.g. "News/Tech")
+   * @returns {boolean} true if path exists, false otherwise
    */
   folderPathExists(folderPath: string): boolean {
     if (!this.settings?.folders) {
@@ -60,11 +77,10 @@ export class FolderService {
   }
 
   /**
-   * Ensure a folder path exists, creating any missing intermediate folders.
-   * Returns true if the path was created, false if it already existed.
-   * @param folderPath Path to ensure (e.g. "News/Tech")
-   * @param options Control save/refresh behavior and provide callbacks
-   * @returns true if folder(s) were created, false if they already existed
+   * Ensure a folder path exists, creating any missing intermediate folders
+   * @param {string} folderPath Path to ensure (e.g. "News/Tech")
+   * @param {EnsureFolderExistsOptions} [options] Control save/refresh behavior
+   * @returns {Promise<boolean>} true if folder(s) were created, false if already existed
    */
   async ensureFolderExists(
     folderPath: string,
@@ -115,9 +131,10 @@ export class FolderService {
   }
 
   /**
-   * Repair missing folder paths referenced by feeds.
-   * Creates any missing folders detected in feed folder properties.
-   * @param options Provide callbacks for saving settings
+   * Repair missing folder paths referenced by feeds
+   * Creates any missing folders detected in feed folder properties
+   * @param {RepairMissingFoldersOptions} [options] Callback for saving settings
+   * @returns {Promise<void>}
    */
   async repairMissingFolderPathsForFeeds(
     options?: RepairMissingFoldersOptions,
@@ -151,6 +168,9 @@ export class FolderService {
 
     if (changed && options?.onSaveSettings) {
       await options.onSaveSettings();
+      // Informational, not an error path: the repair succeeded and settings were
+      // saved. Logged at warn level (rather than a user-facing Notice) so this
+      // config drift is visible in the console when the caller opts into saving.
       console.warn(
         `[RSS dashboard] Repaired ${missingPaths.size} missing feed folder path(s) during settings load.`,
       );

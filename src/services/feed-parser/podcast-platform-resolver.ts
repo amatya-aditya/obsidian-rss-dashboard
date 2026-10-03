@@ -5,6 +5,7 @@ import {
   POCKET_CASTS,
 } from "../../utils/podcast-platforms.js";
 import type { ItunesLookupResponse } from "./types.js";
+import { decodeHtmlEntities } from "./xml-parser/xml-html-utils.js";
 export async function resolvePodcastPlatformUrl(
   url: string,
   corsProxyUrl?: string,
@@ -94,10 +95,7 @@ async function resolvePocketCastsUrl(
           /<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:title["']/i,
         ) ||
         contents.match(
-          /<meta[^>]+name=["']twitter:title["'][^>]+content=["']([^"']+)["']/i,
-        ) ||
-        contents.match(
-          /<meta[^>]+content=["']([^"']+)["'][^>]+name=["']twitter:title["']/i,
+          /<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:title["']/i,
         );
 
       if (!titleMatch) {
@@ -110,10 +108,7 @@ async function resolvePocketCastsUrl(
 
       if (titleMatch?.[1]) {
         const rawTitle = titleMatch[1];
-        const decodedTitle = rawTitle
-          .replace(/&amp;/g, "&")
-          .replace(/&quot;/g, '"')
-          .replace(/&#39;/g, "'");
+        const decodedTitle = decodeHtmlEntities(rawTitle);
         console.debug(
           `[RSS Dashboard] Extracted title for iTunes search: "${decodedTitle}"`,
         );
@@ -132,14 +127,11 @@ async function resolvePocketCastsUrl(
             const itunesData = JSON.parse(itunesResponse.text) as {
               results?: Array<{ feedUrl?: string; collectionName?: string }>;
             };
-            if (
-              itunesData.results &&
-              itunesData.results.length > 0 &&
-              itunesData.results[0].feedUrl
-            ) {
-              const feedUrl = itunesData.results[0].feedUrl;
+            const firstResult = itunesData.results?.[0];
+            if (firstResult?.feedUrl) {
+              const feedUrl = firstResult.feedUrl;
               console.debug(
-                `[RSS Dashboard] Successfully resolved Pocket Casts URL via iTunes API: ${feedUrl} (matched "${itunesData.results[0].collectionName}")`,
+                `[RSS Dashboard] Successfully resolved Pocket Casts URL via iTunes API: ${feedUrl} (matched "${firstResult.collectionName ?? ""}")`,
               );
               return feedUrl;
             }
