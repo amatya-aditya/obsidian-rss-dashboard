@@ -60,5 +60,17 @@ describe("sidebar-icon-registry.createToolbarButton", () => {
     expect(spaceKey.defaultPrevented).toBe(true);
     expect(onClick).toHaveBeenCalledTimes(3);
   });
+
+  it("passes the click event to the handler and no event for Enter or Space", () => {
+    const onClick = vi.fn();
+    const btn = createToolbarButton(SIDEBAR_ICONS[0], onClick);
+
+    const click = new MouseEvent("click");
+    btn.dispatchEvent(click);
+    btn.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+    btn.dispatchEvent(new KeyboardEvent("keydown", { key: " " }));
+
+    expect(onClick.mock.calls).toEqual([[click], [], []]);
+  });
 });
 
