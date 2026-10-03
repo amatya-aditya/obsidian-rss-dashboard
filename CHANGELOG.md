@@ -4,6 +4,7 @@
 
 - Fixed Stop during a Discover single-feed add leaving the global feed operation active until the fetch timed out. Pressing Stop now ends the add, so the sidebar clears promptly and another feed operation can start. [GH Issue #482](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/482)
 - Fixed the Manage Feeds import and export button labels becoming unreadable in Obsidian's light theme. [GH Issue #694](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/694)
+- Fixed the dashboard mobile **Filters** button so clicking it again closes the open filter menu. Clicking outside or **Apply** still closes it. [GH Issue #704](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/704)
 - Standardized article star controls on the filled yellow starred state and made the outline darken on hover across dashboard and Reader views. The dashboard's circular background remains dashboard-specific. [GH Issue #684](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/684)
 - Fixed the user preferences import notice claiming feeds were imported when the file only contained folders or tags. The notice now names the collections the file included. [GH Issue #464](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/464)
 - Fixed vertical misalignment among Reader toolbar icons and removed the dashboard-style circle from the Tags action. [GH Issue #680](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/680)

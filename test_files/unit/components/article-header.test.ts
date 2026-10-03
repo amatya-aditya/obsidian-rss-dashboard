@@ -36,6 +36,7 @@ describe("ArticleHeader Component", () => {
         cardColumnsPerRow: 0,
         cardSpacing: 15,
       },
+      availableTags: [],
       media: {
         useDomainIconsRss: true,
       }
@@ -80,6 +81,64 @@ describe("ArticleHeader Component", () => {
     expect(toggle).not.toBeNull();
     toggle.click();
     expect(mockCallbacks.onToggleSidebar).toHaveBeenCalled();
+  });
+
+  it("closes the mobile filter menu when its button is clicked again", () => {
+    const header = new ArticleHeader(
+      container,
+      settings,
+      "Title",
+      null,
+      null,
+      new Set(),
+      new Set(),
+      "OR",
+      mockCallbacks,
+    );
+
+    header.render();
+    const filterButton = container.querySelector(
+      ".rss-dashboard-mobile-filter-button",
+    ) as HTMLElement;
+
+    filterButton.click();
+    expect(
+      document.querySelector(".rss-dashboard-filter-menu-portal"),
+    ).not.toBeNull();
+
+    filterButton.click();
+    expect(
+      document.querySelector(".rss-dashboard-filter-menu-portal"),
+    ).toBeNull();
+  });
+
+  it("closes the mobile filter menu when clicking outside", async () => {
+    const header = new ArticleHeader(
+      container,
+      settings,
+      "Title",
+      null,
+      null,
+      new Set(),
+      new Set(),
+      "OR",
+      mockCallbacks,
+    );
+
+    header.render();
+    const filterButton = container.querySelector(
+      ".rss-dashboard-mobile-filter-button",
+    ) as HTMLElement;
+    filterButton.click();
+    await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
+
+    document.body.dispatchEvent(
+      new MouseEvent("mousedown", { bubbles: true }),
+    );
+
+    expect(
+      document.querySelector(".rss-dashboard-filter-menu-portal"),
+    ).toBeNull();
   });
 
   it("should open grouping menu with all single and hierarchical options", () => {
