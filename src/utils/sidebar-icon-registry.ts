@@ -19,13 +19,13 @@ export const SIDEBAR_ICONS: SidebarIconConfig[] = [
   },
   {
     id: "addFeed",
-    label: "Add Feed",
+    label: "Add feed",
     lucideIcon: "plus-circle",
     settingKey: "hideIconAddFeed",
   },
   {
     id: "manageFeeds",
-    label: "Manage Feeds",
+    label: "Manage feeds",
     lucideIcon: "pencil",
     settingKey: "hideIconManageFeeds",
   },
@@ -43,7 +43,7 @@ export const SIDEBAR_ICONS: SidebarIconConfig[] = [
   },
   {
     id: "addFolder",
-    label: "Add Folder",
+    label: "Add folder",
     lucideIcon: "folder-plus",
     settingKey: "hideIconAddFolder",
   },
@@ -55,7 +55,7 @@ export const SIDEBAR_ICONS: SidebarIconConfig[] = [
   },
   {
     id: "collapseAll",
-    label: "Collapse All",
+    label: "Collapse all",
     lucideIcon: "chevrons-up-down",
     settingKey: "hideIconCollapseAll",
   },

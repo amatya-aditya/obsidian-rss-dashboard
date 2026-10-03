@@ -149,9 +149,9 @@ export function renderStorageSettingsTab(
     const migrationState = status.migrationReady
       ? "Migration ready"
       : status.mode === "vault-shards-v2"
-        ? "Shard Storage v2 active"
+        ? "Shard storage v2 active"
         : status.mode === "vault-shards"
-          ? "Shard Storage v1 active"
+          ? "Shard storage v1 active"
           : "Legacy JSON active";
     return [
       `Mode: ${status.mode}`,

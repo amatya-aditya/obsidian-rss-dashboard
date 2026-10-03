@@ -459,13 +459,13 @@ export class PodcastPlayer {
       }
     };
 
-    // Sleep Timer Button
+    // Sleep timer button
     this.sleepTimerButton = toolsSection.createDiv({
       cls: "rss-sleep-timer-btn clickable-icon",
       attr: {
         role: "button",
         tabindex: "0",
-        "aria-label": "Sleep Timer",
+        "aria-label": "Sleep timer",
       },
     });
     this.sleepTimerIconEl = this.sleepTimerButton.createSpan({

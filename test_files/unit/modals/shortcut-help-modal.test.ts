@@ -26,8 +26,8 @@ describe("ShortcutHelpModal", () => {
     
     // Should have general navigation section
     const textContent = content.textContent;
-    expect(textContent).toContain("General Navigation");
-    expect(textContent).toContain("Open Help Dialog");
+    expect(textContent).toContain("General navigation");
+    expect(textContent).toContain("Open help dialog");
     expect(textContent).toContain("Focus dashboard view");
     expect(textContent).toContain("Focus sidebar");
     expect(textContent).toContain("Focus reader view");
