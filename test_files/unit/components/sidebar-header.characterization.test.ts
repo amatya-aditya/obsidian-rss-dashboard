@@ -40,25 +40,25 @@ const COACHMARK_TEXT = "Add your first feed here";
 const DEFAULT_ROW = [
   "Discover",
   "divider",
-  "Add Feed",
-  "Manage Feeds",
+  "Add feed",
+  "Manage feeds",
   "Search",
   "Tags",
-  "Add Folder",
+  "Add folder",
   "Sort",
-  "Collapse All",
+  "Collapse all",
   "Settings",
 ];
 
 const ICON_FOR_LABEL: Record<string, string> = {
   Discover: "compass",
-  "Add Feed": "plus-circle",
-  "Manage Feeds": "pencil",
+  "Add feed": "plus-circle",
+  "Manage feeds": "pencil",
   Search: "search",
   Tags: "tags",
-  "Add Folder": "folder-plus",
+  "Add folder": "folder-plus",
   Sort: "sort-asc",
-  "Collapse All": "chevrons-up-down",
+  "Collapse all": "chevrons-up-down",
   Settings: "settings",
 };
 
@@ -77,13 +77,13 @@ const HIDE_KEY_FOR_ID: Record<string, string> = {
 
 const LABEL_FOR_ID: Record<string, string> = {
   discover: "Discover",
-  addFeed: "Add Feed",
-  manageFeeds: "Manage Feeds",
+  addFeed: "Add feed",
+  manageFeeds: "Manage feeds",
   search: "Search",
   tags: "Tags",
-  addFolder: "Add Folder",
+  addFolder: "Add folder",
   sort: "Sort",
-  collapseAll: "Collapse All",
+  collapseAll: "Collapse all",
   settings: "Settings",
 };
 
@@ -1262,7 +1262,7 @@ describe("Sidebar header (characterization)", () => {
       build();
       sidebar.render();
       const [first, second] = Array.from(
-        iconRow().querySelectorAll<HTMLElement>('[aria-label="Collapse All"]'),
+        iconRow().querySelectorAll<HTMLElement>('[aria-label="Collapse all"]'),
       ) as [HTMLElement, HTMLElement];
 
       click(first);

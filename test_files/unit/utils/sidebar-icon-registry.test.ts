@@ -1,4 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { Linter } from "eslint";
+import obsidianmd from "eslint-plugin-obsidianmd";
 import {
   SIDEBAR_ICONS,
   SIDEBAR_ICON_IDS,
@@ -27,6 +29,31 @@ describe("sidebar-icon-registry.getIconById", () => {
 describe("sidebar-icon-registry constants", () => {
   it("SIDEBAR_ICON_IDS matches SIDEBAR_ICONS ids", () => {
     expect(SIDEBAR_ICON_IDS).toEqual(SIDEBAR_ICONS.map((i) => i.id));
+  });
+
+  it("keeps every toolbar label in Obsidian sentence case", () => {
+    const linter = new Linter();
+    const sentenceCaseConfig = {
+      acronyms: ["OPML", "XML", "API", "CORS", "URI", "URL", "RSS", "JSON"],
+      brands: ["Obsidian", "Inoreader"],
+    };
+
+    const violations = SIDEBAR_ICONS.flatMap(({ id, label }) =>
+      linter.verify(
+        `activeDocument.createEl("span", { text: ${JSON.stringify(label)} });`,
+        [
+          {
+            languageOptions: { ecmaVersion: "latest", sourceType: "module" },
+            plugins: { obsidianmd },
+            rules: {
+              "obsidianmd/ui/sentence-case": ["error", sentenceCaseConfig],
+            },
+          },
+        ],
+      ).map((message) => `${id}: ${message.message}`),
+    );
+
+    expect(violations).toEqual([]);
   });
 });
 

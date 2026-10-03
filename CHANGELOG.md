@@ -6,6 +6,7 @@
 
 ### Fixes
 
+- Corrected sentence case for sidebar toolbar labels and related UI text. [GH Issue #656](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/656)
 - Fixed the first-launch **Add your first feed here** hint staying on screen when the sidebar redrew during its first five seconds. It now disappears five seconds after it first appears. [GH Issue #628](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/628)
 - Fixed the sidebar's **Sort** button doing nothing from the keyboard. Enter or Space now opens the sort menu below the button, the same as clicking it. [GH Issue #627](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/627)
 - Fixed the Manage Feeds import and export button labels becoming unreadable in Obsidian's light theme. [GH Issue #694](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/694)

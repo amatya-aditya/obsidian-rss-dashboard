@@ -867,7 +867,7 @@ export function renderSidebarSettingsTab(
       "Replace the standard podcast mic icon with the album/show artwork when one is available",
     settingKey: "useDomainIconsPodcast",
     domainName: "Podcast",
-    heading: "Clear Podcast artwork?",
+    heading: "Clear podcast artwork?",
     confirmLabel: "Clear artwork",
     matchesDomain: (feed) => feed.mediaType === "podcast",
     clearIconOnDisable: (entries) => {

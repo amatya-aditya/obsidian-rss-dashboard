@@ -605,17 +605,17 @@ export class DiscoverView extends ItemView {
     const dashboardBtn = navContainer.createDiv({
       cls: "rss-dashboard-nav-button clickable-icon rss-discover-return-home",
       attr: {
-        "aria-label": "Return to Dashboard",
+        "aria-label": "Return to dashboard",
         role: "button",
         tabindex: "0",
       },
     });
     setIcon(dashboardBtn, "arrow-left");
 
-    // Add "Return Home" text span
+    // Add "Return home" text span
     const _returnHomeText = dashboardBtn.createSpan({
       cls: "rss-discover-return-home-text",
-      text: "Return Home",
+      text: "Return home",
     });
     void _returnHomeText;
 

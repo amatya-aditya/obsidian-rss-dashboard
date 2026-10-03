@@ -117,7 +117,7 @@ describe("Sidebar Rendering", () => {
     ).not.toBeNull();
   });
 
-  it("should render the All Feeds button", () => {
+  it("should render the All feeds button", () => {
     const sidebar = new Sidebar(
       app as unknown as import("obsidian").App,
       container,
@@ -132,7 +132,7 @@ describe("Sidebar Rendering", () => {
       ".rss-dashboard-all-feeds-button",
     );
     expect(allFeedsBtn).not.toBeNull();
-    expect(allFeedsBtn?.textContent).toContain("All Feeds");
+    expect(allFeedsBtn?.textContent).toContain("All feeds");
   });
 
   it("communicates both refresh actions without a competing native tooltip", () => {

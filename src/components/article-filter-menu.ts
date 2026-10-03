@@ -296,7 +296,7 @@ export class ArticleFilterMenu {
     setIcon(statusBarIconDiv, "info");
     statusBarItem.createDiv({
       cls: "rss-dashboard-filter-menu-text",
-      text: "Show Status Bar",
+      text: "Show status bar",
     });
     statusBarCheckbox.addEventListener("change", (e) => {
       e.stopPropagation();
@@ -330,7 +330,7 @@ export class ArticleFilterMenu {
     setIcon(bypassIconDiv, "power");
     bypassItem.createDiv({
       cls: "rss-dashboard-filter-menu-text",
-      text: "Bypass Keyword Rules",
+      text: "Bypass keyword rules",
     });
     bypassCheckbox.addEventListener("change", (e) => {
       e.stopPropagation();
@@ -364,7 +364,7 @@ export class ArticleFilterMenu {
     setIcon(highlightsIconDiv, "highlighter");
     highlightsItem.createDiv({
       cls: "rss-dashboard-filter-menu-text",
-      text: "Show Highlights",
+      text: "Show highlights",
     });
     highlightsCheckbox.addEventListener("change", (e) => {
       e.stopPropagation();
