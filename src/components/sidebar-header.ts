@@ -296,8 +296,14 @@ function attachAddFeedCoachmark(host: SidebarHeaderHost): void {
           "rss-first-launch-coachmark-shown",
           "true",
         );
-        if (coachmark.parentNode) coachmark.remove();
       }
+      // A redraw since this timer started has drawn a new coachmark on the
+      // current Add Feed button, so remove that one along with this one.
+      coachmark.remove();
+      host.iconBtnEls
+        .get("addFeed")
+        ?.querySelector(".rss-dashboard-coachmark")
+        ?.remove();
     }, 5000);
   }
 }
