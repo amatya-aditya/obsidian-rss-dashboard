@@ -125,4 +125,16 @@ describe("ReaderView toolbar tags button", () => {
     expect(peerStyles.get("align-items")).toBe("center");
     expect(peerStyles.get("justify-content")).toBe("center");
   });
+
+  it("shows keyboard focus on the Reader star action", () => {
+    const focusStyles = declarationsFor(
+      readerCss,
+      ".rss-reader-actions .rss-reader-star-toggle:focus-visible",
+    );
+
+    expect(focusStyles.get("outline")).toBe(
+      "2px solid var(--interactive-accent)",
+    );
+    expect(focusStyles.get("outline-offset")).toBe("2px");
+  });
 });

@@ -29,6 +29,7 @@ class MockLeaf {
 type ReaderViewInternals = {
   contentEl: HTMLElement;
   currentItem: FeedItem;
+  starToggleButton: HTMLElement | null;
   fetchFullArticleContent: ReturnType<typeof vi.fn>;
   actionToggleStarStatus: () => void;
   toggleTag: (item: FeedItem, tag: { name: string; color: string }, add: boolean) => void;
@@ -136,6 +137,39 @@ describe("ReaderView star/tag independence (GH Issue #332)", () => {
     ];
     expect(updates).toEqual({ starred: false });
     expect(updates.tags).toBeUndefined();
+  });
+
+  it("exposes the dedicated Reader star as a keyboard-operable toggle button", async () => {
+    const item = makeItem({ starred: false });
+    getInternals(readerView).fetchFullArticleContent = vi
+      .fn()
+      .mockResolvedValue("<p>Content</p>");
+    await readerView.displayItem(item);
+
+    const starButton = getInternals(readerView).starToggleButton;
+    expect(starButton).not.toBeNull();
+    expect(starButton?.getAttribute("role")).toBe("button");
+    expect(starButton?.getAttribute("tabindex")).toBe("0");
+    expect(starButton?.getAttribute("aria-pressed")).toBe("false");
+
+    for (const key of ["Enter", " "]) {
+      const event = new KeyboardEvent("keydown", {
+        key,
+        bubbles: true,
+        cancelable: true,
+      });
+      starButton?.dispatchEvent(event);
+
+      expect(event.defaultPrevented).toBe(true);
+      expect(onArticleUpdate).toHaveBeenLastCalledWith(
+        item,
+        { starred: true },
+      );
+      onArticleUpdate.mockClear();
+    }
+
+    await readerView.displayItem(makeItem({ starred: true }));
+    expect(starButton?.getAttribute("aria-pressed")).toBe("true");
   });
 
   // GH Issue #333 AC: normal tag-menu actions, including a "Favorite" tag,
