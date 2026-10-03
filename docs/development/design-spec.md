@@ -360,22 +360,24 @@ Rules:
 
 ## Accessibility
 
+This section gives implementation guidance within the project-wide [Accessibility scope and support](../../ACCESSIBILITY.md).
+
 Minimum expectations:
 
-1. `:focus-visible` outlines on keyboard-focusable nav controls.
-2. Active/inactive states remain distinguishable without hover.
+1. `:focus-visible` outlines on keyboard-focusable nav controls ([WCAG 2.4.7 Focus Visible, AA](https://www.w3.org/TR/WCAG22/#focus-visible)).
+2. Active/inactive states remain distinguishable without relying on color alone ([WCAG 1.4.1 Use of Color, A](https://www.w3.org/TR/WCAG22/#use-of-color)).
 3. Text remains single-line for nav labels (`white-space: nowrap`).
 4. Interaction targets remain usable on touch screens.
-5. Accent-filled controls must preserve readable contrast in both dark and light themes.
-6. Icon-only controls must maintain keyboard parity with standard buttons.
-7. New motion on interactive surfaces should respect reduced-motion expectations where animation meaningfully affects perception.
+5. Accent-filled controls must preserve readable contrast in both dark and light themes ([WCAG 1.4.3 Contrast (Minimum), AA](https://www.w3.org/TR/WCAG22/#contrast-minimum); [1.4.11 Non-text Contrast, AA](https://www.w3.org/TR/WCAG22/#non-text-contrast)).
+6. Icon-only controls must maintain keyboard parity with standard buttons ([WCAG 2.1.1 Keyboard, A](https://www.w3.org/TR/WCAG22/#keyboard)).
+7. New motion on interactive surfaces should respect reduced-motion expectations where animation meaningfully affects perception. This is a project expectation beyond the WCAG 2.2 AA reference; see [2.3.3 Animation from Interactions, AAA](https://www.w3.org/TR/WCAG22/#animation-from-interactions).
 
 ### Explicit Accessibility Expectations
 
-- Minimum interactive hit area target is `32px`, and `40px` is preferred for mobile modal controls and icon buttons.
-- Focus-visible styling must remain visible against both neutral and accent-filled surfaces.
-- Do not communicate active, destructive, or disabled state with color alone when another signal is feasible.
-- Clickable icons must support `Enter` and `Space` activation.
+- The RSS Dashboard hit-area target is `32 by 32 CSS pixels`, with `40 by 40 CSS pixels` preferred for mobile modal controls and icon buttons. This is a project design baseline; WCAG 2.2 AA [2.5.8 Target Size (Minimum)](https://www.w3.org/TR/WCAG22/#target-size-minimum) sets a `24 by 24 CSS pixel` minimum where applicable, with exceptions.
+- Focus-visible styling must remain visible against both neutral and accent-filled surfaces ([WCAG 2.4.7 Focus Visible, AA](https://www.w3.org/TR/WCAG22/#focus-visible)).
+- Do not communicate active, destructive, or disabled state with color alone when another signal is feasible ([WCAG 1.4.1 Use of Color, A](https://www.w3.org/TR/WCAG22/#use-of-color)).
+- Interactive controls must expose an appropriate name, role, and state, using native semantics where available ([WCAG 4.1.2 Name, Role, Value, A](https://www.w3.org/TR/WCAG22/#name-role-value)). Clickable icons must support `Enter` and `Space` activation ([WCAG 2.1.1 Keyboard, A](https://www.w3.org/TR/WCAG22/#keyboard)).
 - If a loading state removes text or swaps icons, the control should retain a stable footprint and accessible labeling.
 - New non-essential animations should be short, restrained, and disable gracefully under reduced-motion preferences.
 
@@ -413,14 +415,14 @@ Rules:
 
 ### Implementation Structure
 
-> **Changing:** new icon buttons use a native `<button>`; see **Open Questions** and [#502](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/502). The `div` pattern below describes existing controls until they're migrated.
+> **Legacy controls only:** the `div` pattern below describes existing controls until they're migrated. Do not use it for new interactive controls. New icon buttons use a native `<button>`; see **Open Questions** and [#502](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/502). The migration remains gated on that issue's styling spike.
 
 Existing controls use a `div` (or `span` if inline) with the following attributes:
 
 - **Class**: `clickable-icon`
 - **Role**: `button`
 - **Tabindex**: `0`
-- **Accessibility**: Provide an `aria-label` or `title`.
+- **Accessible name**: Provide an `aria-label`; never use `title` (see [`.instructions.md`](../../.instructions.md#compliance-declarations-required)).
 
 ```typescript
 const iconButton = container.createDiv({
@@ -435,6 +437,8 @@ setIcon(iconButton, "lucide-icon-name");
 ```
 
 ### Keyboard Interactivity
+
+This custom keyboard handling applies only to the existing legacy elements shown above. New interactive controls should use native semantic elements so the browser supplies standard keyboard behavior.
 
 Interactive icons MUST handle keyboard events to maintain 1:1 parity with standard buttons:
 
