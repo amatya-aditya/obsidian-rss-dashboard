@@ -26,7 +26,7 @@ Two people working on the same issue wastes both of their time, and GitHub doesn
 1. **Look for an existing claim or PR.** Read the issue's comments and check the **Development** section in its sidebar. You can also search open pull requests for the issue number. If someone has claimed it or opened a PR, review that PR or offer to help instead of starting a second one.
 2. **Comment to claim it.** Say you're taking it, for example "I'll take this". Do this before you open a PR, not after.
 3. **Wait for the marker.** A maintainer adds the `status: in-progress` label and replies. Repository assignment isn't used, because GitHub only lets collaborators be assigned. The label and your comment are the claim.
-4. **Open your PR promptly and link it.** Put `Fixes #123` in the description so the PR shows in the issue's Development section.
+4. **Open your PR promptly and link it.** Put `Fixes #123` in the description so the PR shows in the issue's Development section. `master` is the default branch and PRs merge into `dev`, so GitHub does not close the issue when the PR merges; the maintainer closes it after merging.
 
 A claim lapses, and a maintainer may release the issue, when there's no PR within 7 days of the claim or no response within 7 days of a review. If two PRs do target one issue, the earlier claim goes first, and the later PR stays open as a fallback while the maintainers decide. A workflow comments on a new PR when another open PR already closes the same issue.
 
@@ -271,6 +271,7 @@ We use a stable `master` branch with active development on `dev`. This section d
 ### Branch Types
 
 **`master`**
+- The repository's **default branch**. The Obsidian community directory reads its `manifest.json` and source (lint, build verification), and regular users receive an update when its manifest moves, so it must always build in a clean environment with no `.git` folder
 - Always production-ready and stable
 - **No direct commits** — changes arrive only via merged release branches
 - Every commit on master corresponds to a tagged release
@@ -279,7 +280,7 @@ We use a stable `master` branch with active development on `dev`. This section d
 **`dev`**
 - The living integration branch — all contributor work lands here
 - Must always be **at or ahead of master**
-- After every stable release, `master` is merged back into `dev` immediately
+- After every stable release, `master` is merged back into `dev` (see Step 7)
 - **Do not rebase shared `dev`** — use merge if syncing with master
 - Should be stable enough to cut a release branch from at any time
 
@@ -291,7 +292,8 @@ We use a stable `master` branch with active development on `dev`. This section d
 **Release Branches** (`release/x.x.x`)
 - Cut from `dev` when features for a release are complete
 - Only stabilization work (bug fixes from beta testing) happens here — no new features
-- Merge into `master` when stable, then immediately back into `dev`
+- Betas are tagged from the release branch and never touch `dev` or `master`
+- A stable release is tagged from the release branch, published, and then merged into `master` (see Steps 6 and 7)
 
 ### Contributing Workflow
 
@@ -334,7 +336,7 @@ git checkout dev && git checkout -b release/2.3.0
 
 Before tagging, bump the version with `npm version` to keep `package.json`, `package-lock.json`, `manifest.json`, and `versions.json` in sync:
 
-Run Beta bumps on the release branch only. Obsidian's community directory reads `manifest.json` from the default branch (`dev`), and a pre-release version there removes the plugin from the directory (#529). `dev` and `master` stay on the last shipped stable version, and CI enforces this with `node scripts/check-release-compatibility.mjs --stable-branch`.
+Run Beta bumps on the release branch only. Obsidian's community directory reads `manifest.json` and the source from the default branch (`master`), and a pre-release version there removes the plugin from the directory (#529). `dev` and `master` stay on the last shipped stable version, and CI enforces this with `node scripts/check-release-compatibility.mjs --stable-branch`.
 
 **For first Beta:**
 ```bash
@@ -403,23 +405,43 @@ npm run check:release-ready -- 2.3.0
 
 This verifies the pieces that must exist *before* the bump: the changelog heading has been renamed and nothing is left under `Unreleased`, `docs/releases/2.3.0.md` exists, the release line has a curated What's New note, `versions.json` does not already list the target version (which would make the bump a partial no-op), the working tree is clean, and no release-bound plan is still sitting in `docs/archive/plans/unreleased/`. Pass the version you are about to ship — the repo is still on the previous version at this point, so the check cannot infer it.
 
-When confident:
+When confident, bump and tag from the release branch:
 
 ```bash
+# 1. Bump on a branch off the release branch, then open a PR into release/2.3.0
+#    and merge it with "Create a merge commit".
 npm version 2.3.0 --no-git-tag-version
 git add package.json package-lock.json manifest.json versions.json
 git commit -m "2.3.0"
 
-git checkout master && git merge release/2.3.0
-git tag 2.3.0 && git push origin master --tags
-
-git checkout dev && git pull --ff-only origin dev
-git merge origin/master && git push origin dev
-
-git branch -d release/2.3.0
+# 2. Tag the merged head of the release branch.
+git fetch origin
+git tag 2.3.0 origin/release/2.3.0
+git push origin refs/tags/2.3.0
 ```
 
-Pushing the stable tag triggers GitHub Actions to build and create a release with plugin assets (`main.js`, `manifest.json`, `styles.css`). Stable releases should be published through the workflow path so attestation records and the SBOM exist for the release assets; if you ever need to do it manually, upload those same files to a release created from tag `2.3.0`.
+Pushing the stable tag triggers GitHub Actions to build the plugin and attach its assets (`main.js`, `manifest.json`, `styles.css`). Unlike a Beta tag, a stable tag creates a **draft** release whose notes only say "Release 2.3.0". Edit the notes (start from `docs/releases/2.3.0.md`, with full URLs instead of relative links) and publish the draft yourself. Stable releases should be published through the workflow path so attestation records exist for the release assets; if you ever need to do it manually, upload those same files to a release created from tag `2.3.0`.
+
+Before tagging, prove the release builds the way the directory scanner builds it, in a copy with no `.git` folder:
+
+```bash
+git archive HEAD | tar -x -C /tmp/clean-build   # any empty folder
+cd /tmp/clean-build && npm ci && npm run build
+```
+
+### Step 7 — Merge Into `master`, Then Back Into `dev`
+
+Publishing the release is not enough. The community directory reads `manifest.json` and scans the source on the **default branch** (`master`), not the release tag, and installs the release tagged with the version in `master`'s manifest. 2.7.1's tag built cleanly, yet the scorecard kept reporting the same build failure until the release branch was merged into `master`.
+
+1. Publish the draft release first, so `master`'s manifest never names a version that has no release.
+2. Open a PR from `release/x.x.x` into `master` and merge it with **Create a merge commit**. This is the step that offers the update to regular users and lets the scanner see the release's source.
+3. Check the community page: the new version is current, the scorecard no longer lists a build-verification failure, and the install button works. A build failure that survives the release tag usually means the default branch still carries the old scripts.
+4. Merge `master` back into `dev` through a PR so `dev` carries the release history and version:
+   - If `dev` has not moved on, a plain merge is enough.
+   - If `dev` has diverged (for example after a refactor), a real merge conflicts in unrelated code. Use `git merge -s ours origin/master` to record the history without changing `dev`'s tree, then add one commit that brings over only the version files (`manifest.json`, `package.json`, `package-lock.json`, `versions.json`), the new changelog sections (remove from `## Unreleased` any bullet that shipped), and `docs/releases/x.x.x.md`. Fix relative doc links for `dev`'s layout and run `npm run check:doc-links`.
+5. Only then announce the release publicly and delete the release branch.
+
+Dependabot's security PRs now open against the default branch (`master`). Do not merge them there; retarget them to `dev` or close them.
 
 ### Tag Retention
 
@@ -464,7 +486,7 @@ Folder and feed titles must adhere to these rules for Obsidian compatibility:
 - **One concern per branch** — don't mix features with unrelated fixes
 - **Keep branches short-lived** — long-running branches cause merge conflicts
 - **Rebase your personal feat/fix branch** — keeps history linear and readable
-- **Merge `master` into shared `dev` after every stable release** — preserves history
+- **Merge a published stable release into `master`, then `master` back into `dev`** — the directory reads the default branch, so the release isn't live until `master` has it; use `git merge -s ours` plus a version-and-changelog commit if `dev` has diverged (see Step 7)
 - **Beta fixes go on the release branch** — not back on dev until the release merges, unless the release branch is frozen (see **Freezing the release branch**), in which case cherry-pick each fix to dev right away
 - **Only Beta and Stable releases** — no Alphas or RCs
 
@@ -497,10 +519,11 @@ npm run check:release-ready -- 2.3.0
 npm version 2.3.0 --no-git-tag-version
 git add package.json package-lock.json manifest.json versions.json
 git commit -m "2.3.0"
-git checkout master && git merge release/2.3.0
-git tag 2.3.0 && git push origin master --tags
-git checkout dev && git pull --ff-only origin dev
-git merge origin/master && git push origin dev
+# PR the bump into release/2.3.0 (merge commit), then tag the merged head
+git fetch origin && git tag 2.3.0 origin/release/2.3.0
+git push origin refs/tags/2.3.0
+# Publish the draft release, PR release/2.3.0 into master (merge commit),
+# check the community page, then merge master back into dev (see Step 7)
 ```
 
 ---

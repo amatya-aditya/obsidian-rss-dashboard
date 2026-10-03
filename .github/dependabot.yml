@@ -2,11 +2,11 @@ version: 2
 updates:
   - package-ecosystem: npm
     directory: "/"
-    # Dependency updates land on dev, the default branch. master takes no
-    # direct commits: it receives merged release branches only, and every
-    # commit on it is a tagged release (see AGENTS.md and CONTRIBUTING.md).
-    # target-branch stays explicit so updates keep going to dev even if the
-    # default branch changes again.
+    # Version updates land on dev. master is the default branch: it takes no
+    # direct commits and receives merged release branches only (see AGENTS.md and
+    # CONTRIBUTING.md). target-branch keeps version updates going to dev. Security
+    # update PRs open against the default branch anyway; retarget them to dev or
+    # close them, do not merge them into master.
     target-branch: "dev"
     schedule:
       interval: weekly
