@@ -7,6 +7,7 @@
 
 ### Fixes
 
+- Fixed the first-launch **Add your first feed here** hint staying on screen when the sidebar redrew during its first five seconds. It now disappears five seconds after it first appears. [GH Issue #628](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/628)
 - Fixed the Manage Feeds import and export button labels becoming unreadable in Obsidian's light theme. [GH Issue #694](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/694)
 - Standardized article star controls on the filled yellow starred state and made the outline darken on hover across dashboard and Reader views. The dashboard's circular background remains dashboard-specific. [GH Issue #684](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/684)
 - Fixed the user preferences import notice claiming feeds were imported when the file only contained folders or tags. The notice now names the collections the file included. [GH Issue #464](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/464)
