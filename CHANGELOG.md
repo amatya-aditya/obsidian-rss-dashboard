@@ -1,3 +1,21 @@
+## 2.7.1 - October 3, 2026
+
+For a user-facing overview, see the [RSS Dashboard 2.7.1 release notes](docs/releases/2.7.1.md).
+
+### Fixes
+
+- Fixed the Manage Feeds import and export button labels becoming unreadable in Obsidian's light theme. [GH Issue #694](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/694)
+
+### Development and compliance
+
+- `npm run build` now completes in a source copy that has no `.git` folder, as in the community directory scanner's clean build. `check:commit-message`, `check:pre-release`, and `check:doc-links` print a notice and skip when there is no git checkout, and stay enforced in the Git hooks and CI.
+
+### Known issues
+
+- With the metadata `data.json` in a vault folder, a Portable data bundle, Feed bundle, or Settings bundle import can be lost if Obsidian closes before anything else is saved. Applying a vault folder under **Settings → Storage → Metadata data.json location** now shows a notice about this: after importing, change a setting or mark an article as read before closing Obsidian. The default location in the plugin folder isn't affected. [GH Issue #474](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/474)
+- A failed settings load can let a later change overwrite your saved settings with defaults. Fixed for the next release. [GH Issue #447](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/447)
+- Podcast playback progress can be replaced by an older resume point when Obsidian starts. Fixed for the next release. [GH Issue #468](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/468)
+
 ## 2.7.0 - October 2, 2026
 
 For a user-facing overview, see the [RSS Dashboard 2.7.0 release notes](docs/releases/2.7.0.md).
