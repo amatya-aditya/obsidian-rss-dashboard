@@ -408,6 +408,13 @@
   outline: none;
 }
 
+.rss-dashboard-dropdown-controls .rss-dashboard-themed-select-trigger:focus-visible,
+.rss-dashboard-dropdown-controls .rss-dashboard-select-with-icon :is(.rss-dashboard-filter, .rss-dashboard-sort, .rss-dashboard-group):focus-visible,
+.rss-dashboard-dropdown-controls .rss-dashboard-view-style-selector:focus-visible {
+  outline: 2px solid var(--interactive-accent-hover);
+  outline-offset: 2px;
+}
+
 .rss-dashboard-dropdown-controls .rss-dashboard-view-style-row {
   display: flex;
   align-items: center;

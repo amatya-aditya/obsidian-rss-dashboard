@@ -259,6 +259,25 @@ describe("DashboardView Hotkeys", () => {
     expect(refreshSpy).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ["a native button", () => createEl("button")],
+    ["a custom combobox", () => createDiv({ attr: { role: "combobox", tabindex: "0" } })],
+  ])("does not run the article-open hotkey when Enter is pressed on %s", (_label, makeTarget) => {
+    const { view, spy } = makeViewWithRegisterSpy(leaf, plugin);
+    (leaf as unknown as { view: unknown }).view = view;
+
+    const keydownHandler = getKeydownHandler(spy);
+    const openArticleSpy = vi.spyOn(view, "actionToggleArticleOpen");
+    const target = makeTarget();
+    const event = new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true });
+    Object.defineProperty(event, "target", { value: target });
+
+    keydownHandler!(event);
+
+    expect(openArticleSpy).not.toHaveBeenCalled();
+    expect(event.defaultPrevented).toBe(false);
+  });
+
   it("ignores dashboard hotkeys while a modal is open", () => {
     const { view, spy } = makeViewWithRegisterSpy(leaf, plugin);
     (leaf as unknown as { view: unknown }).view = view;

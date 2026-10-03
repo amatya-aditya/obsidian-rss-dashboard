@@ -4,6 +4,24 @@ import { FilterChangeEvent } from "./article-filter-menu";
 
 type MenuOptionEntries = Array<[label: string, value: string]>;
 
+interface SelectorFocusContext {
+  targetDocument: Document;
+  triggerLabel: string;
+  menuRootIndex: number;
+}
+
+let menuInstanceId = 0;
+
+const CARD_COLUMN_OPTIONS: MenuOptionEntries = [
+  ["Auto", "0"],
+  ["1", "1"],
+  ["2", "2"],
+  ["3", "3"],
+  ["4", "4"],
+  ["5", "5"],
+  ["6", "6"],
+];
+
 export interface ArticleHeaderMenuCallbacks {
   onSearch: (query: string) => void;
   onSortChange: (value: "newest" | "oldest") => void;
@@ -27,6 +45,8 @@ export class ArticleHeaderMenu {
   private activePortal: HTMLElement | null = null;
   private activePortalToggleBtn: HTMLElement | null = null;
   private activePortalCleanup: (() => void) | null = null;
+  private activePortalOptions: HTMLElement[] = [];
+  private activePortalIndex = -1;
   private documentListeners: Array<{
     target: Document | Window;
     type: string;
@@ -51,14 +71,21 @@ export class ArticleHeaderMenu {
     });
     this.rootEl = hamburgerMenu;
 
-    const hamburgerBtn = hamburgerMenu.createDiv({
+    const instanceId = ++menuInstanceId;
+    const hamburgerBtn = hamburgerMenu.createEl("button", {
       cls: "rss-dashboard-hamburger-button clickable-icon",
-      attr: { "aria-label": "Menu", role: "button", tabindex: "0" },
+      attr: {
+        type: "button",
+        "aria-label": "Menu",
+        "aria-expanded": "false",
+        "aria-controls": `rss-dashboard-dropdown-${instanceId}`,
+      },
     });
     setIcon(hamburgerBtn, "menu");
 
     const dropdownMenu = hamburgerMenu.createDiv({
       cls: "rss-dashboard-dropdown-menu",
+      attr: { id: `rss-dashboard-dropdown-${instanceId}` },
     });
     const dropdownControls = dropdownMenu.createDiv({
       cls: "rss-dashboard-dropdown-controls",
@@ -74,19 +101,41 @@ export class ArticleHeaderMenu {
         e.preventDefault();
         e.stopPropagation();
 
-        if (dropdownMenu.classList.contains("is-menu-open")) {
-          this.closeMenu();
-          return;
-        }
-
-        this.closeActivePortal();
-        dropdownMenu.classList.add("is-menu-open");
-        hamburgerBtn.classList.add("is-menu-open");
+        this.toggleMenu();
       },
       { capture: true },
     );
+    hamburgerBtn.addEventListener("keydown", (e: KeyboardEvent) => {
+      if (e.key === "Tab" && e.shiftKey) {
+        targetDocument.defaultView?.setTimeout(() => this.closeMenu(), 0);
+      }
+    });
+    dropdownMenu.addEventListener("keydown", (e: KeyboardEvent) => {
+      if (e.key !== "Tab" || e.shiftKey) return;
+      const lastMenuButton = dropdownMenu.querySelector(
+        ".rss-dashboard-mark-all-buttons-row .rss-dashboard-mark-all-button:last-child",
+      );
+      if (lastMenuButton === targetDocument.activeElement) {
+        targetDocument.defaultView?.setTimeout(() => this.closeMenu(), 0);
+      }
+    });
 
     const targetDocument = parent.ownerDocument;
+    this.addDocumentListener(targetDocument, "keydown", (e: Event) => {
+      const keyboardEvent = e as KeyboardEvent;
+      if (keyboardEvent.key !== "Escape") return;
+
+      if (this.activePortal) {
+        this.closeActivePortal();
+        return;
+      }
+      if (!dropdownMenu.classList.contains("is-menu-open")) return;
+
+      keyboardEvent.preventDefault();
+      keyboardEvent.stopPropagation();
+      this.closeMenu();
+      hamburgerBtn.focus();
+    });
     this.addDocumentListener(targetDocument, "pointerdown", (e: Event) => {
       if (!dropdownMenu.classList.contains("is-menu-open")) return;
 
@@ -117,8 +166,21 @@ export class ArticleHeaderMenu {
   }
 
   private closeMenu(): void {
+    this.closeActivePortal();
     this.dropdownMenu?.classList.remove("is-menu-open");
     this.hamburgerBtn?.classList.remove("is-menu-open");
+    this.hamburgerBtn?.setAttribute("aria-expanded", "false");
+  }
+
+  private toggleMenu(): void {
+    if (this.dropdownMenu?.classList.contains("is-menu-open")) {
+      this.closeMenu();
+      return;
+    }
+    this.closeActivePortal();
+    this.dropdownMenu?.classList.add("is-menu-open");
+    this.hamburgerBtn?.classList.add("is-menu-open");
+    this.hamburgerBtn?.setAttribute("aria-expanded", "true");
   }
 
   private clampCardColumnsPerRow(value: number): number {
@@ -145,9 +207,14 @@ export class ArticleHeaderMenu {
       this.activePortal = null;
     }
     if (this.activePortalToggleBtn) {
+      this.activePortalToggleBtn.setAttribute("aria-expanded", "false");
+      this.activePortalToggleBtn.removeAttribute("aria-controls");
+      this.activePortalToggleBtn.removeAttribute("aria-activedescendant");
       this.activePortalToggleBtn.removeClass("active");
       this.activePortalToggleBtn = null;
     }
+    this.activePortalOptions = [];
+    this.activePortalIndex = -1;
   }
 
   private createControls(container: HTMLElement): void {
@@ -274,7 +341,13 @@ export class ArticleHeaderMenu {
 
     const cardsPerRowTrigger = cardsPerRowRow.createDiv({
       cls: "rss-dashboard-dropdown-card-layout-trigger rss-dashboard-themed-select-trigger rss-dashboard-dropdown-cards-per-row-trigger",
-      attr: { role: "button", tabindex: "0" },
+      attr: {
+        role: "combobox",
+        tabindex: "0",
+        "aria-label": "Cards per row",
+        "aria-haspopup": "listbox",
+        "aria-expanded": "false",
+      },
     });
     const getCardsPerRowLabel = () => {
       const currentValue = this.clampCardColumnsPerRow(
@@ -282,28 +355,25 @@ export class ArticleHeaderMenu {
       );
       return currentValue === 0 ? "Auto" : String(currentValue);
     };
-    cardsPerRowTrigger.createSpan({ text: getCardsPerRowLabel() });
+    cardsPerRowTrigger.createSpan({
+      text: getCardsPerRowLabel(),
+      cls: "rss-dashboard-themed-select-value",
+    });
+    cardsPerRowTrigger.setAttribute("aria-valuetext", getCardsPerRowLabel());
     setIcon(
       cardsPerRowTrigger.createDiv({ cls: "rss-dashboard-selector-arrow" }),
       "chevron-down",
     );
     cardsPerRowTrigger.onclick = (e) => {
       e.stopPropagation();
+      cardsPerRowTrigger.focus();
       if (cardsPerRowTrigger.hasClass("active")) {
         this.closeActivePortal();
         return;
       }
       this.showThemedMenu(
         cardsPerRowTrigger,
-        [
-          ["Auto", "0"],
-          ["1", "1"],
-          ["2", "2"],
-          ["3", "3"],
-          ["4", "4"],
-          ["5", "5"],
-          ["6", "6"],
-        ],
+        CARD_COLUMN_OPTIONS,
         String(
           this.clampCardColumnsPerRow(
             this.settings.display.cardColumnsPerRow ?? 0,
@@ -320,6 +390,16 @@ export class ArticleHeaderMenu {
         },
       );
     };
+    this.addSelectorKeyboard(
+      cardsPerRowTrigger,
+      CARD_COLUMN_OPTIONS,
+      () => String(this.clampCardColumnsPerRow(this.settings.display.cardColumnsPerRow ?? 0)),
+      (val) => this.callbacks.onFilterChange({
+        type: "batch",
+        value: null,
+        batch: { cardColumnsPerRow: this.clampCardColumnsPerRow(Number(val)) },
+      }),
+    );
 
     const cardSpacingGroup = cardLayoutControls.createDiv({
       cls: "rss-dashboard-dropdown-card-spacing-group",
@@ -382,13 +462,23 @@ export class ArticleHeaderMenu {
 
     const trigger = inner.createDiv({
       cls: `rss-dashboard-themed-select-trigger ${triggerClass}`,
-      attr: { role: "button", tabindex: "0" },
+      attr: {
+        role: "combobox",
+        tabindex: "0",
+        "aria-label": label.replace(/:$/, ""),
+        "aria-haspopup": "listbox",
+        "aria-expanded": "false",
+      },
     });
     const currentVal = getValue();
     const currentLabel =
       Object.keys(options).find((key) => options[key] === currentVal) ??
       currentVal;
-    trigger.createSpan({ text: currentLabel });
+    trigger.createSpan({
+      text: currentLabel,
+      cls: "rss-dashboard-themed-select-value",
+    });
+    trigger.setAttribute("aria-valuetext", currentLabel);
     setIcon(
       trigger.createDiv({ cls: "rss-dashboard-selector-arrow" }),
       "chevron-down",
@@ -396,12 +486,125 @@ export class ArticleHeaderMenu {
 
     trigger.onclick = (e) => {
       e.stopPropagation();
+      trigger.focus();
       if (trigger.hasClass("active")) {
         this.closeActivePortal();
         return;
       }
       this.showThemedMenu(trigger, options, getValue(), onChange);
     };
+    this.addSelectorKeyboard(trigger, options, getValue, onChange);
+  }
+
+  private addSelectorKeyboard(
+    trigger: HTMLElement,
+    options: Record<string, string> | MenuOptionEntries,
+    getValue: () => string,
+    onChange: (value: string) => void,
+  ): void {
+    trigger.addEventListener("keydown", (e: KeyboardEvent) => {
+      const isOpen = this.activePortalToggleBtn === trigger;
+      if (e.key === "Tab") {
+        if (isOpen) this.closeActivePortal();
+        return;
+      }
+      if (!isOpen && ["Enter", " ", "ArrowDown", "ArrowUp"].includes(e.key)) {
+        e.preventDefault();
+        e.stopPropagation();
+        this.showThemedMenu(trigger, options, getValue(), onChange);
+        if (e.key === "ArrowDown") this.moveActivePortalOption(1);
+        if (e.key === "ArrowUp") this.moveActivePortalOption(-1);
+        return;
+      }
+      if (!isOpen) return;
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        this.closeActivePortal();
+      } else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        e.preventDefault();
+        e.stopPropagation();
+        this.moveActivePortalOption(e.key === "ArrowDown" ? 1 : -1);
+      } else if (e.key === "Home" || e.key === "End") {
+        e.preventDefault();
+        e.stopPropagation();
+        this.setActivePortalOption(e.key === "Home" ? 0 : this.activePortalOptions.length - 1);
+      } else if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        e.stopPropagation();
+        this.commitActivePortalOption(onChange);
+      }
+    });
+  }
+
+  private moveActivePortalOption(delta: number): void {
+    const nextIndex = Math.max(
+      0,
+      Math.min(this.activePortalOptions.length - 1, this.activePortalIndex + delta),
+    );
+    this.setActivePortalOption(nextIndex);
+  }
+
+  private setActivePortalOption(index: number): void {
+    if (index < 0 || index >= this.activePortalOptions.length) return;
+    this.activePortalOptions.forEach((option, optionIndex) => {
+      option.classList.toggle("is-keyboard-active", optionIndex === index);
+    });
+    this.activePortalIndex = index;
+    const activeOption = this.activePortalOptions[index];
+    if (activeOption?.id) {
+      this.activePortalToggleBtn?.setAttribute("aria-activedescendant", activeOption.id);
+    }
+  }
+
+  private getSelectorFocusContext(
+    trigger: HTMLElement | null,
+  ): SelectorFocusContext | null {
+    if (!trigger || trigger.ownerDocument.activeElement !== trigger) return null;
+    const triggerLabel = trigger.getAttribute("aria-label");
+    const menuRoot = trigger.closest<HTMLElement>(".rss-dashboard-hamburger-menu");
+    if (!triggerLabel || !menuRoot) return null;
+
+    const menuRootIndex = Array.from(
+      trigger.ownerDocument.querySelectorAll<HTMLElement>(".rss-dashboard-hamburger-menu"),
+    ).indexOf(menuRoot);
+    if (menuRootIndex < 0) return null;
+
+    return { targetDocument: trigger.ownerDocument, triggerLabel, menuRootIndex };
+  }
+
+  private restoreSelectorFocus(context: SelectorFocusContext): void {
+    const replacementRoot = context.targetDocument.querySelectorAll<HTMLElement>(
+      ".rss-dashboard-hamburger-menu",
+    )[context.menuRootIndex];
+    if (!replacementRoot) return;
+    const replacementTrigger = Array.from(
+      replacementRoot.querySelectorAll<HTMLElement>('[role="combobox"]'),
+    ).find((candidate) => candidate.getAttribute("aria-label") === context.triggerLabel);
+    replacementTrigger?.focus();
+    if (context.targetDocument.activeElement !== replacementTrigger) {
+      replacementRoot.querySelector<HTMLElement>(".rss-dashboard-hamburger-button")?.focus();
+    }
+  }
+
+  private commitActivePortalOption(onChange: (value: string) => void): void {
+    const option = this.activePortalOptions[this.activePortalIndex];
+    if (!option) return;
+    const value = option?.getAttribute("data-value");
+    if (value === null || value === undefined) return;
+    const label = option.querySelector(".rss-dashboard-filter-menu-text")?.textContent ?? value;
+    const trigger = this.activePortalToggleBtn;
+    const focusContext = this.getSelectorFocusContext(trigger);
+    const valueElement = trigger?.querySelector(
+      ".rss-dashboard-themed-select-value, .rss-dashboard-selector-text",
+    );
+
+    onChange(value);
+    trigger?.setAttribute("aria-valuetext", label);
+    valueElement?.setText(label);
+    this.closeActivePortal();
+    if (focusContext) this.restoreSelectorFocus(focusContext);
+    void this.callbacks.onPersistSettings();
   }
 
   private showThemedMenu(
@@ -413,25 +616,43 @@ export class ArticleHeaderMenu {
   ): void {
     this.closeActivePortal();
     const targetDocument = trigger.ownerDocument;
-    const portal = targetDocument.body.createDiv({
-      cls: "rss-dashboard-filter-menu rss-dashboard-themed-menu-portal",
-    });
-    this.activePortal = portal;
-    this.activePortalToggleBtn = trigger;
-    trigger.addClass("active");
-
     const entries: MenuOptionEntries = Array.isArray(options)
       ? options
       : Object.keys(options).map(
           (label): [string, string] => [label, options[label] ?? label],
         );
+    const portalId = `rss-dashboard-options-${++menuInstanceId}`;
+    const portal = targetDocument.body.createDiv({
+      cls: "rss-dashboard-filter-menu rss-dashboard-themed-menu-portal",
+      attr: {
+        id: portalId,
+        role: "listbox",
+        "aria-label": trigger.getAttribute("aria-label") ?? "Options",
+      },
+    });
+    this.activePortal = portal;
+    this.activePortalToggleBtn = trigger;
+    this.activePortalOptions = [];
+    this.activePortalIndex = -1;
+    trigger.setAttribute("aria-expanded", "true");
+    trigger.setAttribute("aria-controls", portalId);
+    trigger.addClass("active");
 
-    entries.forEach(([label, value]) => {
-      const item = portal.createDiv({ cls: "rss-dashboard-filter-menu-item" });
+    entries.forEach(([label, value], index) => {
+      const item = portal.createDiv({
+        cls: "rss-dashboard-filter-menu-item",
+        attr: {
+          id: `${portalId}-option-${index}`,
+          role: "option",
+          "aria-selected": String(value === currentVal),
+          "data-value": value,
+        },
+      });
       const check = item.createDiv({ cls: "rss-dashboard-filter-menu-check" });
       if (value === currentVal) {
         setIcon(check, "check");
         item.addClass("is-active");
+        this.activePortalIndex = index;
       }
       if (icons && icons[value]) {
         const iconDiv = item.createDiv({
@@ -441,11 +662,15 @@ export class ArticleHeaderMenu {
       }
       item.createDiv({ text: label, cls: "rss-dashboard-filter-menu-text" });
       item.onclick = () => {
-        onChange(value);
-        this.closeActivePortal();
-        void this.callbacks.onPersistSettings();
+        this.activePortalIndex = index;
+        this.commitActivePortalOption(onChange);
       };
+      this.activePortalOptions.push(item);
     });
+    if (this.activePortalIndex < 0 && this.activePortalOptions.length > 0) {
+      this.activePortalIndex = 0;
+    }
+    this.setActivePortalOption(this.activePortalIndex);
 
     this.positionPortal(trigger, portal);
     const targetWindow = targetDocument.defaultView || activeWindow;
@@ -468,7 +693,13 @@ export class ArticleHeaderMenu {
   private createViewStyleSelector(parent: HTMLElement): void {
     const selector = parent.createDiv({
       cls: "rss-dashboard-view-style-selector",
-      attr: { role: "button", tabindex: "0" },
+      attr: {
+        role: "combobox",
+        tabindex: "0",
+        "aria-label": "View style",
+        "aria-haspopup": "listbox",
+        "aria-expanded": "false",
+      },
     });
     const style = this.settings.viewStyle;
     const icons: Record<string, string> = {
@@ -484,6 +715,10 @@ export class ArticleHeaderMenu {
       cls: "rss-dashboard-selector-text",
       text: style.charAt(0).toUpperCase() + style.slice(1) + " View",
     });
+    selector.setAttribute(
+      "aria-valuetext",
+      style.charAt(0).toUpperCase() + style.slice(1) + " View",
+    );
     setIcon(
       selector.createDiv({ cls: "rss-dashboard-selector-arrow" }),
       "chevron-down",
@@ -491,6 +726,7 @@ export class ArticleHeaderMenu {
 
     selector.onclick = (e) => {
       e.stopPropagation();
+      selector.focus();
       if (selector.hasClass("active")) {
         this.closeActivePortal();
         return;
@@ -504,6 +740,12 @@ export class ArticleHeaderMenu {
         icons,
       );
     };
+    this.addSelectorKeyboard(
+      selector,
+      { "List View": "list", "Card View": "card", "Feed View": "feed" },
+      () => this.settings.viewStyle,
+      (val) => this.callbacks.onToggleViewStyle(val as "list" | "card" | "feed"),
+    );
   }
 
   private positionPortal(trigger: HTMLElement, portal: HTMLElement): void {
