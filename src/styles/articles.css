@@ -696,6 +696,21 @@ body .rss-dashboard-tag-action-button svg {
   }
 }
 
+/* Keep dashboard stars at the full touch size after narrow-list overrides. */
+@media (hover: none) and (pointer: coarse) {
+  .rss-dashboard-action-toolbar .rss-dashboard-star-toggle,
+  .rss-dashboard-articles-list.rss-dashboard-mobile-list-style-left-grid
+    .rss-dashboard-grid-actions
+    .rss-dashboard-star-toggle {
+    min-width: 44px;
+    width: 44px;
+    min-height: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background-color: var(--background-primary-alt);
+  }
+}
+
 /* Touch devices — pointer-coarse hover / active feedback */
 @media (hover: none) and (pointer: coarse) {
   .rss-dashboard-article-card:hover,
