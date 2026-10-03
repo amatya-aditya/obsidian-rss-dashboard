@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { readFileSync } from "node:fs";
 import * as obsidian from "obsidian";
 import { FeedManagerModal } from "../../../src/modals/feed-manager/feed-manager-modal";
 import { ImportOpmlModal } from "../../../src/modals/import-opml-modal";
@@ -280,5 +281,26 @@ describe("FeedManagerModal", () => {
     deleteBtn.click();
 
     expect(document.querySelector(".rss-dashboard-confirm-modal")).toBeNull();
+  });
+
+  it("uses theme text color for the default import and export button labels", () => {
+    const stylesheet = readFileSync("src/styles/feed-manager-modal.css", "utf8");
+    const actionClasses = [
+      "feed-manager-import-button",
+      "feed-manager-export-button",
+      "feed-manager-import-starred-button",
+    ];
+
+    for (const actionClass of actionClasses) {
+      const selector = `.feed-manager-button-row button.${actionClass}`;
+      const rule = stylesheet.match(
+        new RegExp(`\\.feed-manager-button-row button\\.${actionClass}\\s*\\{([^}]*)\\}`),
+      );
+
+      expect(rule, `missing CSS rule for ${selector}`).not.toBeNull();
+      expect(rule?.[1], `${selector} foreground`).toMatch(
+        /color:\s*var\(--text-normal\);/,
+      );
+    }
   });
 });
