@@ -7,7 +7,7 @@
 
 ### Fixes
 
-- Made the dashboard article header menu and its custom selectors keyboard-operable, with announced choices, visible keyboard focus, and Escape closing the open picker before the hamburger menu. [GH Issue #696](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/696)
+- Made the dashboard article header menu and its custom selectors keyboard-operable, prevented dashboard shortcuts from intercepting Enter on controls, and made Escape close the open picker before the hamburger menu. [GH Issue #696](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/696)
 - Fixed the Manage Feeds import and export button labels becoming unreadable in Obsidian's light theme. [GH Issue #694](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/694)
 - Standardized article star controls on the filled yellow starred state and made the outline darken on hover across dashboard and Reader views. The dashboard's circular background remains dashboard-specific. [GH Issue #684](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/684)
 - Fixed the user preferences import notice claiming feeds were imported when the file only contained folders or tags. The notice now names the collections the file included. [GH Issue #464](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/464)

@@ -1,10 +1,10 @@
 import type { RssDashboardView } from "../views/dashboard-view";
 
 /**
- * Returns true when the event target is an interactive typing element.
+ * Returns true when a text editor or interactive control owns keyboard input.
  * Safe to use in bubbling-phase listeners.
  */
-export function isTypingTarget(target: EventTarget | null): boolean {
+export function isInteractiveTarget(target: EventTarget | null): boolean {
   // `instanceof HTMLElement` is false for elements a popout window created,
   // so use Obsidian's cross-window Node.instanceOf.
   if (!isNode(target) || !target.instanceOf(HTMLElement)) return false;
@@ -16,7 +16,9 @@ export function isTypingTarget(target: EventTarget | null): boolean {
   // Obsidian's CodeMirror editor — not caught by tag checks
   if (target.closest(".cm-editor, .cm-content")) return true;
 
-  return false;
+  return !!target.closest(
+    'button, a[href], [role="button"], [role="combobox"], [role="link"], [role="option"], [role="menuitem"], [role="checkbox"], [role="radio"], [role="slider"], [role="switch"], [role="tab"], [tabindex]:not([tabindex="-1"])',
+  );
 }
 
 /**
@@ -72,8 +74,8 @@ function handleKeydown(
 ): void {
   if (view.app.workspace.getMostRecentLeaf()?.view !== view) return;
 
-  // Guard 2: user is typing somewhere — let the input own the event
-  if (isTypingTarget(e.target)) return;
+  // Guard 2: let a focused editor or control own its keyboard interactions.
+  if (isInteractiveTarget(e.target)) return;
 
   // Guard 2b: a modal owns the keyboard until it closes
   if (isModalOpen(doc)) return;
