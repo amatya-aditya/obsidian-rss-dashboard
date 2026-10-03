@@ -991,12 +991,29 @@ describe("global feed operation: Discover add (addFeed with globalOperation)", (
     expect(heldFetch(harness, url).signal?.aborted).toBe(true);
     expect(notices()).toContain(STOPPED_NOTICE);
 
-    await settle(harness, url);
-
+    // Stop ends the add promptly without waiting for the held fetch to settle (#482)
     expect(await added).toBe(false);
     expect(plugin.settings.feeds).toEqual([]);
     expect(plugin.isMultiFeedRefreshActive).toBe(false);
     expect(plugin.globalRefreshProgress).toEqual({ completed: 0, total: 0 });
+
+    // A second global operation can start while the first fetch is still held
+    const secondUrl = "https://example.com/second.xml";
+    const secondAdded = addFeed(plugin, secondUrl, {
+      showNotice: false,
+      globalOperation: true,
+    });
+    await flush();
+    expect(plugin.isMultiFeedRefreshActive).toBe(true);
+    expect(notices()).not.toContain(BUSY_REFRESH_NOTICE);
+
+    await settle(harness, secondUrl);
+    expect(await secondAdded).toBe(true);
+    expect(plugin.settings.feeds.map((f) => f.url)).toEqual([secondUrl]);
+
+    // Late result from the stopped add is discarded once settled
+    await settle(harness, url);
+    expect(plugin.settings.feeds.map((f) => f.url)).toEqual([secondUrl]);
   });
 });
 
