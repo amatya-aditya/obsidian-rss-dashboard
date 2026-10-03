@@ -68,6 +68,36 @@ describe("sanitizeFilename", () => {
 });
 
 describe("ArticleSaver.saveArticle", () => {
+  it("preserves dollar replacement sequences in frontmatter and body metadata", async () => {
+    const app = App.createMock();
+    const settings = createSettings({
+      includeFrontmatter: true,
+      frontmatterTemplate: `---
+title: "{{title}}"
+author: "{{author}}"
+feedTitle: "{{feedTitle}}"
+---`,
+      defaultTemplate: "{{title}} | {{author}} | {{source}} | {{content}}",
+    });
+    const saver = new ArticleSaver(app, settings);
+    const item = createItem({
+      title: "Price $$100, and $& too",
+      author: "Ann $' Lee",
+      feedTitle: "Research $` Quarterly",
+    });
+
+    const createSpy = vi.spyOn(app.vault, "create");
+    await saver.saveArticle(item, undefined, undefined, "BODY");
+
+    const written = createSpy.mock.calls[0][1];
+    expect(written).toContain('title: "Price $$100, and $& too"');
+    expect(written).toContain('author: "Ann $\' Lee"');
+    expect(written).toContain('feedTitle: "Research $` Quarterly"');
+    expect(written).toContain(
+      "Price $$100, and $& too | Ann $' Lee | Research $` Quarterly | BODY",
+    );
+  });
+
   it("prefers item.content over description when raw content is not provided", async () => {
     const app = App.createMock();
     const settings = createSettings({

@@ -1,10 +1,8 @@
 /**
- * Pins the saved-note text that the four template chains write today, before
- * #673 moves them onto one template-variable registry (#247 slice 1): the note
- * template and the frontmatter template in `ArticleSaver`, and their copies in
- * `WebViewerIntegration`. Each test drives a chain through its `saveArticle`
- * and reads the note back from the vault, so the move must keep every byte,
- * including where the chains differ from each other today.
+ * Pins the saved-note text that the four template chains write after #672 fixes
+ * replacement-string expansion and before #673 moves them onto one registry
+ * (#247 slice 1). Each test drives a chain through its `saveArticle` and reads
+ * the note back from the vault, including where the chains differ today.
  *
  * Locale-formatted dates and local times come from the same calls production
  * makes, so the pins hold in any locale and time zone.
@@ -51,9 +49,8 @@ const QUOTED = {
 };
 
 /**
- * An item with `$&` in every string value. `String.replace` reads `$&` as
- * "the matched text", so each value that goes through a plain-string
- * replacement echoes its own placeholder (#672).
+ * An item with `$&` in every string value. Template substitution must preserve
+ * each value literally rather than interpreting JavaScript replacement tokens.
  */
 const DOLLAR = {
   title: "T $& t",
@@ -282,8 +279,7 @@ describe("ArticleSaver note template", () => {
     expect(note).toBe("$$x^2$$ and $& and $'");
   });
 
-  it("interprets $ sequences in a title as replacement patterns", async () => {
-    // BUG: pinned, see #672
+  it("preserves $ sequences in a title literally", async () => {
     const note = await saveWithArticleSaver(
       createItem({ title: "Price $$100, and $& too" }),
       {},
@@ -291,11 +287,10 @@ describe("ArticleSaver note template", () => {
       "x",
     );
 
-    expect(note).toBe("[Price $100, and {{title}} too]");
+    expect(note).toBe("[Price $$100, and $& too]");
   });
 
-  it("reads $ sequences as replacement patterns in every string value", async () => {
-    // BUG: pinned, see #672
+  it("preserves $ sequences in every string value", async () => {
     const note = await saveWithArticleSaver(
       createItem(DOLLAR),
       {},
@@ -304,7 +299,7 @@ describe("ArticleSaver note template", () => {
     );
 
     expect(note).toBe(
-      "T {{title}} t|https://example.com/{{link}}|A {{author}} a|F {{source}} f|F {{feedTitle}} f|S {{summary}} s|N {{tags}} n|g {{guid}} g|https://img.example/{{image}}.png",
+      "T $& t|https://example.com/$&|A $& a|F $& f|F $& f|S $& s|N $& n|g $& g|https://img.example/$&.png",
     );
   });
 
@@ -518,8 +513,7 @@ describe("ArticleSaver frontmatter template", () => {
     expect(note).toBe("---\ntags: [news, Saved]\n---\nBODY");
   });
 
-  it("interprets $ sequences in a title as replacement patterns", async () => {
-    // BUG: pinned, see #672
+  it("preserves $ sequences in a title literally", async () => {
     const note = await saveWithArticleSaver(
       createItem({ title: "Price $$100, and $& too" }),
       {
@@ -530,11 +524,10 @@ describe("ArticleSaver frontmatter template", () => {
       "x",
     );
 
-    expect(note).toBe('---\ntitle: "Price $100, and {{title}} too"\n---\nBODY');
+    expect(note).toBe('---\ntitle: "Price $$100, and $& too"\n---\nBODY');
   });
 
-  it("reads $ sequences as replacement patterns in every string value", async () => {
-    // BUG: pinned, see #672
+  it("preserves $ sequences in every string value", async () => {
     const note = await saveWithArticleSaver(
       createItem(DOLLAR),
       {
@@ -547,7 +540,7 @@ describe("ArticleSaver frontmatter template", () => {
     );
 
     expect(note).toBe(
-      "---\nT {{title}} t|N {{tags}} n|F {{source}} f|https://example.com/{{link}}|A {{author}} a|F {{feedTitle}} f|g {{guid}} g|https://img.example/{{image}}.png\n---\nBODY",
+      "---\nT $& t|N $& n|F $& f|https://example.com/$&|A $& a|F $& f|g $& g|https://img.example/$&.png\n---\nBODY",
     );
   });
 });
@@ -622,19 +615,17 @@ describe("WebViewerIntegration note template", () => {
     expect(note).toBe("$$x^2$$ and $& and $'");
   });
 
-  it("interprets $ sequences in a title as replacement patterns", async () => {
-    // BUG: pinned, see #672
+  it("preserves $ sequences in a title literally", async () => {
     const note = await saveWithWebViewer(
       createItem({ title: "Price $$100, and $& too" }),
       "[{{title}}]",
       false,
     );
 
-    expect(note).toBe("[Price $100, and {{title}} too]");
+    expect(note).toBe("[Price $$100, and $& too]");
   });
 
-  it("reads $ sequences as replacement patterns in every string value", async () => {
-    // BUG: pinned, see #672
+  it("preserves $ sequences in every string value", async () => {
     const note = await saveWithWebViewer(
       createItem(DOLLAR),
       "{{title}}|{{link}}|{{author}}|{{source}}|{{summary}}|{{image}}",
@@ -642,7 +633,7 @@ describe("WebViewerIntegration note template", () => {
     );
 
     expect(note).toBe(
-      "T {{title}} t|https://example.com/{{link}}|A {{author}} a|F {{source}} f|S {{summary}} s|https://img.example/{{image}}.png",
+      "T $& t|https://example.com/$&|A $& a|F $& f|S $& s|https://img.example/$&.png",
     );
   });
 
@@ -787,8 +778,7 @@ describe("WebViewerIntegration frontmatter template", () => {
     expect(note).toBe(`---\ntitle: "A ${longDate(PUB)} B"\n---\nBODY`);
   });
 
-  it("interprets $ sequences in a title as replacement patterns", async () => {
-    // BUG: pinned, see #672
+  it("preserves $ sequences in a title literally", async () => {
     const note = await saveWithWebViewer(
       createItem({ title: "Price $$100, and $& too" }),
       "BODY",
@@ -796,11 +786,10 @@ describe("WebViewerIntegration frontmatter template", () => {
       { frontmatterTemplate: '---\ntitle: "{{title}}"\n---' },
     );
 
-    expect(note).toBe('---\ntitle: "Price $100, and {{title}} too"\n---\nBODY');
+    expect(note).toBe('---\ntitle: "Price $$100, and $& too"\n---\nBODY');
   });
 
-  it("reads $ sequences as replacement patterns in every string value", async () => {
-    // BUG: pinned, see #672
+  it("preserves $ sequences in every string value", async () => {
     const note = await saveWithWebViewer(createItem(DOLLAR), "BODY", true, {
       addSavedTag: false,
       frontmatterTemplate:
@@ -808,7 +797,7 @@ describe("WebViewerIntegration frontmatter template", () => {
     });
 
     expect(note).toBe(
-      "---\nT {{title}} t|N {{tags}} n|F {{source}} f|https://example.com/{{link}}|A {{author}} a|F {{feedTitle}} f|g {{guid}} g|https://img.example/{{image}}.png\n---\nBODY",
+      "---\nT $& t|N $& n|F $& f|https://example.com/$&|A $& a|F $& f|g $& g|https://img.example/$&.png\n---\nBODY",
     );
   });
 });
