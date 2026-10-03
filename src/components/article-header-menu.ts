@@ -4,6 +4,12 @@ import { FilterChangeEvent } from "./article-filter-menu";
 
 type MenuOptionEntries = Array<[label: string, value: string]>;
 
+interface SelectorFocusContext {
+  targetDocument: Document;
+  triggerLabel: string;
+  menuRootIndex: number;
+}
+
 let menuInstanceId = 0;
 
 const CARD_COLUMN_OPTIONS: MenuOptionEntries = [
@@ -489,6 +495,7 @@ export class ArticleHeaderMenu {
       }
       if (!isOpen && ["Enter", " ", "ArrowDown", "ArrowUp"].includes(e.key)) {
         e.preventDefault();
+        e.stopPropagation();
         this.showThemedMenu(trigger, options, getValue(), onChange);
         if (e.key === "ArrowDown") this.moveActivePortalOption(1);
         if (e.key === "ArrowUp") this.moveActivePortalOption(-1);
@@ -497,15 +504,19 @@ export class ArticleHeaderMenu {
       if (!isOpen) return;
       if (e.key === "Escape") {
         e.preventDefault();
+        e.stopPropagation();
         this.closeActivePortal();
       } else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
         e.preventDefault();
+        e.stopPropagation();
         this.moveActivePortalOption(e.key === "ArrowDown" ? 1 : -1);
       } else if (e.key === "Home" || e.key === "End") {
         e.preventDefault();
+        e.stopPropagation();
         this.setActivePortalOption(e.key === "Home" ? 0 : this.activePortalOptions.length - 1);
       } else if (e.key === "Enter" || e.key === " ") {
         e.preventDefault();
+        e.stopPropagation();
         this.commitActivePortalOption(onChange);
       }
     });
@@ -531,19 +542,53 @@ export class ArticleHeaderMenu {
     }
   }
 
+  private getSelectorFocusContext(
+    trigger: HTMLElement | null,
+  ): SelectorFocusContext | null {
+    if (!trigger || trigger.ownerDocument.activeElement !== trigger) return null;
+    const triggerLabel = trigger.getAttribute("aria-label");
+    const menuRoot = trigger.closest<HTMLElement>(".rss-dashboard-hamburger-menu");
+    if (!triggerLabel || !menuRoot) return null;
+
+    const menuRootIndex = Array.from(
+      trigger.ownerDocument.querySelectorAll<HTMLElement>(".rss-dashboard-hamburger-menu"),
+    ).indexOf(menuRoot);
+    if (menuRootIndex < 0) return null;
+
+    return { targetDocument: trigger.ownerDocument, triggerLabel, menuRootIndex };
+  }
+
+  private restoreSelectorFocus(context: SelectorFocusContext): void {
+    const replacementRoot = context.targetDocument.querySelectorAll<HTMLElement>(
+      ".rss-dashboard-hamburger-menu",
+    )[context.menuRootIndex];
+    if (!replacementRoot) return;
+    const replacementTrigger = Array.from(
+      replacementRoot.querySelectorAll<HTMLElement>('[role="combobox"]'),
+    ).find((candidate) => candidate.getAttribute("aria-label") === context.triggerLabel);
+    replacementTrigger?.focus();
+    if (context.targetDocument.activeElement !== replacementTrigger) {
+      replacementRoot.querySelector<HTMLElement>(".rss-dashboard-hamburger-button")?.focus();
+    }
+  }
+
   private commitActivePortalOption(onChange: (value: string) => void): void {
     const option = this.activePortalOptions[this.activePortalIndex];
     if (!option) return;
     const value = option?.getAttribute("data-value");
     if (value === null || value === undefined) return;
     const label = option.querySelector(".rss-dashboard-filter-menu-text")?.textContent ?? value;
-    onChange(value);
-    this.activePortalToggleBtn?.setAttribute("aria-valuetext", label);
-    const valueElement = this.activePortalToggleBtn?.querySelector(
+    const trigger = this.activePortalToggleBtn;
+    const focusContext = this.getSelectorFocusContext(trigger);
+    const valueElement = trigger?.querySelector(
       ".rss-dashboard-themed-select-value, .rss-dashboard-selector-text",
     );
+
+    onChange(value);
+    trigger?.setAttribute("aria-valuetext", label);
     valueElement?.setText(label);
     this.closeActivePortal();
+    if (focusContext) this.restoreSelectorFocus(focusContext);
     void this.callbacks.onPersistSettings();
   }
 

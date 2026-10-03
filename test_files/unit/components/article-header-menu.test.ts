@@ -91,6 +91,81 @@ describe("ArticleHeaderMenu Component", () => {
     expect(dropdown.classList.contains("is-menu-open")).toBe(false);
   });
 
+  it("keeps handled selector keys from reaching document-level shortcuts", () => {
+    const menu = new ArticleHeaderMenu(settings, "", callbacks);
+    menu.render(container);
+    const trigger = container.querySelector<HTMLElement>(".rss-dashboard-filter")!;
+    const documentKeydown = vi.fn();
+    trigger.ownerDocument.addEventListener("keydown", documentKeydown);
+
+    try {
+      trigger.focus();
+      for (const key of ["Enter", "ArrowDown", "ArrowDown", "Escape"]) {
+        const event = new KeyboardEvent("keydown", {
+          key,
+          bubbles: true,
+          cancelable: true,
+        });
+        trigger.dispatchEvent(event);
+        expect(event.defaultPrevented).toBe(true);
+      }
+
+      for (const key of ["Enter", "ArrowDown", "Enter"]) {
+        const event = new KeyboardEvent("keydown", {
+          key,
+          bubbles: true,
+          cancelable: true,
+        });
+        trigger.dispatchEvent(event);
+        expect(event.defaultPrevented).toBe(true);
+      }
+
+      expect(documentKeydown).not.toHaveBeenCalled();
+    } finally {
+      trigger.ownerDocument.removeEventListener("keydown", documentKeydown);
+    }
+  });
+
+  it("restores focus to the replacement selector after a keyboard commit rerenders the menu", () => {
+    const menu = new ArticleHeaderMenu(settings, "", callbacks);
+    callbacks.onFilterChange = vi.fn(() => {
+      container.empty();
+      menu.render(container);
+    });
+    menu.render(container);
+    const trigger = container.querySelector<HTMLElement>(".rss-dashboard-filter")!;
+
+    trigger.focus();
+    trigger.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    trigger.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+    trigger.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+
+    const replacementTrigger = container.querySelector<HTMLElement>(".rss-dashboard-filter")!;
+    expect(replacementTrigger).not.toBe(trigger);
+    expect(trigger.ownerDocument.activeElement).toBe(replacementTrigger);
+  });
+
+  it("returns focus to the menu button when a rerender hides the committed selector", () => {
+    const menu = new ArticleHeaderMenu(settings, "", callbacks);
+    callbacks.onFilterChange = vi.fn(() => {
+      container.empty();
+      menu.render(container);
+      // jsdom allows focus in visibility-hidden content, so simulate the browser refusing it.
+      const replacementTrigger = container.querySelector<HTMLElement>(".rss-dashboard-filter")!;
+      vi.spyOn(replacementTrigger, "focus").mockImplementation(() => {});
+    });
+    menu.render(container);
+    const trigger = container.querySelector<HTMLElement>(".rss-dashboard-filter")!;
+
+    trigger.focus();
+    trigger.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    trigger.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+    trigger.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+
+    const menuButton = container.querySelector<HTMLElement>(".rss-dashboard-hamburger-button")!;
+    expect(trigger.ownerDocument.activeElement).toBe(menuButton);
+  });
+
   it("opens and closes the menu with keyboard activation and exposes its state", () => {
     const menu = new ArticleHeaderMenu(settings, "", callbacks);
     menu.render(container);
@@ -151,6 +226,40 @@ describe("ArticleHeaderMenu Component", () => {
     expect(callbacks.onFilterChange).toHaveBeenCalledWith({ type: "age", value: 3600000 });
     expect(trigger.getAttribute("aria-expanded")).toBe("false");
     expect(trigger.ownerDocument.activeElement).toBe(trigger);
+  });
+
+  it("supports keyboard selection on every ArticleHeaderMenu selector", () => {
+    settings.viewStyle = "card";
+    const menu = new ArticleHeaderMenu(settings, "", callbacks);
+    menu.render(container);
+    const selectors = [
+      ".rss-dashboard-filter",
+      ".rss-dashboard-sort",
+      ".rss-dashboard-group",
+      ".rss-dashboard-view-style-selector",
+      ".rss-dashboard-dropdown-cards-per-row-trigger",
+    ];
+
+    selectors.forEach((selector) => {
+      const trigger = container.querySelector<HTMLElement>(selector)!;
+      trigger.focus();
+      trigger.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+      trigger.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+      trigger.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+      expect(trigger.getAttribute("aria-expanded")).toBe("false");
+      expect(trigger.ownerDocument.activeElement).toBe(trigger);
+    });
+
+    expect(callbacks.onFilterChange).toHaveBeenCalledWith({ type: "age", value: 3600000 });
+    expect(callbacks.onSortChange).toHaveBeenCalledWith("oldest");
+    expect(callbacks.onGroupChange).toHaveBeenCalledWith("feed");
+    expect(callbacks.onToggleViewStyle).toHaveBeenCalledWith("feed");
+    expect(callbacks.onFilterChange).toHaveBeenCalledWith({
+      type: "batch",
+      value: null,
+      batch: { cardColumnsPerRow: 1 },
+    });
+    expect(callbacks.onPersistSettings).toHaveBeenCalledTimes(selectors.length);
   });
 
   it("keeps pointer selection available and announces the committed choice", () => {
