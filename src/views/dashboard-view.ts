@@ -3185,6 +3185,7 @@ export class RssDashboardView extends ItemView {
       tagsCollapsed: this.tagsCollapsed,
       collapsedFolders: this.collapsedFolders,
       selectedFolders: this.selectedFolders,
+      selectedFeeds: this.selectedFeeds,
     };
     this.sidebar["settings"] = this.settings;
     this.sidebar.render();

@@ -7,6 +7,7 @@
 ### Fixes
 
 - Made the dashboard article header menu and its custom selectors keyboard-operable, prevented dashboard shortcuts from intercepting Enter on controls, and made Escape close the open picker before the hamburger menu. [GH Issue #696](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/696)
+- Fixed feed refreshes clearing Ctrl/Cmd-selected feed highlights and multi-feed sidebar actions while the article list still showed the selected feeds. [GH Issue #653](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/653)
 - Corrected sentence case for sidebar toolbar labels and related UI text. [GH Issue #656](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/656)
 - Fixed the first-launch **Add your first feed here** hint staying on screen when the sidebar redrew during its first five seconds. It now disappears five seconds after it first appears. [GH Issue #628](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/628)
 - Fixed the sidebar's **Sort** button doing nothing from the keyboard. Enter or Space now opens the sort menu below the button, the same as clicking it. [GH Issue #627](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/627)
