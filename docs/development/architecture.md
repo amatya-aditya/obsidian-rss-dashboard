@@ -59,7 +59,7 @@ count per file and rule. `npm run lint` passes it with
 more violation in a file that already has suppressions.
 
 The file stays out of the repo root on purpose. The Obsidian community
-directory scanner lints the default branch without loading
+directory scanner lints the default branch (`master`) without loading
 `eslint.config.mjs`, so it never runs these two rules. A root
 `eslint-suppressions.json`, which ESLint loads automatically, would look
 entirely unused to it, and the scanner rejects the release and delists the

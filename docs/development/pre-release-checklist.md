@@ -109,6 +109,10 @@ which would false-positive on ordinary WIP if automated into
       merge dates after the previous tag — see
       [release-notes-workflow.md](release-notes-workflow.md)).
 - [ ] `npm run build` passes clean on the branch you're about to cut from.
+- [ ] The build also passes in a copy with no `.git` folder, which is how the
+      community directory scanner builds: `git archive HEAD | tar -x -C <empty
+      folder>`, then `npm ci && npm run build` there. Compliance scripts that
+      call git must skip with a notice, not crash.
 
 ## Why the untracked-file check isn't automated
 
