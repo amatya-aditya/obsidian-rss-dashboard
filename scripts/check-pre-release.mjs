@@ -3,6 +3,8 @@ import { readFileSync, readdirSync } from "node:fs";
 import { basename, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { isGitCheckout, skipWithoutGit } from "./git-repository.mjs";
+
 const ROOT_DIR = join(import.meta.dirname, "..");
 const PLANS_DIR = join(ROOT_DIR, "docs", "plans");
 const RELEASE_NOTES_DIR = join(ROOT_DIR, "src", "release-notes", "notes");
@@ -349,6 +351,11 @@ function readManifestVersion() {
 }
 
 function main() {
+  if (!isGitCheckout(ROOT_DIR)) {
+    skipWithoutGit("check:pre-release");
+    return;
+  }
+
   const trackedFiles = getTrackedFiles();
   const strayFiles = findStrayFiles(trackedFiles);
   const hostileNameIssues = findHostileFilenames(trackedFiles);
