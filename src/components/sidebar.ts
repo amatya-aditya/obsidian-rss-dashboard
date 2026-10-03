@@ -234,7 +234,7 @@ export class Sidebar {
       );
       lines.push(
         interval === null
-          ? "Automatic refresh Off"
+          ? "Automatic refresh off"
           : `Effective interval: ${interval} minutes`,
       );
       if (status.nextDueAt !== null) {
@@ -808,7 +808,7 @@ export class Sidebar {
 
     labelContainer.createDiv({
       cls: "rss-dashboard-all-feeds-label",
-      text: `All Feeds (${totalFeeds})`,
+      text: `All feeds (${totalFeeds})`,
     });
 
     if (isCancellable) {
@@ -2521,7 +2521,7 @@ export class Sidebar {
     const { contentEl } = modal;
     contentEl.empty();
 
-    new Setting(contentEl).setName(`Feed Error: ${feedTitle}`).setHeading();
+    new Setting(contentEl).setName(`Feed error: ${feedTitle}`).setHeading();
 
     contentEl.createDiv({
       text: error,
@@ -3052,7 +3052,7 @@ export class Sidebar {
     const collapseAllButton = sidebarToolbar.createDiv({
       cls: "rss-dashboard-toolbar-button",
       attr: {
-        "aria-label": "Collapse/Expand all Folders",
+        "aria-label": "Collapse/expand all folders",
       },
     });
 

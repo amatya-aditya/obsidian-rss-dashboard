@@ -134,7 +134,7 @@ describe("ReaderView starred-import cached-preview banner", () => {
       ".rss-reader-starred-import-open-link",
     );
     expect(openLink?.getAttribute("href")).toBe(item.link);
-    expect(openLink?.textContent).toContain("Open in Browser");
+    expect(openLink?.textContent).toContain("Open in browser");
   });
 
   it("shows a distinct banner wording for an article whose last fetch attempt failed", async () => {

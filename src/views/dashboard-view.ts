@@ -3903,7 +3903,7 @@ export class RssDashboardView extends ItemView {
 
       const browserButton = actions.createDiv({
         cls: "rss-reader-action-button",
-        attr: { "aria-label": "Open in Browser" },
+        attr: { "aria-label": "Open in browser" },
       });
       setIcon(browserButton, "external-link");
       browserButton.addEventListener("click", () => {

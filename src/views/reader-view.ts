@@ -114,7 +114,7 @@ const STARRED_IMPORT_UNFETCHED_BANNER_TEXT =
 const STARRED_IMPORT_FAILED_BANNER_TEXT =
   "The last attempt to fetch the full article failed. Showing the cached preview from the starred.json import";
 const STARRED_IMPORT_FETCH_NOW_TEXT = "Fetch now";
-const STARRED_IMPORT_OPEN_IN_BROWSER_TEXT = "Open in Browser";
+const STARRED_IMPORT_OPEN_IN_BROWSER_TEXT = "Open in browser";
 const STARRED_IMPORT_FETCH_FAILED_NOTICE =
   "Could not fetch full article content.";
 
@@ -959,7 +959,7 @@ export class ReaderView extends ItemView {
     // Open in browser button
     const browserButton = actions.createDiv({
       cls: "rss-reader-action-button",
-      attr: { "aria-label": "Open in Browser" },
+      attr: { "aria-label": "Open in browser" },
     });
     setIcon(browserButton, "external-link");
     browserButton.addEventListener("click", (e) => {

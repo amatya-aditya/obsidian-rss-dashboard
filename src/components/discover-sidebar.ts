@@ -123,7 +123,7 @@ export class DiscoverSidebar {
       navContainer,
       "rss-discover-return-home",
       "Home",
-      "Return to Dashboard",
+      "Return to dashboard",
       "arrow-left",
       () => this.callbacks.onActivateView(),
     );
