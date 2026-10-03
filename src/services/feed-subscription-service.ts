@@ -177,13 +177,19 @@ export class FeedSubscriptionService {
         return false;
       }
 
-      // Try to parse the feed BEFORE adding it to settings
+      // Try to parse the feed BEFORE adding it to settings.
+      // requestUrl cannot be cancelled mid-flight, so a global add races Stop.
       try {
-        const parsedFeed = await this.feedParser.parseFeed(url, newFeed, {
-          allowEmpty: true,
-          signal: operationSignal ?? undefined,
-        });
-        if (operationSignal?.aborted || this.feedOperationTracker.isCancelled) {
+        const parsedFeed = await this.parseWithAbortRace(
+          url,
+          newFeed,
+          operationSignal,
+        );
+        if (
+          !parsedFeed ||
+          operationSignal?.aborted ||
+          this.feedOperationTracker.isCancelled
+        ) {
           return false;
         }
         const feedToStore = this.mergeParsedFeed(newFeed, parsedFeed);
@@ -208,6 +214,44 @@ export class FeedSubscriptionService {
       return false;
     } finally {
       releaseReservation();
+    }
+  }
+
+  /** Race parse against Stop only. A slow parse still waits; there is no extra timeout. */
+  private async parseWithAbortRace(
+    url: string,
+    newFeed: Feed,
+    signal: AbortSignal | null,
+  ): Promise<Feed | null> {
+    const parseOptions = {
+      allowEmpty: true,
+      signal: signal ?? undefined,
+    };
+    if (!signal) {
+      return await this.feedParser.parseFeed(url, newFeed, parseOptions);
+    }
+
+    let onAbort: (() => void) | undefined;
+    const aborted = new Promise<"aborted">((resolve) => {
+      if (signal.aborted) {
+        resolve("aborted");
+        return;
+      }
+      onAbort = () => resolve("aborted");
+      signal.addEventListener("abort", onAbort, { once: true });
+    });
+
+    try {
+      const winner = await Promise.race([
+        this.feedParser
+          .parseFeed(url, newFeed, parseOptions)
+          .then((value) => ({ kind: "feed" as const, value })),
+        aborted,
+      ]);
+      if (winner === "aborted") return null;
+      return winner.value;
+    } finally {
+      if (onAbort) signal.removeEventListener("abort", onAbort);
     }
   }
 
