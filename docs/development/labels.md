@@ -145,7 +145,7 @@ follows.
 | Ready to pick up | Add `ready-for-agent` or `ready-for-human` once the issue is specified well enough to hand off |
 | Work starts | The contributor claims it in a comment; add `status: in-progress`, and an issue branch named per [`branch-naming.md`](../agents/branch-naming.md) |
 | Fix needs manual checks | `status: ready-for-testing` while a pull request waits on a fixture-vault or beta checklist |
-| Merged | A pull request that says `Fixes #…` closes the issue on merge to `dev` (the default branch). Closed issues don't need a status. Use `status: pending-release` only for an issue that stays open until a release, for example a fix on a release branch |
+| Merged | A pull request that says `Fixes #…` links the issue, but merging into `dev` does not close it because `master` is the default branch; close the issue by hand after the merge. Closed issues don't need a status. Use `status: pending-release` only for an issue that stays open until a release, for example a fix on a release branch |
 
 ### Suggested agent workflow (optional)
 

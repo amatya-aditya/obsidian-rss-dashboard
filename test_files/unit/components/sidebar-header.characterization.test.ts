@@ -1095,15 +1095,28 @@ describe("Sidebar header (characterization)", () => {
       expect(fireIconAction).toHaveBeenCalledWith("sort", event);
     });
 
-    // BUG: pinned, see #627
-    it("does nothing when the sort button is used from the keyboard", () => {
-      const enter = keydown(button("sort"), "Enter");
-      const space = keydown(button("sort"), " ");
+    it.each([
+      ["Enter", "Enter"],
+      ["Space", " "],
+    ])("opens the sort menu below the button on %s (#627)", (_name, key) => {
+      const sortButton = button("sort");
+      vi.spyOn(sortButton, "getBoundingClientRect").mockReturnValue(
+        new DOMRect(40, 10, 24, 24),
+      );
+      const showAtPosition = vi.spyOn(
+        ObsidianStubs.Menu.prototype,
+        "showAtPosition",
+      );
 
-      expect(fireIconAction).not.toHaveBeenCalled();
-      expect(ObsidianStubs.Menu.lastItems).toHaveLength(0);
-      expect(enter.defaultPrevented).toBe(true);
-      expect(space.defaultPrevented).toBe(true);
+      const event = keydown(sortButton, key);
+
+      expect(event.defaultPrevented).toBe(true);
+      expect(fireIconAction).toHaveBeenCalledTimes(1);
+      expect(fireIconAction).toHaveBeenCalledWith("sort", undefined);
+      expect(
+        ObsidianStubs.Menu.lastItems.map((item) => item.title),
+      ).toEqual(SORT_MENU_TITLES);
+      expect(showAtPosition).toHaveBeenCalledWith({ x: 40, y: 34 });
     });
   });
 
