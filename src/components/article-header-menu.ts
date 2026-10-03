@@ -121,6 +121,21 @@ export class ArticleHeaderMenu {
     });
 
     const targetDocument = parent.ownerDocument;
+    this.addDocumentListener(targetDocument, "keydown", (e: Event) => {
+      const keyboardEvent = e as KeyboardEvent;
+      if (keyboardEvent.key !== "Escape") return;
+
+      if (this.activePortal) {
+        this.closeActivePortal();
+        return;
+      }
+      if (!dropdownMenu.classList.contains("is-menu-open")) return;
+
+      keyboardEvent.preventDefault();
+      keyboardEvent.stopPropagation();
+      this.closeMenu();
+      hamburgerBtn.focus();
+    });
     this.addDocumentListener(targetDocument, "pointerdown", (e: Event) => {
       if (!dropdownMenu.classList.contains("is-menu-open")) return;
 

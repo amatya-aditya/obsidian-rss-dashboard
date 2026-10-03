@@ -207,6 +207,37 @@ describe("ArticleHeaderMenu Component", () => {
     expect(button.getAttribute("aria-expanded")).toBe("false");
   });
 
+  it("closes the open hamburger menu with Escape and restores focus", () => {
+    const menu = new ArticleHeaderMenu(settings, "", callbacks);
+    menu.render(container);
+    const button = container.querySelector<HTMLElement>(".rss-dashboard-hamburger-button")!;
+    button.click();
+
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+
+    expect(button.getAttribute("aria-expanded")).toBe("false");
+    expect(container.querySelector(".rss-dashboard-dropdown-menu")?.classList.contains("is-menu-open")).toBe(false);
+    expect(document.activeElement).toBe(button);
+  });
+
+  it("closes an open selector before closing the hamburger menu on a second Escape", () => {
+    const menu = new ArticleHeaderMenu(settings, "", callbacks);
+    menu.render(container);
+    const button = container.querySelector<HTMLElement>(".rss-dashboard-hamburger-button")!;
+    const trigger = container.querySelector<HTMLElement>(".rss-dashboard-filter")!;
+    button.click();
+    trigger.focus();
+    trigger.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+
+    trigger.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+    expect(trigger.getAttribute("aria-expanded")).toBe("false");
+    expect(button.getAttribute("aria-expanded")).toBe("true");
+
+    trigger.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+    expect(button.getAttribute("aria-expanded")).toBe("false");
+    expect(document.activeElement).toBe(button);
+  });
+
   it("opens a themed selector, moves among choices, and commits with Enter", () => {
     const menu = new ArticleHeaderMenu(settings, "", callbacks);
     menu.render(container);
