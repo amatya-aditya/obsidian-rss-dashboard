@@ -68,9 +68,24 @@
 
 .rss-dashboard-card-view
   .rss-dashboard-card-preview-region
+  .rss-dashboard-cover-container.has-summary:focus-within
+  .rss-dashboard-cover-image {
+  opacity: 0;
+}
+
+.rss-dashboard-card-view
+  .rss-dashboard-card-preview-region
   .rss-dashboard-cover-container.has-summary:hover
   .rss-dashboard-summary-overlay {
   opacity: 1;
+}
+
+.rss-dashboard-card-view
+  .rss-dashboard-card-preview-region
+  .rss-dashboard-cover-container.has-summary:focus-within
+  .rss-dashboard-summary-overlay {
+  opacity: 1;
+  overflow-y: auto;
 }
 
 .rss-dashboard-article-summary {
@@ -199,6 +214,20 @@
   max-width: 100%;
   min-width: 0;
   width: 100%;
+}
+
+.rss-dashboard-card-view .rss-dashboard-article-card .rss-dashboard-card-open-button {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .rss-dashboard-article-card:hover,
@@ -583,6 +612,14 @@
 }
 
 .rss-dashboard-article-card:focus-within {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 2px;
+}
+
+.rss-dashboard-card-view .rss-dashboard-article-title:focus-visible,
+.rss-dashboard-card-view .rss-dashboard-article-feed:focus-visible,
+.rss-dashboard-card-view .rss-dashboard-summary-overlay:focus-visible,
+.rss-dashboard-card-view .rss-dashboard-cover-summary-only:focus-visible {
   outline: 2px solid var(--interactive-accent);
   outline-offset: 2px;
 }

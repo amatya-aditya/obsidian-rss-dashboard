@@ -3794,6 +3794,10 @@ export class Sidebar {
 
   private resetSidebarSearchPresentation(): void {
     this.container
+      .querySelectorAll(".rss-dashboard-search-empty-state")
+      .forEach((el) => el.remove());
+
+    this.container
       .querySelectorAll<HTMLElement>(".rss-dashboard-search-hidden")
       .forEach((el) => el.removeClass("rss-dashboard-search-hidden"));
 
@@ -3949,6 +3953,44 @@ export class Sidebar {
     } else {
       allFeedsButton?.removeClass("rss-dashboard-search-hidden");
     }
+
+    const hasVisibleFolder = Array.from(folderVisible.values()).some(Boolean);
+    // Tag rows aren't filtered yet (#708), but a matching row is still a result.
+    const hasMatchingTag = Array.from(
+      this.container.querySelectorAll<HTMLElement>(
+        ".rss-dashboard-sidebar-tag-label",
+      ),
+    ).some((label) =>
+      SidebarSearchService.matchesTag(
+        parsedQuery,
+        label.textContent?.trim() ?? "",
+      ),
+    );
+    if (visibleFeeds === 0 && !hasVisibleFolder && !hasMatchingTag) {
+      this.renderSearchEmptyState();
+    }
+  }
+
+  /** Mirrors Obsidian core search's "0 results / No matches found." feedback. */
+  private renderSearchEmptyState(): void {
+    const feedFoldersSection = this.container.querySelector<HTMLElement>(
+      ".rss-dashboard-feed-folders-section",
+    );
+    if (!feedFoldersSection) return;
+
+    const emptyState = feedFoldersSection.createDiv({
+      cls: "rss-dashboard-search-empty-state",
+      attr: { role: "status" },
+      prepend: true,
+    });
+    emptyState.createDiv({
+      cls: "rss-dashboard-search-empty-state-count",
+      text: "0 results",
+    });
+    emptyState.createDiv({
+      cls: "rss-dashboard-search-empty-state-message",
+      text: "No matches found.",
+    });
   }
 
   private applySearchFilterFromState(): void {
