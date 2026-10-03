@@ -777,7 +777,7 @@ describe("Sidebar header (characterization)", () => {
       expect(save).toHaveBeenCalledWith(COACHMARK_KEY, "true");
     });
 
-    it("keeps the coachmark when the flag was stored elsewhere before the timer", () => {
+    it("removes the coachmark without storing the flag again when it was stored elsewhere before the timer (#628)", () => {
       const save = vi.spyOn(app, "saveLocalStorage");
       sidebar.render();
       vi.advanceTimersByTime(3000);
@@ -787,7 +787,7 @@ describe("Sidebar header (characterization)", () => {
       vi.advanceTimersByTime(5000);
 
       expect(save).not.toHaveBeenCalled();
-      expect(coachmark()).not.toBeNull();
+      expect(coachmark()).toBeNull();
     });
 
     it("draws one coachmark per render, and the first timer to fire stores the flag once", () => {
@@ -801,8 +801,7 @@ describe("Sidebar header (characterization)", () => {
       expect(save).toHaveBeenCalledTimes(1);
     });
 
-    // BUG: pinned, see #628
-    it("leaves the visible coachmark in place after five seconds when the sidebar was redrawn meanwhile", () => {
+    it("removes the visible coachmark after five seconds when the sidebar was redrawn meanwhile (#628)", () => {
       sidebar.render();
       vi.advanceTimersByTime(2000);
       sidebar.render();
@@ -811,7 +810,20 @@ describe("Sidebar header (characterization)", () => {
       vi.advanceTimersByTime(5000);
 
       expect(app.loadLocalStorage(COACHMARK_KEY)).toBe("true");
-      expect(visible.isConnected).toBe(true);
+      expect(visible.isConnected).toBe(false);
+      expect(coachmark()).toBeNull();
+    });
+
+    it("removes the coachmark five seconds after it was first shown, even after a redraw (#628)", () => {
+      sidebar.render();
+      vi.advanceTimersByTime(2000);
+      sidebar.render();
+
+      vi.advanceTimersByTime(2999);
+      expect(coachmark()).not.toBeNull();
+
+      vi.advanceTimersByTime(1);
+      expect(coachmark()).toBeNull();
     });
 
     it("draws the coachmark in a header rendered into another parent too", () => {
@@ -1083,15 +1095,28 @@ describe("Sidebar header (characterization)", () => {
       expect(fireIconAction).toHaveBeenCalledWith("sort", event);
     });
 
-    // BUG: pinned, see #627
-    it("does nothing when the sort button is used from the keyboard", () => {
-      const enter = keydown(button("sort"), "Enter");
-      const space = keydown(button("sort"), " ");
+    it.each([
+      ["Enter", "Enter"],
+      ["Space", " "],
+    ])("opens the sort menu below the button on %s (#627)", (_name, key) => {
+      const sortButton = button("sort");
+      vi.spyOn(sortButton, "getBoundingClientRect").mockReturnValue(
+        new DOMRect(40, 10, 24, 24),
+      );
+      const showAtPosition = vi.spyOn(
+        ObsidianStubs.Menu.prototype,
+        "showAtPosition",
+      );
 
-      expect(fireIconAction).not.toHaveBeenCalled();
-      expect(ObsidianStubs.Menu.lastItems).toHaveLength(0);
-      expect(enter.defaultPrevented).toBe(true);
-      expect(space.defaultPrevented).toBe(true);
+      const event = keydown(sortButton, key);
+
+      expect(event.defaultPrevented).toBe(true);
+      expect(fireIconAction).toHaveBeenCalledTimes(1);
+      expect(fireIconAction).toHaveBeenCalledWith("sort", undefined);
+      expect(
+        ObsidianStubs.Menu.lastItems.map((item) => item.title),
+      ).toEqual(SORT_MENU_TITLES);
+      expect(showAtPosition).toHaveBeenCalledWith({ x: 40, y: 34 });
     });
   });
 

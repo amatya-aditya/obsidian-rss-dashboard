@@ -31,6 +31,7 @@ export interface ArticleFilterCallbacks {
  * This component is decoupled from ArticleList via the ArticleFilterCallbacks interface.
  */
 export class ArticleFilterMenu {
+  private static activeMobileMenus = new WeakMap<HTMLElement, ArticleFilterMenu>();
   private settings: RssDashboardSettings;
   private statusFilters: Set<string>;
   private tagFilters: Set<string>;
@@ -67,6 +68,15 @@ export class ArticleFilterMenu {
     const targetBody = targetDocument.body;
     const targetWindow = targetDocument.defaultView || activeWindow;
 
+    const activeMobileMenu = ArticleFilterMenu.activeMobileMenus.get(toggleBtn);
+    if (activeMobileMenu) {
+      if (activeMobileMenu.activePortal?.isConnected) {
+        activeMobileMenu.close();
+        return;
+      }
+      activeMobileMenu.close();
+    }
+
     // Toggle close when clicking the same trigger.
     if (this.activePortal && this.activeFilterToggleBtn === toggleBtn) {
       this.close();
@@ -84,6 +94,9 @@ export class ArticleFilterMenu {
     });
     this.activePortal = menuPortal;
     this.activeFilterToggleBtn = toggleBtn;
+    if (toggleBtn.classList.contains("rss-dashboard-mobile-filter-button")) {
+      ArticleFilterMenu.activeMobileMenus.set(toggleBtn, this);
+    }
     toggleBtn.addClass("active");
 
     const pendingStatusFilters = new Set(this.statusFilters);
@@ -541,6 +554,13 @@ export class ArticleFilterMenu {
 
   // Remove the active portal and detach any temporary listeners.
   private close(): void {
+    const toggleBtn = this.activeFilterToggleBtn;
+    if (
+      toggleBtn &&
+      ArticleFilterMenu.activeMobileMenus.get(toggleBtn) === this
+    ) {
+      ArticleFilterMenu.activeMobileMenus.delete(toggleBtn);
+    }
     if (this.activeFilterOutsideListenerCleanup) {
       this.activeFilterOutsideListenerCleanup();
       this.activeFilterOutsideListenerCleanup = null;
