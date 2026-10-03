@@ -28,7 +28,7 @@ The plan was first written on 2026-09-16 in commit `80508d2`, which never reache
 
 One issue and one pull request per slice, in the order below. Each slice's issue is filed when the slice starts and linked from its heading here. Each slice is test-first: the failing test lands before the change, and a slice that only moves code pins today's behavior with characterization tests first, as a [#436](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/436) refactor does.
 
-### 1. Template-variable registry
+### 1. Template-variable registry ([#673](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/673))
 
 Builds the registry #266 designed: a new `src/services/article-template/` module with a resolved value object built once per item, the variable registry (with `omitIfEmpty` and per-call-site default overrides), and the renderer. `{{content}}` stays a renderer parameter, not a registry field. All four hand-maintained chains go through it: `generateFrontmatter` and `applyTemplate` in `article-saver.ts`, and their copies in `web-viewer-integration.ts`.
 
@@ -54,9 +54,19 @@ Adds `src/utils/article-metadata.ts` with `extractPageMetadata(doc)` and `resolv
 - **No user-visible change:** nothing reads the resolved values yet.
 - **Tests:** `test_files/unit/utils/article-metadata.test.ts`, against `Document` fixtures rather than live fetches. Extraction reads every raw signal (meta description, `og:description`, `twitter:description`, `<html lang>`, `meta[name=author]`, JSON-LD author, microdata author, `rel=author`, canonical link) and swallows internal errors to an all-empty result. The description tier re-runs the guard on fallthrough. The guard rejects under 40 normalized characters, title-equal, punctuation- or ellipsis-only, and duplicate-intro values, and only a duplicate-intro rejection seeds the excerpt tier. Language preserves regional subtags and stays unset when unresolved. A `FullArticleFetchResult` test asserts that `pageMetadata` is filled and that extraction runs before Readability.
 
+### 3a. Feed-blurb footer ([#677](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/677))
+
+Strips the footer that WordPress and similar feeds append to the item blurb ("The post … appeared first on …"). It's a heuristic that could hide real publisher text, so it gets its own PR on top of slice 3, landing before slice 4.
+
+- The strip applies where the resolver reads the blurb: the description tier's feed candidate and the excerpt tier's feed fallback. It runs before the degenerate-value guard, so a blurb that's only a footer fails the guard, and a footer no longer keeps duplicate-intro detection from matching.
+- Slice 4 has the Reader callout read the resolved value, so the callout inherits the strip, and the Reader and the resolver agree.
+- `FeedItem.description` stays as the feed sent it; the strip happens when the blurb is read.
+- Conservative matching: only footer-shaped text at the end of the blurb, preferring structure over English strings. When in doubt, nothing is stripped.
+- **Tests:** fixtures sampled from the footer feeds and controls listed in #677.
+
 ### 4. Persisted fields and the Reader callout
 
-`FeedItem` gains five optional fields: `publisherDescription`, `language`, `canonicalUrl`, `metadataFetchedAt`, and `languageSource` (#268). `FeedItem.description` keeps the feed-supplied HTML; the resolved description goes in `publisherDescription`, beside it rather than over it (ADR 0007, amended).
+`FeedItem` gains five optional fields: `publisherDescription`, `language`, `canonicalUrl`, `metadataFetchedAt`, and `languageSource` (#268). `FeedItem.description` keeps the item blurb; the resolved description goes in `publisherDescription`, beside it rather than over it (ADR 0007, amended).
 
 - The callers that hold feed context resolve the metadata and write it: `reader-view.ts`, `article-saver.ts`, and `feed-parser-class.ts`.
 - First-write-wins at the write site: once `metadataFetchedAt` is set, a later fetch or refresh never overwrites these fields.
@@ -118,7 +128,7 @@ Local text-based language detection (#272), reader header enrichment, metadata-a
 7. Multi-author feed values are kept as separate `authors` entries; `author` stays the joined string.
 8. A polluted author value resolves clean for the publishers measured in #290, through either the parse-time split or the post-fetch page signal.
 9. Persisted metadata is first-write-wins: once `metadataFetchedAt` is set, a later refresh never overwrites `publisherDescription`, `language`, `authors`, or `canonicalUrl`.
-10. `FeedItem.description` keeps holding the feed-supplied HTML, and refresh keeps rewriting it as today.
+10. `FeedItem.description` keeps holding the item blurb, and refresh keeps rewriting it as today.
 11. New logic lives in new modules; no function exceeds ESLint's limits and no new module imports `main.ts`.
 12. No LLM or external API is introduced, and no new runtime dependency is added.
 

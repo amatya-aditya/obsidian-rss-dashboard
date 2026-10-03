@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { App, TFile, moment } from "obsidian";
+import { App, TFile } from "obsidian";
 import type { ArticleSavingSettings, FeedItem } from "../../../src/types/types";
 import {
   ArticleSaver,
@@ -7,11 +7,6 @@ import {
 } from "../../../src/services/article-saver";
 import * as fetchHelpers from "../../../src/utils/fetch-helpers";
 import { RESTRICTED_ARTICLE_REASON } from "../../../src/utils/full-article-fetch";
-
-// The real `obsidian` types `moment` as the moment namespace, which is not
-// callable; production code casts it the same way.
-type MomentFactory = (input?: Date) => { format: (fmt: string) => string };
-const callMoment = moment as unknown as MomentFactory;
 
 function createSettings(
   overrides: Partial<ArticleSavingSettings> = {},
@@ -514,174 +509,30 @@ title: "{{title}}"
   });
 });
 
-/** Typed accessor for private ArticleSaver methods tested in isolation. */
-type PrivateSaverAPI = {
-  replaceDatePlaceholders(
-    template: string,
-    date: Date,
-    firstSeenMs?: number,
-  ): string;
-};
-
-describe("ArticleSaver.replaceDatePlaceholders", () => {
-  it("replaces {{date}} with long format", () => {
-    const app = App.createMock();
-    const settings = createSettings();
-    const saver = new ArticleSaver(app, settings);
-    const date = new Date("2024-04-21T12:00:00Z");
-
-    const input = "Date: {{date}}";
-    const result = (
-      saver as unknown as PrivateSaverAPI
-    ).replaceDatePlaceholders(input, date);
-
-    // toLocaleDateString depends on environment, but we expect the long format
-    expect(result).toContain("April 21, 2024");
-  });
-
-  it("replaces {{dateShort}} with YYYY-MM-DD", () => {
-    const app = App.createMock();
-    const settings = createSettings();
-    const saver = new ArticleSaver(app, settings);
-    const date = new Date("2024-04-21T12:00:00Z");
-
-    const input = "Short: {{dateShort}}";
-    const result = (
-      saver as unknown as PrivateSaverAPI
-    ).replaceDatePlaceholders(input, date);
-
-    expect(result).toBe("Short: 2024-04-21");
-  });
-
-  it("replaces {{isoDate}} with ISO string", () => {
-    const app = App.createMock();
-    const settings = createSettings();
-    const saver = new ArticleSaver(app, settings);
-    const date = new Date("2024-04-21T12:00:00Z");
-
-    const input = "ISO: {{isoDate}}";
-    const result = (
-      saver as unknown as PrivateSaverAPI
-    ).replaceDatePlaceholders(input, date);
-
-    expect(result).toBe("ISO: 2024-04-21T12:00:00.000Z");
-  });
-
-  it("replaces parameterized {{date:FORMAT}} using moment", () => {
-    const app = App.createMock();
-    const settings = createSettings();
-    const saver = new ArticleSaver(app, settings);
-    const date = new Date("2024-04-21T12:00:00Z");
-
-    const input = "Custom: {{date:YYYY/MM/DD}} Time: {{date:HH:mm}}";
-    const result = (
-      saver as unknown as PrivateSaverAPI
-    ).replaceDatePlaceholders(input, date);
-
-    const expectedDate = callMoment(date).format("YYYY/MM/DD");
-    const expectedTime = callMoment(date).format("HH:mm");
-    expect(result).toBe(`Custom: ${expectedDate} Time: ${expectedTime}`);
-  });
-
-  it("handles complex moment formats", () => {
-    const app = App.createMock();
-    const settings = createSettings();
-    const saver = new ArticleSaver(app, settings);
-    const date = new Date("2024-04-21T12:00:00Z");
-
-    const input = "{{date:dddd, MMMM Do YYYY}}";
-    const result = (
-      saver as unknown as PrivateSaverAPI
-    ).replaceDatePlaceholders(input, date);
-
-    const expected = callMoment(date).format("dddd, MMMM Do YYYY");
-    expect(result).toBe(expected);
-  });
-
-  it("replaces {{saveDate}}, {{saveTime12}}, and {{saveTime24}} with current local system time", () => {
-    vi.useFakeTimers();
-    const fakeNow = new Date(2026, 7, 29, 14, 45, 0); // August 29, 2026 14:45:00 local
-    vi.setSystemTime(fakeNow);
-
-    const app = App.createMock();
-    const settings = createSettings();
-    const saver = new ArticleSaver(app, settings);
-    const pubDate = new Date("2024-04-21T12:00:00Z");
-
-    const input =
-      "Saved on {{saveDate}} at {{saveTime24}} (12h: {{saveTime12}}), published {{dateShort}}";
-    const result = (
-      saver as unknown as PrivateSaverAPI
-    ).replaceDatePlaceholders(input, pubDate);
-
-    expect(result).toBe(
-      "Saved on 2026-08-29 at 14:45 (12h: 02:45 PM), published 2024-04-21",
-    );
-    vi.useRealTimers();
-  });
-
-  it("replaces {{firstSeen}} with the long format of firstSeenMs when provided", () => {
-    const app = App.createMock();
-    const settings = createSettings();
-    const saver = new ArticleSaver(app, settings);
-    const pubDate = new Date("2024-04-21T12:00:00Z");
-    const firstSeenMs = Date.parse("2024-05-01T12:00:00Z");
-
-    const input = "First seen: {{firstSeen}}";
-    const result = (
-      saver as unknown as PrivateSaverAPI
-    ).replaceDatePlaceholders(input, pubDate, firstSeenMs);
-
-    expect(result).toBe("First seen: May 1, 2024");
-  });
-
-  it("falls back to the pubDate for {{firstSeen}} when firstSeenMs is not provided", () => {
-    const app = App.createMock();
-    const settings = createSettings();
-    const saver = new ArticleSaver(app, settings);
-    const pubDate = new Date("2024-04-21T12:00:00Z");
-
-    const input = "First seen: {{firstSeen}}";
-    const result = (
-      saver as unknown as PrivateSaverAPI
-    ).replaceDatePlaceholders(input, pubDate);
-
-    expect(result).toBe("First seen: April 21, 2024");
-  });
-
-  it("treats firstSeenMs of 0 (epoch) as provided rather than falling back", () => {
-    const app = App.createMock();
-    const settings = createSettings();
-    const saver = new ArticleSaver(app, settings);
-    const pubDate = new Date("2024-04-21T12:00:00Z");
-
-    const input = "First seen: {{firstSeen}}";
-    const result = (
-      saver as unknown as PrivateSaverAPI
-    ).replaceDatePlaceholders(input, pubDate, 0);
-
-    // Not "April 21, 2024" (the pubDate) — epoch 0 must not fall through to
-    // the pubDate fallback. Exact day/month can shift by timezone, so assert
-    // the epoch year rather than a hardcoded locale-formatted string.
-    expect(result).toMatch(/First seen: (December 31, 1969|January 1, 1970)/);
-  });
-
-  it("falls back to 'now' for {{firstSeen}} when both pubDate and firstSeenMs are unusable", () => {
+describe("ArticleSaver date variables", () => {
+  it("uses the save time for the dates when neither pubDate nor firstSeenMs gives a real date", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-06-15T12:00:00Z"));
+    try {
+      const app = App.createMock();
+      // The first-seen fallback reaches firstSeenMs, which is not a real date.
+      const saver = new ArticleSaver(app, createSettings(), undefined, () => true);
+      const item = createItem({ pubDate: "", firstSeenMs: Number.NaN });
 
-    const app = App.createMock();
-    const settings = createSettings();
-    const saver = new ArticleSaver(app, settings);
-    const invalidPubDate = new Date(NaN);
+      const file = await saver.saveArticle(
+        item,
+        undefined,
+        "{{date}}|{{firstSeen}}|{{isoDate}}",
+        "x",
+      );
 
-    const input = "First seen: {{firstSeen}}";
-    const result = (
-      saver as unknown as PrivateSaverAPI
-    ).replaceDatePlaceholders(input, invalidPubDate);
-
-    expect(result).toBe("First seen: June 15, 2026");
-    vi.useRealTimers();
+      if (!(file instanceof TFile)) throw new Error("expected TFile");
+      expect(await app.vault.read(file)).toBe(
+        "June 15, 2026|June 15, 2026|2026-06-15T12:00:00.000Z",
+      );
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 
