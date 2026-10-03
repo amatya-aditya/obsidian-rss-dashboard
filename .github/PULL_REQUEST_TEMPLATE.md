@@ -4,7 +4,7 @@
 
 ## Related issues
 
-<!-- Use `Fixes #123` to close an issue on merge, or `Refs #123` for context without closing it. Include each issue reference once. -->
+<!-- Use `Fixes #123` to link the issue (PRs into `dev` do not close it on merge; the maintainer closes it afterwards), or `Refs #123` for context only. Include each issue reference once. -->
 
 -
 
