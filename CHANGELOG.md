@@ -1,5 +1,9 @@
 ## Unreleased
 
+### Features
+
+- Sidebar search now says when nothing matched instead of leaving the sidebar blank. A search with no matching feeds or folders shows **0 results** and **No matches found.**, as Obsidian's own search does, and the message clears when the query changes or the search is cleared or closed. [GH Issue #678](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/678)
+
 ### Fixes
 
 - Fixed the first-launch **Add your first feed here** hint staying on screen when the sidebar redrew during its first five seconds. It now disappears five seconds after it first appears. [GH Issue #628](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/628)
