@@ -207,14 +207,9 @@ function buildSortButton(
   iconConfig: SidebarIconConfig,
   host: SidebarHeaderHost,
 ): HTMLElement {
-  // sort requires the MouseEvent for menu positioning; action stored in fireIconAction
-  const btn = createToolbarButton(iconConfig, () => {
-    /* keyboard: no-op */
-  });
-  btn.addEventListener("click", (e: MouseEvent) =>
-    host.fireIconAction("sort", e),
-  );
-  return btn;
+  // A click opens the menu at the pointer; Enter and Space have no MouseEvent,
+  // so fireIconAction anchors the menu below the button instead.
+  return createToolbarButton(iconConfig, (e) => host.fireIconAction("sort", e));
 }
 
 function buildCollapseAllButton(
