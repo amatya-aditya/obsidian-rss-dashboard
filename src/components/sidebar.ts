@@ -3955,7 +3955,18 @@ export class Sidebar {
     }
 
     const hasVisibleFolder = Array.from(folderVisible.values()).some(Boolean);
-    if (visibleFeeds === 0 && !hasVisibleFolder) {
+    // Tag rows aren't filtered yet (#708), but a matching row is still a result.
+    const hasMatchingTag = Array.from(
+      this.container.querySelectorAll<HTMLElement>(
+        ".rss-dashboard-sidebar-tag-label",
+      ),
+    ).some((label) =>
+      SidebarSearchService.matchesTag(
+        parsedQuery,
+        label.textContent?.trim() ?? "",
+      ),
+    );
+    if (visibleFeeds === 0 && !hasVisibleFolder && !hasMatchingTag) {
       this.renderSearchEmptyState();
     }
   }

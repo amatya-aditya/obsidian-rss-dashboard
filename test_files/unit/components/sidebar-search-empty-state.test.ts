@@ -154,6 +154,36 @@ describe("Sidebar search empty state", () => {
     expect(emptyState()).toBeNull();
   });
 
+  describe("with the Tags section open", () => {
+    beforeEach(() => {
+      sidebar.destroy();
+      container.empty();
+      const internals = sidebar as unknown as {
+        settings: RssDashboardSettings;
+        isTagsExpanded: boolean;
+      };
+      internals.settings.availableTags = [{ name: "news", color: "#f00" }];
+      internals.isTagsExpanded = true;
+      sidebar.render();
+    });
+
+    it("does not report zero results when a tag: query matches an existing tag", () => {
+      typeQuery(openSearch(), "tag:news");
+
+      expect(
+        container.querySelector(".rss-dashboard-sidebar-tag-label")
+          ?.textContent,
+      ).toBe("news");
+      expect(emptyState()).toBeNull();
+    });
+
+    it("reports zero results when a tag: query matches no tag", () => {
+      typeQuery(openSearch(), "tag:zzz-no-such-tag");
+
+      expect(emptyState()).not.toBeNull();
+    });
+  });
+
   it("removes the message when the query is edited to match again", () => {
     const input = openSearch();
     typeQuery(input, "zzz-no-such-feed");
