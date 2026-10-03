@@ -56,6 +56,7 @@
 - HTML entities in feed text, feed previews, and podcast title lookups are now decoded in one pass by a shared decoder. Text that was escaped twice keeps one level of escaping, and feed previews show named entities such as `&eacute;` as letters.
 - Rich article rendering now keeps a fixed set of HTML tags; other tags are unwrapped and their text is kept.
 - The lint rule against a `title` attribute now also catches one inside a conditional or logical `attr` value, without flagging an unrelated nested object, and has a test of its own. [GH Issue #587](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/587), [GH Issue #591](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/591)
+- `npm run build` now completes in a source copy that has no `.git` folder, as in the community directory scanner's clean build. `check:commit-message`, `check:pre-release`, and `check:doc-links` print a notice and skip when there is no git checkout, and stay enforced in the Git hooks and CI.
 
 ## 2.7.0 - September 25, 2026
 
