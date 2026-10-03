@@ -166,6 +166,7 @@ For a user-facing overview, see the [RSS Dashboard 2.7.0 release notes](docs/rel
 - Feed, image, and podcast host checks now compare the URL's hostname instead of searching the whole URL.
 - Long feed text and Cloudinary image URLs are now matched with simpler patterns that run in linear time.
 - Patched development dependencies for new npm audit advisories (`brace-expansion`, `undici`, `fast-uri`) and removed the unused `moment` development dependency. The plugin still uses Obsidian's built-in `moment`.
+- `npm run build` now completes in a source copy that has no `.git` folder, as in the community directory scanner's clean build. `check:commit-message`, `check:pre-release`, and `check:doc-links` print a notice and skip when there is no git checkout, and stay enforced in the Git hooks and CI.
 
 ### Known issues
 
