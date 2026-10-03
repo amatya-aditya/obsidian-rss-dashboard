@@ -1,12 +1,12 @@
-# RSS Dashboard 2.7.0 — Obsidian Discord
+# RSS Dashboard 2.7.1 — Obsidian Discord
 
 Published: 2026-09-25
 Platform: Obsidian Discord
-Release: 2.7.0
+Release: 2.7.1
 
 ---
 
-**RSS Dashboard 2.7.0 is now available.**
+**RSS Dashboard 2.7.1 is now available.**
 
 Highlights in this release:
 
@@ -23,5 +23,5 @@ Highlights in this release:
 
 Available through the Obsidian Community Plugins updater.
 
-**Release notes:** https://github.com/amatya-aditya/obsidian-rss-dashboard/blob/master/docs/releases/2.7.0.md  
-**Release:** https://github.com/amatya-aditya/obsidian-rss-dashboard/releases/tag/2.7.0
+**Release notes:** https://github.com/amatya-aditya/obsidian-rss-dashboard/blob/master/docs/releases/2.7.1.md
+**Release:** https://github.com/amatya-aditya/obsidian-rss-dashboard/releases/tag/2.7.1
