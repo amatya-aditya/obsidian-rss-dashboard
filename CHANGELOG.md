@@ -1,18 +1,10 @@
 ## Unreleased
 
-### Features
-
-- Imports that replace your feeds or overwrite your preferences now ask first. After the file is read and validated, and before anything is written, **Replace your feeds?** compares the feeds, articles, starred articles, folders, and tags you have now with what the file brings, and **Overwrite your preferences?** says how many preferences will change and lists the retention and auto-backup ones by name. Either dialog names any change to the storage location, notes feeds that haven't loaded their articles on this device, and offers **Export backup first**, which exports a full Portable data bundle and keeps the dialog open. **Cancel** is focused and changes nothing. This covers the Portable data bundle, Feed bundle, Settings bundle, and user preferences imports. [GH Issue #377](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/377) [GH Issue #390](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/390)
-- New installations keep their feed articles and read, starred, and tag state inside the plugin folder (`.obsidian/plugins/rss-dashboard/data/`), so uninstalling the plugin removes them, and **Settings → Storage** shows that folder under **Metadata data.json location**. Existing installations and any storage folder you chose yourself are left where they are, with nothing moved. [GH Issue #319](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/319)
-
 ### Fixes
 
-- Fixed the Manage Feeds import and export button labels becoming unreadable in Obsidian's light theme. [GH Issue #694](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/694)
 - Standardized article star controls on the filled yellow starred state and made the outline darken on hover across dashboard and Reader views. The dashboard's circular background remains dashboard-specific. [GH Issue #684](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/684)
 - Fixed the user preferences import notice claiming feeds were imported when the file only contained folders or tags. The notice now names the collections the file included. [GH Issue #464](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/464)
 - Fixed vertical misalignment among Reader toolbar icons and removed the dashboard-style circle from the Tags action. [GH Issue #680](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/680)
-- Fixed Discover's mobile **Add to...** picker opening away from its button. It now keeps its calculated vertical position while using the mobile-width layout.
-- Fixed Discover's **Add to...** picker silently attempting to add a feed that had already been added while the picker was open, and overlapping add requests creating duplicate subscriptions. Duplicate URLs are now refused and reported.
 - Fixed the navigation drawer keeping every closed copy of itself, with its full feed list and the previous article list, in memory. On desktop windows narrower than 1200px each folder change leaked about 2,000 elements, which slowed Obsidian down over a long session and could end in an out-of-memory crash. [GH Issue #664](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/664)
 - Fixed editing a feed to another subscribed feed's URL creating a duplicate subscription. The URL change is now refused without changing either feed. Existing duplicates can still be edited when their URL stays the same. [GH Issue #554](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/554)
 - Fixed the reader removing story text or other media along with a duplicate lead image when both were wrapped in a link or figure. [GH Issue #629](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/629)
@@ -30,17 +22,8 @@
 - Fixed JSON Feed subscriptions failing to refresh because valid JSON Feed responses were rejected by XML-only validation. JSON Feed version documents now pass validation, and feed requests advertise `application/feed+json`. [GH Issue #462](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/462)
 - Fixed a settings load failure allowing a later setting or feed change to overwrite `data.json` with defaults. Failed loads now use isolated fallback settings, keep services aligned with them, block saves until a later load succeeds, and show the unavailable-metadata warning only once per failure incident. [GH Issue #447](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/447)
 - Fixed the **← Discover** button in Kagi Small Web being skipped during keyboard navigation. It now uses a native button that supports Tab focus and Enter/Space activation. [GH Issue #503](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/503)
-- Fixed **What's New** appearing on the second launch after a fresh install, as if the new user had just upgraded. A fresh install now records its version on first launch, so the popup shows only after a real update. [GH Issue #402](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/402)
-- Fixed **Import user preferences** in **Settings → Import/Export** showing **Import successful** after an invalid file had already been rejected. It now shows only the error. [GH Issue #377](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/377)
-- Fixed full articles from sites that block direct requests with HTTP 401 or 403 never being retried through the configured CORS proxy. Obsidian reports those responses as errors, so the reader gave up and showed the feed excerpt without trying the proxy. It now retries through the proxy first. [GH Issue #408](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/408)
 - Fixed moving the metadata `data.json` out of a hidden vault folder, such as `.rss-meta`, never offering to delete the previous copy and leaving it on disk. **Delete previous metadata copy?** now appears for a previous copy in a hidden folder too, and **Delete previous copy** moves it to the trash. With Shard storage v2, it also removes the previous `user-state.json` after article state has moved to the new metadata folder. Outside v2, an orphaned state file remains as a backup. The plugin folder's own `data.json`, which points to the new location after a move, is never offered for deletion. [GH Issue #410](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/410)
-- Fixed an article not appearing in an ungrouped dashboard list when a change from the reader, such as starring it while the dashboard is filtered to Starred, made it match the current filters. The update stopped with an error, leaving the list and the status bar count stale until the next refresh. [GH Issue #409](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/409)
-- Fixed saving an article, exporting the keyboard shortcuts, and saving from the web viewer failing with "Failed to create folder" or "Could not create folder" when the save folder differs from an existing folder only in case, such as `rss articles` and `RSS Articles`, on Windows and macOS. They now save into the existing folder. [GH Issue #411](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/411)
-- Fixed **Import user preferences** deleting every feed when the file lists folders or tags but no feeds. A file without a feed list now keeps your current feeds, as it already kept your folders and tags. [GH Issue #386](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/386)
-- Fixed the **Add feed** and **Auto tag feeds in folder** modals keeping Obsidian's built-in close button in the phone and tablet layout. Obsidian 1.13 renamed that button, so the plugin no longer found it to remove it. [GH Issue #372](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/372)
-- Fixed clearing a **Default folders** setting, such as **Default YouTube folder**, saving the folder as `/`. New feeds of that type were filed under a folder named `/` that doesn't exist, so they showed at the top level while **Move to folder** didn't mark them as in the root, and the setting showed `/` instead of the default. A cleared field now files new feeds in the root again. [GH Issue #372](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/372)
 - Fixed podcast playback progress being replaced by an older saved resume point when Obsidian starts. Existing episode progress is preserved, and the obsolete `rss-podcast-progress` local-storage entry is cleared after it is checked. [GH Issue #468](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/468)
-- Fixed preview images no longer being cached after a cached image file was deleted outside the plugin, for example by you or a sync tool, until Obsidian was restarted. Lowering the image cache limit could also fail without saving, and **Clear image cache** said the deleted image could not be removed and kept counting it in the cache size. A cached image file that is already gone now counts as removed. [GH Issue #372](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/372)
 - Fixed YouTube handle URLs such as `https://www.youtube.com/@Fireship` in **Add feed** being reported as Mastodon profiles. The preview status read "Mastodon > RSS auto-discovery" and the feed defaulted to the Mastodon folder. It is now detected as YouTube and defaults to the YouTube folder, while real Mastodon profiles are unchanged. [GH Issue #548](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/548)
 - Fixed Portable data bundle, Feed bundle, and Settings bundle imports, shard migrations, and shard repairs writing metadata to Obsidian's plugin folder instead of the configured vault `data.json` location. These operations now persist where the plugin will read metadata after restart. [GH Issue #474](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/474)
 - Fixed the article list header saying **1 feeds** when exactly one feed is selected. It now says **1 feed**, alone and combined with tags. [GH Issue #582](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/582)
@@ -53,12 +36,27 @@
 
 ### Developer
 
-- HTML entities in feed text, feed previews, and podcast title lookups are now decoded in one pass by a shared decoder. Text that was escaped twice keeps one level of escaping, and feed previews show named entities such as `&eacute;` as letters.
-- Rich article rendering now keeps a fixed set of HTML tags; other tags are unwrapped and their text is kept.
 - The lint rule against a `title` attribute now also catches one inside a conditional or logical `attr` value, without flagging an unrelated nested object, and has a test of its own. [GH Issue #587](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/587), [GH Issue #591](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/591)
+
+## 2.7.1 - October 3, 2026
+
+For a user-facing overview, see the [RSS Dashboard 2.7.1 release notes](docs/releases/2.7.1.md).
+
+### Fixes
+
+- Fixed the Manage Feeds import and export button labels becoming unreadable in Obsidian's light theme. [GH Issue #694](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/694)
+
+### Development and compliance
+
 - `npm run build` now completes in a source copy that has no `.git` folder, as in the community directory scanner's clean build. `check:commit-message`, `check:pre-release`, and `check:doc-links` print a notice and skip when there is no git checkout, and stay enforced in the Git hooks and CI.
 
-## 2.7.0 - September 25, 2026
+### Known issues
+
+- With the metadata `data.json` in a vault folder, a Portable data bundle, Feed bundle, or Settings bundle import can be lost if Obsidian closes before anything else is saved. Applying a vault folder under **Settings → Storage → Metadata data.json location** now shows a notice about this: after importing, change a setting or mark an article as read before closing Obsidian. The default location in the plugin folder isn't affected. [GH Issue #474](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/474)
+- A failed settings load can let a later change overwrite your saved settings with defaults. Fixed for the next release. [GH Issue #447](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/447)
+- Podcast playback progress can be replaced by an older resume point when Obsidian starts. Fixed for the next release. [GH Issue #468](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/468)
+
+## 2.7.0 - October 2, 2026
 
 For a user-facing overview, see the [RSS Dashboard 2.7.0 release notes](docs/releases/2.7.0.md).
 
@@ -85,6 +83,8 @@ For a user-facing overview, see the [RSS Dashboard 2.7.0 release notes](docs/rel
 - **Repair/rebuild storage** now previews what it will do before changing anything: how many shard files it will rewrite, which feeds it will skip, and any shard on disk that would be replaced with fewer articles than it currently holds. You can cancel from the preview.
 - Added **Feed bundle** (feeds, folders, tags, articles, and article state) and **Settings bundle** (app preferences only) as separate JSON export and import scopes, alongside the existing Portable data bundle and OPML export, on both the Storage and Import/Export settings tabs. [GH Issue #254](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/254)
 - The exported user preferences file is renamed from `usersettings.json` to `rss-dashboard-user-preferences.json`, with its buttons renamed **Import user preferences** and **Export user preferences**; auto-backup still recognizes an existing `usersettings.json`. The Portable, Feed, and Settings bundle sections gained copy-to-clipboard buttons, and each bundle section names its default export filename. [GH Issue #254](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/254)
+- Imports that replace your feeds or overwrite your preferences now ask first. After the file is read and validated, and before anything is written, **Replace your feeds?** compares the feeds, articles, starred articles, folders, and tags you have now with what the file brings, and **Overwrite your preferences?** says how many preferences will change and lists the retention and auto-backup ones by name. Either dialog names any change to the storage location, notes feeds that haven't loaded their articles on this device, and offers **Export backup first**, which exports a full Portable data bundle and keeps the dialog open. **Cancel** is focused and changes nothing. This covers the Portable data bundle, Feed bundle, Settings bundle, and user preferences imports. [GH Issue #377](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/377) [GH Issue #390](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/390)
+- New installations keep their feed articles and read, starred, and tag state inside the plugin folder (`.obsidian/plugins/rss-dashboard/data/`), so uninstalling the plugin removes them, and **Settings → Storage** shows that folder under **Metadata data.json location**. Existing installations and any storage folder you chose yourself are left where they are, with nothing moved. [GH Issue #319](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/319)
 
 #### Data retention and dates
 
@@ -131,6 +131,9 @@ For a user-facing overview, see the [RSS Dashboard 2.7.0 release notes](docs/rel
 - Fixed automatic retention keeping unread articles older than a feed's auto-delete cutoff indefinitely when the source feed still lists them. They are now deleted by default; turn on the unread protection under **Data Retention** to keep them. [GH Issue #213](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/213)
 - Fixed cancelling a background import leaving its unfetched feeds permanently excluded from global refresh. [GH Issue #249](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/249)
 - Fixed settings that sync in from another device being ignored by parts of the plugin until Obsidian restarted. After the reload, auto-backups could write the pre-sync feed list to `feeds.opml.backup`, new folders were added to the old folder list and lost, and feeds that arrived with a folder this device lacked did not get that folder created.
+- Fixed **Import user preferences** in **Settings → Import/Export** showing **Import successful** after an invalid file had already been rejected. It now shows only the error. [GH Issue #377](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/377)
+- Fixed moving the metadata `data.json` out of a hidden vault folder, such as `.rss-meta`, never offering to delete the previous copy and leaving it on disk. **Delete previous metadata copy?** now appears for a previous copy in a hidden folder too, and **Delete previous copy** moves it to the trash. The plugin folder's own `data.json`, which points to the new location after a move, is never offered for deletion. [GH Issue #410](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/410)
+- Fixed **Import user preferences** deleting every feed when the file lists folders or tags but no feeds. A file without a feed list now keeps your current feeds, as it already kept your folders and tags. [GH Issue #386](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/386)
 
 #### Refresh
 
@@ -153,6 +156,9 @@ For a user-facing overview, see the [RSS Dashboard 2.7.0 release notes](docs/rel
 
 - The reader no longer shows a **Feed description** box reading "No feed description available." when an article's feed supplies no usable description; the article body now follows the header directly. [GH Issue #247](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/247)
 - Fixed code blocks in the reader running off the right edge as one clipped line with no background. Code blocks now render as a shaded monospace box that wraps within the reader width, and inline code is shaded. Reddit code blocks still read as run-on text because Reddit's RSS strips their line breaks. [GH Issue #363](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/363) [GH Issue #365](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/365)
+- Fixed full articles from sites that block direct requests with HTTP 401 or 403 never being retried through the configured CORS proxy. Obsidian reports those responses as errors, so the reader gave up and showed the feed excerpt without trying the proxy. It now retries through the proxy first. [GH Issue #408](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/408)
+- Fixed an article not appearing in an ungrouped dashboard list when a change from the reader, such as starring it while the dashboard is filtered to Starred, made it match the current filters. The update stopped with an error, leaving the list and the status bar count stale until the next refresh. [GH Issue #409](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/409)
+- Fixed preview images no longer being cached after a cached image file was deleted outside the plugin, for example by you or a sync tool, until Obsidian was restarted. Lowering the image cache limit could also fail without saving, and **Clear image cache** said the deleted image could not be removed and kept counting it in the cache size. A cached image file that is already gone now counts as removed. [GH Issue #372](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/372)
 
 #### Starring, tags, and saving
 
@@ -166,6 +172,7 @@ For a user-facing overview, see the [RSS Dashboard 2.7.0 release notes](docs/rel
 - The Import OPML preview now labels a feed without a folder as `<None>` instead of `Uncategorized`, which implied a folder of that name would be created. [GH Issue #234](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/234)
 - The **How to get starred.json from Inoreader** instructions in the Import starred articles modal now hide once a file loads into the preview, leaving the **Import file…** row in place so you can still switch files; they reappear if a replacement file fails to load. [PR #353](https://github.com/amatya-aditya/obsidian-rss-dashboard/pull/353)
 - Choosing a new file with **Import file…** in the Import starred articles or Import OPML/XML modal now resets the preview's expanded/collapsed groups instead of carrying over the previous file's state. [PR #353](https://github.com/amatya-aditya/obsidian-rss-dashboard/pull/353)
+- Fixed saving an article, exporting the keyboard shortcuts, and saving from the web viewer failing with "Failed to create folder" or "Could not create folder" when the save folder differs from an existing folder only in case, such as `rss articles` and `RSS Articles`, on Windows and macOS. They now save into the existing folder. [GH Issue #411](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/411)
 
 #### Discover, sidebar, and folders
 
@@ -186,6 +193,9 @@ For a user-facing overview, see the [RSS Dashboard 2.7.0 release notes](docs/rel
 - Fixed a sidebar **Refresh details** popup staying on screen after you clicked its row and moved to another row, which left two popups showing. Only one popup shows at a time now, including the one opened from the context menu, and moving to another row replaces it. A row focused from the keyboard still keeps its popup open. [PR #394](https://github.com/amatya-aditya/obsidian-rss-dashboard/pull/394)
 - Fixed the sidebar **Refresh details** popup, on hover and from the context menu, being hidden behind the sidebar drawer when the dashboard is narrow enough to open the sidebar as a drawer, such as in a narrow popout window.
 - Fixed the sidebar after moving the dashboard to a popout window: hovering a feed showed its **Refresh details** popup in the main window instead of the popout, and widening a narrow popout left the sidebar drawer floating open over the inline sidebar. Both now follow the window that shows the dashboard.
+- Fixed Discover's mobile **Add to...** picker opening away from its button. It now keeps its calculated vertical position while using the mobile-width layout.
+- Fixed Discover's **Add to...** picker silently attempting to add a feed that had already been added while the picker was open, and overlapping add requests creating duplicate subscriptions. Duplicate URLs are now refused and reported.
+- Fixed clearing a **Default folders** setting, such as **Default YouTube folder**, saving the folder as `/`. New feeds of that type were filed under a folder named `/` that doesn't exist, so they showed at the top level while **Move to folder** didn't mark them as in the root, and the setting showed `/` instead of the default. A cleared field now files new feeds in the root again. [GH Issue #372](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/372)
 
 #### Obsidian compatibility and settings
 
@@ -194,6 +204,8 @@ For a user-facing overview, see the [RSS Dashboard 2.7.0 release notes](docs/rel
 - Fixed the **Storage mode** description in Settings → Storage showing `[object DocumentFragment]`, notably in popped-out windows. [GH Issue #248](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/248)
 - Fixed buttons and badges across the dashboard, reader, podcast player, sidebar, and import modals showing two tooltips on hover, Obsidian's and the browser's. Every tooltip in the plugin now uses Obsidian's own themed tooltip.
 - Fixed dashboard keyboard shortcuts doing nothing after **Move to new window**. Shortcuts now follow the dashboard into a popped-out window and back, keys typed into a text field in the popped-out window stay in that field, and a dialog open in the popped-out window pauses them there.
+- Fixed **What's New** appearing on the second launch after a fresh install, as if the new user had just upgraded. A fresh install now records its version on first launch, so the popup shows only after a real update. [GH Issue #402](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/402)
+- Fixed the **Add feed** and **Auto tag feeds in folder** modals keeping Obsidian's built-in close button in the phone and tablet layout. Obsidian 1.13 renamed that button, so the plugin no longer found it to remove it. [GH Issue #372](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/372)
 
 ### Development and compliance
 
@@ -207,6 +219,17 @@ For a user-facing overview, see the [RSS Dashboard 2.7.0 release notes](docs/rel
 - Limited the legacy settings-renderer deprecation allowance to the code that needs it while Obsidian 1.8.7 through 1.12.x are supported. [GH Issue #232](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/232)
 - Resolved post-2.6.0 community plugin scorecard findings: replaced `document.createElement` with Obsidian DOM helpers, replaced the unknown `mjx-container` CSS type selector with class and attribute selectors, and removed an unnecessary type assertion in `settings-loader.ts`.
 - Added `docs/development/test-feeds/`, a reference list of real-world feeds used for manual QA; it surfaced the undated-item and timezone date bugs fixed above.
+- HTML entities in feed text, feed previews, and podcast title lookups are now decoded in one pass by a shared decoder. Text that was escaped twice keeps one level of escaping, and feed previews show named entities such as `&eacute;` as letters.
+- Rich article rendering now keeps a fixed set of HTML tags; other tags are unwrapped and their text is kept.
+- Feed, image, and podcast host checks now compare the URL's hostname instead of searching the whole URL.
+- Long feed text and Cloudinary image URLs are now matched with simpler patterns that run in linear time.
+- Patched development dependencies for new npm audit advisories (`brace-expansion`, `undici`, `fast-uri`) and removed the unused `moment` development dependency. The plugin still uses Obsidian's built-in `moment`.
+
+### Known issues
+
+- With the metadata `data.json` in a vault folder, a Portable data bundle, Feed bundle, or Settings bundle import can be lost if Obsidian closes before anything else is saved. Applying a vault folder under **Settings → Storage → Metadata data.json location** now shows a notice about this: after importing, change a setting or mark an article as read before closing Obsidian. The default location in the plugin folder isn't affected. [GH Issue #474](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/474)
+- A failed settings load can let a later change overwrite your saved settings with defaults. Fixed for the next release. [GH Issue #447](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/447)
+- Podcast playback progress can be replaced by an older resume point when Obsidian starts. Fixed for the next release. [GH Issue #468](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/468)
 
 ## 2.6.0 - August 24, 2026
 
