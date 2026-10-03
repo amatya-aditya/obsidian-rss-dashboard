@@ -408,6 +408,58 @@ author: "{{author}}"
       h.cleanup();
     });
 
+    it("preserves dollar replacement sequences in metadata placeholders", () => {
+      const h = createWebViewerIntegrationHarness();
+      const integration = h.integration as unknown as {
+        applyTemplate: (item: FeedItem, template: string) => string;
+      };
+      const item = buildFeedItem({
+        title: "Price $$100, and $& too",
+        author: "Ann $' Lee",
+        feedTitle: "Research $` Quarterly",
+        description: "BODY",
+      });
+
+      const out = integration.applyTemplate.bind(h.integration)(
+        item,
+        "{{title}} | {{author}} | {{source}} | {{content}}",
+      );
+
+      expect(out).toBe(
+        "Price $$100, and $& too | Ann $' Lee | Research $` Quarterly | BODY",
+      );
+      h.cleanup();
+    });
+
+    it("preserves dollar replacement sequences in frontmatter metadata", () => {
+      const h = createWebViewerIntegrationHarness({
+        settings: {
+          frontmatterTemplate: [
+            "---",
+            'title: "{{title}}"',
+            'author: "{{author}}"',
+            'feedTitle: "{{feedTitle}}"',
+            "---",
+          ].join("\n"),
+        },
+      });
+      const integration = h.integration as unknown as {
+        generateFrontmatter: (item: FeedItem) => string;
+      };
+      const item = buildFeedItem({
+        title: "Price $$100, and $& too",
+        author: "Ann $' Lee",
+        feedTitle: "Research $` Quarterly",
+      });
+
+      const out = integration.generateFrontmatter.bind(h.integration)(item);
+
+      expect(out).toContain('title: "Price $$100, and $& too"');
+      expect(out).toContain(`author: "Ann $' Lee"`);
+      expect(out).toContain('feedTitle: "Research $` Quarterly"');
+      h.cleanup();
+    });
+
     it("generateFrontmatter adds saved tag and uses pubDate fallbacks", () => {
       vi.useFakeTimers();
       vi.setSystemTime(new Date("2026-03-31T12:00:00Z"));

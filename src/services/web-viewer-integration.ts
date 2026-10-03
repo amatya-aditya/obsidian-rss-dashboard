@@ -276,26 +276,26 @@ guid: "{{guid}}"
     const saveTime24 = this.formatMoment(now, "HH:mm");
 
     frontmatter = frontmatter
-      .replace(/{{title}}/g, escapeYamlDoubleQuoted(item.title))
-      .replace(/{{date}}/g, dateString)
-      .replace(/{{isoDate}}/g, isoDateTime)
-      .replace(/{{isoDateTime}}/g, isoDateTime)
-      .replace(/{{saveDate}}/g, saveDate)
-      .replace(/{{saveTime12}}/g, saveTime12)
-      .replace(/{{saveTime24}}/g, saveTime24)
-      .replace(/{{tags}}/g, tagsString)
+      .replace(/{{title}}/g, () => escapeYamlDoubleQuoted(item.title))
+      .replace(/{{date}}/g, () => dateString)
+      .replace(/{{isoDate}}/g, () => isoDateTime)
+      .replace(/{{isoDateTime}}/g, () => isoDateTime)
+      .replace(/{{saveDate}}/g, () => saveDate)
+      .replace(/{{saveTime12}}/g, () => saveTime12)
+      .replace(/{{saveTime24}}/g, () => saveTime24)
+      .replace(/{{tags}}/g, () => tagsString)
       .replace(
         /{{source}}/g,
-        escapeYamlDoubleQuoted(item.feedTitle || "Web viewer"),
+        () => escapeYamlDoubleQuoted(item.feedTitle || "Web viewer"),
       )
-      .replace(/{{link}}/g, escapeYamlDoubleQuoted(item.link))
-      .replace(/{{author}}/g, escapeYamlDoubleQuoted(item.author || ""))
+      .replace(/{{link}}/g, () => escapeYamlDoubleQuoted(item.link))
+      .replace(/{{author}}/g, () => escapeYamlDoubleQuoted(item.author || ""))
       .replace(
         /{{feedTitle}}/g,
-        escapeYamlDoubleQuoted(item.feedTitle || "Web viewer"),
+        () => escapeYamlDoubleQuoted(item.feedTitle || "Web viewer"),
       )
-      .replace(/{{guid}}/g, escapeYamlDoubleQuoted(item.guid))
-      .replace(/{{image}}/g, escapeYamlDoubleQuoted(this.getImage(item)));
+      .replace(/{{guid}}/g, () => escapeYamlDoubleQuoted(item.guid))
+      .replace(/{{image}}/g, () => escapeYamlDoubleQuoted(this.getImage(item)));
 
     return frontmatter.endsWith("\n") ? frontmatter : `${frontmatter}\n`;
   }
@@ -322,21 +322,21 @@ guid: "{{guid}}"
 
     const description = item.description;
     return template
-      .replace(/{{title}}/g, item.title)
-      .replace(/{{date}}/g, formattedDate)
-      .replace(/{{isoDate}}/g, isoDateTime)
-      .replace(/{{isoDateTime}}/g, isoDateTime)
-      .replace(/{{saveDate}}/g, saveDate)
-      .replace(/{{saveTime12}}/g, saveTime12)
-      .replace(/{{saveTime24}}/g, saveTime24)
-      .replace(/{{link}}/g, item.link)
-      .replace(/{{author}}/g, item.author || "")
-      .replace(/{{source}}/g, item.feedTitle || "Web viewer")
-      .replace(/{{summary}}/g, item.summary || "")
+      .replace(/{{title}}/g, () => item.title)
+      .replace(/{{date}}/g, () => formattedDate)
+      .replace(/{{isoDate}}/g, () => isoDateTime)
+      .replace(/{{isoDateTime}}/g, () => isoDateTime)
+      .replace(/{{saveDate}}/g, () => saveDate)
+      .replace(/{{saveTime12}}/g, () => saveTime12)
+      .replace(/{{saveTime24}}/g, () => saveTime24)
+      .replace(/{{link}}/g, () => item.link)
+      .replace(/{{author}}/g, () => item.author || "")
+      .replace(/{{source}}/g, () => item.feedTitle || "Web viewer")
+      .replace(/{{summary}}/g, () => item.summary || "")
       // Use a replacer function to prevent JS regex special patterns ($$, $&)
       // from collapsing display math delimiters like $$x^2$$ into $x^2$.
       .replace(/{{content}}/g, () => description)
-      .replace(/{{image}}/g, this.getImage(item));
+      .replace(/{{image}}/g, () => this.getImage(item));
   }
 
   private getImage(item: FeedItem): string {

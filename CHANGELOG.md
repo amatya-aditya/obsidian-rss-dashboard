@@ -11,6 +11,7 @@
 - Corrected sentence case for sidebar toolbar labels and related UI text. [GH Issue #656](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/656)
 - Fixed the first-launch **Add your first feed here** hint staying on screen when the sidebar redrew during its first five seconds. It now disappears five seconds after it first appears. [GH Issue #628](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/628)
 - Fixed the sidebar's **Sort** button doing nothing from the keyboard. Enter or Space now opens the sort menu below the button, the same as clicking it. [GH Issue #627](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/627)
+- Fixed saved article notes corrupting titles, authors, feed names, and other template values that contain `$` sequences. [GH Issue #672](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/672)
 - Fixed the Manage Feeds import and export button labels becoming unreadable in Obsidian's light theme. [GH Issue #694](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/694)
 - Fixed the dashboard mobile **Filters** button so clicking it again closes the open filter menu. Clicking outside or **Apply** still closes it. [GH Issue #704](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/704)
 - Made each Card view article's opener, title, feed source, description, and toolbar actions reachable in keyboard order; Enter on the opener opens that article. [GH Issue #720](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/720)
