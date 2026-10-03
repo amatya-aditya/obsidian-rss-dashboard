@@ -100,7 +100,7 @@
 
 /* Import OPML button */
 .feed-manager-button-row button.feed-manager-import-button {
-  color: white;
+  color: var(--text-normal);
   cursor: pointer;
 }
 
@@ -115,7 +115,7 @@
 
 /* Export OPML button  */
 .feed-manager-button-row button.feed-manager-export-button {
-  color: white;
+  color: var(--text-normal);
   cursor: pointer;
 }
 
@@ -130,7 +130,7 @@
 
 /* Import starred articles from Inoreader button */
 .feed-manager-button-row button.feed-manager-import-starred-button {
-  color: white;
+  color: var(--text-normal);
   cursor: pointer;
 }
 
