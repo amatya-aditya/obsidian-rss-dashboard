@@ -37,8 +37,8 @@
   "devDependencies": {
     "@types/jsdom": "^28.0.3",
     "@types/node": "^24.13.6",
-    "@typescript-eslint/parser": "^8.70.1",
-    "@typescript-eslint/utils": "^8.70.1",
+    "@typescript-eslint/parser": "^8.71.0",
+    "@typescript-eslint/utils": "^8.71.0",
     "@vitest/coverage-v8": "4.1.11",
     "esbuild": "0.28.2",
     "eslint": "^9.39.2",
