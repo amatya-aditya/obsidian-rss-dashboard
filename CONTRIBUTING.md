@@ -279,7 +279,7 @@ We use a stable `master` branch with active development on `dev`. This section d
 **`dev`**
 - The living integration branch — all contributor work lands here
 - Must always be **at or ahead of master**
-- After every stable release, `master` is merged back into `dev` immediately
+- After every stable release is published and visible in the directory, `dev` takes the new version (a version-only PR if it has diverged from the release branch)
 - **Do not rebase shared `dev`** — use merge if syncing with master
 - Should be stable enough to cut a release branch from at any time
 
@@ -291,7 +291,7 @@ We use a stable `master` branch with active development on `dev`. This section d
 **Release Branches** (`release/x.x.x`)
 - Cut from `dev` when features for a release are complete
 - Only stabilization work (bug fixes from beta testing) happens here — no new features
-- Merge into `master` when stable, then immediately back into `dev`
+- Tag from the release branch when stable; move `dev` and `master` to the new version only after the release is published and visible in the directory (see Step 7)
 
 ### Contributing Workflow
 
@@ -403,23 +403,32 @@ npm run check:release-ready -- 2.3.0
 
 This verifies the pieces that must exist *before* the bump: the changelog heading has been renamed and nothing is left under `Unreleased`, `docs/releases/2.3.0.md` exists, the release line has a curated What's New note, `versions.json` does not already list the target version (which would make the bump a partial no-op), the working tree is clean, and no release-bound plan is still sitting in `docs/archive/plans/unreleased/`. Pass the version you are about to ship — the repo is still on the previous version at this point, so the check cannot infer it.
 
-When confident:
+When confident, bump and tag from the release branch. Nothing in this step touches `dev` or `master`:
 
 ```bash
+# 1. Bump on a branch off the release branch, then open a PR into release/2.3.0
+#    and merge it with "Create a merge commit".
 npm version 2.3.0 --no-git-tag-version
 git add package.json package-lock.json manifest.json versions.json
 git commit -m "2.3.0"
 
-git checkout master && git merge release/2.3.0
-git tag 2.3.0 && git push origin master --tags
-
-git checkout dev && git pull --ff-only origin dev
-git merge origin/master && git push origin dev
-
-git branch -d release/2.3.0
+# 2. Tag the merged head of the release branch.
+git fetch origin
+git tag 2.3.0 origin/release/2.3.0
+git push origin refs/tags/2.3.0
 ```
 
-Pushing the stable tag triggers GitHub Actions to build and create a release with plugin assets (`main.js`, `manifest.json`, `styles.css`). Stable releases should be published through the workflow path so attestation records and the SBOM exist for the release assets; if you ever need to do it manually, upload those same files to a release created from tag `2.3.0`.
+Pushing the stable tag triggers GitHub Actions to build the plugin and attach its assets (`main.js`, `manifest.json`, `styles.css`, and the SBOM). Unlike a Beta tag, a stable tag creates a **draft** release whose notes only say "Release 2.3.0". Edit the notes (start from `docs/releases/2.3.0.md`) and publish the draft yourself; nothing is visible to users until you do. Stable releases should be published through the workflow path so attestation records and the SBOM exist for the release assets; if you ever need to do it manually, upload those same files to a release created from tag `2.3.0`.
+
+### Step 7 — Confirm, Then Move `dev` and `master`
+
+Obsidian's community directory reads `manifest.json` from the default branch (`dev`) and installs the release tagged with that version. Moving `dev` to the new version before that release exists and has passed review can delist the plugin (see #529), and moving it afterwards is what offers the update to every user. So do this last:
+
+1. Publish the draft release and confirm its assets are attached.
+2. Wait until the plugin is visible on the community page and installable in Obsidian. If the directory's review is still pending, wait. Do not bump `dev` or `master` to unblock it.
+3. Open a version-only PR to `dev` that changes the version in `manifest.json`, `package.json`, `package-lock.json`, and `versions.json` and nothing else. Merging the whole release branch into a `dev` that has moved on (for example a refactor) conflicts on files that have nothing to do with the version. The `cherry-pick -x` provenance of each fix already keeps the history traceable.
+4. Merge `release/2.3.0` into `master` with a PR (**Create a merge commit**) so master holds the tagged release.
+5. Only then announce the release publicly and delete the release branch.
 
 ### Tag Retention
 
@@ -464,7 +473,7 @@ Folder and feed titles must adhere to these rules for Obsidian compatibility:
 - **One concern per branch** — don't mix features with unrelated fixes
 - **Keep branches short-lived** — long-running branches cause merge conflicts
 - **Rebase your personal feat/fix branch** — keeps history linear and readable
-- **Merge `master` into shared `dev` after every stable release** — preserves history
+- **Move `dev` and `master` to a new stable version only after that release is published and visible in the directory** — never before; use a version-only PR to `dev` if it has diverged from the release branch
 - **Beta fixes go on the release branch** — not back on dev until the release merges, unless the release branch is frozen (see **Freezing the release branch**), in which case cherry-pick each fix to dev right away
 - **Only Beta and Stable releases** — no Alphas or RCs
 
