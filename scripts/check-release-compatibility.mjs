@@ -75,8 +75,9 @@ export function findReleaseCompatibilityViolations(manifest, versions) {
 }
 
 /**
- * Obsidian's community directory reads manifest.json from the default branch,
- * so dev and master must advertise a shipped stable version. A pre-release
+ * Obsidian's community directory reads manifest.json and the source from the
+ * default branch (master), so dev and master must advertise a shipped stable
+ * version. A pre-release
  * version there delists the plugin (#529). Beta bumps belong on release/x.x.x.
  */
 export function findStableBranchViolations(manifest) {

@@ -1,12 +1,12 @@
-# RSS Dashboard 2.7.0 — RSS Dashboard Discord
+# RSS Dashboard 2.7.1 — RSS Dashboard Discord
 
-Published: 2026-09-25
+Published: 2026-10-03
 Platform: RSS Dashboard Discord
-Release: 2.7.0
+Release: 2.7.1
 
 ---
 
-Hey all! RSS Dashboard **2.7.0** is now available! 🎉
+Hey all! RSS Dashboard **2.7.1** is now available! 🎉
 
 This release has been a big one behind the scenes, with a focus on **bringing your reading history with you, protecting your data, and making everyday reading and organization a little nicer.**
 
@@ -33,7 +33,7 @@ Click or tap an image in the Reader to open it full size with **zoom and pan**.
 
 ## 🛡️ Safer storage
 
-2.7.0 includes several important storage and sync fixes designed to better protect article state, recover from missing or corrupted shard files, improve backups, and make it clearer where your RSS Dashboard data is stored.
+2.7.1 includes several important storage and sync fixes designed to better protect article state, recover from missing or corrupted shard files, improve backups, and make it clearer where your RSS Dashboard data is stored.
 
 ### Important storage notice
 
@@ -45,12 +45,12 @@ If you're still using either mode, please switch to **Shard storage v2** from **
 
 You may have noticed something different after updating: **RSS Dashboard now has a What's New popup!**
 
-We'll use it to give you a short, friendly overview of the most important changes after major updates. You can reopen it any time from **Settings → About**.
+We'll use it to give you a short, friendly overview of the most important changes after major updates. There's a small quirk that hides the popup if the plugin is open when you update, so please close RSS Dashboard first before updating. You can reopen it any time from **Settings → About**.
 
 There are plenty of additional fixes and smaller improvements in this release, so check out the full release notes and changelog if you'd like to dig deeper.
 
-**Release:** https://github.com/amatya-aditya/obsidian-rss-dashboard/releases/tag/2.7.0  
-**Release notes:** https://github.com/amatya-aditya/obsidian-rss-dashboard/blob/master/docs/releases/2.7.0.md  
+**Release:** https://github.com/amatya-aditya/obsidian-rss-dashboard/releases/tag/2.7.1  
+**Release notes:** https://github.com/amatya-aditya/obsidian-rss-dashboard/blob/master/docs/releases/2.7.1.md  
 **Changelog:** https://github.com/amatya-aditya/obsidian-rss-dashboard/blob/master/CHANGELOG.md
 
 As always, please report bugs, feature requests, or anything that doesn't look right through the GitHub Issues page or in <#1381661424727883898>.
