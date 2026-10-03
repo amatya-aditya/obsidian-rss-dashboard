@@ -518,7 +518,7 @@ describe("applying a confirmed settings import (issue #535)", () => {
       expect(noticeTexts()).toContain("Imported JSON with feeds and settings");
     });
 
-    it("mentions feeds in the notice even when the file only carried folders", async () => {
+    it("mentions only folders in the notice when the file has no feed list", async () => {
       await importFile(
         "preferences",
         jsonFile(PREFERENCES_FILE, {
@@ -527,8 +527,32 @@ describe("applying a confirmed settings import (issue #535)", () => {
         "Replace",
       );
 
-      // BUG: pinned, see #464
-      expect(noticeTexts()).toContain("Imported JSON with feeds and settings");
+      expect(noticeTexts()).toContain("Imported folders and settings");
+    });
+
+    it("mentions tags and settings when the file only carried tags", async () => {
+      await importFile(
+        "preferences",
+        jsonFile(PREFERENCES_FILE, {
+          availableTags: [{ name: "Imported", color: "#111111" }],
+        }),
+        "Replace",
+      );
+
+      expect(noticeTexts()).toContain("Imported tags and settings");
+    });
+
+    it("mentions folders and tags in the notice when both are imported", async () => {
+      await importFile(
+        "preferences",
+        jsonFile(PREFERENCES_FILE, {
+          folders: [{ name: "Imported", subfolders: [] }],
+          availableTags: [{ name: "Imported", color: "#111111" }],
+        }),
+        "Replace",
+      );
+
+      expect(noticeTexts()).toContain("Imported folders, tags, and settings");
     });
   });
 

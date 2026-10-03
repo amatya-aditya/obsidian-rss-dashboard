@@ -248,6 +248,51 @@ describe("feed subscription: addFeed duplicates and defaults", () => {
     expect(notices(harness)).toEqual([]);
   });
 
+  it("refuses a URL that another subscription is still parsing", async () => {
+    const harness = createHarness();
+    let finishFirstParse: () => void = () => {};
+    harness.parseFeed.mockImplementationOnce(
+      (_url, existing) =>
+        new Promise<Feed>((resolve) => {
+          finishFirstParse = () =>
+            resolve({
+              ...(existing as Feed),
+              items: [createItem(NEW_URL, "one")],
+            });
+        }),
+    );
+
+    const firstAdd = addFeed(harness, {}, { showNotice: false });
+    await vi.waitFor(() => expect(harness.parseFeed).toHaveBeenCalledTimes(1));
+
+    const duplicateAdd = await addFeed(
+      harness,
+      {},
+      { showNotice: false, globalOperation: true },
+    );
+
+    expect(duplicateAdd).toBe(false);
+    expect(harness.parseFeed).toHaveBeenCalledTimes(1);
+    expect(harness.plugin.settings.feeds).toHaveLength(0);
+    expect(notices(harness)).toEqual(["This feed URL already exists"]);
+
+    finishFirstParse();
+    expect(await firstAdd).toBe(true);
+    expect(harness.plugin.settings.feeds).toHaveLength(1);
+  });
+
+  it("allows retrying a URL after its earlier parse failed", async () => {
+    const harness = createHarness();
+    harness.parseFeed.mockRejectedValueOnce(new Error("Timed out"));
+
+    const firstAdd = await addFeed(harness, {}, { showNotice: false });
+    const retry = await addFeed(harness, {}, { showNotice: false });
+
+    expect(firstAdd).toBe(false);
+    expect(retry).toBe(true);
+    expect(harness.plugin.settings.feeds).toHaveLength(1);
+  });
+
   it("compares URLs as exact strings, so a trailing slash is a different feed", async () => {
     const harness = createHarness([createFeed("new", { url: NEW_URL })]);
 
