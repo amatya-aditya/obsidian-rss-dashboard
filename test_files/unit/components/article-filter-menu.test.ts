@@ -83,6 +83,9 @@ describe("ArticleFilterMenu Component", () => {
       unreadItem.click();
     }
     applyBtn.click();
+    expect(
+      document.querySelector(".rss-dashboard-filter-menu-portal"),
+    ).toBeNull();
 
     const mockFn = mockCallbacks.onFilterChange as unknown as { mock: { calls: Array<Array<{ batch: { statusFilters: Set<string> } }>> } };
     expect(mockFn.mock.calls.length).toBe(1);
