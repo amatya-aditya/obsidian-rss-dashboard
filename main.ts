@@ -5,10 +5,7 @@ import {
   WorkspaceLeaf,
   Platform,
   requireApiVersion,
-  TFolder,
-  type EventRef,
   type ObsidianProtocolData,
-  normalizePath,
 } from "obsidian";
 
 import {
@@ -26,6 +23,7 @@ import {
   FeedKeywordRulesSettings,
   FeedIngestionCandidate,
   FeedIngestionOptions,
+  FeedIngestionResult,
   FeedEncoding,
   FeedShardHealth,
 } from "./src/types/types";
@@ -78,6 +76,12 @@ import {
 } from "./src/services/feed-refresh-runner";
 import { FeedSubscriptionService } from "./src/services/feed-subscription-service";
 import { SettingsImportApplier } from "./src/services/settings-import-applier";
+import { SettingsStore } from "./src/services/settings-store";
+import {
+  UriActionHandler,
+  type AddFeedUriRequest,
+} from "./src/services/uri-action-handler";
+import { getMetadataPath } from "./src/services/metadata-location";
 
 import { ImportOpmlModal } from "./src/modals/import-opml-modal";
 import { ImportStarredModal } from "./src/modals/import-starred-modal";
@@ -90,12 +94,7 @@ import {
   getReleaseNoteForVersion,
   hasExactReleaseNoteForVersion,
 } from "./src/release-notes";
-import { isValidUrl } from "./src/utils/validation";
-import {
-  dedupeAndNormalizeFeedItems,
-  loadAndNormalizeSettings,
-  migrateSettings,
-} from "./src/utils/settings-loader";
+import { migrateSettings } from "./src/utils/settings-loader";
 import { applyAutomaticArticleTags } from "./src/utils/tag-utils";
 
 export interface FiltersUpdatedEventPayload {
@@ -171,118 +170,12 @@ export type {
   FeedIngestionOptions,
 } from "./src/types/types";
 
-/**
- * Resolves the full vault path for metadata storage based on current mode.
- * - "plugin-default": returns undefined (uses Plugin.saveData())
- * - "vault-location": returns normalized vault folder path
- */
-function getMetadataPath(settings: RssDashboardSettings): string | undefined {
-  if (settings.metadataStorageMode === "plugin-default") {
-    return undefined; // Use Plugin.saveData()
-  }
-
-  // Normalize path: remove leading/trailing slashes, default to .rss-dashboard-data if empty
-  let folder = settings.metadataStorageFolder.trim();
-  if (!folder) {
-    folder = ".rss-dashboard-data";
-  }
-  folder = folder.replace(/^\/+|\/+$/g, ""); // Remove leading/trailing slashes
-  return folder;
-}
-
-/**
- * Loads metadata from the appropriate location based on mode.
- */
-async function loadMetadata(
-  app: App,
-  mode: "plugin-default" | "vault-location",
-  folder: string,
-): Promise<RssDashboardSettings | null> {
-  if (mode === "plugin-default") {
-    return null; // Will be loaded via Plugin.loadData() in the plugin class
-  }
-
-  // Try to load from vault location
-  const metadataPath = getMetadataPath({
-    ...DEFAULT_SETTINGS,
-    metadataStorageMode: mode,
-    metadataStorageFolder: folder,
-  });
-  if (!metadataPath) {
-    return null;
-  }
-
-  try {
-    const dataFilePath = `${metadataPath}/data.json`;
-    const content = await app.vault.adapter.read(dataFilePath);
-    return JSON.parse(content) as RssDashboardSettings;
-  } catch (error) {
-    storageLog(
-      "Failed to load metadata from vault location, will fall back to plugin default",
-      error,
-    );
-    return null; // Fall back to plugin-default
-  }
-}
-
-/**
- * Ensures metadata folder exists (idempotent).
- * - If folder exists and is a folder: returns success
- * - If folder doesn't exist: creates it
- * - If path is a file: throws error
- * - If createFolder race condition occurs: checks again and continues if now a folder
- */
-async function ensureMetadataFolderExists(
-  app: App,
-  settings: RssDashboardSettings,
-): Promise<void> {
-  const folderPath = getMetadataPath(settings);
-  if (!folderPath) {
-    return; // Plugin-default mode, no folder needed
-  }
-
-  const normalized = folderPath.replace(/^\/+|\/+$/g, "");
-
-  try {
-    // Check if path already exists in vault cache
-    const existing = app.vault.getAbstractFileByPath(normalized);
-    if (existing) {
-      if (existing instanceof TFolder) {
-        return; // Folder already exists, idempotent success
-      } else {
-        throw new Error(
-          `Metadata storage path points to a file, not a folder: ${normalized}`,
-        );
-      }
-    }
-
-    // Also check via adapter (covers folders not yet indexed in vault cache)
-    const existsOnDisk = await app.vault.adapter.exists(normalized);
-    if (existsOnDisk) {
-      return; // Folder exists on disk (cache lag), treat as success
-    }
-
-    // Folder doesn't exist, create it
-    await app.vault.createFolder(normalized);
-  } catch (error) {
-    // Handle race condition: createFolder throws "Folder already exists" or similar
-    if (
-      error instanceof Error &&
-      error.message.toLowerCase().includes("already exists")
-    ) {
-      return; // Folder exists (race condition or cache lag), treat as success
-    }
-    throw error;
-  }
-}
-
 export default class RssDashboardPlugin extends Plugin {
   private static readonly FACTORY_RESET_LOCAL_STORAGE_KEYS = [
     "rss-discover-filters",
     "rss-podcast-progress",
     "rss-first-launch-coachmark-shown",
   ] as const;
-  private static readonly URI_ACTION_ADD_FEED = "add-feed";
 
   settings!: RssDashboardSettings;
   feedParser!: FeedParser;
@@ -298,16 +191,12 @@ export default class RssDashboardPlugin extends Plugin {
   private hasCompletedStartupSavedArticleValidation = false;
   private hasShownStorageDeprecationPromptThisSession = false;
   private whatsNewHandledThisSession = false;
-  private wasNullSettingsLoad = false;
-  private settingsLoadFailed = false;
-  private hasNotifiedVaultMetadataFailure = false;
-  private settingsLoadGeneration = 0;
-  private vaultMetadataReloadTimer: number | null = null;
   private startupRefreshTimeoutId: number | null = null;
   private progressSaveDebounce: number | null = null;
   private autoRefreshScheduler: FeedRefreshScheduler | null = null;
-  private suppressWatcherUntil = 0;
   private readonly feedStorageRepository: FeedStorageRepository;
+  private readonly settingsStore: SettingsStore;
+  private readonly uriActionHandler: UriActionHandler;
   private readonly feedOperationTracker: FeedOperationTracker;
   private readonly previewImageCache: PreviewImageCache;
   private readonly feedRefreshRunner: FeedRefreshRunner;
@@ -333,6 +222,34 @@ export default class RssDashboardPlugin extends Plugin {
       onUserStateHealthChange: () => {
         void this.notifyRefreshStatusChanged();
       },
+    });
+    this.settingsStore = new SettingsStore(app, {
+      manifest,
+      feedStorageRepository: this.feedStorageRepository,
+      autoBackupCoordinator: this.autoBackupCoordinator,
+      getSettings: () => this.settings,
+      setSettings: (settings) => {
+        this.settings = settings;
+      },
+      loadData: () => this.loadData(),
+      saveData: (data) => this.saveData(data),
+      loadSettings: () => this.loadSettings(),
+      saveSettings: () => this.saveSettings(),
+      migrateLegacySettings: () => this.migrateLegacySettings(),
+      repairMissingFolderPathsForFeeds: () =>
+        this.repairMissingFolderPathsForFeeds(),
+      hasFolderService: () => Boolean(this.folderService),
+      hasBackupService: () => Boolean(this.backupService),
+      bindSettingsBackedServices: () => this.bindSettingsBackedServices(),
+      initializeSettingsBackedServices: () =>
+        this.initializeSettingsBackedServices(),
+      getAutoRefreshScheduler: () => this.autoRefreshScheduler,
+      refreshDashboardViews: () => this.refreshDashboardViews(),
+    });
+    this.uriActionHandler = new UriActionHandler({
+      pluginId: manifest.id,
+      openAddFeed: (request) => this.openAddFeedFromUri(request),
+      getDefaultRssFolder: () => this.settings.media.defaultRssFolder,
     });
     this.feedOperationTracker = new FeedOperationTracker(app, {
       activeRefreshState: this.activeRefreshState,
@@ -390,6 +307,19 @@ export default class RssDashboardPlugin extends Plugin {
         discoverView?.render();
       },
     });
+  }
+
+  /** Forwards to the settings store, which owns the load-failure flag. */
+  private get settingsLoadFailed(): boolean {
+    return this.settingsStore.settingsLoadFailed;
+  }
+
+  private set settingsLoadFailed(value: boolean) {
+    this.settingsStore.settingsLoadFailed = value;
+  }
+
+  private get wasNullSettingsLoad(): boolean {
+    return this.settingsStore.wasNullSettingsLoad;
   }
 
   private initializeSettingsBackedServices(): void {
@@ -569,16 +499,11 @@ export default class RssDashboardPlugin extends Plugin {
     return this.backgroundImportService?.isBackgroundImporting ?? false;
   }
 
-  public async writeWithWatcherSuppressed<T>(
+  public writeWithWatcherSuppressed<T>(
     writeFn: () => Promise<T>,
-    windowMs = 3000,
+    windowMs?: number,
   ): Promise<T> {
-    this.suppressWatcherUntil = Date.now() + windowMs;
-    try {
-      return await writeFn();
-    } finally {
-      // leave suppression window to expire; don't clear explicitly
-    }
+    return this.settingsStore.writeWithWatcherSuppressed(writeFn, windowMs);
   }
 
   private ensureAutoRefreshScheduler(): FeedRefreshScheduler {
@@ -925,7 +850,9 @@ export default class RssDashboardPlugin extends Plugin {
 
     await this.loadSettings();
     await this.previewImageCache.initialize();
-    this.registerVaultMetadataChangeListeners();
+    this.settingsStore.registerVaultMetadataChangeListeners((ref) =>
+      this.registerEvent(ref),
+    );
 
     const view = await this.getActiveDashboardView();
     if (view) {
@@ -942,190 +869,12 @@ export default class RssDashboardPlugin extends Plugin {
 
       this.scheduleStartupSavedArticleValidation();
 
-      // What's New is gated on the dashboard being the active tab, unlike the
-      // storage warning's own trigger. A restored session can already have the
-      // dashboard active without an `active-leaf-change`, so check both.
-      this.registerEvent(
-        this.app.workspace.on("active-leaf-change", () => {
-          this.maybeShowWhatsNewForActiveDashboard();
-        }),
-      );
-      this.app.workspace.onLayoutReady(() => {
-        this.maybeShowWhatsNewForActiveDashboard();
-      });
-
-      this.registerObsidianProtocolHandler(
-        this.manifest.id,
-        (params: ObsidianProtocolData) => {
-          void this.dispatchUriAction(params);
-        },
-      );
-
-      this.registerView(
-        RSS_DASHBOARD_VIEW_TYPE,
-        (leaf) => new RssDashboardView(leaf, this),
-      );
-
-      this.registerView(
-        RSS_DISCOVER_VIEW_TYPE,
-        (leaf) => new DiscoverView(leaf, this),
-      );
-
-      this.registerView(
-        RSS_READER_VIEW_TYPE,
-        (leaf) =>
-          new ReaderView(
-            leaf,
-            () => this.settings,
-            () => this.articleSaver,
-            (item: FeedItem) => {
-              void this.onArticleSaved(item);
-            },
-            (
-              item: FeedItem,
-              updates: Partial<FeedItem>,
-              shouldRerender?: boolean,
-            ) => {
-              void this.updateArticleFromReader(item, updates, shouldRerender);
-            },
-            {
-              onPlaybackProgress: (item, position, duration, flush) => {
-                this.updatePlaybackProgress(
-                  item.feedUrl,
-                  item.guid,
-                  position,
-                  duration,
-                  flush,
-                  item,
-                );
-              },
-            },
-          ),
-      );
-
-      this.registerView(
-        RSS_SMALLWEB_VIEW_TYPE,
-        (leaf) => new KagiSmallwebView(leaf, this),
-      );
-
-      this.addRibbonIcon("compass", "RSS dashboard", () => {
-        void this.activateView();
-      });
-
-      this.settingTab = new RssDashboardSettingTab(this.app, this);
-      this.addSettingTab(this.settingTab);
-
-      this.addCommand({
-        id: "open-dashboard",
-        name: "Open dashboard",
-        callback: () => {
-          void this.activateView();
-        },
-      });
-
-      this.addCommand({
-        id: "open-discover",
-        name: "Open discover",
-        callback: () => {
-          void this.activateDiscoverView();
-        },
-      });
-
-      this.addCommand({
-        id: "refresh-feeds",
-        name: "Refresh feeds",
-        callback: () => {
-          this.cancelPendingStartupRefresh();
-          void this.refreshFeeds();
-        },
-      });
-
-      this.addCommand({
-        id: "import-opml",
-        name: "Import OPML/XML",
-        callback: () => {
-          new ImportOpmlModal(this.app, this).open();
-        },
-      });
-
-      this.addCommand({
-        id: "import-starred",
-        name: "Import starred articles",
-        callback: () => {
-          new ImportStarredModal(this.app, this).open();
-        },
-      });
-
-      this.addCommand({
-        id: "export-opml",
-        name: "Export OPML",
-        callback: () => {
-          void this.exportOpml();
-        },
-      });
-
-      this.addCommand({
-        id: "import-usersettings-json",
-        name: "Import user preferences",
-        callback: () => {
-          this.importUserSettingsJson();
-        },
-      });
-
-      this.addCommand({
-        id: "export-usersettings-json",
-        name: "Export user preferences",
-        callback: () => {
-          void this.exportUserSettingsJson();
-        },
-      });
-
-      this.addCommand({
-        id: "apply-feed-limits",
-        name: "Apply feed limits to all feeds",
-        callback: () => {
-          void this.applyFeedLimitsToAllFeeds();
-        },
-      });
-
-      this.addCommand({
-        id: "toggle-sidebar",
-        name: "Toggle sidebar",
-        checkCallback: (checking: boolean) => {
-          const leaves = this.app.workspace.getLeavesOfType(
-            RSS_DASHBOARD_VIEW_TYPE,
-          );
-          if (leaves.length > 0) {
-            if (!checking) {
-              void (async () => {
-                const view = await this.getActiveDashboardView();
-                if (view) {
-                  this.settings.sidebarCollapsed =
-                    !this.settings.sidebarCollapsed;
-                  await this.saveSettings();
-                  view.render();
-                }
-              })();
-            }
-            return true;
-          }
-          return false;
-        },
-      });
-
-      const delay = Number.isFinite(this.settings.startupRefreshDelaySeconds)
-        ? this.settings.startupRefreshDelaySeconds
-        : DEFAULT_SETTINGS.startupRefreshDelaySeconds;
-      if (delay > 0) {
-        this.startupRefreshTimeoutId = window.setTimeout(() => {
-          this.startupRefreshTimeoutId = null;
-          this.backgroundImportService.resumePendingImports();
-          autoRefreshScheduler.start();
-        }, delay * 1000);
-      } else {
-        this.backgroundImportService.resumePendingImports();
-        autoRefreshScheduler.start();
-      }
+      this.registerWhatsNewTriggers();
+      this.registerProtocolHandler();
+      this.registerViews();
+      this.registerRibbonIconAndSettingTab();
+      this.registerCommands();
+      this.scheduleStartupRefresh(autoRefreshScheduler);
     } catch (err: unknown) {
       if (err instanceof Error) {
         console.error("[RSS Dashboard] onload initialization failed:", err);
@@ -1139,134 +888,236 @@ export default class RssDashboardPlugin extends Plugin {
     }
   }
 
+  private registerWhatsNewTriggers(): void {
+    // What's New is gated on the dashboard being the active tab, unlike the
+    // storage warning's own trigger. A restored session can already have the
+    // dashboard active without an `active-leaf-change`, so check both.
+    this.registerEvent(
+      this.app.workspace.on("active-leaf-change", () => {
+        this.maybeShowWhatsNewForActiveDashboard();
+      }),
+    );
+    this.app.workspace.onLayoutReady(() => {
+      this.maybeShowWhatsNewForActiveDashboard();
+    });
+  }
+
+  private registerProtocolHandler(): void {
+    this.registerObsidianProtocolHandler(
+      this.manifest.id,
+      (params: ObsidianProtocolData) => {
+        void this.dispatchUriAction(params);
+      },
+    );
+  }
+
+  private registerViews(): void {
+    this.registerView(
+      RSS_DASHBOARD_VIEW_TYPE,
+      (leaf) => new RssDashboardView(leaf, this),
+    );
+
+    this.registerView(
+      RSS_DISCOVER_VIEW_TYPE,
+      (leaf) => new DiscoverView(leaf, this),
+    );
+
+    this.registerView(
+      RSS_READER_VIEW_TYPE,
+      (leaf) =>
+        new ReaderView(
+          leaf,
+          () => this.settings,
+          () => this.articleSaver,
+          (item: FeedItem) => {
+            void this.onArticleSaved(item);
+          },
+          (
+            item: FeedItem,
+            updates: Partial<FeedItem>,
+            shouldRerender?: boolean,
+          ) => {
+            void this.updateArticleFromReader(item, updates, shouldRerender);
+          },
+          {
+            onPlaybackProgress: (item, position, duration, flush) => {
+              this.updatePlaybackProgress(
+                item.feedUrl,
+                item.guid,
+                position,
+                duration,
+                flush,
+                item,
+              );
+            },
+          },
+        ),
+    );
+
+    this.registerView(
+      RSS_SMALLWEB_VIEW_TYPE,
+      (leaf) => new KagiSmallwebView(leaf, this),
+    );
+  }
+
+  private registerRibbonIconAndSettingTab(): void {
+    this.addRibbonIcon("compass", "RSS dashboard", () => {
+      void this.activateView();
+    });
+
+    this.settingTab = new RssDashboardSettingTab(this.app, this);
+    this.addSettingTab(this.settingTab);
+  }
+
+  private registerCommands(): void {
+    this.addCommand({
+      id: "open-dashboard",
+      name: "Open dashboard",
+      callback: () => {
+        void this.activateView();
+      },
+    });
+
+    this.addCommand({
+      id: "open-discover",
+      name: "Open discover",
+      callback: () => {
+        void this.activateDiscoverView();
+      },
+    });
+
+    this.addCommand({
+      id: "refresh-feeds",
+      name: "Refresh feeds",
+      callback: () => {
+        this.cancelPendingStartupRefresh();
+        void this.refreshFeeds();
+      },
+    });
+
+    this.addCommand({
+      id: "import-opml",
+      name: "Import OPML/XML",
+      callback: () => {
+        new ImportOpmlModal(this.app, this).open();
+      },
+    });
+
+    this.addCommand({
+      id: "import-starred",
+      name: "Import starred articles",
+      callback: () => {
+        new ImportStarredModal(this.app, this).open();
+      },
+    });
+
+    this.addCommand({
+      id: "export-opml",
+      name: "Export OPML",
+      callback: () => {
+        void this.exportOpml();
+      },
+    });
+
+    this.addCommand({
+      id: "import-usersettings-json",
+      name: "Import user preferences",
+      callback: () => {
+        this.importUserSettingsJson();
+      },
+    });
+
+    this.addCommand({
+      id: "export-usersettings-json",
+      name: "Export user preferences",
+      callback: () => {
+        void this.exportUserSettingsJson();
+      },
+    });
+
+    this.addCommand({
+      id: "apply-feed-limits",
+      name: "Apply feed limits to all feeds",
+      callback: () => {
+        void this.applyFeedLimitsToAllFeeds();
+      },
+    });
+
+    this.addCommand({
+      id: "toggle-sidebar",
+      name: "Toggle sidebar",
+      checkCallback: (checking: boolean) => {
+        const leaves = this.app.workspace.getLeavesOfType(
+          RSS_DASHBOARD_VIEW_TYPE,
+        );
+        if (leaves.length > 0) {
+          if (!checking) {
+            void (async () => {
+              const view = await this.getActiveDashboardView();
+              if (view) {
+                this.settings.sidebarCollapsed =
+                  !this.settings.sidebarCollapsed;
+                await this.saveSettings();
+                view.render();
+              }
+            })();
+          }
+          return true;
+        }
+        return false;
+      },
+    });
+  }
+
+  private scheduleStartupRefresh(
+    autoRefreshScheduler: FeedRefreshScheduler,
+  ): void {
+    const delay = Number.isFinite(this.settings.startupRefreshDelaySeconds)
+      ? this.settings.startupRefreshDelaySeconds
+      : DEFAULT_SETTINGS.startupRefreshDelaySeconds;
+    if (delay > 0) {
+      this.startupRefreshTimeoutId = window.setTimeout(() => {
+        this.startupRefreshTimeoutId = null;
+        this.backgroundImportService.resumePendingImports();
+        autoRefreshScheduler.start();
+      }, delay * 1000);
+    } else {
+      this.backgroundImportService.resumePendingImports();
+      autoRefreshScheduler.start();
+    }
+  }
+
   private async dispatchUriAction(params: ObsidianProtocolData): Promise<void> {
-    const action = this.resolveRequestedUriAction(params);
-
-    if (!action) {
-      new Notice(
-        "Missing URI action. Use action=add-feed with a URL parameter.",
-      );
-      return;
-    }
-
-    try {
-      switch (action) {
-        case RssDashboardPlugin.URI_ACTION_ADD_FEED:
-          await this.handleAddFeedUriAction(params);
-          return;
-        default:
-          new Notice(`Unsupported RSS Dashboard URI action: ${action}`);
-      }
-    } catch (error) {
-      console.error("[RSS Dashboard] URI action failed:", error);
-      new Notice(
-        `RSS Dashboard URI action failed: ${error instanceof Error ? error.message : "Unknown error"}`,
-      );
-    }
+    return this.uriActionHandler.dispatch(params);
   }
 
-  private resolveRequestedUriAction(params: ObsidianProtocolData): string {
-    const routeAction = (params.action ?? "").trim().toLowerCase();
-    const queryAction =
-      typeof params.uriAction === "string"
-        ? params.uriAction.trim().toLowerCase()
-        : "";
-
-    if (queryAction) {
-      return queryAction;
-    }
-
-    // Obsidian protocol reserves `action` for the route itself.
-    // For links like `obsidian://rss-dashboard?...`, infer add-feed when a URL
-    // parameter is present so browser-triggered links work reliably.
-    if (
-      routeAction === this.manifest.id.toLowerCase() &&
-      typeof params.url === "string" &&
-      params.url.trim().length > 0
-    ) {
-      return RssDashboardPlugin.URI_ACTION_ADD_FEED;
-    }
-
-    if (routeAction === this.manifest.id.toLowerCase()) {
-      return "";
-    }
-
-    return routeAction;
-  }
-
-  private decodeUriFeedUrl(rawUrl: string): string {
-    const candidate = rawUrl.trim();
-    if (!candidate) {
-      throw new Error("Missing required URL parameter for add-feed.");
-    }
-
-    if (!candidate.includes("%")) {
-      return candidate;
-    }
-
-    try {
-      return decodeURIComponent(candidate);
-    } catch {
-      throw new Error(
-        "Feed URL is malformed. Ensure the url parameter is URL-encoded.",
-      );
-    }
-  }
-
-  private buildUriAddFeedTitle(feedUrl: string): string {
-    try {
-      const parsed = new URL(feedUrl);
-      const hostname = parsed.hostname.replace(/^www\./i, "").trim();
-      return hostname || feedUrl;
-    } catch {
-      return feedUrl;
-    }
-  }
-
-  private async handleAddFeedUriAction(
-    params: ObsidianProtocolData,
-  ): Promise<void> {
-    const rawUrl = typeof params.url === "string" ? params.url : "";
-    if (!rawUrl.trim()) {
-      new Notice("Missing required URL parameter for add-feed.");
-      return;
-    }
-
-    const decodedUrl = this.decodeUriFeedUrl(rawUrl);
-    const urlValidation = isValidUrl(decodedUrl);
-    if (!urlValidation.valid) {
-      new Notice(urlValidation.error ?? "Invalid feed URL.");
-      return;
-    }
-
-    const defaultFolder = this.settings.media.defaultRssFolder?.trim() || "RSS";
-
+  private async openAddFeedFromUri(request: AddFeedUriRequest): Promise<void> {
     await this.activateView();
 
     new AddFeedModal(
       this.app,
       this.settings.folders,
-      async (request) =>
+      async (addRequest) =>
         await this.addFeed(
-          request.title,
-          request.url,
-          request.folder,
-          request.autoDeleteDuration,
-          request.maxItemsLimit,
-          request.scanInterval,
-          request.feedKeywordRules,
-          request.customTemplate,
-          request.excludeFromRefresh,
-          request.customTags,
-          { feedEncoding: request.feedEncoding },
+          addRequest.title,
+          addRequest.url,
+          addRequest.folder,
+          addRequest.autoDeleteDuration,
+          addRequest.maxItemsLimit,
+          addRequest.scanInterval,
+          addRequest.feedKeywordRules,
+          addRequest.customTemplate,
+          addRequest.excludeFromRefresh,
+          addRequest.customTags,
+          { feedEncoding: addRequest.feedEncoding },
         ),
       () => {
         void this.refreshDashboardViews();
       },
-      defaultFolder,
+      request.defaultFolder,
       this,
-      decodedUrl,
-      this.buildUriAddFeedTitle(decodedUrl),
+      request.url,
+      request.title,
     ).open();
   }
 
@@ -1571,6 +1422,9 @@ export default class RssDashboardPlugin extends Plugin {
             },
           );
 
+          if (result.refused) {
+            return;
+          }
           if (result.addedCount === 0) {
             new Notice("No new feeds found in the file.");
             return;
@@ -1610,11 +1464,7 @@ export default class RssDashboardPlugin extends Plugin {
   public async ingestFeedsForBackgroundImport(
     candidates: FeedIngestionCandidate[],
     options?: FeedIngestionOptions,
-  ): Promise<{
-    addedCount: number;
-    skippedCount: number;
-    queuedFeeds: Feed[];
-  }> {
+  ): Promise<FeedIngestionResult> {
     return this.backgroundImportService.ingestFeedsForBackgroundImport(
       candidates,
       options,
@@ -2180,195 +2030,8 @@ export default class RssDashboardPlugin extends Plugin {
     );
   }
 
-  async loadSettings() {
-    const loadGeneration = ++this.settingsLoadGeneration;
-    this.wasNullSettingsLoad = false;
-    this.settingsLoadFailed = true;
-    try {
-      storageLog("Loading plugin settings");
-      // Step 1: load bootstrap pointer from plugin-default location
-      let data = (await this.loadData()) as RssDashboardSettings | null;
-      let vaultMetadataUnreadable = false;
-      // Step 2: load full settings from the vault path named by the pointer
-      if (data?.metadataStorageMode === "vault-location") {
-        const vaultData = await loadMetadata(
-          this.app,
-          "vault-location",
-          data.metadataStorageFolder,
-        );
-        if (vaultData) {
-          data = vaultData;
-          storageLog("Metadata loaded from vault location", {
-            folder: data.metadataStorageFolder,
-          });
-        } else {
-          // Falling through would save defaults over the unreadable vault file,
-          // so treat the pointer like a null load instead.
-          vaultMetadataUnreadable = true;
-          data = structuredClone({ ...DEFAULT_SETTINGS, ...data });
-          if (!this.hasNotifiedVaultMetadataFailure) {
-            new Notice(
-              "Could not read plugin metadata from the configured vault folder. Settings were not loaded and nothing has been overwritten.",
-            );
-            this.hasNotifiedVaultMetadataFailure = true;
-          }
-        }
-      }
-      if (loadGeneration !== this.settingsLoadGeneration) return;
-      // Track whether we bootstrapped from null (possible pending sync)
-      const wasNullLoad = data === null || vaultMetadataUnreadable;
-      this.wasNullSettingsLoad = wasNullLoad;
-      const mergedSettings = Object.assign({}, DEFAULT_SETTINGS, data ?? {});
-      const originalSettingsJson = JSON.stringify(mergedSettings);
-      this.settings = loadAndNormalizeSettings(data);
-      // A fresh install has no data.json yet. Record the installed release
-      // in memory so the first real save stores it, and What's New does not
-      // treat a brand-new user as upgrading on their next launch. A synced
-      // data.json that arrives later replaces these settings entirely.
-      if (data === null) {
-        this.settings.lastShownVersion = this.manifest.version;
-      }
-      // A reload after startup (e.g. a synced data.json) replaces the settings
-      // object, so services built from the previous one must follow it.
-      if (this.folderService) {
-        this.bindSettingsBackedServices();
-      }
-      // A fresh install keeps its feed shards and article state inside the
-      // plugin folder, so uninstalling the plugin removes them too. Only a
-      // null load is changed: existing installs keep the vault folder they
-      // already use, and a synced data.json that arrives later replaces this.
-      if (data === null) {
-        const pluginDir = normalizePath(
-          this.manifest.dir ??
-            `${this.app.vault.configDir}/plugins/${this.manifest.id}`,
-        );
-        this.settings.metadataStorageFolder = `${pluginDir}/data`;
-        this.settings.storageFolder = `${pluginDir}/data/feeds`;
-      }
-      const didMigrateKeywordRules = this.migrateLegacySettings();
-      await this.repairMissingFolderPathsForFeeds();
-      const hydrated = await this.feedStorageRepository.hydrateSettings(
-        this.settings,
-      );
-      storageLog("Settings hydrated", {
-        mode: this.settings.storageMode,
-        folder: this.settings.storageFolder,
-        feedCount: this.settings.feeds.length,
-        hydratedShardCount: hydrated.shardCount,
-      });
-      const didNormalizeAndDedupeItems = dedupeAndNormalizeFeedItems(
-        this.settings.feeds,
-        { useFirstSeenDateFallback: this.settings.useFirstSeenDateFallback },
-      );
-      if (loadGeneration !== this.settingsLoadGeneration) return;
-      if (!vaultMetadataUnreadable) this.hasNotifiedVaultMetadataFailure = false;
-      this.settingsLoadFailed = vaultMetadataUnreadable;
-      // Guard: skip the early write if we loaded from null defaults.
-      // A null load on a synced vault likely means sync hasn't delivered
-      // data.json yet — writing empty defaults here would clobber it.
-      // The vault modify listener in onload() will trigger loadSettings()
-      // again once sync delivers the real data.
-      // Similarly, skip if we are in v2 mode and user-state.json is missing.
-      const isV2 = this.settings.storageMode === "vault-shards-v2";
-      const isMissingUserState = isV2 && hydrated.userStateLoaded === false;
-      const shouldSave =
-        !wasNullLoad &&
-        !isMissingUserState &&
-        (didMigrateKeywordRules ||
-          hydrated.didChange ||
-          didNormalizeAndDedupeItems ||
-          JSON.stringify(this.settings) !== originalSettingsJson);
-      if (shouldSave) {
-        // On the first load, onload() has not initialized the services yet,
-        // and this save's backup snapshot needs the backup service.
-        if (!this.backupService) {
-          this.initializeSettingsBackedServices();
-        }
-        await this.saveSettings();
-      }
-      this.autoRefreshScheduler?.reschedule();
-    } catch (error) {
-      if (loadGeneration !== this.settingsLoadGeneration) return;
-      storageError("Error loading plugin settings", error);
-      new Notice(
-        `Error loading settings: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`,
-      );
-      this.settings = structuredClone(DEFAULT_SETTINGS);
-      if (this.folderService) this.bindSettingsBackedServices();
-      this.settingsLoadFailed = true;
-    }
-  }
-
-  private getVaultFilePath(fileOrPath?: unknown): string {
-    if (typeof fileOrPath === "string") return fileOrPath;
-    if (isRecord(fileOrPath) && typeof fileOrPath.path === "string") {
-      return fileOrPath.path;
-    }
-    return "";
-  }
-
-  private isWatchedMetadataPath(filePath: string): boolean {
-    // When running in tests the settings.metadataStorageMode may be
-    // "plugin-default" but tests expect the watcher to consider the
-    // default vault folder (.rss-dashboard-data). Use the resolved
-    // metadataFolder when available, otherwise fall back to the
-    // conventional default folder name so tests behave deterministically.
-    const metadataFolder = getMetadataPath(this.settings ?? DEFAULT_SETTINGS);
-    const folderToCheck = metadataFolder ?? ".rss-dashboard-data";
-
-    const normalizedBase = filePath.replace(/^\/+|\/+$/g, "");
-    const normalizedFolder = folderToCheck.replace(/^\/+|\/+$/g, "");
-
-    return (
-      normalizedBase === `${normalizedFolder}/data.json` ||
-      normalizedBase === `${normalizedFolder}/user-state.json`
-    );
-  }
-
-  private registerVaultMetadataChangeListeners(): void {
-    const vault = this.app.vault as unknown as {
-      on?: (event: string, callback: (...args: unknown[]) => void) => EventRef;
-    };
-    if (typeof vault.on !== "function") return;
-
-    const scheduleReload = (file?: unknown, oldPath?: unknown): void => {
-      if (Date.now() < this.suppressWatcherUntil) return;
-
-      const candidatePaths: string[] = [];
-      const filePath = this.getVaultFilePath(file);
-      if (filePath) {
-        candidatePaths.push(filePath);
-      }
-      if (typeof oldPath === "string") {
-        candidatePaths.push(oldPath);
-      }
-
-      const watched = candidatePaths.some((candidatePath) =>
-        this.isWatchedMetadataPath(candidatePath),
-      );
-
-      if (!watched) return;
-
-      if (this.vaultMetadataReloadTimer !== null) {
-        window.clearTimeout(this.vaultMetadataReloadTimer);
-      }
-
-      this.vaultMetadataReloadTimer = window.setTimeout(() => {
-        this.vaultMetadataReloadTimer = null;
-        void (async () => {
-          await this.loadSettings();
-          await this.refreshDashboardViews();
-        })();
-      }, 1500);
-    };
-
-    this.registerEvent(vault.on("modify", (file) => scheduleReload(file)));
-    this.registerEvent(vault.on("create", (file) => scheduleReload(file)));
-    this.registerEvent(
-      vault.on("rename", (file, oldPath) => scheduleReload(file, oldPath)),
-    );
+  loadSettings(): Promise<void> {
+    return this.settingsStore.loadSettings();
   }
 
   private migrateLegacySettings(): boolean {
@@ -2552,182 +2215,20 @@ export default class RssDashboardPlugin extends Plugin {
     }
   }
 
-  /**
-   * Creates a save callback that persists metadata to the appropriate location
-   * based on the current metadataStorageMode.
-   */
-  private async savePluginData(data: unknown): Promise<void> {
-    if (!this.settingsLoadFailed) await this.saveData(data);
-  }
   public getMetadataSaveCallback(): (data: unknown) => Promise<void> {
-    return async (data: unknown): Promise<void> => {
-      if (this.settingsLoadFailed) return;
-      const settingsData = data as RssDashboardSettings;
-      const metadataPath = getMetadataPath(this.settings);
-      if (metadataPath) {
-        try {
-          await ensureMetadataFolderExists(this.app, this.settings);
-          const dataFilePath = `${metadataPath}/data.json`;
-          const jsonContent = JSON.stringify(settingsData, null, 2);
-          await this.writeWithWatcherSuppressed(
-            async () =>
-              await this.app.vault.adapter.write(dataFilePath, jsonContent),
-          );
-          storageLog("Metadata saved to vault location", {
-            path: dataFilePath,
-          });
-          // Bootstrap pointer only — just enough for loadSettings to
-          // find the vault data.json on restart. Does NOT write full
-          // settings to .obsidian, preventing the stale-read bug on mobile.
-          await this.savePluginData({
-            metadataStorageMode: this.settings.metadataStorageMode,
-            metadataStorageFolder: this.settings.metadataStorageFolder,
-            metadataStorageSchemaVersion:
-              this.settings.metadataStorageSchemaVersion,
-          });
-        } catch (error) {
-          storageError("Failed to save metadata to vault location", error);
-          throw error;
-        }
-      } else {
-        await this.savePluginData(settingsData);
-        storageLog("Metadata saved to plugin default location");
-      }
-    };
+    return this.settingsStore.getMetadataSaveCallback();
   }
 
-  async saveSettings(options: PersistSettingsOptions = {}) {
-    if (this.settingsLoadFailed) return;
-    storageLog("saveSettings invoked", {
-      mode: this.settings.storageMode,
-      folder: this.settings.storageFolder,
-      metadataMode: this.settings.metadataStorageMode,
-      feedCount: this.settings.feeds.length,
-    });
-
-    try {
-      const result = await this.feedStorageRepository.persistSettings(
-        this.settings,
-        this.getMetadataSaveCallback(),
-        options,
-      );
-      storageLog("saveSettings completed", result);
-      try {
-        await this.autoBackupCoordinator.recordPersistedChange();
-      } catch (error) {
-        console.error("[RSS Dashboard] Backup after save failed:", error);
-      }
-      this.autoRefreshScheduler?.reschedule();
-    } catch (error) {
-      storageError("saveSettings failed", error, {
-        mode: this.settings.storageMode,
-        folder: this.settings.storageFolder,
-        metadataMode: this.settings.metadataStorageMode,
-      });
-      throw error;
-    }
+  saveSettings(options: PersistSettingsOptions = {}): Promise<void> {
+    return this.settingsStore.saveSettings(options);
   }
 
-  /**
-   * Migrate metadata from plugin-default location to user-configured vault folder.
-   * Steps:
-   * 1. Ensure metadata folder exists (idempotent)
-   * 2. Write settings to new vault location
-   * 3. Update metadataStorageMode to "vault-location"
-   * 4. Persist updated settings
-   */
-  async migrateMetadataToVaultLocation(): Promise<void> {
-    if (this.settingsLoadFailed) return;
-    if (this.settings.metadataStorageMode === "vault-location") {
-      new Notice("Already using vault location for metadata storage");
-      return;
-    }
-
-    try {
-      // Resolve the target path using vault-location mode (before updating mode in settings)
-      const targetSettingsForPath: RssDashboardSettings = {
-        ...this.settings,
-        metadataStorageMode: "vault-location",
-      };
-      const metadataPath = getMetadataPath(targetSettingsForPath);
-      if (!metadataPath) {
-        throw new Error("Failed to resolve metadata storage path");
-      }
-
-      // Ensure the target folder exists
-      await ensureMetadataFolderExists(this.app, targetSettingsForPath);
-
-      // Write current settings to vault location as JSON
-      const settingsJson = JSON.stringify(this.settings, null, 2);
-      const dataFilePath = `${metadataPath}/data.json`;
-      await this.app.vault.adapter.write(dataFilePath, settingsJson);
-
-      // Update mode and persist using the dual-mode save callback
-      this.settings.metadataStorageMode = "vault-location";
-      await this.saveSettings();
-
-      new Notice(`Metadata migrated to vault location: ${metadataPath}`);
-    } catch (error) {
-      storageError("Metadata migration failed", error);
-      // Revert mode on error (no partial state)
-      this.settings.metadataStorageMode = "plugin-default";
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
-      new Notice(`Vault migration failed: ${errorMessage}`);
-      throw error;
-    }
+  migrateMetadataToVaultLocation(): Promise<void> {
+    return this.settingsStore.migrateMetadataToVaultLocation();
   }
 
-  /**
-   * Revert metadata from vault-location back to plugin-default location.
-   * Steps:
-   * 1. Read settings from current vault location (already in memory)
-   * 2. Write back to plugin-default location via Plugin.saveData()
-   * 3. Update metadataStorageMode to "plugin-default"
-   * 4. Optionally clean up vault-location data.json
-   */
-  async revertMetadataToPluginDefault(): Promise<void> {
-    if (this.settingsLoadFailed) return;
-    if (this.settings.metadataStorageMode === "plugin-default") {
-      new Notice("Already using plugin default for metadata storage");
-      return;
-    }
-    try {
-      // Current settings are already in memory, just switch the mode
-      this.settings.metadataStorageMode = "plugin-default";
-      // Save using Plugin.saveData() (plugin-default location)
-      await this.savePluginData(this.settings);
-      // Optionally clean up the vault-location file
-      const oldMetadataPath = this.settings.metadataStorageFolder;
-      if (oldMetadataPath) {
-        try {
-          const dataFilePath = `${oldMetadataPath}/data.json`;
-          const file = this.app.vault.getAbstractFileByPath(dataFilePath);
-          if (file && !(file instanceof TFolder)) {
-            await this.app.fileManager.trashFile(file);
-            storageLog("Deleted old vault metadata file", {
-              path: dataFilePath,
-            });
-          }
-        } catch (cleanupError) {
-          storageLog(
-            "Cleanup of vault metadata file failed (non-fatal)",
-            cleanupError,
-          );
-        }
-      }
-
-      await this.saveSettings();
-      new Notice("Metadata reverted to plugin default location");
-    } catch (error) {
-      storageError("Metadata revert failed", error);
-      // Restore mode on error (no partial state)
-      this.settings.metadataStorageMode = "vault-location";
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
-      new Notice(`Revert failed: ${errorMessage}`);
-      throw error;
-    }
+  revertMetadataToPluginDefault(): Promise<void> {
+    return this.settingsStore.revertMetadataToPluginDefault();
   }
 
   /**
@@ -2751,15 +2252,12 @@ export default class RssDashboardPlugin extends Plugin {
       await this.autoBackupCoordinator.flushOnUnload();
     };
 
-    if (this.vaultMetadataReloadTimer !== null) {
-      window.clearTimeout(this.vaultMetadataReloadTimer);
-      this.vaultMetadataReloadTimer = null;
-    }
+    this.settingsStore.dispose();
 
     this.previewImageCache.dispose();
     this.feedOperationTracker.dispose();
 
-    this.cancelPendingStartupRefresh();
+    this.cancelPendingStartupRefresh(true);
 
     // Obsidian does not await onunload. Request the final stale snapshot on a
     // best-effort basis after any pending progress persistence completes.
@@ -2768,10 +2266,13 @@ export default class RssDashboardPlugin extends Plugin {
     });
   }
 
-  public cancelPendingStartupRefresh(): void {
-    if (this.startupRefreshTimeoutId !== null) {
-      window.clearTimeout(this.startupRefreshTimeoutId);
-      this.startupRefreshTimeoutId = null;
+  public cancelPendingStartupRefresh(isUnloading = false): void {
+    if (this.startupRefreshTimeoutId === null) return;
+    window.clearTimeout(this.startupRefreshTimeoutId);
+    this.startupRefreshTimeoutId = null;
+    if (!isUnloading) {
+      this.backgroundImportService?.resumePendingImports();
+      this.autoRefreshScheduler?.start();
     }
   }
 

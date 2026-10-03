@@ -5,7 +5,21 @@ import obsidianmd from "eslint-plugin-obsidianmd";
 import globals from "globals";
 
 const TITLE_TOOLTIP_MESSAGE =
-  "Use setTooltip(el, text) from 'obsidian' instead of a title attribute. Obsidian draws its tooltip from aria-label, so title shows a second, browser-drawn popup.";
+  "Use setTooltip(el, text) from 'obsidian' instead of a title attribute. Obsidian draws its tooltip from aria-label, so title adds a second, browser-drawn popup beside it, or an unthemed one on its own.";
+
+const ATTR_INLINE_MESSAGE =
+  "Write the attr object inline (no variable or spread of one) so lint can check that it sets no title attribute. Use setTooltip(el, text) for tooltips.";
+
+// An `attr` value reaches its object literal directly or through a conditional,
+// logical, or type-assertion wrapper (`attr: cond ? { title } : undefined`).
+// Walking only those wrappers keeps `title` keys inside unrelated nested
+// objects (`attr: { "data-x": JSON.stringify({ title }) }`) from matching.
+const ATTR_VALUE_WRAPPER =
+  ":matches(ConditionalExpression, LogicalExpression, TSAsExpression, TSSatisfiesExpression, TSNonNullExpression)";
+const ATTR_TITLE_SELECTORS = [0, 1, 2].map(
+  (depth) =>
+    `Property[key.name='attr'] > ${`${ATTR_VALUE_WRAPPER} > `.repeat(depth)}ObjectExpression > Property:matches([key.name='title'], [key.value='title'])`,
+);
 
 export default defineConfig([
   {
@@ -17,6 +31,7 @@ export default defineConfig([
       "scripts/**/*.js",
       ".kilo/**",
       ".claude/**",
+      ".worktrees/**",
       ".tmp-*",
       // Working copy of the fixture vault, holding a copied build (main.js).
       ".fixture-vault/**",
@@ -91,10 +106,16 @@ export default defineConfig([
             "CallExpression[callee.property.name=/^(setAttr|setAttribute)$/][arguments.0.value='title']",
           message: TITLE_TOOLTIP_MESSAGE,
         },
+        ...ATTR_TITLE_SELECTORS.map((selector) => ({
+          selector,
+          message: TITLE_TOOLTIP_MESSAGE,
+        })),
+        // A variable or a spread of one hides the keys from lint, so require
+        // the attr object to be written inline where its keys can be checked.
         {
           selector:
-            "Property[key.name='attr'] > ObjectExpression > Property:matches([key.name='title'], [key.value='title'])",
-          message: TITLE_TOOLTIP_MESSAGE,
+            "Property[key.name='attr'][value.type='Identifier'], Property[key.name='attr'] > ObjectExpression > SpreadElement[argument.type='Identifier']",
+          message: ATTR_INLINE_MESSAGE,
         },
         {
           selector:
@@ -220,8 +241,9 @@ export default defineConfig([
   },
   {
     // Architecture guardrails (#253, #436). Existing violations are recorded
-    // in eslint-suppressions.json; new ones fail the build. Prune it with
-    // `npx eslint . --prune-suppressions` after a refactor removes one.
+    // in scripts/eslint-suppressions.json, kept out of the repo root so the
+    // community directory scanner never loads it; new ones fail the build.
+    // Prune it with `npm run lint:prune` after a refactor removes one.
     files: ["main.ts", "src/**/*.ts"],
     rules: {
       "max-lines-per-function": [

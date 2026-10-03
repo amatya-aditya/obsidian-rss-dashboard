@@ -6,6 +6,7 @@ import {
 } from "../../../src/types/types";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 import { beforeEach, describe, expect, it } from "vitest";
+import { App } from "obsidian";
 
 /** Exposes private ArticleList members used by these regression tests. */
 interface ArticleListWithPrivate {
@@ -81,6 +82,9 @@ describe("Tags dropdown portal (regression)", () => {
       new Set(),
       new Set(),
       "AND",
+      null,
+      true,
+      new App(),
     );
 
     const anchorEl = createDiv();
@@ -142,6 +146,9 @@ describe("Tags dropdown portal (regression)", () => {
       new Set(),
       new Set(),
       "AND",
+      null,
+      true,
+      new App(),
     );
 
     const anchorEl = createDiv();
@@ -209,6 +216,9 @@ describe("Tags dropdown portal (regression)", () => {
       new Set(),
       new Set(),
       "AND",
+      null,
+      true,
+      new App(),
     );
 
     const formatPortal = createDiv();

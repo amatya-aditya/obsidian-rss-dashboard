@@ -57,8 +57,19 @@
   display: flex;
   align-items: center;
 }
+.rss-reader-actions .rss-dashboard-tags-toggle {
+  --icon-size: 18px;
+  width: auto;
+  height: auto;
+  padding: 4px;
+  border-radius: 4px;
+  background-color: transparent;
+}
 .rss-reader-action-button {
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   padding: 4px;
   border-radius: 4px;
   color: var(--text-muted);
@@ -69,9 +80,6 @@
 }
 .rss-reader-read-toggle.read {
   color: var(--color-green);
-}
-.rss-reader-star-toggle.starred {
-  color: var(--color-yellow);
 }
 .rss-reader-content {
   flex-grow: 1;

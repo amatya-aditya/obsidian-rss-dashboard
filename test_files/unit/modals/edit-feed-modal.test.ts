@@ -36,6 +36,7 @@ type ArticleTestFixture = {
 type PluginTestFixture = {
   app: MockApp;
   settings: {
+    feeds: Feed[];
     folders: unknown[];
     maxItems: number;
     storageMode?: string;
@@ -244,6 +245,85 @@ beforeEach(() => {
 });
 
 describe("EditFeedModal", () => {
+  it.each([false, true])("keeps duplicate URL edits open without changing data, and lets the user correct the URL (pre-existing duplicate: %s)", async (hasDuplicate) => {
+    const app = createMockApp();
+    const feed: Feed = {
+      title: "Existing feed",
+      url: "https://example.com/feed.xml",
+      folder: "Tech",
+      items: [makeArticle("one", "2026-09-01T00:00:00Z")],
+      lastUpdated: 0,
+      lastRefreshAttemptCompletedAt: 123,
+      lastFetchError: "Timed out",
+    };
+    const other: Feed = { ...feed, url: "https://example.com/other.xml", items: [] };
+    const plugin: PluginTestFixture = {
+      app,
+      settings: {
+        feeds: [feed, other],
+        folders: [],
+        maxItems: 50,
+        corsProxyEnabled: false,
+        corsProxyUrl: "",
+        articleSaving: { savedTemplates: [] },
+      },
+      ensureFolderExists: vi.fn(async () => {}),
+      saveSettings: vi.fn(async () => {}),
+      notifyFiltersUpdated: vi.fn(),
+    };
+    if (hasDuplicate) {
+      plugin.settings.feeds.push({ ...feed, title: "Duplicate feed", items: [] });
+    }
+    const before = structuredClone(plugin.settings);
+    const onSave = vi.fn();
+    const modal = new EditFeedModal(app, asRssDashboardPlugin(plugin), feed, onSave);
+    const close = vi.spyOn(modal, "close");
+    const notice = vi.spyOn(console, "debug").mockImplementation(() => {});
+    modal.open();
+
+    for (const [name, value] of [
+      ["Feed URL", other.url],
+      ["Title", "Edited title"],
+      ["Folder", "New folder"],
+    ]) {
+      const input = getTextInputBySettingName(modal.contentEl, name);
+      input.value = value;
+      input.dispatchEvent(new Event("input"));
+    }
+    const excludeToggle = getToggleBySettingName(modal.contentEl, "Exclude from refresh");
+    excludeToggle.checked = true;
+    excludeToggle.dispatchEvent(new Event("change"));
+    getButtonByText(modal.contentEl, "Save").click();
+    await flushPromises();
+
+    expect(notice).toHaveBeenCalledWith("[Stub Notice]", "This feed URL already exists");
+    expect(plugin.settings).toEqual(before);
+    expect(plugin.ensureFolderExists).not.toHaveBeenCalled();
+    expect(plugin.saveSettings).not.toHaveBeenCalled();
+    expect(plugin.notifyFiltersUpdated).not.toHaveBeenCalled();
+    expect(onSave).not.toHaveBeenCalled();
+    expect(close).not.toHaveBeenCalled();
+
+    const urlInput = getTextInputBySettingName(modal.contentEl, "Feed URL");
+    urlInput.value = feed.url;
+    urlInput.dispatchEvent(new Event("input"));
+    getButtonByText(modal.contentEl, "Save").click();
+    await flushPromises();
+
+    expect(feed).toMatchObject({
+      title: "Edited title",
+      url: before.feeds[0].url,
+      folder: "New folder",
+      excludeFromRefresh: true,
+      lastRefreshAttemptCompletedAt: 123,
+      lastFetchError: "Timed out",
+    });
+    expect(plugin.settings.feeds.slice(1)).toEqual(before.feeds.slice(1));
+    expect(plugin.saveSettings).toHaveBeenCalledTimes(1);
+    expect(onSave).toHaveBeenCalledTimes(1);
+    expect(close).toHaveBeenCalledTimes(1);
+  });
+
   it("persists an encoding change and immediately refreshes the feed", async () => {
     const app = createMockApp();
     const feed: Feed = {
@@ -257,6 +337,7 @@ describe("EditFeedModal", () => {
     const plugin: PluginTestFixture = {
       app,
       settings: {
+        feeds: [feed],
         folders: [],
         maxItems: 50,
         corsProxyEnabled: false,
@@ -305,6 +386,7 @@ describe("EditFeedModal", () => {
     const plugin = {
       app,
       settings: {
+        feeds: [feed],
         folders: [],
         maxItems: 50,
         corsProxyEnabled: false,
@@ -354,6 +436,7 @@ describe("EditFeedModal", () => {
     const plugin = {
       app,
       settings: {
+        feeds: [feed],
         folders: [],
         maxItems: 50,
         storageMode: "vault-shards",
@@ -405,6 +488,7 @@ describe("EditFeedModal", () => {
     const plugin = {
       app,
       settings: {
+        feeds: [feed],
         folders: [],
         maxItems: 50,
         storageMode: "vault-shards",
@@ -448,6 +532,7 @@ describe("EditFeedModal", () => {
     const plugin = {
       app,
       settings: {
+        feeds: [feed],
         folders: [],
         maxItems: 50,
         corsProxyEnabled: false,
@@ -501,6 +586,7 @@ describe("EditFeedModal", () => {
     const plugin = {
       app,
       settings: {
+        feeds: [feed],
         folders: [],
         maxItems: 50,
         corsProxyEnabled: false,
@@ -547,6 +633,7 @@ describe("EditFeedModal", () => {
     const plugin = {
       app,
       settings: {
+        feeds: [feed],
         folders: [],
         maxItems: 50,
         corsProxyEnabled: false,
@@ -594,6 +681,7 @@ describe("EditFeedModal", () => {
     const plugin = {
       app,
       settings: {
+        feeds: [feed],
         folders: [],
         maxItems: 50,
         corsProxyEnabled: false,
@@ -641,6 +729,7 @@ describe("EditFeedModal", () => {
     const plugin = {
       app,
       settings: {
+        feeds: [feed],
         folders: [],
         maxItems: 50,
         corsProxyEnabled: false,
@@ -688,6 +777,7 @@ describe("EditFeedModal", () => {
     const plugin = {
       app,
       settings: {
+        feeds: [feed],
         folders: [],
         maxItems: 50,
         corsProxyEnabled: false,
@@ -735,6 +825,7 @@ describe("EditFeedModal", () => {
     const plugin = {
       app,
       settings: {
+        feeds: [feed],
         folders: [],
         maxItems: 50,
         corsProxyEnabled: false,
@@ -784,6 +875,7 @@ describe("EditFeedModal", () => {
     const plugin = {
       app,
       settings: {
+        feeds: [feed],
         folders: [],
         maxItems: 50,
         corsProxyEnabled: false,
@@ -904,6 +996,7 @@ describe("EditFeedModal", () => {
       const plugin = {
         app,
         settings: {
+          feeds: [feed],
           folders: [],
           maxItems: 50,
           corsProxyEnabled: false,
@@ -980,6 +1073,7 @@ describe("EditFeedModal", () => {
     const plugin = {
       app,
       settings: {
+        feeds: [feed],
         folders: [],
         maxItems: 50,
         corsProxyEnabled: false,
@@ -1039,6 +1133,7 @@ describe("EditFeedModal", () => {
     const plugin = {
       app,
       settings: {
+        feeds: [feed],
         folders: [],
         maxItems: 50,
         corsProxyEnabled: false,
@@ -1092,6 +1187,7 @@ describe("EditFeedModal", () => {
     const plugin = {
       app,
       settings: {
+        feeds: [feed],
         folders: [],
         maxItems: 50,
         corsProxyEnabled: false,
@@ -1156,6 +1252,7 @@ describe("EditFeedModal", () => {
     const plugin = {
       app,
       settings: {
+        feeds: [feed],
         folders: [],
         maxItems: 50,
         corsProxyEnabled: false,
@@ -1206,6 +1303,7 @@ describe("EditFeedModal", () => {
     const plugin: PluginTestFixture = {
       app,
       settings: {
+        feeds: [feed],
         folders: [],
         maxItems: 50,
         availableTags: [
@@ -1252,6 +1350,7 @@ describe("EditFeedModal", () => {
     const plugin: PluginTestFixture = {
       app,
       settings: {
+        feeds: [feed],
         folders: [],
         maxItems: 50,
         availableTags: [
@@ -1312,6 +1411,7 @@ describe("EditFeedModal", () => {
     const plugin: PluginTestFixture = {
       app,
       settings: {
+        feeds: [feed],
         folders: [],
         maxItems: 50,
         availableTags: [
@@ -1372,6 +1472,7 @@ describe("EditFeedModal", () => {
     const plugin: PluginTestFixture = {
       app,
       settings: {
+        feeds: [feed],
         folders: [],
         maxItems: 50,
         availableTags: [
@@ -1431,6 +1532,7 @@ describe("EditFeedModal", () => {
     const plugin = {
       app,
       settings: {
+        feeds: [feed],
         folders: [],
         maxItems: 100,
         corsProxyEnabled: false,
@@ -1647,6 +1749,7 @@ describe("EditFeedModal", () => {
     const plugin: PluginTestFixture = {
       app,
       settings: {
+        feeds: [feed],
         folders: [],
         maxItems: 50,
         useFirstSeenDateFallback: true,
@@ -1721,6 +1824,7 @@ describe("EditFeedModal", () => {
     const plugin: PluginTestFixture = {
       app,
       settings: {
+        feeds: [feed],
         folders: [],
         maxItems: 50,
         useFirstSeenDateFallback: false,

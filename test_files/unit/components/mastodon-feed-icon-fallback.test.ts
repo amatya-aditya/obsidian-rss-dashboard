@@ -281,6 +281,9 @@ describe("Mastodon Feed Icon — ArticleList renderFeedIcon", () => {
       new Set(),
       new Set(),
       "OR",
+      null,
+      true,
+      new ObsidianStubs.App(),
     );
     articleList.render();
 

@@ -10,6 +10,7 @@ import {
 } from "../services/opml-import-preview-model";
 import { isValidFeedTitle, isValidFolderName } from "../utils/validation";
 import { ImporterShell } from "./importer-shell";
+import { OpmlOverwriteConfirmModal } from "./opml-overwrite-confirm-modal";
 
 /**
  * Import OPML Modal - Provides a preview-based import experience
@@ -847,68 +848,15 @@ export class ImportOpmlModal extends Modal {
   }
 
   private showOverwriteWarning() {
-    // Create overlay modal that appears ON TOP of the import modal
-    const overlay = activeDocument.body.createDiv({
-      cls: "rss-dashboard-modal-overlay",
-    });
-
-    const modal = overlay.createDiv({
-      cls: "rss-dashboard-modal rss-dashboard-modal-container rss-dashboard-confirm-modal",
-    });
-    const modalContent = modal.createDiv({
-      cls: "rss-dashboard-modal-content",
-    });
-
-    new Setting(modalContent).setName("Overwrite all feeds").setHeading();
-
-    // Warning message
-    const warningDiv = modalContent.createDiv({
-      cls: "delete-all-warning",
-    });
-    warningDiv.createEl("p", {
-      text: "This action is irreversible. All your existing feeds will be permanently replaced with the imported feeds.",
-    });
-
-    // Backup recommendation
-    const backupDiv = modalContent.createDiv({
-      cls: "delete-all-backup-notice",
-    });
-    backupDiv.createEl("strong", {
-      text: "Recommended: export your feeds first",
-    });
-    backupDiv.createEl("p", {
-      text: "Before overwriting, we strongly recommend backing up your current feeds by exporting to an OPML file.",
-    });
-
-    // Button container
-    const buttonContainer = modalContent.createDiv({
-      cls: "rss-dashboard-modal-buttons",
-    });
-
-    // Export OPML button
-    const exportBtn = buttonContainer.createEl("button", {
-      text: "Export OPML",
-      cls: "rss-dashboard-primary-button export-opml-btn",
-    });
-    exportBtn.onclick = () => {
-      this.plugin.exportOpml();
-    };
-
-    const cancelButton = buttonContainer.createEl("button", {
-      text: "Cancel",
-    });
-    cancelButton.onclick = () => {
-      activeDocument.body.removeChild(overlay);
-    };
-
-    const confirmButton = buttonContainer.createEl("button", {
-      text: "Overwrite feeds",
-      cls: "rss-dashboard-danger-button",
-    });
-    confirmButton.onclick = () => {
-      activeDocument.body.removeChild(overlay);
-      void this.executeImport();
-    };
+    // Obsidian stacks this dialog on top of the import modal
+    new OpmlOverwriteConfirmModal(this.app, {
+      onExport: () => {
+        this.plugin.exportOpml();
+      },
+      onConfirm: () => {
+        void this.executeImport();
+      },
+    }).open();
   }
 
   private async executeImport() {
@@ -936,6 +884,11 @@ export class ImportOpmlModal extends Modal {
           globalOperation: true,
         },
       );
+
+      if (result.refused) {
+        this.close();
+        return;
+      }
 
       this.onImportStarted?.();
 

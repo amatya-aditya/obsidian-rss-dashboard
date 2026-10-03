@@ -64,7 +64,7 @@ implementation. A tiny local fix may record that no architecture signal
 applies.
 
 Resolve unclear ownership before writing code. Do not expand
-`scripts/architecture-baseline.json` or `eslint-suppressions.json` to make a
+`scripts/architecture-baseline.json` or `scripts/eslint-suppressions.json` to make a
 change pass without identifying the architecture exception and its
 debt-reduction follow-up.
 

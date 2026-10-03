@@ -184,3 +184,94 @@ export function formatDashboardMultiFiltersSummaryCompact(options: {
 
   return { text: text.trim(), tooltip };
 }
+
+export interface ArticlesTitleInput {
+  /** Title of the open feed, or null when no single feed is open. */
+  currentFeedTitle: string | null;
+  currentFolder: string | null;
+  selectedTags: readonly string[];
+  selectedFolders: readonly string[];
+  selectedFeeds: readonly string[];
+  /** `settings.sidebarTagFilterMode`; a missing or empty value means "or". */
+  tagFilterMode: string | undefined;
+  /** Called only on the branches that show a feed count. */
+  getTotalFeedsInSelection: () => number;
+}
+
+function getSpecialFolderTitle(currentFolder: string | null): string | null {
+  if (currentFolder === "starred") {
+    return "Starred items";
+  } else if (currentFolder === "unread") {
+    return "Unread items";
+  } else if (currentFolder === "read") {
+    return "Read items";
+  } else if (currentFolder === "saved") {
+    return "Saved items";
+  } else if (currentFolder === "videos") {
+    return "Videos";
+  } else if (currentFolder === "podcasts") {
+    return "Podcasts";
+  }
+  return null;
+}
+
+function formatFeedCount(totalFeeds: number): string {
+  return totalFeeds === 1 ? "1 feed" : `${totalFeeds} feeds`;
+}
+
+function formatTagSelectionTitle(input: ArticlesTitleInput): string {
+  const mode = (input.tagFilterMode || "or").toUpperCase();
+  const tagsPart = `Tags (${mode}): ${input.selectedTags.join(", ")}`;
+  if (
+    (input.selectedFolders && input.selectedFolders.length > 0) ||
+    (input.selectedFeeds && input.selectedFeeds.length > 0)
+  ) {
+    // Combine folders/feeds and tags when both are active
+    const parts = [];
+    const totalFeeds = input.getTotalFeedsInSelection();
+    if (input.selectedFolders && input.selectedFolders.length > 0) {
+      parts.push(
+        `Folders: ${input.selectedFolders.join(", ")} (Feeds: ${totalFeeds})`,
+      );
+    } else {
+      parts.push(formatFeedCount(totalFeeds));
+    }
+    const selectionPart = parts.join(" & ");
+    return `${selectionPart} & ${tagsPart}`;
+  }
+  return tagsPart;
+}
+
+function formatFolderFeedSelectionTitle(input: ArticlesTitleInput): string {
+  const totalFeeds = input.getTotalFeedsInSelection();
+  const parts = [];
+  if (input.selectedFolders && input.selectedFolders.length > 0) {
+    parts.push(
+      `Folders: ${input.selectedFolders.join(", ")} (Feeds: ${totalFeeds})`,
+    );
+  } else {
+    parts.push(formatFeedCount(totalFeeds));
+  }
+  return parts.join(" & ");
+}
+
+export function formatArticlesTitle(input: ArticlesTitleInput): string {
+  if (input.currentFeedTitle !== null) {
+    return input.currentFeedTitle;
+  }
+  const specialFolderTitle = getSpecialFolderTitle(input.currentFolder);
+  if (specialFolderTitle !== null) {
+    return specialFolderTitle;
+  } else if (input.selectedTags.length > 0) {
+    return formatTagSelectionTitle(input);
+  } else if (
+    (input.selectedFolders && input.selectedFolders.length > 0) ||
+    (input.selectedFeeds && input.selectedFeeds.length > 0)
+  ) {
+    return formatFolderFeedSelectionTitle(input);
+  } else if (input.currentFolder) {
+    return input.currentFolder;
+  } else {
+    return "All articles";
+  }
+}

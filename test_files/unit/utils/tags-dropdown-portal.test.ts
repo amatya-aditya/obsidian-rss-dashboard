@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { App } from "obsidian";
 import { DEFAULT_SETTINGS, type FeedItem } from "../../../src/types/types";
 import { createTagsDropdownPortal } from "../../../src/utils/tags-dropdown-portal";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
@@ -61,6 +62,7 @@ describe("createTagsDropdownPortal inside a modal", () => {
     removeTrap = installModalFocusTrap(container);
 
     const close = createTagsDropdownPortal({
+      app: new App(),
       anchor,
       settings: JSON.parse(JSON.stringify(DEFAULT_SETTINGS)),
       item: makeItem(),
@@ -93,6 +95,7 @@ describe("createTagsDropdownPortal tag editing", () => {
   it("starts the inline 'Add new tag' color at the default tag color", () => {
     const { anchor } = createModalWithAnchor();
     const close = createTagsDropdownPortal({
+      app: new App(),
       anchor,
       settings: JSON.parse(JSON.stringify(DEFAULT_SETTINGS)),
       item: makeItem(),
@@ -114,6 +117,7 @@ describe("createTagsDropdownPortal tag editing", () => {
     const onTagEdited = vi.fn();
 
     const close = createTagsDropdownPortal({
+      app: new App(),
       anchor,
       settings,
       item: makeItem(),

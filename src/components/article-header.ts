@@ -188,8 +188,10 @@ export class ArticleHeader {
     this.headerTitleEl = leftSection.createDiv({
       cls: "rss-dashboard-articles-title",
       text: this.title,
-      attr: this.titleTooltip ? { title: this.titleTooltip } : undefined,
     });
+    if (this.titleTooltip) {
+      setTooltip(this.headerTitleEl, this.titleTooltip);
+    }
 
     const rightSection = articlesHeader.createDiv({
       cls: "rss-dashboard-header-right",

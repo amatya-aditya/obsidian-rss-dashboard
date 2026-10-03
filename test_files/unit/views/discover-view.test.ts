@@ -454,6 +454,45 @@ describe("DiscoverView (P1-3)", () => {
     );
   });
 
+  it("refuses a feed that was added while its folder picker was open", async () => {
+    const { plugin, view } = await createView();
+
+    view.loadData();
+    view.render();
+
+    const addButton = view.containerEl.querySelector(
+      ".rss-discover-card-add-to-btn",
+    );
+    expect(addButton).not.toBeNull();
+    if (!addButton) throw new Error("addButton not found");
+    (addButton as HTMLElement).click();
+
+    const feed = FEEDS_FIXTURE[0];
+    if (!feed) throw new Error("feed fixture not found");
+    plugin.settings.feeds.push({
+      title: feed.title,
+      url: feed.url,
+      folder: "Uncategorized",
+      items: [],
+      lastUpdated: 0,
+    });
+
+    const noticeSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
+    folderSelectorSpy.calls[0].onSelect("Uncategorized");
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(
+      plugin.settings.feeds.filter((item) => item.url === feed.url),
+    ).toHaveLength(1);
+    expect(plugin.ensureFolderExists).not.toHaveBeenCalled();
+    expect(plugin.addFeed).not.toHaveBeenCalled();
+    expect(noticeSpy).toHaveBeenCalledWith(
+      "[Stub Notice]",
+      "This feed URL already exists",
+    );
+  });
+
   it("bulk add only adds filtered feeds and skips feeds that are already followed", async () => {
     const { plugin, view } = await createView({
       followedUrls: ["https://beta.example.com/rss.xml"],
@@ -696,6 +735,40 @@ describe("DiscoverView (P1-3)", () => {
     }
     expect(view.pageSize).toBe(10);
     expect(view.currentPage).toBe(1);
+  });
+
+  it("does not show added feeds notice when Add all is refused due to active operation", async () => {
+    const { plugin, view } = await createView();
+    view.loadData();
+    view.render();
+
+    plugin.ingestFeedsForBackgroundImport.mockResolvedValueOnce({
+      addedCount: 0,
+      skippedCount: 0,
+      queuedFeeds: [],
+      refused: true,
+    });
+
+    const addAllButton = view.containerEl.querySelector(
+      ".rss-discover-add-all-btn",
+    );
+    expect(addAllButton).not.toBeNull();
+    if (!addAllButton) throw new Error("addAllButton not found");
+
+    if (typeof (addAllButton as HTMLElement).click === "function") {
+      (addAllButton as HTMLElement).click();
+    } else {
+      throw new Error("addAllButton does not have a click method");
+    }
+    folderSelectorSpy.calls[0].onSelect("Uncategorized");
+    await flushPromises();
+
+    expect(plugin.ingestFeedsForBackgroundImport).toHaveBeenCalledTimes(1);
+    expect(console.debug).not.toHaveBeenCalledWith(
+      "[Stub Notice]",
+      expect.stringContaining("Articles will be fetched in the background"),
+    );
+    expect((view as unknown as { isAddingAllFeeds: boolean }).isAddingAllFeeds).toBe(false);
   });
 });
 

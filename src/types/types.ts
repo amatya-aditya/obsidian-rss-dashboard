@@ -1,6 +1,11 @@
 export interface FeedItem {
   title: string;
   link: string;
+  /**
+   * The feed-supplied item blurb, rewritten on every refresh: RSS `<description>`,
+   * Atom `<summary>`, or JSON Feed `summary`. The body is `content`. See the
+   * "Feed description" entry in CONTEXT.md and #666 for why the name stays.
+   */
   description: string;
   pubDate: string;
   guid: string;
@@ -214,6 +219,13 @@ export interface FeedIngestionOptions {
   globalOperation?: boolean;
 }
 
+export interface FeedIngestionResult {
+  addedCount: number;
+  skippedCount: number;
+  queuedFeeds: Feed[];
+  refused?: boolean;
+}
+
 export interface Tag {
   name: string;
   color: string;
@@ -322,7 +334,6 @@ export interface DisplaySettings {
     | "videos"
     | "podcasts";
   hiddenFilters: string[];
-  useDomainFavicons: boolean;
   useDomainIconsPodcast: boolean;
   useDomainIconsMastodon: boolean;
   useDomainIconsRss: boolean;
@@ -843,7 +854,6 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
     mobileListToolbarStyle: "minimal",
     defaultFilter: "all",
     hiddenFilters: [],
-    useDomainFavicons: true,
     useDomainIconsPodcast: false,
     useDomainIconsMastodon: false,
     useDomainIconsRss: false,

@@ -45,6 +45,12 @@ function createFeed(item: FeedItem): Feed {
   };
 }
 
+function topModalContainer(): HTMLElement | undefined {
+  return Array.from(
+    document.querySelectorAll<HTMLElement>(".modal-container"),
+  ).pop();
+}
+
 afterEach(() => {
   document.body.empty();
   vi.restoreAllMocks();
@@ -153,7 +159,7 @@ describe("ReaderView custom-folder saved templates", () => {
     getInternals(readerView).showCustomSaveModal(item);
 
     const modal = document.querySelector<HTMLElement>(
-      ".rss-dashboard-modal-container",
+      ".rss-dashboard-custom-save-modal",
     );
     const templateSelect = modal?.querySelector<HTMLSelectElement>(
       "#rss-dashboard-saved-template",
@@ -228,7 +234,7 @@ describe("ReaderView custom-folder saved templates", () => {
     getInternals(readerView).showCustomSaveModal(item);
 
     const modal = document.querySelector<HTMLElement>(
-      ".rss-dashboard-modal-container",
+      ".rss-dashboard-custom-save-modal",
     );
     const templateSelect = modal?.querySelector<HTMLSelectElement>(
       "#rss-dashboard-saved-template",
@@ -246,7 +252,8 @@ describe("ReaderView custom-folder saved templates", () => {
     expect(saveAsTemplateButton?.hidden).toBe(false);
 
     saveAsTemplateButton?.click();
-    const nameModal = document.querySelector<HTMLElement>(".modal-container");
+    // Obsidian stacks modals: the template dialogs open above the save dialog.
+    const nameModal = topModalContainer();
     expect(
       nameModal?.classList.contains(
         "rss-dashboard-template-dialog-container",
@@ -264,10 +271,11 @@ describe("ReaderView custom-folder saved templates", () => {
       ?.click();
 
     await vi.waitFor(() => {
-      expect(document.querySelector(".modal-container")).not.toBeNull();
+      expect(topModalContainer()?.classList).toContain(
+        "rss-dashboard-template-dialog-container",
+      );
     });
-    const assignmentModal =
-      document.querySelector<HTMLElement>(".modal-container");
+    const assignmentModal = topModalContainer();
     expect(
       assignmentModal?.classList.contains(
         "rss-dashboard-template-dialog-container",

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { App, type WorkspaceLeaf } from "obsidian";
+import { App, Platform, type WorkspaceLeaf } from "obsidian";
 import type RssDashboardPlugin from "../../../main";
 import { RssDashboardView } from "../../../src/views/dashboard-view";
 import type { MobileNavigationModal } from "../../../src/modals/mobile-navigation-modal";
@@ -18,7 +18,10 @@ function feed(title: string, folder = ""): Feed {
 
 describe("Dashboard selection through the navigation drawer", () => {
   let view: RssDashboardView;
-  let internals: { mobileSidebarModal: MobileNavigationModal | null };
+  let internals: {
+    mobileSidebarModal: MobileNavigationModal | null;
+    currentFeed: Feed | null;
+  };
 
   beforeEach(() => {
     installObsidianDomPolyfills();
@@ -99,4 +102,48 @@ describe("Dashboard selection through the navigation drawer", () => {
       ).toHaveLength(2);
     },
   );
+
+  it.each(["ctrlKey", "metaKey"] as const)(
+    "adds feeds using %s while the drawer stays open",
+    (modifier) => {
+      vi.spyOn(Platform, "isMacOS", "get").mockReturnValue(
+        modifier === "metaKey",
+      );
+      clickRow(openDrawer(), ".rss-dashboard-all-feeds-button");
+      const drawer = openDrawer();
+
+      clickRow(drawer, '[data-feed-url="https://example.com/First"]', {
+        [modifier]: true,
+      });
+      expect(internals.mobileSidebarModal).not.toBeNull();
+      clickRow(drawer, '[data-feed-url="https://example.com/Last"]', {
+        [modifier]: true,
+      });
+
+      expect(view.selectedFeeds).toEqual([
+        "https://example.com/First",
+        "https://example.com/Last",
+      ]);
+      expect(internals.currentFeed).toBeNull();
+      expect(internals.mobileSidebarModal).not.toBeNull();
+      expect(
+        drawer.querySelectorAll(".rss-dashboard-feed.multi-selected"),
+      ).toHaveLength(2);
+    },
+  );
+
+  it("keeps the open feed when Ctrl/Cmd+click adds another feed (#547)", () => {
+    clickRow(openDrawer(), '[data-feed-url="https://example.com/First"]');
+    expect(internals.currentFeed?.title).toBe("First");
+
+    clickRow(openDrawer(), '[data-feed-url="https://example.com/Last"]', {
+      ctrlKey: true,
+    });
+
+    expect(view.selectedFeeds).toEqual([
+      "https://example.com/First",
+      "https://example.com/Last",
+    ]);
+    expect(internals.currentFeed).toBeNull();
+  });
 });

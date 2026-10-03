@@ -1,12 +1,4 @@
 {
-  "main.ts": {
-    "complexity": {
-      "count": 1
-    },
-    "max-lines-per-function": {
-      "count": 1
-    }
-  },
   "src/components/article-filter-menu.ts": {
     "max-lines-per-function": {
       "count": 1
@@ -51,14 +43,6 @@
   "src/components/keyword-filter-editor.ts": {
     "max-lines-per-function": {
       "count": 2
-    }
-  },
-  "src/components/sidebar.ts": {
-    "complexity": {
-      "count": 4
-    },
-    "max-lines-per-function": {
-      "count": 5
     }
   },
   "src/components/tag-multi-select-control.ts": {
@@ -107,7 +91,7 @@
   },
   "src/services/background-import-service.ts": {
     "complexity": {
-      "count": 3
+      "count": 2
     }
   },
   "src/services/feed-parser/feed-fetch.ts": {
@@ -116,14 +100,6 @@
     },
     "max-lines-per-function": {
       "count": 2
-    }
-  },
-  "src/services/feed-parser/feed-parser-class.ts": {
-    "complexity": {
-      "count": 2
-    },
-    "max-lines-per-function": {
-      "count": 1
     }
   },
   "src/services/feed-parser/podcast-platform-resolver.ts": {
@@ -261,11 +237,8 @@
     }
   },
   "src/views/dashboard-view.ts": {
-    "complexity": {
-      "count": 3
-    },
     "max-lines-per-function": {
-      "count": 4
+      "count": 3
     }
   },
   "src/views/discover-view.ts": {
@@ -290,11 +263,8 @@
     }
   },
   "src/views/reader-view.ts": {
-    "complexity": {
-      "count": 3
-    },
     "max-lines-per-function": {
-      "count": 2
+      "count": 1
     }
   }
 }

@@ -868,53 +868,6 @@ describe("onload() initialization", () => {
     vi.useRealTimers();
   });
 
-  it("clears watcher timer on unload", async () => {
-    vi.useFakeTimers();
-    const handlers: Record<string, (...args: unknown[]) => void> = {};
-    plugin.app.vault.on = vi.fn(
-      (event: string, callback: (...args: unknown[]) => void) => {
-        handlers[event] = callback;
-        return {};
-      },
-    );
-
-    await plugin.onload();
-
-    handlers.modify?.({ path: ".rss-dashboard-data/data.json" });
-    plugin.onunload();
-
-    expect(plugin["vaultMetadataReloadTimer"]).toBeNull();
-    vi.useRealTimers();
-  });
-
-  it("suppresses watcher for plugin-originated user-state write", async () => {
-    vi.useFakeTimers();
-    const handlers: Record<string, (...args: unknown[]) => void> = {};
-    plugin.app.vault.on = vi.fn(
-      (event: string, callback: (...args: unknown[]) => void) => {
-        handlers[event] = callback;
-        return {};
-      },
-    );
-
-    const loadSpy = vi.spyOn(plugin, "loadSettings").mockResolvedValue(undefined);
-    const refreshSpy = vi.spyOn(plugin, "refreshDashboardViews").mockResolvedValue(undefined);
-
-    await plugin.onload();
-
-    // Simulate plugin writing user-state (which sets suppression window)
-    (plugin as unknown as { suppressWatcherUntil: number }).suppressWatcherUntil = Date.now() + 5000;
-
-    handlers.modify?.({ path: ".rss-dashboard-data/user-state.json" });
-    await vi.runAllTimersAsync();
-
-    // Watcher should be suppressed, no reload triggered
-    expect(loadSpy).toHaveBeenCalledTimes(1);
-    expect(refreshSpy).toHaveBeenCalledTimes(0);
-
-    vi.useRealTimers();
-  });
-
   it("keeps refreshed articles when shard persistence writes vault metadata", async () => {
     vi.useFakeTimers();
     const handlers: Record<string, (...args: unknown[]) => void> = {};

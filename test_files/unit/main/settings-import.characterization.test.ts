@@ -38,7 +38,11 @@ vi.mock("../../../src/modals/storage-migration-modal", () => ({
 }));
 
 import RssDashboardPlugin from "../../../main";
-import { DEFAULT_SETTINGS, type Feed } from "../../../src/types/types";
+import {
+  DEFAULT_SETTINGS,
+  type Feed,
+  type RssDashboardSettings,
+} from "../../../src/types/types";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 
 interface VaultAdapterStub {
@@ -277,18 +281,83 @@ describe("applying a confirmed settings import (issue #535)", () => {
       });
     });
 
-    it("stores a folders value that is not a list instead of keeping the current one", async () => {
+    describe.each(["folders", "availableTags"] as const)(
+      "a non-list %s value (issue #537)",
+      (collection) => {
+        it.each(["not a list", {}, null, 42, false])(
+          "keeps the current list in memory and on disk when given %j",
+          async (value) => {
+            const original = plugin.settings[collection];
+            const expected = JSON.parse(JSON.stringify(original)) as unknown;
+
+            const result = await importFile(
+              "preferences",
+              jsonFile(PREFERENCES_FILE, {
+                feeds: [persistedFeed("feed-a")],
+                [collection]: value,
+                refreshInterval: 45,
+              }),
+              "Replace",
+            );
+
+            expect(result).toBe("committed");
+            expect(plugin.settings[collection]).toBe(original);
+            expect(plugin.settings[collection]).toEqual(expected);
+            expect(plugin.settings.refreshInterval).toBe(45);
+            expect(feedIds()).toEqual(["feed-a"]);
+            const saved = JSON.parse(
+              await adapter().read(dataJsonPath),
+            ) as RssDashboardSettings;
+            expect(saved[collection]).toEqual(expected);
+          },
+        );
+      },
+    );
+
+    it("writes an OPML backup after ignoring non-list folders and tags (issue #537)", async () => {
+      // Re-enable backups in the import so it writes a fresh snapshot even
+      // if loading the fixture already saved one during normalization.
+      plugin.settings.autoBackup = {
+        backupDataJson: false,
+        backupOpml: false,
+        backupUserdata: false,
+      };
+      await plugin.saveSettings();
+
       await importFile(
         "preferences",
         jsonFile(PREFERENCES_FILE, {
-          feeds: [persistedFeed("feed-a")],
+          feeds: [persistedFeed("imported-backup")],
           folders: "not a list",
+          availableTags: "not a list",
+          autoBackup: { ...DEFAULT_SETTINGS.autoBackup, backupOpml: true },
         }),
         "Replace",
       );
 
-      // BUG: pinned, see #537
-      expect(plugin.settings.folders).toBe("not a list");
+      const backup = await adapter().read("./feeds.opml.backup");
+      expect(backup).toContain('text="RSS"');
+      expect(backup).toContain('xmlUrl="https://example.com/imported-backup.xml"');
+    });
+
+    it("accepts empty lists as replacements instead of keeping the current lists", async () => {
+      await importFile(
+        "preferences",
+        jsonFile(PREFERENCES_FILE, {
+          feeds: [],
+          folders: [],
+          availableTags: [],
+        }),
+        "Replace",
+      );
+
+      expect(plugin.settings.feeds).toEqual([]);
+      expect(plugin.settings.folders).toEqual([]);
+      // The migration can add built-in tags, but must not keep custom tags.
+      expect(plugin.settings.availableTags).not.toContainEqual({
+        name: "kept",
+        color: "#111111",
+      });
     });
 
     it("gives an imported feed default keyword rules and retention limits", async () => {
@@ -449,7 +518,7 @@ describe("applying a confirmed settings import (issue #535)", () => {
       expect(noticeTexts()).toContain("Imported JSON with feeds and settings");
     });
 
-    it("mentions feeds in the notice even when the file only carried folders", async () => {
+    it("mentions only folders in the notice when the file has no feed list", async () => {
       await importFile(
         "preferences",
         jsonFile(PREFERENCES_FILE, {
@@ -458,8 +527,32 @@ describe("applying a confirmed settings import (issue #535)", () => {
         "Replace",
       );
 
-      // BUG: pinned, see #464
-      expect(noticeTexts()).toContain("Imported JSON with feeds and settings");
+      expect(noticeTexts()).toContain("Imported folders and settings");
+    });
+
+    it("mentions tags and settings when the file only carried tags", async () => {
+      await importFile(
+        "preferences",
+        jsonFile(PREFERENCES_FILE, {
+          availableTags: [{ name: "Imported", color: "#111111" }],
+        }),
+        "Replace",
+      );
+
+      expect(noticeTexts()).toContain("Imported tags and settings");
+    });
+
+    it("mentions folders and tags in the notice when both are imported", async () => {
+      await importFile(
+        "preferences",
+        jsonFile(PREFERENCES_FILE, {
+          folders: [{ name: "Imported", subfolders: [] }],
+          availableTags: [{ name: "Imported", color: "#111111" }],
+        }),
+        "Replace",
+      );
+
+      expect(noticeTexts()).toContain("Imported folders, tags, and settings");
     });
   });
 

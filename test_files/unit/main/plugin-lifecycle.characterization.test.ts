@@ -7,7 +7,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as obsidian from "obsidian";
-import { App, type MockApp, type PluginManifest } from "obsidian";
+import { App, Platform, type MockApp, type PluginManifest } from "obsidian";
 import RssDashboardPlugin from "../../../main";
 import type { Feed } from "../../../src/types/types";
 
@@ -260,6 +260,43 @@ describe("plugin lifecycle (characterization)", () => {
 
       expect(spy).toHaveBeenCalled();
     });
+
+    it("resumes scheduled auto-refreshes when a manual refresh cancels the startup delay", async () => {
+      const store = await seedStore(app, 5);
+      const { spy } = mockFeedRequests();
+      const { plugin } = createHarness(store, app);
+
+      await plugin.onload();
+      await vi.advanceTimersByTimeAsync(2000);
+      expect(spy).not.toHaveBeenCalled();
+
+      plugin.cancelPendingStartupRefresh();
+      await plugin.refreshFeeds();
+      expect(spy).toHaveBeenCalledTimes(1);
+
+      await vi.advanceTimersByTimeAsync(60 * 60 * 1000);
+      expect(spy).toHaveBeenCalledTimes(2);
+    });
+
+    it("starts the scheduler without deferring global refresh when a partial refresh cancels startup delay", async () => {
+      const store = await seedStore(app, 5);
+      const { spy } = mockFeedRequests();
+      const { plugin } = createHarness(store, app);
+
+      await plugin.onload();
+      await vi.advanceTimersByTimeAsync(2000);
+      expect(spy).not.toHaveBeenCalled();
+
+      plugin.cancelPendingStartupRefresh();
+      await plugin.refreshFailedFeeds();
+
+      // Scheduler starts and does not push global refresh out by a full 60-minute interval
+      await vi.advanceTimersByTimeAsync(100);
+      expect(spy).toHaveBeenCalledTimes(1);
+
+      await vi.advanceTimersByTimeAsync(60 * 60 * 1000);
+      expect(spy).toHaveBeenCalledTimes(2);
+    });
   });
 
   describe("unload", () => {
@@ -284,6 +321,20 @@ describe("plugin lifecycle (characterization)", () => {
       await vi.advanceTimersByTimeAsync(4000);
       plugin.unload();
       await vi.advanceTimersByTimeAsync(10_000);
+
+      expect(spy).not.toHaveBeenCalled();
+      expect(vi.getTimerCount()).toBe(0);
+    });
+
+    it("ensures no scheduled refresh fires afterwards when unloaded during startup delay", async () => {
+      const store = await seedStore(app, 5);
+      const { spy } = mockFeedRequests();
+      const { plugin } = createHarness(store, app);
+      await plugin.onload();
+
+      await vi.advanceTimersByTimeAsync(3000);
+      plugin.unload();
+      await vi.advanceTimersByTimeAsync(60 * 60 * 1000 + 10_000);
 
       expect(spy).not.toHaveBeenCalled();
       expect(vi.getTimerCount()).toBe(0);
@@ -387,6 +438,535 @@ describe("plugin lifecycle (characterization)", () => {
       const [feed] = reloaded.plugin.settings.feeds;
       expect(feed.url).toBe(FEED_URL);
       expect(feed.items.map((item) => item.guid)).toEqual([ARTICLE_URL]);
+    });
+  });
+});
+
+type AnyFn = (...args: unknown[]) => unknown;
+
+/** The plugin's non-public steps and fields, which onload's order runs through. */
+interface Internals {
+  [name: string]: unknown;
+  previewImageCache: { initialize: AnyFn };
+  settingsStore: { registerVaultMetadataChangeListeners: AnyFn };
+  backgroundImportService: { resumePendingImports: AnyFn };
+}
+
+interface Captured {
+  commands: Map<string, Record<string, AnyFn>>;
+  ribbonCallbacks: AnyFn[];
+  protocolHandlers: AnyFn[];
+  activeLeafHandlers: AnyFn[];
+  layoutReadyCallbacks: AnyFn[];
+  settingTabs: unknown[];
+}
+
+/**
+ * Adds onload's internal steps to the harness log, in call order, so the order
+ * they run in is pinned and not only the Obsidian calls they lead to. Also
+ * keeps what onload registers, so a test can run the callbacks afterwards.
+ * Every wrapper forwards to the original.
+ */
+function observeOnload(harness: Harness, app: MockApp): Captured {
+  const { plugin, log } = harness;
+  const internals = plugin as unknown as Internals;
+  const captured: Captured = {
+    commands: new Map(),
+    ribbonCallbacks: [],
+    protocolHandlers: [],
+    activeLeafHandlers: [],
+    layoutReadyCallbacks: [],
+    settingTabs: [],
+  };
+
+  const step = (name: string, after?: (result: unknown) => void): void => {
+    const original = (internals[name] as AnyFn).bind(plugin);
+    internals[name] = (...args: unknown[]) => {
+      log.push("step:" + name);
+      const result = original(...args);
+      after?.(result);
+      return result;
+    };
+  };
+
+  step("loadSettings");
+  step("getActiveDashboardView");
+  step("applyMobileOptimizations");
+  step("scheduleStartupSavedArticleValidation");
+  step("initializeSettingsBackedServices", () => {
+    const service = internals.backgroundImportService;
+    const resume = service.resumePendingImports.bind(service);
+    service.resumePendingImports = () => {
+      log.push("step:resumePendingImports");
+      return resume();
+    };
+  });
+  step("ensureAutoRefreshScheduler", (scheduler) => {
+    const target = scheduler as { start: AnyFn };
+    const start = target.start.bind(target);
+    target.start = () => {
+      log.push("step:scheduler.start");
+      return start();
+    };
+  });
+
+  const cache = internals.previewImageCache;
+  const initialize = cache.initialize.bind(cache);
+  cache.initialize = () => {
+    log.push("step:previewImageCache.initialize");
+    return initialize();
+  };
+  const store = internals.settingsStore;
+  const register = store.registerVaultMetadataChangeListeners.bind(store);
+  store.registerVaultMetadataChangeListeners = (...args: unknown[]) => {
+    log.push("step:registerVaultMetadataChangeListeners");
+    return register(...args);
+  };
+
+  const workspace = app.workspace as unknown as {
+    on: (name: string, callback: AnyFn) => unknown;
+    onLayoutReady: (callback: AnyFn) => void;
+  };
+  const workspaceOn = workspace.on;
+  workspace.on = (name, callback) => {
+    if (name === "active-leaf-change") {
+      captured.activeLeafHandlers.push(callback);
+    }
+    return workspaceOn(name, callback);
+  };
+  const onLayoutReady = workspace.onLayoutReady;
+  workspace.onLayoutReady = (callback) => {
+    captured.layoutReadyCallbacks.push(callback);
+    onLayoutReady(callback);
+  };
+
+  const addCommand = plugin.addCommand.bind(plugin);
+  plugin.addCommand = (command) => {
+    captured.commands.set(
+      command.id,
+      command as unknown as Record<string, AnyFn>,
+    );
+    return addCommand(command);
+  };
+  const addRibbonIcon = plugin.addRibbonIcon.bind(plugin);
+  plugin.addRibbonIcon = (icon, title, callback) => {
+    captured.ribbonCallbacks.push(callback as AnyFn);
+    return addRibbonIcon(icon, title, callback);
+  };
+  const addSettingTab = plugin.addSettingTab.bind(plugin);
+  plugin.addSettingTab = (tab) => {
+    captured.settingTabs.push(tab);
+    addSettingTab(tab);
+  };
+  const protocol = plugin.registerObsidianProtocolHandler.bind(plugin);
+  plugin.registerObsidianProtocolHandler = (action, handler) => {
+    captured.protocolHandlers.push(handler as AnyFn);
+    protocol(action, handler);
+  };
+
+  return captured;
+}
+
+/** The internal steps in a harness log, in order. */
+function stepsOf(log: string[]): string[] {
+  return log.filter((entry) => entry.startsWith("step:"));
+}
+
+describe("onload steps (characterization)", () => {
+  let app: MockApp;
+  const originalIsMobile = Platform.isMobile;
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    app = App.createMock();
+    Platform.isMobile = false;
+  });
+
+  afterEach(() => {
+    Platform.isMobile = originalIsMobile;
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+    document.body.empty();
+  });
+
+  async function startedPlugin(
+    data: unknown = null,
+  ): Promise<{ harness: Harness; captured: Captured }> {
+    const harness = createHarness({ data }, app);
+    const captured = observeOnload(harness, app);
+    await harness.plugin.onload();
+    return { harness, captured };
+  }
+
+  describe("order", () => {
+    it("loads settings, then the image cache and watchers, then builds services and registers with Obsidian", async () => {
+      const { harness } = await startedPlugin();
+
+      expect(harness.log).toEqual([
+        "step:loadSettings",
+        "loadData",
+        "step:previewImageCache.initialize",
+        "step:registerVaultMetadataChangeListeners",
+        "vault.on:modify",
+        "registerEvent",
+        "vault.on:create",
+        "registerEvent",
+        "vault.on:rename",
+        "registerEvent",
+        "step:getActiveDashboardView",
+        "step:initializeSettingsBackedServices",
+        "step:ensureAutoRefreshScheduler",
+        "step:scheduleStartupSavedArticleValidation",
+        "workspace.onLayoutReady",
+        "workspace.on:active-leaf-change",
+        "registerEvent",
+        "workspace.onLayoutReady",
+        "registerObsidianProtocolHandler:rss-dashboard",
+        "registerView:rss-dashboard-view",
+        "registerView:rss-discover-view",
+        "registerView:rss-reader-view",
+        "registerView:rss-smallweb-view",
+        "addRibbonIcon:compass",
+        "addSettingTab",
+        "addCommand:open-dashboard",
+        "addCommand:open-discover",
+        "addCommand:refresh-feeds",
+        "addCommand:import-opml",
+        "addCommand:import-starred",
+        "addCommand:export-opml",
+        "addCommand:import-usersettings-json",
+        "addCommand:export-usersettings-json",
+        "addCommand:apply-feed-limits",
+        "addCommand:toggle-sidebar",
+      ]);
+    });
+
+    it("applies the mobile adjustments after the scheduler exists and before it schedules saved-article validation", async () => {
+      Platform.isMobile = true;
+
+      const { harness } = await startedPlugin({
+        refreshInterval: 30,
+        maxItems: 200,
+        sidebarCollapsed: false,
+      });
+
+      const steps = stepsOf(harness.log);
+      const scheduler = steps.indexOf("step:ensureAutoRefreshScheduler");
+      const mobile = steps.indexOf("step:applyMobileOptimizations");
+      const validation = steps.indexOf(
+        "step:scheduleStartupSavedArticleValidation",
+      );
+      expect(scheduler).toBeGreaterThan(-1);
+      expect(mobile).toBe(scheduler + 1);
+      expect(validation).toBe(mobile + 1);
+      expect(harness.plugin.settings).toMatchObject({
+        refreshInterval: 60,
+        maxItems: 50,
+        sidebarCollapsed: true,
+      });
+    });
+
+    it("leaves the settings alone on desktop", async () => {
+      const { harness } = await startedPlugin({
+        refreshInterval: 30,
+        maxItems: 200,
+        sidebarCollapsed: false,
+      });
+
+      expect(stepsOf(harness.log)).not.toContain(
+        "step:applyMobileOptimizations",
+      );
+      expect(harness.plugin.settings).toMatchObject({
+        refreshInterval: 30,
+        maxItems: 200,
+        sidebarCollapsed: false,
+      });
+    });
+
+    it("redraws an open dashboard after the watchers and before it builds the scheduler", async () => {
+      const harness = createHarness({ data: null }, app);
+      observeOnload(harness, app);
+      const render = vi.fn(() => {
+        harness.log.push("view.render");
+      });
+      (harness.plugin as unknown as Internals).getActiveDashboardView = () =>
+        Promise.resolve({ render });
+
+      await harness.plugin.onload();
+
+      const order = harness.log.filter(
+        (e) =>
+          e === "view.render" ||
+          e === "step:ensureAutoRefreshScheduler" ||
+          e === "vault.on:rename",
+      );
+      expect(order).toEqual([
+        "vault.on:rename",
+        "view.render",
+        "step:ensureAutoRefreshScheduler",
+      ]);
+      expect(render).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("startup refresh", () => {
+    const START = ["step:resumePendingImports", "step:scheduler.start"];
+
+    /**
+     * Starts the plugin with the delay set after settings load, because the
+     * loader already replaces a negative delay with the default.
+     */
+    async function startWithDelay(delaySeconds: number): Promise<Harness> {
+      const harness = createHarness({ data: null }, app);
+      observeOnload(harness, app);
+      const internals = harness.plugin as unknown as Internals;
+      const loadSettings = internals.loadSettings as AnyFn;
+      internals.loadSettings = async () => {
+        await loadSettings();
+        harness.plugin.settings.startupRefreshDelaySeconds = delaySeconds;
+      };
+      await harness.plugin.onload();
+      return harness;
+    }
+
+    it("resumes background imports and then starts the scheduler once the delay passes", async () => {
+      const { log } = await startWithDelay(5);
+      expect(stepsOf(log)).not.toContain(START[0]);
+
+      await vi.advanceTimersByTimeAsync(4999);
+      expect(stepsOf(log)).not.toContain(START[0]);
+      await vi.advanceTimersByTimeAsync(1);
+
+      expect(stepsOf(log).slice(-2)).toEqual(START);
+    });
+
+    it.each([0, -1])(
+      "starts both inside onload when the delay is %s",
+      async (delaySeconds) => {
+        const { log } = await startWithDelay(delaySeconds);
+
+        expect(stepsOf(log).slice(-2)).toEqual(START);
+        expect(vi.getTimerCount()).toBe(0);
+      },
+    );
+
+    it("falls back to the default 5 second delay when the setting is not a finite number", async () => {
+      // The settings loader keeps NaN, so this fallback is the only guard.
+      const { log } = await startWithDelay(Number.NaN);
+      expect(stepsOf(log)).not.toContain(START[0]);
+
+      await vi.advanceTimersByTimeAsync(4999);
+      expect(stepsOf(log)).not.toContain(START[0]);
+      await vi.advanceTimersByTimeAsync(1);
+
+      expect(stepsOf(log).slice(-2)).toEqual(START);
+    });
+  });
+
+  describe("when startup fails part-way", () => {
+    async function failingStartup(error: unknown) {
+      const harness = createHarness({ data: null }, app);
+      observeOnload(harness, app);
+      const internals = harness.plugin as unknown as Internals;
+      internals.ensureAutoRefreshScheduler = () => {
+        throw error;
+      };
+      const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+      const notices = vi.spyOn(console, "debug").mockImplementation(() => {});
+
+      await harness.plugin.onload();
+      return { harness, logged, notices };
+    }
+
+    it("reports the error, keeps what was already registered and registers nothing more", async () => {
+      const error = new Error("boom");
+
+      const { harness, logged, notices } = await failingStartup(error);
+
+      expect(logged).toHaveBeenCalledWith(
+        "[RSS Dashboard] onload initialization failed:",
+        error,
+      );
+      expect(notices).toHaveBeenCalledWith(
+        "[Stub Notice]",
+        "Error initializing RSS dashboard plugin.",
+      );
+      expect(harness.log).toEqual([
+        "step:loadSettings",
+        "loadData",
+        "step:previewImageCache.initialize",
+        "step:registerVaultMetadataChangeListeners",
+        "vault.on:modify",
+        "registerEvent",
+        "vault.on:create",
+        "registerEvent",
+        "vault.on:rename",
+        "registerEvent",
+        "step:getActiveDashboardView",
+        "step:initializeSettingsBackedServices",
+      ]);
+      expect(vi.getTimerCount()).toBe(0);
+    });
+
+    it("logs a thrown value that is not an Error as text", async () => {
+      const { logged } = await failingStartup("plain failure");
+
+      expect(logged).toHaveBeenCalledWith(
+        "[RSS Dashboard] onload initialization failed:",
+        "plain failure",
+      );
+    });
+  });
+
+  describe("registered callbacks", () => {
+    it("shows What's New from both the active-leaf listener and the layout-ready hook", async () => {
+      const harness = createHarness({ data: null }, app);
+      const captured = observeOnload(harness, app);
+      const show = vi
+        .spyOn(harness.plugin, "maybeShowWhatsNewForActiveDashboard")
+        .mockImplementation(() => {});
+      await harness.plugin.onload();
+
+      expect(captured.activeLeafHandlers).toHaveLength(1);
+      captured.activeLeafHandlers[0]();
+      expect(show).toHaveBeenCalledTimes(1);
+
+      // The first layout-ready hook is saved-article validation; this is the second.
+      expect(captured.layoutReadyCallbacks).toHaveLength(2);
+      captured.layoutReadyCallbacks[1]();
+      expect(show).toHaveBeenCalledTimes(2);
+    });
+
+    it("hands an obsidian:// link to the URI action dispatcher", async () => {
+      const harness = createHarness({ data: null }, app);
+      const captured = observeOnload(harness, app);
+      const dispatch = vi.fn().mockResolvedValue(undefined);
+      (harness.plugin as unknown as Internals).dispatchUriAction = dispatch;
+      await harness.plugin.onload();
+
+      const params = { action: "rss-dashboard", url: FEED_URL };
+      captured.protocolHandlers[0](params);
+
+      expect(dispatch).toHaveBeenCalledWith(params);
+    });
+
+    it("registers the setting tab it keeps on the plugin", async () => {
+      const { harness, captured } = await startedPlugin();
+
+      expect(captured.settingTabs).toHaveLength(1);
+      expect(harness.plugin.settingTab).toBe(captured.settingTabs[0]);
+    });
+
+    it("opens the dashboard from the ribbon icon", async () => {
+      const harness = createHarness({ data: null }, app);
+      const captured = observeOnload(harness, app);
+      const activate = vi
+        .spyOn(harness.plugin, "activateView")
+        .mockResolvedValue(undefined);
+      await harness.plugin.onload();
+
+      captured.ribbonCallbacks[0]();
+
+      expect(activate).toHaveBeenCalledTimes(1);
+    });
+
+    it.each([
+      ["open-dashboard", "activateView"],
+      ["open-discover", "activateDiscoverView"],
+      ["export-opml", "exportOpml"],
+      ["import-usersettings-json", "importUserSettingsJson"],
+      ["export-usersettings-json", "exportUserSettingsJson"],
+      ["apply-feed-limits", "applyFeedLimitsToAllFeeds"],
+    ])("runs %s through the plugin's %s", async (id, method) => {
+      const harness = createHarness({ data: null }, app);
+      const captured = observeOnload(harness, app);
+      const spy = vi
+        .spyOn(harness.plugin as unknown as Record<string, AnyFn>, method)
+        .mockResolvedValue(undefined);
+      await harness.plugin.onload();
+
+      captured.commands.get(id)?.callback();
+
+      expect(spy).toHaveBeenCalledTimes(1);
+    });
+
+    it("cancels the pending startup refresh before the refresh-feeds command refreshes", async () => {
+      const harness = createHarness({ data: null }, app);
+      const captured = observeOnload(harness, app);
+      const calls: string[] = [];
+      vi.spyOn(
+        harness.plugin,
+        "cancelPendingStartupRefresh",
+      ).mockImplementation(() => {
+        calls.push("cancel");
+      });
+      vi.spyOn(harness.plugin, "refreshFeeds").mockImplementation(() => {
+        calls.push("refresh");
+        return Promise.resolve();
+      });
+      await harness.plugin.onload();
+
+      captured.commands.get("refresh-feeds")?.callback();
+
+      expect(calls).toEqual(["cancel", "refresh"]);
+    });
+
+    describe("toggle-sidebar", () => {
+      async function withToggle(dashboardOpen: boolean) {
+        const { harness, captured } = await startedPlugin();
+        const render = vi.fn();
+        harness.plugin.getActiveDashboardView = vi
+          .fn()
+          .mockResolvedValue({ render });
+        const save = vi
+          .spyOn(harness.plugin, "saveSettings")
+          .mockResolvedValue(undefined);
+        vi.spyOn(app.workspace, "getLeavesOfType").mockReturnValue(
+          dashboardOpen ? [{} as never] : [],
+        );
+        const command = captured.commands.get("toggle-sidebar")!;
+        return { plugin: harness.plugin, render, save, command };
+      }
+
+      it("is unavailable while no dashboard is open", async () => {
+        const { plugin, render, save, command } = await withToggle(false);
+        const before = plugin.settings.sidebarCollapsed;
+
+        expect(command.checkCallback(true)).toBe(false);
+        expect(command.checkCallback(false)).toBe(false);
+        await vi.advanceTimersByTimeAsync(0);
+
+        expect(plugin.settings.sidebarCollapsed).toBe(before);
+        expect(save).not.toHaveBeenCalled();
+        expect(render).not.toHaveBeenCalled();
+      });
+
+      it("only reports availability when asked to check", async () => {
+        const { plugin, render, save, command } = await withToggle(true);
+        const before = plugin.settings.sidebarCollapsed;
+
+        expect(command.checkCallback(true)).toBe(true);
+        await vi.advanceTimersByTimeAsync(0);
+
+        expect(plugin.settings.sidebarCollapsed).toBe(before);
+        expect(save).not.toHaveBeenCalled();
+        expect(render).not.toHaveBeenCalled();
+      });
+
+      it("flips the sidebar, saves, then redraws when run", async () => {
+        const { plugin, render, save, command } = await withToggle(true);
+        const before = plugin.settings.sidebarCollapsed;
+
+        expect(command.checkCallback(false)).toBe(true);
+        await vi.advanceTimersByTimeAsync(0);
+
+        expect(plugin.settings.sidebarCollapsed).toBe(!before);
+        expect(save).toHaveBeenCalledTimes(1);
+        expect(render).toHaveBeenCalledTimes(1);
+        expect(save.mock.invocationCallOrder[0]).toBeLessThan(
+          render.mock.invocationCallOrder[0],
+        );
+      });
     });
   });
 });

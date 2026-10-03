@@ -82,6 +82,8 @@ function main() {
     runNode(`Linting ${plan.lint.length} staged file(s)...`, "node_modules/eslint/bin/eslint.js", [
       "--max-warnings=0",
       "--no-warn-ignored",
+      "--suppressions-location",
+      "scripts/eslint-suppressions.json",
       "--cache",
       "--cache-strategy",
       "content",

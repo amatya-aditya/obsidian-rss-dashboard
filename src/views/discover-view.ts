@@ -1669,6 +1669,10 @@ export class DiscoverView extends ItemView {
         },
       );
 
+      if (result.refused) {
+        return;
+      }
+
       this.refreshViewAfterFollowStateChange();
       new Notice(
         `Added ${result.addedCount} feeds. Articles will be fetched in the background. Skipped ${skippedAlreadyFollowed + result.skippedCount} already-followed feeds.`,
@@ -1689,8 +1693,18 @@ export class DiscoverView extends ItemView {
     feed: FeedMetadata,
     folderName: string,
   ): Promise<void> {
+    if (this.isFollowedFeed(feed)) {
+      new Notice("This feed URL already exists");
+      return;
+    }
+
     try {
       await this.plugin.ensureFolderExists(folderName);
+
+      if (this.isFollowedFeed(feed)) {
+        new Notice("This feed URL already exists");
+        return;
+      }
 
       const added = await this.plugin.addFeed(
         feed.title,
@@ -1706,6 +1720,9 @@ export class DiscoverView extends ItemView {
         { showNotice: false, globalOperation: true },
       );
       if (!added) {
+        if (this.isFollowedFeed(feed)) {
+          new Notice("This feed URL already exists");
+        }
         return;
       }
       new Notice(`Feed "${feed.title}" added to "${folderName}"`);

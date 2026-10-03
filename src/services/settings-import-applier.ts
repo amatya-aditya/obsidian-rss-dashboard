@@ -61,6 +61,7 @@ export class SettingsImportApplier {
     };
 
     if (kind === "replacing") {
+      const { folders, availableTags } = this.settings;
       this.options.setSettings(
         Object.assign({}, DEFAULT_SETTINGS, this.settings, parsed),
       );
@@ -73,12 +74,12 @@ export class SettingsImportApplier {
       }
       this.settings.folders = Array.isArray(parsedWithCollections.folders)
         ? parsedWithCollections.folders
-        : this.settings.folders;
+        : folders;
       this.settings.availableTags = Array.isArray(
         parsedWithCollections.availableTags,
       )
         ? parsedWithCollections.availableTags
-        : this.settings.availableTags;
+        : availableTags;
 
       this.options.migrateLegacySettings();
       for (const feed of this.settings.feeds) {
@@ -117,7 +118,23 @@ export class SettingsImportApplier {
       await this.options.refreshDashboardViews();
       await this.options.renderDiscoverView();
 
-      new Notice("Imported JSON with feeds and settings");
+      if (replacesFeedList) {
+        new Notice("Imported JSON with feeds and settings");
+      } else {
+        const importedCollections: string[] = [];
+        if (Array.isArray(parsedWithCollections.folders)) {
+          importedCollections.push("folders");
+        }
+        if (Array.isArray(parsedWithCollections.availableTags)) {
+          importedCollections.push("tags");
+        }
+        const collectionSummary = importedCollections.join(", ");
+        new Notice(
+          collectionSummary
+            ? `Imported ${collectionSummary}${importedCollections.length === 2 ? "," : ""} and settings`
+            : "Imported settings",
+        );
+      }
       return;
     }
 

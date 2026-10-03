@@ -15,8 +15,6 @@
 :root {
   /* Feed Manager Modal Z-Index Tokens */
   --feed-manager-z-index-modal: 100000;
-  --feed-manager-z-index-modal-overlay: 100100;
-  --feed-manager-z-index-modal-overlay-container: 100101;
   --feed-manager-z-index-drawer: 99999;
 
   /* Feed Manager Semantic Palette */
@@ -102,7 +100,7 @@
 
 /* Import OPML button */
 .feed-manager-button-row button.feed-manager-import-button {
-  color: white;
+  color: var(--text-normal);
   cursor: pointer;
 }
 
@@ -117,7 +115,7 @@
 
 /* Export OPML button  */
 .feed-manager-button-row button.feed-manager-export-button {
-  color: white;
+  color: var(--text-normal);
   cursor: pointer;
 }
 
@@ -132,7 +130,7 @@
 
 /* Import starred articles from Inoreader button */
 .feed-manager-button-row button.feed-manager-import-starred-button {
-  color: white;
+  color: var(--text-normal);
   cursor: pointer;
 }
 
