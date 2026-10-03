@@ -1,20 +1,20 @@
-# RSS Dashboard 2.7.0 — Reddit
+# RSS Dashboard 2.7.1 — Reddit
 
-Published: 2026-09-25
+Published: 2026-10-03
 Platform: Reddit
-Release: 2.7.0
+Release: 2.7.1
 
 ---
 
-**Title:** RSS Dashboard 2.7.0 — import your starred articles from Inoreader/FreshRSS, image lightbox, safer storage + more
+**Title:** RSS Dashboard 2.7.1 — import your starred articles from Inoreader/FreshRSS, image lightbox, safer storage + more
 
-Hi Reddit! We just released **RSS Dashboard 2.7.0**, with a fairly large set of updates focused on portability, data safety, and making the reading experience a little nicer.
+Hi Reddit! We just released **RSS Dashboard 2.7.1**, with a fairly large set of updates focused on portability, data safety, and making the reading experience a little nicer.
 
 For anyone unfamiliar with it, RSS Dashboard is a free, open-source RSS reader built directly inside Obsidian.
 
 ### ⭐ Import your starred articles
 
-The biggest addition in 2.7.0 is **Import starred articles**.
+The biggest addition in 2.7.1 is **Import starred articles**.
 
 You can now bring starred items over from **Inoreader, FreshRSS, and other supported Google Reader-compatible `starred.json` exports**.
 
@@ -28,7 +28,7 @@ Click or tap any image in the Reader to open it in a full-resolution lightbox wi
 
 ### 🎧 Reading and organization improvements
 
-2.7.0 also adds:
+2.7.1 also adds:
 
 - A simpler podcast episode list with improved mobile controls
 - New **Date > Feed** and **Folder > Feed** grouping options
@@ -48,11 +48,11 @@ If you're still using either mode, migrate to **Shard storage v2** under **Setti
 
 ### More details
 
-Full 2.7.0 release notes:  
-https://github.com/amatya-aditya/obsidian-rss-dashboard/blob/master/docs/releases/2.7.0.md
+Full 2.7.1 release notes:  
+https://github.com/amatya-aditya/obsidian-rss-dashboard/blob/master/docs/releases/2.7.1.md
 
 GitHub release:  
-https://github.com/amatya-aditya/obsidian-rss-dashboard/releases/tag/2.7.0
+https://github.com/amatya-aditya/obsidian-rss-dashboard/releases/tag/2.7.1
 
 Repository:  
 https://github.com/amatya-aditya/obsidian-rss-dashboard
