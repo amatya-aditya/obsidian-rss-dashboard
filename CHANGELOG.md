@@ -7,6 +7,7 @@
 
 ### Fixes
 
+- Standardized article star controls on the filled yellow starred state and made the outline darken on hover across dashboard and Reader views. The dashboard's circular background remains dashboard-specific. [GH Issue #684](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/684)
 - Fixed the user preferences import notice claiming feeds were imported when the file only contained folders or tags. The notice now names the collections the file included. [GH Issue #464](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/464)
 - Fixed vertical misalignment among Reader toolbar icons and removed the dashboard-style circle from the Tags action. [GH Issue #680](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/680)
 - Fixed Discover's mobile **Add to...** picker opening away from its button. It now keeps its calculated vertical position while using the mobile-width layout.
