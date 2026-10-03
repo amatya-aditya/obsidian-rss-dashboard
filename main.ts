@@ -293,6 +293,7 @@ export default class RssDashboardPlugin extends Plugin {
 
   settings!: RssDashboardSettings;
   feedParser!: FeedParser;
+  private readonly pendingFeedUrls = new Set<string>();
   articleSaver!: ArticleSaver;
   private backupService!: BackupService;
   private readonly autoBackupCoordinator: AutoBackupCoordinator;
@@ -2650,6 +2651,31 @@ export default class RssDashboardPlugin extends Plugin {
 
   // ✅ FolderService extracted — all 865 tests passing
 
+  private reserveFeedUrl(
+    url: string,
+    showNotice: boolean,
+    reportPendingDuplicate: boolean,
+  ): (() => void) | null {
+    if (this.settings.feeds.some((feed) => feed.url === url)) {
+      if (showNotice) {
+        new Notice("This feed URL already exists");
+      }
+      return null;
+    }
+
+    if (this.pendingFeedUrls.has(url)) {
+      if (showNotice || reportPendingDuplicate) {
+        new Notice("This feed URL already exists");
+      }
+      return null;
+    }
+
+    this.pendingFeedUrls.add(url);
+    return () => {
+      this.pendingFeedUrls.delete(url);
+    };
+  }
+
   async addFeed(
     title: string,
     url: string,
@@ -2668,13 +2694,15 @@ export default class RssDashboardPlugin extends Plugin {
     },
   ) {
     const showNotice = options?.showNotice !== false;
+    let releaseReservation = () => {};
     try {
-      if (this.settings.feeds.some((f) => f.url === url)) {
-        if (showNotice) {
-          new Notice("This feed URL already exists");
-        }
-        return false;
-      }
+      const reservation = this.reserveFeedUrl(
+        url,
+        showNotice,
+        options?.globalOperation === true,
+      );
+      if (!reservation) return false;
+      releaseReservation = reservation;
 
       let mediaType: "article" | "video" | "podcast" = "article";
       if (folder === this.settings.media.defaultYouTubeFolder) {
@@ -2800,6 +2828,8 @@ export default class RssDashboardPlugin extends Plugin {
         );
       }
       return false;
+    } finally {
+      releaseReservation();
     }
   }
 

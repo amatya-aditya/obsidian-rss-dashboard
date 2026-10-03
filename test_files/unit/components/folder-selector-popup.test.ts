@@ -87,6 +87,41 @@ describe("FolderSelectorPopup", () => {
     );
   });
 
+  it("keeps the folder picker vertically anchored on mobile", () => {
+    setViewport(390, 844);
+    vi.spyOn(window, "matchMedia").mockImplementation((query: string) => ({
+      matches: query === "(max-width: 600px)",
+      media: query,
+      onchange: null,
+      addListener: () => {},
+      removeListener: () => {},
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      dispatchEvent: () => false,
+    }));
+
+    const anchorEl = createDiv();
+    vi.spyOn(anchorEl, "getBoundingClientRect").mockReturnValue({
+      left: 20,
+      top: 300,
+      bottom: 340,
+      right: 370,
+      width: 350,
+      height: 40,
+    } as DOMRect);
+
+    new FolderSelectorPopup(createPluginStub(), {
+      anchorEl,
+      onSelect: () => {},
+      listOnly: true,
+    });
+
+    const popup = document.body.querySelector(
+      ".rss-folder-selector-popup",
+    ) as HTMLElement;
+    expect(popup.style.top).toBe("344px");
+  });
+
   it("clamps left and flips above when near viewport edges", () => {
     setViewport(300, 220);
 

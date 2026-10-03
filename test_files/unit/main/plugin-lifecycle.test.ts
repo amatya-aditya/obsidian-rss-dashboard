@@ -1337,9 +1337,9 @@ describe("addFeed()", () => {
     mockParseFeed.mockClear();
   });
 
-  it("rejects duplicate feed URLs", async () => {
-    // Given: Feed URL that already exists
-    const existingUrl = sampleFeed.url;
+    it("rejects duplicate feed URLs", async () => {
+      // Given: Feed URL that already exists
+      const existingUrl = sampleFeed.url;
 
     // When: addFeed is called with duplicate URL
     const result = await plugin.addFeed(
@@ -1348,11 +1348,69 @@ describe("addFeed()", () => {
       "Uncategorized",
     );
 
-    // Then: Should return false
-    expect(result).toBe(false);
-  });
+      // Then: Should return false
+      expect(result).toBe(false);
+    });
 
-  it("adds feed when URL is unique", async () => {
+    it("refuses a URL that another subscription is still parsing", async () => {
+      const newUrl = "https://example.com/concurrent-feed.xml";
+      let finishFirstParse: (feed: Feed) => void = () => {};
+      mockParseFeed.mockImplementationOnce(
+        () =>
+          new Promise<Feed>((resolve) => {
+            finishFirstParse = resolve;
+          }),
+      );
+      mockParseFeed.mockResolvedValueOnce({
+        ...sampleFeed,
+        title: "New Feed",
+        url: newUrl,
+      });
+
+      const firstAdd = plugin.addFeed(
+        "New Feed",
+        newUrl,
+        "Uncategorized",
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        { showNotice: false },
+      );
+      await vi.waitFor(() => expect(mockParseFeed).toHaveBeenCalledTimes(1));
+
+      const noticeSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
+      const duplicateAdd = await plugin.addFeed(
+        "New Feed",
+        newUrl,
+        "Uncategorized",
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        { showNotice: false, globalOperation: true },
+      );
+
+      finishFirstParse({ ...sampleFeed, title: "New Feed", url: newUrl });
+      expect(duplicateAdd).toBe(false);
+      expect(await firstAdd).toBe(true);
+      expect(mockParseFeed).toHaveBeenCalledTimes(1);
+      expect(
+        plugin.settings.feeds.filter((feed) => feed.url === newUrl),
+      ).toHaveLength(1);
+      expect(noticeSpy).toHaveBeenCalledWith(
+        "[Stub Notice]",
+        "This feed URL already exists",
+      );
+    });
+
+    it("adds feed when URL is unique", async () => {
     // Given: New unique URL
     const newUrl = "https://example.com/new-feed.xml";
 
