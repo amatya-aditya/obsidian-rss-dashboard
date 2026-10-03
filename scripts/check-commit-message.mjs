@@ -3,6 +3,8 @@ import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { isGitCheckout, skipWithoutGit } from "./git-repository.mjs";
+
 const ROOT_DIR = join(import.meta.dirname, "..");
 const require = createRequire(import.meta.url);
 const ESLINT_BIN = join(
@@ -154,6 +156,11 @@ function main() {
   const options = parseArgs(process.argv.slice(2));
   if (options.help) {
     printUsage();
+    process.exit(0);
+  }
+
+  if (!isGitCheckout(ROOT_DIR)) {
+    skipWithoutGit("check:commit-message");
     process.exit(0);
   }
 
