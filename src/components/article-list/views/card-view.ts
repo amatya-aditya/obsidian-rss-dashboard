@@ -17,6 +17,14 @@ export interface CardViewContext extends BaseViewContext {
   showCardToolbar: boolean;
 }
 
+function keepTextStopEnterLocal(element: HTMLElement): void {
+  element.addEventListener("keydown", (event: KeyboardEvent) => {
+    if (event.key === "Enter") {
+      event.stopPropagation();
+    }
+  });
+}
+
 export function renderCardView(
   container: HTMLElement,
   articles: FeedItem[],
@@ -48,6 +56,20 @@ export function renderCardView(
       },
     });
 
+    const openButton = card.createEl("button", {
+      cls: "rss-dashboard-card-open-button",
+      attr: {
+        type: "button",
+        "aria-label": `Open article: ${article.title}. Feed: ${article.feedTitle}`,
+      },
+    });
+    openButton.addEventListener("keydown", (event: KeyboardEvent) => {
+      if (event.key === "Enter" || event.key === " ") {
+        // Keep dashboard-wide shortcuts from taking over native button activation.
+        event.stopPropagation();
+      }
+    });
+
     const cardContent = card.createDiv({
       cls: "rss-dashboard-card-content",
     });
@@ -58,7 +80,13 @@ export function renderCardView(
 
     const cardTitleEl = cardHeader.createDiv({
       cls: "rss-dashboard-article-title",
+      attr: {
+        role: "heading",
+        "aria-level": "3",
+        tabindex: "0",
+      },
     });
+    keepTextStopEnterLocal(cardTitleEl);
 
     if (ctx.highlightService && ctx.settings.highlights.highlightInTitles) {
       ctx.highlightService.setHighlightedText(cardTitleEl, article.title);
@@ -78,11 +106,15 @@ export function renderCardView(
       });
 
       deps.renderFeedIcon(feedContainer, article.feedUrl, article.mediaType);
-      feedContainer.createDiv({
+      const feedName = feedContainer.createDiv({
         cls: "rss-dashboard-article-feed",
         text: article.feedTitle,
-        attr: { "aria-label": article.feedTitle },
+        attr: {
+          "aria-label": `Feed: ${article.feedTitle}`,
+          tabindex: "0",
+        },
       });
+      keepTextStopEnterLocal(feedName);
     }
 
     const coverImgSrc = ctx.settings.display.showCoverImage
@@ -95,6 +127,10 @@ export function renderCardView(
     const previewSummaryText = ctx.settings.display.showSummary
       ? getArticlePreviewSummaryText(article)
       : "";
+    const cardDescriptionId = `${card.id}-description`;
+    if (previewSummaryText) {
+      openButton.setAttribute("aria-describedby", cardDescriptionId);
+    }
 
     if (displayedCoverImgSrc) {
       const previewRegion = cardContent.createDiv({
@@ -130,7 +166,13 @@ export function renderCardView(
         if (previewSummaryText) {
           const summaryOnlyContainer = previewRegion.createDiv({
             cls: "rss-dashboard-cover-summary-only",
+            attr: {
+              id: cardDescriptionId,
+              role: "note",
+              tabindex: "0",
+            },
           });
+          keepTextStopEnterLocal(summaryOnlyContainer);
           if (
             ctx.highlightService &&
             ctx.settings.highlights.highlightInSummaries &&
@@ -153,7 +195,13 @@ export function renderCardView(
       if (previewSummaryText) {
         const summaryOverlay = coverContainer.createDiv({
           cls: "rss-dashboard-summary-overlay",
+          attr: {
+            id: cardDescriptionId,
+            role: "note",
+            tabindex: "0",
+          },
         });
+        keepTextStopEnterLocal(summaryOverlay);
         if (
           ctx.highlightService &&
           ctx.settings.highlights.highlightInSummaries &&
@@ -173,7 +221,13 @@ export function renderCardView(
       });
       const summaryOnlyContainer = previewRegion.createDiv({
         cls: "rss-dashboard-cover-summary-only",
+        attr: {
+          id: cardDescriptionId,
+          role: "note",
+          tabindex: "0",
+        },
       });
+      keepTextStopEnterLocal(summaryOnlyContainer);
       if (
         ctx.highlightService &&
         ctx.settings.highlights.highlightInSummaries &&
