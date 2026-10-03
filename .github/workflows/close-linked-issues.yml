@@ -1,0 +1,49 @@
+name: Close linked issues
+
+# `master` is the default branch, so GitHub only closes issues named by a
+# closing keyword when a PR merges into `master`. Most PRs merge into `dev`,
+# so this does the same for them.
+#
+# pull_request_target runs in the context of the base branch and has write
+# access even for PRs from forks. It never checks out or runs PR code: the PR
+# body is passed through the environment, never interpolated into the script.
+
+on:
+  pull_request_target:
+    types: [closed]
+    branches: [dev]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: read
+
+jobs:
+  close:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Close issues named by closing keywords
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          set -euo pipefail
+
+          # Ignore HTML comments and inline code, so the PR template's own
+          # "Use `Fixes #123`" hint never closes issue 123.
+          numbers=$(printf '%s' "$PR_BODY" \
+            | perl -0pe 's/<!--.*?-->//gs; s/`[^`]*`//g' \
+            | grep -oiE '\b(close[sd]?|fix(e[sd])?|resolve[sd]?)[: ]+#[0-9]+' \
+            | grep -oE '[0-9]+$' \
+            | sort -un || true)
+
+          for n in $numbers; do
+            state=$(gh issue view "$n" --json state --jq .state 2>/dev/null || echo MISSING)
+            if [ "$state" = "OPEN" ]; then
+              gh issue close "$n" --reason completed \
+                --comment "Closed by #${PR_NUMBER}, merged into dev."
+            fi
+          done
