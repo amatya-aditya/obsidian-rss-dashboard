@@ -117,14 +117,18 @@ function resolveItemAudio(
       : undefined;
 
   const enclosure =
-    item.enclosure ||
-    (isAudioLink
+    item.enclosure
       ? {
-          url: ctx.convertToAbsoluteUrl(item.link || "", url),
-          type: "audio/mpeg",
-          length: "",
+          ...item.enclosure,
+          url: ctx.convertToAbsoluteUrl(item.enclosure.url, url),
         }
-      : undefined);
+      : isAudioLink
+        ? {
+            url: ctx.convertToAbsoluteUrl(item.link || "", url),
+            type: "audio/mpeg",
+            length: "",
+          }
+        : undefined;
 
   return { isPodcast, audioUrl, enclosure };
 }
