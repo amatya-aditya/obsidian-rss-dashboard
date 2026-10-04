@@ -66,6 +66,29 @@ describe("ArticleHeaderMenu Component", () => {
     ).not.toBeNull();
   });
 
+  it("associates the visible Card spacing label with its range control", () => {
+    settings.viewStyle = "card";
+    const menu = new ArticleHeaderMenu(settings, "", callbacks);
+    menu.render(container);
+
+    const spacingInput = container.querySelector<HTMLInputElement>(
+      ".rss-dashboard-dropdown-card-spacing-input",
+    );
+
+    const spacingLabel = container.querySelector<HTMLElement>(
+      ".rss-dashboard-dropdown-card-spacing-group .rss-dashboard-dropdown-card-layout-label",
+    );
+
+    expect(spacingLabel?.textContent).toContain("Card spacing: 15px");
+    expect(spacingLabel?.id).toBe("rss-dashboard-card-spacing-label");
+    expect(spacingInput?.getAttribute("aria-labelledby")).toBe(
+      "rss-dashboard-card-spacing-label",
+    );
+    expect(spacingInput?.value).toBe("15");
+    expect(spacingInput?.min).toBe("0");
+    expect(spacingInput?.max).toBe("40");
+  });
+
   it("toggles is-menu-open classes on button and dropdown", () => {
     const menu = new ArticleHeaderMenu(
       settings,
