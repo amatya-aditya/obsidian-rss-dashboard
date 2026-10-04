@@ -5,6 +5,7 @@
 - Sidebar search now says when nothing matched instead of leaving the sidebar blank. A search with no matching feeds or folders shows **0 results** and **No matches found.**, as Obsidian's own search does, and the message clears when the query changes or the search is cleared or closed. [GH Issue #678](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/678)
 
 ### Fixes
+- Gave the dashboard menu's refresh button the accessible name **Refresh feeds**, including in popout windows. [GH Issue #713](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/713)
 - Fixed saved feeds with missing folders staying orphaned after startup. Their folders are now repaired on the first load, as they already were after a settings reload. [GH Issue #452](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/452)
 - Fixed Reader article titles inheriting low-contrast H1 colors from themes. [GH Issue #707](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/707)
 
