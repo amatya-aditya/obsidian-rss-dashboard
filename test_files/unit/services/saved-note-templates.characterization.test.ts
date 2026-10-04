@@ -346,8 +346,7 @@ describe("ArticleSaver note template", () => {
 });
 
 describe("ArticleSaver frontmatter template", () => {
-  it("fills the variables it knows, escaped, and leaves {{summary}} and {{content}}", async () => {
-    // BUG: pinned, see #674 ({{summary}} stays literal in frontmatter)
+  it("fills the variables it knows, escaped, and leaves {{content}}", async () => {
     const note = await saveWithArticleSaver(
       createItem(),
       {
@@ -375,7 +374,7 @@ describe("ArticleSaver frontmatter template", () => {
         "A=Ann",
         "SRC=Feed",
         "FT=Feed",
-        "SUM={{summary}}",
+        "SUM=Sum",
         "TAGS=News",
         "G=g-1",
         `IMG=${COVER}`,
