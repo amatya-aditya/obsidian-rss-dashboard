@@ -6,6 +6,7 @@
 
 ### Fixes
 - Fixed Add Feed and Edit Feed dialogs shifting off center when a theme animates modal transforms. Centering now uses an independent CSS translate so the theme animation can continue. [GH Issue #745](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/745)
+- Fixed the Manage Feeds modal shifting off center with themes that animate modal transforms. It now uses the same independent centering while preserving the animation. [GH Issue #745](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/745)
 - Fixed article cover extraction stopping at a `data:` image placeholder. It now skips unusable image URLs, uses a later displayable image, and resolves relative names such as `http-banner.jpg` correctly. [GH Issue #637](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/637)
 - Suppressed sidebar refresh status popups on touch-only devices while keeping them available when a mouse or other hover-capable pointer is present. [GH Issue #741](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/741)
 - Fixed dashboard article star buttons appearing circular; their backgrounds now have the same rounded rectangle corners as neighboring action icons.

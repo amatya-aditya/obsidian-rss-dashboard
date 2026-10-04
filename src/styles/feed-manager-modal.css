@@ -375,9 +375,10 @@
   }
 }
 
-/* Keep feed dialog centering separate from theme animations that use transform. */
+/* Keep feed management modal centering separate from theme transform animations. */
 .modal-container .modal.rss-dashboard-modal-container.rss-add-feed-modal,
-.modal-container .modal.rss-dashboard-modal-container.rss-edit-feed-modal {
+.modal-container .modal.rss-dashboard-modal-container.rss-edit-feed-modal,
+.modal-container .modal.rss-dashboard-modal-container.rss-feed-manager-modal {
   transform: none;
   translate: -50% -50%;
 }

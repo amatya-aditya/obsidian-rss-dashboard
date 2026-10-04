@@ -24,8 +24,12 @@ function declarationsFor(selector: string): Map<string, string> {
 }
 
 describe("Feed manager modal positioning", () => {
-  it("centers add and edit feed dialogs independently of transform animations", () => {
-    for (const dialogClass of ["rss-add-feed-modal", "rss-edit-feed-modal"]) {
+  it("centers feed management dialogs independently of transform animations", () => {
+    for (const dialogClass of [
+      "rss-add-feed-modal",
+      "rss-edit-feed-modal",
+      "rss-feed-manager-modal",
+    ]) {
       const declarations = declarationsFor(
         `.modal-container .modal.rss-dashboard-modal-container.${dialogClass}`,
       );
