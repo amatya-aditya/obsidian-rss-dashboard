@@ -854,13 +854,15 @@ export default class RssDashboardPlugin extends Plugin {
       this.registerEvent(ref),
     );
 
-    const view = await this.getActiveDashboardView();
-    if (view) {
-      view.render();
-    }
-
     try {
       this.initializeSettingsBackedServices();
+      await this.repairMissingFolderPathsForFeeds();
+
+      const view = await this.getActiveDashboardView();
+      if (view) {
+        view.render();
+      }
+
       const autoRefreshScheduler = this.ensureAutoRefreshScheduler();
 
       if (Platform.isMobile) {
