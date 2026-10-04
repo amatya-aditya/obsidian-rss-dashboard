@@ -766,6 +766,7 @@ export class ArticleHeaderMenu {
   private createRefreshButton(parent: HTMLElement, cls: string): void {
     const btn = parent.createEl("button", {
       cls: "rss-dashboard-refresh-button " + cls,
+      attr: { "aria-label": "Refresh feeds" },
     });
     setIcon(btn.createDiv({ cls: "rss-dashboard-refresh-icon" }), "refresh-cw");
     btn.onclick = () => this.callbacks.onRefreshFeeds();

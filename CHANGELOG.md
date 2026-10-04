@@ -6,9 +6,12 @@
 
 ### Fixes
 - Associated the visible **Card spacing** label with the dashboard slider so assistive technology announces its name, value, and range. [GH Issue #714](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/714)
+- Gave the dashboard menu's refresh button the accessible name **Refresh feeds**, including in popout windows. [GH Issue #713](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/713)
+- Fixed saved feeds with missing folders staying orphaned after startup. Their folders are now repaired on the first load, as they already were after a settings reload. [GH Issue #452](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/452)
 - Fixed Reader article titles inheriting low-contrast H1 colors from themes. [GH Issue #707](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/707)
 
 - Made the dashboard article header menu and its custom selectors keyboard-operable, prevented dashboard shortcuts from intercepting Enter on controls, and made Escape close the open picker before the hamburger menu. [GH Issue #696](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/696)
+- Fixed feed refreshes clearing Ctrl/Cmd-selected feed highlights and multi-feed sidebar actions while the article list still showed the selected feeds. [GH Issue #653](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/653)
 - Fixed dashboard article stars shrinking to 40px wide in narrow touch layouts. They now keep a circular 44px by 44px hit target. [GH Issue #689](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/689)
 - Corrected sentence case for sidebar toolbar labels and related UI text. [GH Issue #656](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/656)
 - Fixed the first-launch **Add your first feed here** hint staying on screen when the sidebar redrew during its first five seconds. It now disappears five seconds after it first appears. [GH Issue #628](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/628)

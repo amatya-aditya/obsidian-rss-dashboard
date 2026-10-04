@@ -87,6 +87,16 @@ describe("ArticleHeaderMenu Component", () => {
     expect(spacingInput?.value).toBe("15");
     expect(spacingInput?.min).toBe("0");
     expect(spacingInput?.max).toBe("40");
+  it("gives the refresh button an accessible name and preserves its action", () => {
+    const menu = new ArticleHeaderMenu(settings, "", callbacks);
+    menu.render(container);
+
+    const refreshButton = container.querySelector<HTMLButtonElement>(
+      ".rss-dashboard-view-refresh-button",
+    );
+    expect(refreshButton?.getAttribute("aria-label")).toBe("Refresh feeds");
+    refreshButton?.click();
+    expect(callbacks.onRefreshFeeds).toHaveBeenCalledOnce();
   });
 
   it("toggles is-menu-open classes on button and dropdown", () => {

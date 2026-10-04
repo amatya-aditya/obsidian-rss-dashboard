@@ -214,6 +214,36 @@ describe("Dashboard selection after the sidebar moves or deletes it (#615)", () 
       expect(heading()).toBe("Folders: Bulk, Empty (Feeds: 1)");
     }
 
+    it("keeps selected feeds available to the sidebar after a refresh-only redraw (#653)", () => {
+      ctrlClick(containerEl(), feedRow(BBC));
+      ctrlClick(containerEl(), feedRow(ROOT));
+      expect(view.selectedFeeds).toEqual([BBC, ROOT]);
+      expect(
+        containerEl().querySelectorAll(".rss-dashboard-feed.multi-selected"),
+      ).toHaveLength(2);
+
+      view.refreshSidebarOnly();
+
+      expect(
+        containerEl().querySelectorAll(".rss-dashboard-feed.multi-selected"),
+      ).toHaveLength(2);
+      const dataTransfer = new FakeDataTransfer();
+      find(containerEl(), feedRow(BBC)).dispatchEvent(
+        dragEvent("dragstart", dataTransfer),
+      );
+      expect(JSON.parse(dataTransfer.getData("feed-urls"))).toEqual([BBC, ROOT]);
+
+      find(containerEl(), feedRow(BBC)).dispatchEvent(
+        new MouseEvent("contextmenu", { bubbles: true, cancelable: true }),
+      );
+      expect(ObsidianStubs.Menu.lastItems.map((item) => item.title)).toContain(
+        "Move selection to folder",
+      );
+      expect(ObsidianStubs.Menu.lastItems.map((item) => item.title)).not.toContain(
+        "Update feed",
+      );
+    });
+
     it("clears the view's selection and shows all articles after dragging selected folders onto a folder", async () => {
       selectBulkAndEmpty();
 
