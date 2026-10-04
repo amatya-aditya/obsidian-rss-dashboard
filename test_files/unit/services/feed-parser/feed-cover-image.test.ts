@@ -73,11 +73,11 @@ describe("extractCoverImage", () => {
       expect(resolver).toHaveBeenCalledWith("/og/a.png", BASE);
     });
 
-    it("takes anything that starts with http as absolute", () => {
+    it("resolves a relative filename that starts with http", () => {
       const { cover, resolver } = extract(og("http-banner.jpg"));
 
-      expect(cover).toBe("http-banner.jpg");
-      expect(resolver).not.toHaveBeenCalled();
+      expect(cover).toBe("https://example.com/rss/http-banner.jpg");
+      expect(resolver).toHaveBeenCalledWith("http-banner.jpg", BASE);
     });
 
     it("wins over an image in the document", () => {
@@ -109,10 +109,14 @@ describe("extractCoverImage", () => {
       expect(resolver).not.toHaveBeenCalled();
     });
 
-    it("stops at a data: URI result without trying the images", () => {
+    it("skips a data: URI and tries the images", () => {
       expect(extract(`${og("data:image/png;base64,AAAA")}<img src="${REAL}">`).cover).toBe(
-        "data:image/png;base64,AAAA",
+        REAL,
       );
+    });
+
+    it("returns no cover when the only og:image is a data: URI", () => {
+      expect(extract(og("data:image/png;base64,AAAA")).cover).toBe("");
     });
 
     it("logs a double-encoded url", () => {
@@ -206,9 +210,9 @@ describe("extractCoverImage", () => {
       expect(resolver).not.toHaveBeenCalled();
     });
 
-    it("returns a data: URI as it is, without trying later images", () => {
+    it("skips a data: URI and tries later images", () => {
       expect(extract(`<img src="data:image/gif;base64,AAAA"><img src="${REAL}">`).cover).toBe(
-        "data:image/gif;base64,AAAA",
+        REAL,
       );
     });
 
