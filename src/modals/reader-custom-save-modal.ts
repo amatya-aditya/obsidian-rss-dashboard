@@ -29,6 +29,7 @@ interface TemplateControls {
   select: HTMLSelectElement;
   input: HTMLTextAreaElement;
   saveAsButton: HTMLButtonElement;
+  saveAsLabel: HTMLSpanElement;
 }
 
 function createFolderControls(
@@ -124,15 +125,32 @@ function refreshSaveAsButton(
   input: HTMLTextAreaElement,
   baseline: () => string,
   button: HTMLButtonElement,
+  label: HTMLSpanElement,
   getPending: () => PendingTemplate | null,
   discardPending: () => void,
 ): void {
   const pending = getPending();
   if (pending && pending.template !== input.value) discardPending();
   button.hidden = input.value === baseline();
-  button.textContent = getPending()
+  label.textContent = getPending()
     ? "New template will be saved"
     : "Save as new template";
+}
+
+function addActionButtonContent(
+  button: HTMLButtonElement,
+  iconName: string,
+  label: string,
+): HTMLSpanElement {
+  const icon = button.createSpan({
+    cls: "rss-dashboard-custom-save-button-icon",
+    attr: { "aria-hidden": "true" },
+  });
+  setIcon(icon, iconName);
+  return button.createSpan({
+    cls: "rss-dashboard-custom-save-button-label",
+    text: label,
+  });
 }
 
 function createTemplateControls(
@@ -164,12 +182,24 @@ function createTemplateControls(
   const discardPending = () =>
     discardPendingTemplate(select, getPending, setPending, setSelectedId);
   const saveAsButton = content.createEl("button", {
-    text: "Save as new template",
     cls: "rss-dashboard-custom-save-template-button",
+    attr: { type: "button" },
   });
+  const saveAsLabel = addActionButtonContent(
+    saveAsButton,
+    "file-plus",
+    "Save as new template",
+  );
   saveAsButton.hidden = true;
   const refresh = () =>
-    refreshSaveAsButton(input, () => baseline, saveAsButton, getPending, discardPending);
+    refreshSaveAsButton(
+      input,
+      () => baseline,
+      saveAsButton,
+      saveAsLabel,
+      getPending,
+      discardPending,
+    );
 
   select.addEventListener("change", () => {
     discardPending();
@@ -209,7 +239,7 @@ function createTemplateControls(
       refresh();
     })();
   });
-  return { select, input, saveAsButton, getPending };
+  return { select, input, saveAsButton, saveAsLabel, getPending };
 }
 
 function createActionButtons(
@@ -222,16 +252,19 @@ function createActionButtons(
 ): void {
   const buttonContainer = content.createDiv({ cls: "rss-dashboard-modal-buttons" });
   const cancelButton = buttonContainer.createEl("button", {
-    text: "Cancel",
     cls: "rss-dashboard-custom-save-cancel-button",
+    attr: { type: "button" },
   });
+  addActionButtonContent(cancelButton, "x", "Cancel");
   cancelButton.addEventListener("click", () => {
     modal.close();
   });
   const saveButton = buttonContainer.createEl("button", {
-    text: "Save",
     cls: "rss-dashboard-primary-button rss-dashboard-custom-save-confirm-button",
+    attr: { type: "button" },
   });
+  addActionButtonContent(saveButton, "save", "Save");
+  buttonContainer.appendChild(templateControls.saveAsButton);
   saveButton.addEventListener("click", () => {
     void (async () => {
       const folder = folderInput.value.trim();
@@ -272,8 +305,6 @@ function createActionButtons(
       modal.close();
     })();
   });
-  buttonContainer.appendChild(cancelButton);
-  buttonContainer.appendChild(saveButton);
 }
 
 export class ReaderCustomSaveModal extends Modal {

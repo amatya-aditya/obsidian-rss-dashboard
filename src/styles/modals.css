@@ -339,6 +339,9 @@ body .rss-folder-name-modal-input.rss-folder-name-modal-input-error {
   box-shadow: 0 2px 8px
     color-mix(in srgb, var(--interactive-accent) 35%, transparent);
 }
+.rss-dashboard-custom-save-modal .rss-dashboard-custom-save-confirm-button {
+  border: 1px solid var(--background-modifier-border);
+}
 .rss-dashboard-custom-save-modal .rss-dashboard-custom-save-cancel-button:active,
 .rss-dashboard-custom-save-modal .rss-dashboard-custom-save-template-button:active,
 .rss-dashboard-custom-save-modal .rss-dashboard-custom-save-confirm-button:active {
@@ -349,6 +352,46 @@ body .rss-folder-name-modal-input.rss-folder-name-modal-input-error {
 .rss-dashboard-custom-save-modal .rss-dashboard-custom-save-confirm-button:focus-visible {
   outline: 2px solid var(--interactive-accent);
   outline-offset: 2px;
+}
+
+.rss-dashboard-custom-save-modal label {
+  display: block;
+}
+.rss-dashboard-custom-save-modal .rss-dashboard-folder-input-container input {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+.rss-dashboard-custom-save-modal textarea {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+}
+.rss-dashboard-custom-save-modal .rss-dashboard-modal-buttons {
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.rss-dashboard-custom-save-modal .rss-dashboard-modal-buttons button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  width: auto;
+  max-width: 100%;
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.rss-dashboard-custom-save-modal .rss-dashboard-custom-save-button-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+}
+.rss-dashboard-custom-save-modal .rss-dashboard-custom-save-button-icon svg {
+  width: var(--icon-size, 1em);
+  height: var(--icon-size, 1em);
 }
 
 /* Obsidian modal containers form their own stacking contexts. */

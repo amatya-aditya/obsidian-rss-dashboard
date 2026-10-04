@@ -129,10 +129,29 @@ describe("ReaderCustomSaveModal", () => {
       ["Second", "two"],
     ]);
     expect(root.querySelector("textarea")?.value).toBe("Default: {{title}}");
-    expect(Array.from(root.querySelectorAll("button"), (button) => button.textContent)).toEqual([
-      "Save as new template",
+    const actionButtons = Array.from(root.querySelectorAll("button"));
+    expect(actionButtons.map((button) => button.textContent)).toEqual([
       "Cancel",
       "Save",
+      "Save as new template",
+    ]);
+    expect(actionButtons.map((button) => button.type)).toEqual([
+      "button",
+      "button",
+      "button",
+    ]);
+    expect(actionButtons.map((button) => button.tabIndex)).toEqual([0, 0, 0]);
+    expect(
+      actionButtons.map((button) => {
+        const icon = button.querySelector<HTMLElement>(
+          ".rss-dashboard-custom-save-button-icon",
+        );
+        return [icon?.dataset.icon, icon?.getAttribute("aria-hidden")];
+      }),
+    ).toEqual([
+      ["x", "true"],
+      ["save", "true"],
+      ["file-plus", "true"],
     ]);
   });
 

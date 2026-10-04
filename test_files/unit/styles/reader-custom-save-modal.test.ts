@@ -32,4 +32,53 @@ describe("Reader custom save modal styles", () => {
     expect(textarea.get("display")).toBe("block");
     expect(textarea.get("width")).toBe("100%");
   });
+
+  it("keeps the folder input full-width around its inset clear control", () => {
+    const folderInput = declarationsFor(
+      ".rss-dashboard-custom-save-modal .rss-dashboard-folder-input-container input",
+    );
+
+    expect(folderInput.get("width")).toBe("100%");
+    expect(folderInput.get("min-width")).toBe("0");
+    expect(folderInput.get("box-sizing")).toBe("border-box");
+    expect(
+      declarationsFor(".rss-dashboard-clear-icon").get("position"),
+    ).toBe("absolute");
+  });
+
+  it("keeps the action buttons in a horizontal row", () => {
+    const actions = declarationsFor(
+      ".rss-dashboard-custom-save-modal .rss-dashboard-modal-buttons",
+    );
+    const buttons = declarationsFor(
+      ".rss-dashboard-custom-save-modal .rss-dashboard-modal-buttons button",
+    );
+
+    expect(actions.get("flex-direction")).toBe("row");
+    expect(actions.get("justify-content")).toBe("center");
+    expect(actions.get("flex-wrap")).toBe("wrap");
+    expect(buttons.get("width")).toBe("auto");
+    expect(buttons.get("max-width")).toBe("100%");
+    expect(buttons.get("white-space")).toBe("normal");
+    expect(buttons.get("overflow-wrap")).toBe("anywhere");
+    expect(
+      declarationsFor(
+        ".rss-dashboard-custom-save-modal .rss-dashboard-custom-save-confirm-button",
+      ).get("border"),
+    ).toBe("1px solid var(--background-modifier-border)");
+  });
+
+  it("shows a visible focus ring on every action button", () => {
+    for (const buttonClass of [
+      "rss-dashboard-custom-save-cancel-button",
+      "rss-dashboard-custom-save-confirm-button",
+      "rss-dashboard-custom-save-template-button",
+    ]) {
+      const focus = declarationsFor(
+        `.rss-dashboard-custom-save-modal .${buttonClass}:focus-visible`,
+      );
+      expect(focus.get("outline")).toBe("2px solid var(--interactive-accent)");
+      expect(focus.get("outline-offset")).toBe("2px");
+    }
+  });
 });
