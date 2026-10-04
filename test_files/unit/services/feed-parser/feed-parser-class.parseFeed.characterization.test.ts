@@ -377,15 +377,14 @@ describe("FeedParser.parseFeed characterization", () => {
       expect(at(feed.items, 0).feedTitle).toBe("Unnamed feed");
     });
 
-    it("names a feed after its first item when the channel has no title element", async () => {
-      // BUG: pinned, see #623
+    it("uses the unnamed feed default when the channel has no title element", async () => {
       const feed = await parse(
         rssXml([{ title: "First article", link: "https://example.com/a" }], {
           link: "https://example.com",
         }),
       );
 
-      expect(feed.title).toBe("First article");
+      expect(feed.title).toBe("Unnamed feed");
     });
 
     it("keeps the stored feed title over the parsed one and stamps it on every item", async () => {
@@ -496,13 +495,12 @@ describe("FeedParser.parseFeed characterization", () => {
       expect(feed.siteUrl).toBeUndefined();
     });
 
-    it("takes the first item's link as the site url when the channel has no link element", async () => {
-      // BUG: pinned, see #623
+    it("leaves the site url unset when the channel has no link element", async () => {
       const feed = await parse(
         rssXml([{ title: "A", link: "https://example.com/a" }], { title: "T" }),
       );
 
-      expect(feed.siteUrl).toBe("https://example.com/a");
+      expect(feed.siteUrl).toBeUndefined();
     });
 
     it("overwrites the stored site url when the channel link changes", async () => {
@@ -1104,8 +1102,7 @@ describe("FeedParser.parseFeed characterization", () => {
       expect(at(feed.items, 0).author).toBeUndefined();
     });
 
-    it("gives an item the byline of another item when the channel has no author element", async () => {
-      // BUG: pinned, see #623
+    it("does not give an item another item's byline when the channel has no author", async () => {
       const feed = await parse(
         rssXml(
           [
@@ -1121,7 +1118,8 @@ describe("FeedParser.parseFeed characterization", () => {
         ),
       );
 
-      expect(itemByTitle(feed, "No byline").author).toBe(
+      expect(itemByTitle(feed, "No byline").author).toBe("");
+      expect(itemByTitle(feed, "With byline").author).toBe(
         "writer@example.com (Item Author)",
       );
     });
