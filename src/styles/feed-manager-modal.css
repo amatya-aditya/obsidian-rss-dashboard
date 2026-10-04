@@ -374,3 +374,22 @@
     margin-bottom: 10px;
   }
 }
+
+/* Keep Add/Edit modal centering separate from theme transform animations. */
+.modal-container .modal.rss-dashboard-modal-container.rss-add-feed-modal,
+.modal-container .modal.rss-dashboard-modal-container.rss-edit-feed-modal {
+  transform: none;
+  translate: -50% -50%;
+}
+
+/* Center Manage Feeds through its containing viewport so theme transform
+   animations cannot replace the positioning offset. */
+.modal-container .modal.rss-dashboard-modal-container.rss-feed-manager-modal,
+.modal-container.mod-dim
+  .modal.rss-dashboard-modal-container.rss-feed-manager-modal {
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  transform: none;
+  translate: none;
+}
