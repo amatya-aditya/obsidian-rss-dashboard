@@ -94,18 +94,18 @@ describe("Article star toggle styles", () => {
     expect(starred.get("fill")).toBe("var(--color-yellow)");
   });
 
-  it("keeps the circular button background specific to dashboard stars", () => {
+  it("keeps dashboard star backgrounds rounded like the other action icons", () => {
     const dashboard = declarationsFor(".rss-dashboard-star-toggle");
     const reader = declarationsFor(".rss-reader-star-toggle");
 
-    expect(dashboard.get("border-radius")).toBe("50%");
+    expect(dashboard.get("border-radius")).toBe("12px");
     expect(dashboard.get("background-color")).toBe(
       "var(--background-primary-alt)",
     );
     expect(reader.get("border-radius")).not.toBe("50%");
   });
 
-  it("keeps dashboard stars at a circular 44px touch target in narrow lists", () => {
+  it("keeps dashboard stars at a rounded 44px touch target in narrow lists", () => {
     const star = declarationsInCoarsePointerMedia(
       ".rss-dashboard-articles-list.rss-dashboard-mobile-list-style-left-grid .rss-dashboard-grid-actions .rss-dashboard-star-toggle",
     );
@@ -114,7 +114,7 @@ describe("Article star toggle styles", () => {
     expect(star.get("height")).toBe("44px");
     expect(star.get("min-width")).toBe("44px");
     expect(star.get("min-height")).toBe("44px");
-    expect(star.get("border-radius")).toBe("50%");
+    expect(star.get("border-radius")).toBe("12px");
     expect(star.get("background-color")).toBe(
       "var(--background-primary-alt)",
     );

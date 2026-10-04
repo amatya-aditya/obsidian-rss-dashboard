@@ -706,7 +706,7 @@ body .rss-dashboard-tag-action-button svg {
     width: 44px;
     min-height: 44px;
     height: 44px;
-    border-radius: 50%;
+    border-radius: 12px;
     background-color: var(--background-primary-alt);
   }
 }
