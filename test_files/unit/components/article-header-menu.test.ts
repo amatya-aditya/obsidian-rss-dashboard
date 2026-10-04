@@ -87,6 +87,8 @@ describe("ArticleHeaderMenu Component", () => {
     expect(spacingInput?.value).toBe("15");
     expect(spacingInput?.min).toBe("0");
     expect(spacingInput?.max).toBe("40");
+  });
+
   it("gives the refresh button an accessible name and preserves its action", () => {
     const menu = new ArticleHeaderMenu(settings, "", callbacks);
     menu.render(container);
