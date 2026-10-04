@@ -1173,16 +1173,15 @@ describe("FeedParser.parseFeed characterization", () => {
       expect(item.category).toBe("Technology");
     });
 
-    it("keeps a relative enclosure url relative, so audioUrl is not resolved against the feed", async () => {
-      // BUG: pinned, see #624
+    it("resolves a relative enclosure url against the feed for podcast playback", async () => {
       const feed = await parseParsed([
         episode({
           enclosure: { url: "/audio/ep.m4a", type: "audio/x-m4a", length: "1" },
         }),
       ]);
 
-      expect(at(feed.items, 0).audioUrl).toBe("/audio/ep.m4a");
-      expect(at(feed.items, 0).enclosure?.url).toBe("/audio/ep.m4a");
+      expect(at(feed.items, 0).audioUrl).toBe("https://example.com/audio/ep.m4a");
+      expect(at(feed.items, 0).enclosure?.url).toBe("https://example.com/audio/ep.m4a");
     });
 
     it("reads itunes:explicit other than 'yes' as not explicit", async () => {
