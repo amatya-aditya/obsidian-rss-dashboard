@@ -339,6 +339,9 @@ body .rss-folder-name-modal-input.rss-folder-name-modal-input-error {
   box-shadow: 0 2px 8px
     color-mix(in srgb, var(--interactive-accent) 35%, transparent);
 }
+.rss-dashboard-custom-save-modal .rss-dashboard-custom-save-confirm-button {
+  border: 1px solid var(--background-modifier-border);
+}
 .rss-dashboard-custom-save-modal .rss-dashboard-custom-save-cancel-button:active,
 .rss-dashboard-custom-save-modal .rss-dashboard-custom-save-template-button:active,
 .rss-dashboard-custom-save-modal .rss-dashboard-custom-save-confirm-button:active {
@@ -354,6 +357,12 @@ body .rss-folder-name-modal-input.rss-folder-name-modal-input-error {
 .rss-dashboard-custom-save-modal label {
   display: block;
 }
+.rss-dashboard-custom-save-modal .rss-dashboard-folder-input-container input {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
 .rss-dashboard-custom-save-modal textarea {
   display: block;
   width: 100%;
@@ -362,6 +371,7 @@ body .rss-folder-name-modal-input.rss-folder-name-modal-input-error {
 .rss-dashboard-custom-save-modal .rss-dashboard-modal-buttons {
   flex-direction: row;
   flex-wrap: wrap;
+  justify-content: center;
 }
 .rss-dashboard-custom-save-modal .rss-dashboard-modal-buttons button {
   display: inline-flex;

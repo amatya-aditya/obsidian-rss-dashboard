@@ -6,7 +6,7 @@
 
 ### Fixes
 - Prevented Reader shortcuts from firing while typing in custom-save modal fields, and made its template label and textarea full-width rows. [GH Issue #756](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/756)
-- Fixed the Reader's **Save to custom folder** modal layout on desktop and mobile. The template label and textarea no longer overlap, action buttons wrap when needed, button text stays within the button, and each action has an icon. [GH Issue #755](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/755)
+- Fixed the Reader's **Save to custom folder** modal layout on desktop and mobile. The folder field uses the full row, the template label and textarea no longer overlap, action buttons wrap and stay centered, button text stays within each button, Save has a visible border, and each action has an icon. [GH Issue #755](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/755)
 - Improved dashboard filter, hamburger, and sidebar hover menu readability over transparent theme surfaces with a blurred menu surface. [GH Issue #746](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/746)
 - Fixed Add Feed and Edit Feed dialogs shifting off center when a theme animates modal transforms. Centering now uses an independent CSS translate so the theme animation can continue. [GH Issue #745](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/745)
 - Fixed the Manage Feeds modal shifting off center with themes that animate modal transforms. It now uses the same independent centering while preserving the animation. [GH Issue #745](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/745)
