@@ -25,11 +25,7 @@ function declarationsFor(selector: string): Map<string, string> {
 
 describe("Feed manager modal positioning", () => {
   it("centers feed management dialogs independently of transform animations", () => {
-    for (const dialogClass of [
-      "rss-add-feed-modal",
-      "rss-edit-feed-modal",
-      "rss-feed-manager-modal",
-    ]) {
+    for (const dialogClass of ["rss-add-feed-modal", "rss-edit-feed-modal"]) {
       const declarations = declarationsFor(
         `.modal-container .modal.rss-dashboard-modal-container.${dialogClass}`,
       );
@@ -37,5 +33,16 @@ describe("Feed manager modal positioning", () => {
       expect(declarations.get("transform")).toBe("none");
       expect(declarations.get("translate")).toBe("-50% -50%");
     }
+  });
+
+  it("centers Manage Feeds with viewport insets instead of transform offsets", () => {
+    const declarations = declarationsFor(
+      ".modal-container .modal.rss-dashboard-modal-container.rss-feed-manager-modal",
+    );
+
+    expect(declarations.get("position")).toBe("fixed");
+    expect(declarations.get("inset")).toBe("0");
+    expect(declarations.get("margin")).toBe("auto");
+    expect(declarations.get("translate")).toBe("none");
   });
 });
