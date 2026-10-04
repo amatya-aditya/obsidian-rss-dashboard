@@ -1684,6 +1684,16 @@ describe("ReaderView article rendering (characterization)", () => {
       ).toEqual(["https://cdn.example.com/i.png", "https://example.com/dir/pic.jpg"]);
     });
 
+    it("preserves fragment-only links for navigation within the article", () => {
+      const container = populate(
+        '<p><a href="#fn1">footnote</a></p><p id="fn1">Footnote</p>',
+        "https://example.com/article",
+      );
+
+      expect(container.querySelector("a")?.getAttribute("href")).toBe("#fn1");
+      expect(container.querySelector("#fn1")?.textContent).toBe("Footnote");
+    });
+
     it("does not resolve urls without a base url, so the sanitizer drops the relative ones", () => {
       const container = populate(
         '<p><a href="/path">a</a><img src="pic.jpg"><a href="https://x.example/z">z</a></p>',

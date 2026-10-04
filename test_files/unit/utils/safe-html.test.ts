@@ -224,6 +224,18 @@ describe("safe-html.sanitizeAndAppendHtml", () => {
     );
   });
 
+  it("rich mode still drops fragment values from non-href URL attributes", () => {
+    const container = createContainer();
+
+    sanitizeAndAppendHtml(
+      container,
+      '<a href="https://example.com" ping="#fn1">Link</a>',
+      { mode: "rich" },
+    );
+
+    expect(container.querySelector("a")?.getAttribute("ping")).toBeNull();
+  });
+
   it("allows http/https/mailto links and applies target+rel", () => {
     const container = createContainer();
 
@@ -249,6 +261,22 @@ describe("safe-html.sanitizeAndAppendHtml", () => {
       expect(a.getAttribute("target")).toBe("_blank");
       expect(a.getAttribute("rel")).toBe("noopener noreferrer");
     });
+  });
+
+  it("allows fragment-only links to stay in the current article", () => {
+    const container = createContainer();
+
+    sanitizeAndAppendHtml(
+      container,
+      '<p><a href="#fn1">footnote</a></p><p id="fn1">Footnote</p>',
+      { mode: "rich" },
+    );
+
+    const link = container.querySelector<HTMLAnchorElement>("a");
+    expect(link?.getAttribute("href")).toBe("#fn1");
+    expect(link?.getAttribute("target")).toBeNull();
+    expect(link?.getAttribute("rel")).toBeNull();
+    expect(container.querySelector("#fn1")?.textContent).toBe("Footnote");
   });
 
   it("sanitizes mixed nested structures deterministically and ignores non-element nodes", () => {
