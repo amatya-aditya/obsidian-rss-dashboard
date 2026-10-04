@@ -98,6 +98,26 @@ feedTitle: "{{feedTitle}}"
     );
   });
 
+  it("fills the summary in frontmatter when the note template has no frontmatter", async () => {
+    const app = App.createMock();
+    const settings = createSettings({
+      includeFrontmatter: true,
+      defaultTemplate: "# {{title}}\n\n{{content}}",
+      frontmatterTemplate: `---
+summary: "{{summary}}"
+---`,
+    });
+    const saver = new ArticleSaver(app, settings);
+    const item = createItem({ summary: 'A "quoted" summary\nwith another line.' });
+
+    const createSpy = vi.spyOn(app.vault, "create");
+    await saver.saveArticle(item, undefined, undefined, "BODY");
+
+    const written = createSpy.mock.calls[0][1];
+    expect(written).toContain('summary: "A \\"quoted\\" summary\\nwith another line."');
+    expect(written).not.toContain("{{summary}}");
+  });
+
   it("prefers item.content over description when raw content is not provided", async () => {
     const app = App.createMock();
     const settings = createSettings({

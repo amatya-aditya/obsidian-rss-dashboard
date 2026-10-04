@@ -5,6 +5,7 @@
 - Sidebar search now says when nothing matched instead of leaving the sidebar blank. A search with no matching feeds or folders shows **0 results** and **No matches found.**, as Obsidian's own search does, and the message clears when the query changes or the search is cleared or closed. [GH Issue #678](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/678)
 
 ### Fixes
+- Fixed saved-note frontmatter keeping a literal `{{summary}}` when the note template has no frontmatter. It now uses the article summary. [GH Issue #674](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/674)
 - Fixed Reader article titles inheriting low-contrast H1 colors from themes. [GH Issue #707](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/707)
 
 - Made the dashboard article header menu and its custom selectors keyboard-operable, prevented dashboard shortcuts from intercepting Enter on controls, and made Escape close the open picker before the hamburger menu. [GH Issue #696](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/696)
