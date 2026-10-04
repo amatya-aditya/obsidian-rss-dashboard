@@ -287,6 +287,13 @@ body .rss-folder-name-modal-input.rss-folder-name-modal-input-error {
   background: var(--interactive-accent-hover, #217dbb);
 }
 
+.rss-dashboard-custom-save-modal label {
+  display: block;
+}
+.rss-dashboard-custom-save-modal textarea {
+  display: block;
+  width: 100%;
+}
 /* Keep Save Article actions visually distinct without changing other modals. */
 .rss-dashboard-custom-save-modal .rss-dashboard-custom-save-cancel-button,
 .rss-dashboard-custom-save-modal .rss-dashboard-custom-save-template-button,
