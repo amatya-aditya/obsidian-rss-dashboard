@@ -466,6 +466,11 @@ describe("ReaderView custom save dialog behavior", () => {
       expect(getFields(modal).saveAsTemplate.textContent).toBe(
         "New template will be saved",
       );
+      expect(
+        getFields(modal).saveAsTemplate.querySelector<HTMLElement>(
+          ".rss-dashboard-custom-save-button-icon",
+        )?.dataset.icon,
+      ).toBe("file-plus");
       expect(harness.settings.articleSaving.savedTemplates).toHaveLength(0);
 
       save.click();

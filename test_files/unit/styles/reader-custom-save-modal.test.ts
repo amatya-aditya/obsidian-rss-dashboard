@@ -42,6 +42,24 @@ describe("Reader custom save modal styles", () => {
     );
 
     expect(actions.get("flex-direction")).toBe("row");
+    expect(actions.get("flex-wrap")).toBe("wrap");
     expect(buttons.get("width")).toBe("auto");
+    expect(buttons.get("max-width")).toBe("100%");
+    expect(buttons.get("white-space")).toBe("normal");
+    expect(buttons.get("overflow-wrap")).toBe("anywhere");
+  });
+
+  it("shows a visible focus ring on every action button", () => {
+    for (const buttonClass of [
+      "rss-dashboard-custom-save-cancel-button",
+      "rss-dashboard-custom-save-confirm-button",
+      "rss-dashboard-custom-save-template-button",
+    ]) {
+      const focus = declarationsFor(
+        `.rss-dashboard-custom-save-modal .${buttonClass}:focus-visible`,
+      );
+      expect(focus.get("outline")).toBe("2px solid var(--interactive-accent)");
+      expect(focus.get("outline-offset")).toBe("2px");
+    }
   });
 });
