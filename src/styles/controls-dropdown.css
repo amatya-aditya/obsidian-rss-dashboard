@@ -17,6 +17,8 @@
   width: 280px;
   max-width: 90vw;
   background: var(--background-primary);
+  -webkit-backdrop-filter: blur(var(--ui-blur, 8px));
+  backdrop-filter: blur(var(--ui-blur, 8px));
   border: 1px solid var(--background-modifier-border);
   border-radius: 8px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
