@@ -6,6 +6,8 @@
 
 ### Fixes
 - Fixed saved-note frontmatter keeping a literal `{{summary}}` when the note template has no frontmatter. It now uses the article summary. [GH Issue #674](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/674)
+- Gave the dashboard menu's refresh button the accessible name **Refresh feeds**, including in popout windows. [GH Issue #713](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/713)
+- Fixed saved feeds with missing folders staying orphaned after startup. Their folders are now repaired on the first load, as they already were after a settings reload. [GH Issue #452](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/452)
 - Fixed Reader article titles inheriting low-contrast H1 colors from themes. [GH Issue #707](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/707)
 
 - Made the dashboard article header menu and its custom selectors keyboard-operable, prevented dashboard shortcuts from intercepting Enter on controls, and made Escape close the open picker before the hamburger menu. [GH Issue #696](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/696)
