@@ -1041,6 +1041,10 @@ export class Sidebar {
   ): void {
     const folderName = folderObj.name;
 
+    this.attachLongPressContextMenu(folderHeader, (event) => {
+      this.showFolderContextMenu(event, folderObj, fullPath, folderName);
+    });
+
     folderHeader.addEventListener("click", (e) => {
       this.handleFolderHeaderClick(e, folderHeader, refs, fullPath);
     });
@@ -1049,10 +1053,6 @@ export class Sidebar {
       e.preventDefault();
       e.stopPropagation();
       this.showFolderContextMenu(e, folderObj, fullPath, folderName);
-    });
-
-    this.attachLongPressContextMenu(folderHeader, (event) => {
-      this.showFolderContextMenu(event, folderObj, fullPath, folderName);
     });
 
     folderHeader.addEventListener("dragstart", (e) => {
@@ -1437,6 +1437,10 @@ export class Sidebar {
   }
 
   private attachFeedRowInteractions(feedEl: HTMLElement, feed: Feed): void {
+    this.attachLongPressContextMenu(feedEl, (event) => {
+      this.showFeedContextMenu(event, feed);
+    });
+
     feedEl.addEventListener("click", (e) => {
       e.stopPropagation();
       // Shift+click: range selection (delegate to caller)
@@ -1457,10 +1461,6 @@ export class Sidebar {
       e.preventDefault();
       e.stopPropagation();
       this.showFeedContextMenu(e, feed);
-    });
-
-    this.attachLongPressContextMenu(feedEl, (event) => {
-      this.showFeedContextMenu(event, feed);
     });
 
     feedEl.addEventListener("dragstart", (e) => {
@@ -1649,7 +1649,7 @@ export class Sidebar {
     targetEl.addEventListener("click", (event) => {
       if (longPressTriggered) {
         event.preventDefault();
-        event.stopPropagation();
+        event.stopImmediatePropagation();
         longPressTriggered = false;
       }
     });

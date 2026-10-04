@@ -448,7 +448,7 @@ describe("Sidebar row interactions (characterization)", () => {
       expect(spies.showFeedContextMenu).not.toHaveBeenCalled();
     });
 
-    it("still delivers the click that follows a long press to onFeedClick, because the feed's own click listener runs before the long-press one", () => {
+    it("swallows the click that follows a long press before it reaches onFeedClick", () => {
       vi.useFakeTimers();
       build();
       const row = feedRow("https://a.test/feed");
@@ -462,15 +462,13 @@ describe("Sidebar row interactions (characterization)", () => {
 
       const { event, reachedContainer } = click(row);
 
-      // BUG: pinned, see #602 (the long-press click guard cannot suppress the
-      // feed's own click handler, which is registered first).
-      expect(callbacks.onFeedClick).toHaveBeenCalledTimes(1);
+      expect(callbacks.onFeedClick).not.toHaveBeenCalled();
       expect(event.defaultPrevented).toBe(true);
       expect(reachedContainer).toBe(false);
 
       // The guard resets after one click.
       click(row);
-      expect(callbacks.onFeedClick).toHaveBeenCalledTimes(2);
+      expect(callbacks.onFeedClick).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -1476,7 +1474,7 @@ describe("Sidebar row interactions (characterization)", () => {
       expect(spies.showFolderContextMenu).not.toHaveBeenCalled();
     });
 
-    it("still opens the folder on the click that follows a long press, because the folder's own click listener runs before the long-press one", () => {
+    it("swallows the click that follows a long press before it reaches onFolderClick", () => {
       vi.useFakeTimers();
       build();
       const header = folderHeader("News");
@@ -1487,10 +1485,12 @@ describe("Sidebar row interactions (characterization)", () => {
 
       const { event, reachedContainer } = click(header);
 
-      // BUG: pinned, see #602 (same listener order as the feed row).
-      expect(callbacks.onFolderClick).toHaveBeenCalledWith("News");
+      expect(callbacks.onFolderClick).not.toHaveBeenCalled();
       expect(event.defaultPrevented).toBe(true);
       expect(reachedContainer).toBe(false);
+
+      click(header);
+      expect(callbacks.onFolderClick).toHaveBeenCalledWith("News");
     });
   });
 
