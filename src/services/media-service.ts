@@ -424,7 +424,9 @@ export class MediaService {
 
     const updatedItems = feed.items.map((item) => {
       const audioUrl =
-        item.enclosure?.url || this.extractPodcastAudio(item.description);
+        item.audioUrl ||
+        item.enclosure?.url ||
+        this.extractPodcastAudio(item.description);
       const duration =
         item.duration ||
         item.itunes?.duration ||
