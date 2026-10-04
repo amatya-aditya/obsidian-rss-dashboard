@@ -156,6 +156,10 @@ function isSafeHref(href: string): boolean {
   return false;
 }
 
+function isSafeFragmentHref(href: string): boolean {
+  return (href || "").trim().startsWith("#");
+}
+
 function isSafeSrc(src: string): boolean {
   const trimmed = (src || "").trim();
   if (!trimmed) return false;
@@ -241,7 +245,7 @@ function copySafeAttributes(fromEl: HTMLElement, toEl: HTMLElement): void {
 
     if (name === "href") {
       const normalizedHref = normalizeSubstackImageUrl(value);
-      if (isSafeHref(normalizedHref)) {
+      if (isSafeHref(normalizedHref) || isSafeFragmentHref(normalizedHref)) {
         toEl.setAttribute("href", normalizedHref.trim());
       }
       return;
@@ -283,7 +287,9 @@ function copySafeAttributes(fromEl: HTMLElement, toEl: HTMLElement): void {
     // If name is invalid, silently skip it instead of throwing
   });
 
-  if (toEl.tagName.toLowerCase() === "a" && toEl.getAttribute("href")) {
+  const href = toEl.getAttribute("href");
+  if (toEl.tagName.toLowerCase() === "a" && href) {
+    if (href.startsWith("#")) return;
     toEl.setAttribute("target", "_blank");
     toEl.setAttribute("rel", "noopener noreferrer");
   }
@@ -295,11 +301,12 @@ function copyStrictAttributes(fromEl: HTMLElement, toEl: HTMLElement): void {
   }
 
   const href = fromEl.getAttribute("href") || "";
-  if (!isSafeHref(href)) {
+  if (!isSafeHref(href) && !isSafeFragmentHref(href)) {
     return;
   }
 
   toEl.setAttribute("href", href.trim());
+  if (isSafeFragmentHref(href)) return;
   toEl.setAttribute("target", "_blank");
   toEl.setAttribute("rel", "noopener noreferrer");
 }

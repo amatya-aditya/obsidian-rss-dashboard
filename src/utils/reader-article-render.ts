@@ -181,7 +181,7 @@ export function resolveRelativeUrlsInDocument(
 
     doc.querySelectorAll("a").forEach((el) => {
       const href = el.getAttribute("href");
-      if (!href) return;
+      if (!href || href.startsWith("#")) return;
       try {
         el.setAttribute("href", new URL(href, base).toString());
       } catch {
