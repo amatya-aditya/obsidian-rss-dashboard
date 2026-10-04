@@ -292,6 +292,7 @@ export class ArticleSaver {
       .replace(/{{link}}/g, () => escapeYamlDoubleQuoted(item.link))
       .replace(/{{author}}/g, () => escapeYamlDoubleQuoted(item.author || ""))
       .replace(/{{feedTitle}}/g, () => escapeYamlDoubleQuoted(item.feedTitle))
+      .replace(/{{summary}}/g, () => escapeYamlDoubleQuoted(item.summary || ""))
       .replace(/{{guid}}/g, () => escapeYamlDoubleQuoted(item.guid))
       .replace(
         /{{image}}/g,

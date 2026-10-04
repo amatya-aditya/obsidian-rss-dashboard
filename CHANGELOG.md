@@ -6,6 +6,7 @@
 
 ### Fixes
 - Fixed dashboard article star buttons appearing circular; their backgrounds now have the same rounded rectangle corners as neighboring action icons.
+- Fixed saved-note frontmatter keeping a literal `{{summary}}` when the note template has no frontmatter. It now uses the article summary. [GH Issue #674](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/674)
 - Associated the visible **Card spacing** label with the dashboard slider so assistive technology announces its name, value, and range. [GH Issue #714](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/714)
 - Fixed Stop during a Discover single-feed add leaving the global feed operation active until the fetch timed out. Pressing Stop now ends the add, so the sidebar clears promptly and another feed operation can start. [GH Issue #482](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/482)
 - Gave the dashboard menu's refresh button the accessible name **Refresh feeds**, including in popout windows. [GH Issue #713](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/713)
