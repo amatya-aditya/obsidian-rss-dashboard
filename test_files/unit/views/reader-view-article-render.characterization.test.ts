@@ -400,7 +400,7 @@ describe("ReaderView article rendering (characterization)", () => {
       expect(articleSaver.checkSavedFileExists).not.toHaveBeenCalled();
     });
 
-    it("also clears the saved flag and Saved tag on the feed's own copy of the item", async () => {
+    it("also clears saved state on the feed's own copy when the displayed item is a clone", async () => {
       const original = makeItem({
         saved: true,
         savedFilePath: "Saved/note.md",
@@ -417,10 +417,8 @@ describe("ReaderView article rendering (characterization)", () => {
       await openWithMissingFile(shown);
 
       expect(original.saved).toBe(false);
+      expect(original.savedFilePath).toBeUndefined();
       expect(original.tags).toEqual([otherTag]);
-      // BUG: pinned, see #605 — the feed's copy keeps its savedFilePath; only
-      // the displayed item's path is cleared.
-      expect(original.savedFilePath).toBe("Saved/note.md");
     });
 
     it("tolerates a feed copy that has no tags", async () => {
