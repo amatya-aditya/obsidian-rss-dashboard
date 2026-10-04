@@ -286,16 +286,16 @@ export class ArticleSaver {
       pubDate,
       item.firstSeenMs,
     )
-      .replace(/{{title}}/g, escapeYamlDoubleQuoted(item.title))
-      .replace(/{{tags}}/g, tagsString)
-      .replace(/{{source}}/g, escapeYamlDoubleQuoted(item.feedTitle))
-      .replace(/{{link}}/g, escapeYamlDoubleQuoted(item.link))
-      .replace(/{{author}}/g, escapeYamlDoubleQuoted(item.author || ""))
-      .replace(/{{feedTitle}}/g, escapeYamlDoubleQuoted(item.feedTitle))
-      .replace(/{{guid}}/g, escapeYamlDoubleQuoted(item.guid))
+      .replace(/{{title}}/g, () => escapeYamlDoubleQuoted(item.title))
+      .replace(/{{tags}}/g, () => tagsString)
+      .replace(/{{source}}/g, () => escapeYamlDoubleQuoted(item.feedTitle))
+      .replace(/{{link}}/g, () => escapeYamlDoubleQuoted(item.link))
+      .replace(/{{author}}/g, () => escapeYamlDoubleQuoted(item.author || ""))
+      .replace(/{{feedTitle}}/g, () => escapeYamlDoubleQuoted(item.feedTitle))
+      .replace(/{{guid}}/g, () => escapeYamlDoubleQuoted(item.guid))
       .replace(
         /{{image}}/g,
-        escapeYamlDoubleQuoted(this.getFallbackHeroUrl(item)),
+        () => escapeYamlDoubleQuoted(this.getFallbackHeroUrl(item)),
       );
 
     if (item.mediaType === "video" && item.videoId) {
@@ -348,14 +348,14 @@ export class ArticleSaver {
     const saveTime24 = this.formatMoment(now, "HH:mm");
 
     let replaced = text
-      .replace(/{{date}}/g, longFormattedDate)
-      .replace(/{{dateShort}}/g, this.formatMoment(validDate, "YYYY-MM-DD"))
-      .replace(/{{isoDate}}/g, isoDateTime)
-      .replace(/{{isoDateTime}}/g, isoDateTime)
-      .replace(/{{firstSeen}}/g, longFormattedFirstSeen)
-      .replace(/{{saveDate}}/g, saveDate)
-      .replace(/{{saveTime12}}/g, saveTime12)
-      .replace(/{{saveTime24}}/g, saveTime24);
+      .replace(/{{date}}/g, () => longFormattedDate)
+      .replace(/{{dateShort}}/g, () => this.formatMoment(validDate, "YYYY-MM-DD"))
+      .replace(/{{isoDate}}/g, () => isoDateTime)
+      .replace(/{{isoDateTime}}/g, () => isoDateTime)
+      .replace(/{{firstSeen}}/g, () => longFormattedFirstSeen)
+      .replace(/{{saveDate}}/g, () => saveDate)
+      .replace(/{{saveTime12}}/g, () => saveTime12)
+      .replace(/{{saveTime24}}/g, () => saveTime24);
 
     // Handle dynamic formats: {{date:FORMAT}}
     replaced = replaced.replace(
@@ -399,19 +399,19 @@ export class ArticleSaver {
     );
 
     return replacedWithDates
-      .replace(/{{title}}/g, item.title)
-      .replace(/{{link}}/g, item.link)
-      .replace(/{{author}}/g, item.author || "")
-      .replace(/{{source}}/g, item.feedTitle)
-      .replace(/{{feedTitle}}/g, item.feedTitle)
-      .replace(/{{summary}}/g, item.summary || "")
+      .replace(/{{title}}/g, () => item.title)
+      .replace(/{{link}}/g, () => item.link)
+      .replace(/{{author}}/g, () => item.author || "")
+      .replace(/{{source}}/g, () => item.feedTitle)
+      .replace(/{{feedTitle}}/g, () => item.feedTitle)
+      .replace(/{{summary}}/g, () => item.summary || "")
       // Use a replacer function for {{content}} so that special replacement
       // patterns in JS regex (like $$, $&, $`) are not interpreted — without
       // this, display math delimiters like $$x^2$$ would be collapsed to $x^2$.
       .replace(/{{content}}/g, () => content)
-      .replace(/{{tags}}/g, tagsString)
-      .replace(/{{guid}}/g, item.guid)
-      .replace(/{{image}}/g, this.getFallbackHeroUrl(item));
+      .replace(/{{tags}}/g, () => tagsString)
+      .replace(/{{guid}}/g, () => item.guid)
+      .replace(/{{image}}/g, () => this.getFallbackHeroUrl(item));
   }
 
 

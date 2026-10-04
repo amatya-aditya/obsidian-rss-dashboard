@@ -31,6 +31,35 @@ function declarationsFor(...selectors: string[]): Map<string, string> {
   return declarations;
 }
 
+function declarationsInCoarsePointerMedia(
+  selector: string,
+): Map<string, string> {
+  const declarations = new Map<string, string>();
+
+  for (const css of stylesheets) {
+    postcss.parse(css).walkAtRules("media", (mediaRule) => {
+      if (!mediaRule.params.includes("(pointer: coarse)")) {
+        return;
+      }
+
+      mediaRule.walkRules((rule) => {
+        const selectors = rule.selectors.map((ruleSelector) =>
+          ruleSelector.replace(/\s+/g, " ").trim(),
+        );
+        if (!selectors.includes(selector)) {
+          return;
+        }
+
+        rule.walkDecls((declaration) => {
+          declarations.set(declaration.prop, declaration.value);
+        });
+      });
+    });
+  }
+
+  return declarations;
+}
+
 describe("Article star toggle styles", () => {
   it("shows every starred article control with a filled yellow star", () => {
     const dashboard = declarationsFor(
@@ -74,5 +103,20 @@ describe("Article star toggle styles", () => {
       "var(--background-primary-alt)",
     );
     expect(reader.get("border-radius")).not.toBe("50%");
+  });
+
+  it("keeps dashboard stars at a circular 44px touch target in narrow lists", () => {
+    const star = declarationsInCoarsePointerMedia(
+      ".rss-dashboard-articles-list.rss-dashboard-mobile-list-style-left-grid .rss-dashboard-grid-actions .rss-dashboard-star-toggle",
+    );
+
+    expect(star.get("width")).toBe("44px");
+    expect(star.get("height")).toBe("44px");
+    expect(star.get("min-width")).toBe("44px");
+    expect(star.get("min-height")).toBe("44px");
+    expect(star.get("border-radius")).toBe("50%");
+    expect(star.get("background-color")).toBe(
+      "var(--background-primary-alt)",
+    );
   });
 });
