@@ -219,7 +219,9 @@ export class FeedParser {
         /<a([^>]+)href=["']([^"']+)["']/gi,
         (match: string, attributes: string, href: string) => {
           const decodedHref = decodeHtmlEntities(href);
-          const absoluteHref = this.convertToAbsoluteUrl(decodedHref, baseUrl);
+          const absoluteHref = decodedHref.startsWith("#")
+            ? decodedHref
+            : this.convertToAbsoluteUrl(decodedHref, baseUrl);
           return `<a${attributes}href="${absoluteHref}"`;
         },
       );

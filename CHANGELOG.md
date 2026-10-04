@@ -8,6 +8,7 @@
 - Suppressed sidebar refresh status popups on touch-only devices while keeping them available when a mouse or other hover-capable pointer is present. [GH Issue #741](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/741)
 - Fixed dashboard article star buttons appearing circular; their backgrounds now have the same rounded rectangle corners as neighboring action icons.
 - Fixed saved-note frontmatter keeping a literal `{{summary}}` when the note template has no frontmatter. It now uses the article summary. [GH Issue #674](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/674)
+- Fixed footnote and other in-page links in article content so they stay within the article instead of pointing to the feed URL. [GH Issue #626](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/626)
 - Associated the visible **Card spacing** label with the dashboard slider so assistive technology announces its name, value, and range. [GH Issue #714](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/714)
 - Fixed a touch long-press on a sidebar feed or folder from also opening that row when the finger lifts. [GH Issue #602](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/602)
 - Fixed podcast episodes with relative enclosure URLs failing to play by resolving enclosure URLs against the feed URL. [GH Issue #624](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/624) pi

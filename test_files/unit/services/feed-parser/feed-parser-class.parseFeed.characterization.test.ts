@@ -2409,11 +2409,11 @@ describe("FeedParser.parseFeed characterization", () => {
       expect((await contentOf(html)).content).toBe(html);
     });
 
-    it("turns an in-page anchor into a link to the feed url", async () => {
+    it("preserves an in-page anchor as a fragment-only link", async () => {
       const result = await contentOf('<a href="#fn1">1</a>');
 
-      // BUG: pinned, see #626
-      expect(result.content).toBe('<a href="https://example.com/rss/feed.xml#fn1">1</a>');
+      expect(result.content).toBe('<a href="#fn1">1</a>');
+      expect(result.description).toBe('<a href="#fn1">1</a>');
     });
 
     it("leaves empty description and content empty", async () => {
