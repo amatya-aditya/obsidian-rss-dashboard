@@ -351,6 +351,15 @@ body .rss-folder-name-modal-input.rss-folder-name-modal-input-error {
   outline-offset: 2px;
 }
 
+.rss-dashboard-custom-save-modal label {
+  display: block;
+}
+.rss-dashboard-custom-save-modal textarea {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+}
+
 /* Obsidian modal containers form their own stacking contexts. */
 body .modal-container.rss-dashboard-template-dialog-container {
   z-index: var(--z-index-modal-child);
