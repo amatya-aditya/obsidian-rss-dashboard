@@ -39,6 +39,7 @@ export function clearSavedStateIfFileMissing(
           const originalItem = feed.items.find((i) => i.guid === item.guid);
           if (originalItem) {
             originalItem.saved = false;
+            originalItem.savedFilePath = undefined;
             if (originalItem.tags) {
               originalItem.tags = originalItem.tags.filter(
                 (tag) => tag.name.toLowerCase() !== "saved",

@@ -406,6 +406,7 @@ export class ArticleHeaderMenu {
     });
     const cardSpacingLabel = cardSpacingGroup.createDiv({
       cls: "rss-dashboard-dropdown-card-layout-label",
+      attr: { id: "rss-dashboard-card-spacing-label" },
       text: `Card spacing: ${this.clampCardSpacing(
         this.settings.display.cardSpacing ?? 15,
       )}px`,
@@ -417,6 +418,7 @@ export class ArticleHeaderMenu {
         min: "0",
         max: "40",
         step: "1",
+        "aria-labelledby": "rss-dashboard-card-spacing-label",
       },
     });
     cardSpacingInput.value = String(
