@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   attachRefreshStatusDetails,
   showRefreshDetailsPopup,
@@ -7,6 +7,18 @@ import {
 afterEach(() => {
   vi.useRealTimers();
   document.body.empty();
+  setAnyHoverSupport(window, true);
+});
+
+function setAnyHoverSupport(targetWindow: Window, supportsHover: boolean): void {
+  Object.defineProperty(targetWindow, "matchMedia", {
+    configurable: true,
+    value: () => ({ matches: supportsHover }) as unknown as MediaQueryList,
+  });
+}
+
+beforeEach(() => {
+  setAnyHoverSupport(window, true);
 });
 
 describe("refresh status details", () => {
@@ -34,6 +46,29 @@ describe("refresh status details", () => {
 
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
     expect(document.querySelector(".rss-dashboard-refresh-details")).toBeNull();
+
+    cleanup();
+  });
+
+  it("keeps the status description but suppresses the popup when no pointer can hover", async () => {
+    vi.useFakeTimers();
+    setAnyHoverSupport(window, false);
+    const row = document.body.createDiv({ text: "Feed" });
+    const cleanup = attachRefreshStatusDetails({
+      row,
+      description: () => "Refresh details. Last checked: Not yet",
+      render: (popup) => popup.createDiv({ text: "Last checked: Not yet" }),
+    });
+
+    row.dispatchEvent(new MouseEvent("mouseenter", { bubbles: true }));
+    row.dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
+    await vi.advanceTimersByTimeAsync(350);
+
+    expect(document.querySelector(".rss-dashboard-refresh-details")).toBeNull();
+    const descriptionId = row.getAttribute("aria-describedby");
+    expect(document.getElementById(descriptionId ?? "")?.textContent).toContain(
+      "Refresh details. Last checked: Not yet",
+    );
 
     cleanup();
   });
@@ -313,6 +348,7 @@ function createPopoutDocument(): Document {
   const popoutWindow = {
     document: popoutDocument,
     innerWidth: 1400,
+    matchMedia: () => ({ matches: true }) as unknown as MediaQueryList,
     setTimeout: (handler: () => void, delay?: number) =>
       window.setTimeout(handler, delay),
     clearTimeout: (id?: number) => window.clearTimeout(id),

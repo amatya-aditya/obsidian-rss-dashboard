@@ -97,6 +97,7 @@ describe("Sidebar Rendering", () => {
   });
 
   afterEach(() => {
+    vi.restoreAllMocks();
     container.remove();
   });
 
@@ -148,6 +149,9 @@ describe("Sidebar Rendering", () => {
   });
 
   it("keeps the custom refresh-details popup on hover", async () => {
+    vi.spyOn(window, "matchMedia").mockReturnValue({
+      matches: true,
+    } as unknown as MediaQueryList);
     vi.useFakeTimers();
     document.body.appendChild(container);
     const sidebar = new Sidebar(
