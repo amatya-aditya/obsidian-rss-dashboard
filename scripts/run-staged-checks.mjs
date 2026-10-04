@@ -1,6 +1,6 @@
 // Fast pre-commit gate: lint only the staged files and run only the unit tests
-// that exercise them. The full lint, type-check, and test suite run in the
-// pre-push hook and in CI, so this hook trades breadth for a short loop.
+// that exercise them. CI runs the full lint, type-check, and test suite, so
+// this hook trades breadth for a short loop.
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 

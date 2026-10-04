@@ -2,14 +2,9 @@
 
 if [ "$SKIP_GIT_HOOKS" = "1" ]; then
   echo "[pre-push] SKIP_GIT_HOOKS=1 set, skipping."
-  exit 0
+else
+  echo "[pre-push] Full build and test checks run in GitHub Actions on pull requests and dev/master pushes."
+  echo "[pre-push] Skipping local full checks to keep pushes fast."
 fi
 
-echo "[pre-push] Running full build gate..."
-npm run --silent build
-if [ $? -ne 0 ]; then
-  exit 1
-fi
-
-echo "[pre-push] Running full unit suite..."
-npm run --silent test:unit
+exit 0

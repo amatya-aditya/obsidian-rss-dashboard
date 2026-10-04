@@ -237,7 +237,7 @@ For a user-facing overview, see the [RSS Dashboard 2.7.0 release notes](docs/rel
 
 ### Development and compliance
 
-- Sped up the contributor Git hooks: pre-commit lints only staged files and runs only their related tests, and the full build and unit suite run on pre-push. [GH Issue #371](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/371)
+- Sped up contributor checks: pre-commit lints staged files and runs related tests, while GitHub Actions runs the full build and unit suite instead of the pre-push hook. [GH Issue #371](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/371) [GH Issue #749](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/749)
 - Article HTML sanitization now applies the same URL check used for links to every URL-bearing attribute.
 - ESLint now rejects `title` attributes used as tooltips, since Obsidian draws its own tooltip from `aria-label`; use `setTooltip()` from `obsidian` instead.
 - Hardened the release workflow by separating read-only build validation from privileged publishing and provenance, pinning workflow Actions to reviewed commits, and attesting `manifest.json` alongside the bundle. The test workflow now runs on pushes to `master` and `dev`.

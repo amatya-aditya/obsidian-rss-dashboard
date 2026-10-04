@@ -32,8 +32,8 @@ jobs:
       - name: Audit all dependencies
         run: npm audit --audit-level=high
 
-      - name: Enforce compliance checks
-        run: npm run check:compliance
+      - name: Build and validate
+        run: npm run build
 
       # Obsidian's community directory reads manifest.json from the default
       # branch, so dev and master must never carry a Beta version (#529).
@@ -46,9 +46,6 @@ jobs:
         env:
           BASE_REF: ${{ github.base_ref }}
         run: node scripts/check-characterization-tests.mjs "origin/$BASE_REF"
-
-      - name: Lint (blocking rules)
-        run: npm run lint
 
       - name: Run tests with coverage
         run: npm run test:unit -- --coverage

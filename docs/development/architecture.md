@@ -42,7 +42,7 @@ never measured.
 | Characterization tests       | CI, `refactor/*` PRs only       | A `*.characterization.test.ts` file is modified, deleted, or renamed                       |
 
 `check:architecture` runs in `check:compliance`, so it is part of
-`npm run build`, the pre-push hook, and CI. `check:architecture` also prints
+`npm run build` and CI. `check:architecture` also prints
 two non-failing observations: production files over 1,000 lines and functions
 with more than 5 parameters.
 
