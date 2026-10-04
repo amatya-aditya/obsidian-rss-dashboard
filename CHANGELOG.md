@@ -5,6 +5,7 @@
 - Sidebar search now says when nothing matched instead of leaving the sidebar blank. A search with no matching feeds or folders shows **0 results** and **No matches found.**, as Obsidian's own search does, and the message clears when the query changes or the search is cleared or closed. [GH Issue #678](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/678)
 
 ### Fixes
+- Improved dashboard filter, hamburger, and sidebar hover menu readability over transparent theme surfaces with a blurred menu surface. [GH Issue #746](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/746)
 - Fixed Add Feed and Edit Feed dialogs shifting off center when a theme animates modal transforms. Centering now uses an independent CSS translate so the theme animation can continue. [GH Issue #745](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/745)
 - Fixed the Manage Feeds modal shifting off center with themes that animate modal transforms. It now uses the same independent centering while preserving the animation. [GH Issue #745](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/745)
 - Fixed RSS 2.0 and RSS 1.0 feeds taking channel metadata from nested items when a channel field is missing. Item authors no longer leak into other items, while a declared channel author remains a fallback. [GH Issue #623](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/623)

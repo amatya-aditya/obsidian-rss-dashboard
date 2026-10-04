@@ -1497,6 +1497,8 @@ body .rss-folder-name-modal {
   border: 1px solid var(--background-modifier-border);
   border-radius: 6px;
   background-color: var(--background-primary);
+  -webkit-backdrop-filter: blur(var(--ui-blur, 8px));
+  backdrop-filter: blur(var(--ui-blur, 8px));
   color: var(--text-normal);
   box-shadow: var(--shadow-s);
   font-size: var(--font-ui-small);
