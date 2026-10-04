@@ -509,14 +509,13 @@ describe("settings store (issue #563)", () => {
         expect(reschedule).toHaveBeenCalledTimes(1);
       });
 
-      // BUG: pinned, see #452
-      it("repairs a feed's missing folder on a reload but not on the first load", async () => {
+      it("repairs a feed's missing folder on the first load and on reload", async () => {
         plugin.onunload();
         createPlugin(
           savedSettings({ feeds: [feed("orphan", "Missing folder")], folders: [] }),
         );
         await plugin.onload();
-        expect(plugin.settings.folders.map((f) => f.name)).not.toContain(
+        expect(plugin.settings.folders.map((f) => f.name)).toContain(
           "Missing folder",
         );
 

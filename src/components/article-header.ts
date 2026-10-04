@@ -511,7 +511,7 @@ export class ArticleHeader {
       };
       this.showThemedMenu(
         selector,
-        { "List View": "list", "Card View": "card", "Feed View": "feed" },
+        { "List view": "list", "Card view": "card", "Feed view": "feed" },
         this.settings.viewStyle,
         (val) =>
           this.callbacks.onToggleViewStyle(val as "list" | "card" | "feed"),

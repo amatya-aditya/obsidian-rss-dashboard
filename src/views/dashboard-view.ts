@@ -3185,6 +3185,7 @@ export class RssDashboardView extends ItemView {
       tagsCollapsed: this.tagsCollapsed,
       collapsedFolders: this.collapsedFolders,
       selectedFolders: this.selectedFolders,
+      selectedFeeds: this.selectedFeeds,
     };
     this.sidebar["settings"] = this.settings;
     this.sidebar.render();
@@ -3885,7 +3886,12 @@ export class RssDashboardView extends ItemView {
 
       const starToggleButton = actions.createDiv({
         cls: `rss-reader-action-button rss-reader-star-toggle${this.inlineArticle.starred ? " starred" : ""}`,
-        attr: { "aria-label": "Star/unstar article" },
+        attr: {
+          role: "button",
+          tabindex: "0",
+          "aria-label": "Star/unstar article",
+          "aria-pressed": String(this.inlineArticle.starred),
+        },
       });
       setIcon(
         starToggleButton,
@@ -3900,10 +3906,16 @@ export class RssDashboardView extends ItemView {
           );
         }
       });
+      starToggleButton.addEventListener("keydown", (e: KeyboardEvent) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          starToggleButton.click();
+        }
+      });
 
       const browserButton = actions.createDiv({
         cls: "rss-reader-action-button",
-        attr: { "aria-label": "Open in Browser" },
+        attr: { "aria-label": "Open in browser" },
       });
       setIcon(browserButton, "external-link");
       browserButton.addEventListener("click", () => {

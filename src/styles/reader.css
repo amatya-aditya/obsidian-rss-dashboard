@@ -78,6 +78,10 @@
   background-color: var(--background-modifier-hover);
   color: var(--text-normal);
 }
+.rss-reader-actions .rss-reader-star-toggle:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 2px;
+}
 .rss-reader-read-toggle.read {
   color: var(--color-green);
 }

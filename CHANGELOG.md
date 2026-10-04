@@ -1,12 +1,25 @@
 ## Unreleased
 
-### Fixes
+### Features
 
+- Sidebar search now says when nothing matched instead of leaving the sidebar blank. A search with no matching feeds or folders shows **0 results** and **No matches found.**, as Obsidian's own search does, and the message clears when the query changes or the search is cleared or closed. [GH Issue #678](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/678)
+
+### Fixes
 - Fixed Stop during a Discover single-feed add leaving the global feed operation active until the fetch timed out. Pressing Stop now ends the add, so the sidebar clears promptly and another feed operation can start. [GH Issue #482](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/482)
+- Gave the dashboard menu's refresh button the accessible name **Refresh feeds**, including in popout windows. [GH Issue #713](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/713)
+- Fixed saved feeds with missing folders staying orphaned after startup. Their folders are now repaired on the first load, as they already were after a settings reload. [GH Issue #452](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/452)
+- Fixed Reader article titles inheriting low-contrast H1 colors from themes. [GH Issue #707](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/707)
+
+- Made the dashboard article header menu and its custom selectors keyboard-operable, prevented dashboard shortcuts from intercepting Enter on controls, and made Escape close the open picker before the hamburger menu. [GH Issue #696](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/696)
+- Fixed feed refreshes clearing Ctrl/Cmd-selected feed highlights and multi-feed sidebar actions while the article list still showed the selected feeds. [GH Issue #653](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/653)
+- Fixed dashboard article stars shrinking to 40px wide in narrow touch layouts. They now keep a circular 44px by 44px hit target. [GH Issue #689](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/689)
+- Corrected sentence case for sidebar toolbar labels and related UI text. [GH Issue #656](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/656)
 - Fixed the first-launch **Add your first feed here** hint staying on screen when the sidebar redrew during its first five seconds. It now disappears five seconds after it first appears. [GH Issue #628](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/628)
 - Fixed the sidebar's **Sort** button doing nothing from the keyboard. Enter or Space now opens the sort menu below the button, the same as clicking it. [GH Issue #627](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/627)
+- Fixed saved article notes corrupting titles, authors, feed names, and other template values that contain `$` sequences. [GH Issue #672](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/672)
 - Fixed the Manage Feeds import and export button labels becoming unreadable in Obsidian's light theme. [GH Issue #694](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/694)
 - Fixed the dashboard mobile **Filters** button so clicking it again closes the open filter menu. Clicking outside or **Apply** still closes it. [GH Issue #704](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/704)
+- Made each Card view article's opener, title, feed source, description, and toolbar actions reachable in keyboard order; Enter on the opener opens that article. [GH Issue #720](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/720)
 - Standardized article star controls on the filled yellow starred state and made the outline darken on hover across dashboard and Reader views. The dashboard's circular background remains dashboard-specific. [GH Issue #684](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/684)
 - Fixed the user preferences import notice claiming feeds were imported when the file only contained folders or tags. The notice now names the collections the file included. [GH Issue #464](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/464)
 - Fixed vertical misalignment among Reader toolbar icons and removed the dashboard-style circle from the Tags action. [GH Issue #680](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/680)
@@ -49,6 +62,7 @@ For a user-facing overview, see the [RSS Dashboard 2.7.1 release notes](docs/rel
 
 ### Fixes
 
+- Fixed the dedicated and inline Reader star controls being skipped by keyboard navigation. Both now work as toggle buttons with Enter and Space, announce their starred state to assistive technology, and show a visible focus indicator. [GH Issue #688](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/688)
 - Fixed the Manage Feeds import and export button labels becoming unreadable in Obsidian's light theme. [GH Issue #694](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/694)
 
 ### Development and compliance
@@ -120,6 +134,7 @@ For a user-facing overview, see the [RSS Dashboard 2.7.0 release notes](docs/rel
 
 ### Fixes
 
+- Fixed the dedicated and inline Reader star controls being skipped by keyboard navigation. Both now work as toggle buttons with Enter and Space, announce their starred state to assistive technology, and show a visible focus indicator. [GH Issue #688](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/688)
 #### Storage and data
 
 - Fixed Shard storage v2 silently losing read, starred, tagged, saved, and playback state. `user-state.json` was rebuilt from memory on every save, so a feed that failed to load, had not synced to this device yet, or had items pruned by retention lost that state, and sync spread the loss to other devices. State is now merged with what is on disk and keyed by feed and guid, so feeds sharing a guid no longer overwrite each other, and marking an article unread now survives sync. A `user-state.json` that cannot be read is never overwritten; a notice and a red alert on the dashboard status strip stay until it is readable again. [GH Issue #278](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/278)
@@ -253,6 +268,7 @@ For a user-facing overview, see the [RSS Dashboard 2.7.0 release notes](docs/rel
 
 ### Fixes
 
+- Fixed the dedicated and inline Reader star controls being skipped by keyboard navigation. Both now work as toggle buttons with Enter and Space, announce their starred state to assistive technology, and show a visible focus indicator. [GH Issue #688](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/688)
 - Fixed dashboard header Mark all read/unread controls so they update and persist the stored articles in the current filtered view. [GH Issue #185](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/185)
 - Removed duplicate close controls from mobile Dashboard and Discover sidebars, retaining Obsidian's standard modal header close button.
 - Standardized sidebar and mobile navigation scrolling on native Obsidian scrollbars, removing the retired scrollbar-visibility preference and custom scrollbar styling in order to improve Community Plugin compliance score.
@@ -285,6 +301,7 @@ For a user-facing overview, see the [RSS Dashboard 2.7.0 release notes](docs/rel
 
 ### Fixes
 
+- Fixed the dedicated and inline Reader star controls being skipped by keyboard navigation. Both now work as toggle buttons with Enter and Space, announce their starred state to assistive technology, and show a visible focus indicator. [GH Issue #688](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/688)
 - Fix: shard local storage address not correctly appearing in edit feed window
 - Fix: Scrolling not working on mobile Discover sidebar
 - Fix: clicking the tag icon on cards a second time will now close the window instead of re-opening it
@@ -320,6 +337,7 @@ Added collapsible headers when viewing feeds in "feed" grouping ([GH Issue #149]
 
 ### Fixes
 
+- Fixed the dedicated and inline Reader star controls being skipped by keyboard navigation. Both now work as toggle buttons with Enter and Space, announce their starred state to assistive technology, and show a visible focus indicator. [GH Issue #688](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/688)
 - Fixed 'custom' input textbox not being hidden when changing between different timeframes in add/edit feed modal ([GH Issue #147](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/147))
 - Fixed feeds not being refreshed after deleting all feeds via feed manager modal
 - Fixed a bug where a single slow or unresponsive feed fetch could block the rest of the feeds from refreshing or completing an OPML import
@@ -357,6 +375,7 @@ Added collapsible headers when viewing feeds in "feed" grouping ([GH Issue #149]
 
 ### Fixes
 
+- Fixed the dedicated and inline Reader star controls being skipped by keyboard navigation. Both now work as toggle buttons with Enter and Space, announce their starred state to assistive technology, and show a visible focus indicator. [GH Issue #688](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/688)
 - Fixed some feeds not properly rendering card previews (e.g. [World History Encyclopedia](https://www.worldhistory.org/rss/))
 - Fixed laggy feeds (NPR)
 - Fixed preview image not appearing in cards for feeds that don't have an image url provided.
@@ -392,6 +411,7 @@ Added collapsible headers when viewing feeds in "feed" grouping ([GH Issue #149]
 
 ### Fixes
 
+- Fixed the dedicated and inline Reader star controls being skipped by keyboard navigation. Both now work as toggle buttons with Enter and Space, announce their starred state to assistive technology, and show a visible focus indicator. [GH Issue #688](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/688)
 - Fixed RSS feed profile favicon size overflow on Android devices where favicons in the sidebar were rendering at massive sizes instead of the intended 16x16px. Added explicit `max-width`, `max-height`, and touch-device CSS constraints for profile image icons (used by Mastodon feeds) to prevent uncontrolled scaling on mobile WebView browsers.
 - Fixed a bug within 2.4.0-beta.1 which was writing unnecessary amounts of data to the JSON files causing performance degradation
 
@@ -410,6 +430,7 @@ Added collapsible headers when viewing feeds in "feed" grouping ([GH Issue #149]
 
 ### Fixes
 
+- Fixed the dedicated and inline Reader star controls being skipped by keyboard navigation. Both now work as toggle buttons with Enter and Space, announce their starred state to assistive technology, and show a visible focus indicator. [GH Issue #688](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/688)
 #### Saving articles to vault not saving article content
 
 - [GH Issue #127](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/127) - appeared to be the same issue on the surface but turned out to be several:
@@ -460,6 +481,7 @@ Added collapsible headers when viewing feeds in "feed" grouping ([GH Issue #149]
 
 ### Fixes
 
+- Fixed the dedicated and inline Reader star controls being skipped by keyboard navigation. Both now work as toggle buttons with Enter and Space, announce their starred state to assistive technology, and show a visible focus indicator. [GH Issue #688](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/688)
 - Fixed Reader view article bodies disappearing for rich feed HTML on affected feeds such as Ars Technica and Substack.
 - Fixed URLs ending in x mistakenly interpreting as x/nitter feeds [GH Issue #121 submitted by Wiloti](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/121)
 
@@ -478,6 +500,7 @@ Added collapsible headers when viewing feeds in "feed" grouping ([GH Issue #149]
 
 ### Fixes
 
+- Fixed the dedicated and inline Reader star controls being skipped by keyboard navigation. Both now work as toggle buttons with Enter and Space, announce their starred state to assistive technology, and show a visible focus indicator. [GH Issue #688](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/688)
 - Fixed bug where reverting from 'shard' storage back to 'legacy' caused all articles to become marked as past auto-deletion date.
 - Fixed YouTube feed articles duplicating in shard storage when the same video was stored under different GUID forms (`yt:video:VIDEO_ID`, `watch?v=VIDEO_ID`, `/shorts/VIDEO_ID`). All three forms now normalize to a single canonical key so duplicates are prevented on refresh and existing duplicate pairs are auto-cleaned on load.
 
@@ -534,6 +557,7 @@ Added collapsible headers when viewing feeds in "feed" grouping ([GH Issue #149]
 
 ### Fixes
 
+- Fixed the dedicated and inline Reader star controls being skipped by keyboard navigation. Both now work as toggle buttons with Enter and Space, announce their starred state to assistive technology, and show a visible focus indicator. [GH Issue #688](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/688)
 - Fixed badge color settings not syncing between color picker and hex input controls. Color picker now updates hex input immediately, and hex input now updates color picker after validation.
 - Fixed a bug where the Obsidian tab title was not properly updating when switching between feeds.
 - Per-feed Add/Edit Feed options now support a separate Auto-refresh "Off" override in addition to "Use global setting", and the explicit Off state is preserved when adding or importing feeds.
@@ -579,6 +603,7 @@ Added collapsible headers when viewing feeds in "feed" grouping ([GH Issue #149]
 
 ### Fixes
 
+- Fixed the dedicated and inline Reader star controls being skipped by keyboard navigation. Both now work as toggle buttons with Enter and Space, announce their starred state to assistive technology, and show a visible focus indicator. [GH Issue #688](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/688)
 - Android bug causing list and card views to regress after every open
 - New feeds now reliably preserve the current global max item default when added, instead of inheriting a lower retained-item limit if parser output omits the per-feed override.
 - Chevron clicks in sidebar now only toggle collapse - GH[#91](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/91)
@@ -621,6 +646,7 @@ Added collapsible headers when viewing feeds in "feed" grouping ([GH Issue #149]
 
 ### Fixes
 
+- Fixed the dedicated and inline Reader star controls being skipped by keyboard navigation. Both now work as toggle buttons with Enter and Space, announce their starred state to assistive technology, and show a visible focus indicator. [GH Issue #688](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/688)
 - **Pagination**: Fixed a bug where the Dashboard would bypass pagination limits and display all articles when toggling view filters or switching to the "Unread" sidebar view.
 - **Scroll Restoration**: Fixed a bug where the Dashboard would reset to the top when opening the Reader panel or resizing the window; implemented a focus-locking mechanism to keep the selected article in view.
 - **Auto-delete bug**: Fixed a bug where imported feeds were not respecting the global default auto-delete duration.

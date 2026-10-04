@@ -125,6 +125,12 @@
   background-color: var(--background-modifier-hover);
 }
 
+.rss-dashboard-filter-menu-item.is-keyboard-active {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: -2px;
+  background-color: var(--background-modifier-hover);
+}
+
 .rss-dashboard-filter-menu-item.empty {
   color: var(--text-muted);
   font-style: italic;

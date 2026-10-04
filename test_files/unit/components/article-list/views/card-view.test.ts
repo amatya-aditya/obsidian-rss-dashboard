@@ -34,6 +34,131 @@ describe("card-view", () => {
     );
   });
 
+  it("orders keyboard stops as card opener, text, toolbar actions, then the next card", () => {
+    const toolbarActions = [
+      "Mark as read",
+      "Save article",
+      "Star article",
+      "Manage tags",
+    ];
+    const createArticleActionButtons = (toolbar: HTMLElement) => {
+      toolbarActions.forEach((label) => {
+        toolbar.createEl("button", {
+          text: label,
+          attr: { "aria-label": label },
+        });
+      });
+    };
+    const ctx = baseViewContext();
+    const firstArticle = makeArticle({
+      coverImage: "https://example.com/cover.jpg",
+    });
+    const secondArticle = makeArticle({
+      guid: "second-article-guid",
+      title: "Second Article",
+    });
+
+    renderCardView(
+      container,
+      [firstArticle, secondArticle],
+      { ...ctx, showCardToolbar: true },
+      baseViewDeps({ createArticleActionButtons }),
+    );
+
+    const firstCard = container.querySelector<HTMLElement>(
+      ".rss-dashboard-article-card",
+    )!;
+    const firstStops = Array.from(
+      firstCard.querySelectorAll<HTMLElement>('button, [tabindex="0"]'),
+    );
+    const allStops = Array.from(
+      container.querySelectorAll<HTMLElement>('button, [tabindex="0"]'),
+    );
+    const secondOpener = container.querySelectorAll<HTMLElement>(
+      ".rss-dashboard-article-card",
+    )[1].querySelector<HTMLElement>(".rss-dashboard-card-open-button");
+
+    expect(
+      firstStops.map((stop) =>
+        stop.classList.contains("rss-dashboard-card-open-button")
+          ? "open"
+          : stop.classList.contains("rss-dashboard-article-title")
+            ? "title"
+            : stop.classList.contains("rss-dashboard-article-feed")
+              ? "feed"
+              : stop.matches(
+                    ".rss-dashboard-summary-overlay, .rss-dashboard-cover-summary-only",
+                  )
+                ? "description"
+                : stop.getAttribute("aria-label"),
+      ),
+    ).toEqual([
+      "open",
+      "title",
+      "feed",
+      "description",
+      ...toolbarActions,
+    ]);
+    const lastFirstCardStop = firstStops[firstStops.length - 1];
+    expect(allStops[allStops.indexOf(lastFirstCardStop) + 1]).toBe(secondOpener);
+    expect(firstStops[0].getAttribute("aria-label")).toContain(firstArticle.title);
+    expect(firstStops[0].getAttribute("aria-label")).toContain(firstArticle.feedTitle);
+    expect(firstStops[0].getAttribute("aria-describedby")).toBeTruthy();
+    expect(firstStops[1].getAttribute("role")).toBe("heading");
+    expect(firstStops[1].getAttribute("aria-level")).toBe("3");
+  });
+
+  it("opens a card from its primary button but not from its text stops", () => {
+    const article = makeArticle();
+    const onArticleClick = vi.fn();
+    renderCardView(
+      container,
+      [article],
+      {
+        ...baseViewContext({
+          callbacks: { onArticleClick },
+        }),
+        showCardToolbar: false,
+      },
+      baseViewDeps(),
+    );
+
+    const card = container.querySelector<HTMLElement>(".rss-dashboard-article-card")!;
+    const openButton = card.querySelector<HTMLButtonElement>(
+      ".rss-dashboard-card-open-button",
+    )!;
+    const globalEnterForButton = vi.fn();
+    document.addEventListener("keydown", globalEnterForButton);
+    const enterEvent = new KeyboardEvent("keydown", {
+      key: "Enter",
+      bubbles: true,
+      cancelable: true,
+    });
+    openButton.dispatchEvent(enterEvent);
+    expect(globalEnterForButton).not.toHaveBeenCalled();
+    expect(enterEvent.defaultPrevented).toBe(false);
+    document.removeEventListener("keydown", globalEnterForButton);
+
+    openButton.click();
+    expect(onArticleClick).toHaveBeenCalledTimes(1);
+    expect(onArticleClick).toHaveBeenCalledWith(article);
+
+    onArticleClick.mockClear();
+    const textStops = card.querySelectorAll<HTMLElement>(
+      ".rss-dashboard-article-title, .rss-dashboard-article-feed, .rss-dashboard-summary-overlay, .rss-dashboard-cover-summary-only",
+    );
+    const globalEnterFromText = vi.fn();
+    document.addEventListener("keydown", globalEnterFromText);
+    textStops.forEach((stop) => {
+      stop.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }),
+      );
+    });
+    document.removeEventListener("keydown", globalEnterFromText);
+    expect(globalEnterFromText).not.toHaveBeenCalled();
+    expect(onArticleClick).not.toHaveBeenCalled();
+  });
+
   it("schedules math rendering for a card title while preserving its source", () => {
     const scheduleMathRendering = vi.fn();
     const rawTitle = String.raw`Direct product of $\mathrm{SL}_n$`;

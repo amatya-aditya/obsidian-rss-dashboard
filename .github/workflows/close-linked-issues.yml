@@ -30,19 +30,32 @@ jobs:
           GH_REPO: ${{ github.repository }}
           PUSHED_SHA: ${{ github.sha }}
         run: |
-          set -euo pipefail
+          set -uo pipefail
+
+          # GitHub's API now and then answers with a 5xx (a GraphQL 504 failed the run
+          # for #710). Retry each call a few times before giving up.
+          retry() {
+            local attempt=1
+            until "$@"; do
+              [ "$attempt" -ge 4 ] && return 1
+              sleep $((attempt * 5))
+              attempt=$((attempt + 1))
+            done
+          }
+
+          failed=0
 
           # The commit-to-PR association can lag the merge by a few seconds.
           prs=""
           for attempt in 1 2 3 4; do
             prs=$(gh api "repos/${GH_REPO}/commits/${PUSHED_SHA}/pulls" \
-              --jq '.[] | select(.merged_at != null) | .number')
+              --jq '.[] | select(.merged_at != null) | .number') || prs=""
             [ -n "$prs" ] && break
             sleep 5
           done
 
           for pr in $prs; do
-            body=$(gh api "repos/${GH_REPO}/pulls/${pr}" --jq '.body // ""')
+            body=$(retry gh api "repos/${GH_REPO}/pulls/${pr}" --jq '.body // ""') || { failed=1; continue; }
 
             # Ignore HTML comments and inline code, so the PR template's own
             # "Use `Fixes #123`" hint never closes issue 123.
@@ -53,10 +66,17 @@ jobs:
               | sort -un || true)
 
             for n in $numbers; do
-              state=$(gh issue view "$n" --json state --jq .state 2>/dev/null || echo MISSING)
-              if [ "$state" = "OPEN" ]; then
-                gh issue close "$n" --reason completed \
-                  --comment "Closed by #${pr}, merged into dev."
+              # REST, not GraphQL: that is where the 504 came from. A number that is a
+              # pull request, or does not exist, is skipped.
+              state=$(retry gh api "repos/${GH_REPO}/issues/${n}" \
+                --jq 'if .pull_request then "PR" else .state end' 2>/dev/null) || state="MISSING"
+              if [ "$state" = "open" ]; then
+                retry gh api -X PATCH "repos/${GH_REPO}/issues/${n}" \
+                  -f state=closed -f state_reason=completed >/dev/null || { failed=1; continue; }
+                retry gh api -X POST "repos/${GH_REPO}/issues/${n}/comments" \
+                  -f body="Closed by #${pr}, merged into dev." >/dev/null || failed=1
               fi
             done
           done
+
+          exit "$failed"

@@ -114,7 +114,7 @@ const STARRED_IMPORT_UNFETCHED_BANNER_TEXT =
 const STARRED_IMPORT_FAILED_BANNER_TEXT =
   "The last attempt to fetch the full article failed. Showing the cached preview from the starred.json import";
 const STARRED_IMPORT_FETCH_NOW_TEXT = "Fetch now";
-const STARRED_IMPORT_OPEN_IN_BROWSER_TEXT = "Open in Browser";
+const STARRED_IMPORT_OPEN_IN_BROWSER_TEXT = "Open in browser";
 const STARRED_IMPORT_FETCH_FAILED_NOTICE =
   "Could not fetch full article content.";
 
@@ -897,12 +897,23 @@ export class ReaderView extends ItemView {
     // Star toggle button
     this.starToggleButton = actions.createDiv({
       cls: "rss-reader-action-button rss-reader-star-toggle",
-      attr: { "aria-label": "Star/unstar article" },
+      attr: {
+        role: "button",
+        tabindex: "0",
+        "aria-label": "Star/unstar article",
+        "aria-pressed": "false",
+      },
     });
     setIcon(this.starToggleButton, "star-off");
     this.starToggleButton.addEventListener("click", () => {
       if (this.currentItem) {
         this.toggleStarStatus();
+      }
+    });
+    this.starToggleButton.addEventListener("keydown", (e: KeyboardEvent) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        this.starToggleButton?.click();
       }
     });
 
@@ -959,7 +970,7 @@ export class ReaderView extends ItemView {
     // Open in browser button
     const browserButton = actions.createDiv({
       cls: "rss-reader-action-button",
-      attr: { "aria-label": "Open in Browser" },
+      attr: { "aria-label": "Open in browser" },
     });
     setIcon(browserButton, "external-link");
     browserButton.addEventListener("click", (e) => {
@@ -2565,6 +2576,10 @@ export class ReaderView extends ItemView {
       this.starToggleButton.classList.toggle(
         "unstarred",
         !this.currentItem.starred,
+      );
+      this.starToggleButton.setAttribute(
+        "aria-pressed",
+        String(this.currentItem.starred),
       );
       setTooltip(
         this.starToggleButton,
