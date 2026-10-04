@@ -134,7 +134,7 @@
   justify-content: center;
   width: 24px;
   height: 24px;
-  border-radius: 50%;
+  border-radius: 12px;
   padding: 2px;
   background-color: var(--background-primary-alt);
   position: relative;

@@ -5,6 +5,7 @@
 - Sidebar search now says when nothing matched instead of leaving the sidebar blank. A search with no matching feeds or folders shows **0 results** and **No matches found.**, as Obsidian's own search does, and the message clears when the query changes or the search is cleared or closed. [GH Issue #678](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/678)
 
 ### Fixes
+- Fixed dashboard article star buttons appearing circular; their backgrounds now have the same rounded rectangle corners as neighboring action icons.
 - Fixed saved-note frontmatter keeping a literal `{{summary}}` when the note template has no frontmatter. It now uses the article summary. [GH Issue #674](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/674)
 - Associated the visible **Card spacing** label with the dashboard slider so assistive technology announces its name, value, and range. [GH Issue #714](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/714)
 - Fixed podcast episodes with relative enclosure URLs failing to play by resolving enclosure URLs against the feed URL. [GH Issue #624](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/624)
@@ -15,7 +16,7 @@
 
 - Made the dashboard article header menu and its custom selectors keyboard-operable, prevented dashboard shortcuts from intercepting Enter on controls, and made Escape close the open picker before the hamburger menu. [GH Issue #696](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/696)
 - Fixed feed refreshes clearing Ctrl/Cmd-selected feed highlights and multi-feed sidebar actions while the article list still showed the selected feeds. [GH Issue #653](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/653)
-- Fixed dashboard article stars shrinking to 40px wide in narrow touch layouts. They now keep a circular 44px by 44px hit target. [GH Issue #689](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/689)
+- Fixed dashboard article stars shrinking to 40px wide in narrow touch layouts. They now keep a rounded 44px by 44px hit target. [GH Issue #689](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/689)
 - Corrected sentence case for sidebar toolbar labels and related UI text. [GH Issue #656](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/656)
 - Fixed the first-launch **Add your first feed here** hint staying on screen when the sidebar redrew during its first five seconds. It now disappears five seconds after it first appears. [GH Issue #628](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/628)
 - Fixed the sidebar's **Sort** button doing nothing from the keyboard. Enter or Space now opens the sort menu below the button, the same as clicking it. [GH Issue #627](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/627)
