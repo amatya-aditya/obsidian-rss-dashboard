@@ -59,13 +59,13 @@ Use `npm ci` (clean install) instead of `npm install` to ensure locked dependenc
 | Hook | Runs | Typical time |
 | --- | --- | --- |
 | `pre-commit` | `check:compliance`, then ESLint on the staged files only and the unit tests related to them (`scripts/run-staged-checks.mjs`) | seconds for prose, under a minute for most code |
-| `pre-push` | `npm run build` (compliance, full lint, type-check, bundle), then the full unit suite | a few minutes |
+| `pre-push` | Prints that full checks run in GitHub Actions and exits without running them locally | under a second |
 
 The pre-commit hook runs the full unit suite instead when you stage a change that can affect every test: `vitest.config.mjs`, `package.json` or `package-lock.json`, a `tsconfig.json`, the Obsidian stub in `test_files/stubs/`, the shared test setup, or a non-TypeScript file under `test_files/` such as a fixture.
 
-Staged-file linting uses ESLint's cache in `node_modules/.cache/eslint/`. Type-aware rules can report a new problem in a file you didn't touch when you change a type it depends on; the pre-push hook and CI lint everything without the cache and catch those.
+Staged-file linting uses ESLint's cache in `node_modules/.cache/eslint/`. Type-aware rules can report a new problem in a file you didn't touch when you change a type it depends on; GitHub Actions runs the uncached full lint and build on pull requests and pushes to `dev` or `master`.
 
-Set `SKIP_GIT_HOOKS=1` to bypass both hooks for a one-off commit or push. CI still runs every check.
+Set `SKIP_GIT_HOOKS=1` to bypass the pre-commit hook. The pre-push hook is informational and does not block pushes; GitHub Actions runs full validation on pull requests and pushes to `dev` or `master`.
 
 ### Local Development
 
@@ -146,7 +146,7 @@ npm run build
 npm run test:unit
 ```
 
-`npm run build` runs the compliance checks, the full lint, the type-check, and the production bundle. Both must pass before you open a PR. The pre-push hook runs exactly these two commands, so a successful `git push` has already checked them.
+`npm run build` runs the compliance checks, the full lint, the TypeScript checks, and the production bundle. GitHub Actions runs this build and the full unit suite for each pull request; pushes to `dev` and `master` also run the workflow.
 
 While iterating, run only the tests your change affects:
 
@@ -502,7 +502,7 @@ git checkout -b feat/231-my-feature
 # While working, stay current
 git fetch origin && git rebase origin/dev
 
-# Before PR: full gate (the pre-push hook runs the same)
+# Optional local full gate; GitHub Actions runs this on pull requests
 npm run build && npm run test:unit
 
 # Cut a release branch
