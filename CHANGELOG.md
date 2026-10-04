@@ -5,6 +5,7 @@
 - Sidebar search now says when nothing matched instead of leaving the sidebar blank. A search with no matching feeds or folders shows **0 results** and **No matches found.**, as Obsidian's own search does, and the message clears when the query changes or the search is cleared or closed. [GH Issue #678](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/678)
 
 ### Fixes
+- Fixed article cover extraction stopping at a `data:` image placeholder. It now skips unusable image URLs, uses a later displayable image, and resolves relative names such as `http-banner.jpg` correctly. [GH Issue #637](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/637)
 - Fixed dashboard article star buttons appearing circular; their backgrounds now have the same rounded rectangle corners as neighboring action icons.
 - Fixed saved-note frontmatter keeping a literal `{{summary}}` when the note template has no frontmatter. It now uses the article summary. [GH Issue #674](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/674)
 - Associated the visible **Card spacing** label with the dashboard slider so assistive technology announces its name, value, and range. [GH Issue #714](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/714)

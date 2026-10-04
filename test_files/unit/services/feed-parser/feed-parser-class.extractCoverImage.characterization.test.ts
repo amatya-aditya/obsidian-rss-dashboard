@@ -273,17 +273,16 @@ describe("FeedParser.extractCoverImage characterization", () => {
       expect(await coverFromContent(html)).toBe("https://img.example.com/second.png");
     });
 
-    it("treats content that merely starts with http as absolute, so a relative file name is not resolved", async () => {
-      // BUG: pinned, see #637 (the unresolved name is returned, rejected as not
-      // http(s) afterwards, and the scan never reaches the real image below).
-      expect(await coverFromContent(`${og("http-banner.jpg")}<img src="${REAL}">`)).toBe("");
+    it("resolves a relative file name that starts with http", async () => {
+      expect(await coverFromContent(`${og("http-banner.jpg")}<img src="${REAL}">`)).toBe(
+        "https://example.com/rss/http-banner.jpg",
+      );
     });
 
-    it("returns a data: URI as the cover result, so the pipeline rejects it and the later image is never tried", async () => {
-      // BUG: pinned, see #637
+    it("skips a data: URI and uses the later image", async () => {
       expect(
         await coverFromContent(`${og("data:image/png;base64,AAAA")}<img src="${REAL}">`),
-      ).toBe("");
+      ).toBe(REAL);
     });
 
     it("keeps a double-encoded absolute url as it is and logs it once per call", async () => {
@@ -418,17 +417,21 @@ describe("FeedParser.extractCoverImage characterization", () => {
       });
     });
 
-    describe("results the pipeline rejects", () => {
-      it("returns a data: URI placeholder as the cover result, so the pipeline drops it and the real image after it is never tried", async () => {
-        // BUG: pinned, see #637
+    describe("unusable image URLs", () => {
+      it("skips a data: URI placeholder and uses the real image after it", async () => {
         const html = `<img src="data:image/gif;base64,R0lGODlhAQABAAAAACw="><img src="${REAL}">`;
 
-        expect(await coverFromContent(html)).toBe("");
+        expect(await coverFromContent(html)).toBe(REAL);
       });
 
-      it("treats a relative file name that starts with http as absolute, so it is returned unresolved and dropped", async () => {
-        // BUG: pinned, see #637
-        expect(await coverFromContent(`<img src="http-banner.jpg"><img src="${REAL}">`)).toBe("");
+      it("finds no cover when a data: URI is the only image", async () => {
+        expect(await coverFromContent('<img src="data:image/gif;base64,AAAA">')).toBe("");
+      });
+
+      it("resolves a relative file name that starts with http", async () => {
+        expect(await coverFromContent(`<img src="http-banner.jpg"><img src="${REAL}">`)).toBe(
+          "https://example.com/rss/http-banner.jpg",
+        );
       });
     });
   });
@@ -555,9 +558,8 @@ describe("FeedParser.extractCoverImage characterization", () => {
       expect(await coverFromContent(afterPixel("/a"))).toBe("");
     });
 
-    it("accepts a data:image URI, because it contains the word image, and stops there", async () => {
-      // BUG: pinned, see #637
-      expect(await coverFromContent(afterPixel("data:image/png;base64,AA", REAL))).toBe("");
+    it("skips a data:image URI and uses the later image", async () => {
+      expect(await coverFromContent(afterPixel("data:image/png;base64,AA", REAL))).toBe(REAL);
     });
 
     it("continues past an image that does not qualify to one that does", async () => {
@@ -731,15 +733,14 @@ describe("FeedParser.extractCoverImage characterization", () => {
       expect(at(feed.items, 0).coverImage).toBe(REAL);
     });
 
-    it("gives an article whose first image is a data: placeholder no cover, although a real image follows", async () => {
-      // BUG: pinned, see #637
+    it("gives an article whose first image is a data: placeholder the real image that follows", async () => {
       const html = `<img src="data:image/gif;base64,R0lGODlhAQABAAAAACw="><img src="${REAL}">`;
 
       const feed = await parseBody(rssWithContent(html));
 
       const item = at(feed.items, 0);
-      expect(item.coverImage).toBe("");
-      expect(item.image).toBe("");
+      expect(item.coverImage).toBe(REAL);
+      expect(item.image).toBe(REAL);
     });
   });
 });
