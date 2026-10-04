@@ -232,7 +232,7 @@ describe("ReaderView custom save dialog behavior", () => {
     );
   });
 
-  it("renders every field, default, option, and button in its existing order", async () => {
+  it("renders every field, default, option, and button in the expected order", async () => {
     const { view } = createHarness({
       defaultFolder: "Reading/Queue",
       defaultTemplate: "Default: {{title}}",
@@ -276,7 +276,7 @@ describe("ReaderView custom save dialog behavior", () => {
     expect(cancel.textContent).toBe("Cancel");
     expect(save.textContent).toBe("Save");
     expect(Array.from(modal.querySelectorAll("button"), (button) => button.textContent))
-      .toEqual(["Save as new template", "Cancel", "Save"]);
+      .toEqual(["Cancel", "Save", "Save as new template"]);
     expect(modal.querySelector("input[name='filename']")).toBeNull();
     expect(modal.querySelector("input[name='tags']")).toBeNull();
   });

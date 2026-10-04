@@ -232,6 +232,7 @@ function createActionButtons(
     text: "Save",
     cls: "rss-dashboard-primary-button rss-dashboard-custom-save-confirm-button",
   });
+  buttonContainer.appendChild(templateControls.saveAsButton);
   saveButton.addEventListener("click", () => {
     void (async () => {
       const folder = folderInput.value.trim();
@@ -272,8 +273,6 @@ function createActionButtons(
       modal.close();
     })();
   });
-  buttonContainer.appendChild(cancelButton);
-  buttonContainer.appendChild(saveButton);
 }
 
 export class ReaderCustomSaveModal extends Modal {

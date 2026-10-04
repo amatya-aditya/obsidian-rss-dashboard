@@ -32,4 +32,16 @@ describe("Reader custom save modal styles", () => {
     expect(textarea.get("display")).toBe("block");
     expect(textarea.get("width")).toBe("100%");
   });
+
+  it("keeps the action buttons in a horizontal row", () => {
+    const actions = declarationsFor(
+      ".rss-dashboard-custom-save-modal .rss-dashboard-modal-buttons",
+    );
+    const buttons = declarationsFor(
+      ".rss-dashboard-custom-save-modal .rss-dashboard-modal-buttons button",
+    );
+
+    expect(actions.get("flex-direction")).toBe("row");
+    expect(buttons.get("width")).toBe("auto");
+  });
 });

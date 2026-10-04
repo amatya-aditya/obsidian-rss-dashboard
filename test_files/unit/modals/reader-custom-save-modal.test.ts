@@ -130,9 +130,9 @@ describe("ReaderCustomSaveModal", () => {
     ]);
     expect(root.querySelector("textarea")?.value).toBe("Default: {{title}}");
     expect(Array.from(root.querySelectorAll("button"), (button) => button.textContent)).toEqual([
-      "Save as new template",
       "Cancel",
       "Save",
+      "Save as new template",
     ]);
   });
 
