@@ -186,6 +186,7 @@ async function createPendingTemplate(
   modal: HTMLElement,
   name: string,
   assignToFeed: boolean,
+  makeGlobalDefault = false,
 ): Promise<void> {
   const saveAsTemplate = modal.querySelector<HTMLButtonElement>(
     ".rss-dashboard-custom-save-template-button",
@@ -197,9 +198,16 @@ async function createPendingTemplate(
   const nameDialog = activeDocument.querySelector<HTMLElement>(
     ".rss-dashboard-template-dialog",
   );
-  if (!nameDialog) throw new Error("Template-name dialog was not opened");
-  const nameInput = nameDialog.querySelector<HTMLInputElement>("input");
+  if (!nameDialog) throw new Error("Saved-template editor was not opened");
+  const nameInput = nameDialog.querySelector<HTMLInputElement>(
+    "#rss-saved-template-name",
+  );
   if (!nameInput) throw new Error("Template-name input was not rendered");
+  const globalDefault = nameDialog.querySelector<HTMLInputElement>(
+    "#rss-saved-template-global-default",
+  );
+  expect(globalDefault?.checked).toBe(false);
+  if (globalDefault) globalDefault.checked = makeGlobalDefault;
   nameInput.value = name;
   Array.from(nameDialog.querySelectorAll<HTMLButtonElement>("button"))
     .find((button) => button.textContent === "Save")
@@ -221,6 +229,11 @@ async function createPendingTemplate(
   Array.from(assignmentDialog.querySelectorAll<HTMLButtonElement>("button"))
     .find((button) => button.textContent === assignmentText)
     ?.click();
+  await vi.waitFor(() => {
+    expect(getFields(modal).saveAsTemplate.textContent).toBe(
+      "New template will be saved",
+    );
+  });
 }
 
 afterEach(() => {
@@ -376,6 +389,7 @@ describe("ReaderView custom save dialog behavior", () => {
     await vi.waitFor(() => {
       expect(harness.saveArticle).toHaveBeenCalledTimes(1);
     });
+    await vi.waitFor(() => expect(harness.item.saved).toBe(true));
 
     expect(harness.saveArticle).toHaveBeenCalledWith(
       saveItem,
@@ -520,13 +534,51 @@ describe("ReaderView custom save dialog behavior", () => {
           },
         ]);
       });
+      expect(
+        harness.settings.articleSaving.globalDefaultTemplateId,
+      ).toBeUndefined();
       expect(harness.feed.customTemplate).toBe(
         assignToFeed ? "template-123" : undefined,
       );
     },
   );
 
-  it("discards an unsaved template when its name dialog is cancelled", async () => {
+  it("commits a Reader-created global default only after the article saves", async () => {
+    vi.spyOn(Date, "now").mockReturnValue(789);
+    const failed = createHarness({ saveResult: null });
+    const failedModal = await openCustomSaveDialog(failed);
+    const failedTemplate = getFields(failedModal).template;
+    failedTemplate.value = "New default body";
+    failedTemplate.dispatchEvent(new Event("input"));
+    await createPendingTemplate(failedModal, "New default", false, true);
+    expect(
+      failed.settings.articleSaving.globalDefaultTemplateId,
+    ).toBeUndefined();
+    getFields(failedModal).save.click();
+    await vi.waitFor(() => expect(failed.saveArticle).toHaveBeenCalledOnce());
+    expect(
+      failed.settings.articleSaving.globalDefaultTemplateId,
+    ).toBeUndefined();
+
+    activeDocument.body.empty();
+    const successful = createHarness();
+    const successfulModal = await openCustomSaveDialog(successful);
+    const template = getFields(successfulModal).template;
+    template.value = "New default body";
+    template.dispatchEvent(new Event("input"));
+    await createPendingTemplate(successfulModal, "New default", false, true);
+    expect(
+      successful.settings.articleSaving.globalDefaultTemplateId,
+    ).toBeUndefined();
+    getFields(successfulModal).save.click();
+    await vi.waitFor(() =>
+      expect(successful.settings.articleSaving.globalDefaultTemplateId).toBe(
+        "template-789",
+      ),
+    );
+  });
+
+  it("discards an unsaved template when its editor is cancelled", async () => {
     const harness = createHarness();
     const modal = await openCustomSaveDialog(harness);
     const { template, savedTemplate, saveAsTemplate } = getFields(modal);
@@ -537,7 +589,7 @@ describe("ReaderView custom save dialog behavior", () => {
     const nameDialog = activeDocument.querySelector<HTMLElement>(
       ".rss-dashboard-template-dialog",
     );
-    if (!nameDialog) throw new Error("Template-name dialog was not opened");
+    if (!nameDialog) throw new Error("Saved-template editor was not opened");
     Array.from(nameDialog.querySelectorAll<HTMLButtonElement>("button"))
       .find((button) => button.textContent === "Cancel")
       ?.click();

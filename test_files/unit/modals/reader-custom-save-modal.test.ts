@@ -12,6 +12,7 @@ import {
   ReaderCustomSaveModal,
   type ReaderCustomSaveModalContext,
 } from "../../../src/modals/reader-custom-save-modal";
+import { ConfirmTemplateReplacementModal } from "../../../src/settings/modals/settings-modals";
 
 vi.mock("../../../src/components/folder-suggest", () => ({
   VaultFolderSuggest: class {
@@ -37,6 +38,7 @@ function createHarness(options?: {
   displayTitle?: string;
   savedTemplates?: RssDashboardSettings["articleSaving"]["savedTemplates"];
   feedTemplate?: string;
+  globalDefaultTemplateId?: string;
 }): {
   item: FeedItem;
   feed: Feed;
@@ -63,6 +65,7 @@ function createHarness(options?: {
       defaultFolder: "Reading/Queue",
       defaultTemplate: "Default: {{title}}",
       savedTemplates: options?.savedTemplates ?? [],
+      globalDefaultTemplateId: options?.globalDefaultTemplateId,
     },
   };
   const saveArticle = vi
@@ -78,7 +81,15 @@ function createHarness(options?: {
     getSettings: () => settings,
     getArticleSaver: () => ({ saveArticle }) as never,
     displayTitle: options?.displayTitle,
-    getCustomTemplateForArticle: () => undefined,
+    getSavedTemplateForArticle: () =>
+      settings.articleSaving.savedTemplates.find(
+        (template) => template.id === feed.customTemplate,
+      ) ||
+      settings.articleSaving.savedTemplates.find(
+        (template) =>
+          template.id === settings.articleSaving.globalDefaultTemplateId,
+      ),
+    saveSettings: vi.fn(async () => {}),
     buildReaderSaveMarkdown: () => "Reader body",
     onArticleSave,
     updateSavedLabel,
@@ -224,6 +235,101 @@ describe("ReaderCustomSaveModal", () => {
     ]);
   });
 
+  it("selects a feed assignment before the global default, and the global default otherwise", () => {
+    const templates = [
+      { id: "feed", name: "Feed", template: "Feed body" },
+      { id: "global", name: "Global", template: "Global body" },
+    ];
+    const feedHarness = createHarness({
+      savedTemplates: templates,
+      feedTemplate: "feed",
+      globalDefaultTemplateId: "global",
+    });
+    feedHarness.open();
+    expect(
+      modal().querySelector<HTMLSelectElement>("#rss-dashboard-saved-template")
+        ?.value,
+    ).toBe("feed");
+    expect(modal().querySelector<HTMLTextAreaElement>("textarea")?.value).toBe(
+      "Feed body",
+    );
+    activeDocument.body.replaceChildren();
+
+    const globalHarness = createHarness({
+      savedTemplates: templates,
+      globalDefaultTemplateId: "global",
+    });
+    globalHarness.open();
+    expect(
+      modal().querySelector<HTMLSelectElement>("#rss-dashboard-saved-template")
+        ?.value,
+    ).toBe("global");
+    expect(modal().querySelector<HTMLTextAreaElement>("textarea")?.value).toBe(
+      "Global body",
+    );
+  });
+
+  it("keeps an intentionally empty global-template body empty in the editor", () => {
+    const harness = createHarness({
+      savedTemplates: [{ id: "empty", name: "Empty", template: "" }],
+      globalDefaultTemplateId: "empty",
+    });
+
+    harness.open();
+
+    expect(
+      modal().querySelector<HTMLSelectElement>("#rss-dashboard-saved-template")
+        ?.value,
+    ).toBe("empty");
+    expect(modal().querySelector<HTMLTextAreaElement>("textarea")?.value).toBe(
+      "",
+    );
+  });
+
+  it("keeps the previous feed assignment when replacement is declined but saves with the selected template", async () => {
+    const harness = createHarness({
+      feedTemplate: "one",
+      savedTemplates: [
+        { id: "one", name: "Current", template: "Current body" },
+        { id: "two", name: "Selected", template: "Selected body" },
+      ],
+    });
+    vi.spyOn(
+      ConfirmTemplateReplacementModal.prototype,
+      "open",
+    ).mockImplementation(() => {});
+    vi.spyOn(
+      ConfirmTemplateReplacementModal.prototype,
+      "waitForClose",
+    ).mockResolvedValue(false);
+    harness.open();
+    const root = modal();
+    const select = root.querySelector<HTMLSelectElement>(
+      "#rss-dashboard-saved-template",
+    );
+    if (!select) throw new Error("Template selector was not rendered");
+    select.value = "two";
+    select.dispatchEvent(new Event("change"));
+    await Promise.resolve();
+
+    root
+      .querySelector<HTMLButtonElement>(
+        ".rss-dashboard-custom-save-confirm-button",
+      )
+      ?.click();
+    await vi.waitFor(() => expect(harness.saveArticle).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(harness.item.saved).toBe(true));
+
+    expect(harness.saveArticle).toHaveBeenCalledWith(
+      expect.anything(),
+      "Reading/Queue",
+      "Selected body",
+      "Reader body",
+      { id: "two", name: "Selected", template: "Selected body" },
+    );
+    expect(harness.feed.customTemplate).toBe("one");
+  });
+
   it("clears the folder field by click or keyboard and closes when cancelled", () => {
     createHarness().open();
     const root = modal();
@@ -262,6 +368,7 @@ describe("ReaderCustomSaveModal", () => {
       )
       ?.click();
     await vi.waitFor(() => expect(harness.saveArticle).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(harness.item.saved).toBe(true));
 
     expect(harness.saveArticle).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -276,6 +383,7 @@ describe("ReaderCustomSaveModal", () => {
     expect(harness.item.savedFilePath).toBe("Saved/Fixture article.md");
     expect(harness.onArticleSave).toHaveBeenCalledWith(harness.item);
     expect(harness.updateSavedLabel).toHaveBeenCalledWith(true);
+    expect(harness.feed.customTemplate).toBeUndefined();
     await vi.waitFor(() =>
       expect(
         activeDocument.querySelector(".rss-dashboard-custom-save-modal"),

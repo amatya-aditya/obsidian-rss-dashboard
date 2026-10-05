@@ -300,6 +300,8 @@ export interface SavedTemplate {
   template: string;
   /** Folder used by Reader when this template is selected; absent on older templates. */
   defaultFolder?: string;
+  /** Optional filename stem pattern; the `.md` extension is added automatically. */
+  filenamePattern?: string;
 }
 
 export interface ArticleSavingSettings {
@@ -311,6 +313,8 @@ export interface ArticleSavingSettings {
   saveFullContent: boolean;
   fetchTimeout: number;
   savedTemplates: SavedTemplate[];
+  /** Saved template used when the feed has no template assignment. */
+  globalDefaultTemplateId?: string;
 }
 
 export const IMAGE_CACHE_LIMIT_MIN_MIB = 1;
@@ -830,6 +834,7 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
     saveFullContent: true,
     fetchTimeout: 10,
     savedTemplates: [],
+    globalDefaultTemplateId: undefined,
   },
   display: {
     showCoverImage: true,

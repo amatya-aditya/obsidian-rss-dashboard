@@ -1,6 +1,11 @@
 import { App, Notice, TFile } from "obsidian";
 import TurndownService from "turndown";
-import { ArticleSavingSettings, Feed, FeedItem } from "../types/types";
+import {
+  ArticleSavingSettings,
+  Feed,
+  FeedItem,
+  SavedTemplate,
+} from "../types/types";
 import { type FullArticleFetchResult } from "../utils/fetch-helpers";
 import {
   fetchFullArticleContentWithOutcome,
@@ -41,13 +46,125 @@ import { ensureVaultFolder } from "../utils/vault-files";
 const MAX_FILENAME_LENGTH = 100;
 
 export function sanitizeFilename(name: string): string {
-  const sanitized = name
+  return sanitizeFilenameStem(name) || "Untitled Article";
+}
+
+function sanitizeFilenameStem(name: string): string {
+  return name
     .replace(/[/\\:*?"<>|]/g, "")
     .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, MAX_FILENAME_LENGTH)
     .trim();
-  const truncated = sanitized.slice(0, MAX_FILENAME_LENGTH).trim();
+}
 
-  return truncated || "Untitled Article";
+type MomentFactory = (input: Date) => { format: (fmt: string) => string };
+
+function formatMoment(date: Date, formatStr: string): string {
+  return (moment as unknown as MomentFactory)(date).format(formatStr);
+}
+
+function replaceFilenameDatePlaceholders(
+  pattern: string,
+  date: Date,
+  firstSeenMs?: number,
+): string {
+  const firstSeenDate =
+    typeof firstSeenMs === "number" && !Number.isNaN(firstSeenMs)
+      ? new Date(firstSeenMs)
+      : date;
+  const longDate = date.toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+  const firstSeen = firstSeenDate.toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+  const now = new Date();
+  return pattern
+    .replace(/{{date}}/g, () => longDate)
+    .replace(/{{dateShort}}/g, () => formatMoment(date, "YYYY-MM-DD"))
+    .replace(/{{isoDate}}/g, () => date.toISOString())
+    .replace(/{{isoDateTime}}/g, () => date.toISOString())
+    .replace(/{{firstSeen}}/g, () => firstSeen)
+    .replace(/{{firstSeenISO}}/g, () =>
+      formatMoment(firstSeenDate, "YYYY-MM-DD"),
+    )
+    .replace(/{{saveDate}}/g, () => formatMoment(now, "YYYY-MM-DD"))
+    .replace(/{{saveTime12}}/g, () => formatMoment(now, "hh:mm A"))
+    .replace(/{{saveTime24}}/g, () => formatMoment(now, "HH:mm"))
+    .replace(/{{date:(.+?)}}/g, (_match, format: string) =>
+      formatMoment(date, format),
+    );
+}
+
+export function buildArticleFilename(
+  item: FeedItem,
+  filenamePattern: string | undefined,
+  addSavedTag: boolean,
+  useFirstSeenDateFallback = false,
+): string {
+  if (filenamePattern?.trim()) {
+    const date =
+      resolveDisplayDate(item, useFirstSeenDateFallback) ?? new Date();
+    const tags = (item.tags ?? [])
+      .map((tag) => tag.name)
+      .filter((tag) => tag.trim() !== "");
+    const rendered = replaceFilenameDatePlaceholders(
+      filenamePattern.trim(),
+      date,
+      item.firstSeenMs,
+    )
+      .replace(/{{title}}/g, () => item.title)
+      .replace(/{{link}}/g, () => item.link)
+      .replace(/{{author}}/g, () => item.author || "")
+      .replace(/{{source}}/g, () => item.feedTitle)
+      .replace(/{{feedTitle}}/g, () => item.feedTitle)
+      .replace(/{{summary}}/g, () => item.summary || "")
+      .replace(/{{tags}}/g, () =>
+        (addSavedTag ? withSavedTagName(tags) : tags).join(", "),
+      )
+      .replace(/{{guid}}/g, () => item.guid)
+      .replace(/{{image}}/g, () =>
+        normalizeSubstackImageUrl(
+          firstNonFormulaImageUrl([
+            item.coverImage,
+            item.image,
+            item.itunes?.image?.href,
+            item.enclosure?.type?.startsWith("image/")
+              ? item.enclosure.url
+              : "",
+          ]) || "",
+        ),
+      )
+      .replace(/{{content}}/g, "");
+    const safeName = sanitizeFilenameStem(rendered);
+    if (safeName) return safeName;
+  }
+  return sanitizeFilename(item.title);
+}
+
+export function findAvailableArticlePath(
+  app: App,
+  folder: string,
+  filename: string,
+): string {
+  const pathFor = (stem: string) =>
+    folder ? `${folder}/${stem}.md` : `${stem}.md`;
+  let candidate = filename;
+  let suffix = 2;
+  while (app.vault.getAbstractFileByPath(pathFor(candidate)) !== null) {
+    const suffixText = ` ${suffix}`;
+    const shortened = filename
+      .slice(0, MAX_FILENAME_LENGTH - suffixText.length)
+      .trim();
+    candidate = `${shortened}${suffixText}`;
+    suffix += 1;
+  }
+  return pathFor(candidate);
 }
 
 export class ArticleSaver {
@@ -386,10 +503,17 @@ export class ArticleSaver {
     item: FeedItem,
     customFolder?: string,
     customTemplate?: string,
+    savedTemplate?: SavedTemplate,
   ): Promise<TFile | null> {
     try {
       if (isLikelyVideoItem(item)) {
-        return await this.saveArticle(item, customFolder, customTemplate);
+        return await this.saveArticle(
+          item,
+          customFolder,
+          customTemplate,
+          undefined,
+          savedTemplate,
+        );
       }
 
       const loadingNotice = new Notice("Fetching full article content...", 0);
@@ -423,6 +547,7 @@ export class ArticleSaver {
           customFolder,
           customTemplate,
           fallbackWithHero,
+          savedTemplate,
         );
       }
 
@@ -453,11 +578,18 @@ export class ArticleSaver {
         customFolder,
         customTemplate,
         markdownContent,
+        savedTemplate,
       );
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       new Notice(`Error saving article with full content: ${message}`);
-      return await this.saveArticle(item, customFolder, customTemplate);
+      return await this.saveArticle(
+        item,
+        customFolder,
+        customTemplate,
+        undefined,
+        savedTemplate,
+      );
     }
   }
 
@@ -466,40 +598,24 @@ export class ArticleSaver {
     customFolder?: string,
     customTemplate?: string,
     rawContent?: string,
+    savedTemplate?: SavedTemplate,
   ): Promise<TFile | null> {
     try {
-      let folder = customFolder || this.settings.defaultFolder || "";
+      let folder =
+        customFolder !== undefined
+          ? customFolder
+          : savedTemplate?.defaultFolder || this.settings.defaultFolder || "";
       folder = this.normalizePath(folder);
 
       if (folder && folder.trim() !== "") {
         folder = await this.ensureFolderExists(folder);
       }
 
-      const filename = sanitizeFilename(item.title);
-      const filePath =
-        folder && folder.trim() !== ""
-          ? `${folder}/${filename}.md`
-          : `${filename}.md`;
-
-      const existingFile = this.app.vault.getAbstractFileByPath(filePath);
-      if (existingFile instanceof TFile) {
-        try {
-          await this.app.fileManager.trashFile(existingFile);
-        } catch (error) {
-          if (!this.isMissingPathError(error)) {
-            throw error;
-          }
-        }
-      } else if (existingFile !== null) {
-        throw new Error(
-          `Cannot save article because ${filePath} exists and is not a file.`,
-        );
-      }
-
-      const template =
-        customTemplate ||
-        this.settings.defaultTemplate ||
-        "# {{title}}\n\n{{content}}\n\n[Source]({{link}})";
+      const template = savedTemplate
+        ? (customTemplate ?? savedTemplate.template)
+        : customTemplate ||
+          this.settings.defaultTemplate ||
+          "# {{title}}\n\n{{content}}\n\n[Source]({{link}})";
 
       let contentToWrite = "";
       const templateHasFrontmatter = template.trim().startsWith("---");
@@ -509,11 +625,45 @@ export class ArticleSaver {
 
       contentToWrite += this.applyTemplate(item, template, rawContent);
 
+      const filename = buildArticleFilename(
+        item,
+        savedTemplate?.filenamePattern,
+        this.settings.addSavedTag,
+        this.getUseFirstSeenDateFallback(),
+      );
+      const recordedFile =
+        item.saved && item.savedFilePath
+          ? this.app.vault.getAbstractFileByPath(
+              this.normalizePath(item.savedFilePath),
+            )
+          : null;
+      const legacyPath =
+        item.saved && !(recordedFile instanceof TFile)
+          ? this.buildSavedArticleFilePath(item)
+          : "";
+      const legacyFile = legacyPath
+        ? this.app.vault.getAbstractFileByPath(legacyPath)
+        : null;
+      const existingSavedFile =
+        recordedFile instanceof TFile
+          ? recordedFile
+          : legacyFile instanceof TFile
+            ? legacyFile
+            : null;
+      const filePath = existingSavedFile
+        ? existingSavedFile.path
+        : findAvailableArticlePath(this.app, folder, filename);
+
       let file: TFile;
       try {
-        file = await this.app.vault.create(filePath, contentToWrite);
+        if (existingSavedFile) {
+          await this.app.vault.modify(existingSavedFile, contentToWrite);
+          file = existingSavedFile;
+        } else {
+          file = await this.app.vault.create(filePath, contentToWrite);
+        }
       } catch (error) {
-        if (!(folder && this.isMissingPathError(error))) {
+        if (existingSavedFile || !(folder && this.isMissingPathError(error))) {
           throw error;
         }
 

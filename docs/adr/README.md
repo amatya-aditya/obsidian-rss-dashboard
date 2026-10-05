@@ -54,6 +54,8 @@ See the [ADR Policy](POLICY.md) for the complete lifecycle, authoring, and maint
 | [0014](0014-obsidian-test-stub-fidelity.md)                                    | The Obsidian Test Stub Models Observed Obsidian Behavior                | accepted | Base the unit-test stub on contract-tested observations of real Obsidian, never its source, and fix production code when a faithful stub breaks a test.   |
 | [0015](0015-main-ts-decomposition.md)                                          | Decompose main.ts into Injected Modules Behind a Plugin Facade          | accepted | Keep main.ts as the composition root and move feature clusters into injected service modules one at a time, with public plugin methods kept as delegates. |
 | [0016](0016-wcag-22-aa-accessibility-reference.md)                             | Use WCAG 2.2 AA as the Accessibility Reference                          | accepted | Apply WCAG 2.2 AA as the design and audit reference for applicable plugin-owned UI without claiming conformance before verification.                      |
+| [0017](0017-select-saved-article-templates-by-feed-then-global-default.md)     | Select Saved Article Templates by Feed, Then Global Default             | accepted | Use one feed-specific template when assigned, otherwise the selected global saved template, and fall back to the built-in template when neither applies.  |
+| [0018](0018-generate-safe-article-filenames-from-template-patterns.md)         | Generate Safe Article Filenames from Template Patterns                  | accepted | Allow optional per-template filename stems, preserve existing article paths, and add numeric suffixes instead of replacing a different note.              |
 
 ## Creating a new ADR
 

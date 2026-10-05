@@ -30,6 +30,7 @@ import type {
 import { Sidebar, type SidebarOptions } from "../components/sidebar";
 import { ArticleList } from "../components/article-list";
 import { ArticleSaver } from "../services/article-saver";
+import { resolveSavedTemplateForArticle } from "../utils/saved-template-utils";
 import { getEffectiveDateMs } from "../services/feed-parser/feed-retention.js";
 import {
   getFilteredArticleScope,
@@ -2645,29 +2646,20 @@ export class RssDashboardView extends ItemView {
   }
 
   private async handleArticleSave(article: FeedItem): Promise<void> {
-    // Find the feed to check for custom template
-    const feed = this.settings.feeds.find(
-      (f: Feed) => f.url === article.feedUrl,
+    const savedTemplate = resolveSavedTemplateForArticle(
+      article,
+      this.settings.feeds,
+      this.settings.articleSaving.savedTemplates || [],
+      this.settings.articleSaving.globalDefaultTemplateId,
     );
-    let customTemplate: string | undefined;
-
-    // If feed has a custom template ID, resolve it to the actual template content
-    if (feed?.customTemplate) {
-      const savedTemplates = this.settings.articleSaving.savedTemplates || [];
-      const templateObj = savedTemplates.find(
-        (t) => t.id === feed.customTemplate,
-      );
-      if (templateObj) {
-        customTemplate = templateObj.template;
-      }
-    }
 
     let file: TFile | null = null;
     if (this.settings.articleSaving.saveFullContent) {
       file = await this.saver.saveArticleWithFullContent(
         article,
         undefined,
-        customTemplate,
+        undefined,
+        savedTemplate,
       );
       // Propagate restrictedReason if set during save
       if (article.restrictedReason) {
@@ -2683,7 +2675,13 @@ export class RssDashboardView extends ItemView {
         }
       }
     } else {
-      file = await this.saver.saveArticle(article, undefined, customTemplate);
+      file = await this.saver.saveArticle(
+        article,
+        undefined,
+        undefined,
+        undefined,
+        savedTemplate,
+      );
     }
 
     if (file) {

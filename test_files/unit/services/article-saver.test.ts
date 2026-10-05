@@ -502,7 +502,7 @@ title: "{{title}}"
     expect(frontmatter).not.toMatch(/^injected: true$/m);
   });
 
-  it("trashes an existing file at the same path before creating a new one", async () => {
+  it("updates an identified saved file at its recorded path", async () => {
     const app = App.createMock();
     const settings = createSettings({
       defaultFolder: "Articles",
@@ -513,12 +513,17 @@ title: "{{title}}"
     const item = createItem({ title: "Repeat Title" });
     await saver.saveArticle(item, undefined, undefined, "FIRST");
 
-    const trashSpy = vi.spyOn(app.fileManager, "trashFile");
-    await saver.saveArticle(item, undefined, undefined, "SECOND");
+    const modifySpy = vi.spyOn(app.vault, "modify");
+    const result = await saver.saveArticle(
+      item,
+      undefined,
+      undefined,
+      "SECOND",
+    );
 
-    expect(trashSpy).toHaveBeenCalledTimes(1);
-    const trashed = trashSpy.mock.calls[0][0];
-    expect(trashed).toBeInstanceOf(TFile);
+    expect(result?.path).toBe("Articles/Repeat Title.md");
+    expect(modifySpy).toHaveBeenCalledTimes(1);
+    expect(modifySpy).toHaveBeenCalledWith(result, "SECOND");
   });
 
   it("returns null and does not mark the item saved when writing fails", async () => {
@@ -538,7 +543,7 @@ title: "{{title}}"
     expect(item.savedFilePath).toBeUndefined();
   });
 
-  it("continues saving when replacing an existing file hits a missing-path race", async () => {
+  it("recreates a saved note at its legacy title path after its recorded path disappears", async () => {
     const app = App.createMock();
     const settings = createSettings({
       defaultFolder: "Articles",
@@ -549,14 +554,11 @@ title: "{{title}}"
     const item = createItem({ title: "Race Condition" });
     await saver.saveArticle(item, undefined, undefined, "FIRST");
 
-    // The file disappears between the lookup and the trash call (for example,
-    // removed by sync), so trashing it fails with a missing-path error.
-    vi.spyOn(app.fileManager, "trashFile").mockImplementationOnce(
-      async (file) => {
-        if (file instanceof TFile) await app.vault.delete(file);
-        throw new Error("ENONET: no such file exists");
-      },
+    const savedFile = app.vault.getAbstractFileByPath(
+      "Articles/Race Condition.md",
     );
+    if (!(savedFile instanceof TFile)) throw new Error("expected saved file");
+    await app.vault.delete(savedFile);
 
     const result = await saver.saveArticle(
       item,
@@ -566,6 +568,7 @@ title: "{{title}}"
     );
 
     expect(result).toBeInstanceOf(TFile);
+    expect(result?.path).toBe("Articles/Race Condition.md");
   });
 
   it("saves into an existing folder whose name differs only in case", async () => {
@@ -684,6 +687,162 @@ title: "{{title}}"
     expect(createSpy).toHaveBeenCalled();
     expect(createSpy.mock.calls[0][0]).toBe("Articles/Untitled Article.md");
     expect(item.savedFilePath).toBe("Articles/Untitled Article.md");
+  });
+
+  it("renders saved-template filename patterns and avoids replacing other notes", async () => {
+    const app = App.createMock();
+    const saver = new ArticleSaver(app, createSettings());
+    const savedTemplate = {
+      id: "pattern",
+      name: "Pattern",
+      template: "# {{title}}",
+      filenamePattern: "{{source}} - {{title}}",
+    };
+    const first = createItem({ title: "Shared", feedTitle: "Research" });
+    const second = createItem({
+      title: "Shared",
+      feedTitle: "Research",
+      guid: "guid-2",
+    });
+
+    const firstFile = await saver.saveArticle(
+      first,
+      undefined,
+      undefined,
+      undefined,
+      savedTemplate,
+    );
+    const secondFile = await saver.saveArticle(
+      second,
+      undefined,
+      undefined,
+      undefined,
+      savedTemplate,
+    );
+
+    expect(firstFile?.path).toBe("Research - Shared.md");
+    expect(secondFile?.path).toBe("Research - Shared 2.md");
+    expect(first.savedFilePath).toBe("Research - Shared.md");
+  });
+
+  it("preserves an empty body from an explicitly selected saved template", async () => {
+    const app = App.createMock();
+    const saver = new ArticleSaver(
+      app,
+      createSettings({ defaultTemplate: "# Standalone fallback" }),
+    );
+
+    const file = await saver.saveArticle(
+      createItem(),
+      undefined,
+      undefined,
+      undefined,
+      { id: "empty", name: "Empty", template: "" },
+    );
+
+    if (!(file instanceof TFile)) throw new Error("expected saved file");
+    await expect(app.vault.read(file)).resolves.toBe("");
+  });
+
+  it("uses the normalized article image value in filename patterns", async () => {
+    const app = App.createMock();
+    const saver = new ArticleSaver(app, createSettings());
+    const normalizedImage =
+      "https://substack-post-media.s3.amazonaws.com/public/images/photo.png";
+    const item = createItem({
+      coverImage:
+        "https://substackcdn.com/image/fetch/$s_!test/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2Fphoto.png",
+    });
+
+    const file = await saver.saveArticle(
+      item,
+      undefined,
+      undefined,
+      undefined,
+      {
+        id: "image",
+        name: "Image",
+        template: "{{image}}",
+        filenamePattern: "{{image}}",
+      },
+    );
+
+    expect(file?.path).toBe(`${sanitizeFilename(normalizedImage)}.md`);
+  });
+
+  it("updates an identified saved note at its recorded path after pattern changes", async () => {
+    const app = App.createMock();
+    const saver = new ArticleSaver(app, createSettings());
+    await app.vault.createFolder("Archive");
+    const item = createItem({
+      saved: true,
+      savedFilePath: "Archive/Original name.md",
+    });
+    const savedTemplate = {
+      id: "pattern",
+      name: "Pattern",
+      template: "# {{title}}",
+      filenamePattern: "New name",
+    };
+    const existing = await app.vault.create(
+      "Archive/Original name.md",
+      "old content",
+    );
+    const modify = vi.spyOn(app.vault, "modify");
+
+    const file = await saver.saveArticle(
+      item,
+      undefined,
+      undefined,
+      "updated content",
+      savedTemplate,
+    );
+
+    expect(file).toBe(existing);
+    expect(file?.path).toBe("Archive/Original name.md");
+    expect(modify).toHaveBeenCalledWith(existing, "# Test Article");
+  });
+
+  it("falls back to the article title for unusable patterns and keeps collision suffixes inside the stem limit", async () => {
+    const app = App.createMock();
+    const saver = new ArticleSaver(app, createSettings());
+    const unusable = await saver.saveArticle(
+      createItem({ title: "Title fallback" }),
+      undefined,
+      undefined,
+      undefined,
+      {
+        id: "empty",
+        name: "Empty",
+        template: "{{title}}",
+        filenamePattern: "{{content}}",
+      },
+    );
+    const longTemplate = {
+      id: "long",
+      name: "Long",
+      template: "{{title}}",
+      filenamePattern: "x".repeat(100),
+    };
+    const longFirst = await saver.saveArticle(
+      createItem({ guid: "long-one" }),
+      undefined,
+      undefined,
+      undefined,
+      longTemplate,
+    );
+    const longSecond = await saver.saveArticle(
+      createItem({ guid: "long-two" }),
+      undefined,
+      undefined,
+      undefined,
+      longTemplate,
+    );
+
+    expect(unusable?.path).toBe("Title fallback.md");
+    expect(longFirst?.basename.length).toBe(100);
+    expect(longSecond?.basename.length).toBe(100);
+    expect(longSecond?.basename.endsWith(" 2")).toBe(true);
   });
 });
 
@@ -1204,6 +1363,7 @@ describe("ArticleSaver.saveArticleWithFullContent", () => {
       undefined,
       undefined,
       "Feed body wins.",
+      undefined,
     );
   });
 
@@ -1318,7 +1478,13 @@ describe("ArticleSaver.saveArticleWithFullContent", () => {
     await saver.saveArticleWithFullContent(item);
 
     expect(fetchSpy).not.toHaveBeenCalled();
-    expect(saveSpy).toHaveBeenCalledWith(item, undefined, undefined);
+    expect(saveSpy).toHaveBeenCalledWith(
+      item,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+    );
     expect(item.restrictedReason).toBeUndefined();
   });
 

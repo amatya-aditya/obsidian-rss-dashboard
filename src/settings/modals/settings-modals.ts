@@ -4,7 +4,8 @@
  * Extracted from settings-tab.ts to break the monolith.
  * Imports are kept minimal — only Obsidian core + platform utils.
  */
-import { App, Modal, Setting, TextComponent } from "obsidian";
+import { App, Modal, Notice, Setting, TextComponent } from "obsidian";
+import type { SavedTemplate } from "../../types/types";
 import {
   setCssProps,
   shouldUseMobileSidebarLayout,
@@ -109,6 +110,219 @@ export class ConfirmTemplateAssignmentModal extends Modal {
       .addButton((btn) =>
         btn
           .setButtonText("Yes, use for this feed")
+          .setCta()
+          .onClick(() => {
+            this.confirmed = true;
+            this.close();
+          }),
+      );
+  }
+
+  onClose() {
+    this.contentEl.empty();
+    this.resolvePromise?.(this.confirmed);
+  }
+
+  waitForClose(): Promise<boolean> {
+    return new Promise((resolve) => {
+      this.resolvePromise = resolve;
+    });
+  }
+}
+
+export interface SavedTemplateEditorResult {
+  name: string;
+  template: string;
+  defaultFolder: string;
+  filenamePattern: string;
+  makeGlobalDefault: boolean;
+}
+
+export class SavedTemplateEditorModal extends Modal {
+  private result: SavedTemplateEditorResult | null = null;
+  private resolvePromise:
+    ((value: SavedTemplateEditorResult | null) => void) | null = null;
+  private readonly initial: SavedTemplateEditorResult;
+  private readonly existingTemplates: readonly SavedTemplate[];
+  private readonly editingId: string | undefined;
+
+  constructor(
+    app: App,
+    initial: SavedTemplateEditorResult,
+    existingTemplates: readonly SavedTemplate[],
+    editingId?: string,
+  ) {
+    super(app);
+    this.initial = initial;
+    this.existingTemplates = existingTemplates;
+    this.editingId = editingId;
+  }
+
+  onOpen() {
+    this.containerEl.addClass("rss-dashboard-template-dialog-container");
+    this.modalEl.addClass("rss-dashboard-template-dialog");
+    const { contentEl } = this;
+    contentEl.empty();
+    new Setting(contentEl)
+      .setName(this.editingId ? "Edit saved template" : "Create saved template")
+      .setHeading();
+
+    let nameInput: HTMLInputElement;
+    let bodyInput: HTMLTextAreaElement;
+    let folderInput: HTMLInputElement;
+    let filenameInput: HTMLInputElement;
+    let defaultCheckbox: HTMLInputElement;
+
+    const createTextField = (
+      name: string,
+      id: string,
+      value: string,
+      multiline = false,
+    ): HTMLInputElement | HTMLTextAreaElement => {
+      contentEl.createEl("label", { text: name, attr: { for: id } });
+      const input = multiline
+        ? contentEl.createEl("textarea", { attr: { id, rows: "8" } })
+        : contentEl.createEl("input", {
+            attr: { id, type: "text" },
+          });
+      input.value = value;
+      return input;
+    };
+
+    nameInput = createTextField(
+      "Template name",
+      "rss-saved-template-name",
+      this.initial.name,
+    ) as HTMLInputElement;
+    bodyInput = createTextField(
+      "Template body",
+      "rss-saved-template-body",
+      this.initial.template,
+      true,
+    ) as HTMLTextAreaElement;
+    folderInput = createTextField(
+      "Custom folder",
+      "rss-saved-template-folder",
+      this.initial.defaultFolder,
+    ) as HTMLInputElement;
+    filenameInput = createTextField(
+      "Filename pattern",
+      "rss-saved-template-filename",
+      this.initial.filenamePattern,
+    ) as HTMLInputElement;
+    filenameInput.setAttribute(
+      "aria-describedby",
+      "rss-saved-template-filename-help",
+    );
+    contentEl.createEl("p", {
+      cls: "setting-item-description",
+      attr: { id: "rss-saved-template-filename-help" },
+      text: "Leave blank to use the article title. The .md extension is added automatically.",
+    });
+
+    const defaultLabel = contentEl.createEl("label", {
+      attr: { for: "rss-saved-template-global-default" },
+      text: "Make global default",
+    });
+    defaultCheckbox = contentEl.createEl("input", {
+      attr: { id: "rss-saved-template-global-default", type: "checkbox" },
+    });
+    defaultCheckbox.checked = this.initial.makeGlobalDefault;
+    defaultLabel.insertAdjacentElement("afterbegin", defaultCheckbox);
+    contentEl.createEl("p", {
+      cls: "setting-item-description",
+      text: "A feed-assigned template takes precedence over the global default. The standalone template is used when no saved default is selected.",
+    });
+
+    new Setting(contentEl)
+      .addButton((button) =>
+        button.setButtonText("Cancel").onClick(() => this.close()),
+      )
+      .addButton((button) =>
+        button
+          .setButtonText("Save")
+          .setCta()
+          .onClick(() => {
+            const name = nameInput.value.trim();
+            const duplicate = this.existingTemplates.some(
+              (template) =>
+                template.id !== this.editingId &&
+                template.name.trim().toLocaleLowerCase() ===
+                  name.toLocaleLowerCase(),
+            );
+            if (!name || duplicate) {
+              new Notice(
+                duplicate
+                  ? "Template names must be unique."
+                  : "Enter a template name.",
+              );
+              nameInput.focus();
+              return;
+            }
+            this.result = {
+              name,
+              template: bodyInput.value,
+              defaultFolder: folderInput.value.trim(),
+              filenamePattern: filenameInput.value.trim(),
+              makeGlobalDefault: defaultCheckbox.checked,
+            };
+            this.close();
+          }),
+      );
+
+    window.setTimeout(() => nameInput.focus(), 50);
+  }
+
+  onClose() {
+    this.contentEl.empty();
+    this.resolvePromise?.(this.result);
+  }
+
+  waitForClose(): Promise<SavedTemplateEditorResult | null> {
+    return new Promise((resolve) => {
+      this.resolvePromise = resolve;
+    });
+  }
+}
+
+export class ConfirmTemplateReplacementModal extends Modal {
+  private confirmed = false;
+  private resolvePromise: ((value: boolean) => void) | null = null;
+
+  constructor(
+    app: App,
+    feedName: string,
+    currentTemplateName: string,
+    nextTemplateName: string,
+  ) {
+    super(app);
+    this.feedName = feedName;
+    this.currentTemplateName = currentTemplateName;
+    this.nextTemplateName = nextTemplateName;
+  }
+
+  private readonly feedName: string;
+  private readonly currentTemplateName: string;
+  private readonly nextTemplateName: string;
+
+  onOpen() {
+    this.containerEl.addClass("rss-dashboard-template-dialog-container");
+    this.modalEl.addClass("rss-dashboard-template-dialog");
+    const { contentEl } = this;
+    contentEl.empty();
+    new Setting(contentEl).setName("Replace feed template?").setHeading();
+    contentEl.createEl("p", {
+      text: `Replace "${this.currentTemplateName}" with "${this.nextTemplateName}" for ${this.feedName}?`,
+    });
+    new Setting(contentEl)
+      .addButton((button) =>
+        button
+          .setButtonText("Keep current template")
+          .onClick(() => this.close()),
+      )
+      .addButton((button) =>
+        button
+          .setButtonText("Replace template")
           .setCta()
           .onClick(() => {
             this.confirmed = true;

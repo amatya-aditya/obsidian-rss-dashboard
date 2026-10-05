@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as obsidian from "obsidian";
 import { DEFAULT_SETTINGS, type SavedTemplate } from "../../../src/types/types";
 import { renderArticleSavingSettingsTab } from "../../../src/settings/tabs/article-saving-settings-tab";
-import { TemplateNameModal } from "../../../src/settings/modals/settings-modals";
+import { SavedTemplateEditorModal } from "../../../src/settings/modals/settings-modals";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 
 function flushPromises(): Promise<void> {
@@ -19,6 +19,7 @@ interface TestPlugin {
       fetchTimeout: number | undefined;
       defaultTemplate: string;
       savedTemplates: SavedTemplate[] | undefined;
+      globalDefaultTemplateId?: string;
     };
   };
   saveSettings: () => Promise<void>;
@@ -46,6 +47,7 @@ function createPlugin(overrides?: {
   fetchTimeout?: number | undefined;
   defaultTemplate?: string;
   savedTemplates?: SavedTemplate[] | undefined;
+  globalDefaultTemplateId?: string;
 }): TestPlugin {
   const app = obsidian.App.createMock();
   const saveSettingsMock = vi.fn(async () => {});
@@ -59,6 +61,7 @@ function createPlugin(overrides?: {
         fetchTimeout: overrides?.fetchTimeout,
         defaultTemplate: overrides?.defaultTemplate ?? "TEMPLATE",
         savedTemplates: overrides?.savedTemplates,
+        globalDefaultTemplateId: overrides?.globalDefaultTemplateId,
       },
     },
     saveSettings: saveSettingsMock,
@@ -260,18 +263,26 @@ describe("renderArticleSavingSettingsTab()", () => {
 
     const logSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
     const openSpy = vi
-      .spyOn(TemplateNameModal.prototype, "open")
+      .spyOn(SavedTemplateEditorModal.prototype, "open")
       .mockImplementation(() => {});
 
-    vi.spyOn(TemplateNameModal.prototype, "waitForClose").mockResolvedValue(
-      "My template",
-    );
+    vi.spyOn(
+      SavedTemplateEditorModal.prototype,
+      "waitForClose",
+    ).mockResolvedValue({
+      name: "My template",
+      template: "CURR",
+      defaultFolder: "",
+      filenamePattern: "",
+      makeGlobalDefault: false,
+    });
     vi.spyOn(Date, "now").mockReturnValue(111);
 
     renderArticleSavingSettingsTab(containerEl, plugin, onRefresh);
 
     expect(
-      containerEl.querySelector(".rss-dashboard-settings-note")?.textContent,
+      containerEl.querySelector(".rss-dashboard-no-saved-templates")
+        ?.textContent,
     ).toContain("No saved templates yet");
 
     const saveAsBtn = Array.from(containerEl.querySelectorAll("button")).find(
@@ -292,7 +303,12 @@ describe("renderArticleSavingSettingsTab()", () => {
       id: "template-111",
       name: "My template",
       template: "CURR",
+      defaultFolder: "",
+      filenamePattern: "",
     });
+    expect(
+      plugin.settings.articleSaving.globalDefaultTemplateId,
+    ).toBeUndefined();
     expect(plugin.mocks.saveSettings).toHaveBeenCalledTimes(1);
     expect(logSpy).toHaveBeenCalledWith(
       "[Stub Notice]",
@@ -300,77 +316,71 @@ describe("renderArticleSavingSettingsTab()", () => {
     );
   });
 
-  it("supports saved template actions: Load, Update, Delete", async () => {
+  it("edits all options of a saved template independently and can clear the global default", async () => {
     const containerEl = createDiv();
     const plugin = createPlugin({
       defaultTemplate: "EDITOR",
-      savedTemplates: [{ id: "t1", name: "One", template: "SAVED" }],
+      savedTemplates: [
+        { id: "t1", name: "One", template: "SAVED", defaultFolder: "One" },
+        { id: "t2", name: "Two", template: "OTHER", defaultFolder: "Two" },
+      ],
+      globalDefaultTemplateId: "t1",
     });
     const onRefresh = vi.fn();
     const logSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
 
     renderArticleSavingSettingsTab(containerEl, plugin, onRefresh);
 
-    const textarea = containerEl.querySelector(
-      ".rss-dashboard-template-input",
-    ) as HTMLTextAreaElement;
-
-    const templateSetting = getSettingByName(containerEl, "One");
-    const loadBtn = Array.from(templateSetting.querySelectorAll("button")).find(
-      (b) => b.textContent === "Load",
-    ) as HTMLButtonElement;
-    const updateBtn = Array.from(
-      templateSetting.querySelectorAll("button"),
-    ).find((b) => b.textContent === "Update") as HTMLButtonElement;
-    const deleteBtn = templateSetting.querySelector(
-      'button[data-icon="trash"]',
-    ) as HTMLButtonElement;
-
-    expect(loadBtn).toBeTruthy();
-    expect(updateBtn).toBeTruthy();
-    expect(deleteBtn).toBeTruthy();
-
-    // Load
-    plugin.mocks.saveSettings.mockClear();
-    logSpy.mockClear();
-    loadBtn.click();
+    const editorOpen = vi
+      .spyOn(SavedTemplateEditorModal.prototype, "open")
+      .mockImplementation(() => {});
+    vi.spyOn(
+      SavedTemplateEditorModal.prototype,
+      "waitForClose",
+    ).mockResolvedValue({
+      name: "Renamed",
+      template: "UPDATED",
+      defaultFolder: "Renamed folder",
+      filenamePattern: "{{title}}-updated",
+      makeGlobalDefault: false,
+    });
+    const oneSetting = getSettingByName(containerEl, "One");
+    (
+      Array.from(oneSetting.querySelectorAll("button")).find(
+        (button) => button.textContent === "Edit",
+      ) as HTMLButtonElement
+    ).click();
     await flushPromises();
-    expect(textarea.value).toBe("SAVED");
-    expect(plugin.settings.articleSaving.defaultTemplate).toBe("SAVED");
-    expect(plugin.mocks.saveSettings).toHaveBeenCalledTimes(1);
+    expect(editorOpen).toHaveBeenCalledOnce();
+    expect(plugin.settings.articleSaving.savedTemplates?.[0]).toMatchObject({
+      id: "t1",
+      name: "Renamed",
+      template: "UPDATED",
+      defaultFolder: "Renamed folder",
+      filenamePattern: "{{title}}-updated",
+    });
+    expect(plugin.settings.articleSaving.savedTemplates?.[1].template).toBe(
+      "OTHER",
+    );
+    expect(
+      plugin.settings.articleSaving.globalDefaultTemplateId,
+    ).toBeUndefined();
+    expect(plugin.mocks.saveSettings).toHaveBeenCalledOnce();
+
+    const deleteSetting = getSettingByName(containerEl, "One");
+    (
+      deleteSetting.querySelector(
+        'button[data-icon="trash"]',
+      ) as HTMLButtonElement
+    ).click();
+    await flushPromises();
+    expect(plugin.settings.articleSaving.savedTemplates).toHaveLength(1);
+    expect(plugin.mocks.saveSettings).toHaveBeenCalledTimes(2);
+    expect(onRefresh).toHaveBeenCalledTimes(2);
     expect(logSpy).toHaveBeenCalledWith(
       "[Stub Notice]",
-      'Template "One" loaded',
+      'Template "Renamed" deleted',
     );
-
-    // Update
-    plugin.mocks.saveSettings.mockClear();
-    logSpy.mockClear();
-    plugin.settings.articleSaving.defaultTemplate = "UPDATED_FROM_EDITOR";
-    updateBtn.click();
-    await flushPromises();
-    expect(plugin.settings.articleSaving.savedTemplates?.[0].template).toBe(
-      "UPDATED_FROM_EDITOR",
-    );
-    expect(plugin.mocks.saveSettings).toHaveBeenCalledTimes(1);
-    expect(logSpy).toHaveBeenCalledWith(
-      "[Stub Notice]",
-      'Template "One" updated',
-    );
-
-    // Delete
-    plugin.mocks.saveSettings.mockClear();
-    logSpy.mockClear();
-    onRefresh.mockClear();
-    deleteBtn.click();
-    await flushPromises();
-    expect(plugin.settings.articleSaving.savedTemplates).toHaveLength(0);
-    expect(plugin.mocks.saveSettings).toHaveBeenCalledTimes(1);
-    expect(logSpy).toHaveBeenCalledWith(
-      "[Stub Notice]",
-      'Template "One" deleted',
-    );
-    expect(onRefresh).toHaveBeenCalledTimes(1);
   });
 });
 

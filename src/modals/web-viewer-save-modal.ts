@@ -13,8 +13,13 @@ export class WebViewerSaveModal extends Modal {
   }
 
   onOpen() {
-    const { defaultFolder, defaultTemplate, includeFrontmatter, onSave } =
-      this.opts;
+    const {
+      defaultFolder,
+      defaultTemplate,
+      defaultFilenamePattern,
+      includeFrontmatter,
+      onSave,
+    } = this.opts;
     const { contentEl } = this;
     contentEl.empty();
 
@@ -52,6 +57,26 @@ export class WebViewerSaveModal extends Modal {
     templateInput.value = defaultTemplate;
     templateInput.addEventListener("focus", () => templateInput.select());
 
+    contentEl.createEl("label", {
+      text: "Filename pattern:",
+      attr: { for: "rss-web-viewer-filename-pattern" },
+    });
+    const filenamePatternInput = contentEl.createEl("input", {
+      attr: {
+        id: "rss-web-viewer-filename-pattern",
+        type: "text",
+        value: defaultFilenamePattern,
+        autocomplete: "off",
+        "aria-describedby": "rss-web-viewer-filename-pattern-help",
+      },
+    });
+    filenamePatternInput.spellcheck = false;
+    contentEl.createEl("p", {
+      cls: "setting-item-description",
+      attr: { id: "rss-web-viewer-filename-pattern-help" },
+      text: "Leave blank to use the article title. The .md extension is added automatically.",
+    });
+
     const includeFrontmatterCheck = contentEl.createDiv({
       cls: "rss-dashboard-checkbox",
     });
@@ -88,9 +113,15 @@ export class WebViewerSaveModal extends Modal {
       void (async () => {
         const folder = folderInput.value.trim();
         const template = templateInput.value.trim();
+        const filenamePattern = filenamePatternInput.value.trim();
 
         try {
-          await onSave(folder, template, frontmatterCheckbox.checked);
+          await onSave(
+            folder,
+            template,
+            frontmatterCheckbox.checked,
+            filenamePattern,
+          );
 
           this.close();
         } catch (error) {

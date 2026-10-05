@@ -545,7 +545,7 @@ describe("ArticleSaver frontmatter template", () => {
 });
 
 describe("WebViewerIntegration note template", () => {
-  it("fills the variables it knows, with the save date for {{date}}, and leaves the rest", async () => {
+  it("fills saved-template variables and keeps {{date}} as the save date", async () => {
     const note = await saveWithWebViewer(
       createItem({ feedTitle: "" }),
       ALL_VARIABLES,
@@ -556,21 +556,21 @@ describe("WebViewerIntegration note template", () => {
       [
         'T=Say "hi"',
         `D=${longDate(NOW)}`,
-        "DS={{dateShort}}",
+        `DS=${fmt(PUB, "YYYY-MM-DD")}`,
         "ISO=2024-04-21T12:00:00.000Z",
         "ISOT=2024-04-21T12:00:00.000Z",
-        "FS={{firstSeen}}",
+        `FS=${longDate(FIRST_SEEN)}`,
         `SD=${fmt(NOW, "YYYY-MM-DD")}`,
         `S12=${fmt(NOW, "hh:mm A")}`,
         `S24=${fmt(NOW, "HH:mm")}`,
-        "DF={{date:YYYY/MM/DD}}",
+        `DF=${fmt(PUB, "YYYY/MM/DD")}`,
         "L=https://example.com/a",
         "A=Ann",
         "SRC=Web viewer",
-        "FT={{feedTitle}}",
+        "FT=Web viewer",
         "SUM=Sum",
-        "TAGS={{tags}}",
-        "G={{guid}}",
+        "TAGS=News, Saved",
+        "G=g-1",
         `IMG=${COVER}`,
         "C=<p>Feed blurb</p>",
         "X={{unknown}}",

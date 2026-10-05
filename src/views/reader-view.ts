@@ -32,6 +32,7 @@ import {
   ReaderFormatSettings,
   DEFAULT_SETTINGS,
   ArticleSavingSettings,
+  SavedTemplate,
   Tag,
   ViewLocation,
 } from "../types/types";
@@ -79,6 +80,7 @@ import { WebViewerIntegration } from "../services/web-viewer-integration";
 import { MediaService } from "../services/media-service";
 import { createTagsDropdownPortal } from "../utils/tags-dropdown-portal";
 import { resolveItemExternalUrl } from "../utils/item-url-utils";
+import { resolveSavedTemplateForArticle } from "../utils/saved-template-utils";
 import { resolvePodcastOpenDestinations } from "../utils/podcast-open-destinations";
 import { resolveApplePodcastsShowUrl } from "../services/apple-podcasts-service";
 import { createReaderFormatPortal } from "../utils/reader-format-portal";
@@ -125,6 +127,7 @@ export class ReaderView extends ItemView {
   private articleSaverProvider: () => ArticleSaver;
   private settingsProvider: () => RssDashboardSettings;
   private onArticleSave: (item: FeedItem) => void;
+  private persistSettings: () => Promise<void>;
   private onArticleUpdate: (
     item: FeedItem,
     updates: Partial<FeedItem>,
@@ -234,6 +237,7 @@ export class ReaderView extends ItemView {
       shouldRerender?: boolean,
     ) => void,
     options?: {
+      saveSettings?: () => Promise<void>;
       onPlaybackProgress?: (
         item: FeedItem,
         position: number,
@@ -248,6 +252,7 @@ export class ReaderView extends ItemView {
     this.articleSaverProvider =
       typeof articleSaver === "function" ? articleSaver : () => articleSaver;
     this.onArticleSave = onArticleSave;
+    this.persistSettings = options?.saveSettings ?? (() => Promise.resolve());
     this.onArticleUpdate = onArticleUpdate;
     this.onPlaybackProgress = options?.onPlaybackProgress;
     addMathTurndownRule(this.turndownService);
@@ -617,12 +622,13 @@ export class ReaderView extends ItemView {
     const saveItem = displayTitle
       ? { ...this.currentItem, title: displayTitle }
       : this.currentItem;
-    const customTemplate = this.getCustomTemplateForArticle(this.currentItem);
+    const savedTemplate = this.getCustomTemplateForArticle(this.currentItem);
     const file = await this.articleSaver.saveArticle(
       saveItem,
       undefined,
-      customTemplate,
+      undefined,
       markdownContent,
+      savedTemplate,
     );
     if (file) {
       this.currentItem.saved = true;
@@ -1110,19 +1116,16 @@ export class ReaderView extends ItemView {
     return Promise.resolve();
   }
 
-  private getCustomTemplateForArticle(item: FeedItem): string | undefined {
-    const feed = this.settings.feeds.find((f) => f.url === item.feedUrl);
-    if (feed?.customTemplate) {
-      const articleSaving: ArticleSavingSettings = this.settings.articleSaving;
-      const savedTemplates = articleSaving.savedTemplates ?? [];
-      const templateObj = savedTemplates.find(
-        (t) => t.id === feed.customTemplate,
-      );
-      if (templateObj) {
-        return templateObj.template;
-      }
-    }
-    return undefined;
+  private getCustomTemplateForArticle(
+    item: FeedItem,
+  ): SavedTemplate | undefined {
+    const articleSaving: ArticleSavingSettings = this.settings.articleSaving;
+    return resolveSavedTemplateForArticle(
+      item,
+      this.settings.feeds,
+      articleSaving.savedTemplates ?? [],
+      articleSaving.globalDefaultTemplateId,
+    );
   }
 
   private showSaveOptions(event: MouseEvent, item: FeedItem): void {
@@ -1138,12 +1141,13 @@ export class ReaderView extends ItemView {
           const saveItem = displayTitle
             ? { ...item, title: displayTitle }
             : item;
-          const customTemplate = this.getCustomTemplateForArticle(item);
+          const savedTemplate = this.getCustomTemplateForArticle(item);
           const file = await this.articleSaver.saveArticle(
             saveItem,
             undefined,
-            customTemplate,
+            undefined,
             markdownContent,
+            savedTemplate,
           );
           if (file) {
             item.saved = true;
@@ -1180,8 +1184,9 @@ export class ReaderView extends ItemView {
       getSettings: () => this.settings,
       getArticleSaver: () => this.articleSaver,
       displayTitle: this.currentDisplayTitle,
-      getCustomTemplateForArticle: (article) =>
+      getSavedTemplateForArticle: (article) =>
         this.getCustomTemplateForArticle(article),
+      saveSettings: () => this.persistSettings(),
       buildReaderSaveMarkdown: (article) =>
         this.buildReaderSaveMarkdown(article),
       onArticleSave: (article) => this.onArticleSave(article),
