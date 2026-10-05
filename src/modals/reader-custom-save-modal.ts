@@ -1,5 +1,9 @@
 import { App, Modal, Setting, setIcon } from "obsidian";
-import { FeedItem, RssDashboardSettings } from "../types/types";
+import {
+  DEFAULT_SETTINGS,
+  type FeedItem,
+  type RssDashboardSettings,
+} from "../types/types";
 import { ArticleSaver } from "../services/article-saver";
 import { VaultFolderSuggest } from "../components/folder-suggest";
 import {
@@ -272,6 +276,19 @@ function createActionButtons(
   templateControls: TemplateControls & { getPending: () => PendingTemplate | null },
   context: ReaderCustomSaveModalContext,
 ): void {
+  const templateHint = content.createEl("p", {
+    cls: "setting-item-description rss-dashboard-custom-save-template-hint",
+    text: "The prefilled template is ready to use: its frontmatter properties already have the required indentation.",
+  });
+  const updateTemplateHint = () => {
+    templateHint.hidden =
+      templateControls.input.value !==
+      DEFAULT_SETTINGS.articleSaving.defaultTemplate;
+  };
+  templateControls.input.addEventListener("input", updateTemplateHint);
+  templateControls.select.addEventListener("change", updateTemplateHint);
+  updateTemplateHint();
+
   const buttonContainer = content.createDiv({ cls: "rss-dashboard-modal-buttons" });
   const cancelButton = buttonContainer.createEl("button", {
     cls: "rss-dashboard-custom-save-cancel-button",
