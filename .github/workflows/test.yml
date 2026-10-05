@@ -48,6 +48,8 @@ jobs:
         run: node scripts/check-characterization-tests.mjs "origin/$BASE_REF"
 
       - name: Run tests with coverage
+        env:
+          TZ: America/Los_Angeles
         run: npm run test:unit -- --coverage
 
       - name: Upload coverage to Codecov

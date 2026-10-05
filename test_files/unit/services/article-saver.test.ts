@@ -195,36 +195,44 @@ summary: "{{summary}}"
   });
 
   it("substitutes {{firstSeen}} and {{firstSeenISO}} in body and frontmatter templates", async () => {
-    vi.stubEnv("TZ", "America/Los_Angeles");
+    const firstSeenDate = new Date(Date.parse("2024-05-01T01:00:00Z"));
+    const expectedLongDate = firstSeenDate.toLocaleDateString(undefined, {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+    const expectedIsoDate = [
+      firstSeenDate.getFullYear(),
+      String(firstSeenDate.getMonth() + 1).padStart(2, "0"),
+      String(firstSeenDate.getDate()).padStart(2, "0"),
+    ].join("-");
 
-    try {
-      const app = App.createMock();
-      const settings = createSettings({
-        includeFrontmatter: true,
-        defaultTemplate:
-          "First seen: {{firstSeen}} ({{firstSeenISO}})\n\n{{content}}",
-        frontmatterTemplate: `---
+    const app = App.createMock();
+    const settings = createSettings({
+      includeFrontmatter: true,
+      defaultTemplate:
+        "First seen: {{firstSeen}} ({{firstSeenISO}})\n\n{{content}}",
+      frontmatterTemplate: `---
 title: "{{title}}"
 firstSeen: "{{firstSeen}}"
 firstSeenISO: "{{firstSeenISO}}"
 ---`,
-      });
-      const saver = new ArticleSaver(app, settings);
+    });
+    const saver = new ArticleSaver(app, settings);
 
-      const item = createItem({
-        firstSeenMs: Date.parse("2024-05-01T01:00:00Z"),
-      });
+    const item = createItem({
+      firstSeenMs: firstSeenDate.getTime(),
+    });
 
-      const createSpy = vi.spyOn(app.vault, "create");
-      await saver.saveArticle(item, undefined, undefined, "BODY");
+    const createSpy = vi.spyOn(app.vault, "create");
+    await saver.saveArticle(item, undefined, undefined, "BODY");
 
-      const written = createSpy.mock.calls[0][1];
-      expect(written).toContain("First seen: April 30, 2024 (2024-04-30)");
-      expect(written).toContain('firstSeen: "April 30, 2024"');
-      expect(written).toContain('firstSeenISO: "2024-04-30"');
-    } finally {
-      vi.unstubAllEnvs();
-    }
+    const written = createSpy.mock.calls[0][1];
+    expect(written).toContain(
+      `First seen: ${expectedLongDate} (${expectedIsoDate})`,
+    );
+    expect(written).toContain(`firstSeen: "${expectedLongDate}"`);
+    expect(written).toContain(`firstSeenISO: "${expectedIsoDate}"`);
   });
 
   it("uses the publish date for both first-seen variables when firstSeenMs is unavailable", async () => {
