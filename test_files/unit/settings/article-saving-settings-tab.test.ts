@@ -408,4 +408,25 @@ describe("Article Saving settings help text", () => {
       true,
     );
   });
+
+  it("lists {{firstSeenISO}} beside {{firstSeen}} with its date format example", () => {
+    const containerEl = createDiv();
+    const plugin = createPlugin();
+    const onRefresh = vi.fn();
+
+    renderArticleSavingSettingsTab(containerEl, plugin, onRefresh);
+
+    const listItems = Array.from(
+      containerEl.querySelectorAll(
+        ".rss-dashboard-template-help .rss-dashboard-variable-list li",
+      ),
+    ).map((li) => li.textContent ?? "");
+    const firstSeenIndex = listItems.findIndex((text) =>
+      text.startsWith("{{firstSeen}}"),
+    );
+
+    expect(listItems[firstSeenIndex + 1]).toContain("{{firstSeenISO}}");
+    expect(listItems[firstSeenIndex + 1]).toContain("YYYY-MM-DD");
+    expect(listItems[firstSeenIndex + 1]).toContain("2024-04-30");
+  });
 });

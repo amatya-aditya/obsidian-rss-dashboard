@@ -194,28 +194,62 @@ summary: "{{summary}}"
     expect(item.tags?.map((tag) => tag.name)).toEqual(["tech", "Saved"]);
   });
 
-  it("substitutes {{firstSeen}} in both the body template and the frontmatter template", async () => {
+  it("substitutes {{firstSeen}} and {{firstSeenISO}} in body and frontmatter templates", async () => {
+    const firstSeenDate = new Date(Date.parse("2024-05-01T01:00:00Z"));
+    const expectedLongDate = firstSeenDate.toLocaleDateString(undefined, {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+    const expectedIsoDate = [
+      firstSeenDate.getFullYear(),
+      String(firstSeenDate.getMonth() + 1).padStart(2, "0"),
+      String(firstSeenDate.getDate()).padStart(2, "0"),
+    ].join("-");
+
     const app = App.createMock();
     const settings = createSettings({
       includeFrontmatter: true,
-      defaultTemplate: "First seen: {{firstSeen}}\n\n{{content}}",
+      defaultTemplate:
+        "First seen: {{firstSeen}} ({{firstSeenISO}})\n\n{{content}}",
       frontmatterTemplate: `---
 title: "{{title}}"
 firstSeen: "{{firstSeen}}"
+firstSeenISO: "{{firstSeenISO}}"
 ---`,
     });
     const saver = new ArticleSaver(app, settings);
 
     const item = createItem({
-      firstSeenMs: Date.parse("2024-05-01T12:00:00Z"),
+      firstSeenMs: firstSeenDate.getTime(),
     });
 
     const createSpy = vi.spyOn(app.vault, "create");
     await saver.saveArticle(item, undefined, undefined, "BODY");
 
     const written = createSpy.mock.calls[0][1];
-    expect(written).toContain("First seen: May 1, 2024");
-    expect(written).toContain('firstSeen: "May 1, 2024"');
+    expect(written).toContain(
+      `First seen: ${expectedLongDate} (${expectedIsoDate})`,
+    );
+    expect(written).toContain(`firstSeen: "${expectedLongDate}"`);
+    expect(written).toContain(`firstSeenISO: "${expectedIsoDate}"`);
+  });
+
+  it("uses the publish date for both first-seen variables when firstSeenMs is unavailable", async () => {
+    const app = App.createMock();
+    const settings = createSettings({
+      defaultTemplate: "{{firstSeen}} | {{firstSeenISO}}",
+    });
+    const saver = new ArticleSaver(app, settings);
+    const item = createItem({
+      pubDate: "2024-04-21T12:00:00Z",
+      firstSeenMs: undefined,
+    });
+    const createSpy = vi.spyOn(app.vault, "create");
+
+    await saver.saveArticle(item, undefined, undefined, "BODY");
+
+    expect(createSpy.mock.calls[0][1]).toContain("April 21, 2024 | 2024-04-21");
   });
 
   it("resolves a pubDate that fails Date.parse cleanly instead of silently using the save time (#303)", async () => {
