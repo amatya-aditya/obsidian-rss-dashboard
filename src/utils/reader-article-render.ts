@@ -9,6 +9,11 @@ import {
   firstNonFormulaImageUrl,
 } from "./image-url-utils";
 import { normalizeSubstackImageUrl } from "./substack-image-url";
+import {
+  isEquivalentHtml,
+  isLikelySameImageSource,
+  removeLeadImageElement,
+} from "./reader-html-cleanup";
 
 /** Which view the reader gives an item (see `ReaderView.displayItem`). */
 export type ReaderMediaRoute = "video" | "video-podcast" | "podcast" | "article";
@@ -148,7 +153,7 @@ export interface ArticleSections {
 export function selectArticleSections(
   item: FeedItem,
   fullContent: string | undefined,
-  isEquivalentHtml: (html1: string, html2: string) => boolean,
+  _isEquivalentHtml: (html1: string, html2: string) => boolean,
 ): ArticleSections {
   const descriptionHtml = (item.description || "").trim();
   const hasMeaningfulDescription = hasMeaningfulFeedDescription(descriptionHtml);
@@ -279,9 +284,9 @@ function fillEmptyHeroSlot(
     if (
       firstImg &&
       firstImgSrc &&
-      host.isLikelySameImageSource(firstImgSrc, heroUrl)
+      isLikelySameImageSource(firstImgSrc, heroUrl)
     ) {
-      host.removeLeadImageElement(firstImg);
+      removeLeadImageElement(firstImg);
     }
   }
 }
@@ -289,7 +294,7 @@ function fillEmptyHeroSlot(
 function dropLeadImageRepeatingHero(
   heroSlot: HTMLElement,
   firstImg: HTMLImageElement | null,
-  host: HeroImageHost,
+  _host: HeroImageHost,
 ): void {
   // Hero slot already filled by a previous section (e.g. description)
   // If the current section starts with the same image as the hero image, remove it to avoid duplication
@@ -302,8 +307,8 @@ function dropLeadImageRepeatingHero(
   if (
     existingHeroSrc &&
     firstImg &&
-    host.isLikelySameImageSource(firstImgSrc, existingHeroSrc)
+    isLikelySameImageSource(firstImgSrc, existingHeroSrc)
   ) {
-    host.removeLeadImageElement(firstImg);
+    removeLeadImageElement(firstImg);
   }
 }
