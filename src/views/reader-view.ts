@@ -54,18 +54,8 @@ import {
 } from "../utils/reader-article-render";
 import {
   extractDisplayTitleFromHtml,
-  findFirstSubstantialParagraph,
-  getNormalizedBlockText,
   hasMeaningfulArticleContent,
-  isAcceptableDisplayTitle,
-  isBeforeBoundary,
-  isEquivalentHtml,
-  isLeadMediaBlock,
   isLikelySameImageSource,
-  isShortLeadInBlock,
-  normalizeComparableText,
-  normalizeImageSourceKey,
-  removeLeadImageElement,
   stripDuplicateLeadCaptionBlocks,
   stripDuplicateLeadContentFromDocument,
   stripDuplicateLeadMediaMatchingHero,
@@ -636,8 +626,8 @@ export class ReaderView extends ItemView {
   private buildReaderSaveMarkdown(item: FeedItem): string {
     const htmlToSave =
       this.currentFullContent && this.currentContentIsFullArticle
-        ? this.stripNavigationChromeFromHtml(
-            this.stripTopHeadlineFromHtml(this.currentFullContent),
+        ? stripNavigationChromeFromHtml(
+            stripTopHeadlineFromHtml(this.currentFullContent),
           )
         : this.currentFullContent || item.description || "";
     const htmlWithHero = this.prependFallbackHeroForSavedMarkdown(
@@ -684,7 +674,7 @@ export class ReaderView extends ItemView {
       const doc = new DOMParser().parseFromString(html, "text/html");
       const heroAlreadyIncluded = Array.from(doc.querySelectorAll("img")).some(
         (img) =>
-          this.isLikelySameImageSource(
+          isLikelySameImageSource(
             normalizeSubstackImageUrl(img.getAttribute("src") || ""),
             fallbackHeroUrl,
           ),
@@ -1234,7 +1224,7 @@ export class ReaderView extends ItemView {
         ? ""
         : await this.fetchFullArticleContent(item.link);
       const hasFullArticleContent =
-        this.hasMeaningfulArticleContent(fetchedContent);
+        hasMeaningfulArticleContent(fetchedContent);
 
       if (hasFullArticleContent) {
         item.restrictedReason = undefined;
@@ -1244,7 +1234,7 @@ export class ReaderView extends ItemView {
       }
 
       const displayTitle = hasFullArticleContent
-        ? this.extractDisplayTitleFromHtml(fetchedContent)
+        ? extractDisplayTitleFromHtml(fetchedContent)
         : null;
       const fullContent = hasFullArticleContent
         ? fetchedContent
@@ -1587,9 +1577,7 @@ export class ReaderView extends ItemView {
       hasMeaningfulDescription,
       hasDistinctMainContent,
       contentToRender,
-    } = selectArticleSections(item, fullContent, (a, b) =>
-      this.isEquivalentHtml(a, b),
-    );
+    } = selectArticleSections(item, fullContent);
     const fallbackHeroUrl = resolveFallbackHeroUrl(item, this.settings.feeds);
 
     if (hasDistinctMainContent && hasMeaningfulDescription) {
@@ -1745,7 +1733,7 @@ export class ReaderView extends ItemView {
     this.currentContentIsFullArticle = Boolean(result.content);
     if (result.content) {
       this.currentDisplayTitle =
-        this.extractDisplayTitleFromHtml(result.content) || undefined;
+        extractDisplayTitleFromHtml(result.content) || undefined;
     }
     this.syncReaderTitle();
 
@@ -1839,14 +1827,14 @@ export class ReaderView extends ItemView {
       // Clean up fetched full-article HTML before hero extraction so we don't pick
       // navigation icons / breadcrumbs as the hero image.
       if (stripTopHeadline) {
-        this.stripNavigationChromeFromDocument(doc);
-        this.stripTopHeadlineFromDocument(doc);
-        this.stripDuplicateLeadContentFromDocument(doc, feedDescriptionHtml);
-        this.stripSkipLinksFromDocument(doc);
+        stripNavigationChromeFromDocument(doc);
+        stripTopHeadlineFromDocument(doc);
+        stripDuplicateLeadContentFromDocument(doc, feedDescriptionHtml);
+        stripSkipLinksFromDocument(doc);
         if (fallbackHeroUrl) {
-          this.stripLeadMediaBeforeContent(doc);
-          this.stripDuplicateLeadMediaMatchingHero(doc, fallbackHeroUrl);
-          this.stripDuplicateLeadCaptionBlocks(doc);
+          stripLeadMediaBeforeContent(doc);
+          stripDuplicateLeadMediaMatchingHero(doc, fallbackHeroUrl);
+          stripDuplicateLeadCaptionBlocks(doc);
         }
         // Strip inline SVGs from fetched articles — these are publisher UI
         // decorations (section icons, share buttons) never present in RSS payloads.
@@ -1855,12 +1843,9 @@ export class ReaderView extends ItemView {
 
       // Attempt to extract and place hero image
       if (heroSlot) {
-        placeHeroImage(doc, heroSlot, fallbackHeroUrl, title, {
-          setupLightbox: (img) => this.setupLightboxForImage(img),
-          isLikelySameImageSource: (a, b) =>
-            this.isLikelySameImageSource(a, b),
-          removeLeadImageElement: (el) => this.removeLeadImageElement(el),
-        });
+        placeHeroImage(doc, heroSlot, fallbackHeroUrl, title, (img) =>
+          this.setupLightboxForImage(img),
+        );
       }
 
       stripEmbeddedTooltipAttributes(doc);
@@ -1947,100 +1932,6 @@ export class ReaderView extends ItemView {
     replacement.setAttribute("src", recoverySrc);
     img.replaceWith(replacement);
     return true;
-  }
-
-  private stripTopHeadlineFromHtml(html: string): string {
-    return stripTopHeadlineFromHtml(html);
-  }
-
-  private stripNavigationChromeFromHtml(html: string): string {
-    return stripNavigationChromeFromHtml(html);
-  }
-
-  private stripTopHeadlineFromDocument(doc: Document): void {
-    stripTopHeadlineFromDocument(doc);
-  }
-
-  private stripNavigationChromeFromDocument(doc: Document): void {
-    stripNavigationChromeFromDocument(doc);
-  }
-
-  private extractDisplayTitleFromHtml(html: string): string | null {
-    return extractDisplayTitleFromHtml(html);
-  }
-
-  private isAcceptableDisplayTitle(text: string): boolean {
-    return isAcceptableDisplayTitle(text);
-  }
-
-  private isEquivalentHtml(html1: string, html2: string): boolean {
-    return isEquivalentHtml(html1, html2);
-  }
-
-  private normalizeComparableText(html: string): string {
-    return normalizeComparableText(html);
-  }
-
-  private stripDuplicateLeadContentFromDocument(
-    doc: Document,
-    feedDescriptionHtml?: string,
-  ): void {
-    stripDuplicateLeadContentFromDocument(doc, feedDescriptionHtml);
-  }
-
-  private stripLeadMediaBeforeContent(doc: Document): void {
-    stripLeadMediaBeforeContent(doc);
-  }
-
-  private getNormalizedBlockText(block: HTMLElement): string {
-    return getNormalizedBlockText(block);
-  }
-
-  private isShortLeadInBlock(block: HTMLElement): boolean {
-    return isShortLeadInBlock(block);
-  }
-
-  private isLeadMediaBlock(block: HTMLElement): boolean {
-    return isLeadMediaBlock(block);
-  }
-
-  private removeLeadImageElement(imageEl: Element): void {
-    removeLeadImageElement(imageEl);
-  }
-
-  private stripSkipLinksFromDocument(doc: Document): void {
-    stripSkipLinksFromDocument(doc);
-  }
-
-  private stripDuplicateLeadMediaMatchingHero(
-    doc: Document,
-    heroUrl: string,
-  ): void {
-    stripDuplicateLeadMediaMatchingHero(doc, heroUrl);
-  }
-
-  private stripDuplicateLeadCaptionBlocks(doc: Document): void {
-    stripDuplicateLeadCaptionBlocks(doc);
-  }
-
-  private findFirstSubstantialParagraph(doc: Document): HTMLElement | null {
-    return findFirstSubstantialParagraph(doc);
-  }
-
-  private isBeforeBoundary(el: Element, boundary: HTMLElement | null): boolean {
-    return isBeforeBoundary(el, boundary);
-  }
-
-  private isLikelySameImageSource(urlA: string, urlB: string): boolean {
-    return isLikelySameImageSource(urlA, urlB);
-  }
-
-  private normalizeImageSourceKey(rawUrl: string): string {
-    return normalizeImageSourceKey(rawUrl);
-  }
-
-  private hasMeaningfulArticleContent(html: string | null): boolean {
-    return hasMeaningfulArticleContent(html);
   }
 
   private async fetchFullArticleContent(url: string): Promise<string> {

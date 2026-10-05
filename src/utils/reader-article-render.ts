@@ -153,7 +153,6 @@ export interface ArticleSections {
 export function selectArticleSections(
   item: FeedItem,
   fullContent: string | undefined,
-  _isEquivalentHtml: (html1: string, html2: string) => boolean,
 ): ArticleSections {
   const descriptionHtml = (item.description || "").trim();
   const hasMeaningfulDescription = hasMeaningfulFeedDescription(descriptionHtml);
@@ -230,13 +229,6 @@ export function stripEmbeddedTooltipAttributes(doc: Document): void {
     });
 }
 
-/** The view helpers hero placement needs, passed in so they can stay on the view. */
-export interface HeroImageHost {
-  setupLightbox(img: HTMLImageElement): void;
-  isLikelySameImageSource(urlA: string, urlB: string): boolean;
-  removeLeadImageElement(imageEl: Element): void;
-}
-
 /**
  * Puts the hero image in an empty slot (the fallback url, else the document's
  * first image) and drops a duplicate lead image from the document; when the
@@ -247,14 +239,14 @@ export function placeHeroImage(
   heroSlot: HTMLElement,
   fallbackHeroUrl: string | undefined,
   title: string | undefined,
-  host: HeroImageHost,
+  setupLightbox: (img: HTMLImageElement) => void,
 ): void {
   const firstImg = findFirstNonFormulaImage(doc.body);
 
   if (heroSlot.childElementCount === 0) {
-    fillEmptyHeroSlot(heroSlot, firstImg, fallbackHeroUrl, title, host);
+    fillEmptyHeroSlot(heroSlot, firstImg, fallbackHeroUrl, title, setupLightbox);
   } else {
-    dropLeadImageRepeatingHero(heroSlot, firstImg, host);
+    dropLeadImageRepeatingHero(heroSlot, firstImg);
   }
 }
 
@@ -263,7 +255,7 @@ function fillEmptyHeroSlot(
   firstImg: HTMLImageElement | null,
   fallbackHeroUrl: string | undefined,
   title: string | undefined,
-  host: HeroImageHost,
+  setupLightbox: (img: HTMLImageElement) => void,
 ): void {
   let heroUrl = normalizeSubstackImageUrl(fallbackHeroUrl);
   const firstImgSrc = normalizeSubstackImageUrl(
@@ -278,7 +270,7 @@ function fillEmptyHeroSlot(
       cls: "rss-reader-fallback-hero",
       attr: { src: heroUrl, alt: title || "Hero image" },
     });
-    host.setupLightbox(heroImg);
+    setupLightbox(heroImg);
 
     // Remove the first image from the body if it's the hero image to avoid duplication
     if (
@@ -294,7 +286,6 @@ function fillEmptyHeroSlot(
 function dropLeadImageRepeatingHero(
   heroSlot: HTMLElement,
   firstImg: HTMLImageElement | null,
-  _host: HeroImageHost,
 ): void {
   // Hero slot already filled by a previous section (e.g. description)
   // If the current section starts with the same image as the hero image, remove it to avoid duplication
