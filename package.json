@@ -48,7 +48,7 @@
     "esbuild": "0.28.2",
     "eslint": "^9.39.2",
     "eslint-plugin-obsidianmd": "^0.4.2",
-    "globals": "^17.12.0",
+    "globals": "^17.13.0",
     "jsdom": "^28.1.0",
     "lint-staged": "^17.6.0",
     "obsidian": "1.13.1",
