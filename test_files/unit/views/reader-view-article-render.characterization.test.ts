@@ -2048,51 +2048,49 @@ describe("ReaderView article rendering (characterization)", () => {
 
     describe("full-article cleanup", () => {
       it("runs the headline, navigation and skip-link cleanup only when asked to strip", () => {
-        const state = internals(view);
-        state.stripNavigationChromeFromDocument = vi.fn();
-        state.stripTopHeadlineFromDocument = vi.fn();
-        state.stripDuplicateLeadContentFromDocument = vi.fn();
-        state.stripSkipLinksFromDocument = vi.fn();
-
-        populate("<p>text</p>", "https://example.com/", { stripTopHeadline: false });
-        expect(state.stripNavigationChromeFromDocument).not.toHaveBeenCalled();
-        expect(state.stripTopHeadlineFromDocument).not.toHaveBeenCalled();
-        expect(state.stripDuplicateLeadContentFromDocument).not.toHaveBeenCalled();
-        expect(state.stripSkipLinksFromDocument).not.toHaveBeenCalled();
-
-        populate("<p>text</p>", "https://example.com/", {
-          stripTopHeadline: true,
-          feedDescriptionHtml: "<p>feed teaser</p>",
+        const html = `<nav data-testid="breadcrumb-container"><ol><li><a href="/">Home</a></li><li><a href="/section">Section</a></li></ol></nav><a href="#content">Skip to content</a><h1>Headline Words Here</h1><p>feed teaser</p><p>${LONG_TEXT}</p>`;
+        const feedDescriptionHtml = "<p>feed teaser</p>";
+        const kept = populate(html, "https://example.com/", {
+          stripTopHeadline: false,
+          feedDescriptionHtml,
         });
-        expect(state.stripNavigationChromeFromDocument).toHaveBeenCalledTimes(1);
-        expect(state.stripTopHeadlineFromDocument).toHaveBeenCalledTimes(1);
-        expect(state.stripDuplicateLeadContentFromDocument).toHaveBeenCalledTimes(1);
-        expect(state.stripDuplicateLeadContentFromDocument.mock.calls[0]?.[1]).toBe(
-          "<p>feed teaser</p>",
-        );
-        expect(state.stripSkipLinksFromDocument).toHaveBeenCalledTimes(1);
+
+        expect(kept.querySelector("nav")).not.toBeNull();
+        expect(kept.querySelector('a[href="#content"]')).not.toBeNull();
+        expect(kept.querySelector("h1")).not.toBeNull();
+        expect(kept.textContent).toContain("feed teaser");
+
+        const cleaned = populate(html, "https://example.com/", {
+          stripTopHeadline: true,
+          feedDescriptionHtml,
+        });
+
+        expect(cleaned.querySelector("nav")).toBeNull();
+        expect(cleaned.querySelector('a[href="#content"]')).toBeNull();
+        expect(cleaned.querySelector("h1")).toBeNull();
+        expect(cleaned.textContent).not.toContain("feed teaser");
+        expect(cleaned.textContent).toContain(LONG_TEXT);
       });
 
       it("strips lead media and captions only when there is also a fallback hero", () => {
-        const state = internals(view);
-        state.stripLeadMediaBeforeContent = vi.fn();
-        state.stripDuplicateLeadMediaMatchingHero = vi.fn();
-        state.stripDuplicateLeadCaptionBlocks = vi.fn();
+        const html = `<figure><img src="/lead.jpg"></figure><figcaption>Photo: Jane Doe</figcaption><p>${LONG_TEXT}</p>`;
+        const withoutFallback = populate(html, "https://example.com/", {
+          stripTopHeadline: true,
+        });
 
-        populate("<p>text</p>", "https://example.com/", { stripTopHeadline: true });
-        expect(state.stripLeadMediaBeforeContent).not.toHaveBeenCalled();
-        expect(state.stripDuplicateLeadMediaMatchingHero).not.toHaveBeenCalled();
-        expect(state.stripDuplicateLeadCaptionBlocks).not.toHaveBeenCalled();
+        expect(withoutFallback.querySelector("figure img")).not.toBeNull();
+        expect(withoutFallback.querySelector("figcaption")?.textContent).toBe(
+          "Photo: Jane Doe",
+        );
 
-        populate("<p>text</p>", "https://example.com/", {
+        const withFallback = populate(html, "https://example.com/", {
           stripTopHeadline: true,
           fallbackHeroUrl: "https://img.example.com/hero.jpg",
         });
-        expect(state.stripLeadMediaBeforeContent).toHaveBeenCalledTimes(1);
-        expect(state.stripDuplicateLeadMediaMatchingHero.mock.calls[0]?.[1]).toBe(
-          "https://img.example.com/hero.jpg",
-        );
-        expect(state.stripDuplicateLeadCaptionBlocks).toHaveBeenCalledTimes(1);
+
+        expect(withFallback.querySelector("figure img")).toBeNull();
+        expect(withFallback.querySelector("figcaption")).toBeNull();
+        expect(withFallback.textContent).toContain(LONG_TEXT);
       });
 
       it("does not strip lead media without the strip flag, even with a fallback hero", () => {
