@@ -1858,8 +1858,9 @@ describe("ReaderView article rendering (characterization)", () => {
       expect(container.querySelector("mark")).toBeNull();
     });
 
-    it("logs an image that fails to load and has no recovery", () => {
+    it("does not log a remote image that fails to load and has no recovery", () => {
       const error = vi.spyOn(console, "error").mockImplementation(() => {});
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
       const container = populate(
         '<img src="https://img.example.com/a.jpg" srcset="https://img.example.com/a2.jpg 2x">',
         "https://example.com/",
@@ -1867,10 +1868,8 @@ describe("ReaderView article rendering (characterization)", () => {
 
       container.querySelector("img")?.dispatchEvent(new Event("error"));
 
-      expect(error).toHaveBeenCalledTimes(1);
-      expect(String(error.mock.calls[0]?.[0])).toBe(
-        "[RSS Dashboard] ReaderView img load failed src=https://img.example.com/a.jpg currentSrc= srcset=https://img.example.com/a2.jpg 2x",
-      );
+      expect(error).not.toHaveBeenCalled();
+      expect(warn).not.toHaveBeenCalled();
     });
 
     it("swaps in the original image once when a Substack image fails to load", () => {
@@ -1889,10 +1888,7 @@ describe("ReaderView article rendering (characterization)", () => {
       expect(replacement?.getAttribute("src")).toBe(original);
       expect(replacement?.dataset.rssSubstackRecoverAttempted).toBe("true");
       expect(container.querySelector("source")).toBeNull();
-      expect(warn).toHaveBeenCalledTimes(1);
-      expect(String(warn.mock.calls[0]?.[0])).toBe(
-        `[RSS Dashboard] ReaderView recovered Substack img src=https://img.example.com/a.jpg currentSrc=${wrapped}`,
-      );
+      expect(warn).not.toHaveBeenCalled();
       expect(error).not.toHaveBeenCalled();
     });
 
