@@ -33,6 +33,7 @@ const ARTICLE_SAVER_DATES: readonly TemplateStep[] = [
   fill("isoDate"),
   fill("isoDateTime"),
   fill("firstSeen"),
+  fill("firstSeenISO"),
   fill("saveDate"),
   fill("saveTime12"),
   fill("saveTime24"),
@@ -54,7 +55,7 @@ export const ARTICLE_SAVER_NOTE_STEPS: readonly TemplateStep[] = [
   fill("image"),
 ];
 
-/** `ArticleSaver`'s frontmatter template, which leaves `{{summary}}` unfilled (#674). */
+/** `ArticleSaver`'s frontmatter template, including the summary fix already on dev (#674). */
 export const ARTICLE_SAVER_FRONTMATTER_STEPS: readonly TemplateStep[] = [
   ...ARTICLE_SAVER_DATES,
   fillYaml("title"),
@@ -63,6 +64,7 @@ export const ARTICLE_SAVER_FRONTMATTER_STEPS: readonly TemplateStep[] = [
   fillYaml("link"),
   fillYaml("author"),
   fillYaml("feedTitle"),
+  fillYaml("summary"),
   fillYaml("guid"),
   fillYaml("image"),
 ];

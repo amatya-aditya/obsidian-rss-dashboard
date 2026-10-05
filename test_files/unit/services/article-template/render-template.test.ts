@@ -31,6 +31,7 @@ function createValues(
     isoDate: "2024-04-21T12:00:00.000Z",
     isoDateTime: "2024-04-21T12:00:00.000Z",
     firstSeen: "April 20, 2024",
+    firstSeenISO: "2024-04-20",
     saveDate: "2026-03-31",
     saveTime12: "08:30 PM",
     saveTime24: "20:30",

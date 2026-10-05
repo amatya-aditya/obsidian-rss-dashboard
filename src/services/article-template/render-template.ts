@@ -83,7 +83,6 @@ function fillVariable(
       .join("\n");
   }
 
-  // A string replacement reads $ sequences in the value as replacement
-  // patterns (#672).
-  return text.replace(variable.placeholder, value);
+  // Keep literal dollar sequences, matching the #672 fix already on dev.
+  return text.replace(variable.placeholder, () => value);
 }

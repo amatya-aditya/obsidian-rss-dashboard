@@ -24,11 +24,13 @@ export interface ArticleTemplateInputs {
   /** The date the article's date variables describe. */
   readonly articleDate: Date;
   /** When the article is saved. */
-  readonly now: Date;
+  readonly now: Date | (() => Date);
+  /** The web viewer note reads its long save date independently. */
+  readonly saveDateLong?: () => Date;
   /** The item's tag names, after the call site's saved-tag rule. */
   readonly tagNames: readonly string[];
   /** The call site's `{{image}}` URL. */
-  readonly image: string;
+  readonly image: string | (() => string);
 }
 
 export function formatMoment(date: Date, formatStr: string): string {
@@ -70,7 +72,7 @@ export function buildArticleTemplateValues(
   item: FeedItem,
   inputs: ArticleTemplateInputs,
 ): ArticleTemplateValues {
-  const { articleDate, now } = inputs;
+  const { articleDate } = inputs;
   const isoDateTime = articleDate.toISOString();
 
   const firstSeenMs = item.firstSeenMs;
@@ -78,6 +80,15 @@ export function buildArticleTemplateValues(
     typeof firstSeenMs === "number" && !Number.isNaN(firstSeenMs)
       ? new Date(firstSeenMs)
       : articleDate;
+
+  const date = formatLongDate(articleDate);
+  const firstSeen = formatLongDate(firstSeenDate);
+  const firstSeenISO = formatMoment(firstSeenDate, "YYYY-MM-DD");
+  const saveDateLong = inputs.saveDateLong
+    ? formatLongDate(inputs.saveDateLong())
+    : undefined;
+  // Read the save clock after preparing article dates, as the legacy chains did.
+  const now = typeof inputs.now === "function" ? inputs.now() : inputs.now;
 
   return {
     title: item.title,
@@ -88,16 +99,17 @@ export function buildArticleTemplateValues(
     summary: item.summary || "",
     tags: inputs.tagNames.join(", "),
     guid: item.guid,
-    image: inputs.image,
-    date: formatLongDate(articleDate),
+    image: typeof inputs.image === "function" ? inputs.image() : inputs.image,
+    date,
     dateShort: formatMoment(articleDate, "YYYY-MM-DD"),
     isoDate: isoDateTime,
     isoDateTime,
-    firstSeen: formatLongDate(firstSeenDate),
+    firstSeen,
+    firstSeenISO,
     saveDate: formatMoment(now, "YYYY-MM-DD"),
     saveTime12: formatMoment(now, "hh:mm A"),
     saveTime24: formatMoment(now, "HH:mm"),
-    saveDateLong: formatLongDate(now),
+    saveDateLong: saveDateLong ?? formatLongDate(now),
     articleDate,
   };
 }

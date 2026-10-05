@@ -17,6 +17,7 @@ const VARIABLES = {
   isoDate: { placeholder: /{{isoDate}}/g, omitIfEmpty: false },
   isoDateTime: { placeholder: /{{isoDateTime}}/g, omitIfEmpty: false },
   firstSeen: { placeholder: /{{firstSeen}}/g, omitIfEmpty: false },
+  firstSeenISO: { placeholder: /{{firstSeenISO}}/g, omitIfEmpty: false },
   saveDate: { placeholder: /{{saveDate}}/g, omitIfEmpty: false },
   saveTime12: { placeholder: /{{saveTime12}}/g, omitIfEmpty: false },
   saveTime24: { placeholder: /{{saveTime24}}/g, omitIfEmpty: false },

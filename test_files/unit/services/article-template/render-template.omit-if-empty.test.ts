@@ -37,6 +37,7 @@ function createValues(author: string): ArticleTemplateValues {
     isoDate: "",
     isoDateTime: "",
     firstSeen: "",
+    firstSeenISO: "",
     saveDate: "",
     saveTime12: "",
     saveTime24: "",
