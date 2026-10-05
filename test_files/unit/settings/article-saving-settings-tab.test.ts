@@ -76,6 +76,53 @@ beforeEach(() => {
 });
 
 describe("renderArticleSavingSettingsTab()", () => {
+  it("clarifies indentation for the default template and restores it after reset", async () => {
+    const containerEl = createDiv();
+    const plugin = createPlugin({
+      defaultTemplate: DEFAULT_SETTINGS.articleSaving.defaultTemplate,
+    });
+
+    renderArticleSavingSettingsTab(containerEl, plugin, vi.fn());
+
+    const templateSetting = getSettingByName(
+      containerEl,
+      "Default article template",
+    );
+    const description = templateSetting.querySelector(
+      ".setting-item-description",
+    );
+    const expectedDefaultHint =
+      "The prefilled template is ready to use: its frontmatter properties already have the required indentation.";
+    const frontmatterProperties = DEFAULT_SETTINGS.articleSaving.defaultTemplate
+      .split("\n")
+      .slice(1, 10);
+
+    expect(description?.textContent).toBe(expectedDefaultHint);
+    expect(frontmatterProperties).toHaveLength(9);
+    expect(
+      frontmatterProperties.every((property) => /^ [A-Za-z]+:/.test(property)),
+    ).toBe(true);
+
+    const textarea = containerEl.querySelector(
+      ".rss-dashboard-template-input",
+    ) as HTMLTextAreaElement;
+    textarea.value = "---\ntitle: Custom\n---";
+    textarea.dispatchEvent(new Event("change"));
+    await flushPromises();
+
+    expect(description?.textContent).toBe(
+      "Template for saved articles. All frontmatter properties must start with a single space indent.",
+    );
+
+    const resetBtn = Array.from(containerEl.querySelectorAll("button")).find(
+      (button) => button.textContent === "Reset to default",
+    );
+    resetBtn?.click();
+    await flushPromises();
+
+    expect(description?.textContent).toBe(expectedDefaultHint);
+  });
+
   it("persists save path via normalizePath() and saveSettings()", async () => {
     const containerEl = createDiv();
     const plugin = createPlugin({ defaultFolder: "Old" });

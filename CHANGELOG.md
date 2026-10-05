@@ -5,6 +5,7 @@
 - Sidebar search now says when nothing matched instead of leaving the sidebar blank. A search with no matching feeds or folders shows **0 results** and **No matches found.**, as Obsidian's own search does, and the message clears when the query changes or the search is cleared or closed. [GH Issue #678](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/678)
 
 ### Fixes
+- Clarified that the prefilled article template already has the required frontmatter indentation, while keeping the existing guidance for custom templates. [GH Issue #760](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/760)
 - Prevented single-folder drops that leave the open folder's path unchanged from resetting sidebar state, including its tag filter and inline article. [GH Issue #665](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/665)
 - Stopped logging each failed remote image load and successful Substack image recovery; Chromium still reports resource failures. [GH Issue #437](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/437)
 - Prevented Reader shortcuts from firing while typing in custom-save modal fields, and made its template label and textarea full-width rows. [GH Issue #756](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/756)
