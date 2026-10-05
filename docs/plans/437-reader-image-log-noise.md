@@ -54,7 +54,7 @@ console-noise guidance to the per-image `console.error` and recovery
 ## Validation
 
 - Focused reader and ArticleRenderer tests passed: 159 tests.
-- Full `npm run test:unit` passed: 5,126 tests across 315 files.
+- GitHub Actions on PR #772 passed the coverage suite: 5,132 tests across 315 files.
 - `npm run lint`, source and test TypeScript checks, `npm run check:platform`,
   `npm run check:architecture -- --base HEAD`, and `npm run build` passed.
 - `npm run fixture:vault` prepared `.fixture-vault` from the successful build.
@@ -97,7 +97,7 @@ fixture reader location was restored to `main`. The changed handler behavior
 and recovery branches are covered by the focused jsdom tests in both render
 paths.
 
-The replacement change is prepared on `fix/437-reader-image-log-noise`, based on the current `dev` tip. The earlier `refactor/` PR passed its build after correcting escaped newlines in the remote file content, then correctly stopped at the characterization-test guard. This fix branch updates only the two image-log expectations that the behavior change invalidates. CI on this replacement PR must confirm the full unit suite.
+The replacement change is prepared on `fix/437-reader-image-log-noise`, based on the current `dev` tip. The earlier `refactor/` PR passed its build after correcting escaped newlines in the remote file content, then correctly stopped at the characterization-test guard. This fix branch updates only the two image-log expectations that the behavior change invalidates. GitHub Actions on PR #772 passed build validation and all 5,132 tests across 315 files; the refactor-only guard was skipped on the `fix/` branch.
 
 ## Deferred work
 
