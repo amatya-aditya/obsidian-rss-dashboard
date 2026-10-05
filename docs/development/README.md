@@ -7,7 +7,7 @@ Internal developer documentation for the RSS Dashboard plugin.
 - [Accessibility Scope and Support](../../ACCESSIBILITY.md)
 - [Architecture Guardrails](./architecture.md)
 - [Accessibility Policy and Agent-Friendly Testing Research](./accessibility-research.md)
-- [Accessibility Policy and Incremental Rollout](../plans/draft-20261002-accessibility-rollout.md)
+- [Accessibility Policy and Incremental Rollout](../plans/681-accessibility-rollout.md)
 - [Compliance Patterns and Audit Guardrails](./compliance-patterns.md)
 - [Feed Data Lifecycle](./data-flow.md)
 - [Feed Validation](./feed-validation.md)

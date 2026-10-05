@@ -44,5 +44,5 @@ Project maintainers collectively maintain this scope. Review it when supported p
 ## Related project records
 
 - [ADR 0016 — WCAG 2.2 AA as the accessibility reference](docs/adr/0016-wcag-22-aa-accessibility-reference.md)
-- [Accessibility rollout plan](docs/plans/draft-20261002-accessibility-rollout.md)
+- [Accessibility rollout plan](docs/plans/681-accessibility-rollout.md)
 - [Accessibility research](docs/development/accessibility-research.md)

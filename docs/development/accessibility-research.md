@@ -1,7 +1,7 @@
 # Accessibility Policy and Agent-Friendly Testing Research
 
 **Research date:** 2026-10-02
-**Status:** Research snapshot captured before the scope decision. The accepted decision is in [ADR 0016](../adr/0016-wcag-22-aa-accessibility-reference.md), the public scope statement is [`ACCESSIBILITY.md`](../../ACCESSIBILITY.md), and the incremental plan is [here](../plans/draft-20261002-accessibility-rollout.md). This report remains evidence and source synthesis, not a conformance claim.
+**Status:** Research snapshot captured before the scope decision. The accepted decision is in [ADR 0016](../adr/0016-wcag-22-aa-accessibility-reference.md), the public scope statement is [`ACCESSIBILITY.md`](../../ACCESSIBILITY.md), and the incremental plan is [here](../plans/681-accessibility-rollout.md). This report remains evidence and source synthesis, not a conformance claim.
 
 ## Purpose and scope
 

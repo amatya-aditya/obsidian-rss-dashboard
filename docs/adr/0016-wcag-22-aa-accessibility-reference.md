@@ -42,6 +42,6 @@ This provides a clear basis for design and audit work while stating plainly that
 ## Related
 
 - [Accessibility declaration](../../ACCESSIBILITY.md)
-- [Accessibility rollout plan](../plans/draft-20261002-accessibility-rollout.md)
+- [Accessibility rollout plan](../plans/681-accessibility-rollout.md)
 - [Accessibility research](../development/accessibility-research.md)
 - [Issue #502 — Use native buttons for icon buttons instead of div role="button"](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/502)
