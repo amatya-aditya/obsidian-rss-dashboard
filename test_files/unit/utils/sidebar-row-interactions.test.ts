@@ -119,6 +119,15 @@ describe("resolveMovedCurrentFolder", () => {
     ).toBe("News/Videos/Clips");
   });
 
+  it("returns null when the open folder keeps the same path", () => {
+    expect(resolveMovedCurrentFolder("News/Tech", "News/Tech", "News/Tech")).toBe(
+      null,
+    );
+    expect(resolveMovedCurrentFolder("News/Tech/Deep", "News", "News")).toBe(
+      null,
+    );
+  });
+
   it("returns null when the open folder is unaffected, or there is none", () => {
     expect(resolveMovedCurrentFolder("Videos2", "Videos", "News/Videos")).toBe(
       null,

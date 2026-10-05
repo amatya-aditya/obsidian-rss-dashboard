@@ -5,6 +5,7 @@
 - Sidebar search now says when nothing matched instead of leaving the sidebar blank. A search with no matching feeds or folders shows **0 results** and **No matches found.**, as Obsidian's own search does, and the message clears when the query changes or the search is cleared or closed. [GH Issue #678](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/678)
 
 ### Fixes
+- Prevented single-folder drops that leave the open folder's path unchanged from resetting sidebar state, including its tag filter and inline article. [GH Issue #665](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/665)
 - Stopped logging each failed remote image load and successful Substack image recovery; Chromium still reports resource failures. [GH Issue #437](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/437)
 - Prevented Reader shortcuts from firing while typing in custom-save modal fields, and made its template label and textarea full-width rows. [GH Issue #756](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/756)
 - Fixed the Reader's **Save to custom folder** modal layout on desktop and mobile. The folder field uses the full row, the template label and textarea no longer overlap, action buttons wrap and stay centered, button text stays within each button, Save has a visible border, and each action has an icon. [GH Issue #755](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/755)

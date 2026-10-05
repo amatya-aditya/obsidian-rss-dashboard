@@ -987,13 +987,13 @@ describe("Sidebar folder tree root area (characterization)", () => {
       expect(callbacks.onFolderClick).not.toHaveBeenCalled();
     });
 
-    it("keeps a root folder's open path when it is dragged to the root, though it still calls back", async () => {
-      options.currentFolder = "News/Tech";
+    it("does not report an open root folder when it is reordered within the root", async () => {
+      options.currentFolder = "News";
       build();
 
       await dropFolder("News");
 
-      expect(callbacks.onFolderClick).toHaveBeenCalledWith("News/Tech");
+      expect(callbacks.onFolderClick).not.toHaveBeenCalled();
     });
 
     it("leaves the open folder alone when no folder is open", async () => {

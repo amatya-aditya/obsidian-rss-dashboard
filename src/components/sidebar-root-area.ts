@@ -1,6 +1,7 @@
 import { Menu, Notice, type MenuItem } from "obsidian";
 import { moveFolder } from "../services/sidebar-ordering-controller";
 import type { RssDashboardSettings } from "../types/types";
+import { resolveMovedCurrentFolder } from "../utils/sidebar-row-interactions";
 
 /**
  * What the folder tree's root area needs from its owner. `Sidebar` keeps the
@@ -107,29 +108,12 @@ function handleRootDrop(
 
       host.clearFolderPathCache();
 
-      const remapPathPrefix = (
-        path: string,
-        fromBase: string,
-        toBase: string,
-      ) => {
-        if (path === fromBase) return toBase;
-        if (path.startsWith(`${fromBase}/`)) {
-          return `${toBase}${path.substring(fromBase.length)}`;
-        }
-        return path;
-      };
-
-      const currentFolder = host.options.currentFolder;
-      if (
-        currentFolder &&
-        (currentFolder === draggedFolderPath ||
-          currentFolder.startsWith(`${draggedFolderPath}/`))
-      ) {
-        const nextFolder = remapPathPrefix(
-          currentFolder,
-          draggedFolderPath,
-          result.newPath,
-        );
+      const nextFolder = resolveMovedCurrentFolder(
+        host.options.currentFolder,
+        draggedFolderPath,
+        result.newPath,
+      );
+      if (nextFolder !== null) {
         host.callbacks.onFolderClick(nextFolder);
       }
 
