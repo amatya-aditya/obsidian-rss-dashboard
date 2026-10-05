@@ -353,6 +353,11 @@ body .rss-folder-name-modal-input.rss-folder-name-modal-input-error {
   outline: 2px solid var(--interactive-accent);
   outline-offset: 2px;
 }
+.rss-dashboard-custom-save-modal .rss-dashboard-folder-input-container input:focus-visible,
+.rss-dashboard-custom-save-modal textarea:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 2px;
+}
 
 .rss-dashboard-custom-save-modal label {
   display: block;

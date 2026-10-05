@@ -253,7 +253,7 @@ describe("ReaderView custom save dialog behavior", () => {
     expect(folder.value).toBe("Reading/Queue");
     expect(
       modal.querySelector(".rss-dashboard-clear-icon")?.getAttribute("aria-label"),
-    ).toBe("Clear input");
+    ).toBe("Clear save folder");
     expect(
       modal.querySelector(".rss-dashboard-clear-icon")?.getAttribute("role"),
     ).toBe("button");
@@ -480,6 +480,7 @@ describe("ReaderView custom save dialog behavior", () => {
             id: "template-123",
             name: "New template",
             template: "New template body",
+            defaultFolder: "",
           },
         ]);
       });

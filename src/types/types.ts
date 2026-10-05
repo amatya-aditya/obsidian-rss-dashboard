@@ -288,6 +288,8 @@ export interface SavedTemplate {
   id: string;
   name: string;
   template: string;
+  /** Folder used by Reader when this template is selected; absent on older templates. */
+  defaultFolder?: string;
 }
 
 export interface ArticleSavingSettings {
