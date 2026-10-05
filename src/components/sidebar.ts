@@ -655,6 +655,16 @@ export class Sidebar {
         cls: "rss-dashboard-sidebar-tag-count",
       });
 
+      this.attachLongPressContextMenu(row, (event) => {
+        this.showTagContextMenu(event, tag);
+      });
+
+      row.addEventListener("contextmenu", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        this.showTagContextMenu(event, tag);
+      });
+
       row.addEventListener("click", (e) => {
         e.preventDefault();
         this.callbacks.onTagToggle(tag.name);
@@ -2602,6 +2612,10 @@ export class Sidebar {
   }
 
   private deleteTag(tag: Tag): void {
+    if (this.options.selectedTags.includes(tag.name)) {
+      this.callbacks.onTagToggle(tag.name);
+    }
+
     const tagIndex = this.settings.availableTags.findIndex(
       (t) => t.name === tag.name,
     );
@@ -2617,7 +2631,9 @@ export class Sidebar {
       });
     });
 
-    void this.plugin.saveSettings();
+    void this.plugin.saveSettings().then(async () => {
+      await this.plugin.refreshOpenTagColorViews();
+    });
     this.app.workspace.trigger("rss-dashboard:tags-mutated");
 
     this.render();
