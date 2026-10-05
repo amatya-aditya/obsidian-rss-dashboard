@@ -478,6 +478,42 @@
   height: auto;
   border-radius: 5px;
 }
+.rss-reader-view .rss-reader-zoomable-img:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 3px;
+}
+.rss-reader-view .rss-reader-image-tooltip-host {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+  vertical-align: middle;
+}
+.rss-reader-view .rss-reader-image-focus-tooltip {
+  display: none;
+  position: absolute;
+  z-index: var(--layer-tooltip, 1000);
+  bottom: calc(100% + 6px);
+  left: 50%;
+  max-width: min(24rem, 90vw);
+  width: max-content;
+  padding: var(--size-4-1, 4px) var(--size-4-2, 8px);
+  transform: translateX(-50%);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s, 4px);
+  background: var(--background-secondary);
+  box-shadow: var(--shadow-s);
+  color: var(--text-normal);
+  font-size: var(--font-ui-smaller);
+  line-height: normal;
+  text-align: center;
+  white-space: normal;
+  pointer-events: none;
+}
+.rss-reader-view
+  .rss-reader-image-tooltip-host:focus-within
+  > .rss-reader-image-focus-tooltip {
+  display: block;
+}
 .rss-reader-article-content img.latex,
 .rss-reader-article-content img[src*="/latex.php?latex="],
 .rss-reader-description-body img.latex,

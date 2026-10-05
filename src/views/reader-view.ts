@@ -44,7 +44,9 @@ import {
 import { isLikelyVideoItem } from "../utils/video-detection";
 import {
   clearSavedStateIfFileMissing,
+  buildReaderImageTooltipText,
   formatReaderDateText,
+  getReaderImageFilename,
   placeHeroImage,
   resolveFallbackHeroUrl,
   resolveReaderMediaRoute,
@@ -129,6 +131,7 @@ export class ReaderView extends ItemView {
   private currentFullContent?: string;
   private currentDisplayTitle?: string;
   private currentReaderTitle?: string;
+  private imageAccessibleTextIndex = 0;
   private currentContentIsFullArticle = false;
   private turndownService = new TurndownService();
   private onPlaybackProgress?: (
@@ -1843,9 +1846,10 @@ export class ReaderView extends ItemView {
 
       // Attempt to extract and place hero image
       if (heroSlot) {
-        placeHeroImage(doc, heroSlot, fallbackHeroUrl, title, (img) =>
-          this.setupLightboxForImage(img),
-        );
+        placeHeroImage(doc, heroSlot, fallbackHeroUrl, title, (img) => {
+          this.setupReaderImageTooltip(img, title);
+          this.setupLightboxForImage(img);
+        });
       }
 
       stripEmbeddedTooltipAttributes(doc);
@@ -1869,6 +1873,7 @@ export class ReaderView extends ItemView {
     // Add classes to images for styling
     container.querySelectorAll("img").forEach((img) => {
       img.addClass("rss-reader-responsive-img");
+      this.setupReaderImageTooltip(img, title);
       this.setupLightboxForImage(img);
       img.addEventListener("error", () => {
         this.recoverFailedSubstackImageElement(img);
@@ -1885,6 +1890,13 @@ export class ReaderView extends ItemView {
     if (!isLightboxEligibleImage(img)) return;
 
     img.addClass("rss-reader-zoomable-img");
+    img.setAttribute("role", "button");
+    img.setAttribute("tabindex", "0");
+    img.addEventListener("keydown", (event: KeyboardEvent) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      img.click();
+    });
     img.addEventListener("click", (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -1895,6 +1907,70 @@ export class ReaderView extends ItemView {
       });
       lightbox.open();
     });
+  }
+
+  private setupReaderImageTooltip(
+    img: HTMLImageElement,
+    articleTitle: string | undefined,
+  ): void {
+    const filename = getReaderImageFilename(img);
+    const altText = img.getAttribute("alt");
+    const tooltipText = buildReaderImageTooltipText(
+      altText,
+      articleTitle,
+      filename,
+    );
+    const opensLightbox = isLightboxEligibleImage(img);
+
+    if (tooltipText) {
+      setTooltip(img, tooltipText);
+      if (opensLightbox) {
+        const tooltipTarget = img.closest("picture") ?? img;
+        const parent = tooltipTarget.parentElement;
+        if (parent) {
+          const tooltipHost = parent.createSpan({
+            cls: "rss-reader-image-tooltip-host",
+          });
+          parent.insertBefore(tooltipHost, tooltipTarget);
+          tooltipHost.appendChild(tooltipTarget);
+          tooltipHost.createSpan({
+            cls: "rss-reader-image-focus-tooltip",
+            text: tooltipText,
+            attr: { "aria-hidden": "true" },
+          });
+        }
+      }
+    }
+
+    const makeAccessibleText = (text: string): string => {
+      let id = "";
+      do {
+        id = `rss-reader-image-text-${++this.imageAccessibleTextIndex}`;
+      } while (this.readingContainer.ownerDocument.getElementById(id));
+      const label = this.readingContainer.createSpan({
+        attr: { id, hidden: "" },
+      });
+      label.setText(text);
+      return id;
+    };
+
+    if (altText === "" && !opensLightbox) {
+      img.setAttribute("aria-hidden", "true");
+    } else if (altText === "" && opensLightbox) {
+      img.setAttribute(
+        "aria-labelledby",
+        makeAccessibleText("Open image in lightbox"),
+      );
+    } else if (altText?.trim()) {
+      img.setAttribute("aria-labelledby", makeAccessibleText(altText));
+      if (filename && filename.toLocaleLowerCase() !== altText.trim().toLocaleLowerCase()) {
+        img.setAttribute("aria-describedby", makeAccessibleText(filename));
+      }
+    } else if (filename) {
+      img.setAttribute("aria-labelledby", makeAccessibleText(filename));
+    } else if (opensLightbox) {
+      img.setAttribute("aria-label", "Open image in lightbox");
+    }
   }
 
   private recoverFailedSubstackImageElement(img: HTMLImageElement): boolean {

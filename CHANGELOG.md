@@ -2,6 +2,7 @@
 
 ### Features
 
+- Reader images now show useful descriptions and filenames in themed tooltips; lightbox images are keyboard-operable and announce image descriptions accessibly. [GH Issue #747](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/747)
 - Sidebar search now says when nothing matched instead of leaving the sidebar blank. A search with no matching feeds or folders shows **0 results** and **No matches found.**, as Obsidian's own search does, and the message clears when the query changes or the search is cleared or closed. [GH Issue #678](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/678)
 
 ### Fixes

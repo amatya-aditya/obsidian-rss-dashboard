@@ -48,6 +48,10 @@ _Avoid_: Bulk drag, mass reorder, multi-drop
 
 ## Reader view
 
+**Reader view**:
+The dedicated plugin surface for reading a full article, including article and hero images that can open the [[Reader lightbox]]. Distinct from article previews shown on the dashboard.
+_Avoid_: Dashboard preview, inline article preview
+
 **Reader lightbox**:
 The modal overlay presented over the reader view to display an article or hero image in its full resolution with pan and zoom capabilities.
 _Avoid_: Modal dialog, photo popup, preview card, photo gallery
