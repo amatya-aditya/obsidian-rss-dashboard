@@ -1,10 +1,9 @@
-// Characterization tests for the HTML cleanup helpers in ReaderView (#612, part
-// of #436). They pin the current behavior, quirks included, so the planned
-// extraction to src/utils/reader-html-cleanup.ts can be checked against it.
-// The helpers are private and `this`-free, so most tests call them directly on
-// a view instance with HTML fixtures; one test goes through `displayItem` to
-// pin the wiring of the full-article path.
+// Characterization tests for the Reader HTML cleanup utilities extracted in
+// #612 (part of #436). They pin current behavior, quirks included, before the
+// remaining ReaderView delegates are removed in #621. The full-article tests
+// still go through `displayItem` to pin the wiring of that path.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import * as cleanup from "../../../src/utils/reader-html-cleanup";
 import { ReaderView } from "../../../src/views/reader-view";
 import { DEFAULT_SETTINGS, FeedItem } from "../../../src/types/types";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
@@ -20,36 +19,10 @@ class MockLeaf {
   detach = vi.fn();
 }
 
-type Cleanup = {
-  contentEl: HTMLElement;
+type ReaderViewTestHarness = {
   readingContainer: HTMLElement;
   currentDisplayTitle?: string;
   fetchFullArticleContent: ReturnType<typeof vi.fn>;
-  stripTopHeadlineFromHtml(html: string): string;
-  stripNavigationChromeFromHtml(html: string): string;
-  stripTopHeadlineFromDocument(doc: Document): void;
-  stripNavigationChromeFromDocument(doc: Document): void;
-  extractDisplayTitleFromHtml(html: string): string | null;
-  isAcceptableDisplayTitle(text: string): boolean;
-  isEquivalentHtml(a: string, b: string): boolean;
-  normalizeComparableText(html: string): string;
-  stripDuplicateLeadContentFromDocument(
-    doc: Document,
-    feedDescriptionHtml?: string,
-  ): void;
-  stripLeadMediaBeforeContent(doc: Document): void;
-  getNormalizedBlockText(block: HTMLElement): string;
-  isShortLeadInBlock(block: HTMLElement): boolean;
-  isLeadMediaBlock(block: HTMLElement): boolean;
-  removeLeadImageElement(el: Element): void;
-  stripSkipLinksFromDocument(doc: Document): void;
-  stripDuplicateLeadMediaMatchingHero(doc: Document, heroUrl: string): void;
-  stripDuplicateLeadCaptionBlocks(doc: Document): void;
-  findFirstSubstantialParagraph(doc: Document): HTMLElement | null;
-  isBeforeBoundary(el: Element, boundary: HTMLElement | null): boolean;
-  isLikelySameImageSource(a: string, b: string): boolean;
-  normalizeImageSourceKey(url: string): string;
-  hasMeaningfulArticleContent(html: string | null): boolean;
 };
 
 const parse = (html: string): Document =>
@@ -82,9 +55,9 @@ function makeItem(overrides: Partial<FeedItem> = {}): FeedItem {
   };
 }
 
-describe("ReaderView HTML cleanup helpers (characterization)", () => {
+describe("Reader HTML cleanup utilities (characterization)", () => {
   let view: ReaderView;
-  let c: Cleanup;
+  let viewHarness: ReaderViewTestHarness;
 
   beforeEach(async () => {
     activeDocument.body.empty();
@@ -103,8 +76,8 @@ describe("ReaderView HTML cleanup helpers (characterization)", () => {
       vi.fn(),
       vi.fn(),
     );
-    c = view as unknown as Cleanup;
-    c.contentEl = createDiv();
+    view.contentEl = createDiv();
+    viewHarness = view as unknown as ReaderViewTestHarness;
     await view.onOpen();
   });
 
@@ -117,23 +90,23 @@ describe("ReaderView HTML cleanup helpers (characterization)", () => {
   describe("stripTopHeadlineFromDocument / stripTopHeadlineFromHtml", () => {
     it("removes the first h1 when it is near the top", () => {
       const doc = parse(`<h1>Title</h1><p>Body</p>`);
-      c.stripTopHeadlineFromDocument(doc);
+      cleanup.stripTopHeadlineFromDocument(doc);
       expect(bodyOf(doc)).toBe("<p>Body</p>");
     });
 
     it("removes an h1 at element index 9 but keeps one at index 10", () => {
       const at9 = parse(`${spans(9)}<h1>Title</h1>`);
-      c.stripTopHeadlineFromDocument(at9);
+      cleanup.stripTopHeadlineFromDocument(at9);
       expect(at9.body.querySelector("h1")).toBeNull();
 
       const at10 = parse(`${spans(10)}<h1>Title</h1>`);
-      c.stripTopHeadlineFromDocument(at10);
+      cleanup.stripTopHeadlineFromDocument(at10);
       expect(at10.body.querySelector("h1")).not.toBeNull();
     });
 
     it("counts elements in document order, so a nested h1 is measured by depth-first position", () => {
       const doc = parse(`<header><div><h1>Title</h1></div></header><p>B</p>`);
-      c.stripTopHeadlineFromDocument(doc);
+      cleanup.stripTopHeadlineFromDocument(doc);
       expect(bodyOf(doc)).toBe("<header><div></div></header><p>B</p>");
     });
 
@@ -141,34 +114,34 @@ describe("ReaderView HTML cleanup helpers (characterization)", () => {
       // The first h1 in document order is the only candidate; a second one is
       // never examined, so two early h1s lose only the first.
       const doc = parse(`<h1>One</h1><h1>Two</h1>`);
-      c.stripTopHeadlineFromDocument(doc);
+      cleanup.stripTopHeadlineFromDocument(doc);
       expect(bodyOf(doc)).toBe("<h1>Two</h1>");
     });
 
     it("leaves a document without an h1 untouched", () => {
       const doc = parse(`<p>Body</p>`);
-      c.stripTopHeadlineFromDocument(doc);
+      cleanup.stripTopHeadlineFromDocument(doc);
       expect(bodyOf(doc)).toBe("<p>Body</p>");
     });
 
     it("does nothing for a document with no body", () => {
       const xml = new DOMParser().parseFromString("<root/>", "text/xml");
       expect(xml.body).toBeNull();
-      expect(() => c.stripTopHeadlineFromDocument(xml)).not.toThrow();
+      expect(() => cleanup.stripTopHeadlineFromDocument(xml)).not.toThrow();
     });
 
     it("stripTopHeadlineFromHtml returns the serialized body without the h1", () => {
-      expect(c.stripTopHeadlineFromHtml("<h1>T</h1><p>a &amp; b</p>")).toBe(
+      expect(cleanup.stripTopHeadlineFromHtml("<h1>T</h1><p>a &amp; b</p>")).toBe(
         "<p>a &amp; b</p>",
       );
     });
 
     it("stripTopHeadlineFromHtml returns empty input as is", () => {
-      expect(c.stripTopHeadlineFromHtml("")).toBe("");
+      expect(cleanup.stripTopHeadlineFromHtml("")).toBe("");
     });
 
     it("stripTopHeadlineFromHtml normalizes markup it did not change", () => {
-      expect(c.stripTopHeadlineFromHtml("plain <b>text")).toBe(
+      expect(cleanup.stripTopHeadlineFromHtml("plain <b>text")).toBe(
         "plain <b>text</b>",
       );
     });
@@ -182,14 +155,14 @@ describe("ReaderView HTML cleanup helpers (characterization)", () => {
           }
         },
       );
-      expect(c.stripTopHeadlineFromHtml("<h1>T</h1>")).toBe("<h1>T</h1>");
+      expect(cleanup.stripTopHeadlineFromHtml("<h1>T</h1>")).toBe("<h1>T</h1>");
     });
   });
 
   describe("stripNavigationChromeFromDocument / stripNavigationChromeFromHtml", () => {
     const strip = (html: string): string => {
       const doc = parse(html);
-      c.stripNavigationChromeFromDocument(doc);
+      cleanup.stripNavigationChromeFromDocument(doc);
       return bodyOf(doc);
     };
 
@@ -409,7 +382,7 @@ describe("ReaderView HTML cleanup helpers (characterization)", () => {
     it("leaves an empty body and a body-less document alone", () => {
       expect(strip("")).toBe("");
       const xml = new DOMParser().parseFromString("<root/>", "text/xml");
-      expect(() => c.stripNavigationChromeFromDocument(xml)).not.toThrow();
+      expect(() => cleanup.stripNavigationChromeFromDocument(xml)).not.toThrow();
     });
 
     it("leaves a document with no chrome untouched", () => {
@@ -417,13 +390,13 @@ describe("ReaderView HTML cleanup helpers (characterization)", () => {
     });
 
     it("stripNavigationChromeFromHtml returns the serialized body without the chrome", () => {
-      expect(c.stripNavigationChromeFromHtml(`${nav()}<p>a &amp; b</p>`)).toBe(
+      expect(cleanup.stripNavigationChromeFromHtml(`${nav()}<p>a &amp; b</p>`)).toBe(
         "<p>a &amp; b</p>",
       );
     });
 
     it("stripNavigationChromeFromHtml returns empty input as is", () => {
-      expect(c.stripNavigationChromeFromHtml("")).toBe("");
+      expect(cleanup.stripNavigationChromeFromHtml("")).toBe("");
     });
 
     it("stripNavigationChromeFromHtml returns the original string when parsing throws", () => {
@@ -435,7 +408,7 @@ describe("ReaderView HTML cleanup helpers (characterization)", () => {
           }
         },
       );
-      expect(c.stripNavigationChromeFromHtml("<nav>x</nav>")).toBe(
+      expect(cleanup.stripNavigationChromeFromHtml("<nav>x</nav>")).toBe(
         "<nav>x</nav>",
       );
     });
@@ -443,7 +416,7 @@ describe("ReaderView HTML cleanup helpers (characterization)", () => {
 
   describe("extractDisplayTitleFromHtml / isAcceptableDisplayTitle", () => {
     const title = (text: string): string | null =>
-      c.extractDisplayTitleFromHtml(`<h1>${text}</h1><p>body</p>`);
+      cleanup.extractDisplayTitleFromHtml(`<h1>${text}</h1><p>body</p>`);
 
     it("returns the first h1 text with whitespace collapsed", () => {
       expect(title("  A   good\n headline  here ")).toBe("A good headline here");
@@ -456,22 +429,22 @@ describe("ReaderView HTML cleanup helpers (characterization)", () => {
     });
 
     it("returns null for empty html and for html with no h1", () => {
-      expect(c.extractDisplayTitleFromHtml("")).toBeNull();
-      expect(c.extractDisplayTitleFromHtml("<p>No heading in here</p>")).toBeNull();
+      expect(cleanup.extractDisplayTitleFromHtml("")).toBeNull();
+      expect(cleanup.extractDisplayTitleFromHtml("<p>No heading in here</p>")).toBeNull();
     });
 
     it("accepts an h1 at element index 9 and rejects one at index 10", () => {
       const html = (n: number): string =>
         `${spans(n)}<h1>A perfectly fine headline</h1>`;
-      expect(c.extractDisplayTitleFromHtml(html(9))).toBe(
+      expect(cleanup.extractDisplayTitleFromHtml(html(9))).toBe(
         "A perfectly fine headline",
       );
-      expect(c.extractDisplayTitleFromHtml(html(10))).toBeNull();
+      expect(cleanup.extractDisplayTitleFromHtml(html(10))).toBeNull();
     });
 
     it("judges only the first h1, even when a later one would pass", () => {
       expect(
-        c.extractDisplayTitleFromHtml(
+        cleanup.extractDisplayTitleFromHtml(
           "<h1>Short</h1><h1>A perfectly fine headline</h1>",
         ),
       ).toBeNull();
@@ -522,47 +495,47 @@ describe("ReaderView HTML cleanup helpers (characterization)", () => {
     });
 
     it("isAcceptableDisplayTitle normalizes whitespace before measuring", () => {
-      expect(c.isAcceptableDisplayTitle("  a   b \n cdefgh  ")).toBe(true);
-      expect(c.isAcceptableDisplayTitle("")).toBe(false);
-      expect(c.isAcceptableDisplayTitle("   \n ")).toBe(false);
+      expect(cleanup.isAcceptableDisplayTitle("  a   b \n cdefgh  ")).toBe(true);
+      expect(cleanup.isAcceptableDisplayTitle("")).toBe(false);
+      expect(cleanup.isAcceptableDisplayTitle("   \n ")).toBe(false);
     });
   });
 
   describe("normalizeComparableText / isEquivalentHtml", () => {
     it("strips markup, folds case, collapses whitespace and trims", () => {
       expect(
-        c.normalizeComparableText("  <p>Hello\n\n  <b>WORLD</b></p>  "),
+        cleanup.normalizeComparableText("  <p>Hello\n\n  <b>WORLD</b></p>  "),
       ).toBe("hello world");
     });
 
     it("turns curly single and double quotes into straight ones", () => {
-      expect(c.normalizeComparableText("‘a’ “b”")).toBe(
+      expect(cleanup.normalizeComparableText("‘a’ “b”")).toBe(
         "'a' \"b\"",
       );
     });
 
     it("decodes entities, and treats a non-breaking space as whitespace", () => {
-      expect(c.normalizeComparableText("a&nbsp;&amp;&nbsp;b")).toBe("a & b");
+      expect(cleanup.normalizeComparableText("a&nbsp;&amp;&nbsp;b")).toBe("a & b");
     });
 
     it("leaves other punctuation, such as dashes and ellipses, as it is", () => {
-      expect(c.normalizeComparableText("a – b…")).toBe("a – b…");
+      expect(cleanup.normalizeComparableText("a – b…")).toBe("a – b…");
     });
 
     it("returns an empty string for empty input and for tags without text", () => {
-      expect(c.normalizeComparableText("")).toBe("");
-      expect(c.normalizeComparableText("<p> </p><br>")).toBe("");
+      expect(cleanup.normalizeComparableText("")).toBe("");
+      expect(cleanup.normalizeComparableText("<p> </p><br>")).toBe("");
     });
 
     it("counts script text as text", () => {
-      expect(c.normalizeComparableText("<p>a</p><script>var z</script>")).toBe(
+      expect(cleanup.normalizeComparableText("<p>a</p><script>var z</script>")).toBe(
         "avar z",
       );
     });
 
     it("treats html that differs only in markup, quotes, spacing or case as equivalent", () => {
       expect(
-        c.isEquivalentHtml(
+        cleanup.isEquivalentHtml(
           "<p>Don’t   “stop”</p>",
           `<div>don't "STOP"</div>`,
         ),
@@ -570,19 +543,19 @@ describe("ReaderView HTML cleanup helpers (characterization)", () => {
     });
 
     it("treats html with different text as different", () => {
-      expect(c.isEquivalentHtml("<p>one</p>", "<p>two</p>")).toBe(false);
-      expect(c.isEquivalentHtml("a – b", "a - b")).toBe(false);
+      expect(cleanup.isEquivalentHtml("<p>one</p>", "<p>two</p>")).toBe(false);
+      expect(cleanup.isEquivalentHtml("a – b", "a - b")).toBe(false);
     });
 
     it("treats two empty documents as equivalent", () => {
-      expect(c.isEquivalentHtml("", "<p></p>")).toBe(true);
+      expect(cleanup.isEquivalentHtml("", "<p></p>")).toBe(true);
     });
   });
 
   describe("stripDuplicateLeadContentFromDocument", () => {
     const strip = (html: string, description?: string): string => {
       const doc = parse(html);
-      c.stripDuplicateLeadContentFromDocument(doc, description);
+      cleanup.stripDuplicateLeadContentFromDocument(doc, description);
       return bodyOf(doc);
     };
 
@@ -597,7 +570,7 @@ describe("ReaderView HTML cleanup helpers (characterization)", () => {
     it("does nothing for a body-less document", () => {
       const xml = new DOMParser().parseFromString("<root/>", "text/xml");
       expect(() =>
-        c.stripDuplicateLeadContentFromDocument(xml, "Desc"),
+        cleanup.stripDuplicateLeadContentFromDocument(xml, "Desc"),
       ).not.toThrow();
     });
 
@@ -749,7 +722,7 @@ describe("ReaderView HTML cleanup helpers (characterization)", () => {
   describe("stripLeadMediaBeforeContent", () => {
     const strip = (html: string): string => {
       const doc = parse(html);
-      c.stripLeadMediaBeforeContent(doc);
+      cleanup.stripLeadMediaBeforeContent(doc);
       return bodyOf(doc);
     };
 
@@ -801,7 +774,7 @@ describe("ReaderView HTML cleanup helpers (characterization)", () => {
 
     it("does nothing for a body-less document", () => {
       const xml = new DOMParser().parseFromString("<root/>", "text/xml");
-      expect(() => c.stripLeadMediaBeforeContent(xml)).not.toThrow();
+      expect(() => cleanup.stripLeadMediaBeforeContent(xml)).not.toThrow();
     });
   });
 
@@ -814,48 +787,48 @@ describe("ReaderView HTML cleanup helpers (characterization)", () => {
 
     it("getNormalizedBlockText normalizes the block's text, ignoring markup", () => {
       expect(
-        c.getNormalizedBlockText(block("<div> A <b>B</b>’s </div>")),
+        cleanup.getNormalizedBlockText(block("<div> A <b>B</b>’s </div>")),
       ).toBe("a b's");
     });
 
     it("getNormalizedBlockText gives an empty string for a block with no text", () => {
-      expect(c.getNormalizedBlockText(block("<div></div>"))).toBe("");
+      expect(cleanup.getNormalizedBlockText(block("<div></div>"))).toBe("");
     });
 
     it("isLeadMediaBlock is true for img, figure and picture elements", () => {
-      expect(c.isLeadMediaBlock(block('<img src="a.jpg">'))).toBe(true);
-      expect(c.isLeadMediaBlock(block("<figure></figure>"))).toBe(true);
-      expect(c.isLeadMediaBlock(block("<picture></picture>"))).toBe(true);
+      expect(cleanup.isLeadMediaBlock(block('<img src="a.jpg">'))).toBe(true);
+      expect(cleanup.isLeadMediaBlock(block("<figure></figure>"))).toBe(true);
+      expect(cleanup.isLeadMediaBlock(block("<picture></picture>"))).toBe(true);
     });
 
     it("isLeadMediaBlock is true for a caption-less wrapper and false once the text reaches 40", () => {
-      expect(c.isLeadMediaBlock(block('<div><img src="a.jpg">cap</div>'))).toBe(
+      expect(cleanup.isLeadMediaBlock(block('<div><img src="a.jpg">cap</div>'))).toBe(
         true,
       );
       expect(
-        c.isLeadMediaBlock(
+        cleanup.isLeadMediaBlock(
           block(`<div><img src="a.jpg">${"t".repeat(40)}</div>`),
         ),
       ).toBe(false);
-      expect(c.isLeadMediaBlock(block("<p>no media</p>"))).toBe(false);
+      expect(cleanup.isLeadMediaBlock(block("<p>no media</p>"))).toBe(false);
     });
 
     it("isLeadMediaBlock is false for a formula image, bare or wrapped", () => {
-      expect(c.isLeadMediaBlock(block('<img class="LaTeX" src="f.png">'))).toBe(
+      expect(cleanup.isLeadMediaBlock(block('<img class="LaTeX" src="f.png">'))).toBe(
         false,
       );
       expect(
-        c.isLeadMediaBlock(block('<p><img class="latex" src="f.png"></p>')),
+        cleanup.isLeadMediaBlock(block('<p><img class="latex" src="f.png"></p>')),
       ).toBe(false);
     });
 
     it("isShortLeadInBlock requires text of under 80 characters and at most 12 words", () => {
-      expect(c.isShortLeadInBlock(block("<p>By Jane</p>"))).toBe(true);
-      expect(c.isShortLeadInBlock(block("<p></p>"))).toBe(false);
-      expect(c.isShortLeadInBlock(block(`<p>${"y".repeat(80)}</p>`))).toBe(false);
-      expect(c.isShortLeadInBlock(block('<img src="a.jpg">'))).toBe(false);
+      expect(cleanup.isShortLeadInBlock(block("<p>By Jane</p>"))).toBe(true);
+      expect(cleanup.isShortLeadInBlock(block("<p></p>"))).toBe(false);
+      expect(cleanup.isShortLeadInBlock(block(`<p>${"y".repeat(80)}</p>`))).toBe(false);
+      expect(cleanup.isShortLeadInBlock(block('<img src="a.jpg">'))).toBe(false);
       expect(
-        c.isShortLeadInBlock(block('<p><img class="latex" src="f.png">x</p>')),
+        cleanup.isShortLeadInBlock(block('<p><img class="latex" src="f.png">x</p>')),
       ).toBe(false);
     });
   });
@@ -865,7 +838,7 @@ describe("ReaderView HTML cleanup helpers (characterization)", () => {
       const doc = parse(html);
       const img = doc.body.querySelector("img");
       if (!img) throw new Error("fixture has no img");
-      c.removeLeadImageElement(img);
+      cleanup.removeLeadImageElement(img);
       return bodyOf(doc);
     };
 
@@ -914,7 +887,7 @@ describe("ReaderView HTML cleanup helpers (characterization)", () => {
   describe("stripSkipLinksFromDocument", () => {
     const strip = (html: string): string => {
       const doc = parse(html);
-      c.stripSkipLinksFromDocument(doc);
+      cleanup.stripSkipLinksFromDocument(doc);
       return bodyOf(doc);
     };
 
@@ -964,23 +937,23 @@ describe("ReaderView HTML cleanup helpers (characterization)", () => {
 
     it("does nothing for a body-less document", () => {
       const xml = new DOMParser().parseFromString("<root/>", "text/xml");
-      expect(() => c.stripSkipLinksFromDocument(xml)).not.toThrow();
+      expect(() => cleanup.stripSkipLinksFromDocument(xml)).not.toThrow();
     });
   });
 
   describe("findFirstSubstantialParagraph / isBeforeBoundary", () => {
     it("returns the first p of at least 120 characters after collapsing whitespace", () => {
       const doc = parse(`<p>short</p>${para(119)}<p id="hit">${"x ".repeat(61)}</p>${LONG}`);
-      expect(c.findFirstSubstantialParagraph(doc)?.id).toBe("hit");
+      expect(cleanup.findFirstSubstantialParagraph(doc)?.id).toBe("hit");
     });
 
     it("returns null when no paragraph is long enough", () => {
-      expect(c.findFirstSubstantialParagraph(parse(`${para(119)}`))).toBeNull();
+      expect(cleanup.findFirstSubstantialParagraph(parse(`${para(119)}`))).toBeNull();
     });
 
     it("ignores non-paragraph elements, and finds a nested paragraph", () => {
       const doc = parse(`<div>${"x".repeat(300)}</div><section><p id="hit">${"y".repeat(120)}</p></section>`);
-      expect(c.findFirstSubstantialParagraph(doc)?.id).toBe("hit");
+      expect(cleanup.findFirstSubstantialParagraph(doc)?.id).toBe("hit");
     });
 
     describe("isBeforeBoundary", () => {
@@ -994,22 +967,22 @@ describe("ReaderView HTML cleanup helpers (characterization)", () => {
       };
 
       it("is true for everything when there is no boundary", () => {
-        expect(c.isBeforeBoundary(get("after"), null)).toBe(true);
+        expect(cleanup.isBeforeBoundary(get("after"), null)).toBe(true);
       });
 
       it("is true for an element that precedes the boundary", () => {
-        expect(c.isBeforeBoundary(get("before"), get("boundary"))).toBe(true);
-        expect(c.isBeforeBoundary(get("inner"), get("boundary"))).toBe(true);
+        expect(cleanup.isBeforeBoundary(get("before"), get("boundary"))).toBe(true);
+        expect(cleanup.isBeforeBoundary(get("inner"), get("boundary"))).toBe(true);
       });
 
       it("is true for an ancestor of the boundary", () => {
-        expect(c.isBeforeBoundary(get("ancestor"), get("boundary"))).toBe(true);
+        expect(cleanup.isBeforeBoundary(get("ancestor"), get("boundary"))).toBe(true);
       });
 
       it("is false for the boundary itself, its descendants, and later elements", () => {
-        expect(c.isBeforeBoundary(get("boundary"), get("boundary"))).toBe(false);
-        expect(c.isBeforeBoundary(get("child"), get("boundary"))).toBe(false);
-        expect(c.isBeforeBoundary(get("after"), get("boundary"))).toBe(false);
+        expect(cleanup.isBeforeBoundary(get("boundary"), get("boundary"))).toBe(false);
+        expect(cleanup.isBeforeBoundary(get("child"), get("boundary"))).toBe(false);
+        expect(cleanup.isBeforeBoundary(get("after"), get("boundary"))).toBe(false);
       });
     });
   });
@@ -1017,7 +990,7 @@ describe("ReaderView HTML cleanup helpers (characterization)", () => {
   describe("stripDuplicateLeadMediaMatchingHero", () => {
     const strip = (html: string, hero: string): string => {
       const doc = parse(html);
-      c.stripDuplicateLeadMediaMatchingHero(doc, hero);
+      cleanup.stripDuplicateLeadMediaMatchingHero(doc, hero);
       return bodyOf(doc);
     };
     const HERO = "https://cdn.example.com/images/hero.jpg";
@@ -1080,14 +1053,14 @@ describe("ReaderView HTML cleanup helpers (characterization)", () => {
 
     it("does nothing for a body-less document", () => {
       const xml = new DOMParser().parseFromString("<root/>", "text/xml");
-      expect(() => c.stripDuplicateLeadMediaMatchingHero(xml, HERO)).not.toThrow();
+      expect(() => cleanup.stripDuplicateLeadMediaMatchingHero(xml, HERO)).not.toThrow();
     });
   });
 
   describe("stripDuplicateLeadCaptionBlocks", () => {
     const strip = (html: string): string => {
       const doc = parse(html);
-      c.stripDuplicateLeadCaptionBlocks(doc);
+      cleanup.stripDuplicateLeadCaptionBlocks(doc);
       return bodyOf(doc);
     };
 
@@ -1165,48 +1138,48 @@ describe("ReaderView HTML cleanup helpers (characterization)", () => {
 
     it("does nothing for a body-less document", () => {
       const xml = new DOMParser().parseFromString("<root/>", "text/xml");
-      expect(() => c.stripDuplicateLeadCaptionBlocks(xml)).not.toThrow();
+      expect(() => cleanup.stripDuplicateLeadCaptionBlocks(xml)).not.toThrow();
     });
   });
 
   describe("isLikelySameImageSource / normalizeImageSourceKey", () => {
     it("keys an absolute URL by lowercase host and path, dropping scheme, query and hash", () => {
-      expect(c.normalizeImageSourceKey("HTTPS://Cdn.Example.COM/A/B.JPG?w=1#x")).toBe(
+      expect(cleanup.normalizeImageSourceKey("HTTPS://Cdn.Example.COM/A/B.JPG?w=1#x")).toBe(
         "cdn.example.com/a/b.jpg",
       );
     });
 
     it("drops a size suffix that sits just before the extension", () => {
-      expect(c.normalizeImageSourceKey("https://x.test/p/photo-300x200.jpg")).toBe(
+      expect(cleanup.normalizeImageSourceKey("https://x.test/p/photo-300x200.jpg")).toBe(
         "x.test/p/photo.jpg",
       );
-      expect(c.normalizeImageSourceKey("https://x.test/p/photo-300x200-final.jpg")).toBe(
+      expect(cleanup.normalizeImageSourceKey("https://x.test/p/photo-300x200-final.jpg")).toBe(
         "x.test/p/photo-300x200-final.jpg",
       );
-      expect(c.normalizeImageSourceKey("https://x.test/p/photo-300x200")).toBe(
+      expect(cleanup.normalizeImageSourceKey("https://x.test/p/photo-300x200")).toBe(
         "x.test/p/photo-300x200",
       );
     });
 
     it("keys a relative URL against a placeholder host", () => {
-      expect(c.normalizeImageSourceKey("/img/a-10x10.png")).toBe(
+      expect(cleanup.normalizeImageSourceKey("/img/a-10x10.png")).toBe(
         "example.invalid/img/a.png",
       );
     });
 
     it("returns an empty key for empty or blank input", () => {
-      expect(c.normalizeImageSourceKey("")).toBe("");
-      expect(c.normalizeImageSourceKey("   ")).toBe("");
+      expect(cleanup.normalizeImageSourceKey("")).toBe("");
+      expect(cleanup.normalizeImageSourceKey("   ")).toBe("");
     });
 
     it("unwraps Substack CDN fetch URLs before keying", () => {
       const wrapped =
         "https://substackcdn.com/image/fetch/w_1456,c_limit,f_auto/https%3A%2F%2Fbucket.s3.amazonaws.com%2Fpublic%2Fimages%2Fabc.png";
-      expect(c.normalizeImageSourceKey(wrapped)).toBe(
+      expect(cleanup.normalizeImageSourceKey(wrapped)).toBe(
         "bucket.s3.amazonaws.com/public/images/abc.png",
       );
       expect(
-        c.isLikelySameImageSource(
+        cleanup.isLikelySameImageSource(
           wrapped,
           "https://bucket.s3.amazonaws.com/public/images/abc.png",
         ),
@@ -1214,21 +1187,21 @@ describe("ReaderView HTML cleanup helpers (characterization)", () => {
     });
 
     it("falls back to the lowercased string, minus the size suffix, when the URL is invalid", () => {
-      expect(c.normalizeImageSourceKey("http://[bad/Photo-300x200.JPG")).toBe(
+      expect(cleanup.normalizeImageSourceKey("http://[bad/Photo-300x200.JPG")).toBe(
         "http://[bad/photo.jpg",
       );
       expect(
-        c.isLikelySameImageSource("http://[bad/Photo-300x200.JPG", "http://[bad/photo.jpg"),
+        cleanup.isLikelySameImageSource("http://[bad/Photo-300x200.JPG", "http://[bad/photo.jpg"),
       ).toBe(true);
       // The fallback keeps the query string, which the URL path drops.
       expect(
-        c.isLikelySameImageSource("http://[bad/a.jpg?x=1", "http://[bad/a.jpg"),
+        cleanup.isLikelySameImageSource("http://[bad/a.jpg?x=1", "http://[bad/a.jpg"),
       ).toBe(false);
     });
 
     it("matches the same image across schemes, queries, sizes and case", () => {
       expect(
-        c.isLikelySameImageSource(
+        cleanup.isLikelySameImageSource(
           "http://X.test/a/pic-640x480.png?w=1",
           "https://x.test/A/pic.PNG",
         ),
@@ -1236,24 +1209,24 @@ describe("ReaderView HTML cleanup helpers (characterization)", () => {
     });
 
     it("does not match different hosts or paths", () => {
-      expect(c.isLikelySameImageSource("https://a.test/p.jpg", "https://b.test/p.jpg")).toBe(
+      expect(cleanup.isLikelySameImageSource("https://a.test/p.jpg", "https://b.test/p.jpg")).toBe(
         false,
       );
-      expect(c.isLikelySameImageSource("https://a.test/p.jpg", "https://a.test/q.jpg")).toBe(
+      expect(cleanup.isLikelySameImageSource("https://a.test/p.jpg", "https://a.test/q.jpg")).toBe(
         false,
       );
     });
 
     it("never matches when either side is empty, including both", () => {
-      expect(c.isLikelySameImageSource("", "https://a.test/p.jpg")).toBe(false);
-      expect(c.isLikelySameImageSource("https://a.test/p.jpg", "")).toBe(false);
-      expect(c.isLikelySameImageSource("", "")).toBe(false);
-      expect(c.isLikelySameImageSource("  ", "  ")).toBe(false);
+      expect(cleanup.isLikelySameImageSource("", "https://a.test/p.jpg")).toBe(false);
+      expect(cleanup.isLikelySameImageSource("https://a.test/p.jpg", "")).toBe(false);
+      expect(cleanup.isLikelySameImageSource("", "")).toBe(false);
+      expect(cleanup.isLikelySameImageSource("  ", "  ")).toBe(false);
     });
 
     it("matches a relative URL to the placeholder host, and relative URLs to each other", () => {
-      expect(c.isLikelySameImageSource("/a.jpg", "/a.jpg?v=2")).toBe(true);
-      expect(c.isLikelySameImageSource("/a.jpg", "https://example.invalid/a.jpg")).toBe(
+      expect(cleanup.isLikelySameImageSource("/a.jpg", "/a.jpg?v=2")).toBe(true);
+      expect(cleanup.isLikelySameImageSource("/a.jpg", "https://example.invalid/a.jpg")).toBe(
         true,
       );
     });
@@ -1261,25 +1234,25 @@ describe("ReaderView HTML cleanup helpers (characterization)", () => {
 
   describe("hasMeaningfulArticleContent", () => {
     it("is false for null and empty html", () => {
-      expect(c.hasMeaningfulArticleContent(null)).toBe(false);
-      expect(c.hasMeaningfulArticleContent("")).toBe(false);
+      expect(cleanup.hasMeaningfulArticleContent(null)).toBe(false);
+      expect(cleanup.hasMeaningfulArticleContent("")).toBe(false);
     });
 
     it("needs more than 200 characters of trimmed text", () => {
-      expect(c.hasMeaningfulArticleContent(`<p>${"x".repeat(200)}</p>`)).toBe(false);
-      expect(c.hasMeaningfulArticleContent(`<p>${"x".repeat(201)}</p>`)).toBe(true);
+      expect(cleanup.hasMeaningfulArticleContent(`<p>${"x".repeat(200)}</p>`)).toBe(false);
+      expect(cleanup.hasMeaningfulArticleContent(`<p>${"x".repeat(201)}</p>`)).toBe(true);
     });
 
     it("trims the ends but counts whitespace between words", () => {
       expect(
-        c.hasMeaningfulArticleContent(`  <p>  ${"x".repeat(200)}  </p>  `),
+        cleanup.hasMeaningfulArticleContent(`  <p>  ${"x".repeat(200)}  </p>  `),
       ).toBe(false);
-      expect(c.hasMeaningfulArticleContent(`<p>a${" ".repeat(199)}b</p>`)).toBe(true);
+      expect(cleanup.hasMeaningfulArticleContent(`<p>a${" ".repeat(199)}b</p>`)).toBe(true);
     });
 
     it("counts text only, not markup", () => {
       expect(
-        c.hasMeaningfulArticleContent(
+        cleanup.hasMeaningfulArticleContent(
           `<div class="${"c".repeat(300)}"><img src="${"s".repeat(300)}">short</div>`,
         ),
       ).toBe(false);
@@ -1294,7 +1267,7 @@ describe("ReaderView HTML cleanup helpers (characterization)", () => {
     };
     const stripNav = (html: string): string => {
       const doc = parse(html);
-      c.stripNavigationChromeFromDocument(doc);
+      cleanup.stripNavigationChromeFromDocument(doc);
       return bodyOf(doc);
     };
     const li = (text: string): string => `<li><a href="/x">${text}</a></li>`;
@@ -1324,50 +1297,50 @@ describe("ReaderView HTML cleanup helpers (characterization)", () => {
     });
 
     it("isAcceptableDisplayTitle collapses and trims before measuring", () => {
-      expect(c.isAcceptableDisplayTitle("a  b   cdefg")).toBe(false);
-      expect(c.isAcceptableDisplayTitle(" a b cdefg ")).toBe(false);
+      expect(cleanup.isAcceptableDisplayTitle("a  b   cdefg")).toBe(false);
+      expect(cleanup.isAcceptableDisplayTitle(" a b cdefg ")).toBe(false);
     });
 
     it("getNormalizedBlockText reads the block's html, so escaped markup stays text", () => {
       expect(
-        c.getNormalizedBlockText(parseBlock("<p>&lt;i&gt;Hello&lt;/i&gt;</p>")),
+        cleanup.getNormalizedBlockText(parseBlock("<p>&lt;i&gt;Hello&lt;/i&gt;</p>")),
       ).toBe("<i>hello</i>");
     });
 
     it("isLeadMediaBlock finds a figure or picture inside a plain wrapper", () => {
-      expect(c.isLeadMediaBlock(parseBlock("<div><figure></figure></div>"))).toBe(true);
-      expect(c.isLeadMediaBlock(parseBlock("<div><picture></picture></div>"))).toBe(true);
+      expect(cleanup.isLeadMediaBlock(parseBlock("<div><figure></figure></div>"))).toBe(true);
+      expect(cleanup.isLeadMediaBlock(parseBlock("<div><picture></picture></div>"))).toBe(true);
     });
 
     it("isShortLeadInBlock is false for a short media wrapper", () => {
-      expect(c.isShortLeadInBlock(parseBlock('<div><img src="a.jpg">cap</div>'))).toBe(false);
+      expect(cleanup.isShortLeadInBlock(parseBlock('<div><img src="a.jpg">cap</div>'))).toBe(false);
     });
 
     it("keeps a block equal to a long description when it is the first substantial block", () => {
       const html = `<p>intro</p>${LONG}`;
       const doc = parse(html);
-      c.stripDuplicateLeadContentFromDocument(doc, "x".repeat(200));
+      cleanup.stripDuplicateLeadContentFromDocument(doc, "x".repeat(200));
       expect(bodyOf(doc)).toBe(html);
     });
 
     it("starts removing lead-ins from the block above a description that is itself long", () => {
       const desc = "d".repeat(90);
       const doc = parse(`<p>Byline</p><p>${desc}</p>${LONG}`);
-      c.stripDuplicateLeadContentFromDocument(doc, desc);
+      cleanup.stripDuplicateLeadContentFromDocument(doc, desc);
       expect(bodyOf(doc)).toBe(LONG);
     });
 
     it("does not treat a missing description as the text Z", () => {
       const html = `<p>Z</p>${LONG}`;
       const doc = parse(html);
-      c.stripDuplicateLeadContentFromDocument(doc);
+      cleanup.stripDuplicateLeadContentFromDocument(doc);
       expect(bodyOf(doc)).toBe(html);
     });
 
     it("stripLeadMediaBeforeContent counts 120 characters, not 119 or 121, as substantial", () => {
       const run = (p: string): string => {
         const doc = parse(`<img src="a.jpg">${p}`);
-        c.stripLeadMediaBeforeContent(doc);
+        cleanup.stripLeadMediaBeforeContent(doc);
         return bodyOf(doc);
       };
       expect(run(para(120))).toBe(para(120));
@@ -1377,19 +1350,19 @@ describe("ReaderView HTML cleanup helpers (characterization)", () => {
     it("stripLeadMediaBeforeContent keeps a figure that is itself the first substantial block", () => {
       const figure = `<figure><img src="b.jpg"><figcaption>${"x".repeat(200)}</figcaption></figure>`;
       const doc = parse(`<img src="a.jpg">${figure}`);
-      c.stripLeadMediaBeforeContent(doc);
+      cleanup.stripLeadMediaBeforeContent(doc);
       expect(bodyOf(doc)).toBe(figure);
     });
 
     it("matches skip-link text after trimming leading whitespace", () => {
       const doc = parse(`<a href="#main">\n  Skip to navigation</a><p>kept</p>`);
-      c.stripSkipLinksFromDocument(doc);
+      cleanup.stripSkipLinksFromDocument(doc);
       expect(bodyOf(doc)).toBe("<p>kept</p>");
     });
 
     it("matches a skip id case-insensitively", () => {
       const doc = parse(`<a href="#x" id="SKIP-MAIN">Go</a><p>kept</p>`);
-      c.stripSkipLinksFromDocument(doc);
+      cleanup.stripSkipLinksFromDocument(doc);
       expect(bodyOf(doc)).toBe("<p>kept</p>");
     });
 
@@ -1399,29 +1372,29 @@ describe("ReaderView HTML cleanup helpers (characterization)", () => {
         const doc = parse(
           `<figcaption>${word}: Jane</figcaption><p>${word.toUpperCase()}: JANE</p>${LONG}`,
         );
-        c.stripDuplicateLeadCaptionBlocks(doc);
+        cleanup.stripDuplicateLeadCaptionBlocks(doc);
         expect(bodyOf(doc)).toBe(LONG);
       },
     );
 
     it("findFirstSubstantialParagraph collapses and trims whitespace", () => {
       const gappy = parse(`<p>${"x".repeat(60)}${" ".repeat(70)}yyyyy</p>`);
-      expect(c.findFirstSubstantialParagraph(gappy)).toBeNull();
+      expect(cleanup.findFirstSubstantialParagraph(gappy)).toBeNull();
       const padded = parse(`<p>  ${"x".repeat(119)}  </p>`);
-      expect(c.findFirstSubstantialParagraph(padded)).toBeNull();
+      expect(cleanup.findFirstSubstantialParagraph(padded)).toBeNull();
     });
 
     it("strips a size suffix only when the extension ends the path, for digits too", () => {
-      expect(c.normalizeImageSourceKey("https://x.test/a-300x200.jpg.bak")).toBe(
+      expect(cleanup.normalizeImageSourceKey("https://x.test/a-300x200.jpg.bak")).toBe(
         "x.test/a-300x200.jpg.bak",
       );
-      expect(c.normalizeImageSourceKey("https://x.test/a-300x200.mp4")).toBe(
+      expect(cleanup.normalizeImageSourceKey("https://x.test/a-300x200.mp4")).toBe(
         "x.test/a.mp4",
       );
-      expect(c.normalizeImageSourceKey("http://[bad/a-300x200.jpg.bak")).toBe(
+      expect(cleanup.normalizeImageSourceKey("http://[bad/a-300x200.jpg.bak")).toBe(
         "http://[bad/a-300x200.jpg.bak",
       );
-      expect(c.normalizeImageSourceKey("http://[bad/a-300x200.mp4")).toBe(
+      expect(cleanup.normalizeImageSourceKey("http://[bad/a-300x200.mp4")).toBe(
         "http://[bad/a.mp4",
       );
     });
@@ -1438,11 +1411,11 @@ describe("ReaderView HTML cleanup helpers (characterization)", () => {
         `<p>${description}</p>`,
         body,
       ].join("");
-      c.fetchFullArticleContent = vi.fn().mockResolvedValue(html);
+      viewHarness.fetchFullArticleContent = vi.fn().mockResolvedValue(html);
 
       await view.displayItem(makeItem({ description }));
 
-      const content = c.readingContainer.querySelector(
+      const content = viewHarness.readingContainer.querySelector(
         ".rss-reader-article-content",
       );
       expect(content).not.toBeNull();
@@ -1451,20 +1424,20 @@ describe("ReaderView HTML cleanup helpers (characterization)", () => {
       expect(content?.querySelector("a.skip-link")).toBeNull();
       expect(content?.textContent).toContain("Body sentence of the article.");
       expect(content?.textContent).not.toContain(description);
-      expect(c.currentDisplayTitle).toBe("An Article Headline Worth Reading");
+      expect(viewHarness.currentDisplayTitle).toBe("An Article Headline Worth Reading");
     });
 
     it("keeps story text inside a link when removing the fetched lead image", async () => {
       const hero = "https://img.example.com/images/hero.jpg";
       const leadText = "The first paragraph of the story, which is the content the reader came for. ".repeat(2);
       const moreText = "Further article text. ".repeat(12);
-      c.fetchFullArticleContent = vi.fn().mockResolvedValue(
+      viewHarness.fetchFullArticleContent = vi.fn().mockResolvedValue(
         `<a href="/story"><div><img src="${hero}"><p>${leadText}</p></div></a><p>${moreText}</p>`,
       );
 
       await view.displayItem(makeItem({ coverImage: hero }));
 
-      const content = c.readingContainer.querySelector(
+      const content = viewHarness.readingContainer.querySelector(
         ".rss-reader-article-content",
       );
       expect(content).not.toBeNull();
