@@ -340,6 +340,10 @@ export class ArticleSaver {
         ? new Date(firstSeenMs)
         : validDate;
     const longFormattedFirstSeen = this.formatLongDate(firstSeenDate);
+    const isoFormattedFirstSeen = this.formatMoment(
+      firstSeenDate,
+      "YYYY-MM-DD",
+    );
 
     const now = new Date();
     const saveDate = this.formatMoment(now, "YYYY-MM-DD");
@@ -354,6 +358,7 @@ export class ArticleSaver {
       .replace(/{{isoDate}}/g, () => isoDateTime)
       .replace(/{{isoDateTime}}/g, () => isoDateTime)
       .replace(/{{firstSeen}}/g, () => longFormattedFirstSeen)
+      .replace(/{{firstSeenISO}}/g, () => isoFormattedFirstSeen)
       .replace(/{{saveDate}}/g, () => saveDate)
       .replace(/{{saveTime12}}/g, () => saveTime12)
       .replace(/{{saveTime24}}/g, () => saveTime24);

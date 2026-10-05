@@ -140,6 +140,8 @@ export function renderArticleSavingSettingsTab(
     "{{date:FORMAT}} (Moment.js format, e.g. {{date:YYYY/MM/DD}})",
     "{{isoDate}}",
     "{{firstSeen}} (Date this article was first seen in the dashboard, independent of the 'Use first-seen date for undated items' display setting; falls back to the publish date if unavailable)",
+    // Keep these related variables adjacent in the semantic list (WCAG 2.2, 1.3.1).
+    "{{firstSeenISO}} (Local first-seen date in YYYY-MM-DD format, e.g. 2024-04-30; uses the same fallback as {{firstSeen}})",
     "{{saveDate}} (Local save date YYYY-MM-DD)",
     "{{saveTime12}} (Local save time 12-hour format, e.g. 02:45 PM)",
     "{{saveTime24}} (Local save time 24-hour military format, e.g. 14:45)",
