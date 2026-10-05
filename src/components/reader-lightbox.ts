@@ -257,6 +257,17 @@ export class ReaderLightbox {
     }
   }
 
+  private handleWheelZoom(e: WheelEvent): void {
+    e.preventDefault();
+    const zoomFactor = e.deltaY < 0 ? 1.15 : 0.87;
+    const newScale = Math.min(Math.max(this.scale * zoomFactor, 1), 4);
+    if (newScale === 1) {
+      this.resetZoom();
+    } else {
+      this.zoomTo(newScale, e.clientX, e.clientY);
+    }
+  }
+
   private attachEventListeners(): void {
     if (!this.viewportEl || !this.stageEl) return;
 
@@ -286,16 +297,7 @@ export class ReaderLightbox {
     );
 
     // Mouse wheel zoom
-    const onWheel = (e: WheelEvent): void => {
-      e.preventDefault();
-      const zoomFactor = e.deltaY < 0 ? 1.15 : 0.87;
-      const newScale = Math.min(Math.max(this.scale * zoomFactor, 1), 4);
-      if (newScale === 1) {
-        this.resetZoom();
-      } else {
-        this.zoomTo(newScale, e.clientX, e.clientY);
-      }
-    };
+    const onWheel = (e: WheelEvent): void => this.handleWheelZoom(e);
     this.viewportEl.addEventListener("wheel", onWheel, { passive: false });
     this.cleanups.push(() =>
       this.viewportEl?.removeEventListener("wheel", onWheel),

@@ -11,6 +11,20 @@ import { formatBuildLabel, getBuildInfo } from "../../utils/build-info";
 import { WhatsNewModal } from "../../modals/whats-new-modal";
 import { getReleaseNoteForVersion } from "../../release-notes";
 
+function createLinkButton(
+  parent: HTMLElement,
+  label: string,
+  href: string,
+): void {
+  const link = parent.createEl("a", {
+    text: label,
+    href,
+    cls: "rss-dashboard-about-btn",
+  });
+  link.target = "_blank";
+  link.rel = "noopener noreferrer";
+}
+
 export function renderAboutTab(
   containerEl: HTMLElement,
   plugin: RssDashboardPlugin,
@@ -103,20 +117,6 @@ export function renderAboutTab(
   attributionParagraph.createSpan({
     text: " since version 2.2.0, alongside many contributions from the community.",
   });
-
-  const createLinkButton = (
-    parent: HTMLElement,
-    label: string,
-    href: string,
-  ): void => {
-    const link = parent.createEl("a", {
-      text: label,
-      href,
-      cls: "rss-dashboard-about-btn",
-    });
-    link.target = "_blank";
-    link.rel = "noopener noreferrer";
-  };
 
   const actionsRow = aboutContainer.createDiv({
     cls: "rss-dashboard-about-btn-row",
