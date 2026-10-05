@@ -1886,16 +1886,7 @@ export class ReaderView extends ItemView {
       img.addClass("rss-reader-responsive-img");
       this.setupLightboxForImage(img);
       img.addEventListener("error", () => {
-        if (this.recoverFailedSubstackImageElement(img)) {
-          console.warn(
-            `[RSS Dashboard] ReaderView recovered Substack img src=${img.getAttribute("src") || ""} currentSrc=${img.currentSrc || ""}`,
-          );
-          return;
-        }
-
-        console.error(
-          `[RSS Dashboard] ReaderView img load failed src=${img.getAttribute("src") || ""} currentSrc=${img.currentSrc || ""} srcset=${img.getAttribute("srcset") || ""}`,
-        );
+        this.recoverFailedSubstackImageElement(img);
       });
     });
 
