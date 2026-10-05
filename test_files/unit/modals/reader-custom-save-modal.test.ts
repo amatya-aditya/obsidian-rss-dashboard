@@ -104,6 +104,35 @@ afterEach(() => {
 });
 
 describe("ReaderCustomSaveModal", () => {
+  it("shows the default-template guidance above the buttons only for that template", () => {
+    const harness = createHarness();
+    harness.settings.articleSaving.defaultTemplate =
+      DEFAULT_SETTINGS.articleSaving.defaultTemplate;
+    harness.open();
+
+    const root = modal();
+    const hint = root.querySelector<HTMLElement>(
+      ".rss-dashboard-custom-save-template-hint",
+    );
+    const template = root.querySelector<HTMLTextAreaElement>("textarea");
+
+    expect(hint?.textContent).toBe(
+      "The prefilled template is ready to use: its frontmatter properties already have the required indentation.",
+    );
+    expect(hint?.nextElementSibling?.classList.contains("rss-dashboard-modal-buttons")).toBe(
+      true,
+    );
+
+    if (!hint || !template) throw new Error("Template guidance was not rendered");
+    template.value = "Custom: {{title}}";
+    template.dispatchEvent(new Event("input"));
+    expect(hint.hidden).toBe(true);
+
+    template.value = DEFAULT_SETTINGS.articleSaving.defaultTemplate;
+    template.dispatchEvent(new Event("input"));
+    expect(hint.hidden).toBe(false);
+  });
+
   it("renders the established fields, defaults, and saved template choices", () => {
     const harness = createHarness({
       savedTemplates: [
@@ -129,6 +158,9 @@ describe("ReaderCustomSaveModal", () => {
       ["Second", "two"],
     ]);
     expect(root.querySelector("textarea")?.value).toBe("Default: {{title}}");
+    expect(
+      root.querySelector<HTMLElement>(".rss-dashboard-custom-save-template-hint")?.hidden,
+    ).toBe(true);
     const actionButtons = Array.from(root.querySelectorAll("button"));
     expect(actionButtons.map((button) => button.textContent)).toEqual([
       "Cancel",
