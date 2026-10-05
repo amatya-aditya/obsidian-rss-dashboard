@@ -18,6 +18,8 @@
     "check:doc-links": "node scripts/check-doc-links.mjs",
     "check:release-ready": "node scripts/check-release-ready.mjs",
     "build": "npm run check:compliance && npm run lint && tsc -noEmit -skipLibCheck -incremental -tsBuildInfoFile node_modules/.cache/tsc/main.tsbuildinfo && npm run check:test-types && node esbuild.config.mjs production",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "lint": "eslint . --max-warnings=0 --suppressions-location scripts/eslint-suppressions.json",
     "lint:dev": "eslint . --suppressions-location scripts/eslint-suppressions.json",
     "lint:prune": "eslint . --prune-suppressions --suppressions-location scripts/eslint-suppressions.json",
@@ -34,6 +36,9 @@
   "engines": {
     "node": ">=20.19.0"
   },
+  "lint-staged": {
+    "*": "prettier --write --ignore-unknown"
+  },
   "devDependencies": {
     "@types/jsdom": "^28.0.3",
     "@types/node": "^24.13.6",
@@ -45,6 +50,7 @@
     "eslint-plugin-obsidianmd": "^0.4.2",
     "globals": "^17.12.0",
     "jsdom": "^28.1.0",
+    "lint-staged": "^17.6.0",
     "obsidian": "1.13.1",
     "postcss": "^8.5.28",
     "postcss-selector-parser": "^7.1.6",
