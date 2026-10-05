@@ -47,11 +47,17 @@ describe("collectFolderPaths()", () => {
         name: "A",
         createdAt: 0,
         modifiedAt: 0,
-        subfolders: [{ name: "B", createdAt: 0, modifiedAt: 0, subfolders: [] }],
+        subfolders: [
+          { name: "B", createdAt: 0, modifiedAt: 0, subfolders: [] },
+        ],
       },
     ];
 
-    expect(collectFolderPaths(folders, { sort: true })).toEqual(["A", "A/B", "Z"]);
+    expect(collectFolderPaths(folders, { sort: true })).toEqual([
+      "A",
+      "A/B",
+      "Z",
+    ]);
   });
 
   it("returns [] for empty input", () => {

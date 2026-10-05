@@ -228,8 +228,14 @@
 }
 
 .rss-dashboard-filter-apply-btn:hover {
-  border-color: var(--rss-color-discover-accent-hover, var(--interactive-accent-hover));
-  background: var(--rss-color-discover-accent-hover, var(--interactive-accent-hover));
+  border-color: var(
+    --rss-color-discover-accent-hover,
+    var(--interactive-accent-hover)
+  );
+  background: var(
+    --rss-color-discover-accent-hover,
+    var(--interactive-accent-hover)
+  );
 }
 
 .rss-dashboard-tag-submenu {

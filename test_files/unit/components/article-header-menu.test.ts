@@ -1,5 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { ArticleHeaderMenu, type ArticleHeaderMenuCallbacks } from "../../../src/components/article-header-menu";
+import {
+  ArticleHeaderMenu,
+  type ArticleHeaderMenuCallbacks,
+} from "../../../src/components/article-header-menu";
 import type { RssDashboardSettings } from "../../../src/types/types";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 
@@ -50,19 +53,15 @@ describe("ArticleHeaderMenu Component", () => {
   });
 
   it("renders the hamburger trigger and dropdown structure", () => {
-    const menu = new ArticleHeaderMenu(
-      settings,
-      "",
-      callbacks,
-    );
+    const menu = new ArticleHeaderMenu(settings, "", callbacks);
 
     menu.render(container);
 
     expect(
-      container.querySelector(".rss-dashboard-hamburger-button")
+      container.querySelector(".rss-dashboard-hamburger-button"),
     ).not.toBeNull();
     expect(
-      container.querySelector(".rss-dashboard-dropdown-menu")
+      container.querySelector(".rss-dashboard-dropdown-menu"),
     ).not.toBeNull();
   });
 
@@ -102,19 +101,15 @@ describe("ArticleHeaderMenu Component", () => {
   });
 
   it("toggles is-menu-open classes on button and dropdown", () => {
-    const menu = new ArticleHeaderMenu(
-      settings,
-      "",
-      callbacks,
-    );
+    const menu = new ArticleHeaderMenu(settings, "", callbacks);
 
     menu.render(container);
 
     const button = container.querySelector(
-      ".rss-dashboard-hamburger-button"
+      ".rss-dashboard-hamburger-button",
     ) as HTMLElement;
     const dropdown = container.querySelector(
-      ".rss-dashboard-dropdown-menu"
+      ".rss-dashboard-dropdown-menu",
     ) as HTMLElement;
 
     button.click();
@@ -129,7 +124,9 @@ describe("ArticleHeaderMenu Component", () => {
   it("keeps handled selector keys from reaching document-level shortcuts", () => {
     const menu = new ArticleHeaderMenu(settings, "", callbacks);
     menu.render(container);
-    const trigger = container.querySelector<HTMLElement>(".rss-dashboard-filter")!;
+    const trigger = container.querySelector<HTMLElement>(
+      ".rss-dashboard-filter",
+    )!;
     const documentKeydown = vi.fn();
     trigger.ownerDocument.addEventListener("keydown", documentKeydown);
 
@@ -168,14 +165,24 @@ describe("ArticleHeaderMenu Component", () => {
       menu.render(container);
     });
     menu.render(container);
-    const trigger = container.querySelector<HTMLElement>(".rss-dashboard-filter")!;
+    const trigger = container.querySelector<HTMLElement>(
+      ".rss-dashboard-filter",
+    )!;
 
     trigger.focus();
-    trigger.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
-    trigger.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
-    trigger.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    trigger.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+    );
+    trigger.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }),
+    );
+    trigger.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+    );
 
-    const replacementTrigger = container.querySelector<HTMLElement>(".rss-dashboard-filter")!;
+    const replacementTrigger = container.querySelector<HTMLElement>(
+      ".rss-dashboard-filter",
+    )!;
     expect(replacementTrigger).not.toBe(trigger);
     expect(trigger.ownerDocument.activeElement).toBe(replacementTrigger);
   });
@@ -186,34 +193,52 @@ describe("ArticleHeaderMenu Component", () => {
       container.empty();
       menu.render(container);
       // jsdom allows focus in visibility-hidden content, so simulate the browser refusing it.
-      const replacementTrigger = container.querySelector<HTMLElement>(".rss-dashboard-filter")!;
+      const replacementTrigger = container.querySelector<HTMLElement>(
+        ".rss-dashboard-filter",
+      )!;
       vi.spyOn(replacementTrigger, "focus").mockImplementation(() => {});
     });
     menu.render(container);
-    const trigger = container.querySelector<HTMLElement>(".rss-dashboard-filter")!;
+    const trigger = container.querySelector<HTMLElement>(
+      ".rss-dashboard-filter",
+    )!;
 
     trigger.focus();
-    trigger.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
-    trigger.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
-    trigger.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    trigger.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+    );
+    trigger.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }),
+    );
+    trigger.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+    );
 
-    const menuButton = container.querySelector<HTMLElement>(".rss-dashboard-hamburger-button")!;
+    const menuButton = container.querySelector<HTMLElement>(
+      ".rss-dashboard-hamburger-button",
+    )!;
     expect(trigger.ownerDocument.activeElement).toBe(menuButton);
   });
 
   it("opens and closes the menu with keyboard activation and exposes its state", () => {
     const menu = new ArticleHeaderMenu(settings, "", callbacks);
     menu.render(container);
-    const button = container.querySelector(".rss-dashboard-hamburger-button") as HTMLElement;
+    const button = container.querySelector(
+      ".rss-dashboard-hamburger-button",
+    ) as HTMLElement;
 
     button.focus();
-    button.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    button.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+    );
     // jsdom does not synthesize the native button click that a browser emits for keyboard activation.
     button.click();
     expect(button.getAttribute("aria-expanded")).toBe("true");
     expect(button.ownerDocument.activeElement).toBe(button);
 
-    button.dispatchEvent(new KeyboardEvent("keydown", { key: " ", bubbles: true }));
+    button.dispatchEvent(
+      new KeyboardEvent("keydown", { key: " ", bubbles: true }),
+    );
     button.click();
     expect(button.getAttribute("aria-expanded")).toBe("false");
   });
@@ -221,12 +246,20 @@ describe("ArticleHeaderMenu Component", () => {
   it("allows Tab through the menu and closes it after focus leaves", async () => {
     const menu = new ArticleHeaderMenu(settings, "", callbacks);
     menu.render(container);
-    const button = container.querySelector(".rss-dashboard-hamburger-button") as HTMLElement;
+    const button = container.querySelector(
+      ".rss-dashboard-hamburger-button",
+    ) as HTMLElement;
     button.focus();
-    button.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    button.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+    );
     button.click();
 
-    const firstTab = new KeyboardEvent("keydown", { key: "Tab", bubbles: true, cancelable: true });
+    const firstTab = new KeyboardEvent("keydown", {
+      key: "Tab",
+      bubbles: true,
+      cancelable: true,
+    });
     button.dispatchEvent(firstTab);
     expect(firstTab.defaultPrevented).toBe(false);
     expect(button.getAttribute("aria-expanded")).toBe("true");
@@ -235,7 +268,11 @@ describe("ArticleHeaderMenu Component", () => {
       ".rss-dashboard-mark-all-buttons-row .rss-dashboard-mark-all-button:last-child",
     ) as HTMLElement;
     lastButton.focus();
-    const leavingTab = new KeyboardEvent("keydown", { key: "Tab", bubbles: true, cancelable: true });
+    const leavingTab = new KeyboardEvent("keydown", {
+      key: "Tab",
+      bubbles: true,
+      cancelable: true,
+    });
     lastButton.dispatchEvent(leavingTab);
     expect(leavingTab.defaultPrevented).toBe(false);
     await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
@@ -245,30 +282,64 @@ describe("ArticleHeaderMenu Component", () => {
   it("closes the open hamburger menu with Escape and restores focus", () => {
     const menu = new ArticleHeaderMenu(settings, "", callbacks);
     menu.render(container);
-    const button = container.querySelector<HTMLElement>(".rss-dashboard-hamburger-button")!;
+    const button = container.querySelector<HTMLElement>(
+      ".rss-dashboard-hamburger-button",
+    )!;
     button.click();
 
-    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+    document.dispatchEvent(
+      new KeyboardEvent("keydown", {
+        key: "Escape",
+        bubbles: true,
+        cancelable: true,
+      }),
+    );
 
     expect(button.getAttribute("aria-expanded")).toBe("false");
-    expect(container.querySelector(".rss-dashboard-dropdown-menu")?.classList.contains("is-menu-open")).toBe(false);
+    expect(
+      container
+        .querySelector(".rss-dashboard-dropdown-menu")
+        ?.classList.contains("is-menu-open"),
+    ).toBe(false);
     expect(document.activeElement).toBe(button);
   });
 
   it("closes an open selector before closing the hamburger menu on a second Escape", () => {
     const menu = new ArticleHeaderMenu(settings, "", callbacks);
     menu.render(container);
-    const button = container.querySelector<HTMLElement>(".rss-dashboard-hamburger-button")!;
-    const trigger = container.querySelector<HTMLElement>(".rss-dashboard-filter")!;
+    const button = container.querySelector<HTMLElement>(
+      ".rss-dashboard-hamburger-button",
+    )!;
+    const trigger = container.querySelector<HTMLElement>(
+      ".rss-dashboard-filter",
+    )!;
     button.click();
     trigger.focus();
-    trigger.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+    trigger.dispatchEvent(
+      new KeyboardEvent("keydown", {
+        key: "Enter",
+        bubbles: true,
+        cancelable: true,
+      }),
+    );
 
-    trigger.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+    trigger.dispatchEvent(
+      new KeyboardEvent("keydown", {
+        key: "Escape",
+        bubbles: true,
+        cancelable: true,
+      }),
+    );
     expect(trigger.getAttribute("aria-expanded")).toBe("false");
     expect(button.getAttribute("aria-expanded")).toBe("true");
 
-    trigger.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+    trigger.dispatchEvent(
+      new KeyboardEvent("keydown", {
+        key: "Escape",
+        bubbles: true,
+        cancelable: true,
+      }),
+    );
     expect(button.getAttribute("aria-expanded")).toBe("false");
     expect(document.activeElement).toBe(button);
   });
@@ -276,20 +347,33 @@ describe("ArticleHeaderMenu Component", () => {
   it("opens a themed selector, moves among choices, and commits with Enter", () => {
     const menu = new ArticleHeaderMenu(settings, "", callbacks);
     menu.render(container);
-    const trigger = container.querySelector(".rss-dashboard-filter") as HTMLElement;
+    const trigger = container.querySelector(
+      ".rss-dashboard-filter",
+    ) as HTMLElement;
 
     trigger.focus();
-    trigger.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    trigger.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+    );
     expect(trigger.getAttribute("aria-expanded")).toBe("true");
     expect(trigger.getAttribute("aria-valuetext")).toBe("All");
 
-    trigger.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
-    const activeOption = document.getElementById(trigger.getAttribute("aria-activedescendant") ?? "");
+    trigger.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }),
+    );
+    const activeOption = document.getElementById(
+      trigger.getAttribute("aria-activedescendant") ?? "",
+    );
     expect(activeOption?.getAttribute("role")).toBe("option");
     expect(trigger.ownerDocument.activeElement).toBe(trigger);
 
-    trigger.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
-    expect(callbacks.onFilterChange).toHaveBeenCalledWith({ type: "age", value: 3600000 });
+    trigger.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+    );
+    expect(callbacks.onFilterChange).toHaveBeenCalledWith({
+      type: "age",
+      value: 3600000,
+    });
     expect(trigger.getAttribute("aria-expanded")).toBe("false");
     expect(trigger.ownerDocument.activeElement).toBe(trigger);
   });
@@ -309,14 +393,23 @@ describe("ArticleHeaderMenu Component", () => {
     selectors.forEach((selector) => {
       const trigger = container.querySelector<HTMLElement>(selector)!;
       trigger.focus();
-      trigger.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
-      trigger.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
-      trigger.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+      trigger.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+      );
+      trigger.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }),
+      );
+      trigger.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+      );
       expect(trigger.getAttribute("aria-expanded")).toBe("false");
       expect(trigger.ownerDocument.activeElement).toBe(trigger);
     });
 
-    expect(callbacks.onFilterChange).toHaveBeenCalledWith({ type: "age", value: 3600000 });
+    expect(callbacks.onFilterChange).toHaveBeenCalledWith({
+      type: "age",
+      value: 3600000,
+    });
     expect(callbacks.onSortChange).toHaveBeenCalledWith("oldest");
     expect(callbacks.onGroupChange).toHaveBeenCalledWith("feed");
     expect(callbacks.onToggleViewStyle).toHaveBeenCalledWith("feed");
@@ -331,7 +424,9 @@ describe("ArticleHeaderMenu Component", () => {
   it("keeps pointer selection available and announces the committed choice", () => {
     const menu = new ArticleHeaderMenu(settings, "", callbacks);
     menu.render(container);
-    const trigger = container.querySelector(".rss-dashboard-filter") as HTMLElement;
+    const trigger = container.querySelector(
+      ".rss-dashboard-filter",
+    ) as HTMLElement;
 
     trigger.click();
     const option = document.querySelector(
@@ -339,7 +434,10 @@ describe("ArticleHeaderMenu Component", () => {
     ) as HTMLElement;
     option.click();
 
-    expect(callbacks.onFilterChange).toHaveBeenCalledWith({ type: "age", value: 3600000 });
+    expect(callbacks.onFilterChange).toHaveBeenCalledWith({
+      type: "age",
+      value: 3600000,
+    });
     expect(callbacks.onPersistSettings).toHaveBeenCalledTimes(1);
     expect(trigger.getAttribute("aria-expanded")).toBe("false");
     expect(trigger.getAttribute("aria-valuetext")).toBe("1 hour");
@@ -348,18 +446,32 @@ describe("ArticleHeaderMenu Component", () => {
   it("cancels a themed selector with Escape and leaves Tab untrapped", () => {
     const menu = new ArticleHeaderMenu(settings, "", callbacks);
     menu.render(container);
-    const trigger = container.querySelector(".rss-dashboard-sort") as HTMLElement;
+    const trigger = container.querySelector(
+      ".rss-dashboard-sort",
+    ) as HTMLElement;
 
     trigger.focus();
-    trigger.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
-    trigger.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
-    trigger.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    trigger.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+    );
+    trigger.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }),
+    );
+    trigger.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+    );
     expect(trigger.getAttribute("aria-expanded")).toBe("false");
     expect(callbacks.onSortChange).not.toHaveBeenCalled();
     expect(trigger.ownerDocument.activeElement).toBe(trigger);
 
-    trigger.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
-    const tab = new KeyboardEvent("keydown", { key: "Tab", bubbles: true, cancelable: true });
+    trigger.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+    );
+    const tab = new KeyboardEvent("keydown", {
+      key: "Tab",
+      bubbles: true,
+      cancelable: true,
+    });
     trigger.dispatchEvent(tab);
     expect(trigger.getAttribute("aria-expanded")).toBe("false");
     expect(tab.defaultPrevented).toBe(false);
@@ -383,11 +495,7 @@ describe("ArticleHeaderMenu Component", () => {
   });
 
   it("renders card layout controls only for card view", () => {
-    const listMenu = new ArticleHeaderMenu(
-      settings,
-      "",
-      callbacks,
-    );
+    const listMenu = new ArticleHeaderMenu(settings, "", callbacks);
     listMenu.render(container);
     expect(container.textContent).not.toContain("Cards / row:");
     listMenu.destroy();
@@ -395,11 +503,7 @@ describe("ArticleHeaderMenu Component", () => {
 
     settings.viewStyle = "card";
 
-    const cardMenu = new ArticleHeaderMenu(
-      settings,
-      "",
-      callbacks,
-    );
+    const cardMenu = new ArticleHeaderMenu(settings, "", callbacks);
     cardMenu.render(container);
 
     expect(container.textContent).toContain("Cards / row:");
@@ -407,26 +511,26 @@ describe("ArticleHeaderMenu Component", () => {
   });
 
   it("forwards refresh and mark-all actions unchanged", () => {
-    const menu = new ArticleHeaderMenu(
-      settings,
-      "",
-      callbacks,
-    );
+    const menu = new ArticleHeaderMenu(settings, "", callbacks);
 
     menu.render(container);
     const button = container.querySelector(
-      ".rss-dashboard-hamburger-button"
+      ".rss-dashboard-hamburger-button",
     ) as HTMLElement;
     button.click();
 
     (
-      container.querySelector(".rss-dashboard-view-refresh-button") as HTMLButtonElement
+      container.querySelector(
+        ".rss-dashboard-view-refresh-button",
+      ) as HTMLButtonElement
     ).click();
     (
       container.querySelector(".rss-dashboard-mark-read") as HTMLButtonElement
     ).click();
     (
-      container.querySelectorAll(".rss-dashboard-mark-all-button")[1] as HTMLButtonElement
+      container.querySelectorAll(
+        ".rss-dashboard-mark-all-button",
+      )[1] as HTMLButtonElement
     ).click();
 
     expect(callbacks.onRefreshFeeds).toHaveBeenCalledTimes(1);
@@ -436,20 +540,16 @@ describe("ArticleHeaderMenu Component", () => {
 
   it("emits live and commit events for card spacing changes", () => {
     settings.viewStyle = "card";
-    const menu = new ArticleHeaderMenu(
-      settings,
-      "",
-      callbacks,
-    );
+    const menu = new ArticleHeaderMenu(settings, "", callbacks);
 
     menu.render(container);
     const button = container.querySelector(
-      ".rss-dashboard-hamburger-button"
+      ".rss-dashboard-hamburger-button",
     ) as HTMLElement;
     button.click();
 
     const spacingInput = container.querySelector(
-      ".rss-dashboard-dropdown-card-spacing-input"
+      ".rss-dashboard-dropdown-card-spacing-input",
     ) as HTMLInputElement;
     spacingInput.value = "23";
     spacingInput.dispatchEvent(new Event("input", { bubbles: true }));
@@ -466,18 +566,14 @@ describe("ArticleHeaderMenu Component", () => {
   });
 
   it("closes cleanly and removes outside-click handling on destroy", () => {
-    const menu = new ArticleHeaderMenu(
-      settings,
-      "",
-      callbacks,
-    );
+    const menu = new ArticleHeaderMenu(settings, "", callbacks);
 
     menu.render(container);
     const button = container.querySelector(
-      ".rss-dashboard-hamburger-button"
+      ".rss-dashboard-hamburger-button",
     ) as HTMLElement;
     const dropdown = container.querySelector(
-      ".rss-dashboard-dropdown-menu"
+      ".rss-dashboard-dropdown-menu",
     ) as HTMLElement;
 
     button.click();
@@ -488,9 +584,7 @@ describe("ArticleHeaderMenu Component", () => {
     expect(dropdown.classList.contains("is-menu-open")).toBe(false);
     expect(button.classList.contains("is-menu-open")).toBe(false);
 
-    document.dispatchEvent(
-      new PointerEvent("pointerdown", { bubbles: true })
-    );
+    document.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
 
     expect(dropdown.classList.contains("is-menu-open")).toBe(false);
   });

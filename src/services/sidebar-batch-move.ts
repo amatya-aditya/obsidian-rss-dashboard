@@ -49,7 +49,11 @@ function moveOneFolder(
     destinationFolderPath === folderPath ||
     destinationFolderPath.startsWith(`${folderPath}/`)
   ) {
-    return { oldPath: folderPath, newPath: null, error: BATCH_MOVE_SKIPPED_NOTICE };
+    return {
+      oldPath: folderPath,
+      newPath: null,
+      error: BATCH_MOVE_SKIPPED_NOTICE,
+    };
   }
 
   const placement = destinationFolderPath ? "nest" : "rootAppend";
@@ -83,7 +87,11 @@ function moveFolders(
       (o) => o.newPath !== null && folderPath.startsWith(`${o.oldPath}/`),
     );
     if (parent?.newPath) {
-      const newPath = remapPathPrefix(folderPath, parent.oldPath, parent.newPath);
+      const newPath = remapPathPrefix(
+        folderPath,
+        parent.oldPath,
+        parent.newPath,
+      );
       outcomes.push({ oldPath: folderPath, newPath, error: null });
       continue;
     }
@@ -149,7 +157,12 @@ export function batchMoveFeedsAndFolders(
   const { destinationFolderPath, feedUrls, folderPaths, findFolder } = request;
 
   const folders = moveFolders(settings, destinationFolderPath, folderPaths);
-  const feeds = moveFeeds(settings, destinationFolderPath, feedUrls, findFolder);
+  const feeds = moveFeeds(
+    settings,
+    destinationFolderPath,
+    feedUrls,
+    findFolder,
+  );
 
   if (destinationFolderPath) {
     const destFolder = findFolder(destinationFolderPath);
@@ -169,7 +182,8 @@ export function describeBatchMove(
   result: Pick<BatchMoveResult, "movedFeeds" | "movedFolders">,
   destinationFolderPath: string,
 ): string | null {
-  const { movedFeeds: movedFeedsCount, movedFolders: movedFoldersCount } = result;
+  const { movedFeeds: movedFeedsCount, movedFolders: movedFoldersCount } =
+    result;
 
   const totalMoved = movedFeedsCount + movedFoldersCount;
   if (totalMoved > 0) {

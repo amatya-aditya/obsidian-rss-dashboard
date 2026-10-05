@@ -47,12 +47,7 @@ We will provide 6 clean, explicit options in the Grouping selector:
 
 ```typescript
 export type ArticleGroupByOption =
-  | "none"
-  | "feed"
-  | "date"
-  | "folder"
-  | "date_feed"
-  | "folder_feed";
+  "none" | "feed" | "date" | "folder" | "date_feed" | "folder_feed";
 ```
 
 - Update `RssDashboardSettings.articleGroupBy`:

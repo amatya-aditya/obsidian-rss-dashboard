@@ -76,7 +76,7 @@ console-noise guidance to the per-image `console.error` and recovery
    to `https://image-failure-test.invalid/image.jpg`. Expect Chromium's
    resource error and no RSS Dashboard image-load message.
    **Route:** Obsidian UI. DevTools reported `GET
-   https://image-failure-test.invalid/image.jpg net::ERR_NAME_NOT_RESOLVED`
+https://image-failure-test.invalid/image.jpg net::ERR_NAME_NOT_RESOLVED`
    after setting the existing `rss-reader-fallback-hero` image. No RSS
    Dashboard image-load log appeared. Reloading the fixture restored the
    original hero image.

@@ -24,10 +24,10 @@ unrelated to starring.
 
 ## Valid combinations
 
-| | Untagged | Tagged |
-| --- | --- | --- |
-| **Starred** | Valid: a keep/revisit marker, no classification. | Valid: both persist and change independently. |
-| **Unstarred** | Valid: the default state. | Valid: classified without implying read-later intent. |
+|               | Untagged                                         | Tagged                                                |
+| ------------- | ------------------------------------------------ | ----------------------------------------------------- |
+| **Starred**   | Valid: a keep/revisit marker, no classification. | Valid: both persist and change independently.         |
+| **Unstarred** | Valid: the default state.                        | Valid: classified without implying read-later intent. |
 
 ## Import mapping (Inoreader / Google Reader-compatible)
 

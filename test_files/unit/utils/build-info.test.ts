@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  formatBuildLabel,
-  getBuildInfo,
-} from "../../../src/utils/build-info";
+import { formatBuildLabel, getBuildInfo } from "../../../src/utils/build-info";
 
 describe("formatBuildLabel", () => {
   it("names the version, short commit, and UTC build time so two devices can be compared", () => {
@@ -27,7 +24,11 @@ describe("formatBuildLabel", () => {
 
   it("still reads sensibly when the build had no git information", () => {
     expect(
-      formatBuildLabel("2.7.0", { commit: "unknown", dirty: false, builtAt: "" }),
+      formatBuildLabel("2.7.0", {
+        commit: "unknown",
+        dirty: false,
+        builtAt: "",
+      }),
     ).toBe("Version 2.7.0 · build unknown");
   });
 });

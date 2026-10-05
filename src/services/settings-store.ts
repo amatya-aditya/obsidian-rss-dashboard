@@ -252,7 +252,8 @@ export class SettingsStore {
         { useFirstSeenDateFallback: this.settings.useFirstSeenDateFallback },
       );
       if (loadGeneration !== this.settingsLoadGeneration) return;
-      if (!vaultMetadataUnreadable) this.hasNotifiedVaultMetadataFailure = false;
+      if (!vaultMetadataUnreadable)
+        this.hasNotifiedVaultMetadataFailure = false;
       this.settingsLoadFailed = vaultMetadataUnreadable;
       const shouldSave = this.shouldSaveAfterLoad({
         wasNullLoad,

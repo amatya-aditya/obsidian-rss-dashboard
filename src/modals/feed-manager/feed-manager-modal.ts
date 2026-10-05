@@ -154,28 +154,28 @@ export class FeedManagerModal extends Modal {
           btn.setButtonText("Delete all feeds");
           settingsUiCompatibility.markDestructive(btn);
           btn.onClick(async () => {
-              this.plugin.settings.feeds = [];
-              await this.plugin.saveSettings();
-              const cacheClearResult = await this.plugin.clearImageCache();
-              
-              const dashboardView = await this.plugin.getActiveDashboardView();
-              if (dashboardView) {
-                dashboardView.refresh();
-              }
+            this.plugin.settings.feeds = [];
+            await this.plugin.saveSettings();
+            const cacheClearResult = await this.plugin.clearImageCache();
 
-              this.close();
-              confirmModal.close();
-              if (cacheClearResult.failed > 0) {
-                const failedLabel =
-                  cacheClearResult.failed === 1
-                    ? "1 cached image could not be removed."
-                    : `${cacheClearResult.failed} cached images could not be removed.`;
-                new Notice(`All feeds deleted, but ${failedLabel}`);
-              } else if (imageCacheSizeBytes > 0) {
-                new Notice("All feeds and cached preview images deleted.");
-              } else {
-                new Notice("All feeds deleted");
-              }
+            const dashboardView = await this.plugin.getActiveDashboardView();
+            if (dashboardView) {
+              dashboardView.refresh();
+            }
+
+            this.close();
+            confirmModal.close();
+            if (cacheClearResult.failed > 0) {
+              const failedLabel =
+                cacheClearResult.failed === 1
+                  ? "1 cached image could not be removed."
+                  : `${cacheClearResult.failed} cached images could not be removed.`;
+              new Notice(`All feeds deleted, but ${failedLabel}`);
+            } else if (imageCacheSizeBytes > 0) {
+              new Notice("All feeds and cached preview images deleted.");
+            } else {
+              new Notice("All feeds deleted");
+            }
           });
         });
 
@@ -202,7 +202,9 @@ export class FeedManagerModal extends Modal {
       contentEl.empty();
       const imageCacheSizeBytes = this.plugin.getImageCacheSizeBytes();
 
-      new Setting(contentEl).setName("Delete all feeds and folders?").setHeading();
+      new Setting(contentEl)
+        .setName("Delete all feeds and folders?")
+        .setHeading();
       contentEl.createEl("p", {
         text: `This will permanently remove all ${this.plugin.settings.feeds.length} feeds and ${folderCount} folders from RSS Dashboard, resetting your sidebar to empty. Your other plugin settings will remain intact.`,
       });
@@ -224,29 +226,31 @@ export class FeedManagerModal extends Modal {
           btn.setButtonText("Delete feeds + folders");
           settingsUiCompatibility.markDestructive(btn);
           btn.onClick(async () => {
-              this.plugin.settings.feeds = [];
-              this.plugin.settings.folders = [];
-              await this.plugin.saveSettings();
-              const cacheClearResult = await this.plugin.clearImageCache();
+            this.plugin.settings.feeds = [];
+            this.plugin.settings.folders = [];
+            await this.plugin.saveSettings();
+            const cacheClearResult = await this.plugin.clearImageCache();
 
-              const dashboardView = await this.plugin.getActiveDashboardView();
-              if (dashboardView) {
-                dashboardView.refresh();
-              }
+            const dashboardView = await this.plugin.getActiveDashboardView();
+            if (dashboardView) {
+              dashboardView.refresh();
+            }
 
-              this.close();
-              confirmModal.close();
-              if (cacheClearResult.failed > 0) {
-                const failedLabel =
-                  cacheClearResult.failed === 1
-                    ? "1 cached image could not be removed."
-                    : `${cacheClearResult.failed} cached images could not be removed.`;
-                new Notice(`All feeds and folders deleted, but ${failedLabel}`);
-              } else if (imageCacheSizeBytes > 0) {
-                new Notice("All feeds, folders, and cached preview images deleted.");
-              } else {
-                new Notice("All feeds and folders deleted");
-              }
+            this.close();
+            confirmModal.close();
+            if (cacheClearResult.failed > 0) {
+              const failedLabel =
+                cacheClearResult.failed === 1
+                  ? "1 cached image could not be removed."
+                  : `${cacheClearResult.failed} cached images could not be removed.`;
+              new Notice(`All feeds and folders deleted, but ${failedLabel}`);
+            } else if (imageCacheSizeBytes > 0) {
+              new Notice(
+                "All feeds, folders, and cached preview images deleted.",
+              );
+            } else {
+              new Notice("All feeds and folders deleted");
+            }
           });
         });
 

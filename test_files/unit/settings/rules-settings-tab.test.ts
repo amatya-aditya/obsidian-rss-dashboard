@@ -17,10 +17,10 @@ describe("renderRulesSettingsTab()", () => {
   });
 
   it("initializes missing keywordRules and persists updates via editor onChange()", async () => {
-    const { renderRulesSettingsTab } = await import(
-      "../../../src/settings/tabs/rules-settings-tab"
-    );
-    const editor = await import("../../../src/components/keyword-filter-editor");
+    const { renderRulesSettingsTab } =
+      await import("../../../src/settings/tabs/rules-settings-tab");
+    const editor =
+      await import("../../../src/components/keyword-filter-editor");
 
     const containerEl = createDiv();
     document.body.appendChild(containerEl);
@@ -45,10 +45,13 @@ describe("renderRulesSettingsTab()", () => {
 
     const mockRender = editor.renderKeywordFilterEditor as Mock;
     expect(mockRender).toHaveBeenCalledTimes(1);
-    
+
     interface EditorArgs {
       state: unknown;
-      onChange: (newState: { includeLogic: string; rules: { kind: string; keyword: string }[] }) => void;
+      onChange: (newState: {
+        includeLogic: string;
+        rules: { kind: string; keyword: string }[];
+      }) => void;
     }
     const callArgs = mockRender.mock.calls[0][0] as EditorArgs;
     expect(callArgs.state).toEqual({ includeLogic: "AND", rules: [] });

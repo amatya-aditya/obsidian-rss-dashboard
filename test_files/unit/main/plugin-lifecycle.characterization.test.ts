@@ -180,27 +180,29 @@ async function seedStore(
   await plugin.onload();
   plugin.settings.refreshInterval = 60;
   plugin.settings.startupRefreshDelaySeconds = startupRefreshDelaySeconds;
-  plugin.settings.feeds = [{
-    title: "Example",
-    url: FEED_URL,
-    folder: "",
-    lastUpdated: 0,
-    items: [
-      {
-        title: "A",
-        link: ARTICLE_URL,
-        guid: ARTICLE_URL,
-        description: "",
-        pubDate: "2024-01-01T00:00:00Z",
-        read: false,
-        starred: false,
-        tags: [],
-        feedTitle: "Example",
-        feedUrl: FEED_URL,
-        coverImage: "",
-      },
-    ],
-  } as unknown as Feed];
+  plugin.settings.feeds = [
+    {
+      title: "Example",
+      url: FEED_URL,
+      folder: "",
+      lastUpdated: 0,
+      items: [
+        {
+          title: "A",
+          link: ARTICLE_URL,
+          guid: ARTICLE_URL,
+          description: "",
+          pubDate: "2024-01-01T00:00:00Z",
+          read: false,
+          starred: false,
+          tags: [],
+          feedTitle: "Example",
+          feedUrl: FEED_URL,
+          coverImage: "",
+        },
+      ],
+    } as unknown as Feed,
+  ];
   await plugin.saveSettings();
   plugin.unload();
   return store;

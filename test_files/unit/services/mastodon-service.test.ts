@@ -101,7 +101,9 @@ describe("MastodonService", () => {
       );
 
       await expect(
-        MastodonService.resolveProfileFeed("https://example.social/users/gargron"),
+        MastodonService.resolveProfileFeed(
+          "https://example.social/users/gargron",
+        ),
       ).resolves.toBe("https://example.social/users/gargron.rss");
     });
 
@@ -129,7 +131,9 @@ describe("MastodonService", () => {
   describe("isResolvedFeedUrl", () => {
     it("detects @username RSS URLs", () => {
       expect(
-        MastodonService.isResolvedFeedUrl("https://mastodon.social/@Gargron.rss"),
+        MastodonService.isResolvedFeedUrl(
+          "https://mastodon.social/@Gargron.rss",
+        ),
       ).toBe(true);
     });
 

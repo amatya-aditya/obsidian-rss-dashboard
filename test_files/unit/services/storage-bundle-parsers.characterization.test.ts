@@ -11,8 +11,21 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { App } from "obsidian";
 import { FeedStorageRepository } from "../../../src/services/feed-storage-repository";
 
-const STORAGE_MODES = ["legacy-json", "vault-shards", "vault-shards-v2"] as const;
-const NON_OBJECTS: unknown[] = [null, undefined, 0, false, "", "bundle", 42, true];
+const STORAGE_MODES = [
+  "legacy-json",
+  "vault-shards",
+  "vault-shards-v2",
+] as const;
+const NON_OBJECTS: unknown[] = [
+  null,
+  undefined,
+  0,
+  false,
+  "",
+  "bundle",
+  42,
+  true,
+];
 
 let repository: FeedStorageRepository;
 
@@ -20,12 +33,16 @@ beforeEach(() => {
   repository = new FeedStorageRepository(App.createMock());
 });
 
-function shard(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+function shard(
+  overrides: Record<string, unknown> = {},
+): Record<string, unknown> {
   return { feedId: "feed-1", items: [], ...overrides };
 }
 
 describe("Portable bundle parsing", () => {
-  function portable(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  function portable(
+    overrides: Record<string, unknown> = {},
+  ): Record<string, unknown> {
     return {
       version: 1,
       exportedAt: 1_700_000_000_000,
@@ -36,9 +53,10 @@ describe("Portable bundle parsing", () => {
     };
   }
 
-  const parse = (input: unknown) => repository.validatePortableDataBundle(input);
+  const parse = (input: unknown) =>
+    repository.validatePortableDataBundle(input);
 
-  it.each(NON_OBJECTS)("rejects %j as not a JSON object", input => {
+  it.each(NON_OBJECTS)("rejects %j as not a JSON object", (input) => {
     expect(() => parse(input)).toThrow("Portable bundle must be a JSON object");
   });
 
@@ -61,7 +79,7 @@ describe("Portable bundle parsing", () => {
 
   it.each([undefined, "1700000000000", null])(
     "rejects exportedAt %j",
-    exportedAt => {
+    (exportedAt) => {
       expect(() => parse(portable({ exportedAt }))).toThrow(
         "Portable bundle is missing a valid exportedAt timestamp",
       );
@@ -70,28 +88,31 @@ describe("Portable bundle parsing", () => {
 
   it.each([undefined, "markdown", "VAULT-SHARDS"])(
     "rejects storageMode %j",
-    storageMode => {
+    (storageMode) => {
       expect(() => parse(portable({ storageMode }))).toThrow(
         "Portable bundle has an invalid storageMode value",
       );
     },
   );
 
-  it.each(STORAGE_MODES)("accepts storageMode %s", storageMode => {
+  it.each(STORAGE_MODES)("accepts storageMode %s", (storageMode) => {
     expect(parse(portable({ storageMode })).storageMode).toBe(storageMode);
   });
 
-  it.each([undefined, null, "settings", 7])("rejects metadata %j", metadata => {
-    expect(() => parse(portable({ metadata }))).toThrow(
-      "Portable bundle is missing metadata",
-    );
-  });
+  it.each([undefined, null, "settings", 7])(
+    "rejects metadata %j",
+    (metadata) => {
+      expect(() => parse(portable({ metadata }))).toThrow(
+        "Portable bundle is missing metadata",
+      );
+    },
+  );
 
   it("accepts any object as metadata, including an array", () => {
     expect(parse(portable({ metadata: [] })).metadata).toEqual([]);
   });
 
-  it.each([undefined, null, {}, "shards"])("rejects shards %j", shards => {
+  it.each([undefined, null, {}, "shards"])("rejects shards %j", (shards) => {
     expect(() => parse(portable({ shards }))).toThrow(
       "Portable bundle is missing shards",
     );
@@ -101,13 +122,13 @@ describe("Portable bundle parsing", () => {
     expect(parse(portable({ shards: [] })).shards).toEqual([]);
   });
 
-  it.each([null, 0, "feed-1"])("rejects shard entry %j", entry => {
+  it.each([null, 0, "feed-1"])("rejects shard entry %j", (entry) => {
     expect(() => parse(portable({ shards: [shard(), entry] }))).toThrow(
       "Portable bundle has an invalid shard entry",
     );
   });
 
-  it.each([undefined, "", "   ", 42])("rejects shard feedId %j", feedId => {
+  it.each([undefined, "", "   ", 42])("rejects shard feedId %j", (feedId) => {
     expect(() => parse(portable({ shards: [shard({ feedId })] }))).toThrow(
       "Portable bundle shard is missing feedId",
     );
@@ -115,7 +136,7 @@ describe("Portable bundle parsing", () => {
 
   it.each([undefined, {}, "items"])(
     "rejects shard items %j and names the feed",
-    items => {
+    (items) => {
       expect(() =>
         parse(portable({ shards: [shard({ feedId: "feed-9", items })] })),
       ).toThrow("Portable bundle shard feed-9 is missing items");
@@ -138,12 +159,20 @@ describe("Portable bundle parsing", () => {
       parse({ version: 1, exportedAt: 1, storageMode: "x", shards: "x" }),
     ).toThrow("storageMode");
     expect(() =>
-      parse({ version: 1, exportedAt: 1, storageMode: "vault-shards", shards: "x" }),
+      parse({
+        version: 1,
+        exportedAt: 1,
+        storageMode: "vault-shards",
+        shards: "x",
+      }),
     ).toThrow("missing metadata");
   });
 
   it("returns the input object itself, extra fields included", () => {
-    const input = portable({ markdownMirrorFallbackPlanned: true, extra: "kept" });
+    const input = portable({
+      markdownMirrorFallbackPlanned: true,
+      extra: "kept",
+    });
     const result = parse(input);
 
     expect(result).toBe(input);
@@ -152,7 +181,9 @@ describe("Portable bundle parsing", () => {
 });
 
 describe("Feed bundle parsing", () => {
-  function feedBundle(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  function feedBundle(
+    overrides: Record<string, unknown> = {},
+  ): Record<string, unknown> {
     return {
       version: 1,
       exportedAt: 1_700_000_000_000,
@@ -166,7 +197,7 @@ describe("Feed bundle parsing", () => {
 
   const parse = (input: unknown) => repository.validateFeedBundle(input);
 
-  it.each(NON_OBJECTS)("rejects %j as not a JSON object", input => {
+  it.each(NON_OBJECTS)("rejects %j as not a JSON object", (input) => {
     expect(() => parse(input)).toThrow("Feed bundle must be a JSON object");
   });
 
@@ -186,11 +217,14 @@ describe("Feed bundle parsing", () => {
     );
   });
 
-  it.each([undefined, "1700000000000"])("rejects exportedAt %j", exportedAt => {
-    expect(() => parse(feedBundle({ exportedAt }))).toThrow(
-      "Feed bundle is missing a valid exportedAt timestamp",
-    );
-  });
+  it.each([undefined, "1700000000000"])(
+    "rejects exportedAt %j",
+    (exportedAt) => {
+      expect(() => parse(feedBundle({ exportedAt }))).toThrow(
+        "Feed bundle is missing a valid exportedAt timestamp",
+      );
+    },
+  );
 
   it.each([
     ["feeds", "Feed bundle is missing feeds"],
@@ -203,35 +237,46 @@ describe("Feed bundle parsing", () => {
 
   it("checks feeds, folders, availableTags, then shards", () => {
     expect(() =>
-      parse(feedBundle({ feeds: null, folders: null, availableTags: null, shards: null })),
+      parse(
+        feedBundle({
+          feeds: null,
+          folders: null,
+          availableTags: null,
+          shards: null,
+        }),
+      ),
     ).toThrow("missing feeds");
     expect(() =>
       parse(feedBundle({ folders: null, availableTags: null, shards: null })),
     ).toThrow("missing folders");
-    expect(() => parse(feedBundle({ availableTags: null, shards: null }))).toThrow(
-      "missing availableTags",
-    );
+    expect(() =>
+      parse(feedBundle({ availableTags: null, shards: null })),
+    ).toThrow("missing availableTags");
   });
 
   it("does not check the contents of feeds, folders or tags", () => {
-    const result = parse(feedBundle({ feeds: [42], folders: ["x"], availableTags: [null] }));
+    const result = parse(
+      feedBundle({ feeds: [42], folders: ["x"], availableTags: [null] }),
+    );
 
     expect(result.feeds).toEqual([42]);
     expect(result.folders).toEqual(["x"]);
     expect(result.availableTags).toEqual([null]);
   });
 
-  it.each([undefined, null, {}])("rejects shards %j", shards => {
-    expect(() => parse(feedBundle({ shards }))).toThrow("Bundle is missing shards");
+  it.each([undefined, null, {}])("rejects shards %j", (shards) => {
+    expect(() => parse(feedBundle({ shards }))).toThrow(
+      "Bundle is missing shards",
+    );
   });
 
-  it.each([null, 0, "feed-1"])("rejects shard entry %j", entry => {
+  it.each([null, 0, "feed-1"])("rejects shard entry %j", (entry) => {
     expect(() => parse(feedBundle({ shards: [entry] }))).toThrow(
       "Bundle has an invalid shard entry",
     );
   });
 
-  it.each([undefined, "", "   ", 42])("rejects shard feedId %j", feedId => {
+  it.each([undefined, "", "   ", 42])("rejects shard feedId %j", (feedId) => {
     expect(() => parse(feedBundle({ shards: [shard({ feedId })] }))).toThrow(
       "Bundle shard is missing feedId",
     );
@@ -264,7 +309,9 @@ describe("Feed bundle parsing", () => {
 });
 
 describe("Settings bundle parsing", () => {
-  function settingsBundle(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  function settingsBundle(
+    overrides: Record<string, unknown> = {},
+  ): Record<string, unknown> {
     return {
       version: 1,
       exportedAt: 1_700_000_000_000,
@@ -277,7 +324,7 @@ describe("Settings bundle parsing", () => {
 
   const parse = (input: unknown) => repository.validateSettingsBundle(input);
 
-  it.each(NON_OBJECTS)("rejects %j as not a JSON object", input => {
+  it.each(NON_OBJECTS)("rejects %j as not a JSON object", (input) => {
     expect(() => parse(input)).toThrow("Settings bundle must be a JSON object");
   });
 
@@ -297,23 +344,32 @@ describe("Settings bundle parsing", () => {
     );
   });
 
-  it.each([undefined, "1700000000000"])("rejects exportedAt %j", exportedAt => {
-    expect(() => parse(settingsBundle({ exportedAt }))).toThrow(
-      "Settings bundle is missing a valid exportedAt timestamp",
-    );
-  });
+  it.each([undefined, "1700000000000"])(
+    "rejects exportedAt %j",
+    (exportedAt) => {
+      expect(() => parse(settingsBundle({ exportedAt }))).toThrow(
+        "Settings bundle is missing a valid exportedAt timestamp",
+      );
+    },
+  );
 
-  it.each([undefined, null, "settings", 7])("rejects settings %j", settings => {
-    expect(() => parse(settingsBundle({ settings }))).toThrow(
-      "Settings bundle is missing settings",
-    );
-  });
+  it.each([undefined, null, "settings", 7])(
+    "rejects settings %j",
+    (settings) => {
+      expect(() => parse(settingsBundle({ settings }))).toThrow(
+        "Settings bundle is missing settings",
+      );
+    },
+  );
 
-  it.each([undefined, "markdown"])("rejects settings.storageMode %j", storageMode => {
-    expect(() => parse(settingsBundle({ settings: { storageMode } }))).toThrow(
-      "Settings bundle has an invalid storageMode value",
-    );
-  });
+  it.each([undefined, "markdown"])(
+    "rejects settings.storageMode %j",
+    (storageMode) => {
+      expect(() =>
+        parse(settingsBundle({ settings: { storageMode } })),
+      ).toThrow("Settings bundle has an invalid storageMode value");
+    },
+  );
 
   it("rejects array settings on the storageMode check", () => {
     expect(() => parse(settingsBundle({ settings: [] }))).toThrow(
@@ -321,10 +377,10 @@ describe("Settings bundle parsing", () => {
     );
   });
 
-  it.each(STORAGE_MODES)("accepts settings.storageMode %s", storageMode => {
-    expect(parse(settingsBundle({ settings: { storageMode } })).settings.storageMode).toBe(
-      storageMode,
-    );
+  it.each(STORAGE_MODES)("accepts settings.storageMode %s", (storageMode) => {
+    expect(
+      parse(settingsBundle({ settings: { storageMode } })).settings.storageMode,
+    ).toBe(storageMode);
   });
 
   it("strips feeds, folders and availableTags from the settings and keeps every other key", () => {

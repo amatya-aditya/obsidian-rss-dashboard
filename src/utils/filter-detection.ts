@@ -13,9 +13,7 @@ interface ArticleFilter {
  */
 export interface FilterContext {
   type:
-    | "NoArticlesAtAll"
-    | "AllArticlesFiltered"
-    | "AllArticlesPrunedByRetention";
+    "NoArticlesAtAll" | "AllArticlesFiltered" | "AllArticlesPrunedByRetention";
   unfilteredCount: number;
   filteredCount?: number;
   filterReason?: string;

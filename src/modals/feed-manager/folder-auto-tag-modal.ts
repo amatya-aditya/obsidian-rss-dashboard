@@ -97,8 +97,7 @@ export class FolderAutoTagModal extends Modal {
           .addOption("remove_all", "Remove all tags")
           .setValue(this.existingArticlesAction)
           .onChange((value) => {
-            this.existingArticlesAction =
-              value as FolderExistingArticleAction;
+            this.existingArticlesAction = value as FolderExistingArticleAction;
           });
       });
 

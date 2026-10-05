@@ -12,12 +12,13 @@ implementation: 58cda8c
 The shift selector currently semi-works: it only works for shift+clicking and selecting folders, but does not allow mixing and matching folder+feed selections linearly.
 
 **Proposed Solution (Traditional Filesystem Shift+Click)**
-Implement traditional shift+click filesystem functionality using the visible sidebar order. 
+Implement traditional shift+click filesystem functionality using the visible sidebar order.
 For example, given Folders A and B with 10 feeds each:
+
 - Left-click Folder A.
 - Shift-click the 5th feed in Folder B.
 - Selection must include: Folder A (and all its feeds), and the first 5 feeds of Folder B.
-- Folder B itself is *not* selected because not all of its feeds are included in the range.
+- Folder B itself is _not_ selected because not all of its feeds are included in the range.
 
 Tests must be written first (TDD). Do not run tests automatically in CI for this change; tests are run locally by the developer.
 
@@ -56,7 +57,7 @@ Tests must be written first (TDD). Do not run tests automatically in CI for this
   - for any folderKeys in the range (or parents of feeds in the range):
     - check if all of its descendant feeds are included in the overall selection
     - if yes, add the folder to `selectedFolders`
-    - if no, only the overlapping feeds are added to `selectedFeeds`, but the parent folder is *not* added to `selectedFolders`
+    - if no, only the overlapping feeds are added to `selectedFeeds`, but the parent folder is _not_ added to `selectedFolders`
   - merge into `this.selectedFolders` and `this.selectedFeeds` (dedupe)
   - set `this.lastClickAnchorKey = endKey` and refresh view via existing refresh path
 
@@ -97,7 +98,7 @@ Tests must be written first (TDD). Do not run tests automatically in CI for this
 - Tests are TDD-first and must be added prior to code changes.
 - Developer runs tests manually; CI automatic gating for this feature is disabled until tests pass locally.
 - Range scope includes both folder and feed rows in visible sidebar order.
-- A folder is only marked as selected if it is explicitly the start/end or if *all* of its child feeds fall within the selected range. If a range ends halfway through a folder's feeds, those feeds are selected individually, but their parent folder is not.
+- A folder is only marked as selected if it is explicitly the start/end or if _all_ of its child feeds fall within the selected range. If a range ends halfway through a folder's feeds, those feeds are selected individually, but their parent folder is not.
 - Anchor is the most-recently-clicked item.
 
 **Further Considerations**
@@ -110,15 +111,15 @@ Tests must be written first (TDD). Do not run tests automatically in CI for this
 
 As of testing the feature, it is still broken in two key ways:
 
-1. **Folder Selection Bug (Skipping End Folders):** 
-   - *Symptom:* Clicking Folder A then Shift+Clicking Folder C selects Folders A and B, but skips C.
-   - *Root Cause:* If Folder C is *expanded*, its child feeds appear visually *below* the folder header in `visibleKeys`. When Shift-Clicking the Folder C header, the selection range `[startIdx, endIdx]` stops at the header itself. Because the child feeds are outside the range, `allFeedsSelected` evaluates to `false`, and Folder C is not selected.
-   - *Fix Needed:* If a folder header is included in the `rangeKeys` (regardless of whether it's collapsed or expanded), we must treat *all* of its descendant feeds as implicitly included in the selection intent, unless the range specifically stops *mid-way* through its expanded children. Alternatively, if a folder is explicitly `clickedKey` or `lastClickAnchorKey`, it should force-select all its descendants.
+1. **Folder Selection Bug (Skipping End Folders):**
+   - _Symptom:_ Clicking Folder A then Shift+Clicking Folder C selects Folders A and B, but skips C.
+   - _Root Cause:_ If Folder C is _expanded_, its child feeds appear visually _below_ the folder header in `visibleKeys`. When Shift-Clicking the Folder C header, the selection range `[startIdx, endIdx]` stops at the header itself. Because the child feeds are outside the range, `allFeedsSelected` evaluates to `false`, and Folder C is not selected.
+   - _Fix Needed:_ If a folder header is included in the `rangeKeys` (regardless of whether it's collapsed or expanded), we must treat _all_ of its descendant feeds as implicitly included in the selection intent, unless the range specifically stops _mid-way_ through its expanded children. Alternatively, if a folder is explicitly `clickedKey` or `lastClickAnchorKey`, it should force-select all its descendants.
 
 2. **CSS Styling Bug (Feeds missing highlight):**
-   - *Symptom:* Feeds selected as part of the multi-selection range do not show the purple/bold highlighted background.
-   - *Root Cause:* In `src/components/sidebar.ts`, we applied the `.multi-selected` class to selected feeds, but it appears to lack the specific styles needed. The single-feed selection uses the `.active` class to get the purple text and bolding.
-   - *Fix Needed:* In `renderFeed()` in `sidebar.ts`, change the multi-select condition to append the `.active` class (or ensure `.multi-selected` is applied alongside `.active`) for items in `this.options.selectedFeeds`.
+   - _Symptom:_ Feeds selected as part of the multi-selection range do not show the purple/bold highlighted background.
+   - _Root Cause:_ In `src/components/sidebar.ts`, we applied the `.multi-selected` class to selected feeds, but it appears to lack the specific styles needed. The single-feed selection uses the `.active` class to get the purple text and bolding.
+   - _Fix Needed:_ In `renderFeed()` in `sidebar.ts`, change the multi-select condition to append the `.active` class (or ensure `.multi-selected` is applied alongside `.active`) for items in `this.options.selectedFeeds`.
 
 ## Phase 2: Refinements and Additional Features [COMPLETED]
 
@@ -138,8 +139,8 @@ As of testing the feature, it is still broken in two key ways:
 ## Phase 3: Selection Bug Fix and Context Menu Actions
 
 1. **Bug Fix: Mid-Folder Selection Expansion Issue**
-   - *Current Behavior:* Clicking a folder first, then Shift-clicking a few feeds within that folder incorrectly selects *all* feeds in the folder.
-   - *Expected Behavior:* It should only select up to and including the clicked feed (respecting the visual range), rather than implicitly expanding to include the entire folder. The parent folder should not be marked as fully selected unless the range explicitly encompasses all of its feeds.
+   - _Current Behavior:_ Clicking a folder first, then Shift-clicking a few feeds within that folder incorrectly selects _all_ feeds in the folder.
+   - _Expected Behavior:_ It should only select up to and including the clicked feed (respecting the visual range), rather than implicitly expanding to include the entire folder. The parent folder should not be marked as fully selected unless the range explicitly encompasses all of its feeds.
 
 2. **Context Menu Actions for Multi-Selection**
    - Apply right-click context menu actions to the active multi-selection (across folders and feeds).

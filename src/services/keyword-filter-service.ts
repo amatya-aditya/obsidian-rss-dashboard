@@ -117,7 +117,10 @@ export class KeywordFilterService {
     return true;
   }
 
-  private static ruleMatchesArticle(rule: KeywordFilterRule, item: FeedItem): boolean {
+  private static ruleMatchesArticle(
+    rule: KeywordFilterRule,
+    item: FeedItem,
+  ): boolean {
     const sources: string[] = [];
     if (rule.applyToTitle) {
       sources.push(item.title || "");
@@ -137,7 +140,9 @@ export class KeywordFilterService {
       return false;
     }
 
-    return sources.some((text) => this.matchesText(text, keyword, rule.matchMode));
+    return sources.some((text) =>
+      this.matchesText(text, keyword, rule.matchMode),
+    );
   }
 
   private static matchesText(

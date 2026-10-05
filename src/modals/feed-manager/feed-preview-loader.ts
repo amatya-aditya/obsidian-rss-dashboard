@@ -1,6 +1,9 @@
 import { MediaService } from "../../services/media-service";
 import { MastodonService } from "../../services/mastodon-service";
-import { loadFeedForPreview, resolvePodcastPlatformUrl } from "../../services/feed-parser";
+import {
+  loadFeedForPreview,
+  resolvePodcastPlatformUrl,
+} from "../../services/feed-parser";
 import { detectPodcastPlatform } from "../../utils/podcast-platforms";
 import type { FeedEncoding } from "../../types/types";
 
@@ -133,7 +136,9 @@ export async function resolveAndLoadPreview(
     detectedType = "youtube";
     const rssUrl = await MediaService.getYouTubeRssFeed(url);
     if (!rssUrl) {
-      throw new Error("Could not resolve YouTube channel. Please check the URL.");
+      throw new Error(
+        "Could not resolve YouTube channel. Please check the URL.",
+      );
     }
     url = rssUrl;
     finalUrl = rssUrl;
@@ -150,7 +155,11 @@ export async function resolveAndLoadPreview(
     isMastodonConversion = true;
   }
 
-  if (detectedType !== "youtube" && MediaService.isYouTubeFeed(url) && isYouTubeRssFeedUrl(url)) {
+  if (
+    detectedType !== "youtube" &&
+    MediaService.isYouTubeFeed(url) &&
+    isYouTubeRssFeedUrl(url)
+  ) {
     detectedType = "youtube";
   } else {
     const platform = detectPodcastPlatform(url);

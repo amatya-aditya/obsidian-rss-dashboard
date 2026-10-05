@@ -42,7 +42,10 @@ export function reportBatchMove(
   },
   result: Pick<BatchMoveResult, "folders">,
 ): void {
-  const movedOpenFolder = resolveBatchMovedFolder(options.currentFolder, result);
+  const movedOpenFolder = resolveBatchMovedFolder(
+    options.currentFolder,
+    result,
+  );
   clearMovedSelection(options, callbacks.onSelectionCleared);
   if (movedOpenFolder !== null) callbacks.onFolderClick(movedOpenFolder);
 }

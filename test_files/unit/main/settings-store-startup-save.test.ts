@@ -3,7 +3,15 @@
  * changed nothing must not write to disk, even when the feed articles come
  * from the shard files instead of `data.json`.
  */
-import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+  type Mock,
+} from "vitest";
 import { App, type PluginManifest } from "obsidian";
 
 vi.mock("../../../src/modals/whats-new-modal", () => ({

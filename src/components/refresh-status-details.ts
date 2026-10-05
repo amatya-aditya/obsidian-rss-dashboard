@@ -114,8 +114,8 @@ export function attachRefreshStatusDetails(options: {
   // example, a mouse attached to a tablet), while leaving the description
   // available to assistive technology everywhere.
   const hasHoverPointer = () =>
-    row.ownerDocument.defaultView?.matchMedia?.("(any-hover: hover)")
-      .matches ?? false;
+    row.ownerDocument.defaultView?.matchMedia?.("(any-hover: hover)").matches ??
+    false;
 
   let popup: HTMLElement | null = null;
   let showTimer: WindowTimer | null = null;

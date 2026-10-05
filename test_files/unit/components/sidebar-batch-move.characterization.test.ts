@@ -24,7 +24,11 @@ import {
   type SidebarOptions,
 } from "../../../src/components/sidebar";
 import * as ObsidianStubs from "../../stubs/obsidian";
-import type { Feed, Folder, RssDashboardSettings } from "../../../src/types/types";
+import type {
+  Feed,
+  Folder,
+  RssDashboardSettings,
+} from "../../../src/types/types";
 import type RssDashboardPlugin from "../../../main";
 import { moveFeedsToFolderAppend } from "../../../src/services/sidebar-ordering-controller";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
@@ -34,7 +38,10 @@ vi.mock("../../../src/services/sidebar-ordering-controller", async () => {
   const actual = await vi.importActual<
     typeof import("../../../src/services/sidebar-ordering-controller")
   >("../../../src/services/sidebar-ordering-controller");
-  return { ...actual, moveFeedsToFolderAppend: vi.fn(actual.moveFeedsToFolderAppend) };
+  return {
+    ...actual,
+    moveFeedsToFolderAppend: vi.fn(actual.moveFeedsToFolderAppend),
+  };
 });
 
 installObsidianDomPolyfills();
@@ -94,7 +101,10 @@ function payload(keys: Record<string, string>): FakeDataTransfer {
   return { types: Object.keys(keys), getData: (key) => keys[key] ?? "" };
 }
 
-function listPayload(feeds: string[], folders: string[] = []): FakeDataTransfer {
+function listPayload(
+  feeds: string[],
+  folders: string[] = [],
+): FakeDataTransfer {
   const keys: Record<string, string> = {};
   if (feeds.length > 0) keys["feed-urls"] = JSON.stringify(feeds);
   if (folders.length > 0) keys["folder-paths"] = JSON.stringify(folders);
@@ -102,7 +112,10 @@ function listPayload(feeds: string[], folders: string[] = []): FakeDataTransfer 
 }
 
 function dropEvent(dataTransfer: FakeDataTransfer | null): DragEvent {
-  const event = new Event("drop", { bubbles: true, cancelable: true }) as DragEvent;
+  const event = new Event("drop", {
+    bubbles: true,
+    cancelable: true,
+  }) as DragEvent;
   Object.defineProperty(event, "dataTransfer", { value: dataTransfer });
   Object.defineProperty(event, "clientY", { value: 0 });
   return event;
@@ -143,7 +156,9 @@ describe("Sidebar batch move (characterization)", () => {
       ":scope > .rss-dashboard-folder-feeds",
     ) as HTMLElement;
   const rootSection = (): HTMLElement =>
-    container.querySelector(".rss-dashboard-feed-folders-section") as HTMLElement;
+    container.querySelector(
+      ".rss-dashboard-feed-folders-section",
+    ) as HTMLElement;
   const feedRow = (url: string): HTMLElement =>
     container.querySelector(`[data-feed-url="${url}"]`) as HTMLElement;
 
@@ -345,7 +360,10 @@ describe("Sidebar batch move (characterization)", () => {
     it("moves feeds and two or more folders dropped on the root area to the root", async () => {
       build();
 
-      await drop(rootSection(), listPayload([ALPHA], ["News/Tech", "Archive/Old"]));
+      await drop(
+        rootSection(),
+        listPayload([ALPHA], ["News/Tech", "Archive/Old"]),
+      );
 
       expect(feed(ALPHA).folder).toBe("");
       expect(rootNames()).toEqual([
@@ -358,7 +376,7 @@ describe("Sidebar batch move (characterization)", () => {
       ]);
       expect(feed(GAMMA).folder).toBe("Tech");
       expect(feed(DELTA).folder).toBe("Tech/Deep");
-      expect(notices()).toEqual(['Moved 1 feed and 2 folders to root']);
+      expect(notices()).toEqual(["Moved 1 feed and 2 folders to root"]);
     });
 
     it("moves a lone dragged feed dropped on the root area to the root", async () => {
@@ -446,7 +464,10 @@ describe("Sidebar batch move (characterization)", () => {
 
       expect(rootNames()).toEqual(["News", "Archive", "Empty", "Newsletter"]);
       expect(feed(ROOTED).folder).toBe("News/Tech");
-      expect(notices()).toEqual([SKIPPED_NOTICE, 'Moved 1 feed to "News/Tech"']);
+      expect(notices()).toEqual([
+        SKIPPED_NOTICE,
+        'Moved 1 feed to "News/Tech"',
+      ]);
     });
 
     it("skips a folder dropped on itself", async () => {
@@ -477,7 +498,10 @@ describe("Sidebar batch move (characterization)", () => {
     it("changes nothing but the notice when every folder is skipped", async () => {
       build();
 
-      await drop(folderHeader("News/Tech/Deep"), listPayload([], ["News", "News/Tech"]));
+      await drop(
+        folderHeader("News/Tech/Deep"),
+        listPayload([], ["News", "News/Tech"]),
+      );
 
       expect(rootNames()).toEqual(["News", "Archive", "Empty", "Newsletter"]);
       expect(notices()).toEqual([SKIPPED_NOTICE]);
@@ -499,7 +523,10 @@ describe("Sidebar batch move (characterization)", () => {
       settings.folders.push(makeFolder("Tech"));
       build();
 
-      await drop(folderHeader("News"), listPayload([ROOTED], ["Tech", "Ghost"]));
+      await drop(
+        folderHeader("News"),
+        listPayload([ROOTED], ["Tech", "Ghost"]),
+      );
 
       expect(notices()).toEqual([
         'A folder named "Tech" already exists at the destination level.',
@@ -513,7 +540,10 @@ describe("Sidebar batch move (characterization)", () => {
     it("shows a reason shared by several refused folders once", async () => {
       build();
 
-      await drop(folderHeader("News"), listPayload([ROOTED], ["Ghost", "Phantom"]));
+      await drop(
+        folderHeader("News"),
+        listPayload([ROOTED], ["Ghost", "Phantom"]),
+      );
 
       expect(notices()).toEqual([
         "Dragged folder not found.",
@@ -535,13 +565,19 @@ describe("Sidebar batch move (characterization)", () => {
     it("nests folders under a folder destination and appends them at the end of the root for the root", async () => {
       build();
 
-      await drop(folderHeader("Empty"), listPayload([], ["Archive", "Newsletter"]));
+      await drop(
+        folderHeader("Empty"),
+        listPayload([], ["Archive", "Newsletter"]),
+      );
       expect(folderAt("Empty")?.subfolders.map((f) => f.name)).toEqual([
         "Archive",
         "Newsletter",
       ]);
 
-      await drop(rootSection(), listPayload([], ["Empty/Archive", "Empty/Newsletter"]));
+      await drop(
+        rootSection(),
+        listPayload([], ["Empty/Archive", "Empty/Newsletter"]),
+      );
       expect(rootNames()).toEqual(["News", "Empty", "Archive", "Newsletter"]);
     });
 
@@ -556,7 +592,9 @@ describe("Sidebar batch move (characterization)", () => {
 
     it("remaps the feeds, collapsed folders and sort-order keys of a moved folder", async () => {
       settings.collapsedFolders = ["News/Tech"];
-      settings.folderFeedSortOrders = { "News/Tech": { by: "name", ascending: true } };
+      settings.folderFeedSortOrders = {
+        "News/Tech": { by: "name", ascending: true },
+      };
       build();
 
       await drop(folderHeader("Empty"), listPayload([], ["News", "Archive"]));
@@ -618,7 +656,10 @@ describe("Sidebar batch move (characterization)", () => {
     it("ignores dragged URLs that match no feed", async () => {
       build();
 
-      await drop(folderHeader("Empty"), listPayload(["https://ghost.test/feed", ROOTED]));
+      await drop(
+        folderHeader("Empty"),
+        listPayload(["https://ghost.test/feed", ROOTED]),
+      );
 
       expect(moveFeeds.mock.calls[0]?.[1]).toEqual({
         draggedUrls: [ROOTED],
@@ -630,7 +671,10 @@ describe("Sidebar batch move (characterization)", () => {
     it("does nothing to feeds when none of the dragged URLs match", async () => {
       build();
 
-      await drop(folderHeader("Empty"), listPayload(["https://ghost.test/feed"]));
+      await drop(
+        folderHeader("Empty"),
+        listPayload(["https://ghost.test/feed"]),
+      );
 
       expect(moveFeeds).not.toHaveBeenCalled();
       expect(notices()).toEqual([]);
@@ -651,7 +695,10 @@ describe("Sidebar batch move (characterization)", () => {
     it("stamps every folder the feeds left, once each, and the destination", async () => {
       build();
 
-      await drop(folderHeader("Empty"), listPayload([ALPHA, BETA, EPSILON, ROOTED]));
+      await drop(
+        folderHeader("Empty"),
+        listPayload([ALPHA, BETA, EPSILON, ROOTED]),
+      );
 
       expect(folderAt("News")?.modifiedAt).toBe(NOW);
       expect(folderAt("Archive")?.modifiedAt).toBe(NOW);
@@ -979,8 +1026,8 @@ describe("Sidebar batch move (characterization)", () => {
 
     it("moves the selection into an existing folder when the new name matches one", async () => {
       openMoveMenu();
-      vi.spyOn(sidebar, "showFolderNameModal").mockImplementation(({ onSubmit }) =>
-        onSubmit("Empty"),
+      vi.spyOn(sidebar, "showFolderNameModal").mockImplementation(
+        ({ onSubmit }) => onSubmit("Empty"),
       );
 
       chooseMenuItem("Create new folder...");

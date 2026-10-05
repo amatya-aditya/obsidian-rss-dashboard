@@ -26,7 +26,11 @@ import {
   type SidebarOptions,
 } from "../../../src/components/sidebar";
 import * as ObsidianStubs from "../../stubs/obsidian";
-import type { Feed, Folder, RssDashboardSettings } from "../../../src/types/types";
+import type {
+  Feed,
+  Folder,
+  RssDashboardSettings,
+} from "../../../src/types/types";
 import type RssDashboardPlugin from "../../../main";
 import { moveFolder } from "../../../src/services/sidebar-ordering-controller";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
@@ -53,7 +57,8 @@ const ROOTED = "https://rooted.test/feed";
 const ZULU = "https://zulu.test/feed";
 const ORPHAN = "https://orphan.test/feed";
 
-const EMPTY_STATE = "No feeds yet — add one of your own or visit the Discover tab!";
+const EMPTY_STATE =
+  "No feeds yet — add one of your own or visit the Discover tab!";
 
 interface SidebarInternals {
   batchMoveFeedsAndFoldersToFolder: (
@@ -124,7 +129,10 @@ function dragEvent(
   type: "dragover" | "dragleave" | "drop",
   dataTransfer: FakeDataTransfer | null,
 ): DragEvent {
-  const event = new Event(type, { bubbles: true, cancelable: true }) as DragEvent;
+  const event = new Event(type, {
+    bubbles: true,
+    cancelable: true,
+  }) as DragEvent;
   Object.defineProperty(event, "dataTransfer", { value: dataTransfer });
   Object.defineProperty(event, "clientY", { value: 0 });
   return event;
@@ -168,7 +176,9 @@ describe("Sidebar folder tree root area (characterization)", () => {
   }
 
   const rootSection = (): HTMLElement =>
-    container.querySelector(".rss-dashboard-feed-folders-section") as HTMLElement;
+    container.querySelector(
+      ".rss-dashboard-feed-folders-section",
+    ) as HTMLElement;
   const folderHeader = (path: string): HTMLElement =>
     container.querySelector(
       `.rss-dashboard-feed-folder-header[data-folder-path="${path}"]`,
@@ -189,8 +199,8 @@ describe("Sidebar folder tree root area (characterization)", () => {
     settings.feeds.find((f) => f.url === url) as Feed;
   const rootNames = (): string[] => settings.folders.map((f) => f.name);
   const feedUrlsIn = (el: HTMLElement): string[] =>
-    Array.from(el.querySelectorAll("[data-feed-url]")).map((row) =>
-      row.getAttribute("data-feed-url") as string,
+    Array.from(el.querySelectorAll("[data-feed-url]")).map(
+      (row) => row.getAttribute("data-feed-url") as string,
     );
   const renderedRootFolders = (): string[] =>
     Array.from(
@@ -210,7 +220,8 @@ describe("Sidebar folder tree root area (characterization)", () => {
 
   function clickItem(title: string): unknown {
     const item = ObsidianStubs.Menu.lastItems.find((i) => i.title === title);
-    if (!item) throw new Error(`no menu item "${title}" in ${menuTitles().join(", ")}`);
+    if (!item)
+      throw new Error(`no menu item "${title}" in ${menuTitles().join(", ")}`);
     return item.trigger();
   }
 
@@ -321,7 +332,9 @@ describe("Sidebar folder tree root area (characterization)", () => {
     it("renders one folder-feeds section directly in the sidebar container, with All Feeds first", () => {
       build();
 
-      expect(container.querySelectorAll(".rss-dashboard-feed-folders-section")).toHaveLength(1);
+      expect(
+        container.querySelectorAll(".rss-dashboard-feed-folders-section"),
+      ).toHaveLength(1);
       expect(rootSection().parentElement).toBe(container);
       expect(rootSection().firstElementChild).toBe(allFeedsButton());
     });
@@ -329,7 +342,12 @@ describe("Sidebar folder tree root area (characterization)", () => {
     it("renders the root folders by name, in order, then the root feeds wrapper last", () => {
       build();
 
-      expect(renderedRootFolders()).toEqual(["Archive", "Empty", "News", "Newsletter"]);
+      expect(renderedRootFolders()).toEqual([
+        "Archive",
+        "Empty",
+        "News",
+        "Newsletter",
+      ]);
       const children = Array.from(rootSection().children);
       expect(children[children.length - 1]).toBe(rootFeedsWrapper());
     });
@@ -338,41 +356,66 @@ describe("Sidebar folder tree root area (characterization)", () => {
       settings.folderSortOrder = { by: "name", ascending: false };
       build();
 
-      expect(renderedRootFolders()).toEqual(["Newsletter", "News", "Empty", "Archive"]);
+      expect(renderedRootFolders()).toEqual([
+        "Newsletter",
+        "News",
+        "Empty",
+        "Archive",
+      ]);
     });
 
     it("keeps the stored order of root folders for a custom folder sort order", () => {
       settings.folderSortOrder = { by: "custom", ascending: true };
       build();
 
-      expect(renderedRootFolders()).toEqual(["News", "Archive", "Empty", "Newsletter"]);
+      expect(renderedRootFolders()).toEqual([
+        "News",
+        "Archive",
+        "Empty",
+        "Newsletter",
+      ]);
     });
 
     it("lists the feeds with no folder in the root wrapper, in settings order", () => {
       build();
 
-      expect(feedUrlsIn(rootFeedsWrapper() as HTMLElement)).toEqual([ROOTED, ZULU]);
+      expect(feedUrlsIn(rootFeedsWrapper() as HTMLElement)).toEqual([
+        ROOTED,
+        ZULU,
+      ]);
     });
 
     it("lists a feed whose folder no longer exists at the root", () => {
       settings.feeds.push(makeFeed("Orphan", ORPHAN, "Gone/Missing"));
       build();
 
-      expect(feedUrlsIn(rootFeedsWrapper() as HTMLElement)).toEqual([ROOTED, ZULU, ORPHAN]);
+      expect(feedUrlsIn(rootFeedsWrapper() as HTMLElement)).toEqual([
+        ROOTED,
+        ZULU,
+        ORPHAN,
+      ]);
     });
 
     it("sorts the root feeds by the root entry of the feed sort orders", () => {
       settings.folderFeedSortOrders = { "": { by: "name", ascending: false } };
       build();
 
-      expect(feedUrlsIn(rootFeedsWrapper() as HTMLElement)).toEqual([ZULU, ROOTED]);
+      expect(feedUrlsIn(rootFeedsWrapper() as HTMLElement)).toEqual([
+        ZULU,
+        ROOTED,
+      ]);
     });
 
     it("keeps settings order for a custom root feed sort order", () => {
-      settings.folderFeedSortOrders = { "": { by: "custom", ascending: false } };
+      settings.folderFeedSortOrders = {
+        "": { by: "custom", ascending: false },
+      };
       build();
 
-      expect(feedUrlsIn(rootFeedsWrapper() as HTMLElement)).toEqual([ROOTED, ZULU]);
+      expect(feedUrlsIn(rootFeedsWrapper() as HTMLElement)).toEqual([
+        ROOTED,
+        ZULU,
+      ]);
     });
 
     it("hides root feeds that have no unread items when empty feeds are hidden", () => {
@@ -420,15 +463,24 @@ describe("Sidebar folder tree root area (characterization)", () => {
     it("shows no empty state when there are feeds", () => {
       build();
 
-      expect(rootSection().querySelector(".rss-dashboard-empty-state")).toBeNull();
+      expect(
+        rootSection().querySelector(".rss-dashboard-empty-state"),
+      ).toBeNull();
     });
 
     it("still renders folders under the empty state when there are folders but no feeds", () => {
       settings.feeds = [];
       build();
 
-      expect(renderedRootFolders()).toEqual(["Archive", "Empty", "News", "Newsletter"]);
-      expect(rootSection().querySelector(".rss-dashboard-empty-state")).not.toBeNull();
+      expect(renderedRootFolders()).toEqual([
+        "Archive",
+        "Empty",
+        "News",
+        "Newsletter",
+      ]);
+      expect(
+        rootSection().querySelector(".rss-dashboard-empty-state"),
+      ).not.toBeNull();
     });
 
     it("renders with no folders at all", () => {
@@ -453,16 +505,24 @@ describe("Sidebar folder tree root area (characterization)", () => {
       internals.isTagsExpanded = true;
       sidebar.render();
 
-      const tags = rootSection().querySelector(".rss-dashboard-sidebar-tags-section");
+      const tags = rootSection().querySelector(
+        ".rss-dashboard-sidebar-tags-section",
+      );
       expect(tags).not.toBeNull();
       expect(tags?.previousElementSibling).toBe(allFeedsButton());
-      expect(tags?.nextElementSibling?.classList.contains("rss-dashboard-feed-folder")).toBe(true);
+      expect(
+        tags?.nextElementSibling?.classList.contains(
+          "rss-dashboard-feed-folder",
+        ),
+      ).toBe(true);
     });
 
     it("renders no tags section while tags are collapsed", () => {
       build();
 
-      expect(rootSection().querySelector(".rss-dashboard-sidebar-tags-section")).toBeNull();
+      expect(
+        rootSection().querySelector(".rss-dashboard-sidebar-tags-section"),
+      ).toBeNull();
     });
 
     it("renders the section again, replacing the old one, on every render", () => {
@@ -471,7 +531,9 @@ describe("Sidebar folder tree root area (characterization)", () => {
 
       sidebar.render();
 
-      expect(container.querySelectorAll(".rss-dashboard-feed-folders-section")).toHaveLength(1);
+      expect(
+        container.querySelectorAll(".rss-dashboard-feed-folders-section"),
+      ).toHaveLength(1);
       expect(rootSection()).not.toBe(first);
     });
   });
@@ -584,7 +646,11 @@ describe("Sidebar folder tree root area (characterization)", () => {
       build();
       await fire(rootSection(), "dragover");
 
-      const event = await fire(rootSection(), "drop", payload({ "feed-url": GAMMA }));
+      const event = await fire(
+        rootSection(),
+        "drop",
+        payload({ "feed-url": GAMMA }),
+      );
 
       expect(event.defaultPrevented).toBe(true);
       expect(rootSection().classList.contains("drag-over")).toBe(false);
@@ -614,7 +680,9 @@ describe("Sidebar folder tree root area (characterization)", () => {
       await fire(
         rootSection(),
         "drop",
-        payload({ "folder-paths": JSON.stringify(["News/Tech", "Archive/Old"]) }),
+        payload({
+          "folder-paths": JSON.stringify(["News/Tech", "Archive/Old"]),
+        }),
       );
 
       expect(batch).toHaveBeenCalledWith("", [], ["News/Tech", "Archive/Old"]);
@@ -693,7 +761,11 @@ describe("Sidebar folder tree root area (characterization)", () => {
       build();
       const batch = vi.spyOn(internals, "batchMoveFeedsAndFoldersToFolder");
 
-      await fire(folderHeader("Empty"), "drop", payload({ "feed-urls": JSON.stringify([ROOTED]) }));
+      await fire(
+        folderHeader("Empty"),
+        "drop",
+        payload({ "feed-urls": JSON.stringify([ROOTED]) }),
+      );
 
       expect(batch).toHaveBeenCalledTimes(1);
       expect(batch).toHaveBeenCalledWith("Empty", [ROOTED], []);
@@ -718,7 +790,11 @@ describe("Sidebar folder tree root area (characterization)", () => {
       build();
       rootSection().classList.add("drag-over");
 
-      await fire(rootFeedsWrapper() as HTMLElement, "drop", payload({ "feed-url": ALPHA }));
+      await fire(
+        rootFeedsWrapper() as HTMLElement,
+        "drop",
+        payload({ "feed-url": ALPHA }),
+      );
 
       expect(rootSection().classList.contains("drag-over")).toBe(true);
     });
@@ -733,7 +809,8 @@ describe("Sidebar folder tree root area (characterization)", () => {
       "rss-dashboard-folder-feeds",
     ];
 
-    const bareChild = (cls: string): HTMLElement => rootSection().createDiv({ cls });
+    const bareChild = (cls: string): HTMLElement =>
+      rootSection().createDiv({ cls });
 
     it("is not highlighted over by a drag", async () => {
       build();
@@ -759,7 +836,11 @@ describe("Sidebar folder tree root area (characterization)", () => {
       const batch = vi.spyOn(internals, "batchMoveFeedsAndFoldersToFolder");
 
       for (const cls of classes) {
-        const event = await fire(bareChild(cls), "drop", payload({ "feed-url": ALPHA }));
+        const event = await fire(
+          bareChild(cls),
+          "drop",
+          payload({ "feed-url": ALPHA }),
+        );
         expect(event.defaultPrevented).toBe(false);
       }
 
@@ -800,7 +881,13 @@ describe("Sidebar folder tree root area (characterization)", () => {
 
       await dropFolder("News/Tech");
 
-      expect(rootNames()).toEqual(["News", "Archive", "Empty", "Newsletter", "Tech"]);
+      expect(rootNames()).toEqual([
+        "News",
+        "Archive",
+        "Empty",
+        "Newsletter",
+        "Tech",
+      ]);
       expect(settings.folders[0].subfolders).toEqual([]);
       expect(feed(GAMMA).folder).toBe("Tech");
       expect(feed(DELTA).folder).toBe("Tech/Deep");
@@ -821,7 +908,10 @@ describe("Sidebar folder tree root area (characterization)", () => {
 
       await dropFolder("News/Tech");
 
-      expect(settings.folderSortOrder).toEqual({ by: "custom", ascending: true });
+      expect(settings.folderSortOrder).toEqual({
+        by: "custom",
+        ascending: true,
+      });
     });
 
     it("saves once, then redraws the tree with the folder at the root", async () => {
@@ -830,7 +920,13 @@ describe("Sidebar folder tree root area (characterization)", () => {
       await dropFolder("News/Tech");
 
       expect(plugin.saveSettings).toHaveBeenCalledTimes(1);
-      expect(renderedRootFolders()).toEqual(["News", "Archive", "Empty", "Newsletter", "Tech"]);
+      expect(renderedRootFolders()).toEqual([
+        "News",
+        "Archive",
+        "Empty",
+        "Newsletter",
+        "Tech",
+      ]);
       expect(notices()).toEqual([]);
     });
 
@@ -845,12 +941,23 @@ describe("Sidebar folder tree root area (characterization)", () => {
 
       await dropFolder("News/Tech");
       expect(plugin.saveSettings).toHaveBeenCalledTimes(1);
-      expect(renderedRootFolders()).toEqual(["Archive", "Empty", "News", "Newsletter"]);
+      expect(renderedRootFolders()).toEqual([
+        "Archive",
+        "Empty",
+        "News",
+        "Newsletter",
+      ]);
 
       finishSave();
       await flushPromises();
 
-      expect(renderedRootFolders()).toEqual(["News", "Archive", "Empty", "Newsletter", "Tech"]);
+      expect(renderedRootFolders()).toEqual([
+        "News",
+        "Archive",
+        "Empty",
+        "Newsletter",
+        "Tech",
+      ]);
     });
 
     it("refreshes the cached folder paths so the moved folder's feeds are not drawn at the root", async () => {
@@ -858,9 +965,15 @@ describe("Sidebar folder tree root area (characterization)", () => {
 
       await dropFolder("News/Tech");
 
-      expect(feedUrlsIn(rootFeedsWrapper() as HTMLElement)).toEqual([ROOTED, ZULU]);
+      expect(feedUrlsIn(rootFeedsWrapper() as HTMLElement)).toEqual([
+        ROOTED,
+        ZULU,
+      ]);
       // The Tech list holds its subfolder too, so it lists Delta as well.
-      expect(feedUrlsIn(folderFeedsList("Tech")).sort()).toEqual([DELTA, GAMMA]);
+      expect(feedUrlsIn(folderFeedsList("Tech")).sort()).toEqual([
+        DELTA,
+        GAMMA,
+      ]);
       expect(feedUrlsIn(folderFeedsList("Tech/Deep"))).toEqual([DELTA]);
     });
 
@@ -879,9 +992,19 @@ describe("Sidebar folder tree root area (characterization)", () => {
 
       await dropFolder("Archive/Old");
 
-      expect(notices()).toEqual(['A folder named "Old" already exists at the destination level.']);
-      expect(rootNames()).toEqual(["News", "Archive", "Empty", "Newsletter", "Old"]);
-      expect(settings.folders[1].subfolders.map((f) => f.name)).toEqual(["Old"]);
+      expect(notices()).toEqual([
+        'A folder named "Old" already exists at the destination level.',
+      ]);
+      expect(rootNames()).toEqual([
+        "News",
+        "Archive",
+        "Empty",
+        "Newsletter",
+        "Old",
+      ]);
+      expect(settings.folders[1].subfolders.map((f) => f.name)).toEqual([
+        "Old",
+      ]);
       expect(plugin.saveSettings).not.toHaveBeenCalled();
       expect(callbacks.onFolderClick).not.toHaveBeenCalled();
     });
@@ -920,7 +1043,11 @@ describe("Sidebar folder tree root area (characterization)", () => {
 
     it("shows the mover's own reason for a refusal that has a path", async () => {
       build();
-      vi.mocked(moveFolder).mockReturnValueOnce({ ok: false, error: "Nope.", newPath: "X" });
+      vi.mocked(moveFolder).mockReturnValueOnce({
+        ok: false,
+        error: "Nope.",
+        newPath: "X",
+      });
 
       await dropFolder("News/Tech");
 
@@ -1008,8 +1135,8 @@ describe("Sidebar folder tree root area (characterization)", () => {
     it("calls the open-folder callback before the save", async () => {
       options.currentFolder = "News/Tech";
       const order: string[] = [];
-      (callbacks.onFolderClick as ReturnType<typeof vi.fn>).mockImplementation(() =>
-        order.push("click"),
+      (callbacks.onFolderClick as ReturnType<typeof vi.fn>).mockImplementation(
+        () => order.push("click"),
       );
       plugin.saveSettings.mockImplementation(() => {
         order.push("save");
@@ -1054,7 +1181,9 @@ describe("Sidebar folder tree root area (characterization)", () => {
       build();
 
       const event = rightClick(
-        rootSection().querySelector(".rss-dashboard-empty-state") as HTMLElement,
+        rootSection().querySelector(
+          ".rss-dashboard-empty-state",
+        ) as HTMLElement,
       );
 
       expect(event.defaultPrevented).toBe(true);
@@ -1082,7 +1211,12 @@ describe("Sidebar folder tree root area (characterization)", () => {
     it("does not offer it over a feed, a folder header or the All Feeds button", () => {
       build();
 
-      for (const el of [feedRow(ROOTED), feedRow(ALPHA), folderHeader("Empty"), allFeedsButton()]) {
+      for (const el of [
+        feedRow(ROOTED),
+        feedRow(ALPHA),
+        folderHeader("Empty"),
+        allFeedsButton(),
+      ]) {
         ObsidianStubs.Menu.lastItems = [];
         titleIconLog = [];
         rightClick(el);
@@ -1102,7 +1236,9 @@ describe("Sidebar folder tree root area (characterization)", () => {
 
     it("opens the Add folder dialog listing the root folder names, under that title", () => {
       build();
-      const modal = vi.spyOn(internals, "showFolderNameModal").mockImplementation(() => undefined);
+      const modal = vi
+        .spyOn(internals, "showFolderNameModal")
+        .mockImplementation(() => undefined);
       rightClick(rootSection());
 
       clickItem("Add folder");
@@ -1110,13 +1246,20 @@ describe("Sidebar folder tree root area (characterization)", () => {
       expect(modal).toHaveBeenCalledTimes(1);
       const dialog = modal.mock.calls[0][0];
       expect(dialog.title).toBe("Add folder");
-      expect(dialog.existingNames).toEqual(["News", "Archive", "Empty", "Newsletter"]);
+      expect(dialog.existingNames).toEqual([
+        "News",
+        "Archive",
+        "Empty",
+        "Newsletter",
+      ]);
       expect(dialog.defaultValue).toBeUndefined();
     });
 
     it("reads the root folder names when the item is clicked, not when the menu opens", () => {
       build();
-      const modal = vi.spyOn(internals, "showFolderNameModal").mockImplementation(() => undefined);
+      const modal = vi
+        .spyOn(internals, "showFolderNameModal")
+        .mockImplementation(() => undefined);
       rightClick(rootSection());
       settings.folders.push(makeFolder("Later"));
 
@@ -1133,14 +1276,22 @@ describe("Sidebar folder tree root area (characterization)", () => {
 
     it("creates the folder at the root, saves, and redraws when the dialog is submitted", async () => {
       build();
-      const modal = vi.spyOn(internals, "showFolderNameModal").mockImplementation(() => undefined);
+      const modal = vi
+        .spyOn(internals, "showFolderNameModal")
+        .mockImplementation(() => undefined);
       rightClick(rootSection());
       clickItem("Add folder");
 
       modal.mock.calls[0][0].onSubmit("Fresh");
       await flushPromises();
 
-      expect(rootNames()).toEqual(["News", "Archive", "Empty", "Newsletter", "Fresh"]);
+      expect(rootNames()).toEqual([
+        "News",
+        "Archive",
+        "Empty",
+        "Newsletter",
+        "Fresh",
+      ]);
       expect(settings.folders[4]).toEqual({
         name: "Fresh",
         subfolders: [],
@@ -1153,7 +1304,9 @@ describe("Sidebar folder tree root area (characterization)", () => {
 
     it("redraws twice for a new folder, once from the creation and once from the menu", async () => {
       build();
-      const modal = vi.spyOn(internals, "showFolderNameModal").mockImplementation(() => undefined);
+      const modal = vi
+        .spyOn(internals, "showFolderNameModal")
+        .mockImplementation(() => undefined);
       const render = vi.spyOn(sidebar, "render");
       rightClick(rootSection());
       clickItem("Add folder");
@@ -1166,7 +1319,9 @@ describe("Sidebar folder tree root area (characterization)", () => {
 
     it("saves nothing and still redraws once when the new folder's name already exists", async () => {
       build();
-      const modal = vi.spyOn(internals, "showFolderNameModal").mockImplementation(() => undefined);
+      const modal = vi
+        .spyOn(internals, "showFolderNameModal")
+        .mockImplementation(() => undefined);
       const render = vi.spyOn(sidebar, "render");
       rightClick(rootSection());
       clickItem("Add folder");
@@ -1181,7 +1336,9 @@ describe("Sidebar folder tree root area (characterization)", () => {
 
     it("opens the Add feed dialog with no preset folder", () => {
       build();
-      const modal = vi.spyOn(internals, "showAddFeedModal").mockImplementation(() => undefined);
+      const modal = vi
+        .spyOn(internals, "showAddFeedModal")
+        .mockImplementation(() => undefined);
       rightClick(rootSection());
 
       clickItem("Add feed");

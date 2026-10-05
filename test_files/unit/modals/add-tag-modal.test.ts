@@ -80,7 +80,9 @@ describe("AddTagModal", () => {
     );
 
     expect(onAdded).not.toHaveBeenCalled();
-    expect(document.querySelector(".rss-dashboard-add-tag-modal")).not.toBeNull();
+    expect(
+      document.querySelector(".rss-dashboard-add-tag-modal"),
+    ).not.toBeNull();
   });
 
   it("adds the tag, calls onAdded once, then closes", () => {

@@ -216,7 +216,9 @@
   width: 100%;
 }
 
-.rss-dashboard-card-view .rss-dashboard-article-card .rss-dashboard-card-open-button {
+.rss-dashboard-card-view
+  .rss-dashboard-article-card
+  .rss-dashboard-card-open-button {
   position: absolute;
   inset: 0;
   z-index: 1;

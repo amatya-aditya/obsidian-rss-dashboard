@@ -20,6 +20,7 @@ that mirror the existing pattern established by `add-feed-modal.css`,
 
 > [!NOTE]
 > **Why not more splits?** [Explain which concerns are tightly coupled and why
+>
 > > they remain together. Reference shared CSS custom properties or layout state
 > > dependencies as appropriate.]
 

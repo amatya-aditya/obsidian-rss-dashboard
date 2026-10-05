@@ -178,9 +178,9 @@ describe("ReaderView custom-folder saved templates", () => {
 
     expect(templateSelect?.value).toBe("");
     expect(templateInput?.value).toBe("Default template");
-    expect(
-      modal?.classList.contains("rss-dashboard-custom-save-modal"),
-    ).toBe(true);
+    expect(modal?.classList.contains("rss-dashboard-custom-save-modal")).toBe(
+      true,
+    );
     expect(
       templateSelect?.classList.contains("rss-dashboard-template-select"),
     ).toBe(true);
@@ -304,9 +304,7 @@ describe("ReaderView custom-folder saved templates", () => {
     // Obsidian stacks modals: the template dialogs open above the save dialog.
     const nameModal = topModalContainer();
     expect(
-      nameModal?.classList.contains(
-        "rss-dashboard-template-dialog-container",
-      ),
+      nameModal?.classList.contains("rss-dashboard-template-dialog-container"),
     ).toBe(true);
     expect(
       nameModal

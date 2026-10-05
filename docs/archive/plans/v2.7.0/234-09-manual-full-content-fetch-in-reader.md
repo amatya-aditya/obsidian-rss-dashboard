@@ -97,7 +97,7 @@ None.
   "unfetched"; distinct wording for "failed"; unaffected automatic-fetch
   behavior when the field is absent; successful "Fetch now" replacing
   content, clearing state, and persisting for a starred article; a
-  successful "Fetch now" that does *not* persist for an article that is
+  successful "Fetch now" that does _not_ persist for an article that is
   neither starred nor saved; and a failed "Fetch now" moving the article to
   "failed" with the distinct banner wording on re-render.
 - `test_files/unit/services/starred-import-mapper.test.ts` gained a test

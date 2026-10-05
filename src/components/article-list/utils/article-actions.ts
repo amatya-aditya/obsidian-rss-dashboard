@@ -1,5 +1,9 @@
 import { Notice, setIcon, setTooltip } from "obsidian";
-import type { ArticleSavingSettings, DisplaySettings, FeedItem } from "../../../types/types";
+import type {
+  ArticleSavingSettings,
+  DisplaySettings,
+  FeedItem,
+} from "../../../types/types";
 
 function toggleClickableIcon(
   el: HTMLElement,

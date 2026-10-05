@@ -201,9 +201,9 @@ describe("tag-multi-select", () => {
       triggerEmptyLabel: "None",
     });
 
-    expect(wrapper.classList.contains("rss-dashboard-tag-multi-select--empty")).toBe(
-      true,
-    );
+    expect(
+      wrapper.classList.contains("rss-dashboard-tag-multi-select--empty"),
+    ).toBe(true);
     expect(trigger.disabled).toBe(true);
     expect(trigger.textContent).toContain("None");
   });

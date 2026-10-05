@@ -21,7 +21,9 @@ describe("resolveTagObjects", () => {
   });
 
   it("drops unknown tag names and returns only known ones", () => {
-    expect(resolveTagObjects(["News", "Unknown", "Video"], availableTags)).toEqual([
+    expect(
+      resolveTagObjects(["News", "Unknown", "Video"], availableTags),
+    ).toEqual([
       { name: "News", color: "#111122" },
       { name: "Video", color: "#881122" },
     ]);

@@ -121,9 +121,7 @@ export function extractRssContent(xmlString: string): string {
   if (rssMatch) {
     rssContent = rssMatch[0];
   } else {
-    const channelMatch = xmlString.match(
-      /<channel[^>]*>[\s\S]*?<\/channel>/i,
-    );
+    const channelMatch = xmlString.match(/<channel[^>]*>[\s\S]*?<\/channel>/i);
     if (channelMatch) {
       rssContent = `<?xml version="1.0" encoding="UTF-8"?><rss version="2.0">${channelMatch[0]}</rss>`;
     } else {
@@ -217,8 +215,7 @@ export function fallbackParse(
     // so we can slice from the unmodified `cleanedXml`.
     const xmlForItemSplit = cleanedXml.replace(
       /<!\[CDATA\[[\s\S]*?\]\]>/g,
-      (cdata: string) =>
-        cdata.replace(/</g, "\u0001").replace(/>/g, "\u0002"),
+      (cdata: string) => cdata.replace(/</g, "\u0001").replace(/>/g, "\u0002"),
     );
 
     const itemRegex = /<item[^>]*>[\s\S]*?<\/item>/gi;
@@ -319,8 +316,12 @@ export function fallbackParse(
         : "";
       if (itemDescription === "null" || itemDescription === "") {
         const mediaDescMatch =
-          itemXml.match(/<media:description[^>]*>([\s\S]*?)<\/media:description>/i) ||
-          itemXml.match(/<media\\:description[^>]*>([\s\S]*?)<\/media\\:description>/i);
+          itemXml.match(
+            /<media:description[^>]*>([\s\S]*?)<\/media:description>/i,
+          ) ||
+          itemXml.match(
+            /<media\\:description[^>]*>([\s\S]*?)<\/media\\:description>/i,
+          );
         if (mediaDescMatch) {
           itemDescription = sanitize(mediaDescMatch[1]?.trim() ?? "");
         } else {
@@ -417,9 +418,7 @@ export function fallbackParse(
       );
 
       const pubYearMatch = itemXml.match(/<pubYear[^>]*>([^<]+)<\/pubYear>/i);
-      const pubYear = pubYearMatch?.[1]
-        ? sanitize(pubYearMatch[1].trim())
-        : "";
+      const pubYear = pubYearMatch?.[1] ? sanitize(pubYearMatch[1].trim()) : "";
       const volumeMatch = itemXml.match(/<volume[^>]*>([^<]+)<\/volume>/i);
       const volume = volumeMatch?.[1] ? sanitize(volumeMatch[1].trim()) : "";
       const issueMatch = itemXml.match(/<issue[^>]*>([^<]+)<\/issue>/i);
@@ -431,9 +430,7 @@ export function fallbackParse(
         ? sanitize(startPageMatch[1].trim())
         : "";
       const endPageMatch = itemXml.match(/<endPage[^>]*>([^<]+)<\/endPage>/i);
-      const endPage = endPageMatch?.[1]
-        ? sanitize(endPageMatch[1].trim())
-        : "";
+      const endPage = endPageMatch?.[1] ? sanitize(endPageMatch[1].trim()) : "";
       const fileSizeMatch = itemXml.match(
         /<fileSize[^>]*>([^<]+)<\/fileSize>/i,
       );
@@ -441,9 +438,7 @@ export function fallbackParse(
         ? sanitize(fileSizeMatch[1].trim())
         : "";
       const authorsMatch = itemXml.match(/<authors[^>]*>([^<]+)<\/authors>/i);
-      const authors = authorsMatch?.[1]
-        ? sanitize(authorsMatch[1].trim())
-        : "";
+      const authors = authorsMatch?.[1] ? sanitize(authorsMatch[1].trim()) : "";
       const ieee =
         pubYear ||
         volume ||

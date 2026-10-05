@@ -180,9 +180,11 @@ async function createView(opts?: {
     activateView: vi.fn(async () => undefined),
   };
   // WorkspaceLeaf is not generic, so cast only once here
-  const leaf = new (WorkspaceLeaf as unknown as {
-    new (app: App): WorkspaceLeaf;
-  })(app);
+  const leaf = new (
+    WorkspaceLeaf as unknown as {
+      new (app: App): WorkspaceLeaf;
+    }
+  )(app);
 
   const mod = await import("../../../src/views/discover-view");
   const view = new mod.DiscoverView(
@@ -713,7 +715,6 @@ describe("DiscoverView (P1-3)", () => {
     expect((updatedPrev as HTMLButtonElement).disabled).toBe(false);
     expect((updatedNext as HTMLButtonElement).disabled).toBe(false);
 
-
     // Clicking page button directly
     const page3Btn = Array.from(
       view.containerEl.querySelectorAll<HTMLButtonElement>(
@@ -768,8 +769,8 @@ describe("DiscoverView (P1-3)", () => {
       "[Stub Notice]",
       expect.stringContaining("Articles will be fetched in the background"),
     );
-    expect((view as unknown as { isAddingAllFeeds: boolean }).isAddingAllFeeds).toBe(false);
+    expect(
+      (view as unknown as { isAddingAllFeeds: boolean }).isAddingAllFeeds,
+    ).toBe(false);
   });
 });
-
-

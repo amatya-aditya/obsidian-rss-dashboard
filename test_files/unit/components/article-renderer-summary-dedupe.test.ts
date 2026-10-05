@@ -86,8 +86,7 @@ describe("ArticleRenderer – summary de-duplication", () => {
   });
 
   it("renders a stale WordPress formula cover as native math instead of a hero", async () => {
-    const formulaUrl =
-      "https://s0.wp.com/latex.php?latex=%7Bx%7D&bg=ffffff";
+    const formulaUrl = "https://s0.wp.com/latex.php?latex=%7Bx%7D&bg=ffffff";
     const item = makeItem({
       coverImage: formulaUrl,
       image: formulaUrl,
@@ -230,7 +229,8 @@ describe("ArticleRenderer – summary de-duplication", () => {
 
   it("keeps linked story text when the body image is removed from the hero slot", async () => {
     const heroUrl = "https://img.example.com/images/hero.jpg";
-    const leadText = "The first paragraph of the story, which the reader came for. ".repeat(2);
+    const leadText =
+      "The first paragraph of the story, which the reader came for. ".repeat(2);
     const moreText = "Further article text remains visible. ".repeat(8);
     const item = makeItem({
       coverImage: heroUrl,
@@ -248,18 +248,23 @@ describe("ArticleRenderer – summary de-duplication", () => {
     expect(leadParagraph?.textContent).toContain(
       "The first paragraph of the story",
     );
-    expect(body?.textContent).toContain("Further article text remains visible.");
+    expect(body?.textContent).toContain(
+      "Further article text remains visible.",
+    );
   });
 
   it("keeps linked story text when removing a duplicate lead image from fetched HTML", async () => {
     const heroUrl = "https://img.example.com/images/hero.jpg";
-    const leadText = "The first paragraph of the story, which the reader came for. ".repeat(2);
+    const leadText =
+      "The first paragraph of the story, which the reader came for. ".repeat(2);
     const moreText = "Further article text remains visible. ".repeat(8);
     const item = makeItem({ coverImage: heroUrl, content: "" });
     const rendererInternal = renderer as unknown as ArticleRendererWithPrivate;
-    rendererInternal.fetchFullArticleContent = vi.fn().mockResolvedValue(
-      `<a href="/story"><div><img src="${heroUrl}"><p>${leadText}</p></div></a><p>${moreText}</p>`,
-    );
+    rendererInternal.fetchFullArticleContent = vi
+      .fn()
+      .mockResolvedValue(
+        `<a href="/story"><div><img src="${heroUrl}"><p>${leadText}</p></div></a><p>${moreText}</p>`,
+      );
 
     await renderer.render(container, item);
 
@@ -272,7 +277,9 @@ describe("ArticleRenderer – summary de-duplication", () => {
     expect(leadParagraph?.textContent).toContain(
       "The first paragraph of the story",
     );
-    expect(body?.textContent).toContain("Further article text remains visible.");
+    expect(body?.textContent).toContain(
+      "Further article text remains visible.",
+    );
   });
 
   // --------------------------------------------------------------- CONTROL ---
@@ -295,15 +302,22 @@ describe("ArticleRenderer – summary de-duplication", () => {
   it("omits the feed description callout when the description is missing", async () => {
     const item = makeItem({
       description: "",
-      content: "<p>Extended body paragraph that should still render in the article body.</p>",
+      content:
+        "<p>Extended body paragraph that should still render in the article body.</p>",
     });
 
     await renderer.render(container, item);
 
-    const body = container.querySelector<HTMLElement>(".rss-reader-article-content");
+    const body = container.querySelector<HTMLElement>(
+      ".rss-reader-article-content",
+    );
 
-    expect(container.querySelector(".rss-reader-description-callout")).toBeNull();
-    expect(container.textContent || "").not.toContain("No feed description available.");
+    expect(
+      container.querySelector(".rss-reader-description-callout"),
+    ).toBeNull();
+    expect(container.textContent || "").not.toContain(
+      "No feed description available.",
+    );
     expect(body?.textContent || "").toContain(
       "Extended body paragraph that should still render in the article body.",
     );
@@ -312,14 +326,19 @@ describe("ArticleRenderer – summary de-duplication", () => {
   it("omits the feed description callout when the description is only an ellipsis placeholder", async () => {
     const item = makeItem({
       description: "<p>...</p>",
-      content: "<p>Extended body paragraph that should still render in the article body.</p>",
+      content:
+        "<p>Extended body paragraph that should still render in the article body.</p>",
     });
 
     await renderer.render(container, item);
 
-    const body = container.querySelector<HTMLElement>(".rss-reader-article-content");
+    const body = container.querySelector<HTMLElement>(
+      ".rss-reader-article-content",
+    );
 
-    expect(container.querySelector(".rss-reader-description-callout")).toBeNull();
+    expect(
+      container.querySelector(".rss-reader-description-callout"),
+    ).toBeNull();
     expect(body?.textContent || "").toContain(
       "Extended body paragraph that should still render in the article body.",
     );

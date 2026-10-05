@@ -50,14 +50,17 @@ describe("PodcastPlayer", () => {
 
       player.loadEpisode(episode, [episode]);
 
-      expect(container.querySelector(".podcast-cover-placeholder")).not.toBeNull();
+      expect(
+        container.querySelector(".podcast-cover-placeholder"),
+      ).not.toBeNull();
       expect(container.querySelector(".podcast-cover")).toBeNull();
 
       const artwork = createElement.mock.results
         .map((result) => result.value)
         .find(
           (element): element is HTMLImageElement =>
-            element instanceof HTMLImageElement && element.classList.contains("podcast-cover"),
+            element instanceof HTMLImageElement &&
+            element.classList.contains("podcast-cover"),
         );
       artwork?.dispatchEvent(new Event("load"));
 
@@ -85,17 +88,23 @@ describe("PodcastPlayer", () => {
       expect(container.querySelector(".episode-list-range")?.textContent).toBe(
         "Showing 20 of 25",
       );
-      expect(container.querySelector(".episode-list-row.active")?.getAttribute("data-episode-guid")).toBe(
-        "guid-5",
-      );
+      expect(
+        container
+          .querySelector(".episode-list-row.active")
+          ?.getAttribute("data-episode-guid"),
+      ).toBe("guid-5");
 
       const audioBeforePaging = container.querySelector("audio");
-      (container.querySelector(".episode-list-load-more") as HTMLButtonElement).click();
+      (
+        container.querySelector(".episode-list-load-more") as HTMLButtonElement
+      ).click();
       expect(container.querySelector("audio")).toBe(audioBeforePaging);
       expect(container.querySelectorAll(".episode-list-row")).toHaveLength(25);
-      expect(container.querySelector(".episode-list-row.active")?.getAttribute("data-episode-guid")).toBe(
-        "guid-5",
-      );
+      expect(
+        container
+          .querySelector(".episode-list-row.active")
+          ?.getAttribute("data-episode-guid"),
+      ).toBe("guid-5");
     });
 
     it("does not recreate the audio element when sorting the episode list", () => {

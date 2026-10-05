@@ -6,7 +6,11 @@ import {
   describeRefusedFolders,
   resolveBatchMovedFolder,
 } from "../../../src/services/sidebar-batch-move";
-import type { Feed, Folder, RssDashboardSettings } from "../../../src/types/types";
+import type {
+  Feed,
+  Folder,
+  RssDashboardSettings,
+} from "../../../src/types/types";
 
 const NOW = 1_700_000_000_000;
 
@@ -30,7 +34,11 @@ function makeSettings(): RssDashboardSettings {
       { title: "B", url: "b", folder: "", items: [], lastUpdated: 0 },
     ] as Feed[],
     folders: [
-      { name: "One", subfolders: [{ name: "Inner", subfolders: [] }], modifiedAt: 1 },
+      {
+        name: "One",
+        subfolders: [{ name: "Inner", subfolders: [] }],
+        modifiedAt: 1,
+      },
       { name: "Two", subfolders: [], modifiedAt: 1 },
     ] as Folder[],
     collapsedFolders: [],
@@ -49,7 +57,11 @@ describe("batchMoveFeedsAndFolders", () => {
     vi.restoreAllMocks();
   });
 
-  function run(destination: string, feedUrls: string[], folderPaths: string[] = []) {
+  function run(
+    destination: string,
+    feedUrls: string[],
+    folderPaths: string[] = [],
+  ) {
     return batchMoveFeedsAndFolders(settings, {
       destinationFolderPath: destination,
       feedUrls,
@@ -84,7 +96,11 @@ describe("batchMoveFeedsAndFolders", () => {
 
   it("records a refused folder with moveFolder's own reason (#610)", () => {
     // A root "Inner" collides with One/Inner when moved into One.
-    settings.folders.push({ name: "Inner", subfolders: [], modifiedAt: 1 } as Folder);
+    settings.folders.push({
+      name: "Inner",
+      subfolders: [],
+      modifiedAt: 1,
+    } as Folder);
 
     const result = run("One", [], ["Inner", "Ghost", "Two"]);
 
@@ -92,7 +108,8 @@ describe("batchMoveFeedsAndFolders", () => {
       {
         oldPath: "Inner",
         newPath: null,
-        error: 'A folder named "Inner" already exists at the destination level.',
+        error:
+          'A folder named "Inner" already exists at the destination level.',
       },
       { oldPath: "Ghost", newPath: null, error: "Dragged folder not found." },
       { oldPath: "Two", newPath: "One/Two", error: null },
@@ -135,7 +152,9 @@ describe("batchMoveFeedsAndFolders", () => {
 
 describe("describeBatchMove", () => {
   it("returns null when nothing moved", () => {
-    expect(describeBatchMove({ movedFeeds: 0, movedFolders: 0 }, "X")).toBeNull();
+    expect(
+      describeBatchMove({ movedFeeds: 0, movedFolders: 0 }, "X"),
+    ).toBeNull();
   });
 
   it("pluralises each count and lists feeds before folders", () => {
@@ -208,8 +227,12 @@ describe("resolveBatchMovedFolder", () => {
   });
 
   it("is null when a folder dropped on its own parent kept its path", () => {
-    const samePlace = [{ oldPath: "News/Tech", newPath: "News/Tech", error: null }];
-    expect(resolveBatchMovedFolder("News/Tech", { folders: samePlace })).toBeNull();
+    const samePlace = [
+      { oldPath: "News/Tech", newPath: "News/Tech", error: null },
+    ];
+    expect(
+      resolveBatchMovedFolder("News/Tech", { folders: samePlace }),
+    ).toBeNull();
     expect(
       resolveBatchMovedFolder("News/Tech/Deep", { folders: samePlace }),
     ).toBeNull();

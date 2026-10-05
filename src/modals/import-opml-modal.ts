@@ -70,7 +70,9 @@ export class ImportOpmlModal extends Modal {
           feeds: parsed.feeds,
           folders: parsed.folders,
           importMode: this.importMode,
-          existingUrls: new Set(this.plugin.settings.feeds.map((feed) => feed.url)),
+          existingUrls: new Set(
+            this.plugin.settings.feeds.map((feed) => feed.url),
+          ),
         });
         return this.previewModel;
       },
@@ -85,7 +87,8 @@ export class ImportOpmlModal extends Modal {
       },
       noItemsError: "No feeds found in the OPML file.",
       renderError: (container, error) => this.renderOpmlError(container, error),
-      onPreviewVisibilityChange: (visible) => this.setModeSelectorVisibility(visible),
+      onPreviewVisibilityChange: (visible) =>
+        this.setModeSelectorVisibility(visible),
       getActionState: (model) => this.getImportActionState(model),
     });
   }
@@ -160,33 +163,43 @@ export class ImportOpmlModal extends Modal {
       this.validationErrorKind = "invalid_extension";
       return {
         valid: false as const,
-        error: "Please select a valid OPML or XML file (.opml, .xml, or .backup extension required)",
+        error:
+          "Please select a valid OPML or XML file (.opml, .xml, or .backup extension required)",
       };
     }
 
-      // Basic XML validation
-      const parser = new DOMParser();
-      const xmlDoc = parser.parseFromString(content, "text/xml");
+    // Basic XML validation
+    const parser = new DOMParser();
+    const xmlDoc = parser.parseFromString(content, "text/xml");
 
-      // Check for parsing errors
-      const parseError = xmlDoc.querySelector("parsererror");
-      if (parseError) {
-        this.validationErrorKind = "invalid_xml";
-        return { valid: false as const, error: "This is not a valid OPML file. The file contains invalid XML." };
-      }
+    // Check for parsing errors
+    const parseError = xmlDoc.querySelector("parsererror");
+    if (parseError) {
+      this.validationErrorKind = "invalid_xml";
+      return {
+        valid: false as const,
+        error: "This is not a valid OPML file. The file contains invalid XML.",
+      };
+    }
 
-      // Check for OPML structure
-      const opmlRoot = xmlDoc.querySelector("opml");
-      if (!opmlRoot) {
-        this.validationErrorKind = "missing_opml";
-        return { valid: false as const, error: "This is not a valid OPML file. Missing OPML root element." };
-      }
+    // Check for OPML structure
+    const opmlRoot = xmlDoc.querySelector("opml");
+    if (!opmlRoot) {
+      this.validationErrorKind = "missing_opml";
+      return {
+        valid: false as const,
+        error: "This is not a valid OPML file. Missing OPML root element.",
+      };
+    }
 
-      const body = xmlDoc.querySelector("body");
-      if (!body) {
-        this.validationErrorKind = "missing_body";
-        return { valid: false as const, error: "This is not a valid OPML file. Missing body element." };
-      }
+    const body = xmlDoc.querySelector("body");
+    if (!body) {
+      this.validationErrorKind = "missing_body";
+      return {
+        valid: false as const,
+        error: "This is not a valid OPML file. Missing body element.",
+      };
+    }
 
     return { valid: true as const };
   }
@@ -200,7 +213,9 @@ export class ImportOpmlModal extends Modal {
       return result;
     } catch (error) {
       this.validationErrorKind = "parse_failed";
-      throw new Error(`Failed to parse OPML: ${error instanceof Error ? error.message : "Unknown error"}`);
+      throw new Error(
+        `Failed to parse OPML: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
     }
   }
 

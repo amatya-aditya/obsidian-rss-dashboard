@@ -56,10 +56,10 @@ Use `npm ci` (clean install) instead of `npm install` to ensure locked dependenc
 
 `npm ci` points Git at the hooks in `.githooks/` (rerun `npm run hooks:install` if they stop running). They keep commits fast and pushes thorough:
 
-| Hook | Runs | Typical time |
-| --- | --- | --- |
+| Hook         | Runs                                                                                                                          | Typical time                                    |
+| ------------ | ----------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
 | `pre-commit` | `check:compliance`, then ESLint on the staged files only and the unit tests related to them (`scripts/run-staged-checks.mjs`) | seconds for prose, under a minute for most code |
-| `pre-push` | Prints that full checks run in GitHub Actions and exits without running them locally | under a second |
+| `pre-push`   | Prints that full checks run in GitHub Actions and exits without running them locally                                          | under a second                                  |
 
 The pre-commit hook runs the full unit suite instead when you stage a change that can affect every test: `vitest.config.mjs`, `package.json` or `package-lock.json`, a `tsconfig.json`, the Obsidian stub in `test_files/stubs/`, the shared test setup, or a non-TypeScript file under `test_files/` such as a fixture.
 
@@ -108,6 +108,7 @@ git checkout -b feat/231-your-feature-name
 ```
 
 **Branch naming convention:** `<type>/<issue-number>-<short-slug>` — see [docs/agents/branch-naming.md](docs/agents/branch-naming.md) for full detail and worktree naming.
+
 - `feat/231-short-slug` — new functionality
 - `fix/231-short-slug` — bug fixes
 - `docs/231-short-slug` — documentation only
@@ -271,6 +272,7 @@ We use a stable `master` branch with active development on `dev`. This section d
 ### Branch Types
 
 **`master`**
+
 - The repository's **default branch**. The Obsidian community directory reads its `manifest.json` and source (lint, build verification), and regular users receive an update when its manifest moves, so it must always build in a clean environment with no `.git` folder
 - Always production-ready and stable
 - **No direct commits** — changes arrive only via merged release branches
@@ -278,6 +280,7 @@ We use a stable `master` branch with active development on `dev`. This section d
 - Protected branch; PRs require review and all checks passing
 
 **`dev`**
+
 - The living integration branch — all contributor work lands here
 - Must always be **at or ahead of master**
 - After every stable release, `master` is merged back into `dev` (see Step 7)
@@ -285,11 +288,13 @@ We use a stable `master` branch with active development on `dev`. This section d
 - Should be stable enough to cut a release branch from at any time
 
 **Feature / Fix Branches** (`feat/...`, `fix/...`, `docs/...`, `chore/...`)
+
 - Always branch off `dev`, never off master
 - PR back into `dev` when work is complete and self-tested
 - Delete after merge to keep the repo clean
 
 **Release Branches** (`release/x.x.x`)
+
 - Cut from `dev` when features for a release are complete
 - Only stabilization work (bug fixes from beta testing) happens here — no new features
 - Betas are tagged from the release branch and never touch `dev` or `master`
@@ -298,16 +303,19 @@ We use a stable `master` branch with active development on `dev`. This section d
 ### Contributing Workflow
 
 1. **Sync dev:**
+
    ```bash
    git checkout dev && git pull origin dev
    ```
 
 2. **Create branch:**
+
    ```bash
    git checkout -b feat/231-your-feature
    ```
 
 3. **Stay current (while working):**
+
    ```bash
    git fetch origin && git rebase origin/dev
    ```
@@ -339,6 +347,7 @@ Before tagging, bump the version with `npm version` to keep `package.json`, `pac
 Run Beta bumps on the release branch only. Obsidian's community directory reads `manifest.json` and the source from the default branch (`master`), and a pre-release version there removes the plugin from the directory (#529). `dev` and `master` stay on the last shipped stable version, and CI enforces this with `node scripts/check-release-compatibility.mjs --stable-branch`.
 
 **For first Beta:**
+
 ```bash
 npm version 2.3.0-beta.1 --no-git-tag-version
 git add package.json package-lock.json manifest.json versions.json
@@ -346,6 +355,7 @@ git commit -m "2.3.0-beta.1"
 ```
 
 **For Stable release:**
+
 ```bash
 npm version 2.3.0 --no-git-tag-version
 git add package.json package-lock.json manifest.json versions.json
@@ -403,7 +413,7 @@ Then confirm that release prep is actually complete:
 npm run check:release-ready -- 2.3.0
 ```
 
-This verifies the pieces that must exist *before* the bump: the changelog heading has been renamed and nothing is left under `Unreleased`, `docs/releases/2.3.0.md` exists, the release line has a curated What's New note, `versions.json` does not already list the target version (which would make the bump a partial no-op), the working tree is clean, and no release-bound plan is still sitting in `docs/archive/plans/unreleased/`. Pass the version you are about to ship — the repo is still on the previous version at this point, so the check cannot infer it.
+This verifies the pieces that must exist _before_ the bump: the changelog heading has been renamed and nothing is left under `Unreleased`, `docs/releases/2.3.0.md` exists, the release line has a curated What's New note, `versions.json` does not already list the target version (which would make the bump a partial no-op), the working tree is clean, and no release-bound plan is still sitting in `docs/archive/plans/unreleased/`. Pass the version you are about to ship — the repo is still on the previous version at this point, so the check cannot infer it.
 
 When confident, bump and tag from the release branch:
 
@@ -454,11 +464,11 @@ Dependabot's security PRs now open against the default branch (`master`). Do not
 
 We follow [Semantic Versioning](https://semver.org):
 
-| Part | When to bump |
-|------|--------------|
-| **MAJOR** | Incompatible API changes or breaking user setups |
+| Part      | When to bump                                      |
+| --------- | ------------------------------------------------- |
+| **MAJOR** | Incompatible API changes or breaking user setups  |
 | **MINOR** | New functionality in a backward-compatible manner |
-| **PATCH** | Backward-compatible bug fixes |
+| **PATCH** | Backward-compatible bug fixes                     |
 
 Pre-release labels: `x.x.x-beta.n` (testing) and `x.x.x` (stable). No Alphas or RCs.
 

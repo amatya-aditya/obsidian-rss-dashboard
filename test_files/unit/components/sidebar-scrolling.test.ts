@@ -141,4 +141,3 @@ describe("Sidebar Horizontal Scrolling", () => {
     expect(stopPropagation).not.toHaveBeenCalled();
   });
 });
-

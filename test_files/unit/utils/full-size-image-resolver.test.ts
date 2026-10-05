@@ -97,7 +97,8 @@ describe("full-size-image-resolver", () => {
     });
 
     it("strips WordPress Photon sizing parameters", () => {
-      const photon = "https://i0.wp.com/example.com/photo.jpg?w=600&h=400&crop=1";
+      const photon =
+        "https://i0.wp.com/example.com/photo.jpg?w=600&h=400&crop=1";
       expect(stripCdnResizeParameters(photon)).toBe(
         "https://i0.wp.com/example.com/photo.jpg",
       );
@@ -112,14 +113,16 @@ describe("full-size-image-resolver", () => {
     });
 
     it("strips a Cloudinary transformation segment made of a single parameter", () => {
-      const cloudinary = "https://res.cloudinary.com/demo/image/upload/w_600/v1/sample.jpg";
+      const cloudinary =
+        "https://res.cloudinary.com/demo/image/upload/w_600/v1/sample.jpg";
       expect(stripCdnResizeParameters(cloudinary)).toBe(
         "https://res.cloudinary.com/demo/image/upload/v1/sample.jpg",
       );
     });
 
     it("keeps Cloudinary paths that have no transformation segment", () => {
-      const cloudinary = "https://res.cloudinary.com/demo/image/upload/v1234/sample.jpg";
+      const cloudinary =
+        "https://res.cloudinary.com/demo/image/upload/v1234/sample.jpg";
       expect(stripCdnResizeParameters(cloudinary)).toBe(cloudinary);
     });
 
@@ -146,8 +149,11 @@ describe("full-size-image-resolver", () => {
     });
 
     it("strips generic width/resize query parameters", () => {
-      const generic = "https://example.com/image.png?width=800&maxwidth=1200&resize=800x600";
-      expect(stripCdnResizeParameters(generic)).toBe("https://example.com/image.png");
+      const generic =
+        "https://example.com/image.png?width=800&maxwidth=1200&resize=800x600";
+      expect(stripCdnResizeParameters(generic)).toBe(
+        "https://example.com/image.png",
+      );
     });
   });
 
@@ -193,7 +199,8 @@ describe("full-size-image-resolver", () => {
       const img = createEl("img", {
         attr: {
           src: "https://example.com/thumb.jpg",
-          srcset: "https://example.com/small.jpg 400w, https://example.com/large.jpg 1600w",
+          srcset:
+            "https://example.com/small.jpg 400w, https://example.com/large.jpg 1600w",
         },
       });
       const result = resolveFullResolutionImageSource(img);

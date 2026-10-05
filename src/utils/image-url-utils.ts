@@ -15,10 +15,7 @@ export function optimizeImageUrl(url: string, maxWidth = 600): string {
   ) {
     return url
       .replace(/\/resize\/\d+x\d+!?\//g, `/resize/${maxWidth}x/`)
-      .replace(
-        /\/(?:crop\/)?\d+x\d+(?:[+]\d+[+]\d*)?\//g,
-        "/",
-      );
+      .replace(/\/(?:crop\/)?\d+x\d+(?:[+]\d+[+]\d*)?\//g, "/");
   }
 
   // WordPress Photon / Jetpack CDN
@@ -184,7 +181,10 @@ export function containsLatexFormulaImage(root: Element): boolean {
   );
 }
 
-export function optimizeImageUrlsInContent(content: string, maxWidth = 600): string {
+export function optimizeImageUrlsInContent(
+  content: string,
+  maxWidth = 600,
+): string {
   if (!content) return content;
 
   return content.replace(
@@ -192,7 +192,7 @@ export function optimizeImageUrlsInContent(content: string, maxWidth = 600): str
     (match: string, attributes: string, src: string) => {
       const optimizedSrc = optimizeImageUrl(src, maxWidth);
       return `<img${attributes}src="${optimizedSrc}"`;
-    }
+    },
   );
 }
 

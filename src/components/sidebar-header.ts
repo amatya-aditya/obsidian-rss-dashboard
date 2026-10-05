@@ -285,7 +285,9 @@ function attachAddFeedCoachmark(host: SidebarHeaderHost): void {
       text: "Add your first feed here",
     });
     window.setTimeout(() => {
-      if (!loadVaultLocalStorage(host.app, "rss-first-launch-coachmark-shown")) {
+      if (
+        !loadVaultLocalStorage(host.app, "rss-first-launch-coachmark-shown")
+      ) {
         saveVaultLocalStorage(
           host.app,
           "rss-first-launch-coachmark-shown",

@@ -136,7 +136,6 @@ export class DiscoverSidebar {
       "sparkles",
       () => this.callbacks.onActivateSmallwebView(),
     );
-
   }
 
   private createHeaderNavButton(

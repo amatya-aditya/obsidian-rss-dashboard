@@ -1,6 +1,7 @@
 import { App, Modal, Setting } from "obsidian";
 
-export type TagApplicationChoice = "apply_existing" | "future_only" | "cancel_save";
+export type TagApplicationChoice =
+  "apply_existing" | "future_only" | "cancel_save";
 
 /**
  * Tri-state modal shown when the user changes a feed's auto-tag selection

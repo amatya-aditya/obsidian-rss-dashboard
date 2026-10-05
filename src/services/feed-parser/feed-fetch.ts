@@ -496,10 +496,7 @@ export async function fetchFeedXml(
               encodingOverride,
             });
 
-            if (
-              discoveredResponseText &&
-              isValidFeed(discoveredResponseText)
-            ) {
+            if (discoveredResponseText && isValidFeed(discoveredResponseText)) {
               return discoveredResponseText;
             } else {
               throw new Error("Not a valid RSS/Atom feed");
@@ -601,10 +598,7 @@ export async function fetchFeedXml(
               method: "GET",
               encodingOverride,
             });
-            if (
-              thingproxyText &&
-              isValidFeed(thingproxyText)
-            ) {
+            if (thingproxyText && isValidFeed(thingproxyText)) {
               return thingproxyText;
             } else {
               throw new Error("Not a valid RSS/Atom feed");

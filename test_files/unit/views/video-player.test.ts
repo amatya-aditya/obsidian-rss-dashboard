@@ -127,9 +127,7 @@ describe("VideoPlayer", () => {
     const player = new VideoPlayer(container, undefined, undefined, true, true);
     const firstSeenMs = Date.parse("2026-01-01T00:00:00Z");
 
-    player.loadVideo(
-      baseItem({ description: "", pubDate: "", firstSeenMs }),
-    );
+    player.loadVideo(baseItem({ description: "", pubDate: "", firstSeenMs }));
 
     const date = container.querySelector<HTMLElement>(".rss-video-date");
     expect(date?.textContent).toBe(new Date(firstSeenMs).toLocaleDateString());
@@ -300,7 +298,7 @@ describe("VideoPlayer", () => {
           event: "onReady",
           id: iframeId,
         }),
-      })
+      }),
     );
 
     // Send infoDelivery event to set duration
@@ -312,7 +310,7 @@ describe("VideoPlayer", () => {
           info: { duration: 120 },
           id: iframeId,
         }),
-      })
+      }),
     );
 
     // Send stateChange playing (1) event
@@ -324,7 +322,7 @@ describe("VideoPlayer", () => {
           info: 1,
           id: iframeId,
         }),
-      })
+      }),
     );
 
     // Now timers advance by 5 seconds
@@ -373,7 +371,7 @@ describe("VideoPlayer", () => {
           event: "onReady",
           id: iframeId,
         }),
-      })
+      }),
     );
 
     // Send infoDelivery event to set duration
@@ -385,7 +383,7 @@ describe("VideoPlayer", () => {
           info: { duration: 120 },
           id: iframeId,
         }),
-      })
+      }),
     );
 
     // Send stateChange playing (1) event
@@ -397,7 +395,7 @@ describe("VideoPlayer", () => {
           info: 1,
           id: iframeId,
         }),
-      })
+      }),
     );
 
     vi.advanceTimersByTime(10000);
@@ -446,7 +444,7 @@ describe("VideoPlayer", () => {
           info: { duration: 120, currentTime: 42 },
           id: iframeId,
         }),
-      })
+      }),
     );
 
     player.destroy();

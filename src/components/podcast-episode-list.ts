@@ -42,7 +42,9 @@ export class PodcastEpisodeList {
       return;
     }
 
-    const section = this.container.createDiv({ cls: "podcast-episode-list-section" });
+    const section = this.container.createDiv({
+      cls: "podcast-episode-list-section",
+    });
     this.section = section;
     section.setAttribute("data-podcast-theme", this.options.theme);
     const header = section.createDiv({ cls: "episode-list-header" });
@@ -54,7 +56,8 @@ export class PodcastEpisodeList {
     const autoplayLabel = autoplayRow.createEl("label", {
       cls: "podcast-autoplay-container",
       attr: {
-        "aria-label": "Continues in the current feed and selected episode order",
+        "aria-label":
+          "Continues in the current feed and selected episode order",
       },
     });
     const autoplayCheckbox = autoplayLabel.createEl("input", {
@@ -84,7 +87,8 @@ export class PodcastEpisodeList {
         cls: "episode-list-load-more",
         text: `Load ${Math.min(EPISODE_BATCH_SIZE, this.options.episodes.length - this.visibleCount)} more episodes`,
       });
-      button.onclick = () => this.setVisibleCount(this.visibleCount + EPISODE_BATCH_SIZE);
+      button.onclick = () =>
+        this.setVisibleCount(this.visibleCount + EPISODE_BATCH_SIZE);
     }
   }
 
@@ -179,7 +183,10 @@ export class PodcastEpisodeList {
       if (tag.color) tagEl.style.backgroundColor = tag.color;
     });
     if (tags.length > 3) {
-      const remainingTags = tags.slice(3).map((tag) => tag.name).join("\n");
+      const remainingTags = tags
+        .slice(3)
+        .map((tag) => tag.name)
+        .join("\n");
       tagsWrap.createSpan({
         cls: "episode-list-row-tag episode-list-row-tag-more",
         text: `+${tags.length - 3}`,

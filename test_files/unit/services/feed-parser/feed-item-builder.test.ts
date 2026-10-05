@@ -19,15 +19,21 @@ const RECENT = "Sun, 14 Jun 2026 00:00:00 GMT";
 const OLD = "Mon, 01 Jan 2024 00:00:00 GMT";
 
 /** Stub of the FeedParser helpers: absolute urls are resolved by `new URL`, covers are fixed. */
-function makeContext(overrides: Partial<FeedItemContext> = {}): FeedItemContext {
+function makeContext(
+  overrides: Partial<FeedItemContext> = {},
+): FeedItemContext {
   return {
     convertToAbsoluteUrl: (relative, base) =>
       relative ? new URL(relative, base).href : relative,
     convertRelativeUrlsInContent: (content) => `[content]${content}`,
-    extractCoverImage: (html) => (html.includes("<img") ? "https://img.example.com/c.jpg" : ""),
+    extractCoverImage: (html) =>
+      html.includes("<img") ? "https://img.example.com/c.jpg" : "",
     extractSummary: (text) => text.slice(0, 20),
     resolvePodcastCoverImage: () => "https://img.example.com/podcast.jpg",
-    getRetentionProtections: () => ({ protectStarred: true, protectSaved: true }),
+    getRetentionProtections: () => ({
+      protectStarred: true,
+      protectSaved: true,
+    }),
     getUseFirstSeenDateFallback: () => false,
     ...overrides,
   };
@@ -63,7 +69,14 @@ function stored(overrides: Partial<FeedItem> = {}): FeedItem {
 }
 
 function feedOf(items: FeedItem[], overrides: Partial<Feed> = {}): Feed {
-  return { title: "Feed", url: FEED_URL, folder: "", items, lastUpdated: 0, ...overrides };
+  return {
+    title: "Feed",
+    url: FEED_URL,
+    folder: "",
+    items,
+    lastUpdated: 0,
+    ...overrides,
+  };
 }
 
 function requestFor(
@@ -107,7 +120,10 @@ describe("feed-item-builder", () => {
 
     it("keys stored items by their canonical, absolute guid or link", () => {
       const ctx = makeContext();
-      const byGuid = stored({ guid: "https://example.com/a#2", link: "https://x.test/ignored" });
+      const byGuid = stored({
+        guid: "https://example.com/a#2",
+        link: "https://x.test/ignored",
+      });
       const byLink = stored({ guid: "", link: "https://example.com/b" });
       const relative = stored({ guid: "post-3", link: "" });
       const nothing = stored({ guid: "", link: "" });
@@ -130,7 +146,11 @@ describe("feed-item-builder", () => {
       const first = stored({ title: "first" });
       const second = stored({ title: "second" });
 
-      const index = indexExistingItems(feedOf([first, second]), FEED_URL, makeContext());
+      const index = indexExistingItems(
+        feedOf([first, second]),
+        FEED_URL,
+        makeContext(),
+      );
 
       expect(index.get("https://example.com/a")).toBe(second);
     });
@@ -203,7 +223,12 @@ describe("feed-item-builder", () => {
               title: "Ep",
               link: "https://example.com/ep",
               enclosure: { url: "/a.mp3", type: "audio/mpeg", length: "1" },
-              itunes: { explicit: "yes", season: "2", episode: "5", duration: "10:00" },
+              itunes: {
+                explicit: "yes",
+                season: "2",
+                episode: "5",
+                duration: "10:00",
+              },
             }),
           ],
           null,
@@ -226,7 +251,11 @@ describe("feed-item-builder", () => {
     it("synthesizes an audio enclosure for a link that contains .mp3", () => {
       const ctx = makeContext();
       const result = collectRefreshedItems(
-        requestFor([pitem({ title: "T", link: "https://cdn.example.com/e.mp3" })], null, ctx),
+        requestFor(
+          [pitem({ title: "T", link: "https://cdn.example.com/e.mp3" })],
+          null,
+          ctx,
+        ),
         ctx,
       );
 
@@ -240,11 +269,24 @@ describe("feed-item-builder", () => {
 
     it("updates a stored item in place of a new one and keeps the reader's state", () => {
       const ctx = makeContext();
-      const existing = feedOf([stored({ read: true, starred: true, savedFilePath: "s.md", summary: "old" })]);
+      const existing = feedOf([
+        stored({
+          read: true,
+          starred: true,
+          savedFilePath: "s.md",
+          summary: "old",
+        }),
+      ]);
 
       const result = collectRefreshedItems(
         requestFor(
-          [pitem({ title: "New title", link: "https://example.com/a", pubDate: RECENT })],
+          [
+            pitem({
+              title: "New title",
+              link: "https://example.com/a",
+              pubDate: RECENT,
+            }),
+          ],
           existing,
           ctx,
         ),
@@ -285,11 +327,29 @@ describe("feed-item-builder", () => {
     it("skips and counts new and stored items past the cutoff, but not on a first fetch", () => {
       const ctx = makeContext();
       const cutoff = NOW - 30 * DAY_MS;
-      const existing = feedOf([stored({ guid: "https://example.com/s", link: "https://example.com/s", pubDate: OLD })]);
+      const existing = feedOf([
+        stored({
+          guid: "https://example.com/s",
+          link: "https://example.com/s",
+          pubDate: OLD,
+        }),
+      ]);
       const items = [
-        pitem({ title: "new-old", link: "https://example.com/n", pubDate: OLD }),
-        pitem({ title: "stored-old", link: "https://example.com/s", pubDate: OLD }),
-        pitem({ title: "fresh", link: "https://example.com/f", pubDate: RECENT }),
+        pitem({
+          title: "new-old",
+          link: "https://example.com/n",
+          pubDate: OLD,
+        }),
+        pitem({
+          title: "stored-old",
+          link: "https://example.com/s",
+          pubDate: OLD,
+        }),
+        pitem({
+          title: "fresh",
+          link: "https://example.com/f",
+          pubDate: RECENT,
+        }),
       ];
 
       const refresh = collectRefreshedItems(
@@ -311,11 +371,20 @@ describe("feed-item-builder", () => {
     it("reads the retention protections and first-seen setting at each decision", () => {
       const getRetentionProtections = vi.fn(() => ({ protectUnread: true }));
       const getUseFirstSeenDateFallback = vi.fn(() => true);
-      const ctx = makeContext({ getRetentionProtections, getUseFirstSeenDateFallback });
+      const ctx = makeContext({
+        getRetentionProtections,
+        getUseFirstSeenDateFallback,
+      });
 
       const result = collectRefreshedItems(
         requestFor(
-          [pitem({ title: "old", link: "https://example.com/n", pubDate: OLD })],
+          [
+            pitem({
+              title: "old",
+              link: "https://example.com/n",
+              pubDate: OLD,
+            }),
+          ],
           feedOf([]),
           ctx,
           { autoDeleteCutoffMs: NOW - 30 * DAY_MS },
@@ -340,8 +409,14 @@ describe("feed-item-builder", () => {
     });
 
     it("keeps stored items the feed did not list and drops listed ones", () => {
-      const listed = stored({ guid: "https://example.com/listed", link: "https://example.com/listed" });
-      const unlisted = stored({ guid: "https://example.com/unlisted", link: "https://example.com/unlisted" });
+      const listed = stored({
+        guid: "https://example.com/listed",
+        link: "https://example.com/listed",
+      });
+      const unlisted = stored({
+        guid: "https://example.com/unlisted",
+        link: "https://example.com/unlisted",
+      });
 
       const carried = collectCarriedForwardItems(
         feedOf([listed, unlisted]),
@@ -355,9 +430,22 @@ describe("feed-item-builder", () => {
     });
 
     it("drops an unprotected item past the cutoff and keeps a protected one", () => {
-      const plain = stored({ guid: "https://example.com/plain", link: "https://example.com/plain", pubDate: OLD });
-      const starred = stored({ guid: "https://example.com/starred", link: "https://example.com/starred", pubDate: OLD, starred: true });
-      const recent = stored({ guid: "https://example.com/recent", link: "https://example.com/recent", pubDate: RECENT });
+      const plain = stored({
+        guid: "https://example.com/plain",
+        link: "https://example.com/plain",
+        pubDate: OLD,
+      });
+      const starred = stored({
+        guid: "https://example.com/starred",
+        link: "https://example.com/starred",
+        pubDate: OLD,
+        starred: true,
+      });
+      const recent = stored({
+        guid: "https://example.com/recent",
+        link: "https://example.com/recent",
+        pubDate: RECENT,
+      });
 
       const carried = collectCarriedForwardItems(
         feedOf([plain, starred, recent]),

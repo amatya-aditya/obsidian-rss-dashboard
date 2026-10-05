@@ -108,7 +108,10 @@ export class ReaderLightbox {
     if (this.source.externalHref) {
       let hostname = "";
       try {
-        hostname = new URL(this.source.externalHref).hostname.replace(/^www\./, "");
+        hostname = new URL(this.source.externalHref).hostname.replace(
+          /^www\./,
+          "",
+        );
       } catch {
         hostname = "External link";
       }
@@ -126,11 +129,17 @@ export class ReaderLightbox {
       const onLinkClick = (e: MouseEvent): void => {
         e.stopPropagation();
         if (this.source.externalHref) {
-          this.win.open(this.source.externalHref, "_blank", "noopener,noreferrer");
+          this.win.open(
+            this.source.externalHref,
+            "_blank",
+            "noopener,noreferrer",
+          );
         }
       };
       linkBtn.addEventListener("click", onLinkClick);
-      this.cleanups.push(() => linkBtn.removeEventListener("click", onLinkClick));
+      this.cleanups.push(() =>
+        linkBtn.removeEventListener("click", onLinkClick),
+      );
     }
 
     // End of toolbar (actions: Zoom Reset, Open image in browser, Close)
@@ -152,7 +161,9 @@ export class ReaderLightbox {
       this.resetZoom();
     };
     zoomFitBtn.addEventListener("click", onZoomFitClick);
-    this.cleanups.push(() => zoomFitBtn.removeEventListener("click", onZoomFitClick));
+    this.cleanups.push(() =>
+      zoomFitBtn.removeEventListener("click", onZoomFitClick),
+    );
 
     // Open image in browser button
     const openImgBtn = endSection.createEl("button", {
@@ -168,7 +179,9 @@ export class ReaderLightbox {
       this.win.open(this.source.fullUrl, "_blank", "noopener,noreferrer");
     };
     openImgBtn.addEventListener("click", onOpenImgClick);
-    this.cleanups.push(() => openImgBtn.removeEventListener("click", onOpenImgClick));
+    this.cleanups.push(() =>
+      openImgBtn.removeEventListener("click", onOpenImgClick),
+    );
 
     // Close button
     const closeBtn = endSection.createEl("button", {
@@ -184,7 +197,9 @@ export class ReaderLightbox {
       this.close();
     };
     closeBtn.addEventListener("click", onCloseClick);
-    this.cleanups.push(() => closeBtn.removeEventListener("click", onCloseClick));
+    this.cleanups.push(() =>
+      closeBtn.removeEventListener("click", onCloseClick),
+    );
   }
 
   private renderViewport(): void {
@@ -411,8 +426,12 @@ export class ReaderLightbox {
       this.stageEl?.removeClass("is-panning");
     };
 
-    this.viewportEl.addEventListener("touchstart", onTouchStart, { passive: true });
-    this.viewportEl.addEventListener("touchmove", onTouchMove, { passive: true });
+    this.viewportEl.addEventListener("touchstart", onTouchStart, {
+      passive: true,
+    });
+    this.viewportEl.addEventListener("touchmove", onTouchMove, {
+      passive: true,
+    });
     this.viewportEl.addEventListener("touchend", onTouchEnd, { passive: true });
     this.cleanups.push(() => {
       this.viewportEl?.removeEventListener("touchstart", onTouchStart);
@@ -428,10 +447,16 @@ export class ReaderLightbox {
       }
     };
     this.win.addEventListener("keydown", onKeyDown);
-    this.cleanups.push(() => this.win.removeEventListener("keydown", onKeyDown));
+    this.cleanups.push(() =>
+      this.win.removeEventListener("keydown", onKeyDown),
+    );
   }
 
-  private zoomTo(targetScale: number, clientX?: number, clientY?: number): void {
+  private zoomTo(
+    targetScale: number,
+    clientX?: number,
+    clientY?: number,
+  ): void {
     this.scale = targetScale;
     if (this.scale <= 1) {
       this.panX = 0;

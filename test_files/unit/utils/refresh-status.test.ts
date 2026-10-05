@@ -35,7 +35,11 @@ describe("getRefreshStatus", () => {
       feeds: [
         createFeed({ url: "one", lastRefreshAttemptCompletedAt: 300 }),
         createFeed({ url: "two", lastRefreshAttemptCompletedAt: 100 }),
-        createFeed({ url: "excluded", excludeFromRefresh: true, lastRefreshAttemptCompletedAt: 20 }),
+        createFeed({
+          url: "excluded",
+          excludeFromRefresh: true,
+          lastRefreshAttemptCompletedAt: 20,
+        }),
       ],
       globalIntervalMinutes: 30,
       activeFeedUrls: new Set(["one", "excluded"]),
@@ -67,6 +71,8 @@ describe("getRefreshStatus", () => {
 
 describe("formatRefreshStatusTime", () => {
   it("formats detailed timestamps with seconds and timezone without throwing", () => {
-    expect(() => formatRefreshStatusTime(1_789_012_345_000, true)).not.toThrow();
+    expect(() =>
+      formatRefreshStatusTime(1_789_012_345_000, true),
+    ).not.toThrow();
   });
 });

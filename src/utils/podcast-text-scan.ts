@@ -3,7 +3,15 @@
 // long description is read once instead of being rescanned from every
 // occurrence of a tag name, label or digit.
 
-const AUDIO_EXTENSIONS = [".mp3", ".m4a", ".wav", ".ogg", ".opus", ".aac", ".flac"];
+const AUDIO_EXTENSIONS = [
+  ".mp3",
+  ".m4a",
+  ".wav",
+  ".ogg",
+  ".opus",
+  ".aac",
+  ".flac",
+];
 
 // Lowercases ASCII letters only. String.prototype.toLowerCase would also fold
 // or lengthen some non-ASCII characters, which the original case-insensitive
@@ -52,13 +60,20 @@ function readAudioValue(
   if (valueEnd < 0) return undefined;
   const hasAudioExtension = AUDIO_EXTENSIONS.some((extension) => {
     const extensionStart = valueEnd - extension.length;
-    return extensionStart >= valueStart && lower.startsWith(extension, extensionStart);
+    return (
+      extensionStart >= valueStart &&
+      lower.startsWith(extension, extensionStart)
+    );
   });
   return hasAudioExtension ? text.slice(valueStart, valueEnd) : undefined;
 }
 
 // First quoted audio value for `name` (for example `href=`) anywhere in the text.
-function findAudioAttribute(text: string, lower: string, name: string): string | undefined {
+function findAudioAttribute(
+  text: string,
+  lower: string,
+  name: string,
+): string | undefined {
   let nameStart = lower.indexOf(name);
   while (nameStart >= 0) {
     const value = readAudioValue(text, lower, nameStart, name);
@@ -132,7 +147,11 @@ function scanClock(text: string, start: number): ClockScan {
 
 // The first clock that follows a label such as "duration", with only
 // non-digit characters between them.
-function findLabelledClock(text: string, lower: string, label: string): string | undefined {
+function findLabelledClock(
+  text: string,
+  lower: string,
+  label: string,
+): string | undefined {
   let labelStart = lower.indexOf(label);
   while (labelStart >= 0) {
     const digitStart = findDigit(text, labelStart + label.length);

@@ -283,7 +283,9 @@ describe("CustomXMLParser - channel metadata boundaries", () => {
     expect(result.author).toBe("Channel author");
     expect(result.image?.url).toBe("https://example.com/channel-itunes.png");
     expect(result.feedImageUrl).toBe("https://example.com/channel.png");
-    expect(result.feedItunesImage).toBe("https://example.com/channel-itunes.png");
+    expect(result.feedItunesImage).toBe(
+      "https://example.com/channel-itunes.png",
+    );
   });
 
   it("does not take RSS 1.0 channel metadata from item descendants", () => {

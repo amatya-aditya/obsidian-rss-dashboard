@@ -38,7 +38,12 @@ function createModalWithAnchor(): {
 }
 
 function makeItem(): FeedItem {
-  return { title: "A", link: "https://a.test", guid: "a", tags: [] } as unknown as FeedItem;
+  return {
+    title: "A",
+    link: "https://a.test",
+    guid: "a",
+    tags: [],
+  } as unknown as FeedItem;
 }
 
 describe("createTagsDropdownPortal inside a modal", () => {
@@ -112,7 +117,9 @@ describe("createTagsDropdownPortal tag editing", () => {
 
   it("reports the previous and updated tag after an edit is saved", async () => {
     const { anchor } = createModalWithAnchor();
-    const settings = JSON.parse(JSON.stringify(DEFAULT_SETTINGS)) as typeof DEFAULT_SETTINGS;
+    const settings = JSON.parse(
+      JSON.stringify(DEFAULT_SETTINGS),
+    ) as typeof DEFAULT_SETTINGS;
     settings.availableTags = [{ name: "News", color: "#ff0000" }];
     const onTagEdited = vi.fn();
 

@@ -42,9 +42,9 @@ describe("Reader custom save modal styles", () => {
     expect(folderInput.get("width")).toBe("100%");
     expect(folderInput.get("min-width")).toBe("0");
     expect(folderInput.get("box-sizing")).toBe("border-box");
-    expect(
-      declarationsFor(".rss-dashboard-clear-icon").get("position"),
-    ).toBe("absolute");
+    expect(declarationsFor(".rss-dashboard-clear-icon").get("position")).toBe(
+      "absolute",
+    );
   });
 
   it("keeps the action buttons in a horizontal row", () => {

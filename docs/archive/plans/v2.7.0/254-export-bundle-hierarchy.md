@@ -62,13 +62,13 @@ flowchart TD
 
 ## Locked design decisions
 
-| Decision | Rationale |
-|---|---|
-| Two-way split only — content+state vs. settings | No per-feed selection or state-exclusion toggle inside a bundle; OPML already serves the no-state case. |
-| Folders and tags live in the Feed bundle | Fixes today's split behavior, where `usersettings.json` excludes them but the portable bundle's `metadata` includes them. |
-| Symmetric import for all three JSON buckets | An export you can't import back isn't a real backup — undercuts the bug-recovery motivation. |
-| No platform restriction | Portability is a stated product value; no usage data justifies gating it to desktop. |
-| Storage-tab / Import-Export-tab button duplication left as-is | Existing tech debt, out of scope for this plan — needs its own follow-up. |
+| Decision                                                      | Rationale                                                                                                                 |
+| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| Two-way split only — content+state vs. settings               | No per-feed selection or state-exclusion toggle inside a bundle; OPML already serves the no-state case.                   |
+| Folders and tags live in the Feed bundle                      | Fixes today's split behavior, where `usersettings.json` excludes them but the portable bundle's `metadata` includes them. |
+| Symmetric import for all three JSON buckets                   | An export you can't import back isn't a real backup — undercuts the bug-recovery motivation.                              |
+| No platform restriction                                       | Portability is a stated product value; no usage data justifies gating it to desktop.                                      |
+| Storage-tab / Import-Export-tab button duplication left as-is | Existing tech debt, out of scope for this plan — needs its own follow-up.                                                 |
 
 ## Out of scope
 

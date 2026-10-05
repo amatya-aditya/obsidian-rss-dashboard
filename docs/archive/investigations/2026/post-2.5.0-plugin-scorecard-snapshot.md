@@ -2,7 +2,6 @@
 
 > **Archived 2026-09-27.** A copy of the public community plugin scorecard taken after the 2.5.0 release. It's kept as history; the current status and remediation live in [`docs/development/plugin-scorecard.md`](../../../development/plugin-scorecard.md).
 
-
 https://community.obsidian.md/plugins/rss-dashboard
 
 Work in progress

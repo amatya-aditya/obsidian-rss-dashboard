@@ -54,7 +54,11 @@ export interface RepairPreview {
   rewriteCount: number;
   skippedFeedTitles: string[];
   /** Feeds whose readable shard on disk holds more articles than repair would write. */
-  shrinkingFeeds: { title: string; onDiskCount: number; afterRepairCount: number }[];
+  shrinkingFeeds: {
+    title: string;
+    onDiskCount: number;
+    afterRepairCount: number;
+  }[];
 }
 
 export interface RevertToLegacyJsonOptions {
@@ -100,7 +104,7 @@ export function normalizeFolderPath(path: string): string {
 export function isHiddenFromSync(folderPath: string): boolean {
   return normalizeFolderPath(folderPath)
     .split("/")
-    .some(segment => segment.startsWith("."));
+    .some((segment) => segment.startsWith("."));
 }
 
 function getFeedShardPath(storageFolder: string, feedId: string): string {
@@ -113,7 +117,7 @@ function createFeedShard(feed: Feed, stripState = false): FeedItemsShard {
     feedId: feed.feedId ?? "",
     feedUrl: feed.url,
     updatedAt: Date.now(),
-    items: cloneJson(feed.items ?? []).map(item => {
+    items: cloneJson(feed.items ?? []).map((item) => {
       if (stripState) {
         delete item.read;
         delete item.starred;
@@ -128,8 +132,10 @@ function createFeedShard(feed: Feed, stripState = false): FeedItemsShard {
 }
 
 function createComparableFeedShardJson(feed: Feed, stripState = false): string {
-  const { updatedAt: _updatedAt, ...shardWithoutTimestamp } =
-    createFeedShard(feed, stripState);
+  const { updatedAt: _updatedAt, ...shardWithoutTimestamp } = createFeedShard(
+    feed,
+    stripState,
+  );
   void _updatedAt;
   return JSON.stringify(shardWithoutTimestamp, null, 2);
 }
@@ -177,7 +183,9 @@ export class FeedStorageRepository {
   }
 
   public getFeedShardHealth(feed: Feed): FeedShardHealth | null {
-    return feed.feedId ? (this.feedShardHealthById.get(feed.feedId) ?? null) : null;
+    return feed.feedId
+      ? (this.feedShardHealthById.get(feed.feedId) ?? null)
+      : null;
   }
 
   public clearFeedShardHealth(feed: Feed): void {
@@ -199,7 +207,7 @@ export class FeedStorageRepository {
    */
   public countUnloadedFeeds(settings: RssDashboardSettings): number {
     return settings.feeds.filter(
-      feed =>
+      (feed) =>
         Boolean(feed.feedId) &&
         this.hasNothingToRebuild(feed as Feed & { feedId: string }),
     ).length;
@@ -260,9 +268,11 @@ export class FeedStorageRepository {
     };
   }
 
-  public async hydrateSettings(
-    settings: RssDashboardSettings,
-  ): Promise<{ didChange: boolean; shardCount: number; userStateLoaded?: boolean }> {
+  public async hydrateSettings(settings: RssDashboardSettings): Promise<{
+    didChange: boolean;
+    shardCount: number;
+    userStateLoaded?: boolean;
+  }> {
     storageLog("Hydrating settings", {
       mode: settings.storageMode,
       folder: normalizeFolderPath(settings.storageFolder),
@@ -272,7 +282,10 @@ export class FeedStorageRepository {
     let shardCount = 0;
 
     this.shardFolderHiddenFromSync = false;
-    if (settings.storageMode !== "vault-shards" && settings.storageMode !== "vault-shards-v2") {
+    if (
+      settings.storageMode !== "vault-shards" &&
+      settings.storageMode !== "vault-shards-v2"
+    ) {
       this.feedShardHealthById.clear();
       this.hydratedShardGuidsByFeedId.clear();
       storageLog("Skipping shard hydration because legacy JSON mode is active");
@@ -324,7 +337,7 @@ export class FeedStorageRepository {
           this.feedShardHealthById.delete(feed.feedId);
           this.hydratedShardGuidsByFeedId.set(
             feed.feedId,
-            new Set(feed.items.map(item => item.guid)),
+            new Set(feed.items.map((item) => item.guid)),
           );
         }
         shardCount += 1;
@@ -350,12 +363,12 @@ export class FeedStorageRepository {
       }
     }
 
-    const feedsWithIds = settings.feeds.filter(feed => Boolean(feed.feedId));
+    const feedsWithIds = settings.feeds.filter((feed) => Boolean(feed.feedId));
     this.shardFolderHiddenFromSync =
       feedsWithIds.length > 0 &&
       isHiddenFromSync(settings.storageFolder) &&
       feedsWithIds.every(
-        feed => this.feedShardHealthById.get(feed.feedId ?? "") === "missing",
+        (feed) => this.feedShardHealthById.get(feed.feedId ?? "") === "missing",
       );
 
     storageLog("Completed shard hydration", {
@@ -390,7 +403,10 @@ export class FeedStorageRepository {
       forceAllShards: Boolean(options.forceAllShards),
     });
 
-    if (settings.storageMode !== "vault-shards" && settings.storageMode !== "vault-shards-v2") {
+    if (
+      settings.storageMode !== "vault-shards" &&
+      settings.storageMode !== "vault-shards-v2"
+    ) {
       await saveData(withSyncNonce(cloneJson(settings)));
       storageLog("Saved full settings to legacy data.json");
       this.capturePersistedState(settings);
@@ -443,10 +459,7 @@ export class FeedStorageRepository {
       const currentComparableJson = createComparableFeedShardJson(feed, isV2);
       const previousJson = this.lastPersistedShardJsonByFeedId.get(feed.feedId);
 
-      const shardPath = getFeedShardPath(
-        normalizedStorageFolder,
-        feed.feedId,
-      );
+      const shardPath = getFeedShardPath(normalizedStorageFolder, feed.feedId);
       const shardWriteDecision = await this.getShardWriteDecision(
         shardPath,
         forceAllShards || previousJson !== currentComparableJson,
@@ -602,7 +615,8 @@ export class FeedStorageRepository {
     settings.storageFolder = normalizeFolderPath(settings.storageFolder);
     settings.metadataStorageMode = "vault-location";
     // Usually metadataStorageFolder is set by the user, but fallback to parent of feeds folder
-    const parentFolder = this.getParentFolderPath(settings.storageFolder) || ".rss-dashboard-data";
+    const parentFolder =
+      this.getParentFolderPath(settings.storageFolder) || ".rss-dashboard-data";
     settings.metadataStorageFolder = normalizeFolderPath(parentFolder);
     settings.metadataStorageSchemaVersion = 2;
 
@@ -668,7 +682,10 @@ export class FeedStorageRepository {
     });
     let skippedFeedCount = 0;
     for (const feed of settings.feeds) {
-      if (feed.feedId && this.hasNothingToRebuild(feed as Feed & { feedId: string })) {
+      if (
+        feed.feedId &&
+        this.hasNothingToRebuild(feed as Feed & { feedId: string })
+      ) {
         skippedFeedCount += 1;
       } else {
         this.clearFeedShardHealth(feed);
@@ -755,13 +772,19 @@ export class FeedStorageRepository {
   }
 
   public buildSettingsBundle(settings: RssDashboardSettings): SettingsBundle {
-    const { feeds: _feeds, folders: _folders, availableTags: _availableTags, ...rest } =
-      settings;
+    const {
+      feeds: _feeds,
+      folders: _folders,
+      availableTags: _availableTags,
+      ...rest
+    } = settings;
     void _feeds;
     void _folders;
     void _availableTags;
     const settingsOnly = cloneJson(rest);
-    settingsOnly.storageFolder = normalizeFolderPath(settingsOnly.storageFolder);
+    settingsOnly.storageFolder = normalizeFolderPath(
+      settingsOnly.storageFolder,
+    );
 
     return {
       version: SHARD_VERSION,
@@ -1092,7 +1115,10 @@ export class FeedStorageRepository {
   }
 
   private capturePersistedState(settings: RssDashboardSettings): void {
-    if (settings.storageMode === "vault-shards" || settings.storageMode === "vault-shards-v2") {
+    if (
+      settings.storageMode === "vault-shards" ||
+      settings.storageMode === "vault-shards-v2"
+    ) {
       this.lastPersistedMetadataJson = JSON.stringify(
         this.createPersistedSettings(settings),
         null,
@@ -1104,7 +1130,10 @@ export class FeedStorageRepository {
           .filter((feed): feed is Feed & { feedId: string } =>
             Boolean(feed.feedId),
           )
-          .map((feed) => [feed.feedId, createComparableFeedShardJson(feed, isV2)]),
+          .map((feed) => [
+            feed.feedId,
+            createComparableFeedShardJson(feed, isV2),
+          ]),
       );
       this.lastStorageFolderPath = normalizeFolderPath(settings.storageFolder);
       return;
@@ -1317,7 +1346,9 @@ export class FeedStorageRepository {
     }
 
     try {
-      const parsed = JSON.parse(await this.app.vault.adapter.read(shardPath)) as {
+      const parsed = JSON.parse(
+        await this.app.vault.adapter.read(shardPath),
+      ) as {
         updatedAt?: unknown;
         feedId?: unknown;
         items?: unknown;
@@ -1350,11 +1381,15 @@ export class FeedStorageRepository {
     return this.userState.findOrphaned(settings);
   }
 
-  public async loadUserState(settings: RssDashboardSettings): Promise<UserStateFile | null> {
+  public async loadUserState(
+    settings: RssDashboardSettings,
+  ): Promise<UserStateFile | null> {
     return this.userState.load(settings);
   }
 
-  public async saveUserStateFromFeeds(settings: RssDashboardSettings): Promise<void> {
+  public async saveUserStateFromFeeds(
+    settings: RssDashboardSettings,
+  ): Promise<void> {
     return this.userState.save(settings);
   }
 }

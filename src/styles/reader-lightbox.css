@@ -40,7 +40,11 @@ body .rss-reader-lightbox-backdrop.rss-reader-lightbox-above-modal {
   align-items: center;
   justify-content: space-between;
   z-index: 10;
-  background: linear-gradient(180deg, rgba(0, 0, 0, 0.6) 0%, rgba(0, 0, 0, 0) 100%);
+  background: linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0.6) 0%,
+    rgba(0, 0, 0, 0) 100%
+  );
   pointer-events: none;
 }
 
@@ -67,7 +71,9 @@ body .rss-reader-lightbox-backdrop.rss-reader-lightbox-above-modal {
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
-  transition: background-color 0.15s ease, transform 0.1s ease;
+  transition:
+    background-color 0.15s ease,
+    transform 0.1s ease;
 }
 
 .rss-reader-lightbox-btn:hover {
@@ -198,7 +204,9 @@ body .rss-reader-lightbox-backdrop.rss-reader-lightbox-above-modal {
 /* Image affordance in reader content */
 .rss-reader-zoomable-img {
   cursor: zoom-in;
-  transition: opacity 0.15s ease, filter 0.15s ease;
+  transition:
+    opacity 0.15s ease,
+    filter 0.15s ease;
 }
 
 .rss-reader-zoomable-img:hover {

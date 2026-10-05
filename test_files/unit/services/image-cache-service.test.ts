@@ -18,8 +18,9 @@ function createAdapter(): FakeImageCacheAdapter {
   const directories = new Set<string>();
 
   return {
-    exists: vi.fn(async (path: string) =>
-      textFiles.has(path) || binaryFiles.has(path) || directories.has(path),
+    exists: vi.fn(
+      async (path: string) =>
+        textFiles.has(path) || binaryFiles.has(path) || directories.has(path),
     ),
     read: vi.fn(async (path: string) => textFiles.get(path) ?? ""),
     write: vi.fn(async (path: string, content: string) => {
@@ -122,7 +123,8 @@ describe("ImageCacheService", () => {
       fetchImage: async () => ({
         status: 200,
         headers: { "content-type": "image/jpeg" },
-        arrayBuffer: new TextEncoder().encode("<html>not an image</html>").buffer,
+        arrayBuffer: new TextEncoder().encode("<html>not an image</html>")
+          .buffer,
       }),
       now: () => 100,
     });
@@ -245,10 +247,12 @@ describe("ImageCacheService", () => {
     await expect(
       cache.removeUrls(["https://example.com/deleted.jpg#fragment"]),
     ).resolves.toEqual({ cleared: 1, failed: 0 });
-    expect(cache.resolveCachedUrl("https://example.com/deleted.jpg")).toBeNull();
-    expect(cache.resolveCachedUrl("https://example.com/retained.jpg")).toContain(
-      ".jpg",
-    );
+    expect(
+      cache.resolveCachedUrl("https://example.com/deleted.jpg"),
+    ).toBeNull();
+    expect(
+      cache.resolveCachedUrl("https://example.com/retained.jpg"),
+    ).toContain(".jpg");
   });
 
   it("replaces an aged entry only when refresh work explicitly requests it", async () => {
@@ -321,11 +325,19 @@ describe("ImageCacheService", () => {
       adapter.deleteExternally(olderPath);
       currentTime = 200;
 
-      await expect(cache.cacheUrl("https://example.com/newer.jpg")).resolves.toBe(true);
-      expect(cache.resolveCachedUrl("https://example.com/older.jpg")).toBeNull();
+      await expect(
+        cache.cacheUrl("https://example.com/newer.jpg"),
+      ).resolves.toBe(true);
+      expect(
+        cache.resolveCachedUrl("https://example.com/older.jpg"),
+      ).toBeNull();
       currentTime = 300;
-      await expect(cache.cacheUrl("https://example.com/latest.jpg")).resolves.toBe(true);
-      expect(cache.resolveCachedUrl("https://example.com/latest.jpg")).toContain(".jpg");
+      await expect(
+        cache.cacheUrl("https://example.com/latest.jpg"),
+      ).resolves.toBe(true);
+      expect(
+        cache.resolveCachedUrl("https://example.com/latest.jpg"),
+      ).toContain(".jpg");
       expect(cache.getSizeBytes()).toBe(8);
     });
 
@@ -348,7 +360,9 @@ describe("ImageCacheService", () => {
       adapter.deleteExternally(olderPath);
 
       await expect(cache.setMaxCacheBytes(8)).resolves.toBeUndefined();
-      expect(cache.resolveCachedUrl("https://example.com/older.jpg")).toBeNull();
+      expect(
+        cache.resolveCachedUrl("https://example.com/older.jpg"),
+      ).toBeNull();
       expect(cache.getSizeBytes()).toBe(8);
     });
 
@@ -369,7 +383,9 @@ describe("ImageCacheService", () => {
 
       await expect(cache.clear()).resolves.toEqual({ cleared: 2, failed: 0 });
       expect(cache.getSizeBytes()).toBe(0);
-      expect(cache.resolveCachedUrl("https://example.com/deleted.jpg")).toBeNull();
+      expect(
+        cache.resolveCachedUrl("https://example.com/deleted.jpg"),
+      ).toBeNull();
     });
 
     it("counts the missing file as cleared on removeUrls()", async () => {
@@ -390,8 +406,12 @@ describe("ImageCacheService", () => {
       await expect(
         cache.removeUrls(["https://example.com/deleted.jpg"]),
       ).resolves.toEqual({ cleared: 1, failed: 0 });
-      expect(cache.resolveCachedUrl("https://example.com/deleted.jpg")).toBeNull();
-      expect(cache.resolveCachedUrl("https://example.com/retained.jpg")).toContain(".jpg");
+      expect(
+        cache.resolveCachedUrl("https://example.com/deleted.jpg"),
+      ).toBeNull();
+      expect(
+        cache.resolveCachedUrl("https://example.com/retained.jpg"),
+      ).toContain(".jpg");
     });
 
     it("still reports other removal errors as failures and keeps the entry", async () => {
@@ -407,11 +427,15 @@ describe("ImageCacheService", () => {
       await cache.initialize();
       await cache.cacheUrl("https://example.com/locked.jpg");
       vi.mocked(adapter.remove).mockRejectedValueOnce(
-        Object.assign(new Error("EPERM: operation not permitted"), { code: "EPERM" }),
+        Object.assign(new Error("EPERM: operation not permitted"), {
+          code: "EPERM",
+        }),
       );
 
       await expect(cache.clear()).resolves.toEqual({ cleared: 0, failed: 1 });
-      expect(cache.resolveCachedUrl("https://example.com/locked.jpg")).toContain(".jpg");
+      expect(
+        cache.resolveCachedUrl("https://example.com/locked.jpg"),
+      ).toContain(".jpg");
     });
   });
 });

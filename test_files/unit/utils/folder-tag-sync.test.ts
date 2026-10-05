@@ -37,20 +37,28 @@ function createFeed(folder: string, items: FeedItem[]): Feed {
 
 describe("folder-tag-sync", () => {
   it("detects folder tag names removed from the rule", () => {
-    expect(
-      getRemovedFolderTagNames([techTag, webTag], [webTag]),
-    ).toEqual(["Tech"]);
+    expect(getRemovedFolderTagNames([techTag, webTag], [webTag])).toEqual([
+      "Tech",
+    ]);
     expect(getRemovedFolderTagNames([techTag], [])).toEqual(["Tech"]);
     expect(getRemovedFolderTagNames([], [techTag])).toEqual([]);
   });
 
   it("syncFolderAutoTagsOnItem adds missing tags and removes deselected rule tags only", () => {
-    const item = createItem([techTag, manualTag, { name: "topic", color: "#444444" }]);
+    const item = createItem([
+      techTag,
+      manualTag,
+      { name: "topic", color: "#444444" },
+    ]);
 
     const changed = syncFolderAutoTagsOnItem(item, [techTag, webTag], [webTag]);
 
     expect(changed).toBe(true);
-    expect(item.tags).toEqual([manualTag, { name: "topic", color: "#444444" }, webTag]);
+    expect(item.tags).toEqual([
+      manualTag,
+      { name: "topic", color: "#444444" },
+      webTag,
+    ]);
   });
 
   it("syncFolderAutoTagsOnItem is case-insensitive when removing rule tags", () => {

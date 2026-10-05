@@ -1,10 +1,9 @@
 ---
 name: Refactor
 about: One behavior-preserving extraction under #436
-title: 'refactor(<file>): <extraction>'
+title: "refactor(<file>): <extraction>"
 labels: refactor
-assignees: ''
-
+assignees: ""
 ---
 
 <!--

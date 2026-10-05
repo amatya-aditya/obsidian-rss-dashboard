@@ -39,9 +39,8 @@ describe("resolveAndLoadPreview()", () => {
   });
 
   it("loads a plain RSS URL directly", async () => {
-    const { resolveAndLoadPreview } = await import(
-      "../../../src/modals/feed-manager/feed-preview-loader"
-    );
+    const { resolveAndLoadPreview } =
+      await import("../../../src/modals/feed-manager/feed-preview-loader");
 
     detectPodcastPlatformMock.mockReturnValue(null);
 
@@ -56,9 +55,8 @@ describe("resolveAndLoadPreview()", () => {
   });
 
   it("passes a manual feed encoding to preview loading", async () => {
-    const { resolveAndLoadPreview } = await import(
-      "../../../src/modals/feed-manager/feed-preview-loader"
-    );
+    const { resolveAndLoadPreview } =
+      await import("../../../src/modals/feed-manager/feed-preview-loader");
 
     detectPodcastPlatformMock.mockReturnValue(null);
     await resolveAndLoadPreview("https://example.com/feed.xml", {
@@ -72,24 +70,20 @@ describe("resolveAndLoadPreview()", () => {
   });
 
   it("throws a decommission error for X/Twitter URLs", async () => {
-    const { resolveAndLoadPreview } = await import(
-      "../../../src/modals/feed-manager/feed-preview-loader"
-    );
+    const { resolveAndLoadPreview } =
+      await import("../../../src/modals/feed-manager/feed-preview-loader");
 
     vi.spyOn(MediaService, "isXUrl").mockReturnValue(true);
 
-    await expect(
-      resolveAndLoadPreview("https://x.com/user"),
-    ).rejects.toThrow(
+    await expect(resolveAndLoadPreview("https://x.com/user")).rejects.toThrow(
       "X/Twitter and Nitter RSS feeds are no longer supported.",
     );
     expect(loadFeedForPreviewMock).not.toHaveBeenCalled();
   });
 
   it("throws a decommission error for Nitter URLs", async () => {
-    const { resolveAndLoadPreview } = await import(
-      "../../../src/modals/feed-manager/feed-preview-loader"
-    );
+    const { resolveAndLoadPreview } =
+      await import("../../../src/modals/feed-manager/feed-preview-loader");
 
     vi.spyOn(MediaService, "isNitterUrl").mockReturnValue(true);
 
@@ -102,9 +96,8 @@ describe("resolveAndLoadPreview()", () => {
   });
 
   it("resolves YouTube page URLs to RSS feed URLs before loading", async () => {
-    const { resolveAndLoadPreview } = await import(
-      "../../../src/modals/feed-manager/feed-preview-loader"
-    );
+    const { resolveAndLoadPreview } =
+      await import("../../../src/modals/feed-manager/feed-preview-loader");
 
     vi.spyOn(MediaService, "isYouTubeFeed").mockReturnValue(true);
     vi.spyOn(MediaService, "getYouTubeRssFeed").mockResolvedValue(
@@ -124,9 +117,8 @@ describe("resolveAndLoadPreview()", () => {
   });
 
   it("resolves Mastodon profile URLs to RSS feed URLs before loading", async () => {
-    const { resolveAndLoadPreview } = await import(
-      "../../../src/modals/feed-manager/feed-preview-loader"
-    );
+    const { resolveAndLoadPreview } =
+      await import("../../../src/modals/feed-manager/feed-preview-loader");
 
     vi.spyOn(MediaService, "isMastodonUrl").mockReturnValue(true);
     vi.spyOn(MediaService, "getMastodonRssFeed").mockResolvedValue(
@@ -144,9 +136,8 @@ describe("resolveAndLoadPreview()", () => {
   });
 
   it("resolves podcast platform URLs before loading", async () => {
-    const { resolveAndLoadPreview } = await import(
-      "../../../src/modals/feed-manager/feed-preview-loader"
-    );
+    const { resolveAndLoadPreview } =
+      await import("../../../src/modals/feed-manager/feed-preview-loader");
 
     detectPodcastPlatformMock.mockReturnValue({
       id: "apple",
@@ -171,9 +162,8 @@ describe("resolveAndLoadPreview()", () => {
   });
 
   it("throws if Pocket Casts resolution is attempted without CORS proxy enabled", async () => {
-    const { resolveAndLoadPreview } = await import(
-      "../../../src/modals/feed-manager/feed-preview-loader"
-    );
+    const { resolveAndLoadPreview } =
+      await import("../../../src/modals/feed-manager/feed-preview-loader");
 
     detectPodcastPlatformMock.mockReturnValue({
       id: "pocketcasts",
@@ -190,18 +180,16 @@ describe("resolveAndLoadPreview()", () => {
 
 describe("formatLatestEntryLabel()", () => {
   it("returns Today when latest pubdate is within same day offset", async () => {
-    const { formatLatestEntryLabel } = await import(
-      "../../../src/modals/feed-manager/feed-preview-loader"
-    );
+    const { formatLatestEntryLabel } =
+      await import("../../../src/modals/feed-manager/feed-preview-loader");
     const now = new Date("2026-03-22T12:00:00.000Z").getTime();
     const latest = "2026-03-22T00:30:00.000Z";
     expect(formatLatestEntryLabel(latest, now)).toBe("Today");
   });
 
   it("returns N days ago for older dates", async () => {
-    const { formatLatestEntryLabel } = await import(
-      "../../../src/modals/feed-manager/feed-preview-loader"
-    );
+    const { formatLatestEntryLabel } =
+      await import("../../../src/modals/feed-manager/feed-preview-loader");
     const now = new Date("2026-03-22T12:00:00.000Z").getTime();
     const latest = "2026-03-20T00:30:00.000Z";
     expect(formatLatestEntryLabel(latest, now)).toBe("2 days ago");
@@ -210,9 +198,8 @@ describe("formatLatestEntryLabel()", () => {
 
 describe("Mastodon folder defaults", () => {
   it("routes Mastodon conversions to the configured Mastodon folder", async () => {
-    const { getDefaultFolderForResolvedFeed } = await import(
-      "../../../src/modals/feed-manager/feed-preview-loader"
-    );
+    const { getDefaultFolderForResolvedFeed } =
+      await import("../../../src/modals/feed-manager/feed-preview-loader");
 
     const folder = getDefaultFolderForResolvedFeed(
       {
@@ -231,9 +218,8 @@ describe("Mastodon folder defaults", () => {
   });
 
   it("treats configured and legacy Mastodon folders as auto-assignable", async () => {
-    const { shouldAutoAssignFolder } = await import(
-      "../../../src/modals/feed-manager/feed-preview-loader"
-    );
+    const { shouldAutoAssignFolder } =
+      await import("../../../src/modals/feed-manager/feed-preview-loader");
 
     expect(
       shouldAutoAssignFolder("Social/Mastodon", {
@@ -244,9 +230,8 @@ describe("Mastodon folder defaults", () => {
   });
 
   it("routes a direct Mastodon .rss feed URL to the Mastodon folder", async () => {
-    const { getDefaultFolderForResolvedFeed } = await import(
-      "../../../src/modals/feed-manager/feed-preview-loader"
-    );
+    const { getDefaultFolderForResolvedFeed } =
+      await import("../../../src/modals/feed-manager/feed-preview-loader");
 
     const folder = getDefaultFolderForResolvedFeed(
       {
@@ -296,9 +281,8 @@ describe("YouTube handle URL is not misidentified as Mastodon (#548)", () => {
   });
 
   it("detects a YouTube /@handle URL as youtube, not Mastodon", async () => {
-    const { resolveAndLoadPreview } = await import(
-      "../../../src/modals/feed-manager/feed-preview-loader"
-    );
+    const { resolveAndLoadPreview } =
+      await import("../../../src/modals/feed-manager/feed-preview-loader");
 
     const result = await resolveAndLoadPreview(
       "https://www.youtube.com/@Fireship",
@@ -314,9 +298,8 @@ describe("YouTube handle URL is not misidentified as Mastodon (#548)", () => {
   });
 
   it("still detects a genuine Mastodon /@user URL as Mastodon", async () => {
-    const { resolveAndLoadPreview } = await import(
-      "../../../src/modals/feed-manager/feed-preview-loader"
-    );
+    const { resolveAndLoadPreview } =
+      await import("../../../src/modals/feed-manager/feed-preview-loader");
 
     const result = await resolveAndLoadPreview(
       "https://mastodon.social/@Gargron",
@@ -329,9 +312,8 @@ describe("YouTube handle URL is not misidentified as Mastodon (#548)", () => {
   });
 
   it("assigns the Videos folder, not Mastodon, for a YouTube handle preview", async () => {
-    const { getDefaultFolderForResolvedFeed } = await import(
-      "../../../src/modals/feed-manager/feed-preview-loader"
-    );
+    const { getDefaultFolderForResolvedFeed } =
+      await import("../../../src/modals/feed-manager/feed-preview-loader");
 
     const folder = getDefaultFolderForResolvedFeed(
       {
@@ -351,9 +333,8 @@ describe("YouTube handle URL is not misidentified as Mastodon (#548)", () => {
   });
 
   it("shows no Mastodon conversion notice for a YouTube handle preview", async () => {
-    const { getPreviewConversionNotice } = await import(
-      "../../../src/modals/feed-manager/feed-preview-loader"
-    );
+    const { getPreviewConversionNotice } =
+      await import("../../../src/modals/feed-manager/feed-preview-loader");
 
     const notice = getPreviewConversionNotice({
       isMastodonConversion: false,
@@ -379,9 +360,8 @@ describe("YouTube handle URL is not misidentified as Mastodon (#548)", () => {
   });
 
   it("shows no Mastodon notice for a resolved YouTube handle preview", async () => {
-    const { resolveAndLoadPreview, getPreviewConversionNotice } = await import(
-      "../../../src/modals/feed-manager/feed-preview-loader"
-    );
+    const { resolveAndLoadPreview, getPreviewConversionNotice } =
+      await import("../../../src/modals/feed-manager/feed-preview-loader");
 
     const preview = await resolveAndLoadPreview(
       "https://www.youtube.com/@Fireship",
@@ -413,9 +393,8 @@ describe("YouTube handle URL is not misidentified as Mastodon (#548)", () => {
   });
 
   it("keeps a YouTube RSS feed URL as youtube without Mastodon or channel lookups", async () => {
-    const { resolveAndLoadPreview } = await import(
-      "../../../src/modals/feed-manager/feed-preview-loader"
-    );
+    const { resolveAndLoadPreview } =
+      await import("../../../src/modals/feed-manager/feed-preview-loader");
     const feedUrl =
       "https://www.youtube.com/feeds/videos.xml?channel_id=UCsBjURrPoezykLs9EqgamOA";
 
@@ -429,9 +408,8 @@ describe("YouTube handle URL is not misidentified as Mastodon (#548)", () => {
   });
 
   it("detects a YouTube /channel/ URL as youtube, not Mastodon", async () => {
-    const { resolveAndLoadPreview } = await import(
-      "../../../src/modals/feed-manager/feed-preview-loader"
-    );
+    const { resolveAndLoadPreview } =
+      await import("../../../src/modals/feed-manager/feed-preview-loader");
 
     const result = await resolveAndLoadPreview(
       "https://www.youtube.com/channel/UCsBjURrPoezykLs9EqgamOA",
@@ -445,9 +423,8 @@ describe("YouTube handle URL is not misidentified as Mastodon (#548)", () => {
 
   it("reports an unresolvable YouTube handle instead of falling back to Mastodon", async () => {
     vi.spyOn(MediaService, "getYouTubeRssFeed").mockResolvedValue(null);
-    const { resolveAndLoadPreview } = await import(
-      "../../../src/modals/feed-manager/feed-preview-loader"
-    );
+    const { resolveAndLoadPreview } =
+      await import("../../../src/modals/feed-manager/feed-preview-loader");
 
     await expect(
       resolveAndLoadPreview("https://www.youtube.com/@Fireship"),

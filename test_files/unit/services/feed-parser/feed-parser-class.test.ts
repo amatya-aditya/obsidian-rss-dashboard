@@ -1,5 +1,9 @@
 import { afterEach, describe, it, expect, vi } from "vitest";
-import { DEFAULT_SETTINGS, type Feed, type MediaSettings } from "../../../../src/types/types.js";
+import {
+  DEFAULT_SETTINGS,
+  type Feed,
+  type MediaSettings,
+} from "../../../../src/types/types.js";
 import * as obsidian from "obsidian";
 import { type RequestUrlResponse } from "obsidian";
 import { FeedParser } from "../../../../src/services/feed-parser/feed-parser-class.js";
@@ -12,7 +16,13 @@ import {
 
 /** Creates a minimal but fully-typed {@link RequestUrlResponse} stub for mocking. */
 function mockResponse(status: number, text: string): RequestUrlResponse {
-  return { status, text, headers: {}, arrayBuffer: new ArrayBuffer(0), json: null };
+  return {
+    status,
+    text,
+    headers: {},
+    arrayBuffer: new ArrayBuffer(0),
+    json: null,
+  };
 }
 
 describe("FeedParser.parseFeed", () => {
@@ -49,10 +59,15 @@ describe("FeedParser.parseFeed", () => {
     const feedUrl = "https://mastodon.social/@Gargron.rss";
 
     const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
-    requestUrlSpy.mockResolvedValueOnce(mockResponse(200, RSS2_MASTODON_PROFILE_IMAGE));
+    requestUrlSpy.mockResolvedValueOnce(
+      mockResponse(200, RSS2_MASTODON_PROFILE_IMAGE),
+    );
 
-    const parser = new FeedParser({ ...DEFAULT_SETTINGS.display, useDomainIconsMastodon: false,
-       }, [], mediaSettings);
+    const parser = new FeedParser(
+      { ...DEFAULT_SETTINGS.display, useDomainIconsMastodon: false },
+      [],
+      mediaSettings,
+    );
     const parsed = await parser.parseFeed(feedUrl, null);
 
     expect(parsed.iconUrl).not.toBe(
@@ -66,10 +81,15 @@ describe("FeedParser.parseFeed", () => {
     const feedUrl = "https://mastodon.social/@Gargron.rss";
 
     const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
-    requestUrlSpy.mockResolvedValueOnce(mockResponse(200, RSS2_MASTODON_PROFILE_IMAGE));
+    requestUrlSpy.mockResolvedValueOnce(
+      mockResponse(200, RSS2_MASTODON_PROFILE_IMAGE),
+    );
 
-    const parser = new FeedParser({ ...DEFAULT_SETTINGS.display, useDomainIconsMastodon: true,
-       }, [], mediaSettings);
+    const parser = new FeedParser(
+      { ...DEFAULT_SETTINGS.display, useDomainIconsMastodon: true },
+      [],
+      mediaSettings,
+    );
     const parsed = await parser.parseFeed(feedUrl, null);
 
     expect(parsed.iconUrl).toBe(
@@ -87,8 +107,11 @@ describe("FeedParser.parseFeed", () => {
       .mockResolvedValueOnce(mockResponse(200, RSS2_MASTODON_PROFILE_IMAGE))
       .mockResolvedValueOnce(mockResponse(200, RSS2_MASTODON_PROFILE_IMAGE));
 
-    const parser = new FeedParser({ ...DEFAULT_SETTINGS.display, useDomainIconsMastodon: true,
-       }, [], mediaSettings);
+    const parser = new FeedParser(
+      { ...DEFAULT_SETTINGS.display, useDomainIconsMastodon: true },
+      [],
+      mediaSettings,
+    );
     const first = await parser.parseFeed(feedUrl, null);
     const refreshed = await parser.parseFeed(feedUrl, first);
 
@@ -106,12 +129,20 @@ describe("FeedParser.parseFeed", () => {
     requestUrlSpy.mockResolvedValue(mockResponse(200, RSS2_WITH_IMAGE));
 
     // 1. When useDomainIconsRss is false
-    const parserOff = new FeedParser({ ...DEFAULT_SETTINGS.display, useDomainIconsRss: false  }, [], mediaSettings);
+    const parserOff = new FeedParser(
+      { ...DEFAULT_SETTINGS.display, useDomainIconsRss: false },
+      [],
+      mediaSettings,
+    );
     const parsedOff = await parserOff.parseFeed(feedUrl, null);
     expect(parsedOff.iconUrl).toBe("");
 
     // 2. When useDomainIconsRss is true
-    const parserOn = new FeedParser({ ...DEFAULT_SETTINGS.display, useDomainIconsRss: true  }, [], mediaSettings);
+    const parserOn = new FeedParser(
+      { ...DEFAULT_SETTINGS.display, useDomainIconsRss: true },
+      [],
+      mediaSettings,
+    );
     const parsedOn = await parserOn.parseFeed(feedUrl, null);
     expect(parsedOn.iconUrl).toBe("https://example.com/logo.png");
 
@@ -121,15 +152,25 @@ describe("FeedParser.parseFeed", () => {
   it("extracts and honors the Podcast icon settings toggle", async () => {
     const feedUrl = "https://example.com/podcast.xml";
     const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
-    requestUrlSpy.mockResolvedValue(mockResponse(200, RSS2_PODCAST_WITH_CHANNEL_ITUNES_IMAGE));
+    requestUrlSpy.mockResolvedValue(
+      mockResponse(200, RSS2_PODCAST_WITH_CHANNEL_ITUNES_IMAGE),
+    );
 
     // 1. When useDomainIconsPodcast is false
-    const parserOff = new FeedParser({ ...DEFAULT_SETTINGS.display, useDomainIconsPodcast: false  }, [], mediaSettings);
+    const parserOff = new FeedParser(
+      { ...DEFAULT_SETTINGS.display, useDomainIconsPodcast: false },
+      [],
+      mediaSettings,
+    );
     const parsedOff = await parserOff.parseFeed(feedUrl, null);
     expect(parsedOff.iconUrl).toBe("");
 
     // 2. When useDomainIconsPodcast is true
-    const parserOn = new FeedParser({ ...DEFAULT_SETTINGS.display, useDomainIconsPodcast: true  }, [], mediaSettings);
+    const parserOn = new FeedParser(
+      { ...DEFAULT_SETTINGS.display, useDomainIconsPodcast: true },
+      [],
+      mediaSettings,
+    );
     const parsedOn = await parserOn.parseFeed(feedUrl, null);
     expect(parsedOn.iconUrl).toBe(
       "https://lexfridman.com/wordpress/wp-content/uploads/powerpress/artwork_3000-230.png",
@@ -159,9 +200,11 @@ describe("FeedParser.parseFeed", () => {
     const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
     requestUrlSpy.mockResolvedValueOnce(mockResponse(200, xml));
 
-    const parser = new FeedParser(DEFAULT_SETTINGS.display, [
-      { name: "Video", color: "#d04747" },
-    ], mediaSettings);
+    const parser = new FeedParser(
+      DEFAULT_SETTINGS.display,
+      [{ name: "Video", color: "#d04747" }],
+      mediaSettings,
+    );
     const parsed = await parser.parseFeed(feedUrl, null);
 
     expect(parsed.mediaType).toBe("video");
@@ -169,9 +212,9 @@ describe("FeedParser.parseFeed", () => {
     expect(firstItem).toBeDefined();
     if (firstItem === undefined) throw new Error("firstItem is undefined");
     expect(firstItem.mediaType).toBe("video");
-    expect((firstItem.tags ?? []).map((tag) => tag.name.toLowerCase())).toContain(
-      "video",
-    );
+    expect(
+      (firstItem.tags ?? []).map((tag) => tag.name.toLowerCase()),
+    ).toContain("video");
 
     requestUrlSpy.mockRestore();
   });
@@ -809,8 +852,12 @@ describe("FeedParser.parseFeed", () => {
 
     const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
     requestUrlSpy
-      .mockResolvedValueOnce(mockResponse(200, RSS2_PODCAST_WITH_CHANNEL_ITUNES_IMAGE))
-      .mockResolvedValueOnce(mockResponse(200, RSS2_PODCAST_WITH_CHANNEL_ITUNES_IMAGE));
+      .mockResolvedValueOnce(
+        mockResponse(200, RSS2_PODCAST_WITH_CHANNEL_ITUNES_IMAGE),
+      )
+      .mockResolvedValueOnce(
+        mockResponse(200, RSS2_PODCAST_WITH_CHANNEL_ITUNES_IMAGE),
+      );
 
     const parser = new FeedParser(
       { ...DEFAULT_SETTINGS.display, useDomainIconsPodcast: true },
@@ -971,7 +1018,8 @@ describe("FeedParser.parseFeed", () => {
   });
 
   it("extracts media:description as the summary when summary/description is missing", async () => {
-    const feedUrl = "https://www.youtube.com/feeds/videos.xml?channel_id=UCsT0YIqwnpJCM-mx7-gSA4Q";
+    const feedUrl =
+      "https://www.youtube.com/feeds/videos.xml?channel_id=UCsT0YIqwnpJCM-mx7-gSA4Q";
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <feed xmlns:yt="http://www.youtube.com/xml/schemas/2015"
       xmlns:media="http://search.yahoo.com/mrss/"
@@ -1003,8 +1051,12 @@ describe("FeedParser.parseFeed", () => {
     const parsed = await parser.parseFeed(feedUrl, null);
     const item = parsed.items[0];
 
-    expect(item.description).toBe("Sometimes the biggest problems have the simplest causes.");
-    expect(item.summary).toBe("Sometimes the biggest problems have the simplest causes.");
+    expect(item.description).toBe(
+      "Sometimes the biggest problems have the simplest causes.",
+    );
+    expect(item.summary).toBe(
+      "Sometimes the biggest problems have the simplest causes.",
+    );
 
     requestUrlSpy.mockRestore();
   });

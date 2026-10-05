@@ -1,4 +1,8 @@
-import type { ArticleGroupByOption, Feed, FeedItem } from "../../../types/types";
+import type {
+  ArticleGroupByOption,
+  Feed,
+  FeedItem,
+} from "../../../types/types";
 import { resolveDisplayDate } from "../../../services/feed-parser/feed-retention";
 
 export function getArticleDateGroupKey(

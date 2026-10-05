@@ -285,8 +285,12 @@ export class AddFeedModal extends Modal {
             this.close();
           }
         };
-        this.urlInput.addEventListener("keydown", handleEnter, { capture: true });
-        this.urlInput.addEventListener("keypress", handleEnter, { capture: true });
+        this.urlInput.addEventListener("keydown", handleEnter, {
+          capture: true,
+        });
+        this.urlInput.addEventListener("keypress", handleEnter, {
+          capture: true,
+        });
         this.urlInput.addEventListener("keyup", handleEnter, { capture: true });
       })
       .addButton((btn) => {

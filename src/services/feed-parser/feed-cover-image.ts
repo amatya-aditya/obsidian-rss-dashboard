@@ -49,11 +49,7 @@ function isJunkSrc(src: string | null): boolean {
   if (!src) return true;
   const t = src.trim();
   return (
-    !t ||
-    t === "undefined" ||
-    t === "null" ||
-    t === "#" ||
-    t === "about:blank"
+    !t || t === "undefined" || t === "null" || t === "#" || t === "about:blank"
   );
 }
 

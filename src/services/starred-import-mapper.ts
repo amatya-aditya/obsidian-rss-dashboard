@@ -107,7 +107,8 @@ export interface StarredImportCandidate {
  * locally yet, which is 234-02's "auto-create missing source feeds" concern,
  * not a malformed-entry concern.
  */
-export type StarredImportUnimportableReason = "no_source_feed" | "no_article_url";
+export type StarredImportUnimportableReason =
+  "no_source_feed" | "no_article_url";
 
 /**
  * A `starred.json` entry that could not produce a candidate under any
@@ -134,7 +135,9 @@ const LABEL_CATEGORY_MARKER = "/label/";
  * remaining value can be compared against a plugin `Feed.url`.
  */
 function normalizeStreamIdToFeedUrl(streamId: string): string {
-  return streamId.startsWith("feed/") ? streamId.slice("feed/".length) : streamId;
+  return streamId.startsWith("feed/")
+    ? streamId.slice("feed/".length)
+    : streamId;
 }
 
 function isHttpUrl(value: string | undefined): value is string {
@@ -408,11 +411,7 @@ export function mapStarredExportToCandidates(
     candidates.push({
       feedUrl,
       feedTitle: newFeedMeta.title,
-      item: toFeedItem(
-        item,
-        { url: feedUrl, title: newFeedMeta.title },
-        tags,
-      ),
+      item: toFeedItem(item, { url: feedUrl, title: newFeedMeta.title }, tags),
       isNewFeed: true,
       feedSiteUrl: newFeedMeta.siteUrl,
       labelDerivedTagNames,

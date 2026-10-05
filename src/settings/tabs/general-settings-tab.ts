@@ -437,11 +437,7 @@ export function renderGeneralSettingsTab(
   };
 
   const updateRetentionProtection = (
-    key:
-      | "protectStarred"
-      | "protectSaved"
-      | "protectTagged"
-      | "protectUnread",
+    key: "protectStarred" | "protectSaved" | "protectTagged" | "protectUnread",
     nextValue: boolean,
     revertControl: () => void,
   ) => {
@@ -561,9 +557,7 @@ export function renderGeneralSettingsTab(
       });
   });
 
-  new Setting(containerEl)
-    .setName("Protected from auto-deletion")
-    .setHeading();
+  new Setting(containerEl).setName("Protected from auto-deletion").setHeading();
 
   new Setting(containerEl)
     .setName("Protect starred articles")
@@ -580,41 +574,37 @@ export function renderGeneralSettingsTab(
 
   new Setting(containerEl)
     .setName("Protect saved articles")
-    .setDesc("Keep articles saved to your vault when retention limits are applied")
+    .setDesc(
+      "Keep articles saved to your vault when retention limits are applied",
+    )
     .addToggle((toggle) =>
-      toggle
-        .setValue(plugin.settings.protectSaved)
-        .onChange(async (value) => {
-          updateRetentionProtection("protectSaved", value, () => {
-            toggle.setValue(plugin.settings.protectSaved);
-          });
-        }),
+      toggle.setValue(plugin.settings.protectSaved).onChange(async (value) => {
+        updateRetentionProtection("protectSaved", value, () => {
+          toggle.setValue(plugin.settings.protectSaved);
+        });
+      }),
     );
 
   new Setting(containerEl)
     .setName("Protect tagged articles")
     .setDesc("Keep tagged articles when retention limits are applied")
     .addToggle((toggle) =>
-      toggle
-        .setValue(plugin.settings.protectTagged)
-        .onChange(async (value) => {
-          updateRetentionProtection("protectTagged", value, () => {
-            toggle.setValue(plugin.settings.protectTagged);
-          });
-        }),
+      toggle.setValue(plugin.settings.protectTagged).onChange(async (value) => {
+        updateRetentionProtection("protectTagged", value, () => {
+          toggle.setValue(plugin.settings.protectTagged);
+        });
+      }),
     );
 
   new Setting(containerEl)
     .setName("Protect unread articles")
     .setDesc("Keep unread articles when retention limits are applied")
     .addToggle((toggle) =>
-      toggle
-        .setValue(plugin.settings.protectUnread)
-        .onChange(async (value) => {
-          updateRetentionProtection("protectUnread", value, () => {
-            toggle.setValue(plugin.settings.protectUnread);
-          });
-        }),
+      toggle.setValue(plugin.settings.protectUnread).onChange(async (value) => {
+        updateRetentionProtection("protectUnread", value, () => {
+          toggle.setValue(plugin.settings.protectUnread);
+        });
+      }),
     );
 
   new Setting(containerEl)

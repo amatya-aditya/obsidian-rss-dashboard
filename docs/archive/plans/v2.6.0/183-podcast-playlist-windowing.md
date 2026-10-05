@@ -30,7 +30,7 @@ rendering the entire feed.
 - Add order-relative **Previous window** and **Next window** controls. They
   move the visible window by five episodes without changing audio playback.
 - Display the visible range and total count, such as `Episodes 21–25 of
-  2,413`, and provide a control to return to the active episode.
+2,413`, and provide a control to return to the active episode.
 - Recenter the playlist window when playback selects or advances to an
   episode, or when sorting or shuffling changes the order. Preserve a
   browsed window during tag and playback-progress refreshes.

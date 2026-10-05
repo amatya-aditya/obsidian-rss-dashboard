@@ -126,8 +126,18 @@ describe("StarredImportPreviewModel", () => {
   it("preserves each item's read state in the group snapshot", () => {
     const model = new StarredImportPreviewModel({
       candidates: [
-        makeCandidate({ guid: "g1", feedUrl: "u1", feedTitle: "Feed One", read: true }),
-        makeCandidate({ guid: "g2", feedUrl: "u1", feedTitle: "Feed One", read: false }),
+        makeCandidate({
+          guid: "g1",
+          feedUrl: "u1",
+          feedTitle: "Feed One",
+          read: true,
+        }),
+        makeCandidate({
+          guid: "g2",
+          feedUrl: "u1",
+          feedTitle: "Feed One",
+          read: false,
+        }),
       ],
     });
 

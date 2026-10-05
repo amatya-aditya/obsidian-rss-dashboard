@@ -39,7 +39,7 @@ describe("ArticleHeader Component", () => {
       availableTags: [],
       media: {
         useDomainIconsRss: true,
-      }
+      },
     } as unknown as TestSettings;
 
     mockCallbacks = {
@@ -71,13 +71,15 @@ describe("ArticleHeader Component", () => {
       new Set(),
       new Set(),
       "OR",
-      mockCallbacks
+      mockCallbacks,
     );
 
     header.render();
 
     expect(container.textContent).toContain("Test Title");
-    const toggle = container.querySelector(".rss-dashboard-sidebar-toggle") as HTMLElement;
+    const toggle = container.querySelector(
+      ".rss-dashboard-sidebar-toggle",
+    ) as HTMLElement;
     expect(toggle).not.toBeNull();
     toggle.click();
     expect(mockCallbacks.onToggleSidebar).toHaveBeenCalled();
@@ -132,9 +134,7 @@ describe("ArticleHeader Component", () => {
     filterButton.click();
     await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
 
-    document.body.dispatchEvent(
-      new MouseEvent("mousedown", { bubbles: true }),
-    );
+    document.body.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
 
     expect(
       document.querySelector(".rss-dashboard-filter-menu-portal"),
@@ -151,16 +151,20 @@ describe("ArticleHeader Component", () => {
       new Set(),
       new Set(),
       "OR",
-      mockCallbacks
+      mockCallbacks,
     );
 
     header.render();
-    const groupTrigger = container.querySelector(".rss-dashboard-group") as HTMLElement;
+    const groupTrigger = container.querySelector(
+      ".rss-dashboard-group",
+    ) as HTMLElement;
     expect(groupTrigger).not.toBeNull();
     groupTrigger.click();
 
     const menuItems = Array.from(
-      document.querySelectorAll(".rss-dashboard-filter-menu-item .rss-dashboard-filter-menu-text")
+      document.querySelectorAll(
+        ".rss-dashboard-filter-menu-item .rss-dashboard-filter-menu-text",
+      ),
     ).map((el) => el.textContent);
 
     expect(menuItems).toEqual([
@@ -173,7 +177,7 @@ describe("ArticleHeader Component", () => {
     ]);
 
     const dateFeedOption = Array.from(
-      document.querySelectorAll<HTMLElement>(".rss-dashboard-filter-menu-item")
+      document.querySelectorAll<HTMLElement>(".rss-dashboard-filter-menu-item"),
     ).find((el) => el.textContent?.includes("Date > Feed"));
     dateFeedOption?.click();
 
@@ -182,27 +186,29 @@ describe("ArticleHeader Component", () => {
   });
 
   it("should render custom portal selectors instead of native selects for dark mode fixes", () => {
-      const header = new ArticleHeader(
-        container,
-        settings,
-        "Title",
-        null,
-        null,
-        new Set(),
-        new Set(),
-        "OR",
-        mockCallbacks
-      );
+    const header = new ArticleHeader(
+      container,
+      settings,
+      "Title",
+      null,
+      null,
+      new Set(),
+      new Set(),
+      "OR",
+      mockCallbacks,
+    );
 
-      header.render();
+    header.render();
 
-      // We expect NO native selects for these specific filters
-      const selectors = container.querySelectorAll("select");
-      expect(selectors.length).toBe(0);
-      
-      // Instead, we expect themed triggers
-      const triggers = container.querySelectorAll(".rss-dashboard-themed-select-trigger");
-      expect(triggers.length).toBeGreaterThan(0);
+    // We expect NO native selects for these specific filters
+    const selectors = container.querySelectorAll("select");
+    expect(selectors.length).toBe(0);
+
+    // Instead, we expect themed triggers
+    const triggers = container.querySelectorAll(
+      ".rss-dashboard-themed-select-trigger",
+    );
+    expect(triggers.length).toBeGreaterThan(0);
   });
 
   it("shows card layout controls in the hamburger menu for card view", () => {
@@ -216,13 +222,13 @@ describe("ArticleHeader Component", () => {
       new Set(),
       new Set(),
       "OR",
-      mockCallbacks
+      mockCallbacks,
     );
 
     header.render();
 
     const hamburgerBtn = container.querySelector(
-      ".rss-dashboard-hamburger-button"
+      ".rss-dashboard-hamburger-button",
     ) as HTMLElement;
     hamburgerBtn.click();
 
@@ -241,16 +247,16 @@ describe("ArticleHeader Component", () => {
       new Set(),
       new Set(),
       "OR",
-      mockCallbacks
+      mockCallbacks,
     );
 
     header.render();
 
     const hamburgerBtn = container.querySelector(
-      ".rss-dashboard-hamburger-button"
+      ".rss-dashboard-hamburger-button",
     ) as HTMLElement;
     const dropdown = container.querySelector(
-      ".rss-dashboard-dropdown-menu"
+      ".rss-dashboard-dropdown-menu",
     ) as HTMLElement;
 
     expect(dropdown.classList.contains("is-menu-open")).toBe(false);
@@ -277,26 +283,24 @@ describe("ArticleHeader Component", () => {
       new Set(),
       new Set(),
       "OR",
-      mockCallbacks
+      mockCallbacks,
     );
 
     header.render();
 
     const hamburgerBtn = container.querySelector(
-      ".rss-dashboard-hamburger-button"
+      ".rss-dashboard-hamburger-button",
     ) as HTMLElement;
     const dropdown = container.querySelector(
-      ".rss-dashboard-dropdown-menu"
+      ".rss-dashboard-dropdown-menu",
     ) as HTMLElement;
 
     hamburgerBtn.dispatchEvent(
-      new MouseEvent("click", { bubbles: true, cancelable: true })
+      new MouseEvent("click", { bubbles: true, cancelable: true }),
     );
     expect(dropdown.classList.contains("is-menu-open")).toBe(true);
 
-    document.dispatchEvent(
-      new PointerEvent("pointerdown", { bubbles: true })
-    );
+    document.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
 
     expect(dropdown.classList.contains("is-menu-open")).toBe(false);
     expect(hamburgerBtn.classList.contains("is-menu-open")).toBe(false);
@@ -312,26 +316,28 @@ describe("ArticleHeader Component", () => {
       new Set(),
       new Set(),
       "OR",
-      mockCallbacks
+      mockCallbacks,
     );
 
     header.render();
 
     const hamburgerBtn = container.querySelector(
-      ".rss-dashboard-hamburger-button"
+      ".rss-dashboard-hamburger-button",
     ) as HTMLElement;
     const dropdown = container.querySelector(
-      ".rss-dashboard-dropdown-menu"
+      ".rss-dashboard-dropdown-menu",
     ) as HTMLElement;
 
     hamburgerBtn.dispatchEvent(
-      new MouseEvent("click", { bubbles: true, cancelable: true })
+      new MouseEvent("click", { bubbles: true, cancelable: true }),
     );
 
     const markAllRow = container.querySelector(
-      ".rss-dashboard-mark-all-row"
+      ".rss-dashboard-mark-all-row",
     ) as HTMLElement;
-    markAllRow.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+    markAllRow.dispatchEvent(
+      new PointerEvent("pointerdown", { bubbles: true }),
+    );
 
     expect(dropdown.classList.contains("is-menu-open")).toBe(true);
     expect(hamburgerBtn.classList.contains("is-menu-open")).toBe(true);
@@ -348,13 +354,13 @@ describe("ArticleHeader Component", () => {
       new Set(),
       new Set(),
       "OR",
-      mockCallbacks
+      mockCallbacks,
     );
 
     header.render();
 
     const hamburgerBtn = container.querySelector(
-      ".rss-dashboard-hamburger-button"
+      ".rss-dashboard-hamburger-button",
     ) as HTMLElement;
     hamburgerBtn.click();
 
@@ -373,18 +379,18 @@ describe("ArticleHeader Component", () => {
       new Set(),
       new Set(),
       "OR",
-      mockCallbacks
+      mockCallbacks,
     );
 
     header.render();
 
     const hamburgerBtn = container.querySelector(
-      ".rss-dashboard-hamburger-button"
+      ".rss-dashboard-hamburger-button",
     ) as HTMLElement;
     hamburgerBtn.click();
 
     const refreshBtn = container.querySelector(
-      ".rss-dashboard-view-refresh-button"
+      ".rss-dashboard-view-refresh-button",
     ) as HTMLButtonElement;
     refreshBtn.click();
 
@@ -401,18 +407,20 @@ describe("ArticleHeader Component", () => {
       new Set(),
       new Set(),
       "OR",
-      mockCallbacks
+      mockCallbacks,
     );
 
     header.render();
 
     const hamburgerBtn = container.querySelector(
-      ".rss-dashboard-hamburger-button"
+      ".rss-dashboard-hamburger-button",
     ) as HTMLElement;
     hamburgerBtn.click();
 
     const buttons = Array.from(
-      container.querySelectorAll<HTMLButtonElement>(".rss-dashboard-mark-all-button")
+      container.querySelectorAll<HTMLButtonElement>(
+        ".rss-dashboard-mark-all-button",
+      ),
     );
 
     buttons[0].click();
@@ -433,30 +441,34 @@ describe("ArticleHeader Component", () => {
       new Set(),
       new Set(),
       "OR",
-      mockCallbacks
+      mockCallbacks,
     );
 
     header.render();
 
     const hamburgerBtn = container.querySelector(
-      ".rss-dashboard-hamburger-button"
+      ".rss-dashboard-hamburger-button",
     ) as HTMLElement;
     hamburgerBtn.click();
 
     const cardsPerRowTrigger = container.querySelector(
-      ".rss-dashboard-dropdown-cards-per-row-trigger"
+      ".rss-dashboard-dropdown-cards-per-row-trigger",
     ) as HTMLElement;
     cardsPerRowTrigger.click();
 
     const portalItems = Array.from(
-      document.body.querySelectorAll(".rss-dashboard-themed-menu-portal .rss-dashboard-filter-menu-item")
+      document.body.querySelectorAll(
+        ".rss-dashboard-themed-menu-portal .rss-dashboard-filter-menu-item",
+      ),
     );
     expect(portalItems[0]?.textContent).toContain("Auto");
-    const optionThree = portalItems.find((item) => item.textContent?.includes("3")) as HTMLElement;
+    const optionThree = portalItems.find((item) =>
+      item.textContent?.includes("3"),
+    ) as HTMLElement;
     optionThree.click();
 
     const spacingInput = container.querySelector(
-      ".rss-dashboard-dropdown-card-spacing-input"
+      ".rss-dashboard-dropdown-card-spacing-input",
     ) as HTMLInputElement;
     spacingInput.value = "22";
     spacingInput.dispatchEvent(new Event("input", { bubbles: true }));
@@ -467,13 +479,13 @@ describe("ArticleHeader Component", () => {
         batch: expect.objectContaining({
           cardColumnsPerRow: 3,
         }) as unknown as Record<string, unknown>,
-      })
+      }),
     );
     expect(mockCallbacks.onFilterChange).toHaveBeenCalledWith(
       expect.objectContaining({
         type: "card-spacing-live",
         value: 22,
-      })
+      }),
     );
   });
 

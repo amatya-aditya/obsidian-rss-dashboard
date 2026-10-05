@@ -393,12 +393,20 @@ export class ArticleHeaderMenu {
     this.addSelectorKeyboard(
       cardsPerRowTrigger,
       CARD_COLUMN_OPTIONS,
-      () => String(this.clampCardColumnsPerRow(this.settings.display.cardColumnsPerRow ?? 0)),
-      (val) => this.callbacks.onFilterChange({
-        type: "batch",
-        value: null,
-        batch: { cardColumnsPerRow: this.clampCardColumnsPerRow(Number(val)) },
-      }),
+      () =>
+        String(
+          this.clampCardColumnsPerRow(
+            this.settings.display.cardColumnsPerRow ?? 0,
+          ),
+        ),
+      (val) =>
+        this.callbacks.onFilterChange({
+          type: "batch",
+          value: null,
+          batch: {
+            cardColumnsPerRow: this.clampCardColumnsPerRow(Number(val)),
+          },
+        }),
     );
 
     const cardSpacingGroup = cardLayoutControls.createDiv({
@@ -530,7 +538,9 @@ export class ArticleHeaderMenu {
       } else if (e.key === "Home" || e.key === "End") {
         e.preventDefault();
         e.stopPropagation();
-        this.setActivePortalOption(e.key === "Home" ? 0 : this.activePortalOptions.length - 1);
+        this.setActivePortalOption(
+          e.key === "Home" ? 0 : this.activePortalOptions.length - 1,
+        );
       } else if (e.key === "Enter" || e.key === " ") {
         e.preventDefault();
         e.stopPropagation();
@@ -542,7 +552,10 @@ export class ArticleHeaderMenu {
   private moveActivePortalOption(delta: number): void {
     const nextIndex = Math.max(
       0,
-      Math.min(this.activePortalOptions.length - 1, this.activePortalIndex + delta),
+      Math.min(
+        this.activePortalOptions.length - 1,
+        this.activePortalIndex + delta,
+      ),
     );
     this.setActivePortalOption(nextIndex);
   }
@@ -555,37 +568,55 @@ export class ArticleHeaderMenu {
     this.activePortalIndex = index;
     const activeOption = this.activePortalOptions[index];
     if (activeOption?.id) {
-      this.activePortalToggleBtn?.setAttribute("aria-activedescendant", activeOption.id);
+      this.activePortalToggleBtn?.setAttribute(
+        "aria-activedescendant",
+        activeOption.id,
+      );
     }
   }
 
   private getSelectorFocusContext(
     trigger: HTMLElement | null,
   ): SelectorFocusContext | null {
-    if (!trigger || trigger.ownerDocument.activeElement !== trigger) return null;
+    if (!trigger || trigger.ownerDocument.activeElement !== trigger)
+      return null;
     const triggerLabel = trigger.getAttribute("aria-label");
-    const menuRoot = trigger.closest<HTMLElement>(".rss-dashboard-hamburger-menu");
+    const menuRoot = trigger.closest<HTMLElement>(
+      ".rss-dashboard-hamburger-menu",
+    );
     if (!triggerLabel || !menuRoot) return null;
 
     const menuRootIndex = Array.from(
-      trigger.ownerDocument.querySelectorAll<HTMLElement>(".rss-dashboard-hamburger-menu"),
+      trigger.ownerDocument.querySelectorAll<HTMLElement>(
+        ".rss-dashboard-hamburger-menu",
+      ),
     ).indexOf(menuRoot);
     if (menuRootIndex < 0) return null;
 
-    return { targetDocument: trigger.ownerDocument, triggerLabel, menuRootIndex };
+    return {
+      targetDocument: trigger.ownerDocument,
+      triggerLabel,
+      menuRootIndex,
+    };
   }
 
   private restoreSelectorFocus(context: SelectorFocusContext): void {
-    const replacementRoot = context.targetDocument.querySelectorAll<HTMLElement>(
-      ".rss-dashboard-hamburger-menu",
-    )[context.menuRootIndex];
+    const replacementRoot =
+      context.targetDocument.querySelectorAll<HTMLElement>(
+        ".rss-dashboard-hamburger-menu",
+      )[context.menuRootIndex];
     if (!replacementRoot) return;
     const replacementTrigger = Array.from(
       replacementRoot.querySelectorAll<HTMLElement>('[role="combobox"]'),
-    ).find((candidate) => candidate.getAttribute("aria-label") === context.triggerLabel);
+    ).find(
+      (candidate) =>
+        candidate.getAttribute("aria-label") === context.triggerLabel,
+    );
     replacementTrigger?.focus();
     if (context.targetDocument.activeElement !== replacementTrigger) {
-      replacementRoot.querySelector<HTMLElement>(".rss-dashboard-hamburger-button")?.focus();
+      replacementRoot
+        .querySelector<HTMLElement>(".rss-dashboard-hamburger-button")
+        ?.focus();
     }
   }
 
@@ -594,7 +625,9 @@ export class ArticleHeaderMenu {
     if (!option) return;
     const value = option?.getAttribute("data-value");
     if (value === null || value === undefined) return;
-    const label = option.querySelector(".rss-dashboard-filter-menu-text")?.textContent ?? value;
+    const label =
+      option.querySelector(".rss-dashboard-filter-menu-text")?.textContent ??
+      value;
     const trigger = this.activePortalToggleBtn;
     const focusContext = this.getSelectorFocusContext(trigger);
     const valueElement = trigger?.querySelector(
@@ -620,9 +653,10 @@ export class ArticleHeaderMenu {
     const targetDocument = trigger.ownerDocument;
     const entries: MenuOptionEntries = Array.isArray(options)
       ? options
-      : Object.keys(options).map(
-          (label): [string, string] => [label, options[label] ?? label],
-        );
+      : Object.keys(options).map((label): [string, string] => [
+          label,
+          options[label] ?? label,
+        ]);
     const portalId = `rss-dashboard-options-${++menuInstanceId}`;
     const portal = targetDocument.body.createDiv({
       cls: "rss-dashboard-filter-menu rss-dashboard-themed-menu-portal",
@@ -746,7 +780,8 @@ export class ArticleHeaderMenu {
       selector,
       { "List View": "list", "Card View": "card", "Feed View": "feed" },
       () => this.settings.viewStyle,
-      (val) => this.callbacks.onToggleViewStyle(val as "list" | "card" | "feed"),
+      (val) =>
+        this.callbacks.onToggleViewStyle(val as "list" | "card" | "feed"),
     );
   }
 

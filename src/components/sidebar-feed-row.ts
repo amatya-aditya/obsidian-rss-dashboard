@@ -148,10 +148,7 @@ export function renderFeedBadges(
     });
   }
 
-  if (
-    !settings.display.hideFeedFetchErrorBadges &&
-    feed.lastFetchError
-  ) {
+  if (!settings.display.hideFeedFetchErrorBadges && feed.lastFetchError) {
     const errorBadge = feedNameContainer.createDiv({
       cls: "rss-dashboard-feed-error-badge",
       attr: {

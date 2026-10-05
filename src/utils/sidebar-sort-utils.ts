@@ -1,11 +1,7 @@
 import type { Feed } from "../types/types";
 
 export type FeedSortBy =
-  | "name"
-  | "created"
-  | "itemCount"
-  | "unreadCount"
-  | "custom";
+  "name" | "created" | "itemCount" | "unreadCount" | "custom";
 
 export interface FeedSortOrder {
   by: FeedSortBy;

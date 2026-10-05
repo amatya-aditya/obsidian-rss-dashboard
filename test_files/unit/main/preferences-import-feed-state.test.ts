@@ -271,9 +271,11 @@ describe("metadata and feed-state imports (issues #374 and #474)", () => {
 
   it("keeps article state for a feed that an imported legacy data.json leaves out", async () => {
     installObsidianDomPolyfills();
-    const containerEl = (document.body as HTMLElement & {
-      createDiv: () => HTMLDivElement;
-    }).createDiv();
+    const containerEl = (
+      document.body as HTMLElement & {
+        createDiv: () => HTMLDivElement;
+      }
+    ).createDiv();
     renderImportExportSettingsTab(containerEl, plugin);
 
     // Capture the hidden file input the button creates, then hand it a file
@@ -285,7 +287,8 @@ describe("metadata and feed-state imports (issues #374 and #474)", () => {
       containerEl.querySelectorAll<HTMLButtonElement>("button"),
     ).find((button) => button.textContent === "Import legacy data.json");
     importButton?.click();
-    const fileInput = inputClick.mock.contexts[0] as HTMLInputElement | undefined;
+    const fileInput = inputClick.mock.contexts[0] as
+      HTMLInputElement | undefined;
     expect(fileInput).toBeDefined();
 
     const file = new File(

@@ -150,10 +150,7 @@ export interface Feed {
 }
 
 export type FeedRefreshStatus =
-  | "pending"
-  | "processing"
-  | "timed_out"
-  | "failed";
+  "pending" | "processing" | "timed_out" | "failed";
 
 export interface FeedRefreshState {
   status: FeedRefreshStatus;
@@ -187,11 +184,7 @@ export interface FeedMetadata {
   excludeFromRefresh?: boolean;
   lastRefreshAttemptCompletedAt?: number;
   importStatus?:
-    | "pending"
-    | "processing"
-    | "completed"
-    | "failed"
-    | "timed_out";
+    "pending" | "processing" | "completed" | "failed" | "timed_out";
   importError?: string;
 }
 
@@ -241,11 +234,7 @@ export interface Folder {
 }
 
 export type ViewLocation =
-  | "main"
-  | "right-sidebar"
-  | "left-sidebar"
-  | "inline"
-  | "external-browser";
+  "main" | "right-sidebar" | "left-sidebar" | "inline" | "external-browser";
 
 export type PodcastTheme =
   | "obsidian"
@@ -328,13 +317,7 @@ export interface DisplaySettings {
   mobileShowListToolbar: boolean;
   mobileListToolbarStyle: "left-grid" | "bottom-row" | "minimal";
   defaultFilter:
-    | "all"
-    | "starred"
-    | "unread"
-    | "read"
-    | "saved"
-    | "videos"
-    | "podcasts";
+    "all" | "starred" | "unread" | "read" | "saved" | "videos" | "podcasts";
   hiddenFilters: string[];
   useDomainIconsPodcast: boolean;
   useDomainIconsMastodon: boolean;
@@ -442,9 +425,7 @@ export interface AutoBackupSettings {
 }
 
 export type FeedStorageMode =
-  | "legacy-json"
-  | "vault-shards"
-  | "vault-shards-v2";
+  "legacy-json" | "vault-shards" | "vault-shards-v2";
 
 export interface ArticleUserState {
   read?: boolean;
@@ -504,12 +485,7 @@ export type PersistedFeedConfig = Omit<Feed, "items"> & {
 };
 
 export type ArticleGroupByOption =
-  | "none"
-  | "feed"
-  | "date"
-  | "folder"
-  | "date_feed"
-  | "folder_feed";
+  "none" | "feed" | "date" | "folder" | "date_feed" | "folder_feed";
 
 export interface FeedRetentionProtections {
   protectStarred?: boolean;

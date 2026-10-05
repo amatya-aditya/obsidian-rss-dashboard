@@ -54,7 +54,9 @@ function main() {
       `CSS !important check failed: ${violations.length} declaration(s) found. Replace them with scoped, higher-specificity selectors.`,
     );
     for (const violation of violations) {
-      console.error(`- ${violation.filePath}:${violation.line} ${violation.text}`);
+      console.error(
+        `- ${violation.filePath}:${violation.line} ${violation.text}`,
+      );
     }
     process.exit(1);
   }

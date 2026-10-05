@@ -179,8 +179,6 @@
   }
 }
 
-
-
 /* Tablet and below: hide dashboard sidebar in favor of mobile navigation modal. */
 @media (max-width: 1200px) {
   .rss-dashboard-nav-container {
@@ -207,7 +205,9 @@
     display: none; /* specificity: .workspace-leaf-content ancestor beats Obsidian's forced sidebar display */
   }
 
-  .workspace-leaf-content .rss-dashboard-layout > .rss-dashboard-sidebar-resize-handle {
+  .workspace-leaf-content
+    .rss-dashboard-layout
+    > .rss-dashboard-sidebar-resize-handle {
     display: none; /* specificity: .workspace-leaf-content ancestor beats Obsidian's forced display */
   }
 

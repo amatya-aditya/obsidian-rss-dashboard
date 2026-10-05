@@ -6,7 +6,8 @@ import type { ReaderView } from "../views/reader-view";
  */
 function isEditableTarget(target: EventTarget | null): boolean {
   const ElementConstructor = activeDocument.defaultView?.Element;
-  if (!ElementConstructor || !(target instanceof ElementConstructor)) return false;
+  if (!ElementConstructor || !(target instanceof ElementConstructor))
+    return false;
 
   return (
     target.matches("input, textarea, select") ||
@@ -169,21 +170,21 @@ export function setupReaderHotkeys(scope: Scope, view: ReaderView): void {
     return true;
   });
 
-// Save current article ('s')
-   register([], "s", (evt) => {
-     evt.preventDefault();
-     void view.actionSaveCurrentArticle();
-     return true;
-   });
+  // Save current article ('s')
+  register([], "s", (evt) => {
+    evt.preventDefault();
+    void view.actionSaveCurrentArticle();
+    return true;
+  });
 
-   // Mark read and open next article (',')
-   register([], ",", (evt) => {
-     evt.preventDefault();
-     void view.actionMarkReadAndNext();
-     return true;
-   });
+  // Mark read and open next article (',')
+  register([], ",", (evt) => {
+    evt.preventDefault();
+    void view.actionMarkReadAndNext();
+    return true;
+  });
 
-   // Open Shortcut Help ('Shift + ?')
+  // Open Shortcut Help ('Shift + ?')
   register(["Shift"], "?", (evt) => {
     evt.preventDefault();
     view.actionOpenShortcutHelp();

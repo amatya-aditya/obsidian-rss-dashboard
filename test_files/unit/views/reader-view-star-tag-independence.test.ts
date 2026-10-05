@@ -32,7 +32,11 @@ type ReaderViewInternals = {
   starToggleButton: HTMLElement | null;
   fetchFullArticleContent: ReturnType<typeof vi.fn>;
   actionToggleStarStatus: () => void;
-  toggleTag: (item: FeedItem, tag: { name: string; color: string }, add: boolean) => void;
+  toggleTag: (
+    item: FeedItem,
+    tag: { name: string; color: string },
+    add: boolean,
+  ) => void;
 };
 
 function getInternals(view: ReaderView): ReaderViewInternals {
@@ -161,10 +165,7 @@ describe("ReaderView star/tag independence (GH Issue #332)", () => {
       starButton?.dispatchEvent(event);
 
       expect(event.defaultPrevented).toBe(true);
-      expect(onArticleUpdate).toHaveBeenLastCalledWith(
-        item,
-        { starred: true },
-      );
+      expect(onArticleUpdate).toHaveBeenLastCalledWith(item, { starred: true });
       onArticleUpdate.mockClear();
     }
 

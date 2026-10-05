@@ -146,7 +146,11 @@ function main() {
     }
 
     for (const link of extractLinks(source)) {
-      const { resolved, inside } = resolveTarget(ROOT_DIR, filePath, link.target);
+      const { resolved, inside } = resolveTarget(
+        ROOT_DIR,
+        filePath,
+        link.target,
+      );
       const repoRelative = relative(ROOT_DIR, resolved);
 
       if (inside && !isCheckablePath(repoRelative)) {

@@ -79,7 +79,11 @@ export function resolvePodcastOpenDestinations(
 
   const episodeUrl = item.link?.trim() ?? "";
   if (episodeUrl && episodeUrl !== "#" && isOpenableHttpUrl(episodeUrl)) {
-    destinations.push({ id: "episode", title: "Episode page", url: episodeUrl });
+    destinations.push({
+      id: "episode",
+      title: "Episode page",
+      url: episodeUrl,
+    });
   }
 
   const guidUrl = item.guid?.trim() ?? "";

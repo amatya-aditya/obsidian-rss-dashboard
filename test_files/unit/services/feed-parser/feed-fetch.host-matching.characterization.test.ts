@@ -49,13 +49,18 @@ describe("fetchFeedXml host handling", () => {
       "https://feeds.feedburner.com/show",
       "http://feeds.feedburner.com/show",
       "https://feeds.feedburner.com/show?fmt=xml#frag",
-    ])("asks for the canonical FeedBurner address first for %s", async (url) => {
-      const requested = serve({
-        "https://feeds.feedburner.com/show?format=xml": RSS2_BASIC,
-      });
-      await fetchFeedXml(url, DIRECT);
-      expect(requested[0]).toBe("https://feeds.feedburner.com/show?format=xml");
-    });
+    ])(
+      "asks for the canonical FeedBurner address first for %s",
+      async (url) => {
+        const requested = serve({
+          "https://feeds.feedburner.com/show?format=xml": RSS2_BASIC,
+        });
+        await fetchFeedXml(url, DIRECT);
+        expect(requested[0]).toBe(
+          "https://feeds.feedburner.com/show?format=xml",
+        );
+      },
+    );
 
     it("requests an address with an explicit port as given", async () => {
       // The FeedBurner name regex needs a slash right after the host name.
@@ -139,7 +144,9 @@ describe("fetchFeedXml host handling", () => {
     ])("falls back to rss.arxiv.org for %s", async (url) => {
       const requested = serve({ [url]: NOT_A_FEED });
       await fetchFeedXml(url, DIRECT).catch(() => undefined);
-      expect(requested).toContain(url.replace("export.arxiv.org", "rss.arxiv.org"));
+      expect(requested).toContain(
+        url.replace("export.arxiv.org", "rss.arxiv.org"),
+      );
     });
 
     it("requests a bare arxiv.org address once more as the discovered address", async () => {

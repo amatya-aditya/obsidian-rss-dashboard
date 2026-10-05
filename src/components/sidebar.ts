@@ -245,8 +245,7 @@ export class Sidebar {
       if (feed.lastFetchError)
         lines.push(`Last attempt failed: ${feed.lastFetchError}`);
       const shardHealth = this.getReportedShardHealth(feed);
-      if (shardHealth)
-        lines.push(this.getFeedShardWarningMessage(shardHealth));
+      if (shardHealth) lines.push(this.getFeedShardWarningMessage(shardHealth));
       if (status.refreshingCount > 0) lines.push("In progress");
       if (feed.excludeFromRefresh) lines.push("Excluded from global refresh");
       return lines;
@@ -1282,9 +1281,15 @@ export class Sidebar {
       e.stopPropagation();
       folderFeedsList.classList.remove("drag-over");
       if (e.dataTransfer) {
-        const { feedUrls, folderPaths } = this.extractDragPayload(e.dataTransfer);
+        const { feedUrls, folderPaths } = this.extractDragPayload(
+          e.dataTransfer,
+        );
         if (feedUrls.length > 0 || folderPaths.length > 0) {
-          this.batchMoveFeedsAndFoldersToFolder(fullPath, feedUrls, folderPaths);
+          this.batchMoveFeedsAndFoldersToFolder(
+            fullPath,
+            feedUrls,
+            folderPaths,
+          );
         }
       }
     });
@@ -1836,7 +1841,10 @@ export class Sidebar {
     let otherFeedCount = 0;
     for (const feed of this.settings.feeds) {
       const feedFolder = feed.folder;
-      if (feedFolder && folders.some((folder) => isInside(feedFolder, folder))) {
+      if (
+        feedFolder &&
+        folders.some((folder) => isInside(feedFolder, folder))
+      ) {
         folderFeedCount++;
       } else if (selectedFeeds.has(feed.url)) {
         otherFeedCount++;
@@ -1860,9 +1868,7 @@ export class Sidebar {
     }
 
     const others =
-      otherFeedCount > 0
-        ? `, plus ${count(otherFeedCount, "other feed")}`
-        : "";
+      otherFeedCount > 0 ? `, plus ${count(otherFeedCount, "other feed")}` : "";
     return `Delete ${count(folders.length, "folder")}${subfolders} containing ${count(folderFeedCount, "feed")}${others}? ${undo}`;
   }
 
@@ -3156,22 +3162,16 @@ export class Sidebar {
       onDelete?: () => void;
     },
   ): void {
-    new EditFeedModal(
-      this.app,
-      this.plugin,
-      feed,
-      () => this.render(),
-      {
-        ...options,
-        onDelete: () => {
-          if (options?.onDelete) {
-            options.onDelete();
-          } else {
-            this.callbacks.onDeleteFeed(feed);
-          }
-        },
+    new EditFeedModal(this.app, this.plugin, feed, () => this.render(), {
+      ...options,
+      onDelete: () => {
+        if (options?.onDelete) {
+          options.onDelete();
+        } else {
+          this.callbacks.onDeleteFeed(feed);
+        }
       },
-    ).open();
+    }).open();
   }
 
   private showFolderAutoTagModal(folderPath: string): void {

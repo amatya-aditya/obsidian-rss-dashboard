@@ -8,8 +8,10 @@ describe("src/modals/feed-manager-modal (re-exports)", () => {
 
     const wrapper = await import("../../../src/modals/feed-manager-modal");
     const add = await import("../../../src/modals/feed-manager/add-feed-modal");
-    const edit = await import("../../../src/modals/feed-manager/edit-feed-modal");
-    const manager = await import("../../../src/modals/feed-manager/feed-manager-modal");
+    const edit =
+      await import("../../../src/modals/feed-manager/edit-feed-modal");
+    const manager =
+      await import("../../../src/modals/feed-manager/feed-manager-modal");
 
     expect(wrapper.AddFeedModal).toBe(add.AddFeedModal);
     expect(wrapper.EditFeedModal).toBe(edit.EditFeedModal);

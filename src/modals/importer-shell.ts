@@ -1,29 +1,30 @@
 import { setIcon, setTooltip } from "obsidian";
 
 export type ImporterShellState =
-  | "idle"
-  | "validating"
-  | "preview"
-  | "executing"
-  | "done"
-  | "error";
+  "idle" | "validating" | "preview" | "executing" | "done" | "error";
 
 export type ImporterShellValidation =
-  | { valid: true }
-  | { valid: false; error: string };
+  { valid: true } | { valid: false; error: string };
 
 export interface ImporterPreviewModel {
   getStats(): unknown;
 }
 
 export interface ImporterPreviewRenderer<TModel extends ImporterPreviewModel> {
-  render(container: HTMLElement, model: TModel, controls: {
-    rerender: () => void;
-    updateAction: () => void;
-  }): void;
+  render(
+    container: HTMLElement,
+    model: TModel,
+    controls: {
+      rerender: () => void;
+      updateAction: () => void;
+    },
+  ): void;
 }
 
-export interface ImporterShellOptions<TParsed, TModel extends ImporterPreviewModel> {
+export interface ImporterShellOptions<
+  TParsed,
+  TModel extends ImporterPreviewModel,
+> {
   acceptedFileTypes: string;
   /**
    * Runs at the start of every file selection, including ones made through
@@ -75,7 +76,9 @@ export class ImporterShell<TParsed, TModel extends ImporterPreviewModel> {
       attr: { placeholder: "No file selected...", disabled: "true" },
     });
 
-    const fileButton = fileSelector.createEl("button", { cls: "import-file-button" });
+    const fileButton = fileSelector.createEl("button", {
+      cls: "import-file-button",
+    });
     setIcon(fileButton, "folder-open");
     fileButton.createSpan({ text: " Import file..." });
     fileButton.onclick = () => this.openFilePicker();
@@ -120,13 +123,17 @@ export class ImporterShell<TParsed, TModel extends ImporterPreviewModel> {
       }
       this.model = this.options.createPreviewModel(this.options.parse(content));
       if (!this.model) {
-        this.showError(this.options.noItemsError ?? "No items found in the import file.");
+        this.showError(
+          this.options.noItemsError ?? "No items found in the import file.",
+        );
         return;
       }
       this.state = "preview";
       this.renderPreview();
     } catch (error) {
-      this.showError(error instanceof Error ? error.message : "Unable to import file.");
+      this.showError(
+        error instanceof Error ? error.message : "Unable to import file.",
+      );
     }
   }
 
@@ -156,7 +163,10 @@ export class ImporterShell<TParsed, TModel extends ImporterPreviewModel> {
     const action = this.options.getActionState(this.model);
     this.actionButton.textContent = action.text;
     this.actionButton.disabled = action.disabled || this.state === "executing";
-    this.actionButton.classList.toggle("is-disabled", this.actionButton.disabled);
+    this.actionButton.classList.toggle(
+      "is-disabled",
+      this.actionButton.disabled,
+    );
     if (action.title) {
       setTooltip(this.actionButton, action.title);
     } else {
@@ -200,7 +210,10 @@ export class ImporterShell<TParsed, TModel extends ImporterPreviewModel> {
     if (this.options.renderError) {
       this.options.renderError(this.errorContainer, error);
     } else {
-      this.errorContainer.createDiv({ cls: "import-error-message", text: error });
+      this.errorContainer.createDiv({
+        cls: "import-error-message",
+        text: error,
+      });
     }
     this.previewContainer.removeClass("import-visible");
     this.previewContainer.addClass("import-hidden");

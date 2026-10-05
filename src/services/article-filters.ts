@@ -124,15 +124,9 @@ function matchesEveryStatusFilter(
   if (state.activeStatusFilters.has("read") && !isRead) return false;
   if (state.activeStatusFilters.has("saved") && !isSaved) return false;
   if (state.activeStatusFilters.has("starred") && !isStarred) return false;
-  if (
-    state.activeStatusFilters.has("videos") &&
-    item.mediaType !== "video"
-  )
+  if (state.activeStatusFilters.has("videos") && item.mediaType !== "video")
     return false;
-  if (
-    state.activeStatusFilters.has("podcasts") &&
-    item.mediaType !== "podcast"
-  )
+  if (state.activeStatusFilters.has("podcasts") && item.mediaType !== "podcast")
     return false;
   if (
     state.activeStatusFilters.has("tagged") &&
@@ -178,8 +172,7 @@ function matchesAnyStatusFilter(
   if (state.activeStatusFilters.has("unread") && !isRead) match = true;
   else if (state.activeStatusFilters.has("read") && isRead) match = true;
   else if (state.activeStatusFilters.has("saved") && isSaved) match = true;
-  else if (state.activeStatusFilters.has("starred") && isStarred)
-    match = true;
+  else if (state.activeStatusFilters.has("starred") && isStarred) match = true;
   else if (
     state.activeStatusFilters.has("videos") &&
     item.mediaType === "video"
@@ -243,7 +236,11 @@ function matchesAgeFilter(
     state.settings.articleFilter.value > 0
   ) {
     const maxAge = Date.now() - state.settings.articleFilter.value;
-    if (getEffectiveDateMs(item, state.settings.useFirstSeenDateFallback) <= maxAge) return false;
+    if (
+      getEffectiveDateMs(item, state.settings.useFirstSeenDateFallback) <=
+      maxAge
+    )
+      return false;
   }
 
   return true;

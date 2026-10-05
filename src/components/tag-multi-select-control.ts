@@ -41,10 +41,7 @@ export function addTagMultiSelectControl(
     mobileSheetTitle = menuTitle,
   } = opts;
 
-  const selectedSet = normalizeSelection(
-    opts.selectedTagNames,
-    availableTags,
-  );
+  const selectedSet = normalizeSelection(opts.selectedTagNames, availableTags);
   const controlEl = setting.controlEl;
   const wrapper = controlEl.createDiv({ cls: CLS_WRAPPER });
   const trigger = wrapper.createEl("button", {
@@ -67,7 +64,11 @@ export function addTagMultiSelectControl(
     wrapper.classList.toggle(CLS_EMPTY, isEmpty);
     trigger.disabled = isEmpty;
     trigger.setAttr("aria-disabled", isEmpty ? "true" : "false");
-    triggerLabel.textContent = getSummaryLabel(selectedSet, availableTags, opts);
+    triggerLabel.textContent = getSummaryLabel(
+      selectedSet,
+      availableTags,
+      opts,
+    );
   };
 
   const rerenderOpenMenu = (menuList: HTMLElement) => {
@@ -325,9 +326,11 @@ function closeOtherOpenPortals(targetDocument: Document): void {
     .forEach((element) => {
       element.remove();
     });
-  targetDocument.querySelectorAll<HTMLElement>(`.${CLS_BACKDROP}`).forEach((el) => {
-    el.remove();
-  });
+  targetDocument
+    .querySelectorAll<HTMLElement>(`.${CLS_BACKDROP}`)
+    .forEach((el) => {
+      el.remove();
+    });
   targetDocument
     .querySelectorAll<HTMLElement>(`.${CLS_TRIGGER}[aria-expanded="true"]`)
     .forEach((trigger) => trigger.setAttr("aria-expanded", "false"));

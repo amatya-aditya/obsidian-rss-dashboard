@@ -313,7 +313,10 @@ describe("fetchWithProxyFallbackDetailed", () => {
 
   it("classifies blocked paywall content as restricted", async () => {
     const restrictedHtml = `<html><body>403 forbidden. subscription required. ${"x".repeat(220)}</body></html>`;
-    robustFetchMock.mockResolvedValueOnce({ text: restrictedHtml, status: 403 });
+    robustFetchMock.mockResolvedValueOnce({
+      text: restrictedHtml,
+      status: 403,
+    });
 
     const result = await fetchWithProxyFallbackDetailed(
       "https://example.com/restricted",

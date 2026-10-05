@@ -56,9 +56,7 @@ describe("sanitizeFilename", () => {
   it("removes invalid characters and caps long titles at 100 characters", () => {
     const title = `  ${"a".repeat(98)} /  zzz`;
 
-    expect(sanitizeFilename(title)).toBe(
-      `${"a".repeat(98)} z`,
-    );
+    expect(sanitizeFilename(title)).toBe(`${"a".repeat(98)} z`);
   });
 
   it("falls back to a safe filename when sanitization removes everything", () => {
@@ -108,13 +106,17 @@ summary: "{{summary}}"
 ---`,
     });
     const saver = new ArticleSaver(app, settings);
-    const item = createItem({ summary: 'A "quoted" summary\nwith another line.' });
+    const item = createItem({
+      summary: 'A "quoted" summary\nwith another line.',
+    });
 
     const createSpy = vi.spyOn(app.vault, "create");
     await saver.saveArticle(item, undefined, undefined, "BODY");
 
     const written = createSpy.mock.calls[0][1];
-    expect(written).toContain('summary: "A \\"quoted\\" summary\\nwith another line."');
+    expect(written).toContain(
+      'summary: "A \\"quoted\\" summary\\nwith another line."',
+    );
     expect(written).not.toContain("{{summary}}");
   });
 
@@ -826,8 +828,7 @@ describe("ArticleSaver - Math Rendering", () => {
       includeFrontmatter: false,
     });
     const saver = new ArticleSaver(app, settings, "https://proxy/?url=");
-    const formulaUrl =
-      "https://s0.wp.com/latex.php?latex=%7Bx%7D&bg=ffffff";
+    const formulaUrl = "https://s0.wp.com/latex.php?latex=%7Bx%7D&bg=ffffff";
 
     vi.spyOn(
       fetchHelpers,
@@ -864,7 +865,8 @@ describe("ArticleSaver - Math Rendering", () => {
       fetchHelpers,
       "fetchWithProxyFallbackDetailed",
     ).mockResolvedValueOnce({
-      content: '<p>Inline <span class="math" data-math="$a_1$"><span>[RENDERED]</span></span> and display <span class="math" data-math="$$b_2$$"><span>[RENDERED]</span></span></p>',
+      content:
+        '<p>Inline <span class="math" data-math="$a_1$"><span>[RENDERED]</span></span> and display <span class="math" data-math="$$b_2$$"><span>[RENDERED]</span></span></p>',
       failureType: "none",
     });
 

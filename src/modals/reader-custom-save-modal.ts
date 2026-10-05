@@ -230,7 +230,9 @@ function createTemplateControls(
     selectedId = select.value;
     const selected = context
       .getSettings()
-      .articleSaving.savedTemplates.find((template) => template.id === selectedId);
+      .articleSaving.savedTemplates.find(
+        (template) => template.id === selectedId,
+      );
     if (selected) {
       input.value = selected.template;
       baseline = selected.template;
@@ -273,7 +275,9 @@ function createActionButtons(
   modal: Modal,
   item: FeedItem,
   folderInput: HTMLInputElement,
-  templateControls: TemplateControls & { getPending: () => PendingTemplate | null },
+  templateControls: TemplateControls & {
+    getPending: () => PendingTemplate | null;
+  },
   context: ReaderCustomSaveModalContext,
 ): void {
   const templateHint = content.createEl("p", {
@@ -289,7 +293,9 @@ function createActionButtons(
   templateControls.select.addEventListener("change", updateTemplateHint);
   updateTemplateHint();
 
-  const buttonContainer = content.createDiv({ cls: "rss-dashboard-modal-buttons" });
+  const buttonContainer = content.createDiv({
+    cls: "rss-dashboard-modal-buttons",
+  });
   const cancelButton = buttonContainer.createEl("button", {
     cls: "rss-dashboard-custom-save-cancel-button",
     attr: { type: "button" },
@@ -312,12 +318,9 @@ function createActionButtons(
       const saveItem = context.displayTitle
         ? { ...item, title: context.displayTitle }
         : item;
-      const file = await context.getArticleSaver().saveArticle(
-        saveItem,
-        folder,
-        template,
-        markdownContent,
-      );
+      const file = await context
+        .getArticleSaver()
+        .saveArticle(saveItem, folder, template, markdownContent);
       if (file) {
         const settings = context.getSettings();
         const feed = settings.feeds.find((entry) => entry.url === item.feedUrl);
@@ -330,7 +333,8 @@ function createActionButtons(
             defaultFolder: pending.defaultFolder,
           };
           settings.articleSaving.savedTemplates.push(newTemplate);
-          if (pending.assignToFeed && feed) feed.customTemplate = newTemplate.id;
+          if (pending.assignToFeed && feed)
+            feed.customTemplate = newTemplate.id;
         } else if (templateControls.select.value && feed) {
           const selected = settings.articleSaving.savedTemplates.find(
             (entry) => entry.id === templateControls.select.value,

@@ -201,10 +201,9 @@ describe("AddFeedModal", () => {
       "Feed encoding",
     );
     expect(encodingSelect.value).toBe("auto");
-    expect(Array.from(encodingSelect.options).map((option) => option.text)).toEqual([
-      "Auto-detect",
-      "Windows-1251",
-    ]);
+    expect(
+      Array.from(encodingSelect.options).map((option) => option.text),
+    ).toEqual(["Auto-detect", "Windows-1251"]);
     encodingSelect.value = "windows-1251";
     encodingSelect.dispatchEvent(new Event("change"));
 
@@ -290,8 +289,10 @@ describe("AddFeedModal", () => {
     await flushPromises();
 
     expect(onAdd).toHaveBeenCalledTimes(1);
-     
-    expect((onAdd as ReturnType<typeof vi.fn>).mock.calls[0]?.[0].scanInterval).toBe(-1);
+
+    expect(
+      (onAdd as ReturnType<typeof vi.fn>).mock.calls[0]?.[0].scanInterval,
+    ).toBe(-1);
     expect(onSave).toHaveBeenCalledTimes(1);
   });
 
@@ -328,8 +329,10 @@ describe("AddFeedModal", () => {
     await flushPromises();
 
     expect(onAdd).toHaveBeenCalledTimes(1);
-     
-    expect((onAdd as ReturnType<typeof vi.fn>).mock.calls[0]?.[0].scanInterval).toBe(0);
+
+    expect(
+      (onAdd as ReturnType<typeof vi.fn>).mock.calls[0]?.[0].scanInterval,
+    ).toBe(0);
     expect(onSave).toHaveBeenCalledTimes(1);
   });
 
@@ -366,8 +369,10 @@ describe("AddFeedModal", () => {
     await flushPromises();
 
     expect(onAdd).toHaveBeenCalledTimes(1);
-     
-    expect((onAdd as ReturnType<typeof vi.fn>).mock.calls[0]?.[0].excludeFromRefresh).toBe(true);
+
+    expect(
+      (onAdd as ReturnType<typeof vi.fn>).mock.calls[0]?.[0].excludeFromRefresh,
+    ).toBe(true);
     expect(onSave).toHaveBeenCalledTimes(1);
   });
 
@@ -430,8 +435,6 @@ describe("AddFeedModal", () => {
     expect(onSave).toHaveBeenCalledTimes(0);
     expect(closeSpy).toHaveBeenCalledTimes(0);
   });
-
-
 
   it("routes Mastodon feeds into the configured default Mastodon folder and shows conversion notice", async () => {
     const app = createMockApp();
@@ -601,18 +604,27 @@ describe("AddFeedModal", () => {
 
     expect(modal.modalEl.classList.contains("rss-add-feed-modal")).toBe(true);
 
-    const actionsContainer = modal.contentEl.querySelector(".rss-add-feed-actions");
+    const actionsContainer = modal.contentEl.querySelector(
+      ".rss-add-feed-actions",
+    );
     expect(actionsContainer).not.toBeNull();
 
-    const saveBtn = modal.contentEl.querySelector(".rss-add-feed-save-button") as HTMLButtonElement;
+    const saveBtn = modal.contentEl.querySelector(
+      ".rss-add-feed-save-button",
+    ) as HTMLButtonElement;
     expect(saveBtn).not.toBeNull();
     expect(saveBtn.textContent).toBe("Save");
-    expect(saveBtn.classList.contains("rss-dashboard-primary-button")).toBe(true);
+    expect(saveBtn.classList.contains("rss-dashboard-primary-button")).toBe(
+      true,
+    );
 
-    const cancelBtn = modal.contentEl.querySelector(".rss-add-feed-cancel-button") as HTMLButtonElement;
+    const cancelBtn = modal.contentEl.querySelector(
+      ".rss-add-feed-cancel-button",
+    ) as HTMLButtonElement;
     expect(cancelBtn).not.toBeNull();
     expect(cancelBtn.textContent).toBe("Cancel");
-    expect(cancelBtn.classList.contains("rss-dashboard-cancel-button")).toBe(true);
+    expect(cancelBtn.classList.contains("rss-dashboard-cancel-button")).toBe(
+      true,
+    );
   });
 });
-

@@ -16,7 +16,9 @@ interface TestPlugin {
   backupAndMigrateStorageToV2: () => Promise<void>;
 }
 
-function createPlugin(overrides: Partial<TestPlugin["settings"]> = {}): TestPlugin {
+function createPlugin(
+  overrides: Partial<TestPlugin["settings"]> = {},
+): TestPlugin {
   return {
     settings: { storageMode: "legacy-json", ...overrides },
     manifest: { version: "2.7.0" },

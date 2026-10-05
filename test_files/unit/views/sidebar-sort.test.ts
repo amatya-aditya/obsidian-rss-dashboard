@@ -4,7 +4,11 @@ import { applyFolderSortOrder } from "../../../src/utils/sidebar-folder-sort-uti
 import type { Feed, Folder } from "../../../src/types/types";
 
 // Helper to create mock feeds
-function makeFeedWithItems(title: string, lastUpdated: number, itemCount: number): Feed {
+function makeFeedWithItems(
+  title: string,
+  lastUpdated: number,
+  itemCount: number,
+): Feed {
   return {
     title,
     url: `https://example.com/${title}`,
@@ -21,11 +25,11 @@ function makeFeedWithItems(title: string, lastUpdated: number, itemCount: number
       feedUrl: `https://example.com/${title}`,
       coverImage: "",
       saved: false,
-      tags: []
+      tags: [],
     })),
     lastUpdated,
     mediaType: "article",
-    customTemplate: ""
+    customTemplate: "",
   };
 }
 
@@ -49,7 +53,10 @@ describe("Sidebar Feed Sorting", () => {
 
   describe("Alphabetical Sorting (name)", () => {
     it("sorts A>Z taking case-insensitivity into account", () => {
-      const sorted = applyFeedSortOrder(allFeeds, { by: "name", ascending: true });
+      const sorted = applyFeedSortOrder(allFeeds, {
+        by: "name",
+        ascending: true,
+      });
       expect(sorted[0].title).toBe("Apple News");
       expect(sorted[1].title).toBe("apple rumors");
       expect(sorted[2].title).toBe("Banana Weekly");
@@ -57,7 +64,10 @@ describe("Sidebar Feed Sorting", () => {
     });
 
     it("sorts Z>A taking case-insensitivity into account", () => {
-      const sorted = applyFeedSortOrder(allFeeds, { by: "name", ascending: false });
+      const sorted = applyFeedSortOrder(allFeeds, {
+        by: "name",
+        ascending: false,
+      });
       expect(sorted[0].title).toBe("Zebra Tech");
       expect(sorted[1].title).toBe("Banana Weekly");
       expect(sorted[2].title).toBe("apple rumors");
@@ -67,7 +77,10 @@ describe("Sidebar Feed Sorting", () => {
 
   describe("Last Updated Sorting (created)", () => {
     it("sorts oldest to newest (ascending)", () => {
-      const sorted = applyFeedSortOrder(allFeeds, { by: "created", ascending: true });
+      const sorted = applyFeedSortOrder(allFeeds, {
+        by: "created",
+        ascending: true,
+      });
       expect(sorted[0].title).toBe("Apple News"); // 1000
       expect(sorted[1].title).toBe("Banana Weekly"); // 1500
       expect(sorted[2].title).toBe("Zebra Tech"); // 2000
@@ -75,7 +88,10 @@ describe("Sidebar Feed Sorting", () => {
     });
 
     it("sorts newest to oldest (descending)", () => {
-      const sorted = applyFeedSortOrder(allFeeds, { by: "created", ascending: false });
+      const sorted = applyFeedSortOrder(allFeeds, {
+        by: "created",
+        ascending: false,
+      });
       expect(sorted[0].title).toBe("apple rumors");
       expect(sorted[1].title).toBe("Zebra Tech");
       expect(sorted[2].title).toBe("Banana Weekly");
@@ -85,7 +101,10 @@ describe("Sidebar Feed Sorting", () => {
 
   describe("Item Count Sorting", () => {
     it("sorts lowest to highest (ascending)", () => {
-      const sorted = applyFeedSortOrder(allFeeds, { by: "itemCount", ascending: true });
+      const sorted = applyFeedSortOrder(allFeeds, {
+        by: "itemCount",
+        ascending: true,
+      });
       expect(sorted[0].title).toBe("apple rumors"); // 1
       expect(sorted[1].title).toBe("Zebra Tech"); // 2
       expect(sorted[2].title).toBe("Apple News"); // 5
@@ -93,7 +112,10 @@ describe("Sidebar Feed Sorting", () => {
     });
 
     it("sorts highest to lowest (descending)", () => {
-      const sorted = applyFeedSortOrder(allFeeds, { by: "itemCount", ascending: false });
+      const sorted = applyFeedSortOrder(allFeeds, {
+        by: "itemCount",
+        ascending: false,
+      });
       expect(sorted[0].title).toBe("Banana Weekly");
       expect(sorted[1].title).toBe("Apple News");
       expect(sorted[2].title).toBe("Zebra Tech");
@@ -179,8 +201,11 @@ describe("Sidebar Feed Sorting", () => {
       const f2 = makeFeedWithItems("Z", 1000, 2);
       const f3 = makeFeedWithItems("B", 1000, 2);
       const equalFeeds = [f1, f2, f3];
-      
-      const sorted = applyFeedSortOrder(equalFeeds, { by: "created", ascending: true });
+
+      const sorted = applyFeedSortOrder(equalFeeds, {
+        by: "created",
+        ascending: true,
+      });
       expect(sorted[0].title).toBe("A");
       expect(sorted[1].title).toBe("Z");
       expect(sorted[2].title).toBe("B");

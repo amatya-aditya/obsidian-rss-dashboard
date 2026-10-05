@@ -17,7 +17,14 @@ import {
 
 // ── Fixture factory ──────────────────────────────────────────────────────────
 
-function makeWord(text: string, extra: Partial<{ enabled: boolean; wholeWord: boolean; caseSensitive: boolean }> = {}) {
+function makeWord(
+  text: string,
+  extra: Partial<{
+    enabled: boolean;
+    wholeWord: boolean;
+    caseSensitive: boolean;
+  }> = {},
+) {
   return {
     id: `hw-${text}`,
     text,

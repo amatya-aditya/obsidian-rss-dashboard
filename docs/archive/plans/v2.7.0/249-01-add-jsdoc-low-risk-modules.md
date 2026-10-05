@@ -11,7 +11,7 @@
 ## Modules
 
 - `src/services/backup-service.ts` — `BackupService` class
-- `src/services/folder-service.ts` — `FolderService` class  
+- `src/services/folder-service.ts` — `FolderService` class
 - `src/services/import-export-service.ts` — `ImportExportService` class
 
 ## Acceptance criteria

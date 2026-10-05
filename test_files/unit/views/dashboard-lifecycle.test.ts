@@ -719,7 +719,9 @@ describe("Dashboard lifecycle", () => {
       view.handleDeleteFolder("Tech");
       expect(settings.folders.map((f) => f.name)).not.toContain("Tech");
       expect(
-        settings.feeds.some((f) => f.folder === "Tech" || f.folder === "Tech/Nested"),
+        settings.feeds.some(
+          (f) => f.folder === "Tech" || f.folder === "Tech/Nested",
+        ),
       ).toBe(false);
       expect(settings.feeds.some((f) => f.folder === "News")).toBe(true);
     });

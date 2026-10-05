@@ -93,7 +93,9 @@ describe("ArticleRenderer undated-item date display", () => {
 
     await fallbackOnRenderer.render(container, item);
 
-    const dateText = container.querySelector(".rss-reader-pub-date")?.textContent;
+    const dateText = container.querySelector(
+      ".rss-reader-pub-date",
+    )?.textContent;
     expect(dateText).not.toBe("Invalid Date");
     expect(dateText).toContain("First seen:");
     expect(dateText).toContain(new Date(firstSeenMs).toLocaleString());
@@ -104,7 +106,9 @@ describe("ArticleRenderer undated-item date display", () => {
 
     await renderer.render(container, item);
 
-    const dateText = container.querySelector(".rss-reader-pub-date")?.textContent;
+    const dateText = container.querySelector(
+      ".rss-reader-pub-date",
+    )?.textContent;
     expect(dateText).toBe("Unknown date");
   });
 
@@ -114,7 +118,9 @@ describe("ArticleRenderer undated-item date display", () => {
 
     await renderer.render(container, item);
 
-    const dateText = container.querySelector(".rss-reader-pub-date")?.textContent;
+    const dateText = container.querySelector(
+      ".rss-reader-pub-date",
+    )?.textContent;
     expect(dateText).toBe("Unknown date");
   });
 
@@ -126,7 +132,9 @@ describe("ArticleRenderer undated-item date display", () => {
 
     await renderer.render(container, item);
 
-    const dateText = container.querySelector(".rss-reader-pub-date")?.textContent;
+    const dateText = container.querySelector(
+      ".rss-reader-pub-date",
+    )?.textContent;
     expect(dateText).toBe(new Date("2024-01-01T00:00:00Z").toLocaleString());
   });
 });

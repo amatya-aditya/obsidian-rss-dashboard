@@ -205,9 +205,7 @@ describe("Phase 7 - ArticleList characterization", () => {
     (h.list as unknown as TestableArticleList).filterArticlesBySearch("gl");
 
     expect(
-      h
-        .getArticleEl("math")
-        ?.classList.contains("rss-dashboard-search-hidden"),
+      h.getArticleEl("math")?.classList.contains("rss-dashboard-search-hidden"),
     ).toBe(false);
     h.cleanup();
   });
@@ -346,7 +344,10 @@ describe("Phase 7 - ArticleList characterization", () => {
       title: "Dated",
       pubDate: new Date("2024-01-01T00:00:00Z").toISOString(),
     });
-    const undated = { ...buildArticle({ guid: "undated", title: "Undated" }), pubDate: "" };
+    const undated = {
+      ...buildArticle({ guid: "undated", title: "Undated" }),
+      pubDate: "",
+    };
 
     const newest = createArticleListHarness({
       settings: {

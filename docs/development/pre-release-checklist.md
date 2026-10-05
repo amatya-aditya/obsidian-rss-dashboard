@@ -23,7 +23,7 @@ it is safe to run in CI and on a normal dev machine mid-feature:
   em-dash is indistinguishable from a hyphen in a terminal while matching
   nothing. Use kebab-case.
 - No tracked file is also matched by `.gitignore`. Git honours the index over
-  `.gitignore`, so such a file keeps working while a *new* file beside it
+  `.gitignore`, so such a file keeps working while a _new_ file beside it
   silently fails to stage — a contradiction that stays invisible until it
   costs someone an afternoon.
 - Every plan under `docs/archive/plans/` appears in the catalog in
@@ -111,7 +111,7 @@ which would false-positive on ordinary WIP if automated into
 - [ ] `npm run build` passes clean on the branch you're about to cut from.
 - [ ] The build also passes in a copy with no `.git` folder, which is how the
       community directory scanner builds: `git archive HEAD | tar -x -C <empty
-      folder>`, then `npm ci && npm run build` there. Compliance scripts that
+folder>`, then `npm ci && npm run build` there. Compliance scripts that
       call git must skip with a notice, not crash.
 
 ## Why the untracked-file check isn't automated

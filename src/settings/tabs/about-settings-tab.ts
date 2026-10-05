@@ -72,7 +72,11 @@ export function renderAboutTab(
       cls: "rss-dashboard-about-btn",
     });
     whatsNewButton.onclick = () => {
-      new WhatsNewModal(plugin.app, plugin.manifest.version, releaseNote).open();
+      new WhatsNewModal(
+        plugin.app,
+        plugin.manifest.version,
+        releaseNote,
+      ).open();
     };
   }
 

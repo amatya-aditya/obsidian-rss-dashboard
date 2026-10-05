@@ -44,7 +44,10 @@ function fakeBuild(version = "9.9.9"): string {
 }
 
 function readJson(...segments: string[]): Record<string, unknown> {
-  return JSON.parse(readFileSync(join(...segments), "utf8")) as Record<string, unknown>;
+  return JSON.parse(readFileSync(join(...segments), "utf8")) as Record<
+    string,
+    unknown
+  >;
 }
 
 function listFiles(directory: string): string[] {
@@ -72,7 +75,10 @@ afterEach(() => {
 describe("generate-fixture-vault", () => {
   it("matches the committed template, so the seeded data can be regenerated", () => {
     for (const [path, content] of Object.entries(buildFixtureFiles())) {
-      const committed = readFileSync(join(TEMPLATE_DIR, ...path.split("/")), "utf8");
+      const committed = readFileSync(
+        join(TEMPLATE_DIR, ...path.split("/")),
+        "utf8",
+      );
       // Git may check the files out with CRLF line endings on Windows.
       expect(committed.replace(/\r\n/g, "\n"), path).toBe(content);
     }
@@ -89,17 +95,21 @@ describe("setup-fixture-vault", () => {
 
     expect(result.vaultDir).toBe(target);
     expect(existsSync(join(target, "welcome.md"))).toBe(true);
-    expect(existsSync(join(target, "rss-dashboard-data", "user-state.json"))).toBe(true);
+    expect(
+      existsSync(join(target, "rss-dashboard-data", "user-state.json")),
+    ).toBe(true);
     expect(readFileSync(join(target, ...PLUGIN_DIR, "main.js"), "utf8")).toBe(
       "// build 9.9.9\n",
     );
     expect(existsSync(join(target, ...PLUGIN_DIR, "styles.css"))).toBe(true);
-    expect(readJson(target, ...PLUGIN_DIR, "manifest.json").version).toBe("9.9.9");
-    expect(readJson(target, MARKER_FILE).storage).toBe("shard-v2");
-    // The installed release is recorded as announced, so What's New stays shut.
-    expect(readJson(target, "rss-dashboard-data", "data.json").lastShownVersion).toBe(
+    expect(readJson(target, ...PLUGIN_DIR, "manifest.json").version).toBe(
       "9.9.9",
     );
+    expect(readJson(target, MARKER_FILE).storage).toBe("shard-v2");
+    // The installed release is recorded as announced, so What's New stays shut.
+    expect(
+      readJson(target, "rss-dashboard-data", "data.json").lastShownVersion,
+    ).toBe("9.9.9");
     expect(snapshot(TEMPLATE_DIR)).toEqual(templateBefore);
   });
 
@@ -108,9 +118,9 @@ describe("setup-fixture-vault", () => {
 
     setupFixtureVault({ repoRoot: fakeBuild(), target, showWhatsNew: true });
 
-    expect(readJson(target, "rss-dashboard-data", "data.json")).not.toHaveProperty(
-      "lastShownVersion",
-    );
+    expect(
+      readJson(target, "rss-dashboard-data", "data.json"),
+    ).not.toHaveProperty("lastShownVersion");
   });
 
   it("resets a vault it created, discarding changes made while testing", () => {
@@ -156,7 +166,9 @@ describe("setup-fixture-vault", () => {
     writeFileSync(join(target, "new-note.md"), "created while testing");
     rmSync(join(repoRoot, "main.js"));
 
-    expect(() => setupFixtureVault({ repoRoot, target })).toThrow(/npm run build/);
+    expect(() => setupFixtureVault({ repoRoot, target })).toThrow(
+      /npm run build/,
+    );
     expect(existsSync(join(target, "new-note.md"))).toBe(true);
   });
 
@@ -165,9 +177,15 @@ describe("setup-fixture-vault", () => {
     setupFixtureVault({ repoRoot: fakeBuild("1.0.0"), target });
     writeFileSync(join(target, "new-note.md"), "created while testing");
 
-    setupFixtureVault({ repoRoot: fakeBuild("2.0.0"), target, pluginOnly: true });
+    setupFixtureVault({
+      repoRoot: fakeBuild("2.0.0"),
+      target,
+      pluginOnly: true,
+    });
 
-    expect(readJson(target, ...PLUGIN_DIR, "manifest.json").version).toBe("2.0.0");
+    expect(readJson(target, ...PLUGIN_DIR, "manifest.json").version).toBe(
+      "2.0.0",
+    );
     expect(existsSync(join(target, "new-note.md"))).toBe(true);
   });
 
@@ -183,14 +201,20 @@ describe("setup-fixture-vault", () => {
   it("seeds the same content in Legacy JSON storage on request", () => {
     const target = join(temporaryDirectory(), "vault");
 
-    setupFixtureVault({ repoRoot: fakeBuild(), target, storage: "legacy-json" });
+    setupFixtureVault({
+      repoRoot: fakeBuild(),
+      target,
+      storage: "legacy-json",
+    });
 
     const settings = readJson(target, ...PLUGIN_DIR, "data.json");
     const feeds = settings.feeds as Array<{ items: unknown[] }>;
     expect(settings.storageMode).toBe("legacy-json");
     expect(settings.metadataStorageMode).toBe("plugin-default");
     expect(settings.lastShownVersion).toBe("9.9.9");
-    expect(feeds.reduce((total, feed) => total + feed.items.length, 0)).toBe(154);
+    expect(feeds.reduce((total, feed) => total + feed.items.length, 0)).toBe(
+      154,
+    );
     expect(existsSync(join(target, "rss-dashboard-data"))).toBe(false);
   });
 
@@ -200,19 +224,30 @@ describe("setup-fixture-vault", () => {
     setupFixtureVault({ repoRoot: fakeBuild(), target, storage: "shard-v1" });
 
     const settings = readJson(target, ...PLUGIN_DIR, "data.json");
-    const shard = readJson(target, "rss-dashboard-data", "feeds", "fx-rss-tech.json");
-    expect(settings.storageMode).toBe("vault-shards");
-    expect((shard.items as Array<{ starred: boolean }>).some((item) => item.starred)).toBe(
-      true,
+    const shard = readJson(
+      target,
+      "rss-dashboard-data",
+      "feeds",
+      "fx-rss-tech.json",
     );
-    expect(existsSync(join(target, "rss-dashboard-data", "user-state.json"))).toBe(false);
-    expect(existsSync(join(target, "rss-dashboard-data", "data.json"))).toBe(false);
+    expect(settings.storageMode).toBe("vault-shards");
+    expect(
+      (shard.items as Array<{ starred: boolean }>).some((item) => item.starred),
+    ).toBe(true);
+    expect(
+      existsSync(join(target, "rss-dashboard-data", "user-state.json")),
+    ).toBe(false);
+    expect(existsSync(join(target, "rss-dashboard-data", "data.json"))).toBe(
+      false,
+    );
   });
 });
 
 describe("setup-fixture-vault arguments", () => {
   it("reads a target folder and options", () => {
-    expect(parseArgs(["../vault", "--storage", "legacy-json", "--plugin-only"])).toEqual({
+    expect(
+      parseArgs(["../vault", "--storage", "legacy-json", "--plugin-only"]),
+    ).toEqual({
       target: "../vault",
       storage: "legacy-json",
       pluginOnly: true,
@@ -223,7 +258,9 @@ describe("setup-fixture-vault arguments", () => {
   });
 
   it("rejects an unknown storage variant or option", () => {
-    expect(() => parseArgs(["--storage", "sqlite"])).toThrow(/Unknown storage variant/);
+    expect(() => parseArgs(["--storage", "sqlite"])).toThrow(
+      /Unknown storage variant/,
+    );
     expect(() => parseArgs(["--force"])).toThrow(/Unknown option/);
   });
 });

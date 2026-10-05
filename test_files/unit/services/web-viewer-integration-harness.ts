@@ -91,11 +91,11 @@ export function createWebViewerIntegrationHarness(
   const webViewerPlugin: WebViewerPluginStub | null =
     overrides.webViewerPlugin === undefined
       ? {
-      openWebpage: vi.fn(async () => {}),
-      currentTitle: "Web Title",
-      currentUrl: "https://example.com",
-      cleanedHtml: "<p>clean</p>",
-    }
+          openWebpage: vi.fn(async () => {}),
+          currentTitle: "Web Title",
+          currentUrl: "https://example.com",
+          cleanedHtml: "<p>clean</p>",
+        }
       : overrides.webViewerPlugin;
 
   const plugins: Record<string, unknown> = webViewerPlugin
@@ -118,7 +118,9 @@ export function createWebViewerIntegrationHarness(
 
   const createdContainer = overrides.webpageContainer === undefined;
   const webpageContainer =
-    overrides.webpageContainer === undefined ? createWebpageContainer() : overrides.webpageContainer;
+    overrides.webpageContainer === undefined
+      ? createWebpageContainer()
+      : overrides.webpageContainer;
 
   if (createdContainer && webpageContainer) {
     activeDocument.body.appendChild(webpageContainer);
@@ -136,7 +138,8 @@ export function createWebViewerIntegrationHarness(
     webViewerPlugin,
     webpageContainer,
     integration: integration as unknown as TestWebViewerIntegration,
-    getFile: (path: string): TFile | null => app.vault.getAbstractFileByPath(path) as TFile | null,
+    getFile: (path: string): TFile | null =>
+      app.vault.getAbstractFileByPath(path) as TFile | null,
     cleanup,
   };
 }

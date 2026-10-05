@@ -29,12 +29,32 @@ export function renderFeedIcon(
 
   if (feed && MediaService.shouldShowFeedIcon(feed, context.display)) {
     if (!feed.iconUrl || failedFeedIconUrls.has(feed.iconUrl)) {
-      renderFallbackForFeed(iconContainer, feed, feedUrl, mediaType, isYouTubeFeed, context);
+      renderFallbackForFeed(
+        iconContainer,
+        feed,
+        feedUrl,
+        mediaType,
+        isYouTubeFeed,
+        context,
+      );
       return;
     }
-    createSafeIconImage(iconContainer, feed.iconUrl, feed.title || feedUrl, () => {
-      handleFeedIconFallback(iconContainer, feedUrl, context, feed, mediaType, isYouTubeFeed);
-    }, "rss-dashboard-article-feed-icon-img");
+    createSafeIconImage(
+      iconContainer,
+      feed.iconUrl,
+      feed.title || feedUrl,
+      () => {
+        handleFeedIconFallback(
+          iconContainer,
+          feedUrl,
+          context,
+          feed,
+          mediaType,
+          isYouTubeFeed,
+        );
+      },
+      "rss-dashboard-article-feed-icon-img",
+    );
   } else if (MastodonService.isResolvedFeedUrl(feedUrl)) {
     renderMastodonFallbackIcon(iconContainer, feedUrl, context);
   } else if (mediaType === "video" && isYouTubeFeed) {
@@ -61,12 +81,32 @@ export function renderHeaderFeedIcon(
 
   if (feed && MediaService.shouldShowFeedIcon(feed, context.display)) {
     if (!feed.iconUrl || failedFeedIconUrls.has(feed.iconUrl)) {
-      renderHeaderFallbackForFeed(container, feed, feedUrl, mediaType, isYouTubeFeed, context);
+      renderHeaderFallbackForFeed(
+        container,
+        feed,
+        feedUrl,
+        mediaType,
+        isYouTubeFeed,
+        context,
+      );
       return;
     }
-    createSafeIconImage(container, feed.iconUrl, feed.title || feedUrl, () => {
-      handleHeaderFeedIconFallback(container, feedUrl, context, feed, mediaType, isYouTubeFeed);
-    }, "rss-dashboard-header-feed-icon-img");
+    createSafeIconImage(
+      container,
+      feed.iconUrl,
+      feed.title || feedUrl,
+      () => {
+        handleHeaderFeedIconFallback(
+          container,
+          feedUrl,
+          context,
+          feed,
+          mediaType,
+          isYouTubeFeed,
+        );
+      },
+      "rss-dashboard-header-feed-icon-img",
+    );
   } else if (MastodonService.isResolvedFeedUrl(feedUrl)) {
     renderHeaderMastodonFallbackIcon(container, feedUrl, context);
   } else if (mediaType === "video" && isYouTubeFeed) {
@@ -142,12 +182,18 @@ function handleFeedIconFallback(
     if (domain) {
       const faviconUrl = getFaviconUrl(domain);
       if (!failedFeedIconUrls.has(faviconUrl)) {
-        createSafeIconImage(iconContainer, faviconUrl, "Mastodon", () => {
-          iconContainer.empty();
-          if (!context.display.hideDefaultRssIcon) {
-            setIcon(iconContainer, "rss");
-          }
-        }, "rss-dashboard-feed-favicon");
+        createSafeIconImage(
+          iconContainer,
+          faviconUrl,
+          "Mastodon",
+          () => {
+            iconContainer.empty();
+            if (!context.display.hideDefaultRssIcon) {
+              setIcon(iconContainer, "rss");
+            }
+          },
+          "rss-dashboard-feed-favicon",
+        );
         return;
       }
     }
@@ -171,12 +217,18 @@ function handleHeaderFeedIconFallback(
     if (domain) {
       const faviconUrl = getFaviconUrl(domain);
       if (!failedFeedIconUrls.has(faviconUrl)) {
-        createSafeIconImage(container, faviconUrl, "Mastodon", () => {
-          container.empty();
-          if (!context.display.hideDefaultRssIcon) {
-            setIcon(container, "rss");
-          }
-        }, "rss-dashboard-header-favicon");
+        createSafeIconImage(
+          container,
+          faviconUrl,
+          "Mastodon",
+          () => {
+            container.empty();
+            if (!context.display.hideDefaultRssIcon) {
+              setIcon(container, "rss");
+            }
+          },
+          "rss-dashboard-header-favicon",
+        );
         return;
       }
     }
@@ -186,17 +238,27 @@ function handleHeaderFeedIconFallback(
   }
 }
 
-function renderMastodonFallbackIcon(iconContainer: HTMLElement, feedUrl: string, context: FeedIconContext): void {
+function renderMastodonFallbackIcon(
+  iconContainer: HTMLElement,
+  feedUrl: string,
+  context: FeedIconContext,
+): void {
   const domain = extractDomain(feedUrl);
   if (domain) {
     const faviconUrl = getFaviconUrl(domain);
     if (!failedFeedIconUrls.has(faviconUrl)) {
-      createSafeIconImage(iconContainer, faviconUrl, "Mastodon", () => {
-        iconContainer.empty();
-        if (!context.display.hideDefaultRssIcon) {
-          setIcon(iconContainer, "rss");
-        }
-      }, "rss-dashboard-feed-favicon");
+      createSafeIconImage(
+        iconContainer,
+        faviconUrl,
+        "Mastodon",
+        () => {
+          iconContainer.empty();
+          if (!context.display.hideDefaultRssIcon) {
+            setIcon(iconContainer, "rss");
+          }
+        },
+        "rss-dashboard-feed-favicon",
+      );
       return;
     }
   }
@@ -205,17 +267,27 @@ function renderMastodonFallbackIcon(iconContainer: HTMLElement, feedUrl: string,
   }
 }
 
-function renderHeaderMastodonFallbackIcon(container: HTMLElement, feedUrl: string, context: FeedIconContext): void {
+function renderHeaderMastodonFallbackIcon(
+  container: HTMLElement,
+  feedUrl: string,
+  context: FeedIconContext,
+): void {
   const domain = extractDomain(feedUrl);
   if (domain) {
     const faviconUrl = getFaviconUrl(domain);
     if (!failedFeedIconUrls.has(faviconUrl)) {
-      createSafeIconImage(container, faviconUrl, "Mastodon", () => {
-        container.empty();
-        if (!context.display.hideDefaultRssIcon) {
-          setIcon(container, "rss");
-        }
-      }, "rss-dashboard-header-favicon");
+      createSafeIconImage(
+        container,
+        faviconUrl,
+        "Mastodon",
+        () => {
+          container.empty();
+          if (!context.display.hideDefaultRssIcon) {
+            setIcon(container, "rss");
+          }
+        },
+        "rss-dashboard-header-favicon",
+      );
       return;
     }
   }
@@ -224,17 +296,27 @@ function renderHeaderMastodonFallbackIcon(container: HTMLElement, feedUrl: strin
   }
 }
 
-function renderDomainFallbackIcon(iconContainer: HTMLElement, feedUrl: string, context: FeedIconContext): void {
+function renderDomainFallbackIcon(
+  iconContainer: HTMLElement,
+  feedUrl: string,
+  context: FeedIconContext,
+): void {
   const domain = extractDomain(feedUrl);
   if (domain) {
     const faviconUrl = getFaviconUrl(domain);
     if (!failedFeedIconUrls.has(faviconUrl)) {
-      createSafeIconImage(iconContainer, faviconUrl, domain, () => {
-        iconContainer.empty();
-        if (!context.display.hideDefaultRssIcon) {
-          setIcon(iconContainer, "rss");
-        }
-      }, "rss-dashboard-feed-favicon");
+      createSafeIconImage(
+        iconContainer,
+        faviconUrl,
+        domain,
+        () => {
+          iconContainer.empty();
+          if (!context.display.hideDefaultRssIcon) {
+            setIcon(iconContainer, "rss");
+          }
+        },
+        "rss-dashboard-feed-favicon",
+      );
       return;
     }
   }
@@ -243,17 +325,27 @@ function renderDomainFallbackIcon(iconContainer: HTMLElement, feedUrl: string, c
   }
 }
 
-function renderHeaderDomainIcon(container: HTMLElement, feedUrl: string, context: FeedIconContext): void {
+function renderHeaderDomainIcon(
+  container: HTMLElement,
+  feedUrl: string,
+  context: FeedIconContext,
+): void {
   const domain = extractDomain(feedUrl);
   if (domain) {
     const faviconUrl = getFaviconUrl(domain);
     if (!failedFeedIconUrls.has(faviconUrl)) {
-      createSafeIconImage(container, faviconUrl, domain, () => {
-        container.empty();
-        if (!context.display.hideDefaultRssIcon) {
-          setIcon(container, "rss");
-        }
-      }, "rss-dashboard-header-favicon");
+      createSafeIconImage(
+        container,
+        faviconUrl,
+        domain,
+        () => {
+          container.empty();
+          if (!context.display.hideDefaultRssIcon) {
+            setIcon(container, "rss");
+          }
+        },
+        "rss-dashboard-header-favicon",
+      );
       return;
     }
   }

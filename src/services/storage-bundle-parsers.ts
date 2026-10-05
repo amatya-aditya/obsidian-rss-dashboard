@@ -58,7 +58,9 @@ export function parsePortableDataBundle(input: unknown): PortableDataBundle {
   return bundle as PortableDataBundle;
 }
 
-function assertValidShards(shards: unknown): asserts shards is FeedItemsShard[] {
+function assertValidShards(
+  shards: unknown,
+): asserts shards is FeedItemsShard[] {
   if (!Array.isArray(shards)) {
     throw new Error("Bundle is missing shards");
   }
@@ -132,9 +134,7 @@ export function parseSettingsBundle(input: unknown): SettingsBundle {
   }
 
   if (typeof bundle.exportedAt !== "number") {
-    throw new Error(
-      "Settings bundle is missing a valid exportedAt timestamp",
-    );
+    throw new Error("Settings bundle is missing a valid exportedAt timestamp");
   }
 
   if (!bundle.settings || typeof bundle.settings !== "object") {

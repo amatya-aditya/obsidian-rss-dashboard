@@ -41,9 +41,7 @@ import {
   RSS_SMALLWEB_VIEW_TYPE,
 } from "./src/views/kagi-smallweb-view";
 import { ReaderView, RSS_READER_VIEW_TYPE } from "./src/views/reader-view";
-import {
-  FeedParser,
-} from "./src/services/feed-parser";
+import { FeedParser } from "./src/services/feed-parser";
 import { ArticleSaver } from "./src/services/article-saver";
 import { BackupService } from "./src/services/backup-service";
 import { AutoBackupCoordinator } from "./src/services/auto-backup-coordinator";
@@ -135,10 +133,15 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function isLegacyPlaybackProgressEntry(
   value: unknown,
 ): value is LegacyPlaybackProgressEntry {
-  return isRecord(value) && typeof value.position === "number" &&
-    Number.isFinite(value.position) && value.position >= 0 &&
-    typeof value.duration === "number" && Number.isFinite(value.duration) &&
-    value.duration > 0;
+  return (
+    isRecord(value) &&
+    typeof value.position === "number" &&
+    Number.isFinite(value.position) &&
+    value.position >= 0 &&
+    typeof value.duration === "number" &&
+    Number.isFinite(value.duration) &&
+    value.duration > 0
+  );
 }
 
 function isDesktopShell(value: unknown): value is DesktopShell {
@@ -211,9 +214,9 @@ export default class RssDashboardPlugin extends Plugin {
         const autoBackup = this.settings.autoBackup;
         return Boolean(
           autoBackup &&
-            (autoBackup.backupDataJson ||
-              autoBackup.backupOpml ||
-              autoBackup.backupUserdata),
+          (autoBackup.backupDataJson ||
+            autoBackup.backupOpml ||
+            autoBackup.backupUserdata),
         );
       },
     });
@@ -390,7 +393,10 @@ export default class RssDashboardPlugin extends Plugin {
       importSettingsBundle: (bundle) =>
         this.settingsImportApplier.applySettingsBundleImport(bundle),
       importUserPreferences: (preferences, kind) =>
-        this.settingsImportApplier.applyUserPreferencesImport(preferences, kind),
+        this.settingsImportApplier.applyUserPreferencesImport(
+          preferences,
+          kind,
+        ),
       confirmImport: (confirmation) => this.confirmImport(confirmation),
       getUnloadedFeedCount: () => this.getUnloadedShardFeedCount(),
     });
@@ -566,7 +572,9 @@ export default class RssDashboardPlugin extends Plugin {
     if (!this.settings) {
       return;
     }
-    if (!shouldShowStorageDeprecationPrompt(this.settings, this.manifest.version)) {
+    if (
+      !shouldShowStorageDeprecationPrompt(this.settings, this.manifest.version)
+    ) {
       return;
     }
 
@@ -597,7 +605,9 @@ export default class RssDashboardPlugin extends Plugin {
     // The storage warning takes precedence even if it has not opened yet, so
     // the two never stack. Marking it handled here is what keeps What's New
     // from being queued behind the warning for this session.
-    if (shouldShowStorageDeprecationPrompt(this.settings, this.manifest.version)) {
+    if (
+      shouldShowStorageDeprecationPrompt(this.settings, this.manifest.version)
+    ) {
       this.whatsNewHandledThisSession = true;
       return;
     }
@@ -1494,7 +1504,9 @@ export default class RssDashboardPlugin extends Plugin {
     input.click();
   }
 
-  public async importUserSettingsJsonFromFile(file: File): Promise<ImportResult> {
+  public async importUserSettingsJsonFromFile(
+    file: File,
+  ): Promise<ImportResult> {
     const result =
       await this.importExportService.importUserPreferencesFromFile(file);
     if (result === "canceled") this.showImportCanceledNotice();
@@ -1594,8 +1606,11 @@ export default class RssDashboardPlugin extends Plugin {
     this.showExportNotice(result, "rss-dashboard-portable-bundle.json");
   }
 
-  public async importPortableDataBundleFromFile(file: File): Promise<ImportResult> {
-    const result = await this.importExportService.importPortableDataBundleFromFile(file);
+  public async importPortableDataBundleFromFile(
+    file: File,
+  ): Promise<ImportResult> {
+    const result =
+      await this.importExportService.importPortableDataBundleFromFile(file);
     if (result === "canceled") {
       this.showImportCanceledNotice();
     } else {
@@ -1610,7 +1625,8 @@ export default class RssDashboardPlugin extends Plugin {
   }
 
   public async importFeedBundleFromFile(file: File): Promise<ImportResult> {
-    const result = await this.importExportService.importFeedBundleFromFile(file);
+    const result =
+      await this.importExportService.importFeedBundleFromFile(file);
     if (result === "canceled") {
       this.showImportCanceledNotice();
     } else {
@@ -1625,7 +1641,8 @@ export default class RssDashboardPlugin extends Plugin {
   }
 
   public async importSettingsBundleFromFile(file: File): Promise<ImportResult> {
-    const result = await this.importExportService.importSettingsBundleFromFile(file);
+    const result =
+      await this.importExportService.importSettingsBundleFromFile(file);
     if (result === "canceled") {
       this.showImportCanceledNotice();
     } else {
@@ -2008,10 +2025,7 @@ export default class RssDashboardPlugin extends Plugin {
     );
   }
 
-  addSubfolder(
-    parentFolderName: string,
-    subfolderName: string,
-  ): Promise<void> {
+  addSubfolder(parentFolderName: string, subfolderName: string): Promise<void> {
     return this.feedSubscriptionService.addSubfolder(
       parentFolderName,
       subfolderName,

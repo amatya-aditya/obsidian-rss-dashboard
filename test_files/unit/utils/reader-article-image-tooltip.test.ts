@@ -11,7 +11,8 @@ describe("Reader image tooltip text", () => {
     image.setAttribute("src", "https://example.test/fallback.png");
     Object.defineProperty(image, "currentSrc", {
       configurable: true,
-      value: "https://cdn.example.test/photos/http-banner%20large.svg?v=2#preview",
+      value:
+        "https://cdn.example.test/photos/http-banner%20large.svg?v=2#preview",
     });
 
     expect(getReaderImageFilename(image)).toBe("http-banner large.svg");
@@ -28,10 +29,18 @@ describe("Reader image tooltip text", () => {
     ["Article title", "Article title", "image.jpg", "image.jpg"],
     ["Image", "Article title", "image.jpg", "image.jpg"],
     ["", "Article title", "image.jpg", "image.jpg"],
-    ["A useful scene", "Article title", "scene.jpg", "A useful scene — scene.jpg"],
+    [
+      "A useful scene",
+      "Article title",
+      "scene.jpg",
+      "A useful scene — scene.jpg",
+    ],
     ["scene.jpg", "Article title", "scene.jpg", "scene.jpg"],
     ["", "Article title", "", ""],
-  ])("builds a concise tooltip for alt %j and filename %j", (alt, title, filename, expected) => {
-    expect(buildReaderImageTooltipText(alt, title, filename)).toBe(expected);
-  });
+  ])(
+    "builds a concise tooltip for alt %j and filename %j",
+    (alt, title, filename, expected) => {
+      expect(buildReaderImageTooltipText(alt, title, filename)).toBe(expected);
+    },
+  );
 });

@@ -33,8 +33,7 @@ export function createPageButton(
 ): HTMLElement {
   const btn = container.createEl("button", {
     cls:
-      "rss-dashboard-pagination-btn" +
-      (page === currentPage ? " active" : ""),
+      "rss-dashboard-pagination-btn" + (page === currentPage ? " active" : ""),
     text: String(page),
   });
   btn.disabled = page === currentPage;

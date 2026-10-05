@@ -287,7 +287,9 @@
  * Action Buttons (Save, Cancel)
  * ============================================ */
 
-.rss-dashboard-modal.rss-add-feed-modal .rss-add-feed-actions .rss-add-feed-save-button {
+.rss-dashboard-modal.rss-add-feed-modal
+  .rss-add-feed-actions
+  .rss-add-feed-save-button {
   background: var(--rss-color-purple, #8b5cf6);
   color: var(--text-on-accent, #ffffff);
   border: 1px solid transparent;
@@ -300,17 +302,23 @@
     box-shadow 0.15s ease;
 }
 
-.rss-dashboard-modal.rss-add-feed-modal .rss-add-feed-actions .rss-add-feed-save-button:hover {
+.rss-dashboard-modal.rss-add-feed-modal
+  .rss-add-feed-actions
+  .rss-add-feed-save-button:hover {
   background: color-mix(in srgb, var(--rss-color-purple, #8b5cf6) 86%, white);
   transform: translateY(-1px);
 }
 
-.rss-dashboard-modal.rss-add-feed-modal .rss-add-feed-actions .rss-add-feed-save-button:active {
+.rss-dashboard-modal.rss-add-feed-modal
+  .rss-add-feed-actions
+  .rss-add-feed-save-button:active {
   background: var(--rss-color-purple-hover, #7c3aed);
   transform: translateY(0);
 }
 
-.rss-dashboard-modal.rss-add-feed-modal .rss-add-feed-actions .rss-add-feed-cancel-button {
+.rss-dashboard-modal.rss-add-feed-modal
+  .rss-add-feed-actions
+  .rss-add-feed-cancel-button {
   background: var(--background-modifier-border);
   color: var(--text-normal);
   border: 1px solid transparent;
@@ -323,13 +331,16 @@
     transform 0.15s ease;
 }
 
-.rss-dashboard-modal.rss-add-feed-modal .rss-add-feed-actions .rss-add-feed-cancel-button:hover {
+.rss-dashboard-modal.rss-add-feed-modal
+  .rss-add-feed-actions
+  .rss-add-feed-cancel-button:hover {
   background: var(--background-modifier-border-hover);
   color: var(--text-normal);
   transform: translateY(-1px);
 }
 
-.rss-dashboard-modal.rss-add-feed-modal .rss-add-feed-actions .rss-add-feed-cancel-button:active {
+.rss-dashboard-modal.rss-add-feed-modal
+  .rss-add-feed-actions
+  .rss-add-feed-cancel-button:active {
   transform: translateY(0);
 }
-

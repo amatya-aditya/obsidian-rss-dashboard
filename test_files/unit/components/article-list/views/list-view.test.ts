@@ -29,9 +29,9 @@ describe("list-view", () => {
 
     const item = container.querySelector(".rss-dashboard-article-item");
     expect(item).toBeTruthy();
-    expect(
-      item?.querySelector(".rss-dashboard-list-title")?.textContent,
-    ).toBe("Test Article");
+    expect(item?.querySelector(".rss-dashboard-list-title")?.textContent).toBe(
+      "Test Article",
+    );
   });
 
   it("shows the first-seen date in the date badge when pubDate is empty and the fallback setting is on", () => {
@@ -163,9 +163,9 @@ describe("list-view", () => {
       baseViewDeps(),
     );
 
-    container.querySelector(".rss-dashboard-article-item")?.dispatchEvent(
-      new MouseEvent("click", { bubbles: true }),
-    );
+    container
+      .querySelector(".rss-dashboard-article-item")
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
 
     expect(onArticleClick).toHaveBeenCalledWith(article);
   });

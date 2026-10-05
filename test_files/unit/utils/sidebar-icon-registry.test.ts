@@ -39,18 +39,20 @@ describe("sidebar-icon-registry constants", () => {
     };
 
     const violations = SIDEBAR_ICONS.flatMap(({ id, label }) =>
-      linter.verify(
-        `activeDocument.createEl("span", { text: ${JSON.stringify(label)} });`,
-        [
-          {
-            languageOptions: { ecmaVersion: "latest", sourceType: "module" },
-            plugins: { obsidianmd },
-            rules: {
-              "obsidianmd/ui/sentence-case": ["error", sentenceCaseConfig],
+      linter
+        .verify(
+          `activeDocument.createEl("span", { text: ${JSON.stringify(label)} });`,
+          [
+            {
+              languageOptions: { ecmaVersion: "latest", sourceType: "module" },
+              plugins: { obsidianmd },
+              rules: {
+                "obsidianmd/ui/sentence-case": ["error", sentenceCaseConfig],
+              },
             },
-          },
-        ],
-      ).map((message) => `${id}: ${message.message}`),
+          ],
+        )
+        .map((message) => `${id}: ${message.message}`),
     );
 
     expect(violations).toEqual([]);
@@ -72,17 +74,26 @@ describe("sidebar-icon-registry.createToolbarButton", () => {
     btn.dispatchEvent(new MouseEvent("click"));
     expect(onClick).toHaveBeenCalledTimes(1);
 
-    const otherKey = new KeyboardEvent("keydown", { key: "Escape", cancelable: true });
+    const otherKey = new KeyboardEvent("keydown", {
+      key: "Escape",
+      cancelable: true,
+    });
     btn.dispatchEvent(otherKey);
     expect(otherKey.defaultPrevented).toBe(false);
     expect(onClick).toHaveBeenCalledTimes(1);
 
-    const enterKey = new KeyboardEvent("keydown", { key: "Enter", cancelable: true });
+    const enterKey = new KeyboardEvent("keydown", {
+      key: "Enter",
+      cancelable: true,
+    });
     btn.dispatchEvent(enterKey);
     expect(enterKey.defaultPrevented).toBe(true);
     expect(onClick).toHaveBeenCalledTimes(2);
 
-    const spaceKey = new KeyboardEvent("keydown", { key: " ", cancelable: true });
+    const spaceKey = new KeyboardEvent("keydown", {
+      key: " ",
+      cancelable: true,
+    });
     btn.dispatchEvent(spaceKey);
     expect(spaceKey.defaultPrevented).toBe(true);
     expect(onClick).toHaveBeenCalledTimes(3);
@@ -100,4 +111,3 @@ describe("sidebar-icon-registry.createToolbarButton", () => {
     expect(onClick.mock.calls).toEqual([[click], [], []]);
   });
 });
-

@@ -28,7 +28,10 @@ describe("findStrayFiles", () => {
   });
 
   it("does not flag ordinary tracked files", () => {
-    const files = ["src/utils/date.ts", "docs/plans/262-pre-release-checklist.md"];
+    const files = [
+      "src/utils/date.ts",
+      "docs/plans/262-pre-release-checklist.md",
+    ];
 
     expect(findStrayFiles(files)).toEqual([]);
   });
@@ -85,13 +88,17 @@ describe("findPlanStatusIssues", () => {
   });
 
   it("accepts every valid active-plan status", () => {
-    const planFiles = ["idea", "proposed", "accepted", "blocked", "in-progress"].map(
-      (status, index) => ({
-        fileName: `${400 + index}-ok.md`,
-        filePath: `docs/plans/${400 + index}-ok.md`,
-        source: `---\nstatus: ${status}\n---\n`,
-      }),
-    );
+    const planFiles = [
+      "idea",
+      "proposed",
+      "accepted",
+      "blocked",
+      "in-progress",
+    ].map((status, index) => ({
+      fileName: `${400 + index}-ok.md`,
+      filePath: `docs/plans/${400 + index}-ok.md`,
+      source: `---\nstatus: ${status}\n---\n`,
+    }));
 
     expect(findPlanStatusIssues(planFiles)).toEqual([]);
   });
@@ -200,13 +207,19 @@ describe("findReleaseNoteFilenameIssues", () => {
   it("rejects templates, prerelease names, and non-markdown files", () => {
     expect(
       findReleaseNoteFilenameIssues([
-        { fileName: "template.md", filePath: "src/release-notes/notes/template.md" },
+        {
+          fileName: "template.md",
+          filePath: "src/release-notes/notes/template.md",
+        },
         {
           fileName: "2.7.0-beta.1.md",
           filePath: "src/release-notes/notes/2.7.0-beta.1.md",
         },
         { fileName: "2.7.0.md", filePath: "src/release-notes/notes/2.7.0.md" },
-        { fileName: "2.7.1.txt", filePath: "src/release-notes/notes/2.7.1.txt" },
+        {
+          fileName: "2.7.1.txt",
+          filePath: "src/release-notes/notes/2.7.1.txt",
+        },
       ]),
     ).toHaveLength(4);
   });

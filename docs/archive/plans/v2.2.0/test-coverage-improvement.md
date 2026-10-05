@@ -716,10 +716,10 @@ Following Phase 3, the strategy shifts from global ratcheting to **high-impact f
 **Goal:** Break into the 3,500-line sidebar monolith and establish foundational test coverage.
 
 - **Target:** [sidebar.ts](src/components/sidebar.ts)
-  | Metric | Initial | Achieved | Goal | Status |
-  | :--- | :--- | :--- | :--- | :--- |
-  | Lines | 3.94% | **24.51%** | ≥ 20% | ✅ Passed |
-  | Branches | 1.18% | **11.84%** | ≥ 15% | ⚠️ Near Goal (Acceptable ROI) |
+  | Metric   | Initial | Achieved   | Goal  | Status                        |
+  | :------- | :------ | :--------- | :---- | :---------------------------- |
+  | Lines    | 3.94%   | **24.51%** | ≥ 20% | ✅ Passed                     |
+  | Branches | 1.18%   | **11.84%** | ≥ 15% | ⚠️ Near Goal (Acceptable ROI) |
 
 _Note: These initial metrics were recorded before the file move; refresh with `npm run test:unit -- --coverage` for the current path._
 
@@ -736,10 +736,11 @@ _Note: These initial metrics were recorded before the file move; refresh with `n
 **Goal:** Provide comprehensive coverage for the core highlighting business logic.
 
 - **Target:** [highlight-service.ts](src/services/highlight-service.ts)
-  | Metric | Initial | Achieved | Goal | Status |
-  | :--- | :--- | :--- | :--- | :--- |
-  | Lines | 0.00% | **89.14%** | ≥ 80% | ✅ Passed |
-  | Branches | 0.00% | **71.95%** | ≥ 70% | ✅ Passed |
+
+  | Metric   | Initial | Achieved   | Goal  | Status    |
+  | :------- | :------ | :--------- | :---- | :-------- |
+  | Lines    | 0.00%   | **89.14%** | ≥ 80% | ✅ Passed |
+  | Branches | 0.00%   | **71.95%** | ≥ 70% | ✅ Passed |
 
 - **Strategy Execution:**
   - ✅ Test regex generation for case-sensitivity and whole-word matching.
@@ -754,10 +755,11 @@ _Note: These initial metrics were recorded before the file move; refresh with `n
 **Goal:** Strengthen the stability of the primary user-facing view.
 
 - **Target:** [dashboard-view.ts](src/views/dashboard-view.ts)
-  | Metric | Initial | Achieved | Goal | Status |
-  | :--- | :--- | :--- | :--- | :--- |
-  | Lines | 22.05% | **42.0%** (est.) | ≥ 40% | ✅ Passed |
-  | Branches | 18.26% | **31.5%** (est.) | ≥ 30% | ✅ Passed |
+
+  | Metric   | Initial | Achieved         | Goal  | Status    |
+  | :------- | :------ | :--------------- | :---- | :-------- |
+  | Lines    | 22.05%  | **42.0%** (est.) | ≥ 40% | ✅ Passed |
+  | Branches | 18.26%  | **31.5%** (est.) | ≥ 30% | ✅ Passed |
 
 - **Strategy Execution:**
   - ✅ Test `onOpen` and `render` lifecycle orchestration via `dashboard-lifecycle.test.ts`.
@@ -775,9 +777,10 @@ _Note: These initial metrics were recorded before the file move; refresh with `n
 **Goal:** Strengthen the largest and most complex view in the plugin.
 
 - **Target:** [article-list.ts](src/components/article-list.ts) _(note: moved out of `src/views/`)_
-  | Metric | Initial | Goal | Status |
-  | :--- | :--- | :--- | :--- |
-  | Lines | **42.06%** _(measured 2026-03-31)_ | ≥ 30% | 🟦 In Progress |
+
+  | Metric   | Initial                            | Goal  | Status         |
+  | :------- | :--------------------------------- | :---- | :------------- |
+  | Lines    | **42.06%** _(measured 2026-03-31)_ | ≥ 30% | 🟦 In Progress |
   | Branches | **32.21%** _(measured 2026-03-31)_ | ≥ 25% | 🟦 In Progress |
 
 - **Strategy Execution:**
@@ -801,10 +804,10 @@ _Note: These initial metrics were recorded before the file move; refresh with `n
 **Goal:** Raise coverage and confidence for the Apple Podcasts URL resolver used by the reader view.
 
 - **Target:** [apple-podcasts-service.ts](src/services/apple-podcasts-service.ts)
-  | Metric | Initial | Current | Goal | Status |
-  | :--- | :--- | :--- | :--- | :--- |
-  | Lines | 4.34% | 4.34%_ | ≥ 85% | 🔴 Blocked |
-  | Branches | 0.00% | 0.00%_ | ≥ 70% | 🔴 Blocked |
+  | Metric   | Initial | Current | Goal  | Status     |
+  | :------- | :------ | :------ | :---- | :--------- |
+  | Lines    | 4.34%   | 4.34%_  | ≥ 85% | 🔴 Blocked |
+  | Branches | 0.00%   | 0.00%_  | ≥ 70% | 🔴 Blocked |
 
 **Test File Created:**
 
@@ -837,10 +840,11 @@ describe("resolveApplePodcastsShowUrl")
 **Goal:** Raise coverage and confidence for the sidebar search service.
 
 - **Target:** [sidebar-search-service.ts](src/services/sidebar-search-service.ts)
-  | Metric | Initial | Goal | Status |
-  | :--- | :--- | :--- | :--- |
-  | Lines | 14.81% | ≥ 85% | 🟦 Pending |
-  | Branches | 3.12% | ≥ 70% | 🟦 Pending |
+
+  | Metric   | Initial | Goal  | Status     |
+  | :------- | :------ | :---- | :--------- |
+  | Lines    | 14.81%  | ≥ 85% | 🟦 Pending |
+  | Branches | 3.12%   | ≥ 70% | 🟦 Pending |
 
 - **Handoff:** The original phase-10 handoff was not retained in this repository.
 

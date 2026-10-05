@@ -16,7 +16,9 @@ function makeSettings(
   feeds: Feed[],
   collapsedFolders: string[] = [],
 ): RssDashboardSettings {
-  const settings = JSON.parse(JSON.stringify(DEFAULT_SETTINGS)) as RssDashboardSettings;
+  const settings = JSON.parse(
+    JSON.stringify(DEFAULT_SETTINGS),
+  ) as RssDashboardSettings;
   settings.folders = folders;
   settings.feeds = feeds;
   settings.collapsedFolders = collapsedFolders;
@@ -56,8 +58,13 @@ describe("Sidebar folder ordering helpers (TDD)", () => {
     expect(settings.feeds.find((f) => f.url === "f")?.folder).toBe(
       "Beta/Alpha/Child",
     );
-    expect(settings.collapsedFolders).toEqual(["Beta/Alpha", "Beta/Alpha/Child"]);
-    expect(settings.folderFeedSortOrders?.["Beta/Alpha/Child"]?.by).toBe("name");
+    expect(settings.collapsedFolders).toEqual([
+      "Beta/Alpha",
+      "Beta/Alpha/Child",
+    ]);
+    expect(settings.folderFeedSortOrders?.["Beta/Alpha/Child"]?.by).toBe(
+      "name",
+    );
     expect(settings.folderSortOrder?.by).toBe("custom");
   });
 

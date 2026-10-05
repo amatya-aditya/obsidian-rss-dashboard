@@ -95,7 +95,9 @@ export class FeedOperationTracker {
 
   public async end(): Promise<void> {
     if (this.activeOperationAbortController) {
-      this.activeOperationControllers.delete(this.activeOperationAbortController);
+      this.activeOperationControllers.delete(
+        this.activeOperationAbortController,
+      );
     }
     this.options.activeRefreshState.clear();
     this.isMultiFeedRefreshRunning = false;
@@ -249,7 +251,8 @@ export class FeedOperationTracker {
   public dispose(): void {
     this.disposed = true;
     this.isGlobalRefreshCancelled = true;
-    for (const controller of this.activeOperationControllers) controller.abort();
+    for (const controller of this.activeOperationControllers)
+      controller.abort();
     this.activeOperationControllers.clear();
     if (this.refreshStatusRenderTimeoutId !== null) {
       window.clearTimeout(this.refreshStatusRenderTimeoutId);

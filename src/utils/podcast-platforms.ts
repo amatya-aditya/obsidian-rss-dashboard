@@ -1,76 +1,78 @@
 import { hostMatches, hostPathMatches } from "./url-host";
 
 export interface PodcastPlatform {
-    name: string;
-    id: string;
-    detect(url: string): boolean;
-    extractId(url: string): string | null;
+  name: string;
+  id: string;
+  detect(url: string): boolean;
+  extractId(url: string): string | null;
 }
 
 export const APPLE_PODCASTS: PodcastPlatform = {
-    name: "Apple Podcasts",
-    id: "apple",
-    detect(url: string): boolean {
-        return hostMatches(url, "podcasts.apple.com");
-    },
-    extractId(url: string): string | null {
-        const match = url.match(/id(\d+)(?:\?|$)/);
-        return match?.[1] ?? null;
-    }
+  name: "Apple Podcasts",
+  id: "apple",
+  detect(url: string): boolean {
+    return hostMatches(url, "podcasts.apple.com");
+  },
+  extractId(url: string): string | null {
+    const match = url.match(/id(\d+)(?:\?|$)/);
+    return match?.[1] ?? null;
+  },
 };
 
 export const SPOTIFY: PodcastPlatform = {
-    name: "Spotify",
-    id: "spotify",
-    detect(url: string): boolean {
-        return hostPathMatches(url, "open.spotify.com", "/show/");
-    },
-    extractId(url: string): string | null {
-        const match = url.match(/show\/([a-zA-Z0-9]+)/);
-        return match?.[1] ?? null;
-    }
+  name: "Spotify",
+  id: "spotify",
+  detect(url: string): boolean {
+    return hostPathMatches(url, "open.spotify.com", "/show/");
+  },
+  extractId(url: string): string | null {
+    const match = url.match(/show\/([a-zA-Z0-9]+)/);
+    return match?.[1] ?? null;
+  },
 };
 
 export const GOOGLE_PODCASTS: PodcastPlatform = {
-    name: "Google Podcasts",
-    id: "google",
-    detect(url: string): boolean {
-        return hostPathMatches(url, "podcasts.google.com", "/feed/");
-    },
-    extractId(url: string): string | null {
-        const match = url.match(/feed\/([a-zA-Z0-9_-]+)/);
-        return match?.[1] ?? null;
-    }
+  name: "Google Podcasts",
+  id: "google",
+  detect(url: string): boolean {
+    return hostPathMatches(url, "podcasts.google.com", "/feed/");
+  },
+  extractId(url: string): string | null {
+    const match = url.match(/feed\/([a-zA-Z0-9_-]+)/);
+    return match?.[1] ?? null;
+  },
 };
 
 export const POCKET_CASTS: PodcastPlatform = {
-    name: "Pocket Casts",
-    id: "pocketcasts",
-    detect(url: string): boolean {
-        return hostPathMatches(url, "pocketcasts.com", "/podcast/");
-    },
-    extractId(url: string): string | null {
-        const match = url.match(/pocketcasts\.com\/podcast\/[^/]+\/([0-9a-f-]{36})/i);
-        return match?.[1] ?? null;
-    }
+  name: "Pocket Casts",
+  id: "pocketcasts",
+  detect(url: string): boolean {
+    return hostPathMatches(url, "pocketcasts.com", "/podcast/");
+  },
+  extractId(url: string): string | null {
+    const match = url.match(
+      /pocketcasts\.com\/podcast\/[^/]+\/([0-9a-f-]{36})/i,
+    );
+    return match?.[1] ?? null;
+  },
 };
 
 const PLATFORMS: PodcastPlatform[] = [
-    APPLE_PODCASTS,
-    SPOTIFY,
-    GOOGLE_PODCASTS,
-    POCKET_CASTS
+  APPLE_PODCASTS,
+  SPOTIFY,
+  GOOGLE_PODCASTS,
+  POCKET_CASTS,
 ];
 
 export function detectPodcastPlatform(url: string): PodcastPlatform | null {
-    for (const platform of PLATFORMS) {
-        if (platform.detect(url)) {
-            return platform;
-        }
+  for (const platform of PLATFORMS) {
+    if (platform.detect(url)) {
+      return platform;
     }
-    return null;
+  }
+  return null;
 }
 
 export function isPodcastPlatformUrl(url: string): boolean {
-    return detectPodcastPlatform(url) !== null;
+  return detectPodcastPlatform(url) !== null;
 }

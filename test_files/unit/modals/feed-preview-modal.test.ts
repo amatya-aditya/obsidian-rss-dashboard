@@ -31,13 +31,17 @@ describe("FeedPreviewModal", () => {
   beforeEach(() => {
     installObsidianDomPolyfills();
     document.body.empty();
-    Object.defineProperty(window, "innerWidth", { value: 1400, configurable: true });
+    Object.defineProperty(window, "innerWidth", {
+      value: 1400,
+      configurable: true,
+    });
     fetchFeedXmlMock.mockReset();
     vi.restoreAllMocks();
   });
 
   it("renders latest articles and opens links on click", async () => {
-    const { FeedPreviewModal } = await import("../../../src/modals/feed-preview-modal");
+    const { FeedPreviewModal } =
+      await import("../../../src/modals/feed-preview-modal");
 
     fetchFeedXmlMock.mockResolvedValue(
       `<?xml version="1.0"?>
@@ -64,12 +68,18 @@ describe("FeedPreviewModal", () => {
     const openSpy = vi.spyOn(window, "open").mockImplementation(() => null);
 
     const app = obsidian.App.createMock();
-    const modal = new FeedPreviewModal(app as unknown as obsidian.App, baseFeed as unknown as FeedMetadata);
+    const modal = new FeedPreviewModal(
+      app as unknown as obsidian.App,
+      baseFeed as unknown as FeedMetadata,
+    );
     modal.open();
 
     await flushPromises();
 
-    expect(fetchFeedXmlMock).toHaveBeenCalledWith("https://example.com/feed.xml", true);
+    expect(fetchFeedXmlMock).toHaveBeenCalledWith(
+      "https://example.com/feed.xml",
+      true,
+    );
     expect(modal.contentEl.querySelector(".feed-preview-grid")).toBeTruthy();
     expect(modal.contentEl.textContent).toContain("Latest 2 articles");
 
@@ -89,7 +99,8 @@ describe("FeedPreviewModal", () => {
   });
 
   it("removes an article image container on image error", async () => {
-    const { FeedPreviewModal } = await import("../../../src/modals/feed-preview-modal");
+    const { FeedPreviewModal } =
+      await import("../../../src/modals/feed-preview-modal");
 
     fetchFeedXmlMock.mockResolvedValue(
       `<?xml version="1.0"?>
@@ -106,7 +117,10 @@ describe("FeedPreviewModal", () => {
     );
 
     const app = obsidian.App.createMock();
-    const modal = new FeedPreviewModal(app as unknown as obsidian.App, baseFeed as unknown as FeedMetadata);
+    const modal = new FeedPreviewModal(
+      app as unknown as obsidian.App,
+      baseFeed as unknown as FeedMetadata,
+    );
     modal.open();
 
     await flushPromises();
@@ -125,7 +139,8 @@ describe("FeedPreviewModal", () => {
   });
 
   it("renders an error and retries fetching on button click", async () => {
-    const { FeedPreviewModal } = await import("../../../src/modals/feed-preview-modal");
+    const { FeedPreviewModal } =
+      await import("../../../src/modals/feed-preview-modal");
 
     fetchFeedXmlMock
       .mockRejectedValueOnce(new Error("boom"))
@@ -134,14 +149,19 @@ describe("FeedPreviewModal", () => {
       );
 
     const app = obsidian.App.createMock();
-    const modal = new FeedPreviewModal(app as unknown as obsidian.App, baseFeed as unknown as FeedMetadata);
+    const modal = new FeedPreviewModal(
+      app as unknown as obsidian.App,
+      baseFeed as unknown as FeedMetadata,
+    );
     modal.open();
 
     await flushPromises();
 
     expect(modal.contentEl.textContent).toContain("Error: boom");
 
-    const retryBtn = modal.contentEl.querySelector("button.mod-cta") as HTMLButtonElement;
+    const retryBtn = modal.contentEl.querySelector(
+      "button.mod-cta",
+    ) as HTMLButtonElement;
     expect(retryBtn?.textContent).toBe("Retry");
 
     retryBtn.click();
@@ -151,16 +171,24 @@ describe("FeedPreviewModal", () => {
   });
 
   it("shows an empty state when no articles are found", async () => {
-    const { FeedPreviewModal } = await import("../../../src/modals/feed-preview-modal");
+    const { FeedPreviewModal } =
+      await import("../../../src/modals/feed-preview-modal");
 
-    fetchFeedXmlMock.mockResolvedValue(`<?xml version="1.0"?><rss><channel></channel></rss>`);
+    fetchFeedXmlMock.mockResolvedValue(
+      `<?xml version="1.0"?><rss><channel></channel></rss>`,
+    );
 
     const app = obsidian.App.createMock();
-    const modal = new FeedPreviewModal(app as unknown as obsidian.App, baseFeed as unknown as FeedMetadata);
+    const modal = new FeedPreviewModal(
+      app as unknown as obsidian.App,
+      baseFeed as unknown as FeedMetadata,
+    );
     modal.open();
 
     await flushPromises();
 
-    expect(modal.contentEl.textContent).toContain("No articles found in this feed");
+    expect(modal.contentEl.textContent).toContain(
+      "No articles found in this feed",
+    );
   });
 });

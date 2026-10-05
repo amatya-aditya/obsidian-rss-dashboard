@@ -6,6 +6,7 @@
 - Sidebar search now says when nothing matched instead of leaving the sidebar blank. A search with no matching feeds or folders shows **0 results** and **No matches found.**, as Obsidian's own search does, and the message clears when the query changes or the search is cleared or closed. [GH Issue #678](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/678)
 
 ### Fixes
+
 - Clarified that the prefilled article template is ready to use in Article Saving settings and the custom Save article window. [GH Issue #760](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/760)
 - Prevented single-folder drops that leave the open folder's path unchanged from resetting sidebar state, including its tag filter and inline article. [GH Issue #665](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/665)
 - Fixed Reader save templates losing their custom folder. Selecting a template now restores its folder, older templates without one use the global Save folder, and each save can still override the selected folder. [GH Issue #758](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/758)
@@ -154,6 +155,7 @@ For a user-facing overview, see the [RSS Dashboard 2.7.0 release notes](docs/rel
 ### Fixes
 
 - Fixed the dedicated and inline Reader star controls being skipped by keyboard navigation. Both now work as toggle buttons with Enter and Space, announce their starred state to assistive technology, and show a visible focus indicator. [GH Issue #688](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/688)
+
 #### Storage and data
 
 - Fixed Shard storage v2 silently losing read, starred, tagged, saved, and playback state. `user-state.json` was rebuilt from memory on every save, so a feed that failed to load, had not synced to this device yet, or had items pruned by retention lost that state, and sync spread the loss to other devices. State is now merged with what is on disk and keyed by feed and guid, so feeds sharing a guid no longer overwrite each other, and marking an article unread now survives sync. A `user-state.json` that cannot be read is never overwritten; a notice and a red alert on the dashboard status strip stay until it is readable again. [GH Issue #278](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/278)
@@ -450,6 +452,7 @@ Added collapsible headers when viewing feeds in "feed" grouping ([GH Issue #149]
 ### Fixes
 
 - Fixed the dedicated and inline Reader star controls being skipped by keyboard navigation. Both now work as toggle buttons with Enter and Space, announce their starred state to assistive technology, and show a visible focus indicator. [GH Issue #688](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/688)
+
 #### Saving articles to vault not saving article content
 
 - [GH Issue #127](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/127) - appeared to be the same issue on the surface but turned out to be several:

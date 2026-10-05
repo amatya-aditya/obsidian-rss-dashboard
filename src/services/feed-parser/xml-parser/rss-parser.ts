@@ -80,13 +80,7 @@ export function parseRSS(doc: Document, deps: RssParserDeps): ParsedFeed {
     const authors = deps.getTextContent(item, "authors");
 
     const ieee =
-      pubYear ||
-      volume ||
-      issue ||
-      startPage ||
-      endPage ||
-      fileSize ||
-      authors
+      pubYear || volume || issue || startPage || endPage || fileSize || authors
         ? {
             pubYear,
             volume,

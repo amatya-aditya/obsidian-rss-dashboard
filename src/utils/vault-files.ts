@@ -6,7 +6,10 @@ import { TFolder, normalizePath, type App } from "obsidian";
  * of its vault index, so `getAbstractFileByPath` returns `null` for them even
  * when they're on disk; only the adapter can see them.
  */
-export async function vaultFileExists(app: App, path: string): Promise<boolean> {
+export async function vaultFileExists(
+  app: App,
+  path: string,
+): Promise<boolean> {
   const normalizedPath = normalizePath(path);
   const indexed = app.vault.getAbstractFileByPath(normalizedPath);
   if (indexed) {
@@ -73,7 +76,10 @@ function findChildFolder(parent: TFolder, name: string): TFolder | null {
  * a case-sensitive file system (Linux) a case variant doesn't exist on disk,
  * so a separate folder is created, as the user typed it.
  */
-export async function ensureVaultFolder(app: App, path: string): Promise<string> {
+export async function ensureVaultFolder(
+  app: App,
+  path: string,
+): Promise<string> {
   const segments = normalizePath(path)
     .split("/")
     .filter((segment) => segment !== "");

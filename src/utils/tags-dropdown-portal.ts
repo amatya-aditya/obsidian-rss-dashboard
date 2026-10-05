@@ -46,8 +46,7 @@ export function createTagsDropdownPortal(
   const isMobile = targetWindow.matchMedia("(max-width: 768px)").matches;
   // Inside a modal, mount within its container: Obsidian's modal focus trap
   // pulls focus back into the modal whenever it lands outside that element.
-  const mountEl =
-    anchor.closest<HTMLElement>(".modal-container") ?? targetBody;
+  const mountEl = anchor.closest<HTMLElement>(".modal-container") ?? targetBody;
 
   targetDocument
     .querySelectorAll(

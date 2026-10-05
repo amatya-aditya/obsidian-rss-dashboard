@@ -9,7 +9,10 @@
  */
 import { Notice, Setting, setTooltip } from "obsidian";
 import RssDashboardPlugin from "../../../main";
-import { HighlightWordEditModal, ConfirmDeleteModal } from "../modals/settings-modals";
+import {
+  HighlightWordEditModal,
+  ConfirmDeleteModal,
+} from "../modals/settings-modals";
 
 // ── Types (inline to avoid circular deps) ────────────────────────────────────
 
@@ -45,9 +48,7 @@ export function isHighlightWordDuplicate(
   text: string,
   excludeIndex?: number,
 ): boolean {
-  return words.some(
-    (w, i) => i !== excludeIndex && w.text === text,
-  );
+  return words.some((w, i) => i !== excludeIndex && w.text === text);
 }
 
 /**
@@ -285,9 +286,7 @@ export function renderHighlightsSettingsTab(
             }),
         )
         .addButton((button) => {
-          button
-            .setButtonText("Case")
-            .setTooltip("Toggle case sensitivity");
+          button.setButtonText("Case").setTooltip("Toggle case sensitivity");
           if (word.caseSensitive) button.setCta();
           return button.onClick(async () => {
             const h = ensureHighlights(plugin);
@@ -310,7 +309,10 @@ export function renderHighlightsSettingsTab(
             .setIcon("trash")
             .setTooltip(`Delete "${word.text}"`)
             .onClick(async () => {
-              const confirmModal = new ConfirmDeleteModal(plugin.app, word.text);
+              const confirmModal = new ConfirmDeleteModal(
+                plugin.app,
+                word.text,
+              );
               confirmModal.open();
               const shouldDelete = await confirmModal.waitForClose();
               if (!shouldDelete) return;
