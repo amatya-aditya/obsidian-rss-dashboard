@@ -145,6 +145,7 @@ Follow the testing guide for every test change:
 
 Before handing off a code change, run the relevant checks and report their results:
 
+- Run `npm run format` for every change; `npm run format:check` must pass. The policy lives in **Formatting** in `CONTRIBUTING.md`.
 - Run ESLint for every changed TypeScript file, or `npm run lint` when practical.
 - Run `npm run check:platform` whenever a `src/` TypeScript file changes.
 - Run `npm run check:architecture` for meaningful production TypeScript changes.

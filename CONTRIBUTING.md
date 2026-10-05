@@ -56,10 +56,10 @@ Use `npm ci` (clean install) instead of `npm install` to ensure locked dependenc
 
 `npm ci` points Git at the hooks in `.githooks/` (rerun `npm run hooks:install` if they stop running). They keep commits fast and pushes thorough:
 
-| Hook         | Runs                                                                                                                          | Typical time                                    |
-| ------------ | ----------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
-| `pre-commit` | `check:compliance`, then ESLint on the staged files only and the unit tests related to them (`scripts/run-staged-checks.mjs`) | seconds for prose, under a minute for most code |
-| `pre-push`   | Prints that full checks run in GitHub Actions and exits without running them locally                                          | under a second                                  |
+| Hook         | Runs                                                                                                                                                                        | Typical time                                    |
+| ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| `pre-commit` | Prettier on the staged files (`lint-staged`), `check:compliance`, then ESLint on the staged files only and the unit tests related to them (`scripts/run-staged-checks.mjs`) | seconds for prose, under a minute for most code |
+| `pre-push`   | Prints that full checks run in GitHub Actions and exits without running them locally                                                                                        | under a second                                  |
 
 The pre-commit hook runs the full unit suite instead when you stage a change that can affect every test: `vitest.config.mjs`, `package.json` or `package-lock.json`, a `tsconfig.json`, the Obsidian stub in `test_files/stubs/`, the shared test setup, or a non-TypeScript file under `test_files/` such as a fixture.
 
@@ -199,7 +199,18 @@ npm run check:platform        # Platform compatibility check
 npm run check:important       # CSS !important declarations check
 npm run check:test-types      # Type check the tests against the Obsidian stub
 npm run check:doc-links       # Relative links in Markdown resolve
+npm run format:check          # Prettier formatting of the whole repository
 ```
+
+### Formatting
+
+Prettier is required for every tracked, hand-maintained file type supported by the repository configuration. Run `npm run format` before opening a pull request. The pre-commit hook formats staged files, and `npm run format:check` verifies the full repository (it is part of `check:compliance`, so `npm run build` and CI run it). Generated build outputs are excluded by `.prettierignore`; archived documentation remains in scope.
+
+Formatting uses two-space indentation and LF line endings. `.gitattributes` makes Git check files out with LF on Windows, so `npm run format:check` agrees with CI.
+
+The formatting-only commit listed in `.git-blame-ignore-revs` is hidden from GitHub blame. To hide it locally too, run `git config blame.ignoreRevsFile .git-blame-ignore-revs`.
+
+If your branch was cut before the formatting commit, rebase onto `dev` and resolve conflicts by keeping your change in the new formatting, then run `npm run format` and commit the result. Conflicts are limited to lines you edited; ask in your PR if one is unclear.
 
 ### Compliance Declarations
 
