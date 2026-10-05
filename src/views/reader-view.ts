@@ -1885,7 +1885,9 @@ export class ReaderView extends ItemView {
     container.querySelectorAll("img").forEach((img) => {
       img.addClass("rss-reader-responsive-img");
       this.setupLightboxForImage(img);
-      img.addEventListener("error", () => {\n        this.recoverFailedSubstackImageElement(img);\n      });
+      img.addEventListener("error", () => {
+        this.recoverFailedSubstackImageElement(img);
+      });
     });
 
     void scheduleProcessMathElements(container, {
