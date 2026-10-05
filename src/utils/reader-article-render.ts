@@ -303,3 +303,48 @@ function dropLeadImageRepeatingHero(
     removeLeadImageElement(firstImg);
   }
 }
+
+/** Returns the final image path segment without query or fragment data. */
+export function getReaderImageFilename(img: HTMLImageElement): string {
+  const source = img.currentSrc || img.getAttribute("src") || "";
+  if (!source || /^(?:data|blob):/i.test(source)) return "";
+
+  let finalSegment = "";
+  try {
+    const path = new URL(source, "https://reader.invalid").pathname;
+    finalSegment = path.slice(path.lastIndexOf("/") + 1);
+  } catch {
+    finalSegment = source.split(/[?#]/, 1)[0]?.split("/").pop() || "";
+  }
+
+  try {
+    return decodeURIComponent(finalSegment).trim();
+  } catch {
+    return finalSegment.trim();
+  }
+}
+
+const GENERIC_IMAGE_ALT = /^(?:image|photo|picture|graphic|thumbnail|logo|icon)(?:\s+\d+)?$/i;
+
+/** Combines meaningful alt text and an image filename for the Reader tooltip. */
+export function buildReaderImageTooltipText(
+  altText: string | null,
+  articleTitle: string | undefined,
+  filename: string,
+): string {
+  const alt = (altText || "").replace(/\s+/g, " ").trim();
+  const title = (articleTitle || "").replace(/\s+/g, " ").trim();
+  const usefulAlt =
+    alt &&
+    !GENERIC_IMAGE_ALT.test(alt) &&
+    (!title || alt.toLocaleLowerCase() !== title.toLocaleLowerCase())
+      ? alt
+      : "";
+  const usefulFilename = filename.trim();
+
+  if (!usefulAlt) return usefulFilename;
+  if (!usefulFilename || usefulAlt.toLocaleLowerCase() === usefulFilename.toLocaleLowerCase()) {
+    return usefulAlt;
+  }
+  return `${usefulAlt} — ${usefulFilename}`;
+}
