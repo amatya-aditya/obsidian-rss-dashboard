@@ -96,7 +96,7 @@ export function remapPathPrefix(
 /**
  * The folder to open after `draggedPath` moved to `newPath`: the open folder
  * under its new path when it is the moved folder or inside it, or null when
- * the open folder is unaffected.
+ * the open folder is unaffected or its path did not change.
  */
 export function resolveMovedCurrentFolder(
   currentFolder: string | null,
@@ -107,7 +107,8 @@ export function resolveMovedCurrentFolder(
     currentFolder &&
     (currentFolder === draggedPath || currentFolder.startsWith(`${draggedPath}/`))
   ) {
-    return remapPathPrefix(currentFolder, draggedPath, newPath);
+    const remappedFolder = remapPathPrefix(currentFolder, draggedPath, newPath);
+    return remappedFolder === currentFolder ? null : remappedFolder;
   }
   return null;
 }

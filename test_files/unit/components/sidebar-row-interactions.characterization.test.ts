@@ -1839,6 +1839,28 @@ describe("Sidebar row interactions (characterization)", () => {
       expect(callbacks.onFolderClick).toHaveBeenCalledWith("News/Videos");
     });
 
+    it("does not report the open folder when it is dropped onto its own parent", () => {
+      options.currentFolder = "News/Tech";
+      build();
+      const header = folderHeader("News");
+      giveRowBox(header);
+
+      drag(header, "drop", makeDataTransfer({ "folder-path": "News/Tech" }), 120);
+
+      expect(callbacks.onFolderClick).not.toHaveBeenCalled();
+    });
+
+    it("does not report the open folder when it is reordered among siblings", () => {
+      options.currentFolder = "Videos";
+      build();
+      const header = folderHeader("News");
+      giveRowBox(header);
+
+      drag(header, "drop", makeDataTransfer({ "folder-path": "Videos" }), 105);
+
+      expect(callbacks.onFolderClick).not.toHaveBeenCalled();
+    });
+
     it("leaves the open folder alone when an unrelated folder is moved, or when one with a similar name is", () => {
       options.currentFolder = "Videos2";
       build();
