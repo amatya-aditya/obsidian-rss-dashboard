@@ -3,7 +3,11 @@ import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, normalize, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { isGitCheckout, skipWithoutGit } from "./git-repository.mjs";
+import {
+  isGitCheckout,
+  isLocalGitSpawnPermissionError,
+  skipWithoutGit,
+} from "./git-repository.mjs";
 
 const ROOT_DIR = join(import.meta.dirname, "..");
 
@@ -97,13 +101,24 @@ export function resolveTarget(rootDir, filePath, target) {
 }
 
 function listTrackedMarkdown() {
-  const output = execFileSync("git", ["ls-files", "-z", "*.md"], {
-    cwd: ROOT_DIR,
-    encoding: "utf8",
-    maxBuffer: 10 * 1024 * 1024,
-  });
+  try {
+    const output = execFileSync("git", ["ls-files", "-z", "*.md"], {
+      cwd: ROOT_DIR,
+      encoding: "utf8",
+      maxBuffer: 10 * 1024 * 1024,
+    });
 
-  return output.split("\0").filter((filePath) => filePath.endsWith(".md"));
+    return output.split("\0").filter((filePath) => filePath.endsWith(".md"));
+  } catch (error) {
+    if (!isLocalGitSpawnPermissionError(error)) {
+      throw error;
+    }
+
+    console.warn(
+      "check:doc-links: Git could not be launched (EPERM); skipping tracked Markdown link checks locally. CI must run this check.",
+    );
+    return null;
+  }
 }
 
 function main() {
@@ -113,6 +128,10 @@ function main() {
   }
 
   const trackedFiles = listTrackedMarkdown();
+  if (trackedFiles === null) {
+    return;
+  }
+
   const enforcedFiles = trackedFiles.filter(isEnforcedFile);
   const issues = [];
   let checkedLinks = 0;

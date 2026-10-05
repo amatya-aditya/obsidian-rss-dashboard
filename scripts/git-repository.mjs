@@ -18,3 +18,15 @@ export function isGitCheckout(dir) {
 export function skipWithoutGit(checkName) {
   console.log(`${checkName}: not a git checkout, so this check is skipped.`);
 }
+
+/**
+ * A local Windows sandbox can block Node from launching Git even though the
+ * checkout is valid. Treat only that process-creation failure as unavailable
+ * locally; CI must fail so its tracked-file checks cannot silently be skipped.
+ */
+export function isLocalGitSpawnPermissionError(
+  error,
+  isCi = Boolean(process.env.CI),
+) {
+  return !isCi && error?.code === "EPERM";
+}

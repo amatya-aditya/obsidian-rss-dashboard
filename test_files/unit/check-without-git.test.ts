@@ -9,7 +9,10 @@ import {
 import { join } from "node:path";
 import { cwd, execPath } from "node:process";
 import { afterEach, describe, expect, it } from "vitest";
-import { isGitCheckout } from "../../scripts/git-repository.mjs";
+import {
+  isGitCheckout,
+  isLocalGitSpawnPermissionError,
+} from "../../scripts/git-repository.mjs";
 
 const REPO_ROOT = cwd();
 const SCRIPTS = [
@@ -53,6 +56,21 @@ describe("isGitCheckout", () => {
 
   it("is true for this repository", () => {
     expect(isGitCheckout(REPO_ROOT)).toBe(true);
+  });
+});
+
+describe("isLocalGitSpawnPermissionError", () => {
+  it("allows local checks to identify a sandboxed Git spawn failure", () => {
+    expect(isLocalGitSpawnPermissionError({ code: "EPERM" }, false)).toBe(true);
+  });
+
+  it("does not skip the check in CI", () => {
+    expect(isLocalGitSpawnPermissionError({ code: "EPERM" }, true)).toBe(false);
+  });
+
+  it("does not skip other Git failures", () => {
+    expect(isLocalGitSpawnPermissionError({ code: "ENOENT" }, false)).toBe(false);
+    expect(isLocalGitSpawnPermissionError({ status: 1 }, false)).toBe(false);
   });
 });
 

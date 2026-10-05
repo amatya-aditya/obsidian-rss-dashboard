@@ -3,7 +3,11 @@ import { readFileSync, readdirSync } from "node:fs";
 import { basename, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { isGitCheckout, skipWithoutGit } from "./git-repository.mjs";
+import {
+  isGitCheckout,
+  isLocalGitSpawnPermissionError,
+  skipWithoutGit,
+} from "./git-repository.mjs";
 
 const ROOT_DIR = join(import.meta.dirname, "..");
 const PLANS_DIR = join(ROOT_DIR, "docs", "plans");
@@ -275,12 +279,23 @@ function getTrackedFiles() {
   // -z keeps paths raw: without it git quotes and escapes any path holding a
   // space or non-ASCII character, which is exactly what the filename check
   // below is looking for.
-  const output = execFileSync("git", ["ls-files", "-z"], {
-    cwd: ROOT_DIR,
-    encoding: "utf8",
-    maxBuffer: 10 * 1024 * 1024,
-  });
-  return output.split("\0").filter(Boolean);
+  try {
+    const output = execFileSync("git", ["ls-files", "-z"], {
+      cwd: ROOT_DIR,
+      encoding: "utf8",
+      maxBuffer: 10 * 1024 * 1024,
+    });
+    return output.split("\0").filter(Boolean);
+  } catch (error) {
+    if (!isLocalGitSpawnPermissionError(error)) {
+      throw error;
+    }
+
+    console.warn(
+      "check:pre-release: Git could not be launched (EPERM); skipping tracked-file checks locally. CI must run this check.",
+    );
+    return null;
+  }
 }
 
 /**
@@ -357,15 +372,25 @@ function main() {
   }
 
   const trackedFiles = getTrackedFiles();
-  const strayFiles = findStrayFiles(trackedFiles);
-  const hostileNameIssues = findHostileFilenames(trackedFiles);
-  const trackedButIgnored = getTrackedButIgnoredFiles();
-  const archivedPlanPaths = trackedFiles.filter(
-    (filePath) =>
-      filePath.startsWith(ARCHIVED_PLANS_PREFIX) &&
-      filePath.endsWith(".md") &&
-      !filePath.toLowerCase().endsWith("/readme.md"),
-  );
+  const trackedFileChecksAvailable = trackedFiles !== null;
+  const knownTrackedFiles = trackedFiles ?? [];
+  const strayFiles = trackedFileChecksAvailable
+    ? findStrayFiles(knownTrackedFiles)
+    : [];
+  const hostileNameIssues = trackedFileChecksAvailable
+    ? findHostileFilenames(knownTrackedFiles)
+    : [];
+  const trackedButIgnored = trackedFileChecksAvailable
+    ? getTrackedButIgnoredFiles()
+    : [];
+  const archivedPlanPaths = trackedFileChecksAvailable
+    ? knownTrackedFiles.filter(
+        (filePath) =>
+          filePath.startsWith(ARCHIVED_PLANS_PREFIX) &&
+          filePath.endsWith(".md") &&
+          !filePath.toLowerCase().endsWith("/readme.md"),
+      )
+    : [];
   const catalogParityIssues = findCatalogParityIssues(
     readFileOrEmpty(join(ROOT_DIR, "docs", "archive", "README.md")),
     archivedPlanPaths,
@@ -485,11 +510,19 @@ function main() {
     process.exit(1);
   }
 
-  console.log(
-    `Pre-release check passed (${trackedFiles.length} tracked file(s) scanned, ` +
-      `${activePlanFiles.length} active plan(s) validated, ` +
-      `${releaseNoteFiles.length} What's New note(s) validated).`,
-  );
+  if (trackedFileChecksAvailable) {
+    console.log(
+      `Pre-release check passed (${knownTrackedFiles.length} tracked file(s) scanned, ` +
+        `${activePlanFiles.length} active plan(s) validated, ` +
+        `${releaseNoteFiles.length} What's New note(s) validated).`,
+    );
+  } else {
+    console.log(
+      "Pre-release check completed with Git-dependent tracked-file checks skipped; " +
+        `${activePlanFiles.length} active plan(s) and ` +
+        `${releaseNoteFiles.length} What's New note(s) were still validated.`,
+    );
+  }
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
