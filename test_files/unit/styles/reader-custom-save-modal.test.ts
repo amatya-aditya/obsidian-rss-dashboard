@@ -12,7 +12,8 @@ const stylesheet = postcss.parse(
 function declarationsFor(selector: string): Map<string, string> {
   const declarations = new Map<string, string>();
   stylesheet.walkRules((rule) => {
-    if (!rule.selectors.includes(selector)) return;
+    const selectors = rule.selectors.map((s) => s.replace(/\s+/g, " "));
+    if (!selectors.includes(selector)) return;
     rule.walkDecls((declaration) => {
       declarations.set(declaration.prop, declaration.value);
     });
