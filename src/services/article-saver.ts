@@ -1,4 +1,4 @@
-import { App, Notice, TFile, moment } from "obsidian";
+import { App, Notice, TFile } from "obsidian";
 import { Readability } from "@mozilla/readability";
 import TurndownService from "turndown";
 import { ArticleSavingSettings, FeedItem } from "../types/types";
@@ -16,7 +16,17 @@ import {
   stripNonContentHtmlNodes,
 } from "../utils/html-text";
 import { normalizeSubstackImageUrl } from "../utils/substack-image-url";
-import { resolveDisplayDate } from "./feed-parser/feed-retention";
+import {
+  buildArticleTemplateValues,
+  itemTagNames,
+  resolveSavedArticleDate,
+  type ArticleTemplateValues,
+} from "./article-template/template-values";
+import { renderArticleTemplate } from "./article-template/render-template";
+import {
+  ARTICLE_SAVER_FRONTMATTER_STEPS,
+  ARTICLE_SAVER_NOTE_STEPS,
+} from "./article-template/call-site-steps";
 import {
   addMathTurndownRule,
   protectMathForMarkdown,
@@ -97,18 +107,6 @@ export class ArticleSaver {
     } catch {
       return html;
     }
-  }
-
-  /**
-   * The date to stamp into saved-note frontmatter/templates: the real
-   * `pubDate` when it resolves to an actual instant, falling back to
-   * `firstSeenMs` (when `useFirstSeenDateFallback` is enabled) when there's
-   * no real date, and only reaching for "now" when neither is available.
-   */
-  private resolveSavedArticleDate(item: FeedItem): Date {
-    return (
-      resolveDisplayDate(item, this.getUseFirstSeenDateFallback()) ?? new Date()
-    );
   }
 
   private getPreferredFeedHtml(item: FeedItem): string {
@@ -249,6 +247,26 @@ export class ArticleSaver {
     return this.turndownService.turndown(protectMathForMarkdown(normalized));
   }
 
+  /** The values this saver's templates fill, built separately for each template render to preserve clock timing. */
+  private buildTemplateValues(item: FeedItem): ArticleTemplateValues {
+    const articleDate = resolveSavedArticleDate(
+      item,
+      this.getUseFirstSeenDateFallback(),
+    );
+    const tagNames = itemTagNames(item);
+
+    return buildArticleTemplateValues(item, {
+      articleDate: Number.isNaN(articleDate.getTime())
+        ? new Date()
+        : articleDate,
+      now: () => new Date(),
+      tagNames: this.settings.addSavedTag
+        ? withSavedTagName(tagNames)
+        : tagNames,
+      image: () => this.getFallbackHeroUrl(item),
+    });
+  }
+
   private generateFrontmatter(item: FeedItem): string {
     let frontmatter = this.settings.frontmatterTemplate;
 
@@ -265,37 +283,11 @@ export class ArticleSaver {
         ---`;
     }
 
-    const tagNames = (item.tags ?? [])
-      .map((tag) => tag.name)
-      .filter(
-        (name): name is string =>
-          typeof name === "string" && name.trim() !== "",
-      );
-
-    if (this.settings.addSavedTag) {
-      tagNames.splice(0, tagNames.length, ...withSavedTagName(tagNames));
-    }
-
-    const tagsString = tagNames.join(", ");
-
-    const pubDate = this.resolveSavedArticleDate(item);
-
-    frontmatter = this.replaceDatePlaceholders(
+    frontmatter = renderArticleTemplate(
       frontmatter,
-      pubDate,
-      item.firstSeenMs,
-    )
-      .replace(/{{title}}/g, () => escapeYamlDoubleQuoted(item.title))
-      .replace(/{{tags}}/g, () => tagsString)
-      .replace(/{{source}}/g, () => escapeYamlDoubleQuoted(item.feedTitle))
-      .replace(/{{link}}/g, () => escapeYamlDoubleQuoted(item.link))
-      .replace(/{{author}}/g, () => escapeYamlDoubleQuoted(item.author || ""))
-      .replace(/{{feedTitle}}/g, () => escapeYamlDoubleQuoted(item.feedTitle))
-      .replace(/{{summary}}/g, () => escapeYamlDoubleQuoted(item.summary || ""))
-      .replace(/{{guid}}/g, () => escapeYamlDoubleQuoted(item.guid))
-      .replace(/{{image}}/g, () =>
-        escapeYamlDoubleQuoted(this.getFallbackHeroUrl(item)),
-      );
+      ARTICLE_SAVER_FRONTMATTER_STEPS,
+      this.buildTemplateValues(item),
+    );
 
     if (item.mediaType === "video" && item.videoId) {
       const injection = `mediaType: video\nvideoId: "${escapeYamlDoubleQuoted(item.videoId)}"\n`;
@@ -312,68 +304,6 @@ export class ArticleSaver {
     return sanitizeFilename(name);
   }
 
-  private formatMoment(date: Date, formatStr: string): string {
-    type MomentFactory = (input: Date) => { format: (fmt: string) => string };
-    return (moment as unknown as MomentFactory)(date).format(formatStr);
-  }
-
-  private formatLongDate(date: Date): string {
-    return date.toLocaleDateString(undefined, {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
-  }
-
-  private replaceDatePlaceholders(
-    text: string,
-    date: Date,
-    firstSeenMs?: number,
-  ): string {
-    const validDate = Number.isNaN(date.getTime()) ? new Date() : date;
-    const isoDateTime = validDate.toISOString();
-
-    const longFormattedDate = this.formatLongDate(validDate);
-
-    const firstSeenDate =
-      typeof firstSeenMs === "number" && !Number.isNaN(firstSeenMs)
-        ? new Date(firstSeenMs)
-        : validDate;
-    const longFormattedFirstSeen = this.formatLongDate(firstSeenDate);
-    const isoFormattedFirstSeen = this.formatMoment(
-      firstSeenDate,
-      "YYYY-MM-DD",
-    );
-
-    const now = new Date();
-    const saveDate = this.formatMoment(now, "YYYY-MM-DD");
-    const saveTime12 = this.formatMoment(now, "hh:mm A");
-    const saveTime24 = this.formatMoment(now, "HH:mm");
-
-    let replaced = text
-      .replace(/{{date}}/g, () => longFormattedDate)
-      .replace(/{{dateShort}}/g, () =>
-        this.formatMoment(validDate, "YYYY-MM-DD"),
-      )
-      .replace(/{{isoDate}}/g, () => isoDateTime)
-      .replace(/{{isoDateTime}}/g, () => isoDateTime)
-      .replace(/{{firstSeen}}/g, () => longFormattedFirstSeen)
-      .replace(/{{firstSeenISO}}/g, () => isoFormattedFirstSeen)
-      .replace(/{{saveDate}}/g, () => saveDate)
-      .replace(/{{saveTime12}}/g, () => saveTime12)
-      .replace(/{{saveTime24}}/g, () => saveTime24);
-
-    // Handle dynamic formats: {{date:FORMAT}}
-    replaced = replaced.replace(
-      /{{date:(.+?)}}/g,
-      (_match: string, format: string) => {
-        return this.formatMoment(validDate, format);
-      },
-    );
-
-    return replaced;
-  }
-
   private applyTemplate(
     item: FeedItem,
     template: string,
@@ -386,39 +316,11 @@ export class ArticleSaver {
           this.cleanHtml(this.getPreferredFeedHtml(item)),
         );
 
-    const pubDate = this.resolveSavedArticleDate(item);
-
-    const tagNames = (item.tags ?? [])
-      .map((tag) => tag.name)
-      .filter(
-        (name): name is string =>
-          typeof name === "string" && name.trim() !== "",
-      );
-    const tagsString = this.settings.addSavedTag
-      ? withSavedTagName(tagNames).join(", ")
-      : tagNames.join(", ");
-
-    const replacedWithDates = this.replaceDatePlaceholders(
+    return renderArticleTemplate(
       template,
-      pubDate,
-      item.firstSeenMs,
-    );
-
-    return (
-      replacedWithDates
-        .replace(/{{title}}/g, () => item.title)
-        .replace(/{{link}}/g, () => item.link)
-        .replace(/{{author}}/g, () => item.author || "")
-        .replace(/{{source}}/g, () => item.feedTitle)
-        .replace(/{{feedTitle}}/g, () => item.feedTitle)
-        .replace(/{{summary}}/g, () => item.summary || "")
-        // Use a replacer function for {{content}} so that special replacement
-        // patterns in JS regex (like $$, $&, $`) are not interpreted — without
-        // this, display math delimiters like $$x^2$$ would be collapsed to $x^2$.
-        .replace(/{{content}}/g, () => content)
-        .replace(/{{tags}}/g, () => tagsString)
-        .replace(/{{guid}}/g, () => item.guid)
-        .replace(/{{image}}/g, () => this.getFallbackHeroUrl(item))
+      ARTICLE_SAVER_NOTE_STEPS,
+      this.buildTemplateValues(item),
+      content,
     );
   }
 

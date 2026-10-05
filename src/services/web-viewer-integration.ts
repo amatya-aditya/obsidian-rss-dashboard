@@ -1,10 +1,19 @@
-import { App, Notice, TFile, setIcon, moment, setTooltip } from "obsidian";
+import { App, Notice, TFile, setIcon, setTooltip } from "obsidian";
 import { FeedItem, ArticleSavingSettings } from "../types/types";
 import { sanitizeFilename } from "./article-saver";
 import { normalizeSubstackImageUrl } from "../utils/substack-image-url";
-import { escapeYamlDoubleQuoted } from "../utils/yaml-escape";
-import { resolveDisplayDate } from "./feed-parser/feed-retention";
 import { ensureVaultFolder } from "../utils/vault-files";
+import {
+  buildArticleTemplateValues,
+  itemTagNames,
+  resolveSavedArticleDate,
+  type ArticleTemplateValues,
+} from "./article-template/template-values";
+import { renderArticleTemplate } from "./article-template/render-template";
+import {
+  WEB_VIEWER_FRONTMATTER_STEPS,
+  WEB_VIEWER_NOTE_STEPS,
+} from "./article-template/call-site-steps";
 
 interface WebViewerPlugin {
   openWebpage?(url: string, title: string): Promise<void>;
@@ -218,16 +227,31 @@ export class WebViewerIntegration {
     return file;
   }
 
-  /**
-   * The date to stamp into saved-note frontmatter/templates: the real
-   * `pubDate` when it resolves to an actual instant, falling back to
-   * `firstSeenMs` (when `useFirstSeenDateFallback` is enabled) when there's
-   * no real date, and only reaching for "now" when neither is available.
-   */
-  private resolveSavedArticleDate(item: FeedItem): Date {
-    return (
-      resolveDisplayDate(item, this.getUseFirstSeenDateFallback()) ?? new Date()
-    );
+  /** The values this integration's templates fill, built separately for each template render to preserve clock timing. */
+  private buildTemplateValues(
+    item: FeedItem,
+    isNote = false,
+  ): ArticleTemplateValues {
+    const tagNames = itemTagNames(item);
+
+    if (
+      this.settings.addSavedTag &&
+      !tagNames.some((t) => t.toLowerCase() === "saved")
+    ) {
+      tagNames.push("Saved");
+    }
+
+    return buildArticleTemplateValues(item, {
+      articleDate: resolveSavedArticleDate(
+        item,
+        this.getUseFirstSeenDateFallback(),
+      ),
+      now: () => new Date(),
+      // The legacy note chain reads its long save date separately from save times.
+      saveDateLong: isNote ? () => new Date() : undefined,
+      tagNames,
+      image: () => this.getImage(item),
+    });
   }
 
   protected generateFrontmatter(item: FeedItem): string {
@@ -247,96 +271,21 @@ guid: "{{guid}}"
 `;
     }
 
-    const tagNames = (item.tags ?? [])
-      .map((tag) => tag.name)
-      .filter(
-        (name): name is string =>
-          typeof name === "string" && name.trim() !== "",
-      );
-
-    if (
-      this.settings.addSavedTag &&
-      !tagNames.some((t) => t.toLowerCase() === "saved")
-    ) {
-      tagNames.push("Saved");
-    }
-
-    const tagsString = tagNames.join(", ");
-
-    const pubDate = this.resolveSavedArticleDate(item);
-    const isoDateTime = pubDate.toISOString();
-    const dateString = pubDate.toLocaleDateString(undefined, {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
-
-    const now = new Date();
-    const saveDate = this.formatMoment(now, "YYYY-MM-DD");
-    const saveTime12 = this.formatMoment(now, "hh:mm A");
-    const saveTime24 = this.formatMoment(now, "HH:mm");
-
-    frontmatter = frontmatter
-      .replace(/{{title}}/g, () => escapeYamlDoubleQuoted(item.title))
-      .replace(/{{date}}/g, () => dateString)
-      .replace(/{{isoDate}}/g, () => isoDateTime)
-      .replace(/{{isoDateTime}}/g, () => isoDateTime)
-      .replace(/{{saveDate}}/g, () => saveDate)
-      .replace(/{{saveTime12}}/g, () => saveTime12)
-      .replace(/{{saveTime24}}/g, () => saveTime24)
-      .replace(/{{tags}}/g, () => tagsString)
-      .replace(/{{source}}/g, () =>
-        escapeYamlDoubleQuoted(item.feedTitle || "Web viewer"),
-      )
-      .replace(/{{link}}/g, () => escapeYamlDoubleQuoted(item.link))
-      .replace(/{{author}}/g, () => escapeYamlDoubleQuoted(item.author || ""))
-      .replace(/{{feedTitle}}/g, () =>
-        escapeYamlDoubleQuoted(item.feedTitle || "Web viewer"),
-      )
-      .replace(/{{guid}}/g, () => escapeYamlDoubleQuoted(item.guid))
-      .replace(/{{image}}/g, () => escapeYamlDoubleQuoted(this.getImage(item)));
+    frontmatter = renderArticleTemplate(
+      frontmatter,
+      WEB_VIEWER_FRONTMATTER_STEPS,
+      this.buildTemplateValues(item),
+    );
 
     return frontmatter.endsWith("\n") ? frontmatter : `${frontmatter}\n`;
   }
 
-  private formatMoment(date: Date, formatStr: string): string {
-    type MomentFactory = (input: Date) => { format: (fmt: string) => string };
-    return (moment as unknown as MomentFactory)(date).format(formatStr);
-  }
-
   protected applyTemplate(item: FeedItem, template: string): string {
-    const pubDate = this.resolveSavedArticleDate(item);
-    const isoDateTime = pubDate.toISOString();
-
-    const formattedDate = new Date().toLocaleDateString(undefined, {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
-
-    const now = new Date();
-    const saveDate = this.formatMoment(now, "YYYY-MM-DD");
-    const saveTime12 = this.formatMoment(now, "hh:mm A");
-    const saveTime24 = this.formatMoment(now, "HH:mm");
-
-    const description = item.description;
-    return (
-      template
-        .replace(/{{title}}/g, () => item.title)
-        .replace(/{{date}}/g, () => formattedDate)
-        .replace(/{{isoDate}}/g, () => isoDateTime)
-        .replace(/{{isoDateTime}}/g, () => isoDateTime)
-        .replace(/{{saveDate}}/g, () => saveDate)
-        .replace(/{{saveTime12}}/g, () => saveTime12)
-        .replace(/{{saveTime24}}/g, () => saveTime24)
-        .replace(/{{link}}/g, () => item.link)
-        .replace(/{{author}}/g, () => item.author || "")
-        .replace(/{{source}}/g, () => item.feedTitle || "Web viewer")
-        .replace(/{{summary}}/g, () => item.summary || "")
-        // Use a replacer function to prevent JS regex special patterns ($$, $&)
-        // from collapsing display math delimiters like $$x^2$$ into $x^2$.
-        .replace(/{{content}}/g, () => description)
-        .replace(/{{image}}/g, () => this.getImage(item))
+    return renderArticleTemplate(
+      template,
+      WEB_VIEWER_NOTE_STEPS,
+      this.buildTemplateValues(item, true),
+      item.description,
     );
   }
 
