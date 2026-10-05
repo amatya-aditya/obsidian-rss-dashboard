@@ -53,4 +53,3 @@ export function computeResultsRange(params: {
   const end = Math.min(currentPage * pageSize, totalItems);
   return { start, end };
 }
-

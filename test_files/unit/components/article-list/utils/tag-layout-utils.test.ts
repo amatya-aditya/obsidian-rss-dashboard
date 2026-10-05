@@ -51,7 +51,9 @@ describe("tag-layout-utils", () => {
 
       renderTagChips(container, tags);
 
-      const overflow = container.querySelector<HTMLElement>(".rss-dashboard-tag-overflow");
+      const overflow = container.querySelector<HTMLElement>(
+        ".rss-dashboard-tag-overflow",
+      );
       expect(overflow?.textContent).toBe("+1");
       expect(overflow?.getAttribute("aria-label")).toBe("Tag7");
     });
@@ -61,7 +63,9 @@ describe("tag-layout-utils", () => {
 
       renderTagChips(container, tags);
 
-      const badge = container.querySelector(".rss-dashboard-tag-badge") as HTMLElement;
+      const badge = container.querySelector(
+        ".rss-dashboard-tag-badge",
+      ) as HTMLElement;
       expect(badge.style.getPropertyValue("--tag-color")).toBe("#e74c3c");
     });
 
@@ -70,8 +74,12 @@ describe("tag-layout-utils", () => {
 
       renderTagChips(container, tags);
 
-      const badge = container.querySelector(".rss-dashboard-tag-badge") as HTMLElement;
-      expect(badge.style.getPropertyValue("--tag-color")).toBe("var(--interactive-accent)");
+      const badge = container.querySelector(
+        ".rss-dashboard-tag-badge",
+      ) as HTMLElement;
+      expect(badge.style.getPropertyValue("--tag-color")).toBe(
+        "var(--interactive-accent)",
+      );
     });
   });
 
@@ -127,7 +135,10 @@ describe("tag-layout-utils", () => {
         { name: "Tag2", color: "#00ff00" },
       ];
 
-      Object.defineProperty(container, "clientWidth", { value: 0, writable: true });
+      Object.defineProperty(container, "clientWidth", {
+        value: 0,
+        writable: true,
+      });
       renderSingleRowCardTagChips(container, tags);
 
       const badges = container.querySelectorAll(".rss-dashboard-tag-badge");
@@ -140,7 +151,7 @@ describe("tag-layout-utils", () => {
       const card1 = createDiv();
       card1.className = "rss-dashboard-article-card";
       card1.dataset.articleGuid = "1";
-      
+
       const card2 = createDiv();
       card2.className = "rss-dashboard-article-card";
       card2.dataset.articleGuid = "2";
@@ -179,7 +190,7 @@ describe("tag-layout-utils", () => {
 
       // This will clear tag containers since articles have no tags
       layoutCardTagRows(container, articles);
-      
+
       // Verify both cards were processed without error
       expect(card1.classList.contains("rss-dashboard-article-card")).toBe(true);
     });

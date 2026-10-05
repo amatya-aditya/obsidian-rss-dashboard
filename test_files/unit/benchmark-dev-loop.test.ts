@@ -94,7 +94,9 @@ describe("formatComparison", () => {
       result("after", "bbbbbbb", 15),
     );
 
-    expect(table).toContain("| Stage | Before (warm) | After (warm) | Change |");
+    expect(table).toContain(
+      "| Stage | Before (warm) | After (warm) | Change |",
+    );
     expect(table).toContain("| `eslint .` | 60.0s | 15.0s | -75% |");
     expect(table).toContain("aaaaaaa");
     expect(table).toContain("bbbbbbb");

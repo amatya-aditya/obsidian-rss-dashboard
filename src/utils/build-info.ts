@@ -15,7 +15,11 @@ export interface BuildInfo {
 // Replaced with a literal by esbuild's `define` (see esbuild.config.mjs).
 declare const __RSS_DASHBOARD_BUILD__: BuildInfo | undefined;
 
-const UNKNOWN_BUILD: BuildInfo = { commit: "unknown", dirty: false, builtAt: "" };
+const UNKNOWN_BUILD: BuildInfo = {
+  commit: "unknown",
+  dirty: false,
+  builtAt: "",
+};
 
 export function getBuildInfo(): BuildInfo {
   return typeof __RSS_DASHBOARD_BUILD__ !== "undefined"

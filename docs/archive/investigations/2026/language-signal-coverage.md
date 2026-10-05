@@ -6,7 +6,7 @@ a ticket under the article-metadata wayfinder map
 It exists to answer one go/no-go question for
 [#246](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/246): with
 local text-based language detection ruled out of scope, does the set of
-*declared* language signals cover enough real articles to make a `{{language}}`
+_declared_ language signals cover enough real articles to make a `{{language}}`
 template variable worth shipping?
 
 Sample collected 2026-09-15.
@@ -23,11 +23,11 @@ hands it to us as `article.lang` on a field the plugin currently throws away.
 
 Three numbers qualify it:
 
-| Condition | Coverage |
-| --- | --- |
-| Full-page fetch succeeded (`<html lang>`, plus feed fallback) | 98% |
-| Full-page fetch succeeded (`<html lang>` alone) | 96% |
-| **No page fetch — feed-level signals only** | **57%** |
+| Condition                                                     | Coverage |
+| ------------------------------------------------------------- | -------- |
+| Full-page fetch succeeded (`<html lang>`, plus feed fallback) | 98%      |
+| Full-page fetch succeeded (`<html lang>` alone)               | 96%      |
+| **No page fetch — feed-level signals only**                   | **57%**  |
 
 The 57% is the number to worry about, not the 96%. Full-article fetch is opt-in
 in this plugin; for an item whose page was never fetched, `{{language}}` is
@@ -80,7 +80,7 @@ Le Monde 402 ×2 (paywall).
 
 - 53 feeds and 100 pages is enough to see shape, not enough for a second decimal
   place. Treat 96% as "almost all", not as 96.0%.
-- It is a *curated* sample. Real subscription lists contain more dead, ancient
+- It is a _curated_ sample. Real subscription lists contain more dead, ancient
   and hand-rolled feeds than this, so the junk rate here is probably a floor.
 - It skews English and Western. Ten languages and six scripts are represented,
   but only one feed each for Korean, Japanese, Hindi, Arabic and Russian.
@@ -97,16 +97,16 @@ Le Monde 402 ×2 (paywall).
 
 ### Page level (n = 100)
 
-| Signal | Pages | Coverage |
-| --- | --- | --- |
-| `<html lang>` | 96 | **96%** |
-| Readability `article.lang` | 96 | **96%** (identical by construction — see below) |
-| `og:locale` | 32 | 32% |
-| JSON-LD `inLanguage` | 21 | 21% |
-| `<meta http-equiv="content-language">` | 0 | 0% |
-| `<meta name="language">` / `DC.language` | 0 | 0% |
-| **Any page signal** | 96 | **96%** |
-| **Union incl. feed-level** | 98 | **98%** |
+| Signal                                   | Pages | Coverage                                        |
+| ---------------------------------------- | ----- | ----------------------------------------------- |
+| `<html lang>`                            | 96    | **96%**                                         |
+| Readability `article.lang`               | 96    | **96%** (identical by construction — see below) |
+| `og:locale`                              | 32    | 32%                                             |
+| JSON-LD `inLanguage`                     | 21    | 21%                                             |
+| `<meta http-equiv="content-language">`   | 0     | 0%                                              |
+| `<meta name="language">` / `DC.language` | 0     | 0%                                              |
+| **Any page signal**                      | 96    | **96%**                                         |
+| **Union incl. feed-level**               | 98    | **98%**                                         |
 
 Signals present per page: 4 pages had none, 58 had exactly one, 23 had two, 15
 had three.
@@ -123,13 +123,13 @@ even on pages that do structured data, two thirds omit the language.
 
 ### Feed level (n = 53)
 
-| Signal | Feeds | Coverage |
-| --- | --- | --- |
-| Any feed-level language | 30 | **57%** |
-| RSS `<channel><language>` | 25 | 60% of the 42 RSS feeds |
-| Atom root `xml:lang` | 3 | 27% of the 11 Atom feeds |
-| `<dc:language>` | 3 | 6% |
-| Item- / entry-level `xml:lang` | **0** | **0%** |
+| Signal                         | Feeds | Coverage                 |
+| ------------------------------ | ----- | ------------------------ |
+| Any feed-level language        | 30    | **57%**                  |
+| RSS `<channel><language>`      | 25    | 60% of the 42 RSS feeds  |
+| Atom root `xml:lang`           | 3     | 27% of the 11 Atom feeds |
+| `<dc:language>`                | 3     | 6%                       |
+| Item- / entry-level `xml:lang` | **0** | **0%**                   |
 
 Two notes with implementation consequences:
 
@@ -137,24 +137,24 @@ Two notes with implementation consequences:
   GitHub releases) set a root `xml:lang`. Daring Fireball, Julia Evans, Kottke,
   Heise, Go Blog, Nicolas Hoizey, YouTube and Reddit all ship Atom with nothing.
 - **`dc:language` is not decorative.** For Hankyoreh and Slashdot it was the
-  *only* feed-level signal. A parser that reads `<language>` and not
+  _only_ feed-level signal. A parser that reads `<language>` and not
   `<dc:language>` loses those two outright.
 
 Feed-level coverage by publisher type shows where the gap is:
 
-| Type | Declared |
-| --- | --- |
-| WordPress | 5/5 |
-| tech-media | 2/2 |
-| news (non-English, Latin) | 6/8 |
-| news (non-Latin) | 4/5 |
-| news (major English) | 4/5 |
-| indie blogs | 3/7 |
-| **Substack** | **0/3** |
-| **Ghost** | **0/2** |
-| **BBC (all editions)** | **0/2** |
-| aggregators (HN, Reddit) | 0/2 |
-| YouTube / Mastodon / Tumblr | 0/3 |
+| Type                        | Declared |
+| --------------------------- | -------- |
+| WordPress                   | 5/5      |
+| tech-media                  | 2/2      |
+| news (non-English, Latin)   | 6/8      |
+| news (non-Latin)            | 4/5      |
+| news (major English)        | 4/5      |
+| indie blogs                 | 3/7      |
+| **Substack**                | **0/3**  |
+| **Ghost**                   | **0/2**  |
+| **BBC (all editions)**      | **0/2**  |
+| aggregators (HN, Reddit)    | 0/2      |
+| YouTube / Mastodon / Tumblr | 0/3      |
 
 WordPress is the reason RSS coverage is as high as 60% — it emits `<language>`
 by default. Substack and Ghost both emit none, and between them they are a large
@@ -179,13 +179,13 @@ definition identical to `<html lang>`, which the measurements confirm.
 
 Two consequences:
 
-1. There is no reason to parse `<html lang>` *and* consume Readability's `lang`.
+1. There is no reason to parse `<html lang>` _and_ consume Readability's `lang`.
    They are the same value.
 2. `_articleLang` is assigned inside `_grabArticle()`, and `parse()` returns
    `null` when `_grabArticle()` fails. **On a page Readability cannot extract,
    the language is lost even though the attribute was right there.** Since the
    map already fixes the pipeline order as `fetch -> extract head metadata ->
-   Readability.parse() -> resolve`, read `documentElement.lang` in the
+Readability.parse() -> resolve`, read `documentElement.lang` in the
    head-metadata step and treat Readability's `lang` as redundant.
 
 Readability also parses JSON-LD (`_getJSONLD`) but never reads `inLanguage`
@@ -197,12 +197,12 @@ is our own code regardless.
 Of 100 pages, **69 carried two or more signals** (counting `<html lang>`,
 `og:locale`, JSON-LD `inLanguage`, and the feed-level tag).
 
-| Comparison | Disagreement |
-| --- | --- |
-| Exact string, as declared | 48/69 = **70%** |
-| After normalizing case and `_`→`-` | 38/69 = **55%** |
+| Comparison                                 | Disagreement    |
+| ------------------------------------------ | --------------- |
+| Exact string, as declared                  | 48/69 = **70%** |
+| After normalizing case and `_`→`-`         | 38/69 = **55%** |
 | After also mapping language names to codes | 36/69 = **52%** |
-| **Base language (first subtag)** | **0/69 = 0%** |
+| **Base language (first subtag)**           | **0/69 = 0%**   |
 
 Zero base-language disagreement is the finding. Every conflict was one of:
 
@@ -218,7 +218,7 @@ Zero base-language disagreement is the finding. Every conflict was one of:
   `ld=zh-Hant-TW`. The JSON-LD is strictly more informative.
 - **Notation**: 23 of the 32 `og:locale` values use underscores.
 
-The only cases that *looked* like base-language disagreement were BBC Arabic and
+The only cases that _looked_ like base-language disagreement were BBC Arabic and
 BBC Hindi, where JSON-LD says `"inLanguage": "Arabic"` / `"Hindi"` — English
 language names, not codes — plus Hacker News' object-valued `inLanguage`.
 Mapping those names to `ar` / `hi` and reading `alternateName` out of the object
@@ -227,21 +227,21 @@ not conflicts.
 
 **Implication for the resolver**: a precedence order is nearly unnecessary for
 correctness and matters only for precision. Since the signals never contradict
-each other on meaning, picking the *most specific* well-formed value would be as
+each other on meaning, picking the _most specific_ well-formed value would be as
 defensible as picking the highest-priority source — and simpler to explain.
 
 ## How often a declared value is junk
 
 Across all 180 declared tags (page + feed, all signals):
 
-| Defect | Count | Rate |
-| --- | --- | --- |
+| Defect                                                        | Count    | Rate   |
+| ------------------------------------------------------------- | -------- | ------ |
 | Wrong language for the page (e.g. `en` on a non-English page) | **0/96** | **0%** |
-| Empty string `lang=""` | 0 | 0% |
-| `und` | 0 | 0% |
-| `null` / empty `inLanguage` | 0 | 0% |
-| Not a well-formed BCP 47 tag as written | 28/180 | 16% |
-| Well-formed but non-canonical casing | 13/180 | 7% |
+| Empty string `lang=""`                                        | 0        | 0%     |
+| `und`                                                         | 0        | 0%     |
+| `null` / empty `inLanguage`                                   | 0        | 0%     |
+| Not a well-formed BCP 47 tag as written                       | 28/180   | 16%    |
+| Well-formed but non-canonical casing                          | 13/180   | 7%     |
 
 **The plausibility result is the reassuring one.** Every page was checked by
 comparing its declared base language against the dominant Unicode script of its
@@ -254,8 +254,8 @@ The 16% "malformed" figure is mostly not a publisher error:
 
 - **23 of the 28 are `og:locale` underscore forms** — 23 of the 32 `og:locale`
   values in the sample (`en_GB`, `pt_BR`, `ja_JP`, `ru_RU`, `it_IT`, `de_DE`,
-  `en_US`, `es_LA`). These are *correct per the Open
-  Graph protocol*, which specifies "Of the format `language_TERRITORY`"
+  `en_US`, `es_LA`). These are _correct per the Open
+  Graph protocol_, which specifies "Of the format `language_TERRITORY`"
   ([ogp.me](https://ogp.me/)). They are simply not BCP 47 tags. Any consumer
   must translate `_` to `-`; this is a normalization requirement, not junk.
 - **4 are the BBC JSON-LD language names** (`"Arabic"`, `"Hindi"`).
@@ -264,7 +264,7 @@ The 16% "malformed" figure is mostly not a publisher error:
   these are genuinely out of spec.
 - **1 is an object-valued `inLanguage`**: Hacker News' linked page carried
   `{"@type": "Language", "alternateName": "en-US"}`. schema.org permits `Text`
-  *or* `Language` as the range, so this is valid and a string-only extractor
+  _or_ `Language` as the range, so this is valid and a string-only extractor
   would silently drop it.
 
 Two subtler defects worth naming:
@@ -312,20 +312,20 @@ rounding error, and the variants are not confined to English.
 Twelve base languages appeared across the signals. Ten of them appeared in more
 than one form:
 
-| Base | Forms observed |
-| --- | --- |
-| `en` | `en`, `en-GB`, `en-US` |
-| `zh` | `zh`, `zh-TW`, `zh-Hant-TW` |
-| `de` | `de`, `de-DE` |
-| `es` | `es`, `es-LA` |
-| `it` | `it`, `it-IT` |
-| `ja` | `ja`, `ja-JP` |
-| `ko` | `ko`, `ko-KR` |
-| `nl` | `nl`, `nl-NL` |
-| `ru` | `ru`, `ru-RU` |
-| `hi` | `hi`, `hi-IN` |
-| `pt` | `pt-BR` only — never bare |
-| `ar`, `fr` | bare only |
+| Base       | Forms observed              |
+| ---------- | --------------------------- |
+| `en`       | `en`, `en-GB`, `en-US`      |
+| `zh`       | `zh`, `zh-TW`, `zh-Hant-TW` |
+| `de`       | `de`, `de-DE`               |
+| `es`       | `es`, `es-LA`               |
+| `it`       | `it`, `it-IT`               |
+| `ja`       | `ja`, `ja-JP`               |
+| `ko`       | `ko`, `ko-KR`               |
+| `nl`       | `nl`, `nl-NL`               |
+| `ru`       | `ru`, `ru-RU`               |
+| `hi`       | `hi`, `hi-IN`               |
+| `pt`       | `pt-BR` only — never bare   |
+| `ar`, `fr` | bare only                   |
 
 Most of these regions are cosmetic — `it-IT`, `ja-JP`, `ru-RU`, `nl-NL` and
 `de-DE` carry no information the base language lacks. But some carry real
@@ -371,13 +371,13 @@ page was fetched.
 
 ### Scope the implementation to match the evidence
 
-The evidence argues for a *smaller* implementation than #246 sketched:
+The evidence argues for a _smaller_ implementation than #246 sketched:
 
 1. **`<html lang>` is the feature.** Read `documentElement.lang` in the
    pre-`parse()` head-metadata step (which the map already mandates), normalize
    it, done. That is 96 of the 98 points of coverage.
 2. **Feed-level `<language>` / `xml:lang` / `dc:language` is the fallback
-   tier** — and it is the *only* tier when the user has full-article fetch off,
+   tier** — and it is the _only_ tier when the user has full-article fetch off,
    where it carries the whole feature at 57%. Parse all three elements, not just
    `<language>`.
 3. **`og:locale` and JSON-LD `inLanguage` are optional and can be deferred.**
@@ -385,7 +385,7 @@ The evidence argues for a *smaller* implementation than #246 sketched:
    they bring the two worst value-quality problems in the sample with them
    (English language names, and `es-LA`). If the metadata extractor is parsing
    `og:*` and JSON-LD anyway for other variables, adding language is nearly
-   free — but do not build either *for* language.
+   free — but do not build either _for_ language.
 4. **Normalization is mandatory, and is where the real work is.** `_` → `-`;
    lowercase primary subtag, Title-case script subtag, UPPERCASE region subtag;
    reject the empty string (per the WHATWG HTML standard, `lang=""` explicitly
@@ -431,7 +431,7 @@ Cited as specifications, distinct from the observations above.
 - **RFC 4287 (Atom)**, §2: "Any element defined by this specification MAY have
   an `xml:lang` attribute, whose content indicates the natural language for the
   element and its descendents." The schema types it as `atomLanguageTag`, and
-  it is part of `atomCommonAttributes`, so it may appear on `feed` *or* on any
+  it is part of `atomCommonAttributes`, so it may appear on `feed` _or_ on any
   `entry`. No sampled feed used the per-entry form.
   <https://www.rfc-editor.org/rfc/rfc4287.txt>
 - **Open Graph protocol**, `og:locale`: "The locale these tags are marked up in.

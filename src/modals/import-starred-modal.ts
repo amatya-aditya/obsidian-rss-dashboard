@@ -162,9 +162,7 @@ export class ImportStarredModal extends Modal {
     }
 
     contentEl.empty();
-    new Setting(contentEl)
-      .setName("Import starred articles")
-      .setHeading();
+    new Setting(contentEl).setName("Import starred articles").setHeading();
 
     const subtitle = contentEl.createDiv({ cls: "add-feed-subtitle" });
     subtitle.textContent =
@@ -754,7 +752,10 @@ export class ImportStarredModal extends Modal {
     });
   }
 
-  private recolorNewTags(tags: readonly Tag[], colors: readonly string[]): void {
+  private recolorNewTags(
+    tags: readonly Tag[],
+    colors: readonly string[],
+  ): void {
     tags.forEach((tag, index) => {
       const color = colors[index];
       if (color) this.applyTagEditToCandidates(tag, { ...tag, color });

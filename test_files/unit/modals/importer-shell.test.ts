@@ -12,7 +12,9 @@ beforeEach(() => {
 describe("ImporterShell", () => {
   it("runs a format-agnostic validation, preview, and execution lifecycle", async () => {
     const validate = vi.fn((content: string) =>
-      content === "valid" ? { valid: true as const } : { valid: false as const, error: "Invalid file" },
+      content === "valid"
+        ? { valid: true as const }
+        : { valid: false as const, error: "Invalid file" },
     );
     const parse = vi.fn((content: string) => ({ value: content }));
     const execute = vi.fn(async () => {});
@@ -39,7 +41,9 @@ describe("ImporterShell", () => {
 
     expect(shell.state).toBe("error");
     expect(parse).not.toHaveBeenCalled();
-    expect(document.querySelector(".import-error-message")?.textContent).toBe("Invalid file");
+    expect(document.querySelector(".import-error-message")?.textContent).toBe(
+      "Invalid file",
+    );
 
     await shell.handleFileSelection(new File(["valid"], "good.fake"));
 
@@ -50,7 +54,9 @@ describe("ImporterShell", () => {
 
     await shell.execute();
 
-    expect(execute).toHaveBeenCalledWith(expect.objectContaining({ value: "valid" }));
+    expect(execute).toHaveBeenCalledWith(
+      expect.objectContaining({ value: "valid" }),
+    );
     expect(shell.state).toBe("done");
   });
 });

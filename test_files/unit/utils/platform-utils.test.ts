@@ -179,7 +179,9 @@ describe("platform-utils.robustFetch", () => {
       text: "ok",
     } as unknown as Awaited<ReturnType<typeof Obsidian.requestUrl>>);
 
-    const result = await robustFetch("https://example.com/text-only", { method: "POST" });
+    const result = await robustFetch("https://example.com/text-only", {
+      method: "POST",
+    });
     expect(result).toBe("ok");
   });
 });
@@ -193,23 +195,27 @@ describe("platform-utils.attachInputClearButton", () => {
     wrapper.appendChild(input);
     const onClear = vi.fn();
 
-    const clearButton = attachInputClearButton(
-      wrapper,
-      input,
-      onClear,
-    );
+    const clearButton = attachInputClearButton(wrapper, input, onClear);
 
     expect(clearButton.dataset.icon).toBe("x");
-    expect(clearButton.classList.contains("rss-discover-search-clear")).toBe(true);
-    expect(clearButton.classList.contains("rss-discover-search-clear-hidden")).toBe(true);
+    expect(clearButton.classList.contains("rss-discover-search-clear")).toBe(
+      true,
+    );
+    expect(
+      clearButton.classList.contains("rss-discover-search-clear-hidden"),
+    ).toBe(true);
 
     input.value = "abc";
     input.dispatchEvent(new Event("input"));
-    expect(clearButton.classList.contains("rss-discover-search-clear-hidden")).toBe(false);
+    expect(
+      clearButton.classList.contains("rss-discover-search-clear-hidden"),
+    ).toBe(false);
 
     clearButton.click();
     expect(input.value).toBe("");
-    expect(clearButton.classList.contains("rss-discover-search-clear-hidden")).toBe(true);
+    expect(
+      clearButton.classList.contains("rss-discover-search-clear-hidden"),
+    ).toBe(true);
     expect(onClear).toHaveBeenCalledTimes(1);
   });
 
@@ -225,9 +231,14 @@ describe("platform-utils.attachInputClearButton", () => {
     const clearButton = attachInputClearButton(wrapper, input, onClear);
 
     input.dispatchEvent(new Event("input"));
-    expect(clearButton.classList.contains("rss-discover-search-clear-hidden")).toBe(false);
+    expect(
+      clearButton.classList.contains("rss-discover-search-clear-hidden"),
+    ).toBe(false);
 
-    const enterEvent = new KeyboardEvent("keydown", { key: "Enter", cancelable: true });
+    const enterEvent = new KeyboardEvent("keydown", {
+      key: "Enter",
+      cancelable: true,
+    });
     clearButton.dispatchEvent(enterEvent);
     expect(enterEvent.defaultPrevented).toBe(true);
     expect(onClear).toHaveBeenCalledTimes(1);
@@ -235,7 +246,10 @@ describe("platform-utils.attachInputClearButton", () => {
 
     input.value = "xyz";
     input.dispatchEvent(new Event("input"));
-    const spaceEvent = new KeyboardEvent("keydown", { key: " ", cancelable: true });
+    const spaceEvent = new KeyboardEvent("keydown", {
+      key: " ",
+      cancelable: true,
+    });
     clearButton.dispatchEvent(spaceEvent);
     expect(spaceEvent.defaultPrevented).toBe(true);
     expect(onClear).toHaveBeenCalledTimes(2);
@@ -272,7 +286,9 @@ describe("platform-utils.attachInputClearButton", () => {
 
 describe("platform-utils.misc", () => {
   it("ensureUtf8Meta inserts a meta charset when missing", () => {
-    expect(ensureUtf8Meta("<div>hi</div>")).toBe('<meta charset="UTF-8"><div>hi</div>');
+    expect(ensureUtf8Meta("<div>hi</div>")).toBe(
+      '<meta charset="UTF-8"><div>hi</div>',
+    );
     expect(ensureUtf8Meta('   <meta charset="UTF-8"><div>hi</div>')).toBe(
       '   <meta charset="UTF-8"><div>hi</div>',
     );
@@ -283,7 +299,9 @@ describe("platform-utils.misc", () => {
     vi.setSystemTime(new Date("2026-03-29T12:00:00Z"));
 
     expect(formatRelativeTime("not-a-date")).toBe("Invalid date");
-    expect(formatRelativeTime(new Date("2026-03-30T12:00:00Z"))).toBe("Just now");
+    expect(formatRelativeTime(new Date("2026-03-30T12:00:00Z"))).toBe(
+      "Just now",
+    );
 
     vi.useRealTimers();
   });
@@ -394,4 +412,3 @@ describe("platform-utils.misc", () => {
     vi.useRealTimers();
   });
 });
-

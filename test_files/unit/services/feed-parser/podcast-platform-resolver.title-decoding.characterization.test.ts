@@ -20,11 +20,13 @@ async function searchedTerm(ogTitle: string): Promise<string | undefined> {
   requestUrlSpy.mockResolvedValueOnce(
     response(JSON.stringify({ contents: page })),
   );
-  requestUrlSpy.mockResolvedValueOnce(response(JSON.stringify({ results: [] })));
-  // An empty search result makes the resolver reject; only the request matters.
-  await resolvePodcastPlatformUrl("https://pocketcasts.com/podcast/x/abc").catch(
-    () => null,
+  requestUrlSpy.mockResolvedValueOnce(
+    response(JSON.stringify({ results: [] })),
   );
+  // An empty search result makes the resolver reject; only the request matters.
+  await resolvePodcastPlatformUrl(
+    "https://pocketcasts.com/podcast/x/abc",
+  ).catch(() => null);
   const call = requestUrlSpy.mock.calls
     .map((c) => (c[0] as { url: string }).url)
     .find((u) => u.startsWith("https://itunes.apple.com/search"));
@@ -40,7 +42,7 @@ describe("podcast title lookup text", () => {
   it.each([
     ["a plain title", "My Show", "My Show"],
     ["an ampersand", "Tom &amp; Jerry", "Tom & Jerry"],
-    ["quotes", "The &quot;Best&quot; Show", "The \"Best\" Show"],
+    ["quotes", "The &quot;Best&quot; Show", 'The "Best" Show'],
     ["an apostrophe", "Marc&#39;s Show", "Marc's Show"],
     ["angle brackets", "A &lt;b&gt; Show", "A <b> Show"],
     ["a numeric reference", "It&#8217;s", "It’s"],

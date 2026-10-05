@@ -73,7 +73,7 @@ function createPlugin(): RssDashboardPlugin {
     feeds: [],
   };
   plugin.saveData = vi.fn().mockResolvedValue(undefined);
-  
+
   const pluginInternal = plugin as unknown as PluginWithInternal;
   pluginInternal.addStatusBarItem = vi.fn(() => createDiv());
   pluginInternal.feedParser = {
@@ -236,8 +236,10 @@ describe("background import orchestration", () => {
       { timeout: 3000 },
     );
 
-    expect(plugin.settings.feeds.find((feed) => feed.url === existingFeed.url)?.items)
-      .toEqual(existingFeed.items);
+    expect(
+      plugin.settings.feeds.find((feed) => feed.url === existingFeed.url)
+        ?.items,
+    ).toEqual(existingFeed.items);
     expect(
       plugin.settings.feeds.find(
         (feed) => feed.url === "https://example.com/discovered.xml",
@@ -266,8 +268,9 @@ describe("background import orchestration", () => {
         }),
     );
 
-    const feeds = Array.from({ length: MAX_CONCURRENT_FETCHES + 2 }, (_, index) =>
-      createPlaceholderFeed(`https://example.com/${index}.xml`),
+    const feeds = Array.from(
+      { length: MAX_CONCURRENT_FETCHES + 2 },
+      (_, index) => createPlaceholderFeed(`https://example.com/${index}.xml`),
     );
     plugin.settings.feeds = [...feeds];
 
@@ -288,7 +291,9 @@ describe("background import orchestration", () => {
 
     await vi.waitFor(
       () => {
-        expect((plugin as unknown as PluginWithInternal).isBackgroundImporting).toBe(false);
+        expect(
+          (plugin as unknown as PluginWithInternal).isBackgroundImporting,
+        ).toBe(false);
       },
       { timeout: 3000 },
     );
@@ -314,8 +319,9 @@ describe("background import orchestration", () => {
         }),
     );
 
-    const feeds = Array.from({ length: MAX_CONCURRENT_FETCHES + 1 }, (_, index) =>
-      createPlaceholderFeed(`https://example.com/${index}.xml`),
+    const feeds = Array.from(
+      { length: MAX_CONCURRENT_FETCHES + 1 },
+      (_, index) => createPlaceholderFeed(`https://example.com/${index}.xml`),
     );
     plugin.settings.feeds = [...feeds];
 
@@ -342,7 +348,9 @@ describe("background import orchestration", () => {
 
     await vi.waitFor(
       () => {
-        expect((plugin as unknown as PluginWithInternal).isBackgroundImporting).toBe(false);
+        expect(
+          (plugin as unknown as PluginWithInternal).isBackgroundImporting,
+        ).toBe(false);
       },
       { timeout: 3000 },
     );
@@ -391,7 +399,9 @@ describe("background import orchestration", () => {
     expect(renderSpy).toHaveBeenCalledTimes(1);
     // No mid-import full renders; sidebar-only path used for progress
     expect(sidebarOnlySpy).not.toHaveBeenCalled();
-    expect((plugin as unknown as PluginWithInternal).isBackgroundImporting).toBe(false);
+    expect(
+      (plugin as unknown as PluginWithInternal).isBackgroundImporting,
+    ).toBe(false);
   });
 
   it("uses refreshSidebarOnly for mid-import progress renders and render() only once at completion", async () => {
@@ -423,7 +433,9 @@ describe("background import orchestration", () => {
     // Wait for the fire-and-forget import to fully complete
     await vi.waitFor(
       () => {
-        expect((plugin as unknown as PluginWithInternal).isBackgroundImporting).toBe(false);
+        expect(
+          (plugin as unknown as PluginWithInternal).isBackgroundImporting,
+        ).toBe(false);
       },
       { timeout: 3000 },
     );
@@ -577,4 +589,3 @@ describe("background import orchestration", () => {
     ).toEqual([feedA.url, feedB.url]);
   });
 });
-

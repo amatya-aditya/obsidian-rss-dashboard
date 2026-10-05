@@ -150,8 +150,7 @@ export class DiscoverView extends ItemView {
 
           feed.area.forEach((area) => {
             const subdomainObj = domainCategories[subdomain] as
-              | Record<string, unknown>
-              | undefined;
+              Record<string, unknown> | undefined;
             if (!subdomainObj) {
               return;
             }
@@ -605,17 +604,17 @@ export class DiscoverView extends ItemView {
     const dashboardBtn = navContainer.createDiv({
       cls: "rss-dashboard-nav-button clickable-icon rss-discover-return-home",
       attr: {
-        "aria-label": "Return to Dashboard",
+        "aria-label": "Return to dashboard",
         role: "button",
         tabindex: "0",
       },
     });
     setIcon(dashboardBtn, "arrow-left");
 
-    // Add "Return Home" text span
+    // Add "Return home" text span
     const _returnHomeText = dashboardBtn.createSpan({
       cls: "rss-discover-return-home-text",
-      text: "Return Home",
+      text: "Return home",
     });
     void _returnHomeText;
 
@@ -1693,8 +1692,18 @@ export class DiscoverView extends ItemView {
     feed: FeedMetadata,
     folderName: string,
   ): Promise<void> {
+    if (this.isFollowedFeed(feed)) {
+      new Notice("This feed URL already exists");
+      return;
+    }
+
     try {
       await this.plugin.ensureFolderExists(folderName);
+
+      if (this.isFollowedFeed(feed)) {
+        new Notice("This feed URL already exists");
+        return;
+      }
 
       const added = await this.plugin.addFeed(
         feed.title,
@@ -1710,6 +1719,9 @@ export class DiscoverView extends ItemView {
         { showNotice: false, globalOperation: true },
       );
       if (!added) {
+        if (this.isFollowedFeed(feed)) {
+          new Notice("This feed URL already exists");
+        }
         return;
       }
       new Notice(`Feed "${feed.title}" added to "${folderName}"`);

@@ -42,7 +42,10 @@ describe("sidebar-ordering-controller helpers", () => {
     const settings = cloneSettings();
     settings.folderSortOrder = { by: "name", ascending: false };
     setFolderSortCustom(settings);
-    expect(settings.folderSortOrder).toEqual({ by: "custom", ascending: false });
+    expect(settings.folderSortOrder).toEqual({
+      by: "custom",
+      ascending: false,
+    });
   });
 });
 
@@ -52,15 +55,27 @@ describe("moveFeedAndInsert", () => {
     settings.feeds = [makeFeed("A", "a", "Work"), makeFeed("B", "b", "Work")];
 
     expect(
-      moveFeedAndInsert(settings, { draggedUrl: "", targetUrl: "b", placement: "before" }),
+      moveFeedAndInsert(settings, {
+        draggedUrl: "",
+        targetUrl: "b",
+        placement: "before",
+      }),
     ).toEqual({ ok: false, error: "Missing feed urls." });
 
     expect(
-      moveFeedAndInsert(settings, { draggedUrl: "a", targetUrl: "", placement: "before" }),
+      moveFeedAndInsert(settings, {
+        draggedUrl: "a",
+        targetUrl: "",
+        placement: "before",
+      }),
     ).toEqual({ ok: false, error: "Missing feed urls." });
 
     expect(
-      moveFeedAndInsert(settings, { draggedUrl: "a", targetUrl: "a", placement: "before" }),
+      moveFeedAndInsert(settings, {
+        draggedUrl: "a",
+        targetUrl: "a",
+        placement: "before",
+      }),
     ).toEqual({ ok: false, error: "No-op drop." });
   });
 
@@ -69,11 +84,19 @@ describe("moveFeedAndInsert", () => {
     settings.feeds = [makeFeed("A", "a", "Work")];
 
     expect(
-      moveFeedAndInsert(settings, { draggedUrl: "missing", targetUrl: "a", placement: "before" }),
+      moveFeedAndInsert(settings, {
+        draggedUrl: "missing",
+        targetUrl: "a",
+        placement: "before",
+      }),
     ).toEqual({ ok: false, error: "Dragged feed not found." });
 
     expect(
-      moveFeedAndInsert(settings, { draggedUrl: "a", targetUrl: "missing", placement: "before" }),
+      moveFeedAndInsert(settings, {
+        draggedUrl: "a",
+        targetUrl: "missing",
+        placement: "before",
+      }),
     ).toEqual({ ok: false, error: "Target feed not found." });
   });
 
@@ -131,11 +154,17 @@ describe("moveFeedToFolderAppend", () => {
     settings.feeds = [makeFeed("A", "a", "Work")];
 
     expect(
-      moveFeedToFolderAppend(settings, { draggedUrl: "", destinationFolderPath: "Work" }),
+      moveFeedToFolderAppend(settings, {
+        draggedUrl: "",
+        destinationFolderPath: "Work",
+      }),
     ).toEqual({ ok: false, error: "Missing dragged feed url." });
 
     expect(
-      moveFeedToFolderAppend(settings, { draggedUrl: "missing", destinationFolderPath: "Work" }),
+      moveFeedToFolderAppend(settings, {
+        draggedUrl: "missing",
+        destinationFolderPath: "Work",
+      }),
     ).toEqual({ ok: false, error: "Dragged feed not found." });
   });
 
@@ -199,12 +228,19 @@ describe("moveFeedsToFolderAppend", () => {
 
     expect(result.ok).toBe(true);
     // Relative order of a, b, c is preserved, appended after target feeds in Dest
-    expect(settings.feeds.map((f) => f.url)).toEqual(["t1", "t2", "a", "b", "c", "o"]);
-    expect(settings.feeds.filter((f) => ["a", "b", "c"].includes(f.url)).map((f) => f.folder)).toEqual([
-      "Dest",
-      "Dest",
-      "Dest",
+    expect(settings.feeds.map((f) => f.url)).toEqual([
+      "t1",
+      "t2",
+      "a",
+      "b",
+      "c",
+      "o",
     ]);
+    expect(
+      settings.feeds
+        .filter((f) => ["a", "b", "c"].includes(f.url))
+        .map((f) => f.folder),
+    ).toEqual(["Dest", "Dest", "Dest"]);
     expect(settings.folderFeedSortOrders?.["Dest"]?.by).toBe("custom");
   });
 
@@ -301,7 +337,6 @@ describe("moveFeedsAndInsert", () => {
   });
 });
 
-
 describe("moveFolder", () => {
   it("rejects missing required inputs and invalid nesting", () => {
     const settings = cloneSettings();
@@ -309,15 +344,27 @@ describe("moveFolder", () => {
     settings.feeds = [];
 
     expect(
-      moveFolder(settings, { draggedPath: "", targetPath: "Alpha", placement: "before" }),
+      moveFolder(settings, {
+        draggedPath: "",
+        targetPath: "Alpha",
+        placement: "before",
+      }),
     ).toEqual({ ok: false, error: "Missing dragged folder path." });
 
     expect(
-      moveFolder(settings, { draggedPath: "Alpha", targetPath: "", placement: "before" }),
+      moveFolder(settings, {
+        draggedPath: "Alpha",
+        targetPath: "",
+        placement: "before",
+      }),
     ).toEqual({ ok: false, error: "Missing target folder path." });
 
     expect(
-      moveFolder(settings, { draggedPath: "Alpha", targetPath: "Alpha/Child", placement: "nest" }),
+      moveFolder(settings, {
+        draggedPath: "Alpha",
+        targetPath: "Alpha/Child",
+        placement: "nest",
+      }),
     ).toEqual({
       ok: false,
       error: "Cannot move a folder into itself or a descendant.",
@@ -330,20 +377,25 @@ describe("moveFolder", () => {
     settings.feeds = [];
 
     expect(
-      moveFolder(settings, { draggedPath: "Missing", targetPath: "Beta", placement: "nest" }),
+      moveFolder(settings, {
+        draggedPath: "Missing",
+        targetPath: "Beta",
+        placement: "nest",
+      }),
     ).toEqual({ ok: false, error: "Dragged folder not found." });
 
     expect(
-      moveFolder(settings, { draggedPath: "Alpha", targetPath: "Missing", placement: "nest" }),
+      moveFolder(settings, {
+        draggedPath: "Alpha",
+        targetPath: "Missing",
+        placement: "nest",
+      }),
     ).toEqual({ ok: false, error: "Target folder not found." });
   });
 
   it("rejects duplicate sibling names at destination", () => {
     const settings = cloneSettings();
-    settings.folders = [
-      folder("Alpha"),
-      folder("Beta", [folder("Alpha")]),
-    ];
+    settings.folders = [folder("Alpha"), folder("Beta", [folder("Alpha")])];
     settings.feeds = [];
 
     const result = moveFolder(settings, {
@@ -375,10 +427,7 @@ describe("moveFolder", () => {
 
   it("nests into target and remaps feeds + collapsedFolders + sort keys", () => {
     const settings = cloneSettings();
-    settings.folders = [
-      folder("Alpha", [folder("Child")]),
-      folder("Beta"),
-    ];
+    settings.folders = [folder("Alpha", [folder("Child")]), folder("Beta")];
     settings.feeds = [
       makeFeed("Feed", "f", "Alpha/Child"),
       makeFeed("Other", "o", "Beta"),
@@ -396,11 +445,17 @@ describe("moveFolder", () => {
 
     expect(result.ok).toBe(true);
     expect(result.newPath).toBe("Beta/Alpha");
-    expect(settings.feeds.find((f) => f.url === "f")?.folder).toBe("Beta/Alpha/Child");
-    expect(settings.collapsedFolders).toEqual(["Beta/Alpha", "Beta/Alpha/Child"]);
-    expect(settings.folderFeedSortOrders?.["Beta/Alpha/Child"]?.by).toBe("name");
+    expect(settings.feeds.find((f) => f.url === "f")?.folder).toBe(
+      "Beta/Alpha/Child",
+    );
+    expect(settings.collapsedFolders).toEqual([
+      "Beta/Alpha",
+      "Beta/Alpha/Child",
+    ]);
+    expect(settings.folderFeedSortOrders?.["Beta/Alpha/Child"]?.by).toBe(
+      "name",
+    );
     expect(settings.folderFeedSortOrders?.["Alpha/Child"]).toBeUndefined();
     expect(settings.folderSortOrder?.by).toBe("custom");
   });
 });
-

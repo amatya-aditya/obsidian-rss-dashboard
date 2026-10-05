@@ -50,11 +50,15 @@ describe("PodcastEpisodeList", () => {
     );
     const statusRow = container.querySelector(".episode-list-status-row");
     const sort = container.querySelector(".episode-list-sort");
-    expect(statusRow?.contains(container.querySelector(".episode-list-range"))).toBe(true);
+    expect(
+      statusRow?.contains(container.querySelector(".episode-list-range")),
+    ).toBe(true);
     expect(statusRow?.contains(sort)).toBe(true);
     expect(sort?.tagName).toBe("SELECT");
 
-    (container.querySelector(".episode-list-load-more") as HTMLButtonElement).click();
+    (
+      container.querySelector(".episode-list-load-more") as HTMLButtonElement
+    ).click();
 
     expect(container.querySelectorAll(".episode-list-row")).toHaveLength(40);
     expect(container.querySelector(".episode-list-range")?.textContent).toBe(
@@ -90,7 +94,9 @@ describe("PodcastEpisodeList", () => {
     const rowOn = containerOn.querySelectorAll(".episode-list-row")[0];
     const dateEl = rowOn?.querySelector(".episode-list-row-date");
     expect(dateEl?.textContent).not.toMatch(/Invalid date/i);
-    expect(dateEl?.textContent).toBe(new Date(firstSeenMs).toLocaleDateString());
+    expect(dateEl?.textContent).toBe(
+      new Date(firstSeenMs).toLocaleDateString(),
+    );
   });
 
   it("restores the active episode's batch without selecting it", () => {
@@ -106,10 +112,16 @@ describe("PodcastEpisodeList", () => {
     }).render();
 
     expect(container.querySelector(".episode-list-current")).not.toBeNull();
-    (container.querySelector(".episode-list-current") as HTMLButtonElement).click();
+    (
+      container.querySelector(".episode-list-current") as HTMLButtonElement
+    ).click();
 
     expect(container.querySelectorAll(".episode-list-row")).toHaveLength(40);
-    expect(container.querySelector(".episode-list-row.active")?.getAttribute("data-episode-guid")).toBe("episode-36");
+    expect(
+      container
+        .querySelector(".episode-list-row.active")
+        ?.getAttribute("data-episode-guid"),
+    ).toBe("episode-36");
     expect(onEpisodeSelected).not.toHaveBeenCalled();
   });
 
@@ -164,7 +176,9 @@ describe("PodcastEpisodeList", () => {
     expect(autoplayIndex).toBe(1);
     expect(statusIndex).toBe(autoplayIndex + 1);
     expect(
-      section?.querySelector(".episode-list-autoplay-row .podcast-autoplay-container"),
+      section?.querySelector(
+        ".episode-list-autoplay-row .podcast-autoplay-container",
+      ),
     ).not.toBeNull();
   });
 });

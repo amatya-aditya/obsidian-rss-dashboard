@@ -4,15 +4,10 @@ import type { RepairPreview } from "../../services/feed-storage-repository";
 import { settingsUiCompatibility } from "../settings-ui-compat";
 
 export type StorageTransitionAction =
-  | "cancel"
-  | "export-data-json"
-  | "apply"
-  | "apply-delete-shards";
+  "cancel" | "export-data-json" | "apply" | "apply-delete-shards";
 
 export type ShardDeletionFailureAction =
-  | "cancel"
-  | "apply-anyway"
-  | "open-folder";
+  "cancel" | "apply-anyway" | "open-folder";
 
 export type MetadataCleanupAction = "keep" | "delete";
 
@@ -158,8 +153,8 @@ export class StorageTransitionModal extends Modal {
         btn.setButtonText("Delete shard folder");
         settingsUiCompatibility.markDestructive(btn);
         btn.onClick(() => {
-            this.action = "apply-delete-shards";
-            this.close();
+          this.action = "apply-delete-shards";
+          this.close();
         });
       });
   }
@@ -210,8 +205,8 @@ export class ShardDeletionFailureModal extends Modal {
         btn.setButtonText("Apply anyway");
         settingsUiCompatibility.markDestructive(btn);
         btn.onClick(() => {
-            this.action = "apply-anyway";
-            this.close();
+          this.action = "apply-anyway";
+          this.close();
         });
       });
   }
@@ -271,8 +266,8 @@ export class MetadataCleanupModal extends Modal {
         btn.setButtonText("Delete previous copy");
         settingsUiCompatibility.markDestructive(btn);
         btn.onClick(() => {
-            this.action = "delete";
-            this.close();
+          this.action = "delete";
+          this.close();
         });
       });
   }
@@ -399,8 +394,7 @@ export class UnloadedFeedsFolderChangeModal extends Modal {
   private readonly options: UnloadedFeedsFolderChangeOptions;
   private action: UnloadedFeedsFolderChangeAction = "cancel";
   private resolvePromise:
-    | ((value: UnloadedFeedsFolderChangeAction) => void)
-    | null = null;
+    ((value: UnloadedFeedsFolderChangeAction) => void) | null = null;
 
   constructor(app: App, options: UnloadedFeedsFolderChangeOptions) {
     super(app);

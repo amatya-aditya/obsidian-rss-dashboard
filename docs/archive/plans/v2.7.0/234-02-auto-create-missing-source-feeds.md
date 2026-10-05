@@ -31,6 +31,6 @@ On execute, `performImport` creates a `Feed` record for each selected new-feed g
 
 ## Implementation notes
 
-- The 234-01 mapper test asserting that unmatched-feed items were *excluded*, and the modal test asserting a "no items matched an existing feed" error for an all-unmatched fixture, tested exactly the behavior this ticket supersedes. Both were rewritten (not left in place) to assert the new `isNewFeed` contract; the fixture (`test_files/fixtures/starred/starred.json`) was not changed since it already contained an unmatched-source item.
+- The 234-01 mapper test asserting that unmatched-feed items were _excluded_, and the modal test asserting a "no items matched an existing feed" error for an all-unmatched fixture, tested exactly the behavior this ticket supersedes. Both were rewritten (not left in place) to assert the new `isNewFeed` contract; the fixture (`test_files/fixtures/starred/starred.json`) was not changed since it already contained an unmatched-source item.
 - Duplicate-URL guard: if a new-feed candidate's URL already exists in `settings.feeds` by the time `performImport` runs (e.g. added through another path while the preview was open), the existing feed is reused instead of creating a second `Feed` row with the same URL. This is basic correctness, not the re-import dedup/merge ticket (234-05).
 - No re-import dedup for the historical item itself either, consistent with 234-01: selected items are appended to the target feed's `items` array unconditionally.

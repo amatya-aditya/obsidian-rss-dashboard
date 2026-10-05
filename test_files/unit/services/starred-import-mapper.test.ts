@@ -108,9 +108,7 @@ describe("mapStarredExportToCandidates", () => {
 
     expect(candidates).toHaveLength(1);
     expect(candidates[0].isNewFeed).toBe(true);
-    expect(candidates[0].feedTitle).toBe(
-      "https://untitled.example.test/rss",
-    );
+    expect(candidates[0].feedTitle).toBe("https://untitled.example.test/rss");
   });
 
   it("groups multiple starred items for the same unmatched source under one new-feed candidate group", () => {
@@ -143,7 +141,11 @@ describe("mapStarredExportToCandidates", () => {
 
     expect(candidates).toHaveLength(2);
     expect(candidates.every((c) => c.isNewFeed)).toBe(true);
-    expect(candidates.every((c) => c.feedUrl === "https://new-source.example.test/rss")).toBe(true);
+    expect(
+      candidates.every(
+        (c) => c.feedUrl === "https://new-source.example.test/rss",
+      ),
+    ).toBe(true);
     expect(candidates.every((c) => c.feedTitle === "New Source")).toBe(true);
   });
 
@@ -177,9 +179,7 @@ describe("mapStarredExportToCandidates", () => {
     expect(first.content).toBe(
       "<p>Placeholder summary content for article one.</p>",
     );
-    expect(first.guid).toBe(
-      "tag:google.com,2005:reader/item/0000000000000001",
-    );
+    expect(first.guid).toBe("tag:google.com,2005:reader/item/0000000000000001");
     expect(first.author).toBeUndefined();
     expect(new Date(first.pubDate).toISOString()).toBe(
       new Date(1699999000 * 1000).toISOString(),
@@ -192,7 +192,9 @@ describe("mapStarredExportToCandidates", () => {
         {
           id: "tag:google.com,2005:reader/item/alt-only",
           title: "Alternate only",
-          alternate: [{ href: "https://example-feed.test/alt-link", type: "text/html" }],
+          alternate: [
+            { href: "https://example-feed.test/alt-link", type: "text/html" },
+          ],
           origin: { streamId: "feed/https://example-feed.test/rss" },
         },
       ],
@@ -293,7 +295,9 @@ describe("mapStarredExportToCandidates", () => {
             "user/1000000001/state/com.google/read",
             "user/1000000001/state/com.google/starred",
           ],
-          canonical: [{ href: "https://example-feed.test/articles/state-only" }],
+          canonical: [
+            { href: "https://example-feed.test/articles/state-only" },
+          ],
           origin: { streamId: "feed/https://example-feed.test/rss" },
         },
       ],
@@ -314,7 +318,9 @@ describe("mapStarredExportToCandidates", () => {
 
     for (const candidate of candidates) {
       expect(candidate.item.starred).toBe(true);
-      const tagNames = (candidate.item.tags ?? []).map((tag) => tag.name.toLowerCase());
+      const tagNames = (candidate.item.tags ?? []).map((tag) =>
+        tag.name.toLowerCase(),
+      );
       expect(tagNames).not.toContain("favorite");
       expect(tagNames).not.toContain("starred");
     }
@@ -342,7 +348,10 @@ describe("mapStarredExportToCandidates", () => {
   it("returns no unimportable entries for a fixture where every entry is well-formed", () => {
     const parsed = loadFixture();
 
-    const { unimportable } = mapStarredExportToCandidates(parsed, EXISTING_FEEDS);
+    const { unimportable } = mapStarredExportToCandidates(
+      parsed,
+      EXISTING_FEEDS,
+    );
 
     expect(unimportable).toHaveLength(0);
   });
@@ -366,7 +375,10 @@ describe("mapStarredExportToCandidates", () => {
     it("classifies an entry with no origin.streamId at all as no_source_feed", () => {
       const parsed = loadUnimportableFixture();
 
-      const { unimportable } = mapStarredExportToCandidates(parsed, EXISTING_FEEDS);
+      const { unimportable } = mapStarredExportToCandidates(
+        parsed,
+        EXISTING_FEEDS,
+      );
 
       expect(unimportable).toContainEqual({
         id: "tag:google.com,2005:reader/item/0000000000000004",
@@ -378,7 +390,10 @@ describe("mapStarredExportToCandidates", () => {
     it("classifies an entry with a source feed but neither canonical nor alternate href as no_article_url", () => {
       const parsed = loadUnimportableFixture();
 
-      const { unimportable } = mapStarredExportToCandidates(parsed, EXISTING_FEEDS);
+      const { unimportable } = mapStarredExportToCandidates(
+        parsed,
+        EXISTING_FEEDS,
+      );
 
       expect(unimportable).toContainEqual({
         id: "tag:google.com,2005:reader/item/0000000000000005",
@@ -390,7 +405,10 @@ describe("mapStarredExportToCandidates", () => {
     it("classifies an entry missing both origin.streamId and any article url as no_source_feed (checked first)", () => {
       const parsed = loadUnimportableFixture();
 
-      const { unimportable } = mapStarredExportToCandidates(parsed, EXISTING_FEEDS);
+      const { unimportable } = mapStarredExportToCandidates(
+        parsed,
+        EXISTING_FEEDS,
+      );
 
       expect(unimportable).toContainEqual({
         id: "tag:google.com,2005:reader/item/0000000000000006",
@@ -414,10 +432,15 @@ describe("mapStarredExportToCandidates", () => {
     it("does not classify an entry excluded only because its (valid) source feed isn't subscribed to locally", () => {
       const parsed = loadFixture();
 
-      const { unimportable } = mapStarredExportToCandidates(parsed, EXISTING_FEEDS);
+      const { unimportable } = mapStarredExportToCandidates(
+        parsed,
+        EXISTING_FEEDS,
+      );
 
       expect(
-        unimportable.some((entry) => entry.title === "Unsubscribed Source Article"),
+        unimportable.some(
+          (entry) => entry.title === "Unsubscribed Source Article",
+        ),
       ).toBe(false);
     });
   });
@@ -461,9 +484,7 @@ describe("FreshRSS-compatible export shape", () => {
     expect(item.author).toBe("FreshRSS Author");
     expect(item.starred).toBe(true);
     expect(item.read).toBe(true);
-    expect(item.tags).toEqual([
-      { name: "test_tag", color: DEFAULT_TAG_COLOR },
-    ]);
+    expect(item.tags).toEqual([{ name: "test_tag", color: DEFAULT_TAG_COLOR }]);
   });
 
   it("does not import the unqualified 'Product' category as a tag", () => {

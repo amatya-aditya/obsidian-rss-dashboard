@@ -86,7 +86,9 @@ function makeViewWithRegisterSpy(
   plugin: RssDashboardPlugin,
 ) {
   const spy = vi.spyOn(
-    RssDashboardView.prototype as unknown as { registerDomEvent: (...args: unknown[]) => void },
+    RssDashboardView.prototype as unknown as {
+      registerDomEvent: (...args: unknown[]) => void;
+    },
     "registerDomEvent",
   );
   const view = new RssDashboardView(leaf, plugin);
@@ -98,9 +100,7 @@ function makeViewWithRegisterSpy(
 /**
  * Extract the handler registered for (activeDocument, "keydown") from the prototype spy.
  */
-function getKeydownHandler(
-  spy: unknown,
-): ((e: KeyboardEvent) => void) | null {
+function getKeydownHandler(spy: unknown): ((e: KeyboardEvent) => void) | null {
   const mockSpy = spy as { mock: { calls: unknown[][] } };
   for (const call of mockSpy.mock.calls) {
     if (call[0] === activeDocument && call[1] === "keydown") {
@@ -143,7 +143,9 @@ describe("DashboardView Hotkeys", () => {
 
     plugin = {
       app,
-      settings: JSON.parse(JSON.stringify(DEFAULT_SETTINGS)) as typeof DEFAULT_SETTINGS,
+      settings: JSON.parse(
+        JSON.stringify(DEFAULT_SETTINGS),
+      ) as typeof DEFAULT_SETTINGS,
       saveSettings: vi.fn(),
       updatePlaybackProgress: vi.fn(),
       refreshFeeds: vi.fn().mockResolvedValue(undefined),
@@ -211,14 +213,14 @@ describe("DashboardView Hotkeys", () => {
     triggerKey("k");
     expect(prevSpy).toHaveBeenCalled();
 
-// Test 'Shift+A'
-     triggerKey("A", true);
-     expect(markAllReadSpy).toHaveBeenCalled();
+    // Test 'Shift+A'
+    triggerKey("A", true);
+    expect(markAllReadSpy).toHaveBeenCalled();
 
-     // Test ',' (mark read and next)
-     triggerKey(",");
-     expect(markReadAndNextSpy).toHaveBeenCalled();
-   });
+    // Test ',' (mark read and next)
+    triggerKey(",");
+    expect(markReadAndNextSpy).toHaveBeenCalled();
+  });
 
   it("ignores hotkeys if the view is not the active leaf", () => {
     const { view, spy } = makeViewWithRegisterSpy(leaf, plugin);
@@ -259,6 +261,35 @@ describe("DashboardView Hotkeys", () => {
     expect(refreshSpy).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ["a native button", () => createEl("button")],
+    [
+      "a custom combobox",
+      () => createDiv({ attr: { role: "combobox", tabindex: "0" } }),
+    ],
+  ])(
+    "does not run the article-open hotkey when Enter is pressed on %s",
+    (_label, makeTarget) => {
+      const { view, spy } = makeViewWithRegisterSpy(leaf, plugin);
+      (leaf as unknown as { view: unknown }).view = view;
+
+      const keydownHandler = getKeydownHandler(spy);
+      const openArticleSpy = vi.spyOn(view, "actionToggleArticleOpen");
+      const target = makeTarget();
+      const event = new KeyboardEvent("keydown", {
+        key: "Enter",
+        bubbles: true,
+        cancelable: true,
+      });
+      Object.defineProperty(event, "target", { value: target });
+
+      keydownHandler!(event);
+
+      expect(openArticleSpy).not.toHaveBeenCalled();
+      expect(event.defaultPrevented).toBe(false);
+    },
+  );
+
   it("ignores dashboard hotkeys while a modal is open", () => {
     const { view, spy } = makeViewWithRegisterSpy(leaf, plugin);
     (leaf as unknown as { view: unknown }).view = view;
@@ -275,7 +306,10 @@ describe("DashboardView Hotkeys", () => {
     const modalContainer = document.body.createDiv({ cls: "modal-container" });
     const okButton = modalContainer.createEl("button");
 
-    const fromButton = new KeyboardEvent("keydown", { key: "D", shiftKey: true });
+    const fromButton = new KeyboardEvent("keydown", {
+      key: "D",
+      shiftKey: true,
+    });
     Object.defineProperty(fromButton, "target", { value: okButton });
     keydownHandler!(fromButton);
 

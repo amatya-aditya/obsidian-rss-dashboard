@@ -51,7 +51,9 @@ describe("ReaderView dashboard refocus", () => {
     return { app, leaf, view, workspace, saveArticleSpy };
   }
 
-  function getSavedMarkdownArg(saveArticleSpy: ReturnType<typeof vi.fn>): string {
+  function getSavedMarkdownArg(
+    saveArticleSpy: ReturnType<typeof vi.fn>,
+  ): string {
     const calls = saveArticleSpy.mock.calls as unknown[][];
     const call = calls.length > 0 ? calls[calls.length - 1] : undefined;
     expect(call).toBeDefined();
@@ -115,10 +117,7 @@ describe("ReaderView dashboard refocus", () => {
     const { view, app, leaf } = createReaderView([]);
     const scratchVault = App.createMock().vault;
     await scratchVault.createFolder("RSS articles");
-    const file = await scratchVault.create(
-      "RSS articles/saved.md",
-      "# Saved",
-    );
+    const file = await scratchVault.create("RSS articles/saved.md", "# Saved");
     const openSavedArticleInConfiguredLocation = vi.fn(async () => {});
 
     (

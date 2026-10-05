@@ -3,28 +3,33 @@ import type { FeedItem } from "../../../../../src/types/types";
 import { showArticleContextMenu } from "../../../../../src/components/article-list/utils/article-context-menu";
 import { Menu } from "obsidian";
 
-function buildContext(overrides: {
-  callbacks?: {
-    onOpenSavedArticle?: (article: FeedItem) => Promise<void> | void;
-    onOpenInReaderView?: (article: FeedItem) => void;
-    onArticleUpdate?: (
-      article: FeedItem,
-      updates: Partial<FeedItem>,
-      shouldRerender?: boolean,
-    ) => void;
-    onArticleSave?: (article: FeedItem) => Promise<void> | void;
-    onArticleClick?: (article: FeedItem) => void;
-  };
-  settings?: {
-    articleSaving?: {
-      saveFullContent: boolean;
+function buildContext(
+  overrides: {
+    callbacks?: {
+      onOpenSavedArticle?: (article: FeedItem) => Promise<void> | void;
+      onOpenInReaderView?: (article: FeedItem) => void;
+      onArticleUpdate?: (
+        article: FeedItem,
+        updates: Partial<FeedItem>,
+        shouldRerender?: boolean,
+      ) => void;
+      onArticleSave?: (article: FeedItem) => Promise<void> | void;
+      onArticleClick?: (article: FeedItem) => void;
     };
-  };
-} = {}) {
+    settings?: {
+      articleSaving?: {
+        saveFullContent: boolean;
+      };
+    };
+  } = {},
+) {
   return {
     callbacks: overrides.callbacks ?? {},
     settings: {
-      articleSaving: { saveFullContent: true, ...overrides.settings?.articleSaving },
+      articleSaving: {
+        saveFullContent: true,
+        ...overrides.settings?.articleSaving,
+      },
     },
   };
 }
@@ -57,20 +62,32 @@ describe("article-context-menu utils", () => {
   });
 
   it("adds separator after saved items when article is saved", () => {
-    const ctx = buildContext({ callbacks: { onOpenSavedArticle: () => {}, onOpenInReaderView: () => {} } });
+    const ctx = buildContext({
+      callbacks: { onOpenSavedArticle: () => {}, onOpenInReaderView: () => {} },
+    });
     article.saved = true;
 
-    showArticleContextMenu(new MouseEvent("contextmenu") as unknown as MouseEvent, article, ctx);
+    showArticleContextMenu(
+      new MouseEvent("contextmenu") as unknown as MouseEvent,
+      article,
+      ctx,
+    );
 
     // Verify the method runs without throwing
     expect(true).toBe(true);
   });
 
   it("omits saved item options when article is not saved", () => {
-    const ctx = buildContext({ callbacks: { onArticleUpdate: () => {}, onArticleSave: () => {} } });
+    const ctx = buildContext({
+      callbacks: { onArticleUpdate: () => {}, onArticleSave: () => {} },
+    });
     article.saved = false;
 
-    showArticleContextMenu(new MouseEvent("contextmenu") as unknown as MouseEvent, article, ctx);
+    showArticleContextMenu(
+      new MouseEvent("contextmenu") as unknown as MouseEvent,
+      article,
+      ctx,
+    );
 
     expect(true).toBe(true);
   });
@@ -78,9 +95,15 @@ describe("article-context-menu utils", () => {
   it("configures the mark-as-read item when article is unread", () => {
     const onArticleUpdate = vi.fn();
     article.read = true;
-    const ctx = buildContext({ callbacks: { onArticleUpdate, onArticleClick: () => {} } });
+    const ctx = buildContext({
+      callbacks: { onArticleUpdate, onArticleClick: () => {} },
+    });
 
-    showArticleContextMenu(new MouseEvent("contextmenu") as unknown as MouseEvent, article, ctx);
+    showArticleContextMenu(
+      new MouseEvent("contextmenu") as unknown as MouseEvent,
+      article,
+      ctx,
+    );
 
     expect(onArticleUpdate).not.toHaveBeenCalled();
   });
@@ -88,7 +111,11 @@ describe("article-context-menu utils", () => {
   it("configures the open-in-browser item", () => {
     const ctx = buildContext({ callbacks: { onArticleClick: () => {} } });
 
-    showArticleContextMenu(new MouseEvent("contextmenu") as unknown as MouseEvent, article, ctx);
+    showArticleContextMenu(
+      new MouseEvent("contextmenu") as unknown as MouseEvent,
+      article,
+      ctx,
+    );
 
     expect(true).toBe(true);
   });
@@ -97,7 +124,11 @@ describe("article-context-menu utils", () => {
     const onArticleClick = vi.fn();
     const ctx = buildContext({ callbacks: { onArticleClick } });
 
-    showArticleContextMenu(new MouseEvent("contextmenu") as unknown as MouseEvent, article, ctx);
+    showArticleContextMenu(
+      new MouseEvent("contextmenu") as unknown as MouseEvent,
+      article,
+      ctx,
+    );
 
     expect(onArticleClick).not.toHaveBeenCalled();
   });
@@ -106,7 +137,11 @@ describe("article-context-menu utils", () => {
     article.saved = false;
     const ctx = buildContext({ callbacks: { onArticleSave: async () => {} } });
 
-    showArticleContextMenu(new MouseEvent("contextmenu") as unknown as MouseEvent, article, ctx);
+    showArticleContextMenu(
+      new MouseEvent("contextmenu") as unknown as MouseEvent,
+      article,
+      ctx,
+    );
 
     expect(true).toBe(true);
   });
@@ -115,7 +150,11 @@ describe("article-context-menu utils", () => {
     article.saved = true;
     const ctx = buildContext({ callbacks: { onArticleSave: async () => {} } });
 
-    showArticleContextMenu(new MouseEvent("contextmenu") as unknown as MouseEvent, article, ctx);
+    showArticleContextMenu(
+      new MouseEvent("contextmenu") as unknown as MouseEvent,
+      article,
+      ctx,
+    );
 
     expect(true).toBe(true);
   });
@@ -124,7 +163,11 @@ describe("article-context-menu utils", () => {
     article.link = "";
     const ctx = buildContext();
 
-    showArticleContextMenu(new MouseEvent("contextmenu") as unknown as MouseEvent, article, ctx);
+    showArticleContextMenu(
+      new MouseEvent("contextmenu") as unknown as MouseEvent,
+      article,
+      ctx,
+    );
 
     const titles = Menu.lastItems.map((item) => item.title);
     expect(titles).not.toContain("Open in browser");
@@ -135,7 +178,11 @@ describe("article-context-menu utils", () => {
   it("includes 'Open in browser' and 'Copy article URL' for an article with a link", () => {
     const ctx = buildContext();
 
-    showArticleContextMenu(new MouseEvent("contextmenu") as unknown as MouseEvent, article, ctx);
+    showArticleContextMenu(
+      new MouseEvent("contextmenu") as unknown as MouseEvent,
+      article,
+      ctx,
+    );
 
     const titles = Menu.lastItems.map((item) => item.title);
     expect(titles).toContain("Open in browser");

@@ -74,7 +74,10 @@ describe("Reader stylesheet - code blocks", () => {
     "keeps code at any depth in %s pre blocks from drawing a second box",
     (container) => {
       // The reset must come after the inline rule so it wins at equal specificity.
-      const nested = declarationsFor(`${container} code`, `${container} pre code`);
+      const nested = declarationsFor(
+        `${container} code`,
+        `${container} pre code`,
+      );
 
       expect(nested.get("background-color")).toBe("transparent");
       expect(nested.get("padding")).toBe("0");

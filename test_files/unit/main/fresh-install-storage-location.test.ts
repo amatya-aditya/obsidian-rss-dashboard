@@ -81,10 +81,18 @@ describe("Storage location for a fresh install", () => {
     await addFeedAndSave(plugin);
 
     const adapter = app.vault.adapter;
-    expect(await adapter.exists(`${PLUGIN_DIR}/data/feeds/feed-1.json`)).toBe(true);
-    expect(await adapter.exists(`${PLUGIN_DIR}/data/user-state.json`)).toBe(true);
-    expect(await adapter.exists(".rss-dashboard-data/user-state.json")).toBe(false);
-    expect(await adapter.exists(".rss-dashboard-data/feeds/feed-1.json")).toBe(false);
+    expect(await adapter.exists(`${PLUGIN_DIR}/data/feeds/feed-1.json`)).toBe(
+      true,
+    );
+    expect(await adapter.exists(`${PLUGIN_DIR}/data/user-state.json`)).toBe(
+      true,
+    );
+    expect(await adapter.exists(".rss-dashboard-data/user-state.json")).toBe(
+      false,
+    );
+    expect(await adapter.exists(".rss-dashboard-data/feeds/feed-1.json")).toBe(
+      false,
+    );
   });
 
   it("finds its articles and read state again after a restart", async () => {

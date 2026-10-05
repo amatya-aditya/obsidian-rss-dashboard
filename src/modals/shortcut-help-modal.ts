@@ -20,7 +20,7 @@ export class ShortcutHelpModal extends Modal {
     const header = contentEl.createDiv({ cls: "rss-dashboard-header" });
     header.createDiv({
       cls: "rss-dashboard-header-title",
-      text: "Keyboard Shortcuts",
+      text: "Keyboard shortcuts",
     });
 
     // Add save link below title
@@ -56,13 +56,13 @@ export class ShortcutHelpModal extends Modal {
 
     const body = contentEl.createDiv({ cls: "rss-dashboard-modal-content" });
 
-    this.renderSection(body, "General Navigation", [
-      { key: "?", desc: "Open Help Dialog" },
-      { key: "Esc", desc: "Close Dialog / Clear Selection" },
-      { key: "r", desc: "Refresh Feed" },
+    this.renderSection(body, "General navigation", [
+      { key: "?", desc: "Open help dialog" },
+      { key: "Esc", desc: "Close dialog / clear selection" },
+      { key: "r", desc: "Refresh feed" },
     ]);
 
-    this.renderSection(body, "Dashboard View", [
+    this.renderSection(body, "Dashboard view", [
       { key: "Shift + s", desc: "Focus sidebar" },
       { key: "Shift + r", desc: "Focus reader view" },
       { key: "Shift + 1", desc: "All articles filter" },
@@ -73,7 +73,7 @@ export class ShortcutHelpModal extends Modal {
       { key: "3", desc: "Feed view" },
     ]);
 
-    this.renderSection(body, "Reader View", [
+    this.renderSection(body, "Reader view", [
       { key: "Shift + d", desc: "Focus dashboard view" },
       { key: "Shift + s", desc: "Focus sidebar" },
       { key: "Shift + r", desc: "Focus reader view" },
@@ -86,7 +86,7 @@ export class ShortcutHelpModal extends Modal {
       { key: "0", desc: "Reset font size" },
     ]);
 
-    this.renderSection(body, "Article Manipulation", [
+    this.renderSection(body, "Article manipulation", [
       { key: "Arrow keys", desc: "Card view navigation" },
       { key: "o / Enter", desc: "Open article in reader pane" },
       { key: "k", desc: "Close reader pane" },
@@ -100,7 +100,7 @@ export class ShortcutHelpModal extends Modal {
       { key: "s", desc: "Save full content to notes" },
     ]);
 
-    this.renderSection(body, "Sidebar Navigation", [
+    this.renderSection(body, "Sidebar navigation", [
       { key: "Shift + l", desc: "Next item" },
       { key: "Shift + j", desc: "Previous item" },
       { key: "ArrowUp / ArrowDown", desc: "Move focused item" },
@@ -117,15 +117,15 @@ export class ShortcutHelpModal extends Modal {
       // Build the markdown content
       const shortcutsData = [
         {
-          section: "General Navigation",
+          section: "General navigation",
           items: [
-            { key: "?", desc: "Open Help Dialog" },
-            { key: "Esc", desc: "Close Dialog / Clear Selection" },
-            { key: "r", desc: "Refresh Feed" },
+            { key: "?", desc: "Open help dialog" },
+            { key: "Esc", desc: "Close dialog / clear selection" },
+            { key: "r", desc: "Refresh feed" },
           ],
         },
         {
-          section: "Dashboard View",
+          section: "Dashboard view",
           items: [
             { key: "Shift + s", desc: "Focus sidebar" },
             { key: "Shift + r", desc: "Focus reader view" },
@@ -138,7 +138,7 @@ export class ShortcutHelpModal extends Modal {
           ],
         },
         {
-          section: "Reader View",
+          section: "Reader view",
           items: [
             { key: "Shift + d", desc: "Focus dashboard view" },
             { key: "Shift + s", desc: "Focus sidebar" },
@@ -156,7 +156,7 @@ export class ShortcutHelpModal extends Modal {
           ],
         },
         {
-          section: "Article Manipulation",
+          section: "Article manipulation",
           items: [
             { key: "Arrow keys", desc: "Card view navigation" },
             { key: "o / Enter", desc: "Open article in reader pane" },
@@ -172,7 +172,7 @@ export class ShortcutHelpModal extends Modal {
           ],
         },
         {
-          section: "Sidebar Navigation",
+          section: "Sidebar navigation",
           items: [
             { key: "Shift + l", desc: "Next item" },
             { key: "Shift + j", desc: "Previous item" },
@@ -186,7 +186,7 @@ export class ShortcutHelpModal extends Modal {
         },
       ];
 
-      let content = "# Keyboard Shortcuts\n\n";
+      let content = "# Keyboard shortcuts\n\n";
       shortcutsData.forEach((section) => {
         content += `## ${section.section}\n\n`;
         content += "| Shortcut | Action |\n";

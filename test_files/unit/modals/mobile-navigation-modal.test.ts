@@ -227,8 +227,7 @@ describe("MobileNavigationModal", () => {
     it("leaves the icon idle when no refresh is active", async () => {
       vi.useFakeTimers();
       let modal:
-        | Awaited<ReturnType<typeof openModalWithPlugin>>["modal"]
-        | undefined;
+        Awaited<ReturnType<typeof openModalWithPlugin>>["modal"] | undefined;
       try {
         ({ modal } = await openModalWithPlugin({
           isGlobalRefreshCancellable: false,
@@ -251,8 +250,7 @@ describe("MobileNavigationModal", () => {
     it("adds refreshing class but not stop when a plain multi-feed refresh is active", async () => {
       vi.useFakeTimers();
       let modal:
-        | Awaited<ReturnType<typeof openModalWithPlugin>>["modal"]
-        | undefined;
+        Awaited<ReturnType<typeof openModalWithPlugin>>["modal"] | undefined;
       try {
         ({ modal } = await openModalWithPlugin({
           isGlobalRefreshCancellable: false,
@@ -275,8 +273,7 @@ describe("MobileNavigationModal", () => {
     it("shows stop state (not refreshing) when global refresh is cancellable", async () => {
       vi.useFakeTimers();
       let modal:
-        | Awaited<ReturnType<typeof openModalWithPlugin>>["modal"]
-        | undefined;
+        Awaited<ReturnType<typeof openModalWithPlugin>>["modal"] | undefined;
       try {
         ({ modal } = await openModalWithPlugin({
           isGlobalRefreshCancellable: true,

@@ -1,0 +1,82 @@
+name: Close linked issues
+
+# `master` is the default branch, so GitHub only closes issues named by a
+# closing keyword when a PR merges into `master`. Most PRs merge into `dev`,
+# so this does the same for them.
+#
+# This runs on `push` to `dev`, not `pull_request_target`: GitHub reads a
+# pull_request_target workflow from the default branch, where this file does
+# not live, so that trigger never fired. A push event uses the workflow file on
+# the branch that was pushed. The merged PR is looked up from the pushed commit,
+# and its body reaches the script through the environment, never interpolated
+# into the shell.
+
+on:
+  push:
+    branches: [dev]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: read
+
+jobs:
+  close:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Close issues named by closing keywords
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PUSHED_SHA: ${{ github.sha }}
+        run: |
+          set -uo pipefail
+
+          # GitHub's API now and then answers with a 5xx (a GraphQL 504 failed the run
+          # for #710). Retry each call a few times before giving up.
+          retry() {
+            local attempt=1
+            until "$@"; do
+              [ "$attempt" -ge 4 ] && return 1
+              sleep $((attempt * 5))
+              attempt=$((attempt + 1))
+            done
+          }
+
+          failed=0
+
+          # The commit-to-PR association can lag the merge by a few seconds.
+          prs=""
+          for attempt in 1 2 3 4; do
+            prs=$(gh api "repos/${GH_REPO}/commits/${PUSHED_SHA}/pulls" \
+              --jq '.[] | select(.merged_at != null) | .number') || prs=""
+            [ -n "$prs" ] && break
+            sleep 5
+          done
+
+          for pr in $prs; do
+            body=$(retry gh api "repos/${GH_REPO}/pulls/${pr}" --jq '.body // ""') || { failed=1; continue; }
+
+            # Ignore HTML comments and inline code, so the PR template's own
+            # "Use `Fixes #123`" hint never closes issue 123.
+            numbers=$(printf '%s' "$body" \
+              | perl -0pe 's/<!--.*?-->//gs; s/`[^`]*`//g' \
+              | grep -oiE '\b(close[sd]?|fix(e[sd])?|resolve[sd]?)[: ]+#[0-9]+' \
+              | grep -oE '[0-9]+$' \
+              | sort -un || true)
+
+            for n in $numbers; do
+              # REST, not GraphQL: that is where the 504 came from. A number that is a
+              # pull request, or does not exist, is skipped.
+              state=$(retry gh api "repos/${GH_REPO}/issues/${n}" \
+                --jq 'if .pull_request then "PR" else .state end' 2>/dev/null) || state="MISSING"
+              if [ "$state" = "open" ]; then
+                retry gh api -X PATCH "repos/${GH_REPO}/issues/${n}" \
+                  -f state=closed -f state_reason=completed >/dev/null || { failed=1; continue; }
+                retry gh api -X POST "repos/${GH_REPO}/issues/${n}/comments" \
+                  -f body="Closed by #${pr}, merged into dev." >/dev/null || failed=1
+              fi
+            done
+          done
+
+          exit "$failed"

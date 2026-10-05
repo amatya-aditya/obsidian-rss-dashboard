@@ -56,9 +56,7 @@ describe("sanitizeFilename", () => {
   it("removes invalid characters and caps long titles at 100 characters", () => {
     const title = `  ${"a".repeat(98)} /  zzz`;
 
-    expect(sanitizeFilename(title)).toBe(
-      `${"a".repeat(98)} z`,
-    );
+    expect(sanitizeFilename(title)).toBe(`${"a".repeat(98)} z`);
   });
 
   it("falls back to a safe filename when sanitization removes everything", () => {
@@ -68,6 +66,60 @@ describe("sanitizeFilename", () => {
 });
 
 describe("ArticleSaver.saveArticle", () => {
+  it("preserves dollar replacement sequences in frontmatter and body metadata", async () => {
+    const app = App.createMock();
+    const settings = createSettings({
+      includeFrontmatter: true,
+      frontmatterTemplate: `---
+title: "{{title}}"
+author: "{{author}}"
+feedTitle: "{{feedTitle}}"
+---`,
+      defaultTemplate: "{{title}} | {{author}} | {{source}} | {{content}}",
+    });
+    const saver = new ArticleSaver(app, settings);
+    const item = createItem({
+      title: "Price $$100, and $& too",
+      author: "Ann $' Lee",
+      feedTitle: "Research $` Quarterly",
+    });
+
+    const createSpy = vi.spyOn(app.vault, "create");
+    await saver.saveArticle(item, undefined, undefined, "BODY");
+
+    const written = createSpy.mock.calls[0][1];
+    expect(written).toContain('title: "Price $$100, and $& too"');
+    expect(written).toContain('author: "Ann $\' Lee"');
+    expect(written).toContain('feedTitle: "Research $` Quarterly"');
+    expect(written).toContain(
+      "Price $$100, and $& too | Ann $' Lee | Research $` Quarterly | BODY",
+    );
+  });
+
+  it("fills the summary in frontmatter when the note template has no frontmatter", async () => {
+    const app = App.createMock();
+    const settings = createSettings({
+      includeFrontmatter: true,
+      defaultTemplate: "# {{title}}\n\n{{content}}",
+      frontmatterTemplate: `---
+summary: "{{summary}}"
+---`,
+    });
+    const saver = new ArticleSaver(app, settings);
+    const item = createItem({
+      summary: 'A "quoted" summary\nwith another line.',
+    });
+
+    const createSpy = vi.spyOn(app.vault, "create");
+    await saver.saveArticle(item, undefined, undefined, "BODY");
+
+    const written = createSpy.mock.calls[0][1];
+    expect(written).toContain(
+      'summary: "A \\"quoted\\" summary\\nwith another line."',
+    );
+    expect(written).not.toContain("{{summary}}");
+  });
+
   it("prefers item.content over description when raw content is not provided", async () => {
     const app = App.createMock();
     const settings = createSettings({
@@ -776,8 +828,7 @@ describe("ArticleSaver - Math Rendering", () => {
       includeFrontmatter: false,
     });
     const saver = new ArticleSaver(app, settings, "https://proxy/?url=");
-    const formulaUrl =
-      "https://s0.wp.com/latex.php?latex=%7Bx%7D&bg=ffffff";
+    const formulaUrl = "https://s0.wp.com/latex.php?latex=%7Bx%7D&bg=ffffff";
 
     vi.spyOn(
       fetchHelpers,
@@ -814,7 +865,8 @@ describe("ArticleSaver - Math Rendering", () => {
       fetchHelpers,
       "fetchWithProxyFallbackDetailed",
     ).mockResolvedValueOnce({
-      content: '<p>Inline <span class="math" data-math="$a_1$"><span>[RENDERED]</span></span> and display <span class="math" data-math="$$b_2$$"><span>[RENDERED]</span></span></p>',
+      content:
+        '<p>Inline <span class="math" data-math="$a_1$"><span>[RENDERED]</span></span> and display <span class="math" data-math="$$b_2$$"><span>[RENDERED]</span></span></p>',
       failureType: "none",
     });
 

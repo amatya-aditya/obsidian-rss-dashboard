@@ -2,7 +2,11 @@ import { vi, describe, it, expect, beforeEach, afterEach } from "vitest";
 import { RssDashboardView } from "../../../src/views/dashboard-view";
 import * as ObsidianStubs from "../../stubs/obsidian";
 import type { App, WorkspaceLeaf } from "../../stubs/obsidian";
-import type { Feed, Folder, RssDashboardSettings } from "../../../src/types/types";
+import type {
+  Feed,
+  Folder,
+  RssDashboardSettings,
+} from "../../../src/types/types";
 import type RssDashboardPlugin from "../../../main";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 
@@ -35,13 +39,16 @@ function createMockEnv() {
 }
 
 describe("Dashboard Shift+Click Range Select", () => {
-
   let leaf: WorkspaceLeaf;
   let settings: RssDashboardSettings;
   let plugin: RssDashboardPlugin;
 
   beforeEach(() => {
-    const { leaf: envLeaf, settings: envSettings, plugin: envPlugin } = createMockEnv();
+    const {
+      leaf: envLeaf,
+      settings: envSettings,
+      plugin: envPlugin,
+    } = createMockEnv();
     leaf = envLeaf;
     settings = envSettings;
     plugin = envPlugin;
@@ -58,17 +65,49 @@ describe("Dashboard Shift+Click Range Select", () => {
       { name: "B", subfolders: [] as Folder[] },
     ];
     settings.feeds = [
-      { url: "https://feed.A1", title: "A1", items: [], folder: "A", lastUpdated: 0 } satisfies Feed,
-      { url: "https://feed.A2", title: "A2", items: [], folder: "A", lastUpdated: 0 } satisfies Feed,
-      { url: "https://feed.B1", title: "B1", items: [], folder: "B", lastUpdated: 0 } satisfies Feed,
-      { url: "https://feed.B2", title: "B2", items: [], folder: "B", lastUpdated: 0 } satisfies Feed,
-      { url: "https://feed.B3", title: "B3", items: [], folder: "B", lastUpdated: 0 } satisfies Feed,
+      {
+        url: "https://feed.A1",
+        title: "A1",
+        items: [],
+        folder: "A",
+        lastUpdated: 0,
+      } satisfies Feed,
+      {
+        url: "https://feed.A2",
+        title: "A2",
+        items: [],
+        folder: "A",
+        lastUpdated: 0,
+      } satisfies Feed,
+      {
+        url: "https://feed.B1",
+        title: "B1",
+        items: [],
+        folder: "B",
+        lastUpdated: 0,
+      } satisfies Feed,
+      {
+        url: "https://feed.B2",
+        title: "B2",
+        items: [],
+        folder: "B",
+        lastUpdated: 0,
+      } satisfies Feed,
+      {
+        url: "https://feed.B3",
+        title: "B3",
+        items: [],
+        folder: "B",
+        lastUpdated: 0,
+      } satisfies Feed,
     ];
 
     const view = new RssDashboardView(leaf, plugin);
 
     // Simulate setting initial anchor
-    (view as unknown as { lastClickAnchorKey: string | null }).lastClickAnchorKey = "folder:A";
+    (
+      view as unknown as { lastClickAnchorKey: string | null }
+    ).lastClickAnchorKey = "folder:A";
 
     const visibleKeys = [
       "folder:A",
@@ -81,7 +120,11 @@ describe("Dashboard Shift+Click Range Select", () => {
     ];
 
     // Simulate shift-click on feed B2
-    (view as unknown as { handleSidebarRangeSelect: (key: string, keys: string[]) => void }).handleSidebarRangeSelect("feed:https://feed.B2", visibleKeys);
+    (
+      view as unknown as {
+        handleSidebarRangeSelect: (key: string, keys: string[]) => void;
+      }
+    ).handleSidebarRangeSelect("feed:https://feed.B2", visibleKeys);
 
     // Folder A should be selected (all its feeds are in range)
     expect(view.selectedFolders).toContain("A");

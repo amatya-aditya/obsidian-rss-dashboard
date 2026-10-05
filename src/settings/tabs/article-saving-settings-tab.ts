@@ -27,6 +27,17 @@ export interface ArticleSavingPluginLike {
   saveSettings: () => Promise<void>;
 }
 
+const defaultTemplateHint =
+  "The prefilled template is ready to use: its frontmatter properties already have the required indentation.";
+const customTemplateHint =
+  "Template for saved articles. All frontmatter properties must start with a single space indent.";
+
+function getArticleTemplateHint(template: string): string {
+  return template === DEFAULT_SETTINGS.articleSaving.defaultTemplate
+    ? defaultTemplateHint
+    : customTemplateHint;
+}
+
 export function renderArticleSavingSettingsTab(
   containerEl: HTMLElement,
   plugin: ArticleSavingPluginLike,
@@ -95,10 +106,10 @@ export function renderArticleSavingSettingsTab(
 
   const templateContainer = containerEl.createDiv();
 
-  new Setting(templateContainer)
+  const templateSetting = new Setting(templateContainer)
     .setName("Default article template")
     .setDesc(
-      "Template for saved articles. All frontmatter properties must start with a single space indent.",
+      getArticleTemplateHint(plugin.settings.articleSaving.defaultTemplate),
     );
 
   const templateInput = templateContainer.createEl("textarea", {
@@ -109,6 +120,7 @@ export function renderArticleSavingSettingsTab(
   templateInput.addEventListener("change", () => {
     void (async () => {
       plugin.settings.articleSaving.defaultTemplate = templateInput.value;
+      templateSetting.setDesc(getArticleTemplateHint(templateInput.value));
       await plugin.saveSettings();
     })();
   });
@@ -156,6 +168,7 @@ export function renderArticleSavingSettingsTab(
     templateInput.value = DEFAULT_SETTINGS.articleSaving.defaultTemplate;
     plugin.settings.articleSaving.defaultTemplate =
       DEFAULT_SETTINGS.articleSaving.defaultTemplate;
+    templateSetting.setDesc(defaultTemplateHint);
     await plugin.saveSettings();
     new Notice("Template reset to default");
   };
@@ -218,9 +231,11 @@ export function renderArticleSavingSettingsTab(
             .setButtonText("Update")
             .setTooltip("Update this template with current editor content")
             .onClick(async () => {
-              const templateToUpdate = plugin.settings.articleSaving.savedTemplates?.[index];
+              const templateToUpdate =
+                plugin.settings.articleSaving.savedTemplates?.[index];
               if (!templateToUpdate) return;
-              templateToUpdate.template = plugin.settings.articleSaving.defaultTemplate;
+              templateToUpdate.template =
+                plugin.settings.articleSaving.defaultTemplate;
               await plugin.saveSettings();
               new Notice(`Template "${template.name}" updated`);
             }),

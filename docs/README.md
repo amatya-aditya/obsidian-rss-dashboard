@@ -4,15 +4,15 @@ Welcome to RSS Dashboard's documentation. Find guides, workflows, references, an
 
 ## How this folder is organized
 
-| Folder | What's in it |
-| --- | --- |
-| [`user/`](./user/) | Guides for people using the plugin |
-| [`development/`](./development/README.md) | How the plugin is built, tested, designed, and released |
-| [`adr/`](./adr/) | Architecture decision records: why the code is shaped the way it is |
-| [`plans/`](./plans/) | Active feature plans and the public roadmap |
-| [`releases/`](./releases/) | Release notes, announcements, and their templates |
-| [`agents/`](./agents/) | Conventions for AI coding agents working in this repo |
-| [`archive/`](./archive/README.md) | Finished plans and past investigations, kept for history |
+| Folder                                    | What's in it                                                        |
+| ----------------------------------------- | ------------------------------------------------------------------- |
+| [`user/`](./user/)                        | Guides for people using the plugin                                  |
+| [`development/`](./development/README.md) | How the plugin is built, tested, designed, and released             |
+| [`adr/`](./adr/)                          | Architecture decision records: why the code is shaped the way it is |
+| [`plans/`](./plans/)                      | Active feature plans and the public roadmap                         |
+| [`releases/`](./releases/)                | Release notes, announcements, and their templates                   |
+| [`agents/`](./agents/)                    | Conventions for AI coding agents working in this repo               |
+| [`archive/`](./archive/README.md)         | Finished plans and past investigations, kept for history            |
 
 [`SECURITY.md`](./SECURITY.md) covers privacy, security, and how to verify a release.
 
@@ -91,12 +91,12 @@ Want to contribute or understand how the plugin works internally?
 
 ## Quick Links
 
-| Need | Link |
-|------|------|
-| First time? | [Getting Started](./user/getting-started.md) |
-| Install help | [Installation Methods](./user/installation.md) |
-| Tag questions | [Tags Primer](./user/tags-primer.md) |
-| Sync issues | [Syncing Guide](./user/syncing.md) |
-| Stuck? | [Troubleshooting](./user/troubleshooting.md) |
-| Want to help? | [Contributing](../CONTRIBUTING.md) |
-| Feedback? | [Discord](https://discord.gg/9bu7V9BBbs) or [GitHub Issues](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues) |
+| Need          | Link                                                                                                                        |
+| ------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| First time?   | [Getting Started](./user/getting-started.md)                                                                                |
+| Install help  | [Installation Methods](./user/installation.md)                                                                              |
+| Tag questions | [Tags Primer](./user/tags-primer.md)                                                                                        |
+| Sync issues   | [Syncing Guide](./user/syncing.md)                                                                                          |
+| Stuck?        | [Troubleshooting](./user/troubleshooting.md)                                                                                |
+| Want to help? | [Contributing](../CONTRIBUTING.md)                                                                                          |
+| Feedback?     | [Discord](https://discord.gg/9bu7V9BBbs) or [GitHub Issues](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues) |

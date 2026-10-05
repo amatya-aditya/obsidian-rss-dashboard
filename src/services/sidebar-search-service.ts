@@ -92,4 +92,3 @@ export class SidebarSearchService {
     return tokens.every((token) => haystack.includes(token));
   }
 }
-

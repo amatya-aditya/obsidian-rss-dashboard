@@ -80,10 +80,10 @@ describe("fetchFeedXml", () => {
       .mockRejectedValueOnce(new Error("direct fetch failed"))
       .mockResolvedValueOnce(mockRequestUrlResponse(JSON_FEED_BASIC));
 
-    const text = await fetchFeedXml(
-      "https://example.com/feed.json",
-      { enabled: true, url: "https://my-proxy.com/?url=" },
-    );
+    const text = await fetchFeedXml("https://example.com/feed.json", {
+      enabled: true,
+      url: "https://my-proxy.com/?url=",
+    });
 
     expect(text).toBe(JSON_FEED_BASIC);
     expect(obsidian.requestUrl).toHaveBeenNthCalledWith(
@@ -376,9 +376,7 @@ describe("fetchFeedXml - RSS2JSON XML escaping", () => {
   async function fetchRebuiltRss(payload: unknown): Promise<string> {
     vi.spyOn(obsidian, "requestUrl")
       .mockRejectedValueOnce(new Error("direct fetch failed"))
-      .mockResolvedValueOnce(
-        mockRequestUrlResponse(JSON.stringify(payload)),
-      );
+      .mockResolvedValueOnce(mockRequestUrlResponse(JSON.stringify(payload)));
 
     return fetchFeedXml("https://example.com/feed.xml", {
       enabled: true,

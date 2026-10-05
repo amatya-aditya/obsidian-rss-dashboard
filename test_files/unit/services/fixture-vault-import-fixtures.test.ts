@@ -44,7 +44,12 @@ function fixtureVaultSettings(): RssDashboardSettings {
   for (const feed of settings.feeds) {
     const shard = JSON.parse(
       readFileSync(
-        join(TEMPLATE_DIR, "rss-dashboard-data", "feeds", `${feed.feedId}.json`),
+        join(
+          TEMPLATE_DIR,
+          "rss-dashboard-data",
+          "feeds",
+          `${feed.feedId}.json`,
+        ),
         "utf8",
       ),
     ) as { items: Feed["items"] };
@@ -55,7 +60,10 @@ function fixtureVaultSettings(): RssDashboardSettings {
 
 function importService(settings: RssDashboardSettings) {
   const confirmations: ImportConfirmation[] = [];
-  const applied: Array<{ preferences: Record<string, unknown>; kind: ImportKind }> = [];
+  const applied: Array<{
+    preferences: Record<string, unknown>;
+    kind: ImportKind;
+  }> = [];
   const service = new ImportExportService({
     settings,
     isMobile: false,
@@ -90,9 +98,13 @@ describe("Fixture vault import fixtures", () => {
       "Uncategorized",
     ]);
     expect(folders.map((folder) => folder.name)).toEqual(["Comics", "News"]);
-    expect(folders[1].subfolders.map((folder) => folder.name)).toEqual(["Tech"]);
+    expect(folders[1].subfolders.map((folder) => folder.name)).toEqual([
+      "Tech",
+    ]);
 
-    const existingUrls = new Set(fixtureVaultSettings().feeds.map((feed) => feed.url));
+    const existingUrls = new Set(
+      fixtureVaultSettings().feeds.map((feed) => feed.url),
+    );
     expect(feeds.filter((feed) => existingUrls.has(feed.url))).toHaveLength(1);
   });
 
@@ -107,34 +119,47 @@ describe("Fixture vault import fixtures", () => {
       settings.availableTags,
     );
 
-    expect(candidates.map((candidate) => candidate.isNewFeed)).toEqual([false, true]);
+    expect(candidates.map((candidate) => candidate.isNewFeed)).toEqual([
+      false,
+      true,
+    ]);
     expect(unimportable).toEqual([
       expect.objectContaining({ reason: "no_article_url" }),
     ]);
-    const labelTags = candidates.flatMap((candidate) => candidate.item.tags ?? []);
+    const labelTags = candidates.flatMap(
+      (candidate) => candidate.item.tags ?? [],
+    );
     expect(labelTags).toContainEqual({ name: "Read later", color: "#3498db" });
     expect(labelTags.map((tag) => tag.name)).toContain("Starred import");
   });
 
   it("has a Feed bundle whose shards match its feeds", () => {
-    const bundle = parseFeedBundle(readJsonFixture("rss-dashboard-feed-bundle.json"));
+    const bundle = parseFeedBundle(
+      readJsonFixture("rss-dashboard-feed-bundle.json"),
+    );
 
     expect(bundle.feeds).toHaveLength(2);
     expect(bundle.shards.map((shard) => shard.feedId)).toEqual(
       bundle.feeds.map((feed) => feed.feedId),
     );
-    expect(bundle.shards.some((shard) => shard.items.some((item) => item.starred))).toBe(
-      true,
-    );
+    expect(
+      bundle.shards.some((shard) => shard.items.some((item) => item.starred)),
+    ).toBe(true);
   });
 
   it("has a Settings bundle that changes preferences without moving storage", () => {
-    const bundle = parseSettingsBundle(readJsonFixture("rss-dashboard-settings-bundle.json"));
+    const bundle = parseSettingsBundle(
+      readJsonFixture("rss-dashboard-settings-bundle.json"),
+    );
 
     expect(bundle.settings).not.toHaveProperty("feeds");
     expect(bundle.settings.storageMode).toBe("vault-shards-v2");
-    expect(bundle.settings.storageFolder).toBe(fixtureVaultSettings().storageFolder);
-    expect(bundle.metadataStorageFolder).toBe(fixtureVaultSettings().metadataStorageFolder);
+    expect(bundle.settings.storageFolder).toBe(
+      fixtureVaultSettings().storageFolder,
+    );
+    expect(bundle.metadataStorageFolder).toBe(
+      fixtureVaultSettings().metadataStorageFolder,
+    );
   });
 
   it("has a Portable data bundle with feeds, articles, and settings", () => {
@@ -149,7 +174,9 @@ describe("Fixture vault import fixtures", () => {
   });
 
   it("has a user preferences file that only overwrites preferences", async () => {
-    const { service, confirmations, applied } = importService(fixtureVaultSettings());
+    const { service, confirmations, applied } = importService(
+      fixtureVaultSettings(),
+    );
 
     const result = await service.importUserPreferencesFromFile(
       fixtureFile("rss-dashboard-user-preferences.json"),
@@ -174,7 +201,11 @@ describe("Fixture vault import fixtures", () => {
     const feedData = confirmations[0].feedData;
     expect(feedData?.incoming.feeds).toBe(settings.feeds.length);
     expect(feedData?.incoming.articles).toBe(feedData?.current.articles);
-    expect(feedData?.incoming.folders).toBeGreaterThan(feedData?.current.folders ?? 0);
-    expect(feedData?.incoming.tags).toBeGreaterThan(feedData?.current.tags ?? 0);
+    expect(feedData?.incoming.folders).toBeGreaterThan(
+      feedData?.current.folders ?? 0,
+    );
+    expect(feedData?.incoming.tags).toBeGreaterThan(
+      feedData?.current.tags ?? 0,
+    );
   });
 });

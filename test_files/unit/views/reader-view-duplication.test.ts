@@ -80,8 +80,7 @@ describe("ReaderView Image Duplication", () => {
   });
 
   it("renders WordPress native math and promotes a later photo to hero", async () => {
-    const formulaUrl =
-      "https://s0.wp.com/latex.php?latex=%7Bx%7D&bg=ffffff";
+    const formulaUrl = "https://s0.wp.com/latex.php?latex=%7Bx%7D&bg=ffffff";
     const photoUrl = "https://example.com/article-photo.jpg";
     const item: FeedItem = {
       title: "WordPress math article",
@@ -120,9 +119,9 @@ describe("ReaderView Image Duplication", () => {
 
     expect(heroImg?.getAttribute("src")).toBe(photoUrl);
     expect(body?.querySelector("img.latex")).toBeNull();
-    expect(body?.querySelector("span.math-inline")?.getAttribute("data-math")).toBe(
-      String.raw`\({x}\)`,
-    );
+    expect(
+      body?.querySelector("span.math-inline")?.getAttribute("data-math"),
+    ).toBe(String.raw`\({x}\)`);
     expect(body?.querySelector(`img[src="${photoUrl}"]`)).toBeNull();
   });
 
@@ -157,7 +156,9 @@ describe("ReaderView Image Duplication", () => {
     await readerView.onOpen();
     await readerView.displayItem(item);
 
-    const body = getHarness(readerView).readingContainer.querySelector<HTMLElement>(
+    const body = getHarness(
+      readerView,
+    ).readingContainer.querySelector<HTMLElement>(
       ".rss-reader-article-content",
     );
     await vi.waitFor(() => {
@@ -169,8 +170,7 @@ describe("ReaderView Image Duplication", () => {
   });
 
   it("does not prepend a stale formula hero when building saved Markdown", () => {
-    const formulaUrl =
-      "https://s0.wp.com/latex.php?latex=%7Bx%7D&bg=ffffff";
+    const formulaUrl = "https://s0.wp.com/latex.php?latex=%7Bx%7D&bg=ffffff";
     const item: FeedItem = {
       title: "Saved WordPress math article",
       link: "https://example.com/saved-math",
@@ -196,8 +196,7 @@ describe("ReaderView Image Duplication", () => {
   });
 
   it("serializes WordPress formula images with Obsidian math delimiters", () => {
-    const formulaUrl =
-      "https://s0.wp.com/latex.php?latex=%7Ba_1%7D&bg=ffffff";
+    const formulaUrl = "https://s0.wp.com/latex.php?latex=%7Ba_1%7D&bg=ffffff";
     const item: FeedItem = {
       title: "Saved native WordPress math",
       link: "https://example.com/saved-native-math",
@@ -583,7 +582,8 @@ describe("ReaderView – summary de-duplication", () => {
   it("omits the feed description callout when the description is missing", async () => {
     const item = makeItem({
       description: "",
-      content: "<p>Extended body paragraph that should still render in the article body.</p>",
+      content:
+        "<p>Extended body paragraph that should still render in the article body.</p>",
     });
 
     await readerView.displayItem(item);
@@ -592,7 +592,9 @@ describe("ReaderView – summary de-duplication", () => {
     const body = rc.querySelector<HTMLElement>(".rss-reader-article-content");
 
     expect(rc.querySelector(".rss-reader-description-callout")).toBeNull();
-    expect(rc.textContent || "").not.toContain("No feed description available.");
+    expect(rc.textContent || "").not.toContain(
+      "No feed description available.",
+    );
     expect(body?.textContent || "").toContain(
       "Extended body paragraph that should still render in the article body.",
     );
@@ -601,7 +603,8 @@ describe("ReaderView – summary de-duplication", () => {
   it("omits the feed description callout when the description is only an ellipsis placeholder", async () => {
     const item = makeItem({
       description: "<p>...</p>",
-      content: "<p>Extended body paragraph that should still render in the article body.</p>",
+      content:
+        "<p>Extended body paragraph that should still render in the article body.</p>",
     });
 
     await readerView.displayItem(item);

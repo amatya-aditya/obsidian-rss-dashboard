@@ -433,7 +433,10 @@ export class ArticleHeader {
 
     const entries: MenuOptionEntries = Array.isArray(options)
       ? options
-      : Object.keys(options).map((label): [string, string] => [label, options[label] ?? label]);
+      : Object.keys(options).map((label): [string, string] => [
+          label,
+          options[label] ?? label,
+        ]);
 
     entries.forEach(([label, value]) => {
       const item = portal.createDiv({ cls: "rss-dashboard-filter-menu-item" });
@@ -511,7 +514,7 @@ export class ArticleHeader {
       };
       this.showThemedMenu(
         selector,
-        { "List View": "list", "Card View": "card", "Feed View": "feed" },
+        { "List view": "list", "Card view": "card", "Feed view": "feed" },
         this.settings.viewStyle,
         (val) =>
           this.callbacks.onToggleViewStyle(val as "list" | "card" | "feed"),
@@ -619,7 +622,6 @@ export class ArticleHeader {
 
     return String(currentValue);
   }
-
 
   private addDocumentListener(
     target: Document | Window,

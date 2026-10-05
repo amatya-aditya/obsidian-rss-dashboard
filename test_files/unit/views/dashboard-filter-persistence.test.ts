@@ -1,7 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { App } from "obsidian";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
-import { DEFAULT_SETTINGS, type Feed, type FeedItem, type RssDashboardSettings } from "../../../src/types/types";
+import {
+  DEFAULT_SETTINGS,
+  type Feed,
+  type FeedItem,
+  type RssDashboardSettings,
+} from "../../../src/types/types";
 import { RssDashboardView } from "../../../src/views/dashboard-view";
 
 // Keep platform-utils mocked so other tests that expect robustFetch to be a vi.fn
@@ -103,11 +108,17 @@ describe("Dashboard multi-filter persistence (TDD)", () => {
     const view = new RssDashboardView(leaf, plugin as never);
     (view as unknown as { render: () => void }).render = vi.fn();
 
-    (view as unknown as { handleFolderClick: (folder: string | null) => void }).handleFolderClick("unread");
+    (
+      view as unknown as { handleFolderClick: (folder: string | null) => void }
+    ).handleFolderClick("unread");
 
     expect(view.currentFolder).toBe("unread");
-    expect((view as unknown as { currentFeed: unknown }).currentFeed).toBe(null);
-    expect((view as unknown as { selectedTags: string[] }).selectedTags).toEqual([]);
+    expect((view as unknown as { currentFeed: unknown }).currentFeed).toBe(
+      null,
+    );
+    expect(
+      (view as unknown as { selectedTags: string[] }).selectedTags,
+    ).toEqual([]);
   });
 
   it("folder navigation does not reset multi-filters (regression)", async () => {
@@ -122,17 +133,31 @@ describe("Dashboard multi-filter persistence (TDD)", () => {
     const view = new RssDashboardView(leaf, plugin as never);
     (view as unknown as { render: () => void }).render = vi.fn();
 
-    (view as unknown as { activeStatusFilters: Set<string> }).activeStatusFilters = new Set(["unread"]);
-    (view as unknown as { activeTagFilters: Set<string> }).activeTagFilters = new Set(["Work"]);
+    (
+      view as unknown as { activeStatusFilters: Set<string> }
+    ).activeStatusFilters = new Set(["unread"]);
+    (view as unknown as { activeTagFilters: Set<string> }).activeTagFilters =
+      new Set(["Work"]);
     (view as unknown as { filterLogic: "AND" | "OR" }).filterLogic = "AND";
 
-    (view as unknown as { handleFolderClick: (folder: string | null) => void }).handleFolderClick("unread");
+    (
+      view as unknown as { handleFolderClick: (folder: string | null) => void }
+    ).handleFolderClick("unread");
 
-    expect(Array.from((view as unknown as { activeStatusFilters: Set<string> }).activeStatusFilters)).toEqual([
-      "unread",
-    ]);
-    expect(Array.from((view as unknown as { activeTagFilters: Set<string> }).activeTagFilters)).toEqual(["Work"]);
-    expect((view as unknown as { filterLogic: "AND" | "OR" }).filterLogic).toBe("AND");
+    expect(
+      Array.from(
+        (view as unknown as { activeStatusFilters: Set<string> })
+          .activeStatusFilters,
+      ),
+    ).toEqual(["unread"]);
+    expect(
+      Array.from(
+        (view as unknown as { activeTagFilters: Set<string> }).activeTagFilters,
+      ),
+    ).toEqual(["Work"]);
+    expect((view as unknown as { filterLogic: "AND" | "OR" }).filterLogic).toBe(
+      "AND",
+    );
   });
 
   it("feed navigation does not reset multi-filters (regression)", async () => {
@@ -147,19 +172,31 @@ describe("Dashboard multi-filter persistence (TDD)", () => {
     const view = new RssDashboardView(leaf, plugin as never);
     (view as unknown as { render: () => void }).render = vi.fn();
 
-    (view as unknown as { activeStatusFilters: Set<string> }).activeStatusFilters = new Set(["unread"]);
-    (view as unknown as { activeTagFilters: Set<string> }).activeTagFilters = new Set(["Work"]);
+    (
+      view as unknown as { activeStatusFilters: Set<string> }
+    ).activeStatusFilters = new Set(["unread"]);
+    (view as unknown as { activeTagFilters: Set<string> }).activeTagFilters =
+      new Set(["Work"]);
     (view as unknown as { filterLogic: "AND" | "OR" }).filterLogic = "AND";
 
-    (view as unknown as { handleFeedClick: (feed: Feed) => void }).handleFeedClick(
-      createMockFeed("https://example.com/feed"),
-    );
+    (
+      view as unknown as { handleFeedClick: (feed: Feed) => void }
+    ).handleFeedClick(createMockFeed("https://example.com/feed"));
 
-    expect(Array.from((view as unknown as { activeStatusFilters: Set<string> }).activeStatusFilters)).toEqual([
-      "unread",
-    ]);
-    expect(Array.from((view as unknown as { activeTagFilters: Set<string> }).activeTagFilters)).toEqual(["Work"]);
-    expect((view as unknown as { filterLogic: "AND" | "OR" }).filterLogic).toBe("AND");
+    expect(
+      Array.from(
+        (view as unknown as { activeStatusFilters: Set<string> })
+          .activeStatusFilters,
+      ),
+    ).toEqual(["unread"]);
+    expect(
+      Array.from(
+        (view as unknown as { activeTagFilters: Set<string> }).activeTagFilters,
+      ),
+    ).toEqual(["Work"]);
+    expect((view as unknown as { filterLogic: "AND" | "OR" }).filterLogic).toBe(
+      "AND",
+    );
   });
 
   it("marks the stored articles in the current view as read", async () => {
@@ -180,8 +217,11 @@ describe("Dashboard multi-filter persistence (TDD)", () => {
 
     const leaf = { app } as unknown as import("obsidian").WorkspaceLeaf;
     const view = new RssDashboardView(leaf, plugin as never);
-    (view as unknown as { scheduleRender: () => void }).scheduleRender = vi.fn();
-    (view as unknown as { activeStatusFilters: Set<string> }).activeStatusFilters = new Set(["unread"]);
+    (view as unknown as { scheduleRender: () => void }).scheduleRender =
+      vi.fn();
+    (
+      view as unknown as { activeStatusFilters: Set<string> }
+    ).activeStatusFilters = new Set(["unread"]);
 
     view.actionMarkAllAsRead();
 
@@ -189,7 +229,9 @@ describe("Dashboard multi-filter persistence (TDD)", () => {
     expect(settings.feeds[0].items[1].read).toBe(true);
     expect(plugin.saveSettings).toHaveBeenCalledTimes(1);
 
-    (view as unknown as { activeStatusFilters: Set<string> }).activeStatusFilters.clear();
+    (
+      view as unknown as { activeStatusFilters: Set<string> }
+    ).activeStatusFilters.clear();
 
     view.actionMarkAllAsUnread();
 

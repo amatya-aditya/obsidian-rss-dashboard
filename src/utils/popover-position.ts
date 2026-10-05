@@ -50,7 +50,10 @@ export function computePopoverPosition(options: {
   }
 
   const minTop = margin;
-  const maxTop = Math.max(margin, viewport.height - popoverRect.height - margin);
+  const maxTop = Math.max(
+    margin,
+    viewport.height - popoverRect.height - margin,
+  );
   top = clamp(top, minTop, maxTop);
 
   let left = anchorRect.left;
@@ -103,7 +106,10 @@ export function computeSubmenuPosition(options: {
     maxHeight = availableHeight;
   } else {
     const minTop = margin;
-    const maxTop = Math.max(margin, viewport.height - submenuRect.height - margin);
+    const maxTop = Math.max(
+      margin,
+      viewport.height - submenuRect.height - margin,
+    );
     top = clamp(top, minTop, maxTop);
   }
 
@@ -114,4 +120,3 @@ export function computeSubmenuPosition(options: {
     ...(maxHeight !== undefined ? { maxHeight } : {}),
   };
 }
-

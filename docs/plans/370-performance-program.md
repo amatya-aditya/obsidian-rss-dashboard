@@ -34,13 +34,16 @@ for implementation**, then link it in the track table below.
 
 ## Tracks
 
-| # | Track | Status | Issue | Target |
-| --- | --- | --- | --- | --- |
-| 1 | Contributor dev-loop speed | in progress | [GH Issue #371](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/371) | 2.7.0 (Required) |
-| 2 | Shared-worker unit-test mode | deferred | create when ready | after 2.7.0 |
-| 3 | Plugin runtime benchmark harness | deferred | create when ready | after 2.7.0 |
-| 4 | Refresh-all responsiveness | deferred | create when ready | after 2.7.0; needs Track 3 |
-| 5 | Startup and bundle cost | deferred | create when ready | after 2.7.0; needs Track 3 |
+| #   | Track                            | Status      | Issue                                                                               | Target                     |
+| --- | -------------------------------- | ----------- | ----------------------------------------------------------------------------------- | -------------------------- |
+| 1   | Contributor dev-loop speed       | in progress | [GH Issue #371](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/371) | 2.7.0 (Required)           |
+| 2   | Shared-worker unit-test mode     | deferred    | create when ready                                                                   | after 2.7.0                |
+| 3   | Plugin runtime benchmark harness | deferred    | create when ready                                                                   | after 2.7.0                |
+| 4   | Refresh-all responsiveness       | deferred    | create when ready                                                                   | after 2.7.0; needs Track 3 |
+| 5   | Startup and bundle cost          | deferred    | create when ready                                                                   | after 2.7.0; needs Track 3 |
+
+Track 1's follow-up to move full validation from local pre-push to CI is
+tracked by [GH Issue #749](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/749).
 
 ## Measurement rules (all tracks)
 
@@ -75,13 +78,13 @@ Node 24.12). Indicative only: `dev` has since gained stricter lint rules
 (#361), so the official "before" must be re-measured on the Track 1 base
 commit.
 
-| Stage | Cold | Warm |
-| --- | --- | --- |
-| Seven `check:*` scripts | 3.2s | 2.2s |
-| `eslint .` | 102.8s | 53.0s |
-| `tsc --noEmit` | 9.7s | 9.6s |
-| esbuild production bundle | 1.1s | 0.8s |
-| `vitest run` (227 files, 2289 tests) | 158s | 126s |
+| Stage                                | Cold   | Warm  |
+| ------------------------------------ | ------ | ----- |
+| Seven `check:*` scripts              | 3.2s   | 2.2s  |
+| `eslint .`                           | 102.8s | 53.0s |
+| `tsc --noEmit`                       | 9.7s   | 9.6s  |
+| esbuild production bundle            | 1.1s   | 0.8s  |
+| `vitest run` (227 files, 2289 tests) | 158s   | 126s  |
 
 - **Commit** (pre-commit hook: compliance, full lint, full suite): about
   3-4.5 minutes.
@@ -101,9 +104,11 @@ commit.
    the staged files (`vitest related`). Changes to runner configuration, the
    Obsidian stub, shared test setup, dependencies, or on-disk fixtures run the
    whole suite instead.
-2. **Pre-push runs the complete gate:** `npm run build` followed by the full
-   unit suite. CI already runs the full suite with coverage on every push and
-   pull request, so no check is lost.
+2. **Pre-push skips full local checks.** GitHub Actions runs `npm run build`
+   and the full unit suite with coverage on pull requests and pushes to `dev`
+   or `master`. This follow-up supersedes the original choice to make every
+   contributor wait for the full gate before pushing; local full checks remain
+   available when diagnosing CI failures.
 3. **Vitest uses the `threads` pool** with full per-file isolation unchanged.
 4. **`tsc` in `npm run build` is incremental**, with its build-info file under
    `node_modules/.cache/`.
@@ -129,7 +134,9 @@ commit.
   commit.
 - A commit that stages a whole-suite trigger runs the full unit suite.
 - `SKIP_GIT_HOOKS=1` still bypasses both hooks.
-- A push runs `npm run build` and the full unit suite, and fails if either fails.
+- A push completes without running the full local build or unit suite.
+- GitHub Actions runs `npm run build` and the full unit suite with coverage for
+  pull requests and pushes to `dev` or `master`.
 - The full suite passes under the `threads` pool locally and in CI, with the
   same test count as the base commit.
 - `npm run build` passes, and a second run type-checks incrementally.
@@ -144,24 +151,40 @@ base `dev` at `9f09a92` against this track's head. The full multi-run
 benchmark was waived in favor of these rough numbers; the script remains for
 later tracks.
 
-| Path | Before | After |
-| --- | --- | --- |
-| Commit, one source file (`src/views/reader-view.ts`) | 221s | ~45s (128s on the first run after a cache clear) |
-| Commit, prose only | 221s | 10s |
-| Push | 77s (no tests) | 182s (includes the full suite) |
-| One commit and push | ~5 min | ~3.75 min |
-| Three commits and push | ~12 min | ~5 min |
+| Path                                                 | Before         | After                                            |
+| ---------------------------------------------------- | -------------- | ------------------------------------------------ |
+| Commit, one source file (`src/views/reader-view.ts`) | 221s           | ~45s (128s on the first run after a cache clear) |
+| Commit, prose only                                   | 221s           | 10s                                              |
+| Push                                                 | 77s (no tests) | 182s (includes the full suite)                   |
+| One commit and push                                  | ~5 min         | ~3.75 min                                        |
+| Three commits and push                               | ~12 min        | ~5 min                                           |
 
-Keeping the full suite in pre-push was a deliberate choice: failures surface
-before code leaves the machine, at the cost of a slower push.
+These measurements describe the original implementation. Its full pre-push
+gate intentionally surfaced failures before code left the machine, at the
+cost of a slower push. The follow-up decision prioritizes a fast local push
+and relies on required pull-request CI for the complete gate.
+
+### Follow-up local push-hook measurement (2026-10-04)
+
+Measured direct hook invocations on the same Ryzen 7 1700, 16-thread,
+16 GB Windows 11 machine with Node 24.12.0:
+
+| Hook                                     | Warm samples           | Median |
+| ---------------------------------------- | ---------------------- | ------ |
+| Informational pre-push after this change | 83.1ms, 79.7ms, 78.4ms | 79.7ms |
+
+The earlier 182-second pre-push result above came from a separate benchmark
+session, so it is historical context rather than a controlled before/after
+comparison. GitHub Actions has not yet run this follow-up's remote gate.
 
 ### Validation
 
 - Unit tests for the staged-file planner.
 - `npm run build`, full `npm run test:unit`, and `npm run test:unit -- --coverage`.
 - Manual hook scenarios: a prose-only commit, a source-file commit, a
-  whole-suite-trigger commit, a push, `SKIP_GIT_HOOKS=1`, and `npm install`
-  reinstalling the hooks path.
+  whole-suite-trigger commit, a fast local push, `SKIP_GIT_HOOKS=1`, and
+  `npm install` reinstalling the hooks path. Confirm GitHub Actions runs the
+  full build and coverage suite on a pull request.
 
 ### Deliverable
 

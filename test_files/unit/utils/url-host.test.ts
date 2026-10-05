@@ -43,9 +43,9 @@ describe("hostMatches", () => {
   });
 
   it("rejects a domain that appears only in the query or fragment", () => {
-    expect(hostMatches("https://other.test/?u=example.com", "example.com")).toBe(
-      false,
-    );
+    expect(
+      hostMatches("https://other.test/?u=example.com", "example.com"),
+    ).toBe(false);
     expect(hostMatches("https://other.test/#example.com", "example.com")).toBe(
       false,
     );
@@ -84,8 +84,8 @@ describe("hostMatches", () => {
 
   it("ignores the port", () => {
     expect(hostMatches("https://example.com:8443/a", "example.com")).toBe(true);
-    expect(hostMatches("https://other.test:8443/example.com", "example.com")).toBe(
-      false,
-    );
+    expect(
+      hostMatches("https://other.test:8443/example.com", "example.com"),
+    ).toBe(false);
   });
 });

@@ -191,7 +191,9 @@ function renderDashboard(setup: DashboardSetup = {}): RenderResult {
     saveSettings: vi.fn(async () => {}),
     openTagsSettings: vi.fn(async () => {}),
   };
-  const leaf = { app: new App() } as unknown as import("obsidian").WorkspaceLeaf;
+  const leaf = {
+    app: new App(),
+  } as unknown as import("obsidian").WorkspaceLeaf;
   const view = new RssDashboardView(leaf, plugin as never);
   const internals = view as unknown as {
     currentFolder: string | null;
@@ -211,9 +213,8 @@ function renderDashboard(setup: DashboardSetup = {}): RenderResult {
     orderedGuids,
     totalArticles: articleListArgs[10] as number,
     statusText:
-      view.containerEl.querySelector(
-        ".rss-dashboard-viewing-filter-stats-text",
-      )?.textContent ?? null,
+      view.containerEl.querySelector(".rss-dashboard-viewing-filter-stats-text")
+        ?.textContent ?? null,
     emptyState: emptyStateContext,
   };
 }

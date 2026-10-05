@@ -20,7 +20,12 @@ describe("favicon-utils (failure cache infrastructure)", () => {
 
   it("createSafeIconImage inserts an img with the given src", () => {
     const container = createDiv();
-    createSafeIconImage(container, "https://example.com/icon.png", "alt text", () => {});
+    createSafeIconImage(
+      container,
+      "https://example.com/icon.png",
+      "alt text",
+      () => {},
+    );
     const img = container.querySelector("img") as HTMLImageElement;
     expect(img).toBeTruthy();
     expect(img.getAttribute("src")).toBe("https://example.com/icon.png");
@@ -38,7 +43,12 @@ describe("favicon-utils (failure cache infrastructure)", () => {
 
   it("createSafeIconImage onerror sets src to TRANSPARENT_PIXEL", () => {
     const container = createDiv();
-    createSafeIconImage(container, "https://broken.example/icon.png", "", () => {});
+    createSafeIconImage(
+      container,
+      "https://broken.example/icon.png",
+      "",
+      () => {},
+    );
     const img = container.querySelector("img") as HTMLImageElement;
     img.onerror!(new Event("error"));
     expect(img.getAttribute("src")).toBe(TRANSPARENT_PIXEL);
@@ -46,7 +56,12 @@ describe("favicon-utils (failure cache infrastructure)", () => {
 
   it("createSafeIconImage onerror nulls the handler after firing", () => {
     const container = createDiv();
-    createSafeIconImage(container, "https://broken.example/icon.png", "", () => {});
+    createSafeIconImage(
+      container,
+      "https://broken.example/icon.png",
+      "",
+      () => {},
+    );
     const img = container.querySelector("img") as HTMLImageElement;
     img.onerror!(new Event("error"));
     expect(img.onerror).toBeNull();
@@ -56,7 +71,12 @@ describe("favicon-utils (failure cache infrastructure)", () => {
     const container = createDiv();
     const onError = (): void => {};
     const onErrorFallback = vi.fn(onError);
-    createSafeIconImage(container, "https://broken.example/icon.png", "", onErrorFallback);
+    createSafeIconImage(
+      container,
+      "https://broken.example/icon.png",
+      "",
+      onErrorFallback,
+    );
     const img = container.querySelector("img") as HTMLImageElement;
     img.onerror!(new Event("error"));
     expect(onErrorFallback).toHaveBeenCalledOnce();
@@ -105,21 +125,21 @@ describe("favicon-utils.getFaviconUrl", () => {
 
 describe("favicon-utils — Mastodon domain extraction", () => {
   it("extracts mastodon.social from a Mastodon profile-style RSS URL", () => {
-    expect(
-      extractDomain("https://mastodon.social/@username.rss"),
-    ).toBe("mastodon.social");
+    expect(extractDomain("https://mastodon.social/@username.rss")).toBe(
+      "mastodon.social",
+    );
   });
 
   it("extracts the instance domain from a /users/ Mastodon RSS URL", () => {
-    expect(
-      extractDomain("https://hachyderm.io/users/alice.rss"),
-    ).toBe("hachyderm.io");
+    expect(extractDomain("https://hachyderm.io/users/alice.rss")).toBe(
+      "hachyderm.io",
+    );
   });
 
   it("extracts the base domain from a short Mastodon instance RSS URL", () => {
-    expect(
-      extractDomain("https://fosstodon.org/@bob.rss"),
-    ).toBe("fosstodon.org");
+    expect(extractDomain("https://fosstodon.org/@bob.rss")).toBe(
+      "fosstodon.org",
+    );
   });
 
   it("returns empty string when the input is not a parseable URL", () => {

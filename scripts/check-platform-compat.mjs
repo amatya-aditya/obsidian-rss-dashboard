@@ -32,7 +32,9 @@ function getProductionFiles() {
   const mainPath = join(ROOT_DIR, "main.ts");
   const srcDir = join(ROOT_DIR, "src");
   const files = [mainPath, ...listTypeScriptFiles(srcDir)];
-  return files.map((filePath) => relative(ROOT_DIR, filePath).replace(/\\/g, "/"));
+  return files.map((filePath) =>
+    relative(ROOT_DIR, filePath).replace(/\\/g, "/"),
+  );
 }
 
 function isAllowlisted(filePath) {
@@ -62,14 +64,16 @@ function parseRulesFromLine(line) {
   if (/\bglobalThis\b/.test(line) && !line.trim().startsWith("//")) {
     findings.push({
       rule: "globalThis",
-      message: "Avoid globalThis; use window or activeWindow for popout window compatibility.",
+      message:
+        "Avoid globalThis; use window or activeWindow for popout window compatibility.",
     });
   }
 
   if (/\bdocument\./.test(line) && !line.includes("activeDocument")) {
     findings.push({
       rule: "document",
-      message: "Use activeDocument instead of document for popout window compatibility.",
+      message:
+        "Use activeDocument instead of document for popout window compatibility.",
     });
   }
 

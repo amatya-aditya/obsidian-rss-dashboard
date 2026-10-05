@@ -62,22 +62,38 @@ describe("Dashboard multi-select: root-displayed feeds", () => {
 
   it("ctrl-click: shows '2 selected feed(s)', not a folder message, for two plain root feeds", async () => {
     settings.feeds = [
-      { url: "https://root1.com", title: "Root1", items: [], folder: "", lastUpdated: 0 } satisfies Feed,
-      { url: "https://root2.com", title: "Root2", items: [], folder: "", lastUpdated: 0 } satisfies Feed,
+      {
+        url: "https://root1.com",
+        title: "Root1",
+        items: [],
+        folder: "",
+        lastUpdated: 0,
+      } satisfies Feed,
+      {
+        url: "https://root2.com",
+        title: "Root2",
+        items: [],
+        folder: "",
+        lastUpdated: 0,
+      } satisfies Feed,
     ];
     settings.folders = [];
 
     const view = new RssDashboardView(leaf, plugin);
     await view.onOpen();
-    const containerEl = (view as unknown as { containerEl: HTMLElement }).containerEl;
+    const containerEl = (view as unknown as { containerEl: HTMLElement })
+      .containerEl;
 
-    const feedEls = settings.feeds.map((f) =>
-      containerEl.querySelector(`[data-feed-url="${f.url}"]`) as HTMLElement,
+    const feedEls = settings.feeds.map(
+      (f) =>
+        containerEl.querySelector(`[data-feed-url="${f.url}"]`) as HTMLElement,
     );
     feedEls.forEach((el) => expect(el).toBeTruthy());
 
     for (const el of feedEls) {
-      el.dispatchEvent(new MouseEvent("click", { bubbles: true, ctrlKey: true }));
+      el.dispatchEvent(
+        new MouseEvent("click", { bubbles: true, ctrlKey: true }),
+      );
     }
     expect(view.selectedFeeds.length).toBe(2);
     expect(view.selectedFolders.length).toBe(0);
@@ -89,23 +105,39 @@ describe("Dashboard multi-select: root-displayed feeds", () => {
     // displays them under the root section because their folder isn't a real
     // path anymore (see the `!allFolderPaths.has(feed.folder)` root-feeds filter).
     settings.feeds = [
-      { url: "https://orphan1.com", title: "Orphan1", items: [], folder: "DeletedFolder", lastUpdated: 0 } satisfies Feed,
-      { url: "https://orphan2.com", title: "Orphan2", items: [], folder: "DeletedFolder", lastUpdated: 0 } satisfies Feed,
+      {
+        url: "https://orphan1.com",
+        title: "Orphan1",
+        items: [],
+        folder: "DeletedFolder",
+        lastUpdated: 0,
+      } satisfies Feed,
+      {
+        url: "https://orphan2.com",
+        title: "Orphan2",
+        items: [],
+        folder: "DeletedFolder",
+        lastUpdated: 0,
+      } satisfies Feed,
     ];
     settings.folders = [];
 
     const view = new RssDashboardView(leaf, plugin);
     await view.onOpen();
-    const containerEl = (view as unknown as { containerEl: HTMLElement }).containerEl;
+    const containerEl = (view as unknown as { containerEl: HTMLElement })
+      .containerEl;
 
-    const feedEls = settings.feeds.map((f) =>
-      containerEl.querySelector(`[data-feed-url="${f.url}"]`) as HTMLElement,
+    const feedEls = settings.feeds.map(
+      (f) =>
+        containerEl.querySelector(`[data-feed-url="${f.url}"]`) as HTMLElement,
     );
     feedEls.forEach((el) => expect(el).toBeTruthy());
 
     // Click the first feed normally to set the range anchor, then shift-click the second.
     feedEls[0].dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    feedEls[1].dispatchEvent(new MouseEvent("click", { bubbles: true, shiftKey: true }));
+    feedEls[1].dispatchEvent(
+      new MouseEvent("click", { bubbles: true, shiftKey: true }),
+    );
 
     // The user selected two feeds, not a folder — the resulting selection
     // state (and the resulting confirm message) must reflect that.

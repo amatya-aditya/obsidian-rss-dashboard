@@ -123,13 +123,15 @@ Use a staged validation ladder:
 3. Run the full `npm run test:unit` suite for high-risk or broad changes,
    including storage migrations, synchronization, shared state or types,
    parser infrastructure, lifecycle orchestration, or multiple subsystems.
-4. Run `npm run build` once before handoff as the complete compliance, full
-   lint, type-check, and production-bundle gate.
+4. Rely on GitHub Actions to run `npm run build` and the full unit suite for
+   the pull request. Run `npm run build` locally when CI is unavailable or to
+   diagnose a CI failure; do not repeat the complete gate in the pre-push
+   hook.
 5. Run `git status --short` and confirm no unexpected generated files appear.
 
-The git hooks mirror this ladder: pre-commit lints the staged files and runs
-their related tests, and pre-push runs `npm run build` plus the full unit
-suite. A commit passing its hook does not replace steps 3 and 4.
+The git hooks keep local feedback targeted: pre-commit lints staged files and
+runs their related tests, while pre-push skips full checks. GitHub Actions
+runs the complete build and unit suite on the pull request.
 
 If a check cannot run or fails, report the exact command and reason. Where
 possible, distinguish a reproducible pre-existing failure from a regression.

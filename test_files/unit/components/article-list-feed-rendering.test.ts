@@ -56,9 +56,7 @@ describe("Feed View Rendering", () => {
 
     articleList.render();
 
-    const feedArticles = container.querySelectorAll(
-      ".rss-dashboard-feed-item",
-    );
+    const feedArticles = container.querySelectorAll(".rss-dashboard-feed-item");
     expect(feedArticles.length).toBe(articles.length);
   });
 
@@ -114,9 +112,7 @@ describe("Feed View Rendering", () => {
     ) as HTMLElement;
     const tagsRegion = item.querySelector(".rss-dashboard-feed-tags-region");
     const toolbar = item.querySelector(".rss-dashboard-feed-toolbar");
-    const toolbarTags = toolbar?.querySelector(
-      ".rss-dashboard-tag-container",
-    );
+    const toolbarTags = toolbar?.querySelector(".rss-dashboard-tag-container");
 
     expect(tagsRegion).not.toBeNull();
     expect(toolbarTags).toBeNull();
@@ -163,9 +159,7 @@ describe("Feed View Rendering", () => {
 
     articleList.render();
 
-    let tagsRegion = container.querySelector(
-      ".rss-dashboard-feed-tags-region",
-    );
+    let tagsRegion = container.querySelector(".rss-dashboard-feed-tags-region");
     expect(tagsRegion).toBeNull();
 
     articles[0].tags = [{ name: "NewTag", color: "#8b5cf6" }];

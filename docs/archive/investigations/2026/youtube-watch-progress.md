@@ -37,18 +37,19 @@ The postMessage communication layer is fundamentally blocked in Obsidian's Elect
 
 The YouTube iframe API uses two distinct top-level event formats:
 
-| Message Type | Correct Format |
-|---|---|
-| Handshake (register listener) | `{ "event": "listening", "id": <playerId> }` |
+| Message Type                         | Correct Format                                                              |
+| ------------------------------------ | --------------------------------------------------------------------------- |
+| Handshake (register listener)        | `{ "event": "listening", "id": <playerId> }`                                |
 | Player command (play, pause, seekTo) | `{ "event": "command", "func": "seekTo", "args": [...], "id": <playerId> }` |
 
 Our `sendCommand()` helper wraps **all** messages — including the handshake — as `event: "command"` with `func: "listening"`. This is **wrong**. `listening` is not a command function; it is its own top-level event type. YouTube silently ignores the malformed handshake, never registers our window as a listener, and therefore never emits `infoDelivery` events back to us.
 
 **Current broken code:**
+
 ```typescript
 // sendCommand wraps everything as event: "command"
 const message = JSON.stringify({
-  event: "command",  // ← WRONG for listening handshake
+  event: "command", // ← WRONG for listening handshake
   func: "listening", // ← this is not how YouTube expects it
   args: [],
   id: this.playerId,
@@ -56,10 +57,11 @@ const message = JSON.stringify({
 ```
 
 **Correct format per YouTube postMessage protocol:**
+
 ```typescript
 // Handshake must be sent as its own event type
 const handshake = JSON.stringify({
-  event: "listening",  // ← top-level event, not wrapped in "command"
+  event: "listening", // ← top-level event, not wrapped in "command"
   id: this.playerId,
 });
 ```
@@ -69,12 +71,14 @@ const handshake = JSON.stringify({
 `sendCommand` currently targets the iframe's origin (`url.origin`) as the second argument to `postMessage`. In Obsidian's Electron renderer, the YouTube iframe runs as an Out-of-Process IFrame (OOPIF). Due to Chromium's process isolation security model, messages targeted at a specific cross-origin may be silently blocked. Using `"*"` as the target origin is the accepted workaround for Electron-hosted cross-origin iframes.
 
 **Current code:**
+
 ```typescript
 const url = new URL(this.iframeEl.src);
 this.iframeEl.contentWindow.postMessage(message, url.origin); // ← may be blocked in OOPIF
 ```
 
 **Fix:**
+
 ```typescript
 this.iframeEl.contentWindow.postMessage(message, "*"); // ← wildcard bypasses OOPIF restriction
 ```
@@ -101,6 +105,7 @@ if (
 #### P4 — `onload` Dead-lock (❌ SECONDARY SUSPECT)
 
 Sending `listening` inside `handlePlayerReady()` creates a chicken-and-egg problem:
+
 - We wait for `onReady` before sending `listening`
 - YouTube only sends `onReady` **after** receiving `listening`
 
@@ -114,17 +119,17 @@ We tried replacing the string HTML `id` with a sequential integer `playerId` (to
 
 ## Attempted Fixes Timeline
 
-| Attempt | Change | Result |
-|---------|--------|--------|
-| 1 | Verify storage layer keys and validate durations | ❌ Bug persisted — postMessage communication still broken |
-| 2 | Replace `payload.id` string check with `event.source === iframe.contentWindow` | ❌ Electron OOPIFs null out `event.source` for cross-origin iframes |
-| 3 | Add `app:` origin to MediaService | ❌ `origin=app://obsidian.md` is rejected by YouTube servers, suppresses all outbound postMessage |
-| 4 | Move `listening` to `handlePlayerReady()` | ❌ Deadlock — YouTube only sends `onReady` after receiving `listening` |
-| 5 | Fix `listening` event format (`event:"listening"` not `event:"command"`) + wildcard `postMessage` target | ❌ Still no events received — app:// origin rejection blocks everything |
-| 6 | Revert `app:` origin, add `onload`-based `listening` handshake | ❌ YouTube still blocked; `onload` fires but postMessage is still rejected |
-| 7 | **Phase 5: Start wall-clock tracking on `onload`** | ❌ Failed — `onload` unreliable and saving state triggered infinite vault watcher re-render loop |
-| 8 | **Phase 6: Watcher Suppression + `setTimeout` Fallback** | ❌ Failed — Workaround unreliable; DOM refresh loop persists due to underlying Electron and vault sync timing |
-| 9 | **Phase 7: Mark as Known Issue** | 🛑 Concluded — Progress saving impossible without dynamic `<script>` injection, which is prohibited by plugin security audits |
+| Attempt | Change                                                                                                   | Result                                                                                                                        |
+| ------- | -------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| 1       | Verify storage layer keys and validate durations                                                         | ❌ Bug persisted — postMessage communication still broken                                                                     |
+| 2       | Replace `payload.id` string check with `event.source === iframe.contentWindow`                           | ❌ Electron OOPIFs null out `event.source` for cross-origin iframes                                                           |
+| 3       | Add `app:` origin to MediaService                                                                        | ❌ `origin=app://obsidian.md` is rejected by YouTube servers, suppresses all outbound postMessage                             |
+| 4       | Move `listening` to `handlePlayerReady()`                                                                | ❌ Deadlock — YouTube only sends `onReady` after receiving `listening`                                                        |
+| 5       | Fix `listening` event format (`event:"listening"` not `event:"command"`) + wildcard `postMessage` target | ❌ Still no events received — app:// origin rejection blocks everything                                                       |
+| 6       | Revert `app:` origin, add `onload`-based `listening` handshake                                           | ❌ YouTube still blocked; `onload` fires but postMessage is still rejected                                                    |
+| 7       | **Phase 5: Start wall-clock tracking on `onload`**                                                       | ❌ Failed — `onload` unreliable and saving state triggered infinite vault watcher re-render loop                              |
+| 8       | **Phase 6: Watcher Suppression + `setTimeout` Fallback**                                                 | ❌ Failed — Workaround unreliable; DOM refresh loop persists due to underlying Electron and vault sync timing                 |
+| 9       | **Phase 7: Mark as Known Issue**                                                                         | 🛑 Concluded — Progress saving impossible without dynamic `<script>` injection, which is prohibited by plugin security audits |
 
 ---
 
@@ -137,12 +142,13 @@ Online research confirms: **YouTube's iframe API refuses to send `postMessage` e
 ### Strategy: `onload` as Playback Proxy
 
 Since we cannot receive playback state via postMessage, we treat the **iframe's native DOM `onload` event** as a proxy for "the user started watching". When the iframe loads:
+
 1. We send `listening` (still attempts postMessage — works in browser dev tools and may work in future Obsidian versions)
 2. We immediately set `playStartTime = Date.now()` and call `startTracking()`
 3. The 5-second interval fires `saveProgress()` using wall-clock elapsed time
 4. On `destroy()`, `flushProgress()` saves the final position
 
-If postMessage *does* work (future Electron versions, or browser dev tools), `onStateChange` events will correctly pause/resume the timer with `handleStateChange()`.
+If postMessage _does_ work (future Electron versions, or browser dev tools), `onStateChange` events will correctly pause/resume the timer with `handleStateChange()`.
 
 ### Limitations
 
@@ -172,6 +178,7 @@ private sendListeningHandshake(): void {
 ```
 
 Update `handlePlayerReady()`:
+
 ```typescript
 private handlePlayerReady(): void {
   this.sendListeningHandshake(); // ← replaces this.sendCommand("listening")
@@ -184,6 +191,7 @@ private handlePlayerReady(): void {
 ### P2 Fix — Use `"*"` as postMessage Target Origin
 
 Update `sendCommand()` to use `"*"` instead of `url.origin`:
+
 ```typescript
 private sendCommand(func: string, args: unknown[] = []): void {
   if (!this.iframeEl || !this.iframeEl.contentWindow) return;
@@ -203,10 +211,10 @@ private sendCommand(func: string, args: unknown[] = []): void {
 
 ### Files to Change
 
-| File | Change |
-|------|--------|
-| `src/views/video-player.ts` | Add `sendListeningHandshake()`, update `handlePlayerReady()`, change `postMessage` target to `"*"` |
-| `test_files/unit/views/video-player.test.ts` | Update test to simulate `onReady` → verify `listening` event is sent with correct format |
+| File                                         | Change                                                                                             |
+| -------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `src/views/video-player.ts`                  | Add `sendListeningHandshake()`, update `handlePlayerReady()`, change `postMessage` target to `"*"` |
+| `test_files/unit/views/video-player.test.ts` | Update test to simulate `onReady` → verify `listening` event is sent with correct format           |
 
 ---
 
@@ -233,6 +241,7 @@ Key sections as of Phase 2 implementation:
 ## Phase 6: Watcher Suppression + `setTimeout` Fallback (Final Fix)
 
 ### Root Cause 2: The Infinite Refresh Loop
+
 During Phase 5, we discovered that while we could approximate progress with wall-clock time, saving that progress caused the entire dashboard to reload.
 When `saveProgress()` writes to `user-state.json`, Obsidian's vault file watcher detects the modification and triggers a workspace update. This forced the RSS dashboard to re-render, which re-initialized the `VideoPlayer`, resetting the video to the beginning every 5 seconds.
 
@@ -251,15 +260,17 @@ When `saveProgress()` writes to `user-state.json`, Obsidian's vault file watcher
    To adhere to plugin linting standards, all `console.log` statements used during debugging were replaced with `console.debug`.
 
 ### Resolution (Phase 6 Failed)
+
 The Phase 6 workaround was found to be unreliable. The DOM refresh loop persisted due to complex race conditions between `setTimeout` saves and Obsidian's vault-wide metadata reload events (even with watcher suppression active).
 
 ---
 
 ## Phase 7: Marked as Known Bug / WONTFIX
 
-Following the failure of Phase 6 and continued console errors reporting `Failed to execute 'postMessage' on 'DOMWindow'`, we have marked this as a **Known Bug / WONTFIX**. 
+Following the failure of Phase 6 and continued console errors reporting `Failed to execute 'postMessage' on 'DOMWindow'`, we have marked this as a **Known Bug / WONTFIX**.
 
 ### Rationale:
+
 1. **Electron / Chrome Security Model:** The `app://obsidian.md` custom protocol origin fundamentally cannot receive or send valid `postMessage` cross-origin payloads with `https://www.youtube-nocookie.com` in current Chromium security models.
 2. **Security Audit Limitations:** Previously, this was handled by dynamically injecting the official YouTube IFrame API `<script>`. However, as documented in `docs/archive/investigations/2026/2.3.0-audit/remove-dynamic-youTube-script-injection.md`, Obsidian's official plugin audit strictly forbids arbitrary remote `<script>` injection due to security concerns.
 3. **No Viable Workarounds:** Without the script injection, the raw `postMessage` fallback was our last option. Since this fails due to origin mismatches in the Electron wrapper, there is no viable method for retrieving playback state.

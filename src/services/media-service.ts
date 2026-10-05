@@ -10,7 +10,10 @@ import { isKnownVideoUrl } from "../utils/video-detection";
 import { MastodonService } from "./mastodon-service";
 import { resolveArticleTags } from "../utils/tag-utils";
 import { resolveTagObjects } from "../utils/tag-resolver";
-import { findPodcastAudioUrl, findPodcastDuration } from "../utils/podcast-text-scan";
+import {
+  findPodcastAudioUrl,
+  findPodcastDuration,
+} from "../utils/podcast-text-scan";
 
 export interface YouTubeEmbedConfig {
   videoId: string;
@@ -122,7 +125,10 @@ export class MediaService {
     return MastodonService.isMastodonProfileUrl(url);
   }
 
-  static shouldShowFeedIcon(feed: Feed, displaySettings: DisplaySettings): boolean {
+  static shouldShowFeedIcon(
+    feed: Feed,
+    displaySettings: DisplaySettings,
+  ): boolean {
     if (!feed || !feed.iconUrl) return false;
 
     if (feed.mediaType === "video" || this.isYouTubeFeed(feed.url)) {
@@ -424,7 +430,9 @@ export class MediaService {
 
     const updatedItems = feed.items.map((item) => {
       const audioUrl =
-        item.enclosure?.url || this.extractPodcastAudio(item.description);
+        item.audioUrl ||
+        item.enclosure?.url ||
+        this.extractPodcastAudio(item.description);
       const duration =
         item.duration ||
         item.itunes?.duration ||
@@ -619,12 +627,7 @@ export class MediaService {
     >,
   ): {
     tags: Tag[];
-    category?:
-      | "video"
-      | "podcast"
-      | "mastodon"
-      | "smallweb"
-      | "rss";
+    category?: "video" | "podcast" | "mastodon" | "smallweb" | "rss";
   } {
     const isMastodon = MastodonService.isResolvedFeedUrl(feed.url);
     const smallwebFolder = mediaSettings?.defaultSmallwebFolder?.trim() || "";
@@ -635,12 +638,7 @@ export class MediaService {
     }
 
     let tagCategory:
-      | "video"
-      | "podcast"
-      | "mastodon"
-      | "smallweb"
-      | "rss"
-      | undefined;
+      "video" | "podcast" | "mastodon" | "smallweb" | "rss" | undefined;
     let mediaTags: Tag[] = [];
 
     if (feed.mediaType === "video") {
@@ -726,11 +724,7 @@ export class MediaService {
       safeAvailableTags,
     );
 
-    if (
-      mediaTags.length === 0 &&
-      perFeedTags.length === 0 &&
-      !feed.folder
-    ) {
+    if (mediaTags.length === 0 && perFeedTags.length === 0 && !feed.folder) {
       return feed;
     }
 
@@ -741,11 +735,11 @@ export class MediaService {
           : tagCategory === "podcast"
             ? item.mediaType === "podcast"
             : tagCategory === "mastodon"
+              ? true
+              : tagCategory === "smallweb"
                 ? true
-                : tagCategory === "smallweb"
+                : tagCategory === "rss"
                   ? true
-                  : tagCategory === "rss"
-                    ? true
                   : false;
 
       return {

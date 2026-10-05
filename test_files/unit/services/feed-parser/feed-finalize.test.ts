@@ -61,7 +61,10 @@ describe("feed-finalize", () => {
         retentionRemovedCount: 2,
         autoDeleteDurationDays: 30,
       });
-      expect(buildRefreshDiagnostics({ ...base, autoDeleteDays: 0 }).autoDeleteDurationDays).toBeUndefined();
+      expect(
+        buildRefreshDiagnostics({ ...base, autoDeleteDays: 0 })
+          .autoDeleteDurationDays,
+      ).toBeUndefined();
     });
 
     it("never reports a negative removed count", () => {
@@ -87,11 +90,17 @@ describe("feed-finalize", () => {
             image: { url: "https://a.test/3.png" },
           }),
         ),
-      ).toEqual(["https://a.test/1.png", "https://a.test/2.png", "https://a.test/3.png"]);
+      ).toEqual([
+        "https://a.test/1.png",
+        "https://a.test/2.png",
+        "https://a.test/3.png",
+      ]);
 
       expect(
         collectFeedLogoCandidates(
-          parsedFeed({ image: "https://a.test/4.png" as unknown as { url: string } }),
+          parsedFeed({
+            image: "https://a.test/4.png" as unknown as { url: string },
+          }),
         ),
       ).toEqual(["https://a.test/4.png"]);
 
@@ -130,9 +139,16 @@ describe("feed-finalize", () => {
     });
 
     it("keeps a logo cover below the threshold, one item's, a non-logo, and a podcast's", () => {
-      const below = [item({ coverImage: LOGO }), item({ coverImage: LOGO }), item({ coverImage: "x" }), item({ coverImage: "y" })];
+      const below = [
+        item({ coverImage: LOGO }),
+        item({ coverImage: LOGO }),
+        item({ coverImage: "x" }),
+        item({ coverImage: "y" }),
+      ];
       clearSharedLogoCoverImages(below, [LOGO]);
-      expect(below.filter((entry) => entry.coverImage === LOGO)).toHaveLength(2);
+      expect(below.filter((entry) => entry.coverImage === LOGO)).toHaveLength(
+        2,
+      );
 
       const single = [item({ coverImage: LOGO })];
       clearSharedLogoCoverImages(single, [LOGO]);
@@ -153,14 +169,20 @@ describe("feed-finalize", () => {
     it("matches any candidate, not only the first", () => {
       const items = [item({ coverImage: LOGO }), item({ coverImage: LOGO })];
 
-      clearSharedLogoCoverImages(items, ["https://img.example.com/first.png", LOGO]);
+      clearSharedLogoCoverImages(items, [
+        "https://img.example.com/first.png",
+        LOGO,
+      ]);
 
       expect(items.map((entry) => entry.coverImage)).toEqual(["", ""]);
     });
   });
 
   describe("applyMediaDefaultFolder", () => {
-    const media = { defaultYouTubeFolder: "Videos", defaultPodcastFolder: "Podcasts" };
+    const media = {
+      defaultYouTubeFolder: "Videos",
+      defaultPodcastFolder: "Podcasts",
+    };
 
     it("files a video or podcast feed of an unchosen folder under its default", () => {
       for (const existing of [null, feed({ folder: "Uncategorized" })]) {
@@ -204,7 +226,12 @@ describe("feed-finalize", () => {
     it("gives every item the absolute logo with a trailing slash after the extension removed", () => {
       const target = feed({ items: [item(), item()] });
 
-      applyFallbackIcons(target, "/img/logo.png/", "https://example.com/feed.xml", toAbsolute);
+      applyFallbackIcons(
+        target,
+        "/img/logo.png/",
+        "https://example.com/feed.xml",
+        toAbsolute,
+      );
 
       expect(target.items.map((entry) => entry.fallbackIconUrl)).toEqual([
         "https://example.com/img/logo.png",
@@ -213,11 +240,20 @@ describe("feed-finalize", () => {
     });
 
     it("leaves items untouched when there is no logo", () => {
-      const target = feed({ items: [item({ fallbackIconUrl: "https://example.com/old.png" })] });
+      const target = feed({
+        items: [item({ fallbackIconUrl: "https://example.com/old.png" })],
+      });
 
-      applyFallbackIcons(target, "", "https://example.com/feed.xml", toAbsolute);
+      applyFallbackIcons(
+        target,
+        "",
+        "https://example.com/feed.xml",
+        toAbsolute,
+      );
 
-      expect(target.items[0]?.fallbackIconUrl).toBe("https://example.com/old.png");
+      expect(target.items[0]?.fallbackIconUrl).toBe(
+        "https://example.com/old.png",
+      );
     });
   });
 });

@@ -72,7 +72,9 @@ describe("Obsidian DOM polyfills", () => {
     } as unknown as HTMLElement;
 
     globalScope.activeDocument = activeDocument;
-    delete (HTMLElement.prototype as unknown as Record<string, unknown>)["createDiv"];
+    delete (HTMLElement.prototype as unknown as Record<string, unknown>)[
+      "createDiv"
+    ];
     installObsidianDomPolyfills();
 
     try {

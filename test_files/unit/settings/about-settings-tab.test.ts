@@ -20,7 +20,10 @@ describe("renderAboutTab()", () => {
       },
     };
 
-    renderAboutTab(containerEl, plugin as unknown as import("../../../main").default);
+    renderAboutTab(
+      containerEl,
+      plugin as unknown as import("../../../main").default,
+    );
 
     expect(
       containerEl.querySelector(".rss-dashboard-about-title")?.textContent,
@@ -57,7 +60,8 @@ describe("renderAboutTab() build details", () => {
     const containerEl = renderWithVersion("9.9.9");
 
     expect(
-      containerEl.querySelector(".rss-dashboard-about-build-label")?.textContent,
+      containerEl.querySelector(".rss-dashboard-about-build-label")
+        ?.textContent,
     ).toBe("Version 9.9.9 · build unknown");
   });
 

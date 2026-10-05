@@ -475,8 +475,8 @@ function printArchitectureDiff(reference) {
   console.log("Architecture diff against " + reference);
   for (const ratchetPath of Object.keys(baseline.ratchets.fileMaxLines ?? {})) {
     const ratchetDelta =
-      (currentSnapshot.files.find((file) => file.file === ratchetPath)
-        ?.lines ?? 0) - (baseFiles.get(ratchetPath)?.lines ?? 0);
+      (currentSnapshot.files.find((file) => file.file === ratchetPath)?.lines ??
+        0) - (baseFiles.get(ratchetPath)?.lines ?? 0);
     console.log(
       "  " +
         ratchetPath +

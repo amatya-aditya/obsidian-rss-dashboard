@@ -30,10 +30,10 @@ describe("Math Rendering Utilities", () => {
       async (_app, markdown, container) => {
         const display = markdown.startsWith("$$");
         const delimiterLength = display ? 2 : 1;
-        const source = markdown
-          .slice(delimiterLength, -delimiterLength)
-          .trim();
-        const el = container.ownerDocument.win.createEl(display ? "div" : "span");
+        const source = markdown.slice(delimiterLength, -delimiterLength).trim();
+        const el = container.ownerDocument.win.createEl(
+          display ? "div" : "span",
+        );
         el.className = `math ${display ? "math-block" : "math-inline"}`;
         const mathJax = container.ownerDocument.win.createEl("mjx-container");
         mathJax.textContent = `[RENDERED: ${source}]`;
@@ -168,7 +168,11 @@ describe("Math Rendering Utilities", () => {
       expect(rendered?.getAttribute("data-math")).toBe(
         String.raw`\[\displaystyle x^2\]`,
       );
-      expectRenderedMath(rendered as HTMLElement, String.raw`\displaystyle x^2`, true);
+      expectRenderedMath(
+        rendered as HTMLElement,
+        String.raw`\displaystyle x^2`,
+        true,
+      );
     });
 
     it("restores the original WordPress formula image when rendering fails", async () => {
@@ -308,11 +312,9 @@ describe("Math Rendering Utilities", () => {
         mathSpan.appendChild(document.createTextNode("$X$"));
         container.appendChild(mathSpan);
 
-        const scheduled = scheduleProcessMathElements(
-          container,
-          getContext(),
-          { maxAttachAttempts: 2 },
-        );
+        const scheduled = scheduleProcessMathElements(container, getContext(), {
+          maxAttachAttempts: 2,
+        });
 
         await vi.advanceTimersToNextTimerAsync();
         expect(obsidian.MarkdownRenderer.render).not.toHaveBeenCalled();
@@ -328,9 +330,9 @@ describe("Math Rendering Utilities", () => {
           "",
           component,
         );
-        expect(container.querySelector("span.math")?.getAttribute("data-math")).toBe(
-          "$X$",
-        );
+        expect(
+          container.querySelector("span.math")?.getAttribute("data-math"),
+        ).toBe("$X$");
       } finally {
         window.requestAnimationFrame = requestAnimationFrame;
         vi.useRealTimers();
@@ -441,9 +443,9 @@ describe("Math Rendering Utilities", () => {
         "",
         component,
       );
-      expect(container.querySelector("span.math")?.getAttribute("data-math")).toBe(
-        String.raw`$1<p<\infty$`,
-      );
+      expect(
+        container.querySelector("span.math")?.getAttribute("data-math"),
+      ).toBe(String.raw`$1<p<\infty$`);
     });
 
     it("restores the original feed span when fragment rendering fails", async () => {

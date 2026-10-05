@@ -62,9 +62,15 @@ export class StarredImportPreviewModel {
         this.guidsByFeedUrl.set(candidate.feedUrl, []);
         this.groupOrder.push(candidate.feedUrl);
         this.feedTitleByUrl.set(candidate.feedUrl, candidate.feedTitle);
-        this.isNewFeedByUrl.set(candidate.feedUrl, candidate.isNewFeed === true);
+        this.isNewFeedByUrl.set(
+          candidate.feedUrl,
+          candidate.isNewFeed === true,
+        );
         if (candidate.isNewFeed) {
-          this.newFeedSiteUrlByUrl.set(candidate.feedUrl, candidate.feedSiteUrl);
+          this.newFeedSiteUrlByUrl.set(
+            candidate.feedUrl,
+            candidate.feedSiteUrl,
+          );
         }
       }
       this.guidsByFeedUrl.get(candidate.feedUrl)?.push(guid);

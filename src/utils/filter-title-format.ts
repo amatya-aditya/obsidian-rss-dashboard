@@ -158,7 +158,10 @@ export function formatDashboardMultiFiltersSummaryCompact(options: {
 
   if (hasTagNames) {
     const tagCount = tags.size;
-    parts.push({ label: tagCount === 1 ? "Tags (1)" : `Tags (${tagCount})`, isTags: true });
+    parts.push({
+      label: tagCount === 1 ? "Tags (1)" : `Tags (${tagCount})`,
+      isTags: true,
+    });
   }
 
   if (parts.length === 0) {

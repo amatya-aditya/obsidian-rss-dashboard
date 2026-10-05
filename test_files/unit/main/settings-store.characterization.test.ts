@@ -215,9 +215,7 @@ describe("settings store (issue #563)", () => {
 
       expect(plugin.settings.refreshInterval).toBe(45);
       expect(plugin.settings.metadataStorageMode).toBe("vault-location");
-      expect(plugin.settings.feeds.map((f) => f.title)).toEqual([
-        "from-vault",
-      ]);
+      expect(plugin.settings.feeds.map((f) => f.title)).toEqual(["from-vault"]);
     });
 
     it("treats a missing data.json as a fresh install: no save, storage inside the plugin folder, and the release recorded", async () => {
@@ -249,7 +247,10 @@ describe("settings store (issue #563)", () => {
     it("lets a fresh install save after its null load", async () => {
       createPlugin(null);
       await plugin.loadSettings();
-      const persist = vi.spyOn(seams().feedStorageRepository, "persistSettings");
+      const persist = vi.spyOn(
+        seams().feedStorageRepository,
+        "persistSettings",
+      );
 
       await plugin.saveSettings();
 
@@ -287,7 +288,11 @@ describe("settings store (issue #563)", () => {
       it("skips the startup save even when the pointer's own fields would need one", async () => {
         // Legacy JSON storage has no user-state.json to wait for, so only
         // the unreadable-metadata guard keeps this load from saving.
-        storedData = { ...pointer(), storageMode: "legacy-json", refreshInterval: -5 };
+        storedData = {
+          ...pointer(),
+          storageMode: "legacy-json",
+          refreshInterval: -5,
+        };
 
         await plugin.loadSettings();
 
@@ -356,7 +361,9 @@ describe("settings store (issue #563)", () => {
           createPlugin(savedSettings(overrides));
           await plugin.loadSettings();
           await plugin.saveSettings();
-          return clone(savedPayloads()[saveData.mock.calls.length - 1]) as unknown as RssDashboardSettings;
+          return clone(
+            savedPayloads()[saveData.mock.calls.length - 1],
+          ) as unknown as RssDashboardSettings;
         }
 
         it("doesn't save when loading changed nothing", async () => {
@@ -396,7 +403,11 @@ describe("settings store (issue #563)", () => {
             coverImage: "",
           };
           const dupes = settings.feeds;
-          dupes.push(feed("dupes", "Uncategorized", { items: [item, { ...item, read: true }] }));
+          dupes.push(
+            feed("dupes", "Uncategorized", {
+              items: [item, { ...item, read: true }],
+            }),
+          );
           const withDupes = await normalizedSettings({ feeds: dupes });
           expect(withDupes.feeds[0]?.items).toHaveLength(1);
           const raw = clone(withDupes);
@@ -485,7 +496,12 @@ describe("settings store (issue #563)", () => {
         const parser = plugin.feedParser;
         const saver = plugin.articleSaver;
         plugin.backgroundImportQueue = [
-          { title: "queued", url: "https://example.com/q.xml", folder: "", lastUpdated: 0 },
+          {
+            title: "queued",
+            url: "https://example.com/q.xml",
+            folder: "",
+            lastUpdated: 0,
+          },
         ];
 
         await plugin.loadSettings();
@@ -509,14 +525,16 @@ describe("settings store (issue #563)", () => {
         expect(reschedule).toHaveBeenCalledTimes(1);
       });
 
-      // BUG: pinned, see #452
-      it("repairs a feed's missing folder on a reload but not on the first load", async () => {
+      it("repairs a feed's missing folder on the first load and on reload", async () => {
         plugin.onunload();
         createPlugin(
-          savedSettings({ feeds: [feed("orphan", "Missing folder")], folders: [] }),
+          savedSettings({
+            feeds: [feed("orphan", "Missing folder")],
+            folders: [],
+          }),
         );
         await plugin.onload();
-        expect(plugin.settings.folders.map((f) => f.name)).not.toContain(
+        expect(plugin.settings.folders.map((f) => f.name)).toContain(
           "Missing folder",
         );
 
@@ -728,7 +746,9 @@ describe("settings store (issue #563)", () => {
       Object.assign(plugin.settings, pointer());
       let fileWhenPointerSaved: string | undefined;
       saveData.mockImplementation(async () => {
-        fileWhenPointerSaved = await adapter().read(`${VAULT_FOLDER}/data.json`);
+        fileWhenPointerSaved = await adapter().read(
+          `${VAULT_FOLDER}/data.json`,
+        );
       });
 
       await plugin.saveSettings();
@@ -745,18 +765,15 @@ describe("settings store (issue #563)", () => {
     it.each([
       ["/Synced/RSS/", "Synced/RSS/data.json"],
       ["  ", ".rss-dashboard-data/data.json"],
-    ])(
-      "normalizes the vault folder %j to %s",
-      async (folder, expectedPath) => {
-        createPlugin(savedSettings());
-        await plugin.loadSettings();
-        Object.assign(plugin.settings, pointer(folder));
+    ])("normalizes the vault folder %j to %s", async (folder, expectedPath) => {
+      createPlugin(savedSettings());
+      await plugin.loadSettings();
+      Object.assign(plugin.settings, pointer(folder));
 
-        await plugin.saveSettings();
+      await plugin.saveSettings();
 
-        expect(await adapter().exists(expectedPath)).toBe(true);
-      },
-    );
+      expect(await adapter().exists(expectedPath)).toBe(true);
+    });
 
     it("refuses a vault folder path that is a file, and saves no pointer", async () => {
       createPlugin(savedSettings());
@@ -809,7 +826,10 @@ describe("settings store (issue #563)", () => {
     it("passes its options to the storage repository", async () => {
       createPlugin(savedSettings());
       await plugin.loadSettings();
-      const persist = vi.spyOn(seams().feedStorageRepository, "persistSettings");
+      const persist = vi.spyOn(
+        seams().feedStorageRepository,
+        "persistSettings",
+      );
 
       await plugin.saveSettings({ forceAllShards: true });
 
@@ -871,7 +891,9 @@ describe("settings store (issue #563)", () => {
       it("logs a failed backup and still resolves", async () => {
         const failure = new Error("disk full");
         backups.mockRejectedValueOnce(failure);
-        const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+        const errorSpy = vi
+          .spyOn(console, "error")
+          .mockImplementation(() => {});
 
         await expect(plugin.saveSettings()).resolves.toBeUndefined();
 
@@ -947,7 +969,10 @@ describe("settings store (issue #563)", () => {
       it("reloads on a rename to or from a watched path", async () => {
         handlers.rename?.({ path: ".rss-dashboard-data/data.json" }, "a.json");
         await vi.advanceTimersByTimeAsync(1_500);
-        handlers.rename?.({ path: "b.json" }, ".rss-dashboard-data/user-state.json");
+        handlers.rename?.(
+          { path: "b.json" },
+          ".rss-dashboard-data/user-state.json",
+        );
         await vi.advanceTimersByTimeAsync(1_500);
         handlers.rename?.({ path: "c.json" }, "d.json");
         await vi.advanceTimersByTimeAsync(1_500);
@@ -999,7 +1024,10 @@ describe("settings store (issue #563)", () => {
 
       it("returns the write's result and honors a custom window", async () => {
         await expect(
-          plugin.writeWithWatcherSuppressed(() => Promise.resolve("ok"), 10_000),
+          plugin.writeWithWatcherSuppressed(
+            () => Promise.resolve("ok"),
+            10_000,
+          ),
         ).resolves.toBe("ok");
 
         await vi.advanceTimersByTimeAsync(9_000);
@@ -1117,7 +1145,8 @@ describe("settings store (issue #563)", () => {
       vi.spyOn(adapter(), "write").mockImplementation(async (path, data) => {
         writes.push({
           path,
-          mode: (JSON.parse(data) as Record<string, unknown>).metadataStorageMode,
+          mode: (JSON.parse(data) as Record<string, unknown>)
+            .metadataStorageMode,
         });
         await write(path, data);
       });
@@ -1152,7 +1181,9 @@ describe("settings store (issue #563)", () => {
 
       await plugin.migrateMetadataToVaultLocation();
 
-      expect(await adapter().exists(".rss-dashboard-data/data.json")).toBe(true);
+      expect(await adapter().exists(".rss-dashboard-data/data.json")).toBe(
+        true,
+      );
       expect(notices()).toEqual([
         "Metadata migrated to vault location: .rss-dashboard-data",
       ]);
@@ -1247,20 +1278,28 @@ describe("settings store (issue #563)", () => {
         }),
       );
       expect(await adapter().exists(`${VAULT_FOLDER}/data.json`)).toBe(false);
-      expect(notices()).toEqual(["Metadata reverted to plugin default location"]);
+      expect(notices()).toEqual([
+        "Metadata reverted to plugin default location",
+      ]);
     });
 
     it("leaves a data.json in a dot folder behind, since Obsidian doesn't index it", async () => {
       await writeVaultSettings(
         ".rss-dashboard-data",
-        savedSettings(pointer(".rss-dashboard-data") as Partial<RssDashboardSettings>),
+        savedSettings(
+          pointer(".rss-dashboard-data") as Partial<RssDashboardSettings>,
+        ),
       );
       plugin.settings.metadataStorageFolder = ".rss-dashboard-data";
 
       await plugin.revertMetadataToPluginDefault();
 
-      expect(await adapter().exists(".rss-dashboard-data/data.json")).toBe(true);
-      expect(notices()).toEqual(["Metadata reverted to plugin default location"]);
+      expect(await adapter().exists(".rss-dashboard-data/data.json")).toBe(
+        true,
+      );
+      expect(notices()).toEqual([
+        "Metadata reverted to plugin default location",
+      ]);
     });
 
     it("doesn't trash a folder named data.json", async () => {
@@ -1271,7 +1310,9 @@ describe("settings store (issue #563)", () => {
       await plugin.revertMetadataToPluginDefault();
 
       expect(trash).not.toHaveBeenCalled();
-      expect(notices()).toEqual(["Metadata reverted to plugin default location"]);
+      expect(notices()).toEqual([
+        "Metadata reverted to plugin default location",
+      ]);
     });
 
     it("finishes when trashing the vault copy fails", async () => {
@@ -1279,10 +1320,14 @@ describe("settings store (issue #563)", () => {
         new Error("locked"),
       );
 
-      await expect(plugin.revertMetadataToPluginDefault()).resolves.toBeUndefined();
+      await expect(
+        plugin.revertMetadataToPluginDefault(),
+      ).resolves.toBeUndefined();
 
       expect(plugin.settings.metadataStorageMode).toBe("plugin-default");
-      expect(notices()).toEqual(["Metadata reverted to plugin default location"]);
+      expect(notices()).toEqual([
+        "Metadata reverted to plugin default location",
+      ]);
     });
 
     it("says so and changes nothing when metadata is already in the plugin folder", async () => {

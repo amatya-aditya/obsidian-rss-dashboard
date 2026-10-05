@@ -116,15 +116,18 @@ function resolveItemAudio(
       ? ctx.convertToAbsoluteUrl(item.link || "", url)
       : undefined;
 
-  const enclosure =
-    item.enclosure ||
-    (isAudioLink
+  const enclosure = item.enclosure
+    ? {
+        ...item.enclosure,
+        url: ctx.convertToAbsoluteUrl(item.enclosure.url, url),
+      }
+    : isAudioLink
       ? {
           url: ctx.convertToAbsoluteUrl(item.link || "", url),
           type: "audio/mpeg",
           length: "",
         }
-      : undefined);
+      : undefined;
 
   return { isPodcast, audioUrl, enclosure };
 }
@@ -216,7 +219,10 @@ function shouldSkipNewItem(
   return (
     !!existingFeed &&
     autoDeleteCutoffMs > 0 &&
-    !isProtectedItem({ read: false } as FeedItem, ctx.getRetentionProtections()) &&
+    !isProtectedItem(
+      { read: false } as FeedItem,
+      ctx.getRetentionProtections(),
+    ) &&
     getEffectiveDateMs(
       { pubDate: item.pubDate, firstSeenMs: Date.now() },
       ctx.getUseFirstSeenDateFallback(),
@@ -444,11 +450,7 @@ function buildNewItemItunes(
 
 type NewItemMedia = Pick<
   FeedItem,
-  | "enclosure"
-  | "ieee"
-  | "audioUrl"
-  | "mediaContentType"
-  | "mediaContentMedium"
+  "enclosure" | "ieee" | "audioUrl" | "mediaContentType" | "mediaContentMedium"
 >;
 
 function buildNewItemMedia(item: ParsedItem, audio: ItemAudio): NewItemMedia {

@@ -23,7 +23,10 @@ function manifest(app: MockApp): PluginManifest {
   };
 }
 
-function episode(guid: string, playbackProgress?: FeedItem["playbackProgress"]): FeedItem {
+function episode(
+  guid: string,
+  playbackProgress?: FeedItem["playbackProgress"],
+): FeedItem {
   return {
     title: `Episode ${guid}`,
     link: `https://example.com/${guid}`,
@@ -102,13 +105,17 @@ describe("startup podcast progress migration", () => {
       "episode-1": { position: 42, duration: 3765 },
     });
 
-    const plugin = await startPlugin(app, [episode("episode-1", savedProgress)]);
+    const plugin = await startPlugin(app, [
+      episode("episode-1", savedProgress),
+    ]);
 
     await runProgressMigration(plugin);
     await vi.waitFor(() => {
       expect(app.loadLocalStorage(LEGACY_PROGRESS_KEY)).toBeNull();
     });
-    expect(plugin.settings.feeds[0].items[0].playbackProgress).toEqual(savedProgress);
+    expect(plugin.settings.feeds[0].items[0].playbackProgress).toEqual(
+      savedProgress,
+    );
     expect(plugin.saveData).not.toHaveBeenCalled();
   });
 
@@ -172,7 +179,9 @@ describe("startup podcast progress migration", () => {
       layoutReadyCallbacks.push(callback);
     };
     const plugin = new RssDashboardPlugin(app, manifest(app));
-    plugin.loadData = vi.fn().mockResolvedValue(structuredClone(DEFAULT_SETTINGS));
+    plugin.loadData = vi
+      .fn()
+      .mockResolvedValue(structuredClone(DEFAULT_SETTINGS));
     plugin.saveData = vi.fn().mockResolvedValue(undefined);
     const migrate = vi
       .spyOn(

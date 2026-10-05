@@ -26,16 +26,30 @@ function isTrackingPixel(url: string): boolean {
   return TRACKING_PIXEL_PATTERNS.some((p) => url.includes(p));
 }
 
+function isHttpUrl(url: string): boolean {
+  return /^https?:\/\//i.test(url);
+}
+
+function resolveUsableImageUrl(
+  src: string,
+  baseUrl: string,
+  toAbsoluteUrl: AbsoluteUrlResolver,
+): string | undefined {
+  const trimmedSrc = src.trim();
+  const resolvedUrl = isHttpUrl(trimmedSrc)
+    ? trimmedSrc
+    : baseUrl
+      ? toAbsoluteUrl(trimmedSrc, baseUrl)
+      : "";
+  return isHttpUrl(resolvedUrl) ? optimizeImageUrl(resolvedUrl) : undefined;
+}
+
 /** Reject known junk/placeholder src values before any URL resolution. */
 function isJunkSrc(src: string | null): boolean {
   if (!src) return true;
   const t = src.trim();
   return (
-    !t ||
-    t === "undefined" ||
-    t === "null" ||
-    t === "#" ||
-    t === "about:blank"
+    !t || t === "undefined" || t === "null" || t === "#" || t === "about:blank"
   );
 }
 
@@ -74,13 +88,11 @@ function coverFromOgImage(
 
   const content = ogImage.getAttribute("content");
   warnDoubleEncoded("og:image", content);
-  const resolvedContent = content?.startsWith("http")
-    ? content
-    : content && baseUrl
-      ? toAbsoluteUrl(content, baseUrl)
-      : "";
+  const resolvedContent = content
+    ? resolveUsableImageUrl(content, baseUrl, toAbsoluteUrl)
+    : undefined;
   if (resolvedContent && !isLatexFormulaImage(resolvedContent)) {
-    return optimizeImageUrl(resolvedContent);
+    return resolvedContent;
   }
   return undefined;
 }
@@ -100,10 +112,8 @@ function coverFromFirstImage(
   warnDoubleEncoded("first img src", src);
   if (isJunkSrc(src)) return undefined;
 
-  if (src && src.startsWith("http") && !isTrackingPixel(src)) {
-    return optimizeImageUrl(src);
-  } else if (src && baseUrl && !isTrackingPixel(src)) {
-    return optimizeImageUrl(toAbsoluteUrl(src, baseUrl));
+  if (src && !isTrackingPixel(src)) {
+    return resolveUsableImageUrl(src, baseUrl, toAbsoluteUrl);
   }
   return undefined;
 }
@@ -118,20 +128,8 @@ function coverFromScannedImage(
   warnDoubleEncoded("img src", src);
   if (isJunkSrc(src) || isLatexFormulaImageElement(img)) return undefined;
 
-  if (
-    src &&
-    src.startsWith("http") &&
-    hasImageLikeSrc(src) &&
-    !isTrackingPixel(src)
-  ) {
-    return optimizeImageUrl(src);
-  } else if (
-    src &&
-    baseUrl &&
-    hasImageLikeSrc(src) &&
-    !isTrackingPixel(src)
-  ) {
-    return optimizeImageUrl(toAbsoluteUrl(src, baseUrl));
+  if (src && hasImageLikeSrc(src) && !isTrackingPixel(src)) {
+    return resolveUsableImageUrl(src, baseUrl, toAbsoluteUrl);
   }
   return undefined;
 }

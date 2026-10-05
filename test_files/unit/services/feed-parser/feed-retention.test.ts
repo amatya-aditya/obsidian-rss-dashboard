@@ -212,15 +212,15 @@ describe("getEffectiveDateMs", () => {
   });
 
   it("falls back to firstSeenMs when pubDate is missing and the fallback is enabled", () => {
-    expect(
-      getEffectiveDateMs({ pubDate: "", firstSeenMs: 12345 }, true),
-    ).toBe(12345);
+    expect(getEffectiveDateMs({ pubDate: "", firstSeenMs: 12345 }, true)).toBe(
+      12345,
+    );
   });
 
   it("returns 0 when pubDate is missing and the fallback is disabled", () => {
-    expect(
-      getEffectiveDateMs({ pubDate: "", firstSeenMs: 12345 }, false),
-    ).toBe(0);
+    expect(getEffectiveDateMs({ pubDate: "", firstSeenMs: 12345 }, false)).toBe(
+      0,
+    );
   });
 
   it("returns 0 when pubDate is missing and firstSeenMs is absent, fallback enabled or not", () => {
@@ -397,7 +397,10 @@ describe("applyFeedRetentionLimits", () => {
       lastUpdated: Date.now(),
       autoDeleteDuration: 7,
       items: [
-        makeItem("tagged-old", tenDaysAgo, { read: true, tags: [makeTag("research")] }),
+        makeItem("tagged-old", tenDaysAgo, {
+          read: true,
+          tags: [makeTag("research")],
+        }),
         makeItem("untagged-old", tenDaysAgo, { read: true, tags: [] }),
       ],
     };
@@ -409,7 +412,9 @@ describe("applyFeedRetentionLimits", () => {
       nowMs,
       protections: { protectTagged: true },
     });
-    expect(protectedWithToggle.items.map((i) => i.guid)).toEqual(["tagged-old"]);
+    expect(protectedWithToggle.items.map((i) => i.guid)).toEqual([
+      "tagged-old",
+    ]);
   });
 
   // GH Issue #333 AC: a starred, untagged article is protected only by
@@ -498,7 +503,10 @@ describe("applyFeedRetentionLimits", () => {
       maxItemsLimit: 1,
       items: [
         makeItem("unread-old", "2024-01-01T00:00:00Z", { read: false }),
-        makeItem("tagged-old", "2024-01-02T00:00:00Z", { read: true, tags: [makeTag("important")] }),
+        makeItem("tagged-old", "2024-01-02T00:00:00Z", {
+          read: true,
+          tags: [makeTag("important")],
+        }),
         makeItem("read-mid", "2024-01-03T00:00:00Z", { read: true }),
         makeItem("read-new", "2024-01-04T00:00:00Z", { read: true }),
       ],

@@ -117,4 +117,3 @@ describe("OpmlImportPreviewModel", () => {
     expect(model.getStats().hasBlockingErrors).toBe(false);
   });
 });
-

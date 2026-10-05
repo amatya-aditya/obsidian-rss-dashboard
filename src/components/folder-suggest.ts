@@ -88,15 +88,15 @@ abstract class LegacyInputSuggest<T> {
       this.selectedIndex =
         (this.selectedIndex + direction + this.suggestions.length) %
         this.suggestions.length;
-      this.suggestEl.querySelectorAll<HTMLElement>("[role=option]").forEach(
-        (option, index) => {
+      this.suggestEl
+        .querySelectorAll<HTMLElement>("[role=option]")
+        .forEach((option, index) => {
           option.classList.toggle("is-selected", index === this.selectedIndex);
           option.setAttribute(
             "aria-selected",
             index === this.selectedIndex ? "true" : "false",
           );
-        },
-      );
+        });
       return;
     }
 
@@ -154,8 +154,7 @@ export class VaultFolderSuggest extends LegacyInputSuggest<TFolder> {
  * selection.
  */
 type FolderSuggestOption =
-  | { kind: "folder"; path: string }
-  | { kind: "add-new"; name: string };
+  { kind: "folder"; path: string } | { kind: "add-new"; name: string };
 
 /** Provides type-ahead folder suggestions for RSS sidebar folders. */
 export class FolderSuggest extends LegacyInputSuggest<FolderSuggestOption> {

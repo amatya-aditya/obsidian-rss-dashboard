@@ -86,7 +86,9 @@ export function parseArgs(argv) {
     } else if (arg === "--show-whats-new") {
       options.showWhatsNew = true;
     } else if (arg === "--storage" || arg.startsWith("--storage=")) {
-      const value = arg.includes("=") ? arg.slice(arg.indexOf("=") + 1) : argv[++i];
+      const value = arg.includes("=")
+        ? arg.slice(arg.indexOf("=") + 1)
+        : argv[++i];
       if (!STORAGE_VARIANTS.includes(value)) {
         throw new FixtureVaultError(
           `Unknown storage variant "${value ?? ""}". Use one of: ${STORAGE_VARIANTS.join(", ")}.`,
@@ -117,13 +119,18 @@ function isSameOrInside(child, parent) {
  */
 export function assertSafeTarget(target, { repoRoot, templateDir }) {
   const refuse = (reason) => {
-    throw new FixtureVaultError(`Refusing to use ${target} as a fixture vault: ${reason}.`);
+    throw new FixtureVaultError(
+      `Refusing to use ${target} as a fixture vault: ${reason}.`,
+    );
   };
 
   if (parse(target).root === target) refuse("it is a filesystem root");
   if (target === resolve(homedir())) refuse("it is your home folder");
   if (isSameOrInside(repoRoot, target)) refuse("it contains the repository");
-  if (isSameOrInside(target, templateDir) || isSameOrInside(templateDir, target)) {
+  if (
+    isSameOrInside(target, templateDir) ||
+    isSameOrInside(templateDir, target)
+  ) {
     refuse("it overlaps the committed template");
   }
 
@@ -158,7 +165,9 @@ function vaultPath(vaultDir, relativePath) {
 function hydrateFeeds(vaultDir, metadata) {
   const { states } = readJson(vaultPath(vaultDir, USER_STATE_PATH));
   return metadata.feeds.map((feed) => {
-    const shard = readJson(vaultPath(vaultDir, `${STORAGE_FOLDER}/${feed.feedId}.json`));
+    const shard = readJson(
+      vaultPath(vaultDir, `${STORAGE_FOLDER}/${feed.feedId}.json`),
+    );
     const items = shard.items.map((item) => {
       const state = states[`${feed.feedId}:${item.guid}`] ?? {};
       const hydrated = {
@@ -169,7 +178,8 @@ function hydrateFeeds(vaultDir, metadata) {
         saved: state.saved ?? false,
       };
       if (state.savedFilePath) hydrated.savedFilePath = state.savedFilePath;
-      if (state.playbackProgress) hydrated.playbackProgress = state.playbackProgress;
+      if (state.playbackProgress)
+        hydrated.playbackProgress = state.playbackProgress;
       return hydrated;
     });
     return { feed, shard, items };
@@ -198,7 +208,10 @@ export function convertStorage(vaultDir, storage) {
   if (storage === "legacy-json") {
     settings.storageMode = "legacy-json";
     settings.feeds = hydrated.map(({ feed, items }) => ({ ...feed, items }));
-    rmSync(vaultPath(vaultDir, METADATA_FOLDER), { recursive: true, force: true });
+    rmSync(vaultPath(vaultDir, METADATA_FOLDER), {
+      recursive: true,
+      force: true,
+    });
   } else {
     settings.storageMode = "vault-shards";
     for (const { feed, shard, items } of hydrated) {
@@ -222,7 +235,9 @@ function settingsFilePath(vaultDir, storage) {
 }
 
 function assertBuildPresent(repoRoot) {
-  const missing = BUILD_FILES.filter((file) => !existsSync(join(repoRoot, file)));
+  const missing = BUILD_FILES.filter(
+    (file) => !existsSync(join(repoRoot, file)),
+  );
   if (missing.length > 0) {
     throw new FixtureVaultError(
       `No plugin build found (missing ${missing.join(", ")} in ${repoRoot}). ` +
@@ -256,7 +271,10 @@ export function setupFixtureVault({
 } = {}) {
   const vaultDir = resolve(repoRoot, target);
   const resolvedTemplate = resolve(templateDir);
-  assertSafeTarget(vaultDir, { repoRoot: resolve(repoRoot), templateDir: resolvedTemplate });
+  assertSafeTarget(vaultDir, {
+    repoRoot: resolve(repoRoot),
+    templateDir: resolvedTemplate,
+  });
 
   if (pluginOnly) {
     if (!existsSync(join(vaultDir, MARKER_FILE))) {
@@ -265,7 +283,11 @@ export function setupFixtureVault({
       );
     }
     const version = copyBuild(repoRoot, vaultDir);
-    return { vaultDir, version, storage: readJson(join(vaultDir, MARKER_FILE)).storage };
+    return {
+      vaultDir,
+      version,
+      storage: readJson(join(vaultDir, MARKER_FILE)).storage,
+    };
   }
 
   // Fail before deleting anything.
@@ -287,7 +309,10 @@ export function setupFixtureVault({
     // Record the installed release as already announced, so What's New does
     // not open over the dashboard on every reset.
     const settingsPath = settingsFilePath(vaultDir, storage);
-    writeJson(settingsPath, { ...readJson(settingsPath), lastShownVersion: version });
+    writeJson(settingsPath, {
+      ...readJson(settingsPath),
+      lastShownVersion: version,
+    });
   }
 
   writeJson(join(vaultDir, MARKER_FILE), {

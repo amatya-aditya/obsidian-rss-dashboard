@@ -8,13 +8,15 @@ import { RetentionChangeConfirmModal } from "../../../src/settings/modals/settin
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 
 function cloneSettings(): typeof DEFAULT_SETTINGS {
-  return JSON.parse(JSON.stringify(DEFAULT_SETTINGS)) as typeof DEFAULT_SETTINGS;
+  return JSON.parse(
+    JSON.stringify(DEFAULT_SETTINGS),
+  ) as typeof DEFAULT_SETTINGS;
 }
 
 function getSettingByName(containerEl: HTMLElement, name: string): HTMLElement {
-  const setting = Array.from(containerEl.querySelectorAll<HTMLElement>(
-    ".setting-item",
-  )).find(
+  const setting = Array.from(
+    containerEl.querySelectorAll<HTMLElement>(".setting-item"),
+  ).find(
     (element) =>
       element.querySelector(".setting-item-name")?.textContent === name,
   );
@@ -139,9 +141,10 @@ describe("renderGeneralSettingsTab() retention protections", () => {
     const openModal = vi
       .spyOn(RetentionChangeConfirmModal.prototype, "open")
       .mockImplementation(() => {});
-    vi.spyOn(RetentionChangeConfirmModal.prototype, "waitForClose").mockResolvedValue(
-      "apply-now",
-    );
+    vi.spyOn(
+      RetentionChangeConfirmModal.prototype,
+      "waitForClose",
+    ).mockResolvedValue("apply-now");
 
     renderGeneralSettingsTab(containerEl, plugin);
 
@@ -180,9 +183,10 @@ describe("renderGeneralSettingsTab() retention protections", () => {
     const openModal = vi
       .spyOn(RetentionChangeConfirmModal.prototype, "open")
       .mockImplementation(() => {});
-    vi.spyOn(RetentionChangeConfirmModal.prototype, "waitForClose").mockResolvedValue(
-      "apply-on-next-refresh",
-    );
+    vi.spyOn(
+      RetentionChangeConfirmModal.prototype,
+      "waitForClose",
+    ).mockResolvedValue("apply-on-next-refresh");
 
     renderGeneralSettingsTab(containerEl, plugin);
 
@@ -221,9 +225,10 @@ describe("renderGeneralSettingsTab() retention protections", () => {
     const openModal = vi
       .spyOn(RetentionChangeConfirmModal.prototype, "open")
       .mockImplementation(() => {});
-    vi.spyOn(RetentionChangeConfirmModal.prototype, "waitForClose").mockResolvedValue(
-      "cancel",
-    );
+    vi.spyOn(
+      RetentionChangeConfirmModal.prototype,
+      "waitForClose",
+    ).mockResolvedValue("cancel");
 
     renderGeneralSettingsTab(containerEl, plugin);
 
@@ -262,9 +267,10 @@ describe("renderGeneralSettingsTab() retention protections", () => {
     vi.spyOn(RetentionChangeConfirmModal.prototype, "open").mockImplementation(
       () => {},
     );
-    vi.spyOn(RetentionChangeConfirmModal.prototype, "waitForClose").mockResolvedValue(
-      "cancel",
-    );
+    vi.spyOn(
+      RetentionChangeConfirmModal.prototype,
+      "waitForClose",
+    ).mockResolvedValue("cancel");
 
     renderGeneralSettingsTab(containerEl, plugin);
 

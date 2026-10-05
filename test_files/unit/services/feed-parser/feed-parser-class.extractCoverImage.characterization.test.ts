@@ -77,7 +77,10 @@ function response(text: string): RequestUrlResponse {
   };
 }
 
-async function parseBody(body: string, existing: Feed | null = null): Promise<Feed> {
+async function parseBody(
+  body: string,
+  existing: Feed | null = null,
+): Promise<Feed> {
   vi.spyOn(obsidian, "requestUrl").mockResolvedValue(response(body));
   const parser = new FeedParser(
     DEFAULT_SETTINGS.display,
@@ -155,14 +158,20 @@ async function podcastCoverFromContent(
   const feed = await parseParsed([
     pitem({
       [field]: html,
-      enclosure: { url: "https://example.com/ep.mp3", type: "audio/mpeg", length: "1" },
+      enclosure: {
+        url: "https://example.com/ep.mp3",
+        type: "audio/mpeg",
+        length: "1",
+      },
     }),
   ]);
   return at(feed.items, 0).coverImage;
 }
 
 /** What `extractCoverImage` logged during the last parse, in call order. */
-function extractDebugMessages(debugSpy: { mock: { calls: unknown[][] } }): string[] {
+function extractDebugMessages(debugSpy: {
+  mock: { calls: unknown[][] };
+}): string[] {
   return debugSpy.mock.calls
     .map((args) => String(args[0]))
     .filter((message) => message.startsWith(DEBUG_PREFIX));
@@ -189,24 +198,35 @@ describe("FeedParser.extractCoverImage characterization", () => {
     });
 
     it("finds no cover in html without an image or an og:image tag", async () => {
-      expect(await coverFromContent("<p>Words</p><a href='https://example.com'>link</a>")).toBe("");
+      expect(
+        await coverFromContent(
+          "<p>Words</p><a href='https://example.com'>link</a>",
+        ),
+      ).toBe("");
     });
 
     it("reads the description only when the content is empty, even if the content has no image", async () => {
       const withImage = `<img src="${REAL}">`;
 
       expect(
-        (await imagesOfItem(pitem({ content: "<p>Words</p>", description: withImage }))).cover,
+        (
+          await imagesOfItem(
+            pitem({ content: "<p>Words</p>", description: withImage }),
+          )
+        ).cover,
       ).toBe("");
       expect(
-        (await imagesOfItem(pitem({ content: "", description: withImage }))).cover,
+        (await imagesOfItem(pitem({ content: "", description: withImage })))
+          .cover,
       ).toBe(REAL);
     });
 
     it("returns no cover from the content when the html cannot be parsed, and the item is still built", async () => {
-      vi.spyOn(DOMParser.prototype, "parseFromString").mockImplementation(() => {
-        throw new Error("parse failure");
-      });
+      vi.spyOn(DOMParser.prototype, "parseFromString").mockImplementation(
+        () => {
+          throw new Error("parse failure");
+        },
+      );
 
       const feed = await parseParsed([
         pitem({
@@ -228,27 +248,64 @@ describe("FeedParser.extractCoverImage characterization", () => {
     }
 
     it.each([
-      ["an https url", "https://img.example.com/og.jpg", "https://img.example.com/og.jpg"],
-      ["an http url", "http://img.example.com/og.jpg", "http://img.example.com/og.jpg"],
-      ["a protocol-relative url", "//cdn.example.com/og.png", "https://cdn.example.com/og.png"],
-      ["an app:// url", "app://cdn.example.com/og.png", "https://cdn.example.com/og.png"],
-      ["a root-relative path", "/og/social.png", "https://example.com/og/social.png"],
-      ["a relative path", "og/social.png", "https://example.com/rss/og/social.png"],
-      ["a path with no extension", "og/social", "https://example.com/rss/og/social"],
-    ])("resolves %s against the feed url", async (_label, content, expected) => {
-      expect(await coverFromContent(og(content))).toBe(expected);
-    });
+      [
+        "an https url",
+        "https://img.example.com/og.jpg",
+        "https://img.example.com/og.jpg",
+      ],
+      [
+        "an http url",
+        "http://img.example.com/og.jpg",
+        "http://img.example.com/og.jpg",
+      ],
+      [
+        "a protocol-relative url",
+        "//cdn.example.com/og.png",
+        "https://cdn.example.com/og.png",
+      ],
+      [
+        "an app:// url",
+        "app://cdn.example.com/og.png",
+        "https://cdn.example.com/og.png",
+      ],
+      [
+        "a root-relative path",
+        "/og/social.png",
+        "https://example.com/og/social.png",
+      ],
+      [
+        "a relative path",
+        "og/social.png",
+        "https://example.com/rss/og/social.png",
+      ],
+      [
+        "a path with no extension",
+        "og/social",
+        "https://example.com/rss/og/social",
+      ],
+    ])(
+      "resolves %s against the feed url",
+      async (_label, content, expected) => {
+        expect(await coverFromContent(og(content))).toBe(expected);
+      },
+    );
 
     it("wins over an image that comes earlier in the document", async () => {
       const html = `<img src="${REAL}">${og("https://img.example.com/og.jpg")}`;
 
-      expect(await coverFromContent(html)).toBe("https://img.example.com/og.jpg");
+      expect(await coverFromContent(html)).toBe(
+        "https://img.example.com/og.jpg",
+      );
     });
 
     it("shrinks a supported CDN image", async () => {
       expect(
-        await coverFromContent(og("https://res.cloudinary.com/demo/image/upload/sample.jpg")),
-      ).toBe("https://res.cloudinary.com/demo/image/upload/w_600,c_scale/sample.jpg");
+        await coverFromContent(
+          og("https://res.cloudinary.com/demo/image/upload/sample.jpg"),
+        ),
+      ).toBe(
+        "https://res.cloudinary.com/demo/image/upload/w_600,c_scale/sample.jpg",
+      );
     });
 
     it("is skipped when its content is empty, for the next image", async () => {
@@ -263,27 +320,32 @@ describe("FeedParser.extractCoverImage characterization", () => {
 
     it("reads only the first og:image tag, so an empty first tag hides a valid second one", async () => {
       expect(
-        await coverFromContent(`${og("")}${og("https://img.example.com/second.jpg")}`),
+        await coverFromContent(
+          `${og("")}${og("https://img.example.com/second.jpg")}`,
+        ),
       ).toBe("");
     });
 
     it("falls through a formula og:image to the first image that is not a formula", async () => {
       const html = `${og("https://s0.wp.com/latex.php?latex=x")}<img class="latex" src="${REAL}"><img src="https://img.example.com/second.png">`;
 
-      expect(await coverFromContent(html)).toBe("https://img.example.com/second.png");
+      expect(await coverFromContent(html)).toBe(
+        "https://img.example.com/second.png",
+      );
     });
 
-    it("treats content that merely starts with http as absolute, so a relative file name is not resolved", async () => {
-      // BUG: pinned, see #637 (the unresolved name is returned, rejected as not
-      // http(s) afterwards, and the scan never reaches the real image below).
-      expect(await coverFromContent(`${og("http-banner.jpg")}<img src="${REAL}">`)).toBe("");
-    });
-
-    it("returns a data: URI as the cover result, so the pipeline rejects it and the later image is never tried", async () => {
-      // BUG: pinned, see #637
+    it("resolves a relative file name that starts with http", async () => {
       expect(
-        await coverFromContent(`${og("data:image/png;base64,AAAA")}<img src="${REAL}">`),
-      ).toBe("");
+        await coverFromContent(`${og("http-banner.jpg")}<img src="${REAL}">`),
+      ).toBe("https://example.com/rss/http-banner.jpg");
+    });
+
+    it("skips a data: URI and uses the later image", async () => {
+      expect(
+        await coverFromContent(
+          `${og("data:image/png;base64,AAAA")}<img src="${REAL}">`,
+        ),
+      ).toBe(REAL);
     });
 
     it("keeps a double-encoded absolute url as it is and logs it once per call", async () => {
@@ -308,43 +370,87 @@ describe("FeedParser.extractCoverImage characterization", () => {
 
   describe("first image", () => {
     it.each([
-      ["an https url with no image extension", "https://img.example.com/photo", "https://img.example.com/photo"],
-      ["an http url", "http://img.example.com/a.png", "http://img.example.com/a.png"],
-      ["a protocol-relative url", "//cdn.example.com/a.png", "https://cdn.example.com/a.png"],
-      ["an app:// url", "app://cdn.example.com/a.png", "https://cdn.example.com/a.png"],
-      ["a root-relative path", "/uploads/a.png", "https://example.com/uploads/a.png"],
+      [
+        "an https url with no image extension",
+        "https://img.example.com/photo",
+        "https://img.example.com/photo",
+      ],
+      [
+        "an http url",
+        "http://img.example.com/a.png",
+        "http://img.example.com/a.png",
+      ],
+      [
+        "a protocol-relative url",
+        "//cdn.example.com/a.png",
+        "https://cdn.example.com/a.png",
+      ],
+      [
+        "an app:// url",
+        "app://cdn.example.com/a.png",
+        "https://cdn.example.com/a.png",
+      ],
+      [
+        "a root-relative path",
+        "/uploads/a.png",
+        "https://example.com/uploads/a.png",
+      ],
       ["a relative path", "pics/a.png", "https://example.com/rss/pics/a.png"],
-      ["a relative path with no extension", "photo", "https://example.com/rss/photo"],
+      [
+        "a relative path with no extension",
+        "photo",
+        "https://example.com/rss/photo",
+      ],
       ["a parent-relative path", "../a.png", "https://example.com/a.png"],
-      ["a url with padding spaces", "  https://img.example.com/a.jpg ", "https://img.example.com/a.jpg"],
-      ["a relative path with padding spaces", "  pics/a.jpg ", "https://example.com/rss/pics/a.jpg"],
+      [
+        "a url with padding spaces",
+        "  https://img.example.com/a.jpg ",
+        "https://img.example.com/a.jpg",
+      ],
+      [
+        "a relative path with padding spaces",
+        "  pics/a.jpg ",
+        "https://example.com/rss/pics/a.jpg",
+      ],
     ])("takes %s", async (_label, src, expected) => {
       expect(await coverFromContent(`<img src="${src}">`)).toBe(expected);
     });
 
     it("shrinks a supported CDN image", async () => {
       expect(
-        await coverFromContent('<img src="https://res.cloudinary.com/demo/image/upload/sample.jpg">'),
-      ).toBe("https://res.cloudinary.com/demo/image/upload/w_600,c_scale/sample.jpg");
+        await coverFromContent(
+          '<img src="https://res.cloudinary.com/demo/image/upload/sample.jpg">',
+        ),
+      ).toBe(
+        "https://res.cloudinary.com/demo/image/upload/w_600,c_scale/sample.jpg",
+      );
     });
 
     it("shrinks a supported CDN image that had to be resolved first", async () => {
       expect(
-        await coverFromContent('<img src="//res.cloudinary.com/demo/image/upload/sample.jpg">'),
-      ).toBe("https://res.cloudinary.com/demo/image/upload/w_600,c_scale/sample.jpg");
+        await coverFromContent(
+          '<img src="//res.cloudinary.com/demo/image/upload/sample.jpg">',
+        ),
+      ).toBe(
+        "https://res.cloudinary.com/demo/image/upload/w_600,c_scale/sample.jpg",
+      );
     });
 
     it("decodes html entities in the src", async () => {
-      expect(await coverFromContent('<img src="https://img.example.com/a.png?x=1&amp;y=2">')).toBe(
-        "https://img.example.com/a.png?x=1&y=2",
-      );
+      expect(
+        await coverFromContent(
+          '<img src="https://img.example.com/a.png?x=1&amp;y=2">',
+        ),
+      ).toBe("https://img.example.com/a.png?x=1&y=2");
     });
 
     it("takes the img of a picture element and ignores its sources", async () => {
       const html =
         '<picture><source srcset="https://img.example.com/s.webp"><img src="https://img.example.com/p.jpg"></picture>';
 
-      expect(await coverFromContent(html)).toBe("https://img.example.com/p.jpg");
+      expect(await coverFromContent(html)).toBe(
+        "https://img.example.com/p.jpg",
+      );
     });
 
     it("takes the first of several usable images", async () => {
@@ -375,11 +481,22 @@ describe("FeedParser.extractCoverImage characterization", () => {
 
     describe("formula images", () => {
       it.each([
-        ["the latex class", '<img class="latex" src="https://img.example.com/f.png">'],
-        ["the latex class among others, in any case", '<img class="x LaTeX" src="https://img.example.com/f.png">'],
-        ["a latex.php url", '<img src="https://s0.wp.com/latex.php?latex=x%5E2&amp;bg=ffffff">'],
+        [
+          "the latex class",
+          '<img class="latex" src="https://img.example.com/f.png">',
+        ],
+        [
+          "the latex class among others, in any case",
+          '<img class="x LaTeX" src="https://img.example.com/f.png">',
+        ],
+        [
+          "a latex.php url",
+          '<img src="https://s0.wp.com/latex.php?latex=x%5E2&amp;bg=ffffff">',
+        ],
       ])("skips an image with %s for the next one", async (_label, formula) => {
-        expect(await coverFromContent(`${formula}<img src="${REAL}">`)).toBe(REAL);
+        expect(await coverFromContent(`${formula}<img src="${REAL}">`)).toBe(
+          REAL,
+        );
       });
 
       it("finds no cover when every image is a formula", async () => {
@@ -390,9 +507,11 @@ describe("FeedParser.extractCoverImage characterization", () => {
       });
 
       it("does not treat a longer class name as the latex class", async () => {
-        expect(await coverFromContent('<img class="latexy" src="https://img.example.com/f.png">')).toBe(
-          "https://img.example.com/f.png",
-        );
+        expect(
+          await coverFromContent(
+            '<img class="latexy" src="https://img.example.com/f.png">',
+          ),
+        ).toBe("https://img.example.com/f.png");
       });
     });
 
@@ -406,29 +525,43 @@ describe("FeedParser.extractCoverImage characterization", () => {
         ["a hash", "#"],
         ["about:blank", "about:blank"],
       ])("skips %s for the next image", async (_label, src) => {
-        expect(await coverFromContent(`<img src="${src}"><img src="${REAL}">`)).toBe(REAL);
+        expect(
+          await coverFromContent(`<img src="${src}"><img src="${REAL}">`),
+        ).toBe(REAL);
       });
 
       it("skips an image with no src attribute", async () => {
-        expect(await coverFromContent(`<img alt="no source"><img src="${REAL}">`)).toBe(REAL);
+        expect(
+          await coverFromContent(`<img alt="no source"><img src="${REAL}">`),
+        ).toBe(REAL);
       });
 
       it("finds no cover when every image is junk", async () => {
-        expect(await coverFromContent('<img src="#"><img src="null"><img>')).toBe("");
+        expect(
+          await coverFromContent('<img src="#"><img src="null"><img>'),
+        ).toBe("");
       });
     });
 
-    describe("results the pipeline rejects", () => {
-      it("returns a data: URI placeholder as the cover result, so the pipeline drops it and the real image after it is never tried", async () => {
-        // BUG: pinned, see #637
+    describe("unusable image URLs", () => {
+      it("skips a data: URI placeholder and uses the real image after it", async () => {
         const html = `<img src="data:image/gif;base64,R0lGODlhAQABAAAAACw="><img src="${REAL}">`;
 
-        expect(await coverFromContent(html)).toBe("");
+        expect(await coverFromContent(html)).toBe(REAL);
       });
 
-      it("treats a relative file name that starts with http as absolute, so it is returned unresolved and dropped", async () => {
-        // BUG: pinned, see #637
-        expect(await coverFromContent(`<img src="http-banner.jpg"><img src="${REAL}">`)).toBe("");
+      it("finds no cover when a data: URI is the only image", async () => {
+        expect(
+          await coverFromContent('<img src="data:image/gif;base64,AAAA">'),
+        ).toBe("");
+      });
+
+      it("resolves a relative file name that starts with http", async () => {
+        expect(
+          await coverFromContent(
+            `<img src="http-banner.jpg"><img src="${REAL}">`,
+          ),
+        ).toBe("https://example.com/rss/http-banner.jpg");
       });
     });
   });
@@ -442,16 +575,29 @@ describe("FeedParser.extractCoverImage characterization", () => {
       ["1x1", "/1x1.png"],
       ["/track/", "/track/a.png"],
       ["rss-pixel", "/rss-pixel.png"],
-    ])("skips a relative src that contains %s for the next image", async (_pattern, src) => {
-      expect(await coverFromContent(`<img src="${src}"><img src="${REAL}">`)).toBe(REAL);
-    });
+    ])(
+      "skips a relative src that contains %s for the next image",
+      async (_pattern, src) => {
+        expect(
+          await coverFromContent(`<img src="${src}"><img src="${REAL}">`),
+        ).toBe(REAL);
+      },
+    );
 
     it.each([
-      ["a path segment named tracking", "https://img.example.com/tracking/a.png"],
+      [
+        "a path segment named tracking",
+        "https://img.example.com/tracking/a.png",
+      ],
       ["a host that starts with beacon", "https://beacon.example.com/a.jpg"],
-      ["a file name that holds 1x1", "https://img.example.com/photo-1x1-crop.jpg"],
+      [
+        "a file name that holds 1x1",
+        "https://img.example.com/photo-1x1-crop.jpg",
+      ],
     ])("skips %s wherever the pattern sits in the url", async (_label, src) => {
-      expect(await coverFromContent(`<img src="${src}"><img src="${REAL}">`)).toBe(REAL);
+      expect(
+        await coverFromContent(`<img src="${src}"><img src="${REAL}">`),
+      ).toBe(REAL);
     });
 
     it.each([
@@ -462,7 +608,9 @@ describe("FeedParser.extractCoverImage characterization", () => {
       ["beacon without the dot", "https://t.example.com/beaconlight.png"],
       ["rss pixel with a space", "https://t.example.com/rss_pixel.png"],
     ])("does not treat %s as a tracking pixel", async (_label, src) => {
-      expect(await coverFromContent(`<img src="${src}"><img src="${REAL}">`)).toBe(src);
+      expect(
+        await coverFromContent(`<img src="${src}"><img src="${REAL}">`),
+      ).toBe(src);
     });
 
     it("finds no cover when the only image is a tracking pixel", async () => {
@@ -473,12 +621,19 @@ describe("FeedParser.extractCoverImage characterization", () => {
       const debugSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
       const src = "https://t.example.com/tracking/%2520a.gif";
 
-      expect(await coverFromContent(`<img src="${src}"><img src="${REAL}">`)).toBe(REAL);
+      expect(
+        await coverFromContent(`<img src="${src}"><img src="${REAL}">`),
+      ).toBe(REAL);
 
       const first = `${DEBUG_PREFIX} first img src contains double-encoded: ${src}`;
       const scan = `${DEBUG_PREFIX} img src contains double-encoded: ${src}`;
       // Two calls (cover and card image), each logging the first image and then the scan.
-      expect(extractDebugMessages(debugSpy)).toEqual([first, scan, first, scan]);
+      expect(extractDebugMessages(debugSpy)).toEqual([
+        first,
+        scan,
+        first,
+        scan,
+      ]);
     });
   });
 
@@ -509,19 +664,28 @@ describe("FeedParser.extractCoverImage characterization", () => {
       [".webp", "https://img.example.com/a%2520b.webp"],
       ["the word image", "https://img.example.com/image/a%2520b"],
       ["an http url", "http://img.example.com/a%2520b.png"],
-    ])("keeps an absolute src with %s and a double-encoded name exactly as written", async (_label, src) => {
-      // An absolute url is returned as it is; only a src that has to be resolved is normalized.
-      vi.spyOn(console, "debug").mockImplementation(() => {});
+    ])(
+      "keeps an absolute src with %s and a double-encoded name exactly as written",
+      async (_label, src) => {
+        // An absolute url is returned as it is; only a src that has to be resolved is normalized.
+        vi.spyOn(console, "debug").mockImplementation(() => {});
 
-      expect(await coverFromContent(afterPixel(src))).toBe(src);
-    });
+        expect(await coverFromContent(afterPixel(src))).toBe(src);
+      },
+    );
 
     it.each([
       ["an uppercase extension", "https://img.example.com/A.JPG"],
-      ["a query string after the extension", "https://img.example.com/a.jpg?w=1"],
+      [
+        "a query string after the extension",
+        "https://img.example.com/a.jpg?w=1",
+      ],
       ["an svg", "https://img.example.com/a.svg"],
       ["an avif", "https://img.example.com/a.avif"],
-      ["no extension and no image in the name", "https://img.example.com/photo"],
+      [
+        "no extension and no image in the name",
+        "https://img.example.com/photo",
+      ],
     ])("rejects an absolute src with %s", async (_label, src) => {
       // Pinned as it is: the first image is taken whatever its extension, but
       // the scan after a skipped first image is stricter. The real XML parser
@@ -530,14 +694,38 @@ describe("FeedParser.extractCoverImage characterization", () => {
     });
 
     it.each([
-      ["a root-relative path with an extension", "/uploads/a.png", "https://example.com/uploads/a.png"],
-      ["a relative path with an extension", "pics/a.webp", "https://example.com/rss/pics/a.webp"],
+      [
+        "a root-relative path with an extension",
+        "/uploads/a.png",
+        "https://example.com/uploads/a.png",
+      ],
+      [
+        "a relative path with an extension",
+        "pics/a.webp",
+        "https://example.com/rss/pics/a.webp",
+      ],
       ["a parent-relative path", "../a.png", "https://example.com/a.png"],
-      ["a protocol-relative url", "//cdn.example.com/a.png", "https://cdn.example.com/a.png"],
-      ["an app:// url", "app://cdn.example.com/a.png", "https://cdn.example.com/a.png"],
-      ["a root-relative path with the word image", "/images/a", "https://example.com/images/a"],
+      [
+        "a protocol-relative url",
+        "//cdn.example.com/a.png",
+        "https://cdn.example.com/a.png",
+      ],
+      [
+        "an app:// url",
+        "app://cdn.example.com/a.png",
+        "https://cdn.example.com/a.png",
+      ],
+      [
+        "a root-relative path with the word image",
+        "/images/a",
+        "https://example.com/images/a",
+      ],
       ["a relative .jpg", "pics/a.jpg", "https://example.com/rss/pics/a.jpg"],
-      ["a relative .jpeg", "pics/a.jpeg", "https://example.com/rss/pics/a.jpeg"],
+      [
+        "a relative .jpeg",
+        "pics/a.jpeg",
+        "https://example.com/rss/pics/a.jpeg",
+      ],
       ["a relative .gif", "pics/a.gif", "https://example.com/rss/pics/a.gif"],
     ])("resolves %s against the feed url", async (_label, src, expected) => {
       expect(await coverFromContent(afterPixel(src))).toBe(expected);
@@ -548,28 +736,41 @@ describe("FeedParser.extractCoverImage characterization", () => {
         await coverFromContent(
           afterPixel("//res.cloudinary.com/demo/image/upload/sample.jpg"),
         ),
-      ).toBe("https://res.cloudinary.com/demo/image/upload/w_600,c_scale/sample.jpg");
+      ).toBe(
+        "https://res.cloudinary.com/demo/image/upload/w_600,c_scale/sample.jpg",
+      );
     });
 
     it("rejects a relative src with no extension and no image in the name", async () => {
       expect(await coverFromContent(afterPixel("/a"))).toBe("");
     });
 
-    it("accepts a data:image URI, because it contains the word image, and stops there", async () => {
-      // BUG: pinned, see #637
-      expect(await coverFromContent(afterPixel("data:image/png;base64,AA", REAL))).toBe("");
+    it("skips a data:image URI and uses the later image", async () => {
+      expect(
+        await coverFromContent(afterPixel("data:image/png;base64,AA", REAL)),
+      ).toBe(REAL);
     });
 
     it("continues past an image that does not qualify to one that does", async () => {
-      const html = afterPixel("https://img.example.com/photo", "https://img.example.com/b.png");
+      const html = afterPixel(
+        "https://img.example.com/photo",
+        "https://img.example.com/b.png",
+      );
 
-      expect(await coverFromContent(html)).toBe("https://img.example.com/b.png");
+      expect(await coverFromContent(html)).toBe(
+        "https://img.example.com/b.png",
+      );
     });
 
     it("returns the first qualifying image and ignores the rest", async () => {
-      const html = afterPixel("https://img.example.com/a.png", "https://img.example.com/b.png");
+      const html = afterPixel(
+        "https://img.example.com/a.png",
+        "https://img.example.com/b.png",
+      );
 
-      expect(await coverFromContent(html)).toBe("https://img.example.com/a.png");
+      expect(await coverFromContent(html)).toBe(
+        "https://img.example.com/a.png",
+      );
     });
 
     it("skips later tracking pixels, junk srcs and formula images", async () => {
@@ -591,11 +792,17 @@ describe("FeedParser.extractCoverImage characterization", () => {
         await coverFromContent(
           afterPixel("https://res.cloudinary.com/demo/image/upload/sample.jpg"),
         ),
-      ).toBe("https://res.cloudinary.com/demo/image/upload/w_600,c_scale/sample.jpg");
+      ).toBe(
+        "https://res.cloudinary.com/demo/image/upload/w_600,c_scale/sample.jpg",
+      );
     });
 
     it("reaches the scan when the first image is junk and the second is a tracking pixel", async () => {
-      expect(await coverFromContent(`<img src="#"><img src="${PIXEL}"><img src="${REAL}">`)).toBe(REAL);
+      expect(
+        await coverFromContent(
+          `<img src="#"><img src="${PIXEL}"><img src="${REAL}">`,
+        ),
+      ).toBe(REAL);
     });
 
     it("normalizes a double-encoded relative src once and logs it", async () => {
@@ -614,7 +821,9 @@ describe("FeedParser.extractCoverImage characterization", () => {
     it("takes its cover from the og:image in the content when it has no artwork", async () => {
       const html = `<meta property="og:image" content="/og/episode.png"><img src="${REAL}">`;
 
-      expect(await podcastCoverFromContent(html)).toBe("https://example.com/og/episode.png");
+      expect(await podcastCoverFromContent(html)).toBe(
+        "https://example.com/og/episode.png",
+      );
     });
 
     it("takes its cover from the first image in the content", async () => {
@@ -624,11 +833,17 @@ describe("FeedParser.extractCoverImage characterization", () => {
     });
 
     it("skips a tracking pixel and takes the next image with an extension", async () => {
-      expect(await podcastCoverFromContent(`<img src="${PIXEL}"><img src="${REAL}">`)).toBe(REAL);
+      expect(
+        await podcastCoverFromContent(
+          `<img src="${PIXEL}"><img src="${REAL}">`,
+        ),
+      ).toBe(REAL);
     });
 
     it("reads the description when there is no content", async () => {
-      expect(await podcastCoverFromContent(`<img src="${REAL}">`, "description")).toBe(REAL);
+      expect(
+        await podcastCoverFromContent(`<img src="${REAL}">`, "description"),
+      ).toBe(REAL);
     });
 
     it("falls back to the feed image when the content has no usable image", async () => {
@@ -636,13 +851,19 @@ describe("FeedParser.extractCoverImage characterization", () => {
         [
           pitem({
             content: `<img src="${PIXEL}">`,
-            enclosure: { url: "https://example.com/ep.mp3", type: "audio/mpeg", length: "1" },
+            enclosure: {
+              url: "https://example.com/ep.mp3",
+              type: "audio/mpeg",
+              length: "1",
+            },
           }),
         ],
         { feedImageUrl: "https://img.example.com/show.jpg" },
       );
 
-      expect(at(feed.items, 0).coverImage).toBe("https://img.example.com/show.jpg");
+      expect(at(feed.items, 0).coverImage).toBe(
+        "https://img.example.com/show.jpg",
+      );
     });
 
     it("prefers the episode artwork to an image in the content", async () => {
@@ -650,11 +871,17 @@ describe("FeedParser.extractCoverImage characterization", () => {
         pitem({
           content: `<img src="${REAL}">`,
           itunes: { image: { href: "https://img.example.com/art.jpg" } },
-          enclosure: { url: "https://example.com/ep.mp3", type: "audio/mpeg", length: "1" },
+          enclosure: {
+            url: "https://example.com/ep.mp3",
+            type: "audio/mpeg",
+            length: "1",
+          },
         }),
       ]);
 
-      expect(at(feed.items, 0).coverImage).toBe("https://img.example.com/art.jpg");
+      expect(at(feed.items, 0).coverImage).toBe(
+        "https://img.example.com/art.jpg",
+      );
     });
   });
 
@@ -688,22 +915,34 @@ describe("FeedParser.extractCoverImage characterization", () => {
 
     it("replaces its cover with the og:image of the refreshed content", async () => {
       const feed = await parseParsed(
-        [pitem({ content: '<meta property="og:image" content="/og/new.png">' })],
+        [
+          pitem({
+            content: '<meta property="og:image" content="/og/new.png">',
+          }),
+        ],
         {},
         stored(),
       );
 
-      expect(at(feed.items, 0).coverImage).toBe("https://example.com/og/new.png");
+      expect(at(feed.items, 0).coverImage).toBe(
+        "https://example.com/og/new.png",
+      );
     });
 
     it("keeps its cover when the refreshed content has only skipped images", async () => {
       const feed = await parseParsed(
-        [pitem({ content: `<img src="${PIXEL}"><img src="#"><img class="latex" src="${REAL}">` })],
+        [
+          pitem({
+            content: `<img src="${PIXEL}"><img src="#"><img class="latex" src="${REAL}">`,
+          }),
+        ],
         {},
         stored(),
       );
 
-      expect(at(feed.items, 0).coverImage).toBe("https://img.example.com/stored-cover.jpg");
+      expect(at(feed.items, 0).coverImage).toBe(
+        "https://img.example.com/stored-cover.jpg",
+      );
     });
   });
 
@@ -726,20 +965,21 @@ describe("FeedParser.extractCoverImage characterization", () => {
     }
 
     it("takes the first usable image of an article's content as its cover", async () => {
-      const feed = await parseBody(rssWithContent(`<p>Words</p><img src="${REAL}">`));
+      const feed = await parseBody(
+        rssWithContent(`<p>Words</p><img src="${REAL}">`),
+      );
 
       expect(at(feed.items, 0).coverImage).toBe(REAL);
     });
 
-    it("gives an article whose first image is a data: placeholder no cover, although a real image follows", async () => {
-      // BUG: pinned, see #637
+    it("gives an article whose first image is a data: placeholder the real image that follows", async () => {
       const html = `<img src="data:image/gif;base64,R0lGODlhAQABAAAAACw="><img src="${REAL}">`;
 
       const feed = await parseBody(rssWithContent(html));
 
       const item = at(feed.items, 0);
-      expect(item.coverImage).toBe("");
-      expect(item.image).toBe("");
+      expect(item.coverImage).toBe(REAL);
+      expect(item.image).toBe(REAL);
     });
   });
 });

@@ -5,7 +5,9 @@ import { renderDisplaySettingsTab } from "../../../src/settings/tabs/display-set
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 
 function cloneSettings(): typeof DEFAULT_SETTINGS {
-  return JSON.parse(JSON.stringify(DEFAULT_SETTINGS)) as typeof DEFAULT_SETTINGS;
+  return JSON.parse(
+    JSON.stringify(DEFAULT_SETTINGS),
+  ) as typeof DEFAULT_SETTINGS;
 }
 
 function flushPromises(): Promise<void> {
@@ -67,16 +69,19 @@ describe("renderDisplaySettingsTab() reader section", () => {
       saveSettings: vi.fn(async () => {}),
       setImageCachingEnabled,
       getImageCacheSizeBytes: vi.fn(() => 1_024),
-      getActiveDashboardView: vi.fn(async () => ({ leaf: {}, render: vi.fn() })),
+      getActiveDashboardView: vi.fn(async () => ({
+        leaf: {},
+        render: vi.fn(),
+      })),
       getActiveReaderView: vi.fn(async () => null),
     } as unknown as RssDashboardPlugin;
 
     renderDisplaySettingsTab(containerEl, plugin, () => {});
 
     const cacheSetting = getSettingByName(containerEl, "Allow image caching");
-    expect(cacheSetting.querySelector(".setting-item-description")?.textContent).toContain(
-      "one megabyte",
-    );
+    expect(
+      cacheSetting.querySelector(".setting-item-description")?.textContent,
+    ).toContain("one megabyte");
     const toggle = cacheSetting.querySelector("input") as HTMLInputElement;
     expect(toggle.checked).toBe(false);
     toggle.checked = true;
@@ -142,8 +147,13 @@ describe("renderDisplaySettingsTab() reader section", () => {
     expect(setImageCacheLimit).toHaveBeenCalledTimes(2);
     expect(limitInput.value).toBe("100");
 
-    const unlimitedSetting = getSettingByName(containerEl, "No cache size limit");
-    const unlimitedToggle = unlimitedSetting.querySelector("input") as HTMLInputElement;
+    const unlimitedSetting = getSettingByName(
+      containerEl,
+      "No cache size limit",
+    );
+    const unlimitedToggle = unlimitedSetting.querySelector(
+      "input",
+    ) as HTMLInputElement;
     unlimitedToggle.checked = true;
     unlimitedToggle.dispatchEvent(new Event("change"));
     await flushPromises();
@@ -170,7 +180,9 @@ describe("renderDisplaySettingsTab() reader section", () => {
     renderDisplaySettingsTab(containerEl, plugin, () => {});
 
     const coverImages = getSettingByName(containerEl, "Show cover images");
-    expect(coverImages.querySelector(".setting-item-description")?.textContent).toBe(
+    expect(
+      coverImages.querySelector(".setting-item-description")?.textContent,
+    ).toBe(
       "Display cover-image previews in dashboard card and feed views. Turning this off reduces remote image loading and can improve browsing performance.",
     );
     const coverToggle = coverImages.querySelector("input") as HTMLInputElement;
@@ -178,9 +190,10 @@ describe("renderDisplaySettingsTab() reader section", () => {
     coverToggle.dispatchEvent(new Event("change"));
     await flushPromises();
 
-    const summaryToggle = getSettingByName(containerEl, "Show summary").querySelector(
-      "input",
-    ) as HTMLInputElement;
+    const summaryToggle = getSettingByName(
+      containerEl,
+      "Show summary",
+    ).querySelector("input") as HTMLInputElement;
     summaryToggle.checked = false;
     summaryToggle.dispatchEvent(new Event("change"));
     await flushPromises();
@@ -212,7 +225,9 @@ describe("renderDisplaySettingsTab() reader section", () => {
     expect(() => getSettingByName(containerEl, "Line height")).not.toThrow();
     expect(() => getSettingByName(containerEl, "Font")).not.toThrow();
     expect(() => getSettingByName(containerEl, "Alignment")).not.toThrow();
-    expect(() => getSettingByName(containerEl, "Paragraph spacing")).not.toThrow();
+    expect(() =>
+      getSettingByName(containerEl, "Paragraph spacing"),
+    ).not.toThrow();
     expect(() => getSettingByName(containerEl, "Paragraph width")).toThrow();
   });
 
@@ -267,7 +282,9 @@ describe("renderDisplaySettingsTab() reader section", () => {
     renderDisplaySettingsTab(containerEl, plugin, () => {});
 
     const resetSetting = getSettingByName(containerEl, "Reset reader format");
-    const resetButton = resetSetting.querySelector("button") as HTMLButtonElement;
+    const resetButton = resetSetting.querySelector(
+      "button",
+    ) as HTMLButtonElement;
     resetButton.click();
     await flushPromises();
 

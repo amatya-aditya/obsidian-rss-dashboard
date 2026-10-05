@@ -93,6 +93,12 @@ type TestDashboardView = {
     file: TFile,
     article?: import("../../../src/types/types").FeedItem,
   ) => Promise<void>;
+  renderInlineArticle: (container: HTMLElement) => void;
+  handleArticleUpdate: (
+    item: FeedItem,
+    updates: Partial<FeedItem>,
+    shouldRerender?: boolean,
+  ) => Promise<void>;
   articleList: {
     setSelectedArticle: ReturnType<typeof vi.fn>;
     scheduleCardTopAnchorOnResize: ReturnType<typeof vi.fn>;
@@ -606,6 +612,53 @@ describe("Dashboard reader location", () => {
 
     expect(view.inlineArticle).toBe(feed.items[0]);
     expect(view.render).toHaveBeenCalled();
+  });
+
+  it("exposes the inline Reader star as a keyboard-operable toggle button", async () => {
+    const settings = cloneSettings();
+    const feed = makeFeed("https://example.com/feed", [{ starred: false }]);
+    settings.feeds = [feed];
+    const { view } = await createDashboardView(settings);
+    view.inlineArticle = feed.items[0];
+    view.handleArticleUpdate = vi.fn(async () => {});
+
+    const container = createDiv();
+    view.renderInlineArticle(container);
+    const starButton = container.querySelector<HTMLElement>(
+      ".rss-reader-star-toggle",
+    );
+
+    expect(starButton?.getAttribute("role")).toBe("button");
+    expect(starButton?.getAttribute("tabindex")).toBe("0");
+    expect(starButton?.getAttribute("aria-pressed")).toBe("false");
+
+    for (const key of ["Enter", " "]) {
+      const event = new KeyboardEvent("keydown", {
+        key,
+        bubbles: true,
+        cancelable: true,
+      });
+      starButton?.dispatchEvent(event);
+
+      expect(event.defaultPrevented).toBe(true);
+      expect(view.handleArticleUpdate).toHaveBeenLastCalledWith(
+        feed.items[0],
+        { starred: true },
+        true,
+      );
+      vi.mocked(view.handleArticleUpdate).mockClear();
+    }
+
+    container.remove();
+    view.inlineArticle = { ...feed.items[0], starred: true };
+    const starredContainer = createDiv();
+    view.renderInlineArticle(starredContainer);
+    expect(
+      starredContainer
+        .querySelector(".rss-reader-star-toggle")
+        ?.getAttribute("aria-pressed"),
+    ).toBe("true");
+    starredContainer.remove();
   });
 
   it("exits inline mode when a feed is clicked in the sidebar", async () => {

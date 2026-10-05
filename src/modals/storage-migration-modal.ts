@@ -29,7 +29,9 @@ export class StorageMigrationModal extends Modal {
     this.modalEl.addClass("rss-dashboard-modal");
     this.modalEl.addClass("rss-dashboard-modal-container");
 
-    new Setting(contentEl).setName("Storage mode is being retired").setHeading();
+    new Setting(contentEl)
+      .setName("Storage mode is being retired")
+      .setHeading();
 
     const modeLabel = describeStorageMode(this.plugin.settings.storageMode);
 

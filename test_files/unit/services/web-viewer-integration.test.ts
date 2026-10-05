@@ -59,12 +59,17 @@ describe("Phase 8 - WebViewerIntegration", () => {
       const integration = h.integration as unknown as {
         addCustomSaveButton: () => void;
       };
-      const addSpy = vi.spyOn(integration, "addCustomSaveButton").mockImplementation(() => {});
+      const addSpy = vi
+        .spyOn(integration, "addCustomSaveButton")
+        .mockImplementation(() => {});
 
       await expect(
         h.integration.openInWebViewer("https://example.com", "My Title"),
       ).resolves.toBe(true);
-      expect(openWebpage).toHaveBeenCalledWith("https://example.com", "My Title");
+      expect(openWebpage).toHaveBeenCalledWith(
+        "https://example.com",
+        "My Title",
+      );
       expect(addSpy).not.toHaveBeenCalled();
 
       vi.advanceTimersByTime(999);
@@ -107,7 +112,9 @@ describe("Phase 8 - WebViewerIntegration", () => {
 
       h.integration.addCustomSaveButton();
 
-      const controlBar = h.webpageContainer?.querySelector(".webpage-control-bar");
+      const controlBar = h.webpageContainer?.querySelector(
+        ".webpage-control-bar",
+      );
       expect(controlBar).not.toBeNull();
       expect(h.webpageContainer?.firstElementChild).toBe(controlBar);
 
@@ -132,7 +139,9 @@ describe("Phase 8 - WebViewerIntegration", () => {
       const integration = h.integration as unknown as {
         showSaveDialog: () => void;
       };
-      const showSpy = vi.spyOn(integration, "showSaveDialog").mockImplementation(() => {});
+      const showSpy = vi
+        .spyOn(integration, "showSaveDialog")
+        .mockImplementation(() => {});
 
       h.integration.addCustomSaveButton();
 
@@ -153,7 +162,9 @@ describe("Phase 8 - WebViewerIntegration", () => {
       const h = createWebViewerIntegrationHarness({ webViewerPlugin: null });
 
       h.integration.showSaveDialog();
-      expect(document.querySelector(".rss-dashboard-web-viewer-save-modal")).toBeNull();
+      expect(
+        document.querySelector(".rss-dashboard-web-viewer-save-modal"),
+      ).toBeNull();
 
       h.cleanup();
     });
@@ -172,13 +183,15 @@ describe("Phase 8 - WebViewerIntegration", () => {
 
       h.integration.showSaveDialog();
 
-      const modal = document.querySelector<HTMLElement>(".rss-dashboard-web-viewer-save-modal");
+      const modal = document.querySelector<HTMLElement>(
+        ".rss-dashboard-web-viewer-save-modal",
+      );
       expect(modal).not.toBeNull();
 
-      const folderInput = modal?.querySelector<HTMLInputElement>(
-        'input[type="text"]',
-      );
-      const templateInput = modal?.querySelector<HTMLTextAreaElement>("textarea");
+      const folderInput =
+        modal?.querySelector<HTMLInputElement>('input[type="text"]');
+      const templateInput =
+        modal?.querySelector<HTMLTextAreaElement>("textarea");
       const frontmatterCheckbox = modal?.querySelector<HTMLInputElement>(
         "#include-frontmatter",
       );
@@ -193,7 +206,9 @@ describe("Phase 8 - WebViewerIntegration", () => {
       expect(cancelButton).not.toBeUndefined();
       cancelButton?.click();
 
-      expect(document.querySelector(".rss-dashboard-web-viewer-save-modal")).toBeNull();
+      expect(
+        document.querySelector(".rss-dashboard-web-viewer-save-modal"),
+      ).toBeNull();
 
       rafSpy.mockRestore();
       h.cleanup();
@@ -219,11 +234,15 @@ describe("Phase 8 - WebViewerIntegration", () => {
           includeFrontmatter: boolean,
         ) => Promise<unknown>;
       };
-      const saveSpy = vi.spyOn(integration, "saveArticle").mockResolvedValue(null);
+      const saveSpy = vi
+        .spyOn(integration, "saveArticle")
+        .mockResolvedValue(null);
 
       h.integration.showSaveDialog();
 
-      const modal = document.querySelector<HTMLElement>(".rss-dashboard-web-viewer-save-modal");
+      const modal = document.querySelector<HTMLElement>(
+        ".rss-dashboard-web-viewer-save-modal",
+      );
       const saveButton = Array.from(
         modal?.querySelectorAll<HTMLButtonElement>("button") ?? [],
       ).find((b) => b.textContent === "Save");
@@ -235,7 +254,9 @@ describe("Phase 8 - WebViewerIntegration", () => {
       await Promise.resolve();
 
       expect(saveSpy).toHaveBeenCalledTimes(1);
-      expect(document.querySelector(".rss-dashboard-web-viewer-save-modal")).toBeNull();
+      expect(
+        document.querySelector(".rss-dashboard-web-viewer-save-modal"),
+      ).toBeNull();
 
       rafSpy.mockRestore();
       h.cleanup();
@@ -270,12 +291,14 @@ describe("Phase 8 - WebViewerIntegration", () => {
       const file = await saveArticle(
         item,
         "Folder",
-        'TITLE={{title}}\nCONTENT={{content}}\n',
+        "TITLE={{title}}\nCONTENT={{content}}\n",
         true,
       );
 
       expect(file).not.toBeNull();
-      expect(h.app.vault.getAbstractFileByPath("Folder/My File.md")).not.toBeNull();
+      expect(
+        h.app.vault.getAbstractFileByPath("Folder/My File.md"),
+      ).not.toBeNull();
       expect(logSpy).toHaveBeenCalledWith(
         "[Stub Notice]",
         expect.stringContaining("Article saved: My File"),
@@ -353,16 +376,18 @@ author: "{{author}}"
 
   describe("helpers", () => {
     it("sanitizeFilename replaces illegal chars, collapses whitespace, and caps long titles", () => {
-      expect(sanitizeFilename('Hello / World: "Test"')).toBe("Hello World Test");
-      expect(
-        sanitizeFilename(`  ${"a".repeat(98)} /  zzz`),
-      ).toBe(
+      expect(sanitizeFilename('Hello / World: "Test"')).toBe(
+        "Hello World Test",
+      );
+      expect(sanitizeFilename(`  ${"a".repeat(98)} /  zzz`)).toBe(
         `${"a".repeat(98)} z`,
       );
     });
 
     it("sanitizeFilename falls back to a safe filename when sanitization removes everything", () => {
-      expect(sanitizeFilename(' / \\\\ : * ? " < > | ')).toBe("Untitled Article");
+      expect(sanitizeFilename(' / \\\\ : * ? " < > | ')).toBe(
+        "Untitled Article",
+      );
     });
 
     it("applyTemplate replaces common placeholders", () => {
@@ -371,7 +396,18 @@ author: "{{author}}"
 
       const h = createWebViewerIntegrationHarness();
       const integration = h.integration as unknown as {
-        applyTemplate: (item: { title: string; link: string; author?: string; feedTitle: string; summary?: string; description?: string; pubDate: string }, template: string) => string;
+        applyTemplate: (
+          item: {
+            title: string;
+            link: string;
+            author?: string;
+            feedTitle: string;
+            summary?: string;
+            description?: string;
+            pubDate: string;
+          },
+          template: string,
+        ) => string;
       };
       const applyTemplate = integration.applyTemplate.bind(h.integration);
 
@@ -408,6 +444,58 @@ author: "{{author}}"
       h.cleanup();
     });
 
+    it("preserves dollar replacement sequences in metadata placeholders", () => {
+      const h = createWebViewerIntegrationHarness();
+      const integration = h.integration as unknown as {
+        applyTemplate: (item: FeedItem, template: string) => string;
+      };
+      const item = buildFeedItem({
+        title: "Price $$100, and $& too",
+        author: "Ann $' Lee",
+        feedTitle: "Research $` Quarterly",
+        description: "BODY",
+      });
+
+      const out = integration.applyTemplate.bind(h.integration)(
+        item,
+        "{{title}} | {{author}} | {{source}} | {{content}}",
+      );
+
+      expect(out).toBe(
+        "Price $$100, and $& too | Ann $' Lee | Research $` Quarterly | BODY",
+      );
+      h.cleanup();
+    });
+
+    it("preserves dollar replacement sequences in frontmatter metadata", () => {
+      const h = createWebViewerIntegrationHarness({
+        settings: {
+          frontmatterTemplate: [
+            "---",
+            'title: "{{title}}"',
+            'author: "{{author}}"',
+            'feedTitle: "{{feedTitle}}"',
+            "---",
+          ].join("\n"),
+        },
+      });
+      const integration = h.integration as unknown as {
+        generateFrontmatter: (item: FeedItem) => string;
+      };
+      const item = buildFeedItem({
+        title: "Price $$100, and $& too",
+        author: "Ann $' Lee",
+        feedTitle: "Research $` Quarterly",
+      });
+
+      const out = integration.generateFrontmatter.bind(h.integration)(item);
+
+      expect(out).toContain('title: "Price $$100, and $& too"');
+      expect(out).toContain(`author: "Ann $' Lee"`);
+      expect(out).toContain('feedTitle: "Research $` Quarterly"');
+      h.cleanup();
+    });
+
     it("generateFrontmatter adds saved tag and uses pubDate fallbacks", () => {
       vi.useFakeTimers();
       vi.setSystemTime(new Date("2026-03-31T12:00:00Z"));
@@ -431,7 +519,9 @@ guid: "{{guid}}"
       const integration = h.integration as unknown as {
         generateFrontmatter: (item: FeedItem) => string;
       };
-      const generateFrontmatter = integration.generateFrontmatter.bind(h.integration);
+      const generateFrontmatter = integration.generateFrontmatter.bind(
+        h.integration,
+      );
 
       const item = buildFeedItem({
         title: "My Article",
@@ -474,7 +564,9 @@ isoDate: "{{isoDate}}"
       const integration = h.integration as unknown as {
         generateFrontmatter: (item: FeedItem) => string;
       };
-      const generateFrontmatter = integration.generateFrontmatter.bind(h.integration);
+      const generateFrontmatter = integration.generateFrontmatter.bind(
+        h.integration,
+      );
 
       // CST = UTC-6, so 09:00 CST is 15:00 UTC. Some engines fail to parse
       // the obsolete named zone via Date.parse() and produce NaN;
@@ -507,7 +599,9 @@ isoDate: "{{isoDate}}"
       const integration = h.integration as unknown as {
         generateFrontmatter: (item: FeedItem) => string;
       };
-      const generateFrontmatter = integration.generateFrontmatter.bind(h.integration);
+      const generateFrontmatter = integration.generateFrontmatter.bind(
+        h.integration,
+      );
 
       const item = buildFeedItem({
         title: "First Seen Fallback",
@@ -537,7 +631,9 @@ isoDate: "{{isoDate}}"
       const integration = h.integration as unknown as {
         generateFrontmatter: (item: FeedItem) => string;
       };
-      const generateFrontmatter = integration.generateFrontmatter.bind(h.integration);
+      const generateFrontmatter = integration.generateFrontmatter.bind(
+        h.integration,
+      );
 
       const item = buildFeedItem({
         title: "No Fallback",
@@ -582,7 +678,9 @@ isoDate: "{{isoDate}}"
       const integration = h.integration as unknown as {
         ensureFolderExists: (path: string) => Promise<void>;
       };
-      const ensureFolderExists = integration.ensureFolderExists.bind(h.integration);
+      const ensureFolderExists = integration.ensureFolderExists.bind(
+        h.integration,
+      );
 
       const createFolderSpy = vi.spyOn(h.app.vault, "createFolder");
       await ensureFolderExists("");
@@ -608,7 +706,18 @@ describe("WebViewerIntegration.{{image}} template variable parity", () => {
 
     const h = createWebViewerIntegrationHarness();
     const integration = h.integration as unknown as {
-      applyTemplate: (item: { title: string; link: string; author?: string; feedTitle: string; summary?: string; description?: string; pubDate: string }, template: string) => string;
+      applyTemplate: (
+        item: {
+          title: string;
+          link: string;
+          author?: string;
+          feedTitle: string;
+          summary?: string;
+          description?: string;
+          pubDate: string;
+        },
+        template: string,
+      ) => string;
     };
     const applyTemplate = integration.applyTemplate.bind(h.integration);
 
@@ -641,7 +750,9 @@ cover: "{{image}}"
     const integration = h.integration as unknown as {
       generateFrontmatter: (item: FeedItem) => string;
     };
-    const generateFrontmatter = integration.generateFrontmatter.bind(h.integration);
+    const generateFrontmatter = integration.generateFrontmatter.bind(
+      h.integration,
+    );
 
     const item = buildFeedItem({
       title: "With Image",

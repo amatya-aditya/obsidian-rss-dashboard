@@ -1,7 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { App } from "obsidian";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
-import { DEFAULT_SETTINGS, type RssDashboardSettings } from "../../../src/types/types";
+import {
+  DEFAULT_SETTINGS,
+  type RssDashboardSettings,
+} from "../../../src/types/types";
 import { RssDashboardView } from "../../../src/views/dashboard-view";
 
 vi.mock("../../../src/utils/platform-utils", () => ({

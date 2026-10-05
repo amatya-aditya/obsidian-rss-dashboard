@@ -132,7 +132,9 @@ function longArticleHtml(seedText) {
     for (let i = 0; i < 4; i += 1) {
       body.push(`<p>${paragraph(random, 5)}</p>`);
     }
-    sections.push(`<h2>Section ${section}: ${sentence(random, 2, 4).slice(0, -1)}</h2>\n${body.join("\n")}`);
+    sections.push(
+      `<h2>Section ${section}: ${sentence(random, 2, 4).slice(0, -1)}</h2>\n${body.join("\n")}`,
+    );
     if (section === 2) {
       sections.push(
         `<figure><img src="${previewImage("long-inline")}" alt="Placeholder figure"><figcaption>A placeholder figure inside the article body.</figcaption></figure>`,
@@ -446,7 +448,7 @@ function brokenFeedItems() {
     item(feed, {
       title: `Article kept from before the feed broke ${n}`,
       link: `${LINK_BASE}/broken/${n}`,
-      pubDate: rfc822(BASE_MS - (n * 10) * DAY_MS),
+      pubDate: rfc822(BASE_MS - n * 10 * DAY_MS),
       ...articleText(`broken-${n}`, 1),
     }),
   );
@@ -455,7 +457,12 @@ function brokenFeedItems() {
 function youtubeItems() {
   const feed = feedById("fx-youtube");
   const videos = [
-    { id: "fxVideo0001", title: "Placeholder video one", hoursAgo: 6, state: {} },
+    {
+      id: "fxVideo0001",
+      title: "Placeholder video one",
+      hoursAgo: 6,
+      state: {},
+    },
     {
       id: "fxVideo0002",
       title: "Placeholder video two, half watched",
@@ -475,7 +482,12 @@ function youtubeItems() {
       hoursAgo: 80,
       state: { starred: true, tags: [TAGS.video, TAGS.important] },
     },
-    { id: "fxVideo0004", title: "Placeholder video four", hoursAgo: 200, state: {} },
+    {
+      id: "fxVideo0004",
+      title: "Placeholder video four",
+      hoursAgo: 200,
+      state: {},
+    },
   ];
   return videos.map((video) => {
     const text = articleText(`video-${video.id}`, 1);
@@ -514,9 +526,20 @@ function podcastItems() {
         tags: [TAGS.podcast],
       },
     },
-    { n: 3, daysAgo: 15, duration: "00:55:00", state: { read: true, starred: true } },
+    {
+      n: 3,
+      daysAgo: 15,
+      duration: "00:55:00",
+      state: { read: true, starred: true },
+    },
     { n: 2, daysAgo: 22, duration: "00:39:30", state: { read: true } },
-    { n: 1, daysAgo: 29, duration: "00:12:05", episodeType: "trailer", state: {} },
+    {
+      n: 1,
+      daysAgo: 29,
+      duration: "00:12:05",
+      episodeType: "trailer",
+      state: {},
+    },
   ];
   return episodes.map((episode) => {
     const audioUrl = `${LINK_BASE}/podcast/episode-${episode.n}.mp3`;
@@ -663,7 +686,11 @@ function feedConfig(feed, entries) {
     // is off for every fixture feed; see the docs to exercise it.
     autoDeleteDuration: 0,
     maxItemsLimit: 0,
-    keywordRules: { overrideGlobalRules: false, includeLogic: "AND", rules: [] },
+    keywordRules: {
+      overrideGlobalRules: false,
+      includeLogic: "AND",
+      rules: [],
+    },
     lastRefreshAttemptCompletedAt: lastUpdated,
     lastFetchError: feed.lastFetchError,
   });
@@ -714,9 +741,11 @@ function folder(name, subfolders = [], extra = {}) {
 
 export function buildFolders() {
   return [
-    folder("News", [
-      folder("Tech", [folder("Releases")], { autoTags: [TAGS.research] }),
-    ], { pinned: true }),
+    folder(
+      "News",
+      [folder("Tech", [folder("Releases")], { autoTags: [TAGS.research] })],
+      { pinned: true },
+    ),
     folder("Videos"),
     folder("Podcasts"),
     folder("Mastodon"),
@@ -799,7 +828,11 @@ function importedFeed(feedId, title, folderPath, count) {
       mediaType: "article",
       autoDeleteDuration: 0,
       maxItemsLimit: 0,
-      keywordRules: { overrideGlobalRules: false, includeLogic: "AND", rules: [] },
+      keywordRules: {
+        overrideGlobalRules: false,
+        includeLogic: "AND",
+        rules: [],
+      },
       lastRefreshAttemptCompletedAt: BASE_MS,
     },
     shard: {
@@ -821,8 +854,18 @@ const CHANGED_PREFERENCES = {
 };
 
 function buildFeedBundle() {
-  const alpha = importedFeed("fx-import-alpha", "Imported feed alpha", "Imported", 3);
-  const beta = importedFeed("fx-import-beta", "Imported feed beta", "Imported/Nested", 2);
+  const alpha = importedFeed(
+    "fx-import-alpha",
+    "Imported feed alpha",
+    "Imported",
+    3,
+  );
+  const beta = importedFeed(
+    "fx-import-beta",
+    "Imported feed beta",
+    "Imported/Nested",
+    2,
+  );
   return {
     version: 1,
     exportedAt: IMPORT_EXPORTED_AT,
@@ -852,7 +895,12 @@ function buildSettingsBundle() {
 }
 
 function buildPortableBundle() {
-  const gamma = importedFeed("fx-import-gamma", "Imported feed gamma", "Portable", 4);
+  const gamma = importedFeed(
+    "fx-import-gamma",
+    "Imported feed gamma",
+    "Portable",
+    4,
+  );
   return {
     version: 1,
     exportedAt: IMPORT_EXPORTED_AT,

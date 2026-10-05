@@ -169,14 +169,18 @@ export function loadAndNormalizeSettings(
   }
 
   // Check if savedArticleOpenLocation was provided in raw data (not inherited from defaults)
-  const savedArticleLocationProvided = rawData?.savedArticleOpenLocation !== undefined;
+  const savedArticleLocationProvided =
+    rawData?.savedArticleOpenLocation !== undefined;
   if (!savedArticleLocationProvided) {
     // Inherit from readerViewLocation, but also convert external-browser to main
     settings.savedArticleOpenLocation = settings.readerViewLocation;
   }
 
   // Migrate: convert external-browser to main for saved articles (external browser no longer supported)
-  if (savedArticleLocationProvided && rawData?.savedArticleOpenLocation === "external-browser") {
+  if (
+    savedArticleLocationProvided &&
+    rawData?.savedArticleOpenLocation === "external-browser"
+  ) {
     settings.savedArticleOpenLocation = "main";
   }
 
@@ -372,7 +376,8 @@ export function migrateSettings(settings: RssDashboardSettings): boolean {
   );
   const displayUnknown = settings.display as unknown as Record<string, unknown>;
   if (displayUnknown && displayUnknown.useDomainFavicons !== undefined) {
-    (settings.display as unknown as Record<string, unknown>).useDomainIconsRss = Boolean(displayUnknown.useDomainFavicons);
+    (settings.display as unknown as Record<string, unknown>).useDomainIconsRss =
+      Boolean(displayUnknown.useDomainFavicons);
     delete displayUnknown.useDomainFavicons;
     didChange = true;
   }

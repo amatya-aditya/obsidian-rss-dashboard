@@ -44,7 +44,9 @@ import {
 import { isLikelyVideoItem } from "../utils/video-detection";
 import {
   clearSavedStateIfFileMissing,
+  buildReaderImageTooltipText,
   formatReaderDateText,
+  getReaderImageFilename,
   placeHeroImage,
   resolveFallbackHeroUrl,
   resolveReaderMediaRoute,
@@ -54,18 +56,8 @@ import {
 } from "../utils/reader-article-render";
 import {
   extractDisplayTitleFromHtml,
-  findFirstSubstantialParagraph,
-  getNormalizedBlockText,
   hasMeaningfulArticleContent,
-  isAcceptableDisplayTitle,
-  isBeforeBoundary,
-  isEquivalentHtml,
-  isLeadMediaBlock,
   isLikelySameImageSource,
-  isShortLeadInBlock,
-  normalizeComparableText,
-  normalizeImageSourceKey,
-  removeLeadImageElement,
   stripDuplicateLeadCaptionBlocks,
   stripDuplicateLeadContentFromDocument,
   stripDuplicateLeadMediaMatchingHero,
@@ -114,7 +106,7 @@ const STARRED_IMPORT_UNFETCHED_BANNER_TEXT =
 const STARRED_IMPORT_FAILED_BANNER_TEXT =
   "The last attempt to fetch the full article failed. Showing the cached preview from the starred.json import";
 const STARRED_IMPORT_FETCH_NOW_TEXT = "Fetch now";
-const STARRED_IMPORT_OPEN_IN_BROWSER_TEXT = "Open in Browser";
+const STARRED_IMPORT_OPEN_IN_BROWSER_TEXT = "Open in browser";
 const STARRED_IMPORT_FETCH_FAILED_NOTICE =
   "Could not fetch full article content.";
 
@@ -139,6 +131,7 @@ export class ReaderView extends ItemView {
   private currentFullContent?: string;
   private currentDisplayTitle?: string;
   private currentReaderTitle?: string;
+  private imageAccessibleTextIndex = 0;
   private currentContentIsFullArticle = false;
   private turndownService = new TurndownService();
   private onPlaybackProgress?: (
@@ -636,8 +629,8 @@ export class ReaderView extends ItemView {
   private buildReaderSaveMarkdown(item: FeedItem): string {
     const htmlToSave =
       this.currentFullContent && this.currentContentIsFullArticle
-        ? this.stripNavigationChromeFromHtml(
-            this.stripTopHeadlineFromHtml(this.currentFullContent),
+        ? stripNavigationChromeFromHtml(
+            stripTopHeadlineFromHtml(this.currentFullContent),
           )
         : this.currentFullContent || item.description || "";
     const htmlWithHero = this.prependFallbackHeroForSavedMarkdown(
@@ -684,7 +677,7 @@ export class ReaderView extends ItemView {
       const doc = new DOMParser().parseFromString(html, "text/html");
       const heroAlreadyIncluded = Array.from(doc.querySelectorAll("img")).some(
         (img) =>
-          this.isLikelySameImageSource(
+          isLikelySameImageSource(
             normalizeSubstackImageUrl(img.getAttribute("src") || ""),
             fallbackHeroUrl,
           ),
@@ -897,12 +890,23 @@ export class ReaderView extends ItemView {
     // Star toggle button
     this.starToggleButton = actions.createDiv({
       cls: "rss-reader-action-button rss-reader-star-toggle",
-      attr: { "aria-label": "Star/unstar article" },
+      attr: {
+        role: "button",
+        tabindex: "0",
+        "aria-label": "Star/unstar article",
+        "aria-pressed": "false",
+      },
     });
     setIcon(this.starToggleButton, "star-off");
     this.starToggleButton.addEventListener("click", () => {
       if (this.currentItem) {
         this.toggleStarStatus();
+      }
+    });
+    this.starToggleButton.addEventListener("keydown", (e: KeyboardEvent) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        this.starToggleButton?.click();
       }
     });
 
@@ -911,7 +915,7 @@ export class ReaderView extends ItemView {
       cls: "rss-dashboard-tags-dropdown",
     });
     const tagsButton = tagsDropdown.createDiv({
-      cls: "rss-dashboard-tags-toggle clickable-icon",
+      cls: "rss-dashboard-tags-toggle clickable-icon rss-reader-action-button",
       attr: {
         role: "button",
         tabindex: "0",
@@ -959,7 +963,7 @@ export class ReaderView extends ItemView {
     // Open in browser button
     const browserButton = actions.createDiv({
       cls: "rss-reader-action-button",
-      attr: { "aria-label": "Open in Browser" },
+      attr: { "aria-label": "Open in browser" },
     });
     setIcon(browserButton, "external-link");
     browserButton.addEventListener("click", (e) => {
@@ -1035,16 +1039,10 @@ export class ReaderView extends ItemView {
       cls: "rss-reader-content",
     });
     this.register(
-      trackReaderMathSelection(
-        this.containerEl,
-        () => this.readingContainer,
-      ),
+      trackReaderMathSelection(this.containerEl, () => this.readingContainer),
     );
     this.registerDomEvent(this.containerEl, "copy", (event) => {
-      const result = handleReaderMathCopy(
-        event,
-        this.readingContainer,
-      );
+      const result = handleReaderMathCopy(event, this.readingContainer);
       if (result === "failed") {
         new Notice(
           "Could not copy formula source; copied rendered selection instead.",
@@ -1222,8 +1220,7 @@ export class ReaderView extends ItemView {
       const fetchedContent = this.shouldSkipFullArticleFetch(item)
         ? ""
         : await this.fetchFullArticleContent(item.link);
-      const hasFullArticleContent =
-        this.hasMeaningfulArticleContent(fetchedContent);
+      const hasFullArticleContent = hasMeaningfulArticleContent(fetchedContent);
 
       if (hasFullArticleContent) {
         item.restrictedReason = undefined;
@@ -1233,7 +1230,7 @@ export class ReaderView extends ItemView {
       }
 
       const displayTitle = hasFullArticleContent
-        ? this.extractDisplayTitleFromHtml(fetchedContent)
+        ? extractDisplayTitleFromHtml(fetchedContent)
         : null;
       const fullContent = hasFullArticleContent
         ? fetchedContent
@@ -1576,9 +1573,7 @@ export class ReaderView extends ItemView {
       hasMeaningfulDescription,
       hasDistinctMainContent,
       contentToRender,
-    } = selectArticleSections(item, fullContent, (a, b) =>
-      this.isEquivalentHtml(a, b),
-    );
+    } = selectArticleSections(item, fullContent);
     const fallbackHeroUrl = resolveFallbackHeroUrl(item, this.settings.feeds);
 
     if (hasDistinctMainContent && hasMeaningfulDescription) {
@@ -1601,7 +1596,6 @@ export class ReaderView extends ItemView {
         undefined,
       );
     }
-
 
     if (contentToRender) {
       const contentContainer = this.readingContainer.createDiv({
@@ -1730,11 +1724,12 @@ export class ReaderView extends ItemView {
       return;
     }
 
-    this.currentFullContent = result.content || item.content || item.description || "";
+    this.currentFullContent =
+      result.content || item.content || item.description || "";
     this.currentContentIsFullArticle = Boolean(result.content);
     if (result.content) {
       this.currentDisplayTitle =
-        this.extractDisplayTitleFromHtml(result.content) || undefined;
+        extractDisplayTitleFromHtml(result.content) || undefined;
     }
     this.syncReaderTitle();
 
@@ -1828,14 +1823,14 @@ export class ReaderView extends ItemView {
       // Clean up fetched full-article HTML before hero extraction so we don't pick
       // navigation icons / breadcrumbs as the hero image.
       if (stripTopHeadline) {
-        this.stripNavigationChromeFromDocument(doc);
-        this.stripTopHeadlineFromDocument(doc);
-        this.stripDuplicateLeadContentFromDocument(doc, feedDescriptionHtml);
-        this.stripSkipLinksFromDocument(doc);
+        stripNavigationChromeFromDocument(doc);
+        stripTopHeadlineFromDocument(doc);
+        stripDuplicateLeadContentFromDocument(doc, feedDescriptionHtml);
+        stripSkipLinksFromDocument(doc);
         if (fallbackHeroUrl) {
-          this.stripLeadMediaBeforeContent(doc);
-          this.stripDuplicateLeadMediaMatchingHero(doc, fallbackHeroUrl);
-          this.stripDuplicateLeadCaptionBlocks(doc);
+          stripLeadMediaBeforeContent(doc);
+          stripDuplicateLeadMediaMatchingHero(doc, fallbackHeroUrl);
+          stripDuplicateLeadCaptionBlocks(doc);
         }
         // Strip inline SVGs from fetched articles — these are publisher UI
         // decorations (section icons, share buttons) never present in RSS payloads.
@@ -1844,11 +1839,9 @@ export class ReaderView extends ItemView {
 
       // Attempt to extract and place hero image
       if (heroSlot) {
-        placeHeroImage(doc, heroSlot, fallbackHeroUrl, title, {
-          setupLightbox: (img) => this.setupLightboxForImage(img),
-          isLikelySameImageSource: (a, b) =>
-            this.isLikelySameImageSource(a, b),
-          removeLeadImageElement: (el) => this.removeLeadImageElement(el),
+        placeHeroImage(doc, heroSlot, fallbackHeroUrl, title, (img) => {
+          this.setupReaderImageTooltip(img, title);
+          this.setupLightboxForImage(img);
         });
       }
 
@@ -1873,18 +1866,10 @@ export class ReaderView extends ItemView {
     // Add classes to images for styling
     container.querySelectorAll("img").forEach((img) => {
       img.addClass("rss-reader-responsive-img");
+      this.setupReaderImageTooltip(img, title);
       this.setupLightboxForImage(img);
       img.addEventListener("error", () => {
-        if (this.recoverFailedSubstackImageElement(img)) {
-          console.warn(
-            `[RSS Dashboard] ReaderView recovered Substack img src=${img.getAttribute("src") || ""} currentSrc=${img.currentSrc || ""}`,
-          );
-          return;
-        }
-
-        console.error(
-          `[RSS Dashboard] ReaderView img load failed src=${img.getAttribute("src") || ""} currentSrc=${img.currentSrc || ""} srcset=${img.getAttribute("srcset") || ""}`,
-        );
+        this.recoverFailedSubstackImageElement(img);
       });
     });
 
@@ -1898,6 +1883,13 @@ export class ReaderView extends ItemView {
     if (!isLightboxEligibleImage(img)) return;
 
     img.addClass("rss-reader-zoomable-img");
+    img.setAttribute("role", "button");
+    img.setAttribute("tabindex", "0");
+    img.addEventListener("keydown", (event: KeyboardEvent) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      img.click();
+    });
     img.addEventListener("click", (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -1908,6 +1900,73 @@ export class ReaderView extends ItemView {
       });
       lightbox.open();
     });
+  }
+
+  private setupReaderImageTooltip(
+    img: HTMLImageElement,
+    articleTitle: string | undefined,
+  ): void {
+    const filename = getReaderImageFilename(img);
+    const altText = img.getAttribute("alt");
+    const tooltipText = buildReaderImageTooltipText(
+      altText,
+      articleTitle,
+      filename,
+    );
+    const opensLightbox = isLightboxEligibleImage(img);
+
+    if (tooltipText) {
+      setTooltip(img, tooltipText);
+      if (opensLightbox) {
+        const tooltipTarget = img.closest("picture") ?? img;
+        const parent = tooltipTarget.parentElement;
+        if (parent) {
+          const tooltipHost = parent.createSpan({
+            cls: "rss-reader-image-tooltip-host",
+          });
+          parent.insertBefore(tooltipHost, tooltipTarget);
+          tooltipHost.appendChild(tooltipTarget);
+          tooltipHost.createSpan({
+            cls: "rss-reader-image-focus-tooltip",
+            text: tooltipText,
+            attr: { "aria-hidden": "true" },
+          });
+        }
+      }
+    }
+
+    const makeAccessibleText = (text: string): string => {
+      let id = "";
+      do {
+        id = `rss-reader-image-text-${++this.imageAccessibleTextIndex}`;
+      } while (this.readingContainer.ownerDocument.getElementById(id));
+      const label = this.readingContainer.createSpan({
+        attr: { id, hidden: "" },
+      });
+      label.setText(text);
+      return id;
+    };
+
+    if (altText === "" && !opensLightbox) {
+      img.setAttribute("aria-hidden", "true");
+    } else if (altText === "" && opensLightbox) {
+      img.setAttribute(
+        "aria-labelledby",
+        makeAccessibleText("Open image in lightbox"),
+      );
+    } else if (altText?.trim()) {
+      img.setAttribute("aria-labelledby", makeAccessibleText(altText));
+      if (
+        filename &&
+        filename.toLocaleLowerCase() !== altText.trim().toLocaleLowerCase()
+      ) {
+        img.setAttribute("aria-describedby", makeAccessibleText(filename));
+      }
+    } else if (filename) {
+      img.setAttribute("aria-labelledby", makeAccessibleText(filename));
+    } else if (opensLightbox) {
+      img.setAttribute("aria-label", "Open image in lightbox");
+    }
   }
 
   private recoverFailedSubstackImageElement(img: HTMLImageElement): boolean {
@@ -1945,100 +2004,6 @@ export class ReaderView extends ItemView {
     replacement.setAttribute("src", recoverySrc);
     img.replaceWith(replacement);
     return true;
-  }
-
-  private stripTopHeadlineFromHtml(html: string): string {
-    return stripTopHeadlineFromHtml(html);
-  }
-
-  private stripNavigationChromeFromHtml(html: string): string {
-    return stripNavigationChromeFromHtml(html);
-  }
-
-  private stripTopHeadlineFromDocument(doc: Document): void {
-    stripTopHeadlineFromDocument(doc);
-  }
-
-  private stripNavigationChromeFromDocument(doc: Document): void {
-    stripNavigationChromeFromDocument(doc);
-  }
-
-  private extractDisplayTitleFromHtml(html: string): string | null {
-    return extractDisplayTitleFromHtml(html);
-  }
-
-  private isAcceptableDisplayTitle(text: string): boolean {
-    return isAcceptableDisplayTitle(text);
-  }
-
-  private isEquivalentHtml(html1: string, html2: string): boolean {
-    return isEquivalentHtml(html1, html2);
-  }
-
-  private normalizeComparableText(html: string): string {
-    return normalizeComparableText(html);
-  }
-
-  private stripDuplicateLeadContentFromDocument(
-    doc: Document,
-    feedDescriptionHtml?: string,
-  ): void {
-    stripDuplicateLeadContentFromDocument(doc, feedDescriptionHtml);
-  }
-
-  private stripLeadMediaBeforeContent(doc: Document): void {
-    stripLeadMediaBeforeContent(doc);
-  }
-
-  private getNormalizedBlockText(block: HTMLElement): string {
-    return getNormalizedBlockText(block);
-  }
-
-  private isShortLeadInBlock(block: HTMLElement): boolean {
-    return isShortLeadInBlock(block);
-  }
-
-  private isLeadMediaBlock(block: HTMLElement): boolean {
-    return isLeadMediaBlock(block);
-  }
-
-  private removeLeadImageElement(imageEl: Element): void {
-    removeLeadImageElement(imageEl);
-  }
-
-  private stripSkipLinksFromDocument(doc: Document): void {
-    stripSkipLinksFromDocument(doc);
-  }
-
-  private stripDuplicateLeadMediaMatchingHero(
-    doc: Document,
-    heroUrl: string,
-  ): void {
-    stripDuplicateLeadMediaMatchingHero(doc, heroUrl);
-  }
-
-  private stripDuplicateLeadCaptionBlocks(doc: Document): void {
-    stripDuplicateLeadCaptionBlocks(doc);
-  }
-
-  private findFirstSubstantialParagraph(doc: Document): HTMLElement | null {
-    return findFirstSubstantialParagraph(doc);
-  }
-
-  private isBeforeBoundary(el: Element, boundary: HTMLElement | null): boolean {
-    return isBeforeBoundary(el, boundary);
-  }
-
-  private isLikelySameImageSource(urlA: string, urlB: string): boolean {
-    return isLikelySameImageSource(urlA, urlB);
-  }
-
-  private normalizeImageSourceKey(rawUrl: string): string {
-    return normalizeImageSourceKey(rawUrl);
-  }
-
-  private hasMeaningfulArticleContent(html: string | null): boolean {
-    return hasMeaningfulArticleContent(html);
   }
 
   private async fetchFullArticleContent(url: string): Promise<string> {
@@ -2214,8 +2179,7 @@ export class ReaderView extends ItemView {
         ? (plugins.getPlugin("rss-dashboard") as TagsPlugin | null)
         : null;
     const pluginByRegistry = plugins?.plugins?.["rss-dashboard"] as
-      | TagsPlugin
-      | undefined;
+      TagsPlugin | undefined;
 
     const plugin = pluginByGetter || pluginByRegistry;
     if (typeof plugin?.openTagsSettings === "function") {
@@ -2474,8 +2438,7 @@ export class ReaderView extends ItemView {
         ? (plugins.getPlugin("rss-dashboard") as SettingsPlugin | null)
         : null;
     const pluginByRegistry = plugins?.plugins?.["rss-dashboard"] as
-      | SettingsPlugin
-      | undefined;
+      SettingsPlugin | undefined;
 
     const plugin = pluginByGetter || pluginByRegistry;
     if (typeof plugin?.openSettingsToTab === "function") {
@@ -2565,6 +2528,10 @@ export class ReaderView extends ItemView {
       this.starToggleButton.classList.toggle(
         "unstarred",
         !this.currentItem.starred,
+      );
+      this.starToggleButton.setAttribute(
+        "aria-pressed",
+        String(this.currentItem.starred),
       );
       setTooltip(
         this.starToggleButton,

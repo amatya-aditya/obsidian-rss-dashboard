@@ -38,7 +38,9 @@ describe("resolveItemExternalUrl", () => {
       audioUrl: "https://cdn.example.com/audio.mp3",
     });
 
-    expect(resolveItemExternalUrl(item)).toBe("https://cdn.example.com/audio.mp3");
+    expect(resolveItemExternalUrl(item)).toBe(
+      "https://cdn.example.com/audio.mp3",
+    );
   });
 
   it("falls back to guid when it is an http(s) URL", () => {
@@ -61,7 +63,9 @@ describe("resolveItemExternalUrl", () => {
       },
     });
 
-    expect(resolveItemExternalUrl(item)).toBe("https://cdn.example.com/audio.m4a");
+    expect(resolveItemExternalUrl(item)).toBe(
+      "https://cdn.example.com/audio.m4a",
+    );
   });
 
   it("returns null when no openable URL is present", () => {
@@ -74,4 +78,3 @@ describe("resolveItemExternalUrl", () => {
     expect(resolveItemExternalUrl(item)).toBeNull();
   });
 });
-

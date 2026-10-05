@@ -70,7 +70,11 @@ interface DashboardDouble {
 interface ParserDouble {
   refreshFeed: Mock<(feed: Feed, options?: FetchOptions) => Promise<Feed>>;
   parseFeed: Mock<
-    (url: string, existing?: Feed | null, options?: FetchOptions) => Promise<Feed>
+    (
+      url: string,
+      existing?: Feed | null,
+      options?: FetchOptions,
+    ) => Promise<Feed>
   >;
   refreshAllFeeds: Mock<(feeds: Feed[]) => Promise<Feed[]>>;
 }
@@ -978,6 +982,7 @@ describe("global feed operation: Discover add (addFeed with globalOperation)", (
 
   it("stores nothing when the add is stopped, even though the parse finishes", async () => {
     const url = "https://example.com/discovered.xml";
+    const secondUrl = "https://example.com/discovered-2.xml";
     const harness = createHarness();
     const { plugin } = harness;
 
@@ -991,12 +996,28 @@ describe("global feed operation: Discover add (addFeed with globalOperation)", (
     expect(heldFetch(harness, url).signal?.aborted).toBe(true);
     expect(notices()).toContain(STOPPED_NOTICE);
 
-    await settle(harness, url);
-
+    // Stop must end the operation without waiting for the held parse (#482).
+    await until(() => !plugin.isMultiFeedRefreshActive);
     expect(await added).toBe(false);
     expect(plugin.settings.feeds).toEqual([]);
-    expect(plugin.isMultiFeedRefreshActive).toBe(false);
     expect(plugin.globalRefreshProgress).toEqual({ completed: 0, total: 0 });
+
+    // A second global operation can start while the first parse is still held.
+    const second = addFeed(plugin, secondUrl, {
+      showNotice: false,
+      globalOperation: true,
+    });
+    await flush();
+    expect(plugin.isMultiFeedRefreshActive).toBe(true);
+    expect(plugin.globalRefreshProgress).toEqual({ completed: 0, total: 1 });
+
+    // Late completion of the stopped parse still stores nothing.
+    await settle(harness, url);
+    expect(plugin.settings.feeds).toEqual([]);
+
+    await settle(harness, secondUrl);
+    expect(await second).toBe(true);
+    expect(plugin.settings.feeds.map((feed) => feed.url)).toEqual([secondUrl]);
   });
 });
 
@@ -1121,9 +1142,8 @@ describe("global feed operation: background import (OPML import, Discover add al
     const refresh = plugin.refreshFeeds();
     await flush();
     plugin.importOpml();
-    const input = document.body.querySelector<HTMLInputElement>(
-      'input[type="file"]',
-    );
+    const input =
+      document.body.querySelector<HTMLInputElement>('input[type="file"]');
     if (!input) throw new Error("importOpml() did not create a file input");
     Object.defineProperty(input, "files", {
       value: [{ name: "feeds.opml", text: () => Promise.resolve(opml) }],
@@ -1256,9 +1276,9 @@ describe("global feed operation: Stop", () => {
     plugin.cancelGlobalRefresh();
 
     expect(deferral).toHaveBeenCalledTimes(2);
-    expect(notices().filter((notice) => notice === STOPPED_NOTICE)).toHaveLength(
-      2,
-    );
+    expect(
+      notices().filter((notice) => notice === STOPPED_NOTICE),
+    ).toHaveLength(2);
   });
 
   it("cancelGlobalRefresh stops an in-flight global refresh, prevents late commits, and protects lastGlobalRefreshCompletedAt", async () => {
@@ -1292,9 +1312,9 @@ describe("global feed operation: Stop", () => {
 
     expect(notices()).toContain("Refreshing 3 feeds...");
     expect(notices()).toContain(STOPPED_NOTICE);
-    expect(notices().some((notice) => notice.startsWith("Feeds refreshed:"))).toBe(
-      false,
-    );
+    expect(
+      notices().some((notice) => notice.startsWith("Feeds refreshed:")),
+    ).toBe(false);
   });
 
   it("leaves a stopped feed's last error and last attempt time as they were", async () => {
@@ -1337,7 +1357,9 @@ describe("global feed operation: Stop", () => {
 
     const refresh = plugin.refreshFeeds();
     await flush();
-    expect(heldUrls(harness)).toEqual(feeds.slice(0, 8).map((feed) => feed.url));
+    expect(heldUrls(harness)).toEqual(
+      feeds.slice(0, 8).map((feed) => feed.url),
+    );
 
     plugin.cancelGlobalRefresh();
     await refresh;

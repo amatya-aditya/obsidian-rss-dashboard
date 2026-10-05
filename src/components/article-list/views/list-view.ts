@@ -66,7 +66,10 @@ export function renderListView(
     const dateInfo = formatArticleDate(
       displayDate,
       ctx.settings.display.articleDateStyle ?? "relative",
-      { isFirstSeenFallback: getPubDateMs(article.pubDate) <= 0 && !!displayDate },
+      {
+        isFirstSeenFallback:
+          getPubDateMs(article.pubDate) <= 0 && !!displayDate,
+      },
     );
     if (!useBottomRow) {
       const timeEl = mainGrid.createDiv("rss-dashboard-grid-time");

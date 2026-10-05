@@ -20,8 +20,15 @@ describe("FeedRefreshScheduler", () => {
   });
 
   it("arms one timer for the nearest due feed and requests a due snapshot", async () => {
-    const near = createFeed({ scanInterval: 1, lastRefreshAttemptCompletedAt: 1_000 });
-    const later = createFeed({ url: "https://example.com/later.xml", scanInterval: 5, lastRefreshAttemptCompletedAt: 1_000 });
+    const near = createFeed({
+      scanInterval: 1,
+      lastRefreshAttemptCompletedAt: 1_000,
+    });
+    const later = createFeed({
+      url: "https://example.com/later.xml",
+      scanInterval: 5,
+      lastRefreshAttemptCompletedAt: 1_000,
+    });
     const requestDueFeeds = vi.fn().mockImplementation(async () => {
       near.lastRefreshAttemptCompletedAt = Date.now();
     });
@@ -96,7 +103,10 @@ describe("FeedRefreshScheduler", () => {
   });
 
   it("schedules a custom feed when the global interval is off", async () => {
-    const custom = createFeed({ scanInterval: 2, lastRefreshAttemptCompletedAt: 0 });
+    const custom = createFeed({
+      scanInterval: 2,
+      lastRefreshAttemptCompletedAt: 0,
+    });
     const requestDueFeeds = vi.fn().mockImplementation(async () => {
       custom.lastRefreshAttemptCompletedAt = Date.now();
     });
@@ -116,7 +126,10 @@ describe("FeedRefreshScheduler", () => {
   });
 
   it("does not overlap an active batch and stops cleanly", async () => {
-    const feed = createFeed({ scanInterval: 1, lastRefreshAttemptCompletedAt: 0 });
+    const feed = createFeed({
+      scanInterval: 1,
+      lastRefreshAttemptCompletedAt: 0,
+    });
     const requestDueFeeds = vi.fn().mockResolvedValue(undefined);
     const scheduler = new FeedRefreshScheduler({
       getFeeds: () => [feed],

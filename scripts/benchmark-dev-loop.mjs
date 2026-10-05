@@ -28,7 +28,9 @@ export function median(values) {
   if (values.length === 0) return null;
   const sorted = [...values].sort((a, b) => a - b);
   const mid = Math.floor(sorted.length / 2);
-  return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
+  return sorted.length % 2 === 0
+    ? (sorted[mid - 1] + sorted[mid]) / 2
+    : sorted[mid];
 }
 
 // A run is contaminated when another checkout's lint, test, or type-check
@@ -81,8 +83,11 @@ export function formatComparison(before, after) {
     const b = before.stages[name] ? summarizeStage(before.stages[name]) : null;
     const a = after.stages[name] ? summarizeStage(after.stages[name]) : null;
     const change =
-      b && a && b.warm ? `${Math.round(((a.warm - b.warm) / b.warm) * 100)}%` : "-";
-    const signed = change !== "-" && !change.startsWith("-") ? `+${change}` : change;
+      b && a && b.warm
+        ? `${Math.round(((a.warm - b.warm) / b.warm) * 100)}%`
+        : "-";
+    const signed =
+      change !== "-" && !change.startsWith("-") ? `+${change}` : change;
     lines.push(
       `| ${STAGE_LABELS[name] ?? name} | ${secs(b?.warm)} | ${secs(a?.warm)} | ${signed} |`,
     );
@@ -91,11 +96,14 @@ export function formatComparison(before, after) {
       ["after", a],
     ]) {
       if (!s) continue;
-      if (s.failed) notes.push(`${name} (${side}): at least one run exited non-zero.`);
+      if (s.failed)
+        notes.push(`${name} (${side}): at least one run exited non-zero.`);
       if (s.contaminatedRuns > 0) {
         notes.push(
           `${name} (${side}): ${s.contaminatedRuns} run(s) overlapped other lint/test processes` +
-            (s.cleanWarmRuns === 0 ? "; no clean warm run, so the median includes them." : "."),
+            (s.cleanWarmRuns === 0
+              ? "; no clean warm run, so the median includes them."
+              : "."),
         );
       }
     }
@@ -159,13 +167,18 @@ function shellPath() {
 }
 
 function clearCaches(cwd) {
-  fs.rmSync(path.join(cwd, "node_modules", ".cache"), { recursive: true, force: true });
+  fs.rmSync(path.join(cwd, "node_modules", ".cache"), {
+    recursive: true,
+    force: true,
+  });
 }
 
 function assertClean(cwd) {
   const status = exec("git status --porcelain", cwd).stdout.trim();
   if (status) {
-    throw new Error(`Refusing to benchmark ${cwd}: it has uncommitted changes.`);
+    throw new Error(
+      `Refusing to benchmark ${cwd}: it has uncommitted changes.`,
+    );
   }
 }
 
@@ -205,7 +218,9 @@ function machineInfo() {
 function runBenchmark({ cwd, label, runs, only }) {
   assertClean(cwd);
   const sh = shellPath();
-  const pkg = JSON.parse(fs.readFileSync(path.join(cwd, "package.json"), "utf8"));
+  const pkg = JSON.parse(
+    fs.readFileSync(path.join(cwd, "package.json"), "utf8"),
+  );
   const typecheck = typecheckCommandFromBuild(pkg.scripts.build);
 
   const plain = {
@@ -218,8 +233,14 @@ function runBenchmark({ cwd, label, runs, only }) {
   };
   const hooks = {
     "pre-commit: prose only": ["README.md", `${sh} .githooks/pre-commit`],
-    "pre-commit: one source file": ["src/views/reader-view.ts", `${sh} .githooks/pre-commit`],
-    "pre-commit: whole-suite trigger": ["vitest.config.mjs", `${sh} .githooks/pre-commit`],
+    "pre-commit: one source file": [
+      "src/views/reader-view.ts",
+      `${sh} .githooks/pre-commit`,
+    ],
+    "pre-commit: whole-suite trigger": [
+      "vitest.config.mjs",
+      `${sh} .githooks/pre-commit`,
+    ],
     "pre-push": [null, `${sh} .githooks/pre-push`],
   };
 
@@ -234,7 +255,9 @@ function runBenchmark({ cwd, label, runs, only }) {
     if (!wanted(name)) continue;
     process.stdout.write(`[benchmark] ${label}: ${name}\n`);
     stages[name] = measureStage(runs, cwd, () =>
-      file ? withStagedProbe(cwd, file, () => timed(command, cwd)) : timed(command, cwd),
+      file
+        ? withStagedProbe(cwd, file, () => timed(command, cwd))
+        : timed(command, cwd),
     );
   }
 
@@ -281,7 +304,9 @@ function main() {
   }
 
   if (command === "compare" && rest.length === 2) {
-    const [before, after] = rest.map((file) => JSON.parse(fs.readFileSync(file, "utf8")));
+    const [before, after] = rest.map((file) =>
+      JSON.parse(fs.readFileSync(file, "utf8")),
+    );
     process.stdout.write(`${formatComparison(before, after)}\n`);
     return;
   }

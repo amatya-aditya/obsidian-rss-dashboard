@@ -51,7 +51,9 @@ describe("OpmlOverwriteConfirmModal", () => {
 
     expect(onExport).toHaveBeenCalledTimes(1);
     expect(onConfirm).not.toHaveBeenCalled();
-    expect(document.querySelector(".rss-dashboard-confirm-modal")).not.toBeNull();
+    expect(
+      document.querySelector(".rss-dashboard-confirm-modal"),
+    ).not.toBeNull();
   });
 
   it("runs the confirm callback once, then closes", () => {

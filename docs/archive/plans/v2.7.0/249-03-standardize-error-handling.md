@@ -11,6 +11,7 @@
 ## Strategy
 
 **Recoverable errors** (caller's choice on UX):
+
 - Invalid input parameters
 - Network timeouts or fetch failures
 - Feed parse errors
@@ -19,6 +20,7 @@
 Action: Throw the error. Log a warning if helpful for debugging. Let the caller (usually main.ts) decide whether to show a Notice, retry, or fail gracefully.
 
 **Invariant violations** (log + throw):
+
 - Settings object is null/undefined when method expects it to exist
 - Folder service is called before initialization
 - Data structure is corrupted or missing required fields
@@ -27,6 +29,7 @@ Action: Throw the error. Log a warning if helpful for debugging. Let the caller 
 Action: Log the error with context. Throw the error. This signals a bug in the code, not a user action.
 
 **Silent failures** (avoid):
+
 - Don't silently fail when a user action can't complete
 - Don't ignore errors in background operations without logging
 - Every error path should either throw, log, or notify the user

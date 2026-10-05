@@ -461,6 +461,8 @@
   cursor: pointer;
   transition: all 0.2s ease;
   color: var(--text-normal);
+  padding: 0;
+  font: inherit;
 }
 .rss-dashboard-hamburger-button:hover {
   background: var(--background-modifier-hover);

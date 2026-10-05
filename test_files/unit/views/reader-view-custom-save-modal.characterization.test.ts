@@ -79,7 +79,11 @@ function createHarness(options?: {
   };
   const saveArticle = vi
     .fn()
-    .mockResolvedValue(options?.saveResult === undefined ? { path: "Saved/Fixture article.md" } : options.saveResult);
+    .mockResolvedValue(
+      options?.saveResult === undefined
+        ? { path: "Saved/Fixture article.md" }
+        : options.saveResult,
+    );
   const onArticleSave = vi.fn();
   const onArticleUpdate = vi.fn();
   const app = { workspace: {}, vault: {} };
@@ -106,9 +110,8 @@ async function openCustomSaveDialog(
   input: ReaderView | CustomSaveHarness,
 ): Promise<HTMLElement> {
   const view = input instanceof ReaderView ? input : input.view;
-  const item = input instanceof ReaderView
-    ? internals(view).currentItem
-    : input.item;
+  const item =
+    input instanceof ReaderView ? internals(view).currentItem : input.item;
   if (!item) throw new Error("Reader article was not selected");
   const displayTitle = internals(view).currentDisplayTitle;
   if (!internals(view).contentEl) {
@@ -132,7 +135,8 @@ async function openCustomSaveDialog(
   const customSaveOption = Menu.lastItems.find(
     (menuItem) => menuItem.title === "Save to custom folder...",
   );
-  if (!customSaveOption) throw new Error("Custom save menu item was not rendered");
+  if (!customSaveOption)
+    throw new Error("Custom save menu item was not rendered");
   customSaveOption.trigger();
 
   const modal = activeDocument.querySelector<HTMLElement>(
@@ -165,7 +169,14 @@ function getFields(modal: HTMLElement): {
   const save = modal.querySelector<HTMLButtonElement>(
     ".rss-dashboard-custom-save-confirm-button",
   );
-  if (!folder || !savedTemplate || !template || !saveAsTemplate || !cancel || !save) {
+  if (
+    !folder ||
+    !savedTemplate ||
+    !template ||
+    !saveAsTemplate ||
+    !cancel ||
+    !save
+  ) {
     throw new Error("A custom save dialog field was not rendered");
   }
   return { folder, savedTemplate, template, saveAsTemplate, cancel, save };
@@ -179,7 +190,8 @@ async function createPendingTemplate(
   const saveAsTemplate = modal.querySelector<HTMLButtonElement>(
     ".rss-dashboard-custom-save-template-button",
   );
-  if (!saveAsTemplate) throw new Error("Save-as-template button was not rendered");
+  if (!saveAsTemplate)
+    throw new Error("Save-as-template button was not rendered");
   saveAsTemplate.click();
 
   const nameDialog = activeDocument.querySelector<HTMLElement>(
@@ -201,7 +213,8 @@ async function createPendingTemplate(
   const assignmentDialog = activeDocument.querySelector<HTMLElement>(
     ".rss-dashboard-template-dialog",
   );
-  if (!assignmentDialog) throw new Error("Template-assignment dialog was not opened");
+  if (!assignmentDialog)
+    throw new Error("Template-assignment dialog was not opened");
   const assignmentText = assignToFeed
     ? "Yes, use for this feed"
     : "No, keep unassigned";
@@ -219,7 +232,10 @@ afterEach(() => {
 describe("ReaderView custom save dialog behavior", () => {
   it("opens the dialog as an Obsidian modal from the reader save menu", async () => {
     const { view } = createHarness();
-    const modal = await openCustomSaveDialog({ view, item: createItem() } as CustomSaveHarness);
+    const modal = await openCustomSaveDialog({
+      view,
+      item: createItem(),
+    } as CustomSaveHarness);
 
     expect(modal.parentElement?.classList.contains("modal-container")).toBe(
       true,
@@ -232,7 +248,7 @@ describe("ReaderView custom save dialog behavior", () => {
     );
   });
 
-  it("renders every field, default, option, and button in its existing order", async () => {
+  it("renders every field, default, option, and button in the expected order", async () => {
     const { view } = createHarness({
       defaultFolder: "Reading/Queue",
       defaultTemplate: "Default: {{title}}",
@@ -241,7 +257,10 @@ describe("ReaderView custom save dialog behavior", () => {
         { id: "two", name: "Second", template: "Second: {{content}}" },
       ],
     });
-    const modal = await openCustomSaveDialog({ view, item: createItem() } as CustomSaveHarness);
+    const modal = await openCustomSaveDialog({
+      view,
+      item: createItem(),
+    } as CustomSaveHarness);
     const { folder, savedTemplate, template, saveAsTemplate, cancel, save } =
       getFields(modal);
 
@@ -252,16 +271,23 @@ describe("ReaderView custom save dialog behavior", () => {
     expect(folder.placeholder).toBe("Enter folder path");
     expect(folder.value).toBe("Reading/Queue");
     expect(
-      modal.querySelector(".rss-dashboard-clear-icon")?.getAttribute("aria-label"),
-    ).toBe("Clear input");
+      modal
+        .querySelector(".rss-dashboard-clear-icon")
+        ?.getAttribute("aria-label"),
+    ).toBe("Clear save folder");
     expect(
       modal.querySelector(".rss-dashboard-clear-icon")?.getAttribute("role"),
     ).toBe("button");
     expect(
-      modal.querySelector(".rss-dashboard-clear-icon")?.getAttribute("tabindex"),
+      modal
+        .querySelector(".rss-dashboard-clear-icon")
+        ?.getAttribute("tabindex"),
     ).toBe("0");
     expect(
-      Array.from(savedTemplate.options, (option) => [option.text, option.value]),
+      Array.from(savedTemplate.options, (option) => [
+        option.text,
+        option.value,
+      ]),
     ).toEqual([
       ["Current template", ""],
       ["First", "one"],
@@ -275,8 +301,12 @@ describe("ReaderView custom save dialog behavior", () => {
     expect(saveAsTemplate.textContent).toBe("Save as new template");
     expect(cancel.textContent).toBe("Cancel");
     expect(save.textContent).toBe("Save");
-    expect(Array.from(modal.querySelectorAll("button"), (button) => button.textContent))
-      .toEqual(["Save as new template", "Cancel", "Save"]);
+    expect(
+      Array.from(
+        modal.querySelectorAll("button"),
+        (button) => button.textContent,
+      ),
+    ).toEqual(["Cancel", "Save", "Save as new template"]);
     expect(modal.querySelector("input[name='filename']")).toBeNull();
     expect(modal.querySelector("input[name='tags']")).toBeNull();
   });
@@ -306,7 +336,10 @@ describe("ReaderView custom save dialog behavior", () => {
 
   it("clears the folder by click or keyboard and returns focus to the input", async () => {
     const { view } = createHarness({ defaultFolder: "Initial" });
-    const modal = await openCustomSaveDialog({ view, item: createItem() } as CustomSaveHarness);
+    const modal = await openCustomSaveDialog({
+      view,
+      item: createItem(),
+    } as CustomSaveHarness);
     const { folder } = getFields(modal);
     const clearIcon = modal.querySelector<HTMLElement>(
       ".rss-dashboard-clear-icon",
@@ -319,7 +352,11 @@ describe("ReaderView custom save dialog behavior", () => {
 
     folder.value = "Again";
     clearIcon.dispatchEvent(
-      new KeyboardEvent("keydown", { key: " ", bubbles: true, cancelable: true }),
+      new KeyboardEvent("keydown", {
+        key: " ",
+        bubbles: true,
+        cancelable: true,
+      }),
     );
     expect(folder.value).toBe("");
     expect(activeDocument.activeElement).toBe(folder);
@@ -350,10 +387,9 @@ describe("ReaderView custom save dialog behavior", () => {
     expect(harness.item.saved).toBe(true);
     expect(harness.item.savedFilePath).toBe("Saved/Fixture article.md");
     expect(harness.onArticleSave).toHaveBeenCalledWith(harness.item);
-    expect(harness.onArticleUpdate).toHaveBeenCalledWith(
-      harness.item,
-      { saved: true },
-    );
+    expect(harness.onArticleUpdate).toHaveBeenCalledWith(harness.item, {
+      saved: true,
+    });
     await vi.waitFor(() => {
       expect(modal.isConnected).toBe(false);
     });
@@ -466,6 +502,11 @@ describe("ReaderView custom save dialog behavior", () => {
       expect(getFields(modal).saveAsTemplate.textContent).toBe(
         "New template will be saved",
       );
+      expect(
+        getFields(modal).saveAsTemplate.querySelector<HTMLElement>(
+          ".rss-dashboard-custom-save-button-icon",
+        )?.dataset.icon,
+      ).toBe("file-plus");
       expect(harness.settings.articleSaving.savedTemplates).toHaveLength(0);
 
       save.click();
@@ -475,6 +516,7 @@ describe("ReaderView custom save dialog behavior", () => {
             id: "template-123",
             name: "New template",
             template: "New template body",
+            defaultFolder: "",
           },
         ]);
       });
@@ -501,8 +543,9 @@ describe("ReaderView custom save dialog behavior", () => {
       ?.click();
 
     await vi.waitFor(() => {
-      expect(activeDocument.querySelector(".rss-dashboard-template-dialog"))
-        .toBeNull();
+      expect(
+        activeDocument.querySelector(".rss-dashboard-template-dialog"),
+      ).toBeNull();
     });
     expect(savedTemplate.options).toHaveLength(1);
     expect(savedTemplate.value).toBe("");
@@ -556,8 +599,9 @@ describe("ReaderView custom save dialog behavior", () => {
 
     expect(first.isConnected).toBe(false);
     expect(second).not.toBe(first);
-    expect(activeDocument.querySelectorAll(".rss-dashboard-custom-save-modal"))
-      .toHaveLength(1);
+    expect(
+      activeDocument.querySelectorAll(".rss-dashboard-custom-save-modal"),
+    ).toHaveLength(1);
   });
 
   it("attaches and removes the dialog in the active popout document", async () => {
@@ -568,7 +612,8 @@ describe("ReaderView custom save dialog behavior", () => {
     activeDocument.body.appendChild(harness.view.containerEl);
     await harness.view.onOpen();
     internals(harness.view).currentItem = harness.item;
-    const popoutDocument = document.implementation.createHTMLDocument("reader popout");
+    const popoutDocument =
+      document.implementation.createHTMLDocument("reader popout");
     const globalScope = window as Window & { activeDocument?: Document };
     const previousDocument = globalScope.activeDocument;
     globalScope.activeDocument = popoutDocument;
@@ -579,9 +624,9 @@ describe("ReaderView custom save dialog behavior", () => {
       );
       if (!saveButton) throw new Error("Reader save button was not rendered");
       saveButton.click();
-      Menu.lastItems.find(
-        (menuItem) => menuItem.title === "Save to custom folder...",
-      )?.trigger();
+      Menu.lastItems
+        .find((menuItem) => menuItem.title === "Save to custom folder...")
+        ?.trigger();
 
       const modal = popoutDocument.querySelector<HTMLElement>(
         ".rss-dashboard-custom-save-modal",
@@ -593,8 +638,9 @@ describe("ReaderView custom save dialog behavior", () => {
         ".rss-dashboard-custom-save-cancel-button",
       );
       cancel?.click();
-      expect(popoutDocument.querySelector(".rss-dashboard-custom-save-modal"))
-        .toBeNull();
+      expect(
+        popoutDocument.querySelector(".rss-dashboard-custom-save-modal"),
+      ).toBeNull();
     } finally {
       globalScope.activeDocument = previousDocument;
       popoutDocument.body.empty();

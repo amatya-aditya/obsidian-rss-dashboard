@@ -23,7 +23,11 @@ import {
   type SidebarOptions,
 } from "../../../src/components/sidebar";
 import * as ObsidianStubs from "../../stubs/obsidian";
-import type { Feed, Folder, RssDashboardSettings } from "../../../src/types/types";
+import type {
+  Feed,
+  Folder,
+  RssDashboardSettings,
+} from "../../../src/types/types";
 import type RssDashboardPlugin from "../../../main";
 import { failedFeedIconUrls } from "../../../src/utils/favicon-utils";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
@@ -132,7 +136,10 @@ function dragEvent(
   dataTransfer: FakeDataTransfer | null,
   clientY = 0,
 ): DragEvent {
-  const event = new Event(type, { bubbles: true, cancelable: true }) as DragEvent;
+  const event = new Event(type, {
+    bubbles: true,
+    cancelable: true,
+  }) as DragEvent;
   Object.defineProperty(event, "dataTransfer", { value: dataTransfer });
   Object.defineProperty(event, "clientY", { value: clientY });
   return event;
@@ -448,7 +455,7 @@ describe("Sidebar row interactions (characterization)", () => {
       expect(spies.showFeedContextMenu).not.toHaveBeenCalled();
     });
 
-    it("still delivers the click that follows a long press to onFeedClick, because the feed's own click listener runs before the long-press one", () => {
+    it("swallows the click that follows a long press before it reaches onFeedClick", () => {
       vi.useFakeTimers();
       build();
       const row = feedRow("https://a.test/feed");
@@ -462,15 +469,13 @@ describe("Sidebar row interactions (characterization)", () => {
 
       const { event, reachedContainer } = click(row);
 
-      // BUG: pinned, see #602 (the long-press click guard cannot suppress the
-      // feed's own click handler, which is registered first).
-      expect(callbacks.onFeedClick).toHaveBeenCalledTimes(1);
+      expect(callbacks.onFeedClick).not.toHaveBeenCalled();
       expect(event.defaultPrevented).toBe(true);
       expect(reachedContainer).toBe(false);
 
       // The guard resets after one click.
       click(row);
-      expect(callbacks.onFeedClick).toHaveBeenCalledTimes(2);
+      expect(callbacks.onFeedClick).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -647,7 +652,12 @@ describe("Sidebar row interactions (characterization)", () => {
         }),
         110,
       );
-      const emptyDrop = drag(row, "drop", makeDataTransfer({ "text/plain": "x" }), 110);
+      const emptyDrop = drag(
+        row,
+        "drop",
+        makeDataTransfer({ "text/plain": "x" }),
+        110,
+      );
       const selfDrop = drag(
         row,
         "drop",
@@ -967,7 +977,9 @@ describe("Sidebar row interactions (characterization)", () => {
     });
 
     it("does not treat a folder whose name only starts the same way as an ancestor", () => {
-      settings.feeds.push(makeFeed("Newsy", "https://n.test/feed", "Newsletters"));
+      settings.feeds.push(
+        makeFeed("Newsy", "https://n.test/feed", "Newsletters"),
+      );
       settings.folders.push({ name: "Newsletters", subfolders: [] } as Folder);
       options.selectedFolders = ["News"];
       build();
@@ -980,7 +992,8 @@ describe("Sidebar row interactions (characterization)", () => {
     it("treats missing selection and collapsed lists as empty", () => {
       delete options.selectedFeeds;
       (options as { selectedFolders?: string[] }).selectedFolders = undefined;
-      (settings as { collapsedFolders?: string[] }).collapsedFolders = undefined;
+      (settings as { collapsedFolders?: string[] }).collapsedFolders =
+        undefined;
       build();
 
       const row = feedRow("https://a.test/feed");
@@ -1140,7 +1153,11 @@ describe("Sidebar row interactions (characterization)", () => {
 
     it("shows a play icon for a YouTube video feed and a mic for a podcast feed", () => {
       settings.feeds[0] = {
-        ...makeFeed("Tube", "https://www.youtube.com/feeds/videos.xml?channel_id=UC1", "News"),
+        ...makeFeed(
+          "Tube",
+          "https://www.youtube.com/feeds/videos.xml?channel_id=UC1",
+          "News",
+        ),
         mediaType: "video",
       } as Feed;
       settings.feeds[1] = {
@@ -1227,7 +1244,9 @@ describe("Sidebar row interactions (characterization)", () => {
       const img = icon("https://social.test/@someone.rss").querySelector(
         "img.rss-dashboard-feed-favicon",
       ) as HTMLImageElement;
-      expect(img.getAttribute("src")).toContain("domain_url=http://social.test");
+      expect(img.getAttribute("src")).toContain(
+        "domain_url=http://social.test",
+      );
     });
 
     it("falls back to the RSS icon when a feed's url has no domain to take a favicon from", () => {
@@ -1463,11 +1482,17 @@ describe("Sidebar row interactions (characterization)", () => {
       const header = folderHeader("News");
 
       header.dispatchEvent(
-        new PointerEvent("pointerdown", { bubbles: true, pointerType: "mouse" }),
+        new PointerEvent("pointerdown", {
+          bubbles: true,
+          pointerType: "mouse",
+        }),
       );
       vi.advanceTimersByTime(600);
       header.dispatchEvent(
-        new PointerEvent("pointerdown", { bubbles: true, pointerType: "touch" }),
+        new PointerEvent("pointerdown", {
+          bubbles: true,
+          pointerType: "touch",
+        }),
       );
       vi.advanceTimersByTime(300);
       header.dispatchEvent(new PointerEvent("pointerup", { bubbles: true }));
@@ -1476,21 +1501,26 @@ describe("Sidebar row interactions (characterization)", () => {
       expect(spies.showFolderContextMenu).not.toHaveBeenCalled();
     });
 
-    it("still opens the folder on the click that follows a long press, because the folder's own click listener runs before the long-press one", () => {
+    it("swallows the click that follows a long press before it reaches onFolderClick", () => {
       vi.useFakeTimers();
       build();
       const header = folderHeader("News");
       header.dispatchEvent(
-        new PointerEvent("pointerdown", { bubbles: true, pointerType: "touch" }),
+        new PointerEvent("pointerdown", {
+          bubbles: true,
+          pointerType: "touch",
+        }),
       );
       vi.advanceTimersByTime(500);
 
       const { event, reachedContainer } = click(header);
 
-      // BUG: pinned, see #602 (same listener order as the feed row).
-      expect(callbacks.onFolderClick).toHaveBeenCalledWith("News");
+      expect(callbacks.onFolderClick).not.toHaveBeenCalled();
       expect(event.defaultPrevented).toBe(true);
       expect(reachedContainer).toBe(false);
+
+      click(header);
+      expect(callbacks.onFolderClick).toHaveBeenCalledWith("News");
     });
   });
 
@@ -1730,7 +1760,11 @@ describe("Sidebar row interactions (characterization)", () => {
 
       const noPayload = drag(header, "drop", null);
       header.classList.add("drag-over-before");
-      const empty = drag(header, "drop", makeDataTransfer({ "text/plain": "x" }));
+      const empty = drag(
+        header,
+        "drop",
+        makeDataTransfer({ "text/plain": "x" }),
+      );
 
       expect(noPayload.event.defaultPrevented).toBe(true);
       expect(empty.event.defaultPrevented).toBe(true);
@@ -1745,12 +1779,7 @@ describe("Sidebar row interactions (characterization)", () => {
       const header = folderHeader("News");
       giveRowBox(header);
 
-      drag(
-        header,
-        "drop",
-        makeDataTransfer({ "folder-path": "Empty" }),
-        120,
-      );
+      drag(header, "drop", makeDataTransfer({ "folder-path": "Empty" }), 120);
 
       expect(settings.folders.map((f) => f.name)).toEqual(["News", "Videos"]);
       expect(settings.folders[0].subfolders.map((f) => f.name)).toEqual([
@@ -1823,9 +1852,7 @@ describe("Sidebar row interactions (characterization)", () => {
       drag(header, "drop", makeDataTransfer({ "folder-path": "Videos" }), 120);
 
       expect(callbacks.onFolderClick).toHaveBeenCalledTimes(1);
-      expect(callbacks.onFolderClick).toHaveBeenCalledWith(
-        "News/Videos/Clips",
-      );
+      expect(callbacks.onFolderClick).toHaveBeenCalledWith("News/Videos/Clips");
     });
 
     it("remaps the open folder when it is the moved folder itself", () => {
@@ -1837,6 +1864,33 @@ describe("Sidebar row interactions (characterization)", () => {
       drag(header, "drop", makeDataTransfer({ "folder-path": "Videos" }), 120);
 
       expect(callbacks.onFolderClick).toHaveBeenCalledWith("News/Videos");
+    });
+
+    it("does not report the open folder when it is dropped onto its own parent", () => {
+      options.currentFolder = "News/Tech";
+      build();
+      const header = folderHeader("News");
+      giveRowBox(header);
+
+      drag(
+        header,
+        "drop",
+        makeDataTransfer({ "folder-path": "News/Tech" }),
+        120,
+      );
+
+      expect(callbacks.onFolderClick).not.toHaveBeenCalled();
+    });
+
+    it("does not report the open folder when it is reordered among siblings", () => {
+      options.currentFolder = "Videos";
+      build();
+      const header = folderHeader("News");
+      giveRowBox(header);
+
+      drag(header, "drop", makeDataTransfer({ "folder-path": "Videos" }), 105);
+
+      expect(callbacks.onFolderClick).not.toHaveBeenCalled();
     });
 
     it("leaves the open folder alone when an unrelated folder is moved, or when one with a similar name is", () => {
@@ -1936,16 +1990,17 @@ describe("Sidebar row interactions (characterization)", () => {
         ".rss-dashboard-feed-folder-toggle",
       ) as HTMLElement;
       expect(news.classList.contains("collapsed")).toBe(true);
-      expect(folderFeedsList("News").classList.contains("collapsed")).toBe(true);
+      expect(folderFeedsList("News").classList.contains("collapsed")).toBe(
+        true,
+      );
       expect(toggle.dataset.icon).toBe("chevron-right");
       expect(toggle.getAttribute("aria-label")).toBe("Expand folder");
 
       const tech = folderHeader("News/Tech");
       expect(tech.classList.contains("collapsed")).toBe(false);
       expect(
-        (
-          tech.querySelector(".rss-dashboard-feed-folder-toggle") as HTMLElement
-        ).dataset.icon,
+        (tech.querySelector(".rss-dashboard-feed-folder-toggle") as HTMLElement)
+          .dataset.icon,
       ).toBe("chevron-down");
     });
 
@@ -1972,11 +2027,17 @@ describe("Sidebar row interactions (characterization)", () => {
     });
 
     it("shows a lock for a pinned folder and an unread badge that counts feeds in subfolders", () => {
-      settings.feeds[2] = makeFeed("Gamma", "https://c.test/feed", "News/Tech", 4);
+      settings.feeds[2] = makeFeed(
+        "Gamma",
+        "https://c.test/feed",
+        "News/Tech",
+        4,
+      );
       build();
 
       expect(
-        folderHeader("Videos").querySelector(".rss-dashboard-folder-pin-icon")
+        folderHeader("Videos")
+          .querySelector(".rss-dashboard-folder-pin-icon")
           ?.getAttribute("data-icon"),
       ).toBe("lock");
       expect(

@@ -127,9 +127,9 @@ describe("services after settings are reloaded from another device", () => {
 
     await plugin.performAutoBackups();
 
-    const opml = await (
-      app.vault.adapter as unknown as VaultAdapterStub
-    ).read("./feeds.opml.backup");
+    const opml = await (app.vault.adapter as unknown as VaultAdapterStub).read(
+      "./feeds.opml.backup",
+    );
     expect(opml).toContain("after-sync");
     expect(opml).not.toContain("before-sync");
   });

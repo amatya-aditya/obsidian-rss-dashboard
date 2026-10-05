@@ -43,7 +43,7 @@ resolved in this order (`resolveSourceUrl`):
 
 1. **`origin.streamId`, with any `feed/` prefix stripped, when the result is
    itself an HTTP(S) URL.** This is the only path for the historical
-   Inoreader-shaped export, where `streamId` already *is* the feed URL
+   Inoreader-shaped export, where `streamId` already _is_ the feed URL
    (e.g. `feed/https://example.com/feed.xml`).
 2. **`origin.htmlUrl`, when it is an HTTP(S) URL**, used only when step 1
    doesn't yield a usable URL. This is the fallback that makes an
@@ -77,7 +77,7 @@ service produced it:
   invalid percent-encoding by falling back to the raw text) and turned into
   a `Tag` on the imported article, reusing an existing tag's color on a
   case-insensitive name match and otherwise assigned the plugin's default
-  tag color. This is the *only* category shape that produces a tag.
+  tag color. This is the _only_ category shape that produces a tag.
 - **`.../state/com.google/starred`** — every item in a `starred.json`
   export is, by definition, in the starred collection; every imported item
   is set `starred: true` unconditionally, regardless of whether this
@@ -166,7 +166,7 @@ Before claiming a new service as confirmed-compatible:
 1. **Capture a sanitized fixture.** Export a real `starred.json` from the
    service, strip or replace any personal/account-identifying data (URLs,
    titles, author names, etc. should be replaced with placeholder values
-   that preserve the *shape* — see `starred-freshrss.json` for the pattern),
+   that preserve the _shape_ — see `starred-freshrss.json` for the pattern),
    and add it under `test_files/fixtures/starred/`.
 2. **Add mapper-level unit tests** against that fixture in
    `test_files/unit/services/starred-import-mapper.test.ts`, asserting the
@@ -191,7 +191,7 @@ regression in that support would be caught before shipping.
 ## Backward-compatibility rules
 
 - **Existing folders, feeds, settings, and command IDs are never migrated.**
-  Generalizing the product copy (see ADR 0003) changed the *default*
+  Generalizing the product copy (see ADR 0003) changed the _default_
   new-feed folder name for future imports (`Starred imports`, previously
   `Inoreader starred imports`) but does not rename, move, or touch any
   folder, feed, or setting a user's vault already has. A vault with an
@@ -204,7 +204,7 @@ regression in that support would be caught before shipping.
 - **An exporter's unrecognized fields are ignored, not rejected.** Adding
   tolerance for a new service's quirks (as FreshRSS's numeric stream ID and
   `content.content` were added) must never turn an unrecognized field into
-  an import failure for *other* services' exports — the parser degrades
+  an import failure for _other_ services' exports — the parser degrades
   unknown categories and fields to "ignored" (see
   [Label vs. state vs. tag rules](#label-vs-state-vs-tag-rules)), and any
   future exporter support should follow that same pattern.

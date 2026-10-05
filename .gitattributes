@@ -1,0 +1,3 @@
+# Store and check out text as LF on every platform so Prettier
+# (endOfLine: lf) sees the same bytes on Windows and CI.
+* text=auto eol=lf

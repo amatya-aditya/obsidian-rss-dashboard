@@ -54,6 +54,10 @@ _Avoid_: Bulk drag, mass reorder, multi-drop
 
 ## Reader view
 
+**Reader view**:
+The dedicated plugin surface for reading a full article, including article and hero images that can open the [[Reader lightbox]]. Distinct from article previews shown on the dashboard.
+_Avoid_: Dashboard preview, inline article preview
+
 **Reader lightbox**:
 The modal overlay presented over the reader view to display an article or hero image in its full resolution with pan and zoom capabilities.
 _Avoid_: Modal dialog, photo popup, preview card, photo gallery
@@ -61,6 +65,10 @@ _Avoid_: Modal dialog, photo popup, preview card, photo gallery
 **Full-resolution image source**:
 The unconstrained original media URL extracted by resolving direct image links, selecting the highest-resolution candidate in a srcset, or stripping CDN resize transformations.
 _Avoid_: Thumbnail, cached preview, compressed version
+
+**Remote image load failure**:
+A third-party image resource that the host application cannot load. By itself, this does not mean the plugin failed; the host may report the resource failure independently.
+_Avoid_: Plugin image error
 
 ## Article state
 

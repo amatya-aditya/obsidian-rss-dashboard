@@ -113,8 +113,7 @@ function getFilteredFolderPool(
             if (currentFolder === "unread") return !item.read;
             if (currentFolder === "read") return item.read;
             if (currentFolder === "saved") return item.saved;
-            if (currentFolder === "videos")
-              return item.mediaType === "video";
+            if (currentFolder === "videos") return item.mediaType === "video";
             if (currentFolder === "podcasts")
               return item.mediaType === "podcast";
             return true;
@@ -144,7 +143,9 @@ function getFilteredFolderPool(
   return articles;
 }
 
-export function getUnfilteredArticleScope(state: ArticleScopeState): FeedItem[] {
+export function getUnfilteredArticleScope(
+  state: ArticleScopeState,
+): FeedItem[] {
   let articles = getUnfilteredPool(state);
 
   if (state.selectedTags.length > 0) {
@@ -275,7 +276,10 @@ export function getTotalArticleScopeCount(state: ArticleScopeState): number {
     state.settings.articleFilter.value > 0
   ) {
     const maxAge = Date.now() - state.settings.articleFilter.value;
-    articles = articles.filter((a) => getEffectiveDateMs(a, state.settings.useFirstSeenDateFallback) > maxAge);
+    articles = articles.filter(
+      (a) =>
+        getEffectiveDateMs(a, state.settings.useFirstSeenDateFallback) > maxAge,
+    );
   }
 
   return articles.length;

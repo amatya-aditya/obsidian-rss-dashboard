@@ -3,6 +3,12 @@ import { readFileSync, readdirSync } from "node:fs";
 import { basename, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import {
+  isGitCheckout,
+  isLocalGitSpawnPermissionError,
+  skipWithoutGit,
+} from "./git-repository.mjs";
+
 const ROOT_DIR = join(import.meta.dirname, "..");
 const PLANS_DIR = join(ROOT_DIR, "docs", "plans");
 const RELEASE_NOTES_DIR = join(ROOT_DIR, "src", "release-notes", "notes");
@@ -35,7 +41,8 @@ const VALID_ACTIVE_PLAN_STATUSES = new Set([
 // eslint-disable-next-line no-control-regex -- control characters in a path are exactly what this flags
 const HOSTILE_NAME_PATTERN = /[ [\]`:*?"<>|–—\u0000-\u001f]/g;
 const CATALOG_LINK_PATTERN = /\(([^)]+\.md)\)/g;
-const CATALOG_EXEMPT_FILENAMES = /^(public-roadmap|release-v[\d.]+-roadmap)\.md$/;
+const CATALOG_EXEMPT_FILENAMES =
+  /^(public-roadmap|release-v[\d.]+-roadmap)\.md$/;
 const ARCHIVED_PLANS_PREFIX = "docs/archive/plans/";
 
 const ISSUE_PLAN_FILENAME = /^\d+-[a-z0-9-]+\.md$/;
@@ -57,7 +64,9 @@ export function findHostileFilenames(filePaths) {
   return filePaths
     .map((filePath) => {
       const fileName = basename(filePath);
-      const offenders = [...new Set(fileName.match(HOSTILE_NAME_PATTERN) ?? [])];
+      const offenders = [
+        ...new Set(fileName.match(HOSTILE_NAME_PATTERN) ?? []),
+      ];
 
       if (offenders.length === 0) {
         return null;
@@ -66,7 +75,9 @@ export function findHostileFilenames(filePaths) {
       return {
         filePath,
         reason: `filename contains ${offenders
-          .map((character) => (character === " " ? "a space" : `"${character}"`))
+          .map((character) =>
+            character === " " ? "a space" : `"${character}"`,
+          )
           .join(", ")}; use kebab-case`,
       };
     })
@@ -114,7 +125,9 @@ export function isReleaseMode(args) {
 }
 
 export function isLifecyclePlanFilename(fileName) {
-  return ISSUE_PLAN_FILENAME.test(fileName) || DRAFT_PLAN_FILENAME.test(fileName);
+  return (
+    ISSUE_PLAN_FILENAME.test(fileName) || DRAFT_PLAN_FILENAME.test(fileName)
+  );
 }
 
 function extractFrontmatterStatus(source) {
@@ -159,7 +172,7 @@ export function findPlanStatusIssues(planFiles) {
         reason:
           `status "${status}" is not valid for an active plan under docs/plans/ ` +
           `(expected one of: ${[...VALID_ACTIVE_PLAN_STATUSES].join(", ")}; ` +
-          "an \"implemented\"/\"rejected\"/\"superseded\" plan belongs under docs/archive/plans/)",
+          'an "implemented"/"rejected"/"superseded" plan belongs under docs/archive/plans/)',
       });
     }
   }
@@ -273,12 +286,23 @@ function getTrackedFiles() {
   // -z keeps paths raw: without it git quotes and escapes any path holding a
   // space or non-ASCII character, which is exactly what the filename check
   // below is looking for.
-  const output = execFileSync("git", ["ls-files", "-z"], {
-    cwd: ROOT_DIR,
-    encoding: "utf8",
-    maxBuffer: 10 * 1024 * 1024,
-  });
-  return output.split("\0").filter(Boolean);
+  try {
+    const output = execFileSync("git", ["ls-files", "-z"], {
+      cwd: ROOT_DIR,
+      encoding: "utf8",
+      maxBuffer: 10 * 1024 * 1024,
+    });
+    return output.split("\0").filter(Boolean);
+  } catch (error) {
+    if (!isLocalGitSpawnPermissionError(error)) {
+      throw error;
+    }
+
+    console.warn(
+      "check:pre-release: Git could not be launched (EPERM); skipping tracked-file checks locally. CI must run this check.",
+    );
+    return null;
+  }
 }
 
 /**
@@ -349,16 +373,31 @@ function readManifestVersion() {
 }
 
 function main() {
+  if (!isGitCheckout(ROOT_DIR)) {
+    skipWithoutGit("check:pre-release");
+    return;
+  }
+
   const trackedFiles = getTrackedFiles();
-  const strayFiles = findStrayFiles(trackedFiles);
-  const hostileNameIssues = findHostileFilenames(trackedFiles);
-  const trackedButIgnored = getTrackedButIgnoredFiles();
-  const archivedPlanPaths = trackedFiles.filter(
-    (filePath) =>
-      filePath.startsWith(ARCHIVED_PLANS_PREFIX) &&
-      filePath.endsWith(".md") &&
-      !filePath.toLowerCase().endsWith("/readme.md"),
-  );
+  const trackedFileChecksAvailable = trackedFiles !== null;
+  const knownTrackedFiles = trackedFiles ?? [];
+  const strayFiles = trackedFileChecksAvailable
+    ? findStrayFiles(knownTrackedFiles)
+    : [];
+  const hostileNameIssues = trackedFileChecksAvailable
+    ? findHostileFilenames(knownTrackedFiles)
+    : [];
+  const trackedButIgnored = trackedFileChecksAvailable
+    ? getTrackedButIgnoredFiles()
+    : [];
+  const archivedPlanPaths = trackedFileChecksAvailable
+    ? knownTrackedFiles.filter(
+        (filePath) =>
+          filePath.startsWith(ARCHIVED_PLANS_PREFIX) &&
+          filePath.endsWith(".md") &&
+          !filePath.toLowerCase().endsWith("/readme.md"),
+      )
+    : [];
   const catalogParityIssues = findCatalogParityIssues(
     readFileOrEmpty(join(ROOT_DIR, "docs", "archive", "README.md")),
     archivedPlanPaths,
@@ -478,11 +517,19 @@ function main() {
     process.exit(1);
   }
 
-  console.log(
-    `Pre-release check passed (${trackedFiles.length} tracked file(s) scanned, ` +
-      `${activePlanFiles.length} active plan(s) validated, ` +
-      `${releaseNoteFiles.length} What's New note(s) validated).`,
-  );
+  if (trackedFileChecksAvailable) {
+    console.log(
+      `Pre-release check passed (${knownTrackedFiles.length} tracked file(s) scanned, ` +
+        `${activePlanFiles.length} active plan(s) validated, ` +
+        `${releaseNoteFiles.length} What's New note(s) validated).`,
+    );
+  } else {
+    console.log(
+      "Pre-release check completed with Git-dependent tracked-file checks skipped; " +
+        `${activePlanFiles.length} active plan(s) and ` +
+        `${releaseNoteFiles.length} What's New note(s) were still validated.`,
+    );
+  }
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

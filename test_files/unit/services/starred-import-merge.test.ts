@@ -183,8 +183,14 @@ describe("applyStarredImportCandidateToFeed", () => {
 
     // Re-run the exact same import twice more, as a user re-running the
     // import against an unchanged source export would.
-    applyStarredImportCandidateToFeed(feed, makeCandidateItem({ tags: [userFavoriteTag] }));
-    applyStarredImportCandidateToFeed(feed, makeCandidateItem({ tags: [userFavoriteTag] }));
+    applyStarredImportCandidateToFeed(
+      feed,
+      makeCandidateItem({ tags: [userFavoriteTag] }),
+    );
+    applyStarredImportCandidateToFeed(
+      feed,
+      makeCandidateItem({ tags: [userFavoriteTag] }),
+    );
 
     expect(feed.items).toHaveLength(1);
     expect(feed.items[0]).toEqual(afterFirstImport);

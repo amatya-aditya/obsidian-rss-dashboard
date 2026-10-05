@@ -109,6 +109,14 @@ export function attachRefreshStatusDetails(options: {
   const { row } = options;
   if (!row.ownerDocument.defaultView) return () => undefined;
 
+  // Touch devices can synthesize hover/focus as the user taps. Keep the
+  // visual status popup for devices with any hover-capable pointer (for
+  // example, a mouse attached to a tablet), while leaving the description
+  // available to assistive technology everywhere.
+  const hasHoverPointer = () =>
+    row.ownerDocument.defaultView?.matchMedia?.("(any-hover: hover)").matches ??
+    false;
+
   let popup: HTMLElement | null = null;
   let showTimer: WindowTimer | null = null;
   let closeTimer: WindowTimer | null = null;
@@ -170,7 +178,7 @@ export function attachRefreshStatusDetails(options: {
     pointerOverPopup = false;
   };
   const show = () => {
-    if (popup || !row.isConnected) return;
+    if (popup || !row.isConnected || !hasHoverPointer()) return;
     const rowDocument = row.ownerDocument;
     claimRefreshDetailsPopup(rowDocument, close);
     popup = rowDocument.body.createDiv({
@@ -192,6 +200,7 @@ export function attachRefreshStatusDetails(options: {
     rowDocument.addEventListener("keydown", onKeyDown);
   };
   const scheduleShow = () => {
+    if (!hasHoverPointer()) return;
     keepDescriptionWithRow();
     if (popup || showTimer !== null) return;
     cancelTimer(closeTimer);

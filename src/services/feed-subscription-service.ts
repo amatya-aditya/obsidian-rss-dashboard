@@ -48,6 +48,7 @@ export interface FeedSubscriptionServiceOptions {
 export class FeedSubscriptionService {
   private readonly feedOperationTracker: FeedOperationTracker;
   private readonly previewImageCache: PreviewImageCache;
+  private readonly pendingFeedUrls = new Set<string>();
 
   constructor(private readonly options: FeedSubscriptionServiceOptions) {
     this.feedOperationTracker = options.feedOperationTracker;
@@ -60,6 +61,31 @@ export class FeedSubscriptionService {
 
   private get feedParser(): FeedParser {
     return this.options.getFeedParser();
+  }
+
+  private reserveFeedUrl(
+    url: string,
+    showNotice: boolean,
+    reportPendingDuplicate: boolean,
+  ): (() => void) | null {
+    if (this.settings.feeds.some((feed) => feed.url === url)) {
+      if (showNotice) {
+        new Notice("This feed URL already exists");
+      }
+      return null;
+    }
+
+    if (this.pendingFeedUrls.has(url)) {
+      if (showNotice || reportPendingDuplicate) {
+        new Notice("This feed URL already exists");
+      }
+      return null;
+    }
+
+    this.pendingFeedUrls.add(url);
+    return () => {
+      this.pendingFeedUrls.delete(url);
+    };
   }
 
   /**
@@ -120,13 +146,15 @@ export class FeedSubscriptionService {
     options?: FeedSubscriptionAddOptions,
   ): Promise<boolean> {
     const showNotice = options?.showNotice !== false;
+    let releaseReservation = () => {};
     try {
-      if (this.settings.feeds.some((f) => f.url === url)) {
-        if (showNotice) {
-          new Notice("This feed URL already exists");
-        }
-        return false;
-      }
+      const reservation = this.reserveFeedUrl(
+        url,
+        showNotice,
+        options?.globalOperation === true,
+      );
+      if (!reservation) return false;
+      releaseReservation = reservation;
 
       const newFeed = this.buildNewFeed(
         title,
@@ -149,13 +177,19 @@ export class FeedSubscriptionService {
         return false;
       }
 
-      // Try to parse the feed BEFORE adding it to settings
+      // Try to parse the feed BEFORE adding it to settings.
+      // requestUrl cannot be cancelled mid-flight, so a global add races Stop.
       try {
-        const parsedFeed = await this.feedParser.parseFeed(url, newFeed, {
-          allowEmpty: true,
-          signal: operationSignal ?? undefined,
-        });
-        if (operationSignal?.aborted || this.feedOperationTracker.isCancelled) {
+        const parsedFeed = await this.parseWithAbortRace(
+          url,
+          newFeed,
+          operationSignal,
+        );
+        if (
+          !parsedFeed ||
+          operationSignal?.aborted ||
+          this.feedOperationTracker.isCancelled
+        ) {
           return false;
         }
         const feedToStore = this.mergeParsedFeed(newFeed, parsedFeed);
@@ -178,6 +212,46 @@ export class FeedSubscriptionService {
         );
       }
       return false;
+    } finally {
+      releaseReservation();
+    }
+  }
+
+  /** Race parse against Stop only. A slow parse still waits; there is no extra timeout. */
+  private async parseWithAbortRace(
+    url: string,
+    newFeed: Feed,
+    signal: AbortSignal | null,
+  ): Promise<Feed | null> {
+    const parseOptions = {
+      allowEmpty: true,
+      signal: signal ?? undefined,
+    };
+    if (!signal) {
+      return await this.feedParser.parseFeed(url, newFeed, parseOptions);
+    }
+
+    let onAbort: (() => void) | undefined;
+    const aborted = new Promise<"aborted">((resolve) => {
+      if (signal.aborted) {
+        resolve("aborted");
+        return;
+      }
+      onAbort = () => resolve("aborted");
+      signal.addEventListener("abort", onAbort, { once: true });
+    });
+
+    try {
+      const winner = await Promise.race([
+        this.feedParser
+          .parseFeed(url, newFeed, parseOptions)
+          .then((value) => ({ kind: "feed" as const, value })),
+        aborted,
+      ]);
+      if (winner === "aborted") return null;
+      return winner.value;
+    } finally {
+      if (onAbort) signal.removeEventListener("abort", onAbort);
     }
   }
 
@@ -337,7 +411,9 @@ export class FeedSubscriptionService {
   ): Promise<void> {
     if (
       newUrl !== feed.url &&
-      this.settings.feeds.some((other) => other !== feed && other.url === newUrl)
+      this.settings.feeds.some(
+        (other) => other !== feed && other.url === newUrl,
+      )
     ) {
       new Notice("This feed URL already exists");
       return;

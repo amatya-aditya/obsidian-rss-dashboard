@@ -54,16 +54,25 @@ describe("HighlightService", () => {
     it("should highlight case-insensitive partial words by default", () => {
       const text = "Very ImPoRtAnT things to read.";
       const result = service.highlightText(text);
-      expect(result).toContain("<mark class=\"rss-highlight\" style=\"--highlight-color: #ffff00\">ImPoRtAnT</mark>");
+      expect(result).toContain(
+        '<mark class="rss-highlight" style="--highlight-color: #ffff00">ImPoRtAnT</mark>',
+      );
     });
 
     it("should highlight case-sensitive whole words correctly", () => {
       // "Critical" matches text, but "critical" should not, and "Critically" shouldn't (whole word)
-      const text = "A Critical situation, very critical indeed. Critically speaking.";
+      const text =
+        "A Critical situation, very critical indeed. Critically speaking.";
       const result = service.highlightText(text);
-      expect(result).toContain("<mark class=\"rss-highlight\" style=\"--highlight-color: #ff0000\">Critical</mark>");
-      expect(result).not.toContain("<mark class=\"rss-highlight\" style=\"--highlight-color: #ff0000\">critical</mark>");
-      expect(result).not.toContain("<mark class=\"rss-highlight\" style=\"--highlight-color: #ff0000\">Critically</mark>");
+      expect(result).toContain(
+        '<mark class="rss-highlight" style="--highlight-color: #ff0000">Critical</mark>',
+      );
+      expect(result).not.toContain(
+        '<mark class="rss-highlight" style="--highlight-color: #ff0000">critical</mark>',
+      );
+      expect(result).not.toContain(
+        '<mark class="rss-highlight" style="--highlight-color: #ff0000">Critically</mark>',
+      );
     });
   });
 
@@ -106,7 +115,7 @@ describe("HighlightService", () => {
 
     it("should reject elements that should be skipped", () => {
       const container = createDiv();
-      
+
       // We know "shouldSkipElement" ignores code, pre, script, etc.
       container.innerHTML = ""; // Clear
       const div = createDiv();
@@ -116,12 +125,12 @@ describe("HighlightService", () => {
       const code = createEl("code");
       code.textContent = "Let important = true;";
       container.append(div, pre, code);
-      
+
       service.highlightElement(container);
       const marks = container.querySelectorAll("mark");
       // Only the first one should be highlighted, 'pre' and 'code' should be skipped
       expect(marks.length).toBe(1);
-      
+
       // Let's verify skipped elements stayed the same
       expect(pre.innerHTML).toBe("Important pre");
       expect(code.innerHTML).toBe("Let important = true;");
@@ -131,14 +140,32 @@ describe("HighlightService", () => {
   describe("Regex compilation and caching", () => {
     it("should safely escape regex tokens", () => {
       settings.words = [
-        { id: "3", text: "c++", enabled: true, wholeWord: false, caseSensitive: false, createdAt: Date.now() },
-        { id: "4", text: "v1.2", enabled: true, wholeWord: false, caseSensitive: false, createdAt: Date.now() }
+        {
+          id: "3",
+          text: "c++",
+          enabled: true,
+          wholeWord: false,
+          caseSensitive: false,
+          createdAt: Date.now(),
+        },
+        {
+          id: "4",
+          text: "v1.2",
+          enabled: true,
+          wholeWord: false,
+          caseSensitive: false,
+          createdAt: Date.now(),
+        },
       ];
       service = new HighlightService(settings);
-      
+
       const result = service.highlightText("using c++ v1.2 today");
-      expect(result).toContain("<mark class=\"rss-highlight\" style=\"--highlight-color: #ffff00\">c++</mark>");
-      expect(result).toContain("<mark class=\"rss-highlight\" style=\"--highlight-color: #ffff00\">v1.2</mark>");
+      expect(result).toContain(
+        '<mark class="rss-highlight" style="--highlight-color: #ffff00">c++</mark>',
+      );
+      expect(result).toContain(
+        '<mark class="rss-highlight" style="--highlight-color: #ffff00">v1.2</mark>',
+      );
     });
   });
 });

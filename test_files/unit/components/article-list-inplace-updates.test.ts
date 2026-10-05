@@ -68,7 +68,9 @@ describe("Phase 7 - ArticleList in-place updates", () => {
     expect(saveToggle?.getAttribute("aria-label")).toBe(
       "Click to open saved article",
     );
-    expect(starToggle?.getAttribute("aria-label")).toBe("Remove from starred items");
+    expect(starToggle?.getAttribute("aria-label")).toBe(
+      "Remove from starred items",
+    );
 
     h.cleanup();
   });
@@ -300,8 +302,14 @@ describe("Phase 7 - ArticleList in-place updates", () => {
       ".rss-dashboard-page-size-dropdown",
     );
 
-    expect(nextButton?.parentElement?.classList.contains("rss-dashboard-pagination-pages")).toBe(true);
-    expect(markPageReadButton?.nextElementSibling).toBe(pageSizeDropdown?.parentElement);
+    expect(
+      nextButton?.parentElement?.classList.contains(
+        "rss-dashboard-pagination-pages",
+      ),
+    ).toBe(true);
+    expect(markPageReadButton?.nextElementSibling).toBe(
+      pageSizeDropdown?.parentElement,
+    );
 
     h.cleanup();
   });
@@ -375,7 +383,9 @@ describe("Phase 7 - ArticleList in-place updates", () => {
       expect(h.list.insertArticleInPlace(starred, "newest")).toBe(true);
       vi.runOnlyPendingTimers();
 
-      expect(h.getArticlesListEl()?.querySelector("#article-starred")).not.toBeNull();
+      expect(
+        h.getArticlesListEl()?.querySelector("#article-starred"),
+      ).not.toBeNull();
       expect(document.childElementCount).toBe(1);
     },
   );

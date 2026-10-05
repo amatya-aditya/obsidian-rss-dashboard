@@ -59,9 +59,7 @@ export function findUnreleasedLeftoverIssue(changelogSource) {
     return null;
   }
 
-  const afterHeading = changelogSource.slice(
-    heading.index + heading[0].length,
-  );
+  const afterHeading = changelogSource.slice(heading.index + heading[0].length);
   const nextHeading = /^##\s/m.exec(afterHeading);
   const section = nextHeading
     ? afterHeading.slice(0, nextHeading.index)

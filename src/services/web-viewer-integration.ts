@@ -61,8 +61,9 @@ export class WebViewerIntegration {
     openSaveDialog: OpenWebViewerSaveDialog | null = null,
   ): WebViewerIntegration | null {
     try {
-      const plugins = (app as unknown as { plugins?: { plugins?: Record<string, unknown> } })
-        .plugins?.plugins;
+      const plugins = (
+        app as unknown as { plugins?: { plugins?: Record<string, unknown> } }
+      ).plugins?.plugins;
       return plugins && "webpage-html-export" in plugins
         ? new WebViewerIntegration(
             app as unknown as ObsidianApp,
@@ -113,7 +114,8 @@ export class WebViewerIntegration {
   }
 
   protected addCustomSaveButton(): void {
-    const webViewerContainer = activeDocument.querySelector(".webpage-container");
+    const webViewerContainer =
+      activeDocument.querySelector(".webpage-container");
     if (!webViewerContainer) return;
 
     if (webViewerContainer.querySelector(".rss-custom-save-button")) return;
@@ -224,8 +226,7 @@ export class WebViewerIntegration {
    */
   private resolveSavedArticleDate(item: FeedItem): Date {
     return (
-      resolveDisplayDate(item, this.getUseFirstSeenDateFallback()) ??
-      new Date()
+      resolveDisplayDate(item, this.getUseFirstSeenDateFallback()) ?? new Date()
     );
   }
 
@@ -276,26 +277,24 @@ guid: "{{guid}}"
     const saveTime24 = this.formatMoment(now, "HH:mm");
 
     frontmatter = frontmatter
-      .replace(/{{title}}/g, escapeYamlDoubleQuoted(item.title))
-      .replace(/{{date}}/g, dateString)
-      .replace(/{{isoDate}}/g, isoDateTime)
-      .replace(/{{isoDateTime}}/g, isoDateTime)
-      .replace(/{{saveDate}}/g, saveDate)
-      .replace(/{{saveTime12}}/g, saveTime12)
-      .replace(/{{saveTime24}}/g, saveTime24)
-      .replace(/{{tags}}/g, tagsString)
-      .replace(
-        /{{source}}/g,
+      .replace(/{{title}}/g, () => escapeYamlDoubleQuoted(item.title))
+      .replace(/{{date}}/g, () => dateString)
+      .replace(/{{isoDate}}/g, () => isoDateTime)
+      .replace(/{{isoDateTime}}/g, () => isoDateTime)
+      .replace(/{{saveDate}}/g, () => saveDate)
+      .replace(/{{saveTime12}}/g, () => saveTime12)
+      .replace(/{{saveTime24}}/g, () => saveTime24)
+      .replace(/{{tags}}/g, () => tagsString)
+      .replace(/{{source}}/g, () =>
         escapeYamlDoubleQuoted(item.feedTitle || "Web viewer"),
       )
-      .replace(/{{link}}/g, escapeYamlDoubleQuoted(item.link))
-      .replace(/{{author}}/g, escapeYamlDoubleQuoted(item.author || ""))
-      .replace(
-        /{{feedTitle}}/g,
+      .replace(/{{link}}/g, () => escapeYamlDoubleQuoted(item.link))
+      .replace(/{{author}}/g, () => escapeYamlDoubleQuoted(item.author || ""))
+      .replace(/{{feedTitle}}/g, () =>
         escapeYamlDoubleQuoted(item.feedTitle || "Web viewer"),
       )
-      .replace(/{{guid}}/g, escapeYamlDoubleQuoted(item.guid))
-      .replace(/{{image}}/g, escapeYamlDoubleQuoted(this.getImage(item)));
+      .replace(/{{guid}}/g, () => escapeYamlDoubleQuoted(item.guid))
+      .replace(/{{image}}/g, () => escapeYamlDoubleQuoted(this.getImage(item)));
 
     return frontmatter.endsWith("\n") ? frontmatter : `${frontmatter}\n`;
   }
@@ -321,22 +320,24 @@ guid: "{{guid}}"
     const saveTime24 = this.formatMoment(now, "HH:mm");
 
     const description = item.description;
-    return template
-      .replace(/{{title}}/g, item.title)
-      .replace(/{{date}}/g, formattedDate)
-      .replace(/{{isoDate}}/g, isoDateTime)
-      .replace(/{{isoDateTime}}/g, isoDateTime)
-      .replace(/{{saveDate}}/g, saveDate)
-      .replace(/{{saveTime12}}/g, saveTime12)
-      .replace(/{{saveTime24}}/g, saveTime24)
-      .replace(/{{link}}/g, item.link)
-      .replace(/{{author}}/g, item.author || "")
-      .replace(/{{source}}/g, item.feedTitle || "Web viewer")
-      .replace(/{{summary}}/g, item.summary || "")
-      // Use a replacer function to prevent JS regex special patterns ($$, $&)
-      // from collapsing display math delimiters like $$x^2$$ into $x^2$.
-      .replace(/{{content}}/g, () => description)
-      .replace(/{{image}}/g, this.getImage(item));
+    return (
+      template
+        .replace(/{{title}}/g, () => item.title)
+        .replace(/{{date}}/g, () => formattedDate)
+        .replace(/{{isoDate}}/g, () => isoDateTime)
+        .replace(/{{isoDateTime}}/g, () => isoDateTime)
+        .replace(/{{saveDate}}/g, () => saveDate)
+        .replace(/{{saveTime12}}/g, () => saveTime12)
+        .replace(/{{saveTime24}}/g, () => saveTime24)
+        .replace(/{{link}}/g, () => item.link)
+        .replace(/{{author}}/g, () => item.author || "")
+        .replace(/{{source}}/g, () => item.feedTitle || "Web viewer")
+        .replace(/{{summary}}/g, () => item.summary || "")
+        // Use a replacer function to prevent JS regex special patterns ($$, $&)
+        // from collapsing display math delimiters like $$x^2$$ into $x^2$.
+        .replace(/{{content}}/g, () => description)
+        .replace(/{{image}}/g, () => this.getImage(item))
+    );
   }
 
   private getImage(item: FeedItem): string {
@@ -346,8 +347,13 @@ guid: "{{guid}}"
         : "";
 
     return normalizeSubstackImageUrl(
-      (item.coverImage || item.image || item.itunes?.image?.href || enclosureImageUrl || "")
-        .trim(),
+      (
+        item.coverImage ||
+        item.image ||
+        item.itunes?.image?.href ||
+        enclosureImageUrl ||
+        ""
+      ).trim(),
     );
   }
 

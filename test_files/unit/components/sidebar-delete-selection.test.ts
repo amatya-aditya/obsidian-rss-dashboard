@@ -1,11 +1,4 @@
-import {
-  vi,
-  describe,
-  it,
-  expect,
-  beforeEach,
-  type Mock,
-} from "vitest";
+import { vi, describe, it, expect, beforeEach, type Mock } from "vitest";
 import {
   Sidebar,
   SidebarOptions,

@@ -57,8 +57,11 @@ function createDashboard() {
     getLeavesOfType: vi.fn().mockReturnValue([]),
     onLayoutReady: vi.fn(),
   } as unknown as App["workspace"];
-  const leaf = { view: null, setViewState: vi.fn(), app } as unknown as
-    WorkspaceLeaf;
+  const leaf = {
+    view: null,
+    setViewState: vi.fn(),
+    app,
+  } as unknown as WorkspaceLeaf;
   const settings = {
     feeds: [],
     folders: [],

@@ -1,8 +1,4 @@
-import {
-  type App,
-  type Component,
-  MarkdownRenderer,
-} from "obsidian";
+import { type App, type Component, MarkdownRenderer } from "obsidian";
 import { isLatexFormulaImageElement } from "./image-url-utils";
 
 interface MathTurndownService {
@@ -24,9 +20,10 @@ interface MathTurndownService {
  * or \(...\). If no recognized delimiter is found, the text is passed
  * through as-is (inline).
  */
-export function extractLatex(
-  text: string,
-): { latex: string; display: boolean } {
+export function extractLatex(text: string): {
+  latex: string;
+  display: boolean;
+} {
   const t = text.trim();
 
   // Display: $$...$$
@@ -110,9 +107,7 @@ export function extractWordPressLatexFormula(
 
   const hasDelimiters = hasRecognizedMathDelimiters(source);
   const extracted = extractLatex(source);
-  const display = hasDelimiters
-    ? extracted.display
-    : isFormulaOnlyBlock(image);
+  const display = hasDelimiters ? extracted.display : isFormulaOnlyBlock(image);
   const rawMath = display
     ? `\\[${extracted.latex}\\]`
     : `\\(${extracted.latex}\\)`;
@@ -395,7 +390,9 @@ function protectRawMathTextNodes(container: HTMLElement): void {
 
     while ((match = MATH_REGEX.exec(text)) !== null) {
       if (match.index > lastIndex) {
-        fragment.appendChild(doc.createTextNode(text.slice(lastIndex, match.index)));
+        fragment.appendChild(
+          doc.createTextNode(text.slice(lastIndex, match.index)),
+        );
       }
 
       const mathStr = match[0];
@@ -412,7 +409,9 @@ function protectRawMathTextNodes(container: HTMLElement): void {
   }
 }
 
-export function addMathTurndownRule(turndownService: MathTurndownService): void {
+export function addMathTurndownRule(
+  turndownService: MathTurndownService,
+): void {
   turndownService.addRule("math", {
     filter: (node: Node) =>
       node.nodeName === "SPAN" &&
@@ -481,9 +480,7 @@ export async function processMathElements(
     mathContainers.push(container);
   }
   mathContainers.push(
-    ...Array.from(
-      container.querySelectorAll<HTMLElement>(".math-container"),
-    ),
+    ...Array.from(container.querySelectorAll<HTMLElement>(".math-container")),
   );
   result.mathContainerCount = mathContainers.length;
   mathContainers.forEach((span) => {
@@ -496,16 +493,12 @@ export async function processMathElements(
   });
 
   // 3. Walk all text nodes to find raw MathJax
-  const walker = ownerDoc.createTreeWalker(
-    container,
-    NodeFilter.SHOW_TEXT,
-    {
-      acceptNode: (node) =>
-        isInsideSkippedNode(node)
-          ? NodeFilter.FILTER_REJECT
-          : NodeFilter.FILTER_ACCEPT,
-    },
-  );
+  const walker = ownerDoc.createTreeWalker(container, NodeFilter.SHOW_TEXT, {
+    acceptNode: (node) =>
+      isInsideSkippedNode(node)
+        ? NodeFilter.FILTER_REJECT
+        : NodeFilter.FILTER_ACCEPT,
+  });
 
   const textNodes: Text[] = [];
   let currentNode: Node | null = null;
@@ -550,9 +543,7 @@ export async function processMathElements(
 
     if (lastIndex > 0) {
       if (lastIndex < text.length) {
-        fragment.appendChild(
-          ownerDoc.createTextNode(text.slice(lastIndex)),
-        );
+        fragment.appendChild(ownerDoc.createTextNode(text.slice(lastIndex)));
       }
       textNode.parentNode?.replaceChild(fragment, textNode);
     }
@@ -622,7 +613,10 @@ export function scheduleProcessMathElements(
 
         processMathElements(container, context)
           .catch((error) => {
-            console.warn("[RSS Dashboard] Failed to process math elements", error);
+            console.warn(
+              "[RSS Dashboard] Failed to process math elements",
+              error,
+            );
           })
           .finally(resolve);
       });

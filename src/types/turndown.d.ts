@@ -1,4 +1,4 @@
-declare module 'turndown' {
+declare module "turndown" {
   interface Rule {
     filter: (node: Node) => boolean;
     replacement: (content: string, node: Node) => string;
@@ -9,4 +9,4 @@ declare module 'turndown' {
     turndown(html: string): string;
     addRule(name: string, rule: Rule): void;
   }
-} 
+}

@@ -1,7 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { App } from "obsidian";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
-import { DEFAULT_SETTINGS, type RssDashboardSettings } from "../../../src/types/types";
+import {
+  DEFAULT_SETTINGS,
+  type RssDashboardSettings,
+} from "../../../src/types/types";
 // Static import: vi.mock calls are hoisted above it, and loading the view's
 // large module graph here keeps it out of the first test's 5 s timeout.
 import { RssDashboardView } from "../../../src/views/dashboard-view";
@@ -70,7 +73,9 @@ async function renderSubheader(options: {
     isUserStateUnreadable: options.userStateUnreadable,
     isShardFolderHiddenFromSync: options.shardFolderHiddenFromSync ?? false,
   };
-  const leaf = { app: new App() } as unknown as import("obsidian").WorkspaceLeaf;
+  const leaf = {
+    app: new App(),
+  } as unknown as import("obsidian").WorkspaceLeaf;
   const view = new RssDashboardView(
     leaf,
     plugin as never,
@@ -103,7 +108,9 @@ describe("Dashboard unreadable user-state alert", () => {
     const container = await renderSubheader({ userStateUnreadable: true });
 
     const alert = container.querySelector(".rss-dashboard-user-state-alert");
-    expect(alert?.closest(".rss-dashboard-filter-subheader-content")).toBeNull();
+    expect(
+      alert?.closest(".rss-dashboard-filter-subheader-content"),
+    ).toBeNull();
     expect(alert?.closest(".rss-dashboard-filter-subheader")).not.toBeNull();
   });
 
@@ -124,7 +131,9 @@ describe("Dashboard unreadable user-state alert", () => {
   it("shows no alert when user-state.json is healthy", async () => {
     const container = await renderSubheader({ userStateUnreadable: false });
 
-    expect(container.querySelector(".rss-dashboard-user-state-alert")).toBeNull();
+    expect(
+      container.querySelector(".rss-dashboard-user-state-alert"),
+    ).toBeNull();
     expect(
       container.querySelector(".rss-dashboard-refresh-status-row"),
     ).not.toBeNull();
@@ -136,7 +145,9 @@ describe("Dashboard unreadable user-state alert", () => {
       showFilterStatusBar: false,
     });
 
-    expect(container.querySelector(".rss-dashboard-filter-subheader")).toBeNull();
+    expect(
+      container.querySelector(".rss-dashboard-filter-subheader"),
+    ).toBeNull();
   });
 });
 
@@ -158,8 +169,12 @@ describe("Dashboard hidden storage folder alert", () => {
     expect(alert?.getAttribute("role")).toBe("alert");
     expect(alert?.textContent).toContain(DEFAULT_SETTINGS.storageFolder);
     expect(alert?.textContent).toContain("Repair");
-    expect(alert?.textContent).toContain("renamed or moved the folder yourself");
-    expect(alert?.closest(".rss-dashboard-filter-subheader-content")).toBeNull();
+    expect(alert?.textContent).toContain(
+      "renamed or moved the folder yourself",
+    );
+    expect(
+      alert?.closest(".rss-dashboard-filter-subheader-content"),
+    ).toBeNull();
   });
 
   it("still shows the alert when the user has turned the filter status bar off", async () => {

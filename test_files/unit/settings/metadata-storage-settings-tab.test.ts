@@ -195,7 +195,9 @@ describe("renderStorageSettingsTab() - default folders and metadata", () => {
     renderStorageSettingsTab(containerEl, plugin);
 
     const resetSetting = getSettingByName(containerEl, "Reset folder names");
-    const resetButton = resetSetting.querySelector("button") as HTMLButtonElement;
+    const resetButton = resetSetting.querySelector(
+      "button",
+    ) as HTMLButtonElement;
     resetButton.click();
     await flushPromises();
 

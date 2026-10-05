@@ -65,7 +65,10 @@ function createView(
     settings,
     saveSettings: vi.fn().mockResolvedValue(undefined),
   } as unknown as RssDashboardPlugin;
-  const view = new RssDashboardView(leaf, plugin) as unknown as RangeSelectionHarness;
+  const view = new RssDashboardView(
+    leaf,
+    plugin,
+  ) as unknown as RangeSelectionHarness;
   view.render = vi.fn();
   return view;
 }

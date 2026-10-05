@@ -91,7 +91,9 @@ describe("migrateDisplaySettings()", () => {
     });
 
     it("hideFeedFetchErrorBadges: true is preserved", () => {
-      const display: Record<string, unknown> = { hideFeedFetchErrorBadges: true };
+      const display: Record<string, unknown> = {
+        hideFeedFetchErrorBadges: true,
+      };
       migrateDisplaySettings(display);
       expect(display.hideFeedFetchErrorBadges).toBe(true);
     });

@@ -86,7 +86,9 @@ function flushPromises(): Promise<void> {
 }
 
 function cloneSettings(): typeof DEFAULT_SETTINGS {
-  return JSON.parse(JSON.stringify(DEFAULT_SETTINGS)) as typeof DEFAULT_SETTINGS;
+  return JSON.parse(
+    JSON.stringify(DEFAULT_SETTINGS),
+  ) as typeof DEFAULT_SETTINGS;
 }
 
 function makeFeed(url: string, title: string): Feed {
@@ -224,9 +226,8 @@ describe("ImportStarredModal", () => {
       file: File,
     ): Promise<void> {
       content.querySelector<HTMLButtonElement>(".import-file-button")!.click();
-      const picker = document.body.querySelector<HTMLInputElement>(
-        'input[type="file"]',
-      )!;
+      const picker =
+        document.body.querySelector<HTMLInputElement>('input[type="file"]')!;
       Object.defineProperty(picker, "files", { value: [file] });
       picker.dispatchEvent(new Event("change"));
       await flushPromises();
@@ -277,7 +278,10 @@ describe("ImportStarredModal", () => {
         new File([readFixture()], "starred.json"),
       );
 
-      await chooseFileViaPicker(content, new File(["not json"], "starred.json"));
+      await chooseFileViaPicker(
+        content,
+        new File(["not json"], "starred.json"),
+      );
 
       expect(instructionsHidden(content)).toBe(false);
     });
@@ -289,7 +293,9 @@ describe("ImportStarredModal", () => {
         new File([readFixture()], "starred.json"),
       );
       const collapseAll = Array.from(
-        content.querySelectorAll<HTMLButtonElement>(".import-preview-toolbar button"),
+        content.querySelectorAll<HTMLButtonElement>(
+          ".import-preview-toolbar button",
+        ),
       ).find((button) => button.textContent === "Collapse all")!;
       collapseAll.click();
       expect(
@@ -301,7 +307,9 @@ describe("ImportStarredModal", () => {
         new File([readFixture()], "starred.json"),
       );
 
-      expect(content.querySelectorAll('[aria-label="Expand feed"]')).toHaveLength(0);
+      expect(
+        content.querySelectorAll('[aria-label="Expand feed"]'),
+      ).toHaveLength(0);
     });
   });
 
@@ -408,7 +416,6 @@ describe("ImportStarredModal", () => {
     });
   });
 
-
   it("creates the missing source feed, assigns it to the default folder, and inserts its starred item immediately without waiting on the fetch, when the metadata-refresh toggle is on", async () => {
     const app = createMockApp();
     const settings = cloneSettings();
@@ -483,9 +490,9 @@ describe("ImportStarredModal", () => {
     );
     expect(mergedFeed?.title).toBe("Not Subscribed Source (Live)");
     expect(mergedFeed?.items).toHaveLength(1);
-    expect((plugin.saveSettings as ReturnType<typeof vi.fn>).mock.calls.length).toBeGreaterThan(
-      savesBeforeResolve,
-    );
+    expect(
+      (plugin.saveSettings as ReturnType<typeof vi.fn>).mock.calls.length,
+    ).toBeGreaterThan(savesBeforeResolve);
   });
 
   it("never renames or migrates an existing 'Inoreader starred imports' folder or feed now that the default folder is generalized to 'Starred imports' (GH Issue #337)", async () => {
@@ -568,8 +575,8 @@ describe("ImportStarredModal", () => {
     const optionsIndex = Array.from(preview.children).indexOf(
       optionsPanel as Element,
     );
-    const headerIndex = Array.from(preview.children).findIndex((child) =>
-      child.querySelector("h4")?.textContent === "Preview",
+    const headerIndex = Array.from(preview.children).findIndex(
+      (child) => child.querySelector("h4")?.textContent === "Preview",
     );
     expect(optionsIndex).toBeGreaterThanOrEqual(0);
     expect(headerIndex).toBeGreaterThan(optionsIndex);
@@ -811,7 +818,9 @@ describe("ImportStarredModal", () => {
   it("renders an 'unable to import' section listing entries with no source feed or no article url, never dropping them silently", async () => {
     const app = createMockApp();
     const settings = cloneSettings();
-    settings.feeds = [makeFeed("https://example-feed.test/rss", "Example Feed")];
+    settings.feeds = [
+      makeFeed("https://example-feed.test/rss", "Example Feed"),
+    ];
     const plugin = createTestPlugin(settings);
     const modal = new ImportStarredModal(
       app,
@@ -962,7 +971,9 @@ describe("ImportStarredModal", () => {
     const runImport = async () => {
       const modal = new ImportStarredModal(
         app,
-        plugin as unknown as ConstructorParameters<typeof ImportStarredModal>[1],
+        plugin as unknown as ConstructorParameters<
+          typeof ImportStarredModal
+        >[1],
       );
       (modal as unknown as TestModal).open();
       await (modal as unknown as TestModal).handleFileSelection(
@@ -980,7 +991,8 @@ describe("ImportStarredModal", () => {
     await runImport();
     settings.feeds[0].items[0].read = true;
     settings.feeds[0].items[0].saved = true;
-    settings.feeds[0].items[0].savedFilePath = "Articles/existing-feed-article-one.md";
+    settings.feeds[0].items[0].savedFilePath =
+      "Articles/existing-feed-article-one.md";
 
     // Re-running the same export must not duplicate the article, and must
     // leave the locally-edited fields untouched even though the export
@@ -1060,9 +1072,7 @@ describe("ImportStarredModal", () => {
     expect(
       content.querySelector(".import-fetch-full-content-failures"),
     ).toBeNull();
-    expect(content.textContent).not.toContain(
-      "could not be fetched",
-    );
+    expect(content.textContent).not.toContain("could not be fetched");
   });
 
   it("shows the tag-import toggle in the Options panel, on by default, alongside the metadata-refresh toggle", async () => {
@@ -1268,7 +1278,9 @@ describe("ImportStarredModal", () => {
       const plugin = createTestPlugin(settings);
       const modal = new ImportStarredModal(
         app,
-        plugin as unknown as ConstructorParameters<typeof ImportStarredModal>[1],
+        plugin as unknown as ConstructorParameters<
+          typeof ImportStarredModal
+        >[1],
       );
       (modal as unknown as TestModal).open();
       await (modal as unknown as TestModal).handleFileSelection(
@@ -1334,8 +1346,9 @@ describe("ImportStarredModal", () => {
     it("the portal's tag-settings button opens the plugin's Tags settings instead of doing nothing", async () => {
       const { plugin, content } = await setUpModal();
       const openTagsSettings = vi.fn(async () => {});
-      (plugin as unknown as { openTagsSettings: () => Promise<void> })
-        .openTagsSettings = openTagsSettings;
+      (
+        plugin as unknown as { openTagsSettings: () => Promise<void> }
+      ).openTagsSettings = openTagsSettings;
 
       getItemTagsControl(content, labeledGuid).click();
 
@@ -1389,19 +1402,14 @@ describe("ImportStarredModal", () => {
       };
       const previous = call.item.tags!.find((t) => t.name === "Design")!;
       expect(call.onTagEdited).toBeTypeOf("function");
-      call.onTagEdited?.(
-        { ...previous },
-        { name: "Design", color: "#00ff00" },
-      );
+      call.onTagEdited?.({ ...previous }, { name: "Design", color: "#00ff00" });
 
       const designChip = Array.from(
         getItemTagsControl(content, labeledGuid).querySelectorAll<HTMLElement>(
           ".rss-dashboard-tag-badge",
         ),
       ).find((el) => el.textContent === "Design");
-      expect(designChip?.style.getPropertyValue("--tag-color")).toBe(
-        "#00ff00",
-      );
+      expect(designChip?.style.getPropertyValue("--tag-color")).toBe("#00ff00");
 
       content
         .querySelector<HTMLButtonElement>(
@@ -1413,9 +1421,9 @@ describe("ImportStarredModal", () => {
       const importedItem = settings.feeds
         .flatMap((feed) => feed.items)
         .find((item) => item.guid === labeledGuid);
-      expect(
-        importedItem?.tags?.find((t) => t.name === "Design")?.color,
-      ).toBe("#00ff00");
+      expect(importedItem?.tags?.find((t) => t.name === "Design")?.color).toBe(
+        "#00ff00",
+      );
       expect(
         settings.availableTags.find((t) => t.name === "Design")?.color,
       ).toBe("#00ff00");
@@ -1441,10 +1449,7 @@ describe("ImportStarredModal", () => {
         previous.color,
       );
 
-      call.onTagEdited?.(
-        { ...previous },
-        { name: "Design", color: "#00ff00" },
-      );
+      call.onTagEdited?.({ ...previous }, { name: "Design", color: "#00ff00" });
 
       expect(newTagChip("Design")?.style.getPropertyValue("--tag-color")).toBe(
         "#00ff00",
@@ -1473,7 +1478,9 @@ describe("ImportStarredModal", () => {
         .click();
       await flushPromises();
 
-      expect(document.querySelector(".rss-dashboard-tag-modal-form")).toBeNull();
+      expect(
+        document.querySelector(".rss-dashboard-tag-modal-form"),
+      ).toBeNull();
       expect(newTagChip("Design")?.style.getPropertyValue("--tag-color")).toBe(
         "#00ff00",
       );
@@ -1499,9 +1506,10 @@ describe("ImportStarredModal", () => {
         );
       const rowChipColor = (content: HTMLElement, name: string) =>
         Array.from(
-          getItemTagsControl(content, labeledGuid).querySelectorAll<HTMLElement>(
-            ".rss-dashboard-tag-badge",
-          ),
+          getItemTagsControl(
+            content,
+            labeledGuid,
+          ).querySelectorAll<HTMLElement>(".rss-dashboard-tag-badge"),
         )
           .find((el) => el.textContent === name)
           ?.style.getPropertyValue("--tag-color");
@@ -1569,8 +1577,13 @@ describe("ImportStarredModal", () => {
 
       it("the palette picker applies one chosen color to every new tag when it closes", async () => {
         const { content } = await setUpModal();
-        const picker = button(content, ".import-new-tags-set-color input[type='color']");
-        expect(picker.getAttribute("value") ?? (picker as HTMLInputElement).value).toBe("#8a5cf5");
+        const picker = button(
+          content,
+          ".import-new-tags-set-color input[type='color']",
+        );
+        expect(
+          picker.getAttribute("value") ?? (picker as HTMLInputElement).value,
+        ).toBe("#8a5cf5");
 
         (picker as HTMLInputElement).value = "#123456";
         picker.dispatchEvent(new Event("change"));
@@ -1650,7 +1663,10 @@ describe("ImportStarredModal", () => {
         onTagAssignmentChange: (tag: Tag, checked: boolean) => void;
       };
       // Remove the bulk-imported labels first so only the ad hoc tag is in play.
-      firstCall.onTagAssignmentChange({ name: "Design", color: "#111111" }, false);
+      firstCall.onTagAssignmentChange(
+        { name: "Design", color: "#111111" },
+        false,
+      );
       firstCall.onTagAssignmentChange({ name: "art", color: "#222222" }, false);
       expect(getNewTagsSection(content)).toBeNull();
 
@@ -1680,7 +1696,9 @@ describe("ImportStarredModal", () => {
       // "Design" and "art" are label-derived (234-04's mapping), so they're
       // hidden from the chip once the bulk toggle is off.
       const control = getItemTagsControl(content, labeledGuid);
-      expect(control.querySelectorAll(".rss-dashboard-tag-badge")).toHaveLength(0);
+      expect(control.querySelectorAll(".rss-dashboard-tag-badge")).toHaveLength(
+        0,
+      );
 
       control.click();
       const call = createTagsDropdownPortalMock.mock.calls[

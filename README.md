@@ -55,10 +55,6 @@ Import and export your subscriptions as OPML. Support for RSS, Atom, JSON feeds,
 
 ![RSS Dashboard Discover page](assets/2.2/2.2_Discover.jpg)
 
-![RSS Dashboard feed view in light mode](assets/2.2/2.2_Dashboard_feedview_light.jpg)
-
-![YouTube integration in light mode](assets/2.2/2.2_Dashboard_youtube_light.jpg)
-
 ## Version 2.2.0 Demo
 
 Version 2.2.0 demo (core experience remains similar).

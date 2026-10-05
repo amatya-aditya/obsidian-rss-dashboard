@@ -86,13 +86,14 @@ interface ToggleHarness {
 }
 
 async function createHarness(): Promise<ToggleHarness> {
-  const { RssDashboardView } = await import(
-    "../../../src/views/dashboard-view"
-  );
+  const { RssDashboardView } =
+    await import("../../../src/views/dashboard-view");
   const settings = cloneSettings();
   const saveSettings = vi.fn(async () => {});
   const plugin = { settings, saveSettings };
-  const leaf = { app: new App() } as unknown as import("obsidian").WorkspaceLeaf;
+  const leaf = {
+    app: new App(),
+  } as unknown as import("obsidian").WorkspaceLeaf;
   const view = new RssDashboardView(leaf, plugin as never);
   const internals = view as unknown as ToggleHarness["view"];
 
@@ -170,9 +171,9 @@ describe("Sidebar collapse toggle only touches the sidebar", () => {
     expect(h.view.sidebarContainer.classList.contains("sidebar-hidden")).toBe(
       true,
     );
-    expect(
-      h.view.resizeHandle.classList.contains("resize-handle-hidden"),
-    ).toBe(true);
+    expect(h.view.resizeHandle.classList.contains("resize-handle-hidden")).toBe(
+      true,
+    );
   });
 
   it("expands again: restores width and clears collapsed classes", async () => {
@@ -190,9 +191,9 @@ describe("Sidebar collapse toggle only touches the sidebar", () => {
     expect(h.view.sidebarContainer.classList.contains("sidebar-hidden")).toBe(
       false,
     );
-    expect(
-      h.view.resizeHandle.classList.contains("resize-handle-hidden"),
-    ).toBe(false);
+    expect(h.view.resizeHandle.classList.contains("resize-handle-hidden")).toBe(
+      false,
+    );
     expect(
       h.view.sidebarContainer.style.getPropertyValue("--rss-sidebar-width"),
     ).toBe("350px");

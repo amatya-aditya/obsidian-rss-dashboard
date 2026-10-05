@@ -27,22 +27,43 @@ describe("feed-icon utils", () => {
 
   describe("renderFeedIcon", () => {
     it("creates container for article feed icon", () => {
-      renderFeedIcon(container, "https://example.com/feed", undefined, BASE_CONTEXT);
+      renderFeedIcon(
+        container,
+        "https://example.com/feed",
+        undefined,
+        BASE_CONTEXT,
+      );
 
-      expect(container.querySelector(".rss-dashboard-article-feed-icon")).toBeTruthy();
+      expect(
+        container.querySelector(".rss-dashboard-article-feed-icon"),
+      ).toBeTruthy();
     });
 
     it("renders RSS fallback when feed icon not configured", () => {
-      renderFeedIcon(container, "https://unknown.com/rss", undefined, BASE_CONTEXT);
+      renderFeedIcon(
+        container,
+        "https://unknown.com/rss",
+        undefined,
+        BASE_CONTEXT,
+      );
 
-      const iconEl = container.querySelector(".rss-dashboard-article-feed-icon");
+      const iconEl = container.querySelector(
+        ".rss-dashboard-article-feed-icon",
+      );
       expect(iconEl).toBeTruthy();
     });
 
     it("renders podcast icon for podcast media type", () => {
-      renderFeedIcon(container, "https://example.com/feed", "podcast", BASE_CONTEXT);
+      renderFeedIcon(
+        container,
+        "https://example.com/feed",
+        "podcast",
+        BASE_CONTEXT,
+      );
 
-      const iconEl = container.querySelector(".rss-dashboard-article-feed-icon");
+      const iconEl = container.querySelector(
+        ".rss-dashboard-article-feed-icon",
+      );
       expect(iconEl?.classList.contains("podcast")).toBe(true);
     });
 
@@ -57,12 +78,19 @@ describe("feed-icon utils", () => {
           mediaType: "video",
         },
       ];
-      renderFeedIcon(container, "https://www.youtube.com/watch?v=123", "video", {
-        ...BASE_CONTEXT,
-        feeds,
-      });
+      renderFeedIcon(
+        container,
+        "https://www.youtube.com/watch?v=123",
+        "video",
+        {
+          ...BASE_CONTEXT,
+          feeds,
+        },
+      );
 
-      const iconEl = container.querySelector(".rss-dashboard-article-feed-icon");
+      const iconEl = container.querySelector(
+        ".rss-dashboard-article-feed-icon",
+      );
       expect(iconEl?.classList.contains("video")).toBe(true);
     });
   });
@@ -85,7 +113,9 @@ describe("feed-icon utils", () => {
         feeds,
       });
 
-      const img = container.querySelector(".rss-dashboard-header-feed-icon-img");
+      const img = container.querySelector(
+        ".rss-dashboard-header-feed-icon-img",
+      );
       expect(img).toBeTruthy();
       expect(img?.getAttribute("src")).toBe("https://example.com/logo.png");
     });
@@ -131,9 +161,15 @@ describe("feed-icon utils", () => {
     });
 
     it("renders Mastodon fallback favicon", () => {
-      renderHeaderFeedIcon(container, "https://mastodon.social/@user.rss", BASE_CONTEXT);
+      renderHeaderFeedIcon(
+        container,
+        "https://mastodon.social/@user.rss",
+        BASE_CONTEXT,
+      );
 
-      expect(container.querySelector(".rss-dashboard-header-favicon")).toBeTruthy();
+      expect(
+        container.querySelector(".rss-dashboard-header-favicon"),
+      ).toBeTruthy();
     });
   });
 });

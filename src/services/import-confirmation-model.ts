@@ -135,7 +135,10 @@ export function comparePreferences(
     if (FEED_DATA_KEYS.has(key) || SYNC_BOOKKEEPING_KEYS.has(key)) continue;
     if (!isSameValue(current[key], value)) changedCount += 1;
   }
-  return { changedCount, highImpactChanges: highImpactChanges(current, incoming) };
+  return {
+    changedCount,
+    highImpactChanges: highImpactChanges(current, incoming),
+  };
 }
 
 type Formatter = (value: unknown) => string;
@@ -173,8 +176,13 @@ function highImpactChanges(
 ): HighImpactChange[] {
   const changes: HighImpactChange[] = [];
   for (const [key, label, format] of RETENTION_PREFERENCES) {
-    if (!(key in incoming) || isSameValue(current[key], incoming[key])) continue;
-    changes.push({ label, before: format(current[key]), after: format(incoming[key]) });
+    if (!(key in incoming) || isSameValue(current[key], incoming[key]))
+      continue;
+    changes.push({
+      label,
+      before: format(current[key]),
+      after: format(incoming[key]),
+    });
   }
 
   const currentBackup = asRecord(current.autoBackup);
@@ -222,7 +230,9 @@ export function compareStorageLocation(
     "metadataStorageFolder",
     (mode) => mode === "vault-location",
   );
-  return feedStorage || metadataStorage ? { feedStorage, metadataStorage } : null;
+  return feedStorage || metadataStorage
+    ? { feedStorage, metadataStorage }
+    : null;
 }
 
 function moveOf(
@@ -252,14 +262,16 @@ function isSameValue(a: unknown, b: unknown): boolean {
 
 /** JSON with object keys sorted, so key order never reads as a change. */
 function canonicalJson(value: unknown): string {
-  return JSON.stringify(value, (_key, nested: unknown) => {
-    if (!nested || typeof nested !== "object" || Array.isArray(nested)) {
-      return nested;
-    }
-    return Object.fromEntries(
-      Object.entries(nested as Record<string, unknown>).sort(([a], [b]) =>
-        a < b ? -1 : a > b ? 1 : 0,
-      ),
-    );
-  }) ?? "undefined";
+  return (
+    JSON.stringify(value, (_key, nested: unknown) => {
+      if (!nested || typeof nested !== "object" || Array.isArray(nested)) {
+        return nested;
+      }
+      return Object.fromEntries(
+        Object.entries(nested as Record<string, unknown>).sort(([a], [b]) =>
+          a < b ? -1 : a > b ? 1 : 0,
+        ),
+      );
+    }) ?? "undefined"
+  );
 }

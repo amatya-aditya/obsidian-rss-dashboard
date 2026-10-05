@@ -232,9 +232,7 @@ describe("Dashboard handleFilterChange characterization", () => {
       view.handleFilterChange({ type: "unread", value: null, checked: true });
 
       expect([...view.activeStatusFilters]).toEqual(["unread"]);
-      expect(settings.dashboardMultiFilters?.statusFilters).toEqual([
-        "unread",
-      ]);
+      expect(settings.dashboardMultiFilters?.statusFilters).toEqual(["unread"]);
       expect(view.refreshFilterStatusBarOnly).not.toHaveBeenCalled();
     });
   });
@@ -413,9 +411,9 @@ describe("Dashboard handleFilterChange characterization", () => {
 
       view.handleFilterChange({ type: "card-spacing-live", value: 99 });
       expect(settings.display.cardSpacing).toBe(40);
-      expect(view.articleList!.updateCardSpacingLayout).toHaveBeenLastCalledWith(
-        40,
-      );
+      expect(
+        view.articleList!.updateCardSpacingLayout,
+      ).toHaveBeenLastCalledWith(40);
 
       view.handleFilterChange({ type: "card-spacing-live", value: -5 });
       expect(settings.display.cardSpacing).toBe(0);

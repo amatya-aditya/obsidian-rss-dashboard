@@ -9,9 +9,15 @@ import {
   firstNonFormulaImageUrl,
 } from "./image-url-utils";
 import { normalizeSubstackImageUrl } from "./substack-image-url";
+import {
+  isEquivalentHtml,
+  isLikelySameImageSource,
+  removeLeadImageElement,
+} from "./reader-html-cleanup";
 
 /** Which view the reader gives an item (see `ReaderView.displayItem`). */
-export type ReaderMediaRoute = "video" | "video-podcast" | "podcast" | "article";
+export type ReaderMediaRoute =
+  "video" | "video-podcast" | "podcast" | "article";
 
 /**
  * Clears the saved flag, the saved path and the Saved tag on an item whose
@@ -39,6 +45,7 @@ export function clearSavedStateIfFileMissing(
           const originalItem = feed.items.find((i) => i.guid === item.guid);
           if (originalItem) {
             originalItem.saved = false;
+            originalItem.savedFilePath = undefined;
             if (originalItem.tags) {
               originalItem.tags = originalItem.tags.filter(
                 (tag) => tag.name.toLowerCase() !== "saved",
@@ -110,7 +117,8 @@ export function resolveFallbackHeroUrl(
 
   // Avoid using the feed icon (logo) as the article hero image.
   if (fallbackHeroUrl && item.feedUrl) {
-    const feedIconUrl = feeds.find((f) => f.url === item.feedUrl)?.iconUrl || "";
+    const feedIconUrl =
+      feeds.find((f) => f.url === item.feedUrl)?.iconUrl || "";
     const normalize = (u: string) => u.trim().replace(/\/$/, "");
     if (feedIconUrl && normalize(fallbackHeroUrl) === normalize(feedIconUrl)) {
       fallbackHeroUrl = undefined;
@@ -147,10 +155,10 @@ export interface ArticleSections {
 export function selectArticleSections(
   item: FeedItem,
   fullContent: string | undefined,
-  isEquivalentHtml: (html1: string, html2: string) => boolean,
 ): ArticleSections {
   const descriptionHtml = (item.description || "").trim();
-  const hasMeaningfulDescription = hasMeaningfulFeedDescription(descriptionHtml);
+  const hasMeaningfulDescription =
+    hasMeaningfulFeedDescription(descriptionHtml);
   const mainHtml = (fullContent || item.content || "").trim();
 
   const hasDistinctMainContent =
@@ -180,7 +188,7 @@ export function resolveRelativeUrlsInDocument(
 
     doc.querySelectorAll("a").forEach((el) => {
       const href = el.getAttribute("href");
-      if (!href) return;
+      if (!href || href.startsWith("#")) return;
       try {
         el.setAttribute("href", new URL(href, base).toString());
       } catch {
@@ -224,13 +232,6 @@ export function stripEmbeddedTooltipAttributes(doc: Document): void {
     });
 }
 
-/** The view helpers hero placement needs, passed in so they can stay on the view. */
-export interface HeroImageHost {
-  setupLightbox(img: HTMLImageElement): void;
-  isLikelySameImageSource(urlA: string, urlB: string): boolean;
-  removeLeadImageElement(imageEl: Element): void;
-}
-
 /**
  * Puts the hero image in an empty slot (the fallback url, else the document's
  * first image) and drops a duplicate lead image from the document; when the
@@ -241,14 +242,20 @@ export function placeHeroImage(
   heroSlot: HTMLElement,
   fallbackHeroUrl: string | undefined,
   title: string | undefined,
-  host: HeroImageHost,
+  setupLightbox: (img: HTMLImageElement) => void,
 ): void {
   const firstImg = findFirstNonFormulaImage(doc.body);
 
   if (heroSlot.childElementCount === 0) {
-    fillEmptyHeroSlot(heroSlot, firstImg, fallbackHeroUrl, title, host);
+    fillEmptyHeroSlot(
+      heroSlot,
+      firstImg,
+      fallbackHeroUrl,
+      title,
+      setupLightbox,
+    );
   } else {
-    dropLeadImageRepeatingHero(heroSlot, firstImg, host);
+    dropLeadImageRepeatingHero(heroSlot, firstImg);
   }
 }
 
@@ -257,7 +264,7 @@ function fillEmptyHeroSlot(
   firstImg: HTMLImageElement | null,
   fallbackHeroUrl: string | undefined,
   title: string | undefined,
-  host: HeroImageHost,
+  setupLightbox: (img: HTMLImageElement) => void,
 ): void {
   let heroUrl = normalizeSubstackImageUrl(fallbackHeroUrl);
   const firstImgSrc = normalizeSubstackImageUrl(
@@ -272,15 +279,15 @@ function fillEmptyHeroSlot(
       cls: "rss-reader-fallback-hero",
       attr: { src: heroUrl, alt: title || "Hero image" },
     });
-    host.setupLightbox(heroImg);
+    setupLightbox(heroImg);
 
     // Remove the first image from the body if it's the hero image to avoid duplication
     if (
       firstImg &&
       firstImgSrc &&
-      host.isLikelySameImageSource(firstImgSrc, heroUrl)
+      isLikelySameImageSource(firstImgSrc, heroUrl)
     ) {
-      host.removeLeadImageElement(firstImg);
+      removeLeadImageElement(firstImg);
     }
   }
 }
@@ -288,7 +295,6 @@ function fillEmptyHeroSlot(
 function dropLeadImageRepeatingHero(
   heroSlot: HTMLElement,
   firstImg: HTMLImageElement | null,
-  host: HeroImageHost,
 ): void {
   // Hero slot already filled by a previous section (e.g. description)
   // If the current section starts with the same image as the hero image, remove it to avoid duplication
@@ -301,8 +307,57 @@ function dropLeadImageRepeatingHero(
   if (
     existingHeroSrc &&
     firstImg &&
-    host.isLikelySameImageSource(firstImgSrc, existingHeroSrc)
+    isLikelySameImageSource(firstImgSrc, existingHeroSrc)
   ) {
-    host.removeLeadImageElement(firstImg);
+    removeLeadImageElement(firstImg);
   }
+}
+
+/** Returns the final image path segment without query or fragment data. */
+export function getReaderImageFilename(img: HTMLImageElement): string {
+  const source = img.currentSrc || img.getAttribute("src") || "";
+  if (!source || /^(?:data|blob):/i.test(source)) return "";
+
+  let finalSegment = "";
+  try {
+    const path = new URL(source, "https://reader.invalid").pathname;
+    finalSegment = path.slice(path.lastIndexOf("/") + 1);
+  } catch {
+    finalSegment = source.split(/[?#]/, 1)[0]?.split("/").pop() || "";
+  }
+
+  try {
+    return decodeURIComponent(finalSegment).trim();
+  } catch {
+    return finalSegment.trim();
+  }
+}
+
+const GENERIC_IMAGE_ALT =
+  /^(?:image|photo|picture|graphic|thumbnail|logo|icon)(?:\s+\d+)?$/i;
+
+/** Combines meaningful alt text and an image filename for the Reader tooltip. */
+export function buildReaderImageTooltipText(
+  altText: string | null,
+  articleTitle: string | undefined,
+  filename: string,
+): string {
+  const alt = (altText || "").replace(/\s+/g, " ").trim();
+  const title = (articleTitle || "").replace(/\s+/g, " ").trim();
+  const usefulAlt =
+    alt &&
+    !GENERIC_IMAGE_ALT.test(alt) &&
+    (!title || alt.toLocaleLowerCase() !== title.toLocaleLowerCase())
+      ? alt
+      : "";
+  const usefulFilename = filename.trim();
+
+  if (!usefulAlt) return usefulFilename;
+  if (
+    !usefulFilename ||
+    usefulAlt.toLocaleLowerCase() === usefulFilename.toLocaleLowerCase()
+  ) {
+    return usefulAlt;
+  }
+  return `${usefulAlt} — ${usefulFilename}`;
 }

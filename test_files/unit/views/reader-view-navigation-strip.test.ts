@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { ReaderView } from "../../../src/views/reader-view";
+import { stripNavigationChromeFromHtml } from "../../../src/utils/reader-html-cleanup";
 import {
   FeedItem,
   RssDashboardSettings,
@@ -22,7 +23,6 @@ type ReaderViewInternals = {
   contentEl: HTMLElement;
   readingContainer: HTMLElement;
   fetchFullArticleContent: ReturnType<typeof vi.fn>;
-  stripNavigationChromeFromHtml: (html: string) => string;
 };
 
 function getInternals(view: ReaderView): ReaderViewInternals {
@@ -141,8 +141,7 @@ describe("ReaderView full-article nav/breadcrumb stripping", () => {
       <p>Keep me</p>
     `;
 
-    const cleaned =
-      getInternals(readerView).stripNavigationChromeFromHtml(html);
+    const cleaned = stripNavigationChromeFromHtml(html);
     const doc = new DOMParser().parseFromString(cleaned, "text/html");
     expect(doc.body.querySelector("nav")).toBeNull();
     expect(doc.body.textContent || "").toContain("Keep me");

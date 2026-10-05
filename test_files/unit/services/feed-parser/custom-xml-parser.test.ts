@@ -223,6 +223,127 @@ describe("CustomXMLParser - RSS 2.0 Parsing", () => {
   });
 });
 
+describe("CustomXMLParser - channel metadata boundaries", () => {
+  it("does not take RSS 2.0 channel metadata from item descendants", () => {
+    const parser = new CustomXMLParser();
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
+  <channel>
+    <item>
+      <title>Item title</title>
+      <link>https://example.com/item</link>
+      <description>Item description</description>
+      <author>Item author</author>
+      <image><url>https://example.com/item.png</url></image>
+      <itunes:image href="https://example.com/item-itunes.png" />
+    </item>
+  </channel>
+</rss>`;
+
+    const result = parser.parseString(xml);
+
+    expect(result.title).toBe("");
+    expect(result.link).toBe("");
+    expect(result.description).toBe("");
+    expect(result.author).toBe("");
+    expect(result.image).toBeUndefined();
+    expect(result.feedImageUrl).toBe("");
+    expect(result.feedItunesImage).toBe("");
+    expect(result.items[0]?.title).toBe("Item title");
+    expect(result.items[0]?.author).toBe("Item author");
+  });
+
+  it("keeps RSS 2.0 metadata declared directly on the channel", () => {
+    const parser = new CustomXMLParser();
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd" xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <channel>
+    <title>Channel title</title>
+    <link>https://example.com</link>
+    <description>Channel description</description>
+    <dc:creator>Channel author</dc:creator>
+    <image><url>https://example.com/channel.png</url></image>
+    <itunes:image href="https://example.com/channel-itunes.png" />
+    <item>
+      <title>Item title</title>
+      <link>https://example.com/item</link>
+      <description>Item description</description>
+      <author>Item author</author>
+      <image><url>https://example.com/item.png</url></image>
+      <itunes:image href="https://example.com/item-itunes.png" />
+    </item>
+  </channel>
+</rss>`;
+
+    const result = parser.parseString(xml);
+
+    expect(result.title).toBe("Channel title");
+    expect(result.link).toBe("https://example.com");
+    expect(result.description).toBe("Channel description");
+    expect(result.author).toBe("Channel author");
+    expect(result.image?.url).toBe("https://example.com/channel-itunes.png");
+    expect(result.feedImageUrl).toBe("https://example.com/channel.png");
+    expect(result.feedItunesImage).toBe(
+      "https://example.com/channel-itunes.png",
+    );
+  });
+
+  it("does not take RSS 1.0 channel metadata from item descendants", () => {
+    const parser = new CustomXMLParser();
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <channel>
+    <item rdf:about="https://example.com/item">
+      <title>Item title</title>
+      <link>https://example.com/item</link>
+      <description>Item description</description>
+      <dc:creator>Item author</dc:creator>
+      <image rdf:resource="https://example.com/item.png" />
+    </item>
+  </channel>
+</rdf:RDF>`;
+
+    const result = parser.parseString(xml);
+
+    expect(result.title).toBe("Unknown feed");
+    expect(result.link).toBe("");
+    expect(result.description).toBe("");
+    expect(result.author).toBeUndefined();
+    expect(result.image).toBeUndefined();
+    expect(result.items[0]?.title).toBe("Item title");
+  });
+
+  it("keeps RSS 1.0 metadata declared directly on the channel", () => {
+    const parser = new CustomXMLParser();
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <channel>
+    <title>Channel title</title>
+    <link>https://example.com</link>
+    <description>Channel description</description>
+    <dc:creator>Channel author</dc:creator>
+    <image rdf:resource="https://example.com/channel.png" />
+  </channel>
+  <item rdf:about="https://example.com/item">
+    <title>Item title</title>
+    <link>https://example.com/item</link>
+    <description>Item description</description>
+    <dc:creator>Item author</dc:creator>
+  </item>
+</rdf:RDF>`;
+
+    const result = parser.parseString(xml);
+
+    expect(result.title).toBe("Channel title");
+    expect(result.link).toBe("https://example.com");
+    expect(result.description).toBe("Channel description");
+    expect(result.author).toBe("Channel author");
+    expect(result.image?.url).toBe("https://example.com/channel.png");
+    expect(result.items[0]?.title).toBe("Item title");
+    expect(result.items[0]?.author).toBe("Item author");
+  });
+});
+
 describe("content:encoded HTML entity preservation", () => {
   let parser: CustomXMLParser;
 

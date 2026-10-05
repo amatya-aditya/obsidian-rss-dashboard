@@ -36,7 +36,9 @@ describe("article-actions utils", () => {
     vi.clearAllMocks();
   });
 
-  const baseArgs = (overrides: Partial<CreateActionButtonArgs> = {}): CreateActionButtonArgs => ({
+  const baseArgs = (
+    overrides: Partial<CreateActionButtonArgs> = {},
+  ): CreateActionButtonArgs => ({
     article,
     actionToolbar,
     mode: "full" as const,
@@ -94,7 +96,9 @@ describe("article-actions utils", () => {
       const showTagsDropdown = vi.fn();
       createTagsToggle(baseArgs({ deps: { showTagsDropdown } }));
 
-      const toggle = actionToolbar.querySelector(".rss-dashboard-tags-toggle") as HTMLElement;
+      const toggle = actionToolbar.querySelector(
+        ".rss-dashboard-tags-toggle",
+      ) as HTMLElement;
       toggle.click();
 
       expect(showTagsDropdown).toHaveBeenCalledWith(toggle, article);
@@ -104,8 +108,12 @@ describe("article-actions utils", () => {
       const showTagsDropdown = vi.fn();
       createTagsToggle(baseArgs({ deps: { showTagsDropdown } }));
 
-      const toggle = actionToolbar.querySelector(".rss-dashboard-tags-toggle") as HTMLElement;
-      toggle.dispatchEvent(new KeyboardEvent("keydown", { key: " ", bubbles: true }));
+      const toggle = actionToolbar.querySelector(
+        ".rss-dashboard-tags-toggle",
+      ) as HTMLElement;
+      toggle.dispatchEvent(
+        new KeyboardEvent("keydown", { key: " ", bubbles: true }),
+      );
 
       expect(showTagsDropdown).toHaveBeenCalled();
     });
@@ -115,24 +123,40 @@ describe("article-actions utils", () => {
     it("includes read, save, and star toggles in full mode", () => {
       createActionButtons(baseArgs());
 
-      expect(actionToolbar.querySelector(".rss-dashboard-read-toggle")).toBeTruthy();
-      expect(actionToolbar.querySelector(".rss-dashboard-save-toggle")).toBeTruthy();
-      expect(actionToolbar.querySelector(".rss-dashboard-star-toggle")).toBeTruthy();
+      expect(
+        actionToolbar.querySelector(".rss-dashboard-read-toggle"),
+      ).toBeTruthy();
+      expect(
+        actionToolbar.querySelector(".rss-dashboard-save-toggle"),
+      ).toBeTruthy();
+      expect(
+        actionToolbar.querySelector(".rss-dashboard-star-toggle"),
+      ).toBeTruthy();
     });
 
     it("includes tags toggle in full mode", () => {
       createActionButtons(baseArgs());
 
-      expect(actionToolbar.querySelector(".rss-dashboard-tags-toggle")).toBeTruthy();
+      expect(
+        actionToolbar.querySelector(".rss-dashboard-tags-toggle"),
+      ).toBeTruthy();
     });
 
     it("includes only read toggle in minimal-read mode", () => {
       createActionButtons(baseArgs({ mode: "minimal-read" }));
 
-      expect(actionToolbar.querySelector(".rss-dashboard-read-toggle")).toBeTruthy();
-      expect(actionToolbar.querySelector(".rss-dashboard-save-toggle")).toBeFalsy();
-      expect(actionToolbar.querySelector(".rss-dashboard-star-toggle")).toBeFalsy();
-      expect(actionToolbar.querySelector(".rss-dashboard-tags-toggle")).toBeFalsy();
+      expect(
+        actionToolbar.querySelector(".rss-dashboard-read-toggle"),
+      ).toBeTruthy();
+      expect(
+        actionToolbar.querySelector(".rss-dashboard-save-toggle"),
+      ).toBeFalsy();
+      expect(
+        actionToolbar.querySelector(".rss-dashboard-star-toggle"),
+      ).toBeFalsy();
+      expect(
+        actionToolbar.querySelector(".rss-dashboard-tags-toggle"),
+      ).toBeFalsy();
     });
   });
 });

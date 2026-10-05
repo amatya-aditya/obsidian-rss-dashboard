@@ -10,11 +10,11 @@ rules. Modeled after the section-comment structure of `modals.css`.
 
 The current monolith mixes distinct concerns including core layout, complex filter interactions, and navigation tabs. Extracting the filter controls and navigation tabs mirrors existing module patterns.
 
-| New file | Lines (approx) | What it owns |
-| -------- | -------------- | ------------ |
-| `discover-sidebar.css` _(keep, trimmed)_ | ~350 | Core sidebar container, search inputs, category and tag tree lists. |
-| `discover-sidebar-filters.css` _(new)_ | ~250 | Filter headers, mobile filter dropdowns, sort controls, clear buttons, and selected filter chips. |
-| `discover-sidebar-nav.css` _(new)_ | ~100 | Sidebar navigation tabs and their active/hover states. |
+| New file                                 | Lines (approx) | What it owns                                                                                      |
+| ---------------------------------------- | -------------- | ------------------------------------------------------------------------------------------------- |
+| `discover-sidebar.css` _(keep, trimmed)_ | ~350           | Core sidebar container, search inputs, category and tag tree lists.                               |
+| `discover-sidebar-filters.css` _(new)_   | ~250           | Filter headers, mobile filter dropdowns, sort controls, clear buttons, and selected filter chips. |
+| `discover-sidebar-nav.css` _(new)_       | ~100           | Sidebar navigation tabs and their active/hover states.                                            |
 
 > [!NOTE]
 > **Why not more splits?** The category and tag tree lists are tightly coupled to the sidebar's scroll container layout and don't contain enough independent styling complexity to warrant their own file yet. They remain in the core sidebar file.
@@ -56,27 +56,27 @@ The new `discover-sidebar-nav.css` will use:
 
 ## 3. Dead Code & Redundancies to Remove
 
-| Lines | Issue | Action |
-| ----- | ----- | ------ |
-| 457–460 | `.rss-clear-filter-button:hover` — Re-declares exact same background/color | **Remove** — Redundant with base rule. |
-| 461–464 | `.rss-clear-filter-button-danger` — Re-declares exact same background/color | **Remove** — Redundant with `.rss-clear-filter-button` base rule. |
-| 465–467 | `.rss-clear-filter-button-danger:hover` — Re-declares exact same background | **Remove** — Redundant with base rule. |
-| 398 | `box-shadow: 0 10px 22px rgba(0, 0, 0, 0.18);` | **Token needed** — no design-spec token exists yet; see Open Questions Q1 |
-| 435 | `box-shadow: 0 0 0 2px rgba(var(--interactive-accent-rgb), 0.2);` | **Token needed** — no design-spec token exists yet; see Open Questions Q2 |
+| Lines   | Issue                                                                       | Action                                                                    |
+| ------- | --------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| 457–460 | `.rss-clear-filter-button:hover` — Re-declares exact same background/color  | **Remove** — Redundant with base rule.                                    |
+| 461–464 | `.rss-clear-filter-button-danger` — Re-declares exact same background/color | **Remove** — Redundant with `.rss-clear-filter-button` base rule.         |
+| 465–467 | `.rss-clear-filter-button-danger:hover` — Re-declares exact same background | **Remove** — Redundant with base rule.                                    |
+| 398     | `box-shadow: 0 10px 22px rgba(0, 0, 0, 0.18);`                              | **Token needed** — no design-spec token exists yet; see Open Questions Q1 |
+| 435     | `box-shadow: 0 0 0 2px rgba(var(--interactive-accent-rgb), 0.2);`           | **Token needed** — no design-spec token exists yet; see Open Questions Q2 |
 
 ---
 
 ## 4. `!important` Audit
 
-| Lines | Declaration | Disposition |
-| ----- | ----------- | ----------- |
-| 23–27 | `.rss-discover-sidebar { display: none !important }` | **Keep** — sanctioned responsive display toggle. Add `/* audit-ok: responsive display toggle */` |
-| 64–66 | `.rss-discover-search-clear-hidden { display: none !important }` | **Keep** — utility toggle class. Add `/* audit-ok: display toggle utility */` |
-| 259–265 | `.rss-discover-header-nav-button svg { … !important × 4 }` | **Keep** — sanctioned by design-spec. Add `/* audit-ok: svg icon normalization */` |
-| 373–382 | `.rss-discover-mobile-filters-button svg { … !important × 6 }` | **Keep** — sanctioned by design-spec. Add `/* audit-ok: svg icon normalization */` |
-| 616–620 | `.rss-discover-mobile-header { display: flex !important }` | **Scope** — use higher specificity: `body .rss-discover-controls-container.is-narrow .rss-discover-mobile-header` |
-| 621–623 | `.rss-discover-filter-controls { display: none !important }` | **Keep** — utility toggle class. Add `/* audit-ok: display toggle utility */` |
-| 668–674 | `.rss-discover-sidebar-toggle svg { … !important × 4 }` | **Keep** — sanctioned by design-spec. Add `/* audit-ok: svg icon normalization */` |
+| Lines   | Declaration                                                      | Disposition                                                                                                       |
+| ------- | ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| 23–27   | `.rss-discover-sidebar { display: none !important }`             | **Keep** — sanctioned responsive display toggle. Add `/* audit-ok: responsive display toggle */`                  |
+| 64–66   | `.rss-discover-search-clear-hidden { display: none !important }` | **Keep** — utility toggle class. Add `/* audit-ok: display toggle utility */`                                     |
+| 259–265 | `.rss-discover-header-nav-button svg { … !important × 4 }`       | **Keep** — sanctioned by design-spec. Add `/* audit-ok: svg icon normalization */`                                |
+| 373–382 | `.rss-discover-mobile-filters-button svg { … !important × 6 }`   | **Keep** — sanctioned by design-spec. Add `/* audit-ok: svg icon normalization */`                                |
+| 616–620 | `.rss-discover-mobile-header { display: flex !important }`       | **Scope** — use higher specificity: `body .rss-discover-controls-container.is-narrow .rss-discover-mobile-header` |
+| 621–623 | `.rss-discover-filter-controls { display: none !important }`     | **Keep** — utility toggle class. Add `/* audit-ok: display toggle utility */`                                     |
+| 668–674 | `.rss-discover-sidebar-toggle svg { … !important × 4 }`          | **Keep** — sanctioned by design-spec. Add `/* audit-ok: svg icon normalization */`                                |
 
 ---
 
@@ -94,6 +94,7 @@ Lines 81–117 define identical structural styling for `.rss-discover-type-list`
 ## 6. Proposed Changes Summary
 
 ### [MODIFY] discover-sidebar.css
+
 - Add file-level header block (matching modals.css style)
 - Add numbered section comment blocks (sections 1–5 per map above)
 - Remove all dead/redundant button pseudo-classes (`.rss-clear-filter-button-danger` etc.)
@@ -106,6 +107,7 @@ Lines 81–117 define identical structural styling for `.rss-discover-type-list`
 ---
 
 ### [NEW] discover-sidebar-filters.css
+
 - File-level header comment
 - Filter Header & Actions styles (`.rss-discover-filter-header`, `.rss-discover-add-all-btn`)
 - Selected Filter Chips styles (`.rss-discover-selected-filters`, `.rss-discover-selected-filter`)
@@ -115,12 +117,14 @@ Lines 81–117 define identical structural styling for `.rss-discover-type-list`
 ---
 
 ### [NEW] discover-sidebar-nav.css
+
 - File-level header comment
 - Sidebar Navigation Tabs styles (`.rss-discover-sidebar-nav`)
 
 ---
 
 ### [MODIFY] index.css
+
 - Add imports for the 2 new CSS files (`discover-sidebar-filters.css`, `discover-sidebar-nav.css`)
 
 ---

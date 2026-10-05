@@ -6,9 +6,7 @@ export function getRemovedFolderTagNames(
   previousFolderTags: readonly Tag[],
   newFolderTags: readonly Tag[],
 ): string[] {
-  const newNames = new Set(
-    newFolderTags.map((tag) => tag.name.toLowerCase()),
-  );
+  const newNames = new Set(newFolderTags.map((tag) => tag.name.toLowerCase()));
   return previousFolderTags
     .filter((tag) => !newNames.has(tag.name.toLowerCase()))
     .map((tag) => tag.name);
@@ -66,9 +64,7 @@ export function syncFolderAutoTagsOnFeeds(
       continue;
     }
     for (const item of feed.items) {
-      if (
-        syncFolderAutoTagsOnItem(item, previousFolderTags, newFolderTags)
-      ) {
+      if (syncFolderAutoTagsOnItem(item, previousFolderTags, newFolderTags)) {
         articlesUpdated++;
       }
     }

@@ -107,7 +107,9 @@ describe("tag-utils.showEditTagModal", () => {
       "[Stub Notice]",
       "Please enter a tag name!",
     );
-    expect(document.querySelector(".rss-dashboard-edit-tag-modal")).not.toBeNull();
+    expect(
+      document.querySelector(".rss-dashboard-edit-tag-modal"),
+    ).not.toBeNull();
 
     // Duplicate (case-insensitive, and not same tag ref)
     nameInput!.value = "news";
@@ -116,7 +118,9 @@ describe("tag-utils.showEditTagModal", () => {
       "[Stub Notice]",
       "A tag with this name already exists!",
     );
-    expect(document.querySelector(".rss-dashboard-edit-tag-modal")).not.toBeNull();
+    expect(
+      document.querySelector(".rss-dashboard-edit-tag-modal"),
+    ).not.toBeNull();
 
     // Success
     nameInput!.value = "Technology";
@@ -168,10 +172,14 @@ describe("tag-utils.applyAutomaticArticleTags", () => {
       tags: [{ name: "news", color: "#111111" }],
     };
 
-    const updates = applyAutomaticArticleTags(article as unknown as FeedItem, { starred: true }, {
-      availableTags: [{ name: "Favorite", color: "#f1c40f" }],
-      articleSaving: { addSavedTag: true },
-    } as unknown as RssDashboardSettings);
+    const updates = applyAutomaticArticleTags(
+      article as unknown as FeedItem,
+      { starred: true },
+      {
+        availableTags: [{ name: "Favorite", color: "#f1c40f" }],
+        articleSaving: { addSavedTag: true },
+      } as unknown as RssDashboardSettings,
+    );
 
     expect(updates).toEqual({ starred: true });
   });
@@ -185,10 +193,14 @@ describe("tag-utils.applyAutomaticArticleTags", () => {
       ],
     };
 
-    const updates = applyAutomaticArticleTags(article as unknown as FeedItem, { starred: false }, {
-      availableTags: [{ name: "Favorite", color: "#f1c40f" }],
-      articleSaving: { addSavedTag: true },
-    } as unknown as RssDashboardSettings);
+    const updates = applyAutomaticArticleTags(
+      article as unknown as FeedItem,
+      { starred: false },
+      {
+        availableTags: [{ name: "Favorite", color: "#f1c40f" }],
+        articleSaving: { addSavedTag: true },
+      } as unknown as RssDashboardSettings,
+    );
 
     expect(updates).toEqual({ starred: false });
   });
@@ -196,10 +208,14 @@ describe("tag-utils.applyAutomaticArticleTags", () => {
   it("starring an article leaves tags unchanged even without any prior tags", () => {
     const article = { starred: false };
 
-    const updates = applyAutomaticArticleTags(article as unknown as FeedItem, { starred: true }, {
-      availableTags: [],
-      articleSaving: { addSavedTag: true },
-    } as unknown as RssDashboardSettings);
+    const updates = applyAutomaticArticleTags(
+      article as unknown as FeedItem,
+      { starred: true },
+      {
+        availableTags: [],
+        articleSaving: { addSavedTag: true },
+      } as unknown as RssDashboardSettings,
+    );
 
     expect(updates).toEqual({ starred: true });
   });
@@ -229,10 +245,14 @@ describe("tag-utils.applyAutomaticArticleTags", () => {
       tags: [{ name: "saved", color: "#123456" }],
     };
 
-    const updates = applyAutomaticArticleTags(article as unknown as FeedItem, { saved: true }, {
-      availableTags: [],
-      articleSaving: { addSavedTag: true },
-    } as unknown as RssDashboardSettings);
+    const updates = applyAutomaticArticleTags(
+      article as unknown as FeedItem,
+      { saved: true },
+      {
+        availableTags: [],
+        articleSaving: { addSavedTag: true },
+      } as unknown as RssDashboardSettings,
+    );
 
     expect(updates.tags).toEqual([{ name: "Saved", color: "#123456" }]);
   });

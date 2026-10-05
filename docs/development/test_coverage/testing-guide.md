@@ -103,6 +103,7 @@ We use `jsdom` alongside custom polyfills (`test_files/unit/test-dom-polyfills.t
 including What's New notes and repository scripts. A change to a widely
 imported utility can select most of the suite.
 
-The pre-commit hook runs only the tests related to the staged files; the
-pre-push hook and CI run the whole suite. See **Git Hooks** in
+The pre-commit hook runs only the tests related to the staged files; GitHub
+Actions runs the full suite with coverage for pull requests and pushes to
+`dev` or `master`. The pre-push hook skips local checks. See **Git Hooks** in
 [CONTRIBUTING.md](../../../CONTRIBUTING.md#git-hooks).

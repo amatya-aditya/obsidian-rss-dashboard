@@ -149,9 +149,9 @@ export function renderStorageSettingsTab(
     const migrationState = status.migrationReady
       ? "Migration ready"
       : status.mode === "vault-shards-v2"
-        ? "Shard Storage v2 active"
+        ? "Shard storage v2 active"
         : status.mode === "vault-shards"
-          ? "Shard Storage v1 active"
+          ? "Shard storage v1 active"
           : "Legacy JSON active";
     return [
       `Mode: ${status.mode}`,
@@ -213,7 +213,8 @@ export function renderStorageSettingsTab(
   // After a move, the plugin-default data.json holds the bootstrap pointer
   // to the new location, so it must never be offered for deletion.
   const isPluginDefaultMetadataFile = (dataFilePath: string): boolean =>
-    normalizePath(dataFilePath) === normalizePath(pluginDefaultMetadataFilePath);
+    normalizePath(dataFilePath) ===
+    normalizePath(pluginDefaultMetadataFilePath);
 
   const deleteMetadataFileAtPath = async (
     dataFilePath: string,
@@ -243,9 +244,8 @@ export function renderStorageSettingsTab(
     }
     // The previous copy may sit in a dot-prefixed folder the vault index
     // leaves out, so check the disk rather than the index.
-    const previousMetadataPaths = getPreviousMetadataCopyPaths(
-      previousDataFilePath,
-    );
+    const previousMetadataPaths =
+      getPreviousMetadataCopyPaths(previousDataFilePath);
     const existingPaths: string[] = [];
     for (const path of previousMetadataPaths) {
       if (await vaultFileExists(plugin.app, path)) {
@@ -491,9 +491,12 @@ export function renderStorageSettingsTab(
               const warningClosed = warningModal.waitForClose();
               warningModal.open();
               if ((await warningClosed) !== "apply") {
-                storageLog("Storage folder change cancelled: feeds not loaded", {
-                  unloadedFeedCount,
-                });
+                storageLog(
+                  "Storage folder change cancelled: feeds not loaded",
+                  {
+                    unloadedFeedCount,
+                  },
+                );
                 return;
               }
             }

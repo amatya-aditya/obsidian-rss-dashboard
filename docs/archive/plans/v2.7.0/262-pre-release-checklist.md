@@ -10,7 +10,7 @@ implementation: "180edeec"
 
 ## Problem
 
-The repo has a documented release *process* (CONTRIBUTING.md Release
+The repo has a documented release _process_ (CONTRIBUTING.md Release
 Process, `docs/development/release-notes-workflow.md`) and a documented Plan
 Lifecycle convention (every active plan carries a `status`; implemented plans
 move to `docs/archive/plans/`), but nothing automated verifies either before a
@@ -49,6 +49,7 @@ None of this is caught by `npm run check:compliance` or `npm run build`.
    moment of cutting a release branch — automating it into the per-PR build
    gate would false-positive on ordinary untracked WIP files during normal
    development. It stays a manual checklist item instead.
+
 3. Manual checklist items (not automatable, or judgment calls): clean
    `git status --porcelain` before cutting, `docs/archive/README.md` catalog
    in sync with `docs/archive/plans/`, `CHANGELOG.md` Unreleased section

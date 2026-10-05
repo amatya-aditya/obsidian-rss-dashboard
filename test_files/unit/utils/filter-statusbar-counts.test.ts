@@ -74,7 +74,11 @@ interface TestView {
   activeStatusFilters: Set<string>;
   activeTagFilters: Set<string>;
   filterLogic?: "AND" | "OR";
-  dashboardMultiFilterCounts?: { shown: number; filteredOut: number; total: number };
+  dashboardMultiFilterCounts?: {
+    shown: number;
+    filteredOut: number;
+    total: number;
+  };
   keywordFilterStats?: {
     articlesRetrieved: number;
     globalExcluded: number;
@@ -93,8 +97,16 @@ interface TestView {
     updateArticleInPlace?: ReturnType<typeof vi.fn>;
   };
   refreshFilterStatusBarOnly?: ReturnType<typeof vi.fn>;
-  handleFilterChange?: (opts: { type: string; value: unknown; checked: boolean }) => void;
-  computeDashboardMultiFilterCounts?: (items: FeedItem[]) => { shown: number; filteredOut: number; total: number };
+  handleFilterChange?: (opts: {
+    type: string;
+    value: unknown;
+    checked: boolean;
+  }) => void;
+  computeDashboardMultiFilterCounts?: (items: FeedItem[]) => {
+    shown: number;
+    filteredOut: number;
+    total: number;
+  };
   renderFilterSubheader?: (container: HTMLElement) => void;
   syncArticleListAfterUpdate?: (article: FeedItem) => void;
 }
@@ -189,7 +201,9 @@ describe("Filter Status Bar counts (TDD)", () => {
     document.body.appendChild(container);
     view.renderFilterSubheader!(container);
 
-    const subheader = container.querySelector(".rss-dashboard-filter-subheader");
+    const subheader = container.querySelector(
+      ".rss-dashboard-filter-subheader",
+    );
     expect(subheader).toBeTruthy();
 
     const spans = Array.from(subheader?.querySelectorAll("span") ?? []);
@@ -236,7 +250,9 @@ describe("Filter Status Bar counts (TDD)", () => {
     document.body.appendChild(container);
     view.renderFilterSubheader!(container);
 
-    const subheader = container.querySelector(".rss-dashboard-filter-subheader");
+    const subheader = container.querySelector(
+      ".rss-dashboard-filter-subheader",
+    );
     expect(subheader).toBeTruthy();
 
     const spans = Array.from(subheader?.querySelectorAll("span") ?? []);
@@ -298,9 +314,7 @@ describe("Filter Status Bar counts (TDD)", () => {
     const article = makeItem({ read: false, guid: "sync-1" });
 
     view.syncArticleListAfterUpdate!(article);
-    expect(view.articleList.updateArticleInPlace).toHaveBeenCalledTimes(
-      1,
-    );
+    expect(view.articleList.updateArticleInPlace).toHaveBeenCalledTimes(1);
     expect(view.refreshFilterStatusBarOnly).toHaveBeenCalledTimes(1);
 
     article.read = true;

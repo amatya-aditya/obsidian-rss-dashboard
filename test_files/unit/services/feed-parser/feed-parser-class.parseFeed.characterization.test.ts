@@ -155,7 +155,9 @@ async function parse(body: string, opts: ParseOptions = {}): Promise<Feed> {
     { ...MEDIA_SETTINGS, ...opts.media },
     () => opts.folders ?? [],
     () => true,
-    opts.protections ? () => opts.protections as FeedRetentionProtections : undefined,
+    opts.protections
+      ? () => opts.protections as FeedRetentionProtections
+      : undefined,
     () => opts.useFirstSeenFallback ?? false,
   );
   return parser.parseFeed(opts.url ?? FEED_URL, opts.existing ?? null, {
@@ -321,7 +323,9 @@ describe("FeedParser.parseFeed characterization", () => {
     });
 
     it("parses an Atom feed", async () => {
-      const feed = await parse(ATOM_BASIC, { url: "https://example.com/atom.xml" });
+      const feed = await parse(ATOM_BASIC, {
+        url: "https://example.com/atom.xml",
+      });
 
       expect(feed.title).toBe("Atom Feed");
       expect(feed.siteUrl).toBe("https://example.com");
@@ -377,28 +381,42 @@ describe("FeedParser.parseFeed characterization", () => {
       expect(at(feed.items, 0).feedTitle).toBe("Unnamed feed");
     });
 
-    it("names a feed after its first item when the channel has no title element", async () => {
-      // BUG: pinned, see #623
+    it("uses the unnamed feed default when the channel has no title element", async () => {
       const feed = await parse(
         rssXml([{ title: "First article", link: "https://example.com/a" }], {
           link: "https://example.com",
         }),
       );
 
-      expect(feed.title).toBe("First article");
+      expect(feed.title).toBe("Unnamed feed");
     });
 
     it("keeps the stored feed title over the parsed one and stamps it on every item", async () => {
       const existing = storedFeed(
-        [storedItem({ guid: "https://example.com/a", link: "https://example.com/a" })],
+        [
+          storedItem({
+            guid: "https://example.com/a",
+            link: "https://example.com/a",
+          }),
+        ],
         { title: "My renamed feed" },
       );
 
       const feed = await parse(
         rssXml(
           [
-            { title: "A", link: "https://example.com/a", guid: "https://example.com/a", pubDate: RECENT },
-            { title: "B", link: "https://example.com/b", guid: "https://example.com/b", pubDate: RECENT },
+            {
+              title: "A",
+              link: "https://example.com/a",
+              guid: "https://example.com/a",
+              pubDate: RECENT,
+            },
+            {
+              title: "B",
+              link: "https://example.com/b",
+              guid: "https://example.com/b",
+              pubDate: RECENT,
+            },
           ],
           { title: "Title from the server" },
         ),
@@ -414,7 +432,13 @@ describe("FeedParser.parseFeed characterization", () => {
 
     it("returns a copy of the stored feed and updates the stored feed in place", async () => {
       const existing = storedFeed(
-        [storedItem({ guid: "https://example.com/gone", link: "https://example.com/gone", pubDate: RECENT })],
+        [
+          storedItem({
+            guid: "https://example.com/gone",
+            link: "https://example.com/gone",
+            pubDate: RECENT,
+          }),
+        ],
         {
           folder: "News",
           customTags: ["Research"],
@@ -468,7 +492,9 @@ describe("FeedParser.parseFeed characterization", () => {
 
     it("resolves a relative channel link against the feed url", async () => {
       const feed = await parse(
-        rssXml([{ title: "A", link: "https://example.com/a" }], { link: "/blog/" }),
+        rssXml([{ title: "A", link: "https://example.com/a" }], {
+          link: "/blog/",
+        }),
         { url: "https://example.com/rss/feed.xml" },
       );
 
@@ -496,13 +522,12 @@ describe("FeedParser.parseFeed characterization", () => {
       expect(feed.siteUrl).toBeUndefined();
     });
 
-    it("takes the first item's link as the site url when the channel has no link element", async () => {
-      // BUG: pinned, see #623
+    it("leaves the site url unset when the channel has no link element", async () => {
       const feed = await parse(
         rssXml([{ title: "A", link: "https://example.com/a" }], { title: "T" }),
       );
 
-      expect(feed.siteUrl).toBe("https://example.com/a");
+      expect(feed.siteUrl).toBeUndefined();
     });
 
     it("overwrites the stored site url when the channel link changes", async () => {
@@ -523,7 +548,11 @@ describe("FeedParser.parseFeed characterization", () => {
     it("uses the guid as the item guid and the link as the item link", async () => {
       const feed = await parse(
         rssXml([
-          { title: "A", link: "https://example.com/a", guid: "https://example.com/guid-a" },
+          {
+            title: "A",
+            link: "https://example.com/a",
+            guid: "https://example.com/guid-a",
+          },
         ]),
       );
 
@@ -533,14 +562,18 @@ describe("FeedParser.parseFeed characterization", () => {
     });
 
     it("falls back to the link when an item has no guid", async () => {
-      const feed = await parse(rssXml([{ title: "A", link: "https://example.com/a" }]));
+      const feed = await parse(
+        rssXml([{ title: "A", link: "https://example.com/a" }]),
+      );
 
       expect(at(feed.items, 0).guid).toBe("https://example.com/a");
     });
 
     it("resolves a plain-text guid against the feed url", async () => {
       const feed = await parse(
-        rssXml([{ title: "A", link: "https://example.com/a", guid: "post-42" }]),
+        rssXml([
+          { title: "A", link: "https://example.com/a", guid: "post-42" },
+        ]),
         { url: "https://example.com/blog/feed.xml" },
       );
 
@@ -562,8 +595,18 @@ describe("FeedParser.parseFeed characterization", () => {
     it("keeps only the first of two items that share a guid", async () => {
       const feed = await parse(
         rssXml([
-          { title: "First copy", link: "https://example.com/a", guid: "dup", pubDate: RECENT },
-          { title: "Second copy", link: "https://example.com/b", guid: "dup", pubDate: RECENT },
+          {
+            title: "First copy",
+            link: "https://example.com/a",
+            guid: "dup",
+            pubDate: RECENT,
+          },
+          {
+            title: "Second copy",
+            link: "https://example.com/b",
+            guid: "dup",
+            pubDate: RECENT,
+          },
         ]),
       );
 
@@ -573,8 +616,18 @@ describe("FeedParser.parseFeed characterization", () => {
     it("treats two guids that differ only by a numeric url fragment as one item", async () => {
       const feed = await parse(
         rssXml([
-          { title: "First copy", link: "https://example.com/a", guid: "https://example.com/a#0", pubDate: RECENT },
-          { title: "Second copy", link: "https://example.com/a", guid: "https://example.com/a#1", pubDate: RECENT },
+          {
+            title: "First copy",
+            link: "https://example.com/a",
+            guid: "https://example.com/a#0",
+            pubDate: RECENT,
+          },
+          {
+            title: "Second copy",
+            link: "https://example.com/a",
+            guid: "https://example.com/a#1",
+            pubDate: RECENT,
+          },
         ]),
       );
 
@@ -584,12 +637,22 @@ describe("FeedParser.parseFeed characterization", () => {
 
     it("matches a stored item that has no guid by its link", async () => {
       const existing = storedFeed([
-        storedItem({ guid: "", link: "https://example.com/a", read: true, title: "Stored A" }),
+        storedItem({
+          guid: "",
+          link: "https://example.com/a",
+          read: true,
+          title: "Stored A",
+        }),
       ]);
 
       const feed = await parse(
         rssXml([
-          { title: "A", link: "https://example.com/a", guid: "https://example.com/a", pubDate: RECENT },
+          {
+            title: "A",
+            link: "https://example.com/a",
+            guid: "https://example.com/a",
+            pubDate: RECENT,
+          },
         ]),
         { existing },
       );
@@ -606,7 +669,12 @@ describe("FeedParser.parseFeed characterization", () => {
 
       const feed = await parse(
         rssXml([
-          { title: "A", link: "https://example.com/a", guid: "https://example.com/a", pubDate: RECENT },
+          {
+            title: "A",
+            link: "https://example.com/a",
+            guid: "https://example.com/a",
+            pubDate: RECENT,
+          },
         ]),
         { existing },
       );
@@ -627,13 +695,20 @@ describe("FeedParser.parseFeed characterization", () => {
 
       const feed = await parse(
         rssXml([
-          { title: "Same title", link: "https://example.com/new-guid", guid: "https://example.com/new-guid", pubDate: RECENT },
+          {
+            title: "Same title",
+            link: "https://example.com/new-guid",
+            guid: "https://example.com/new-guid",
+            pubDate: RECENT,
+          },
         ]),
         { existing },
       );
 
       expect(feed.items).toHaveLength(2);
-      const fresh = feed.items.find((item) => item.guid === "https://example.com/new-guid");
+      const fresh = feed.items.find(
+        (item) => item.guid === "https://example.com/new-guid",
+      );
       expect(fresh?.read).toBe(false);
     });
 
@@ -641,7 +716,9 @@ describe("FeedParser.parseFeed characterization", () => {
       const existing = storedFeed([storedItem({ guid: "", link: "" })]);
 
       const feed = await parse(
-        rssXml([{ title: "A", link: "https://example.com/a", pubDate: RECENT }]),
+        rssXml([
+          { title: "A", link: "https://example.com/a", pubDate: RECENT },
+        ]),
         { existing },
       );
 
@@ -660,11 +737,16 @@ describe("FeedParser.parseFeed characterization", () => {
       ]);
 
       const feed = await parse(
-        rssXml([{ title: "A", link: "https://example.com/a", pubDate: RECENT }]),
+        rssXml([
+          { title: "A", link: "https://example.com/a", pubDate: RECENT },
+        ]),
         { existing },
       );
 
-      expect(feed.items.map((item) => item.title)).toEqual(["A", "Dropped out"]);
+      expect(feed.items.map((item) => item.title)).toEqual([
+        "A",
+        "Dropped out",
+      ]);
       expect(itemByTitle(feed, "Dropped out").read).toBe(true);
     });
   });
@@ -680,7 +762,8 @@ describe("FeedParser.parseFeed characterization", () => {
               pubDate: RECENT,
               description: "<p>Short description</p>",
               content: "<p>Full body text</p>",
-              extra: "<dc:creator>Jane Writer</dc:creator><category>News</category>",
+              extra:
+                "<dc:creator>Jane Writer</dc:creator><category>News</category>",
             },
           ],
           { title: "Blog", link: "https://example.com" },
@@ -717,7 +800,9 @@ describe("FeedParser.parseFeed characterization", () => {
 
     it("is titled 'No title' when the feed gives none", async () => {
       const feed = await parse(
-        rssXml([{ link: "https://example.com/a", pubDate: RECENT }], { title: "T" }),
+        rssXml([{ link: "https://example.com/a", pubDate: RECENT }], {
+          title: "T",
+        }),
       );
 
       expect(at(feed.items, 0).title).toBe("No title");
@@ -725,7 +810,9 @@ describe("FeedParser.parseFeed characterization", () => {
 
     it("keeps an undated item's pubDate empty on its first fetch", async () => {
       const feed = await parse(
-        rssXml([{ title: "Undated", link: "https://example.com/a" }], { title: "T" }),
+        rssXml([{ title: "Undated", link: "https://example.com/a" }], {
+          title: "T",
+        }),
       );
 
       expect(at(feed.items, 0).pubDate).toBe("");
@@ -733,9 +820,12 @@ describe("FeedParser.parseFeed characterization", () => {
 
     it("stamps firstSeenMs with the current time on a new item", async () => {
       const feed = await parse(
-        rssXml([{ title: "A", link: "https://example.com/a", pubDate: RECENT }], {
-          title: "T",
-        }),
+        rssXml(
+          [{ title: "A", link: "https://example.com/a", pubDate: RECENT }],
+          {
+            title: "T",
+          },
+        ),
       );
 
       expect(at(feed.items, 0).firstSeenMs).toBe(NOW);
@@ -743,9 +833,19 @@ describe("FeedParser.parseFeed characterization", () => {
 
     it("resolves a relative item link against the feed url", async () => {
       const feed = await parse(
-        rssXml([{ title: "A", link: "/posts/a", guid: "https://example.com/posts/a", pubDate: RECENT }], {
-          title: "T",
-        }),
+        rssXml(
+          [
+            {
+              title: "A",
+              link: "/posts/a",
+              guid: "https://example.com/posts/a",
+              pubDate: RECENT,
+            },
+          ],
+          {
+            title: "T",
+          },
+        ),
         { url: "https://example.com/rss/feed.xml" },
       );
 
@@ -755,7 +855,13 @@ describe("FeedParser.parseFeed characterization", () => {
     it("treats a link that contains .mp3 as a podcast episode and synthesizes its enclosure", async () => {
       const feed = await parse(
         rssXml(
-          [{ title: "Direct audio", link: "https://cdn.example.com/show/ep1.mp3", pubDate: RECENT }],
+          [
+            {
+              title: "Direct audio",
+              link: "https://cdn.example.com/show/ep1.mp3",
+              pubDate: RECENT,
+            },
+          ],
           { title: "Pod" },
         ),
       );
@@ -778,7 +884,8 @@ describe("FeedParser.parseFeed characterization", () => {
               title: "Clip",
               link: "https://example.com/clip",
               pubDate: RECENT,
-              extra: '<enclosure url="https://example.com/clip.mp4" type="video/mp4" length="5"/>',
+              extra:
+                '<enclosure url="https://example.com/clip.mp4" type="video/mp4" length="5"/>',
             },
           ],
           { title: "T" },
@@ -824,7 +931,10 @@ describe("FeedParser.parseFeed characterization", () => {
   describe("an item that is already stored", () => {
     const GUID = "https://example.com/a";
 
-    function feedWithOneItem(spec: ItemSpec, channel: ChannelSpec = { title: "Server title" }): string {
+    function feedWithOneItem(
+      spec: ItemSpec,
+      channel: ChannelSpec = { title: "Server title" },
+    ): string {
       return rssXml([{ link: GUID, guid: GUID, ...spec }], channel);
     }
 
@@ -862,7 +972,11 @@ describe("FeedParser.parseFeed characterization", () => {
       expect(item.savedFilePath).toBe("Saved/a.md");
       expect(item.tags).toEqual([{ name: "Keep", color: "#123456" }]);
       expect(item.firstSeenMs).toBe(111);
-      expect(item.playbackProgress).toEqual({ position: 30, duration: 60, lastUpdated: 5 });
+      expect(item.playbackProgress).toEqual({
+        position: 30,
+        duration: 60,
+        lastUpdated: 5,
+      });
       expect(item.videoId).toBe("vid1");
       expect(item.videoUrl).toBe("https://example.com/v");
       expect(item.restrictedReason).toBe("paywall");
@@ -920,10 +1034,9 @@ describe("FeedParser.parseFeed characterization", () => {
         }),
       ]);
 
-      const feed = await parse(
-        rssXml([{ guid: GUID }], { title: "T" }),
-        { existing },
-      );
+      const feed = await parse(rssXml([{ guid: GUID }], { title: "T" }), {
+        existing,
+      });
 
       const item = at(feed.items, 0);
       expect(item.title).toBe("Stored title");
@@ -939,14 +1052,21 @@ describe("FeedParser.parseFeed characterization", () => {
       ]);
 
       const withChannelAuthor = await parse(
-        feedWithOneItem({ title: "A", pubDate: RECENT }, { title: "T", extra: "<dc:creator>Channel Author</dc:creator>" }),
+        feedWithOneItem(
+          { title: "A", pubDate: RECENT },
+          { title: "T", extra: "<dc:creator>Channel Author</dc:creator>" },
+        ),
         { existing },
       );
       expect(at(withChannelAuthor.items, 0).author).toBe("Channel Author");
 
       const withItemAuthor = await parse(
         feedWithOneItem(
-          { title: "A", pubDate: RECENT, extra: "<dc:creator>Item Author</dc:creator>" },
+          {
+            title: "A",
+            pubDate: RECENT,
+            extra: "<dc:creator>Item Author</dc:creator>",
+          },
           { title: "T", extra: "<dc:creator>Channel Author</dc:creator>" },
         ),
         { existing },
@@ -964,7 +1084,10 @@ describe("FeedParser.parseFeed characterization", () => {
         }),
       ]);
 
-      const feed = await parse(feedWithOneItem({ title: "A", pubDate: RECENT }), { existing });
+      const feed = await parse(
+        feedWithOneItem({ title: "A", pubDate: RECENT }),
+        { existing },
+      );
 
       const item = at(feed.items, 0);
       expect(item.description).toBe("");
@@ -976,7 +1099,10 @@ describe("FeedParser.parseFeed characterization", () => {
         storedItem({ guid: `${GUID}#3`, link: GUID, read: true }),
       ]);
 
-      const feed = await parse(feedWithOneItem({ title: "A", pubDate: RECENT }), { existing });
+      const feed = await parse(
+        feedWithOneItem({ title: "A", pubDate: RECENT }),
+        { existing },
+      );
 
       expect(at(feed.items, 0).guid).toBe(GUID);
       expect(at(feed.items, 0).read).toBe(true);
@@ -990,7 +1116,11 @@ describe("FeedParser.parseFeed characterization", () => {
           [
             { title: "Old", link: "https://example.com/old", pubDate: OLD },
             { title: "Tie b", link: "https://example.com/b", pubDate: RECENT },
-            { title: "Newest", link: "https://example.com/new", pubDate: "Mon, 15 Jun 2026 06:00:00 GMT" },
+            {
+              title: "Newest",
+              link: "https://example.com/new",
+              pubDate: "Mon, 15 Jun 2026 06:00:00 GMT",
+            },
             { title: "Tie a", link: "https://example.com/a", pubDate: RECENT },
           ],
           { title: "T" },
@@ -1016,7 +1146,10 @@ describe("FeedParser.parseFeed characterization", () => {
         ),
       );
 
-      expect(feed.items.map((item) => item.title)).toEqual(["Dated", "Undated"]);
+      expect(feed.items.map((item) => item.title)).toEqual([
+        "Dated",
+        "Undated",
+      ]);
     });
 
     it("keeps a stored item's first-seen time and stamps the newcomer with now", async () => {
@@ -1055,7 +1188,11 @@ describe("FeedParser.parseFeed characterization", () => {
     it("reports the fetched, merged and retained counts", async () => {
       const existing = storedFeed(
         [
-          storedItem({ guid: "https://example.com/gone", link: "https://example.com/gone", pubDate: RECENT }),
+          storedItem({
+            guid: "https://example.com/gone",
+            link: "https://example.com/gone",
+            pubDate: RECENT,
+          }),
         ],
         { maxItemsLimit: 2 },
       );
@@ -1086,8 +1223,17 @@ describe("FeedParser.parseFeed characterization", () => {
     it("gives a new item the channel author when the item has none", async () => {
       const feed = await parseParsed(
         [
-          pitem({ title: "No byline", link: "https://example.com/a", pubDate: RECENT }),
-          pitem({ title: "With byline", link: "https://example.com/b", pubDate: RECENT, author: "Item Author" }),
+          pitem({
+            title: "No byline",
+            link: "https://example.com/a",
+            pubDate: RECENT,
+          }),
+          pitem({
+            title: "With byline",
+            link: "https://example.com/b",
+            pubDate: RECENT,
+            author: "Item Author",
+          }),
         ],
         { author: "Channel Author" },
       );
@@ -1104,12 +1250,15 @@ describe("FeedParser.parseFeed characterization", () => {
       expect(at(feed.items, 0).author).toBeUndefined();
     });
 
-    it("gives an item the byline of another item when the channel has no author element", async () => {
-      // BUG: pinned, see #623
+    it("does not give an item another item's byline when the channel has no author", async () => {
       const feed = await parse(
         rssXml(
           [
-            { title: "No byline", link: "https://example.com/a", pubDate: RECENT },
+            {
+              title: "No byline",
+              link: "https://example.com/a",
+              pubDate: RECENT,
+            },
             {
               title: "With byline",
               link: "https://example.com/b",
@@ -1121,7 +1270,8 @@ describe("FeedParser.parseFeed characterization", () => {
         ),
       );
 
-      expect(itemByTitle(feed, "No byline").author).toBe(
+      expect(itemByTitle(feed, "No byline").author).toBe("");
+      expect(itemByTitle(feed, "With byline").author).toBe(
         "writer@example.com (Item Author)",
       );
     });
@@ -1173,29 +1323,38 @@ describe("FeedParser.parseFeed characterization", () => {
       expect(item.category).toBe("Technology");
     });
 
-    it("keeps a relative enclosure url relative, so audioUrl is not resolved against the feed", async () => {
-      // BUG: pinned, see #624
+    it("resolves a relative enclosure url against the feed for podcast playback", async () => {
       const feed = await parseParsed([
         episode({
           enclosure: { url: "/audio/ep.m4a", type: "audio/x-m4a", length: "1" },
         }),
       ]);
 
-      expect(at(feed.items, 0).audioUrl).toBe("/audio/ep.m4a");
-      expect(at(feed.items, 0).enclosure?.url).toBe("/audio/ep.m4a");
+      expect(at(feed.items, 0).audioUrl).toBe(
+        "https://example.com/audio/ep.m4a",
+      );
+      expect(at(feed.items, 0).enclosure?.url).toBe(
+        "https://example.com/audio/ep.m4a",
+      );
     });
 
     it("reads itunes:explicit other than 'yes' as not explicit", async () => {
       const feed = await parseParsed([
         episode({ itunes: { explicit: "true" } }),
-        episode({ guid: "ep-2", link: "https://example.com/ep2", itunes: { explicit: "no" } }),
+        episode({
+          guid: "ep-2",
+          link: "https://example.com/ep2",
+          itunes: { explicit: "no" },
+        }),
       ]);
 
       expect(feed.items.map((item) => item.explicit)).toEqual([false, false]);
     });
 
     it("leaves season and episode undefined when the feed gives none", async () => {
-      const feed = await parseParsed([episode({ itunes: { duration: "5:00" } })]);
+      const feed = await parseParsed([
+        episode({ itunes: { duration: "5:00" } }),
+      ]);
 
       const item = at(feed.items, 0);
       expect(item.season).toBeUndefined();
@@ -1204,12 +1363,19 @@ describe("FeedParser.parseFeed characterization", () => {
 
     it("turns a feed with one audio item among articles into a podcast feed and relabels every item", async () => {
       const feed = await parseParsed([
-        pitem({ title: "Article", link: "https://example.com/article", pubDate: RECENT }),
+        pitem({
+          title: "Article",
+          link: "https://example.com/article",
+          pubDate: RECENT,
+        }),
         episode({ pubDate: WEEK_OLD }),
       ]);
 
       expect(feed.mediaType).toBe("podcast");
-      expect(feed.items.map((item) => item.mediaType)).toEqual(["podcast", "podcast"]);
+      expect(feed.items.map((item) => item.mediaType)).toEqual([
+        "podcast",
+        "podcast",
+      ]);
     });
 
     it("updates a stored episode from the feed's itunes fields and enclosure", async () => {
@@ -1224,11 +1390,19 @@ describe("FeedParser.parseFeed characterization", () => {
           season: 1,
           episode: 2,
           audioUrl: "https://cdn.example.com/old.mp3",
-          enclosure: { url: "https://cdn.example.com/old.mp3", type: "audio/mpeg", length: "1" },
+          enclosure: {
+            url: "https://cdn.example.com/old.mp3",
+            type: "audio/mpeg",
+            length: "1",
+          },
         }),
       ]);
 
-      const feed = await parseParsed([episode({ guid: "https://example.com/ep-1" })], {}, { existing });
+      const feed = await parseParsed(
+        [episode({ guid: "https://example.com/ep-1" })],
+        {},
+        { existing },
+      );
 
       const item = at(feed.items, 0);
       expect(item.duration).toBe("1:02:03");
@@ -1255,7 +1429,11 @@ describe("FeedParser.parseFeed characterization", () => {
           mediaContentType: "audio/mpeg",
           mediaContentMedium: "audio",
           audioUrl: "https://cdn.example.com/old.mp3",
-          enclosure: { url: "https://cdn.example.com/old.mp3", type: "audio/mpeg", length: "1" },
+          enclosure: {
+            url: "https://cdn.example.com/old.mp3",
+            type: "audio/mpeg",
+            length: "1",
+          },
         }),
       ]);
 
@@ -1289,11 +1467,20 @@ describe("FeedParser.parseFeed characterization", () => {
 
     it("never turns a stored explicit flag back off", async () => {
       const existing = storedFeed([
-        storedItem({ guid: "https://example.com/ep-1", link: EPISODE_URL, explicit: true }),
+        storedItem({
+          guid: "https://example.com/ep-1",
+          link: EPISODE_URL,
+          explicit: true,
+        }),
       ]);
 
       const feed = await parseParsed(
-        [episode({ guid: "https://example.com/ep-1", itunes: { explicit: "no" } })],
+        [
+          episode({
+            guid: "https://example.com/ep-1",
+            itunes: { explicit: "no" },
+          }),
+        ],
         {},
         { existing },
       );
@@ -1303,26 +1490,61 @@ describe("FeedParser.parseFeed characterization", () => {
 
     it("makes a stored article a podcast episode once the feed gives it an audio enclosure", async () => {
       const existing = storedFeed([
-        storedItem({ guid: "https://example.com/ep-1", link: EPISODE_URL, mediaType: "article" }),
+        storedItem({
+          guid: "https://example.com/ep-1",
+          link: EPISODE_URL,
+          mediaType: "article",
+        }),
       ]);
 
-      const feed = await parseParsed([episode({ guid: "https://example.com/ep-1" })], {}, { existing });
+      const feed = await parseParsed(
+        [episode({ guid: "https://example.com/ep-1" })],
+        {},
+        { existing },
+      );
 
       expect(at(feed.items, 0).mediaType).toBe("podcast");
     });
 
     it("relabels stored video and podcast items as articles when the refreshed feed has no media", async () => {
       const existing = storedFeed([
-        storedItem({ guid: "https://example.com/v", link: "https://example.com/v", mediaType: "video" }),
-        storedItem({ guid: "https://example.com/p", link: "https://example.com/p", mediaType: "podcast" }),
-        storedItem({ guid: "https://example.com/n", link: "https://example.com/n", mediaType: undefined }),
+        storedItem({
+          guid: "https://example.com/v",
+          link: "https://example.com/v",
+          mediaType: "video",
+        }),
+        storedItem({
+          guid: "https://example.com/p",
+          link: "https://example.com/p",
+          mediaType: "podcast",
+        }),
+        storedItem({
+          guid: "https://example.com/n",
+          link: "https://example.com/n",
+          mediaType: undefined,
+        }),
       ]);
 
       const feed = await parseParsed(
         [
-          pitem({ title: "V", link: "https://example.com/v", guid: "https://example.com/v", pubDate: RECENT }),
-          pitem({ title: "P", link: "https://example.com/p", guid: "https://example.com/p", pubDate: RECENT }),
-          pitem({ title: "N", link: "https://example.com/n", guid: "https://example.com/n", pubDate: RECENT }),
+          pitem({
+            title: "V",
+            link: "https://example.com/v",
+            guid: "https://example.com/v",
+            pubDate: RECENT,
+          }),
+          pitem({
+            title: "P",
+            link: "https://example.com/p",
+            guid: "https://example.com/p",
+            pubDate: RECENT,
+          }),
+          pitem({
+            title: "N",
+            link: "https://example.com/n",
+            guid: "https://example.com/n",
+            pubDate: RECENT,
+          }),
         ],
         {},
         { existing },
@@ -1337,7 +1559,11 @@ describe("FeedParser.parseFeed characterization", () => {
 
     it("treats a link containing .mp3 as audio: the enclosure is synthesized and the feed is a podcast", async () => {
       const feed = await parseParsed([
-        pitem({ title: "Direct audio", link: "https://cdn.example.com/show/ep1.mp3", pubDate: RECENT }),
+        pitem({
+          title: "Direct audio",
+          link: "https://cdn.example.com/show/ep1.mp3",
+          pubDate: RECENT,
+        }),
       ]);
 
       const item = at(feed.items, 0);
@@ -1357,7 +1583,11 @@ describe("FeedParser.parseFeed characterization", () => {
           title: "Clip",
           link: "https://example.com/clip",
           pubDate: RECENT,
-          enclosure: { url: "https://example.com/clip.mp4", type: "video/mp4", length: "5" },
+          enclosure: {
+            url: "https://example.com/clip.mp4",
+            type: "video/mp4",
+            length: "5",
+          },
         }),
       ]);
 
@@ -1378,7 +1608,12 @@ describe("FeedParser.parseFeed characterization", () => {
     }
 
     function parsedArticle(name: string, pubDate: string): ParsedItem {
-      return pitem({ title: name, link: link(name), guid: link(name), pubDate });
+      return pitem({
+        title: name,
+        link: link(name),
+        guid: link(name),
+        pubDate,
+      });
     }
 
     function feedWithAutoDelete(items: FeedItem[], days = 30): Feed {
@@ -1409,7 +1644,10 @@ describe("FeedParser.parseFeed characterization", () => {
       const existing = feedWithAutoDelete([]);
 
       const feed = await parseParsed(
-        [parsedArticle("on-the-line", at30DaysExactly), parsedArticle("just-inside", justInside)],
+        [
+          parsedArticle("on-the-line", at30DaysExactly),
+          parsedArticle("just-inside", justInside),
+        ],
         {},
         { existing },
       );
@@ -1424,14 +1662,34 @@ describe("FeedParser.parseFeed characterization", () => {
 
     it("skips a stored item dated exactly at the cutoff and keeps one a second newer", async () => {
       const existing = feedWithAutoDelete([
-        storedItem({ title: "on-the-line", guid: link("on-the-line"), link: link("on-the-line"), pubDate: at30DaysExactly }),
-        storedItem({ title: "just-inside", guid: link("just-inside"), link: link("just-inside"), pubDate: justInside }),
+        storedItem({
+          title: "on-the-line",
+          guid: link("on-the-line"),
+          link: link("on-the-line"),
+          pubDate: at30DaysExactly,
+        }),
+        storedItem({
+          title: "just-inside",
+          guid: link("just-inside"),
+          link: link("just-inside"),
+          pubDate: justInside,
+        }),
       ]);
 
       const feed = await parseParsed(
         [
-          pitem({ title: "on-the-line", link: link("on-the-line"), guid: link("on-the-line"), pubDate: at30DaysExactly }),
-          pitem({ title: "just-inside", link: link("just-inside"), guid: link("just-inside"), pubDate: justInside }),
+          pitem({
+            title: "on-the-line",
+            link: link("on-the-line"),
+            guid: link("on-the-line"),
+            pubDate: at30DaysExactly,
+          }),
+          pitem({
+            title: "just-inside",
+            link: link("just-inside"),
+            guid: link("just-inside"),
+            pubDate: justInside,
+          }),
         ],
         {},
         { existing },
@@ -1473,10 +1731,16 @@ describe("FeedParser.parseFeed characterization", () => {
         autoDeleteDuration: "30" as unknown as number,
       });
 
-      const feed = await parseParsed([parsedArticle("ancient", OLD)], {}, { existing });
+      const feed = await parseParsed(
+        [parsedArticle("ancient", OLD)],
+        {},
+        { existing },
+      );
 
       expect(feed.items.map((item) => item.title)).toEqual(["ancient"]);
-      expect(feed.lastRefreshDiagnostics?.autoDeleteDurationDays).toBeUndefined();
+      expect(
+        feed.lastRefreshDiagnostics?.autoDeleteDurationDays,
+      ).toBeUndefined();
     });
 
     it("keeps a recent stored item whose feed entry has no date", async () => {
@@ -1498,26 +1762,43 @@ describe("FeedParser.parseFeed characterization", () => {
       const feed = await parseParsed([parsedArticle("ancient", OLD)]);
 
       expect(feed.items.map((item) => item.title)).toEqual(["ancient"]);
-      expect(feed.lastRefreshDiagnostics?.autoDeleteDurationDays).toBeUndefined();
+      expect(
+        feed.lastRefreshDiagnostics?.autoDeleteDurationDays,
+      ).toBeUndefined();
     });
 
     it("applies no cutoff when the duration is 0 or not a positive number", async () => {
       for (const days of [0, -5]) {
         const existing = feedWithAutoDelete([], days);
 
-        const feed = await parseParsed([parsedArticle("ancient", OLD)], {}, { existing });
+        const feed = await parseParsed(
+          [parsedArticle("ancient", OLD)],
+          {},
+          { existing },
+        );
 
         expect(feed.items.map((item) => item.title)).toEqual(["ancient"]);
-        expect(feed.lastRefreshDiagnostics?.autoDeleteDurationDays).toBeUndefined();
+        expect(
+          feed.lastRefreshDiagnostics?.autoDeleteDurationDays,
+        ).toBeUndefined();
       }
     });
 
     it("drops a stored item that re-appears older than the cutoff", async () => {
       const existing = feedWithAutoDelete([
-        storedItem({ guid: link("ancient"), link: link("ancient"), pubDate: OLD, read: true }),
+        storedItem({
+          guid: link("ancient"),
+          link: link("ancient"),
+          pubDate: OLD,
+          read: true,
+        }),
       ]);
 
-      const feed = await parseParsed([parsedArticle("ancient", OLD)], {}, { existing });
+      const feed = await parseParsed(
+        [parsedArticle("ancient", OLD)],
+        {},
+        { existing },
+      );
 
       expect(feed.items).toEqual([]);
       expect(feed.lastRefreshDiagnostics?.skippedByRefreshCutoffCount).toBe(1);
@@ -1546,11 +1827,23 @@ describe("FeedParser.parseFeed characterization", () => {
 
     it("keeps a stored old item that is starred, and updates it from the feed", async () => {
       const existing = feedWithAutoDelete([
-        storedItem({ guid: link("old-star"), link: link("old-star"), pubDate: OLD, starred: true }),
+        storedItem({
+          guid: link("old-star"),
+          link: link("old-star"),
+          pubDate: OLD,
+          starred: true,
+        }),
       ]);
 
       const feed = await parseParsed(
-        [pitem({ title: "Renamed", link: link("old-star"), guid: link("old-star"), pubDate: OLD })],
+        [
+          pitem({
+            title: "Renamed",
+            link: link("old-star"),
+            guid: link("old-star"),
+            pubDate: OLD,
+          }),
+        ],
         {},
         { existing },
       );
@@ -1563,7 +1856,12 @@ describe("FeedParser.parseFeed characterization", () => {
     it("keeps or drops old saved and tagged items according to the protection settings", async () => {
       const stored = (): Feed =>
         feedWithAutoDelete([
-          storedItem({ guid: link("saved"), link: link("saved"), pubDate: OLD, saved: true }),
+          storedItem({
+            guid: link("saved"),
+            link: link("saved"),
+            pubDate: OLD,
+            saved: true,
+          }),
           storedItem({
             guid: link("tagged"),
             link: link("tagged"),
@@ -1576,19 +1874,43 @@ describe("FeedParser.parseFeed characterization", () => {
         parsedArticle("tagged", OLD),
       ];
 
-      const defaults = await parseParsed(parsedItems(), {}, { existing: stored() });
+      const defaults = await parseParsed(
+        parsedItems(),
+        {},
+        { existing: stored() },
+      );
       expect(defaults.items.map((item) => item.title)).toEqual(["saved"]);
 
-      const everythingProtected = await parseParsed(parsedItems(), {}, {
-        existing: stored(),
-        protections: { protectStarred: true, protectSaved: true, protectTagged: true, protectUnread: false },
-      });
-      expect(everythingProtected.items.map((item) => item.title).sort()).toEqual(["saved", "tagged"]);
+      const everythingProtected = await parseParsed(
+        parsedItems(),
+        {},
+        {
+          existing: stored(),
+          protections: {
+            protectStarred: true,
+            protectSaved: true,
+            protectTagged: true,
+            protectUnread: false,
+          },
+        },
+      );
+      expect(
+        everythingProtected.items.map((item) => item.title).sort(),
+      ).toEqual(["saved", "tagged"]);
 
-      const nothingProtected = await parseParsed(parsedItems(), {}, {
-        existing: stored(),
-        protections: { protectStarred: false, protectSaved: false, protectTagged: false, protectUnread: false },
-      });
+      const nothingProtected = await parseParsed(
+        parsedItems(),
+        {},
+        {
+          existing: stored(),
+          protections: {
+            protectStarred: false,
+            protectSaved: false,
+            protectTagged: false,
+            protectUnread: false,
+          },
+        },
+      );
       expect(nothingProtected.items).toEqual([]);
     });
 
@@ -1605,18 +1927,33 @@ describe("FeedParser.parseFeed characterization", () => {
         {},
         {
           existing: feedWithAutoDelete([]),
-          protections: { protectStarred: true, protectSaved: true, protectTagged: false, protectUnread: true },
+          protections: {
+            protectStarred: true,
+            protectSaved: true,
+            protectTagged: false,
+            protectUnread: true,
+          },
         },
       );
-      expect(protectedUnread.items.map((item) => item.title)).toEqual(["ancient"]);
-      expect(protectedUnread.lastRefreshDiagnostics?.skippedByRefreshCutoffCount).toBe(0);
+      expect(protectedUnread.items.map((item) => item.title)).toEqual([
+        "ancient",
+      ]);
+      expect(
+        protectedUnread.lastRefreshDiagnostics?.skippedByRefreshCutoffCount,
+      ).toBe(0);
     });
 
     it("skips a new undated item when the first-seen fallback is off", async () => {
       const existing = feedWithAutoDelete([]);
 
       const feed = await parseParsed(
-        [pitem({ title: "undated", link: link("undated"), guid: link("undated") })],
+        [
+          pitem({
+            title: "undated",
+            link: link("undated"),
+            guid: link("undated"),
+          }),
+        ],
         {},
         { existing, useFirstSeenFallback: false },
       );
@@ -1629,7 +1966,13 @@ describe("FeedParser.parseFeed characterization", () => {
       const existing = feedWithAutoDelete([]);
 
       const feed = await parseParsed(
-        [pitem({ title: "undated", link: link("undated"), guid: link("undated") })],
+        [
+          pitem({
+            title: "undated",
+            link: link("undated"),
+            guid: link("undated"),
+          }),
+        ],
         {},
         { existing, useFirstSeenFallback: true },
       );
@@ -1641,39 +1984,76 @@ describe("FeedParser.parseFeed characterization", () => {
     it("dates a stored undated item by its first-seen time when the fallback is on", async () => {
       const stored = (firstSeenMs: number): Feed =>
         feedWithAutoDelete([
-          storedItem({ guid: link("u"), link: link("u"), pubDate: "", firstSeenMs }),
+          storedItem({
+            guid: link("u"),
+            link: link("u"),
+            pubDate: "",
+            firstSeenMs,
+          }),
         ]);
       const parsedUndated = (): ParsedItem[] => [
         pitem({ title: "u", link: link("u"), guid: link("u") }),
       ];
 
-      const seenLongAgo = await parseParsed(parsedUndated(), {}, {
-        existing: stored(CUTOFF_MS - DAY_MS),
-        useFirstSeenFallback: true,
-      });
+      const seenLongAgo = await parseParsed(
+        parsedUndated(),
+        {},
+        {
+          existing: stored(CUTOFF_MS - DAY_MS),
+          useFirstSeenFallback: true,
+        },
+      );
       expect(seenLongAgo.items).toEqual([]);
 
-      const seenRecently = await parseParsed(parsedUndated(), {}, {
-        existing: stored(NOW - DAY_MS),
-        useFirstSeenFallback: true,
-      });
+      const seenRecently = await parseParsed(
+        parsedUndated(),
+        {},
+        {
+          existing: stored(NOW - DAY_MS),
+          useFirstSeenFallback: true,
+        },
+      );
       expect(seenRecently.items).toHaveLength(1);
 
-      const fallbackOff = await parseParsed(parsedUndated(), {}, {
-        existing: stored(NOW - DAY_MS),
-        useFirstSeenFallback: false,
-      });
+      const fallbackOff = await parseParsed(
+        parsedUndated(),
+        {},
+        {
+          existing: stored(NOW - DAY_MS),
+          useFirstSeenFallback: false,
+        },
+      );
       expect(fallbackOff.items).toEqual([]);
     });
 
     it("drops a carried-forward stored item older than the cutoff but keeps a recent or protected one", async () => {
       const existing = feedWithAutoDelete([
-        storedItem({ title: "stale", guid: link("stale"), link: link("stale"), pubDate: OLD }),
-        storedItem({ title: "stale-starred", guid: link("stale-starred"), link: link("stale-starred"), pubDate: OLD, starred: true }),
-        storedItem({ title: "recent", guid: link("recent"), link: link("recent"), pubDate: WEEK_OLD }),
+        storedItem({
+          title: "stale",
+          guid: link("stale"),
+          link: link("stale"),
+          pubDate: OLD,
+        }),
+        storedItem({
+          title: "stale-starred",
+          guid: link("stale-starred"),
+          link: link("stale-starred"),
+          pubDate: OLD,
+          starred: true,
+        }),
+        storedItem({
+          title: "recent",
+          guid: link("recent"),
+          link: link("recent"),
+          pubDate: WEEK_OLD,
+        }),
       ]);
 
-      const feed = await parseParsed([parsedArticle("fresh", RECENT)], {}, { existing });
+      const feed = await parseParsed(
+        [parsedArticle("fresh", RECENT)],
+        {},
+        { existing },
+      );
 
       expect(feed.items.map((item) => item.title).sort()).toEqual([
         "fresh",
@@ -1696,15 +2076,30 @@ describe("FeedParser.parseFeed characterization", () => {
 
       const feed = await parseParsed(
         [
-          pitem({ title: "newest", link: "https://example.com/1", pubDate: RECENT }),
-          pitem({ title: "middle", link: "https://example.com/2", pubDate: WEEK_OLD }),
-          pitem({ title: "oldest", link: "https://example.com/3", pubDate: OLD }),
+          pitem({
+            title: "newest",
+            link: "https://example.com/1",
+            pubDate: RECENT,
+          }),
+          pitem({
+            title: "middle",
+            link: "https://example.com/2",
+            pubDate: WEEK_OLD,
+          }),
+          pitem({
+            title: "oldest",
+            link: "https://example.com/3",
+            pubDate: OLD,
+          }),
         ],
         {},
         { existing },
       );
 
-      expect(feed.items.map((item) => item.title)).toEqual(["newest", "middle"]);
+      expect(feed.items.map((item) => item.title)).toEqual([
+        "newest",
+        "middle",
+      ]);
       expect(feed.lastRefreshDiagnostics).toEqual({
         fetchedItemCount: 3,
         mergedItemCountBeforeRetention: 3,
@@ -1718,21 +2113,38 @@ describe("FeedParser.parseFeed characterization", () => {
     it("keeps protected items beyond maxItemsLimit and puts them first before sorting", async () => {
       const existing = storedFeed(
         [
-          storedItem({ title: "old-star", guid: "https://example.com/star", link: "https://example.com/star", pubDate: OLD, starred: true }),
+          storedItem({
+            title: "old-star",
+            guid: "https://example.com/star",
+            link: "https://example.com/star",
+            pubDate: OLD,
+            starred: true,
+          }),
         ],
         { maxItemsLimit: 1 },
       );
 
       const feed = await parseParsed(
         [
-          pitem({ title: "newest", link: "https://example.com/1", pubDate: RECENT }),
-          pitem({ title: "middle", link: "https://example.com/2", pubDate: WEEK_OLD }),
+          pitem({
+            title: "newest",
+            link: "https://example.com/1",
+            pubDate: RECENT,
+          }),
+          pitem({
+            title: "middle",
+            link: "https://example.com/2",
+            pubDate: WEEK_OLD,
+          }),
         ],
         {},
         { existing },
       );
 
-      expect(feed.items.map((item) => item.title)).toEqual(["newest", "old-star"]);
+      expect(feed.items.map((item) => item.title)).toEqual([
+        "newest",
+        "old-star",
+      ]);
     });
 
     it("does not limit a feed whose maxItemsLimit is 0", async () => {
@@ -1741,7 +2153,11 @@ describe("FeedParser.parseFeed characterization", () => {
       const feed = await parseParsed(
         [
           pitem({ title: "a", link: "https://example.com/1", pubDate: RECENT }),
-          pitem({ title: "b", link: "https://example.com/2", pubDate: WEEK_OLD }),
+          pitem({
+            title: "b",
+            link: "https://example.com/2",
+            pubDate: WEEK_OLD,
+          }),
         ],
         {},
         { existing },
@@ -1752,12 +2168,22 @@ describe("FeedParser.parseFeed characterization", () => {
 
     it("sorts undated items by first-seen time when the fallback is on", async () => {
       const existing = storedFeed([
-        storedItem({ title: "seen-earlier", guid: "https://example.com/e", link: "https://example.com/e", pubDate: "", firstSeenMs: NOW - 5 * DAY_MS }),
+        storedItem({
+          title: "seen-earlier",
+          guid: "https://example.com/e",
+          link: "https://example.com/e",
+          pubDate: "",
+          firstSeenMs: NOW - 5 * DAY_MS,
+        }),
       ]);
 
       const feed = await parseParsed(
         [
-          pitem({ title: "dated", link: "https://example.com/d", pubDate: new Date(NOW - 2 * DAY_MS).toUTCString() }),
+          pitem({
+            title: "dated",
+            link: "https://example.com/d",
+            pubDate: new Date(NOW - 2 * DAY_MS).toUTCString(),
+          }),
           pitem({ title: "seen-now", link: "https://example.com/n" }),
         ],
         {},
@@ -1790,7 +2216,9 @@ describe("FeedParser.parseFeed characterization", () => {
       });
     }
 
-    async function imagesOf(item: ParsedItem): Promise<{ cover: string; image: string | undefined }> {
+    async function imagesOf(
+      item: ParsedItem,
+    ): Promise<{ cover: string; image: string | undefined }> {
       const feed = await parseParsed([item]);
       const parsedItem = at(feed.items, 0);
       return { cover: parsedItem.coverImage, image: parsedItem.image };
@@ -1804,14 +2232,24 @@ describe("FeedParser.parseFeed characterization", () => {
     });
 
     it("falls through the cover candidates: content, itunes, item image, enclosure", async () => {
-      expect((await imagesOf(withImages({ content: "<p>Text</p>" }))).cover).toBe(ITUNES_IMG);
       expect(
-        (await imagesOf(withImages({ content: "<p>Text</p>", itunes: undefined }))).cover,
+        (await imagesOf(withImages({ content: "<p>Text</p>" }))).cover,
+      ).toBe(ITUNES_IMG);
+      expect(
+        (
+          await imagesOf(
+            withImages({ content: "<p>Text</p>", itunes: undefined }),
+          )
+        ).cover,
       ).toBe(ITEM_IMG);
       expect(
         (
           await imagesOf(
-            withImages({ content: "<p>Text</p>", itunes: undefined, image: undefined }),
+            withImages({
+              content: "<p>Text</p>",
+              itunes: undefined,
+              image: undefined,
+            }),
           )
         ).cover,
       ).toBe(ENCLOSURE_IMG);
@@ -1828,14 +2266,21 @@ describe("FeedParser.parseFeed characterization", () => {
     });
 
     it("falls through the card image candidates: itunes, item image, content, enclosure", async () => {
-      expect((await imagesOf(withImages({ itunes: undefined }))).image).toBe(ITEM_IMG);
+      expect((await imagesOf(withImages({ itunes: undefined }))).image).toBe(
+        ITEM_IMG,
+      );
       expect(
-        (await imagesOf(withImages({ itunes: undefined, image: undefined }))).image,
+        (await imagesOf(withImages({ itunes: undefined, image: undefined })))
+          .image,
       ).toBe(CONTENT_IMG);
       expect(
         (
           await imagesOf(
-            withImages({ itunes: undefined, image: undefined, content: "<p>Text</p>" }),
+            withImages({
+              itunes: undefined,
+              image: undefined,
+              content: "<p>Text</p>",
+            }),
           )
         ).image,
       ).toBe(ENCLOSURE_IMG);
@@ -1847,7 +2292,11 @@ describe("FeedParser.parseFeed characterization", () => {
           title: "A",
           link: "https://example.com/a",
           pubDate: RECENT,
-          enclosure: { url: "https://example.com/doc.pdf", type: "application/pdf", length: "1" },
+          enclosure: {
+            url: "https://example.com/doc.pdf",
+            type: "application/pdf",
+            length: "1",
+          },
         }),
       );
 
@@ -1904,7 +2353,9 @@ describe("FeedParser.parseFeed characterization", () => {
         { url: "https://example.com/rss/feed.xml" },
       );
 
-      expect(at(feed.items, 0).coverImage).toBe("https://example.com/rss/pics/a.png");
+      expect(at(feed.items, 0).coverImage).toBe(
+        "https://example.com/rss/pics/a.png",
+      );
     });
 
     it("rejects image urls that are not http or https", async () => {
@@ -1939,7 +2390,9 @@ describe("FeedParser.parseFeed characterization", () => {
           title: "A",
           link: "https://example.com/a",
           pubDate: RECENT,
-          image: { url: "https://res.cloudinary.com/demo/image/upload/sample.jpg" },
+          image: {
+            url: "https://res.cloudinary.com/demo/image/upload/sample.jpg",
+          },
         }),
       );
 
@@ -2009,7 +2462,8 @@ describe("FeedParser.parseFeed characterization", () => {
           title: "A",
           link: "https://example.com/a",
           pubDate: RECENT,
-          description: '<img src="https://img.example.com/from-description.jpg">',
+          description:
+            '<img src="https://img.example.com/from-description.jpg">',
         }),
       );
 
@@ -2027,13 +2481,24 @@ describe("FeedParser.parseFeed characterization", () => {
       ]);
 
       const feed = await parseParsed(
-        [pitem({ title: "A", link: "https://example.com/a", guid: "https://example.com/a", pubDate: RECENT })],
+        [
+          pitem({
+            title: "A",
+            link: "https://example.com/a",
+            guid: "https://example.com/a",
+            pubDate: RECENT,
+          }),
+        ],
         {},
         { existing },
       );
 
-      expect(at(feed.items, 0).coverImage).toBe("https://img.example.com/stored-cover.jpg");
-      expect(at(feed.items, 0).image).toBe("https://img.example.com/stored-image.jpg");
+      expect(at(feed.items, 0).coverImage).toBe(
+        "https://img.example.com/stored-cover.jpg",
+      );
+      expect(at(feed.items, 0).image).toBe(
+        "https://img.example.com/stored-image.jpg",
+      );
     });
 
     it("replaces a stored item's cover when the feed gives one", async () => {
@@ -2065,7 +2530,14 @@ describe("FeedParser.parseFeed characterization", () => {
       ]);
 
       const feed = await parseParsed(
-        [pitem({ title: "A", link: "https://example.com/a", guid: "https://example.com/a", pubDate: RECENT })],
+        [
+          pitem({
+            title: "A",
+            link: "https://example.com/a",
+            guid: "https://example.com/a",
+            pubDate: RECENT,
+          }),
+        ],
         {},
         { existing },
       );
@@ -2081,7 +2553,11 @@ describe("FeedParser.parseFeed characterization", () => {
         title: "Episode",
         link: "https://example.com/ep",
         pubDate: RECENT,
-        enclosure: { url: "https://cdn.example.com/ep.mp3", type: "audio/mpeg", length: "1" },
+        enclosure: {
+          url: "https://cdn.example.com/ep.mp3",
+          type: "audio/mpeg",
+          length: "1",
+        },
         ...overrides,
       });
     }
@@ -2106,13 +2582,18 @@ describe("FeedParser.parseFeed characterization", () => {
         content: '<img src="https://img.example.com/in-content.jpg">',
       });
 
-      expect(await coverOf(full, feedProps)).toBe("https://img.example.com/ep-itunes.jpg");
+      expect(await coverOf(full, feedProps)).toBe(
+        "https://img.example.com/ep-itunes.jpg",
+      );
       expect(await coverOf({ ...full, itunes: undefined }, feedProps)).toBe(
         "https://img.example.com/ep-image.jpg",
       );
-      expect(await coverOf({ ...full, itunes: undefined, image: undefined }, feedProps)).toBe(
-        "https://img.example.com/feed-image.jpg",
-      );
+      expect(
+        await coverOf(
+          { ...full, itunes: undefined, image: undefined },
+          feedProps,
+        ),
+      ).toBe("https://img.example.com/feed-image.jpg");
       expect(
         await coverOf(
           { ...full, itunes: undefined, image: undefined },
@@ -2135,14 +2616,18 @@ describe("FeedParser.parseFeed characterization", () => {
 
     it("accepts a feed image given as a plain string", async () => {
       const cover = await coverOf(episodeWith(), {
-        image: "https://img.example.com/string-image.jpg" as unknown as { url: string },
+        image: "https://img.example.com/string-image.jpg" as unknown as {
+          url: string;
+        },
       });
 
       expect(cover).toBe("https://img.example.com/string-image.jpg");
     });
 
     it("resolves a relative episode image against the feed url", async () => {
-      const cover = await coverOf(episodeWith({ image: { url: "/art/ep.jpg" } }));
+      const cover = await coverOf(
+        episodeWith({ image: { url: "/art/ep.jpg" } }),
+      );
 
       expect(cover).toBe("https://example.com/art/ep.jpg");
     });
@@ -2166,7 +2651,9 @@ describe("FeedParser.parseFeed characterization", () => {
         { existing },
       );
 
-      expect(at(feed.items, 0).coverImage).toBe("https://img.example.com/stored-art.jpg");
+      expect(at(feed.items, 0).coverImage).toBe(
+        "https://img.example.com/stored-art.jpg",
+      );
     });
   });
 
@@ -2186,7 +2673,13 @@ describe("FeedParser.parseFeed characterization", () => {
 
     it("clears a cover shared by at least 80% of the items and at least two", async () => {
       const feed = await parseParsed(
-        articlesWithCover([LOGO, LOGO, LOGO, LOGO, "https://img.example.com/own.jpg"]),
+        articlesWithCover([
+          LOGO,
+          LOGO,
+          LOGO,
+          LOGO,
+          "https://img.example.com/own.jpg",
+        ]),
         { feedImageUrl: LOGO },
       );
 
@@ -2201,15 +2694,25 @@ describe("FeedParser.parseFeed characterization", () => {
 
     it("keeps a logo cover that fewer than 80% of the items share", async () => {
       const feed = await parseParsed(
-        articlesWithCover([LOGO, LOGO, LOGO, "https://img.example.com/b.jpg", "https://img.example.com/c.jpg"]),
+        articlesWithCover([
+          LOGO,
+          LOGO,
+          LOGO,
+          "https://img.example.com/b.jpg",
+          "https://img.example.com/c.jpg",
+        ]),
         { feedImageUrl: LOGO },
       );
 
-      expect(feed.items.filter((item) => item.coverImage === LOGO)).toHaveLength(3);
+      expect(
+        feed.items.filter((item) => item.coverImage === LOGO),
+      ).toHaveLength(3);
     });
 
     it("keeps a logo cover that only one item has", async () => {
-      const feed = await parseParsed(articlesWithCover([LOGO]), { feedImageUrl: LOGO });
+      const feed = await parseParsed(articlesWithCover([LOGO]), {
+        feedImageUrl: LOGO,
+      });
 
       expect(at(feed.items, 0).coverImage).toBe(LOGO);
     });
@@ -2220,23 +2723,38 @@ describe("FeedParser.parseFeed characterization", () => {
       });
       expect(viaItunes.items.map((item) => item.coverImage)).toEqual(["", ""]);
 
-      const viaImageObject = await parseParsed(articlesWithCover([LOGO, LOGO]), {
-        image: { url: LOGO },
-      });
-      expect(viaImageObject.items.map((item) => item.coverImage)).toEqual(["", ""]);
+      const viaImageObject = await parseParsed(
+        articlesWithCover([LOGO, LOGO]),
+        {
+          image: { url: LOGO },
+        },
+      );
+      expect(viaImageObject.items.map((item) => item.coverImage)).toEqual([
+        "",
+        "",
+      ]);
     });
 
     it("leaves a widely shared cover that is not the feed logo", async () => {
       const shared = "https://img.example.com/shared.jpg";
-      const feed = await parseParsed(articlesWithCover([shared, shared, shared]), {
-        feedImageUrl: LOGO,
-      });
+      const feed = await parseParsed(
+        articlesWithCover([shared, shared, shared]),
+        {
+          feedImageUrl: LOGO,
+        },
+      );
 
-      expect(feed.items.map((item) => item.coverImage)).toEqual([shared, shared, shared]);
+      expect(feed.items.map((item) => item.coverImage)).toEqual([
+        shared,
+        shared,
+        shared,
+      ]);
     });
 
     it("leaves the card image alone when it clears the cover", async () => {
-      const feed = await parseParsed(articlesWithCover([LOGO, LOGO]), { feedImageUrl: LOGO });
+      const feed = await parseParsed(articlesWithCover([LOGO, LOGO]), {
+        feedImageUrl: LOGO,
+      });
 
       expect(feed.items.map((item) => item.image)).toEqual([LOGO, LOGO]);
     });
@@ -2248,7 +2766,11 @@ describe("FeedParser.parseFeed characterization", () => {
             title: `Episode ${index}`,
             link: `https://example.com/ep${index}`,
             pubDate: RECENT,
-            enclosure: { url: `https://cdn.example.com/${index}.mp3`, type: "audio/mpeg", length: "1" },
+            enclosure: {
+              url: `https://cdn.example.com/${index}.mp3`,
+              type: "audio/mpeg",
+              length: "1",
+            },
             image: { url: LOGO },
           }),
         ),
@@ -2260,22 +2782,34 @@ describe("FeedParser.parseFeed characterization", () => {
   });
 
   describe("summary", () => {
-    async function summaryOf(overrides: Partial<ParsedItem>): Promise<string | undefined> {
+    async function summaryOf(
+      overrides: Partial<ParsedItem>,
+    ): Promise<string | undefined> {
       const feed = await parseParsed([
-        pitem({ title: "A", link: "https://example.com/a", pubDate: RECENT, ...overrides }),
+        pitem({
+          title: "A",
+          link: "https://example.com/a",
+          pubDate: RECENT,
+          ...overrides,
+        }),
       ]);
       return at(feed.items, 0).summary;
     }
 
     it("is the plain text of the content with tags removed and whitespace collapsed", async () => {
       expect(
-        await summaryOf({ content: "<h1>Title</h1>\n\n<p>Some   <b>bold</b>\ttext</p>" }),
+        await summaryOf({
+          content: "<h1>Title</h1>\n\n<p>Some   <b>bold</b>\ttext</p>",
+        }),
       ).toBe("Title Some bold text");
     });
 
     it("prefers the content over the description", async () => {
       expect(
-        await summaryOf({ content: "<p>From content</p>", description: "From description" }),
+        await summaryOf({
+          content: "<p>From content</p>",
+          description: "From description",
+        }),
       ).toBe("From content");
     });
 
@@ -2290,9 +2824,11 @@ describe("FeedParser.parseFeed characterization", () => {
     });
 
     it("decodes html entities", async () => {
-      expect(await summaryOf({ content: "<p>Fish &amp; chips &quot;to go&quot; &lt;3</p>" })).toBe(
-        'Fish & chips "to go" <3',
-      );
+      expect(
+        await summaryOf({
+          content: "<p>Fish &amp; chips &quot;to go&quot; &lt;3</p>",
+        }),
+      ).toBe('Fish & chips "to go" <3');
     });
 
     it("leaves text of 220 characters whole and cuts a longer one to 220 plus an ellipsis", async () => {
@@ -2300,13 +2836,16 @@ describe("FeedParser.parseFeed characterization", () => {
       expect(await summaryOf({ content: `<p>${exactly}</p>` })).toBe(exactly);
 
       const longer = "b".repeat(221);
-      expect(await summaryOf({ content: `<p>${longer}</p>` })).toBe(`${"b".repeat(220)}...`);
+      expect(await summaryOf({ content: `<p>${longer}</p>` })).toBe(
+        `${"b".repeat(220)}...`,
+      );
     });
 
     it("replaces a math span with [math]", async () => {
       expect(
         await summaryOf({
-          content: '<p>Energy is <span class="math inline">E=mc^2</span> here.</p>',
+          content:
+            '<p>Energy is <span class="math inline">E=mc^2</span> here.</p>',
         }),
       ).toBe("Energy is [math] here.");
     });
@@ -2314,18 +2853,30 @@ describe("FeedParser.parseFeed characterization", () => {
     it("leaves script and style text out", async () => {
       expect(
         await summaryOf({
-          content: "<style>.x{color:red}</style><script>var a=1;</script><p>Body</p>",
+          content:
+            "<style>.x{color:red}</style><script>var a=1;</script><p>Body</p>",
         }),
       ).toBe("Body");
     });
 
     it("keeps a stored item's summary when the feed text yields none", async () => {
       const existing = storedFeed([
-        storedItem({ guid: "https://example.com/a", link: "https://example.com/a", summary: "Stored summary" }),
+        storedItem({
+          guid: "https://example.com/a",
+          link: "https://example.com/a",
+          summary: "Stored summary",
+        }),
       ]);
 
       const feed = await parseParsed(
-        [pitem({ title: "A", link: "https://example.com/a", guid: "https://example.com/a", pubDate: RECENT })],
+        [
+          pitem({
+            title: "A",
+            link: "https://example.com/a",
+            guid: "https://example.com/a",
+            pubDate: RECENT,
+          }),
+        ],
         {},
         { existing },
       );
@@ -2335,7 +2886,11 @@ describe("FeedParser.parseFeed characterization", () => {
 
     it("replaces a stored item's summary when the feed has text", async () => {
       const existing = storedFeed([
-        storedItem({ guid: "https://example.com/a", link: "https://example.com/a", summary: "Stored summary" }),
+        storedItem({
+          guid: "https://example.com/a",
+          link: "https://example.com/a",
+          summary: "Stored summary",
+        }),
       ]);
 
       const feed = await parseParsed(
@@ -2359,9 +2914,19 @@ describe("FeedParser.parseFeed characterization", () => {
   describe("relative urls in the stored description and content", () => {
     const FEED = "https://example.com/rss/feed.xml";
 
-    async function contentOf(html: string): Promise<{ description: string; content: string }> {
+    async function contentOf(
+      html: string,
+    ): Promise<{ description: string; content: string }> {
       const feed = await parseParsed(
-        [pitem({ title: "A", link: "https://example.com/a", pubDate: RECENT, description: html, content: html })],
+        [
+          pitem({
+            title: "A",
+            link: "https://example.com/a",
+            pubDate: RECENT,
+            description: html,
+            content: html,
+          }),
+        ],
         {},
         { url: FEED },
       );
@@ -2397,7 +2962,9 @@ describe("FeedParser.parseFeed characterization", () => {
     });
 
     it("decodes html entities in a url while making it absolute", async () => {
-      const result = await contentOf('<img src="/a.png?x=1&amp;y=2"><a href="/p?a=1&amp;b=2">p</a>');
+      const result = await contentOf(
+        '<img src="/a.png?x=1&amp;y=2"><a href="/p?a=1&amp;b=2">p</a>',
+      );
 
       expect(result.content).toBe(
         '<img src="https://example.com/a.png?x=1&y=2"><a href="https://example.com/p?a=1&b=2">p</a>',
@@ -2405,16 +2972,17 @@ describe("FeedParser.parseFeed characterization", () => {
     });
 
     it("leaves absolute and mailto urls alone", async () => {
-      const html = '<img src="https://cdn.example.com/a.png"><a href="mailto:me@example.com">m</a>';
+      const html =
+        '<img src="https://cdn.example.com/a.png"><a href="mailto:me@example.com">m</a>';
 
       expect((await contentOf(html)).content).toBe(html);
     });
 
-    it("turns an in-page anchor into a link to the feed url", async () => {
+    it("preserves an in-page anchor as a fragment-only link", async () => {
       const result = await contentOf('<a href="#fn1">1</a>');
 
-      // BUG: pinned, see #626
-      expect(result.content).toBe('<a href="https://example.com/rss/feed.xml#fn1">1</a>');
+      expect(result.content).toBe('<a href="#fn1">1</a>');
+      expect(result.description).toBe('<a href="#fn1">1</a>');
     });
 
     it("leaves empty description and content empty", async () => {
@@ -2431,7 +2999,11 @@ describe("FeedParser.parseFeed characterization", () => {
       "https://www.youtube.com/feeds/videos.xml?channel_id=UCWFKCr40YwOZQx8FHU_ZqqQ";
 
     function article(name = "a"): ParsedItem {
-      return pitem({ title: name, link: `https://example.com/${name}`, pubDate: RECENT });
+      return pitem({
+        title: name,
+        link: `https://example.com/${name}`,
+        pubDate: RECENT,
+      });
     }
 
     function episode(name = "ep"): ParsedItem {
@@ -2439,7 +3011,11 @@ describe("FeedParser.parseFeed characterization", () => {
         title: name,
         link: `https://example.com/${name}`,
         pubDate: RECENT,
-        enclosure: { url: `https://cdn.example.com/${name}.mp3`, type: "audio/mpeg", length: "1" },
+        enclosure: {
+          url: `https://cdn.example.com/${name}.mp3`,
+          type: "audio/mpeg",
+          length: "1",
+        },
       });
     }
 
@@ -2448,7 +3024,11 @@ describe("FeedParser.parseFeed characterization", () => {
         title: name,
         link: `https://example.com/${name}`,
         pubDate: RECENT,
-        enclosure: { url: `https://cdn.example.com/${name}.mp4`, type: "video/mp4", length: "1" },
+        enclosure: {
+          url: `https://cdn.example.com/${name}.mp4`,
+          type: "video/mp4",
+          length: "1",
+        },
       });
     }
 
@@ -2482,14 +3062,22 @@ describe("FeedParser.parseFeed characterization", () => {
     });
 
     it("uses the configured default folders", async () => {
-      const podcast = await parseParsed([episode()], {}, {
-        media: { defaultPodcastFolder: "Shows" },
-      });
+      const podcast = await parseParsed(
+        [episode()],
+        {},
+        {
+          media: { defaultPodcastFolder: "Shows" },
+        },
+      );
       expect(podcast.folder).toBe("Shows");
 
-      const video = await parseParsed([clip()], {}, {
-        media: { defaultYouTubeFolder: "Watch later" },
-      });
+      const video = await parseParsed(
+        [clip()],
+        {},
+        {
+          media: { defaultYouTubeFolder: "Watch later" },
+        },
+      );
       expect(video.folder).toBe("Watch later");
     });
 
@@ -2503,7 +3091,8 @@ describe("FeedParser.parseFeed characterization", () => {
 
     it("moves a stored feed whose folder is missing into the media folder", async () => {
       const existing = storedFeed([]);
-      (existing as unknown as { folder: string | undefined }).folder = undefined;
+      (existing as unknown as { folder: string | undefined }).folder =
+        undefined;
 
       const feed = await parseParsed([clip()], {}, { existing });
 
@@ -2517,15 +3106,23 @@ describe("FeedParser.parseFeed characterization", () => {
         const podcast = await parseParsed([episode()], {}, { existing });
         expect(podcast.folder).toBe(folder);
 
-        const video = await parseParsed([clip()], {}, { existing: storedFeed([], { folder }) });
+        const video = await parseParsed(
+          [clip()],
+          {},
+          { existing: storedFeed([], { folder }) },
+        );
         expect(video.folder).toBe(folder);
       }
     });
 
     it("never moves an article feed out of its folder", async () => {
-      const feed = await parseParsed([article()], {}, {
-        existing: storedFeed([], { folder: "Uncategorized" }),
-      });
+      const feed = await parseParsed(
+        [article()],
+        {},
+        {
+          existing: storedFeed([], { folder: "Uncategorized" }),
+        },
+      );
 
       expect(feed.folder).toBe("Uncategorized");
     });
@@ -2550,7 +3147,11 @@ describe("FeedParser.parseFeed characterization", () => {
     const RESEARCH_TAG: Tag = { name: "Research", color: "#333333" };
 
     function article(name = "a"): ParsedItem {
-      return pitem({ title: name, link: `https://example.com/${name}`, pubDate: RECENT });
+      return pitem({
+        title: name,
+        link: `https://example.com/${name}`,
+        pubDate: RECENT,
+      });
     }
 
     function tagNames(feed: Feed): string[][] {
@@ -2564,10 +3165,14 @@ describe("FeedParser.parseFeed characterization", () => {
     });
 
     it("tags every article of an article feed with the configured default RSS tags", async () => {
-      const feed = await parseParsed([article("a"), article("b")], {}, {
-        tags: [RSS_TAG],
-        media: { defaultRssTags: ["RSS"] },
-      });
+      const feed = await parseParsed(
+        [article("a"), article("b")],
+        {},
+        {
+          tags: [RSS_TAG],
+          media: { defaultRssTags: ["RSS"] },
+        },
+      );
 
       expect(tagNames(feed)).toEqual([["RSS"], ["RSS"]]);
     });
@@ -2579,7 +3184,11 @@ describe("FeedParser.parseFeed characterization", () => {
             title: "ep",
             link: "https://example.com/ep",
             pubDate: RECENT,
-            enclosure: { url: "https://cdn.example.com/ep.mp3", type: "audio/mpeg", length: "1" },
+            enclosure: {
+              url: "https://cdn.example.com/ep.mp3",
+              type: "audio/mpeg",
+              length: "1",
+            },
           }),
         ],
         {},
@@ -2596,7 +3205,11 @@ describe("FeedParser.parseFeed characterization", () => {
             title: "clip",
             link: "https://example.com/clip",
             pubDate: RECENT,
-            enclosure: { url: "https://cdn.example.com/clip.mp4", type: "video/mp4", length: "1" },
+            enclosure: {
+              url: "https://cdn.example.com/clip.mp4",
+              type: "video/mp4",
+              length: "1",
+            },
           }),
           pitem({
             title: "text",
@@ -2614,30 +3227,42 @@ describe("FeedParser.parseFeed characterization", () => {
     });
 
     it("tags a YouTube feed with the default YouTube tag", async () => {
-      const feed = await parseParsed([article()], {}, {
-        url: "https://www.youtube.com/feeds/videos.xml?channel_id=UCWFKCr40YwOZQx8FHU_ZqqQ",
-        tags: [VIDEO_TAG],
-      });
+      const feed = await parseParsed(
+        [article()],
+        {},
+        {
+          url: "https://www.youtube.com/feeds/videos.xml?channel_id=UCWFKCr40YwOZQx8FHU_ZqqQ",
+          tags: [VIDEO_TAG],
+        },
+      );
 
       expect(tagNames(feed)).toEqual([["Video"]]);
     });
 
     it("tags a Mastodon feed with the default Mastodon tag", async () => {
-      const feed = await parseParsed([article()], {}, {
-        url: "https://mastodon.social/@Gargron.rss",
-        tags: [{ name: "Fediverse", color: "#6364ff" }],
-        media: { defaultMastodonTags: ["Fediverse"] },
-      });
+      const feed = await parseParsed(
+        [article()],
+        {},
+        {
+          url: "https://mastodon.social/@Gargron.rss",
+          tags: [{ name: "Fediverse", color: "#6364ff" }],
+          media: { defaultMastodonTags: ["Fediverse"] },
+        },
+      );
 
       expect(tagNames(feed)).toEqual([["Fediverse"]]);
     });
 
     it("tags a feed in the small web folder with the default small web tag", async () => {
-      const feed = await parseParsed([article()], {}, {
-        existing: storedFeed([], { folder: "Smallweb" }),
-        tags: [{ name: "Indie", color: "#00aa00" }],
-        media: { defaultSmallwebTags: ["Indie"] },
-      });
+      const feed = await parseParsed(
+        [article()],
+        {},
+        {
+          existing: storedFeed([], { folder: "Smallweb" }),
+          tags: [{ name: "Indie", color: "#00aa00" }],
+          media: { defaultSmallwebTags: ["Indie"] },
+        },
+      );
 
       expect(tagNames(feed)).toEqual([["Indie"]]);
     });
@@ -2651,23 +3276,35 @@ describe("FeedParser.parseFeed characterization", () => {
         },
       ];
 
-      const feed = await parseParsed([article()], {}, {
-        existing: storedFeed([], { folder: "News/Tech" }),
-        folders,
-      });
+      const feed = await parseParsed(
+        [article()],
+        {},
+        {
+          existing: storedFeed([], { folder: "News/Tech" }),
+          folders,
+        },
+      );
 
       expect(tagNames(feed)).toEqual([["News", "Tech"]]);
     });
 
     it("reads the folder tree from the host at parse time", async () => {
-      const first = await parseParsed([article()], {}, {
-        existing: storedFeed([], { folder: "News" }),
-        folders: [{ name: "News", autoTags: [NEWS_TAG], subfolders: [] }],
-      });
-      const second = await parseParsed([article()], {}, {
-        existing: storedFeed([], { folder: "News" }),
-        folders: [{ name: "News", autoTags: [], subfolders: [] }],
-      });
+      const first = await parseParsed(
+        [article()],
+        {},
+        {
+          existing: storedFeed([], { folder: "News" }),
+          folders: [{ name: "News", autoTags: [NEWS_TAG], subfolders: [] }],
+        },
+      );
+      const second = await parseParsed(
+        [article()],
+        {},
+        {
+          existing: storedFeed([], { folder: "News" }),
+          folders: [{ name: "News", autoTags: [], subfolders: [] }],
+        },
+      );
 
       expect(tagNames(first)).toEqual([["News"]]);
       expect(tagNames(second)).toEqual([[]]);
@@ -2680,11 +3317,17 @@ describe("FeedParser.parseFeed characterization", () => {
             title: "ep",
             link: "https://example.com/ep",
             pubDate: RECENT,
-            enclosure: { url: "https://cdn.example.com/ep.mp3", type: "audio/mpeg", length: "1" },
+            enclosure: {
+              url: "https://cdn.example.com/ep.mp3",
+              type: "audio/mpeg",
+              length: "1",
+            },
           }),
         ],
         {},
-        { folders: [{ name: "Podcasts", autoTags: [NEWS_TAG], subfolders: [] }] },
+        {
+          folders: [{ name: "Podcasts", autoTags: [NEWS_TAG], subfolders: [] }],
+        },
       );
 
       expect(feed.folder).toBe("Podcasts");
@@ -2692,10 +3335,14 @@ describe("FeedParser.parseFeed characterization", () => {
     });
 
     it("adds the feed's custom tags by name and ignores names that are not defined", async () => {
-      const feed = await parseParsed([article()], {}, {
-        existing: storedFeed([], { customTags: ["Research", "Missing"] }),
-        tags: [RESEARCH_TAG],
-      });
+      const feed = await parseParsed(
+        [article()],
+        {},
+        {
+          existing: storedFeed([], { customTags: ["Research", "Missing"] }),
+          tags: [RESEARCH_TAG],
+        },
+      );
 
       expect(tagNames(feed)).toEqual([["Research"]]);
     });
@@ -2706,16 +3353,29 @@ describe("FeedParser.parseFeed characterization", () => {
           storedItem({
             guid: "https://example.com/a",
             link: "https://example.com/a",
-            tags: [{ name: "news", color: "#ffffff" }, { name: "Mine", color: "#abcdef" }],
+            tags: [
+              { name: "news", color: "#ffffff" },
+              { name: "Mine", color: "#abcdef" },
+            ],
           }),
         ],
         { folder: "News" },
       );
 
       const feed = await parseParsed(
-        [pitem({ title: "A", link: "https://example.com/a", guid: "https://example.com/a", pubDate: RECENT })],
+        [
+          pitem({
+            title: "A",
+            link: "https://example.com/a",
+            guid: "https://example.com/a",
+            pubDate: RECENT,
+          }),
+        ],
         {},
-        { existing, folders: [{ name: "News", autoTags: [NEWS_TAG], subfolders: [] }] },
+        {
+          existing,
+          folders: [{ name: "News", autoTags: [NEWS_TAG], subfolders: [] }],
+        },
       );
 
       expect(at(feed.items, 0).tags).toEqual([
@@ -2729,7 +3389,11 @@ describe("FeedParser.parseFeed characterization", () => {
     const LOGO = "https://example.com/logo.png";
 
     function article(): ParsedItem {
-      return pitem({ title: "A", link: "https://example.com/a", pubDate: RECENT });
+      return pitem({
+        title: "A",
+        link: "https://example.com/a",
+        pubDate: RECENT,
+      });
     }
 
     function episode(): ParsedItem {
@@ -2737,39 +3401,77 @@ describe("FeedParser.parseFeed characterization", () => {
         title: "Episode",
         link: "https://example.com/ep",
         pubDate: RECENT,
-        enclosure: { url: "https://cdn.example.com/ep.mp3", type: "audio/mpeg", length: "1" },
+        enclosure: {
+          url: "https://cdn.example.com/ep.mp3",
+          type: "audio/mpeg",
+          length: "1",
+        },
       });
     }
 
     it("is empty when the feed has no logo", async () => {
-      const feed = await parseParsed([article()], {}, { display: { useDomainIconsRss: true } });
+      const feed = await parseParsed(
+        [article()],
+        {},
+        { display: { useDomainIconsRss: true } },
+      );
 
       expect(feed.iconUrl).toBe("");
       expect(at(feed.items, 0).fallbackIconUrl).toBeUndefined();
     });
 
     it("follows the RSS icon setting for an article feed", async () => {
-      const on = await parseParsed([article()], { feedImageUrl: LOGO }, { display: { useDomainIconsRss: true } });
+      const on = await parseParsed(
+        [article()],
+        { feedImageUrl: LOGO },
+        { display: { useDomainIconsRss: true } },
+      );
       expect(on.iconUrl).toBe(LOGO);
 
-      const off = await parseParsed([article()], { feedImageUrl: LOGO }, { display: { useDomainIconsRss: false } });
+      const off = await parseParsed(
+        [article()],
+        { feedImageUrl: LOGO },
+        { display: { useDomainIconsRss: false } },
+      );
       expect(off.iconUrl).toBe("");
     });
 
     it("follows the podcast icon setting for a podcast feed", async () => {
-      const on = await parseParsed([episode()], { feedImageUrl: LOGO }, { display: { useDomainIconsPodcast: true, useDomainIconsRss: false } });
+      const on = await parseParsed(
+        [episode()],
+        { feedImageUrl: LOGO },
+        { display: { useDomainIconsPodcast: true, useDomainIconsRss: false } },
+      );
       expect(on.iconUrl).toBe(LOGO);
 
-      const off = await parseParsed([episode()], { feedImageUrl: LOGO }, { display: { useDomainIconsPodcast: false, useDomainIconsRss: true } });
+      const off = await parseParsed(
+        [episode()],
+        { feedImageUrl: LOGO },
+        { display: { useDomainIconsPodcast: false, useDomainIconsRss: true } },
+      );
       expect(off.iconUrl).toBe("");
     });
 
     it("follows the Mastodon icon setting for a Mastodon feed", async () => {
       const url = "https://mastodon.social/@Gargron.rss";
-      const on = await parseParsed([article()], { feedImageUrl: LOGO }, { url, display: { useDomainIconsMastodon: true, useDomainIconsRss: false } });
+      const on = await parseParsed(
+        [article()],
+        { feedImageUrl: LOGO },
+        {
+          url,
+          display: { useDomainIconsMastodon: true, useDomainIconsRss: false },
+        },
+      );
       expect(on.iconUrl).toBe(LOGO);
 
-      const off = await parseParsed([article()], { feedImageUrl: LOGO }, { url, display: { useDomainIconsMastodon: false, useDomainIconsRss: true } });
+      const off = await parseParsed(
+        [article()],
+        { feedImageUrl: LOGO },
+        {
+          url,
+          display: { useDomainIconsMastodon: false, useDomainIconsRss: true },
+        },
+      );
       expect(off.iconUrl).toBe("");
     });
 
@@ -2780,10 +3482,14 @@ describe("FeedParser.parseFeed characterization", () => {
         useDomainIconsMastodon: true,
         useDomainIconsYouTube: true,
       };
-      const youtube = await parseParsed([article()], { feedImageUrl: LOGO }, {
-        url: "https://www.youtube.com/feeds/videos.xml?channel_id=UCWFKCr40YwOZQx8FHU_ZqqQ",
-        display: everything,
-      });
+      const youtube = await parseParsed(
+        [article()],
+        { feedImageUrl: LOGO },
+        {
+          url: "https://www.youtube.com/feeds/videos.xml?channel_id=UCWFKCr40YwOZQx8FHU_ZqqQ",
+          display: everything,
+        },
+      );
       expect(youtube.iconUrl).toBe("");
 
       const video = await parseParsed(
@@ -2792,7 +3498,11 @@ describe("FeedParser.parseFeed characterization", () => {
             title: "Clip",
             link: "https://example.com/clip",
             pubDate: RECENT,
-            enclosure: { url: "https://cdn.example.com/c.mp4", type: "video/mp4", length: "1" },
+            enclosure: {
+              url: "https://cdn.example.com/c.mp4",
+              type: "video/mp4",
+              length: "1",
+            },
           }),
         ],
         { feedImageUrl: LOGO },
@@ -2803,44 +3513,81 @@ describe("FeedParser.parseFeed characterization", () => {
 
     it("takes the first of the itunes image, the feed image url, the image object and a string image", async () => {
       const display = { useDomainIconsRss: true };
-      const all = await parseParsed([article()], {
-        feedItunesImage: "https://example.com/itunes.png",
-        feedImageUrl: "https://example.com/image-url.png",
-        image: { url: "https://example.com/image-object.png" },
-      }, { display });
+      const all = await parseParsed(
+        [article()],
+        {
+          feedItunesImage: "https://example.com/itunes.png",
+          feedImageUrl: "https://example.com/image-url.png",
+          image: { url: "https://example.com/image-object.png" },
+        },
+        { display },
+      );
       expect(all.iconUrl).toBe("https://example.com/itunes.png");
 
-      const noItunes = await parseParsed([article()], {
-        feedImageUrl: "https://example.com/image-url.png",
-        image: { url: "https://example.com/image-object.png" },
-      }, { display });
+      const noItunes = await parseParsed(
+        [article()],
+        {
+          feedImageUrl: "https://example.com/image-url.png",
+          image: { url: "https://example.com/image-object.png" },
+        },
+        { display },
+      );
       expect(noItunes.iconUrl).toBe("https://example.com/image-url.png");
 
-      const objectOnly = await parseParsed([article()], {
-        image: { url: "https://example.com/image-object.png" },
-      }, { display });
+      const objectOnly = await parseParsed(
+        [article()],
+        {
+          image: { url: "https://example.com/image-object.png" },
+        },
+        { display },
+      );
       expect(objectOnly.iconUrl).toBe("https://example.com/image-object.png");
 
-      const stringOnly = await parseParsed([article()], {
-        image: "https://example.com/image-string.png" as unknown as { url: string },
-      }, { display });
+      const stringOnly = await parseParsed(
+        [article()],
+        {
+          image: "https://example.com/image-string.png" as unknown as {
+            url: string;
+          },
+        },
+        { display },
+      );
       expect(stringOnly.iconUrl).toBe("https://example.com/image-string.png");
     });
 
     it("makes a relative logo absolute and removes a trailing slash after the extension", async () => {
-      const relative = await parseParsed([article()], { feedImageUrl: "/img/logo.svg" }, { display: { useDomainIconsRss: true } });
+      const relative = await parseParsed(
+        [article()],
+        { feedImageUrl: "/img/logo.svg" },
+        { display: { useDomainIconsRss: true } },
+      );
       expect(relative.iconUrl).toBe("https://example.com/img/logo.svg");
 
-      const protocolRelative = await parseParsed([article()], { feedImageUrl: "//cdn.example.com/logo.png" }, { display: { useDomainIconsRss: true } });
+      const protocolRelative = await parseParsed(
+        [article()],
+        { feedImageUrl: "//cdn.example.com/logo.png" },
+        { display: { useDomainIconsRss: true } },
+      );
       expect(protocolRelative.iconUrl).toBe("https://cdn.example.com/logo.png");
 
-      const trailingSlash = await parseParsed([article()], { feedImageUrl: "https://example.com/logo.png/" }, { display: { useDomainIconsRss: true } });
+      const trailingSlash = await parseParsed(
+        [article()],
+        { feedImageUrl: "https://example.com/logo.png/" },
+        { display: { useDomainIconsRss: true } },
+      );
       expect(trailingSlash.iconUrl).toBe("https://example.com/logo.png");
     });
 
     it("gives every item the feed logo as its fallback icon, even when the feed icon setting is off", async () => {
       const feed = await parseParsed(
-        [article(), pitem({ title: "B", link: "https://example.com/b", pubDate: WEEK_OLD })],
+        [
+          article(),
+          pitem({
+            title: "B",
+            link: "https://example.com/b",
+            pubDate: WEEK_OLD,
+          }),
+        ],
         { feedImageUrl: "/img/logo.png/" },
         { display: { useDomainIconsRss: false } },
       );
@@ -2862,28 +3609,57 @@ describe("FeedParser.parseFeed characterization", () => {
           }),
         ]);
       const parsed = (): ParsedItem[] => [
-        pitem({ title: "A", link: "https://example.com/a", guid: "https://example.com/a", pubDate: RECENT }),
+        pitem({
+          title: "A",
+          link: "https://example.com/a",
+          guid: "https://example.com/a",
+          pubDate: RECENT,
+        }),
       ];
 
-      const withLogo = await parseParsed(parsed(), { feedImageUrl: LOGO }, { existing: existing() });
+      const withLogo = await parseParsed(
+        parsed(),
+        { feedImageUrl: LOGO },
+        { existing: existing() },
+      );
       expect(at(withLogo.items, 0).fallbackIconUrl).toBe(LOGO);
 
-      const withoutLogo = await parseParsed(parsed(), {}, { existing: existing() });
-      expect(at(withoutLogo.items, 0).fallbackIconUrl).toBe("https://example.com/old-icon.png");
+      const withoutLogo = await parseParsed(
+        parsed(),
+        {},
+        { existing: existing() },
+      );
+      expect(at(withoutLogo.items, 0).fallbackIconUrl).toBe(
+        "https://example.com/old-icon.png",
+      );
     });
 
     it("clears a stored feed icon when the feed no longer has a logo", async () => {
-      const existing = storedFeed([], { iconUrl: "https://example.com/old-icon.png" });
+      const existing = storedFeed([], {
+        iconUrl: "https://example.com/old-icon.png",
+      });
 
-      const feed = await parseParsed([article()], {}, { existing, display: { useDomainIconsRss: true } });
+      const feed = await parseParsed(
+        [article()],
+        {},
+        { existing, display: { useDomainIconsRss: true } },
+      );
 
       expect(feed.iconUrl).toBe("");
     });
 
     it("keeps the same icon across a refresh of the same feed", async () => {
       const display = { useDomainIconsRss: true };
-      const first = await parseParsed([article()], { feedImageUrl: LOGO }, { display });
-      const refreshed = await parseParsed([article()], { feedImageUrl: LOGO }, { display, existing: first });
+      const first = await parseParsed(
+        [article()],
+        { feedImageUrl: LOGO },
+        { display },
+      );
+      const refreshed = await parseParsed(
+        [article()],
+        { feedImageUrl: LOGO },
+        { display, existing: first },
+      );
 
       expect(refreshed.iconUrl).toBe(LOGO);
     });
@@ -2909,7 +3685,11 @@ describe("FeedParser.parseFeed characterization", () => {
         json: null,
       });
       const requestSpy = vi.spyOn(obsidian, "requestUrl");
-      const parser = new FeedParser(DEFAULT_SETTINGS.display, [], MEDIA_SETTINGS);
+      const parser = new FeedParser(
+        DEFAULT_SETTINGS.display,
+        [],
+        MEDIA_SETTINGS,
+      );
 
       requestSpy.mockResolvedValueOnce(cp1251Response());
       const overridden = await parser.parseFeed(
@@ -2934,7 +3714,11 @@ describe("FeedParser.parseFeed characterization", () => {
       const controller = new AbortController();
       controller.abort();
       vi.spyOn(obsidian, "requestUrl").mockResolvedValue(response(RSS2_BASIC));
-      const parser = new FeedParser(DEFAULT_SETTINGS.display, [], MEDIA_SETTINGS);
+      const parser = new FeedParser(
+        DEFAULT_SETTINGS.display,
+        [],
+        MEDIA_SETTINGS,
+      );
 
       await expect(
         parser.parseFeed(FEED_URL, null, { signal: controller.signal }),
@@ -2942,15 +3726,24 @@ describe("FeedParser.parseFeed characterization", () => {
     });
 
     it("keeps the logo of an Atom feed as the fallback icon", async () => {
-      const feed = await parse(ATOM_WITH_LOGO, { url: "https://example.com/atom.xml" });
+      const feed = await parse(ATOM_WITH_LOGO, {
+        url: "https://example.com/atom.xml",
+      });
 
-      expect(at(feed.items, 0).fallbackIconUrl).toBe("https://example.com/logo.png");
+      expect(at(feed.items, 0).fallbackIconUrl).toBe(
+        "https://example.com/logo.png",
+      );
     });
   });
   describe("content image scanning", () => {
     async function coverFromContent(html: string): Promise<string> {
       const feed = await parseParsed([
-        pitem({ title: "A", link: "https://example.com/a", pubDate: RECENT, content: html }),
+        pitem({
+          title: "A",
+          link: "https://example.com/a",
+          pubDate: RECENT,
+          content: html,
+        }),
       ]);
       return at(feed.items, 0).coverImage;
     }
@@ -3024,7 +3817,9 @@ describe("FeedParser.parseFeed characterization", () => {
 
   describe("stored items and feeds the refresh touches", () => {
     it("stamps new items with the stored feed's url rather than the requested url", async () => {
-      const existing = storedFeed([], { url: "https://example.com/stored-url.xml" });
+      const existing = storedFeed([], {
+        url: "https://example.com/stored-url.xml",
+      });
 
       const feed = await parseParsed(
         [pitem({ title: "A", link: "https://example.com/a", pubDate: RECENT })],
@@ -3032,7 +3827,9 @@ describe("FeedParser.parseFeed characterization", () => {
         { existing },
       );
 
-      expect(at(feed.items, 0).feedUrl).toBe("https://example.com/stored-url.xml");
+      expect(at(feed.items, 0).feedUrl).toBe(
+        "https://example.com/stored-url.xml",
+      );
       expect(feed.url).toBe("https://example.com/stored-url.xml");
     });
 
@@ -3052,9 +3849,18 @@ describe("FeedParser.parseFeed characterization", () => {
             title: "Clip",
             link: "https://example.com/clip",
             pubDate: RECENT,
-            enclosure: { url: "https://cdn.example.com/c.mp4", type: "video/mp4", length: "1" },
+            enclosure: {
+              url: "https://cdn.example.com/c.mp4",
+              type: "video/mp4",
+              length: "1",
+            },
           }),
-          pitem({ title: "Older", link: "https://example.com/older", guid: "https://example.com/older", pubDate: WEEK_OLD }),
+          pitem({
+            title: "Older",
+            link: "https://example.com/older",
+            guid: "https://example.com/older",
+            pubDate: WEEK_OLD,
+          }),
         ],
         {},
         { existing },
@@ -3070,9 +3876,17 @@ describe("FeedParser.parseFeed characterization", () => {
           title: "Clip",
           link: "https://example.com/clip",
           pubDate: RECENT,
-          enclosure: { url: "https://cdn.example.com/c.mp4", type: "video/mp4", length: "1" },
+          enclosure: {
+            url: "https://cdn.example.com/c.mp4",
+            type: "video/mp4",
+            length: "1",
+          },
         }),
-        pitem({ title: "Post", link: "https://example.com/post", pubDate: WEEK_OLD }),
+        pitem({
+          title: "Post",
+          link: "https://example.com/post",
+          pubDate: WEEK_OLD,
+        }),
       ]);
 
       expect(itemByTitle(feed, "Post").mediaType).toBe("article");
@@ -3091,7 +3905,14 @@ describe("FeedParser.parseFeed characterization", () => {
       );
 
       const feed = await parseParsed(
-        [pitem({ title: "A", link: "https://example.com/a", guid: "https://example.com/a", pubDate: RECENT })],
+        [
+          pitem({
+            title: "A",
+            link: "https://example.com/a",
+            guid: "https://example.com/a",
+            pubDate: RECENT,
+          }),
+        ],
         {},
         { existing, tags: [{ name: "Research", color: "#333333" }] },
       );
@@ -3107,12 +3928,21 @@ describe("FeedParser.parseFeed characterization", () => {
     const GUID = "https://example.com/a";
 
     function articleFeedItem(overrides: Partial<ParsedItem> = {}): ParsedItem {
-      return pitem({ title: "A", link: GUID, guid: GUID, pubDate: RECENT, ...overrides });
+      return pitem({
+        title: "A",
+        link: GUID,
+        guid: GUID,
+        pubDate: RECENT,
+        ...overrides,
+      });
     }
 
     it("carries the media content type and medium of a new item", async () => {
       const feed = await parseParsed([
-        articleFeedItem({ mediaContentType: "image/jpeg", mediaContentMedium: "image" }),
+        articleFeedItem({
+          mediaContentType: "image/jpeg",
+          mediaContentMedium: "image",
+        }),
       ]);
 
       const item = at(feed.items, 0);
@@ -3130,7 +3960,11 @@ describe("FeedParser.parseFeed characterization", () => {
           }),
         ]);
 
-      const kept = await parseParsed([articleFeedItem()], {}, { existing: existing() });
+      const kept = await parseParsed(
+        [articleFeedItem()],
+        {},
+        { existing: existing() },
+      );
       expect(at(kept.items, 0).ieee).toEqual({ pubYear: "2020", volume: "1" });
 
       const replaced = await parseParsed(
@@ -3138,18 +3972,27 @@ describe("FeedParser.parseFeed characterization", () => {
         {},
         { existing: existing() },
       );
-      expect(at(replaced.items, 0).ieee).toEqual({ pubYear: "2024", volume: "9" });
+      expect(at(replaced.items, 0).ieee).toEqual({
+        pubYear: "2024",
+        volume: "9",
+      });
     });
 
     it("keeps a stored item's audio url in an article feed when the feed gives no enclosure", async () => {
       const existing = storedFeed([
-        storedItem({ guid: GUID, link: GUID, audioUrl: "https://cdn.example.com/stored.mp3" }),
+        storedItem({
+          guid: GUID,
+          link: GUID,
+          audioUrl: "https://cdn.example.com/stored.mp3",
+        }),
       ]);
 
       const feed = await parseParsed([articleFeedItem()], {}, { existing });
 
       expect(feed.mediaType).toBe("article");
-      expect(at(feed.items, 0).audioUrl).toBe("https://cdn.example.com/stored.mp3");
+      expect(at(feed.items, 0).audioUrl).toBe(
+        "https://cdn.example.com/stored.mp3",
+      );
     });
 
     it("resolves an audio enclosure url against the feed url in a feed that is not a podcast", async () => {
@@ -3157,7 +4000,11 @@ describe("FeedParser.parseFeed characterization", () => {
         title: "Clip",
         link: "https://example.com/clip",
         pubDate: RECENT,
-        enclosure: { url: "https://cdn.example.com/clip.mp4", type: "video/mp4", length: "1" },
+        enclosure: {
+          url: "https://cdn.example.com/clip.mp4",
+          type: "video/mp4",
+          length: "1",
+        },
       });
       const audio = (): ParsedItem =>
         articleFeedItem({
@@ -3173,13 +4020,21 @@ describe("FeedParser.parseFeed characterization", () => {
       expect(audioItem.mediaType).toBe("podcast");
       expect(audioItem.audioUrl).toBe("https://example.com/audio/a.mp3");
 
-      const refreshed = await parseParsed([clip, audio()], {}, {
-        existing: storedFeed([storedItem({ guid: GUID, link: GUID, pubDate: WEEK_OLD })]),
-      });
+      const refreshed = await parseParsed(
+        [clip, audio()],
+        {},
+        {
+          existing: storedFeed([
+            storedItem({ guid: GUID, link: GUID, pubDate: WEEK_OLD }),
+          ]),
+        },
+      );
 
       expect(refreshed.mediaType).toBe("video");
       expect(itemByTitle(refreshed, "A").mediaType).toBe("podcast");
-      expect(itemByTitle(refreshed, "A").audioUrl).toBe("https://example.com/audio/a.mp3");
+      expect(itemByTitle(refreshed, "A").audioUrl).toBe(
+        "https://example.com/audio/a.mp3",
+      );
     });
 
     it("decodes an entity that survives the html text pass in the summary", async () => {
@@ -3201,7 +4056,10 @@ describe("FeedParser.parseFeed characterization", () => {
             image: { url: second },
           }),
         ),
-        { feedItunesImage: "https://img.example.com/first-logo.png", feedImageUrl: second },
+        {
+          feedItunesImage: "https://img.example.com/first-logo.png",
+          feedImageUrl: second,
+        },
       );
 
       expect(feed.items.map((item) => item.coverImage)).toEqual(["", ""]);

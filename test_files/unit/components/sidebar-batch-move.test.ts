@@ -1,11 +1,4 @@
-import {
-  vi,
-  describe,
-  it,
-  expect,
-  beforeEach,
-  type Mock,
-} from "vitest";
+import { vi, describe, it, expect, beforeEach, type Mock } from "vitest";
 import {
   Sidebar,
   SidebarOptions,
@@ -113,12 +106,21 @@ describe("Sidebar Batch Move (TDD)", () => {
       onToggleSidebar: vi.fn(),
     };
 
-    sidebar = new Sidebar(app, container, plugin as unknown as RssDashboardPlugin, settings, options, callbacks);
+    sidebar = new Sidebar(
+      app,
+      container,
+      plugin as unknown as RssDashboardPlugin,
+      settings,
+      options,
+      callbacks,
+    );
     sidebar.render();
   });
 
   it("dragstart on a selected feed populates feed-urls with all selected feeds", () => {
-    const feed1El = container.querySelector('[data-feed-url="https://feed1.com"]') as HTMLElement;
+    const feed1El = container.querySelector(
+      '[data-feed-url="https://feed1.com"]',
+    ) as HTMLElement;
     expect(feed1El).toBeTruthy();
 
     const dataStore: Record<string, string> = {};
@@ -136,7 +138,10 @@ describe("Sidebar Batch Move (TDD)", () => {
 
     feed1El.dispatchEvent(dragEvent);
 
-    expect(dataTransfer.setData).toHaveBeenCalledWith("feed-url", "https://feed1.com");
+    expect(dataTransfer.setData).toHaveBeenCalledWith(
+      "feed-url",
+      "https://feed1.com",
+    );
     expect(dataTransfer.setData).toHaveBeenCalledWith(
       "feed-urls",
       JSON.stringify(["https://feed1.com", "https://feed2.com"]),
@@ -145,7 +150,9 @@ describe("Sidebar Batch Move (TDD)", () => {
 
   it("dragstart on an unselected feed with active multi-selection auto-includes that feed", () => {
     // feed3 is not in options.selectedFeeds initially
-    const feed3El = container.querySelector('[data-feed-url="https://feed3.com"]') as HTMLElement;
+    const feed3El = container.querySelector(
+      '[data-feed-url="https://feed3.com"]',
+    ) as HTMLElement;
     expect(feed3El).toBeTruthy();
 
     const dataStore: Record<string, string> = {};
@@ -165,12 +172,18 @@ describe("Sidebar Batch Move (TDD)", () => {
 
     expect(dataTransfer.setData).toHaveBeenCalledWith(
       "feed-urls",
-      JSON.stringify(["https://feed1.com", "https://feed2.com", "https://feed3.com"]),
+      JSON.stringify([
+        "https://feed1.com",
+        "https://feed2.com",
+        "https://feed3.com",
+      ]),
     );
   });
 
   it("dropping multiple feeds onto a folder header moves all of them into that folder", () => {
-    const folderCEl = container.querySelector('[data-folder-path="FolderC"]') as HTMLElement;
+    const folderCEl = container.querySelector(
+      '[data-folder-path="FolderC"]',
+    ) as HTMLElement;
     expect(folderCEl).toBeTruthy();
 
     const dataTransfer = {
@@ -184,19 +197,28 @@ describe("Sidebar Batch Move (TDD)", () => {
       types: ["feed-urls", "feed-url"],
     };
 
-    const dropEvent = new Event("drop", { bubbles: true, cancelable: true }) as DragEvent;
+    const dropEvent = new Event("drop", {
+      bubbles: true,
+      cancelable: true,
+    }) as DragEvent;
     Object.defineProperty(dropEvent, "dataTransfer", { value: dataTransfer });
     Object.defineProperty(dropEvent, "clientY", { value: 100 });
 
     folderCEl.dispatchEvent(dropEvent);
 
-    expect(settings.feeds.find((f) => f.url === "https://feed1.com")?.folder).toBe("FolderC");
-    expect(settings.feeds.find((f) => f.url === "https://feed2.com")?.folder).toBe("FolderC");
+    expect(
+      settings.feeds.find((f) => f.url === "https://feed1.com")?.folder,
+    ).toBe("FolderC");
+    expect(
+      settings.feeds.find((f) => f.url === "https://feed2.com")?.folder,
+    ).toBe("FolderC");
     expect(plugin.saveSettings).toHaveBeenCalled();
   });
 
   it("falls back to the single dragged feed when the multi-feed payload is malformed", () => {
-    const folderCEl = container.querySelector('[data-folder-path="FolderC"]') as HTMLElement;
+    const folderCEl = container.querySelector(
+      '[data-folder-path="FolderC"]',
+    ) as HTMLElement;
 
     const dataTransfer = {
       getData: vi.fn((key: string) => {
@@ -207,18 +229,27 @@ describe("Sidebar Batch Move (TDD)", () => {
       types: ["feed-urls", "feed-url"],
     };
 
-    const dropEvent = new Event("drop", { bubbles: true, cancelable: true }) as DragEvent;
+    const dropEvent = new Event("drop", {
+      bubbles: true,
+      cancelable: true,
+    }) as DragEvent;
     Object.defineProperty(dropEvent, "dataTransfer", { value: dataTransfer });
     Object.defineProperty(dropEvent, "clientY", { value: 100 });
 
     folderCEl.dispatchEvent(dropEvent);
 
-    expect(settings.feeds.find((f) => f.url === "https://feed1.com")?.folder).toBe("FolderC");
-    expect(settings.feeds.find((f) => f.url === "https://feed2.com")?.folder).not.toBe("FolderC");
+    expect(
+      settings.feeds.find((f) => f.url === "https://feed1.com")?.folder,
+    ).toBe("FolderC");
+    expect(
+      settings.feeds.find((f) => f.url === "https://feed2.com")?.folder,
+    ).not.toBe("FolderC");
   });
 
   it("dropping multiple feeds onto root moves all of them to root", () => {
-    const rootSection = container.querySelector(".rss-dashboard-feed-folders-section") as HTMLElement;
+    const rootSection = container.querySelector(
+      ".rss-dashboard-feed-folders-section",
+    ) as HTMLElement;
     expect(rootSection).toBeTruthy();
 
     const dataTransfer = {
@@ -232,18 +263,27 @@ describe("Sidebar Batch Move (TDD)", () => {
       types: ["feed-urls", "feed-url"],
     };
 
-    const dropEvent = new Event("drop", { bubbles: true, cancelable: true }) as DragEvent;
+    const dropEvent = new Event("drop", {
+      bubbles: true,
+      cancelable: true,
+    }) as DragEvent;
     Object.defineProperty(dropEvent, "dataTransfer", { value: dataTransfer });
 
     rootSection.dispatchEvent(dropEvent);
 
-    expect(settings.feeds.find((f) => f.url === "https://feed1.com")?.folder).toBe("");
-    expect(settings.feeds.find((f) => f.url === "https://feed2.com")?.folder).toBe("");
+    expect(
+      settings.feeds.find((f) => f.url === "https://feed1.com")?.folder,
+    ).toBe("");
+    expect(
+      settings.feeds.find((f) => f.url === "https://feed2.com")?.folder,
+    ).toBe("");
     expect(plugin.saveSettings).toHaveBeenCalled();
   });
 
   it("dropping multiple feeds onto another feed reorders them adjacent to that feed", () => {
-    const feed3El = container.querySelector('[data-feed-url="https://feed3.com"]') as HTMLElement;
+    const feed3El = container.querySelector(
+      '[data-feed-url="https://feed3.com"]',
+    ) as HTMLElement;
     expect(feed3El).toBeTruthy();
     // feed3 is in FolderB
 
@@ -271,15 +311,22 @@ describe("Sidebar Batch Move (TDD)", () => {
       toJSON: () => {},
     });
 
-    const dropEvent = new Event("drop", { bubbles: true, cancelable: true }) as DragEvent;
+    const dropEvent = new Event("drop", {
+      bubbles: true,
+      cancelable: true,
+    }) as DragEvent;
     Object.defineProperty(dropEvent, "dataTransfer", { value: dataTransfer });
     // clientY = 110 (< 125, so 'before')
     Object.defineProperty(dropEvent, "clientY", { value: 110 });
 
     feed3El.dispatchEvent(dropEvent);
 
-    expect(settings.feeds.find((f) => f.url === "https://feed1.com")?.folder).toBe("FolderB");
-    expect(settings.feeds.find((f) => f.url === "https://feed2.com")?.folder).toBe("FolderB");
+    expect(
+      settings.feeds.find((f) => f.url === "https://feed1.com")?.folder,
+    ).toBe("FolderB");
+    expect(
+      settings.feeds.find((f) => f.url === "https://feed2.com")?.folder,
+    ).toBe("FolderB");
     const urls = settings.feeds.map((f) => f.url);
     const idx1 = urls.indexOf("https://feed1.com");
     const idx2 = urls.indexOf("https://feed2.com");
@@ -290,7 +337,9 @@ describe("Sidebar Batch Move (TDD)", () => {
   });
 
   it("dropping multiple feeds onto one of the dragged feeds is a no-op", () => {
-    const feed1El = container.querySelector('[data-feed-url="https://feed1.com"]') as HTMLElement;
+    const feed1El = container.querySelector(
+      '[data-feed-url="https://feed1.com"]',
+    ) as HTMLElement;
     expect(feed1El).toBeTruthy();
 
     const dataTransfer = {
@@ -306,7 +355,10 @@ describe("Sidebar Batch Move (TDD)", () => {
 
     const initialOrder = settings.feeds.map((f) => f.url);
 
-    const dropEvent = new Event("drop", { bubbles: true, cancelable: true }) as DragEvent;
+    const dropEvent = new Event("drop", {
+      bubbles: true,
+      cancelable: true,
+    }) as DragEvent;
     Object.defineProperty(dropEvent, "dataTransfer", { value: dataTransfer });
     Object.defineProperty(dropEvent, "clientY", { value: 110 });
 
@@ -317,7 +369,9 @@ describe("Sidebar Batch Move (TDD)", () => {
   });
 
   it("context menu on multi-selected feed includes 'Move selection to folder'", () => {
-    const feed1El = container.querySelector('[data-feed-url="https://feed1.com"]') as HTMLElement;
+    const feed1El = container.querySelector(
+      '[data-feed-url="https://feed1.com"]',
+    ) as HTMLElement;
     expect(feed1El).toBeTruthy();
 
     const contextMenuEvent = new MouseEvent("contextmenu", {
@@ -336,7 +390,9 @@ describe("Sidebar Batch Move (TDD)", () => {
   });
 
   it("clicking 'Move selection to folder' submenu item moves selection to chosen folder", () => {
-    const feed1El = container.querySelector('[data-feed-url="https://feed1.com"]') as HTMLElement;
+    const feed1El = container.querySelector(
+      '[data-feed-url="https://feed1.com"]',
+    ) as HTMLElement;
     expect(feed1El).toBeTruthy();
 
     const contextMenuEvent = new MouseEvent("contextmenu", {
@@ -357,20 +413,28 @@ describe("Sidebar Batch Move (TDD)", () => {
     moveItem?.trigger();
 
     // Now Menu.lastItems has the submenu items: Root, FolderA, FolderB, FolderC, Create new folder
-    const folderCItem = ObsidianStubs.Menu.lastItems.find((item) => item.title === "FolderC");
+    const folderCItem = ObsidianStubs.Menu.lastItems.find(
+      (item) => item.title === "FolderC",
+    );
     expect(folderCItem).toBeTruthy();
 
     // Trigger moving to FolderC
     folderCItem?.trigger();
 
-    expect(settings.feeds.find((f) => f.url === "https://feed1.com")?.folder).toBe("FolderC");
-    expect(settings.feeds.find((f) => f.url === "https://feed2.com")?.folder).toBe("FolderC");
+    expect(
+      settings.feeds.find((f) => f.url === "https://feed1.com")?.folder,
+    ).toBe("FolderC");
+    expect(
+      settings.feeds.find((f) => f.url === "https://feed2.com")?.folder,
+    ).toBe("FolderC");
     expect(plugin.saveSettings).toHaveBeenCalled();
   });
 
   it("handles mixed move of folders and feeds, reparenting folders into target", () => {
     // Select feed1 and FolderA, drop onto FolderC
-    const folderCEl = container.querySelector('[data-folder-path="FolderC"]') as HTMLElement;
+    const folderCEl = container.querySelector(
+      '[data-folder-path="FolderC"]',
+    ) as HTMLElement;
     expect(folderCEl).toBeTruthy();
 
     const dataTransfer = {
@@ -386,15 +450,22 @@ describe("Sidebar Batch Move (TDD)", () => {
       types: ["feed-urls", "folder-paths"],
     };
 
-    const dropEvent = new Event("drop", { bubbles: true, cancelable: true }) as DragEvent;
+    const dropEvent = new Event("drop", {
+      bubbles: true,
+      cancelable: true,
+    }) as DragEvent;
     Object.defineProperty(dropEvent, "dataTransfer", { value: dataTransfer });
     Object.defineProperty(dropEvent, "clientY", { value: 100 });
 
     folderCEl.dispatchEvent(dropEvent);
 
-    expect(settings.feeds.find((f) => f.url === "https://feed1.com")?.folder).toBe("FolderC");
+    expect(
+      settings.feeds.find((f) => f.url === "https://feed1.com")?.folder,
+    ).toBe("FolderC");
     const folderC = settings.folders.find((f) => f.name === "FolderC");
-    expect(folderC?.subfolders.some((sub) => sub.name === "FolderB")).toBe(true);
+    expect(folderC?.subfolders.some((sub) => sub.name === "FolderB")).toBe(
+      true,
+    );
   });
 
   it("skips circular folder nesting on mixed move but still moves feeds", () => {
@@ -403,12 +474,24 @@ describe("Sidebar Batch Move (TDD)", () => {
     folderA?.subfolders.push({ name: "SubA", subfolders: [] });
 
     // Call batchMoveFeedsAndFoldersToFolder directly to test circular nesting protection
-    (sidebar as unknown as {
-      batchMoveFeedsAndFoldersToFolder: (dest: string, feeds: string[], folders: string[]) => void;
-    }).batchMoveFeedsAndFoldersToFolder("FolderA/SubA", ["https://feed1.com"], ["FolderA"]);
+    (
+      sidebar as unknown as {
+        batchMoveFeedsAndFoldersToFolder: (
+          dest: string,
+          feeds: string[],
+          folders: string[],
+        ) => void;
+      }
+    ).batchMoveFeedsAndFoldersToFolder(
+      "FolderA/SubA",
+      ["https://feed1.com"],
+      ["FolderA"],
+    );
 
     // feed1 moved to FolderA/SubA
-    expect(settings.feeds.find((f) => f.url === "https://feed1.com")?.folder).toBe("FolderA/SubA");
+    expect(
+      settings.feeds.find((f) => f.url === "https://feed1.com")?.folder,
+    ).toBe("FolderA/SubA");
     // FolderA was NOT nested into itself/descendant
     expect(settings.folders.some((f) => f.name === "FolderA")).toBe(true);
   });

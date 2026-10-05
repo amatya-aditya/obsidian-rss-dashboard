@@ -75,7 +75,10 @@ describe("optimizeImageUrl host handling", () => {
 
     it("handles http, an explicit port, and a fragment", () => {
       expect(
-        optimizeImageUrl("http://i0.wp.com:8080/example.com/pic.jpg?h=5#f", 300),
+        optimizeImageUrl(
+          "http://i0.wp.com:8080/example.com/pic.jpg?h=5#f",
+          300,
+        ),
       ).toBe("http://i0.wp.com:8080/example.com/pic.jpg?w=300#f");
     });
 
@@ -108,7 +111,9 @@ describe("optimizeImageUrl host handling", () => {
           "https://cloudinary.com/demo/image/upload/v1/pic.jpg",
           300,
         ),
-      ).toBe("https://cloudinary.com/demo/image/upload/w_300,c_scale/v1/pic.jpg");
+      ).toBe(
+        "https://cloudinary.com/demo/image/upload/w_300,c_scale/v1/pic.jpg",
+      );
     });
 
     it("inserts the width transform on a subdomain", () => {

@@ -1,9 +1,4 @@
-import {
-  App,
-  normalizePath,
-  requestUrl,
-  type PluginManifest,
-} from "obsidian";
+import { App, normalizePath, requestUrl, type PluginManifest } from "obsidian";
 import {
   DEFAULT_SETTINGS,
   IMAGE_CACHE_LIMIT_MAX_MIB,

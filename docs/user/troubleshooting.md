@@ -9,6 +9,7 @@ Common issues and solutions for RSS Dashboard.
 **Problem:** A feed appears in your list but articles don't load or update.
 
 **Solutions:**
+
 1. Check that the feed URL is correct and accessible
 2. Try refreshing the feed manually (use the refresh icon or command palette)
 3. Some feeds require authentication—verify the URL is for a public feed
@@ -20,6 +21,7 @@ Common issues and solutions for RSS Dashboard.
 **Problem:** You get an error when trying to add a feed.
 
 **Solutions:**
+
 1. Verify the URL starts with `http://` or `https://`
 2. Make sure the URL is actually a valid feed URL (RSS, Atom, JSON)
 3. Try pasting the website URL instead; RSS Dashboard will attempt to auto-discover the feed
@@ -30,6 +32,7 @@ Common issues and solutions for RSS Dashboard.
 **Problem:** "Feed URL is malformed" when using URI subscription.
 
 **Solutions:**
+
 1. Ensure the feed URL is properly URL-encoded (spaces → %20, etc.)
 2. Use this URI format: `obsidian://rss-dashboard?action=add-feed&url=<encoded-url>`
 3. Test the URL in a browser first to confirm it's accessible
@@ -41,6 +44,7 @@ Common issues and solutions for RSS Dashboard.
 **Problem:** YouTube channel/playlist feeds aren't loading content.
 
 **Solutions:**
+
 1. Verify you're using a valid YouTube channel, user, or playlist URL
 2. Try using the channel ID instead of a custom vanity URL
 3. Some channels have disabled RSS feeds—check the channel settings
@@ -52,6 +56,7 @@ Common issues and solutions for RSS Dashboard.
 **Problem:** Embedded YouTube videos don't play in the reader.
 
 **Solutions:**
+
 1. Check your internet connection
 2. YouTube embeds use Privacy Enhanced Mode—ensure you're not blocking `youtube-nocookie.com`
 3. Try clicking the "Watch on YouTube" link to open in your browser
@@ -64,6 +69,7 @@ Common issues and solutions for RSS Dashboard.
 **Problem:** Podcast episodes don't play or audio is silent.
 
 **Solutions:**
+
 1. Verify the audio URL is accessible (try opening it in a browser)
 2. Some podcasts require authentication—check if the feed needs login info
 3. Your browser or Obsidian may be blocking audio—check security settings
@@ -75,6 +81,7 @@ Common issues and solutions for RSS Dashboard.
 **Problem:** Videos or podcasts buffer or play slowly.
 
 **Solutions:**
+
 1. Check your internet connection speed
 2. Try pausing and resuming playback
 3. Lower video quality if available
@@ -88,6 +95,7 @@ Common issues and solutions for RSS Dashboard.
 **Problem:** Feeds vanish when syncing to a new device.
 
 **Solutions:**
+
 1. **Most common cause:** The plugin loaded before Obsidian Sync finished pulling data
    - On new devices: Wait for "Fully synced" message before enabling the plugin
    - Re-disable the plugin, wait 2 minutes, then re-enable it
@@ -101,6 +109,7 @@ Common issues and solutions for RSS Dashboard.
 **Problem:** "Folder names must match" error or data not syncing.
 
 **Solutions:**
+
 1. Check that storage folder names are identical on all devices
 2. Avoid folder names starting with `.` (these are hidden)
 3. Ensure the metadata storage location also uses the same folder naming
@@ -116,6 +125,7 @@ Can't find a solution? Try these resources:
 - **[Documentation Hub](../README.md)** — All available guides and references
 
 When reporting an issue, include:
+
 - RSS Dashboard version (from Settings)
 - Operating system
 - The specific error message

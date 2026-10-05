@@ -6,7 +6,11 @@ function compareVersions(left, right) {
   const leftParts = left.split(".").map(Number);
   const rightParts = right.split(".").map(Number);
 
-  for (let index = 0; index < Math.max(leftParts.length, rightParts.length); index += 1) {
+  for (
+    let index = 0;
+    index < Math.max(leftParts.length, rightParts.length);
+    index += 1
+  ) {
     const difference = (leftParts[index] ?? 0) - (rightParts[index] ?? 0);
     if (difference !== 0) {
       return difference;
@@ -30,13 +34,17 @@ function comparePluginVersions(left, right) {
   if (rightPrerelease === undefined) {
     return -1;
   }
-  return leftPrerelease.localeCompare(rightPrerelease, undefined, { numeric: true });
+  return leftPrerelease.localeCompare(rightPrerelease, undefined, {
+    numeric: true,
+  });
 }
 
 export function findReleaseCompatibilityViolations(manifest, versions) {
   const violations = [];
 
-  if (compareVersions(manifest.minAppVersion, MINIMUM_SUPPORTED_APP_VERSION) < 0) {
+  if (
+    compareVersions(manifest.minAppVersion, MINIMUM_SUPPORTED_APP_VERSION) < 0
+  ) {
     violations.push({
       rule: "manifest-support-floor",
       version: manifest.version,
@@ -58,11 +66,14 @@ export function findReleaseCompatibilityViolations(manifest, versions) {
     violations.push({
       rule: "current-release-mapping",
       version: manifest.version,
-      message: "The current manifest version must have a matching versions.json entry.",
+      message:
+        "The current manifest version must have a matching versions.json entry.",
     });
   }
 
-  const latestVersion = Object.keys(versions).toSorted(comparePluginVersions).at(-1);
+  const latestVersion = Object.keys(versions)
+    .toSorted(comparePluginVersions)
+    .at(-1);
   if (latestVersion !== manifest.version) {
     violations.push({
       rule: "current-release-version",
@@ -75,8 +86,9 @@ export function findReleaseCompatibilityViolations(manifest, versions) {
 }
 
 /**
- * Obsidian's community directory reads manifest.json from the default branch,
- * so dev and master must advertise a shipped stable version. A pre-release
+ * Obsidian's community directory reads manifest.json and the source from the
+ * default branch (master), so dev and master must advertise a shipped stable
+ * version. A pre-release
  * version there delists the plugin (#529). Beta bumps belong on release/x.x.x.
  */
 export function findStableBranchViolations(manifest) {

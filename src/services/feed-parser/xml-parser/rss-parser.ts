@@ -1,15 +1,18 @@
 import type { ParsedFeed, ParsedItem } from "../types.js";
 
 export interface RssParserDeps {
+  getDirectChild: (element: Element, tagName: string) => Element | null;
   getTextContent: (
     element: Element | null,
     tagName: string,
     isHtml?: boolean,
+    directChildOnly?: boolean,
   ) => string;
   getAttribute: (
     element: Element | null,
     tagName: string,
     attribute: string,
+    directChildOnly?: boolean,
   ) => string;
   getMediaImageUrl: (item: Element) => string;
   getMediaContentType: (item: Element) => string;
@@ -23,23 +26,23 @@ export function parseRSS(doc: Document, deps: RssParserDeps): ParsedFeed {
   const channel = doc.querySelector("channel");
   if (!channel) throw new Error("Invalid rss feed: no channel element found");
 
-  const title = deps.getTextContent(channel, "title");
+  const title = deps.getTextContent(channel, "title", false, true);
 
-  const description = deps.getTextContent(channel, "description");
-  const link = deps.getTextContent(channel, "link");
+  const description = deps.getTextContent(channel, "description", false, true);
+  const link = deps.getTextContent(channel, "link", false, true);
 
   const author =
-    deps.getTextContent(channel, "author") ||
-    deps.getTextContent(channel, "dc:creator");
+    deps.getTextContent(channel, "author", false, true) ||
+    deps.getTextContent(channel, "dc:creator", false, true);
 
-  const imageElement = channel.querySelector("image");
+  const imageElement = deps.getDirectChild(channel, "image");
   const image = imageElement
     ? { url: deps.getTextContent(imageElement, "url") }
     : undefined;
 
   const feedItunesImage =
-    deps.getAttribute(channel, "itunes:image", "href") ||
-    deps.getAttribute(channel, "itunes\\:image", "href");
+    deps.getAttribute(channel, "itunes:image", "href", true) ||
+    deps.getAttribute(channel, "itunes\\:image", "href", true);
   const itunesImage = feedItunesImage ? { url: feedItunesImage } : undefined;
   const feedImageUrl = imageElement
     ? deps.getTextContent(imageElement, "url")
@@ -77,13 +80,7 @@ export function parseRSS(doc: Document, deps: RssParserDeps): ParsedFeed {
     const authors = deps.getTextContent(item, "authors");
 
     const ieee =
-      pubYear ||
-      volume ||
-      issue ||
-      startPage ||
-      endPage ||
-      fileSize ||
-      authors
+      pubYear || volume || issue || startPage || endPage || fileSize || authors
         ? {
             pubYear,
             volume,
@@ -190,15 +187,15 @@ export function parseRSS1(doc: Document, deps: RssParserDeps): ParsedFeed {
   if (!channel)
     throw new Error("Invalid rss 1.0 feed: no channel element found");
 
-  const title = deps.getTextContent(channel, "title");
-  const description = deps.getTextContent(channel, "description");
-  const link = deps.getTextContent(channel, "link");
+  const title = deps.getTextContent(channel, "title", false, true);
+  const description = deps.getTextContent(channel, "description", false, true);
+  const link = deps.getTextContent(channel, "link", false, true);
   const author =
-    deps.getTextContent(channel, "dc:creator") ||
-    deps.getTextContent(channel, "dc:publisher");
+    deps.getTextContent(channel, "dc:creator", false, true) ||
+    deps.getTextContent(channel, "dc:publisher", false, true);
 
   let image: { url: string } | undefined;
-  const imageRef = channel.querySelector("image");
+  const imageRef = deps.getDirectChild(channel, "image");
   if (imageRef) {
     const imageResource = imageRef.getAttribute("rdf:resource");
     if (imageResource) {

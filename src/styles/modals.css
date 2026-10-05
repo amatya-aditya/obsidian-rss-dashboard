@@ -287,6 +287,13 @@ body .rss-folder-name-modal-input.rss-folder-name-modal-input-error {
   background: var(--interactive-accent-hover, #217dbb);
 }
 
+.rss-dashboard-custom-save-modal label {
+  display: block;
+}
+.rss-dashboard-custom-save-modal textarea {
+  display: block;
+  width: 100%;
+}
 /* Keep Save Article actions visually distinct without changing other modals. */
 .rss-dashboard-custom-save-modal .rss-dashboard-custom-save-cancel-button,
 .rss-dashboard-custom-save-modal .rss-dashboard-custom-save-template-button,
@@ -314,11 +321,13 @@ body .rss-folder-name-modal-input.rss-folder-name-modal-input-error {
   );
   color: var(--text-accent);
 }
-.rss-dashboard-custom-save-modal .rss-dashboard-custom-save-cancel-button:hover {
+.rss-dashboard-custom-save-modal
+  .rss-dashboard-custom-save-cancel-button:hover {
   border-color: var(--interactive-accent);
   background: var(--background-modifier-hover);
 }
-.rss-dashboard-custom-save-modal .rss-dashboard-custom-save-template-button:hover {
+.rss-dashboard-custom-save-modal
+  .rss-dashboard-custom-save-template-button:hover {
   border-color: var(--interactive-accent-hover);
   background: color-mix(
     in srgb,
@@ -328,20 +337,77 @@ body .rss-folder-name-modal-input.rss-folder-name-modal-input-error {
   box-shadow: 0 2px 10px
     color-mix(in srgb, var(--interactive-accent) 45%, transparent);
 }
-.rss-dashboard-custom-save-modal .rss-dashboard-custom-save-confirm-button:hover {
+.rss-dashboard-custom-save-modal
+  .rss-dashboard-custom-save-confirm-button:hover {
   box-shadow: 0 2px 8px
     color-mix(in srgb, var(--interactive-accent) 35%, transparent);
 }
-.rss-dashboard-custom-save-modal .rss-dashboard-custom-save-cancel-button:active,
-.rss-dashboard-custom-save-modal .rss-dashboard-custom-save-template-button:active,
-.rss-dashboard-custom-save-modal .rss-dashboard-custom-save-confirm-button:active {
+.rss-dashboard-custom-save-modal .rss-dashboard-custom-save-confirm-button {
+  border: 1px solid var(--background-modifier-border);
+}
+.rss-dashboard-custom-save-modal
+  .rss-dashboard-custom-save-cancel-button:active,
+.rss-dashboard-custom-save-modal
+  .rss-dashboard-custom-save-template-button:active,
+.rss-dashboard-custom-save-modal
+  .rss-dashboard-custom-save-confirm-button:active {
   transform: translateY(1px);
 }
-.rss-dashboard-custom-save-modal .rss-dashboard-custom-save-cancel-button:focus-visible,
-.rss-dashboard-custom-save-modal .rss-dashboard-custom-save-template-button:focus-visible,
-.rss-dashboard-custom-save-modal .rss-dashboard-custom-save-confirm-button:focus-visible {
+.rss-dashboard-custom-save-modal
+  .rss-dashboard-custom-save-cancel-button:focus-visible,
+.rss-dashboard-custom-save-modal
+  .rss-dashboard-custom-save-template-button:focus-visible,
+.rss-dashboard-custom-save-modal
+  .rss-dashboard-custom-save-confirm-button:focus-visible {
   outline: 2px solid var(--interactive-accent);
   outline-offset: 2px;
+}
+.rss-dashboard-custom-save-modal
+  .rss-dashboard-folder-input-container
+  input:focus-visible,
+.rss-dashboard-custom-save-modal textarea:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 2px;
+}
+
+.rss-dashboard-custom-save-modal label {
+  display: block;
+}
+.rss-dashboard-custom-save-modal .rss-dashboard-folder-input-container input {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+.rss-dashboard-custom-save-modal textarea {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+}
+.rss-dashboard-custom-save-modal .rss-dashboard-modal-buttons {
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.rss-dashboard-custom-save-modal .rss-dashboard-modal-buttons button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  width: auto;
+  max-width: 100%;
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.rss-dashboard-custom-save-modal .rss-dashboard-custom-save-button-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+}
+.rss-dashboard-custom-save-modal .rss-dashboard-custom-save-button-icon svg {
+  width: var(--icon-size, 1em);
+  height: var(--icon-size, 1em);
 }
 
 /* Obsidian modal containers form their own stacking contexts. */
@@ -1094,7 +1160,9 @@ body .modal.rss-mobile-discover-filters-modal .rss-dashboard-sidebar {
     padding-bottom: 10px;
   }
   /* Ensure all-feeds-icon spinner animation works in mobile modal context */
-  .modal.rss-mobile-navigation-modal .rss-dashboard-all-feeds-icon.refreshing svg {
+  .modal.rss-mobile-navigation-modal
+    .rss-dashboard-all-feeds-icon.refreshing
+    svg {
     animation: spin 1s linear infinite;
     -webkit-animation: spin 1s linear infinite;
     transform-box: fill-box;

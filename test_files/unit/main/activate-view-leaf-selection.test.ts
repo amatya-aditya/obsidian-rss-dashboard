@@ -81,7 +81,9 @@ interface TestPlugin {
   loadData: Mock<() => Promise<any>>;
   saveData: Mock<() => Promise<void>>;
   registerView: Mock<(type: string, viewCreator: (leaf: any) => any) => void>;
-  addRibbonIcon: Mock<(icon: string, title: string, callback: (evt: any) => any) => any>;
+  addRibbonIcon: Mock<
+    (icon: string, title: string, callback: (evt: any) => any) => any
+  >;
   addCommand: Mock<(command: any) => void>;
   addSettingTab: Mock<(settingTab: any) => void>;
   registerInterval: Mock<(id: number) => number>;

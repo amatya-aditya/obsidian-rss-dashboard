@@ -61,7 +61,7 @@ function makeFeed(overrides?: Partial<Feed>): Feed {
 }
 
 function makeItem(overrides?: Partial<FeedItem>): FeedItem {
-  return { ...(makeFeed().items[0]), ...overrides };
+  return { ...makeFeed().items[0], ...overrides };
 }
 
 describe("FeedStorageRepository", () => {
@@ -72,7 +72,9 @@ describe("FeedStorageRepository", () => {
   beforeEach(() => {
     app = App.createMock();
     repository = new FeedStorageRepository(app);
-    saveData = vi.fn<(...args: unknown[]) => Promise<void>>().mockResolvedValue(undefined);
+    saveData = vi
+      .fn<(...args: unknown[]) => Promise<void>>()
+      .mockResolvedValue(undefined);
   });
 
   it("returns data.json as the feed local address in legacy mode", () => {
@@ -271,16 +273,18 @@ describe("FeedStorageRepository", () => {
     await repository.persistSettings(settings, saveData);
 
     expect(repository.getFeedShardHealth(feed)).toBe("rebuilt");
-    expect(await vaultAdapter(app).read("RSS Data/Feeds/feed-1.json")).toContain(
-      "Article 1",
-    );
+    expect(
+      await vaultAdapter(app).read("RSS Data/Feeds/feed-1.json"),
+    ).toContain("Article 1");
   });
 
   describe("shards that have not arrived yet (sync still pending)", () => {
     function adapterHas(path: string): Promise<boolean> {
-      return (app.vault.adapter as unknown as {
-        exists(path: string): Promise<boolean>;
-      }).exists(path);
+      return (
+        app.vault.adapter as unknown as {
+          exists(path: string): Promise<boolean>;
+        }
+      ).exists(path);
     }
 
     it("does not create an empty shard for a feed whose shard was missing at startup", async () => {
@@ -314,7 +318,10 @@ describe("FeedStorageRepository", () => {
         items: [makeItem()],
       });
       await app.vault.createFolder("RSS Data/Feeds");
-      await vaultAdapter(app).write("RSS Data/Feeds/feed-1.json", deliveredShard);
+      await vaultAdapter(app).write(
+        "RSS Data/Feeds/feed-1.json",
+        deliveredShard,
+      );
 
       await repository.persistSettings(settings, saveData);
 
@@ -337,7 +344,10 @@ describe("FeedStorageRepository", () => {
         feedId: "feed-1",
         feedUrl: "https://example.com/feed.xml",
         updatedAt: Date.now(),
-        items: [makeItem(), makeItem({ guid: "newer", title: "Newer article" })],
+        items: [
+          makeItem(),
+          makeItem({ guid: "newer", title: "Newer article" }),
+        ],
       });
       await vaultAdapter(app).write("RSS Data/Feeds/feed-1.json", newerShard);
 
@@ -354,7 +364,10 @@ describe("FeedStorageRepository", () => {
       settings.storageMode = "vault-shards";
       settings.storageFolder = "RSS Data/Feeds";
       const unloaded = makeFeed({ feedId: "feed-1", items: [] });
-      const loaded = makeFeed({ feedId: "feed-2", url: "https://example.com/two.xml" });
+      const loaded = makeFeed({
+        feedId: "feed-2",
+        url: "https://example.com/two.xml",
+      });
       settings.feeds = [unloaded, loaded];
       await app.vault.createFolder("RSS Data/Feeds");
       await vaultAdapter(app).write(
@@ -379,7 +392,11 @@ describe("FeedStorageRepository", () => {
         makeItem(),
         makeItem({ guid: "second", title: "Article 2" }),
       ];
-      const shrinking = makeFeed({ feedId: "feed-2", title: "Shrinking", items: twoArticles });
+      const shrinking = makeFeed({
+        feedId: "feed-2",
+        title: "Shrinking",
+        items: twoArticles,
+      });
       settings.feeds = [
         makeFeed({ feedId: "feed-1", title: "Unloaded", items: [] }),
         shrinking,
@@ -388,12 +405,14 @@ describe("FeedStorageRepository", () => {
         forceAllShards: true,
         forceMetadata: true,
       });
-      await (app.vault.adapter as unknown as { remove(path: string): Promise<void> }).remove(
-        "RSS Data/Feeds/feed-1.json",
-      );
+      await (
+        app.vault.adapter as unknown as { remove(path: string): Promise<void> }
+      ).remove("RSS Data/Feeds/feed-1.json");
       await repository.hydrateSettings(settings);
       shrinking.items = twoArticles.slice(0, 1);
-      const shardBefore = await vaultAdapter(app).read("RSS Data/Feeds/feed-2.json");
+      const shardBefore = await vaultAdapter(app).read(
+        "RSS Data/Feeds/feed-2.json",
+      );
 
       const preview = await repository.previewRepairVaultShards(settings);
 
@@ -436,7 +455,9 @@ describe("FeedStorageRepository", () => {
       settings.feeds = [makeFeed({ feedId: "feed-1", items: [] })];
 
       await repository.hydrateSettings(settings);
-      await repository.persistSettings(settings, saveData, { forceMetadata: true });
+      await repository.persistSettings(settings, saveData, {
+        forceMetadata: true,
+      });
 
       expect(await adapterHas("RSS Data/user-state.json")).toBe(false);
     });
@@ -498,17 +519,19 @@ describe("FeedStorageRepository", () => {
       forceAllShards: true,
       forceMetadata: true,
     });
-    await (app.vault.adapter as unknown as { remove(path: string): Promise<void> }).remove(
-      "RSS Data/Feeds/feed-1.json",
-    );
+    await (
+      app.vault.adapter as unknown as { remove(path: string): Promise<void> }
+    ).remove("RSS Data/Feeds/feed-1.json");
 
     const result = await repository.persistSettings(settings, saveData);
 
     expect(result.shardWriteCount).toBe(1);
     expect(
-      await (app.vault.adapter as unknown as {
-        exists(path: string): Promise<boolean>;
-      }).exists("RSS Data/Feeds/feed-1.json"),
+      await (
+        app.vault.adapter as unknown as {
+          exists(path: string): Promise<boolean>;
+        }
+      ).exists("RSS Data/Feeds/feed-1.json"),
     ).toBe(true);
   });
 
@@ -527,9 +550,9 @@ describe("FeedStorageRepository", () => {
     const result = await repository.persistSettings(settings, saveData);
 
     expect(result.shardWriteCount).toBe(1);
-    expect(await vaultAdapter(app).read("RSS Data/Feeds/feed-1.json")).toContain(
-      "\"feedId\": \"feed-1\"",
-    );
+    expect(
+      await vaultAdapter(app).read("RSS Data/Feeds/feed-1.json"),
+    ).toContain('"feedId": "feed-1"');
     expect(repository.getFeedShardHealth(settings.feeds[0])).toBe("rebuilt");
   });
 
@@ -568,9 +591,9 @@ describe("FeedStorageRepository", () => {
 
     expect(settings.storageMode).toBe("vault-shards");
     expect(app.vault.getAbstractFileByPath("RSS Data/Feeds")).toBeTruthy();
-    expect(await vaultAdapter(app).read("RSS Data/Feeds/feed-1.json")).toContain(
-      '"feedId": "feed-1"',
-    );
+    expect(
+      await vaultAdapter(app).read("RSS Data/Feeds/feed-1.json"),
+    ).toContain('"feedId": "feed-1"');
   });
 
   it("continues migration when createFolder throws but the folder exists afterward", async () => {
@@ -591,9 +614,9 @@ describe("FeedStorageRepository", () => {
 
     expect(createFolderSpy).toHaveBeenCalledWith("RSS Data/Feeds");
     expect(settings.storageMode).toBe("vault-shards");
-    expect(await vaultAdapter(app).read("RSS Data/Feeds/feed-1.json")).toContain(
-      '"feedId": "feed-1"',
-    );
+    expect(
+      await vaultAdapter(app).read("RSS Data/Feeds/feed-1.json"),
+    ).toContain('"feedId": "feed-1"');
   });
 
   it("continues migration when the adapter sees the folder but the vault cache does not", async () => {
@@ -623,7 +646,9 @@ describe("FeedStorageRepository", () => {
     await app.vault.createFolder("RSS Data");
     await app.vault.create("RSS Data/Feeds", "not a folder");
 
-    await expect(repository.migrateToVaultShards(settings, saveData)).rejects.toThrow(
+    await expect(
+      repository.migrateToVaultShards(settings, saveData),
+    ).rejects.toThrow(
       "Storage path points to a file, not a folder: RSS Data/Feeds",
     );
     expect(settings.storageMode).toBe("legacy-json");
@@ -635,11 +660,13 @@ describe("FeedStorageRepository", () => {
     settings.storageFolder = "RSS Data/Feeds";
     settings.feeds = [makeFeed({ feedId: "feed-1" })];
 
-    vi.spyOn(app.vault, "createFolder").mockRejectedValueOnce(new Error("Disk full"));
-
-    await expect(repository.migrateToVaultShards(settings, saveData)).rejects.toThrow(
-      "Disk full",
+    vi.spyOn(app.vault, "createFolder").mockRejectedValueOnce(
+      new Error("Disk full"),
     );
+
+    await expect(
+      repository.migrateToVaultShards(settings, saveData),
+    ).rejects.toThrow("Disk full");
 
     expect(settings.storageMode).toBe("legacy-json");
     expect(saveData).not.toHaveBeenCalled();
@@ -656,7 +683,9 @@ describe("FeedStorageRepository", () => {
     await repository.repairVaultShards(settings, saveData);
     saveData.mockClear();
 
-    await expect(repository.repairVaultShards(settings, saveData)).resolves.toEqual({
+    await expect(
+      repository.repairVaultShards(settings, saveData),
+    ).resolves.toEqual({
       skippedFeedCount: 0,
     });
     expect(saveData).toHaveBeenCalledTimes(1);
@@ -669,15 +698,15 @@ describe("FeedStorageRepository", () => {
     settings.feeds = [makeFeed({ feedId: "feed-1" })];
 
     await app.vault.createFolder("RSS Data/Feeds");
-    await app.vault.create("RSS Data/Feeds/feed-1.json", "{\"items\":[]}");
+    await app.vault.create("RSS Data/Feeds/feed-1.json", '{"items":[]}');
 
     await repository.revertToLegacyJson(settings, saveData);
 
     expect(settings.storageMode).toBe("legacy-json");
     expect(app.vault.getAbstractFileByPath("RSS Data/Feeds")).toBeTruthy();
-    expect(await vaultAdapter(app).read("RSS Data/Feeds/feed-1.json")).toContain(
-      "\"items\":[]",
-    );
+    expect(
+      await vaultAdapter(app).read("RSS Data/Feeds/feed-1.json"),
+    ).toContain('"items":[]');
   });
 
   it("deletes the shard folder when revert is requested with cleanup enabled", async () => {
@@ -687,8 +716,8 @@ describe("FeedStorageRepository", () => {
     settings.feeds = [makeFeed({ feedId: "feed-1" })];
 
     await app.vault.createFolder("RSS Data/Feeds/Nested");
-    await app.vault.create("RSS Data/Feeds/feed-1.json", "{\"items\":[]}");
-    await app.vault.create("RSS Data/Feeds/Nested/feed-2.json", "{\"items\":[]}");
+    await app.vault.create("RSS Data/Feeds/feed-1.json", '{"items":[]}');
+    await app.vault.create("RSS Data/Feeds/Nested/feed-2.json", '{"items":[]}');
 
     const rootFolder = app.vault.getAbstractFileByPath("RSS Data/Feeds");
     expect(rootFolder).toBeTruthy();
@@ -707,16 +736,18 @@ describe("FeedStorageRepository", () => {
     settings.storageFolder = "RSS Data/Feeds";
     settings.feeds = [makeFeed({ feedId: "feed-1" })];
     await app.vault.createFolder("RSS Data/Feeds");
-    await app.vault.create("RSS Data/Feeds/feed-1.json", "{\"items\":[]}");
+    await app.vault.create("RSS Data/Feeds/feed-1.json", '{"items":[]}');
 
     await repository.revertToLegacyJson(settings, saveData, {
       deleteShardFolder: true,
     });
 
     expect(
-      await (app.vault.adapter as unknown as {
-        exists(path: string): Promise<boolean>;
-      }).exists("RSS Data"),
+      await (
+        app.vault.adapter as unknown as {
+          exists(path: string): Promise<boolean>;
+        }
+      ).exists("RSS Data"),
     ).toBe(false);
   });
 
@@ -728,20 +759,26 @@ describe("FeedStorageRepository", () => {
 
     await app.vault.createFolder("RSS Data/Feeds");
     vi.spyOn(app.vault.adapter, "rmdir").mockResolvedValueOnce(undefined);
-    const adapterWithExists2 = app.vault.adapter as unknown as { exists: (p: string) => Promise<boolean> };
-    vi.spyOn(adapterWithExists2, "exists").mockImplementation((path: string) => {
-      if (path === "RSS Data/Feeds") {
-        return Promise.resolve(true);
-      }
+    const adapterWithExists2 = app.vault.adapter as unknown as {
+      exists: (p: string) => Promise<boolean>;
+    };
+    vi.spyOn(adapterWithExists2, "exists").mockImplementation(
+      (path: string) => {
+        if (path === "RSS Data/Feeds") {
+          return Promise.resolve(true);
+        }
 
-      return Promise.resolve(false);
-    });
+        return Promise.resolve(false);
+      },
+    );
 
     await expect(
       repository.revertToLegacyJson(settings, saveData, {
         deleteShardFolder: true,
       }),
-    ).rejects.toThrow("Shard folder still exists after delete attempt: RSS Data/Feeds");
+    ).rejects.toThrow(
+      "Shard folder still exists after delete attempt: RSS Data/Feeds",
+    );
 
     expect(settings.storageMode).toBe("vault-shards");
     expect(saveData).not.toHaveBeenCalled();
@@ -1358,7 +1395,9 @@ describe("findOrphanedUserState", () => {
     settings.metadataStorageFolder = ".rss-dashboard-data";
     stubExists(true);
 
-    await expect(repository.findOrphanedUserState(settings)).resolves.toBeNull();
+    await expect(
+      repository.findOrphanedUserState(settings),
+    ).resolves.toBeNull();
   });
 
   it("reports the leftover file after reverting to legacy JSON", async () => {
@@ -1389,7 +1428,9 @@ describe("findOrphanedUserState", () => {
     settings.metadataStorageFolder = ".rss-dashboard-data";
     stubExists(false);
 
-    await expect(repository.findOrphanedUserState(settings)).resolves.toBeNull();
+    await expect(
+      repository.findOrphanedUserState(settings),
+    ).resolves.toBeNull();
   });
 
   it("falls back to the default metadata folder when none is configured", async () => {
@@ -1784,9 +1825,9 @@ describe("shard storage v2 user-state.json persistence (issue #278)", () => {
     item.read = false;
     await repository.persistSettings(settings, saveData);
 
-    expect(
-      (await readUserState()).states["feed-1:guid-toggle"].read,
-    ).toBe(false);
+    expect((await readUserState()).states["feed-1:guid-toggle"].read).toBe(
+      false,
+    );
 
     // A fresh repository stands in for a restart: nothing is remembered but
     // what was written to the vault.
@@ -1855,9 +1896,7 @@ describe("shard storage v2 user-state.json persistence (issue #278)", () => {
     reloaded.feeds = [makeFeed({ feedId: "feed-1", items: [] })];
     await restarted.hydrateSettings(reloaded);
 
-    expect(reloaded.feeds[0].items[0].guid).toBe(
-      "guid-star-tag-independence",
-    );
+    expect(reloaded.feeds[0].items[0].guid).toBe("guid-star-tag-independence");
     expect(reloaded.feeds[0].items[0].starred).toBe(false);
     expect(reloaded.feeds[0].items[0].tags).toEqual([
       { name: "Favorite", color: "#111111" },
@@ -1888,7 +1927,9 @@ describe("shard storage v2 user-state.json persistence (issue #278)", () => {
 
       const written = await readUserState();
       expect(written.states["feed-kept:guid-1"]).toEqual({ starred: true });
-      expect(written.states["feed-elsewhere:guid-1"]).toEqual({ starred: true });
+      expect(written.states["feed-elsewhere:guid-1"]).toEqual({
+        starred: true,
+      });
     });
 
     it("never lets two devices with different feed lists erase each other's state", async () => {
@@ -1936,16 +1977,20 @@ describe("shard storage v2 user-state.json persistence (issue #278)", () => {
       ];
       await repository.persistSettings(settings, saveData);
 
-      settings.feeds = settings.feeds.filter((f) => f.feedId !== "feed-removed");
+      settings.feeds = settings.feeds.filter(
+        (f) => f.feedId !== "feed-removed",
+      );
       await repository.persistSettings(settings, saveData);
 
       const written = await readUserState();
       expect(written.states["feed-kept:kept-guid"]?.starred).toBe(true);
       expect(written.states["feed-removed:removed-guid"]).toBeUndefined();
       expect(
-        await (app.vault.adapter as unknown as {
-          exists: (path: string) => Promise<boolean>;
-        }).exists(".rss-dashboard-data/feeds/feed-removed.json"),
+        await (
+          app.vault.adapter as unknown as {
+            exists: (path: string) => Promise<boolean>;
+          }
+        ).exists(".rss-dashboard-data/feeds/feed-removed.json"),
       ).toBe(false);
     });
 
@@ -2071,9 +2116,11 @@ describe("shard storage v2 user-state.json persistence (issue #278)", () => {
         const written = await readUserState();
         expect(written.states["feed-c:feed-c-guid"]?.starred).toBe(true);
         expect(
-          await (app.vault.adapter as unknown as {
-            exists: (path: string) => Promise<boolean>;
-          }).exists(".rss-dashboard-data/feeds/feed-c.json"),
+          await (
+            app.vault.adapter as unknown as {
+              exists: (path: string) => Promise<boolean>;
+            }
+          ).exists(".rss-dashboard-data/feeds/feed-c.json"),
         ).toBe(false);
       });
 
@@ -2145,9 +2192,9 @@ describe("shard storage v2 user-state.json persistence (issue #278)", () => {
         await repository.persistSettings(settings, saveData);
         vi.spyOn(Date, "now").mockReturnValue(baseTime + horizon - 1);
         await repository.persistSettings(settings, saveData);
-        expect(
-          (await readUserState()).states["feed-elsewhere:guid-1"],
-        ).toEqual({ starred: true });
+        expect((await readUserState()).states["feed-elsewhere:guid-1"]).toEqual(
+          { starred: true },
+        );
 
         vi.spyOn(Date, "now").mockReturnValue(baseTime + horizon);
         await repository.persistSettings(settings, saveData);
@@ -2176,7 +2223,9 @@ describe("shard storage v2 user-state.json persistence (issue #278)", () => {
         await repository.hydrateSettings(arrived);
         await repository.persistSettings(arrived, saveData);
         let written = await readUserState();
-        expect(written.states["feed-arriving:guid-1"]).toEqual({ starred: true });
+        expect(written.states["feed-arriving:guid-1"]).toEqual({
+          starred: true,
+        });
         expect(written.unrecognizedFeedSinceByFeedId).toBeUndefined();
 
         // A later reload drops it again: a fresh 90-day clock, not the old one.
@@ -2188,7 +2237,9 @@ describe("shard storage v2 user-state.json persistence (issue #278)", () => {
         await repository.persistSettings(dropped, saveData);
 
         written = await readUserState();
-        expect(written.states["feed-arriving:guid-1"]).toEqual({ starred: true });
+        expect(written.states["feed-arriving:guid-1"]).toEqual({
+          starred: true,
+        });
         expect(written.unrecognizedFeedSinceByFeedId?.["feed-arriving"]).toBe(
           later,
         );
@@ -2210,7 +2261,9 @@ describe("shard storage v2 user-state.json persistence (issue #278)", () => {
         await repository.persistSettings(settings, saveData);
 
         const written = await readUserState();
-        expect(written.states["feed-elsewhere:guid-1"]).toEqual({ starred: true });
+        expect(written.states["feed-elsewhere:guid-1"]).toEqual({
+          starred: true,
+        });
         expect(written.unrecognizedFeedSinceByFeedId?.["feed-elsewhere"]).toBe(
           baseTime + horizon * 2,
         );
@@ -2287,13 +2340,23 @@ describe("shard storage v2 user-state.json persistence (issue #278)", () => {
       makeFeed({
         feedId: "feed-a",
         items: [
-          { ...makeFeed().items[0], guid: sharedGuid, starred: true, read: false },
+          {
+            ...makeFeed().items[0],
+            guid: sharedGuid,
+            starred: true,
+            read: false,
+          },
         ],
       }),
       makeFeed({
         feedId: "feed-b",
         items: [
-          { ...makeFeed().items[0], guid: sharedGuid, starred: false, read: true },
+          {
+            ...makeFeed().items[0],
+            guid: sharedGuid,
+            starred: false,
+            read: true,
+          },
         ],
       }),
     ];
@@ -2590,7 +2653,10 @@ describe("removing a feed deletes its shard file", () => {
       settings.storageMode = storageMode;
       settings.feeds = [
         makeFeed({ feedId: "feed-keep" }),
-        makeFeed({ feedId: "feed-delete", url: "https://example.com/other.xml" }),
+        makeFeed({
+          feedId: "feed-delete",
+          url: "https://example.com/other.xml",
+        }),
       ];
 
       await repository.persistSettings(settings, saveData);
@@ -2658,7 +2724,9 @@ describe("removing a feed deletes its shard file", () => {
         ".rss-dashboard-data/user-state.json",
       );
 
-      expect(await adapter().exists(".rss-dashboard-data/user-state.json")).toBe(true);
+      expect(
+        await adapter().exists(".rss-dashboard-data/user-state.json"),
+      ).toBe(true);
       expect(await adapter().exists(".rss-dashboard-data")).toBe(true);
     });
 
@@ -2686,7 +2754,9 @@ describe("removing a feed deletes its shard file", () => {
         ".rss-dashboard-data/feeds/notes.txt",
       );
 
-      expect(await adapter().exists(".rss-dashboard-data/feeds/notes.txt")).toBe(true);
+      expect(
+        await adapter().exists(".rss-dashboard-data/feeds/notes.txt"),
+      ).toBe(true);
     });
   });
 
@@ -2712,8 +2782,8 @@ describe("removing a feed deletes its shard file", () => {
 
     expect(trashSpy).toHaveBeenCalledTimes(1);
     expect(removeSpy).not.toHaveBeenCalled();
-    expect(await app.vault.adapter.exists("RSS Data/Feeds/feed-delete.json")).toBe(
-      false,
-    );
+    expect(
+      await app.vault.adapter.exists("RSS Data/Feeds/feed-delete.json"),
+    ).toBe(false);
   });
 });

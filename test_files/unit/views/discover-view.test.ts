@@ -180,9 +180,11 @@ async function createView(opts?: {
     activateView: vi.fn(async () => undefined),
   };
   // WorkspaceLeaf is not generic, so cast only once here
-  const leaf = new (WorkspaceLeaf as unknown as {
-    new (app: App): WorkspaceLeaf;
-  })(app);
+  const leaf = new (
+    WorkspaceLeaf as unknown as {
+      new (app: App): WorkspaceLeaf;
+    }
+  )(app);
 
   const mod = await import("../../../src/views/discover-view");
   const view = new mod.DiscoverView(
@@ -454,6 +456,45 @@ describe("DiscoverView (P1-3)", () => {
     );
   });
 
+  it("refuses a feed that was added while its folder picker was open", async () => {
+    const { plugin, view } = await createView();
+
+    view.loadData();
+    view.render();
+
+    const addButton = view.containerEl.querySelector(
+      ".rss-discover-card-add-to-btn",
+    );
+    expect(addButton).not.toBeNull();
+    if (!addButton) throw new Error("addButton not found");
+    (addButton as HTMLElement).click();
+
+    const feed = FEEDS_FIXTURE[0];
+    if (!feed) throw new Error("feed fixture not found");
+    plugin.settings.feeds.push({
+      title: feed.title,
+      url: feed.url,
+      folder: "Uncategorized",
+      items: [],
+      lastUpdated: 0,
+    });
+
+    const noticeSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
+    folderSelectorSpy.calls[0].onSelect("Uncategorized");
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(
+      plugin.settings.feeds.filter((item) => item.url === feed.url),
+    ).toHaveLength(1);
+    expect(plugin.ensureFolderExists).not.toHaveBeenCalled();
+    expect(plugin.addFeed).not.toHaveBeenCalled();
+    expect(noticeSpy).toHaveBeenCalledWith(
+      "[Stub Notice]",
+      "This feed URL already exists",
+    );
+  });
+
   it("bulk add only adds filtered feeds and skips feeds that are already followed", async () => {
     const { plugin, view } = await createView({
       followedUrls: ["https://beta.example.com/rss.xml"],
@@ -674,7 +715,6 @@ describe("DiscoverView (P1-3)", () => {
     expect((updatedPrev as HTMLButtonElement).disabled).toBe(false);
     expect((updatedNext as HTMLButtonElement).disabled).toBe(false);
 
-
     // Clicking page button directly
     const page3Btn = Array.from(
       view.containerEl.querySelectorAll<HTMLButtonElement>(
@@ -729,8 +769,8 @@ describe("DiscoverView (P1-3)", () => {
       "[Stub Notice]",
       expect.stringContaining("Articles will be fetched in the background"),
     );
-    expect((view as unknown as { isAddingAllFeeds: boolean }).isAddingAllFeeds).toBe(false);
+    expect(
+      (view as unknown as { isAddingAllFeeds: boolean }).isAddingAllFeeds,
+    ).toBe(false);
   });
 });
-
-

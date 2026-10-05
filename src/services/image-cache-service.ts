@@ -56,7 +56,9 @@ interface ImageCacheServiceOptions {
 export class ImageCacheService {
   private readonly adapter: ImageCacheAdapter;
   private readonly cacheRoot: string;
-  private readonly fetchImage: (url: string) => Promise<ImageCacheFetchResponse>;
+  private readonly fetchImage: (
+    url: string,
+  ) => Promise<ImageCacheFetchResponse>;
   private maxCacheBytes: number | null;
   private readonly now: () => number;
   private readonly onChange?: () => void;
@@ -86,10 +88,15 @@ export class ImageCacheService {
     const indexPath = this.getIndexPath();
     if (await this.adapter.exists(indexPath)) {
       try {
-        const index = JSON.parse(await this.adapter.read(indexPath)) as ImageCacheIndex;
+        const index = JSON.parse(
+          await this.adapter.read(indexPath),
+        ) as ImageCacheIndex;
         if (index.version === CACHE_INDEX_VERSION && index.entries) {
           for (const [url, entry] of Object.entries(index.entries)) {
-            if (this.isSafeEntry(entry) && (await this.adapter.exists(this.getEntryPath(entry)))) {
+            if (
+              this.isSafeEntry(entry) &&
+              (await this.adapter.exists(this.getEntryPath(entry)))
+            ) {
               this.entries.set(url, entry);
             }
           }
@@ -181,7 +188,10 @@ export class ImageCacheService {
     await this.evictUntilFits(entry.byteLength, existingEntry?.byteLength ?? 0);
     if (writeGeneration !== this.writeGeneration) return false;
     try {
-      await this.adapter.writeBinary(this.getEntryPath(entry), response.arrayBuffer);
+      await this.adapter.writeBinary(
+        this.getEntryPath(entry),
+        response.arrayBuffer,
+      );
       if (writeGeneration !== this.writeGeneration) {
         await this.removeCachedFile(entry);
         return false;
@@ -194,7 +204,10 @@ export class ImageCacheService {
       this.onChange?.();
       return true;
     } catch (error) {
-      console.warn("[RSS dashboard] Unable to write cached preview image", error);
+      console.warn(
+        "[RSS dashboard] Unable to write cached preview image",
+        error,
+      );
       return false;
     }
   }
@@ -210,7 +223,10 @@ export class ImageCacheService {
         this.entries.delete(url);
         cleared += 1;
       } catch (error) {
-        console.warn("[RSS dashboard] Unable to clear cached preview image", error);
+        console.warn(
+          "[RSS dashboard] Unable to clear cached preview image",
+          error,
+        );
         failed += 1;
       }
     }
@@ -231,12 +247,17 @@ export class ImageCacheService {
         await this.adapter.rmdir(this.cacheRoot, true);
       }
     } catch (error) {
-      console.warn("[RSS dashboard] Unable to remove image cache folder", error);
+      console.warn(
+        "[RSS dashboard] Unable to remove image cache folder",
+        error,
+      );
     }
     this.onChange?.();
   }
 
-  async removeUrls(rawUrls: Iterable<string>): Promise<{ cleared: number; failed: number }> {
+  async removeUrls(
+    rawUrls: Iterable<string>,
+  ): Promise<{ cleared: number; failed: number }> {
     const urls = new Set(
       Array.from(rawUrls, (rawUrl) => this.normalizeUrl(rawUrl)).filter(
         (url): url is string => url !== null,
@@ -257,7 +278,10 @@ export class ImageCacheService {
         this.entries.delete(url);
         cleared += 1;
       } catch (error) {
-        console.warn("[RSS dashboard] Unable to clear cached preview image", error);
+        console.warn(
+          "[RSS dashboard] Unable to clear cached preview image",
+          error,
+        );
         failed += 1;
       }
     }
@@ -307,7 +331,10 @@ export class ImageCacheService {
     const entries = Object.fromEntries(this.entries);
     await this.adapter.write(
       this.getIndexPath(),
-      JSON.stringify({ version: CACHE_INDEX_VERSION, entries } satisfies ImageCacheIndex),
+      JSON.stringify({
+        version: CACHE_INDEX_VERSION,
+        entries,
+      } satisfies ImageCacheIndex),
     );
   }
 
@@ -359,26 +386,56 @@ export class ImageCacheService {
     return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
   }
 
-  private hasValidImageSignature(data: ArrayBuffer, extension: string): boolean {
+  private hasValidImageSignature(
+    data: ArrayBuffer,
+    extension: string,
+  ): boolean {
     const bytes = new Uint8Array(data);
     if (extension === "jpg") {
-      return bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+      return (
+        bytes.length >= 3 &&
+        bytes[0] === 0xff &&
+        bytes[1] === 0xd8 &&
+        bytes[2] === 0xff
+      );
     }
     if (extension === "png") {
-      return bytes.length >= 8 && [137, 80, 78, 71, 13, 10, 26, 10].every((byte, index) => bytes[index] === byte);
+      return (
+        bytes.length >= 8 &&
+        [137, 80, 78, 71, 13, 10, 26, 10].every(
+          (byte, index) => bytes[index] === byte,
+        )
+      );
     }
     if (extension === "gif") {
-      return bytes.length >= 6 && ("GIF87a" === String.fromCharCode(...bytes.slice(0, 6)) || "GIF89a" === String.fromCharCode(...bytes.slice(0, 6)));
+      return (
+        bytes.length >= 6 &&
+        ("GIF87a" === String.fromCharCode(...bytes.slice(0, 6)) ||
+          "GIF89a" === String.fromCharCode(...bytes.slice(0, 6)))
+      );
     }
     if (extension === "webp") {
-      return bytes.length >= 12 && String.fromCharCode(...bytes.slice(0, 4)) === "RIFF" && String.fromCharCode(...bytes.slice(8, 12)) === "WEBP";
+      return (
+        bytes.length >= 12 &&
+        String.fromCharCode(...bytes.slice(0, 4)) === "RIFF" &&
+        String.fromCharCode(...bytes.slice(8, 12)) === "WEBP"
+      );
     }
-    return bytes.length >= 12 && String.fromCharCode(...bytes.slice(4, 8)) === "ftyp" && String.fromCharCode(...bytes.slice(8, 12)).startsWith("avif");
+    return (
+      bytes.length >= 12 &&
+      String.fromCharCode(...bytes.slice(4, 8)) === "ftyp" &&
+      String.fromCharCode(...bytes.slice(8, 12)).startsWith("avif")
+    );
   }
 
   private async hashUrl(url: string): Promise<string> {
-    const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(url));
-    return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+    const digest = await crypto.subtle.digest(
+      "SHA-256",
+      new TextEncoder().encode(url),
+    );
+    return Array.from(new Uint8Array(digest), (byte) =>
+      byte.toString(16).padStart(2, "0"),
+    ).join("");
   }
 }
 

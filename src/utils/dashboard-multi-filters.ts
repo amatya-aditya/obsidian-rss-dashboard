@@ -9,4 +9,3 @@ export function makeDashboardMultiFiltersFromDefaultFilter(
 
   return { statusFilters: [value], tagFilters: [], logic: "OR" };
 }
-

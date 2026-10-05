@@ -1,6 +1,9 @@
 import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
 import { App } from "obsidian";
-import { DEFAULT_SETTINGS, type RssDashboardSettings } from "../../../src/types/types";
+import {
+  DEFAULT_SETTINGS,
+  type RssDashboardSettings,
+} from "../../../src/types/types";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 import { ShortcutHelpModal } from "../../../src/modals/shortcut-help-modal";
 
@@ -17,39 +20,41 @@ describe("ShortcutHelpModal", () => {
   it("renders the help modal with correct sections", () => {
     const app = createMockApp();
     const modal = new ShortcutHelpModal(app, structuredClone(DEFAULT_SETTINGS));
-    
+
     // Simulate Obsidian Modal open behavior
     modal.onOpen();
-    
+
     const content = modal.contentEl;
     expect(content.querySelector(".rss-dashboard-header")).toBeDefined();
-    
+
     // Should have general navigation section
     const textContent = content.textContent;
-    expect(textContent).toContain("General Navigation");
-    expect(textContent).toContain("Open Help Dialog");
+    expect(textContent).toContain("General navigation");
+    expect(textContent).toContain("Open help dialog");
     expect(textContent).toContain("Focus dashboard view");
     expect(textContent).toContain("Focus sidebar");
     expect(textContent).toContain("Focus reader view");
     expect(textContent).toContain("Shift + l");
     expect(textContent).toContain("Shift + o / Shift + Enter");
-    
+
     modal.onClose();
   });
 
   it("has a compliant clickable-icon for the close button", () => {
     const app = createMockApp();
     const modal = new ShortcutHelpModal(app, structuredClone(DEFAULT_SETTINGS));
-    
+
     modal.onOpen();
-    
-    const closeBtn = modal.contentEl.querySelector(".rss-dashboard-header-close-button.clickable-icon");
+
+    const closeBtn = modal.contentEl.querySelector(
+      ".rss-dashboard-header-close-button.clickable-icon",
+    );
     expect(closeBtn).not.toBeNull();
     if (closeBtn) {
       expect(closeBtn.getAttribute("role")).toBe("button");
       expect(closeBtn.getAttribute("tabindex")).toBe("0");
     }
-    
+
     modal.onClose();
   });
 

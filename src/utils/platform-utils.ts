@@ -123,7 +123,8 @@ export function formatArticleDate(
     return { text: "Unknown date", title: "Unknown date" };
   }
   const base = formatDateWithRelative(date);
-  const result = style === "absolute" ? { text: base.title, title: base.text } : base;
+  const result =
+    style === "absolute" ? { text: base.title, title: base.text } : base;
   if (options?.isFirstSeenFallback) {
     return { text: `${result.text} *`, title: `First seen: ${result.title}` };
   }
@@ -218,9 +219,7 @@ function detectCharsetFromBody(buffer: ArrayBuffer): string | null {
   const text = new TextDecoder("ascii").decode(view);
 
   // XML declarations are the standard way RSS/Atom documents declare encoding.
-  const xmlMatch = text.match(
-    /<\?xml[^>]*encoding\s*=\s*["']([^"']+)["']/i,
-  );
+  const xmlMatch = text.match(/<\?xml[^>]*encoding\s*=\s*["']([^"']+)["']/i);
   if (xmlMatch?.[1]) return xmlMatch[1];
 
   // Look for <meta charset="...">

@@ -1,6 +1,6 @@
 // Fast pre-commit gate: lint only the staged files and run only the unit tests
-// that exercise them. The full lint, type-check, and test suite run in the
-// pre-push hook and in CI, so this hook trades breadth for a short loop.
+// that exercise them. CI runs the full lint, type-check, and test suite, so
+// this hook trades breadth for a short loop.
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
@@ -27,9 +27,7 @@ const MAX_EXPLICIT_LINT_FILES = 150;
 export function planStagedChecks(stagedPaths) {
   const paths = stagedPaths.map((p) => p.replace(/\\/g, "/"));
 
-  const lint = paths.filter(
-    (p) => LINTABLE.test(p) || p === "package.json",
-  );
+  const lint = paths.filter((p) => LINTABLE.test(p) || p === "package.json");
 
   if (paths.some((p) => WHOLE_SUITE_TRIGGERS.some((re) => re.test(p)))) {
     return { lint, tests: { mode: "all", files: [] } };
@@ -46,7 +44,10 @@ export function planStagedChecks(stagedPaths) {
 
   return {
     lint,
-    tests: files.length > 0 ? { mode: "related", files } : { mode: "none", files: [] },
+    tests:
+      files.length > 0
+        ? { mode: "related", files }
+        : { mode: "none", files: [] },
   };
 }
 
@@ -79,18 +80,22 @@ function main() {
   if (plan.lint.length > 0) {
     const targets =
       plan.lint.length > MAX_EXPLICIT_LINT_FILES ? ["."] : plan.lint;
-    runNode(`Linting ${plan.lint.length} staged file(s)...`, "node_modules/eslint/bin/eslint.js", [
-      "--max-warnings=0",
-      "--no-warn-ignored",
-      "--suppressions-location",
-      "scripts/eslint-suppressions.json",
-      "--cache",
-      "--cache-strategy",
-      "content",
-      "--cache-location",
-      "node_modules/.cache/eslint/",
-      ...targets,
-    ]);
+    runNode(
+      `Linting ${plan.lint.length} staged file(s)...`,
+      "node_modules/eslint/bin/eslint.js",
+      [
+        "--max-warnings=0",
+        "--no-warn-ignored",
+        "--suppressions-location",
+        "scripts/eslint-suppressions.json",
+        "--cache",
+        "--cache-strategy",
+        "content",
+        "--cache-location",
+        "node_modules/.cache/eslint/",
+        ...targets,
+      ],
+    );
   }
 
   const vitest = "node_modules/vitest/vitest.mjs";

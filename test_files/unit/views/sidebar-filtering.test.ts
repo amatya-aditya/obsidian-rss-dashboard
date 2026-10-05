@@ -61,19 +61,24 @@ describe("Sidebar Filtering Logic", () => {
 
   it("identifies feeds with 0 articles as empty", () => {
     const emptyFeed = createEmptyFeed("test");
-    const isHidden = emptyFeed.items.length === 0 || !emptyFeed.items.some(item => !item.read);
+    const isHidden =
+      emptyFeed.items.length === 0 ||
+      !emptyFeed.items.some((item) => !item.read);
     expect(isHidden).toBe(true);
   });
 
   it("identifies feeds with only read articles as empty/no-unread", () => {
     const readFeed = createMockFeed("test", true);
-    const hasUnread = readFeed.items.length > 0 && readFeed.items.some(item => !item.read);
+    const hasUnread =
+      readFeed.items.length > 0 && readFeed.items.some((item) => !item.read);
     expect(hasUnread).toBe(false);
   });
 
   it("identifies feeds with at least one unread article as not empty", () => {
     const unreadFeed = createMockFeed("test", false);
-    const hasUnread = unreadFeed.items.length > 0 && unreadFeed.items.some(item => !item.read);
+    const hasUnread =
+      unreadFeed.items.length > 0 &&
+      unreadFeed.items.some((item) => !item.read);
     expect(hasUnread).toBe(true);
   });
 });

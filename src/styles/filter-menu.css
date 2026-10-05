@@ -58,7 +58,7 @@
  * ============================================ */
 .rss-dashboard-filter-menu {
   position: fixed;
-  background-color: var(--background-primary);
+  background-color: transparent;
   border: 1px solid var(--background-modifier-border);
   border-radius: 6px;
   box-shadow: 0 4px 20px rgb(0 0 0 / 0.15);
@@ -67,6 +67,18 @@
   padding: 4px 0;
   display: flex;
   flex-direction: column;
+}
+
+.rss-dashboard-filter-menu::before {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  z-index: -1;
+  border-radius: 5px;
+  background-color: var(--background-primary);
+  -webkit-backdrop-filter: blur(var(--ui-blur, 8px));
+  backdrop-filter: blur(var(--ui-blur, 8px));
+  pointer-events: none;
 }
 
 .rss-dashboard-filter-menu-separator {
@@ -122,6 +134,12 @@
 }
 
 .rss-dashboard-filter-menu-item:hover {
+  background-color: var(--background-modifier-hover);
+}
+
+.rss-dashboard-filter-menu-item.is-keyboard-active {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: -2px;
   background-color: var(--background-modifier-hover);
 }
 
@@ -210,8 +228,14 @@
 }
 
 .rss-dashboard-filter-apply-btn:hover {
-  border-color: var(--rss-color-discover-accent-hover, var(--interactive-accent-hover));
-  background: var(--rss-color-discover-accent-hover, var(--interactive-accent-hover));
+  border-color: var(
+    --rss-color-discover-accent-hover,
+    var(--interactive-accent-hover)
+  );
+  background: var(
+    --rss-color-discover-accent-hover,
+    var(--interactive-accent-hover)
+  );
 }
 
 .rss-dashboard-tag-submenu {

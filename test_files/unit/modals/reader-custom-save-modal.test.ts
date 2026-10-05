@@ -65,14 +65,18 @@ function createHarness(options?: {
       savedTemplates: options?.savedTemplates ?? [],
     },
   };
-  const saveArticle = vi.fn().mockResolvedValue(
-    options?.saveResult === undefined ? { path: "Saved/Fixture article.md" } : options.saveResult,
-  );
+  const saveArticle = vi
+    .fn()
+    .mockResolvedValue(
+      options?.saveResult === undefined
+        ? { path: "Saved/Fixture article.md" }
+        : options.saveResult,
+    );
   const onArticleSave = vi.fn();
   const updateSavedLabel = vi.fn();
   const context: ReaderCustomSaveModalContext = {
     getSettings: () => settings,
-    getArticleSaver: () => ({ saveArticle } as never),
+    getArticleSaver: () => ({ saveArticle }) as never,
     displayTitle: options?.displayTitle,
     getCustomTemplateForArticle: () => undefined,
     buildReaderSaveMarkdown: () => "Reader body",
@@ -104,6 +108,38 @@ afterEach(() => {
 });
 
 describe("ReaderCustomSaveModal", () => {
+  it("shows the default-template guidance above the buttons only for that template", () => {
+    const harness = createHarness();
+    harness.settings.articleSaving.defaultTemplate =
+      DEFAULT_SETTINGS.articleSaving.defaultTemplate;
+    harness.open();
+
+    const root = modal();
+    const hint = root.querySelector<HTMLElement>(
+      ".rss-dashboard-custom-save-template-hint",
+    );
+    const template = root.querySelector<HTMLTextAreaElement>("textarea");
+
+    expect(hint?.textContent).toBe(
+      "The prefilled template is ready to use: its frontmatter properties already have the required indentation.",
+    );
+    expect(
+      hint?.nextElementSibling?.classList.contains(
+        "rss-dashboard-modal-buttons",
+      ),
+    ).toBe(true);
+
+    if (!hint || !template)
+      throw new Error("Template guidance was not rendered");
+    template.value = "Custom: {{title}}";
+    template.dispatchEvent(new Event("input"));
+    expect(hint.hidden).toBe(true);
+
+    template.value = DEFAULT_SETTINGS.articleSaving.defaultTemplate;
+    template.dispatchEvent(new Event("input"));
+    expect(hint.hidden).toBe(false);
+  });
+
   it("renders the established fields, defaults, and saved template choices", () => {
     const harness = createHarness({
       savedTemplates: [
@@ -114,25 +150,77 @@ describe("ReaderCustomSaveModal", () => {
     harness.open();
     const root = modal();
 
-    expect(root.querySelector(".setting-item-name")?.textContent).toBe("Save article");
-    expect(Array.from(root.querySelectorAll("label"), (label) => label.textContent)).toEqual([
-      "Save to folder:",
-      "Saved template:",
-      "Use template:",
-    ]);
-    expect(root.querySelector<HTMLInputElement>("input")?.value).toBe("Reading/Queue");
+    expect(root.querySelector(".setting-item-name")?.textContent).toBe(
+      "Save article",
+    );
     expect(
-      Array.from(root.querySelectorAll("select option"), (option) => [option.textContent, (option as HTMLOptionElement).value]),
+      Array.from(root.querySelectorAll("label"), (label) => label.textContent),
+    ).toEqual(["Save to folder:", "Saved template:", "Use template:"]);
+    expect(root.querySelector<HTMLInputElement>("input")?.value).toBe(
+      "Reading/Queue",
+    );
+    const folderInput = root.querySelector<HTMLInputElement>("input");
+    const templateInput = root.querySelector<HTMLTextAreaElement>("textarea");
+    expect(folderInput?.id).toBe("rss-dashboard-save-folder");
+    expect(
+      root.querySelector<HTMLLabelElement>(
+        'label[for="rss-dashboard-save-folder"]',
+      )?.textContent,
+    ).toBe("Save to folder:");
+    expect(templateInput?.id).toBe("rss-dashboard-save-template");
+    expect(
+      root.querySelector<HTMLLabelElement>(
+        'label[for="rss-dashboard-save-template"]',
+      )?.textContent,
+    ).toBe("Use template:");
+    expect(
+      Array.from(root.querySelectorAll("select option"), (option) => [
+        option.textContent,
+        (option as HTMLOptionElement).value,
+      ]),
     ).toEqual([
       ["Current template", ""],
       ["First", "one"],
       ["Second", "two"],
     ]);
     expect(root.querySelector("textarea")?.value).toBe("Default: {{title}}");
-    expect(Array.from(root.querySelectorAll("button"), (button) => button.textContent)).toEqual([
-      "Save as new template",
+    expect(
+      root.querySelector<HTMLElement>(
+        ".rss-dashboard-custom-save-template-hint",
+      )?.hidden,
+    ).toBe(true);
+    const actionButtons = Array.from(root.querySelectorAll("button"));
+    expect(actionButtons.map((button) => button.textContent)).toEqual([
       "Cancel",
       "Save",
+      "Save as new template",
+    ]);
+    expect(actionButtons.map((button) => button.type)).toEqual([
+      "button",
+      "button",
+      "button",
+    ]);
+    expect(actionButtons.map((button) => button.tabIndex)).toEqual([0, 0, 0]);
+    expect(
+      root.querySelector<HTMLSelectElement>("#rss-dashboard-saved-template")
+        ?.tabIndex,
+    ).toBe(0);
+    expect(
+      root
+        .querySelector<HTMLElement>(".rss-dashboard-clear-icon")
+        ?.getAttribute("aria-label"),
+    ).toBe("Clear save folder");
+    expect(
+      actionButtons.map((button) => {
+        const icon = button.querySelector<HTMLElement>(
+          ".rss-dashboard-custom-save-button-icon",
+        );
+        return [icon?.dataset.icon, icon?.getAttribute("aria-hidden")];
+      }),
+    ).toEqual([
+      ["x", "true"],
+      ["save", "true"],
+      ["file-plus", "true"],
     ]);
   });
 
@@ -144,11 +232,19 @@ describe("ReaderCustomSaveModal", () => {
     if (!folder || !clear) throw new Error("Folder controls were not rendered");
     clear.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     expect(folder.value).toBe("");
-    folder.value = "Again";
-    clear.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
-    expect(folder.value).toBe("");
-    root.querySelector<HTMLButtonElement>(".rss-dashboard-custom-save-cancel-button")?.click();
-    expect(activeDocument.querySelector(".rss-dashboard-custom-save-modal")).toBeNull();
+    for (const key of ["Enter", " "]) {
+      folder.value = "Again";
+      clear.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true }));
+      expect(folder.value).toBe("");
+    }
+    root
+      .querySelector<HTMLButtonElement>(
+        ".rss-dashboard-custom-save-cancel-button",
+      )
+      ?.click();
+    expect(
+      activeDocument.querySelector(".rss-dashboard-custom-save-modal"),
+    ).toBeNull();
   });
 
   it("saves with trimmed fields and updates article state only after a successful save", async () => {
@@ -160,11 +256,18 @@ describe("ReaderCustomSaveModal", () => {
     if (!folder || !template) throw new Error("Save fields were not rendered");
     folder.value = "  Articles  ";
     template.value = "  Custom {{title}}  ";
-    root.querySelector<HTMLButtonElement>(".rss-dashboard-custom-save-confirm-button")?.click();
+    root
+      .querySelector<HTMLButtonElement>(
+        ".rss-dashboard-custom-save-confirm-button",
+      )
+      ?.click();
     await vi.waitFor(() => expect(harness.saveArticle).toHaveBeenCalledOnce());
 
     expect(harness.saveArticle).toHaveBeenCalledWith(
-      expect.objectContaining({ guid: "fixture-article", title: "Display title" }),
+      expect.objectContaining({
+        guid: "fixture-article",
+        title: "Display title",
+      }),
       "Articles",
       "Custom {{title}}",
       "Reader body",
@@ -174,20 +277,28 @@ describe("ReaderCustomSaveModal", () => {
     expect(harness.onArticleSave).toHaveBeenCalledWith(harness.item);
     expect(harness.updateSavedLabel).toHaveBeenCalledWith(true);
     await vi.waitFor(() =>
-      expect(activeDocument.querySelector(".rss-dashboard-custom-save-modal")).toBeNull(),
+      expect(
+        activeDocument.querySelector(".rss-dashboard-custom-save-modal"),
+      ).toBeNull(),
     );
   });
 
   it("closes without marking the article saved when the saver returns no file", async () => {
     const harness = createHarness({ saveResult: null });
     harness.open();
-    modal().querySelector<HTMLButtonElement>(".rss-dashboard-custom-save-confirm-button")?.click();
+    modal()
+      .querySelector<HTMLButtonElement>(
+        ".rss-dashboard-custom-save-confirm-button",
+      )
+      ?.click();
     await vi.waitFor(() => expect(harness.saveArticle).toHaveBeenCalledOnce());
     expect(harness.item.saved).toBeUndefined();
     expect(harness.onArticleSave).not.toHaveBeenCalled();
     expect(harness.updateSavedLabel).not.toHaveBeenCalled();
     await vi.waitFor(() =>
-      expect(activeDocument.querySelector(".rss-dashboard-custom-save-modal")).toBeNull(),
+      expect(
+        activeDocument.querySelector(".rss-dashboard-custom-save-modal"),
+      ).toBeNull(),
     );
   });
 
@@ -206,19 +317,31 @@ describe("ReaderCustomSaveModal", () => {
       }),
     );
     harness.open();
-    modal().querySelector<HTMLButtonElement>(".rss-dashboard-custom-save-confirm-button")?.click();
+    modal()
+      .querySelector<HTMLButtonElement>(
+        ".rss-dashboard-custom-save-confirm-button",
+      )
+      ?.click();
     await vi.waitFor(() => expect(harness.saveArticle).toHaveBeenCalledOnce());
-    expect(activeDocument.querySelector(".rss-dashboard-custom-save-modal")).not.toBeNull();
+    expect(
+      activeDocument.querySelector(".rss-dashboard-custom-save-modal"),
+    ).not.toBeNull();
 
     finishSave({ path: "Saved/Fixture article.md" });
     await vi.waitFor(() =>
-      expect(activeDocument.querySelector(".rss-dashboard-custom-save-modal")).toBeNull(),
+      expect(
+        activeDocument.querySelector(".rss-dashboard-custom-save-modal"),
+      ).toBeNull(),
     );
     expect(harness.saveArticle).toHaveBeenCalledOnce();
 
     const second = createHarness();
     second.open();
-    modal().querySelector<HTMLButtonElement>(".rss-dashboard-custom-save-cancel-button")?.click();
+    modal()
+      .querySelector<HTMLButtonElement>(
+        ".rss-dashboard-custom-save-cancel-button",
+      )
+      ?.click();
     expect(second.saveArticle).not.toHaveBeenCalled();
   });
 });

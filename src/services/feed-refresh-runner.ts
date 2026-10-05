@@ -80,9 +80,7 @@ export class FeedRefreshRunner {
 
   public async refreshFeeds(
     selectedFeeds?: Feed[],
-    intent: FeedRefreshIntent = selectedFeeds
-      ? "targeted"
-      : "global",
+    intent: FeedRefreshIntent = selectedFeeds ? "targeted" : "global",
   ) {
     try {
       const candidateFeeds = selectedFeeds || this.settings.feeds;
@@ -340,10 +338,7 @@ export class FeedRefreshRunner {
 
     const refreshView = async (force = false): Promise<void> => {
       const now = Date.now();
-      if (
-        !force &&
-        now - lastRenderAt < FEED_REFRESH_RENDER_THROTTLE_MS
-      ) {
+      if (!force && now - lastRenderAt < FEED_REFRESH_RENDER_THROTTLE_MS) {
         return;
       }
 
@@ -394,8 +389,14 @@ export class FeedRefreshRunner {
           globalFetchSemaphore.release();
         });
 
-        const softTimeout = this.feedOperationTracker.createSoftTimeout(FEED_SOFT_TIMEOUT_MS, cancelSignal);
-        const winner = await Promise.race([refreshPromise.then(() => "fetch" as const), softTimeout.promise]);
+        const softTimeout = this.feedOperationTracker.createSoftTimeout(
+          FEED_SOFT_TIMEOUT_MS,
+          cancelSignal,
+        );
+        const winner = await Promise.race([
+          refreshPromise.then(() => "fetch" as const),
+          softTimeout.promise,
+        ]);
         softTimeout.cancel();
 
         if (winner === "timeout") backgroundPromises.push(refreshPromise);

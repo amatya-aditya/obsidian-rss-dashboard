@@ -37,9 +37,7 @@ beforeEach(() => {
 
 describe("renderMediaSettingsTab()", () => {
   it("renders playback settings first and does not show folder defaults", async () => {
-    const containerEl = document.body.appendChild(
-      createDiv(),
-    );
+    const containerEl = document.body.appendChild(createDiv());
     const settings = cloneSettings();
     settings.media.rememberPlaybackProgress = true;
 
@@ -78,9 +76,7 @@ describe("renderMediaSettingsTab()", () => {
   });
 
   it("runs the clear playback progress action", async () => {
-    const containerEl = document.body.appendChild(
-      createDiv(),
-    );
+    const containerEl = document.body.appendChild(createDiv());
     const settings = cloneSettings();
 
     const plugin = {
@@ -105,9 +101,7 @@ describe("renderMediaSettingsTab()", () => {
   });
 
   it("updates podcast theme and refreshes reader view when available", async () => {
-    const containerEl = document.body.appendChild(
-      createDiv(),
-    );
+    const containerEl = document.body.appendChild(createDiv());
     const settings = cloneSettings();
     settings.media.podcastTheme = "obsidian" as PodcastTheme;
 
@@ -135,9 +129,7 @@ describe("renderMediaSettingsTab()", () => {
 
   describe("Media settings default playback speed", () => {
     it("renders and persists default play speed setting", async () => {
-      const containerEl = document.body.appendChild(
-        createDiv(),
-      );
+      const containerEl = document.body.appendChild(createDiv());
       const settings = cloneSettings();
       settings.media.defaultPlaySpeed = 1;
 

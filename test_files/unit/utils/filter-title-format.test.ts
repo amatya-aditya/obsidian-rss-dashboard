@@ -83,7 +83,9 @@ describe("formatDashboardMultiFiltersSummaryCompact()", () => {
     });
 
     expect(result.text).toBe("Unread or Starred +1");
-    expect(result.tooltip).toBe("Active filters (OR): Unread, Starred, Podcasts");
+    expect(result.tooltip).toBe(
+      "Active filters (OR): Unread, Starred, Podcasts",
+    );
   });
 
   it("always includes Tags in the summary when tag names are active", () => {

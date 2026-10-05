@@ -68,7 +68,11 @@ interface Harness {
 
 let harnesses: Harness[] = [];
 
-function createItem(feedUrl: string, guid: string, overrides: Partial<FeedItem> = {}): FeedItem {
+function createItem(
+  feedUrl: string,
+  guid: string,
+  overrides: Partial<FeedItem> = {},
+): FeedItem {
   return {
     title: guid,
     link: `${feedUrl}#${guid}`,
@@ -98,7 +102,10 @@ function createFeed(name: string, overrides: Partial<Feed> = {}): Feed {
   };
 }
 
-function createSettings(feeds: Feed[], folders: Folder[]): RssDashboardSettings {
+function createSettings(
+  feeds: Feed[],
+  folders: Folder[],
+): RssDashboardSettings {
   const settings = structuredClone(DEFAULT_SETTINGS);
   settings.storageMode = "legacy-json";
   settings.feeds = feeds;
@@ -106,10 +113,7 @@ function createSettings(feeds: Feed[], folders: Folder[]): RssDashboardSettings 
   return settings;
 }
 
-function createHarness(
-  feeds: Feed[] = [],
-  folders: Folder[] = [],
-): Harness {
+function createHarness(feeds: Feed[] = [], folders: Folder[] = []): Harness {
   const app = App.createMock();
   const plugin = new RssDashboardPlugin(app, createManifest(app));
   const events: string[] = [];
@@ -152,9 +156,11 @@ function createHarness(
       : null,
   );
 
-  vi.spyOn(console, "debug").mockImplementation((tag: unknown, message: unknown) => {
-    if (tag === "[Stub Notice]") events.push(`notice: ${String(message)}`);
-  });
+  vi.spyOn(console, "debug").mockImplementation(
+    (tag: unknown, message: unknown) => {
+      if (tag === "[Stub Notice]") events.push(`notice: ${String(message)}`);
+    },
+  );
   vi.spyOn(console, "warn").mockImplementation(() => {});
   vi.spyOn(console, "error").mockImplementation(() => {});
 
@@ -246,6 +252,51 @@ describe("feed subscription: addFeed duplicates and defaults", () => {
 
     expect(added).toBe(false);
     expect(notices(harness)).toEqual([]);
+  });
+
+  it("refuses a URL that another subscription is still parsing", async () => {
+    const harness = createHarness();
+    let finishFirstParse: () => void = () => {};
+    harness.parseFeed.mockImplementationOnce(
+      (_url, existing) =>
+        new Promise<Feed>((resolve) => {
+          finishFirstParse = () =>
+            resolve({
+              ...(existing as Feed),
+              items: [createItem(NEW_URL, "one")],
+            });
+        }),
+    );
+
+    const firstAdd = addFeed(harness, {}, { showNotice: false });
+    await vi.waitFor(() => expect(harness.parseFeed).toHaveBeenCalledTimes(1));
+
+    const duplicateAdd = await addFeed(
+      harness,
+      {},
+      { showNotice: false, globalOperation: true },
+    );
+
+    expect(duplicateAdd).toBe(false);
+    expect(harness.parseFeed).toHaveBeenCalledTimes(1);
+    expect(harness.plugin.settings.feeds).toHaveLength(0);
+    expect(notices(harness)).toEqual(["This feed URL already exists"]);
+
+    finishFirstParse();
+    expect(await firstAdd).toBe(true);
+    expect(harness.plugin.settings.feeds).toHaveLength(1);
+  });
+
+  it("allows retrying a URL after its earlier parse failed", async () => {
+    const harness = createHarness();
+    harness.parseFeed.mockRejectedValueOnce(new Error("Timed out"));
+
+    const firstAdd = await addFeed(harness, {}, { showNotice: false });
+    const retry = await addFeed(harness, {}, { showNotice: false });
+
+    expect(firstAdd).toBe(false);
+    expect(retry).toBe(true);
+    expect(harness.plugin.settings.feeds).toHaveLength(1);
   });
 
   it("compares URLs as exact strings, so a trailing slash is a different feed", async () => {
@@ -343,7 +394,9 @@ describe("feed subscription: addFeed duplicates and defaults", () => {
     );
 
     expect(storedFeed(harness).feedEncoding).toBe("windows-1251");
-    expect(storedFeed(harness, "https://example.com/two.xml").feedEncoding).toBeUndefined();
+    expect(
+      storedFeed(harness, "https://example.com/two.xml").feedEncoding,
+    ).toBeUndefined();
   });
 
   it("passes the requested keyword rules through", async () => {
@@ -381,13 +434,23 @@ describe("feed subscription: addFeed media type", () => {
     const harness = createHarness();
 
     await addFeed(harness, { folder: "videos" });
-    await addFeed(harness, { url: "https://example.com/two.xml", folder: "Videos/Sub" });
+    await addFeed(harness, {
+      url: "https://example.com/two.xml",
+      folder: "Videos/Sub",
+    });
 
     expect(storedFeed(harness).mediaType).toBe("article");
-    expect(storedFeed(harness, "https://example.com/two.xml").mediaType).toBe("article");
+    expect(storedFeed(harness, "https://example.com/two.xml").mediaType).toBe(
+      "article",
+    );
 
-    await addFeed(harness, { url: "https://example.com/three.xml", folder: "Podcasts/Sub" });
-    expect(storedFeed(harness, "https://example.com/three.xml").mediaType).toBe("article");
+    await addFeed(harness, {
+      url: "https://example.com/three.xml",
+      folder: "Podcasts/Sub",
+    });
+    expect(storedFeed(harness, "https://example.com/three.xml").mediaType).toBe(
+      "article",
+    );
   });
 });
 
@@ -402,7 +465,11 @@ describe("feed subscription: addFeed parsed values", () => {
       excludeFromRefresh: true,
       customTemplate: "parsed template",
       customTags: ["parsed"],
-      keywordRules: { overrideGlobalRules: true, includeLogic: "OR", rules: [] },
+      keywordRules: {
+        overrideGlobalRules: true,
+        includeLogic: "OR",
+        rules: [],
+      },
     }));
 
     await addFeed(harness, {
@@ -421,7 +488,11 @@ describe("feed subscription: addFeed parsed values", () => {
       excludeFromRefresh: true,
       customTemplate: "parsed template",
       customTags: ["parsed"],
-      keywordRules: { overrideGlobalRules: true, includeLogic: "OR", rules: [] },
+      keywordRules: {
+        overrideGlobalRules: true,
+        includeLogic: "OR",
+        rules: [],
+      },
     });
   });
 
@@ -464,7 +535,11 @@ describe("feed subscription: addFeed storing", () => {
 
     expect(added).toBe(true);
     expect(harness.feedCountAtSave).toEqual([1]);
-    expect(harness.events).toEqual(["save", "refresh", 'notice: Feed "Blog" added']);
+    expect(harness.events).toEqual([
+      "save",
+      "refresh",
+      'notice: Feed "Blog" added',
+    ]);
   });
 
   it("creates a missing folder path without saving or redrawing for it", async () => {
@@ -482,21 +557,29 @@ describe("feed subscription: addFeed storing", () => {
     const harness = createHarness();
 
     await addFeed(harness, { folder: "" });
-    await addFeed(harness, { url: "https://example.com/two.xml", folder: "Uncategorized" });
+    await addFeed(harness, {
+      url: "https://example.com/two.xml",
+      folder: "Uncategorized",
+    });
 
-    expect(harness.plugin.settings.folders.map((f) => f.name)).not.toContain("Uncategorized");
+    expect(harness.plugin.settings.folders.map((f) => f.name)).not.toContain(
+      "Uncategorized",
+    );
   });
 
   it("applies the folder's auto-tags to the stored articles after creating it", async () => {
     const tag = { name: "Tech", color: "#123456" };
-    const harness = createHarness([], [
-      { name: "News", subfolders: [], autoTags: [tag] },
-    ]);
+    const harness = createHarness(
+      [],
+      [{ name: "News", subfolders: [], autoTags: [tag] }],
+    );
     harness.plugin.settings.availableTags = [tag];
 
     await addFeed(harness, { folder: "News" });
 
-    expect(storedFeed(harness).items[0].tags?.map((t) => t.name)).toEqual(["Tech"]);
+    expect(storedFeed(harness).items[0].tags?.map((t) => t.name)).toEqual([
+      "Tech",
+    ]);
   });
 
   it("skips the redraw without an open dashboard, and still notices", async () => {
@@ -585,7 +668,11 @@ describe("feed subscription: addFeed as a global feed operation", () => {
   it("runs the parse under an operation signal and ends the operation afterwards", async () => {
     const harness = createHarness();
 
-    const added = await addFeed(harness, {}, { showNotice: false, globalOperation: true });
+    const added = await addFeed(
+      harness,
+      {},
+      { showNotice: false, globalOperation: true },
+    );
 
     expect(added).toBe(true);
     const options = harness.parseFeed.mock.calls[0][2];
@@ -602,7 +689,11 @@ describe("feed subscription: addFeed as a global feed operation", () => {
           finish = () => resolve({ ...(existing as Feed) });
         }),
     );
-    const first = addFeed(harness, {}, { showNotice: false, globalOperation: true });
+    const first = addFeed(
+      harness,
+      {},
+      { showNotice: false, globalOperation: true },
+    );
     await vi.waitFor(() => expect(harness.parseFeed).toHaveBeenCalledTimes(1));
 
     const second = await addFeed(
@@ -623,7 +714,11 @@ describe("feed subscription: addFeed as a global feed operation", () => {
     harness.parseFeed.mockRejectedValueOnce(new Error("Timed out"));
 
     await addFeed(harness, {}, { showNotice: false, globalOperation: true });
-    const next = await addFeed(harness, {}, { showNotice: false, globalOperation: true });
+    const next = await addFeed(
+      harness,
+      {},
+      { showNotice: false, globalOperation: true },
+    );
 
     expect(next).toBe(true);
   });
@@ -645,7 +740,12 @@ describe("feed subscription: editFeed", () => {
   it("changes the given feed in place and saves once", async () => {
     const { harness, feed } = editHarness();
 
-    await harness.plugin.editFeed(feed, "New title", "https://example.com/other.xml", "News");
+    await harness.plugin.editFeed(
+      feed,
+      "New title",
+      "https://example.com/other.xml",
+      "News",
+    );
 
     expect(harness.plugin.settings.feeds[0]).toBe(feed);
     expect(feed).toMatchObject({
@@ -663,7 +763,12 @@ describe("feed subscription: editFeed", () => {
     expect(feed.lastRefreshAttemptCompletedAt).toBe(123);
     expect(feed.lastFetchError).toBe("boom");
 
-    await harness.plugin.editFeed(feed, "Old title", "https://example.com/other.xml", "News");
+    await harness.plugin.editFeed(
+      feed,
+      "Old title",
+      "https://example.com/other.xml",
+      "News",
+    );
     expect(feed.lastRefreshAttemptCompletedAt).toBe(0);
     expect(feed.lastFetchError).toBeUndefined();
   });
@@ -683,56 +788,82 @@ describe("feed subscription: editFeed", () => {
     const { harness, feed } = editHarness();
     const oldUrl = feed.url;
 
-    await harness.plugin.editFeed(feed, "Old title", "https://example.com/other.xml", "News");
+    await harness.plugin.editFeed(
+      feed,
+      "Old title",
+      "https://example.com/other.xml",
+      "News",
+    );
 
     // BUG: pinned, see #553
     expect(feed.items[0].feedUrl).toBe(oldUrl);
   });
 
-  it.each([false, true])("refuses another feed's URL without changing feeds or creating a folder (pre-existing duplicate: %s)", async (hasDuplicate) => {
-    const { harness, feed } = editHarness();
-    const other = createFeed("other");
-    harness.plugin.settings.feeds.push(other);
-    if (hasDuplicate) {
-      harness.plugin.settings.feeds.push(createFeed("duplicate", { url: feed.url }));
-    }
-    const before = structuredClone(harness.plugin.settings);
+  it.each([false, true])(
+    "refuses another feed's URL without changing feeds or creating a folder (pre-existing duplicate: %s)",
+    async (hasDuplicate) => {
+      const { harness, feed } = editHarness();
+      const other = createFeed("other");
+      harness.plugin.settings.feeds.push(other);
+      if (hasDuplicate) {
+        harness.plugin.settings.feeds.push(
+          createFeed("duplicate", { url: feed.url }),
+        );
+      }
+      const before = structuredClone(harness.plugin.settings);
 
-    await harness.plugin.editFeed(feed, "New title", other.url, "News/New sub");
+      await harness.plugin.editFeed(
+        feed,
+        "New title",
+        other.url,
+        "News/New sub",
+      );
 
-    expect(harness.plugin.settings).toEqual(before);
-    expect(harness.save).not.toHaveBeenCalled();
-    expect(harness.refresh).not.toHaveBeenCalled();
-    expect(harness.events).toEqual(["notice: This feed URL already exists"]);
-  });
+      expect(harness.plugin.settings).toEqual(before);
+      expect(harness.save).not.toHaveBeenCalled();
+      expect(harness.refresh).not.toHaveBeenCalled();
+      expect(harness.events).toEqual(["notice: This feed URL already exists"]);
+    },
+  );
 
-  it.each([false, true])("allows title and folder edits while keeping the feed's own URL (pre-existing duplicate: %s)", async (hasDuplicate) => {
-    const { harness, feed } = editHarness();
-    harness.plugin.settings.feeds.push(createFeed("other"));
-    if (hasDuplicate) {
-      harness.plugin.settings.feeds.push(createFeed("duplicate", { url: feed.url }));
-    }
-    const oldUrl = feed.url;
+  it.each([false, true])(
+    "allows title and folder edits while keeping the feed's own URL (pre-existing duplicate: %s)",
+    async (hasDuplicate) => {
+      const { harness, feed } = editHarness();
+      harness.plugin.settings.feeds.push(createFeed("other"));
+      if (hasDuplicate) {
+        harness.plugin.settings.feeds.push(
+          createFeed("duplicate", { url: feed.url }),
+        );
+      }
+      const oldUrl = feed.url;
 
-    await harness.plugin.editFeed(feed, "New title", oldUrl, "News/New sub");
+      await harness.plugin.editFeed(feed, "New title", oldUrl, "News/New sub");
 
-    expect(feed).toMatchObject({
-      title: "New title",
-      url: oldUrl,
-      folder: "News/New sub",
-      lastRefreshAttemptCompletedAt: 123,
-      lastFetchError: "boom",
-    });
-    expect(feed.items[0].feedTitle).toBe("New title");
-    expect(harness.events).toEqual(["save", "refresh", 'notice: Feed "New title" updated']);
-  });
+      expect(feed).toMatchObject({
+        title: "New title",
+        url: oldUrl,
+        folder: "News/New sub",
+        lastRefreshAttemptCompletedAt: 123,
+        lastFetchError: "boom",
+      });
+      expect(feed.items[0].feedTitle).toBe("New title");
+      expect(harness.events).toEqual([
+        "save",
+        "refresh",
+        'notice: Feed "New title" updated',
+      ]);
+    },
+  );
 
   it("creates a missing target folder without a save or redraw of its own", async () => {
     const { harness, feed } = editHarness();
 
     await harness.plugin.editFeed(feed, "Old title", feed.url, "News/New sub");
 
-    expect(harness.plugin.settings.folders[0].subfolders.map((f) => f.name)).toEqual(["New sub"]);
+    expect(
+      harness.plugin.settings.folders[0].subfolders.map((f) => f.name),
+    ).toEqual(["New sub"]);
     expect(harness.save).toHaveBeenCalledTimes(1);
     expect(harness.refresh).toHaveBeenCalledTimes(1);
   });
@@ -743,7 +874,9 @@ describe("feed subscription: editFeed", () => {
     await harness.plugin.editFeed(feed, "Old title", feed.url, "");
 
     expect(feed.folder).toBe("");
-    expect(harness.plugin.settings.folders.map((f) => f.name)).toEqual(["News"]);
+    expect(harness.plugin.settings.folders.map((f) => f.name)).toEqual([
+      "News",
+    ]);
   });
 
   it("saves, redraws, then notices when a dashboard is open", async () => {
@@ -751,7 +884,11 @@ describe("feed subscription: editFeed", () => {
 
     await harness.plugin.editFeed(feed, "New title", feed.url, "News");
 
-    expect(harness.events).toEqual(["save", "refresh", 'notice: Feed "New title" updated']);
+    expect(harness.events).toEqual([
+      "save",
+      "refresh",
+      'notice: Feed "New title" updated',
+    ]);
   });
 
   it("saves but neither redraws nor notices without a dashboard", async () => {
@@ -766,9 +903,10 @@ describe("feed subscription: editFeed", () => {
 
 describe("feed subscription: addSubfolder", () => {
   function folderHarness(): Harness {
-    return createHarness([], [
-      { name: "News", subfolders: [{ name: "Tech", subfolders: [] }] },
-    ]);
+    return createHarness(
+      [],
+      [{ name: "News", subfolders: [{ name: "Tech", subfolders: [] }] }],
+    );
   }
 
   it("adds an empty subfolder under a top-level folder, saves, redraws, then notices", async () => {
@@ -802,7 +940,9 @@ describe("feed subscription: addSubfolder", () => {
 
     await harness.plugin.addSubfolder("News", "Tech");
 
-    expect(harness.events).toEqual(['notice: Subfolder "Tech" already exists in "News"']);
+    expect(harness.events).toEqual([
+      'notice: Subfolder "Tech" already exists in "News"',
+    ]);
     expect(harness.plugin.settings.folders[0].subfolders).toHaveLength(1);
   });
 
@@ -822,7 +962,9 @@ describe("feed subscription: addSubfolder", () => {
 
     // BUG: pinned, see #555
     expect(harness.events).toEqual([]);
-    expect(harness.plugin.settings.folders[0].subfolders[0].subfolders).toEqual([]);
+    expect(harness.plugin.settings.folders[0].subfolders[0].subfolders).toEqual(
+      [],
+    );
   });
 });
 
@@ -851,7 +993,10 @@ describe("feed subscription: applyFeedLimitsToAllFeeds", () => {
   }
 
   it("keeps the newest articles up to each feed's own limit", async () => {
-    const harness = createHarness([feedOfArticles("a", 4), feedOfArticles("b", 1)]);
+    const harness = createHarness([
+      feedOfArticles("a", 4),
+      feedOfArticles("b", 1),
+    ]);
 
     await harness.plugin.applyFeedLimitsToAllFeeds();
 
@@ -911,7 +1056,11 @@ describe("feed subscription: applyFeedLimitsToAllFeeds", () => {
 
     await harness.plugin.applyFeedLimitsToAllFeeds();
 
-    expect(harness.events).toEqual(["save", "refresh", "notice: Applied limits to 2 feeds"]);
+    expect(harness.events).toEqual([
+      "save",
+      "refresh",
+      "notice: Applied limits to 2 feeds",
+    ]);
   });
 
   it("says 1 feeds for a single trimmed feed", async () => {
@@ -941,7 +1090,10 @@ describe("feed subscription: applyFeedLimitsToAllFeeds", () => {
 
     await harness.plugin.applyFeedLimitsToAllFeeds();
 
-    expect(harness.events).toEqual(["save", "notice: Applied limits to 1 feeds"]);
+    expect(harness.events).toEqual([
+      "save",
+      "notice: Applied limits to 1 feeds",
+    ]);
   });
 
   it("reports a failing save, with the articles already trimmed in memory", async () => {
@@ -954,7 +1106,10 @@ describe("feed subscription: applyFeedLimitsToAllFeeds", () => {
 
     await harness.plugin.applyFeedLimitsToAllFeeds();
 
-    expect(harness.events).toEqual(["save", "notice: Error applying feed limits: disk full"]);
+    expect(harness.events).toEqual([
+      "save",
+      "notice: Error applying feed limits: disk full",
+    ]);
     expect(guids(feed)).toEqual(["a-3", "a-2"]);
   });
 
@@ -971,7 +1126,9 @@ describe("feed subscription: applyFeedLimitsToAllFeeds", () => {
     const apply = vi.spyOn(harness.plugin, "applyFeedLimitsToAllFeeds");
 
     await harness.plugin.onload();
-    commands.find((command) => command.id === "apply-feed-limits")?.callback?.();
+    commands
+      .find((command) => command.id === "apply-feed-limits")
+      ?.callback?.();
 
     expect(apply).toHaveBeenCalledTimes(1);
   });

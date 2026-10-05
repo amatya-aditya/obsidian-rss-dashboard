@@ -29,80 +29,80 @@ export class CustomXMLParser {
     element: Element | null,
     tagName: string,
     isHtml: boolean = false,
+    directChildOnly: boolean = false,
   ): string {
     if (!element) return "";
-    let el: Element | null = null;
-
-    if (tagName.includes("\\:")) {
-      el = element.querySelector(tagName);
-    } else if (tagName.includes(":")) {
-      const [namespace, localName] = tagName.split(":");
-      if (!namespace || !localName) {
-        return "";
-      }
-
-      // 1. Try namespaced selector with backslash
-      try {
-        el = element.querySelector(`${namespace}\\:${localName}`);
-      } catch {
-        /* ignore */
-      }
-
-      // 2. Try getElementsByTagNameNS if not found
-      if (!el) {
-        try {
-          const elements = element.getElementsByTagNameNS("*", localName);
-          el = elements[0] ?? null;
-        } catch {
-          /* ignore */
-        }
-      }
-
-      // 3. Try local name only if still not found
-      if (!el) {
-        try {
-          el = element.querySelector(localName);
-        } catch {
-          /* ignore */
-        }
-      }
-
-      // 4. Try local-name() selector if still not found
-      if (!el) {
-        try {
-          el = element.querySelector(`*[local-name()="${localName}"]`);
-        } catch {
-          /* ignore */
-        }
-      }
-    } else {
-      // Basic tag
-      el = element.querySelector(tagName);
-      if (!el) {
-        try {
-          const tagEls = element.getElementsByTagName(tagName);
-          el = tagEls[0] ?? null;
-        } catch {
-          /* ignore */
-        }
-      }
-    }
-
+    const el = directChildOnly
+      ? this.getDirectChild(element, tagName)
+      : this.getDescendant(element, tagName);
     if (!el) return "";
     const textContent = el.textContent?.trim() || "";
     return textContent ? sanitizeCDATAUtil(textContent, isHtml) : "";
+  }
+
+  private getDescendant(element: Element, tagName: string): Element | null {
+    if (tagName.includes("\\:")) return element.querySelector(tagName);
+    if (tagName.includes(":")) {
+      return this.getNamespacedDescendant(element, tagName);
+    }
+
+    const match = element.querySelector(tagName);
+    if (match) return match;
+    try {
+      return element.getElementsByTagName(tagName)[0] ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  private getNamespacedDescendant(
+    element: Element,
+    tagName: string,
+  ): Element | null {
+    const [namespace, localName] = tagName.split(":");
+    if (!namespace || !localName) return null;
+
+    try {
+      const match = element.querySelector(`${namespace}\\:${localName}`);
+      if (match) return match;
+    } catch {
+      /* ignore */
+    }
+
+    try {
+      const match = element.getElementsByTagNameNS("*", localName)[0];
+      if (match) return match;
+    } catch {
+      /* ignore */
+    }
+
+    try {
+      const match = element.querySelector(localName);
+      if (match) return match;
+    } catch {
+      /* ignore */
+    }
+
+    try {
+      return element.querySelector(`*[local-name()="${localName}"]`);
+    } catch {
+      return null;
+    }
   }
 
   private getAttribute(
     element: Element | null,
     tagName: string,
     attribute: string,
+    directChildOnly: boolean = false,
   ): string {
     if (!element) return "";
 
     let el: Element | null = null;
 
-    if (tagName.includes("\\:")) {
+    if (directChildOnly) {
+      el = this.getDirectChild(element, tagName);
+    } else if (tagName.includes("\\:")) {
       try {
         el = element.querySelector(tagName);
       } catch {
@@ -145,6 +145,17 @@ export class CustomXMLParser {
     }
 
     return el?.getAttribute(attribute) || "";
+  }
+
+  private getDirectChild(element: Element, tagName: string): Element | null {
+    const normalizedTagName = tagName.replace("\\:", ":");
+    const children = Array.from(element.children);
+    const exactMatch =
+      children.find((child) => child.tagName === normalizedTagName) ?? null;
+    if (exactMatch || !normalizedTagName.includes(":")) return exactMatch;
+
+    const localName = normalizedTagName.split(":")[1];
+    return children.find((child) => child.localName === localName) ?? null;
   }
 
   private getMediaImageUrl(item: Element): string {
@@ -463,6 +474,7 @@ export class CustomXMLParser {
 
   private getRssParserDeps() {
     return {
+      getDirectChild: this.getDirectChild.bind(this),
       getTextContent: this.getTextContent.bind(this),
       getAttribute: this.getAttribute.bind(this),
       getMediaImageUrl: this.getMediaImageUrl.bind(this),

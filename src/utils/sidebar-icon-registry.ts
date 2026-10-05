@@ -19,13 +19,13 @@ export const SIDEBAR_ICONS: SidebarIconConfig[] = [
   },
   {
     id: "addFeed",
-    label: "Add Feed",
+    label: "Add feed",
     lucideIcon: "plus-circle",
     settingKey: "hideIconAddFeed",
   },
   {
     id: "manageFeeds",
-    label: "Manage Feeds",
+    label: "Manage feeds",
     lucideIcon: "pencil",
     settingKey: "hideIconManageFeeds",
   },
@@ -43,7 +43,7 @@ export const SIDEBAR_ICONS: SidebarIconConfig[] = [
   },
   {
     id: "addFolder",
-    label: "Add Folder",
+    label: "Add folder",
     lucideIcon: "folder-plus",
     settingKey: "hideIconAddFolder",
   },
@@ -55,7 +55,7 @@ export const SIDEBAR_ICONS: SidebarIconConfig[] = [
   },
   {
     id: "collapseAll",
-    label: "Collapse All",
+    label: "Collapse all",
     lucideIcon: "chevrons-up-down",
     settingKey: "hideIconCollapseAll",
   },
@@ -79,11 +79,12 @@ export function getIconById(id: string): SidebarIconConfig | undefined {
 
 /**
  * Creates a toolbar button element following the Obsidian clickable-icon pattern.
- * Attaches click and keyboard (Enter/Space) handlers.
+ * Attaches click and keyboard (Enter/Space) handlers. A click passes its
+ * MouseEvent to `onClick`; Enter and Space call it with no event.
  */
 export function createToolbarButton(
   icon: SidebarIconConfig,
-  onClick: () => void,
+  onClick: (e?: MouseEvent) => void,
 ): HTMLElement {
   const btn = activeWindow.createDiv();
   btn.className = "clickable-icon";
@@ -93,7 +94,7 @@ export function createToolbarButton(
 
   setIcon(btn, icon.lucideIcon);
 
-  btn.addEventListener("click", onClick);
+  btn.addEventListener("click", (e: MouseEvent) => onClick(e));
   btn.addEventListener("keydown", (e: KeyboardEvent) => {
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();

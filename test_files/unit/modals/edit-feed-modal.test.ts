@@ -245,84 +245,106 @@ beforeEach(() => {
 });
 
 describe("EditFeedModal", () => {
-  it.each([false, true])("keeps duplicate URL edits open without changing data, and lets the user correct the URL (pre-existing duplicate: %s)", async (hasDuplicate) => {
-    const app = createMockApp();
-    const feed: Feed = {
-      title: "Existing feed",
-      url: "https://example.com/feed.xml",
-      folder: "Tech",
-      items: [makeArticle("one", "2026-09-01T00:00:00Z")],
-      lastUpdated: 0,
-      lastRefreshAttemptCompletedAt: 123,
-      lastFetchError: "Timed out",
-    };
-    const other: Feed = { ...feed, url: "https://example.com/other.xml", items: [] };
-    const plugin: PluginTestFixture = {
-      app,
-      settings: {
-        feeds: [feed, other],
-        folders: [],
-        maxItems: 50,
-        corsProxyEnabled: false,
-        corsProxyUrl: "",
-        articleSaving: { savedTemplates: [] },
-      },
-      ensureFolderExists: vi.fn(async () => {}),
-      saveSettings: vi.fn(async () => {}),
-      notifyFiltersUpdated: vi.fn(),
-    };
-    if (hasDuplicate) {
-      plugin.settings.feeds.push({ ...feed, title: "Duplicate feed", items: [] });
-    }
-    const before = structuredClone(plugin.settings);
-    const onSave = vi.fn();
-    const modal = new EditFeedModal(app, asRssDashboardPlugin(plugin), feed, onSave);
-    const close = vi.spyOn(modal, "close");
-    const notice = vi.spyOn(console, "debug").mockImplementation(() => {});
-    modal.open();
+  it.each([false, true])(
+    "keeps duplicate URL edits open without changing data, and lets the user correct the URL (pre-existing duplicate: %s)",
+    async (hasDuplicate) => {
+      const app = createMockApp();
+      const feed: Feed = {
+        title: "Existing feed",
+        url: "https://example.com/feed.xml",
+        folder: "Tech",
+        items: [makeArticle("one", "2026-09-01T00:00:00Z")],
+        lastUpdated: 0,
+        lastRefreshAttemptCompletedAt: 123,
+        lastFetchError: "Timed out",
+      };
+      const other: Feed = {
+        ...feed,
+        url: "https://example.com/other.xml",
+        items: [],
+      };
+      const plugin: PluginTestFixture = {
+        app,
+        settings: {
+          feeds: [feed, other],
+          folders: [],
+          maxItems: 50,
+          corsProxyEnabled: false,
+          corsProxyUrl: "",
+          articleSaving: { savedTemplates: [] },
+        },
+        ensureFolderExists: vi.fn(async () => {}),
+        saveSettings: vi.fn(async () => {}),
+        notifyFiltersUpdated: vi.fn(),
+      };
+      if (hasDuplicate) {
+        plugin.settings.feeds.push({
+          ...feed,
+          title: "Duplicate feed",
+          items: [],
+        });
+      }
+      const before = structuredClone(plugin.settings);
+      const onSave = vi.fn();
+      const modal = new EditFeedModal(
+        app,
+        asRssDashboardPlugin(plugin),
+        feed,
+        onSave,
+      );
+      const close = vi.spyOn(modal, "close");
+      const notice = vi.spyOn(console, "debug").mockImplementation(() => {});
+      modal.open();
 
-    for (const [name, value] of [
-      ["Feed URL", other.url],
-      ["Title", "Edited title"],
-      ["Folder", "New folder"],
-    ]) {
-      const input = getTextInputBySettingName(modal.contentEl, name);
-      input.value = value;
-      input.dispatchEvent(new Event("input"));
-    }
-    const excludeToggle = getToggleBySettingName(modal.contentEl, "Exclude from refresh");
-    excludeToggle.checked = true;
-    excludeToggle.dispatchEvent(new Event("change"));
-    getButtonByText(modal.contentEl, "Save").click();
-    await flushPromises();
+      for (const [name, value] of [
+        ["Feed URL", other.url],
+        ["Title", "Edited title"],
+        ["Folder", "New folder"],
+      ]) {
+        const input = getTextInputBySettingName(modal.contentEl, name);
+        input.value = value;
+        input.dispatchEvent(new Event("input"));
+      }
+      const excludeToggle = getToggleBySettingName(
+        modal.contentEl,
+        "Exclude from refresh",
+      );
+      excludeToggle.checked = true;
+      excludeToggle.dispatchEvent(new Event("change"));
+      getButtonByText(modal.contentEl, "Save").click();
+      await flushPromises();
 
-    expect(notice).toHaveBeenCalledWith("[Stub Notice]", "This feed URL already exists");
-    expect(plugin.settings).toEqual(before);
-    expect(plugin.ensureFolderExists).not.toHaveBeenCalled();
-    expect(plugin.saveSettings).not.toHaveBeenCalled();
-    expect(plugin.notifyFiltersUpdated).not.toHaveBeenCalled();
-    expect(onSave).not.toHaveBeenCalled();
-    expect(close).not.toHaveBeenCalled();
+      expect(notice).toHaveBeenCalledWith(
+        "[Stub Notice]",
+        "This feed URL already exists",
+      );
+      expect(plugin.settings).toEqual(before);
+      expect(plugin.ensureFolderExists).not.toHaveBeenCalled();
+      expect(plugin.saveSettings).not.toHaveBeenCalled();
+      expect(plugin.notifyFiltersUpdated).not.toHaveBeenCalled();
+      expect(onSave).not.toHaveBeenCalled();
+      expect(close).not.toHaveBeenCalled();
 
-    const urlInput = getTextInputBySettingName(modal.contentEl, "Feed URL");
-    urlInput.value = feed.url;
-    urlInput.dispatchEvent(new Event("input"));
-    getButtonByText(modal.contentEl, "Save").click();
-    await flushPromises();
+      const urlInput = getTextInputBySettingName(modal.contentEl, "Feed URL");
+      urlInput.value = feed.url;
+      urlInput.dispatchEvent(new Event("input"));
+      getButtonByText(modal.contentEl, "Save").click();
+      await flushPromises();
 
-    expect(feed).toMatchObject({
-      title: "Edited title",
-      url: before.feeds[0].url,
-      folder: "New folder",
-      excludeFromRefresh: true,
-      lastRefreshAttemptCompletedAt: 123,
-      lastFetchError: "Timed out",
-    });
-    expect(plugin.settings.feeds.slice(1)).toEqual(before.feeds.slice(1));
-    expect(plugin.saveSettings).toHaveBeenCalledTimes(1);
-    expect(onSave).toHaveBeenCalledTimes(1);
-    expect(close).toHaveBeenCalledTimes(1);
-  });
+      expect(feed).toMatchObject({
+        title: "Edited title",
+        url: before.feeds[0].url,
+        folder: "New folder",
+        excludeFromRefresh: true,
+        lastRefreshAttemptCompletedAt: 123,
+        lastFetchError: "Timed out",
+      });
+      expect(plugin.settings.feeds.slice(1)).toEqual(before.feeds.slice(1));
+      expect(plugin.saveSettings).toHaveBeenCalledTimes(1);
+      expect(onSave).toHaveBeenCalledTimes(1);
+      expect(close).toHaveBeenCalledTimes(1);
+    },
+  );
 
   it("persists an encoding change and immediately refreshes the feed", async () => {
     const app = createMockApp();
@@ -931,12 +953,7 @@ describe("EditFeedModal", () => {
       initialItems: getItemsForDuration(30),
       selections: ["0"],
       expectedDuration: 0,
-      expectedGuids: [
-        "recent-read",
-        "mid-read",
-        "old-unread",
-        "very-old-read",
-      ],
+      expectedGuids: ["recent-read", "mid-read", "old-unread", "very-old-read"],
     },
     {
       label:
@@ -1161,8 +1178,6 @@ describe("EditFeedModal", () => {
     expect(plugin.saveSettings).toHaveBeenCalledTimes(0);
     expect(closeSpy).toHaveBeenCalledTimes(1);
   });
-
-
 
   it("shows a Mastodon conversion notice and routes to the configured Mastodon folder in Edit", async () => {
     const app = createMockApp();
@@ -1544,28 +1559,49 @@ describe("EditFeedModal", () => {
       notifyFiltersUpdated: vi.fn(),
     };
 
-    const modal = new EditFeedModal(app, asRssDashboardPlugin(plugin), feed, vi.fn());
+    const modal = new EditFeedModal(
+      app,
+      asRssDashboardPlugin(plugin),
+      feed,
+      vi.fn(),
+    );
     modal.open();
 
     expect(modal.modalEl.classList.contains("rss-edit-feed-modal")).toBe(true);
 
-    const actionsContainer = modal.contentEl.querySelector(".rss-edit-feed-actions");
+    const actionsContainer = modal.contentEl.querySelector(
+      ".rss-edit-feed-actions",
+    );
     expect(actionsContainer).not.toBeNull();
 
-    const saveBtn = modal.contentEl.querySelector(".rss-edit-feed-save-button") as HTMLButtonElement;
+    const saveBtn = modal.contentEl.querySelector(
+      ".rss-edit-feed-save-button",
+    ) as HTMLButtonElement;
     expect(saveBtn).not.toBeNull();
     expect(saveBtn.textContent).toBe("Save");
-    expect(saveBtn.classList.contains("rss-dashboard-primary-button")).toBe(true);
+    expect(saveBtn.classList.contains("rss-dashboard-primary-button")).toBe(
+      true,
+    );
 
-    const cancelBtn = modal.contentEl.querySelector(".rss-edit-feed-cancel-button") as HTMLButtonElement;
+    const cancelBtn = modal.contentEl.querySelector(
+      ".rss-edit-feed-cancel-button",
+    ) as HTMLButtonElement;
     expect(cancelBtn).not.toBeNull();
     expect(cancelBtn.textContent).toBe("Cancel");
-    expect(cancelBtn.classList.contains("rss-dashboard-cancel-button")).toBe(true);
-    expect(cancelBtn.classList.contains("rss-dashboard-danger-button")).toBe(false);
+    expect(cancelBtn.classList.contains("rss-dashboard-cancel-button")).toBe(
+      true,
+    );
+    expect(cancelBtn.classList.contains("rss-dashboard-danger-button")).toBe(
+      false,
+    );
 
-    const deleteBtn = modal.contentEl.querySelector(".rss-edit-feed-delete-button") as HTMLButtonElement;
+    const deleteBtn = modal.contentEl.querySelector(
+      ".rss-edit-feed-delete-button",
+    ) as HTMLButtonElement;
     expect(deleteBtn).not.toBeNull();
-    expect(deleteBtn.classList.contains("rss-dashboard-danger-button")).toBe(true);
+    expect(deleteBtn.classList.contains("rss-dashboard-danger-button")).toBe(
+      true,
+    );
 
     const iconSpan = deleteBtn.querySelector(".rss-edit-feed-delete-icon");
     expect(iconSpan).not.toBeNull();
@@ -1599,23 +1635,38 @@ describe("EditFeedModal", () => {
       notifyFiltersUpdated: vi.fn(),
     };
 
-    const modal = new EditFeedModal(app, asRssDashboardPlugin(plugin), feed, vi.fn(), {
-      onDelete,
-    });
+    const modal = new EditFeedModal(
+      app,
+      asRssDashboardPlugin(plugin),
+      feed,
+      vi.fn(),
+      {
+        onDelete,
+      },
+    );
     const closeModalSpy = vi.spyOn(modal, "close");
     modal.open();
 
-    const deleteBtn = modal.contentEl.querySelector(".rss-edit-feed-delete-button") as HTMLButtonElement;
+    const deleteBtn = modal.contentEl.querySelector(
+      ".rss-edit-feed-delete-button",
+    ) as HTMLButtonElement;
     deleteBtn.click();
     await flushPromises();
 
     // Confirm modal should be open in document body
-    const confirmModalEl = document.body.querySelector(".rss-dashboard-confirm-modal");
+    const confirmModalEl = document.body.querySelector(
+      ".rss-dashboard-confirm-modal",
+    );
     expect(confirmModalEl).not.toBeNull();
-    expect(confirmModalEl?.textContent).toContain('Are you sure you want to delete the feed "My Feed"?');
+    expect(confirmModalEl?.textContent).toContain(
+      'Are you sure you want to delete the feed "My Feed"?',
+    );
 
     // Click Cancel in the confirm modal
-    const cancelConfirmBtn = getButtonByText(confirmModalEl as HTMLElement, "Cancel");
+    const cancelConfirmBtn = getButtonByText(
+      confirmModalEl as HTMLElement,
+      "Cancel",
+    );
     cancelConfirmBtn.click();
     await flushPromises();
 
@@ -1650,18 +1701,31 @@ describe("EditFeedModal", () => {
       notifyFiltersUpdated: vi.fn(),
     };
 
-    const modal = new EditFeedModal(app, asRssDashboardPlugin(plugin), feed, vi.fn(), {
-      onDelete,
-    });
+    const modal = new EditFeedModal(
+      app,
+      asRssDashboardPlugin(plugin),
+      feed,
+      vi.fn(),
+      {
+        onDelete,
+      },
+    );
     const closeModalSpy = vi.spyOn(modal, "close");
     modal.open();
 
-    const deleteBtn = modal.contentEl.querySelector(".rss-edit-feed-delete-button") as HTMLButtonElement;
+    const deleteBtn = modal.contentEl.querySelector(
+      ".rss-edit-feed-delete-button",
+    ) as HTMLButtonElement;
     deleteBtn.click();
     await flushPromises();
 
-    const confirmModalEl = document.body.querySelector(".rss-dashboard-confirm-modal");
-    const confirmDeleteBtn = getButtonByText(confirmModalEl as HTMLElement, "Delete");
+    const confirmModalEl = document.body.querySelector(
+      ".rss-dashboard-confirm-modal",
+    );
+    const confirmDeleteBtn = getButtonByText(
+      confirmModalEl as HTMLElement,
+      "Delete",
+    );
     confirmDeleteBtn.click();
     await flushPromises();
 
@@ -1697,16 +1761,28 @@ describe("EditFeedModal", () => {
       notifyFiltersUpdated: vi.fn(),
     };
 
-    const modal = new EditFeedModal(app, asRssDashboardPlugin(plugin), feed, onSave);
+    const modal = new EditFeedModal(
+      app,
+      asRssDashboardPlugin(plugin),
+      feed,
+      onSave,
+    );
     const closeModalSpy = vi.spyOn(modal, "close");
     modal.open();
 
-    const deleteBtn = modal.contentEl.querySelector(".rss-edit-feed-delete-button") as HTMLButtonElement;
+    const deleteBtn = modal.contentEl.querySelector(
+      ".rss-edit-feed-delete-button",
+    ) as HTMLButtonElement;
     deleteBtn.click();
     await flushPromises();
 
-    const confirmModalEl = document.body.querySelector(".rss-dashboard-confirm-modal");
-    const confirmDeleteBtn = getButtonByText(confirmModalEl as HTMLElement, "Delete");
+    const confirmModalEl = document.body.querySelector(
+      ".rss-dashboard-confirm-modal",
+    );
+    const confirmDeleteBtn = getButtonByText(
+      confirmModalEl as HTMLElement,
+      "Delete",
+    );
     confirmDeleteBtn.click();
     await flushPromises();
 
@@ -1723,24 +1799,63 @@ describe("EditFeedModal", () => {
     const undatedItem = makeArticle("undated-item", "", {
       firstSeenMs: 1700000000000, // Timestamp between mid-item and recent-item
     }) as unknown as FeedItem;
-    const veryOldItem = makeArticle("very-old-item", "2015-01-01T00:00:00Z") as unknown as FeedItem;
-    const oldItem1 = makeArticle("old-item-1", "2018-01-01T00:00:00Z") as unknown as FeedItem;
-    const oldItem2 = makeArticle("old-item-2", "2019-01-01T00:00:00Z") as unknown as FeedItem;
-    const oldItem3 = makeArticle("old-item-3", "2020-01-01T00:00:00Z") as unknown as FeedItem;
-    const midItem1 = makeArticle("mid-item-1", "2021-01-01T00:00:00Z") as unknown as FeedItem;
-    const midItem2 = makeArticle("mid-item-2", "2022-01-01T00:00:00Z") as unknown as FeedItem;
-    const midItem3 = makeArticle("mid-item-3", "2023-01-01T00:00:00Z") as unknown as FeedItem;
-    const recentItem1 = makeArticle("recent-item-1", "2024-01-01T00:00:00Z") as unknown as FeedItem;
-    const recentItem2 = makeArticle("recent-item-2", "2024-08-01T00:00:00Z") as unknown as FeedItem;
-    const recentItem3 = makeArticle("recent-item-3", "2024-12-01T00:00:00Z") as unknown as FeedItem;
+    const veryOldItem = makeArticle(
+      "very-old-item",
+      "2015-01-01T00:00:00Z",
+    ) as unknown as FeedItem;
+    const oldItem1 = makeArticle(
+      "old-item-1",
+      "2018-01-01T00:00:00Z",
+    ) as unknown as FeedItem;
+    const oldItem2 = makeArticle(
+      "old-item-2",
+      "2019-01-01T00:00:00Z",
+    ) as unknown as FeedItem;
+    const oldItem3 = makeArticle(
+      "old-item-3",
+      "2020-01-01T00:00:00Z",
+    ) as unknown as FeedItem;
+    const midItem1 = makeArticle(
+      "mid-item-1",
+      "2021-01-01T00:00:00Z",
+    ) as unknown as FeedItem;
+    const midItem2 = makeArticle(
+      "mid-item-2",
+      "2022-01-01T00:00:00Z",
+    ) as unknown as FeedItem;
+    const midItem3 = makeArticle(
+      "mid-item-3",
+      "2023-01-01T00:00:00Z",
+    ) as unknown as FeedItem;
+    const recentItem1 = makeArticle(
+      "recent-item-1",
+      "2024-01-01T00:00:00Z",
+    ) as unknown as FeedItem;
+    const recentItem2 = makeArticle(
+      "recent-item-2",
+      "2024-08-01T00:00:00Z",
+    ) as unknown as FeedItem;
+    const recentItem3 = makeArticle(
+      "recent-item-3",
+      "2024-12-01T00:00:00Z",
+    ) as unknown as FeedItem;
 
     const feed: Feed = {
       title: "Test feed",
       url: "https://example.com/feed.xml",
       folder: "Tech",
       items: [
-        veryOldItem, oldItem1, oldItem2, oldItem3, midItem1, midItem2,
-        undatedItem, midItem3, recentItem1, recentItem2, recentItem3,
+        veryOldItem,
+        oldItem1,
+        oldItem2,
+        oldItem3,
+        midItem1,
+        midItem2,
+        undatedItem,
+        midItem3,
+        recentItem1,
+        recentItem2,
+        recentItem3,
       ],
       lastUpdated: 0,
       maxItemsLimit: 0,
@@ -1756,7 +1871,9 @@ describe("EditFeedModal", () => {
         corsProxyEnabled: false,
         corsProxyUrl: "",
         articleSaving: { savedTemplates: [] },
-      } as PluginTestFixture["settings"] & { useFirstSeenDateFallback: boolean },
+      } as PluginTestFixture["settings"] & {
+        useFirstSeenDateFallback: boolean;
+      },
       ensureFolderExists: vi.fn(async () => {}),
       saveSettings: vi.fn(async () => {}),
       notifyFiltersUpdated: vi.fn(),
@@ -1796,26 +1913,72 @@ describe("EditFeedModal", () => {
   it("truncates fully-dated feeds using pubDate (regression test)", async () => {
     const app = createMockApp();
     // Create 12 fully-dated items to verify sorting and truncation works correctly
-    const veryOldItem = makeArticle("very-old-item", "2015-01-01T00:00:00Z") as unknown as FeedItem;
-    const oldItem1 = makeArticle("old-item-1", "2018-01-01T00:00:00Z") as unknown as FeedItem;
-    const oldItem2 = makeArticle("old-item-2", "2019-01-01T00:00:00Z") as unknown as FeedItem;
-    const oldItem3 = makeArticle("old-item-3", "2020-01-01T00:00:00Z") as unknown as FeedItem;
-    const midItem1 = makeArticle("mid-item-1", "2021-01-01T00:00:00Z") as unknown as FeedItem;
-    const midItem2 = makeArticle("mid-item-2", "2022-01-01T00:00:00Z") as unknown as FeedItem;
-    const midItem3 = makeArticle("mid-item-3", "2023-01-01T00:00:00Z") as unknown as FeedItem;
-    const recentItem1 = makeArticle("recent-item-1", "2024-01-01T00:00:00Z") as unknown as FeedItem;
-    const recentItem2 = makeArticle("recent-item-2", "2024-08-01T00:00:00Z") as unknown as FeedItem;
-    const recentItem3 = makeArticle("recent-item-3", "2024-12-01T00:00:00Z") as unknown as FeedItem;
-    const extraItem1 = makeArticle("extra-item-1", "2024-07-01T00:00:00Z") as unknown as FeedItem;
-    const extraItem2 = makeArticle("extra-item-2", "2024-06-01T00:00:00Z") as unknown as FeedItem;
+    const veryOldItem = makeArticle(
+      "very-old-item",
+      "2015-01-01T00:00:00Z",
+    ) as unknown as FeedItem;
+    const oldItem1 = makeArticle(
+      "old-item-1",
+      "2018-01-01T00:00:00Z",
+    ) as unknown as FeedItem;
+    const oldItem2 = makeArticle(
+      "old-item-2",
+      "2019-01-01T00:00:00Z",
+    ) as unknown as FeedItem;
+    const oldItem3 = makeArticle(
+      "old-item-3",
+      "2020-01-01T00:00:00Z",
+    ) as unknown as FeedItem;
+    const midItem1 = makeArticle(
+      "mid-item-1",
+      "2021-01-01T00:00:00Z",
+    ) as unknown as FeedItem;
+    const midItem2 = makeArticle(
+      "mid-item-2",
+      "2022-01-01T00:00:00Z",
+    ) as unknown as FeedItem;
+    const midItem3 = makeArticle(
+      "mid-item-3",
+      "2023-01-01T00:00:00Z",
+    ) as unknown as FeedItem;
+    const recentItem1 = makeArticle(
+      "recent-item-1",
+      "2024-01-01T00:00:00Z",
+    ) as unknown as FeedItem;
+    const recentItem2 = makeArticle(
+      "recent-item-2",
+      "2024-08-01T00:00:00Z",
+    ) as unknown as FeedItem;
+    const recentItem3 = makeArticle(
+      "recent-item-3",
+      "2024-12-01T00:00:00Z",
+    ) as unknown as FeedItem;
+    const extraItem1 = makeArticle(
+      "extra-item-1",
+      "2024-07-01T00:00:00Z",
+    ) as unknown as FeedItem;
+    const extraItem2 = makeArticle(
+      "extra-item-2",
+      "2024-06-01T00:00:00Z",
+    ) as unknown as FeedItem;
 
     const feed: Feed = {
       title: "Test feed",
       url: "https://example.com/feed.xml",
       folder: "Tech",
       items: [
-        veryOldItem, oldItem1, oldItem2, oldItem3, midItem1, midItem2,
-        midItem3, recentItem1, extraItem1, extraItem2, recentItem2, recentItem3,
+        veryOldItem,
+        oldItem1,
+        oldItem2,
+        oldItem3,
+        midItem1,
+        midItem2,
+        midItem3,
+        recentItem1,
+        extraItem1,
+        extraItem2,
+        recentItem2,
+        recentItem3,
       ],
       lastUpdated: 0,
       maxItemsLimit: 0,
@@ -1831,7 +1994,9 @@ describe("EditFeedModal", () => {
         corsProxyEnabled: false,
         corsProxyUrl: "",
         articleSaving: { savedTemplates: [] },
-      } as PluginTestFixture["settings"] & { useFirstSeenDateFallback: boolean },
+      } as PluginTestFixture["settings"] & {
+        useFirstSeenDateFallback: boolean;
+      },
       ensureFolderExists: vi.fn(async () => {}),
       saveSettings: vi.fn(async () => {}),
       notifyFiltersUpdated: vi.fn(),
@@ -1870,4 +2035,3 @@ describe("EditFeedModal", () => {
     expect(guids[1]).toBe("recent-item-2");
   });
 });
-

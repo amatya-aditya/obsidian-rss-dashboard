@@ -1,9 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { Feed, FeedItem } from "../../../src/types/types";
-import {
-  buildArticle,
-  createArticleListHarness,
-} from "./article-list-harness";
+import { buildArticle, createArticleListHarness } from "./article-list-harness";
 
 type Harness = ReturnType<typeof createArticleListHarness>;
 
@@ -24,8 +21,9 @@ function createDashboardLikeHarness(): { harness: Harness; source: FeedItem } {
   let harness: Harness | null = null;
 
   const resync = () => {
-    harness?.list.syncVisibleArticlesFromSource((article) =>
-      feed.items.find((item) => item.guid === article.guid) ?? null,
+    harness?.list.syncVisibleArticlesFromSource(
+      (article) =>
+        feed.items.find((item) => item.guid === article.guid) ?? null,
     );
     harness?.list.refreshVisibleArticleTags();
   };

@@ -213,7 +213,9 @@ export function renderSidebarSettingsTab(
 
   new Setting(containerEl)
     .setName("Show feed fetch error badges")
-    .setDesc("Show a warning icon in the sidebar for feeds that failed to fetch")
+    .setDesc(
+      "Show a warning icon in the sidebar for feeds that failed to fetch",
+    )
     .addToggle((toggle) =>
       toggle
         .setValue(!plugin.settings.display.hideFeedFetchErrorBadges)
@@ -348,10 +350,7 @@ export function renderSidebarSettingsTab(
           const previousId = newOrder[idx - 1];
           const currentId = newOrder[idx];
           if (previousId === undefined || currentId === undefined) return;
-          [newOrder[idx - 1], newOrder[idx]] = [
-            currentId,
-            previousId,
-          ];
+          [newOrder[idx - 1], newOrder[idx]] = [currentId, previousId];
           plugin.settings.display.iconOrder = newOrder;
           renderIconRows();
           void (async () => {
@@ -377,10 +376,7 @@ export function renderSidebarSettingsTab(
           const currentId = newOrder[idx];
           const nextId = newOrder[idx + 1];
           if (currentId === undefined || nextId === undefined) return;
-          [newOrder[idx], newOrder[idx + 1]] = [
-            nextId,
-            currentId,
-          ];
+          [newOrder[idx], newOrder[idx + 1]] = [nextId, currentId];
           plugin.settings.display.iconOrder = newOrder;
           renderIconRows();
           void (async () => {
@@ -749,8 +745,7 @@ export function renderSidebarSettingsTab(
                 | undefined) ?? [];
             const availableTags =
               (settings.availableTags as
-                | Array<{ name: string; id?: string }>
-                | undefined) ?? [];
+                Array<{ name: string; id?: string }> | undefined) ?? [];
 
             // ── Transition: OFF → ON ─────────────────────────────────────────
             if (!oldValue && value) {
@@ -759,10 +754,7 @@ export function renderSidebarSettingsTab(
 
               // Re-fetch all matching feed icons asynchronously
               void (async () => {
-                const entries = collectDomainFeeds(
-                  feeds,
-                  matchesDomain,
-                );
+                const entries = collectDomainFeeds(feeds, matchesDomain);
                 await fetchDomainFeedIcons(
                   entries,
                   plugin.settings.display,
@@ -783,10 +775,7 @@ export function renderSidebarSettingsTab(
 
             // ── Transition: ON → OFF ─────────────────────────────────────────
             if (oldValue && !value) {
-              const entries = collectDomainFeeds(
-                feeds,
-                matchesDomain,
-              );
+              const entries = collectDomainFeeds(feeds, matchesDomain);
               const iconCountByUrl = new Map<string, number>();
               for (const { feed, needsRefresh } of entries as {
                 feed: Feed;
@@ -867,7 +856,7 @@ export function renderSidebarSettingsTab(
       "Replace the standard podcast mic icon with the album/show artwork when one is available",
     settingKey: "useDomainIconsPodcast",
     domainName: "Podcast",
-    heading: "Clear Podcast artwork?",
+    heading: "Clear podcast artwork?",
     confirmLabel: "Clear artwork",
     matchesDomain: (feed) => feed.mediaType === "podcast",
     clearIconOnDisable: (entries) => {

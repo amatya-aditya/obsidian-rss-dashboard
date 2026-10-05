@@ -7,8 +7,9 @@ const PIXEL = "https://t.example.com/pixel.gif";
 
 /** A resolver that records its calls, like the one `FeedParser` passes in. */
 function makeResolver() {
-  return vi.fn((relativeUrl: string, baseUrl: string) =>
-    new URL(relativeUrl, baseUrl).href,
+  return vi.fn(
+    (relativeUrl: string, baseUrl: string) =>
+      new URL(relativeUrl, baseUrl).href,
   );
 }
 
@@ -38,9 +39,11 @@ describe("extractCoverImage", () => {
     });
 
     it("returns an empty string when the html cannot be parsed", () => {
-      vi.spyOn(DOMParser.prototype, "parseFromString").mockImplementation(() => {
-        throw new Error("parse failure");
-      });
+      vi.spyOn(DOMParser.prototype, "parseFromString").mockImplementation(
+        () => {
+          throw new Error("parse failure");
+        },
+      );
 
       expect(extract(`<img src="${REAL}">`).cover).toBe("");
     });
@@ -73,23 +76,26 @@ describe("extractCoverImage", () => {
       expect(resolver).toHaveBeenCalledWith("/og/a.png", BASE);
     });
 
-    it("takes anything that starts with http as absolute", () => {
+    it("resolves a relative filename that starts with http", () => {
       const { cover, resolver } = extract(og("http-banner.jpg"));
 
-      expect(cover).toBe("http-banner.jpg");
-      expect(resolver).not.toHaveBeenCalled();
+      expect(cover).toBe("https://example.com/rss/http-banner.jpg");
+      expect(resolver).toHaveBeenCalledWith("http-banner.jpg", BASE);
     });
 
     it("wins over an image in the document", () => {
-      expect(extract(`<img src="${REAL}">${og("https://img.example.com/og.jpg")}`).cover).toBe(
-        "https://img.example.com/og.jpg",
-      );
+      expect(
+        extract(`<img src="${REAL}">${og("https://img.example.com/og.jpg")}`)
+          .cover,
+      ).toBe("https://img.example.com/og.jpg");
     });
 
     it("shrinks a supported CDN image", () => {
       expect(
         extract(og("https://res.cloudinary.com/demo/image/upload/s.jpg")).cover,
-      ).toBe("https://res.cloudinary.com/demo/image/upload/w_600,c_scale/s.jpg");
+      ).toBe(
+        "https://res.cloudinary.com/demo/image/upload/w_600,c_scale/s.jpg",
+      );
     });
 
     it("falls through to the images when the content is empty", () => {
@@ -98,21 +104,30 @@ describe("extractCoverImage", () => {
 
     it("falls through to the images when it is a formula image", () => {
       expect(
-        extract(`${og("https://s0.wp.com/latex.php?latex=x")}<img src="${REAL}">`).cover,
+        extract(
+          `${og("https://s0.wp.com/latex.php?latex=x")}<img src="${REAL}">`,
+        ).cover,
       ).toBe(REAL);
     });
 
     it("falls through to the images when a relative url has no base url to resolve against", () => {
-      const { cover, resolver } = extract(`${og("og/a.png")}<img src="${REAL}">`, "");
+      const { cover, resolver } = extract(
+        `${og("og/a.png")}<img src="${REAL}">`,
+        "",
+      );
 
       expect(cover).toBe(REAL);
       expect(resolver).not.toHaveBeenCalled();
     });
 
-    it("stops at a data: URI result without trying the images", () => {
-      expect(extract(`${og("data:image/png;base64,AAAA")}<img src="${REAL}">`).cover).toBe(
-        "data:image/png;base64,AAAA",
-      );
+    it("skips a data: URI and tries the images", () => {
+      expect(
+        extract(`${og("data:image/png;base64,AAAA")}<img src="${REAL}">`).cover,
+      ).toBe(REAL);
+    });
+
+    it("returns no cover when the only og:image is a data: URI", () => {
+      expect(extract(og("data:image/png;base64,AAAA")).cover).toBe("");
     });
 
     it("logs a double-encoded url", () => {
@@ -128,13 +143,27 @@ describe("extractCoverImage", () => {
 
   describe("first image", () => {
     it.each([
-      ["an absolute url", "https://img.example.com/photo", "https://img.example.com/photo"],
-      ["a url with no image extension", "https://example.com/photo", "https://example.com/photo"],
+      [
+        "an absolute url",
+        "https://img.example.com/photo",
+        "https://img.example.com/photo",
+      ],
+      [
+        "a url with no image extension",
+        "https://example.com/photo",
+        "https://example.com/photo",
+      ],
       ["a relative path", "pics/a.png", "https://example.com/rss/pics/a.png"],
       ["a root-relative path", "/pics/a.png", "https://example.com/pics/a.png"],
-      ["a protocol-relative url", "//cdn.example.com/a.png", "https://cdn.example.com/a.png"],
+      [
+        "a protocol-relative url",
+        "//cdn.example.com/a.png",
+        "https://cdn.example.com/a.png",
+      ],
     ])("takes %s", (_label, src, expected) => {
-      expect(extract(`<img src="${src}"><img src="${REAL}">`).cover).toBe(expected);
+      expect(extract(`<img src="${src}"><img src="${REAL}">`).cover).toBe(
+        expected,
+      );
     });
 
     it("does not call the resolver for an absolute src and passes a relative one with the base url", () => {
@@ -146,23 +175,38 @@ describe("extractCoverImage", () => {
     });
 
     it("shrinks a supported CDN image, absolute or resolved", () => {
-      const shrunk = "https://res.cloudinary.com/demo/image/upload/w_600,c_scale/s.jpg";
+      const shrunk =
+        "https://res.cloudinary.com/demo/image/upload/w_600,c_scale/s.jpg";
 
-      expect(extract('<img src="https://res.cloudinary.com/demo/image/upload/s.jpg">').cover).toBe(shrunk);
-      expect(extract('<img src="//res.cloudinary.com/demo/image/upload/s.jpg">').cover).toBe(shrunk);
+      expect(
+        extract(
+          '<img src="https://res.cloudinary.com/demo/image/upload/s.jpg">',
+        ).cover,
+      ).toBe(shrunk);
+      expect(
+        extract('<img src="//res.cloudinary.com/demo/image/upload/s.jpg">')
+          .cover,
+      ).toBe(shrunk);
     });
 
     it("skips formula images", () => {
       expect(
-        extract(`<img class="latex" src="https://img.example.com/f.png"><img src="${REAL}">`).cover,
+        extract(
+          `<img class="latex" src="https://img.example.com/f.png"><img src="${REAL}">`,
+        ).cover,
       ).toBe(REAL);
       expect(
-        extract(`<img src="https://s0.wp.com/latex.php?latex=x"><img src="${REAL}">`).cover,
+        extract(
+          `<img src="https://s0.wp.com/latex.php?latex=x"><img src="${REAL}">`,
+        ).cover,
       ).toBe(REAL);
     });
 
     it("finds no cover when every image is a formula", () => {
-      expect(extract('<img class="latex" src="https://img.example.com/f.png">').cover).toBe("");
+      expect(
+        extract('<img class="latex" src="https://img.example.com/f.png">')
+          .cover,
+      ).toBe("");
     });
 
     it.each([
@@ -189,27 +233,34 @@ describe("extractCoverImage", () => {
       "rss-pixel.png",
     ])("skips a src that contains a tracking pattern: %s", (name) => {
       expect(
-        extract(`<img src="https://t.example.com/${name}"><img src="${REAL}">`).cover,
+        extract(`<img src="https://t.example.com/${name}"><img src="${REAL}">`)
+          .cover,
       ).toBe(REAL);
     });
 
     it("does not call a near miss a tracking pixel", () => {
-      expect(extract(`<img src="https://t.example.com/pixel.png"><img src="${REAL}">`).cover).toBe(
-        "https://t.example.com/pixel.png",
-      );
+      expect(
+        extract(
+          `<img src="https://t.example.com/pixel.png"><img src="${REAL}">`,
+        ).cover,
+      ).toBe("https://t.example.com/pixel.png");
     });
 
     it("takes a relative src when there is no base url only if it is absolute", () => {
-      const { cover, resolver } = extract(`<img src="a.png"><img src="${REAL}">`, "");
+      const { cover, resolver } = extract(
+        `<img src="a.png"><img src="${REAL}">`,
+        "",
+      );
 
       expect(cover).toBe(REAL);
       expect(resolver).not.toHaveBeenCalled();
     });
 
-    it("returns a data: URI as it is, without trying later images", () => {
-      expect(extract(`<img src="data:image/gif;base64,AAAA"><img src="${REAL}">`).cover).toBe(
-        "data:image/gif;base64,AAAA",
-      );
+    it("skips a data: URI and tries later images", () => {
+      expect(
+        extract(`<img src="data:image/gif;base64,AAAA"><img src="${REAL}">`)
+          .cover,
+      ).toBe(REAL);
     });
 
     it("logs a double-encoded src", () => {
@@ -228,17 +279,14 @@ describe("extractCoverImage", () => {
       return `<img src="${PIXEL}">${images.map((src) => `<img src="${src}">`).join("")}`;
     }
 
-    it.each([
-      ".jpg",
-      ".jpeg",
-      ".png",
-      ".gif",
-      ".webp",
-    ])("accepts an absolute src ending in %s", (extension) => {
-      const src = `https://img.example.com/a${extension}`;
+    it.each([".jpg", ".jpeg", ".png", ".gif", ".webp"])(
+      "accepts an absolute src ending in %s",
+      (extension) => {
+        const src = `https://img.example.com/a${extension}`;
 
-      expect(extract(afterPixel(src)).cover).toBe(src);
-    });
+        expect(extract(afterPixel(src)).cover).toBe(src);
+      },
+    );
 
     it.each([
       "https://img.example.com/image/12345",
@@ -280,9 +328,9 @@ describe("extractCoverImage", () => {
     });
 
     it("keeps an absolute src exactly as written and normalizes only a resolved one", () => {
-      expect(extract(afterPixel("https://img.example.com/a%2520b.png")).cover).toBe(
-        "https://img.example.com/a%2520b.png",
-      );
+      expect(
+        extract(afterPixel("https://img.example.com/a%2520b.png")).cover,
+      ).toBe("https://img.example.com/a%2520b.png");
     });
 
     it("skips later tracking pixels, junk and formula images, then takes the first qualifying image", () => {
@@ -300,8 +348,12 @@ describe("extractCoverImage", () => {
 
     it("shrinks a supported CDN image", () => {
       expect(
-        extract(afterPixel("https://res.cloudinary.com/demo/image/upload/s.jpg")).cover,
-      ).toBe("https://res.cloudinary.com/demo/image/upload/w_600,c_scale/s.jpg");
+        extract(
+          afterPixel("https://res.cloudinary.com/demo/image/upload/s.jpg"),
+        ).cover,
+      ).toBe(
+        "https://res.cloudinary.com/demo/image/upload/w_600,c_scale/s.jpg",
+      );
     });
 
     it("logs a double-encoded src for the first image and again for the scan", () => {

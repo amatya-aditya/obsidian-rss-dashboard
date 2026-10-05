@@ -28,7 +28,11 @@ import {
   type SidebarOptions,
 } from "../../../src/components/sidebar";
 import * as ObsidianStubs from "../../stubs/obsidian";
-import type { Feed, Folder, RssDashboardSettings } from "../../../src/types/types";
+import type {
+  Feed,
+  Folder,
+  RssDashboardSettings,
+} from "../../../src/types/types";
 import type RssDashboardPlugin from "../../../main";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 
@@ -221,7 +225,8 @@ describe("Sidebar folder context menu (characterization)", () => {
   /** Runs one item's click handler. */
   function clickItem(title: string): unknown {
     const item = ObsidianStubs.Menu.lastItems.find((i) => i.title === title);
-    if (!item) throw new Error(`no menu item "${title}" in ${menuTitles().join(", ")}`);
+    if (!item)
+      throw new Error(`no menu item "${title}" in ${menuTitles().join(", ")}`);
     return item.trigger();
   }
 
@@ -423,7 +428,11 @@ describe("Sidebar folder context menu (characterization)", () => {
 
     it("takes the pinned state from the folder object it was given, not from the path", () => {
       build();
-      const pinnedGhost = { name: "News", subfolders: [], pinned: true } as Folder;
+      const pinnedGhost = {
+        name: "News",
+        subfolders: [],
+        pinned: true,
+      } as Folder;
 
       callMenu("News", pinnedGhost);
 
@@ -715,7 +724,10 @@ describe("Sidebar folder context menu (characterization)", () => {
         .mockImplementation(() => undefined);
 
       rightClick("Empty");
-      folder("Empty").subfolders.push({ name: "Fresh", subfolders: [] } as Folder);
+      folder("Empty").subfolders.push({
+        name: "Fresh",
+        subfolders: [],
+      } as Folder);
       clickItem("Add subfolder");
 
       expect((spy.mock.calls[0][0] as NameModalOptions).existingNames).toEqual([
@@ -813,7 +825,10 @@ describe("Sidebar folder context menu (characterization)", () => {
     it("lists the siblings' names, including its own, for a nested folder", () => {
       build();
 
-      expect(openDialog("News/Tech").existingNames).toEqual(["Tech", "Reports"]);
+      expect(openDialog("News/Tech").existingNames).toEqual([
+        "Tech",
+        "Reports",
+      ]);
     });
 
     it("lists every top-level folder's name, including its own, for a top-level folder", () => {
@@ -891,9 +906,9 @@ describe("Sidebar folder context menu (characterization)", () => {
         "Reports",
       ]);
       expect(
-        settings.feeds.map((f) => [f.title, f.folder]).filter(([t]) =>
-          ["Gamma", "Delta"].includes(t),
-        ),
+        settings.feeds
+          .map((f) => [f.title, f.folder])
+          .filter(([t]) => ["Gamma", "Delta"].includes(t)),
       ).toEqual([
         ["Gamma", "News/Gadgets"],
         ["Delta", "News/Gadgets/Releases"],
@@ -1116,8 +1131,13 @@ describe("Sidebar folder context menu (characterization)", () => {
       build();
 
       rightClick("Empty");
-      folder("Empty").subfolders.push({ name: "Late", subfolders: [] } as Folder);
-      settings.feeds.push(makeFeed("LateFeed", "https://late.test/feed", "Empty/Late"));
+      folder("Empty").subfolders.push({
+        name: "Late",
+        subfolders: [],
+      } as Folder);
+      settings.feeds.push(
+        makeFeed("LateFeed", "https://late.test/feed", "Empty/Late"),
+      );
       clickItem("Mark all as read");
 
       const late = settings.feeds.find((f) => f.title === "LateFeed") as Feed;

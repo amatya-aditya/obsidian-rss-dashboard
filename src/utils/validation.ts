@@ -106,7 +106,7 @@ export function sanitizeName(name: string): string {
     sanitized = sanitized.substring(1).trim();
   }
 
-  // If the result consists only of underscores and the original had no underscores, 
+  // If the result consists only of underscores and the original had no underscores,
   // it means everything was forbidden characters.
   if (sanitized && !sanitized.replace(/_/g, "").trim() && !name.includes("_")) {
     return "Unnamed";

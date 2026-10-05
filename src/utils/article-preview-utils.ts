@@ -1,6 +1,6 @@
-import { FeedItem } from '../types/types';
-import { htmlToReadableText } from './html-text';
-import { isLatexFormulaImage } from './image-url-utils';
+import { FeedItem } from "../types/types";
+import { htmlToReadableText } from "./html-text";
+import { isLatexFormulaImage } from "./image-url-utils";
 
 export const CARD_PREVIEW_SUMMARY_MAX_CHARS = 420;
 export const CARD_PREVIEW_HIGHLIGHT_MAX_CHARS = 900;
@@ -143,6 +143,8 @@ export function getArticlePreviewSummaryText(article: FeedItem): string {
   return "";
 }
 
-export function shouldHighlightCardPreviewSummary(summaryText: string): boolean {
+export function shouldHighlightCardPreviewSummary(
+  summaryText: string,
+): boolean {
   return summaryText.length <= CARD_PREVIEW_HIGHLIGHT_MAX_CHARS;
 }

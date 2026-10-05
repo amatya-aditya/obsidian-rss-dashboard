@@ -11,9 +11,7 @@ export interface SettingsSliderControl {
   sliderEl: HTMLInputElement;
   getValue(): number;
   setValue(value: number): SettingsSliderControl;
-  setDisplayFormat(
-    format: (value: number) => string,
-  ): SettingsSliderControl;
+  setDisplayFormat(format: (value: number) => string): SettingsSliderControl;
 }
 
 export interface SettingsUiCompatibility {

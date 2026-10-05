@@ -100,7 +100,6 @@ describe("optimizeImageUrl", () => {
   });
 });
 
-
 // Fallback path: a "[" host never parses, so these inputs reach the text check.
 const UNPARSEABLE = "http://[";
 
@@ -180,7 +179,9 @@ describe("isLatexFormulaImage with unparseable URLs", () => {
   });
 
   it("finds a later match after an earlier one failed", () => {
-    expect(detect("/latex.php?a/latex.php?xlatex=/latex.php?latex=")).toBe(true);
+    expect(detect("/latex.php?a/latex.php?xlatex=/latex.php?latex=")).toBe(
+      true,
+    );
     expect(detect("/latex.php?a#b/latex.php?c")).toBe(false);
   });
 

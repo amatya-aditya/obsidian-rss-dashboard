@@ -180,27 +180,29 @@ async function seedStore(
   await plugin.onload();
   plugin.settings.refreshInterval = 60;
   plugin.settings.startupRefreshDelaySeconds = startupRefreshDelaySeconds;
-  plugin.settings.feeds = [{
-    title: "Example",
-    url: FEED_URL,
-    folder: "",
-    lastUpdated: 0,
-    items: [
-      {
-        title: "A",
-        link: ARTICLE_URL,
-        guid: ARTICLE_URL,
-        description: "",
-        pubDate: "2024-01-01T00:00:00Z",
-        read: false,
-        starred: false,
-        tags: [],
-        feedTitle: "Example",
-        feedUrl: FEED_URL,
-        coverImage: "",
-      },
-    ],
-  } as unknown as Feed];
+  plugin.settings.feeds = [
+    {
+      title: "Example",
+      url: FEED_URL,
+      folder: "",
+      lastUpdated: 0,
+      items: [
+        {
+          title: "A",
+          link: ARTICLE_URL,
+          guid: ARTICLE_URL,
+          description: "",
+          pubDate: "2024-01-01T00:00:00Z",
+          read: false,
+          starred: false,
+          tags: [],
+          feedTitle: "Example",
+          feedUrl: FEED_URL,
+          coverImage: "",
+        },
+      ],
+    } as unknown as Feed,
+  ];
   await plugin.saveSettings();
   plugin.unload();
   return store;
@@ -613,8 +615,8 @@ describe("onload steps (characterization)", () => {
         "registerEvent",
         "vault.on:rename",
         "registerEvent",
-        "step:getActiveDashboardView",
         "step:initializeSettingsBackedServices",
+        "step:getActiveDashboardView",
         "step:ensureAutoRefreshScheduler",
         "step:scheduleStartupSavedArticleValidation",
         "workspace.onLayoutReady",
@@ -683,10 +685,29 @@ describe("onload steps (characterization)", () => {
       });
     });
 
-    it("redraws an open dashboard after the watchers and before it builds the scheduler", async () => {
-      const harness = createHarness({ data: null }, app);
+    it("repairs folders before redrawing an open dashboard", async () => {
+      const harness = createHarness(
+        {
+          data: {
+            feeds: [
+              {
+                title: "Orphan",
+                url: FEED_URL,
+                folder: "Missing folder",
+                items: [],
+              },
+            ],
+            folders: [],
+          },
+        },
+        app,
+      );
       observeOnload(harness, app);
+      let folderPresentAtRender = false;
       const render = vi.fn(() => {
+        folderPresentAtRender = harness.plugin.settings.folders.some(
+          (folder) => folder.name === "Missing folder",
+        );
         harness.log.push("view.render");
       });
       (harness.plugin as unknown as Internals).getActiveDashboardView = () =>
@@ -694,18 +715,18 @@ describe("onload steps (characterization)", () => {
 
       await harness.plugin.onload();
 
-      const order = harness.log.filter(
-        (e) =>
-          e === "view.render" ||
-          e === "step:ensureAutoRefreshScheduler" ||
-          e === "vault.on:rename",
+      const renderIndex = harness.log.indexOf("view.render");
+      const serviceInitializationIndex = harness.log.lastIndexOf(
+        "step:initializeSettingsBackedServices",
       );
-      expect(order).toEqual([
-        "vault.on:rename",
-        "view.render",
+      const schedulerIndex = harness.log.indexOf(
         "step:ensureAutoRefreshScheduler",
-      ]);
+      );
+      expect(harness.log.indexOf("vault.on:rename")).toBeLessThan(renderIndex);
+      expect(serviceInitializationIndex).toBeLessThan(renderIndex);
+      expect(renderIndex).toBeLessThan(schedulerIndex);
       expect(render).toHaveBeenCalledTimes(1);
+      expect(folderPresentAtRender).toBe(true);
     });
   });
 
@@ -802,8 +823,8 @@ describe("onload steps (characterization)", () => {
         "registerEvent",
         "vault.on:rename",
         "registerEvent",
-        "step:getActiveDashboardView",
         "step:initializeSettingsBackedServices",
+        "step:getActiveDashboardView",
       ]);
       expect(vi.getTimerCount()).toBe(0);
     });

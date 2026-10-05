@@ -10,7 +10,8 @@ import {
 
 describe("podcast-platforms.detectPodcastPlatform", () => {
   it("detects Apple Podcasts and extracts id", () => {
-    const url = "https://podcasts.apple.com/us/podcast/some-show/id123456789?i=1";
+    const url =
+      "https://podcasts.apple.com/us/podcast/some-show/id123456789?i=1";
     const platform = detectPodcastPlatform(url);
     expect(platform?.id).toBe("apple");
     expect(platform?.extractId(url)).toBe("123456789");
@@ -35,7 +36,9 @@ describe("podcast-platforms.detectPodcastPlatform", () => {
       "https://pocketcasts.com/podcast/some/123e4567-e89b-12d3-a456-426614174000";
     const platform = detectPodcastPlatform(url);
     expect(platform?.id).toBe("pocketcasts");
-    expect(platform?.extractId(url)).toBe("123e4567-e89b-12d3-a456-426614174000");
+    expect(platform?.extractId(url)).toBe(
+      "123e4567-e89b-12d3-a456-426614174000",
+    );
   });
 
   it("returns null when no platform matches", () => {
@@ -52,15 +55,24 @@ describe("podcast-platforms.platform helpers", () => {
   });
 
   it("extractId() returns null when the expected pattern is missing", () => {
-    expect(APPLE_PODCASTS.extractId("https://podcasts.apple.com/us/podcast/x")).toBeNull();
-    expect(SPOTIFY.extractId("https://open.spotify.com/episode/AbC123")).toBeNull();
-    expect(GOOGLE_PODCASTS.extractId("https://podcasts.google.com/feed/")).toBeNull();
-    expect(POCKET_CASTS.extractId("https://pocketcasts.com/podcast/some/not-a-uuid")).toBeNull();
+    expect(
+      APPLE_PODCASTS.extractId("https://podcasts.apple.com/us/podcast/x"),
+    ).toBeNull();
+    expect(
+      SPOTIFY.extractId("https://open.spotify.com/episode/AbC123"),
+    ).toBeNull();
+    expect(
+      GOOGLE_PODCASTS.extractId("https://podcasts.google.com/feed/"),
+    ).toBeNull();
+    expect(
+      POCKET_CASTS.extractId("https://pocketcasts.com/podcast/some/not-a-uuid"),
+    ).toBeNull();
   });
 
   it("isPodcastPlatformUrl mirrors detectPodcastPlatform", () => {
-    expect(isPodcastPlatformUrl("https://open.spotify.com/show/AbC123xyz")).toBe(true);
+    expect(
+      isPodcastPlatformUrl("https://open.spotify.com/show/AbC123xyz"),
+    ).toBe(true);
     expect(isPodcastPlatformUrl("https://example.com")).toBe(false);
   });
 });
-
