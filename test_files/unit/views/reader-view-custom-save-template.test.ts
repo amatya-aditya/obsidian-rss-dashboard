@@ -72,6 +72,7 @@ describe("ReaderView custom-folder saved templates", () => {
             id: "article-template",
             name: "Article",
             template: "Article template: {{content}}",
+            defaultFolder: "Articles/Template",
           },
         ],
       },
@@ -91,6 +92,10 @@ describe("ReaderView custom-folder saved templates", () => {
       "#rss-dashboard-saved-template",
     );
     expect(templateSelect?.value).toBe("article-template");
+    expect(
+      document.querySelector<HTMLInputElement>("#rss-dashboard-save-folder")
+        ?.value,
+    ).toBe("Articles/Template");
   });
 
   it("uses Current template when the feed's saved template no longer exists", () => {
@@ -122,7 +127,7 @@ describe("ReaderView custom-folder saved templates", () => {
     expect(templateSelect?.value).toBe("");
   });
 
-  it("applies the selected saved template and assigns it to the feed after saving", async () => {
+  it("prefills a selected template folder and keeps an individual save override", async () => {
     const item = createItem();
     const feed = createFeed(item);
     const settings: RssDashboardSettings = {
@@ -137,6 +142,7 @@ describe("ReaderView custom-folder saved templates", () => {
             id: "tweet-template",
             name: "Tweet",
             template: "Tweet template: {{content}}",
+            defaultFolder: "Template folder",
           },
         ],
       },
@@ -165,6 +171,7 @@ describe("ReaderView custom-folder saved templates", () => {
       "#rss-dashboard-saved-template",
     );
     const templateInput = modal?.querySelector<HTMLTextAreaElement>("textarea");
+    const folderInput = modal?.querySelector<HTMLInputElement>("input");
     const saveButton = modal?.querySelector<HTMLButtonElement>(
       ".rss-dashboard-primary-button",
     );
@@ -193,12 +200,14 @@ describe("ReaderView custom-folder saved templates", () => {
     templateSelect!.dispatchEvent(new Event("change"));
 
     expect(templateInput?.value).toBe("Tweet template: {{content}}");
+    expect(folderInput?.value).toBe("Template folder");
+    folderInput!.value = "One-off folder";
 
     saveButton?.click();
     await vi.waitFor(() => {
       expect(saveArticle).toHaveBeenCalledWith(
         item,
-        "Custom folder",
+        "One-off folder",
         "Tweet template: {{content}}",
         "Article description",
       );
@@ -206,6 +215,43 @@ describe("ReaderView custom-folder saved templates", () => {
 
     expect(feed.customTemplate).toBe("tweet-template");
     expect(onArticleSave).toHaveBeenCalledWith(item);
+  });
+
+  it("uses the global Save folder for a template without a saved folder", () => {
+    const item = createItem();
+    const settings: RssDashboardSettings = {
+      ...DEFAULT_SETTINGS,
+      articleSaving: {
+        ...DEFAULT_SETTINGS.articleSaving,
+        defaultFolder: "Global Save folder",
+        savedTemplates: [
+          { id: "legacy", name: "Legacy", template: "Legacy template" },
+        ],
+      },
+      useWebViewer: false,
+    };
+    const readerView = new ReaderView(
+      new MockLeaf({ workspace: {}, vault: {} }) as never,
+      settings,
+      { saveArticle: vi.fn() } as never,
+      vi.fn(),
+      vi.fn(),
+    );
+
+    getInternals(readerView).showCustomSaveModal(item);
+
+    const modal = document.querySelector<HTMLElement>(
+      ".rss-dashboard-custom-save-modal",
+    );
+    const templateSelect = modal?.querySelector<HTMLSelectElement>(
+      "#rss-dashboard-saved-template",
+    );
+    const folderInput = modal?.querySelector<HTMLInputElement>("input");
+
+    templateSelect!.value = "legacy";
+    templateSelect!.dispatchEvent(new Event("change"));
+
+    expect(folderInput?.value).toBe("Global Save folder");
   });
 
   it("saves an edited template after the article succeeds and assigns it when confirmed", async () => {
@@ -217,6 +263,7 @@ describe("ReaderView custom-folder saved templates", () => {
       feeds: [feed],
       articleSaving: {
         ...DEFAULT_SETTINGS.articleSaving,
+        defaultFolder: "Template folder",
         defaultTemplate: "Default template",
         savedTemplates: [],
       },
@@ -240,6 +287,7 @@ describe("ReaderView custom-folder saved templates", () => {
       "#rss-dashboard-saved-template",
     );
     const templateInput = modal?.querySelector<HTMLTextAreaElement>("textarea");
+    const folderInput = modal?.querySelector<HTMLInputElement>("input");
     const saveAsTemplateButton = Array.from(
       modal?.querySelectorAll<HTMLButtonElement>("button") ?? [],
     ).find((button) => button.textContent === "Save as new template");
@@ -247,6 +295,7 @@ describe("ReaderView custom-folder saved templates", () => {
       ".rss-dashboard-primary-button",
     );
 
+    expect(folderInput?.value).toBe("Template folder");
     templateInput!.value = "Edited template";
     templateInput!.dispatchEvent(new Event("input"));
     expect(saveAsTemplateButton?.hidden).toBe(false);
@@ -292,6 +341,7 @@ describe("ReaderView custom-folder saved templates", () => {
         "New template will be saved",
       );
     });
+    folderInput!.value = "One-off folder";
     expect(templateSelect?.value).toBe("template-123");
     expect(
       Array.from(templateSelect?.options ?? []).find(
@@ -307,10 +357,39 @@ describe("ReaderView custom-folder saved templates", () => {
           id: "template-123",
           name: "Article note",
           template: "Edited template",
+          defaultFolder: "Template folder",
         },
       ]);
     });
+    await vi.waitFor(() => {
+      expect(
+        document.querySelector(".rss-dashboard-custom-save-modal"),
+      ).toBeNull();
+    });
+
+    expect(saveArticle).toHaveBeenCalledWith(
+      item,
+      "One-off folder",
+      "Edited template",
+      "Article description",
+    );
 
     expect(feed.customTemplate).toBe("template-123");
+
+    const reloadedSettings = JSON.parse(
+      JSON.stringify(settings),
+    ) as RssDashboardSettings;
+    const reloadedReader = new ReaderView(
+      new MockLeaf({ workspace: {}, vault: {} }) as never,
+      reloadedSettings,
+      { saveArticle: vi.fn() } as never,
+      vi.fn(),
+      vi.fn(),
+    );
+    getInternals(reloadedReader).showCustomSaveModal(item);
+    expect(
+      document.querySelector<HTMLInputElement>("#rss-dashboard-save-folder")
+        ?.value,
+    ).toBe("Template folder");
   });
 });

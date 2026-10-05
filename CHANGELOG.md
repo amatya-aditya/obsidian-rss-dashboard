@@ -6,6 +6,7 @@
 
 ### Fixes
 - Prevented single-folder drops that leave the open folder's path unchanged from resetting sidebar state, including its tag filter and inline article. [GH Issue #665](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/665)
+- Fixed Reader save templates losing their custom folder. Selecting a template now restores its folder, older templates without one use the global Save folder, and each save can still override the selected folder. [GH Issue #758](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/758)
 - Stopped logging each failed remote image load and successful Substack image recovery; Chromium still reports resource failures. [GH Issue #437](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/437)
 - Prevented Reader shortcuts from firing while typing in custom-save modal fields, and made its template label and textarea full-width rows. [GH Issue #756](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/756)
 - Fixed the Reader's **Save to custom folder** modal layout on desktop and mobile. The folder field uses the full row, the template label and textarea no longer overlap, action buttons wrap and stay centered, button text stays within each button, Save has a visible border, and each action has an icon. [GH Issue #755](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/755)

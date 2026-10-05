@@ -81,4 +81,28 @@ describe("Reader custom save modal styles", () => {
       expect(focus.get("outline-offset")).toBe("2px");
     }
   });
+
+  it("shows visible focus on the folder and template text fields", () => {
+    const templateSelectFocus = declarationsFor(
+      ".rss-dashboard-template-select:focus-visible",
+    );
+    expect(templateSelectFocus.get("outline")).toBe("none");
+    expect(templateSelectFocus.get("border-color")).toBe(
+      "var(--interactive-accent)",
+    );
+    expect(templateSelectFocus.get("box-shadow")).toContain(
+      "var(--interactive-accent)",
+    );
+
+    for (const selector of [
+      ".rss-dashboard-folder-input-container input:focus-visible",
+      "textarea:focus-visible",
+    ]) {
+      const focus = declarationsFor(
+        `.rss-dashboard-custom-save-modal ${selector}`,
+      );
+      expect(focus.get("outline")).toBe("2px solid var(--interactive-accent)");
+      expect(focus.get("outline-offset")).toBe("2px");
+    }
+  });
 });

@@ -121,6 +121,20 @@ describe("ReaderCustomSaveModal", () => {
       "Use template:",
     ]);
     expect(root.querySelector<HTMLInputElement>("input")?.value).toBe("Reading/Queue");
+    const folderInput = root.querySelector<HTMLInputElement>("input");
+    const templateInput = root.querySelector<HTMLTextAreaElement>("textarea");
+    expect(folderInput?.id).toBe("rss-dashboard-save-folder");
+    expect(
+      root.querySelector<HTMLLabelElement>(
+        'label[for="rss-dashboard-save-folder"]',
+      )?.textContent,
+    ).toBe("Save to folder:");
+    expect(templateInput?.id).toBe("rss-dashboard-save-template");
+    expect(
+      root.querySelector<HTMLLabelElement>(
+        'label[for="rss-dashboard-save-template"]',
+      )?.textContent,
+    ).toBe("Use template:");
     expect(
       Array.from(root.querySelectorAll("select option"), (option) => [option.textContent, (option as HTMLOptionElement).value]),
     ).toEqual([
@@ -141,6 +155,14 @@ describe("ReaderCustomSaveModal", () => {
       "button",
     ]);
     expect(actionButtons.map((button) => button.tabIndex)).toEqual([0, 0, 0]);
+    expect(
+      root.querySelector<HTMLSelectElement>("#rss-dashboard-saved-template")
+        ?.tabIndex,
+    ).toBe(0);
+    expect(
+      root.querySelector<HTMLElement>(".rss-dashboard-clear-icon")
+        ?.getAttribute("aria-label"),
+    ).toBe("Clear save folder");
     expect(
       actionButtons.map((button) => {
         const icon = button.querySelector<HTMLElement>(
@@ -163,9 +185,11 @@ describe("ReaderCustomSaveModal", () => {
     if (!folder || !clear) throw new Error("Folder controls were not rendered");
     clear.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     expect(folder.value).toBe("");
-    folder.value = "Again";
-    clear.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
-    expect(folder.value).toBe("");
+    for (const key of ["Enter", " "]) {
+      folder.value = "Again";
+      clear.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true }));
+      expect(folder.value).toBe("");
+    }
     root.querySelector<HTMLButtonElement>(".rss-dashboard-custom-save-cancel-button")?.click();
     expect(activeDocument.querySelector(".rss-dashboard-custom-save-modal")).toBeNull();
   });

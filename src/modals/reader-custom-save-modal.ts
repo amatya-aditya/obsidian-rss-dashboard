@@ -11,6 +11,7 @@ interface PendingTemplate {
   id: string;
   name: string;
   template: string;
+  defaultFolder: string;
   assignToFeed: boolean;
   previousSelectedTemplateId: string;
 }
@@ -37,12 +38,16 @@ function createFolderControls(
   content: HTMLElement,
   context: ReaderCustomSaveModalContext,
 ): HTMLInputElement {
-  content.createEl("label", { text: "Save to folder:" });
+  content.createEl("label", {
+    text: "Save to folder:",
+    attr: { for: "rss-dashboard-save-folder" },
+  });
   const folderContainer = content.createDiv({
     cls: "rss-dashboard-folder-input-container",
   });
   const folderInput = folderContainer.createEl("input", {
     attr: {
+      id: "rss-dashboard-save-folder",
       type: "text",
       placeholder: "Enter folder path",
       value: context.getSettings().articleSaving.defaultFolder || "",
@@ -51,7 +56,7 @@ function createFolderControls(
   const clearIcon = folderContainer.createDiv({
     cls: "clickable-icon rss-dashboard-clear-icon",
     attr: {
-      "aria-label": "Clear input",
+      "aria-label": "Clear save folder",
       role: "button",
       tabindex: "0",
     },
@@ -157,13 +162,21 @@ function createTemplateControls(
   app: App,
   content: HTMLElement,
   item: FeedItem,
+  folderInput: HTMLInputElement,
   context: ReaderCustomSaveModalContext,
 ): TemplateControls & { getPending: () => PendingTemplate | null } {
   const settings = context.getSettings();
   const select = createSavedTemplateSelect(content, item, settings);
-  content.createEl("label", { text: "Use template:" });
+  content.createEl("label", {
+    text: "Use template:",
+    attr: { for: "rss-dashboard-save-template" },
+  });
   const input = content.createEl("textarea", {
-    attr: { placeholder: "Enter template", rows: "6" },
+    attr: {
+      id: "rss-dashboard-save-template",
+      placeholder: "Enter template",
+      rows: "6",
+    },
   });
   input.value =
     context.getCustomTemplateForArticle(item) ||
@@ -171,6 +184,13 @@ function createTemplateControls(
     "";
   let baseline = input.value;
   let selectedId = select.value;
+  const defaultFolder = settings.articleSaving.defaultFolder || "";
+  const selectedTemplate = settings.articleSaving.savedTemplates.find(
+    (template) => template.id === selectedId,
+  );
+  if (selectedTemplate) {
+    folderInput.value = selectedTemplate.defaultFolder || defaultFolder;
+  }
   let pending: PendingTemplate | null = null;
   const getPending = () => pending;
   const setPending = (value: PendingTemplate | null) => {
@@ -211,6 +231,7 @@ function createTemplateControls(
       input.value = selected.template;
       baseline = selected.template;
     }
+    folderInput.value = selected?.defaultFolder || defaultFolder;
     pending = null;
     refresh();
   });
@@ -229,6 +250,7 @@ function createTemplateControls(
         id,
         name,
         template: input.value,
+        defaultFolder: folderInput.value.trim(),
         assignToFeed,
         previousSelectedTemplateId: selectedId,
       };
@@ -288,6 +310,7 @@ function createActionButtons(
             id: pending.id,
             name: pending.name,
             template: pending.template,
+            defaultFolder: pending.defaultFolder,
           };
           settings.articleSaving.savedTemplates.push(newTemplate);
           if (pending.assignToFeed && feed) feed.customTemplate = newTemplate.id;
@@ -327,6 +350,7 @@ export class ReaderCustomSaveModal extends Modal {
       this.app,
       contentEl,
       this.item,
+      folderInput,
       this.context,
     );
     createActionButtons(
