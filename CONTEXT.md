@@ -56,6 +56,10 @@ _Avoid_: Modal dialog, photo popup, preview card, photo gallery
 The unconstrained original media URL extracted by resolving direct image links, selecting the highest-resolution candidate in a srcset, or stripping CDN resize transformations.
 _Avoid_: Thumbnail, cached preview, compressed version
 
+**Remote image load failure**:
+A third-party image resource that the host application cannot load. By itself, this does not mean the plugin failed; the host may report the resource failure independently.
+_Avoid_: Plugin image error
+
 ## Article state
 
 **Starred state**:

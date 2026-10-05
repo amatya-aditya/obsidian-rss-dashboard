@@ -545,16 +545,7 @@ export class ArticleRenderer {
     container.querySelectorAll("img").forEach((img) => {
       img.addClass("rss-reader-responsive-img");
       img.addEventListener("error", () => {
-        if (this.recoverFailedSubstackImageElement(img)) {
-          console.warn(
-            `[RSS Dashboard] ArticleRenderer recovered Substack img src=${img.getAttribute("src") || ""} currentSrc=${img.currentSrc || ""}`,
-          );
-          return;
-        }
-
-        console.error(
-          `[RSS Dashboard] ArticleRenderer img load failed src=${img.getAttribute("src") || ""} currentSrc=${img.currentSrc || ""} srcset=${img.getAttribute("srcset") || ""}`,
-        );
+        this.recoverFailedSubstackImageElement(img);
       });
     });
     void scheduleProcessMathElements(container, {
