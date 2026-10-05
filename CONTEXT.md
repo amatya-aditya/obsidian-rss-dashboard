@@ -2,6 +2,12 @@
 
 The vocabulary used for user-facing RSS Dashboard behavior, including its podcast player.
 
+## Accessibility
+
+**Plugin accessibility scope**:
+The RSS Dashboard views, controls, and content whose interaction and presentation the plugin owns across desktop, mobile, and popout use. Obsidian's host interface and third-party article content are outside that direct scope, though their integration and known barriers still matter to users.
+_Avoid_: Obsidian accessibility (unqualified), all content
+
 ## Podcast player
 
 **Active episode**:

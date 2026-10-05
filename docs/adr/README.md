@@ -53,6 +53,7 @@ See the [ADR Policy](POLICY.md) for the complete lifecycle, authoring, and maint
 | [0013](0013-render-reddit-posts-from-rss-content.md)                           | Render Reddit Posts from RSS Content                                    | accepted | Show Reddit posts from their RSS content, without spoofing a crawler to reach Reddit's formatted pages; the official API is deferred.                     |
 | [0014](0014-obsidian-test-stub-fidelity.md)                                    | The Obsidian Test Stub Models Observed Obsidian Behavior                | accepted | Base the unit-test stub on contract-tested observations of real Obsidian, never its source, and fix production code when a faithful stub breaks a test.   |
 | [0015](0015-main-ts-decomposition.md)                                          | Decompose main.ts into Injected Modules Behind a Plugin Facade          | accepted | Keep main.ts as the composition root and move feature clusters into injected service modules one at a time, with public plugin methods kept as delegates. |
+| [0016](0016-wcag-22-aa-accessibility-reference.md)                             | Use WCAG 2.2 AA as the Accessibility Reference                          | accepted | Apply WCAG 2.2 AA as the design and audit reference for applicable plugin-owned UI without claiming conformance before verification.                      |
 
 ## Creating a new ADR
 

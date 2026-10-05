@@ -70,6 +70,7 @@ Rollback plan:
 - [ ] Branch is scoped to one concern
 - [ ] No unrelated files included
 - [ ] If validation logic changed, tests updated
+- [ ] Accessibility-related changes cite the applicable WCAG 2.2 success criterion (or state the project/platform expectation), or are marked N/A (see [ACCESSIBILITY.md](../ACCESSIBILITY.md))
 - [ ] User-facing changes are recorded under `CHANGELOG.md` > `Unreleased`, or marked N/A
 
 ## Manual test checklist

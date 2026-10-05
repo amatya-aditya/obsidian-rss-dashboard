@@ -10,7 +10,7 @@ Only the feeds you need. Stream the world's knowledge into your vault: RSS, podc
 [![License](https://img.shields.io/github/license/amatya-aditya/obsidian-rss-dashboard)](https://github.com/amatya-aditya/obsidian-rss-dashboard/blob/main/LICENSE)
 ![Total downloads](https://img.shields.io/github/downloads/amatya-aditya/obsidian-rss-dashboard/total)
 
-**[Install](#installation)** · **[Documentation](docs/)** · **[Discord](https://discord.gg/9bu7V9BBbs)** · **[Latest Release](https://github.com/amatya-aditya/obsidian-rss-dashboard/releases/latest)** · **[Contributing](CONTRIBUTING.md)**
+**[Install](#installation)** · **[Documentation](docs/)** · **[Accessibility](ACCESSIBILITY.md)** · **[Discord](https://discord.gg/9bu7V9BBbs)** · **[Latest Release](https://github.com/amatya-aditya/obsidian-rss-dashboard/releases/latest)** · **[Contributing](CONTRIBUTING.md)**
 
 ![RSS Dashboard reader view](assets/2.2/2.2_Dashboard_reader.jpg)
 
@@ -90,6 +90,7 @@ Feature direction and what's being explored: [Public Roadmap](docs/plans/public-
 
 ## Support & Community
 
+- ♿ [Accessibility](ACCESSIBILITY.md)
 - 💬 [Discord Community](https://discord.gg/9bu7V9BBbs)
 - 🐛 [GitHub Issues](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues)
 - ❓ [Troubleshooting](docs/user/troubleshooting.md)
