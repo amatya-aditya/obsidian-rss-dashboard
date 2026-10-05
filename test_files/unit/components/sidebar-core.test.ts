@@ -35,6 +35,7 @@ interface TestApp extends App {
 interface TestPlugin extends Partial<RssDashboardPlugin> {
   settings: RssDashboardSettings;
   saveSettings: Mock<() => Promise<void>>;
+  refreshOpenTagColorViews: Mock<() => Promise<void>>;
   activeRefreshState?: Map<string, FeedRefreshState>;
   backgroundImportQueue?: FeedMetadata[];
   refreshFeeds: Mock<() => Promise<void>>;
@@ -60,6 +61,8 @@ type TestSidebar = {
   resizeObserver: ResizeObserver | null;
   destroy: () => void;
   render: () => void;
+  isTagsExpanded: boolean;
+  isAddTagExpanded: boolean;
   renderFeed: (feed: Feed, container: HTMLElement) => void;
   refreshGlobalRefreshProgressOnly: () => void;
   clearFolderPathCache: () => void;
@@ -133,6 +136,7 @@ describe("Sidebar Core", () => {
     plugin = {
       settings,
       saveSettings: vi.fn().mockResolvedValue(undefined),
+      refreshOpenTagColorViews: vi.fn().mockResolvedValue(undefined),
       refreshFeeds: vi.fn().mockResolvedValue(undefined),
       refreshFailedFeeds: vi.fn().mockResolvedValue(undefined),
       getFeedShardHealth: vi.fn().mockReturnValue(null),
@@ -160,6 +164,234 @@ describe("Sidebar Core", () => {
     expect(ts.container).toBe(container);
     expect(ts.settings).toBe(settings);
     expect(ts.options).toBe(options);
+  });
+
+  describe("tag row context menu", () => {
+    let sidebar: Sidebar;
+
+    beforeEach(() => {
+      app.workspace.trigger = vi.fn();
+      settings.availableTags = [{ name: "Research", color: "#3498db" }];
+      const item = {
+        title: "Tagged article",
+        tags: [{ name: "Research", color: "#3498db" }],
+      };
+      settings.feeds = [{ items: [item] } as unknown as Feed];
+      options.selectedTags = ["Research"];
+      sidebar = new Sidebar(
+        app,
+        container,
+        plugin as unknown as RssDashboardPlugin,
+        settings,
+        options,
+        callbacks,
+      );
+      (sidebar as unknown as TestSidebar).isTagsExpanded = true;
+      sidebar.render();
+    });
+
+    afterEach(() => {
+      sidebar.destroy();
+    });
+
+    it("opens Edit and Delete from a right-click without toggling the tag filter", () => {
+      const row = container.querySelector<HTMLElement>(
+        ".rss-dashboard-sidebar-tag-row",
+      );
+      if (!row) throw new Error("Expected the Research tag row");
+      const event = new MouseEvent("contextmenu", {
+        bubbles: true,
+        cancelable: true,
+      });
+
+      row.dispatchEvent(event);
+
+      expect(event.defaultPrevented).toBe(true);
+      expect(callbacks.onTagToggle).not.toHaveBeenCalled();
+      expect(
+        ObsidianStubs.Menu.lastItems.map((menuItem) => menuItem.title),
+      ).toEqual(["Edit tag", "Delete tag"]);
+    });
+
+    it("opens the edit modal from the tag menu and saves the selected tag", async () => {
+      const row = container.querySelector<HTMLElement>(
+        ".rss-dashboard-sidebar-tag-row",
+      );
+      if (!row) throw new Error("Expected the Research tag row");
+      row.dispatchEvent(
+        new MouseEvent("contextmenu", { bubbles: true, cancelable: true }),
+      );
+      ObsidianStubs.Menu.lastItems[0]?.trigger();
+
+      const modal = document.body.querySelector<HTMLElement>(
+        ".rss-dashboard-edit-tag-modal",
+      );
+      const nameInput = modal?.querySelector<HTMLInputElement>(
+        ".rss-dashboard-tag-modal-name-input",
+      );
+      const saveButton = modal?.querySelector<HTMLButtonElement>(
+        ".rss-dashboard-primary-button",
+      );
+      if (!nameInput || !saveButton) {
+        throw new Error("Expected the edit tag modal controls");
+      }
+      nameInput.value = "Reading";
+      saveButton.click();
+
+      await vi.waitFor(() => {
+        expect(settings.availableTags[0]?.name).toBe("Reading");
+      });
+      expect(plugin.saveSettings).toHaveBeenCalledOnce();
+      expect(plugin.refreshOpenTagColorViews).toHaveBeenCalledOnce();
+      expect(callbacks.onTagToggle).not.toHaveBeenCalled();
+    });
+
+    it("keeps the selected tag unchanged when Edit tag is cancelled", () => {
+      const row = container.querySelector<HTMLElement>(
+        ".rss-dashboard-sidebar-tag-row",
+      );
+      if (!row) throw new Error("Expected the Research tag row");
+      row.dispatchEvent(
+        new MouseEvent("contextmenu", { bubbles: true, cancelable: true }),
+      );
+      ObsidianStubs.Menu.lastItems[0]?.trigger();
+
+      document
+        .querySelector<HTMLButtonElement>(
+          ".rss-dashboard-edit-tag-modal button",
+        )
+        ?.click();
+
+      expect(settings.availableTags).toEqual([
+        { name: "Research", color: "#3498db" },
+      ]);
+      expect(plugin.saveSettings).not.toHaveBeenCalled();
+      expect(plugin.refreshOpenTagColorViews).not.toHaveBeenCalled();
+    });
+
+    it("keeps inline tag creation and its trimmed name, chosen color, and Enter behavior", () => {
+      (sidebar as unknown as TestSidebar).isAddTagExpanded = true;
+      sidebar.render();
+      const input = container.querySelector<HTMLInputElement>(
+        ".rss-dashboard-sidebar-add-tag-input",
+      );
+      const color = container.querySelector<HTMLInputElement>(
+        ".rss-dashboard-tag-color-picker",
+      );
+      if (!input || !color) throw new Error("Expected the inline add controls");
+
+      input.value = "  New topic  ";
+      color.value = "#123456";
+      input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+
+      expect(settings.availableTags).toContainEqual({
+        name: "New topic",
+        color: "#123456",
+      });
+      expect(plugin.saveSettings).toHaveBeenCalledOnce();
+    });
+
+    it("keeps empty and duplicate names rejected and Cancel closes the inline form", () => {
+      (sidebar as unknown as TestSidebar).isAddTagExpanded = true;
+      sidebar.render();
+      const input = container.querySelector<HTMLInputElement>(
+        ".rss-dashboard-sidebar-add-tag-input",
+      );
+      if (!input) throw new Error("Expected the inline add input");
+
+      input.value = "   ";
+      input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+      expect(settings.availableTags).toHaveLength(1);
+      expect(
+        container.querySelector(".rss-dashboard-sidebar-add-tag-row"),
+      ).toBeNull();
+
+      (sidebar as unknown as TestSidebar).isAddTagExpanded = true;
+      sidebar.render();
+      const duplicateInput = container.querySelector<HTMLInputElement>(
+        ".rss-dashboard-sidebar-add-tag-input",
+      );
+      if (!duplicateInput) throw new Error("Expected the inline add input");
+      duplicateInput.value = "research";
+      container
+        .querySelector<HTMLButtonElement>(".rss-dashboard-sidebar-add-tag-btn")
+        ?.click();
+      expect(settings.availableTags).toHaveLength(1);
+
+      container
+        .querySelector<HTMLElement>(".rss-dashboard-sidebar-add-tag-cancel-btn")
+        ?.click();
+      expect(settings.availableTags).toHaveLength(1);
+      expect(
+        container.querySelector(".rss-dashboard-sidebar-add-tag-row"),
+      ).toBeNull();
+      expect(plugin.saveSettings).not.toHaveBeenCalled();
+    });
+
+    it("preserves a tag when deletion is cancelled and removes it with its active filter when confirmed", async () => {
+      const row = container.querySelector<HTMLElement>(
+        ".rss-dashboard-sidebar-tag-row",
+      );
+      if (!row) throw new Error("Expected the Research tag row");
+
+      row.dispatchEvent(
+        new MouseEvent("contextmenu", { bubbles: true, cancelable: true }),
+      );
+      ObsidianStubs.Menu.lastItems[1]?.trigger();
+      document
+        .querySelector<HTMLButtonElement>(
+          ".rss-sidebar-confirm-modal .rss-folder-name-modal-cancel",
+        )
+        ?.click();
+
+      expect(settings.availableTags).toHaveLength(1);
+      expect(settings.feeds[0]?.items[0]?.tags).toHaveLength(1);
+      expect(callbacks.onTagToggle).not.toHaveBeenCalled();
+
+      row.dispatchEvent(
+        new MouseEvent("contextmenu", { bubbles: true, cancelable: true }),
+      );
+      ObsidianStubs.Menu.lastItems[1]?.trigger();
+      document
+        .querySelector<HTMLButtonElement>(
+          ".rss-sidebar-confirm-modal .rss-folder-name-modal-ok",
+        )
+        ?.click();
+
+      expect(settings.availableTags).toEqual([]);
+      expect(settings.feeds[0]?.items[0]?.tags).toEqual([]);
+      expect(callbacks.onTagToggle).toHaveBeenCalledWith("Research");
+      expect(plugin.saveSettings).toHaveBeenCalledOnce();
+      await vi.waitFor(() => {
+        expect(plugin.refreshOpenTagColorViews).toHaveBeenCalledOnce();
+      });
+    });
+
+    it("opens the tag menu on touch long-press and suppresses the follow-up click", () => {
+      vi.useFakeTimers();
+      const row = container.querySelector<HTMLElement>(
+        ".rss-dashboard-sidebar-tag-row",
+      );
+      if (!row) throw new Error("Expected the Research tag row");
+      const event = new PointerEvent("pointerdown", {
+        bubbles: true,
+        pointerType: "touch",
+        clientX: 12,
+        clientY: 34,
+      });
+
+      row.dispatchEvent(event);
+      vi.advanceTimersByTime(500);
+      row.dispatchEvent(
+        new MouseEvent("click", { bubbles: true, cancelable: true }),
+      );
+
+      expect(
+        ObsidianStubs.Menu.lastItems.map((menuItem) => menuItem.title),
+      ).toEqual(["Edit tag", "Delete tag"]);
+      expect(callbacks.onTagToggle).not.toHaveBeenCalled();
+      vi.useRealTimers();
+    });
   });
 
   describe("renderFallbackFeedIcon", () => {
