@@ -81,7 +81,10 @@ describe("ReaderView custom-folder saved templates", () => {
     const readerView = new ReaderView(
       new MockLeaf({ workspace: {}, vault: {} }) as never,
       settings,
-      { saveArticle: vi.fn() } as never,
+      {
+        saveArticle: vi.fn(),
+        getFilenamePreview: vi.fn(() => "Fixture article.md"),
+      } as never,
       vi.fn(),
       vi.fn(),
     );
@@ -114,7 +117,10 @@ describe("ReaderView custom-folder saved templates", () => {
     const readerView = new ReaderView(
       new MockLeaf({ workspace: {}, vault: {} }) as never,
       settings,
-      { saveArticle: vi.fn() } as never,
+      {
+        saveArticle: vi.fn(),
+        getFilenamePreview: vi.fn(() => "Fixture article.md"),
+      } as never,
       vi.fn(),
       vi.fn(),
     );
@@ -157,7 +163,10 @@ describe("ReaderView custom-folder saved templates", () => {
     const readerView = new ReaderView(
       new MockLeaf(app) as never,
       settings,
-      { saveArticle } as never,
+      {
+        saveArticle,
+        getFilenamePreview: vi.fn(() => "Fixture article.md"),
+      } as never,
       onArticleSave,
       vi.fn(),
     );
@@ -240,7 +249,10 @@ describe("ReaderView custom-folder saved templates", () => {
     const readerView = new ReaderView(
       new MockLeaf({ workspace: {}, vault: {} }) as never,
       settings,
-      { saveArticle: vi.fn() } as never,
+      {
+        saveArticle: vi.fn(),
+        getFilenamePreview: vi.fn(() => "Fixture article.md"),
+      } as never,
       vi.fn(),
       vi.fn(),
     );
@@ -280,7 +292,10 @@ describe("ReaderView custom-folder saved templates", () => {
     const readerView = new ReaderView(
       new MockLeaf({ workspace: {}, vault: {} }) as never,
       settings,
-      { saveArticle } as never,
+      {
+        saveArticle,
+        getFilenamePreview: vi.fn(() => "Fixture article.md"),
+      } as never,
       vi.fn(),
       vi.fn(),
     );
@@ -395,7 +410,10 @@ describe("ReaderView custom-folder saved templates", () => {
     const reloadedReader = new ReaderView(
       new MockLeaf({ workspace: {}, vault: {} }) as never,
       reloadedSettings,
-      { saveArticle: vi.fn() } as never,
+      {
+        saveArticle: vi.fn(),
+        getFilenamePreview: vi.fn(() => "Fixture article.md"),
+      } as never,
       vi.fn(),
       vi.fn(),
     );

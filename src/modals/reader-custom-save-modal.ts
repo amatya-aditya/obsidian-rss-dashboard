@@ -38,10 +38,18 @@ export interface ReaderCustomSaveModalContext {
 interface TemplateControls {
   select: HTMLSelectElement;
   input: HTMLTextAreaElement;
+  filenamePatternInput: HTMLInputElement;
   saveAsButton: HTMLButtonElement;
   saveAsLabel: HTMLSpanElement;
+  getFilenamePattern: () => string | undefined;
   getSelectedTemplate: () => SavedTemplate | undefined;
   getAssignToFeedId: () => string;
+}
+
+interface FilenamePatternControls {
+  input: HTMLInputElement;
+  getEffectivePattern: () => string | undefined;
+  refresh: () => void;
 }
 
 function createFolderControls(
@@ -168,6 +176,75 @@ function addActionButtonContent(
     cls: "rss-dashboard-custom-save-button-label",
     text: label,
   });
+}
+
+function createFilenamePatternControls(
+  content: HTMLElement,
+  item: FeedItem,
+  folderInput: HTMLInputElement,
+  select: HTMLSelectElement,
+  context: ReaderCustomSaveModalContext,
+  getTemplatePattern: () => string | undefined,
+): FilenamePatternControls {
+  content.createEl("label", {
+    text: "Filename pattern override (optional):",
+    attr: { for: "rss-dashboard-filename-pattern" },
+  });
+  const input = content.createEl("input", {
+    attr: {
+      id: "rss-dashboard-filename-pattern",
+      type: "text",
+      placeholder: "{{title}}",
+      "aria-describedby": "rss-dashboard-filename-pattern-description",
+    },
+  });
+  content.createEl("p", {
+    cls: "setting-item-description",
+    attr: { id: "rss-dashboard-filename-pattern-description" },
+    text: "Leave blank to use the selected saved template's filename pattern.",
+  });
+  const resetButton = content.createEl("button", {
+    cls: "rss-dashboard-use-template-filename-pattern-button",
+    text: "Use template pattern",
+    attr: { type: "button" },
+  });
+  const inheritedPattern = content.createEl("p", {
+    cls: "setting-item-description rss-dashboard-template-filename-pattern",
+  });
+  const preview = content.createEl("p", {
+    cls: "setting-item-description rss-dashboard-filename-preview",
+    attr: { "aria-live": "polite" },
+  });
+  const getEffectivePattern = () =>
+    input.value.trim() || getTemplatePattern()?.trim() || undefined;
+  const refresh = () => {
+    const templatePattern = getTemplatePattern()?.trim();
+    inheritedPattern.textContent = templatePattern
+      ? `Template pattern: ${templatePattern}`
+      : "Template pattern: none (uses article title)";
+    const saveItem = context.displayTitle
+      ? { ...item, title: context.displayTitle }
+      : item;
+    const filename = context
+      .getArticleSaver()
+      .getFilenamePreview(
+        saveItem,
+        folderInput.value.trim(),
+        getEffectivePattern(),
+      );
+    preview.textContent = `Filename preview: ${filename}`;
+    resetButton.disabled = !input.value.trim();
+  };
+  input.addEventListener("input", refresh);
+  folderInput.addEventListener("input", refresh);
+  select.addEventListener("change", refresh);
+  resetButton.addEventListener("click", () => {
+    input.value = "";
+    refresh();
+    input.focus();
+  });
+  refresh();
+  return { input, getEffectivePattern, refresh };
 }
 
 function confirmFeedTemplateAssignment(
@@ -302,6 +379,20 @@ function createTemplateControls(
   let assignToFeedId = "";
   let pending: PendingTemplate | null = null;
   const getPending = () => pending;
+  const filenameControls = createFilenamePatternControls(
+    content,
+    item,
+    folderInput,
+    select,
+    context,
+    () =>
+      getPending()?.filenamePattern ||
+      context
+        .getSettings()
+        .articleSaving.savedTemplates.find(
+          (template) => template.id === select.value,
+        )?.filenamePattern,
+  );
   const setPending = (value: PendingTemplate | null) => {
     pending = value;
   };
@@ -350,6 +441,7 @@ function createTemplateControls(
       assignToFeedId = id;
     });
     refresh();
+    filenameControls.refresh();
   });
   input.addEventListener("input", refresh);
   saveAsButton.addEventListener("click", () => {
@@ -373,13 +465,16 @@ function createTemplateControls(
       assignToFeedId = pendingTemplate.assignToFeed ? id : "";
       baseline = pendingTemplate.template;
       refresh();
+      filenameControls.refresh();
     })();
   });
   return {
     select,
     input,
+    filenamePatternInput: filenameControls.input,
     saveAsButton,
     saveAsLabel,
+    getFilenamePattern: filenameControls.getEffectivePattern,
     getPending,
     getSelectedTemplate: () =>
       context
@@ -447,18 +542,30 @@ function createActionButtons(
               : {}),
           }
         : templateControls.getSelectedTemplate();
+      const filenamePattern = templateControls.getFilenamePattern();
+      const templateForSave = filenamePattern
+        ? savedTemplate
+          ? { ...savedTemplate, filenamePattern }
+          : {
+              id: "reader-one-save-override",
+              name: "One-save filename override",
+              template: template || "",
+              defaultFolder: folder,
+              filenamePattern,
+            }
+        : savedTemplate;
       const markdownContent = context.buildReaderSaveMarkdown(item);
       const saveItem = context.displayTitle
         ? { ...item, title: context.displayTitle }
         : item;
       const articleSaver = context.getArticleSaver();
-      const file = savedTemplate
+      const file = templateForSave
         ? await articleSaver.saveArticle(
             saveItem,
             folder,
             template,
             markdownContent,
-            savedTemplate,
+            templateForSave,
           )
         : await articleSaver.saveArticle(
             saveItem,

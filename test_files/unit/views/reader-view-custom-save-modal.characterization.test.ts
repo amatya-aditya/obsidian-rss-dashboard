@@ -90,7 +90,10 @@ function createHarness(options?: {
   const view = new ReaderView(
     new MockLeaf(app) as never,
     settings,
-    { saveArticle } as never,
+    {
+      saveArticle,
+      getFilenamePreview: vi.fn(() => "Reading/Fixture article.md"),
+    } as never,
     onArticleSave,
     onArticleUpdate,
   );
@@ -279,7 +282,12 @@ describe("ReaderView custom save dialog behavior", () => {
 
     expect(
       Array.from(modal.querySelectorAll("label"), (label) => label.textContent),
-    ).toEqual(["Save to folder:", "Saved template:", "Use template:"]);
+    ).toEqual([
+      "Save to folder:",
+      "Saved template:",
+      "Use template:",
+      "Filename pattern override (optional):",
+    ]);
     expect(folder.type).toBe("text");
     expect(folder.placeholder).toBe("Enter folder path");
     expect(folder.value).toBe("Reading/Queue");
@@ -316,7 +324,7 @@ describe("ReaderView custom save dialog behavior", () => {
     expect(save.textContent).toBe("Save");
     expect(
       Array.from(
-        modal.querySelectorAll("button"),
+        modal.querySelectorAll(".rss-dashboard-modal-buttons button"),
         (button) => button.textContent,
       ),
     ).toEqual(["Cancel", "Save", "Save as new template"]);

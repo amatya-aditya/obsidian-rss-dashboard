@@ -58,9 +58,26 @@ describe("sanitizeFilename", () => {
     expect(sanitizeFilename(' / \\\\ : * ? " < > | ')).toBe("Untitled Article");
     expect(sanitizeFilename("   ")).toBe("Untitled Article");
   });
+
+  it("falls back for Windows reserved device names", () => {
+    expect(sanitizeFilename("NUL")).toBe("Untitled Article");
+    expect(sanitizeFilename("com1")).toBe("Untitled Article");
+    expect(sanitizeFilename("LPT³")).toBe("Untitled Article");
+  });
 });
 
 describe("ArticleSaver.saveArticle", () => {
+  it("previews the first available filename that a save will use", async () => {
+    const app = App.createMock();
+    const saver = new ArticleSaver(app, createSettings());
+    const item = createItem({ title: "Preview title", feedTitle: "Research" });
+    await app.vault.create("Research - Preview title.md", "existing");
+
+    expect(saver.getFilenamePreview(item, "", "{{source}} - {{title}}")).toBe(
+      "Research - Preview title 2.md",
+    );
+  });
+
   it("preserves dollar replacement sequences in frontmatter and body metadata", async () => {
     const app = App.createMock();
     const settings = createSettings({

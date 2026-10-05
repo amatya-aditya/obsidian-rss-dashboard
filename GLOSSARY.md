@@ -18,3 +18,6 @@ An optional saved-template expression that produces the filename stem for an art
 
 **Filename stem**:
 The sanitized filename portion before the automatically added `.md` extension.
+
+**Filename pattern override**:
+A one-save replacement for the selected saved template's filename pattern. It changes the name used for that saved note without changing the saved template.

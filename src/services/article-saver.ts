@@ -50,12 +50,15 @@ export function sanitizeFilename(name: string): string {
 }
 
 function sanitizeFilenameStem(name: string): string {
-  return name
+  const stem = name
     .replace(/[/\\:*?"<>|]/g, "")
     .replace(/\s+/g, " ")
     .trim()
     .slice(0, MAX_FILENAME_LENGTH)
     .trim();
+  return /^(?:CON|PRN|AUX|NUL|COM[1-9¹²³]|LPT[1-9¹²³])$/i.test(stem)
+    ? ""
+    : stem;
 }
 
 type MomentFactory = (input: Date) => { format: (fmt: string) => string };
@@ -840,6 +843,33 @@ export class ArticleSaver {
     }
 
     return null;
+  }
+
+  getFilenamePreview(
+    item: FeedItem,
+    folder: string,
+    filenamePattern?: string,
+  ): string {
+    const normalizedFolder = this.normalizePath(folder);
+    const recordedPath = this.normalizePath(item.savedFilePath || "");
+    const recordedFile = recordedPath
+      ? this.app.vault.getAbstractFileByPath(recordedPath)
+      : null;
+    if (recordedFile instanceof TFile) return recordedFile.path;
+
+    const legacyPath = item.saved ? this.buildSavedArticleFilePath(item) : "";
+    const legacyFile = legacyPath
+      ? this.app.vault.getAbstractFileByPath(legacyPath)
+      : null;
+    if (legacyFile instanceof TFile) return legacyFile.path;
+
+    const filename = buildArticleFilename(
+      item,
+      filenamePattern,
+      this.settings.addSavedTag,
+      this.getUseFirstSeenDateFallback(),
+    );
+    return findAvailableArticlePath(this.app, normalizedFolder, filename);
   }
 
   private buildSavedArticleFilePath(item: FeedItem): string {
