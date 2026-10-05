@@ -25,7 +25,9 @@ function flushPromises(): Promise<void> {
 }
 
 function cloneSettings(): typeof DEFAULT_SETTINGS {
-  return JSON.parse(JSON.stringify(DEFAULT_SETTINGS)) as typeof DEFAULT_SETTINGS;
+  return JSON.parse(
+    JSON.stringify(DEFAULT_SETTINGS),
+  ) as typeof DEFAULT_SETTINGS;
 }
 
 function createContainerEl(): HTMLDivElement {
@@ -53,19 +55,27 @@ function createPlugin() {
     saveSettings: vi.fn(async () => {}),
     exportDataJson: vi.fn(async () => {}),
     copyDataJsonToClipboard: vi.fn(async () => {}),
-    importUserSettingsJsonFromFile: vi.fn(async (): Promise<ImportResult> => "committed"),
+    importUserSettingsJsonFromFile: vi.fn(
+      async (): Promise<ImportResult> => "committed",
+    ),
     exportUserSettingsJson: vi.fn(async () => {}),
     copyUserSettingsJsonToClipboard: vi.fn(async () => {}),
     exportOpml: vi.fn(async () => {}),
     copyOpmlToClipboard: vi.fn(async () => {}),
     exportPortableDataBundle: vi.fn(async () => {}),
-    importPortableDataBundleFromFile: vi.fn(async (): Promise<ImportResult> => "committed"),
+    importPortableDataBundleFromFile: vi.fn(
+      async (): Promise<ImportResult> => "committed",
+    ),
     copyPortableDataBundleToClipboard: vi.fn(async () => {}),
     exportFeedBundle: vi.fn(async () => {}),
-    importFeedBundleFromFile: vi.fn(async (): Promise<ImportResult> => "committed"),
+    importFeedBundleFromFile: vi.fn(
+      async (): Promise<ImportResult> => "committed",
+    ),
     copyFeedBundleToClipboard: vi.fn(async () => {}),
     exportSettingsBundle: vi.fn(async () => {}),
-    importSettingsBundleFromFile: vi.fn(async (): Promise<ImportResult> => "committed"),
+    importSettingsBundleFromFile: vi.fn(
+      async (): Promise<ImportResult> => "committed",
+    ),
     copySettingsBundleToClipboard: vi.fn(async () => {}),
     getActiveDashboardView: vi.fn(async () => null),
     performFactoryReset: vi.fn(async () => {}),
@@ -165,15 +175,13 @@ describe("Auto Backup Helpers", () => {
       const containerEl = createContainerEl();
       const plugin = createPlugin();
 
-      renderImportExportSettingsTab(containerEl, plugin as unknown as RssDashboardPlugin);
-
-      const portableSetting = getSettingByName(
+      renderImportExportSettingsTab(
         containerEl,
-        "Shard data",
+        plugin as unknown as RssDashboardPlugin,
       );
-      expect(portableSetting.textContent).toContain(
-        "cross-device migration",
-      );
+
+      const portableSetting = getSettingByName(containerEl, "Shard data");
+      expect(portableSetting.textContent).toContain("cross-device migration");
 
       const buttons = Array.from(
         containerEl.querySelectorAll<HTMLButtonElement>("button"),
@@ -186,7 +194,10 @@ describe("Auto Backup Helpers", () => {
       const containerEl = createContainerEl();
       const plugin = createPlugin();
 
-      renderImportExportSettingsTab(containerEl, plugin as unknown as RssDashboardPlugin);
+      renderImportExportSettingsTab(
+        containerEl,
+        plugin as unknown as RssDashboardPlugin,
+      );
 
       const exportButton = Array.from(
         containerEl.querySelectorAll<HTMLButtonElement>("button"),
@@ -202,7 +213,10 @@ describe("Auto Backup Helpers", () => {
       const containerEl = createContainerEl();
       const plugin = createPlugin();
 
-      renderImportExportSettingsTab(containerEl, plugin as unknown as RssDashboardPlugin);
+      renderImportExportSettingsTab(
+        containerEl,
+        plugin as unknown as RssDashboardPlugin,
+      );
 
       const copyButton = containerEl.querySelector<HTMLButtonElement>(
         'button[aria-label="Copy shard data to clipboard"]',
@@ -217,7 +231,10 @@ describe("Auto Backup Helpers", () => {
       const containerEl = createContainerEl();
       const plugin = createPlugin();
 
-      renderImportExportSettingsTab(containerEl, plugin as unknown as RssDashboardPlugin);
+      renderImportExportSettingsTab(
+        containerEl,
+        plugin as unknown as RssDashboardPlugin,
+      );
 
       const feedBundleSetting = getSettingByName(containerEl, "Feed bundle");
       expect(feedBundleSetting.textContent).toContain("no app settings");
@@ -236,7 +253,10 @@ describe("Auto Backup Helpers", () => {
       const containerEl = createContainerEl();
       const plugin = createPlugin();
 
-      renderImportExportSettingsTab(containerEl, plugin as unknown as RssDashboardPlugin);
+      renderImportExportSettingsTab(
+        containerEl,
+        plugin as unknown as RssDashboardPlugin,
+      );
 
       const copyButton = containerEl.querySelector<HTMLButtonElement>(
         'button[aria-label="Copy feed bundle to clipboard"]',
@@ -251,7 +271,10 @@ describe("Auto Backup Helpers", () => {
       const containerEl = createContainerEl();
       const plugin = createPlugin();
 
-      renderImportExportSettingsTab(containerEl, plugin as unknown as RssDashboardPlugin);
+      renderImportExportSettingsTab(
+        containerEl,
+        plugin as unknown as RssDashboardPlugin,
+      );
 
       const exportButton = Array.from(
         containerEl.querySelectorAll<HTMLButtonElement>("button"),
@@ -267,7 +290,10 @@ describe("Auto Backup Helpers", () => {
       const containerEl = createContainerEl();
       const plugin = createPlugin();
 
-      renderImportExportSettingsTab(containerEl, plugin as unknown as RssDashboardPlugin);
+      renderImportExportSettingsTab(
+        containerEl,
+        plugin as unknown as RssDashboardPlugin,
+      );
 
       const settingsBundleSetting = getSettingByName(
         containerEl,
@@ -289,7 +315,10 @@ describe("Auto Backup Helpers", () => {
       const containerEl = createContainerEl();
       const plugin = createPlugin();
 
-      renderImportExportSettingsTab(containerEl, plugin as unknown as RssDashboardPlugin);
+      renderImportExportSettingsTab(
+        containerEl,
+        plugin as unknown as RssDashboardPlugin,
+      );
 
       const copyButton = containerEl.querySelector<HTMLButtonElement>(
         'button[aria-label="Copy settings bundle to clipboard"]',
@@ -304,7 +333,10 @@ describe("Auto Backup Helpers", () => {
       const containerEl = createContainerEl();
       const plugin = createPlugin();
 
-      renderImportExportSettingsTab(containerEl, plugin as unknown as RssDashboardPlugin);
+      renderImportExportSettingsTab(
+        containerEl,
+        plugin as unknown as RssDashboardPlugin,
+      );
 
       const exportButton = Array.from(
         containerEl.querySelectorAll<HTMLButtonElement>("button"),
@@ -320,7 +352,10 @@ describe("Auto Backup Helpers", () => {
       const containerEl = createContainerEl();
       const plugin = createPlugin();
 
-      renderImportExportSettingsTab(containerEl, plugin as unknown as RssDashboardPlugin);
+      renderImportExportSettingsTab(
+        containerEl,
+        plugin as unknown as RssDashboardPlugin,
+      );
 
       const userPreferencesSetting = getSettingByName(
         containerEl,
@@ -341,7 +376,10 @@ describe("Auto Backup Helpers", () => {
       const containerEl = createContainerEl();
       const plugin = createPlugin();
 
-      renderImportExportSettingsTab(containerEl, plugin as unknown as RssDashboardPlugin);
+      renderImportExportSettingsTab(
+        containerEl,
+        plugin as unknown as RssDashboardPlugin,
+      );
 
       const exportButton = Array.from(
         containerEl.querySelectorAll<HTMLButtonElement>("button"),
@@ -424,12 +462,12 @@ describe("Auto Backup Helpers", () => {
       const containerEl = createContainerEl();
       const plugin = createPlugin();
 
-      renderImportExportSettingsTab(containerEl, plugin as unknown as RssDashboardPlugin);
-
-      const starredSetting = getSettingByName(
+      renderImportExportSettingsTab(
         containerEl,
-        "Starred imports",
+        plugin as unknown as RssDashboardPlugin,
       );
+
+      const starredSetting = getSettingByName(containerEl, "Starred imports");
       expect(starredSetting.textContent).toContain("starred.json");
 
       const buttons = Array.from(
@@ -449,7 +487,10 @@ describe("Auto Backup Helpers", () => {
       const containerEl = createContainerEl();
       const plugin = createPlugin();
 
-      renderImportExportSettingsTab(containerEl, plugin as unknown as RssDashboardPlugin);
+      renderImportExportSettingsTab(
+        containerEl,
+        plugin as unknown as RssDashboardPlugin,
+      );
 
       const settingNames = Array.from(
         containerEl.querySelectorAll<HTMLElement>(".setting-item-name"),
@@ -478,7 +519,10 @@ describe("Auto Backup Helpers", () => {
         "waitForClose",
       ).mockResolvedValue(false);
 
-      renderImportExportSettingsTab(containerEl, plugin as unknown as RssDashboardPlugin);
+      renderImportExportSettingsTab(
+        containerEl,
+        plugin as unknown as RssDashboardPlugin,
+      );
 
       const resetButton = Array.from(
         containerEl.querySelectorAll<HTMLButtonElement>("button"),
@@ -506,7 +550,10 @@ describe("Auto Backup Helpers", () => {
         "waitForClose",
       ).mockResolvedValue(true);
 
-      renderImportExportSettingsTab(containerEl, plugin as unknown as RssDashboardPlugin);
+      renderImportExportSettingsTab(
+        containerEl,
+        plugin as unknown as RssDashboardPlugin,
+      );
 
       const resetButton = Array.from(
         containerEl.querySelectorAll<HTMLButtonElement>("button"),

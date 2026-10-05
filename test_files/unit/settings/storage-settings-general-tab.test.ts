@@ -63,16 +63,14 @@ function createPlugin() {
     getActiveDashboardView: vi.fn(async () => null),
     getOrphanedUserStatePath: vi.fn(async () => null),
     getMetadataFilePath: vi.fn(() => "rss-dashboard-data/data.json"),
-    getStorageStatus: vi.fn(
-      (): FeedStorageStatus => ({
-        mode: "legacy-json" as const,
-        folder: ".rss-dashboard-data/feeds",
-        shardCount: 0,
-        feedCount: 0,
-        migrationReady: true,
-        lastRepairResult: "Not yet run",
-      }),
-    ),
+    getStorageStatus: vi.fn((): FeedStorageStatus => ({
+      mode: "legacy-json" as const,
+      folder: ".rss-dashboard-data/feeds",
+      shardCount: 0,
+      feedCount: 0,
+      migrationReady: true,
+      lastRepairResult: "Not yet run",
+    })),
     migrateToVaultStorage: vi.fn(async () => {}),
     revertToLegacyJsonStorage: vi.fn(async () => {}),
     revertToLegacyJsonStorageWithOptions: vi.fn(async () => {}),
@@ -147,10 +145,9 @@ describe("General settings storage section", () => {
       string,
       (...args: never[]) => never
     >;
-    const nativeCreateElement = foreignDocAsRecord["createElement"] as unknown as (
-      this: Document,
-      tag: string,
-    ) => HTMLElement;
+    const nativeCreateElement = foreignDocAsRecord[
+      "createElement"
+    ] as unknown as (this: Document, tag: string) => HTMLElement;
     const nativeCreateDocumentFragment = foreignDocAsRecord[
       "createDocumentFragment"
     ] as unknown as (this: Document) => DocumentFragment;
@@ -162,21 +159,19 @@ describe("General settings storage section", () => {
     // in this *separate* realm, so foreignWindow.createFragment() returns a
     // DocumentFragment whose constructor is foreignWindow.DocumentFragment,
     // not this test file's global DocumentFragment.
-    (foreignWindow as unknown as { createFragment: () => DocumentFragment })
-      .createFragment = () => nativeCreateDocumentFragment.call(foreignDoc);
+    (
+      foreignWindow as unknown as { createFragment: () => DocumentFragment }
+    ).createFragment = () => nativeCreateDocumentFragment.call(foreignDoc);
     (
       foreignWindow as unknown as {
         createDiv: () => InstanceType<typeof foreignWindow.HTMLDivElement>;
       }
     ).createDiv = () =>
-      nativeCreateElement.call(
-        foreignDoc,
-        "div",
-      ) as InstanceType<typeof foreignWindow.HTMLDivElement>;
-    const foreignElementProto = foreignWindow.Element.prototype as unknown as Record<
-      string,
-      unknown
-    >;
+      nativeCreateElement.call(foreignDoc, "div") as InstanceType<
+        typeof foreignWindow.HTMLDivElement
+      >;
+    const foreignElementProto = foreignWindow.Element
+      .prototype as unknown as Record<string, unknown>;
     const foreignNodeProto = foreignWindow.Node.prototype as unknown as Record<
       string,
       unknown
@@ -244,9 +239,9 @@ describe("General settings storage section", () => {
       storageFolder: ".rss-dashboard-data/feeds",
     });
     modalToV1.open();
-    const paragraphsToV1 = Array.from(modalToV1.contentEl.querySelectorAll("p")).map(
-      (p) => p.textContent,
-    );
+    const paragraphsToV1 = Array.from(
+      modalToV1.contentEl.querySelectorAll("p"),
+    ).map((p) => p.textContent);
     expect(paragraphsToV1[0]).toBe(
       "You are switching from legacy data.json storage to shard storage v1.",
     );
@@ -264,9 +259,9 @@ describe("General settings storage section", () => {
       storageFolder: ".rss-dashboard-data/feeds",
     });
     modalToV2.open();
-    const paragraphsToV2 = Array.from(modalToV2.contentEl.querySelectorAll("p")).map(
-      (p) => p.textContent,
-    );
+    const paragraphsToV2 = Array.from(
+      modalToV2.contentEl.querySelectorAll("p"),
+    ).map((p) => p.textContent);
     expect(paragraphsToV2[0]).toBe(
       "You are switching from legacy data.json storage to shard storage v2.",
     );
@@ -317,7 +312,6 @@ describe("General settings storage section", () => {
       "You can also leave the shard folder in place if you want to keep it as a manual backup.",
     );
   });
-
 
   it("applies the pending legacy-to-shards storage change through the modal", async () => {
     const containerEl = createTestContainer();
@@ -381,7 +375,9 @@ describe("General settings storage section", () => {
     );
 
     renderStorageSettingsTab(containerEl, plugin as never);
-    const repairButton = Array.from(containerEl.querySelectorAll("button")).find(
+    const repairButton = Array.from(
+      containerEl.querySelectorAll("button"),
+    ).find(
       (button) => button.textContent === "Repair/rebuild storage",
     ) as HTMLButtonElement;
     repairButton.click();
@@ -675,9 +671,10 @@ describe("General settings storage section", () => {
     ): Promise<void> {
       const containerEl = createTestContainer();
       renderStorageSettingsTab(containerEl, plugin as never);
-      const input = getSettingByName(containerEl, "Storage folder").querySelector(
-        "input",
-      ) as HTMLInputElement;
+      const input = getSettingByName(
+        containerEl,
+        "Storage folder",
+      ).querySelector("input") as HTMLInputElement;
       input.value = nextFolder;
       input.dispatchEvent(new Event("input"));
       (
@@ -713,9 +710,10 @@ describe("General settings storage section", () => {
       plugin.settings.storageMode = "vault-shards-v2";
       plugin.settings.storageFolder = ".rss-dashboard-data/feeds";
       plugin.getUnloadedShardFeedCount.mockReturnValue(3);
-      vi.spyOn(UnloadedFeedsFolderChangeModal.prototype, "open").mockImplementation(
-        () => {},
-      );
+      vi.spyOn(
+        UnloadedFeedsFolderChangeModal.prototype,
+        "open",
+      ).mockImplementation(() => {});
       vi.spyOn(
         UnloadedFeedsFolderChangeModal.prototype,
         "waitForClose",

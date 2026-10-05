@@ -392,22 +392,18 @@ export class FeedParser {
         ? Date.now() - autoDeleteDays * 24 * 60 * 60 * 1000
         : 0;
 
-    const {
-      newItems,
-      updatedItems,
-      seenGuids,
-      skippedByRefreshCutoffCount,
-    } = collectRefreshedItems(
-      {
-        parsed,
-        feedUrl: url,
-        existingFeed,
-        newFeed,
-        existingItems,
-        autoDeleteCutoffMs,
-      },
-      itemContext,
-    );
+    const { newItems, updatedItems, seenGuids, skippedByRefreshCutoffCount } =
+      collectRefreshedItems(
+        {
+          parsed,
+          feedUrl: url,
+          existingFeed,
+          newFeed,
+          existingItems,
+          autoDeleteCutoffMs,
+        },
+        itemContext,
+      );
 
     const refreshedItems = [...updatedItems, ...newItems];
     const carriedForward = collectCarriedForwardItems(
@@ -447,8 +443,11 @@ export class FeedParser {
       processedFeed.mediaType,
     );
 
-    applyFallbackIcons(processedFeed, feedLogoUrl, url, (relativeUrl, baseUrl) =>
-      this.convertToAbsoluteUrl(relativeUrl, baseUrl),
+    applyFallbackIcons(
+      processedFeed,
+      feedLogoUrl,
+      url,
+      (relativeUrl, baseUrl) => this.convertToAbsoluteUrl(relativeUrl, baseUrl),
     );
 
     return MediaService.applyMediaTags(
@@ -466,7 +465,8 @@ export class FeedParser {
         this.convertToAbsoluteUrl(relativeUrl, baseUrl),
       convertRelativeUrlsInContent: (content, baseUrl) =>
         this.convertRelativeUrlsInContent(content, baseUrl),
-      extractCoverImage: (html, baseUrl) => this.extractCoverImage(html, baseUrl),
+      extractCoverImage: (html, baseUrl) =>
+        this.extractCoverImage(html, baseUrl),
       extractSummary: (description) => this.extractSummary(description),
       resolvePodcastCoverImage: (item, parsed, baseUrl) =>
         this.resolvePodcastCoverImage(item, parsed, baseUrl),

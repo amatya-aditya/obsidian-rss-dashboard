@@ -25,7 +25,9 @@ function createItem(overrides: Partial<FeedItem> = {}): FeedItem {
   } as FeedItem;
 }
 
-function createRule(overrides: Partial<KeywordFilterRule> = {}): KeywordFilterRule {
+function createRule(
+  overrides: Partial<KeywordFilterRule> = {},
+): KeywordFilterRule {
   return {
     id: "r1",
     enabled: true,
@@ -90,7 +92,9 @@ describe("KeywordFilterService.getActiveRules / hasActiveRules", () => {
     const active = KeywordFilterService.getActiveRules(rules);
     expect(active.map((r) => r.id)).toEqual(["enabled"]);
     expect(KeywordFilterService.hasActiveRules(rules)).toBe(true);
-    expect(KeywordFilterService.hasActiveRules([rules[1], rules[2], rules[3]])).toBe(false);
+    expect(
+      KeywordFilterService.hasActiveRules([rules[1], rules[2], rules[3]]),
+    ).toBe(false);
   });
 });
 
@@ -158,7 +162,11 @@ describe("KeywordFilterService.evaluateRules", () => {
 
     expect(KeywordFilterService.evaluateRules(item, rules, "AND")).toBe(true);
     expect(
-      KeywordFilterService.evaluateRules(item, [rules[0], createRule({ keyword: "gamma" })], "AND"),
+      KeywordFilterService.evaluateRules(
+        item,
+        [rules[0], createRule({ keyword: "gamma" })],
+        "AND",
+      ),
     ).toBe(false);
   });
 
@@ -187,13 +195,19 @@ describe("KeywordFilterService.evaluateRules", () => {
     const exactCPlusPlus = createRule({ matchMode: "exact", keyword: "C++" });
 
     // exact "cat" should match standalone "cat" but not "Concatenate"
-    expect(KeywordFilterService.evaluateRules(item, [exactCat], "AND")).toBe(true);
+    expect(KeywordFilterService.evaluateRules(item, [exactCat], "AND")).toBe(
+      true,
+    );
 
     const item2 = createItem({ title: "concatenate only" });
-    expect(KeywordFilterService.evaluateRules(item2, [exactCat], "AND")).toBe(false);
+    expect(KeywordFilterService.evaluateRules(item2, [exactCat], "AND")).toBe(
+      false,
+    );
 
     // "C++" should not blow up regex and should match
-    expect(KeywordFilterService.evaluateRules(item, [exactCPlusPlus], "AND")).toBe(true);
+    expect(
+      KeywordFilterService.evaluateRules(item, [exactCPlusPlus], "AND"),
+    ).toBe(true);
   });
 
   it("uses summary/content fallbacks (summary/content → description) based on applyTo flags", () => {
@@ -226,9 +240,15 @@ describe("KeywordFilterService.evaluateRules", () => {
       matchMode: "partial",
     });
 
-    expect(KeywordFilterService.evaluateRules(item, [ruleSummary], "AND")).toBe(true);
-    expect(KeywordFilterService.evaluateRules(item, [ruleContent], "AND")).toBe(true);
-    expect(KeywordFilterService.evaluateRules(item, [ruleTitle], "AND")).toBe(false);
+    expect(KeywordFilterService.evaluateRules(item, [ruleSummary], "AND")).toBe(
+      true,
+    );
+    expect(KeywordFilterService.evaluateRules(item, [ruleContent], "AND")).toBe(
+      true,
+    );
+    expect(KeywordFilterService.evaluateRules(item, [ruleTitle], "AND")).toBe(
+      false,
+    );
   });
 
   it("can match against article links for URL-based feed filtering", () => {
@@ -251,8 +271,12 @@ describe("KeywordFilterService.evaluateRules", () => {
       applyToURL: true,
     });
 
-    expect(KeywordFilterService.evaluateRules(shortItem, [rule], "AND")).toBe(false);
-    expect(KeywordFilterService.evaluateRules(watchItem, [rule], "AND")).toBe(true);
+    expect(KeywordFilterService.evaluateRules(shortItem, [rule], "AND")).toBe(
+      false,
+    );
+    expect(KeywordFilterService.evaluateRules(watchItem, [rule], "AND")).toBe(
+      true,
+    );
   });
 });
 
@@ -273,7 +297,11 @@ describe("KeywordFilterService.evaluateForArticle", () => {
       includeLogic: "AND",
     });
 
-    const decision = KeywordFilterService.evaluateForArticle(item, undefined, globalRules);
+    const decision = KeywordFilterService.evaluateForArticle(
+      item,
+      undefined,
+      globalRules,
+    );
     expect(decision).toEqual({ included: false, excludedBy: "global" });
   });
 
@@ -289,7 +317,11 @@ describe("KeywordFilterService.evaluateForArticle", () => {
       rules: [createRule({ type: "include", keyword: "beta" })],
     });
 
-    const decision = KeywordFilterService.evaluateForArticle(item, feed, globalRules);
+    const decision = KeywordFilterService.evaluateForArticle(
+      item,
+      feed,
+      globalRules,
+    );
     expect(decision).toEqual({ included: true, excludedBy: "none" });
   });
 
@@ -304,8 +336,11 @@ describe("KeywordFilterService.evaluateForArticle", () => {
       rules: [createRule({ type: "include", keyword: "alpha" })],
     });
 
-    const decision = KeywordFilterService.evaluateForArticle(item, feed, globalRules);
+    const decision = KeywordFilterService.evaluateForArticle(
+      item,
+      feed,
+      globalRules,
+    );
     expect(decision).toEqual({ included: false, excludedBy: "feed" });
   });
 });
-

@@ -170,11 +170,16 @@ describe("settings-loader", () => {
         feeds: [
           createFeed({ lastUpdated: 10, lastRefreshAttemptCompletedAt: 99 }),
           createFeed({ url: "https://example.com/new.xml", lastUpdated: 0 }),
-          createFeed({ url: "https://example.com/invalid.xml", lastRefreshAttemptCompletedAt: Number.NaN }),
+          createFeed({
+            url: "https://example.com/invalid.xml",
+            lastRefreshAttemptCompletedAt: Number.NaN,
+          }),
         ],
       });
 
-      expect(result.feeds.map((feed) => feed.lastRefreshAttemptCompletedAt)).toEqual([99, 0, 0]);
+      expect(
+        result.feeds.map((feed) => feed.lastRefreshAttemptCompletedAt),
+      ).toEqual([99, 0, 0]);
     });
 
     it("normalizes all five page-size fields to allArticlesPageSize", async () => {
@@ -267,7 +272,9 @@ describe("settings-loader", () => {
         lastRefreshTimestamp: 123,
         lastGlobalRefreshCompletedAt: 456,
       });
-      const legacyOnly = loadAndNormalizeSettings({ lastRefreshTimestamp: 123 });
+      const legacyOnly = loadAndNormalizeSettings({
+        lastRefreshTimestamp: 123,
+      });
 
       expect(preserved.lastGlobalRefreshCompletedAt).toBe(456);
       expect(legacyOnly.lastGlobalRefreshCompletedAt).toBe(0);
@@ -632,9 +639,8 @@ describe("settings-loader", () => {
     it("orders items identically to feed-retention.ts's byNewest (via applyFeedRetentionLimits)", async () => {
       const { dedupeAndNormalizeFeedItems } =
         await import("../../../src/utils/settings-loader");
-      const { applyFeedRetentionLimits } = await import(
-        "../../../src/services/feed-parser/feed-retention"
-      );
+      const { applyFeedRetentionLimits } =
+        await import("../../../src/services/feed-parser/feed-retention");
 
       const items: FeedItem[] = [
         // RFC 822 obsolete named-zone edge case (Date.parse alone is NaN in

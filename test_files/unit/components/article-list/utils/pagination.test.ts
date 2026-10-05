@@ -4,7 +4,9 @@ import {
   type PaginationDependencies,
 } from "../../../../../src/components/article-list/utils/pagination";
 
-const baseDeps = (overrides: Partial<PaginationDependencies> = {}): PaginationDependencies => ({
+const baseDeps = (
+  overrides: Partial<PaginationDependencies> = {},
+): PaginationDependencies => ({
   isMobileViewport: () => false,
   onPageChange: vi.fn(),
   onPageSizeChange: vi.fn(),
@@ -89,6 +91,8 @@ describe("pagination utils", () => {
     expect(target).toBeTruthy();
     (target as HTMLElement).click();
 
-    expect(onPageChange).toHaveBeenCalledWith(Number(target?.textContent?.trim()));
+    expect(onPageChange).toHaveBeenCalledWith(
+      Number(target?.textContent?.trim()),
+    );
   });
 });

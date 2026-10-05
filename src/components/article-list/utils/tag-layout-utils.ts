@@ -125,10 +125,7 @@ export function layoutCardTagRows(
   });
 }
 
-function layoutSingleCardTagRow(
-  card: HTMLElement,
-  articles: FeedItem[],
-): void {
+function layoutSingleCardTagRow(card: HTMLElement, articles: FeedItem[]): void {
   const tagsContainer = card.querySelector<HTMLElement>(
     ".rss-dashboard-card-tags-region .rss-dashboard-tag-container",
   );

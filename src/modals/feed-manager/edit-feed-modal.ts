@@ -273,8 +273,12 @@ export class EditFeedModal extends Modal {
             this.close();
           }
         };
-        this.urlInput.addEventListener("keydown", handleEnter, { capture: true });
-        this.urlInput.addEventListener("keypress", handleEnter, { capture: true });
+        this.urlInput.addEventListener("keydown", handleEnter, {
+          capture: true,
+        });
+        this.urlInput.addEventListener("keypress", handleEnter, {
+          capture: true,
+        });
         this.urlInput.addEventListener("keyup", handleEnter, { capture: true });
       })
       .addButton((btn) => {
@@ -919,9 +923,7 @@ export class EditFeedModal extends Modal {
         this.feed.scanInterval = this.scanInterval;
         this.feed.excludeFromRefresh = this.excludeFromRefresh;
         this.feed.feedEncoding =
-          this.feedEncoding === "windows-1251"
-            ? this.feedEncoding
-            : undefined;
+          this.feedEncoding === "windows-1251" ? this.feedEncoding : undefined;
         this.feed.customTemplate = this.customTemplate || undefined;
         this.feed.keywordRules = {
           overrideGlobalRules: this.feedKeywordRules.overrideGlobalRules,
@@ -936,8 +938,14 @@ export class EditFeedModal extends Modal {
         if (newMaxItemsLimit > 0 && this.feed.items.length > newMaxItemsLimit) {
           this.feed.items.sort(
             (a, b) =>
-              getEffectiveDateMs(b, this.plugin.settings.useFirstSeenDateFallback) -
-              getEffectiveDateMs(a, this.plugin.settings.useFirstSeenDateFallback),
+              getEffectiveDateMs(
+                b,
+                this.plugin.settings.useFirstSeenDateFallback,
+              ) -
+              getEffectiveDateMs(
+                a,
+                this.plugin.settings.useFirstSeenDateFallback,
+              ),
           );
           this.feed.items = this.feed.items.slice(0, newMaxItemsLimit);
           new Notice(
@@ -986,22 +994,22 @@ export class EditFeedModal extends Modal {
         btn.setButtonText("Delete");
         settingsUiCompatibility.markDestructive(btn);
         btn.onClick(() => {
-            confirmModal.close();
-            this.close();
+          confirmModal.close();
+          this.close();
 
-            void (async () => {
-              if (this.options?.onDelete) {
-                this.options.onDelete();
-              } else {
-                this.plugin.settings.feeds = this.plugin.settings.feeds.filter(
-                  (f: Feed) => f !== this.feed,
-                );
-                await this.plugin.removeCachedImagesForDeletedFeed?.(this.feed);
-                await this.plugin.saveSettings();
-                this.onSave();
-              }
-              new Notice(`Feed "${this.feed.title}" deleted`);
-            })();
+          void (async () => {
+            if (this.options?.onDelete) {
+              this.options.onDelete();
+            } else {
+              this.plugin.settings.feeds = this.plugin.settings.feeds.filter(
+                (f: Feed) => f !== this.feed,
+              );
+              await this.plugin.removeCachedImagesForDeletedFeed?.(this.feed);
+              await this.plugin.saveSettings();
+              this.onSave();
+            }
+            new Notice(`Feed "${this.feed.title}" deleted`);
+          })();
         });
       });
 

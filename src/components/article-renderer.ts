@@ -3,7 +3,10 @@ import { sanitizeAndAppendHtml } from "../utils/safe-html";
 import { scheduleProcessMathElements } from "../utils/math-rendering";
 import { FeedItem, RssDashboardSettings } from "../types/types";
 import { HighlightService } from "../services/highlight-service";
-import { getPubDateMs, resolveDisplayDate } from "../services/feed-parser/feed-retention";
+import {
+  getPubDateMs,
+  resolveDisplayDate,
+} from "../services/feed-parser/feed-retention";
 import { MediaService } from "../services/media-service";
 import { type FullArticleFetchFailureType } from "../utils/fetch-helpers";
 import {
@@ -281,7 +284,8 @@ export class ArticleRenderer {
     });
     const useFirstSeenDateFallback = this.settings.useFirstSeenDateFallback;
     const displayDate = resolveDisplayDate(item, useFirstSeenDateFallback);
-    const isFirstSeenFallback = getPubDateMs(item.pubDate) <= 0 && !!displayDate;
+    const isFirstSeenFallback =
+      getPubDateMs(item.pubDate) <= 0 && !!displayDate;
     metaContainer.createDiv({
       cls: "rss-reader-pub-date",
       text: displayDate
@@ -701,8 +705,6 @@ export class ArticleRenderer {
     );
   }
 
-
-
   private isEquivalentHtml(html1: string, html2: string): boolean {
     return (
       this.normalizeComparableText(html1) ===
@@ -1036,8 +1038,6 @@ export class ArticleRenderer {
     const idx = Array.from(doc.body.querySelectorAll("*")).indexOf(h1);
     if (idx !== -1 && idx <= 9) h1.remove();
   }
-
-
 
   private extractDisplayTitleFromHtml(html: string): string | null {
     if (!html) return null;

@@ -10,7 +10,9 @@ describe("resolvePodcastPlatformUrl", () => {
   });
 
   it("returns null for non-podcast URLs", async () => {
-    const result = await resolvePodcastPlatformUrl("https://example.com/feed.xml");
+    const result = await resolvePodcastPlatformUrl(
+      "https://example.com/feed.xml",
+    );
     expect(result).toBeNull();
     expect(requestUrlSpy).not.toHaveBeenCalled();
   });
@@ -32,7 +34,8 @@ describe("resolvePodcastPlatformUrl", () => {
       "https://podcasts.apple.com/us/podcast/test/id123456789",
     );
     expect(result).toBe("https://feeds.example.com/podcast.rss");
-    const call = requestUrlSpy.mock.calls[0]?.[0] as { url?: string } | undefined;
+    const call = requestUrlSpy.mock.calls[0]?.[0] as
+      { url?: string } | undefined;
     expect(call?.url).toContain("itunes.apple.com/lookup");
   });
 });

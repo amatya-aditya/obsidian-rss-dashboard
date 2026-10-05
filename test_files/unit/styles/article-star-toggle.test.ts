@@ -5,12 +5,9 @@ import postcss from "postcss";
 import { describe, expect, it } from "vitest";
 
 const testDir = path.dirname(fileURLToPath(import.meta.url));
-const stylesheets = [
-  "articles.css",
-  "card-view.css",
-  "reader.css",
-].map((file) =>
-  readFileSync(path.resolve(testDir, `../../../src/styles/${file}`), "utf-8"),
+const stylesheets = ["articles.css", "card-view.css", "reader.css"].map(
+  (file) =>
+    readFileSync(path.resolve(testDir, `../../../src/styles/${file}`), "utf-8"),
 );
 
 function declarationsFor(...selectors: string[]): Map<string, string> {
@@ -115,8 +112,6 @@ describe("Article star toggle styles", () => {
     expect(star.get("min-width")).toBe("44px");
     expect(star.get("min-height")).toBe("44px");
     expect(star.get("border-radius")).toBe("12px");
-    expect(star.get("background-color")).toBe(
-      "var(--background-primary-alt)",
-    );
+    expect(star.get("background-color")).toBe("var(--background-primary-alt)");
   });
 });

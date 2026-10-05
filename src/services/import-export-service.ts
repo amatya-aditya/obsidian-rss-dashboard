@@ -232,7 +232,9 @@ export class ImportExportService {
         bundle.metadataStorageFolder ?? current.metadataStorageFolder,
     };
     if (typeof bundle.metadata.storageFolder === "string") {
-      incoming.storageFolder = normalizeFolderPath(bundle.metadata.storageFolder);
+      incoming.storageFolder = normalizeFolderPath(
+        bundle.metadata.storageFolder,
+      );
     }
 
     const decision = await this.confirmImport({
@@ -389,7 +391,9 @@ export class ImportExportService {
     const bundle = parseSettingsBundle(parsed);
     const incoming: Record<string, unknown> = { ...bundle.settings };
     if (typeof bundle.settings.storageFolder === "string") {
-      incoming.storageFolder = normalizeFolderPath(bundle.settings.storageFolder);
+      incoming.storageFolder = normalizeFolderPath(
+        bundle.settings.storageFolder,
+      );
     }
     if (bundle.metadataStorageMode !== undefined) {
       incoming.metadataStorageMode = bundle.metadataStorageMode;
@@ -447,7 +451,9 @@ export class ImportExportService {
     const preferences = parsed as Record<string, unknown>;
     const { feeds, folders, availableTags } = preferences;
     const kind: ImportKind =
-      Array.isArray(feeds) || Array.isArray(folders) || Array.isArray(availableTags)
+      Array.isArray(feeds) ||
+      Array.isArray(folders) ||
+      Array.isArray(availableTags)
         ? "replacing"
         : "overwriting";
 

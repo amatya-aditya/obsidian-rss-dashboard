@@ -48,7 +48,6 @@
 }
 
 @media (max-width: 1200px) {
-
   .rss-discover-content {
     padding-right: 0;
   }
@@ -121,7 +120,7 @@
 
 .rss-discover-card-type {
   background: var(--background-modifier-active-hover);
-  
+
   padding: 2px 8px;
   border-radius: 4px;
   font-size: var(--font-ui-smaller);
@@ -438,10 +437,6 @@ body .rss-discover-card-remove-btn:hover {
   font-weight: 500;
 }
 
-
-
-
-
 .rss-discover-card-footer button {
   min-width: 80px;
   flex-shrink: 0;
@@ -475,7 +470,6 @@ body .rss-discover-card-remove-btn:hover {
 }
 
 @media (max-width: 768px) {
-
   .rss-discover-card-footer {
     flex-direction: column;
     gap: 0.5rem;
@@ -489,5 +483,4 @@ body .rss-discover-card-remove-btn:hover {
 }
 
 @media (max-width: 1200px) {
-
 }

@@ -9,7 +9,9 @@ describe("findPlatformCompatViolations", () => {
       }
     `;
 
-    expect(findPlatformCompatViolations(source, "src/utils/example.ts")).toEqual([
+    expect(
+      findPlatformCompatViolations(source, "src/utils/example.ts"),
+    ).toEqual([
       expect.objectContaining({
         rule: "activeWindow-timer",
         line: 3,

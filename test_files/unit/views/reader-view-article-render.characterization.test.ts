@@ -5,7 +5,15 @@
 // through the view's public entry point (`displayItem`) wherever possible and
 // call `populateArticleHtml` directly only for parameter combinations the
 // entry point never produces.
-import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+  type Mock,
+} from "vitest";
 import { ReaderView } from "../../../src/views/reader-view";
 import {
   DEFAULT_SETTINGS,
@@ -219,7 +227,8 @@ describe("ReaderView article rendering (characterization)", () => {
   });
 
   const reading = () => internals(view).readingContainer;
-  const q = (selector: string) => reading().querySelector<HTMLElement>(selector);
+  const q = (selector: string) =>
+    reading().querySelector<HTMLElement>(selector);
   const qa = (selector: string) =>
     Array.from(reading().querySelectorAll<HTMLElement>(selector));
   const fetchMock = () => internals(view).fetchFullArticleContent;
@@ -268,7 +277,11 @@ describe("ReaderView article rendering (characterization)", () => {
       internals(view).titleElement.setText("Stale header");
 
       await view.displayItem(
-        makeItem({ title: "Opened Item", mediaType: "video", videoId: "abcdefghijk" }),
+        makeItem({
+          title: "Opened Item",
+          mediaType: "video",
+          videoId: "abcdefghijk",
+        }),
       );
 
       expect(internals(view).titleElement.textContent).toBe("Opened Item");
@@ -442,7 +455,10 @@ describe("ReaderView article rendering (characterization)", () => {
         tags: [savedTag],
       });
       settings.feeds = [
-        makeFeed({ url: "https://other.example/rss", items: [sameGuidOtherFeed] }),
+        makeFeed({
+          url: "https://other.example/rss",
+          items: [sameGuidOtherFeed],
+        }),
         makeFeed({ items: [otherGuidSameFeed] }),
       ];
 
@@ -565,7 +581,11 @@ describe("ReaderView article rendering (characterization)", () => {
     });
 
     it("does not look for a video id when the item has no link", async () => {
-      const item = makeItem({ mediaType: "video", link: "", content: LONG_HTML });
+      const item = makeItem({
+        mediaType: "video",
+        link: "",
+        content: LONG_HTML,
+      });
 
       await view.displayItem(item);
 
@@ -618,7 +638,8 @@ describe("ReaderView article rendering (characterization)", () => {
     it("finds the audio url in the description and stores it on the item", async () => {
       const item = makeItem({
         mediaType: "podcast",
-        description: '<audio controls src="https://example.com/inline.mp3"></audio>',
+        description:
+          '<audio controls src="https://example.com/inline.mp3"></audio>',
       });
 
       await view.displayItem(item);
@@ -683,9 +704,18 @@ describe("ReaderView article rendering (characterization)", () => {
     });
 
     it.each([
-      ["a starred-import preview never fetched", { starredImportContentState: "unfetched" as const }],
-      ["a starred-import preview whose fetch failed", { starredImportContentState: "failed" as const }],
-      ["an item that looks like a video", { mediaType: "video" as const, link: "https://example.com/clip" }],
+      [
+        "a starred-import preview never fetched",
+        { starredImportContentState: "unfetched" as const },
+      ],
+      [
+        "a starred-import preview whose fetch failed",
+        { starredImportContentState: "failed" as const },
+      ],
+      [
+        "an item that looks like a video",
+        { mediaType: "video" as const, link: "https://example.com/clip" },
+      ],
       ["a Kagi story", { link: "https://kite.kagi.com/story" }],
       ["a Kagi news story", { link: "https://news.kagi.com/story" }],
       ["an Aeon essay", { link: "https://aeon.co/essays/x" }],
@@ -693,20 +723,28 @@ describe("ReaderView article rendering (characterization)", () => {
       ["a Substack post", { link: "https://substack.com/p/x" }],
       ["a Substack publication", { link: "https://writer.substack.com/p/x" }],
     ])("does not fetch for %s", async (_label, overrides) => {
-      await view.displayItem(makeItem({ content: "<p>short</p>", ...overrides }));
+      await view.displayItem(
+        makeItem({ content: "<p>short</p>", ...overrides }),
+      );
 
       expect(fetchMock()).not.toHaveBeenCalled();
     });
 
     it.each([
       ["data-component-name", '<div data-component-name="Image2ToDOM"></div>'],
-      ["link class", '<a class="image-link image2 is-viewable-img" href="#">x</a>'],
+      [
+        "link class",
+        '<a class="image-link image2 is-viewable-img" href="#">x</a>',
+      ],
       ["CDN url", '<img src="https://substackcdn.com/image/fetch/x.png">'],
-    ])("does not fetch when the feed content has Substack %s markup", async (_label, html) => {
-      await view.displayItem(makeItem({ content: html }));
+    ])(
+      "does not fetch when the feed content has Substack %s markup",
+      async (_label, html) => {
+        await view.displayItem(makeItem({ content: html }));
 
-      expect(fetchMock()).not.toHaveBeenCalled();
-    });
+        expect(fetchMock()).not.toHaveBeenCalled();
+      },
+    );
 
     it("looks at the description when the item has no content", async () => {
       await view.displayItem(
@@ -721,7 +759,10 @@ describe("ReaderView article rendering (characterization)", () => {
 
     it("fetches for a host that only ends like a preferred one", async () => {
       await view.displayItem(
-        makeItem({ content: "<p>short</p>", link: "https://notsubstack.com/p/x" }),
+        makeItem({
+          content: "<p>short</p>",
+          link: "https://notsubstack.com/p/x",
+        }),
       );
 
       expect(fetchMock()).toHaveBeenCalledTimes(1);
@@ -766,7 +807,9 @@ describe("ReaderView article rendering (characterization)", () => {
 
       expect(internals(view).currentContentIsFullArticle).toBe(false);
       expect(internals(view).currentFullContent).toBe("<p>feed content</p>");
-      expect(q(".rss-reader-article-content")?.textContent).toBe("feed content");
+      expect(q(".rss-reader-article-content")?.textContent).toBe(
+        "feed content",
+      );
     });
 
     it("accepts fetched text of 201 characters", async () => {
@@ -778,11 +821,16 @@ describe("ReaderView article rendering (characterization)", () => {
     });
 
     it("falls back to the description when there is no content and no usable fetch", async () => {
-      const item = makeItem({ content: "", description: "<p>only a description</p>" });
+      const item = makeItem({
+        content: "",
+        description: "<p>only a description</p>",
+      });
 
       await view.displayItem(item);
 
-      expect(internals(view).currentFullContent).toBe("<p>only a description</p>");
+      expect(internals(view).currentFullContent).toBe(
+        "<p>only a description</p>",
+      );
       expect(q(".rss-reader-article-content")?.textContent).toBe(
         "only a description",
       );
@@ -984,7 +1032,11 @@ describe("ReaderView article rendering (characterization)", () => {
       enableWebViewer(open);
 
       await view.displayItem(
-        makeItem({ link: "https://writer.substack.com/p/x", content: "", description: "" }),
+        makeItem({
+          link: "https://writer.substack.com/p/x",
+          content: "",
+          description: "",
+        }),
       );
 
       expect(open).toHaveBeenCalledTimes(1);
@@ -997,7 +1049,9 @@ describe("ReaderView article rendering (characterization)", () => {
         makeItem({ content: LONG_HTML, pubDate: "2024-03-05T10:20:30.000Z" }),
       );
 
-      expect(q(".rss-reader-article-header .rss-reader-item-title")?.tagName).toBe("H1");
+      expect(
+        q(".rss-reader-article-header .rss-reader-item-title")?.tagName,
+      ).toBe("H1");
       expect(q(".rss-reader-item-title")?.textContent).toBe("Feed Item Title");
       expect(q(".rss-reader-feed-title")?.textContent).toBe("Example Feed");
       expect(q(".rss-reader-pub-date")?.textContent).toBe(
@@ -1123,7 +1177,11 @@ describe("ReaderView article rendering (characterization)", () => {
       settings.useFirstSeenDateFallback = false;
 
       await view.displayItem(
-        makeItem({ pubDate: "", firstSeenMs: 1_700_000_000_000, content: LONG_HTML }),
+        makeItem({
+          pubDate: "",
+          firstSeenMs: 1_700_000_000_000,
+          content: LONG_HTML,
+        }),
       );
 
       expect(q(".rss-reader-pub-date")?.textContent).toBe("Unknown date");
@@ -1133,7 +1191,11 @@ describe("ReaderView article rendering (characterization)", () => {
       settings.useFirstSeenDateFallback = true;
 
       await view.displayItem(
-        makeItem({ pubDate: "", firstSeenMs: 1_700_000_000_000, content: LONG_HTML }),
+        makeItem({
+          pubDate: "",
+          firstSeenMs: 1_700_000_000_000,
+          content: LONG_HTML,
+        }),
       );
 
       expect(q(".rss-reader-pub-date")?.textContent).toBe(
@@ -1170,10 +1232,9 @@ describe("ReaderView article rendering (characterization)", () => {
 
       const tags = qa(".rss-reader-tags .rss-reader-tag");
       expect(tags.map((tag) => tag.textContent)).toEqual(["Alpha", "Beta"]);
-      expect(tags.map((tag) => tag.style.getPropertyValue("--tag-color"))).toEqual([
-        "#ff0000",
-        "#00ff00",
-      ]);
+      expect(
+        tags.map((tag) => tag.style.getPropertyValue("--tag-color")),
+      ).toEqual(["#ff0000", "#00ff00"]);
     });
 
     it("omits the tag row when the item has no tags", async () => {
@@ -1190,7 +1251,9 @@ describe("ReaderView article rendering (characterization)", () => {
     it("builds the header, then the hero slot, then the body, in that order", async () => {
       await view.displayItem(makeItem({ content: LONG_HTML }));
 
-      const order = Array.from(reading().children).map((child) => child.className);
+      const order = Array.from(reading().children).map(
+        (child) => child.className,
+      );
       expect(order.slice(0, 3)).toEqual([
         "rss-reader-article-header",
         "rss-reader-hero-slot",
@@ -1217,7 +1280,9 @@ describe("ReaderView article rendering (characterization)", () => {
       );
 
       expect(q(".rss-reader-description-callout")).toBeNull();
-      expect(q(".rss-reader-article-content")?.textContent).toBe("just content");
+      expect(q(".rss-reader-article-content")?.textContent).toBe(
+        "just content",
+      );
     });
 
     it("shows a Feed description callout above content that differs from it", async () => {
@@ -1231,7 +1296,9 @@ describe("ReaderView article rendering (characterization)", () => {
       const callout = q("details.rss-reader-description-callout");
       expect(callout).not.toBeNull();
       expect((callout as HTMLDetailsElement).open).toBe(true);
-      expect(callout?.querySelector("summary")?.textContent).toBe("Feed description");
+      expect(callout?.querySelector("summary")?.textContent).toBe(
+        "Feed description",
+      );
       expect(
         callout?.querySelector(
           ".rss-reader-description.rss-reader-description-body",
@@ -1268,13 +1335,13 @@ describe("ReaderView article rendering (characterization)", () => {
       await view.displayItem(
         makeItem({
           description: "<p>It’s  A “Test”</p>",
-          content: "<div>it's a   \"test\"</div>",
+          content: '<div>it\'s a   "test"</div>',
         }),
       );
 
       expect(q(".rss-reader-description-callout")).toBeNull();
       expect(q(".rss-reader-article-content")?.textContent).toBe(
-        "it's a   \"test\"",
+        'it\'s a   "test"',
       );
     });
 
@@ -1290,7 +1357,10 @@ describe("ReaderView article rendering (characterization)", () => {
 
     it("skips the callout for a description with no text", async () => {
       await view.displayItem(
-        makeItem({ description: "<img src=\"https://example.com/a.png\">", content: "<p>full</p>" }),
+        makeItem({
+          description: '<img src="https://example.com/a.png">',
+          content: "<p>full</p>",
+        }),
       );
 
       expect(q(".rss-reader-description-callout")).toBeNull();
@@ -1298,7 +1368,10 @@ describe("ReaderView article rendering (characterization)", () => {
 
     it("still shows a description that only starts with an ellipsis", async () => {
       await view.displayItem(
-        makeItem({ description: "<p>... and more</p>", content: "<p>full</p>" }),
+        makeItem({
+          description: "<p>... and more</p>",
+          content: "<p>full</p>",
+        }),
       );
 
       expect(q(".rss-reader-description-callout")).not.toBeNull();
@@ -1317,7 +1390,10 @@ describe("ReaderView article rendering (characterization)", () => {
       fetchMock().mockResolvedValue(LONG_HTML);
 
       await view.displayItem(
-        makeItem({ description: "<p>the teaser</p>", content: "<p>feed content</p>" }),
+        makeItem({
+          description: "<p>the teaser</p>",
+          content: "<p>feed content</p>",
+        }),
       );
 
       expect(q(".rss-reader-description-body")?.textContent).toBe("the teaser");
@@ -1380,11 +1456,18 @@ describe("ReaderView article rendering (characterization)", () => {
 
     it("places the banner after the article body", async () => {
       await view.displayItem(
-        makeItem({ content: LONG_HTML, restrictedReason: RESTRICTED_ARTICLE_REASON }),
+        makeItem({
+          content: LONG_HTML,
+          restrictedReason: RESTRICTED_ARTICLE_REASON,
+        }),
       );
 
-      const classes = Array.from(reading().children).map((child) => child.className);
-      expect(classes[classes.length - 1]).toContain("rss-reader-paywall-banner");
+      const classes = Array.from(reading().children).map(
+        (child) => child.className,
+      );
+      expect(classes[classes.length - 1]).toContain(
+        "rss-reader-paywall-banner",
+      );
     });
   });
 
@@ -1399,9 +1482,13 @@ describe("ReaderView article rendering (characterization)", () => {
         }),
       );
 
-      expect(heroImg()?.getAttribute("src")).toBe("https://img.example.com/cover.jpg");
+      expect(heroImg()?.getAttribute("src")).toBe(
+        "https://img.example.com/cover.jpg",
+      );
       expect(heroImg()?.getAttribute("alt")).toBe("Feed Item Title");
-      expect(heroImg()?.classList.contains("rss-reader-fallback-hero")).toBe(true);
+      expect(heroImg()?.classList.contains("rss-reader-fallback-hero")).toBe(
+        true,
+      );
     });
 
     it("picks the first usable of cover image, image and iTunes image, trimmed", async () => {
@@ -1413,7 +1500,9 @@ describe("ReaderView article rendering (characterization)", () => {
           itunes: { image: { href: "https://img.example.com/itunes.jpg" } },
         } as Partial<FeedItem>),
       );
-      expect(heroImg()?.getAttribute("src")).toBe("https://img.example.com/image.jpg");
+      expect(heroImg()?.getAttribute("src")).toBe(
+        "https://img.example.com/image.jpg",
+      );
 
       reading().empty();
       await view.displayItem(
@@ -1424,7 +1513,9 @@ describe("ReaderView article rendering (characterization)", () => {
           itunes: { image: { href: "https://img.example.com/itunes.jpg" } },
         } as Partial<FeedItem>),
       );
-      expect(heroImg()?.getAttribute("src")).toBe("https://img.example.com/itunes.jpg");
+      expect(heroImg()?.getAttribute("src")).toBe(
+        "https://img.example.com/itunes.jpg",
+      );
     });
 
     it("skips a LaTeX formula image as the hero candidate", async () => {
@@ -1436,7 +1527,9 @@ describe("ReaderView article rendering (characterization)", () => {
         }),
       );
 
-      expect(heroImg()?.getAttribute("src")).toBe("https://img.example.com/image.jpg");
+      expect(heroImg()?.getAttribute("src")).toBe(
+        "https://img.example.com/image.jpg",
+      );
     });
 
     it("uses the first image in the body as the hero and removes it from the body", async () => {
@@ -1446,7 +1539,9 @@ describe("ReaderView article rendering (characterization)", () => {
         }),
       );
 
-      expect(heroImg()?.getAttribute("src")).toBe("https://img.example.com/body-1.jpg");
+      expect(heroImg()?.getAttribute("src")).toBe(
+        "https://img.example.com/body-1.jpg",
+      );
       const bodyImages = qa(".rss-reader-article-content img").map((img) =>
         img.getAttribute("src"),
       );
@@ -1493,7 +1588,9 @@ describe("ReaderView article rendering (characterization)", () => {
       expect(qa(".rss-reader-article-content img")).toHaveLength(0);
       const leadParagraph = q(".rss-reader-article-content a p");
       expect(leadParagraph).not.toBeNull();
-      expect(leadParagraph?.textContent).toContain("Sentence of article body text.");
+      expect(leadParagraph?.textContent).toContain(
+        "Sentence of article body text.",
+      );
       expect(q(".rss-reader-article-content")?.textContent).toContain(
         "Sentence of article body text.",
       );
@@ -1508,7 +1605,9 @@ describe("ReaderView article rendering (characterization)", () => {
       );
 
       expect(
-        qa(".rss-reader-article-content img").map((img) => img.getAttribute("src")),
+        qa(".rss-reader-article-content img").map((img) =>
+          img.getAttribute("src"),
+        ),
       ).toEqual(["https://img.example.com/photos/other.jpg"]);
     });
 
@@ -1533,14 +1632,19 @@ describe("ReaderView article rendering (characterization)", () => {
       ];
 
       await view.displayItem(
-        makeItem({ content: LONG_HTML, coverImage: "https://img.example.com/icon.png" }),
+        makeItem({
+          content: LONG_HTML,
+          coverImage: "https://img.example.com/icon.png",
+        }),
       );
 
       expect(heroImg()).toBeNull();
     });
 
     it("copes with a feed icon when the item has no cover image at all", async () => {
-      settings.feeds = [makeFeed({ iconUrl: "https://img.example.com/icon.png" })];
+      settings.feeds = [
+        makeFeed({ iconUrl: "https://img.example.com/icon.png" }),
+      ];
 
       await view.displayItem(
         makeItem({
@@ -1549,36 +1653,58 @@ describe("ReaderView article rendering (characterization)", () => {
         }),
       );
 
-      expect(heroImg()?.getAttribute("src")).toBe("https://img.example.com/body.jpg");
+      expect(heroImg()?.getAttribute("src")).toBe(
+        "https://img.example.com/body.jpg",
+      );
     });
 
     it("keeps a cover image that differs from the feed icon", async () => {
-      settings.feeds = [makeFeed({ iconUrl: "https://img.example.com/icon.png" })];
+      settings.feeds = [
+        makeFeed({ iconUrl: "https://img.example.com/icon.png" }),
+      ];
 
       await view.displayItem(
-        makeItem({ content: LONG_HTML, coverImage: "https://img.example.com/cover.png" }),
+        makeItem({
+          content: LONG_HTML,
+          coverImage: "https://img.example.com/cover.png",
+        }),
       );
 
-      expect(heroImg()?.getAttribute("src")).toBe("https://img.example.com/cover.png");
+      expect(heroImg()?.getAttribute("src")).toBe(
+        "https://img.example.com/cover.png",
+      );
     });
 
     it("keeps the cover image when the feed has no icon or cannot be found", async () => {
       settings.feeds = [makeFeed({ iconUrl: undefined })];
       await view.displayItem(
-        makeItem({ content: LONG_HTML, coverImage: "https://img.example.com/cover.png" }),
+        makeItem({
+          content: LONG_HTML,
+          coverImage: "https://img.example.com/cover.png",
+        }),
       );
       expect(heroImg()).not.toBeNull();
 
       reading().empty();
-      settings.feeds = [makeFeed({ url: "https://other.example/rss", iconUrl: "https://img.example.com/cover.png" })];
+      settings.feeds = [
+        makeFeed({
+          url: "https://other.example/rss",
+          iconUrl: "https://img.example.com/cover.png",
+        }),
+      ];
       await view.displayItem(
-        makeItem({ content: LONG_HTML, coverImage: "https://img.example.com/cover.png" }),
+        makeItem({
+          content: LONG_HTML,
+          coverImage: "https://img.example.com/cover.png",
+        }),
       );
       expect(heroImg()).not.toBeNull();
     });
 
     it("keeps the cover image when the item has no feed url, even if it matches an icon", async () => {
-      settings.feeds = [makeFeed({ iconUrl: "https://img.example.com/cover.png" })];
+      settings.feeds = [
+        makeFeed({ iconUrl: "https://img.example.com/cover.png" }),
+      ];
 
       await view.displayItem(
         makeItem({
@@ -1592,7 +1718,9 @@ describe("ReaderView article rendering (characterization)", () => {
     });
 
     it("falls back to the first body image when the cover image is the feed icon", async () => {
-      settings.feeds = [makeFeed({ iconUrl: "https://img.example.com/icon.png" })];
+      settings.feeds = [
+        makeFeed({ iconUrl: "https://img.example.com/icon.png" }),
+      ];
 
       await view.displayItem(
         makeItem({
@@ -1601,7 +1729,9 @@ describe("ReaderView article rendering (characterization)", () => {
         }),
       );
 
-      expect(heroImg()?.getAttribute("src")).toBe("https://img.example.com/body.jpg");
+      expect(heroImg()?.getAttribute("src")).toBe(
+        "https://img.example.com/body.jpg",
+      );
     });
 
     it("lets the description fill the hero first and drops the same lead image from the body", async () => {
@@ -1613,7 +1743,9 @@ describe("ReaderView article rendering (characterization)", () => {
       );
 
       expect(qa(".rss-reader-hero-slot img")).toHaveLength(1);
-      expect(heroImg()?.getAttribute("src")).toBe("https://img.example.com/lead.jpg");
+      expect(heroImg()?.getAttribute("src")).toBe(
+        "https://img.example.com/lead.jpg",
+      );
       expect(qa(".rss-reader-description-body img")).toHaveLength(0);
       expect(qa(".rss-reader-article-content img")).toHaveLength(0);
     });
@@ -1626,9 +1758,13 @@ describe("ReaderView article rendering (characterization)", () => {
         }),
       );
 
-      expect(heroImg()?.getAttribute("src")).toBe("https://img.example.com/lead.jpg");
+      expect(heroImg()?.getAttribute("src")).toBe(
+        "https://img.example.com/lead.jpg",
+      );
       expect(
-        qa(".rss-reader-article-content img").map((img) => img.getAttribute("src")),
+        qa(".rss-reader-article-content img").map((img) =>
+          img.getAttribute("src"),
+        ),
       ).toEqual(["https://img.example.com/different.jpg"]);
     });
   });
@@ -1673,15 +1809,22 @@ describe("ReaderView article rendering (characterization)", () => {
       );
 
       expect(
-        Array.from(container.querySelectorAll("a")).map((a) => a.getAttribute("href")),
+        Array.from(container.querySelectorAll("a")).map((a) =>
+          a.getAttribute("href"),
+        ),
       ).toEqual([
         "https://example.com/path/x?y=1",
         "https://example.com/dir/rel.html",
         "https://other.example/z",
       ]);
       expect(
-        Array.from(container.querySelectorAll("img")).map((i) => i.getAttribute("src")),
-      ).toEqual(["https://cdn.example.com/i.png", "https://example.com/dir/pic.jpg"]);
+        Array.from(container.querySelectorAll("img")).map((i) =>
+          i.getAttribute("src"),
+        ),
+      ).toEqual([
+        "https://cdn.example.com/i.png",
+        "https://example.com/dir/pic.jpg",
+      ]);
     });
 
     it("preserves fragment-only links for navigation within the article", () => {
@@ -1722,7 +1865,9 @@ describe("ReaderView article rendering (characterization)", () => {
         "https://example.com/",
       );
 
-      expect(container.querySelector("a")?.getAttribute("href")).toBe("http://[bad");
+      expect(container.querySelector("a")?.getAttribute("href")).toBe(
+        "http://[bad",
+      );
     });
 
     it("skips all document cleanup when the base url is not a valid url", () => {
@@ -1746,13 +1891,19 @@ describe("ReaderView article rendering (characterization)", () => {
     });
 
     it("rewrites Substack CDN image urls to the original image", () => {
-      const original = "https://substack-post-media.s3.amazonaws.com/public/images/abc.png";
+      const original =
+        "https://substack-post-media.s3.amazonaws.com/public/images/abc.png";
       const wrapped = `https://substackcdn.com/image/fetch/w_1456,c_limit/${encodeURIComponent(original)}`;
 
-      const container = populate(`<p><img src="${wrapped}"></p>`, "https://example.com/");
+      const container = populate(
+        `<p><img src="${wrapped}"></p>`,
+        "https://example.com/",
+      );
 
       expect(normalizeSubstackImageUrl(wrapped)).toBe(original);
-      expect(container.querySelector("img")?.getAttribute("src")).toBe(original);
+      expect(container.querySelector("img")?.getAttribute("src")).toBe(
+        original,
+      );
     });
 
     it("removes Substack's expand control by class, but its restack and view buttons only as buttons", () => {
@@ -1785,7 +1936,7 @@ describe("ReaderView article rendering (characterization)", () => {
 
     it("hands the sanitizer rich HTML and drops scripts", () => {
       const container = populate(
-        '<p>safe</p><script>window.hacked = true</script>',
+        "<p>safe</p><script>window.hacked = true</script>",
         "https://example.com/",
       );
 
@@ -1800,10 +1951,16 @@ describe("ReaderView article rendering (characterization)", () => {
       );
 
       const [normal, tracker] = Array.from(container.querySelectorAll("img"));
-      expect(normal?.classList.contains("rss-reader-responsive-img")).toBe(true);
+      expect(normal?.classList.contains("rss-reader-responsive-img")).toBe(
+        true,
+      );
       expect(normal?.classList.contains("rss-reader-zoomable-img")).toBe(true);
-      expect(tracker?.classList.contains("rss-reader-responsive-img")).toBe(true);
-      expect(tracker?.classList.contains("rss-reader-zoomable-img")).toBe(false);
+      expect(tracker?.classList.contains("rss-reader-responsive-img")).toBe(
+        true,
+      );
+      expect(tracker?.classList.contains("rss-reader-zoomable-img")).toBe(
+        false,
+      );
     });
 
     it("schedules math rendering for the container it filled", () => {
@@ -1823,9 +1980,14 @@ describe("ReaderView article rendering (characterization)", () => {
         words: [{ id: "w1", text: "needle", enabled: true, createdAt: 1 }],
       };
 
-      const container = populate("<p>a needle here</p>", "https://example.com/");
+      const container = populate(
+        "<p>a needle here</p>",
+        "https://example.com/",
+      );
 
-      expect(container.querySelector("mark.rss-highlight")?.textContent).toBe("needle");
+      expect(container.querySelector("mark.rss-highlight")?.textContent).toBe(
+        "needle",
+      );
     });
 
     it("does not highlight content when highlighting in content is off", () => {
@@ -1838,7 +2000,10 @@ describe("ReaderView article rendering (characterization)", () => {
         words: [{ id: "w1", text: "needle", enabled: true, createdAt: 1 }],
       };
 
-      const container = populate("<p>a needle here</p>", "https://example.com/");
+      const container = populate(
+        "<p>a needle here</p>",
+        "https://example.com/",
+      );
 
       expect(container.querySelector("mark")).toBeNull();
     });
@@ -1853,7 +2018,10 @@ describe("ReaderView article rendering (characterization)", () => {
         words: [{ id: "w1", text: "needle", enabled: true, createdAt: 1 }],
       };
 
-      const container = populate("<p>a needle here</p>", "https://example.com/");
+      const container = populate(
+        "<p>a needle here</p>",
+        "https://example.com/",
+      );
 
       expect(container.querySelector("mark")).toBeNull();
     });
@@ -1875,9 +2043,13 @@ describe("ReaderView article rendering (characterization)", () => {
     it("swaps in the original image once when a Substack image fails to load", () => {
       const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
       const error = vi.spyOn(console, "error").mockImplementation(() => {});
-      const original = "https://substack-post-media.s3.amazonaws.com/public/images/abc.png";
+      const original =
+        "https://substack-post-media.s3.amazonaws.com/public/images/abc.png";
       const wrapped = `https://substackcdn.com/image/fetch/w_1456,c_limit/${encodeURIComponent(original)}`;
-      const container = populate('<picture><source srcset="x.webp"><img src="https://img.example.com/a.jpg"></picture>', "https://example.com/");
+      const container = populate(
+        '<picture><source srcset="x.webp"><img src="https://img.example.com/a.jpg"></picture>',
+        "https://example.com/",
+      );
       const img = container.querySelector("img") as HTMLImageElement;
       Object.defineProperty(img, "currentSrc", { value: wrapped });
 
@@ -1913,7 +2085,9 @@ describe("ReaderView article rendering (characterization)", () => {
         });
 
         const img = slot.querySelector("img");
-        expect(img?.getAttribute("src")).toBe("https://img.example.com/hero.jpg");
+        expect(img?.getAttribute("src")).toBe(
+          "https://img.example.com/hero.jpg",
+        );
         expect(img?.getAttribute("alt")).toBe("Some Title");
         expect(img?.classList.contains("rss-reader-fallback-hero")).toBe(true);
         expect(img?.classList.contains("rss-reader-zoomable-img")).toBe(true);
@@ -1927,12 +2101,15 @@ describe("ReaderView article rendering (characterization)", () => {
           heroSlot: slot,
         });
 
-        expect(slot.querySelector("img")?.getAttribute("alt")).toBe("Hero image");
+        expect(slot.querySelector("img")?.getAttribute("alt")).toBe(
+          "Hero image",
+        );
       });
 
       it("normalizes a Substack fallback hero url", () => {
         const slot = createDiv();
-        const original = "https://substack-post-media.s3.amazonaws.com/public/images/abc.png";
+        const original =
+          "https://substack-post-media.s3.amazonaws.com/public/images/abc.png";
 
         populate("<p>text</p>", "https://example.com/", {
           fallbackHeroUrl: `https://substackcdn.com/image/fetch/w_1456/${encodeURIComponent(original)}`,
@@ -1963,7 +2140,10 @@ describe("ReaderView article rendering (characterization)", () => {
         const container = populate(
           '<p><img src="https://img.example.com/a/other.jpg"></p>',
           "https://example.com/",
-          { fallbackHeroUrl: "https://img.example.com/a/hero.jpg", heroSlot: slot },
+          {
+            fallbackHeroUrl: "https://img.example.com/a/hero.jpg",
+            heroSlot: slot,
+          },
         );
 
         expect(container.querySelectorAll("img")).toHaveLength(1);
@@ -1975,7 +2155,10 @@ describe("ReaderView article rendering (characterization)", () => {
         const container = populate(
           '<p><img src="https://img.example.com/a/hero-300x200.jpg"></p>',
           "https://example.com/",
-          { fallbackHeroUrl: "https://img.example.com/a/hero.jpg", heroSlot: slot },
+          {
+            fallbackHeroUrl: "https://img.example.com/a/hero.jpg",
+            heroSlot: slot,
+          },
         );
 
         expect(container.querySelectorAll("img")).toHaveLength(0);
@@ -1991,12 +2174,17 @@ describe("ReaderView article rendering (characterization)", () => {
 
       it("leaves a filled slot alone and drops a lead image that matches it", () => {
         const slot = createDiv();
-        slot.createEl("img", { attr: { src: "https://img.example.com/a/hero.jpg" } });
+        slot.createEl("img", {
+          attr: { src: "https://img.example.com/a/hero.jpg" },
+        });
 
         const container = populate(
           '<p><img src="https://img.example.com/a/hero.jpg"></p><p>text</p>',
           "https://example.com/",
-          { fallbackHeroUrl: "https://img.example.com/other.jpg", heroSlot: slot },
+          {
+            fallbackHeroUrl: "https://img.example.com/other.jpg",
+            heroSlot: slot,
+          },
         );
 
         expect(slot.querySelectorAll("img")).toHaveLength(1);
@@ -2008,7 +2196,9 @@ describe("ReaderView article rendering (characterization)", () => {
 
       it("leaves a filled slot alone and keeps a lead image that differs", () => {
         const slot = createDiv();
-        slot.createEl("img", { attr: { src: "https://img.example.com/a/hero.jpg" } });
+        slot.createEl("img", {
+          attr: { src: "https://img.example.com/a/hero.jpg" },
+        });
 
         const container = populate(
           '<p><img src="https://img.example.com/b/different.jpg"></p>',
@@ -2021,7 +2211,9 @@ describe("ReaderView article rendering (characterization)", () => {
 
       it("leaves a filled slot alone when the HTML has no image", () => {
         const slot = createDiv();
-        slot.createEl("img", { attr: { src: "https://img.example.com/a/hero.jpg" } });
+        slot.createEl("img", {
+          attr: { src: "https://img.example.com/a/hero.jpg" },
+        });
 
         populate("<p>text</p>", "https://example.com/", { heroSlot: slot });
 
@@ -2146,7 +2338,9 @@ describe("ReaderView article rendering (characterization)", () => {
 
     it("keeps it in feed content that was not fetched", async () => {
       await view.displayItem(
-        makeItem({ content: "<h1>A Proper Headline Here</h1><p>short body</p>" }),
+        makeItem({
+          content: "<h1>A Proper Headline Here</h1><p>short body</p>",
+        }),
       );
 
       expect(q(".rss-reader-article-content h1")).not.toBeNull();

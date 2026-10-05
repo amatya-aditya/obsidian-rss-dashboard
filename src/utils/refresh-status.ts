@@ -45,9 +45,12 @@ export function getRefreshStatus(input: RefreshStatusInput): RefreshStatus {
   );
   const isFeedScope = input.scope === "feed";
   const coverageFeeds = isFeedScope ? input.feeds : eligibleFeeds;
-  const isApplicable = isFeedScope ? input.feeds.length > 0 : eligibleFeeds.length > 0;
+  const isApplicable = isFeedScope
+    ? input.feeds.length > 0
+    : eligibleFeeds.length > 0;
   const activeFeedUrls = input.activeFeedUrls ?? new Set<string>();
-  const completionLabel = input.scope === "all" ? "Last global refresh" : "Last checked";
+  const completionLabel =
+    input.scope === "all" ? "Last global refresh" : "Last checked";
 
   let resolvedCompletionAt: number | null;
   if (!isApplicable) {
@@ -55,7 +58,9 @@ export function getRefreshStatus(input: RefreshStatusInput): RefreshStatus {
   } else if (input.scope === "all") {
     const globalCompletionAt = input.globalCompletionAt;
     resolvedCompletionAt =
-      Number.isFinite(globalCompletionAt) && globalCompletionAt && globalCompletionAt > 0
+      Number.isFinite(globalCompletionAt) &&
+      globalCompletionAt &&
+      globalCompletionAt > 0
         ? globalCompletionAt
         : 0;
   } else if (coverageFeeds.some((feed) => completionAt(feed) === 0)) {
@@ -66,7 +71,8 @@ export function getRefreshStatus(input: RefreshStatusInput): RefreshStatus {
 
   const automaticOffCount = eligibleFeeds.filter(
     (feed) =>
-      getEffectiveRefreshIntervalMinutes(feed, input.globalIntervalMinutes) === null,
+      getEffectiveRefreshIntervalMinutes(feed, input.globalIntervalMinutes) ===
+      null,
   ).length;
   const nextDueTimes = eligibleFeeds
     .map((feed) => getNextRefreshDueAt(feed, input.globalIntervalMinutes))
@@ -79,10 +85,14 @@ export function getRefreshStatus(input: RefreshStatusInput): RefreshStatus {
     completionLabel,
     eligibleCount: eligibleFeeds.length,
     excludedCount,
-    failingCount: coverageFeeds.filter((feed) => Boolean(feed.lastFetchError)).length,
-    refreshingCount: coverageFeeds.filter((feed) => activeFeedUrls.has(feed.url)).length,
+    failingCount: coverageFeeds.filter((feed) => Boolean(feed.lastFetchError))
+      .length,
+    refreshingCount: coverageFeeds.filter((feed) =>
+      activeFeedUrls.has(feed.url),
+    ).length,
     automaticOffCount,
-    neverCheckedCount: coverageFeeds.filter((feed) => completionAt(feed) === 0).length,
+    neverCheckedCount: coverageFeeds.filter((feed) => completionAt(feed) === 0)
+      .length,
     nextDueAt: nextDueTimes.length > 0 ? Math.min(...nextDueTimes) : null,
   };
 }
@@ -95,20 +105,23 @@ export function formatRefreshStatusTime(
   if (timestamp === null) return "Not applicable";
   if (timestamp <= 0) return "Not yet";
 
-  return new Intl.DateTimeFormat(undefined, detailed
-    ? {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-        hour: "numeric",
-        minute: "2-digit",
-        second: "2-digit",
-        timeZoneName: "short",
-      }
-    : {
-        dateStyle: "medium",
-        timeStyle: "short",
-      }).format(timestamp);
+  return new Intl.DateTimeFormat(
+    undefined,
+    detailed
+      ? {
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+          hour: "numeric",
+          minute: "2-digit",
+          second: "2-digit",
+          timeZoneName: "short",
+        }
+      : {
+          dateStyle: "medium",
+          timeStyle: "short",
+        },
+  ).format(timestamp);
 }
 
 export function getRefreshStatusSegments(status: RefreshStatus): string[] {

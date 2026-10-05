@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it, vi, afterEach } from "vitest";
 import { FolderSelectorPopup } from "../../../src/components/folder-selector-popup";
-import { DEFAULT_SETTINGS, type Folder, type RssDashboardSettings } from "../../../src/types/types";
+import {
+  DEFAULT_SETTINGS,
+  type Folder,
+  type RssDashboardSettings,
+} from "../../../src/types/types";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 
 type TestPlugin = ConstructorParameters<typeof FolderSelectorPopup>[0];
@@ -44,8 +48,14 @@ function createPluginStub(
 }
 
 function setViewport(width: number, height: number): void {
-  Object.defineProperty(window, "innerWidth", { value: width, configurable: true });
-  Object.defineProperty(window, "innerHeight", { value: height, configurable: true });
+  Object.defineProperty(window, "innerWidth", {
+    value: width,
+    configurable: true,
+  });
+  Object.defineProperty(window, "innerHeight", {
+    value: height,
+    configurable: true,
+  });
 }
 
 beforeEach(() => {
@@ -76,15 +86,15 @@ describe("FolderSelectorPopup", () => {
       onSelect: () => {},
     });
 
-    const popup = document.body.querySelector(
-      ".rss-folder-selector-popup",
-    );
+    const popup = document.body.querySelector(".rss-folder-selector-popup");
     expect(popup).not.toBeNull();
     expect((popup as HTMLElement).style.left).toBe("10px");
     expect((popup as HTMLElement).style.top).toBe("34px");
-    expect((popup as HTMLElement).classList.contains("rss-folder-selector-popup-above")).toBe(
-      false,
-    );
+    expect(
+      (popup as HTMLElement).classList.contains(
+        "rss-folder-selector-popup-above",
+      ),
+    ).toBe(false);
   });
 
   it("keeps the folder picker vertically anchored on mobile", () => {
@@ -242,18 +252,18 @@ describe("FolderSelectorPopup", () => {
       ".rss-folder-selector-input",
     ) as HTMLInputElement;
 
-    input.value = '  ..A*B?C|  ';
+    input.value = "  ..A*B?C|  ";
     input.dispatchEvent(new Event("input"));
 
     expect(input.value).toBe("ABC");
-    expect(
-      input.classList.contains("rss-folder-selector-input-invalid"),
-    ).toBe(true);
+    expect(input.classList.contains("rss-folder-selector-input-invalid")).toBe(
+      true,
+    );
 
     vi.advanceTimersByTime(500);
-    expect(
-      input.classList.contains("rss-folder-selector-input-invalid"),
-    ).toBe(false);
+    expect(input.classList.contains("rss-folder-selector-input-invalid")).toBe(
+      false,
+    );
   });
 
   it("creates a new folder option for a non-matching query and selects sanitized text", () => {
@@ -312,9 +322,7 @@ describe("FolderSelectorPopup", () => {
     });
 
     const items = () =>
-      Array.from(
-        document.body.querySelectorAll(".rss-folder-selector-item"),
-      );
+      Array.from(document.body.querySelectorAll(".rss-folder-selector-item"));
 
     // Down selects second item
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown" }));
@@ -404,7 +412,9 @@ describe("FolderSelectorPopup", () => {
       listOnly: true,
     });
 
-    expect(document.body.querySelector(".rss-folder-selector-input")).toBeNull();
+    expect(
+      document.body.querySelector(".rss-folder-selector-input"),
+    ).toBeNull();
     expect(
       document.body.querySelector(".rss-folder-selector-create"),
     ).toBeNull();
@@ -638,11 +648,10 @@ describe("FolderSelectorPopup", () => {
     vi.useRealTimers();
     await Promise.resolve();
 
-    expect(
-      popup.classList.contains("rss-folder-selector-popup-inert"),
-    ).toBe(false);
+    expect(popup.classList.contains("rss-folder-selector-popup-inert")).toBe(
+      false,
+    );
     rootItem.click();
     expect(onSelect).toHaveBeenCalledWith("");
   });
 });
-

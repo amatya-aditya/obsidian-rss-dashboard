@@ -1,7 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { App } from "obsidian";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
-import { DEFAULT_SETTINGS, type RssDashboardSettings } from "../../../src/types/types";
+import {
+  DEFAULT_SETTINGS,
+  type RssDashboardSettings,
+} from "../../../src/types/types";
 // Static import: vi.mock calls are hoisted above it, and loading the view's
 // large module graph here keeps it out of the first test's 5 s timeout.
 import { RssDashboardView } from "../../../src/views/dashboard-view";
@@ -94,7 +97,10 @@ describe("Dashboard header title batching", () => {
       };
     }
 
-    const view = new RssDashboardView(leaf, plugin as never) as unknown as RssDashboardViewWithPrivates;
+    const view = new RssDashboardView(
+      leaf,
+      plugin as never,
+    ) as unknown as RssDashboardViewWithPrivates;
 
     view.schedulePersistDashboardMultiFilters = vi.fn();
     view.getFilteredArticles = vi.fn(() => []);
@@ -140,7 +146,10 @@ describe("Dashboard header title batching", () => {
       refreshSidebarOnly: () => void;
     }
 
-    const view = new RssDashboardView(leaf, plugin as never) as unknown as RssDashboardViewWithPrivates;
+    const view = new RssDashboardView(
+      leaf,
+      plugin as never,
+    ) as unknown as RssDashboardViewWithPrivates;
 
     view.sidebar = {
       clearFolderPathCache: vi.fn(),
@@ -157,4 +166,3 @@ describe("Dashboard header title batching", () => {
     expect(view.articleList.destroy).not.toHaveBeenCalled();
   });
 });
-

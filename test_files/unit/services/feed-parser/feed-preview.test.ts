@@ -43,7 +43,10 @@ describe("feed preview parsing", () => {
   </channel>
 </rss>`;
 
-    const parsed = parseFeedPreviewFromXmlText(xml, "https://example.com/rss.xml");
+    const parsed = parseFeedPreviewFromXmlText(
+      xml,
+      "https://example.com/rss.xml",
+    );
     expect(parsed).not.toBeNull();
     expect(parsed?.title).toBe("Example Feed");
     expect(parsed?.hasEntries).toBe(true);
@@ -51,7 +54,9 @@ describe("feed preview parsing", () => {
   });
 
   it("returns null for empty xml text", () => {
-    expect(parseFeedPreviewFromXmlText("", "https://example.com/feed.xml")).toBeNull();
+    expect(
+      parseFeedPreviewFromXmlText("", "https://example.com/feed.xml"),
+    ).toBeNull();
   });
 
   it("loads title and latest entry from a JSON Feed", async () => {

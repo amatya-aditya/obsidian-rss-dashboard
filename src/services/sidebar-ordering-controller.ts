@@ -12,7 +12,9 @@ function normalizeFolderPath(folderPath: string | null | undefined): string {
   return folderPath ? folderPath : "";
 }
 
-function ensureFolderFeedSortOrders(settings: RssDashboardSettings): NonNullable<RssDashboardSettings["folderFeedSortOrders"]> {
+function ensureFolderFeedSortOrders(
+  settings: RssDashboardSettings,
+): NonNullable<RssDashboardSettings["folderFeedSortOrders"]> {
   if (!settings.folderFeedSortOrders) settings.folderFeedSortOrders = {};
   return settings.folderFeedSortOrders;
 }
@@ -27,7 +29,10 @@ export function setFolderFeedSortCustom(
 
 export function setFolderSortCustom(settings: RssDashboardSettings): void {
   const prev = settings.folderSortOrder;
-  settings.folderSortOrder = { by: "custom", ascending: prev?.ascending ?? true };
+  settings.folderSortOrder = {
+    by: "custom",
+    ascending: prev?.ascending ?? true,
+  };
 }
 
 export function moveFeedsAndInsert(
@@ -60,7 +65,9 @@ export function moveFeedsAndInsert(
     feed.folder = destinationFolderPath;
   }
 
-  const withoutDragged = settings.feeds.filter((f) => !draggedUrlSet.has(f.url));
+  const withoutDragged = settings.feeds.filter(
+    (f) => !draggedUrlSet.has(f.url),
+  );
   const targetIndex = withoutDragged.findIndex((f) => f.url === targetUrl);
   if (targetIndex === -1) {
     return { ok: false, error: "Target feed not found after removal." };
@@ -117,7 +124,9 @@ export function moveFeedsToFolderAppend(
     feed.folder = destinationFolderPath;
   }
 
-  const withoutDragged = settings.feeds.filter((f) => !draggedUrlSet.has(f.url));
+  const withoutDragged = settings.feeds.filter(
+    (f) => !draggedUrlSet.has(f.url),
+  );
   let lastIndexInDestination = -1;
   for (let i = 0; i < withoutDragged.length; i++) {
     const feed = withoutDragged[i];
@@ -142,7 +151,8 @@ export function moveFeedToFolderAppend(
     destinationFolderPath: string;
   },
 ): OperationResult {
-  if (!opts.draggedUrl) return { ok: false, error: "Missing dragged feed url." };
+  if (!opts.draggedUrl)
+    return { ok: false, error: "Missing dragged feed url." };
   const dragged = settings.feeds.find((f) => f.url === opts.draggedUrl);
   if (!dragged) return { ok: false, error: "Dragged feed not found." };
   return moveFeedsToFolderAppend(settings, {
@@ -159,16 +169,26 @@ function joinPath(parts: string[]): string {
   return parts.join("/");
 }
 
-function isSameOrDescendant(basePath: string, maybeDescendant: string): boolean {
+function isSameOrDescendant(
+  basePath: string,
+  maybeDescendant: string,
+): boolean {
   return (
     maybeDescendant === basePath ||
-    maybeDescendant.startsWith(basePath.endsWith("/") ? basePath : `${basePath}/`)
+    maybeDescendant.startsWith(
+      basePath.endsWith("/") ? basePath : `${basePath}/`,
+    )
   );
 }
 
-function remapPathPrefix(path: string, fromBase: string, toBase: string): string {
+function remapPathPrefix(
+  path: string,
+  fromBase: string,
+  toBase: string,
+): string {
   if (path === fromBase) return toBase;
-  if (path.startsWith(`${fromBase}/`)) return `${toBase}${path.substring(fromBase.length)}`;
+  if (path.startsWith(`${fromBase}/`))
+    return `${toBase}${path.substring(fromBase.length)}`;
   return path;
 }
 
@@ -206,7 +226,10 @@ function findFolderLocation(
       };
     }
 
-    return walk(folder.subfolders ?? [], depth + 1, [...parentPathParts, folder.name]);
+    return walk(folder.subfolders ?? [], depth + 1, [
+      ...parentPathParts,
+      folder.name,
+    ]);
   };
 
   return walk(root, 0, []);
@@ -217,7 +240,11 @@ function ensureSubfolders(folder: Folder): Folder[] {
   return folder.subfolders;
 }
 
-function findIndexByRefOrName(arr: Folder[], ref: Folder, name: string): number {
+function findIndexByRefOrName(
+  arr: Folder[],
+  ref: Folder,
+  name: string,
+): number {
   const byRef = arr.indexOf(ref);
   if (byRef !== -1) return byRef;
   return arr.findIndex((f) => f.name === name);
@@ -240,15 +267,23 @@ export function moveFolder(
     return { ok: false, error: "Missing target folder path." };
   }
 
-  if (placement !== "rootAppend" && isSameOrDescendant(draggedPath, targetPath)) {
-    return { ok: false, error: "Cannot move a folder into itself or a descendant." };
+  if (
+    placement !== "rootAppend" &&
+    isSameOrDescendant(draggedPath, targetPath)
+  ) {
+    return {
+      ok: false,
+      error: "Cannot move a folder into itself or a descendant.",
+    };
   }
 
   const draggedLoc = findFolderLocation(settings.folders, draggedPath);
   if (!draggedLoc) return { ok: false, error: "Dragged folder not found." };
 
   const targetLoc =
-    placement === "rootAppend" ? null : findFolderLocation(settings.folders, targetPath);
+    placement === "rootAppend"
+      ? null
+      : findFolderLocation(settings.folders, targetPath);
   if (placement !== "rootAppend" && !targetLoc) {
     return { ok: false, error: "Target folder not found." };
   }
@@ -277,7 +312,8 @@ export function moveFolder(
       targetLoc!.folder,
       targetLoc!.folder.name,
     );
-    if (targetIndex === -1) return { ok: false, error: "Target folder location drifted." };
+    if (targetIndex === -1)
+      return { ok: false, error: "Target folder location drifted." };
     insertIndex = placement === "before" ? targetIndex : targetIndex + 1;
   }
 
@@ -301,7 +337,10 @@ export function moveFolder(
 
   // If moving within the same array and the removal occurred before the insertion point,
   // the insertion index should shift back by 1.
-  if (destinationParentArray === sourceParentArray && sourceIndex < insertIndex) {
+  if (
+    destinationParentArray === sourceParentArray &&
+    sourceIndex < insertIndex
+  ) {
     insertIndex -= 1;
   }
 
@@ -315,7 +354,10 @@ export function moveFolder(
     // Remap feed folder paths (in-place to preserve object identity)
     for (const feed of settings.feeds) {
       if (!feed.folder) continue;
-      if (feed.folder === draggedPath || feed.folder.startsWith(`${draggedPath}/`)) {
+      if (
+        feed.folder === draggedPath ||
+        feed.folder.startsWith(`${draggedPath}/`)
+      ) {
         feed.folder = remapPathPrefix(feed.folder, draggedPath, newBasePath);
       }
     }
@@ -327,8 +369,11 @@ export function moveFolder(
 
     // Remap folder feed sort-order keys
     if (settings.folderFeedSortOrders) {
-      const next: NonNullable<RssDashboardSettings["folderFeedSortOrders"]> = {};
-      for (const [key, value] of Object.entries(settings.folderFeedSortOrders)) {
+      const next: NonNullable<RssDashboardSettings["folderFeedSortOrders"]> =
+        {};
+      for (const [key, value] of Object.entries(
+        settings.folderFeedSortOrders,
+      )) {
         const mappedKey = remapPathPrefix(key, draggedPath, newBasePath);
         next[mappedKey] = value;
       }

@@ -26,9 +26,9 @@ describe("feed-view", () => {
 
     const item = container.querySelector(".rss-dashboard-feed-item");
     expect(item).toBeTruthy();
-    expect(item?.querySelector(".rss-dashboard-article-title")?.textContent).toBe(
-      "Test Article",
-    );
+    expect(
+      item?.querySelector(".rss-dashboard-article-title")?.textContent,
+    ).toBe("Test Article");
     expect(item?.querySelector(".rss-dashboard-feed-footer")).toBeTruthy();
   });
 
@@ -90,7 +90,9 @@ describe("feed-view", () => {
       baseViewDeps(),
     );
 
-    expect(container.querySelector(".rss-dashboard-feed-item.active")).toBeTruthy();
+    expect(
+      container.querySelector(".rss-dashboard-feed-item.active"),
+    ).toBeTruthy();
   });
 
   it("renders hero image when cover image is set", () => {
@@ -125,12 +127,18 @@ describe("feed-view", () => {
       baseViewDeps(),
     );
 
-    expect(resolveCachedImageUrl).toHaveBeenCalledWith("https://example.com/cover.jpg");
+    expect(resolveCachedImageUrl).toHaveBeenCalledWith(
+      "https://example.com/cover.jpg",
+    );
     expect(
-      container.querySelector(".rss-dashboard-feed-hero-image")?.getAttribute("src"),
+      container
+        .querySelector(".rss-dashboard-feed-hero-image")
+        ?.getAttribute("src"),
     ).toBe("app://local/cache/cover.jpg");
     expect(
-      container.querySelector(".rss-dashboard-feed-hero-blur")?.getAttribute("style"),
+      container
+        .querySelector(".rss-dashboard-feed-hero-blur")
+        ?.getAttribute("style"),
     ).toContain("app://local/cache/cover.jpg");
   });
 
@@ -152,12 +160,16 @@ describe("feed-view", () => {
       baseViewDeps(),
     );
 
-    const image = container.querySelector(".rss-dashboard-feed-hero-image") as HTMLImageElement;
+    const image = container.querySelector(
+      ".rss-dashboard-feed-hero-image",
+    ) as HTMLImageElement;
     image.dispatchEvent(new Event("error"));
 
     expect(image.getAttribute("src")).toBe("https://example.com/cover.jpg");
     expect(
-      container.querySelector(".rss-dashboard-feed-hero-blur")?.getAttribute("style"),
+      container
+        .querySelector(".rss-dashboard-feed-hero-blur")
+        ?.getAttribute("style"),
     ).toContain("https://example.com/cover.jpg");
   });
 
@@ -178,7 +190,11 @@ describe("feed-view", () => {
               highlightInTitles: false,
               highlightInSummaries: false,
             },
-            display: { showCoverImage, showSummary, articleDateStyle: "relative" },
+            display: {
+              showCoverImage,
+              showSummary,
+              articleDateStyle: "relative",
+            },
           } as unknown as BaseViewContext["settings"],
         }),
         baseViewDeps(),
@@ -197,8 +213,7 @@ describe("feed-view", () => {
   );
 
   it("does not render a hero when stale article media is a LaTeX formula", () => {
-    const formulaUrl =
-      "https://s0.wp.com/latex.php?latex=%7Bx%7D&bg=ffffff";
+    const formulaUrl = "https://s0.wp.com/latex.php?latex=%7Bx%7D&bg=ffffff";
     renderFeedView(
       container,
       [
@@ -252,9 +267,9 @@ describe("feed-view", () => {
       baseViewDeps(),
     );
 
-    container.querySelector(".rss-dashboard-feed-item")?.dispatchEvent(
-      new MouseEvent("click", { bubbles: true }),
-    );
+    container
+      .querySelector(".rss-dashboard-feed-item")
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
 
     expect(onArticleClick).toHaveBeenCalledWith(article);
   });
@@ -275,9 +290,13 @@ describe("feed-view", () => {
       baseViewDeps(),
     );
 
-    expect(container.querySelectorAll(".rss-dashboard-feed-item").length).toBe(2);
+    expect(container.querySelectorAll(".rss-dashboard-feed-item").length).toBe(
+      2,
+    );
     expect(container.querySelector(".rss-dashboard-feed-section")).toBeFalsy();
-    expect(container.querySelector(".rss-dashboard-feed-section-header")).toBeFalsy();
+    expect(
+      container.querySelector(".rss-dashboard-feed-section-header"),
+    ).toBeFalsy();
   });
 
   it("renders flat cards without feed headers when grouping by folder", () => {
@@ -296,9 +315,13 @@ describe("feed-view", () => {
       baseViewDeps(),
     );
 
-    expect(container.querySelectorAll(".rss-dashboard-feed-item").length).toBe(2);
+    expect(container.querySelectorAll(".rss-dashboard-feed-item").length).toBe(
+      2,
+    );
     expect(container.querySelector(".rss-dashboard-feed-section")).toBeFalsy();
-    expect(container.querySelector(".rss-dashboard-feed-section-header")).toBeFalsy();
+    expect(
+      container.querySelector(".rss-dashboard-feed-section-header"),
+    ).toBeFalsy();
   });
 
   it("renders nested feed headers when grouping by date_feed", () => {
@@ -317,8 +340,12 @@ describe("feed-view", () => {
       baseViewDeps(),
     );
 
-    expect(container.querySelectorAll(".rss-dashboard-feed-section").length).toBe(2);
-    expect(container.querySelectorAll(".rss-dashboard-feed-section-header").length).toBe(2);
+    expect(
+      container.querySelectorAll(".rss-dashboard-feed-section").length,
+    ).toBe(2);
+    expect(
+      container.querySelectorAll(".rss-dashboard-feed-section-header").length,
+    ).toBe(2);
   });
 
   it("renders nested feed headers when grouping by folder_feed", () => {
@@ -337,8 +364,12 @@ describe("feed-view", () => {
       baseViewDeps(),
     );
 
-    expect(container.querySelectorAll(".rss-dashboard-feed-section").length).toBe(2);
-    expect(container.querySelectorAll(".rss-dashboard-feed-section-header").length).toBe(2);
+    expect(
+      container.querySelectorAll(".rss-dashboard-feed-section").length,
+    ).toBe(2);
+    expect(
+      container.querySelectorAll(".rss-dashboard-feed-section-header").length,
+    ).toBe(2);
   });
 
   it("renders a feed icon in each section header when grouping by feed", () => {
@@ -346,8 +377,16 @@ describe("feed-view", () => {
     renderFeedView(
       container,
       [
-        makeArticle({ title: "Article 1", feedTitle: "Feed A", feedUrl: "https://a.example.com/rss" }),
-        makeArticle({ title: "Article 2", feedTitle: "Feed B", feedUrl: "https://b.example.com/rss" }),
+        makeArticle({
+          title: "Article 1",
+          feedTitle: "Feed A",
+          feedUrl: "https://a.example.com/rss",
+        }),
+        makeArticle({
+          title: "Article 2",
+          feedTitle: "Feed B",
+          feedUrl: "https://b.example.com/rss",
+        }),
       ],
       baseViewContext({
         settings: {
@@ -359,7 +398,9 @@ describe("feed-view", () => {
     );
 
     // One icon per section header (2) + one per article card meta (2, showFeedSource is true by default)
-    expect(container.querySelectorAll(".rss-dashboard-feed-section-icon").length).toBe(2);
+    expect(
+      container.querySelectorAll(".rss-dashboard-feed-section-icon").length,
+    ).toBe(2);
     expect(deps.renderFeedIcon).toHaveBeenCalledTimes(4);
   });
 });

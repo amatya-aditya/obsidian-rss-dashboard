@@ -22,21 +22,29 @@ describe("ReaderLightbox", () => {
 
     lightbox.open();
 
-    const backdrop = document.body.querySelector(".rss-reader-lightbox-backdrop");
+    const backdrop = document.body.querySelector(
+      ".rss-reader-lightbox-backdrop",
+    );
     expect(backdrop).not.toBeNull();
 
     // Toolbar buttons
     const closeBtn = backdrop?.querySelector(".rss-reader-lightbox-btn-close");
     expect(closeBtn).not.toBeNull();
 
-    const zoomFitBtn = backdrop?.querySelector(".rss-reader-lightbox-btn-zoom-fit");
+    const zoomFitBtn = backdrop?.querySelector(
+      ".rss-reader-lightbox-btn-zoom-fit",
+    );
     expect(zoomFitBtn).not.toBeNull();
 
-    const openImgBtn = backdrop?.querySelector(".rss-reader-lightbox-btn-open-external");
+    const openImgBtn = backdrop?.querySelector(
+      ".rss-reader-lightbox-btn-open-external",
+    );
     expect(openImgBtn).not.toBeNull();
 
     // External link button
-    const externalLinkBtn = backdrop?.querySelector(".rss-reader-lightbox-external-link");
+    const externalLinkBtn = backdrop?.querySelector(
+      ".rss-reader-lightbox-external-link",
+    );
     expect(externalLinkBtn).not.toBeNull();
     expect(externalLinkBtn?.textContent).toContain("nationalgeographic.com");
 
@@ -65,9 +73,7 @@ describe("ReaderLightbox", () => {
     const previewImg = document.body.querySelector<HTMLImageElement>(
       ".rss-reader-lightbox-preview-img",
     );
-    const spinner = document.body.querySelector(
-      ".rss-reader-lightbox-spinner",
-    );
+    const spinner = document.body.querySelector(".rss-reader-lightbox-spinner");
 
     expect(fullImg).not.toBeNull();
     expect(previewImg).not.toBeNull();
@@ -131,12 +137,16 @@ describe("ReaderLightbox", () => {
     });
 
     lightbox.open();
-    expect(document.body.querySelector(".rss-reader-lightbox-backdrop")).not.toBeNull();
+    expect(
+      document.body.querySelector(".rss-reader-lightbox-backdrop"),
+    ).not.toBeNull();
 
     window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
 
     // Closes and schedules removal
-    const backdrop = document.body.querySelector(".rss-reader-lightbox-backdrop");
+    const backdrop = document.body.querySelector(
+      ".rss-reader-lightbox-backdrop",
+    );
     expect(backdrop?.classList.contains("is-open")).toBe(false);
   });
 

@@ -51,7 +51,7 @@ function createPlugin(overrides: Partial<HintSettings> = {}) {
 }
 
 function findByText(root: HTMLElement, selector: string, text: string) {
-  return Array.from(root.querySelectorAll(selector)).find(el =>
+  return Array.from(root.querySelectorAll(selector)).find((el) =>
     el.textContent?.includes(text),
   ) as HTMLElement | undefined;
 }
@@ -99,7 +99,7 @@ describe("getHiddenUserStateHint()", () => {
 
   it.each(["legacy-json", "vault-shards"] as const)(
     "gives no hint in %s mode",
-    storageMode => {
+    (storageMode) => {
       expect(getHiddenUserStateHint(hintSettings({ storageMode }))).toBeNull();
     },
   );
@@ -113,7 +113,11 @@ describe("renderStorageSettingsTab() - hidden user-state hint", () => {
       createPlugin({ storageFolder: "feeds5" }) as never,
     );
     expect(
-      findByText(containerEl, ".rss-dashboard-hidden-user-state-hint", "user-state.json"),
+      findByText(
+        containerEl,
+        ".rss-dashboard-hidden-user-state-hint",
+        "user-state.json",
+      ),
     ).toBeDefined();
   });
 
@@ -131,20 +135,27 @@ describe("renderStorageSettingsTab() - hidden user-state hint", () => {
     const plugin = createPlugin();
     renderStorageSettingsTab(containerEl, plugin as never);
 
-    const input = findByText(containerEl, ".setting-item", "Vault folder for per-feed")!.querySelector(
-      "input",
-    ) as HTMLInputElement;
+    const input = findByText(
+      containerEl,
+      ".setting-item",
+      "Vault folder for per-feed",
+    )!.querySelector("input") as HTMLInputElement;
     input.value = "feeds5";
     input.dispatchEvent(new Event("input"));
     (
       Array.from(containerEl.querySelectorAll("button")).find(
-        b => b.textContent === "Apply",
+        (b) => b.textContent === "Apply",
       ) as HTMLButtonElement
     ).click();
     for (let i = 0; i < 10; i++) await Promise.resolve();
 
-    const messages = debug.mock.calls.map(call => String(call[1]));
-    expect(messages.some(m => m.includes("user-state.json") && m.includes(".rss-dashboard-data"))).toBe(true);
+    const messages = debug.mock.calls.map((call) => String(call[1]));
+    expect(
+      messages.some(
+        (m) =>
+          m.includes("user-state.json") && m.includes(".rss-dashboard-data"),
+      ),
+    ).toBe(true);
   });
 });
 

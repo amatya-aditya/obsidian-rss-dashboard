@@ -33,7 +33,9 @@ export function findMatchingFeedItem(
   const candidateKey = identityKey(candidateItem);
   if (!candidateKey) return undefined;
 
-  return existingItems.find((existing) => identityKey(existing) === candidateKey);
+  return existingItems.find(
+    (existing) => identityKey(existing) === candidateKey,
+  );
 }
 
 /**

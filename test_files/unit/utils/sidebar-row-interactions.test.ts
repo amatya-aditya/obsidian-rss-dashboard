@@ -120,9 +120,9 @@ describe("resolveMovedCurrentFolder", () => {
   });
 
   it("returns null when the open folder keeps the same path", () => {
-    expect(resolveMovedCurrentFolder("News/Tech", "News/Tech", "News/Tech")).toBe(
-      null,
-    );
+    expect(
+      resolveMovedCurrentFolder("News/Tech", "News/Tech", "News/Tech"),
+    ).toBe(null);
     expect(resolveMovedCurrentFolder("News/Tech/Deep", "News", "News")).toBe(
       null,
     );

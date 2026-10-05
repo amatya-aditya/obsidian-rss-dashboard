@@ -41,7 +41,8 @@ const VALID_ACTIVE_PLAN_STATUSES = new Set([
 // eslint-disable-next-line no-control-regex -- control characters in a path are exactly what this flags
 const HOSTILE_NAME_PATTERN = /[ [\]`:*?"<>|–—\u0000-\u001f]/g;
 const CATALOG_LINK_PATTERN = /\(([^)]+\.md)\)/g;
-const CATALOG_EXEMPT_FILENAMES = /^(public-roadmap|release-v[\d.]+-roadmap)\.md$/;
+const CATALOG_EXEMPT_FILENAMES =
+  /^(public-roadmap|release-v[\d.]+-roadmap)\.md$/;
 const ARCHIVED_PLANS_PREFIX = "docs/archive/plans/";
 
 const ISSUE_PLAN_FILENAME = /^\d+-[a-z0-9-]+\.md$/;
@@ -63,7 +64,9 @@ export function findHostileFilenames(filePaths) {
   return filePaths
     .map((filePath) => {
       const fileName = basename(filePath);
-      const offenders = [...new Set(fileName.match(HOSTILE_NAME_PATTERN) ?? [])];
+      const offenders = [
+        ...new Set(fileName.match(HOSTILE_NAME_PATTERN) ?? []),
+      ];
 
       if (offenders.length === 0) {
         return null;
@@ -72,7 +75,9 @@ export function findHostileFilenames(filePaths) {
       return {
         filePath,
         reason: `filename contains ${offenders
-          .map((character) => (character === " " ? "a space" : `"${character}"`))
+          .map((character) =>
+            character === " " ? "a space" : `"${character}"`,
+          )
           .join(", ")}; use kebab-case`,
       };
     })
@@ -120,7 +125,9 @@ export function isReleaseMode(args) {
 }
 
 export function isLifecyclePlanFilename(fileName) {
-  return ISSUE_PLAN_FILENAME.test(fileName) || DRAFT_PLAN_FILENAME.test(fileName);
+  return (
+    ISSUE_PLAN_FILENAME.test(fileName) || DRAFT_PLAN_FILENAME.test(fileName)
+  );
 }
 
 function extractFrontmatterStatus(source) {
@@ -165,7 +172,7 @@ export function findPlanStatusIssues(planFiles) {
         reason:
           `status "${status}" is not valid for an active plan under docs/plans/ ` +
           `(expected one of: ${[...VALID_ACTIVE_PLAN_STATUSES].join(", ")}; ` +
-          "an \"implemented\"/\"rejected\"/\"superseded\" plan belongs under docs/archive/plans/)",
+          'an "implemented"/"rejected"/"superseded" plan belongs under docs/archive/plans/)',
       });
     }
   }

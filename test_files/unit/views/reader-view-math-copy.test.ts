@@ -66,7 +66,10 @@ describe("ReaderView math copy", () => {
     selection?.addRange(range);
 
     const clipboardData = { setData: vi.fn() };
-    const event = new Event("copy", { bubbles: true, cancelable: true }) as ClipboardEvent;
+    const event = new Event("copy", {
+      bubbles: true,
+      cancelable: true,
+    }) as ClipboardEvent;
     Object.defineProperty(event, "clipboardData", { value: clipboardData });
 
     readerView.containerEl.dispatchEvent(event);

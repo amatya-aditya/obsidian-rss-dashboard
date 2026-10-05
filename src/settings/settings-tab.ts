@@ -15,7 +15,11 @@
 import { App, PluginSettingTab } from "obsidian";
 import RssDashboardPlugin from "./../../main";
 // Re-export pure helpers for backwards compatibility with any external imports.
-export { SETTINGS_TAB_NAMES, isValidSettingsTab, getInitialTab } from "./tab-names";
+export {
+  SETTINGS_TAB_NAMES,
+  isValidSettingsTab,
+  getInitialTab,
+} from "./tab-names";
 export type { SettingsTabName } from "./tab-names";
 
 // Tab renderer imports

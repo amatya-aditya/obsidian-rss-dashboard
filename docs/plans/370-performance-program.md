@@ -34,13 +34,13 @@ for implementation**, then link it in the track table below.
 
 ## Tracks
 
-| # | Track | Status | Issue | Target |
-| --- | --- | --- | --- | --- |
-| 1 | Contributor dev-loop speed | in progress | [GH Issue #371](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/371) | 2.7.0 (Required) |
-| 2 | Shared-worker unit-test mode | deferred | create when ready | after 2.7.0 |
-| 3 | Plugin runtime benchmark harness | deferred | create when ready | after 2.7.0 |
-| 4 | Refresh-all responsiveness | deferred | create when ready | after 2.7.0; needs Track 3 |
-| 5 | Startup and bundle cost | deferred | create when ready | after 2.7.0; needs Track 3 |
+| #   | Track                            | Status      | Issue                                                                               | Target                     |
+| --- | -------------------------------- | ----------- | ----------------------------------------------------------------------------------- | -------------------------- |
+| 1   | Contributor dev-loop speed       | in progress | [GH Issue #371](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/371) | 2.7.0 (Required)           |
+| 2   | Shared-worker unit-test mode     | deferred    | create when ready                                                                   | after 2.7.0                |
+| 3   | Plugin runtime benchmark harness | deferred    | create when ready                                                                   | after 2.7.0                |
+| 4   | Refresh-all responsiveness       | deferred    | create when ready                                                                   | after 2.7.0; needs Track 3 |
+| 5   | Startup and bundle cost          | deferred    | create when ready                                                                   | after 2.7.0; needs Track 3 |
 
 Track 1's follow-up to move full validation from local pre-push to CI is
 tracked by [GH Issue #749](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/749).
@@ -78,13 +78,13 @@ Node 24.12). Indicative only: `dev` has since gained stricter lint rules
 (#361), so the official "before" must be re-measured on the Track 1 base
 commit.
 
-| Stage | Cold | Warm |
-| --- | --- | --- |
-| Seven `check:*` scripts | 3.2s | 2.2s |
-| `eslint .` | 102.8s | 53.0s |
-| `tsc --noEmit` | 9.7s | 9.6s |
-| esbuild production bundle | 1.1s | 0.8s |
-| `vitest run` (227 files, 2289 tests) | 158s | 126s |
+| Stage                                | Cold   | Warm  |
+| ------------------------------------ | ------ | ----- |
+| Seven `check:*` scripts              | 3.2s   | 2.2s  |
+| `eslint .`                           | 102.8s | 53.0s |
+| `tsc --noEmit`                       | 9.7s   | 9.6s  |
+| esbuild production bundle            | 1.1s   | 0.8s  |
+| `vitest run` (227 files, 2289 tests) | 158s   | 126s  |
 
 - **Commit** (pre-commit hook: compliance, full lint, full suite): about
   3-4.5 minutes.
@@ -151,13 +151,13 @@ base `dev` at `9f09a92` against this track's head. The full multi-run
 benchmark was waived in favor of these rough numbers; the script remains for
 later tracks.
 
-| Path | Before | After |
-| --- | --- | --- |
-| Commit, one source file (`src/views/reader-view.ts`) | 221s | ~45s (128s on the first run after a cache clear) |
-| Commit, prose only | 221s | 10s |
-| Push | 77s (no tests) | 182s (includes the full suite) |
-| One commit and push | ~5 min | ~3.75 min |
-| Three commits and push | ~12 min | ~5 min |
+| Path                                                 | Before         | After                                            |
+| ---------------------------------------------------- | -------------- | ------------------------------------------------ |
+| Commit, one source file (`src/views/reader-view.ts`) | 221s           | ~45s (128s on the first run after a cache clear) |
+| Commit, prose only                                   | 221s           | 10s                                              |
+| Push                                                 | 77s (no tests) | 182s (includes the full suite)                   |
+| One commit and push                                  | ~5 min         | ~3.75 min                                        |
+| Three commits and push                               | ~12 min        | ~5 min                                           |
 
 These measurements describe the original implementation. Its full pre-push
 gate intentionally surfaced failures before code left the machine, at the
@@ -169,8 +169,8 @@ and relies on required pull-request CI for the complete gate.
 Measured direct hook invocations on the same Ryzen 7 1700, 16-thread,
 16 GB Windows 11 machine with Node 24.12.0:
 
-| Hook | Warm samples | Median |
-| --- | --- | --- |
+| Hook                                     | Warm samples           | Median |
+| ---------------------------------------- | ---------------------- | ------ |
 | Informational pre-push after this change | 83.1ms, 79.7ms, 78.4ms | 79.7ms |
 
 The earlier 182-second pre-push result above came from a separate benchmark

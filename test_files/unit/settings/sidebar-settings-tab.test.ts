@@ -70,9 +70,7 @@ describe("renderSidebarSettingsTab() - domain icon toggles", () => {
   });
 
   it("renders each icon visibility setting with its icon name", () => {
-    const containerEl = document.body.appendChild(
-      createDiv(),
-    );
+    const containerEl = document.body.appendChild(createDiv());
     const plugin = {
       app: obsidian.App.createMock(),
       settings: cloneSettings(),
@@ -88,17 +86,19 @@ describe("renderSidebarSettingsTab() - domain icon toggles", () => {
     );
     expect(iconRows.length).toBeGreaterThan(0);
     expect(
-      iconRows.map((row) => row.querySelector(".setting-item-name")?.textContent),
+      iconRows.map(
+        (row) => row.querySelector(".setting-item-name")?.textContent,
+      ),
     ).not.toContain("[object DocumentFragment]");
     expect(
-      iconRows.map((row) => row.querySelector(".setting-item-name")?.textContent),
+      iconRows.map(
+        (row) => row.querySelector(".setting-item-name")?.textContent,
+      ),
     ).toContain("Discover");
   });
 
   it("renders and persists the RSS site icons toggle", async () => {
-    const containerEl = document.body.appendChild(
-      createDiv(),
-    );
+    const containerEl = document.body.appendChild(createDiv());
     const settings = cloneSettings();
     settings.display.useDomainIconsRss = false;
     settings.display.useDomainIconsPodcast = false;
@@ -136,9 +136,7 @@ describe("renderSidebarSettingsTab() - domain icon toggles", () => {
   });
 
   it("renders the YouTube info message", async () => {
-    const containerEl = document.body.appendChild(
-      createDiv(),
-    );
+    const containerEl = document.body.appendChild(createDiv());
     const settings = cloneSettings();
     const plugin = {
       app: obsidian.App.createMock(),
@@ -158,9 +156,7 @@ describe("renderSidebarSettingsTab() - domain icon toggles", () => {
   });
 
   it("renders and persists the Podcast artwork toggle", async () => {
-    const containerEl = document.body.appendChild(
-      createDiv(),
-    );
+    const containerEl = document.body.appendChild(createDiv());
     const settings = cloneSettings();
     settings.media.defaultMastodonFolder = "Custom/Mastodon";
     settings.media.defaultYouTubeFolder = "Custom/YouTube";
@@ -194,7 +190,6 @@ describe("renderSidebarSettingsTab() - domain icon toggles", () => {
     expect(plugin.settings.display.useDomainIconsPodcast).toBe(true);
     expect(vi.mocked(plugin.saveSettings)).toHaveBeenCalledTimes(2);
   });
-
 });
 
 describe("DomainIconToggleConfirmModal", () => {
@@ -377,9 +372,7 @@ describe("Icon refresh helpers", () => {
 
 describe("Sidebar display settings - domain icon fields", () => {
   it("does not render the retired sidebar scrollbar toggle", () => {
-    const containerEl = document.body.appendChild(
-      createDiv(),
-    );
+    const containerEl = document.body.appendChild(createDiv());
     const plugin = {
       app: obsidian.App.createMock(),
       settings: cloneSettings(),

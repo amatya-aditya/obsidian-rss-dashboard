@@ -223,9 +223,7 @@ describe("Dashboard — multi-folder ctrl+click selection", () => {
       ];
       const feedTech = makeFeed("https://tech.com/feed", "Tech", [{}]);
       const feedNews = makeFeed("https://news.com/feed", "News", [{}, {}]);
-      const feedScience = makeFeed("https://science.com/feed", "Science", [
-        {},
-      ]);
+      const feedScience = makeFeed("https://science.com/feed", "Science", [{}]);
       settings.feeds = [feedTech, feedNews, feedScience];
 
       const view = await makeView(settings);
@@ -273,9 +271,7 @@ describe("Dashboard — multi-folder ctrl+click selection", () => {
         { name: "Finance", subfolders: [] },
       ];
       const feedTech = makeFeed("https://tech.com/feed", "Tech", [{}]);
-      const feedFinance = makeFeed("https://finance.com/feed", "Finance", [
-        {},
-      ]);
+      const feedFinance = makeFeed("https://finance.com/feed", "Finance", [{}]);
       settings.feeds = [feedTech, feedFinance];
 
       const view = await makeView(settings);

@@ -765,10 +765,7 @@ describe("image cache: size limit", () => {
 
   it("applies a new limit to the running cache", async () => {
     const [first, second] = [1, 2].map((n) => `https://example.com/${n}.gif`);
-    const feed = createFeed("https://example.com/feed.xml", [
-      first,
-      second,
-    ]);
+    const feed = createFeed("https://example.com/feed.xml", [first, second]);
     const { plugin } = createHarness({
       feeds: [feed],
       display: { imageCacheUnlimited: true },
@@ -803,7 +800,11 @@ describe("image cache: size limit", () => {
     await plugin.setImageCachingEnabled(true);
 
     const reloaded = createSettings(
-      { allowImageCaching: true, showCoverImage: true, imageCacheUnlimited: true },
+      {
+        allowImageCaching: true,
+        showCoverImage: true,
+        imageCacheUnlimited: true,
+      },
       [feedA, feedB],
     );
     plugin.loadData = vi.fn().mockResolvedValue(reloaded);

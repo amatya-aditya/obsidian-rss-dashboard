@@ -40,8 +40,8 @@ class ClearImageCacheConfirmModal extends Modal {
         button.setButtonText("Clear image cache");
         settingsUiCompatibility.markDestructive(button);
         button.onClick(() => {
-            this.confirmed = true;
-            this.close();
+          this.confirmed = true;
+          this.close();
         });
       });
   }
@@ -238,21 +238,21 @@ export function renderDisplaySettingsTab(
     plugin.onImageCacheChanged?.(refreshCacheSize) ?? (() => {});
 
   clearImageCacheSetting.addButton((button) =>
-      button.setButtonText("Clear image cache").onClick(async () => {
-        const modal = new ClearImageCacheConfirmModal(plugin.app);
-        const confirmation = modal.waitForClose();
-        modal.open();
-        if (!(await confirmation)) return;
+    button.setButtonText("Clear image cache").onClick(async () => {
+      const modal = new ClearImageCacheConfirmModal(plugin.app);
+      const confirmation = modal.waitForClose();
+      modal.open();
+      if (!(await confirmation)) return;
 
-        const result = await plugin.clearImageCache();
-        new Notice(
-          result.failed === 0
-            ? "Image cache cleared."
-            : `Cleared ${result.cleared} cached images; ${result.failed} could not be removed.`,
-        );
-        onRefresh();
-      }),
-    );
+      const result = await plugin.clearImageCache();
+      new Notice(
+        result.failed === 0
+          ? "Image cache cleared."
+          : `Cleared ${result.cleared} cached images; ${result.failed} could not be removed.`,
+      );
+      onRefresh();
+    }),
+  );
 
   new Setting(containerEl)
     .setName("Show summary")
@@ -416,7 +416,9 @@ export function renderDisplaySettingsTab(
 
   new Setting(containerEl)
     .setName("Pagination position")
-    .setDesc("Choose whether dashboard pagination appears above or below the articles")
+    .setDesc(
+      "Choose whether dashboard pagination appears above or below the articles",
+    )
     .addDropdown((dropdown) =>
       dropdown
         .addOption("bottom", "Bottom")
@@ -424,8 +426,7 @@ export function renderDisplaySettingsTab(
         .setValue(plugin.settings.display.paginationPosition ?? "bottom")
         .onChange(async (value) => {
           plugin.settings.display.paginationPosition = value as
-            | "top"
-            | "bottom";
+            "top" | "bottom";
           await plugin.saveSettings();
           const view = await plugin.getActiveDashboardView();
           if (view) {
@@ -461,8 +462,7 @@ export function renderDisplaySettingsTab(
         .setValue(plugin.settings.display.articleDateStyle ?? "relative")
         .onChange(async (value: string) => {
           plugin.settings.display.articleDateStyle = value as
-            | "relative"
-            | "absolute";
+            "relative" | "absolute";
           await plugin.saveSettings();
           const view = await plugin.getActiveDashboardView();
           if (view) {
@@ -1023,10 +1023,7 @@ export function renderDisplaySettingsTab(
         .setValue(plugin.settings.readerFormat.fontFamily)
         .onChange(async (value: string) => {
           plugin.settings.readerFormat.fontFamily = value as
-            | "default"
-            | "serif"
-            | "sans"
-            | "mono";
+            "default" | "serif" | "sans" | "mono";
           await persistReaderFormat();
         }),
     );
@@ -1057,10 +1054,7 @@ export function renderDisplaySettingsTab(
         .setValue(plugin.settings.readerFormat.paragraphSpacing)
         .onChange(async (value: string) => {
           plugin.settings.readerFormat.paragraphSpacing = value as
-            | "default"
-            | "tight"
-            | "normal"
-            | "loose";
+            "default" | "tight" | "normal" | "loose";
           await persistReaderFormat();
         }),
     );
@@ -1139,9 +1133,7 @@ export function renderDisplaySettingsTab(
         .setValue(plugin.settings.display.mobileListToolbarStyle || "minimal")
         .onChange(async (value: string) => {
           plugin.settings.display.mobileListToolbarStyle = value as
-            | "left-grid"
-            | "bottom-row"
-            | "minimal";
+            "left-grid" | "bottom-row" | "minimal";
           await plugin.saveSettings();
           const view = await plugin.getActiveDashboardView();
           if (view) {

@@ -27,7 +27,7 @@ entirely:
   backing `fetchFullContentEnabled` field, and its class
   (`import-fetch-full-content-setting`) are gone.
 - `performImport`'s eager call site — `await
-  this.fetchFullContentForItems(importedItems)` gated on
+this.fetchFullContentForItems(importedItems)` gated on
   `fetchFullContentEnabled`, plus the second `saveSettings()` call that
   persisted its results — is gone. The `importedItems` tracking array (and
   the now-unused `findMatchingFeedItem` import it required) was removed

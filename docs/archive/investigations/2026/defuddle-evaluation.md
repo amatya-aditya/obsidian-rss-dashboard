@@ -108,9 +108,9 @@ Important constraints (in this plugin’s environment):
   - fallbacks when Readability returns low-signal content
   - URL normalization (especially images and `srcset`)
   - template/frontmatter generation
-  Any Defuddle integration should preserve these behaviors or provide equivalents.
+    Any Defuddle integration should preserve these behaviors or provide equivalents.
 
-Net: Defuddle looks promising, but “better” depends on running real-world samples through both pipelines in *our* execution context.
+Net: Defuddle looks promising, but “better” depends on running real-world samples through both pipelines in _our_ execution context.
 
 ## Would Defuddle be “better” than our current podcast parser?
 
@@ -182,6 +182,6 @@ For a future YouTube episode-like details view, you likely want:
 Options:
 
 1. **YouTube Data API**: best quality metadata, but requires user API key / auth story.
-2. **Scrape the watch page**: no API key, but brittle. An extractor like Defuddle *might* help, but YT pages are highly scripted and change often.
+2. **Scrape the watch page**: no API key, but brittle. An extractor like Defuddle _might_ help, but YT pages are highly scripted and change often.
 
 Recommendation: design the YouTube utility around a **pluggable data source** (API first where available, scraping fallback), and keep output rendering on the “safe” path (Markdown preferred; any HTML strictly sanitized).

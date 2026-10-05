@@ -1,4 +1,10 @@
-import { cpSync, mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
+import {
+  cpSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -32,7 +38,16 @@ const EXPECTED = {
   tagged: 9,
   saved: 1,
   withPlaybackProgress: 2,
-  tags: ["Important", "Read later", "Video", "Podcast", "Research", "Reference", "RSS", "Unused"],
+  tags: [
+    "Important",
+    "Read later",
+    "Video",
+    "Podcast",
+    "Research",
+    "Reference",
+    "RSS",
+    "Unused",
+  ],
 };
 
 const temporaryDirectories: string[] = [];
@@ -57,7 +72,10 @@ function listFiles(directory: string): string[] {
 }
 
 /** Copies every file of a vault folder on disk into the mock vault. */
-async function mountVault(app: App, vaultDir: string): Promise<Map<string, string>> {
+async function mountVault(
+  app: App,
+  vaultDir: string,
+): Promise<Map<string, string>> {
   const contents = new Map<string, string>();
   for (const file of listFiles(vaultDir)) {
     const templatePath = relative(vaultDir, file).replace(/\\/g, "/");
@@ -87,7 +105,9 @@ async function loadVault(vaultDir: string): Promise<LoadedVault> {
   const files = await mountVault(app, vaultDir);
   const plugin = new RssDashboardPlugin(app, manifest(app));
   const pluginData = files.get(`${manifest(app).dir}/data.json`);
-  plugin.loadData = vi.fn().mockResolvedValue(pluginData ? JSON.parse(pluginData) : null);
+  plugin.loadData = vi
+    .fn()
+    .mockResolvedValue(pluginData ? JSON.parse(pluginData) : null);
   plugin.saveData = vi.fn().mockResolvedValue(undefined);
   await plugin.loadSettings();
   return { plugin, app, files };
@@ -97,7 +117,10 @@ function allArticles(plugin: RssDashboardPlugin): FeedItem[] {
   return plugin.settings.feeds.flatMap((feed) => feed.items);
 }
 
-function countWhere(plugin: RssDashboardPlugin, predicate: (item: FeedItem) => boolean) {
+function countWhere(
+  plugin: RssDashboardPlugin,
+  predicate: (item: FeedItem) => boolean,
+) {
   return allArticles(plugin).filter(predicate).length;
 }
 
@@ -120,13 +143,21 @@ function expectSeededContent(plugin: RssDashboardPlugin): void {
   expect(plugin.settings.feeds).toHaveLength(EXPECTED.feeds);
   expect(allArticles(plugin)).toHaveLength(EXPECTED.articles);
   expect(countWhere(plugin, (item) => item.read === true)).toBe(EXPECTED.read);
-  expect(countWhere(plugin, (item) => item.starred === true)).toBe(EXPECTED.starred);
-  expect(countWhere(plugin, (item) => (item.tags ?? []).length > 0)).toBe(EXPECTED.tagged);
-  expect(countWhere(plugin, (item) => item.saved === true)).toBe(EXPECTED.saved);
-  expect(countWhere(plugin, (item) => item.playbackProgress !== undefined)).toBe(
-    EXPECTED.withPlaybackProgress,
+  expect(countWhere(plugin, (item) => item.starred === true)).toBe(
+    EXPECTED.starred,
   );
-  expect(plugin.settings.availableTags.map((tag) => tag.name)).toEqual(EXPECTED.tags);
+  expect(countWhere(plugin, (item) => (item.tags ?? []).length > 0)).toBe(
+    EXPECTED.tagged,
+  );
+  expect(countWhere(plugin, (item) => item.saved === true)).toBe(
+    EXPECTED.saved,
+  );
+  expect(
+    countWhere(plugin, (item) => item.playbackProgress !== undefined),
+  ).toBe(EXPECTED.withPlaybackProgress);
+  expect(plugin.settings.availableTags.map((tag) => tag.name)).toEqual(
+    EXPECTED.tags,
+  );
 }
 
 let notices: string[];
@@ -174,10 +205,16 @@ describe("Fixture vault template", () => {
     const { plugin } = await loadVault(TEMPLATE_DIR);
     const { feeds, folders, media } = plugin.settings;
 
-    expect(feeds.some((feed) => MediaService.isYouTubeFeed(feed.url))).toBe(true);
+    expect(feeds.some((feed) => MediaService.isYouTubeFeed(feed.url))).toBe(
+      true,
+    );
     expect(feeds.some((feed) => feed.mediaType === "podcast")).toBe(true);
-    expect(feeds.some((feed) => MastodonService.isResolvedFeedUrl(feed.url))).toBe(true);
-    expect(feeds.some((feed) => feed.folder === media.defaultSmallwebFolder)).toBe(true);
+    expect(
+      feeds.some((feed) => MastodonService.isResolvedFeedUrl(feed.url)),
+    ).toBe(true);
+    expect(
+      feeds.some((feed) => feed.folder === media.defaultSmallwebFolder),
+    ).toBe(true);
     expect(feeds.some((feed) => feed.folder === "")).toBe(true);
 
     const paths = folderPaths(folders);
@@ -186,7 +223,10 @@ describe("Fixture vault template", () => {
       expect(paths, feed.title).toContain(feed.folder);
     }
     const emptyFolders = paths.filter(
-      (path) => !feeds.some((feed) => feed.folder === path || feed.folder.startsWith(`${path}/`)),
+      (path) =>
+        !feeds.some(
+          (feed) => feed.folder === path || feed.folder.startsWith(`${path}/`),
+        ),
     );
     expect(emptyFolders).toEqual(["Empty"]);
 
@@ -202,17 +242,24 @@ describe("Fixture vault template", () => {
 
     expect(articles.some((item) => item.pubDate === "")).toBe(true);
     expect(articles.some((item) => item.restrictedReason)).toBe(true);
-    expect(articles.some((item) => item.starredImportContentState === "unfetched")).toBe(true);
-    expect(articles.some((item) => (item.content ?? "").length > 10_000)).toBe(true);
+    expect(
+      articles.some((item) => item.starredImportContentState === "unfetched"),
+    ).toBe(true);
+    expect(articles.some((item) => (item.content ?? "").length > 10_000)).toBe(
+      true,
+    );
     expect(articles.some((item) => item.coverImage)).toBe(true);
     expect(articles.some((item) => !item.coverImage)).toBe(true);
     expect(
       articles.some(
-        (item) => item.mediaType === "podcast" && item.playbackProgress !== undefined,
+        (item) =>
+          item.mediaType === "podcast" && item.playbackProgress !== undefined,
       ),
     ).toBe(true);
     expect(articles.some((item) => (item.tags ?? []).length >= 2)).toBe(true);
-    expect(plugin.settings.feeds.some((feed) => feed.lastFetchError)).toBe(true);
+    expect(plugin.settings.feeds.some((feed) => feed.lastFetchError)).toBe(
+      true,
+    );
 
     const saved = articles.find((item) => item.saved);
     expect(saved?.savedFilePath).toBeTruthy();
@@ -224,7 +271,9 @@ describe("Fixture vault template", () => {
   it("does not rewrite its article shards when the plugin loads it", async () => {
     const { app, files } = await loadVault(TEMPLATE_DIR);
 
-    const shardPaths = [...files.keys()].filter((path) => path.startsWith(`${SHARD_FOLDER}/`));
+    const shardPaths = [...files.keys()].filter((path) =>
+      path.startsWith(`${SHARD_FOLDER}/`),
+    );
     expect(shardPaths).toHaveLength(EXPECTED.feeds);
     for (const path of shardPaths) {
       expect(await app.vault.adapter.read(path), path).toBe(files.get(path));

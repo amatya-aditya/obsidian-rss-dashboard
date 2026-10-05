@@ -6,7 +6,7 @@ const KNOWN_ENTITIES = new Map<string, string>([
   ["amp", "&"],
   ["lt", "<"],
   ["gt", ">"],
-  ["quot", "\""],
+  ["quot", '"'],
   ["apos", "'"],
   ["lsquo", "\u2018"],
   ["rsquo", "\u2019"],

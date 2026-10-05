@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { type FeedItem, type Tag } from "../../../src/types/types";
-import { applyTagsToItems, removeTagsFromItemsByName } from "../../../src/services/tag-applier";
+import {
+  applyTagsToItems,
+  removeTagsFromItemsByName,
+} from "../../../src/services/tag-applier";
 
 describe("tag-applier service", () => {
   const sampleTags: Tag[] = [

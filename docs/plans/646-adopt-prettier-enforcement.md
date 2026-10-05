@@ -1,12 +1,11 @@
 ---
-status: blocked
+status: in-progress
 created: 2026-10-03
 issue: "https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/646"
 milestone: ""
 owner: unassigned
 sequence: null
-depends_on:
-  - "https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/436"
+depends_on: []
 release_requirement: ""
 implementation: ""
 ---
@@ -87,18 +86,47 @@ Prettier CLI after verifying that its version was exactly 3.9.9. The local
 lockfiles differ, so its other dependencies were not used. The result above is
 from a read-only scan of this worktree.
 
-Before the eventual formatting commit, rerun the baseline against the latest
-`origin/dev` using this issue's final ignore rules. Report that final count in
-the PR; it may differ from 823 if the branch has changed or generated outputs
-need explicit exclusion.
+### Rerun before the formatting commit (2026-10-05)
+
+Rerunning on `origin/dev` at `cef6455e` found two problems with the baseline
+above, and the rollout accounts for both:
+
+- **Line endings inflated the count.** Git for Windows with
+  `core.autocrlf=true` checks files out as CRLF, so the Prettier CLI (LF by
+  default) flagged almost every file. The true count with LF checkouts is
+  **462 files**. Add `.gitattributes` with `* text=auto eol=lf` so Windows
+  contributors get LF and `format:check` agrees with CI. Existing checkouts
+  need `git rm --cached -r . && git reset --hard` once to re-check files out.
+- **Prettier 3.9.9 is not idempotent on a few files.** One pass left three
+  files (a Markdown checklist and two TypeScript files) that a second pass
+  changed. Run `npm run format` until `npm run format:check` passes, and do
+  not rely on a single pass. The acceptance criterion below means the
+  committed tree is stable.
+
+`package-lock.json` is the only addition to `.prettierignore`: npm rewrites it
+on every install, so formatting it would only be undone. Fixture-vault JSON
+stays in scope.
+
+Formatting also exposed three follow-on failures, fixed in commits _before_
+the formatting commit so that commit stays mechanical:
+
+- Wrapped lines pushed `renderAboutTab` and `attachEventListeners` over the
+  150-line `max-lines-per-function` limit. Each lost one small helper, with no
+  suppression.
+- `version-bump.mjs` wrote `manifest.json` and `versions.json` with tabs. It
+  now writes two spaces and a final newline.
+- Prettier wraps long CSS selectors, which broke an exact-match selector
+  helper in `reader-custom-save-modal.test.ts`. The helper now collapses
+  whitespace.
 
 ## Repository and hook constraints
 
 At the baseline, #436 was still open and these five pull requests were open
-against `dev`: #716, #710, #691, #683, and #561. Recheck their state and any
-newer open pull requests before scheduling the formatting window. Begin the
-rollout after #436 and this observed PR backlog have merged or closed, then
-announce the cut so remaining contributors can rebase once.
+against `dev`: #716, #710, #691, #683, and #561. On 2026-10-05 the refactor
+program was far enough along, and the contributor backlog small enough
+(#691 and #683 remained), that the rollout no longer waits on #436. Recheck
+open pull requests before merging and announce the cut so remaining
+contributors rebase once.
 
 The existing `.githooks/pre-commit` runs `check:compliance` before
 `scripts/run-staged-checks.mjs`. The staged-check script selects paths for
@@ -109,10 +137,9 @@ partially staged file keeps its unstaged edits out of the commit.
 
 ## Rollout
 
-1. **Wait for the agreed cut.** Confirm #436 is complete and the currently
-   active PRs above have settled. Refresh the PR list from `origin/dev`, choose
-   a short merge window, and tell contributors when to pause merges and when
-   to rebase.
+1. **Agree the cut.** Refresh the open PR list from `origin/dev`, choose a
+   short merge window, and tell contributors when to pause merges and when to
+   rebase.
 2. **Prepare the formatter.** Reconfirm the locked Prettier version; align
    `.editorconfig`; add `.prettierignore` entries only for generated or build
    artifacts; add `format` and `format:check`; configure `lint-staged`; and
@@ -137,7 +164,9 @@ partially staged file keeps its unstaged edits out of the commit.
    `.git-blame-ignore-revs` and add `npm run format:check` to
    `check:compliance`. This makes the check part of `npm run build`, the
    existing pre-commit compliance step, and CI. Merge with a merge commit so
-   the recorded formatter SHA remains valid.
+   the recorded formatter SHA remains valid. If `dev` moves before the merge,
+   do not rebase the formatting commit: replay the commits before it, rerun
+   the formatter, and update the recorded SHA.
 6. **Communicate and close out.** Publish the new contributor command and
    remind remaining branch owners to rebase. Update issue #646 with the final
    baseline, checks, formatter commit SHA, and links to the merged policy and

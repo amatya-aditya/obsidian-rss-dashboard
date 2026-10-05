@@ -111,15 +111,15 @@ function expandFormulaBoundaries(range: Range, readerRoot: HTMLElement): Range {
 }
 
 function replaceFormulaMarkup(fragment: DocumentFragment): void {
-  fragment.querySelectorAll<HTMLElement>("span.math[data-math]").forEach(
-    (formula) => {
+  fragment
+    .querySelectorAll<HTMLElement>("span.math[data-math]")
+    .forEach((formula) => {
       formula.replaceWith(
         formula.ownerDocument.createTextNode(
           formula.getAttribute("data-math") || "",
         ),
       );
-    },
-  );
+    });
 }
 
 function appendLineBreak(parts: string[]): void {
@@ -134,7 +134,10 @@ function appendPlainText(node: Node, parts: string[]): void {
     return;
   }
 
-  if (node.nodeType !== Node.ELEMENT_NODE && node.nodeType !== Node.DOCUMENT_FRAGMENT_NODE) {
+  if (
+    node.nodeType !== Node.ELEMENT_NODE &&
+    node.nodeType !== Node.DOCUMENT_FRAGMENT_NODE
+  ) {
     return;
   }
 
@@ -200,14 +203,14 @@ export function updateReaderMathSelectionHighlight(
     resolveReaderMathSelection(readerRoot, ranges)?.formulas || [],
   );
 
-  readerRoot.querySelectorAll<HTMLElement>(FORMULA_SELECTOR).forEach(
-    (formula) => {
+  readerRoot
+    .querySelectorAll<HTMLElement>(FORMULA_SELECTOR)
+    .forEach((formula) => {
       formula.classList.toggle(
         SELECTED_FORMULA_CLASS,
         selectedFormulas.has(formula),
       );
-    },
-  );
+    });
 }
 
 function getDocumentSelectionRanges(ownerDocument: Document): Range[] {

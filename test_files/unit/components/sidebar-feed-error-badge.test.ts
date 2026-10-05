@@ -6,10 +6,7 @@ import {
 } from "../../../src/components/sidebar";
 import * as ObsidianStubs from "../../stubs/obsidian";
 import type { App } from "../../stubs/obsidian";
-import {
-  RssDashboardSettings,
-  Feed,
-} from "../../../src/types/types";
+import { RssDashboardSettings, Feed } from "../../../src/types/types";
 import type RssDashboardPlugin from "../../../main";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 import { parseFetchErrorMessage } from "../../../src/services/feed-parser/feed-errors";
@@ -83,14 +80,18 @@ describe("Feed Error Badge Rendering", () => {
     sidebar.render();
 
     const feedNameContainer = container.querySelector(
-      '[data-feed-url="url1"] .rss-dashboard-feed-name-container'
+      '[data-feed-url="url1"] .rss-dashboard-feed-name-container',
     );
     expect(feedNameContainer).not.toBeNull();
 
     // Has unread count
-    expect(feedNameContainer?.querySelector(".rss-dashboard-feed-unread-count")).not.toBeNull();
+    expect(
+      feedNameContainer?.querySelector(".rss-dashboard-feed-unread-count"),
+    ).not.toBeNull();
     // Does NOT have error badge
-    expect(feedNameContainer?.querySelector(".rss-dashboard-feed-error-badge")).toBeNull();
+    expect(
+      feedNameContainer?.querySelector(".rss-dashboard-feed-error-badge"),
+    ).toBeNull();
   });
 
   it("should render error badge with correct attributes when lastFetchError is present", () => {
@@ -115,13 +116,15 @@ describe("Feed Error Badge Rendering", () => {
     sidebar.render();
 
     const errorBadge = container.querySelector(
-      '[data-feed-url="url-fail"] .rss-dashboard-feed-error-badge'
+      '[data-feed-url="url-fail"] .rss-dashboard-feed-error-badge',
     ) as HTMLElement;
-    
+
     expect(errorBadge).not.toBeNull();
     expect(errorBadge.hasAttribute("title")).toBe(false);
-    expect(errorBadge.getAttribute("aria-label")).toContain("Request failed, status 429");
-    
+    expect(errorBadge.getAttribute("aria-label")).toContain(
+      "Request failed, status 429",
+    );
+
     // Check it rendered the icon
     expect(errorBadge.dataset.icon).toBe("alert-circle");
   });
@@ -148,13 +151,17 @@ describe("Feed Error Badge Rendering", () => {
     sidebar.render();
 
     const feedNameContainer = container.querySelector(
-      '[data-feed-url="url-stale"] .rss-dashboard-feed-name-container'
+      '[data-feed-url="url-stale"] .rss-dashboard-feed-name-container',
     );
 
     // Should have both
-    const unreadCount = feedNameContainer?.querySelector(".rss-dashboard-feed-unread-count");
-    const errorBadge = feedNameContainer?.querySelector(".rss-dashboard-feed-error-badge");
-    
+    const unreadCount = feedNameContainer?.querySelector(
+      ".rss-dashboard-feed-unread-count",
+    );
+    const errorBadge = feedNameContainer?.querySelector(
+      ".rss-dashboard-feed-error-badge",
+    );
+
     expect(unreadCount).not.toBeNull();
     expect(unreadCount?.textContent).toBe("2");
     expect(errorBadge).not.toBeNull();
@@ -183,26 +190,30 @@ describe("Feed Error Badge Rendering", () => {
     sidebar.render();
 
     const feedNameContainer = container.querySelector(
-      '[data-feed-url="url-hidden-error"] .rss-dashboard-feed-name-container'
+      '[data-feed-url="url-hidden-error"] .rss-dashboard-feed-name-container',
     );
 
-    expect(feedNameContainer?.querySelector(".rss-dashboard-feed-error-badge")).toBeNull();
+    expect(
+      feedNameContainer?.querySelector(".rss-dashboard-feed-error-badge"),
+    ).toBeNull();
   });
 });
 
 describe("parseFetchErrorMessage", () => {
   it("should strip Error: prefix", () => {
-    expect(parseFetchErrorMessage("Error: Not a valid RSS/Atom feed"))
-      .toBe("Not a valid RSS/Atom feed");
-      
-    expect(parseFetchErrorMessage("Error: Request failed, status 429"))
-      .toBe("Request failed, status 429");
+    expect(parseFetchErrorMessage("Error: Not a valid RSS/Atom feed")).toBe(
+      "Not a valid RSS/Atom feed",
+    );
+
+    expect(parseFetchErrorMessage("Error: Request failed, status 429")).toBe(
+      "Request failed, status 429",
+    );
   });
 
   it("should handle Error objects", () => {
     const err = new Error("Timed out");
     expect(parseFetchErrorMessage(err)).toBe("Timed out");
-    
+
     const errWithPrefix = new Error("Error: Some internal issue");
     expect(parseFetchErrorMessage(errWithPrefix)).toBe("Some internal issue");
   });

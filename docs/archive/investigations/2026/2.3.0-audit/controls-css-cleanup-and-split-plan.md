@@ -12,11 +12,11 @@ The current monolith mixes **3 distinct concerns**. Splitting produces files
 that mirror the existing pattern established by `add-feed-modal.css`,
 `feed-manager-modal.css`, etc.
 
-| New file | Lines (approx) | What it owns |
-| -------- | -------------- | ------------ |
-| `controls.css` _(keep, trimmed)_ | ~550 | Core header layout, basic toggles, search input, and responsive media queries. |
-| `controls-dropdown.css` _(new)_ | ~750 | The complex dropdown menu, view style selectors, card layout controls, toolbar mode, and mark-all buttons. |
-| `controls-filter-bar.css` _(new)_ | ~250 | The collapsible filter status bar, highlight chips, and viewing stats. |
+| New file                          | Lines (approx) | What it owns                                                                                               |
+| --------------------------------- | -------------- | ---------------------------------------------------------------------------------------------------------- |
+| `controls.css` _(keep, trimmed)_  | ~550           | Core header layout, basic toggles, search input, and responsive media queries.                             |
+| `controls-dropdown.css` _(new)_   | ~750           | The complex dropdown menu, view style selectors, card layout controls, toolbar mode, and mark-all buttons. |
+| `controls-filter-bar.css` _(new)_ | ~250           | The collapsible filter status bar, highlight chips, and viewing stats.                                     |
 
 > [!NOTE]
 > **Why not more splits?** The media queries for the core layout are kept in `controls.css` rather than a separate file to ensure responsive rules remain tightly coupled to the base layout components they modify.
@@ -36,6 +36,7 @@ The cleaned `controls.css` will use these numbered comment blocks:
 ```
 
 The new `controls-dropdown.css` will use:
+
 ```css
 1.  Dropdown Menu Shell
 2.  Toolbar Mode & Layout Controls
@@ -45,6 +46,7 @@ The new `controls-dropdown.css` will use:
 ```
 
 The new `controls-filter-bar.css` will use:
+
 ```css
 1.  Subheader Shell & Collapsible State
 2.  Keyword Filter Stats
@@ -57,15 +59,15 @@ The two split-out files each get the same file-level header block as `modals.css
 
 ## 3. Dead Code & Redundancies to Remove
 
-| Lines | Issue | Action |
-| ----- | ----- | ------ |
-| 1243–1273 | Light mode override for `.rss-dashboard-view-refresh-button` is commented out as dead code | **Remove** — "REMOVED: causing black icons on active buttons" |
-| 468–470 | `.[selector]` — hardcoded colors `#8e44ad`, `#fff` | **Replace** with `var(--rss-color-podcast)` and `var(--text-on-accent)` |
-| 478–480 | `.[selector]:hover` — hardcoded colors `#9b59b6`, `#fff` | **Replace** with `var(--rss-color-podcast-hover)` and `var(--text-on-accent)` |
-| 763–764 | `.[selector]` — hardcoded colors `#9b59b6`, `#a66ac0` for variables | **Replace** with `var(--rss-color-podcast)` and `var(--rss-color-podcast-hover)` |
-| 834, 846 | `.[selector]` — hardcoded colors `rgba(46, 204, 113, 0.3)`, `#2ecc71` | **Replace** with `var(--rss-color-success)` or similar existing token |
-| 1647 | `.[selector]` — hardcoded color `#ff0000` | **Replace** with `var(--rss-color-video)` or `var(--color-red)` |
-| 1651 | `.[selector]` — hardcoded color `#8e44ad` | **Replace** with `var(--rss-color-podcast)` |
+| Lines     | Issue                                                                                      | Action                                                                           |
+| --------- | ------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------- |
+| 1243–1273 | Light mode override for `.rss-dashboard-view-refresh-button` is commented out as dead code | **Remove** — "REMOVED: causing black icons on active buttons"                    |
+| 468–470   | `.[selector]` — hardcoded colors `#8e44ad`, `#fff`                                         | **Replace** with `var(--rss-color-podcast)` and `var(--text-on-accent)`          |
+| 478–480   | `.[selector]:hover` — hardcoded colors `#9b59b6`, `#fff`                                   | **Replace** with `var(--rss-color-podcast-hover)` and `var(--text-on-accent)`    |
+| 763–764   | `.[selector]` — hardcoded colors `#9b59b6`, `#a66ac0` for variables                        | **Replace** with `var(--rss-color-podcast)` and `var(--rss-color-podcast-hover)` |
+| 834, 846  | `.[selector]` — hardcoded colors `rgba(46, 204, 113, 0.3)`, `#2ecc71`                      | **Replace** with `var(--rss-color-success)` or similar existing token            |
+| 1647      | `.[selector]` — hardcoded color `#ff0000`                                                  | **Replace** with `var(--rss-color-video)` or `var(--color-red)`                  |
+| 1651      | `.[selector]` — hardcoded color `#8e44ad`                                                  | **Replace** with `var(--rss-color-podcast)`                                      |
 
 > [!NOTE]
 > **Open Question needed** — Several hardcoded colors like `#2ecc71` or `#ff0000` may not have an exact matching token in `design-spec.md` yet. Need author confirmation.
@@ -74,16 +76,16 @@ The two split-out files each get the same file-level header block as `modals.css
 
 ## 4. `!important` Audit
 
-| Lines | Declaration | Disposition |
-| ----- | ----------- | ----------- |
-| 289–292 | `.rss-dashboard-viewing-filter-open-btn svg { ... !important }` | **Keep** — SVG normalization. Add `/* audit-ok: svg normalizer */` |
-| 620 | `.rss-dashboard-tag-change-feedback { background-color: ... !important }` | **Keep with audit comment** — Visual override for feedback state; add `/* audit-ok: temporary state visual override */` |
-| 662 | `.rss-dashboard-mobile-filter-button { display: none !important }` | **Keep** — Display toggle utility. Add `/* audit-ok: display toggle utility */` |
-| 798–809 | `.rss-dashboard-dropdown-card-layout-trigger { width: 110px !important; ... }` | **Scope to higher specificity** — Use parent selector to avoid `!important` |
-| 1168–1189 | `.[selector] svg { width: var(--icon-size) !important; ... }` | **Keep** — Sanctioned by design-spec for icon sizing. Add `/* audit-ok: svg normalizer */` |
-| 1453–1541 | Responsive breakpoints using `display: none !important` and `display: block !important` | **Keep** — Sanctioned pattern for layout display toggles. Add `/* audit-ok: display toggle utility */` |
-| 1552–1560 | `.rss-dashboard-hamburger-button svg { ... !important }` | **Keep** — Sanctioned SVG normalizations. Add `/* audit-ok: svg normalizer */` |
-| 1582–1592 | Narrow overrides using `display: none !important` | **Keep** — Host override for responsive component states. Add `/* audit-ok: display toggle utility */` |
+| Lines     | Declaration                                                                             | Disposition                                                                                                             |
+| --------- | --------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| 289–292   | `.rss-dashboard-viewing-filter-open-btn svg { ... !important }`                         | **Keep** — SVG normalization. Add `/* audit-ok: svg normalizer */`                                                      |
+| 620       | `.rss-dashboard-tag-change-feedback { background-color: ... !important }`               | **Keep with audit comment** — Visual override for feedback state; add `/* audit-ok: temporary state visual override */` |
+| 662       | `.rss-dashboard-mobile-filter-button { display: none !important }`                      | **Keep** — Display toggle utility. Add `/* audit-ok: display toggle utility */`                                         |
+| 798–809   | `.rss-dashboard-dropdown-card-layout-trigger { width: 110px !important; ... }`          | **Scope to higher specificity** — Use parent selector to avoid `!important`                                             |
+| 1168–1189 | `.[selector] svg { width: var(--icon-size) !important; ... }`                           | **Keep** — Sanctioned by design-spec for icon sizing. Add `/* audit-ok: svg normalizer */`                              |
+| 1453–1541 | Responsive breakpoints using `display: none !important` and `display: block !important` | **Keep** — Sanctioned pattern for layout display toggles. Add `/* audit-ok: display toggle utility */`                  |
+| 1552–1560 | `.rss-dashboard-hamburger-button svg { ... !important }`                                | **Keep** — Sanctioned SVG normalizations. Add `/* audit-ok: svg normalizer */`                                          |
+| 1582–1592 | Narrow overrides using `display: none !important`                                       | **Keep** — Host override for responsive component states. Add `/* audit-ok: display toggle utility */`                  |
 
 ---
 
@@ -103,6 +105,7 @@ Lines 1067–1094 have a massive block repeating `.rss-dashboard-dropdown-contro
 ## 6. Proposed Changes Summary
 
 ### [MODIFY] controls.css
+
 - Add file-level header block (matching modals.css style)
 - Add numbered section comment blocks (sections 1–5 per map above)
 - Remove all dead/commented-out code (e.g. light mode overrides)
@@ -113,14 +116,17 @@ Lines 1067–1094 have a massive block repeating `.rss-dashboard-dropdown-contro
 - Move filter subheader rules to `controls-filter-bar.css`
 
 ### [NEW] controls-dropdown.css
+
 - File-level header comment
 - Extracted rules for the dropdown menu, toolbar mode, multi-filter, and themed selectors
 
 ### [NEW] controls-filter-bar.css
+
 - File-level header comment
 - Extracted rules for the collapsible filter status bar, keyword filter stats, and highlight stats
 
 ### [MODIFY] index.css
+
 - Add imports for the 2 new CSS files
 
 ---
@@ -147,6 +153,7 @@ Lines 1067–1094 have a massive block repeating `.rss-dashboard-dropdown-contro
 ## Verification Plan
 
 ### Manual Checks
+
 - Dashboard header layout renders correctly in Obsidian (desktop and mobile)
 - Filter status subheader correctly collapses/expands and displays stats
 - Dropdown menu opens correctly and all toolbar modes display correctly
@@ -155,5 +162,6 @@ Lines 1067–1094 have a massive block repeating `.rss-dashboard-dropdown-contro
 - SVG icons remain properly sized without visual regressions
 
 ### Lint / Build
+
 - `npm run build` passes with no new CSS scope violations
 - No regressions in `npm run check:css-scope`

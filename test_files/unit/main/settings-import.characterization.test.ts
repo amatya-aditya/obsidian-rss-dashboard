@@ -209,7 +209,9 @@ describe("applying a confirmed settings import (issue #535)", () => {
       step("discover.render")();
       return Promise.resolve({
         render: () => undefined,
-      } as unknown as Awaited<ReturnType<RssDashboardPlugin["getActiveDiscoverView"]>>);
+      } as unknown as Awaited<
+        ReturnType<RssDashboardPlugin["getActiveDiscoverView"]>
+      >);
     });
   });
 
@@ -337,7 +339,9 @@ describe("applying a confirmed settings import (issue #535)", () => {
 
       const backup = await adapter().read("./feeds.opml.backup");
       expect(backup).toContain('text="RSS"');
-      expect(backup).toContain('xmlUrl="https://example.com/imported-backup.xml"');
+      expect(backup).toContain(
+        'xmlUrl="https://example.com/imported-backup.xml"',
+      );
     });
 
     it("accepts empty lists as replacements instead of keeping the current lists", async () => {

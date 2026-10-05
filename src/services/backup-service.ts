@@ -71,7 +71,6 @@ export class BackupService {
             await this.vault.adapter.write(`${dataPath}.backup`, content);
           }
         }
-
       }
 
       // 2. feeds.opml

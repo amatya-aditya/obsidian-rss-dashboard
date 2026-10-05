@@ -518,7 +518,10 @@ wins the cascade, combine an existing plugin root with the component and its
 state or direct child instead of creating an exception:
 
 ```css
-.rss-dashboard-container .your-component-scope.is-compact > .clickable-icon > svg {
+.rss-dashboard-container
+  .your-component-scope.is-compact
+  > .clickable-icon
+  > svg {
   width: var(--icon-size, 20px);
 }
 ```

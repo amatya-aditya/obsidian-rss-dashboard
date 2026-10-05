@@ -121,7 +121,9 @@ describe("Shard storage v2 article state (characterization, #465)", () => {
       );
       expect(written.version).toBe(3);
       expect(typeof written._syncNonce).toBe("string");
-      expect(written._syncPad).toEqual(expect.stringContaining("sync-size-anchor"));
+      expect(written._syncPad).toEqual(
+        expect.stringContaining("sync-size-anchor"),
+      );
     });
 
     it("gets a new sync nonce on every save, even when the state is unchanged", async () => {
@@ -203,7 +205,9 @@ describe("Shard storage v2 article state (characterization, #465)", () => {
 
       await repository.saveUserStateFromFeeds(settings);
 
-      expect(await adapter(app).exists("Meta/State/user-state.json")).toBe(true);
+      expect(await adapter(app).exists("Meta/State/user-state.json")).toBe(
+        true,
+      );
     });
 
     it("falls back to .rss-dashboard-data when the metadata folder setting is blank", async () => {
@@ -219,7 +223,7 @@ describe("Shard storage v2 article state (characterization, #465)", () => {
     });
 
     it("routes exactly one write per save through the write wrapper", async () => {
-      const writeWrapper = vi.fn(<T,>(fn: () => Promise<T>) => fn());
+      const writeWrapper = vi.fn(<T>(fn: () => Promise<T>) => fn());
       const repository = new FeedStorageRepository(app, {
         writeWrapper: writeWrapper as unknown as WriteWrapper,
       });
@@ -234,7 +238,7 @@ describe("Shard storage v2 article state (characterization, #465)", () => {
     });
 
     it("does not call the write wrapper or create the folder when there is nothing to record", async () => {
-      const writeWrapper = vi.fn(<T,>(fn: () => Promise<T>) => fn());
+      const writeWrapper = vi.fn(<T>(fn: () => Promise<T>) => fn());
       const repository = new FeedStorageRepository(app, {
         writeWrapper: writeWrapper as unknown as WriteWrapper,
       });
@@ -250,7 +254,7 @@ describe("Shard storage v2 article state (characterization, #465)", () => {
     });
 
     it("shows the unreadable-file notice once per session and never writes over the file", async () => {
-      const writeWrapper = vi.fn(<T,>(fn: () => Promise<T>) => fn());
+      const writeWrapper = vi.fn(<T>(fn: () => Promise<T>) => fn());
       const notices = vi.spyOn(console, "debug").mockImplementation(() => {});
       const repository = new FeedStorageRepository(app, {
         writeWrapper: writeWrapper as unknown as WriteWrapper,
@@ -339,7 +343,10 @@ describe("Shard storage v2 article state (characterization, #465)", () => {
       await writeShard(app, "feed-1", [makeItem({ read: true, saved: true })]);
       await adapter(app).write(
         USER_STATE_PATH,
-        JSON.stringify({ version: 3, states: { "feed-1:guid-1": { starred: true } } }),
+        JSON.stringify({
+          version: 3,
+          states: { "feed-1:guid-1": { starred: true } },
+        }),
       );
       const settings = settingsFor("vault-shards-v2", [makeFeed("feed-1", [])]);
 
@@ -401,7 +408,10 @@ describe("Shard storage v2 article state (characterization, #465)", () => {
       await writeShard(app, "feed-1", [makeItem({ read: true })]);
       await adapter(app).write(
         USER_STATE_PATH,
-        JSON.stringify({ version: 3, states: { "feed-1:guid-1": { starred: true } } }),
+        JSON.stringify({
+          version: 3,
+          states: { "feed-1:guid-1": { starred: true } },
+        }),
       );
       const settings = settingsFor("vault-shards", [makeFeed("feed-1", [])]);
 

@@ -20,8 +20,22 @@ describe("Validation Utility", () => {
     });
 
     it("returns false for forbidden characters", () => {
-      const forbidden = ["#", "^", "[", "]", "|", "/", "\\", ":", "*", "\"", "<", ">", "?"];
-      forbidden.forEach(char => {
+      const forbidden = [
+        "#",
+        "^",
+        "[",
+        "]",
+        "|",
+        "/",
+        "\\",
+        ":",
+        "*",
+        '"',
+        "<",
+        ">",
+        "?",
+      ];
+      forbidden.forEach((char) => {
         const result = isValidFolderName(`Folder${char}Name`);
         expect(result.valid).toBe(false);
         expect(result.error).toContain(char);

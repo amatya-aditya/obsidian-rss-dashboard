@@ -146,12 +146,17 @@ describe("ReaderView tooltip attribute stripping", () => {
     );
     const name = image?.getAttribute("aria-labelledby");
     const description = image?.getAttribute("aria-describedby");
-    expect(name && getInternals(readerView).readingContainer.querySelector(`#${name}`)?.textContent).toBe(
-      "A useful scene",
-    );
-    expect(description && getInternals(readerView).readingContainer.querySelector(`#${description}`)?.textContent).toBe(
-      "scene one.jpg",
-    );
+    expect(
+      name &&
+        getInternals(readerView).readingContainer.querySelector(`#${name}`)
+          ?.textContent,
+    ).toBe("A useful scene");
+    expect(
+      description &&
+        getInternals(readerView).readingContainer.querySelector(
+          `#${description}`,
+        )?.textContent,
+    ).toBe("scene one.jpg");
     expect(image?.getAttribute("alt")).toBe("A useful scene");
   });
 
@@ -176,22 +181,29 @@ describe("ReaderView tooltip attribute stripping", () => {
 
     await readerView.displayItem(item);
 
-    const image = getInternals(readerView).readingContainer.querySelector<HTMLImageElement>(
+    const image = getInternals(
+      readerView,
+    ).readingContainer.querySelector<HTMLImageElement>(
       ".rss-reader-article-content img",
     );
     expect(image?.getAttribute("alt")).toBe("");
     expect(image?.getAttribute("aria-label")).toBe("decoration.jpg");
     expect(image?.getAttribute("aria-labelledby")).not.toBeNull();
     const controlName = image?.getAttribute("aria-labelledby");
-    expect(controlName && getInternals(readerView).readingContainer.querySelector(`#${controlName}`)?.textContent).toBe(
-      "Open image in lightbox",
-    );
+    expect(
+      controlName &&
+        getInternals(readerView).readingContainer.querySelector(
+          `#${controlName}`,
+        )?.textContent,
+    ).toBe("Open image in lightbox");
     expect(image?.getAttribute("aria-describedby")).toBeNull();
     expect(image?.getAttribute("role")).toBe("button");
     expect(image?.getAttribute("tabindex")).toBe("0");
 
     const tooltipHost = image?.closest(".rss-reader-image-tooltip-host");
-    const focusTooltip = tooltipHost?.querySelector(".rss-reader-image-focus-tooltip");
+    const focusTooltip = tooltipHost?.querySelector(
+      ".rss-reader-image-focus-tooltip",
+    );
     expect(focusTooltip?.textContent).toBe("decoration.jpg");
     expect(focusTooltip?.getAttribute("aria-hidden")).toBe("true");
 
@@ -237,9 +249,11 @@ describe("ReaderView tooltip attribute stripping", () => {
     );
     expect(image?.hasAttribute("alt")).toBe(false);
     const name = image?.getAttribute("aria-labelledby");
-    expect(name && getInternals(readerView).readingContainer.querySelector(`#${name}`)?.textContent).toBe(
-      "accessible-name.jpg",
-    );
+    expect(
+      name &&
+        getInternals(readerView).readingContainer.querySelector(`#${name}`)
+          ?.textContent,
+    ).toBe("accessible-name.jpg");
     expect(image?.getAttribute("aria-describedby")).toBeNull();
   });
 
@@ -264,7 +278,8 @@ describe("ReaderView tooltip attribute stripping", () => {
 
     await readerView.displayItem(item);
 
-    const image = getInternals(readerView).readingContainer.querySelector("img.latex");
+    const image =
+      getInternals(readerView).readingContainer.querySelector("img.latex");
     expect(image?.getAttribute("tabindex")).toBeNull();
     expect(image?.getAttribute("role")).toBeNull();
   });

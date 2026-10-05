@@ -6,7 +6,10 @@ const addFeedModalCtorSpy = vi.fn();
 const addFeedModalOpenSpy = vi.fn();
 
 type ObsidianHTMLElement = HTMLElement & {
-  createDiv(opts?: string | { cls?: string; text?: string; attr?: Record<string, string> }): HTMLDivElement;
+  createDiv(
+    opts?:
+      string | { cls?: string; text?: string; attr?: Record<string, string> },
+  ): HTMLDivElement;
   empty(): void;
 };
 
@@ -34,7 +37,9 @@ describe("Sidebar addFeed icon", () => {
     const { Sidebar } = await import("../../../src/components/sidebar");
 
     const app = new App();
-    const container = (document.body as unknown as ObsidianHTMLElement).createDiv();
+    const container = (
+      document.body as unknown as ObsidianHTMLElement
+    ).createDiv();
 
     const plugin = { manifest: { id: "rss-dashboard" } } as unknown;
     const settings = { folders: [], display: {} } as unknown;
@@ -53,9 +58,9 @@ describe("Sidebar addFeed icon", () => {
     );
 
     // showAddFeedModal is private; access for regression protection
-    (sidebar as unknown as { showAddFeedModal: (folder?: string) => void }).showAddFeedModal(
-      "Uncategorized",
-    );
+    (
+      sidebar as unknown as { showAddFeedModal: (folder?: string) => void }
+    ).showAddFeedModal("Uncategorized");
 
     expect(addFeedModalCtorSpy).toHaveBeenCalledTimes(1);
     expect(addFeedModalOpenSpy).toHaveBeenCalledTimes(1);
@@ -70,4 +75,3 @@ describe("Sidebar addFeed icon", () => {
     expect(ctorArgs[5]).toBe(plugin);
   });
 });
-

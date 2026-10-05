@@ -145,8 +145,7 @@ export function createReaderFormatPortal(options: ReaderFormatPortalOptions): {
 
     const decreaseButton = bindClickableIcon(
       controls.createDiv({
-        cls:
-          "rss-reader-format-icon-button rss-reader-format-stepper-button rss-reader-format-stepper-decrease",
+        cls: "rss-reader-format-icon-button rss-reader-format-stepper-button rss-reader-format-stepper-decrease",
         attr: {
           "aria-label": `Decrease ${label.toLowerCase()}`,
         },
@@ -159,8 +158,7 @@ export function createReaderFormatPortal(options: ReaderFormatPortalOptions): {
 
     const increaseButton = bindClickableIcon(
       controls.createDiv({
-        cls:
-          "rss-reader-format-icon-button rss-reader-format-stepper-button rss-reader-format-stepper-increase",
+        cls: "rss-reader-format-icon-button rss-reader-format-stepper-button rss-reader-format-stepper-increase",
         attr: {
           "aria-label": `Increase ${label.toLowerCase()}`,
         },
@@ -202,7 +200,10 @@ export function createReaderFormatPortal(options: ReaderFormatPortalOptions): {
     });
     button.type = "button";
     button.dataset.value = option.value;
-    button.setAttribute("aria-pressed", String(option.value === format.fontFamily));
+    button.setAttribute(
+      "aria-pressed",
+      String(option.value === format.fontFamily),
+    );
     button.addEventListener("click", (event) => {
       runButtonAction(event, () => {
         if (format.fontFamily === option.value) {
@@ -279,7 +280,10 @@ export function createReaderFormatPortal(options: ReaderFormatPortalOptions): {
       lineHeightRow.sync();
       syncFontButtons();
       fontButtonsByValue.forEach((button, value) => {
-        button.setAttribute("aria-pressed", String(value === format.fontFamily));
+        button.setAttribute(
+          "aria-pressed",
+          String(value === format.fontFamily),
+        );
       });
       onFormatMutated();
     },

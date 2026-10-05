@@ -46,7 +46,7 @@ describe("openSettingsToTab()", () => {
 
     expect(setting.open).toHaveBeenCalledTimes(1);
     expect(setting.openTabById).toHaveBeenCalledWith("rss-dashboard");
-     
+
     expect(plugin.settingTab.activateTab).toHaveBeenCalledWith(
       "Display",
       "Reader",

@@ -42,4 +42,3 @@ describe("removeFolderByPath()", () => {
     expect(removeFolderByPath(input, "A/Z")).toEqual(input);
   });
 });
-

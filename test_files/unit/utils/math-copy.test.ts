@@ -64,7 +64,7 @@ describe("Reader math copy", () => {
       plainText: String.raw`Before $x$ After.
 \[y < z\]
 Next.`,
-      html: '<p>Before $x$ <em>After</em>.</p><p>\\[y &lt; z\\]</p><p>Next.</p>',
+      html: "<p>Before $x$ <em>After</em>.</p><p>\\[y &lt; z\\]</p><p>Next.</p>",
     });
   });
 
@@ -169,7 +169,13 @@ Second.`,
     secondFormula.setAttribute("data-math", "$y$");
     secondFormula.appendChild(createEl(MATHJAX_TAG));
     const paragraph = createEl("p");
-    paragraph.append("Before ", firstFormula, " between ", secondFormula, " after.");
+    paragraph.append(
+      "Before ",
+      firstFormula,
+      " between ",
+      secondFormula,
+      " after.",
+    );
     reader.appendChild(paragraph);
     document.body.appendChild(reader);
 

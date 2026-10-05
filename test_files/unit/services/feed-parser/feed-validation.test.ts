@@ -1,6 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { isValidFeed } from "../../../../src/services/feed-parser/feed-validation.js";
-import { RSS2_BASIC, ATOM_BASIC, JSON_FEED_BASIC } from "./fixtures/rss-fixtures.js";
+import {
+  RSS2_BASIC,
+  ATOM_BASIC,
+  JSON_FEED_BASIC,
+} from "./fixtures/rss-fixtures.js";
 
 describe("isValidFeed", () => {
   it("identifies RSS feeds", () => {

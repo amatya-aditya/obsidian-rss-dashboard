@@ -1,6 +1,9 @@
 import type { Folder } from "../types/types";
 
-export function removeFolderByPath(folders: Folder[], folderPath: string): Folder[] {
+export function removeFolderByPath(
+  folders: Folder[],
+  folderPath: string,
+): Folder[] {
   const parts = folderPath.split("/").filter(Boolean);
   if (parts.length === 0) return folders;
 
@@ -36,4 +39,3 @@ export function removeFolderByPath(folders: Folder[], folderPath: string): Folde
 
   return removeAt(folders, 0);
 }
-

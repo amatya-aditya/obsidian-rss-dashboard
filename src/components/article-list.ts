@@ -849,12 +849,13 @@ export class ArticleList {
       );
     const rows: Array<Array<{ guid: string; rect: DOMRect }>> = [];
     positionedCards.forEach((entry) => {
-      const existingRow = rows.find(
-        (row) => {
-          const rowTop = row[0]?.rect.top;
-          return rowTop !== undefined && Math.abs(rowTop - entry.rect.top) <= rowTolerance;
-        },
-      );
+      const existingRow = rows.find((row) => {
+        const rowTop = row[0]?.rect.top;
+        return (
+          rowTop !== undefined &&
+          Math.abs(rowTop - entry.rect.top) <= rowTolerance
+        );
+      });
       if (existingRow) {
         existingRow.push(entry);
         return;
@@ -884,13 +885,13 @@ export class ArticleList {
 
     if (direction === "left") {
       return currentColumnIndex > 0
-        ? currentRow[currentColumnIndex - 1]?.guid ?? null
+        ? (currentRow[currentColumnIndex - 1]?.guid ?? null)
         : null;
     }
 
     if (direction === "right") {
       return currentColumnIndex < currentRow.length - 1
-        ? currentRow[currentColumnIndex + 1]?.guid ?? null
+        ? (currentRow[currentColumnIndex + 1]?.guid ?? null)
         : null;
     }
 

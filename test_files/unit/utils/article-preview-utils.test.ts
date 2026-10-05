@@ -1,51 +1,75 @@
-import { describe, it, expect } from 'vitest';
-import { extractFirstImageSrc, looksLikeStylesheetText } from '../../../src/utils/article-preview-utils';
+import { describe, it, expect } from "vitest";
+import {
+  extractFirstImageSrc,
+  looksLikeStylesheetText,
+} from "../../../src/utils/article-preview-utils";
 
-describe('article-preview-utils', () => {
-  describe('extractFirstImageSrc', () => {
-    it('extracts the src attribute of the first image tag', () => {
-      const html = '<div><img src="https://example.com/image.png" alt="test" /></div>';
-      expect(extractFirstImageSrc(html)).toBe('https://example.com/image.png');
+describe("article-preview-utils", () => {
+  describe("extractFirstImageSrc", () => {
+    it("extracts the src attribute of the first image tag", () => {
+      const html =
+        '<div><img src="https://example.com/image.png" alt="test" /></div>';
+      expect(extractFirstImageSrc(html)).toBe("https://example.com/image.png");
     });
 
-    it('returns null if no image is found', () => {
-      const html = '<div><p>No image here</p></div>';
+    it("returns null if no image is found", () => {
+      const html = "<div><p>No image here</p></div>";
       expect(extractFirstImageSrc(html)).toBeNull();
     });
 
-    it('returns null for tracking pixel URLs', () => {
-      const html = '<img src="https://media.npr.org/include/images/tracking/npr-rss-pixel.png?story=123" />';
+    it("returns null for tracking pixel URLs", () => {
+      const html =
+        '<img src="https://media.npr.org/include/images/tracking/npr-rss-pixel.png?story=123" />';
       expect(extractFirstImageSrc(html)).toBeNull();
     });
 
-    it('returns null for other tracking pixel patterns', () => {
-      expect(extractFirstImageSrc('<img src="https://example.com/pixel.gif" />')).toBeNull();
-      expect(extractFirstImageSrc('<img src="https://example.com/beacon.png" />')).toBeNull();
-      expect(extractFirstImageSrc('<img src="https://example.com/1x1.jpg" />')).toBeNull();
-      expect(extractFirstImageSrc('<img src="https://example.com/track/image.png" />')).toBeNull();
+    it("returns null for other tracking pixel patterns", () => {
+      expect(
+        extractFirstImageSrc('<img src="https://example.com/pixel.gif" />'),
+      ).toBeNull();
+      expect(
+        extractFirstImageSrc('<img src="https://example.com/beacon.png" />'),
+      ).toBeNull();
+      expect(
+        extractFirstImageSrc('<img src="https://example.com/1x1.jpg" />'),
+      ).toBeNull();
+      expect(
+        extractFirstImageSrc(
+          '<img src="https://example.com/track/image.png" />',
+        ),
+      ).toBeNull();
     });
 
-    it('returns null when article content contains only a WordPress LaTeX image', () => {
-      const html = '<p>Formula <img class="latex" src="https://s0.wp.com/latex.php?latex=%7Bx%7D&amp;bg=ffffff" /></p>';
+    it("returns null when article content contains only a WordPress LaTeX image", () => {
+      const html =
+        '<p>Formula <img class="latex" src="https://s0.wp.com/latex.php?latex=%7Bx%7D&amp;bg=ffffff" /></p>';
       expect(extractFirstImageSrc(html)).toBeNull();
     });
 
-    it('skips a WordPress LaTeX image and selects the next article image', () => {
+    it("skips a WordPress LaTeX image and selects the next article image", () => {
       const html = `
         <p><img class="latex" src="https://s0.wp.com/latex.php?latex=%7Bx%7D&amp;bg=ffffff" /></p>
         <figure><img src="https://example.com/article-photo.jpg" /></figure>
       `;
-      expect(extractFirstImageSrc(html)).toBe('https://example.com/article-photo.jpg');
+      expect(extractFirstImageSrc(html)).toBe(
+        "https://example.com/article-photo.jpg",
+      );
     });
   });
 
-  describe('looksLikeStylesheetText', () => {
-    it('identifies css rules', () => {
-      expect(looksLikeStylesheetText('.bh__table { border: 1px solid #C0C0C0; }')).toBe(true);
+  describe("looksLikeStylesheetText", () => {
+    it("identifies css rules", () => {
+      expect(
+        looksLikeStylesheetText(".bh__table { border: 1px solid #C0C0C0; }"),
+      ).toBe(true);
     });
 
-    it('does not identify normal text', () => {
-      expect(looksLikeStylesheetText('This is a normal sentence with a colon: right here.')).toBe(false);
+    it("does not identify normal text", () => {
+      expect(
+        looksLikeStylesheetText(
+          "This is a normal sentence with a colon: right here.",
+        ),
+      ).toBe(false);
     });
   });
 });

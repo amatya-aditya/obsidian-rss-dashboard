@@ -18,9 +18,9 @@ vi.mock("../../../src/modals/storage-migration-modal", () => ({
 }));
 
 vi.mock("../../../src/release-notes", async () => {
-  const actual = await vi.importActual<typeof import("../../../src/release-notes")>(
-    "../../../src/release-notes",
-  );
+  const actual = await vi.importActual<
+    typeof import("../../../src/release-notes")
+  >("../../../src/release-notes");
   return {
     ...actual,
     hasExactReleaseNoteForVersion: releaseNotes.hasExact,
@@ -58,7 +58,10 @@ async function loadedPlugin(options: {
   loadData?: () => Promise<unknown>;
 }): Promise<{ plugin: RssDashboardPlugin; workspace: WorkspaceStub }> {
   const app = App.createMock();
-  const plugin = new RssDashboardPlugin(app, manifestFor(options.version ?? "2.7.0"));
+  const plugin = new RssDashboardPlugin(
+    app,
+    manifestFor(options.version ?? "2.7.0"),
+  );
   plugin.loadData = options.loadData
     ? vi.fn().mockImplementation(options.loadData)
     : vi.fn().mockResolvedValue({

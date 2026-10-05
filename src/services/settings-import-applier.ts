@@ -1,8 +1,5 @@
 import { Notice } from "obsidian";
-import {
-  DEFAULT_SETTINGS,
-  type RssDashboardSettings,
-} from "../types/types";
+import { DEFAULT_SETTINGS, type RssDashboardSettings } from "../types/types";
 import type {
   FeedStorageRepository,
   PersistSettingsOptions,

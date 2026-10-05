@@ -8,7 +8,15 @@ milestone: ""
 owner: unassigned
 workstream: importers
 sequence: 4
-depends_on: ["234-07-new-feed-metadata-refresh-toggle", "234-08-new-feed-folder-discoverability", "234-09-manual-full-content-fetch-in-reader", "234-10-remove-import-time-full-content-toggle", "234-11-tag-import-toggle-and-confirmation", "234-12-per-article-tag-chip"]
+depends_on:
+  [
+    "234-07-new-feed-metadata-refresh-toggle",
+    "234-08-new-feed-folder-discoverability",
+    "234-09-manual-full-content-fetch-in-reader",
+    "234-10-remove-import-time-full-content-toggle",
+    "234-11-tag-import-toggle-and-confirmation",
+    "234-12-per-article-tag-chip",
+  ]
 release_requirement: ""
 implementation: ""
 ---

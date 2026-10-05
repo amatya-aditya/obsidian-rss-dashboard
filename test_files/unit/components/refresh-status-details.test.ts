@@ -10,7 +10,10 @@ afterEach(() => {
   setAnyHoverSupport(window, true);
 });
 
-function setAnyHoverSupport(targetWindow: Window, supportsHover: boolean): void {
+function setAnyHoverSupport(
+  targetWindow: Window,
+  supportsHover: boolean,
+): void {
   Object.defineProperty(targetWindow, "matchMedia", {
     configurable: true,
     value: () => ({ matches: supportsHover }) as unknown as MediaQueryList,
@@ -155,7 +158,9 @@ describe("refresh status details", () => {
 
     row.dispatchEvent(new MouseEvent("mouseenter"));
     await vi.advanceTimersByTimeAsync(350);
-    expect(document.querySelector(".rss-dashboard-refresh-details")).not.toBeNull();
+    expect(
+      document.querySelector(".rss-dashboard-refresh-details"),
+    ).not.toBeNull();
 
     row.dispatchEvent(new MouseEvent("mouseleave"));
     await vi.advanceTimersByTimeAsync(100);

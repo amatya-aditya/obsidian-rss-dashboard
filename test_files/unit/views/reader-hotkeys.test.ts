@@ -72,7 +72,8 @@ describe("Reader hotkeys", () => {
   it("registers normalized zoom bindings for reader font size controls", () => {
     setupReaderHotkeys(scope, view as never);
 
-    const handlers = (scope as unknown as { handlers: ScopeHandler[] }).handlers;
+    const handlers = (scope as unknown as { handlers: ScopeHandler[] })
+      .handlers;
 
     expect(
       handlers.find(
@@ -112,7 +113,8 @@ describe("Reader hotkeys", () => {
   it("routes normalized zoom bindings to the reader zoom actions", () => {
     setupReaderHotkeys(scope, view as never);
 
-    const handlers = (scope as unknown as { handlers: ScopeHandler[] }).handlers;
+    const handlers = (scope as unknown as { handlers: ScopeHandler[] })
+      .handlers;
     const baseZoomIn = handlers.find(
       (handler) =>
         handler.key === "=" &&
@@ -153,7 +155,8 @@ describe("Reader hotkeys", () => {
   it("registers and routes pane focus shortcuts", () => {
     setupReaderHotkeys(scope, view as never);
 
-    const handlers = (scope as unknown as { handlers: ScopeHandler[] }).handlers;
+    const handlers = (scope as unknown as { handlers: ScopeHandler[] })
+      .handlers;
     const focusDashboard = handlers.find(
       (handler) => handler.key === "d" && handler.modifiers?.includes("Shift"),
     );
@@ -181,7 +184,8 @@ describe("Reader hotkeys", () => {
   it("registers and routes reader scrolling keys", () => {
     setupReaderHotkeys(scope, view as never);
 
-    const handlers = (scope as unknown as { handlers: ScopeHandler[] }).handlers;
+    const handlers = (scope as unknown as { handlers: ScopeHandler[] })
+      .handlers;
     const preventDefault = vi.fn();
     const event = { preventDefault } as unknown as KeyboardEvent;
 
@@ -223,26 +227,27 @@ describe("Reader hotkeys", () => {
       expect(actionMock.mock.calls).toHaveLength(1);
     });
 
-expect(preventDefault.mock.calls).toHaveLength(bindings.length);
-   });
+    expect(preventDefault.mock.calls).toHaveLength(bindings.length);
+  });
 
-   it("registers and routes mark-read-and-next keybinding", () => {
-     setupReaderHotkeys(scope, view as never);
+  it("registers and routes mark-read-and-next keybinding", () => {
+    setupReaderHotkeys(scope, view as never);
 
-     const handlers = (scope as unknown as { handlers: ScopeHandler[] }).handlers;
-     const commaHandler = handlers.find(
-       (handler) =>
-         handler.key === "," &&
-         (!handler.modifiers || handler.modifiers.length === 0),
-     );
+    const handlers = (scope as unknown as { handlers: ScopeHandler[] })
+      .handlers;
+    const commaHandler = handlers.find(
+      (handler) =>
+        handler.key === "," &&
+        (!handler.modifiers || handler.modifiers.length === 0),
+    );
 
-     expect(commaHandler).toBeDefined();
+    expect(commaHandler).toBeDefined();
 
-     const preventDefault = vi.fn();
-     const event = { preventDefault } as unknown as KeyboardEvent;
+    const preventDefault = vi.fn();
+    const event = { preventDefault } as unknown as KeyboardEvent;
 
-     expect(commaHandler?.func(event)).toBe(true);
-     expect(view.actionMarkReadAndNext.mock.calls).toHaveLength(1);
-     expect(preventDefault.mock.calls).toHaveLength(1);
-   });
- });
+    expect(commaHandler?.func(event)).toBe(true);
+    expect(view.actionMarkReadAndNext.mock.calls).toHaveLength(1);
+    expect(preventDefault.mock.calls).toHaveLength(1);
+  });
+});

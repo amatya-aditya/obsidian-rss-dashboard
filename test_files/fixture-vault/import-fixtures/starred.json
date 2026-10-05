@@ -19,7 +19,9 @@
       "updated": 0,
       "starred": 1788264000,
       "canonical": [
-        { "href": "https://example.com/rss-dashboard-fixture/starred/existing-feed" }
+        {
+          "href": "https://example.com/rss-dashboard-fixture/starred/existing-feed"
+        }
       ],
       "alternate": [
         {

@@ -31,17 +31,17 @@
 - [ ] Final commit created with message:
   ```
   refactor: complete main.ts decomposition — document services and standardize error handling
-  
+
   Phase 4 of the main.ts refactor adds comprehensive JSDoc documentation to all
   exported members of the five service modules (BackupService, FolderService,
   ImportExportService, BackgroundImportService, settings-loader utilities) and
   establishes a consistent error-handling strategy across services.
-  
+
   Recoverable errors (bad input, timeouts) are thrown; callers decide on UX.
   Invariant violations are logged and thrown.
-  
+
   All 896+ tests pass; no breaking changes.
-  
+
   Closes #249.
   ```
 - [ ] GitHub issue #249 is updated with completion status and link to final commit

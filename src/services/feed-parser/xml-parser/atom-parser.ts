@@ -68,8 +68,7 @@ export function parseAtom(doc: Document, deps: AtomParserDeps): ParsedFeed {
   if (!imageUrl) {
     const firstEntry = feed.querySelector("entry");
     if (firstEntry) {
-      const entryMediaThumbnail =
-        firstEntry.querySelector("media\\:thumbnail");
+      const entryMediaThumbnail = firstEntry.querySelector("media\\:thumbnail");
       if (entryMediaThumbnail) {
         imageUrl = entryMediaThumbnail.getAttribute("url") || "";
       }

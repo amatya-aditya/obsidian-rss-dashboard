@@ -50,16 +50,14 @@ export function renderMediaSettingsTab(
       "Remove all remembered podcast and video resume positions stored by the plugin",
     )
     .addButton((button) => {
-      button
-        .setButtonText("Clear progress")
-        .onClick(async () => {
-          const clearedCount = await plugin.clearPlaybackProgress();
-          new Notice(
-            clearedCount > 0
-              ? `Cleared saved playback progress for ${clearedCount} item${clearedCount === 1 ? "" : "s"}.`
-              : "No saved playback progress was found.",
-          );
-        });
+      button.setButtonText("Clear progress").onClick(async () => {
+        const clearedCount = await plugin.clearPlaybackProgress();
+        new Notice(
+          clearedCount > 0
+            ? `Cleared saved playback progress for ${clearedCount} item${clearedCount === 1 ? "" : "s"}.`
+            : "No saved playback progress was found.",
+        );
+      });
       settingsUiCompatibility.markDestructive(button);
     });
 

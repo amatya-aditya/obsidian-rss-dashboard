@@ -1,5 +1,9 @@
 import type { Feed, Folder } from "../types/types";
-import { isValidFeedTitle, isValidFolderName, sanitizeName } from "../utils/validation";
+import {
+  isValidFeedTitle,
+  isValidFolderName,
+  sanitizeName,
+} from "../utils/validation";
 
 type ImportMode = "update" | "overwrite";
 
@@ -62,7 +66,9 @@ function cloneFolderTreeFromPaths(paths: string[]): Folder[] {
   };
 
   for (const path of paths) {
-    const parts = splitFolderPath(path).filter((p) => p !== UNCATEGORIZED_FOLDER);
+    const parts = splitFolderPath(path).filter(
+      (p) => p !== UNCATEGORIZED_FOLDER,
+    );
     if (parts.length === 0) continue;
 
     let cursor = roots;
@@ -92,8 +98,11 @@ export class OpmlImportPreviewModel {
     this.buildFolderNodesFromOpmlFolders(args.folders);
 
     for (const feed of args.feeds) {
-      const normalizedFolder = feed.folder?.trim() ? feed.folder.trim() : UNCATEGORIZED_FOLDER;
-      const duplicate = this.importMode === "update" && args.existingUrls.has(feed.url);
+      const normalizedFolder = feed.folder?.trim()
+        ? feed.folder.trim()
+        : UNCATEGORIZED_FOLDER;
+      const duplicate =
+        this.importMode === "update" && args.existingUrls.has(feed.url);
       const normalizedFeed: Feed = { ...feed, folder: normalizedFolder };
       this.feedByUrl.set(feed.url, {
         feed: normalizedFeed,
@@ -110,7 +119,8 @@ export class OpmlImportPreviewModel {
     this.importMode = importMode;
     for (const state of this.feedByUrl.values()) {
       const wasDuplicate = state.duplicate;
-      state.duplicate = this.importMode === "update" && existingUrls.has(state.feed.url);
+      state.duplicate =
+        this.importMode === "update" && existingUrls.has(state.feed.url);
       if (state.duplicate) {
         state.selected = false;
       } else if (wasDuplicate) {
@@ -131,12 +141,20 @@ export class OpmlImportPreviewModel {
     return this.rootFolders.map((n) => clone(n));
   }
 
-  getFeedState(url: string): { feed: Feed; selected: boolean; duplicate: boolean } {
+  getFeedState(url: string): {
+    feed: Feed;
+    selected: boolean;
+    duplicate: boolean;
+  } {
     const state = this.feedByUrl.get(url);
     if (!state) {
       throw new Error(`Unknown feed url: ${url}`);
     }
-    return { feed: state.feed, selected: state.selected, duplicate: state.duplicate };
+    return {
+      feed: state.feed,
+      selected: state.selected,
+      duplicate: state.duplicate,
+    };
   }
 
   getSelectedImportableFeeds(): Feed[] {
@@ -163,7 +181,9 @@ export class OpmlImportPreviewModel {
     const duplicateFeeds = all.filter((f) => f.duplicate).length;
     const selectedFeeds = all.filter((f) => f.selected).length;
 
-    const selectedImportableFeeds = all.filter((f) => f.selected && !f.duplicate).length;
+    const selectedImportableFeeds = all.filter(
+      (f) => f.selected && !f.duplicate,
+    ).length;
     const hasBlockingErrors = all.some((f) => {
       if (!f.selected || f.duplicate) return false;
       return !this.isFeedValidForImport(f.feed);
@@ -251,7 +271,9 @@ export class OpmlImportPreviewModel {
   autoFixInvalidNames(): void {
     // Fix folders first so feed folder paths update deterministically.
     // Collect paths snapshot since rename mutates maps.
-    const folderPaths = Array.from(this.folderByPath.keys()).sort((a, b) => a.length - b.length);
+    const folderPaths = Array.from(this.folderByPath.keys()).sort(
+      (a, b) => a.length - b.length,
+    );
     for (const path of folderPaths) {
       const node = this.folderByPath.get(path);
       if (!node) continue;
@@ -427,7 +449,12 @@ export class OpmlImportPreviewModel {
       const desiredName = sourceChild.name;
       const existing = target.children.find((c) => c.name === desiredName);
       if (existing) {
-        this.mergeFolderNodes(existing, sourceChild, sourcePrefix, targetPrefix);
+        this.mergeFolderNodes(
+          existing,
+          sourceChild,
+          sourcePrefix,
+          targetPrefix,
+        );
       } else {
         // Rehome and update paths for moved subtree.
         sourceChild.parent = target;
@@ -437,9 +464,14 @@ export class OpmlImportPreviewModel {
     }
   }
 
-  private reprefixNodePaths(node: FolderNode, oldPrefix: string, newPrefix: string): void {
+  private reprefixNodePaths(
+    node: FolderNode,
+    oldPrefix: string,
+    newPrefix: string,
+  ): void {
     const oldPath = node.path;
-    const newPath = oldPath === oldPrefix ? newPrefix : oldPath.replace(oldPrefix, newPrefix);
+    const newPath =
+      oldPath === oldPrefix ? newPrefix : oldPath.replace(oldPrefix, newPrefix);
     if (oldPath !== newPath) {
       this.folderByPath.delete(oldPath);
       node.path = newPath;

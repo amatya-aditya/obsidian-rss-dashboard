@@ -99,6 +99,5 @@ describe("MobileDiscoverFiltersModal", () => {
 
     lastDiscoverSidebarInstance?.callbacks.onFilterChange();
     expect(onFilterChange).toHaveBeenCalledTimes(1);
-
   });
 });

@@ -312,7 +312,9 @@ describe("Sidebar header (characterization)", () => {
 
       sidebar.renderHeader(parent);
 
-      expect(parent.querySelector(":scope > .rss-dashboard-header")).not.toBeNull();
+      expect(
+        parent.querySelector(":scope > .rss-dashboard-header"),
+      ).not.toBeNull();
       expect(container.querySelector(".rss-dashboard-header")).toBeNull();
     });
 
@@ -359,7 +361,9 @@ describe("Sidebar header (characterization)", () => {
       build();
       sidebar.render();
 
-      const divider = iconRow().querySelector(".rss-nav-divider") as HTMLElement;
+      const divider = iconRow().querySelector(
+        ".rss-nav-divider",
+      ) as HTMLElement;
       expect(divider.tagName).toBe("DIV");
       expect(divider.getAttribute("role")).toBeNull();
       expect(divider.getAttribute("tabindex")).toBeNull();
@@ -369,11 +373,21 @@ describe("Sidebar header (characterization)", () => {
     });
 
     it("follows a stored order, and leaves out icons the order does not list", () => {
-      settings.display.iconOrder = ["settings", "search", "divider", "discover"];
+      settings.display.iconOrder = [
+        "settings",
+        "search",
+        "divider",
+        "discover",
+      ];
       build();
       sidebar.render();
 
-      expect(rowSummary()).toEqual(["Settings", "Search", "divider", "Discover"]);
+      expect(rowSummary()).toEqual([
+        "Settings",
+        "Search",
+        "divider",
+        "Discover",
+      ]);
     });
 
     it("skips ids that are not known icons", () => {
@@ -394,9 +408,7 @@ describe("Sidebar header (characterization)", () => {
         sidebar.render();
 
         const expected = DEFAULT_ROW.filter((entry) =>
-          id === "divider"
-            ? entry !== "divider"
-            : entry !== LABEL_FOR_ID[id],
+          id === "divider" ? entry !== "divider" : entry !== LABEL_FOR_ID[id],
         );
         expect(rowSummary()).toEqual(expected);
       },
@@ -466,7 +478,9 @@ describe("Sidebar header (characterization)", () => {
 
       expect(rowSummary(first)).toEqual(DEFAULT_ROW);
       expect(rowSummary(second)).toEqual(DEFAULT_ROW);
-      expect(internals.iconBtnEls.get("search")).toBe(byLabel("Search", second));
+      expect(internals.iconBtnEls.get("search")).toBe(
+        byLabel("Search", second),
+      );
     });
 
     it("renders only an empty header, and clears the registries, when the toolbar is hidden", () => {
@@ -480,7 +494,9 @@ describe("Sidebar header (characterization)", () => {
       const second = createDiv();
       sidebar.renderHeader(second);
 
-      const header = second.querySelector(".rss-dashboard-header") as HTMLElement;
+      const header = second.querySelector(
+        ".rss-dashboard-header",
+      ) as HTMLElement;
       expect(header.children).toHaveLength(0);
       expect(internals.iconBtnEls.size).toBe(0);
       expect(internals.iconActions.size).toBe(0);
@@ -508,9 +524,10 @@ describe("Sidebar header (characterization)", () => {
       const surface = container.querySelector(
         ".rss-dashboard-sidebar-controls-surface",
       ) as HTMLElement;
-      expect(
-        Array.from(surface.children).map((el) => el.className),
-      ).toEqual(["rss-dashboard-header", "rss-dashboard-search-dock"]);
+      expect(Array.from(surface.children).map((el) => el.className)).toEqual([
+        "rss-dashboard-header",
+        "rss-dashboard-search-dock",
+      ]);
     });
   });
 
@@ -532,7 +549,9 @@ describe("Sidebar header (characterization)", () => {
       for (const label of Object.keys(ICON_FOR_LABEL)) {
         if (label === "Search" || label === "Tags") continue;
         expect(byLabel(label).hasAttribute("aria-pressed"), label).toBe(false);
-        expect(byLabel(label).classList.contains("is-active"), label).toBe(false);
+        expect(byLabel(label).classList.contains("is-active"), label).toBe(
+          false,
+        );
       }
     });
 
@@ -560,15 +579,18 @@ describe("Sidebar header (characterization)", () => {
   });
 
   describe("keyboard activation", () => {
-    it.each(["Enter", " "])("runs a button's action on %j and stops the key's default", (key) => {
-      build();
-      sidebar.render();
+    it.each(["Enter", " "])(
+      "runs a button's action on %j and stops the key's default",
+      (key) => {
+        build();
+        sidebar.render();
 
-      const event = keydown(button("manageFeeds"), key);
+        const event = keydown(button("manageFeeds"), key);
 
-      expect(callbacks.onManageFeeds).toHaveBeenCalledTimes(1);
-      expect(event.defaultPrevented).toBe(true);
-    });
+        expect(callbacks.onManageFeeds).toHaveBeenCalledTimes(1);
+        expect(event.defaultPrevented).toBe(true);
+      },
+    );
 
     it.each(["Tab", "a", "Escape", "ArrowDown"])("ignores %j", (key) => {
       build();
@@ -795,7 +817,9 @@ describe("Sidebar header (characterization)", () => {
       sidebar.render();
       sidebar.render();
 
-      expect(container.querySelectorAll(".rss-dashboard-coachmark")).toHaveLength(1);
+      expect(
+        container.querySelectorAll(".rss-dashboard-coachmark"),
+      ).toHaveLength(1);
       vi.advanceTimersByTime(5000);
 
       expect(save).toHaveBeenCalledTimes(1);
@@ -851,7 +875,9 @@ describe("Sidebar header (characterization)", () => {
 
       click(button("search"));
 
-      expect(container.querySelector(".rss-dashboard-search-dock")).not.toBeNull();
+      expect(
+        container.querySelector(".rss-dashboard-search-dock"),
+      ).not.toBeNull();
     });
 
     it("closes the search dock when it is used again", () => {
@@ -915,7 +941,9 @@ describe("Sidebar header (characterization)", () => {
     it("works from the keyboard", () => {
       keydown(button("search"), "Enter");
 
-      expect(container.querySelector(".rss-dashboard-search-dock")).not.toBeNull();
+      expect(
+        container.querySelector(".rss-dashboard-search-dock"),
+      ).not.toBeNull();
     });
   });
 
@@ -965,8 +993,7 @@ describe("Sidebar header (characterization)", () => {
 
   describe("add folder button", () => {
     const modalHeading = (): string | undefined =>
-      document
-        .querySelector(".rss-folder-name-modal .setting-item-name")
+      document.querySelector(".rss-folder-name-modal .setting-item-name")
         ?.textContent ?? undefined;
     const modalInput = (): HTMLInputElement =>
       document.querySelector(
@@ -1057,7 +1084,9 @@ describe("Sidebar header (characterization)", () => {
       click(button("addFolder"));
       modalInput().value = "Reading";
 
-      click(document.querySelector(".rss-folder-name-modal-cancel") as HTMLElement);
+      click(
+        document.querySelector(".rss-folder-name-modal-cancel") as HTMLElement,
+      );
       await flushPromises();
 
       expect(settings.folders).toHaveLength(2);
@@ -1083,9 +1112,9 @@ describe("Sidebar header (characterization)", () => {
     it("opens the sort menu with every ordering, in order", () => {
       click(button("sort"));
 
-      expect(
-        ObsidianStubs.Menu.lastItems.map((item) => item.title),
-      ).toEqual(SORT_MENU_TITLES);
+      expect(ObsidianStubs.Menu.lastItems.map((item) => item.title)).toEqual(
+        SORT_MENU_TITLES,
+      );
     });
 
     it("hands the click event to the sort action once", () => {
@@ -1113,9 +1142,9 @@ describe("Sidebar header (characterization)", () => {
       expect(event.defaultPrevented).toBe(true);
       expect(fireIconAction).toHaveBeenCalledTimes(1);
       expect(fireIconAction).toHaveBeenCalledWith("sort", undefined);
-      expect(
-        ObsidianStubs.Menu.lastItems.map((item) => item.title),
-      ).toEqual(SORT_MENU_TITLES);
+      expect(ObsidianStubs.Menu.lastItems.map((item) => item.title)).toEqual(
+        SORT_MENU_TITLES,
+      );
       expect(showAtPosition).toHaveBeenCalledWith({ x: 40, y: 34 });
     });
   });
@@ -1169,9 +1198,8 @@ describe("Sidebar header (characterization)", () => {
 
       click(before);
 
-      const [toCollapse, toExpand] = (
-        callbacks.onBatchToggleFolders as Mock
-      ).mock.calls[0] as [string[], string[]];
+      const [toCollapse, toExpand] = (callbacks.onBatchToggleFolders as Mock)
+        .mock.calls[0] as [string[], string[]];
       expect([...toCollapse].sort()).toEqual([...paths].sort());
       expect(toExpand).toEqual([]);
       expect(notices()).toEqual(["All folders collapsed"]);
@@ -1185,9 +1213,8 @@ describe("Sidebar header (characterization)", () => {
 
       click(button("collapseAll"));
 
-      const [toCollapse, toExpand] = (
-        callbacks.onBatchToggleFolders as Mock
-      ).mock.calls[0] as [string[], string[]];
+      const [toCollapse, toExpand] = (callbacks.onBatchToggleFolders as Mock)
+        .mock.calls[0] as [string[], string[]];
       expect(toCollapse).toEqual([]);
       expect([...toExpand].sort()).toEqual([...paths].sort());
       expect(notices()).toEqual(["All folders expanded"]);
@@ -1390,7 +1417,11 @@ describe("Sidebar header (characterization)", () => {
     });
 
     it("marks overflow on the left only when scrolled to the end", () => {
-      layout(iconRow(), { scrollLeft: 200, clientWidth: 100, scrollWidth: 300 });
+      layout(iconRow(), {
+        scrollLeft: 200,
+        clientWidth: 100,
+        scrollWidth: 300,
+      });
 
       iconRow().dispatchEvent(new Event("scroll"));
 
@@ -1412,9 +1443,9 @@ describe("Sidebar header (characterization)", () => {
 
       expect(fades).toHaveBeenCalledTimes(1);
       expect(
-        parent.querySelector(".rss-icon-row-wrapper")?.classList.contains(
-          "has-overflow-left",
-        ),
+        parent
+          .querySelector(".rss-icon-row-wrapper")
+          ?.classList.contains("has-overflow-left"),
       ).toBe(false);
     });
   });

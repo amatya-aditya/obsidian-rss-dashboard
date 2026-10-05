@@ -64,12 +64,10 @@ export function migrateDefaultFilterToDashboardMultiFilters(
         logic?: string;
       },
 ): void {
-  const statusFiltersRaw = (
-    dashboardMultiFilters as Record<string, unknown>
-  ).statusFilters;
-  const tagFiltersRaw = (
-    dashboardMultiFilters as Record<string, unknown>
-  ).tagFilters;
+  const statusFiltersRaw = (dashboardMultiFilters as Record<string, unknown>)
+    .statusFilters;
+  const tagFiltersRaw = (dashboardMultiFilters as Record<string, unknown>)
+    .tagFilters;
 
   const statusFilters = Array.isArray(statusFiltersRaw)
     ? statusFiltersRaw.filter((v): v is string => typeof v === "string")

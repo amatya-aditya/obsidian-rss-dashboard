@@ -16,7 +16,8 @@ import {
 } from "./reader-html-cleanup";
 
 /** Which view the reader gives an item (see `ReaderView.displayItem`). */
-export type ReaderMediaRoute = "video" | "video-podcast" | "podcast" | "article";
+export type ReaderMediaRoute =
+  "video" | "video-podcast" | "podcast" | "article";
 
 /**
  * Clears the saved flag, the saved path and the Saved tag on an item whose
@@ -116,7 +117,8 @@ export function resolveFallbackHeroUrl(
 
   // Avoid using the feed icon (logo) as the article hero image.
   if (fallbackHeroUrl && item.feedUrl) {
-    const feedIconUrl = feeds.find((f) => f.url === item.feedUrl)?.iconUrl || "";
+    const feedIconUrl =
+      feeds.find((f) => f.url === item.feedUrl)?.iconUrl || "";
     const normalize = (u: string) => u.trim().replace(/\/$/, "");
     if (feedIconUrl && normalize(fallbackHeroUrl) === normalize(feedIconUrl)) {
       fallbackHeroUrl = undefined;
@@ -155,7 +157,8 @@ export function selectArticleSections(
   fullContent: string | undefined,
 ): ArticleSections {
   const descriptionHtml = (item.description || "").trim();
-  const hasMeaningfulDescription = hasMeaningfulFeedDescription(descriptionHtml);
+  const hasMeaningfulDescription =
+    hasMeaningfulFeedDescription(descriptionHtml);
   const mainHtml = (fullContent || item.content || "").trim();
 
   const hasDistinctMainContent =
@@ -244,7 +247,13 @@ export function placeHeroImage(
   const firstImg = findFirstNonFormulaImage(doc.body);
 
   if (heroSlot.childElementCount === 0) {
-    fillEmptyHeroSlot(heroSlot, firstImg, fallbackHeroUrl, title, setupLightbox);
+    fillEmptyHeroSlot(
+      heroSlot,
+      firstImg,
+      fallbackHeroUrl,
+      title,
+      setupLightbox,
+    );
   } else {
     dropLeadImageRepeatingHero(heroSlot, firstImg);
   }
@@ -324,7 +333,8 @@ export function getReaderImageFilename(img: HTMLImageElement): string {
   }
 }
 
-const GENERIC_IMAGE_ALT = /^(?:image|photo|picture|graphic|thumbnail|logo|icon)(?:\s+\d+)?$/i;
+const GENERIC_IMAGE_ALT =
+  /^(?:image|photo|picture|graphic|thumbnail|logo|icon)(?:\s+\d+)?$/i;
 
 /** Combines meaningful alt text and an image filename for the Reader tooltip. */
 export function buildReaderImageTooltipText(
@@ -343,7 +353,10 @@ export function buildReaderImageTooltipText(
   const usefulFilename = filename.trim();
 
   if (!usefulAlt) return usefulFilename;
-  if (!usefulFilename || usefulAlt.toLocaleLowerCase() === usefulFilename.toLocaleLowerCase()) {
+  if (
+    !usefulFilename ||
+    usefulAlt.toLocaleLowerCase() === usefulFilename.toLocaleLowerCase()
+  ) {
     return usefulAlt;
   }
   return `${usefulAlt} — ${usefulFilename}`;

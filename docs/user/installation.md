@@ -38,6 +38,7 @@ Install by directly downloading release files and copying them to your plugins d
 2. Create a folder named `rss-dashboard` in your vault's `.obsidian/plugins` directory.
 
 3. Copy the downloaded files into that folder:
+
    ```
    .obsidian/plugins/rss-dashboard/
    ├── manifest.json

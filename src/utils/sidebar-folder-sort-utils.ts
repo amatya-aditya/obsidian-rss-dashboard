@@ -7,7 +7,10 @@ export interface FolderSortOrder {
   ascending: boolean;
 }
 
-function partitionPinned(folders: Folder[]): { pinned: Folder[]; unpinned: Folder[] } {
+function partitionPinned(folders: Folder[]): {
+  pinned: Folder[];
+  unpinned: Folder[];
+} {
   const pinned: Folder[] = [];
   const unpinned: Folder[] = [];
   for (const folder of folders) {
@@ -17,10 +20,7 @@ function partitionPinned(folders: Folder[]): { pinned: Folder[]; unpinned: Folde
   return { pinned, unpinned };
 }
 
-function sortGroup(
-  group: Folder[],
-  sortOrder: FolderSortOrder,
-): Folder[] {
+function sortGroup(group: Folder[], sortOrder: FolderSortOrder): Folder[] {
   if (sortOrder.by === "custom") return [...group];
 
   const ascendingFactor = sortOrder.ascending ? 1 : -1;

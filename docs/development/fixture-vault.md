@@ -10,25 +10,25 @@ storage migration can damage, and its state can't be shared or reset.
 
 ## Layout
 
-| Path | What it is |
-| --- | --- |
-| `test_files/fixture-vault/` | The pristine template, tracked in git. Testing never changes it. |
-| `.fixture-vault/` | The working copy you open in Obsidian. Gitignored and disposable. |
-| `scripts/setup-fixture-vault.mjs` | Creates or resets a working copy and installs the current build (`npm run fixture:vault`). |
-| `scripts/generate-fixture-vault.mjs` | Regenerates the template's seeded plugin data (`npm run fixture:vault:generate`). |
+| Path                                 | What it is                                                                                 |
+| ------------------------------------ | ------------------------------------------------------------------------------------------ |
+| `test_files/fixture-vault/`          | The pristine template, tracked in git. Testing never changes it.                           |
+| `.fixture-vault/`                    | The working copy you open in Obsidian. Gitignored and disposable.                          |
+| `scripts/setup-fixture-vault.mjs`    | Creates or resets a working copy and installs the current build (`npm run fixture:vault`). |
+| `scripts/generate-fixture-vault.mjs` | Regenerates the template's seeded plugin data (`npm run fixture:vault:generate`).          |
 
 Inside the template:
 
-| Path | Contents |
-| --- | --- |
-| `.obsidian/community-plugins.json` | Enables `rss-dashboard`. The build is copied in by the setup script. |
-| `.obsidian/plugins/rss-dashboard/data.json` | The plugin's bootstrap pointer to the vault metadata folder. |
-| `rss-dashboard-data/data.json` | Plugin settings, feed list, folders, and tags. |
-| `rss-dashboard-data/feeds/<feedId>.json` | One Shard storage v2 article shard per feed. |
-| `rss-dashboard-data/user-state.json` | Read, starred, saved, tag, and playback state, keyed `feedId:guid`. |
-| `import-fixtures/` | One file for each import dialog. |
-| `saved-articles/` | The note behind the seeded saved article. |
-| `welcome.md`, `notes/` | Ordinary notes, so the vault looks like a real one. |
+| Path                                        | Contents                                                             |
+| ------------------------------------------- | -------------------------------------------------------------------- |
+| `.obsidian/community-plugins.json`          | Enables `rss-dashboard`. The build is copied in by the setup script. |
+| `.obsidian/plugins/rss-dashboard/data.json` | The plugin's bootstrap pointer to the vault metadata folder.         |
+| `rss-dashboard-data/data.json`              | Plugin settings, feed list, folders, and tags.                       |
+| `rss-dashboard-data/feeds/<feedId>.json`    | One Shard storage v2 article shard per feed.                         |
+| `rss-dashboard-data/user-state.json`        | Read, starred, saved, tag, and playback state, keyed `feedId:guid`.  |
+| `import-fixtures/`                          | One file for each import dialog.                                     |
+| `saved-articles/`                           | The note behind the seeded saved article.                            |
+| `welcome.md`, `notes/`                      | Ordinary notes, so the vault looks like a real one.                  |
 
 The data uses **Shard storage v2**, the current default, with the storage and
 metadata folders visible (`rss-dashboard-data/`, not a dot-folder) so you can
@@ -58,14 +58,14 @@ would write its workspace back into the new copy.
 
 Options, passed after `--`:
 
-| Command | Effect |
-| --- | --- |
-| `npm run fixture:vault -- <folder>` | Create or reset the vault in another folder. |
-| `npm run fixture:vault -- --plugin-only` | Copy a new build into the existing vault without resetting its data. |
-| `npm run fixture:vault -- --storage legacy-json` | Seed the same content in deprecated Legacy JSON storage. |
-| `npm run fixture:vault -- --storage shard-v1` | Seed the same content in deprecated Shard storage v1. |
-| `npm run fixture:vault -- --show-whats-new` | Leave the last shown version unset, so What's New opens on first launch. |
-| `npm run fixture:vault -- --help` | Print the usage. |
+| Command                                          | Effect                                                                   |
+| ------------------------------------------------ | ------------------------------------------------------------------------ |
+| `npm run fixture:vault -- <folder>`              | Create or reset the vault in another folder.                             |
+| `npm run fixture:vault -- --plugin-only`         | Copy a new build into the existing vault without resetting its data.     |
+| `npm run fixture:vault -- --storage legacy-json` | Seed the same content in deprecated Legacy JSON storage.                 |
+| `npm run fixture:vault -- --storage shard-v1`    | Seed the same content in deprecated Shard storage v1.                    |
+| `npm run fixture:vault -- --show-whats-new`      | Leave the last shown version unset, so What's New opens on first launch. |
+| `npm run fixture:vault -- --help`                | Print the usage.                                                         |
 
 The script replaces a folder only when it is empty or carries the
 `.rss-dashboard-fixture-vault.json` marker it writes, and it refuses folders
@@ -108,13 +108,18 @@ result must come from a known build and a clean vault.
   the native file picker:
 
   ```js
-  const plugin = app.plugins.plugins['rss-dashboard'];
-  const text = await app.vault.adapter.read('import-fixtures/rss-dashboard-feed-bundle.json');
-  await plugin.importFeedBundleFromFile(new File([text], 'rss-dashboard-feed-bundle.json'));
+  const plugin = app.plugins.plugins["rss-dashboard"];
+  const text = await app.vault.adapter.read(
+    "import-fixtures/rss-dashboard-feed-bundle.json",
+  );
+  await plugin.importFeedBundleFromFile(
+    new File([text], "rss-dashboard-feed-bundle.json"),
+  );
   ```
 
   The other entry points are `importPortableDataBundleFromFile`,
   `importSettingsBundleFromFile`, and `importUserSettingsJsonFromFile`.
+
 - **Use top-level `await` in the console.** An async IIFE prints only
   `Promise {<pending>}`.
 - **Check the files on disk, not only the UI.** Open the file the refactor
@@ -132,34 +137,34 @@ result must come from a known build and a clean vault.
 progress. The automated test in
 `test_files/unit/main/fixture-vault-loading.test.ts` checks these counts.
 
-| Scenario | Where to find it |
-| --- | --- |
-| RSS feed | **GitHub Blog (fixture)**, folder `News/Tech` |
-| Atom feed | **RSS Dashboard releases (fixture)**, folder `News/Tech/Releases` |
-| JSON Feed | **JSON Feed (fixture)**, folder `News` |
-| YouTube feed | **Google for Developers (fixture)**, folder `Videos` |
-| Podcast feed | **The Changelog (fixture)**, folder `Podcasts` |
-| Mastodon feed | **Mastodon (fixture)**, folder `Mastodon`; posts have no title |
-| Small web feed | **Kagi Small Web (fixture)**, folder `Smallweb` (the default small web folder) |
-| Feed in the root | **RSS 2.0 sample (fixture, one article)** |
-| Nested folders | `News` → `Tech` → `Releases`; `News` is pinned and `News/Tech` has an auto-tag |
-| Empty folder | `Empty` |
-| Feed with no articles | **Hacker News (fixture, no articles)** |
-| Feed with one article | **RSS 2.0 sample (fixture, one article)** |
-| Feed with many articles | **BBC Technology (fixture, 120 articles)**, folder `Bulk`: every third read, every 25th starred, every 40th tagged, every fourth with an image |
-| Feed with a fetch error | **Unreachable feed (fixture)**: shows the error badge; its URL never resolves |
-| Unread article with an image | GitHub Blog: "Unread article with a preview image" |
-| Read article without an image | GitHub Blog: "Read article without a preview image" |
-| Starred, several tags | GitHub Blog: "Starred article with two tags" (Important, Research) |
-| Saved article | GitHub Blog: "Fixture guide to offline reading", saved to `saved-articles/` |
-| Long article | GitHub Blog: "A very long article for reader layout checks": headings, figure, list, quote, code, table |
-| Resized CDN image | GitHub Blog: "CDN image resizing": an inline Cloudinary demo image with `w_300,c_scale` in its URL; the lightbox should load the original (`.../image/upload/sample.jpg`) |
-| Paywalled article | GitHub Blog: "Paywalled article showing only an excerpt" |
-| Undated articles | GitHub Blog: two undated articles, one with a first-seen date and one without |
-| Imported starred article | JSON Feed: "Starred article imported from starred.json" (cached preview banner) |
-| Video with playback progress | Google for Developers: "Placeholder video two, half watched" |
-| Podcast with playback progress | The Changelog: "Fixture episode 4", about 40% played |
-| Tags | Important, Read later, Video, Podcast, Research, Reference, RSS (all used, in different colors) and Unused (defined, never applied) |
+| Scenario                       | Where to find it                                                                                                                                                          |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| RSS feed                       | **GitHub Blog (fixture)**, folder `News/Tech`                                                                                                                             |
+| Atom feed                      | **RSS Dashboard releases (fixture)**, folder `News/Tech/Releases`                                                                                                         |
+| JSON Feed                      | **JSON Feed (fixture)**, folder `News`                                                                                                                                    |
+| YouTube feed                   | **Google for Developers (fixture)**, folder `Videos`                                                                                                                      |
+| Podcast feed                   | **The Changelog (fixture)**, folder `Podcasts`                                                                                                                            |
+| Mastodon feed                  | **Mastodon (fixture)**, folder `Mastodon`; posts have no title                                                                                                            |
+| Small web feed                 | **Kagi Small Web (fixture)**, folder `Smallweb` (the default small web folder)                                                                                            |
+| Feed in the root               | **RSS 2.0 sample (fixture, one article)**                                                                                                                                 |
+| Nested folders                 | `News` → `Tech` → `Releases`; `News` is pinned and `News/Tech` has an auto-tag                                                                                            |
+| Empty folder                   | `Empty`                                                                                                                                                                   |
+| Feed with no articles          | **Hacker News (fixture, no articles)**                                                                                                                                    |
+| Feed with one article          | **RSS 2.0 sample (fixture, one article)**                                                                                                                                 |
+| Feed with many articles        | **BBC Technology (fixture, 120 articles)**, folder `Bulk`: every third read, every 25th starred, every 40th tagged, every fourth with an image                            |
+| Feed with a fetch error        | **Unreachable feed (fixture)**: shows the error badge; its URL never resolves                                                                                             |
+| Unread article with an image   | GitHub Blog: "Unread article with a preview image"                                                                                                                        |
+| Read article without an image  | GitHub Blog: "Read article without a preview image"                                                                                                                       |
+| Starred, several tags          | GitHub Blog: "Starred article with two tags" (Important, Research)                                                                                                        |
+| Saved article                  | GitHub Blog: "Fixture guide to offline reading", saved to `saved-articles/`                                                                                               |
+| Long article                   | GitHub Blog: "A very long article for reader layout checks": headings, figure, list, quote, code, table                                                                   |
+| Resized CDN image              | GitHub Blog: "CDN image resizing": an inline Cloudinary demo image with `w_300,c_scale` in its URL; the lightbox should load the original (`.../image/upload/sample.jpg`) |
+| Paywalled article              | GitHub Blog: "Paywalled article showing only an excerpt"                                                                                                                  |
+| Undated articles               | GitHub Blog: two undated articles, one with a first-seen date and one without                                                                                             |
+| Imported starred article       | JSON Feed: "Starred article imported from starred.json" (cached preview banner)                                                                                           |
+| Video with playback progress   | Google for Developers: "Placeholder video two, half watched"                                                                                                              |
+| Podcast with playback progress | The Changelog: "Fixture episode 4", about 40% played                                                                                                                      |
+| Tags                           | Important, Read later, Video, Podcast, Research, Reference, RSS (all used, in different colors) and Unused (defined, never applied)                                       |
 
 Every feed URL is a real public feed, so a manual refresh works and adds that
 feed's current articles next to the seeded ones. Everything above displays
@@ -178,15 +183,15 @@ or a credential.
 
 ## Import fixtures
 
-| File | Import dialog | What it tests |
-| --- | --- | --- |
-| `feeds.opml` | Import OPML/XML | Nested folders, a feed outside any folder, and one feed the vault already follows. |
-| `starred.json` | Import starred articles | A Google Reader compatible export: one article from a followed feed, one from a new feed, `Read later` and new labels, and one entry the importer rejects for having no article link. |
-| `rss-dashboard-feed-bundle.json` | Import feed bundle | Two feeds in nested folders with articles and state. Replaces the vault's feeds. |
-| `rss-dashboard-settings-bundle.json` | Import settings bundle | List view, oldest first, grouped by feed. Keeps the storage location. |
-| `rss-dashboard-portable-bundle.json` | Import portable data bundle | One feed with four articles plus the settings above. Replaces everything. |
-| `rss-dashboard-user-preferences.json` | Import user preferences | Preferences only: an Overwriting import that keeps feeds, folders, and tags. |
-| `preferences-folders-and-tags-only.json` | Import user preferences | Folders and tags with no `feeds` key: a Replacing import that keeps the vault's feeds. |
+| File                                     | Import dialog               | What it tests                                                                                                                                                                         |
+| ---------------------------------------- | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `feeds.opml`                             | Import OPML/XML             | Nested folders, a feed outside any folder, and one feed the vault already follows.                                                                                                    |
+| `starred.json`                           | Import starred articles     | A Google Reader compatible export: one article from a followed feed, one from a new feed, `Read later` and new labels, and one entry the importer rejects for having no article link. |
+| `rss-dashboard-feed-bundle.json`         | Import feed bundle          | Two feeds in nested folders with articles and state. Replaces the vault's feeds.                                                                                                      |
+| `rss-dashboard-settings-bundle.json`     | Import settings bundle      | List view, oldest first, grouped by feed. Keeps the storage location.                                                                                                                 |
+| `rss-dashboard-portable-bundle.json`     | Import portable data bundle | One feed with four articles plus the settings above. Replaces everything.                                                                                                             |
+| `rss-dashboard-user-preferences.json`    | Import user preferences     | Preferences only: an Overwriting import that keeps feeds, folders, and tags.                                                                                                          |
+| `preferences-folders-and-tags-only.json` | Import user preferences     | Folders and tags with no `feeds` key: a Replacing import that keeps the vault's feeds.                                                                                                |
 
 `test_files/unit/services/fixture-vault-import-fixtures.test.ts` parses each
 file with the plugin's own parsers and validators.

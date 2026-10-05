@@ -82,7 +82,7 @@ future) an ad hoc tag is added to a candidate.
   the toggle/checkboxes, assert resulting settings mutations. No new test seam
   was introduced.
 - The pure mapper (`starred-import-mapper.ts`) and its existing test suite
-  were left unchanged — the toggle only gates how the modal *uses* the tags
+  were left unchanged — the toggle only gates how the modal _uses_ the tags
   the mapper already assigned, so there was no mapper-level behavior to
   update tests for.
 - New modal tests cover: the toggle's presence/default/dimming, the "New

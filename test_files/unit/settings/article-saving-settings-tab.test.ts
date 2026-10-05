@@ -404,8 +404,8 @@ describe("Article Saving settings help text", () => {
       helpText?.querySelectorAll(".rss-dashboard-variable-list li") ?? [],
     ).map((li) => li.textContent);
 
-    expect(
-      listItems.some((text) => text?.startsWith("{{firstSeen}}")),
-    ).toBe(true);
+    expect(listItems.some((text) => text?.startsWith("{{firstSeen}}"))).toBe(
+      true,
+    );
   });
 });

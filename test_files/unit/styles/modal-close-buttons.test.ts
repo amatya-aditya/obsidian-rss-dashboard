@@ -65,9 +65,7 @@ describe("Modal stylesheet - native close buttons", () => {
   });
 
   it("styles both Obsidian close button generations in mobile modals", () => {
-    expectBothNativeCloseButtonSelectors(
-      ".modal.rss-mobile-navigation-modal ",
-    );
+    expectBothNativeCloseButtonSelectors(".modal.rss-mobile-navigation-modal ");
     expectBothNativeCloseButtonSelectors(
       ".modal.rss-mobile-discover-filters-modal ",
     );

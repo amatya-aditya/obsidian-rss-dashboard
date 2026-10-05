@@ -183,7 +183,8 @@ export function renderImportExportSettingsTab(
               const file = input.files?.[0];
               if (!file) return;
               try {
-                const result = await plugin.importPortableDataBundleFromFile(file);
+                const result =
+                  await plugin.importPortableDataBundleFromFile(file);
                 if (result !== "committed") return;
                 new ImportSuccessModal(
                   plugin.app,
@@ -359,7 +360,8 @@ export function renderImportExportSettingsTab(
               const file = input.files?.[0];
               if (!file) return;
               try {
-                const result = await plugin.importUserSettingsJsonFromFile(file);
+                const result =
+                  await plugin.importUserSettingsJsonFromFile(file);
                 if (result !== "committed") return;
                 new ImportSuccessModal(
                   plugin.app,

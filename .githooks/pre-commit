@@ -5,6 +5,12 @@ if [ "$SKIP_GIT_HOOKS" = "1" ]; then
   exit 0
 fi
 
+echo "[pre-commit] Formatting staged files..."
+npx --no-install lint-staged
+if [ $? -ne 0 ]; then
+  exit 1
+fi
+
 echo "[pre-commit] Running compliance checks..."
 npm run --silent check:compliance
 if [ $? -ne 0 ]; then

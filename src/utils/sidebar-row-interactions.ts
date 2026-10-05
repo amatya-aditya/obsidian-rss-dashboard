@@ -105,7 +105,8 @@ export function resolveMovedCurrentFolder(
 ): string | null {
   if (
     currentFolder &&
-    (currentFolder === draggedPath || currentFolder.startsWith(`${draggedPath}/`))
+    (currentFolder === draggedPath ||
+      currentFolder.startsWith(`${draggedPath}/`))
   ) {
     const remappedFolder = remapPathPrefix(currentFolder, draggedPath, newPath);
     return remappedFolder === currentFolder ? null : remappedFolder;

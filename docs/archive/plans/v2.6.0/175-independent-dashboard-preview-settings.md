@@ -43,12 +43,12 @@ remote image loading, while leaving preview summaries available when requested.
 Both preferences apply immediately after the user changes them: save the value
 and rerender the active dashboard in either Card or Feed view.
 
-| Show cover images | Show summary | Dashboard result |
-| --- | --- | --- |
-| On | On | Cover-image preview plus summary overlay in Card View; cover-image preview plus preview summary in Feed View. |
-| On | Off | Cover-image preview only; Card View retains the image on hover. |
-| Off | On | Preview summary only. |
-| Off | Off | Neither preview element is produced. |
+| Show cover images | Show summary | Dashboard result                                                                                              |
+| ----------------- | ------------ | ------------------------------------------------------------------------------------------------------------- |
+| On                | On           | Cover-image preview plus summary overlay in Card View; cover-image preview plus preview summary in Feed View. |
+| On                | Off          | Cover-image preview only; Card View retains the image on hover.                                               |
+| Off               | On           | Preview summary only.                                                                                         |
+| Off               | Off          | Neither preview element is produced.                                                                          |
 
 When **Show cover images** is off, Card and Feed renderers must not call their
 dashboard preview-image resolver and must not create an image or Feed blur

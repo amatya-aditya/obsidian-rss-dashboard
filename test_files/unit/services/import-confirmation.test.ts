@@ -82,7 +82,9 @@ function feedBundle() {
         lastUpdated: 0,
       },
     ],
-    folders: [{ name: "Imported", subfolders: [], createdAt: 0, modifiedAt: 0 }],
+    folders: [
+      { name: "Imported", subfolders: [], createdAt: 0, modifiedAt: 0 },
+    ],
     availableTags: [],
     shards: [
       {
@@ -238,7 +240,9 @@ describe("Import confirmation", () => {
 
     it("writes nothing and reports a canceled import when the user cancels", async () => {
       const importSettingsBundle = vi.fn();
-      const result = await service(importSettingsBundle).importSettingsBundleFromFile(
+      const result = await service(
+        importSettingsBundle,
+      ).importSettingsBundleFromFile(
         jsonFile(settingsBundle({ refreshInterval: 5 }), "settings.json"),
       );
 
@@ -251,9 +255,9 @@ describe("Import confirmation", () => {
       const importSettingsBundle = vi.fn();
       const bundle = settingsBundle({ refreshInterval: 5 });
 
-      const result = await service(importSettingsBundle).importSettingsBundleFromFile(
-        jsonFile(bundle, "settings.json"),
-      );
+      const result = await service(
+        importSettingsBundle,
+      ).importSettingsBundleFromFile(jsonFile(bundle, "settings.json"));
 
       expect(importSettingsBundle).toHaveBeenCalledWith(bundle);
       expect(result).toBe("committed");
@@ -337,7 +341,10 @@ describe("Import confirmation", () => {
     it("names a storage folder or mode change, before and after", async () => {
       await service().importSettingsBundleFromFile(
         jsonFile(
-          settingsBundle({ storageMode: "vault-shards", storageFolder: "RSS/feeds/" }),
+          settingsBundle({
+            storageMode: "vault-shards",
+            storageFolder: "RSS/feeds/",
+          }),
           "settings.json",
         ),
       );
@@ -346,7 +353,10 @@ describe("Import confirmation", () => {
         expect.objectContaining({
           storageLocationChange: {
             feedStorage: {
-              before: { mode: "vault-shards-v2", folder: ".rss-dashboard-data/feeds" },
+              before: {
+                mode: "vault-shards-v2",
+                folder: ".rss-dashboard-data/feeds",
+              },
               after: { mode: "vault-shards", folder: "RSS/feeds" },
             },
             metadataStorage: null,
@@ -477,8 +487,14 @@ describe("Import confirmation", () => {
         preferences: { changedCount: 2, highImpactChanges: [] },
         storageLocationChange: {
           feedStorage: {
-            before: { mode: "vault-shards-v2", folder: ".rss-dashboard-data/feeds" },
-            after: { mode: "vault-shards", folder: ".rss-dashboard-data/feeds" },
+            before: {
+              mode: "vault-shards-v2",
+              folder: ".rss-dashboard-data/feeds",
+            },
+            after: {
+              mode: "vault-shards",
+              folder: ".rss-dashboard-data/feeds",
+            },
           },
           metadataStorage: null,
         },
@@ -500,7 +516,8 @@ describe("Import confirmation", () => {
       return new ImportExportService({
         settings: currentSettings(),
         isMobile: false,
-        importUserPreferences: importUserPreferences.mockResolvedValue(undefined),
+        importUserPreferences:
+          importUserPreferences.mockResolvedValue(undefined),
         confirmImport,
         getUnloadedFeedCount: () => 0,
       });
@@ -541,7 +558,13 @@ describe("Import confirmation", () => {
         expect.objectContaining({
           kind: "replacing",
           feedData: expect.objectContaining({
-            incoming: { feeds: 3, articles: 4, starred: 2, folders: 0, tags: 3 },
+            incoming: {
+              feeds: 3,
+              articles: 4,
+              starred: 2,
+              folders: 0,
+              tags: 3,
+            },
           }),
         }),
       );
@@ -564,7 +587,10 @@ describe("Import confirmation", () => {
         preferences: { changedCount: 2, highImpactChanges: [] },
         storageLocationChange: {
           feedStorage: {
-            before: { mode: "vault-shards-v2", folder: ".rss-dashboard-data/feeds" },
+            before: {
+              mode: "vault-shards-v2",
+              folder: ".rss-dashboard-data/feeds",
+            },
             after: { mode: "vault-shards-v2", folder: "RSS/feeds" },
           },
           metadataStorage: null,

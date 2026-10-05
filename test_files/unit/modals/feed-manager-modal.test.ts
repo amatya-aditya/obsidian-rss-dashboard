@@ -71,7 +71,9 @@ describe("FeedManagerModal", () => {
     )[0] as HTMLElement;
     expect(confirmation.textContent).toContain("1.0 KB");
 
-    const confirmButton = Array.from(confirmation.querySelectorAll("button")).find(
+    const confirmButton = Array.from(
+      confirmation.querySelectorAll("button"),
+    ).find(
       (button) => button.textContent === "Delete all feeds",
     ) as HTMLButtonElement;
     confirmButton.click();
@@ -111,23 +113,28 @@ describe("FeedManagerModal", () => {
       plugin as unknown as RssDashboardPlugin,
     );
     modal.open();
-    (modal.contentEl.querySelector(
-      ".feed-manager-delete-all-button",
-    ) as HTMLButtonElement).click();
+    (
+      modal.contentEl.querySelector(
+        ".feed-manager-delete-all-button",
+      ) as HTMLButtonElement
+    ).click();
 
     const confirmation = document.querySelector(
       ".rss-dashboard-confirm-modal",
     ) as HTMLElement;
-    (Array.from(confirmation.querySelectorAll("button")).find(
-      (button) => button.textContent === "Delete all feeds",
-    ) as HTMLButtonElement).click();
+    (
+      Array.from(confirmation.querySelectorAll("button")).find(
+        (button) => button.textContent === "Delete all feeds",
+      ) as HTMLButtonElement
+    ).click();
     await flushPromises();
 
     expect(
       noticeSpy.mock.calls.some(
         ([prefix, message]) =>
           prefix === "[Stub Notice]" &&
-          message === "All feeds deleted, but 1 cached image could not be removed.",
+          message ===
+            "All feeds deleted, but 1 cached image could not be removed.",
       ),
     ).toBe(true);
   });
@@ -284,7 +291,10 @@ describe("FeedManagerModal", () => {
   });
 
   it("uses theme text color for the default import and export button labels", () => {
-    const stylesheet = readFileSync("src/styles/feed-manager-modal.css", "utf8");
+    const stylesheet = readFileSync(
+      "src/styles/feed-manager-modal.css",
+      "utf8",
+    );
     const actionClasses = [
       "feed-manager-import-button",
       "feed-manager-export-button",
@@ -294,7 +304,9 @@ describe("FeedManagerModal", () => {
     for (const actionClass of actionClasses) {
       const selector = `.feed-manager-button-row button.${actionClass}`;
       const rule = stylesheet.match(
-        new RegExp(`\\.feed-manager-button-row button\\.${actionClass}\\s*\\{([^}]*)\\}`),
+        new RegExp(
+          `\\.feed-manager-button-row button\\.${actionClass}\\s*\\{([^}]*)\\}`,
+        ),
       );
 
       expect(rule, `missing CSS rule for ${selector}`).not.toBeNull();

@@ -36,8 +36,7 @@
   font-weight: 600;
 }
 
-.rss-dashboard-filter-subheader
-  .rss-dashboard-user-state-alert:last-child {
+.rss-dashboard-filter-subheader .rss-dashboard-user-state-alert:last-child {
   margin-bottom: 0;
 }
 

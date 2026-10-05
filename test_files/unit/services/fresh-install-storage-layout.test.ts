@@ -83,7 +83,9 @@ describe("fresh install storage layout", () => {
     // user-state.json follows metadataStorageFolder regardless of mode.
     expect(adapterWrites).toContain(".rss-dashboard-data/user-state.json");
     expect(
-      adapterWrites.some((p) => /^\.rss-dashboard-data\/feeds\/.+\.json$/.test(p)),
+      adapterWrites.some((p) =>
+        /^\.rss-dashboard-data\/feeds\/.+\.json$/.test(p),
+      ),
     ).toBe(true);
   });
 });

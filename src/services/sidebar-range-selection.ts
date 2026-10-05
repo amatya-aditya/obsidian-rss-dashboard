@@ -73,9 +73,7 @@ function collectRangeSelectedFeeds(
         if (k.startsWith("feed:")) {
           const feedUrl = k.substring("feed:".length);
           const feed = input.feeds.find((f) => f.url === feedUrl);
-          return (
-            feed && feed.folder && descendantFolders.includes(feed.folder)
-          );
+          return feed && feed.folder && descendantFolders.includes(feed.folder);
         }
         return false;
       });
@@ -169,10 +167,7 @@ function resolveFullySelectedFolders(
       input.findFolderByPath(folderPath)
     ) {
       finalSelectedFolders.add(folderPath);
-    } else if (
-      feedCount === 0 &&
-      rangeKeys.includes(`folder:${folderPath}`)
-    ) {
+    } else if (feedCount === 0 && rangeKeys.includes(`folder:${folderPath}`)) {
       // If it's empty but explicitly clicked/in range, select it anyway
       finalSelectedFolders.add(folderPath);
     }

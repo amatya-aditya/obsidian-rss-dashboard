@@ -56,4 +56,3 @@ describe("migrateDefaultFilterToDashboardMultiFilters()", () => {
     expect(mf2).toEqual({ statusFilters: [], tagFilters: [], logic: "OR" });
   });
 });
-

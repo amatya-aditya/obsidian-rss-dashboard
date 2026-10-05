@@ -92,7 +92,10 @@ interface TestDashboardView {
   filterLogic: "AND" | "OR";
   matchesFilters(
     item: FeedItem,
-    options?: { ignoreDashboardMultiFilters?: boolean; ignoreAgeFilter?: boolean },
+    options?: {
+      ignoreDashboardMultiFilters?: boolean;
+      ignoreAgeFilter?: boolean;
+    },
   ): boolean;
 }
 
@@ -116,7 +119,11 @@ describe("Dashboard starred/tag filter independence (GH Issue #333)", () => {
     starred: true,
     tags: [{ name: "Favorite", color: "#f1c40f" }],
   });
-  const starredUntagged = makeItem({ guid: "starred-untagged", starred: true, tags: [] });
+  const starredUntagged = makeItem({
+    guid: "starred-untagged",
+    starred: true,
+    tags: [],
+  });
   const unstarredTagged = makeItem({
     guid: "unstarred-tagged",
     starred: false,

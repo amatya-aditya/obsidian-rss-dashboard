@@ -74,7 +74,10 @@ function renderArticleCard(
       ) {
         heroImage.dataset.rssCacheRemoteFallback = "true";
         heroImage.setAttribute("src", coverImgSrc);
-        heroBlur.setAttribute("style", `background-image: url('${coverImgSrc}')`);
+        heroBlur.setAttribute(
+          "style",
+          `background-image: url('${coverImgSrc}')`,
+        );
       }
     };
   }
@@ -157,7 +160,9 @@ function renderArticleCard(
   const dateInfo = formatArticleDate(
     displayDate,
     ctx.settings.display.articleDateStyle ?? "relative",
-    { isFirstSeenFallback: getPubDateMs(article.pubDate) <= 0 && !!displayDate },
+    {
+      isFirstSeenFallback: getPubDateMs(article.pubDate) <= 0 && !!displayDate,
+    },
   );
   dateEl.textContent = dateInfo.text;
   setTooltip(dateEl, dateInfo.title);
@@ -231,7 +236,11 @@ export function renderFeedView(
       const iconContainer = sectionHeader.createDiv({
         cls: "rss-dashboard-feed-section-icon",
       });
-      deps.renderFeedIcon(iconContainer, firstArticle.feedUrl, firstArticle.mediaType);
+      deps.renderFeedIcon(
+        iconContainer,
+        firstArticle.feedUrl,
+        firstArticle.mediaType,
+      );
     }
 
     // Create header text

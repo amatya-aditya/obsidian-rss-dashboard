@@ -148,4 +148,3 @@ describe("computeSubmenuPosition()", () => {
     expect(result.maxHeight).toBe(viewport.height - margin * 2);
   });
 });
-

@@ -69,7 +69,9 @@ describe("isLocalGitSpawnPermissionError", () => {
   });
 
   it("does not skip other Git failures", () => {
-    expect(isLocalGitSpawnPermissionError({ code: "ENOENT" }, false)).toBe(false);
+    expect(isLocalGitSpawnPermissionError({ code: "ENOENT" }, false)).toBe(
+      false,
+    );
     expect(isLocalGitSpawnPermissionError({ status: 1 }, false)).toBe(false);
   });
 });
@@ -78,13 +80,14 @@ describe("compliance checks in a source archive without git", () => {
   it.each(SCRIPTS)("%s exits 0 and says it skipped", (script) => {
     const dir = makeSourceArchiveCopy();
 
-    const output = execFileSync(
-      execPath,
-      [join(dir, "scripts", script)],
-      { cwd: dir, encoding: "utf8" },
-    );
+    const output = execFileSync(execPath, [join(dir, "scripts", script)], {
+      cwd: dir,
+      encoding: "utf8",
+    });
 
-    expect(output).toContain(script.replace(/^check-/, "check:").replace(/.mjs$/, ""));
+    expect(output).toContain(
+      script.replace(/^check-/, "check:").replace(/.mjs$/, ""),
+    );
     expect(output).toContain("not a git checkout");
   });
 });

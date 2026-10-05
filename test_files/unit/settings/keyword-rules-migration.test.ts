@@ -47,7 +47,11 @@ describe("migrateKeywordRulesSettings()", () => {
           folder: "Work",
           items: [],
           lastUpdated: 0,
-          filters: { overrideGlobalFilters: true, includeLogic: "OR", rules: [] },
+          filters: {
+            overrideGlobalFilters: true,
+            includeLogic: "OR",
+            rules: [],
+          },
         },
       ],
     };
@@ -100,8 +104,16 @@ describe("migrateKeywordRulesSettings()", () => {
       filters: { includeLogic: "AND", bypassAll: true, rules: ["legacy"] },
       feeds: [
         {
-          keywordRules: { overrideGlobalRules: false, includeLogic: "OR", rules: [] },
-          filters: { overrideGlobalFilters: true, includeLogic: "AND", rules: ["legacy"] },
+          keywordRules: {
+            overrideGlobalRules: false,
+            includeLogic: "OR",
+            rules: [],
+          },
+          filters: {
+            overrideGlobalFilters: true,
+            includeLogic: "AND",
+            rules: ["legacy"],
+          },
         },
       ],
     };

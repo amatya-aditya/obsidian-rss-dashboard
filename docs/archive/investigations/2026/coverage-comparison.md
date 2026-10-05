@@ -4,12 +4,12 @@ This report documents the progress made in test coverage during March 2026, spec
 
 ## 📊 Global Metrics Comparison
 
-| Metric | Baseline (2026-03-29) | Current (2026-03-30) | Change | Status |
-| :--- | :--- | :--- | :--- | :--- |
-| **Total Tests** | 590+ | 701 | **+111** | 🚀 |
-| **Line Coverage** | 42.22% | 46.20% | **+3.98%** | 📈 |
-| **Branch Coverage** | 32.38% | 35.96% | **+3.58%** | 📈 |
-| **Function Coverage** | 36.30% | 40.00% | **+3.70%** | 📈 |
+| Metric                | Baseline (2026-03-29) | Current (2026-03-30) | Change     | Status |
+| :-------------------- | :-------------------- | :------------------- | :--------- | :----- |
+| **Total Tests**       | 590+                  | 701                  | **+111**   | 🚀     |
+| **Line Coverage**     | 42.22%                | 46.20%               | **+3.98%** | 📈     |
+| **Branch Coverage**   | 32.38%                | 35.96%               | **+3.58%** | 📈     |
+| **Function Coverage** | 36.30%                | 40.00%               | **+3.70%** | 📈     |
 
 ---
 
@@ -18,18 +18,21 @@ This report documents the progress made in test coverage during March 2026, spec
 The primary goal of Phases 4-6 was to tackle high-impact components with little or no coverage.
 
 ### Phase 4: Sidebar Component
+
 - **File:** `src/components/sidebar.ts`
 - **Initial:** ~3.94% Lines
 - **Result:** **24.51% Lines** (Post Phase 4)
 - **Impact:** Stabilized the core sidebar orchestration and tag filtering logic.
 
 ### Phase 5: Highlight Service
+
 - **File:** `src/services/highlight-service.ts`
 - **Initial:** 0.00% Lines
 - **Result:** **89.14% Lines**
 - **Impact:** Secured the background highlighting logic, ensuring no regressions in user-defined keyword triggers.
 
 ### Phase 6: Dashboard View
+
 - **File:** `src/views/dashboard-view.ts`
 - **Initial:** ~22.05% Lines
 - **Result:** **52.04% Lines**

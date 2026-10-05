@@ -90,7 +90,10 @@ describe("EditTagModal", () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     expect(onSave).toHaveBeenCalledTimes(1);
-    expect(onSave).toHaveBeenCalledWith({ name: "Technology", color: "#111111" });
+    expect(onSave).toHaveBeenCalledWith({
+      name: "Technology",
+      color: "#111111",
+    });
     expect(events).toEqual(["save:open"]);
     expect(document.querySelector(".rss-dashboard-edit-tag-modal")).toBeNull();
   });

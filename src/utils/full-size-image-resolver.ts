@@ -9,7 +9,8 @@ export interface ResolvedImageSource {
   externalHref?: string;
 }
 
-const COMMON_IMAGE_EXTENSIONS = /\.(?:jpe?g|png|webp|gif|avif|svg|bmp)(?:[?#]|$)/i;
+const COMMON_IMAGE_EXTENSIONS =
+  /\.(?:jpe?g|png|webp|gif|avif|svg|bmp)(?:[?#]|$)/i;
 
 function isSubstackImageFetchUrl(url: string): boolean {
   const absolute = url.startsWith("//") ? `https:${url}` : url;
@@ -20,8 +21,14 @@ function isSubstackImageFetchUrl(url: string): boolean {
  * Checks whether an image element in reader content should trigger the full-resolution lightbox.
  * Filters out LaTeX formulas, 1x1 tracking pixels, and UI elements.
  */
-export function isLightboxEligibleImage(img: HTMLImageElement | null | undefined): boolean {
-  if (!img || typeof img.tagName !== "string" || img.tagName.toLowerCase() !== "img") {
+export function isLightboxEligibleImage(
+  img: HTMLImageElement | null | undefined,
+): boolean {
+  if (
+    !img ||
+    typeof img.tagName !== "string" ||
+    img.tagName.toLowerCase() !== "img"
+  ) {
     return false;
   }
 
@@ -64,7 +71,9 @@ export function isLightboxEligibleImage(img: HTMLImageElement | null | undefined
 /**
  * Parses a srcset attribute and returns the URL corresponding to the highest width or density.
  */
-export function extractHighestResolutionFromSrcset(srcset: string | null | undefined): string | null {
+export function extractHighestResolutionFromSrcset(
+  srcset: string | null | undefined,
+): string | null {
   const trimmed = (srcset || "").trim();
   if (!trimmed) return null;
 
@@ -134,13 +143,22 @@ export function stripCdnResizeParameters(rawUrl: string): string {
     }
 
     // Cloudinary /upload/w_...,c_scale/
-    if (hostMatches(trimmed, "cloudinary.com") && url.pathname.includes("/upload/")) {
-      url.pathname = url.pathname.replace(/\/upload\/[a-z]_[^/]+\//i, "/upload/");
+    if (
+      hostMatches(trimmed, "cloudinary.com") &&
+      url.pathname.includes("/upload/")
+    ) {
+      url.pathname = url.pathname.replace(
+        /\/upload\/[a-z]_[^/]+\//i,
+        "/upload/",
+      );
       return url.toString();
     }
 
     // Brightspot / NPR CDN resize
-    if (hostMatches(trimmed, "brightspotcdn.com") || hostMatches(trimmed, "media.npr.org")) {
+    if (
+      hostMatches(trimmed, "brightspotcdn.com") ||
+      hostMatches(trimmed, "media.npr.org")
+    ) {
       url.pathname = url.pathname.replace(/\/resize\/\d+x\d*!?\//g, "/");
       return url.toString();
     }
@@ -170,7 +188,9 @@ export function stripCdnResizeParameters(rawUrl: string): string {
 /**
  * Resolves the full-resolution image source and any enclosing external link for a reader image element.
  */
-export function resolveFullResolutionImageSource(img: HTMLImageElement): ResolvedImageSource {
+export function resolveFullResolutionImageSource(
+  img: HTMLImageElement,
+): ResolvedImageSource {
   const previewUrl = img.currentSrc || img.getAttribute("src") || "";
   const altText = img.getAttribute("alt") || "";
 
@@ -194,7 +214,9 @@ export function resolveFullResolutionImageSource(img: HTMLImageElement): Resolve
 
   // 2. Inspect srcset for highest resolution candidate if no direct image anchor link found
   if (!candidateUrl) {
-    const srcsetCandidate = extractHighestResolutionFromSrcset(img.getAttribute("srcset"));
+    const srcsetCandidate = extractHighestResolutionFromSrcset(
+      img.getAttribute("srcset"),
+    );
     if (srcsetCandidate) {
       candidateUrl = srcsetCandidate;
     }

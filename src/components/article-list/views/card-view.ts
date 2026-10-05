@@ -271,7 +271,10 @@ export function renderCardView(
       const dateInfo = formatArticleDate(
         displayDate,
         ctx.settings.display.articleDateStyle ?? "relative",
-        { isFirstSeenFallback: getPubDateMs(article.pubDate) <= 0 && !!displayDate },
+        {
+          isFirstSeenFallback:
+            getPubDateMs(article.pubDate) <= 0 && !!displayDate,
+        },
       );
       dateEl.textContent = dateInfo.text;
       setTooltip(dateEl, dateInfo.title);

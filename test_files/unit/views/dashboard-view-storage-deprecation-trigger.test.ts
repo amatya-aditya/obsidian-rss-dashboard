@@ -79,7 +79,9 @@ describe("RssDashboardView storage deprecation prompt trigger", () => {
     // view created (as when the user never opens the plugin that session)
     // must not touch maybeShowStorageDeprecationPrompt at all.
     const { maybeShowStorageDeprecationPrompt } = createMockEnv(() => {
-      throw new Error("onLayoutReady should not be registered without a dashboard view");
+      throw new Error(
+        "onLayoutReady should not be registered without a dashboard view",
+      );
     });
 
     expect(maybeShowStorageDeprecationPrompt).not.toHaveBeenCalled();

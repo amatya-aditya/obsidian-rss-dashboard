@@ -78,7 +78,8 @@ export class ImportConfirmationModal extends Modal {
       this.renderStorageLocationChange(confirmation.storageLocationChange);
     }
 
-    const destructive = replacing || confirmation.storageLocationChange !== null;
+    const destructive =
+      replacing || confirmation.storageLocationChange !== null;
     const buttonsSetting = new Setting(contentEl);
     buttonsSetting.controlEl.addClass("rss-dashboard-modal-buttons");
     buttonsSetting
@@ -110,7 +111,9 @@ export class ImportConfirmationModal extends Modal {
     buttonsSetting.controlEl.querySelector("button")?.focus();
   }
 
-  private renderFeedData(feedData: NonNullable<ImportConfirmation["feedData"]>) {
+  private renderFeedData(
+    feedData: NonNullable<ImportConfirmation["feedData"]>,
+  ) {
     const list = this.contentEl.createEl("ul");
     for (const [key, label] of FEED_DATA_ROWS) {
       list.createEl("li", {
@@ -190,5 +193,7 @@ function feedStorageModeLabel(mode: string): string {
 }
 
 function metadataLocationLabel(location: { mode: string; folder: string }) {
-  return location.mode === "vault-location" ? location.folder : "the plugin folder";
+  return location.mode === "vault-location"
+    ? location.folder
+    : "the plugin folder";
 }

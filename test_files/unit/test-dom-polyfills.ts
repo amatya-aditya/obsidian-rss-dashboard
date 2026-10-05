@@ -36,10 +36,7 @@ export function installObsidianDomPolyfills(): void {
     >
   )["createElementNS"];
   const nativeCreateDocumentFragment = (
-    Document.prototype as unknown as Record<
-      string,
-      () => DocumentFragment
-    >
+    Document.prototype as unknown as Record<string, () => DocumentFragment>
   )["createDocumentFragment"];
 
   const documentProto = Document.prototype as unknown as Record<
@@ -141,7 +138,9 @@ export function installObsidianDomPolyfills(): void {
     const doc =
       parent.nodeType === Node.DOCUMENT_NODE
         ? (parent as Document)
-        : (parent.ownerDocument ?? globalScope.activeDocument ?? window.document);
+        : (parent.ownerDocument ??
+          globalScope.activeDocument ??
+          window.document);
     const el = createDetachedEl(doc, tag, opts);
     if (typeof opts === "object" && opts.prepend) {
       parent.insertBefore(el, parent.firstChild);
@@ -298,7 +297,7 @@ export function installObsidianDomPolyfills(): void {
   const proto = HTMLElement.prototype as unknown as Record<string, unknown>;
 
   if (typeof window.matchMedia !== "function") {
-    window.matchMedia = ((query: string) => {
+    window.matchMedia = (query: string) => {
       return {
         matches: false,
         media: query,
@@ -317,7 +316,7 @@ export function installObsidianDomPolyfills(): void {
         },
         dispatchEvent: () => false,
       };
-    });
+    };
   }
 
   const nodeProto = Node.prototype as unknown as Record<string, unknown>;
@@ -539,8 +538,7 @@ export function installObsidianDomPolyfills(): void {
       unobserve(): void {}
       disconnect(): void {}
     }
-    window.ResizeObserver =
-      MockResizeObserver;
+    window.ResizeObserver = MockResizeObserver;
   }
 
   installWindowNodePolyfills(window);
@@ -592,7 +590,10 @@ export function installWindowNodePolyfills(win: Window): void {
     const nativeCreate = scope.Document.prototype.createElement as (
       tag: string,
     ) => HTMLElement;
-    const createDetached = (tag: string, opts?: { cls?: string }): HTMLElement => {
+    const createDetached = (
+      tag: string,
+      opts?: { cls?: string },
+    ): HTMLElement => {
       const el = nativeCreate.call(win.document, tag);
       if (opts?.cls) el.className = opts.cls;
       return el;

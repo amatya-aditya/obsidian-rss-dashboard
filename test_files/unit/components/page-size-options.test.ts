@@ -6,4 +6,3 @@ describe("Page size options", () => {
     expect(getPageSizeOptions(0)).toContain(0);
   });
 });
-

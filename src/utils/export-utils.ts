@@ -1,9 +1,5 @@
 export type ExportBlobResult =
-  | "shared"
-  | "downloaded"
-  | "opened"
-  | "canceled"
-  | "failed";
+  "shared" | "downloaded" | "opened" | "canceled" | "failed";
 
 export async function exportBlob(args: {
   blob: Blob;

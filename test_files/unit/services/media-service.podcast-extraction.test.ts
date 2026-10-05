@@ -37,12 +37,27 @@ function oracleDuration(description: string): string | undefined {
 
 describe("MediaService.extractPodcastAudio", () => {
   it.each([
-    ['<enclosure url="https://a.test/ep.mp3" length="1"/>', "https://a.test/ep.mp3"],
-    ["<enclosure type='audio/mpeg' url='https://a.test/EP.M4A'>", "https://a.test/EP.M4A"],
+    [
+      '<enclosure url="https://a.test/ep.mp3" length="1"/>',
+      "https://a.test/ep.mp3",
+    ],
+    [
+      "<enclosure type='audio/mpeg' url='https://a.test/EP.M4A'>",
+      "https://a.test/EP.M4A",
+    ],
     ['<ENCLOSURE URL="x.opus">', "x.opus"],
-    ['<audio controls src="https://a.test/a.ogg"></audio>', "https://a.test/a.ogg"],
-    ['<p><a href="https://a.test/a.flac">listen</a></p>', "https://a.test/a.flac"],
-    ['<audio><source src="https://a.test/s.aac" type="audio/aac"></audio>', "https://a.test/s.aac"],
+    [
+      '<audio controls src="https://a.test/a.ogg"></audio>',
+      "https://a.test/a.ogg",
+    ],
+    [
+      '<p><a href="https://a.test/a.flac">listen</a></p>',
+      "https://a.test/a.flac",
+    ],
+    [
+      '<audio><source src="https://a.test/s.aac" type="audio/aac"></audio>',
+      "https://a.test/s.aac",
+    ],
     ['<source src="a.wav">', "a.wav"],
     ['<enclosure url="a.mp3" \n url="b.mp3">', "b.mp3"],
     ["<enclosure url=\"a.mp3'", "a.mp3"],
@@ -52,9 +67,12 @@ describe("MediaService.extractPodcastAudio", () => {
     ['<enclosure url="a.txt"><audio src="b.mp3">', "b.mp3"],
     ['<enclosure x> <enclosure url="a.mp3">', "a.mp3"],
     ['<enclosure url="a.txt" x> y> url="b.mp3"', undefined],
-  ] as Array<[string, string | undefined]>)("reads the audio url in %j", (input, expected) => {
-    expect(MediaService.extractPodcastAudio(input)).toBe(expected);
-  });
+  ] as Array<[string, string | undefined]>)(
+    "reads the audio url in %j",
+    (input, expected) => {
+      expect(MediaService.extractPodcastAudio(input)).toBe(expected);
+    },
+  );
 
   it.each([
     "",
@@ -85,16 +103,23 @@ describe("MediaService.extractPodcastDuration", () => {
     ["time 10:20:", "10:20"],
     ["12:34:56:78 min", "34:56:78"],
     ["7:8:9  \t min", "7:8:9"],
-  ] as Array<[string, string | undefined]>)("reads the duration in %j", (input, expected) => {
-    expect(MediaService.extractPodcastDuration(input)).toBe(expected);
-  });
-
-  it.each(["", "no numbers here", "duration", "12:", "duration 5", "3:4 hours"])(
-    "returns undefined for %j",
-    (input) => {
-      expect(MediaService.extractPodcastDuration(input)).toBeUndefined();
+  ] as Array<[string, string | undefined]>)(
+    "reads the duration in %j",
+    (input, expected) => {
+      expect(MediaService.extractPodcastDuration(input)).toBe(expected);
     },
   );
+
+  it.each([
+    "",
+    "no numbers here",
+    "duration",
+    "12:",
+    "duration 5",
+    "3:4 hours",
+  ])("returns undefined for %j", (input) => {
+    expect(MediaService.extractPodcastDuration(input)).toBeUndefined();
+  });
 });
 
 // Small seeded generator so the comparison runs the same way every time.
@@ -110,19 +135,79 @@ function createRandom(seed: number): () => number {
 }
 
 const AUDIO_FRAGMENTS = [
-  "<enclosure", "<audio", "<source", "<ENCLOSURE", "<Audio", "url=", "src=",
-  "href=", "URL=", "SRC=", "Href=", '"', "'", ">", ">", ".mp3", ".M4A", ".ogg",
-  ".opus", ".flac", ".aac", ".wav", ".txt", "mp3", "a", "b/c", " ", " ", "\n",
-  "=", "<", "x=", "/",
+  "<enclosure",
+  "<audio",
+  "<source",
+  "<ENCLOSURE",
+  "<Audio",
+  "url=",
+  "src=",
+  "href=",
+  "URL=",
+  "SRC=",
+  "Href=",
+  '"',
+  "'",
+  ">",
+  ">",
+  ".mp3",
+  ".M4A",
+  ".ogg",
+  ".opus",
+  ".flac",
+  ".aac",
+  ".wav",
+  ".txt",
+  "mp3",
+  "a",
+  "b/c",
+  " ",
+  " ",
+  "\n",
+  "=",
+  "<",
+  "x=",
+  "/",
 ];
 
 // Includes non-ASCII characters whose case mapping could change string length
 // or fold onto ASCII letters if the text were lowercased naively.
 const DURATION_FRAGMENTS = [
-  "duration", "DURATION", "length", "LENGTH", "time", "Time", "runtime", "1",
-  "23", "4", "0", "05", ":", ":", " min", "mins", "minutes", "MIN", "Mins",
-  " ", " ", "\t", "\n", "a", "b", "x", "-", ".", "\u00a0", "\u0130", "\u212a",
-  "\u0131", "\u017f", "tim\u212a", "\u0130min",
+  "duration",
+  "DURATION",
+  "length",
+  "LENGTH",
+  "time",
+  "Time",
+  "runtime",
+  "1",
+  "23",
+  "4",
+  "0",
+  "05",
+  ":",
+  ":",
+  " min",
+  "mins",
+  "minutes",
+  "MIN",
+  "Mins",
+  " ",
+  " ",
+  "\t",
+  "\n",
+  "a",
+  "b",
+  "x",
+  "-",
+  ".",
+  "\u00a0",
+  "\u0130",
+  "\u212a",
+  "\u0131",
+  "\u017f",
+  "tim\u212a",
+  "\u0130min",
 ];
 
 function generate(random: () => number, fragments: string[]): string {
@@ -139,9 +224,10 @@ describe("podcast extraction compared with the regex implementations", () => {
     const random = createRandom(20260929);
     for (let i = 0; i < 6000; i++) {
       const input = generate(random, AUDIO_FRAGMENTS);
-      expect(MediaService.extractPodcastAudio(input), JSON.stringify(input)).toBe(
-        oracleAudio(input),
-      );
+      expect(
+        MediaService.extractPodcastAudio(input),
+        JSON.stringify(input),
+      ).toBe(oracleAudio(input));
     }
   });
 
@@ -157,9 +243,10 @@ describe("podcast extraction compared with the regex implementations", () => {
         generate(random, AUDIO_FRAGMENTS) +
         `${pick(tags)} ${pick(attrs)}${pick(quotes)}f${i}${pick(exts)}${pick(quotes)}>` +
         generate(random, AUDIO_FRAGMENTS);
-      expect(MediaService.extractPodcastAudio(input), JSON.stringify(input)).toBe(
-        oracleAudio(input),
-      );
+      expect(
+        MediaService.extractPodcastAudio(input),
+        JSON.stringify(input),
+      ).toBe(oracleAudio(input));
     }
   });
 
@@ -177,7 +264,8 @@ describe("podcast extraction compared with the regex implementations", () => {
 
 describe("podcast extraction on long descriptions", () => {
   const LENGTH = 50000;
-  const repeat = (unit: string): string => unit.repeat(Math.ceil(LENGTH / unit.length));
+  const repeat = (unit: string): string =>
+    unit.repeat(Math.ceil(LENGTH / unit.length));
 
   function elapsedMs(run: () => unknown): number {
     const start = performance.now();
@@ -194,15 +282,22 @@ describe("podcast extraction on long descriptions", () => {
     ["audio attributes", '<audio src="a" '],
     ["closed tags", "<source >"],
     ["tags with a non-audio url", '<enclosure url="a.txt" x> '],
-  ])("handles long descriptions without slowing down (audio, %s)", (_name, unit) => {
-    const input = repeat(unit);
-    expect(elapsedMs(() => MediaService.extractPodcastAudio(input))).toBeLessThan(200);
-    expect(MediaService.extractPodcastAudio(input)).toBeUndefined();
-  });
+  ])(
+    "handles long descriptions without slowing down (audio, %s)",
+    (_name, unit) => {
+      const input = repeat(unit);
+      expect(
+        elapsedMs(() => MediaService.extractPodcastAudio(input)),
+      ).toBeLessThan(200);
+      expect(MediaService.extractPodcastAudio(input)).toBeUndefined();
+    },
+  );
 
   it("still finds an audio url that follows a long run of tags", () => {
     const input = repeat("<enclosure ") + '<enclosure url="ep.mp3">';
-    expect(elapsedMs(() => MediaService.extractPodcastAudio(input))).toBeLessThan(200);
+    expect(
+      elapsedMs(() => MediaService.extractPodcastAudio(input)),
+    ).toBeLessThan(200);
     expect(MediaService.extractPodcastAudio(input)).toBe("ep.mp3");
   });
 
@@ -216,15 +311,22 @@ describe("podcast extraction on long descriptions", () => {
     ["digits and colons", "1:"],
     ["clock and spaces", "1:2" + " ".repeat(50)],
     ["labels and digits", "duration 1:"],
-  ])("handles long descriptions without slowing down (duration, %s)", (_name, unit) => {
-    const input = repeat(unit);
-    expect(elapsedMs(() => MediaService.extractPodcastDuration(input))).toBeLessThan(200);
-    expect(MediaService.extractPodcastDuration(input)).toBeUndefined();
-  });
+  ])(
+    "handles long descriptions without slowing down (duration, %s)",
+    (_name, unit) => {
+      const input = repeat(unit);
+      expect(
+        elapsedMs(() => MediaService.extractPodcastDuration(input)),
+      ).toBeLessThan(200);
+      expect(MediaService.extractPodcastDuration(input)).toBeUndefined();
+    },
+  );
 
   it("still finds a duration that follows a long run of labels", () => {
     const input = repeat("duration ") + "duration 12:34";
-    expect(elapsedMs(() => MediaService.extractPodcastDuration(input))).toBeLessThan(200);
+    expect(
+      elapsedMs(() => MediaService.extractPodcastDuration(input)),
+    ).toBeLessThan(200);
     expect(MediaService.extractPodcastDuration(input)).toBe("12:34");
   });
 });

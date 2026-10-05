@@ -1039,16 +1039,10 @@ export class ReaderView extends ItemView {
       cls: "rss-reader-content",
     });
     this.register(
-      trackReaderMathSelection(
-        this.containerEl,
-        () => this.readingContainer,
-      ),
+      trackReaderMathSelection(this.containerEl, () => this.readingContainer),
     );
     this.registerDomEvent(this.containerEl, "copy", (event) => {
-      const result = handleReaderMathCopy(
-        event,
-        this.readingContainer,
-      );
+      const result = handleReaderMathCopy(event, this.readingContainer);
       if (result === "failed") {
         new Notice(
           "Could not copy formula source; copied rendered selection instead.",
@@ -1226,8 +1220,7 @@ export class ReaderView extends ItemView {
       const fetchedContent = this.shouldSkipFullArticleFetch(item)
         ? ""
         : await this.fetchFullArticleContent(item.link);
-      const hasFullArticleContent =
-        hasMeaningfulArticleContent(fetchedContent);
+      const hasFullArticleContent = hasMeaningfulArticleContent(fetchedContent);
 
       if (hasFullArticleContent) {
         item.restrictedReason = undefined;
@@ -1604,7 +1597,6 @@ export class ReaderView extends ItemView {
       );
     }
 
-
     if (contentToRender) {
       const contentContainer = this.readingContainer.createDiv({
         cls: "rss-reader-article-content",
@@ -1732,7 +1724,8 @@ export class ReaderView extends ItemView {
       return;
     }
 
-    this.currentFullContent = result.content || item.content || item.description || "";
+    this.currentFullContent =
+      result.content || item.content || item.description || "";
     this.currentContentIsFullArticle = Boolean(result.content);
     if (result.content) {
       this.currentDisplayTitle =
@@ -1963,7 +1956,10 @@ export class ReaderView extends ItemView {
       );
     } else if (altText?.trim()) {
       img.setAttribute("aria-labelledby", makeAccessibleText(altText));
-      if (filename && filename.toLocaleLowerCase() !== altText.trim().toLocaleLowerCase()) {
+      if (
+        filename &&
+        filename.toLocaleLowerCase() !== altText.trim().toLocaleLowerCase()
+      ) {
         img.setAttribute("aria-describedby", makeAccessibleText(filename));
       }
     } else if (filename) {
@@ -2183,8 +2179,7 @@ export class ReaderView extends ItemView {
         ? (plugins.getPlugin("rss-dashboard") as TagsPlugin | null)
         : null;
     const pluginByRegistry = plugins?.plugins?.["rss-dashboard"] as
-      | TagsPlugin
-      | undefined;
+      TagsPlugin | undefined;
 
     const plugin = pluginByGetter || pluginByRegistry;
     if (typeof plugin?.openTagsSettings === "function") {
@@ -2443,8 +2438,7 @@ export class ReaderView extends ItemView {
         ? (plugins.getPlugin("rss-dashboard") as SettingsPlugin | null)
         : null;
     const pluginByRegistry = plugins?.plugins?.["rss-dashboard"] as
-      | SettingsPlugin
-      | undefined;
+      SettingsPlugin | undefined;
 
     const plugin = pluginByGetter || pluginByRegistry;
     if (typeof plugin?.openSettingsToTab === "function") {

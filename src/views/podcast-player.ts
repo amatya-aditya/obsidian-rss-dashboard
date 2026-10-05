@@ -1064,7 +1064,10 @@ export class PodcastPlayer {
 
     if (this.stopAtEndOfEpisode) {
       this.sleepTimerTextEl.textContent = "End of ep";
-      this.sleepTimerButton.setAttribute("aria-label", "Sleep timer: end of episode");
+      this.sleepTimerButton.setAttribute(
+        "aria-label",
+        "Sleep timer: end of episode",
+      );
     } else if (this.sleepTimerEndTime) {
       const remainingSecs = Math.max(
         0,
@@ -1072,7 +1075,10 @@ export class PodcastPlayer {
       );
       const remaining = this.formatTime(remainingSecs);
       this.sleepTimerTextEl.textContent = remaining;
-      this.sleepTimerButton.setAttribute("aria-label", `Sleep timer: ${remaining}`);
+      this.sleepTimerButton.setAttribute(
+        "aria-label",
+        `Sleep timer: ${remaining}`,
+      );
     } else {
       this.sleepTimerTextEl.empty();
       this.sleepTimerButton.setAttribute("aria-label", "Sleep timer");

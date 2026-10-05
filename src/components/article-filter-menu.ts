@@ -25,19 +25,21 @@ export interface ArticleFilterCallbacks {
 
 /**
  * ArticleFilterMenu Component
- * 
+ *
  * Extracted from ArticleList.ts to manage complex multi-filtering (Status + Tags).
  * Renders a custom portal-based menu to ensure correct theme inheritance.
  * This component is decoupled from ArticleList via the ArticleFilterCallbacks interface.
  */
 export class ArticleFilterMenu {
-  private static activeMobileMenus = new WeakMap<HTMLElement, ArticleFilterMenu>();
+  private static activeMobileMenus = new WeakMap<
+    HTMLElement,
+    ArticleFilterMenu
+  >();
   private settings: RssDashboardSettings;
   private statusFilters: Set<string>;
   private tagFilters: Set<string>;
   private filterLogic: "AND" | "OR";
   private callbacks: ArticleFilterCallbacks;
-
 
   private activePortal: HTMLElement | null = null;
   private activeFilterOutsideListenerCleanup: (() => void) | null = null;
@@ -53,7 +55,7 @@ export class ArticleFilterMenu {
     statusFilters: Set<string>,
     tagFilters: Set<string>,
     filterLogic: "AND" | "OR",
-    callbacks: ArticleFilterCallbacks
+    callbacks: ArticleFilterCallbacks,
   ) {
     this.settings = settings;
     this.statusFilters = statusFilters;
@@ -124,12 +126,14 @@ export class ArticleFilterMenu {
     });
 
     const andBtn = logicToggles.createEl("button", {
-      cls: "rss-dashboard-filter-logic-btn" +
+      cls:
+        "rss-dashboard-filter-logic-btn" +
         (pendingFilterLogic === "AND" ? " active" : ""),
       text: "And",
     });
     const orBtn = logicToggles.createEl("button", {
-      cls: "rss-dashboard-filter-logic-btn" +
+      cls:
+        "rss-dashboard-filter-logic-btn" +
         (pendingFilterLogic === "OR" ? " active" : ""),
       text: "Or",
     });
@@ -215,7 +219,9 @@ export class ArticleFilterMenu {
     ];
 
     filterOptions.forEach((opt) => {
-      const item = menuPortal.createDiv({ cls: "rss-dashboard-filter-menu-item" });
+      const item = menuPortal.createDiv({
+        cls: "rss-dashboard-filter-menu-item",
+      });
       const checkbox = item.createEl("input", {
         attr: { type: "checkbox" },
         cls: "rss-dashboard-filter-checkbox",
@@ -232,7 +238,9 @@ export class ArticleFilterMenu {
       });
 
       if (opt.id === "tagged") {
-        const arrow = item.createDiv({ cls: "rss-dashboard-filter-menu-arrow" });
+        const arrow = item.createDiv({
+          cls: "rss-dashboard-filter-menu-arrow",
+        });
         setIcon(arrow, "chevron-right");
         item.addEventListener("mouseenter", () => {
           this.showTagsSubMenu(
@@ -240,7 +248,7 @@ export class ArticleFilterMenu {
             menuPortal,
             pendingTagFilters,
             allCheckbox,
-            pendingStatusFilters
+            pendingStatusFilters,
           );
         });
       } else {
@@ -379,7 +387,10 @@ export class ArticleFilterMenu {
     });
 
     // Apply button commits all staged changes at once.
-    const applyBtn = menuPortal.createEl("button", { cls: "rss-dashboard-filter-apply-btn", text: "Apply" });
+    const applyBtn = menuPortal.createEl("button", {
+      cls: "rss-dashboard-filter-apply-btn",
+      text: "Apply",
+    });
     applyBtn.addEventListener("click", (e) => {
       e.stopPropagation();
       this.applyFilters({
@@ -391,7 +402,7 @@ export class ArticleFilterMenu {
         pendingStatusBarVisible,
         currentBypassAll,
         currentHighlightsEnabled,
-        currentStatusBarVisible
+        currentStatusBarVisible,
       });
       this.close();
     });
@@ -419,7 +430,7 @@ export class ArticleFilterMenu {
           ) {
             this.close();
           }
-        }
+        },
       );
     }, 0);
   }
@@ -466,7 +477,7 @@ export class ArticleFilterMenu {
     parentMenu: HTMLElement,
     pendingTagFilters: Set<string>,
     allCheckbox: HTMLInputElement,
-    pendingStatusFilters: Set<string>
+    pendingStatusFilters: Set<string>,
   ): void {
     parentMenu
       .querySelectorAll(".rss-dashboard-tag-submenu")
@@ -492,7 +503,7 @@ export class ArticleFilterMenu {
       const colorDot = item.createDiv({ cls: "rss-dashboard-tag-color-dot" });
       colorDot.style.setProperty(
         "--tag-color",
-        tag.color || "var(--interactive-accent)"
+        tag.color || "var(--interactive-accent)",
       );
       item.createDiv({
         cls: "rss-dashboard-filter-menu-text",
@@ -506,7 +517,8 @@ export class ArticleFilterMenu {
           allCheckbox.checked = false;
         } else {
           pendingTagFilters.delete(tag.name);
-          if (pendingStatusFilters.size === 0 && pendingTagFilters.size === 0) allCheckbox.checked = true;
+          if (pendingStatusFilters.size === 0 && pendingTagFilters.size === 0)
+            allCheckbox.checked = true;
         }
       });
 
@@ -518,10 +530,7 @@ export class ArticleFilterMenu {
             allCheckbox.checked = false;
           } else {
             pendingTagFilters.delete(tag.name);
-            if (
-              pendingStatusFilters.size === 0 &&
-              pendingTagFilters.size === 0
-            )
+            if (pendingStatusFilters.size === 0 && pendingTagFilters.size === 0)
               allCheckbox.checked = true;
           }
         }
@@ -583,14 +592,16 @@ export class ArticleFilterMenu {
   private addDocumentListener(
     target: Document | Window,
     type: string,
-    listener: EventListenerOrEventListenerObject
+    listener: EventListenerOrEventListenerObject,
   ) {
     target.addEventListener(type, listener);
     const entry = { target: target as Document, type, listener };
     this.documentListeners.push(entry);
     return () => {
       target.removeEventListener(type, listener);
-      this.documentListeners = this.documentListeners.filter((e) => e !== entry);
+      this.documentListeners = this.documentListeners.filter(
+        (e) => e !== entry,
+      );
     };
   }
 }

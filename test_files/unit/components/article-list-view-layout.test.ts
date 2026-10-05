@@ -5,7 +5,11 @@ import {
   teardownArticleListAfterEach,
   type ArticleListCallbacks,
 } from "./article-list-component-fixtures";
-import type { FeedItem, RssDashboardSettings, Tag } from "../../../src/types/types";
+import type {
+  FeedItem,
+  RssDashboardSettings,
+  Tag,
+} from "../../../src/types/types";
 
 describe("ArticleList view layout", () => {
   let container: HTMLElement;

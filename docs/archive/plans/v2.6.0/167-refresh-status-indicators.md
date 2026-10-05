@@ -92,11 +92,11 @@ and feed rows.
 - Add **Refresh details** to corresponding context menus for touch/mobile.
 - Provide an equivalent accessible description for screen readers.
 
-| Scope | Conditional content |
-| --- | --- |
-| Feed | Exact last checked; effective interval; exact next due; error; In progress; Automatic refresh Off; Excluded from global refresh |
-| Folder/selection | Exact aggregate coverage; earliest next due; failing, refreshing, Off, excluded, and never-checked counts |
-| All feeds | Exact global completion; aggregate coverage; earliest scheduled refresh; failing, refreshing, Off, excluded, and never-checked counts |
+| Scope            | Conditional content                                                                                                                   |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| Feed             | Exact last checked; effective interval; exact next due; error; In progress; Automatic refresh Off; Excluded from global refresh       |
+| Folder/selection | Exact aggregate coverage; earliest next due; failing, refreshing, Off, excluded, and never-checked counts                             |
+| All feeds        | Exact global completion; aggregate coverage; earliest scheduled refresh; failing, refreshing, Off, excluded, and never-checked counts |
 
 Omit zero counts. A feed's own popup still shows its history and error when excluded.
 Use `Feeds currently failing: n`, `Feeds excluded from global refresh: n`,

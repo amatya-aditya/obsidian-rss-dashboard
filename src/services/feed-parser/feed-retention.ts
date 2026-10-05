@@ -1,4 +1,8 @@
-import type { Feed, FeedItem, FeedRetentionProtections } from "../../types/types.js";
+import type {
+  Feed,
+  FeedItem,
+  FeedRetentionProtections,
+} from "../../types/types.js";
 import { canonicalizeItemIdentityUrl } from "../../utils/url-utils.js";
 
 // RFC 822/2822 obsolete named-zone offsets. Some Chromium/V8 builds don't
@@ -21,9 +25,7 @@ const RFC822_ZONE_OFFSETS: Record<string, string> = {
 };
 
 export function normalizeRfc822Zone(pubDate: string): string {
-  const match = pubDate.match(
-    /\s(UT|GMT|EST|EDT|CST|CDT|MST|MDT|PST|PDT)$/,
-  );
+  const match = pubDate.match(/\s(UT|GMT|EST|EDT|CST|CDT|MST|MDT|PST|PDT)$/);
   const zone = match?.[1];
   if (!match || !zone) return pubDate;
   const offset = RFC822_ZONE_OFFSETS[zone];

@@ -13,12 +13,7 @@
 import { App, Modal, Setting } from "obsidian";
 import { FeedParser } from "../services/feed-parser";
 import { MastodonService } from "../services/mastodon-service";
-import {
-  FeedItem,
-  Tag,
-  DisplaySettings,
-  MediaSettings,
-} from "../types/types";
+import { FeedItem, Tag, DisplaySettings, MediaSettings } from "../types/types";
 import { settingsUiCompatibility } from "../settings/settings-ui-compat";
 
 // ── Domain Icon Toggle Confirmation Modal ────────────────────────────────────
@@ -82,9 +77,9 @@ export class DomainIconToggleConfirmModal extends Modal {
         btn.setButtonText(this.params.confirmLabel);
         settingsUiCompatibility.markDestructive(btn);
         btn.onClick(() => {
-            if (this.params.onConfirm) this.params.onConfirm();
-            this.confirmed = true;
-            this.close();
+          if (this.params.onConfirm) this.params.onConfirm();
+          this.confirmed = true;
+          this.close();
         });
       });
   }
@@ -184,27 +179,31 @@ export function collectMastodonFeeds(
  * or cleared according to the resolved toggle.
  */
 export async function fetchDomainFeedIcons(
-   entries: ReadonlyArray<{
-     feed: ReadonlyArray<{
-       url: string;
-       iconUrl?: string;
-       title: string;
-       mediaType?: "article" | "video" | "podcast";
-       items: FeedItem[];
-     }>[number];
-     needsRefresh: boolean;
-   }>,
-   displaySettings: DisplaySettings,
-   availableTags: ReadonlyArray<{ name: string; id?: string }>,
-   mediaSettings?: MediaSettings,
+  entries: ReadonlyArray<{
+    feed: ReadonlyArray<{
+      url: string;
+      iconUrl?: string;
+      title: string;
+      mediaType?: "article" | "video" | "podcast";
+      items: FeedItem[];
+    }>[number];
+    needsRefresh: boolean;
+  }>,
+  displaySettings: DisplaySettings,
+  availableTags: ReadonlyArray<{ name: string; id?: string }>,
+  mediaSettings?: MediaSettings,
 ): Promise<void> {
-   const feedsToRefresh = entries
-     .filter((entry) => entry.needsRefresh)
-     .map((entry) => entry.feed);
+  const feedsToRefresh = entries
+    .filter((entry) => entry.needsRefresh)
+    .map((entry) => entry.feed);
 
-   if (feedsToRefresh.length === 0) return;
+  if (feedsToRefresh.length === 0) return;
 
-   const feedParser = new FeedParser(displaySettings, availableTags as Tag[], mediaSettings);
+  const feedParser = new FeedParser(
+    displaySettings,
+    availableTags as Tag[],
+    mediaSettings,
+  );
 
   for (const feed of feedsToRefresh) {
     try {
@@ -228,19 +227,24 @@ export async function fetchDomainFeedIcons(
  * from the RSS `<image><url>` element (or cleared according to the resolved toggle).
  */
 export async function fetchMastodonFeedIcons(
-   mastodonFeedEntries: ReadonlyArray<{
-     feed: ReadonlyArray<{
-       url: string;
-       iconUrl?: string;
-       title: string;
-       mediaType?: "article" | "video" | "podcast";
-       items: FeedItem[];
-     }>[number];
-     needsRefresh: boolean;
-   }>,
-   displaySettings: DisplaySettings,
-   availableTags: ReadonlyArray<{ name: string; id?: string }>,
-   mediaSettings?: MediaSettings,
+  mastodonFeedEntries: ReadonlyArray<{
+    feed: ReadonlyArray<{
+      url: string;
+      iconUrl?: string;
+      title: string;
+      mediaType?: "article" | "video" | "podcast";
+      items: FeedItem[];
+    }>[number];
+    needsRefresh: boolean;
+  }>,
+  displaySettings: DisplaySettings,
+  availableTags: ReadonlyArray<{ name: string; id?: string }>,
+  mediaSettings?: MediaSettings,
 ): Promise<void> {
-   await fetchDomainFeedIcons(mastodonFeedEntries, displaySettings, availableTags, mediaSettings);
+  await fetchDomainFeedIcons(
+    mastodonFeedEntries,
+    displaySettings,
+    availableTags,
+    mediaSettings,
+  );
 }

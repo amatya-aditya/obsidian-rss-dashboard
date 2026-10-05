@@ -12,8 +12,14 @@ import type {
 } from "../../../src/components/article-list/views/view-types";
 
 type ObsidianHTMLElement = HTMLElement & {
-  createDiv(opts?: string | { cls?: string; text?: string; attr?: Record<string, string> }): HTMLDivElement;
-  createSpan(opts?: string | { cls?: string; text?: string; attr?: Record<string, string> }): HTMLSpanElement;
+  createDiv(
+    opts?:
+      string | { cls?: string; text?: string; attr?: Record<string, string> },
+  ): HTMLDivElement;
+  createSpan(
+    opts?:
+      string | { cls?: string; text?: string; attr?: Record<string, string> },
+  ): HTMLSpanElement;
   createEl<K extends keyof HTMLElementTagNameMap>(
     tag: K,
     opts?: {
@@ -100,7 +106,9 @@ describe("Feed View - Collapsible Section Headers", () => {
    * Tests that feed view renders with collapsible section headers grouped by feed source
    */
   it("renders with collapsible section headers grouped by feed source", () => {
-    const container = (document.body as unknown as ObsidianHTMLElement).createDiv();
+    const container = (
+      document.body as unknown as ObsidianHTMLElement
+    ).createDiv();
     const articles = [
       createArticle({
         feedTitle: "TechCrunch",
@@ -151,7 +159,9 @@ describe("Feed View - Collapsible Section Headers", () => {
    * Tests that clicking collapse button hides cards in that section
    */
   it("hides cards when collapse button is clicked", () => {
-    const container = (document.body as unknown as ObsidianHTMLElement).createDiv();
+    const container = (
+      document.body as unknown as ObsidianHTMLElement
+    ).createDiv();
     const articles = [
       createArticle({
         feedTitle: "TechCrunch",
@@ -207,7 +217,9 @@ describe("Feed View - Collapsible Section Headers", () => {
    * Tests that clicking collapse button again shows cards
    */
   it("shows cards when collapse button is clicked again", () => {
-    const container = (document.body as unknown as ObsidianHTMLElement).createDiv();
+    const container = (
+      document.body as unknown as ObsidianHTMLElement
+    ).createDiv();
     const articles = [
       createArticle({
         feedTitle: "TechCrunch",
@@ -258,7 +270,9 @@ describe("Feed View - Collapsible Section Headers", () => {
    * Tests that toggle button icon changes between chevron-down and chevron-right
    */
   it("toggles icon between chevron-down and chevron-right on collapse", () => {
-    const container = (document.body as unknown as ObsidianHTMLElement).createDiv();
+    const container = (
+      document.body as unknown as ObsidianHTMLElement
+    ).createDiv();
     const articles = [
       createArticle({
         feedTitle: "TechCrunch",
@@ -306,7 +320,9 @@ describe("Feed View - Collapsible Section Headers", () => {
    * Tests that onToggleFeedSectionCollapse callback is called with correct params
    */
   it("calls onToggleFeedSectionCollapse callback when collapse button clicked", () => {
-    const container = (document.body as unknown as ObsidianHTMLElement).createDiv();
+    const container = (
+      document.body as unknown as ObsidianHTMLElement
+    ).createDiv();
     const articles = [
       createArticle({
         feedTitle: "TechCrunch",
@@ -342,7 +358,9 @@ describe("Feed View - Collapsible Section Headers", () => {
    * Tests that collapsed sections are restored from settings on re-render
    */
   it("restores collapsed state from settings on render", () => {
-    const container = (document.body as unknown as ObsidianHTMLElement).createDiv();
+    const container = (
+      document.body as unknown as ObsidianHTMLElement
+    ).createDiv();
     const articles = [
       createArticle({
         feedTitle: "TechCrunch",
@@ -376,9 +394,7 @@ describe("Feed View - Collapsible Section Headers", () => {
     renderFeedView(container, articles, ctx, mockViewDeps);
 
     const sections = Array.from<HTMLElement>(
-      container.querySelectorAll<HTMLElement>(
-        ".rss-dashboard-feed-section",
-      ),
+      container.querySelectorAll<HTMLElement>(".rss-dashboard-feed-section"),
     );
     // Find the TechCrunch section (first or second based on order)
     const sectionHeaders = container.querySelectorAll<HTMLElement>(
@@ -411,7 +427,9 @@ describe("Feed View - Collapsible Section Headers", () => {
    * Edge case: Empty feed sections should still render collapsed headers
    */
   it("renders collapsible headers even when section is empty", () => {
-    const container = (document.body as unknown as ObsidianHTMLElement).createDiv();
+    const container = (
+      document.body as unknown as ObsidianHTMLElement
+    ).createDiv();
     const articles: FeedItem[] = [];
 
     const ctx = createContext();

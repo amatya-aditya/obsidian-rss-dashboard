@@ -48,7 +48,10 @@ function feed(url: string, folder: string, tags: string[] = []): Feed {
 
 // onOpen() renders the real sidebar, which needs a workspace stub and the
 // display settings it reads for row layout.
-function createView(): { view: RssDashboardView; settings: RssDashboardSettings } {
+function createView(): {
+  view: RssDashboardView;
+  settings: RssDashboardSettings;
+} {
   const app = ObsidianStubs.App.createMock() as unknown as App;
   app.workspace = {
     on: vi.fn(),
@@ -62,7 +65,11 @@ function createView(): { view: RssDashboardView; settings: RssDashboardSettings 
   } as unknown as WorkspaceLeaf;
   const settings = {
     // BBC's one article carries the tag the #659 tests filter by.
-    feeds: [feed(BBC, "Bulk", [IMPORTANT]), feed(KAGI, "Smallweb"), feed(ROOT, "")],
+    feeds: [
+      feed(BBC, "Bulk", [IMPORTANT]),
+      feed(KAGI, "Smallweb"),
+      feed(ROOT, ""),
+    ],
     folders: [
       { name: "Bulk", subfolders: [] },
       { name: "Empty", subfolders: [] },
@@ -106,7 +113,10 @@ class FakeDataTransfer {
 }
 
 function dragEvent(type: string, dataTransfer: FakeDataTransfer): DragEvent {
-  const event = new Event(type, { bubbles: true, cancelable: true }) as DragEvent;
+  const event = new Event(type, {
+    bubbles: true,
+    cancelable: true,
+  }) as DragEvent;
   Object.defineProperty(event, "dataTransfer", { value: dataTransfer });
   Object.defineProperty(event, "clientY", { value: 0 });
   return event;
@@ -120,7 +130,10 @@ const folderRow = (path: string) => `[data-folder-path="${path}"]`;
 const feedRow = (url: string) => `[data-feed-url="${url}"]`;
 // A folder's feed list: a drop there sends even one folder to the batch move.
 function folderFeedList(root: HTMLElement, path: string): HTMLElement {
-  const list = find(root, folderRow(path)).parentElement?.querySelector<HTMLElement>(
+  const list = find(
+    root,
+    folderRow(path),
+  ).parentElement?.querySelector<HTMLElement>(
     ":scope > .rss-dashboard-folder-feeds",
   );
   expect(list).toBeTruthy();
@@ -231,7 +244,10 @@ describe("Dashboard selection after the sidebar moves or deletes it (#615)", () 
       find(containerEl(), feedRow(BBC)).dispatchEvent(
         dragEvent("dragstart", dataTransfer),
       );
-      expect(JSON.parse(dataTransfer.getData("feed-urls"))).toEqual([BBC, ROOT]);
+      expect(JSON.parse(dataTransfer.getData("feed-urls"))).toEqual([
+        BBC,
+        ROOT,
+      ]);
 
       find(containerEl(), feedRow(BBC)).dispatchEvent(
         new MouseEvent("contextmenu", { bubbles: true, cancelable: true }),
@@ -239,15 +255,19 @@ describe("Dashboard selection after the sidebar moves or deletes it (#615)", () 
       expect(ObsidianStubs.Menu.lastItems.map((item) => item.title)).toContain(
         "Move selection to folder",
       );
-      expect(ObsidianStubs.Menu.lastItems.map((item) => item.title)).not.toContain(
-        "Update feed",
-      );
+      expect(
+        ObsidianStubs.Menu.lastItems.map((item) => item.title),
+      ).not.toContain("Update feed");
     });
 
     it("clears the view's selection and shows all articles after dragging selected folders onto a folder", async () => {
       selectBulkAndEmpty();
 
-      await dragAndDrop(containerEl(), folderRow("Bulk"), folderRow("Smallweb"));
+      await dragAndDrop(
+        containerEl(),
+        folderRow("Bulk"),
+        folderRow("Smallweb"),
+      );
 
       expect(feedFolder(BBC)).toBe("Smallweb/Bulk");
       expect(view.selectedFolders).toEqual([]);
@@ -389,7 +409,9 @@ describe("Dashboard selection after the sidebar moves or deletes it (#615)", () 
       expect(view.selectedFeeds).toEqual([]);
       expect(heading()).toBe(NOTHING_SELECTED);
       expect(
-        drawer.querySelectorAll(".rss-dashboard-feed-folder-header.multi-selected"),
+        drawer.querySelectorAll(
+          ".rss-dashboard-feed-folder-header.multi-selected",
+        ),
       ).toHaveLength(0);
     });
 

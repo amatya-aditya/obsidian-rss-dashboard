@@ -207,10 +207,7 @@ export function isAcceptableDisplayTitle(text: string): boolean {
 }
 
 export function isEquivalentHtml(html1: string, html2: string): boolean {
-  return (
-    normalizeComparableText(html1) ===
-    normalizeComparableText(html2)
-  );
+  return normalizeComparableText(html1) === normalizeComparableText(html2);
 }
 
 export function normalizeComparableText(html: string): string {
@@ -268,8 +265,7 @@ export function stripDuplicateLeadContentFromDocument(
     .querySelectorAll<HTMLElement>("header p, header div")
     .forEach((el) => {
       if (
-        normalizeComparableText(el.textContent || "") ===
-        normalizedDescription
+        normalizeComparableText(el.textContent || "") === normalizedDescription
       ) {
         el.remove();
       }
@@ -294,9 +290,7 @@ export function stripLeadMediaBeforeContent(doc: Document): void {
 }
 
 export function getNormalizedBlockText(block: HTMLElement): string {
-  return normalizeComparableText(
-    block.innerHTML || block.textContent || "",
-  );
+  return normalizeComparableText(block.innerHTML || block.textContent || "");
 }
 
 export function isShortLeadInBlock(block: HTMLElement): boolean {
@@ -323,7 +317,9 @@ export function removeLeadImageElement(imageEl: Element): void {
   const hasOtherMedia =
     !!wrapper &&
     Array.from(
-      wrapper.querySelectorAll("img, video, audio, iframe, object, embed, canvas, svg"),
+      wrapper.querySelectorAll(
+        "img, video, audio, iframe, object, embed, canvas, svg",
+      ),
     ).some((media) => media !== imageEl);
 
   if (wrapper && !hasOtherText && !hasOtherMedia) {
@@ -418,7 +414,9 @@ export function stripDuplicateLeadCaptionBlocks(doc: Document): void {
   });
 }
 
-export function findFirstSubstantialParagraph(doc: Document): HTMLElement | null {
+export function findFirstSubstantialParagraph(
+  doc: Document,
+): HTMLElement | null {
   return (
     Array.from(doc.body.querySelectorAll<HTMLElement>("p")).find(
       (p) => (p.textContent || "").replace(/\s+/g, " ").trim().length >= 120,
@@ -426,7 +424,10 @@ export function findFirstSubstantialParagraph(doc: Document): HTMLElement | null
   );
 }
 
-export function isBeforeBoundary(el: Element, boundary: HTMLElement | null): boolean {
+export function isBeforeBoundary(
+  el: Element,
+  boundary: HTMLElement | null,
+): boolean {
   if (!boundary) return true;
   return !!(
     el.compareDocumentPosition(boundary) & Node.DOCUMENT_POSITION_FOLLOWING

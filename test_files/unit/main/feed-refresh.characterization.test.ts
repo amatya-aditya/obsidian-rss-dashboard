@@ -334,11 +334,11 @@ beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(new Date("2026-09-28T12:00:00.000Z"));
   events = [];
-  debugSpy = vi.spyOn(console, "debug").mockImplementation(
-    (label: unknown, message: unknown) => {
+  debugSpy = vi
+    .spyOn(console, "debug")
+    .mockImplementation((label: unknown, message: unknown) => {
       if (label === "[Stub Notice]") events.push(`notice:${String(message)}`);
-    },
-  );
+    });
   vi.spyOn(console, "warn").mockImplementation(() => {});
   vi.spyOn(console, "error").mockImplementation(() => {});
   vi.spyOn(FeedRefreshScheduler.prototype, "reschedule").mockImplementation(
@@ -440,7 +440,9 @@ describe("feed refresh: which feeds refresh", () => {
     await harness.plugin.refreshFeedsInFolder("News");
 
     expect(fetchedUrls(harness)).toEqual([]);
-    expect(notices()).toEqual(["All selected feeds are excluded from refresh."]);
+    expect(notices()).toEqual([
+      "All selected feeds are excluded from refresh.",
+    ]);
   });
 
   it("retries only failed feeds that aren't excluded", async () => {
@@ -956,7 +958,9 @@ describe("feed refresh: merging results", () => {
     });
     await done;
 
-    expect(clearHealth.mock.calls.map(([feed]) => feed.url)).toEqual([url("a")]);
+    expect(clearHealth.mock.calls.map(([feed]) => feed.url)).toEqual([
+      url("a"),
+    ]);
     expect(warmFeed.mock.calls.map(([feed]) => feed.url)).toEqual([
       url("a"),
       url("b"),
@@ -982,9 +986,7 @@ describe("feed refresh: merging results", () => {
   });
 
   it("clears an old error when the feed refreshes cleanly", async () => {
-    const harness = createHarness([
-      createFeed("a", { lastFetchError: "old" }),
-    ]);
+    const harness = createHarness([createFeed("a", { lastFetchError: "old" })]);
 
     const done = harness.plugin.refreshSelectedFeed(
       storedFeed(harness, url("a"))!,
@@ -1158,16 +1160,14 @@ describe("feed refresh: startup delay", () => {
     await seed.saveSettings();
     seed.unload();
 
-    const requests = vi.spyOn(obsidian, "requestUrl").mockImplementation(
-      (() =>
-        Promise.resolve({
-          status: 200,
-          text: RSS,
-          headers: { "content-type": "application/rss+xml" },
-          arrayBuffer: new ArrayBuffer(0),
-          json: {},
-        })) as unknown as typeof obsidian.requestUrl,
-    );
+    const requests = vi.spyOn(obsidian, "requestUrl").mockImplementation((() =>
+      Promise.resolve({
+        status: 200,
+        text: RSS,
+        headers: { "content-type": "application/rss+xml" },
+        arrayBuffer: new ArrayBuffer(0),
+        json: {},
+      })) as unknown as typeof obsidian.requestUrl);
     const plugin = build();
     const commands = new Map<string, () => void>();
     vi.spyOn(plugin, "addCommand").mockImplementation((command) => {

@@ -173,7 +173,9 @@
   cursor: pointer;
 }
 
-.feed-manager-button-row button.feed-manager-delete-feeds-folders-button:hover svg {
+.feed-manager-button-row
+  button.feed-manager-delete-feeds-folders-button:hover
+  svg {
   color: white;
 }
 

@@ -230,8 +230,8 @@ export class ConfirmDeleteModal extends Modal {
         btn.setButtonText("Delete");
         settingsUiCompatibility.markDestructive(btn);
         btn.onClick(() => {
-            this.confirmed = true;
-            this.close();
+          this.confirmed = true;
+          this.close();
         });
       });
   }
@@ -289,11 +289,13 @@ export class FactoryResetConfirmModal extends Modal {
           }),
       )
       .addButton((btn) => {
-        btn.setButtonText("Factory reset").setClass("rss-dashboard-danger-button");
+        btn
+          .setButtonText("Factory reset")
+          .setClass("rss-dashboard-danger-button");
         settingsUiCompatibility.markDestructive(btn);
         btn.onClick(() => {
-            this.confirmed = true;
-            this.close();
+          this.confirmed = true;
+          this.close();
         });
       });
   }
@@ -316,9 +318,7 @@ export class FactoryResetConfirmModal extends Modal {
 export type ApplyMaxItemsAction = "cancel" | "apply" | "apply-refresh";
 
 export type RetentionChangeAction =
-  | "apply-now"
-  | "apply-on-next-refresh"
-  | "cancel";
+  "apply-now" | "apply-on-next-refresh" | "cancel";
 
 export class RetentionChangeConfirmModal extends Modal {
   private action: RetentionChangeAction = "cancel";
@@ -374,7 +374,7 @@ export class RetentionChangeConfirmModal extends Modal {
         button.setButtonText("Apply now");
         settingsUiCompatibility.markDestructive(button);
         button.onClick(() => {
-            this.settle("apply-now");
+          this.settle("apply-now");
         });
       });
   }

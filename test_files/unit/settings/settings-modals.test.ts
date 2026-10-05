@@ -43,9 +43,9 @@ describe("TemplateNameModal", () => {
     const resultPromise = modal.waitForClose();
 
     modal.open();
-    const cancelBtn = Array.from(modal.contentEl.querySelectorAll("button")).find(
-      (b) => b.textContent === "Cancel",
-    ) as HTMLButtonElement;
+    const cancelBtn = Array.from(
+      modal.contentEl.querySelectorAll("button"),
+    ).find((b) => b.textContent === "Cancel") as HTMLButtonElement;
     expect(cancelBtn).toBeTruthy();
 
     cancelBtn.click();
@@ -100,9 +100,9 @@ describe("HighlightWordEditModal", () => {
     const resultPromise = modal.waitForClose();
 
     modal.open();
-    const cancelBtn = Array.from(modal.contentEl.querySelectorAll("button")).find(
-      (b) => b.textContent === "Cancel",
-    ) as HTMLButtonElement;
+    const cancelBtn = Array.from(
+      modal.contentEl.querySelectorAll("button"),
+    ).find((b) => b.textContent === "Cancel") as HTMLButtonElement;
     cancelBtn.click();
 
     await expect(resultPromise).resolves.toBeNull();
@@ -117,18 +117,18 @@ describe("ConfirmDeleteModal", () => {
     const p1 = modal1.waitForClose();
     modal1.open();
     expect(modal1.contentEl.textContent).toContain('"abc"');
-    const deleteBtn = Array.from(modal1.contentEl.querySelectorAll("button")).find(
-      (b) => b.textContent === "Delete",
-    ) as HTMLButtonElement;
+    const deleteBtn = Array.from(
+      modal1.contentEl.querySelectorAll("button"),
+    ).find((b) => b.textContent === "Delete") as HTMLButtonElement;
     deleteBtn.click();
     await expect(p1).resolves.toBe(true);
 
     const modal2 = new ConfirmDeleteModal(app, "abc");
     const p2 = modal2.waitForClose();
     modal2.open();
-    const cancelBtn = Array.from(modal2.contentEl.querySelectorAll("button")).find(
-      (b) => b.textContent === "Cancel",
-    ) as HTMLButtonElement;
+    const cancelBtn = Array.from(
+      modal2.contentEl.querySelectorAll("button"),
+    ).find((b) => b.textContent === "Cancel") as HTMLButtonElement;
     cancelBtn.click();
     await expect(p2).resolves.toBe(false);
   });
@@ -150,19 +150,23 @@ describe("ApplyMaxItemsToExistingFeedsModal", () => {
 
     modal.open();
     expect(modal.modalEl.classList.contains("rss-dashboard-modal")).toBe(true);
-    expect(modal.modalEl.classList.contains("rss-dashboard-modal-container")).toBe(
-      true,
-    );
-    expect(modal.modalEl.classList.contains("rss-mobile-apply-max-items-modal")).toBe(
-      true,
-    );
+    expect(
+      modal.modalEl.classList.contains("rss-dashboard-modal-container"),
+    ).toBe(true);
+    expect(
+      modal.modalEl.classList.contains("rss-mobile-apply-max-items-modal"),
+    ).toBe(true);
     expect(modal.contentEl.textContent).toContain("refresh all feeds");
 
     const buttonContainer = modal.contentEl.querySelector(
       ".rss-max-items-apply-buttons",
     ) as HTMLDivElement;
-    expect(buttonContainer.style.getPropertyValue("flex-direction")).toBe("column");
-    expect(buttonContainer.style.getPropertyValue("align-items")).toBe("stretch");
+    expect(buttonContainer.style.getPropertyValue("flex-direction")).toBe(
+      "column",
+    );
+    expect(buttonContainer.style.getPropertyValue("align-items")).toBe(
+      "stretch",
+    );
 
     const applyRefreshBtn = Array.from(
       modal.contentEl.querySelectorAll("button"),
@@ -185,9 +189,9 @@ describe("ApplyMaxItemsToExistingFeedsModal", () => {
     modal.open();
     expect(modal.contentEl.textContent).not.toContain("refresh all feeds");
 
-    const cancelBtn = Array.from(modal.contentEl.querySelectorAll("button")).find(
-      (b) => b.textContent === "Cancel",
-    ) as HTMLButtonElement;
+    const cancelBtn = Array.from(
+      modal.contentEl.querySelectorAll("button"),
+    ).find((b) => b.textContent === "Cancel") as HTMLButtonElement;
     cancelBtn.click();
 
     await expect(resultPromise).resolves.toBe("cancel");

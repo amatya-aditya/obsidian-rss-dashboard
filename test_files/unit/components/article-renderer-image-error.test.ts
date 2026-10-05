@@ -77,9 +77,7 @@ describe("ArticleRenderer remote image errors", () => {
       container,
       makeItem('<img src="https://img.example.com/a.jpg">'),
     );
-    const image = container.querySelector(
-      "img.rss-reader-responsive-img",
-    );
+    const image = container.querySelector("img.rss-reader-responsive-img");
     expect(image).not.toBeNull();
     image?.dispatchEvent(new Event("error"));
 

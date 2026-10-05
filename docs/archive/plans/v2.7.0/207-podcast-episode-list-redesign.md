@@ -25,7 +25,7 @@ clearer, lower-density episode browsing and playback experience.
 - Rename the playlist domain and UI to **Episode list**. The user-facing
   heading is `More episodes from {feed name}`.
 - Keep the rendered episode count bounded at 20 rows. Display `Showing 20 of
-  2,437` and append 20 more rows through an explicit **Load 20 more episodes**
+2,437` and append 20 more rows through an explicit **Load 20 more episodes**
   control.
 - Replace Previous/Next window controls with incremental loading. A compact
   **Current episode** chip restores the rendered range containing the active

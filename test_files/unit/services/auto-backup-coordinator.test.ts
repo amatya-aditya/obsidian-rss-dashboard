@@ -7,9 +7,11 @@ function createDeferred() {
   const promise = new Promise<void>((resolvePromise) => {
     resolve = resolvePromise;
   });
-  const rejectingPromise = new Promise<void>((_resolvePromise, rejectPromise) => {
-    reject = rejectPromise;
-  });
+  const rejectingPromise = new Promise<void>(
+    (_resolvePromise, rejectPromise) => {
+      reject = rejectPromise;
+    },
+  );
   return { promise, rejectingPromise, resolve, reject };
 }
 

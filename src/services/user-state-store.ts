@@ -36,7 +36,8 @@ function applyPersistedState(item: FeedItem, state: ArticleUserState): void {
   item.tags = state.tags ? cloneJson(state.tags) : [];
   item.saved = state.saved ?? false;
   if (state.savedFilePath) item.savedFilePath = state.savedFilePath;
-  if (state.playbackProgress) item.playbackProgress = cloneJson(state.playbackProgress);
+  if (state.playbackProgress)
+    item.playbackProgress = cloneJson(state.playbackProgress);
 }
 
 function storageLog(_message: string, _details?: unknown): void {}
@@ -104,9 +105,7 @@ export class UserStateStore {
     this.pendingFeedRemovals.add(feedId);
   }
 
-  private recordUserStateHealth(
-    status: "missing" | "unreadable" | "ok",
-  ): void {
+  private recordUserStateHealth(status: "missing" | "unreadable" | "ok"): void {
     const unreadable = status === "unreadable";
     if (unreadable) {
       this.warnUserStateUnreadable();
@@ -128,7 +127,10 @@ export class UserStateStore {
     const userState =
       userStateResult.status === "ok" ? userStateResult.file : null;
     const userStateLoaded = Boolean(userState);
-    const { states: resolvedStates } = this.resolvePersistedUserState(userState, settings);
+    const { states: resolvedStates } = this.resolvePersistedUserState(
+      userState,
+      settings,
+    );
     for (const feed of settings.feeds) {
       const feedId = feed.feedId ?? "";
       for (const item of feed.items) {
@@ -150,7 +152,8 @@ export class UserStateStore {
   }
 
   private getMetadataFolder(settings: RssDashboardSettings): string {
-    const folder = settings.metadataStorageFolder.trim() || ".rss-dashboard-data";
+    const folder =
+      settings.metadataStorageFolder.trim() || ".rss-dashboard-data";
     return folder.replace(/^\/+|\/+$/g, "");
   }
 
@@ -200,7 +203,9 @@ export class UserStateStore {
     return { status: "unreadable" };
   }
 
-  public async load(settings: RssDashboardSettings): Promise<UserStateFile | null> {
+  public async load(
+    settings: RssDashboardSettings,
+  ): Promise<UserStateFile | null> {
     const result = await this.readUserState(settings);
     return result.status === "ok" ? result.file : null;
   }
@@ -354,7 +359,9 @@ export class UserStateStore {
 
     await this.writeUserState(settings, userStateFile);
     settleRemovals();
-    storageLog("Saved user-state.json with " + Object.keys(states).length + " entries.");
+    storageLog(
+      "Saved user-state.json with " + Object.keys(states).length + " entries.",
+    );
   }
 
   private mergeLoadedItems(
@@ -396,7 +403,11 @@ export class UserStateStore {
     }
 
     const hasSignal = Boolean(
-      item.read || item.starred || (item.tags && item.tags.length > 0) || item.saved || item.playbackProgress,
+      item.read ||
+      item.starred ||
+      (item.tags && item.tags.length > 0) ||
+      item.saved ||
+      item.playbackProgress,
     );
     if (!hasSignal && !baseline) {
       return;
@@ -409,7 +420,8 @@ export class UserStateStore {
     };
     if (item.tags && item.tags.length > 0) state.tags = cloneJson(item.tags);
     if (item.savedFilePath) state.savedFilePath = item.savedFilePath;
-    if (item.playbackProgress) state.playbackProgress = cloneJson(item.playbackProgress);
+    if (item.playbackProgress)
+      state.playbackProgress = cloneJson(item.playbackProgress);
     states[key] = state;
   }
 
@@ -580,7 +592,10 @@ export class UserStateStore {
     }
 
     const writeUserState = () =>
-      this.app.vault.adapter.write(path, JSON.stringify(userStateFile, null, 2));
+      this.app.vault.adapter.write(
+        path,
+        JSON.stringify(userStateFile, null, 2),
+      );
     if (this.writeWrapper) {
       await this.writeWrapper(writeUserState);
     } else {

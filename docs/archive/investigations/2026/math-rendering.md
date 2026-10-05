@@ -1,6 +1,7 @@
 # Bug Report: MathJax Rendering & Saving Failure in RSS Dashboard
 
 ## 1. Current Description
+
 Mathematical formulas embedded in RSS feeds are still rendering as plaintext in the Obsidian RSS Dashboard plugin, even after the first math rendering/saving pipeline fix.
 
 Confirmed live failing source:
@@ -22,6 +23,7 @@ Observed behavior:
 ## 2. Previous Implementation Fixes Already Applied
 
 ### A. Original DOM Text-Node Parsing
+
 Initial fix in `src/utils/math-rendering.ts`:
 
 - Added `processMathElements(container)`.
@@ -29,7 +31,7 @@ Initial fix in `src/utils/math-rendering.ts`:
 - Matched raw dollar math with regex:
 
 ```ts
-/(\$\$[\s\S]+?\$\$|\$(?!\s)[^$]+?(?<!\s)\$)/g
+/(\$\$[\s\S]+?\$\$|\$(?!\s)[^$]+?(?<!\s)\$)/g;
 ```
 
 - Replaced matched text with Obsidian `renderMath(latex, display)` output wrapped in:
@@ -41,12 +43,14 @@ Initial fix in `src/utils/math-rendering.ts`:
 - Called `finishRenderMath()` after replacements.
 
 ### B. Turndown Escape Prevention
+
 Initial fix in `src/services/article-saver.ts`:
 
 - Added a Turndown rule for `span.math` and `span.math-container`.
 - Returned `data-math` / text content directly so underscores and dollar delimiters would not be escaped or collapsed.
 
 ### C. Template Replacement Safety
+
 Initial fix in `src/services/article-saver.ts` and `src/services/web-viewer-integration.ts`:
 
 - Replaced direct replacement of `{{content}}` with replacer-function form:
@@ -62,6 +66,7 @@ This prevents JavaScript replacement tokens like `$$` from collapsing display ma
 The following additional fix was implemented after reviewing this report:
 
 ### A. Async, Mounted DOM Math Rendering
+
 `src/utils/math-rendering.ts` now:
 
 - Makes `processMathElements(container)` async.
@@ -78,6 +83,7 @@ Call sites updated:
   - Inline reader title/body math use `scheduleProcessMathElements(...)`.
 
 ### B. Shared Markdown Math Protection
+
 `src/utils/math-rendering.ts` now also exports:
 
 - `protectMathForMarkdown(html: string)`
@@ -185,7 +191,7 @@ Research completed before proposing another code change:
   `finishRenderMath()` in a custom `ItemView`.
   [Obsidian Forum report](https://forum.obsidian.md/t/console-error-mathjax-is-not-defined/79494)
 - Community custom-view examples use `MarkdownRenderer.render(app, markdown,
-  element, sourcePath, component)` with a managed render component. This
+element, sourcePath, component)` with a managed render component. This
   invokes Obsidian's normal Markdown rendering pipeline instead of calling the
   MathJax helper directly. [Example discussion](https://forum.obsidian.md/t/how-do-i-get-page-links-to-work-within-html-my-plugin-renders/81991/3)
 
@@ -225,6 +231,7 @@ the live Reader view, then design the smallest safe integration.
 ## 8. Earlier Suspected Failure Modes Still Worth Checking
 
 ### A. The visible Reader content may not be the container being processed
+
 The scheduled helper may be running on a container that is later replaced, cleared, re-rendered, or hidden. Unit tests do not currently verify the live Reader lifecycle with the same DOM churn as Obsidian.
 
 Investigation target:
@@ -238,6 +245,7 @@ Investigation target:
   - number of inserted `span.math`
 
 ### B. The regex may fail on Math StackExchange's exact parsed feed text
+
 The example contains many apostrophes/primes and backslashes:
 
 - `$\Delta'$`
@@ -252,6 +260,7 @@ Investigation target:
 - Confirm whether dollar signs are literal `$`, escaped `\$`, entity encoded, stripped, or split across text nodes/elements.
 
 ### C. Obsidian `renderMath()` may not be enough for non-Markdown custom views
+
 The plugin is manually creating DOM nodes in a custom view. Obsidian's `renderMath()` behavior may depend on Markdown renderer context, a mounted Markdown post processor lifecycle, or CSS/assets not available for custom DOM-created elements.
 
 Investigation target:
@@ -263,6 +272,7 @@ Investigation target:
   - Does `finishRenderMath()` resolve or reject?
 
 ### D. The function may never be called in the failing Reader route
+
 There are multiple reader/open/save/content paths in this plugin:
 
 - `src/views/reader-view.ts`
@@ -278,6 +288,7 @@ Investigation target:
 - Confirm which class renders it and whether `scheduleProcessMathElements()` runs.
 
 ### E. CSS may hide or neutralize rendered MathJax
+
 If `renderMath()` inserts MathJax nodes, the CSS may show raw source text or fail to style `mjx-container`.
 
 Investigation target:

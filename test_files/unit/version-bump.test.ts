@@ -35,14 +35,15 @@ function createVersionBumpFixture(
   });
 
   return {
-    manifest: JSON.parse(readFileSync(join(directory, "manifest.json"), "utf8")) as {
+    manifest: JSON.parse(
+      readFileSync(join(directory, "manifest.json"), "utf8"),
+    ) as {
       version: string;
       minAppVersion: string;
     },
-    versions: JSON.parse(readFileSync(join(directory, "versions.json"), "utf8")) as Record<
-      string,
-      string
-    >,
+    versions: JSON.parse(
+      readFileSync(join(directory, "versions.json"), "utf8"),
+    ) as Record<string, string>,
   };
 }
 

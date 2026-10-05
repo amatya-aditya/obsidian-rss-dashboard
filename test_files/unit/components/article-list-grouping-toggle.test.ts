@@ -27,9 +27,7 @@ describe("ArticleList grouping header toggle", () => {
       ).toHaveLength(0);
       expect(
         Array.from(
-          container.querySelectorAll<HTMLElement>(
-            ".rss-dashboard-feed-item",
-          ),
+          container.querySelectorAll<HTMLElement>(".rss-dashboard-feed-item"),
           (item) => item.dataset.articleGuid,
         ),
       ).toEqual(["a1", "b1", "a2"]);
@@ -148,8 +146,16 @@ describe("ArticleList grouping header toggle", () => {
     const { container, list, cleanup } = createArticleListHarness({
       settings: { articleGroupBy: "date", viewStyle: "feed" },
       articles: [
-        buildArticle({ guid: "a1", feedTitle: "Feed A", pubDate: "2026-08-25T10:00:00Z" }),
-        buildArticle({ guid: "b1", feedTitle: "Feed B", pubDate: "2026-08-25T11:00:00Z" }),
+        buildArticle({
+          guid: "a1",
+          feedTitle: "Feed A",
+          pubDate: "2026-08-25T10:00:00Z",
+        }),
+        buildArticle({
+          guid: "b1",
+          feedTitle: "Feed B",
+          pubDate: "2026-08-25T11:00:00Z",
+        }),
       ],
     });
 
@@ -174,8 +180,16 @@ describe("ArticleList grouping header toggle", () => {
     const { container, list, cleanup } = createArticleListHarness({
       settings: { articleGroupBy: "date_feed", viewStyle: "feed" },
       articles: [
-        buildArticle({ guid: "a1", feedTitle: "Feed A", pubDate: "2026-08-25T10:00:00Z" }),
-        buildArticle({ guid: "b1", feedTitle: "Feed B", pubDate: "2026-08-25T11:00:00Z" }),
+        buildArticle({
+          guid: "a1",
+          feedTitle: "Feed A",
+          pubDate: "2026-08-25T10:00:00Z",
+        }),
+        buildArticle({
+          guid: "b1",
+          feedTitle: "Feed B",
+          pubDate: "2026-08-25T11:00:00Z",
+        }),
       ],
     });
 

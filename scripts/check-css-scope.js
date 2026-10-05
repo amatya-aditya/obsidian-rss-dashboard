@@ -23,7 +23,8 @@ function listCssFiles(dirPath) {
   for (const entry of fs.readdirSync(dirPath, { withFileTypes: true })) {
     const fullPath = path.join(dirPath, entry.name);
     if (entry.isDirectory()) results.push(...listCssFiles(fullPath));
-    else if (entry.isFile() && entry.name.toLowerCase().endsWith(".css")) results.push(fullPath);
+    else if (entry.isFile() && entry.name.toLowerCase().endsWith(".css"))
+      results.push(fullPath);
   }
   return results;
 }
@@ -47,7 +48,11 @@ function selectorIsScoped(selectorAst) {
   selectorAst.walk((node) => {
     if (scoped) return false;
 
-    if (node.type === "class" && typeof node.value === "string" && node.value.startsWith("rss-")) {
+    if (
+      node.type === "class" &&
+      typeof node.value === "string" &&
+      node.value.startsWith("rss-")
+    ) {
       scoped = true;
       return false;
     }
@@ -55,8 +60,15 @@ function selectorIsScoped(selectorAst) {
     // Recursively inspect nested selectors in functional pseudos like :is(...) / :where(...).
     if (node.type === "pseudo" && node.nodes && node.nodes.length > 0) {
       const pseudoName = String(node.value || "").toLowerCase();
-      if (pseudoName === ":is" || pseudoName === ":where" || pseudoName === ":not" || pseudoName === ":has") {
-        const anyScoped = node.nodes.some((nestedSelector) => selectorIsScoped(nestedSelector));
+      if (
+        pseudoName === ":is" ||
+        pseudoName === ":where" ||
+        pseudoName === ":not" ||
+        pseudoName === ":has"
+      ) {
+        const anyScoped = node.nodes.some((nestedSelector) =>
+          selectorIsScoped(nestedSelector),
+        );
         if (anyScoped) {
           scoped = true;
           return false;
@@ -88,7 +100,11 @@ function selectorTouchesObsidianCore(selectorAst) {
   selectorAst.walk((node) => {
     if (risky) return false;
 
-    if (node.type === "class" && typeof node.value === "string" && RISKY_CLASSES.has(node.value)) {
+    if (
+      node.type === "class" &&
+      typeof node.value === "string" &&
+      RISKY_CLASSES.has(node.value)
+    ) {
       risky = true;
       return false;
     }
@@ -118,7 +134,11 @@ function checkRuleSelector(selectorText) {
 
       // Allow theme-specific styling for the podcast player without requiring `rss-` classes,
       // as long as it is gated behind our plugin's `data-podcast-theme` attribute.
-      if (String(sel).includes('[data-podcast-theme="') || String(sel).includes("[data-podcast-theme=")) return;
+      if (
+        String(sel).includes('[data-podcast-theme="') ||
+        String(sel).includes("[data-podcast-theme=")
+      )
+        return;
 
       const risky = selectorTouchesObsidianCore(sel);
       if (risky) failures.push(String(sel));
@@ -159,8 +179,10 @@ function main() {
       const failures = checkRuleSelector(rule.selector);
       if (failures.length === 0) return;
 
-      const line = (rule.source && rule.source.start && rule.source.start.line) || 1;
-      const column = (rule.source && rule.source.start && rule.source.start.column) || 1;
+      const line =
+        (rule.source && rule.source.start && rule.source.start.line) || 1;
+      const column =
+        (rule.source && rule.source.start && rule.source.start.column) || 1;
       const rel = path.relative(ROOT_DIR, file);
 
       for (const failingSelector of failures) {
@@ -172,7 +194,7 @@ function main() {
   if (violations.length > 0) {
     console.error(
       `CSS scoping check failed: ${violations.length} unscoped selector(s). ` +
-        `All selectors must be anchored by a class starting with \`rss-\`.`
+        `All selectors must be anchored by a class starting with \`rss-\`.`,
     );
     for (const v of violations) {
       console.error(`- ${v.file}:${v.line}:${v.column} -> ${v.selector}`);

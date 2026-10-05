@@ -22,13 +22,13 @@ list. obsidian-tasks uses the same convention (`scope: …`, `status: …`,
 
 ## Type
 
-| Label | Use for |
-| --- | --- |
-| `bug` | Something isn't working as intended |
-| `enhancement` | A new feature, or a change to how an existing feature behaves |
-| `refactor` | Behavior-preserving restructuring (see #436 and **Refactors (#436)** in `AGENTS.md`) |
-| `maintenance` | Tooling, cleanup, compliance, and upkeep with no user-visible change |
-| `documentation` | Documentation additions, corrections, and reorganization |
+| Label           | Use for                                                                              |
+| --------------- | ------------------------------------------------------------------------------------ |
+| `bug`           | Something isn't working as intended                                                  |
+| `enhancement`   | A new feature, or a change to how an existing feature behaves                        |
+| `refactor`      | Behavior-preserving restructuring (see #436 and **Refactors (#436)** in `AGENTS.md`) |
+| `maintenance`   | Tooling, cleanup, compliance, and upkeep with no user-visible change                 |
+| `documentation` | Documentation additions, corrections, and reorganization                             |
 
 Dependabot applies `dependencies`, `github_actions`, and `javascript` to its
 own pull requests. Leave them as they are.
@@ -38,15 +38,15 @@ own pull requests. Leave them as they are.
 Status tracks where an issue is in its lifecycle. Replace the previous status
 when it changes; don't stack them.
 
-| Label | Meaning |
-| --- | --- |
-| `status: needs-triage` | New; a maintainer needs to review and label it |
-| `status: needs-info` | Waiting on the reporter for more information |
-| `status: accepted` | Confirmed and ready to work on |
-| `status: blocked` | Waiting on another issue or decision; the issue body names it (for example "Blocked by #436") |
-| `status: in-progress` | Someone is working on it. A maintainer adds it when a contributor claims the issue in a comment; it is the claim marker, because only collaborators can be assigned. See [Claim an Issue Before You Start](../../CONTRIBUTING.md#claim-an-issue-before-you-start) |
-| `status: ready-for-testing` | A fix is available and needs manual testing |
-| `status: pending-release` | Merged; ships in the next release |
+| Label                       | Meaning                                                                                                                                                                                                                                                           |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `status: needs-triage`      | New; a maintainer needs to review and label it                                                                                                                                                                                                                    |
+| `status: needs-info`        | Waiting on the reporter for more information                                                                                                                                                                                                                      |
+| `status: accepted`          | Confirmed and ready to work on                                                                                                                                                                                                                                    |
+| `status: blocked`           | Waiting on another issue or decision; the issue body names it (for example "Blocked by #436")                                                                                                                                                                     |
+| `status: in-progress`       | Someone is working on it. A maintainer adds it when a contributor claims the issue in a comment; it is the claim marker, because only collaborators can be assigned. See [Claim an Issue Before You Start](../../CONTRIBUTING.md#claim-an-issue-before-you-start) |
+| `status: ready-for-testing` | A fix is available and needs manual testing                                                                                                                                                                                                                       |
+| `status: pending-release`   | Merged; ships in the next release                                                                                                                                                                                                                                 |
 
 Closed issues don't need a status. Use `duplicate` or `wontfix` when an issue
 is closed without a fix.
@@ -55,11 +55,11 @@ is closed without a fix.
 
 Priority says **when** we intend to deal with an issue.
 
-| Label | Meaning |
-| --- | --- |
-| `priority: high` | Immediate attention: next up, ahead of planned work |
-| `priority: medium` | Normal backlog item, scheduled into a milestone |
-| `priority: low` | Minor fix or nice-to-have; done when convenient |
+| Label              | Meaning                                             |
+| ------------------ | --------------------------------------------------- |
+| `priority: high`   | Immediate attention: next up, ahead of planned work |
+| `priority: medium` | Normal backlog item, scheduled into a milestone     |
+| `priority: low`    | Minor fix or nice-to-have; done when convenient     |
 
 Trackers and umbrella issues (release trackers, #436) don't get a priority.
 
@@ -68,52 +68,52 @@ Trackers and umbrella issues (release trackers, #436) don't get a priority.
 These describe **how bad** a problem is, separately from when we'll fix it. A
 rare data-loss bug can be `data-loss` and still `priority: medium`.
 
-| Label | Meaning |
-| --- | --- |
-| `data-loss` | Can lose or overwrite user data. These are the major fixes that may still target a frozen release branch (#436, phase 2); see **Freezing the release branch** in `CONTRIBUTING.md` |
-| `regression` | Worked in an earlier release and is broken now. Name the last working version in the issue |
+| Label             | Meaning                                                                                                                                                                                        |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `data-loss`       | Can lose or overwrite user data. These are the major fixes that may still target a frozen release branch (#436, phase 2); see **Freezing the release branch** in `CONTRIBUTING.md`             |
+| `regression`      | Worked in an earlier release and is broken now. Name the last working version in the issue                                                                                                     |
 | `breaking change` | Changes behavior, stored data, or requirements (such as `minAppVersion`) in a way users must adapt to. Ships only in a major release, bundled with the other breaking changes in its milestone |
-| `accessibility` | A barrier for keyboard, screen-reader, low-vision, or other assistive-technology users. Fix it the way the accessibility guidelines recommend, such as native elements before ARIA roles |
+| `accessibility`   | A barrier for keyboard, screen-reader, low-vision, or other assistive-technology users. Fix it the way the accessibility guidelines recommend, such as native elements before ARIA roles       |
 
 ## Area
 
 Area says which part of the plugin is affected. Use more than one when an
 issue spans parts.
 
-| Label | Covers |
-| --- | --- |
-| `area: dashboard` | Dashboard view: article list, filters, selection |
-| `area: sidebar` | Feed and folder sidebar, including the navigation drawer |
-| `area: reader` | Reader view and article rendering |
-| `area: refresh` | Fetching, parsing, and refreshing feeds |
-| `area: import-export` | OPML, preferences, and bundle import and export |
-| `area: storage` | Settings, shards, user state, and on-disk layout |
-| `area: build` | Build, CI, release tooling, and `minAppVersion` |
+| Label                 | Covers                                                   |
+| --------------------- | -------------------------------------------------------- |
+| `area: dashboard`     | Dashboard view: article list, filters, selection         |
+| `area: sidebar`       | Feed and folder sidebar, including the navigation drawer |
+| `area: reader`        | Reader view and article rendering                        |
+| `area: refresh`       | Fetching, parsing, and refreshing feeds                  |
+| `area: import-export` | OPML, preferences, and bundle import and export          |
+| `area: storage`       | Settings, shards, user state, and on-disk layout         |
+| `area: build`         | Build, CI, release tooling, and `minAppVersion`          |
 
 ## Contribution flags
 
-| Label | Meaning |
-| --- | --- |
+| Label              | Meaning                                                                                                                                  |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
 | `good first issue` | Small and well scoped; a good place to start. GitHub surfaces these to new contributors. Check for a claim or an open PR before starting |
-| `help wanted` | Maintainers would welcome a contribution |
-| `ready-for-agent` | Fully specified, ready for an AFK agent. Check for a claim or an open PR before starting |
-| `ready-for-human` | Fully specified, but needs a human to implement |
+| `help wanted`      | Maintainers would welcome a contribution                                                                                                 |
+| `ready-for-agent`  | Fully specified, ready for an AFK agent. Check for a claim or an open PR before starting                                                 |
+| `ready-for-human`  | Fully specified, but needs a human to implement                                                                                          |
 
 ## Other labels
 
-| Label | Meaning |
-| --- | --- |
-| `duplicate` | Another issue or pull request covers this; link it when closing |
-| `wontfix` | Won't be worked on; explain why when closing |
+| Label                                                                                                | Meaning                                                                   |
+| ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| `duplicate`                                                                                          | Another issue or pull request covers this; link it when closing           |
+| `wontfix`                                                                                            | Won't be worked on; explain why when closing                              |
 | `wayfinder:map`, `wayfinder:research`, `wayfinder:grilling`, `wayfinder:task`, `wayfinder:prototype` | Wayfinder planning issues: a map and its prerequisite decisions and tasks |
 
 ## Milestones
 
-| Milestone | Holds |
-| --- | --- |
-| A release number, such as `2.7.0` or `2.8.0` | Work planned to ship in that release |
-| `3.0.0` | The next major release: breaking changes bundled together (see `breaking change`) |
-| `vNext` | Accepted work that isn't scheduled for a specific release yet |
+| Milestone                                    | Holds                                                                             |
+| -------------------------------------------- | --------------------------------------------------------------------------------- |
+| A release number, such as `2.7.0` or `2.8.0` | Work planned to ship in that release                                              |
+| `3.0.0`                                      | The next major release: breaking changes bundled together (see `breaking change`) |
+| `vNext`                                      | Accepted work that isn't scheduled for a specific release yet                     |
 
 Move an issue to a release milestone when it's scheduled, and out again if it
 slips. An unfixed issue in a closed release milestone should move to the next
@@ -137,15 +137,15 @@ Labels track an issue through the **Idea-to-Release Workflow** in
 [`README.md`](./README.md#idea-to-release-workflow). Each stage changes them as
 follows.
 
-| Stage | Label and milestone changes |
-| --- | --- |
-| Issue opened | The bug and feature templates apply `bug` or `enhancement` plus `status: needs-triage`; the refactor template applies `refactor` |
-| Triaged | Follow the triage checklist above: `status: accepted` (or `blocked`, `needs-info`, `wontfix`), plus a priority and an area |
-| Scheduled | A release milestone, or `vNext` if it's accepted but not scheduled |
-| Ready to pick up | Add `ready-for-agent` or `ready-for-human` once the issue is specified well enough to hand off |
-| Work starts | The contributor claims it in a comment; add `status: in-progress`, and an issue branch named per [`branch-naming.md`](../agents/branch-naming.md) |
-| Fix needs manual checks | `status: ready-for-testing` while a pull request waits on a fixture-vault or beta checklist |
-| Merged | A pull request that says `Fixes #…` links the issue, but merging into `dev` does not close it because `master` is the default branch; close the issue by hand after the merge. Closed issues don't need a status. Use `status: pending-release` only for an issue that stays open until a release, for example a fix on a release branch |
+| Stage                   | Label and milestone changes                                                                                                                                                                                                                                                                                                              |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Issue opened            | The bug and feature templates apply `bug` or `enhancement` plus `status: needs-triage`; the refactor template applies `refactor`                                                                                                                                                                                                         |
+| Triaged                 | Follow the triage checklist above: `status: accepted` (or `blocked`, `needs-info`, `wontfix`), plus a priority and an area                                                                                                                                                                                                               |
+| Scheduled               | A release milestone, or `vNext` if it's accepted but not scheduled                                                                                                                                                                                                                                                                       |
+| Ready to pick up        | Add `ready-for-agent` or `ready-for-human` once the issue is specified well enough to hand off                                                                                                                                                                                                                                           |
+| Work starts             | The contributor claims it in a comment; add `status: in-progress`, and an issue branch named per [`branch-naming.md`](../agents/branch-naming.md)                                                                                                                                                                                        |
+| Fix needs manual checks | `status: ready-for-testing` while a pull request waits on a fixture-vault or beta checklist                                                                                                                                                                                                                                              |
+| Merged                  | A pull request that says `Fixes #…` links the issue, but merging into `dev` does not close it because `master` is the default branch; close the issue by hand after the merge. Closed issues don't need a status. Use `status: pending-release` only for an issue that stays open until a release, for example a fix on a release branch |
 
 ### Suggested agent workflow (optional)
 

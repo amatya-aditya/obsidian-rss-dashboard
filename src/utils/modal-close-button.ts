@@ -4,7 +4,8 @@
  * releases used `.modal-close-button`; that name is kept for the minimum
  * supported version, where the current class is unverified (#372).
  */
-const NATIVE_CLOSE_BUTTON_SELECTOR = ".modal-header-button, .modal-close-button";
+const NATIVE_CLOSE_BUTTON_SELECTOR =
+  ".modal-header-button, .modal-close-button";
 
 /** Removes Obsidian's built-in close button from a modal's `modalEl`. */
 export function removeNativeModalCloseButton(modalEl: HTMLElement): void {

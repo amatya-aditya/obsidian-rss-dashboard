@@ -35,10 +35,20 @@ describe("OpmlManager.parseOpmlMetadata", () => {
     const { feeds, folders } = OpmlManager.parseOpmlMetadata(opml);
 
     expect(feeds).toHaveLength(3);
-    expect(feeds.map((f) => ({ title: f.title, url: f.url, folder: f.folder }))).toEqual([
-      { title: "Feed A", url: "https://a.example.com/rss.xml", folder: "Tech/AI" },
+    expect(
+      feeds.map((f) => ({ title: f.title, url: f.url, folder: f.folder })),
+    ).toEqual([
+      {
+        title: "Feed A",
+        url: "https://a.example.com/rss.xml",
+        folder: "Tech/AI",
+      },
       { title: "Feed B", url: "https://b.example.com/rss.xml", folder: "Tech" },
-      { title: "Unnamed feed", url: "https://top.example.com/rss.xml", folder: "Uncategorized" },
+      {
+        title: "Unnamed feed",
+        url: "https://top.example.com/rss.xml",
+        folder: "Uncategorized",
+      },
     ]);
 
     expect(folders).toEqual([
@@ -51,7 +61,9 @@ describe("OpmlManager.parseOpmlMetadata", () => {
 
   it("throws on invalid XML", () => {
     const invalid = "<opml><body><outline></body></opml>";
-    expect(() => OpmlManager.parseOpmlMetadata(invalid)).toThrow("Invalid OPML format");
+    expect(() => OpmlManager.parseOpmlMetadata(invalid)).toThrow(
+      "Invalid OPML format",
+    );
   });
 
   it("preprocesses unescaped ampersands so parsing does not fail", () => {
@@ -94,7 +106,9 @@ describe("OpmlManager.parseOpml", () => {
       },
     ]);
 
-    expect(folders).toEqual([{ name: "Tech", subfolders: [{ name: "AI", subfolders: [] }] }]);
+    expect(folders).toEqual([
+      { name: "Tech", subfolders: [{ name: "AI", subfolders: [] }] },
+    ]);
   });
 
   it("throws on invalid XML", () => {
@@ -116,7 +130,11 @@ describe("OpmlManager.importOpml", () => {
 </opml>`;
 
     const existingFeeds = [
-      createFeed({ title: "Existing A", url: "https://a.example.com/rss.xml", folder: "Old" }),
+      createFeed({
+        title: "Existing A",
+        url: "https://a.example.com/rss.xml",
+        folder: "Old",
+      }),
     ];
     const existingFolders = [createFolder("Old")];
 
@@ -139,14 +157,20 @@ describe("OpmlManager.importOpml", () => {
 describe("OpmlManager.mergeFolders", () => {
   it("merges matching folders recursively", () => {
     const existing = [createFolder("Tech", [createFolder("AI")])];
-    const incoming = [createFolder("Tech", [createFolder("News")]), createFolder("Other")];
+    const incoming = [
+      createFolder("Tech", [createFolder("News")]),
+      createFolder("Other"),
+    ];
 
     const merged = OpmlManager.mergeFolders(existing, incoming);
 
     expect(merged).toEqual([
       {
         name: "Tech",
-        subfolders: [{ name: "AI", subfolders: [] }, { name: "News", subfolders: [] }],
+        subfolders: [
+          { name: "AI", subfolders: [] },
+          { name: "News", subfolders: [] },
+        ],
       },
       { name: "Other", subfolders: [] },
     ]);
@@ -188,11 +212,15 @@ describe("OpmlManager.generateOpml", () => {
     expect(opml).toContain('<?xml version="1.0" encoding="UTF-8"?>');
     expect(opml).toContain('<opml version="2.0">');
     expect(opml).toContain("<title>RSS dashboard feeds</title>");
-    expect(opml).toContain("<dateCreated>Sun, 29 Mar 2026 00:00:00 GMT</dateCreated>");
+    expect(opml).toContain(
+      "<dateCreated>Sun, 29 Mar 2026 00:00:00 GMT</dateCreated>",
+    );
 
     // Escaping
     expect(opml).toContain('text="Top &amp; &lt;Feed&gt;"');
-    expect(opml).toContain('xmlUrl="https://top.example.com/rss.xml?x=1&amp;y=2"');
+    expect(opml).toContain(
+      'xmlUrl="https://top.example.com/rss.xml?x=1&amp;y=2"',
+    );
     expect(opml).toContain('category="Other &amp; More"');
     expect(opml).toContain('text="Tech &amp; &quot;Stuff&quot;"');
     expect(opml).toContain('text="AI &lt;ML&gt;"');
@@ -201,14 +229,19 @@ describe("OpmlManager.generateOpml", () => {
     const xmlDoc = new DOMParser().parseFromString(opml, "text/xml");
     expect(xmlDoc.getElementsByTagName("parsererror")).toHaveLength(0);
 
-    const outlines = Array.from(xmlDoc.getElementsByTagName("outline")).map((n) => ({
-      text: n.getAttribute("text"),
-      xmlUrl: n.getAttribute("xmlUrl"),
-    }));
+    const outlines = Array.from(xmlDoc.getElementsByTagName("outline")).map(
+      (n) => ({
+        text: n.getAttribute("text"),
+        xmlUrl: n.getAttribute("xmlUrl"),
+      }),
+    );
 
     expect(outlines).toEqual(
       expect.arrayContaining([
-        { text: 'Top & <Feed>', xmlUrl: "https://top.example.com/rss.xml?x=1&y=2" },
+        {
+          text: "Top & <Feed>",
+          xmlUrl: "https://top.example.com/rss.xml?x=1&y=2",
+        },
         { text: 'Tech & "Stuff"', xmlUrl: null },
         { text: "AI <ML>", xmlUrl: null },
         { text: "In AI", xmlUrl: "https://ai.example.com/rss.xml" },
@@ -229,4 +262,3 @@ describe("OpmlManager.generateOpml", () => {
     expect(xmlDoc.getElementsByTagName("outline")).toHaveLength(0);
   });
 });
-

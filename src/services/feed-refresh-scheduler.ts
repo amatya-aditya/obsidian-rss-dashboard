@@ -43,8 +43,7 @@ export class FeedRefreshScheduler {
       return;
     }
 
-    this.globalRefreshDeferredUntil =
-      Date.now() + intervalMinutes * 60 * 1000;
+    this.globalRefreshDeferredUntil = Date.now() + intervalMinutes * 60 * 1000;
     this.reschedule();
   }
 
@@ -69,9 +68,7 @@ export class FeedRefreshScheduler {
       globalDueAt,
       ...feeds
         .filter((feed) => !usesGlobalRefreshInterval(feed))
-        .map((feed) =>
-          getNextRefreshDueAt(feed, globalIntervalMinutes),
-        ),
+        .map((feed) => getNextRefreshDueAt(feed, globalIntervalMinutes)),
     ].filter((dueAt): dueAt is number => dueAt !== null);
 
     if (dueTimes.length === 0) {

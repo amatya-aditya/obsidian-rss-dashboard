@@ -46,10 +46,10 @@ beforeEach(() => {
 
 describe("RssDashboardSettingTab (orchestrator)", () => {
   it("renders tab bar + default General tab renderer", async () => {
-    const { RssDashboardSettingTab } = await import(
-      "../../../src/settings/settings-tab"
-    );
-    const general = await import("../../../src/settings/tabs/general-settings-tab");
+    const { RssDashboardSettingTab } =
+      await import("../../../src/settings/settings-tab");
+    const general =
+      await import("../../../src/settings/tabs/general-settings-tab");
 
     const app = obsidian.App.createMock();
     const plugin = { app } as unknown as RssDashboardPlugin;
@@ -64,13 +64,14 @@ describe("RssDashboardSettingTab (orchestrator)", () => {
     expect(tabButtons).toHaveLength(11);
     expect(tabButtons[0].textContent).toBe("General");
 
-    expect(vi.mocked(general.renderGeneralSettingsTab)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(general.renderGeneralSettingsTab)).toHaveBeenCalledTimes(
+      1,
+    );
   });
 
   it("switches tabs on button click and via activateTab()", async () => {
-    const { RssDashboardSettingTab } = await import(
-      "../../../src/settings/settings-tab"
-    );
+    const { RssDashboardSettingTab } =
+      await import("../../../src/settings/settings-tab");
     const rules = await import("../../../src/settings/tabs/rules-settings-tab");
     const about = await import("../../../src/settings/tabs/about-settings-tab");
 
@@ -90,9 +91,12 @@ describe("RssDashboardSettingTab (orchestrator)", () => {
     tab.activateTab("Rules");
     expect(vi.mocked(rules.renderRulesSettingsTab)).toHaveBeenCalledTimes(1);
 
-    const display = await import("../../../src/settings/tabs/display-settings-tab");
+    const display =
+      await import("../../../src/settings/tabs/display-settings-tab");
     tab.activateTab("Display", "Reader");
-    expect(vi.mocked(display.renderDisplaySettingsTab)).toHaveBeenLastCalledWith(
+    expect(
+      vi.mocked(display.renderDisplaySettingsTab),
+    ).toHaveBeenLastCalledWith(
       expect.any(HTMLDivElement),
       plugin,
       expect.any(Function),
@@ -106,10 +110,10 @@ describe("RssDashboardSettingTab (orchestrator)", () => {
   });
 
   it("responds to 'rss-settings-refresh' event by re-rendering", async () => {
-    const { RssDashboardSettingTab } = await import(
-      "../../../src/settings/settings-tab"
-    );
-    const general = await import("../../../src/settings/tabs/general-settings-tab");
+    const { RssDashboardSettingTab } =
+      await import("../../../src/settings/settings-tab");
+    const general =
+      await import("../../../src/settings/tabs/general-settings-tab");
 
     const app = obsidian.App.createMock();
     const plugin = { app } as unknown as RssDashboardPlugin;
@@ -117,7 +121,9 @@ describe("RssDashboardSettingTab (orchestrator)", () => {
     tab.containerEl = document.body.appendChild(createDiv());
 
     tab.refresh();
-    expect(vi.mocked(general.renderGeneralSettingsTab)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(general.renderGeneralSettingsTab)).toHaveBeenCalledTimes(
+      1,
+    );
 
     const contentEl = tab.containerEl.querySelector(
       ".rss-dashboard-settings-tab-content",
@@ -125,14 +131,16 @@ describe("RssDashboardSettingTab (orchestrator)", () => {
     expect(contentEl).toBeTruthy();
 
     contentEl.dispatchEvent(new CustomEvent("rss-settings-refresh"));
-    expect(vi.mocked(general.renderGeneralSettingsTab)).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(general.renderGeneralSettingsTab)).toHaveBeenCalledTimes(
+      2,
+    );
   });
 
   it("refreshes the legacy settings renderer through its compatibility bridge", async () => {
-    const { RssDashboardSettingTab } = await import(
-      "../../../src/settings/settings-tab"
-    );
-    const general = await import("../../../src/settings/tabs/general-settings-tab");
+    const { RssDashboardSettingTab } =
+      await import("../../../src/settings/settings-tab");
+    const general =
+      await import("../../../src/settings/tabs/general-settings-tab");
 
     const app = obsidian.App.createMock();
     const plugin = { app } as unknown as RssDashboardPlugin;
@@ -142,7 +150,8 @@ describe("RssDashboardSettingTab (orchestrator)", () => {
     tab.refresh();
     tab.refresh();
 
-    expect(vi.mocked(general.renderGeneralSettingsTab)).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(general.renderGeneralSettingsTab)).toHaveBeenCalledTimes(
+      2,
+    );
   });
 });
-

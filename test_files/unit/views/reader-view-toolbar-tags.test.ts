@@ -103,10 +103,7 @@ describe("ReaderView toolbar tags button", () => {
     )) {
       tagsStyles.set(property, value);
     }
-    const peerStyles = declarationsFor(
-      readerCss,
-      ".rss-reader-action-button",
-    );
+    const peerStyles = declarationsFor(readerCss, ".rss-reader-action-button");
 
     expect(tagsStyles.get("border-radius")).toBe(
       peerStyles.get("border-radius"),
@@ -116,10 +113,7 @@ describe("ReaderView toolbar tags button", () => {
   });
 
   it("keeps each reader action icon centered in an equal-height control box", () => {
-    const peerStyles = declarationsFor(
-      readerCss,
-      ".rss-reader-action-button",
-    );
+    const peerStyles = declarationsFor(readerCss, ".rss-reader-action-button");
 
     expect(peerStyles.get("display")).toBe("flex");
     expect(peerStyles.get("align-items")).toBe("center");

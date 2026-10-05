@@ -64,7 +64,11 @@ describe("resolvePodcastOpenDestinations", () => {
     };
 
     const destinations = resolvePodcastOpenDestinations(item, feed);
-    expect(destinations.map((d) => d.id)).toEqual(["episode", "episode_guid", "rss"]);
+    expect(destinations.map((d) => d.id)).toEqual([
+      "episode",
+      "episode_guid",
+      "rss",
+    ]);
   });
 
   it("adds Apple Podcasts entry when enabled", () => {

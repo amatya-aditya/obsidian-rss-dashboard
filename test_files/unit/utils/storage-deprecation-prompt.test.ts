@@ -71,7 +71,10 @@ describe("shouldShowStorageDeprecationPrompt", () => {
 
   it("prompts on a deprecated mode that has never been deferred", () => {
     expect(
-      shouldShowStorageDeprecationPrompt({ storageMode: "vault-shards" }, "2.7.0"),
+      shouldShowStorageDeprecationPrompt(
+        { storageMode: "vault-shards" },
+        "2.7.0",
+      ),
     ).toBe(true);
   });
 
@@ -105,7 +108,10 @@ describe("shouldShowStorageDeprecationPrompt", () => {
   it("prompts a beta of the deferral target", () => {
     expect(
       shouldShowStorageDeprecationPrompt(
-        { storageMode: "vault-shards", storageMigrationDismissedUntil: "2.8.0" },
+        {
+          storageMode: "vault-shards",
+          storageMigrationDismissedUntil: "2.8.0",
+        },
         "2.8.0-beta.1",
       ),
     ).toBe(true);

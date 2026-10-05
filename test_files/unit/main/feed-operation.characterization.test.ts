@@ -70,7 +70,11 @@ interface DashboardDouble {
 interface ParserDouble {
   refreshFeed: Mock<(feed: Feed, options?: FetchOptions) => Promise<Feed>>;
   parseFeed: Mock<
-    (url: string, existing?: Feed | null, options?: FetchOptions) => Promise<Feed>
+    (
+      url: string,
+      existing?: Feed | null,
+      options?: FetchOptions,
+    ) => Promise<Feed>
   >;
   refreshAllFeeds: Mock<(feeds: Feed[]) => Promise<Feed[]>>;
 }
@@ -1138,9 +1142,8 @@ describe("global feed operation: background import (OPML import, Discover add al
     const refresh = plugin.refreshFeeds();
     await flush();
     plugin.importOpml();
-    const input = document.body.querySelector<HTMLInputElement>(
-      'input[type="file"]',
-    );
+    const input =
+      document.body.querySelector<HTMLInputElement>('input[type="file"]');
     if (!input) throw new Error("importOpml() did not create a file input");
     Object.defineProperty(input, "files", {
       value: [{ name: "feeds.opml", text: () => Promise.resolve(opml) }],
@@ -1273,9 +1276,9 @@ describe("global feed operation: Stop", () => {
     plugin.cancelGlobalRefresh();
 
     expect(deferral).toHaveBeenCalledTimes(2);
-    expect(notices().filter((notice) => notice === STOPPED_NOTICE)).toHaveLength(
-      2,
-    );
+    expect(
+      notices().filter((notice) => notice === STOPPED_NOTICE),
+    ).toHaveLength(2);
   });
 
   it("cancelGlobalRefresh stops an in-flight global refresh, prevents late commits, and protects lastGlobalRefreshCompletedAt", async () => {
@@ -1309,9 +1312,9 @@ describe("global feed operation: Stop", () => {
 
     expect(notices()).toContain("Refreshing 3 feeds...");
     expect(notices()).toContain(STOPPED_NOTICE);
-    expect(notices().some((notice) => notice.startsWith("Feeds refreshed:"))).toBe(
-      false,
-    );
+    expect(
+      notices().some((notice) => notice.startsWith("Feeds refreshed:")),
+    ).toBe(false);
   });
 
   it("leaves a stopped feed's last error and last attempt time as they were", async () => {
@@ -1354,7 +1357,9 @@ describe("global feed operation: Stop", () => {
 
     const refresh = plugin.refreshFeeds();
     await flush();
-    expect(heldUrls(harness)).toEqual(feeds.slice(0, 8).map((feed) => feed.url));
+    expect(heldUrls(harness)).toEqual(
+      feeds.slice(0, 8).map((feed) => feed.url),
+    );
 
     plugin.cancelGlobalRefresh();
     await refresh;

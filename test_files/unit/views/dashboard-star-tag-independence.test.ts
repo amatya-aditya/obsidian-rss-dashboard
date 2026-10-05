@@ -109,9 +109,10 @@ interface DashboardViewInternal {
   actionToggleStarStatus(): Promise<void>;
 }
 
-async function makeView(
-  settings: RssDashboardSettings,
-): Promise<{ view: DashboardViewInternal; updateArticle: ReturnType<typeof vi.fn> }> {
+async function makeView(settings: RssDashboardSettings): Promise<{
+  view: DashboardViewInternal;
+  updateArticle: ReturnType<typeof vi.fn>;
+}> {
   const app = new App();
   const updateArticle = vi.fn(async () => {});
   const plugin = {

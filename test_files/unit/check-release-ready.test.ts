@@ -26,7 +26,8 @@ describe("isValidTargetVersion", () => {
 
 describe("findChangelogHeadingIssue", () => {
   it("passes once the release heading exists", () => {
-    const changelog = "## 2.7.0 - September 22, 2026\n\n### Features\n\n- Thing\n";
+    const changelog =
+      "## 2.7.0 - September 22, 2026\n\n### Features\n\n- Thing\n";
 
     expect(findChangelogHeadingIssue(changelog, "2.7.0")).toBeNull();
   });

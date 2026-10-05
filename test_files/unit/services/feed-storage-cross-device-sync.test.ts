@@ -21,7 +21,7 @@ function adapterFiles(app: App): Map<string, string> {
  * tests pass between devices directly rather than through the vault.
  */
 function isSyncedByObsidianSync(path: string): boolean {
-  return path.split("/").every(segment => !segment.startsWith("."));
+  return path.split("/").every((segment) => !segment.startsWith("."));
 }
 
 function syncVault(from: App, to: App): void {
@@ -108,7 +108,7 @@ describe("Shard storage v2 - cross-device sync", () => {
 
     const feed = mobileSettings.feeds[0];
     expect(mobileRepository.getFeedShardHealth(feed)).toBeNull();
-    expect(feed.items.map(item => item.title)).toEqual(["Article 1"]);
+    expect(feed.items.map((item) => item.title)).toEqual(["Article 1"]);
     expect(feed.items[0]).toMatchObject({ read: true, starred: true });
     expect(mobileRepository.isShardFolderHiddenFromSync()).toBe(false);
   });
@@ -126,7 +126,7 @@ describe("Shard storage v2 - cross-device sync", () => {
     await mobileRepository.persistSettings(mobileSettings, saveData);
     await mobileRepository.repairVaultShards(mobileSettings, saveData);
 
-    const writtenShards = [...adapterFiles(mobile).keys()].filter(path =>
+    const writtenShards = [...adapterFiles(mobile).keys()].filter((path) =>
       path.startsWith(`${DEFAULT_SETTINGS.storageFolder}/`),
     );
     expect(writtenShards).toEqual([]);
@@ -144,7 +144,13 @@ describe("Shard storage v2 - cross-device sync", () => {
     expect(mobileRepository.isShardFolderHiddenFromSync()).toBe(true);
 
     const feed = mobileSettings.feeds[0];
-    feed.items = [{ ...(feed.items[0] ?? {}), guid: "fresh", title: "Fresh" } as Feed["items"][number]];
+    feed.items = [
+      {
+        ...(feed.items[0] ?? {}),
+        guid: "fresh",
+        title: "Fresh",
+      } as Feed["items"][number],
+    ];
     await mobileRepository.persistSettings(mobileSettings, saveData);
 
     expect(mobileRepository.isShardFolderHiddenFromSync()).toBe(false);

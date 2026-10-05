@@ -74,7 +74,7 @@ waste space rather than corrupt state.
 to auto-merge or to write conflict files, and in principle the plugin could
 detect a conflict file and reconcile from it. Rejected on three counts:
 
-- It is reactive — the conflict file only appears *after* state was already
+- It is reactive — the conflict file only appears _after_ state was already
   lost, so it cannot prevent the loss.
 - It depends on a user-toggleable setting, so it cannot be relied on to exist.
 - Parsing another tool's conflict artifacts is brittle and would couple the

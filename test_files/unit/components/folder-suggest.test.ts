@@ -5,8 +5,7 @@ import type { Folder } from "../../../src/types/types";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 
 type FolderSuggestOption =
-  | { kind: "folder"; path: string }
-  | { kind: "add-new"; name: string };
+  { kind: "folder"; path: string } | { kind: "add-new"; name: string };
 
 function createFolders(): Folder[] {
   return [

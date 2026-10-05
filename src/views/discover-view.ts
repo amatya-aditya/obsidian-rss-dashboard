@@ -150,8 +150,7 @@ export class DiscoverView extends ItemView {
 
           feed.area.forEach((area) => {
             const subdomainObj = domainCategories[subdomain] as
-              | Record<string, unknown>
-              | undefined;
+              Record<string, unknown> | undefined;
             if (!subdomainObj) {
               return;
             }
