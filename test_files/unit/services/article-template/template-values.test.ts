@@ -204,6 +204,30 @@ describe("buildArticleTemplateValues language (#246)", () => {
     expect(values.language).toBe("de-DE");
   });
 
+  it("falls back to the feed's declared language, normalized, for an item with none", () => {
+    const values = buildArticleTemplateValues(
+      createItem(),
+      inputs({ feedLanguage: "de_de" }),
+    );
+    expect(values.language).toBe("de-DE");
+  });
+
+  it("prefers the item's stored language over the feed's", () => {
+    const values = buildArticleTemplateValues(
+      createItem({ language: "en-GB", languageSource: "page" }),
+      inputs({ feedLanguage: "de-DE" }),
+    );
+    expect(values.language).toBe("en-GB");
+  });
+
+  it("is empty when the feed's language is not a language tag", () => {
+    const values = buildArticleTemplateValues(
+      createItem(),
+      inputs({ feedLanguage: "not a tag" }),
+    );
+    expect(values.language).toBe("");
+  });
+
   it("is empty for an item with no stored language", () => {
     expect(buildArticleTemplateValues(createItem(), inputs()).language).toBe(
       "",

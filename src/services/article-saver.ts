@@ -271,6 +271,7 @@ export class ArticleSaver {
         ? withSavedTagName(tagNames)
         : tagNames,
       image: () => this.getFallbackHeroUrl(item),
+      feedLanguage: feedLanguageFor(this.getFeeds(), item),
     });
   }
 

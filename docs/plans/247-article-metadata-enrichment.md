@@ -98,7 +98,7 @@ The feed-level part of [#246](https://github.com/amatya-aditya/obsidian-rss-dash
 
 - The feed parser reads feed-level `<language>` (RSS 2.0 and 1.0, with `<dc:language>` as a fallback), `xml:lang` on Atom's `<feed>`, and JSON Feed's `language`, as the resolver's language fallback. `ParsedFeed.language` carries the value as the feed wrote it, and the stored `Feed` gains an optional `language` (no migration). A refresh updates it when the feed declares one and keeps it when it doesn't.
 - The callers that hold feed context (`reader-view.ts`, `article-renderer.ts`, `article-saver.ts`) look up the item's feed and pass its language to `planMetadataWrite`, which stays pure. The precedence is `<html lang>`, then the feed value; `languageSource` records "page" or "feed", and first-write-wins still applies.
-- `{{language}}` goes through the registry with `omitIfEmpty`, so an unknown language omits the `lang:` line rather than writing `lang: ""` (#266). `ArticleSaver`'s note and frontmatter templates fill it from the item's stored `language`; the web viewer's templates leave it unfilled (item 7 below).
+- `{{language}}` goes through the registry with `omitIfEmpty`, so an unknown language omits the `lang:` line rather than writing `lang: ""` (#266). `ArticleSaver`'s note and frontmatter templates fill it from the item's stored `language`, else the feed's declared language (so an item saved without a page fetch still gets one); the web viewer's templates leave it unfilled (item 7 below).
 - **Tests:** feed-level language parsing for RSS 2.0, RSS 1.0, Atom, and JSON Feed; the precedence `<html lang>`, then the feed value; the omitted line.
 
 ## Web viewer follow-ups

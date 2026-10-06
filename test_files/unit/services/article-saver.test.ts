@@ -185,6 +185,28 @@ lang: "{{language}}"
     expect(unknown).toContain("BODY");
   });
 
+  it("fills {{language}} from the feed's declared language for an item that was never fetched (#809)", async () => {
+    const settings = createSettings({
+      includeFrontmatter: false,
+      defaultTemplate: 'language: "{{language}}"\n\n{{content}}',
+    });
+    const app = App.createMock();
+    const spy = vi.spyOn(app.vault, "create");
+    const feedUrl = "https://example.com/feed.xml";
+    await new ArticleSaver(app, settings, undefined, undefined, () => [
+      {
+        title: "Feed",
+        url: feedUrl,
+        folder: "",
+        items: [],
+        lastUpdated: 0,
+        language: "en_us",
+      },
+    ]).saveArticle(createItem({ feedUrl }), undefined, undefined, "BODY");
+
+    expect(spy.mock.calls[0][1]).toContain('language: "en-US"');
+  });
+
   it("prefers item.content over description when raw content is not provided", async () => {
     const app = App.createMock();
     const settings = createSettings({

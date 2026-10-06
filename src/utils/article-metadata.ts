@@ -342,7 +342,7 @@ function resolveExcerpt(
  * Normalizes a language tag to BCP-47 casing (`en-US`, `zh-Hant-TW`), keeping
  * regional subtags. Returns "" for anything that is not a language tag.
  */
-function normalizeLanguageTag(value: string): string {
+export function normalizeLanguageTag(value: string): string {
   const subtags = value.trim().split(/[-_]/);
   const [primary, ...rest] = subtags;
   if (!primary || !/^[a-z]{2,3}$/i.test(primary)) return "";
