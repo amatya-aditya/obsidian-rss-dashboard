@@ -23,7 +23,7 @@ validation and publication are complete.
 
 Keep these implementation plans and coordination documents in `docs/plans/`:
 
-- `draft-20260816-cover-image-fallback.md` - proposed future work.
+- `812-cover-image-fallback.md` - proposed future work (issue #812).
 - `deprecate-feed-manager-modal.md` - proposed 3.0 work.
 - `main-ts-refactor.md` - in progress; no canonical issue or final implementation evidence.
 - `draft-20260816-media-notes.md` - idea awaiting product decisions.
