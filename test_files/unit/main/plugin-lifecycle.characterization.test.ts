@@ -134,6 +134,7 @@ const STARTUP_SEQUENCE = [
   "addCommand:export-usersettings-json",
   "addCommand:apply-feed-limits",
   "addCommand:toggle-sidebar",
+  "addCommand:show-version-in-status-bar",
 ];
 
 const FEED_URL = "https://example.com/feed.xml";
@@ -640,6 +641,7 @@ describe("onload steps (characterization)", () => {
         "addCommand:export-usersettings-json",
         "addCommand:apply-feed-limits",
         "addCommand:toggle-sidebar",
+        "addCommand:show-version-in-status-bar",
       ]);
     });
 
