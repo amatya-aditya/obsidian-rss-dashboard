@@ -344,4 +344,85 @@ describe("ReaderCustomSaveModal", () => {
       ?.click();
     expect(second.saveArticle).not.toHaveBeenCalled();
   });
+  describe("going back to the default template", () => {
+    const saved = [
+      {
+        id: "t1",
+        name: "Custom one",
+        template: "Custom: {{title}}",
+        defaultFolder: "",
+      },
+    ];
+
+    function choose(root: HTMLElement, value: string): void {
+      const select = root.querySelector<HTMLSelectElement>(
+        "#rss-dashboard-saved-template",
+      );
+      if (!select) throw new Error("Template select was not rendered");
+      select.value = value;
+      select.dispatchEvent(new Event("change"));
+    }
+
+    it("puts the default template back in the editor when 'Current template' is chosen", () => {
+      const harness = createHarness({ savedTemplates: saved });
+      harness.open();
+      const root = modal();
+      const editor = root.querySelector<HTMLTextAreaElement>("textarea");
+
+      choose(root, "t1");
+      expect(editor?.value).toBe("Custom: {{title}}");
+
+      choose(root, "");
+      expect(editor?.value).toBe("Default: {{title}}");
+    });
+
+    it("unassigns the feed's saved template when saved with 'Current template' chosen", async () => {
+      const harness = createHarness({
+        savedTemplates: saved,
+        feedTemplate: "t1",
+      });
+      harness.open();
+      const root = modal();
+      const select = root.querySelector<HTMLSelectElement>(
+        "#rss-dashboard-saved-template",
+      );
+      expect(select?.value).toBe("t1");
+
+      choose(root, "");
+      root
+        .querySelector<HTMLButtonElement>(
+          ".rss-dashboard-custom-save-confirm-button",
+        )
+        ?.click();
+      await vi.waitFor(() =>
+        expect(harness.saveArticle).toHaveBeenCalledOnce(),
+      );
+
+      expect(harness.saveArticle).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.anything(),
+        "Default: {{title}}",
+        "Reader body",
+      );
+      expect(harness.feed.customTemplate).toBeUndefined();
+    });
+
+    it("keeps the feed's saved template when it stays chosen", async () => {
+      const harness = createHarness({
+        savedTemplates: saved,
+        feedTemplate: "t1",
+      });
+      harness.open();
+      modal()
+        .querySelector<HTMLButtonElement>(
+          ".rss-dashboard-custom-save-confirm-button",
+        )
+        ?.click();
+      await vi.waitFor(() =>
+        expect(harness.saveArticle).toHaveBeenCalledOnce(),
+      );
+
+      expect(harness.feed.customTemplate).toBe("t1");
+    });
+  });
 });
