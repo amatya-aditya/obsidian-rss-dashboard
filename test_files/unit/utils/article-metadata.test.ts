@@ -481,3 +481,52 @@ describe("resolveArticleMetadata canonical URL", () => {
     expect(resolveArticleMetadata(emptyRaw(), {}).canonicalUrl).toBeUndefined();
   });
 });
+
+describe("resolveArticleMetadata feed-blurb footer (#677)", () => {
+  const TITLE = "Harbor budget approved";
+  const FOOTER = `<p>The post <a href="https://x.test/a">${TITLE}</a> appeared first on <a href="https://x.test">The Blog</a>.</p>`;
+
+  it("strips the footer from the feed candidate of the description tier", () => {
+    const resolved = resolveArticleMetadata(emptyRaw(), {
+      title: TITLE,
+      description: `<p>${FEED_BLURB}</p>${FOOTER}`,
+    });
+    expect(resolved.description).toBe(FEED_BLURB);
+  });
+
+  it("leaves a feed blurb with no footer unchanged", () => {
+    const resolved = resolveArticleMetadata(emptyRaw(), {
+      title: TITLE,
+      description: `<p>${FEED_BLURB}</p>`,
+    });
+    expect(resolved.description).toBe(FEED_BLURB);
+  });
+
+  it("fails the guard for a blurb that is only a footer", () => {
+    const resolved = resolveArticleMetadata(emptyRaw(), {
+      title: TITLE,
+      description: FOOTER,
+    });
+    expect(resolved.description).toBe("");
+    expect(resolved.excerpt).toBe("");
+  });
+
+  it("strips the footer from the excerpt tier's feed fallback", () => {
+    const resolved = resolveArticleMetadata(emptyRaw(), {
+      title: TITLE,
+      description: `<p>Short blurb</p>${FOOTER}`,
+    });
+    expect(resolved.description).toBe("");
+    expect(resolved.excerpt).toBe("Short blurb");
+  });
+
+  it("lets duplicate-intro detection match once the footer is gone", () => {
+    const resolved = resolveArticleMetadata(emptyRaw(), {
+      title: TITLE,
+      articleHtml: `<p>${FEED_BLURB}. The rest of the story follows.</p>`,
+      description: `<p>${FEED_BLURB}</p>${FOOTER}`,
+    });
+    expect(resolved.description).toBe("");
+    expect(resolved.excerpt).toBe(FEED_BLURB);
+  });
+});
