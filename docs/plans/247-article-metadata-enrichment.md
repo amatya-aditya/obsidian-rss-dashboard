@@ -45,7 +45,7 @@ Adds `src/utils/duplicate-intro-detection.ts` with `isDuplicateIntro`, built on 
 - Replaces the Reader's private checks: `isEquivalentHtml` behind `hasDistinctMainContent` in `src/utils/reader-article-render.ts` and `src/components/article-renderer.ts`, and the description match in `stripDuplicateLeadContentFromDocument` (`src/utils/reader-html-cleanup.ts`, and its copy in `article-renderer.ts`).
 - **Tests first:** pin today's Reader suppression. Where `isDuplicateIntro` flags more than today's checks do (the prefix match), the PR says so and tests it; it must not flag a lightly reworded near-duplicate.
 
-### 3. Page-metadata extraction and resolution
+### 3. Page-metadata extraction and resolution ([#788](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/788))
 
 Adds `src/utils/article-metadata.ts` with `extractPageMetadata(doc)` and `resolveArticleMetadata(pageRaw, feedFallbacks)`, per ADR 0007 (#264, #265, #267, #275).
 

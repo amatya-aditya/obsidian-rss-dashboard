@@ -360,6 +360,81 @@ describe("fetchWithProxyFallbackDetailed", () => {
 
     expect(result).toEqual({ content: "", failureType: "restricted" });
   });
+
+  describe("page metadata (#247 slice 3)", () => {
+    const META_DESCRIPTION =
+      "A publisher description that is comfortably longer than forty characters";
+    const PAGE_HTML = `<!DOCTYPE html><html lang="en-GB"><head><title>Test Article</title>
+<meta name="description" content="${META_DESCRIPTION}">
+<link rel="canonical" href="https://example.com/canonical">
+<script type="application/ld+json">{"@type":"Article","author":{"@type":"Person","name":"Json Writer"}}</script>
+</head><body><article><h1>Test Headline</h1>
+<p>This is meaningful article content that is long enough for Readability to extract.
+It contains several sentences and paragraphs to ensure the parser considers it valid content.
+Psychology Today articles often have this kind of rich text body with many paragraphs.</p>
+<p>Second paragraph with more content to satisfy Readability minimum thresholds for content
+extraction. The article continues with interesting information about the topic at hand.</p>
+</article></body></html>`;
+
+    it("fills pageMetadata from the fetched page on success", async () => {
+      robustFetchMock.mockResolvedValueOnce({ text: PAGE_HTML, status: 200 });
+
+      const result = await fetchWithProxyFallbackDetailed(
+        "https://example.com/article",
+      );
+
+      expect(result.failureType).toBe("none");
+      expect(result.content).toContain("meaningful article content");
+      expect(result.pageMetadata).toMatchObject({
+        metaDescription: META_DESCRIPTION,
+        htmlLang: "en-GB",
+        canonicalUrl: "https://example.com/canonical",
+      });
+    });
+
+    it("extracts before Readability, which strips script tags from the document", async () => {
+      robustFetchMock.mockResolvedValueOnce({ text: PAGE_HTML, status: 200 });
+
+      const result = await fetchWithProxyFallbackDetailed(
+        "https://example.com/article",
+      );
+
+      // JSON-LD lives in a <script>; Readability removes it while parsing.
+      expect(result.pageMetadata?.jsonLdAuthors).toEqual(["Json Writer"]);
+    });
+
+    it("carries the head metadata of a restricted page that has no readable body", async () => {
+      const paywalled = `<html lang="de"><head>
+<meta name="description" content="${META_DESCRIPTION}"></head>
+<body>subscription required. ${"x".repeat(220)}</body></html>`;
+      robustFetchMock.mockResolvedValueOnce({ text: paywalled, status: 403 });
+
+      const result = await fetchWithProxyFallbackDetailed(
+        "https://example.com/restricted",
+      );
+
+      expect(result.content).toBe("");
+      expect(result.failureType).toBe("restricted");
+      expect(result.pageMetadata).toMatchObject({
+        metaDescription: META_DESCRIPTION,
+        htmlLang: "de",
+      });
+    });
+
+    it("prefers the proxy page's metadata when the proxy retry succeeds", async () => {
+      const challenge = `<html><head><title>Just a moment...</title></head><body>cf-challenge ${"x".repeat(220)}</body></html>`;
+      robustFetchMock.mockResolvedValueOnce({ text: challenge, status: 200 });
+      robustFetchMock.mockResolvedValueOnce({ text: PAGE_HTML, status: 200 });
+
+      const result = await fetchWithProxyFallbackDetailed(
+        "https://example.com/article",
+        "https://proxy.example.com/?url=",
+      );
+
+      expect(result.failureType).toBe("none");
+      expect(result.pageMetadata?.metaDescription).toBe(META_DESCRIPTION);
+    });
+  });
 });
 
 // These go through the Obsidian stub's requestUrl, which throws on status 400
