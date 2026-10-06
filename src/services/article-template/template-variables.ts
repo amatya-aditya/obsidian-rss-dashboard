@@ -5,7 +5,7 @@ export interface TemplateVariable {
   /**
    * Leave out each line holding the placeholder when the value is empty,
    * rather than writing the empty value in place. Only `{{language}}` sets it,
-   * so an unknown language writes no `lang:` line (#266).
+   * so an unknown language writes no `language:` line (#266).
    */
   readonly omitIfEmpty: boolean;
 }
