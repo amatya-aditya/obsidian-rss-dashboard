@@ -29,6 +29,8 @@ function createValues(author: string): ArticleTemplateValues {
     source: "",
     feedTitle: "",
     summary: "",
+    description: "",
+    excerpt: "",
     tags: "",
     guid: "",
     image: "",

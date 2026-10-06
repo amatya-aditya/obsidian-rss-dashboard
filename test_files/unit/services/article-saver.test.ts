@@ -115,6 +115,38 @@ summary: "{{summary}}"
     expect(written).not.toContain("{{summary}}");
   });
 
+  it("fills {{description}}, {{excerpt}} and the cleaned {{author}} in the note and frontmatter (#247)", async () => {
+    const app = App.createMock();
+    const settings = createSettings({
+      includeFrontmatter: true,
+      defaultTemplate:
+        "D={{description}} | E={{excerpt}} | A={{author}} | S={{summary}} | {{content}}",
+      frontmatterTemplate: `---
+description: "{{description}}"
+excerpt: "{{excerpt}}"
+---`,
+    });
+    const saver = new ArticleSaver(app, settings);
+    const item = createItem({
+      summary: "Kept summary",
+      author: "Jane Doe in Paris",
+      authors: ["Jane Doe"],
+      publisherDescription: 'The "publisher" description of the harbor story',
+    });
+
+    const createSpy = vi.spyOn(app.vault, "create");
+    await saver.saveArticle(item, undefined, undefined, "BODY");
+
+    const written = createSpy.mock.calls[0][1];
+    expect(written).toContain(
+      'description: "The \\"publisher\\" description of the harbor story"',
+    );
+    expect(written).toContain('excerpt: ""');
+    expect(written).toContain(
+      'D=The "publisher" description of the harbor story | E= | A=Jane Doe | S=Kept summary | BODY',
+    );
+  });
+
   it("prefers item.content over description when raw content is not provided", async () => {
     const app = App.createMock();
     const settings = createSettings({

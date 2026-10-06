@@ -77,7 +77,8 @@ function normalizeSpace(text: string): string {
   return text.replace(/\s+/g, " ").trim();
 }
 
-function emptyRawMetadata(): RawArticleMetadata {
+/** A raw-metadata bag with every signal absent. */
+export function emptyRawMetadata(): RawArticleMetadata {
   return {
     metaDescription: "",
     ogDescription: "",

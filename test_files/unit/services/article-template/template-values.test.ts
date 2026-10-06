@@ -126,6 +126,75 @@ describe("buildArticleTemplateValues", () => {
   });
 });
 
+describe("buildArticleTemplateValues description, excerpt and author (#247 slice 6)", () => {
+  const LONG =
+    "The council approved the harbor budget after a long and tense session";
+
+  it("fills {{description}} from the stored publisherDescription and leaves the excerpt empty", () => {
+    const values = buildArticleTemplateValues(
+      createItem({ publisherDescription: LONG, description: "<p>x</p>" }),
+      inputs(),
+    );
+    expect(values.description).toBe(LONG);
+    expect(values.excerpt).toBe("");
+  });
+
+  it("falls back to the guarded feed blurb for {{description}}", () => {
+    const values = buildArticleTemplateValues(
+      createItem({ description: `<p>${LONG}</p>` }),
+      inputs(),
+    );
+    expect(values.description).toBe(LONG);
+    expect(values.excerpt).toBe("");
+  });
+
+  it("uses the excerpt tier when the blurb is too short to be a description", () => {
+    const values = buildArticleTemplateValues(
+      createItem({ description: "<p>Short blurb</p>" }),
+      inputs(),
+    );
+    expect(values.description).toBe("");
+    expect(values.excerpt).toBe("Short blurb");
+  });
+
+  it("strips a feed footer from the blurb", () => {
+    const values = buildArticleTemplateValues(
+      createItem({
+        title: "Harbor budget approved",
+        description: `<p>${LONG}</p><p>The post <a href="https://x.test">Harbor budget approved</a> appeared first on <a href="https://x.test">Blog</a>.</p>`,
+      }),
+      inputs(),
+    );
+    expect(values.description).toBe(LONG);
+  });
+
+  it("leaves {{summary}} exactly as the item stores it", () => {
+    const values = buildArticleTemplateValues(
+      createItem({ summary: "Stored summary", publisherDescription: LONG }),
+      inputs(),
+    );
+    expect(values.summary).toBe("Stored summary");
+  });
+
+  it("writes {{author}} from the cleaned authors list when the item has one", () => {
+    const values = buildArticleTemplateValues(
+      createItem({
+        author: "Jane Doe in Paris",
+        authors: ["Jane Doe", "Sam Roe"],
+      }),
+      inputs(),
+    );
+    expect(values.author).toBe("Jane Doe, Sam Roe");
+  });
+
+  it("keeps the author string for an item with no authors list", () => {
+    expect(
+      buildArticleTemplateValues(createItem({ author: "Old Author" }), inputs())
+        .author,
+    ).toBe("Old Author");
+  });
+});
+
 describe("resolveSavedArticleDate", () => {
   it("uses the item's pubDate when it parses", () => {
     expect(resolveSavedArticleDate(createItem(), false)).toEqual(PUB);

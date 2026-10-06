@@ -3,6 +3,7 @@
 // `metadataFetchedAt` is set, a later fetch or refresh never overwrites them.
 import type { FeedItem } from "../types/types";
 import {
+  emptyRawMetadata,
   resolveArticleMetadata,
   type RawArticleMetadata,
 } from "./article-metadata";
@@ -72,4 +73,24 @@ export function applyArticleMetadata(
   const update = planMetadataWrite(item, pageMetadata, articleHtml, now);
   if (update) Object.assign(item, update);
   return update;
+}
+
+/**
+ * What `{{description}}` and `{{excerpt}}` fill from for a stored item: the
+ * persisted `publisherDescription`, else the guarded feed blurb (minus its
+ * footer). The excerpt is only filled when there is no description, as in the
+ * resolver's excerpt tier.
+ */
+export function resolveItemDescriptions(item: FeedItem): {
+  description: string;
+  excerpt: string;
+} {
+  const stored = (item.publisherDescription ?? "").trim();
+  if (stored) return { description: stored, excerpt: "" };
+  const { description, excerpt } = resolveArticleMetadata(emptyRawMetadata(), {
+    title: item.title,
+    articleHtml: item.content,
+    description: item.description,
+  });
+  return { description, excerpt };
 }

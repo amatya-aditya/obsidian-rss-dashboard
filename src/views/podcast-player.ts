@@ -4,6 +4,7 @@ import { PodcastEpisodeList } from "../components/podcast-episode-list";
 import { MediaService } from "../services/media-service";
 import { sanitizeAndAppendHtml } from "../utils/safe-html";
 import { windowInstanceOf } from "../utils/platform-utils";
+import { itemAuthorText } from "../utils/item-author";
 
 export class PodcastPlayer {
   private container: HTMLElement;
@@ -292,7 +293,7 @@ export class PodcastPlayer {
     });
     textInfo.createDiv({
       cls: "podcast-meta-display",
-      text: `${this.currentItem.feedTitle}${this.currentItem.author ? " - " + this.currentItem.author : ""}`,
+      text: `${this.currentItem.feedTitle}${itemAuthorText(this.currentItem) ? " - " + itemAuthorText(this.currentItem) : ""}`,
     });
 
     // 1.1.5 Tags Section
@@ -739,7 +740,7 @@ export class PodcastPlayer {
     const duration = (item.duration || item.itunes?.duration || "").trim();
     if (duration) entries.push({ label: "Duration", value: duration });
 
-    const author = (item.author || "").trim();
+    const author = itemAuthorText(item).trim();
     if (author) entries.push({ label: "Author", value: author });
 
     if (typeof item.explicit === "boolean") {

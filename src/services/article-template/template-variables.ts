@@ -26,6 +26,8 @@ const VARIABLES = {
   source: { placeholder: /{{source}}/g, omitIfEmpty: false },
   feedTitle: { placeholder: /{{feedTitle}}/g, omitIfEmpty: false },
   summary: { placeholder: /{{summary}}/g, omitIfEmpty: false },
+  description: { placeholder: /{{description}}/g, omitIfEmpty: false },
+  excerpt: { placeholder: /{{excerpt}}/g, omitIfEmpty: false },
   tags: { placeholder: /{{tags}}/g, omitIfEmpty: false },
   guid: { placeholder: /{{guid}}/g, omitIfEmpty: false },
   image: { placeholder: /{{image}}/g, omitIfEmpty: false },
