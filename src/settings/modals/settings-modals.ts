@@ -161,75 +161,84 @@ export class SavedTemplateEditorModal extends Modal {
   onOpen() {
     this.containerEl.addClass("rss-dashboard-template-dialog-container");
     this.modalEl.addClass("rss-dashboard-template-dialog");
+    this.modalEl.addClass("rss-dashboard-template-editor-dialog");
     const { contentEl } = this;
     contentEl.empty();
     new Setting(contentEl)
       .setName(this.editingId ? "Edit saved template" : "Create saved template")
       .setHeading();
 
-    let nameInput: HTMLInputElement;
-    let bodyInput: HTMLTextAreaElement;
-    let folderInput: HTMLInputElement;
-    let filenameInput: HTMLInputElement;
-    let defaultCheckbox: HTMLInputElement;
+    const form = contentEl.createDiv({ cls: "rss-template-form" });
 
-    const createTextField = (
+    // One field is a label above its control, with any help text beneath it.
+    const createField = (
+      parent: HTMLElement,
       name: string,
       id: string,
       value: string,
       multiline = false,
+      description?: { id: string; text: string },
     ): HTMLInputElement | HTMLTextAreaElement => {
-      contentEl.createEl("label", { text: name, attr: { for: id } });
+      const field = parent.createDiv({ cls: "rss-template-field" });
+      field.createEl("label", { text: name, attr: { for: id } });
       const input = multiline
-        ? contentEl.createEl("textarea", { attr: { id, rows: "8" } })
-        : contentEl.createEl("input", {
-            attr: { id, type: "text" },
-          });
+        ? field.createEl("textarea", { attr: { id, rows: "8" } })
+        : field.createEl("input", { attr: { id, type: "text" } });
       input.value = value;
+      if (description) {
+        input.setAttribute("aria-describedby", description.id);
+        field.createDiv({
+          cls: "setting-item-description rss-template-field-description",
+          attr: { id: description.id },
+          text: description.text,
+        });
+      }
       return input;
     };
 
-    nameInput = createTextField(
+    const nameInput = createField(
+      form,
       "Template name",
       "rss-saved-template-name",
       this.initial.name,
     ) as HTMLInputElement;
-    bodyInput = createTextField(
+    const bodyInput = createField(
+      form,
       "Template body",
       "rss-saved-template-body",
       this.initial.template,
       true,
     ) as HTMLTextAreaElement;
-    folderInput = createTextField(
+    const pathFields = form.createDiv({ cls: "rss-template-path-fields" });
+    const folderInput = createField(
+      pathFields,
       "Custom folder",
       "rss-saved-template-folder",
       this.initial.defaultFolder,
     ) as HTMLInputElement;
-    filenameInput = createTextField(
+    const filenameInput = createField(
+      pathFields,
       "Filename pattern",
       "rss-saved-template-filename",
       this.initial.filenamePattern,
+      false,
+      {
+        id: "rss-saved-template-filename-help",
+        text: "Leave blank to use the article title. The .md extension is added automatically.",
+      },
     ) as HTMLInputElement;
-    filenameInput.setAttribute(
-      "aria-describedby",
-      "rss-saved-template-filename-help",
-    );
-    contentEl.createEl("p", {
-      cls: "setting-item-description",
-      attr: { id: "rss-saved-template-filename-help" },
-      text: "Leave blank to use the article title. The .md extension is added automatically.",
-    });
 
-    const defaultLabel = contentEl.createEl("label", {
+    const defaultLabel = form.createEl("label", {
+      cls: "rss-template-global-default",
       attr: { for: "rss-saved-template-global-default" },
       text: "Make global default",
     });
-    defaultCheckbox = contentEl.createEl("input", {
+    const defaultCheckbox = form.createEl("input", {
       attr: { id: "rss-saved-template-global-default", type: "checkbox" },
     });
     defaultCheckbox.checked = this.initial.makeGlobalDefault;
     defaultLabel.insertAdjacentElement("afterbegin", defaultCheckbox);
-    contentEl.createEl("p", {
+    form.createEl("p", {
       cls: "setting-item-description",
       text: "A feed-assigned template takes precedence over the global default. The standalone template is used when no saved default is selected.",
     });

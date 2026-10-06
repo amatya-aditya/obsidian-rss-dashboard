@@ -436,6 +436,50 @@ body .modal.rss-dashboard-template-dialog {
   z-index: var(--z-index-modal-child);
 }
 
+/* Saved template editor: a vertical form, labels above their controls. */
+body .modal.rss-dashboard-template-editor-dialog {
+  width: min(760px, calc(100vw - 2rem));
+  max-width: calc(100vw - 2rem);
+}
+.rss-dashboard-template-editor-dialog .rss-template-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--size-4-4, 16px);
+  min-width: 0;
+}
+.rss-dashboard-template-editor-dialog .rss-template-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--size-4-1, 4px);
+  min-width: 0;
+}
+.rss-dashboard-template-editor-dialog .rss-template-field input[type="text"] {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+.rss-dashboard-template-editor-dialog .rss-template-field textarea {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  min-height: 160px;
+  resize: vertical;
+}
+.rss-dashboard-template-editor-dialog .rss-template-path-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  gap: var(--size-4-4, 16px);
+  min-width: 0;
+}
+.rss-dashboard-template-editor-dialog .rss-template-field-description {
+  overflow-wrap: anywhere;
+}
+.rss-dashboard-template-editor-dialog .rss-template-global-default {
+  display: flex;
+  align-items: center;
+  gap: var(--size-4-2, 8px);
+}
+
 /* Base danger button - red background with hover stroke */
 .rss-dashboard-danger-button {
   background: var(--rss-color-red-danger);
