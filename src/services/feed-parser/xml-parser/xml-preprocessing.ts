@@ -1,4 +1,5 @@
 import type { ParsedFeed, ParsedItem } from "../types.js";
+import { joinAuthors, splitAuthorElements } from "../author-normalization.js";
 
 export interface FallbackParseDeps {
   sanitizeCDATA: (text: string, isHtml?: boolean) => string;
@@ -292,7 +293,7 @@ export function fallbackParse(
     itemMatches.forEach((match) => {
       const itemXml = match.inner;
 
-      let itemAuthor = "";
+      let itemAuthorText = "";
       let itemPubDate = "";
       let itemGuid = "";
 
@@ -350,7 +351,7 @@ export function fallbackParse(
       ];
       for (const authorMatch of authorMatches) {
         if (authorMatch) {
-          itemAuthor = sanitize(authorMatch[1]?.trim() ?? "");
+          itemAuthorText = sanitize(authorMatch[1]?.trim() ?? "");
           break;
         }
       }
@@ -457,16 +458,18 @@ export function fallbackParse(
               authors,
             }
           : undefined;
-      if (authors && !itemAuthor) {
-        itemAuthor = authors;
+      if (authors && !itemAuthorText) {
+        itemAuthorText = authors;
       }
+      const itemAuthors = splitAuthorElements([itemAuthorText]);
       items.push({
         title: itemTitle,
         link: itemLink,
         description: itemDescription,
         pubDate: itemPubDate,
         guid: itemGuid,
-        author: itemAuthor || undefined,
+        author: joinAuthors(itemAuthors) || undefined,
+        authors: itemAuthors,
         content: itemDescription,
         image: mediaUrl ? { url: convertAppUrls(mediaUrl) } : undefined,
         category: itemCategory,

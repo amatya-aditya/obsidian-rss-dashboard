@@ -336,6 +336,51 @@ describe("feed-item-builder", () => {
       expect(result.updatedItems[0]?.description).toBe("[content]new blurb");
     });
 
+    it("carries parsed authors onto new and refreshed items (#247)", () => {
+      const ctx = makeContext();
+      const parsed = pitem({
+        link: "https://example.com/a",
+        pubDate: RECENT,
+        author: "Ada, Grace",
+        authors: ["Ada", "Grace"],
+      });
+
+      const fresh = collectRefreshedItems(requestFor([parsed], null, ctx), ctx);
+      expect(fresh.newItems[0]).toMatchObject({
+        author: "Ada, Grace",
+        authors: ["Ada", "Grace"],
+      });
+
+      const refreshed = collectRefreshedItems(
+        requestFor([parsed], feedOf([stored({ authors: ["Old"] })]), ctx),
+        ctx,
+      );
+      expect(refreshed.updatedItems[0]?.authors).toEqual(["Ada", "Grace"]);
+    });
+
+    it("keeps stored authors on refresh once metadata was fetched (first-write-wins)", () => {
+      const ctx = makeContext();
+      const existing = feedOf([
+        stored({ authors: ["Page Author"], metadataFetchedAt: 9 }),
+      ]);
+      const result = collectRefreshedItems(
+        requestFor(
+          [
+            pitem({
+              link: "https://example.com/a",
+              pubDate: RECENT,
+              author: "Feed Author",
+              authors: ["Feed Author"],
+            }),
+          ],
+          existing,
+          ctx,
+        ),
+        ctx,
+      );
+      expect(result.updatedItems[0]?.authors).toEqual(["Page Author"]);
+    });
+
     it("skips duplicates and items with no identity", () => {
       const ctx = makeContext();
       const result = collectRefreshedItems(

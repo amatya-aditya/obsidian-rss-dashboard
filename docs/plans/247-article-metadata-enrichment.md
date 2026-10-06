@@ -74,7 +74,7 @@ Strips the footer that WordPress and similar feeds append to the item blurb ("Th
 - The Reader's description callout uses the resolved description. It never renders empty, it's hidden for a duplicate intro, and it doesn't call a page-level description "Feed description" (see _Feed description_ in the [glossary](../../CONTEXT.md#article-metadata-pipeline)).
 - **Tests:** first-write-wins persistence; no callout for an empty description; a duplicate-intro description suppressed by the shared test; refresh leaves `FeedItem.description` behaving as today.
 
-### 5. Authors
+### 5. Authors ([#798](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/798))
 
 Parse-time and post-fetch author cleanup (#290, #291).
 

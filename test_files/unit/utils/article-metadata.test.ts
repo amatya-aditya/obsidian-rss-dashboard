@@ -449,6 +449,21 @@ describe("resolveArticleMetadata authors", () => {
     expect(resolved.authors).toEqual(["Meta Writer"]);
   });
 
+  it("resolves the pollution shapes measured in #290 from the page", () => {
+    const polluted = [
+      "Jane Doe in Paris",
+      "Jane Doe; Sam Roe (Reuters)",
+      "Jane Doe, Senior Editor, Big Institute",
+    ];
+    for (const feedAuthor of polluted) {
+      const resolved = resolveArticleMetadata(
+        emptyRaw({ microdataAuthors: ["Jane Doe"] }),
+        { authors: [feedAuthor] },
+      );
+      expect(resolved.authors).toEqual(["Jane Doe"]);
+    }
+  });
+
   it("trusts a multi-entry feed result as-is", () => {
     const resolved = resolveArticleMetadata(emptyRaw(signals), {
       authors: ["First Author", "Second Author"],

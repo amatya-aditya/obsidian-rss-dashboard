@@ -258,6 +258,7 @@ type UpdatedItemCore = Pick<
   | "content"
   | "pubDate"
   | "author"
+  | "authors"
   | "read"
   | "starred"
   | "saved"
@@ -267,6 +268,18 @@ type UpdatedItemCore = Pick<
   | "summary"
   | "image"
 >;
+
+/**
+ * Feed authors replace the stored ones on refresh, except once article metadata
+ * was fetched: then `authors` is first-write-wins (#247 slice 5, ADR 0007).
+ */
+function refreshedAuthors(
+  item: ParsedItem,
+  existingItem: FeedItem,
+): string[] | undefined {
+  if (existingItem.metadataFetchedAt) return existingItem.authors;
+  return item.authors?.length ? item.authors : existingItem.authors;
+}
 
 function buildUpdatedItemCore(
   work: ItemWork,
@@ -284,6 +297,7 @@ function buildUpdatedItemCore(
     content: ctx.convertRelativeUrlsInContent(item.content || "", url),
     pubDate: item.pubDate || existingItem.pubDate,
     author: item.author || request.parsed.author || existingItem.author,
+    authors: refreshedAuthors(item, existingItem),
     read: existingItem.read,
     starred: existingItem.starred,
     saved: existingItem.saved,
@@ -389,6 +403,7 @@ type NewItemCore = Pick<
   | "coverImage"
   | "summary"
   | "author"
+  | "authors"
   | "saved"
   | "mediaType"
 >;
@@ -415,6 +430,7 @@ function buildNewItemCore(work: ItemWork, ctx: FeedItemContext): NewItemCore {
     coverImage,
     summary,
     author: item.author || request.parsed.author,
+    authors: item.authors?.length ? item.authors : undefined,
     saved: false,
     mediaType: audio.isPodcast ? "podcast" : "article",
   };

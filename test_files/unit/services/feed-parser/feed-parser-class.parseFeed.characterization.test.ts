@@ -786,6 +786,7 @@ describe("FeedParser.parseFeed characterization", () => {
           coverImage: "",
           summary: "Full body text",
           author: "Jane Writer",
+          authors: ["Jane Writer"],
           saved: false,
           mediaType: "article",
           duration: "",

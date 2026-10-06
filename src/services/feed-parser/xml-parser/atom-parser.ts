@@ -1,4 +1,5 @@
 import type { ParsedFeed, ParsedItem } from "../types.js";
+import { joinAuthors, splitAuthorElements } from "../author-normalization.js";
 
 export interface AtomParserDeps {
   getTextContent: (
@@ -91,7 +92,11 @@ export function parseAtom(doc: Document, deps: AtomParserDeps): ParsedFeed {
       deps.getTextContent(entry, "published") ||
       deps.getTextContent(entry, "updated");
     const guid = deps.getTextContent(entry, "id") || entryLink;
-    const entryAuthor = deps.getTextContent(entry, "author > name");
+    const entryAuthors = splitAuthorElements(
+      Array.from(entry.children)
+        .filter((child) => child.tagName === "author")
+        .map((author) => deps.getTextContent(author, "name")),
+    );
     const content =
       deps.getTextContent(entry, "content", true) || entryDescription;
 
@@ -110,7 +115,8 @@ export function parseAtom(doc: Document, deps: AtomParserDeps): ParsedFeed {
       description: entryDescription,
       pubDate,
       guid,
-      author: entryAuthor,
+      author: joinAuthors(entryAuthors),
+      authors: entryAuthors,
       content,
       category: deps.getTextContent(entry, "category"),
       itunes: {
