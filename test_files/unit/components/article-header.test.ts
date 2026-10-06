@@ -81,6 +81,10 @@ describe("ArticleHeader Component", () => {
       ".rss-dashboard-sidebar-toggle",
     ) as HTMLElement;
     expect(toggle).not.toBeNull();
+    expect(toggle.tagName).toBe("BUTTON");
+    expect(toggle.getAttribute("type")).toBe("button");
+    expect(toggle.hasAttribute("role")).toBe(false);
+    expect(toggle.hasAttribute("tabindex")).toBe(false);
     toggle.click();
     expect(mockCallbacks.onToggleSidebar).toHaveBeenCalled();
   });
@@ -102,6 +106,10 @@ describe("ArticleHeader Component", () => {
     const filterButton = container.querySelector(
       ".rss-dashboard-mobile-filter-button",
     ) as HTMLElement;
+    expect(filterButton.tagName).toBe("BUTTON");
+    expect(filterButton.getAttribute("type")).toBe("button");
+    expect(filterButton.hasAttribute("role")).toBe(false);
+    expect(filterButton.hasAttribute("tabindex")).toBe(false);
 
     filterButton.click();
     expect(

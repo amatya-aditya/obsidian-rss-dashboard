@@ -78,29 +78,20 @@ export function getIconById(id: string): SidebarIconConfig | undefined {
 }
 
 /**
- * Creates a toolbar button element following the Obsidian clickable-icon pattern.
- * Attaches click and keyboard (Enter/Space) handlers. A click passes its
- * MouseEvent to `onClick`; Enter and Space call it with no event.
+ * Creates a native toolbar button following the Obsidian clickable-icon pattern.
+ * Clicks pass their MouseEvent to `onClick`.
  */
 export function createToolbarButton(
   icon: SidebarIconConfig,
   onClick: (e?: MouseEvent) => void,
 ): HTMLElement {
-  const btn = activeWindow.createDiv();
+  const btn = activeWindow.createEl("button", { attr: { type: "button" } });
   btn.className = "clickable-icon";
-  btn.setAttribute("role", "button");
-  btn.setAttribute("tabindex", "0");
   btn.setAttribute("aria-label", icon.label);
 
   setIcon(btn, icon.lucideIcon);
 
   btn.addEventListener("click", (e: MouseEvent) => onClick(e));
-  btn.addEventListener("keydown", (e: KeyboardEvent) => {
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      onClick();
-    }
-  });
 
   return btn;
 }
