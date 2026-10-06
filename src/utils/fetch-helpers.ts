@@ -1,5 +1,10 @@
 import { Readability } from "@mozilla/readability";
 import {
+  extractPageMetadata,
+  isEmptyRawMetadata,
+  type RawArticleMetadata,
+} from "./article-metadata";
+import {
   robustFetch,
   robustFetchDetailed,
   ensureUtf8Meta,
@@ -36,6 +41,12 @@ export type FullArticleFetchFailureType = "none" | "restricted" | "network";
 export interface FullArticleFetchResult {
   content: string;
   failureType: FullArticleFetchFailureType;
+  /**
+   * Raw signals from the fetched page (#247). Unresolved: callers resolve it
+   * against their own feed context. Absent when no page was fetched or the
+   * page carried no signal.
+   */
+  pageMetadata?: RawArticleMetadata;
 }
 
 function isRestrictedStatus(status: number | undefined): boolean {
@@ -89,11 +100,45 @@ export async function fetchAndParse(
   return article?.content ?? "";
 }
 
-function parseArticleContent(html: string): string {
+function parseArticleContent(html: string): {
+  content: string;
+  pageMetadata: RawArticleMetadata;
+} {
   const withMeta = ensureUtf8Meta(html);
   const doc = new DOMParser().parseFromString(withMeta, "text/html");
+  // Readability.parse() mutates the document (it drops scripts, so JSON-LD
+  // would be gone), so the page's metadata is read first.
+  const pageMetadata = extractPageMetadata(doc);
   const article = new Readability(doc).parse();
-  return article?.content ?? "";
+  pageMetadata.readabilityExcerpt = (article?.excerpt ?? "").trim();
+  return { content: article?.content ?? "", pageMetadata };
+}
+
+/**
+ * Reads the head metadata of a response that is not parsed for content
+ * (blocked, restricted or paywalled). A paywalled page often has a real
+ * `<head>`; a bot-challenge page's comes back empty on its own. The existing
+ * `< 200` character guard is the only skip condition.
+ */
+function extractMetadataOfUnparsedResponse(
+  html: string | undefined,
+): RawArticleMetadata | undefined {
+  if (!html || html.trim().length < 200) return undefined;
+  const doc = new DOMParser().parseFromString(
+    ensureUtf8Meta(html),
+    "text/html",
+  );
+  const metadata = extractPageMetadata(doc);
+  return isEmptyRawMetadata(metadata) ? undefined : metadata;
+}
+
+function failureResult(
+  failureType: FullArticleFetchFailureType,
+  pageMetadata: RawArticleMetadata | undefined,
+): FullArticleFetchResult {
+  return pageMetadata
+    ? { content: "", failureType, pageMetadata }
+    : { content: "", failureType };
 }
 
 interface FetchErrorDetails {
@@ -135,6 +180,7 @@ export async function fetchWithProxyFallbackDetailed(
   try {
     // 1. Direct fetch
     let directRestricted: boolean;
+    let directMetadata: RawArticleMetadata | undefined;
     try {
       const directResponse = await robustFetchDetailed(url, {
         headers: DEFAULT_HEADERS,
@@ -148,12 +194,10 @@ export async function fetchWithProxyFallbackDetailed(
         console.debug(
           `[RSS Dashboard] Direct fetch succeeded for ${url} (${directHtml.length} chars).`,
         );
-        return {
-          content: parseArticleContent(directHtml),
-          failureType: "none",
-        };
+        return { ...parseArticleContent(directHtml), failureType: "none" };
       }
 
+      directMetadata = extractMetadataOfUnparsedResponse(directHtml);
       directRestricted =
         isRestrictedStatus(directResponse.status) ||
         isRestrictedSignal(directHtml);
@@ -178,10 +222,10 @@ export async function fetchWithProxyFallbackDetailed(
       console.warn(
         "[RSS Dashboard] No CORS proxy configured. Cannot retry blocked fetch.",
       );
-      return {
-        content: "",
-        failureType: directRestricted ? "restricted" : "network",
-      };
+      return failureResult(
+        directRestricted ? "restricted" : "network",
+        directMetadata,
+      );
     }
 
     const proxyTarget =
@@ -203,17 +247,16 @@ export async function fetchWithProxyFallbackDetailed(
       console.warn(
         `[RSS Dashboard] Proxy fetch also returned blocked/empty response for ${url}.`,
       );
-      return {
-        content: "",
-        failureType:
-          directRestricted || proxyRestricted ? "restricted" : "network",
-      };
+      return failureResult(
+        directRestricted || proxyRestricted ? "restricted" : "network",
+        extractMetadataOfUnparsedResponse(proxyHtml) ?? directMetadata,
+      );
     }
 
     console.debug(
       `[RSS Dashboard] Proxy fetch succeeded for ${url} (${proxyHtml.length} chars).`,
     );
-    return { content: parseArticleContent(proxyHtml), failureType: "none" };
+    return { ...parseArticleContent(proxyHtml), failureType: "none" };
   } catch (e: unknown) {
     const { message: msg, status, restricted } = describeFetchError(e);
     const logMessage = restricted
