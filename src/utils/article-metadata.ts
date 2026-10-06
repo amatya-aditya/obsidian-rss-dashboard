@@ -4,6 +4,7 @@
 // the degenerate-value guard against feed-level fallbacks. Neither fetches,
 // persists or imports a service.
 import { isDuplicateIntro } from "./duplicate-intro-detection";
+import { stripFeedBlurbFooter } from "./feed-blurb-footer";
 import { htmlToReadableText } from "./html-text";
 
 /**
@@ -274,6 +275,13 @@ interface DescriptionOutcome {
   seed: string;
 }
 
+/** The feed blurb as text, minus a trailing "appeared first on" footer (#677). */
+function feedBlurbText(fallbacks: ArticleMetadataFallbacks): string {
+  return htmlToReadableText(
+    stripFeedBlurbFooter(fallbacks.description ?? "", fallbacks.title ?? ""),
+  );
+}
+
 function resolveDescription(
   pageRaw: RawArticleMetadata,
   fallbacks: ArticleMetadataFallbacks,
@@ -282,7 +290,7 @@ function resolveDescription(
     pageRaw.metaDescription,
     pageRaw.ogDescription,
     pageRaw.twitterDescription,
-    htmlToReadableText(fallbacks.description ?? ""),
+    feedBlurbText(fallbacks),
   ].map(normalizeSpace);
 
   let seed = "";
@@ -323,7 +331,7 @@ function resolveExcerpt(
   const candidates = [
     seed,
     metaTags.includes(readability.toLowerCase()) ? "" : readability,
-    normalizeSpace(htmlToReadableText(fallbacks.description ?? "")),
+    normalizeSpace(feedBlurbText(fallbacks)),
   ];
   const found = candidates.find((candidate) => hasLetterOrDigit(candidate));
   return found ?? truncateDerivedExcerpt(fallbacks.articleHtml ?? "");
