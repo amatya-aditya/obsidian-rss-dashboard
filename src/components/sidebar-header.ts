@@ -176,6 +176,7 @@ function buildTagsButton(
   host: SidebarHeaderHost,
 ): HTMLElement {
   const action = () => {
+    if (btn.getAttribute("aria-disabled") === "true") return;
     host.toggleTags();
     host.render();
   };

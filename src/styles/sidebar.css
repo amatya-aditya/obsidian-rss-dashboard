@@ -1151,6 +1151,11 @@ body.theme-dark .rss-dashboard-all-feeds-button {
   display: none;
 }
 
+.rss-dashboard-sidebar .clickable-icon[aria-disabled="true"] {
+  opacity: 0.5;
+  cursor: default;
+}
+
 .rss-dashboard-search-dock {
   order: 4;
   flex-shrink: 0;
@@ -1513,7 +1518,8 @@ body .rss-folder-name-modal {
   overflow-wrap: anywhere;
 }
 
-.rss-dashboard-refresh-details-sr-only {
+.rss-dashboard-refresh-details-sr-only,
+.rss-dashboard-search-status {
   position: absolute;
   width: 1px;
   height: 1px;

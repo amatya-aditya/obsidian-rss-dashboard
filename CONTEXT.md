@@ -52,6 +52,16 @@ _Avoid_: Active feeds, multi-selection target, highlighted list
 Relocating multiple selected feeds or folders together into a target destination folder or root in a single operation.
 _Avoid_: Bulk drag, mass reorder, multi-drop
 
+## Sidebar search
+
+**Sidebar search**:
+A search over the sidebar's feeds, folders, and individual tags. It does not search article titles or article body text. The hamburger menu has a separate article-title search.
+_Avoid_: Global search, full-text search
+
+**Sidebar search qualifier**:
+An optional `feed:`, `folder:`, or `tag:` prefix that narrows sidebar search to that category. For Dashboard tags, `tag:Saved` and `tag:#Saved` refer to the same tag; matching tags also reveal feeds carrying them.
+_Avoid_: Required search prefix, tag operator (when describing the general Dashboard qualifier)
+
 ## Reader view
 
 **Reader view**:

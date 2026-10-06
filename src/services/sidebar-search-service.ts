@@ -46,9 +46,10 @@ export class SidebarSearchService {
       };
     }
 
+    const term = (match[2] || "").trim().toLowerCase();
     return {
       raw,
-      term: (match[2] || "").trim().toLowerCase(),
+      term: scope === "tags" ? term.replace(/^#/, "") : term,
       scope,
     };
   }
@@ -76,6 +77,9 @@ export class SidebarSearchService {
   static matchesTag(query: SidebarSearchQuery, tagName: string): boolean {
     if (!query.term) return true;
     if (query.scope !== "all" && query.scope !== "tags") return false;
+    if (query.scope === "tags") {
+      return tagName.toLowerCase().startsWith(query.term);
+    }
     return this.matchesAllTokens([tagName], query.term);
   }
 
