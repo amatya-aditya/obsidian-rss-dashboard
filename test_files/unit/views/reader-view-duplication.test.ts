@@ -1,4 +1,12 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import {
+  describe,
+  it,
+  expect,
+  beforeEach,
+  afterEach,
+  vi,
+  type Mock,
+} from "vitest";
 import { ReaderView } from "../../../src/views/reader-view";
 import {
   FeedItem,
@@ -316,7 +324,13 @@ describe("ReaderView Image Duplication", () => {
 describe("ReaderView – summary de-duplication", () => {
   let readerView: ReaderView;
   let mockSettings: RssDashboardSettings;
-  let onArticleUpdate: ReturnType<typeof vi.fn>;
+  let onArticleUpdate: Mock<
+    (
+      item: FeedItem,
+      updates: Partial<FeedItem>,
+      shouldRerender?: boolean,
+    ) => void
+  >;
 
   beforeEach(async () => {
     const mockApp = {
