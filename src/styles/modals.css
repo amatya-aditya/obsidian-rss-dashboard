@@ -412,6 +412,10 @@ body .rss-folder-name-modal-input.rss-folder-name-modal-input-error {
   white-space: normal;
   overflow-wrap: anywhere;
 }
+/* The display rule above would otherwise override the hidden attribute. */
+.rss-dashboard-custom-save-modal .rss-dashboard-modal-buttons button[hidden] {
+  display: none;
+}
 .rss-dashboard-custom-save-modal .rss-dashboard-custom-save-button-icon,
 .rss-dashboard-template-editor-dialog .rss-dashboard-custom-save-button-icon {
   display: inline-flex;

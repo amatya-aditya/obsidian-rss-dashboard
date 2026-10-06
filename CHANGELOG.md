@@ -16,6 +16,7 @@
 ### Fixes
 
 - Saved notes written with a saved template no longer get the plugin’s frontmatter added on top, so a template such as `BETA: {{title}}` now produces exactly that. A template that begins with `---` keeps its own frontmatter, and saves with no saved template are unchanged. The Reader’s custom save window also drops the **Use template pattern** button and the **Template pattern** line; the filename preview still shows the name that will be used.
+- The Reader's custom save dialog now hides **Save as new template** until the template differs from the one you started with, instead of always showing it.
 - Choosing "Current template" in the Reader's custom save dialog now puts the default template back in the editor and removes the feed's assigned template when you save, instead of keeping the last saved template as the feed's default. [GH Issue #814](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/814)
 - Fixed **Toggle version in status bar** so it turns the version readout off as well as on. [GH Issue #803](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/803)
 - The Reader no longer shows a "Feed description" callout that only repeats the start of the article, including a truncated description ending in an ellipsis; the article keeps its opening. [GH Issue #786](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/786)
