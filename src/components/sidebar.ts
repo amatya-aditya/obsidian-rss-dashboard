@@ -3950,6 +3950,22 @@ export class Sidebar {
     if (status) status.setText(message);
   }
 
+  private announceTagSearchResults(
+    query: SidebarSearchQuery,
+    matchingTags: number,
+    matchingFeeds: number,
+    visibleFeeds: number,
+  ): void {
+    const hiddenFeeds = matchingFeeds - visibleFeeds;
+    const visibility =
+      hiddenFeeds > 0
+        ? ` ${visibleFeeds} shown; ${hiddenFeeds} hidden by sidebar settings.`
+        : "";
+    this.announceSearchResults(
+      `${matchingTags} ${matchingTags === 1 ? "tag" : "tags"} and ${matchingFeeds} ${matchingFeeds === 1 ? "feed" : "feeds"} match ${query.raw}.${visibility}`,
+    );
+  }
+
   /**
    * Filter sidebar entities by search query.
    * Supports scoped queries: feed:, folder:/path:, tag:
@@ -4085,12 +4101,17 @@ export class Sidebar {
     }
 
     const hasVisibleFolder = Array.from(folderVisible.values()).some(Boolean);
-    if (visibleFeeds === 0 && !hasVisibleFolder && matchingTags === 0) {
+    const matchingFeeds =
+      parsedQuery.scope === "tags" ? tagMatchingFeedUrls.size : visibleFeeds;
+    if (matchingFeeds === 0 && !hasVisibleFolder && matchingTags === 0) {
       this.renderSearchEmptyState();
       this.announceSearchResults("0 results. No matches found.");
     } else if (parsedQuery.scope === "tags") {
-      this.announceSearchResults(
-        `${matchingTags} ${matchingTags === 1 ? "tag" : "tags"} and ${visibleFeeds} ${visibleFeeds === 1 ? "feed" : "feeds"} match ${parsedQuery.raw}.`,
+      this.announceTagSearchResults(
+        parsedQuery,
+        matchingTags,
+        matchingFeeds,
+        visibleFeeds,
       );
     } else {
       this.announceSearchResults("");

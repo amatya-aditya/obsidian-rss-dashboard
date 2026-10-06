@@ -187,6 +187,8 @@ describe("Sidebar tag search", () => {
     container.querySelector(".rss-dashboard-sidebar-tags-section");
   const emptyState = (): HTMLElement | null =>
     container.querySelector(".rss-dashboard-search-empty-state");
+  const searchStatus = (): HTMLElement | null =>
+    container.querySelector('[role="status"][aria-live="polite"]');
   const folderHeader = (path: string): HTMLElement | null =>
     container.querySelector(
       `.rss-dashboard-feed-folder-header[data-folder-path="${path}"]`,
@@ -221,7 +223,123 @@ describe("Sidebar tag search", () => {
     expect(visibleFeeds()).toEqual([]);
     expect(settings.display.hideEmptyFeeds).toBe(true);
     expect(emptyState()).toBeNull();
+    expect(searchStatus()?.textContent).toMatch(
+      /2\s+tags?\s+and\s+2\s+feeds?/i,
+    );
+    expect(searchStatus()?.textContent).toMatch(/0\s+shown/i);
+    expect(searchStatus()?.textContent).toMatch(/2\s+hidden/i);
   });
+
+  it.each([
+    {
+      description: "all matching feeds are hidden",
+      hiddenTitles: ["Nested feed", "Root feed"],
+      shownTitles: [],
+    },
+    {
+      description: "only some matching feeds are hidden",
+      hiddenTitles: ["Nested feed"],
+      shownTitles: ["Root feed"],
+    },
+  ])(
+    "counts article-tag matches without matching catalog rows when $description",
+    ({ hiddenTitles, shownTitles }) => {
+      settings.display.hideEmptyFeeds = true;
+      settings.availableTags = settings.availableTags.filter(
+        (item) => !item.name.toLowerCase().startsWith("saved"),
+      );
+      for (const hiddenFeed of settings.feeds.filter((item) =>
+        hiddenTitles.includes(item.title),
+      )) {
+        for (const item of hiddenFeed.items) item.read = true;
+      }
+      sidebar.render();
+      openSearch();
+      typeQuery("tag:Saved");
+
+      expect(visibleTags()).toEqual([]);
+      expect(visibleFeeds()).toEqual(shownTitles);
+      for (const title of hiddenTitles) {
+        expect(
+          container.querySelector(
+            `.rss-dashboard-feed[data-feed-title="${title}"]`,
+          ),
+        ).toBeNull();
+      }
+      expect(settings.display.hideEmptyFeeds).toBe(true);
+      expect(emptyState()).toBeNull();
+      expect(searchStatus()?.textContent).toMatch(
+        /0\s+tags?\s+and\s+2\s+feeds?/i,
+      );
+      expect(searchStatus()?.textContent).toMatch(
+        new RegExp(`${shownTitles.length}\\s+shown`, "i"),
+      );
+      expect(searchStatus()?.textContent).toMatch(
+        new RegExp(`${hiddenTitles.length}\\s+hidden`, "i"),
+      );
+      expect(searchStatus()?.textContent).not.toMatch(/no matches|0 results/i);
+    },
+  );
+
+  it("clears hidden-match feedback without restoring feeds hidden by the preference", () => {
+    settings.display.hideEmptyFeeds = true;
+    settings.availableTags = [];
+    for (const matchingFeed of settings.feeds.filter((item) =>
+      ["Nested feed", "Root feed"].includes(item.title),
+    )) {
+      for (const item of matchingFeed.items) item.read = true;
+    }
+    sidebar.render();
+    openSearch();
+    typeQuery("tag:Saved");
+    expect(searchStatus()?.textContent).toMatch(/2\s+hidden/i);
+
+    clearSearch();
+
+    expect(searchStatus()?.textContent).toBe("");
+    expect(emptyState()).toBeNull();
+    expect(input().value).toBe("");
+    expect(tagsSection()).toBeNull();
+    expect(visibleFeeds()).toEqual(
+      settings.feeds
+        .filter((item) => !["Nested feed", "Root feed"].includes(item.title))
+        .map((item) => item.title)
+        .sort(),
+    );
+    expect(settings.display.hideEmptyFeeds).toBe(true);
+    expect(folderHeader("Reading")?.classList.contains("collapsed")).toBe(true);
+  });
+
+  it.each(["feed:Sibling", "tag:missing"])(
+    "replaces hidden-match feedback when the query changes to %s",
+    (query) => {
+      settings.display.hideEmptyFeeds = true;
+      settings.availableTags = [];
+      for (const matchingFeed of settings.feeds.filter((item) =>
+        ["Nested feed", "Root feed"].includes(item.title),
+      )) {
+        for (const item of matchingFeed.items) item.read = true;
+      }
+      sidebar.render();
+      openSearch();
+      typeQuery("tag:Saved");
+      expect(searchStatus()?.textContent).toMatch(/2\s+hidden/i);
+
+      typeQuery(query);
+
+      if (query === "tag:missing") {
+        expect(visibleFeeds()).toEqual([]);
+        expect(emptyState()?.textContent).toContain("No matches found.");
+        expect(searchStatus()?.textContent).toMatch(/no matches|0 results/i);
+      } else {
+        expect(visibleFeeds()).toEqual(["Sibling feed"]);
+        expect(emptyState()).toBeNull();
+        expect(searchStatus()?.textContent).toBe("");
+      }
+      expect(searchStatus()?.textContent).not.toMatch(/hidden/i);
+      expect(settings.display.hideEmptyFeeds).toBe(true);
+    },
+  );
 
   it("keeps only the ancestors of matching feeds and opens collapsed ancestors", () => {
     openSearch();

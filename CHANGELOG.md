@@ -9,7 +9,7 @@
 
 ### Fixes
 
-- Fixed sidebar `tag:` searches to show matching tag-name prefixes and the feeds carrying them, accept an optional `#`, and temporarily reveal collapsed tags and ancestor folders. Search results keep keyboard focus and announce matches or no results. [GH Issue #708](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/708)
+- Fixed sidebar `tag:` searches to show matching tag-name prefixes and the feeds carrying them, accept an optional `#`, and temporarily reveal collapsed tags and ancestor folders. Search results keep keyboard focus and announce matches or no results, counting matching feeds even when sidebar settings hide them. [GH Issue #708](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/708)
 - The Reader no longer shows a "Feed description" callout that only repeats the start of the article, including a truncated description ending in an ellipsis; the article keeps its opening. [GH Issue #786](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/786)
 - Restored **Edit tag** and **Delete tag** from sidebar tag rows on desktop right-click and touch long-press; deleting a selected tag also clears it from the active filter. [GH Issue #660](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/660)
 - Clarified that the prefilled article template is ready to use in Article Saving settings and the custom Save article window. [GH Issue #760](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/760)
