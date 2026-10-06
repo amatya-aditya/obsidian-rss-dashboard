@@ -335,6 +335,35 @@ describe("Phase 8 - WebViewerIntegration", () => {
       h.cleanup();
     });
 
+    it("uses the selected filename pattern in the Web Viewer save flow", async () => {
+      const h = createWebViewerIntegrationHarness();
+      const item = buildFeedItem({
+        title: "A title",
+        feedTitle: "Web viewer",
+        guid: "web-viewer-pattern",
+      });
+      const integration = h.integration as unknown as {
+        saveArticle: (
+          item: FeedItem,
+          folder: string,
+          template: string,
+          includeFrontmatter: boolean,
+          filenamePattern?: string,
+        ) => Promise<{ path: string } | null>;
+      };
+
+      const file = await integration.saveArticle(
+        item,
+        "",
+        "{{title}}",
+        false,
+        "{{source}} - {{title}}",
+      );
+
+      expect(file?.path).toBe("Web viewer - A title.md");
+      h.cleanup();
+    });
+
     it("escapes quotes in frontmatter values when saving a web article", async () => {
       const h = createWebViewerIntegrationHarness({
         settings: {

@@ -75,6 +75,20 @@ export const ARTICLE_SAVER_FRONTMATTER_STEPS: readonly TemplateStep[] = [
   fillYaml("image"),
 ];
 
+/** Filename patterns use saved-note values except for article body content. */
+export const ARTICLE_FILENAME_STEPS: readonly TemplateStep[] = [
+  ...ARTICLE_SAVER_DATES,
+  fill("title"),
+  fill("link"),
+  fill("author"),
+  fill("source"),
+  fill("feedTitle"),
+  fill("summary"),
+  fill("tags"),
+  fill("guid"),
+  fill("image"),
+];
+
 /**
  * The web viewer's note template. `{{date}}` is the save date, and
  * `{{dateShort}}`, `{{firstSeen}}`, `{{date:FORMAT}}`, `{{feedTitle}}`,
@@ -83,14 +97,21 @@ export const ARTICLE_SAVER_FRONTMATTER_STEPS: readonly TemplateStep[] = [
 export const WEB_VIEWER_NOTE_STEPS: readonly TemplateStep[] = [
   fill("title"),
   fill("date", { value: "saveDateLong" }),
+  fill("dateShort"),
   fill("isoDate"),
   fill("isoDateTime"),
+  fill("firstSeen"),
+  fill("firstSeenISO"),
+  DATE_FORMAT,
   fill("saveDate"),
   fill("saveTime12"),
   fill("saveTime24"),
   fill("link"),
   fill("author"),
   fill("source", { defaultValue: WEB_VIEWER_SOURCE }),
+  fill("feedTitle", { defaultValue: WEB_VIEWER_SOURCE }),
+  fill("guid"),
+  fill("tags"),
   fill("summary"),
   CONTENT,
   fill("image"),

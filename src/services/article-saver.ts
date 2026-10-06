@@ -20,6 +20,7 @@ import {
   stripNonContentHtmlNodes,
 } from "../utils/html-text";
 import { normalizeSubstackImageUrl } from "../utils/substack-image-url";
+import { resolveDisplayDate } from "./feed-parser/feed-retention";
 import {
   buildArticleTemplateValues,
   itemTagNames,
@@ -33,6 +34,7 @@ import {
 import { renderArticleTemplate } from "./article-template/render-template";
 import {
   ARTICLE_SAVER_FRONTMATTER_STEPS,
+  ARTICLE_FILENAME_STEPS,
   ARTICLE_SAVER_NOTE_STEPS,
 } from "./article-template/call-site-steps";
 import {
@@ -61,49 +63,6 @@ function sanitizeFilenameStem(name: string): string {
     : stem;
 }
 
-type MomentFactory = (input: Date) => { format: (fmt: string) => string };
-
-function formatMoment(date: Date, formatStr: string): string {
-  return (moment as unknown as MomentFactory)(date).format(formatStr);
-}
-
-function replaceFilenameDatePlaceholders(
-  pattern: string,
-  date: Date,
-  firstSeenMs?: number,
-): string {
-  const firstSeenDate =
-    typeof firstSeenMs === "number" && !Number.isNaN(firstSeenMs)
-      ? new Date(firstSeenMs)
-      : date;
-  const longDate = date.toLocaleDateString(undefined, {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
-  const firstSeen = firstSeenDate.toLocaleDateString(undefined, {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
-  const now = new Date();
-  return pattern
-    .replace(/{{date}}/g, () => longDate)
-    .replace(/{{dateShort}}/g, () => formatMoment(date, "YYYY-MM-DD"))
-    .replace(/{{isoDate}}/g, () => date.toISOString())
-    .replace(/{{isoDateTime}}/g, () => date.toISOString())
-    .replace(/{{firstSeen}}/g, () => firstSeen)
-    .replace(/{{firstSeenISO}}/g, () =>
-      formatMoment(firstSeenDate, "YYYY-MM-DD"),
-    )
-    .replace(/{{saveDate}}/g, () => formatMoment(now, "YYYY-MM-DD"))
-    .replace(/{{saveTime12}}/g, () => formatMoment(now, "hh:mm A"))
-    .replace(/{{saveTime24}}/g, () => formatMoment(now, "HH:mm"))
-    .replace(/{{date:(.+?)}}/g, (_match, format: string) =>
-      formatMoment(date, format),
-    );
-}
-
 export function buildArticleFilename(
   item: FeedItem,
   filenamePattern: string | undefined,
@@ -111,28 +70,18 @@ export function buildArticleFilename(
   useFirstSeenDateFallback = false,
 ): string {
   if (filenamePattern?.trim()) {
-    const date =
-      resolveDisplayDate(item, useFirstSeenDateFallback) ?? new Date();
     const tags = (item.tags ?? [])
       .map((tag) => tag.name)
       .filter((tag) => tag.trim() !== "");
-    const rendered = replaceFilenameDatePlaceholders(
-      filenamePattern.trim(),
-      date,
-      item.firstSeenMs,
-    )
-      .replace(/{{title}}/g, () => item.title)
-      .replace(/{{link}}/g, () => item.link)
-      .replace(/{{author}}/g, () => item.author || "")
-      .replace(/{{source}}/g, () => item.feedTitle)
-      .replace(/{{feedTitle}}/g, () => item.feedTitle)
-      .replace(/{{summary}}/g, () => item.summary || "")
-      .replace(/{{tags}}/g, () =>
-        (addSavedTag ? withSavedTagName(tags) : tags).join(", "),
-      )
-      .replace(/{{guid}}/g, () => item.guid)
-      .replace(/{{image}}/g, () =>
-        normalizeSubstackImageUrl(
+    const date = resolveDisplayDate(item, useFirstSeenDateFallback);
+    const rendered = renderArticleTemplate(
+      filenamePattern.trim().replace(/{{content}}/g, ""),
+      ARTICLE_FILENAME_STEPS,
+      buildArticleTemplateValues(item, {
+        articleDate: date ?? new Date(),
+        now: () => new Date(),
+        tagNames: addSavedTag ? withSavedTagName(tags) : tags,
+        image: normalizeSubstackImageUrl(
           firstNonFormulaImageUrl([
             item.coverImage,
             item.image,
@@ -142,8 +91,8 @@ export function buildArticleFilename(
               : "",
           ]) || "",
         ),
-      )
-      .replace(/{{content}}/g, "");
+      }),
+    );
     const safeName = sanitizeFilenameStem(rendered);
     if (safeName) return safeName;
   }

@@ -1,6 +1,9 @@
 import { App, Notice, TFile, setIcon, setTooltip } from "obsidian";
 import { FeedItem, ArticleSavingSettings } from "../types/types";
-import { sanitizeFilename } from "./article-saver";
+import {
+  buildArticleFilename,
+  findAvailableArticlePath,
+} from "./article-saver";
 import { normalizeSubstackImageUrl } from "../utils/substack-image-url";
 import { ensureVaultFolder } from "../utils/vault-files";
 import {
@@ -36,12 +39,14 @@ interface ObsidianApp extends App {
 export interface WebViewerSaveDialogOptions {
   defaultFolder: string;
   defaultTemplate: string;
+  defaultFilenamePattern: string;
   includeFrontmatter: boolean;
   /** Saves the page; the dialog closes once it resolves, and stays open if it throws. */
   onSave: (
     folder: string,
     template: string,
     includeFrontmatter: boolean,
+    filenamePattern?: string,
   ) => Promise<unknown>;
 }
 
@@ -164,14 +169,23 @@ export class WebViewerIntegration {
     const title = webViewerPlugin.currentTitle || "Untitled";
     const url = webViewerPlugin.currentUrl || "";
     const content = webViewerPlugin.cleanedHtml || "";
+    const globalDefault = this.settings.savedTemplates.find(
+      (savedTemplate) =>
+        savedTemplate.id === this.settings.globalDefaultTemplateId,
+    );
 
     this.openSaveDialog?.({
-      defaultFolder: this.settings.defaultFolder || "RSS articles/",
-      defaultTemplate:
-        this.settings.defaultTemplate ||
-        "---\ntitle: {{title}}\n---\n\n# {{title}}\n\n#rss #{{feedTitle}}\n\n{{content}}",
+      defaultFolder:
+        globalDefault?.defaultFolder ||
+        this.settings.defaultFolder ||
+        "RSS articles/",
+      defaultTemplate: globalDefault
+        ? globalDefault.template
+        : this.settings.defaultTemplate ||
+          "---\ntitle: {{title}}\n---\n\n# {{title}}\n\n#rss #{{feedTitle}}\n\n{{content}}",
+      defaultFilenamePattern: globalDefault?.filenamePattern || "",
       includeFrontmatter: this.settings.includeFrontmatter !== false,
-      onSave: (folder, template, includeFrontmatter) =>
+      onSave: (folder, template, includeFrontmatter, filenamePattern) =>
         this.saveArticle(
           {
             title,
@@ -190,6 +204,7 @@ export class WebViewerIntegration {
           folder,
           template,
           includeFrontmatter,
+          filenamePattern,
         ),
     });
   }
@@ -199,18 +214,19 @@ export class WebViewerIntegration {
     folder: string,
     template: string,
     includeFrontmatter: boolean,
+    filenamePattern = "",
   ): Promise<TFile | null> {
     if (folder) {
       folder = await this.ensureFolderExists(folder);
     }
 
-    const filename = sanitizeFilename(item.title);
-    const filePath = folder ? `${folder}/${filename}.md` : `${filename}.md`;
-
-    if (this.app.vault.getAbstractFileByPath(filePath) !== null) {
-      new Notice(`File already exists: ${filename}`);
-      return null;
-    }
+    const filename = buildArticleFilename(
+      item,
+      filenamePattern,
+      this.settings.addSavedTag,
+      this.getUseFirstSeenDateFallback(),
+    );
+    const filePath = findAvailableArticlePath(this.app, folder, filename);
 
     let content = "";
 
@@ -222,7 +238,7 @@ export class WebViewerIntegration {
 
     const file = await this.app.vault.create(filePath, content);
 
-    new Notice(`Article saved: ${filename}`);
+    new Notice(`Article saved: ${file.name.replace(/\.md$/i, "")}`);
 
     return file;
   }
