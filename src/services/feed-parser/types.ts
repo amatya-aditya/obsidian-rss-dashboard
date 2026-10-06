@@ -17,6 +17,8 @@ export interface ParsedItem {
   pubDate: string;
   guid: string;
   author?: string;
+  /** Every author element, cleaned; `author` is these joined with ", ". */
+  authors?: string[];
   content?: string;
   category?: string;
   mediaContentType?: string;

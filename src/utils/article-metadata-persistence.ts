@@ -13,8 +13,19 @@ export type ArticleMetadataUpdate = Pick<
   | "language"
   | "languageSource"
   | "canonicalUrl"
+  | "authors"
   | "metadataFetchedAt"
 >;
+
+/**
+ * The feed-side authors: the parsed entries, or for an item stored before
+ * `authors` existed, its `author` string as a single entry.
+ */
+function feedAuthors(item: FeedItem): string[] {
+  if (item.authors?.length) return item.authors;
+  const author = (item.author ?? "").trim();
+  return author ? [author] : [];
+}
 
 /**
  * The fields to write for a fetched article, or null when the item already
@@ -33,6 +44,7 @@ export function planMetadataWrite(
     title: item.title,
     articleHtml,
     description: item.description,
+    authors: feedAuthors(item),
   });
 
   const update: ArticleMetadataUpdate = { metadataFetchedAt: now };
@@ -42,6 +54,7 @@ export function planMetadataWrite(
     update.languageSource = resolved.languageSource;
   }
   if (resolved.canonicalUrl) update.canonicalUrl = resolved.canonicalUrl;
+  if (resolved.authors.length > 0) update.authors = resolved.authors;
   return update;
 }
 

@@ -1,4 +1,14 @@
-import type { JsonFeed, JsonFeedItem, ParsedFeed } from "../types.js";
+import type {
+  JsonFeed,
+  JsonFeedAuthor,
+  JsonFeedItem,
+  ParsedFeed,
+} from "../types.js";
+import { joinAuthors, splitAuthorElements } from "../author-normalization.js";
+
+function jsonAuthors(authors: JsonFeedAuthor[] | undefined): string[] {
+  return splitAuthorElements((authors ?? []).map((a) => a.name ?? ""));
+}
 
 export interface JsonFeedParserDeps {
   transformSageUrl: (url: string) => string;
@@ -30,7 +40,8 @@ export function parseJSON(
               description: item.summary || "",
               pubDate: item.date_published || "",
               guid: item.id || itemUrl || "",
-              author: item.authors?.[0]?.name,
+              author: joinAuthors(jsonAuthors(item.authors)),
+              authors: jsonAuthors(item.authors),
               content: item.content_html || item.content_text || "",
               image: item.image ? { url: item.image } : undefined,
               category: item.category || item.tags?.[0] || "",

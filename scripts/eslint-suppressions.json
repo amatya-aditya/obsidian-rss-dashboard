@@ -114,7 +114,7 @@
   },
   "src/services/feed-parser/xml-parser/rss-parser.ts": {
     "complexity": {
-      "count": 2
+      "count": 1
     }
   },
   "src/services/feed-parser/xml-parser/xml-preprocessing.ts": {

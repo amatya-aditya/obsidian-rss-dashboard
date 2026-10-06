@@ -106,6 +106,32 @@ describe("planMetadataWrite", () => {
     expect(update?.publisherDescription).toBeUndefined();
   });
 
+  it("persists the page author over a single feed author", () => {
+    const update = planMetadataWrite(
+      item({ author: "Jane Doe in Paris" }),
+      raw({ microdataAuthors: ["Jane Doe"] }),
+      ARTICLE,
+      1,
+    );
+    expect(update?.authors).toEqual(["Jane Doe"]);
+  });
+
+  it("keeps a multi-entry feed author list", () => {
+    const update = planMetadataWrite(
+      item({ author: "Ada, Grace", authors: ["Ada", "Grace"] }),
+      raw({ metaAuthor: "Ada" }),
+      ARTICLE,
+      1,
+    );
+    expect(update?.authors).toEqual(["Ada", "Grace"]);
+  });
+
+  it("stores no authors when neither side has one", () => {
+    expect(planMetadataWrite(item(), raw(), ARTICLE, 1)).toEqual({
+      metadataFetchedAt: 1,
+    });
+  });
+
   it("is first-write-wins: nothing once metadataFetchedAt is set", () => {
     expect(
       planMetadataWrite(

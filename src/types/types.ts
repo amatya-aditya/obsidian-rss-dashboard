@@ -25,6 +25,8 @@ export interface FeedItem {
   audioUrl?: string;
   duration?: string;
   author?: string;
+  /** Author names, one per entry; `author` holds them joined with ", " (#247). */
+  authors?: string[];
   summary?: string;
   content?: string;
   /**

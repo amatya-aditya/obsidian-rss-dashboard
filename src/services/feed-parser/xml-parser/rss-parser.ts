@@ -1,4 +1,9 @@
 import type { ParsedFeed, ParsedItem } from "../types.js";
+import {
+  authorsFromChildren,
+  joinAuthors,
+  splitAuthorElements,
+} from "../author-normalization.js";
 
 export interface RssParserDeps {
   getDirectChild: (element: Element, tagName: string) => Element | null;
@@ -92,10 +97,11 @@ export function parseRSS(doc: Document, deps: RssParserDeps): ParsedFeed {
           }
         : undefined;
 
-    const itemAuthor =
-      authors ||
-      deps.getTextContent(item, "author") ||
-      deps.getTextContent(item, "dc:creator");
+    const itemAuthors = authorsFromChildren(item, [
+      "authors",
+      "author",
+      "dc:creator",
+    ]);
 
     const content =
       deps.getTextContent(item, "content:encoded", true) ||
@@ -152,7 +158,8 @@ export function parseRSS(doc: Document, deps: RssParserDeps): ParsedFeed {
       description: itemDescription,
       pubDate,
       guid,
-      author: itemAuthor,
+      author: joinAuthors(itemAuthors),
+      authors: itemAuthors,
       content,
       enclosure,
       itunes,
@@ -236,16 +243,10 @@ export function parseRSS1(doc: Document, deps: RssParserDeps): ParsedFeed {
       deps.getTextContent(item, "dc:date") ||
       deps.getTextContent(item, "pubDate");
 
-    const authorElements = item.querySelectorAll("dc\\:creator");
-    let itemAuthor = "";
-    if (authorElements.length > 0) {
-      itemAuthor = Array.from(authorElements)
-        .map((el) => el.textContent?.trim())
-        .filter((text) => text)
-        .join(", ");
-    } else {
-      itemAuthor = deps.getTextContent(item, "dc:creator") || "";
-    }
+    const creatorAuthors = authorsFromChildren(item, ["dc:creator"]);
+    const itemAuthors = creatorAuthors.length
+      ? creatorAuthors
+      : splitAuthorElements([deps.getTextContent(item, "dc:creator")]);
 
     const contentValue =
       deps.getTextContent(item, "content:encoded", true) ||
@@ -258,7 +259,8 @@ export function parseRSS1(doc: Document, deps: RssParserDeps): ParsedFeed {
       description: itemDescription || "",
       pubDate: pubDate || "",
       guid: guid || itemLink || `item-${items.length}`,
-      author: itemAuthor || undefined,
+      author: joinAuthors(itemAuthors) || undefined,
+      authors: itemAuthors,
       content: contentValue || itemDescription || "",
       category: deps.getTextContent(item, "category"),
     });
