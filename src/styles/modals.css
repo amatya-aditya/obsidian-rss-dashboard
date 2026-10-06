@@ -418,14 +418,25 @@ body .rss-folder-name-modal-input.rss-folder-name-modal-input-error {
   white-space: normal;
   overflow-wrap: anywhere;
 }
-.rss-dashboard-custom-save-modal .rss-dashboard-custom-save-button-icon {
+.rss-dashboard-custom-save-modal .rss-dashboard-custom-save-button-icon,
+.rss-dashboard-template-editor-dialog .rss-dashboard-custom-save-button-icon {
   display: inline-flex;
   flex: 0 0 auto;
   align-items: center;
 }
-.rss-dashboard-custom-save-modal .rss-dashboard-custom-save-button-icon svg {
+.rss-dashboard-custom-save-modal .rss-dashboard-custom-save-button-icon svg,
+.rss-dashboard-template-editor-dialog
+  .rss-dashboard-custom-save-button-icon
+  svg {
   width: var(--icon-size, 1em);
   height: var(--icon-size, 1em);
+}
+/* Icon and label on the editor's Cancel and Save, keeping Obsidian's button look. */
+.rss-dashboard-template-editor-dialog .setting-item-control button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
 }
 
 /* Obsidian modal containers form their own stacking contexts. */

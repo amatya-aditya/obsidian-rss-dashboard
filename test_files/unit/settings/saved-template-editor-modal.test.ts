@@ -115,6 +115,28 @@ describe.each([
     expect(folderSuggestInputs).toEqual([folder]);
   });
 
+  it("shows an icon and a label on Cancel and Save, as the Save article dialog does", () => {
+    const content = openEditor(editingId);
+    const buttons = [...content.querySelectorAll("button")].filter((button) =>
+      ["Cancel", "Save"].includes(button.textContent?.trim() ?? ""),
+    );
+    expect(
+      buttons.map((button) => {
+        const icon = button.querySelector<HTMLElement>(
+          ".rss-dashboard-custom-save-button-icon",
+        );
+        return [
+          button.textContent?.trim(),
+          icon?.dataset.icon,
+          icon?.getAttribute("aria-hidden"),
+        ];
+      }),
+    ).toEqual([
+      ["Cancel", "x", "true"],
+      ["Save", "save", "true"],
+    ]);
+  });
+
   it("keeps the global-default checkbox and its explanation outside the path row", () => {
     const content = openEditor(editingId);
     const checkbox = content.querySelector(
@@ -169,6 +191,20 @@ describe("saved template editor styles", () => {
     expect(row.get("grid-template-columns")).toContain("auto-fit");
     expect(row.get("grid-template-columns")).toContain("minmax(");
     expect(row.get("align-items")).toBe("start");
+  });
+
+  it("lines up each button's icon and label", () => {
+    const button = declarationsFor(
+      ".rss-dashboard-template-editor-dialog .setting-item-control button",
+    );
+    expect(button.get("display")).toBe("inline-flex");
+    expect(button.get("align-items")).toBe("center");
+    expect(button.get("gap")).toBeTruthy();
+    expect(
+      declarationsFor(
+        ".rss-dashboard-template-editor-dialog .rss-dashboard-custom-save-button-icon",
+      ).get("display"),
+    ).toBe("inline-flex");
   });
 
   it("limits the dialog width and never scrolls sideways", () => {

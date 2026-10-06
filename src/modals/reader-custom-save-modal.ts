@@ -7,6 +7,7 @@ import {
 } from "../types/types";
 import { ArticleSaver } from "../services/article-saver";
 import { VaultFolderSuggest } from "../components/folder-suggest";
+import { addActionButtonContent } from "../utils/action-button-content";
 import {
   ConfirmTemplateAssignmentModal,
   ConfirmTemplateReplacementModal,
@@ -160,22 +161,6 @@ function refreshSaveAsButton(
   label.textContent = getPending()
     ? "New template will be saved"
     : "Save as new template";
-}
-
-function addActionButtonContent(
-  button: HTMLButtonElement,
-  iconName: string,
-  label: string,
-): HTMLSpanElement {
-  const icon = button.createSpan({
-    cls: "rss-dashboard-custom-save-button-icon",
-    attr: { "aria-hidden": "true" },
-  });
-  setIcon(icon, iconName);
-  return button.createSpan({
-    cls: "rss-dashboard-custom-save-button-label",
-    text: label,
-  });
 }
 
 function createFilenamePatternControls(

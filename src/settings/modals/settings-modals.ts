@@ -6,6 +6,7 @@
  */
 import { App, Modal, Notice, Setting, TextComponent } from "obsidian";
 import { VaultFolderSuggest } from "../../components/folder-suggest";
+import { addActionButtonContent } from "../../utils/action-button-content";
 import type { SavedTemplate } from "../../types/types";
 import {
   setCssProps,
@@ -246,40 +247,39 @@ export class SavedTemplateEditorModal extends Modal {
     });
 
     new Setting(contentEl)
-      .addButton((button) =>
-        button.setButtonText("Cancel").onClick(() => this.close()),
-      )
-      .addButton((button) =>
-        button
-          .setButtonText("Save")
-          .setCta()
-          .onClick(() => {
-            const name = nameInput.value.trim();
-            const duplicate = this.existingTemplates.some(
-              (template) =>
-                template.id !== this.editingId &&
-                template.name.trim().toLocaleLowerCase() ===
-                  name.toLocaleLowerCase(),
+      .addButton((button) => {
+        addActionButtonContent(button.buttonEl, "x", "Cancel");
+        button.onClick(() => this.close());
+      })
+      .addButton((button) => {
+        addActionButtonContent(button.buttonEl, "save", "Save");
+        button.setCta().onClick(() => {
+          const name = nameInput.value.trim();
+          const duplicate = this.existingTemplates.some(
+            (template) =>
+              template.id !== this.editingId &&
+              template.name.trim().toLocaleLowerCase() ===
+                name.toLocaleLowerCase(),
+          );
+          if (!name || duplicate) {
+            new Notice(
+              duplicate
+                ? "Template names must be unique."
+                : "Enter a template name.",
             );
-            if (!name || duplicate) {
-              new Notice(
-                duplicate
-                  ? "Template names must be unique."
-                  : "Enter a template name.",
-              );
-              nameInput.focus();
-              return;
-            }
-            this.result = {
-              name,
-              template: bodyInput.value,
-              defaultFolder: folderInput.value.trim(),
-              filenamePattern: filenameInput.value.trim(),
-              makeGlobalDefault: defaultCheckbox.checked,
-            };
-            this.close();
-          }),
-      );
+            nameInput.focus();
+            return;
+          }
+          this.result = {
+            name,
+            template: bodyInput.value,
+            defaultFolder: folderInput.value.trim(),
+            filenamePattern: filenameInput.value.trim(),
+            makeGlobalDefault: defaultCheckbox.checked,
+          };
+          this.close();
+        });
+      });
 
     window.setTimeout(() => nameInput.focus(), 50);
   }
