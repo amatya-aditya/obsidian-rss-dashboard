@@ -130,7 +130,9 @@ describe("Sidebar search empty state", () => {
   it("announces the zero-results message to assistive technology", () => {
     typeQuery(openSearch(), "zzz-no-such-feed");
 
-    expect(emptyState()?.getAttribute("role")).toBe("status");
+    const status = container.querySelector('[role="status"]');
+    expect(status?.getAttribute("aria-live")).toBe("polite");
+    expect(status?.textContent).toContain("No matches found.");
   });
 
   it("shows matching feeds without a zero-results message", () => {

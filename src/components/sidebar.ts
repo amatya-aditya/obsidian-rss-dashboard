@@ -32,7 +32,10 @@ import {
   attachInputClearButton,
   windowInstanceOf,
 } from "../utils/platform-utils";
-import { SidebarSearchService } from "../services/sidebar-search-service";
+import {
+  SidebarSearchService,
+  type SidebarSearchQuery,
+} from "../services/sidebar-search-service";
 import { FolderNameModal } from "../modals/folder-name-modal";
 import type RssDashboardPlugin from "../../main";
 import { applyFeedSortOrder } from "../utils/sidebar-sort-utils";
@@ -177,7 +180,9 @@ export class Sidebar {
   private cachedFolderPaths: string[] | null = null;
   private isSearchExpanded = false;
   private searchQuery = "";
+  private searchTimeout: number | null = null;
   private isTagsExpanded = false;
+  private hasTagSearchResults = false;
   private isAddTagExpanded = false;
   private longPressTimer: number | null = null;
   private pendingImportFeedUrls = new Set<string>();
@@ -367,6 +372,7 @@ export class Sidebar {
   }
 
   public destroy(): void {
+    this.clearSearchTimeout();
     this.clearRefreshStatusDetails();
     if (this.resizeObserver) {
       this.resizeObserver.disconnect();
@@ -375,6 +381,7 @@ export class Sidebar {
   }
 
   public render(): void {
+    this.clearSearchTimeout();
     const scrollPosition = this.container.scrollTop;
 
     // Also preserve folders section scroll if it exists
@@ -588,8 +595,11 @@ export class Sidebar {
     };
   }
 
-  private renderTagsSection(container: HTMLElement): void {
-    if (!this.isTagsExpanded) return;
+  private renderTagsSection(
+    container: HTMLElement,
+    revealForSearch = false,
+  ): void {
+    if (!this.isTagsExpanded && !revealForSearch) return;
 
     const tagsSection = container.createDiv({
       cls: "rss-dashboard-sidebar-tags-section",
@@ -633,10 +643,11 @@ export class Sidebar {
       const selected = this.options.selectedTags.includes(tag.name);
       const row = tagsList.createDiv({
         cls: "rss-dashboard-sidebar-tag-row" + (selected ? " is-selected" : ""),
+        attr: { "data-tag-name": tag.name },
       });
 
       const tagCheckbox = row.createEl("input", {
-        attr: { type: "checkbox" },
+        attr: { type: "checkbox", "aria-label": tag.name },
         cls: "rss-dashboard-tag-checkbox",
       });
       tagCheckbox.checked = selected;
@@ -731,9 +742,11 @@ export class Sidebar {
       });
 
       // Auto-focus the input
-      window.requestAnimationFrame(() => {
-        input.focus();
-      });
+      if (!revealForSearch) {
+        window.requestAnimationFrame(() => {
+          input.focus();
+        });
+      }
     } else {
       const addToggle = tagsSection.createDiv({
         cls: "rss-dashboard-sidebar-add-tag-toggle",
@@ -2729,7 +2742,9 @@ export class Sidebar {
         this.isSearchExpanded = !this.isSearchExpanded;
       },
       toggleTags: () => {
-        this.isTagsExpanded = !this.isTagsExpanded;
+        if (!this.hasTagSearchResults) {
+          this.isTagsExpanded = !this.isTagsExpanded;
+        }
       },
       render: () => this.render(),
       getPluginId: () => this.plugin.manifest.id,
@@ -2910,6 +2925,13 @@ export class Sidebar {
     if (action) action(e);
   }
 
+  private clearSearchTimeout(): void {
+    if (this.searchTimeout !== null) {
+      window.clearTimeout(this.searchTimeout);
+      this.searchTimeout = null;
+    }
+  }
+
   private renderSearchDock(parentEl: HTMLElement): void {
     if (!this.isSearchExpanded) return;
 
@@ -2924,22 +2946,24 @@ export class Sidebar {
       attr: {
         type: "text",
         placeholder: "Search (feed:, folder:, tag:)",
+        "aria-label": "Search sidebar",
         autocomplete: "off",
         spellcheck: "false",
         value: this.searchQuery,
       },
     });
 
-    let searchTimeout: number;
+    searchDock.createDiv({
+      cls: "rss-dashboard-search-status",
+      attr: { role: "status", "aria-live": "polite", "aria-atomic": "true" },
+    });
 
     attachInputClearButton(
       searchContainer,
       searchInput,
       () => {
         this.searchQuery = "";
-        if (searchTimeout) {
-          window.clearTimeout(searchTimeout);
-        }
+        this.clearSearchTimeout();
         this.filterFeedsAndFolders("");
         searchInput.focus();
       },
@@ -2965,10 +2989,9 @@ export class Sidebar {
       const rawQuery = (e.target as HTMLInputElement)?.value || "";
       this.searchQuery = rawQuery;
       const query = rawQuery.toLowerCase().trim();
-      if (searchTimeout) {
-        window.clearTimeout(searchTimeout);
-      }
-      searchTimeout = window.setTimeout(() => {
+      this.clearSearchTimeout();
+      this.searchTimeout = window.setTimeout(() => {
+        this.searchTimeout = null;
         this.filterFeedsAndFolders(query);
       }, 150);
     });
@@ -3856,6 +3879,94 @@ export class Sidebar {
   }
 
   /**
+   * Reveal tag results without changing the user's Tags toggle preference or
+   * rebuilding the search field, which must keep its focus and caret.
+   */
+  private filterTagsForSearch(query: SidebarSearchQuery): number {
+    const isTagSearch = query.scope === "tags" && query.term.length > 0;
+    const matchingTags = isTagSearch
+      ? this.settings.availableTags.filter((tag) =>
+          SidebarSearchService.matchesTag(query, tag.name),
+        )
+      : [];
+    this.hasTagSearchResults = matchingTags.length > 0;
+    const showTags = this.isTagsExpanded || this.hasTagSearchResults;
+    const section = this.container.querySelector<HTMLElement>(
+      ".rss-dashboard-sidebar-tags-section",
+    );
+    const foldersSection = this.container.querySelector<HTMLElement>(
+      ".rss-dashboard-feed-folders-section",
+    );
+    if (showTags && !section && foldersSection) {
+      this.renderTagsSection(foldersSection, true);
+      const newSection = foldersSection.querySelector<HTMLElement>(
+        ".rss-dashboard-sidebar-tags-section",
+      );
+      const allFeeds = foldersSection.querySelector(
+        ".rss-dashboard-all-feeds-button",
+      );
+      if (newSection && allFeeds) allFeeds.after(newSection);
+    } else if (!showTags) {
+      section?.remove();
+    }
+
+    const tagsButton = this.iconBtnEls.get("tags");
+    tagsButton?.toggleClass("is-active", showTags);
+    tagsButton?.setAttr("aria-pressed", showTags ? "true" : "false");
+    tagsButton?.setAttr(
+      "aria-disabled",
+      this.hasTagSearchResults ? "true" : "false",
+    );
+    if (this.hasTagSearchResults) {
+      tagsButton?.setAttr(
+        "aria-description",
+        "Matching tags stay visible while tag search is active.",
+      );
+    } else {
+      tagsButton?.removeAttribute("aria-description");
+    }
+
+    let matches = 0;
+    this.container
+      .querySelectorAll<HTMLElement>(".rss-dashboard-sidebar-tag-row")
+      .forEach((row) => {
+        const matchesTag = SidebarSearchService.matchesTag(
+          query,
+          row.dataset.tagName ?? "",
+        );
+        row.toggleClass(
+          "rss-dashboard-search-hidden",
+          isTagSearch && !matchesTag,
+        );
+        if (matchesTag) matches++;
+      });
+    return matches;
+  }
+
+  private announceSearchResults(message: string): void {
+    const status = this.container.querySelector<HTMLElement>(
+      ".rss-dashboard-search-status",
+    );
+    if (status) status.setText(message);
+  }
+
+  private announceTagSearchResults(
+    query: SidebarSearchQuery,
+    matchingTags: number,
+    matchingFeeds: number,
+    visibleFeeds: number,
+  ): void {
+    const hiddenFeeds = matchingFeeds - visibleFeeds;
+    const visibility =
+      hiddenFeeds > 0
+        ? ` ${visibleFeeds} shown; ${hiddenFeeds} hidden by sidebar settings.`
+        : "";
+    this.announceSearchResults(
+      `${matchingTags} ${matchingTags === 1 ? "tag" : "tags"} and ${matchingFeeds} ${matchingFeeds === 1 ? "feed" : "feeds"} match ${query.raw}.${visibility}`,
+    );
+  }
+
+  /**
    * Filter sidebar entities by search query.
    * Supports scoped queries: feed:, folder:/path:, tag:
    */
@@ -3863,6 +3974,7 @@ export class Sidebar {
     this.resetSidebarSearchPresentation();
 
     const parsedQuery = SidebarSearchService.parseQuery(query);
+    const matchingTags = this.filterTagsForSearch(parsedQuery);
 
     const feedElements = Array.from(
       this.container.querySelectorAll<HTMLElement>(".rss-dashboard-feed"),
@@ -3878,8 +3990,23 @@ export class Sidebar {
 
     if (!parsedQuery.term) {
       allFeedsButton?.removeClass("rss-dashboard-search-hidden");
+      this.announceSearchResults("");
       return;
     }
+
+    const tagMatchingFeedUrls = new Set(
+      parsedQuery.scope === "tags"
+        ? this.settings.feeds
+            .filter((feed) =>
+              feed.items.some((item) =>
+                item.tags?.some((tag) =>
+                  SidebarSearchService.matchesTag(parsedQuery, tag.name),
+                ),
+              ),
+            )
+            .map((feed) => feed.url)
+        : [],
+    );
 
     const folderDirectMatches = new Map<HTMLElement, boolean>();
     folderElements.forEach((folderEl) => {
@@ -3908,11 +4035,14 @@ export class Sidebar {
         "";
       const feedFolderPath = feedEl.dataset.feedFolder || "";
 
-      const feedMatch = SidebarSearchService.matchesFeed(
-        parsedQuery,
-        feedTitle,
-        feedFolderPath,
-      );
+      const feedMatch =
+        parsedQuery.scope === "tags"
+          ? tagMatchingFeedUrls.has(feedEl.dataset.feedUrl ?? "")
+          : SidebarSearchService.matchesFeed(
+              parsedQuery,
+              feedTitle,
+              feedFolderPath,
+            );
 
       const hasMatchedFolderAncestor = this.collectAncestorFolders(feedEl).some(
         (folderEl) => folderDirectMatches.get(folderEl) === true,
@@ -3971,19 +4101,20 @@ export class Sidebar {
     }
 
     const hasVisibleFolder = Array.from(folderVisible.values()).some(Boolean);
-    // Tag rows aren't filtered yet (#708), but a matching row is still a result.
-    const hasMatchingTag = Array.from(
-      this.container.querySelectorAll<HTMLElement>(
-        ".rss-dashboard-sidebar-tag-label",
-      ),
-    ).some((label) =>
-      SidebarSearchService.matchesTag(
-        parsedQuery,
-        label.textContent?.trim() ?? "",
-      ),
-    );
-    if (visibleFeeds === 0 && !hasVisibleFolder && !hasMatchingTag) {
+    const matchingFeeds =
+      parsedQuery.scope === "tags" ? tagMatchingFeedUrls.size : visibleFeeds;
+    if (matchingFeeds === 0 && !hasVisibleFolder && matchingTags === 0) {
       this.renderSearchEmptyState();
+      this.announceSearchResults("0 results. No matches found.");
+    } else if (parsedQuery.scope === "tags") {
+      this.announceTagSearchResults(
+        parsedQuery,
+        matchingTags,
+        matchingFeeds,
+        visibleFeeds,
+      );
+    } else {
+      this.announceSearchResults("");
     }
   }
 
@@ -3996,7 +4127,6 @@ export class Sidebar {
 
     const emptyState = feedFoldersSection.createDiv({
       cls: "rss-dashboard-search-empty-state",
-      attr: { role: "status" },
       prepend: true,
     });
     emptyState.createDiv({
