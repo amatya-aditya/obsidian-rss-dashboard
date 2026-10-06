@@ -847,6 +847,61 @@ describe("ArticleSaver.saveArticleWithFullContent", () => {
     );
   });
 
+  it("stores the fetched page's metadata on the item once, leaving description alone (#247)", async () => {
+    const app = App.createMock();
+    const settings = createSettings({
+      defaultTemplate: "{{content}}",
+      includeFrontmatter: false,
+    });
+    const saver = new ArticleSaver(app, settings, "https://proxy/?url=");
+    const pageMetadata = {
+      metaDescription:
+        "The publisher's own summary of the harbor budget story, written for search results",
+      ogDescription: "",
+      twitterDescription: "",
+      htmlLang: "en-GB",
+      metaAuthor: "",
+      jsonLdAuthors: [],
+      microdataAuthors: [],
+      relAuthors: [],
+      canonicalUrl: "https://example.com/canonical",
+      readabilityExcerpt: "",
+    };
+    const fetchMock = vi
+      .spyOn(fetchHelpers, "fetchWithProxyFallbackDetailed")
+      .mockResolvedValue({
+        content:
+          "<p>A completely different opening paragraph of the fetched article body.</p>",
+        failureType: "none",
+        pageMetadata,
+      });
+
+    const item = createItem({ description: "<p>Feed blurb</p>" });
+    await saver.saveArticleWithFullContent(item);
+
+    expect(item.publisherDescription).toBe(pageMetadata.metaDescription);
+    expect(item.language).toBe("en-GB");
+    expect(item.languageSource).toBe("page");
+    expect(item.canonicalUrl).toBe("https://example.com/canonical");
+    expect(item.description).toBe("<p>Feed blurb</p>");
+    const stamped = item.metadataFetchedAt;
+    expect(stamped).toEqual(expect.any(Number));
+
+    fetchMock.mockResolvedValue({
+      content:
+        "<p>Another unrelated opening paragraph of the article text.</p>",
+      failureType: "none",
+      pageMetadata: {
+        ...pageMetadata,
+        metaDescription: "",
+        canonicalUrl: "https://example.com/other",
+      },
+    });
+    await saver.saveArticleWithFullContent(item);
+    expect(item.canonicalUrl).toBe("https://example.com/canonical");
+    expect(item.metadataFetchedAt).toBe(stamped);
+  });
+
   it("unwraps image-only links without malformed markdown", async () => {
     const app = App.createMock();
     const settings = createSettings({

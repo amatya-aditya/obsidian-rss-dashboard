@@ -65,7 +65,7 @@ Strips the footer that WordPress and similar feeds append to the item blurb ("Th
 - Conservative matching: only footer-shaped text at the end of the blurb, preferring structure over English strings. When in doubt, nothing is stripped.
 - **Tests:** fixtures sampled from the footer feeds and controls listed in #677.
 
-### 4. Persisted fields and the Reader callout
+### 4. Persisted fields and the Reader callout ([#795](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/795))
 
 `FeedItem` gains five optional fields: `publisherDescription`, `language`, `canonicalUrl`, `metadataFetchedAt`, and `languageSource` (#268). `FeedItem.description` keeps the item blurb; the resolved description goes in `publisherDescription`, beside it rather than over it (ADR 0007, amended).
 

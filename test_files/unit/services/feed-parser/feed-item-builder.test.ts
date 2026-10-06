@@ -306,6 +306,36 @@ describe("feed-item-builder", () => {
       });
     });
 
+    it("keeps stored article metadata while rewriting the blurb on refresh (#247)", () => {
+      const ctx = makeContext();
+      const metadata = {
+        publisherDescription: "Stored page description of the article",
+        language: "en-GB",
+        languageSource: "page" as const,
+        canonicalUrl: "https://example.com/canonical",
+        metadataFetchedAt: 1234,
+      };
+      const existing = feedOf([stored({ description: "old", ...metadata })]);
+
+      const result = collectRefreshedItems(
+        requestFor(
+          [
+            pitem({
+              link: "https://example.com/a",
+              description: "new blurb",
+              pubDate: RECENT,
+            }),
+          ],
+          existing,
+          ctx,
+        ),
+        ctx,
+      );
+
+      expect(result.updatedItems[0]).toMatchObject(metadata);
+      expect(result.updatedItems[0]?.description).toBe("[content]new blurb");
+    });
+
     it("skips duplicates and items with no identity", () => {
       const ctx = makeContext();
       const result = collectRefreshedItems(

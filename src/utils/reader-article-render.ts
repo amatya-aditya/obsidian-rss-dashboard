@@ -5,6 +5,7 @@ import {
   resolveDisplayDate,
 } from "../services/feed-parser/feed-retention";
 import { isDuplicateIntro } from "./duplicate-intro-detection";
+import { stripFeedBlurbFooter } from "./feed-blurb-footer";
 import {
   findFirstNonFormulaImage,
   firstNonFormulaImageUrl,
@@ -143,8 +144,12 @@ export function hasMeaningfulFeedDescription(html: string): boolean {
   return !/^(?:\.{3,}|…+|\[\s*(?:\.{3,}|…+)\s*\])$/.test(text);
 }
 
+export type DescriptionLabel = "Description" | "Feed description";
+
 export interface ArticleSections {
   descriptionHtml: string;
+  /** "Feed description" only for the raw feed blurb; a resolved one is "Description". */
+  descriptionLabel: DescriptionLabel;
   mainHtml: string;
   hasMeaningfulDescription: boolean;
   hasDistinctMainContent: boolean;
@@ -163,12 +168,38 @@ export function descriptionToStripFromBody(
   return hasDistinctMainContent ? descriptionHtml : undefined;
 }
 
-/** Splits an item into the feed description and the body to render. */
+function escapeText(text: string): string {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+/**
+ * What the description callout shows (#247 slice 4): the resolved
+ * `publisherDescription` once a fetch stored one, else the item blurb minus a
+ * trailing "appeared first on" footer, which is the only case still called
+ * "Feed description".
+ */
+export function selectCalloutDescription(item: FeedItem): {
+  html: string;
+  label: DescriptionLabel;
+} {
+  const resolved = (item.publisherDescription || "").trim();
+  if (resolved) return { html: escapeText(resolved), label: "Description" };
+  return {
+    html: stripFeedBlurbFooter(item.description || "", item.title).trim(),
+    label: "Feed description",
+  };
+}
+
+/** Splits an item into the callout description and the body to render. */
 export function selectArticleSections(
   item: FeedItem,
   fullContent: string | undefined,
 ): ArticleSections {
-  const descriptionHtml = (item.description || "").trim();
+  const { html: descriptionHtml, label: descriptionLabel } =
+    selectCalloutDescription(item);
   const hasMeaningfulDescription =
     hasMeaningfulFeedDescription(descriptionHtml);
   const mainHtml = (fullContent || item.content || "").trim();
@@ -179,10 +210,11 @@ export function selectArticleSections(
 
   const contentToRender = hasDistinctMainContent
     ? mainHtml
-    : mainHtml || descriptionHtml;
+    : mainHtml || (item.description || "").trim();
 
   return {
     descriptionHtml,
+    descriptionLabel,
     mainHtml,
     hasMeaningfulDescription,
     hasDistinctMainContent,
