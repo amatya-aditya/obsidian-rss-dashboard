@@ -92,13 +92,14 @@ Exposes `{{description}}` and `{{excerpt}}` through the registry from slice 1, f
 - `{{author}}` and the podcast player's author display read `authors` joined with `", "` when the item has it, else `author` (decided on #806), via `itemAuthorText` in `src/utils/item-author.ts`.
 - **Tests:** the template suite shows no change to any existing variable's output; the new variables follow the description and excerpt tiers.
 
-### 7. Language support (#246)
+### 7. Language support ([#809](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/809))
 
 The feed-level part of [#246](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/246).
 
-- The feed parser reads feed-level `<language>` and `xml:lang`, which it doesn't parse today, as the resolver's language fallback.
-- `{{language}}` goes through the registry with `omitIfEmpty`, so an unknown language omits the `lang:` line rather than writing `lang: ""` (#266).
-- **Tests:** feed-level language parsing for RSS and Atom; the precedence `<html lang>`, then the feed value; the omitted line.
+- The feed parser reads feed-level `<language>` (RSS 2.0 and 1.0, with `<dc:language>` as a fallback), `xml:lang` on Atom's `<feed>`, and JSON Feed's `language`, as the resolver's language fallback. `ParsedFeed.language` carries the value as the feed wrote it, and the stored `Feed` gains an optional `language` (no migration). A refresh updates it when the feed declares one and keeps it when it doesn't.
+- The callers that hold feed context (`reader-view.ts`, `article-renderer.ts`, `article-saver.ts`) look up the item's feed and pass its language to `planMetadataWrite`, which stays pure. The precedence is `<html lang>`, then the feed value; `languageSource` records "page" or "feed", and first-write-wins still applies.
+- `{{language}}` goes through the registry with `omitIfEmpty`, so an unknown language omits the `language:` line rather than writing `language: ""` (#266). `ArticleSaver`'s note and frontmatter templates fill it from the item's stored `language`, else the feed's declared language (so an item saved without a page fetch still gets one); the web viewer's templates leave it unfilled (item 7 below).
+- **Tests:** feed-level language parsing for RSS 2.0, RSS 1.0, Atom, and JSON Feed; the precedence `<html lang>`, then the feed value; the omitted line.
 
 ## Web viewer follow-ups
 
@@ -110,6 +111,7 @@ The web viewer's "Save with template" output differs from the other template cal
 4. The `{{image}}` resolver differs: it lacks the formula-injection guard (`firstNonFormulaImageUrl`).
 5. `{{created}}`, an alias for `{{date}}` from #266's addendum, isn't registered yet.
 6. `{{description}}` and `{{excerpt}}` aren't filled in the web viewer's templates (slice 6 fills them in `ArticleSaver` only).
+7. `{{language}}` isn't filled in the web viewer's templates (slice 7 fills it in `ArticleSaver` only).
 
 The web viewer's `"Web viewer"` default for `{{source}}` and `{{feedTitle}}` is intended, and stays as a per-call-site default override (#266).
 

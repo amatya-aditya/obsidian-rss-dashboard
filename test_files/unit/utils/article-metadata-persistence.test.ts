@@ -3,10 +3,11 @@
 import { describe, expect, it } from "vitest";
 import {
   applyArticleMetadata,
+  feedLanguageFor,
   planMetadataWrite,
 } from "../../../src/utils/article-metadata-persistence";
 import type { RawArticleMetadata } from "../../../src/utils/article-metadata";
-import type { FeedItem } from "../../../src/types/types";
+import type { Feed, FeedItem } from "../../../src/types/types";
 
 const DESCRIPTION =
   "The publisher's own summary of the harbor budget story, written for search results";
@@ -129,6 +130,75 @@ describe("planMetadataWrite", () => {
   it("stores no authors when neither side has one", () => {
     expect(planMetadataWrite(item(), raw(), ARTICLE, 1)).toEqual({
       metadataFetchedAt: 1,
+    });
+  });
+
+  describe("language precedence (#246)", () => {
+    it("prefers the page language over the feed's", () => {
+      const update = planMetadataWrite(
+        item(),
+        raw({ htmlLang: "en_gb" }),
+        ARTICLE,
+        1,
+        "de-DE",
+      );
+      expect(update?.language).toBe("en-GB");
+      expect(update?.languageSource).toBe("page");
+    });
+
+    it("falls back to the feed language, normalized, when the page has none", () => {
+      const update = planMetadataWrite(item(), raw(), ARTICLE, 1, "de_de");
+      expect(update?.language).toBe("de-DE");
+      expect(update?.languageSource).toBe("feed");
+    });
+
+    it("leaves the language unset when neither side has one", () => {
+      const update = planMetadataWrite(item(), raw(), ARTICLE, 1, "");
+      expect(update).not.toHaveProperty("language");
+      expect(update).not.toHaveProperty("languageSource");
+    });
+
+    it("leaves the language unset for a feed value that is not a language tag", () => {
+      const update = planMetadataWrite(item(), raw(), ARTICLE, 1, "not a tag!");
+      expect(update).not.toHaveProperty("language");
+    });
+
+    it("applyArticleMetadata writes the feed language onto the item", () => {
+      const target = item();
+      applyArticleMetadata(target, raw(), ARTICLE, 7, "fr");
+      expect(target.language).toBe("fr");
+      expect(target.languageSource).toBe("feed");
+    });
+
+    it("keeps a stored language when a later fetch sees another feed language", () => {
+      const target = item({
+        metadataFetchedAt: 5,
+        language: "en",
+        languageSource: "page",
+      });
+      expect(applyArticleMetadata(target, raw(), ARTICLE, 9, "de")).toBeNull();
+      expect(target.language).toBe("en");
+      expect(target.languageSource).toBe("page");
+    });
+  });
+
+  describe("feedLanguageFor", () => {
+    const feeds = [
+      { url: "https://example.com/feed", language: "de-DE" },
+      { url: "https://other.test/feed" },
+    ] as Feed[];
+
+    it("finds the language of the item's feed", () => {
+      expect(feedLanguageFor(feeds, item())).toBe("de-DE");
+    });
+
+    it("is undefined for a feed without a language or an unknown feed", () => {
+      expect(
+        feedLanguageFor(feeds, item({ feedUrl: "https://other.test/feed" })),
+      ).toBeUndefined();
+      expect(
+        feedLanguageFor(feeds, item({ feedUrl: "https://nowhere.test/x" })),
+      ).toBeUndefined();
     });
   });
 

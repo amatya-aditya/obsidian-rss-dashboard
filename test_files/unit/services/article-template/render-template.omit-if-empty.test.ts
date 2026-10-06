@@ -1,36 +1,20 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { renderArticleTemplate } from "../../../../src/services/article-template/render-template";
 import type { ArticleTemplateValues } from "../../../../src/services/article-template/template-values";
 
-// No variable sets omitIfEmpty yet ({{language}} will, #266), so give
-// {{author}} the flag to show what the renderer does with it.
-vi.mock(
-  "../../../../src/services/article-template/template-variables",
-  async (importOriginal) => {
-    const original =
-      await importOriginal<
-        typeof import("../../../../src/services/article-template/template-variables")
-      >();
-    return {
-      ...original,
-      TEMPLATE_VARIABLES: {
-        ...original.TEMPLATE_VARIABLES,
-        author: { ...original.TEMPLATE_VARIABLES.author, omitIfEmpty: true },
-      },
-    };
-  },
-);
-
-function createValues(author: string): ArticleTemplateValues {
+// {{language}} is the registry's omitIfEmpty variable (#266, #246): an unknown
+// language leaves out the whole `lang:` line instead of writing `lang: ""`.
+function createValues(language: string): ArticleTemplateValues {
   return {
     title: "Title",
     link: "",
-    author,
+    author: "",
     source: "",
     feedTitle: "",
     summary: "",
     description: "",
     excerpt: "",
+    language,
     tags: "",
     guid: "",
     image: "",
@@ -50,12 +34,12 @@ function createValues(author: string): ArticleTemplateValues {
 
 describe("renderArticleTemplate with an omitIfEmpty variable", () => {
   const template =
-    '---\nauthor: "{{author}}"\ntitle: "{{title}}"\nby {{author}}\n---';
+    '---\nlang: "{{language}}"\ntitle: "{{title}}"\nin {{language}}\n---';
 
   it("leaves out every line holding the placeholder when the value is empty", () => {
     const text = renderArticleTemplate(
       template,
-      [{ kind: "variable", name: "author" }],
+      [{ kind: "variable", name: "language" }],
       createValues(""),
     );
 
@@ -65,27 +49,27 @@ describe("renderArticleTemplate with an omitIfEmpty variable", () => {
   it("fills the placeholder when the value is not empty", () => {
     const text = renderArticleTemplate(
       template,
-      [{ kind: "variable", name: "author" }],
-      createValues("Ann"),
+      [{ kind: "variable", name: "language" }],
+      createValues("de-DE"),
     );
 
-    expect(text).toBe('---\nauthor: "Ann"\ntitle: "{{title}}"\nby Ann\n---');
+    expect(text).toBe('---\nlang: "de-DE"\ntitle: "{{title}}"\nin de-DE\n---');
   });
 
   it("fills the step's default rather than leaving the line out", () => {
     const text = renderArticleTemplate(
-      'author: "{{author}}"',
-      [{ kind: "variable", name: "author", defaultValue: "Unknown" }],
+      'lang: "{{language}}"',
+      [{ kind: "variable", name: "language", defaultValue: "und" }],
       createValues(""),
     );
 
-    expect(text).toBe('author: "Unknown"');
+    expect(text).toBe('lang: "und"');
   });
 
   it("keeps CRLF line endings on the lines it keeps", () => {
     const text = renderArticleTemplate(
-      "a\r\n{{author}}\r\nb",
-      [{ kind: "variable", name: "author" }],
+      "a\r\n{{language}}\r\nb",
+      [{ kind: "variable", name: "language" }],
       createValues(""),
     );
 

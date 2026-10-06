@@ -8,6 +8,8 @@ export interface ParsedFeed {
   type: "rss" | "atom" | "json";
   feedItunesImage: string;
   feedImageUrl: string;
+  /** The feed-level language as the feed declared it; the resolver normalizes it. */
+  language?: string;
 }
 
 export interface ParsedItem {
@@ -126,6 +128,7 @@ export interface JsonFeedItem {
 
 export interface JsonFeed {
   version?: string;
+  language?: string;
   title?: string;
   description?: string;
   home_page_url?: string;

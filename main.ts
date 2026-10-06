@@ -381,6 +381,7 @@ export default class RssDashboardPlugin extends Plugin {
       this.settings.articleSaving,
       undefined,
       () => this.settings.useFirstSeenDateFallback,
+      () => this.settings.feeds,
     );
     this.importExportService = new ImportExportService({
       settings: this.settings,

@@ -195,6 +195,46 @@ describe("buildArticleTemplateValues description, excerpt and author (#247 slice
   });
 });
 
+describe("buildArticleTemplateValues language (#246)", () => {
+  it("fills {{language}} from the item's stored language", () => {
+    const values = buildArticleTemplateValues(
+      createItem({ language: "de-DE", languageSource: "feed" }),
+      inputs(),
+    );
+    expect(values.language).toBe("de-DE");
+  });
+
+  it("falls back to the feed's declared language, normalized, for an item with none", () => {
+    const values = buildArticleTemplateValues(
+      createItem(),
+      inputs({ feedLanguage: "de_de" }),
+    );
+    expect(values.language).toBe("de-DE");
+  });
+
+  it("prefers the item's stored language over the feed's", () => {
+    const values = buildArticleTemplateValues(
+      createItem({ language: "en-GB", languageSource: "page" }),
+      inputs({ feedLanguage: "de-DE" }),
+    );
+    expect(values.language).toBe("en-GB");
+  });
+
+  it("is empty when the feed's language is not a language tag", () => {
+    const values = buildArticleTemplateValues(
+      createItem(),
+      inputs({ feedLanguage: "not a tag" }),
+    );
+    expect(values.language).toBe("");
+  });
+
+  it("is empty for an item with no stored language", () => {
+    expect(buildArticleTemplateValues(createItem(), inputs()).language).toBe(
+      "",
+    );
+  });
+});
+
 describe("resolveSavedArticleDate", () => {
   it("uses the item's pubDate when it parses", () => {
     expect(resolveSavedArticleDate(createItem(), false)).toEqual(PUB);

@@ -10,6 +10,7 @@
 - The Reader's description callout now shows the article page's own description once the article has been fetched, labelled "Description", and keeps it on the article. A feed description that ends with a "The post … appeared first on …" footer no longer shows the footer. [GH Issue #795](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/795)
 - Feed authors are cleaned when a feed refreshes: every author element is kept, and each one is cut at its first comma or pipe, so "Jane Doe, Professor of Law, Example University" and "Jane Doe | Politics" show as "Jane Doe". Articles also store their author names as a list. [GH Issue #798](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/798)
 - Saved notes can use `{{description}}` (the article page's own description, or the feed's blurb when the page has none) and `{{excerpt}}` (a short preview, only when there is no description). `{{author}}` now shows the cleaned author names when the article has them. [GH Issue #807](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/807)
+- Saved notes can use `{{language}}`, the article's language (for example `en-GB`). It comes from the article page, or from the feed's own language when the page declares none, and the whole line is left out of the note when neither is known. [GH Issue #809](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/809)
 
 ### Fixes
 

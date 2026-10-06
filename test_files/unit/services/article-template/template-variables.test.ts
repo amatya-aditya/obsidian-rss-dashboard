@@ -10,6 +10,13 @@ describe("TEMPLATE_VARIABLES", () => {
     }
   });
 
+  it("omits the line of {{language}} alone when it is empty (#246)", () => {
+    const omitting = Object.entries(TEMPLATE_VARIABLES)
+      .filter(([, variable]) => variable.omitIfEmpty)
+      .map(([name]) => name);
+    expect(omitting).toEqual(["language"]);
+  });
+
   it("doesn't match a {{date:FORMAT}} placeholder", () => {
     expect(
       "{{date:YYYY}}".replace(TEMPLATE_VARIABLES.date.placeholder, "V"),

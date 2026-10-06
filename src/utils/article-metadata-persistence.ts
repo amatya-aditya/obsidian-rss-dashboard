@@ -1,7 +1,7 @@
 // Persisted article metadata (#247 slice 4, ADR 0007): copies the resolved
 // page metadata onto flat FeedItem fields, once. First-write-wins: after
 // `metadataFetchedAt` is set, a later fetch or refresh never overwrites them.
-import type { FeedItem } from "../types/types";
+import type { Feed, FeedItem } from "../types/types";
 import {
   emptyRawMetadata,
   resolveArticleMetadata,
@@ -28,16 +28,26 @@ function feedAuthors(item: FeedItem): string[] {
   return author ? [author] : [];
 }
 
+/** The language the item's feed declares, for the resolver's feed fallback. */
+export function feedLanguageFor(
+  feeds: readonly Feed[],
+  item: FeedItem,
+): string | undefined {
+  return feeds.find((feed) => feed.url === item.feedUrl)?.language;
+}
+
 /**
  * The fields to write for a fetched article, or null when the item already
  * holds metadata. Fields that did not resolve are left out; the timestamp is
- * always set, since the fetch did happen.
+ * always set, since the fetch did happen. `feedLanguage` is the item's feed's
+ * declared language, used when the page has none (#246).
  */
 export function planMetadataWrite(
   item: FeedItem,
   pageMetadata: RawArticleMetadata,
   articleHtml: string,
   now: number = Date.now(),
+  feedLanguage?: string,
 ): ArticleMetadataUpdate | null {
   if (item.metadataFetchedAt) return null;
 
@@ -46,6 +56,7 @@ export function planMetadataWrite(
     articleHtml,
     description: item.description,
     authors: feedAuthors(item),
+    language: feedLanguage,
   });
 
   const update: ArticleMetadataUpdate = { metadataFetchedAt: now };
@@ -68,9 +79,16 @@ export function applyArticleMetadata(
   pageMetadata: RawArticleMetadata | undefined,
   articleHtml: string,
   now?: number,
+  feedLanguage?: string,
 ): ArticleMetadataUpdate | null {
   if (!pageMetadata) return null;
-  const update = planMetadataWrite(item, pageMetadata, articleHtml, now);
+  const update = planMetadataWrite(
+    item,
+    pageMetadata,
+    articleHtml,
+    now,
+    feedLanguage,
+  );
   if (update) Object.assign(item, update);
   return update;
 }
