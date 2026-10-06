@@ -69,6 +69,16 @@ describe("Reader custom save modal styles", () => {
     ).toBe("1px solid var(--background-modifier-border)");
   });
 
+  it("hides an action button that has the hidden attribute", () => {
+    // The button rule sets a display value, which beats the browser's
+    // [hidden] rule; this selector must outrank it so the button disappears.
+    const buttonRule =
+      ".rss-dashboard-custom-save-modal .rss-dashboard-modal-buttons button";
+    expect(declarationsFor(`${buttonRule}[hidden]`).get("display")).toBe(
+      "none",
+    );
+  });
+
   it("shows a visible focus ring on every action button", () => {
     for (const buttonClass of [
       "rss-dashboard-custom-save-cancel-button",
