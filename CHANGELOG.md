@@ -8,6 +8,7 @@
 
 ### Fixes
 
+- The Reader no longer shows a "Feed description" callout that only repeats the start of the article, including a truncated description ending in an ellipsis; the article keeps its opening. [GH Issue #786](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/786)
 - Restored **Edit tag** and **Delete tag** from sidebar tag rows on desktop right-click and touch long-press; deleting a selected tag also clears it from the active filter. [GH Issue #660](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/660)
 - Clarified that the prefilled article template is ready to use in Article Saving settings and the custom Save article window. [GH Issue #760](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/760)
 - Prevented single-folder drops that leave the open folder's path unchanged from resetting sidebar state, including its tag filter and inline article. [GH Issue #665](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/665)

@@ -51,6 +51,7 @@ import {
   resolveFallbackHeroUrl,
   resolveReaderMediaRoute,
   resolveRelativeUrlsInDocument,
+  descriptionToStripFromBody,
   selectArticleSections,
   stripEmbeddedTooltipAttributes,
 } from "../utils/reader-article-render";
@@ -1611,7 +1612,7 @@ export class ReaderView extends ItemView {
         displayTitle,
         heroSlot,
         shouldStripHeadline,
-        descriptionHtml,
+        descriptionToStripFromBody(hasDistinctMainContent, descriptionHtml),
       );
     }
 

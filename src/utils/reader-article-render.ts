@@ -4,13 +4,13 @@ import {
   getPubDateMs,
   resolveDisplayDate,
 } from "../services/feed-parser/feed-retention";
+import { isDuplicateIntro } from "./duplicate-intro-detection";
 import {
   findFirstNonFormulaImage,
   firstNonFormulaImageUrl,
 } from "./image-url-utils";
 import { normalizeSubstackImageUrl } from "./substack-image-url";
 import {
-  isEquivalentHtml,
   isLikelySameImageSource,
   removeLeadImageElement,
 } from "./reader-html-cleanup";
@@ -151,6 +151,18 @@ export interface ArticleSections {
   contentToRender: string;
 }
 
+/**
+ * The description to lift out of the body's lead, or `undefined` for none. The
+ * callout shows it only when the body is distinct; a duplicate intro stays
+ * where the article opens with it, so it is never shown nowhere.
+ */
+export function descriptionToStripFromBody(
+  hasDistinctMainContent: boolean,
+  descriptionHtml: string,
+): string | undefined {
+  return hasDistinctMainContent ? descriptionHtml : undefined;
+}
+
 /** Splits an item into the feed description and the body to render. */
 export function selectArticleSections(
   item: FeedItem,
@@ -163,7 +175,7 @@ export function selectArticleSections(
 
   const hasDistinctMainContent =
     mainHtml !== "" &&
-    (!hasMeaningfulDescription || !isEquivalentHtml(mainHtml, descriptionHtml));
+    (!hasMeaningfulDescription || !isDuplicateIntro(descriptionHtml, mainHtml));
 
   const contentToRender = hasDistinctMainContent
     ? mainHtml

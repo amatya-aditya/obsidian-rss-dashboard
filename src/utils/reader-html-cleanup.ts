@@ -2,6 +2,7 @@
 // part of #436): navigation chrome, skip links, the top headline, duplicated
 // lead content, and the image-source comparison behind lead-image removal.
 // Moved verbatim from ReaderView; none of them touches view state.
+import { isDuplicateIntro } from "./duplicate-intro-detection";
 import { containsLatexFormulaImage } from "./image-url-utils";
 import { normalizeSubstackImageUrl } from "./substack-image-url";
 
@@ -206,10 +207,6 @@ export function isAcceptableDisplayTitle(text: string): boolean {
   return true;
 }
 
-export function isEquivalentHtml(html1: string, html2: string): boolean {
-  return normalizeComparableText(html1) === normalizeComparableText(html2);
-}
-
 export function normalizeComparableText(html: string): string {
   const doc = new DOMParser().parseFromString(html, "text/html");
   return (doc.body.textContent || "")
@@ -224,10 +221,7 @@ export function stripDuplicateLeadContentFromDocument(
   doc: Document,
   feedDescriptionHtml?: string,
 ): void {
-  const normalizedDescription = normalizeComparableText(
-    feedDescriptionHtml || "",
-  );
-  if (!normalizedDescription || !doc.body) return;
+  if (!feedDescriptionHtml || !doc.body) return;
 
   const blocks = Array.from(doc.body.children) as HTMLElement[];
   const firstSubstantialIndex = blocks.findIndex(
@@ -238,7 +232,7 @@ export function stripDuplicateLeadContentFromDocument(
     // Fast path: description appears as a direct child before the first substantial block.
     const duplicateIndex = blocks.findIndex((block, index) => {
       if (index >= firstSubstantialIndex) return false;
-      return getNormalizedBlockText(block) === normalizedDescription;
+      return isDuplicateIntro(block.innerHTML, feedDescriptionHtml);
     });
     if (duplicateIndex !== -1) {
       const duplicateBlock = blocks[duplicateIndex];
@@ -264,9 +258,7 @@ export function stripDuplicateLeadContentFromDocument(
   doc.body
     .querySelectorAll<HTMLElement>("header p, header div")
     .forEach((el) => {
-      if (
-        normalizeComparableText(el.textContent || "") === normalizedDescription
-      ) {
+      if (isDuplicateIntro(el.innerHTML, feedDescriptionHtml)) {
         el.remove();
       }
     });
