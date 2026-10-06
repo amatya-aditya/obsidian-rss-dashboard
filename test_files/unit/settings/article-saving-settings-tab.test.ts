@@ -429,4 +429,23 @@ describe("Article Saving settings help text", () => {
     expect(listItems[firstSeenIndex + 1]).toContain("YYYY-MM-DD");
     expect(listItems[firstSeenIndex + 1]).toContain("2024-04-30");
   });
+  it("lists {{description}}, {{excerpt}} and {{language}} with what they hold (#247)", () => {
+    const containerEl = createDiv();
+    renderArticleSavingSettingsTab(containerEl, createPlugin(), vi.fn());
+
+    const listItems = Array.from(
+      containerEl.querySelectorAll(
+        ".rss-dashboard-template-help .rss-dashboard-variable-list li",
+      ),
+    ).map((li) => li.textContent ?? "");
+
+    for (const name of ["description", "excerpt", "language"]) {
+      expect(listItems.some((text) => text.startsWith(`{{${name}}}`))).toBe(
+        true,
+      );
+    }
+    expect(listItems.find((text) => text.startsWith("{{language}}"))).toContain(
+      "left out when the language is unknown",
+    );
+  });
 });

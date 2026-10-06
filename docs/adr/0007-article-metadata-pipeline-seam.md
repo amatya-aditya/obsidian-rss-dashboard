@@ -60,7 +60,7 @@ The excerpt tier itself falls back to Readability `excerpt` (when it did not alr
 
 Measured on 100 live pages and 53 feeds (#264): `<html lang>` alone covers 96% of articles, with zero disagreements against any other signal across 69 comparisons. `og:locale` and JSON-LD `inLanguage` add no incremental coverage over `<html lang>` and are dropped rather than carried as unused extra tiers.
 
-The resolver's language precedence is therefore `<html lang>` -> feed-level `<language>`/`xml:lang`, normalized to a BCP-47-compatible code with regional subtags preserved (not truncated to the base language). Feed metadata parses `<language>`/`xml:lang` where it is not parsed today. Unresolved languages are left unset rather than guessed.
+The resolver's language precedence is therefore `<html lang>` -> feed-level `<language>`/`xml:lang`, normalized to a BCP-47-compatible code with regional subtags preserved (not truncated to the base language). Feed metadata parses `<language>`/`xml:lang` where it is not parsed today (slice 7, #809): RSS `<language>` (with `<dc:language>` as a fallback), Atom `<feed xml:lang>`, and JSON Feed `language`. The parsed value is stored on `Feed.language` as the feed wrote it, and the callers that hold feed context pass it to the resolver; `{{language}}` is filled from the item's persisted `language` and omits its line when that is unset. Unresolved languages are left unset rather than guessed.
 
 This precedence directly gates #246's scope: local text-based language detection, the only tier that would have covered the remaining gap, needs a third runtime dependency on a mobile-shipping plugin and is out of scope (tracked separately as #272).
 

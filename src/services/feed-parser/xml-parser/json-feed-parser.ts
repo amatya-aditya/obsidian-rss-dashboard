@@ -50,6 +50,10 @@ export function parseJSON(
         type: "json",
         feedItunesImage: "",
         feedImageUrl: "",
+        language:
+          typeof data.language === "string"
+            ? data.language.trim() || undefined
+            : undefined,
       };
     }
 

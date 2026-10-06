@@ -94,6 +94,7 @@ import {
 } from "./src/release-notes";
 import { migrateSettings } from "./src/utils/settings-loader";
 import { applyAutomaticArticleTags } from "./src/utils/tag-utils";
+import { VersionStatusBarFeature } from "./src/settings/version-status-bar";
 
 export interface FiltersUpdatedEventPayload {
   source: string;
@@ -190,6 +191,7 @@ export default class RssDashboardPlugin extends Plugin {
   private backgroundImportService!: BackgroundImportService;
   public activeRefreshState = new Map<string, FeedRefreshState>();
   public settingTab: RssDashboardSettingTab | null = null;
+  public versionStatusBar: VersionStatusBarFeature | null = null;
   public vaultAbsolutePath = "";
   private hasCompletedStartupSavedArticleValidation = false;
   private hasShownStorageDeprecationPromptThisSession = false;
@@ -379,6 +381,7 @@ export default class RssDashboardPlugin extends Plugin {
       this.settings.articleSaving,
       undefined,
       () => this.settings.useFirstSeenDateFallback,
+      () => this.settings.feeds,
     );
     this.importExportService = new ImportExportService({
       settings: this.settings,
@@ -859,6 +862,18 @@ export default class RssDashboardPlugin extends Plugin {
     }
 
     await this.loadSettings();
+    this.versionStatusBar = new VersionStatusBarFeature({
+      version: this.manifest.version,
+      enabled: this.settings.display.showVersionInStatusBar,
+      addStatusBarItem: Platform.isMobile
+        ? undefined
+        : () => this.addStatusBarItem(),
+      saveEnabled: async (enabled) => {
+        this.settings.display.showVersionInStatusBar = enabled;
+        await this.saveSettings();
+      },
+      addCommand: (command) => this.addCommand(command),
+    });
     await this.previewImageCache.initialize();
     this.settingsStore.registerVaultMetadataChangeListeners((ref) =>
       this.registerEvent(ref),
@@ -1079,6 +1094,8 @@ export default class RssDashboardPlugin extends Plugin {
         return false;
       },
     });
+
+    this.versionStatusBar?.registerCommand();
   }
 
   private scheduleStartupRefresh(
@@ -2257,6 +2274,8 @@ export default class RssDashboardPlugin extends Plugin {
   }
 
   onunload() {
+    this.versionStatusBar?.dispose();
+    this.versionStatusBar = null;
     this.autoRefreshScheduler?.stop();
     const flushBackups = async (): Promise<void> => {
       if (this.progressSaveDebounce !== null) {

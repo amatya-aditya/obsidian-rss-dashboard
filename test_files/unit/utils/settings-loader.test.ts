@@ -71,6 +71,25 @@ describe("settings-loader", () => {
   // ── loadAndNormalizeSettings ─────────────────────────────────────────────────
 
   describe("loadAndNormalizeSettings", () => {
+    it("defaults the version status bar off and preserves an explicit saved value", async () => {
+      const { loadAndNormalizeSettings } =
+        await import("../../../src/utils/settings-loader");
+
+      const withoutPreference = loadAndNormalizeSettings({
+        display: {},
+      } as unknown as Partial<RssDashboardSettings>);
+      const explicitlyEnabled = loadAndNormalizeSettings({
+        display: { showVersionInStatusBar: true },
+      } as unknown as Partial<RssDashboardSettings>);
+      const explicitlyDisabled = loadAndNormalizeSettings({
+        display: { showVersionInStatusBar: false },
+      } as unknown as Partial<RssDashboardSettings>);
+
+      expect(withoutPreference.display.showVersionInStatusBar).toBe(false);
+      expect(explicitlyEnabled.display.showVersionInStatusBar).toBe(true);
+      expect(explicitlyDisabled.display.showVersionInStatusBar).toBe(false);
+    });
+
     it("defaults invalid image cache limits while retaining a valid unlimited preference", async () => {
       const { loadAndNormalizeSettings } =
         await import("../../../src/utils/settings-loader");

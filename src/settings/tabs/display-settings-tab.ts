@@ -414,6 +414,8 @@ export function renderDisplaySettingsTab(
         }),
     );
 
+  plugin.versionStatusBar?.renderSetting(containerEl);
+
   new Setting(containerEl)
     .setName("Pagination position")
     .setDesc(

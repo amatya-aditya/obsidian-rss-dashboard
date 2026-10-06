@@ -205,6 +205,7 @@ export class RssDashboardView extends ItemView {
       this.settings.articleSaving,
       this.settings.corsProxyEnabled ? this.settings.corsProxyUrl : undefined,
       () => this.settings.useFirstSeenDateFallback,
+      () => this.settings.feeds,
     );
 
     // Always open the dashboard in All Feeds view. Any startup filtering is

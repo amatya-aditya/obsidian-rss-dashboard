@@ -127,6 +127,12 @@ export interface Feed {
    * Canonical website/homepage URL for the feed (not the RSS URL).
    */
   siteUrl?: string;
+  /**
+   * The language the feed declares (`<language>`, `xml:lang`, JSON Feed
+   * `language`), as the feed wrote it. It is the fallback for an article's
+   * language when the page has none (#246, ADR 0007).
+   */
+  language?: string;
   folder: string;
   items: FeedItem[];
   lastUpdated: number;
@@ -317,6 +323,7 @@ export interface DisplaySettings {
   imageCacheUnlimited: boolean;
   showSummary: boolean;
   showFilterStatusBar: boolean;
+  showVersionInStatusBar: boolean;
   paginationPosition: "top" | "bottom";
   showAllFeedsUnreadBadges: boolean;
   showFolderUnreadBadges: boolean;
@@ -831,6 +838,7 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
     imageCacheUnlimited: false,
     showSummary: true,
     showFilterStatusBar: true,
+    showVersionInStatusBar: false,
     paginationPosition: "bottom",
     showAllFeedsUnreadBadges: true,
     showFolderUnreadBadges: true,

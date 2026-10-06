@@ -775,6 +775,9 @@ function buildSettings(feedConfigs) {
       fetchTimeout: 10,
       savedTemplates: [],
     },
+    display: {
+      showVersionInStatusBar: true,
+    },
     storageMode: "vault-shards-v2",
     storageFolder: STORAGE_FOLDER,
     storageSchemaVersion: 1,

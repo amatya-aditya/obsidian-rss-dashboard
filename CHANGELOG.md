@@ -2,6 +2,7 @@
 
 ### Features
 
+- Add an optional status bar label with the same version, build identifier, and timestamp shown in About. [GH Issue #803](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/803)
 - Sidebar toolbar and article-header icon actions use native buttons with built-in keyboard activation. [GH Issue #502](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/502)
 - Added `{{firstSeenISO}}` for the article's first-seen local date in `YYYY-MM-DD` format, using the same date fallback as `{{firstSeen}}`. [GH Issue #761](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/761)
 - Reader images now show useful descriptions and filenames in themed tooltips; lightbox images are keyboard-operable and announce image descriptions accessibly. [GH Issue #747](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/747)
@@ -9,10 +10,12 @@
 - The Reader's description callout now shows the article page's own description once the article has been fetched, labelled "Description", and keeps it on the article. A feed description that ends with a "The post … appeared first on …" footer no longer shows the footer. [GH Issue #795](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/795)
 - Feed authors are cleaned when a feed refreshes: every author element is kept, and each one is cut at its first comma or pipe, so "Jane Doe, Professor of Law, Example University" and "Jane Doe | Politics" show as "Jane Doe". Articles also store their author names as a list. [GH Issue #798](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/798)
 - Saved notes can use `{{description}}` (the article page's own description, or the feed's blurb when the page has none) and `{{excerpt}}` (a short preview, only when there is no description). `{{author}}` now shows the cleaned author names when the article has them. [GH Issue #807](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/807)
+- Saved notes can use `{{language}}`, the article's language (for example `en-GB`). It comes from the article page, or from the feed's own language when the page declares none, and the whole line is left out of the note when neither is known. [GH Issue #809](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/809)
 
 ### Fixes
 
 - Choosing "Current template" in the Reader's custom save dialog now puts the default template back in the editor and removes the feed's assigned template when you save, instead of keeping the last saved template as the feed's default. [GH Issue #814](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/814)
+- Fixed **Toggle version in status bar** so it turns the version readout off as well as on. [GH Issue #803](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/803)
 - The Reader no longer shows a "Feed description" callout that only repeats the start of the article, including a truncated description ending in an ellipsis; the article keeps its opening. [GH Issue #786](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/786)
 - Restored **Edit tag** and **Delete tag** from sidebar tag rows on desktop right-click and touch long-press; deleting a selected tag also clears it from the active filter. [GH Issue #660](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/660)
 - Clarified that the prefilled article template is ready to use in Article Saving settings and the custom Save article window. [GH Issue #760](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/760)

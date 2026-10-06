@@ -1,5 +1,6 @@
 import { moment } from "obsidian";
 import type { FeedItem } from "../../types/types";
+import { normalizeLanguageTag } from "../../utils/article-metadata";
 import { resolveItemDescriptions } from "../../utils/article-metadata-persistence";
 import { itemAuthorText } from "../../utils/item-author";
 import { resolveDisplayDate } from "../feed-parser/feed-retention";
@@ -33,6 +34,11 @@ export interface ArticleTemplateInputs {
   readonly tagNames: readonly string[];
   /** The call site's `{{image}}` URL. */
   readonly image: string | (() => string);
+  /**
+   * The language the item's feed declares, as the feed wrote it. `{{language}}`
+   * falls back to it, normalized, for an item with no stored language (#809).
+   */
+  readonly feedLanguage?: string;
 }
 
 export function formatMoment(date: Date, formatStr: string): string {
@@ -108,6 +114,7 @@ export function buildArticleTemplateValues(
     get excerpt() {
       return describeItem().excerpt;
     },
+    language: item.language ?? normalizeLanguageTag(inputs.feedLanguage ?? ""),
     tags: inputs.tagNames.join(", "),
     guid: item.guid,
     image: typeof inputs.image === "function" ? inputs.image() : inputs.image,
