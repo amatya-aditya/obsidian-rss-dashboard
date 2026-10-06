@@ -761,6 +761,48 @@ title: "{{title}}"
     await expect(app.vault.read(file)).resolves.toBe("");
   });
 
+  it("writes a saved template without the plugin frontmatter, even when frontmatter is on", async () => {
+    const app = App.createMock();
+    const saver = new ArticleSaver(
+      app,
+      createSettings({
+        includeFrontmatter: true,
+        frontmatterTemplate: "---\ntitle: {{title}}\n---",
+      }),
+    );
+
+    const file = await saver.saveArticle(
+      createItem(),
+      undefined,
+      undefined,
+      "Body text",
+      { id: "beta", name: "Beta", template: "BETA: {{title}}\n\n{{content}}" },
+    );
+
+    if (!(file instanceof TFile)) throw new Error("expected saved file");
+    await expect(app.vault.read(file)).resolves.toBe(
+      "BETA: Test Article\n\nBody text",
+    );
+  });
+
+  it("still adds the plugin frontmatter when no saved template is used", async () => {
+    const app = App.createMock();
+    const saver = new ArticleSaver(
+      app,
+      createSettings({
+        includeFrontmatter: true,
+        frontmatterTemplate: "---\ntitle: {{title}}\n---",
+        defaultTemplate: "# {{title}}",
+      }),
+    );
+
+    const file = await saver.saveArticle(createItem());
+
+    if (!(file instanceof TFile)) throw new Error("expected saved file");
+    const written = await app.vault.read(file);
+    expect(written.startsWith("---\ntitle: Test Article\n---\n")).toBe(true);
+  });
+
   it("uses the normalized article image value in filename patterns", async () => {
     const app = App.createMock();
     const saver = new ArticleSaver(app, createSettings());

@@ -7,6 +7,7 @@ import {
 } from "../types/types";
 import { ArticleSaver } from "../services/article-saver";
 import { VaultFolderSuggest } from "../components/folder-suggest";
+import { ONE_SAVE_OVERRIDE_TEMPLATE_ID } from "../utils/saved-template-utils";
 import { addActionButtonContent } from "../utils/action-button-content";
 import {
   ConfirmTemplateAssignmentModal,
@@ -532,7 +533,7 @@ function createActionButtons(
         ? savedTemplate
           ? { ...savedTemplate, filenamePattern }
           : {
-              id: "reader-one-save-override",
+              id: ONE_SAVE_OVERRIDE_TEMPLATE_ID,
               name: "One-save filename override",
               template: template || "",
               defaultFolder: folder,

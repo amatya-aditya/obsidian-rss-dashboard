@@ -44,6 +44,7 @@ import {
 import { firstNonFormulaImageUrl } from "../utils/image-url-utils";
 import { escapeYamlDoubleQuoted } from "../utils/yaml-escape";
 import { ensureVaultFolder } from "../utils/vault-files";
+import { ONE_SAVE_OVERRIDE_TEMPLATE_ID } from "../utils/saved-template-utils";
 
 const MAX_FILENAME_LENGTH = 100;
 
@@ -545,6 +546,21 @@ export class ArticleSaver {
     }
   }
 
+  /** A saved template owns the whole file, so only the unsaved paths get plugin frontmatter. */
+  private shouldAddFrontmatter(
+    template: string,
+    savedTemplate: SavedTemplate | undefined,
+  ): boolean {
+    const templateOwnsFile =
+      savedTemplate !== undefined &&
+      savedTemplate.id !== ONE_SAVE_OVERRIDE_TEMPLATE_ID;
+    return (
+      this.settings.includeFrontmatter &&
+      !templateOwnsFile &&
+      !template.trim().startsWith("---")
+    );
+  }
+
   async saveArticle(
     item: FeedItem,
     customFolder?: string,
@@ -570,8 +586,7 @@ export class ArticleSaver {
           "# {{title}}\n\n{{content}}\n\n[Source]({{link}})";
 
       let contentToWrite = "";
-      const templateHasFrontmatter = template.trim().startsWith("---");
-      if (this.settings.includeFrontmatter && !templateHasFrontmatter) {
+      if (this.shouldAddFrontmatter(template, savedTemplate)) {
         contentToWrite += this.generateFrontmatter(item);
       }
 
