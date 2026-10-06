@@ -27,6 +27,19 @@ export interface FeedItem {
   author?: string;
   summary?: string;
   content?: string;
+  /**
+   * The description resolved from the article page, or the guarded feed blurb
+   * when the page had none (#247, ADR 0007). Stored beside `description`, never
+   * over it. Written once, with the other metadata fields below.
+   */
+  publisherDescription?: string;
+  /** BCP-47 language code from the article page or feed; unset when unresolved. */
+  language?: string;
+  languageSource?: "page" | "feed";
+  /** The page's `<link rel="canonical">`. */
+  canonicalUrl?: string;
+  /** When the metadata fields were written; once set they are never overwritten. */
+  metadataFetchedAt?: number;
   saved?: boolean;
   savedFilePath?: string;
   playbackProgress?: {

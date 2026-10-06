@@ -21,6 +21,8 @@ import {
 } from "../utils/math-copy";
 import { sanitizeAndAppendHtml } from "../utils/safe-html";
 import { type FullArticleFetchFailureType } from "../utils/fetch-helpers";
+import { type RawArticleMetadata } from "../utils/article-metadata";
+import { applyArticleMetadata } from "../utils/article-metadata-persistence";
 import {
   RssDashboardSettings,
   FeedItem,
@@ -147,6 +149,7 @@ export class ReaderView extends ItemView {
   private returnLeaf: WorkspaceLeaf | null = null;
   private tagsDropdownCleanup: (() => void) | null = null;
   private currentFullContentFailureType: FullArticleFetchFailureType = "none";
+  private currentPageMetadata?: RawArticleMetadata;
   private lastRestrictedNoticeGuid: string | null = null;
 
   private readerFormatPortal: { close: (flushSave: boolean) => void } | null =
@@ -1225,6 +1228,7 @@ export class ReaderView extends ItemView {
 
       if (hasFullArticleContent) {
         item.restrictedReason = undefined;
+        this.persistFetchedMetadata(item, fetchedContent);
       } else if (this.lastFullArticleFetchWasRestricted()) {
         item.restrictedReason = RESTRICTED_ARTICLE_REASON;
         // Toast notification removed for paywalled/restricted articles.
@@ -1570,6 +1574,7 @@ export class ReaderView extends ItemView {
 
     const {
       descriptionHtml,
+      descriptionLabel,
       mainHtml,
       hasMeaningfulDescription,
       hasDistinctMainContent,
@@ -1582,7 +1587,7 @@ export class ReaderView extends ItemView {
         cls: "rss-reader-description-callout",
       });
       descriptionCallout.open = true;
-      descriptionCallout.createEl("summary", { text: "Feed description" });
+      descriptionCallout.createEl("summary", { text: descriptionLabel });
       const descriptionBody = descriptionCallout.createDiv({
         cls: "rss-reader-description rss-reader-description-body",
       });
@@ -2019,7 +2024,18 @@ export class ReaderView extends ItemView {
         : undefined;
     const result = await fetchFullArticleContentWithOutcome(url, proxyUrl);
     this.currentFullContentFailureType = result.failureType;
+    this.currentPageMetadata = result.pageMetadata;
     return result.content;
+  }
+
+  /** Writes the fetched page's resolved metadata once (#247 slice 4). */
+  private persistFetchedMetadata(item: FeedItem, articleHtml: string): void {
+    const update = applyArticleMetadata(
+      item,
+      this.currentPageMetadata,
+      articleHtml,
+    );
+    if (update) this.onArticleUpdate(item, update, false);
   }
 
   private showRestrictedNotice(item: FeedItem): void {

@@ -9,6 +9,8 @@ import {
 } from "../services/feed-parser/feed-retention";
 import { MediaService } from "../services/media-service";
 import { type FullArticleFetchFailureType } from "../utils/fetch-helpers";
+import { type RawArticleMetadata } from "../utils/article-metadata";
+import { applyArticleMetadata } from "../utils/article-metadata-persistence";
 import {
   fetchFullArticleContentWithOutcome,
   RESTRICTED_ARTICLE_BANNER,
@@ -21,7 +23,10 @@ import {
   normalizeSubstackImageUrlsInDocument,
 } from "../utils/substack-image-url";
 import { isDuplicateIntro } from "../utils/duplicate-intro-detection";
-import { descriptionToStripFromBody } from "../utils/reader-article-render";
+import {
+  descriptionToStripFromBody,
+  selectCalloutDescription,
+} from "../utils/reader-article-render";
 import { removeLeadImageElement } from "../utils/reader-html-cleanup";
 import {
   containsLatexFormulaImage,
@@ -81,6 +86,7 @@ export class ArticleRenderer {
   private currentReaderTitle?: string;
   private currentContentIsFullArticle = false;
   private currentFullContentFailureType: FullArticleFetchFailureType = "none";
+  private currentPageMetadata?: RawArticleMetadata;
   private lastRestrictedNoticeGuid: string | null = null;
 
   constructor(options: ArticleRendererOptions) {
@@ -137,6 +143,7 @@ export class ArticleRenderer {
 
       if (hasFullArticleContent) {
         item.restrictedReason = undefined;
+        this.persistFetchedMetadata(item, fetchedContent);
       } else if (this.lastFullArticleFetchWasRestricted()) {
         item.restrictedReason = RESTRICTED_ARTICLE_REASON;
         this.showRestrictedNotice(item);
@@ -313,7 +320,8 @@ export class ArticleRenderer {
       cls: "rss-reader-hero-slot",
     });
 
-    const descriptionHtml = (item.description || "").trim();
+    const { html: descriptionHtml, label: descriptionLabel } =
+      selectCalloutDescription(item);
     const hasMeaningfulDescription =
       this.hasMeaningfulFeedDescription(descriptionHtml);
     const mainHtml = (fullContent || item.content || "").trim();
@@ -333,7 +341,7 @@ export class ArticleRenderer {
         cls: "rss-reader-description-callout",
       });
       descriptionCallout.open = true;
-      descriptionCallout.createEl("summary", { text: "Feed description" });
+      descriptionCallout.createEl("summary", { text: descriptionLabel });
       const descriptionBody = descriptionCallout.createDiv({
         cls: "rss-reader-description rss-reader-description-body",
       });
@@ -636,11 +644,23 @@ export class ArticleRenderer {
         : undefined;
       const result = await fetchFullArticleContentWithOutcome(url, proxyUrl);
       this.currentFullContentFailureType = result.failureType;
+      this.currentPageMetadata = result.pageMetadata;
       return result.content;
     } catch {
       this.currentFullContentFailureType = "network";
+      this.currentPageMetadata = undefined;
       return "";
     }
+  }
+
+  /** Writes the fetched page's resolved metadata once (#247 slice 4). */
+  private persistFetchedMetadata(item: FeedItem, articleHtml: string): void {
+    const update = applyArticleMetadata(
+      item,
+      this.currentPageMetadata,
+      articleHtml,
+    );
+    if (update) this.onArticleUpdate(item, update, false);
   }
 
   private showRestrictedNotice(item: FeedItem): void {

@@ -5,6 +5,7 @@ import {
   RssDashboardSettings,
   DEFAULT_SETTINGS,
 } from "../../../src/types/types";
+import type { RawArticleMetadata } from "../../../src/utils/article-metadata";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 
 // Install polyfills globally for the test
@@ -24,6 +25,7 @@ type ReaderViewHarness = {
   contentEl: HTMLElement;
   readingContainer: HTMLElement;
   fetchFullArticleContent: ReturnType<typeof vi.fn>;
+  currentPageMetadata?: RawArticleMetadata;
   buildReaderSaveMarkdown(item: FeedItem): string;
 };
 
@@ -314,6 +316,7 @@ describe("ReaderView Image Duplication", () => {
 describe("ReaderView – summary de-duplication", () => {
   let readerView: ReaderView;
   let mockSettings: RssDashboardSettings;
+  let onArticleUpdate: ReturnType<typeof vi.fn>;
 
   beforeEach(async () => {
     const mockApp = {
@@ -326,6 +329,7 @@ describe("ReaderView – summary de-duplication", () => {
     };
 
     const mockLeaf = new MockLeaf(mockApp);
+    onArticleUpdate = vi.fn();
     mockSettings = { ...DEFAULT_SETTINGS, useWebViewer: false };
 
     readerView = new ReaderView(
@@ -333,7 +337,7 @@ describe("ReaderView – summary de-duplication", () => {
       mockSettings,
       { saveArticle: vi.fn() } as never,
       vi.fn(),
-      vi.fn(),
+      onArticleUpdate,
     );
 
     getHarness(readerView).contentEl = createDiv();
@@ -782,6 +786,115 @@ describe("ReaderView – summary de-duplication", () => {
         ".rss-reader-description-callout",
       ),
     ).toBeTruthy();
+  });
+
+  describe("description callout and persisted metadata (#247 slice 4)", () => {
+    const FETCHED = `<div><p>${"A completely different opening paragraph. ".repeat(6)}</p></div>`;
+    const PAGE_DESCRIPTION =
+      "The publisher's own summary of the harbor budget story, written for search results";
+    const rawPage = (overrides: Partial<RawArticleMetadata> = {}) => ({
+      metaDescription: "",
+      ogDescription: "",
+      twitterDescription: "",
+      htmlLang: "",
+      metaAuthor: "",
+      jsonLdAuthors: [],
+      microdataAuthors: [],
+      relAuthors: [],
+      canonicalUrl: "",
+      readabilityExcerpt: "",
+      ...overrides,
+    });
+    const callout = () =>
+      getHarness(readerView).readingContainer.querySelector(
+        ".rss-reader-description-callout",
+      );
+
+    function fetchReturning(html: string, page?: RawArticleMetadata) {
+      getHarness(readerView).fetchFullArticleContent = vi
+        .fn()
+        .mockImplementation(async () => {
+          getHarness(readerView).currentPageMetadata = page;
+          return html;
+        });
+    }
+
+    it("labels the raw feed blurb 'Feed description' and drops its footer", async () => {
+      const blurb =
+        "The council approved the harbor budget after a long and tense session";
+      const item = makeItem({
+        description: `<p>${blurb}</p><p>The post <a href="https://x.test">Test Article</a> appeared first on <a href="https://x.test">Blog</a>.</p>`,
+      });
+      fetchReturning(FETCHED);
+      await readerView.displayItem(item);
+
+      expect(callout()?.querySelector("summary")?.textContent).toBe(
+        "Feed description",
+      );
+      expect(callout()?.textContent).toContain(blurb);
+      expect(callout()?.textContent).not.toContain("appeared first on");
+      expect(item.description).toContain("appeared first on");
+    });
+
+    it("shows a fetched page's description, labelled 'Description', and stores it", async () => {
+      const item = makeItem({ description: "<p>Short feed blurb</p>" });
+      fetchReturning(FETCHED, rawPage({ metaDescription: PAGE_DESCRIPTION }));
+      await readerView.displayItem(item);
+
+      expect(item.publisherDescription).toBe(PAGE_DESCRIPTION);
+      expect(item.description).toBe("<p>Short feed blurb</p>");
+      expect(callout()?.querySelector("summary")?.textContent).toBe(
+        "Description",
+      );
+      expect(callout()?.textContent).toContain(PAGE_DESCRIPTION);
+      expect(onArticleUpdate).toHaveBeenCalledWith(
+        item,
+        expect.objectContaining({
+          publisherDescription: PAGE_DESCRIPTION,
+          metadataFetchedAt: expect.any(Number),
+        }),
+        false,
+      );
+    });
+
+    it("never overwrites stored metadata on a later fetch", async () => {
+      const item = makeItem({
+        description: "<p>Short feed blurb</p>",
+        publisherDescription: "Stored description of the harbor budget story",
+        metadataFetchedAt: 5,
+      });
+      fetchReturning(FETCHED, rawPage({ metaDescription: PAGE_DESCRIPTION }));
+      await readerView.displayItem(item);
+
+      expect(item.publisherDescription).toBe(
+        "Stored description of the harbor budget story",
+      );
+      expect(item.metadataFetchedAt).toBe(5);
+      expect(onArticleUpdate).not.toHaveBeenCalled();
+    });
+
+    it("writes nothing when the fetch yields no article", async () => {
+      const item = makeItem({ description: "<p>Short feed blurb</p>" });
+      fetchReturning("", rawPage({ metaDescription: PAGE_DESCRIPTION }));
+      await readerView.displayItem(item);
+
+      expect(item.metadataFetchedAt).toBeUndefined();
+      expect(onArticleUpdate).not.toHaveBeenCalled();
+    });
+
+    it("hides a stored description that the article opens with", async () => {
+      const item = makeItem({
+        description: "<p>Short feed blurb</p>",
+        publisherDescription: PAGE_DESCRIPTION,
+        metadataFetchedAt: 5,
+      });
+      fetchReturning(
+        `<div><p>${PAGE_DESCRIPTION}. ${"More. ".repeat(20)}</p></div>`,
+      );
+      await readerView.displayItem(item);
+
+      expect(callout()).toBeNull();
+    });
   });
 
   it("removes skip-link and lead media/caption duplicates while keeping kicker text", async () => {

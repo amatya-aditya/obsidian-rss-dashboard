@@ -21,6 +21,7 @@ import {
   resolveSavedArticleDate,
   type ArticleTemplateValues,
 } from "./article-template/template-values";
+import { applyArticleMetadata } from "../utils/article-metadata-persistence";
 import { renderArticleTemplate } from "./article-template/render-template";
 import {
   ARTICLE_SAVER_FRONTMATTER_STEPS,
@@ -416,6 +417,8 @@ export class ArticleSaver {
           fallbackWithHero,
         );
       }
+
+      applyArticleMetadata(item, fetchResult.pageMetadata, fetchResult.content);
 
       const fetchedTextLength = this.getReadableTextLength(fetchResult.content);
       const feedTextLength = this.getReadableTextLength(feedContent);
