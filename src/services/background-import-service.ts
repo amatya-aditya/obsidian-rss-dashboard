@@ -834,6 +834,7 @@ export class BackgroundImportService {
       title: parsedFeed.title || existingFeed.title || feedMetadata.title,
       author: parsedFeed.author ?? existingFeed.author,
       siteUrl: parsedFeed.siteUrl ?? existingFeed.siteUrl,
+      language: parsedFeed.language ?? existingFeed.language,
       iconUrl: parsedFeed.iconUrl ?? existingFeed.iconUrl,
       mediaType: parsedFeed.mediaType ?? existingFeed.mediaType,
       items: parsedFeed.items.slice(

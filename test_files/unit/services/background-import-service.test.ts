@@ -442,6 +442,49 @@ describe("BackgroundImportService", () => {
       expect(deps._settings.feeds[0].items).toHaveLength(1);
     });
 
+    it.each([
+      [
+        "carries the parsed feed language onto the stored feed",
+        undefined,
+        "de-DE",
+        "de-DE",
+      ],
+      [
+        "keeps the stored language when the parse has none",
+        "fr-CA",
+        undefined,
+        "fr-CA",
+      ],
+      [
+        "prefers the parsed language over the stored one",
+        "fr-CA",
+        "de-DE",
+        "de-DE",
+      ],
+    ] as const)("%s", (_name, storedLanguage, parsedLanguage, expected) => {
+      const url = "https://example.com/feed.xml";
+      const base: Feed = {
+        title: "Feed",
+        url,
+        folder: "Inbox",
+        items: [],
+        lastUpdated: 0,
+        mediaType: "article",
+      };
+      const deps = makeDeps();
+      deps._settings.feeds = [{ ...base, language: storedLanguage }];
+      const service = new BackgroundImportService(deps);
+
+      (
+        service as unknown as TestableBackgroundImportService
+      ).mergeBackgroundImportedFeed(
+        { title: "Feed", url, folder: "Inbox", lastUpdated: 0 },
+        { ...base, language: parsedLanguage },
+      );
+
+      expect(deps._settings.feeds[0].language).toBe(expected);
+    });
+
     it("is a no-op when the feed URL is not in settings.feeds", async () => {
       const deps = makeDeps();
       deps._settings.feeds = [];
