@@ -214,6 +214,32 @@ describe("Phase 8 - WebViewerIntegration", () => {
       h.cleanup();
     });
 
+    it("keeps an intentionally empty global-template body empty in the dialog", () => {
+      const rafSpy = vi
+        .spyOn(window, "requestAnimationFrame")
+        .mockImplementation((cb: FrameRequestCallback) => {
+          cb(0);
+          return 0;
+        });
+      const h = createWebViewerIntegrationHarness({
+        settings: {
+          savedTemplates: [{ id: "empty", name: "Empty", template: "" }],
+          globalDefaultTemplateId: "empty",
+        },
+      });
+
+      h.integration.showSaveDialog();
+
+      expect(
+        document
+          .querySelector<HTMLElement>(".rss-dashboard-web-viewer-save-modal")
+          ?.querySelector<HTMLTextAreaElement>("textarea")?.value,
+      ).toBe("");
+
+      rafSpy.mockRestore();
+      h.cleanup();
+    });
+
     it("save calls saveArticle() and removes the modal", async () => {
       const rafSpy = vi
         .spyOn(window, "requestAnimationFrame")
@@ -232,7 +258,8 @@ describe("Phase 8 - WebViewerIntegration", () => {
           folder: string,
           template: string,
           includeFrontmatter: boolean,
-        ) => Promise<unknown>;
+          filenamePattern?: string,
+        ) => Promise<{ path: string } | null>;
       };
       const saveSpy = vi
         .spyOn(integration, "saveArticle")
@@ -284,7 +311,8 @@ describe("Phase 8 - WebViewerIntegration", () => {
           folder: string,
           template: string,
           includeFrontmatter: boolean,
-        ) => Promise<unknown>;
+          filenamePattern?: string,
+        ) => Promise<{ path: string } | null>;
       };
       const saveArticle = integration.saveArticle.bind(h.integration);
 
@@ -304,6 +332,35 @@ describe("Phase 8 - WebViewerIntegration", () => {
         expect.stringContaining("Article saved: My File"),
       );
 
+      h.cleanup();
+    });
+
+    it("uses the selected filename pattern in the Web Viewer save flow", async () => {
+      const h = createWebViewerIntegrationHarness();
+      const item = buildFeedItem({
+        title: "A title",
+        feedTitle: "Web viewer",
+        guid: "web-viewer-pattern",
+      });
+      const integration = h.integration as unknown as {
+        saveArticle: (
+          item: FeedItem,
+          folder: string,
+          template: string,
+          includeFrontmatter: boolean,
+          filenamePattern?: string,
+        ) => Promise<{ path: string } | null>;
+      };
+
+      const file = await integration.saveArticle(
+        item,
+        "",
+        "{{title}}",
+        false,
+        "{{source}} - {{title}}",
+      );
+
+      expect(file?.path).toBe("Web viewer - A title.md");
       h.cleanup();
     });
 
@@ -329,6 +386,7 @@ author: "{{author}}"
           folder: string,
           template: string,
           includeFrontmatter: boolean,
+          filenamePattern?: string,
         ) => Promise<unknown>;
       };
       const saveArticle = integration.saveArticle.bind(h.integration);
@@ -344,7 +402,7 @@ author: "{{author}}"
       h.cleanup();
     });
 
-    it("returns null and emits a Notice when the file already exists", async () => {
+    it("uses a numeric suffix and preserves an existing vault item", async () => {
       const logSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
 
       const h = createWebViewerIntegrationHarness();
@@ -359,15 +417,21 @@ author: "{{author}}"
           folder: string,
           template: string,
           includeFrontmatter: boolean,
-        ) => Promise<unknown>;
+          filenamePattern?: string,
+        ) => Promise<{ path: string } | null>;
       };
       const saveArticle = integration.saveArticle.bind(h.integration);
 
       const file = await saveArticle(item, "Folder", "{{title}}", false);
-      expect(file).toBeNull();
+      expect(file?.path).toBe("Folder/Dupe 2.md");
+      const existingFile = h.app.vault.getAbstractFileByPath("Folder/Dupe.md");
+      if (!(existingFile instanceof TFile)) {
+        throw new Error("expected existing file");
+      }
+      expect(await h.app.vault.read(existingFile)).toBe("existing");
       expect(logSpy).toHaveBeenCalledWith(
         "[Stub Notice]",
-        expect.stringContaining("File already exists: Dupe"),
+        expect.stringContaining("Article saved: Dupe 2"),
       );
 
       h.cleanup();
@@ -440,6 +504,45 @@ author: "{{author}}"
         `${expectedSaveDate}|${expectedSaveTime12}|${expectedSaveTime24}|`,
       );
       expect(out).toContain("https://example.com/a|A|F|S|<p>C</p>");
+
+      h.cleanup();
+    });
+
+    it("expands the remaining saved-template metadata and date placeholders", () => {
+      const h = createWebViewerIntegrationHarness();
+      const integration = h.integration as unknown as {
+        applyTemplate: (item: FeedItem, template: string) => string;
+      };
+      const pubDate = new Date("2024-02-03T12:00:00Z");
+      const firstSeenDate = new Date("2024-02-04T12:00:00Z");
+      const item = buildFeedItem({
+        guid: "page-guid",
+        feedTitle: "Web viewer",
+        pubDate: pubDate.toISOString(),
+        firstSeenMs: firstSeenDate.getTime(),
+        tags: [{ name: "Science", color: "#fff" }],
+      });
+
+      const out = integration.applyTemplate.bind(h.integration)(
+        item,
+        "{{feedTitle}}|{{guid}}|{{tags}}|{{dateShort}}|{{firstSeen}}|{{firstSeenISO}}|{{date:YYYY}}",
+      );
+
+      expect(out).toBe(
+        [
+          "Web viewer",
+          "page-guid",
+          "Science, Saved",
+          callMoment(pubDate).format("YYYY-MM-DD"),
+          firstSeenDate.toLocaleDateString(undefined, {
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+          }),
+          callMoment(firstSeenDate).format("YYYY-MM-DD"),
+          callMoment(pubDate).format("YYYY"),
+        ].join("|"),
+      );
 
       h.cleanup();
     });

@@ -31,6 +31,7 @@ import { MediaService } from "../../services/media-service";
 import { copyTextToClipboard } from "../../utils/export-utils";
 import { addTagMultiSelectControl } from "../../components/tag-multi-select-control";
 import { TagApplicationConfirmModal } from "./tag-application-confirm-modal";
+import { ConfirmTemplateReplacementModal } from "../../settings/modals/settings-modals";
 import {
   applyTagsToItems,
   removeTagsFromItemsByName,
@@ -728,7 +729,9 @@ export class EditFeedModal extends Modal {
 
     new Setting(perFeedControlsBody)
       .setName("Article template")
-      .setDesc("Select a template to use when saving articles from this feed")
+      .setDesc(
+        "This feed's template takes precedence over the global default. Replacing an existing assignment requires confirmation.",
+      )
       .addDropdown((dropdown) => {
         dropdown.addOption("", "Use default template");
         savedTemplates.forEach((template: SavedTemplate) => {
@@ -736,6 +739,27 @@ export class EditFeedModal extends Modal {
         });
         dropdown.setValue(this.customTemplate);
         dropdown.onChange((value) => {
+          const currentId = this.customTemplate;
+          if (currentId && value && currentId !== value) {
+            const templates =
+              this.plugin.settings.articleSaving.savedTemplates || [];
+            const current = templates.find(
+              (template) => template.id === currentId,
+            );
+            const next = templates.find((template) => template.id === value);
+            const confirm = new ConfirmTemplateReplacementModal(
+              this.app,
+              this.feed.title,
+              current?.name || "Current template",
+              next?.name || "Selected template",
+            );
+            confirm.open();
+            void confirm.waitForClose().then((accepted) => {
+              if (accepted) this.customTemplate = value;
+              else dropdown.setValue(currentId);
+            });
+            return;
+          }
           this.customTemplate = value;
         });
       });

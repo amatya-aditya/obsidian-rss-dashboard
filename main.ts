@@ -967,6 +967,7 @@ export default class RssDashboardPlugin extends Plugin {
             void this.updateArticleFromReader(item, updates, shouldRerender);
           },
           {
+            saveSettings: () => this.saveSettings(),
             onPlaybackProgress: (item, position, duration, flush) => {
               this.updatePlaybackProgress(
                 item.feedUrl,

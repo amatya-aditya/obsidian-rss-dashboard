@@ -4,6 +4,7 @@
 
 - Add an optional status bar label with the same version, build identifier, and timestamp shown in About. [GH Issue #803](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/803)
 - Sidebar toolbar and article-header icon actions use native buttons with built-in keyboard activation. [GH Issue #502](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/502)
+- Saved article templates can now be edited independently, selected as the global default, assigned per feed, and given custom folders and filename patterns. The Reader custom-save dialog previews the resulting name and allows a one-save override. Article saves use collision-safe filenames while preserving identified note paths. [GH Issue #762](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/762) [GH Issue #763](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/763)
 - Added `{{firstSeenISO}}` for the article's first-seen local date in `YYYY-MM-DD` format, using the same date fallback as `{{firstSeen}}`. [GH Issue #761](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/761)
 - Reader images now show useful descriptions and filenames in themed tooltips; lightbox images are keyboard-operable and announce image descriptions accessibly. [GH Issue #747](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/747)
 - Sidebar search now says when nothing matched instead of leaving the sidebar blank. A search with no matching feeds or folders shows **0 results** and **No matches found.**, as Obsidian's own search does, and the message clears when the query changes or the search is cleared or closed. [GH Issue #678](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/678)
@@ -14,6 +15,7 @@
 
 ### Fixes
 
+- Saved notes written with a saved template no longer get the plugin’s frontmatter added on top, so a template such as `BETA: {{title}}` now produces exactly that. A template that begins with `---` keeps its own frontmatter, and saves with no saved template are unchanged. The Reader’s custom save window also drops the **Use template pattern** button and the **Template pattern** line; the filename preview still shows the name that will be used.
 - The Reader's custom save dialog now hides **Save as new template** until the template differs from the one you started with, instead of always showing it.
 - Choosing "Current template" in the Reader's custom save dialog now puts the default template back in the editor and removes the feed's assigned template when you save, instead of keeping the last saved template as the feed's default. [GH Issue #814](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/814)
 - Fixed **Toggle version in status bar** so it turns the version readout off as well as on. [GH Issue #803](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/803)

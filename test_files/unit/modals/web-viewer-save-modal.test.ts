@@ -18,6 +18,7 @@ describe("WebViewerSaveModal", () => {
     new WebViewerSaveModal(new App(), {
       defaultFolder: "RSS articles/",
       defaultTemplate: "# {{title}}",
+      defaultFilenamePattern: "{{title}}",
       includeFrontmatter: true,
       onSave,
     }).open();
@@ -69,7 +70,12 @@ describe("WebViewerSaveModal", () => {
       ).toBeNull();
     });
     expect(onSave).toHaveBeenCalledTimes(1);
-    expect(onSave).toHaveBeenCalledWith("Notes", "# {{title}}", true);
+    expect(onSave).toHaveBeenCalledWith(
+      "Notes",
+      "# {{title}}",
+      true,
+      "{{title}}",
+    );
   });
 
   it("stays open and shows a Notice when saving fails", async () => {

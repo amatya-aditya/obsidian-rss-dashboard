@@ -47,6 +47,20 @@ describe("Reader custom save modal styles", () => {
     );
   });
 
+  it("keeps the filename pattern override full-width and keyboard-visible", () => {
+    const input = declarationsFor(
+      ".rss-dashboard-custom-save-modal #rss-dashboard-filename-pattern",
+    );
+    expect(input.get("display")).toBe("block");
+    expect(input.get("width")).toBe("100%");
+    expect(input.get("box-sizing")).toBe("border-box");
+    const focus = declarationsFor(
+      ".rss-dashboard-custom-save-modal #rss-dashboard-filename-pattern:focus-visible",
+    );
+    expect(focus.get("outline")).toBe("2px solid var(--interactive-accent)");
+    expect(focus.get("outline-offset")).toBe("2px");
+  });
+
   it("keeps the action buttons in a horizontal row", () => {
     const actions = declarationsFor(
       ".rss-dashboard-custom-save-modal .rss-dashboard-modal-buttons",

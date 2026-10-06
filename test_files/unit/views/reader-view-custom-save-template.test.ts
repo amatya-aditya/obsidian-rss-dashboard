@@ -81,7 +81,10 @@ describe("ReaderView custom-folder saved templates", () => {
     const readerView = new ReaderView(
       new MockLeaf({ workspace: {}, vault: {} }) as never,
       settings,
-      { saveArticle: vi.fn() } as never,
+      {
+        saveArticle: vi.fn(),
+        getFilenamePreview: vi.fn(() => "Fixture article.md"),
+      } as never,
       vi.fn(),
       vi.fn(),
     );
@@ -114,7 +117,10 @@ describe("ReaderView custom-folder saved templates", () => {
     const readerView = new ReaderView(
       new MockLeaf({ workspace: {}, vault: {} }) as never,
       settings,
-      { saveArticle: vi.fn() } as never,
+      {
+        saveArticle: vi.fn(),
+        getFilenamePreview: vi.fn(() => "Fixture article.md"),
+      } as never,
       vi.fn(),
       vi.fn(),
     );
@@ -157,7 +163,10 @@ describe("ReaderView custom-folder saved templates", () => {
     const readerView = new ReaderView(
       new MockLeaf(app) as never,
       settings,
-      { saveArticle } as never,
+      {
+        saveArticle,
+        getFilenamePreview: vi.fn(() => "Fixture article.md"),
+      } as never,
       onArticleSave,
       vi.fn(),
     );
@@ -210,8 +219,15 @@ describe("ReaderView custom-folder saved templates", () => {
         "One-off folder",
         "Tweet template: {{content}}",
         "Article description",
+        {
+          id: "tweet-template",
+          name: "Tweet",
+          template: "Tweet template: {{content}}",
+          defaultFolder: "Template folder",
+        },
       );
     });
+    await vi.waitFor(() => expect(onArticleSave).toHaveBeenCalledWith(item));
 
     expect(feed.customTemplate).toBe("tweet-template");
     expect(onArticleSave).toHaveBeenCalledWith(item);
@@ -233,7 +249,10 @@ describe("ReaderView custom-folder saved templates", () => {
     const readerView = new ReaderView(
       new MockLeaf({ workspace: {}, vault: {} }) as never,
       settings,
-      { saveArticle: vi.fn() } as never,
+      {
+        saveArticle: vi.fn(),
+        getFilenamePreview: vi.fn(() => "Fixture article.md"),
+      } as never,
       vi.fn(),
       vi.fn(),
     );
@@ -273,7 +292,10 @@ describe("ReaderView custom-folder saved templates", () => {
     const readerView = new ReaderView(
       new MockLeaf({ workspace: {}, vault: {} }) as never,
       settings,
-      { saveArticle } as never,
+      {
+        saveArticle,
+        getFilenamePreview: vi.fn(() => "Fixture article.md"),
+      } as never,
       vi.fn(),
       vi.fn(),
     );
@@ -311,7 +333,9 @@ describe("ReaderView custom-folder saved templates", () => {
         ?.querySelector(".modal")
         ?.classList.contains("rss-dashboard-template-dialog"),
     ).toBe(true);
-    const nameInput = nameModal?.querySelector<HTMLInputElement>("input");
+    const nameInput = nameModal?.querySelector<HTMLInputElement>(
+      "#rss-saved-template-name",
+    );
     nameInput!.value = "Article note";
     Array.from(nameModal?.querySelectorAll<HTMLButtonElement>("button") ?? [])
       .find((button) => button.textContent === "Save")
@@ -370,6 +394,12 @@ describe("ReaderView custom-folder saved templates", () => {
       "One-off folder",
       "Edited template",
       "Article description",
+      {
+        id: "template-123",
+        name: "Article note",
+        template: "Edited template",
+        defaultFolder: "Template folder",
+      },
     );
 
     expect(feed.customTemplate).toBe("template-123");
@@ -380,7 +410,10 @@ describe("ReaderView custom-folder saved templates", () => {
     const reloadedReader = new ReaderView(
       new MockLeaf({ workspace: {}, vault: {} }) as never,
       reloadedSettings,
-      { saveArticle: vi.fn() } as never,
+      {
+        saveArticle: vi.fn(),
+        getFilenamePreview: vi.fn(() => "Fixture article.md"),
+      } as never,
       vi.fn(),
       vi.fn(),
     );

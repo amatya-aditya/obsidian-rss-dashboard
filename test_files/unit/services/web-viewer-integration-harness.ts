@@ -28,6 +28,7 @@ export type TestWebViewerIntegration = WebViewerIntegration & {
     folder: string,
     template: string,
     includeFrontmatter: boolean,
+    filenamePattern?: string,
   ): Promise<TFile | null>;
   applyTemplate(item: FeedItem, template: string): string;
   generateFrontmatter(item: FeedItem): string;
@@ -44,6 +45,7 @@ function cloneDefaultSettings(): ArticleSavingSettings {
     saveFullContent: true,
     fetchTimeout: 30_000,
     savedTemplates: [],
+    globalDefaultTemplateId: undefined,
   };
 }
 

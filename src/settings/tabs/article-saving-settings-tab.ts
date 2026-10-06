@@ -9,7 +9,7 @@ import { Notice, Setting, normalizePath } from "obsidian";
 import type { App } from "obsidian";
 import { DEFAULT_SETTINGS, type SavedTemplate } from "../../types/types";
 import { VaultFolderSuggest } from "../../components/folder-suggest";
-import { TemplateNameModal } from "../modals/settings-modals";
+import { SavedTemplateEditorModal } from "../modals/settings-modals";
 import { settingsUiCompatibility } from "../settings-ui-compat";
 
 export interface ArticleSavingPluginLike {
@@ -22,6 +22,7 @@ export interface ArticleSavingPluginLike {
       fetchTimeout: number | undefined;
       defaultTemplate: string;
       savedTemplates?: SavedTemplate[] | undefined;
+      globalDefaultTemplateId?: string;
     };
   };
   saveSettings: () => Promise<void>;
@@ -103,6 +104,10 @@ export function renderArticleSavingSettingsTab(
 
   // ── Default template ──────────────────────────────────────────────────────
   new Setting(containerEl).setName("Default template").setHeading();
+  containerEl.createEl("p", {
+    cls: "rss-dashboard-settings-note",
+    text: "Article saves use a feed-assigned template first, then the global default saved template, then the standalone fallback below. Save full content and the saved tag remain global options.",
+  });
 
   const templateContainer = containerEl.createDiv();
 
@@ -183,23 +188,36 @@ export function renderArticleSavingSettingsTab(
     cls: "rss-dashboard-template-btn",
   });
   saveAsTemplateBtn.onclick = async () => {
-    const modal = new TemplateNameModal(plugin.app);
-    modal.open();
-    const name = await modal.waitForClose();
-    if (name) {
-      const newTemplate: SavedTemplate = {
-        id: `template-${Date.now()}`,
-        name,
+    const modal = new SavedTemplateEditorModal(
+      plugin.app,
+      {
+        name: "",
         template: plugin.settings.articleSaving.defaultTemplate,
-      };
-      if (!plugin.settings.articleSaving.savedTemplates) {
-        plugin.settings.articleSaving.savedTemplates = [];
-      }
-      plugin.settings.articleSaving.savedTemplates.push(newTemplate);
-      await plugin.saveSettings();
-      new Notice(`Template "${name}" saved`);
-      onRefresh();
+        defaultFolder: "",
+        filenamePattern: "",
+        makeGlobalDefault: false,
+      },
+      plugin.settings.articleSaving.savedTemplates || [],
+    );
+    modal.open();
+    const result = await modal.waitForClose();
+    if (!result) return;
+    const newTemplate: SavedTemplate = {
+      id: `template-${Date.now()}`,
+      name: result.name,
+      template: result.template,
+      defaultFolder: result.defaultFolder,
+      filenamePattern: result.filenamePattern,
+    };
+    const savedTemplates = (plugin.settings.articleSaving.savedTemplates ??=
+      []);
+    savedTemplates.push(newTemplate);
+    if (result.makeGlobalDefault) {
+      plugin.settings.articleSaving.globalDefaultTemplateId = newTemplate.id;
     }
+    await plugin.saveSettings();
+    new Notice(`Template "${newTemplate.name}" saved`);
+    onRefresh();
   };
 
   // ── Saved templates ───────────────────────────────────────────────────────
@@ -210,7 +228,7 @@ export function renderArticleSavingSettingsTab(
   if (savedTemplates.length === 0) {
     containerEl.createEl("p", {
       text: "No saved templates yet. Save the current template using the button above.",
-      cls: "rss-dashboard-settings-note",
+      cls: "rss-dashboard-settings-note rss-dashboard-no-saved-templates",
     });
   } else {
     const templatesContainer = containerEl.createDiv({
@@ -220,37 +238,66 @@ export function renderArticleSavingSettingsTab(
     savedTemplates.forEach((template, index) => {
       new Setting(templatesContainer)
         .setName(template.name)
-        .addButton((button) =>
-          button
-            .setButtonText("Load")
-            .setTooltip("Load this template into the editor")
-            .onClick(async () => {
-              templateInput.value = template.template;
-              plugin.settings.articleSaving.defaultTemplate = template.template;
-              await plugin.saveSettings();
-              new Notice(`Template "${template.name}" loaded`);
-            }),
+        .setDesc(
+          template.id === plugin.settings.articleSaving.globalDefaultTemplateId
+            ? "Global default"
+            : "",
         )
         .addButton((button) =>
-          button
-            .setButtonText("Update")
-            .setTooltip("Update this template with current editor content")
-            .onClick(async () => {
-              const templateToUpdate =
-                plugin.settings.articleSaving.savedTemplates?.[index];
-              if (!templateToUpdate) return;
-              templateToUpdate.template =
-                plugin.settings.articleSaving.defaultTemplate;
-              await plugin.saveSettings();
-              new Notice(`Template "${template.name}" updated`);
-            }),
+          button.setButtonText("Edit").onClick(async () => {
+            const current =
+              plugin.settings.articleSaving.savedTemplates?.[index];
+            if (!current) return;
+            const editor = new SavedTemplateEditorModal(
+              plugin.app,
+              {
+                name: current.name,
+                template: current.template,
+                defaultFolder: current.defaultFolder || "",
+                filenamePattern: current.filenamePattern || "",
+                makeGlobalDefault:
+                  current.id ===
+                  plugin.settings.articleSaving.globalDefaultTemplateId,
+              },
+              plugin.settings.articleSaving.savedTemplates || [],
+              current.id,
+            );
+            editor.open();
+            const result = await editor.waitForClose();
+            if (!result) return;
+            current.name = result.name;
+            current.template = result.template;
+            current.defaultFolder = result.defaultFolder;
+            current.filenamePattern = result.filenamePattern;
+            if (result.makeGlobalDefault) {
+              plugin.settings.articleSaving.globalDefaultTemplateId =
+                current.id;
+            } else if (
+              plugin.settings.articleSaving.globalDefaultTemplateId ===
+              current.id
+            ) {
+              plugin.settings.articleSaving.globalDefaultTemplateId = undefined;
+            }
+            await plugin.saveSettings();
+            new Notice(`Template "${current.name}" updated`);
+            onRefresh();
+          }),
         )
         .addButton((button) =>
           button
             .setIcon("trash")
             .setTooltip("Delete this template")
             .onClick(async () => {
-              plugin.settings.articleSaving.savedTemplates!.splice(index, 1);
+              const templates = plugin.settings.articleSaving.savedTemplates;
+              if (!templates) return;
+              const deleted = templates.splice(index, 1)[0];
+              if (
+                deleted?.id ===
+                plugin.settings.articleSaving.globalDefaultTemplateId
+              ) {
+                plugin.settings.articleSaving.globalDefaultTemplateId =
+                  undefined;
+              }
               await plugin.saveSettings();
               new Notice(`Template "${template.name}" deleted`);
               onRefresh();

@@ -294,6 +294,18 @@ body .rss-folder-name-modal-input.rss-folder-name-modal-input-error {
   display: block;
   width: 100%;
 }
+.rss-dashboard-custom-save-modal #rss-dashboard-filename-pattern {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+}
+.rss-dashboard-custom-save-modal #rss-dashboard-filename-pattern:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 2px;
+}
+.rss-dashboard-custom-save-modal .rss-dashboard-filename-preview {
+  overflow-wrap: anywhere;
+}
 /* Keep Save Article actions visually distinct without changing other modals. */
 .rss-dashboard-custom-save-modal .rss-dashboard-custom-save-cancel-button,
 .rss-dashboard-custom-save-modal .rss-dashboard-custom-save-template-button,
@@ -404,14 +416,25 @@ body .rss-folder-name-modal-input.rss-folder-name-modal-input-error {
 .rss-dashboard-custom-save-modal .rss-dashboard-modal-buttons button[hidden] {
   display: none;
 }
-.rss-dashboard-custom-save-modal .rss-dashboard-custom-save-button-icon {
+.rss-dashboard-custom-save-modal .rss-dashboard-custom-save-button-icon,
+.rss-dashboard-template-editor-dialog .rss-dashboard-custom-save-button-icon {
   display: inline-flex;
   flex: 0 0 auto;
   align-items: center;
 }
-.rss-dashboard-custom-save-modal .rss-dashboard-custom-save-button-icon svg {
+.rss-dashboard-custom-save-modal .rss-dashboard-custom-save-button-icon svg,
+.rss-dashboard-template-editor-dialog
+  .rss-dashboard-custom-save-button-icon
+  svg {
   width: var(--icon-size, 1em);
   height: var(--icon-size, 1em);
+}
+/* Icon and label on the editor's Cancel and Save, keeping Obsidian's button look. */
+.rss-dashboard-template-editor-dialog .setting-item-control button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
 }
 
 /* Obsidian modal containers form their own stacking contexts. */
@@ -420,6 +443,52 @@ body .modal-container.rss-dashboard-template-dialog-container {
 }
 body .modal.rss-dashboard-template-dialog {
   z-index: var(--z-index-modal-child);
+}
+
+/* Saved template editor: a vertical form, labels above their controls. */
+body .modal.rss-dashboard-template-editor-dialog {
+  width: min(760px, calc(100vw - 2rem));
+  max-width: calc(100vw - 2rem);
+}
+.rss-dashboard-template-editor-dialog .rss-template-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--size-4-4, 16px);
+  min-width: 0;
+}
+.rss-dashboard-template-editor-dialog .rss-template-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--size-4-1, 4px);
+  min-width: 0;
+}
+.rss-dashboard-template-editor-dialog .rss-template-field input[type="text"] {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+.rss-dashboard-template-editor-dialog .rss-template-field textarea {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  min-height: 160px;
+  resize: vertical;
+}
+.rss-dashboard-template-editor-dialog .rss-template-path-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  /* Natural field heights keep the folder suggestions right under the input. */
+  align-items: start;
+  gap: var(--size-4-4, 16px);
+  min-width: 0;
+}
+.rss-dashboard-template-editor-dialog .rss-template-field-description {
+  overflow-wrap: anywhere;
+}
+.rss-dashboard-template-editor-dialog .rss-template-global-default {
+  display: flex;
+  align-items: center;
+  gap: var(--size-4-2, 8px);
 }
 
 /* Base danger button - red background with hover stroke */

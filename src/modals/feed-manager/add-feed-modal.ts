@@ -601,7 +601,9 @@ export class AddFeedModal extends Modal {
 
     new Setting(perFeedControlsBody)
       .setName("Article template")
-      .setDesc("Select a template to use when saving articles from this feed")
+      .setDesc(
+        "This feed's template takes precedence over the global default for its saved articles.",
+      )
       .addDropdown((dropdown) => {
         dropdown.addOption("", "Use default template");
         savedTemplates.forEach((template: SavedTemplate) => {

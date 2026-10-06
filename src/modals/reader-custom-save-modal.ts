@@ -3,12 +3,16 @@ import {
   DEFAULT_SETTINGS,
   type FeedItem,
   type RssDashboardSettings,
+  type SavedTemplate,
 } from "../types/types";
 import { ArticleSaver } from "../services/article-saver";
 import { VaultFolderSuggest } from "../components/folder-suggest";
+import { ONE_SAVE_OVERRIDE_TEMPLATE_ID } from "../utils/saved-template-utils";
+import { addActionButtonContent } from "../utils/action-button-content";
 import {
   ConfirmTemplateAssignmentModal,
-  TemplateNameModal,
+  ConfirmTemplateReplacementModal,
+  SavedTemplateEditorModal,
 } from "../settings/modals/settings-modals";
 
 interface PendingTemplate {
@@ -16,6 +20,8 @@ interface PendingTemplate {
   name: string;
   template: string;
   defaultFolder: string;
+  filenamePattern: string;
+  makeGlobalDefault: boolean;
   assignToFeed: boolean;
   previousSelectedTemplateId: string;
 }
@@ -24,7 +30,8 @@ export interface ReaderCustomSaveModalContext {
   getSettings: () => RssDashboardSettings;
   getArticleSaver: () => ArticleSaver;
   displayTitle: string | undefined;
-  getCustomTemplateForArticle: (item: FeedItem) => string | undefined;
+  getSavedTemplateForArticle: (item: FeedItem) => SavedTemplate | undefined;
+  saveSettings: () => Promise<void>;
   buildReaderSaveMarkdown: (item: FeedItem) => string;
   onArticleSave: (item: FeedItem) => void;
   updateSavedLabel: (saved: boolean) => void;
@@ -33,8 +40,18 @@ export interface ReaderCustomSaveModalContext {
 interface TemplateControls {
   select: HTMLSelectElement;
   input: HTMLTextAreaElement;
+  filenamePatternInput: HTMLInputElement;
   saveAsButton: HTMLButtonElement;
   saveAsLabel: HTMLSpanElement;
+  getFilenamePattern: () => string | undefined;
+  getSelectedTemplate: () => SavedTemplate | undefined;
+  getAssignToFeedId: () => string;
+}
+
+interface FilenamePatternControls {
+  input: HTMLInputElement;
+  getEffectivePattern: () => string | undefined;
+  refresh: () => void;
 }
 
 function createFolderControls(
@@ -101,14 +118,15 @@ function createSavedTemplateSelect(
   for (const template of settings.articleSaving.savedTemplates) {
     select.createEl("option", { text: template.name, value: template.id });
   }
-  const feedTemplateId = settings.feeds.find(
-    (feed) => feed.url === item.feedUrl,
-  )?.customTemplate;
-  const initialSelectedTemplateId = settings.articleSaving.savedTemplates.some(
-    (template) => template.id === feedTemplateId,
-  )
-    ? (feedTemplateId ?? "")
-    : "";
+  const feed = settings.feeds.find((feed) => feed.url === item.feedUrl);
+  const feedTemplateId = feed?.customTemplate;
+  const initialSelectedTemplateId =
+    [feedTemplateId, settings.articleSaving.globalDefaultTemplateId].find(
+      (templateId) =>
+        settings.articleSaving.savedTemplates.some(
+          (template) => template.id === templateId,
+        ),
+    ) || "";
   select.value = initialSelectedTemplateId;
   return select;
 }
@@ -146,20 +164,151 @@ function refreshSaveAsButton(
     : "Save as new template";
 }
 
-function addActionButtonContent(
-  button: HTMLButtonElement,
-  iconName: string,
-  label: string,
-): HTMLSpanElement {
-  const icon = button.createSpan({
-    cls: "rss-dashboard-custom-save-button-icon",
-    attr: { "aria-hidden": "true" },
+function createFilenamePatternControls(
+  content: HTMLElement,
+  item: FeedItem,
+  folderInput: HTMLInputElement,
+  select: HTMLSelectElement,
+  context: ReaderCustomSaveModalContext,
+  getTemplatePattern: () => string | undefined,
+): FilenamePatternControls {
+  content.createEl("label", {
+    text: "Filename pattern override (optional):",
+    attr: { for: "rss-dashboard-filename-pattern" },
   });
-  setIcon(icon, iconName);
-  return button.createSpan({
-    cls: "rss-dashboard-custom-save-button-label",
-    text: label,
+  const input = content.createEl("input", {
+    attr: {
+      id: "rss-dashboard-filename-pattern",
+      type: "text",
+      placeholder: "{{title}}",
+      "aria-describedby": "rss-dashboard-filename-pattern-description",
+    },
   });
+  content.createEl("p", {
+    cls: "setting-item-description",
+    attr: { id: "rss-dashboard-filename-pattern-description" },
+    text: "Leave blank to use the selected saved template's filename pattern.",
+  });
+  const preview = content.createEl("p", {
+    cls: "setting-item-description rss-dashboard-filename-preview",
+    attr: { "aria-live": "polite" },
+  });
+  const getEffectivePattern = () =>
+    input.value.trim() || getTemplatePattern()?.trim() || undefined;
+  const refresh = () => {
+    const saveItem = context.displayTitle
+      ? { ...item, title: context.displayTitle }
+      : item;
+    const filename = context
+      .getArticleSaver()
+      .getFilenamePreview(
+        saveItem,
+        folderInput.value.trim(),
+        getEffectivePattern(),
+      );
+    preview.textContent = `Filename preview: ${filename}`;
+  };
+  input.addEventListener("input", refresh);
+  folderInput.addEventListener("input", refresh);
+  select.addEventListener("change", refresh);
+  refresh();
+  return { input, getEffectivePattern, refresh };
+}
+
+function confirmFeedTemplateAssignment(
+  app: App,
+  item: FeedItem,
+  selected: SavedTemplate | undefined,
+  context: ReaderCustomSaveModalContext,
+  setAssignToFeedId: (id: string) => void,
+): void {
+  const feed = context
+    .getSettings()
+    .feeds.find((entry) => entry.url === item.feedUrl);
+  if (!selected || !feed || selected.id === feed.customTemplate) {
+    setAssignToFeedId("");
+    return;
+  }
+  if (!feed.customTemplate) {
+    setAssignToFeedId(selected.id);
+    return;
+  }
+  const current = context
+    .getSettings()
+    .articleSaving.savedTemplates.find(
+      (template) => template.id === feed.customTemplate,
+    );
+  const confirm = new ConfirmTemplateReplacementModal(
+    app,
+    feed.title,
+    current?.name || "Current template",
+    selected.name,
+  );
+  confirm.open();
+  void confirm.waitForClose().then((accepted) => {
+    if (accepted) setAssignToFeedId(selected.id);
+  });
+}
+
+async function createPendingTemplate(options: {
+  app: App;
+  item: FeedItem;
+  input: HTMLTextAreaElement;
+  folderInput: HTMLInputElement;
+  context: ReaderCustomSaveModalContext;
+  previousSelectedTemplateId: string;
+}): Promise<PendingTemplate | null> {
+  const { app, item, input, folderInput, context, previousSelectedTemplateId } =
+    options;
+  const editor = new SavedTemplateEditorModal(
+    app,
+    {
+      name: "",
+      template: input.value,
+      defaultFolder: folderInput.value.trim(),
+      filenamePattern: "",
+      makeGlobalDefault: false,
+    },
+    context.getSettings().articleSaving.savedTemplates,
+  );
+  editor.open();
+  const result = await editor.waitForClose();
+  if (!result) return null;
+
+  const feed = context
+    .getSettings()
+    .feeds.find((entry) => entry.url === item.feedUrl);
+  let assignToFeed = false;
+  if (feed?.customTemplate) {
+    const current = context
+      .getSettings()
+      .articleSaving.savedTemplates.find(
+        (template) => template.id === feed.customTemplate,
+      );
+    const confirm = new ConfirmTemplateReplacementModal(
+      app,
+      feed.title,
+      current?.name || "Current template",
+      result.name,
+    );
+    confirm.open();
+    assignToFeed = await confirm.waitForClose();
+  } else {
+    const confirm = new ConfirmTemplateAssignmentModal(app);
+    confirm.open();
+    assignToFeed = await confirm.waitForClose();
+  }
+
+  return {
+    id: `template-${Date.now()}`,
+    name: result.name,
+    template: result.template,
+    defaultFolder: result.defaultFolder,
+    filenamePattern: result.filenamePattern,
+    makeGlobalDefault: result.makeGlobalDefault,
+    assignToFeed,
+    previousSelectedTemplateId,
+  };
 }
 
 function createTemplateControls(
@@ -183,20 +332,35 @@ function createTemplateControls(
     },
   });
   input.value =
-    context.getCustomTemplateForArticle(item) ||
-    settings.articleSaving.defaultTemplate ||
+    context.getSavedTemplateForArticle(item)?.template ??
+    settings.articleSaving.defaultTemplate ??
     "";
   let baseline = input.value;
   let selectedId = select.value;
   const defaultFolder = settings.articleSaving.defaultFolder || "";
-  const selectedTemplate = settings.articleSaving.savedTemplates.find(
+  const initialTemplate = settings.articleSaving.savedTemplates.find(
     (template) => template.id === selectedId,
   );
-  if (selectedTemplate) {
-    folderInput.value = selectedTemplate.defaultFolder || defaultFolder;
+  if (initialTemplate) {
+    folderInput.value = initialTemplate.defaultFolder || defaultFolder;
   }
+  let assignToFeedId = "";
   let pending: PendingTemplate | null = null;
   const getPending = () => pending;
+  const filenameControls = createFilenamePatternControls(
+    content,
+    item,
+    folderInput,
+    select,
+    context,
+    () =>
+      getPending()?.filenamePattern ||
+      context
+        .getSettings()
+        .articleSaving.savedTemplates.find(
+          (template) => template.id === select.value,
+        )?.filenamePattern,
+  );
   const setPending = (value: PendingTemplate | null) => {
     pending = value;
   };
@@ -226,55 +390,68 @@ function createTemplateControls(
     );
 
   select.addEventListener("change", () => {
+    const requestedId = select.value;
     discardPending();
-    selectedId = select.value;
+    selectedId = requestedId;
+    select.value = requestedId;
     const selected = context
       .getSettings()
       .articleSaving.savedTemplates.find(
         (template) => template.id === selectedId,
       );
-    // "Current template" means the plugin's default: put it back, instead of
-    // leaving the last saved template's text in the editor.
-    const chosenTemplate = selected
-      ? selected.template
-      : selectedId === ""
-        ? context.getSettings().articleSaving.defaultTemplate || ""
-        : undefined;
-    if (chosenTemplate !== undefined) {
-      input.value = chosenTemplate;
-      baseline = chosenTemplate;
-    }
+    input.value =
+      selected?.template ?? context.getSettings().articleSaving.defaultTemplate;
+    baseline = input.value;
     folderInput.value = selected?.defaultFolder || defaultFolder;
     pending = null;
+    assignToFeedId = "";
+    confirmFeedTemplateAssignment(app, item, selected, context, (id) => {
+      assignToFeedId = id;
+    });
     refresh();
+    filenameControls.refresh();
   });
   input.addEventListener("input", refresh);
   saveAsButton.addEventListener("click", () => {
     void (async () => {
-      const nameModal = new TemplateNameModal(app);
-      nameModal.open();
-      const name = await nameModal.waitForClose();
-      if (!name) return;
-      const assignmentModal = new ConfirmTemplateAssignmentModal(app);
-      assignmentModal.open();
-      const assignToFeed = await assignmentModal.waitForClose();
-      const id = "template-" + Date.now();
-      pending = {
-        id,
-        name,
-        template: input.value,
-        defaultFolder: folderInput.value.trim(),
-        assignToFeed,
+      const pendingTemplate = await createPendingTemplate({
+        app,
+        item,
+        input,
+        folderInput,
+        context,
         previousSelectedTemplateId: selectedId,
-      };
+      });
+      if (!pendingTemplate) return;
+      pending = pendingTemplate;
+      const { id, name } = pendingTemplate;
       select.createEl("option", { text: name, value: id });
       select.value = id;
       selectedId = id;
-      baseline = input.value;
+      input.value = pendingTemplate.template;
+      folderInput.value = pendingTemplate.defaultFolder || defaultFolder;
+      assignToFeedId = pendingTemplate.assignToFeed ? id : "";
+      baseline = pendingTemplate.template;
       refresh();
+      filenameControls.refresh();
     })();
   });
-  return { select, input, saveAsButton, saveAsLabel, getPending };
+  return {
+    select,
+    input,
+    filenamePatternInput: filenameControls.input,
+    saveAsButton,
+    saveAsLabel,
+    getFilenamePattern: filenameControls.getEffectivePattern,
+    getPending,
+    getSelectedTemplate: () =>
+      context
+        .getSettings()
+        .articleSaving.savedTemplates.find(
+          (template) => template.id === selectedId,
+        ),
+    getAssignToFeedId: () => assignToFeedId,
+  };
 }
 
 function createActionButtons(
@@ -321,36 +498,76 @@ function createActionButtons(
     void (async () => {
       const folder = folderInput.value.trim();
       const template = templateControls.input.value.trim() || undefined;
+      const pendingTemplate = templateControls.getPending();
+      const savedTemplate = pendingTemplate
+        ? {
+            id: pendingTemplate.id,
+            name: pendingTemplate.name,
+            template: pendingTemplate.template,
+            defaultFolder: pendingTemplate.defaultFolder,
+            ...(pendingTemplate.filenamePattern
+              ? { filenamePattern: pendingTemplate.filenamePattern }
+              : {}),
+          }
+        : templateControls.getSelectedTemplate();
+      const filenamePattern = templateControls.getFilenamePattern();
+      const templateForSave = filenamePattern
+        ? savedTemplate
+          ? { ...savedTemplate, filenamePattern }
+          : {
+              id: ONE_SAVE_OVERRIDE_TEMPLATE_ID,
+              name: "One-save filename override",
+              template: template || "",
+              defaultFolder: folder,
+              filenamePattern,
+            }
+        : savedTemplate;
       const markdownContent = context.buildReaderSaveMarkdown(item);
       const saveItem = context.displayTitle
         ? { ...item, title: context.displayTitle }
         : item;
-      const file = await context
-        .getArticleSaver()
-        .saveArticle(saveItem, folder, template, markdownContent);
+      const articleSaver = context.getArticleSaver();
+      const file = templateForSave
+        ? await articleSaver.saveArticle(
+            saveItem,
+            folder,
+            template,
+            markdownContent,
+            templateForSave,
+          )
+        : await articleSaver.saveArticle(
+            saveItem,
+            folder,
+            template,
+            markdownContent,
+          );
       if (file) {
         const settings = context.getSettings();
         const feed = settings.feeds.find((entry) => entry.url === item.feedUrl);
-        const pending = templateControls.getPending();
+        const pending = pendingTemplate;
         if (pending) {
           const newTemplate = {
             id: pending.id,
             name: pending.name,
             template: pending.template,
             defaultFolder: pending.defaultFolder,
+            ...(pending.filenamePattern
+              ? { filenamePattern: pending.filenamePattern }
+              : {}),
           };
           settings.articleSaving.savedTemplates.push(newTemplate);
+          if (pending.makeGlobalDefault) {
+            settings.articleSaving.globalDefaultTemplateId = newTemplate.id;
+          }
           if (pending.assignToFeed && feed)
             feed.customTemplate = newTemplate.id;
-        } else if (feed && templateControls.select.value) {
-          const selected = settings.articleSaving.savedTemplates.find(
-            (entry) => entry.id === templateControls.select.value,
-          );
-          if (selected) feed.customTemplate = selected.id;
-        } else if (feed) {
-          // "Current template" is chosen: the feed goes back to the default.
+        } else if (templateControls.getAssignToFeedId() && feed) {
+          feed.customTemplate = templateControls.getAssignToFeedId();
+        } else if (feed && !templateControls.select.value) {
+          // "Current template" is chosen: the feed goes back to the default (#814).
           feed.customTemplate = undefined;
         }
+        await context.saveSettings();
         item.saved = true;
         item.savedFilePath = file.path;
         context.onArticleSave(item);
