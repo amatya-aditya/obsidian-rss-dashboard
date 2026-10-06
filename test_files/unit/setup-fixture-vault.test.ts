@@ -110,6 +110,9 @@ describe("setup-fixture-vault", () => {
     expect(
       readJson(target, "rss-dashboard-data", "data.json").lastShownVersion,
     ).toBe("9.9.9");
+    expect(
+      readJson(target, "rss-dashboard-data", "data.json").display,
+    ).toMatchObject({ showVersionInStatusBar: true });
     expect(snapshot(TEMPLATE_DIR)).toEqual(templateBefore);
   });
 

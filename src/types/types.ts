@@ -317,6 +317,7 @@ export interface DisplaySettings {
   imageCacheUnlimited: boolean;
   showSummary: boolean;
   showFilterStatusBar: boolean;
+  showVersionInStatusBar: boolean;
   paginationPosition: "top" | "bottom";
   showAllFeedsUnreadBadges: boolean;
   showFolderUnreadBadges: boolean;
@@ -831,6 +832,7 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
     imageCacheUnlimited: false,
     showSummary: true,
     showFilterStatusBar: true,
+    showVersionInStatusBar: false,
     paginationPosition: "bottom",
     showAllFeedsUnreadBadges: true,
     showFolderUnreadBadges: true,
