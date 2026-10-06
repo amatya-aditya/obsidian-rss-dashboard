@@ -10,7 +10,10 @@ import {
 import { MediaService } from "../services/media-service";
 import { type FullArticleFetchFailureType } from "../utils/fetch-helpers";
 import { type RawArticleMetadata } from "../utils/article-metadata";
-import { applyArticleMetadata } from "../utils/article-metadata-persistence";
+import {
+  applyArticleMetadata,
+  feedLanguageFor,
+} from "../utils/article-metadata-persistence";
 import {
   fetchFullArticleContentWithOutcome,
   RESTRICTED_ARTICLE_BANNER,
@@ -659,6 +662,8 @@ export class ArticleRenderer {
       item,
       this.currentPageMetadata,
       articleHtml,
+      undefined,
+      feedLanguageFor(this.settings.feeds, item),
     );
     if (update) this.onArticleUpdate(item, update, false);
   }

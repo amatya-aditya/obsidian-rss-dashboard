@@ -4,8 +4,8 @@ export interface TemplateVariable {
   readonly placeholder: RegExp;
   /**
    * Leave out each line holding the placeholder when the value is empty,
-   * rather than writing the empty value in place. No variable sets it yet;
-   * `{{language}}` will, so an unknown language writes no `lang:` line (#266).
+   * rather than writing the empty value in place. Only `{{language}}` sets it,
+   * so an unknown language writes no `lang:` line (#266).
    */
   readonly omitIfEmpty: boolean;
 }
@@ -28,6 +28,7 @@ const VARIABLES = {
   summary: { placeholder: /{{summary}}/g, omitIfEmpty: false },
   description: { placeholder: /{{description}}/g, omitIfEmpty: false },
   excerpt: { placeholder: /{{excerpt}}/g, omitIfEmpty: false },
+  language: { placeholder: /{{language}}/g, omitIfEmpty: true },
   tags: { placeholder: /{{tags}}/g, omitIfEmpty: false },
   guid: { placeholder: /{{guid}}/g, omitIfEmpty: false },
   image: { placeholder: /{{image}}/g, omitIfEmpty: false },

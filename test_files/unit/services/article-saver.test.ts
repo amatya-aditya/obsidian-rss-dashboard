@@ -147,6 +147,44 @@ excerpt: "{{excerpt}}"
     );
   });
 
+  it("fills {{language}} in the note and frontmatter, and omits the lines when it is unknown (#246)", async () => {
+    const settings = createSettings({
+      includeFrontmatter: true,
+      defaultTemplate: "# {{title}}\n\nLanguage: {{language}}\n\n{{content}}",
+      frontmatterTemplate: `---
+title: "{{title}}"
+lang: "{{language}}"
+---`,
+    });
+
+    const knownApp = App.createMock();
+    const knownSpy = vi.spyOn(knownApp.vault, "create");
+    await new ArticleSaver(knownApp, settings).saveArticle(
+      createItem({ language: "de-DE", languageSource: "feed" }),
+      undefined,
+      undefined,
+      "BODY",
+    );
+    const known = knownSpy.mock.calls[0][1];
+    expect(known).toContain('lang: "de-DE"');
+    expect(known).toContain("Language: de-DE");
+
+    const unknownApp = App.createMock();
+    const unknownSpy = vi.spyOn(unknownApp.vault, "create");
+    await new ArticleSaver(unknownApp, settings).saveArticle(
+      createItem(),
+      undefined,
+      undefined,
+      "BODY",
+    );
+    const unknown = unknownSpy.mock.calls[0][1];
+    expect(unknown).not.toContain("lang:");
+    expect(unknown).not.toContain("Language:");
+    expect(unknown).not.toContain("{{language}}");
+    expect(unknown).toContain('title: "Test Article"');
+    expect(unknown).toContain("BODY");
+  });
+
   it("prefers item.content over description when raw content is not provided", async () => {
     const app = App.createMock();
     const settings = createSettings({
@@ -932,6 +970,82 @@ describe("ArticleSaver.saveArticleWithFullContent", () => {
     await saver.saveArticleWithFullContent(item);
     expect(item.canonicalUrl).toBe("https://example.com/canonical");
     expect(item.metadataFetchedAt).toBe(stamped);
+  });
+
+  describe("language from the page and the feed (#246)", () => {
+    const emptyPage = {
+      metaDescription: "",
+      ogDescription: "",
+      twitterDescription: "",
+      htmlLang: "",
+      metaAuthor: "",
+      jsonLdAuthors: [],
+      microdataAuthors: [],
+      relAuthors: [],
+      canonicalUrl: "",
+      readabilityExcerpt: "",
+    };
+
+    function saverFor(feedLanguage: string | undefined) {
+      const app = App.createMock();
+      const settings = createSettings({
+        defaultTemplate: "{{content}}",
+        includeFrontmatter: false,
+      });
+      const feeds = [
+        {
+          title: "Test Feed",
+          url: "https://example.com/rss.xml",
+          folder: "",
+          items: [],
+          lastUpdated: 0,
+          language: feedLanguage,
+        },
+      ];
+      return new ArticleSaver(
+        app,
+        settings,
+        "https://proxy/?url=",
+        () => false,
+        () => feeds,
+      );
+    }
+
+    function mockFetch(htmlLang: string) {
+      vi.spyOn(
+        fetchHelpers,
+        "fetchWithProxyFallbackDetailed",
+      ).mockResolvedValue({
+        content:
+          "<p>A completely different opening paragraph of the fetched article body.</p>",
+        failureType: "none",
+        pageMetadata: { ...emptyPage, htmlLang },
+      });
+    }
+
+    it("stores the page language over the feed's, as a page source", async () => {
+      mockFetch("en_gb");
+      const item = createItem();
+      await saverFor("de-DE").saveArticleWithFullContent(item);
+      expect(item.language).toBe("en-GB");
+      expect(item.languageSource).toBe("page");
+    });
+
+    it("stores the feed language when the page declares none", async () => {
+      mockFetch("");
+      const item = createItem();
+      await saverFor("de-DE").saveArticleWithFullContent(item);
+      expect(item.language).toBe("de-DE");
+      expect(item.languageSource).toBe("feed");
+    });
+
+    it("stores no language when neither the page nor the feed has one", async () => {
+      mockFetch("");
+      const item = createItem();
+      await saverFor(undefined).saveArticleWithFullContent(item);
+      expect(item.language).toBeUndefined();
+      expect(item.languageSource).toBeUndefined();
+    });
   });
 
   it("unwraps image-only links without malformed markdown", async () => {

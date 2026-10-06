@@ -135,5 +135,6 @@ export function parseAtom(doc: Document, deps: AtomParserDeps): ParsedFeed {
     type: "atom",
     feedItunesImage: "",
     feedImageUrl: imageUrl,
+    language: feed.getAttribute("xml:lang")?.trim() || undefined,
   };
 }

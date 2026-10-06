@@ -108,6 +108,7 @@ export function buildArticleTemplateValues(
     get excerpt() {
       return describeItem().excerpt;
     },
+    language: item.language ?? "",
     tags: inputs.tagNames.join(", "),
     guid: item.guid,
     image: typeof inputs.image === "function" ? inputs.image() : inputs.image,

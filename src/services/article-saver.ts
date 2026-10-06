@@ -1,6 +1,6 @@
 import { App, Notice, TFile } from "obsidian";
 import TurndownService from "turndown";
-import { ArticleSavingSettings, FeedItem } from "../types/types";
+import { ArticleSavingSettings, Feed, FeedItem } from "../types/types";
 import { type FullArticleFetchResult } from "../utils/fetch-helpers";
 import {
   fetchFullArticleContentWithOutcome,
@@ -21,7 +21,10 @@ import {
   resolveSavedArticleDate,
   type ArticleTemplateValues,
 } from "./article-template/template-values";
-import { applyArticleMetadata } from "../utils/article-metadata-persistence";
+import {
+  applyArticleMetadata,
+  feedLanguageFor,
+} from "../utils/article-metadata-persistence";
 import { renderArticleTemplate } from "./article-template/render-template";
 import {
   ARTICLE_SAVER_FRONTMATTER_STEPS,
@@ -53,17 +56,21 @@ export class ArticleSaver {
   private turndownService: TurndownService;
   private corsProxyUrl: string | undefined;
   private getUseFirstSeenDateFallback: () => boolean;
+  /** The feeds, for an item's feed-level language (#246). */
+  private getFeeds: () => readonly Feed[];
 
   constructor(
     app: App,
     settings: ArticleSavingSettings,
     corsProxyUrl?: string,
     getUseFirstSeenDateFallback: () => boolean = () => false,
+    getFeeds: () => readonly Feed[] = () => [],
   ) {
     this.app = app;
     this.settings = settings;
     this.corsProxyUrl = corsProxyUrl;
     this.getUseFirstSeenDateFallback = getUseFirstSeenDateFallback;
+    this.getFeeds = getFeeds;
     this.turndownService = new TurndownService();
     addMathTurndownRule(this.turndownService);
   }
@@ -418,7 +425,13 @@ export class ArticleSaver {
         );
       }
 
-      applyArticleMetadata(item, fetchResult.pageMetadata, fetchResult.content);
+      applyArticleMetadata(
+        item,
+        fetchResult.pageMetadata,
+        fetchResult.content,
+        undefined,
+        feedLanguageFor(this.getFeeds(), item),
+      );
 
       const fetchedTextLength = this.getReadableTextLength(fetchResult.content);
       const feedTextLength = this.getReadableTextLength(feedContent);

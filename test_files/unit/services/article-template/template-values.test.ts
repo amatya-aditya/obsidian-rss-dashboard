@@ -195,6 +195,22 @@ describe("buildArticleTemplateValues description, excerpt and author (#247 slice
   });
 });
 
+describe("buildArticleTemplateValues language (#246)", () => {
+  it("fills {{language}} from the item's stored language", () => {
+    const values = buildArticleTemplateValues(
+      createItem({ language: "de-DE", languageSource: "feed" }),
+      inputs(),
+    );
+    expect(values.language).toBe("de-DE");
+  });
+
+  it("is empty for an item with no stored language", () => {
+    expect(buildArticleTemplateValues(createItem(), inputs()).language).toBe(
+      "",
+    );
+  });
+});
+
 describe("resolveSavedArticleDate", () => {
   it("uses the item's pubDate when it parses", () => {
     expect(resolveSavedArticleDate(createItem(), false)).toEqual(PUB);

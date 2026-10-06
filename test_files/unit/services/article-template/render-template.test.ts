@@ -25,6 +25,7 @@ function createValues(
     summary: "Sum",
     description: "Desc",
     excerpt: "Exc",
+    language: "en-GB",
     tags: "News",
     guid: "g-1",
     image: "https://img.example/a.png",

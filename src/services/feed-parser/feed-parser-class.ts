@@ -377,6 +377,10 @@ export class FeedParser {
     if (resolvedSiteUrl) {
       newFeed.siteUrl = resolvedSiteUrl;
     }
+    // A refresh keeps the stored language when the feed stops declaring one.
+    if (parsed.language) {
+      newFeed.language = parsed.language;
+    }
 
     const itemContext = this.getItemContext();
     const existingItems = indexExistingItems(existingFeed, url, itemContext);

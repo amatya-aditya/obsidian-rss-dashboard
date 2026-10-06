@@ -22,7 +22,10 @@ import {
 import { sanitizeAndAppendHtml } from "../utils/safe-html";
 import { type FullArticleFetchFailureType } from "../utils/fetch-helpers";
 import { type RawArticleMetadata } from "../utils/article-metadata";
-import { applyArticleMetadata } from "../utils/article-metadata-persistence";
+import {
+  applyArticleMetadata,
+  feedLanguageFor,
+} from "../utils/article-metadata-persistence";
 import {
   RssDashboardSettings,
   FeedItem,
@@ -2034,6 +2037,8 @@ export class ReaderView extends ItemView {
       item,
       this.currentPageMetadata,
       articleHtml,
+      undefined,
+      feedLanguageFor(this.settings.feeds, item),
     );
     if (update) this.onArticleUpdate(item, update, false);
   }

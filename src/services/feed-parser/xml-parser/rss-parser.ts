@@ -27,6 +27,14 @@ export interface RssParserDeps {
   convertAppUrls: (url: string) => string;
 }
 
+/** The channel's declared language: `<language>`, else `<dc:language>`. */
+function channelLanguage(channel: Element, deps: RssParserDeps): string {
+  return (
+    deps.getTextContent(channel, "language", false, true) ||
+    deps.getTextContent(channel, "dc:language", false, true)
+  );
+}
+
 export function parseRSS(doc: Document, deps: RssParserDeps): ParsedFeed {
   const channel = doc.querySelector("channel");
   if (!channel) throw new Error("Invalid rss feed: no channel element found");
@@ -184,6 +192,7 @@ export function parseRSS(doc: Document, deps: RssParserDeps): ParsedFeed {
     type: "rss",
     feedItunesImage,
     feedImageUrl,
+    language: channelLanguage(channel, deps) || undefined,
   };
 
   return result;
@@ -276,5 +285,6 @@ export function parseRSS1(doc: Document, deps: RssParserDeps): ParsedFeed {
     type: "rss",
     feedItunesImage: "",
     feedImageUrl: "",
+    language: channelLanguage(channel, deps) || undefined,
   };
 }
