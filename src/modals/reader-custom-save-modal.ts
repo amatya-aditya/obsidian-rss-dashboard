@@ -233,9 +233,16 @@ function createTemplateControls(
       .articleSaving.savedTemplates.find(
         (template) => template.id === selectedId,
       );
-    if (selected) {
-      input.value = selected.template;
-      baseline = selected.template;
+    // "Current template" means the plugin's default: put it back, instead of
+    // leaving the last saved template's text in the editor.
+    const chosenTemplate = selected
+      ? selected.template
+      : selectedId === ""
+        ? context.getSettings().articleSaving.defaultTemplate || ""
+        : undefined;
+    if (chosenTemplate !== undefined) {
+      input.value = chosenTemplate;
+      baseline = chosenTemplate;
     }
     folderInput.value = selected?.defaultFolder || defaultFolder;
     pending = null;
@@ -335,11 +342,14 @@ function createActionButtons(
           settings.articleSaving.savedTemplates.push(newTemplate);
           if (pending.assignToFeed && feed)
             feed.customTemplate = newTemplate.id;
-        } else if (templateControls.select.value && feed) {
+        } else if (feed && templateControls.select.value) {
           const selected = settings.articleSaving.savedTemplates.find(
             (entry) => entry.id === templateControls.select.value,
           );
           if (selected) feed.customTemplate = selected.id;
+        } else if (feed) {
+          // "Current template" is chosen: the feed goes back to the default.
+          feed.customTemplate = undefined;
         }
         item.saved = true;
         item.savedFilePath = file.path;

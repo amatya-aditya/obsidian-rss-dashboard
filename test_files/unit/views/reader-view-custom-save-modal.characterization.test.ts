@@ -438,7 +438,7 @@ describe("ReaderView custom save dialog behavior", () => {
     expect(harness.settings.articleSaving.savedTemplates).toHaveLength(2);
   });
 
-  it("leaves the previous feed template assigned when Current template is selected", async () => {
+  it("unassigns the feed template when Current template is selected (#814)", async () => {
     const harness = createHarness({
       feedTemplate: "one",
       savedTemplates: [{ id: "one", name: "First", template: "First body" }],
@@ -452,7 +452,7 @@ describe("ReaderView custom save dialog behavior", () => {
       expect(harness.saveArticle).toHaveBeenCalledTimes(1);
     });
 
-    expect(harness.feed.customTemplate).toBe("one");
+    expect(harness.feed.customTemplate).toBeUndefined();
   });
 
   it("closes after a failed save result without marking the article saved", async () => {

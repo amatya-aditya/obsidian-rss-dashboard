@@ -14,6 +14,7 @@
 
 ### Fixes
 
+- Choosing "Current template" in the Reader's custom save dialog now puts the default template back in the editor and removes the feed's assigned template when you save, instead of keeping the last saved template as the feed's default. [GH Issue #814](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/814)
 - Fixed **Toggle version in status bar** so it turns the version readout off as well as on. [GH Issue #803](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/803)
 - The Reader no longer shows a "Feed description" callout that only repeats the start of the article, including a truncated description ending in an ellipsis; the article keeps its opening. [GH Issue #786](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/786)
 - Restored **Edit tag** and **Delete tag** from sidebar tag rows on desktop right-click and touch long-press; deleting a selected tag also clears it from the active filter. [GH Issue #660](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/660)
