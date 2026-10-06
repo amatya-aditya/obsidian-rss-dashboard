@@ -20,6 +20,8 @@ import {
   normalizeSubstackImageUrl,
   normalizeSubstackImageUrlsInDocument,
 } from "../utils/substack-image-url";
+import { isDuplicateIntro } from "../utils/duplicate-intro-detection";
+import { descriptionToStripFromBody } from "../utils/reader-article-render";
 import { removeLeadImageElement } from "../utils/reader-html-cleanup";
 import {
   containsLatexFormulaImage,
@@ -324,7 +326,7 @@ export class ArticleRenderer {
     const hasDistinctMainContent =
       mainHtml !== "" &&
       (!hasMeaningfulDescription ||
-        !this.isEquivalentHtml(mainHtml, descriptionHtml));
+        !isDuplicateIntro(descriptionHtml, mainHtml));
 
     if (hasDistinctMainContent && hasMeaningfulDescription) {
       const descriptionCallout = container.createEl("details", {
@@ -365,7 +367,7 @@ export class ArticleRenderer {
         displayTitle,
         heroSlot,
         shouldStripHeadline,
-        descriptionHtml,
+        descriptionToStripFromBody(hasDistinctMainContent, descriptionHtml),
       );
     }
 
@@ -705,13 +707,6 @@ export class ArticleRenderer {
     );
   }
 
-  private isEquivalentHtml(html1: string, html2: string): boolean {
-    return (
-      this.normalizeComparableText(html1) ===
-      this.normalizeComparableText(html2)
-    );
-  }
-
   private normalizeComparableText(html: string): string {
     const doc = new DOMParser().parseFromString(html, "text/html");
     return (doc.body.textContent || "")
@@ -726,10 +721,7 @@ export class ArticleRenderer {
     doc: Document,
     feedDescriptionHtml?: string,
   ): void {
-    const normalizedDescription = this.normalizeComparableText(
-      feedDescriptionHtml || "",
-    );
-    if (!normalizedDescription || !doc.body) return;
+    if (!feedDescriptionHtml || !doc.body) return;
 
     const blocks = Array.from(doc.body.children) as HTMLElement[];
     const firstSubstantialIndex = blocks.findIndex(
@@ -740,7 +732,7 @@ export class ArticleRenderer {
       // Fast path: description appears as a direct child before the first substantial block.
       const duplicateIndex = blocks.findIndex((block, index) => {
         if (index >= firstSubstantialIndex) return false;
-        return this.getNormalizedBlockText(block) === normalizedDescription;
+        return isDuplicateIntro(block.innerHTML, feedDescriptionHtml);
       });
       if (duplicateIndex !== -1) {
         const duplicateBlock = blocks[duplicateIndex];
@@ -766,10 +758,7 @@ export class ArticleRenderer {
     doc.body
       .querySelectorAll<HTMLElement>("header p, header div")
       .forEach((el) => {
-        if (
-          this.normalizeComparableText(el.textContent || "") ===
-          normalizedDescription
-        ) {
+        if (isDuplicateIntro(el.innerHTML, feedDescriptionHtml)) {
           el.remove();
         }
       });

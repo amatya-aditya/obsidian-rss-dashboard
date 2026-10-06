@@ -518,7 +518,7 @@ describe("Reader HTML cleanup utilities (characterization)", () => {
     });
   });
 
-  describe("normalizeComparableText / isEquivalentHtml", () => {
+  describe("normalizeComparableText", () => {
     it("strips markup, folds case, collapses whitespace and trims", () => {
       expect(
         cleanup.normalizeComparableText("  <p>Hello\n\n  <b>WORLD</b></p>  "),
@@ -548,24 +548,6 @@ describe("Reader HTML cleanup utilities (characterization)", () => {
       expect(
         cleanup.normalizeComparableText("<p>a</p><script>var z</script>"),
       ).toBe("avar z");
-    });
-
-    it("treats html that differs only in markup, quotes, spacing or case as equivalent", () => {
-      expect(
-        cleanup.isEquivalentHtml(
-          "<p>Don’t   “stop”</p>",
-          `<div>don't "STOP"</div>`,
-        ),
-      ).toBe(true);
-    });
-
-    it("treats html with different text as different", () => {
-      expect(cleanup.isEquivalentHtml("<p>one</p>", "<p>two</p>")).toBe(false);
-      expect(cleanup.isEquivalentHtml("a – b", "a - b")).toBe(false);
-    });
-
-    it("treats two empty documents as equivalent", () => {
-      expect(cleanup.isEquivalentHtml("", "<p></p>")).toBe(true);
     });
   });
 
@@ -704,6 +686,41 @@ describe("Reader HTML cleanup utilities (characterization)", () => {
       it("returns after the direct-child hit without touching a header copy", () => {
         const html = `<p>Desc</p><header><p>Desc</p></header>${LONG}`;
         expect(strip(html, "Desc")).toBe(`<header><p>Desc</p></header>${LONG}`);
+      });
+    });
+
+    describe("prefix match (#247 slice 2)", () => {
+      const DESC =
+        "The council voted on Tuesday to approve the new harbor budget";
+
+      it("removes a lead block that is the start of a longer description", () => {
+        expect(
+          strip(
+            `<p>${DESC}</p>${LONG}`,
+            `${DESC} after months of debate, officials said.`,
+          ),
+        ).toBe(LONG);
+      });
+
+      it("removes a lead block that starts with a truncated description", () => {
+        expect(
+          strip(`<p>${DESC} after months of debate.</p>${LONG}`, `${DESC}…`),
+        ).toBe(LONG);
+      });
+
+      it("keeps a lead block whose match with the description is under 30 characters", () => {
+        const html = `<p>Short desc and more</p>${LONG}`;
+        expect(strip(html, "Short desc")).toBe(html);
+      });
+
+      it("keeps a lightly reworded lead block", () => {
+        const html = `<p>The council voted on Tuesday to quickly approve the new harbor budget</p>${LONG}`;
+        expect(strip(html, DESC)).toBe(html);
+      });
+
+      it("removes a header copy that starts with the description", () => {
+        const html = `<div><header><p>${DESC} after months.</p></header>${LONG}</div>`;
+        expect(strip(html, DESC)).toBe(`<div><header></header>${LONG}</div>`);
       });
     });
 

@@ -38,9 +38,9 @@ Builds the registry #266 designed: a new `src/services/article-template/` module
 - YAML escaping stays where each call site applies it today (#286).
 - **Tests first:** characterization tests pin each chain's output for representative items and templates, including empty values, `{{date:FORMAT}}`, and `$` sequences in content. They stay green and unedited through the move.
 
-### 2. Duplicate-intro utility
+### 2. Duplicate-intro utility ([#786](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/786))
 
-Adds `src/utils/duplicate-intro-detection.ts` with `isDuplicateIntro`, built on the existing `htmlToReadableText`, per ADR 0007's _Duplicate-intro suppression_ (#269): an exact match or a normalized prefix of at least 30 characters in either direction, after normalizing whitespace and stripping a trailing ellipsis, with no positional word-overlap layer.
+Adds `src/utils/duplicate-intro-detection.ts` with `isDuplicateIntro`, built on the existing `htmlToReadableText`, per ADR 0007's _Duplicate-intro suppression_ (#269): an exact match or a normalized prefix of at least 30 characters in either direction, after normalizing whitespace and stripping a trailing ellipsis (including WordPress's `[…]`), with no positional word-overlap layer.
 
 - Replaces the Reader's private checks: `isEquivalentHtml` behind `hasDistinctMainContent` in `src/utils/reader-article-render.ts` and `src/components/article-renderer.ts`, and the description match in `stripDuplicateLeadContentFromDocument` (`src/utils/reader-html-cleanup.ts`, and its copy in `article-renderer.ts`).
 - **Tests first:** pin today's Reader suppression. Where `isDuplicateIntro` flags more than today's checks do (the prefix match), the PR says so and tests it; it must not flag a lightly reworded near-duplicate.

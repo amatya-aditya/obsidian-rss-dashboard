@@ -691,6 +691,7 @@ describe("ReaderView – summary de-duplication", () => {
       <div id="readability-page-1" class="page">
         <div id="main">
           <article>
+            <p>Ars Technica staff</p>
             <header>
               <div>
                 <p>${descriptionText}</p>
@@ -725,6 +726,62 @@ describe("ReaderView – summary de-duplication", () => {
     expect(body.textContent).toContain("Sam was broke");
     // Callout should still be rendered (description is kept in the callout)
     expect(callout).toBeTruthy();
+  });
+
+  // --------- #247 slice 2: prefix match from the shared duplicate-intro test ---
+
+  it("hides the description callout when the article opens with it, and keeps the opening", async () => {
+    const descriptionText =
+      "The council voted on Tuesday to approve the new harbor budget";
+    const fetchedHtml = `
+      <div id="readability-page-1" class="page">
+        <article>
+          <header><div><p>${descriptionText}</p></div></header>
+          <p>${"Members of the public lined up to speak. ".repeat(6)}</p>
+        </article>
+      </div>
+    `;
+    const item = makeItem({
+      description: `<p>${descriptionText}…</p>`,
+      content: "",
+      link: "https://example.com/harbor-budget",
+    });
+
+    getHarness(readerView).fetchFullArticleContent = vi
+      .fn()
+      .mockResolvedValue(fetchedHtml);
+    await readerView.displayItem(item);
+
+    const container = getHarness(readerView).readingContainer;
+    const body = container.querySelector(
+      ".rss-reader-article-content",
+    ) as HTMLElement;
+    expect(container.querySelector(".rss-reader-description-callout")).toBe(
+      null,
+    );
+    expect(body.textContent?.split(descriptionText).length).toBe(2);
+  });
+
+  it("keeps the description callout for a lightly reworded opening", async () => {
+    const descriptionText =
+      "The council voted on Tuesday to approve the new harbor budget";
+    const fetchedHtml = `<div><p>The council voted on Tuesday to quickly approve the new harbor budget. ${"More detail follows here. ".repeat(8)}</p></div>`;
+    const item = makeItem({
+      description: `<p>${descriptionText}</p>`,
+      content: "",
+      link: "https://example.com/harbor-budget",
+    });
+
+    getHarness(readerView).fetchFullArticleContent = vi
+      .fn()
+      .mockResolvedValue(fetchedHtml);
+    await readerView.displayItem(item);
+
+    expect(
+      getHarness(readerView).readingContainer.querySelector(
+        ".rss-reader-description-callout",
+      ),
+    ).toBeTruthy();
   });
 
   it("removes skip-link and lead media/caption duplicates while keeping kicker text", async () => {
