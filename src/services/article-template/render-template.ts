@@ -72,6 +72,8 @@ function fillVariable(
   values: ArticleTemplateValues,
 ): string {
   const variable = TEMPLATE_VARIABLES[step.name];
+  // Leave a value unread when its placeholder is absent: some values cost a parse.
+  if (text.search(variable.placeholder) === -1) return text;
   let value = values[step.value ?? step.name];
   if (step.defaultValue !== undefined && !value) value = step.defaultValue;
   if (step.yamlEscape) value = escapeYamlDoubleQuoted(value);

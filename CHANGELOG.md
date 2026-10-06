@@ -7,6 +7,7 @@
 - Sidebar search now says when nothing matched instead of leaving the sidebar blank. A search with no matching feeds or folders shows **0 results** and **No matches found.**, as Obsidian's own search does, and the message clears when the query changes or the search is cleared or closed. [GH Issue #678](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/678)
 - The Reader's description callout now shows the article page's own description once the article has been fetched, labelled "Description", and keeps it on the article. A feed description that ends with a "The post … appeared first on …" footer no longer shows the footer. [GH Issue #795](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/795)
 - Feed authors are cleaned when a feed refreshes: every author element is kept, and each one is cut at its first comma or pipe, so "Jane Doe, Professor of Law, Example University" and "Jane Doe | Politics" show as "Jane Doe". Articles also store their author names as a list. [GH Issue #798](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/798)
+- Saved notes can use `{{description}}` (the article page's own description, or the feed's blurb when the page has none) and `{{excerpt}}` (a short preview, only when there is no description). `{{author}}` now shows the cleaned author names when the article has them. [GH Issue #807](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/807)
 
 ### Fixes
 

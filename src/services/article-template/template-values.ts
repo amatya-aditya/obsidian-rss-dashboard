@@ -1,5 +1,7 @@
 import { moment } from "obsidian";
 import type { FeedItem } from "../../types/types";
+import { resolveItemDescriptions } from "../../utils/article-metadata-persistence";
+import { itemAuthorText } from "../../utils/item-author";
 import { resolveDisplayDate } from "../feed-parser/feed-retention";
 import type { TemplateVariableName } from "./template-variables";
 
@@ -81,6 +83,9 @@ export function buildArticleTemplateValues(
       ? new Date(firstSeenMs)
       : articleDate;
 
+  // Parsing the blurb is only worth doing for a template that uses it.
+  let descriptions: ReturnType<typeof resolveItemDescriptions> | undefined;
+  const describeItem = () => (descriptions ??= resolveItemDescriptions(item));
   const date = formatLongDate(articleDate);
   const firstSeen = formatLongDate(firstSeenDate);
   const firstSeenISO = formatMoment(firstSeenDate, "YYYY-MM-DD");
@@ -93,10 +98,16 @@ export function buildArticleTemplateValues(
   return {
     title: item.title,
     link: item.link,
-    author: item.author || "",
+    author: itemAuthorText(item),
     source: item.feedTitle,
     feedTitle: item.feedTitle,
     summary: item.summary || "",
+    get description() {
+      return describeItem().description;
+    },
+    get excerpt() {
+      return describeItem().excerpt;
+    },
     tags: inputs.tagNames.join(", "),
     guid: item.guid,
     image: typeof inputs.image === "function" ? inputs.image() : inputs.image,

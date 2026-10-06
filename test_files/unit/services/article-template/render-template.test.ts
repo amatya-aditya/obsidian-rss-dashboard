@@ -23,6 +23,8 @@ function createValues(
     source: "Feed",
     feedTitle: "Feed",
     summary: "Sum",
+    description: "Desc",
+    excerpt: "Exc",
     tags: "News",
     guid: "g-1",
     image: "https://img.example/a.png",

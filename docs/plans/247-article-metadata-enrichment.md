@@ -83,11 +83,13 @@ Parse-time and post-fetch author cleanup (#290, #291).
 - The page-level author from slice 3 overrides the feed-derived value only when the feed side resolved to a single author entry.
 - **Tests:** parser tests for multiple author elements and the per-element split; resolver tests for the single-entry override; a polluted value from each publisher measured in #290 resolves clean.
 
-### 6. `{{description}}` and `{{excerpt}}`
+### 6. `{{description}}` and `{{excerpt}}` ([#807](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/807))
 
 Exposes `{{description}}` and `{{excerpt}}` through the registry from slice 1, filled from the resolved metadata.
 
 - `{{summary}}` stays byte-identical to today's `extractSummary(...)` output (#271).
+- `{{description}}` is the stored `publisherDescription`, else the guarded feed blurb; `{{excerpt}}` is filled only when there is no description. Both are in `ArticleSaver`'s note and frontmatter templates; the web viewer's templates leave them unfilled until its follow-ups (item 6 below).
+- `{{author}}` and the podcast player's author display read `authors` joined with `", "` when the item has it, else `author` (decided on #806), via `itemAuthorText` in `src/utils/item-author.ts`.
 - **Tests:** the template suite shows no change to any existing variable's output; the new variables follow the description and excerpt tiers.
 
 ### 7. Language support (#246)
@@ -107,6 +109,7 @@ The web viewer's "Save with template" output differs from the other template cal
 3. The saved-tag rule differs.
 4. The `{{image}}` resolver differs: it lacks the formula-injection guard (`firstNonFormulaImageUrl`).
 5. `{{created}}`, an alias for `{{date}}` from #266's addendum, isn't registered yet.
+6. `{{description}}` and `{{excerpt}}` aren't filled in the web viewer's templates (slice 6 fills them in `ArticleSaver` only).
 
 The web viewer's `"Web viewer"` default for `{{source}}` and `{{feedTitle}}` is intended, and stays as a per-call-site default override (#266).
 

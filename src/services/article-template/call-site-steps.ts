@@ -49,6 +49,8 @@ export const ARTICLE_SAVER_NOTE_STEPS: readonly TemplateStep[] = [
   fill("source"),
   fill("feedTitle"),
   fill("summary"),
+  fill("description"),
+  fill("excerpt"),
   CONTENT,
   fill("tags"),
   fill("guid"),
@@ -65,6 +67,8 @@ export const ARTICLE_SAVER_FRONTMATTER_STEPS: readonly TemplateStep[] = [
   fillYaml("author"),
   fillYaml("feedTitle"),
   fillYaml("summary"),
+  fillYaml("description"),
+  fillYaml("excerpt"),
   fillYaml("guid"),
   fillYaml("image"),
 ];
