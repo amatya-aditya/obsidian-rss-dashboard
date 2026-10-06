@@ -5,6 +5,7 @@
  * Imports are kept minimal — only Obsidian core + platform utils.
  */
 import { App, Modal, Notice, Setting, TextComponent } from "obsidian";
+import { VaultFolderSuggest } from "../../components/folder-suggest";
 import type { SavedTemplate } from "../../types/types";
 import {
   setCssProps,
@@ -216,6 +217,7 @@ export class SavedTemplateEditorModal extends Modal {
       "rss-saved-template-folder",
       this.initial.defaultFolder,
     ) as HTMLInputElement;
+    new VaultFolderSuggest(this.app, folderInput);
     const filenameInput = createField(
       pathFields,
       "Filename pattern",

@@ -468,6 +468,8 @@ body .modal.rss-dashboard-template-editor-dialog {
 .rss-dashboard-template-editor-dialog .rss-template-path-fields {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  /* Natural field heights keep the folder suggestions right under the input. */
+  align-items: start;
   gap: var(--size-4-4, 16px);
   min-width: 0;
 }

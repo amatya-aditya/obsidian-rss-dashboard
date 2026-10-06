@@ -4,9 +4,18 @@ import { readFileSync } from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import postcss from "postcss";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { App } from "obsidian";
 import { SavedTemplateEditorModal } from "../../../src/settings/modals/settings-modals";
+
+const folderSuggestInputs = vi.hoisted(() => [] as HTMLInputElement[]);
+vi.mock("../../../src/components/folder-suggest", () => ({
+  VaultFolderSuggest: class {
+    constructor(_app: unknown, input: HTMLInputElement) {
+      folderSuggestInputs.push(input);
+    }
+  },
+}));
 
 const testDir = path.dirname(fileURLToPath(import.meta.url));
 const stylesheet = postcss.parse(
@@ -44,6 +53,7 @@ function openEditor(editingId?: string): HTMLElement {
 
 afterEach(() => {
   activeDocument.body.replaceChildren();
+  folderSuggestInputs.length = 0;
 });
 
 describe.each([
@@ -99,6 +109,12 @@ describe.each([
     ).toBe("rss-saved-template-filename-help");
   });
 
+  it("offers vault folder suggestions on the custom folder field, as the Save article dialog does", () => {
+    const content = openEditor(editingId);
+    const folder = content.querySelector("#rss-saved-template-folder");
+    expect(folderSuggestInputs).toEqual([folder]);
+  });
+
   it("keeps the global-default checkbox and its explanation outside the path row", () => {
     const content = openEditor(editingId);
     const checkbox = content.querySelector(
@@ -152,6 +168,7 @@ describe("saved template editor styles", () => {
     expect(row.get("display")).toBe("grid");
     expect(row.get("grid-template-columns")).toContain("auto-fit");
     expect(row.get("grid-template-columns")).toContain("minmax(");
+    expect(row.get("align-items")).toBe("start");
   });
 
   it("limits the dialog width and never scrolls sideways", () => {
