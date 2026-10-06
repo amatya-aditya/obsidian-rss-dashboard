@@ -36,9 +36,9 @@ export class VersionStatusBarFeature {
   registerCommand(): void {
     this.options.addCommand({
       id: "show-version-in-status-bar",
-      name: "Show version in status bar",
+      name: "Toggle version in status bar",
       callback: () => {
-        void this.setEnabled(true);
+        void this.setEnabled(!this.enabled);
       },
     });
   }

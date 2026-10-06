@@ -84,19 +84,24 @@ describe("version status bar setting and command", () => {
 
     feature.registerCommand();
     expect(command?.id).toBe("show-version-in-status-bar");
-    expect(command?.name).toBe("Show version in status bar");
     command?.callback?.();
     await Promise.resolve();
+    expect(savedPreference).toBe(false);
+    expect(statusItems[0]?.isConnected).toBe(false);
+    expect(command?.name).toBe("Toggle version in status bar");
+
     command?.callback?.();
     await Promise.resolve();
     expect(savedPreference).toBe(true);
-    expect(statusItems).toHaveLength(1);
+    expect(statusItems).toHaveLength(2);
+    expect(statusItems[1]?.textContent).toBe("RSS Dashboard v2.7.0");
+    expect(statusItems.filter((item) => item.isConnected)).toHaveLength(1);
 
     toggle.checked = false;
     toggle.dispatchEvent(new Event("change"));
     await Promise.resolve();
     expect(savedPreference).toBe(false);
-    expect(statusItems[0]?.isConnected).toBe(false);
+    expect(statusItems[1]?.isConnected).toBe(false);
   });
 
   it("saves the preference without a status item when the host does not provide one", async () => {
@@ -118,7 +123,7 @@ describe("version status bar setting and command", () => {
     command?.callback?.();
     await Promise.resolve();
 
-    expect(savedPreference).toBe(true);
+    expect(savedPreference).toBe(false);
     expect(
       document.body.querySelectorAll("button, a, [role=alert]"),
     ).toHaveLength(0);
