@@ -91,6 +91,15 @@
   background: var(--background-secondary);
 }
 
+.rss-dashboard-articles-header button.rss-dashboard-sidebar-toggle,
+.rss-dashboard-header-icon-row button.clickable-icon {
+  appearance: none;
+  border: 0;
+  box-shadow: none;
+  font: inherit;
+  padding: 0;
+}
+
 .rss-dashboard-sidebar-toggle:hover {
   background: var(--background-modifier-hover);
 }

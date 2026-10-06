@@ -166,9 +166,9 @@ export class ArticleHeader {
     const leftSection = articlesHeader.createDiv({
       cls: "rss-dashboard-header-left",
     });
-    const sidebarToggle = leftSection.createDiv({
+    const sidebarToggle = leftSection.createEl("button", {
       cls: "rss-dashboard-sidebar-toggle clickable-icon",
-      attr: { "aria-label": "Toggle sidebar", role: "button", tabindex: "0" },
+      attr: { type: "button", "aria-label": "Toggle sidebar" },
     });
     setIcon(sidebarToggle, "sidebar");
     sidebarToggle.addEventListener("click", () =>
@@ -199,7 +199,7 @@ export class ArticleHeader {
 
     const mobileFilterBtn = rightSection.createEl("button", {
       cls: "rss-dashboard-mobile-filter-button rss-dashboard-filter-trigger clickable-icon",
-      attr: { "aria-label": "Filters", role: "button", tabindex: "0" },
+      attr: { type: "button", "aria-label": "Filters" },
     });
     setIcon(
       mobileFilterBtn.createDiv({ cls: "rss-dashboard-mobile-filter-icon" }),

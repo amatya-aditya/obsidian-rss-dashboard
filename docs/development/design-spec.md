@@ -415,41 +415,34 @@ Rules:
 
 ### Implementation Structure
 
-> **Legacy controls only:** the `div` pattern below describes existing controls until they're migrated. Do not use it for new interactive controls. New icon buttons use a native `<button>`; see **Open Questions** and [#502](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/502). The migration remains gated on that issue's styling spike.
-
-Existing controls use a `div` (or `span` if inline) with the following attributes:
-
-- **Class**: `clickable-icon`
-- **Role**: `button`
-- **Tabindex**: `0`
-- **Accessible name**: Provide an `aria-label`; never use `title` (see [`.instructions.md`](../../.instructions.md#compliance-declarations-required)).
+Use native buttons for icon actions. Migrate existing controls by surface; do
+not add new `div[role="button"]` icon actions while legacy controls remain.
+Native buttons supply focus, button semantics, Enter/Space activation, and
+disabled behavior without custom ARIA or keyboard code.
 
 ```typescript
-const iconButton = container.createDiv({
+const iconButton = container.createEl("button", {
   cls: "clickable-icon",
   attr: {
+    type: "button",
     "aria-label": "Desired Action",
-    role: "button",
-    tabindex: "0",
   },
 });
 setIcon(iconButton, "lucide-icon-name");
 ```
 
+Keep existing `div[role="button"]` controls only until their surface is
+migrated. Preserve their accessible names and custom keyboard behavior until
+then. When native button defaults conflict with the icon design, neutralize
+them with a scoped selector that includes the plugin surface and button class;
+never use `!important`.
+
 ### Keyboard Interactivity
 
-This custom keyboard handling applies only to the existing legacy elements shown above. New interactive controls should use native semantic elements so the browser supplies standard keyboard behavior.
-
-Interactive icons MUST handle keyboard events to maintain 1:1 parity with standard buttons:
-
-```typescript
-iconButton.addEventListener("keydown", (e) => {
-  if (e.key === "Enter" || e.key === " ") {
-    e.preventDefault();
-    // execute action
-  }
-});
-```
+Native icon buttons use their built-in Enter and Space activation. Do not add
+`role`, `tabindex`, or a `keydown` handler to reproduce button behavior.
+Legacy `div[role="button"]` controls keep their keyboard handler until they
+are migrated.
 
 ### Styling Guidelines
 
@@ -558,13 +551,15 @@ Unit tests run in jsdom against `test_files/stubs/obsidian.ts`, which models
 Obsidian 1.13.7 desktop (ADR 0014). It's accurate for structure and behavior,
 but jsdom doesn't lay out or paint anything. Split checks accordingly:
 
-- **Test in unit tests:** element structure and classes, `aria-label` and
-  `role`, which icon was set, and keyboard parity. For an icon button, dispatch
-  `Enter` and `Space` `keydown` events and assert the action ran. The stub's
-  `setIcon` records the icon name in `data-icon` and doesn't insert an SVG,
-  so assert on `data-icon`, not on SVG markup. `setTooltip` stores its text
-  in `aria-label`, as Obsidian does. Use `activeDocument` and the element's
-  own window so tests also cover popouts.
+- **Test in unit tests:** element structure and classes, `aria-label`, native
+  `button` tag and `type`, and which icon was set. For native icon buttons,
+  assert that custom `role`, `tabindex`, and keyboard handlers are absent, and
+  exercise the action through a click event. jsdom does not synthesize the
+  browser's Enter/Space activation for buttons, so keyboard activation needs a
+  manual browser check. The stub's `setIcon` records the icon name in
+  `data-icon` and doesn't insert an SVG, so assert on `data-icon`, not on SVG
+  markup. `setTooltip` stores its text in `aria-label`, as Obsidian does. Use
+  `activeDocument` and the element's own window so tests also cover popouts.
 - **Check by hand:** layout, breakpoints, colors in light and dark themes,
   focus rings, and Android and iOS icon rendering. Use the fixture vault
   (`npm run fixture:vault`, see `docs/development/fixture-vault.md`) at
@@ -578,15 +573,17 @@ See `docs/development/test_coverage/testing-guide.md` for the testing rules.
 
 Found in the 2026-09-27 review, each with its own issue.
 
-- **Icon button element: decided, migration pending ([#502](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/502)).** Follow
-  the accessibility guidelines: new icon buttons use a native
-  `<button type="button" class="clickable-icon">` with an `aria-label`, not a
-  `div` with `role="button"`. The `div` rule dates from 2.3.0-alpha.3
-  (commit `8b0c7d5d`), which blamed the element type for broken icons on
-  Android. The Android bug was later fixed in CSS (**Android WebView SVG
-  Rendering**), and that fix works with either element. **Icon Rendering
-  Standards** below is updated once #502's spike confirms Obsidian's base button
-  styles don't leak in. Until then, don't add new `div[role=button]` controls.
+- **Icon button element: decided; migration is in progress ([#502](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/502)).** Follow
+  the accessibility guidelines: use a native `<button type="button"
+class="clickable-icon">` with an `aria-label`, not a `div` with
+  `role="button"`. The `div` rule dates from 2.3.0-alpha.3 (commit
+  `8b0c7d5d`), which blamed the element type for broken icons on Android. The
+  Android bug was later fixed in CSS (**Android WebView SVG Rendering**), and
+  that fix targets the icon SVG rather than its wrapper. Existing controls are
+  migrating surface by surface. Check native button styling on desktop and
+  Android as each surface is migrated; the scoped button reset in
+  `src/styles/controls.css` removes browser/Obsidian padding, border, shadow,
+  and font defaults for the migrated header and sidebar toolbar controls.
 - **Native close button CSS ([#500](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/500)).** Rules in
   `src/styles/modals.css` style or hide only `.modal-close-button`, which
   Obsidian 1.13 no longer renders. On 1.13 the shortcut help modal shows two

@@ -185,18 +185,12 @@ describe("Sidebar header (characterization)", () => {
   const coachmark = (root: ParentNode = container): HTMLElement | null =>
     root.querySelector<HTMLElement>(".rss-dashboard-coachmark");
 
-  function keydown(el: HTMLElement, key: string): KeyboardEvent {
-    const event = new KeyboardEvent("keydown", {
-      key,
+  const click = (el: HTMLElement): MouseEvent => {
+    const event = new MouseEvent("click", {
       bubbles: true,
       cancelable: true,
+      detail: 1,
     });
-    el.dispatchEvent(event);
-    return event;
-  }
-
-  const click = (el: HTMLElement): MouseEvent => {
-    const event = new MouseEvent("click", { bubbles: true, cancelable: true });
     el.dispatchEvent(event);
     return event;
   };
@@ -350,9 +344,11 @@ describe("Sidebar header (characterization)", () => {
       for (const label of Object.keys(ICON_FOR_LABEL)) {
         const btn = byLabel(label);
         expect(btn, label).not.toBeNull();
+        expect(btn.tagName, label).toBe("BUTTON");
+        expect(btn.getAttribute("type"), label).toBe("button");
         expect(btn.classList.contains("clickable-icon"), label).toBe(true);
-        expect(btn.getAttribute("role"), label).toBe("button");
-        expect(btn.getAttribute("tabindex"), label).toBe("0");
+        expect(btn.hasAttribute("role"), label).toBe(false);
+        expect(btn.hasAttribute("tabindex"), label).toBe(false);
         expect(iconOf(btn), label).toBe(ICON_FOR_LABEL[label]);
       }
     });
@@ -578,40 +574,6 @@ describe("Sidebar header (characterization)", () => {
     });
   });
 
-  describe("keyboard activation", () => {
-    it.each(["Enter", " "])(
-      "runs a button's action on %j and stops the key's default",
-      (key) => {
-        build();
-        sidebar.render();
-
-        const event = keydown(button("manageFeeds"), key);
-
-        expect(callbacks.onManageFeeds).toHaveBeenCalledTimes(1);
-        expect(event.defaultPrevented).toBe(true);
-      },
-    );
-
-    it.each(["Tab", "a", "Escape", "ArrowDown"])("ignores %j", (key) => {
-      build();
-      sidebar.render();
-
-      const event = keydown(button("manageFeeds"), key);
-
-      expect(callbacks.onManageFeeds).not.toHaveBeenCalled();
-      expect(event.defaultPrevented).toBe(false);
-    });
-
-    it("runs the action once for a click", () => {
-      build();
-      sidebar.render();
-
-      click(button("manageFeeds"));
-
-      expect(callbacks.onManageFeeds).toHaveBeenCalledTimes(1);
-    });
-  });
-
   describe("discover button", () => {
     it("calls the discover callback when the view provides one", () => {
       build();
@@ -639,7 +601,7 @@ describe("Sidebar header (characterization)", () => {
       const late = vi.fn();
       callbacks.onActivateDiscover = late;
 
-      keydown(button("discover"), "Enter");
+      click(button("discover"));
 
       expect(late).toHaveBeenCalledTimes(1);
     });
@@ -684,13 +646,11 @@ describe("Sidebar header (characterization)", () => {
       expect(showAddFeedModal).toHaveBeenCalledWith();
     });
 
-    it("opens the add feed dialog from the keyboard too", () => {
+    it("uses a native button for built-in keyboard activation", () => {
       sidebar.render();
 
-      keydown(button("addFeed"), "Enter");
-      keydown(button("addFeed"), " ");
-
-      expect(showAddFeedModal).toHaveBeenCalledTimes(2);
+      expect(button("addFeed").tagName).toBe("BUTTON");
+      expect(button("addFeed").getAttribute("type")).toBe("button");
     });
 
     it("shows the coachmark inside the add feed button until the flag is stored", () => {
@@ -939,7 +899,7 @@ describe("Sidebar header (characterization)", () => {
     });
 
     it("works from the keyboard", () => {
-      keydown(button("search"), "Enter");
+      click(button("search"));
 
       expect(
         container.querySelector(".rss-dashboard-search-dock"),
@@ -985,7 +945,7 @@ describe("Sidebar header (characterization)", () => {
     });
 
     it("works from the keyboard", () => {
-      keydown(button("tags"), " ");
+      click(button("tags"));
 
       expect(button("tags").getAttribute("aria-pressed")).toBe("true");
     });
@@ -1093,8 +1053,8 @@ describe("Sidebar header (characterization)", () => {
       expect(plugin.saveSettings).not.toHaveBeenCalled();
     });
 
-    it("works from the keyboard", () => {
-      keydown(button("addFolder"), "Enter");
+    it("opens the folder dialog from the button", () => {
+      click(button("addFolder"));
 
       expect(modalHeading()).toBe("Add folder");
     });
@@ -1127,26 +1087,33 @@ describe("Sidebar header (characterization)", () => {
     it.each([
       ["Enter", "Enter"],
       ["Space", " "],
-    ])("opens the sort menu below the button on %s (#627)", (_name, key) => {
-      const sortButton = button("sort");
-      vi.spyOn(sortButton, "getBoundingClientRect").mockReturnValue(
-        new DOMRect(40, 10, 24, 24),
-      );
-      const showAtPosition = vi.spyOn(
-        ObsidianStubs.Menu.prototype,
-        "showAtPosition",
-      );
+    ])(
+      "opens the sort menu below the button for a keyboard click on %s (#627)",
+      (_name, _key) => {
+        const sortButton = button("sort");
+        vi.spyOn(sortButton, "getBoundingClientRect").mockReturnValue(
+          new DOMRect(40, 10, 24, 24),
+        );
+        const showAtPosition = vi.spyOn(
+          ObsidianStubs.Menu.prototype,
+          "showAtPosition",
+        );
 
-      const event = keydown(sortButton, key);
+        const event = new MouseEvent("click", {
+          bubbles: true,
+          cancelable: true,
+          detail: 0,
+        });
+        sortButton.dispatchEvent(event);
 
-      expect(event.defaultPrevented).toBe(true);
-      expect(fireIconAction).toHaveBeenCalledTimes(1);
-      expect(fireIconAction).toHaveBeenCalledWith("sort", undefined);
-      expect(ObsidianStubs.Menu.lastItems.map((item) => item.title)).toEqual(
-        SORT_MENU_TITLES,
-      );
-      expect(showAtPosition).toHaveBeenCalledWith({ x: 40, y: 34 });
-    });
+        expect(fireIconAction).toHaveBeenCalledTimes(1);
+        expect(fireIconAction).toHaveBeenCalledWith("sort", undefined);
+        expect(ObsidianStubs.Menu.lastItems.map((item) => item.title)).toEqual(
+          SORT_MENU_TITLES,
+        );
+        expect(showAtPosition).toHaveBeenCalledWith({ x: 40, y: 34 });
+      },
+    );
   });
 
   describe("collapse all button", () => {
@@ -1270,13 +1237,12 @@ describe("Sidebar header (characterization)", () => {
       expect(iconOf(old)).toBe("chevrons-up-down");
     });
 
-    it("works from the keyboard", () => {
+    it("uses a native button for built-in keyboard activation", () => {
       build();
       sidebar.render();
 
-      keydown(button("collapseAll"), "Enter");
-
-      expect(callbacks.onBatchToggleFolders).toHaveBeenCalledTimes(1);
+      expect(button("collapseAll").tagName).toBe("BUTTON");
+      expect(button("collapseAll").getAttribute("type")).toBe("button");
     });
 
     it("shares its glyph state between repeated collapse all entries", () => {
@@ -1344,7 +1310,7 @@ describe("Sidebar header (characterization)", () => {
       sidebar.render();
       plugin.manifest.id = "renamed";
 
-      keydown(button("settings"), "Enter");
+      click(button("settings"));
 
       expect(openTabById).toHaveBeenCalledWith("renamed");
     });

@@ -60,54 +60,32 @@ describe("sidebar-icon-registry constants", () => {
 });
 
 describe("sidebar-icon-registry.createToolbarButton", () => {
-  it("creates a clickable-icon button and wires click/keyboard handlers", () => {
+  it("creates a native clickable-icon button and wires click handling", () => {
     const icon = SIDEBAR_ICONS[0];
     const onClick = vi.fn();
 
     const btn = createToolbarButton(icon, onClick);
+    expect(btn.tagName).toBe("BUTTON");
+    expect(btn.getAttribute("type")).toBe("button");
     expect(btn.className).toBe("clickable-icon");
-    expect(btn.getAttribute("role")).toBe("button");
-    expect(btn.getAttribute("tabindex")).toBe("0");
+    expect(btn.hasAttribute("role")).toBe(false);
+    expect(btn.hasAttribute("tabindex")).toBe(false);
     expect(btn.getAttribute("aria-label")).toBe(icon.label);
     expect(btn.dataset.icon).toBe(icon.lucideIcon);
 
     btn.dispatchEvent(new MouseEvent("click"));
     expect(onClick).toHaveBeenCalledTimes(1);
 
-    const otherKey = new KeyboardEvent("keydown", {
-      key: "Escape",
-      cancelable: true,
-    });
-    btn.dispatchEvent(otherKey);
-    expect(otherKey.defaultPrevented).toBe(false);
     expect(onClick).toHaveBeenCalledTimes(1);
-
-    const enterKey = new KeyboardEvent("keydown", {
-      key: "Enter",
-      cancelable: true,
-    });
-    btn.dispatchEvent(enterKey);
-    expect(enterKey.defaultPrevented).toBe(true);
-    expect(onClick).toHaveBeenCalledTimes(2);
-
-    const spaceKey = new KeyboardEvent("keydown", {
-      key: " ",
-      cancelable: true,
-    });
-    btn.dispatchEvent(spaceKey);
-    expect(spaceKey.defaultPrevented).toBe(true);
-    expect(onClick).toHaveBeenCalledTimes(3);
   });
 
-  it("passes the click event to the handler and no event for Enter or Space", () => {
+  it("passes the native click event to the handler", () => {
     const onClick = vi.fn();
     const btn = createToolbarButton(SIDEBAR_ICONS[0], onClick);
 
     const click = new MouseEvent("click");
     btn.dispatchEvent(click);
-    btn.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
-    btn.dispatchEvent(new KeyboardEvent("keydown", { key: " " }));
 
-    expect(onClick.mock.calls).toEqual([[click], [], []]);
+    expect(onClick.mock.calls).toEqual([[click]]);
   });
 });
