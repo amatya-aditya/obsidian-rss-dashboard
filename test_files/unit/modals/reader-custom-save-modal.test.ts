@@ -250,7 +250,7 @@ describe("ReaderCustomSaveModal", () => {
     ]);
   });
 
-  it("previews the selected pattern and supports a one-save override with reset", async () => {
+  it("previews the selected pattern and supports a one-save override that clearing returns to the template pattern", async () => {
     const harness = createHarness({
       globalDefaultTemplateId: "one",
       savedTemplates: [
@@ -276,17 +276,9 @@ describe("ReaderCustomSaveModal", () => {
     const select = root.querySelector<HTMLSelectElement>(
       "#rss-dashboard-saved-template",
     );
-    const reset = root.querySelector<HTMLButtonElement>(
-      ".rss-dashboard-use-template-filename-pattern-button",
-    );
-    if (!patternInput || !select || !reset)
+    if (!patternInput || !select)
       throw new Error("Filename override controls were not rendered");
 
-    expect(
-      root.querySelector<HTMLElement>(
-        ".rss-dashboard-template-filename-pattern",
-      )?.textContent,
-    ).toContain("{{source}}-{{title}}");
     expect(
       root.querySelector<HTMLElement>(".rss-dashboard-filename-preview")
         ?.textContent,
@@ -298,13 +290,14 @@ describe("ReaderCustomSaveModal", () => {
     select.dispatchEvent(new Event("change", { bubbles: true }));
     expect(patternInput.value).toBe("{{title}}-manual");
 
-    reset.click();
-    expect(patternInput.value).toBe("");
+    patternInput.value = "";
+    patternInput.dispatchEvent(new Event("input", { bubbles: true }));
     expect(
-      root.querySelector<HTMLElement>(
-        ".rss-dashboard-template-filename-pattern",
-      )?.textContent,
-    ).toContain("{{dateShort}}-{{title}}");
+      root.querySelector<HTMLElement>(".rss-dashboard-filename-preview")
+        ?.textContent,
+    ).toContain("{{dateShort}}-{{title}}.md");
+    expect(root.querySelector("[class*=template-filename-pattern]")).toBeNull();
+    expect(root.textContent).not.toContain("Use template pattern");
     root
       .querySelector<HTMLButtonElement>(
         ".rss-dashboard-custom-save-confirm-button",

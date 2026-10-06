@@ -189,14 +189,6 @@ function createFilenamePatternControls(
     attr: { id: "rss-dashboard-filename-pattern-description" },
     text: "Leave blank to use the selected saved template's filename pattern.",
   });
-  const resetButton = content.createEl("button", {
-    cls: "rss-dashboard-use-template-filename-pattern-button",
-    text: "Use template pattern",
-    attr: { type: "button" },
-  });
-  const inheritedPattern = content.createEl("p", {
-    cls: "setting-item-description rss-dashboard-template-filename-pattern",
-  });
   const preview = content.createEl("p", {
     cls: "setting-item-description rss-dashboard-filename-preview",
     attr: { "aria-live": "polite" },
@@ -204,10 +196,6 @@ function createFilenamePatternControls(
   const getEffectivePattern = () =>
     input.value.trim() || getTemplatePattern()?.trim() || undefined;
   const refresh = () => {
-    const templatePattern = getTemplatePattern()?.trim();
-    inheritedPattern.textContent = templatePattern
-      ? `Template pattern: ${templatePattern}`
-      : "Template pattern: none (uses article title)";
     const saveItem = context.displayTitle
       ? { ...item, title: context.displayTitle }
       : item;
@@ -219,16 +207,10 @@ function createFilenamePatternControls(
         getEffectivePattern(),
       );
     preview.textContent = `Filename preview: ${filename}`;
-    resetButton.disabled = !input.value.trim();
   };
   input.addEventListener("input", refresh);
   folderInput.addEventListener("input", refresh);
   select.addEventListener("change", refresh);
-  resetButton.addEventListener("click", () => {
-    input.value = "";
-    refresh();
-    input.focus();
-  });
   refresh();
   return { input, getEffectivePattern, refresh };
 }

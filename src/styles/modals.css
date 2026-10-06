@@ -303,12 +303,6 @@ body .rss-folder-name-modal-input.rss-folder-name-modal-input-error {
   outline: 2px solid var(--interactive-accent);
   outline-offset: 2px;
 }
-.rss-dashboard-custom-save-modal
-  .rss-dashboard-use-template-filename-pattern-button:focus-visible {
-  outline: 2px solid var(--interactive-accent);
-  outline-offset: 2px;
-}
-.rss-dashboard-custom-save-modal .rss-dashboard-template-filename-pattern,
 .rss-dashboard-custom-save-modal .rss-dashboard-filename-preview {
   overflow-wrap: anywhere;
 }

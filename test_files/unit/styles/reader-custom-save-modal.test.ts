@@ -88,7 +88,6 @@ describe("Reader custom save modal styles", () => {
       "rss-dashboard-custom-save-cancel-button",
       "rss-dashboard-custom-save-confirm-button",
       "rss-dashboard-custom-save-template-button",
-      "rss-dashboard-use-template-filename-pattern-button",
     ]) {
       const focus = declarationsFor(
         `.rss-dashboard-custom-save-modal .${buttonClass}:focus-visible`,
