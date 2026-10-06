@@ -2035,3 +2035,87 @@ describe("EditFeedModal", () => {
     expect(guids[1]).toBe("recent-item-2");
   });
 });
+
+describe("EditFeedModal article template replacement", () => {
+  function openWithAssignedTemplate() {
+    const app = createMockApp();
+    const feed: Feed = {
+      title: "Example feed",
+      url: "https://example.com/feed.xml",
+      folder: "Tech",
+      items: [],
+      lastUpdated: 0,
+      customTemplate: "one",
+    };
+    const plugin = {
+      app,
+      settings: {
+        feeds: [feed],
+        folders: [],
+        maxItems: 50,
+        corsProxyEnabled: false,
+        corsProxyUrl: "",
+        articleSaving: {
+          savedTemplates: [
+            { id: "one", name: "Current", template: "Current body" },
+            { id: "two", name: "Selected", template: "Selected body" },
+          ],
+        },
+      },
+      ensureFolderExists: vi.fn(async () => {}),
+      saveSettings: vi.fn(async () => {}),
+      notifyFiltersUpdated: vi.fn(),
+    };
+    const modal = new EditFeedModal(
+      app,
+      asRssDashboardPlugin(plugin),
+      feed,
+      vi.fn(),
+    );
+    modal.open();
+    const select = getSelectBySettingName(modal.contentEl, "Article template");
+    select.value = "two";
+    select.dispatchEvent(new Event("change"));
+    return { modal, feed, select };
+  }
+
+  function replacementDialog(): HTMLElement {
+    const dialog = document.body.querySelector<HTMLElement>(
+      ".rss-dashboard-template-dialog",
+    );
+    if (!dialog) throw new Error("Replacement dialog was not opened");
+    return dialog;
+  }
+
+  it("asks before replacing the feed's template, naming the feed and both templates", () => {
+    openWithAssignedTemplate();
+
+    expect(replacementDialog().textContent).toContain(
+      'Replace "Current" with "Selected" for Example feed?',
+    );
+  });
+
+  it("keeps the current template, in the dropdown and after Save, when the replacement is declined", async () => {
+    const { modal, feed, select } = openWithAssignedTemplate();
+
+    getButtonByText(replacementDialog(), "Keep current template").click();
+    await flushPromises();
+
+    expect(select.value).toBe("one");
+    getButtonByText(modal.contentEl, "Save").click();
+    await flushPromises();
+    expect(feed.customTemplate).toBe("one");
+  });
+
+  it("assigns the selected template after Save when the replacement is confirmed", async () => {
+    const { modal, feed, select } = openWithAssignedTemplate();
+
+    getButtonByText(replacementDialog(), "Replace template").click();
+    await flushPromises();
+
+    expect(select.value).toBe("two");
+    getButtonByText(modal.contentEl, "Save").click();
+    await flushPromises();
+    expect(feed.customTemplate).toBe("two");
+  });
+});

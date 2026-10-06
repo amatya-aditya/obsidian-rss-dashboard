@@ -13,6 +13,12 @@ import {
   type ReaderCustomSaveModalContext,
 } from "../../../src/modals/reader-custom-save-modal";
 
+// What the mocked template editor returns and whether the feed prompt accepts.
+const editorChoices = vi.hoisted(() => ({
+  makeGlobalDefault: false,
+  assignToFeed: false,
+}));
+
 // The template editor and the assignment prompts resolve at once, so the
 // dialog's own wiring is what these tests observe (#817).
 vi.mock(
@@ -27,7 +33,7 @@ vi.mock(
           template: "Edited: {{title}}",
           defaultFolder: "",
           filenamePattern: "",
-          makeGlobalDefault: false,
+          makeGlobalDefault: editorChoices.makeGlobalDefault,
         });
       }
     },
@@ -40,7 +46,7 @@ vi.mock(
     ConfirmTemplateAssignmentModal: class {
       open() {}
       waitForClose() {
-        return Promise.resolve(false);
+        return Promise.resolve(editorChoices.assignToFeed);
       }
     },
   }),
@@ -75,6 +81,7 @@ function createHarness(options?: {
   feed: Feed;
   settings: RssDashboardSettings;
   saveArticle: ReturnType<typeof vi.fn>;
+  saveSettings: ReturnType<typeof vi.fn>;
   getFilenamePreview: ReturnType<typeof vi.fn>;
   onArticleSave: ReturnType<typeof vi.fn>;
   updateSavedLabel: ReturnType<typeof vi.fn>;
@@ -113,6 +120,7 @@ function createHarness(options?: {
   );
   const onArticleSave = vi.fn();
   const updateSavedLabel = vi.fn();
+  const saveSettings = vi.fn(async () => {});
   const context: ReaderCustomSaveModalContext = {
     getSettings: () => settings,
     getArticleSaver: () => ({ saveArticle, getFilenamePreview }) as never,
@@ -125,7 +133,7 @@ function createHarness(options?: {
         (template) =>
           template.id === settings.articleSaving.globalDefaultTemplateId,
       ),
-    saveSettings: vi.fn(async () => {}),
+    saveSettings,
     buildReaderSaveMarkdown: () => "Reader body",
     onArticleSave,
     updateSavedLabel,
@@ -135,6 +143,7 @@ function createHarness(options?: {
     feed,
     settings,
     saveArticle,
+    saveSettings,
     getFilenamePreview,
     onArticleSave,
     updateSavedLabel,
@@ -151,6 +160,8 @@ function modal(): HTMLElement {
 }
 
 afterEach(() => {
+  editorChoices.makeGlobalDefault = false;
+  editorChoices.assignToFeed = false;
   activeDocument.body.replaceChildren();
   vi.restoreAllMocks();
 });
@@ -235,5 +246,69 @@ describe("ReaderCustomSaveModal after Save as new template (#817)", () => {
 
     expect(select.value).toBe("t1");
     expect(select.options).toHaveLength(saved.length + 1);
+  });
+});
+
+describe("ReaderCustomSaveModal commits a new template only after the article saves", () => {
+  async function saveWithNewTemplate(saveResult: { path: string } | null) {
+    editorChoices.makeGlobalDefault = true;
+    editorChoices.assignToFeed = true;
+    const harness = createHarness({ saveResult });
+    harness.open();
+    const root = modal();
+    const editor = root.querySelector<HTMLTextAreaElement>("textarea");
+    const select = root.querySelector<HTMLSelectElement>(
+      "#rss-dashboard-saved-template",
+    );
+    const saveAs = root.querySelector<HTMLButtonElement>(
+      ".rss-dashboard-custom-save-template-button",
+    );
+    if (!editor || !select || !saveAs)
+      throw new Error("Dialog was not rendered");
+    editor.value = "Edited: {{title}}";
+    editor.dispatchEvent(new Event("input"));
+    saveAs.click();
+    await vi.waitFor(() => expect(select.options).toHaveLength(2));
+    root
+      .querySelector<HTMLButtonElement>(
+        ".rss-dashboard-custom-save-confirm-button",
+      )
+      ?.click();
+    await vi.waitFor(() => expect(harness.saveArticle).toHaveBeenCalledOnce());
+    return harness;
+  }
+
+  it("adds the template, makes it the global default and assigns the feed once the save succeeds", async () => {
+    const harness = await saveWithNewTemplate({ path: "Saved/Fixture.md" });
+    await vi.waitFor(() => expect(harness.saveSettings).toHaveBeenCalledOnce());
+
+    const added = harness.settings.articleSaving.savedTemplates;
+    expect(added).toHaveLength(1);
+    expect(added[0]).toMatchObject({
+      name: "New one",
+      template: "Edited: {{title}}",
+    });
+    expect(harness.settings.articleSaving.globalDefaultTemplateId).toBe(
+      added[0]?.id,
+    );
+    expect(harness.feed.customTemplate).toBe(added[0]?.id);
+  });
+
+  it("changes no setting when the save fails", async () => {
+    const harness = await saveWithNewTemplate(null);
+    // The dialog closes after the failed save, so nothing is still pending.
+    await vi.waitFor(() =>
+      expect(
+        activeDocument.querySelector(".rss-dashboard-custom-save-modal"),
+      ).toBeNull(),
+    );
+
+    expect(harness.settings.articleSaving.savedTemplates).toEqual([]);
+    expect(
+      harness.settings.articleSaving.globalDefaultTemplateId,
+    ).toBeUndefined();
+    expect(harness.feed.customTemplate).toBeUndefined();
+    expect(harness.saveSettings).not.toHaveBeenCalled();
+    expect(harness.item.saved).toBeUndefined();
   });
 });

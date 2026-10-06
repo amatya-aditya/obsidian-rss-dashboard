@@ -220,3 +220,71 @@ describe("saved template editor styles", () => {
     ).toBe("anywhere");
   });
 });
+
+describe("Saved template name uniqueness", () => {
+  const existing = [
+    { id: "alpha", name: "Alpha", template: "A: {{title}}" },
+    { id: "beta", name: "Beta", template: "B: {{title}}" },
+  ];
+
+  function openNamed(name: string, editingId?: string) {
+    const modal = new SavedTemplateEditorModal(
+      new App(),
+      {
+        name,
+        template: "Body",
+        defaultFolder: "",
+        filenamePattern: "",
+        makeGlobalDefault: false,
+      },
+      existing,
+      editingId,
+    );
+    const closed = vi.fn();
+    void modal.waitForClose().then(closed);
+    modal.open();
+    return { modal, closed };
+  }
+
+  function clickSave(modal: SavedTemplateEditorModal): void {
+    const save = Array.from(modal.contentEl.querySelectorAll("button")).find(
+      (button) => button.textContent?.trim() === "Save",
+    );
+    if (!save) throw new Error("Save button was not rendered");
+    save.click();
+  }
+
+  it("rejects a name another template already has, ignoring case and surrounding spaces", async () => {
+    const notice = vi.spyOn(console, "debug").mockImplementation(() => {});
+    const { modal, closed } = openNamed("  aLPha  ");
+
+    clickSave(modal);
+    await Promise.resolve();
+
+    expect(notice).toHaveBeenCalledWith(
+      "[Stub Notice]",
+      "Template names must be unique.",
+    );
+    expect(closed).not.toHaveBeenCalled();
+    expect(modal.contentEl.querySelector(".rss-template-form")).not.toBeNull();
+    notice.mockRestore();
+  });
+
+  it("lets a template keep its own name when it is edited", async () => {
+    const { modal, closed } = openNamed("Alpha", "alpha");
+
+    clickSave(modal);
+    await vi.waitFor(() => expect(closed).toHaveBeenCalledOnce());
+
+    expect(closed.mock.calls[0]?.[0]).toMatchObject({ name: "Alpha" });
+  });
+
+  it("trims the saved name when it is unique", async () => {
+    const { modal, closed } = openNamed("  Gamma  ");
+
+    clickSave(modal);
+    await vi.waitFor(() => expect(closed).toHaveBeenCalledOnce());
+
+    expect(closed.mock.calls[0]?.[0]).toMatchObject({ name: "Gamma" });
+  });
+});
