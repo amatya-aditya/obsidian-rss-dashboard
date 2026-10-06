@@ -77,7 +77,7 @@ describe("version status bar setting and command", () => {
 
     expect(savedPreference).toBe(true);
     expect(statusItems).toHaveLength(1);
-    expect(statusItems[0]?.textContent).toBe("RSS Dashboard v2.7.0");
+    expect(statusItems[0]?.textContent).toBe("Version 2.7.0 · build unknown");
     expect(statusItems[0]?.getAttribute("tabindex")).toBeNull();
     expect(statusItems[0]?.getAttribute("role")).toBeNull();
     expect(statusItems[0]?.onclick).toBeNull();
@@ -94,7 +94,7 @@ describe("version status bar setting and command", () => {
     await Promise.resolve();
     expect(savedPreference).toBe(true);
     expect(statusItems).toHaveLength(2);
-    expect(statusItems[1]?.textContent).toBe("RSS Dashboard v2.7.0");
+    expect(statusItems[1]?.textContent).toBe("Version 2.7.0 · build unknown");
     expect(statusItems.filter((item) => item.isConnected)).toHaveLength(1);
 
     toggle.checked = false;
@@ -162,7 +162,9 @@ describe("version status bar setting and command", () => {
     savedPreference = true;
     const reloaded = createFeature();
     expect(reloaded.statusItems).toHaveLength(1);
-    expect(reloaded.statusItems[0]?.textContent).toBe("RSS Dashboard v2.7.0");
+    expect(reloaded.statusItems[0]?.textContent).toBe(
+      "Version 2.7.0 · build unknown",
+    );
     reloaded.feature.dispose();
   });
 });

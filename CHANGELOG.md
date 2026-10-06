@@ -2,7 +2,7 @@
 
 ### Features
 
-- Add an optional static version readout to the status bar. [GH Issue #803](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/803)
+- Add an optional status bar label with the same version, build identifier, and timestamp shown in About. [GH Issue #803](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/803)
 - Sidebar toolbar and article-header icon actions use native buttons with built-in keyboard activation. [GH Issue #502](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/502)
 - Added `{{firstSeenISO}}` for the article's first-seen local date in `YYYY-MM-DD` format, using the same date fallback as `{{firstSeen}}`. [GH Issue #761](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/761)
 - Reader images now show useful descriptions and filenames in themed tooltips; lightbox images are keyboard-operable and announce image descriptions accessibly. [GH Issue #747](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/747)

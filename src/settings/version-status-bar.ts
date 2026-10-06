@@ -1,4 +1,5 @@
 import { Setting, type Plugin as ObsidianPlugin } from "obsidian";
+import { formatBuildLabel, getBuildInfo } from "../utils/build-info";
 
 type Command = Parameters<ObsidianPlugin["addCommand"]>[0];
 
@@ -25,7 +26,9 @@ export class VersionStatusBarFeature {
   renderSetting(containerEl: HTMLElement): void {
     new Setting(containerEl)
       .setName("Show version in status bar")
-      .setDesc("Display the RSS dashboard version in Obsidian's status bar.")
+      .setDesc(
+        "Display the plugin version, build identifier, and build timestamp in Obsidian's status bar.",
+      )
       .addToggle((toggle) =>
         toggle.setValue(this.enabled).onChange((enabled) => {
           void this.setEnabled(enabled);
@@ -64,6 +67,8 @@ export class VersionStatusBarFeature {
     if (this.statusItem || !this.options.addStatusBarItem) return;
 
     this.statusItem = this.options.addStatusBarItem();
-    this.statusItem.setText(`RSS Dashboard v${this.options.version}`);
+    this.statusItem.setText(
+      formatBuildLabel(this.options.version, getBuildInfo()),
+    );
   }
 }
