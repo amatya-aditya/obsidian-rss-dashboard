@@ -2,6 +2,7 @@ import { type App, Notice, setIcon } from "obsidian";
 import type { FeedItem, RssDashboardSettings, Tag } from "../types/types";
 import { DEFAULT_TAG_COLOR } from "./tag-colors";
 import { showEditTagModal } from "./tag-utils";
+import { onActivate } from "./keyboard-activation";
 import { windowInstanceOf } from "./platform-utils";
 
 export type TagsDropdownPortalOptions = {
@@ -233,7 +234,7 @@ export function createTagsDropdownPortal(
       }, 200);
     });
 
-    editButton.addEventListener("click", (e) => {
+    onActivate(editButton, (e) => {
       e.preventDefault();
       e.stopPropagation();
       const previousTag = { ...tag };
@@ -250,7 +251,7 @@ export function createTagsDropdownPortal(
       });
     });
 
-    deleteButton.addEventListener("click", (e) => {
+    onActivate(deleteButton, (e) => {
       e.preventDefault();
       e.stopPropagation();
       deleteTagFromProfile(tag);

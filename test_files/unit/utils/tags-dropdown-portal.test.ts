@@ -115,6 +115,70 @@ describe("createTagsDropdownPortal tag editing", () => {
     close();
   });
 
+  it.each(["Enter", " "])(
+    "opens the tag editor when %j is pressed on the Edit button",
+    (key) => {
+      const { anchor } = createModalWithAnchor();
+      const settings = JSON.parse(
+        JSON.stringify(DEFAULT_SETTINGS),
+      ) as typeof DEFAULT_SETTINGS;
+      settings.availableTags = [{ name: "News", color: "#ff0000" }];
+      const close = createTagsDropdownPortal({
+        app: new App(),
+        anchor,
+        settings,
+        item: makeItem(),
+        onTagAssignmentChange: vi.fn(),
+      });
+
+      const keydown = new KeyboardEvent("keydown", {
+        key,
+        bubbles: true,
+        cancelable: true,
+      });
+      document
+        .querySelector<HTMLElement>(".rss-dashboard-tag-edit-button")!
+        .dispatchEvent(keydown);
+
+      expect(
+        document.querySelector(".rss-dashboard-tag-modal-color-picker"),
+      ).not.toBeNull();
+      expect(keydown.defaultPrevented).toBe(true);
+      close();
+    },
+  );
+
+  it.each(["Enter", " "])(
+    "deletes the tag when %j is pressed on the Delete button",
+    (key) => {
+      const { anchor } = createModalWithAnchor();
+      const settings = JSON.parse(
+        JSON.stringify(DEFAULT_SETTINGS),
+      ) as typeof DEFAULT_SETTINGS;
+      settings.availableTags = [{ name: "News", color: "#ff0000" }];
+      const close = createTagsDropdownPortal({
+        app: new App(),
+        anchor,
+        settings,
+        item: makeItem(),
+        onTagAssignmentChange: vi.fn(),
+      });
+
+      document
+        .querySelector<HTMLElement>(".rss-dashboard-tag-delete-button")!
+        .dispatchEvent(
+          new KeyboardEvent("keydown", {
+            key,
+            bubbles: true,
+            cancelable: true,
+          }),
+        );
+
+      expect(settings.availableTags).toHaveLength(0);
+      close();
+    },
+  );
+
   it("reports the previous and updated tag after an edit is saved", async () => {
     const { anchor } = createModalWithAnchor();
     const settings = JSON.parse(
