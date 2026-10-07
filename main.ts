@@ -94,6 +94,7 @@ import {
 } from "./src/release-notes";
 import { migrateSettings } from "./src/utils/settings-loader";
 import { applyAutomaticArticleTags } from "./src/utils/tag-utils";
+import { registerPaletteCommands } from "./src/commands/palette-commands";
 import { VersionStatusBarFeature } from "./src/settings/version-status-bar";
 
 export interface FiltersUpdatedEventPayload {
@@ -868,6 +869,7 @@ export default class RssDashboardPlugin extends Plugin {
       addStatusBarItem: Platform.isMobile
         ? undefined
         : () => this.addStatusBarItem(),
+      openDashboard: () => this.activateView(),
       saveEnabled: async (enabled) => {
         this.settings.display.showVersionInStatusBar = enabled;
         await this.saveSettings();
@@ -1097,6 +1099,7 @@ export default class RssDashboardPlugin extends Plugin {
     });
 
     this.versionStatusBar?.registerCommand();
+    registerPaletteCommands(this);
   }
 
   private scheduleStartupRefresh(
