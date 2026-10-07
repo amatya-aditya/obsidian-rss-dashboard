@@ -9,9 +9,9 @@ import {
 } from "../../../src/types/types";
 import { App } from "obsidian";
 import {
-  ReaderCustomSaveModal,
-  type ReaderCustomSaveModalContext,
-} from "../../../src/modals/reader-custom-save-modal";
+  CustomSaveModal,
+  type CustomSaveModalContext,
+} from "../../../src/modals/custom-save-modal";
 
 // What the mocked template editor returns and whether the feed prompt accepts.
 const editorChoices = vi.hoisted(() => ({
@@ -121,7 +121,7 @@ function createHarness(options?: {
   const onArticleSave = vi.fn();
   const updateSavedLabel = vi.fn();
   const saveSettings = vi.fn(async () => {});
-  const context: ReaderCustomSaveModalContext = {
+  const context: CustomSaveModalContext = {
     getSettings: () => settings,
     getArticleSaver: () => ({ saveArticle, getFilenamePreview }) as never,
     displayTitle: options?.displayTitle,
@@ -134,7 +134,25 @@ function createHarness(options?: {
           template.id === settings.articleSaving.globalDefaultTemplateId,
       ),
     saveSettings,
-    buildReaderSaveMarkdown: () => "Reader body",
+    saveArticle: (article, request) => {
+      const saveItem = options?.displayTitle
+        ? { ...article, title: options.displayTitle }
+        : article;
+      return request.savedTemplate
+        ? saveArticle(
+            saveItem,
+            request.folder,
+            request.template,
+            "Reader body",
+            request.savedTemplate,
+          )
+        : saveArticle(
+            saveItem,
+            request.folder,
+            request.template,
+            "Reader body",
+          );
+    },
     onArticleSave,
     updateSavedLabel,
   };
@@ -147,7 +165,7 @@ function createHarness(options?: {
     getFilenamePreview,
     onArticleSave,
     updateSavedLabel,
-    open: () => new ReaderCustomSaveModal(new App(), item, context).open(),
+    open: () => new CustomSaveModal(new App(), item, context).open(),
   };
 }
 
@@ -166,7 +184,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe("ReaderCustomSaveModal after Save as new template (#817)", () => {
+describe("CustomSaveModal after Save as new template (#817)", () => {
   const saved = [
     {
       id: "t1",
@@ -249,7 +267,7 @@ describe("ReaderCustomSaveModal after Save as new template (#817)", () => {
   });
 });
 
-describe("ReaderCustomSaveModal commits a new template only after the article saves", () => {
+describe("CustomSaveModal commits a new template only after the article saves", () => {
   async function saveWithNewTemplate(saveResult: { path: string } | null) {
     editorChoices.makeGlobalDefault = true;
     editorChoices.assignToFeed = true;
@@ -296,12 +314,11 @@ describe("ReaderCustomSaveModal commits a new template only after the article sa
 
   it("changes no setting when the save fails", async () => {
     const harness = await saveWithNewTemplate(null);
-    // The dialog closes after the failed save, so nothing is still pending.
-    await vi.waitFor(() =>
-      expect(
-        activeDocument.querySelector(".rss-dashboard-custom-save-modal"),
-      ).toBeNull(),
-    );
+    // The dialog stays open after the failed save so the user can retry.
+    await vi.waitFor(() => expect(harness.saveArticle).toHaveBeenCalledOnce());
+    expect(
+      activeDocument.querySelector(".rss-dashboard-custom-save-modal"),
+    ).not.toBeNull();
 
     expect(harness.settings.articleSaving.savedTemplates).toEqual([]);
     expect(

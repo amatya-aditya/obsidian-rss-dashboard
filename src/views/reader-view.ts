@@ -97,9 +97,9 @@ import { PodcastPlayer } from "./podcast-player";
 import { VideoPlayer } from "./video-player";
 import { RSS_DASHBOARD_VIEW_TYPE, RssDashboardView } from "./dashboard-view";
 import {
-  ReaderCustomSaveModal,
-  type ReaderCustomSaveModalContext,
-} from "../modals/reader-custom-save-modal";
+  CustomSaveModal,
+  type CustomSaveModalContext,
+} from "../modals/custom-save-modal";
 import { ShortcutHelpModal } from "../modals/shortcut-help-modal";
 import { openWebViewerSaveModal } from "../modals/web-viewer-save-modal";
 import { setupReaderHotkeys } from "../hotkeys/reader-hotkeys";
@@ -1180,14 +1180,14 @@ export class ReaderView extends ItemView {
   }
 
   private showCustomSaveModal(item: FeedItem): void {
-    new ReaderCustomSaveModal(
+    new CustomSaveModal(
       this.app,
       item,
-      this.getReaderCustomSaveModalContext(),
+      this.getCustomSaveModalContext(),
     ).open();
   }
 
-  private getReaderCustomSaveModalContext(): ReaderCustomSaveModalContext {
+  private getCustomSaveModalContext(): CustomSaveModalContext {
     return {
       getSettings: () => this.settings,
       getArticleSaver: () => this.articleSaver,
@@ -1195,8 +1195,27 @@ export class ReaderView extends ItemView {
       getSavedTemplateForArticle: (article) =>
         this.getCustomTemplateForArticle(article),
       saveSettings: () => this.persistSettings(),
-      buildReaderSaveMarkdown: (article) =>
-        this.buildReaderSaveMarkdown(article),
+      saveArticle: (article, request) => {
+        const markdownContent = this.buildReaderSaveMarkdown(article);
+        const displayTitle = this.currentDisplayTitle;
+        const saveItem = displayTitle
+          ? { ...article, title: displayTitle }
+          : article;
+        return request.savedTemplate
+          ? this.articleSaver.saveArticle(
+              saveItem,
+              request.folder,
+              request.template,
+              markdownContent,
+              request.savedTemplate,
+            )
+          : this.articleSaver.saveArticle(
+              saveItem,
+              request.folder,
+              request.template,
+              markdownContent,
+            );
+      },
       onArticleSave: (article) => this.onArticleSave(article),
       updateSavedLabel: (saved) => this.updateSavedLabel(saved),
     };

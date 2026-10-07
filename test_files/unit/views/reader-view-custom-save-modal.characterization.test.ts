@@ -477,14 +477,13 @@ describe("ReaderView custom save dialog behavior", () => {
     expect(harness.feed.customTemplate).toBeUndefined();
   });
 
-  it("closes after a failed save result without marking the article saved", async () => {
+  it("stays open after a failed save result without marking the article saved", async () => {
     const harness = createHarness({ saveResult: null });
     const modal = await openCustomSaveDialog(harness);
     getFields(modal).save.click();
 
-    await vi.waitFor(() => {
-      expect(modal.isConnected).toBe(false);
-    });
+    await vi.waitFor(() => expect(harness.saveArticle).toHaveBeenCalled());
+    expect(modal.isConnected).toBe(true);
     expect(harness.item.saved).toBeUndefined();
     expect(harness.item.savedFilePath).toBeUndefined();
     expect(harness.onArticleSave).not.toHaveBeenCalled();
@@ -643,9 +642,8 @@ describe("ReaderView custom save dialog behavior", () => {
     await createPendingTemplate(modal, "Draft", true);
     getFields(modal).save.click();
 
-    await vi.waitFor(() => {
-      expect(modal.isConnected).toBe(false);
-    });
+    await vi.waitFor(() => expect(harness.saveArticle).toHaveBeenCalled());
+    expect(modal.isConnected).toBe(true);
     expect(harness.settings.articleSaving.savedTemplates).toHaveLength(0);
     expect(harness.feed.customTemplate).toBeUndefined();
     expect(harness.item.saved).toBeUndefined();
