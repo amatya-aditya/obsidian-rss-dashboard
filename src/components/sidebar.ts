@@ -2152,7 +2152,7 @@ export class Sidebar {
   }
 
   public openFocusedItem(): void {
-    const row = this.getFocusedSidebarRow();
+    const row = this.getKeyboardActionRow();
     if (!row) {
       return;
     }
@@ -2175,7 +2175,7 @@ export class Sidebar {
   }
 
   public toggleFocusedFolderCollapse(): void {
-    const row = this.getFocusedSidebarRow();
+    const row = this.getKeyboardActionRow();
     if (
       !row ||
       row.target.type !== "folder" ||
@@ -2189,7 +2189,7 @@ export class Sidebar {
   }
 
   public deleteFocusedItem(): void {
-    const row = this.getFocusedSidebarRow();
+    const row = this.getKeyboardActionRow();
     if (!row) {
       return;
     }
@@ -2215,7 +2215,7 @@ export class Sidebar {
   }
 
   public renameFocusedItem(): void {
-    const row = this.getFocusedSidebarRow();
+    const row = this.getKeyboardActionRow();
     if (!row) {
       return;
     }
@@ -2282,6 +2282,16 @@ export class Sidebar {
 
     const key = this.getSidebarTargetKey(this.focusedSidebarTarget);
     return this.sidebarRows.find((row) => row.key === key) ?? null;
+  }
+
+  /**
+   * The row a keyboard action (open, collapse, delete, rename) acts on: the
+   * remembered row, but only while the sidebar has keyboard focus. Once the
+   * keyboard moves to the dashboard the target is kept so Shift+S resumes
+   * there, yet no action may fire on it.
+   */
+  private getKeyboardActionRow(): SidebarRowDescriptor | null {
+    return this.isSidebarKeyboardFocused ? this.getFocusedSidebarRow() : null;
   }
 
   private findDefaultSidebarFocusRow(): SidebarRowDescriptor | null {
