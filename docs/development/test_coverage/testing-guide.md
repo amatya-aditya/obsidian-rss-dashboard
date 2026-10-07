@@ -118,12 +118,18 @@ hotkey calls and sets no default hotkey (suggested bindings are documented, not
 shipped). Reader and dashboard commands use `checkCallback`: they are listed
 only while that view is open, and `checking=true` never changes anything.
 
-| Group     | Ids                                                                                                                                                                                                                    | Available                |
-| --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------ |
-| Settings  | `open-settings-general`, `-storage`, `-display`, `-sidebar`, `-media`, `-article-saving`, `-rules`, `-highlights`, `-import-export`, `-tags`, `-about` (one per tab in `SETTINGS_TAB_NAMES`)                           | Always                   |
-| Dashboard | `dashboard-focus-search`, `dashboard-clear-filters`, `dashboard-filter-all`, `-unread`, `-read`, `-starred`, `dashboard-view-list`, `-card`, `-feed`, `dashboard-collapse-all-folders`, `dashboard-expand-all-folders` | A dashboard view is open |
-| Reader    | `reader-next-article`, `reader-previous-article`, `reader-close`, `reader-toggle-star`, `reader-toggle-read`, `reader-open-tags`, `reader-open-original`                                                               | A Reader view is open    |
-| Existing  | `open-dashboard`, `open-discover`, `refresh-feeds`, `toggle-sidebar`, `show-version-in-status-bar`, and the import/export commands in `main.ts`                                                                        | See `registerCommands`   |
+| Group     | Ids                                                                                                                                                                                                                                                                            | Available                |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------ |
+| Settings  | `open-settings-general`, `-storage`, `-display`, `-sidebar`, `-media`, `-article-saving`, `-rules`, `-highlights`, `-import-export`, `-tags`, `-about` (one per tab in `SETTINGS_TAB_NAMES`)                                                                                   | Always                   |
+| Dashboard | `dashboard-focus-search`, `dashboard-clear-filters`, `dashboard-filter-all`, `-unread`, `-read`, `-starred`, `dashboard-view-list`, `-card`, `-feed`, `dashboard-collapse-all-folders`, `dashboard-expand-all-folders`, `dashboard-mark-all-read`, `dashboard-mark-all-unread` | A dashboard view is open |
+| Reader    | `reader-next-article`, `reader-previous-article`, `reader-close`, `reader-toggle-star`, `reader-toggle-read`, `reader-open-tags`, `reader-open-original`                                                                                                                       | A Reader view is open    |
+| Existing  | `open-dashboard`, `open-discover`, `refresh-feeds`, `toggle-sidebar`, `show-version-in-status-bar`, and the import/export commands in `main.ts`                                                                                                                                | See `registerCommands`   |
+
+`dashboard-mark-all-read` and `dashboard-mark-all-unread` act on the current
+filtered view, like the header-menu buttons, with no confirmation. Their Notice
+names the view using the article header title, for example `Marked 14 items as
+read in All Unread articles`; with nothing to change it is `No unread items in
+current view` (or `No read items in current view`).
 
 The version status bar item (Display setting "Show version in status bar") has
 `role="status"` and the accessible name `RSS Dashboard version <version>`.

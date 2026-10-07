@@ -127,6 +127,8 @@ const PALETTE_COMMAND_LOG = [
   "addCommand:dashboard-view-feed",
   "addCommand:dashboard-collapse-all-folders",
   "addCommand:dashboard-expand-all-folders",
+  "addCommand:dashboard-mark-all-read",
+  "addCommand:dashboard-mark-all-unread",
   "addCommand:reader-next-article",
   "addCommand:reader-previous-article",
   "addCommand:reader-close",
