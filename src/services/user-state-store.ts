@@ -274,7 +274,10 @@ export class UserStateStore {
     return { states, unattributed };
   }
 
-  public async save(settings: RssDashboardSettings): Promise<void> {
+  public async save(
+    settings: RssDashboardSettings,
+    authoritativeLoadedState = false,
+  ): Promise<void> {
     // `user-state.json` is a durable store that gets updated, not rebuilt: an
     // item absent from memory (a feed that failed to hydrate, whose shard
     // hasn't synced yet, or whose item retention pruned) must not read as
@@ -303,7 +306,11 @@ export class UserStateStore {
         : {};
     const now = Date.now();
 
-    const currentFeedIds = this.mergeLoadedItems(settings, states);
+    const currentFeedIds = this.mergeLoadedItems(
+      settings,
+      states,
+      authoritativeLoadedState,
+    );
 
     const { settleRemovals, stateKeysByUnrecognizedFeedId } =
       this.applyFeedRemovals(states, missingSinceByStateKey, currentFeedIds);
@@ -367,6 +374,7 @@ export class UserStateStore {
   private mergeLoadedItems(
     settings: RssDashboardSettings,
     states: Record<string, ArticleUserState>,
+    authoritativeLoadedState: boolean,
   ): Set<string> {
     const currentFeedIds = new Set<string>();
     for (const feed of settings.feeds) {
@@ -374,7 +382,12 @@ export class UserStateStore {
       currentFeedIds.add(feedId);
 
       for (const item of feed.items) {
-        this.mergeLoadedItem(userStateKey(feedId, item.guid), item, states);
+        this.mergeLoadedItem(
+          userStateKey(feedId, item.guid),
+          item,
+          states,
+          authoritativeLoadedState,
+        );
       }
     }
     return currentFeedIds;
@@ -384,6 +397,7 @@ export class UserStateStore {
     key: string,
     item: FeedItem,
     states: Record<string, ArticleUserState>,
+    authoritativeLoadedState: boolean,
   ): void {
     const baseline = states[key];
 
@@ -396,7 +410,9 @@ export class UserStateStore {
     // it as synced from here on so a genuine later reset is trusted.
     if (!this.syncedUserStateKeys.has(key)) {
       this.syncedUserStateKeys.add(key);
-      if (baseline) {
+      // A replacing bundle supplies deliberate state, not parser defaults.
+      // Trust it only for this save; ordinary missing-shard recovery stays guarded.
+      if (baseline && !authoritativeLoadedState) {
         applyPersistedState(item, baseline);
         return;
       }
