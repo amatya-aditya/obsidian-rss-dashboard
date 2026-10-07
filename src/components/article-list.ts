@@ -203,6 +203,11 @@ export class ArticleList {
     );
   }
 
+  /** Focuses the article search; false when the header has no search to focus. */
+  public focusSearch(): boolean {
+    return this.header?.focusSearch() ?? false;
+  }
+
   public destroy(): void {
     if (this.resizeObserver) {
       this.resizeObserver.disconnect();

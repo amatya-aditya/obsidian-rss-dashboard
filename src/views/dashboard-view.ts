@@ -679,19 +679,14 @@ export class RssDashboardView extends ItemView {
   }
 
   /**
-   * Action: Focus and select the article search input.
+   * Action: Focus and select the article search input, opening the header
+   * menu that holds it when the desktop controls are not displayed.
    * @internal
    */
   public actionFocusSearch(): void {
-    const input = this.containerEl.querySelector<HTMLInputElement>(
-      ".rss-dashboard-article-search-input",
-    );
-    if (!input) {
+    if (!this.articleList?.focusSearch()) {
       new Notice("The article search box is not visible.");
-      return;
     }
-    input.focus();
-    input.select();
   }
 
   /**

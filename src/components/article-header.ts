@@ -8,6 +8,7 @@ interface ArticleHeaderMenuController {
   destroy(): void;
   render(parent: HTMLElement): void;
   setSearchQuery(query: string): void;
+  focusSearch(): boolean;
 }
 
 export interface ArticleHeaderCallbacks {
@@ -533,6 +534,21 @@ export class ArticleHeader {
       const maxLeft = activeWindow.innerWidth - pRect.width - margin;
       portal.style.left = `${Math.max(margin, Math.min(rect.left, maxLeft))}px`;
     });
+  }
+
+  /**
+   * Focuses the article search. The desktop input is used when it is
+   * displayed; otherwise the hamburger menu opens and focuses its own input.
+   * Returns false when no search input could be focused.
+   */
+  public focusSearch(): boolean {
+    const desktopInput = this.articleSearchDesktopInput;
+    if (desktopInput && desktopInput.getClientRects().length > 0) {
+      desktopInput.focus();
+      desktopInput.select();
+      return true;
+    }
+    return this.headerMenu?.focusSearch() ?? false;
   }
 
   private syncSearch(val: string) {

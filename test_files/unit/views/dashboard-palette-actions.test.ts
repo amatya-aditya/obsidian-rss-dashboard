@@ -39,13 +39,21 @@ interface PrivateView {
   handleClearTags: () => void;
   selectedTags: string[];
   sidebar: unknown;
+  articleList: unknown;
 }
 
 describe("dashboard actions behind palette commands", () => {
   let view: RssDashboardView;
   let privateView: PrivateView;
+  let debugSpy: ReturnType<typeof vi.spyOn>;
+
+  const noticeMessages = (): unknown[] =>
+    debugSpy.mock.calls
+      .filter((call: unknown[]) => call[0] === "[Stub Notice]")
+      .map((call: unknown[]) => call[1]);
 
   beforeEach(() => {
+    debugSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
     installObsidianDomPolyfills();
     document.body.empty();
     const app = {
@@ -115,18 +123,34 @@ describe("dashboard actions behind palette commands", () => {
     expect(clearTagsSpy).not.toHaveBeenCalled();
   });
 
-  it("actionFocusSearch focuses and selects the article search input", () => {
-    const input = view.containerEl.createEl("input", {
-      cls: "rss-dashboard-article-search-input",
-    });
-    document.body.appendChild(view.containerEl);
-    input.value = "query";
+  it("actionFocusSearch asks the article list to focus its search", () => {
+    const focusSearch = vi.fn().mockReturnValue(true);
+    privateView.articleList = { focusSearch };
 
     view.actionFocusSearch();
 
-    expect(document.activeElement).toBe(input);
-    expect(input.selectionStart).toBe(0);
-    expect(input.selectionEnd).toBe(5);
+    expect(focusSearch).toHaveBeenCalledTimes(1);
+    expect(noticeMessages()).toEqual([]);
+  });
+
+  it("actionFocusSearch shows a notice when no search can be focused", () => {
+    privateView.articleList = { focusSearch: vi.fn().mockReturnValue(false) };
+
+    view.actionFocusSearch();
+
+    expect(noticeMessages()).toEqual([
+      "The article search box is not visible.",
+    ]);
+  });
+
+  it("actionFocusSearch shows a notice before the article list exists", () => {
+    privateView.articleList = undefined;
+
+    view.actionFocusSearch();
+
+    expect(noticeMessages()).toEqual([
+      "The article search box is not visible.",
+    ]);
   });
 
   it("actionSetAllFoldersCollapsed delegates to the sidebar", () => {

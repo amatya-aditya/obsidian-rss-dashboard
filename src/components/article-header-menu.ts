@@ -165,6 +165,38 @@ export class ArticleHeaderMenu {
     }
   }
 
+  /**
+   * Opens the dropdown if it is closed, then focuses and selects its search
+   * input. Returns false when the menu has not been rendered.
+   */
+  public focusSearch(): boolean {
+    const input = this.searchInput;
+    if (!input || !this.dropdownMenu) return false;
+    if (!this.dropdownMenu.classList.contains("is-menu-open")) {
+      this.toggleMenu();
+    }
+    this.focusWhenVisible(input);
+    return true;
+  }
+
+  /**
+   * The dropdown fades in (`visibility` only flips once its transition has
+   * started), and a hidden input refuses focus. Retry on animation frames until
+   * the focus lands, giving up after a few frames.
+   */
+  private focusWhenVisible(input: HTMLInputElement, attempts = 10): void {
+    input.focus();
+    const ownerDocument = input.ownerDocument;
+    if (ownerDocument.activeElement === input) {
+      input.select();
+      return;
+    }
+    if (attempts <= 0) return;
+    ownerDocument.defaultView?.requestAnimationFrame(() =>
+      this.focusWhenVisible(input, attempts - 1),
+    );
+  }
+
   private closeMenu(): void {
     this.closeActivePortal();
     this.dropdownMenu?.classList.remove("is-menu-open");

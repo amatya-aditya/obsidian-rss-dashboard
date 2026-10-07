@@ -89,6 +89,49 @@ describe("ArticleHeader Component", () => {
     expect(mockCallbacks.onToggleSidebar).toHaveBeenCalled();
   });
 
+  it("focusSearch opens the hamburger menu when the desktop search is not displayed", () => {
+    const header = new ArticleHeader(
+      container,
+      settings,
+      "Title",
+      null,
+      null,
+      new Set(),
+      new Set(),
+      "OR",
+      mockCallbacks,
+    );
+    header.render();
+    const menuInput = container.querySelector<HTMLInputElement>(
+      ".rss-dashboard-dropdown-menu .rss-dashboard-article-search-input",
+    );
+
+    expect(header.focusSearch()).toBe(true);
+
+    expect(document.activeElement).toBe(menuInput);
+    expect(
+      container
+        .querySelector(".rss-dashboard-dropdown-menu")
+        ?.classList.contains("is-menu-open"),
+    ).toBe(true);
+  });
+
+  it("focusSearch reports false before the header is rendered", () => {
+    const header = new ArticleHeader(
+      container,
+      settings,
+      "Title",
+      null,
+      null,
+      new Set(),
+      new Set(),
+      "OR",
+      mockCallbacks,
+    );
+
+    expect(header.focusSearch()).toBe(false);
+  });
+
   it("closes the mobile filter menu when its button is clicked again", () => {
     const header = new ArticleHeader(
       container,
