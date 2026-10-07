@@ -57,7 +57,11 @@ export const SHORTCUT_SECTIONS: ShortcutSection[] = [
   {
     section: "Article manipulation",
     items: [
-      { key: "Arrow keys", desc: "Card view navigation" },
+      { key: "ArrowUp / ArrowDown", desc: "Move article selection up / down" },
+      {
+        key: "ArrowLeft / ArrowRight",
+        desc: "Move article selection left / right (card view only)",
+      },
       { key: "o / Enter", desc: "Open article in reader pane" },
       { key: "k", desc: "Close reader pane" },
       { key: "j", desc: "Open previous article" },
