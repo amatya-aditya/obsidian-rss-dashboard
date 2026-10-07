@@ -594,11 +594,13 @@ export class ReaderView extends ItemView {
   }
 
   /**
-   * Action: Mark read/unread and open next article.
+   * Action: Mark read (never unread) and open next article.
    * @internal
    */
   public actionMarkReadAndNext(): void {
-    this.actionToggleReadStatus();
+    if (this.currentItem && !this.currentItem.read) {
+      this.toggleReadStatus();
+    }
     this.actionNavigateNext();
   }
 
