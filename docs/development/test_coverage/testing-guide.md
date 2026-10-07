@@ -149,3 +149,36 @@ between the buttons, and Tab leaves the toolbar. Actions: `save`, `read`,
 `format`). The accessible names of `read`, `star`, and `save` change with the
 article's state, because the view writes its tooltips to `aria-label`; look
 those up by `data-rss-action`.
+
+## 11. Refresh live region and the ready flag
+
+Each dashboard view has one visually hidden status region, class
+`rss-dashboard-refresh-announcer`, with `role="status"` and
+`aria-live="polite"`, inside its own root (`containerEl`). It is created by
+`createLiveRegion()` in `src/utils/live-region.ts` and survives re-renders. A
+popout or a second open dashboard has its own region.
+
+Refresh announcements come from `FeedRefreshRunner` through the workspace event
+`rss-dashboard:refresh-announcement` (`src/services/refresh-announcements.ts`).
+One message per event, never per feed:
+
+| Event                   | Text                                                                  |
+| ----------------------- | --------------------------------------------------------------------- |
+| Run starts              | `Refreshing 3 feeds.` or `Refreshing <feed title>.`                   |
+| Run finishes            | `Refresh finished: 4 new articles, 1 feed timed out, 2 feeds failed.` |
+| Run finishes, none new  | `Refresh finished: no new articles.`                                  |
+| User stops a global run | `Refresh stopped.`                                                    |
+| Run throws outright     | `Refresh failed: <message>`                                           |
+
+A background refresh of due feeds (intent `due`) is quiet: no start message,
+and a finish message only when it found articles or errors. To assert in a
+test, read the region's text, or observe it with a `MutationObserver` to count
+announcements (see `test_files/unit/main/refresh-announcements.test.ts`).
+
+`data-rss-ready` is set on the dashboard view root (`containerEl`) by
+`markViewReady()` in `src/utils/view-ready.ts`, the only code that writes it. It
+is absent until the first render has finished, present afterwards, and removed
+when the view closes, so a reopened dashboard starts absent again. A harness
+waits for `.workspace-leaf-content[data-type="rss-dashboard-view"][data-rss-ready]`
+(the tab header carries the same `data-type`, so name the content class)
+instead of a timeout. It is a convenience signal; it never replaces role and name queries.

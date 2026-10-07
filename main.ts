@@ -65,6 +65,7 @@ import { ImportConfirmationModal } from "./src/settings/modals/import-confirmati
 import type { ExportBlobResult } from "./src/utils/export-utils";
 import { BackgroundImportService } from "./src/services/background-import-service";
 import { FeedRefreshScheduler } from "./src/services/feed-refresh-scheduler";
+import { REFRESH_ANNOUNCEMENT_EVENT } from "./src/services/refresh-announcements";
 import { OpmlManager } from "./src/services/opml-manager";
 import { PreviewImageCache } from "./src/services/preview-image-cache";
 import { FeedOperationTracker } from "./src/services/feed-operation-tracker";
@@ -281,6 +282,8 @@ export default class RssDashboardPlugin extends Plugin {
       validateSavedArticles: () => this.validateSavedArticles(),
       clearFeedShardHealth: (feed) => this.clearFeedShardHealth(feed),
       getActiveDashboardView: () => this.getActiveDashboardView(),
+      announce: (message) =>
+        this.app.workspace.trigger(REFRESH_ANNOUNCEMENT_EVENT, message),
       refreshFeeds: (selectedFeeds, intent) =>
         this.refreshFeeds(selectedFeeds, intent),
     });

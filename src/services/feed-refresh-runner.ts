@@ -14,6 +14,15 @@ import {
   FEED_REFRESH_RENDER_THROTTLE_MS,
   type FeedOperationTracker,
 } from "./feed-operation-tracker";
+import {
+  RefreshRunTally,
+  refreshFailedMessage,
+  refreshFinishedMessage,
+  refreshStartedMessage,
+  refreshStoppedMessage,
+  shouldAnnounceFinish,
+  type FeedRefreshOutcome,
+} from "./refresh-announcements";
 
 /** The dashboard view methods the runner redraws through. main.ts supplies the view. */
 export interface RefreshDashboardViewLike {
@@ -38,6 +47,8 @@ export interface FeedRefreshRunnerOptions {
   validateSavedArticles: () => Promise<void>;
   clearFeedShardHealth: (feed: Feed) => void;
   getActiveDashboardView: () => Promise<RefreshDashboardViewLike | null>;
+  /** Says one refresh event to every open dashboard's live region. */
+  announce: (message: string) => void;
   /**
    * The plugin's refreshFeeds facade. Retry-failed and folder refreshes go
    * through it, so a caller that replaces plugin.refreshFeeds still sees them.
@@ -122,7 +133,12 @@ export class FeedRefreshRunner {
         if (!singleFeed) {
           return;
         }
-        await this.refreshSingleFeed(singleFeed, feedNoticeText, false);
+        await this.refreshSingleFeed(
+          singleFeed,
+          feedNoticeText,
+          false,
+          intent === "due",
+        );
         return;
       }
 
@@ -132,6 +148,7 @@ export class FeedRefreshRunner {
       new Notice(
         `Error refreshing  ${error instanceof Error ? error.message : "Unknown error"}`,
       );
+      this.options.announce(refreshFailedMessage(error));
     }
   }
 
@@ -165,6 +182,7 @@ export class FeedRefreshRunner {
       new Notice(
         `Error refreshing  ${error instanceof Error ? error.message : "Unknown error"}`,
       );
+      this.options.announce(refreshFailedMessage(error));
     }
   }
 
@@ -213,13 +231,27 @@ export class FeedRefreshRunner {
     }
   }
 
+  /**
+   * The guids a feed holds before its fetch. The parser rewrites the stored
+   * feed's items in place, so this has to be read before the fetch starts, not
+   * when the result comes back.
+   */
+  private snapshotGuids(feed: Feed): Set<string> {
+    return new Set(feed.items.map((item) => item.guid));
+  }
+
   private finalizeRefreshAttempt(
     feed: Feed,
     updatedFeed?: Feed,
     error?: unknown,
-  ): void {
+    guidsBeforeFetch?: Set<string>,
+  ): FeedRefreshOutcome {
     const completedAt = Date.now();
     if (updatedFeed) {
+      const newArticles = guidsBeforeFetch
+        ? updatedFeed.items.filter((item) => !guidsBeforeFetch.has(item.guid))
+            .length
+        : 0;
       this.mergeRefreshedFeed({
         ...updatedFeed,
         lastRefreshAttemptCompletedAt: completedAt,
@@ -229,19 +261,20 @@ export class FeedRefreshRunner {
         this.options.clearFeedShardHealth(feed);
       }
       this.previewImageCache.warmFeed(updatedFeed);
-      return;
+      return { newArticles, failed: Boolean(updatedFeed.lastFetchError) };
     }
 
+    const failedOutcome: FeedRefreshOutcome = { newArticles: 0, failed: true };
     const index = this.settings.feeds.findIndex(
       (storedFeed) => storedFeed === feed || storedFeed.url === feed.url,
     );
     if (index < 0) {
-      return;
+      return failedOutcome;
     }
 
     const storedFeed = this.settings.feeds[index];
     if (!storedFeed) {
-      return;
+      return failedOutcome;
     }
 
     this.settings.feeds[index] = {
@@ -249,16 +282,22 @@ export class FeedRefreshRunner {
       lastRefreshAttemptCompletedAt: completedAt,
       lastFetchError: error instanceof Error ? error.message : String(error),
     };
+    return failedOutcome;
   }
 
   private async refreshSingleFeed(
     feed: Feed,
     feedNoticeText: string,
     isExplicitGlobalRefresh: boolean,
+    quiet = false,
   ): Promise<void> {
     const operation = this.feedOperationTracker.trackOperation();
     const cancelSignal = operation.signal;
+    const tally = new RefreshRunTally();
     try {
+      if (!quiet) {
+        this.options.announce(refreshStartedMessage(feedNoticeText));
+      }
       this.feedOperationTracker.setFeedStatus(feed.url, {
         status: "processing",
         startedAt: Date.now(),
@@ -266,10 +305,18 @@ export class FeedRefreshRunner {
       try {
         await this.feedOperationTracker.renderStatus();
         if (cancelSignal.aborted) return;
+        const guidsBeforeFetch = this.snapshotGuids(feed);
         const updatedFeed = await this.refreshFeedWithTimeout(feed, {
           signal: cancelSignal,
         });
-        this.finalizeRefreshAttempt(feed, updatedFeed);
+        tally.recordFeed(
+          this.finalizeRefreshAttempt(
+            feed,
+            updatedFeed,
+            undefined,
+            guidsBeforeFetch,
+          ),
+        );
       } catch (error) {
         if (cancelSignal.aborted) return;
         this.finalizeRefreshAttempt(feed, undefined, error);
@@ -299,6 +346,9 @@ export class FeedRefreshRunner {
         view.refresh();
         new Notice(`Feeds refreshed: ${feedNoticeText}`);
       }
+      if (shouldAnnounceFinish(tally, quiet)) {
+        this.options.announce(refreshFinishedMessage(tally));
+      }
     } finally {
       operation.release();
     }
@@ -325,6 +375,11 @@ export class FeedRefreshRunner {
       failed: 0,
       timedOut: 0,
     };
+    const tally = new RefreshRunTally();
+    const quiet = intent === "due";
+    if (!quiet) {
+      this.options.announce(refreshStartedMessage(feedNoticeText));
+    }
 
     for (const feed of feedsToRefresh) {
       this.feedOperationTracker.setFeedStatus(feed.url, {
@@ -383,6 +438,7 @@ export class FeedRefreshRunner {
         const refreshPromise = this.processRefreshBatchFeed(
           currentFeed,
           refreshSummary,
+          tally,
           refreshView,
           cancelSignal,
         ).finally(() => {
@@ -433,6 +489,11 @@ export class FeedRefreshRunner {
           intent === "global",
         );
         new Notice(`Feeds refreshed: ${feedNoticeText}${failureSuffix}`);
+        if (shouldAnnounceFinish(tally, quiet)) {
+          this.options.announce(refreshFinishedMessage(tally));
+        }
+      } else {
+        this.options.announce(refreshStoppedMessage());
       }
     } finally {
       await this.feedOperationTracker.end();
@@ -464,6 +525,7 @@ export class FeedRefreshRunner {
   private async processRefreshBatchFeed(
     currentFeed: Feed,
     refreshSummary: { failed: number; timedOut: number },
+    tally: RefreshRunTally,
     refreshView: () => Promise<void>,
     signal?: AbortSignal,
   ): Promise<void> {
@@ -474,17 +536,26 @@ export class FeedRefreshRunner {
     this.feedOperationTracker.scheduleSidebarRender();
 
     try {
+      const guidsBeforeFetch = this.snapshotGuids(currentFeed);
       const updatedFeed = await this.refreshFeedWithTimeout(currentFeed, {
         signal,
       });
       this.feedOperationTracker.recordSettled();
       if (!this.feedOperationTracker.isCancelled) {
-        this.finalizeRefreshAttempt(currentFeed, updatedFeed);
+        tally.recordFeed(
+          this.finalizeRefreshAttempt(
+            currentFeed,
+            updatedFeed,
+            undefined,
+            guidsBeforeFetch,
+          ),
+        );
       }
     } catch (error) {
       this.feedOperationTracker.recordSettled();
       if (!this.feedOperationTracker.isCancelled) {
         this.finalizeRefreshAttempt(currentFeed, undefined, error);
+        tally.recordThrown(error);
       }
       const isTimedOut =
         error instanceof Error && error.message === "Timed out";
