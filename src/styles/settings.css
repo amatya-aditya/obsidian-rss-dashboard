@@ -95,13 +95,19 @@
   margin: 8px 0 0 16px;
   padding: 0;
   list-style-type: none;
-  font-family: var(--font-monospace);
   font-size: 13px;
   color: var(--text-normal);
 }
 
 .rss-dashboard-variable-list li {
   margin-bottom: 2px;
+}
+
+.rss-dashboard-template-help .rss-dashboard-variable-group-heading {
+  margin: 12px 0 0;
+  font-size: var(--font-ui-small);
+  font-weight: var(--font-semibold);
+  color: var(--text-normal);
 }
 
 .rss-dashboard-template-btn-row {

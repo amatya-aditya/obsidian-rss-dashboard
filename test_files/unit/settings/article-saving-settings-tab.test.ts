@@ -391,77 +391,31 @@ describe("renderArticleSavingSettingsTab()", () => {
 });
 
 describe("Article Saving settings help text", () => {
-  it("includes {{image}} in the available variables list", () => {
-    const containerEl = createDiv();
-    const plugin = createPlugin();
-    const onRefresh = vi.fn();
-
-    renderArticleSavingSettingsTab(containerEl, plugin, onRefresh);
-
-    const helpText = containerEl.querySelector(".rss-dashboard-template-help");
-    expect(helpText).not.toBeNull();
-
-    const listItems = Array.from(
-      helpText?.querySelectorAll(".rss-dashboard-variable-list li") ?? [],
-    ).map((li) => li.textContent);
-
-    expect(listItems).toContain("{{image}}");
-  });
-
-  it("includes {{firstSeen}} in the available variables list", () => {
-    const containerEl = createDiv();
-    const plugin = createPlugin();
-    const onRefresh = vi.fn();
-
-    renderArticleSavingSettingsTab(containerEl, plugin, onRefresh);
-
-    const helpText = containerEl.querySelector(".rss-dashboard-template-help");
-    const listItems = Array.from(
-      helpText?.querySelectorAll(".rss-dashboard-variable-list li") ?? [],
-    ).map((li) => li.textContent);
-
-    expect(listItems.some((text) => text?.startsWith("{{firstSeen}}"))).toBe(
-      true,
-    );
-  });
-
-  it("lists {{firstSeenISO}} beside {{firstSeen}} with its date format example", () => {
-    const containerEl = createDiv();
-    const plugin = createPlugin();
-    const onRefresh = vi.fn();
-
-    renderArticleSavingSettingsTab(containerEl, plugin, onRefresh);
-
-    const listItems = Array.from(
-      containerEl.querySelectorAll(
-        ".rss-dashboard-template-help .rss-dashboard-variable-list li",
-      ),
-    ).map((li) => li.textContent ?? "");
-    const firstSeenIndex = listItems.findIndex((text) =>
-      text.startsWith("{{firstSeen}}"),
-    );
-
-    expect(listItems[firstSeenIndex + 1]).toContain("{{firstSeenISO}}");
-    expect(listItems[firstSeenIndex + 1]).toContain("YYYY-MM-DD");
-    expect(listItems[firstSeenIndex + 1]).toContain("2024-04-30");
-  });
-  it("lists {{description}}, {{excerpt}} and {{language}} with what they hold (#247)", () => {
+  it("renders the grouped variable help through the shared renderer", () => {
     const containerEl = createDiv();
     renderArticleSavingSettingsTab(containerEl, createPlugin(), vi.fn());
 
-    const listItems = Array.from(
-      containerEl.querySelectorAll(
-        ".rss-dashboard-template-help .rss-dashboard-variable-list li",
-      ),
-    ).map((li) => li.textContent ?? "");
+    const help = containerEl.querySelector(".rss-dashboard-template-help");
+    expect(help).not.toBeNull();
+    expect(
+      Array.from(help?.querySelectorAll("h4") ?? []).map((h) => h.textContent),
+    ).toHaveLength(6);
+    expect(help?.querySelectorAll("li code").length).toBeGreaterThan(20);
+  });
 
-    for (const name of ["description", "excerpt", "language"]) {
-      expect(listItems.some((text) => text.startsWith(`{{${name}}}`))).toBe(
-        true,
-      );
-    }
-    expect(listItems.find((text) => text.startsWith("{{language}}"))).toContain(
-      "left out when the language is unknown",
+  it("places the template buttons above the variable help", () => {
+    const containerEl = createDiv();
+    renderArticleSavingSettingsTab(containerEl, createPlugin(), vi.fn());
+
+    const buttons = containerEl.querySelector(
+      ".rss-dashboard-template-btn-row",
     );
+    const help = containerEl.querySelector(".rss-dashboard-template-help");
+    expect(buttons).not.toBeNull();
+    expect(help).not.toBeNull();
+    expect(
+      buttons!.compareDocumentPosition(help!) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 });

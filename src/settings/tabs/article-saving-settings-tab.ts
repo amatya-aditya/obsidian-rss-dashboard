@@ -11,6 +11,7 @@ import { DEFAULT_SETTINGS, type SavedTemplate } from "../../types/types";
 import { VaultFolderSuggest } from "../../components/folder-suggest";
 import { SavedTemplateEditorModal } from "../modals/settings-modals";
 import { settingsUiCompatibility } from "../settings-ui-compat";
+import { renderTemplateVariableHelp } from "../template-variable-help";
 
 export interface ArticleSavingPluginLike {
   app: App;
@@ -131,40 +132,6 @@ export function renderArticleSavingSettingsTab(
 
   templateContainer.appendChild(templateInput);
 
-  const helpText = containerEl.createDiv({
-    cls: "setting-item-description rss-dashboard-template-help",
-  });
-
-  helpText.createEl("p", { text: "Available variables:" });
-  const list = helpText.createEl("ul", { cls: "rss-dashboard-variable-list" });
-  [
-    "{{title}}",
-    "{{date}} (Long format)",
-    "{{dateShort}} (YYYY-MM-DD)",
-    "{{date:FORMAT}} (Moment.js format, e.g. {{date:YYYY/MM/DD}})",
-    "{{isoDate}}",
-    "{{firstSeen}} (Date this article was first seen in the dashboard, independent of the 'Use first-seen date for undated items' display setting; falls back to the publish date if unavailable)",
-    // Keep these related variables adjacent in the semantic list (WCAG 2.2, 1.3.1).
-    "{{firstSeenISO}} (Local first-seen date in YYYY-MM-DD format, e.g. 2024-04-30; uses the same fallback as {{firstSeen}})",
-    "{{saveDate}} (Local save date YYYY-MM-DD)",
-    "{{saveTime12}} (Local save time 12-hour format, e.g. 02:45 PM)",
-    "{{saveTime24}} (Local save time 24-hour military format, e.g. 14:45)",
-    "[{{tags}}] (array of tags e.g. [tag1, tag2, ...])",
-    "{{author}}",
-    "{{feedTitle}}",
-    "{{summary}}",
-    "{{description}} (The article page's own description, or the feed's blurb when the page has none)",
-    "{{excerpt}} (A short preview, only when there is no {{description}})",
-    "{{language}} (Language code such as en-US, from the article page or the feed; the line is left out when the language is unknown)",
-    "{{guid}}",
-    "{{content}}",
-    "{{source}}",
-    "{{link}}",
-    "{{image}}",
-  ].forEach((variable) => {
-    list.createEl("li", { text: variable });
-  });
-
   const templateBtnRow = containerEl.createDiv({
     cls: "rss-dashboard-template-btn-row",
   });
@@ -218,6 +185,12 @@ export function renderArticleSavingSettingsTab(
     new Notice(`Template "${newTemplate.name}" saved`);
     onRefresh();
   };
+
+  const helpText = containerEl.createDiv({
+    cls: "setting-item-description rss-dashboard-template-help",
+  });
+
+  renderTemplateVariableHelp(helpText);
 
   // ── Saved templates ───────────────────────────────────────────────────────
   new Setting(containerEl).setName("Saved templates").setHeading();
