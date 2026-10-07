@@ -103,6 +103,41 @@ function createHarness(store: DataStore, app: MockApp): Harness {
 }
 
 /** What onload asks of Obsidian, in order, with no dashboard open. */
+// Palette commands (#827) register last, after the version status bar command.
+const PALETTE_COMMAND_LOG = [
+  "addCommand:open-settings-general",
+  "addCommand:open-settings-storage",
+  "addCommand:open-settings-display",
+  "addCommand:open-settings-sidebar",
+  "addCommand:open-settings-media",
+  "addCommand:open-settings-article-saving",
+  "addCommand:open-settings-rules",
+  "addCommand:open-settings-highlights",
+  "addCommand:open-settings-import-export",
+  "addCommand:open-settings-tags",
+  "addCommand:open-settings-about",
+  "addCommand:dashboard-focus-search",
+  "addCommand:dashboard-clear-filters",
+  "addCommand:dashboard-filter-all",
+  "addCommand:dashboard-filter-unread",
+  "addCommand:dashboard-filter-read",
+  "addCommand:dashboard-filter-starred",
+  "addCommand:dashboard-view-list",
+  "addCommand:dashboard-view-card",
+  "addCommand:dashboard-view-feed",
+  "addCommand:dashboard-collapse-all-folders",
+  "addCommand:dashboard-expand-all-folders",
+  "addCommand:dashboard-mark-all-read",
+  "addCommand:dashboard-mark-all-unread",
+  "addCommand:reader-next-article",
+  "addCommand:reader-previous-article",
+  "addCommand:reader-close",
+  "addCommand:reader-toggle-star",
+  "addCommand:reader-toggle-read",
+  "addCommand:reader-open-tags",
+  "addCommand:reader-open-original",
+];
+
 const STARTUP_SEQUENCE = [
   "loadData",
   "vault.on:modify",
@@ -136,6 +171,7 @@ const STARTUP_SEQUENCE = [
   "addCommand:apply-feed-limits",
   "addCommand:toggle-sidebar",
   "addCommand:show-version-in-status-bar",
+  ...PALETTE_COMMAND_LOG,
 ];
 
 const FEED_URL = "https://example.com/feed.xml";
@@ -643,6 +679,7 @@ describe("onload steps (characterization)", () => {
         "addCommand:apply-feed-limits",
         "addCommand:toggle-sidebar",
         "addCommand:show-version-in-status-bar",
+        ...PALETTE_COMMAND_LOG,
       ]);
     });
 

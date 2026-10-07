@@ -62,6 +62,11 @@ import {
 } from "../utils/filter-title-format";
 import { computePagination } from "../utils/pagination-utils";
 import { removeFolderByPath } from "../utils/folder-tree";
+import { createIconButton } from "../utils/icon-button";
+import { createLiveRegion } from "../utils/live-region";
+import { clearViewReady, markViewReady } from "../utils/view-ready";
+import { REFRESH_ANNOUNCEMENT_EVENT } from "../services/refresh-announcements";
+import { attachRovingToolbar } from "../utils/roving-toolbar";
 import { toggleFeedInMultiSelection } from "../utils/feed-multi-select";
 import { applyAutomaticArticleTags } from "../utils/tag-utils";
 import { resolveItemExternalUrl } from "../utils/item-url-utils";
@@ -598,7 +603,8 @@ export class RssDashboardView extends ItemView {
   }
 
   /**
-   * Action: Mark all filtered articles as read.
+   * Action: Mark all filtered articles as read. The Notice names the view,
+   * using the same title the article header shows.
    * @internal
    */
   public actionMarkAllAsRead(): void {
@@ -607,7 +613,9 @@ export class RssDashboardView extends ItemView {
     if (count > 0) {
       void this.plugin.saveSettings();
       this.scheduleRender();
-      new Notice(`Marked ${count} items as read`);
+      new Notice(
+        `Marked ${count} items as read in ${this.getArticlesTitleInfo().title}`,
+      );
     } else {
       new Notice("No unread items in current view");
     }
@@ -623,7 +631,9 @@ export class RssDashboardView extends ItemView {
     if (count > 0) {
       void this.plugin.saveSettings();
       this.scheduleRender();
-      new Notice(`Marked ${count} items as unread`);
+      new Notice(
+        `Marked ${count} items as unread in ${this.getArticlesTitleInfo().title}`,
+      );
     } else {
       new Notice("No read items in current view");
     }
@@ -664,6 +674,45 @@ export class RssDashboardView extends ItemView {
         tagFilters: new Set<string>(),
       },
     });
+  }
+
+  /**
+   * Action: Show the Starred view, the same view the sidebar Starred entry opens.
+   * @internal
+   */
+  public actionShowStarred(): void {
+    this.handleFolderClick("starred");
+  }
+
+  /**
+   * Action: Clear the status and tag filters and the sidebar tag selection.
+   * @internal
+   */
+  public actionClearFilters(): void {
+    this.actionSetStatusFilter("all");
+    if (this.selectedTags.length > 0) {
+      this.handleClearTags();
+    }
+  }
+
+  /**
+   * Action: Focus and select the article search input, opening the header
+   * menu that holds it when the desktop controls are not displayed.
+   * @internal
+   */
+  public actionFocusSearch(): void {
+    const focused = this.articleList?.focusSearch() ?? Promise.resolve(false);
+    void focused.then((ok) => {
+      if (!ok) new Notice("The article search box is not visible.");
+    });
+  }
+
+  /**
+   * Action: Collapse or expand every sidebar folder.
+   * @internal
+   */
+  public actionSetAllFoldersCollapsed(collapse: boolean): void {
+    this.sidebar?.setAllFoldersCollapsed(collapse);
   }
 
   /**
@@ -824,6 +873,8 @@ export class RssDashboardView extends ItemView {
       }),
     );
 
+    this.mountRefreshAnnouncer();
+
     const container = this.containerEl.children[1];
     if (!container) {
       return Promise.resolve();
@@ -897,8 +948,30 @@ export class RssDashboardView extends ItemView {
     this.dashboardContainer = dashboardContainer;
 
     this.render();
+    markViewReady(this.containerEl);
 
     return Promise.resolve();
+  }
+
+  /**
+   * One polite live region in this view's own root, written by refresh
+   * announcements (WCAG 2.2 4.1.3). It sits outside the re-rendered content,
+   * so a render never clears or recreates it.
+   */
+  private mountRefreshAnnouncer(): void {
+    const region = createLiveRegion(
+      this.containerEl,
+      "rss-dashboard-refresh-announcer",
+    );
+    this.registerEvent(
+      (
+        this.app.workspace as unknown as {
+          on: (name: string, callback: (message: string) => void) => unknown;
+        }
+      ).on(REFRESH_ANNOUNCEMENT_EVENT, (message: string) => {
+        region.announce(message);
+      }) as never,
+    );
   }
 
   render(): void {
@@ -3262,6 +3335,7 @@ export class RssDashboardView extends ItemView {
   }
 
   async onClose(): Promise<void> {
+    clearViewReady(this.containerEl);
     this.closeMobileSidebarModal();
     this.unbindViewportResizeListener();
     this.lastViewportMobileSidebarMode = null;
@@ -3906,86 +3980,90 @@ export class RssDashboardView extends ItemView {
     });
 
     if (this.inlineArticle) {
-      const actions = header.createDiv({ cls: "rss-reader-actions" });
+      const actions = header.createDiv({
+        cls: "rss-reader-actions",
+        attr: { role: "toolbar", "aria-label": "Reader actions" },
+      });
+      const region = "inline-reader-toolbar";
 
-      const saveButton = actions.createDiv({
+      const saveButton = createIconButton({
+        parent: actions,
         cls: `rss-reader-action-button${this.inlineArticle.saved ? " saved" : ""}`,
-        attr: { "aria-label": "Save article" },
-      });
-      setIcon(saveButton, "save");
-      saveButton.addEventListener("click", (event) => {
-        const article = this.inlineArticle;
-        if (!article) return;
-        if (article.saved) {
-          void this.handleArticleSave(article);
-          return;
-        }
-        showSaveOptionsMenu(event, saveButton, {
-          onDefaultSave: () => void this.handleArticleSave(article),
-          onCustomSave: () => this.handleArticleCustomSave(article),
-        });
-      });
-
-      const readToggleButton = actions.createDiv({
-        cls: `rss-reader-action-button rss-reader-read-toggle${this.inlineArticle.read ? " read" : ""}`,
-        attr: { "aria-label": "Mark as read/unread" },
-      });
-      setIcon(
-        readToggleButton,
-        this.inlineArticle.read ? "check-circle" : "circle",
-      );
-      readToggleButton.addEventListener("click", () => {
-        if (this.inlineArticle) {
-          void this.handleArticleUpdate(
-            this.inlineArticle,
-            { read: !this.inlineArticle.read },
-            true,
-          );
-        }
-      });
-
-      const starToggleButton = actions.createDiv({
-        cls: `rss-reader-action-button rss-reader-star-toggle${this.inlineArticle.starred ? " starred" : ""}`,
-        attr: {
-          role: "button",
-          tabindex: "0",
-          "aria-label": "Star/unstar article",
-          "aria-pressed": String(this.inlineArticle.starred),
+        label: "Save article",
+        icon: "save",
+        action: "save",
+        region,
+        onClick: (event) => {
+          const article = this.inlineArticle;
+          if (!article) return;
+          if (article.saved) {
+            void this.handleArticleSave(article);
+            return;
+          }
+          showSaveOptionsMenu(event, saveButton, {
+            onDefaultSave: () => void this.handleArticleSave(article),
+            onCustomSave: () => this.handleArticleCustomSave(article),
+          });
         },
       });
-      setIcon(
-        starToggleButton,
-        this.inlineArticle.starred ? "star" : "star-off",
-      );
-      starToggleButton.addEventListener("click", () => {
-        if (this.inlineArticle) {
-          void this.handleArticleUpdate(
-            this.inlineArticle,
-            { starred: !this.inlineArticle.starred },
-            true,
-          );
-        }
-      });
-      starToggleButton.addEventListener("keydown", (e: KeyboardEvent) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          starToggleButton.click();
-        }
+
+      createIconButton({
+        parent: actions,
+        cls: `rss-reader-action-button rss-reader-read-toggle${this.inlineArticle.read ? " read" : ""}`,
+        label: "Mark as read/unread",
+        icon: this.inlineArticle.read ? "check-circle" : "circle",
+        action: "read",
+        region,
+        onClick: () => {
+          if (this.inlineArticle) {
+            void this.handleArticleUpdate(
+              this.inlineArticle,
+              { read: !this.inlineArticle.read },
+              true,
+            );
+          }
+        },
       });
 
-      const browserButton = actions.createDiv({
-        cls: "rss-reader-action-button",
-        attr: { "aria-label": "Open in browser" },
-      });
-      setIcon(browserButton, "external-link");
-      browserButton.addEventListener("click", () => {
-        if (this.inlineArticle) {
-          const url = resolveItemExternalUrl(this.inlineArticle);
-          if (url) {
-            activeWindow.open(url, "_blank");
+      createIconButton({
+        parent: actions,
+        cls: `rss-reader-action-button rss-reader-star-toggle${this.inlineArticle.starred ? " starred" : ""}`,
+        label: "Star/unstar article",
+        icon: this.inlineArticle.starred ? "star" : "star-off",
+        action: "star",
+        region,
+        pressed: this.inlineArticle.starred,
+        onClick: () => {
+          if (this.inlineArticle) {
+            void this.handleArticleUpdate(
+              this.inlineArticle,
+              { starred: !this.inlineArticle.starred },
+              true,
+            );
           }
-        }
+        },
       });
+
+      createIconButton({
+        parent: actions,
+        cls: "rss-reader-action-button",
+        label: "Open in browser",
+        icon: "external-link",
+        action: "open",
+        region,
+        onClick: () => {
+          if (this.inlineArticle) {
+            const url = resolveItemExternalUrl(this.inlineArticle);
+            if (url) {
+              activeWindow.open(url, "_blank");
+            }
+          }
+        },
+      });
+
+      // The whole inline Reader is rebuilt on every state change, so the
+      // toolbar is discarded with it; nothing outlives the render to clean up.
+      attachRovingToolbar(actions);
     }
 
     const body = container.createDiv({

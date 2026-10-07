@@ -15,6 +15,21 @@ function isEditableTarget(target: EventTarget | null): boolean {
   );
 }
 
+// The Reader toolbar is a roving-tabindex toolbar: while one of its buttons has
+// focus it owns these keys to move between the buttons.
+const TOOLBAR_KEYS = new Set(["ArrowLeft", "ArrowRight", "Home", "End"]);
+
+/**
+ * Returns whether a keyboard event came from a Reader toolbar button.
+ */
+function isToolbarTarget(target: EventTarget | null): boolean {
+  const ElementConstructor = activeDocument.defaultView?.Element;
+  if (!ElementConstructor || !(target instanceof ElementConstructor))
+    return false;
+
+  return target.closest(".rss-reader-actions") !== null;
+}
+
 /**
  * Registers keyboard shortcuts scoped to the RSS Reader view.
  * Decouples the hotkey routing logic from the monolithic reader view.
@@ -23,6 +38,16 @@ export function setupReaderHotkeys(scope: Scope, view: ReaderView): void {
   const register: Scope["register"] = (modifiers, key, handler) =>
     scope.register(modifiers, key, (event, keymapHandler) => {
       if (isEditableTarget(event.target)) return false;
+      // Obsidian's keymap treats `undefined` as "not handled, try the next
+      // scope" and any other return as handled (`false` also calls
+      // preventDefault and stopPropagation), so stand aside with `undefined`
+      // and let the key reach the toolbar's own keydown handler.
+      if (
+        key !== null &&
+        TOOLBAR_KEYS.has(key) &&
+        isToolbarTarget(event.target)
+      )
+        return undefined;
       return handler(event, keymapHandler) !== false;
     });
   // Reader scrolling

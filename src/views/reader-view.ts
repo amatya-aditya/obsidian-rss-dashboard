@@ -40,6 +40,8 @@ import { HighlightService } from "../services/highlight-service";
 import { resolveDisplayDate } from "../services/feed-parser/feed-retention";
 import { ArticleSaver } from "../services/article-saver";
 import { setCssProps } from "../utils/platform-utils";
+import { createIconButton } from "../utils/icon-button";
+import { attachRovingToolbar } from "../utils/roving-toolbar";
 import {
   fetchFullArticleContentWithOutcome,
   RESTRICTED_ARTICLE_BANNER,
@@ -121,6 +123,7 @@ export const RSS_READER_VIEW_TYPE = "rss-reader-view";
 
 export class ReaderView extends ItemView {
   private currentItem: FeedItem | null = null;
+  private openInBrowserButton: HTMLElement | null = null;
   private readingContainer!: HTMLElement;
   private titleElement!: HTMLElement;
   private articleSaverProvider: () => ArticleSaver;
@@ -608,6 +611,85 @@ export class ReaderView extends ItemView {
   }
 
   /**
+   * Action: Open the current article's original page in the browser. A podcast
+   * opens its destination menu, anchored to the toolbar button without an event.
+   * @internal
+   */
+  public actionOpenOriginal(event?: MouseEvent): void {
+    const item = this.currentItem;
+    if (!item) return;
+
+    if (item.mediaType === "podcast") {
+      const feedMatch =
+        this.settings.feeds.find((f) => f.url === item.feedUrl) || null;
+      const feed = feedMatch || { url: item.feedUrl, siteUrl: undefined };
+      const destinations = resolvePodcastOpenDestinations(item, feed, {
+        includeApplePodcasts: Boolean(
+          this.settings.media.enableApplePodcastsOpen,
+        ),
+      });
+
+      if (destinations.length === 0) {
+        new Notice("No link available for this podcast.");
+        return;
+      }
+
+      const menu = new Menu();
+      for (const destination of destinations) {
+        menu.addItem((menuItem: MenuItem) => {
+          menuItem.setTitle(destination.title);
+          menuItem.setIcon("external-link");
+
+          if (destination.url) {
+            const dom = (menuItem as unknown as { dom?: HTMLElement }).dom;
+            if (dom) setTooltip(dom, destination.url);
+          }
+
+          if (destination.id === "apple_podcasts") {
+            menuItem.onClick(() => {
+              void (async () => {
+                if (!feedMatch?.url || !feedMatch.title) {
+                  new Notice("Could not find this show in apple podcasts.");
+                  return;
+                }
+                const appleUrl = await resolveApplePodcastsShowUrl(
+                  feedMatch.url,
+                  feedMatch.title,
+                );
+                if (!appleUrl) {
+                  new Notice("Could not find this show in apple podcasts.");
+                  return;
+                }
+                activeWindow.open(appleUrl, "_blank");
+              })();
+            });
+            return;
+          }
+
+          const url = destination.url;
+          if (url) {
+            menuItem.onClick(() => activeWindow.open(url, "_blank"));
+          } else {
+            menuItem.setDisabled(true);
+          }
+        });
+      }
+
+      if (event) {
+        menu.showAtMouseEvent(event);
+      } else {
+        const rect = this.openInBrowserButton?.getBoundingClientRect();
+        menu.showAtPosition({ x: rect?.left ?? 0, y: rect?.bottom ?? 0 });
+      }
+      return;
+    }
+
+    const url = resolveItemExternalUrl(item);
+    if (!url) return;
+    activeWindow.open(url, "_blank");
+  }
+
+  /**
    * Action: Toggle tags dropdown menu.
    * @internal
    */
@@ -877,184 +959,7 @@ export class ReaderView extends ItemView {
 
     this.currentItem = null;
 
-    const actions = header.createDiv({ cls: "rss-reader-actions" });
-
-    // Save button
-    this.saveButton = actions.createDiv({
-      cls: "rss-reader-action-button",
-      attr: { "aria-label": "Save article" },
-    });
-
-    setIcon(this.saveButton, "save");
-    this.saveButton.addEventListener("click", (e) => {
-      if (this.currentItem && this.currentItem.saved) {
-        void this.openSavedArticle(this.currentItem);
-        return;
-      }
-      if (this.currentItem) {
-        this.showSaveOptions(e, this.currentItem);
-      }
-    });
-
-    // Read toggle button
-    this.readToggleButton = actions.createDiv({
-      cls: "rss-reader-action-button rss-reader-read-toggle",
-      attr: { "aria-label": "Mark as read/unread" },
-    });
-    setIcon(this.readToggleButton, "circle");
-    this.readToggleButton.addEventListener("click", () => {
-      if (this.currentItem) {
-        this.toggleReadStatus();
-      }
-    });
-
-    // Star toggle button
-    this.starToggleButton = actions.createDiv({
-      cls: "rss-reader-action-button rss-reader-star-toggle",
-      attr: {
-        role: "button",
-        tabindex: "0",
-        "aria-label": "Star/unstar article",
-        "aria-pressed": "false",
-      },
-    });
-    setIcon(this.starToggleButton, "star-off");
-    this.starToggleButton.addEventListener("click", () => {
-      if (this.currentItem) {
-        this.toggleStarStatus();
-      }
-    });
-    this.starToggleButton.addEventListener("keydown", (e: KeyboardEvent) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        this.starToggleButton?.click();
-      }
-    });
-
-    // Tags button (same portal menu as dashboard cards)
-    const tagsDropdown = actions.createDiv({
-      cls: "rss-dashboard-tags-dropdown",
-    });
-    const tagsButton = tagsDropdown.createDiv({
-      cls: "rss-dashboard-tags-toggle clickable-icon rss-reader-action-button",
-      attr: {
-        role: "button",
-        tabindex: "0",
-        "aria-label": "Manage tags",
-      },
-    });
-    setIcon(tagsButton, "tag");
-    const toggleTagsMenu = (e: Event) => {
-      e.stopPropagation();
-      if (!this.currentItem) {
-        return;
-      }
-      this.toggleTagsDropdown(tagsButton);
-    };
-    tagsButton.addEventListener("click", toggleTagsMenu);
-    tagsButton.addEventListener("keydown", (e: KeyboardEvent) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        toggleTagsMenu(e);
-      }
-    });
-
-    // Reader formatting button
-    const readerFormatButton = actions.createDiv({
-      cls: "rss-reader-action-button rss-reader-format-button",
-      attr: {
-        "aria-label": "Reader settings",
-        role: "button",
-        tabindex: "0",
-      },
-    });
-    setIcon(readerFormatButton, "type");
-    readerFormatButton.addEventListener("click", (e) => {
-      e.stopPropagation();
-      this.toggleReaderFormatDropdown(readerFormatButton);
-    });
-    readerFormatButton.addEventListener("keydown", (e: KeyboardEvent) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        e.stopPropagation();
-        this.toggleReaderFormatDropdown(readerFormatButton);
-      }
-    });
-
-    // Open in browser button
-    const browserButton = actions.createDiv({
-      cls: "rss-reader-action-button",
-      attr: { "aria-label": "Open in browser" },
-    });
-    setIcon(browserButton, "external-link");
-    browserButton.addEventListener("click", (e) => {
-      const item = this.currentItem;
-      if (!item) return;
-
-      if (item.mediaType === "podcast") {
-        const feedMatch =
-          this.settings.feeds.find((f) => f.url === item.feedUrl) || null;
-        const feed = feedMatch || { url: item.feedUrl, siteUrl: undefined };
-        const destinations = resolvePodcastOpenDestinations(item, feed, {
-          includeApplePodcasts: Boolean(
-            this.settings.media.enableApplePodcastsOpen,
-          ),
-        });
-
-        if (destinations.length === 0) {
-          new Notice("No link available for this podcast.");
-          return;
-        }
-
-        const menu = new Menu();
-        for (const destination of destinations) {
-          menu.addItem((menuItem: MenuItem) => {
-            menuItem.setTitle(destination.title);
-            menuItem.setIcon("external-link");
-
-            if (destination.url) {
-              const dom = (menuItem as unknown as { dom?: HTMLElement }).dom;
-              if (dom) setTooltip(dom, destination.url);
-            }
-
-            if (destination.id === "apple_podcasts") {
-              menuItem.onClick(() => {
-                void (async () => {
-                  if (!feedMatch?.url || !feedMatch.title) {
-                    new Notice("Could not find this show in apple podcasts.");
-                    return;
-                  }
-                  const appleUrl = await resolveApplePodcastsShowUrl(
-                    feedMatch.url,
-                    feedMatch.title,
-                  );
-                  if (!appleUrl) {
-                    new Notice("Could not find this show in apple podcasts.");
-                    return;
-                  }
-                  activeWindow.open(appleUrl, "_blank");
-                })();
-              });
-              return;
-            }
-
-            const url = destination.url;
-            if (url) {
-              menuItem.onClick(() => activeWindow.open(url, "_blank"));
-            } else {
-              menuItem.setDisabled(true);
-            }
-          });
-        }
-
-        menu.showAtMouseEvent(e);
-        return;
-      }
-
-      const url = resolveItemExternalUrl(item);
-      if (!url) return;
-      activeWindow.open(url, "_blank");
-    });
+    this.renderToolbar(header);
 
     this.readingContainer = this.contentEl.createDiv({
       cls: "rss-reader-content",
@@ -1073,6 +978,118 @@ export class ReaderView extends ItemView {
 
     this.applyReaderFormat();
     return Promise.resolve();
+  }
+
+  /**
+   * Builds the Reader toolbar from native icon buttons and makes it one Tab
+   * stop with arrow-key navigation (roving tabindex). Every button keeps its
+   * aria-label and behavior; keyboard activation comes from the native button.
+   */
+  private renderToolbar(header: HTMLElement): void {
+    const region = "reader-toolbar";
+    const actions = header.createDiv({
+      cls: "rss-reader-actions",
+      attr: { role: "toolbar", "aria-label": "Reader actions" },
+    });
+
+    this.saveButton = createIconButton({
+      parent: actions,
+      cls: "rss-reader-action-button",
+      label: "Save article",
+      icon: "save",
+      action: "save",
+      region,
+      onClick: (e) => {
+        if (this.currentItem && this.currentItem.saved) {
+          void this.openSavedArticle(this.currentItem);
+          return;
+        }
+        if (this.currentItem) {
+          this.showSaveOptions(e, this.currentItem);
+        }
+      },
+    });
+
+    this.readToggleButton = createIconButton({
+      parent: actions,
+      cls: "rss-reader-action-button rss-reader-read-toggle",
+      label: "Mark as read/unread",
+      icon: "circle",
+      action: "read",
+      region,
+      onClick: () => {
+        if (this.currentItem) {
+          this.toggleReadStatus();
+        }
+      },
+    });
+
+    this.starToggleButton = createIconButton({
+      parent: actions,
+      cls: "rss-reader-action-button rss-reader-star-toggle",
+      label: "Star/unstar article",
+      icon: "star-off",
+      action: "star",
+      region,
+      pressed: false,
+      onClick: () => {
+        if (this.currentItem) {
+          this.toggleStarStatus();
+        }
+      },
+    });
+
+    // Tags button (same portal menu as dashboard cards)
+    const tagsDropdown = actions.createDiv({
+      cls: "rss-dashboard-tags-dropdown",
+    });
+    const tagsButton = createIconButton({
+      parent: tagsDropdown,
+      cls: "rss-dashboard-tags-toggle clickable-icon rss-reader-action-button",
+      label: "Manage tags",
+      icon: "tag",
+      action: "tags",
+      region,
+      hasPopup: true,
+      expanded: false,
+      onClick: (e) => {
+        e.stopPropagation();
+        if (!this.currentItem) {
+          return;
+        }
+        this.toggleTagsDropdown(tagsButton);
+      },
+    });
+
+    const readerFormatButton = createIconButton({
+      parent: actions,
+      cls: "rss-reader-action-button rss-reader-format-button",
+      label: "Reader settings",
+      icon: "type",
+      action: "format",
+      region,
+      hasPopup: true,
+      expanded: false,
+      onClick: (e) => {
+        e.stopPropagation();
+        this.toggleReaderFormatDropdown(readerFormatButton);
+      },
+    });
+
+    this.openInBrowserButton = createIconButton({
+      parent: actions,
+      cls: "rss-reader-action-button",
+      label: "Open in browser",
+      icon: "external-link",
+      action: "open",
+      region,
+      onClick: (e) => {
+        this.actionOpenOriginal(e);
+      },
+    });
+
+    const roving = attachRovingToolbar(actions);
+    this.register(() => roving.destroy());
   }
 
   async onClose(): Promise<void> {
@@ -2202,10 +2219,12 @@ export class ReaderView extends ItemView {
         if (this.tagsDropdownCleanup === cleanup) {
           this.tagsDropdownCleanup = null;
         }
+        anchor.setAttribute("aria-expanded", "false");
       },
     });
 
     this.tagsDropdownCleanup = cleanup;
+    anchor.setAttribute("aria-expanded", "true");
   }
 
   private closeTagsDropdown(): void {
@@ -2411,10 +2430,12 @@ export class ReaderView extends ItemView {
         if (this.readerFormatPortal === portal) {
           this.readerFormatPortal = null;
         }
+        anchor.setAttribute("aria-expanded", "false");
       },
     });
 
     this.readerFormatPortal = portal;
+    anchor.setAttribute("aria-expanded", "true");
   }
 
   private scheduleReaderFormatSave(): void {
@@ -2584,14 +2605,21 @@ export class ReaderView extends ItemView {
         "unstarred",
         !this.currentItem.starred,
       );
+      // The name stays "Star/unstar article": aria-pressed carries the state,
+      // and setTooltip would overwrite aria-label with state text.
       this.starToggleButton.setAttribute(
         "aria-pressed",
         String(this.currentItem.starred),
       );
-      setTooltip(
-        this.starToggleButton,
-        this.currentItem.starred ? "Remove from starred" : "Add to starred",
-      );
+    }
+
+    // A podcast opens a destination menu rather than a page.
+    if (this.openInBrowserButton) {
+      if (this.currentItem.mediaType === "podcast") {
+        this.openInBrowserButton.setAttribute("aria-haspopup", "menu");
+      } else {
+        this.openInBrowserButton.removeAttribute("aria-haspopup");
+      }
     }
 
     // Update save button state

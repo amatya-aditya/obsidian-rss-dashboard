@@ -66,6 +66,7 @@ import { ImportConfirmationModal } from "./src/settings/modals/import-confirmati
 import type { ExportBlobResult } from "./src/utils/export-utils";
 import { BackgroundImportService } from "./src/services/background-import-service";
 import { FeedRefreshScheduler } from "./src/services/feed-refresh-scheduler";
+import { REFRESH_ANNOUNCEMENT_EVENT } from "./src/services/refresh-announcements";
 import { OpmlManager } from "./src/services/opml-manager";
 import { PreviewImageCache } from "./src/services/preview-image-cache";
 import { FeedOperationTracker } from "./src/services/feed-operation-tracker";
@@ -95,6 +96,7 @@ import {
 } from "./src/release-notes";
 import { migrateSettings } from "./src/utils/settings-loader";
 import { applyAutomaticArticleTags } from "./src/utils/tag-utils";
+import { registerPaletteCommands } from "./src/commands/palette-commands";
 import { VersionStatusBarFeature } from "./src/settings/version-status-bar";
 import { SavedArticleAssociationService } from "./src/services/saved-article-association-service";
 
@@ -294,6 +296,8 @@ export default class RssDashboardPlugin extends Plugin {
       saveSettings: () => this.saveSettings(),
       clearFeedShardHealth: (feed) => this.clearFeedShardHealth(feed),
       getActiveDashboardView: () => this.getActiveDashboardView(),
+      announce: (message) =>
+        this.app.workspace.trigger(REFRESH_ANNOUNCEMENT_EVENT, message),
       refreshFeeds: (selectedFeeds, intent) =>
         this.refreshFeeds(selectedFeeds, intent),
     });
@@ -538,7 +542,7 @@ export default class RssDashboardPlugin extends Plugin {
           this.settings.lastGlobalRefreshCompletedAt,
         isBatchRunning: () => this.feedOperationTracker.isRunning,
         requestGlobalRefresh: async () =>
-          await this.refreshFeeds(undefined, "global"),
+          await this.refreshFeeds(undefined, "scheduled"),
         requestDueFeeds: async (feeds) => await this.refreshFeeds(feeds, "due"),
       });
     }
@@ -733,7 +737,14 @@ export default class RssDashboardPlugin extends Plugin {
     return null;
   }
 
+  /**
+   * The focused Reader when one is active, else the first open Reader. Several
+   * Readers can be open at once (a playing podcast keeps its own), so the
+   * first leaf is not necessarily the one the user is working in.
+   */
   public async getActiveReaderView(): Promise<ReaderView | null> {
+    const focused = this.app.workspace.getActiveViewOfType(ReaderView);
+    if (focused) return focused;
     const leaves = this.app.workspace.getLeavesOfType(RSS_READER_VIEW_TYPE);
     for (const leaf of leaves) {
       if (requireApiVersion("1.7.2")) {
@@ -852,6 +863,7 @@ export default class RssDashboardPlugin extends Plugin {
       addStatusBarItem: Platform.isMobile
         ? undefined
         : () => this.addStatusBarItem(),
+      openDashboard: () => this.activateView(),
       saveEnabled: async (enabled) => {
         this.settings.display.showVersionInStatusBar = enabled;
         await this.saveSettings();
@@ -1083,6 +1095,7 @@ export default class RssDashboardPlugin extends Plugin {
     });
 
     this.versionStatusBar?.registerCommand();
+    registerPaletteCommands(this);
   }
 
   private scheduleStartupMediaProgressMigration(): void {

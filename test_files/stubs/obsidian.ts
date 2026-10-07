@@ -1003,8 +1003,24 @@ export class MockWorkspace {
     callbacks.forEach((callback) => callback());
   }
 
-  on(_name: string, _callback: (...args: unknown[]) => unknown): unknown {
-    return {};
+  private readonly eventHandlers = new Map<
+    string,
+    Set<(...args: unknown[]) => unknown>
+  >();
+
+  /** Registers a handler. The returned ref's `off` detaches it again. */
+  on(name: string, callback: (...args: unknown[]) => unknown): unknown {
+    const handlers = this.eventHandlers.get(name) ?? new Set();
+    handlers.add(callback);
+    this.eventHandlers.set(name, handlers);
+    return { off: () => handlers.delete(callback) };
+  }
+
+  /** Calls every handler registered for `name`, as Obsidian's trigger does. */
+  trigger(name: string, ...args: unknown[]): void {
+    for (const callback of [...(this.eventHandlers.get(name) ?? [])]) {
+      callback(...args);
+    }
   }
 
   getActiveViewOfType(_type: unknown): unknown {
@@ -1134,9 +1150,12 @@ class ComponentStub {
     return id;
   }
 
-  // Not probed. The stub's EventRefs carry no emitter to detach from, so
-  // there is nothing to clean up on unload.
-  registerEvent(_evt: EventRef): void {}
+  // Not probed. A ref from MockWorkspace.on carries an `off` that detaches the
+  // handler on unload; refs from other stubs carry none and need no cleanup.
+  registerEvent(evt: EventRef): void {
+    const off = (evt as { off?: unknown } | undefined)?.off;
+    if (typeof off === "function") this.register(() => off());
+  }
 }
 
 class PluginStub extends ComponentStub {
