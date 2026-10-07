@@ -43,6 +43,8 @@ export interface PersistSettingsOptions {
    * article state is kept on the unrecognized-feed horizon (issue #374).
    */
   replacesFeedList?: boolean;
+  /** Imported article state replaces existing values, including explicit resets. */
+  authoritativeArticleState?: boolean;
 }
 
 export interface RepairResult {
@@ -550,7 +552,10 @@ export class FeedStorageRepository {
     }
 
     if (settings.storageMode === "vault-shards-v2") {
-      await this.saveUserStateFromFeeds(settings);
+      await this.userState.save(
+        settings,
+        Boolean(options.authoritativeArticleState),
+      );
     }
 
     this.lastStorageFolderPath = normalizedStorageFolder;
@@ -870,6 +875,7 @@ export class FeedStorageRepository {
         forceAllShards: true,
         forceMetadata: true,
         replacesFeedList: true,
+        authoritativeArticleState: true,
       });
 
       storageLog("Completed portable bundle import", {
@@ -915,6 +921,7 @@ export class FeedStorageRepository {
           forceAllShards: true,
           forceMetadata: true,
           replacesFeedList: true,
+          authoritativeArticleState: true,
         });
         storageLog(
           "Restored previous state after failed portable bundle import",
@@ -969,6 +976,7 @@ export class FeedStorageRepository {
         forceAllShards: true,
         forceMetadata: true,
         replacesFeedList: true,
+        authoritativeArticleState: true,
       });
 
       storageLog("Completed feed bundle import", {
@@ -1000,6 +1008,7 @@ export class FeedStorageRepository {
           forceAllShards: true,
           forceMetadata: true,
           replacesFeedList: true,
+          authoritativeArticleState: true,
         });
         storageLog("Restored previous state after failed feed bundle import");
       } catch (rollbackError) {

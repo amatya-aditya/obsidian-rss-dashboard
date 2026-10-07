@@ -17,6 +17,8 @@
 
 ### Fixes
 
+- Fixed replacing Feed and Portable bundle imports losing exported article state after startup with a missing content shard. Imported read, starred, saved, tags, saved-note paths, and playback progress now survive persistence and reload. [GH Issue #853](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/853)
+
 - The tag Edit and Delete buttons in the tags menu and the podcast player's sleep timer button can now be activated with Enter or Space, not only with the mouse. [GH Issue #848](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/848)
 - Saved-note metadata is now validated without scanning note files. Startup, feed refresh, dashboard rendering, and Reader display no longer check for missing notes; explicitly opening a missing saved note clears its Saved state, while lookup or opening errors preserve it. [GH Issue #820](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/820)
 - Renaming a saved note or moving it with its folder now updates the article's saved path, keeps the Saved state and tags, refreshes open Readers, and persists the change even when no dashboard is open. [GH Issue #819](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/819)
