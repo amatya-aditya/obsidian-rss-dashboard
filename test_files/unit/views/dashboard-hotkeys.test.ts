@@ -5,6 +5,12 @@ import { RssDashboardView } from "../../../src/views/dashboard-view";
 import { DEFAULT_SETTINGS } from "../../../src/types/types";
 import { ReaderView } from "../../../src/views/reader-view";
 import type RssDashboardPlugin from "../../../main";
+import { renderCardView } from "../../../src/components/article-list/views/card-view";
+import {
+  baseViewContext,
+  baseViewDeps,
+  makeArticle,
+} from "../components/article-list/views/test-helpers";
 
 vi.mock("../../../src/utils/platform-utils", () => ({
   robustFetch: vi.fn(),
@@ -458,6 +464,161 @@ describe("DashboardView Hotkeys", () => {
       expect(sidebarPrev).toHaveBeenCalledTimes(1);
       expect(nextSpy).not.toHaveBeenCalled();
       expect(prevSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("focus on a non-interactive tab stop inside a card", () => {
+    // Attach the view's real handler to the document so events bubble to it as
+    // they do in Obsidian, then render a real card so the focusable elements
+    // are the ones users Tab into.
+    let handler: (e: KeyboardEvent) => void;
+    let view: RssDashboardView;
+    let card: HTMLElement;
+
+    beforeEach(() => {
+      const made = makeViewWithRegisterSpy(leaf, plugin);
+      view = made.view;
+      (leaf as unknown as { view: unknown }).view = view;
+      handler = getKeydownHandler(made.spy)!;
+      document.addEventListener("keydown", handler);
+
+      const container = document.body.createDiv();
+      renderCardView(
+        container,
+        [makeArticle({ coverImage: "" })],
+        { ...baseViewContext(), showCardToolbar: false, showFeedSource: true },
+        baseViewDeps(),
+      );
+      card = container.querySelector<HTMLElement>(
+        ".rss-dashboard-article-card",
+      )!;
+    });
+
+    afterEach(() => {
+      document.removeEventListener("keydown", handler);
+      document.body.empty();
+    });
+
+    const press = (target: Element, key: string): KeyboardEvent => {
+      const event = new KeyboardEvent("keydown", {
+        key,
+        bubbles: true,
+        cancelable: true,
+      });
+      target.dispatchEvent(event);
+      return event;
+    };
+
+    it.each([
+      ["card title", ".rss-dashboard-article-title"],
+      ["feed name", ".rss-dashboard-article-feed"],
+    ])(
+      "still runs j and l when the %s has keyboard focus",
+      (_label, selector) => {
+        const nextSpy = vi
+          .spyOn(view, "actionNavigateNext")
+          .mockImplementation(() => {});
+        const prevSpy = vi
+          .spyOn(view, "actionNavigatePrevious")
+          .mockImplementation(() => {});
+        const stop = card.querySelector<HTMLElement>(selector)!;
+        expect(stop.getAttribute("tabindex")).toBe("0");
+
+        const j = press(stop, "j");
+        const l = press(stop, "l");
+
+        expect(prevSpy).toHaveBeenCalledTimes(1);
+        expect(nextSpy).toHaveBeenCalledTimes(1);
+        expect(j.defaultPrevented).toBe(true);
+        expect(l.defaultPrevented).toBe(true);
+      },
+    );
+
+    it("runs Space as next article from the card title, like focus on the dashboard", () => {
+      const nextSpy = vi
+        .spyOn(view, "actionNavigateNext")
+        .mockImplementation(() => {});
+      const title = card.querySelector<HTMLElement>(
+        ".rss-dashboard-article-title",
+      )!;
+
+      const space = press(title, " ");
+
+      expect(nextSpy).toHaveBeenCalledTimes(1);
+      expect(space.defaultPrevented).toBe(true);
+    });
+
+    it("keeps Enter on the card title local so it does not toggle the article", () => {
+      const openSpy = vi.spyOn(view, "actionToggleArticleOpen");
+      const title = card.querySelector<HTMLElement>(
+        ".rss-dashboard-article-title",
+      )!;
+
+      press(title, "Enter");
+
+      expect(openSpy).not.toHaveBeenCalled();
+    });
+
+    it("does not steal Enter or Space from the card's open button", () => {
+      const openSpy = vi.spyOn(view, "actionToggleArticleOpen");
+      const nextSpy = vi.spyOn(view, "actionNavigateNext");
+      const openButton = card.querySelector<HTMLElement>(
+        ".rss-dashboard-card-open-button",
+      )!;
+
+      const enter = press(openButton, "Enter");
+      const space = press(openButton, " ");
+
+      expect(openSpy).not.toHaveBeenCalled();
+      expect(nextSpy).not.toHaveBeenCalled();
+      expect(enter.defaultPrevented).toBe(false);
+      expect(space.defaultPrevented).toBe(false);
+    });
+
+    it.each([
+      ["a text input", () => createEl("input")],
+      ["a textarea", () => createEl("textarea")],
+      ["a select", () => createEl("select")],
+      ["a native button", () => createEl("button")],
+      [
+        "a link",
+        () => createEl("a", { attr: { href: "https://example.com" } }),
+      ],
+      [
+        "a role=button control",
+        () => createDiv({ attr: { role: "button", tabindex: "0" } }),
+      ],
+      [
+        "a role=combobox control",
+        () => createDiv({ attr: { role: "combobox", tabindex: "0" } }),
+      ],
+      [
+        "a contenteditable region",
+        () => {
+          const el = createDiv();
+          el.contentEditable = "true";
+          // jsdom does not implement isContentEditable, so mirror the browser
+          Object.defineProperty(el, "isContentEditable", { value: true });
+          return el;
+        },
+      ],
+    ])("still ignores j and l when focus is on %s", (_label, makeTarget) => {
+      const nextSpy = vi
+        .spyOn(view, "actionNavigateNext")
+        .mockImplementation(() => {});
+      const prevSpy = vi
+        .spyOn(view, "actionNavigatePrevious")
+        .mockImplementation(() => {});
+      const target = makeTarget();
+      card.appendChild(target);
+
+      const j = press(target, "j");
+      const l = press(target, "l");
+
+      expect(nextSpy).not.toHaveBeenCalled();
+      expect(prevSpy).not.toHaveBeenCalled();
+      expect(j.defaultPrevented).toBe(false);
+      expect(l.defaultPrevented).toBe(false);
     });
   });
 });
