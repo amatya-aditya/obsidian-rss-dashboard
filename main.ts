@@ -542,7 +542,7 @@ export default class RssDashboardPlugin extends Plugin {
           this.settings.lastGlobalRefreshCompletedAt,
         isBatchRunning: () => this.feedOperationTracker.isRunning,
         requestGlobalRefresh: async () =>
-          await this.refreshFeeds(undefined, "global"),
+          await this.refreshFeeds(undefined, "scheduled"),
         requestDueFeeds: async (feeds) => await this.refreshFeeds(feeds, "due"),
       });
     }
