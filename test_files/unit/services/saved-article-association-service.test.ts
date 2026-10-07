@@ -35,6 +35,81 @@ function makeFeed(url: string, items: FeedItem[]): Feed {
 }
 
 describe("SavedArticleAssociationService", () => {
+  it("updates a renamed saved note while preserving its saved state and tags", () => {
+    const current = makeItem();
+    const other = makeItem({
+      guid: "article-2",
+      savedFilePath: "Saved/other.md",
+    });
+    const feed = makeFeed("https://example.com/feed.xml", [current, other]);
+
+    const updates = new SavedArticleAssociationService().renameTrackedPath(
+      [feed],
+      "Saved/article.md",
+      "Archive/renamed.md",
+    );
+
+    expect(updates).toEqual([{ feedUrl: feed.url, guid: current.guid }]);
+    expect(current).toMatchObject({
+      saved: true,
+      savedFilePath: "Archive/renamed.md",
+      read: true,
+      starred: true,
+      tags: [
+        { name: "SaVeD", color: "blue" },
+        { name: "Research", color: "green" },
+      ],
+    });
+    expect(other.savedFilePath).toBe("Saved/other.md");
+  });
+
+  it("updates recorded descendants when a tracked folder is moved", () => {
+    const descendant = makeItem({ savedFilePath: "Saved/Old/article.md" });
+    const similarlyNamed = makeItem({
+      guid: "article-2",
+      savedFilePath: "Saved/Old copy/article.md",
+    });
+    const feed = makeFeed("https://example.com/feed.xml", [
+      descendant,
+      similarlyNamed,
+    ]);
+
+    const updates = new SavedArticleAssociationService().renameTrackedPath(
+      [feed],
+      "Saved/Old",
+      "Archive/New",
+      true,
+    );
+
+    expect(updates).toEqual([{ feedUrl: feed.url, guid: descendant.guid }]);
+    expect(descendant.savedFilePath).toBe("Archive/New/article.md");
+    expect(descendant.saved).toBe(true);
+    expect(similarlyNamed.savedFilePath).toBe("Saved/Old copy/article.md");
+  });
+
+  it("keeps same-guid saved associations isolated by feed identity", () => {
+    const first = makeItem({ feedUrl: "https://one.example/feed.xml" });
+    const second = makeItem({
+      feedUrl: "https://two.example/feed.xml",
+      savedFilePath: "Saved/two.md",
+    });
+
+    const updates = new SavedArticleAssociationService().renameTrackedPath(
+      [
+        makeFeed("https://one.example/feed.xml", [first]),
+        makeFeed("https://two.example/feed.xml", [second]),
+      ],
+      "Saved/article.md",
+      "Archive/article.md",
+    );
+
+    expect(updates).toEqual([
+      { feedUrl: "https://one.example/feed.xml", guid: "article-1" },
+    ]);
+    expect(first.savedFilePath).toBe("Archive/article.md");
+    expect(second.savedFilePath).toBe("Saved/two.md");
+  });
+
   it("clears only saved notes at a deleted file path and preserves other state", () => {
     const current = makeItem();
     const other = makeItem({

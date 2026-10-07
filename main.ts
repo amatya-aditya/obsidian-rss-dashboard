@@ -879,8 +879,10 @@ export default class RssDashboardPlugin extends Plugin {
       addCommand: (command) => this.addCommand(command),
     });
     await this.previewImageCache.initialize();
-    this.settingsStore.registerVaultMetadataChangeListeners((ref) =>
-      this.registerEvent(ref),
+    this.settingsStore.registerVaultMetadataChangeListeners(
+      (ref) => this.registerEvent(ref),
+      (file, oldPath, isFolder) =>
+        this.handleSavedArticleVaultRename(file, oldPath, isFolder),
     );
 
     try {
@@ -1460,6 +1462,41 @@ export default class RssDashboardPlugin extends Plugin {
         );
       }),
     );
+  }
+
+  private handleSavedArticleVaultRename(
+    file: { path: string },
+    oldPath: string,
+    isFolder: boolean,
+  ): void {
+    void this.handleSavedArticlePathRenamed(file, oldPath, isFolder).catch(
+      (error: unknown) => {
+        console.error(
+          "[RSS Dashboard] Failed to update renamed saved notes:",
+          error,
+        );
+      },
+    );
+  }
+
+  private async handleSavedArticlePathRenamed(
+    file: { path: string },
+    oldPath: string,
+    isFolder: boolean,
+  ): Promise<void> {
+    const updates = this.savedArticleAssociationService.renameTrackedPath(
+      this.settings.feeds,
+      oldPath,
+      file.path,
+      isFolder,
+    );
+    if (updates.length === 0) return;
+
+    for (const update of updates) {
+      await this.syncSavedArticleAssociationUpdate(update.feedUrl, update.guid);
+    }
+
+    await this.saveSettings();
   }
 
   private async handleSavedArticlePathDeleted(file: {

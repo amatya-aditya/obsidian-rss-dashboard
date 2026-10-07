@@ -16,6 +16,10 @@ import type {
 } from "../../../src/types/types";
 import { DEFAULT_SETTINGS } from "../../../src/types/types";
 import { AddFeedModal } from "../../../src/modals/feed-manager/add-feed-modal";
+import {
+  ReaderView,
+  RSS_READER_VIEW_TYPE,
+} from "../../../src/views/reader-view";
 
 // Mock functions for FeedParser - must be declared before mocks
 const mockParseFeed = vi.fn<(url: string) => Promise<Feed>>();
@@ -62,7 +66,13 @@ vi.mock("../../../src/utils/settings-migration", () => ({
 import RssDashboardPlugin from "../../../main";
 
 // Use App from obsidian stub (provided via Vitest alias)
-import { App, Platform, type MockApp, type PluginManifest } from "obsidian";
+import {
+  App,
+  Platform,
+  TFolder,
+  type MockApp,
+  type PluginManifest,
+} from "obsidian";
 
 function flushPromises(): Promise<void> {
   return new Promise((resolve) => {
@@ -568,6 +578,129 @@ describe("onload() initialization", () => {
     expect(article.tags).toEqual([{ name: "Research", color: "green" }]);
   });
 
+  it("updates and persists a renamed saved note without an open dashboard", async () => {
+    const renameHandlers: Array<(...args: unknown[]) => void> = [];
+    app.vault.on = (eventName, callback) => {
+      if (eventName === "rename") {
+        renameHandlers.push(callback as (...args: unknown[]) => void);
+      }
+      return {};
+    };
+
+    await plugin.onload();
+    plugin.settings.feeds = [structuredClone(sampleFeed)];
+    const article = plugin.settings.feeds[0]?.items[0];
+    expect(article).toBeDefined();
+    if (!article) return;
+    article.saved = true;
+    article.savedFilePath = "Articles/Saved article.md";
+    article.tags = [
+      { name: "SaVeD", color: "blue" },
+      { name: "Research", color: "green" },
+    ];
+    vi.clearAllMocks();
+
+    for (const handler of renameHandlers) {
+      handler(
+        { path: "Archive/Renamed article.md" },
+        "Articles/Saved article.md",
+      );
+    }
+
+    await vi.waitFor(() => {
+      expect(plugin.saveData).toHaveBeenCalledTimes(1);
+    });
+    expect(article.saved).toBe(true);
+    expect(article.savedFilePath).toBe("Archive/Renamed article.md");
+    expect(article.tags).toEqual([
+      { name: "SaVeD", color: "blue" },
+      { name: "Research", color: "green" },
+    ]);
+    expect(app.workspace.getLeavesOfType("rss-dashboard-view")).toHaveLength(0);
+  });
+
+  it("pushes a renamed saved-note association to an open Reader", async () => {
+    let renameHandler: ((...args: unknown[]) => void) | undefined;
+    app.vault.on = (eventName, callback) => {
+      if (eventName === "rename") {
+        renameHandler = callback as (...args: unknown[]) => void;
+      }
+      return {};
+    };
+    const reader = Object.create(ReaderView.prototype) as ReaderView;
+    const applyExternalUpdate = vi.fn();
+    reader.applyExternalUpdate = applyExternalUpdate;
+    vi.spyOn(app.workspace, "getLeavesOfType").mockImplementation((viewType) =>
+      viewType === RSS_READER_VIEW_TYPE
+        ? [
+            {
+              view: reader,
+              app,
+              updateHeader: vi.fn(),
+              loadIfDeferred: vi.fn().mockResolvedValue(undefined),
+            },
+          ]
+        : [],
+    );
+
+    await plugin.onload();
+    plugin.settings.feeds = [structuredClone(sampleFeed)];
+    const article = plugin.settings.feeds[0]?.items[0];
+    expect(article).toBeDefined();
+    if (!article) return;
+    article.saved = true;
+    article.savedFilePath = "Articles/Saved article.md";
+    article.tags = [{ name: "Saved", color: "blue" }];
+
+    renameHandler?.(
+      { path: "Archive/Renamed article.md" },
+      "Articles/Saved article.md",
+    );
+
+    await vi.waitFor(() => {
+      expect(applyExternalUpdate).toHaveBeenCalledWith(
+        article.guid,
+        {
+          saved: true,
+          savedFilePath: "Archive/Renamed article.md",
+          tags: [{ name: "Saved", color: "blue" }],
+        },
+        article.feedUrl,
+      );
+    });
+    await vi.waitFor(() => {
+      expect(plugin.saveData).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it("updates recorded saved-note paths when their folder is renamed", async () => {
+    let renameHandler: ((...args: unknown[]) => void) | undefined;
+    app.vault.on = (eventName, callback) => {
+      if (eventName === "rename") {
+        renameHandler = callback as (...args: unknown[]) => void;
+      }
+      return {};
+    };
+
+    await plugin.onload();
+    plugin.settings.feeds = [structuredClone(sampleFeed)];
+    const article = plugin.settings.feeds[0]?.items[0];
+    expect(article).toBeDefined();
+    if (!article) return;
+    article.saved = true;
+    article.savedFilePath = "Articles/Old/Saved article.md";
+
+    const movedFolder = new TFolder();
+    movedFolder.path = "Archive/New";
+    renameHandler?.(movedFolder, "Articles/Old");
+
+    await vi.waitFor(() => {
+      expect(plugin.saveData).toHaveBeenCalledTimes(1);
+    });
+    expect(article.saved).toBe(true);
+    expect(article.savedFilePath).toBe("Archive/New/Saved article.md");
+  });
+
   it("registers ribbon icon", async () => {
     // When: onload is called
     await plugin.onload();
@@ -651,9 +784,11 @@ describe("onload() initialization", () => {
   it("warns once per vault metadata failure incident", async () => {
     vi.useFakeTimers();
     const handlers: Record<string, (...args: unknown[]) => void> = {};
+    const renameHandlers: Array<(...args: unknown[]) => void> = [];
     plugin.app.vault.on = vi.fn(
       (event: string, callback: (...args: unknown[]) => void) => {
-        handlers[event] = callback;
+        if (event === "rename") renameHandlers.push(callback);
+        else handlers[event] = callback;
         return {};
       },
     );
@@ -680,10 +815,12 @@ describe("onload() initialization", () => {
     const noticeSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
 
     await plugin.onload();
-    handlers.rename?.(
-      { path: "rss-dashboard-data/data.json.withheld" },
-      "rss-dashboard-data/data.json",
-    );
+    for (const handler of renameHandlers) {
+      handler(
+        { path: "rss-dashboard-data/data.json.withheld" },
+        "rss-dashboard-data/data.json",
+      );
+    }
     await vi.advanceTimersByTimeAsync(1_500);
 
     const warning =
@@ -700,10 +837,12 @@ describe("onload() initialization", () => {
     await vi.advanceTimersByTimeAsync(1_500);
     await vi.advanceTimersByTimeAsync(3_000);
     metadataAvailable = false;
-    handlers.rename?.(
-      { path: "rss-dashboard-data/data.json.withheld" },
-      "rss-dashboard-data/data.json",
-    );
+    for (const handler of renameHandlers) {
+      handler(
+        { path: "rss-dashboard-data/data.json.withheld" },
+        "rss-dashboard-data/data.json",
+      );
+    }
     await vi.advanceTimersByTimeAsync(1_500);
 
     expect(warningCalls()).toHaveLength(2);
@@ -880,10 +1019,10 @@ describe("onload() initialization", () => {
 
   it("reloads on rename when watched new path matches", async () => {
     vi.useFakeTimers();
-    const handlers: Record<string, (...args: unknown[]) => void> = {};
+    const renameHandlers: Array<(...args: unknown[]) => void> = [];
     plugin.app.vault.on = vi.fn(
       (event: string, callback: (...args: unknown[]) => void) => {
-        handlers[event] = callback;
+        if (event === "rename") renameHandlers.push(callback);
         return {};
       },
     );
@@ -897,7 +1036,9 @@ describe("onload() initialization", () => {
 
     await plugin.onload();
 
-    handlers.rename?.({ path: ".rss-dashboard-data/data.json" }, "other.json");
+    for (const handler of renameHandlers) {
+      handler({ path: ".rss-dashboard-data/data.json" }, "other.json");
+    }
     await vi.runAllTimersAsync();
 
     expect(loadSpy).toHaveBeenCalledTimes(2);
@@ -907,10 +1048,10 @@ describe("onload() initialization", () => {
 
   it("reloads on rename when watched old path matches", async () => {
     vi.useFakeTimers();
-    const handlers: Record<string, (...args: unknown[]) => void> = {};
+    const renameHandlers: Array<(...args: unknown[]) => void> = [];
     plugin.app.vault.on = vi.fn(
       (event: string, callback: (...args: unknown[]) => void) => {
-        handlers[event] = callback;
+        if (event === "rename") renameHandlers.push(callback);
         return {};
       },
     );
@@ -924,10 +1065,9 @@ describe("onload() initialization", () => {
 
     await plugin.onload();
 
-    handlers.rename?.(
-      { path: "unrelated.md" },
-      ".rss-dashboard-data/data.json",
-    );
+    for (const handler of renameHandlers) {
+      handler({ path: "unrelated.md" }, ".rss-dashboard-data/data.json");
+    }
     await vi.runAllTimersAsync();
 
     expect(loadSpy).toHaveBeenCalledTimes(2);

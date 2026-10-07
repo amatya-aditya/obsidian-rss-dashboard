@@ -709,14 +709,6 @@ export class RssDashboardView extends ItemView {
     });
 
     this.registerEvent(
-      this.app.vault.on("rename", (file, oldPath) => {
-        if (file instanceof TFile) {
-          this.handleFileRenamed(file, oldPath);
-        }
-      }),
-    );
-
-    this.registerEvent(
       this.app.vault.on("modify", () => {
         if (this.verificationTimeout) {
           window.clearTimeout(this.verificationTimeout);
@@ -4090,28 +4082,6 @@ export class RssDashboardView extends ItemView {
   private verifySavedArticles(): void {
     const allArticles = this.getFilteredArticles();
     this.saver.verifyAllSavedArticles(allArticles);
-  }
-
-  private handleFileRenamed(file: TFile, oldPath: string): void {
-    const allArticles = this.getAllArticles();
-    const affectedArticles = allArticles.filter(
-      (article) => article.saved && article.savedFilePath === oldPath,
-    );
-
-    affectedArticles.forEach((article) => {
-      article.saved = false;
-      article.savedFilePath = file.path;
-
-      if (article.tags) {
-        article.tags = article.tags.filter(
-          (tag) => tag.name.toLowerCase() !== "saved",
-        );
-      }
-    });
-
-    if (affectedArticles.length > 0) {
-      void this.render();
-    }
   }
 
   private getAllArticles(): FeedItem[] {
