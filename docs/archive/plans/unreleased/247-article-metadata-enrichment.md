@@ -1,14 +1,9 @@
 ---
-status: accepted
-created: 2026-09-16
+status: implemented
+completed: 2026-10-06
+released_in: unreleased
 issue: "https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/247"
-milestone: "vNext"
-owner: jonwilks
-workstream: ""
-sequence: null
-depends_on: []
-release_requirement: ""
-implementation: ""
+implementation: "Slices 1-7: #691, #808, #810 and the slice PRs listed under Delivery"
 ---
 
 # Article Metadata Enrichment and Language Support
@@ -101,23 +96,12 @@ The feed-level part of [#246](https://github.com/amatya-aditya/obsidian-rss-dash
 - `{{language}}` goes through the registry with `omitIfEmpty`, so an unknown language omits the `language:` line rather than writing `language: ""` (#266). `ArticleSaver`'s note and frontmatter templates fill it from the item's stored `language`, else the feed's declared language (so an item saved without a page fetch still gets one); the web viewer's templates leave it unfilled (item 7 below).
 - **Tests:** feed-level language parsing for RSS 2.0, RSS 1.0, Atom, and JSON Feed; the precedence `<html lang>`, then the feed value; the omitted line.
 
-## Web viewer follow-ups
+## Closeout (2026-10-06)
 
-The web viewer's "Save with template" output differs from the other template call sites in ways the registry PR deliberately keeps. Each difference gets its own follow-up PR after slice 1:
+All seven slices shipped. The two items that remained were split out of #247:
 
-1. The body's `{{date}}` is the save date.
-2. The body leaves `{{tags}}`, `{{feedTitle}}`, `{{guid}}`, and `{{date:FORMAT}}` unfilled.
-3. The saved-tag rule differs.
-4. The `{{image}}` resolver differs: it lacks the formula-injection guard (`firstNonFormulaImageUrl`).
-5. `{{created}}`, an alias for `{{date}}` from #266's addendum, isn't registered yet.
-6. `{{description}}` and `{{excerpt}}` aren't filled in the web viewer's templates (slice 6 fills them in `ArticleSaver` only).
-7. `{{language}}` isn't filled in the web viewer's templates (slice 7 fills it in `ArticleSaver` only).
-
-The web viewer's `"Web viewer"` default for `{{source}}` and `{{feedTitle}}` is intended, and stays as a per-call-site default override (#266).
-
-## Deferred
-
-Dashboard preview resolution. Before it's implemented, #263 should settle which fields previews use, their fallback order, whether duplicate-intro suppression applies, and what a preview shows when no usable text exists.
+- **Web viewer parity.** The seven template differences between the web viewer save flow and the Reader's saved notes, plus cleaned authors, are tracked in [#831](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/831) (vFuture, low priority). The integration stays because at least one user relies on it (#89). Fixing it means passing the real `FeedItem` through to the save step instead of a synthetic one.
+- **Dashboard preview resolution.** Deferred to [#829](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/829), which holds the open questions on fields, fallback order, duplicate-intro suppression, and the no-text case.
 
 ## Out of scope
 
