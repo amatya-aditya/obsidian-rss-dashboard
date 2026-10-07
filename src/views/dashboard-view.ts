@@ -118,6 +118,8 @@ export class RssDashboardView extends ItemView {
   private static readonly CARD_LAYOUT_SAVE_DELAY_MS = 120;
   private settings: RssDashboardSettings;
   private saver: ArticleSaver;
+  /** Articles whose Custom save dialog is open, so they cannot be saved twice. */
+  private articlesWithSaveDialog = new Set<string>();
   private listenForHotkeysInHostDocument: () => void = () => {};
   public currentFolder: string | null = null;
   public selectedFolders: string[] = [];
@@ -2637,6 +2639,10 @@ export class RssDashboardView extends ItemView {
 
   /** Default save: the resolved folder and template, with no per-save overrides. */
   private async handleArticleSave(article: FeedItem): Promise<void> {
+    if (this.articlesWithSaveDialog.has(article.guid)) {
+      new Notice("Finish or cancel the save dialog for this article first.");
+      return;
+    }
     const file = await this.saveArticleToNote(article, {
       savedTemplate: this.getSavedTemplateForArticle(article),
     });
@@ -2650,6 +2656,8 @@ export class RssDashboardView extends ItemView {
     article: FeedItem,
     hooks?: CustomSaveHooks,
   ): void {
+    if (this.articlesWithSaveDialog.has(article.guid)) return;
+    this.articlesWithSaveDialog.add(article.guid);
     new CustomSaveModal(this.app, article, {
       getSettings: () => this.settings,
       getArticleSaver: () => this.saver,
@@ -2670,6 +2678,7 @@ export class RssDashboardView extends ItemView {
           void this.markArticleSaved(item, item.savedFilePath);
         }
       },
+      onClose: () => this.articlesWithSaveDialog.delete(article.guid),
     }).open();
   }
 
@@ -3172,8 +3181,9 @@ export class RssDashboardView extends ItemView {
     const articleEl = activeDocument.getElementById(`article-${articleGuid}`);
     if (articleEl) {
       const saveButton = articleEl.querySelector(".rss-dashboard-save-toggle");
-      if (saveButton) {
+      if (saveButton instanceof HTMLElement) {
         saveButton.classList.add("saved");
+        setTooltip(saveButton, "Click to open saved article");
       }
     }
   }

@@ -50,6 +50,8 @@ export interface CustomSaveModalContext {
   ) => Promise<{ path: string } | null>;
   onArticleSave: (item: FeedItem) => void;
   updateSavedLabel?: (saved: boolean) => void;
+  /** Called once when the dialog closes, whether or not anything was saved. */
+  onClose?: () => void;
 }
 
 interface TemplateControls {
@@ -578,7 +580,14 @@ function createActionButtons(
           // "Current template" is chosen: the feed goes back to the default (#814).
           feed.customTemplate = undefined;
         }
-        await context.saveSettings();
+        try {
+          await context.saveSettings();
+        } catch (error) {
+          // The note exists already, so finish the save instead of leaving
+          // the dialog stuck and inviting a duplicate.
+          console.error("Failed to store settings after saving:", error);
+          new Notice("Saved, but the template settings could not be stored.");
+        }
         item.saved = true;
         item.savedFilePath = file.path;
         context.onArticleSave(item);
@@ -626,5 +635,6 @@ export class CustomSaveModal extends Modal {
 
   onClose() {
     this.contentEl.empty();
+    this.context.onClose?.();
   }
 }

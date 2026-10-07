@@ -335,13 +335,34 @@ describe("Dashboard Custom save", () => {
     ]);
     expect(view.saver.saveArticle).not.toHaveBeenCalled();
 
-    items[1].trigger();
-    expect(modalOpens.items).toEqual([view.inlineArticle]);
-    expect(view.saver.saveArticle).not.toHaveBeenCalled();
-
     items[0].trigger();
     await vi.waitFor(() =>
       expect(view.saver.saveArticle).toHaveBeenCalledOnce(),
     );
+
+    items[1].trigger();
+    expect(modalOpens.items).toEqual([view.inlineArticle]);
+  });
+
+  it("blocks a second save of the same article while its dialog is open, and allows it after the dialog closes", async () => {
+    const settings = summarySettings();
+    settings.feeds = [makeFeed("https://example.com/feed")];
+    const { view } = await makeView(settings);
+    const article = settings.feeds[0].items[0];
+
+    view.handleArticleCustomSave(article);
+    view.handleArticleCustomSave(article);
+    expect(modalOpens.items).toEqual([article]);
+
+    await (
+      view as unknown as { handleArticleSave(a: FeedItem): Promise<void> }
+    ).handleArticleSave(article);
+    expect(view.saver.saveArticle).not.toHaveBeenCalled();
+
+    lastContext().onClose?.();
+    await (
+      view as unknown as { handleArticleSave(a: FeedItem): Promise<void> }
+    ).handleArticleSave(article);
+    expect(view.saver.saveArticle).toHaveBeenCalledOnce();
   });
 });

@@ -133,7 +133,8 @@ export function createSaveButton(
 
     try {
       await arg.callbacks.onArticleSave(arg.article);
-      markSaved();
+      // A save that wrote nothing (or was blocked) leaves the article unsaved.
+      if (arg.article.saved) markSaved();
     } catch (error) {
       console.error("Failed to save article via card button:", error);
       new Notice("Failed to save article.");

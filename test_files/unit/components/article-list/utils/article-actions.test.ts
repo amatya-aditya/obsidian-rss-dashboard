@@ -155,8 +155,29 @@ describe("article-actions utils", () => {
       expect(button.classList.contains("saved")).toBe(false);
     });
 
-    it("saves with default settings and shows the saved state", async () => {
+    it("does not show the saved state when the save wrote nothing", async () => {
       const onArticleSave = vi.fn().mockResolvedValue(undefined);
+      createSaveButton(
+        baseArgs({
+          callbacks: { onArticleSave, onArticleCustomSave: vi.fn() },
+        }),
+      );
+      const button = clickSave();
+
+      menuItem("Save with default settings").trigger();
+
+      await vi.waitFor(() => expect(onArticleSave).toHaveBeenCalled());
+      await vi.waitFor(() =>
+        expect(button.classList.contains("saving")).toBe(false),
+      );
+      expect(button.classList.contains("saved")).toBe(false);
+    });
+
+    it("saves with default settings and shows the saved state", async () => {
+      const onArticleSave = vi.fn().mockImplementation(() => {
+        article.saved = true;
+        return Promise.resolve();
+      });
       createSaveButton(
         baseArgs({
           callbacks: { onArticleSave, onArticleCustomSave: vi.fn() },

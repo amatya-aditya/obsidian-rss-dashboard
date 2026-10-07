@@ -47,6 +47,8 @@ function createHarness(options?: {
   getFilenamePreview: ReturnType<typeof vi.fn>;
   onArticleSave: ReturnType<typeof vi.fn>;
   updateSavedLabel: ReturnType<typeof vi.fn>;
+  saveSettings: ReturnType<typeof vi.fn>;
+  onClose: ReturnType<typeof vi.fn>;
   setSaveAction: (action: CustomSaveModalContext["saveArticle"]) => void;
   open: () => void;
 } {
@@ -83,6 +85,8 @@ function createHarness(options?: {
   );
   const onArticleSave = vi.fn();
   const updateSavedLabel = vi.fn();
+  const saveSettings = vi.fn(async () => {});
+  const onClose = vi.fn();
   const context: CustomSaveModalContext = {
     getSettings: () => settings,
     getArticleSaver: () => ({ saveArticle, getFilenamePreview }) as never,
@@ -95,7 +99,7 @@ function createHarness(options?: {
         (template) =>
           template.id === settings.articleSaving.globalDefaultTemplateId,
       ),
-    saveSettings: vi.fn(async () => {}),
+    saveSettings,
     saveArticle: (article, request) => {
       const saveItem = options?.displayTitle
         ? { ...article, title: options.displayTitle }
@@ -117,6 +121,7 @@ function createHarness(options?: {
     },
     onArticleSave,
     updateSavedLabel,
+    onClose,
   };
   return {
     item,
@@ -126,6 +131,8 @@ function createHarness(options?: {
     getFilenamePreview,
     onArticleSave,
     updateSavedLabel,
+    saveSettings,
+    onClose,
     setSaveAction: (action) => {
       context.saveArticle = action;
     },
@@ -571,6 +578,38 @@ describe("CustomSaveModal", () => {
     expect(
       activeDocument.querySelector(".rss-dashboard-custom-save-modal"),
     ).not.toBeNull();
+  });
+
+  it("still finishes the save and closes when storing the settings fails afterwards", async () => {
+    const harness = createHarness();
+    harness.saveSettings.mockRejectedValue(new Error("disk full"));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    harness.open();
+    modal()
+      .querySelector<HTMLButtonElement>(
+        ".rss-dashboard-custom-save-confirm-button",
+      )
+      ?.click();
+    await vi.waitFor(() =>
+      expect(harness.onArticleSave).toHaveBeenCalledOnce(),
+    );
+    expect(harness.item.saved).toBe(true);
+    expect(harness.item.savedFilePath).toBe("Saved/Fixture article.md");
+    expect(
+      activeDocument.querySelector(".rss-dashboard-custom-save-modal"),
+    ).toBeNull();
+    expect(harness.onClose).toHaveBeenCalledOnce();
+  });
+
+  it("tells the caller once when the dialog is cancelled", () => {
+    const harness = createHarness();
+    harness.open();
+    modal()
+      .querySelector<HTMLButtonElement>(
+        ".rss-dashboard-custom-save-cancel-button",
+      )
+      ?.click();
+    expect(harness.onClose).toHaveBeenCalledOnce();
   });
 
   it("hands the chosen folder, template, and saved template to the caller's save action", async () => {
