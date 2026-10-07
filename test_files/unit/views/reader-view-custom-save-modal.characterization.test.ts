@@ -409,9 +409,15 @@ describe("ReaderView custom save dialog behavior", () => {
     expect(harness.item.saved).toBe(true);
     expect(harness.item.savedFilePath).toBe("Saved/Fixture article.md");
     expect(harness.onArticleSave).toHaveBeenCalledWith(harness.item);
-    expect(harness.onArticleUpdate).toHaveBeenCalledWith(harness.item, {
-      saved: true,
-    });
+    // Saving owns the association; updating its label must not send a second write.
+    expect(harness.onArticleUpdate).not.toHaveBeenCalled();
+    expect(
+      harness.view.containerEl
+        .querySelector<HTMLElement>(
+          '[aria-label="Click to open saved article"]',
+        )
+        ?.classList.contains("saved"),
+    ).toBe(true);
     await vi.waitFor(() => {
       expect(modal.isConnected).toBe(false);
     });

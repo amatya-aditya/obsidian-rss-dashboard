@@ -25,7 +25,7 @@ import {
 } from "../../../src/views/reader-view";
 import { RSS_DASHBOARD_VIEW_TYPE } from "../../../src/views/dashboard-view";
 
-function gate() {
+function createDeferredCompletion() {
   let release = () => {};
   const pending = new Promise<void>((resolve) => {
     release = resolve;
@@ -46,6 +46,7 @@ describe("Reader save/delete continuations", () => {
   let plugin: RssDashboardPlugin | undefined;
   afterEach(() => {
     plugin?.onunload();
+    document.body.empty();
     vi.useRealTimers();
     vi.restoreAllMocks();
   });
@@ -59,8 +60,12 @@ describe("Reader save/delete continuations", () => {
     ["leaf load", "reader", true],
     ["leaf load", "dashboard", false],
     ["leaf load", "reader", false],
+    ["overlapping label update", "dashboard", true],
+    ["overlapping label update", "reader", true],
+    ["overlapping label update", "dashboard", false],
+    ["overlapping label update", "reader", false],
   ] as const)(
-    "%s with %s leaf: delete while pending=%s",
+    "keeps a deleted note unsaved after %s in a %s leaf (delete while pending=%s)",
     async (delay, target, deleteWhilePending) => {
       vi.useFakeTimers();
       const app = App.createMock();
@@ -82,6 +87,7 @@ describe("Reader save/delete continuations", () => {
       const settings = {
         ...structuredClone(DEFAULT_SETTINGS),
         storageMode: "legacy-json",
+        availableTags: [],
         lastShownVersion: "2.7.0",
         autoBackup: {
           backupDataJson: false,
@@ -131,8 +137,20 @@ describe("Reader save/delete continuations", () => {
       if (!(source instanceof ReaderView))
         throw new Error("Expected source Reader");
       const backingItem = currentPlugin.settings.feeds[0].items[0];
-      (source as unknown as { currentItem: FeedItem }).currentItem =
-        backingItem;
+      const saveButton = source.containerEl.createEl("button");
+      // Supply the Reader's selected article and button without fetching content.
+      Object.assign(
+        source as unknown as {
+          currentItem: FeedItem;
+          currentDisplayTitle: string;
+          saveButton: HTMLElement;
+        },
+        {
+          currentItem: backingItem,
+          currentDisplayTitle: "Reader title",
+          saveButton,
+        },
+      );
       const targetType =
         target === "dashboard" ? RSS_DASHBOARD_VIEW_TYPE : RSS_READER_VIEW_TYPE;
       const otherView = createView(targetType);
@@ -140,9 +158,9 @@ describe("Reader save/delete continuations", () => {
         (otherView as unknown as { currentItem: FeedItem }).currentItem =
           backingItem;
       }
-      const hold = gate();
-      const persistence = gate();
-      let deferLoading = false;
+      const hold = createDeferredCompletion();
+      const persistence = createDeferredCompletion();
+      let deferLoading = delay === "overlapping label update";
       const load = vi.fn(() =>
         deferLoading ? hold.pending : Promise.resolve(),
       );
@@ -178,19 +196,36 @@ describe("Reader save/delete continuations", () => {
         }
       });
       await source.actionSaveCurrentArticle();
+      expect(saveButton.classList.contains("saved")).toBe(true);
       await vi.waitFor(() => {
         expect(saved).toHaveBeenCalledOnce();
         expect(persistenceHeld).toBe(true);
       });
-      // Finish the Reader's immediate label update before delaying the older
-      // save notification. Both callbacks run their real implementations.
-      await readerUpdated.mock.results[0].value;
+      // Keep any label-update callback pending when the leaf was deferred
+      // before Save; the other schedules isolate the older save notification.
+      if (delay !== "overlapping label update") {
+        await Promise.all(
+          readerUpdated.mock.results.map((result) => result.value),
+        );
+      }
       const saveCompletion = saved.mock.results[0].value;
       if (delay === "leaf load") {
         load.mockClear();
         deferLoading = true;
         persistence.release();
         await vi.waitFor(() => expect(load).toHaveBeenCalled());
+      }
+      const expectedSaveLoads =
+        delay === "overlapping label update"
+          ? 1 + readerUpdated.mock.calls.length
+          : 1;
+      if (delay === "overlapping label update") {
+        persistence.release();
+        await vi.waitFor(() =>
+          expect(load.mock.calls.length).toBeGreaterThanOrEqual(
+            expectedSaveLoads,
+          ),
+        );
       }
       const path = backingItem.savedFilePath;
       if (!path) throw new Error("Save did not produce a note path");
@@ -200,21 +235,38 @@ describe("Reader save/delete continuations", () => {
         hold.release();
         persistence.release();
         await saveCompletion;
+        await Promise.all(
+          readerUpdated.mock.results.map((result) => result.value),
+        );
+        expect(backingItem).toMatchObject({ saved: true, savedFilePath: path });
+        expect(backingItem.tags).toContainEqual({
+          name: "Saved",
+          color: "#3498db",
+        });
       }
       await app.vault.delete(file as never);
       const deleteHandler = handlers.get("delete");
       if (!deleteHandler) throw new Error("Delete handler was not registered");
       deleteHandler(file);
       expect(backingItem.saved).toBe(false);
-      if (delay === "leaf load" && deleteWhilePending) {
+      if (delay !== "persistence" && deleteWhilePending) {
         // Both the older save and the deletion now wait on the same leaf.
-        await vi.waitFor(() => expect(load).toHaveBeenCalledTimes(2));
+        await vi.waitFor(() =>
+          expect(load.mock.calls.length).toBeGreaterThanOrEqual(
+            expectedSaveLoads + 1,
+          ),
+        );
       }
       hold.release();
       persistence.release();
       await saveCompletion;
       await deleted.mock.results[0].value;
+      await Promise.all(
+        readerUpdated.mock.results.map((result) => result.value),
+      );
       expect(app.vault.getAbstractFileByPath(path)).toBeNull();
+      expect(saveButton.classList.contains("saved")).toBe(false);
+      expect(saveButton.getAttribute("aria-label")).toBe("Save article");
       expect(backingItem).toMatchObject({
         saved: false,
         savedFilePath: undefined,
