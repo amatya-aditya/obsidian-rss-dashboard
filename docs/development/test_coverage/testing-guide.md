@@ -107,3 +107,26 @@ The pre-commit hook runs only the tests related to the staged files; GitHub
 Actions runs the full suite with coverage for pull requests and pushes to
 `dev` or `master`. The pre-push hook skips local checks. See **Git Hooks** in
 [CONTRIBUTING.md](../../../CONTRIBUTING.md#git-hooks).
+
+## 9. Palette command ids
+
+Command-palette commands are a test contract: a test or an agent runs a command
+by id (`app.commands.executeCommandById("rss-dashboard:<id>")`), so an id never
+changes once released. The commands live in
+`src/commands/palette-commands.ts`; each one calls the same view method its
+hotkey calls and sets no default hotkey (suggested bindings are documented, not
+shipped). Reader and dashboard commands use `checkCallback`: they are listed
+only while that view is open, and `checking=true` never changes anything.
+
+| Group     | Ids                                                                                                                                                                                                                    | Available                |
+| --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------ |
+| Settings  | `open-settings-general`, `-storage`, `-display`, `-sidebar`, `-media`, `-article-saving`, `-rules`, `-highlights`, `-import-export`, `-tags`, `-about` (one per tab in `SETTINGS_TAB_NAMES`)                           | Always                   |
+| Dashboard | `dashboard-focus-search`, `dashboard-clear-filters`, `dashboard-filter-all`, `-unread`, `-read`, `-starred`, `dashboard-view-list`, `-card`, `-feed`, `dashboard-collapse-all-folders`, `dashboard-expand-all-folders` | A dashboard view is open |
+| Reader    | `reader-next-article`, `reader-previous-article`, `reader-close`, `reader-toggle-star`, `reader-toggle-read`, `reader-open-tags`, `reader-open-original`                                                               | A Reader view is open    |
+| Existing  | `open-dashboard`, `open-discover`, `refresh-feeds`, `toggle-sidebar`, `show-version-in-status-bar`, and the import/export commands in `main.ts`                                                                        | See `registerCommands`   |
+
+The version status bar item (Display setting "Show version in status bar") has
+`role="status"` and the accessible name `RSS Dashboard version <version>`.
+Clicking it runs `open-dashboard` behavior: it reveals the open dashboard
+rather than adding another. The item is not a tab stop; the keyboard route to
+the same action is the `open-dashboard` command.
