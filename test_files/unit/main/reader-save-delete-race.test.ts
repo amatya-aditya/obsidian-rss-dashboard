@@ -279,4 +279,116 @@ describe("Reader save/delete continuations", () => {
       expect(persisted.feeds[0].items[0].savedFilePath).toBeUndefined();
     },
   );
+
+  it.each([
+    ["an empty feedUrl", ""],
+    ["a stale feedUrl", "https://example.com/old-feed-url"],
+  ] as const)(
+    "persists Saved state for an article saved with %s",
+    async (_label, feedUrl) => {
+      const app = App.createMock();
+      const manifest: PluginManifest = {
+        id: "rss-dashboard",
+        name: "RSS Dashboard",
+        version: "2.7.0",
+        minAppVersion: "1.8.7",
+        author: "test",
+        description: "test",
+        dir: ".",
+      };
+      const item: FeedItem = {
+        title: "Fallback article",
+        link: "https://example.com/fallback",
+        description: "Article body",
+        pubDate: "2026-10-07",
+        guid: "fallback-article",
+        feedTitle: "Example",
+        feedUrl: "https://example.com/feed",
+        coverImage: "",
+      };
+      const settings = {
+        ...structuredClone(DEFAULT_SETTINGS),
+        storageMode: "legacy-json",
+        availableTags: [],
+        lastShownVersion: "2.7.0",
+        autoBackup: {
+          backupDataJson: false,
+          backupOpml: false,
+          backupUserdata: false,
+        },
+        feeds: [
+          {
+            title: "Example",
+            url: "https://example.com/feed",
+            folder: "",
+            lastUpdated: 0,
+            items: [item],
+          },
+        ],
+      };
+      const currentPlugin = new RssDashboardPlugin(app, manifest);
+      plugin = currentPlugin;
+      currentPlugin.loadData = vi.fn().mockResolvedValue(settings);
+      const saveData = vi.fn().mockResolvedValue(undefined);
+      currentPlugin.saveData = saveData;
+      const factories = new Map<
+        string,
+        Parameters<RssDashboardPlugin["registerView"]>[1]
+      >();
+      vi.spyOn(currentPlugin, "registerView").mockImplementation(
+        (type, factory) => {
+          factories.set(type, factory);
+        },
+      );
+      await currentPlugin.onload();
+      const reader = factories.get(RSS_READER_VIEW_TYPE)?.({
+        app,
+      } as unknown as WorkspaceLeaf);
+      if (!(reader instanceof ReaderView)) throw new Error("Expected Reader");
+      const applyExternalUpdate = vi
+        .spyOn(reader, "applyExternalUpdate")
+        .mockImplementation(() => {});
+      vi.spyOn(app.workspace, "getLeavesOfType").mockImplementation((type) =>
+        type === RSS_READER_VIEW_TYPE
+          ? [
+              {
+                app,
+                view: reader,
+                loadIfDeferred: () => Promise.resolve(),
+              } as unknown as WorkspaceLeaf,
+            ]
+          : [],
+      );
+
+      const readerCopy: FeedItem = {
+        ...currentPlugin.settings.feeds[0].items[0],
+        feedUrl,
+        saved: true,
+        savedFilePath: "Saved/Fallback article.md",
+      };
+      await (currentPlugin as unknown as SaveCallbacks).onArticleSaved(
+        readerCopy,
+      );
+
+      const backingItem = currentPlugin.settings.feeds[0].items[0];
+      expect(backingItem).toMatchObject({
+        saved: true,
+        savedFilePath: "Saved/Fallback article.md",
+      });
+      const persisted = saveData.mock.lastCall?.[0];
+      expect(persisted.feeds[0].items[0]).toMatchObject({
+        saved: true,
+        savedFilePath: "Saved/Fallback article.md",
+      });
+      // Open views are told about the article under its owning feed.
+      expect(applyExternalUpdate).toHaveBeenCalledWith(
+        "fallback-article",
+        expect.objectContaining({
+          saved: true,
+          savedFilePath: "Saved/Fallback article.md",
+        }),
+        "https://example.com/feed",
+      );
+    },
+  );
 });
