@@ -20,6 +20,37 @@ Make plugin state and controls readable and operable through user-facing semanti
 
 Not a conformance claim. Cite the applicable WCAG 2.2 criterion on each PR (2.1.1 Keyboard, 2.4.3 Focus Order, 4.1.2 Name/Role/Value, 4.1.3 Status Messages).
 
+## Why this exists
+
+The plugin's own UI was hard to operate without a mouse, and hard to read for a screen reader, in ways that also made it slow to test automatically. This program fixed the concrete gaps first and added a small amount of scaffolding so tests and keyboard users can reach things by name instead of by pixel.
+
+### What it fixes (value shown by the code and the testing)
+
+- **Keyboard access to Reader actions.** Before, "Open in browser" in the Reader toolbar was a bare `div` with no role and no keyboard path at all, and star, tags and reader settings were `div`s with hand-written key handling. They are now native buttons (#837, #838), so Enter and Space work and the browser reports them as buttons.
+- **Screen reader feedback on refresh.** A refresh used to show only visual updates and transient toasts. Each dashboard now has one hidden polite live region that announces a refresh starting, finishing (with the new-article and failure counts), stopping or failing (#842, #846, #855). Scheduled refreshes stay quiet unless they find news or errors.
+- **A named, clickable version status.** The status bar item says what it is (`role="status"`, "RSS Dashboard version <version>") and opens the dashboard (#827, #830).
+- **Real bugs found by testing it.** Driving the real app, not just unit tests, found: the focus-search palette command silently doing nothing (the search box lives in a closed menu), Reader commands acting on the wrong Reader when two are open, the refresh announcement saying "no new articles" when about 1,162 had arrived (the parser rewrites stored items in place), arrow keys being swallowed by Reader shortcuts, a star button whose name contradicted its state, and Reader shortcut letters being swallowed in text inputs (#840, which predates this work). Most were invisible to the jsdom unit tests.
+
+### What is a bet
+
+These parts help only if the project keeps testing and supporting keyboard users this way:
+
+- **The stable command ids** (31 palette commands: settings tabs, dashboard, Reader, mark all read and unread). They are a contract for tests and agents; renaming one breaks callers. The ids are listed in `docs/development/test_coverage/testing-guide.md`.
+- **The `data-rss-*` hooks and the ready flag** (`data-rss-action`, `data-rss-region` from `createIconButton()`; `data-rss-ready` on the dashboard root). Tests should prefer role and name; the hooks only disambiguate duplicates and must never be the only way to reach a control.
+- **Roving tabindex on the Reader toolbar** (one Tab stop, arrows, Home, End). It is the standard toolbar pattern and cuts six Tab stops to one, but it is about 190 lines plus tests, and it needed a special case in the Reader hotkeys.
+
+These paid for themselves while this program was built (every live check used them), but they are the first things to drop if nobody uses them.
+
+### Costs
+
+- About two thirds of the added lines are tests (roughly 3,400 of 5,000), because the tests drive the real runner, view and toolbar rather than fake DOM. That is deliberate; the one time a test built a fake DOM it missed a real bug.
+- The ids and hooks above are contracts to keep stable.
+- Menus, dialogs and landmarks (Slice 4) are not done. `Copy diagnostics` was dropped on purpose (see DEC-012 in the spec).
+
+### Removing a part later
+
+Each slice is a separate commit and is independent: the palette commands live in `src/commands/palette-commands.ts` plus one call in `main.ts`; the live region in `src/services/refresh-announcements.ts`, `src/utils/live-region.ts` and the runner's `announce` option; the roving toolbar in `src/utils/roving-toolbar.ts`, its attach calls and the Reader hotkeys exception. The native buttons themselves should stay; they are the accessibility fix.
+
 ## Handoff notes (for the implementing session)
 
 This plan was drafted in a remote session with no GitHub write access and no running Obsidian. Facts below come from grepping `src/` and `main.ts`; verify before relying on them.
