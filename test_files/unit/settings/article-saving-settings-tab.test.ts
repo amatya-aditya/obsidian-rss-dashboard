@@ -402,4 +402,20 @@ describe("Article Saving settings help text", () => {
     ).toHaveLength(6);
     expect(help?.querySelectorAll("li code").length).toBeGreaterThan(20);
   });
+
+  it("places the template buttons above the variable help", () => {
+    const containerEl = createDiv();
+    renderArticleSavingSettingsTab(containerEl, createPlugin(), vi.fn());
+
+    const buttons = containerEl.querySelector(
+      ".rss-dashboard-template-btn-row",
+    );
+    const help = containerEl.querySelector(".rss-dashboard-template-help");
+    expect(buttons).not.toBeNull();
+    expect(help).not.toBeNull();
+    expect(
+      buttons!.compareDocumentPosition(help!) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
 });

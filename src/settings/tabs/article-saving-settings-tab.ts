@@ -132,12 +132,6 @@ export function renderArticleSavingSettingsTab(
 
   templateContainer.appendChild(templateInput);
 
-  const helpText = containerEl.createDiv({
-    cls: "setting-item-description rss-dashboard-template-help",
-  });
-
-  renderTemplateVariableHelp(helpText);
-
   const templateBtnRow = containerEl.createDiv({
     cls: "rss-dashboard-template-btn-row",
   });
@@ -191,6 +185,12 @@ export function renderArticleSavingSettingsTab(
     new Notice(`Template "${newTemplate.name}" saved`);
     onRefresh();
   };
+
+  const helpText = containerEl.createDiv({
+    cls: "setting-item-description rss-dashboard-template-help",
+  });
+
+  renderTemplateVariableHelp(helpText);
 
   // ── Saved templates ───────────────────────────────────────────────────────
   new Setting(containerEl).setName("Saved templates").setHeading();
