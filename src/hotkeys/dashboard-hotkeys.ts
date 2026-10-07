@@ -16,8 +16,11 @@ export function isInteractiveTarget(target: EventTarget | null): boolean {
   // Obsidian's CodeMirror editor — not caught by tag checks
   if (target.closest(".cm-editor, .cm-content")) return true;
 
+  // A bare tabindex is not a control: card titles, feed names, and summaries
+  // take tabindex="0" only so keyboard users can reach their text. Every
+  // custom control the plugin builds also carries one of these roles.
   return !!target.closest(
-    'button, a[href], [role="button"], [role="combobox"], [role="link"], [role="option"], [role="menuitem"], [role="checkbox"], [role="radio"], [role="slider"], [role="switch"], [role="tab"], [tabindex]:not([tabindex="-1"])',
+    'button, a[href], [role="button"], [role="combobox"], [role="link"], [role="option"], [role="menuitem"], [role="checkbox"], [role="radio"], [role="slider"], [role="switch"], [role="tab"]',
   );
 }
 
