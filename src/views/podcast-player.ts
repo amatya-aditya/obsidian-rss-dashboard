@@ -3,6 +3,7 @@ import { App, setIcon, Menu, Notice } from "obsidian";
 import { PodcastEpisodeList } from "../components/podcast-episode-list";
 import { MediaService } from "../services/media-service";
 import { sanitizeAndAppendHtml } from "../utils/safe-html";
+import { onActivate } from "../utils/keyboard-activation";
 import { windowInstanceOf } from "../utils/platform-utils";
 import { itemAuthorText } from "../utils/item-author";
 
@@ -477,7 +478,7 @@ export class PodcastPlayer {
     this.sleepTimerTextEl = this.sleepTimerButton.createSpan({
       cls: "rss-sleep-timer-inline-value",
     });
-    this.sleepTimerButton.onclick = (e) => this.showSleepTimerMenu(e);
+    onActivate(this.sleepTimerButton, (e) => this.showSleepTimerMenu(e));
     this.updateSleepTimerButtonState();
 
     this.volumeContainer = toolsSection.createDiv({
@@ -977,7 +978,7 @@ export class PodcastPlayer {
     }
   }
 
-  private showSleepTimerMenu(event: MouseEvent): void {
+  private showSleepTimerMenu(event: MouseEvent | KeyboardEvent): void {
     const menu = new Menu();
 
     const options = [
@@ -1014,7 +1015,13 @@ export class PodcastPlayer {
       });
     });
 
-    menu.showAtMouseEvent(event);
+    if (event.type === "keydown" && this.sleepTimerButton) {
+      // A key press carries no pointer position, so open under the button
+      const rect = this.sleepTimerButton.getBoundingClientRect();
+      menu.showAtPosition({ x: rect.left, y: rect.bottom });
+    } else {
+      menu.showAtMouseEvent(event as MouseEvent);
+    }
   }
 
   private setSleepTimer(minutes: number | "end"): void {
