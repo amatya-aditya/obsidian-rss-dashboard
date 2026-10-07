@@ -104,6 +104,42 @@ describe("ShortcutHelpModal", () => {
     });
   });
 
+  describe("Esc shortcut", () => {
+    // Esc closes dialogs only; no handler clears a selection (#880).
+    function escItems() {
+      return SHORTCUT_SECTIONS.flatMap((section) => section.items).filter(
+        (item) => item.key === "Esc",
+      );
+    }
+
+    it("lists Esc as closing a dialog and nothing else", () => {
+      expect(escItems()).toEqual([{ key: "Esc", desc: "Close dialog" }]);
+    });
+
+    it("shows the same Esc row in the rendered dialog", () => {
+      const modal = new ShortcutHelpModal(
+        createMockApp(),
+        structuredClone(DEFAULT_SETTINGS),
+      );
+      modal.onOpen();
+      const row = [
+        ...modal.contentEl.querySelectorAll(".rss-shortcut-row"),
+      ].find(
+        (candidate) => candidate.querySelector("kbd")?.textContent === "Esc",
+      );
+      expect(row?.querySelector(".rss-shortcut-desc")?.textContent).toBe(
+        "Close dialog",
+      );
+      modal.onClose();
+    });
+
+    it("matches the keyboard shortcuts guide", () => {
+      const guide = readFileSync("docs/user/keyboard-shortcuts.md", "utf8");
+      const row = guide.split("\n").find((line) => line.startsWith("| Esc "));
+      expect(row).toMatch(/^\| Esc\s+\| Close dialog\s+\|$/);
+    });
+  });
+
   describe("article arrow-key shortcuts", () => {
     // Up and Down step the article selection in every view; Left and Right
     // only act in card view (and jump folders while the sidebar has focus).

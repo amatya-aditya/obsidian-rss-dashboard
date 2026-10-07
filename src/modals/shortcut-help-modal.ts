@@ -22,7 +22,7 @@ export const SHORTCUT_SECTIONS: ShortcutSection[] = [
     section: "General navigation",
     items: [
       { key: "?", desc: "Open help dialog" },
-      { key: "Esc", desc: "Close dialog / clear selection" },
+      { key: "Esc", desc: "Close dialog" },
       { key: "r", desc: "Refresh feed" },
     ],
   },
