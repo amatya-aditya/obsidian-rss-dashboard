@@ -120,7 +120,7 @@ describe("DashboardView hotkeys in a popout window", () => {
         on: vi.fn(),
         getLeavesOfType: vi.fn().mockReturnValue([]),
         setActiveLeaf: vi.fn(),
-        getMostRecentLeaf: vi.fn(),
+        getActiveViewOfType: vi.fn(),
       },
       vault: { on: vi.fn() },
     } as unknown as App;
@@ -138,7 +138,7 @@ describe("DashboardView hotkeys in a popout window", () => {
     view = new RssDashboardView(leaf, plugin);
     (leaf as unknown as { view: unknown }).view = view;
     // The dashboard is the leaf the user last focused, in whichever window
-    vi.mocked(app.workspace.getMostRecentLeaf).mockReturnValue(leaf);
+    vi.mocked(app.workspace.getActiveViewOfType).mockReturnValue(view);
     document.body.appendChild(view.containerEl);
 
     popout = openPopoutWindow();

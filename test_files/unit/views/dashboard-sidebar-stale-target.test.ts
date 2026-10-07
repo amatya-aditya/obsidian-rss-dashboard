@@ -108,7 +108,7 @@ describe("Dashboard sidebar hotkeys act only while the sidebar has keyboard focu
         on: vi.fn(),
         getLeavesOfType: vi.fn().mockReturnValue([]),
         setActiveLeaf: vi.fn(),
-        getMostRecentLeaf: vi.fn(),
+        getActiveViewOfType: vi.fn(),
       },
       vault: { on: vi.fn() },
     } as unknown as App;
@@ -155,7 +155,7 @@ describe("Dashboard sidebar hotkeys act only while the sidebar has keyboard focu
     );
     view = new RssDashboardView(leaf, plugin);
     (leaf as unknown as { view: unknown }).view = view;
-    vi.mocked(app.workspace.getMostRecentLeaf).mockReturnValue(leaf);
+    vi.mocked(app.workspace.getActiveViewOfType).mockReturnValue(view);
     const call = registerSpy.mock.calls.find(
       (c) => c[0] === activeDocument && c[1] === "keydown",
     );

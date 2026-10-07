@@ -71,7 +71,7 @@ describe("dashboard actions behind palette commands", () => {
         on: vi.fn(),
         getLeavesOfType: vi.fn().mockReturnValue([]),
         setActiveLeaf: vi.fn(),
-        getMostRecentLeaf: vi.fn(),
+        getActiveViewOfType: vi.fn(),
       },
       vault: { on: vi.fn() },
     } as unknown as App;

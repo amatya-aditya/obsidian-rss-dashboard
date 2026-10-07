@@ -1,3 +1,4 @@
+import { ItemView } from "obsidian";
 import type { RssDashboardView } from "../views/dashboard-view";
 
 /**
@@ -109,7 +110,10 @@ function handleKeydown(
   e: KeyboardEvent,
   doc: Document,
 ): void {
-  if (view.app.workspace.getMostRecentLeaf()?.view !== view) return;
+  // Guard 1: act only when this dashboard is the focused view, wherever it is
+  // docked. getMostRecentLeaf() only searches the root split and popouts, so
+  // it never matches a dashboard in a sidebar (#879).
+  if (view.app.workspace.getActiveViewOfType(ItemView) !== view) return;
 
   // Guard 2: let a focused editor or control own its keyboard interactions.
   if (isInteractiveTarget(e.target)) return;

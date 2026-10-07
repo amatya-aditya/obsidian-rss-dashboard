@@ -132,7 +132,7 @@ function setup() {
       return spy;
     },
   }) as unknown as RssDashboardView;
-  base.app = { workspace: { getMostRecentLeaf: () => ({ view }) } };
+  base.app = { workspace: { getActiveViewOfType: () => view } };
   setupDashboardHotkeys(view);
 
   const calls = (action: string): number =>
