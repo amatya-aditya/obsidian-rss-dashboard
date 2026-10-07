@@ -21,45 +21,6 @@ export type ReaderMediaRoute =
   "video" | "video-podcast" | "podcast" | "article";
 
 /**
- * Clears the saved flag, the saved path and the Saved tag on an item whose
- * saved note no longer exists, on the item and on the feed's own copy of it.
- * `savedFileExists` is only called for an item that claims to be saved.
- */
-export function clearSavedStateIfFileMissing(
-  item: FeedItem,
-  feeds: Feed[],
-  savedFileExists: () => boolean,
-): void {
-  if (item.saved) {
-    const fileExists = savedFileExists();
-    if (!fileExists) {
-      item.saved = false;
-      item.savedFilePath = undefined;
-      if (item.tags) {
-        item.tags = item.tags.filter(
-          (tag) => tag.name.toLowerCase() !== "saved",
-        );
-      }
-      if (item.feedUrl) {
-        const feed = feeds.find((f) => f.url === item.feedUrl);
-        if (feed) {
-          const originalItem = feed.items.find((i) => i.guid === item.guid);
-          if (originalItem) {
-            originalItem.saved = false;
-            originalItem.savedFilePath = undefined;
-            if (originalItem.tags) {
-              originalItem.tags = originalItem.tags.filter(
-                (tag) => tag.name.toLowerCase() !== "saved",
-              );
-            }
-          }
-        }
-      }
-    }
-  }
-}
-
-/**
  * Chooses the view for an item and back-fills the `videoId` (from a YouTube
  * link) or `audioUrl` (from the description) the chosen view needs.
  */

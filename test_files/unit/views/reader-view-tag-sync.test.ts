@@ -72,7 +72,10 @@ describe("ReaderView Tag Synchronization", () => {
     readerView = new ReaderView(
       mockLeaf as never,
       mockSettings,
-      { saveArticle: vi.fn() } as never,
+      {
+        saveArticle: vi.fn(),
+        checkSavedFileExists: vi.fn().mockReturnValue(true),
+      } as never,
       vi.fn(),
       vi.fn(),
     );
@@ -192,5 +195,32 @@ describe("ReaderView Tag Synchronization", () => {
         ".rss-reader-tags",
       );
     expect(tagsContainer).toBeNull();
+  });
+
+  it("does not apply same-guid updates from another feed", async () => {
+    const item = makeItem({
+      saved: true,
+      tags: [{ name: "Saved", color: "blue" }],
+    });
+    getInternals(readerView).fetchFullArticleContent = vi
+      .fn()
+      .mockResolvedValue("<p>Content</p>");
+    await readerView.displayItem(item);
+
+    readerView.applyExternalUpdate(
+      "guid-1",
+      { saved: false, savedFilePath: undefined, tags: [] },
+      "https://another-feed.example/rss.xml",
+    );
+
+    expect(getInternals(readerView).currentItem?.saved).toBe(true);
+    expect(getInternals(readerView).currentItem?.tags).toEqual([
+      { name: "Saved", color: "blue" },
+    ]);
+    expect(
+      getInternals(readerView).readingContainer.querySelector(
+        ".rss-reader-tags",
+      ),
+    ).not.toBeNull();
   });
 });

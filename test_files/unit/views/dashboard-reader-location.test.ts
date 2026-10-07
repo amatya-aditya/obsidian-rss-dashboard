@@ -78,6 +78,7 @@ type MockReaderView = {
 
 type TestDashboardView = {
   app: App;
+  containerEl: HTMLElement;
   render: ReturnType<typeof vi.fn>;
   inlineArticle: import("../../../src/types/types").FeedItem | null;
   handleArticleClick: (
@@ -94,6 +95,12 @@ type TestDashboardView = {
     article?: import("../../../src/types/types").FeedItem,
   ) => Promise<void>;
   renderInlineArticle: (container: HTMLElement) => void;
+  applyExternalArticleUpdate: (
+    articleGuid: string,
+    feedUrl: string,
+    updates: Partial<FeedItem>,
+    shouldRerender?: boolean,
+  ) => void;
   handleArticleUpdate: (
     item: FeedItem,
     updates: Partial<FeedItem>,
@@ -695,6 +702,41 @@ describe("Dashboard reader location", () => {
         ?.getAttribute("aria-pressed"),
     ).toBe("true");
     starredContainer.remove();
+  });
+
+  it("clears the inline Reader save control in place for a matching feed article", async () => {
+    const settings = cloneSettings();
+    const feed = makeFeed("https://example.com/feed", [
+      { saved: true, tags: [{ name: "Saved", color: "blue" }] },
+    ]);
+    settings.feeds = [feed];
+    const { view } = await createDashboardView(settings);
+    view.inlineArticle = feed.items[0];
+
+    const inlineContainer = createDiv();
+    view.containerEl.appendChild(inlineContainer);
+    view.renderInlineArticle(inlineContainer);
+    const body = inlineContainer.querySelector(".inline-reader-content");
+    const saveButton = inlineContainer.querySelector<HTMLElement>(
+      ".inline-reader-header [aria-label='Save article']",
+    );
+    expect(saveButton?.classList.contains("saved")).toBe(true);
+
+    view.applyExternalArticleUpdate(feed.items[0].guid, feed.url, {
+      read: true,
+    });
+    expect(saveButton?.classList.contains("saved")).toBe(true);
+
+    view.applyExternalArticleUpdate(feed.items[0].guid, feed.url, {
+      saved: false,
+      savedFilePath: undefined,
+      tags: [],
+    });
+
+    expect(view.inlineArticle?.saved).toBe(false);
+    expect(saveButton?.classList.contains("saved")).toBe(false);
+    expect(inlineContainer.querySelector(".inline-reader-content")).toBe(body);
+    inlineContainer.remove();
   });
 
   it("exits inline mode when a feed is clicked in the sidebar", async () => {

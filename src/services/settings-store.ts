@@ -17,6 +17,7 @@ import type {
   PersistSettingsOptions,
 } from "./feed-storage-repository";
 import type { FeedRefreshScheduler } from "./feed-refresh-scheduler";
+import type { SavedArticleAssociationUpdate } from "./saved-article-association-service";
 import {
   ensureMetadataFolderExists,
   getMetadataPath,
@@ -75,6 +76,10 @@ export interface SettingsStoreOptions {
   initializeSettingsBackedServices: () => void;
   getAutoRefreshScheduler: () => FeedRefreshScheduler | null;
   refreshDashboardViews: () => Promise<void>;
+  clearMissingSavedArticlePaths: () => SavedArticleAssociationUpdate[];
+  notifySavedArticleAssociationUpdates: (
+    updates: SavedArticleAssociationUpdate[],
+  ) => Promise<void>;
 }
 
 /**
@@ -171,12 +176,14 @@ export class SettingsStore {
     hydrated,
     didMigrateKeywordRules,
     didNormalizeAndDedupeItems,
+    didClearMissingSavedArticlePaths,
     originalSettingsJson,
   }: {
     wasNullLoad: boolean;
     hydrated: Awaited<ReturnType<FeedStorageRepository["hydrateSettings"]>>;
     didMigrateKeywordRules: boolean;
     didNormalizeAndDedupeItems: boolean;
+    didClearMissingSavedArticlePaths: boolean;
     originalSettingsJson: string;
   }): boolean {
     // Guard: skip the early write if we loaded from null defaults.
@@ -193,6 +200,7 @@ export class SettingsStore {
       (didMigrateKeywordRules ||
         hydrated.didChange ||
         didNormalizeAndDedupeItems ||
+        didClearMissingSavedArticlePaths ||
         serializeWithoutArticles(this.settings) !== originalSettingsJson);
     return shouldSave;
   }
@@ -252,6 +260,10 @@ export class SettingsStore {
         { useFirstSeenDateFallback: this.settings.useFirstSeenDateFallback },
       );
       if (loadGeneration !== this.settingsLoadGeneration) return;
+      const savedArticleAssociationUpdates =
+        !vaultMetadataUnreadable && hydrated.userStateLoaded !== false
+          ? this.options.clearMissingSavedArticlePaths()
+          : [];
       if (!vaultMetadataUnreadable)
         this.hasNotifiedVaultMetadataFailure = false;
       this.settingsLoadFailed = vaultMetadataUnreadable;
@@ -260,6 +272,8 @@ export class SettingsStore {
         hydrated,
         didMigrateKeywordRules,
         didNormalizeAndDedupeItems,
+        didClearMissingSavedArticlePaths:
+          savedArticleAssociationUpdates.length > 0,
         originalSettingsJson,
       });
       if (shouldSave) {
@@ -269,6 +283,11 @@ export class SettingsStore {
           this.options.initializeSettingsBackedServices();
         }
         await this.options.saveSettings();
+      }
+      if (savedArticleAssociationUpdates.length > 0) {
+        await this.options.notifySavedArticleAssociationUpdates(
+          savedArticleAssociationUpdates,
+        );
       }
       this.options.getAutoRefreshScheduler()?.reschedule();
     } catch (error) {
@@ -320,6 +339,11 @@ export class SettingsStore {
    */
   registerVaultMetadataChangeListeners(
     registerEvent: (ref: EventRef) => void,
+    onRename?: (
+      file: { path: string },
+      oldPath: string,
+      isFolder: boolean,
+    ) => void,
   ): void {
     const vault = this.app.vault as unknown as {
       on?: (event: string, callback: (...args: unknown[]) => void) => EventRef;
@@ -360,7 +384,12 @@ export class SettingsStore {
     registerEvent(vault.on("modify", (file) => scheduleReload(file)));
     registerEvent(vault.on("create", (file) => scheduleReload(file)));
     registerEvent(
-      vault.on("rename", (file, oldPath) => scheduleReload(file, oldPath)),
+      vault.on("rename", (file, oldPath) => {
+        scheduleReload(file, oldPath);
+        const path = this.getVaultFilePath(file);
+        if (!path || typeof oldPath !== "string") return;
+        onRename?.({ path }, oldPath, file instanceof TFolder);
+      }),
     );
   }
 

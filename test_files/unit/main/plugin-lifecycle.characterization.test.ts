@@ -53,7 +53,7 @@ function createHarness(store: DataStore, app: MockApp): Harness {
     return Promise.resolve();
   };
 
-  // The stub vault has no event API; model the three events main.ts watches.
+  // The stub vault has no event API; model the four events main.ts watches.
   (app.vault as unknown as { on: unknown }).on = (name: string) => {
     log.push("vault.on:" + name);
     return { name };
@@ -144,7 +144,8 @@ const STARTUP_SEQUENCE = [
   "registerEvent",
   "vault.on:rename",
   "registerEvent",
-  // Deferred saved-article validation.
+  "vault.on:delete",
+  "registerEvent",
   "workspace.onLayoutReady",
   "workspace.on:active-leaf-change",
   "registerEvent",
@@ -529,7 +530,6 @@ function observeOnload(harness: Harness, app: MockApp): Captured {
   step("loadSettings");
   step("getActiveDashboardView");
   step("applyMobileOptimizations");
-  step("scheduleStartupSavedArticleValidation");
   step("initializeSettingsBackedServices", () => {
     const service = internals.backgroundImportService;
     const resume = service.resumePendingImports.bind(service);
@@ -651,9 +651,10 @@ describe("onload steps (characterization)", () => {
         "vault.on:rename",
         "registerEvent",
         "step:initializeSettingsBackedServices",
+        "vault.on:delete",
+        "registerEvent",
         "step:getActiveDashboardView",
         "step:ensureAutoRefreshScheduler",
-        "step:scheduleStartupSavedArticleValidation",
         "workspace.onLayoutReady",
         "workspace.on:active-leaf-change",
         "registerEvent",
@@ -680,7 +681,7 @@ describe("onload steps (characterization)", () => {
       ]);
     });
 
-    it("applies the mobile adjustments after the scheduler exists and before it schedules saved-article validation", async () => {
+    it("applies mobile adjustments after the scheduler without scheduling saved-note validation", async () => {
       Platform.isMobile = true;
 
       const { harness } = await startedPlugin({
@@ -692,12 +693,9 @@ describe("onload steps (characterization)", () => {
       const steps = stepsOf(harness.log);
       const scheduler = steps.indexOf("step:ensureAutoRefreshScheduler");
       const mobile = steps.indexOf("step:applyMobileOptimizations");
-      const validation = steps.indexOf(
-        "step:scheduleStartupSavedArticleValidation",
-      );
       expect(scheduler).toBeGreaterThan(-1);
       expect(mobile).toBe(scheduler + 1);
-      expect(validation).toBe(mobile + 1);
+      expect(steps).not.toContain("step:scheduleStartupSavedArticleValidation");
       expect(harness.plugin.settings).toMatchObject({
         refreshInterval: 60,
         maxItems: 50,
@@ -861,6 +859,8 @@ describe("onload steps (characterization)", () => {
         "vault.on:rename",
         "registerEvent",
         "step:initializeSettingsBackedServices",
+        "vault.on:delete",
+        "registerEvent",
         "step:getActiveDashboardView",
       ]);
       expect(vi.getTimerCount()).toBe(0);
@@ -889,7 +889,6 @@ describe("onload steps (characterization)", () => {
       captured.activeLeafHandlers[0]();
       expect(show).toHaveBeenCalledTimes(1);
 
-      // The first layout-ready hook is saved-article validation; this is the second.
       expect(captured.layoutReadyCallbacks).toHaveLength(2);
       captured.layoutReadyCallbacks[1]();
       expect(show).toHaveBeenCalledTimes(2);

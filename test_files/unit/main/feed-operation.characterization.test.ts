@@ -90,7 +90,6 @@ interface HeldFetch {
 /** Plugin members the tests replace or call. All of them stay in main.ts. */
 interface PluginSeams {
   feedParser: ParserDouble;
-  validateSavedArticles: () => Promise<void>;
   addStatusBarItem: () => HTMLElement;
   initializeSettingsBackedServices(): void;
   ensureAutoRefreshScheduler(): FeedRefreshScheduler;
@@ -106,7 +105,6 @@ interface Harness {
   /** The view `getActiveDashboardView` returns to the refresh runner. */
   contentView: DashboardDouble;
   contentCalls: ViewCall[];
-  validateSavedArticles: Mock<() => Promise<void>>;
   /** Re-installs the test parser after the plugin rebuilds its services. */
   useTestParser(): void;
   /** Holds every status redraw until the returned function is called. */
@@ -235,9 +233,6 @@ function createHarness(feeds: Feed[] = []): Harness {
   };
   useTestParser();
 
-  const validateSavedArticles = vi.fn(() => Promise.resolve());
-  seams.validateSavedArticles = validateSavedArticles;
-
   // The open dashboard leaf that refresh-status redraws reach.
   const statusCalls: ViewCall[] = [];
   const statusView = Object.assign(
@@ -269,7 +264,6 @@ function createHarness(feeds: Feed[] = []): Harness {
     statusCalls,
     contentView,
     contentCalls,
-    validateSavedArticles,
     useTestParser,
     holdStatusRedraws: () => {
       // Views only wait for a deferred leaf to load on Obsidian 1.7.2+.
@@ -1259,28 +1253,6 @@ describe("global feed operation: Stop", () => {
     await refresh;
   });
 
-  it("repeats the deferral and the notice when Stop is pressed again before the batch drains", async () => {
-    const harness = createHarness([createFeed("a"), createFeed("b")]);
-    const { plugin } = harness;
-    const deferral = spyOnDeferral();
-    harness.validateSavedArticles.mockImplementation(
-      () => new Promise<void>(() => {}),
-    );
-
-    void plugin.refreshFeeds();
-    await flush();
-    plugin.cancelGlobalRefresh();
-    await flush();
-    expect(plugin.isGlobalRefreshCancellable).toBe(true);
-
-    plugin.cancelGlobalRefresh();
-
-    expect(deferral).toHaveBeenCalledTimes(2);
-    expect(
-      notices().filter((notice) => notice === STOPPED_NOTICE),
-    ).toHaveLength(2);
-  });
-
   it("cancelGlobalRefresh stops an in-flight global refresh, prevents late commits, and protects lastGlobalRefreshCompletedAt", async () => {
     const feeds = [
       createFeed("a", { lastUpdated: 100 }),
@@ -1549,11 +1521,11 @@ describe("global feed operation: a plain add while a stopped refresh drains", ()
     const url = "https://example.com/plain.xml";
     const harness = createHarness([createFeed("a"), createFeed("b")]);
     const { plugin } = harness;
-    let finishValidation = (): void => {};
-    harness.validateSavedArticles.mockImplementation(
+    let finishSave = (): void => {};
+    vi.spyOn(plugin, "saveSettings").mockImplementationOnce(
       () =>
         new Promise<void>((resolve) => {
-          finishValidation = resolve;
+          finishSave = resolve;
         }),
     );
 
@@ -1572,7 +1544,7 @@ describe("global feed operation: a plain add while a stopped refresh drains", ()
     expect(plugin.settings.feeds.some((feed) => feed.url === url)).toBe(false);
     expect(notices().some((notice) => notice.includes("added"))).toBe(false);
 
-    finishValidation();
+    finishSave();
     await refresh;
 
     const addedLater = addFeed(plugin, url);

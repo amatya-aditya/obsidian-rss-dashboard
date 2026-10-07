@@ -803,15 +803,15 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
     addSavedTag: true,
     defaultFolder: "RSS articles/",
     defaultTemplate: `---
- title: "{{title}}"
- date: "{{date}}"
- tags: [{{tags}}]
- source: "{{source}}"
- link: "{{link}}"
- author: "{{author}}"
- feedTitle: "{{feedTitle}}"
- summary: "{{summary}}"
- guid: "{{guid}}"
+title: "{{title}}"
+date: "{{date}}"
+tags: [{{tags}}]
+source: "{{source}}"
+link: "{{link}}"
+author: "{{author}}"
+feedTitle: "{{feedTitle}}"
+summary: "{{summary}}"
+guid: "{{guid}}"
 ---
 
 # {{title}}
@@ -821,15 +821,15 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
   [Source]({{link}})`,
     includeFrontmatter: true,
     frontmatterTemplate: `---
- title: "{{title}}"
- date: "{{date}}"
- tags: [{{tags}}]
- source: "{{source}}"
- link: "{{link}}"
- author: "{{author}}"
- feedTitle: "{{feedTitle}}"
- summary: "{{summary}}"
- guid: "{{guid}}"
+title: "{{title}}"
+date: "{{date}}"
+tags: [{{tags}}]
+source: "{{source}}"
+link: "{{link}}"
+author: "{{author}}"
+feedTitle: "{{feedTitle}}"
+summary: "{{summary}}"
+guid: "{{guid}}"
 ---`,
     saveFullContent: true,
     fetchTimeout: 10,

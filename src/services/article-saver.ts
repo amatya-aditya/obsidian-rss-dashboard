@@ -350,15 +350,15 @@ export class ArticleSaver {
 
     if (!frontmatter) {
       frontmatter = `---
-        title: "{{title}}"
-        date: "{{date}}"
-        tags: [{{tags}}]
-        source: "{{source}}"
-        link: "{{link}}"
-        author: "{{author}}"
-        feedTitle: "{{feedTitle}}"
-        guid: "{{guid}}"
-        ---`;
+title: "{{title}}"
+date: "{{date}}"
+tags: [{{tags}}]
+source: "{{source}}"
+link: "{{link}}"
+author: "{{author}}"
+feedTitle: "{{feedTitle}}"
+guid: "{{guid}}"
+---`;
     }
 
     frontmatter = renderArticleTemplate(
@@ -661,152 +661,12 @@ export class ArticleSaver {
     }
   }
 
-  async fixSavedFilePaths(articles: FeedItem[]): Promise<void> {
-    for (const article of articles) {
-      if (!article.saved || !article.savedFilePath) continue;
-
-      const oldPath = article.savedFilePath;
-      const normalizedPath = this.normalizePath(oldPath);
-      if (oldPath === normalizedPath) continue;
-
-      if (this.app.vault.getAbstractFileByPath(normalizedPath) !== null) {
-        article.savedFilePath = normalizedPath;
-        continue;
-      }
-
-      const file = this.app.vault.getAbstractFileByPath(oldPath);
-      if (!(file instanceof TFile)) {
-        article.saved = false;
-        article.savedFilePath = undefined;
-        if (article.tags) {
-          article.tags = article.tags.filter(
-            (tag) => tag.name.toLowerCase() !== "saved",
-          );
-        }
-        continue;
-      }
-
-      try {
-        const normalizedFolder = this.normalizePath(
-          this.settings.defaultFolder || "",
-        );
-        const filename = sanitizeFilename(article.title);
-        const newName = `${filename}.md`;
-        const newPath =
-          normalizedFolder && normalizedFolder.trim() !== ""
-            ? `${normalizedFolder}/${newName}`
-            : newName;
-
-        await this.app.fileManager.renameFile(file, newPath);
-        article.savedFilePath = newPath;
-      } catch {
-        article.saved = false;
-        article.savedFilePath = undefined;
-        if (article.tags) {
-          article.tags = article.tags.filter(
-            (tag) => tag.name.toLowerCase() !== "saved",
-          );
-        }
-      }
-    }
-  }
-
-  verifySavedArticle(article: FeedItem): boolean {
-    if (!article.saved || !article.savedFilePath) {
-      return false;
-    }
-
-    try {
-      const file = this.app.vault.getAbstractFileByPath(article.savedFilePath);
-      if (file !== null) {
-        return true;
-      }
-
-      article.saved = false;
-      article.savedFilePath = undefined;
-
-      if (article.tags) {
-        article.tags = article.tags.filter(
-          (tag) => tag.name.toLowerCase() !== "saved",
-        );
-      }
-
-      return false;
-    } catch {
-      return false;
-    }
-  }
-
-  verifyAllSavedArticles(articles: FeedItem[]): void {
-    articles
-      .filter((article) => article.saved)
-      .forEach((article) => {
-        this.verifySavedArticle(article);
-      });
-  }
-
-  checkSavedFileExists(item: FeedItem): boolean {
-    if (!item.saved) {
-      return false;
-    }
-
-    try {
-      const savedPath = this.normalizePath(item.savedFilePath || "");
-      if (savedPath) {
-        const savedFile = this.app.vault.getAbstractFileByPath(savedPath);
-        if (savedFile instanceof TFile) {
-          if (item.savedFilePath !== savedPath) {
-            item.savedFilePath = savedPath;
-          }
-          return true;
-        }
-      }
-
-      const fallbackPath = this.buildSavedArticleFilePath(item);
-      if (!fallbackPath) {
-        return false;
-      }
-
-      const fallbackFile = this.app.vault.getAbstractFileByPath(fallbackPath);
-      if (fallbackFile instanceof TFile) {
-        item.savedFilePath = fallbackPath;
-        return true;
-      }
-
-      return false;
-    } catch {
-      return false;
-    }
-  }
-
   async findSavedArticleFile(article: FeedItem): Promise<TFile | null> {
-    if (!article.saved) {
-      return null;
-    }
+    const savedPath = article.savedFilePath;
+    if (!article.saved || !savedPath?.trim()) return null;
 
-    const savedPath = this.normalizePath(article.savedFilePath || "");
-    if (savedPath) {
-      const savedFile = this.app.vault.getAbstractFileByPath(savedPath);
-      if (savedFile instanceof TFile) {
-        if (article.savedFilePath !== savedPath) {
-          article.savedFilePath = savedPath;
-        }
-        return savedFile;
-      }
-    }
-
-    const fallbackPath = this.buildSavedArticleFilePath(article);
-    if (!fallbackPath) {
-      return null;
-    }
-
-    const fallbackFile = this.app.vault.getAbstractFileByPath(fallbackPath);
-    if (fallbackFile instanceof TFile) {
-      article.savedFilePath = fallbackPath;
-      return fallbackFile;
-    }
-
-    return null;
+    const savedFile = this.app.vault.getAbstractFileByPath(savedPath);
+    return savedFile instanceof TFile ? savedFile : null;
   }
 
   getFilenamePreview(

@@ -1,5 +1,6 @@
 import { Menu, MenuItem, Notice } from "obsidian";
 import type { FeedItem } from "../../../types/types";
+import { addSaveOptionItems, type CustomSaveHooks } from "./save-options-menu";
 
 export interface ArticleContext {
   callbacks: {
@@ -11,6 +12,10 @@ export interface ArticleContext {
       shouldRerender?: boolean,
     ) => void;
     onArticleSave?: (article: FeedItem) => Promise<void> | void;
+    onArticleCustomSave?: (
+      article: FeedItem,
+      hooks: CustomSaveHooks,
+    ) => Promise<void> | void;
     onArticleClick?: (article: FeedItem) => void;
   };
   settings: {
@@ -129,19 +134,19 @@ export function showArticleContextMenu(
 
   if (!article.saved) {
     menu.addSeparator();
-    menu.addItem((item: MenuItem) => {
-      item
-        .setTitle(
-          ctx.settings.articleSaving.saveFullContent
-            ? "Save full article"
-            : "Save article summary",
-        )
-        .setIcon("save")
-        .onClick(() => {
-          if (ctx.callbacks.onArticleSave) {
-            void ctx.callbacks.onArticleSave(article);
-          }
-        });
+    addSaveOptionItems(menu, {
+      onDefaultSave: () => {
+        if (ctx.callbacks.onArticleSave) {
+          void ctx.callbacks.onArticleSave(article);
+        }
+      },
+      onCustomSave: () => {
+        if (ctx.callbacks.onArticleCustomSave) {
+          void ctx.callbacks.onArticleCustomSave(article, {
+            onSavingChange: () => {},
+          });
+        }
+      },
     });
   }
 

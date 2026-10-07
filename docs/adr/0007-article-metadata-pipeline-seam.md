@@ -110,7 +110,7 @@ The project's policy is a new ADR that supersedes an accepted one. This record w
 
 `RawArticleMetadata` and `ResolvedArticleMetadata` get their own test file under `test_files/unit/utils/`, exercised directly against `Document` fixtures rather than through the full fetch-and-proxy machinery in `fetch-helpers.test.ts`.
 
-#246 and #247 can now be implemented without a further architectural decision: extraction interface, description/language/author precedence, the degenerate-value guard, duplicate-intro suppression, the persisted-field list and its staleness policy, and `{{summary}}` compatibility are all settled above. Both were blocked on #253 (architecture-drift guardrails) landing before implementation started, and #253 has since landed; this ADR settles the shape, not the scheduling. Implementation is tracked in [GitHub Issue #247](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/247) and planned slice by slice in [the #247 plan](../plans/247-article-metadata-enrichment.md).
+#246 and #247 can now be implemented without a further architectural decision: extraction interface, description/language/author precedence, the degenerate-value guard, duplicate-intro suppression, the persisted-field list and its staleness policy, and `{{summary}}` compatibility are all settled above. Both were blocked on #253 (architecture-drift guardrails) landing before implementation started, and #253 has since landed; this ADR settles the shape, not the scheduling. Implementation is tracked in [GitHub Issue #247](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/247) and planned slice by slice in [the #247 plan](../archive/plans/unreleased/247-article-metadata-enrichment.md).
 
 ### Existing users and data
 
@@ -178,5 +178,5 @@ Rejected (#666). The field holds the feed-supplied item blurb (RSS `<description
 - [GitHub Issue #246](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/246) and [GitHub Issue #247](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/247) — the features this seam unblocks
 - [GitHub PR #253](https://github.com/amatya-aditya/obsidian-rss-dashboard/pull/253) — architecture-drift guardrails
 - [GitHub Issue #666](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/666) — audit of `FeedItem.description` and whether it needs a clearer name
-- [Article metadata enrichment plan](../plans/247-article-metadata-enrichment.md) — the #247 implementation slices
+- [Article metadata enrichment plan](../archive/plans/unreleased/247-article-metadata-enrichment.md) — the #247 implementation slices
 - [Glossary: Article metadata pipeline](../../CONTEXT.md#article-metadata-pipeline)

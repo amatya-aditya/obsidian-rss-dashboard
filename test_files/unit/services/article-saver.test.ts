@@ -803,6 +803,27 @@ title: "{{title}}"
     expect(written.startsWith("---\ntitle: Test Article\n---\n")).toBe(true);
   });
 
+  it("uses unindented frontmatter when no frontmatter template is configured", async () => {
+    const app = App.createMock();
+    const saver = new ArticleSaver(
+      app,
+      createSettings({
+        includeFrontmatter: true,
+        defaultTemplate: "# {{title}}",
+      }),
+    );
+
+    const file = await saver.saveArticle(createItem());
+
+    if (!(file instanceof TFile)) throw new Error("expected saved file");
+    const written = await app.vault.read(file);
+    expect(written).toMatch(/^---\ntitle: "Test Article"\ndate: /);
+    expect(written).toContain("\n---\n# Test Article");
+    expect(written).not.toMatch(
+      /^ +(?:title|date|tags|source|link|author|feedTitle|guid):/m,
+    );
+  });
+
   it("uses the normalized article image value in filename patterns", async () => {
     const app = App.createMock();
     const saver = new ArticleSaver(app, createSettings());
@@ -1579,111 +1600,6 @@ describe("ArticleSaver.saveArticleWithFullContent", () => {
   });
 });
 
-describe("ArticleSaver.verifySavedArticle", () => {
-  it("returns true when the saved file exists in the vault", async () => {
-    const app = App.createMock();
-    const settings = createSettings();
-    const saver = new ArticleSaver(app, settings);
-
-    const item = createItem({ title: "Exists" });
-    const filePath = "Articles/Exists.md";
-    await app.vault.createFolder("Articles");
-    await app.vault.create(filePath, "x");
-
-    item.saved = true;
-    item.savedFilePath = filePath;
-    item.tags = [{ name: "saved", color: "#3498db" }];
-
-    expect(saver.verifySavedArticle(item)).toBe(true);
-    expect(item.saved).toBe(true);
-  });
-
-  it("clears saved state and removes the saved tag when the file is missing", () => {
-    const app = App.createMock();
-    const settings = createSettings();
-    const saver = new ArticleSaver(app, settings);
-
-    const item = createItem({ title: "Missing" });
-    item.saved = true;
-    item.savedFilePath = "Articles/Missing.md";
-    item.tags = [
-      { name: "saved", color: "#3498db" },
-      { name: "other", color: "#000" },
-    ];
-
-    expect(saver.verifySavedArticle(item)).toBe(false);
-    expect(item.saved).toBe(false);
-    expect(item.savedFilePath).toBeUndefined();
-    expect(item.tags.map((t) => t.name)).toEqual(["other"]);
-  });
-});
-
-describe("ArticleSaver.fixSavedFilePaths", () => {
-  it("normalizes paths when the normalized path exists", async () => {
-    const app = App.createMock();
-    const settings = createSettings();
-    const saver = new ArticleSaver(app, settings);
-
-    await app.vault.createFolder("Folder");
-    await app.vault.create("Folder/Item.md", "x");
-
-    const item = createItem({ title: "Item" });
-    item.saved = true;
-    item.savedFilePath = "/Folder/Item.md";
-
-    const renameSpy = vi.spyOn(app.fileManager, "renameFile");
-    await saver.fixSavedFilePaths([item]);
-
-    expect(item.savedFilePath).toBe("Folder/Item.md");
-    expect(renameSpy).not.toHaveBeenCalled();
-  });
-
-  it("renames files when the old path exists but the normalized path does not", async () => {
-    const app = App.createMock();
-    const settings = createSettings({ defaultFolder: "/Normalized/" });
-    const saver = new ArticleSaver(app, settings);
-
-    const oldPath = "/Old Folder/Weird.md";
-    await app.vault.createFolder("Old Folder");
-    const file = await app.vault.create(oldPath, "x");
-
-    const item = createItem({
-      title: "My / Weird : Title",
-      tags: [{ name: "saved", color: "#3498db" }],
-    });
-    item.saved = true;
-    item.savedFilePath = oldPath;
-
-    const renameSpy = vi.spyOn(app.fileManager, "renameFile");
-    await saver.fixSavedFilePaths([item]);
-
-    expect(renameSpy).toHaveBeenCalledTimes(1);
-    expect(file.path).toBe("Normalized/My Weird Title.md");
-    expect(item.savedFilePath).toBe("Normalized/My Weird Title.md");
-    expect(item.saved).toBe(true);
-  });
-
-  it("clears saved state when the savedFilePath is missing or not a file", async () => {
-    const app = App.createMock();
-    const settings = createSettings();
-    const saver = new ArticleSaver(app, settings);
-
-    const item = createItem({ title: "Not A File" });
-    item.saved = true;
-    item.savedFilePath = "/Missing/NotAFile.md";
-    item.tags = [
-      { name: "saved", color: "#3498db" },
-      { name: "keep", color: "#000" },
-    ];
-
-    await saver.fixSavedFilePaths([item]);
-
-    expect(item.saved).toBe(false);
-    expect(item.savedFilePath).toBeUndefined();
-    expect(item.tags.map((t) => t.name)).toEqual(["keep"]);
-  });
-});
-
 describe("ArticleSaver saved file lookups", () => {
   it("prefers savedFilePath when the title-based filename no longer matches", async () => {
     const app = App.createMock();
@@ -1699,11 +1615,13 @@ describe("ArticleSaver saved file lookups", () => {
     await app.vault.createFolder("Archive");
     await app.vault.create("Archive/Already Saved.md", "content");
 
-    expect(saver.checkSavedFileExists(item)).toBe(true);
+    const file = await saver.findSavedArticleFile(item);
+
+    expect(file?.path).toBe("Archive/Already Saved.md");
     expect(item.savedFilePath).toBe("Archive/Already Saved.md");
   });
 
-  it("falls back to the normalized default-folder path for legacy items", async () => {
+  it("does not recover a missing recorded path from the article title", async () => {
     const app = App.createMock();
     const settings = createSettings({ defaultFolder: "/Articles/" });
     const saver = new ArticleSaver(app, settings);
@@ -1716,8 +1634,40 @@ describe("ArticleSaver saved file lookups", () => {
     await app.vault.createFolder("Articles");
     await app.vault.create("Articles/Legacy Saved Article.md", "content");
 
-    expect(saver.checkSavedFileExists(item)).toBe(true);
-    expect(item.savedFilePath).toBe("Articles/Legacy Saved Article.md");
+    expect(await saver.findSavedArticleFile(item)).toBeNull();
+    expect(item.saved).toBe(true);
+    expect(item.savedFilePath).toBeUndefined();
+  });
+
+  it("does not recover a missing recorded path when a same-title note exists", async () => {
+    const app = App.createMock();
+    const saver = new ArticleSaver(
+      app,
+      createSettings({ defaultFolder: "Articles" }),
+    );
+    const item = createItem({
+      title: "Legacy Article",
+      saved: true,
+      savedFilePath: "Missing/Current.md",
+    });
+
+    await app.vault.createFolder("Articles");
+    await app.vault.create("Articles/Legacy Article.md", "content");
+
+    expect(await saver.findSavedArticleFile(item)).toBeNull();
+    expect(item.savedFilePath).toBe("Missing/Current.md");
+    expect(item.saved).toBe(true);
+  });
+
+  it("treats a recorded folder path as a confirmed missing note", async () => {
+    const app = App.createMock();
+    const saver = new ArticleSaver(app, createSettings());
+    const item = createItem({ saved: true, savedFilePath: "Saved" });
+    await app.vault.createFolder("Saved");
+
+    expect(await saver.findSavedArticleFile(item)).toBeNull();
+    expect(item.saved).toBe(true);
+    expect(item.savedFilePath).toBe("Saved");
   });
 
   it("finds a saved file by savedFilePath even when the default folder differs", async () => {
@@ -1738,6 +1688,24 @@ describe("ArticleSaver saved file lookups", () => {
 
     expect(file).toBeInstanceOf(TFile);
     expect(file?.path).toBe("Custom Folder/My Article.md");
+  });
+
+  it("preserves the association when the recorded-path lookup throws", async () => {
+    const app = App.createMock();
+    const saver = new ArticleSaver(app, createSettings());
+    const item = createItem({
+      saved: true,
+      savedFilePath: "Saved/article.md",
+    });
+    vi.spyOn(app.vault, "getAbstractFileByPath").mockImplementation(() => {
+      throw new Error("vault unavailable");
+    });
+
+    await expect(saver.findSavedArticleFile(item)).rejects.toThrow(
+      "vault unavailable",
+    );
+    expect(item.saved).toBe(true);
+    expect(item.savedFilePath).toBe("Saved/article.md");
   });
 });
 

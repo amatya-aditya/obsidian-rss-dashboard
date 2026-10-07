@@ -44,7 +44,6 @@ export interface FeedRefreshRunnerOptions {
   getBackgroundImportService: () => BackgroundImportService | undefined;
   getAutoRefreshScheduler: () => FeedRefreshScheduler | null;
   saveSettings: () => Promise<void>;
-  validateSavedArticles: () => Promise<void>;
   clearFeedShardHealth: (feed: Feed) => void;
   getActiveDashboardView: () => Promise<RefreshDashboardViewLike | null>;
   /** Says one refresh event to every open dashboard's live region. */
@@ -332,8 +331,6 @@ export class FeedRefreshRunner {
         await this.feedOperationTracker.renderStatus();
       }
       if (cancelSignal.aborted) return;
-      await this.options.validateSavedArticles();
-      if (cancelSignal.aborted) return;
       if (isExplicitGlobalRefresh) {
         this.settings.lastGlobalRefreshCompletedAt = Date.now();
       }
@@ -468,8 +465,6 @@ export class FeedRefreshRunner {
       await Promise.all(workers);
       await Promise.all(backgroundPromises);
 
-      if (this.feedOperationTracker.isDisposed) return;
-      await this.options.validateSavedArticles();
       if (this.feedOperationTracker.isDisposed) return;
       if (intent === "global" && !this.feedOperationTracker.isCancelled) {
         this.settings.lastGlobalRefreshCompletedAt = Date.now();

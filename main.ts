@@ -5,6 +5,7 @@ import {
   WorkspaceLeaf,
   Platform,
   requireApiVersion,
+  TFolder,
   type ObsidianProtocolData,
 } from "obsidian";
 
@@ -97,6 +98,7 @@ import { migrateSettings } from "./src/utils/settings-loader";
 import { applyAutomaticArticleTags } from "./src/utils/tag-utils";
 import { registerPaletteCommands } from "./src/commands/palette-commands";
 import { VersionStatusBarFeature } from "./src/settings/version-status-bar";
+import { SavedArticleAssociationService } from "./src/services/saved-article-association-service";
 
 export interface FiltersUpdatedEventPayload {
   source: string;
@@ -195,7 +197,6 @@ export default class RssDashboardPlugin extends Plugin {
   public settingTab: RssDashboardSettingTab | null = null;
   public versionStatusBar: VersionStatusBarFeature | null = null;
   public vaultAbsolutePath = "";
-  private hasCompletedStartupSavedArticleValidation = false;
   private hasShownStorageDeprecationPromptThisSession = false;
   private whatsNewHandledThisSession = false;
   private startupRefreshTimeoutId: number | null = null;
@@ -209,6 +210,8 @@ export default class RssDashboardPlugin extends Plugin {
   private readonly feedRefreshRunner: FeedRefreshRunner;
   private readonly feedSubscriptionService: FeedSubscriptionService;
   private readonly settingsImportApplier: SettingsImportApplier;
+  private readonly savedArticleAssociationService =
+    new SavedArticleAssociationService();
 
   constructor(app: App, manifest: ConstructorParameters<typeof Plugin>[1]) {
     super(app, manifest);
@@ -252,6 +255,18 @@ export default class RssDashboardPlugin extends Plugin {
         this.initializeSettingsBackedServices(),
       getAutoRefreshScheduler: () => this.autoRefreshScheduler,
       refreshDashboardViews: () => this.refreshDashboardViews(),
+      clearMissingSavedArticlePaths: () =>
+        this.savedArticleAssociationService.clearMissingRecordedPaths(
+          this.settings.feeds,
+        ),
+      notifySavedArticleAssociationUpdates: async (updates) => {
+        for (const update of updates) {
+          await this.syncSavedArticleAssociationUpdate(
+            update.feedUrl,
+            update.guid,
+          );
+        }
+      },
     });
     this.uriActionHandler = new UriActionHandler({
       pluginId: manifest.id,
@@ -279,7 +294,6 @@ export default class RssDashboardPlugin extends Plugin {
       getBackgroundImportService: () => this.backgroundImportService,
       getAutoRefreshScheduler: () => this.autoRefreshScheduler,
       saveSettings: () => this.saveSettings(),
-      validateSavedArticles: () => this.validateSavedArticles(),
       clearFeedShardHealth: (feed) => this.clearFeedShardHealth(feed),
       getActiveDashboardView: () => this.getActiveDashboardView(),
       announce: (message) =>
@@ -534,36 +548,6 @@ export default class RssDashboardPlugin extends Plugin {
     }
 
     return this.autoRefreshScheduler;
-  }
-
-  private async reconcileSavedArticlesOnStartup(): Promise<void> {
-    if (this.hasCompletedStartupSavedArticleValidation) {
-      return;
-    }
-
-    this.hasCompletedStartupSavedArticleValidation = true;
-
-    const allArticles = this.getAllArticles();
-    await this.articleSaver.fixSavedFilePaths(allArticles);
-    await this.migrateMediaProgressOnStartup();
-
-    await this.validateSavedArticles();
-  }
-
-  private scheduleStartupSavedArticleValidation(): void {
-    const workspaceWithLayoutReady = this.app
-      .workspace as typeof this.app.workspace & {
-      onLayoutReady?: (callback: () => void) => void;
-    };
-
-    if (typeof workspaceWithLayoutReady.onLayoutReady === "function") {
-      workspaceWithLayoutReady.onLayoutReady(() => {
-        void this.reconcileSavedArticlesOnStartup();
-      });
-      return;
-    }
-
-    void this.reconcileSavedArticlesOnStartup();
   }
 
   /**
@@ -887,13 +871,16 @@ export default class RssDashboardPlugin extends Plugin {
       addCommand: (command) => this.addCommand(command),
     });
     await this.previewImageCache.initialize();
-    this.settingsStore.registerVaultMetadataChangeListeners((ref) =>
-      this.registerEvent(ref),
+    this.settingsStore.registerVaultMetadataChangeListeners(
+      (ref) => this.registerEvent(ref),
+      (file, oldPath, isFolder) =>
+        this.handleSavedArticleVaultRename(file, oldPath, isFolder),
     );
 
     try {
       this.initializeSettingsBackedServices();
       await this.repairMissingFolderPathsForFeeds();
+      this.registerSavedArticleDeleteListener();
 
       const view = await this.getActiveDashboardView();
       if (view) {
@@ -906,8 +893,7 @@ export default class RssDashboardPlugin extends Plugin {
         this.applyMobileOptimizations();
       }
 
-      this.scheduleStartupSavedArticleValidation();
-
+      this.scheduleStartupMediaProgressMigration();
       this.registerWhatsNewTriggers();
       this.registerProtocolHandler();
       this.registerViews();
@@ -976,7 +962,7 @@ export default class RssDashboardPlugin extends Plugin {
             updates: Partial<FeedItem>,
             shouldRerender?: boolean,
           ) => {
-            void this.updateArticleFromReader(item, updates, shouldRerender);
+            return this.updateArticleFromReader(item, updates, shouldRerender);
           },
           {
             saveSettings: () => this.saveSettings(),
@@ -1110,6 +1096,22 @@ export default class RssDashboardPlugin extends Plugin {
 
     this.versionStatusBar?.registerCommand();
     registerPaletteCommands(this);
+  }
+
+  private scheduleStartupMediaProgressMigration(): void {
+    const workspaceWithLayoutReady = this.app
+      .workspace as typeof this.app.workspace & {
+      onLayoutReady?: (callback: () => void) => void;
+    };
+
+    if (typeof workspaceWithLayoutReady.onLayoutReady === "function") {
+      workspaceWithLayoutReady.onLayoutReady(() => {
+        void this.migrateMediaProgressOnStartup();
+      });
+      return;
+    }
+
+    void this.migrateMediaProgressOnStartup();
   }
 
   private scheduleStartupRefresh(
@@ -1306,7 +1308,7 @@ export default class RssDashboardPlugin extends Plugin {
             },
             false,
           );
-          await this.syncReaderArticleUpdate(item.guid, {
+          await this.syncReaderArticleUpdate(item.guid, feed.url, {
             saved: true,
             savedFilePath: originalItem.savedFilePath,
             tags: originalItem.tags ? [...originalItem.tags] : [],
@@ -1347,7 +1349,11 @@ export default class RssDashboardPlugin extends Plugin {
       normalizedUpdates,
       !!shouldRerender,
     );
-    await this.syncReaderArticleUpdate(item.guid, normalizedUpdates);
+    await this.syncReaderArticleUpdate(
+      item.guid,
+      resolvedFeedUrl,
+      normalizedUpdates,
+    );
     await this.updateArticle(
       item.guid,
       resolvedFeedUrl,
@@ -1358,6 +1364,7 @@ export default class RssDashboardPlugin extends Plugin {
 
   private async syncReaderArticleUpdate(
     articleGuid: string,
+    feedUrl: string,
     updates: Partial<FeedItem>,
   ): Promise<void> {
     const leaves = this.app.workspace.getLeavesOfType(RSS_READER_VIEW_TYPE);
@@ -1367,7 +1374,7 @@ export default class RssDashboardPlugin extends Plugin {
       }
       const view = leaf.view;
       if (view instanceof ReaderView) {
-        view.applyExternalUpdate(articleGuid, updates);
+        view.applyExternalUpdate(articleGuid, updates, feedUrl);
       }
     }
   }
@@ -1445,7 +1452,121 @@ export default class RssDashboardPlugin extends Plugin {
       }
     }
 
-    await this.syncReaderArticleUpdate(articleGuid, updates);
+    await this.syncReaderArticleUpdate(articleGuid, feedUrl, updates);
+  }
+
+  private registerSavedArticleDeleteListener(): void {
+    if (typeof this.app.vault.on !== "function") return;
+
+    this.registerEvent(
+      this.app.vault.on("delete", (file) => {
+        void this.handleSavedArticlePathDeleted(file).catch(
+          (error: unknown) => {
+            console.error(
+              "[RSS Dashboard] Failed to update deleted saved notes:",
+              error,
+            );
+          },
+        );
+      }),
+    );
+  }
+
+  private handleSavedArticleVaultRename(
+    file: { path: string },
+    oldPath: string,
+    isFolder: boolean,
+  ): void {
+    void this.handleSavedArticlePathRenamed(file, oldPath, isFolder).catch(
+      (error: unknown) => {
+        console.error(
+          "[RSS Dashboard] Failed to update renamed saved notes:",
+          error,
+        );
+      },
+    );
+  }
+
+  private async handleSavedArticlePathRenamed(
+    file: { path: string },
+    oldPath: string,
+    isFolder: boolean,
+  ): Promise<void> {
+    const updates = this.savedArticleAssociationService.renameTrackedPath(
+      this.settings.feeds,
+      oldPath,
+      file.path,
+      isFolder,
+    );
+    if (updates.length === 0) return;
+
+    for (const update of updates) {
+      await this.syncSavedArticleAssociationUpdate(update.feedUrl, update.guid);
+    }
+
+    await this.saveSettings();
+  }
+
+  private async handleSavedArticlePathDeleted(file: {
+    path: string;
+  }): Promise<void> {
+    const updates = this.savedArticleAssociationService.clearDeletedPath(
+      this.settings.feeds,
+      file.path,
+      file instanceof TFolder,
+    );
+    if (updates.length === 0) return;
+
+    for (const update of updates) {
+      await this.syncSavedArticleAssociationUpdate(update.feedUrl, update.guid);
+    }
+
+    await this.saveSettings();
+  }
+
+  private async syncSavedArticleAssociationUpdate(
+    feedUrl: string,
+    articleGuid: string,
+  ): Promise<void> {
+    const getCurrentUpdates = (): Partial<FeedItem> | undefined => {
+      const article = this.settings.feeds
+        .find((feed) => feed.url === feedUrl)
+        ?.items.find((item) => item.guid === articleGuid);
+      if (!article) return undefined;
+
+      return {
+        saved: article.saved ?? false,
+        savedFilePath: article.savedFilePath,
+        tags: article.tags?.map((tag) => ({ ...tag })) ?? [],
+      };
+    };
+
+    const dashboardLeaves = this.app.workspace.getLeavesOfType(
+      RSS_DASHBOARD_VIEW_TYPE,
+    );
+    for (const leaf of dashboardLeaves) {
+      if (requireApiVersion("1.7.2")) {
+        await leaf.loadIfDeferred();
+      }
+      const view = leaf.view;
+      const updates = getCurrentUpdates();
+      if (view instanceof RssDashboardView && updates) {
+        view.applyExternalArticleUpdate(articleGuid, feedUrl, updates);
+      }
+    }
+
+    const readerLeaves =
+      this.app.workspace.getLeavesOfType(RSS_READER_VIEW_TYPE);
+    for (const leaf of readerLeaves) {
+      if (requireApiVersion("1.7.2")) {
+        await leaf.loadIfDeferred();
+      }
+      const view = leaf.view;
+      const updates = getCurrentUpdates();
+      if (view instanceof ReaderView && updates) {
+        view.applyExternalUpdate(articleGuid, updates, feedUrl);
+      }
+    }
   }
 
   importOpml(): void {
@@ -2323,45 +2444,5 @@ export default class RssDashboardPlugin extends Plugin {
       this.backgroundImportService?.resumePendingImports();
       this.autoRefreshScheduler?.start();
     }
-  }
-
-  private async validateSavedArticles(): Promise<void> {
-    let updatedCount = 0;
-
-    for (const feed of this.settings.feeds) {
-      for (const item of feed.items) {
-        if (item.saved) {
-          const fileExists = this.articleSaver.checkSavedFileExists(item);
-          if (!fileExists) {
-            item.saved = false;
-            item.savedFilePath = undefined;
-
-            if (item.tags) {
-              item.tags = item.tags.filter(
-                (tag) => tag.name.toLowerCase() !== "saved",
-              );
-            }
-            updatedCount++;
-          }
-        }
-      }
-    }
-
-    if (updatedCount > 0) {
-      await this.saveSettings();
-
-      const view = await this.getActiveDashboardView();
-      if (view) {
-        view.render();
-      }
-    }
-  }
-
-  private getAllArticles(): FeedItem[] {
-    let allArticles: FeedItem[] = [];
-    for (const feed of this.settings.feeds) {
-      allArticles = allArticles.concat(feed.items);
-    }
-    return allArticles;
   }
 }

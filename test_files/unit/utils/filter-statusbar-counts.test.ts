@@ -321,6 +321,7 @@ describe("Filter Status Bar counts (TDD)", () => {
     view.syncArticleListAfterUpdate!(article);
     expect(view.articleList.removeArticleInPlace).toHaveBeenCalledWith(
       "sync-1",
+      article.feedUrl,
     );
     expect(view.refreshFilterStatusBarOnly).toHaveBeenCalledTimes(2);
   });

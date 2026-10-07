@@ -1,4 +1,5 @@
 import { Notice, setIcon, setTooltip } from "obsidian";
+import { showSaveOptionsMenu, type CustomSaveHooks } from "./save-options-menu";
 import type {
   ArticleSavingSettings,
   DisplaySettings,
@@ -37,6 +38,10 @@ export type CreateActionButtonArgs = {
       shouldRerender?: boolean,
     ) => void;
     onArticleSave?: (article: FeedItem) => Promise<void> | void;
+    onArticleCustomSave?: (
+      article: FeedItem,
+      hooks: CustomSaveHooks,
+    ) => Promise<void> | void;
     onOpenSavedArticle?: (article: FeedItem) => Promise<void> | void;
     onOpenInReaderView?: (article: FeedItem) => void;
     onArticleClick?: (article: FeedItem) => void;
@@ -99,7 +104,63 @@ export function createSaveButton(
     saveButton.textContent = "S";
   }
 
-  const toggleSave = async (e: Event) => {
+  const setSaving = (saving: boolean) => {
+    if (saving) {
+      saveButton.classList.add("saving");
+      setTooltip(saveButton, "Saving article...");
+    } else {
+      saveButton.classList.remove("saving");
+    }
+  };
+
+  const markSaved = () => {
+    arg.article.saved = true;
+    saveButton.classList.add("saved");
+    setIcon(saveButton, "save");
+    if (!saveButton.querySelector("svg")) {
+      saveButton.textContent = "S";
+    }
+    setTooltip(saveButton, "Click to open saved article");
+  };
+
+  const defaultSave = async () => {
+    if (!arg.callbacks.onArticleSave) return;
+    if (saveButton.classList.contains("saving")) {
+      return;
+    }
+
+    setSaving(true);
+
+    try {
+      await arg.callbacks.onArticleSave(arg.article);
+      // A save that wrote nothing (or was blocked) leaves the article unsaved.
+      if (arg.article.saved) markSaved();
+    } catch (error) {
+      console.error("Failed to save article via card button:", error);
+      new Notice("Failed to save article.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const customSave = async () => {
+    if (!arg.callbacks.onArticleCustomSave) return;
+    if (saveButton.classList.contains("saving")) {
+      return;
+    }
+    try {
+      // The dialog marks the article saved itself; cancelling changes nothing.
+      await arg.callbacks.onArticleCustomSave(arg.article, {
+        onSavingChange: setSaving,
+      });
+    } catch (error) {
+      console.error("Failed to save article via save dialog:", error);
+      new Notice("Failed to save article.");
+      setSaving(false);
+    }
+  };
+
+  const toggleSave = async (e: UIEvent) => {
     e.stopPropagation();
     e.preventDefault();
 
@@ -109,29 +170,16 @@ export function createSaveButton(
       } else {
         new Notice("Article already saved. Look in your notes.");
       }
-    } else if (arg.callbacks.onArticleSave) {
+    } else if (arg.callbacks.onArticleCustomSave) {
       if (saveButton.classList.contains("saving")) {
         return;
       }
-
-      saveButton.classList.add("saving");
-      setTooltip(saveButton, "Saving article...");
-
-      try {
-        await arg.callbacks.onArticleSave(arg.article);
-        arg.article.saved = true;
-        saveButton.classList.add("saved");
-        setIcon(saveButton, "save");
-        if (!saveButton.querySelector("svg")) {
-          saveButton.textContent = "S";
-        }
-        setTooltip(saveButton, "Click to open saved article");
-      } catch (error) {
-        console.error("Failed to save article via card button:", error);
-        new Notice("Failed to save article.");
-      } finally {
-        saveButton.classList.remove("saving");
-      }
+      showSaveOptionsMenu(e, saveButton, {
+        onDefaultSave: () => void defaultSave(),
+        onCustomSave: () => void customSave(),
+      });
+    } else {
+      await defaultSave();
     }
   };
 

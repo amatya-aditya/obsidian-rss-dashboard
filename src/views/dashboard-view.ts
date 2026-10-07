@@ -17,6 +17,7 @@ import {
   HighlightWord,
   KeywordFilterRule,
   RssDashboardSettings,
+  SavedTemplate,
   Folder,
   ViewLocation,
   FeedEncoding,
@@ -30,6 +31,11 @@ import type {
 import { Sidebar, type SidebarOptions } from "../components/sidebar";
 import { ArticleList } from "../components/article-list";
 import { ArticleSaver } from "../services/article-saver";
+import { CustomSaveModal } from "../modals/custom-save-modal";
+import {
+  showSaveOptionsMenu,
+  type CustomSaveHooks,
+} from "../components/article-list/utils/save-options-menu";
 import { resolveSavedTemplateForArticle } from "../utils/saved-template-utils";
 import { getEffectiveDateMs } from "../services/feed-parser/feed-retention.js";
 import {
@@ -117,6 +123,8 @@ export class RssDashboardView extends ItemView {
   private static readonly CARD_LAYOUT_SAVE_DELAY_MS = 120;
   private settings: RssDashboardSettings;
   private saver: ArticleSaver;
+  /** Articles whose Custom save dialog is open, so they cannot be saved twice. */
+  private articlesWithSaveDialog = new Set<string>();
   private listenForHotkeysInHostDocument: () => void = () => {};
   public currentFolder: string | null = null;
   public selectedFolders: string[] = [];
@@ -137,7 +145,6 @@ export class RssDashboardView extends ItemView {
   public sidebar!: Sidebar;
   private articleList!: ArticleList;
   private sidebarContainer: HTMLElement | null = null;
-  private verificationTimeout: number | null = null;
   private scheduledRenderTimeout: number | null = null;
   private isRenderInProgress = false;
   private hasPendingRender = false;
@@ -753,33 +760,6 @@ export class RssDashboardView extends ItemView {
     });
 
     this.registerEvent(
-      this.app.vault.on("delete", (file) => {
-        if (file instanceof TFile) {
-          this.handleFileDeleted(file);
-        }
-      }),
-    );
-
-    this.registerEvent(
-      this.app.vault.on("rename", (file, oldPath) => {
-        if (file instanceof TFile) {
-          this.handleFileRenamed(file, oldPath);
-        }
-      }),
-    );
-
-    this.registerEvent(
-      this.app.vault.on("modify", () => {
-        if (this.verificationTimeout) {
-          window.clearTimeout(this.verificationTimeout);
-        }
-        this.verificationTimeout = window.setTimeout(() => {
-          void this.verifySavedArticles();
-        }, 300000);
-      }),
-    );
-
-    this.registerEvent(
       (
         this.app.workspace as unknown as {
           on: (
@@ -1000,8 +980,6 @@ export class RssDashboardView extends ItemView {
     try {
       this.syncCurrentFeedReference();
       this.syncDashboardMultiFiltersFromSettings();
-      this.verifySavedArticles();
-
       if (!this.shouldUseMobileSidebarMode()) {
         this.closeMobileSidebarModal();
       }
@@ -1127,6 +1105,9 @@ export class RssDashboardView extends ItemView {
           },
           onArticleSave: (article) => {
             void this.handleArticleSave(article);
+          },
+          onArticleCustomSave: (article, hooks) => {
+            this.handleArticleCustomSave(article, hooks);
           },
           onOpenSavedArticle: (article) => {
             void this.handleOpenSavedArticle(article);
@@ -2713,65 +2694,121 @@ export class RssDashboardView extends ItemView {
     await this.updateArticleStatus(article, updates, shouldRerender);
   }
 
-  private async handleArticleSave(article: FeedItem): Promise<void> {
-    const savedTemplate = resolveSavedTemplateForArticle(
+  private getSavedTemplateForArticle(
+    article: FeedItem,
+  ): SavedTemplate | undefined {
+    return resolveSavedTemplateForArticle(
       article,
       this.settings.feeds,
       this.settings.articleSaving.savedTemplates || [],
       this.settings.articleSaving.globalDefaultTemplateId,
     );
+  }
 
-    let file: TFile | null = null;
-    if (this.settings.articleSaving.saveFullContent) {
-      file = await this.saver.saveArticleWithFullContent(
-        article,
-        undefined,
-        undefined,
-        savedTemplate,
-      );
-      // Propagate restrictedReason if set during save
-      if (article.restrictedReason) {
-        // Update selectedArticle and inlineArticle if they match
-        if (
-          this.selectedArticle &&
-          this.selectedArticle.guid === article.guid
-        ) {
-          this.selectedArticle.restrictedReason = article.restrictedReason;
+  /** Default save: the resolved folder and template, with no per-save overrides. */
+  private async handleArticleSave(article: FeedItem): Promise<void> {
+    if (this.articlesWithSaveDialog.has(article.guid)) {
+      new Notice("Finish or cancel the save dialog for this article first.");
+      return;
+    }
+    const file = await this.saveArticleToNote(article, {
+      savedTemplate: this.getSavedTemplateForArticle(article),
+    });
+    if (file) {
+      await this.markArticleSaved(article, file.path);
+    }
+  }
+
+  /** Custom save: the dialog collects the folder, template, and filename pattern. */
+  private handleArticleCustomSave(
+    article: FeedItem,
+    hooks?: CustomSaveHooks,
+  ): void {
+    if (this.articlesWithSaveDialog.has(article.guid)) return;
+    this.articlesWithSaveDialog.add(article.guid);
+    new CustomSaveModal(this.app, article, {
+      getSettings: () => this.settings,
+      getArticleSaver: () => this.saver,
+      displayTitle: undefined,
+      getSavedTemplateForArticle: (item) =>
+        this.getSavedTemplateForArticle(item),
+      saveSettings: () => this.plugin.saveSettings(),
+      saveArticle: async (item, request) => {
+        hooks?.onSavingChange(true);
+        try {
+          return await this.saveArticleToNote(item, request);
+        } finally {
+          hooks?.onSavingChange(false);
         }
-        if (this.inlineArticle && this.inlineArticle.guid === article.guid) {
-          this.inlineArticle.restrictedReason = article.restrictedReason;
+      },
+      onArticleSave: (item) => {
+        if (item.savedFilePath) {
+          void this.markArticleSaved(item, item.savedFilePath);
         }
-      }
-    } else {
-      file = await this.saver.saveArticle(
+      },
+      onClose: () => this.articlesWithSaveDialog.delete(article.guid),
+    }).open();
+  }
+
+  private async saveArticleToNote(
+    article: FeedItem,
+    options: {
+      folder?: string;
+      template?: string;
+      savedTemplate?: SavedTemplate;
+    },
+  ): Promise<TFile | null> {
+    const { folder, template, savedTemplate } = options;
+    if (!this.settings.articleSaving.saveFullContent) {
+      return this.saver.saveArticle(
         article,
-        undefined,
-        undefined,
+        folder,
+        template,
         undefined,
         savedTemplate,
       );
     }
-
-    if (file) {
-      const shouldRerenderAfterSave = Boolean(
-        article.restrictedReason &&
-        this.inlineArticle &&
-        this.inlineArticle.guid === article.guid,
-      );
-
-      await this.updateArticleStatus(
-        article,
-        {
-          saved: true,
-          savedFilePath: file.path,
-          restrictedReason: article.restrictedReason,
-        },
-        shouldRerenderAfterSave,
-      );
-
-      if (!shouldRerenderAfterSave) {
-        this.updateArticleSaveButton(article.guid);
+    const file = await this.saver.saveArticleWithFullContent(
+      article,
+      folder,
+      template,
+      savedTemplate,
+    );
+    // Propagate restrictedReason if set during save
+    if (article.restrictedReason) {
+      // Update selectedArticle and inlineArticle if they match
+      if (this.selectedArticle && this.selectedArticle.guid === article.guid) {
+        this.selectedArticle.restrictedReason = article.restrictedReason;
       }
+      if (this.inlineArticle && this.inlineArticle.guid === article.guid) {
+        this.inlineArticle.restrictedReason = article.restrictedReason;
+      }
+    }
+    return file;
+  }
+
+  private async markArticleSaved(
+    article: FeedItem,
+    savedFilePath: string,
+  ): Promise<void> {
+    const shouldRerenderAfterSave = Boolean(
+      article.restrictedReason &&
+      this.inlineArticle &&
+      this.inlineArticle.guid === article.guid,
+    );
+
+    await this.updateArticleStatus(
+      article,
+      {
+        saved: true,
+        savedFilePath,
+        restrictedReason: article.restrictedReason,
+      },
+      shouldRerenderAfterSave,
+    );
+
+    if (!shouldRerenderAfterSave) {
+      this.updateArticleSaveButton(article.guid);
     }
   }
 
@@ -2847,10 +2884,29 @@ export class RssDashboardView extends ItemView {
       originalArticle.tags = updates.tags;
     }
 
-    if (this.selectedArticle?.guid === articleGuid) {
+    if (
+      this.selectedArticle?.guid === articleGuid &&
+      this.selectedArticle.feedUrl === feedUrl
+    ) {
       Object.assign(this.selectedArticle, updates);
       if (updates.tags) {
         this.selectedArticle.tags = updates.tags;
+      }
+    }
+
+    if (
+      this.inlineArticle?.guid === articleGuid &&
+      this.inlineArticle.feedUrl === feedUrl
+    ) {
+      Object.assign(this.inlineArticle, updates);
+      if (updates.tags) {
+        this.inlineArticle.tags = updates.tags;
+      }
+      if (updates.saved !== undefined) {
+        const saveButton = this.containerEl.querySelector<HTMLElement>(
+          ".inline-reader-header [aria-label='Save article']",
+        );
+        saveButton?.classList.toggle("saved", updates.saved);
       }
     }
 
@@ -2884,12 +2940,12 @@ export class RssDashboardView extends ItemView {
     }
 
     if (!this.matchesFilters(article)) {
-      this.articleList.removeArticleInPlace(article.guid);
+      this.articleList.removeArticleInPlace(article.guid, article.feedUrl);
       this.refreshFilterStatusBarOnly();
       return;
     }
 
-    if (!this.articleList.hasArticle(article.guid)) {
+    if (!this.articleList.hasArticle(article.guid, article.feedUrl)) {
       const inserted = this.articleList.insertArticleInPlace(
         article,
         this.settings.articleSort,
@@ -3193,8 +3249,9 @@ export class RssDashboardView extends ItemView {
     const articleEl = activeDocument.getElementById(`article-${articleGuid}`);
     if (articleEl) {
       const saveButton = articleEl.querySelector(".rss-dashboard-save-toggle");
-      if (saveButton) {
+      if (saveButton instanceof HTMLElement) {
         saveButton.classList.add("saved");
+        setTooltip(saveButton, "Click to open saved article");
       }
     }
   }
@@ -3278,9 +3335,6 @@ export class RssDashboardView extends ItemView {
     this.unbindViewportResizeListener();
     this.lastViewportMobileSidebarMode = null;
 
-    if (this.verificationTimeout) {
-      window.clearTimeout(this.verificationTimeout);
-    }
     if (this.scheduledRenderTimeout !== null) {
       window.clearTimeout(this.scheduledRenderTimeout);
       this.scheduledRenderTimeout = null;
@@ -3927,17 +3981,24 @@ export class RssDashboardView extends ItemView {
       });
       const region = "inline-reader-toolbar";
 
-      createIconButton({
+      const saveButton = createIconButton({
         parent: actions,
         cls: `rss-reader-action-button${this.inlineArticle.saved ? " saved" : ""}`,
         label: "Save article",
         icon: "save",
         action: "save",
         region,
-        onClick: () => {
-          if (this.inlineArticle) {
-            void this.handleArticleSave(this.inlineArticle);
+        onClick: (event) => {
+          const article = this.inlineArticle;
+          if (!article) return;
+          if (article.saved) {
+            void this.handleArticleSave(article);
+            return;
           }
+          showSaveOptionsMenu(event, saveButton, {
+            onDefaultSave: () => void this.handleArticleSave(article),
+            onCustomSave: () => this.handleArticleCustomSave(article),
+          });
         },
       });
 
@@ -4065,20 +4126,6 @@ export class RssDashboardView extends ItemView {
     }
   }
 
-  private async findSavedArticleFile(article: FeedItem): Promise<TFile | null> {
-    const file = await this.saver.findSavedArticleFile(article);
-    if (file !== null) {
-      return file;
-    }
-
-    await this.updateArticleStatus(
-      article,
-      { saved: false, savedFilePath: undefined },
-      false,
-    );
-    return null;
-  }
-
   public async openSavedArticleFile(
     file: TFile,
     article?: FeedItem,
@@ -4122,16 +4169,17 @@ export class RssDashboardView extends ItemView {
         await this.openSavedArticleFile(savedFile, article);
         loadingNotice.hide();
       } else {
-        await this.updateArticleStatus(article, { saved: false }, false);
-
-        if (article.tags) {
-          article.tags = article.tags.filter(
-            (tag) => tag.name.toLowerCase() !== "saved",
-          );
-        }
+        const tags = (article.tags ?? []).filter(
+          (tag) => tag.name.toLowerCase() !== "saved",
+        );
+        await this.updateArticleStatus(
+          article,
+          { saved: false, savedFilePath: undefined, tags },
+          false,
+        );
 
         loadingNotice.hide();
-        new Notice("Saved article file not found. Article status updated.");
+        new Notice("Saved article file not found. Saved status was cleared.");
       }
     } catch (error) {
       loadingNotice.hide();
@@ -4147,63 +4195,6 @@ export class RssDashboardView extends ItemView {
       await this.updateArticleStatus(article, { read: true }, false);
     }
     await this.openArticleInConfiguredReaderLocation(article);
-  }
-
-  private verifySavedArticles(): void {
-    const allArticles = this.getFilteredArticles();
-    this.saver.verifyAllSavedArticles(allArticles);
-  }
-
-  private handleFileDeleted(file: TFile): void {
-    const allArticles = this.getAllArticles();
-    const affectedArticles = allArticles.filter(
-      (article) => article.saved && article.savedFilePath === file.path,
-    );
-
-    affectedArticles.forEach((article) => {
-      article.saved = false;
-      article.savedFilePath = undefined;
-
-      if (article.tags) {
-        article.tags = article.tags.filter(
-          (tag) => tag.name.toLowerCase() !== "saved",
-        );
-      }
-    });
-
-    if (affectedArticles.length > 0) {
-      void this.render();
-    }
-  }
-
-  private handleFileRenamed(file: TFile, oldPath: string): void {
-    const allArticles = this.getAllArticles();
-    const affectedArticles = allArticles.filter(
-      (article) => article.saved && article.savedFilePath === oldPath,
-    );
-
-    affectedArticles.forEach((article) => {
-      article.saved = false;
-      article.savedFilePath = file.path;
-
-      if (article.tags) {
-        article.tags = article.tags.filter(
-          (tag) => tag.name.toLowerCase() !== "saved",
-        );
-      }
-    });
-
-    if (affectedArticles.length > 0) {
-      void this.render();
-    }
-  }
-
-  private getAllArticles(): FeedItem[] {
-    let allArticles: FeedItem[] = [];
-    for (const feed of this.settings.feeds) {
-      allArticles = allArticles.concat(feed.items);
-    }
-    return allArticles;
   }
 
   private handlePageChange(page: number): void {

@@ -14,6 +14,10 @@ function buildContext(
         shouldRerender?: boolean,
       ) => void;
       onArticleSave?: (article: FeedItem) => Promise<void> | void;
+      onArticleCustomSave?: (
+        article: FeedItem,
+        hooks: { onSavingChange: (saving: boolean) => void },
+      ) => Promise<void> | void;
       onArticleClick?: (article: FeedItem) => void;
     };
     settings?: {
@@ -187,5 +191,51 @@ describe("article-context-menu utils", () => {
     const titles = Menu.lastItems.map((item) => item.title);
     expect(titles).toContain("Open in browser");
     expect(titles).toContain("Copy article URL");
+  });
+
+  it("replaces the single save item with Default save and Custom save", () => {
+    const onArticleSave = vi.fn();
+    const onArticleCustomSave = vi.fn();
+    const ctx = buildContext({
+      callbacks: { onArticleSave, onArticleCustomSave },
+    });
+
+    showArticleContextMenu(
+      new MouseEvent("contextmenu") as unknown as MouseEvent,
+      article,
+      ctx,
+    );
+
+    const titles = Menu.lastItems.map((item) => item.title);
+    expect(titles).toContain("Save with default settings");
+    expect(titles).toContain("Save to custom folder...");
+    expect(titles).not.toContain("Save full article");
+    expect(titles).not.toContain("Save article summary");
+
+    Menu.lastItems
+      .find((item) => item.title === "Save with default settings")
+      ?.trigger();
+    expect(onArticleSave).toHaveBeenCalledWith(article);
+    expect(onArticleCustomSave).not.toHaveBeenCalled();
+
+    Menu.lastItems
+      .find((item) => item.title === "Save to custom folder...")
+      ?.trigger();
+    expect(onArticleCustomSave).toHaveBeenCalledWith(article, {
+      onSavingChange: expect.any(Function),
+    });
+  });
+
+  it("offers no save items once the article is saved", () => {
+    article.saved = true;
+    showArticleContextMenu(
+      new MouseEvent("contextmenu") as unknown as MouseEvent,
+      article,
+      buildContext(),
+    );
+
+    const titles = Menu.lastItems.map((item) => item.title);
+    expect(titles).not.toContain("Save with default settings");
+    expect(titles).not.toContain("Save to custom folder...");
   });
 });

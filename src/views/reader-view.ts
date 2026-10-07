@@ -51,7 +51,6 @@ import {
 } from "../utils/full-article-fetch";
 import { isLikelyVideoItem } from "../utils/video-detection";
 import {
-  clearSavedStateIfFileMissing,
   buildReaderImageTooltipText,
   formatReaderDateText,
   getReaderImageFilename,
@@ -100,9 +99,9 @@ import { PodcastPlayer } from "./podcast-player";
 import { VideoPlayer } from "./video-player";
 import { RSS_DASHBOARD_VIEW_TYPE, RssDashboardView } from "./dashboard-view";
 import {
-  ReaderCustomSaveModal,
-  type ReaderCustomSaveModalContext,
-} from "../modals/reader-custom-save-modal";
+  CustomSaveModal,
+  type CustomSaveModalContext,
+} from "../modals/custom-save-modal";
 import { ShortcutHelpModal } from "../modals/shortcut-help-modal";
 import { openWebViewerSaveModal } from "../modals/web-viewer-save-modal";
 import { setupReaderHotkeys } from "../hotkeys/reader-hotkeys";
@@ -135,7 +134,7 @@ export class ReaderView extends ItemView {
     item: FeedItem,
     updates: Partial<FeedItem>,
     shouldRerender?: boolean,
-  ) => void;
+  ) => void | Promise<void>;
   private webViewerIntegration: WebViewerIntegration | null = null;
   private podcastPlayer: PodcastPlayer | null = null;
   private videoPlayer: VideoPlayer | null = null;
@@ -238,7 +237,7 @@ export class ReaderView extends ItemView {
       item: FeedItem,
       updates: Partial<FeedItem>,
       shouldRerender?: boolean,
-    ) => void,
+    ) => void | Promise<void>,
     options?: {
       saveSettings?: () => Promise<void>;
       onPlaybackProgress?: (
@@ -503,6 +502,28 @@ export class ReaderView extends ItemView {
     await this.app.workspace.revealLeaf(leaf);
   }
 
+  private async openSavedArticle(article: FeedItem): Promise<void> {
+    try {
+      const file = await this.articleSaver.findSavedArticleFile(article);
+      if (file) {
+        await this.openSavedArticleInConfiguredLocation(file, article);
+        return;
+      }
+
+      const tags = (article.tags ?? []).filter(
+        (tag) => tag.name.toLowerCase() !== "saved",
+      );
+      await this.onArticleUpdate(
+        article,
+        { saved: false, savedFilePath: undefined, tags },
+        false,
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      new Notice(`Error opening saved article: ${message}`);
+    }
+  }
+
   /**
    * Action: Navigate to next article from reader.
    * @internal
@@ -690,12 +711,7 @@ export class ReaderView extends ItemView {
       return;
     }
     if (this.currentItem.saved) {
-      const file = this.app.vault.getAbstractFileByPath(
-        this.currentItem.savedFilePath || "",
-      );
-      if (file instanceof TFile) {
-        await this.openSavedArticleInConfiguredLocation(file, this.currentItem);
-      }
+      await this.openSavedArticle(this.currentItem);
       return;
     }
 
@@ -985,16 +1001,8 @@ export class ReaderView extends ItemView {
       region,
       onClick: (e) => {
         if (this.currentItem && this.currentItem.saved) {
-          const file = this.app.vault.getAbstractFileByPath(
-            this.currentItem.savedFilePath || "",
-          );
-          if (file instanceof TFile) {
-            void this.openSavedArticleInConfiguredLocation(
-              file,
-              this.currentItem,
-            );
-            return;
-          }
+          void this.openSavedArticle(this.currentItem);
+          return;
         }
         if (this.currentItem) {
           this.showSaveOptions(e, this.currentItem);
@@ -1189,14 +1197,14 @@ export class ReaderView extends ItemView {
   }
 
   private showCustomSaveModal(item: FeedItem): void {
-    new ReaderCustomSaveModal(
+    new CustomSaveModal(
       this.app,
       item,
-      this.getReaderCustomSaveModalContext(),
+      this.getCustomSaveModalContext(),
     ).open();
   }
 
-  private getReaderCustomSaveModalContext(): ReaderCustomSaveModalContext {
+  private getCustomSaveModalContext(): CustomSaveModalContext {
     return {
       getSettings: () => this.settings,
       getArticleSaver: () => this.articleSaver,
@@ -1204,8 +1212,27 @@ export class ReaderView extends ItemView {
       getSavedTemplateForArticle: (article) =>
         this.getCustomTemplateForArticle(article),
       saveSettings: () => this.persistSettings(),
-      buildReaderSaveMarkdown: (article) =>
-        this.buildReaderSaveMarkdown(article),
+      saveArticle: (article, request) => {
+        const markdownContent = this.buildReaderSaveMarkdown(article);
+        const displayTitle = this.currentDisplayTitle;
+        const saveItem = displayTitle
+          ? { ...article, title: displayTitle }
+          : article;
+        return request.savedTemplate
+          ? this.articleSaver.saveArticle(
+              saveItem,
+              request.folder,
+              request.template,
+              markdownContent,
+              request.savedTemplate,
+            )
+          : this.articleSaver.saveArticle(
+              saveItem,
+              request.folder,
+              request.template,
+              markdownContent,
+            );
+      },
       onArticleSave: (article) => this.onArticleSave(article),
       updateSavedLabel: (saved) => this.updateSavedLabel(saved),
     };
@@ -1233,10 +1260,6 @@ export class ReaderView extends ItemView {
 
     // Update toggle button states
     this.updateToggleButtons();
-
-    clearSavedStateIfFileMissing(item, this.settings.feeds, () =>
-      this.articleSaver.checkSavedFileExists(item),
-    );
 
     const route = resolveReaderMediaRoute(item);
     if (route === "video") {
@@ -1733,7 +1756,7 @@ export class ReaderView extends ItemView {
       item.content = result.content;
       item.starredImportContentState = undefined;
       if (shouldPersist) {
-        this.onArticleUpdate(
+        void this.onArticleUpdate(
           item,
           { content: result.content, starredImportContentState: undefined },
           false,
@@ -1742,7 +1765,7 @@ export class ReaderView extends ItemView {
     } else {
       item.starredImportContentState = "failed";
       if (shouldPersist) {
-        this.onArticleUpdate(
+        void this.onArticleUpdate(
           item,
           { starredImportContentState: "failed" },
           false,
@@ -2062,7 +2085,7 @@ export class ReaderView extends ItemView {
       undefined,
       feedLanguageFor(this.settings.feeds, item),
     );
-    if (update) this.onArticleUpdate(item, update, false);
+    if (update) void this.onArticleUpdate(item, update, false);
   }
 
   private showRestrictedNotice(item: FeedItem): void {
@@ -2081,15 +2104,20 @@ export class ReaderView extends ItemView {
   private toggleReadStatus(): void {
     if (!this.currentItem) return;
     const nextRead = !this.currentItem.read;
-    this.onArticleUpdate(this.currentItem, { read: nextRead }, false);
+    void this.onArticleUpdate(this.currentItem, { read: nextRead }, false);
     this.updateToggleButtons();
   }
 
   public applyExternalUpdate(
     articleGuid: string,
     updates: Partial<FeedItem>,
+    feedUrl?: string,
   ): void {
-    if (!this.currentItem || this.currentItem.guid !== articleGuid) {
+    if (
+      !this.currentItem ||
+      this.currentItem.guid !== articleGuid ||
+      (feedUrl !== undefined && this.currentItem.feedUrl !== feedUrl)
+    ) {
       return;
     }
 
@@ -2127,13 +2155,13 @@ export class ReaderView extends ItemView {
   private toggleStarStatus(): void {
     if (!this.currentItem) return;
     const nextStarred = !this.currentItem.starred;
-    this.onArticleUpdate(this.currentItem, { starred: nextStarred });
+    void this.onArticleUpdate(this.currentItem, { starred: nextStarred });
     this.updateToggleButtons();
   }
 
   private updateSavedLabel(saved: boolean): void {
     if (!this.currentItem) return;
-    this.onArticleUpdate(this.currentItem, { saved });
+    void this.onArticleUpdate(this.currentItem, { saved });
 
     if (this.saveButton) {
       this.saveButton.toggleClass("saved", saved);
@@ -2530,7 +2558,7 @@ export class ReaderView extends ItemView {
     }
 
     // Notify parent to persist the change
-    this.onArticleUpdate(item, { tags: [...item.tags] }, false);
+    void this.onArticleUpdate(item, { tags: [...item.tags] }, false);
 
     if (this.currentItem?.guid === item.guid) {
       this.refreshReaderHeaderTags();
