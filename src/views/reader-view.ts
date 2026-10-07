@@ -2161,7 +2161,8 @@ export class ReaderView extends ItemView {
 
   private updateSavedLabel(saved: boolean): void {
     if (!this.currentItem) return;
-    void this.onArticleUpdate(this.currentItem, { saved });
+
+    // The save callback owns association updates and persistence.
 
     if (this.saveButton) {
       this.saveButton.toggleClass("saved", saved);

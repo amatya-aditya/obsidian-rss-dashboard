@@ -1274,45 +1274,19 @@ export default class RssDashboardPlugin extends Plugin {
       if (feed) {
         const originalItem = feed.items.find((i) => i.guid === item.guid);
         if (originalItem) {
-          originalItem.saved = true;
-          originalItem.savedFilePath = item.savedFilePath;
-
-          if (this.settings.articleSaving.addSavedTag) {
-            if (!originalItem.tags) {
-              originalItem.tags = [];
-            }
-
-            if (
-              !originalItem.tags.some((t) => t.name.toLowerCase() === "saved")
-            ) {
-              const savedTag = this.settings.availableTags.find(
-                (t) => t.name.toLowerCase() === "saved",
-              );
-              if (savedTag) {
-                originalItem.tags.push({ ...savedTag });
-              } else {
-                originalItem.tags.push({ name: "saved", color: "#3498db" });
-              }
-            }
-          }
+          Object.assign(
+            originalItem,
+            applyAutomaticArticleTags(
+              originalItem,
+              { saved: true, savedFilePath: item.savedFilePath },
+              this.settings,
+            ),
+          );
 
           await this.saveSettings();
 
-          await this.syncDashboardArticleUpdate(
-            item.guid,
-            item.feedUrl,
-            {
-              saved: true,
-              savedFilePath: originalItem.savedFilePath,
-              tags: originalItem.tags ? [...originalItem.tags] : [],
-            },
-            false,
-          );
-          await this.syncReaderArticleUpdate(item.guid, feed.url, {
-            saved: true,
-            savedFilePath: originalItem.savedFilePath,
-            tags: originalItem.tags ? [...originalItem.tags] : [],
-          });
+          // Resolve the association after persistence and each deferred leaf load.
+          await this.syncSavedArticleAssociationUpdate(item.feedUrl, item.guid);
         }
       }
     }
