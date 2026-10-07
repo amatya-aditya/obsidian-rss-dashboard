@@ -1,5 +1,5 @@
-import { setIcon } from "obsidian";
 import type { SidebarIconConfig } from "../types/types";
+import { createIconButton } from "./icon-button";
 
 export const SIDEBAR_ICONS: SidebarIconConfig[] = [
   {
@@ -85,13 +85,10 @@ export function createToolbarButton(
   icon: SidebarIconConfig,
   onClick: (e?: MouseEvent) => void,
 ): HTMLElement {
-  const btn = activeWindow.createEl("button", { attr: { type: "button" } });
-  btn.className = "clickable-icon";
-  btn.setAttribute("aria-label", icon.label);
-
-  setIcon(btn, icon.lucideIcon);
-
-  btn.addEventListener("click", (e: MouseEvent) => onClick(e));
-
-  return btn;
+  return createIconButton({
+    label: icon.label,
+    icon: icon.lucideIcon,
+    cls: "clickable-icon",
+    onClick: (e) => onClick(e),
+  });
 }
