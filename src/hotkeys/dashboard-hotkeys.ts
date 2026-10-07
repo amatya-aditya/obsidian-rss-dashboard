@@ -172,18 +172,19 @@ function handleKeydown(
       case "ArrowLeft":
         if (view.isSidebarFocused()) {
           view.actionSidebarJumpPreviousFolder();
+          handled = true;
         } else {
-          view.actionNavigateCard("left");
+          // Only card view uses Left; list and feed leave the key alone.
+          handled = view.actionNavigateCard("left");
         }
-        handled = true;
         break;
       case "ArrowRight":
         if (view.isSidebarFocused()) {
           view.actionSidebarJumpNextFolder();
+          handled = true;
         } else {
-          view.actionNavigateCard("right");
+          handled = view.actionNavigateCard("right");
         }
-        handled = true;
         break;
       case "ArrowUp":
         if (view.isSidebarFocused()) {
