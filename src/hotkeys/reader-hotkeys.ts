@@ -52,7 +52,8 @@ function isToolbarTarget(target: EventTarget | null): boolean {
 export function setupReaderHotkeys(scope: Scope, view: ReaderView): void {
   const register: Scope["register"] = (modifiers, key, handler) =>
     scope.register(modifiers, key, (event, keymapHandler) => {
-      if (isEditableTarget(event.target)) return false;
+      // Scope passes through undefined; false would cancel typing in the field.
+      if (isEditableTarget(event.target)) return;
       // Obsidian's keymap treats `undefined` as "not handled, try the next
       // scope" and any other return as handled (`false` also calls
       // preventDefault and stopPropagation), so stand aside with `undefined`

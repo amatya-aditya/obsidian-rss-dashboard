@@ -60,7 +60,7 @@ describe("Reader shortcuts while editing modal fields", () => {
       const input = modal.createEl("input", { attr: { type: "text" } });
       const handled = dispatchShortcutFrom(scope, key, input);
 
-      expect(handled).toBe(false);
+      expect(handled).toBeUndefined();
       expect(toggleTagsMenu).not.toHaveBeenCalled();
       expect(saveCurrentArticle).not.toHaveBeenCalled();
       modal.remove();
