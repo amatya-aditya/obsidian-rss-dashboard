@@ -90,6 +90,16 @@ _Avoid_: Favorite, bookmarked, pinned
 A user-assigned classification on an article, added or removed only through a tag action. A tag named "Favorite" or "Starred" carries no reserved meaning and behaves like any other tag. See [ADR 0011](docs/adr/0011-decouple-starred-state-from-tags.md).
 _Avoid_: Label (reserved for imported Inoreader labels; see [[Label-derived tag]])
 
+## Saving articles
+
+**Default save**:
+Saving an article to a note with the resolved folder and template and no per-save overrides. On the dashboard, the "save full content" setting decides whether the note holds the full article or its summary.
+_Avoid_: Quick save, simple save
+
+**Custom save**:
+A one-time save where the user chooses the folder, template, and filename pattern in the save dialog. It may also change the feed's template assignment. Offered on every Save button beside [[Default save]]; the keyboard save action is always a Default save.
+_Avoid_: Advanced save, save as
+
 ## Data retention and article lifecycle
 
 **Auto-delete cutoff**:
