@@ -292,6 +292,8 @@ export interface MediaSettings {
   podcastTheme: PodcastTheme;
   enableApplePodcastsOpen?: boolean;
   defaultPlaySpeed: number;
+  /** Optional YouTube Data API key, used when a YouTube feed request fails. */
+  youtubeApiKey?: string;
 }
 
 export interface SavedTemplate {

@@ -17,6 +17,7 @@
 
 ### Fixes
 
+- YouTube channel and playlist feeds can now be read through the YouTube Data API when YouTube's own feed fails to load. YouTube's `feeds/videos.xml` has been returning intermittent 404 and 500 errors for valid channels since early October 2026. Add an optional key under **Settings → Media → YouTube data API key**; a failed YouTube feed refresh then uses the key (1 unit of the daily quota per refresh), and other feeds are unaffected. [GH Issue #794](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/794)
 - Saved-note metadata is now validated without scanning note files. Startup, feed refresh, dashboard rendering, and Reader display no longer check for missing notes; explicitly opening a missing saved note clears its Saved state, while lookup or opening errors preserve it. [GH Issue #820](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/820)
 - Renaming a saved note or moving it with its folder now updates the article's saved path, keeps the Saved state and tags, refreshes open Readers, and persists the change even when no dashboard is open. [GH Issue #819](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/819)
 - Deleting a saved note now clears its Saved state, path, and tag across open dashboard and Reader views and persists the change, even when no dashboard is open. [GH Issue #818](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/818)

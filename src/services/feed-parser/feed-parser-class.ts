@@ -11,6 +11,10 @@ import { MastodonService } from "../mastodon-service.js";
 import { resolveAbsoluteHttpUrl } from "../../utils/url-utils.js";
 import { htmlToReadableText } from "../../utils/html-text.js";
 import { fetchFeedXml } from "./feed-fetch.js";
+import {
+  fetchYouTubeFeedXmlFromApi,
+  getYouTubeFeedPlaylistId,
+} from "./youtube-api-feed.js";
 import { parseFetchErrorMessage } from "./feed-errors.js";
 import { CustomXMLParser } from "./xml-parser/custom-xml-parser.js";
 import { assertParsedFeedHasEntries } from "./parsed-feed-assert.js";
@@ -351,14 +355,28 @@ export class FeedParser {
       throw new Error("Feed url is required");
     }
 
-    const responseText = await fetchFeedXml(
-      url,
-      this.getCorsProxyEnabled(),
-      options?.signal,
-      existingFeed?.feedEncoding === "windows-1251"
-        ? existingFeed.feedEncoding
-        : undefined,
-    );
+    let responseText: string;
+    try {
+      responseText = await fetchFeedXml(
+        url,
+        this.getCorsProxyEnabled(),
+        options?.signal,
+        existingFeed?.feedEncoding === "windows-1251"
+          ? existingFeed.feedEncoding
+          : undefined,
+      );
+    } catch (error) {
+      // YouTube's feeds intermittently fail for valid channels; read them via the API when a key is set
+      const youtubeApiKey = this.mediaSettings.youtubeApiKey?.trim();
+      if (!youtubeApiKey || !getYouTubeFeedPlaylistId(url)) {
+        throw error;
+      }
+      responseText = await fetchYouTubeFeedXmlFromApi(
+        url,
+        youtubeApiKey,
+        options?.signal,
+      );
+    }
     const parsed = this.parser.parseString(responseText);
 
     assertParsedFeedHasEntries(parsed, options);

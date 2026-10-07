@@ -126,4 +126,20 @@ export function renderMediaSettingsTab(
     href: "https://www.youtube.com/t/terms",
     attr: { target: "_blank", rel: "noopener noreferrer" },
   });
+
+  new Setting(containerEl)
+    .setName("YouTube data API key")
+    .setDesc(
+      "Optional. When a YouTube channel or playlist feed fails to load, its videos are read through the YouTube data API with this key instead (1 unit of the daily quota per feed refresh).",
+    )
+    .addText((text) => {
+      text.inputEl.type = "password";
+      text
+        .setPlaceholder("API key")
+        .setValue(plugin.settings.media.youtubeApiKey ?? "")
+        .onChange(async (value) => {
+          plugin.settings.media.youtubeApiKey = value.trim();
+          await plugin.saveSettings();
+        });
+    });
 }
