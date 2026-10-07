@@ -34,6 +34,7 @@ function renderArticleCard(
     attr: {
       id: `article-${article.guid}`,
       "data-article-guid": article.guid,
+      "data-feed-url": article.feedUrl,
     },
   });
 

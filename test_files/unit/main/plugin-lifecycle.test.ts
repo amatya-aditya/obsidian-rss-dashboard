@@ -535,6 +535,39 @@ describe("onload() initialization", () => {
     ).toBeGreaterThanOrEqual(4);
   });
 
+  it("clears and persists deleted saved-note state without an open dashboard", async () => {
+    let deleteHandler: ((file: { path: string }) => void) | undefined;
+    app.vault.on = (eventName, callback) => {
+      if (eventName === "delete") {
+        deleteHandler = callback as unknown as (file: { path: string }) => void;
+      }
+      return {};
+    };
+
+    await plugin.onload();
+    plugin.settings.feeds = [structuredClone(sampleFeed)];
+    const article = plugin.settings.feeds[0]?.items[0];
+    expect(article).toBeDefined();
+    if (!article) return;
+    article.saved = true;
+    article.savedFilePath = "Articles/Saved article.md";
+    article.tags = [
+      { name: "sAvEd", color: "blue" },
+      { name: "Research", color: "green" },
+    ];
+    vi.clearAllMocks();
+
+    deleteHandler?.({ path: "Articles/Saved article.md" });
+
+    await vi.waitFor(() => {
+      expect(plugin.saveData).toHaveBeenCalledTimes(1);
+    });
+    expect(app.workspace.getLeavesOfType("rss-dashboard-view")).toHaveLength(0);
+    expect(article.saved).toBe(false);
+    expect(article.savedFilePath).toBeUndefined();
+    expect(article.tags).toEqual([{ name: "Research", color: "green" }]);
+  });
+
   it("registers ribbon icon", async () => {
     // When: onload is called
     await plugin.onload();
@@ -608,10 +641,11 @@ describe("onload() initialization", () => {
 
     await plugin.onload();
 
-    expect(onMock).toHaveBeenCalledTimes(3);
+    expect(onMock).toHaveBeenCalledTimes(4);
     expect(onMock).toHaveBeenCalledWith("modify", expect.any(Function));
     expect(onMock).toHaveBeenCalledWith("create", expect.any(Function));
     expect(onMock).toHaveBeenCalledWith("rename", expect.any(Function));
+    expect(onMock).toHaveBeenCalledWith("delete", expect.any(Function));
   });
 
   it("warns once per vault metadata failure incident", async () => {

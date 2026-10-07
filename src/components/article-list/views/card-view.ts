@@ -38,7 +38,9 @@ export function renderCardView(
       cls:
         "rss-dashboard-article-card" +
         (hasTags ? " rss-dashboard-article-card--has-tags" : "") +
-        (ctx.selectedArticle && article.guid === ctx.selectedArticle.guid
+        (ctx.selectedArticle &&
+        article.guid === ctx.selectedArticle.guid &&
+        article.feedUrl === ctx.selectedArticle.feedUrl
           ? " active"
           : "") +
         (article.read ? " read" : " unread") +
@@ -53,6 +55,7 @@ export function renderCardView(
       attr: {
         id: `article-${article.guid}`,
         "data-article-guid": article.guid,
+        "data-feed-url": article.feedUrl,
       },
     });
 

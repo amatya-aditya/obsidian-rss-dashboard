@@ -108,6 +108,44 @@ describe("Phase 7 - ArticleList in-place updates", () => {
     h.cleanup();
   });
 
+  it("updates only the matching feed when two visible articles share a guid", () => {
+    const firstFeedUrl = "https://first.example/feed.xml";
+    const secondFeedUrl = "https://second.example/feed.xml";
+    const first = buildArticle({
+      guid: "shared-guid",
+      feedUrl: firstFeedUrl,
+      saved: true,
+    });
+    const second = buildArticle({
+      guid: "shared-guid",
+      feedUrl: secondFeedUrl,
+      saved: true,
+    });
+    const h = createArticleListHarness({
+      settings: {
+        viewStyle: "list",
+        articleGroupBy: "none",
+        articleSort: "newest",
+      },
+      articles: [first, second],
+    });
+    h.list.render();
+
+    h.list.updateArticleInPlace({ ...second, saved: false, tags: [] });
+
+    const rows = Array.from(
+      h.container.querySelectorAll<HTMLElement>("#article-shared-guid"),
+    );
+    const firstRow = rows.find((row) => row.dataset.feedUrl === firstFeedUrl);
+    const secondRow = rows.find((row) => row.dataset.feedUrl === secondFeedUrl);
+    expect(firstRow?.classList.contains("saved")).toBe(true);
+    expect(secondRow?.classList.contains("saved")).toBe(false);
+    expect(h.list.hasArticle("shared-guid", firstFeedUrl)).toBe(true);
+    expect(h.list.hasArticle("shared-guid", secondFeedUrl)).toBe(true);
+
+    h.cleanup();
+  });
+
   it("syncVisibleArticlesFromSource should refresh tag colors for cloned visible articles", () => {
     const visibleArticle = buildArticle({
       guid: "1",
