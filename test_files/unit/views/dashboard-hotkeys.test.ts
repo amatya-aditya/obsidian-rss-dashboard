@@ -131,7 +131,7 @@ describe("DashboardView Hotkeys", () => {
         on: vi.fn(),
         getLeavesOfType: vi.fn().mockReturnValue([]),
         setActiveLeaf: vi.fn(),
-        getMostRecentLeaf: vi.fn(),
+        getActiveViewOfType: vi.fn(),
       },
       vault: {
         on: vi.fn(),
@@ -158,8 +158,10 @@ describe("DashboardView Hotkeys", () => {
       refreshFeeds: vi.fn().mockResolvedValue(undefined),
     } as unknown as RssDashboardPlugin;
 
-    // getMostRecentLeaf setup so Guard 1 passes
-    vi.mocked(app.workspace.getMostRecentLeaf).mockReturnValue(leaf);
+    // The focused leaf's view, so Guard 1 passes
+    vi.mocked(app.workspace.getActiveViewOfType).mockImplementation(
+      () => leaf.view as never,
+    );
   });
 
   afterEach(() => {
