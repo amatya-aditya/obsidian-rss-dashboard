@@ -428,3 +428,89 @@ describe("Phase 7 - ArticleList in-place updates", () => {
     },
   );
 });
+
+// #867: the row collapse and expand are driven by inline styles, which the
+// reduced-motion stylesheet cannot override, so the list asks for the
+// preference itself.
+describe("ArticleList in-place updates honor reduced motion (#867)", () => {
+  afterEach(() => {
+    document.body.empty();
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+  });
+
+  const reduceMotion = (): void => {
+    vi.spyOn(window, "matchMedia").mockImplementation(
+      (query: string) =>
+        ({
+          matches: query === "(prefers-reduced-motion: reduce)",
+        }) as MediaQueryList,
+    );
+  };
+
+  it("removes an article at once without a collapse transition", () => {
+    vi.useFakeTimers();
+    reduceMotion();
+    const h = createArticleListHarness({
+      settings: {
+        viewStyle: "list",
+        articleGroupBy: "none",
+        articleSort: "newest",
+      },
+      articles: [
+        buildArticle({ guid: "1", title: "One" }),
+        buildArticle({ guid: "2", title: "Two" }),
+      ],
+    });
+    h.list.render();
+    const listEl = h.getArticlesListEl();
+    if (!listEl) throw new Error("Expected articles list element");
+    listEl.scrollTop = 123;
+
+    h.list.removeArticleInPlace("1");
+
+    expect(h.list.hasArticle("1")).toBe(false);
+    expect(h.getArticleEl("1")).toBeNull();
+    expect(h.getArticleEl("2")).not.toBeNull();
+    expect(listEl.scrollTop).toBe(123);
+
+    h.cleanup();
+  });
+
+  it("inserts an article without starting it collapsed and transitioning open", () => {
+    vi.useFakeTimers();
+    reduceMotion();
+    const h = createArticleListHarness({
+      settings: {
+        viewStyle: "list",
+        articleGroupBy: "none",
+        articleSort: "newest",
+      },
+      articles: [
+        buildArticle({
+          guid: "older",
+          pubDate: new Date("2024-01-01T00:00:00Z").toISOString(),
+        }),
+      ],
+      pageSize: 50,
+      totalArticles: 1,
+    });
+    h.list.render();
+
+    const inserted = buildArticle({
+      guid: "newer",
+      pubDate: new Date("2024-01-02T00:00:00Z").toISOString(),
+    });
+    expect(h.list.insertArticleInPlace(inserted, "newest")).toBe(true);
+
+    const row = h
+      .getArticlesListEl()
+      ?.querySelector<HTMLElement>("#article-newer");
+    expect(row).not.toBeNull();
+    expect(row?.style.maxHeight).toBe("");
+    expect(row?.style.opacity).toBe("");
+    expect(row?.style.transition).toBe("");
+
+    h.cleanup();
+  });
+});

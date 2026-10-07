@@ -33,6 +33,7 @@ import type {
   BaseViewContext,
   ViewDeps,
 } from "./article-list/views/view-types";
+import { prefersReducedMotion } from "../utils/motion-preference";
 
 interface ArticleListCallbacks {
   onArticleClick: (article: FeedItem) => void;
@@ -670,6 +671,14 @@ export class ArticleList {
     );
     const scrollPos = listEl?.scrollTop ?? 0;
 
+    // Script-driven collapse ignores the stylesheet's reduced-motion rules, so
+    // honor the preference here: drop the row at once, no collapse.
+    if (prefersReducedMotion(targetEl.win)) {
+      targetEl.remove();
+      if (listEl) listEl.scrollTop = scrollPos;
+      return;
+    }
+
     const originalHeight = targetEl.offsetHeight;
     setCssProps(targetEl, {
       overflow: "hidden",
@@ -777,6 +786,12 @@ export class ArticleList {
       listEl.insertBefore(newEl, referenceEl);
     } else {
       listEl.appendChild(newEl);
+    }
+
+    // Script-driven expand ignores the stylesheet's reduced-motion rules, so
+    // honor the preference here: show the row at full size, no expand.
+    if (prefersReducedMotion(newEl.win)) {
+      return true;
     }
 
     const naturalHeight = newEl.offsetHeight;

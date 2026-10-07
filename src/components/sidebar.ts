@@ -80,6 +80,7 @@ import {
   type RefreshStatus,
 } from "../utils/refresh-status";
 import { getEffectiveRefreshIntervalMinutes } from "../utils/refresh-intervals";
+import { smoothScrollBehavior } from "../utils/motion-preference";
 
 export interface SidebarOptions {
   currentFolder: string | null;
@@ -2990,7 +2991,10 @@ export class Sidebar {
       // On mobile, ensure the input is visible above the keyboard
       if (activeWindow.innerWidth <= 768) {
         window.setTimeout(() => {
-          searchInput.scrollIntoView({ behavior: "smooth", block: "center" });
+          searchInput.scrollIntoView({
+            behavior: smoothScrollBehavior(searchInput.win),
+            block: "center",
+          });
         }, 100);
       }
     });
@@ -3010,7 +3014,10 @@ export class Sidebar {
       searchInput.focus();
       if (activeWindow.innerWidth <= 768) {
         window.setTimeout(() => {
-          searchInput.scrollIntoView({ behavior: "smooth", block: "center" });
+          searchInput.scrollIntoView({
+            behavior: smoothScrollBehavior(searchInput.win),
+            block: "center",
+          });
         }, 100);
       }
     });
