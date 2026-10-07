@@ -1,5 +1,6 @@
 import { ItemView } from "obsidian";
 import type { RssDashboardView } from "../views/dashboard-view";
+import { dashboardCandidates, findDashboardBinding } from "./keymap";
 
 /**
  * Returns true when a text editor or interactive control owns keyboard input.
@@ -37,39 +38,116 @@ export function isModalOpen(doc: Document): boolean {
   return doc.body?.querySelector(":scope > .modal-container") != null;
 }
 
-// Navigation keys (j, l, Space, the arrows, Shift+Space/J/L) repeat while held.
-// Every other bound key acts once per press, so holding it must not fire again.
-const NO_REPEAT_KEYS = new Set([
-  "r",
-  "o",
-  "Enter",
-  "k",
-  "m",
-  "f",
-  "t",
-  "s",
-  "1",
-  "2",
-  "3",
-  ",",
-]);
-const NO_REPEAT_SHIFT_KEYS = new Set([
-  "S",
-  "R",
-  "O",
-  "Enter",
-  "X",
-  "D",
-  "A",
-  "!",
-  "@",
-  "#",
-  "?",
-]);
+/**
+ * What each dashboard binding in the keymap does. An action that returns
+ * `false` leaves the key unhandled so it is not cancelled; every other
+ * return value, `undefined` included, handles it.
+ */
+type DashboardAction = (view: RssDashboardView) => boolean | void;
 
-function isNoRepeatKey(e: KeyboardEvent): boolean {
-  return (e.shiftKey ? NO_REPEAT_SHIFT_KEYS : NO_REPEAT_KEYS).has(e.key);
-}
+export const DASHBOARD_ACTIONS: Readonly<Record<string, DashboardAction>> = {
+  "refresh-feeds": (view) => {
+    void view.actionRefreshFeeds();
+  },
+  // j and l move to the previous/next article and open it, matching the
+  // Reader keymap; Space and Shift+Space only move the selection.
+  "article-previous": (view) => {
+    view.actionNavigatePrevious({ open: true });
+  },
+  "article-next": (view) => {
+    view.actionNavigateNext({ open: true });
+  },
+  "select-next": (view) => {
+    view.actionNavigateNext();
+  },
+  "select-previous": (view) => {
+    view.actionNavigatePrevious();
+  },
+  "close-reader": (view) => {
+    view.actionCloseReader();
+  },
+  // Only card view uses Left and Right; list and feed leave the key alone.
+  "card-left": (view) => view.actionNavigateCard("left"),
+  "card-right": (view) => view.actionNavigateCard("right"),
+  "card-up": (view) => {
+    view.actionNavigateCard("up");
+  },
+  "card-down": (view) => {
+    view.actionNavigateCard("down");
+  },
+  "toggle-article-open": (view) => {
+    view.actionToggleArticleOpen();
+  },
+  "toggle-read": (view) => {
+    void view.actionToggleReadStatus();
+  },
+  "toggle-star": (view) => {
+    void view.actionToggleStarStatus();
+  },
+  "toggle-tags": (view) => {
+    view.actionToggleTagsMenu();
+  },
+  "save-article": (view) => {
+    void view.actionSaveSelectedArticle();
+  },
+  "view-list": (view) => {
+    view.actionSetViewStyle("list");
+  },
+  "view-card": (view) => {
+    view.actionSetViewStyle("card");
+  },
+  "view-feed": (view) => {
+    view.actionSetViewStyle("feed");
+  },
+  "mark-read-next": (view) => {
+    void view.actionMarkReadAndNext();
+  },
+  "focus-sidebar": (view) => {
+    view.actionFocusSidebar();
+  },
+  "focus-reader": (view) => {
+    view.actionFocusReader();
+  },
+  "mark-all-read": (view) => {
+    view.actionMarkAllAsRead();
+  },
+  "filter-all": (view) => {
+    view.actionSetStatusFilter("all");
+  },
+  "filter-unread": (view) => {
+    view.actionSetStatusFilter("unread");
+  },
+  "filter-read": (view) => {
+    view.actionSetStatusFilter("read");
+  },
+  "open-help": (view) => {
+    view.actionOpenShortcutHelp();
+  },
+  "sidebar-open": (view) => {
+    view.actionSidebarOpenFocused();
+  },
+  "sidebar-previous-folder": (view) => {
+    view.actionSidebarJumpPreviousFolder();
+  },
+  "sidebar-next-folder": (view) => {
+    view.actionSidebarJumpNextFolder();
+  },
+  "sidebar-move-previous": (view) => {
+    view.actionSidebarMovePrevious();
+  },
+  "sidebar-move-next": (view) => {
+    view.actionSidebarMoveNext();
+  },
+  "sidebar-toggle-folder": (view) => {
+    view.actionSidebarToggleFocusedFolder();
+  },
+  "sidebar-delete": (view) => {
+    view.actionSidebarDeleteFocused();
+  },
+  "sidebar-rename": (view) => {
+    view.actionSidebarRenameFocused();
+  },
+};
 
 function isNode(target: EventTarget | null): target is Node {
   return typeof (target as Partial<Node> | null)?.instanceOf === "function";
@@ -126,185 +204,17 @@ function handleKeydown(
 
   // Guard 4: a held action key acts once, not on every auto-repeat. The key is
   // still swallowed, so the held press does not leak to another handler.
-  if (e.repeat && isNoRepeatKey(e)) {
+  if (e.repeat && dashboardCandidates(e).some((binding) => !binding.repeat)) {
     e.preventDefault();
     e.stopPropagation();
     return;
   }
 
-  const key = e.key;
-  const shift = e.shiftKey;
+  const binding = findDashboardBinding(e, () => view.isSidebarFocused());
+  const action = binding ? DASHBOARD_ACTIONS[binding.id] : undefined;
+  if (!action) return;
 
-  let handled = false;
-
-  if (shift) {
-    switch (key) {
-      case "S":
-        view.actionFocusSidebar();
-        handled = true;
-        break;
-      case "R":
-        if (view.isSidebarFocused()) {
-          view.actionSidebarRenameFocused();
-        } else {
-          view.actionFocusReader();
-        }
-        handled = true;
-        break;
-      case " ": // Shift + Space
-        view.actionNavigatePrevious();
-        handled = true;
-        break;
-      case "J":
-        view.actionSidebarMovePrevious();
-        handled = true;
-        break;
-      case "L":
-        view.actionSidebarMoveNext();
-        handled = true;
-        break;
-      case "O":
-        view.actionSidebarOpenFocused();
-        handled = true;
-        break;
-      case "Enter":
-        view.actionSidebarOpenFocused();
-        handled = true;
-        break;
-      case "X":
-        view.actionSidebarToggleFocusedFolder();
-        handled = true;
-        break;
-      case "D":
-        view.actionSidebarDeleteFocused();
-        handled = true;
-        break;
-      case "A":
-        view.actionMarkAllAsRead();
-        handled = true;
-        break;
-      case "!": // Shift + 1
-        view.actionSetStatusFilter("all");
-        handled = true;
-        break;
-      case "@": // Shift + 2
-        view.actionSetStatusFilter("unread");
-        handled = true;
-        break;
-      case "#": // Shift + 3
-        view.actionSetStatusFilter("read");
-        handled = true;
-        break;
-      case "?": // Shift + ?
-        view.actionOpenShortcutHelp();
-        handled = true;
-        break;
-    }
-  } else {
-    switch (key) {
-      case "r":
-        void view.actionRefreshFeeds();
-        handled = true;
-        break;
-      // j and l move to the previous/next article and open it, matching the
-      // Reader keymap; Space and Shift+Space only move the selection.
-      case "j":
-        view.actionNavigatePrevious({ open: true });
-        handled = true;
-        break;
-      case "l":
-        view.actionNavigateNext({ open: true });
-        handled = true;
-        break;
-      case " ": // Space
-        view.actionNavigateNext();
-        handled = true;
-        break;
-      case "k":
-        view.actionCloseReader();
-        handled = true;
-        break;
-      case "ArrowLeft":
-        if (view.isSidebarFocused()) {
-          view.actionSidebarJumpPreviousFolder();
-          handled = true;
-        } else {
-          // Only card view uses Left; list and feed leave the key alone.
-          handled = view.actionNavigateCard("left");
-        }
-        break;
-      case "ArrowRight":
-        if (view.isSidebarFocused()) {
-          view.actionSidebarJumpNextFolder();
-          handled = true;
-        } else {
-          handled = view.actionNavigateCard("right");
-        }
-        break;
-      case "ArrowUp":
-        if (view.isSidebarFocused()) {
-          view.actionSidebarMovePrevious();
-        } else {
-          view.actionNavigateCard("up");
-        }
-        handled = true;
-        break;
-      case "ArrowDown":
-        if (view.isSidebarFocused()) {
-          view.actionSidebarMoveNext();
-        } else {
-          view.actionNavigateCard("down");
-        }
-        handled = true;
-        break;
-      case "o":
-        view.actionToggleArticleOpen();
-        handled = true;
-        break;
-      case "Enter":
-        if (view.isSidebarFocused()) {
-          view.actionSidebarOpenFocused();
-        } else {
-          view.actionToggleArticleOpen();
-        }
-        handled = true;
-        break;
-      case "m":
-        void view.actionToggleReadStatus();
-        handled = true;
-        break;
-      case "f":
-        void view.actionToggleStarStatus();
-        handled = true;
-        break;
-      case "t":
-        view.actionToggleTagsMenu();
-        handled = true;
-        break;
-      case "s":
-        void view.actionSaveSelectedArticle();
-        handled = true;
-        break;
-      case "1":
-        view.actionSetViewStyle("list");
-        handled = true;
-        break;
-      case "2":
-        view.actionSetViewStyle("card");
-        handled = true;
-        break;
-      case "3":
-        view.actionSetViewStyle("feed");
-        handled = true;
-        break;
-      case ",":
-        void view.actionMarkReadAndNext();
-        handled = true;
-        break;
-    }
-  }
-
-  if (handled) {
+  if (action(view) !== false) {
     e.preventDefault();
     // stop propagation to prevent other global events from handling it (since we acted on it)
     e.stopPropagation();
