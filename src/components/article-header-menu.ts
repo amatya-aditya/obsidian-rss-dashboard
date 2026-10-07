@@ -167,33 +167,45 @@ export class ArticleHeaderMenu {
 
   /**
    * Opens the dropdown if it is closed, then focuses and selects its search
-   * input. Returns false when the menu has not been rendered.
+   * input. Resolves true once the input has focus, and false when the menu is
+   * not rendered, the input is detached by a re-render, or focus never lands.
    */
-  public focusSearch(): boolean {
+  public focusSearch(): Promise<boolean> {
     const input = this.searchInput;
-    if (!input || !this.dropdownMenu) return false;
+    if (!input || !this.dropdownMenu) return Promise.resolve(false);
     if (!this.dropdownMenu.classList.contains("is-menu-open")) {
       this.toggleMenu();
     }
-    this.focusWhenVisible(input);
-    return true;
+    return new Promise((resolve) => this.focusWhenVisible(input, 10, resolve));
   }
 
   /**
    * The dropdown fades in (`visibility` only flips once its transition has
    * started), and a hidden input refuses focus. Retry on animation frames until
-   * the focus lands, giving up after a few frames.
+   * the focus lands, giving up after `framesLeft` frames.
    */
-  private focusWhenVisible(input: HTMLInputElement, attempts = 10): void {
-    input.focus();
-    const ownerDocument = input.ownerDocument;
-    if (ownerDocument.activeElement === input) {
-      input.select();
+  private focusWhenVisible(
+    input: HTMLInputElement,
+    framesLeft: number,
+    done: (focused: boolean) => void,
+  ): void {
+    if (!input.isConnected) {
+      done(false);
       return;
     }
-    if (attempts <= 0) return;
-    ownerDocument.defaultView?.requestAnimationFrame(() =>
-      this.focusWhenVisible(input, attempts - 1),
+    input.focus();
+    if (input.ownerDocument.activeElement === input) {
+      input.select();
+      done(true);
+      return;
+    }
+    const view = input.ownerDocument.defaultView;
+    if (framesLeft <= 0 || !view) {
+      done(false);
+      return;
+    }
+    view.requestAnimationFrame(() =>
+      this.focusWhenVisible(input, framesLeft - 1, done),
     );
   }
 

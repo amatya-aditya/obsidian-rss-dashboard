@@ -121,7 +121,7 @@ describe("ArticleHeaderMenu Component", () => {
     expect(dropdown.classList.contains("is-menu-open")).toBe(false);
   });
 
-  it("focusSearch opens the closed menu and focuses its search input", () => {
+  it("focusSearch opens the closed menu and focuses its search input", async () => {
     const menu = new ArticleHeaderMenu(settings, "query", callbacks);
     menu.render(container);
     const dropdown = container.querySelector(
@@ -132,7 +132,7 @@ describe("ArticleHeaderMenu Component", () => {
     ) as HTMLInputElement;
     expect(dropdown.classList.contains("is-menu-open")).toBe(false);
 
-    expect(menu.focusSearch()).toBe(true);
+    await expect(menu.focusSearch()).resolves.toBe(true);
 
     expect(dropdown.classList.contains("is-menu-open")).toBe(true);
     expect(document.activeElement).toBe(input);
@@ -140,64 +140,79 @@ describe("ArticleHeaderMenu Component", () => {
     expect(input.selectionEnd).toBe(5);
   });
 
-  it("focusSearch retries on animation frames while the opening menu refuses focus", () => {
-    const frames: FrameRequestCallback[] = [];
-    vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => {
-      frames.push(cb);
-      return frames.length;
-    });
-    const menu = new ArticleHeaderMenu(settings, "query", callbacks);
-    menu.render(container);
-    const input = container.querySelector(
-      ".rss-dashboard-article-search-input",
-    ) as HTMLInputElement;
-    const realFocus = input.focus.bind(input);
-    let refusals = 2;
-    vi.spyOn(input, "focus").mockImplementation(() => {
-      if (refusals-- > 0) return;
-      realFocus();
+  describe("focusSearch while the opening menu refuses focus", () => {
+    let frames: FrameRequestCallback[];
+
+    beforeEach(() => {
+      frames = [];
+      vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => {
+        frames.push(cb);
+        return frames.length;
+      });
     });
 
-    menu.focusSearch();
-    expect(document.activeElement).not.toBe(input);
+    function renderMenu(query: string) {
+      const menu = new ArticleHeaderMenu(settings, query, callbacks);
+      menu.render(container);
+      const input = container.querySelector(
+        ".rss-dashboard-article-search-input",
+      ) as HTMLInputElement;
+      return { menu, input };
+    }
 
-    frames.shift()?.(0);
-    expect(document.activeElement).not.toBe(input);
-    frames.shift()?.(0);
+    it("retries on animation frames and resolves true once focus lands", async () => {
+      const { menu, input } = renderMenu("query");
+      const realFocus = input.focus.bind(input);
+      let refusals = 2;
+      vi.spyOn(input, "focus").mockImplementation(() => {
+        if (refusals-- > 0) return;
+        realFocus();
+      });
 
-    expect(document.activeElement).toBe(input);
-    expect(input.selectionEnd).toBe(5);
-    expect(frames).toHaveLength(0);
+      const result = menu.focusSearch();
+      expect(document.activeElement).not.toBe(input);
+      frames.shift()?.(0);
+      expect(document.activeElement).not.toBe(input);
+      frames.shift()?.(0);
+
+      await expect(result).resolves.toBe(true);
+      expect(document.activeElement).toBe(input);
+      expect(input.selectionEnd).toBe(5);
+      expect(frames).toHaveLength(0);
+    });
+
+    it("resolves false after a bounded number of frames", async () => {
+      const { menu, input } = renderMenu("");
+      vi.spyOn(input, "focus").mockImplementation(() => {});
+
+      const result = menu.focusSearch();
+      for (let i = 0; i < 50 && frames.length > 0; i++) frames.shift()?.(0);
+
+      await expect(result).resolves.toBe(false);
+      expect(window.requestAnimationFrame).toHaveBeenCalledTimes(10);
+    });
+
+    it("resolves false and stops retrying when a re-render detaches the input", async () => {
+      const { menu, input } = renderMenu("");
+      vi.spyOn(input, "focus").mockImplementation(() => {});
+
+      const result = menu.focusSearch();
+      input.remove();
+      frames.shift()?.(0);
+
+      await expect(result).resolves.toBe(false);
+      expect(frames).toHaveLength(0);
+    });
   });
 
-  it("focusSearch stops retrying after a bounded number of frames", () => {
-    const frames: FrameRequestCallback[] = [];
-    vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => {
-      frames.push(cb);
-      return frames.length;
-    });
-    const menu = new ArticleHeaderMenu(settings, "", callbacks);
-    menu.render(container);
-    const input = container.querySelector(
-      ".rss-dashboard-article-search-input",
-    ) as HTMLInputElement;
-    vi.spyOn(input, "focus").mockImplementation(() => {});
-
-    menu.focusSearch();
-    for (let i = 0; i < 50 && frames.length > 0; i++) frames.shift()?.(0);
-
-    expect(frames).toHaveLength(0);
-    expect(window.requestAnimationFrame).toHaveBeenCalledTimes(10);
-  });
-
-  it("focusSearch keeps an already open menu open", () => {
+  it("focusSearch keeps an already open menu open", async () => {
     const menu = new ArticleHeaderMenu(settings, "", callbacks);
     menu.render(container);
     (
       container.querySelector(".rss-dashboard-hamburger-button") as HTMLElement
     ).click();
 
-    menu.focusSearch();
+    await menu.focusSearch();
 
     expect(
       container
@@ -206,10 +221,10 @@ describe("ArticleHeaderMenu Component", () => {
     ).toBe(true);
   });
 
-  it("focusSearch reports false before the menu is rendered", () => {
+  it("focusSearch resolves false before the menu is rendered", async () => {
     const menu = new ArticleHeaderMenu(settings, "", callbacks);
 
-    expect(menu.focusSearch()).toBe(false);
+    await expect(menu.focusSearch()).resolves.toBe(false);
   });
 
   it("keeps handled selector keys from reaching document-level shortcuts", () => {

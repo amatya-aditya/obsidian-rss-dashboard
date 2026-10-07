@@ -123,30 +123,40 @@ describe("dashboard actions behind palette commands", () => {
     expect(clearTagsSpy).not.toHaveBeenCalled();
   });
 
-  it("actionFocusSearch asks the article list to focus its search", () => {
-    const focusSearch = vi.fn().mockReturnValue(true);
+  const flushPromises = async (): Promise<void> => {
+    await Promise.resolve();
+    await Promise.resolve();
+  };
+
+  it("actionFocusSearch asks the article list to focus its search", async () => {
+    const focusSearch = vi.fn().mockResolvedValue(true);
     privateView.articleList = { focusSearch };
 
     view.actionFocusSearch();
+    await flushPromises();
 
     expect(focusSearch).toHaveBeenCalledTimes(1);
     expect(noticeMessages()).toEqual([]);
   });
 
-  it("actionFocusSearch shows a notice when no search can be focused", () => {
-    privateView.articleList = { focusSearch: vi.fn().mockReturnValue(false) };
+  it("actionFocusSearch shows a notice when focus never lands", async () => {
+    privateView.articleList = {
+      focusSearch: vi.fn().mockResolvedValue(false),
+    };
 
     view.actionFocusSearch();
+    await flushPromises();
 
     expect(noticeMessages()).toEqual([
       "The article search box is not visible.",
     ]);
   });
 
-  it("actionFocusSearch shows a notice before the article list exists", () => {
+  it("actionFocusSearch shows a notice before the article list exists", async () => {
     privateView.articleList = undefined;
 
     view.actionFocusSearch();
+    await flushPromises();
 
     expect(noticeMessages()).toEqual([
       "The article search box is not visible.",

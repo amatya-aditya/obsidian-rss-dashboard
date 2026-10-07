@@ -684,9 +684,10 @@ export class RssDashboardView extends ItemView {
    * @internal
    */
   public actionFocusSearch(): void {
-    if (!this.articleList?.focusSearch()) {
-      new Notice("The article search box is not visible.");
-    }
+    const focused = this.articleList?.focusSearch() ?? Promise.resolve(false);
+    void focused.then((ok) => {
+      if (!ok) new Notice("The article search box is not visible.");
+    });
   }
 
   /**
