@@ -160,7 +160,7 @@ export function createSaveButton(
     }
   };
 
-  const toggleSave = async (e: Event) => {
+  const toggleSave = async (e: UIEvent) => {
     e.stopPropagation();
     e.preventDefault();
 

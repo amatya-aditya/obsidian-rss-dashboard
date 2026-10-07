@@ -32,18 +32,22 @@ export function addSaveOptionItems(
   });
 }
 
-/** Opens a menu with the two save choices at the click, or below the anchor for a key press. */
+/**
+ * Opens a menu with the two save choices at the click, or below the anchor for
+ * a key press. `instanceOf` matches a click from a popout window, whose
+ * MouseEvent is not this window's, so the menu opens in the window clicked.
+ */
 export function showSaveOptionsMenu(
-  event: Event,
+  event: UIEvent,
   anchor: HTMLElement,
   handlers: SaveOptionHandlers,
 ): void {
   const menu = new Menu();
   addSaveOptionItems(menu, handlers);
-  if (event instanceof MouseEvent) {
+  if (event.instanceOf(MouseEvent)) {
     menu.showAtMouseEvent(event);
     return;
   }
   const rect = anchor.getBoundingClientRect();
-  menu.showAtPosition({ x: rect.left, y: rect.bottom });
+  menu.showAtPosition({ x: rect.left, y: rect.bottom }, anchor.ownerDocument);
 }
