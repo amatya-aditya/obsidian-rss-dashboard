@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { App } from "obsidian";
+import { App, Menu } from "obsidian";
 import { PodcastPlayer } from "../../../src/views/podcast-player";
 import {
   installMediaElementPolyfills,
@@ -35,6 +35,46 @@ describe("PodcastPlayer", () => {
       audioUrl: "https://example.com/ep1.mp3",
     };
   }
+
+  describe("sleep timer button", () => {
+    function loadPlayer(): HTMLElement {
+      const container: HTMLDivElement = createDiv();
+      document.body.appendChild(container);
+      const player = new PodcastPlayer(container, new App(), "obsidian");
+      const episode = baseEpisode();
+      player.loadEpisode(episode, [episode]);
+      return container.querySelector<HTMLElement>(".rss-sleep-timer-btn")!;
+    }
+
+    it.each(["Enter", " "])(
+      "opens the timer menu under the button when %j is pressed",
+      (key) => {
+        const button = loadPlayer();
+        const atPosition = vi.spyOn(Menu.prototype, "showAtPosition");
+        const atMouse = vi.spyOn(Menu.prototype, "showAtMouseEvent");
+
+        button.dispatchEvent(
+          new KeyboardEvent("keydown", {
+            key,
+            bubbles: true,
+            cancelable: true,
+          }),
+        );
+
+        expect(atPosition).toHaveBeenCalledTimes(1);
+        expect(atMouse).not.toHaveBeenCalled();
+      },
+    );
+
+    it("opens the timer menu at the pointer when clicked", () => {
+      const button = loadPlayer();
+      const atMouse = vi.spyOn(Menu.prototype, "showAtMouseEvent");
+
+      button.click();
+
+      expect(atMouse).toHaveBeenCalledTimes(1);
+    });
+  });
 
   describe("cover artwork", () => {
     it("keeps the styled placeholder visible until cover artwork loads", () => {

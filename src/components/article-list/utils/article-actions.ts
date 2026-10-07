@@ -1,23 +1,11 @@
 import { Notice, setIcon, setTooltip } from "obsidian";
+import { onActivate } from "../../../utils/keyboard-activation";
 import { showSaveOptionsMenu, type CustomSaveHooks } from "./save-options-menu";
 import type {
   ArticleSavingSettings,
   DisplaySettings,
   FeedItem,
 } from "../../../types/types";
-
-function toggleClickableIcon(
-  el: HTMLElement,
-  handler: (e: MouseEvent | KeyboardEvent) => void,
-): void {
-  el.addEventListener("click", handler);
-  el.addEventListener("keydown", (e: KeyboardEvent) => {
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      handler(e);
-    }
-  });
-}
 
 export interface ActionDependencies {
   showTagsDropdown(anchor: HTMLElement, article: FeedItem): void;
@@ -77,7 +65,7 @@ export function createReadToggle(
     setIcon(readToggle, newReadState ? "check-circle" : "circle");
   };
 
-  toggleClickableIcon(readToggle, toggleRead);
+  onActivate(readToggle, toggleRead);
   return readToggle;
 }
 
@@ -237,7 +225,7 @@ export function createStarToggle(
     }
   };
 
-  toggleClickableIcon(starToggle, toggleStar);
+  onActivate(starToggle, toggleStar);
   return starToggle;
 }
 
@@ -260,7 +248,7 @@ export function createTagsToggle(
     e.stopPropagation();
     arg.deps.showTagsDropdown(tagsToggle, arg.article);
   };
-  toggleClickableIcon(tagsToggle, handleOpen);
+  onActivate(tagsToggle, handleOpen);
   return tagsToggle;
 }
 

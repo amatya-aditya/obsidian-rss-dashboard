@@ -1279,6 +1279,9 @@ class MenuItemStub {
   setIcon(): this {
     return this;
   }
+  setChecked(): this {
+    return this;
+  }
   onClick(cb: (evt: MouseEvent) => unknown): this {
     this.callback = cb;
     return this;
