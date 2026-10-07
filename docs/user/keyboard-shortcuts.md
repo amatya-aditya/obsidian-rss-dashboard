@@ -2,11 +2,11 @@
 
 ## General Navigation
 
-| Shortcut | Action                         |
-| -------- | ------------------------------ |
-| ?        | Open Help Dialog               |
-| Esc      | Close Dialog / Clear Selection |
-| r        | Refresh Feed                   |
+| Shortcut | Action           |
+| -------- | ---------------- |
+| ?        | Open Help Dialog |
+| Esc      | Close dialog     |
+| r        | Refresh Feed     |
 
 ## Dashboard View
 

@@ -60,14 +60,6 @@ rewrites the main checkout's packages.
 folder. Never `rm -rf` or `Remove-Item -Recurse` it: that deletes the main
 checkout's packages through the link.
 
-### Closing issues
-
-`master` is the repository's default branch and PRs merge into `dev`, so
-`Fixes #NNN` in a pull request description links the issue but does **not** close
-it when the PR merges. After merging, close the issue by hand with a comment that
-names the PR, and confirm it closed. Only a PR that merges into `master`, such as
-a release merge, closes issues automatically.
-
 ## Mandatory guidance
 
 Before making or reviewing a code or test change, read these files in full:
