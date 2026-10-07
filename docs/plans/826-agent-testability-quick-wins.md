@@ -110,7 +110,7 @@ Put registration in a new module (for example `src/commands/`), called from `onl
 - jsdom unit tests under `test_files/unit/` per `docs/development/test_coverage/testing-guide.md`: helper semantics, command availability and delegation, status item, live region.
 - Keyboard path and visible focus checked in the fixture vault for each changed flow.
 - AX-tree capture of the Reader toolbar before and after; screenshots for focus visibility.
-- Record the time to reach a Reader action, before and after, in the PR. (Reading the version is already a single glance with the status bar on.)
+- Where a comparable before/after path exists, record the keyboard time to reach a Reader action in the PR as an indicative measurement, not a speed target. (Reading the version is already a single glance with the status bar on.)
 - Record environment and evidence; mark mobile and popout as unknown unless checked.
 - Required gates from `AGENTS.md`: `npm run format`, lint on changed files, `npm run check:platform`, `npm run check:architecture`, related unit tests, `tsc --noEmit --skipLibCheck`.
 
