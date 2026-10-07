@@ -16,6 +16,7 @@
 
 ### Fixes
 
+- Renaming a saved note or moving it with its folder now updates the article's saved path, keeps the Saved state and tags, refreshes open Readers, and persists the change even when no dashboard is open. [GH Issue #819](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/819)
 - Deleting a saved note now clears its Saved state, path, and tag across open dashboard and Reader views and persists the change, even when no dashboard is open. [GH Issue #818](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/818)
 - Default article frontmatter keys now start at the beginning of each line, and the template hints no longer say indentation is required. [GH Issue #823](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/823)
 - Saved notes written with a saved template no longer get the plugin’s frontmatter added on top, so a template such as `BETA: {{title}}` now produces exactly that. A template that begins with `---` keeps its own frontmatter, and saves with no saved template are unchanged. The Reader’s custom save window also drops the **Use template pattern** button and the **Template pattern** line; the filename preview still shows the name that will be used.

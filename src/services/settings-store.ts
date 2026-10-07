@@ -320,6 +320,11 @@ export class SettingsStore {
    */
   registerVaultMetadataChangeListeners(
     registerEvent: (ref: EventRef) => void,
+    onRename?: (
+      file: { path: string },
+      oldPath: string,
+      isFolder: boolean,
+    ) => void,
   ): void {
     const vault = this.app.vault as unknown as {
       on?: (event: string, callback: (...args: unknown[]) => void) => EventRef;
@@ -360,7 +365,12 @@ export class SettingsStore {
     registerEvent(vault.on("modify", (file) => scheduleReload(file)));
     registerEvent(vault.on("create", (file) => scheduleReload(file)));
     registerEvent(
-      vault.on("rename", (file, oldPath) => scheduleReload(file, oldPath)),
+      vault.on("rename", (file, oldPath) => {
+        scheduleReload(file, oldPath);
+        const path = this.getVaultFilePath(file);
+        if (!path || typeof oldPath !== "string") return;
+        onRename?.({ path }, oldPath, file instanceof TFolder);
+      }),
     );
   }
 
