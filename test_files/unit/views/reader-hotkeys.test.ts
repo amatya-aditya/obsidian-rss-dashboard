@@ -250,4 +250,33 @@ describe("Reader hotkeys", () => {
     expect(view.actionMarkReadAndNext.mock.calls).toHaveLength(1);
     expect(preventDefault.mock.calls).toHaveLength(1);
   });
+
+  it("routes j to the previous article, l to the next, and k to closing the Reader", () => {
+    setupReaderHotkeys(scope, view as never);
+
+    const handlers = (scope as unknown as { handlers: ScopeHandler[] })
+      .handlers;
+    const find = (key: string) =>
+      handlers.find(
+        (handler) =>
+          handler.key === key &&
+          (!handler.modifiers || handler.modifiers.length === 0),
+      );
+    const preventDefault = vi.fn();
+    const event = { preventDefault } as unknown as KeyboardEvent;
+
+    expect(find("j")?.func(event)).toBe(true);
+    expect(view.actionNavigatePrevious.mock.calls).toHaveLength(1);
+    expect(view.actionNavigateNext.mock.calls).toHaveLength(0);
+
+    expect(find("l")?.func(event)).toBe(true);
+    expect(view.actionNavigateNext.mock.calls).toHaveLength(1);
+    expect(view.actionNavigatePrevious.mock.calls).toHaveLength(1);
+
+    expect(find("k")?.func(event)).toBe(true);
+    expect(view.actionToggleArticleOpen.mock.calls).toHaveLength(1);
+    expect(view.actionNavigateNext.mock.calls).toHaveLength(1);
+    expect(view.actionNavigatePrevious.mock.calls).toHaveLength(1);
+    expect(preventDefault.mock.calls).toHaveLength(3);
+  });
 });

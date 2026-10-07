@@ -3,6 +3,7 @@ import { App, WorkspaceLeaf } from "obsidian";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 import { RssDashboardView } from "../../../src/views/dashboard-view";
 import { DEFAULT_SETTINGS } from "../../../src/types/types";
+import { ReaderView } from "../../../src/views/reader-view";
 import type RssDashboardPlugin from "../../../main";
 
 vi.mock("../../../src/utils/platform-utils", () => ({
@@ -205,13 +206,11 @@ describe("DashboardView Hotkeys", () => {
     triggerKey("r");
     expect(refreshSpy).toHaveBeenCalled();
 
-    // Test 'j'
-    triggerKey("j");
-    expect(nextSpy).toHaveBeenCalled();
-
-    // Test 'k'
-    triggerKey("k");
-    expect(prevSpy).toHaveBeenCalled();
+    // Test Space (next, select only) and Shift+Space (previous, select only)
+    triggerKey(" ");
+    expect(nextSpy).toHaveBeenCalledWith();
+    triggerKey(" ", true);
+    expect(prevSpy).toHaveBeenCalledWith();
 
     // Test 'Shift+A'
     triggerKey("A", true);
@@ -325,5 +324,140 @@ describe("DashboardView Hotkeys", () => {
     modalContainer.remove();
     keydownHandler!(new KeyboardEvent("keydown", { key: "L", shiftKey: true }));
     expect(moveSpy).toHaveBeenCalledTimes(1);
+  });
+
+  describe("article navigation keys", () => {
+    function setup() {
+      const { view, spy } = makeViewWithRegisterSpy(leaf, plugin);
+      (leaf as unknown as { view: unknown }).view = view;
+      const keydownHandler = getKeydownHandler(spy)!;
+      const nextSpy = vi
+        .spyOn(view, "actionNavigateNext")
+        .mockImplementation(() => {});
+      const prevSpy = vi
+        .spyOn(view, "actionNavigatePrevious")
+        .mockImplementation(() => {});
+      // Spy on the selection path so a stray "select" is visible.
+      const selectSpy = vi
+        .spyOn(
+          view as unknown as { selectArticle: () => Promise<void> },
+          "selectArticle",
+        )
+        .mockResolvedValue(undefined);
+      const press = (key: string, shiftKey = false) => {
+        const e = new KeyboardEvent("keydown", {
+          key,
+          shiftKey,
+          cancelable: true,
+        });
+        Object.defineProperty(e, "target", { value: document.body });
+        keydownHandler(e);
+        return e;
+      };
+      return { view, nextSpy, prevSpy, selectSpy, press };
+    }
+
+    function openReaderLeaf() {
+      // The module is mocked above as an empty class, so construct it bare.
+      const readerView = new (
+        ReaderView as unknown as new () => {
+          actionToggleArticleOpen: ReturnType<typeof vi.fn>;
+        }
+      )();
+      readerView.actionToggleArticleOpen = vi.fn();
+      const readerLeaf = { view: readerView, detach: vi.fn() };
+      vi.mocked(app.workspace.getLeavesOfType).mockImplementation(
+        (type: string) =>
+          (type === "rss-reader-view" ? [readerLeaf] : []) as never,
+      );
+      return { readerView, readerLeaf };
+    }
+
+    it.each([
+      ["closed", false],
+      ["open", true],
+    ])(
+      "j opens the previous article and l opens the next one with the Reader %s",
+      (_label, readerOpen) => {
+        const { nextSpy, prevSpy, press } = setup();
+        if (readerOpen) openReaderLeaf();
+
+        const jEvent = press("j");
+        expect(prevSpy).toHaveBeenCalledTimes(1);
+        expect(prevSpy).toHaveBeenCalledWith({ open: true });
+        expect(nextSpy).not.toHaveBeenCalled();
+        expect(jEvent.defaultPrevented).toBe(true);
+
+        const lEvent = press("l");
+        expect(nextSpy).toHaveBeenCalledTimes(1);
+        expect(nextSpy).toHaveBeenCalledWith({ open: true });
+        expect(prevSpy).toHaveBeenCalledTimes(1);
+        expect(lEvent.defaultPrevented).toBe(true);
+      },
+    );
+
+    it("keeps Space and Shift+Space as next and previous without opening", () => {
+      const { nextSpy, prevSpy, press } = setup();
+
+      press(" ");
+      press(" ", true);
+
+      expect(nextSpy).toHaveBeenCalledWith();
+      expect(prevSpy).toHaveBeenCalledWith();
+    });
+
+    it("k closes the Reader when it is open and selects nothing", () => {
+      const { nextSpy, prevSpy, selectSpy, press } = setup();
+      const { readerView, readerLeaf } = openReaderLeaf();
+
+      const event = press("k");
+
+      expect(readerView.actionToggleArticleOpen).toHaveBeenCalledTimes(1);
+      expect(readerLeaf.detach).not.toHaveBeenCalled();
+      expect(prevSpy).not.toHaveBeenCalled();
+      expect(nextSpy).not.toHaveBeenCalled();
+      expect(selectSpy).not.toHaveBeenCalled();
+      expect(event.defaultPrevented).toBe(true);
+    });
+
+    it("k does nothing and selects nothing when the Reader is closed", () => {
+      const { nextSpy, prevSpy, selectSpy, press } = setup();
+
+      press("k");
+
+      expect(prevSpy).not.toHaveBeenCalled();
+      expect(nextSpy).not.toHaveBeenCalled();
+      expect(selectSpy).not.toHaveBeenCalled();
+    });
+
+    it("k closes a Reader leaf whose view has not loaded yet", () => {
+      const { press } = setup();
+      const readerLeaf = { view: {}, detach: vi.fn() };
+      vi.mocked(app.workspace.getLeavesOfType).mockReturnValue([
+        readerLeaf,
+      ] as never);
+
+      press("k");
+
+      expect(readerLeaf.detach).toHaveBeenCalledTimes(1);
+    });
+
+    it("leaves Shift+J and Shift+L on the sidebar", () => {
+      const { view, nextSpy, prevSpy, press } = setup();
+      const sidebarNext = vi
+        .spyOn(view, "actionSidebarMoveNext")
+        .mockImplementation(() => {});
+      const sidebarPrev = vi
+        .spyOn(view, "actionSidebarMovePrevious")
+        .mockImplementation(() => {});
+
+      press("L", true);
+      press("J", true);
+
+      expect(sidebarNext).toHaveBeenCalledTimes(1);
+      expect(sidebarPrev).toHaveBeenCalledTimes(1);
+      expect(nextSpy).not.toHaveBeenCalled();
+      expect(prevSpy).not.toHaveBeenCalled();
+    });
   });
 });

@@ -1,11 +1,15 @@
 import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
+import { readFileSync } from "node:fs";
 import { App } from "obsidian";
 import {
   DEFAULT_SETTINGS,
   type RssDashboardSettings,
 } from "../../../src/types/types";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
-import { ShortcutHelpModal } from "../../../src/modals/shortcut-help-modal";
+import {
+  ShortcutHelpModal,
+  SHORTCUT_SECTIONS,
+} from "../../../src/modals/shortcut-help-modal";
 
 describe("ShortcutHelpModal", () => {
   beforeEach(() => {
@@ -38,6 +42,66 @@ describe("ShortcutHelpModal", () => {
     expect(textContent).toContain("Shift + o / Shift + Enter");
 
     modal.onClose();
+  });
+
+  describe("article navigation shortcuts", () => {
+    // The decided meaning (#864, #865, #866), identical in the dashboard and
+    // the Reader. The hotkey tests assert the behavior; this pins the help.
+    const expected: Array<[string, string]> = [
+      ["j", "Open previous article"],
+      ["l", "Open next article"],
+      ["k", "Close reader pane"],
+      [
+        "Space / Shift + Space",
+        "Select next / previous article without opening",
+      ],
+    ];
+
+    function renderedRows(): Map<string, string> {
+      const modal = new ShortcutHelpModal(
+        createMockApp(),
+        structuredClone(DEFAULT_SETTINGS),
+      );
+      modal.onOpen();
+      const rows = new Map<string, string>();
+      modal.contentEl.querySelectorAll(".rss-shortcut-row").forEach((row) => {
+        rows.set(
+          row.querySelector("kbd")?.textContent ?? "",
+          row.querySelector(".rss-shortcut-desc")?.textContent ?? "",
+        );
+      });
+      modal.onClose();
+      return rows;
+    }
+
+    it.each(expected)("lists %s as %s", (key, desc) => {
+      expect(renderedRows().get(key)).toBe(desc);
+    });
+
+    it("no longer calls j the prior article", () => {
+      const text = [...renderedRows().values()].join("\n");
+      expect(text).not.toMatch(/prior/i);
+    });
+
+    it("matches the keyboard shortcuts guide for the same keys", () => {
+      const guide = readFileSync("docs/user/keyboard-shortcuts.md", "utf8");
+      for (const [key, desc] of expected) {
+        const row = guide
+          .split("\n")
+          .find((line) => line.startsWith(`| ${key} `));
+        expect(row, `guide row for ${key}`).toBeDefined();
+        expect(row).toContain(desc);
+      }
+    });
+
+    it("builds the saved vault note from the same rows", () => {
+      const articleSection = SHORTCUT_SECTIONS.find(
+        (section) => section.section === "Article manipulation",
+      );
+      expect(articleSection?.items).toEqual(
+        expect.arrayContaining(expected.map(([key, desc]) => ({ key, desc }))),
+      );
+    });
   });
 
   it("has a compliant clickable-icon for the close button", () => {

@@ -161,7 +161,7 @@ describe("DashboardView hotkeys in a popout window", () => {
 
     migrateElementToWindow(view.containerEl, popout);
 
-    pressKey(popout.document.body, popout, "j");
+    pressKey(popout.document.body, popout, "l");
     pressKey(popout.document.body, popout, "S", true);
 
     expect(nextSpy).toHaveBeenCalledTimes(1);
@@ -174,7 +174,7 @@ describe("DashboardView hotkeys in a popout window", () => {
       .mockImplementation(() => {});
 
     migrateElementToWindow(view.containerEl, popout);
-    pressKey(document.body, window, "j");
+    pressKey(document.body, window, "l");
 
     expect(nextSpy).not.toHaveBeenCalled();
   });
@@ -186,8 +186,8 @@ describe("DashboardView hotkeys in a popout window", () => {
 
     migrateElementToWindow(view.containerEl, popout);
     migrateElementToWindow(view.containerEl, window);
-    pressKey(document.body, window, "j");
-    pressKey(popout.document.body, popout, "j");
+    pressKey(document.body, window, "l");
+    pressKey(popout.document.body, popout, "l");
 
     expect(nextSpy).toHaveBeenCalledTimes(1);
   });
@@ -201,7 +201,7 @@ describe("DashboardView hotkeys in a popout window", () => {
     // Created by the popout's own helper, so it belongs to the popout's realm
     const input = popout.createEl("input");
     view.containerEl.appendChild(input);
-    pressKey(input, popout, "j");
+    pressKey(input, popout, "l");
 
     expect(nextSpy).not.toHaveBeenCalled();
   });
@@ -214,7 +214,7 @@ describe("DashboardView hotkeys in a popout window", () => {
     // Obsidian mounts every open modal as a .modal-container under <body>
     const modal = popout.createDiv({ cls: "modal-container" });
     popout.document.body.appendChild(modal);
-    pressKey(popout.document.body, popout, "j");
+    pressKey(popout.document.body, popout, "l");
 
     expect(nextSpy).not.toHaveBeenCalled();
   });
@@ -226,7 +226,7 @@ describe("DashboardView hotkeys in a popout window", () => {
 
     migrateElementToWindow(view.containerEl, popout);
     document.body.createDiv({ cls: "modal-container" });
-    pressKey(popout.document.body, popout, "j");
+    pressKey(popout.document.body, popout, "l");
 
     expect(nextSpy).toHaveBeenCalledTimes(1);
   });

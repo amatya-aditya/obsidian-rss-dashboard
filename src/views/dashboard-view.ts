@@ -549,6 +549,25 @@ export class RssDashboardView extends ItemView {
   }
 
   /**
+   * Action: Close the Reader if one is open; does nothing otherwise, so it
+   * never changes the selection.
+   * @internal
+   */
+  public actionCloseReader(): void {
+    const readerLeaf =
+      this.app.workspace.getLeavesOfType(RSS_READER_VIEW_TYPE)[0];
+    if (!readerLeaf) return;
+
+    // The Reader's own close action also returns focus to the dashboard. A
+    // leaf whose view has not loaded yet has no such action, so detach it.
+    if (readerLeaf.view instanceof ReaderView) {
+      readerLeaf.view.actionToggleArticleOpen();
+      return;
+    }
+    readerLeaf.detach();
+  }
+
+  /**
    * Action: Toggle read/unread status of selected article.
    * @internal
    */
