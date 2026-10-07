@@ -1285,33 +1285,8 @@ export default class RssDashboardPlugin extends Plugin {
 
           await this.saveSettings();
 
-          // Persistence can yield while a vault event clears or replaces this
-          // association. Re-resolve it before notifying views so this older
-          // save continuation cannot restore stale saved state.
-          const currentFeed = this.settings.feeds.find(
-            (candidate) => candidate.url === item.feedUrl,
-          );
-          const currentItem = currentFeed?.items.find(
-            (candidate) => candidate.guid === item.guid,
-          );
-          if (!currentFeed || !currentItem) return;
-          const currentSavedState = {
-            saved: currentItem.saved,
-            savedFilePath: currentItem.savedFilePath,
-            tags: currentItem.tags ? [...currentItem.tags] : [],
-          };
-
-          await this.syncDashboardArticleUpdate(
-            item.guid,
-            item.feedUrl,
-            currentSavedState,
-            false,
-          );
-          await this.syncReaderArticleUpdate(
-            item.guid,
-            currentFeed.url,
-            currentSavedState,
-          );
+          // Resolve the association after persistence and each deferred leaf load.
+          await this.syncSavedArticleAssociationUpdate(item.feedUrl, item.guid);
         }
       }
     }
