@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import type { FeedItem } from "../../../../../src/types/types";
+import { Menu } from "obsidian";
 import {
+  createSaveButton,
   createReadToggle,
   createStarToggle,
   createTagsToggle,
@@ -116,6 +118,143 @@ describe("article-actions utils", () => {
       );
 
       expect(showTagsDropdown).toHaveBeenCalled();
+    });
+  });
+
+  describe("createSaveButton", () => {
+    const clickSave = (): HTMLElement => {
+      const button = actionToolbar.querySelector<HTMLElement>(
+        ".rss-dashboard-save-toggle",
+      );
+      if (!button) throw new Error("Save button was not rendered");
+      button.click();
+      return button;
+    };
+    const menuItem = (title: string) => {
+      const item = Menu.lastItems.find((entry) => entry.title === title);
+      if (!item) throw new Error(`Menu item missing: ${title}`);
+      return item;
+    };
+
+    it("offers Default save and Custom save instead of saving on click", () => {
+      const onArticleSave = vi.fn();
+      createSaveButton(
+        baseArgs({
+          callbacks: { onArticleSave, onArticleCustomSave: vi.fn() },
+        }),
+      );
+
+      const button = clickSave();
+
+      expect(Menu.lastItems.map((entry) => entry.title)).toEqual([
+        "Save with default settings",
+        "Save to custom folder...",
+      ]);
+      expect(onArticleSave).not.toHaveBeenCalled();
+      expect(button.classList.contains("saving")).toBe(false);
+      expect(button.classList.contains("saved")).toBe(false);
+    });
+
+    it("saves with default settings and shows the saved state", async () => {
+      const onArticleSave = vi.fn().mockResolvedValue(undefined);
+      createSaveButton(
+        baseArgs({
+          callbacks: { onArticleSave, onArticleCustomSave: vi.fn() },
+        }),
+      );
+      const button = clickSave();
+
+      menuItem("Save with default settings").trigger();
+
+      expect(onArticleSave).toHaveBeenCalledWith(article);
+      await vi.waitFor(() =>
+        expect(button.classList.contains("saved")).toBe(true),
+      );
+      expect(button.classList.contains("saving")).toBe(false);
+    });
+
+    it("hands Custom save to the dialog without a saving or saved state", () => {
+      const onArticleSave = vi.fn();
+      const onArticleCustomSave = vi.fn();
+      createSaveButton(
+        baseArgs({ callbacks: { onArticleSave, onArticleCustomSave } }),
+      );
+      const button = clickSave();
+
+      menuItem("Save to custom folder...").trigger();
+
+      expect(onArticleCustomSave).toHaveBeenCalledWith(article, {
+        onSavingChange: expect.any(Function),
+      });
+      expect(onArticleSave).not.toHaveBeenCalled();
+      expect(button.classList.contains("saving")).toBe(false);
+      expect(button.classList.contains("saved")).toBe(false);
+      expect(article.saved).toBeUndefined();
+    });
+
+    it("lets the dialog drive the saving state", () => {
+      let hooks: { onSavingChange: (saving: boolean) => void } | undefined;
+      createSaveButton(
+        baseArgs({
+          callbacks: {
+            onArticleSave: vi.fn(),
+            onArticleCustomSave: (_article, received) => {
+              hooks = received;
+            },
+          },
+        }),
+      );
+      const button = clickSave();
+      menuItem("Save to custom folder...").trigger();
+
+      hooks?.onSavingChange(true);
+      expect(button.classList.contains("saving")).toBe(true);
+      hooks?.onSavingChange(false);
+      expect(button.classList.contains("saving")).toBe(false);
+    });
+
+    it("opens the same menu from the keyboard", () => {
+      createSaveButton(
+        baseArgs({
+          callbacks: { onArticleSave: vi.fn(), onArticleCustomSave: vi.fn() },
+        }),
+      );
+      actionToolbar
+        .querySelector<HTMLElement>(".rss-dashboard-save-toggle")
+        ?.dispatchEvent(
+          new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+        );
+
+      expect(Menu.lastItems).toHaveLength(2);
+    });
+
+    it("opens the saved article instead of offering a menu", () => {
+      const onOpenSavedArticle = vi.fn();
+      article.saved = true;
+      Menu.lastItems = [];
+      createSaveButton(
+        baseArgs({
+          callbacks: {
+            onArticleSave: vi.fn(),
+            onArticleCustomSave: vi.fn(),
+            onOpenSavedArticle,
+          },
+        }),
+      );
+      clickSave();
+
+      expect(onOpenSavedArticle).toHaveBeenCalledWith(article);
+      expect(Menu.lastItems).toHaveLength(0);
+    });
+
+    it("still saves directly when no Custom save handler is wired", async () => {
+      const onArticleSave = vi.fn().mockResolvedValue(undefined);
+      createSaveButton(baseArgs({ callbacks: { onArticleSave } }));
+      clickSave();
+
+      await vi.waitFor(() =>
+        expect(onArticleSave).toHaveBeenCalledWith(article),
+      );
     });
   });
 

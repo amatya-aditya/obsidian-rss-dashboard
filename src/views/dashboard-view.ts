@@ -17,6 +17,7 @@ import {
   HighlightWord,
   KeywordFilterRule,
   RssDashboardSettings,
+  SavedTemplate,
   Folder,
   ViewLocation,
   FeedEncoding,
@@ -30,6 +31,11 @@ import type {
 import { Sidebar, type SidebarOptions } from "../components/sidebar";
 import { ArticleList } from "../components/article-list";
 import { ArticleSaver } from "../services/article-saver";
+import { CustomSaveModal } from "../modals/custom-save-modal";
+import {
+  showSaveOptionsMenu,
+  type CustomSaveHooks,
+} from "../components/article-list/utils/save-options-menu";
 import { resolveSavedTemplateForArticle } from "../utils/saved-template-utils";
 import { getEffectiveDateMs } from "../services/feed-parser/feed-retention.js";
 import {
@@ -1029,6 +1035,9 @@ export class RssDashboardView extends ItemView {
           },
           onArticleSave: (article) => {
             void this.handleArticleSave(article);
+          },
+          onArticleCustomSave: (article, hooks) => {
+            this.handleArticleCustomSave(article, hooks);
           },
           onOpenSavedArticle: (article) => {
             void this.handleOpenSavedArticle(article);
@@ -2615,65 +2624,114 @@ export class RssDashboardView extends ItemView {
     await this.updateArticleStatus(article, updates, shouldRerender);
   }
 
-  private async handleArticleSave(article: FeedItem): Promise<void> {
-    const savedTemplate = resolveSavedTemplateForArticle(
+  private getSavedTemplateForArticle(
+    article: FeedItem,
+  ): SavedTemplate | undefined {
+    return resolveSavedTemplateForArticle(
       article,
       this.settings.feeds,
       this.settings.articleSaving.savedTemplates || [],
       this.settings.articleSaving.globalDefaultTemplateId,
     );
+  }
 
-    let file: TFile | null = null;
-    if (this.settings.articleSaving.saveFullContent) {
-      file = await this.saver.saveArticleWithFullContent(
-        article,
-        undefined,
-        undefined,
-        savedTemplate,
-      );
-      // Propagate restrictedReason if set during save
-      if (article.restrictedReason) {
-        // Update selectedArticle and inlineArticle if they match
-        if (
-          this.selectedArticle &&
-          this.selectedArticle.guid === article.guid
-        ) {
-          this.selectedArticle.restrictedReason = article.restrictedReason;
+  /** Default save: the resolved folder and template, with no per-save overrides. */
+  private async handleArticleSave(article: FeedItem): Promise<void> {
+    const file = await this.saveArticleToNote(article, {
+      savedTemplate: this.getSavedTemplateForArticle(article),
+    });
+    if (file) {
+      await this.markArticleSaved(article, file.path);
+    }
+  }
+
+  /** Custom save: the dialog collects the folder, template, and filename pattern. */
+  private handleArticleCustomSave(
+    article: FeedItem,
+    hooks?: CustomSaveHooks,
+  ): void {
+    new CustomSaveModal(this.app, article, {
+      getSettings: () => this.settings,
+      getArticleSaver: () => this.saver,
+      displayTitle: undefined,
+      getSavedTemplateForArticle: (item) =>
+        this.getSavedTemplateForArticle(item),
+      saveSettings: () => this.plugin.saveSettings(),
+      saveArticle: async (item, request) => {
+        hooks?.onSavingChange(true);
+        try {
+          return await this.saveArticleToNote(item, request);
+        } finally {
+          hooks?.onSavingChange(false);
         }
-        if (this.inlineArticle && this.inlineArticle.guid === article.guid) {
-          this.inlineArticle.restrictedReason = article.restrictedReason;
+      },
+      onArticleSave: (item) => {
+        if (item.savedFilePath) {
+          void this.markArticleSaved(item, item.savedFilePath);
         }
-      }
-    } else {
-      file = await this.saver.saveArticle(
+      },
+    }).open();
+  }
+
+  private async saveArticleToNote(
+    article: FeedItem,
+    options: {
+      folder?: string;
+      template?: string;
+      savedTemplate?: SavedTemplate;
+    },
+  ): Promise<TFile | null> {
+    const { folder, template, savedTemplate } = options;
+    if (!this.settings.articleSaving.saveFullContent) {
+      return this.saver.saveArticle(
         article,
-        undefined,
-        undefined,
+        folder,
+        template,
         undefined,
         savedTemplate,
       );
     }
-
-    if (file) {
-      const shouldRerenderAfterSave = Boolean(
-        article.restrictedReason &&
-        this.inlineArticle &&
-        this.inlineArticle.guid === article.guid,
-      );
-
-      await this.updateArticleStatus(
-        article,
-        {
-          saved: true,
-          savedFilePath: file.path,
-          restrictedReason: article.restrictedReason,
-        },
-        shouldRerenderAfterSave,
-      );
-
-      if (!shouldRerenderAfterSave) {
-        this.updateArticleSaveButton(article.guid);
+    const file = await this.saver.saveArticleWithFullContent(
+      article,
+      folder,
+      template,
+      savedTemplate,
+    );
+    // Propagate restrictedReason if set during save
+    if (article.restrictedReason) {
+      // Update selectedArticle and inlineArticle if they match
+      if (this.selectedArticle && this.selectedArticle.guid === article.guid) {
+        this.selectedArticle.restrictedReason = article.restrictedReason;
       }
+      if (this.inlineArticle && this.inlineArticle.guid === article.guid) {
+        this.inlineArticle.restrictedReason = article.restrictedReason;
+      }
+    }
+    return file;
+  }
+
+  private async markArticleSaved(
+    article: FeedItem,
+    savedFilePath: string,
+  ): Promise<void> {
+    const shouldRerenderAfterSave = Boolean(
+      article.restrictedReason &&
+      this.inlineArticle &&
+      this.inlineArticle.guid === article.guid,
+    );
+
+    await this.updateArticleStatus(
+      article,
+      {
+        saved: true,
+        savedFilePath,
+        restrictedReason: article.restrictedReason,
+      },
+      shouldRerenderAfterSave,
+    );
+
+    if (!shouldRerenderAfterSave) {
+      this.updateArticleSaveButton(article.guid);
     }
   }
 
@@ -3845,10 +3903,17 @@ export class RssDashboardView extends ItemView {
         attr: { "aria-label": "Save article" },
       });
       setIcon(saveButton, "save");
-      saveButton.addEventListener("click", () => {
-        if (this.inlineArticle) {
-          void this.handleArticleSave(this.inlineArticle);
+      saveButton.addEventListener("click", (event) => {
+        const article = this.inlineArticle;
+        if (!article) return;
+        if (article.saved) {
+          void this.handleArticleSave(article);
+          return;
         }
+        showSaveOptionsMenu(event, saveButton, {
+          onDefaultSave: () => void this.handleArticleSave(article),
+          onCustomSave: () => this.handleArticleCustomSave(article),
+        });
       });
 
       const readToggleButton = actions.createDiv({
