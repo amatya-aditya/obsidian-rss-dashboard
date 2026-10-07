@@ -1272,6 +1272,52 @@ describe("onload() initialization", () => {
       "Articles/Saved article.md",
     );
   });
+
+  it("broadcasts the current saved association after save persistence completes", async () => {
+    plugin.settings.feeds = [structuredClone(sampleFeed)];
+    const originalItem = plugin.settings.feeds[0]?.items[0];
+    expect(originalItem).toBeDefined();
+    if (!originalItem) return;
+    let releaseSave: (() => void) | undefined;
+    const savePending = new Promise<void>((resolve) => {
+      releaseSave = resolve;
+    });
+    plugin.saveSettings = vi.fn(() => savePending);
+    const dashboardUpdates: unknown[] = [];
+    const readerUpdates: unknown[] = [];
+    const api = plugin as unknown as {
+      onArticleSaved: (item: FeedItem) => Promise<void>;
+      syncDashboardArticleUpdate: (...args: unknown[]) => Promise<void>;
+      syncReaderArticleUpdate: (...args: unknown[]) => Promise<void>;
+    };
+    api.syncDashboardArticleUpdate = vi.fn(async (...args: unknown[]) => {
+      dashboardUpdates.push(args[2]);
+    });
+    api.syncReaderArticleUpdate = vi.fn(async (...args: unknown[]) => {
+      readerUpdates.push(args[2]);
+    });
+
+    const saveCompletion = api.onArticleSaved({
+      ...originalItem,
+      saved: true,
+      savedFilePath: "Articles/Saved article.md",
+    });
+    await vi.waitFor(() => expect(plugin.saveSettings).toHaveBeenCalledOnce());
+
+    // Model the delete handler clearing the association while persistence is pending.
+    originalItem.saved = false;
+    originalItem.savedFilePath = undefined;
+    originalItem.tags = [];
+    releaseSave?.();
+    await saveCompletion;
+
+    expect(dashboardUpdates).toEqual([
+      expect.objectContaining({ saved: false, savedFilePath: undefined }),
+    ]);
+    expect(readerUpdates).toEqual([
+      expect.objectContaining({ saved: false, savedFilePath: undefined }),
+    ]);
+  });
 });
 
 describe("URI add-feed handling", () => {
