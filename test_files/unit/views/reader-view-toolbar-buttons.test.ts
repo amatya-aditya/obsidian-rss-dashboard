@@ -94,8 +94,8 @@ describe("ReaderView toolbar icon buttons", () => {
   const buttons = () => [...toolbar().querySelectorAll<HTMLElement>("button")];
   const byName = (name: string) =>
     buttons().find((button) => button.getAttribute("aria-label") === name)!;
-  // The star and read names change with state ("Add to starred"), because the
-  // view writes its tooltips to aria-label, so look those up by action.
+  // The read name changes with state ("Mark as unread"), because the
+  // view writes its tooltip to aria-label, so look buttons up by action.
   const byAction = (action: string) =>
     buttons().find((b) => b.getAttribute("data-rss-action") === action)!;
   const tabStops = () => buttons().filter((button) => button.tabIndex === 0);
@@ -216,6 +216,21 @@ describe("ReaderView toolbar icon buttons", () => {
       expect(star.getAttribute("aria-pressed")).toBe("true");
 
       await openArticle({ starred: false });
+      expect(star.getAttribute("aria-pressed")).toBe("false");
+    });
+
+    it("keeps the star's accessible name stable while aria-pressed carries the state", async () => {
+      // A toggle exposes its state through aria-pressed. Renaming it as well
+      // ("Remove from starred" + pressed) reads as a contradiction.
+      const star = byAction("star");
+      expect(star.getAttribute("aria-label")).toBe("Star/unstar article");
+
+      await openArticle({ starred: true });
+      expect(star.getAttribute("aria-label")).toBe("Star/unstar article");
+      expect(star.getAttribute("aria-pressed")).toBe("true");
+
+      await openArticle({ starred: false });
+      expect(star.getAttribute("aria-label")).toBe("Star/unstar article");
       expect(star.getAttribute("aria-pressed")).toBe("false");
     });
   });

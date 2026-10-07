@@ -2577,13 +2577,11 @@ export class ReaderView extends ItemView {
         "unstarred",
         !this.currentItem.starred,
       );
+      // The name stays "Star/unstar article": aria-pressed carries the state,
+      // and setTooltip would overwrite aria-label with state text.
       this.starToggleButton.setAttribute(
         "aria-pressed",
         String(this.currentItem.starred),
-      );
-      setTooltip(
-        this.starToggleButton,
-        this.currentItem.starred ? "Remove from starred" : "Add to starred",
       );
     }
 
