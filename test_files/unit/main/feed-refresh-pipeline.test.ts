@@ -73,7 +73,6 @@ interface TestPlugin {
   ) => Promise<void>;
   refreshFailedFeeds: () => Promise<void>;
   getActiveDashboardView: ReturnType<typeof vi.fn>;
-  validateSavedArticles: ReturnType<typeof vi.fn>;
 }
 
 function createPluginWithSettings(feeds: Feed[]): TestPlugin {
@@ -100,7 +99,6 @@ function createPluginWithSettings(feeds: Feed[]): TestPlugin {
   };
 
   testPlugin.getActiveDashboardView = vi.fn();
-  testPlugin.validateSavedArticles = vi.fn();
 
   return testPlugin;
 }
@@ -356,7 +354,6 @@ describe("refreshFeeds() pipeline behavior", () => {
       ],
     };
 
-    const validateSpy = vi.spyOn(plugin, "validateSavedArticles");
     const viewRefreshSpy = vi.fn();
     const sidebarRefreshSpy = vi.fn();
     const progressRefreshSpy = vi.fn();
@@ -445,7 +442,6 @@ describe("refreshFeeds() pipeline behavior", () => {
       "https://example.com/e.xml",
     ]);
 
-    expect(validateSpy).toHaveBeenCalledTimes(1);
     expect(plugin.saveData).toHaveBeenCalledTimes(1);
     expect(sidebarRefreshSpy).toHaveBeenCalledTimes(1);
     expect(progressRefreshSpy).toHaveBeenCalled();

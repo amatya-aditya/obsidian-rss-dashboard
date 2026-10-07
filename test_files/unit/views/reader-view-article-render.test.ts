@@ -1,10 +1,7 @@
-// Characterization tests for ReaderView.displayItem, renderArticle and
-// populateArticleHtml (#601, part of #436). They pin the current behavior,
-// quirks included, so the planned extraction to
-// src/utils/reader-article-render.ts can be checked against it. They go
-// through the view's public entry point (`displayItem`) wherever possible and
-// call `populateArticleHtml` directly only for parameter combinations the
-// entry point never produces.
+// Unit tests for ReaderView.displayItem, renderArticle, and
+// populateArticleHtml. They go through the view's public entry point
+// (`displayItem`) wherever possible and call `populateArticleHtml` directly
+// only for parameter combinations the entry point never produces.
 import {
   afterEach,
   beforeEach,
@@ -345,145 +342,29 @@ describe("ReaderView article rendering (characterization)", () => {
     });
   });
 
-  describe("displayItem: stale saved state", () => {
-    const savedTag = { name: "Saved", color: "#111111" };
-    const otherTag = { name: "Keep", color: "#222222" };
-
-    function openWithMissingFile(item: FeedItem) {
-      articleSaver.checkSavedFileExists.mockReturnValue(false);
-      return view.displayItem(item);
-    }
-
-    it("clears the saved flag, path and Saved tag when the saved note is gone", async () => {
+  describe("displayItem: saved-note handling", () => {
+    it("does not inspect or clear an unavailable saved note while displaying the feed article", async () => {
       const item = makeItem({
         saved: true,
-        savedFilePath: "Saved/note.md",
-        tags: [savedTag, otherTag],
-        content: LONG_HTML,
-      });
-
-      await openWithMissingFile(item);
-
-      expect(articleSaver.checkSavedFileExists).toHaveBeenCalledWith(item);
-      expect(item.saved).toBe(false);
-      expect(item.savedFilePath).toBeUndefined();
-      expect(item.tags).toEqual([otherTag]);
-    });
-
-    it("matches the Saved tag name without regard to case", async () => {
-      const item = makeItem({
-        saved: true,
-        tags: [{ name: "SAVED", color: "#111111" }, otherTag],
-        content: LONG_HTML,
-      });
-
-      await openWithMissingFile(item);
-
-      expect(item.tags).toEqual([otherTag]);
-    });
-
-    it("leaves an item without tags without tags", async () => {
-      const item = makeItem({ saved: true, content: LONG_HTML });
-      item.tags = undefined;
-
-      await openWithMissingFile(item);
-
-      expect(item.saved).toBe(false);
-      expect(item.tags).toBeUndefined();
-    });
-
-    it("leaves a saved item alone while its note still exists", async () => {
-      const item = makeItem({
-        saved: true,
-        savedFilePath: "Saved/note.md",
-        tags: [savedTag],
+        savedFilePath: "Saved/missing.md",
+        tags: [
+          { name: "Saved", color: "blue" },
+          { name: "Keep", color: "green" },
+        ],
         content: LONG_HTML,
       });
 
       await view.displayItem(item);
 
-      expect(item.saved).toBe(true);
-      expect(item.savedFilePath).toBe("Saved/note.md");
-      expect(item.tags).toEqual([savedTag]);
-    });
-
-    it("does not look for a note when the item is not saved", async () => {
-      await view.displayItem(makeItem({ content: LONG_HTML }));
-
       expect(articleSaver.checkSavedFileExists).not.toHaveBeenCalled();
-    });
-
-    it("also clears saved state on the feed's own copy when the displayed item is a clone", async () => {
-      const original = makeItem({
+      expect(item).toMatchObject({
         saved: true,
-        savedFilePath: "Saved/note.md",
-        tags: [savedTag, otherTag],
+        savedFilePath: "Saved/missing.md",
+        tags: [
+          { name: "Saved", color: "blue" },
+          { name: "Keep", color: "green" },
+        ],
       });
-      settings.feeds = [makeFeed({ items: [original] })];
-      const shown = makeItem({
-        saved: true,
-        savedFilePath: "Saved/note.md",
-        tags: [savedTag, otherTag],
-        content: LONG_HTML,
-      });
-
-      await openWithMissingFile(shown);
-
-      expect(original.saved).toBe(false);
-      expect(original.savedFilePath).toBeUndefined();
-      expect(original.tags).toEqual([otherTag]);
-    });
-
-    it("tolerates a feed copy that has no tags", async () => {
-      const original = makeItem({ saved: true });
-      original.tags = undefined;
-      settings.feeds = [makeFeed({ items: [original] })];
-
-      await openWithMissingFile(
-        makeItem({ saved: true, tags: [savedTag], content: LONG_HTML }),
-      );
-
-      expect(original.saved).toBe(false);
-      expect(original.tags).toBeUndefined();
-    });
-
-    it("leaves other feeds' items and other guids alone", async () => {
-      const sameGuidOtherFeed = makeItem({ saved: true, tags: [savedTag] });
-      const otherGuidSameFeed = makeItem({
-        guid: "other",
-        saved: true,
-        tags: [savedTag],
-      });
-      settings.feeds = [
-        makeFeed({
-          url: "https://other.example/rss",
-          items: [sameGuidOtherFeed],
-        }),
-        makeFeed({ items: [otherGuidSameFeed] }),
-      ];
-
-      await openWithMissingFile(
-        makeItem({ saved: true, tags: [savedTag], content: LONG_HTML }),
-      );
-
-      expect(sameGuidOtherFeed.saved).toBe(true);
-      expect(otherGuidSameFeed.saved).toBe(true);
-    });
-
-    it("skips the feed lookup when the item has no feed url", async () => {
-      const original = makeItem({ saved: true, tags: [savedTag] });
-      settings.feeds = [makeFeed({ items: [original] })];
-      const shown = makeItem({
-        saved: true,
-        feedUrl: "",
-        tags: [savedTag],
-        content: LONG_HTML,
-      });
-
-      await openWithMissingFile(shown);
-
-      expect(shown.saved).toBe(false);
-      expect(original.saved).toBe(true);
     });
   });
 

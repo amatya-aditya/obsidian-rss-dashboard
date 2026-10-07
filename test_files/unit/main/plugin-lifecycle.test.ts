@@ -42,7 +42,7 @@ vi.mock("../../../src/services/feed-parser", () => ({
 
 vi.mock("../../../src/services/article-saver", () => ({
   ArticleSaver: class ArticleSaver {
-    fixSavedFilePaths = vi.fn().mockResolvedValue(undefined);
+    findSavedArticleFile = vi.fn().mockResolvedValue(null);
     constructor(_app?: any, _settings?: any) {}
   },
 }));
@@ -112,8 +112,9 @@ type PluginPrivateAPI = {
   };
   folderService: object;
   backgroundImportService: { startBackgroundImport: (feeds: Feed[]) => void };
-  articleSaver: { fixSavedFilePaths: (...args: unknown[]) => Promise<unknown> };
-  validateSavedArticles: () => Promise<void>;
+  articleSaver: {
+    findSavedArticleFile: (...args: unknown[]) => Promise<unknown>;
+  };
   onArticleSaved: (item: FeedItem) => Promise<void>;
   ingestFeedsForBackgroundImport: (
     feeds: Array<{ title: string; url: string; folder: string }>,
@@ -1185,26 +1186,47 @@ describe("onload() initialization", () => {
     expect(plugin.feedParser).toBeDefined();
   });
 
-  it("defers saved-article startup validation until layout is ready", async () => {
-    const validateSpy = vi.spyOn(
-      plugin as unknown as PluginPrivateAPI,
-      "validateSavedArticles",
-    );
+  it("does not inspect a valid saved-note path during startup or layout readiness", async () => {
+    const item: FeedItem = {
+      title: "Saved article",
+      link: "https://example.com/article",
+      description: "",
+      pubDate: "2026-01-01T00:00:00Z",
+      guid: "saved-article",
+      read: false,
+      starred: false,
+      tags: [{ name: "Saved", color: "blue" }],
+      feedTitle: "Feed",
+      feedUrl: "https://example.com/feed.xml",
+      coverImage: "",
+      saved: true,
+      savedFilePath: "Saved/missing.md",
+    };
+    plugin.loadData = vi.fn().mockResolvedValue({
+      ...DEFAULT_SETTINGS,
+      storageMode: "legacy-json",
+      startupRefreshDelaySeconds: 3600,
+      feeds: [
+        {
+          title: "Feed",
+          url: item.feedUrl,
+          folder: "Uncategorized",
+          items: [item],
+          lastUpdated: 0,
+        },
+      ],
+    });
+    const lookupSpy = vi.spyOn(app.vault, "getAbstractFileByPath");
 
     await plugin.onload();
-
-    expect(validateSpy).not.toHaveBeenCalled();
-    expect(
-      (plugin as unknown as PluginPrivateAPI).articleSaver.fixSavedFilePaths,
-    ).not.toHaveBeenCalled();
-
     app.workspace.triggerLayoutReady();
     await flushPromises();
 
-    expect(
-      (plugin as unknown as PluginPrivateAPI).articleSaver.fixSavedFilePaths,
-    ).toHaveBeenCalledTimes(1);
-    expect(validateSpy).toHaveBeenCalledTimes(1);
+    expect(lookupSpy).not.toHaveBeenCalledWith("Saved/missing.md");
+    expect(plugin.settings.feeds[0]?.items[0]).toMatchObject({
+      saved: true,
+      savedFilePath: "Saved/missing.md",
+    });
   });
 
   it("persists savedFilePath when an article is saved", async () => {

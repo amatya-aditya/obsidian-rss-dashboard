@@ -132,7 +132,6 @@ export class RssDashboardView extends ItemView {
   public sidebar!: Sidebar;
   private articleList!: ArticleList;
   private sidebarContainer: HTMLElement | null = null;
-  private verificationTimeout: number | null = null;
   private scheduledRenderTimeout: number | null = null;
   private isRenderInProgress = false;
   private hasPendingRender = false;
@@ -709,17 +708,6 @@ export class RssDashboardView extends ItemView {
     });
 
     this.registerEvent(
-      this.app.vault.on("modify", () => {
-        if (this.verificationTimeout) {
-          window.clearTimeout(this.verificationTimeout);
-        }
-        this.verificationTimeout = window.setTimeout(() => {
-          void this.verifySavedArticles();
-        }, 300000);
-      }),
-    );
-
-    this.registerEvent(
       (
         this.app.workspace as unknown as {
           on: (
@@ -916,8 +904,6 @@ export class RssDashboardView extends ItemView {
     try {
       this.syncCurrentFeedReference();
       this.syncDashboardMultiFiltersFromSettings();
-      this.verifySavedArticles();
-
       if (!this.shouldUseMobileSidebarMode()) {
         this.closeMobileSidebarModal();
       }
@@ -3212,9 +3198,6 @@ export class RssDashboardView extends ItemView {
     this.unbindViewportResizeListener();
     this.lastViewportMobileSidebarMode = null;
 
-    if (this.verificationTimeout) {
-      window.clearTimeout(this.verificationTimeout);
-    }
     if (this.scheduledRenderTimeout !== null) {
       window.clearTimeout(this.scheduledRenderTimeout);
       this.scheduledRenderTimeout = null;
@@ -3995,20 +3978,6 @@ export class RssDashboardView extends ItemView {
     }
   }
 
-  private async findSavedArticleFile(article: FeedItem): Promise<TFile | null> {
-    const file = await this.saver.findSavedArticleFile(article);
-    if (file !== null) {
-      return file;
-    }
-
-    await this.updateArticleStatus(
-      article,
-      { saved: false, savedFilePath: undefined },
-      false,
-    );
-    return null;
-  }
-
   public async openSavedArticleFile(
     file: TFile,
     article?: FeedItem,
@@ -4052,16 +4021,17 @@ export class RssDashboardView extends ItemView {
         await this.openSavedArticleFile(savedFile, article);
         loadingNotice.hide();
       } else {
-        await this.updateArticleStatus(article, { saved: false }, false);
-
-        if (article.tags) {
-          article.tags = article.tags.filter(
-            (tag) => tag.name.toLowerCase() !== "saved",
-          );
-        }
+        const tags = (article.tags ?? []).filter(
+          (tag) => tag.name.toLowerCase() !== "saved",
+        );
+        await this.updateArticleStatus(
+          article,
+          { saved: false, savedFilePath: undefined, tags },
+          false,
+        );
 
         loadingNotice.hide();
-        new Notice("Saved article file not found. Article status updated.");
+        new Notice("Saved article file not found. Saved status was cleared.");
       }
     } catch (error) {
       loadingNotice.hide();
@@ -4077,19 +4047,6 @@ export class RssDashboardView extends ItemView {
       await this.updateArticleStatus(article, { read: true }, false);
     }
     await this.openArticleInConfiguredReaderLocation(article);
-  }
-
-  private verifySavedArticles(): void {
-    const allArticles = this.getFilteredArticles();
-    this.saver.verifyAllSavedArticles(allArticles);
-  }
-
-  private getAllArticles(): FeedItem[] {
-    let allArticles: FeedItem[] = [];
-    for (const feed of this.settings.feeds) {
-      allArticles = allArticles.concat(feed.items);
-    }
-    return allArticles;
   }
 
   private handlePageChange(page: number): void {
