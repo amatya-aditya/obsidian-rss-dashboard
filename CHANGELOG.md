@@ -16,6 +16,7 @@
 
 ### Fixes
 
+- Saved-note metadata is now validated without scanning note files. Startup, feed refresh, dashboard rendering, and Reader display no longer check for missing notes; explicitly opening a missing saved note clears its Saved state, while lookup or opening errors preserve it. [GH Issue #820](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/820)
 - Renaming a saved note or moving it with its folder now updates the article's saved path, keeps the Saved state and tags, refreshes open Readers, and persists the change even when no dashboard is open. [GH Issue #819](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/819)
 - Deleting a saved note now clears its Saved state, path, and tag across open dashboard and Reader views and persists the change, even when no dashboard is open. [GH Issue #818](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/818)
 - Default article frontmatter keys now start at the beginning of each line, and the template hints no longer say indentation is required. [GH Issue #823](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/823)

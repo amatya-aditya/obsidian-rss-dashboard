@@ -20,6 +20,35 @@ export interface SavedArticlePathUpdate {
  * vault or tries to recover a note by filename.
  */
 export class SavedArticleAssociationService {
+  /**
+   * Clears saved metadata that cannot name a current note. This validates only
+   * the loaded plugin metadata; it deliberately does not inspect the vault.
+   */
+  public clearMissingRecordedPaths(
+    feeds: Feed[],
+  ): SavedArticleAssociationUpdate[] {
+    const updates: SavedArticleAssociationUpdate[] = [];
+    for (const feed of feeds) {
+      for (const item of feed.items) {
+        if (!item.saved || item.savedFilePath?.trim()) continue;
+
+        item.saved = false;
+        delete item.savedFilePath;
+        item.tags = (item.tags ?? []).filter(
+          (tag) => tag.name.toLowerCase() !== "saved",
+        );
+        updates.push({
+          feedUrl: feed.url,
+          guid: item.guid,
+          saved: false,
+          savedFilePath: undefined,
+          tags: item.tags,
+        });
+      }
+    }
+    return updates;
+  }
+
   public renameTrackedPath(
     feeds: Feed[],
     oldPath: string,

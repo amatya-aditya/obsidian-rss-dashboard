@@ -74,8 +74,8 @@ describe("settings store startup save", () => {
   let saveData: Mock<(data: unknown) => Promise<void>>;
 
   /** Builds a plugin whose `data.json` is `data`, with saves recorded. */
-  function createPlugin(data: unknown): void {
-    plugin = new RssDashboardPlugin(App.createMock(), manifest);
+  function createPlugin(data: unknown, app = App.createMock()): void {
+    plugin = new RssDashboardPlugin(app, manifest);
     plugin.loadData = vi.fn(() => Promise.resolve(clone(data)));
     saveData = vi.fn(() => Promise.resolve());
     plugin.saveData = saveData;
@@ -135,5 +135,75 @@ describe("settings store startup save", () => {
 
     expect(plugin.settings.feeds[0]?.items).toHaveLength(2);
     expect(saveData).not.toHaveBeenCalled();
+  });
+
+  it("clears saved metadata with no recorded path after the article metadata loads", async () => {
+    const data = clone(DEFAULT_SETTINGS);
+    data.storageMode = "legacy-json";
+    data.feeds = [
+      {
+        title: "Saved feed",
+        url: "https://example.com/saved.xml",
+        folder: "Uncategorized",
+        items: [
+          {
+            ...article("missing-path"),
+            saved: true,
+            savedFilePath: undefined,
+            read: true,
+            starred: true,
+            tags: [
+              { name: "sAvEd", color: "blue" },
+              { name: "Keep", color: "green" },
+            ],
+          },
+        ],
+        lastUpdated: 0,
+      },
+    ];
+    createPlugin(data);
+
+    await plugin.loadSettings();
+
+    const item = plugin.settings.feeds[0]?.items[0];
+    expect(item).toMatchObject({
+      saved: false,
+      read: true,
+      starred: true,
+      tags: [{ name: "Keep", color: "green" }],
+    });
+    expect(item?.savedFilePath).toBeUndefined();
+    expect(saveData).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not check whether a valid recorded note path exists during settings load", async () => {
+    const data = clone(DEFAULT_SETTINGS);
+    data.storageMode = "legacy-json";
+    data.feeds = [
+      {
+        title: "Saved feed",
+        url: "https://example.com/saved.xml",
+        folder: "Uncategorized",
+        items: [
+          {
+            ...article("missing-file"),
+            saved: true,
+            savedFilePath: "Saved/missing-file.md",
+          },
+        ],
+        lastUpdated: 0,
+      },
+    ];
+    const app = App.createMock();
+    const lookup = vi.spyOn(app.vault, "getAbstractFileByPath");
+    createPlugin(data, app);
+
+    await plugin.loadSettings();
+
+    expect(lookup).not.toHaveBeenCalledWith("Saved/missing-file.md");
+    expect(plugin.settings.feeds[0]?.items[0]).toMatchObject({
+      saved: true,
+      savedFilePath: "Saved/missing-file.md",
+    });
   });
 });

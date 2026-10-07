@@ -82,7 +82,6 @@ interface HeldFetch {
 /** Plugin members the tests replace or call. All of them stay in main.ts. */
 interface PluginSeams {
   feedParser: ParserDouble | undefined;
-  validateSavedArticles: () => Promise<void>;
   addStatusBarItem: () => HTMLElement;
   initializeSettingsBackedServices(): void;
   ensureAutoRefreshScheduler(): FeedRefreshScheduler;
@@ -212,11 +211,6 @@ function createHarness(feeds: Feed[] = []): Harness {
   const held: HeldFetch[] = [];
   const parser = createParser(held);
   seams.feedParser = parser;
-
-  seams.validateSavedArticles = vi.fn(() => {
-    events.push("validate");
-    return Promise.resolve();
-  });
 
   // The view the refresh runner redraws directly.
   const view = createDashboardDouble();
@@ -536,7 +530,6 @@ describe("feed refresh: one feed or a batch", () => {
 
     expect(harness.events).toEqual([
       "notice:Refreshing Feed a...",
-      "validate",
       "save",
       "reschedule",
       "reschedule",
@@ -579,7 +572,6 @@ describe("feed refresh: one feed or a batch", () => {
 
     expect(harness.events).toEqual([
       "notice:Refreshing Feed a...",
-      "validate",
       "save",
       "reschedule",
       "reschedule",
@@ -740,7 +732,7 @@ describe("feed refresh: the batch", () => {
     ]);
   });
 
-  it("validates, saves, reschedules, goes idle, redraws and then says so, once every feed settles", async () => {
+  it("saves, reschedules, goes idle, redraws and then says so, once every feed settles", async () => {
     const harness = createHarness([createFeed("a"), createFeed("b")]);
     let activeAtRedraw: boolean | null = null;
     harness.view.refresh.mockImplementation(() => {
@@ -754,8 +746,7 @@ describe("feed refresh: the batch", () => {
     await settle(harness, url("b"));
     await done;
 
-    expect(harness.events.slice(harness.events.indexOf("validate"))).toEqual([
-      "validate",
+    expect(harness.events.slice(harness.events.indexOf("save"))).toEqual([
       "save",
       "reschedule",
       "reschedule",
@@ -890,7 +881,6 @@ describe("feed refresh: the batch", () => {
 
     expect(harness.events).toEqual([
       "notice:Refreshing 2 feeds...",
-      "validate",
       "save",
       "reschedule",
       "reschedule",

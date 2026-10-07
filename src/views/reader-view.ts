@@ -49,7 +49,6 @@ import {
 } from "../utils/full-article-fetch";
 import { isLikelyVideoItem } from "../utils/video-detection";
 import {
-  clearSavedStateIfFileMissing,
   buildReaderImageTooltipText,
   formatReaderDateText,
   getReaderImageFilename,
@@ -132,7 +131,7 @@ export class ReaderView extends ItemView {
     item: FeedItem,
     updates: Partial<FeedItem>,
     shouldRerender?: boolean,
-  ) => void;
+  ) => void | Promise<void>;
   private webViewerIntegration: WebViewerIntegration | null = null;
   private podcastPlayer: PodcastPlayer | null = null;
   private videoPlayer: VideoPlayer | null = null;
@@ -235,7 +234,7 @@ export class ReaderView extends ItemView {
       item: FeedItem,
       updates: Partial<FeedItem>,
       shouldRerender?: boolean,
-    ) => void,
+    ) => void | Promise<void>,
     options?: {
       saveSettings?: () => Promise<void>;
       onPlaybackProgress?: (
@@ -500,6 +499,28 @@ export class ReaderView extends ItemView {
     await this.app.workspace.revealLeaf(leaf);
   }
 
+  private async openSavedArticle(article: FeedItem): Promise<void> {
+    try {
+      const file = await this.articleSaver.findSavedArticleFile(article);
+      if (file) {
+        await this.openSavedArticleInConfiguredLocation(file, article);
+        return;
+      }
+
+      const tags = (article.tags ?? []).filter(
+        (tag) => tag.name.toLowerCase() !== "saved",
+      );
+      await this.onArticleUpdate(
+        article,
+        { saved: false, savedFilePath: undefined, tags },
+        false,
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      new Notice(`Error opening saved article: ${message}`);
+    }
+  }
+
   /**
    * Action: Navigate to next article from reader.
    * @internal
@@ -608,12 +629,7 @@ export class ReaderView extends ItemView {
       return;
     }
     if (this.currentItem.saved) {
-      const file = this.app.vault.getAbstractFileByPath(
-        this.currentItem.savedFilePath || "",
-      );
-      if (file instanceof TFile) {
-        await this.openSavedArticleInConfiguredLocation(file, this.currentItem);
-      }
+      await this.openSavedArticle(this.currentItem);
       return;
     }
 
@@ -872,16 +888,8 @@ export class ReaderView extends ItemView {
     setIcon(this.saveButton, "save");
     this.saveButton.addEventListener("click", (e) => {
       if (this.currentItem && this.currentItem.saved) {
-        const file = this.app.vault.getAbstractFileByPath(
-          this.currentItem.savedFilePath || "",
-        );
-        if (file instanceof TFile) {
-          void this.openSavedArticleInConfiguredLocation(
-            file,
-            this.currentItem,
-          );
-          return;
-        }
+        void this.openSavedArticle(this.currentItem);
+        return;
       }
       if (this.currentItem) {
         this.showSaveOptions(e, this.currentItem);
@@ -1216,10 +1224,6 @@ export class ReaderView extends ItemView {
 
     // Update toggle button states
     this.updateToggleButtons();
-
-    clearSavedStateIfFileMissing(item, this.settings.feeds, () =>
-      this.articleSaver.checkSavedFileExists(item),
-    );
 
     const route = resolveReaderMediaRoute(item);
     if (route === "video") {
@@ -1716,7 +1720,7 @@ export class ReaderView extends ItemView {
       item.content = result.content;
       item.starredImportContentState = undefined;
       if (shouldPersist) {
-        this.onArticleUpdate(
+        void this.onArticleUpdate(
           item,
           { content: result.content, starredImportContentState: undefined },
           false,
@@ -1725,7 +1729,7 @@ export class ReaderView extends ItemView {
     } else {
       item.starredImportContentState = "failed";
       if (shouldPersist) {
-        this.onArticleUpdate(
+        void this.onArticleUpdate(
           item,
           { starredImportContentState: "failed" },
           false,
@@ -2045,7 +2049,7 @@ export class ReaderView extends ItemView {
       undefined,
       feedLanguageFor(this.settings.feeds, item),
     );
-    if (update) this.onArticleUpdate(item, update, false);
+    if (update) void this.onArticleUpdate(item, update, false);
   }
 
   private showRestrictedNotice(item: FeedItem): void {
@@ -2064,7 +2068,7 @@ export class ReaderView extends ItemView {
   private toggleReadStatus(): void {
     if (!this.currentItem) return;
     const nextRead = !this.currentItem.read;
-    this.onArticleUpdate(this.currentItem, { read: nextRead }, false);
+    void this.onArticleUpdate(this.currentItem, { read: nextRead }, false);
     this.updateToggleButtons();
   }
 
@@ -2115,13 +2119,13 @@ export class ReaderView extends ItemView {
   private toggleStarStatus(): void {
     if (!this.currentItem) return;
     const nextStarred = !this.currentItem.starred;
-    this.onArticleUpdate(this.currentItem, { starred: nextStarred });
+    void this.onArticleUpdate(this.currentItem, { starred: nextStarred });
     this.updateToggleButtons();
   }
 
   private updateSavedLabel(saved: boolean): void {
     if (!this.currentItem) return;
-    this.onArticleUpdate(this.currentItem, { saved });
+    void this.onArticleUpdate(this.currentItem, { saved });
 
     if (this.saveButton) {
       this.saveButton.toggleClass("saved", saved);
@@ -2514,7 +2518,7 @@ export class ReaderView extends ItemView {
     }
 
     // Notify parent to persist the change
-    this.onArticleUpdate(item, { tags: [...item.tags] }, false);
+    void this.onArticleUpdate(item, { tags: [...item.tags] }, false);
 
     if (this.currentItem?.guid === item.guid) {
       this.refreshReaderHeaderTags();

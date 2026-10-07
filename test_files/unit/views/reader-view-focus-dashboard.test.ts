@@ -26,6 +26,8 @@ describe("ReaderView dashboard refocus", () => {
 
   function createReaderView(dashboardLeaves: WorkspaceLeaf[]) {
     const saveArticleSpy = vi.fn(async () => null);
+    const findSavedArticleFileSpy = vi.fn();
+    const articleUpdateSpy = vi.fn();
     const workspace = {
       getLeavesOfType: vi.fn().mockReturnValue(dashboardLeaves),
       setActiveLeaf: vi.fn(),
@@ -43,12 +45,23 @@ describe("ReaderView dashboard refocus", () => {
     const view = new ReaderView(
       leaf as never,
       { ...DEFAULT_SETTINGS, useWebViewer: false },
-      { saveArticle: saveArticleSpy } as never,
+      {
+        saveArticle: saveArticleSpy,
+        findSavedArticleFile: findSavedArticleFileSpy,
+      } as never,
       vi.fn(),
-      vi.fn(),
+      articleUpdateSpy,
     );
 
-    return { app, leaf, view, workspace, saveArticleSpy };
+    return {
+      app,
+      leaf,
+      view,
+      workspace,
+      saveArticleSpy,
+      findSavedArticleFileSpy,
+      articleUpdateSpy,
+    };
   }
 
   function getSavedMarkdownArg(
@@ -114,7 +127,7 @@ describe("ReaderView dashboard refocus", () => {
   });
 
   it("routes saved article reopen through configured location helper", async () => {
-    const { view, app, leaf } = createReaderView([]);
+    const { view, leaf, findSavedArticleFileSpy } = createReaderView([]);
     const scratchVault = App.createMock().vault;
     await scratchVault.createFolder("RSS articles");
     const file = await scratchVault.create("RSS articles/saved.md", "# Saved");
@@ -161,11 +174,7 @@ describe("ReaderView dashboard refocus", () => {
     ).openSavedArticleInConfiguredLocation =
       openSavedArticleInConfiguredLocation;
 
-    (
-      app.vault as unknown as {
-        getAbstractFileByPath: ReturnType<typeof vi.fn>;
-      }
-    ).getAbstractFileByPath = vi.fn(() => file);
+    findSavedArticleFileSpy.mockResolvedValue(file);
 
     const leafOpenFileSpy = vi.spyOn(
       leaf as unknown as { openFile: () => void },
@@ -182,6 +191,78 @@ describe("ReaderView dashboard refocus", () => {
       }),
     );
     expect(leafOpenFileSpy).not.toHaveBeenCalled();
+  });
+
+  it("clears the saved association only after an explicit open confirms the path is missing", async () => {
+    const { view, findSavedArticleFileSpy, articleUpdateSpy } =
+      createReaderView([]);
+    const item = {
+      saved: true,
+      savedFilePath: "Saved/missing.md",
+      tags: [
+        { name: "sAvEd", color: "blue" },
+        { name: "Keep", color: "green" },
+      ],
+      title: "Saved",
+      link: "https://example.com/saved",
+      guid: "saved-guid",
+      description: "",
+      pubDate: new Date().toISOString(),
+      read: true,
+      starred: true,
+      feedTitle: "Feed",
+      feedUrl: "https://example.com/feed",
+      coverImage: "",
+    };
+    findSavedArticleFileSpy.mockResolvedValue(null);
+    (view as unknown as { currentItem: typeof item }).currentItem = item;
+
+    await view.actionSaveCurrentArticle();
+
+    expect(findSavedArticleFileSpy).toHaveBeenCalledWith(item);
+    expect(articleUpdateSpy).toHaveBeenCalledWith(
+      item,
+      {
+        saved: false,
+        savedFilePath: undefined,
+        tags: [{ name: "Keep", color: "green" }],
+      },
+      false,
+    );
+    expect(item).toMatchObject({
+      saved: true,
+      savedFilePath: "Saved/missing.md",
+    });
+  });
+
+  it("preserves the saved association when opening its recorded path fails", async () => {
+    const { view, findSavedArticleFileSpy, articleUpdateSpy } =
+      createReaderView([]);
+    const item = {
+      saved: true,
+      savedFilePath: "Saved/article.md",
+      tags: [{ name: "Saved", color: "blue" }],
+      title: "Saved",
+      link: "https://example.com/saved",
+      guid: "saved-guid",
+      description: "",
+      pubDate: new Date().toISOString(),
+      read: false,
+      starred: false,
+      feedTitle: "Feed",
+      feedUrl: "https://example.com/feed",
+      coverImage: "",
+    };
+    findSavedArticleFileSpy.mockRejectedValue(new Error("vault unavailable"));
+    (view as unknown as { currentItem: typeof item }).currentItem = item;
+
+    await view.actionSaveCurrentArticle();
+
+    expect(articleUpdateSpy).not.toHaveBeenCalled();
+    expect(item).toMatchObject({
+      saved: true,
+      savedFilePath: "Saved/article.md",
+    });
   });
 
   it("prepends fallback hero image when saving from reader and content has no image", async () => {

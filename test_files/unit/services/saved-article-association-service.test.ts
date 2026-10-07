@@ -35,6 +35,48 @@ function makeFeed(url: string, items: FeedItem[]): Feed {
 }
 
 describe("SavedArticleAssociationService", () => {
+  it("clears saved records without a usable path while preserving other state", () => {
+    const missing = makeItem({ savedFilePath: undefined });
+    const blank = makeItem({ guid: "blank", savedFilePath: "   " });
+    const tracked = makeItem({ guid: "tracked" });
+    const feed = makeFeed("https://example.com/feed.xml", [
+      missing,
+      blank,
+      tracked,
+    ]);
+
+    const updates =
+      new SavedArticleAssociationService().clearMissingRecordedPaths([feed]);
+
+    expect(
+      updates.map(({ feedUrl, guid, saved, savedFilePath, tags }) => ({
+        feedUrl,
+        guid,
+        saved,
+        savedFilePath,
+        tags,
+      })),
+    ).toEqual([
+      {
+        feedUrl: feed.url,
+        guid: missing.guid,
+        saved: false,
+        savedFilePath: undefined,
+        tags: [{ name: "Research", color: "green" }],
+      },
+      {
+        feedUrl: feed.url,
+        guid: blank.guid,
+        saved: false,
+        savedFilePath: undefined,
+        tags: [{ name: "Research", color: "green" }],
+      },
+    ]);
+    expect(missing).toMatchObject({ read: true, starred: true, saved: false });
+    expect(tracked.saved).toBe(true);
+    expect(tracked.savedFilePath).toBe("Saved/article.md");
+  });
+
   it("updates a renamed saved note while preserving its saved state and tags", () => {
     const current = makeItem();
     const other = makeItem({

@@ -195,7 +195,6 @@ export default class RssDashboardPlugin extends Plugin {
   public settingTab: RssDashboardSettingTab | null = null;
   public versionStatusBar: VersionStatusBarFeature | null = null;
   public vaultAbsolutePath = "";
-  private hasCompletedStartupSavedArticleValidation = false;
   private hasShownStorageDeprecationPromptThisSession = false;
   private whatsNewHandledThisSession = false;
   private startupRefreshTimeoutId: number | null = null;
@@ -254,6 +253,18 @@ export default class RssDashboardPlugin extends Plugin {
         this.initializeSettingsBackedServices(),
       getAutoRefreshScheduler: () => this.autoRefreshScheduler,
       refreshDashboardViews: () => this.refreshDashboardViews(),
+      clearMissingSavedArticlePaths: () =>
+        this.savedArticleAssociationService.clearMissingRecordedPaths(
+          this.settings.feeds,
+        ),
+      notifySavedArticleAssociationUpdates: async (updates) => {
+        for (const update of updates) {
+          await this.syncSavedArticleAssociationUpdate(
+            update.feedUrl,
+            update.guid,
+          );
+        }
+      },
     });
     this.uriActionHandler = new UriActionHandler({
       pluginId: manifest.id,
@@ -281,7 +292,6 @@ export default class RssDashboardPlugin extends Plugin {
       getBackgroundImportService: () => this.backgroundImportService,
       getAutoRefreshScheduler: () => this.autoRefreshScheduler,
       saveSettings: () => this.saveSettings(),
-      validateSavedArticles: () => this.validateSavedArticles(),
       clearFeedShardHealth: (feed) => this.clearFeedShardHealth(feed),
       getActiveDashboardView: () => this.getActiveDashboardView(),
       refreshFeeds: (selectedFeeds, intent) =>
@@ -534,36 +544,6 @@ export default class RssDashboardPlugin extends Plugin {
     }
 
     return this.autoRefreshScheduler;
-  }
-
-  private async reconcileSavedArticlesOnStartup(): Promise<void> {
-    if (this.hasCompletedStartupSavedArticleValidation) {
-      return;
-    }
-
-    this.hasCompletedStartupSavedArticleValidation = true;
-
-    const allArticles = this.getAllArticles();
-    await this.articleSaver.fixSavedFilePaths(allArticles);
-    await this.migrateMediaProgressOnStartup();
-
-    await this.validateSavedArticles();
-  }
-
-  private scheduleStartupSavedArticleValidation(): void {
-    const workspaceWithLayoutReady = this.app
-      .workspace as typeof this.app.workspace & {
-      onLayoutReady?: (callback: () => void) => void;
-    };
-
-    if (typeof workspaceWithLayoutReady.onLayoutReady === "function") {
-      workspaceWithLayoutReady.onLayoutReady(() => {
-        void this.reconcileSavedArticlesOnStartup();
-      });
-      return;
-    }
-
-    void this.reconcileSavedArticlesOnStartup();
   }
 
   /**
@@ -901,8 +881,7 @@ export default class RssDashboardPlugin extends Plugin {
         this.applyMobileOptimizations();
       }
 
-      this.scheduleStartupSavedArticleValidation();
-
+      this.scheduleStartupMediaProgressMigration();
       this.registerWhatsNewTriggers();
       this.registerProtocolHandler();
       this.registerViews();
@@ -971,7 +950,7 @@ export default class RssDashboardPlugin extends Plugin {
             updates: Partial<FeedItem>,
             shouldRerender?: boolean,
           ) => {
-            void this.updateArticleFromReader(item, updates, shouldRerender);
+            return this.updateArticleFromReader(item, updates, shouldRerender);
           },
           {
             saveSettings: () => this.saveSettings(),
@@ -1104,6 +1083,22 @@ export default class RssDashboardPlugin extends Plugin {
     });
 
     this.versionStatusBar?.registerCommand();
+  }
+
+  private scheduleStartupMediaProgressMigration(): void {
+    const workspaceWithLayoutReady = this.app
+      .workspace as typeof this.app.workspace & {
+      onLayoutReady?: (callback: () => void) => void;
+    };
+
+    if (typeof workspaceWithLayoutReady.onLayoutReady === "function") {
+      workspaceWithLayoutReady.onLayoutReady(() => {
+        void this.migrateMediaProgressOnStartup();
+      });
+      return;
+    }
+
+    void this.migrateMediaProgressOnStartup();
   }
 
   private scheduleStartupRefresh(
@@ -2436,45 +2431,5 @@ export default class RssDashboardPlugin extends Plugin {
       this.backgroundImportService?.resumePendingImports();
       this.autoRefreshScheduler?.start();
     }
-  }
-
-  private async validateSavedArticles(): Promise<void> {
-    let updatedCount = 0;
-
-    for (const feed of this.settings.feeds) {
-      for (const item of feed.items) {
-        if (item.saved) {
-          const fileExists = this.articleSaver.checkSavedFileExists(item);
-          if (!fileExists) {
-            item.saved = false;
-            item.savedFilePath = undefined;
-
-            if (item.tags) {
-              item.tags = item.tags.filter(
-                (tag) => tag.name.toLowerCase() !== "saved",
-              );
-            }
-            updatedCount++;
-          }
-        }
-      }
-    }
-
-    if (updatedCount > 0) {
-      await this.saveSettings();
-
-      const view = await this.getActiveDashboardView();
-      if (view) {
-        view.render();
-      }
-    }
-  }
-
-  private getAllArticles(): FeedItem[] {
-    let allArticles: FeedItem[] = [];
-    for (const feed of this.settings.feeds) {
-      allArticles = allArticles.concat(feed.items);
-    }
-    return allArticles;
   }
 }
