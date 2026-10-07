@@ -45,14 +45,41 @@ jobs:
 
           failed=0
 
-          # The commit-to-PR association can lag the merge by a few seconds.
+          # The commit-to-PR association can lag the merge by well over the retry
+          # window (the #882 and #844 merges were missed that way, and the job still
+          # reported success). The commit subject names the PR for both squash
+          # ("... (#886)") and merge commits ("Merge pull request #784 from ..."), so
+          # read it from there first and use the association only as a second source.
+          subject=$(retry gh api "repos/${GH_REPO}/commits/${PUSHED_SHA}" \
+            --jq '.commit.message | split("\n")[0]') || subject=""
+          from_subject=$(printf '%s' "$subject" \
+            | { grep -oE '^Merge pull request #[0-9]+|\(#[0-9]+\)$' || true; } \
+            | { grep -oE '[0-9]+' || true; } | tail -n 1)
+
           prs=""
-          for attempt in 1 2 3 4; do
-            prs=$(gh api "repos/${GH_REPO}/commits/${PUSHED_SHA}/pulls" \
-              --jq '.[] | select(.merged_at != null) | .number') || prs=""
-            [ -n "$prs" ] && break
-            sleep 5
-          done
+          if [ -n "$from_subject" ]; then
+            prs=$(retry gh api "repos/${GH_REPO}/pulls/${from_subject}" \
+              --jq 'select(.merged_at != null) | .number') || prs=""
+          fi
+
+          if [ -z "$prs" ]; then
+            for attempt in 1 2 3 4; do
+              prs=$(gh api "repos/${GH_REPO}/commits/${PUSHED_SHA}/pulls" \
+                --jq '.[] | select(.merged_at != null) | .number') || prs=""
+              [ -n "$prs" ] && break
+              sleep 5
+            done
+          fi
+
+          if [ -z "$prs" ]; then
+            # A direct push to dev has no PR and nothing to close. A subject that
+            # names a PR we could not resolve must not pass silently.
+            if [ -n "$from_subject" ]; then
+              echo "::error::Commit ${PUSHED_SHA} names #${from_subject} but no merged PR was found for it."
+              exit 1
+            fi
+            echo "::notice::No merged PR for ${PUSHED_SHA}; nothing to close."
+          fi
 
           for pr in $prs; do
             body=$(retry gh api "repos/${GH_REPO}/pulls/${pr}" --jq '.body // ""') || { failed=1; continue; }
