@@ -1,7 +1,7 @@
 /**
  * Each template chain's steps, in the order it applied them before the
- * registry existed (#673). The chains still differ: the web viewer
- * follow-ups in docs/plans/247-article-metadata-enrichment.md align them.
+ * registry existed (#673). The chains still differ: aligning the web viewer
+ * (#831) ends the difference.
  */
 import type { TemplateStep, VariableStep } from "./render-template";
 import type { TemplateVariableName } from "./template-variables";
