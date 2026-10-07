@@ -137,6 +137,8 @@ export class ReaderView extends ItemView {
   private videoPlayer: VideoPlayer | null = null;
   private relatedItems: FeedItem[] = [];
   private currentFullContent?: string;
+  private currentFetchedArticleContent?: string;
+  private currentFullContentFetchAttempted = false;
   private currentDisplayTitle?: string;
   private currentReaderTitle?: string;
   private imageAccessibleTextIndex = 0;
@@ -633,17 +635,15 @@ export class ReaderView extends ItemView {
       return;
     }
 
-    const markdownContent = this.buildReaderSaveMarkdown(this.currentItem);
     const displayTitle = this.currentDisplayTitle;
     const saveItem = displayTitle
       ? { ...this.currentItem, title: displayTitle }
       : this.currentItem;
     const savedTemplate = this.getCustomTemplateForArticle(this.currentItem);
-    const file = await this.articleSaver.saveArticle(
+    const file = await this.saveReaderArticle(
       saveItem,
       undefined,
       undefined,
-      markdownContent,
       savedTemplate,
     );
     if (file) {
@@ -670,6 +670,32 @@ export class ReaderView extends ItemView {
       this.normalizeBlockLinksForSavedMarkdown(htmlWithHero);
     return this.turndownService.turndown(
       protectMathForMarkdown(normalizedSaveHtml),
+    );
+  }
+
+  private saveReaderArticle(
+    item: FeedItem,
+    folder?: string,
+    template?: string,
+    savedTemplate?: SavedTemplate,
+  ): Promise<TFile | null> {
+    const fetchAttempted =
+      this.currentFullContentFetchAttempted || this.currentContentIsFullArticle;
+    const readerContent = fetchAttempted
+      ? {
+          fetchAttempted: true,
+          markdown: this.currentContentIsFullArticle
+            ? this.buildReaderSaveMarkdown(item)
+            : undefined,
+          fetchedHtml: this.currentFetchedArticleContent,
+        }
+      : undefined;
+    return this.articleSaver.saveArticleWithContentPolicy(
+      item,
+      folder,
+      template,
+      savedTemplate,
+      readerContent,
     );
   }
 
@@ -1145,16 +1171,14 @@ export class ReaderView extends ItemView {
         .setTitle("Save with default settings")
         .setIcon("save")
         .onClick(async () => {
-          const markdownContent = this.buildReaderSaveMarkdown(item);
           const saveItem = displayTitle
             ? { ...item, title: displayTitle }
             : item;
           const savedTemplate = this.getCustomTemplateForArticle(item);
-          const file = await this.articleSaver.saveArticle(
+          const file = await this.saveReaderArticle(
             saveItem,
             undefined,
             undefined,
-            markdownContent,
             savedTemplate,
           );
           if (file) {
@@ -1196,25 +1220,16 @@ export class ReaderView extends ItemView {
         this.getCustomTemplateForArticle(article),
       saveSettings: () => this.persistSettings(),
       saveArticle: (article, request) => {
-        const markdownContent = this.buildReaderSaveMarkdown(article);
         const displayTitle = this.currentDisplayTitle;
         const saveItem = displayTitle
           ? { ...article, title: displayTitle }
           : article;
-        return request.savedTemplate
-          ? this.articleSaver.saveArticle(
-              saveItem,
-              request.folder,
-              request.template,
-              markdownContent,
-              request.savedTemplate,
-            )
-          : this.articleSaver.saveArticle(
-              saveItem,
-              request.folder,
-              request.template,
-              markdownContent,
-            );
+        return this.saveReaderArticle(
+          saveItem,
+          request.folder,
+          request.template,
+          request.savedTemplate,
+        );
       },
       onArticleSave: (article) => this.onArticleSave(article),
       updateSavedLabel: (saved) => this.updateSavedLabel(saved),
@@ -1238,6 +1253,8 @@ export class ReaderView extends ItemView {
     this.currentDisplayTitle = undefined;
     this.currentReaderTitle = undefined;
     this.currentContentIsFullArticle = false;
+    this.currentFetchedArticleContent = undefined;
+    this.currentFullContentFetchAttempted = false;
     this.currentFullContentFailureType = "none";
     this.syncReaderTitle();
 
@@ -1252,9 +1269,14 @@ export class ReaderView extends ItemView {
     } else if (route === "podcast") {
       await this.displayPodcast(item);
     } else {
-      const fetchedContent = this.shouldSkipFullArticleFetch(item)
+      const skipFullArticleFetch = this.shouldSkipFullArticleFetch(item);
+      this.currentFullContentFetchAttempted = !skipFullArticleFetch;
+      const fetchedContent = skipFullArticleFetch
         ? ""
         : await this.fetchFullArticleContent(item.link);
+      this.currentFetchedArticleContent = fetchedContent.trim()
+        ? fetchedContent
+        : undefined;
       const hasFullArticleContent = hasMeaningfulArticleContent(fetchedContent);
 
       if (hasFullArticleContent) {
@@ -1761,6 +1783,10 @@ export class ReaderView extends ItemView {
       return;
     }
 
+    this.currentFullContentFetchAttempted = true;
+    this.currentFetchedArticleContent = result.content.trim()
+      ? result.content
+      : undefined;
     this.currentFullContent =
       result.content || item.content || item.description || "";
     this.currentContentIsFullArticle = Boolean(result.content);

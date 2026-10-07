@@ -6,6 +6,7 @@ import {
   type Feed,
   type FeedItem,
   type RssDashboardSettings,
+  type SavedTemplate,
 } from "../../../src/types/types";
 import { RESTRICTED_ARTICLE_REASON } from "../../../src/utils/full-article-fetch";
 import { RssDashboardView } from "../../../src/views/dashboard-view";
@@ -102,6 +103,7 @@ interface DashboardViewInternal {
   inlineArticle: FeedItem | null;
   selectedArticle: FeedItem | null;
   saver: {
+    saveArticleWithContentPolicy: ReturnType<typeof vi.fn>;
     saveArticleWithFullContent: ReturnType<typeof vi.fn>;
     saveArticle: ReturnType<typeof vi.fn>;
   };
@@ -147,13 +149,24 @@ describe("Dashboard restricted save rerender", () => {
 
     view.inlineArticle = article;
     view.selectedArticle = article;
-    view.saver = {
+    const saver: DashboardViewInternal["saver"] = {
+      saveArticleWithContentPolicy: vi.fn(),
       saveArticleWithFullContent: vi.fn(async (item: FeedItem) => {
         item.restrictedReason = RESTRICTED_ARTICLE_REASON;
         return { path: "Articles/Restricted article.md" };
       }),
       saveArticle: vi.fn(),
     };
+    saver.saveArticleWithContentPolicy = vi.fn(
+      (
+        item: FeedItem,
+        folder?: string,
+        template?: string,
+        savedTemplate?: SavedTemplate,
+      ) =>
+        saver.saveArticleWithFullContent(item, folder, template, savedTemplate),
+    );
+    view.saver = saver;
 
     await view.handleArticleSave(article);
 

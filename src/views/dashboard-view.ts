@@ -2691,21 +2691,13 @@ export class RssDashboardView extends ItemView {
     },
   ): Promise<TFile | null> {
     const { folder, template, savedTemplate } = options;
-    if (!this.settings.articleSaving.saveFullContent) {
-      return this.saver.saveArticle(
-        article,
-        folder,
-        template,
-        undefined,
-        savedTemplate,
-      );
-    }
-    const file = await this.saver.saveArticleWithFullContent(
+    const file = await this.saver.saveArticleWithContentPolicy(
       article,
       folder,
       template,
       savedTemplate,
     );
+    if (!this.settings.articleSaving.saveFullContent) return file;
     // Propagate restrictedReason if set during save
     if (article.restrictedReason) {
       // Update selectedArticle and inlineArticle if they match

@@ -8,6 +8,7 @@ import {
   type Feed,
   type FeedItem,
   type RssDashboardSettings,
+  type SavedTemplate,
 } from "../../../src/types/types";
 
 type ReaderViewInternals = {
@@ -27,6 +28,27 @@ type CustomSaveHarness = {
   onArticleSave: ReturnType<typeof vi.fn>;
   onArticleUpdate: ReturnType<typeof vi.fn>;
 };
+
+function createSaver(saveArticle: ReturnType<typeof vi.fn>) {
+  return {
+    saveArticle,
+    saveArticleWithContentPolicy: vi.fn(
+      (
+        item: FeedItem,
+        folder?: string,
+        template?: string,
+        savedTemplate?: SavedTemplate,
+        readerContent?: { markdown?: string },
+      ) => {
+        const markdown = readerContent?.markdown ?? item.description;
+        return savedTemplate
+          ? saveArticle(item, folder, template, markdown, savedTemplate)
+          : saveArticle(item, folder, template, markdown);
+      },
+    ),
+    getFilenamePreview: vi.fn(() => "Reading/Fixture article.md"),
+  };
+}
 
 class MockLeaf {
   constructor(public app: unknown) {}
@@ -90,10 +112,7 @@ function createHarness(options?: {
   const view = new ReaderView(
     new MockLeaf(app) as never,
     settings,
-    {
-      saveArticle,
-      getFilenamePreview: vi.fn(() => "Reading/Fixture article.md"),
-    } as never,
+    createSaver(saveArticle) as never,
     onArticleSave,
     onArticleUpdate,
   );

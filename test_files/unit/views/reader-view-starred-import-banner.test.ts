@@ -219,6 +219,10 @@ describe("ReaderView starred-import cached-preview banner", () => {
     );
     expect(item.content).toBe("<p>Full fetched article body.</p>");
     expect(item.starredImportContentState).toBeUndefined();
+    expect(
+      (readerView as unknown as { currentFullContentFetchAttempted: boolean })
+        .currentFullContentFetchAttempted,
+    ).toBe(true);
 
     expect(onArticleUpdate).toHaveBeenCalledWith(
       item,

@@ -6,6 +6,7 @@ import {
   type Feed,
   type FeedItem,
   type RssDashboardSettings,
+  type SavedTemplate,
 } from "../../../src/types/types";
 import { RESTRICTED_ARTICLE_REASON } from "../../../src/utils/full-article-fetch";
 import type { CustomSaveModalContext } from "../../../src/modals/custom-save-modal";
@@ -124,6 +125,7 @@ interface DashboardViewInternal {
   inlineArticle: FeedItem | null;
   selectedArticle: FeedItem | null;
   saver: {
+    saveArticleWithContentPolicy: ReturnType<typeof vi.fn>;
     saveArticleWithFullContent: ReturnType<typeof vi.fn>;
     saveArticle: ReturnType<typeof vi.fn>;
   };
@@ -149,10 +151,28 @@ async function makeView(settings: RssDashboardSettings) {
     plugin as never,
   ) as unknown as DashboardViewInternal;
   view.render = vi.fn();
-  view.saver = {
+  const saver: DashboardViewInternal["saver"] = {
+    saveArticleWithContentPolicy: vi.fn(),
     saveArticleWithFullContent: vi.fn(async () => ({ path: "Full/a.md" })),
     saveArticle: vi.fn(async () => ({ path: "Summary/a.md" })),
   };
+  saver.saveArticleWithContentPolicy = vi.fn(
+    (
+      item: FeedItem,
+      folder?: string,
+      template?: string,
+      savedTemplate?: SavedTemplate,
+    ) =>
+      settings.articleSaving.saveFullContent
+        ? saver.saveArticleWithFullContent(
+            item,
+            folder,
+            template,
+            savedTemplate,
+          )
+        : saver.saveArticle(item, folder, template, undefined, savedTemplate),
+  );
+  view.saver = saver;
   return { view, plugin };
 }
 
