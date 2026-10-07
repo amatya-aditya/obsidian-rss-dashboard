@@ -2,7 +2,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App, WorkspaceLeaf } from "obsidian";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 import { RssDashboardView } from "../../../src/views/dashboard-view";
-import { DEFAULT_SETTINGS } from "../../../src/types/types";
+import {
+  DEFAULT_SETTINGS,
+  type Feed,
+  type FeedItem,
+} from "../../../src/types/types";
 import type RssDashboardPlugin from "../../../main";
 
 vi.mock("../../../src/utils/platform-utils", () => ({
@@ -40,6 +44,12 @@ interface PrivateView {
   selectedTags: string[];
   sidebar: unknown;
   articleList: unknown;
+  scheduleRender: () => void;
+  settings: { feeds: Feed[] };
+  activeStatusFilters: Set<string>;
+  currentFeed: Feed | null;
+  selectedFolders: string[];
+  selectedFeeds: string[];
 }
 
 describe("dashboard actions behind palette commands", () => {
@@ -177,5 +187,125 @@ describe("dashboard actions behind palette commands", () => {
     privateView.sidebar = undefined;
 
     expect(() => view.actionSetAllFoldersCollapsed(true)).not.toThrow();
+  });
+
+  describe("mark all read and unread", () => {
+    const makeItem = (guid: string, feedUrl: string, read: boolean) =>
+      ({
+        guid,
+        title: guid,
+        read,
+        link: `https://example.com/${guid}`,
+        description: "",
+        pubDate: "",
+        feedTitle: "Feed",
+        feedUrl,
+        coverImage: "",
+      }) as FeedItem;
+    const makeFeed = (
+      title: string,
+      url: string,
+      folder: string,
+      items: FeedItem[],
+    ): Feed => ({ title, url, folder, items, lastUpdated: Date.now() });
+
+    let techFeed: Feed;
+    let newsFeed: Feed;
+    let renderSpy: ReturnType<typeof vi.fn<() => void>>;
+
+    const readStates = (feed: Feed): Array<boolean | undefined> =>
+      feed.items.map((i) => i.read);
+
+    beforeEach(() => {
+      techFeed = makeFeed("Tech Blog", "https://t.example/feed", "Tech", [
+        makeItem("t1", "https://t.example/feed", false),
+        makeItem("t2", "https://t.example/feed", false),
+        makeItem("t3", "https://t.example/feed", true),
+      ]);
+      newsFeed = makeFeed("Daily News", "https://n.example/feed", "News", [
+        makeItem("n1", "https://n.example/feed", false),
+        makeItem("n2", "https://n.example/feed", true),
+      ]);
+      privateView.settings.feeds = [techFeed, newsFeed];
+      renderSpy = vi.fn<() => void>();
+      privateView.scheduleRender = renderSpy;
+    });
+
+    it("names the Unread view in the notice and changes only unread articles", () => {
+      privateView.activeStatusFilters = new Set(["unread"]);
+
+      view.actionMarkAllAsRead();
+
+      expect(noticeMessages()).toEqual([
+        "Marked 3 items as read in All Unread articles",
+      ]);
+      expect(readStates(techFeed)).toEqual([true, true, true]);
+      expect(readStates(newsFeed)).toEqual([true, true]);
+    });
+
+    it("names a folder view and leaves other folders alone", () => {
+      view.currentFolder = "Tech";
+
+      view.actionMarkAllAsRead();
+
+      expect(noticeMessages()).toEqual(["Marked 2 items as read in Tech"]);
+      expect(readStates(techFeed)).toEqual([true, true, true]);
+      expect(readStates(newsFeed)).toEqual([false, true]);
+    });
+
+    it("names a feed view and leaves other feeds alone", () => {
+      privateView.currentFeed = newsFeed;
+
+      view.actionMarkAllAsRead();
+
+      expect(noticeMessages()).toEqual([
+        "Marked 1 items as read in Daily News",
+      ]);
+      expect(readStates(techFeed)).toEqual([false, false, true]);
+      expect(readStates(newsFeed)).toEqual([true, true]);
+    });
+
+    it("names a tag-filtered view", () => {
+      techFeed.items[0].tags = [{ name: "alpha", color: "#fff" }];
+      privateView.selectedTags = ["alpha"];
+
+      view.actionMarkAllAsRead();
+
+      expect(noticeMessages()).toEqual([
+        "Marked 1 items as read in Tags (OR): alpha",
+      ]);
+      expect(readStates(techFeed)).toEqual([true, false, true]);
+      expect(readStates(newsFeed)).toEqual([false, true]);
+    });
+
+    it("names the scope for mark all unread too", () => {
+      view.currentFolder = "Tech";
+
+      view.actionMarkAllAsUnread();
+
+      expect(noticeMessages()).toEqual(["Marked 1 items as unread in Tech"]);
+      expect(readStates(techFeed)).toEqual([false, false, false]);
+      expect(readStates(newsFeed)).toEqual([false, true]);
+    });
+
+    it("keeps the no-op notices and does not render", () => {
+      privateView.currentFeed = techFeed;
+      view.actionMarkAllAsRead();
+      debugSpy.mockClear();
+      renderSpy.mockClear();
+
+      view.actionMarkAllAsRead();
+
+      expect(noticeMessages()).toEqual(["No unread items in current view"]);
+
+      view.actionMarkAllAsUnread();
+      debugSpy.mockClear();
+      renderSpy.mockClear();
+
+      view.actionMarkAllAsUnread();
+
+      expect(noticeMessages()).toEqual(["No read items in current view"]);
+      expect(renderSpy).not.toHaveBeenCalled();
+    });
   });
 });

@@ -20,6 +20,8 @@ export type DashboardCommandTarget = Pick<
   | "actionShowStarred"
   | "actionSetViewStyle"
   | "actionSetAllFoldersCollapsed"
+  | "actionMarkAllAsRead"
+  | "actionMarkAllAsUnread"
 >;
 
 /** The reader view methods the palette commands call (DEC-007). */
@@ -141,6 +143,13 @@ function registerDashboardCommands(plugin: PaletteCommandPlugin): void {
   );
   add("dashboard-expand-all-folders", "Expand all folders", (v) =>
     v.actionSetAllFoldersCollapsed(false),
+  );
+  // Parity with the header-menu buttons: no confirmation (DEC-013).
+  add("dashboard-mark-all-read", "Mark all articles in view as read", (v) =>
+    v.actionMarkAllAsRead(),
+  );
+  add("dashboard-mark-all-unread", "Mark all articles in view as unread", (v) =>
+    v.actionMarkAllAsUnread(),
   );
 }
 

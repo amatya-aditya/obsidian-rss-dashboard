@@ -48,6 +48,8 @@ const EXPECTED_DASHBOARD_IDS = [
   "dashboard-view-feed",
   "dashboard-collapse-all-folders",
   "dashboard-expand-all-folders",
+  "dashboard-mark-all-read",
+  "dashboard-mark-all-unread",
 ];
 
 const EXPECTED_READER_IDS = [
@@ -68,6 +70,8 @@ function createDashboardStub() {
     actionShowStarred: vi.fn(),
     actionSetViewStyle: vi.fn(),
     actionSetAllFoldersCollapsed: vi.fn(),
+    actionMarkAllAsRead: vi.fn(),
+    actionMarkAllAsUnread: vi.fn(),
   } satisfies DashboardCommandTarget;
 }
 
@@ -214,6 +218,25 @@ describe("dashboard commands", () => {
       [true],
       [false],
     ]);
+
+    await run("dashboard-mark-all-read");
+    expect(dashboard.actionMarkAllAsRead).toHaveBeenCalledTimes(1);
+    expect(dashboard.actionMarkAllAsUnread).not.toHaveBeenCalled();
+    await run("dashboard-mark-all-unread");
+    expect(dashboard.actionMarkAllAsUnread).toHaveBeenCalledTimes(1);
+    expect(dashboard.actionMarkAllAsRead).toHaveBeenCalledTimes(1);
+  });
+
+  it("names the mark all read command for its scope and asks for no confirmation", () => {
+    const { byId } = setup({ dashboard: true });
+
+    expect(byId("dashboard-mark-all-read").name).toBe(
+      "Mark all articles in view as read",
+    );
+    expect(byId("dashboard-mark-all-unread").name).toBe(
+      "Mark all articles in view as unread",
+    );
+    expect(byId("dashboard-mark-all-read").callback).toBeUndefined();
   });
 
   it("are listed only while a dashboard view exists", () => {
