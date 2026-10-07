@@ -1519,6 +1519,7 @@ body .rss-folder-name-modal {
 }
 
 .rss-dashboard-refresh-details-sr-only,
+.rss-dashboard-refresh-announcer,
 .rss-dashboard-search-status {
   position: absolute;
   width: 1px;
