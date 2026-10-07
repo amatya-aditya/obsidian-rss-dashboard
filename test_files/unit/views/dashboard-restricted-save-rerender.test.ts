@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { type Mock, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "obsidian";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 import {
@@ -103,9 +103,9 @@ interface DashboardViewInternal {
   inlineArticle: FeedItem | null;
   selectedArticle: FeedItem | null;
   saver: {
-    saveArticleWithContentPolicy: ReturnType<typeof vi.fn>;
-    saveArticleWithFullContent: ReturnType<typeof vi.fn>;
-    saveArticle: ReturnType<typeof vi.fn>;
+    saveArticleWithContentPolicy: Mock<(...args: any[]) => unknown>;
+    saveArticleWithFullContent: Mock<(...args: any[]) => unknown>;
+    saveArticle: Mock<(...args: any[]) => unknown>;
   };
   handleArticleSave(article: FeedItem): Promise<void>;
   render: ReturnType<typeof vi.fn>;

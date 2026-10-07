@@ -29,7 +29,7 @@ describe("ReaderView dashboard refocus", () => {
   });
 
   function createReaderView(dashboardLeaves: WorkspaceLeaf[]) {
-    const saveArticleSpy = vi.fn(async () => null);
+    const saveArticleSpy = vi.fn(async (..._args: unknown[]) => null);
     const findSavedArticleFileSpy = vi.fn();
     const articleUpdateSpy = vi.fn();
     const workspace = {

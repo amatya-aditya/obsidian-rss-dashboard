@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { type Mock, afterEach, describe, expect, it, vi } from "vitest";
 import { Menu } from "obsidian";
 import { ReaderView } from "../../../src/views/reader-view";
 import {
@@ -24,12 +24,12 @@ type CustomSaveHarness = {
   item: FeedItem;
   feed: Feed;
   settings: RssDashboardSettings;
-  saveArticle: ReturnType<typeof vi.fn>;
+  saveArticle: Mock<(...args: any[]) => unknown>;
   onArticleSave: ReturnType<typeof vi.fn>;
   onArticleUpdate: ReturnType<typeof vi.fn>;
 };
 
-function createSaver(saveArticle: ReturnType<typeof vi.fn>) {
+function createSaver(saveArticle: Mock<(...args: any[]) => unknown>) {
   return {
     saveArticle,
     saveArticleWithContentPolicy: vi.fn(

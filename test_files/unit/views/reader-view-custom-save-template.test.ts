@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { type Mock, afterEach, describe, expect, it, vi } from "vitest";
 import { ReaderView } from "../../../src/views/reader-view";
 import {
   DEFAULT_SETTINGS,
@@ -19,7 +19,7 @@ type ReaderViewInternals = {
   showCustomSaveModal(item: FeedItem): void;
 };
 
-function createReaderSaver(saveArticle: ReturnType<typeof vi.fn>) {
+function createReaderSaver(saveArticle: Mock<(...args: any[]) => unknown>) {
   return {
     saveArticle,
     saveArticleWithContentPolicy: vi.fn(
