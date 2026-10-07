@@ -61,6 +61,12 @@ be shared when their scope is explicit.
 | `podcast-player.css` | Podcast player and episode list.        |
 | `podcast-themes.css` | Podcast theme variants.                 |
 
+## Accessibility
+
+| Stylesheet           | Owner and scope                                                                                                                   |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `reduced-motion.css` | `prefers-reduced-motion` overrides for every animated or transitioning selector; imported last so its same-specificity rules win. |
+
 ## Settings
 
 | Stylesheet                     | Owner and scope                                        |

@@ -1,0 +1,484 @@
+/*
+ * Reduced motion (#867): honor the operating system's "reduce motion"
+ * preference.
+ *
+ * Each rule below restates, selector for selector, a rule from another
+ * stylesheet that animates or transitions. Media queries add no specificity,
+ * so a restated selector ties with the original and wins because this file is
+ * imported last in index.css. That avoids the important flag and keeps the override
+ * scoped to the plugin's own selectors. A test in
+ * test_files/unit/styles/reduced-motion.test.ts fails when a stylesheet adds a
+ * selector that animates or transitions without being listed here.
+ *
+ * Durations drop to 0.01ms rather than the properties being set to `none`, so
+ * animation-fill-mode end states and animationend/transitionend events still
+ * happen. Loading spinners are the exception: they keep turning, at 3s per
+ * turn, because a still icon would hide that work is in progress.
+ *
+ * Add the selector to the matching group when adding or changing an
+ * animation or transition elsewhere:
+ *   - transition only: the first rule of a file's block
+ *   - one-shot or decorative animation: the second rule
+ *   - infinite loading spinner: the third rule
+ */
+
+@media (prefers-reduced-motion: reduce) {
+  /* layout.css */
+  .rss-dashboard-sidebar-resize-handle::before {
+    transition-duration: 0.01ms;
+    transition-delay: 0s;
+  }
+
+  /* sidebar.css */
+  .rss-icon-row-wrapper::after,
+  .rss-icon-row-wrapper::before,
+  .rss-dashboard-header-icon-row .clickable-icon,
+  .rss-dashboard-header-icon-button,
+  .rss-dashboard-toolbar-button,
+  .rss-dashboard-tag-filter-mode-btn,
+  .rss-dashboard-tags-clear-button,
+  .rss-dashboard-sidebar-tags-list,
+  .rss-dashboard-sidebar-tag-row,
+  .rss-dashboard-sidebar-add-tag-btn,
+  .rss-dashboard-sidebar-add-tag-cancel-btn,
+  .rss-dashboard-sidebar-add-tag-toggle,
+  .rss-dashboard-folder,
+  .rss-dashboard-feed-folder-header,
+  .rss-dashboard-all-feeds-button,
+  .rss-dashboard-all-feeds-icon svg,
+  .rss-dashboard-inline-refresh-button,
+  .rss-folder-name-modal-buttons button {
+    transition-duration: 0.01ms;
+    transition-delay: 0s;
+  }
+
+  .rss-dashboard-all-feeds-icon.refreshing svg,
+  .rss-dashboard-inline-refresh-button.refreshing svg,
+  .rss-dashboard-refresh-button.refreshing .rss-dashboard-filter-icon {
+    animation-duration: 3s;
+    animation-delay: 0s;
+    animation-iteration-count: infinite;
+    transition-duration: 0.01ms;
+    transition-delay: 0s;
+  }
+
+  /* articles.css */
+  .rss-dashboard-article-card,
+  .rss-dashboard-save-toggle,
+  .rss-dashboard-article-card:hover,
+  .rss-dashboard-article-item:hover {
+    transition-duration: 0.01ms;
+    transition-delay: 0s;
+  }
+
+  .rss-dashboard-articles-list {
+    animation-duration: 0.01ms;
+    animation-delay: 0s;
+    animation-iteration-count: 1;
+    transition-duration: 0.01ms;
+    transition-delay: 0s;
+  }
+
+  .rss-dashboard-save-toggle.saving::after {
+    animation-duration: 3s;
+    animation-delay: 0s;
+    animation-iteration-count: infinite;
+    transition-duration: 0.01ms;
+    transition-delay: 0s;
+  }
+
+  /* article-empty-state.css */
+  .rss-dashboard-empty-state-button {
+    transition-duration: 0.01ms;
+    transition-delay: 0s;
+  }
+
+  /* card-view.css */
+  .rss-dashboard-summary-overlay,
+  .rss-dashboard-star-toggle,
+  .rss-dashboard-article-card,
+  .rss-dashboard-article-card:active,
+  .rss-dashboard-card-view
+    .rss-dashboard-card-preview-region
+    .rss-dashboard-summary-overlay {
+    transition-duration: 0.01ms;
+    transition-delay: 0s;
+  }
+
+  .rss-dashboard-card-placeholder {
+    animation-duration: 0.01ms;
+    animation-delay: 0s;
+    animation-iteration-count: 1;
+    transition-duration: 0.01ms;
+    transition-delay: 0s;
+  }
+
+  /* list-view.css */
+  .rss-dashboard-article-item {
+    transition-duration: 0.01ms;
+    transition-delay: 0s;
+  }
+
+  /* reader-lightbox.css */
+  .rss-reader-lightbox-backdrop,
+  .rss-reader-lightbox-btn,
+  .rss-reader-lightbox-stage,
+  .rss-reader-lightbox-preview-img,
+  .rss-reader-lightbox-full-img,
+  .rss-reader-zoomable-img {
+    transition-duration: 0.01ms;
+    transition-delay: 0s;
+  }
+
+  .rss-reader-lightbox-spinner {
+    animation-duration: 3s;
+    animation-delay: 0s;
+    animation-iteration-count: infinite;
+    transition-duration: 0.01ms;
+    transition-delay: 0s;
+  }
+
+  /* video.css */
+  .rss-video-youtube-button,
+  .rss-video-related-item,
+  .rss-video-related-card {
+    transition-duration: 0.01ms;
+    transition-delay: 0s;
+  }
+
+  /* controls.css */
+  .rss-dashboard-search-input,
+  .rss-dashboard-article-search-input,
+  .rss-dashboard-toggle-container,
+  .rss-dashboard-sidebar-toggle,
+  .rss-dashboard-view-more,
+  .rss-dashboard-view-more::before,
+  .rss-dashboard-tag-change-feedback.rss-dashboard-tag-change-feedback,
+  .rss-dashboard-tag-item-processing,
+  .rss-dashboard-hamburger-button,
+  .rss-dashboard-hamburger-button svg,
+  .rss-dashboard-mobile-filter-button,
+  .rss-dashboard-article-group-toggle {
+    transition-duration: 0.01ms;
+    transition-delay: 0s;
+  }
+
+  .rss-dashboard-tag-change-notification {
+    animation-duration: 0.01ms;
+    animation-delay: 0s;
+    animation-iteration-count: 1;
+    transition-duration: 0.01ms;
+    transition-delay: 0s;
+  }
+
+  .rss-dashboard-article-controls
+    .rss-dashboard-refresh-button.refreshing
+    .rss-dashboard-refresh-icon
+    svg,
+  .rss-dashboard-view-more.loading::after {
+    animation-duration: 3s;
+    animation-delay: 0s;
+    animation-iteration-count: infinite;
+    transition-duration: 0.01ms;
+    transition-delay: 0s;
+  }
+
+  /* controls-dropdown.css */
+  .rss-dashboard-dropdown-menu,
+  .rss-dashboard-dropdown-controls .rss-dashboard-mark-all-button,
+  .rss-dashboard-dropdown-controls .rss-dashboard-view-style-selector,
+  .rss-dashboard-dropdown-controls .rss-dashboard-view-refresh-button,
+  .rss-dashboard-dropdown-controls .rss-dashboard-refresh-button {
+    transition-duration: 0.01ms;
+    transition-delay: 0s;
+  }
+
+  .rss-dashboard-dropdown-controls
+    .rss-dashboard-view-refresh-button:hover
+    svg {
+    animation-duration: 0.01ms;
+    animation-delay: 0s;
+    animation-iteration-count: 1;
+    transition-duration: 0.01ms;
+    transition-delay: 0s;
+  }
+
+  /* controls-filter-bar.css */
+  .rss-dashboard-filter-subheader-content,
+  .rss-dashboard-filter-subheader-toggle,
+  .rss-dashboard-filter-edit-btn,
+  .rss-dashboard-viewing-filter-open-btn,
+  .rss-dashboard-highlight-edit-btn {
+    transition-duration: 0.01ms;
+    transition-delay: 0s;
+  }
+
+  /* modals.css */
+  .rss-dashboard-template-select,
+  .rss-dashboard-primary-button,
+  .rss-dashboard-custom-save-modal .rss-dashboard-custom-save-cancel-button,
+  .rss-dashboard-custom-save-modal .rss-dashboard-custom-save-template-button,
+  .rss-dashboard-custom-save-modal .rss-dashboard-custom-save-confirm-button,
+  .rss-dashboard-danger-button,
+  .rss-confirm-modal-cancel,
+  .edit-feed-folder-option,
+  .rss-dashboard-tag-modal-name-input,
+  .rss-shortcut-help-modal .rss-dashboard-header-close-button {
+    transition-duration: 0.01ms;
+    transition-delay: 0s;
+  }
+
+  .modal.rss-mobile-navigation-modal,
+  .modal.rss-mobile-discover-filters-modal {
+    animation-duration: 0.01ms;
+    animation-delay: 0s;
+    animation-iteration-count: 1;
+    transition-duration: 0.01ms;
+    transition-delay: 0s;
+  }
+
+  .modal.rss-mobile-navigation-modal
+    .rss-dashboard-all-feeds-icon.refreshing
+    svg {
+    animation-duration: 3s;
+    animation-delay: 0s;
+    animation-iteration-count: infinite;
+    transition-duration: 0.01ms;
+    transition-delay: 0s;
+  }
+
+  /* add-feed-modal.css */
+  .rss-dashboard-modal .rss-dashboard-load-button,
+  .rss-dashboard-modal.rss-add-feed-modal
+    .rss-add-feed-actions
+    .rss-add-feed-save-button,
+  .rss-dashboard-modal.rss-add-feed-modal
+    .rss-add-feed-actions
+    .rss-add-feed-cancel-button {
+    transition-duration: 0.01ms;
+    transition-delay: 0s;
+  }
+
+  .format-badge.active {
+    animation-duration: 0.01ms;
+    animation-delay: 0s;
+    animation-iteration-count: 1;
+    transition-duration: 0.01ms;
+    transition-delay: 0s;
+  }
+
+  .rss-dashboard-load-button.loading::after {
+    animation-duration: 3s;
+    animation-delay: 0s;
+    animation-iteration-count: infinite;
+    transition-duration: 0.01ms;
+    transition-delay: 0s;
+  }
+
+  /* edit-feed-modal.css */
+  .edit-feed-folder-option,
+  .rss-dashboard-modal.rss-edit-feed-modal
+    .rss-edit-feed-actions
+    .rss-edit-feed-save-button,
+  .rss-dashboard-modal.rss-edit-feed-modal
+    .rss-edit-feed-actions
+    .rss-edit-feed-cancel-button,
+  .rss-dashboard-modal.rss-edit-feed-modal
+    .rss-edit-feed-actions
+    .rss-edit-feed-delete-button {
+    transition-duration: 0.01ms;
+    transition-delay: 0s;
+  }
+
+  /* feed-manager-modal.css */
+  .rss-dashboard-confirm-modal .export-opml-btn {
+    transition-duration: 0.01ms;
+    transition-delay: 0s;
+  }
+
+  /* import-opml-modal.css */
+  .rss-dashboard-import-modal-header button,
+  .rss-dashboard-import-progress-fill,
+  .import-file-button,
+  .import-mode-option {
+    transition-duration: 0.01ms;
+    transition-delay: 0s;
+  }
+
+  /* dropdown-portal.css */
+  .rss-dashboard-tags-dropdown-content-portal {
+    animation-duration: 0.01ms;
+    animation-delay: 0s;
+    animation-iteration-count: 1;
+    transition-duration: 0.01ms;
+    transition-delay: 0s;
+  }
+
+  /* filter-menu.css */
+  .rss-dashboard-multi-filter-btn,
+  .rss-dashboard-filter-logic-btn,
+  .rss-dashboard-filter-menu-item,
+  .rss-dashboard-filter-apply-btn {
+    transition-duration: 0.01ms;
+    transition-delay: 0s;
+  }
+
+  /* pagination.css */
+  .rss-dashboard-pagination-btn,
+  .rss-dashboard-page-size-dropdown {
+    transition-duration: 0.01ms;
+    transition-delay: 0s;
+  }
+
+  /* discover.css */
+  .rss-discover-card,
+  .rss-discover-card-add-btn,
+  .rss-discover-card-preview-btn,
+  body .rss-discover-card-remove-btn {
+    transition-duration: 0.01ms;
+    transition-delay: 0s;
+  }
+
+  .rss-discover-loading svg,
+  .rss-discover-error svg {
+    animation-duration: 3s;
+    animation-delay: 0s;
+    animation-iteration-count: infinite;
+    transition-duration: 0.01ms;
+    transition-delay: 0s;
+  }
+
+  /* discover-sidebar.css */
+  .rss-discover-header-nav-button,
+  .rss-discover-search-input-wrapper .rss-discover-search-clear {
+    transition-duration: 0.01ms;
+    transition-delay: 0s;
+  }
+
+  /* discover-sidebar-filters.css */
+  .rss-discover-add-all-btn,
+  .rss-discover-selected-filter,
+  .rss-discover-selected-filter-remove,
+  .rss-discover-mobile-filters-button,
+  .rss-discover-btn-base,
+  .rss-clear-filter-button,
+  .rss-discover-ok-button {
+    transition-duration: 0.01ms;
+    transition-delay: 0s;
+  }
+
+  .rss-discover-add-all-spinner {
+    animation-duration: 3s;
+    animation-delay: 0s;
+    animation-iteration-count: infinite;
+    transition-duration: 0.01ms;
+    transition-delay: 0s;
+  }
+
+  /* discover-sidebar-nav.css */
+  .rss-discover-sidebar-nav button {
+    transition-duration: 0.01ms;
+    transition-delay: 0s;
+  }
+
+  /* feed-preview-modal.css */
+  .feed-preview-article-card {
+    transition-duration: 0.01ms;
+    transition-delay: 0s;
+  }
+
+  /* kagi-smallweb.css */
+  .rss-smallweb-refresh-btn,
+  body .rss-smallweb-following-btn {
+    transition-duration: 0.01ms;
+    transition-delay: 0s;
+  }
+
+  .rss-smallweb-skeleton {
+    animation-duration: 0.01ms;
+    animation-delay: 0s;
+    animation-iteration-count: 1;
+    transition-duration: 0.01ms;
+    transition-delay: 0s;
+  }
+
+  /* folder-selector-popup.css */
+  body .rss-folder-selector-input,
+  .rss-folder-selector-item,
+  .rss-folder-selector-clear {
+    transition-duration: 0.01ms;
+    transition-delay: 0s;
+  }
+
+  .rss-folder-selector-popup,
+  .rss-folder-selector-popup-above,
+  .rss-folder-selector-input-invalid {
+    animation-duration: 0.01ms;
+    animation-delay: 0s;
+    animation-iteration-count: 1;
+    transition-duration: 0.01ms;
+    transition-delay: 0s;
+  }
+
+  /* podcast-player.css */
+  .podcast-cover,
+  .rss-rewind,
+  .rss-forward,
+  .rss-play-pause,
+  .rss-shuffle-btn,
+  .rss-repeat-btn,
+  .rss-volume,
+  .rss-sleep-timer-btn,
+  .podcast-progress-bar-filled,
+  .podcast-episode-details > summary,
+  .podcast-episode-details > summary::before,
+  .episode-list-sort,
+  .rss-reader-podcast-container .episode-list-row {
+    transition-duration: 0.01ms;
+    transition-delay: 0s;
+  }
+
+  /* podcast-themes.css */
+  [data-podcast-theme="gradient"],
+  .rss-reader-podcast-container[data-podcast-theme="gradient"],
+  .rss-reader-podcast-container[data-podcast-theme="gradient"]
+    .podcast-episode-list-section,
+  [data-podcast-theme="gradient"].podcast-episode-list-section {
+    animation-duration: 0.01ms;
+    animation-delay: 0s;
+    animation-iteration-count: 1;
+    transition-duration: 0.01ms;
+    transition-delay: 0s;
+  }
+
+  /* settings.css */
+  .rss-dashboard-settings-tab-btn,
+  .rss-dashboard-template-btn {
+    transition-duration: 0.01ms;
+    transition-delay: 0s;
+  }
+
+  /* settings-about-support.css */
+  .rss-dashboard-about-btn,
+  .rss-dashboard-support-btn,
+  .rss-dashboard-support-readme a {
+    transition-duration: 0.01ms;
+    transition-delay: 0s;
+  }
+
+  /* settings-keyword-filters.css */
+  .rss-dashboard-filters-inline .rss-dashboard-filter-item,
+  .rss-dashboard-filters-vertical .rss-dashboard-filter-item {
+    transition-duration: 0.01ms;
+    transition-delay: 0s;
+  }
+
+  /* feed-view.css */
+  .rss-dashboard-feed-item,
+  .rss-dashboard-feed-hero-image,
+  .rss-dashboard-feed-section-header,
+  .rss-dashboard-feed-section-toggle {
+    transition-duration: 0.01ms;
+    transition-delay: 0s;
+  }
+}
