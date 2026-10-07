@@ -157,7 +157,7 @@ async function makeView(settings: RssDashboardSettings) {
 }
 
 function lastContext(): CustomSaveModalContext {
-  const context = modalOpens.contexts.at(-1);
+  const context = modalOpens.contexts[modalOpens.contexts.length - 1];
   if (!context) throw new Error("The custom save dialog was not opened");
   return context as CustomSaveModalContext;
 }
