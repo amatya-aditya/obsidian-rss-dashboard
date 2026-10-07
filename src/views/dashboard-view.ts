@@ -583,11 +583,13 @@ export class RssDashboardView extends ItemView {
   }
 
   /**
-   * Action: Mark article read/unread and advance to next article.
+   * Action: Mark article read (never unread) and advance to next article.
    * @internal
    */
   public async actionMarkReadAndNext(): Promise<void> {
-    await this.actionToggleReadStatus();
+    if (this.selectedArticle && !this.selectedArticle.read) {
+      await this.actionToggleReadStatus();
+    }
     this.actionNavigateNext({ open: true });
   }
 
