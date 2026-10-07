@@ -56,6 +56,8 @@ import {
 } from "../utils/filter-title-format";
 import { computePagination } from "../utils/pagination-utils";
 import { removeFolderByPath } from "../utils/folder-tree";
+import { createIconButton } from "../utils/icon-button";
+import { attachRovingToolbar } from "../utils/roving-toolbar";
 import { toggleFeedInMultiSelection } from "../utils/feed-multi-select";
 import { applyAutomaticArticleTags } from "../utils/tag-utils";
 import { resolveItemExternalUrl } from "../utils/item-url-utils";
@@ -3891,79 +3893,83 @@ export class RssDashboardView extends ItemView {
     });
 
     if (this.inlineArticle) {
-      const actions = header.createDiv({ cls: "rss-reader-actions" });
+      const actions = header.createDiv({
+        cls: "rss-reader-actions",
+        attr: { role: "toolbar", "aria-label": "Reader actions" },
+      });
+      const region = "inline-reader-toolbar";
 
-      const saveButton = actions.createDiv({
+      createIconButton({
+        parent: actions,
         cls: `rss-reader-action-button${this.inlineArticle.saved ? " saved" : ""}`,
-        attr: { "aria-label": "Save article" },
-      });
-      setIcon(saveButton, "save");
-      saveButton.addEventListener("click", () => {
-        if (this.inlineArticle) {
-          void this.handleArticleSave(this.inlineArticle);
-        }
-      });
-
-      const readToggleButton = actions.createDiv({
-        cls: `rss-reader-action-button rss-reader-read-toggle${this.inlineArticle.read ? " read" : ""}`,
-        attr: { "aria-label": "Mark as read/unread" },
-      });
-      setIcon(
-        readToggleButton,
-        this.inlineArticle.read ? "check-circle" : "circle",
-      );
-      readToggleButton.addEventListener("click", () => {
-        if (this.inlineArticle) {
-          void this.handleArticleUpdate(
-            this.inlineArticle,
-            { read: !this.inlineArticle.read },
-            true,
-          );
-        }
-      });
-
-      const starToggleButton = actions.createDiv({
-        cls: `rss-reader-action-button rss-reader-star-toggle${this.inlineArticle.starred ? " starred" : ""}`,
-        attr: {
-          role: "button",
-          tabindex: "0",
-          "aria-label": "Star/unstar article",
-          "aria-pressed": String(this.inlineArticle.starred),
+        label: "Save article",
+        icon: "save",
+        action: "save",
+        region,
+        onClick: () => {
+          if (this.inlineArticle) {
+            void this.handleArticleSave(this.inlineArticle);
+          }
         },
       });
-      setIcon(
-        starToggleButton,
-        this.inlineArticle.starred ? "star" : "star-off",
-      );
-      starToggleButton.addEventListener("click", () => {
-        if (this.inlineArticle) {
-          void this.handleArticleUpdate(
-            this.inlineArticle,
-            { starred: !this.inlineArticle.starred },
-            true,
-          );
-        }
-      });
-      starToggleButton.addEventListener("keydown", (e: KeyboardEvent) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          starToggleButton.click();
-        }
+
+      createIconButton({
+        parent: actions,
+        cls: `rss-reader-action-button rss-reader-read-toggle${this.inlineArticle.read ? " read" : ""}`,
+        label: "Mark as read/unread",
+        icon: this.inlineArticle.read ? "check-circle" : "circle",
+        action: "read",
+        region,
+        onClick: () => {
+          if (this.inlineArticle) {
+            void this.handleArticleUpdate(
+              this.inlineArticle,
+              { read: !this.inlineArticle.read },
+              true,
+            );
+          }
+        },
       });
 
-      const browserButton = actions.createDiv({
-        cls: "rss-reader-action-button",
-        attr: { "aria-label": "Open in browser" },
-      });
-      setIcon(browserButton, "external-link");
-      browserButton.addEventListener("click", () => {
-        if (this.inlineArticle) {
-          const url = resolveItemExternalUrl(this.inlineArticle);
-          if (url) {
-            activeWindow.open(url, "_blank");
+      createIconButton({
+        parent: actions,
+        cls: `rss-reader-action-button rss-reader-star-toggle${this.inlineArticle.starred ? " starred" : ""}`,
+        label: "Star/unstar article",
+        icon: this.inlineArticle.starred ? "star" : "star-off",
+        action: "star",
+        region,
+        pressed: this.inlineArticle.starred,
+        onClick: () => {
+          if (this.inlineArticle) {
+            void this.handleArticleUpdate(
+              this.inlineArticle,
+              { starred: !this.inlineArticle.starred },
+              true,
+            );
           }
-        }
+        },
       });
+
+      createIconButton({
+        parent: actions,
+        cls: "rss-reader-action-button",
+        label: "Open in browser",
+        icon: "external-link",
+        action: "open",
+        region,
+        onClick: () => {
+          if (this.inlineArticle) {
+            const url = resolveItemExternalUrl(this.inlineArticle);
+            if (url) {
+              activeWindow.open(url, "_blank");
+            }
+          }
+        },
+      });
+
+      // The whole inline Reader is rebuilt on every state change, so the
+      // toolbar is discarded with it; nothing outlives the render to clean up.
+      attachRovingToolbar(actions);
     }
 
     const body = container.createDiv({

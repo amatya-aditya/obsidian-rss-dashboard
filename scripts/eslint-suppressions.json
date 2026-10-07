@@ -261,10 +261,5 @@
     "max-lines-per-function": {
       "count": 1
     }
-  },
-  "src/views/reader-view.ts": {
-    "max-lines-per-function": {
-      "count": 1
-    }
   }
 }

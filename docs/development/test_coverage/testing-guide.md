@@ -130,3 +130,22 @@ The version status bar item (Display setting "Show version in status bar") has
 Clicking it runs `open-dashboard` behavior: it reveals the open dashboard
 rather than adding another. The item is not a tab stop; the keyboard route to
 the same action is the `open-dashboard` command.
+
+## 10. Icon buttons and the Reader toolbar
+
+Icon-only controls are built with `createIconButton()` in
+`src/utils/icon-button.ts`: a native `<button type="button">` with a required
+accessible name (`label`) and optional `aria-pressed`, `aria-expanded`, and
+`aria-haspopup`. It is the only code that writes the `data-rss-action` and
+`data-rss-region` hooks. Tests and agents should find a control by role and
+name first; use a hook only to tell apart controls that share a name.
+
+The Reader toolbar (`role="toolbar"`, name `Reader actions`, region
+`reader-toolbar`) and the dashboard's inline reader toolbar (region
+`inline-reader-toolbar`) are one Tab stop each (`attachRovingToolbar` in
+`src/utils/roving-toolbar.ts`): Left and Right Arrow, Home, and End move
+between the buttons, and Tab leaves the toolbar. Actions: `save`, `read`,
+`star`, `tags`, `format`, `open` (the inline toolbar has no `tags` or
+`format`). The accessible names of `read`, `star`, and `save` change with the
+article's state, because the view writes its tooltips to `aria-label`; look
+those up by `data-rss-action`.
