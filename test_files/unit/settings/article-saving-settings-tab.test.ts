@@ -79,7 +79,7 @@ beforeEach(() => {
 });
 
 describe("renderArticleSavingSettingsTab()", () => {
-  it("clarifies indentation for the default template and restores it after reset", async () => {
+  it("explains the default frontmatter template and restores it after reset", async () => {
     const containerEl = createDiv();
     const plugin = createPlugin({
       defaultTemplate: DEFAULT_SETTINGS.articleSaving.defaultTemplate,
@@ -94,16 +94,22 @@ describe("renderArticleSavingSettingsTab()", () => {
     const description = templateSetting.querySelector(
       ".setting-item-description",
     );
-    const expectedDefaultHint =
-      "The prefilled template is ready to use: its frontmatter properties already have the required indentation.";
-    const frontmatterProperties = DEFAULT_SETTINGS.articleSaving.defaultTemplate
-      .split("\n")
-      .slice(1, 10);
+    const expectedDefaultHint = "The prefilled template is ready to use.";
+    const defaultFrontmatterProperties = [
+      ...DEFAULT_SETTINGS.articleSaving.defaultTemplate
+        .split("\n")
+        .slice(1, 10),
+      ...DEFAULT_SETTINGS.articleSaving.frontmatterTemplate
+        .split("\n")
+        .slice(1, 10),
+    ];
 
     expect(description?.textContent).toBe(expectedDefaultHint);
-    expect(frontmatterProperties).toHaveLength(9);
+    expect(defaultFrontmatterProperties).toHaveLength(18);
     expect(
-      frontmatterProperties.every((property) => /^ [A-Za-z]+:/.test(property)),
+      defaultFrontmatterProperties.every((property) =>
+        /^[A-Za-z]+:/.test(property),
+      ),
     ).toBe(true);
 
     const textarea = containerEl.querySelector(
@@ -114,7 +120,7 @@ describe("renderArticleSavingSettingsTab()", () => {
     await flushPromises();
 
     expect(description?.textContent).toBe(
-      "Template for saved articles. All frontmatter properties must start with a single space indent.",
+      "Template for saved articles. Frontmatter properties can start at the beginning of each line.",
     );
 
     const resetBtn = Array.from(containerEl.querySelectorAll("button")).find(

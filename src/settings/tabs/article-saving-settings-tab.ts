@@ -28,10 +28,9 @@ export interface ArticleSavingPluginLike {
   saveSettings: () => Promise<void>;
 }
 
-const defaultTemplateHint =
-  "The prefilled template is ready to use: its frontmatter properties already have the required indentation.";
+const defaultTemplateHint = "The prefilled template is ready to use.";
 const customTemplateHint =
-  "Template for saved articles. All frontmatter properties must start with a single space indent.";
+  "Template for saved articles. Frontmatter properties can start at the beginning of each line.";
 
 function getArticleTemplateHint(template: string): string {
   return template === DEFAULT_SETTINGS.articleSaving.defaultTemplate

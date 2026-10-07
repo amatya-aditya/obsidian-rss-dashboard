@@ -350,15 +350,15 @@ export class ArticleSaver {
 
     if (!frontmatter) {
       frontmatter = `---
-        title: "{{title}}"
-        date: "{{date}}"
-        tags: [{{tags}}]
-        source: "{{source}}"
-        link: "{{link}}"
-        author: "{{author}}"
-        feedTitle: "{{feedTitle}}"
-        guid: "{{guid}}"
-        ---`;
+title: "{{title}}"
+date: "{{date}}"
+tags: [{{tags}}]
+source: "{{source}}"
+link: "{{link}}"
+author: "{{author}}"
+feedTitle: "{{feedTitle}}"
+guid: "{{guid}}"
+---`;
     }
 
     frontmatter = renderArticleTemplate(

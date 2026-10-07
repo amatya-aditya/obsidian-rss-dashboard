@@ -424,7 +424,7 @@ describe("ArticleSaver frontmatter template", () => {
     expect(noAuthor).toBe('---\na: ""\n---\nBODY');
   });
 
-  it("uses the built-in frontmatter template, indented, when none is set", async () => {
+  it("uses the built-in frontmatter template without indentation when none is set", async () => {
     const note = await saveWithArticleSaver(
       createItem(),
       { includeFrontmatter: true },
@@ -435,15 +435,15 @@ describe("ArticleSaver frontmatter template", () => {
     expect(note).toBe(
       [
         "---",
-        '        title: "Say \\"hi\\""',
-        `        date: "${longDate(PUB)}"`,
-        "        tags: [News]",
-        '        source: "Feed"',
-        '        link: "https://example.com/a"',
-        '        author: "Ann"',
-        '        feedTitle: "Feed"',
-        '        guid: "g-1"',
-        "        ---",
+        'title: "Say \\"hi\\""',
+        `date: "${longDate(PUB)}"`,
+        "tags: [News]",
+        'source: "Feed"',
+        'link: "https://example.com/a"',
+        'author: "Ann"',
+        'feedTitle: "Feed"',
+        'guid: "g-1"',
+        "---",
         "BODY",
       ].join("\n"),
     );
