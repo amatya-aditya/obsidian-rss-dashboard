@@ -224,7 +224,7 @@ describe("Dashboard sidebar hotkeys act only while the sidebar has keyboard focu
 
   it("ignores Shift+D after an article key hands the keyboard back to the dashboard", () => {
     focusFeed1();
-    press("j");
+    press(" "); // Space selects without opening, so the mocked workspace needs no leaf
     press("D", true);
 
     expect(confirmModals()).toHaveLength(0);
@@ -249,7 +249,7 @@ describe("Dashboard sidebar hotkeys act only while the sidebar has keyboard focu
 
   it("ignores Shift+O and Shift+Enter once focus is back on the dashboard", () => {
     focusFeed1();
-    press("j");
+    press(" ");
     press("O", true);
     press("Enter", true);
 
@@ -260,7 +260,7 @@ describe("Dashboard sidebar hotkeys act only while the sidebar has keyboard focu
   it("ignores Shift+X once focus is back on the dashboard", () => {
     press("S", true);
     press("L", true);
-    press("j");
+    press(" ");
     press("X", true);
 
     expect(callbacks.onToggleFolderCollapse).not.toHaveBeenCalled();
@@ -283,7 +283,7 @@ describe("Dashboard sidebar hotkeys act only while the sidebar has keyboard focu
 
   it("resumes at the remembered row when Shift+S focuses the sidebar again", () => {
     focusFeed1();
-    press("j");
+    press(" ");
     press("S", true);
     press("D", true);
 
