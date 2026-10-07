@@ -58,7 +58,7 @@ Resolved so the implementer does not have to re-ask:
 
 1. Status bar content: the build label shipped in #816 (version, build id, build time). No counts; they add update cost and duplicate the diagnostics command. _Revised: was version only._
 2. Status bar default: off for users, with a "Show version in status bar" setting; the fixture vault's `data.json` enables it. _Shipped in #816._
-3. Diagnostics command: ship to everyone, no developer gate. Output is redacted: counts, ids, view and filter state, setting names/values that are non-sensitive; never feed URLs, tokens, or note content. Delivered to the clipboard plus a Notice.
+3. _Deferred 2026-10-07 (not planned for now; too close to the diagnostics collection Obsidian's developer policies restrict; revisit only after checking those policies)._ Original decision: diagnostics command shipped to everyone, no developer gate. Output is redacted: counts, ids, view and filter state, setting names/values that are non-sensitive; never feed URLs, tokens, or note content. Delivered to the clipboard plus a Notice.
 4. Hotkeys on new commands: none by default (collisions with user bindings). Document suggested bindings only.
 5. Arrow-key toolbars on mobile: no mobile-specific work. Roving tabindex degrades to normal tap/Tab behavior; verify it does not break touch.
 6. Playwright/CDP package, axe-core, lint rule: out of scope here (see Out of scope).
