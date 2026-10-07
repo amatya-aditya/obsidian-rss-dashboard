@@ -20,6 +20,7 @@
 
 ### Fixes
 
+- Scheduled and startup refreshes no longer interrupt screen reader users: they announce nothing unless they found new articles or feed errors, and then only once when they finish. A refresh you start yourself is still announced when it starts and finishes. The "Feeds refreshed" notice now counts failed feeds the same way the announcement does, including feeds that answered with an error, so both report the same number. [GH Issue #855](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/855)
 - Saved-note metadata is now validated without scanning note files. Startup, feed refresh, dashboard rendering, and Reader display no longer check for missing notes; explicitly opening a missing saved note clears its Saved state, while lookup or opening errors preserve it. [GH Issue #820](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/820)
 - Renaming a saved note or moving it with its folder now updates the article's saved path, keeps the Saved state and tags, refreshes open Readers, and persists the change even when no dashboard is open. [GH Issue #819](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/819)
 - Deleting a saved note now clears its Saved state, path, and tag across open dashboard and Reader views and persists the change, even when no dashboard is open. [GH Issue #818](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/818)

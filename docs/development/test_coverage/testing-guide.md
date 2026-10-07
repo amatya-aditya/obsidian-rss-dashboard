@@ -170,8 +170,10 @@ One message per event, never per feed:
 | User stops a global run | `Refresh stopped.`                                                    |
 | Run throws outright     | `Refresh failed: <message>`                                           |
 
-A background refresh of due feeds (intent `due`) is quiet: no start message,
-and a finish message only when it found articles or errors. To assert in a
+A background refresh of due feeds (intent `due`) and the interval scheduler's
+global refresh (intent `scheduled`, also the startup refresh) are quiet: no
+start message, and a finish message only when it found articles or errors. A
+manual global refresh (intent `global`) is fully announced. To assert in a
 test, read the region's text, or observe it with a `MutationObserver` to count
 announcements (see `test_files/unit/main/refresh-announcements.test.ts`).
 
