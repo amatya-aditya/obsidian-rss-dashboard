@@ -20,7 +20,10 @@ import {
   trackReaderMathSelection,
 } from "../utils/math-copy";
 import { sanitizeAndAppendHtml } from "../utils/safe-html";
-import { type FullArticleFetchFailureType } from "../utils/fetch-helpers";
+import {
+  type FullArticleFetchFailureType,
+  type FullArticleFetchResult,
+} from "../utils/fetch-helpers";
 import { type RawArticleMetadata } from "../utils/article-metadata";
 import {
   applyArticleMetadata,
@@ -159,7 +162,6 @@ export class ReaderView extends ItemView {
   private returnLeaf: WorkspaceLeaf | null = null;
   private tagsDropdownCleanup: (() => void) | null = null;
   private currentFullContentFailureType: FullArticleFetchFailureType = "none";
-  private currentPageMetadata?: RawArticleMetadata;
   private lastRestrictedNoticeGuid: string | null = null;
 
   private readerFormatPortal: { close: (flushSave: boolean) => void } | null =
@@ -1290,9 +1292,10 @@ export class ReaderView extends ItemView {
     } else {
       const skipFullArticleFetch = this.shouldSkipFullArticleFetch(item);
       this.currentFullContentFetchAttempted = !skipFullArticleFetch;
-      const fetchedContent = skipFullArticleFetch
-        ? ""
+      const fetchResult = skipFullArticleFetch
+        ? undefined
         : await this.fetchFullArticleContent(item.link);
+      const fetchedContent = fetchResult?.content ?? "";
       this.currentFetchedArticleContent = fetchedContent.trim()
         ? fetchedContent
         : undefined;
@@ -1300,7 +1303,11 @@ export class ReaderView extends ItemView {
 
       if (hasFullArticleContent) {
         item.restrictedReason = undefined;
-        this.persistFetchedMetadata(item, fetchedContent);
+        this.persistFetchedMetadata(
+          item,
+          fetchedContent,
+          fetchResult?.pageMetadata,
+        );
       } else if (this.lastFullArticleFetchWasRestricted()) {
         item.restrictedReason = RESTRICTED_ARTICLE_REASON;
         // Toast notification removed for paywalled/restricted articles.
@@ -2088,10 +2095,12 @@ export class ReaderView extends ItemView {
     return true;
   }
 
-  private async fetchFullArticleContent(url: string): Promise<string> {
+  private async fetchFullArticleContent(
+    url: string,
+  ): Promise<FullArticleFetchResult> {
     if (!url) {
       this.currentFullContentFailureType = "none";
-      return "";
+      return { content: "", failureType: "none" };
     }
 
     const proxyUrl =
@@ -2100,15 +2109,18 @@ export class ReaderView extends ItemView {
         : undefined;
     const result = await fetchFullArticleContentWithOutcome(url, proxyUrl);
     this.currentFullContentFailureType = result.failureType;
-    this.currentPageMetadata = result.pageMetadata;
-    return result.content;
+    return result;
   }
 
   /** Writes the fetched page's resolved metadata once (#247 slice 4). */
-  private persistFetchedMetadata(item: FeedItem, articleHtml: string): void {
+  private persistFetchedMetadata(
+    item: FeedItem,
+    articleHtml: string,
+    pageMetadata: RawArticleMetadata | undefined,
+  ): void {
     const update = applyArticleMetadata(
       item,
-      this.currentPageMetadata,
+      pageMetadata,
       articleHtml,
       undefined,
       feedLanguageFor(this.settings.feeds, item),

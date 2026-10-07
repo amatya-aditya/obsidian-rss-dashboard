@@ -89,7 +89,7 @@ describe("ReaderView hero image ignores feed icon", () => {
 
     getInternals(readerView).fetchFullArticleContent = vi
       .fn()
-      .mockResolvedValue("");
+      .mockResolvedValue({ content: "", failureType: "none" });
     await readerView.displayItem(item);
 
     const container = getInternals(readerView).readingContainer;

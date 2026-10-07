@@ -108,6 +108,7 @@
 - Fixed the dashboard staying on a folder's old path after the folder was moved by dropping it on another folder's feed list or with **Move selection to folder**. The article list kept the old name and, after the next redraw, showed no articles. It now follows the folder to its new location, as dragging a folder onto a folder name already did. [GH Issue #611](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/611)
 - Fixed the **Edit tag**, **Add new tag**, **Save article**, **Save with template**, and **Overwrite all feeds** dialogs not closing with Escape and letting clicks reach the app behind them, so repeated clicks could open several copies. They now close with Escape without saving and block the app behind them. [GH Issue #355](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/355)
 - Fixed sidebar `tag:` searches to show matching tag-name prefixes and the feeds carrying them, accept an optional `#`, and temporarily reveal collapsed tags and ancestor folders. Search results keep keyboard focus and announce matches or no results, counting matching feeds even when sidebar settings hide them. [GH Issue #708](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/708)
+- Fixed overlapping article loads saving another article’s description, language, authors, or canonical URL in the Reader and dashboard article view. [GH Issue #799](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/799)
 
 ### Developer
 
