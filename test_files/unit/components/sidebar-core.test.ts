@@ -74,6 +74,9 @@ type TestSidebar = {
   jumpToPreviousFolder: () => void;
   deleteFocusedItem: () => void;
   openFocusedItem: () => void;
+  toggleFocusedFolderCollapse: () => void;
+  renameFocusedItem: () => void;
+  blurSidebarFocus: () => void;
   focusedSidebarTarget: { type: string; path?: string; url?: string } | null;
 };
 
@@ -688,6 +691,104 @@ describe("Sidebar Core", () => {
 
         expect(callbacks.onDeleteFeed).toHaveBeenCalledTimes(1);
         expect(callbacks.onDeleteFeed).toHaveBeenCalledWith(settings.feeds[0]);
+      });
+    });
+
+    describe("keyboard actions after the sidebar loses keyboard focus", () => {
+      afterEach(() => {
+        document.body.empty();
+      });
+
+      // Focus a row (All feeds -> Folder 1 -> Feed 1), then hand the
+      // keyboard back to the dashboard the way a click outside does.
+      const renderBlurredAfter = (moves: number) => {
+        const sidebar = new Sidebar(
+          app,
+          container,
+          plugin as unknown as RssDashboardPlugin,
+          settings,
+          options,
+          callbacks,
+        );
+        sidebar.render();
+        const ts = sidebar as unknown as TestSidebar;
+        ts.focusSidebar();
+        for (let i = 0; i < moves; i++) ts.moveFocusToNextItem();
+        ts.blurSidebarFocus();
+        return ts;
+      };
+
+      const openModals = () =>
+        document.body.querySelectorAll(
+          ".rss-sidebar-confirm-modal, .rss-folder-name-modal",
+        );
+
+      it("does not open a delete confirmation for the remembered row", () => {
+        renderBlurredAfter(2).deleteFocusedItem();
+
+        expect(openModals()).toHaveLength(0);
+      });
+
+      it("does not open or rename the remembered row", () => {
+        const ts = renderBlurredAfter(1);
+        expect(ts.focusedSidebarTarget).toEqual({
+          type: "folder",
+          path: "Folder 1",
+        });
+
+        ts.openFocusedItem();
+        ts.renameFocusedItem();
+
+        expect(callbacks.onFolderClick).not.toHaveBeenCalled();
+        expect(callbacks.onFeedClick).not.toHaveBeenCalled();
+        expect(openModals()).toHaveLength(0);
+      });
+
+      it("does not toggle the remembered folder", () => {
+        const ts = renderBlurredAfter(1);
+
+        ts.toggleFocusedFolderCollapse();
+
+        expect(callbacks.onToggleFolderCollapse).not.toHaveBeenCalled();
+      });
+
+      it("keeps the remembered row so focusing again resumes there", () => {
+        const ts = renderBlurredAfter(2);
+        expect(ts.focusedSidebarTarget).toEqual({
+          type: "feed",
+          url: "https://example.com/feed-1.xml",
+        });
+
+        ts.focusSidebar();
+        ts.deleteFocusedItem();
+
+        expect(openModals()).toHaveLength(1);
+        expect(openModals()[0]?.textContent).toContain("Feed 1");
+      });
+
+      it("renames and toggles the focused folder while the sidebar has focus", () => {
+        const sidebar = new Sidebar(
+          app,
+          container,
+          plugin as unknown as RssDashboardPlugin,
+          settings,
+          options,
+          callbacks,
+        );
+        sidebar.render();
+        const ts = sidebar as unknown as TestSidebar;
+        ts.focusSidebar();
+        ts.moveFocusToNextItem();
+
+        ts.toggleFocusedFolderCollapse();
+        expect(callbacks.onToggleFolderCollapse).toHaveBeenCalledWith(
+          "Folder 1",
+        );
+
+        ts.renameFocusedItem();
+        expect(
+          document.body.querySelectorAll(".rss-folder-name-modal"),
+        ).toHaveLength(1);
       });
     });
 
