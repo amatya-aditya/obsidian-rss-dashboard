@@ -15,10 +15,7 @@ import {
 import { ensureUtf8Meta } from "../utils/platform-utils";
 import { withSavedTagName } from "../utils/tag-utils";
 import { isLikelyVideoItem } from "../utils/video-detection";
-import {
-  htmlToReadableText,
-  stripNonContentHtmlNodes,
-} from "../utils/html-text";
+import { stripNonContentHtmlNodes } from "../utils/html-text";
 import { normalizeSubstackImageUrl } from "../utils/substack-image-url";
 import { resolveDisplayDate } from "./feed-parser/feed-retention";
 import {
@@ -47,6 +44,8 @@ import { ensureVaultFolder } from "../utils/vault-files";
 import { ONE_SAVE_OVERRIDE_TEMPLATE_ID } from "../utils/saved-template-utils";
 
 const MAX_FILENAME_LENGTH = 100;
+const RSS_FALLBACK_MARKER =
+  "> RSS feed content shown because the full article could not be fetched.";
 
 export function sanitizeFilename(name: string): string {
   return sanitizeFilenameStem(name) || "Untitled Article";
@@ -188,32 +187,6 @@ export class ArticleSaver {
 
   private getPreferredFeedHtml(item: FeedItem): string {
     return item.content || item.description || item.summary || "";
-  }
-
-  private shouldPreferFeedHtml(item: FeedItem, feedHtml: string): boolean {
-    if (!feedHtml) return false;
-
-    if (item.link) {
-      try {
-        const host = new URL(item.link).hostname.toLowerCase();
-        if (host === "substack.com" || host.endsWith(".substack.com")) {
-          return true;
-        }
-      } catch {
-        // Fall through to markup-based detection.
-      }
-    }
-
-    const lower = feedHtml.toLowerCase();
-    return (
-      lower.includes('data-component-name="image2todom"') ||
-      lower.includes('class="image-link image2 is-viewable-img"') ||
-      lower.includes("substackcdn.com/image/fetch/")
-    );
-  }
-
-  private getReadableTextLength(html: string): number {
-    return htmlToReadableText(html).length;
   }
 
   private normalizeBlockLinksForMarkdown(html: string): string {
@@ -452,6 +425,91 @@ guid: "{{guid}}"
     return fetchFullArticleContentWithOutcome(url, this.corsProxyUrl);
   }
 
+  async saveArticleWithContentPolicy(
+    item: FeedItem,
+    customFolder?: string,
+    customTemplate?: string,
+    savedTemplate?: SavedTemplate,
+    readerContent?: {
+      fetchAttempted: boolean;
+      markdown?: string;
+      fetchedHtml?: string;
+    },
+  ): Promise<TFile | null> {
+    if (!this.settings.saveFullContent) {
+      return this.saveArticle(
+        item,
+        customFolder,
+        customTemplate,
+        undefined,
+        savedTemplate,
+      );
+    }
+
+    if (readerContent?.fetchAttempted) {
+      const markdown = readerContent.markdown?.trim()
+        ? readerContent.markdown
+        : readerContent.fetchedHtml
+          ? this.convertFetchedHtmlToMarkdown(item, readerContent.fetchedHtml)
+          : "";
+      if (markdown.trim()) {
+        return this.saveArticle(
+          item,
+          customFolder,
+          customTemplate,
+          markdown,
+          savedTemplate,
+        );
+      }
+      return this.saveWithRssFallback(
+        item,
+        customFolder,
+        customTemplate,
+        savedTemplate,
+      );
+    }
+
+    return this.saveArticleWithFullContent(
+      item,
+      customFolder,
+      customTemplate,
+      savedTemplate,
+    );
+  }
+
+  private async saveWithRssFallback(
+    item: FeedItem,
+    customFolder?: string,
+    customTemplate?: string,
+    savedTemplate?: SavedTemplate,
+  ): Promise<TFile | null> {
+    const feedContent = this.getPreferredFeedHtml(item);
+    const fallbackMarkdown = feedContent
+      ? this.htmlToMarkdown(feedContent)
+      : "";
+    const fallbackWithHero = fallbackMarkdown
+      ? this.prependFallbackHeroMarkdown(item, fallbackMarkdown, feedContent)
+      : "";
+    const markedFallback = fallbackWithHero.trim()
+      ? `${RSS_FALLBACK_MARKER}\n\n${fallbackWithHero}`
+      : undefined;
+    return this.saveArticle(
+      item,
+      customFolder,
+      customTemplate,
+      markedFallback,
+      savedTemplate,
+    );
+  }
+
+  private convertFetchedHtmlToMarkdown(item: FeedItem, html: string): string {
+    return this.prependFallbackHeroMarkdown(
+      item,
+      this.htmlToMarkdown(html),
+      html,
+    );
+  }
+
   async saveArticleWithFullContent(
     item: FeedItem,
     customFolder?: string,
@@ -472,7 +530,6 @@ guid: "{{guid}}"
       const loadingNotice = new Notice("Fetching full article content...", 0);
 
       const fetchResult = await this.fetchArticleContentWithOutcome(item.link);
-      const feedContent = this.getPreferredFeedHtml(item);
 
       if (!fetchResult.content) {
         loadingNotice.hide();
@@ -485,21 +542,27 @@ guid: "{{guid}}"
             "Could not fetch full content. Saving with available content.",
           );
         }
-        const fallbackMarkdown = feedContent
-          ? this.htmlToMarkdown(feedContent)
-          : undefined;
-        const fallbackWithHero = fallbackMarkdown
-          ? this.prependFallbackHeroMarkdown(
-              item,
-              fallbackMarkdown,
-              feedContent,
-            )
-          : undefined;
-        return await this.saveArticle(
+        return await this.saveWithRssFallback(
           item,
           customFolder,
           customTemplate,
-          fallbackWithHero,
+          savedTemplate,
+        );
+      }
+
+      const markdownContent = this.convertFetchedHtmlToMarkdown(
+        item,
+        fetchResult.content,
+      );
+      if (!markdownContent.trim()) {
+        loadingNotice.hide();
+        new Notice(
+          "Could not fetch full content. Saving with available content.",
+        );
+        return await this.saveWithRssFallback(
+          item,
+          customFolder,
+          customTemplate,
           savedTemplate,
         );
       }
@@ -512,18 +575,6 @@ guid: "{{guid}}"
         feedLanguageFor(this.getFeeds(), item),
       );
 
-      const fetchedTextLength = this.getReadableTextLength(fetchResult.content);
-      const feedTextLength = this.getReadableTextLength(feedContent);
-      const contentSource = this.shouldPreferFeedHtml(item, feedContent)
-        ? feedContent || fetchResult.content
-        : feedContent && feedTextLength > fetchedTextLength
-          ? feedContent
-          : fetchResult.content;
-      const markdownContent = this.prependFallbackHeroMarkdown(
-        item,
-        this.htmlToMarkdown(contentSource),
-        contentSource,
-      );
       loadingNotice.hide();
 
       return await this.saveArticle(

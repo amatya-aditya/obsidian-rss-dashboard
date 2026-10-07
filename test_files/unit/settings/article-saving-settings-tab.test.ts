@@ -181,6 +181,13 @@ describe("renderArticleSavingSettingsTab()", () => {
     const fullContentToggle = fullContentSetting.querySelector(
       'input[type="checkbox"]',
     ) as HTMLInputElement;
+    expect(fullContentSetting.textContent).toContain(
+      "Choose what {{content}} saves: the fetched article when on or RSS item content when off.",
+    );
+    expect(fullContentSetting.textContent).toContain(
+      "{{content}} controls placement in the template; {{summary}} keeps its existing output.",
+    );
+    expect(fullContentToggle.type).toBe("checkbox");
     fullContentToggle.checked = true;
     fullContentToggle.dispatchEvent(new Event("change"));
     await flushPromises();

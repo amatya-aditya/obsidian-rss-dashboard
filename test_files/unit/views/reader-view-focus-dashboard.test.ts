@@ -1,7 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { App, Scope, WorkspaceLeaf } from "obsidian";
 import { ReaderView } from "../../../src/views/reader-view";
-import { DEFAULT_SETTINGS } from "../../../src/types/types";
+import {
+  DEFAULT_SETTINGS,
+  type FeedItem,
+  type SavedTemplate,
+} from "../../../src/types/types";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 
 installObsidianDomPolyfills();
@@ -25,7 +29,7 @@ describe("ReaderView dashboard refocus", () => {
   });
 
   function createReaderView(dashboardLeaves: WorkspaceLeaf[]) {
-    const saveArticleSpy = vi.fn(async () => null);
+    const saveArticleSpy = vi.fn(async (..._args: unknown[]) => null);
     const findSavedArticleFileSpy = vi.fn();
     const articleUpdateSpy = vi.fn();
     const workspace = {
@@ -47,6 +51,20 @@ describe("ReaderView dashboard refocus", () => {
       { ...DEFAULT_SETTINGS, useWebViewer: false },
       {
         saveArticle: saveArticleSpy,
+        saveArticleWithContentPolicy: vi.fn(
+          (
+            item: FeedItem,
+            folder?: string,
+            template?: string,
+            savedTemplate?: SavedTemplate,
+            readerContent?: { markdown?: string },
+          ) => {
+            const markdown = readerContent?.markdown ?? item.description;
+            return savedTemplate
+              ? saveArticleSpy(item, folder, template, markdown, savedTemplate)
+              : saveArticleSpy(item, folder, template, markdown);
+          },
+        ),
         findSavedArticleFile: findSavedArticleFileSpy,
       } as never,
       vi.fn(),
@@ -316,7 +334,7 @@ describe("ReaderView dashboard refocus", () => {
       view as unknown as {
         currentContentIsFullArticle: boolean;
       }
-    ).currentContentIsFullArticle = false;
+    ).currentContentIsFullArticle = true;
 
     await view.actionSaveCurrentArticle();
 
@@ -379,7 +397,7 @@ describe("ReaderView dashboard refocus", () => {
       view as unknown as {
         currentContentIsFullArticle: boolean;
       }
-    ).currentContentIsFullArticle = false;
+    ).currentContentIsFullArticle = true;
 
     await view.actionSaveCurrentArticle();
 
@@ -452,7 +470,7 @@ describe("ReaderView dashboard refocus", () => {
       view as unknown as {
         currentContentIsFullArticle: boolean;
       }
-    ).currentContentIsFullArticle = false;
+    ).currentContentIsFullArticle = true;
 
     await view.actionSaveCurrentArticle();
 
@@ -551,7 +569,7 @@ describe("ReaderView dashboard refocus", () => {
       view as unknown as {
         currentContentIsFullArticle: boolean;
       }
-    ).currentContentIsFullArticle = false;
+    ).currentContentIsFullArticle = true;
 
     await view.actionSaveCurrentArticle();
 
@@ -615,7 +633,7 @@ describe("ReaderView dashboard refocus", () => {
       view as unknown as {
         currentContentIsFullArticle: boolean;
       }
-    ).currentContentIsFullArticle = false;
+    ).currentContentIsFullArticle = true;
 
     await view.actionSaveCurrentArticle();
 

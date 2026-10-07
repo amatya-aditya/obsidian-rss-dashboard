@@ -21,6 +21,7 @@
 
 ### Fixes
 
+- Dashboard and Reader saves now use the fetched article when **Save full content** is on, use RSS item content when it is off, and mark RSS fallback content after an unsuccessful fetch. [GH Issue #759](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/759)
 - Scheduled and startup refreshes no longer interrupt screen reader users: they announce nothing unless they found new articles or feed errors, and then only once when they finish. A refresh you start yourself is still announced when it starts and finishes. The "Feeds refreshed" notice now counts failed feeds the same way the announcement does, including feeds that answered with an error, so both report the same number. [GH Issue #855](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/855)
 - Fixed replacing Feed and Portable bundle imports losing exported article state after startup with a missing content shard. Imported read, starred, saved, tags, saved-note paths, and playback progress now survive persistence and reload. [GH Issue #853](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/853)
 

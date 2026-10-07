@@ -72,7 +72,7 @@ export function renderArticleSavingSettingsTab(
   new Setting(containerEl)
     .setName("Save full content")
     .setDesc(
-      "Fetch and save the full article content from the web (instead of just the RSS summary)",
+      "Choose what {{content}} saves: the fetched article when on or RSS item content when off. If fetching fails, available RSS content is marked as a fallback. {{content}} controls placement in the template; {{summary}} keeps its existing output.",
     )
     .addToggle((toggle) =>
       toggle

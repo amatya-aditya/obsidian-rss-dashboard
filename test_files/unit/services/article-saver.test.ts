@@ -1132,6 +1132,139 @@ describe("ArticleSaver - Math Rendering", () => {
 });
 
 describe("ArticleSaver.saveArticleWithFullContent", () => {
+  it("uses the fetched body instead of longer feed content when the setting is enabled", async () => {
+    const app = App.createMock();
+    const settings = createSettings({
+      defaultTemplate: "{{content}}",
+      includeFrontmatter: false,
+      saveFullContent: true,
+    });
+    const saver = new ArticleSaver(app, settings, "https://proxy/?url=");
+    vi.spyOn(
+      fetchHelpers,
+      "fetchWithProxyFallbackDetailed",
+    ).mockResolvedValueOnce({
+      content: "<p>Fetched article body.</p>",
+      failureType: "none",
+    });
+    const item = createItem({
+      content: `<p>${"Long RSS item content. ".repeat(20)}</p>`,
+    });
+
+    const file = await saver.saveArticleWithFullContent(item);
+
+    expect(file).toBeInstanceOf(TFile);
+    if (!(file instanceof TFile)) throw new Error("expected TFile");
+    const written = await app.vault.read(file);
+    expect(written).toContain("Fetched article body.");
+    expect(written).not.toContain("Long RSS item content.");
+  });
+
+  it("marks fallback content at each content placement without changing summary", async () => {
+    const app = App.createMock();
+    const settings = createSettings({
+      defaultTemplate: "{{summary}}\n{{content}}\n{{content}}",
+      includeFrontmatter: false,
+      saveFullContent: true,
+    });
+    const saver = new ArticleSaver(app, settings, "https://proxy/?url=");
+    vi.spyOn(
+      fetchHelpers,
+      "fetchWithProxyFallbackDetailed",
+    ).mockResolvedValueOnce({ content: "", failureType: "network" });
+    const item = createItem({
+      content: "<p>RSS item content.</p>",
+      summary: "Unchanged summary value",
+    });
+
+    const file = await saver.saveArticleWithFullContent(item);
+
+    expect(file).toBeInstanceOf(TFile);
+    if (!(file instanceof TFile)) throw new Error("expected TFile");
+    const written = await app.vault.read(file);
+    const marker =
+      "> RSS feed content shown because the full article could not be fetched.";
+    expect(
+      written.match(
+        /RSS feed content shown because the full article could not be fetched\./g,
+      ),
+    ).toHaveLength(2);
+    expect(written).toContain(`${marker}\n\nRSS item content.`);
+    expect(written).toContain("Unchanged summary value");
+  });
+
+  it("marks RSS content when fetched HTML contains no usable Markdown", async () => {
+    const app = App.createMock();
+    const settings = createSettings({
+      defaultTemplate: "{{content}}",
+      includeFrontmatter: false,
+      saveFullContent: true,
+    });
+    const saver = new ArticleSaver(app, settings, "https://proxy/?url=");
+    vi.spyOn(
+      fetchHelpers,
+      "fetchWithProxyFallbackDetailed",
+    ).mockResolvedValueOnce({ content: "<p></p>", failureType: "none" });
+    const item = createItem({ content: "<p>RSS fallback body.</p>" });
+
+    const file = await saver.saveArticleWithFullContent(item);
+
+    expect(file).toBeInstanceOf(TFile);
+    if (!(file instanceof TFile)) throw new Error("expected TFile");
+    const written = await app.vault.read(file);
+    expect(written).toContain(
+      "> RSS feed content shown because the full article could not be fetched.\n\nRSS fallback body.",
+    );
+  });
+
+  it("does not add a fallback marker when fetched and RSS content are both empty", async () => {
+    const app = App.createMock();
+    const settings = createSettings({
+      defaultTemplate: "{{content}}",
+      includeFrontmatter: false,
+      saveFullContent: true,
+    });
+    const saver = new ArticleSaver(app, settings, "https://proxy/?url=");
+    vi.spyOn(
+      fetchHelpers,
+      "fetchWithProxyFallbackDetailed",
+    ).mockResolvedValueOnce({ content: "  \n <p></p> ", failureType: "none" });
+    const item = createItem({ content: "", description: "" });
+
+    const file = await saver.saveArticleWithFullContent(item);
+
+    expect(file).toBeInstanceOf(TFile);
+    if (!(file instanceof TFile)) throw new Error("expected TFile");
+    const written = await app.vault.read(file);
+    expect(written).not.toContain("RSS feed content shown");
+  });
+
+  it("keeps image-only fetched Markdown as usable content", async () => {
+    const app = App.createMock();
+    const settings = createSettings({
+      defaultTemplate: "{{content}}",
+      includeFrontmatter: false,
+      saveFullContent: true,
+    });
+    const saver = new ArticleSaver(app, settings, "https://proxy/?url=");
+    const imageUrl = "https://example.com/article-image.png";
+    vi.spyOn(
+      fetchHelpers,
+      "fetchWithProxyFallbackDetailed",
+    ).mockResolvedValueOnce({
+      content: `<p><img src="${imageUrl}" alt="Article image" /></p>`,
+      failureType: "none",
+    });
+
+    const file = await saver.saveArticleWithFullContent(createItem());
+
+    expect(file).toBeInstanceOf(TFile);
+    if (!(file instanceof TFile)) throw new Error("expected TFile");
+    const written = await app.vault.read(file);
+    expect(written).toContain(`![Article image](${imageUrl})`);
+    expect(written).not.toContain("RSS feed content shown");
+  });
+
   it("prepends enclosure image when chosen feed HTML has no inline image", async () => {
     const app = App.createMock();
     const settings = createSettings({
@@ -1309,7 +1442,7 @@ describe("ArticleSaver.saveArticleWithFullContent", () => {
     });
   });
 
-  it("unwraps image-only links without malformed markdown", async () => {
+  it("uses fetched content instead of Substack feed images after a successful fetch", async () => {
     const app = App.createMock();
     const settings = createSettings({
       defaultTemplate: "{{content}}",
@@ -1343,13 +1476,14 @@ describe("ArticleSaver.saveArticleWithFullContent", () => {
     if (!(file instanceof TFile)) throw new Error("expected TFile");
     const written = await app.vault.read(file);
 
-    expect(written).toContain(`![](${decodedImageUrl})`);
-    expect(written).not.toContain("Link to image");
-    expect(written).not.toContain("[\n\n![](");
-    expect(written).toContain("Body text.");
+    expect(written).toContain(
+      "Organizations are accumulating a type of debt that no one has been hired to pay down.",
+    );
+    expect(written).not.toContain(decodedImageUrl);
+    expect(written).not.toContain("Body text.");
   });
 
-  it("uses feed description as fallback feed content when item.content is empty", async () => {
+  it("uses fetched content instead of a longer feed description after a successful fetch", async () => {
     const app = App.createMock();
     const settings = createSettings({
       defaultTemplate: "{{content}}",
@@ -1381,6 +1515,9 @@ describe("ArticleSaver.saveArticleWithFullContent", () => {
     const written = await app.vault.read(file);
 
     expect(written).toContain(
+      "Organizations are accumulating a type of debt that no one has been hired to pay down.",
+    );
+    expect(written).not.toContain(
       "At Vercel, I was brought in to handle some of this debt, but not all of it.",
     );
     expect(written).not.toContain(
@@ -1442,12 +1579,12 @@ describe("ArticleSaver.saveArticleWithFullContent", () => {
       item,
       undefined,
       undefined,
-      "Feed body wins.",
+      "> RSS feed content shown because the full article could not be fetched.\n\nFeed body wins.",
       undefined,
     );
   });
 
-  it("uses richer feed content when fetched article content is only a short excerpt", async () => {
+  it("uses fetched content when it is shorter than RSS item content", async () => {
     const app = App.createMock();
     const settings = createSettings({
       defaultTemplate: "# {{title}}\n\n{{content}}\n\n[Source]({{link}})",
@@ -1476,10 +1613,11 @@ describe("ArticleSaver.saveArticleWithFullContent", () => {
     if (!(file instanceof TFile)) throw new Error("expected TFile");
     const written = await app.vault.read(file);
 
-    expect(written).toContain(
+    expect(written).toContain("Q+A with one of the Broadview Six.");
+    expect(written).not.toContain(
       "For the last seven months, Kat Abughazaleh was not allowed to go to Alaska.",
     );
-    expect(written).toContain(
+    expect(written).not.toContain(
       "The full interview continues from here with much more context.",
     );
     expect(written).not.toContain(".bh__table");
@@ -1488,7 +1626,7 @@ describe("ArticleSaver.saveArticleWithFullContent", () => {
     expect(written).not.toContain('xmlns="http://www.w3.org/1999/xhtml"');
   });
 
-  it("keeps embed links inline when saving beehiiv blockquote content", async () => {
+  it("uses fetched content instead of longer embedded feed content", async () => {
     const app = App.createMock();
     const settings = createSettings({
       defaultTemplate: "{{content}}",
@@ -1527,12 +1665,9 @@ describe("ArticleSaver.saveArticleWithFullContent", () => {
     if (!(file instanceof TFile)) throw new Error("expected TFile");
     const written = await app.vault.read(file);
 
-    expect(written).toContain(`[Instagram post](${instagramUrl})`);
-    expect(written).toContain(
-      `[— Marisa Kabas (@marisakabas.bsky.social) 9:25 PM - May 27, 2026](${blueskyUrl})`,
-    );
-    expect(written).not.toContain("[\n>");
-    expect(written).not.toContain("> ](");
+    expect(written).toContain("Short excerpt.");
+    expect(written).not.toContain(instagramUrl);
+    expect(written).not.toContain(blueskyUrl);
   });
 
   it("skips full-content fetch for Bloomberg video routes and saves available content", async () => {

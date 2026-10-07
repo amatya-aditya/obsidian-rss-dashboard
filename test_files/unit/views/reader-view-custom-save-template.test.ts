@@ -1,10 +1,11 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { type Mock, afterEach, describe, expect, it, vi } from "vitest";
 import { ReaderView } from "../../../src/views/reader-view";
 import {
   DEFAULT_SETTINGS,
   type Feed,
   type FeedItem,
   type RssDashboardSettings,
+  type SavedTemplate,
 } from "../../../src/types/types";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 
@@ -17,6 +18,27 @@ class MockLeaf {
 type ReaderViewInternals = {
   showCustomSaveModal(item: FeedItem): void;
 };
+
+function createReaderSaver(saveArticle: Mock<(...args: any[]) => unknown>) {
+  return {
+    saveArticle,
+    saveArticleWithContentPolicy: vi.fn(
+      (
+        item: FeedItem,
+        folder?: string,
+        template?: string,
+        savedTemplate?: SavedTemplate,
+        readerContent?: { markdown?: string },
+      ) => {
+        const markdown = readerContent?.markdown ?? item.description;
+        return savedTemplate
+          ? saveArticle(item, folder, template, markdown, savedTemplate)
+          : saveArticle(item, folder, template, markdown);
+      },
+    ),
+    getFilenamePreview: vi.fn(() => "Fixture article.md"),
+  };
+}
 
 function getInternals(view: ReaderView): ReaderViewInternals {
   return view as unknown as ReaderViewInternals;
@@ -81,10 +103,7 @@ describe("ReaderView custom-folder saved templates", () => {
     const readerView = new ReaderView(
       new MockLeaf({ workspace: {}, vault: {} }) as never,
       settings,
-      {
-        saveArticle: vi.fn(),
-        getFilenamePreview: vi.fn(() => "Fixture article.md"),
-      } as never,
+      createReaderSaver(vi.fn()) as never,
       vi.fn(),
       vi.fn(),
     );
@@ -117,10 +136,7 @@ describe("ReaderView custom-folder saved templates", () => {
     const readerView = new ReaderView(
       new MockLeaf({ workspace: {}, vault: {} }) as never,
       settings,
-      {
-        saveArticle: vi.fn(),
-        getFilenamePreview: vi.fn(() => "Fixture article.md"),
-      } as never,
+      createReaderSaver(vi.fn()) as never,
       vi.fn(),
       vi.fn(),
     );
@@ -163,10 +179,7 @@ describe("ReaderView custom-folder saved templates", () => {
     const readerView = new ReaderView(
       new MockLeaf(app) as never,
       settings,
-      {
-        saveArticle,
-        getFilenamePreview: vi.fn(() => "Fixture article.md"),
-      } as never,
+      createReaderSaver(saveArticle) as never,
       onArticleSave,
       vi.fn(),
     );
@@ -249,10 +262,7 @@ describe("ReaderView custom-folder saved templates", () => {
     const readerView = new ReaderView(
       new MockLeaf({ workspace: {}, vault: {} }) as never,
       settings,
-      {
-        saveArticle: vi.fn(),
-        getFilenamePreview: vi.fn(() => "Fixture article.md"),
-      } as never,
+      createReaderSaver(vi.fn()) as never,
       vi.fn(),
       vi.fn(),
     );
@@ -292,10 +302,7 @@ describe("ReaderView custom-folder saved templates", () => {
     const readerView = new ReaderView(
       new MockLeaf({ workspace: {}, vault: {} }) as never,
       settings,
-      {
-        saveArticle,
-        getFilenamePreview: vi.fn(() => "Fixture article.md"),
-      } as never,
+      createReaderSaver(saveArticle) as never,
       vi.fn(),
       vi.fn(),
     );
@@ -410,10 +417,7 @@ describe("ReaderView custom-folder saved templates", () => {
     const reloadedReader = new ReaderView(
       new MockLeaf({ workspace: {}, vault: {} }) as never,
       reloadedSettings,
-      {
-        saveArticle: vi.fn(),
-        getFilenamePreview: vi.fn(() => "Fixture article.md"),
-      } as never,
+      createReaderSaver(vi.fn()) as never,
       vi.fn(),
       vi.fn(),
     );

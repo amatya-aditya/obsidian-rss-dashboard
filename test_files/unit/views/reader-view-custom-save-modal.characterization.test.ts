@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { type Mock, afterEach, describe, expect, it, vi } from "vitest";
 import { Menu } from "obsidian";
 import { ReaderView } from "../../../src/views/reader-view";
 import {
@@ -8,6 +8,7 @@ import {
   type Feed,
   type FeedItem,
   type RssDashboardSettings,
+  type SavedTemplate,
 } from "../../../src/types/types";
 
 type ReaderViewInternals = {
@@ -23,10 +24,31 @@ type CustomSaveHarness = {
   item: FeedItem;
   feed: Feed;
   settings: RssDashboardSettings;
-  saveArticle: ReturnType<typeof vi.fn>;
+  saveArticle: Mock<(...args: any[]) => unknown>;
   onArticleSave: ReturnType<typeof vi.fn>;
   onArticleUpdate: ReturnType<typeof vi.fn>;
 };
+
+function createSaver(saveArticle: Mock<(...args: any[]) => unknown>) {
+  return {
+    saveArticle,
+    saveArticleWithContentPolicy: vi.fn(
+      (
+        item: FeedItem,
+        folder?: string,
+        template?: string,
+        savedTemplate?: SavedTemplate,
+        readerContent?: { markdown?: string },
+      ) => {
+        const markdown = readerContent?.markdown ?? item.description;
+        return savedTemplate
+          ? saveArticle(item, folder, template, markdown, savedTemplate)
+          : saveArticle(item, folder, template, markdown);
+      },
+    ),
+    getFilenamePreview: vi.fn(() => "Reading/Fixture article.md"),
+  };
+}
 
 class MockLeaf {
   constructor(public app: unknown) {}
@@ -90,10 +112,7 @@ function createHarness(options?: {
   const view = new ReaderView(
     new MockLeaf(app) as never,
     settings,
-    {
-      saveArticle,
-      getFilenamePreview: vi.fn(() => "Reading/Fixture article.md"),
-    } as never,
+    createSaver(saveArticle) as never,
     onArticleSave,
     onArticleUpdate,
   );
