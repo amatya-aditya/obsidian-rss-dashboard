@@ -603,7 +603,8 @@ export class RssDashboardView extends ItemView {
   }
 
   /**
-   * Action: Mark all filtered articles as read.
+   * Action: Mark all filtered articles as read. The Notice names the view,
+   * using the same title the article header shows.
    * @internal
    */
   public actionMarkAllAsRead(): void {
@@ -612,7 +613,9 @@ export class RssDashboardView extends ItemView {
     if (count > 0) {
       void this.plugin.saveSettings();
       this.scheduleRender();
-      new Notice(`Marked ${count} items as read`);
+      new Notice(
+        `Marked ${count} items as read in ${this.getArticlesTitleInfo().title}`,
+      );
     } else {
       new Notice("No unread items in current view");
     }
@@ -628,7 +631,9 @@ export class RssDashboardView extends ItemView {
     if (count > 0) {
       void this.plugin.saveSettings();
       this.scheduleRender();
-      new Notice(`Marked ${count} items as unread`);
+      new Notice(
+        `Marked ${count} items as unread in ${this.getArticlesTitleInfo().title}`,
+      );
     } else {
       new Notice("No read items in current view");
     }
