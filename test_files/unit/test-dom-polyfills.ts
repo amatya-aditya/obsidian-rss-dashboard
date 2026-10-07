@@ -559,6 +559,7 @@ export function installWindowNodePolyfills(win: Window): void {
     Node: { prototype: Record<string, unknown> };
     HTMLElement: { prototype: Record<string, unknown> };
     Document: { prototype: Record<string, unknown> };
+    UIEvent: { prototype: Record<string, unknown> };
   };
 
   // A popout's own Document class; the main window gets the full helper above.
@@ -613,6 +614,21 @@ export function installWindowNodePolyfills(win: Window): void {
       if (this instanceof type) return true;
       const nodeWindow = (this.ownerDocument ?? (this as Document)).defaultView;
       const local = (nodeWindow as unknown as Record<string, unknown> | null)?.[
+        type.name
+      ];
+      return typeof local === "function" && this instanceof local;
+    };
+  }
+
+  if (typeof scope.UIEvent.prototype.instanceOf !== "function") {
+    // Like Obsidian: match the constructor in the window the event came from,
+    // so a click in a popout still counts as a MouseEvent.
+    scope.UIEvent.prototype.instanceOf = function instanceOf(
+      this: UIEvent,
+      type: { new (...data: never[]): unknown; name: string },
+    ): boolean {
+      if (this instanceof type) return true;
+      const local = (this.view as unknown as Record<string, unknown> | null)?.[
         type.name
       ];
       return typeof local === "function" && this instanceof local;

@@ -1,4 +1,4 @@
-import { App, Modal, Setting, setIcon } from "obsidian";
+import { App, Modal, Notice, Setting, setIcon } from "obsidian";
 import {
   DEFAULT_SETTINGS,
   type FeedItem,
@@ -26,15 +26,32 @@ interface PendingTemplate {
   previousSelectedTemplateId: string;
 }
 
-export interface ReaderCustomSaveModalContext {
+/** What the user chose in the dialog for this one save. */
+export interface CustomSaveRequest {
+  folder: string;
+  template: string | undefined;
+  savedTemplate: SavedTemplate | undefined;
+}
+
+export interface CustomSaveModalContext {
   getSettings: () => RssDashboardSettings;
+  /** Used only for the filename preview. */
   getArticleSaver: () => ArticleSaver;
   displayTitle: string | undefined;
   getSavedTemplateForArticle: (item: FeedItem) => SavedTemplate | undefined;
   saveSettings: () => Promise<void>;
-  buildReaderSaveMarkdown: (item: FeedItem) => string;
+  /**
+   * Performs the save for the surface that opened the dialog. Resolves to the
+   * saved file, or null when nothing was saved (the dialog then stays open).
+   */
+  saveArticle: (
+    item: FeedItem,
+    request: CustomSaveRequest,
+  ) => Promise<{ path: string } | null>;
   onArticleSave: (item: FeedItem) => void;
-  updateSavedLabel: (saved: boolean) => void;
+  updateSavedLabel?: (saved: boolean) => void;
+  /** Called once when the dialog closes, whether or not anything was saved. */
+  onClose?: () => void;
 }
 
 interface TemplateControls {
@@ -57,7 +74,7 @@ interface FilenamePatternControls {
 function createFolderControls(
   app: App,
   content: HTMLElement,
-  context: ReaderCustomSaveModalContext,
+  context: CustomSaveModalContext,
 ): HTMLInputElement {
   content.createEl("label", {
     text: "Save to folder:",
@@ -169,7 +186,7 @@ function createFilenamePatternControls(
   item: FeedItem,
   folderInput: HTMLInputElement,
   select: HTMLSelectElement,
-  context: ReaderCustomSaveModalContext,
+  context: CustomSaveModalContext,
   getTemplatePattern: () => string | undefined,
 ): FilenamePatternControls {
   content.createEl("label", {
@@ -219,7 +236,7 @@ function confirmFeedTemplateAssignment(
   app: App,
   item: FeedItem,
   selected: SavedTemplate | undefined,
-  context: ReaderCustomSaveModalContext,
+  context: CustomSaveModalContext,
   setAssignToFeedId: (id: string) => void,
 ): void {
   const feed = context
@@ -255,7 +272,7 @@ async function createPendingTemplate(options: {
   item: FeedItem;
   input: HTMLTextAreaElement;
   folderInput: HTMLInputElement;
-  context: ReaderCustomSaveModalContext;
+  context: CustomSaveModalContext;
   previousSelectedTemplateId: string;
 }): Promise<PendingTemplate | null> {
   const { app, item, input, folderInput, context, previousSelectedTemplateId } =
@@ -316,7 +333,7 @@ function createTemplateControls(
   content: HTMLElement,
   item: FeedItem,
   folderInput: HTMLInputElement,
-  context: ReaderCustomSaveModalContext,
+  context: CustomSaveModalContext,
 ): TemplateControls & { getPending: () => PendingTemplate | null } {
   const settings = context.getSettings();
   const select = createSavedTemplateSelect(content, item, settings);
@@ -462,7 +479,7 @@ function createActionButtons(
   templateControls: TemplateControls & {
     getPending: () => PendingTemplate | null;
   },
-  context: ReaderCustomSaveModalContext,
+  context: CustomSaveModalContext,
 ): void {
   const templateHint = content.createEl("p", {
     cls: "setting-item-description rss-dashboard-custom-save-template-hint",
@@ -495,6 +512,8 @@ function createActionButtons(
   addActionButtonContent(saveButton, "save", "Save");
   buttonContainer.appendChild(templateControls.saveAsButton);
   saveButton.addEventListener("click", () => {
+    if (saveButton.disabled) return;
+    saveButton.disabled = true;
     void (async () => {
       const folder = folderInput.value.trim();
       const template = templateControls.input.value.trim() || undefined;
@@ -522,25 +541,19 @@ function createActionButtons(
               filenamePattern,
             }
         : savedTemplate;
-      const markdownContent = context.buildReaderSaveMarkdown(item);
-      const saveItem = context.displayTitle
-        ? { ...item, title: context.displayTitle }
-        : item;
-      const articleSaver = context.getArticleSaver();
-      const file = templateForSave
-        ? await articleSaver.saveArticle(
-            saveItem,
-            folder,
-            template,
-            markdownContent,
-            templateForSave,
-          )
-        : await articleSaver.saveArticle(
-            saveItem,
-            folder,
-            template,
-            markdownContent,
-          );
+      let file: { path: string } | null;
+      try {
+        file = await context.saveArticle(item, {
+          folder,
+          template,
+          savedTemplate: templateForSave,
+        });
+      } catch (error) {
+        console.error("Failed to save article from the save dialog:", error);
+        new Notice("Failed to save article.");
+        saveButton.disabled = false;
+        return;
+      }
       if (file) {
         const settings = context.getSettings();
         const feed = settings.feeds.find((entry) => entry.url === item.feedUrl);
@@ -567,22 +580,31 @@ function createActionButtons(
           // "Current template" is chosen: the feed goes back to the default (#814).
           feed.customTemplate = undefined;
         }
-        await context.saveSettings();
+        try {
+          await context.saveSettings();
+        } catch (error) {
+          // The note exists already, so finish the save instead of leaving
+          // the dialog stuck and inviting a duplicate.
+          console.error("Failed to store settings after saving:", error);
+          new Notice("Saved, but the template settings could not be stored.");
+        }
         item.saved = true;
         item.savedFilePath = file.path;
         context.onArticleSave(item);
-        context.updateSavedLabel(true);
+        context.updateSavedLabel?.(true);
+        modal.close();
+      } else {
+        saveButton.disabled = false;
       }
-      modal.close();
     })();
   });
 }
 
-export class ReaderCustomSaveModal extends Modal {
+export class CustomSaveModal extends Modal {
   private readonly item: FeedItem;
-  private readonly context: ReaderCustomSaveModalContext;
+  private readonly context: CustomSaveModalContext;
 
-  constructor(app: App, item: FeedItem, context: ReaderCustomSaveModalContext) {
+  constructor(app: App, item: FeedItem, context: CustomSaveModalContext) {
     super(app);
     this.item = item;
     this.context = context;
@@ -613,5 +635,6 @@ export class ReaderCustomSaveModal extends Modal {
 
   onClose() {
     this.contentEl.empty();
+    this.context.onClose?.();
   }
 }

@@ -24,6 +24,7 @@ import {
 import { renderPagination as renderPaginationUtil } from "./article-list/utils/pagination";
 import { renderFeedIcon as renderFeedIconUtil } from "./article-list/utils/feed-icon";
 import { createActionButtons as createArticleActionButtonsUtil } from "./article-list/utils/article-actions";
+import type { CustomSaveHooks } from "./article-list/utils/save-options-menu";
 import { showArticleContextMenu as showArticleContextMenuUtil } from "./article-list/utils/article-context-menu";
 import { renderFeedView as renderFeedViewUtil } from "./article-list/views/feed-view";
 import { renderListView as renderListViewUtil } from "./article-list/views/list-view";
@@ -47,6 +48,10 @@ interface ArticleListCallbacks {
     shouldRerender?: boolean,
   ) => void;
   onArticleSave?: (article: FeedItem) => Promise<void> | void;
+  onArticleCustomSave?: (
+    article: FeedItem,
+    hooks: CustomSaveHooks,
+  ) => Promise<void> | void;
   onOpenSavedArticle?: (article: FeedItem) => Promise<void> | void;
   onOpenInReaderView?: (article: FeedItem) => void;
   onRenderArticleTitle?: (titleElement: HTMLElement) => void;

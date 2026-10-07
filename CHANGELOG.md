@@ -13,6 +13,7 @@
 - Saved notes can use `{{description}}` (the article page's own description, or the feed's blurb when the page has none) and `{{excerpt}}` (a short preview, only when there is no description). `{{author}}` now shows the cleaned author names when the article has them. [GH Issue #807](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/807)
 - The template variable help in Article Saving settings is now grouped under headings (article dates, first-seen dates, save date and time, article and feed details, content, links and media), with clearer descriptions and the previously missing `{{isoDateTime}}`. [GH Issue #764](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/764)
 - Saved notes can use `{{language}}`, the article's language (for example `en-GB`). It comes from the article page, or from the feed's own language when the page declares none, and the whole line is left out of the note when neither is known. [GH Issue #809](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/809)
+- The dashboard Save buttons (article card, list row, right-click menu, and inline article header) now offer **Save with default settings** and **Save to custom folder...**, the same choices as the Reader, so a folder, saved template, and filename pattern can be chosen per save from the article list. The keyboard save shortcut still saves with default settings. The save dialog now stays open when a save fails. [GH Issue #836](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/836)
 
 ### Fixes
 
