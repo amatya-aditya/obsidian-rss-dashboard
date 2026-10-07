@@ -1269,27 +1269,28 @@ export default class RssDashboardPlugin extends Plugin {
   }
 
   private async onArticleSaved(item: FeedItem): Promise<void> {
-    if (item.feedUrl) {
-      const feed = this.settings.feeds.find((f) => f.url === item.feedUrl);
-      if (feed) {
-        const originalItem = feed.items.find((i) => i.guid === item.guid);
-        if (originalItem) {
-          Object.assign(
-            originalItem,
-            applyAutomaticArticleTags(
-              originalItem,
-              { saved: true, savedFilePath: item.savedFilePath },
-              this.settings,
-            ),
-          );
+    // Match updateArticleFromReader: a missing or stale feedUrl falls back to guid.
+    const feed =
+      this.settings.feeds.find((f) => f.url === item.feedUrl) ||
+      this.settings.feeds.find((f) =>
+        f.items.some((candidate) => candidate.guid === item.guid),
+      );
+    const originalItem = feed?.items.find((i) => i.guid === item.guid);
+    if (!feed || !originalItem) return;
 
-          await this.saveSettings();
+    Object.assign(
+      originalItem,
+      applyAutomaticArticleTags(
+        originalItem,
+        { saved: true, savedFilePath: item.savedFilePath },
+        this.settings,
+      ),
+    );
 
-          // Resolve the association after persistence and each deferred leaf load.
-          await this.syncSavedArticleAssociationUpdate(item.feedUrl, item.guid);
-        }
-      }
-    }
+    await this.saveSettings();
+
+    // Resolve the association after persistence and each deferred leaf load.
+    await this.syncSavedArticleAssociationUpdate(feed.url, item.guid);
   }
 
   private async updateArticleFromReader(
