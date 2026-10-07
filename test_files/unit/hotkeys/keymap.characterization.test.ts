@@ -395,25 +395,45 @@ describe("Dashboard keymap (characterization)", () => {
       expect(log).toEqual([]);
       expect(event.defaultPrevented).toBe(false);
     });
+  });
 
-    // BUG: pinned, see #881. Letters match e.key literally, so Caps Lock
-    // (an upper-case key with Shift off) and Caps Lock + Shift (a lower-case
-    // key with Shift on) both miss.
+  describe("Caps Lock (#881)", () => {
+    // #881: letters match case-insensitively with Shift read from shiftKey, so
+    // Caps Lock (an upper-case key with Shift off) and Caps Lock + Shift (a
+    // lower-case key with Shift on) reach the same bindings as without it.
     it.each([
-      ["J", false],
-      ["L", false],
-      ["K", false],
-      ["M", false],
-      ["j", true],
-      ["l", true],
-    ])("ignores %s (shift %s) under Caps Lock", (key, shift) => {
+      ["J", false, "actionNavigatePrevious", [{ open: true }]],
+      ["L", false, "actionNavigateNext", [{ open: true }]],
+      ["K", false, "actionCloseReader", []],
+      ["M", false, "actionToggleReadStatus", []],
+      ["S", false, "actionSaveSelectedArticle", []],
+      ["j", true, "actionSidebarMovePrevious", []],
+      ["l", true, "actionSidebarMoveNext", []],
+      ["s", true, "actionFocusSidebar", []],
+    ])("handles %s (shift %s) under Caps Lock", (key, shift, method, args) => {
       const { log, press } = setupDashboard();
 
       const event = press(key, { shift });
 
-      expect(log).toEqual([]);
-      expect(event.defaultPrevented).toBe(false);
+      expect(log).toEqual([[method, args]]);
+      expect(event.defaultPrevented).toBe(true);
     });
+
+    it.each([
+      ["K", false],
+      ["M", false],
+      ["s", true],
+    ])(
+      "holds %s (shift %s) under Caps Lock to one action per press",
+      (key, shift) => {
+        const { log, press } = setupDashboard();
+
+        const event = press(key, { shift, repeat: true });
+
+        expect(log).toEqual([]);
+        expect(event.defaultPrevented).toBe(true);
+      },
+    );
   });
 
   describe("handled flag", () => {

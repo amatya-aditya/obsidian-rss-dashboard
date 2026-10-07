@@ -508,6 +508,22 @@ export function dashboardEventKey(binding: KeyBinding): string {
   return SHIFTED_DIGITS[binding.key] ?? binding.key;
 }
 
+const LETTER = /^[a-z]$/;
+
+/**
+ * Whether a key press is this binding's key. A letter is matched without
+ * regard to case, because Caps Lock flips the case of `KeyboardEvent.key`;
+ * Shift is read from `shiftKey` alone. Every other key is matched literally.
+ */
+function matchesDashboardKey(
+  binding: KeyBinding,
+  event: Pick<KeyboardEvent, "key" | "shiftKey">,
+): boolean {
+  if (binding.shift !== event.shiftKey) return false;
+  if (LETTER.test(binding.key)) return event.key.toLowerCase() === binding.key;
+  return dashboardEventKey(binding) === event.key;
+}
+
 /**
  * The dashboard bindings for a key press, before sidebar focus is applied.
  * Callers that only need the repeat class can use this without asking the
@@ -519,8 +535,7 @@ export function dashboardCandidates(
   return KEYMAP.filter(
     (binding) =>
       binding.contexts.includes("dashboard") &&
-      binding.shift === event.shiftKey &&
-      dashboardEventKey(binding) === event.key,
+      matchesDashboardKey(binding, event),
   );
 }
 

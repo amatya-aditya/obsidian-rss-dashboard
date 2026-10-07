@@ -64,6 +64,37 @@ describe("keymap table", () => {
     },
   );
 
+  describe("Caps Lock (#881)", () => {
+    it.each([
+      ["J", false, "article-previous"],
+      ["j", false, "article-previous"],
+      ["J", true, "sidebar-move-previous"],
+      ["j", true, "sidebar-move-previous"],
+      ["S", false, "save-article"],
+      ["s", true, "focus-sidebar"],
+    ])("reads %s (shift %s) as the %s binding", (key, shiftKey, id) => {
+      expect(findDashboardBinding({ key, shiftKey }, () => false)?.id).toBe(id);
+    });
+
+    it.each([
+      ["!", true],
+      ["@", true],
+      ["#", true],
+      ["1", false],
+      ["Enter", true],
+      ["ArrowUp", false],
+    ])("still matches %s (shift %s) literally", (key, shiftKey) => {
+      expect(
+        dashboardCandidates({ key, shiftKey }).length,
+        `${key}|${shiftKey}`,
+      ).toBeGreaterThan(0);
+    });
+
+    it("does not read a shifted digit's base key as the symbol", () => {
+      expect(dashboardCandidates({ key: "1", shiftKey: true })).toEqual([]);
+    });
+  });
+
   describe("findDashboardBinding", () => {
     it("asks for sidebar focus only when a candidate depends on it", () => {
       const isSidebarFocused = vi.fn(() => false);
