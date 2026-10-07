@@ -57,6 +57,9 @@ import {
 import { computePagination } from "../utils/pagination-utils";
 import { removeFolderByPath } from "../utils/folder-tree";
 import { createIconButton } from "../utils/icon-button";
+import { createLiveRegion } from "../utils/live-region";
+import { clearViewReady, markViewReady } from "../utils/view-ready";
+import { REFRESH_ANNOUNCEMENT_EVENT } from "../services/refresh-announcements";
 import { attachRovingToolbar } from "../utils/roving-toolbar";
 import { toggleFeedInMultiSelection } from "../utils/feed-multi-select";
 import { applyAutomaticArticleTags } from "../utils/tag-utils";
@@ -885,6 +888,8 @@ export class RssDashboardView extends ItemView {
       }),
     );
 
+    this.mountRefreshAnnouncer();
+
     const container = this.containerEl.children[1];
     if (!container) {
       return Promise.resolve();
@@ -958,8 +963,30 @@ export class RssDashboardView extends ItemView {
     this.dashboardContainer = dashboardContainer;
 
     this.render();
+    markViewReady(this.containerEl);
 
     return Promise.resolve();
+  }
+
+  /**
+   * One polite live region in this view's own root, written by refresh
+   * announcements (WCAG 2.2 4.1.3). It sits outside the re-rendered content,
+   * so a render never clears or recreates it.
+   */
+  private mountRefreshAnnouncer(): void {
+    const region = createLiveRegion(
+      this.containerEl,
+      "rss-dashboard-refresh-announcer",
+    );
+    this.registerEvent(
+      (
+        this.app.workspace as unknown as {
+          on: (name: string, callback: (message: string) => void) => unknown;
+        }
+      ).on(REFRESH_ANNOUNCEMENT_EVENT, (message: string) => {
+        region.announce(message);
+      }) as never,
+    );
   }
 
   render(): void {
@@ -3246,6 +3273,7 @@ export class RssDashboardView extends ItemView {
   }
 
   async onClose(): Promise<void> {
+    clearViewReady(this.containerEl);
     this.closeMobileSidebarModal();
     this.unbindViewportResizeListener();
     this.lastViewportMobileSidebarMode = null;
