@@ -711,19 +711,18 @@ export class ReaderView extends ItemView {
    * @internal
    */
   public async actionSaveCurrentArticle(): Promise<void> {
-    if (!this.currentItem) {
+    const item = this.currentItem;
+    if (!item) {
       return;
     }
-    if (this.currentItem.saved) {
-      await this.openSavedArticle(this.currentItem);
+    if (item.saved) {
+      await this.openSavedArticle(item);
       return;
     }
 
     const displayTitle = this.currentDisplayTitle;
-    const saveItem = displayTitle
-      ? { ...this.currentItem, title: displayTitle }
-      : this.currentItem;
-    const savedTemplate = this.getCustomTemplateForArticle(this.currentItem);
+    const saveItem = displayTitle ? { ...item, title: displayTitle } : item;
+    const savedTemplate = this.getCustomTemplateForArticle(item);
     const file = await this.saveReaderArticle(
       saveItem,
       undefined,
@@ -731,11 +730,16 @@ export class ReaderView extends ItemView {
       savedTemplate,
     );
     if (file) {
-      this.currentItem.saved = true;
-      this.currentItem.savedFilePath = file.path;
-      this.onArticleSave(this.currentItem);
+      item.saved = true;
+      item.savedFilePath = file.path;
+      this.onArticleSave(item);
 
-      this.updateSavedLabel(true);
+      if (
+        this.currentItem?.feedUrl === item.feedUrl &&
+        this.currentItem?.guid === item.guid
+      ) {
+        this.updateSavedLabel(true);
+      }
     }
   }
 
@@ -1205,7 +1209,12 @@ export class ReaderView extends ItemView {
             item.savedFilePath = file.path;
             this.onArticleSave(item);
 
-            this.updateSavedLabel(true);
+            if (
+              this.currentItem?.feedUrl === item.feedUrl &&
+              this.currentItem?.guid === item.guid
+            ) {
+              this.updateSavedLabel(true);
+            }
           }
         });
     });
