@@ -1125,8 +1125,10 @@ export function renderDisplaySettingsTab(
     );
 
   const mobileListToolbarStyleSetting = new Setting(containerEl)
-    .setName("List toolbar style (mobile)")
-    .setDesc("Choose how action buttons are laid out in mobile list view")
+    .setName("List toolbar style")
+    .setDesc(
+      "Choose how action buttons are laid out in list view, on desktop and mobile. Minimal shows only the read toggle; save, star, and tags stay in the right-click menu and the article header.",
+    )
     .addDropdown((dropdown) =>
       dropdown
         .addOption("left-grid", "Left grid (2x2)")
