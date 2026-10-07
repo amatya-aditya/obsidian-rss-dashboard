@@ -104,6 +104,54 @@ describe("ShortcutHelpModal", () => {
     });
   });
 
+  describe("article arrow-key shortcuts", () => {
+    // Up and Down step the article selection in every view; Left and Right
+    // only act in card view (and jump folders while the sidebar has focus).
+    const expected: Array<[string, string]> = [
+      ["ArrowUp / ArrowDown", "Move article selection up / down"],
+      [
+        "ArrowLeft / ArrowRight",
+        "Move article selection left / right (card view only)",
+      ],
+    ];
+
+    function articleItems() {
+      const section = SHORTCUT_SECTIONS.find(
+        (candidate) => candidate.section === "Article manipulation",
+      );
+      return section?.items ?? [];
+    }
+
+    it("no longer calls the arrow keys card view navigation", () => {
+      expect(articleItems().map((item) => item.key)).not.toContain(
+        "Arrow keys",
+      );
+      const text = SHORTCUT_SECTIONS.flatMap((section) => section.items)
+        .map((item) => item.desc)
+        .join("\n");
+      expect(text).not.toMatch(/card view navigation/i);
+    });
+
+    it.each(expected)("lists %s as %s", (key, desc) => {
+      expect(articleItems()).toContainEqual({ key, desc });
+    });
+
+    it("matches the keyboard shortcuts guide", () => {
+      const guide = readFileSync("docs/user/keyboard-shortcuts.md", "utf8");
+      const articleTable = guide
+        .split("## Article Manipulation")[1]
+        ?.split("## Sidebar Navigation")[0];
+      expect(articleTable).toBeDefined();
+      for (const [key, desc] of expected) {
+        const row = articleTable
+          ?.split("\n")
+          .find((line) => line.startsWith(`| ${key} `));
+        expect(row, `guide row for ${key}`).toBeDefined();
+        expect(row).toContain(desc);
+      }
+    });
+  });
+
   it("has a compliant clickable-icon for the close button", () => {
     const app = createMockApp();
     const modal = new ShortcutHelpModal(app, structuredClone(DEFAULT_SETTINGS));
