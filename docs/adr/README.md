@@ -56,6 +56,7 @@ See the [ADR Policy](POLICY.md) for the complete lifecycle, authoring, and maint
 | [0016](0016-wcag-22-aa-accessibility-reference.md)                             | Use WCAG 2.2 AA as the Accessibility Reference                          | accepted | Apply WCAG 2.2 AA as the design and audit reference for applicable plugin-owned UI without claiming conformance before verification.                      |
 | [0017](0017-select-saved-article-templates-by-feed-then-global-default.md)     | Select Saved Article Templates by Feed, Then Global Default             | accepted | Use one feed-specific template when assigned, otherwise the selected global saved template, and fall back to the built-in template when neither applies.  |
 | [0018](0018-generate-safe-article-filenames-from-template-patterns.md)         | Generate Safe Article Filenames from Template Patterns                  | accepted | Allow optional per-template filename stems, preserve existing article paths, and add numeric suffixes instead of replacing a different note.              |
+| [0019](0019-saved-note-association-authority.md)                               | Saved-Note Association Authority                                        | accepted | Use events, plugin metadata, and explicit saved-note opens without proactive note-existence checks.                                                       |
 
 ## Creating a new ADR
 
