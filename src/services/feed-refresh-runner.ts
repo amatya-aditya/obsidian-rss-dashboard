@@ -32,7 +32,22 @@ export interface RefreshDashboardViewLike {
   refreshGlobalRefreshProgressOnly?: () => void;
 }
 
-export type FeedRefreshIntent = "global" | "targeted" | "due" | "failed";
+/**
+ * `"scheduled"` is the interval scheduler's global refresh (and the startup
+ * one). It refreshes exactly as `"global"` does but announces quietly.
+ */
+export type FeedRefreshIntent =
+  "global" | "scheduled" | "targeted" | "due" | "failed";
+
+/** Whether the run refreshes every feed, as a manual or scheduled global refresh. */
+function isGlobalIntent(intent: FeedRefreshIntent): boolean {
+  return intent === "global" || intent === "scheduled";
+}
+
+/** A quiet run speaks only when it found articles or errors. */
+function isQuietIntent(intent: FeedRefreshIntent): boolean {
+  return intent === "due" || intent === "scheduled";
+}
 
 export interface FeedRefreshRunnerOptions {
   feedOperationTracker: FeedOperationTracker;
@@ -127,7 +142,7 @@ export class FeedRefreshRunner {
       }
 
       new Notice(`Refreshing ${feedNoticeText}...`);
-      if (feedsToRefresh.length === 1 && intent !== "global") {
+      if (feedsToRefresh.length === 1 && !isGlobalIntent(intent)) {
         const singleFeed = feedsToRefresh[0];
         if (!singleFeed) {
           return;
@@ -364,16 +379,12 @@ export class FeedRefreshRunner {
 
     const cancelSignal = this.feedOperationTracker.startBatch(
       feedsToRefresh.length,
-      intent === "global",
+      isGlobalIntent(intent),
     );
     if (!cancelSignal) return;
 
-    const refreshSummary = {
-      failed: 0,
-      timedOut: 0,
-    };
     const tally = new RefreshRunTally();
-    const quiet = intent === "due";
+    const quiet = isQuietIntent(intent);
     if (!quiet) {
       this.options.announce(refreshStartedMessage(feedNoticeText));
     }
@@ -434,7 +445,6 @@ export class FeedRefreshRunner {
 
         const refreshPromise = this.processRefreshBatchFeed(
           currentFeed,
-          refreshSummary,
           tally,
           refreshView,
           cancelSignal,
@@ -466,7 +476,7 @@ export class FeedRefreshRunner {
       await Promise.all(backgroundPromises);
 
       if (this.feedOperationTracker.isDisposed) return;
-      if (intent === "global" && !this.feedOperationTracker.isCancelled) {
+      if (isGlobalIntent(intent) && !this.feedOperationTracker.isCancelled) {
         this.settings.lastGlobalRefreshCompletedAt = Date.now();
       }
       await this.options.saveSettings();
@@ -480,8 +490,8 @@ export class FeedRefreshRunner {
 
       if (!this.feedOperationTracker.isCancelled) {
         const failureSuffix = this.buildRefreshFailureSummary(
-          refreshSummary,
-          intent === "global",
+          tally,
+          isGlobalIntent(intent),
         );
         new Notice(`Feeds refreshed: ${feedNoticeText}${failureSuffix}`);
         if (shouldAnnounceFinish(tally, quiet)) {
@@ -519,7 +529,6 @@ export class FeedRefreshRunner {
 
   private async processRefreshBatchFeed(
     currentFeed: Feed,
-    refreshSummary: { failed: number; timedOut: number },
     tally: RefreshRunTally,
     refreshView: () => Promise<void>,
     signal?: AbortSignal,
@@ -551,13 +560,6 @@ export class FeedRefreshRunner {
       if (!this.feedOperationTracker.isCancelled) {
         this.finalizeRefreshAttempt(currentFeed, undefined, error);
         tally.recordThrown(error);
-      }
-      const isTimedOut =
-        error instanceof Error && error.message === "Timed out";
-      if (isTimedOut) {
-        refreshSummary.timedOut += 1;
-      } else {
-        refreshSummary.failed += 1;
       }
 
       console.error(

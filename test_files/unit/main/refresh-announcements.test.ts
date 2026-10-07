@@ -501,6 +501,163 @@ describe("refresh announcements: background refresh of due feeds", () => {
   });
 });
 
+/** The toasts the plugin showed (the Obsidian stub logs each one). */
+function toasts(): string[] {
+  return (
+    console.debug as unknown as { mock: { calls: unknown[][] } }
+  ).mock.calls
+    .filter((call) => call[0] === "[Stub Notice]")
+    .map((call) => String(call[1]));
+}
+
+/**
+ * Wakes the plugin's real interval scheduler with the global refresh due, as
+ * the timer does, so the plugin's own requestGlobalRefresh runs.
+ */
+async function wakeScheduler(harness: Harness): Promise<void> {
+  const scheduler = (
+    harness.plugin as unknown as PluginSeams
+  ).ensureAutoRefreshScheduler();
+  harness.plugin.settings.refreshInterval = 30;
+  harness.plugin.settings.lastGlobalRefreshCompletedAt =
+    Date.now() - 60 * 60 * 1000;
+  scheduler.start();
+  void (
+    scheduler as unknown as { handleWakeup(): Promise<void> }
+  ).handleWakeup();
+  await flush();
+}
+
+describe("refresh announcements: scheduled global refresh (#855)", () => {
+  it("stays silent when nothing came of it, yet still completes the global refresh", async () => {
+    const harness = createHarness([feed("a"), feed("b")]);
+    await openView(harness);
+    const before = harness.plugin.settings.lastGlobalRefreshCompletedAt;
+
+    await wakeScheduler(harness);
+    expect(harness.held).toHaveLength(2);
+    await settleAll(harness);
+    await flush();
+
+    expect(harness.announced).toEqual([]);
+    expect(
+      harness.plugin.settings.lastGlobalRefreshCompletedAt,
+    ).toBeGreaterThan(before);
+    expect(toasts()).toEqual([
+      "Refreshing 2 feeds...",
+      "Feeds refreshed: 2 feeds",
+    ]);
+  });
+
+  it("announces one finish message, and no start message, when it found new articles", async () => {
+    const harness = createHarness([feed("a"), feed("b")]);
+    await openView(harness);
+
+    await wakeScheduler(harness);
+    await settleFeed(harness, "a", withNewArticles(feed("a"), 2));
+    await settleAll(harness);
+    await flush();
+
+    expect(harness.announced).toEqual(["Refresh finished: 2 new articles."]);
+  });
+
+  it("announces one finish message when a feed failed", async () => {
+    const harness = createHarness([feed("a"), feed("b")]);
+    await openView(harness);
+
+    await wakeScheduler(harness);
+    held(harness, "a").fail(new Error("boom"));
+    await flush();
+    await settleAll(harness);
+    await flush();
+
+    expect(harness.announced).toEqual([
+      "Refresh finished: no new articles, 1 feed failed.",
+    ]);
+  });
+
+  it("is quiet and still a global refresh when only one feed is eligible", async () => {
+    const harness = createHarness([feed("a")]);
+    await openView(harness);
+    const before = harness.plugin.settings.lastGlobalRefreshCompletedAt;
+
+    await wakeScheduler(harness);
+    await settleAll(harness);
+    await flush();
+
+    expect(harness.announced).toEqual([]);
+    expect(
+      harness.plugin.settings.lastGlobalRefreshCompletedAt,
+    ).toBeGreaterThan(before);
+  });
+
+  it("keeps a manual global refresh fully announced", async () => {
+    const harness = createHarness([feed("a"), feed("b")]);
+    await openView(harness);
+
+    const run = harness.plugin.refreshFeeds(undefined, "global");
+    await flush();
+    await settleAll(harness);
+    await run;
+    await flush();
+
+    expect(harness.announced).toEqual([
+      "Refreshing 2 feeds.",
+      "Refresh finished: no new articles.",
+    ]);
+  });
+});
+
+describe("refresh announcements: the toast and the announcement agree (#855)", () => {
+  it("counts a feed whose parser recorded a fetch error as failed in both", async () => {
+    const harness = createHarness([feed("a"), feed("b"), feed("c")]);
+    await openView(harness);
+
+    const run = harness.plugin.refreshFeeds();
+    await flush();
+    await settleFeed(harness, "a", {
+      ...feed("a"),
+      lastFetchError: "Unreachable",
+    });
+    held(harness, "b").fail(new Error("boom"));
+    await flush();
+    await settleFeed(harness, "c");
+    await run;
+    await flush();
+
+    expect(harness.announced[harness.announced.length - 1]).toBe(
+      "Refresh finished: no new articles, 2 feeds failed.",
+    );
+    expect(toasts()).toContain(
+      "Feeds refreshed: 3 feeds (2 failed) Shift+click Refresh all feeds to retry failed feeds.",
+    );
+  });
+
+  it("reports timed out and failed feeds separately in both", async () => {
+    const harness = createHarness([feed("a"), feed("b"), feed("c")]);
+    await openView(harness);
+
+    const run = harness.plugin.refreshFeeds();
+    await flush();
+    await settleFeed(harness, "a", {
+      ...feed("a"),
+      lastFetchError: "Unreachable",
+    });
+    held(harness, "b").fail(new Error("Timed out"));
+    await flush();
+    await settleFeed(harness, "c");
+    await run;
+    await flush();
+
+    expect(harness.announced[harness.announced.length - 1]).toBe(
+      "Refresh finished: no new articles, 1 feed timed out, 1 feed failed.",
+    );
+    expect(toasts()).toContain(
+      "Feeds refreshed: 3 feeds (1 timed out, 1 failed) Shift+click Refresh all feeds to retry failed feeds.",
+    );
+  });
+});
+
 describe("refresh announcements: views", () => {
   it("reaches every open dashboard, and a closed one stays quiet", async () => {
     const harness = createHarness([feed("a")]);
