@@ -2071,8 +2071,13 @@ export class ReaderView extends ItemView {
   public applyExternalUpdate(
     articleGuid: string,
     updates: Partial<FeedItem>,
+    feedUrl?: string,
   ): void {
-    if (!this.currentItem || this.currentItem.guid !== articleGuid) {
+    if (
+      !this.currentItem ||
+      this.currentItem.guid !== articleGuid ||
+      (feedUrl !== undefined && this.currentItem.feedUrl !== feedUrl)
+    ) {
       return;
     }
 

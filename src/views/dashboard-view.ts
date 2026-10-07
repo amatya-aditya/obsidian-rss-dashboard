@@ -709,14 +709,6 @@ export class RssDashboardView extends ItemView {
     });
 
     this.registerEvent(
-      this.app.vault.on("delete", (file) => {
-        if (file instanceof TFile) {
-          this.handleFileDeleted(file);
-        }
-      }),
-    );
-
-    this.registerEvent(
       this.app.vault.on("rename", (file, oldPath) => {
         if (file instanceof TFile) {
           this.handleFileRenamed(file, oldPath);
@@ -2779,10 +2771,29 @@ export class RssDashboardView extends ItemView {
       originalArticle.tags = updates.tags;
     }
 
-    if (this.selectedArticle?.guid === articleGuid) {
+    if (
+      this.selectedArticle?.guid === articleGuid &&
+      this.selectedArticle.feedUrl === feedUrl
+    ) {
       Object.assign(this.selectedArticle, updates);
       if (updates.tags) {
         this.selectedArticle.tags = updates.tags;
+      }
+    }
+
+    if (
+      this.inlineArticle?.guid === articleGuid &&
+      this.inlineArticle.feedUrl === feedUrl
+    ) {
+      Object.assign(this.inlineArticle, updates);
+      if (updates.tags) {
+        this.inlineArticle.tags = updates.tags;
+      }
+      if (updates.saved !== undefined) {
+        const saveButton = this.containerEl.querySelector<HTMLElement>(
+          ".inline-reader-header [aria-label='Save article']",
+        );
+        saveButton?.classList.toggle("saved", updates.saved);
       }
     }
 
@@ -2816,12 +2827,12 @@ export class RssDashboardView extends ItemView {
     }
 
     if (!this.matchesFilters(article)) {
-      this.articleList.removeArticleInPlace(article.guid);
+      this.articleList.removeArticleInPlace(article.guid, article.feedUrl);
       this.refreshFilterStatusBarOnly();
       return;
     }
 
-    if (!this.articleList.hasArticle(article.guid)) {
+    if (!this.articleList.hasArticle(article.guid, article.feedUrl)) {
       const inserted = this.articleList.insertArticleInPlace(
         article,
         this.settings.articleSort,
@@ -4079,28 +4090,6 @@ export class RssDashboardView extends ItemView {
   private verifySavedArticles(): void {
     const allArticles = this.getFilteredArticles();
     this.saver.verifyAllSavedArticles(allArticles);
-  }
-
-  private handleFileDeleted(file: TFile): void {
-    const allArticles = this.getAllArticles();
-    const affectedArticles = allArticles.filter(
-      (article) => article.saved && article.savedFilePath === file.path,
-    );
-
-    affectedArticles.forEach((article) => {
-      article.saved = false;
-      article.savedFilePath = undefined;
-
-      if (article.tags) {
-        article.tags = article.tags.filter(
-          (tag) => tag.name.toLowerCase() !== "saved",
-        );
-      }
-    });
-
-    if (affectedArticles.length > 0) {
-      void this.render();
-    }
   }
 
   private handleFileRenamed(file: TFile, oldPath: string): void {

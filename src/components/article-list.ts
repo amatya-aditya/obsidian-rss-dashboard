@@ -354,7 +354,10 @@ export class ArticleList {
       return;
     }
 
-    const article = this.articles.find((item) => item.guid === articleGuid);
+    const feedUrl = card.dataset.feedUrl;
+    const article = this.articles.find(
+      (item) => item.guid === articleGuid && item.feedUrl === feedUrl,
+    );
     if (!article?.tags?.length) {
       tagsContainer.empty();
       return;
@@ -636,11 +639,19 @@ export class ArticleList {
     this.scheduleCardTagLayout(articlesList);
   }
 
-  public removeArticleInPlace(guid: string): void {
-    this.articles = this.articles.filter((a) => a.guid !== guid);
+  public removeArticleInPlace(guid: string, feedUrl?: string): void {
+    this.articles = this.articles.filter(
+      (article) =>
+        article.guid !== guid ||
+        (feedUrl !== undefined && article.feedUrl !== feedUrl),
+    );
 
-    const targetEl = this.container.querySelector<HTMLElement>(
-      `#article-${CSS.escape(guid)}`,
+    const targetEl = Array.from(
+      this.container.querySelectorAll<HTMLElement>(
+        `#article-${CSS.escape(guid)}`,
+      ),
+    ).find(
+      (article) => feedUrl === undefined || article.dataset.feedUrl === feedUrl,
     );
     if (!targetEl) return;
 
@@ -674,8 +685,12 @@ export class ArticleList {
     }, 320);
   }
 
-  public hasArticle(guid: string): boolean {
-    return this.articles.some((a) => a.guid === guid);
+  public hasArticle(guid: string, feedUrl?: string): boolean {
+    return this.articles.some(
+      (article) =>
+        article.guid === guid &&
+        (feedUrl === undefined || article.feedUrl === feedUrl),
+    );
   }
 
   private findSortedInsertIndex(
@@ -996,7 +1011,10 @@ export class ArticleList {
     // Merge into the rendered object rather than replacing it: each card's
     // action handlers hold that object, and callers such as Mark page as read
     // pass a fresh copy.
-    const existingArticle = this.articles.find((a) => a.guid === article.guid);
+    const existingArticle = this.articles.find(
+      (existing) =>
+        existing.guid === article.guid && existing.feedUrl === article.feedUrl,
+    );
     if (existingArticle && existingArticle !== article) {
       Object.assign(existingArticle, article);
     }
@@ -1006,7 +1024,9 @@ export class ArticleList {
       this.container.querySelectorAll<HTMLElement>(
         ".rss-dashboard-article-item, .rss-dashboard-article-card, .rss-dashboard-feed-item",
       ),
-    ).filter((el) => el.id === targetId);
+    ).filter(
+      (el) => el.id === targetId && el.dataset.feedUrl === article.feedUrl,
+    );
 
     if (articleEls.length === 0) {
       return;

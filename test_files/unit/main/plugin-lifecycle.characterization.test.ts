@@ -53,7 +53,7 @@ function createHarness(store: DataStore, app: MockApp): Harness {
     return Promise.resolve();
   };
 
-  // The stub vault has no event API; model the three events main.ts watches.
+  // The stub vault has no event API; model the four events main.ts watches.
   (app.vault as unknown as { on: unknown }).on = (name: string) => {
     log.push("vault.on:" + name);
     return { name };
@@ -110,6 +110,8 @@ const STARTUP_SEQUENCE = [
   "vault.on:create",
   "registerEvent",
   "vault.on:rename",
+  "registerEvent",
+  "vault.on:delete",
   "registerEvent",
   // Deferred saved-article validation.
   "workspace.onLayoutReady",
@@ -617,6 +619,8 @@ describe("onload steps (characterization)", () => {
         "vault.on:rename",
         "registerEvent",
         "step:initializeSettingsBackedServices",
+        "vault.on:delete",
+        "registerEvent",
         "step:getActiveDashboardView",
         "step:ensureAutoRefreshScheduler",
         "step:scheduleStartupSavedArticleValidation",
@@ -826,6 +830,8 @@ describe("onload steps (characterization)", () => {
         "vault.on:rename",
         "registerEvent",
         "step:initializeSettingsBackedServices",
+        "vault.on:delete",
+        "registerEvent",
         "step:getActiveDashboardView",
       ]);
       expect(vi.getTimerCount()).toBe(0);

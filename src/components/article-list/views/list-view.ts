@@ -23,7 +23,9 @@ export function renderListView(
     const articleEl = container.createDiv({
       cls:
         "rss-dashboard-article-item" +
-        (ctx.selectedArticle && article.guid === ctx.selectedArticle.guid
+        (ctx.selectedArticle &&
+        article.guid === ctx.selectedArticle.guid &&
+        article.feedUrl === ctx.selectedArticle.feedUrl
           ? " active"
           : "") +
         (article.read ? " read" : " unread") +
@@ -31,7 +33,10 @@ export function renderListView(
         (article.saved ? " saved" : "") +
         (article.mediaType === "video" ? " video" : "") +
         (article.mediaType === "podcast" ? " podcast" : ""),
-      attr: { id: `article-${article.guid}` },
+      attr: {
+        id: `article-${article.guid}`,
+        "data-feed-url": article.feedUrl,
+      },
     });
     const useBottomRow =
       ctx.showListToolbar && ctx.listToolbarStyle === "bottom-row";

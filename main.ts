@@ -5,6 +5,7 @@ import {
   WorkspaceLeaf,
   Platform,
   requireApiVersion,
+  TFolder,
   type ObsidianProtocolData,
 } from "obsidian";
 
@@ -95,6 +96,7 @@ import {
 import { migrateSettings } from "./src/utils/settings-loader";
 import { applyAutomaticArticleTags } from "./src/utils/tag-utils";
 import { VersionStatusBarFeature } from "./src/settings/version-status-bar";
+import { SavedArticleAssociationService } from "./src/services/saved-article-association-service";
 
 export interface FiltersUpdatedEventPayload {
   source: string;
@@ -207,6 +209,8 @@ export default class RssDashboardPlugin extends Plugin {
   private readonly feedRefreshRunner: FeedRefreshRunner;
   private readonly feedSubscriptionService: FeedSubscriptionService;
   private readonly settingsImportApplier: SettingsImportApplier;
+  private readonly savedArticleAssociationService =
+    new SavedArticleAssociationService();
 
   constructor(app: App, manifest: ConstructorParameters<typeof Plugin>[1]) {
     super(app, manifest);
@@ -882,6 +886,7 @@ export default class RssDashboardPlugin extends Plugin {
     try {
       this.initializeSettingsBackedServices();
       await this.repairMissingFolderPathsForFeeds();
+      this.registerSavedArticleDeleteListener();
 
       const view = await this.getActiveDashboardView();
       if (view) {
@@ -1293,7 +1298,7 @@ export default class RssDashboardPlugin extends Plugin {
             },
             false,
           );
-          await this.syncReaderArticleUpdate(item.guid, {
+          await this.syncReaderArticleUpdate(item.guid, feed.url, {
             saved: true,
             savedFilePath: originalItem.savedFilePath,
             tags: originalItem.tags ? [...originalItem.tags] : [],
@@ -1334,7 +1339,11 @@ export default class RssDashboardPlugin extends Plugin {
       normalizedUpdates,
       !!shouldRerender,
     );
-    await this.syncReaderArticleUpdate(item.guid, normalizedUpdates);
+    await this.syncReaderArticleUpdate(
+      item.guid,
+      resolvedFeedUrl,
+      normalizedUpdates,
+    );
     await this.updateArticle(
       item.guid,
       resolvedFeedUrl,
@@ -1345,6 +1354,7 @@ export default class RssDashboardPlugin extends Plugin {
 
   private async syncReaderArticleUpdate(
     articleGuid: string,
+    feedUrl: string,
     updates: Partial<FeedItem>,
   ): Promise<void> {
     const leaves = this.app.workspace.getLeavesOfType(RSS_READER_VIEW_TYPE);
@@ -1354,7 +1364,7 @@ export default class RssDashboardPlugin extends Plugin {
       }
       const view = leaf.view;
       if (view instanceof ReaderView) {
-        view.applyExternalUpdate(articleGuid, updates);
+        view.applyExternalUpdate(articleGuid, updates, feedUrl);
       }
     }
   }
@@ -1432,7 +1442,86 @@ export default class RssDashboardPlugin extends Plugin {
       }
     }
 
-    await this.syncReaderArticleUpdate(articleGuid, updates);
+    await this.syncReaderArticleUpdate(articleGuid, feedUrl, updates);
+  }
+
+  private registerSavedArticleDeleteListener(): void {
+    if (typeof this.app.vault.on !== "function") return;
+
+    this.registerEvent(
+      this.app.vault.on("delete", (file) => {
+        void this.handleSavedArticlePathDeleted(file).catch(
+          (error: unknown) => {
+            console.error(
+              "[RSS Dashboard] Failed to update deleted saved notes:",
+              error,
+            );
+          },
+        );
+      }),
+    );
+  }
+
+  private async handleSavedArticlePathDeleted(file: {
+    path: string;
+  }): Promise<void> {
+    const updates = this.savedArticleAssociationService.clearDeletedPath(
+      this.settings.feeds,
+      file.path,
+      file instanceof TFolder,
+    );
+    if (updates.length === 0) return;
+
+    for (const update of updates) {
+      await this.syncSavedArticleAssociationUpdate(update.feedUrl, update.guid);
+    }
+
+    await this.saveSettings();
+  }
+
+  private async syncSavedArticleAssociationUpdate(
+    feedUrl: string,
+    articleGuid: string,
+  ): Promise<void> {
+    const getCurrentUpdates = (): Partial<FeedItem> | undefined => {
+      const article = this.settings.feeds
+        .find((feed) => feed.url === feedUrl)
+        ?.items.find((item) => item.guid === articleGuid);
+      if (!article) return undefined;
+
+      return {
+        saved: article.saved ?? false,
+        savedFilePath: article.savedFilePath,
+        tags: article.tags?.map((tag) => ({ ...tag })) ?? [],
+      };
+    };
+
+    const dashboardLeaves = this.app.workspace.getLeavesOfType(
+      RSS_DASHBOARD_VIEW_TYPE,
+    );
+    for (const leaf of dashboardLeaves) {
+      if (requireApiVersion("1.7.2")) {
+        await leaf.loadIfDeferred();
+      }
+      const view = leaf.view;
+      const updates = getCurrentUpdates();
+      if (view instanceof RssDashboardView && updates) {
+        view.applyExternalArticleUpdate(articleGuid, feedUrl, updates);
+      }
+    }
+
+    const readerLeaves =
+      this.app.workspace.getLeavesOfType(RSS_READER_VIEW_TYPE);
+    for (const leaf of readerLeaves) {
+      if (requireApiVersion("1.7.2")) {
+        await leaf.loadIfDeferred();
+      }
+      const view = leaf.view;
+      const updates = getCurrentUpdates();
+      if (view instanceof ReaderView && updates) {
+        view.applyExternalUpdate(articleGuid, updates, feedUrl);
+      }
+    }
   }
 
   importOpml(): void {
