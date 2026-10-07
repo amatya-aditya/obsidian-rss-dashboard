@@ -33,6 +33,40 @@ export function isModalOpen(doc: Document): boolean {
   return doc.body?.querySelector(":scope > .modal-container") != null;
 }
 
+// Navigation keys (j, l, Space, the arrows, Shift+Space/J/L) repeat while held.
+// Every other bound key acts once per press, so holding it must not fire again.
+const NO_REPEAT_KEYS = new Set([
+  "r",
+  "o",
+  "Enter",
+  "k",
+  "m",
+  "f",
+  "t",
+  "s",
+  "1",
+  "2",
+  "3",
+  ",",
+]);
+const NO_REPEAT_SHIFT_KEYS = new Set([
+  "S",
+  "R",
+  "O",
+  "Enter",
+  "X",
+  "D",
+  "A",
+  "!",
+  "@",
+  "#",
+  "?",
+]);
+
+function isNoRepeatKey(e: KeyboardEvent): boolean {
+  return (e.shiftKey ? NO_REPEAT_SHIFT_KEYS : NO_REPEAT_KEYS).has(e.key);
+}
+
 function isNode(target: EventTarget | null): target is Node {
   return typeof (target as Partial<Node> | null)?.instanceOf === "function";
 }
@@ -82,6 +116,14 @@ function handleKeydown(
 
   // Guard 3: skip OS modified keys (Ctrl/Cmd/Alt) to preserve native shortcuts
   if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+  // Guard 4: a held action key acts once, not on every auto-repeat. The key is
+  // still swallowed, so the held press does not leak to another handler.
+  if (e.repeat && isNoRepeatKey(e)) {
+    e.preventDefault();
+    e.stopPropagation();
+    return;
+  }
 
   const key = e.key;
   const shift = e.shiftKey;

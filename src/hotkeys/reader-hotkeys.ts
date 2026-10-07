@@ -19,6 +19,21 @@ function isEditableTarget(target: EventTarget | null): boolean {
 // focus it owns these keys to move between the buttons.
 const TOOLBAR_KEYS = new Set(["ArrowLeft", "ArrowRight", "Home", "End"]);
 
+// Reader shortcuts that act once per press, with or without Shift.
+const NO_REPEAT_KEYS = new Set([
+  "k",
+  "d",
+  "s",
+  "r",
+  "m",
+  "a",
+  "f",
+  "t",
+  ",",
+  "?",
+  "0",
+]);
+
 /**
  * Returns whether a keyboard event came from a Reader toolbar button.
  */
@@ -48,6 +63,13 @@ export function setupReaderHotkeys(scope: Scope, view: ReaderView): void {
         isToolbarTarget(event.target)
       )
         return undefined;
+      // A held action key acts once per press. Scroll, zoom and article
+      // navigation keys repeat. Report the held press handled so it does not
+      // fall through to another scope.
+      if (event.repeat && key !== null && NO_REPEAT_KEYS.has(key)) {
+        event.preventDefault();
+        return true;
+      }
       return handler(event, keymapHandler) !== false;
     });
   // Reader scrolling
