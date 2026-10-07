@@ -750,7 +750,14 @@ export default class RssDashboardPlugin extends Plugin {
     return null;
   }
 
+  /**
+   * The focused Reader when one is active, else the first open Reader. Several
+   * Readers can be open at once (a playing podcast keeps its own), so the
+   * first leaf is not necessarily the one the user is working in.
+   */
   public async getActiveReaderView(): Promise<ReaderView | null> {
+    const focused = this.app.workspace.getActiveViewOfType(ReaderView);
+    if (focused) return focused;
     const leaves = this.app.workspace.getLeavesOfType(RSS_READER_VIEW_TYPE);
     for (const leaf of leaves) {
       if (requireApiVersion("1.7.2")) {
