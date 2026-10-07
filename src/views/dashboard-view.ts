@@ -467,17 +467,26 @@ export class RssDashboardView extends ItemView {
   }
 
   /**
-   * Action: Navigate arrow keys in card view.
+   * Action: Navigate arrow keys in the article list. Card view moves across
+   * the grid; list and feed views stack one article per row, so Up and Down
+   * step the selection like `k` and `j` (without opening) and Left and Right
+   * do nothing. Returns false when the key was not used, so the caller can
+   * leave it uncancelled.
    * @internal
    */
-  public actionNavigateCard(direction: "left" | "right" | "up" | "down"): void {
+  public actionNavigateCard(
+    direction: "left" | "right" | "up" | "down",
+  ): boolean {
     this.getSidebarKeyboardController()?.blurSidebarFocus();
-    if (this.settings.viewStyle !== "card") return;
+    const isCard = this.settings.viewStyle === "card";
+    if (!isCard && (direction === "left" || direction === "right")) {
+      return false;
+    }
 
     const allFilteredArticles = this.getFilteredArticles();
     const pageSize = this.getCurrentPageSize();
     const totalArticles = allFilteredArticles.length;
-    if (totalArticles === 0) return;
+    if (totalArticles === 0) return true;
 
     const currentPage = this.getCurrentPage();
     const pagination = computePagination({
@@ -490,14 +499,23 @@ export class RssDashboardView extends ItemView {
       pagination.endIdx,
     );
 
-    if (articlesForPage.length === 0) return;
+    if (articlesForPage.length === 0) return true;
 
     if (!this.selectedArticle) {
       const firstArticle = articlesForPage[0];
       if (firstArticle) {
         void this.selectArticle(firstArticle);
       }
-      return;
+      return true;
+    }
+
+    if (!isCard) {
+      if (direction === "up") {
+        this.actionNavigatePrevious();
+      } else {
+        this.actionNavigateNext();
+      }
+      return true;
     }
 
     const targetGuid = this.articleList?.getCardNavigationTargetGuid(
@@ -505,17 +523,18 @@ export class RssDashboardView extends ItemView {
       direction,
     );
     if (!targetGuid) {
-      return;
+      return true;
     }
 
     const targetArticle = articlesForPage.find(
       (article) => article.guid === targetGuid,
     );
     if (!targetArticle) {
-      return;
+      return true;
     }
 
     void this.selectArticle(targetArticle);
+    return true;
   }
 
   /**
