@@ -355,7 +355,8 @@ describe("Reader save/delete continuations", () => {
                 app,
                 view: reader,
                 loadIfDeferred: () => Promise.resolve(),
-              } as unknown as WorkspaceLeaf,
+                updateHeader: () => {},
+              },
             ]
           : [],
       );
