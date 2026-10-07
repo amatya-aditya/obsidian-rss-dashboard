@@ -7,6 +7,8 @@ import {
   findDashboardBinding,
   readerBindings,
 } from "../../../src/hotkeys/keymap";
+import { DASHBOARD_ACTIONS } from "../../../src/hotkeys/dashboard-hotkeys";
+import { READER_ACTIONS } from "../../../src/hotkeys/reader-hotkeys";
 import { SHORTCUT_SECTIONS } from "../../../src/modals/shortcut-help-modal";
 
 // Esc is handled by Obsidian, not by a binding in this table (#880).
@@ -90,6 +92,23 @@ describe("keymap table", () => {
         findDashboardBinding({ key: "q", shiftKey: false }, () => false),
       ).toBeUndefined();
     });
+  });
+
+  describe("action maps", () => {
+    it.each([
+      ["dashboard", DASHBOARD_ACTIONS],
+      ["reader", READER_ACTIONS],
+    ] as const)(
+      "%s has an action for every binding and no extras",
+      (context, actions) => {
+        const ids = new Set(
+          KEYMAP.filter((b) => b.contexts.includes(context)).map((b) => b.id),
+        );
+
+        expect([...ids].filter((id) => !(id in actions))).toEqual([]);
+        expect(Object.keys(actions).filter((id) => !ids.has(id))).toEqual([]);
+      },
+    );
   });
 
   describe("shortcut help", () => {

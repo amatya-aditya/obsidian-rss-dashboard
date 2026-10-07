@@ -50,14 +50,6 @@
       "count": 1
     }
   },
-  "src/hotkeys/dashboard-hotkeys.ts": {
-    "complexity": {
-      "count": 1
-    },
-    "max-lines-per-function": {
-      "count": 1
-    }
-  },
   "src/modals/feed-manager/add-feed-modal.ts": {
     "complexity": {
       "count": 1
