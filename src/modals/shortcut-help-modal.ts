@@ -2,6 +2,93 @@ import { Modal, App, setIcon, Notice } from "obsidian";
 import type { RssDashboardSettings } from "../types/types";
 import { ensureVaultFolder } from "../utils/vault-files";
 
+interface ShortcutItem {
+  key: string;
+  desc: string;
+}
+
+export interface ShortcutSection {
+  section: string;
+  items: ShortcutItem[];
+}
+
+/**
+ * The shortcut list shown in the help dialog and written to the vault note.
+ * Keep it in step with `src/hotkeys/dashboard-hotkeys.ts`,
+ * `src/hotkeys/reader-hotkeys.ts`, and `docs/user/keyboard-shortcuts.md`.
+ */
+export const SHORTCUT_SECTIONS: ShortcutSection[] = [
+  {
+    section: "General navigation",
+    items: [
+      { key: "?", desc: "Open help dialog" },
+      { key: "Esc", desc: "Close dialog / clear selection" },
+      { key: "r", desc: "Refresh feed" },
+    ],
+  },
+  {
+    section: "Dashboard view",
+    items: [
+      { key: "Shift + s", desc: "Focus sidebar" },
+      { key: "Shift + r", desc: "Focus reader view" },
+      { key: "Shift + 1", desc: "All articles filter" },
+      { key: "Shift + 2", desc: "Unread articles filter" },
+      { key: "Shift + 3", desc: "Read articles filter" },
+      { key: "1", desc: "List view" },
+      { key: "2", desc: "Card view" },
+      { key: "3", desc: "Feed view" },
+    ],
+  },
+  {
+    section: "Reader view",
+    items: [
+      { key: "Shift + d", desc: "Focus dashboard view" },
+      { key: "Shift + s", desc: "Focus sidebar" },
+      { key: "Shift + r", desc: "Focus reader view" },
+      { key: "ArrowUp / ArrowDown", desc: "Scroll article up/down" },
+      { key: "ArrowLeft / ArrowRight", desc: "Scroll article left/right" },
+      { key: "PageUp / PageDown", desc: "Scroll by one page" },
+      { key: "Home / End", desc: "Jump to start/end of article" },
+      { key: "= / +", desc: "Increase font size" },
+      { key: "- / _", desc: "Decrease font size" },
+      { key: "0", desc: "Reset font size" },
+    ],
+  },
+  {
+    section: "Article manipulation",
+    items: [
+      { key: "Arrow keys", desc: "Card view navigation" },
+      { key: "o / Enter", desc: "Open article in reader pane" },
+      { key: "k", desc: "Close reader pane" },
+      { key: "j", desc: "Open previous article" },
+      { key: "l", desc: "Open next article" },
+      {
+        key: "Space / Shift + Space",
+        desc: "Select next / previous article without opening",
+      },
+      { key: "m", desc: "Mark article read/unread toggle" },
+      { key: ",", desc: "Mark article read and open next" },
+      { key: "Shift + a", desc: "Mark all as read" },
+      { key: "f", desc: "Star/Unstar article" },
+      { key: "t", desc: "Add tags to article" },
+      { key: "s", desc: "Save full content to notes" },
+    ],
+  },
+  {
+    section: "Sidebar navigation",
+    items: [
+      { key: "Shift + l", desc: "Next item" },
+      { key: "Shift + j", desc: "Previous item" },
+      { key: "ArrowUp / ArrowDown", desc: "Move focused item" },
+      { key: "ArrowLeft / ArrowRight", desc: "Jump between folders" },
+      { key: "Shift + o / Shift + Enter", desc: "Open focused item" },
+      { key: "Shift + x", desc: "Open/Collapse folder" },
+      { key: "Shift + d", desc: "Delete folder/feed" },
+      { key: "Shift + r", desc: "Rename folder/feed" },
+    ],
+  },
+];
+
 export class ShortcutHelpModal extends Modal {
   private settings: RssDashboardSettings;
 
@@ -56,138 +143,16 @@ export class ShortcutHelpModal extends Modal {
 
     const body = contentEl.createDiv({ cls: "rss-dashboard-modal-content" });
 
-    this.renderSection(body, "General navigation", [
-      { key: "?", desc: "Open help dialog" },
-      { key: "Esc", desc: "Close dialog / clear selection" },
-      { key: "r", desc: "Refresh feed" },
-    ]);
-
-    this.renderSection(body, "Dashboard view", [
-      { key: "Shift + s", desc: "Focus sidebar" },
-      { key: "Shift + r", desc: "Focus reader view" },
-      { key: "Shift + 1", desc: "All articles filter" },
-      { key: "Shift + 2", desc: "Unread articles filter" },
-      { key: "Shift + 3", desc: "Read articles filter" },
-      { key: "1", desc: "List view" },
-      { key: "2", desc: "Card view" },
-      { key: "3", desc: "Feed view" },
-    ]);
-
-    this.renderSection(body, "Reader view", [
-      { key: "Shift + d", desc: "Focus dashboard view" },
-      { key: "Shift + s", desc: "Focus sidebar" },
-      { key: "Shift + r", desc: "Focus reader view" },
-      { key: "ArrowUp / ArrowDown", desc: "Scroll article up/down" },
-      { key: "ArrowLeft / ArrowRight", desc: "Scroll article left/right" },
-      { key: "PageUp / PageDown", desc: "Scroll by one page" },
-      { key: "Home / End", desc: "Jump to start/end of article" },
-      { key: "= / +", desc: "Increase font size" },
-      { key: "- / _", desc: "Decrease font size" },
-      { key: "0", desc: "Reset font size" },
-    ]);
-
-    this.renderSection(body, "Article manipulation", [
-      { key: "Arrow keys", desc: "Card view navigation" },
-      { key: "o / Enter", desc: "Open article in reader pane" },
-      { key: "k", desc: "Close reader pane" },
-      { key: "j", desc: "Open prior article in feed" },
-      { key: "l", desc: "Open next article in feed" },
-      { key: "m", desc: "Mark article read/unread toggle" },
-      { key: ",", desc: "Mark article read and open next" },
-      { key: "Shift + a", desc: "Mark all as read" },
-      { key: "f", desc: "Star/Unstar article" },
-      { key: "t", desc: "Add tags to article" },
-      { key: "s", desc: "Save full content to notes" },
-    ]);
-
-    this.renderSection(body, "Sidebar navigation", [
-      { key: "Shift + l", desc: "Next item" },
-      { key: "Shift + j", desc: "Previous item" },
-      { key: "ArrowUp / ArrowDown", desc: "Move focused item" },
-      { key: "ArrowLeft / ArrowRight", desc: "Jump between folders" },
-      { key: "Shift + o / Shift + Enter", desc: "Open focused item" },
-      { key: "Shift + x", desc: "Open/Collapse folder" },
-      { key: "Shift + d", desc: "Delete folder/feed" },
-      { key: "Shift + r", desc: "Rename folder/feed" },
-    ]);
+    for (const { section, items } of SHORTCUT_SECTIONS) {
+      this.renderSection(body, section, items);
+    }
   }
 
   private async saveShortcutsToVault(): Promise<void> {
     try {
       // Build the markdown content
-      const shortcutsData = [
-        {
-          section: "General navigation",
-          items: [
-            { key: "?", desc: "Open help dialog" },
-            { key: "Esc", desc: "Close dialog / clear selection" },
-            { key: "r", desc: "Refresh feed" },
-          ],
-        },
-        {
-          section: "Dashboard view",
-          items: [
-            { key: "Shift + s", desc: "Focus sidebar" },
-            { key: "Shift + r", desc: "Focus reader view" },
-            { key: "Shift + 1", desc: "All articles filter" },
-            { key: "Shift + 2", desc: "Unread articles filter" },
-            { key: "Shift + 3", desc: "Read articles filter" },
-            { key: "1", desc: "List view" },
-            { key: "2", desc: "Card view" },
-            { key: "3", desc: "Feed view" },
-          ],
-        },
-        {
-          section: "Reader view",
-          items: [
-            { key: "Shift + d", desc: "Focus dashboard view" },
-            { key: "Shift + s", desc: "Focus sidebar" },
-            { key: "Shift + r", desc: "Focus reader view" },
-            { key: "ArrowUp / ArrowDown", desc: "Scroll article up/down" },
-            {
-              key: "ArrowLeft / ArrowRight",
-              desc: "Scroll article left/right",
-            },
-            { key: "PageUp / PageDown", desc: "Scroll by one page" },
-            { key: "Home / End", desc: "Jump to start/end of article" },
-            { key: "= / +", desc: "Increase font size" },
-            { key: "- / _", desc: "Decrease font size" },
-            { key: "0", desc: "Reset font size" },
-          ],
-        },
-        {
-          section: "Article manipulation",
-          items: [
-            { key: "Arrow keys", desc: "Card view navigation" },
-            { key: "o / Enter", desc: "Open article in reader pane" },
-            { key: "k", desc: "Close reader pane" },
-            { key: "j", desc: "Open prior article in feed" },
-            { key: "l", desc: "Open next article in feed" },
-            { key: "m", desc: "Mark article read/unread toggle" },
-            { key: ",", desc: "Mark article read and open next" },
-            { key: "Shift + a", desc: "Mark all as read" },
-            { key: "f", desc: "Star/Unstar article" },
-            { key: "t", desc: "Add tags to article" },
-            { key: "s", desc: "Save full content to notes" },
-          ],
-        },
-        {
-          section: "Sidebar navigation",
-          items: [
-            { key: "Shift + l", desc: "Next item" },
-            { key: "Shift + j", desc: "Previous item" },
-            { key: "ArrowUp / ArrowDown", desc: "Move focused item" },
-            { key: "ArrowLeft / ArrowRight", desc: "Jump between folders" },
-            { key: "Shift + o / Shift + Enter", desc: "Open focused item" },
-            { key: "Shift + x", desc: "Open/Collapse folder" },
-            { key: "Shift + d", desc: "Delete folder/feed" },
-            { key: "Shift + r", desc: "Rename folder/feed" },
-          ],
-        },
-      ];
-
       let content = "# Keyboard shortcuts\n\n";
-      shortcutsData.forEach((section) => {
+      SHORTCUT_SECTIONS.forEach((section) => {
         content += `## ${section.section}\n\n`;
         content += "| Shortcut | Action |\n";
         content += "|----------|--------|\n";
@@ -260,7 +225,7 @@ export class ShortcutHelpModal extends Modal {
   private renderSection(
     container: HTMLElement,
     title: string,
-    items: Array<{ key: string; desc: string }>,
+    items: ShortcutItem[],
   ) {
     const section = container.createDiv({ cls: "rss-shortcut-section" });
     section.createEl("h3", { text: title });

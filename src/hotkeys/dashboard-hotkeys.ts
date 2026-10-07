@@ -157,8 +157,14 @@ function handleKeydown(
         void view.actionRefreshFeeds();
         handled = true;
         break;
+      // j and l move to the previous/next article and open it, matching the
+      // Reader keymap; Space and Shift+Space only move the selection.
       case "j":
-        view.actionNavigateNext();
+        view.actionNavigatePrevious({ open: true });
+        handled = true;
+        break;
+      case "l":
+        view.actionNavigateNext({ open: true });
         handled = true;
         break;
       case " ": // Space
@@ -166,7 +172,7 @@ function handleKeydown(
         handled = true;
         break;
       case "k":
-        view.actionNavigatePrevious();
+        view.actionCloseReader();
         handled = true;
         break;
       case "ArrowLeft":

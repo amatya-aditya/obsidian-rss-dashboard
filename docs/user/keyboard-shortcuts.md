@@ -38,19 +38,24 @@
 
 ## Article Manipulation
 
-| Shortcut   | Action                          |
-| ---------- | ------------------------------- |
-| Arrow keys | Card view navigation            |
-| o / Enter  | Open article in reader pane     |
-| k          | Close reader pane               |
-| j          | Open prior article in feed      |
-| l          | Open next article in feed       |
-| m          | Mark article read/unread toggle |
-| ,          | Mark article read and open next |
-| Shift + a  | Mark all as read                |
-| f          | Star/Unstar article             |
-| t          | Add tags to article             |
-| s          | Save full content to notes      |
+| Shortcut              | Action                                         |
+| --------------------- | ---------------------------------------------- |
+| Arrow keys            | Card view navigation                           |
+| o / Enter             | Open article in reader pane                    |
+| k                     | Close reader pane                              |
+| j                     | Open previous article                          |
+| l                     | Open next article                              |
+| Space / Shift + Space | Select next / previous article without opening |
+| m                     | Mark article read/unread toggle                |
+| ,                     | Mark article read and open next                |
+| Shift + a             | Mark all as read                               |
+| f                     | Star/Unstar article                            |
+| t                     | Add tags to article                            |
+| s                     | Save full content to notes                     |
+
+`j`, `k`, and `l` work the same whether the dashboard or the Reader has focus.
+`j` and `l` open the previous or next article in the Reader, even when it was
+closed. `k` closes the Reader and does nothing when no Reader is open.
 
 ## Sidebar Navigation
 
