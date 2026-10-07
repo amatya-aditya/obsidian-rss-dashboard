@@ -107,3 +107,86 @@ The pre-commit hook runs only the tests related to the staged files; GitHub
 Actions runs the full suite with coverage for pull requests and pushes to
 `dev` or `master`. The pre-push hook skips local checks. See **Git Hooks** in
 [CONTRIBUTING.md](../../../CONTRIBUTING.md#git-hooks).
+
+## 9. Palette command ids
+
+Command-palette commands are a test contract: a test or an agent runs a command
+by id (`app.commands.executeCommandById("rss-dashboard:<id>")`), so an id never
+changes once released. The commands live in
+`src/commands/palette-commands.ts`; each one calls the same view method its
+hotkey calls and sets no default hotkey (suggested bindings are documented, not
+shipped). Reader and dashboard commands use `checkCallback`: they are listed
+only while that view is open, and `checking=true` never changes anything.
+
+| Group     | Ids                                                                                                                                                                                                                                                                            | Available                |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------ |
+| Settings  | `open-settings-general`, `-storage`, `-display`, `-sidebar`, `-media`, `-article-saving`, `-rules`, `-highlights`, `-import-export`, `-tags`, `-about` (one per tab in `SETTINGS_TAB_NAMES`)                                                                                   | Always                   |
+| Dashboard | `dashboard-focus-search`, `dashboard-clear-filters`, `dashboard-filter-all`, `-unread`, `-read`, `-starred`, `dashboard-view-list`, `-card`, `-feed`, `dashboard-collapse-all-folders`, `dashboard-expand-all-folders`, `dashboard-mark-all-read`, `dashboard-mark-all-unread` | A dashboard view is open |
+| Reader    | `reader-next-article`, `reader-previous-article`, `reader-close`, `reader-toggle-star`, `reader-toggle-read`, `reader-open-tags`, `reader-open-original`                                                                                                                       | A Reader view is open    |
+| Existing  | `open-dashboard`, `open-discover`, `refresh-feeds`, `toggle-sidebar`, `show-version-in-status-bar`, and the import/export commands in `main.ts`                                                                                                                                | See `registerCommands`   |
+
+`dashboard-mark-all-read` and `dashboard-mark-all-unread` act on the current
+filtered view, like the header-menu buttons, with no confirmation. Their Notice
+names the view using the article header title, for example `Marked 14 items as
+read in All Unread articles`; with nothing to change it is `No unread items in
+current view` (or `No read items in current view`).
+
+The version status bar item (Display setting "Show version in status bar") has
+`role="status"` and the accessible name `RSS Dashboard version <version>`.
+Clicking it runs `open-dashboard` behavior: it reveals the open dashboard
+rather than adding another. The item is not a tab stop; the keyboard route to
+the same action is the `open-dashboard` command.
+
+## 10. Icon buttons and the Reader toolbar
+
+Icon-only controls are built with `createIconButton()` in
+`src/utils/icon-button.ts`: a native `<button type="button">` with a required
+accessible name (`label`) and optional `aria-pressed`, `aria-expanded`, and
+`aria-haspopup`. It is the only code that writes the `data-rss-action` and
+`data-rss-region` hooks. Tests and agents should find a control by role and
+name first; use a hook only to tell apart controls that share a name.
+
+The Reader toolbar (`role="toolbar"`, name `Reader actions`, region
+`reader-toolbar`) and the dashboard's inline reader toolbar (region
+`inline-reader-toolbar`) are one Tab stop each (`attachRovingToolbar` in
+`src/utils/roving-toolbar.ts`): Left and Right Arrow, Home, and End move
+between the buttons, and Tab leaves the toolbar. Actions: `save`, `read`,
+`star`, `tags`, `format`, `open` (the inline toolbar has no `tags` or
+`format`). The accessible names of `read`, `star`, and `save` change with the
+article's state, because the view writes its tooltips to `aria-label`; look
+those up by `data-rss-action`.
+
+## 11. Refresh live region and the ready flag
+
+Each dashboard view has one visually hidden status region, class
+`rss-dashboard-refresh-announcer`, with `role="status"` and
+`aria-live="polite"`, inside its own root (`containerEl`). It is created by
+`createLiveRegion()` in `src/utils/live-region.ts` and survives re-renders. A
+popout or a second open dashboard has its own region.
+
+Refresh announcements come from `FeedRefreshRunner` through the workspace event
+`rss-dashboard:refresh-announcement` (`src/services/refresh-announcements.ts`).
+One message per event, never per feed:
+
+| Event                   | Text                                                                  |
+| ----------------------- | --------------------------------------------------------------------- |
+| Run starts              | `Refreshing 3 feeds.` or `Refreshing <feed title>.`                   |
+| Run finishes            | `Refresh finished: 4 new articles, 1 feed timed out, 2 feeds failed.` |
+| Run finishes, none new  | `Refresh finished: no new articles.`                                  |
+| User stops a global run | `Refresh stopped.`                                                    |
+| Run throws outright     | `Refresh failed: <message>`                                           |
+
+A background refresh of due feeds (intent `due`) and the interval scheduler's
+global refresh (intent `scheduled`, also the startup refresh) are quiet: no
+start message, and a finish message only when it found articles or errors. A
+manual global refresh (intent `global`) is fully announced. To assert in a
+test, read the region's text, or observe it with a `MutationObserver` to count
+announcements (see `test_files/unit/main/refresh-announcements.test.ts`).
+
+`data-rss-ready` is set on the dashboard view root (`containerEl`) by
+`markViewReady()` in `src/utils/view-ready.ts`, the only code that writes it. It
+is absent until the first render has finished, present afterwards, and removed
+when the view closes, so a reopened dashboard starts absent again. A harness
+waits for `.workspace-leaf-content[data-type="rss-dashboard-view"][data-rss-ready]`
+(the tab header carries the same `data-type`, so name the content class)
+instead of a timeout. It is a convenience signal; it never replaces role and name queries.

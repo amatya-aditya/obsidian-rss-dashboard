@@ -621,7 +621,36 @@ describe("Dashboard reader location", () => {
     expect(view.render).toHaveBeenCalled();
   });
 
-  it("exposes the inline Reader star as a keyboard-operable toggle button", async () => {
+  it("builds the inline Reader toolbar from named native buttons with one Tab stop", async () => {
+    const settings = cloneSettings();
+    const feed = makeFeed("https://example.com/feed", [{ starred: false }]);
+    settings.feeds = [feed];
+    const { view } = await createDashboardView(settings);
+    view.inlineArticle = feed.items[0];
+
+    const container = createDiv();
+    activeDocument.body.appendChild(container);
+    view.renderInlineArticle(container);
+    const toolbarButtons = [
+      ...container.querySelectorAll<HTMLElement>(".rss-reader-actions button"),
+    ];
+
+    expect(toolbarButtons.map((b) => b.getAttribute("aria-label"))).toEqual([
+      "Save article",
+      "Mark as read/unread",
+      "Star/unstar article",
+      "Open in browser",
+    ]);
+    expect(
+      container.querySelectorAll(".rss-reader-actions [role='button']"),
+    ).toHaveLength(0);
+    expect(toolbarButtons.filter((b) => b.tabIndex === 0)).toEqual([
+      toolbarButtons[0],
+    ]);
+    container.remove();
+  });
+
+  it("exposes the inline Reader star as a native toggle button", async () => {
     const settings = cloneSettings();
     const feed = makeFeed("https://example.com/feed", [{ starred: false }]);
     settings.feeds = [feed];
@@ -635,8 +664,11 @@ describe("Dashboard reader location", () => {
       ".rss-reader-star-toggle",
     );
 
-    expect(starButton?.getAttribute("role")).toBe("button");
-    expect(starButton?.getAttribute("tabindex")).toBe("0");
+    // A native button is keyboard-operable on its own (Enter and Space click it
+    // in a browser), so it carries no role, tabindex or keydown handler.
+    expect(starButton?.tagName).toBe("BUTTON");
+    expect(starButton?.getAttribute("type")).toBe("button");
+    expect(starButton?.hasAttribute("role")).toBe(false);
     expect(starButton?.getAttribute("aria-pressed")).toBe("false");
 
     for (const key of ["Enter", " "]) {
@@ -647,14 +679,18 @@ describe("Dashboard reader location", () => {
       });
       starButton?.dispatchEvent(event);
 
-      expect(event.defaultPrevented).toBe(true);
-      expect(view.handleArticleUpdate).toHaveBeenLastCalledWith(
-        feed.items[0],
-        { starred: true },
-        true,
-      );
-      vi.mocked(view.handleArticleUpdate).mockClear();
+      // Not handled here: the browser's own click is the only activation.
+      expect(event.defaultPrevented).toBe(false);
+      expect(view.handleArticleUpdate).not.toHaveBeenCalled();
     }
+
+    // The click a browser synthesizes for Enter or Space.
+    starButton?.click();
+    expect(view.handleArticleUpdate).toHaveBeenLastCalledWith(
+      feed.items[0],
+      { starred: true },
+      true,
+    );
 
     container.remove();
     view.inlineArticle = { ...feed.items[0], starred: true };

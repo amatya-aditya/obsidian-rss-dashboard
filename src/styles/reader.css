@@ -78,7 +78,39 @@
   background-color: var(--background-modifier-hover);
   color: var(--text-normal);
 }
+/* The toolbar buttons are native buttons: neutralize Obsidian's base button
+   chrome so they keep the icon look the div controls had. Scoped to the
+   toolbar and button class so the rule outranks `button:not(.clickable-icon)`. */
+.rss-reader-actions button.rss-reader-action-button {
+  appearance: none;
+  background-color: transparent;
+  border: 0;
+  border-radius: 4px;
+  box-shadow: none;
+  color: var(--text-muted);
+  font: inherit;
+  height: auto;
+  margin: 0;
+  padding: 4px;
+}
+.rss-reader-actions button.rss-reader-action-button:hover {
+  background-color: var(--background-modifier-hover);
+  box-shadow: none;
+  color: var(--text-normal);
+}
+/* State colors, repeated at the button rule's specificity so they still win. */
+.rss-reader-actions button.rss-reader-star-toggle.starred {
+  color: var(--color-yellow);
+}
+.rss-reader-actions button.rss-reader-read-toggle.read {
+  color: var(--color-green);
+}
+.rss-reader-actions button.rss-reader-action-button.saved {
+  color: var(--interactive-accent);
+}
+.rss-reader-actions button.rss-reader-action-button:focus-visible,
 .rss-reader-actions .rss-reader-star-toggle:focus-visible {
+  box-shadow: none;
   outline: 2px solid var(--interactive-accent);
   outline-offset: 2px;
 }

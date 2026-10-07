@@ -3758,16 +3758,23 @@ export class Sidebar {
     const collapsedSet = new Set(collapsedFolders);
     const allCollapsed = allFolderPaths.every((path) => collapsedSet.has(path));
 
-    if (allCollapsed) {
-      const foldersToExpand = allFolderPaths;
-      const foldersToCollapse: string[] = [];
-      this.callbacks.onBatchToggleFolders?.(foldersToCollapse, foldersToExpand);
-      new Notice("All folders expanded");
-    } else {
-      const foldersToExpand: string[] = [];
-      const foldersToCollapse = allFolderPaths;
-      this.callbacks.onBatchToggleFolders?.(foldersToCollapse, foldersToExpand);
+    this.setAllFoldersCollapsed(!allCollapsed);
+  }
+
+  /** Collapses or expands every folder; the toolbar toggle and commands share it. */
+  public setAllFoldersCollapsed(collapse: boolean): void {
+    const allFolderPaths = this.getCachedFolderPaths();
+
+    if (allFolderPaths.length === 0) {
+      return;
+    }
+
+    if (collapse) {
+      this.callbacks.onBatchToggleFolders?.(allFolderPaths, []);
       new Notice("All folders collapsed");
+    } else {
+      this.callbacks.onBatchToggleFolders?.([], allFolderPaths);
+      new Notice("All folders expanded");
     }
 
     // Trigger immediate re-render for UI update

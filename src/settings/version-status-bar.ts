@@ -7,6 +7,8 @@ export interface VersionStatusBarFeatureOptions {
   version: string;
   enabled: boolean;
   addStatusBarItem?: () => HTMLElement;
+  /** Opens the dashboard, or reveals it when it is already open. */
+  openDashboard: () => void | Promise<void>;
   addCommand: (command: Command) => unknown;
   saveEnabled: (enabled: boolean) => Promise<void>;
 }
@@ -66,9 +68,17 @@ export class VersionStatusBarFeature {
 
     if (this.statusItem || !this.options.addStatusBarItem) return;
 
-    this.statusItem = this.options.addStatusBarItem();
-    this.statusItem.setText(
-      formatBuildLabel(this.options.version, getBuildInfo()),
-    );
+    const item = this.options.addStatusBarItem();
+    this.statusItem = item;
+    // The label never changes after creation, so assistive tech announces it
+    // once. The "Open dashboard" command is the keyboard route to the click.
+    item.setText(formatBuildLabel(this.options.version, getBuildInfo()));
+    item.setAttr("role", "status");
+    item.setAttr("aria-label", `RSS Dashboard version ${this.options.version}`);
+    item.addClass("mod-clickable");
+    item.addEventListener("click", () => {
+      if (this.statusItem !== item) return;
+      void this.options.openDashboard();
+    });
   }
 }
