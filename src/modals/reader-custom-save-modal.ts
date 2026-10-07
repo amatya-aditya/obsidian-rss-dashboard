@@ -466,7 +466,7 @@ function createActionButtons(
 ): void {
   const templateHint = content.createEl("p", {
     cls: "setting-item-description rss-dashboard-custom-save-template-hint",
-    text: "The prefilled template is ready to use: its frontmatter properties already have the required indentation.",
+    text: "The prefilled template is ready to use.",
   });
   const updateTemplateHint = () => {
     templateHint.hidden =

@@ -803,6 +803,27 @@ title: "{{title}}"
     expect(written.startsWith("---\ntitle: Test Article\n---\n")).toBe(true);
   });
 
+  it("uses unindented frontmatter when no frontmatter template is configured", async () => {
+    const app = App.createMock();
+    const saver = new ArticleSaver(
+      app,
+      createSettings({
+        includeFrontmatter: true,
+        defaultTemplate: "# {{title}}",
+      }),
+    );
+
+    const file = await saver.saveArticle(createItem());
+
+    if (!(file instanceof TFile)) throw new Error("expected saved file");
+    const written = await app.vault.read(file);
+    expect(written).toMatch(/^---\ntitle: "Test Article"\ndate: /);
+    expect(written).toContain("\n---\n# Test Article");
+    expect(written).not.toMatch(
+      /^ +(?:title|date|tags|source|link|author|feedTitle|guid):/m,
+    );
+  });
+
   it("uses the normalized article image value in filename patterns", async () => {
     const app = App.createMock();
     const saver = new ArticleSaver(app, createSettings());

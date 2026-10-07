@@ -137,9 +137,7 @@ describe("ReaderCustomSaveModal", () => {
     );
     const template = root.querySelector<HTMLTextAreaElement>("textarea");
 
-    expect(hint?.textContent).toBe(
-      "The prefilled template is ready to use: its frontmatter properties already have the required indentation.",
-    );
+    expect(hint?.textContent).toBe("The prefilled template is ready to use.");
     expect(
       hint?.nextElementSibling?.classList.contains(
         "rss-dashboard-modal-buttons",
