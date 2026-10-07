@@ -660,6 +660,45 @@ export class RssDashboardView extends ItemView {
   }
 
   /**
+   * Action: Show the Starred view, the same view the sidebar Starred entry opens.
+   * @internal
+   */
+  public actionShowStarred(): void {
+    this.handleFolderClick("starred");
+  }
+
+  /**
+   * Action: Clear the status and tag filters and the sidebar tag selection.
+   * @internal
+   */
+  public actionClearFilters(): void {
+    this.actionSetStatusFilter("all");
+    if (this.selectedTags.length > 0) {
+      this.handleClearTags();
+    }
+  }
+
+  /**
+   * Action: Focus and select the article search input, opening the header
+   * menu that holds it when the desktop controls are not displayed.
+   * @internal
+   */
+  public actionFocusSearch(): void {
+    const focused = this.articleList?.focusSearch() ?? Promise.resolve(false);
+    void focused.then((ok) => {
+      if (!ok) new Notice("The article search box is not visible.");
+    });
+  }
+
+  /**
+   * Action: Collapse or expand every sidebar folder.
+   * @internal
+   */
+  public actionSetAllFoldersCollapsed(collapse: boolean): void {
+    this.sidebar?.setAllFoldersCollapsed(collapse);
+  }
+
+  /**
    * Action: Change dashboard view style/layout.
    * @internal
    */

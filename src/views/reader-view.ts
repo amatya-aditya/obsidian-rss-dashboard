@@ -122,6 +122,7 @@ export const RSS_READER_VIEW_TYPE = "rss-reader-view";
 
 export class ReaderView extends ItemView {
   private currentItem: FeedItem | null = null;
+  private openInBrowserButton: HTMLElement | null = null;
   private readingContainer!: HTMLElement;
   private titleElement!: HTMLElement;
   private articleSaverProvider: () => ArticleSaver;
@@ -587,6 +588,85 @@ export class ReaderView extends ItemView {
   }
 
   /**
+   * Action: Open the current article's original page in the browser. A podcast
+   * opens its destination menu, anchored to the toolbar button without an event.
+   * @internal
+   */
+  public actionOpenOriginal(event?: MouseEvent): void {
+    const item = this.currentItem;
+    if (!item) return;
+
+    if (item.mediaType === "podcast") {
+      const feedMatch =
+        this.settings.feeds.find((f) => f.url === item.feedUrl) || null;
+      const feed = feedMatch || { url: item.feedUrl, siteUrl: undefined };
+      const destinations = resolvePodcastOpenDestinations(item, feed, {
+        includeApplePodcasts: Boolean(
+          this.settings.media.enableApplePodcastsOpen,
+        ),
+      });
+
+      if (destinations.length === 0) {
+        new Notice("No link available for this podcast.");
+        return;
+      }
+
+      const menu = new Menu();
+      for (const destination of destinations) {
+        menu.addItem((menuItem: MenuItem) => {
+          menuItem.setTitle(destination.title);
+          menuItem.setIcon("external-link");
+
+          if (destination.url) {
+            const dom = (menuItem as unknown as { dom?: HTMLElement }).dom;
+            if (dom) setTooltip(dom, destination.url);
+          }
+
+          if (destination.id === "apple_podcasts") {
+            menuItem.onClick(() => {
+              void (async () => {
+                if (!feedMatch?.url || !feedMatch.title) {
+                  new Notice("Could not find this show in apple podcasts.");
+                  return;
+                }
+                const appleUrl = await resolveApplePodcastsShowUrl(
+                  feedMatch.url,
+                  feedMatch.title,
+                );
+                if (!appleUrl) {
+                  new Notice("Could not find this show in apple podcasts.");
+                  return;
+                }
+                activeWindow.open(appleUrl, "_blank");
+              })();
+            });
+            return;
+          }
+
+          const url = destination.url;
+          if (url) {
+            menuItem.onClick(() => activeWindow.open(url, "_blank"));
+          } else {
+            menuItem.setDisabled(true);
+          }
+        });
+      }
+
+      if (event) {
+        menu.showAtMouseEvent(event);
+      } else {
+        const rect = this.openInBrowserButton?.getBoundingClientRect();
+        menu.showAtPosition({ x: rect?.left ?? 0, y: rect?.bottom ?? 0 });
+      }
+      return;
+    }
+
+    const url = resolveItemExternalUrl(item);
+    if (!url) return;
+    activeWindow.open(url, "_blank");
+  }
+
+  /**
    * Action: Toggle tags dropdown menu.
    * @internal
    */
@@ -979,73 +1059,9 @@ export class ReaderView extends ItemView {
       attr: { "aria-label": "Open in browser" },
     });
     setIcon(browserButton, "external-link");
+    this.openInBrowserButton = browserButton;
     browserButton.addEventListener("click", (e) => {
-      const item = this.currentItem;
-      if (!item) return;
-
-      if (item.mediaType === "podcast") {
-        const feedMatch =
-          this.settings.feeds.find((f) => f.url === item.feedUrl) || null;
-        const feed = feedMatch || { url: item.feedUrl, siteUrl: undefined };
-        const destinations = resolvePodcastOpenDestinations(item, feed, {
-          includeApplePodcasts: Boolean(
-            this.settings.media.enableApplePodcastsOpen,
-          ),
-        });
-
-        if (destinations.length === 0) {
-          new Notice("No link available for this podcast.");
-          return;
-        }
-
-        const menu = new Menu();
-        for (const destination of destinations) {
-          menu.addItem((menuItem: MenuItem) => {
-            menuItem.setTitle(destination.title);
-            menuItem.setIcon("external-link");
-
-            if (destination.url) {
-              const dom = (menuItem as unknown as { dom?: HTMLElement }).dom;
-              if (dom) setTooltip(dom, destination.url);
-            }
-
-            if (destination.id === "apple_podcasts") {
-              menuItem.onClick(() => {
-                void (async () => {
-                  if (!feedMatch?.url || !feedMatch.title) {
-                    new Notice("Could not find this show in apple podcasts.");
-                    return;
-                  }
-                  const appleUrl = await resolveApplePodcastsShowUrl(
-                    feedMatch.url,
-                    feedMatch.title,
-                  );
-                  if (!appleUrl) {
-                    new Notice("Could not find this show in apple podcasts.");
-                    return;
-                  }
-                  activeWindow.open(appleUrl, "_blank");
-                })();
-              });
-              return;
-            }
-
-            const url = destination.url;
-            if (url) {
-              menuItem.onClick(() => activeWindow.open(url, "_blank"));
-            } else {
-              menuItem.setDisabled(true);
-            }
-          });
-        }
-
-        menu.showAtMouseEvent(e);
-        return;
-      }
-
-      const url = resolveItemExternalUrl(item);
-      if (!url) return;
-      activeWindow.open(url, "_blank");
+      this.actionOpenOriginal(e);
     });
 
     this.readingContainer = this.contentEl.createDiv({

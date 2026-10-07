@@ -37,6 +37,7 @@ describe("version status bar setting and command", () => {
     let savedPreference: boolean | undefined;
     const statusItems: HTMLElement[] = [];
     let command: RegisteredCommand | undefined;
+    const openDashboard = vi.fn();
     const feature = new VersionStatusBarFeature({
       version: "2.7.0",
       enabled: savedPreference ?? false,
@@ -45,6 +46,7 @@ describe("version status bar setting and command", () => {
         statusItems.push(item);
         return item;
       },
+      openDashboard,
       saveEnabled: async (enabled) => {
         savedPreference = enabled;
       },
@@ -79,8 +81,6 @@ describe("version status bar setting and command", () => {
     expect(statusItems).toHaveLength(1);
     expect(statusItems[0]?.textContent).toBe("Version 2.7.0 · build unknown");
     expect(statusItems[0]?.getAttribute("tabindex")).toBeNull();
-    expect(statusItems[0]?.getAttribute("role")).toBeNull();
-    expect(statusItems[0]?.onclick).toBeNull();
 
     feature.registerCommand();
     expect(command?.id).toBe("show-version-in-status-bar");
@@ -110,6 +110,7 @@ describe("version status bar setting and command", () => {
     const feature = new VersionStatusBarFeature({
       version: "2.7.0",
       enabled: savedPreference,
+      openDashboard: () => {},
       saveEnabled: async (enabled) => {
         savedPreference = enabled;
       },
@@ -138,6 +139,7 @@ describe("version status bar setting and command", () => {
       const feature = new VersionStatusBarFeature({
         version: "2.7.0",
         enabled: savedPreference,
+        openDashboard: () => {},
         addStatusBarItem: () => {
           const item = document.body.createDiv();
           statusItems.push(item);
@@ -167,4 +169,81 @@ describe("version status bar setting and command", () => {
     );
     reloaded.feature.dispose();
   });
+
+  describe("accessible name, role, and click", () => {
+    function createEnabledFeature(enabled = true) {
+      const statusItems: HTMLElement[] = [];
+      const openDashboard = vi.fn();
+      const feature = new VersionStatusBarFeature({
+        version: "2.7.0",
+        enabled,
+        addStatusBarItem: () => {
+          const item = document.body.createDiv();
+          statusItems.push(item);
+          return item;
+        },
+        openDashboard,
+        saveEnabled: async () => {},
+        addCommand: () => {},
+      });
+      return { feature, statusItems, openDashboard };
+    }
+
+    it("exposes the item as a status with an accessible name carrying the manifest version", () => {
+      const { feature, statusItems } = createEnabledFeature();
+
+      const item = getByRoleAndName("status", "RSS Dashboard version 2.7.0");
+      expect(item).toBe(statusItems[0]);
+      expect(item.textContent).toBe("Version 2.7.0 · build unknown");
+      feature.dispose();
+    });
+
+    it("keeps the label text static after creation", () => {
+      const { feature, statusItems } = createEnabledFeature();
+      const before = statusItems[0]?.textContent;
+
+      statusItems[0]?.click();
+
+      expect(statusItems[0]?.textContent).toBe(before);
+      feature.dispose();
+    });
+
+    it("opens the dashboard when the item is clicked", () => {
+      const { feature, statusItems, openDashboard } = createEnabledFeature();
+
+      statusItems[0]?.click();
+      statusItems[0]?.click();
+
+      expect(openDashboard).toHaveBeenCalledTimes(2);
+      feature.dispose();
+    });
+
+    it("has no item and no click path while the setting is off", () => {
+      const { feature, statusItems, openDashboard } =
+        createEnabledFeature(false);
+
+      expect(statusItems).toHaveLength(0);
+      expect(document.body.querySelector('[role="status"]')).toBeNull();
+      expect(openDashboard).not.toHaveBeenCalled();
+      feature.dispose();
+    });
+
+    it("drops the click path when the item is removed", async () => {
+      const { feature, statusItems, openDashboard } = createEnabledFeature();
+
+      await feature.setEnabled(false);
+      statusItems[0]?.click();
+
+      expect(statusItems[0]?.isConnected).toBe(false);
+      expect(openDashboard).not.toHaveBeenCalled();
+    });
+  });
 });
+
+function getByRoleAndName(role: string, name: string): HTMLElement {
+  const match = Array.from(
+    document.body.querySelectorAll<HTMLElement>(`[role="${role}"]`),
+  ).find((element) => element.getAttribute("aria-label") === name);
+  if (!match) throw new Error(`No ${role} named "${name}"`);
+  return match;
+}

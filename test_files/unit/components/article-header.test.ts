@@ -89,6 +89,83 @@ describe("ArticleHeader Component", () => {
     expect(mockCallbacks.onToggleSidebar).toHaveBeenCalled();
   });
 
+  it("focusSearch opens the hamburger menu when the desktop search cannot take focus", async () => {
+    const header = new ArticleHeader(
+      container,
+      settings,
+      "Title",
+      null,
+      null,
+      new Set(),
+      new Set(),
+      "OR",
+      mockCallbacks,
+    );
+    header.render();
+    const desktopInput = container.querySelector<HTMLInputElement>(
+      ".rss-dashboard-desktop-controls .rss-dashboard-article-search-input",
+    );
+    // A display:none input refuses focus; jsdom has no layout, so simulate it.
+    vi.spyOn(desktopInput as HTMLInputElement, "focus").mockImplementation(
+      () => {},
+    );
+    const menuInput = container.querySelector<HTMLInputElement>(
+      ".rss-dashboard-dropdown-menu .rss-dashboard-article-search-input",
+    );
+
+    await expect(header.focusSearch()).resolves.toBe(true);
+
+    expect(document.activeElement).toBe(menuInput);
+    expect(
+      container
+        .querySelector(".rss-dashboard-dropdown-menu")
+        ?.classList.contains("is-menu-open"),
+    ).toBe(true);
+  });
+
+  it("focusSearch uses the desktop search and leaves the menu closed when it can take focus", async () => {
+    const header = new ArticleHeader(
+      container,
+      settings,
+      "Title",
+      null,
+      null,
+      new Set(),
+      new Set(),
+      "OR",
+      mockCallbacks,
+    );
+    header.render();
+    const desktopInput = container.querySelector<HTMLInputElement>(
+      ".rss-dashboard-desktop-controls .rss-dashboard-article-search-input",
+    );
+
+    await expect(header.focusSearch()).resolves.toBe(true);
+
+    expect(document.activeElement).toBe(desktopInput);
+    expect(
+      container
+        .querySelector(".rss-dashboard-dropdown-menu")
+        ?.classList.contains("is-menu-open"),
+    ).toBe(false);
+  });
+
+  it("focusSearch resolves false before the header is rendered", async () => {
+    const header = new ArticleHeader(
+      container,
+      settings,
+      "Title",
+      null,
+      null,
+      new Set(),
+      new Set(),
+      "OR",
+      mockCallbacks,
+    );
+
+    await expect(header.focusSearch()).resolves.toBe(false);
+  });
+
   it("closes the mobile filter menu when its button is clicked again", () => {
     const header = new ArticleHeader(
       container,
