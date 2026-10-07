@@ -95,6 +95,38 @@ describe("feed-view", () => {
     ).toBeTruthy();
   });
 
+  it("selects only the matching feed when articles share a guid", () => {
+    const selectedArticle = makeArticle({
+      guid: "shared-guid",
+      feedUrl: "https://selected.example/feed.xml",
+    });
+    const otherFeedArticle = makeArticle({
+      guid: "shared-guid",
+      feedUrl: "https://other.example/feed.xml",
+    });
+
+    renderFeedView(
+      container,
+      [selectedArticle, otherFeedArticle],
+      baseViewContext({ selectedArticle }),
+      baseViewDeps(),
+    );
+
+    const rows = Array.from(
+      container.querySelectorAll<HTMLElement>(".rss-dashboard-feed-item"),
+    );
+    expect(
+      rows
+        .find((row) => row.dataset.feedUrl === selectedArticle.feedUrl)
+        ?.classList.contains("active"),
+    ).toBe(true);
+    expect(
+      rows
+        .find((row) => row.dataset.feedUrl === otherFeedArticle.feedUrl)
+        ?.classList.contains("active"),
+    ).toBe(false);
+  });
+
   it("renders hero image when cover image is set", () => {
     renderFeedView(
       container,

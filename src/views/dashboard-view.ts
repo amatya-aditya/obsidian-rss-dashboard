@@ -2781,6 +2781,22 @@ export class RssDashboardView extends ItemView {
       }
     }
 
+    if (
+      this.inlineArticle?.guid === articleGuid &&
+      this.inlineArticle.feedUrl === feedUrl
+    ) {
+      Object.assign(this.inlineArticle, updates);
+      if (updates.tags) {
+        this.inlineArticle.tags = updates.tags;
+      }
+      if (updates.saved !== undefined) {
+        const saveButton = this.containerEl.querySelector<HTMLElement>(
+          ".inline-reader-header [aria-label='Save article']",
+        );
+        saveButton?.classList.toggle("saved", updates.saved);
+      }
+    }
+
     if (shouldRerender) {
       void this.render();
       return;

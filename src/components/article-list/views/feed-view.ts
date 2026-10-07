@@ -13,6 +13,16 @@ import { renderSingleRowCardTagChips } from "../utils/tag-layout-utils";
 import { groupArticles } from "../utils/article-grouping";
 import type { BaseViewContext, ViewDeps } from "./view-types";
 
+function isSelectedArticle(
+  article: FeedItem,
+  selectedArticle: FeedItem | null,
+): boolean {
+  return (
+    selectedArticle?.guid === article.guid &&
+    selectedArticle?.feedUrl === article.feedUrl
+  );
+}
+
 function renderArticleCard(
   container: HTMLElement,
   article: FeedItem,
@@ -23,9 +33,7 @@ function renderArticleCard(
   const feedItem = container.createDiv({
     cls:
       "rss-dashboard-feed-item" +
-      (ctx.selectedArticle && article.guid === ctx.selectedArticle.guid
-        ? " active"
-        : "") +
+      (isSelectedArticle(article, ctx.selectedArticle) ? " active" : "") +
       (article.read ? " read" : " unread") +
       (article.starred ? " starred" : " unstarred") +
       (article.saved ? " saved" : "") +
