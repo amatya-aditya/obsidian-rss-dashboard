@@ -143,7 +143,7 @@ describe("ReaderView star/tag independence (GH Issue #332)", () => {
     expect(updates.tags).toBeUndefined();
   });
 
-  it("exposes the dedicated Reader star as a keyboard-operable toggle button", async () => {
+  it("exposes the dedicated Reader star as a native toggle button", async () => {
     const item = makeItem({ starred: false });
     getInternals(readerView).fetchFullArticleContent = vi
       .fn()
@@ -152,8 +152,11 @@ describe("ReaderView star/tag independence (GH Issue #332)", () => {
 
     const starButton = getInternals(readerView).starToggleButton;
     expect(starButton).not.toBeNull();
-    expect(starButton?.getAttribute("role")).toBe("button");
-    expect(starButton?.getAttribute("tabindex")).toBe("0");
+    // A native button is keyboard-operable on its own (Enter and Space click it
+    // in a browser), so it carries no role, tabindex or keydown handler.
+    expect(starButton?.tagName).toBe("BUTTON");
+    expect(starButton?.getAttribute("type")).toBe("button");
+    expect(starButton?.hasAttribute("role")).toBe(false);
     expect(starButton?.getAttribute("aria-pressed")).toBe("false");
 
     for (const key of ["Enter", " "]) {
@@ -164,10 +167,14 @@ describe("ReaderView star/tag independence (GH Issue #332)", () => {
       });
       starButton?.dispatchEvent(event);
 
-      expect(event.defaultPrevented).toBe(true);
-      expect(onArticleUpdate).toHaveBeenLastCalledWith(item, { starred: true });
-      onArticleUpdate.mockClear();
+      // Not handled here: the browser's own click is the only activation.
+      expect(event.defaultPrevented).toBe(false);
+      expect(onArticleUpdate).not.toHaveBeenCalled();
     }
+
+    // The click a browser synthesizes for Enter or Space.
+    starButton?.click();
+    expect(onArticleUpdate).toHaveBeenLastCalledWith(item, { starred: true });
 
     await readerView.displayItem(makeItem({ starred: true }));
     expect(starButton?.getAttribute("aria-pressed")).toBe("true");
