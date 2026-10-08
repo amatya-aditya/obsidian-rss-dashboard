@@ -25,7 +25,12 @@ describe("resolvePodcastPlatformUrl – pca.st short link", () => {
   it("resolves a pca.st slug via iTunes search without CORS proxy", async () => {
     const itunesResult = {
       resultCount: 1,
-      results: [{ feedUrl: "https://feeds.example.com/darknet.rss" }],
+      results: [
+        {
+          feedUrl: "https://feeds.example.com/darknet.rss",
+          collectionName: "Darknet Diaries",
+        },
+      ],
     };
     requestUrlSpy.mockResolvedValueOnce(mockResponse(itunesResult));
 
@@ -59,6 +64,74 @@ describe("resolvePodcastPlatformUrl – pca.st short link", () => {
   });
 });
 
+describe("resolvePodcastPlatformUrl – iTunes match validation", () => {
+  const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
+
+  beforeEach(() => {
+    requestUrlSpy.mockReset();
+  });
+
+  it("rejects an unrelated first iTunes hit for an opaque pca.st code", async () => {
+    requestUrlSpy.mockResolvedValue(
+      mockResponse({
+        resultCount: 1,
+        results: [
+          {
+            feedUrl: "https://anchor.fm/s/10fe7b0c0/podcast/rss",
+            collectionName: "SLOW FRENCH PODCAST (A1-B1) With Subtitles",
+          },
+        ],
+      }),
+    );
+
+    await expect(
+      resolvePodcastPlatformUrl("https://pca.st/podcast/a/b"),
+    ).rejects.toThrow();
+  });
+
+  it("picks the later hit whose name matches the slug", async () => {
+    requestUrlSpy.mockResolvedValueOnce(
+      mockResponse({
+        resultCount: 2,
+        results: [
+          {
+            feedUrl: "https://wrong.example/rss",
+            collectionName: "Other Show",
+          },
+          {
+            feedUrl: "https://right.example/rss",
+            collectionName: "Darknet Diaries",
+          },
+        ],
+      }),
+    );
+
+    const result = await resolvePodcastPlatformUrl(
+      "https://pocketcasts.com/podcast/darknet-diaries/170a7610-948e-0135-9d21-5bb073f92b78",
+    );
+    expect(result).toBe("https://right.example/rss");
+  });
+
+  it("accepts a hyphen-less slug that matches the show name", async () => {
+    requestUrlSpy.mockResolvedValueOnce(
+      mockResponse({
+        resultCount: 1,
+        results: [
+          {
+            feedUrl: "https://right.example/rss",
+            collectionName: "Darknet Diaries",
+          },
+        ],
+      }),
+    );
+
+    const result = await resolvePodcastPlatformUrl(
+      "https://pca.st/darknetdiaries",
+    );
+    expect(result).toBe("https://right.example/rss");
+  });
+});
+
 describe("resolvePodcastPlatformUrl – pocketcasts.com slug-first strategy", () => {
   const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
 
@@ -69,7 +142,12 @@ describe("resolvePodcastPlatformUrl – pocketcasts.com slug-first strategy", ()
   it("resolves a full pocketcasts.com URL via slug-first iTunes search", async () => {
     const itunesResult = {
       resultCount: 1,
-      results: [{ feedUrl: "https://feeds.example.com/darknet.rss" }],
+      results: [
+        {
+          feedUrl: "https://feeds.example.com/darknet.rss",
+          collectionName: "Darknet Diaries",
+        },
+      ],
     };
     requestUrlSpy.mockResolvedValueOnce(mockResponse(itunesResult));
 

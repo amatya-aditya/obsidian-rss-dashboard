@@ -52,6 +52,34 @@ function extractPocketCastsSlug(url: string): string | null {
 }
 
 /**
+ * True when an iTunes show name plausibly belongs to a Pocket Casts slug.
+ *
+ * iTunes always returns its best guess, so an opaque short code would
+ * otherwise resolve to an unrelated show. Accept the hit only when the slug
+ * and name contain each other once reduced to letters and digits, or every
+ * slug word is a whole word of the name.
+ */
+function slugMatchesName(slug: string, name: string): boolean {
+  const squash = (text: string): string =>
+    text.toLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
+  const slugSquashed = squash(slug);
+  const nameSquashed = squash(name);
+  if (!slugSquashed || !nameSquashed) return false;
+  if (
+    nameSquashed.includes(slugSquashed) ||
+    slugSquashed.includes(nameSquashed)
+  ) {
+    return true;
+  }
+  const nameWords = new Set(name.toLowerCase().split(/[^\p{L}\p{N}]+/u));
+  const slugWords = slug
+    .toLowerCase()
+    .split(/[^\p{L}\p{N}]+/u)
+    .filter(Boolean);
+  return slugWords.every((word) => nameWords.has(word));
+}
+
+/**
  * Searches the iTunes Search API by podcast slug and returns the first feedUrl
  * found, or `null` when no results are returned.
  *
@@ -66,12 +94,15 @@ async function searchItunesBySlug(slug: string): Promise<string | null> {
   const data = JSON.parse(response.text) as {
     results?: Array<{ feedUrl?: string; collectionName?: string }>;
   };
-  const firstResult = data.results?.[0];
-  if (firstResult?.feedUrl) {
+  const match = data.results?.find(
+    (result) =>
+      result.feedUrl && slugMatchesName(slug, result.collectionName ?? ""),
+  );
+  if (match?.feedUrl) {
     console.debug(
-      `[RSS Dashboard] Resolved Pocket Casts slug "${slug}" via iTunes: ${firstResult.feedUrl} (matched "${firstResult.collectionName ?? ""}")`,
+      `[RSS Dashboard] Resolved Pocket Casts slug "${slug}" via iTunes: ${match.feedUrl} (matched "${match.collectionName ?? ""}")`,
     );
-    return firstResult.feedUrl;
+    return match.feedUrl;
   }
   return null;
 }
