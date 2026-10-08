@@ -17,9 +17,16 @@ async function searchedTerm(ogTitle: string): Promise<string | undefined> {
   const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
   requestUrlSpy.mockReset();
   const page = `<html><head><meta property="og:title" content="${ogTitle}"></head></html>`;
+  // The resolver now tries an iTunes search for the URL slug ("x") first.
+  // Return an empty result so it falls through to proxy scraping.
+  requestUrlSpy.mockResolvedValueOnce(
+    response(JSON.stringify({ results: [] })),
+  );
+  // Second call: AllOrigins proxy returns the page HTML.
   requestUrlSpy.mockResolvedValueOnce(
     response(JSON.stringify({ contents: page })),
   );
+  // Third call: iTunes search for the og:title extracted from the page.
   requestUrlSpy.mockResolvedValueOnce(
     response(JSON.stringify({ results: [] })),
   );
@@ -29,7 +36,9 @@ async function searchedTerm(ogTitle: string): Promise<string | undefined> {
   ).catch(() => null);
   const call = requestUrlSpy.mock.calls
     .map((c) => (c[0] as { url: string }).url)
-    .find((u) => u.startsWith("https://itunes.apple.com/search"));
+    // Skip the first slug-search call (for "x"), find the og:title search.
+    .filter((u) => u.startsWith("https://itunes.apple.com/search"))
+    .at(1);
   const term = call ? new URL(call).searchParams.get("term") : null;
   return term ?? undefined;
 }
