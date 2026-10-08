@@ -968,6 +968,11 @@ export class MockWorkspace {
     });
   }
 
+  /** Visits every tracked leaf, as Obsidian's iterateAllLeaves does. */
+  iterateAllLeaves(callback: (leaf: WorkspaceLeafStub) => void): void {
+    this.leaves.forEach((leaf) => callback(leaf));
+  }
+
   revealLeaf(_leaf: ObsidianApi.WorkspaceLeaf): Promise<void> {
     return Promise.resolve();
   }

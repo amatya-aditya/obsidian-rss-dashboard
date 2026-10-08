@@ -140,6 +140,10 @@ const PALETTE_COMMAND_LOG = [
 
 const STARTUP_SEQUENCE = [
   "loadData",
+  "workspace.on:rss-dashboard:tag-chip-radius-changed",
+  "registerEvent",
+  "workspace.on:window-open",
+  "registerEvent",
   "vault.on:modify",
   "registerEvent",
   "vault.on:create",
@@ -644,6 +648,10 @@ describe("onload steps (characterization)", () => {
       expect(harness.log).toEqual([
         "step:loadSettings",
         "loadData",
+        "workspace.on:rss-dashboard:tag-chip-radius-changed",
+        "registerEvent",
+        "workspace.on:window-open",
+        "registerEvent",
         "step:previewImageCache.initialize",
         "step:registerVaultMetadataChangeListeners",
         "vault.on:modify",
@@ -852,6 +860,10 @@ describe("onload steps (characterization)", () => {
       expect(harness.log).toEqual([
         "step:loadSettings",
         "loadData",
+        "workspace.on:rss-dashboard:tag-chip-radius-changed",
+        "registerEvent",
+        "workspace.on:window-open",
+        "registerEvent",
         "step:previewImageCache.initialize",
         "step:registerVaultMetadataChangeListeners",
         "vault.on:modify",
