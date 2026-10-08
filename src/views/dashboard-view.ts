@@ -63,7 +63,7 @@ import {
 } from "../utils/filter-title-format";
 import { computePagination } from "../utils/pagination-utils";
 import { removeFolderByPath } from "../utils/folder-tree";
-import { createIconButton } from "../utils/icon-button";
+import { createIconButton, getIconButtonAction } from "../utils/icon-button";
 import { createLiveRegion } from "../utils/live-region";
 import { clearViewReady, markViewReady } from "../utils/view-ready";
 import { REFRESH_ANNOUNCEMENT_EVENT } from "../services/refresh-announcements";
@@ -1071,6 +1071,7 @@ export class RssDashboardView extends ItemView {
           cls: "rss-dashboard-layout",
         });
       }
+      let inlineToolbarFocus: string | null = null;
       let contentContainer = dashboardContainer.querySelector(
         ".rss-dashboard-content",
       ) as HTMLElement;
@@ -1079,6 +1080,7 @@ export class RssDashboardView extends ItemView {
           cls: "rss-dashboard-content",
         });
       } else {
+        inlineToolbarFocus = this.captureInlineToolbarFocus(contentContainer);
         contentContainer.empty();
       }
 
@@ -1093,6 +1095,7 @@ export class RssDashboardView extends ItemView {
 
       if (this.inlineArticle) {
         this.renderInlineArticle(contentContainer);
+        this.restoreInlineToolbarFocus(contentContainer, inlineToolbarFocus);
         return;
       }
 
@@ -4019,6 +4022,35 @@ export class RssDashboardView extends ItemView {
     }
 
     await this.openArticleInNewTab(article);
+  }
+
+  /**
+   * The action of the inline Reader toolbar button that holds focus, or null
+   * when focus is elsewhere. A render discards the toolbar, so this is read
+   * first to put focus back on the same button afterwards (WCAG 2.2 2.4.3).
+   */
+  private captureInlineToolbarFocus(container: HTMLElement): string | null {
+    const focused = container.ownerDocument.activeElement;
+    // instanceOf, not instanceof: a popout window has its own HTMLElement.
+    if (!focused?.instanceOf(HTMLElement)) return null;
+    const button = focused.closest<HTMLElement>(
+      ".inline-reader-header [role='toolbar'] button",
+    );
+    return button ? getIconButtonAction(button) : null;
+  }
+
+  private restoreInlineToolbarFocus(
+    container: HTMLElement,
+    action: string | null,
+  ): void {
+    if (action === null) return;
+    const buttons = container.querySelectorAll<HTMLButtonElement>(
+      ".inline-reader-header [role='toolbar'] button",
+    );
+    // Focusing the button also moves the roving Tab stop onto it.
+    Array.from(buttons)
+      .find((button) => getIconButtonAction(button) === action)
+      ?.focus({ preventScroll: true });
   }
 
   private renderInlineArticle(container: HTMLElement): void {
