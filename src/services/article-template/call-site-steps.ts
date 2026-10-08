@@ -91,8 +91,7 @@ export const ARTICLE_FILENAME_STEPS: readonly TemplateStep[] = [
 
 /**
  * The web viewer's note template. `{{date}}` is the save date, and
- * `{{dateShort}}`, `{{firstSeen}}`, `{{date:FORMAT}}`, `{{feedTitle}}`,
- * `{{tags}}` and `{{guid}}` stay unfilled.
+ * `{{description}}`, `{{excerpt}}` and `{{language}}` stay unfilled (#932).
  */
 export const WEB_VIEWER_NOTE_STEPS: readonly TemplateStep[] = [
   fill("title"),
@@ -119,7 +118,7 @@ export const WEB_VIEWER_NOTE_STEPS: readonly TemplateStep[] = [
 
 /**
  * The web viewer's frontmatter template. `{{dateShort}}`, `{{firstSeen}}`,
- * `{{date:FORMAT}}` and `{{summary}}` stay unfilled.
+ * `{{firstSeenISO}}`, `{{date:FORMAT}}` and `{{summary}}` stay unfilled (#932).
  */
 export const WEB_VIEWER_FRONTMATTER_STEPS: readonly TemplateStep[] = [
   fillYaml("title"),

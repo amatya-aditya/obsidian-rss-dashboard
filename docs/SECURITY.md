@@ -23,7 +23,6 @@ RSS Dashboard is an Obsidian plugin that requires access to certain sensitive Ob
 
 - ✅ Vault read access is **read-only** — no modifications occur without explicit user action
 - ✅ Only accesses files necessary for plugin operation (article destinations, configuration files)
-- ✅ Users can configure which folders the plugin can access via plugin settings
 - ✅ No data is transmitted outside the local vault
 
 ---
@@ -41,14 +40,16 @@ RSS Dashboard is an Obsidian plugin that requires access to certain sensitive Ob
 - **Shard Storage Model**: Saves modular JSON configuration files for each feed. This system:
   - Stores feed subscriptions, filter settings, and display preferences
   - Organizes data into individual per-feed files for better version control and conflict resolution
-  - Only writes to plugin-managed configuration folders (not user content)
+  - Only writes to plugin-managed configuration folders, which include the storage folder and metadata location you choose in **Settings → RSS Dashboard → Storage** (not user content)
   - Replaces the previous monolithic `data.json` approach with a more granular storage model
 
 **Data Protection**:
 
 - ✅ Writes are limited to:
   - User-approved article save locations
-  - Plugin configuration directories (`.obsidian/plugins/obsidian-rss-dashboard/`)
+  - Plugin configuration directories (`.obsidian/plugins/rss-dashboard/`), including the image cache
+  - The **Feed storage folder** and the **Metadata data.json location** you choose in **Settings → RSS Dashboard → Storage** (by default a `.rss-dashboard-data` folder in the vault)
+  - A `keyboard-shortcuts.md` note, only when you choose **Save to vault note** in the shortcut help
 - ✅ Users retain full control over saved article content and metadata
 - ✅ All data remains in the local vault; no cloud transmission
 - ✅ Changes are tracked by Obsidian's file system and version control (git/sync integrations)
@@ -79,10 +80,8 @@ RSS Dashboard is an Obsidian plugin that requires access to certain sensitive Ob
 
 ## External Domain Requests
 
-**Current Count**: 184 unique external domains
-
 **Why External Requests Are Needed**:
-RSS feeds are hosted on external servers — the plugin must fetch feed content to provide the core RSS reading functionality.
+RSS feeds are hosted on external servers — the plugin must fetch feed content to provide the core RSS reading functionality. Feed servers are chosen by you, so their number depends on your subscriptions. Besides those, the plugin contacts a small, fixed set of third-party services, listed under **Other network requests** below.
 
 ### Feed Sources Include:
 
@@ -95,7 +94,7 @@ RSS feeds are hosted on external servers — the plugin must fetch feed content 
 
 ### Data Sent to External Domains:
 
-- Feed subscription URLs (required to fetch content)
+- Feed subscription URLs (required to fetch content). If a direct fetch fails and the CORS proxy is on, the feed URL is also sent to the proxy services listed below
 - Minimal HTTP metadata (User-Agent header, standard HTTP headers)
 - **No user credentials** are transmitted
 - **No vault content** is sent to external servers
@@ -110,8 +109,23 @@ RSS feeds are hosted on external servers — the plugin must fetch feed content 
 
 - Users choose which feeds to subscribe to
 - Users can block/unsubscribe from any feed at any time
-- Users can configure request timeouts and retry limits in plugin settings
+- Request timeouts and retry limits are not configurable. The **Fetch timeout** in **Article saving** settings applies to full-article fetches only, and does not take effect yet (tracked in [#928](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/928))
+- The CORS proxy fallback can be turned off in **Settings → RSS Dashboard → General → Proxy**, and Google favicon requests for RSS feeds stop when **Use site icons/favicons for RSS feeds** is off in the Sidebar tab
 - Feeds can be tested before adding to verify content is appropriate
+
+### Other network requests
+
+Beyond the feeds you subscribe to, RSS Dashboard makes these requests. None of them sends vault content or credentials.
+
+- **CORS proxy fallback (on by default, set to `auto`).** When a direct fetch fails, the plugin retries through a third-party proxy, so the feed or article URL is sent to that proxy. `auto` tries AllOrigins, CodeTabs, isomorphic-git, ThingProxy and RSS2JSON in turn (`src/utils/proxy-utils.ts`). Turn it off in **Settings → RSS Dashboard → General → Proxy**, or pick a single proxy
+- **RSS2JSON preview fallback.** When a feed preview cannot be fetched directly, the Add feed dialog sends the feed URL to `api.rss2json.com`. This fallback ignores the CORS proxy toggle (`src/services/feed-parser/feed-preview.ts`)
+- **Google favicons.** Site icons for feeds are requested from `www.google.com/s2/favicons` with the feed's domain name (`src/utils/favicon-utils.ts`). They are used for RSS feeds when **Use site icons/favicons for RSS feeds** is on (**Settings → RSS Dashboard → Sidebar**), and for Mastodon feeds that have no profile image
+- **iTunes Search and Lookup.** Podcast links are resolved through `itunes.apple.com`, sending the podcast name or ID (`src/services/feed-parser/podcast-platform-resolver.ts`, `src/services/apple-podcasts-service.ts`)
+- **Kagi Smallweb.** The Smallweb view loads its list from `kagi.com`, and looks for a blog's feed with HEAD and GET requests to that blog (`src/views/kagi-smallweb-view.ts`)
+- **Mastodon profiles.** Adding a Mastodon profile fetches the profile page from its server to find the feed (`src/services/mastodon-service.ts`)
+- **YouTube.** Video thumbnails come from `img.youtube.com`. Adding a channel by handle or custom name fetches the channel page from `www.youtube.com` using a desktop browser User-Agent to read the channel ID. Playback uses the `www.youtube-nocookie.com` iframe (`src/services/media-service.ts`)
+- **Publisher-hosted images and audio.** Article images, podcast audio and artwork are loaded from the publisher's servers. Preview images are cached under the plugin folder (`src/services/preview-image-cache.ts`)
+- **What's New images.** The What's New popup loads its images from `raw.githubusercontent.com` (see **Release Images** below)
 
 ---
 
@@ -125,8 +139,7 @@ RSS feeds are hosted on external servers — the plugin must fetch feed content 
 **Feed Validation**:
 
 - Feeds are parsed according to RSS/Atom specifications
-- Invalid or malformed feeds are handled gracefully
-- Large feeds are truncated to prevent memory issues
+- Invalid or malformed feeds are handled gracefully: the feed shows an error message instead of loading
 
 **Release Images**: ✅ HTTPS only
 
@@ -189,7 +202,7 @@ Only this minimal information per video/podcast:
 
 **Desktop Obsidian:**
 
-- Progress is stored in your vault's plugin data folder: `.obsidian/plugins/obsidian-rss-dashboard/data.json`
+- Progress is stored in your vault's plugin data folder: `.obsidian/plugins/rss-dashboard/data.json`
 - If you use vault shards storage, each feed's progress is in its own shard file
 
 **Mobile Obsidian:**
@@ -316,9 +329,8 @@ This prevents thrashing the vault adapter during long playback sessions while en
 **Dependency Security**: ✅
 
 - Dependencies are regularly updated; Dependabot opens weekly version-update pull requests
-- Pull requests and releases fail on high or critical `npm audit` findings
+- Pull requests and releases fail on high or critical `npm audit` findings (`.github/workflows/test.yml` and `.github/workflows/release.yml`)
 - See `package.json` for complete dependency list
-- Vulnerable dependencies scans are planned
 
 ---
 
@@ -331,7 +343,7 @@ This prevents thrashing the vault adapter during long playback sessions while en
 - ✅ All code is open-source and publicly available
 - ✅ Code reviews are conducted before merging changes
 - ✅ TypeScript provides type safety and compile-time error detection
-- ✅ ESLint rules enforce security best practices
+- ✅ ESLint runs the `eslint-plugin-obsidianmd` rules (Obsidian plugin guidelines) with TypeScript-aware checks; it is a code-quality check, not a security scanner
 
 **Responsible Disclosure**:
 
@@ -358,14 +370,14 @@ This prevents thrashing the vault adapter during long playback sessions while en
 
 ## Permissions Summary Table
 
-| Permission             | Feature                               | Risk Level | User Control             |
-| ---------------------- | ------------------------------------- | ---------- | ------------------------ |
-| Vault Read             | Save article, shard storage           | Low        | Configured in settings   |
-| Vault Write            | Save article, shard storage, progress | Medium     | Configured in settings   |
-| Clipboard Access       | Import/export feeds                   | Low        | User-initiated only      |
-| Network Requests       | Fetch RSS feeds                       | Medium     | Feed subscription choice |
-| External Domains (184) | RSS feed sources                      | Medium     | Feed selection           |
-| Media Progress         | Video/podcast playback positions      | Low        | Local storage only       |
+| Permission       | Feature                               | Risk Level | User Control             |
+| ---------------- | ------------------------------------- | ---------- | ------------------------ |
+| Vault Read       | Save article, shard storage           | Low        | Configured in settings   |
+| Vault Write      | Save article, shard storage, progress | Medium     | Configured in settings   |
+| Clipboard Access | Import/export feeds                   | Low        | User-initiated only      |
+| Network Requests | Fetch RSS feeds                       | Medium     | Feed subscription choice |
+| External Domains | RSS feed sources, listed services     | Medium     | Feed selection, settings |
+| Media Progress   | Video/podcast playback positions      | Low        | Local storage only       |
 
 ---
 
@@ -409,6 +421,6 @@ If you have questions about this security policy or concerns about data privacy,
 
 ---
 
-**Last Updated**: September 27, 2026  
+**Last Updated**: October 8, 2026  
 **Document Version**: 1.0  
 **Plugin**: RSS Dashboard for Obsidian

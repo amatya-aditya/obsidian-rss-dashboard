@@ -194,6 +194,10 @@ _Avoid_: Ad hoc tag, user tag, manual tag override
 
 ## Article metadata pipeline
 
+**Preview**:
+The text shown under an article's title on cards and in the feed view, and the text a keyword rule's **Preview** field matches. It is the guarded [[Feed description]] blurb when the article also ships a body, otherwise the summary, description, then content, cut at 420 characters. Shown only when the Show summary display setting is on, but a keyword rule matches it either way. Its setting label and keyword-rule field keep the stored name `applyToSummary`; **Summary** stays reserved for the legacy `{{summary}}` value.
+_Avoid_: Summary (the frozen legacy `{{summary}}` value), excerpt (the derived metadata fallback)
+
 **Summary**:
 The legacy `{{summary}}` template variable and its `extractSummary(...)`-derived value: the first ~220 characters of the feed's own `content`/`description` HTML, stripped to text. Frozen byte-identical forever — it never cascades to [[Description tier|description]] or [[Excerpt tier|excerpt]] even once those exist, and the name is not reserved for a future real-summarization feature. Distinct from [[Description tier|description]] (publisher-authored) and [[Excerpt tier|excerpt]] (the new derived fallback) — despite the shared etymology, `summary` names only this one frozen value.
 _Avoid_: Using "summary" for a publisher description or the new excerpt fallback; description, excerpt
@@ -308,11 +312,11 @@ An export containing feeds, folders, tags, articles, and article state, with no 
 _Avoid_: Feed data bundle, subscriptions export
 
 **Settings bundle**:
-An export containing app preferences only (display, retention, storage config, auto-backup, etc.), with no feeds, folders, tags, or articles. The re-scoped counterpart to the [[Feed bundle]] that together make up the [[Portable data bundle]]; matches the existing `usersettings.json` shape. Introduced by ADR 0005.
+An export containing app preferences, including storage settings (display, retention, auto-backup, etc.), with no feeds, folders, tags, or articles. The re-scoped counterpart to the [[Feed bundle]] that together make up the [[Portable data bundle]]; matches the existing `usersettings.json` shape. Introduced by ADR 0005.
 _Avoid_: usersettings bundle, preferences export
 
 **Replacing import**:
-An import that discards the current feeds, folders, tags, articles, and article state and puts the file's in their place: a [[Portable data bundle]], a [[Feed bundle]], or a user preferences file that carries feeds, folders, or tags. What the user had before and did not export is gone once it completes.
+An import that discards the current feeds, folders, tags, articles, and article state and puts the file's in their place: a [[Portable data bundle]], a [[Feed bundle]], or a user preferences file that carries feeds, folders, or tags. An OPML import in **Replace** mode is also a Replacing import: it replaces every feed and folder with the file's, though it brings no articles or article state. What the user had before and did not export is gone once it completes.
 _Avoid_: Restore, overwrite (reserved for [[Overwriting import]])
 
 **Overwriting import**:
@@ -320,7 +324,7 @@ An import that sets each app preference present in the file to the file's value 
 _Avoid_: Replace, settings restore
 
 **Merging import**:
-An import that adds to the current feeds or articles without removing any: OPML and starred-article imports.
+An import that adds to the current feeds or articles without removing any: an OPML import in **Update** mode and starred-article imports.
 _Avoid_: Append, sync
 
 **Import confirmation**:
@@ -332,7 +336,7 @@ Moving feed content from its current feed storage mode into shard files for the 
 _Avoid_: Migrate, storage change
 
 **Storage repair**:
-Force-regenerating all shard files from the current in-memory feed data without changing feed storage mode, used to recover from an out-of-sync or incomplete shard folder. Distinct from storage migration and storage revert.
+Force-regenerating the shard files of every feed whose articles are loaded in memory, skipping feeds with none, without changing feed storage mode, used to recover from an out-of-sync or incomplete shard folder. Distinct from storage migration and storage revert.
 _Avoid_: Rebuild, resync
 
 **Storage revert**:
@@ -340,7 +344,7 @@ Switching feed storage back to Legacy JSON, writing all feed content back into `
 _Avoid_: Rollback, downgrade
 
 **Metadata cleanup**:
-The user's choice, offered right after a metadata storage move succeeds, to delete or keep the `data.json` copy left behind at the previous location.
+The user's choice, offered right after a metadata storage move succeeds, to delete or keep the `data.json` copy left behind at the previous location. Clearing the Metadata location is a move back to the plugin folder: it first asks the user to confirm moving the vault `data.json` to the trash, and Metadata cleanup is offered afterward only for any other copy left behind, such as `user-state.json` under Shard storage v2.
 _Avoid_: Backup cleanup, orphan file
 
 ## Update notifications

@@ -13,11 +13,17 @@ import {
   IMAGE_CACHE_LIMIT_MIN_MIB,
 } from "../../types/types";
 import { formatDashboardMultiFiltersSummaryCompact } from "../../utils/filter-title-format";
+import { formatDateWithRelative } from "../../utils/platform-utils";
 import {
   computePopoverPosition,
   computeSubmenuPosition,
 } from "../../utils/popover-position";
 import { settingsUiCompatibility } from "../settings-ui-compat";
+
+/** A sample of the absolute article date format, so the example cannot drift from it. */
+const ABSOLUTE_DATE_EXAMPLE = formatDateWithRelative(
+  new Date(2026, 4, 9, 11, 39),
+).title;
 
 // Re-export pure helpers from sidebar-settings-tab for backward compatibility
 export { moveIconOrder, normalizeHexColor } from "./sidebar-settings-tab";
@@ -256,7 +262,7 @@ export function renderDisplaySettingsTab(
 
   new Setting(containerEl)
     .setName("Show summary")
-    .setDesc("Display content summary in card view")
+    .setDesc("Display the content summary in card view and feed view")
     .addToggle((toggle) =>
       toggle
         .setValue(plugin.settings.display.showSummary)
@@ -455,12 +461,12 @@ export function renderDisplaySettingsTab(
   new Setting(containerEl)
     .setName("Article date display")
     .setDesc(
-      "Choose whether article dates are shown as relative ('2 days ago') or absolute ('may 9, 2026').",
+      `Choose whether article dates are shown as relative ('2 days ago') or absolute ('${ABSOLUTE_DATE_EXAMPLE}').`,
     )
     .addDropdown((dropdown) =>
       dropdown
         .addOption("relative", "Relative (e.g. '2 days ago')")
-        .addOption("absolute", "Absolute (e.g. 'may 9, 2026, 11:39 am')")
+        .addOption("absolute", `Absolute (e.g. '${ABSOLUTE_DATE_EXAMPLE}')`)
         .setValue(plugin.settings.display.articleDateStyle ?? "relative")
         .onChange(async (value: string) => {
           plugin.settings.display.articleDateStyle = value as
@@ -489,7 +495,9 @@ export function renderDisplaySettingsTab(
 
   new Setting(containerEl)
     .setName("Startup filters")
-    .setDesc("Choose which filters to apply when opening the dashboard.")
+    .setDesc(
+      "Choose which status and tag filters to apply when opening the dashboard. With and, an article must match every selected filter; with or, matching any one is enough. Applying also resets the default filter to all.",
+    )
     .addButton((btn) => {
       btn.buttonEl.addClass("rss-dashboard-startup-filters-button");
       const initial = formatStartupFiltersButton();
@@ -1108,8 +1116,8 @@ export function renderDisplaySettingsTab(
     );
 
   new Setting(containerEl)
-    .setName("Show toolbar in list view (mobile)")
-    .setDesc("Show per-article action buttons in list view on mobile")
+    .setName("Show toolbar in list view")
+    .setDesc("Show per-article action buttons in list view")
     .addToggle((toggle) =>
       toggle
         .setValue(!!plugin.settings.display.mobileShowListToolbar)

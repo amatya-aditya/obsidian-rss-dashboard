@@ -30,7 +30,7 @@ export class FactoryResetConfirmModal extends Modal {
 
     contentEl.createEl("h2", { text: "Factory reset?" });
     contentEl.createEl("p", {
-      text: "This restores all plugin settings to their default values and clears your feeds, folders, tags, and plugin-managed local state.",
+      text: "This restores all plugin settings to their default values and removes your feeds, restores folders and tags to their defaults, and clears plugin-managed local state.",
     });
     contentEl.createEl("p", {
       text: "Existing backup files and saved article markdown files in your vault will not be deleted.",
@@ -95,7 +95,7 @@ export function renderImportExportSettingsTab(
   new Setting(dataSection)
     .setName("Backup & restore (data.json)")
     .setDesc(
-      'Import or export your full dashboard dataset as a single flat JSON file, including preferences, folders, feeds, and stored article retrievals. This is always the full legacy-format file, even when vault-shard storage is enabled — it will not match the small pointer file named data.json in your vault in that mode. Use "Shard data" below for a bundle that matches shard storage.',
+      'Import or export your full dashboard dataset as a single flat JSON file, including preferences, folders, feeds, and stored article retrievals. This is always the full legacy-format file, even when Shard storage is enabled — it will not match the small pointer file named data.json in your vault in that mode. Use "Portable data bundle" below for a bundle that matches shard storage.',
     )
     .setHeading();
 
@@ -156,12 +156,12 @@ export function renderImportExportSettingsTab(
         }),
     );
 
-  // ── Shard Data ────────────────────────────────────────────────────────────
+  // ── Portable data bundle ────────────────────────────────────────────────────────────
   const portableBundleSection = containerEl.createDiv();
   new Setting(portableBundleSection)
-    .setName("Shard data")
+    .setName("Portable data bundle")
     .setDesc(
-      "Import or export shard data bundles for cross-device migration. Exports as rss-dashboard-portable-bundle.json",
+      "Import or export a portable data bundle (a feed bundle and a settings bundle together) for cross-device migration. Exports as rss-dashboard-portable-bundle.json",
     )
     .setHeading();
 
@@ -173,7 +173,7 @@ export function renderImportExportSettingsTab(
     .addButton((button) =>
       button
         .setIcon("upload")
-        .setButtonText("Import shard data")
+        .setButtonText("Import portable data bundle")
         .onClick(() => {
           const input = activeDocument.body.createEl("input", {
             attr: { type: "file", accept: ".json,.backup,application/json" },
@@ -188,11 +188,11 @@ export function renderImportExportSettingsTab(
                 if (result !== "committed") return;
                 new ImportSuccessModal(
                   plugin.app,
-                  "Shard data imported successfully!",
+                  "Portable data bundle imported successfully!",
                 ).open();
               } catch (e) {
                 new Notice(
-                  `Shard data import failed: ${e instanceof Error ? e.message : "invalid file"}`,
+                  `Portable data bundle import failed: ${e instanceof Error ? e.message : "invalid file"}`,
                 );
               }
             })();
@@ -203,7 +203,7 @@ export function renderImportExportSettingsTab(
     .addButton((button) =>
       button
         .setIcon("download")
-        .setButtonText("Export shard data")
+        .setButtonText("Export portable data bundle")
         .onClick(() => {
           void plugin.exportPortableDataBundle();
         }),
@@ -211,7 +211,7 @@ export function renderImportExportSettingsTab(
     .addButton((button) =>
       button
         .setIcon("copy")
-        .setTooltip("Copy shard data to clipboard")
+        .setTooltip("Copy portable data bundle to clipboard")
         .onClick(() => {
           void plugin.copyPortableDataBundleToClipboard();
         }),
@@ -280,7 +280,7 @@ export function renderImportExportSettingsTab(
   new Setting(settingsBundleSection)
     .setName("Settings bundle")
     .setDesc(
-      "Import or export app preferences only — no feeds, folders, tags, or articles. Exports as rss-dashboard-settings-bundle.json",
+      "Import or export app preferences, including storage settings — no feeds, folders, tags, or articles. Exports as rss-dashboard-settings-bundle.json",
     )
     .setHeading();
 
@@ -399,7 +399,7 @@ export function renderImportExportSettingsTab(
   new Setting(opmlSection)
     .setName("OPML")
     .setDesc(
-      "Import or export an OPML subscription list containing your configured feed addresses.",
+      "Import or export an OPML subscription list containing your configured feed addresses. Import offers update, which adds new feeds, and replace, which replaces all feeds and folders with the file's.",
     )
     .setHeading();
 
@@ -434,7 +434,7 @@ export function renderImportExportSettingsTab(
   new Setting(starredSection)
     .setName("Starred imports")
     .setDesc(
-      "Import starred articles from a Google Reader-compatible starred.json export. Feeds you don't already subscribe to are created for you.",
+      "Import starred articles from a Google Reader-compatible starred.json export. Feeds you don't already subscribe to are created in the New-feed folder (default: Starred imports). Import labels as tags is on by default.",
     )
     .setHeading();
 
@@ -454,15 +454,17 @@ export function renderImportExportSettingsTab(
   // ── Auto Backups ──────────────────────────────────────────────────────────
   const backupSection = containerEl.createDiv();
   new Setting(backupSection)
-    .setName("Auto backups")
+    .setName("Automatic backups")
     .setDesc(
-      "Automatically create backup copies of your data files when the plugin closes.",
+      "Automatic backup copies of your data files. A backup is written on the first meaningful change in each session, again when the plugin unloads only if later changes made it stale, and before a storage migration to v2.",
     )
     .setHeading();
 
   new Setting(backupSection)
     .setName("Back up data.json")
-    .setDesc("Saves a copy to data.json.backup in the plugin folder.")
+    .setDesc(
+      "Saves a copy to data.json.backup beside data.json: in the plugin folder, or in the metadata folder when a metadata location is set.",
+    )
     .addToggle((toggle) =>
       toggle
         .setValue(plugin.settings.autoBackup.backupDataJson)
@@ -473,7 +475,7 @@ export function renderImportExportSettingsTab(
     );
 
   new Setting(backupSection)
-    .setName("Back up feeds")
+    .setName("Back up feeds (feeds.opml)")
     .setDesc("Saves a copy to feeds.opml.backup in the plugin folder.")
     .addToggle((toggle) =>
       toggle
@@ -484,11 +486,8 @@ export function renderImportExportSettingsTab(
         }),
     );
 
-  new Setting(backupSection)
+  const userPrefsBackupSetting = new Setting(backupSection)
     .setName("Back up user preferences")
-    .setDesc(
-      "Saves a copy to the user preferences backup file in the plugin folder.",
-    )
     .addToggle((toggle) =>
       toggle
         .setValue(plugin.settings.autoBackup.backupUserdata)
@@ -497,13 +496,18 @@ export function renderImportExportSettingsTab(
           await plugin.saveSettings();
         }),
     );
+  // The file name is set on descEl directly: the sentence-case rule would
+  // otherwise capitalize the "rss" in it.
+  userPrefsBackupSetting.descEl.createSpan({
+    text: "Saves a copy to rss-dashboard-user-preferences.json.backup in the plugin folder.",
+  });
 
   // ── Factory Reset ─────────────────────────────────────────────────────────
   const factoryResetSection = containerEl.createDiv();
   new Setting(factoryResetSection)
     .setName("Factory reset")
     .setDesc(
-      "Restore all plugin settings to their default values and clear plugin-managed data. Existing backup files and saved article markdown files are left untouched.",
+      "Restore all plugin settings to their default values, remove your feeds, reset folders and tags to their defaults, and clear plugin-managed data. Existing backup files and saved article markdown files are left untouched.",
     )
     .setHeading();
 
