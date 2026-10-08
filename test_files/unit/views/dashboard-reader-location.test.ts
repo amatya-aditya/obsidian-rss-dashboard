@@ -7,6 +7,8 @@ import {
   type FeedItem,
   type RssDashboardSettings,
 } from "../../../src/types/types";
+import { deleteTagFromSettings } from "../../../src/utils/tag-settings";
+import { updateTagInSettings } from "../../../src/utils/tag-settings";
 import { ReaderView } from "../../../src/views/reader-view";
 import { RssDashboardView } from "../../../src/views/dashboard-view";
 
@@ -737,6 +739,112 @@ describe("Dashboard reader location", () => {
     expect(saveButton?.classList.contains("saved")).toBe(false);
     expect(inlineContainer.querySelector(".inline-reader-content")).toBe(body);
     inlineContainer.remove();
+  });
+
+  describe("inline Reader tag chips", () => {
+    async function openInlineWithChips(
+      tags: { name: string; color: string }[],
+    ) {
+      const settings = cloneSettings();
+      settings.availableTags = tags.map((t) => ({ ...t }));
+      const feed = makeFeed("https://example.com/feed", [
+        { tags: tags.map((t) => ({ ...t })) },
+      ]);
+      settings.feeds = [feed];
+      const { view } = await createDashboardView(settings);
+      view.inlineArticle = feed.items[0];
+
+      const container = createDiv();
+      view.containerEl.appendChild(container);
+      view.renderInlineArticle(container);
+      const body = container.querySelector<HTMLElement>(
+        ".inline-reader-content",
+      )!;
+      // Mirror the article renderer's header, which the stubbed renderer skips.
+      const header = body.createDiv({ cls: "rss-reader-article-header" });
+      const bodyText = body.createDiv({ cls: "rss-reader-body", text: "Body" });
+      const tagsEl = header.createDiv({ cls: "rss-reader-tags" });
+      for (const tag of tags) {
+        const chip = tagsEl.createDiv({ cls: "rss-reader-tag" });
+        chip.textContent = tag.name;
+        chip.style.setProperty("--tag-color", tag.color);
+      }
+      return { view, settings, feed, container, body, bodyText, header };
+    }
+
+    const chips = (container: HTMLElement) =>
+      Array.from(
+        container.querySelectorAll<HTMLElement>(".rss-reader-tag"),
+      ).map((el) => [el.textContent, el.style.getPropertyValue("--tag-color")]);
+
+    it("drops a deleted tag's chip without rebuilding the article body", async () => {
+      const { view, settings, container, body, bodyText } =
+        await openInlineWithChips([
+          { name: "Video", color: "#d04747" },
+          { name: "News", color: "#3498db" },
+        ]);
+
+      deleteTagFromSettings(settings, "Video");
+      (view as unknown as { refreshTagColors: () => void }).refreshTagColors();
+
+      expect(chips(container)).toEqual([["News", "#3498db"]]);
+      expect(container.querySelector(".inline-reader-content")).toBe(body);
+      expect(body.contains(bodyText)).toBe(true);
+    });
+
+    it("removes the chip container when the last tag is deleted", async () => {
+      const { view, settings, container } = await openInlineWithChips([
+        { name: "Video", color: "#d04747" },
+      ]);
+
+      deleteTagFromSettings(settings, "Video");
+      (view as unknown as { refreshTagColors: () => void }).refreshTagColors();
+
+      expect(container.querySelector(".rss-reader-tags")).toBeNull();
+    });
+
+    it("shows a recolored tag's new color and a renamed tag's new name", async () => {
+      const { view, settings, container } = await openInlineWithChips([
+        { name: "Video", color: "#d04747" },
+        { name: "News", color: "#3498db" },
+      ]);
+
+      updateTagInSettings(settings, settings.availableTags[0], {
+        color: "#00ff00",
+      });
+      updateTagInSettings(settings, settings.availableTags[1], {
+        name: "World",
+      });
+      (view as unknown as { refreshTagColors: () => void }).refreshTagColors();
+
+      expect(chips(container)).toEqual([
+        ["Video", "#00ff00"],
+        ["World", "#3498db"],
+      ]);
+    });
+
+    it("adds a chip when an assignment arrives from another tag-edit surface", async () => {
+      const { view, feed, container } = await openInlineWithChips([]);
+      container.querySelector(".rss-reader-tags")?.remove();
+
+      view.applyExternalArticleUpdate(feed.items[0].guid, feed.url, {
+        tags: [{ name: "Fresh", color: "#123456" }],
+      });
+
+      expect(chips(container)).toEqual([["Fresh", "#123456"]]);
+    });
+
+    it("keeps a saved article's chips current the same way", async () => {
+      const { view, settings, feed, container } = await openInlineWithChips([
+        { name: "Video", color: "#d04747" },
+      ]);
+      feed.items[0].saved = true;
+
+      deleteTagFromSettings(settings, "Video");
+      (view as unknown as { refreshTagColors: () => void }).refreshTagColors();
+
+      expect(container.querySelector(".rss-reader-tags")).toBeNull();
+    });
   });
 
   it("exits inline mode when a feed is clicked in the sidebar", async () => {

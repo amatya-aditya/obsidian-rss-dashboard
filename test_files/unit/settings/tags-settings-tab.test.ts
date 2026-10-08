@@ -411,4 +411,86 @@ describe("renderTagsSettingsTab()", () => {
     expect(vi.mocked(plugin.saveSettings)).toHaveBeenCalledTimes(1);
     expect(onRefresh).toHaveBeenCalledTimes(1);
   });
+
+  describe("deleting a tag definition", () => {
+    function makeFeedWithTags(url: string, tagNames: string[][]): Feed {
+      return {
+        title: url,
+        url,
+        folder: "",
+        lastUpdated: 0,
+        items: tagNames.map((names, index) => ({
+          title: `Item ${index}`,
+          link: `${url}/${index}`,
+          description: "",
+          pubDate: "",
+          guid: `${url}#${index}`,
+          read: false,
+          starred: false,
+          tags: names.map((name) => ({ name, color: "#d04747" })),
+          feedTitle: url,
+          feedUrl: url,
+          coverImage: "",
+        })),
+      } as Feed;
+    }
+
+    function renderWithTags() {
+      const containerEl = document.body.appendChild(createDiv());
+      const settings = cloneSettings();
+      settings.availableTags = [
+        { name: "Video", color: "#d04747" },
+        { name: "News", color: "#3498db" },
+      ];
+      settings.feeds = [
+        makeFeedWithTags("https://a.example/feed", [
+          ["Video", "News"],
+          ["News"],
+        ]),
+        makeFeedWithTags("https://b.example/feed", [["Video"], []]),
+      ];
+      const trigger = vi.fn();
+      const plugin = {
+        app: { ...obsidian.App.createMock(), workspace: { trigger } },
+        settings,
+        saveSettings: vi.fn(async () => {}),
+        refreshOpenTagColorViews: vi.fn(async () => {}),
+      } as unknown as RssDashboardPlugin;
+      const onRefresh = vi.fn();
+      renderTagsSettingsTab(containerEl, plugin, onRefresh);
+      return { containerEl, settings, plugin, onRefresh, trigger };
+    }
+
+    function clickDelete(containerEl: HTMLElement, tagName: string): void {
+      const row = getSettingByName(containerEl, tagName);
+      const button = row.querySelector<HTMLElement>("button");
+      if (!button) throw new Error("Delete button not found");
+      button.click();
+    }
+
+    it("removes the definition and its assignments from every article", async () => {
+      const { containerEl, settings, plugin, onRefresh } = renderWithTags();
+
+      clickDelete(containerEl, "Video");
+      await flushPromises();
+
+      expect(settings.availableTags.map((t) => t.name)).toEqual(["News"]);
+      const assigned = settings.feeds.flatMap((feed) =>
+        feed.items.map((item) => (item.tags ?? []).map((t) => t.name)),
+      );
+      expect(assigned).toEqual([["News"], ["News"], [], []]);
+      expect(plugin.saveSettings).toHaveBeenCalled();
+      expect(onRefresh).toHaveBeenCalled();
+    });
+
+    it("tells open views so an inline Reader drops the deleted chip", async () => {
+      const { containerEl, plugin, trigger } = renderWithTags();
+
+      clickDelete(containerEl, "News");
+      await flushPromises();
+
+      expect(plugin.refreshOpenTagColorViews).toHaveBeenCalled();
+      expect(trigger).toHaveBeenCalledWith("rss-dashboard:tags-mutated");
+    });
+  });
 });

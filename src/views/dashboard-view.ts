@@ -10,6 +10,7 @@ import {
   type EventRef,
   setTooltip,
 } from "obsidian";
+import { renderReaderTagChips } from "../utils/reader-tag-chips";
 import {
   Feed,
   FeedKeywordRulesSettings,
@@ -2938,6 +2939,7 @@ export class RssDashboardView extends ItemView {
       Object.assign(this.inlineArticle, updates);
       if (updates.tags) {
         this.inlineArticle.tags = updates.tags;
+        this.refreshInlineArticleTags();
       }
       if (updates.saved !== undefined) {
         const saveButton = this.containerEl.querySelector<HTMLElement>(
@@ -2965,10 +2967,37 @@ export class RssDashboardView extends ItemView {
   }
 
   public refreshTagColors(): void {
+    this.refreshInlineArticleTags();
     this.articleList?.syncVisibleArticlesFromSource((article) =>
       this.findBackingArticleForDisplayItem(article),
     );
     this.articleList?.refreshVisibleArticleTags();
+  }
+
+  /**
+   * Brings the open inline Reader's tag chips up to date with the stored
+   * article and tag definitions, touching only the chip container so the
+   * article body and reading position stay put.
+   */
+  private refreshInlineArticleTags(): void {
+    const inline = this.inlineArticle;
+    if (!inline) return;
+
+    const backing = this.findBackingArticleForDisplayItem(inline);
+    const source = backing ?? inline;
+    inline.tags = (source.tags ?? []).map((tag) => {
+      const definition = this.settings.availableTags.find(
+        (available) => available.name === tag.name,
+      );
+      return definition ? { ...tag, color: definition.color } : { ...tag };
+    });
+
+    const header = this.containerEl.querySelector<HTMLElement>(
+      ".inline-reader-content .rss-reader-article-header",
+    );
+    if (header) {
+      renderReaderTagChips(header, inline.tags);
+    }
   }
 
   private syncArticleListAfterUpdate(article: FeedItem): void {
