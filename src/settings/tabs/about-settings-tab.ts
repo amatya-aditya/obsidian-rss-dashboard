@@ -95,7 +95,9 @@ export function renderAboutTab(
   featuresList.createEl("li", {
     text: "Content can be saved directly to your vault.",
   });
-  featuresList.createEl("li", { text: "No ads, no tracking, no paywalls." });
+  featuresList.createEl("li", {
+    text: "No ads, no tracking, no paywalls. The CORS proxy fallback and favicon requests can send feed URLs to third-party services; the security policy lists them.",
+  });
 
   const attributionParagraph = descriptionContainer.createEl("p");
   attributionParagraph.createSpan({
@@ -136,6 +138,11 @@ export function renderAboutTab(
     "https://github.com/amatya-aditya/obsidian-rss-dashboard/issues",
   );
   createLinkButton(actionsRow, "Discord", "https://discord.gg/9bu7V9BBbs");
+  createLinkButton(
+    actionsRow,
+    "Security policy",
+    "https://github.com/amatya-aditya/obsidian-rss-dashboard/blob/master/docs/SECURITY.md",
+  );
 
   aboutContainer.createDiv({
     cls: "rss-dashboard-about-section-title",

@@ -42,7 +42,7 @@ Save articles directly to your vault as Markdown. Customize what gets saved with
 
 ## Own Your Data
 
-Completely local. Completely open source. No ads, no tracking, no paywalls—just your data, stored on your device. Full control over what you read and how it's organized.
+Your data is stored on your device. Completely open source. No ads, no tracking, no paywalls. The plugin talks to the feed servers you subscribe to, and a few third-party services can see feed URLs: the CORS proxy fallback (on by default) and favicon requests. See the [security and privacy policy](docs/SECURITY.md) for the full list and how to turn them off. Full control over what you read and how it's organized.
 
 ## Move Your Data Freely
 
