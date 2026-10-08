@@ -95,6 +95,7 @@ import {
   hasExactReleaseNoteForVersion,
 } from "./src/release-notes";
 import { migrateSettings } from "./src/utils/settings-loader";
+import { snapshotArticleFields } from "./src/utils/article-update";
 import { applyAutomaticArticleTags } from "./src/utils/tag-utils";
 import { registerPaletteCommands } from "./src/commands/palette-commands";
 import { VersionStatusBarFeature } from "./src/settings/version-status-bar";
@@ -1293,17 +1294,22 @@ export default class RssDashboardPlugin extends Plugin {
     await this.syncSavedArticleAssociationUpdate(feed.url, item.guid);
   }
 
+  /**
+   * Applies a Reader mutation to open views, then persists it. Returns false
+   * when the save rejected; the change is then rolled back in every open view
+   * so no view keeps showing a state that was never persisted.
+   */
   private async updateArticleFromReader(
     item: FeedItem,
     updates: Partial<FeedItem>,
     shouldRerender?: boolean,
-  ): Promise<void> {
+  ): Promise<boolean> {
     const resolvedFeed =
       this.settings.feeds.find((f) => f.url === item.feedUrl) ||
       this.settings.feeds.find((f) =>
         f.items.some((candidate) => candidate.guid === item.guid),
       );
-    if (!resolvedFeed) return;
+    if (!resolvedFeed) return true;
 
     const resolvedFeedUrl = resolvedFeed.url;
     item.feedUrl = resolvedFeedUrl;
@@ -1314,27 +1320,70 @@ export default class RssDashboardPlugin extends Plugin {
       this.settings,
     );
     const originalItem = resolvedFeed.items.find((i) => i.guid === item.guid);
-    if (!originalItem) return;
+    if (!originalItem) return true;
+
+    const previousValues = snapshotArticleFields(
+      originalItem,
+      normalizedUpdates,
+    );
 
     // Reflect updates in open dashboard/reader views immediately, then persist.
     Object.assign(originalItem, normalizedUpdates);
-    await this.syncDashboardArticleUpdate(
-      item.guid,
-      resolvedFeedUrl,
-      normalizedUpdates,
-      !!shouldRerender,
-    );
+    try {
+      await this.syncDashboardArticleUpdate(
+        item.guid,
+        resolvedFeedUrl,
+        normalizedUpdates,
+        !!shouldRerender,
+      );
+      await this.syncReaderArticleUpdate(
+        item.guid,
+        resolvedFeedUrl,
+        normalizedUpdates,
+      );
+      await this.saveSettings();
+    } catch (error) {
+      console.error("Failed to save Reader article update", error);
+      await this.rollbackReaderArticleUpdate(
+        originalItem,
+        resolvedFeedUrl,
+        previousValues,
+        !!shouldRerender,
+      );
+      return false;
+    }
+
     await this.syncReaderArticleUpdate(
       item.guid,
       resolvedFeedUrl,
       normalizedUpdates,
     );
-    await this.updateArticle(
-      item.guid,
-      resolvedFeedUrl,
-      normalizedUpdates,
-      false,
-    );
+    return true;
+  }
+
+  private async rollbackReaderArticleUpdate(
+    article: FeedItem,
+    feedUrl: string,
+    previousValues: Partial<FeedItem>,
+    shouldRerender: boolean,
+  ): Promise<void> {
+    for (const key of Object.keys(previousValues) as (keyof FeedItem)[]) {
+      if (previousValues[key] === undefined) {
+        delete article[key];
+      }
+    }
+    Object.assign(article, previousValues);
+    try {
+      await this.syncDashboardArticleUpdate(
+        article.guid,
+        feedUrl,
+        previousValues,
+        shouldRerender,
+      );
+      await this.syncReaderArticleUpdate(article.guid, feedUrl, previousValues);
+    } catch (error) {
+      console.error("Failed to roll back Reader article update", error);
+    }
   }
 
   private async syncReaderArticleUpdate(

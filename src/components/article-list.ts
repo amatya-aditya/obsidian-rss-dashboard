@@ -174,8 +174,8 @@ export class ArticleList {
       {
         onToggleSidebar: () => this.callbacks.onToggleSidebar(),
         onSearch: (q) => {
-          this.articleSearchQuery = q;
-          this.filterArticlesBySearch(q);
+          this.articleSearchQuery = q.trim().toLowerCase();
+          this.filterArticlesBySearch(this.articleSearchQuery);
           this.callbacks.onSearch(q);
         },
         onSortChange: (s) => this.callbacks.onSortChange(s),

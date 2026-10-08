@@ -138,7 +138,7 @@ export class ReaderView extends ItemView {
     item: FeedItem,
     updates: Partial<FeedItem>,
     shouldRerender?: boolean,
-  ) => void | Promise<void>;
+  ) => void | boolean | Promise<void | boolean>;
   private webViewerIntegration: WebViewerIntegration | null = null;
   private podcastPlayer: PodcastPlayer | null = null;
   private videoPlayer: VideoPlayer | null = null;
@@ -244,7 +244,7 @@ export class ReaderView extends ItemView {
       item: FeedItem,
       updates: Partial<FeedItem>,
       shouldRerender?: boolean,
-    ) => void | Promise<void>,
+    ) => void | boolean | Promise<void | boolean>,
     options?: {
       saveSettings?: () => Promise<void>;
       onPlaybackProgress?: (
@@ -1785,7 +1785,7 @@ export class ReaderView extends ItemView {
       item.content = result.content;
       item.starredImportContentState = undefined;
       if (shouldPersist) {
-        void this.onArticleUpdate(
+        this.persistBackgroundUpdate(
           item,
           { content: result.content, starredImportContentState: undefined },
           false,
@@ -1794,7 +1794,7 @@ export class ReaderView extends ItemView {
     } else {
       item.starredImportContentState = "failed";
       if (shouldPersist) {
-        void this.onArticleUpdate(
+        this.persistBackgroundUpdate(
           item,
           { starredImportContentState: "failed" },
           false,
@@ -2118,7 +2118,7 @@ export class ReaderView extends ItemView {
       undefined,
       feedLanguageFor(this.settings.feeds, item),
     );
-    if (update) void this.onArticleUpdate(item, update, false);
+    if (update) this.persistBackgroundUpdate(item, update, false);
   }
 
   private showRestrictedNotice(item: FeedItem): void {
@@ -2137,7 +2137,7 @@ export class ReaderView extends ItemView {
   private toggleReadStatus(): void {
     if (!this.currentItem) return;
     const nextRead = !this.currentItem.read;
-    void this.onArticleUpdate(this.currentItem, { read: nextRead }, false);
+    void this.persistUserUpdate(this.currentItem, { read: nextRead }, false);
     this.updateToggleButtons();
   }
 
@@ -2185,10 +2185,54 @@ export class ReaderView extends ItemView {
     }
   }
 
+  /**
+   * Persists a change the user just made. The plugin rolls the article back in
+   * every open view when the save fails; here the user is told, and the toolbar
+   * is redrawn from the restored state.
+   */
+  private async persistUserUpdate(
+    item: FeedItem,
+    updates: Partial<FeedItem>,
+    shouldRerender?: boolean,
+    onFailure?: () => void,
+  ): Promise<boolean> {
+    let persisted: boolean;
+    try {
+      // Omit an unset flag so the callback sees the same arguments as before.
+      const args: [FeedItem, Partial<FeedItem>, boolean?] =
+        shouldRerender === undefined
+          ? [item, updates]
+          : [item, updates, shouldRerender];
+      persisted = (await this.onArticleUpdate(...args)) !== false;
+    } catch (error) {
+      console.error("Failed to save Reader article update", error);
+      persisted = false;
+    }
+    if (!persisted) {
+      onFailure?.();
+      this.updateToggleButtons();
+      new Notice("Couldn't save your change. It was reverted.");
+    }
+    return persisted;
+  }
+
+  /** Persists a write the user did not initiate; a failure is logged only. */
+  private persistBackgroundUpdate(
+    item: FeedItem,
+    updates: Partial<FeedItem>,
+    shouldRerender?: boolean,
+  ): void {
+    void Promise.resolve(
+      this.onArticleUpdate(item, updates, shouldRerender),
+    ).catch((error: unknown) => {
+      console.error("Failed to save Reader article update", error);
+    });
+  }
+
   private toggleStarStatus(): void {
     if (!this.currentItem) return;
     const nextStarred = !this.currentItem.starred;
-    void this.onArticleUpdate(this.currentItem, { starred: nextStarred });
+    void this.persistUserUpdate(this.currentItem, { starred: nextStarred });
     this.updateToggleButtons();
   }
 
@@ -2555,20 +2599,25 @@ export class ReaderView extends ItemView {
   }
 
   private toggleTag(item: FeedItem, tag: Tag, add: boolean): void {
-    if (!item.tags) {
-      item.tags = [];
-    }
-
+    const previousTags = item.tags ?? [];
+    let nextTags: Tag[];
     if (add) {
-      if (!item.tags.some((t) => t.name === tag.name)) {
-        item.tags.push({ ...tag });
-      }
+      nextTags = previousTags.some((t) => t.name === tag.name)
+        ? previousTags
+        : [...previousTags, { ...tag }];
     } else {
-      item.tags = item.tags.filter((t) => t.name !== tag.name);
+      nextTags = previousTags.filter((t) => t.name !== tag.name);
     }
 
-    // Notify parent to persist the change
-    void this.onArticleUpdate(item, { tags: [...item.tags] }, false);
+    // Notify parent to persist the change. The plugin snapshots the article's
+    // previous tags before this call returns, so the item is updated after it.
+    void this.persistUserUpdate(item, { tags: [...nextTags] }, false, () => {
+      item.tags = previousTags;
+      if (this.currentItem?.guid === item.guid) {
+        this.refreshReaderHeaderTags();
+      }
+    });
+    item.tags = nextTags;
 
     if (this.currentItem?.guid === item.guid) {
       this.refreshReaderHeaderTags();
