@@ -4,7 +4,6 @@ import { TABLET_LAYOUT_MAX_WIDTH } from "../utils/platform-utils";
 import { ArticleFilterMenu, FilterChangeEvent } from "./article-filter-menu";
 import { ArticleHeaderMenu } from "./article-header-menu";
 import { renderHeaderFeedIcon } from "./article-list/utils/feed-icon";
-import { ThemedSelectPopup } from "./themed-select-popup";
 interface ArticleHeaderMenuController {
   destroy(): void;
   render(parent: HTMLElement): void;
@@ -48,18 +47,7 @@ export class ArticleHeader {
   private headerTitleEl: HTMLElement | null = null;
   private resizeObserver: ResizeObserver | null = null;
   private articleSearchQuery: string = "";
-  private articleSearchDesktopInput: HTMLInputElement | null = null;
   private headerMenu: ArticleHeaderMenuController | null = null;
-  private popup = new ThemedSelectPopup({
-    addDocumentListener: (target, type, listener) =>
-      this.addDocumentListener(target, type, listener),
-    persistSettings: () => this.callbacks.onPersistSettings(),
-  });
-  private documentListeners: Array<{
-    target: Document | Window;
-    type: string;
-    listener: EventListenerOrEventListenerObject;
-  }> = [];
 
   private statusFilters: Set<string>;
   private tagFilters: Set<string>;
@@ -117,11 +105,6 @@ export class ArticleHeader {
       (headerMenu as { destroy: () => void }).destroy();
     }
     this.headerMenu = null;
-    this.popup.close();
-    this.documentListeners.forEach(({ target, type, listener }) =>
-      target.removeEventListener(type, listener),
-    );
-    this.documentListeners = [];
   }
 
   /**
@@ -222,176 +205,24 @@ export class ArticleHeader {
       },
     );
     this.headerMenu.render(rightSection);
-
-    const desktopControls = rightSection.createDiv({
-      cls: "rss-dashboard-desktop-controls",
-    });
-    this.createControls(desktopControls, { includeFilter: true });
-  }
-
-  private createControls(
-    container: HTMLElement,
-    options: { includeFilter: boolean },
-  ): void {
-    const controls = container.createDiv({
-      cls: "rss-dashboard-article-controls",
-    });
-
-    if (options.includeFilter) {
-      const filterBtn = controls.createEl("button", {
-        cls: "rss-dashboard-multi-filter-btn rss-dashboard-filter-trigger",
-      });
-      setIcon(filterBtn.createDiv(), "filter");
-      filterBtn.createSpan({ text: "Filter" });
-      this.updateFilterBadge(filterBtn);
-      filterBtn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        this.showFiltersMenu(filterBtn);
-      });
-    }
-
-    const searchContainer = controls.createDiv({
-      cls: "rss-dashboard-article-search-container",
-    });
-    setIcon(
-      searchContainer.createDiv({ cls: "rss-dashboard-article-search-icon" }),
-      "search",
-    );
-    const searchInput = searchContainer.createEl("input", {
-      cls: "rss-dashboard-article-search-input",
-      attr: {
-        type: "text",
-        placeholder: "Search articles...",
-        autocomplete: "off",
-        spellcheck: "false",
-      },
-    });
-    searchInput.value = this.articleSearchQuery;
-    this.articleSearchDesktopInput = searchInput;
-
-    searchInput.addEventListener("input", (e) => {
-      const val = (e.target as HTMLInputElement).value;
-      this.syncSearch(val);
-      this.callbacks.onSearch(val);
-    });
-
-    this.popup.createSelector(
-      controls,
-      "history",
-      "Age:",
-      this.getAgeOptions(),
-      () => this.getCurrentAgeFilterValue(),
-      (val) =>
-        this.callbacks.onFilterChange({
-          type: Number(val) === 0 ? "none" : "age",
-          value: Number(val),
-        }),
-      "rss-dashboard-filter",
-    );
-
-    this.popup.createSelector(
-      controls,
-      "sort-asc",
-      "Sort:",
-      { Newest: "newest", Oldest: "oldest" },
-      () => this.settings.articleSort,
-      (val) => this.callbacks.onSortChange(val as "newest" | "oldest"),
-      "rss-dashboard-sort",
-    );
-
-    this.popup.createSelector(
-      controls,
-      "folders",
-      "Grouping:",
-      {
-        None: "none",
-        Feed: "feed",
-        Date: "date",
-        "Date > Feed": "date_feed",
-        Folder: "folder",
-        "Folder > Feed": "folder_feed",
-      },
-      () => this.settings.articleGroupBy,
-      (val) => this.callbacks.onGroupChange(val as ArticleGroupByOption),
-      "rss-dashboard-group",
-    );
-
-    const viewStyleRow = controls.createDiv({
-      cls: "rss-dashboard-view-style-row",
-    });
-    this.popup.createViewStyleSelector(
-      viewStyleRow,
-      () => this.settings.viewStyle,
-      (style) => this.callbacks.onToggleViewStyle(style),
-    );
-
-    this.createRefreshButton(controls, "");
-
-    const markAllRow = controls.createDiv({
-      cls: "rss-dashboard-mark-all-row",
-    });
-    markAllRow.createSpan({
-      text: "Mark all:",
-      cls: "rss-dashboard-mark-all-label",
-    });
-    const markAllBtns = markAllRow.createDiv({
-      cls: "rss-dashboard-mark-all-buttons-row",
-    });
-
-    const readBtn = markAllBtns.createEl("button", {
-      cls: "rss-dashboard-mark-all-button rss-dashboard-mark-read",
-    });
-    setIcon(readBtn.createDiv(), "check-circle");
-    readBtn.createSpan({ text: "Read", cls: "rss-dashboard-mark-all-text" });
-    readBtn.onclick = () => this.callbacks.onMarkAllAsRead();
-
-    const unreadBtn = markAllBtns.createEl("button", {
-      cls: "rss-dashboard-mark-all-button",
-    });
-    setIcon(unreadBtn.createDiv(), "circle");
-    unreadBtn.createSpan({
-      text: "Unread",
-      cls: "rss-dashboard-mark-all-text",
-    });
-    unreadBtn.onclick = () => this.callbacks.onMarkAllAsUnread();
   }
 
   /**
-   * Focuses the article search. The desktop input is used when it accepts
-   * focus (it refuses while its controls are not displayed); otherwise the
-   * hamburger menu opens and focuses its own input. Resolves false when no
-   * search input could be focused.
+   * Focuses the article search by opening the hamburger menu and focusing its
+   * input. Resolves false when no search input could be focused.
    */
   public focusSearch(): Promise<boolean> {
-    const desktopInput = this.articleSearchDesktopInput;
-    if (desktopInput) {
-      desktopInput.focus();
-      if (desktopInput.ownerDocument.activeElement === desktopInput) {
-        desktopInput.select();
-        return Promise.resolve(true);
-      }
-    }
     return this.headerMenu?.focusSearch() ?? Promise.resolve(false);
   }
 
   private syncSearch(val: string) {
     this.articleSearchQuery = val;
-    if (this.articleSearchDesktopInput)
-      this.articleSearchDesktopInput.value = val;
     const headerMenu: ArticleHeaderMenuController | null = this.headerMenu;
     if (headerMenu) {
       (
         headerMenu as { setSearchQuery: (query: string) => void }
       ).setSearchQuery(val);
     }
-  }
-
-  private createRefreshButton(parent: HTMLElement, cls: string) {
-    const btn = parent.createEl("button", {
-      cls: "rss-dashboard-refresh-button " + cls,
-    });
-    setIcon(btn.createDiv({ cls: "rss-dashboard-refresh-icon" }), "refresh-cw");
-    btn.onclick = () => this.callbacks.onRefreshFeeds();
   }
 
   public updateFilterBadge(btn?: HTMLElement): void {
@@ -429,52 +260,5 @@ export class ArticleHeader {
       },
     );
     menu.show(btn);
-  }
-
-  private getAgeOptions() {
-    return {
-      All: "0",
-      "1 hour": "3600000",
-      "2 hours": "7200000",
-      "4 hours": "14400000",
-      "8 hours": "28800000",
-      "24 hours": "86400000",
-      "48 hours": "172800000",
-      "3 days": "259200000",
-      "1 week": "604800000",
-      "2 weeks": "1209600000",
-      "1 month": "2592000000",
-      "6 months": "15552000000",
-      "1 year": "31536000000",
-    };
-  }
-
-  private getCurrentAgeFilterValue(): string {
-    if (this.settings.articleFilter.type !== "age") {
-      return "0";
-    }
-
-    const currentValue = this.settings.articleFilter.value;
-    if (typeof currentValue !== "number" || currentValue <= 0) {
-      return "0";
-    }
-
-    return String(currentValue);
-  }
-
-  private addDocumentListener(
-    target: Document | Window,
-    type: string,
-    listener: EventListenerOrEventListenerObject,
-  ) {
-    target.addEventListener(type, listener);
-    const entry = { target, type, listener };
-    this.documentListeners.push(entry);
-    return () => {
-      target.removeEventListener(type, listener);
-      this.documentListeners = this.documentListeners.filter(
-        (e) => e !== entry,
-      );
-    };
   }
 }
