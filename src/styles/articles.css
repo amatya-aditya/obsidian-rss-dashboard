@@ -342,6 +342,23 @@ body .rss-dashboard-tags-toggle svg {
   color: var(--text-normal);
 }
 
+/* Tags toggle: accent color plus a filled icon while the menu is open or the
+   article has tags. The fill is the non-color cue (WCAG 1.4.1), and the reader
+   toolbar button carries aria-expanded as well. */
+.rss-dashboard-tags-toggle.has-tags,
+.rss-dashboard-tags-toggle[aria-expanded="true"],
+.rss-dashboard-tags-toggle.has-tags:hover,
+.rss-dashboard-tags-toggle[aria-expanded="true"]:hover,
+.rss-reader-actions .rss-dashboard-tags-toggle.has-tags,
+.rss-reader-actions .rss-dashboard-tags-toggle[aria-expanded="true"] {
+  color: var(--interactive-accent, #3498db);
+}
+
+.rss-dashboard-tags-toggle.has-tags svg,
+.rss-dashboard-tags-toggle[aria-expanded="true"] svg {
+  fill: var(--interactive-accent, #3498db);
+}
+
 /* Save toggle states */
 .rss-dashboard-save-toggle {
   opacity: 0.7;

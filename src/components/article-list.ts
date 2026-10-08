@@ -11,7 +11,10 @@ import { setCssProps } from "../utils/platform-utils";
 import type { FilterContext } from "../utils/filter-detection";
 import { HighlightService } from "../services/highlight-service";
 import { getEffectiveDateMs } from "../services/feed-parser/feed-retention";
-import { createTagsDropdownPortal } from "../utils/tags-dropdown-portal";
+import {
+  createTagsDropdownPortal,
+  syncTagsToggleState,
+} from "../utils/tags-dropdown-portal";
 import {
   groupArticles as groupArticlesUtil,
   getFeedFolder as getFeedFolderUtil,
@@ -1093,6 +1096,11 @@ export class ArticleList {
             : "Save article summary to notes",
       );
     }
+
+    syncTagsToggleState(
+      articleEl.querySelector(".rss-dashboard-tags-toggle"),
+      article.tags,
+    );
 
     const starToggle = articleEl.querySelector<HTMLElement>(
       ".rss-dashboard-star-toggle",
