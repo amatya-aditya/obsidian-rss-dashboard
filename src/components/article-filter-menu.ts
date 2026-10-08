@@ -418,6 +418,17 @@ export class ArticleFilterMenu {
       menuPortal.style.left = `${nextLeft}px`;
     });
 
+    // Escape dismisses the menu without applying staged changes. close()
+    // removes this listener with the rest of documentListeners.
+    this.addDocumentListener(targetDocument, "keydown", (e: Event) => {
+      const keyboardEvent = e as KeyboardEvent;
+      if (keyboardEvent.key !== "Escape") return;
+      keyboardEvent.preventDefault();
+      keyboardEvent.stopPropagation();
+      this.close();
+      toggleBtn.focus();
+    });
+
     targetWindow.setTimeout(() => {
       if (this.activePortal !== menuPortal) return;
       this.activeFilterOutsideListenerCleanup = this.addDocumentListener(
