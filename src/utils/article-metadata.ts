@@ -283,6 +283,16 @@ function feedBlurbText(fallbacks: ArticleMetadataFallbacks): string {
   );
 }
 
+/**
+ * The feed blurb when it passes the same guard the description tier applies
+ * (#829): footer stripped, then long enough, not the title, not punctuation
+ * only, and not a duplicate intro of `fallbacks.articleHtml`. Empty otherwise.
+ */
+export function guardFeedBlurb(fallbacks: ArticleMetadataFallbacks): string {
+  const candidate = normalizeSpace(feedBlurbText(fallbacks));
+  return judgeDescription(candidate, fallbacks) === "accept" ? candidate : "";
+}
+
 function resolveDescription(
   pageRaw: RawArticleMetadata,
   fallbacks: ArticleMetadataFallbacks,
