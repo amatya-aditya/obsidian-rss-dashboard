@@ -324,7 +324,6 @@ body .rss-discover-card-remove-btn:hover {
   background-color: var(--interactive-accent);
   color: var(--text-on-accent);
   padding: 2px 8px;
-  border-radius: 4px;
   font-size: 0.8em;
   margin-right: 5px;
   margin-bottom: 5px;
@@ -433,7 +432,7 @@ body .rss-discover-card-remove-btn:hover {
 .rss-discover-card-tag {
   font-size: var(--font-ui-smaller);
   padding: 2px 8px;
-  border-radius: 12px;
+  border-radius: var(--rss-dashboard-tag-chip-radius, 999px);
   font-weight: 500;
 }
 

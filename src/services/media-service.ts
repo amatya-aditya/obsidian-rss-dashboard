@@ -58,16 +58,16 @@ export class MediaService {
       return [];
     }
 
-    const normalizedArrayTags = Array.isArray(arrayTags)
-      ? arrayTags
-          .map((name) => name.trim())
-          .filter(
-            (name, index, names) =>
-              name.length > 0 && names.indexOf(name) === index,
-          )
-      : [];
-
-    if (normalizedArrayTags.length > 0) {
+    // A stored array, even an empty one, is the user's choice. An empty array
+    // means "no default tag"; only a missing array falls back to the legacy
+    // single-tag field or the built-in names.
+    if (Array.isArray(arrayTags)) {
+      const normalizedArrayTags = arrayTags
+        .map((name) => name.trim())
+        .filter(
+          (name, index, names) =>
+            name.length > 0 && names.indexOf(name) === index,
+        );
       return this.resolveConfiguredTagNames(availableTags, normalizedArrayTags);
     }
 

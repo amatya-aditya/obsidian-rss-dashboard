@@ -11,6 +11,8 @@ export type ShardDeletionFailureAction =
 
 export type MetadataCleanupAction = "keep" | "delete";
 
+export type MetadataLocationClearAction = "cancel" | "move-to-trash";
+
 export interface StorageTransitionOptions {
   currentMode: FeedStorageMode;
   targetMode: FeedStorageMode;
@@ -19,6 +21,10 @@ export interface StorageTransitionOptions {
 
 export interface MetadataCleanupOptions {
   previousLocationLabel: string;
+}
+
+export interface MetadataLocationClearOptions {
+  currentLocationLabel: string;
 }
 
 export class StorageTransitionModal extends Modal {
@@ -279,6 +285,68 @@ export class MetadataCleanupModal extends Modal {
   }
 
   waitForClose(): Promise<MetadataCleanupAction> {
+    return new Promise((resolve) => {
+      this.resolvePromise = resolve;
+    });
+  }
+}
+
+/**
+ * Confirms clearing the Metadata location. Clearing it moves the vault
+ * `data.json` to the trash, so this asks before anything is moved.
+ */
+export class MetadataLocationClearModal extends Modal {
+  private readonly currentLocationLabel: string;
+  private action: MetadataLocationClearAction = "cancel";
+  private resolvePromise:
+    ((value: MetadataLocationClearAction) => void) | null = null;
+
+  constructor(app: App, options: MetadataLocationClearOptions) {
+    super(app);
+    this.currentLocationLabel = options.currentLocationLabel;
+  }
+
+  onOpen(): void {
+    const { contentEl } = this;
+    contentEl.empty();
+
+    this.modalEl.addClass("rss-dashboard-modal");
+    this.modalEl.addClass("rss-dashboard-modal-container");
+
+    contentEl.createEl("h2", { text: "Move metadata data.json to the trash?" });
+    contentEl.createEl("p", {
+      text: `Clearing the Metadata location returns metadata to the plugin folder. The data.json in ${this.currentLocationLabel} is moved to the trash.`,
+    });
+    contentEl.createEl("p", {
+      text: "You can restore it from the trash if you need it back.",
+    });
+
+    const buttonsSetting = new Setting(contentEl);
+    buttonsSetting.controlEl.addClass("rss-dashboard-modal-buttons");
+    buttonsSetting
+      .addButton((btn) =>
+        btn.setButtonText("Cancel").onClick(() => {
+          this.action = "cancel";
+          this.close();
+        }),
+      )
+      .addButton((btn) => {
+        btn.setButtonText("Move to trash");
+        settingsUiCompatibility.markDestructive(btn);
+        btn.onClick(() => {
+          this.action = "move-to-trash";
+          this.close();
+        });
+      });
+  }
+
+  onClose(): void {
+    const { contentEl } = this;
+    contentEl.empty();
+    this.resolvePromise?.(this.action);
+  }
+
+  waitForClose(): Promise<MetadataLocationClearAction> {
     return new Promise((resolve) => {
       this.resolvePromise = resolve;
     });

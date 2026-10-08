@@ -4346,7 +4346,7 @@ export class RssDashboardView extends ItemView {
   private async handleOpenInReaderView(article: FeedItem): Promise<void> {
     this.selectedArticle = article;
 
-    if (!article.read) {
+    if (!article.read && this.settings.display.autoMarkReadOnOpen) {
       await this.updateArticleStatus(article, { read: true }, false);
     }
     await this.openArticleInConfiguredReaderLocation(article);

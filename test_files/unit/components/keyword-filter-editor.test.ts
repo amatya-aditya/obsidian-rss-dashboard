@@ -178,7 +178,7 @@ describe("renderKeywordFilterEditor", () => {
       document.body.querySelectorAll(
         ".rss-keyword-filter-location-toggle label",
       ),
-    ).find((el) => el.textContent === "Summary") as HTMLLabelElement;
+    ).find((el) => el.textContent === "Preview") as HTMLLabelElement;
     expect(summaryLabel).toBeTruthy();
     summaryLabel.click();
     expect(getState().rules[0].applyToSummary).toBe(true);
@@ -227,14 +227,14 @@ describe("renderKeywordFilterEditor", () => {
     ).toBeTruthy();
   });
 
-  it("explains on the Summary toggle that it matches the card preview text (#888)", () => {
+  it("explains on the Preview toggle that it matches the card preview text (#888)", () => {
     setupEditor({ includeLogic: "AND", rules: [createRule()] });
 
     const toggles = Array.from(
       document.body.querySelectorAll(".rss-keyword-filter-location-toggle"),
     );
     const summary = toggles.find(
-      (el) => el.textContent?.trim() === "Summary",
+      (el) => el.textContent?.trim() === "Preview",
     ) as HTMLElement;
     const title = toggles.find(
       (el) => el.textContent?.trim() === "Title",

@@ -25,14 +25,14 @@ export class OpmlOverwriteConfirmModal extends Modal {
       "rss-opml-overwrite-confirm-modal",
     ]);
 
-    new Setting(contentEl).setName("Overwrite all feeds").setHeading();
+    new Setting(contentEl).setName("Replace all feeds").setHeading();
 
     // Warning message
     const warningDiv = contentEl.createDiv({
       cls: "delete-all-warning",
     });
     warningDiv.createEl("p", {
-      text: "This action is irreversible. All your existing feeds will be permanently replaced with the imported feeds.",
+      text: "This action is irreversible. All your existing feeds and folders will be permanently replaced with the imported ones.",
     });
 
     // Backup recommendation
@@ -43,7 +43,7 @@ export class OpmlOverwriteConfirmModal extends Modal {
       text: "Recommended: export your feeds first",
     });
     backupDiv.createEl("p", {
-      text: "Before overwriting, we strongly recommend backing up your current feeds by exporting to an OPML file.",
+      text: "Before replacing, we strongly recommend backing up your current feeds by exporting to an OPML file.",
     });
 
     // Button container
@@ -68,7 +68,7 @@ export class OpmlOverwriteConfirmModal extends Modal {
     };
 
     const confirmButton = buttonContainer.createEl("button", {
-      text: "Overwrite feeds",
+      text: "Replace feeds",
       cls: "rss-dashboard-danger-button",
     });
     confirmButton.onclick = () => {

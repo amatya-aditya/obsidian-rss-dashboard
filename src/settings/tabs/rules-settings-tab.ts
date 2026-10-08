@@ -19,6 +19,14 @@ export function renderRulesSettingsTab(
     cls: "rss-dashboard-settings-description",
     text: "Create global include/exclude keyword rules. Rules are case-insensitive, and per-feed settings can optionally override these global rules.",
   });
+  containerEl.createEl("p", {
+    cls: "rss-dashboard-settings-description",
+    text: "Each rule can search four fields: title (the article title), preview (the preview text shown on cards and in the feed view, even when summaries are hidden), content (the article body, or the feed description when there is none), and URL (the article link). Partial matches the keyword anywhere in a field. Exact matches it only as a whole word.",
+  });
+  containerEl.createEl("p", {
+    cls: "rss-dashboard-settings-description",
+    text: "The bypass keyword rules option in the dashboard filter menu turns off all keyword rules at once, including per-feed rules.",
+  });
 
   if (!plugin.settings.keywordRules) {
     plugin.settings.keywordRules = {

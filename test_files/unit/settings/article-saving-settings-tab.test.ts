@@ -94,7 +94,8 @@ describe("renderArticleSavingSettingsTab()", () => {
     const description = templateSetting.querySelector(
       ".setting-item-description",
     );
-    const expectedDefaultHint = "The prefilled template is ready to use.";
+    const expectedDefaultHint =
+      "The built-in template. It is used when neither the feed nor the global default saved template sets one.";
     const defaultFrontmatterProperties = [
       ...DEFAULT_SETTINGS.articleSaving.defaultTemplate
         .split("\n")
@@ -120,7 +121,7 @@ describe("renderArticleSavingSettingsTab()", () => {
     await flushPromises();
 
     expect(description?.textContent).toBe(
-      "Template for saved articles. Frontmatter properties can start at the beginning of each line.",
+      "Your custom template. It is used when neither the feed nor the global default saved template sets one. Frontmatter properties can start at the beginning of each line.",
     );
 
     const resetBtn = Array.from(containerEl.querySelectorAll("button")).find(
@@ -164,7 +165,7 @@ describe("renderArticleSavingSettingsTab()", () => {
 
     renderArticleSavingSettingsTab(containerEl, plugin, onRefresh);
 
-    const savedTagSetting = getSettingByName(containerEl, "Add 'saved' tag");
+    const savedTagSetting = getSettingByName(containerEl, "Add saved tag");
     const savedTagToggle = savedTagSetting.querySelector(
       'input[type="checkbox"]',
     ) as HTMLInputElement;
@@ -182,7 +183,7 @@ describe("renderArticleSavingSettingsTab()", () => {
       'input[type="checkbox"]',
     ) as HTMLInputElement;
     expect(fullContentSetting.textContent).toContain(
-      "Choose what {{content}} saves: the fetched article when on or RSS item content when off.",
+      "Choose what {{content}} saves: the fetched article when on, or the feed item's content when off.",
     );
     expect(fullContentSetting.textContent).toContain(
       "{{content}} controls placement in the template; {{summary}} keeps its existing output.",

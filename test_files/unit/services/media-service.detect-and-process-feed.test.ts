@@ -488,7 +488,7 @@ describe("MediaService.detectAndProcessFeed", () => {
     ]);
   });
 
-  it("falls back to legacy defaultYouTubeTag when defaultYouTubeTags is empty", () => {
+  it("falls back to legacy defaultYouTubeTag when defaultYouTubeTags is absent", () => {
     const ytFeed = createFeed([
       createItem({
         guid: "yt-legacy-fallback",
@@ -504,7 +504,6 @@ describe("MediaService.detectAndProcessFeed", () => {
       {
         defaultVideoTag: "",
         defaultYouTubeTag: "Legacy YouTube",
-        defaultYouTubeTags: [],
       },
     );
 
@@ -641,7 +640,7 @@ describe("MediaService.detectAndProcessFeed", () => {
     );
   });
 
-  it("falls back to 'podcast' if defaultPodcastTags is empty", () => {
+  it("falls back to 'podcast' if defaultPodcastTags is absent", () => {
     const podcastFeed = createFeed([
       createItem({
         guid: "podcast-2",
@@ -659,7 +658,7 @@ describe("MediaService.detectAndProcessFeed", () => {
     const tagged = MediaService.applyMediaTags(
       detected,
       [{ name: "Podcast", color: "#8e44ad" }],
-      { defaultPodcastTags: [] },
+      {},
     );
 
     const item = tagged.items[0];

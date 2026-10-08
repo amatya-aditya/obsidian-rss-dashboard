@@ -171,7 +171,7 @@ describe("Auto Backup Helpers", () => {
   });
 
   describe("renderImportExportSettingsTab() factory reset section", () => {
-    it("renders shard data actions", () => {
+    it("renders portable data bundle actions", () => {
       const containerEl = createContainerEl();
       const plugin = createPlugin();
 
@@ -180,17 +180,20 @@ describe("Auto Backup Helpers", () => {
         plugin as unknown as RssDashboardPlugin,
       );
 
-      const portableSetting = getSettingByName(containerEl, "Shard data");
+      const portableSetting = getSettingByName(
+        containerEl,
+        "Portable data bundle",
+      );
       expect(portableSetting.textContent).toContain("cross-device migration");
 
       const buttons = Array.from(
         containerEl.querySelectorAll<HTMLButtonElement>("button"),
       ).map((button) => button.textContent?.trim());
-      expect(buttons).toContain("Import shard data");
-      expect(buttons).toContain("Export shard data");
+      expect(buttons).toContain("Import portable data bundle");
+      expect(buttons).toContain("Export portable data bundle");
     });
 
-    it("calls shard data export when Export shard data is clicked", () => {
+    it("calls portable data bundle export when Export portable data bundle is clicked", () => {
       const containerEl = createContainerEl();
       const plugin = createPlugin();
 
@@ -202,14 +205,14 @@ describe("Auto Backup Helpers", () => {
       const exportButton = Array.from(
         containerEl.querySelectorAll<HTMLButtonElement>("button"),
       ).find(
-        (button) => button.textContent === "Export shard data",
+        (button) => button.textContent === "Export portable data bundle",
       ) as HTMLButtonElement;
 
       exportButton.click();
       expect(plugin.exportPortableDataBundle).toHaveBeenCalledTimes(1);
     });
 
-    it("calls shard data clipboard copy when its copy button is clicked", () => {
+    it("calls portable data bundle clipboard copy when its copy button is clicked", () => {
       const containerEl = createContainerEl();
       const plugin = createPlugin();
 
@@ -219,7 +222,7 @@ describe("Auto Backup Helpers", () => {
       );
 
       const copyButton = containerEl.querySelector<HTMLButtonElement>(
-        'button[aria-label="Copy shard data to clipboard"]',
+        'button[aria-label="Copy portable data bundle to clipboard"]',
       );
       expect(copyButton).not.toBeNull();
 
@@ -399,7 +402,7 @@ describe("Auto Backup Helpers", () => {
 
     describe("a canceled Replacing or Overwriting import (issue #377)", () => {
       const imports = [
-        ["Import shard data", "importPortableDataBundleFromFile"],
+        ["Import portable data bundle", "importPortableDataBundleFromFile"],
         ["Import feed bundle", "importFeedBundleFromFile"],
         ["Import settings bundle", "importSettingsBundleFromFile"],
         ["Import user preferences", "importUserSettingsJsonFromFile"],
@@ -483,7 +486,7 @@ describe("Auto Backup Helpers", () => {
       );
     });
 
-    it("renders Factory Reset after the Auto backups section", () => {
+    it("renders Factory Reset after the Automatic backups section", () => {
       const containerEl = createContainerEl();
       const plugin = createPlugin();
 
@@ -496,9 +499,9 @@ describe("Auto Backup Helpers", () => {
         containerEl.querySelectorAll<HTMLElement>(".setting-item-name"),
       ).map((el) => el.textContent?.trim());
 
-      expect(settingNames.indexOf("Auto backups")).toBeGreaterThan(-1);
+      expect(settingNames.indexOf("Automatic backups")).toBeGreaterThan(-1);
       expect(settingNames.indexOf("Factory reset")).toBeGreaterThan(
-        settingNames.indexOf("Auto backups"),
+        settingNames.indexOf("Automatic backups"),
       );
 
       const resetSetting = getSettingByName(containerEl, "Factory reset");

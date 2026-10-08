@@ -2,8 +2,8 @@ import { setTooltip } from "obsidian";
 import type { KeywordFilterRule } from "../types/types";
 import type { KeywordFilterEditorState } from "./keyword-filter-editor";
 
-const SUMMARY_SCOPE_HINT =
-  "Matches the preview text shown on article cards and in the feed view.";
+const PREVIEW_SCOPE_HINT =
+  "Matches the preview text shown on article cards and in the feed view. The rule matches even when Show summary is off.";
 
 export function updateRule(
   rules: KeywordFilterRule[],
@@ -260,7 +260,7 @@ function renderLocationToggles(
   );
   renderLocationToggle(
     locationsRow,
-    "Summary",
+    "Preview",
     rule.applyToSummary,
     !rule.enabled,
     (checked) =>
@@ -268,7 +268,7 @@ function renderLocationToggles(
         ...state,
         rules: updateRule(state.rules, index, { applyToSummary: checked }),
       }),
-    SUMMARY_SCOPE_HINT,
+    PREVIEW_SCOPE_HINT,
   );
   renderLocationToggle(
     locationsRow,

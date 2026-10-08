@@ -147,6 +147,12 @@
   line-height: 1.4;
 }
 
+/* Domain and age labels reuse the discover tag chip but are metadata, not
+ * tags, so they keep their own shape instead of the shared tag chip radius. */
+.rss-discover-card-tag.rss-smallweb-meta-tag {
+  border-radius: 12px;
+}
+
 .rss-smallweb-post-title {
   font-size: 0.85rem;
   color: var(--text-muted);
