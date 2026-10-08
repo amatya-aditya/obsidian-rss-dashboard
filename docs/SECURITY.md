@@ -109,7 +109,7 @@ RSS feeds are hosted on external servers — the plugin must fetch feed content 
 
 - Users choose which feeds to subscribe to
 - Users can block/unsubscribe from any feed at any time
-- Request timeouts and retry limits are not configurable. The **Fetch timeout** in **Article saving** settings applies to full-article fetches only, and does not take effect yet (tracked in [#928](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/928))
+- Feed requests have no configurable timeout or retry limit. The **Fetch timeout** in **Article saving** settings (default 10 seconds) limits full-article fetches only, including each proxy attempt.
 - The CORS proxy fallback can be turned off in **Settings → RSS Dashboard → General → Proxy**, and Google favicon requests for RSS feeds stop when **Use site icons/favicons for RSS feeds** is off in the Sidebar tab
 - Feeds can be tested before adding to verify content is appropriate
 
