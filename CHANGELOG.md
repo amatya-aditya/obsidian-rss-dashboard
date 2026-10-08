@@ -23,6 +23,7 @@
 
 ### Fixes
 
+- Fixed Pocket Casts links (`pca.st` short links and full `pocketcasts.com` pages) failing to resolve by using the iTunes API to find the feed instead of scraping the web page, bypassing proxy 403 Forbidden errors. This works with the CORS Proxy turned off; the proxy is only needed for the page-scrape fallback. [GH Issue #549](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/549)
 - The article tag menu can now be used from the keyboard. Opening it moves focus to the first tag (or the menu when there are no tags), Space toggles a tag, and Escape closes it and returns focus to the tag button. The tag button reports whether the menu is open, and shows the accent color with a filled icon while the menu is open or the article has tags, in card, list, feed and Reader views. [GH Issue #892](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/892)
 - When saving a change made in the Reader (star, read, or tags) fails, the change is now undone in every open view and a Notice says it wasn't saved, instead of leaving a state that was never stored. [GH Issue #797](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/797)
 - Dashboard search now finds articles when the query has uppercase letters or surrounding spaces. Typing "Samsung" or "AI chip" used to hide every article even when titles contained the text. [GH Issue #902](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/902)

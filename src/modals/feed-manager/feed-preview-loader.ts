@@ -164,16 +164,11 @@ export async function resolveAndLoadPreview(
   } else {
     const platform = detectPodcastPlatform(url);
     if (platform) {
-      if (platform.id === "pocketcasts" && !options?.corsProxyEnabled) {
-        throw new Error(
-          "Pocket Casts resolution requires the CORS Proxy to be enabled in Settings (due to Pocket Casts API limitations). Please enable it, or try another feed source.",
-        );
-      }
-
       detectedType = "podcast";
       const resolvedUrl = await resolvePodcastPlatformUrl(
         url,
         options?.corsProxyUrl,
+        { allowProxyFallback: options?.corsProxyEnabled === true },
       );
       if (!resolvedUrl) {
         throw new Error("Could not resolve podcast feed URL");
