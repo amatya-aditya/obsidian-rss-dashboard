@@ -462,3 +462,104 @@
   padding: 4px 10px;
   cursor: pointer;
 }
+
+/* ============================================
+ * Tag shape control (Tags tab, #663)
+ *
+ * Each preview and the sample read the chip radius from
+ * --rss-dashboard-tag-chip-radius, set on the element itself, so the
+ * preview shows the shape without touching the real chips.
+ * ============================================ */
+
+.rss-dashboard-tag-shape {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.rss-dashboard-tag-shape .rss-dashboard-tag-shape-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.rss-dashboard-tag-shape .rss-dashboard-tag-shape-option {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--input-height);
+  padding: 8px 12px;
+  border: 2px solid var(--background-modifier-border);
+  border-radius: 8px;
+  background: var(--background-primary);
+  color: var(--text-normal);
+  box-shadow: none;
+  cursor: pointer;
+}
+
+.rss-dashboard-tag-shape .rss-dashboard-tag-shape-option:hover {
+  background: var(--background-modifier-hover);
+}
+
+/* Selected: accent outline plus a check mark, so color is not the only cue. */
+.rss-dashboard-tag-shape .rss-dashboard-tag-shape-option.is-selected {
+  border-color: var(--interactive-accent);
+  background: var(--background-secondary);
+}
+
+/* Focus: a dashed ring set apart from the box, unlike the solid selected edge. */
+.rss-dashboard-tag-shape .rss-dashboard-tag-shape-option:focus-visible {
+  outline: 2px dashed var(--text-normal);
+  outline-offset: 4px;
+}
+
+.rss-dashboard-tag-shape .rss-dashboard-tag-shape-chip {
+  border-radius: var(--rss-dashboard-tag-chip-radius, 999px);
+}
+
+.rss-dashboard-tag-shape .rss-dashboard-tag-shape-check {
+  visibility: hidden;
+  color: var(--interactive-accent);
+  font-weight: 700;
+}
+
+.rss-dashboard-tag-shape
+  .rss-dashboard-tag-shape-option.is-selected
+  .rss-dashboard-tag-shape-check {
+  visibility: visible;
+}
+
+.rss-dashboard-tag-shape .rss-dashboard-tag-shape-custom {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.rss-dashboard-tag-shape .rss-dashboard-tag-shape-input {
+  min-width: 0;
+  flex: 1 1 180px;
+  max-width: 280px;
+}
+
+.rss-dashboard-tag-shape
+  .rss-dashboard-tag-shape-custom.is-invalid
+  .rss-dashboard-tag-shape-input {
+  border-color: var(--text-error);
+}
+
+.rss-dashboard-tag-shape .rss-dashboard-tag-shape-error {
+  min-height: 0;
+  color: var(--text-error);
+  font-size: var(--font-ui-smaller);
+}
+
+.rss-dashboard-tag-shape .rss-dashboard-tag-shape-error:empty {
+  display: none;
+}
+
+.rss-dashboard-tag-shape .rss-dashboard-tag-shape-reset {
+  align-self: flex-start;
+}

@@ -494,3 +494,214 @@ describe("renderTagsSettingsTab()", () => {
     });
   });
 });
+
+describe("renderTagsSettingsTab() tag shape control", () => {
+  function render(radius?: string) {
+    const containerEl = document.body.appendChild(createDiv());
+    const settings = cloneSettings();
+    if (radius !== undefined) settings.display.tagChipRadius = radius;
+    const app = obsidian.App.createMock();
+    const trigger = vi.spyOn(app.workspace, "trigger");
+    const saveSettings = vi.fn(async () => {});
+    const plugin = {
+      app,
+      settings,
+      saveSettings,
+      refreshOpenTagColorViews: vi.fn(async () => {}),
+    } as unknown as RssDashboardPlugin;
+
+    renderTagsSettingsTab(containerEl, plugin, vi.fn());
+    return { containerEl, settings, trigger, saveSettings };
+  }
+
+  const radios = (containerEl: HTMLElement) =>
+    Array.from(
+      containerEl.querySelectorAll<HTMLButtonElement>("[role='radio']"),
+    );
+  const customInput = (containerEl: HTMLElement) =>
+    containerEl.querySelector<HTMLInputElement>(
+      ".rss-dashboard-tag-shape-input",
+    ) as HTMLInputElement;
+  const sampleRadius = (containerEl: HTMLElement) =>
+    containerEl
+      .querySelector<HTMLElement>(".rss-dashboard-tag-shape-sample")
+      ?.style.getPropertyValue("--rss-dashboard-tag-chip-radius");
+  const press = (el: HTMLElement, key: string) =>
+    el.dispatchEvent(
+      new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }),
+    );
+  const type = (input: HTMLInputElement, value: string) => {
+    input.value = value;
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  };
+  const CHANGED = "rss-dashboard:tag-chip-radius-changed";
+
+  it("shows Rectangle, Squircle and Pill previews in one radiogroup with Pill checked by default", () => {
+    const { containerEl } = render();
+
+    const group = containerEl.querySelector("[role='radiogroup']");
+    expect(group?.getAttribute("aria-label")).toBe("Tag shape");
+    expect(
+      radios(containerEl).map((el) =>
+        el.querySelector(".rss-dashboard-tag-badge")?.textContent?.trim(),
+      ),
+    ).toEqual(["Rectangle", "Squircle", "Pill"]);
+    expect(
+      radios(containerEl).map((el) => el.getAttribute("aria-checked")),
+    ).toEqual(["false", "false", "true"]);
+    // Each preview chip carries its own radius through the shared variable.
+    expect(
+      radios(containerEl).map((el) =>
+        el.style.getPropertyValue("--rss-dashboard-tag-chip-radius"),
+      ),
+    ).toEqual(["0px", "10px", "999px"]);
+  });
+
+  it("is rendered after Reset tag names and before the tag list heading", () => {
+    const { containerEl } = render();
+    const names = Array.from(
+      containerEl.querySelectorAll(".setting-item-name"),
+    ).map((el) => el.textContent?.trim());
+
+    expect(names.indexOf("Tag shape")).toBeGreaterThan(
+      names.indexOf("Reset tag names"),
+    );
+    expect(names.indexOf("Tag shape")).toBeLessThan(names.indexOf("Tags"));
+  });
+
+  it("marks the selected preview with a check indicator in addition to its accent outline", () => {
+    const { containerEl } = render("10px");
+
+    const [rectangle, squircle] = radios(containerEl);
+    expect(squircle?.getAttribute("aria-checked")).toBe("true");
+    expect(squircle?.classList.contains("is-selected")).toBe(true);
+    expect(rectangle?.classList.contains("is-selected")).toBe(false);
+    expect(
+      squircle?.querySelector(".rss-dashboard-tag-shape-check")?.textContent,
+    ).toBe("✓");
+  });
+
+  it("applies a clicked preset immediately, saves it, and announces the change", () => {
+    const { containerEl, settings, trigger, saveSettings } = render();
+
+    radios(containerEl)[0]?.click();
+
+    expect(settings.display.tagChipRadius).toBe("0px");
+    expect(trigger).toHaveBeenCalledWith(CHANGED);
+    expect(saveSettings).toHaveBeenCalledTimes(1);
+    expect(radios(containerEl)[0]?.getAttribute("aria-checked")).toBe("true");
+    expect(radios(containerEl)[2]?.getAttribute("aria-checked")).toBe("false");
+    expect(customInput(containerEl).value).toBe("0px");
+  });
+
+  it("keeps one roving tab stop on the checked preset and moves selection with the arrow keys", () => {
+    const { containerEl, settings } = render();
+    const [rectangle, squircle, pill] = radios(containerEl) as [
+      HTMLElement,
+      HTMLElement,
+      HTMLElement,
+    ];
+    expect([rectangle, squircle, pill].map((el) => el.tabIndex)).toEqual([
+      -1, -1, 0,
+    ]);
+
+    press(pill, "ArrowRight");
+    expect(settings.display.tagChipRadius).toBe("0px");
+    expect(rectangle.tabIndex).toBe(0);
+    expect(pill.tabIndex).toBe(-1);
+
+    press(rectangle, "ArrowDown");
+    expect(settings.display.tagChipRadius).toBe("10px");
+
+    press(squircle, "ArrowLeft");
+    expect(settings.display.tagChipRadius).toBe("0px");
+
+    press(rectangle, "End");
+    expect(settings.display.tagChipRadius).toBe("999px");
+
+    press(pill, "Home");
+    expect(settings.display.tagChipRadius).toBe("0px");
+  });
+
+  it.each(["Enter", " "])("selects the focused preset with %j", (key) => {
+    const { containerEl, settings } = render();
+
+    press(radios(containerEl)[1] as HTMLElement, key);
+
+    expect(settings.display.tagChipRadius).toBe("10px");
+  });
+
+  it("applies, saves and previews a valid custom radius", () => {
+    const { containerEl, settings, trigger, saveSettings } = render();
+    const input = customInput(containerEl);
+
+    type(input, "12px 4px / 2px");
+
+    expect(settings.display.tagChipRadius).toBe("12px 4px / 2px");
+    expect(trigger).toHaveBeenCalledWith(CHANGED);
+    expect(saveSettings).toHaveBeenCalledTimes(1);
+    expect(input.getAttribute("aria-invalid")).toBe("false");
+    expect(sampleRadius(containerEl)).toBe("12px 4px / 2px");
+    expect(
+      radios(containerEl).map((el) => el.getAttribute("aria-checked")),
+    ).toEqual(["false", "false", "false"]);
+    // With no preset checked the first radio stays reachable by Tab.
+    expect(radios(containerEl)[0]?.tabIndex).toBe(0);
+  });
+
+  it("flags invalid input accessibly and keeps the last valid radius", () => {
+    const { containerEl, settings, trigger, saveSettings } = render("10px");
+    const input = customInput(containerEl);
+
+    type(input, "red");
+
+    expect(input.getAttribute("aria-invalid")).toBe("true");
+    const describedBy = input.getAttribute("aria-describedby") as string;
+    const message = containerEl.querySelector(`#${describedBy}`);
+    expect(message?.textContent).toContain("non-negative");
+    expect(settings.display.tagChipRadius).toBe("10px");
+    expect(trigger).not.toHaveBeenCalled();
+    expect(saveSettings).not.toHaveBeenCalled();
+    expect(sampleRadius(containerEl)).toBe("10px");
+
+    type(input, "-4px");
+    expect(settings.display.tagChipRadius).toBe("10px");
+
+    type(input, "8px");
+    expect(input.getAttribute("aria-invalid")).toBe("false");
+    expect(message?.textContent).toBe("");
+    expect(settings.display.tagChipRadius).toBe("8px");
+  });
+
+  it("selects the matching preset when a custom value equals one", () => {
+    const { containerEl, settings } = render();
+
+    type(customInput(containerEl), "0PX");
+
+    expect(settings.display.tagChipRadius).toBe("0px");
+    expect(radios(containerEl)[0]?.getAttribute("aria-checked")).toBe("true");
+  });
+
+  it("restores Pill and clears an error from the reset button", () => {
+    const { containerEl, settings } = render("0px");
+    const input = customInput(containerEl);
+    type(input, "nope");
+
+    const reset = Array.from(
+      containerEl.querySelectorAll<HTMLButtonElement>("button"),
+    ).find((el) => el.textContent === "Reset to pill");
+    reset?.click();
+
+    expect(settings.display.tagChipRadius).toBe("999px");
+    expect(input.value).toBe("999px");
+    expect(input.getAttribute("aria-invalid")).toBe("false");
+    expect(radios(containerEl)[2]?.getAttribute("aria-checked")).toBe("true");
+  });
+
+  it("starts from Pill when the stored radius is unusable", () => {
+    const { containerEl } = render("broken");
+
+    expect(radios(containerEl)[2]?.getAttribute("aria-checked")).toBe("true");
+    expect(customInput(containerEl).value).toBe("999px");
+  });
+});
