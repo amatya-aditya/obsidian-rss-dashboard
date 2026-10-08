@@ -544,6 +544,151 @@ describe("Dashboard lifecycle", () => {
       expect(view.highlightMatchCounts[0].count).toBe(2);
     });
 
+    describe("summary scope follows the preview text (#887)", () => {
+      // Summary scope only, so any count comes from the preview text.
+      async function makeSummaryScopeView(
+        word: string,
+        showSummary = true,
+      ): Promise<DashViewTestAPI> {
+        const settings = cloneSettings();
+        settings.display.showSummary = showSummary;
+        settings.highlights = {
+          enabled: true,
+          defaultColor: "#ffff00",
+          highlightInTitles: false,
+          highlightInSummaries: true,
+          highlightInContent: false,
+          words: [
+            {
+              id: "1",
+              text: word,
+              enabled: true,
+              wholeWord: false,
+              caseSensitive: false,
+              createdAt: Date.now(),
+            },
+          ],
+        };
+        return makeView(settings);
+      }
+
+      function makeArticle(overrides: Partial<FeedItem>): FeedItem {
+        return {
+          title: "Headline",
+          link: "",
+          description: "",
+          pubDate: new Date().toISOString(),
+          guid: "1",
+          read: false,
+          starred: false,
+          tags: [],
+          feedTitle: "",
+          feedUrl: "",
+          coverImage: "",
+          ...overrides,
+        };
+      }
+
+      const BODY_OPENING =
+        "The committee spent the afternoon reviewing the proposal in detail and agreed on next steps.";
+      const BLURB =
+        "A publisher written blurb that describes the story with zebra in it.";
+
+      it("does not count a word that only appears in a field the preview does not show", async () => {
+        const view = await makeSummaryScopeView("quokka");
+        // The guarded blurb is the preview, so the older `summary` is not shown.
+        view.computeHighlightMatchCounts([
+          makeArticle({
+            description: BLURB,
+            summary: "Quokka appears only in the unshown summary field.",
+            content: `<p>${BODY_OPENING}</p>`,
+          }),
+        ]);
+        expect(view.highlightMatchCounts[0].count).toBe(0);
+      });
+
+      it("counts a word that only exists once the preview text is decoded", async () => {
+        // "Q&A" is written `Q&amp;A` in the feed, so only the text the card
+        // shows contains it; the raw blurb does not.
+        const view = await makeSummaryScopeView("Q&A");
+        view.computeHighlightMatchCounts([
+          makeArticle({
+            description:
+              "<p>A long Q&amp;A with the author about how the book came together.</p>",
+            content: `<p>${BODY_OPENING}</p>`,
+          }),
+        ]);
+        expect(view.highlightMatchCounts[0].count).toBe(1);
+      });
+
+      it("counts a word from the fallback summary when no blurb is shown", async () => {
+        const view = await makeSummaryScopeView("zebra");
+        // No body, so the blurb tier is skipped and `summary` is the preview.
+        view.computeHighlightMatchCounts([
+          makeArticle({
+            description: "Unrelated description text.",
+            summary: "<p>The summary mentions a zebra.</p>",
+          }),
+        ]);
+        expect(view.highlightMatchCounts[0].count).toBe(1);
+      });
+
+      it("does not count a word that falls past the preview clamp", async () => {
+        const view = await makeSummaryScopeView("quokka");
+        view.computeHighlightMatchCounts([
+          makeArticle({ summary: `${"filler ".repeat(80)}quokka` }),
+        ]);
+        expect(view.highlightMatchCounts[0].count).toBe(0);
+      });
+
+      it("does not count a word that only appears inside HTML markup", async () => {
+        const view = await makeSummaryScopeView("quokka");
+        view.computeHighlightMatchCounts([
+          makeArticle({
+            summary: '<p class="quokka">Plain readable text only.</p>',
+          }),
+        ]);
+        expect(view.highlightMatchCounts[0].count).toBe(0);
+      });
+
+      it("adds nothing for the summary scope when summaries are hidden", async () => {
+        const view = await makeSummaryScopeView("zebra", false);
+        view.computeHighlightMatchCounts([
+          makeArticle({ summary: "A zebra crossed the road." }),
+        ]);
+        expect(view.highlightMatchCounts[0].count).toBe(0);
+      });
+
+      it("still counts title and content scopes independently of the preview", async () => {
+        const settings = cloneSettings();
+        settings.display.showSummary = false;
+        settings.highlights = {
+          enabled: true,
+          defaultColor: "#ffff00",
+          highlightInTitles: true,
+          highlightInSummaries: true,
+          highlightInContent: true,
+          words: [
+            {
+              id: "1",
+              text: "zebra",
+              enabled: true,
+              wholeWord: false,
+              caseSensitive: false,
+              createdAt: Date.now(),
+            },
+          ],
+        };
+        const view = await makeView(settings);
+        view.computeHighlightMatchCounts([
+          makeArticle({ title: "Zebra headline", guid: "1" }),
+          makeArticle({ content: "<p>a zebra in the body</p>", guid: "2" }),
+          makeArticle({ summary: "zebra in hidden summary", guid: "3" }),
+        ]);
+        expect(view.highlightMatchCounts[0].count).toBe(2);
+      });
+    });
+
     it("skips disabled highlight words", async () => {
       const settings = cloneSettings();
       settings.highlights = {

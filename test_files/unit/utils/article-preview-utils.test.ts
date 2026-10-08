@@ -176,5 +176,18 @@ describe("article-preview-utils", () => {
         "Another publisher description, also long enough to pass.";
       expect(getArticlePreviewSummaryText(item)).toBe(item.description);
     });
+
+    it("recomputes when a refresh rewrites the same item's summary", () => {
+      const item = make({ summary: "<p>First summary text.</p>" });
+      expect(getArticlePreviewSummaryText(item)).toBe("First summary text.");
+      item.summary = "<p>Second summary text.</p>";
+      expect(getArticlePreviewSummaryText(item)).toBe("Second summary text.");
+    });
+
+    it("returns the same text on repeated calls for an unchanged item", () => {
+      const item = make({ summary: "<p>Stable summary text.</p>" });
+      const first = getArticlePreviewSummaryText(item);
+      expect(getArticlePreviewSummaryText(item)).toBe(first);
+    });
   });
 });
