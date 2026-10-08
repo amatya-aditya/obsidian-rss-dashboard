@@ -251,6 +251,150 @@ describe("KeywordFilterService.evaluateRules", () => {
     );
   });
 
+  describe("summary scope matches the preview text (#888)", () => {
+    const blurb =
+      "Publisher blurb mentioning zebrafish and long enough to pass the guard.";
+    const summaryRule = (keyword: string) =>
+      createRule({
+        keyword,
+        applyToTitle: false,
+        applyToSummary: true,
+        applyToContent: false,
+        matchMode: "partial",
+      });
+    const bodyHtml = `<p>${"Entirely different article body text. ".repeat(20)}</p>`;
+
+    it("matches a word in the blurb when the preview shows the blurb", () => {
+      const item = createItem({
+        summary: "Body opening mentioning walrus.",
+        description: blurb,
+        content: bodyHtml,
+      });
+
+      expect(
+        KeywordFilterService.evaluateRules(
+          item,
+          [summaryRule("zebrafish")],
+          "AND",
+        ),
+      ).toBe(true);
+    });
+
+    it("does not match a word only in a summary the preview does not show", () => {
+      const item = createItem({
+        summary: "Body opening mentioning walrus.",
+        description: blurb,
+        content: bodyHtml,
+      });
+
+      expect(
+        KeywordFilterService.evaluateRules(
+          item,
+          [summaryRule("walrus")],
+          "AND",
+        ),
+      ).toBe(false);
+    });
+
+    it("filters the same before and after publisherDescription is stored", () => {
+      const item = createItem({
+        summary: "Body opening.",
+        description: blurb,
+        content: bodyHtml,
+      });
+      const rules = [summaryRule("zebrafish"), summaryRule("page-only-phrase")];
+      const before = rules.map((rule) =>
+        KeywordFilterService.evaluateRules(item, [rule], "AND"),
+      );
+
+      item.publisherDescription = "A page-only-phrase from the fetched page.";
+      const after = rules.map((rule) =>
+        KeywordFilterService.evaluateRules(item, [rule], "AND"),
+      );
+
+      expect(after).toEqual(before);
+      expect(after).toEqual([true, false]);
+    });
+
+    it("matches only the clamped preview, not text past the 420-character limit", () => {
+      const item = createItem({
+        summary: `${"filler ".repeat(80)}lateword`,
+        description: "",
+        content: "",
+      });
+
+      expect(
+        KeywordFilterService.evaluateRules(
+          item,
+          [summaryRule("lateword")],
+          "AND",
+        ),
+      ).toBe(false);
+      expect(
+        KeywordFilterService.evaluateRules(
+          item,
+          [summaryRule("filler")],
+          "AND",
+        ),
+      ).toBe(true);
+    });
+
+    it("matches readable text rather than HTML markup", () => {
+      const item = createItem({
+        summary: '<p>See <a href="https://example.com/x">the report</a></p>',
+        description: "",
+        content: "",
+      });
+
+      expect(
+        KeywordFilterService.evaluateRules(
+          item,
+          [summaryRule("the report")],
+          "AND",
+        ),
+      ).toBe(true);
+      expect(
+        KeywordFilterService.evaluateRules(item, [summaryRule("href")], "AND"),
+      ).toBe(false);
+    });
+
+    it("falls back to the content opening when summary and description are empty", () => {
+      const item = createItem({
+        summary: "",
+        description: "",
+        content: "<p>Opening line with contentword.</p>",
+      });
+
+      expect(
+        KeywordFilterService.evaluateRules(
+          item,
+          [summaryRule("contentword")],
+          "AND",
+        ),
+      ).toBe(true);
+    });
+
+    it("recomputes when an item is rewritten", () => {
+      const item = createItem({ summary: "first text", description: "" });
+      expect(
+        KeywordFilterService.evaluateRules(item, [summaryRule("first")], "AND"),
+      ).toBe(true);
+
+      item.summary = "second text";
+
+      expect(
+        KeywordFilterService.evaluateRules(item, [summaryRule("first")], "AND"),
+      ).toBe(false);
+      expect(
+        KeywordFilterService.evaluateRules(
+          item,
+          [summaryRule("second")],
+          "AND",
+        ),
+      ).toBe(true);
+    });
+  });
+
   it("can match against article links for URL-based feed filtering", () => {
     const shortItem = createItem({
       title: "Regular-looking title",

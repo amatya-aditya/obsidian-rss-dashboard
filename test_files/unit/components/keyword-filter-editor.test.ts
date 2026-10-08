@@ -226,4 +226,26 @@ describe("renderKeywordFilterEditor", () => {
       document.body.querySelector(".rss-keyword-filter-empty"),
     ).toBeTruthy();
   });
+
+  it("explains on the Summary toggle that it matches the card preview text (#888)", () => {
+    setupEditor({ includeLogic: "AND", rules: [createRule()] });
+
+    const toggles = Array.from(
+      document.body.querySelectorAll(".rss-keyword-filter-location-toggle"),
+    );
+    const summary = toggles.find(
+      (el) => el.textContent?.trim() === "Summary",
+    ) as HTMLElement;
+    const title = toggles.find(
+      (el) => el.textContent?.trim() === "Title",
+    ) as HTMLElement;
+    const hint = summary.getAttribute("aria-label");
+
+    expect(hint).toContain("preview text");
+    expect(title.hasAttribute("aria-label")).toBe(false);
+    // One announcement: the hint is a tooltip only, not also a description.
+    expect(
+      summary.querySelector("input")?.hasAttribute("aria-description"),
+    ).toBe(false);
+  });
 });
