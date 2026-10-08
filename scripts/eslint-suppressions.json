@@ -40,11 +40,6 @@
       "count": 1
     }
   },
-  "src/components/keyword-filter-editor.ts": {
-    "max-lines-per-function": {
-      "count": 2
-    }
-  },
   "src/components/tag-multi-select-control.ts": {
     "max-lines-per-function": {
       "count": 1
