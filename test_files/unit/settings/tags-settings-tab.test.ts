@@ -596,7 +596,7 @@ describe("renderTagsSettingsTab() tag shape control", () => {
 
   it("keeps one roving tab stop on the checked preset and moves selection with the arrow keys", () => {
     const { containerEl, settings } = render();
-    const [rectangle, squircle, pill] = radios(containerEl) as [
+    const [rectangle, squircle, pill] = radios(containerEl) as unknown as [
       HTMLElement,
       HTMLElement,
       HTMLElement,
