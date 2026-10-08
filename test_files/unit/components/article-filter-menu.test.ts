@@ -120,4 +120,72 @@ describe("ArticleFilterMenu Component", () => {
     expect(portal?.textContent).not.toContain("Cards per row");
     expect(portal?.textContent).not.toContain("Card spacing");
   });
+
+  describe("dismissal", () => {
+    const portalCount = () =>
+      document.querySelectorAll(".rss-dashboard-filter-menu-portal").length;
+    const newMenu = () =>
+      new ArticleFilterMenu(
+        settings,
+        new Set(),
+        new Set(),
+        "AND",
+        mockCallbacks,
+      );
+
+    it("closes with Escape without applying and returns focus to the filter button", () => {
+      const filterMenu = newMenu();
+      filterMenu.show(toggleBtn);
+      expect(portalCount()).toBe(1);
+
+      const escape = new KeyboardEvent("keydown", {
+        key: "Escape",
+        bubbles: true,
+        cancelable: true,
+      });
+      document.body.dispatchEvent(escape);
+
+      expect(portalCount()).toBe(0);
+      expect(toggleBtn.classList.contains("active")).toBe(false);
+      expect(escape.defaultPrevented).toBe(true);
+      expect(mockCallbacks.onFilterChange).not.toHaveBeenCalled();
+      expect(document.activeElement).toBe(toggleBtn);
+    });
+
+    it("closes with Escape while focus is inside the menu", () => {
+      newMenu().show(toggleBtn);
+      const inside = document.querySelector<HTMLElement>(
+        ".rss-dashboard-filter-menu-portal button",
+      )!;
+      inside.focus();
+
+      inside.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+      );
+
+      expect(portalCount()).toBe(0);
+    });
+
+    it("ignores Escape once the menu is closed", () => {
+      const filterMenu = newMenu();
+      filterMenu.show(toggleBtn);
+      filterMenu.show(toggleBtn);
+      expect(portalCount()).toBe(0);
+      toggleBtn.blur();
+
+      document.body.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+      );
+
+      expect(document.activeElement).not.toBe(toggleBtn);
+    });
+
+    it("closes when the filter button is clicked a second time", () => {
+      const filterMenu = newMenu();
+      filterMenu.show(toggleBtn);
+      filterMenu.show(toggleBtn);
+      expect(portalCount()).toBe(0);
+      expect(toggleBtn.classList.contains("active")).toBe(false);
+    });
+  });
 });
