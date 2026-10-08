@@ -23,6 +23,7 @@
 
 ### Fixes
 
+- When saving a change made in the Reader (star, read, or tags) fails, the change is now undone in every open view and a Notice says it wasn't saved, instead of leaving a state that was never stored. [GH Issue #797](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/797)
 - The dashboard Filter menu now closes when you press Escape, without applying any staged changes, and returns focus to the Filter button. Clicking the Filter button a second time already closed it.
 - The article header's Age, Sort, and Grouping selectors and its view-style selector can now be operated from the keyboard, like the ones in the hamburger menu. Enter, Space, or Down Arrow opens the list; Up and Down Arrow, Home, and End move through it; Enter chooses; Escape closes without changing anything; Tab moves on. Screen readers announce each selector's name and current choice and whether it is open. Both header components now share one implementation. [GH Issue #850](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/850)
 - The Display setting "List toolbar style" no longer says it is mobile-only. It applies to list view on desktop too, and its description now says that the Minimal style shows only the read toggle, with save, star, and tags available from the right-click menu and the article header. [GH Issue #844](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/844)
