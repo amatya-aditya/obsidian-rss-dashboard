@@ -1,5 +1,9 @@
+import { setTooltip } from "obsidian";
 import type { KeywordFilterRule } from "../types/types";
 import type { KeywordFilterEditorState } from "./keyword-filter-editor";
+
+const SUMMARY_SCOPE_HINT =
+  "Matches the preview text shown on article cards and in the feed view.";
 
 export function updateRule(
   rules: KeywordFilterRule[],
@@ -264,6 +268,7 @@ function renderLocationToggles(
         ...state,
         rules: updateRule(state.rules, index, { applyToSummary: checked }),
       }),
+    SUMMARY_SCOPE_HINT,
   );
   renderLocationToggle(
     locationsRow,
@@ -295,10 +300,14 @@ function renderLocationToggle(
   checked: boolean,
   disabled: boolean,
   onChange: (checked: boolean) => void,
+  hint?: string,
 ): void {
   const wrap = containerEl.createDiv({
     cls: "rss-keyword-filter-location-toggle",
   });
+  if (hint) {
+    setTooltip(wrap, hint);
+  }
   const checkbox = wrap.createEl("input", {
     cls: "rss-keyword-filter-checkbox",
     attr: { type: "checkbox" },
