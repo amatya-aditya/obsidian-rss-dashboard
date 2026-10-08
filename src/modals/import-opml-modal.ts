@@ -817,7 +817,7 @@ export class ImportOpmlModal extends Modal {
       text: "Add new feeds to your existing list (duplicates will be skipped)",
     });
 
-    // Overwrite option - click to select
+    // Replace option (import mode "overwrite") - click to select
     const overwriteOption = optionsWrapper.createDiv({
       cls: "import-mode-option",
     });
@@ -826,11 +826,11 @@ export class ImportOpmlModal extends Modal {
     });
     overwriteContent.createDiv({
       cls: "import-mode-option-title",
-      text: "Overwrite",
+      text: "Replace",
     });
     overwriteContent.createDiv({
       cls: "import-mode-option-desc",
-      text: "Replace all existing feeds with the imported feeds",
+      text: "Replace all existing feeds and folders with the imported ones",
     });
 
     // Add click handlers after elements are created

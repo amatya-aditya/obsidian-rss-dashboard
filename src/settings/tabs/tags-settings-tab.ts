@@ -12,6 +12,7 @@ import { DEFAULT_SETTINGS } from "../../types/types";
 import { DEFAULT_TAG_COLOR } from "../../utils/tag-colors";
 import { updateTagInSettings } from "../../utils/tag-utils";
 import { deleteTagFromSettings } from "../../utils/tag-settings";
+import { renderTagShapeControl } from "./tag-shape-control";
 
 interface AutoTagSettingConfig {
   name: string;
@@ -111,7 +112,7 @@ export function renderTagsSettingsTab(
     .setName("Reset tag names")
     .setDesc("Restore all tag names to their out-of-the-box defaults.")
     .addButton((button) => {
-      button.setButtonText("Default tag names").onClick(async () => {
+      button.setButtonText("Reset tag names").onClick(async () => {
         const d = DEFAULT_SETTINGS.media;
         plugin.settings.media.defaultVideoTag = d.defaultVideoTag;
         plugin.settings.media.defaultVideoTags = d.defaultVideoTags;
@@ -129,6 +130,8 @@ export function renderTagsSettingsTab(
         onRefresh();
       });
     });
+
+  renderTagShapeControl(containerEl, plugin);
 
   // Tags settings
   new Setting(containerEl).setName("Tags").setHeading();

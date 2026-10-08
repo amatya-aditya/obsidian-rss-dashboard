@@ -29,9 +29,10 @@ export interface ArticleSavingPluginLike {
   saveSettings: () => Promise<void>;
 }
 
-const defaultTemplateHint = "The prefilled template is ready to use.";
+const defaultTemplateHint =
+  "The built-in template. It is used when neither the feed nor the global default saved template sets one.";
 const customTemplateHint =
-  "Template for saved articles. Frontmatter properties can start at the beginning of each line.";
+  "Your custom template. It is used when neither the feed nor the global default saved template sets one. Frontmatter properties can start at the beginning of each line.";
 
 function getArticleTemplateHint(template: string): string {
   return template === DEFAULT_SETTINGS.articleSaving.defaultTemplate
@@ -46,7 +47,9 @@ export function renderArticleSavingSettingsTab(
 ): void {
   new Setting(containerEl)
     .setName("Save path")
-    .setDesc("Default folder to save articles")
+    .setDesc(
+      "Default folder to save articles. Leave it blank to save to the vault root.",
+    )
     .addText((text) => {
       text
         .setValue(plugin.settings.articleSaving.defaultFolder)
@@ -58,8 +61,8 @@ export function renderArticleSavingSettingsTab(
     });
 
   new Setting(containerEl)
-    .setName("Add 'saved' tag")
-    .setDesc("Automatically add a 'saved' tag to saved articles")
+    .setName("Add saved tag")
+    .setDesc("Automatically add the saved tag to saved articles")
     .addToggle((toggle) =>
       toggle
         .setValue(plugin.settings.articleSaving.addSavedTag)
@@ -72,7 +75,7 @@ export function renderArticleSavingSettingsTab(
   new Setting(containerEl)
     .setName("Save full content")
     .setDesc(
-      "Choose what {{content}} saves: the fetched article when on or RSS item content when off. If fetching fails, available RSS content is marked as a fallback. {{content}} controls placement in the template; {{summary}} keeps its existing output.",
+      "Choose what {{content}} saves: the fetched article when on, or the feed item's content when off. The feed item's content falls back to the feed description, then the summary. If fetching fails, that feed content is marked as a fallback. {{content}} controls placement in the template; {{summary}} keeps its existing output.",
     )
     .addToggle((toggle) =>
       toggle

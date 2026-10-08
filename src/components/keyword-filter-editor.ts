@@ -109,7 +109,12 @@ export function renderKeywordFilterEditor(
 
   controlsRow.createDiv({
     cls: "rss-keyword-filter-logic-help",
-    text: "AND logic: include rules pass only when all enabled include rules match. OR logic: include rules pass when any enabled include rule matches. Exclude rules always remove matches.",
+    text: "AND logic: include rules pass only when all enabled include rules match. OR logic: include rules pass when any enabled include rule matches. Exclude rules always remove matches. With no enabled include rules, every article passes unless an exclude rule matches it.",
+  });
+
+  controlsRow.createDiv({
+    cls: "rss-keyword-filter-logic-help",
+    text: 'Match mode: Partial matches the keyword anywhere in the text, ignoring case. Exact matches it only as a whole word, ignoring case. Word boundaries are ASCII letters, digits, and underscore, so "sum" matches inside "résumé".',
   });
 
   const rulesContainer = containerEl.createDiv({

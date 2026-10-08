@@ -16,6 +16,7 @@ import {
   migrateMediaVideoTagSettings,
   migrateMediaDefaultTagArrays,
 } from "./settings-migration";
+import { normalizeTagChipRadius, repairTagChipRadius } from "./tag-chip-radius";
 import { canonicalizeItemIdentityUrl } from "./url-utils";
 import { normalizeRefreshIntervalMinutes } from "./validation";
 import {
@@ -221,6 +222,9 @@ export function loadAndNormalizeSettings(
     settings.display.imageCacheUnlimited =
       DEFAULT_SETTINGS.display.imageCacheUnlimited;
   }
+  settings.display.tagChipRadius = normalizeTagChipRadius(
+    settings.display.tagChipRadius,
+  );
   settings.readerFormat = Object.assign(
     {},
     DEFAULT_SETTINGS.readerFormat,
@@ -401,6 +405,10 @@ export function migrateSettings(settings: RssDashboardSettings): boolean {
   if (typeof settings.display.imageCacheUnlimited !== "boolean") {
     settings.display.imageCacheUnlimited =
       DEFAULT_SETTINGS.display.imageCacheUnlimited;
+    didChange = true;
+  }
+  // Import replaces `display` shallowly, so repair a missing or unusable radius here.
+  if (repairTagChipRadius(settings.display)) {
     didChange = true;
   }
 

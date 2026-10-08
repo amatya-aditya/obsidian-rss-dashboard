@@ -549,7 +549,7 @@ body .rss-dashboard-tag-inline-button svg {
 /* Merged duplicate: tag-badge used in both list view and dropdown */
 .rss-dashboard-tag-badge {
   padding: 2px 8px;
-  border-radius: 4px;
+  border-radius: var(--rss-dashboard-tag-chip-radius, 999px);
   font-size: 0.95em;
   color: #fff;
   background: var(--tag-color, var(--interactive-accent));
@@ -559,7 +559,7 @@ body .rss-dashboard-tag-inline-button svg {
 /* Inline tag label (inside dropdown items) */
 .rss-dashboard-tag-label {
   padding: 1px 6px;
-  border-radius: 3px;
+  border-radius: var(--rss-dashboard-tag-chip-radius, 999px);
   font-size: 11px;
   color: #fff;
   cursor: pointer;
