@@ -56,8 +56,7 @@ function extractPocketCastsSlug(url: string): string | null {
  *
  * iTunes always returns its best guess, so an opaque short code would
  * otherwise resolve to an unrelated show. Accept the hit only when the slug
- * and name contain each other once reduced to letters and digits, or every
- * slug word is a whole word of the name.
+ * and name contain each other once reduced to letters and digits.
  */
 function slugMatchesName(slug: string, name: string): boolean {
   const squash = (text: string): string =>
@@ -65,18 +64,9 @@ function slugMatchesName(slug: string, name: string): boolean {
   const slugSquashed = squash(slug);
   const nameSquashed = squash(name);
   if (!slugSquashed || !nameSquashed) return false;
-  if (
-    nameSquashed.includes(slugSquashed) ||
-    slugSquashed.includes(nameSquashed)
-  ) {
-    return true;
-  }
-  const nameWords = new Set(name.toLowerCase().split(/[^\p{L}\p{N}]+/u));
-  const slugWords = slug
-    .toLowerCase()
-    .split(/[^\p{L}\p{N}]+/u)
-    .filter(Boolean);
-  return slugWords.every((word) => nameWords.has(word));
+  return (
+    nameSquashed.includes(slugSquashed) || slugSquashed.includes(nameSquashed)
+  );
 }
 
 /**

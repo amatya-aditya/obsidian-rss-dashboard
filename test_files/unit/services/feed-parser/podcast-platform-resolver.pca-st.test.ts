@@ -78,7 +78,7 @@ describe("resolvePodcastPlatformUrl – iTunes match validation", () => {
         results: [
           {
             feedUrl: "https://anchor.fm/s/10fe7b0c0/podcast/rss",
-            collectionName: "SLOW FRENCH PODCAST (A1-B1) With Subtitles",
+            collectionName: "THE A.B.U.N.D.A.N.C.E. Method Podcast",
           },
         ],
       }),
