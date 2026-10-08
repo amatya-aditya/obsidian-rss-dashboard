@@ -28,6 +28,7 @@
 
 ### Fixes
 
+- **Open in reader view** no longer marks an article read when **Auto-mark read** is off. It now follows the same setting as opening an article by clicking it. [GH Issue #931](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/931)
 - Keyboard focus now stays on the button you activated in the dashboard's inline reader toolbar. Starring, marking read or saving an article used to drop focus to the page and reset the toolbar's Tab stop to the first button; focus and the Tab stop now stay put. [GH Issue #899](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/899)
 - Fixed Pocket Casts links (`pca.st` short links and full `pocketcasts.com` pages) failing to resolve by using the iTunes API to find the feed instead of scraping the web page, bypassing proxy 403 Forbidden errors. This works with the CORS Proxy turned off; the proxy is only needed for the page-scrape fallback. [GH Issue #549](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/549)
 - The article tag menu can now be used from the keyboard. Opening it moves focus to the first tag (or the menu when there are no tags), Space toggles a tag, and Escape closes it and returns focus to the tag button. The tag button reports whether the menu is open, and shows the accent color with a filled icon while the menu is open or the article has tags, in card, list, feed and Reader views. [GH Issue #892](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/892)
