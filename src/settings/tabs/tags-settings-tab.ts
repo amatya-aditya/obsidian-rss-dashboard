@@ -111,7 +111,7 @@ export function renderTagsSettingsTab(
     .setName("Reset tag names")
     .setDesc("Restore all tag names to their out-of-the-box defaults.")
     .addButton((button) => {
-      button.setButtonText("Default tag names").onClick(async () => {
+      button.setButtonText("Reset tag names").onClick(async () => {
         const d = DEFAULT_SETTINGS.media;
         plugin.settings.media.defaultVideoTag = d.defaultVideoTag;
         plugin.settings.media.defaultVideoTags = d.defaultVideoTags;
