@@ -16,40 +16,6 @@ export interface KeywordFilterDecision {
 
 const WORD_BOUNDARY_CLASS = "A-Za-z0-9_";
 
-interface PreviewTextCacheEntry {
-  title: string;
-  summary: string;
-  description: string;
-  content: string;
-  text: string;
-}
-
-// Preview text parses HTML, and every summary-scope rule reads it for every
-// article on each filter pass. The entry records its inputs, so an item
-// rewritten on refresh recomputes.
-const previewTextCache = new WeakMap<FeedItem, PreviewTextCacheEntry>();
-
-function getCachedPreviewText(item: FeedItem): string {
-  const title = item.title || "";
-  const summary = item.summary || "";
-  const description = item.description || "";
-  const content = item.content || "";
-  const cached = previewTextCache.get(item);
-  if (
-    cached &&
-    cached.title === title &&
-    cached.summary === summary &&
-    cached.description === description &&
-    cached.content === content
-  ) {
-    return cached.text;
-  }
-
-  const text = getArticlePreviewSummaryText(item);
-  previewTextCache.set(item, { title, summary, description, content, text });
-  return text;
-}
-
 export class KeywordFilterService {
   static hasActiveRules(rules: KeywordFilterRule[]): boolean {
     return this.getActiveRules(rules).length > 0;
@@ -162,7 +128,7 @@ export class KeywordFilterService {
     }
     if (rule.applyToSummary) {
       // The summary scope matches the preview text the user sees (#888).
-      sources.push(getCachedPreviewText(item));
+      sources.push(getArticlePreviewSummaryText(item));
     }
     if (rule.applyToContent) {
       sources.push(item.content || item.description || "");
