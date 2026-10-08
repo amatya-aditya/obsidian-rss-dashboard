@@ -7,6 +7,7 @@ import {
 } from "../../utils/podcast-platforms.js";
 import type { ItunesLookupResponse } from "./types.js";
 import { decodeHtmlEntities } from "./xml-parser/xml-html-utils.js";
+import { resolveProxyPrefixes } from "../../utils/proxy-utils.js";
 export interface ResolvePodcastPlatformOptions {
   /**
    * Whether Pocket Casts may fall back to scraping the page through
@@ -235,12 +236,16 @@ async function resolvePocketCastsUrl(
 
   const proxyUrls: string[] = [];
 
-  // 1. User's proxy if available
+  // 1. User's proxy if available ("auto" expands to the built-in list)
   if (corsProxyUrl) {
-    const isEncoded =
-      corsProxyUrl.includes("allorigins") || corsProxyUrl.includes("codetabs");
-    const targetUrl = isEncoded ? encodeURIComponent(url) : url;
-    proxyUrls.push(`${corsProxyUrl}${targetUrl}`);
+    for (const prefix of resolveProxyPrefixes(corsProxyUrl, {
+      rawBodyOnly: true,
+    })) {
+      const isEncoded =
+        prefix.includes("allorigins") || prefix.includes("codetabs");
+      const targetUrl = isEncoded ? encodeURIComponent(url) : url;
+      proxyUrls.push(`${prefix}${targetUrl}`);
+    }
   }
 
   // 2. Default AllOrigins proxy
@@ -255,7 +260,7 @@ async function resolvePocketCastsUrl(
 
   let lastError: Error | null = null;
 
-  for (const proxyUrl of proxyUrls) {
+  for (const proxyUrl of new Set(proxyUrls)) {
     try {
       console.debug(
         `[RSS Dashboard] Attempting to resolve Pocket Casts URL using proxy: ${proxyUrl}`,

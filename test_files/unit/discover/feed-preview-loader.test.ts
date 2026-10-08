@@ -69,6 +69,22 @@ describe("resolveAndLoadPreview()", () => {
     );
   });
 
+  it("withholds the RSS2JSON fallback when the CORS proxy is disabled", async () => {
+    const { resolveAndLoadPreview } =
+      await import("../../../src/modals/feed-manager/feed-preview-loader");
+
+    detectPodcastPlatformMock.mockReturnValue(null);
+    await resolveAndLoadPreview("https://example.com/feed.xml", {
+      corsProxyEnabled: false,
+    });
+
+    expect(loadFeedForPreviewMock).toHaveBeenCalledWith(
+      "https://example.com/feed.xml",
+      undefined,
+      { allowRss2JsonFallback: false },
+    );
+  });
+
   it("throws a decommission error for X/Twitter URLs", async () => {
     const { resolveAndLoadPreview } =
       await import("../../../src/modals/feed-manager/feed-preview-loader");

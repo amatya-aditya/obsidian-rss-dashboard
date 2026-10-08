@@ -25,9 +25,15 @@ export function parseFeedPreviewFromXmlText(
   return parseFeedDoc(doc, feedUrl);
 }
 
+export interface FeedPreviewLoadOptions {
+  /** False when **Enable CORS proxy** is off: never relay through RSS2JSON. */
+  allowRss2JsonFallback?: boolean;
+}
+
 export async function loadFeedForPreview(
   feedUrl: string,
   feedEncoding?: FeedEncoding,
+  options: FeedPreviewLoadOptions = {},
 ): Promise<FeedPreviewData> {
   // Try direct request first
   try {
@@ -47,6 +53,12 @@ export async function loadFeedForPreview(
     if (preview) return preview;
   } catch {
     // Fall through to rss2json
+  }
+
+  if (options.allowRss2JsonFallback === false) {
+    throw new Error(
+      "Failed to load feed: the direct request failed and the CORS proxy is disabled.",
+    );
   }
 
   return loadFeedPreviewFromRss2Json(feedUrl);

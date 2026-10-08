@@ -9,6 +9,7 @@ import {
   robustFetchDetailed,
   ensureUtf8Meta,
 } from "./platform-utils";
+import { resolveProxyPrefixes } from "./proxy-utils";
 
 /** Markers that indicate the page is a WAF/bot-challenge block rather than real content. */
 const BLOCKED_MARKERS = [
@@ -228,35 +229,55 @@ export async function fetchWithProxyFallbackDetailed(
       );
     }
 
-    const proxyTarget =
-      proxyUrl.trim().replace(/\/$/, "") + encodeURIComponent(url);
+    // "auto" expands to several proxies; the first that returns the page wins.
+    let lastFailure: FullArticleFetchResult | undefined;
+    let lastError: Error | undefined;
+    for (const prefix of resolveProxyPrefixes(proxyUrl.trim(), {
+      rawBodyOnly: true,
+    })) {
+      const proxyTarget = prefix.replace(/\/$/, "") + encodeURIComponent(url);
+      try {
+        const proxyResponse = await robustFetchDetailed(proxyTarget, {
+          headers: DEFAULT_HEADERS,
+        });
+        const proxyHtml = proxyResponse.text;
 
-    const proxyResponse = await robustFetchDetailed(proxyTarget, {
-      headers: DEFAULT_HEADERS,
-    });
-    const proxyHtml = proxyResponse.text;
+        if (
+          !proxyHtml ||
+          isBlockedResponse(proxyHtml) ||
+          isRestrictedStatus(proxyResponse.status)
+        ) {
+          const proxyRestricted =
+            isRestrictedStatus(proxyResponse.status) ||
+            isRestrictedSignal(proxyHtml || "");
+          console.warn(
+            `[RSS Dashboard] Proxy fetch also returned blocked/empty response for ${url}.`,
+          );
+          lastFailure = failureResult(
+            directRestricted || proxyRestricted ? "restricted" : "network",
+            extractMetadataOfUnparsedResponse(proxyHtml) ?? directMetadata,
+          );
+          lastError = undefined;
+          continue;
+        }
 
-    if (
-      !proxyHtml ||
-      isBlockedResponse(proxyHtml) ||
-      isRestrictedStatus(proxyResponse.status)
-    ) {
-      const proxyRestricted =
-        isRestrictedStatus(proxyResponse.status) ||
-        isRestrictedSignal(proxyHtml || "");
-      console.warn(
-        `[RSS Dashboard] Proxy fetch also returned blocked/empty response for ${url}.`,
-      );
-      return failureResult(
-        directRestricted || proxyRestricted ? "restricted" : "network",
-        extractMetadataOfUnparsedResponse(proxyHtml) ?? directMetadata,
-      );
+        console.debug(
+          `[RSS Dashboard] Proxy fetch succeeded for ${url} (${proxyHtml.length} chars).`,
+        );
+        return { ...parseArticleContent(proxyHtml), failureType: "none" };
+      } catch (proxyError: unknown) {
+        lastError =
+          proxyError instanceof Error
+            ? proxyError
+            : new Error(describeFetchError(proxyError).message);
+        lastFailure = undefined;
+      }
     }
 
-    console.debug(
-      `[RSS Dashboard] Proxy fetch succeeded for ${url} (${proxyHtml.length} chars).`,
-    );
-    return { ...parseArticleContent(proxyHtml), failureType: "none" };
+    if (lastError !== undefined) {
+      throw lastError;
+    }
+    return lastFailure ?? failureResult("network", directMetadata);
   } catch (e: unknown) {
     const { message: msg, status, restricted } = describeFetchError(e);
     const logMessage = restricted
