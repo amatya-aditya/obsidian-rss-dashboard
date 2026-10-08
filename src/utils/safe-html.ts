@@ -311,6 +311,48 @@ function copyStrictAttributes(fromEl: HTMLElement, toEl: HTMLElement): void {
   toEl.setAttribute("rel", "noopener noreferrer");
 }
 
+const YOUTUBE_EMBED_HOSTS = new Set([
+  "www.youtube.com",
+  "youtube.com",
+  "www.youtube-nocookie.com",
+  "youtube-nocookie.com",
+]);
+
+/** Returns the video ID of a YouTube embed `src`, or null for anything else. */
+function parseYouTubeEmbedId(src: string): string | null {
+  try {
+    const url = new URL(src.trim(), "https://invalid.example/");
+    if (url.protocol !== "https:" || !YOUTUBE_EMBED_HOSTS.has(url.hostname)) {
+      return null;
+    }
+    const match = /^\/embed\/([A-Za-z0-9_-]{11})$/.exec(url.pathname);
+    return match?.[1] ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Rich mode drops iframes, which leaves an empty box where a feed embedded a
+ * YouTube player. Replace a recognized embed with a link built from the
+ * validated video ID; the original `src` is never copied through.
+ */
+function appendYouTubeEmbedLink(
+  ownerDoc: Document,
+  parent: HTMLElement,
+  iframe: HTMLElement,
+): void {
+  const videoId = parseYouTubeEmbedId(iframe.getAttribute("src") || "");
+  if (!videoId) return;
+
+  const link = ownerDoc.win.createEl("a");
+  link.setAttribute("href", `https://www.youtube.com/watch?v=${videoId}`);
+  link.setAttribute("target", "_blank");
+  link.setAttribute("rel", "noopener noreferrer");
+  link.textContent = "Watch on YouTube";
+  parent.appendChild(link);
+}
+
 function sanitizeAndAppendNode(
   ownerDoc: Document,
   parent: HTMLElement,
@@ -326,6 +368,11 @@ function sanitizeAndAppendNode(
   if (node.nodeType !== Node.ELEMENT_NODE) return;
   const el = node as HTMLElement;
   const tag = el.tagName.toLowerCase();
+
+  if (tag === "iframe" && mode === "rich") {
+    appendYouTubeEmbedLink(ownerDoc, parent, el);
+    return;
+  }
 
   if (
     BLOCKED_TAGS.has(tag) ||

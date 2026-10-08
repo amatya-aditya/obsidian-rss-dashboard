@@ -548,3 +548,64 @@ describe("safe-html.sanitizeAndAppendHtml", () => {
     expect(img?.getAttribute("src")).toBe(decodedImageUrl);
   });
 });
+
+describe("safe-html.sanitizeAndAppendHtml YouTube embeds (#439)", () => {
+  const substackEmbed = (src: string) =>
+    `<p>intro</p><div id="youtube2-z9TFdTqkbPk" class="youtube-wrap"><div class="youtube-inner"><iframe src="${src}" frameborder="0" allowfullscreen="true"></iframe></div></div>`;
+
+  it.each([
+    "https://www.youtube-nocookie.com/embed/z9TFdTqkbPk?rel=0&amp;autoplay=0&amp;showinfo=0&amp;enablejsapi=0",
+    "https://www.youtube.com/embed/z9TFdTqkbPk",
+    "//www.youtube.com/embed/z9TFdTqkbPk",
+  ])("replaces a YouTube iframe (%s) with a link to the video", (src) => {
+    const container = createContainer();
+
+    sanitizeAndAppendHtml(container, substackEmbed(src), { mode: "rich" });
+
+    expect(container.querySelector("iframe")).toBeNull();
+    const link = container.querySelector<HTMLAnchorElement>(".youtube-inner a");
+    expect(link?.getAttribute("href")).toBe(
+      "https://www.youtube.com/watch?v=z9TFdTqkbPk",
+    );
+    expect(link?.getAttribute("target")).toBe("_blank");
+    expect(link?.getAttribute("rel")).toBe("noopener noreferrer");
+  });
+
+  it("renders nothing for an iframe from another host", () => {
+    const container = createContainer();
+
+    sanitizeAndAppendHtml(
+      container,
+      substackEmbed("https://evil.example/embed/z9TFdTqkbPk"),
+      { mode: "rich" },
+    );
+
+    expect(container.querySelector("iframe")).toBeNull();
+    expect(container.querySelector("a")).toBeNull();
+  });
+
+  it("rejects a malformed video ID and never copies the src through", () => {
+    const container = createContainer();
+
+    sanitizeAndAppendHtml(
+      container,
+      substackEmbed("https://www.youtube.com/embed/abc%22onload=alert(1)?x=1"),
+      { mode: "rich" },
+    );
+
+    expect(container.querySelector("iframe")).toBeNull();
+    expect(container.querySelector("a")).toBeNull();
+  });
+
+  it("keeps blocking YouTube iframes in strict mode", () => {
+    const container = createContainer();
+
+    sanitizeAndAppendHtml(
+      container,
+      substackEmbed("https://www.youtube.com/embed/z9TFdTqkbPk"),
+    );
+
+    expect(container.querySelector("iframe")).toBeNull();
+    expect(container.querySelector("a")).toBeNull();
+  });
+});
