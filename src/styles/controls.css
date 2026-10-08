@@ -661,12 +661,6 @@
 /* ============================================
  * 5. Media Queries & Responsive Overrides
  * ============================================ */
-.rss-dashboard-desktop-controls {
-  display: none;
-  align-items: center;
-  gap: 8px;
-}
-
 .rss-dashboard-mobile-filter-button {
   display: flex; /* default: visible; overrides the base display:none above */
 }
@@ -684,9 +678,6 @@
   }
   .rss-discover-mobile-header {
     display: flex;
-  }
-  .rss-dashboard-desktop-controls {
-    display: none;
   }
   .rss-dashboard-articles-header {
     padding: 8px 12px;
@@ -714,9 +705,6 @@
   .rss-dashboard-hamburger-menu {
     display: block;
   }
-  .rss-dashboard-desktop-controls {
-    display: none;
-  }
   .rss-dashboard-dropdown-menu {
     width: 320px;
   }
@@ -728,9 +716,6 @@
   }
   .rss-dashboard-hamburger-menu {
     display: block;
-  }
-  .rss-dashboard-desktop-controls {
-    display: none;
   }
 }
 
@@ -744,10 +729,6 @@
 
 /* Compound selectors (.is-narrow + target) have specificity (0,2,0),
    which naturally beats the single-class root defaults above. */
-.rss-dashboard-articles-header.is-narrow .rss-dashboard-desktop-controls {
-  display: none;
-}
-
 .rss-dashboard-articles-header.is-narrow .rss-dashboard-hamburger-menu {
   display: block;
 }
