@@ -1120,8 +1120,9 @@ describe("settings store (issue #563)", () => {
 
       await expect(plugin.onload()).resolves.toBeUndefined();
 
-      // Only the workspace's active-leaf-change handler.
-      expect(registerEvent).toHaveBeenCalledTimes(1);
+      // The workspace's active-leaf-change handler and the two tag chip
+      // radius listeners (radius changed, window opened).
+      expect(registerEvent).toHaveBeenCalledTimes(3);
     });
   });
 

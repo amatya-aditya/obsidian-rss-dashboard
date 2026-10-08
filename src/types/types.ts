@@ -1,3 +1,5 @@
+import { DEFAULT_TAG_CHIP_RADIUS } from "../utils/tag-chip-radius";
+
 export interface FeedItem {
   title: string;
   link: string;
@@ -342,6 +344,8 @@ export interface DisplaySettings {
   mobileShowCardToolbar: boolean;
   mobileShowListToolbar: boolean;
   mobileListToolbarStyle: "left-grid" | "bottom-row" | "minimal";
+  /** CSS border-radius shared by every plugin-rendered tag chip (#663). */
+  tagChipRadius: string;
   defaultFilter:
     "all" | "starred" | "unread" | "read" | "saved" | "videos" | "podcasts";
   hiddenFilters: string[];
@@ -899,6 +903,7 @@ guid: "{{guid}}"
       "settings",
     ],
     articleDateStyle: "relative",
+    tagChipRadius: DEFAULT_TAG_CHIP_RADIUS,
   },
   highlights: {
     enabled: false,
