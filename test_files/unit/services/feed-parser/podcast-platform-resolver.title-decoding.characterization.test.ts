@@ -34,11 +34,11 @@ async function searchedTerm(ogTitle: string): Promise<string | undefined> {
   await resolvePodcastPlatformUrl(
     "https://pocketcasts.com/podcast/x/abc",
   ).catch(() => null);
-  const call = requestUrlSpy.mock.calls
+  const searchCalls = requestUrlSpy.mock.calls
     .map((c) => (c[0] as { url: string }).url)
-    // Skip the first slug-search call (for "x"), find the og:title search.
-    .filter((u) => u.startsWith("https://itunes.apple.com/search"))
-    .at(1);
+    .filter((u) => u.startsWith("https://itunes.apple.com/search"));
+  // Skip the first slug-search call (for "x"), use the og:title search.
+  const call = searchCalls[1];
   const term = call ? new URL(call).searchParams.get("term") : null;
   return term ?? undefined;
 }
