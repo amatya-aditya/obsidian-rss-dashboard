@@ -239,6 +239,25 @@ async function applyMetadataLocation(
   await flushPromises();
 }
 
+function findDialogByHeading(heading: string): HTMLElement | null {
+  const match = Array.from(document.querySelectorAll(".modal h2")).find(
+    (el) => el.textContent === heading,
+  );
+  return (match?.closest(".modal") as HTMLElement | null) ?? null;
+}
+
+function clickDialogButton(dialog: HTMLElement, text: string): void {
+  const button = Array.from(dialog.querySelectorAll("button")).find(
+    (el) => el.textContent === text,
+  );
+  if (!button) {
+    throw new Error(`Button not found: ${text}`);
+  }
+  button.click();
+}
+
+const CLEAR_LOCATION_HEADING = "Move metadata data.json to the trash?";
+
 describe("renderStorageSettingsTab() - previous metadata copy cleanup", () => {
   function findCleanupModal(): HTMLElement | null {
     const heading = Array.from(document.querySelectorAll(".modal h2")).find(
@@ -343,6 +362,11 @@ describe("renderStorageSettingsTab() - previous metadata copy cleanup", () => {
 
     renderStorageSettingsTab(containerEl, plugin);
     await applyMetadataLocation(containerEl, "");
+    clickDialogButton(
+      findDialogByHeading(CLEAR_LOCATION_HEADING) as HTMLElement,
+      "Move to trash",
+    );
+    await flushPromises();
 
     const modal = findCleanupModal();
     expect(modal).not.toBeNull();
@@ -369,6 +393,10 @@ describe("renderStorageSettingsTab() - previous metadata copy cleanup", () => {
     expect(await vault.adapter.exists(bootstrapPath)).toBe(true);
   });
 });
+
+function findCleanupModal(): HTMLElement | null {
+  return findDialogByHeading("Delete previous metadata copy?");
+}
 
 describe("renderStorageSettingsTab() - metadata folder changes", () => {
   // The Notice stub reports each notice through console.debug.
@@ -399,10 +427,60 @@ describe("renderStorageSettingsTab() - metadata folder changes", () => {
 
     renderStorageSettingsTab(containerEl, plugin);
     await applyMetadataLocation(containerEl, "");
+    clickDialogButton(
+      findDialogByHeading(CLEAR_LOCATION_HEADING) as HTMLElement,
+      "Move to trash",
+    );
+    await flushPromises();
 
     expect(vi.mocked(plugin.revertMetadataToPluginDefault)).toHaveBeenCalled();
     expect(plugin.settings.metadataStorageFolder).toBe(".rss-dashboard-data");
     expect(vi.mocked(plugin.saveSettings)).toHaveBeenCalled();
+  });
+
+  // Clearing the field trashes the vault data.json (#919), so it asks first.
+  it("asks before clearing the vault location and moves nothing until confirmed", async () => {
+    const containerEl = document.body.appendChild(createDiv());
+    const plugin = createPlugin();
+    plugin.settings.metadataStorageMode = "vault-location";
+    plugin.settings.metadataStorageFolder = "rss-meta";
+
+    renderStorageSettingsTab(containerEl, plugin);
+    await applyMetadataLocation(containerEl, "");
+
+    const dialog = findDialogByHeading(CLEAR_LOCATION_HEADING);
+    expect(dialog).not.toBeNull();
+    expect(dialog?.textContent).toContain("rss-meta");
+    expect(
+      vi.mocked(plugin.revertMetadataToPluginDefault),
+    ).not.toHaveBeenCalled();
+    expect(plugin.settings.metadataStorageFolder).toBe("rss-meta");
+  });
+
+  it("keeps the vault location and data.json when the clear is cancelled", async () => {
+    const containerEl = document.body.appendChild(createDiv());
+    const plugin = createPlugin();
+    plugin.settings.metadataStorageMode = "vault-location";
+    plugin.settings.metadataStorageFolder = "rss-meta";
+    const { vault } = plugin.app;
+    await vault.createFolder("rss-meta");
+    await vault.create("rss-meta/data.json", "{}");
+
+    renderStorageSettingsTab(containerEl, plugin);
+    await applyMetadataLocation(containerEl, "");
+    clickDialogButton(
+      findDialogByHeading(CLEAR_LOCATION_HEADING) as HTMLElement,
+      "Cancel",
+    );
+    await flushPromises();
+
+    expect(
+      vi.mocked(plugin.revertMetadataToPluginDefault),
+    ).not.toHaveBeenCalled();
+    expect(plugin.settings.metadataStorageMode).toBe("vault-location");
+    expect(plugin.settings.metadataStorageFolder).toBe("rss-meta");
+    expect(await vault.adapter.exists("rss-meta/data.json")).toBe(true);
+    expect(findCleanupModal()).toBeNull();
   });
 
   it("restores the previous location and reports a migration failure", async () => {
