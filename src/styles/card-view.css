@@ -105,14 +105,13 @@
 
 .rss-dashboard-tag-badge {
   padding: 2px 8px;
-  border-radius: 12px;
   font-size: 0.8em;
   color: var(--text-on-accent);
 }
 
 .rss-dashboard-tag-overflow {
   padding: 2px 8px;
-  border-radius: 12px;
+  border-radius: var(--rss-dashboard-tag-chip-radius, 999px);
   font-size: 0.8em;
   background: var(--interactive-accent);
   color: var(--text-on-accent);

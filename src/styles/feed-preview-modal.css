@@ -114,9 +114,18 @@
 .feed-preview-category,
 .feed-preview-tag {
   padding: 0.2rem 0.6rem;
-  border-radius: 4px;
   font-size: 0.8rem;
   color: var(--text-normal);
+}
+
+/* Feed categories keep their rectangular shape; only tags follow the shared
+ * tag chip radius. */
+.feed-preview-category {
+  border-radius: 4px;
+}
+
+.feed-preview-tag {
+  border-radius: var(--rss-dashboard-tag-chip-radius, 999px);
 }
 
 .feed-preview-content {
