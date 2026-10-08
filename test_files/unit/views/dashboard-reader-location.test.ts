@@ -456,6 +456,34 @@ describe("Dashboard reader location", () => {
     expect(rightLeaf.setViewState).toHaveBeenCalledTimes(1);
   });
 
+  it.each([
+    [false, false],
+    [true, true],
+  ])(
+    "marks the article read from Open in reader view only when Auto-mark read is %s",
+    async (autoMarkReadOnOpen, expectedRead) => {
+      const settings = cloneSettings();
+      const feed = makeFeed("https://example.com/feed", [{}]);
+      feed.items[0].read = false;
+      settings.feeds = [feed];
+      settings.readerViewLocation = "right-sidebar";
+      settings.display.autoMarkReadOnOpen = autoMarkReadOnOpen;
+      const rightLeaf = createReaderLeaf(new App(), "right");
+      const { view } = await createDashboardView(settings, {
+        getLeavesOfType: vi.fn(() => []),
+        getLeaf: vi.fn(),
+        getLeftLeaf: vi.fn(),
+        getRightLeaf: vi.fn(() => rightLeaf),
+        revealLeaf: vi.fn(async () => {}),
+      });
+
+      await view.handleOpenInReaderView(feed.items[0]);
+
+      expect(feed.items[0].read).toBe(expectedRead);
+      expect(rightLeaf.setViewState).toHaveBeenCalledTimes(1);
+    },
+  );
+
   it("opens article clicks in the external browser when readerViewLocation is external-browser", async () => {
     const settings = cloneSettings();
     const feed = makeFeed("https://example.com/feed", [{}]);
