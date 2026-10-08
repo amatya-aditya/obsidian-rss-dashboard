@@ -125,7 +125,7 @@
 
 .podcast-tag {
   padding: 2px 8px;
-  border-radius: 12px;
+  border-radius: var(--rss-dashboard-tag-chip-radius, 999px);
   font-size: 0.8em;
   background: var(--background-modifier-border);
   color: var(--text-on-accent);
@@ -693,7 +693,7 @@
   flex: 0 0 auto;
   max-width: 140px;
   padding: 2px 8px;
-  border-radius: 12px;
+  border-radius: var(--rss-dashboard-tag-chip-radius, 999px);
   font-size: 0.8em;
   line-height: 1.2;
   background: var(--interactive-accent);

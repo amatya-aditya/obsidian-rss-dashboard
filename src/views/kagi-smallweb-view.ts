@@ -490,13 +490,17 @@ export class KagiSmallwebView extends ItemView {
     });
     typeEl.textContent = "Smallweb";
 
-    const domainTag = metaTop.createDiv({ cls: "rss-discover-card-tag" });
+    const domainTag = metaTop.createDiv({
+      cls: "rss-discover-card-tag rss-smallweb-meta-tag",
+    });
     domainTag.textContent = entry.domain;
     setCssProps(domainTag, {
       "--tag-color": this.getSmallwebTagColor(entry.domain),
     });
 
-    const timeTag = metaTop.createDiv({ cls: "rss-discover-card-tag" });
+    const timeTag = metaTop.createDiv({
+      cls: "rss-discover-card-tag rss-smallweb-meta-tag",
+    });
     timeTag.textContent = this.getSmallwebRelativeTime(entry.updatedAt);
     setCssProps(timeTag, { "--tag-color": "hsl(210, 60%, 75%)" });
 

@@ -12,6 +12,7 @@ import { DEFAULT_SETTINGS } from "../../types/types";
 import { DEFAULT_TAG_COLOR } from "../../utils/tag-colors";
 import { updateTagInSettings } from "../../utils/tag-utils";
 import { deleteTagFromSettings } from "../../utils/tag-settings";
+import { renderTagShapeControl } from "./tag-shape-control";
 
 interface AutoTagSettingConfig {
   name: string;
@@ -129,6 +130,8 @@ export function renderTagsSettingsTab(
         onRefresh();
       });
     });
+
+  renderTagShapeControl(containerEl, plugin);
 
   // Tags settings
   new Setting(containerEl).setName("Tags").setHeading();

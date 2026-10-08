@@ -183,7 +183,7 @@
 }
 .rss-reader-tag {
   padding: 2px 8px;
-  border-radius: 4px;
+  border-radius: var(--rss-dashboard-tag-chip-radius, 999px);
   font-size: 12px;
   color: #fff;
   background-color: var(--tag-color, var(--interactive-accent));

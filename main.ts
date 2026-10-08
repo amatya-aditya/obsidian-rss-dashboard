@@ -77,6 +77,7 @@ import {
 import { FeedSubscriptionService } from "./src/services/feed-subscription-service";
 import { SettingsImportApplier } from "./src/services/settings-import-applier";
 import { SettingsStore } from "./src/services/settings-store";
+import { TagChipRadiusSync } from "./src/services/tag-chip-radius-sync";
 import {
   UriActionHandler,
   type AddFeedUriRequest,
@@ -197,6 +198,7 @@ export default class RssDashboardPlugin extends Plugin {
   public activeRefreshState = new Map<string, FeedRefreshState>();
   public settingTab: RssDashboardSettingTab | null = null;
   public versionStatusBar: VersionStatusBarFeature | null = null;
+  private tagChipRadiusSync: TagChipRadiusSync | null = null;
   public vaultAbsolutePath = "";
   private hasShownStorageDeprecationPromptThisSession = false;
   private whatsNewHandledThisSession = false;
@@ -348,6 +350,8 @@ export default class RssDashboardPlugin extends Plugin {
 
   private initializeSettingsBackedServices(): void {
     this.bindSettingsBackedServices();
+    // Import, reset and reload replace settings wholesale, so republish the radius.
+    this.tagChipRadiusSync?.apply();
     this.backgroundImportService = new BackgroundImportService({
       // Forward to the current parser so a rebind after a settings reload
       // reaches an import that is already running.
@@ -858,6 +862,12 @@ export default class RssDashboardPlugin extends Plugin {
     }
 
     await this.loadSettings();
+    this.tagChipRadiusSync = new TagChipRadiusSync({
+      workspace: this.app.workspace,
+      getRadius: () => this.settings.display.tagChipRadius,
+      registerEvent: (ref) => this.registerEvent(ref),
+    });
+    this.tagChipRadiusSync.start();
     this.versionStatusBar = new VersionStatusBarFeature({
       version: this.manifest.version,
       enabled: this.settings.display.showVersionInStatusBar,
@@ -2433,6 +2443,8 @@ export default class RssDashboardPlugin extends Plugin {
   }
 
   onunload() {
+    this.tagChipRadiusSync?.dispose();
+    this.tagChipRadiusSync = null;
     this.versionStatusBar?.dispose();
     this.versionStatusBar = null;
     this.autoRefreshScheduler?.stop();
