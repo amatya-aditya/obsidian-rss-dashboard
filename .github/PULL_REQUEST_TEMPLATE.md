@@ -42,7 +42,7 @@
 - [ ] Unit tests added/updated
 - [ ] Existing tests pass locally
 - [ ] Manual smoke test completed
-- [ ] Settings → About build hash matches the PR's latest commit and shows no `+dirty`
+- [ ] Build label (status bar or Settings → About) shows the PR's latest commit and no `+dirty`
 
 ### Test Evidence
 
