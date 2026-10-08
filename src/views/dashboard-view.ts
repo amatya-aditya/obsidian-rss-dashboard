@@ -775,31 +775,7 @@ export class RssDashboardView extends ItemView {
   // --- Render pipeline ---
   onOpen(): Promise<void> {
     this.listenForHotkeysInHostDocument();
-    this.articleRenderer = new ArticleRenderer({
-      app: this.app,
-      component: this,
-      settings: this.settings,
-      onArticleSave: (item) => {
-        item.saved = true;
-        void this.render();
-      },
-      onArticleUpdate: (item, updates, shouldRerender) => {
-        void this.updateArticleStatus(item, updates, shouldRerender);
-      },
-      onOpenSavedArticle: (file) => {
-        void this.app.workspace.getLeaf().openFile(file);
-      },
-      onPlaybackProgress: (item, position, duration, flush) => {
-        this.plugin.updatePlaybackProgress(
-          item.feedUrl,
-          item.guid,
-          position,
-          duration,
-          flush,
-          item,
-        );
-      },
-    });
+    this.createArticleRenderer();
 
     this.app.workspace.onLayoutReady(() => {
       this.plugin.maybeShowStorageDeprecationPrompt();
@@ -823,42 +799,7 @@ export class RssDashboardView extends ItemView {
       ) as never,
     );
 
-    this.registerEvent(
-      (
-        this.app.workspace as unknown as {
-          on: (name: string, callback: () => void) => unknown;
-        }
-      ).on("rss-dashboard:tags-mutated", () => {
-        const availableTagNames = new Set(
-          this.settings.availableTags.map((t) => t.name),
-        );
-
-        let changed = false;
-
-        // 1. Sidebar selected tags
-        const filteredSelectedTags = this.selectedTags.filter((tag) =>
-          availableTagNames.has(tag),
-        );
-        if (filteredSelectedTags.length !== this.selectedTags.length) {
-          this.selectedTags = filteredSelectedTags;
-          changed = true;
-        }
-
-        // 2. Header multi-filter tags
-        for (const tag of Array.from(this.activeTagFilters)) {
-          if (!availableTagNames.has(tag)) {
-            this.activeTagFilters.delete(tag);
-            changed = true;
-          }
-        }
-
-        if (changed) {
-          void this.render();
-        } else if (this.sidebar) {
-          this.sidebar.render();
-        }
-      }) as never,
-    );
+    this.registerTagsMutatedListener();
 
     this.bindViewportResizeListener();
     // Obsidian moves a leaf between the main window and popouts without
@@ -938,10 +879,89 @@ export class RssDashboardView extends ItemView {
       dashboardContainer.appendChild(this.sidebarContainer);
     }
 
+    this.ensureSidebar(this.sidebarContainer);
+
+    // Keep a stable reference to the dashboard root for later renders.
+    this.dashboardContainer = dashboardContainer;
+
+    this.render();
+    markViewReady(this.containerEl);
+
+    return Promise.resolve();
+  }
+
+  private createArticleRenderer(): void {
+    this.articleRenderer = new ArticleRenderer({
+      app: this.app,
+      component: this,
+      settings: this.settings,
+      onArticleSave: (item) => {
+        item.saved = true;
+        void this.render();
+      },
+      onArticleUpdate: (item, updates, shouldRerender) => {
+        void this.updateArticleStatus(item, updates, shouldRerender);
+      },
+      onOpenSavedArticle: (file) => {
+        void this.app.workspace.getLeaf().openFile(file);
+      },
+      onPlaybackProgress: (item, position, duration, flush) => {
+        this.plugin.updatePlaybackProgress(
+          item.feedUrl,
+          item.guid,
+          position,
+          duration,
+          flush,
+          item,
+        );
+      },
+    });
+  }
+
+  private registerTagsMutatedListener(): void {
+    this.registerEvent(
+      (
+        this.app.workspace as unknown as {
+          on: (name: string, callback: () => void) => unknown;
+        }
+      ).on("rss-dashboard:tags-mutated", () => {
+        const availableTagNames = new Set(
+          this.settings.availableTags.map((t) => t.name),
+        );
+
+        let changed = false;
+
+        // 1. Sidebar selected tags
+        const filteredSelectedTags = this.selectedTags.filter((tag) =>
+          availableTagNames.has(tag),
+        );
+        if (filteredSelectedTags.length !== this.selectedTags.length) {
+          this.selectedTags = filteredSelectedTags;
+          changed = true;
+        }
+
+        // 2. Header multi-filter tags
+        for (const tag of Array.from(this.activeTagFilters)) {
+          if (!availableTagNames.has(tag)) {
+            this.activeTagFilters.delete(tag);
+            changed = true;
+          }
+        }
+
+        if (changed) {
+          void this.render();
+        } else if (this.sidebar) {
+          this.sidebar.render();
+        }
+      }) as never,
+    );
+  }
+
+  private ensureSidebar(sidebarContainer: HTMLElement): void {
     if (!this.sidebar) {
       this.sidebar = new Sidebar(
         this.app,
-        this.sidebarContainer,
+        sidebarContainer,
         this.plugin,
         this.settings,
         {
@@ -984,14 +1004,6 @@ export class RssDashboardView extends ItemView {
         },
       );
     }
-
-    // Keep a stable reference to the dashboard root for later renders.
-    this.dashboardContainer = dashboardContainer;
-
-    this.render();
-    markViewReady(this.containerEl);
-
-    return Promise.resolve();
   }
 
   /**
@@ -1129,82 +1141,7 @@ export class RssDashboardView extends ItemView {
         titleInfo.tooltip,
         articlesForPage,
         this.selectedArticle,
-        {
-          onArticleClick: (article) => {
-            void this.handleArticleClick(article);
-          },
-          onToggleViewStyle: this.handleToggleViewStyle.bind(this),
-          onRefreshFeeds: this.handleRefreshFeeds.bind(this),
-          onSearch: (_q: string) => {
-            // State is handled by ArticleList locally, but we could sync it here if needed
-          },
-          onOpenViewFilters: () => {
-            this.openViewingFiltersMenu();
-          },
-          onOpenPerFeedSettings: () => {
-            if (this.currentFeed) {
-              this.showEditFeedModal(this.currentFeed, {
-                expandSection: "per-feed",
-                highlightSection: "per-feed",
-              });
-            }
-          },
-          onArticleUpdate: (article, updates, shouldRerender) => {
-            void this.handleArticleUpdate(article, updates, shouldRerender);
-          },
-          onArticleSave: (article) => {
-            void this.handleArticleSave(article);
-          },
-          onArticleCustomSave: (article, hooks) => {
-            this.handleArticleCustomSave(article, hooks);
-          },
-          onOpenSavedArticle: (article) => {
-            void this.handleOpenSavedArticle(article);
-          },
-          onOpenInReaderView: (article) => {
-            void this.handleOpenInReaderView(article);
-          },
-          onRenderArticleTitle: (titleElement) => {
-            void scheduleProcessMathElements(titleElement, {
-              app: this.app,
-              component: this,
-            });
-          },
-          onToggleSidebar: this.handleToggleSidebar.bind(this),
-          onSortChange: this.handleSortChange.bind(this),
-          onGroupChange: this.handleGroupChange.bind(this),
-          onFilterChange: (value: {
-            type: string;
-            value: unknown;
-            checked?: boolean;
-            isTag?: boolean;
-          }) => {
-            void this.handleFilterChange(value);
-          },
-          onPageChange: this.handlePageChange.bind(this),
-          onPageSizeChange: this.handlePageSizeChange.bind(this),
-          onMarkPageAsRead: () => {
-            this.markCurrentPageAsRead();
-          },
-          onOpenTagsSettings: () => {
-            void this.plugin.openTagsSettings();
-          },
-          onTagsMutated: () => {
-            void this.plugin.refreshOpenTagColorViews();
-            this.app.workspace.trigger("rss-dashboard:tags-mutated");
-          },
-          onPersistSettings: async () => {
-            await this.plugin.saveSettings();
-          },
-          onResolveCachedImageUrl: (remoteUrl) =>
-            this.plugin.resolveCachedImageUrl(remoteUrl),
-          onMarkAllAsRead: () => {
-            this.actionMarkAllAsRead();
-          },
-          onMarkAllAsUnread: () => {
-            this.actionMarkAllAsUnread();
-          },
-        },
+        this.buildArticleListCallbacks(),
         currentPage,
         pagination.totalPages,
         pageSize,
@@ -1242,6 +1179,87 @@ export class RssDashboardView extends ItemView {
         this.render();
       }
     }
+  }
+
+  private buildArticleListCallbacks(): ConstructorParameters<
+    typeof ArticleList
+  >[6] {
+    return {
+      onArticleClick: (article) => {
+        void this.handleArticleClick(article);
+      },
+      onToggleViewStyle: this.handleToggleViewStyle.bind(this),
+      onRefreshFeeds: this.handleRefreshFeeds.bind(this),
+      onSearch: (_q: string) => {
+        // State is handled by ArticleList locally, but we could sync it here if needed
+      },
+      onOpenViewFilters: () => {
+        this.openViewingFiltersMenu();
+      },
+      onOpenPerFeedSettings: () => {
+        if (this.currentFeed) {
+          this.showEditFeedModal(this.currentFeed, {
+            expandSection: "per-feed",
+            highlightSection: "per-feed",
+          });
+        }
+      },
+      onArticleUpdate: (article, updates, shouldRerender) => {
+        void this.handleArticleUpdate(article, updates, shouldRerender);
+      },
+      onArticleSave: (article) => {
+        void this.handleArticleSave(article);
+      },
+      onArticleCustomSave: (article, hooks) => {
+        this.handleArticleCustomSave(article, hooks);
+      },
+      onOpenSavedArticle: (article) => {
+        void this.handleOpenSavedArticle(article);
+      },
+      onOpenInReaderView: (article) => {
+        void this.handleOpenInReaderView(article);
+      },
+      onRenderArticleTitle: (titleElement) => {
+        void scheduleProcessMathElements(titleElement, {
+          app: this.app,
+          component: this,
+        });
+      },
+      onToggleSidebar: this.handleToggleSidebar.bind(this),
+      onSortChange: this.handleSortChange.bind(this),
+      onGroupChange: this.handleGroupChange.bind(this),
+      onFilterChange: (value: {
+        type: string;
+        value: unknown;
+        checked?: boolean;
+        isTag?: boolean;
+      }) => {
+        void this.handleFilterChange(value);
+      },
+      onPageChange: this.handlePageChange.bind(this),
+      onPageSizeChange: this.handlePageSizeChange.bind(this),
+      onMarkPageAsRead: () => {
+        this.markCurrentPageAsRead();
+      },
+      onOpenTagsSettings: () => {
+        void this.plugin.openTagsSettings();
+      },
+      onTagsMutated: () => {
+        void this.plugin.refreshOpenTagColorViews();
+        this.app.workspace.trigger("rss-dashboard:tags-mutated");
+      },
+      onPersistSettings: async () => {
+        await this.plugin.saveSettings();
+      },
+      onResolveCachedImageUrl: (remoteUrl) =>
+        this.plugin.resolveCachedImageUrl(remoteUrl),
+      onMarkAllAsRead: () => {
+        this.actionMarkAllAsRead();
+      },
+      onMarkAllAsUnread: () => {
+        this.actionMarkAllAsUnread();
+      },
+    };
   }
 
   private scheduleRender(): void {
@@ -1361,32 +1379,7 @@ export class RssDashboardView extends ItemView {
 
     // ── Row 1: Keyword rules stats ──────────────────────────────────────────
     if (hasKeywordStats) {
-      const filterStatsRow = subheaderContent.createDiv({
-        cls: "rss-dashboard-filter-stats-row",
-      });
-
-      // Edit button for keyword rules settings
-      const filterEditBtn = filterStatsRow.createEl("button", {
-        cls: "rss-dashboard-filter-edit-btn clickable-icon",
-        attr: {
-          type: "button",
-          "aria-label": "Edit keyword rules",
-        },
-      });
-      setIcon(filterEditBtn, "cog");
-      filterEditBtn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        void this.plugin.openSettingsToTab("Rules");
-      });
-
-      // Keyword rules stats text
-      const statusText = keywordFilterStats.bypassActive
-        ? `Keyword rules bypassed - showing all ${keywordFilterStats.articlesRetrieved} articles`
-        : `Articles retrieved: ${keywordFilterStats.articlesRetrieved} | Excluded by global keyword rules: ${keywordFilterStats.globalExcluded} | Excluded by per-feed keyword rules: ${keywordFilterStats.feedExcluded}`;
-      filterStatsRow.createSpan({
-        cls: "rss-dashboard-filter-stats-text",
-        text: statusText,
-      });
+      this.renderKeywordStatsRow(subheaderContent);
     }
 
     // ── Row 2: Highlight match stats ─────────────────────────────────────────
@@ -1439,42 +1432,10 @@ export class RssDashboardView extends ItemView {
 
     // ── Row 3: Viewing filters / collapse toggle ──────────────────────────────
     if (hasDashboardMultiFilterStats && this.dashboardMultiFilterCounts) {
-      const hasActiveDashboardMultiFilters =
-        this.activeStatusFilters.size > 0 || this.activeTagFilters.size > 0;
-      const { shown, filteredOut, total } = this.dashboardMultiFilterCounts;
-      const viewingFilterRow = subheaderContent.createDiv({
-        cls: "rss-dashboard-filter-stats-row rss-dashboard-viewing-filter-stats-row",
-      });
-
-      const viewFiltersBtn = viewingFilterRow.createDiv({
-        cls: "rss-dashboard-viewing-filter-open-btn clickable-icon",
-        attr: {
-          role: "button",
-          tabindex: "0",
-          "aria-label": "Open viewing filters",
-        },
-      });
-      setIcon(viewFiltersBtn, "filter");
-
-      const openFiltersMenu = (e?: Event) => {
-        e?.stopPropagation();
-        this.openViewingFiltersMenu();
-      };
-
-      viewFiltersBtn.addEventListener("click", openFiltersMenu);
-      viewFiltersBtn.addEventListener("keydown", (e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          openFiltersMenu(e);
-        }
-      });
-
-      viewingFilterRow.createSpan({
-        cls: "rss-dashboard-viewing-filter-stats-text",
-        text: hasActiveDashboardMultiFilters
-          ? `Viewing filters: Showing ${shown} | Filtered out ${filteredOut} | Total ${total}`
-          : `No filters applied - Showing ${shown} | Filtered out ${filteredOut} | Total ${total}`,
-      });
+      this.renderViewingFiltersRow(
+        subheaderContent,
+        this.dashboardMultiFilterCounts,
+      );
     }
 
     const toggleButton = subheader.createEl("button", {
@@ -1506,6 +1467,78 @@ export class RssDashboardView extends ItemView {
     });
 
     applyCollapsedState();
+  }
+
+  private renderKeywordStatsRow(subheaderContent: HTMLElement): void {
+    const { keywordFilterStats } = this;
+    const filterStatsRow = subheaderContent.createDiv({
+      cls: "rss-dashboard-filter-stats-row",
+    });
+
+    // Edit button for keyword rules settings
+    const filterEditBtn = filterStatsRow.createEl("button", {
+      cls: "rss-dashboard-filter-edit-btn clickable-icon",
+      attr: {
+        type: "button",
+        "aria-label": "Edit keyword rules",
+      },
+    });
+    setIcon(filterEditBtn, "cog");
+    filterEditBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      void this.plugin.openSettingsToTab("Rules");
+    });
+
+    // Keyword rules stats text
+    const statusText = keywordFilterStats.bypassActive
+      ? `Keyword rules bypassed - showing all ${keywordFilterStats.articlesRetrieved} articles`
+      : `Articles retrieved: ${keywordFilterStats.articlesRetrieved} | Excluded by global keyword rules: ${keywordFilterStats.globalExcluded} | Excluded by per-feed keyword rules: ${keywordFilterStats.feedExcluded}`;
+    filterStatsRow.createSpan({
+      cls: "rss-dashboard-filter-stats-text",
+      text: statusText,
+    });
+  }
+
+  private renderViewingFiltersRow(
+    subheaderContent: HTMLElement,
+    counts: { shown: number; filteredOut: number; total: number },
+  ): void {
+    const hasActiveDashboardMultiFilters =
+      this.activeStatusFilters.size > 0 || this.activeTagFilters.size > 0;
+    const { shown, filteredOut, total } = counts;
+    const viewingFilterRow = subheaderContent.createDiv({
+      cls: "rss-dashboard-filter-stats-row rss-dashboard-viewing-filter-stats-row",
+    });
+
+    const viewFiltersBtn = viewingFilterRow.createDiv({
+      cls: "rss-dashboard-viewing-filter-open-btn clickable-icon",
+      attr: {
+        role: "button",
+        tabindex: "0",
+        "aria-label": "Open viewing filters",
+      },
+    });
+    setIcon(viewFiltersBtn, "filter");
+
+    const openFiltersMenu = (e?: Event) => {
+      e?.stopPropagation();
+      this.openViewingFiltersMenu();
+    };
+
+    viewFiltersBtn.addEventListener("click", openFiltersMenu);
+    viewFiltersBtn.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        openFiltersMenu(e);
+      }
+    });
+
+    viewingFilterRow.createSpan({
+      cls: "rss-dashboard-viewing-filter-stats-text",
+      text: hasActiveDashboardMultiFilters
+        ? `Viewing filters: Showing ${shown} | Filtered out ${filteredOut} | Total ${total}`
+        : `No filters applied - Showing ${shown} | Filtered out ${filteredOut} | Total ${total}`,
+    });
   }
 
   // --- Highlight match counting ---

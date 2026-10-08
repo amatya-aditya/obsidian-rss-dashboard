@@ -218,11 +218,6 @@
       "count": 1
     }
   },
-  "src/views/dashboard-view.ts": {
-    "max-lines-per-function": {
-      "count": 3
-    }
-  },
   "src/views/discover-view.ts": {
     "complexity": {
       "count": 1
