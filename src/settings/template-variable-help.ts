@@ -154,7 +154,7 @@ export const TEMPLATE_VARIABLE_HELP_GROUPS: readonly TemplateVariableHelpGroup[]
  */
 export function renderTemplateVariableHelp(container: HTMLElement): void {
   container.createEl("p", {
-    text: "These placeholders are replaced when an article is saved. Notes saved from the web viewer can leave some placeholders unreplaced.",
+    text: "These placeholders are replaced when an article is saved.",
   });
   for (const group of TEMPLATE_VARIABLE_HELP_GROUPS) {
     container.createEl("h4", {
