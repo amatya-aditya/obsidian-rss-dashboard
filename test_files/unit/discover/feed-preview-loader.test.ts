@@ -158,10 +158,11 @@ describe("resolveAndLoadPreview()", () => {
     expect(resolvePodcastPlatformUrlMock).toHaveBeenCalledWith(
       "https://podcasts.apple.com/show/123",
       "https://proxy.example.com/",
+      { allowProxyFallback: true },
     );
   });
 
-  it("throws if Pocket Casts resolution is attempted without CORS proxy enabled", async () => {
+  it("resolves Pocket Casts with the CORS proxy off, forbidding the proxy fallback", async () => {
     const { resolveAndLoadPreview } =
       await import("../../../src/modals/feed-manager/feed-preview-loader");
 
@@ -169,12 +170,21 @@ describe("resolveAndLoadPreview()", () => {
       id: "pocketcasts",
       name: "Pocket Casts",
     });
+    resolvePodcastPlatformUrlMock.mockResolvedValue(
+      "https://example.com/podcast.rss",
+    );
 
-    await expect(
-      resolveAndLoadPreview("https://pocketcasts.com/pod/xyz", {
-        corsProxyEnabled: false,
-      }),
-    ).rejects.toThrow(/Pocket Casts resolution requires the CORS Proxy/i);
+    const result = await resolveAndLoadPreview(
+      "https://pocketcasts.com/podcast/show/abc",
+      { corsProxyEnabled: false },
+    );
+
+    expect(result.finalUrl).toBe("https://example.com/podcast.rss");
+    expect(resolvePodcastPlatformUrlMock).toHaveBeenCalledWith(
+      "https://pocketcasts.com/podcast/show/abc",
+      undefined,
+      { allowProxyFallback: false },
+    );
   });
 });
 

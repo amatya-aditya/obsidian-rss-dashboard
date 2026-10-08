@@ -7,9 +7,19 @@ import {
 } from "../../utils/podcast-platforms.js";
 import type { ItunesLookupResponse } from "./types.js";
 import { decodeHtmlEntities } from "./xml-parser/xml-html-utils.js";
+export interface ResolvePodcastPlatformOptions {
+  /**
+   * Whether Pocket Casts may fall back to scraping the page through
+   * third-party CORS proxies. Defaults to true; the Add/Edit feed flow passes
+   * the user's CORS proxy opt-in so no URL leaves the app without consent.
+   */
+  allowProxyFallback?: boolean;
+}
+
 export async function resolvePodcastPlatformUrl(
   url: string,
   corsProxyUrl?: string,
+  options: ResolvePodcastPlatformOptions = {},
 ): Promise<string | null> {
   const platform = detectPodcastPlatform(url);
   if (!platform) return null;
@@ -19,7 +29,11 @@ export async function resolvePodcastPlatformUrl(
   }
 
   if (platform.id === POCKET_CASTS.id) {
-    return resolvePocketCastsUrl(url, corsProxyUrl);
+    return resolvePocketCastsUrl(
+      url,
+      corsProxyUrl,
+      options.allowProxyFallback ?? true,
+    );
   }
 
   if (platform.id === POCKET_CASTS_SHORT.id) {
@@ -189,7 +203,8 @@ async function resolvePocketCastsViaTitleSearch(
 }
 async function resolvePocketCastsUrl(
   url: string,
-  corsProxyUrl?: string,
+  corsProxyUrl: string | undefined,
+  allowProxyFallback: boolean,
 ): Promise<string | null> {
   // STRATEGY 1: Slug-first iTunes search.
   // The pocketcasts.com URL path contains a human-readable slug
@@ -210,6 +225,12 @@ async function resolvePocketCastsUrl(
         slugErr,
       );
     }
+  }
+
+  if (!allowProxyFallback) {
+    throw new Error(
+      "Could not find this Pocket Casts show through iTunes search. Enable the CORS Proxy in Settings to try resolving it from the Pocket Casts page, or use another feed source.",
+    );
   }
 
   const proxyUrls: string[] = [];

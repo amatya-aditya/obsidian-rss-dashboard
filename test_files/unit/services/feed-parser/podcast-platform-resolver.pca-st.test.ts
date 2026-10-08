@@ -139,6 +139,39 @@ describe("resolvePodcastPlatformUrl – pocketcasts.com slug-first strategy", ()
     requestUrlSpy.mockReset();
   });
 
+  it("resolves via iTunes when the proxy fallback is forbidden", async () => {
+    requestUrlSpy.mockResolvedValueOnce(
+      mockResponse({
+        results: [
+          {
+            feedUrl: "https://feeds.example.com/darknet.rss",
+            collectionName: "Darknet Diaries",
+          },
+        ],
+      }),
+    );
+
+    const result = await resolvePodcastPlatformUrl(
+      "https://pocketcasts.com/podcast/darknet-diaries/170a7610-948e-0135-9d21-5bb073f92b78",
+      undefined,
+      { allowProxyFallback: false },
+    );
+    expect(result).toBe("https://feeds.example.com/darknet.rss");
+  });
+
+  it("never contacts a proxy when forbidden and iTunes finds nothing", async () => {
+    requestUrlSpy.mockResolvedValue(mockResponse({ results: [] }));
+
+    await expect(
+      resolvePodcastPlatformUrl(
+        "https://pocketcasts.com/podcast/some-show/abc12345-0000-0000-0000-000000000000",
+        undefined,
+        { allowProxyFallback: false },
+      ),
+    ).rejects.toThrow(/Enable the CORS Proxy/i);
+    expect(requestUrlSpy).toHaveBeenCalledTimes(1);
+  });
+
   it("resolves a full pocketcasts.com URL via slug-first iTunes search", async () => {
     const itunesResult = {
       resultCount: 1,
