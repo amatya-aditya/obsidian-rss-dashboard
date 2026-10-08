@@ -175,9 +175,9 @@ without closing it. Include exactly one issue-closing reference for each issue
 being closed.
 
 Run the applicable manual-test-checklist before writing the PR body when the
-change has manual testing steps. Append its checklist and results in the
-template's final **Manual test checklist** section, marking whether it was
-completed. If it was not completed, state why and list the remaining steps;
+change has manual testing steps. Append its checklist and results under the
+template's **Manual testing** status in the Testing section, marking whether it
+was completed. If it was not completed, state why and list the remaining steps;
 never present unchecked steps as passed. Mark it not applicable with a reason
 when no manual checklist applies.
 

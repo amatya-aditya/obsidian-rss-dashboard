@@ -6,8 +6,7 @@ editing efficient and accurate.
 ## Goal
 
 Add completed user-visible features and fixes to `CHANGELOG.md` under
-`Unreleased`, keep the PR Release Notes Candidate aligned with that entry, and
-consolidate the collected entries into a wider-audience summary under
+`Unreleased`, and consolidate the collected entries into a wider-audience summary under
 `docs/releases/` when cutting Beta/Stable releases.
 
 ## Label Taxonomy
@@ -39,8 +38,8 @@ whichever fit, rather than inventing new ones.
    `Unreleased` -> `Features` or `Fixes`.
 4. When the work has a canonical GitHub issue, append its exact URL using
    `[GH Issue #N](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/N)`.
-5. Copy the final changelog wording into the PR Release Notes Candidate, or use
-   `N/A` for internal-only refactors, tests, documentation, and tooling.
+5. Tick the PR's `CHANGELOG.md` checklist item, or mark it `N/A` for
+   internal-only refactors, tests, documentation, and tooling.
 6. Apply labels for type and area.
 7. Do not edit `docs/releases/` for an individual issue or feature.
 8. After implementation and required validation succeed, close any matching
@@ -102,7 +101,6 @@ git diff --name-only 2.3.0-beta.1..HEAD
 ## Practical Rules
 
 - Write user-facing wording in `CHANGELOG.md` when the behavior is complete.
-- Keep the PR Release Notes Candidate aligned with the changelog entry.
 - Keep each PR focused so one PR maps to one release-note topic.
 - Prefer short, specific bullets over long paragraphs.
 - Update an existing matching bullet instead of adding a duplicate.
@@ -134,7 +132,7 @@ Context rules:
 - Include release-notes candidate text suitable for changelog curation.
 
 Repository conventions:
-- PR must include: summary, testing evidence, risk/rollback, release notes candidate.
+- PR must include: summary, testing evidence, risk.
 - Completed user-visible changes are recorded under CHANGELOG.md > Unreleased.
 - Release-cut curation deduplicates the changelog and produces the consolidated
   public summary under docs/releases/.
@@ -163,10 +161,8 @@ Output format:
 3. PR body
 - Summary
 - What changed
-- User impact
 - Testing
-- Risk and rollback
-- Release Notes Candidate
+- Risk
 - Labels to apply (type, area)
 
 Quality checks before final output:
