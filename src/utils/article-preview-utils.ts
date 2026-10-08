@@ -1,4 +1,5 @@
 import { FeedItem } from "../types/types";
+import { guardFeedBlurb } from "./article-metadata";
 import { htmlToReadableText } from "./html-text";
 import { isLatexFormulaImage } from "./image-url-utils";
 
@@ -126,7 +127,51 @@ export function getCardPreviewSummaryText(summary: string): string {
   return `${normalized.slice(0, CARD_PREVIEW_SUMMARY_MAX_CHARS - 1)}…`;
 }
 
+interface BlurbCacheEntry {
+  description: string;
+  content: string;
+  title: string;
+  blurb: string;
+}
+
+// The guard reads the item's full `content`, so cache its verdict per item.
+// The entry records its inputs, so an item rewritten on refresh recomputes.
+const blurbCache = new WeakMap<FeedItem, BlurbCacheEntry>();
+
+/**
+ * The item blurb as preview text (#829): only when the item also ships a body
+ * (without one the blurb is the body) and the blurb passes the resolver's
+ * degenerate-value guard. Empty otherwise.
+ */
+function getGuardedBlurbPreview(article: FeedItem): string {
+  const description = article.description || "";
+  const content = article.content || "";
+  const title = article.title || "";
+  if (!description || !content.trim()) return "";
+
+  const cached = blurbCache.get(article);
+  if (
+    cached &&
+    cached.description === description &&
+    cached.content === content &&
+    cached.title === title
+  ) {
+    return cached.blurb;
+  }
+
+  const blurb = guardFeedBlurb({
+    title,
+    description,
+    articleHtml: content,
+  });
+  blurbCache.set(article, { description, content, title, blurb });
+  return blurb;
+}
+
 export function getArticlePreviewSummaryText(article: FeedItem): string {
+  const blurb = getGuardedBlurbPreview(article);
+  if (blurb) return getCardPreviewSummaryText(blurb);
+
   const candidates = [
     article.summary || "",
     article.description || "",
