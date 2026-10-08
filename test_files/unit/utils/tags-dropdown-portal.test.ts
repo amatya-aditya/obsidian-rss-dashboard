@@ -216,3 +216,130 @@ describe("createTagsDropdownPortal tag editing", () => {
     close();
   });
 });
+
+describe("createTagsDropdownPortal keyboard operation", () => {
+  let button: HTMLElement;
+
+  const openMenu = (tags: { name: string; color: string }[] = []) => {
+    const settings = JSON.parse(
+      JSON.stringify(DEFAULT_SETTINGS),
+    ) as typeof DEFAULT_SETTINGS;
+    settings.availableTags = tags;
+    const onClosed = vi.fn();
+    const close = createTagsDropdownPortal({
+      app: new App(),
+      anchor: button,
+      settings,
+      item: makeItem(),
+      onTagAssignmentChange: vi.fn(),
+      onClosed,
+    });
+    return { close, onClosed };
+  };
+
+  const pressEscape = (
+    target: EventTarget = document.activeElement ?? document.body,
+  ) =>
+    target.dispatchEvent(
+      new KeyboardEvent("keydown", {
+        key: "Escape",
+        bubbles: true,
+        cancelable: true,
+      }),
+    );
+
+  beforeEach(() => {
+    installObsidianDomPolyfills();
+    document.body.empty();
+    vi.useFakeTimers();
+    button = document.body.createDiv({
+      cls: "rss-dashboard-tags-toggle",
+      attr: { role: "button", tabindex: "0", "aria-expanded": "false" },
+    });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    document.body.empty();
+  });
+
+  it("moves focus to the first tag checkbox on open", () => {
+    const { close } = openMenu([
+      { name: "A", color: "#111111" },
+      { name: "B", color: "#222222" },
+    ]);
+    expect(document.activeElement).toBe(
+      document.querySelector(".rss-dashboard-tag-checkbox"),
+    );
+    close();
+  });
+
+  it("moves focus to the menu when there are no tags", () => {
+    const { close } = openMenu();
+    expect(document.activeElement).toBe(
+      document.querySelector(".rss-dashboard-tags-dropdown-content-portal"),
+    );
+    close();
+  });
+
+  it("reports aria-expanded while open and after a programmatic close", () => {
+    const { close } = openMenu();
+    expect(button.getAttribute("aria-expanded")).toBe("true");
+    close();
+    expect(button.getAttribute("aria-expanded")).toBe("false");
+  });
+
+  it("closes on Esc, returns focus to the button and reports collapsed", () => {
+    const { onClosed } = openMenu([{ name: "A", color: "#111111" }]);
+    pressEscape();
+    expect(
+      document.querySelector(".rss-dashboard-tags-dropdown-content-portal"),
+    ).toBeNull();
+    expect(document.activeElement).toBe(button);
+    expect(button.getAttribute("aria-expanded")).toBe("false");
+    expect(onClosed).toHaveBeenCalledTimes(1);
+  });
+
+  it("closes on an outside click and reports collapsed", () => {
+    openMenu();
+    vi.runAllTimers();
+    document.body.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+    expect(button.getAttribute("aria-expanded")).toBe("false");
+  });
+
+  it("ignores Esc once focus is somewhere unrelated to the menu", () => {
+    const { close } = openMenu();
+    const other = document.body.createEl("input");
+    other.focus();
+    pressEscape(other);
+    expect(
+      document.querySelector(".rss-dashboard-tags-dropdown-content-portal"),
+    ).not.toBeNull();
+    close();
+  });
+
+  it("stops listening for Esc after the menu closes", () => {
+    const { close } = openMenu();
+    close();
+    const event = new KeyboardEvent("keydown", {
+      key: "Escape",
+      bubbles: true,
+      cancelable: true,
+    });
+    document.body.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(false);
+  });
+
+  it("leaves aria-expanded alone on a non-button anchor", () => {
+    const { anchor } = createModalWithAnchor();
+    const close = createTagsDropdownPortal({
+      app: new App(),
+      anchor,
+      settings: JSON.parse(JSON.stringify(DEFAULT_SETTINGS)),
+      item: makeItem(),
+      onTagAssignmentChange: vi.fn(),
+    });
+    expect(anchor.hasAttribute("aria-expanded")).toBe(false);
+    close();
+  });
+});
