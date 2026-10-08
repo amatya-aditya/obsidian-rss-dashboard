@@ -168,7 +168,42 @@ function getGuardedBlurbPreview(article: FeedItem): string {
   return blurb;
 }
 
+interface PreviewCacheEntry {
+  title: string;
+  summary: string;
+  description: string;
+  content: string;
+  text: string;
+}
+
+// The views and the highlight count both ask for every article's preview on
+// each render, and building it converts HTML to text. The entry records its
+// inputs, so an item rewritten on refresh recomputes.
+const previewCache = new WeakMap<FeedItem, PreviewCacheEntry>();
+
 export function getArticlePreviewSummaryText(article: FeedItem): string {
+  const title = article.title || "";
+  const summary = article.summary || "";
+  const description = article.description || "";
+  const content = article.content || "";
+
+  const cached = previewCache.get(article);
+  if (
+    cached &&
+    cached.title === title &&
+    cached.summary === summary &&
+    cached.description === description &&
+    cached.content === content
+  ) {
+    return cached.text;
+  }
+
+  const text = resolveArticlePreviewSummaryText(article);
+  previewCache.set(article, { title, summary, description, content, text });
+  return text;
+}
+
+function resolveArticlePreviewSummaryText(article: FeedItem): string {
   const blurb = getGuardedBlurbPreview(article);
   if (blurb) return getCardPreviewSummaryText(blurb);
 

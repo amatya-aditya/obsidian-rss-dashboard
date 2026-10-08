@@ -62,6 +62,7 @@ import {
   formatDashboardMultiFiltersTitle,
 } from "../utils/filter-title-format";
 import { computePagination } from "../utils/pagination-utils";
+import { getArticlePreviewSummaryText } from "../utils/article-preview-utils";
 import { removeFolderByPath } from "../utils/folder-tree";
 import { createIconButton, getIconButtonAction } from "../utils/icon-button";
 import { createLiveRegion } from "../utils/live-region";
@@ -1555,7 +1556,9 @@ export class RssDashboardView extends ItemView {
    *
    * Field selection mirrors HighlightService behaviour:
    *   settings.highlights.highlightInTitles    → article.title
-   *   settings.highlights.highlightInSummaries → article.description + article.summary
+   *   settings.highlights.highlightInSummaries → the preview text the cards
+   *     show (getArticlePreviewSummaryText), and nothing while
+   *     settings.display.showSummary is off
    *   settings.highlights.highlightInContent   → article.content
    *
    * Regex building mirrors HighlightService behaviour per-word: escapes each
@@ -1571,6 +1574,8 @@ export class RssDashboardView extends ItemView {
 
     const enabledWords = hs.words.filter((w) => w.enabled);
     if (enabledWords.length === 0) return;
+
+    const previewTexts = this.getHighlightPreviewTexts(articles);
 
     for (const word of enabledWords) {
       // Escape special regex characters (same as HighlightService.escapeRegex)
@@ -1589,8 +1594,7 @@ export class RssDashboardView extends ItemView {
         const fields: string[] = [];
         if (hs.highlightInTitles !== false) fields.push(article.title ?? "");
         if (hs.highlightInSummaries !== false) {
-          fields.push(article.description ?? "");
-          fields.push(article.summary ?? "");
+          fields.push(previewTexts.get(article) ?? "");
         }
         if (hs.highlightInContent !== false) fields.push(article.content ?? "");
 
@@ -1602,6 +1606,24 @@ export class RssDashboardView extends ItemView {
 
       this.highlightMatchCounts.push({ word, count });
     }
+  }
+
+  /**
+   * The text the cards display for each article, for the summary highlight
+   * scope. Empty when that scope is off or summaries are hidden, so the scope
+   * adds nothing to the count. Built once per render, not once per word.
+   */
+  private getHighlightPreviewTexts(
+    articles: FeedItem[],
+  ): Map<FeedItem, string> {
+    const previewTexts = new Map<FeedItem, string>();
+    const hs = this.settings.highlights;
+    if (hs.highlightInSummaries === false || !this.settings.display.showSummary)
+      return previewTexts;
+    for (const article of articles) {
+      previewTexts.set(article, getArticlePreviewSummaryText(article));
+    }
+    return previewTexts;
   }
 
   // --- Title and article-scope helpers ---
