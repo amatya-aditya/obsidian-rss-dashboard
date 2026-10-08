@@ -28,6 +28,7 @@ import {
 import { DEFAULT_TAG_COLOR } from "../utils/tag-colors";
 import { AddTagModal } from "../modals/add-tag-modal";
 import { showEditTagModal } from "../utils/tag-utils";
+import { deleteTagFromSettings } from "../utils/tag-settings";
 import {
   attachInputClearButton,
   windowInstanceOf,
@@ -2640,20 +2641,7 @@ export class Sidebar {
       this.callbacks.onTagToggle(tag.name);
     }
 
-    const tagIndex = this.settings.availableTags.findIndex(
-      (t) => t.name === tag.name,
-    );
-    if (tagIndex !== -1) {
-      this.settings.availableTags.splice(tagIndex, 1);
-    }
-
-    this.settings.feeds.forEach((feed) => {
-      feed.items.forEach((item) => {
-        if (item.tags) {
-          item.tags = item.tags.filter((t) => t.name !== tag.name);
-        }
-      });
-    });
+    deleteTagFromSettings(this.settings, tag.name);
 
     void this.plugin.saveSettings().then(async () => {
       await this.plugin.refreshOpenTagColorViews();

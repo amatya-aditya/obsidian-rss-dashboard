@@ -65,8 +65,36 @@ _Avoid_: Required search prefix, tag operator (when describing the general Dashb
 ## Reader view
 
 **Reader view**:
-The dedicated plugin surface for reading a full article, including article and hero images that can open the [[Reader lightbox]]. Distinct from article previews shown on the dashboard.
-_Avoid_: Dashboard preview, inline article preview
+RSS Dashboard's article-reading experience, including dedicated views and the inline presentation inside the dashboard. Use a location-qualified term when the specific presentation matters. External browser is a separate destination, not a Reader view.
+_Avoid_: Dashboard preview, inline article preview, dedicated Reader view (when referring to the general experience)
+
+**Reader view location**:
+The setting that chooses where clicked articles and media open: [[Reader view (main)]], [[Reader view (right sidebar)]], [[Reader view (left sidebar)]], [[Reader view (inline)]], or [[External browser destination]]. The separate [[Saved article open location]] setting offers the same four in-app locations without the external browser destination.
+_Avoid_: Reader view (unqualified when a location matters), article location
+
+**Reader view (main)**:
+A dedicated Reader view opened in Obsidian's main view area. This corresponds to the "Main view (split)" option in Reader view location settings.
+_Avoid_: Main Reader (when the setting label matters)
+
+**Reader view (right sidebar)**:
+The Reader view presentation opened in Obsidian's right sidebar.
+_Avoid_: Right Reader, sidebar preview
+
+**Reader view (left sidebar)**:
+The Reader view presentation opened in Obsidian's left sidebar.
+_Avoid_: Left Reader, sidebar preview
+
+**Reader view (inline)**:
+The article-reading presentation rendered inside the dashboard view instead of a separate Obsidian view. It is also available as a Saved article open location.
+_Avoid_: Inline article preview, inline reader (when a precise term is needed)
+
+**Saved article open location**:
+The setting that chooses where a saved article opens: [[Reader view (main)]], [[Reader view (right sidebar)]], [[Reader view (left sidebar)]], or [[Reader view (inline)]]. It does not offer the external browser destination.
+_Avoid_: Reader view location (when referring to this separate setting)
+
+**External browser destination**:
+The Reader view location option that opens an article or media in the external browser instead of a plugin-owned Reader view.
+_Avoid_: External Reader view
 
 **Reader lightbox**:
 The modal overlay presented over the reader view to display an article or hero image in its full resolution with pan and zoom capabilities.
@@ -101,6 +129,13 @@ _Avoid_: Quick save, simple save
 **Custom save**:
 A one-time save where the user chooses the folder, template, and filename pattern in the save dialog. It may also change the feed's template assignment. Offered on every Save button beside [[Default save]]; the keyboard save action is always a Default save.
 _Avoid_: Advanced save, save as
+**Tag definition**:
+A named tag in the available-tag collection, with a color and which can be assigned to articles. Deleting a tag definition from a tag-management control also removes its [[Tag assignment|assignments]] from every article. See [ADR 0020](docs/adr/0020-keep-tag-changes-consistent-across-reader-views.md).
+_Avoid_: Tag palette entry (when discussing the tag itself rather than its color)
+
+**Tag assignment**:
+The association between a [[Tag definition]] and one article. Removing an assignment from an article leaves the definition and assignments on other articles intact; deleting the definition removes every assignment.
+_Avoid_: Tag definition, tag palette entry
 
 ## Data retention and article lifecycle
 

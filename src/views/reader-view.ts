@@ -9,6 +9,7 @@ import {
   Notice,
   setTooltip,
 } from "obsidian";
+import { renderReaderTagChips } from "../utils/reader-tag-chips";
 import { setIcon, Scope } from "obsidian";
 import {
   addMathTurndownRule,
@@ -2306,29 +2307,7 @@ export class ReaderView extends ItemView {
       return;
     }
 
-    const tags = this.currentItem.tags || [];
-    const existing =
-      headerContainer.querySelector<HTMLElement>(".rss-reader-tags");
-
-    if (tags.length === 0) {
-      existing?.remove();
-      return;
-    }
-
-    const tagsContainer =
-      existing ??
-      headerContainer.createDiv({
-        cls: "rss-reader-tags",
-      });
-
-    tagsContainer.empty();
-    for (const tag of tags) {
-      const tagElement = tagsContainer.createDiv({
-        cls: "rss-reader-tag",
-      });
-      tagElement.textContent = tag.name;
-      tagElement.style.setProperty("--tag-color", tag.color);
-    }
+    renderReaderTagChips(headerContainer, this.currentItem.tags);
   }
 
   private syncTagColorsWithSettings(tags: FeedItem["tags"]): Tag[] {

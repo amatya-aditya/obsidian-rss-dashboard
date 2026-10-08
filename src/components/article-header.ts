@@ -4,6 +4,7 @@ import { TABLET_LAYOUT_MAX_WIDTH } from "../utils/platform-utils";
 import { ArticleFilterMenu, FilterChangeEvent } from "./article-filter-menu";
 import { ArticleHeaderMenu } from "./article-header-menu";
 import { renderHeaderFeedIcon } from "./article-list/utils/feed-icon";
+import { ThemedSelectPopup } from "./themed-select-popup";
 interface ArticleHeaderMenuController {
   destroy(): void;
   render(parent: HTMLElement): void;
@@ -23,8 +24,6 @@ export interface ArticleHeaderCallbacks {
   onMarkAllAsRead: () => void;
   onMarkAllAsUnread: () => void;
 }
-
-type MenuOptionEntries = Array<[label: string, value: string]>;
 
 /**
  * ArticleHeader Component
@@ -51,9 +50,11 @@ export class ArticleHeader {
   private articleSearchQuery: string = "";
   private articleSearchDesktopInput: HTMLInputElement | null = null;
   private headerMenu: ArticleHeaderMenuController | null = null;
-  private activePortal: HTMLElement | null = null;
-  private activePortalToggleBtn: HTMLElement | null = null;
-  private activePortalCleanup: (() => void) | null = null;
+  private popup = new ThemedSelectPopup({
+    addDocumentListener: (target, type, listener) =>
+      this.addDocumentListener(target, type, listener),
+    persistSettings: () => this.callbacks.onPersistSettings(),
+  });
   private documentListeners: Array<{
     target: Document | Window;
     type: string;
@@ -116,26 +117,11 @@ export class ArticleHeader {
       (headerMenu as { destroy: () => void }).destroy();
     }
     this.headerMenu = null;
-    this.closeActivePortal();
+    this.popup.close();
     this.documentListeners.forEach(({ target, type, listener }) =>
       target.removeEventListener(type, listener),
     );
     this.documentListeners = [];
-  }
-
-  private closeActivePortal(): void {
-    if (this.activePortalCleanup) {
-      this.activePortalCleanup();
-      this.activePortalCleanup = null;
-    }
-    if (this.activePortal) {
-      this.activePortal.remove();
-      this.activePortal = null;
-    }
-    if (this.activePortalToggleBtn) {
-      this.activePortalToggleBtn.removeClass("active");
-      this.activePortalToggleBtn = null;
-    }
   }
 
   /**
@@ -289,7 +275,7 @@ export class ArticleHeader {
       this.callbacks.onSearch(val);
     });
 
-    this.createThemedSelector(
+    this.popup.createSelector(
       controls,
       "history",
       "Age:",
@@ -303,7 +289,7 @@ export class ArticleHeader {
       "rss-dashboard-filter",
     );
 
-    this.createThemedSelector(
+    this.popup.createSelector(
       controls,
       "sort-asc",
       "Sort:",
@@ -313,7 +299,7 @@ export class ArticleHeader {
       "rss-dashboard-sort",
     );
 
-    this.createThemedSelector(
+    this.popup.createSelector(
       controls,
       "folders",
       "Grouping:",
@@ -333,7 +319,11 @@ export class ArticleHeader {
     const viewStyleRow = controls.createDiv({
       cls: "rss-dashboard-view-style-row",
     });
-    this.createViewStyleSelector(viewStyleRow);
+    this.popup.createViewStyleSelector(
+      viewStyleRow,
+      () => this.settings.viewStyle,
+      (style) => this.callbacks.onToggleViewStyle(style),
+    );
 
     this.createRefreshButton(controls, "");
 
@@ -364,176 +354,6 @@ export class ArticleHeader {
       cls: "rss-dashboard-mark-all-text",
     });
     unreadBtn.onclick = () => this.callbacks.onMarkAllAsUnread();
-  }
-
-  /**
-   * Creates a selector that uses a custom portal menu instead of a native <select>.
-   * This is critical for Dark Mode support as native menus in portals often
-   * lose the CSS variables from the main app body.
-   * @param parent The HTMLElement to append the selector to.
-   * @param icon The icon name for the selector.
-   * @param label The text label for the selector.
-   * @param options A map of display labels to values for the selector options.
-   * @param getValue A function that returns the currently selected value.
-   * @param onChange A callback function triggered when a new value is selected.
-   */
-  private createThemedSelector(
-    parent: HTMLElement,
-    icon: string,
-    label: string,
-    options: Record<string, string>,
-    getValue: () => string,
-    onChange: (val: string) => void,
-    triggerClass: string,
-  ) {
-    const wrapper = parent.createDiv({
-      cls: "rss-dashboard-select-with-icon rss-dashboard-select-with-label",
-    });
-    wrapper.createSpan({ cls: "rss-dashboard-select-label", text: label });
-
-    const inner = wrapper.createDiv({ cls: "rss-dashboard-select-inner" });
-    setIcon(inner.createDiv({ cls: "rss-dashboard-select-icon" }), icon);
-
-    const trigger = inner.createDiv({
-      cls: `rss-dashboard-themed-select-trigger ${triggerClass}`,
-      attr: { role: "button", tabindex: "0" },
-    });
-    const currentVal = getValue();
-    const currentLabel =
-      Object.keys(options).find((k) => options[k] === currentVal) || currentVal;
-    trigger.createSpan({ text: currentLabel });
-    setIcon(
-      trigger.createDiv({ cls: "rss-dashboard-selector-arrow" }),
-      "chevron-down",
-    );
-
-    trigger.onclick = (e) => {
-      e.stopPropagation();
-      if (trigger.hasClass("active")) {
-        this.closeActivePortal();
-        return;
-      }
-      this.showThemedMenu(trigger, options, getValue(), onChange);
-    };
-  }
-
-  private showThemedMenu(
-    trigger: HTMLElement,
-    options: Record<string, string> | MenuOptionEntries,
-    currentVal: string,
-    onChange: (val: string) => void,
-    icons?: Record<string, string>,
-  ) {
-    this.closeActivePortal();
-    const portal = activeDocument.body.createDiv({
-      cls: "rss-dashboard-filter-menu rss-dashboard-themed-menu-portal",
-    });
-    this.activePortal = portal;
-    this.activePortalToggleBtn = trigger;
-    trigger.addClass("active");
-
-    const entries: MenuOptionEntries = Array.isArray(options)
-      ? options
-      : Object.keys(options).map((label): [string, string] => [
-          label,
-          options[label] ?? label,
-        ]);
-
-    entries.forEach(([label, value]) => {
-      const item = portal.createDiv({ cls: "rss-dashboard-filter-menu-item" });
-      const check = item.createDiv({ cls: "rss-dashboard-filter-menu-check" });
-      if (value === currentVal) {
-        setIcon(check, "check");
-        item.addClass("is-active");
-      }
-      // Add icon between checkbox and text if provided
-      if (icons && icons[value]) {
-        const iconDiv = item.createDiv({
-          cls: "rss-dashboard-filter-menu-icon",
-        });
-        setIcon(iconDiv, icons[value]);
-      }
-      item.createDiv({ text: label, cls: "rss-dashboard-filter-menu-text" });
-      item.onclick = () => {
-        onChange(value);
-        this.closeActivePortal();
-        void this.callbacks.onPersistSettings();
-      };
-    });
-
-    this.positionPortal(trigger, portal);
-    window.setTimeout(() => {
-      this.activePortalCleanup = this.addDocumentListener(
-        activeDocument,
-        "mousedown",
-        (e: Event) => {
-          const mouseEvent = e as MouseEvent;
-          if (
-            !portal.contains(mouseEvent.target as Node) &&
-            !trigger.contains(mouseEvent.target as Node)
-          )
-            this.closeActivePortal();
-        },
-      );
-    }, 0);
-  }
-
-  private createViewStyleSelector(parent: HTMLElement) {
-    const selector = parent.createDiv({
-      cls: "rss-dashboard-view-style-selector",
-      attr: { role: "button", tabindex: "0" },
-    });
-    const style = this.settings.viewStyle;
-    const icons: Record<string, string> = {
-      feed: "newspaper",
-      card: "layout-grid",
-      list: "list",
-    };
-    setIcon(
-      selector.createDiv({ cls: "rss-dashboard-selector-icon" }),
-      icons[style] || "list",
-    );
-    selector.createSpan({
-      cls: "rss-dashboard-selector-text",
-      text: style.charAt(0).toUpperCase() + style.slice(1) + " View",
-    });
-    setIcon(
-      selector.createDiv({ cls: "rss-dashboard-selector-arrow" }),
-      "chevron-down",
-    );
-
-    selector.onclick = (e) => {
-      e.stopPropagation();
-      if (selector.hasClass("active")) {
-        this.closeActivePortal();
-        return;
-      }
-      const viewIcons: Record<string, string> = {
-        feed: "newspaper",
-        card: "layout-grid",
-        list: "list",
-      };
-      this.showThemedMenu(
-        selector,
-        { "List view": "list", "Card view": "card", "Feed view": "feed" },
-        this.settings.viewStyle,
-        (val) =>
-          this.callbacks.onToggleViewStyle(val as "list" | "card" | "feed"),
-        viewIcons,
-      );
-    };
-  }
-
-  private positionPortal(trigger: HTMLElement, portal: HTMLElement) {
-    const rect = trigger.getBoundingClientRect();
-    portal.style.top = `${rect.bottom + 5}px`;
-    portal.style.left = `${rect.left}px`;
-    window.requestAnimationFrame(() => {
-      const pRect = portal.getBoundingClientRect();
-      const margin = 8;
-      const maxLeft = activeWindow.innerWidth - pRect.width - margin;
-      portal.style.left = `${Math.max(margin, Math.min(rect.left, maxLeft))}px`;
-    });
   }
 
   /**

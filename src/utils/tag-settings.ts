@@ -33,3 +33,26 @@ export function updateTagInSettings(
 
   return updatedTags;
 }
+
+/**
+ * Deletes a Tag definition and every Tag assignment that uses it. Both
+ * tag-management controls (sidebar and Settings) share this so deletion has
+ * one meaning; removing a single article's assignment is a separate action.
+ */
+export function deleteTagFromSettings(
+  settings: Pick<RssDashboardSettings, "availableTags" | "feeds">,
+  tagName: string,
+): void {
+  const tagIndex = settings.availableTags.findIndex((t) => t.name === tagName);
+  if (tagIndex !== -1) {
+    settings.availableTags.splice(tagIndex, 1);
+  }
+
+  for (const feed of settings.feeds) {
+    for (const item of feed.items) {
+      if (item.tags) {
+        item.tags = item.tags.filter((t) => t.name !== tagName);
+      }
+    }
+  }
+}
