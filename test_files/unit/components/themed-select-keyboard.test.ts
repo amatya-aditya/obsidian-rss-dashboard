@@ -83,29 +83,6 @@ describe("Themed select keyboard interaction (#850)", () => {
   const hosts: Array<[string, () => { scope: HTMLElement; destroy(): void }]> =
     [
       [
-        "ArticleHeader desktop controls",
-        () => {
-          const header = new ArticleHeader(
-            container,
-            settings,
-            "Title",
-            null,
-            null,
-            new Set(),
-            new Set(),
-            "OR",
-            callbacks,
-          );
-          header.render();
-          return {
-            scope: container.querySelector<HTMLElement>(
-              ".rss-dashboard-desktop-controls",
-            )!,
-            destroy: () => header.destroy(),
-          };
-        },
-      ],
-      [
         "ArticleHeaderMenu",
         () => {
           const menu = new ArticleHeaderMenu(settings, "", callbacks);

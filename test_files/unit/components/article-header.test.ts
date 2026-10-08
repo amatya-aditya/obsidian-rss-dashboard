@@ -89,7 +89,7 @@ describe("ArticleHeader Component", () => {
     expect(mockCallbacks.onToggleSidebar).toHaveBeenCalled();
   });
 
-  it("focusSearch opens the hamburger menu when the desktop search cannot take focus", async () => {
+  it("focusSearch opens the hamburger menu and focuses its search input", async () => {
     const header = new ArticleHeader(
       container,
       settings,
@@ -102,13 +102,6 @@ describe("ArticleHeader Component", () => {
       mockCallbacks,
     );
     header.render();
-    const desktopInput = container.querySelector<HTMLInputElement>(
-      ".rss-dashboard-desktop-controls .rss-dashboard-article-search-input",
-    );
-    // A display:none input refuses focus; jsdom has no layout, so simulate it.
-    vi.spyOn(desktopInput as HTMLInputElement, "focus").mockImplementation(
-      () => {},
-    );
     const menuInput = container.querySelector<HTMLInputElement>(
       ".rss-dashboard-dropdown-menu .rss-dashboard-article-search-input",
     );
@@ -123,7 +116,7 @@ describe("ArticleHeader Component", () => {
     ).toBe(true);
   });
 
-  it("focusSearch uses the desktop search and leaves the menu closed when it can take focus", async () => {
+  it("renders no desktop controls", () => {
     const header = new ArticleHeader(
       container,
       settings,
@@ -136,18 +129,13 @@ describe("ArticleHeader Component", () => {
       mockCallbacks,
     );
     header.render();
-    const desktopInput = container.querySelector<HTMLInputElement>(
-      ".rss-dashboard-desktop-controls .rss-dashboard-article-search-input",
-    );
 
-    await expect(header.focusSearch()).resolves.toBe(true);
-
-    expect(document.activeElement).toBe(desktopInput);
     expect(
-      container
-        .querySelector(".rss-dashboard-dropdown-menu")
-        ?.classList.contains("is-menu-open"),
-    ).toBe(false);
+      container.querySelector(".rss-dashboard-desktop-controls"),
+    ).toBeNull();
+    expect(
+      container.querySelectorAll(".rss-dashboard-article-search-input").length,
+    ).toBe(1);
   });
 
   it("focusSearch resolves false before the header is rendered", async () => {

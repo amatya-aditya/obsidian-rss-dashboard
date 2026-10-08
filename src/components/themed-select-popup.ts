@@ -43,12 +43,9 @@ const VIEW_STYLE_OPTIONS: Record<string, string> = {
   "Feed view": "feed",
 };
 
-// A trigger lives in the hamburger menu or in the desktop controls; both
-// re-render with the dashboard, so focus is found again inside the same root.
-const FOCUS_ROOT_SELECTORS = [
-  ".rss-dashboard-hamburger-menu",
-  ".rss-dashboard-desktop-controls",
-];
+// A trigger lives in the hamburger menu, which re-renders with the dashboard,
+// so focus is found again inside the same root.
+const FOCUS_ROOT_SELECTORS = [".rss-dashboard-hamburger-menu"];
 
 let popupInstanceId = 0;
 
