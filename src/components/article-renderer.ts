@@ -1,4 +1,5 @@
 import { App, type Component, TFile } from "obsidian";
+import { renderReaderTagChips } from "../utils/reader-tag-chips";
 import { sanitizeAndAppendHtml } from "../utils/safe-html";
 import { scheduleProcessMathElements } from "../utils/math-rendering";
 import { FeedItem, RssDashboardSettings } from "../types/types";
@@ -307,18 +308,7 @@ export class ArticleRenderer {
         : "Unknown date",
     });
 
-    if (item.tags && item.tags.length > 0) {
-      const tagsContainer = headerContainer.createDiv({
-        cls: "rss-reader-tags",
-      });
-      for (const tag of item.tags) {
-        const tagElement = tagsContainer.createDiv({
-          cls: "rss-reader-tag",
-        });
-        tagElement.textContent = tag.name;
-        tagElement.style.setProperty("--tag-color", tag.color);
-      }
-    }
+    renderReaderTagChips(headerContainer, item.tags);
     const heroSlot = container.createDiv({
       cls: "rss-reader-hero-slot",
     });

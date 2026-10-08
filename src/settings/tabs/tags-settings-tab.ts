@@ -11,6 +11,7 @@ import { addTagMultiSelectControl } from "../../components/tag-multi-select-cont
 import { DEFAULT_SETTINGS } from "../../types/types";
 import { DEFAULT_TAG_COLOR } from "../../utils/tag-colors";
 import { updateTagInSettings } from "../../utils/tag-utils";
+import { deleteTagFromSettings } from "../../utils/tag-settings";
 
 interface AutoTagSettingConfig {
   name: string;
@@ -155,8 +156,10 @@ export function renderTagsSettingsTab(
           .setIcon("trash")
           .setTooltip("Delete tag")
           .onClick(async () => {
-            plugin.settings.availableTags.splice(i, 1);
+            deleteTagFromSettings(plugin.settings, tag.name);
             await plugin.saveSettings();
+            await plugin.refreshOpenTagColorViews();
+            plugin.app.workspace.trigger("rss-dashboard:tags-mutated");
             onRefresh();
           }),
       );

@@ -32,7 +32,7 @@
   },
   "src/components/article-renderer.ts": {
     "complexity": {
-      "count": 3
+      "count": 2
     }
   },
   "src/components/folder-selector-popup.ts": {
