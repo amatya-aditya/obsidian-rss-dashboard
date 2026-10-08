@@ -976,14 +976,16 @@ export class ReaderView extends ItemView {
 
     const header = this.contentEl.createDiv({ cls: "rss-reader-header" });
 
-    const backButton = header.createDiv({ cls: "rss-reader-back-button" });
-    setIcon(backButton, "arrow-left");
-
-    const handleBackClick = () => {
-      void this.navigateBackToDashboard();
-    };
-
-    backButton.addEventListener("click", handleBackClick);
+    createIconButton({
+      parent: header,
+      cls: "rss-reader-back-button",
+      label: "Back to dashboard",
+      icon: "arrow-left",
+      action: "back",
+      onClick: () => {
+        void this.navigateBackToDashboard();
+      },
+    });
 
     this.titleElement = header.createDiv({
       cls: "rss-reader-title",

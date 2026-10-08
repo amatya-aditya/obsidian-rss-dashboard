@@ -31,6 +31,31 @@
   background-color: var(--background-modifier-hover);
   color: var(--text-normal);
 }
+/* The back buttons are native buttons: neutralize Obsidian's base button
+   chrome so they keep the icon look the div controls had. Scoped to the
+   header and button class so the rule outranks `button:not(.clickable-icon)`. */
+.rss-reader-header button.rss-reader-back-button {
+  appearance: none;
+  background-color: transparent;
+  border: 0;
+  border-radius: 4px;
+  box-shadow: none;
+  color: var(--text-muted);
+  font: inherit;
+  height: auto;
+  margin: 0 10px 0 0;
+  padding: 4px;
+}
+.rss-reader-header button.rss-reader-back-button:hover {
+  background-color: var(--background-modifier-hover);
+  box-shadow: none;
+  color: var(--text-normal);
+}
+.rss-reader-header button.rss-reader-back-button:focus-visible {
+  box-shadow: none;
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 2px;
+}
 .rss-reader-title {
   flex-grow: 1;
   font-weight: bold;

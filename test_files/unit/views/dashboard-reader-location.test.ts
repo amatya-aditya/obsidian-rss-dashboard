@@ -652,6 +652,36 @@ describe("Dashboard reader location", () => {
     container.remove();
   });
 
+  it("renders the inline Reader back button as a named native button that leaves the article", async () => {
+    const settings = cloneSettings();
+    const feed = makeFeed("https://example.com/feed", [{}]);
+    settings.feeds = [feed];
+    const { view } = await createDashboardView(settings);
+    view.inlineArticle = feed.items[0];
+    const renderSpy = vi
+      .spyOn(view as unknown as { render: () => Promise<void> }, "render")
+      .mockResolvedValue();
+
+    const container = createDiv();
+    activeDocument.body.appendChild(container);
+    view.renderInlineArticle(container);
+    const back = container.querySelector<HTMLElement>(
+      ".rss-reader-back-button",
+    )!;
+
+    expect(back.tagName).toBe("BUTTON");
+    expect(back.getAttribute("type")).toBe("button");
+    expect(back.getAttribute("aria-label")).toBe("Back to dashboard");
+    expect(back.hasAttribute("role")).toBe(false);
+    expect(back.classList.contains("clickable-icon")).toBe(true);
+
+    back.click();
+
+    expect(view.inlineArticle).toBeNull();
+    expect(renderSpy).toHaveBeenCalledTimes(1);
+    container.remove();
+  });
+
   it("exposes the inline Reader star as a native toggle button", async () => {
     const settings = cloneSettings();
     const feed = makeFeed("https://example.com/feed", [{ starred: false }]);
