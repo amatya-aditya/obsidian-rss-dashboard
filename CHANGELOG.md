@@ -23,6 +23,7 @@
 
 ### Fixes
 
+- The article tag menu can now be used from the keyboard. Opening it moves focus to the first tag (or the menu when there are no tags), Space toggles a tag, and Escape closes it and returns focus to the tag button. The tag button reports whether the menu is open, and shows the accent color with a filled icon while the menu is open or the article has tags, in card, list, feed and Reader views. [GH Issue #892](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/892)
 - When saving a change made in the Reader (star, read, or tags) fails, the change is now undone in every open view and a Notice says it wasn't saved, instead of leaving a state that was never stored. [GH Issue #797](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/797)
 - Dashboard search now finds articles when the query has uppercase letters or surrounding spaces. Typing "Samsung" or "AI chip" used to hide every article even when titles contained the text. [GH Issue #902](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/902)
 - The dashboard Filter menu now closes when you press Escape, without applying any staged changes, and returns focus to the Filter button. Clicking the Filter button a second time already closed it.

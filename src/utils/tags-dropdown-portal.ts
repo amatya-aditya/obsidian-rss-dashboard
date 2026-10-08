@@ -24,6 +24,18 @@ export type TagsDropdownPortalOptions = {
   onClosed?: () => void;
 };
 
+/**
+ * Mirrors whether an article has tags onto its tag toggle. The toggle's accent
+ * color and filled icon read this class, so callers refresh it whenever the
+ * article's tags change.
+ */
+export function syncTagsToggleState(
+  toggle: Element | null,
+  tags: readonly Tag[] | undefined,
+): void {
+  toggle?.classList.toggle("has-tags", (tags?.length ?? 0) > 0);
+}
+
 export function createTagsDropdownPortal(
   options: TagsDropdownPortalOptions,
 ): () => void {
@@ -65,7 +77,11 @@ export function createTagsDropdownPortal(
 
   const portalDropdown = mountEl.createDiv({
     cls: "rss-dashboard-tags-dropdown-content rss-dashboard-tags-dropdown-content-portal",
+    attr: { role: "group", "aria-label": "Manage tags", tabindex: "-1" },
   });
+  // Only a button reports the menu's state; the import modal anchors on a
+  // plain container.
+  const anchorIsButton = anchor.matches('button, [role="button"]');
 
   const persistSettings = () => {
     const result = onPersistSettings?.();
@@ -115,7 +131,7 @@ export function createTagsDropdownPortal(
     doneBtn.addEventListener("click", (e) => {
       e.preventDefault();
       e.stopPropagation();
-      closeDropdown();
+      closeDropdown(true);
     });
   }
 
@@ -397,7 +413,11 @@ export function createTagsDropdownPortal(
   let removeViewportListener: (() => void) | null = null;
   let isClosed = false;
 
-  function closeDropdown(): void {
+  if (anchorIsButton) {
+    anchor.setAttribute("aria-expanded", "true");
+  }
+
+  function closeDropdown(restoreFocus = false): void {
     if (isClosed) {
       return;
     }
@@ -408,8 +428,46 @@ export function createTagsDropdownPortal(
     removeDesktopListener = null;
     removeViewportListener?.();
     removeViewportListener = null;
+    targetDocument.removeEventListener("keydown", handleEscape, true);
+    if (anchorIsButton) {
+      anchor.setAttribute("aria-expanded", "false");
+      if (restoreFocus) {
+        anchor.focus();
+      }
+    }
     onClosed?.();
   }
+
+  // Esc closes the menu and hands focus back to the button that opened it.
+  // It acts only while focus is in the menu, on its button, or nowhere (a
+  // click on a non-focusable part of the menu), so an Esc aimed elsewhere
+  // is left alone.
+  function handleEscape(ev: KeyboardEvent): void {
+    if (ev.key !== "Escape") {
+      return;
+    }
+    const focused = targetDocument.activeElement;
+    const focusIsInMenu =
+      !focused ||
+      focused === targetBody ||
+      portalDropdown.contains(focused) ||
+      anchor.contains(focused);
+    if (!focusIsInMenu) {
+      return;
+    }
+    ev.preventDefault();
+    ev.stopPropagation();
+    closeDropdown(true);
+  }
+  targetDocument.addEventListener("keydown", handleEscape, true);
+
+  // Move focus into the menu: the first tag's checkbox, else the menu itself.
+  const focusMenu = () => {
+    const firstCheckbox = portalDropdown.querySelector<HTMLElement>(
+      ".rss-dashboard-tag-checkbox",
+    );
+    (firstCheckbox ?? portalDropdown).focus({ preventScroll: true });
+  };
 
   if (isMobile) {
     // Clear any inline positions so CSS mobile-sheet rules win via cascade
@@ -451,7 +509,8 @@ export function createTagsDropdownPortal(
       });
     }
 
-    return closeDropdown;
+    focusMenu();
+    return () => closeDropdown();
   }
 
   const rect = anchor.getBoundingClientRect();
@@ -478,6 +537,7 @@ export function createTagsDropdownPortal(
 
   portalDropdown.style.left = `${left}px`;
   portalDropdown.style.top = `${top}px`;
+  focusMenu();
 
   targetWindow.setTimeout(() => {
     if (isClosed) {
@@ -498,5 +558,5 @@ export function createTagsDropdownPortal(
     };
   }, 0);
 
-  return closeDropdown;
+  return () => closeDropdown();
 }
