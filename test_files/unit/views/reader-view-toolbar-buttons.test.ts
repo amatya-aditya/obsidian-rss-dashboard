@@ -139,6 +139,34 @@ describe("ReaderView toolbar icon buttons", () => {
     vi.restoreAllMocks();
   });
 
+  describe("back button", () => {
+    const backButton = () =>
+      contentEl.querySelector<HTMLElement>(".rss-reader-back-button")!;
+
+    it("is a named native button outside the toolbar", () => {
+      const button = backButton();
+      expect(button.tagName).toBe("BUTTON");
+      expect(button.getAttribute("type")).toBe("button");
+      expect(button.getAttribute("aria-label")).toBe("Back to dashboard");
+      expect(button.hasAttribute("role")).toBe(false);
+      expect(toolbar().contains(button)).toBe(false);
+      expect(button.closest(".rss-reader-header")).not.toBeNull();
+    });
+
+    it("activates through the button click that Enter and Space produce", () => {
+      const navigate = vi
+        .spyOn(
+          view as unknown as { navigateBackToDashboard: () => Promise<void> },
+          "navigateBackToDashboard",
+        )
+        .mockResolvedValue();
+
+      backButton().click();
+
+      expect(navigate).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe("semantics", () => {
     it("exposes every action as a named native button, in toolbar order", () => {
       expect(buttons().map((b) => b.getAttribute("aria-label"))).toEqual([

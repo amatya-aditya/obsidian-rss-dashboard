@@ -4090,14 +4090,16 @@ export class RssDashboardView extends ItemView {
     const header = container.createDiv({
       cls: "rss-reader-header inline-reader-header",
     });
-    const backButton = header.createDiv({
+    createIconButton({
+      parent: header,
       cls: "rss-reader-back-button clickable-icon",
-      attr: { "aria-label": "Back to dashboard" },
-    });
-    setIcon(backButton, "arrow-left");
-    backButton.addEventListener("click", () => {
-      this.inlineArticle = null;
-      void this.render();
+      label: "Back to dashboard",
+      icon: "arrow-left",
+      action: "back",
+      onClick: () => {
+        this.inlineArticle = null;
+        void this.render();
+      },
     });
 
     header.createDiv({
