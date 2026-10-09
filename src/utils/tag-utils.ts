@@ -63,8 +63,8 @@ function ensureCanonicalTag(
  * automatic tag behavior left is the independently configured Saved-tag
  * convenience, which is opt-in via `articleSaving.addSavedTag`.
  *
- * Side-effect: when a canonical auto-tag is newly injected into the article
- * and is not yet present in `settings.availableTags`, it is also registered
+ * Side-effect: when a save leaves the canonical Saved tag on the article and
+ * it is not yet present in `settings.availableTags`, it is also registered
  * there so the tag appears in the Tags list and can be managed by the user.
  */
 export function applyAutomaticArticleTags(
@@ -84,24 +84,24 @@ export function applyAutomaticArticleTags(
     nextTags = result.tags;
     tagsChanged = tagsChanged || result.changed;
 
-    // Register the tag in the global registry when it is newly present in the
-    // article so it appears in the Tags list and can be edited or deleted.
-    if (result.changed) {
-      const definition = AUTO_TAG_DEFINITIONS.saved;
-      const alreadyRegistered = settings.availableTags.some(
+    // Register the tag in the global registry whenever a save leaves it on the
+    // article, so it appears in the Tags list and can be edited or deleted.
+    // This covers an article that already carried the chip. Existing articles
+    // are not scanned: only saves from now on register it.
+    const definition = AUTO_TAG_DEFINITIONS.saved;
+    const alreadyRegistered = settings.availableTags.some(
+      (t) => t.name.toLowerCase() === definition.name.toLowerCase(),
+    );
+    if (!alreadyRegistered) {
+      // Use the resolved color from the article's tag so the registry entry
+      // matches what was written to the article.
+      const articleTag = nextTags.find(
         (t) => t.name.toLowerCase() === definition.name.toLowerCase(),
       );
-      if (!alreadyRegistered) {
-        // Use the resolved color from the injected tag so the registry entry
-        // matches what was written to the article.
-        const injectedTag = nextTags.find(
-          (t) => t.name.toLowerCase() === definition.name.toLowerCase(),
-        );
-        settings.availableTags.push({
-          name: definition.name,
-          color: injectedTag?.color ?? definition.fallbackColor,
-        });
-      }
+      settings.availableTags.push({
+        name: definition.name,
+        color: articleTag?.color ?? definition.fallbackColor,
+      });
     }
   }
 

@@ -275,6 +275,24 @@ describe("tag-utils.applyAutomaticArticleTags", () => {
     expect(settings.availableTags[0]).toMatchObject({ name: "Saved" });
   });
 
+  it("registers Saved when the article already carries the chip but the registry lacks it", () => {
+    const settings = {
+      availableTags: [] as { name: string; color: string }[],
+      articleSaving: { addSavedTag: true },
+    } as unknown as RssDashboardSettings;
+
+    const updates = applyAutomaticArticleTags(
+      { tags: [{ name: "Saved", color: "#123456" }] } as unknown as FeedItem,
+      { saved: true },
+      settings,
+    );
+
+    expect(updates.tags).toBeUndefined();
+    expect(settings.availableTags).toEqual([
+      { name: "Saved", color: "#123456" },
+    ]);
+  });
+
   it("does not duplicate Saved in availableTags when already registered", () => {
     const settings = {
       availableTags: [{ name: "Saved", color: "#3498db" }] as {
