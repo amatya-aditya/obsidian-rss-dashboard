@@ -29,7 +29,15 @@ function normalize(selector: string): string {
   return selector.replace(/\s+/g, " ").trim();
 }
 
+// The stylesheets do not change during a run, so parse them once per file.
+let cachedRadiusDecls: RadiusDecl[] | undefined;
+
 function collectRadiusDecls(): RadiusDecl[] {
+  cachedRadiusDecls ??= parseRadiusDecls();
+  return cachedRadiusDecls;
+}
+
+function parseRadiusDecls(): RadiusDecl[] {
   const decls: RadiusDecl[] = [];
   for (const file of importOrder()) {
     const css = readFileSync(path.join(stylesDir, file), "utf-8");
