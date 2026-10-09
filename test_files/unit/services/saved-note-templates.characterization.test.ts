@@ -650,7 +650,7 @@ describe("WebViewerIntegration note template", () => {
 });
 
 describe("WebViewerIntegration frontmatter template", () => {
-  it("fills the variables it knows, escaped, with its own defaults, and leaves the rest", async () => {
+  it("fills the variables it knows, escaped, with its own defaults, and leaves {{content}}", async () => {
     const note = await saveWithWebViewer(
       createItem({ feedTitle: "" }),
       "BODY",
@@ -663,19 +663,19 @@ describe("WebViewerIntegration frontmatter template", () => {
         "---",
         'T=Say \\"hi\\"',
         `D=${longDate(PUB)}`,
-        "DS={{dateShort}}",
+        `DS=${fmt(PUB, "YYYY-MM-DD")}`,
         "ISO=2024-04-21T12:00:00.000Z",
         "ISOT=2024-04-21T12:00:00.000Z",
-        "FS={{firstSeen}}",
+        `FS=${longDate(FIRST_SEEN)}`,
         `SD=${fmt(NOW, "YYYY-MM-DD")}`,
         `S12=${fmt(NOW, "hh:mm A")}`,
         `S24=${fmt(NOW, "HH:mm")}`,
-        "DF={{date:YYYY/MM/DD}}",
+        `DF=${fmt(PUB, "YYYY/MM/DD")}`,
         "L=https://example.com/a",
         "A=Ann",
         "SRC=Web viewer",
         "FT=Web viewer",
-        "SUM={{summary}}",
+        "SUM=Sum",
         "TAGS=News, Saved",
         "G=g-1",
         `IMG=${COVER}`,
