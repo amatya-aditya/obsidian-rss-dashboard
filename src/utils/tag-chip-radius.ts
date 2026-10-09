@@ -22,7 +22,7 @@ export interface TagChipRadiusPreset {
 
 export const TAG_CHIP_RADIUS_PRESETS: readonly TagChipRadiusPreset[] = [
   { id: "rectangle", label: "Rectangle", value: "0px" },
-  { id: "squircle", label: "Squircle", value: "10px" },
+  { id: "squircle", label: "Squircle", value: "6px" },
   { id: "pill", label: "Pill", value: DEFAULT_TAG_CHIP_RADIUS },
 ];
 
