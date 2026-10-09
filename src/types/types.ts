@@ -256,8 +256,7 @@ export interface Folder {
   autoTags?: Tag[];
 }
 
-export type ViewLocation =
-  "main" | "right-sidebar" | "left-sidebar" | "inline" | "external-browser";
+export type ViewLocation = "main" | "right-sidebar" | "left-sidebar" | "inline";
 
 export type PodcastTheme =
   | "obsidian"

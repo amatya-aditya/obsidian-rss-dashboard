@@ -329,3 +329,44 @@ describe("renderGeneralSettingsTab() retention protections", () => {
     expect(saveSettings).toHaveBeenCalledTimes(2);
   });
 });
+
+describe("renderGeneralSettingsTab() reader view location", () => {
+  beforeEach(() => {
+    installObsidianDomPolyfills();
+    document.body.empty();
+    vi.restoreAllMocks();
+  });
+
+  it("does not offer an external browser choice for reader or saved article locations", () => {
+    const containerEl = createDiv();
+    document.body.appendChild(containerEl);
+    const plugin = {
+      app: { workspace: { revealLeaf: vi.fn(async () => {}) } },
+      settings: cloneSettings(),
+      saveSettings: vi.fn(async () => {}),
+      getActiveDashboardView: vi.fn(async () => null),
+      importPortableDataBundleFromFile: vi.fn(async () => {}),
+      exportPortableDataBundle: vi.fn(async () => {}),
+      applyFeedLimitsToAllFeeds: vi.fn(async () => {}),
+      refreshFeeds: vi.fn(async () => {}),
+      settingTab: null,
+    } as unknown as GeneralSettingsPlugin;
+
+    renderGeneralSettingsTab(containerEl, plugin);
+
+    for (const name of [
+      "Reader view location",
+      "Saved article open location",
+    ]) {
+      const options = Array.from(
+        getSettingByName(containerEl, name).querySelectorAll("option"),
+      ).map((option) => option.value);
+      expect(options).toEqual([
+        "main",
+        "right-sidebar",
+        "left-sidebar",
+        "inline",
+      ]);
+    }
+  });
+});
