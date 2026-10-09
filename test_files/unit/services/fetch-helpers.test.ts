@@ -103,6 +103,31 @@ ${"<p>placeholder content to make this long enough to pass length check</p>".rep
 </body></html>`;
     expect(isBlockedResponse(html)).toBe(false);
   });
+
+  const longArticleBody = `<article><h1>Rocket Report</h1>${"<p>A normal paragraph of article text that is long enough to be real content.</p>".repeat(6)}</article>`;
+
+  it("ignores paywall wording that only appears in a script's data (Ars Technica)", () => {
+    const html = `<!DOCTYPE html><html><head><title>Rocket Report</title>
+<script id="__NEXT_DATA__" type="application/json">{"props":{"accessPaywall":undefined,"login":"401 unauthorized"}}</script>
+<style>.paywall { display: none }</style></head><body>${longArticleBody}</body></html>`;
+
+    expect(isBlockedResponse(html)).toBe(false);
+  });
+
+  it("still blocks a page whose visible text mentions a paywall", () => {
+    const html = `<!DOCTYPE html><html><head><title>Story</title></head><body>
+<script>var a = 1;</script><p>Subscribe to continue reading this story.</p>${longArticleBody}</body></html>`;
+
+    expect(isBlockedResponse(html)).toBe(true);
+  });
+
+  it("still blocks a challenge page that names its marker inside a script", () => {
+    const html = `<!DOCTYPE html><html><head><title>Attention</title>
+<script>window._cf_chl_opt = { cType: "cf-challenge" };</script></head>
+<body>${longArticleBody}</body></html>`;
+
+    expect(isBlockedResponse(html)).toBe(true);
+  });
 });
 
 describe("isRestrictedSignal", () => {
