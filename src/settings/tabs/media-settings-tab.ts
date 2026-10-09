@@ -22,6 +22,7 @@ interface MediaSettingsPlugin {
   getActiveReaderView?(): Promise<{
     updatePodcastTheme: (theme: PodcastTheme) => void;
   } | null>;
+  applyHideYouTubeDescriptions?(hide: boolean): Promise<void>;
 }
 
 export function renderMediaSettingsTab(
@@ -60,6 +61,24 @@ export function renderMediaSettingsTab(
       });
       settingsUiCompatibility.markDestructive(button);
     });
+
+  // ── YouTube player ────────────────────────────────────────────────────────
+  new Setting(containerEl).setName("YouTube player").setHeading();
+
+  new Setting(containerEl)
+    .setName("Hide YouTube descriptions")
+    .setDesc(
+      "Remove the description below YouTube videos in the reader. The stored description is kept for search and saved notes.",
+    )
+    .addToggle((toggle) =>
+      toggle
+        .setValue(plugin.settings.media.hideYouTubeDescriptions ?? false)
+        .onChange(async (value) => {
+          plugin.settings.media.hideYouTubeDescriptions = value;
+          await plugin.saveSettings();
+          await plugin.applyHideYouTubeDescriptions?.(value);
+        }),
+    );
 
   // ── Podcast player ────────────────────────────────────────────────────────
   new Setting(containerEl).setName("Podcast player").setHeading();

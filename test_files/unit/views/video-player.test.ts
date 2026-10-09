@@ -469,4 +469,63 @@ describe("VideoPlayer", () => {
       "Error loading video: boom",
     );
   });
+
+  describe("description visibility", () => {
+    const withDescription = (): FeedItem =>
+      baseItem({
+        description: '<p>Promo <a href="https://x.test">link</a></p>',
+      });
+
+    it("shows the description by default", () => {
+      const container = createContainer();
+      new VideoPlayer(container).loadVideo(withDescription());
+
+      expect(container.querySelector(".rss-video-description")).not.toBeNull();
+    });
+
+    it("omits the description block entirely when hidden", () => {
+      const container = createContainer();
+      const item = withDescription();
+      new VideoPlayer(
+        container,
+        undefined,
+        undefined,
+        true,
+        false,
+        true,
+      ).loadVideo(item);
+
+      expect(container.querySelector(".rss-video-description")).toBeNull();
+      expect(container.textContent).not.toContain("Promo");
+      expect(container.querySelector("details, summary, button")).toBeNull();
+      expect(item.description).toContain("Promo");
+    });
+
+    it("toggles the description live without recreating the iframe", () => {
+      const container = createContainer();
+      const player = new VideoPlayer(container);
+      player.loadVideo(withDescription());
+      const iframe = container.querySelector("iframe");
+
+      player.setHideDescription(true);
+      expect(container.querySelector(".rss-video-description")).toBeNull();
+      expect(container.querySelector("iframe")).toBe(iframe);
+
+      player.setHideDescription(true);
+      player.setHideDescription(false);
+      expect(container.querySelectorAll(".rss-video-description")).toHaveLength(
+        1,
+      );
+      expect(container.querySelector("iframe")).toBe(iframe);
+    });
+
+    it("applies a hide set before the next video loads", () => {
+      const container = createContainer();
+      const player = new VideoPlayer(container);
+      player.setHideDescription(true);
+      player.loadVideo(withDescription());
+
+      expect(container.querySelector(".rss-video-description")).toBeNull();
+    });
+  });
 });

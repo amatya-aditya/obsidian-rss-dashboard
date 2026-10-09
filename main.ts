@@ -763,6 +763,13 @@ export default class RssDashboardPlugin extends Plugin {
     return null;
   }
 
+  public async applyHideYouTubeDescriptions(hide: boolean): Promise<void> {
+    const readerView = await this.getActiveReaderView();
+    readerView?.setHideYouTubeDescriptions(hide);
+    const dashboardView = await this.getActiveDashboardView();
+    dashboardView?.setHideYouTubeDescriptions(hide);
+  }
+
   public async refreshOpenTagColorViews(): Promise<void> {
     const dashboardLeaves = this.app.workspace.getLeavesOfType(
       RSS_DASHBOARD_VIEW_TYPE,

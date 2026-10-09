@@ -259,6 +259,11 @@ export function migrateMediaVideoTagSettings(
     changed = true;
   }
 
+  if (typeof media.hideYouTubeDescriptions !== "boolean") {
+    media.hideYouTubeDescriptions = false;
+    changed = true;
+  }
+
   if (typeof media.defaultMastodonFolder !== "string") {
     media.defaultMastodonFolder = "Mastodon";
     changed = true;

@@ -45,6 +45,7 @@ const DEBUG_PREFIX = "[RSS Dashboard] extractCoverImage:";
 const MEDIA_SETTINGS: MediaSettings = {
   autoTagVideos: true,
   rememberPlaybackProgress: true,
+  hideYouTubeDescriptions: false,
   defaultMastodonFolder: "Mastodon",
   defaultYouTubeFolder: "Videos",
   defaultVideoTag: "Video",

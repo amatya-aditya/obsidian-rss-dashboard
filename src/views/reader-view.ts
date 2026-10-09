@@ -1342,6 +1342,7 @@ export class ReaderView extends ItemView {
         this.onPlaybackProgress,
         this.settings.media.rememberPlaybackProgress,
         this.settings.useFirstSeenDateFallback,
+        this.settings.media.hideYouTubeDescriptions,
       );
       this.videoPlayer.loadVideo(item);
       if (this.relatedItems.length > 0) {
@@ -1437,6 +1438,10 @@ export class ReaderView extends ItemView {
         await this.displayArticle(item);
       }
     }
+  }
+
+  setHideYouTubeDescriptions(hide: boolean): void {
+    this.videoPlayer?.setHideDescription(hide);
   }
 
   updatePodcastTheme(theme: string): void {

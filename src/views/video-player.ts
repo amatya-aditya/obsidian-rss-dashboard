@@ -29,6 +29,9 @@ export class VideoPlayer {
   private playStartTime: number | null = null;
   private videoDuration: number | null = null;
   private useFirstSeenDateFallback: boolean;
+  private hideDescription: boolean;
+  private detailsEl: HTMLElement | null = null;
+  private descriptionEl: HTMLElement | null = null;
 
   constructor(
     container: HTMLElement,
@@ -41,12 +44,14 @@ export class VideoPlayer {
     ) => void,
     progressTrackingEnabled = true,
     useFirstSeenDateFallback = false,
+    hideDescription = false,
   ) {
     this.container = container;
     this.onVideoSelect = onVideoSelect;
     this.onPlaybackProgress = onPlaybackProgress;
     this.progressTrackingEnabled = progressTrackingEnabled;
     this.useFirstSeenDateFallback = useFirstSeenDateFallback;
+    this.hideDescription = hideDescription;
     this.setupMessageListener();
   }
 
@@ -112,26 +117,8 @@ export class VideoPlayer {
       text: this.formatVideoDate(this.currentItem),
     });
 
-    if (this.currentItem.description) {
-      const descriptionContainer = details.createDiv({
-        cls: "rss-video-description",
-      });
-      const sanitizeAndAppend = (html: string, target: HTMLElement): void => {
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(html, "text/html");
-        doc.querySelectorAll("script").forEach((s) => s.remove());
-        doc.querySelectorAll("a").forEach((link) => {
-          link.target = "_blank";
-          link.rel = "noopener noreferrer";
-        });
-        const fragment = target.win.createFragment();
-        while (doc.body.firstChild) {
-          fragment.appendChild(doc.body.firstChild);
-        }
-        target.appendChild(fragment);
-      };
-      sanitizeAndAppend(this.currentItem.description, descriptionContainer);
-    }
+    this.detailsEl = details;
+    this.renderDescription();
 
     const linksContainer = this.playerEl.createDiv({ cls: "rss-video-links" });
     const youtubeButton = linksContainer.createEl("a", {
@@ -156,6 +143,40 @@ export class VideoPlayer {
 
     this.playerEl.createDiv({ cls: "rss-video-related" });
     this.renderRelatedVideos();
+  }
+
+  /**
+   * Adds or removes only the description block, so the iframe and playback
+   * state survive a preference change.
+   */
+  setHideDescription(hide: boolean): void {
+    if (this.hideDescription === hide) return;
+    this.hideDescription = hide;
+    this.renderDescription();
+  }
+
+  private renderDescription(): void {
+    this.descriptionEl?.remove();
+    this.descriptionEl = null;
+    const description = this.currentItem?.description;
+    if (this.hideDescription || !description || !this.detailsEl) return;
+
+    const descriptionContainer = this.detailsEl.createDiv({
+      cls: "rss-video-description",
+    });
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(description, "text/html");
+    doc.querySelectorAll("script").forEach((s) => s.remove());
+    doc.querySelectorAll("a").forEach((link) => {
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+    });
+    const fragment = descriptionContainer.win.createFragment();
+    while (doc.body.firstChild) {
+      fragment.appendChild(doc.body.firstChild);
+    }
+    descriptionContainer.appendChild(fragment);
+    this.descriptionEl = descriptionContainer;
   }
 
   private sendCommand(func: string, args: unknown[] = []): void {
@@ -422,5 +443,7 @@ export class VideoPlayer {
       this.iframeEl = null;
     }
     this.playerEl = null;
+    this.detailsEl = null;
+    this.descriptionEl = null;
   }
 }

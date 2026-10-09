@@ -18,6 +18,9 @@ describe("migrateMediaVideoTagSettings", () => {
     expect(
       (settings.media as Record<string, unknown>).rememberPlaybackProgress,
     ).toBe(true);
+    expect(
+      (settings.media as Record<string, unknown>).hideYouTubeDescriptions,
+    ).toBe(false);
     expect((settings.media as Record<string, unknown>).defaultYouTubeTag).toBe(
       "Video",
     );
@@ -141,6 +144,7 @@ describe("migrateMediaVideoTagSettings", () => {
       media: {
         defaultVideoTag: "",
         rememberPlaybackProgress: true,
+        hideYouTubeDescriptions: false,
         defaultMastodonFolder: "Mastodon",
         useDomainIconsMastodon: false,
         defaultYouTubeTag: "Video",
