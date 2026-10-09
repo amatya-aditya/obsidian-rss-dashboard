@@ -90,9 +90,8 @@ export const ARTICLE_FILENAME_STEPS: readonly TemplateStep[] = [
 ];
 
 /**
- * The web viewer's note template. `{{date}}` is the save date, and
- * `{{dateShort}}`, `{{firstSeen}}`, `{{date:FORMAT}}`, `{{feedTitle}}`,
- * `{{tags}}` and `{{guid}}` stay unfilled.
+ * The web viewer's note template. `{{date}}` is the save date. Every
+ * placeholder is filled (#932).
  */
 export const WEB_VIEWER_NOTE_STEPS: readonly TemplateStep[] = [
   fill("title"),
@@ -113,19 +112,23 @@ export const WEB_VIEWER_NOTE_STEPS: readonly TemplateStep[] = [
   fill("guid"),
   fill("tags"),
   fill("summary"),
+  fill("description"),
+  fill("excerpt"),
+  fill("language"),
   CONTENT,
   fill("image"),
 ];
 
-/**
- * The web viewer's frontmatter template. `{{dateShort}}`, `{{firstSeen}}`,
- * `{{date:FORMAT}}` and `{{summary}}` stay unfilled.
- */
+/** The web viewer's frontmatter template. Every placeholder is filled (#932). */
 export const WEB_VIEWER_FRONTMATTER_STEPS: readonly TemplateStep[] = [
   fillYaml("title"),
   fill("date"),
+  fill("dateShort"),
   fill("isoDate"),
   fill("isoDateTime"),
+  fill("firstSeen"),
+  fill("firstSeenISO"),
+  DATE_FORMAT,
   fill("saveDate"),
   fill("saveTime12"),
   fill("saveTime24"),
@@ -134,6 +137,10 @@ export const WEB_VIEWER_FRONTMATTER_STEPS: readonly TemplateStep[] = [
   fillYaml("link"),
   fillYaml("author"),
   fillYaml("feedTitle", { defaultValue: WEB_VIEWER_SOURCE }),
+  fillYaml("summary"),
+  fillYaml("description"),
+  fillYaml("excerpt"),
+  fillYaml("language"),
   fillYaml("guid"),
   fillYaml("image"),
 ];

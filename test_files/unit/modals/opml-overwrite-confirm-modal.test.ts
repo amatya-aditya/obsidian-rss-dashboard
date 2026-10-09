@@ -31,7 +31,7 @@ describe("OpmlOverwriteConfirmModal", () => {
     const dialog = document.querySelector(".rss-dashboard-confirm-modal");
     expect(dialog).not.toBeNull();
     expect(dialog?.closest(".modal-container")).not.toBeNull();
-    expect(dialog?.textContent).toContain("Overwrite all feeds");
+    expect(dialog?.textContent).toContain("Replace all feeds");
   });
 
   it("closes on Cancel without exporting or confirming", () => {
@@ -65,7 +65,7 @@ describe("OpmlOverwriteConfirmModal", () => {
       ).not.toBeNull();
     });
 
-    clickButton("Overwrite feeds");
+    clickButton("Replace feeds");
 
     expect(onConfirm).toHaveBeenCalledTimes(1);
     expect(document.querySelector(".rss-dashboard-confirm-modal")).toBeNull();

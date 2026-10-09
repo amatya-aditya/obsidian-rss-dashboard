@@ -114,7 +114,10 @@ describe("General settings storage section", () => {
 
     renderStorageSettingsTab(containerEl, plugin as never);
 
-    const storageModeSetting = getSettingByName(containerEl, "Storage mode");
+    const storageModeSetting = getSettingByName(
+      containerEl,
+      "Feed storage mode",
+    );
     const descEl = storageModeSetting.querySelector(
       ".setting-item-description",
     ) as HTMLElement;
@@ -201,7 +204,10 @@ describe("General settings storage section", () => {
     const plugin = createPlugin();
     renderStorageSettingsTab(containerEl, plugin as never);
 
-    const storageModeSetting = getSettingByName(containerEl, "Storage mode");
+    const storageModeSetting = getSettingByName(
+      containerEl,
+      "Feed storage mode",
+    );
     const descEl = storageModeSetting.querySelector(
       ".setting-item-description",
     ) as HTMLElement;
@@ -331,7 +337,10 @@ describe("General settings storage section", () => {
 
     renderStorageSettingsTab(containerEl, plugin as never);
 
-    const storageModeSetting = getSettingByName(containerEl, "Storage mode");
+    const storageModeSetting = getSettingByName(
+      containerEl,
+      "Feed storage mode",
+    );
     const select = storageModeSetting.querySelector(
       "select",
     ) as HTMLSelectElement;
@@ -418,7 +427,10 @@ describe("General settings storage section", () => {
 
     renderStorageSettingsTab(containerEl, plugin as never);
 
-    const storageModeSetting = getSettingByName(containerEl, "Storage mode");
+    const storageModeSetting = getSettingByName(
+      containerEl,
+      "Feed storage mode",
+    );
     const select = storageModeSetting.querySelector(
       "select",
     ) as HTMLSelectElement;
@@ -448,7 +460,10 @@ describe("General settings storage section", () => {
 
     renderStorageSettingsTab(containerEl, plugin as never);
 
-    const storageModeSetting = getSettingByName(containerEl, "Storage mode");
+    const storageModeSetting = getSettingByName(
+      containerEl,
+      "Feed storage mode",
+    );
     const select = storageModeSetting.querySelector(
       "select",
     ) as HTMLSelectElement;
@@ -488,7 +503,10 @@ describe("General settings storage section", () => {
 
     renderStorageSettingsTab(containerEl, plugin as never);
 
-    const storageModeSetting = getSettingByName(containerEl, "Storage mode");
+    const storageModeSetting = getSettingByName(
+      containerEl,
+      "Feed storage mode",
+    );
     const select = storageModeSetting.querySelector(
       "select",
     ) as HTMLSelectElement;
@@ -546,7 +564,10 @@ describe("General settings storage section", () => {
 
     renderStorageSettingsTab(containerEl, plugin as never);
 
-    const storageModeSetting = getSettingByName(containerEl, "Storage mode");
+    const storageModeSetting = getSettingByName(
+      containerEl,
+      "Feed storage mode",
+    );
     const select = storageModeSetting.querySelector(
       "select",
     ) as HTMLSelectElement;
@@ -611,7 +632,10 @@ describe("General settings storage section", () => {
 
     renderStorageSettingsTab(containerEl, plugin as never);
 
-    const storageModeSetting = getSettingByName(containerEl, "Storage mode");
+    const storageModeSetting = getSettingByName(
+      containerEl,
+      "Feed storage mode",
+    );
     const select = storageModeSetting.querySelector(
       "select",
     ) as HTMLSelectElement;
@@ -642,7 +666,7 @@ describe("General settings storage section", () => {
 
     const storageFolderSetting = getSettingByName(
       containerEl,
-      "Storage folder",
+      "Feed storage folder",
     );
     const input = storageFolderSetting.querySelector(
       "input",
@@ -673,7 +697,7 @@ describe("General settings storage section", () => {
       renderStorageSettingsTab(containerEl, plugin as never);
       const input = getSettingByName(
         containerEl,
-        "Storage folder",
+        "Feed storage folder",
       ).querySelector("input") as HTMLInputElement;
       input.value = nextFolder;
       input.dispatchEvent(new Event("input"));

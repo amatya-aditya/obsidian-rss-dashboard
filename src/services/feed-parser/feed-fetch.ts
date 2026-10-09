@@ -1,5 +1,5 @@
 import { requestUrl, Platform } from "obsidian";
-import { PREDEFINED_PROXIES } from "../../utils/proxy-utils.js";
+import { resolveProxyPrefixes } from "../../utils/proxy-utils.js";
 import { robustFetch } from "../../utils/platform-utils.js";
 import { escapeCdata, escapeXml } from "../../utils/xml-escape.js";
 import { hostMatches } from "../../utils/url-host.js";
@@ -29,10 +29,7 @@ function normalizeProxyConfig(
 }
 
 function getProxyUrls(proxyConfig: FeedFetchProxyConfig): string[] {
-  if (proxyConfig.url === "auto") {
-    return PREDEFINED_PROXIES.map((proxy) => proxy.url);
-  }
-  return [proxyConfig.url];
+  return resolveProxyPrefixes(proxyConfig.url);
 }
 
 function rss2JsonToRss(data: Rss2JsonResponse): string {

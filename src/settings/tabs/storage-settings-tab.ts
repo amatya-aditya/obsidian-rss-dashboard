@@ -18,6 +18,7 @@ import { trashVaultFile, vaultFileExists } from "../../utils/vault-files";
 import { DEFAULT_SETTINGS, type RssDashboardSettings } from "../../types/types";
 import {
   MetadataCleanupModal,
+  MetadataLocationClearModal,
   RepairPreviewModal,
   ShardDeletionFailureModal,
   UnloadedFeedsFolderChangeModal,
@@ -309,6 +310,16 @@ export function renderStorageSettingsTab(
 
       if (!nextFolder) {
         if (plugin.settings.metadataStorageMode === "vault-location") {
+          // Reverting trashes the vault data.json, so ask first (#919).
+          const clearModal = new MetadataLocationClearModal(plugin.app, {
+            currentLocationLabel: previousFolder,
+          });
+          const clearClosed = clearModal.waitForClose();
+          clearModal.open();
+          if ((await clearClosed) !== "move-to-trash") {
+            pendingMetadataStorageFolder = lastSavedMetadataStorageFolder;
+            return;
+          }
           await plugin.revertMetadataToPluginDefault();
         }
         plugin.settings.metadataStorageFolder = ".rss-dashboard-data";
@@ -353,7 +364,7 @@ export function renderStorageSettingsTab(
   setCssProps(legacyDiv, { "margin-bottom": "10px" });
   legacyDiv.createEl("strong", { text: "Legacy JSON:" });
   legacyDiv.appendText(
-    " large monolith file. does not sync across devices (often exceeds 5mb limit)",
+    " One large data.json holding feeds, articles, and settings (a deprecated storage mode). It often exceeds the 5 MB sync limit, so it may not sync across devices.",
   );
   descFragment.appendChild(legacyDiv);
 
@@ -361,19 +372,19 @@ export function renderStorageSettingsTab(
   setCssProps(v1Div, { "margin-bottom": "10px" });
   v1Div.createEl("strong", { text: "Shard storage v1:" });
   v1Div.appendText(
-    " Creates individual vault files for each feed to improve syncing, but stores state (read, starred) inside the feed file, which can still cause minor sync conflicts.",
+    " One vault file per feed to improve syncing (a deprecated storage mode). Article state (read, starred) stays inside each feed file, which can still cause minor sync conflicts.",
   );
   descFragment.appendChild(v1Div);
 
   const v2Div = containerEl.win.createDiv();
   v2Div.createEl("strong", { text: "Shard storage v2:" });
   v2Div.appendText(
-    " Splits feed content and user state (read, starred, tags) into separate files, providing the most robust sync experience.",
+    " One vault file per feed for feed content, with article state (read, starred, tags) in a separate user-state.json. Reading or starring an article never rewrites a feed file, which avoids most sync conflicts.",
   );
   descFragment.appendChild(v2Div);
 
   const storageModeSetting = new Setting(containerEl)
-    .setName("Storage mode")
+    .setName("Feed storage mode")
     .addDropdown((dropdown) =>
       dropdown
         .addOption("legacy-json", "Legacy JSON")
@@ -399,9 +410,9 @@ export function renderStorageSettingsTab(
   storageModeSetting.descEl.appendChild(descFragment);
 
   new Setting(containerEl)
-    .setName("Storage folder")
+    .setName("Feed storage folder")
     .setDesc(
-      "Vault folder for per-feed shard files. Adding a '.' prefix to the path will hide the folder. The '.' must be removed for Obsidian sync to work properly.",
+      "Vault folder for per-feed shard files. A change takes effect only after you apply it. Adding a '.' prefix to the path will hide the folder. The '.' must be removed for Obsidian sync to work properly.",
     )
     .addText((text) =>
       text
@@ -437,7 +448,7 @@ export function renderStorageSettingsTab(
   new Setting(containerEl)
     .setName("Repair/rebuild storage")
     .setDesc(
-      "Use this when shard storage seems out of sync, incomplete, or after manual folder moves. This will: 1. Re-check and normalize your storage folder path. 2. Force-rewrite all shard files from current feed data. 3. Force-save storage metadata. 4. Refresh storage status. Think of this as a safe 're-generate all shard files' action.'",
+      "Use this when shard storage seems out of sync, incomplete, or after manual folder moves. This will: 1. Re-check and normalize your feed storage folder path. 2. Regenerate shard files for feeds whose articles are loaded; feeds with no loaded articles are skipped. 3. Force-save storage metadata. 4. Refresh storage status.",
     );
 
   const storageActions = new Setting(containerEl);
@@ -445,7 +456,7 @@ export function renderStorageSettingsTab(
   storageActions
     .setName("Storage actions")
     .setDesc(
-      "Apply the selected storage mode, repair shard files, or import/export a portable data bundle (everything), a feed bundle (feeds, folders, tags, articles, and article state — no app settings), or a settings bundle (app preferences only) for desktop/mobile transfer workflows.",
+      "Apply the selected storage mode, repair shard files, or import/export a portable data bundle (everything), a feed bundle (feeds, folders, tags, articles, and article state — no app settings), or a settings bundle (app preferences, including storage settings) for desktop/mobile transfer workflows.",
     )
     .addButton((button) =>
       button
@@ -849,7 +860,7 @@ export function renderStorageSettingsTab(
   new Setting(containerEl)
     .setName("Metadata data.json location")
     .setDesc(
-      "Optional vault folder for metadata data.json. Leave empty to keep metadata in the plugin folder. Shard storage v2 keeps article state (user-state.json) in this folder too. After a location change, you can delete the previous data.json and, in v2, user-state.json, or keep them as a backup. Outside v2, an orphaned user-state.json is kept as a backup. Use a folder without a '.' prefix for Obsidian Sync.",
+      "Optional vault folder for metadata data.json. Leave empty to keep metadata in the plugin folder. A change takes effect only when you click Apply metadata location. Article state (user-state.json) is always stored in this folder, or in .rss-dashboard-data when the field is empty, and Shard storage v2 is the only mode that reads it. After you move to a new folder, you can delete the previous data.json and, in v2, user-state.json, or keep them as a backup. Outside v2, an orphaned user-state.json is kept as a backup. Clearing the field moves the vault data.json to the trash after you confirm. Use a folder without a '.' prefix for Obsidian Sync.",
     )
     .addText((text) => {
       // Show the folder user-state.json is actually in: a fresh install
@@ -905,35 +916,35 @@ export function renderStorageSettingsTab(
     containerEl,
     plugin,
     "Default Mastodon folder",
-    "Default folder for Mastodon feeds",
+    "Folder for new Mastodon feeds. Existing feeds keep their folder.",
     "defaultMastodonFolder",
   );
   renderFolderSetting(
     containerEl,
     plugin,
     "Default YouTube folder",
-    "Default folder for YouTube feeds",
+    "Folder for new YouTube feeds. Existing feeds keep their folder.",
     "defaultYouTubeFolder",
   );
   renderFolderSetting(
     containerEl,
     plugin,
     "Default podcast folder",
-    "Default folder for podcast feeds",
+    "Folder for new podcast feeds. Existing feeds keep their folder.",
     "defaultPodcastFolder",
   );
   renderFolderSetting(
     containerEl,
     plugin,
     "Default RSS folder",
-    "Default folder for RSS feeds",
+    "Folder for new RSS feeds. Existing feeds keep their folder.",
     "defaultRssFolder",
   );
   renderFolderSetting(
     containerEl,
     plugin,
     "Default smallweb folder",
-    "Default folder for smallweb feeds",
+    "Folder for new smallweb feeds. Existing feeds keep their folder.",
     "defaultSmallwebFolder",
   );
 

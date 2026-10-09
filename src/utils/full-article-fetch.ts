@@ -14,17 +14,23 @@ export const RESTRICTED_ARTICLE_LINK_TEXT = "Click here to double check.";
 export async function fetchFullArticleContentWithOutcome(
   url: string,
   proxyUrl?: string,
+  fetchTimeoutSeconds?: number,
 ): Promise<FullArticleFetchResult> {
   const isSagepubFull =
     hostMatches(url, "journals.sagepub.com") && url.includes("/doi/full/");
 
-  const result = await fetchWithProxyFallbackDetailed(url, proxyUrl);
+  const result = await fetchWithProxyFallbackDetailed(
+    url,
+    proxyUrl,
+    fetchTimeoutSeconds,
+  );
 
   if (!result.content && isSagepubFull) {
     const abstractUrl = url.replace("/doi/full/", "/doi/abs/");
     const fallbackResult = await fetchWithProxyFallbackDetailed(
       abstractUrl,
       proxyUrl,
+      fetchTimeoutSeconds,
     );
 
     if (fallbackResult.content) {

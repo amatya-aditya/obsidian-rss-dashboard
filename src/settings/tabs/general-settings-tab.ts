@@ -107,7 +107,6 @@ export function renderGeneralSettingsTab(
         .addOption("right-sidebar", "Right sidebar")
         .addOption("left-sidebar", "Left sidebar")
         .addOption("inline", "Inline (inside dashboard)")
-        .addOption("external-browser", "External browser")
         .setValue(plugin.settings.readerViewLocation || "main")
         .onChange(async (value: string) => {
           plugin.settings.readerViewLocation =
@@ -147,7 +146,9 @@ export function renderGeneralSettingsTab(
 
   new Setting(containerEl)
     .setName("Results shown per page")
-    .setDesc("Controls pagination page size across all dashboard views.")
+    .setDesc(
+      "Number of articles shown per page across all dashboard views. All shows every article on one page. Mixed appears when the views have different sizes from an earlier version; choosing a size sets them all to it.",
+    )
     .addDropdown((dropdown) => {
       const pageSizes = [
         plugin.settings.allArticlesPageSize,
@@ -209,7 +210,9 @@ export function renderGeneralSettingsTab(
   // ── Refresh interval ──────────────────────────────────────────────────────
   const refreshIntervalSetting = new Setting(containerEl)
     .setName("Auto-refresh interval")
-    .setDesc("How often to auto-refresh feeds (in minutes)");
+    .setDesc(
+      "How often to refresh all feeds automatically, in minutes. Off by default. A feed can override this in its edit dialog. On mobile, an interval under 60 minutes is raised to 60 when the plugin loads.",
+    );
 
   let refreshInterval = plugin.settings.refreshInterval;
   let refreshIntervalCustomInput: HTMLInputElement | null = null;
@@ -280,7 +283,7 @@ export function renderGeneralSettingsTab(
   new Setting(containerEl)
     .setName("Startup refresh delay")
     .setDesc(
-      "Delay before the initial refresh when Obsidian opens, in seconds. ",
+      "Delay before the first refresh after Obsidian opens, in seconds. The default is 5. A value that is not a number of zero or more is ignored.",
     )
     .addText((text) =>
       text
@@ -361,7 +364,7 @@ export function renderGeneralSettingsTab(
   const maxItemsSetting = new Setting(containerEl)
     .setName("Max item limit")
     .setDesc(
-      "Default max item limit for new feeds (and fallback when a feed has no override).",
+      "Most articles to keep per feed, counted in items. Used for new feeds and as the fallback for feeds without their own limit. The default is 50, and the unlimited option means no limit. Protected articles do not count against it. On mobile, a limit above 50 is lowered to 50 when the plugin loads.",
     );
 
   let maxItemsLimit = plugin.settings.maxItems;
@@ -463,7 +466,7 @@ export function renderGeneralSettingsTab(
   const defaultAutoDeleteSetting = new Setting(containerEl)
     .setName("Default auto delete duration (new feeds)")
     .setDesc(
-      "Default days to keep read articles before auto-delete for new feeds (per-feed override available). This will also limit the timeframe window for shown articles.",
+      "Days to keep articles before auto-delete, for new feeds. The default is 30, and a feed can override it. Auto-delete removes every article older than this cutoff, read or unread, unless a retention protection below applies. This also limits the timeframe window for shown articles.",
     );
 
   let defaultDuration = plugin.settings.defaultAutoDeleteDuration;
@@ -587,7 +590,9 @@ export function renderGeneralSettingsTab(
 
   new Setting(containerEl)
     .setName("Protect tagged articles")
-    .setDesc("Keep tagged articles when retention limits are applied")
+    .setDesc(
+      "Keep articles that have at least one tag when retention limits are applied",
+    )
     .addToggle((toggle) =>
       toggle.setValue(plugin.settings.protectTagged).onChange(async (value) => {
         updateRetentionProtection("protectTagged", value, () => {
@@ -610,7 +615,7 @@ export function renderGeneralSettingsTab(
   new Setting(containerEl)
     .setName("Use first-seen date for undated items")
     .setDesc(
-      "When an article has no publish date (common with some proxied feeds), use the date it was first seen instead of hiding it from sorting and auto-delete. Off by default. Changes are applied on the next feed refresh.",
+      "When an article has no publish date (common with some proxied feeds), use the date it was first seen instead of hiding it from sorting and auto-delete. Off by default. Display and filters follow the setting right away; auto-delete uses it on the next feed refresh.",
     )
     .addToggle((toggle) =>
       toggle
@@ -627,7 +632,7 @@ export function renderGeneralSettingsTab(
   new Setting(containerEl)
     .setName("Enable CORS proxy")
     .setDesc(
-      "When enabled, article fetches that are blocked by a firewall (e.g. On iOS) will be retried through the proxy URL below",
+      "On by default, set to auto. When a direct fetch fails (for example a block on iOS), the plugin retries through a third-party CORS proxy, so the feed or article URL is sent to that proxy. Turn this off to keep fetches direct.",
     )
     .addToggle((toggle) => {
       toggle
@@ -644,7 +649,9 @@ export function renderGeneralSettingsTab(
   if (plugin.settings.corsProxyEnabled) {
     const proxySetting = new Setting(containerEl)
       .setName("Proxy URL")
-      .setDesc("Base URL of the CORS proxy.");
+      .setDesc(
+        "Base URL of the CORS proxy. The default, auto, tries each built-in proxy in turn when a direct fetch fails, relaying the URL to those third-party services. Pick one proxy or enter your own to use only that.",
+      );
     proxySetting.settingEl.addClass("rss-proxy-setting-item");
 
     let textComponent: import("obsidian").TextComponent;
@@ -764,7 +771,7 @@ export function renderGeneralSettingsTab(
         saveButton = btn;
         btn
           .setIcon("save")
-          .setTooltip("Save to list")
+          .setTooltip("Save proxy URL")
           .onClick(async () => {
             const customUrl = textComponent.getValue().trim();
             const { isValidUrl } = await import("../../utils/validation");

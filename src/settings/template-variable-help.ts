@@ -25,7 +25,8 @@ export const TEMPLATE_VARIABLE_HELP_GROUPS: readonly TemplateVariableHelpGroup[]
       variables: [
         {
           name: "date",
-          description: "The article date in a long, readable format.",
+          description:
+            "The article date in a long, readable format. In notes saved from the web viewer, it is the save date.",
         },
         {
           name: "dateShort",
@@ -52,7 +53,7 @@ export const TEMPLATE_VARIABLE_HELP_GROUPS: readonly TemplateVariableHelpGroup[]
         {
           name: "firstSeen",
           description:
-            "When the dashboard first saw the article, independent of the “Use first-seen date for undated items” display setting. Falls back to the publish date if unavailable.",
+            "When the dashboard first saw the article, independent of the “Use first-seen date for undated items” display setting. If none was recorded, this falls back to the article date (the publish date, or the save date when there is none), which is not a true first-seen value.",
         },
         {
           name: "firstSeenISO",
@@ -115,12 +116,12 @@ export const TEMPLATE_VARIABLE_HELP_GROUPS: readonly TemplateVariableHelpGroup[]
         {
           name: "summary",
           description:
-            "A short preview derived from the feed item’s content or description.",
+            "A plain-text cut of about 220 characters from the feed item’s content or description.",
         },
         {
           name: "description",
           description:
-            "The article page’s own description, or the feed’s blurb when the page has none.",
+            "The article page’s own description after a successful full fetch. Otherwise, the feed description, when it passes the quality check.",
         },
         {
           name: "excerpt",
@@ -130,7 +131,7 @@ export const TEMPLATE_VARIABLE_HELP_GROUPS: readonly TemplateVariableHelpGroup[]
         {
           name: "content",
           description:
-            "The content selected for this save. The “Save full content” setting chooses whether RSS Dashboard fetches the full article or uses the RSS summary; {{content}} only controls where that content is placed in the template.",
+            "The content selected for this save. The “Save full content” setting chooses whether RSS Dashboard fetches the full article or uses the feed item’s content, which falls back to the feed description, then the summary. {{content}} only controls where that content is placed in the template.",
         },
       ],
     },

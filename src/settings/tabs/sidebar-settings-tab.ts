@@ -87,9 +87,9 @@ export function renderSidebarSettingsTab(
 ): void {
   new Setting(containerEl).setName("Sidebar").setHeading();
 
-  new Setting(containerEl)
+  const hideRssIconSetting = new Setting(containerEl)
     .setName("Hide default RSS icon")
-    .setDesc("Hide the default RSS icon for regular feeds in the sidebar")
+    .setDesc("Hide the default RSS icon for regular feeds in the sidebar.")
     .addToggle((toggle) =>
       toggle
         .setValue(!!plugin.settings.display.hideDefaultRssIcon)
@@ -103,6 +103,9 @@ export function renderSidebarSettingsTab(
           }
         }),
     );
+  hideRssIconSetting.descEl.createSpan({
+    text: " This also hides the fallback icon on Mastodon feeds.",
+  });
 
   // Badge settings helper (reused 3×)
   const renderBadgeSetting = (
@@ -110,6 +113,7 @@ export function renderSidebarSettingsTab(
     enabledKey: keyof typeof plugin.settings.display,
     colorKey: keyof typeof plugin.settings.display,
     placeholder: string,
+    rowsDesc: string,
   ) => {
     let isSyncingBadgeColor = false;
     let badgeColorPicker: { setValue: (value: string) => void } | null = null;
@@ -125,12 +129,15 @@ export function renderSidebarSettingsTab(
       }
     };
 
-    new Setting(containerEl)
+    const badgeSetting = new Setting(containerEl)
       .setName(label)
-      .setDesc("Enabled | color picker | hex input")
+      .setDesc(
+        `Show the unread count badge on ${rowsDesc}. Use the switch to turn it on or off, then pick its color or type a hex value.`,
+      )
       .setClass("rss-dashboard-settings-two-row")
       .setClass("rss-dashboard-sidebar-badge-setting")
-      .addToggle((toggle) =>
+      .addToggle((toggle) => {
+        toggle.toggleEl.setAttribute("aria-label", `Show ${label}`);
         toggle
           .setValue((plugin.settings.display[enabledKey] as boolean) ?? true)
           .onChange(async (value) => {
@@ -141,8 +148,8 @@ export function renderSidebarSettingsTab(
               await plugin.app.workspace.revealLeaf(view.leaf);
               view.sidebar.render();
             }
-          }),
-      )
+          });
+      })
       .addColorPicker((colorPicker) => {
         badgeColorPicker = colorPicker;
         colorPicker
@@ -170,7 +177,12 @@ export function renderSidebarSettingsTab(
             await applyBadgeColor(normalized);
           });
         text.inputEl.addClass("rss-dashboard-color-hex-input");
+        text.inputEl.setAttribute("aria-label", `${label} hex color`);
       });
+    // The color picker component exposes no element, so name its input here.
+    badgeSetting.controlEl
+      .querySelector('input[type="color"]')
+      ?.setAttribute("aria-label", `${label} color`);
   };
 
   renderBadgeSetting(
@@ -178,18 +190,21 @@ export function renderSidebarSettingsTab(
     "showAllFeedsUnreadBadges",
     "allFeedsUnreadBadgeColor",
     "#8e44ad",
+    "the All feeds row",
   );
   renderBadgeSetting(
     "Folders badge",
     "showFolderUnreadBadges",
     "folderUnreadBadgeColor",
     "#d85b9f",
+    "folder rows",
   );
   renderBadgeSetting(
     "Feeds badge",
     "showFeedUnreadBadges",
     "feedUnreadBadgeColor",
     "#8e44ad",
+    "feed rows",
   );
 
   new Setting(containerEl)
@@ -233,6 +248,9 @@ export function renderSidebarSettingsTab(
   // ── Icon Visibility & Order ───────────────────────────────────────────────
   const iconHeading = new Setting(containerEl)
     .setName("Icon visibility")
+    .setDesc(
+      "Choose which icons appear in the sidebar header toolbar and in what order.",
+    )
     .setHeading();
   iconHeading.settingEl.dataset.rssSettingsSection = "icon-visibility";
   if (targetSection === "Icon visibility") {
@@ -302,6 +320,7 @@ export function renderSidebarSettingsTab(
 
       const iconSetting = new Setting(iconRowsContainer)
         .setName(icon.label)
+        .setDesc(`Show the ${icon.label} icon in the sidebar header`)
         .setDisabled(hideToolbar)
         .addToggle((toggle) =>
           toggle
@@ -570,13 +589,13 @@ export function renderSidebarSettingsTab(
 
   renderPaddingSetting(
     "Left padding",
-    "Adjust left padding for sidebar rows",
+    "Adjust left padding for folder and feed rows in the sidebar",
     "sidebarItemPaddingLeft",
     2,
   );
   renderPaddingSetting(
     "Right padding",
-    "Adjust right padding for sidebar rows",
+    "Adjust right padding for folder and feed rows in the sidebar",
     "sidebarItemPaddingRight",
     2,
   );
@@ -659,7 +678,7 @@ export function renderSidebarSettingsTab(
 
   renderSpacingSetting(
     "Sidebar row spacing",
-    "Adjust the height between rows in the sidebar feed list",
+    "Adjust the height between folder and feed rows in the sidebar",
     "sidebarRowSpacing",
     0,
     44,
@@ -667,7 +686,7 @@ export function renderSidebarSettingsTab(
   );
   renderSpacingSetting(
     "Sidebar row indentation",
-    "Adjust the indentation of nested items in the sidebar",
+    "Adjust the indentation of feeds nested inside folders in the sidebar",
     "sidebarRowIndentation",
     0,
     50,
@@ -763,7 +782,7 @@ export function renderSidebarSettingsTab(
                 );
                 await plugin.saveSettings();
                 new Notice(
-                  `Profile images loaded for ${entries.filter((e) => e.needsRefresh).length} ${domainName} feed${entries.filter((e) => e.needsRefresh).length === 1 ? "" : "s"}.`,
+                  `Looked up profile images for ${entries.filter((e) => e.needsRefresh).length} ${domainName} feed${entries.filter((e) => e.needsRefresh).length === 1 ? "" : "s"}.`,
                 );
                 const view = await plugin.getActiveDashboardView();
                 if (view) {
@@ -832,7 +851,7 @@ export function renderSidebarSettingsTab(
   setupDomainIconToggle(containerEl, plugin, {
     settingName: "Use site icons/favicons for RSS feeds",
     settingDesc:
-      "Replace the standard RSS feed icon with the site icon/favicon when one is available",
+      "Replace the standard RSS feed icon with the feed's own logo when it has one, otherwise the site favicon",
     settingKey: "useDomainIconsRss",
     domainName: "RSS",
     heading: "Clear RSS site icons?",
@@ -871,7 +890,7 @@ export function renderSidebarSettingsTab(
   setupDomainIconToggle(containerEl, plugin, {
     settingName: "Use profile images for Mastodon feeds",
     settingDesc:
-      "Replace the standard Mastodon feed icon with the feed profile image when one is available",
+      "Replace the standard Mastodon feed icon with the feed profile image when one is available, otherwise the site favicon",
     settingKey: "useDomainIconsMastodon",
     domainName: "Mastodon",
     heading: "Clear Mastodon profile images?",

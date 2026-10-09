@@ -431,7 +431,7 @@ export class EditFeedModal extends Modal {
       const inheritedTagsSetting = new Setting(perFeedControlsBody)
         .setName("Inherited auto-tags")
         .setDesc(
-          "Global tags applied automatically based on the feed type and settings. Configure these in the 'auto tagging' settings tab.",
+          "Global tags applied automatically based on the feed type and settings. Configure these under auto tagging in the tags settings tab.",
         );
 
       const tagsList = inheritedTagsSetting.controlEl.createDiv({
@@ -527,7 +527,7 @@ export class EditFeedModal extends Modal {
     const autoDeleteSetting = new Setting(perFeedControlsBody)
       .setName("Auto delete articles duration")
       .setDesc(
-        "Days to keep articles before auto-delete. This will also limit the timeframe window for shown articles.",
+        "Days to keep articles before auto-delete. Articles are dated by their publish date, or by the date first seen for undated items when that general setting is on. Articles covered by a retention protection in the general settings are never deleted. This also limits the timeframe window for shown articles.",
       );
 
     let autoDeleteCustomInput: HTMLInputElement | null = null;
@@ -601,7 +601,9 @@ export class EditFeedModal extends Modal {
 
     const maxItemsSetting = new Setting(perFeedControlsBody)
       .setName("Max items limit")
-      .setDesc("Maximum number of items to keep per feed");
+      .setDesc(
+        "Maximum number of items to keep per feed. Articles covered by a retention protection in the general settings are kept and do not count toward the limit.",
+      );
 
     let maxItemsCustomInput: HTMLInputElement | null = null;
 
@@ -656,7 +658,9 @@ export class EditFeedModal extends Modal {
 
     const scanIntervalSetting = new Setting(perFeedControlsBody)
       .setName("Auto-refresh interval")
-      .setDesc("Custom auto-refresh interval in minutes");
+      .setDesc(
+        "How often this feed refreshes automatically, in minutes. Use global setting follows the auto-refresh interval in the general settings, off turns automatic refresh off for this feed, and custom lets you enter a number of minutes. Exclude from refresh, below, overrides this and keeps the feed off.",
+      );
 
     let scanIntervalCustomInput: HTMLInputElement | null = null;
 
@@ -733,7 +737,7 @@ export class EditFeedModal extends Modal {
         "This feed's template takes precedence over the global default. Replacing an existing assignment requires confirmation.",
       )
       .addDropdown((dropdown) => {
-        dropdown.addOption("", "Use default template");
+        dropdown.addOption("", "Use global default template");
         savedTemplates.forEach((template: SavedTemplate) => {
           dropdown.addOption(template.id, template.name);
         });
@@ -767,7 +771,7 @@ export class EditFeedModal extends Modal {
     const autoTagSetting = new Setting(perFeedControlsBody)
       .setName("Custom auto-tags")
       .setDesc(
-        "Additional tags applied automatically to new articles from this feed (single feed override)",
+        "Additional tags applied automatically to every article this feed keeps, on each refresh (single feed override)",
       );
 
     addTagMultiSelectControl({

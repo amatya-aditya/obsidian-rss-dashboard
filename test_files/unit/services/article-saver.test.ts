@@ -980,10 +980,15 @@ describe("ArticleSaver.fetchFullArticleContent", () => {
 
     expect(result).toBe("<p>abstract</p>");
     expect(fetchSpy).toHaveBeenCalledTimes(2);
-    expect(fetchSpy.mock.calls[0]).toEqual([url, "https://proxy/?url="]);
+    expect(fetchSpy.mock.calls[0]).toEqual([
+      url,
+      "https://proxy/?url=",
+      30_000,
+    ]);
     expect(fetchSpy.mock.calls[1]).toEqual([
       "https://journals.sagepub.com/doi/abs/10.1177/00000000",
       "https://proxy/?url=",
+      30_000,
     ]);
   });
 });

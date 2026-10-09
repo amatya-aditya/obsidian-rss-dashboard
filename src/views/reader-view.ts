@@ -1778,7 +1778,11 @@ export class ReaderView extends ItemView {
         : undefined;
 
     const result = item.link
-      ? await fetchFullArticleContentWithOutcome(item.link, proxyUrl)
+      ? await fetchFullArticleContentWithOutcome(
+          item.link,
+          proxyUrl,
+          this.settings.articleSaving.fetchTimeout,
+        )
       : { content: "", failureType: "none" as const };
 
     const shouldPersist = Boolean(item.starred || item.saved);
@@ -2105,7 +2109,11 @@ export class ReaderView extends ItemView {
       this.settings.corsProxyEnabled && this.settings.corsProxyUrl
         ? this.settings.corsProxyUrl
         : undefined;
-    const result = await fetchFullArticleContentWithOutcome(url, proxyUrl);
+    const result = await fetchFullArticleContentWithOutcome(
+      url,
+      proxyUrl,
+      this.settings.articleSaving.fetchTimeout,
+    );
     this.currentFullContentFailureType = result.failureType;
     this.currentPageMetadata = result.pageMetadata;
     return result.content;

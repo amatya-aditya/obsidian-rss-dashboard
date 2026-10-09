@@ -2756,16 +2756,6 @@ export class RssDashboardView extends ItemView {
     }
   }
 
-  private openArticleInExternalBrowser(article: FeedItem): void {
-    const url = resolveItemExternalUrl(article);
-    if (!url) {
-      new Notice("No external URL available for this item.");
-      return;
-    }
-
-    activeWindow.open(url, "_blank");
-  }
-
   private getRelatedItems(article: FeedItem): FeedItem[] {
     if (!article.feedUrl) return [];
 
@@ -3944,14 +3934,12 @@ export class RssDashboardView extends ItemView {
     }
   }
 
-  private getReaderViewLocation():
-    "main" | "right-sidebar" | "left-sidebar" | "inline" | "external-browser" {
+  private getReaderViewLocation(): ViewLocation {
     const location = this.settings.readerViewLocation;
     if (
       location === "left-sidebar" ||
       location === "right-sidebar" ||
-      location === "inline" ||
-      location === "external-browser"
+      location === "inline"
     ) {
       return location;
     }
@@ -3980,7 +3968,6 @@ export class RssDashboardView extends ItemView {
       case "right-sidebar":
         return workspace.getRightLeaf(false);
       case "inline":
-      case "external-browser":
         return null;
       default:
         return readerLeaves[0] ?? null;
@@ -4026,11 +4013,6 @@ export class RssDashboardView extends ItemView {
     article: FeedItem,
   ): Promise<void> {
     const readerLocation = this.getReaderViewLocation();
-
-    if (readerLocation === "external-browser") {
-      this.openArticleInExternalBrowser(article);
-      return;
-    }
 
     const readerLeaves =
       this.app.workspace.getLeavesOfType(RSS_READER_VIEW_TYPE);
@@ -4346,7 +4328,7 @@ export class RssDashboardView extends ItemView {
   private async handleOpenInReaderView(article: FeedItem): Promise<void> {
     this.selectedArticle = article;
 
-    if (!article.read) {
+    if (!article.read && this.settings.display.autoMarkReadOnOpen) {
       await this.updateArticleStatus(article, { read: true }, false);
     }
     await this.openArticleInConfiguredReaderLocation(article);

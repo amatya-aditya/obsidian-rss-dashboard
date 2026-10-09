@@ -635,7 +635,11 @@ export class ArticleRenderer {
       const proxyUrl = this.settings.corsProxyEnabled
         ? this.settings.corsProxyUrl
         : undefined;
-      const result = await fetchFullArticleContentWithOutcome(url, proxyUrl);
+      const result = await fetchFullArticleContentWithOutcome(
+        url,
+        proxyUrl,
+        this.settings.articleSaving.fetchTimeout,
+      );
       this.currentFullContentFailureType = result.failureType;
       this.currentPageMetadata = result.pageMetadata;
       return result.content;

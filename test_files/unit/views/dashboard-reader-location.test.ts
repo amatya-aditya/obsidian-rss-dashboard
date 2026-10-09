@@ -456,71 +456,33 @@ describe("Dashboard reader location", () => {
     expect(rightLeaf.setViewState).toHaveBeenCalledTimes(1);
   });
 
-  it("opens article clicks in the external browser when readerViewLocation is external-browser", async () => {
-    const settings = cloneSettings();
-    const feed = makeFeed("https://example.com/feed", [{}]);
-    settings.feeds = [feed];
-    settings.readerViewLocation = "external-browser";
-    const windowOpenSpy = vi
-      .spyOn(window, "open")
-      .mockImplementation(() => null);
-    const { view } = await createDashboardView(settings, {
-      getLeavesOfType: vi.fn(() => []),
-      getLeaf: vi.fn(),
-      getLeftLeaf: vi.fn(),
-      getRightLeaf: vi.fn(),
-      revealLeaf: vi.fn(async () => {}),
-    });
+  it.each([
+    [false, false],
+    [true, true],
+  ])(
+    "marks the article read from Open in reader view only when Auto-mark read is %s",
+    async (autoMarkReadOnOpen, expectedRead) => {
+      const settings = cloneSettings();
+      const feed = makeFeed("https://example.com/feed", [{}]);
+      feed.items[0].read = false;
+      settings.feeds = [feed];
+      settings.readerViewLocation = "right-sidebar";
+      settings.display.autoMarkReadOnOpen = autoMarkReadOnOpen;
+      const rightLeaf = createReaderLeaf(new App(), "right");
+      const { view } = await createDashboardView(settings, {
+        getLeavesOfType: vi.fn(() => []),
+        getLeaf: vi.fn(),
+        getLeftLeaf: vi.fn(),
+        getRightLeaf: vi.fn(() => rightLeaf),
+        revealLeaf: vi.fn(async () => {}),
+      });
 
-    await view.handleArticleClick(feed.items[0]);
+      await view.handleOpenInReaderView(feed.items[0]);
 
-    expect(windowOpenSpy).toHaveBeenCalledWith(feed.items[0].link, "_blank");
-    expect(
-      view.app.workspace.getLeaf as ReturnType<typeof vi.fn>,
-    ).not.toHaveBeenCalled();
-    expect(
-      view.app.workspace.getRightLeaf as ReturnType<typeof vi.fn>,
-    ).not.toHaveBeenCalled();
-    expect(
-      view.app.workspace.getLeftLeaf as ReturnType<typeof vi.fn>,
-    ).not.toHaveBeenCalled();
-    expect(view.inlineArticle).toBe(null);
-
-    windowOpenSpy.mockRestore();
-  });
-
-  it("uses external browser for explicit open-in-reader actions when readerViewLocation is external-browser", async () => {
-    const settings = cloneSettings();
-    const feed = makeFeed("https://example.com/feed", [{}]);
-    settings.feeds = [feed];
-    settings.readerViewLocation = "external-browser";
-    const windowOpenSpy = vi
-      .spyOn(window, "open")
-      .mockImplementation(() => null);
-    const { view } = await createDashboardView(settings, {
-      getLeavesOfType: vi.fn(() => []),
-      getLeaf: vi.fn(),
-      getLeftLeaf: vi.fn(),
-      getRightLeaf: vi.fn(),
-      revealLeaf: vi.fn(async () => {}),
-    });
-
-    await view.handleOpenInReaderView(feed.items[0]);
-
-    expect(windowOpenSpy).toHaveBeenCalledWith(feed.items[0].link, "_blank");
-    expect(
-      view.app.workspace.getLeaf as ReturnType<typeof vi.fn>,
-    ).not.toHaveBeenCalled();
-    expect(
-      view.app.workspace.getRightLeaf as ReturnType<typeof vi.fn>,
-    ).not.toHaveBeenCalled();
-    expect(
-      view.app.workspace.getLeftLeaf as ReturnType<typeof vi.fn>,
-    ).not.toHaveBeenCalled();
-    expect(view.inlineArticle).toBe(null);
-
-    windowOpenSpy.mockRestore();
-  });
+      expect(feed.items[0].read).toBe(expectedRead);
+      expect(rightLeaf.setViewState).toHaveBeenCalledTimes(1);
+    },
+  );
 
   it("ignores legacy media.openInSplitView when readerViewLocation targets a sidebar", async () => {
     const settings = cloneSettings();

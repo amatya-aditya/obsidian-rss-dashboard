@@ -164,8 +164,9 @@ export function loadAndNormalizeSettings(
     settings.readerViewLocation = "right-sidebar";
   }
 
-  // Remove external-browser from readerViewLocation (not supported for regular articles)
-  if (settings.readerViewLocation === "external-browser") {
+  // Migrate: external-browser was removed from the location choices; stored
+  // values from older versions load as main.
+  if ((settings.readerViewLocation as string) === "external-browser") {
     settings.readerViewLocation = "main";
   }
 
@@ -180,7 +181,8 @@ export function loadAndNormalizeSettings(
   // Migrate: convert external-browser to main for saved articles (external browser no longer supported)
   if (
     savedArticleLocationProvided &&
-    rawData?.savedArticleOpenLocation === "external-browser"
+    (rawData?.savedArticleOpenLocation as string | undefined) ===
+      "external-browser"
   ) {
     settings.savedArticleOpenLocation = "main";
   }

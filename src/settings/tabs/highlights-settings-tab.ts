@@ -175,7 +175,7 @@ export function renderHighlightsSettingsTab(
   );
   renderLocationToggle(
     "Highlight in summaries",
-    "Apply highlights to article summaries in card view",
+    "Apply highlights to article summaries in card view and feed view",
     "highlightInSummaries",
   );
   renderLocationToggle(
@@ -273,7 +273,7 @@ export function renderHighlightsSettingsTab(
         )
         .addButton((button) =>
           button
-            .setButtonText(word.wholeWord ? "Whole" : "Partial")
+            .setButtonText(word.wholeWord ? "Whole word" : "Partial")
             .setTooltip("Toggle whole-word matching")
             .onClick(async () => {
               const h = ensureHighlights(plugin);
@@ -286,7 +286,13 @@ export function renderHighlightsSettingsTab(
             }),
         )
         .addButton((button) => {
-          button.setButtonText("Case").setTooltip("Toggle case sensitivity");
+          button
+            .setButtonText(word.caseSensitive ? "Case: on" : "Case: off")
+            .setTooltip("Toggle case sensitivity");
+          button.buttonEl.setAttribute(
+            "aria-pressed",
+            word.caseSensitive ? "true" : "false",
+          );
           if (word.caseSensitive) button.setCta();
           return button.onClick(async () => {
             const h = ensureHighlights(plugin);
