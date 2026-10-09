@@ -24,18 +24,6 @@ export type TagsDropdownPortalOptions = {
   onClosed?: () => void;
 };
 
-/**
- * Mirrors whether an article has tags onto its tag toggle. The toggle's accent
- * color and filled icon read this class, so callers refresh it whenever the
- * article's tags change.
- */
-export function syncTagsToggleState(
-  toggle: Element | null,
-  tags: readonly Tag[] | undefined,
-): void {
-  toggle?.classList.toggle("has-tags", (tags?.length ?? 0) > 0);
-}
-
 export function createTagsDropdownPortal(
   options: TagsDropdownPortalOptions,
 ): () => void {
