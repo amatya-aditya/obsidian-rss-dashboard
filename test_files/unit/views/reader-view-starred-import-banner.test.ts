@@ -174,6 +174,7 @@ describe("ReaderView starred-import cached-preview banner", () => {
     expect(fetchFullArticleContentWithOutcomeMock).toHaveBeenCalledWith(
       item.link,
       undefined,
+      10,
     );
 
     const readingContainer = (
@@ -216,6 +217,7 @@ describe("ReaderView starred-import cached-preview banner", () => {
     expect(fetchFullArticleContentWithOutcomeMock).toHaveBeenCalledWith(
       item.link,
       undefined,
+      10,
     );
     expect(item.content).toBe("<p>Full fetched article body.</p>");
     expect(item.starredImportContentState).toBeUndefined();
