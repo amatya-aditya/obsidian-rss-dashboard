@@ -128,6 +128,51 @@ describe("batchMoveFeedsAndFolders", () => {
     expect(findFolderIn(settings)("Two/One/Inner")).not.toBeNull();
   });
 
+  it("records a subfolder dragged before its parent as moved with it, not pulled out beside it (#655)", () => {
+    const result = run("Two", [], ["One/Inner", "One"]);
+
+    expect(result.folders).toEqual([
+      { oldPath: "One/Inner", newPath: "Two/One/Inner", error: null },
+      { oldPath: "One", newPath: "Two/One", error: null },
+    ]);
+    expect(result.movedFolders).toBe(1);
+    expect(findFolderIn(settings)("Two/One/Inner")).not.toBeNull();
+    expect(findFolderIn(settings)("Two/Inner")).toBeNull();
+  });
+
+  it("skips a selected subfolder when its selected parent is dropped into the subfolder (#655)", () => {
+    const result = run("One/Inner", [], ["One/Inner", "One"]);
+
+    expect(result.folders).toEqual([
+      { oldPath: "One/Inner", newPath: null, error: BATCH_MOVE_SKIPPED_NOTICE },
+      { oldPath: "One", newPath: null, error: BATCH_MOVE_SKIPPED_NOTICE },
+    ]);
+    expect(result.movedFolders).toBe(0);
+  });
+
+  it("records a selected subfolder as refused when its selected parent is refused (#655)", () => {
+    // Add "One" inside "Two" to force collision when "One" is moved into "Two".
+    settings.folders
+      .find((f) => f.name === "Two")!
+      .subfolders.push({ name: "One", subfolders: [], modifiedAt: 1 });
+
+    const result = run("Two", [], ["One/Inner", "One"]);
+
+    expect(result.folders).toEqual([
+      {
+        oldPath: "One/Inner",
+        newPath: null,
+        error: 'A folder named "One" already exists at the destination level.',
+      },
+      {
+        oldPath: "One",
+        newPath: null,
+        error: 'A folder named "One" already exists at the destination level.',
+      },
+    ]);
+    expect(result.movedFolders).toBe(0);
+  });
+
   it("does not count feeds already in the destination", () => {
     const result = run("One", ["a"]);
 

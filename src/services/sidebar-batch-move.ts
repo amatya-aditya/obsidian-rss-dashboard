@@ -78,27 +78,51 @@ function moveFolders(
   folderPaths: string[],
 ): { moved: number; outcomes: BatchMoveFolderOutcome[] } {
   let movedFoldersCount = 0;
-  const outcomes: BatchMoveFolderOutcome[] = [];
 
-  // 1. Move folders first (if any)
+  // A selected subfolder travels with its selected parent; only the top-level
+  // dragged folders move directly.
+  const isSubfolderOfDragged = (path: string) =>
+    folderPaths.some((other) => other !== path && path.startsWith(`${other}/`));
+
+  const topLevelFolders = folderPaths.filter(
+    (path) => !isSubfolderOfDragged(path),
+  );
+
+  const topOutcomes = new Map<string, BatchMoveFolderOutcome>();
+  for (const folderPath of topLevelFolders) {
+    if (topOutcomes.has(folderPath)) continue;
+    const outcome = moveOneFolder(settings, destinationFolderPath, folderPath);
+    if (outcome.newPath !== null) movedFoldersCount++;
+    topOutcomes.set(folderPath, outcome);
+  }
+
+  // Preserve dragged order in outcomes for resolveBatchMovedFolder and notices.
+  const outcomes: BatchMoveFolderOutcome[] = [];
   for (const folderPath of folderPaths) {
-    // A subfolder dragged after its parent already went with it.
-    const parent = outcomes.find(
-      (o) => o.newPath !== null && folderPath.startsWith(`${o.oldPath}/`),
-    );
-    if (parent?.newPath) {
-      const newPath = remapPathPrefix(
-        folderPath,
-        parent.oldPath,
-        parent.newPath,
-      );
-      outcomes.push({ oldPath: folderPath, newPath, error: null });
+    const topOutcome = topOutcomes.get(folderPath);
+    if (topOutcome) {
+      outcomes.push(topOutcome);
       continue;
     }
 
-    const outcome = moveOneFolder(settings, destinationFolderPath, folderPath);
-    if (outcome.newPath !== null) movedFoldersCount++;
-    outcomes.push(outcome);
+    const parentPath = topLevelFolders.find((top) =>
+      folderPath.startsWith(`${top}/`),
+    );
+    const parentOutcome = parentPath ? topOutcomes.get(parentPath) : undefined;
+    if (parentOutcome?.newPath) {
+      const newPath = remapPathPrefix(
+        folderPath,
+        parentOutcome.oldPath,
+        parentOutcome.newPath,
+      );
+      outcomes.push({ oldPath: folderPath, newPath, error: null });
+    } else {
+      outcomes.push({
+        oldPath: folderPath,
+        newPath: null,
+        error: parentOutcome?.error ?? null,
+      });
+    }
   }
 
   return { moved: movedFoldersCount, outcomes };
