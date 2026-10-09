@@ -422,7 +422,11 @@ guid: "{{guid}}"
   private async fetchArticleContentWithOutcome(
     url: string,
   ): Promise<FullArticleFetchResult> {
-    return fetchFullArticleContentWithOutcome(url, this.corsProxyUrl);
+    return fetchFullArticleContentWithOutcome(
+      url,
+      this.corsProxyUrl,
+      this.settings.fetchTimeout,
+    );
   }
 
   async saveArticleWithContentPolicy(

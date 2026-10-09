@@ -85,6 +85,7 @@ describe("ArticleRenderer restricted-content handling", () => {
     expect(fetchFullArticleContentWithOutcomeMock).toHaveBeenCalledWith(
       item.link,
       undefined,
+      10,
     );
     expect(item.restrictedReason).toBe(RESTRICTED_ARTICLE_REASON);
 
