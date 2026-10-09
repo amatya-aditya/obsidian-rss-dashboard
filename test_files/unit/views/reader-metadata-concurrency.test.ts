@@ -129,8 +129,9 @@ describe.each(["ReaderView", "ArticleRenderer"])(
       const b = item("B");
       await harness.render(a);
       await harness.render(b);
-      expect(fetchMock).toHaveBeenNthCalledWith(1, a.link, undefined);
-      expect(fetchMock).toHaveBeenNthCalledWith(2, b.link, undefined);
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(fetchMock.mock.calls[0]?.[0]).toBe(a.link);
+      expect(fetchMock.mock.calls[1]?.[0]).toBe(b.link);
       expect(a).toMatchObject(expectedMetadata("A"));
       expect(b).toMatchObject(expectedMetadata("B"));
       expect(harness.updates).toHaveBeenCalledWith(
