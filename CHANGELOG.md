@@ -28,6 +28,7 @@
 
 ### Fixes
 
+- Enabling **Add "Saved" tag** now registers the tag in the Tags list so it can be edited, deleted, and filtered like any other tag. Previously the chip appeared on saved articles but the tag never appeared under Settings > Tags or in the sidebar tag filter. [GH Issue #943](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/943)
 - Full-article fetches no longer request a literal `auto` proxy address when **CORS proxy URL** is on its default. The fetch now tries the built-in proxies in turn, as feed refresh does, and the same applies to Pocket Casts resolving. The add-feed preview also stops falling back to RSS2JSON when **Enable CORS proxy** is off. [GH Issue #927](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/927)
 - Choosing **None** for a default tag in **Settings → RSS Dashboard → Tags → Auto tagging** now means no default tag. New RSS, smallweb, video, YouTube, podcast and Mastodon articles no longer get the old default tag (such as `RSS`, `smallweb` or `Video`) after you clear the setting. [GH Issue #930](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/930)
 - **Open in reader view** no longer marks an article read when **Auto-mark read** is off. It now follows the same setting as opening an article by clicking it. [GH Issue #931](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/931)
