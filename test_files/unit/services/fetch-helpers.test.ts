@@ -212,6 +212,40 @@ describe("fetchWithProxyFallback", () => {
     expect(result).toContain("Test Headline");
   });
 
+  it("resolves auto to the built-in proxies instead of requesting the literal prefix", async () => {
+    robustFetchMock.mockResolvedValueOnce(CLOUDFLARE_RESPONSE); // direct
+    robustFetchMock.mockResolvedValueOnce(CLOUDFLARE_RESPONSE); // proxy 1
+    robustFetchMock.mockResolvedValueOnce(ARTICLE_RESPONSE); // proxy 2
+    const articleUrl = "https://example.com/some article?x=1";
+
+    const result = await fetchWithProxyFallback(articleUrl, "auto");
+
+    expect(result).toContain("Test Headline");
+    const requested = robustFetchMock.mock.calls.map((call) => call[0]);
+    expect(requested).toHaveLength(3);
+    expect(requested.some((target) => target.startsWith("auto"))).toBe(false);
+    expect(requested[1]).toBe(
+      "https://api.allorigins.win/raw?url=" + encodeURIComponent(articleUrl),
+    );
+    expect(requested[2].startsWith("https://api.codetabs.com/")).toBe(true);
+  });
+
+  it("keeps using a custom proxy URL as the only proxy", async () => {
+    robustFetchMock.mockResolvedValueOnce(CLOUDFLARE_RESPONSE);
+    robustFetchMock.mockResolvedValueOnce(CLOUDFLARE_RESPONSE);
+
+    await fetchWithProxyFallback(
+      "https://example.com/article",
+      "https://proxy.example.com/?url=",
+    );
+
+    expect(robustFetchMock).toHaveBeenCalledTimes(2);
+    expect(robustFetchMock.mock.calls[1][0]).toBe(
+      "https://proxy.example.com/?url=" +
+        encodeURIComponent("https://example.com/article"),
+    );
+  });
+
   it("returns empty string when direct fetch returns empty and no proxy is configured", async () => {
     robustFetchMock.mockResolvedValueOnce({ text: "", status: 200 });
 

@@ -178,10 +178,18 @@ export async function resolveAndLoadPreview(
     }
   }
 
+  const feedEncoding =
+    options?.feedEncoding === "windows-1251" ? options.feedEncoding : undefined;
+  // Only an explicit off switch withholds the RSS2JSON fallback; an absent
+  // option keeps the default of using it.
   const feedData =
-    options?.feedEncoding === "windows-1251"
-      ? await loadFeedForPreview(finalUrl, options.feedEncoding)
-      : await loadFeedForPreview(finalUrl);
+    options?.corsProxyEnabled === false
+      ? await loadFeedForPreview(finalUrl, feedEncoding, {
+          allowRss2JsonFallback: false,
+        })
+      : feedEncoding
+        ? await loadFeedForPreview(finalUrl, feedEncoding)
+        : await loadFeedForPreview(finalUrl);
 
   return {
     detectedType,

@@ -28,6 +28,7 @@
 
 ### Fixes
 
+- Full-article fetches no longer request a literal `auto` proxy address when **CORS proxy URL** is on its default. The fetch now tries the built-in proxies in turn, as feed refresh does, and the same applies to Pocket Casts resolving. The add-feed preview also stops falling back to RSS2JSON when **Enable CORS proxy** is off. [GH Issue #927](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/927)
 - Choosing **None** for a default tag in **Settings → RSS Dashboard → Tags → Auto tagging** now means no default tag. New RSS, smallweb, video, YouTube, podcast and Mastodon articles no longer get the old default tag (such as `RSS`, `smallweb` or `Video`) after you clear the setting. [GH Issue #930](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/930)
 - **Open in reader view** no longer marks an article read when **Auto-mark read** is off. It now follows the same setting as opening an article by clicking it. [GH Issue #931](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/931)
 - Keyboard focus now stays on the button you activated in the dashboard's inline reader toolbar. Starring, marking read or saving an article used to drop focus to the page and reset the toolbar's Tab stop to the first button; focus and the Tab stop now stay put. [GH Issue #899](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/899)

@@ -80,4 +80,45 @@ describe("feed preview parsing", () => {
       }),
     );
   });
+
+  it("falls back to RSS2JSON when the direct request fails", async () => {
+    const requestUrlSpy = vi
+      .spyOn(obsidian, "requestUrl")
+      .mockRejectedValueOnce(new Error("blocked"))
+      .mockResolvedValueOnce(
+        mockRequestUrlResponse(
+          JSON.stringify({
+            status: "ok",
+            feed: { title: "Via RSS2JSON", description: "", link: "" },
+            items: [],
+          }),
+        ),
+      );
+
+    const preview = await loadFeedForPreview("https://example.com/feed.xml");
+
+    expect(preview.title).toBe("Via RSS2JSON");
+    expect(requestUrlSpy).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        url: expect.stringContaining("api.rss2json.com"),
+      }),
+    );
+  });
+
+  it("does not call RSS2JSON when the CORS proxy is disabled", async () => {
+    const requestUrlSpy = vi
+      .spyOn(obsidian, "requestUrl")
+      .mockRejectedValue(new Error("blocked"));
+
+    await expect(
+      loadFeedForPreview("https://example.com/feed.xml", undefined, {
+        allowRss2JsonFallback: false,
+      }),
+    ).rejects.toThrow("CORS proxy is disabled");
+
+    const urls = requestUrlSpy.mock.calls.map(
+      (call) => (call[0] as { url: string }).url,
+    );
+    expect(urls.some((url) => url.includes("rss2json"))).toBe(false);
+  });
 });
