@@ -22,7 +22,7 @@ interface MediaSettingsPlugin {
   getActiveReaderView?(): Promise<{
     updatePodcastTheme: (theme: PodcastTheme) => void;
   } | null>;
-  applyHideYouTubeDescriptions?(hide: boolean): Promise<void>;
+  applyHideYouTubeDescriptions(hide: boolean): Promise<void>;
 }
 
 export function renderMediaSettingsTab(
@@ -75,8 +75,8 @@ export function renderMediaSettingsTab(
         .setValue(plugin.settings.media.hideYouTubeDescriptions ?? false)
         .onChange(async (value) => {
           plugin.settings.media.hideYouTubeDescriptions = value;
+          await plugin.applyHideYouTubeDescriptions(value);
           await plugin.saveSettings();
-          await plugin.applyHideYouTubeDescriptions?.(value);
         }),
     );
 
