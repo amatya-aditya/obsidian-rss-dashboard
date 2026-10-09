@@ -94,6 +94,7 @@ import {
   normalizeSubstackImageUrlsInDocument,
 } from "../utils/substack-image-url";
 import { firstNonFormulaImageUrl } from "../utils/image-url-utils";
+import { applyReaderImageLoading } from "../utils/reader-image-loading";
 import { ReaderLightbox } from "../components/reader-lightbox";
 import {
   isLightboxEligibleImage,
@@ -1959,6 +1960,9 @@ export class ReaderView extends ItemView {
     // Add classes to images for styling
     container.querySelectorAll("img").forEach((img) => {
       img.addClass("rss-reader-responsive-img");
+      // Before the error listener below, so a failed image is revealed before
+      // Substack recovery clones it.
+      applyReaderImageLoading(img);
       this.setupReaderImageTooltip(img, title);
       this.setupLightboxForImage(img);
       img.addEventListener("error", () => {

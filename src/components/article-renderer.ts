@@ -37,6 +37,7 @@ import {
   findFirstNonFormulaImage,
   firstNonFormulaImageUrl,
 } from "../utils/image-url-utils";
+import { applyReaderImageLoading } from "../utils/reader-image-loading";
 import { PodcastPlayer } from "../views/podcast-player";
 import { VideoPlayer } from "../views/video-player";
 
@@ -551,6 +552,9 @@ export class ArticleRenderer {
 
     container.querySelectorAll("img").forEach((img) => {
       img.addClass("rss-reader-responsive-img");
+      // Before the error listener below, so a failed image is revealed before
+      // Substack recovery clones it.
+      applyReaderImageLoading(img);
       img.addEventListener("error", () => {
         this.recoverFailedSubstackImageElement(img);
       });

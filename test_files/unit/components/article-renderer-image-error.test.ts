@@ -116,4 +116,24 @@ describe("ArticleRenderer remote image errors", () => {
     expect(warn).not.toHaveBeenCalled();
     expect(error).not.toHaveBeenCalled();
   });
+  // AC12
+  it("lazy-loads inline reader images and keeps a failed image visible", async () => {
+    await renderer.render(
+      container,
+      makeItem(
+        '<img src="https://img.example.com/a.jpg" width="640" height="480">',
+      ),
+    );
+    const image = container.querySelector(
+      "img.rss-reader-responsive-img",
+    ) as HTMLImageElement;
+
+    expect(image.getAttribute("loading")).toBe("lazy");
+    expect(image.getAttribute("decoding")).toBe("async");
+    expect(image.classList.contains("is-loading")).toBe(true);
+
+    image.dispatchEvent(new Event("error"));
+
+    expect(image.classList.contains("is-loading")).toBe(false);
+  });
 });

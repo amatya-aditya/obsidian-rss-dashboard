@@ -119,6 +119,12 @@
     transition-delay: 0s;
   }
 
+  /* reader.css */
+  .rss-reader-lazy-img {
+    transition-duration: 0.01ms;
+    transition-delay: 0s;
+  }
+
   /* reader-lightbox.css */
   .rss-reader-lightbox-backdrop,
   .rss-reader-lightbox-btn,
