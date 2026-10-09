@@ -40,14 +40,20 @@ describe("Reader stylesheet - image loading", () => {
   });
 
   // AC8
-  it("fades images in by transitioning opacity", () => {
-    const img = declarationsFor(readerCss, ".rss-reader-lazy-img");
+  it("fades a revealed image in with an opacity animation", () => {
+    const revealed = declarationsFor(
+      readerCss,
+      ".rss-reader-lazy-img.is-revealed",
+    );
 
-    expect(img.get("transition")).toMatch(/opacity/);
+    expect(revealed.get("animation")).toMatch(/rss-reader-img-fade-in/);
+    expect(readerCss).toMatch(
+      /@keyframes rss-reader-img-fade-in\s*\{[^}]*from\s*\{\s*opacity:\s*0/,
+    );
   });
 
-  // AC8
-  it("only hides an image while the script has marked it as loading", () => {
+  // AC8, AC9
+  it("never hides a pending image with opacity, so the skeleton stays visible", () => {
     const base = declarationsFor(readerCss, ".rss-reader-lazy-img");
     const loading = declarationsFor(
       readerCss,
@@ -55,24 +61,33 @@ describe("Reader stylesheet - image loading", () => {
     );
 
     expect(base.get("opacity")).toBeUndefined();
-    expect(loading.get("opacity")).toBe("0");
+    expect(loading.get("opacity")).toBeUndefined();
+    expect(loading.get("visibility")).toBeUndefined();
   });
 
   // AC9
-  it("shows a skeleton placeholder sized by the reserved aspect ratio", () => {
+  it("shows a visible skeleton sized by the reserved aspect ratio", () => {
     const skeleton = declarationsFor(
       readerCss,
       ".rss-reader-lazy-img.is-loading",
     );
 
     expect(skeleton.get("aspect-ratio")).toBe("var(--rss-img-ratio)");
+    // An unloaded image has no intrinsic size and `width: auto` beats the
+    // width attribute, so the skeleton needs an explicit width to get a height.
+    expect(skeleton.get("width")).toBe("var(--rss-img-width, auto)");
+    expect(skeleton.get("background")).toBe("var(--background-modifier-hover)");
+    expect(skeleton.get("color")).toBe("transparent");
   });
 
   // AC10
   it("respects the reduced-motion preference for the image fade", () => {
-    const reduced = declarationsFor(reducedMotionCss, ".rss-reader-lazy-img");
+    const reduced = declarationsFor(
+      reducedMotionCss,
+      ".rss-reader-lazy-img.is-revealed",
+    );
 
-    expect(reduced.get("transition-duration")).toBe("0.01ms");
+    expect(reduced.get("animation-duration")).toBe("0.01ms");
   });
 
   // AC11

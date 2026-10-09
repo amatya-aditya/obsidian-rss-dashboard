@@ -120,9 +120,9 @@
   }
 
   /* reader.css */
-  .rss-reader-lazy-img {
-    transition-duration: 0.01ms;
-    transition-delay: 0s;
+  .rss-reader-lazy-img.is-revealed {
+    animation-duration: 0.01ms;
+    animation-delay: 0s;
   }
 
   /* reader-lightbox.css */

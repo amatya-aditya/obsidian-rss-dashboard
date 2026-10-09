@@ -48,6 +48,7 @@ describe("applyReaderImageLoading", () => {
 
     img.dispatchEvent(new Event("load"));
     expect(img.classList.contains("is-loading")).toBe(false);
+    expect(img.classList.contains("is-revealed")).toBe(true);
   });
 
   // AC2
@@ -58,6 +59,7 @@ describe("applyReaderImageLoading", () => {
     img.dispatchEvent(new Event("error"));
 
     expect(img.classList.contains("is-loading")).toBe(false);
+    expect(img.classList.contains("is-revealed")).toBe(true);
   });
 
   // AC2
@@ -77,8 +79,10 @@ describe("applyReaderImageLoading", () => {
     applyReaderImageLoading(img);
 
     expect(img.style.getPropertyValue("--rss-img-ratio")).toBe("1200 / 800");
+    expect(img.style.getPropertyValue("--rss-img-width")).toBe("1200px");
     img.dispatchEvent(new Event("load"));
     expect(img.style.getPropertyValue("--rss-img-ratio")).toBe("");
+    expect(img.style.getPropertyValue("--rss-img-width")).toBe("");
   });
 
   // AC3
@@ -93,6 +97,7 @@ describe("applyReaderImageLoading", () => {
     applyReaderImageLoading(img);
 
     expect(img.style.getPropertyValue("--rss-img-ratio")).toBe("");
+    expect(img.style.getPropertyValue("--rss-img-width")).toBe("");
   });
 
   // AC4

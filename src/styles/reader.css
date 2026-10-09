@@ -535,21 +535,34 @@
   height: auto;
   border-radius: 5px;
 }
-/* Lazy-loaded reader images: capped to the pane, faded in, skeleton while
-   pending. Only .is-loading hides an image, and the script drops it on load or
-   error, so an image is never stuck invisible. */
+/* Lazy-loaded reader images: capped to the window height, skeleton while
+   pending, then faded in. The skeleton is the image's own background, so a
+   pending image is never hidden with opacity (that would hide the skeleton
+   too). The script swaps .is-loading for .is-revealed on load or error, so an
+   image is never stuck blank. */
 .rss-reader-lazy-img {
   max-width: 100%;
   max-height: min(60vh, 600px);
   width: auto;
   height: auto;
   object-fit: contain;
-  transition: opacity 0.25s ease-in-out;
 }
 .rss-reader-lazy-img.is-loading {
-  opacity: 0;
+  width: var(--rss-img-width, auto);
   aspect-ratio: var(--rss-img-ratio);
   background: var(--background-modifier-hover);
+  color: transparent;
+}
+.rss-reader-lazy-img.is-revealed {
+  animation: rss-reader-img-fade-in 0.25s ease-in-out;
+}
+@keyframes rss-reader-img-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 .rss-reader-view .rss-reader-zoomable-img:focus-visible {
   outline: 2px solid var(--interactive-accent);
