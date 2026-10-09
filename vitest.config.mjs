@@ -22,6 +22,46 @@ const markdownAsText = {
   },
 };
 
+// Building a fresh jsdom and module graph for every test file is most of the
+// suite's run time. Files that touch no shared state can reuse one per worker
+// (`isolate: false`) and run several times faster. A file that replaces
+// modules, stubs globals, or fakes timers would leak into the next file in the
+// worker, so those keep a fresh environment. Sorting is by file content, so a
+// new test that adds a mock moves to the isolated project by itself.
+const SHARES_STATE = new RegExp(
+  [
+    String.raw`vi\.(mock|doMock|stubGlobal|stubEnv|useFakeTimers|resetModules|importActual)`,
+    String.raw`vi\.spyOn\((globalThis|global|window|document|navigator|Date|Math|JSON)\b`,
+    String.raw`globalThis\.`,
+    String.raw`\(global as`,
+    String.raw`window\.[A-Za-z_]+ ?=[^=]`,
+  ].join("|"),
+);
+// Files that still leak state when shared; fix the leak, then remove the entry.
+const ALWAYS_ISOLATED = [
+  "test_files/stubs/obsidian.contract.test.ts",
+  "test_files/unit/modals/import-opml-modal.test.ts",
+];
+
+function listTestFiles(dir) {
+  return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory())
+      return entry.name === "fixtures" ? [] : listTestFiles(full);
+    return entry.name.endsWith(".test.ts") ? [full] : [];
+  });
+}
+
+const testFiles = ["test_files/unit", "test_files/stubs"]
+  .flatMap((dir) => listTestFiles(path.join(__dirname, dir)))
+  .map((file) => path.relative(__dirname, file).split(path.sep).join("/"));
+const sharedFiles = testFiles.filter(
+  (file) =>
+    !ALWAYS_ISOLATED.includes(file) &&
+    !SHARES_STATE.test(fs.readFileSync(path.join(__dirname, file), "utf8")),
+);
+const isolatedFiles = testFiles.filter((file) => !sharedFiles.includes(file));
+
 export default defineConfig({
   plugins: [markdownAsText],
   resolve: {
@@ -37,7 +77,21 @@ export default defineConfig({
     },
   },
   test: {
-    include: ["test_files/unit/**/*.test.ts", "test_files/stubs/**/*.test.ts"],
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: "shared-environment",
+          setupFiles: ["test_files/unit/vitest.shared-environment.setup.ts"],
+          include: sharedFiles,
+          isolate: false,
+        },
+      },
+      {
+        extends: true,
+        test: { name: "isolated-environment", include: isolatedFiles },
+      },
+    ],
     globals: true,
     environment: "jsdom",
     setupFiles: ["test_files/unit/vitest.setup.ts"],

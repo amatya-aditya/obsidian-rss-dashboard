@@ -35,6 +35,17 @@ _Note: Grouping tests by feature or module makes it much easier to maintain the 
 
 A test that pins current behavior before a refactor, bugs included, is named `*.characterization.test.ts` and lives in the same folder as the module's other tests. Mark each pinned bug with `// BUG: pinned, see #<issue>`. CI keeps these files read-only on `refactor/*` pull requests; see **Characterization tests** in the [architecture guardrails](../architecture.md#characterization-tests).
 
+### Shared and isolated test environments
+
+`vitest.config.mjs` sorts every test file into one of two projects by reading its source:
+
+- `shared-environment` runs with `isolate: false`, so files in the same worker reuse one jsdom and module graph. This is several times faster.
+- `isolated-environment` gives each file a fresh environment. A file lands here when it uses `vi.mock`, `vi.doMock`, `vi.stubGlobal`, `vi.stubEnv`, `vi.useFakeTimers`, `vi.resetModules`, `vi.importActual`, `vi.spyOn` on a global, `globalThis.`, `(global as`, or assigns to `window.<name>`.
+
+Shared files also run `test_files/unit/vitest.shared-environment.setup.ts`, which detaches any listener a file leaves on `document` or `window` and empties the body when the file ends. Unhandled errors from a stale listener fail the run, so keep that cleanup if you change the setup.
+
+You do not register anything: adding one of those calls moves the file by itself. If a test passes alone but fails in the full run, or the reverse, it probably leaks state; add its path to `ALWAYS_ISOLATED` in `vitest.config.mjs`, then fix the leak and remove the entry.
+
 ## 4. Test Suites Reference
 
 ### Core Services
