@@ -119,6 +119,12 @@
     transition-delay: 0s;
   }
 
+  /* reader.css */
+  .rss-reader-lazy-img.is-revealed {
+    animation-duration: 0.01ms;
+    animation-delay: 0s;
+  }
+
   /* reader-lightbox.css */
   .rss-reader-lightbox-backdrop,
   .rss-reader-lightbox-btn,
