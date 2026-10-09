@@ -692,15 +692,6 @@ guid: "{{guid}}"
       item.saved = true;
       item.savedFilePath = filePath;
 
-      if (
-        this.settings.addSavedTag &&
-        (!item.tags || !item.tags.some((t) => t.name.toLowerCase() === "saved"))
-      ) {
-        const savedTag = { name: "Saved", color: "#3498db" };
-        if (!item.tags) item.tags = [savedTag];
-        else item.tags.push(savedTag);
-      }
-
       new Notice(
         "Article saved. Click/tap the icon again to open the article in your vault.",
       );

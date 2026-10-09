@@ -256,6 +256,79 @@ describe("tag-utils.applyAutomaticArticleTags", () => {
 
     expect(updates.tags).toEqual([{ name: "Saved", color: "#123456" }]);
   });
+
+  it("registers Saved in availableTags when the tag is newly added", () => {
+    // Bug #943: the chip appeared but availableTags was never updated,
+    // so the tag was invisible in the Tags list.
+    const settings = {
+      availableTags: [] as { name: string; color: string }[],
+      articleSaving: { addSavedTag: true },
+    } as unknown as RssDashboardSettings;
+
+    applyAutomaticArticleTags(
+      { saved: false } as unknown as FeedItem,
+      { saved: true },
+      settings,
+    );
+
+    expect(settings.availableTags).toHaveLength(1);
+    expect(settings.availableTags[0]).toMatchObject({ name: "Saved" });
+  });
+
+  it("does not duplicate Saved in availableTags when already registered", () => {
+    const settings = {
+      availableTags: [{ name: "Saved", color: "#3498db" }] as {
+        name: string;
+        color: string;
+      }[],
+      articleSaving: { addSavedTag: true },
+    } as unknown as RssDashboardSettings;
+
+    applyAutomaticArticleTags(
+      { saved: false } as unknown as FeedItem,
+      { saved: true },
+      settings,
+    );
+
+    expect(settings.availableTags).toHaveLength(1);
+  });
+
+  it("does not add Saved to availableTags when addSavedTag is false", () => {
+    const settings = {
+      availableTags: [] as { name: string; color: string }[],
+      articleSaving: { addSavedTag: false },
+    } as unknown as RssDashboardSettings;
+
+    applyAutomaticArticleTags(
+      { saved: false } as unknown as FeedItem,
+      { saved: true },
+      settings,
+    );
+
+    expect(settings.availableTags).toHaveLength(0);
+  });
+
+  it("uses existing availableTags Saved color when registering the article tag", () => {
+    // When there is already a Saved tag in availableTags (e.g. user customized it),
+    // the article tag should inherit that color, not the fallback.
+    const settings = {
+      availableTags: [{ name: "Saved", color: "#custom1" }],
+      articleSaving: { addSavedTag: true },
+    } as unknown as RssDashboardSettings;
+
+    const updates = applyAutomaticArticleTags(
+      { saved: false } as unknown as FeedItem,
+      { saved: true },
+      settings,
+    );
+
+    expect(updates.tags?.[0]).toMatchObject({
+      name: "Saved",
+      color: "#custom1",
+    });
+    // availableTags should still have exactly one entry
+    expect(settings.availableTags).toHaveLength(1);
+  });
 });
 
 describe("tag-utils.withSavedTagName", () => {

@@ -295,7 +295,10 @@ lang: "{{language}}"
 
     expect(item.saved).toBe(true);
     expect(item.savedFilePath).toBe(expectedPath);
-    expect(item.tags?.map((tag) => tag.name)).toEqual(["tech", "Saved"]);
+    // item.tags is not mutated by saveArticle — tag injection happens via
+    // applyAutomaticArticleTags in updateArticleStatus (dashboard-view.ts).
+    // The "Saved" tag in the written content (lines 291-293) is injected by
+    // buildTemplateValues inside the saver and is correct.
   });
 
   it("substitutes {{firstSeen}} and {{firstSeenISO}} in body and frontmatter templates", async () => {
