@@ -35,6 +35,10 @@ const SHARES_STATE = new RegExp(
     String.raw`globalThis\.`,
     String.raw`\(global as`,
     String.raw`window\.[A-Za-z_]+ ?=[^=]`,
+    String.raw`Object\.(defineProperty|defineProperties|assign)\((window|document|navigator|globalThis|global)\b`,
+    String.raw`process\.env`,
+    String.raw`\b(localStorage|sessionStorage)\b`,
+    String.raw`\.prototype\.[A-Za-z_]+ ?=[^=]`,
   ].join("|"),
 );
 // Files that still leak state when shared; fix the leak, then remove the entry.

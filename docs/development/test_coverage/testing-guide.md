@@ -40,7 +40,7 @@ A test that pins current behavior before a refactor, bugs included, is named `*.
 `vitest.config.mjs` sorts every test file into one of two projects by reading its source:
 
 - `shared-environment` runs with `isolate: false`, so files in the same worker reuse one jsdom and module graph. This is several times faster.
-- `isolated-environment` gives each file a fresh environment. A file lands here when it uses `vi.mock`, `vi.doMock`, `vi.stubGlobal`, `vi.stubEnv`, `vi.useFakeTimers`, `vi.resetModules`, `vi.importActual`, `vi.spyOn` on a global, `globalThis.`, `(global as`, or assigns to `window.<name>`.
+- `isolated-environment` gives each file a fresh environment. A file lands here when it uses `vi.mock`, `vi.doMock`, `vi.stubGlobal`, `vi.stubEnv`, `vi.useFakeTimers`, `vi.resetModules`, `vi.importActual`, `vi.spyOn` on a global, `globalThis.`, `(global as`, assigns to `window.<name>`, redefines a property on `window`/`document`/`navigator` (`Object.defineProperty`), patches a `.prototype`, or touches `process.env`, `localStorage`, or `sessionStorage`.
 
 Shared files also run `test_files/unit/vitest.shared-environment.setup.ts`, which detaches any listener a file leaves on `document` or `window` and empties the body when the file ends. Unhandled errors from a stale listener fail the run, so keep that cleanup if you change the setup.
 
