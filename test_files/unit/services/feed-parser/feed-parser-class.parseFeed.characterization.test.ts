@@ -49,7 +49,7 @@ const OLD = "Mon, 01 Jan 2024 00:00:00 GMT";
 const MEDIA_SETTINGS: MediaSettings = {
   autoTagVideos: true,
   rememberPlaybackProgress: true,
-  hideYouTubeDescriptions: false,
+  youtubeFocusMode: false,
   defaultMastodonFolder: "Mastodon",
   defaultYouTubeFolder: "Videos",
   defaultVideoTag: "Video",

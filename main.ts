@@ -329,9 +329,7 @@ export default class RssDashboardPlugin extends Plugin {
       refreshSettingTab: () => this.settingTab?.refresh(),
       refreshDashboardViews: async () => {
         await this.refreshDashboardViews();
-        await this.applyHideYouTubeDescriptions(
-          this.settings.media.hideYouTubeDescriptions,
-        );
+        await this.applyYouTubeFocusMode(this.settings.media.youtubeFocusMode);
       },
       renderDiscoverView: async () => {
         const discoverView = await this.getActiveDiscoverView();
@@ -768,7 +766,7 @@ export default class RssDashboardPlugin extends Plugin {
     return null;
   }
 
-  public async applyHideYouTubeDescriptions(hide: boolean): Promise<void> {
+  public async applyYouTubeFocusMode(hide: boolean): Promise<void> {
     const types = [RSS_READER_VIEW_TYPE, RSS_DASHBOARD_VIEW_TYPE];
     for (const type of types) {
       for (const leaf of this.app.workspace.getLeavesOfType(type)) {
@@ -777,7 +775,7 @@ export default class RssDashboardPlugin extends Plugin {
         }
         const view = leaf.view;
         if (view instanceof ReaderView || view instanceof RssDashboardView) {
-          view.setHideYouTubeDescriptions(hide);
+          view.setYouTubeFocusMode(hide);
         }
       }
     }

@@ -18,9 +18,9 @@ describe("migrateMediaVideoTagSettings", () => {
     expect(
       (settings.media as Record<string, unknown>).rememberPlaybackProgress,
     ).toBe(true);
-    expect(
-      (settings.media as Record<string, unknown>).hideYouTubeDescriptions,
-    ).toBe(false);
+    expect((settings.media as Record<string, unknown>).youtubeFocusMode).toBe(
+      false,
+    );
     expect((settings.media as Record<string, unknown>).defaultYouTubeTag).toBe(
       "Video",
     );
@@ -144,7 +144,7 @@ describe("migrateMediaVideoTagSettings", () => {
       media: {
         defaultVideoTag: "",
         rememberPlaybackProgress: true,
-        hideYouTubeDescriptions: false,
+        youtubeFocusMode: false,
         defaultMastodonFolder: "Mastodon",
         useDomainIconsMastodon: false,
         defaultYouTubeTag: "Video",
@@ -158,5 +158,28 @@ describe("migrateMediaVideoTagSettings", () => {
     expect((settings.media as Record<string, unknown>).defaultVideoTag).toBe(
       "",
     );
+  });
+  it("carries a dev-build hideYouTubeDescriptions value into Focus mode and drops the old key", () => {
+    const settings: Record<string, unknown> = {
+      media: { hideYouTubeDescriptions: true },
+    };
+
+    migrateMediaVideoTagSettings(settings);
+
+    const media = settings.media as Record<string, unknown>;
+    expect(media.youtubeFocusMode).toBe(true);
+    expect("hideYouTubeDescriptions" in media).toBe(false);
+  });
+
+  it("keeps an existing Focus mode value over a stale old key", () => {
+    const settings: Record<string, unknown> = {
+      media: { youtubeFocusMode: false, hideYouTubeDescriptions: true },
+    };
+
+    migrateMediaVideoTagSettings(settings);
+
+    const media = settings.media as Record<string, unknown>;
+    expect(media.youtubeFocusMode).toBe(false);
+    expect("hideYouTubeDescriptions" in media).toBe(false);
   });
 });

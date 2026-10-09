@@ -30,7 +30,7 @@ const manifest: PluginManifest = {
   dir: ".",
 };
 
-describe("Hide YouTube descriptions after an import", () => {
+describe("Focus mode after an import", () => {
   let plugin: RssDashboardPlugin;
   let applySpy: ReturnType<typeof vi.spyOn>;
 
@@ -82,7 +82,7 @@ describe("Hide YouTube descriptions after an import", () => {
     plugin.saveData = vi.fn().mockResolvedValue(undefined);
     await plugin.loadSettings();
     applySpy = vi
-      .spyOn(plugin, "applyHideYouTubeDescriptions")
+      .spyOn(plugin, "applyYouTubeFocusMode")
       .mockResolvedValue(undefined);
   });
 
@@ -92,7 +92,7 @@ describe("Hide YouTube descriptions after an import", () => {
 
   it("pushes the imported value to every open Reader and dashboard", async () => {
     const bundle = plugin.getSettingsBundle();
-    bundle.settings.media.hideYouTubeDescriptions = true;
+    bundle.settings.media.youtubeFocusMode = true;
 
     installObsidianDomPolyfills();
     const result = plugin.importSettingsBundleFromFile(
@@ -104,13 +104,13 @@ describe("Hide YouTube descriptions after an import", () => {
     findButton("Overwrite")?.click();
 
     await expect(result).resolves.toBe("committed");
-    expect(plugin.settings.media.hideYouTubeDescriptions).toBe(true);
+    expect(plugin.settings.media.youtubeFocusMode).toBe(true);
     expect(applySpy).toHaveBeenLastCalledWith(true);
   });
 
   it("does not touch open views when the import is canceled", async () => {
     const bundle = plugin.getSettingsBundle();
-    bundle.settings.media.hideYouTubeDescriptions = true;
+    bundle.settings.media.youtubeFocusMode = true;
 
     installObsidianDomPolyfills();
     const result = plugin.importSettingsBundleFromFile(
@@ -122,7 +122,7 @@ describe("Hide YouTube descriptions after an import", () => {
     findButton("Cancel")?.click();
 
     await expect(result).resolves.toBe("canceled");
-    expect(plugin.settings.media.hideYouTubeDescriptions).toBe(false);
+    expect(plugin.settings.media.youtubeFocusMode).toBe(false);
     expect(applySpy).not.toHaveBeenCalled();
   });
 });

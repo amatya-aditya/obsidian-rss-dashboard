@@ -193,7 +193,7 @@ export class ArticleRenderer {
         this.onPlaybackProgress,
         this.settings.media.rememberPlaybackProgress,
         this.settings.useFirstSeenDateFallback,
-        this.settings.media.hideYouTubeDescriptions,
+        this.settings.media.youtubeFocusMode,
       );
       this.videoPlayer.loadVideo(item);
       if (this.relatedItems.length > 0) {
@@ -626,8 +626,8 @@ export class ArticleRenderer {
     return !/^(?:\.{3,}|…+|\[\s*(?:\.{3,}|…+)\s*\])$/.test(text);
   }
 
-  public setHideYouTubeDescriptions(hide: boolean): void {
-    this.videoPlayer?.setHideDescription(hide);
+  public setYouTubeFocusMode(hide: boolean): void {
+    this.videoPlayer?.setFocusMode(hide);
   }
 
   public cleanupPlayers(): void {

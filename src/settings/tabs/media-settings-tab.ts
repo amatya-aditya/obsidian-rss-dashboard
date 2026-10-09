@@ -22,7 +22,7 @@ interface MediaSettingsPlugin {
   getActiveReaderView?(): Promise<{
     updatePodcastTheme: (theme: PodcastTheme) => void;
   } | null>;
-  applyHideYouTubeDescriptions(hide: boolean): Promise<void>;
+  applyYouTubeFocusMode(hide: boolean): Promise<void>;
 }
 
 export function renderMediaSettingsTab(
@@ -66,16 +66,16 @@ export function renderMediaSettingsTab(
   new Setting(containerEl).setName("YouTube player").setHeading();
 
   new Setting(containerEl)
-    .setName("Hide YouTube descriptions")
+    .setName("Focus mode")
     .setDesc(
-      "Remove the description below YouTube videos in the reader. The stored description is kept for search and saved notes.",
+      "Show only the video: hide the description and the related videos below it. The stored description is kept for search and saved notes.",
     )
     .addToggle((toggle) =>
       toggle
-        .setValue(plugin.settings.media.hideYouTubeDescriptions ?? false)
+        .setValue(plugin.settings.media.youtubeFocusMode ?? false)
         .onChange(async (value) => {
-          plugin.settings.media.hideYouTubeDescriptions = value;
-          await plugin.applyHideYouTubeDescriptions(value);
+          plugin.settings.media.youtubeFocusMode = value;
+          await plugin.applyYouTubeFocusMode(value);
           await plugin.saveSettings();
         }),
     );

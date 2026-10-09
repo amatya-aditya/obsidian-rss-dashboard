@@ -1,4 +1,4 @@
-import { Notice, Setting, setIcon } from "obsidian";
+import { Notice, Setting } from "obsidian";
 import { FeedItem } from "../types/types";
 import { MediaService } from "../services/media-service";
 import { resolveDisplayDate } from "../services/feed-parser/feed-retention";
@@ -29,7 +29,8 @@ export class VideoPlayer {
   private playStartTime: number | null = null;
   private videoDuration: number | null = null;
   private useFirstSeenDateFallback: boolean;
-  private hideDescription: boolean;
+  private focusMode: boolean;
+  private relatedEl: HTMLElement | null = null;
   private detailsEl: HTMLElement | null = null;
   private descriptionEl: HTMLElement | null = null;
 
@@ -44,14 +45,14 @@ export class VideoPlayer {
     ) => void,
     progressTrackingEnabled = true,
     useFirstSeenDateFallback = false,
-    hideDescription = false,
+    focusMode = false,
   ) {
     this.container = container;
     this.onVideoSelect = onVideoSelect;
     this.onPlaybackProgress = onPlaybackProgress;
     this.progressTrackingEnabled = progressTrackingEnabled;
     this.useFirstSeenDateFallback = useFirstSeenDateFallback;
-    this.hideDescription = hideDescription;
+    this.focusMode = focusMode;
     this.setupMessageListener();
   }
 
@@ -120,46 +121,26 @@ export class VideoPlayer {
     this.detailsEl = details;
     this.renderDescription();
 
-    const linksContainer = this.playerEl.createDiv({ cls: "rss-video-links" });
-    const youtubeButton = linksContainer.createEl("a", {
-      cls: "rss-video-youtube-button",
-      href: embed.watchUrl,
-    });
-    youtubeButton.target = "_blank";
-    youtubeButton.rel = "noopener noreferrer";
-    const youtubeIcon = youtubeButton.createSpan({
-      cls: "rss-video-youtube-button-icon",
-    });
-    setIcon(youtubeIcon, "youtube");
-    youtubeButton.createSpan({ text: "Watch on YouTube" });
-
-    const tosLink = linksContainer.createEl("a", {
-      cls: "rss-video-tos-link",
-      href: "https://www.youtube.com/t/terms",
-      text: "YouTube terms of service",
-    });
-    tosLink.target = "_blank";
-    tosLink.rel = "noopener noreferrer";
-
-    this.playerEl.createDiv({ cls: "rss-video-related" });
     this.renderRelatedVideos();
   }
 
   /**
-   * Adds or removes only the description block, so the iframe and playback
+   * Focus mode shows only the video: it drops the description and the related
+   * list. Only those blocks are added or removed, so the iframe and playback
    * state survive a preference change.
    */
-  setHideDescription(hide: boolean): void {
-    if (this.hideDescription === hide) return;
-    this.hideDescription = hide;
+  setFocusMode(enabled: boolean): void {
+    if (this.focusMode === enabled) return;
+    this.focusMode = enabled;
     this.renderDescription();
+    this.renderRelatedVideos();
   }
 
   private renderDescription(): void {
     this.descriptionEl?.remove();
     this.descriptionEl = null;
     const description = this.currentItem?.description;
-    if (this.hideDescription || !description || !this.detailsEl) return;
+    if (this.focusMode || !description || !this.detailsEl) return;
 
     const descriptionContainer = this.detailsEl.createDiv({
       cls: "rss-video-description",
@@ -365,10 +346,14 @@ export class VideoPlayer {
   }
 
   private renderRelatedVideos(): void {
-    const relatedContainer = this.playerEl?.querySelector(".rss-video-related");
-    if (!relatedContainer || !this.currentItem) return;
+    this.relatedEl?.remove();
+    this.relatedEl = null;
+    if (this.focusMode || !this.playerEl || !this.currentItem) return;
 
-    relatedContainer.empty();
+    const relatedContainer = this.playerEl.createDiv({
+      cls: "rss-video-related",
+    });
+    this.relatedEl = relatedContainer;
 
     const filtered = this.relatedVideos
       .filter(
@@ -445,5 +430,6 @@ export class VideoPlayer {
     this.playerEl = null;
     this.detailsEl = null;
     this.descriptionEl = null;
+    this.relatedEl = null;
   }
 }

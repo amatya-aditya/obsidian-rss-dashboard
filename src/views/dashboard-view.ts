@@ -3015,8 +3015,8 @@ export class RssDashboardView extends ItemView {
     this.articleList?.setSelectedArticle(article);
   }
 
-  public setHideYouTubeDescriptions(hide: boolean): void {
-    this.articleRenderer?.setHideYouTubeDescriptions(hide);
+  public setYouTubeFocusMode(hide: boolean): void {
+    this.articleRenderer?.setYouTubeFocusMode(hide);
   }
 
   public refreshTagColors(): void {

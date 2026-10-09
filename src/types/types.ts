@@ -273,8 +273,8 @@ export type PodcastTheme =
 export interface MediaSettings {
   autoTagVideos: boolean;
   rememberPlaybackProgress: boolean;
-  /** Omit the description block from the YouTube player; stored data is untouched. */
-  hideYouTubeDescriptions: boolean;
+  /** Show only the YouTube video: omit the description and related list; stored data is untouched. */
+  youtubeFocusMode: boolean;
   defaultMastodonFolder: string;
   defaultYouTubeFolder: string;
   defaultVideoTag: string;
@@ -783,7 +783,7 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
   media: {
     autoTagVideos: true,
     rememberPlaybackProgress: true,
-    hideYouTubeDescriptions: false,
+    youtubeFocusMode: false,
     defaultMastodonFolder: "Mastodon",
     defaultYouTubeFolder: "Videos",
     defaultVideoTag: "Video",

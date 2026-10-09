@@ -79,7 +79,7 @@ export class FeedParser {
       defaultVideoTag: "Video",
       defaultVideoTags: ["Video"],
       rememberPlaybackProgress: true,
-      hideYouTubeDescriptions: false,
+      youtubeFocusMode: false,
       defaultMastodonFolder: "Mastodon",
       defaultYouTubeFolder: "Videos",
       defaultYouTubeTag: "Video",

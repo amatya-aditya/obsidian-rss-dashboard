@@ -33,7 +33,7 @@ describe("FeedParser.parseFeed", () => {
   const mediaSettings: MediaSettings = {
     autoTagVideos: true,
     rememberPlaybackProgress: true,
-    hideYouTubeDescriptions: false,
+    youtubeFocusMode: false,
     defaultMastodonFolder: "Mastodon",
     defaultYouTubeFolder: "Videos",
     defaultVideoTag: "Video",

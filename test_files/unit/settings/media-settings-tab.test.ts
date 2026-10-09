@@ -159,31 +159,30 @@ describe("renderMediaSettingsTab()", () => {
     });
   });
 
-  it("persists Hide YouTube descriptions and applies it to open players", async () => {
+  it("persists Focus mode and applies it to open players", async () => {
     const containerEl = document.body.appendChild(createDiv());
     const settings = cloneSettings();
-    const applyHideYouTubeDescriptions = vi.fn(async () => {});
+    const applyYouTubeFocusMode = vi.fn(async () => {});
     const plugin = {
       app: obsidian.App.createMock(),
       settings,
       saveSettings: vi.fn(async () => {}),
       clearPlaybackProgress: vi.fn(async () => 0),
-      applyHideYouTubeDescriptions,
+      applyYouTubeFocusMode,
     } as unknown as RssDashboardPlugin;
 
     renderMediaSettingsTab(containerEl, plugin);
 
-    const toggle = getSettingByName(
-      containerEl,
-      "Hide YouTube descriptions",
-    ).querySelector('input[type="checkbox"]') as HTMLInputElement;
+    const toggle = getSettingByName(containerEl, "Focus mode").querySelector(
+      'input[type="checkbox"]',
+    ) as HTMLInputElement;
     expect(toggle.checked).toBe(false);
 
     toggle.click();
     await flushPromises();
 
-    expect(settings.media.hideYouTubeDescriptions).toBe(true);
+    expect(settings.media.youtubeFocusMode).toBe(true);
     expect(vi.mocked(plugin.saveSettings)).toHaveBeenCalledTimes(1);
-    expect(applyHideYouTubeDescriptions).toHaveBeenCalledWith(true);
+    expect(applyYouTubeFocusMode).toHaveBeenCalledWith(true);
   });
 });

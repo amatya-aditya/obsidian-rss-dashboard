@@ -153,27 +153,17 @@ describe("VideoPlayer", () => {
     expect(description?.innerHTML).toContain('rel="noopener noreferrer"');
   });
 
-  it("renders the YouTube watch button using embed.watchUrl and sets icon dataset", () => {
+  it("does not render the Watch on YouTube button or the terms link box", () => {
     const container = createContainer();
     const player = new VideoPlayer(container);
 
-    const embed = fixedEmbed();
-    vi.spyOn(MediaService, "buildYouTubeEmbed").mockReturnValue(embed);
-
     player.loadVideo(baseItem());
 
-    const button = container.querySelector<HTMLAnchorElement>(
-      ".rss-video-youtube-button",
-    );
-    expect(button).not.toBeNull();
-    expect(button?.getAttribute("href")).toBe(embed.watchUrl);
-    expect(button?.target).toBe("_blank");
-    expect(button?.rel).toBe("noopener noreferrer");
-
-    const icon = container.querySelector<HTMLElement>(
-      ".rss-video-youtube-button-icon",
-    );
-    expect(icon?.getAttribute("data-icon")).toBe("youtube");
+    expect(container.querySelector(".rss-video-links")).toBeNull();
+    expect(container.querySelector(".rss-video-youtube-button")).toBeNull();
+    expect(container.querySelector(".rss-video-tos-link")).toBeNull();
+    expect(container.textContent).not.toContain("Watch on YouTube");
+    expect(container.textContent).not.toContain("YouTube terms of service");
   });
 
   it("renders related videos empty state initially (findRelatedVideos returns [])", () => {
@@ -470,20 +460,21 @@ describe("VideoPlayer", () => {
     );
   });
 
-  describe("description visibility", () => {
+  describe("focus mode", () => {
     const withDescription = (): FeedItem =>
       baseItem({
         description: '<p>Promo <a href="https://x.test">link</a></p>',
       });
 
-    it("shows the description by default", () => {
+    it("shows the description and related list by default", () => {
       const container = createContainer();
       new VideoPlayer(container).loadVideo(withDescription());
 
       expect(container.querySelector(".rss-video-description")).not.toBeNull();
+      expect(container.querySelector(".rss-video-related")).not.toBeNull();
     });
 
-    it("omits the description block entirely when hidden", () => {
+    it("omits the description and related list but keeps title, channel and date", () => {
       const container = createContainer();
       const item = withDescription();
       new VideoPlayer(
@@ -496,36 +487,60 @@ describe("VideoPlayer", () => {
       ).loadVideo(item);
 
       expect(container.querySelector(".rss-video-description")).toBeNull();
+      expect(container.querySelector(".rss-video-related")).toBeNull();
       expect(container.textContent).not.toContain("Promo");
-      expect(container.querySelector("details, summary, button")).toBeNull();
+      expect(container.textContent).not.toContain("From the same channel");
+      expect(container.querySelector(".rss-video-title")).not.toBeNull();
+      expect(container.querySelector(".rss-video-channel")).not.toBeNull();
+      expect(container.querySelector(".rss-video-date")).not.toBeNull();
       expect(item.description).toContain("Promo");
     });
 
-    it("toggles the description live without recreating the iframe", () => {
+    it("toggles both blocks live without recreating the iframe", () => {
       const container = createContainer();
       const player = new VideoPlayer(container);
       player.loadVideo(withDescription());
       const iframe = container.querySelector("iframe");
 
-      player.setHideDescription(true);
+      player.setFocusMode(true);
       expect(container.querySelector(".rss-video-description")).toBeNull();
+      expect(container.querySelector(".rss-video-related")).toBeNull();
       expect(container.querySelector("iframe")).toBe(iframe);
 
-      player.setHideDescription(true);
-      player.setHideDescription(false);
+      player.setFocusMode(true);
+      player.setFocusMode(false);
       expect(container.querySelectorAll(".rss-video-description")).toHaveLength(
         1,
       );
+      expect(container.querySelectorAll(".rss-video-related")).toHaveLength(1);
       expect(container.querySelector("iframe")).toBe(iframe);
     });
 
-    it("applies a hide set before the next video loads", () => {
+    it("restores related videos supplied while focus mode was on", () => {
       const container = createContainer();
       const player = new VideoPlayer(container);
-      player.setHideDescription(true);
+      player.setFocusMode(true);
+      player.loadVideo(withDescription());
+      player.setRelatedVideos([
+        baseItem({ guid: "other", videoId: "other-id", title: "Other" }),
+      ]);
+      expect(container.querySelector(".rss-video-related")).toBeNull();
+
+      player.setFocusMode(false);
+
+      expect(
+        container.querySelectorAll(".rss-video-related-item"),
+      ).toHaveLength(1);
+    });
+
+    it("applies focus mode set before the next video loads", () => {
+      const container = createContainer();
+      const player = new VideoPlayer(container);
+      player.setFocusMode(true);
       player.loadVideo(withDescription());
 
       expect(container.querySelector(".rss-video-description")).toBeNull();
+      expect(container.querySelector(".rss-video-related")).toBeNull();
     });
   });
 });
