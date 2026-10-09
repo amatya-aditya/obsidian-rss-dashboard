@@ -896,6 +896,7 @@ export class RssDashboardView extends ItemView {
       app: this.app,
       component: this,
       settings: this.settings,
+      getSettings: () => this.plugin.settings,
       onArticleSave: (item) => {
         item.saved = true;
         void this.render();

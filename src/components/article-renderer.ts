@@ -49,6 +49,8 @@ export interface ArticleRendererOptions {
   app: App;
   component: Component;
   settings: RssDashboardSettings;
+  /** Returns the live settings object; wins over `settings` when given. */
+  getSettings?: () => RssDashboardSettings;
   onArticleSave: (item: FeedItem) => void;
   onArticleUpdate: (
     item: FeedItem,
@@ -67,7 +69,8 @@ export interface ArticleRendererOptions {
 export class ArticleRenderer {
   private app: App;
   private component: Component;
-  private settings: RssDashboardSettings;
+  private initialSettings: RssDashboardSettings;
+  private getSettings?: () => RssDashboardSettings;
   private onArticleSave: (item: FeedItem) => void;
   private onArticleUpdate: (
     item: FeedItem,
@@ -97,11 +100,17 @@ export class ArticleRenderer {
   constructor(options: ArticleRendererOptions) {
     this.app = options.app;
     this.component = options.component;
-    this.settings = options.settings;
+    this.initialSettings = options.settings;
+    this.getSettings = options.getSettings;
     this.onArticleSave = options.onArticleSave;
     this.onArticleUpdate = options.onArticleUpdate;
     this.onOpenSavedArticle = options.onOpenSavedArticle;
     this.onPlaybackProgress = options.onPlaybackProgress;
+  }
+
+  // Plugin imports replace plugin.settings with a new object, so resolve it per read.
+  private get settings(): RssDashboardSettings {
+    return this.getSettings?.() ?? this.initialSettings;
   }
 
   public async render(

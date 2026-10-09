@@ -29,6 +29,7 @@
 
 ### Fixes
 
+- The dashboard's inline reader now follows your current settings after an import replaces them, instead of using the values from when the dashboard opened. [GH Issue #960](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/960)
 - Moving several folders at once keeps a selected subfolder inside its selected parent, whatever order they were selected in. [GH Issue #655](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/655)
 - Fetching a full article no longer fails slowly when the page only mentions a paywall in its script data, as Ars Technica pages do. Before, such a page was treated as blocked and sent through the proxy list, which took about 20 seconds and returned nothing; it now loads straight away. Pages that really show paywall or sign-in wording still count as restricted. [GH Issue #950](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/950)
 - Enabling **Add "Saved" tag** now registers the tag in the Tags list so it can be edited, deleted, and filtered like any other tag. Previously the chip appeared on saved articles but the tag never appeared under Settings > Tags or in the sidebar tag filter. [GH Issue #943](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/943)
