@@ -1,6 +1,5 @@
 import { Notice, setIcon, setTooltip } from "obsidian";
 import { onActivate } from "../../../utils/keyboard-activation";
-import { syncTagsToggleState } from "../../../utils/tags-dropdown-portal";
 import { showSaveOptionsMenu, type CustomSaveHooks } from "./save-options-menu";
 import type {
   ArticleSavingSettings,
@@ -247,7 +246,6 @@ export function createTagsToggle(
     },
   });
   setIcon(tagsToggle, "tag");
-  syncTagsToggleState(tagsToggle, arg.article.tags);
   const handleOpen = (e: Event) => {
     e.stopPropagation();
     arg.deps.showTagsDropdown(tagsToggle, arg.article);

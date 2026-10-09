@@ -80,10 +80,7 @@ import {
 import TurndownService from "turndown";
 import { WebViewerIntegration } from "../services/web-viewer-integration";
 import { MediaService } from "../services/media-service";
-import {
-  createTagsDropdownPortal,
-  syncTagsToggleState,
-} from "../utils/tags-dropdown-portal";
+import { createTagsDropdownPortal } from "../utils/tags-dropdown-portal";
 import { resolveItemExternalUrl } from "../utils/item-url-utils";
 import { resolveSavedTemplateForArticle } from "../utils/saved-template-utils";
 import { resolvePodcastOpenDestinations } from "../utils/podcast-open-destinations";
@@ -2635,7 +2632,6 @@ export class ReaderView extends ItemView {
 
     if (this.currentItem?.guid === item.guid) {
       this.refreshReaderHeaderTags();
-      syncTagsToggleState(this.tagsToggleButton, item.tags);
     }
 
     if (
@@ -2664,8 +2660,6 @@ export class ReaderView extends ItemView {
         this.currentItem.read ? "Mark as unread" : "Mark as read",
       );
     }
-
-    syncTagsToggleState(this.tagsToggleButton, this.currentItem.tags);
 
     // Update star toggle
     if (this.starToggleButton) {
