@@ -554,7 +554,7 @@ describe("renderTagsSettingsTab() tag shape control", () => {
       radios(containerEl).map((el) =>
         el.style.getPropertyValue("--rss-dashboard-tag-chip-radius"),
       ),
-    ).toEqual(["0px", "10px", "999px"]);
+    ).toEqual(["0px", "6px", "999px"]);
   });
 
   it("is rendered after Reset tag names and before the tag list heading", () => {
@@ -570,7 +570,7 @@ describe("renderTagsSettingsTab() tag shape control", () => {
   });
 
   it("marks the selected preview with a check indicator in addition to its accent outline", () => {
-    const { containerEl } = render("10px");
+    const { containerEl } = render("6px");
 
     const [rectangle, squircle] = radios(containerEl);
     expect(squircle?.getAttribute("aria-checked")).toBe("true");
@@ -611,7 +611,7 @@ describe("renderTagsSettingsTab() tag shape control", () => {
     expect(pill.tabIndex).toBe(-1);
 
     press(rectangle, "ArrowDown");
-    expect(settings.display.tagChipRadius).toBe("10px");
+    expect(settings.display.tagChipRadius).toBe("6px");
 
     press(squircle, "ArrowLeft");
     expect(settings.display.tagChipRadius).toBe("0px");
@@ -628,7 +628,7 @@ describe("renderTagsSettingsTab() tag shape control", () => {
 
     press(radios(containerEl)[1] as HTMLElement, key);
 
-    expect(settings.display.tagChipRadius).toBe("10px");
+    expect(settings.display.tagChipRadius).toBe("6px");
   });
 
   it("applies, saves and previews a valid custom radius", () => {

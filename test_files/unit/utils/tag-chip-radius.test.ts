@@ -17,7 +17,7 @@ describe("tag chip radius contract", () => {
     expect(DEFAULT_TAG_CHIP_RADIUS).toBe("999px");
     expect(TAG_CHIP_RADIUS_PRESETS).toEqual([
       { id: "rectangle", label: "Rectangle", value: "0px" },
-      { id: "squircle", label: "Squircle", value: "10px" },
+      { id: "squircle", label: "Squircle", value: "6px" },
       { id: "pill", label: "Pill", value: "999px" },
     ]);
   });
@@ -99,7 +99,7 @@ describe("normalizeTagChipRadius", () => {
 
 describe("findTagChipRadiusPreset", () => {
   it("selects the preset a custom value is equivalent to", () => {
-    expect(findTagChipRadiusPreset("10PX")?.id).toBe("squircle");
+    expect(findTagChipRadiusPreset("6PX")?.id).toBe("squircle");
     expect(findTagChipRadiusPreset(" 0px ")?.id).toBe("rectangle");
     expect(findTagChipRadiusPreset("999px")?.id).toBe("pill");
   });
