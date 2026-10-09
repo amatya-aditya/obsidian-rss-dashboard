@@ -20,11 +20,21 @@ const BLOCKED_MARKERS = [
   "access denied",
   "403 forbidden",
   "enable javascript and cookies",
+];
+
+/**
+ * Wording that signals a paywall or login wall. Real article pages carry these
+ * words in script data (for example an `accessPaywall` config key), so they
+ * count only in visible text, not inside `<script>` or `<style>`.
+ */
+const VISIBLE_TEXT_BLOCKED_MARKERS = [
   "paywall",
   "subscription required",
   "subscribe to continue",
   "401 unauthorized",
 ];
+
+const SCRIPT_OR_STYLE_BLOCK = /<(script|style)\b[^>]*>[\s\S]*?<\/\1\s*>/gi;
 
 const RESTRICTED_MARKERS = [
   "401",
@@ -100,7 +110,11 @@ export function isBlockedResponse(html: string): boolean {
     return true;
   }
   const lower = html.toLowerCase();
-  return BLOCKED_MARKERS.some((marker) => lower.includes(marker));
+  if (BLOCKED_MARKERS.some((marker) => lower.includes(marker))) return true;
+  const visible = lower.replace(SCRIPT_OR_STYLE_BLOCK, " ");
+  return VISIBLE_TEXT_BLOCKED_MARKERS.some((marker) =>
+    visible.includes(marker),
+  );
 }
 
 export function isRestrictedSignal(input: string): boolean {
