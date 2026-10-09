@@ -248,15 +248,30 @@ describe("settings-loader", () => {
       expect(result.savedArticleOpenLocation).toBe("left-sidebar");
     });
 
+    it("migrates external-browser readerViewLocation to main", async () => {
+      const { loadAndNormalizeSettings } =
+        await import("../../../src/utils/settings-loader");
+
+      const raw = { readerViewLocation: "external-browser" };
+      const result = loadAndNormalizeSettings(
+        raw as unknown as Partial<RssDashboardSettings>,
+      );
+
+      expect(result.readerViewLocation).toBe("main");
+      expect(result.savedArticleOpenLocation).toBe("main");
+    });
+
     it("migrates external-browser savedArticleOpenLocation to main", async () => {
       const { loadAndNormalizeSettings } =
         await import("../../../src/utils/settings-loader");
 
-      const raw: Partial<RssDashboardSettings> = {
+      const raw = {
         readerViewLocation: "right-sidebar",
         savedArticleOpenLocation: "external-browser",
       };
-      const result = loadAndNormalizeSettings(raw);
+      const result = loadAndNormalizeSettings(
+        raw as unknown as Partial<RssDashboardSettings>,
+      );
 
       expect(result.savedArticleOpenLocation).toBe("main");
     });
