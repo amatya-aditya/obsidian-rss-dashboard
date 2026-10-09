@@ -16,6 +16,7 @@ const WHOLE_SUITE_TRIGGERS = [
   /(?:^|\/)tsconfig\.json$/,
   /^test_files\/stubs\//,
   /^test_files\/unit\/vitest\.setup\.ts$/,
+  /^test_files\/unit\/vitest\.shared-environment\.setup\.ts$/,
   /^test_files\/unit\/test-dom-polyfills\.ts$/,
   /^test_files\/(?!.*\.ts$)/,
 ];
