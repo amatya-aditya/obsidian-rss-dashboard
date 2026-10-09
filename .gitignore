@@ -50,3 +50,4 @@ skills-lock.json
 docs/archive/beads-export/*
 image-cache/*
 *.backup
+.agents/*
