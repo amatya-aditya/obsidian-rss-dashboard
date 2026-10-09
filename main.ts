@@ -327,7 +327,12 @@ export default class RssDashboardPlugin extends Plugin {
       initializeSettingsBackedServices: () =>
         this.initializeSettingsBackedServices(),
       refreshSettingTab: () => this.settingTab?.refresh(),
-      refreshDashboardViews: () => this.refreshDashboardViews(),
+      refreshDashboardViews: async () => {
+        await this.refreshDashboardViews();
+        await this.applyHideYouTubeDescriptions(
+          this.settings.media.hideYouTubeDescriptions,
+        );
+      },
       renderDiscoverView: async () => {
         const discoverView = await this.getActiveDiscoverView();
         discoverView?.render();
