@@ -533,6 +533,101 @@ describe("VideoPlayer", () => {
       ).toHaveLength(1);
     });
 
+    describe("tag chips", () => {
+      const tagged = (): FeedItem =>
+        baseItem({
+          tags: [
+            { name: "Video", color: "#e11d48" },
+            { name: "Watch later", color: "#22c55e" },
+          ],
+        });
+
+      it("renders a chip for each tag with its color", () => {
+        const container = createContainer();
+        new VideoPlayer(container).loadVideo(tagged());
+
+        const chips = container.querySelectorAll<HTMLElement>(
+          ".rss-video-details .rss-reader-tag",
+        );
+        expect(Array.from(chips).map((chip) => chip.textContent)).toEqual([
+          "Video",
+          "Watch later",
+        ]);
+        expect(chips[0]?.style.getPropertyValue("--tag-color")).toBe("#e11d48");
+      });
+
+      it("places the chips after the channel and date line, before the description", () => {
+        const container = createContainer();
+        new VideoPlayer(container).loadVideo({
+          ...tagged(),
+          description: "<p>Promo</p>",
+        });
+
+        const details = container.querySelector(".rss-video-details");
+        const order = Array.from(details?.children ?? []).map((child) =>
+          child.classList.contains("rss-video-meta")
+            ? "meta"
+            : child.classList.contains("rss-video-tags")
+              ? "tags"
+              : child.classList.contains("rss-video-description")
+                ? "description"
+                : "other",
+        );
+        expect(order.filter((name) => name !== "other")).toEqual([
+          "meta",
+          "tags",
+          "description",
+        ]);
+      });
+
+      it("renders no chips for an untagged video", () => {
+        const container = createContainer();
+        new VideoPlayer(container).loadVideo(baseItem({ tags: [] }));
+
+        expect(container.querySelector(".rss-reader-tag")).toBeNull();
+      });
+
+      it("omits the chips in focus mode and restores them live on the same iframe", () => {
+        const container = createContainer();
+        const player = new VideoPlayer(container);
+        player.loadVideo(tagged());
+        const iframe = container.querySelector("iframe");
+
+        player.setFocusMode(true);
+        expect(container.querySelector(".rss-reader-tag")).toBeNull();
+        expect(container.querySelector("iframe")).toBe(iframe);
+
+        player.setFocusMode(false);
+        expect(container.querySelectorAll(".rss-reader-tag")).toHaveLength(2);
+        expect(container.querySelector("iframe")).toBe(iframe);
+      });
+
+      it("setTags replaces the chips, and shows none while focus mode is on", () => {
+        const container = createContainer();
+        const player = new VideoPlayer(container);
+        player.loadVideo(tagged());
+
+        player.setTags([{ name: "Only", color: "#3b82f6" }]);
+        expect(
+          Array.from(container.querySelectorAll(".rss-reader-tag")).map(
+            (chip) => chip.textContent,
+          ),
+        ).toEqual(["Only"]);
+
+        player.setTags([]);
+        expect(container.querySelector(".rss-reader-tag")).toBeNull();
+
+        player.setFocusMode(true);
+        player.setTags([{ name: "Hidden", color: "#3b82f6" }]);
+        expect(container.querySelector(".rss-reader-tag")).toBeNull();
+
+        player.setFocusMode(false);
+        expect(container.querySelector(".rss-reader-tag")?.textContent).toBe(
+          "Hidden",
+        );
+      });
+    });
+
     it("applies focus mode set before the next video loads", () => {
       const container = createContainer();
       const player = new VideoPlayer(container);

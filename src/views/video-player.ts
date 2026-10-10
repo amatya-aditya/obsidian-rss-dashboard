@@ -1,5 +1,6 @@
 import { Notice, Setting } from "obsidian";
-import { FeedItem } from "../types/types";
+import { renderReaderTagChips } from "../utils/reader-tag-chips";
+import { FeedItem, Tag } from "../types/types";
 import { MediaService } from "../services/media-service";
 import { resolveDisplayDate } from "../services/feed-parser/feed-retention";
 
@@ -31,6 +32,8 @@ export class VideoPlayer {
   private useFirstSeenDateFallback: boolean;
   private focusMode: boolean;
   private relatedEl: HTMLElement | null = null;
+  private tagsEl: HTMLElement | null = null;
+  private tags: Tag[] | undefined;
   private detailsEl: HTMLElement | null = null;
   private descriptionEl: HTMLElement | null = null;
 
@@ -118,6 +121,10 @@ export class VideoPlayer {
       text: this.formatVideoDate(this.currentItem),
     });
 
+    this.tags = this.currentItem.tags;
+    this.tagsEl = details.createDiv({ cls: "rss-video-tags" });
+    this.renderTags();
+
     this.detailsEl = details;
     this.renderDescription();
 
@@ -125,15 +132,29 @@ export class VideoPlayer {
   }
 
   /**
-   * Focus mode shows only the video: it drops the description and the related
-   * list. Only those blocks are added or removed, so the iframe and playback
-   * state survive a preference change.
+   * Focus mode shows only the video: it drops the tag chips, the description
+   * and the related list. Only those blocks are added or removed, so the iframe
+   * and playback state survive a preference change.
    */
   setFocusMode(enabled: boolean): void {
     if (this.focusMode === enabled) return;
     this.focusMode = enabled;
+    this.renderTags();
     this.renderDescription();
     this.renderRelatedVideos();
+  }
+
+  /** Replaces the tag chips under the title, channel and date line. */
+  setTags(tags: Tag[] | undefined): void {
+    this.tags = tags;
+    this.renderTags();
+  }
+
+  private renderTags(): void {
+    if (!this.tagsEl) return;
+    this.tagsEl.empty();
+    if (this.focusMode) return;
+    renderReaderTagChips(this.tagsEl, this.tags);
   }
 
   private renderDescription(): void {
@@ -431,5 +452,6 @@ export class VideoPlayer {
     this.detailsEl = null;
     this.descriptionEl = null;
     this.relatedEl = null;
+    this.tagsEl = null;
   }
 }

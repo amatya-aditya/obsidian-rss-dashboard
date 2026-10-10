@@ -2,7 +2,7 @@ import { App, type Component, TFile } from "obsidian";
 import { renderReaderTagChips } from "../utils/reader-tag-chips";
 import { sanitizeAndAppendHtml } from "../utils/safe-html";
 import { scheduleProcessMathElements } from "../utils/math-rendering";
-import { FeedItem, RssDashboardSettings } from "../types/types";
+import { FeedItem, RssDashboardSettings, Tag } from "../types/types";
 import { HighlightService } from "../services/highlight-service";
 import {
   getPubDateMs,
@@ -628,6 +628,10 @@ export class ArticleRenderer {
 
   public setYouTubeFocusMode(hide: boolean): void {
     this.videoPlayer?.setFocusMode(hide);
+  }
+
+  public setVideoTags(tags: Tag[] | undefined): void {
+    this.videoPlayer?.setTags(tags);
   }
 
   public cleanupPlayers(): void {

@@ -157,6 +157,7 @@ export class ReaderView extends ItemView {
   ) => void;
   private readToggleButton: HTMLElement | null = null;
   private starToggleButton: HTMLElement | null = null;
+  private headerEl: HTMLElement | null = null;
   private tagsToggleButton: HTMLElement | null = null;
   private saveButton: HTMLElement | null = null;
   private returnLeaf: WorkspaceLeaf | null = null;
@@ -972,7 +973,9 @@ export class ReaderView extends ItemView {
       );
     }
 
-    const header = this.contentEl.createDiv({ cls: "rss-reader-header" });
+    const header = (this.headerEl = this.contentEl.createDiv({
+      cls: "rss-reader-header",
+    }));
 
     createIconButton({
       parent: header,
@@ -1286,6 +1289,7 @@ export class ReaderView extends ItemView {
     this.updateToggleButtons();
 
     const route = resolveReaderMediaRoute(item);
+    this.syncYouTubeFocusChrome(this.settings.media.youtubeFocusMode);
     if (route === "video") {
       await this.displayVideo(item);
     } else if (route === "video-podcast") {
@@ -1442,6 +1446,18 @@ export class ReaderView extends ItemView {
 
   setYouTubeFocusMode(hide: boolean): void {
     this.videoPlayer?.setFocusMode(hide);
+    this.syncYouTubeFocusChrome(hide);
+  }
+
+  /**
+   * In Focus mode a YouTube video drops the toolbar and title from the header
+   * and keeps only the back button; articles and podcasts keep the full one.
+   */
+  private syncYouTubeFocusChrome(focusMode: boolean): void {
+    const isVideo =
+      this.currentItem !== null &&
+      resolveReaderMediaRoute(this.currentItem) === "video";
+    this.headerEl?.toggleClass("rss-youtube-focus", focusMode && isVideo);
   }
 
   updatePodcastTheme(theme: string): void {
@@ -2359,6 +2375,14 @@ export class ReaderView extends ItemView {
 
   private refreshReaderHeaderTags(): void {
     if (!this.currentItem) {
+      return;
+    }
+
+    if (
+      this.videoPlayer &&
+      resolveReaderMediaRoute(this.currentItem) === "video"
+    ) {
+      this.videoPlayer.setTags(this.currentItem.tags);
       return;
     }
 
