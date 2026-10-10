@@ -84,6 +84,12 @@ export class UserStateStore {
    * overwritten with those defaults (issue #278).
    */
   private syncedUserStateKeys = new Set<string>();
+  /**
+   * Explicit bundle restorations invalidate earlier absence evidence for
+   * these articles. Keep that evidence invalid until the next hydration,
+   * without treating imported items as a validated shard read (issue #963).
+   */
+  private restoredUserStateKeys = new Set<string>();
   private warnedUserStateUnreadable = false;
   private userStateUnreadable = false;
   private onUserStateHealthChange?: () => void;
@@ -122,6 +128,7 @@ export class UserStateStore {
    * with none, and reports whether `user-state.json` was loaded.
    */
   public async applyToFeeds(settings: RssDashboardSettings): Promise<boolean> {
+    this.restoredUserStateKeys.clear();
     const userStateResult = await this.readUserState(settings);
     this.recordUserStateHealth(userStateResult.status);
     const userState =
@@ -305,6 +312,18 @@ export class UserStateStore {
         ? cloneJson(existing.file.unrecognizedFeedSinceByFeedId ?? {})
         : {};
     const now = Date.now();
+    // Stage new restorations until the write succeeds, so a failed import
+    // cannot leave GC exemptions behind when its caller rolls back.
+    const restoredUserStateKeys = authoritativeLoadedState
+      ? new Set([
+          ...this.restoredUserStateKeys,
+          ...settings.feeds.flatMap((feed) =>
+            feed.items.map((item) =>
+              userStateKey(feed.feedId ?? "", item.guid),
+            ),
+          ),
+        ])
+      : this.restoredUserStateKeys;
 
     const currentFeedIds = this.mergeLoadedItems(
       settings,
@@ -328,6 +347,7 @@ export class UserStateStore {
       missingSinceByStateKey,
       currentFeedIds,
       now,
+      restoredUserStateKeys,
     );
 
     this.expireUnattributedLegacy(
@@ -365,6 +385,7 @@ export class UserStateStore {
     });
 
     await this.writeUserState(settings, userStateFile);
+    this.restoredUserStateKeys = restoredUserStateKeys;
     settleRemovals();
     storageLog(
       "Saved user-state.json with " + Object.keys(states).length + " entries.",
@@ -524,8 +545,17 @@ export class UserStateStore {
     missingSinceByStateKey: Record<string, number>,
     currentFeedIds: Set<string>,
     now: number,
+    restoredUserStateKeys: ReadonlySet<string>,
   ): void {
     for (const key of Object.keys(states)) {
+      // A confirmed restoration supersedes the pre-import absence, including
+      // on later ordinary saves in the same session. Only fresh hydration
+      // may supply new absence evidence for this article.
+      if (restoredUserStateKeys.has(key)) {
+        delete missingSinceByStateKey[key];
+        continue;
+      }
+
       const separatorIndex = key.indexOf(":");
       const feedId = separatorIndex === -1 ? "" : key.slice(0, separatorIndex);
       const guid = separatorIndex === -1 ? "" : key.slice(separatorIndex + 1);
