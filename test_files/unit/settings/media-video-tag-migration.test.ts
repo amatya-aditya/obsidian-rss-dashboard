@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { migrateDisplaySettings } from "../../../src/utils/settings-migration";
 import { migrateMediaVideoTagSettings } from "../../../src/utils/settings-migration";
+import {
+  loadAndNormalizeSettings,
+  migrateSettings,
+} from "../../../src/utils/settings-loader";
+import type { RssDashboardSettings } from "../../../src/types/types";
 
 describe("migrateMediaVideoTagSettings", () => {
   it("adds defaultVideoTag default and Video tag when missing", () => {
@@ -159,26 +164,24 @@ describe("migrateMediaVideoTagSettings", () => {
       "",
     );
   });
-  it("carries a dev-build hideYouTubeDescriptions value into Focus mode and drops the old key", () => {
-    const settings: Record<string, unknown> = {
+  it("carries a dev-build hideYouTubeDescriptions value through loading into Focus mode", () => {
+    const loaded = loadAndNormalizeSettings({
       media: { hideYouTubeDescriptions: true },
-    };
+    } as unknown as Partial<RssDashboardSettings>);
+    migrateSettings(loaded);
 
-    migrateMediaVideoTagSettings(settings);
-
-    const media = settings.media as Record<string, unknown>;
+    const media = loaded.media as unknown as Record<string, unknown>;
     expect(media.youtubeFocusMode).toBe(true);
     expect("hideYouTubeDescriptions" in media).toBe(false);
   });
 
   it("keeps an existing Focus mode value over a stale old key", () => {
-    const settings: Record<string, unknown> = {
+    const loaded = loadAndNormalizeSettings({
       media: { youtubeFocusMode: false, hideYouTubeDescriptions: true },
-    };
+    } as unknown as Partial<RssDashboardSettings>);
+    migrateSettings(loaded);
 
-    migrateMediaVideoTagSettings(settings);
-
-    const media = settings.media as Record<string, unknown>;
+    const media = loaded.media as unknown as Record<string, unknown>;
     expect(media.youtubeFocusMode).toBe(false);
     expect("hideYouTubeDescriptions" in media).toBe(false);
   });

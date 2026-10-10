@@ -260,10 +260,7 @@ export function migrateMediaVideoTagSettings(
   }
 
   if (typeof media.youtubeFocusMode !== "boolean") {
-    // Dev builds stored this as "hideYouTubeDescriptions" before it became Focus mode.
-    const legacy = (media as { hideYouTubeDescriptions?: unknown })
-      .hideYouTubeDescriptions;
-    media.youtubeFocusMode = legacy === true;
+    media.youtubeFocusMode = false;
     changed = true;
   }
   if ("hideYouTubeDescriptions" in media) {
