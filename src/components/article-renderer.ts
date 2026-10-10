@@ -9,7 +9,10 @@ import {
   resolveDisplayDate,
 } from "../services/feed-parser/feed-retention";
 import { MediaService } from "../services/media-service";
-import { type FullArticleFetchFailureType } from "../utils/fetch-helpers";
+import {
+  type FullArticleFetchFailureType,
+  type FullArticleFetchResult,
+} from "../utils/fetch-helpers";
 import { type RawArticleMetadata } from "../utils/article-metadata";
 import {
   applyArticleMetadata,
@@ -94,7 +97,6 @@ export class ArticleRenderer {
   private currentReaderTitle?: string;
   private currentContentIsFullArticle = false;
   private currentFullContentFailureType: FullArticleFetchFailureType = "none";
-  private currentPageMetadata?: RawArticleMetadata;
   private lastRestrictedNoticeGuid: string | null = null;
 
   constructor(options: ArticleRendererOptions) {
@@ -149,15 +151,20 @@ export class ArticleRenderer {
       }
       await this.displayPodcast(container, item);
     } else {
-      const fetchedContent = this.shouldSkipFullArticleFetch(item)
-        ? ""
+      const fetchResult = this.shouldSkipFullArticleFetch(item)
+        ? undefined
         : await this.fetchFullArticleContent(item.link);
+      const fetchedContent = fetchResult?.content ?? "";
       const hasFullArticleContent =
         this.hasMeaningfulArticleContent(fetchedContent);
 
       if (hasFullArticleContent) {
         item.restrictedReason = undefined;
-        this.persistFetchedMetadata(item, fetchedContent);
+        this.persistFetchedMetadata(
+          item,
+          fetchedContent,
+          fetchResult?.pageMetadata,
+        );
       } else if (this.lastFullArticleFetchWasRestricted()) {
         item.restrictedReason = RESTRICTED_ARTICLE_REASON;
         this.showRestrictedNotice(item);
@@ -638,10 +645,12 @@ export class ArticleRenderer {
 
   // --- Helper methods (extracted from ReaderView) ---
 
-  private async fetchFullArticleContent(url?: string): Promise<string> {
+  private async fetchFullArticleContent(
+    url?: string,
+  ): Promise<FullArticleFetchResult> {
     if (!url) {
       this.currentFullContentFailureType = "none";
-      return "";
+      return { content: "", failureType: "none" };
     }
 
     try {
@@ -654,20 +663,22 @@ export class ArticleRenderer {
         this.settings.articleSaving.fetchTimeout,
       );
       this.currentFullContentFailureType = result.failureType;
-      this.currentPageMetadata = result.pageMetadata;
-      return result.content;
+      return result;
     } catch {
       this.currentFullContentFailureType = "network";
-      this.currentPageMetadata = undefined;
-      return "";
+      return { content: "", failureType: "network" };
     }
   }
 
   /** Writes the fetched page's resolved metadata once (#247 slice 4). */
-  private persistFetchedMetadata(item: FeedItem, articleHtml: string): void {
+  private persistFetchedMetadata(
+    item: FeedItem,
+    articleHtml: string,
+    pageMetadata: RawArticleMetadata | undefined,
+  ): void {
     const update = applyArticleMetadata(
       item,
-      this.currentPageMetadata,
+      pageMetadata,
       articleHtml,
       undefined,
       feedLanguageFor(this.settings.feeds, item),

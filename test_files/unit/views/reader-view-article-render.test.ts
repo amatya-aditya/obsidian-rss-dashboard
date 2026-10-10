@@ -12,6 +12,7 @@ import {
   type Mock,
 } from "vitest";
 import { ReaderView } from "../../../src/views/reader-view";
+import type { FullArticleFetchResult } from "../../../src/utils/fetch-helpers";
 import {
   DEFAULT_SETTINGS,
   Feed,
@@ -106,7 +107,9 @@ type Internals = {
   podcastPlayer: { destroy: () => void } | null;
   videoPlayer: { destroy: () => void } | null;
   webViewerIntegration: { openInWebViewer: ReturnType<typeof vi.fn> } | null;
-  fetchFullArticleContent: Mock<(url: string) => Promise<string>>;
+  fetchFullArticleContent: Mock<
+    (url: string) => Promise<FullArticleFetchResult>
+  >;
   closeTagsDropdown: ReturnType<typeof vi.fn>;
   updateToggleButtons: ReturnType<typeof vi.fn>;
   stripNavigationChromeFromDocument: ReturnType<typeof vi.fn>;
@@ -214,8 +217,8 @@ describe("ReaderView article rendering (characterization)", () => {
     await view.onOpen();
     // No network: an article with a link would otherwise fetch the full page.
     internals(view).fetchFullArticleContent = vi
-      .fn<(url: string) => Promise<string>>()
-      .mockResolvedValue("");
+      .fn<(url: string) => Promise<FullArticleFetchResult>>()
+      .mockResolvedValue({ content: "", failureType: "none" });
   });
 
   afterEach(() => {
@@ -659,7 +662,7 @@ describe("ReaderView article rendering (characterization)", () => {
 
     it("renders fetched content that is long enough, and marks it as the full article", async () => {
       const fetched = `<h1>A Proper Headline Here</h1>${LONG_HTML}`;
-      fetchMock().mockResolvedValue(fetched);
+      fetchMock().mockResolvedValue({ content: fetched, failureType: "none" });
       const item = makeItem({
         content: "<p>feed teaser</p>",
         restrictedReason: "stale reason",
@@ -681,7 +684,10 @@ describe("ReaderView article rendering (characterization)", () => {
     });
 
     it("keeps the feed content when the fetched text is 200 characters or fewer", async () => {
-      fetchMock().mockResolvedValue(`<p>${"x".repeat(200)}</p>`);
+      fetchMock().mockResolvedValue({
+        content: `<p>${"x".repeat(200)}</p>`,
+        failureType: "none",
+      });
       const item = makeItem({ content: "<p>feed content</p>" });
 
       await view.displayItem(item);
@@ -694,7 +700,10 @@ describe("ReaderView article rendering (characterization)", () => {
     });
 
     it("accepts fetched text of 201 characters", async () => {
-      fetchMock().mockResolvedValue(`<p>${"x".repeat(201)}</p>`);
+      fetchMock().mockResolvedValue({
+        content: `<p>${"x".repeat(201)}</p>`,
+        failureType: "none",
+      });
 
       await view.displayItem(makeItem({ content: "<p>feed content</p>" }));
 
@@ -737,9 +746,10 @@ describe("ReaderView article rendering (characterization)", () => {
     });
 
     it("shows the fetched headline in the reader header too", async () => {
-      fetchMock().mockResolvedValue(
-        `<h1>A Proper Headline Here</h1>${LONG_HTML}`,
-      );
+      fetchMock().mockResolvedValue({
+        content: `<h1>A Proper Headline Here</h1>${LONG_HTML}`,
+        failureType: "none",
+      });
 
       await view.displayItem(makeItem());
 
@@ -749,9 +759,10 @@ describe("ReaderView article rendering (characterization)", () => {
     });
 
     it("shows the fetched headline as the article title", async () => {
-      fetchMock().mockResolvedValue(
-        `<h1>A Proper Headline Here</h1>${LONG_HTML}`,
-      );
+      fetchMock().mockResolvedValue({
+        content: `<h1>A Proper Headline Here</h1>${LONG_HTML}`,
+        failureType: "none",
+      });
 
       await view.displayItem(makeItem());
 
@@ -763,7 +774,7 @@ describe("ReaderView article rendering (characterization)", () => {
     it("marks the item restricted when the fetch was blocked and nothing usable came back", async () => {
       fetchMock().mockImplementation(() => {
         internals(view).currentFullContentFailureType = "restricted";
-        return Promise.resolve("");
+        return Promise.resolve({ content: "", failureType: "restricted" });
       });
       const item = makeItem({ content: "<p>teaser</p>" });
 
@@ -778,7 +789,10 @@ describe("ReaderView article rendering (characterization)", () => {
     it("does not mark the item restricted when the blocked fetch still returned a full article", async () => {
       fetchMock().mockImplementation(() => {
         internals(view).currentFullContentFailureType = "restricted";
-        return Promise.resolve(LONG_HTML);
+        return Promise.resolve({
+          content: LONG_HTML,
+          failureType: "restricted",
+        });
       });
       const item = makeItem({ content: "<p>teaser</p>" });
 
@@ -832,9 +846,10 @@ describe("ReaderView article rendering (characterization)", () => {
     it("passes the fetched headline as the title", async () => {
       const open = vi.fn().mockResolvedValue(true);
       enableWebViewer(open);
-      fetchMock().mockResolvedValue(
-        `<h1>A Proper Headline Here</h1>${LONG_HTML}`,
-      );
+      fetchMock().mockResolvedValue({
+        content: `<h1>A Proper Headline Here</h1>${LONG_HTML}`,
+        failureType: "none",
+      });
 
       await view.displayItem(makeItem());
 
@@ -1268,7 +1283,10 @@ describe("ReaderView article rendering (characterization)", () => {
     });
 
     it("renders the fetched content as the body and the feed description as the callout", async () => {
-      fetchMock().mockResolvedValue(LONG_HTML);
+      fetchMock().mockResolvedValue({
+        content: LONG_HTML,
+        failureType: "none",
+      });
 
       await view.displayItem(
         makeItem({
@@ -2208,9 +2226,10 @@ describe("ReaderView article rendering (characterization)", () => {
 
   describe("renderArticle: stripping the headline from the body", () => {
     it("strips it from fetched full-article content", async () => {
-      fetchMock().mockResolvedValue(
-        `<h1>A Proper Headline Here</h1>${LONG_HTML}`,
-      );
+      fetchMock().mockResolvedValue({
+        content: `<h1>A Proper Headline Here</h1>${LONG_HTML}`,
+        failureType: "none",
+      });
 
       await view.displayItem(makeItem());
 
@@ -2228,7 +2247,10 @@ describe("ReaderView article rendering (characterization)", () => {
     });
 
     it("keeps it in the Feed description callout even when the body is a full article", async () => {
-      fetchMock().mockResolvedValue(LONG_HTML);
+      fetchMock().mockResolvedValue({
+        content: LONG_HTML,
+        failureType: "none",
+      });
 
       await view.displayItem(
         makeItem({

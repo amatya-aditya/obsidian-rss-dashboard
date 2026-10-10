@@ -1555,7 +1555,9 @@ describe("Reader HTML cleanup utilities (characterization)", () => {
         `<p>${description}</p>`,
         body,
       ].join("");
-      viewHarness.fetchFullArticleContent = vi.fn().mockResolvedValue(html);
+      viewHarness.fetchFullArticleContent = vi
+        .fn()
+        .mockResolvedValue({ content: html, failureType: "none" });
 
       await view.displayItem(makeItem({ description }));
 
@@ -1580,11 +1582,10 @@ describe("Reader HTML cleanup utilities (characterization)", () => {
           2,
         );
       const moreText = "Further article text. ".repeat(12);
-      viewHarness.fetchFullArticleContent = vi
-        .fn()
-        .mockResolvedValue(
-          `<a href="/story"><div><img src="${hero}"><p>${leadText}</p></div></a><p>${moreText}</p>`,
-        );
+      viewHarness.fetchFullArticleContent = vi.fn().mockResolvedValue({
+        content: `<a href="/story"><div><img src="${hero}"><p>${leadText}</p></div></a><p>${moreText}</p>`,
+        failureType: "none",
+      });
 
       await view.displayItem(makeItem({ coverImage: hero }));
 

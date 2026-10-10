@@ -33,7 +33,6 @@ type ReaderViewHarness = {
   contentEl: HTMLElement;
   readingContainer: HTMLElement;
   fetchFullArticleContent: ReturnType<typeof vi.fn>;
-  currentPageMetadata?: RawArticleMetadata;
   buildReaderSaveMarkdown(item: FeedItem): string;
 };
 
@@ -161,7 +160,7 @@ describe("ReaderView Image Duplication", () => {
     };
     getHarness(readerView).fetchFullArticleContent = vi
       .fn()
-      .mockResolvedValue(fetchedHtml);
+      .mockResolvedValue({ content: fetchedHtml, failureType: "none" });
 
     await readerView.onOpen();
     await readerView.displayItem(item);
@@ -358,7 +357,7 @@ describe("ReaderView – summary de-duplication", () => {
     // Prevent outbound HTTP — content comes from item fields only
     getHarness(readerView).fetchFullArticleContent = vi
       .fn()
-      .mockResolvedValue("");
+      .mockResolvedValue({ content: "", failureType: "none" });
     await readerView.onOpen();
   });
 
@@ -434,7 +433,7 @@ describe("ReaderView – summary de-duplication", () => {
 
     getHarness(readerView).fetchFullArticleContent = vi
       .fn()
-      .mockResolvedValue(fetchedHtml);
+      .mockResolvedValue({ content: fetchedHtml, failureType: "none" });
 
     await readerView.displayItem(item);
 
@@ -482,9 +481,10 @@ describe("ReaderView – summary de-duplication", () => {
       content: feedHtml,
     });
 
-    getHarness(readerView).fetchFullArticleContent = vi
-      .fn()
-      .mockResolvedValue("<p>Fetched content that should not be used.</p>");
+    getHarness(readerView).fetchFullArticleContent = vi.fn().mockResolvedValue({
+      content: "<p>Fetched content that should not be used.</p>",
+      failureType: "none",
+    });
 
     await readerView.displayItem(item);
 
@@ -552,7 +552,7 @@ describe("ReaderView – summary de-duplication", () => {
 
     getHarness(readerView).fetchFullArticleContent = vi
       .fn()
-      .mockResolvedValue(fetchedHtml);
+      .mockResolvedValue({ content: fetchedHtml, failureType: "none" });
 
     await readerView.displayItem(item);
 
@@ -679,7 +679,7 @@ describe("ReaderView – summary de-duplication", () => {
 
     getHarness(readerView).fetchFullArticleContent = vi
       .fn()
-      .mockResolvedValue(fetchedHtml);
+      .mockResolvedValue({ content: fetchedHtml, failureType: "none" });
     await readerView.displayItem(item);
 
     const body = getHarness(
@@ -728,7 +728,7 @@ describe("ReaderView – summary de-duplication", () => {
 
     getHarness(readerView).fetchFullArticleContent = vi
       .fn()
-      .mockResolvedValue(fetchedHtml);
+      .mockResolvedValue({ content: fetchedHtml, failureType: "none" });
     await readerView.displayItem(item);
 
     const body = getHarness(readerView).readingContainer.querySelector(
@@ -767,7 +767,7 @@ describe("ReaderView – summary de-duplication", () => {
 
     getHarness(readerView).fetchFullArticleContent = vi
       .fn()
-      .mockResolvedValue(fetchedHtml);
+      .mockResolvedValue({ content: fetchedHtml, failureType: "none" });
     await readerView.displayItem(item);
 
     const container = getHarness(readerView).readingContainer;
@@ -792,7 +792,7 @@ describe("ReaderView – summary de-duplication", () => {
 
     getHarness(readerView).fetchFullArticleContent = vi
       .fn()
-      .mockResolvedValue(fetchedHtml);
+      .mockResolvedValue({ content: fetchedHtml, failureType: "none" });
     await readerView.displayItem(item);
 
     expect(
@@ -827,9 +827,10 @@ describe("ReaderView – summary de-duplication", () => {
     function fetchReturning(html: string, page?: RawArticleMetadata) {
       getHarness(readerView).fetchFullArticleContent = vi
         .fn()
-        .mockImplementation(async () => {
-          getHarness(readerView).currentPageMetadata = page;
-          return html;
+        .mockResolvedValue({
+          content: html,
+          failureType: "none",
+          pageMetadata: page,
         });
     }
 
@@ -959,7 +960,7 @@ describe("ReaderView – summary de-duplication", () => {
 
     getHarness(readerView).fetchFullArticleContent = vi
       .fn()
-      .mockResolvedValue(fetchedHtml);
+      .mockResolvedValue({ content: fetchedHtml, failureType: "none" });
     await readerView.displayItem(item);
 
     const rc = getHarness(readerView).readingContainer;

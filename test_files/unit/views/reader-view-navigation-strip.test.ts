@@ -94,7 +94,7 @@ describe("ReaderView full-article nav/breadcrumb stripping", () => {
 
     getInternals(readerView).fetchFullArticleContent = vi
       .fn()
-      .mockResolvedValue(html);
+      .mockResolvedValue({ content: html, failureType: "none" });
 
     await readerView.displayItem(makeItem());
 
@@ -123,7 +123,7 @@ describe("ReaderView full-article nav/breadcrumb stripping", () => {
 
     getInternals(readerView).fetchFullArticleContent = vi
       .fn()
-      .mockResolvedValue(html);
+      .mockResolvedValue({ content: html, failureType: "none" });
 
     await readerView.displayItem(makeItem());
 

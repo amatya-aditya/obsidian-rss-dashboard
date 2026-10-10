@@ -92,7 +92,7 @@ describe("ReaderView tab title sync", () => {
 
     getInternals(readerView).fetchFullArticleContent = vi
       .fn()
-      .mockResolvedValue("");
+      .mockResolvedValue({ content: "", failureType: "none" });
 
     await readerView.displayItem(itemA);
     expect(readerView.getDisplayText()).toBe("Article A");
@@ -111,11 +111,15 @@ describe("ReaderView tab title sync", () => {
       guid: "guid-full",
     });
 
-    getInternals(readerView).fetchFullArticleContent = vi.fn()
-      .mockResolvedValue(`
+    getInternals(readerView).fetchFullArticleContent = vi
+      .fn()
+      .mockResolvedValue({
+        content: `
       <h1>Fetched Full Article Title</h1>
       <p>${"x".repeat(260)}</p>
-    `);
+    `,
+        failureType: "none",
+      });
 
     await readerView.displayItem(item);
 

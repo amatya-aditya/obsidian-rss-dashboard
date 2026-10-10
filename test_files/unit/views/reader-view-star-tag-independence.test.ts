@@ -108,7 +108,7 @@ describe("ReaderView star/tag independence (GH Issue #332)", () => {
     });
     getInternals(readerView).fetchFullArticleContent = vi
       .fn()
-      .mockResolvedValue("<p>Content</p>");
+      .mockResolvedValue({ content: "<p>Content</p>", failureType: "none" });
     await readerView.displayItem(item);
 
     getInternals(readerView).actionToggleStarStatus();
@@ -129,7 +129,7 @@ describe("ReaderView star/tag independence (GH Issue #332)", () => {
     });
     getInternals(readerView).fetchFullArticleContent = vi
       .fn()
-      .mockResolvedValue("<p>Content</p>");
+      .mockResolvedValue({ content: "<p>Content</p>", failureType: "none" });
     await readerView.displayItem(item);
 
     getInternals(readerView).actionToggleStarStatus();
@@ -147,7 +147,7 @@ describe("ReaderView star/tag independence (GH Issue #332)", () => {
     const item = makeItem({ starred: false });
     getInternals(readerView).fetchFullArticleContent = vi
       .fn()
-      .mockResolvedValue("<p>Content</p>");
+      .mockResolvedValue({ content: "<p>Content</p>", failureType: "none" });
     await readerView.displayItem(item);
 
     const starButton = getInternals(readerView).starToggleButton;
@@ -187,7 +187,7 @@ describe("ReaderView star/tag independence (GH Issue #332)", () => {
     const item = makeItem({ starred: false, tags: [] });
     getInternals(readerView).fetchFullArticleContent = vi
       .fn()
-      .mockResolvedValue("<p>Content</p>");
+      .mockResolvedValue({ content: "<p>Content</p>", failureType: "none" });
     await readerView.displayItem(item);
 
     getInternals(readerView).toggleTag(
@@ -213,7 +213,7 @@ describe("ReaderView star/tag independence (GH Issue #332)", () => {
     });
     getInternals(readerView).fetchFullArticleContent = vi
       .fn()
-      .mockResolvedValue("<p>Content</p>");
+      .mockResolvedValue({ content: "<p>Content</p>", failureType: "none" });
     await readerView.displayItem(item);
 
     getInternals(readerView).toggleTag(
