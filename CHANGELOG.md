@@ -29,6 +29,7 @@
 
 ### Fixes
 
+- On phones, the Reader options sheet (font, size, line height) now opens as a centred bottom sheet instead of being pinned to the top of the screen. [GH Issue #978](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/978)
 - Article cards now show the description the reader fetched from the article page when the feed itself supplied none, instead of a blank preview. A description in the feed still takes priority. [GH Issue #959](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/959)
 - Keyword filter rules using the **Preview** scope now match the same articles before and after you open one: the scope reads the feed's own summary, description, or content and no longer the description the Reader fetched from the article page. Article cards still fall back to that fetched description when the feed supplied none. Settings > Rules now explains this. [GH Issue #888](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/888)
 - The dashboard's inline reader now follows your current settings after an import replaces them, instead of using the values from when the dashboard opened. [GH Issue #960](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/960)
