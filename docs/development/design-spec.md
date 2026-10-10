@@ -1,7 +1,7 @@
 ---
 status: active
 owner: maintainers
-last_reviewed: 2026-09-27
+last_reviewed: 2026-10-10
 obsidian_reference: "1.13.7 desktop"
 min_app_version: "1.8.7"
 related:
@@ -15,6 +15,7 @@ related:
 
 ## Update History
 
+- 2026-10-10: Record the native Reader icon-button pattern verified on desktop and Android (#801), with the scoped Reader button reset and the Android Shift+Tab unknown
 - 2026-09-27: Fact-check against the code: stylesheet ownership after the CSS split, Tier 1 navigation (Home, Kagi Small Web, back to Discover), breakpoints, token snapshot, destructive tokens, and the Obsidian 1.13 modal close button. Add metadata, **Testing UI Changes**, and **Open Questions**
 - 2026-05-31: Replace !important icon rendering workaround with contain/will-change pattern; add §Android WebView SVG Rendering
 - 2026-04-25: Add branding guidance for logo typography and asset storage
@@ -437,6 +438,33 @@ then. When native button defaults conflict with the icon design, neutralize
 them with a scoped selector that includes the plugin surface and button class;
 never use `!important`.
 
+### Verified Native-Button Pattern (#801)
+
+The [#801](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/801)
+styling spike verified a native icon button under plugin-scoped styling. The
+Reader toolbar (`src/views/reader-view.ts`) and the inline reader toolbar are
+the working example: each action is a native `<button type="button">` with an
+accessible name, built by `createIconButton` (`src/utils/icon-button.ts`), and
+each toolbar is one roving Tab stop (`src/utils/roving-toolbar.ts`).
+
+Verified:
+
+- **Desktop** (Windows, Obsidian 1.14.4): accessible names, native Enter/Space
+  activation, visible focus, and no host background, shadow, or padding
+  leaking into the icon control.
+- **Android** (Pixel 10a emulator, API v37.2, 420 DPI; Obsidian 1.14.4; default
+  theme; plugin build 401e203): every icon renders with the explicit SVG sizing
+  and paint-layer fixes above, and the buttons activate by touch and keyboard.
+
+Known unknown: Shift+Tab reverses the tab target on desktop but not on the
+Android emulator. That is a host/WebView difference, not plugin logic — the
+roving toolbar leaves Tab and Shift+Tab to the browser — and is not fixed here.
+
+The Reader toolbar reaches the icon look through a scoped button reset in
+`src/styles/reader.css` rather than `clickable-icon` on every button. The tags
+button still carries `clickable-icon`; aligning it with its siblings is tracked
+in [#979](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/979).
+
 ### Keyboard Interactivity
 
 Native icon buttons use their built-in Enter and Space activation. Do not add
@@ -583,7 +611,10 @@ class="clickable-icon">` with an `aria-label`, not a `div` with
   migrating surface by surface. Check native button styling on desktop and
   Android as each surface is migrated; the scoped button reset in
   `src/styles/controls.css` removes browser/Obsidian padding, border, shadow,
-  and font defaults for the migrated header and sidebar toolbar controls.
+  and font defaults for the migrated header and sidebar toolbar controls. The
+  Reader toolbar spike ([#801](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/801))
+  verified the same pattern on desktop and Android; see
+  **Verified Native-Button Pattern** above.
 - **Native close button CSS ([#500](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/500)).** Rules in
   `src/styles/modals.css` style or hide only `.modal-close-button`, which
   Obsidian 1.13 no longer renders. On 1.13 the shortcut help modal shows two
