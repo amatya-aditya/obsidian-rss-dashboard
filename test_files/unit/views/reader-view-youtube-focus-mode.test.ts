@@ -127,6 +127,9 @@ describe("ReaderView YouTube focus mode", () => {
     await view.displayItem(makeItem());
 
     expect(chips()).toEqual([]);
+    expect(
+      internals(view).readingContainer.querySelector(".rss-video-details"),
+    ).toBeNull();
     expect(header().classList.contains("rss-youtube-focus")).toBe(true);
     expect(
       header().querySelector("button.rss-reader-back-button"),

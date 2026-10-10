@@ -105,6 +105,31 @@ export class VideoPlayer {
 
     this.initPlayer(iframeId);
 
+    this.tags = this.currentItem.tags;
+    this.renderDetails();
+    this.renderRelatedVideos();
+  }
+
+  /**
+   * Focus mode shows only the video: it drops everything below it (title,
+   * channel, date, tag chips, description and the related list). Only those
+   * blocks are added or removed, so the iframe and playback state survive a
+   * preference change.
+   */
+  setFocusMode(enabled: boolean): void {
+    if (this.focusMode === enabled) return;
+    this.focusMode = enabled;
+    this.renderDetails();
+    this.renderRelatedVideos();
+  }
+
+  private renderDetails(): void {
+    this.detailsEl?.remove();
+    this.detailsEl = null;
+    this.tagsEl = null;
+    this.descriptionEl = null;
+    if (this.focusMode || !this.playerEl || !this.currentItem) return;
+
     const details = this.playerEl.createDiv({ cls: "rss-video-details" });
     const titleSetting = new Setting(details)
       .setName(this.currentItem.title)
@@ -121,27 +146,10 @@ export class VideoPlayer {
       text: this.formatVideoDate(this.currentItem),
     });
 
-    this.tags = this.currentItem.tags;
     this.tagsEl = details.createDiv({ cls: "rss-video-tags" });
-    this.renderTags();
-
     this.detailsEl = details;
-    this.renderDescription();
-
-    this.renderRelatedVideos();
-  }
-
-  /**
-   * Focus mode shows only the video: it drops the tag chips, the description
-   * and the related list. Only those blocks are added or removed, so the iframe
-   * and playback state survive a preference change.
-   */
-  setFocusMode(enabled: boolean): void {
-    if (this.focusMode === enabled) return;
-    this.focusMode = enabled;
     this.renderTags();
     this.renderDescription();
-    this.renderRelatedVideos();
   }
 
   /** Replaces the tag chips under the title, channel and date line. */
@@ -153,7 +161,6 @@ export class VideoPlayer {
   private renderTags(): void {
     if (!this.tagsEl) return;
     this.tagsEl.empty();
-    if (this.focusMode) return;
     renderReaderTagChips(this.tagsEl, this.tags);
   }
 

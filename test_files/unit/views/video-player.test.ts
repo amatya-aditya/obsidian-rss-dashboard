@@ -474,7 +474,7 @@ describe("VideoPlayer", () => {
       expect(container.querySelector(".rss-video-related")).not.toBeNull();
     });
 
-    it("omits the description and related list but keeps title, channel and date", () => {
+    it("shows only the video: no title, channel, date, tags, description or related list", () => {
       const container = createContainer();
       const item = withDescription();
       new VideoPlayer(
@@ -490,9 +490,13 @@ describe("VideoPlayer", () => {
       expect(container.querySelector(".rss-video-related")).toBeNull();
       expect(container.textContent).not.toContain("Promo");
       expect(container.textContent).not.toContain("From the same channel");
-      expect(container.querySelector(".rss-video-title")).not.toBeNull();
-      expect(container.querySelector(".rss-video-channel")).not.toBeNull();
-      expect(container.querySelector(".rss-video-date")).not.toBeNull();
+      expect(container.querySelector(".rss-video-details")).toBeNull();
+      expect(container.querySelector(".rss-video-title")).toBeNull();
+      expect(container.querySelector(".rss-video-channel")).toBeNull();
+      expect(container.querySelector(".rss-video-date")).toBeNull();
+      expect(container.textContent).not.toContain("Video Title");
+      expect(container.textContent).not.toContain("Channel Name");
+      expect(container.querySelector("iframe")).not.toBeNull();
       expect(item.description).toContain("Promo");
     });
 
@@ -503,14 +507,27 @@ describe("VideoPlayer", () => {
       const iframe = container.querySelector("iframe");
 
       player.setFocusMode(true);
+      expect(container.querySelector(".rss-video-details")).toBeNull();
       expect(container.querySelector(".rss-video-description")).toBeNull();
       expect(container.querySelector(".rss-video-related")).toBeNull();
       expect(container.querySelector("iframe")).toBe(iframe);
 
       player.setFocusMode(true);
       player.setFocusMode(false);
+      expect(container.querySelector(".rss-video-title")).not.toBeNull();
+      expect(container.querySelector(".rss-video-channel")?.textContent).toBe(
+        "Channel Name",
+      );
+      expect(container.querySelector(".rss-video-date")).not.toBeNull();
       expect(container.querySelectorAll(".rss-video-description")).toHaveLength(
         1,
+      );
+      const order = Array.from(
+        container.querySelector(".rss-video-details")?.parentElement
+          ?.children ?? [],
+      ).map((child) => child.className.split(" ")[0]);
+      expect(order.indexOf("rss-video-details")).toBeLessThan(
+        order.indexOf("rss-video-related"),
       );
       expect(container.querySelectorAll(".rss-video-related")).toHaveLength(1);
       expect(container.querySelector("iframe")).toBe(iframe);

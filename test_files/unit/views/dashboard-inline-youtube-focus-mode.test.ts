@@ -196,6 +196,7 @@ describe("Dashboard inline Reader YouTube focus mode", () => {
     const { view } = await openInline(true, video());
 
     expect(chips(view)).toEqual([]);
+    expect(view.containerEl.querySelector(".rss-video-details")).toBeNull();
     expect(header(view).classList.contains("rss-youtube-focus")).toBe(true);
     expect(
       header(view).querySelector("button.rss-reader-back-button"),
