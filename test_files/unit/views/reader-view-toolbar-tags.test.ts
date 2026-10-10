@@ -10,10 +10,6 @@ import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 installObsidianDomPolyfills();
 
 const testDir = path.dirname(fileURLToPath(import.meta.url));
-const articlesCss = readFileSync(
-  path.resolve(testDir, "../../../src/styles/articles.css"),
-  "utf-8",
-);
 const readerCss = readFileSync(
   path.resolve(testDir, "../../../src/styles/reader.css"),
   "utf-8",
@@ -32,6 +28,14 @@ function declarationsFor(css: string, selector: string): Map<string, string> {
   return declarations;
 }
 
+function selectorsIn(css: string): string[] {
+  const selectors: string[] = [];
+  postcss.parse(css).walkRules((rule) => {
+    selectors.push(...rule.selectors);
+  });
+  return selectors;
+}
+
 class MockLeaf {
   app: unknown;
   view: unknown;
@@ -43,6 +47,10 @@ class MockLeaf {
   detach = vi.fn();
 }
 
+// The Reader toolbar's tags button used to carry the dashboard-card class and
+// the host `clickable-icon` chrome, so one toolbar had two styling paths
+// (GH Issue #979). It now shares the single scoped-reset path its five
+// siblings use.
 describe("ReaderView toolbar tags button", () => {
   let readerView: ReaderView;
   let contentEl: HTMLElement;
@@ -77,39 +85,39 @@ describe("ReaderView toolbar tags button", () => {
     vi.clearAllMocks();
   });
 
-  it("matches the other reader action icons without a dashboard-style circle", () => {
-    const actions = contentEl.querySelector(".rss-reader-actions");
-    const peerButton = actions?.querySelector<HTMLElement>(
-      ".rss-reader-action-button",
-    );
-    const tagsButton = actions?.querySelector<HTMLElement>(
-      ".rss-dashboard-tags-toggle",
-    );
+  it("is a direct toolbar button like its siblings, without dashboard or host chrome", () => {
+    const actions = contentEl.querySelector<HTMLElement>(
+      ".rss-reader-actions",
+    )!;
+    const buttons = [...actions.querySelectorAll<HTMLElement>("button")];
 
-    expect(peerButton).not.toBeNull();
-    expect(tagsButton).not.toBeNull();
-    expect(tagsButton!.classList.contains("rss-reader-action-button")).toBe(
+    expect(buttons).toHaveLength(6);
+    // Every control is a direct child button: the tags button no longer sits
+    // inside the dashboard card's dropdown wrapper.
+    expect([...actions.children]).toEqual(buttons);
+
+    const tagsButton = buttons.find(
+      (button) => button.getAttribute("data-rss-action") === "tags",
+    )!;
+    expect(tagsButton.classList.contains("rss-reader-action-button")).toBe(
       true,
     );
-
-    // The dashboard toggle base rule is overridden in the reader stylesheet.
-    const tagsStyles = declarationsFor(
-      articlesCss,
-      ".rss-dashboard-tags-toggle",
+    expect(tagsButton.classList.contains("clickable-icon")).toBe(false);
+    expect(tagsButton.classList.contains("rss-dashboard-tags-toggle")).toBe(
+      false,
     );
-    for (const [property, value] of declarationsFor(
-      readerCss,
-      ".rss-reader-actions .rss-dashboard-tags-toggle",
-    )) {
-      tagsStyles.set(property, value);
+
+    for (const button of buttons) {
+      expect(button.classList.contains("rss-reader-action-button")).toBe(true);
     }
-    const peerStyles = declarationsFor(readerCss, ".rss-reader-action-button");
+  });
 
-    expect(tagsStyles.get("border-radius")).toBe(
-      peerStyles.get("border-radius"),
-    );
-    expect(tagsStyles.get("background-color")).toBe("transparent");
-    expect(tagsStyles.get("--icon-size")).toBe("18px");
+  it("leaves no tags-only override in the reader stylesheet", () => {
+    expect(
+      selectorsIn(readerCss).some((selector) =>
+        selector.includes("rss-dashboard-tags"),
+      ),
+    ).toBe(false);
   });
 
   it("keeps each reader action icon centered in an equal-height control box", () => {

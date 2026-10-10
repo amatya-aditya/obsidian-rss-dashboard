@@ -701,11 +701,8 @@ export class ReaderView extends ItemView {
    * @internal
    */
   public actionToggleTagsMenu(): void {
-    const tagsButton = this.contentEl.querySelector<HTMLElement>(
-      ".rss-dashboard-tags-toggle",
-    );
-    if (tagsButton) {
-      this.toggleTagsDropdown(tagsButton);
+    if (this.tagsToggleButton) {
+      this.toggleTagsDropdown(this.tagsToggleButton);
     }
   }
 
@@ -1073,12 +1070,9 @@ export class ReaderView extends ItemView {
     });
 
     // Tags button (same portal menu as dashboard cards)
-    const tagsDropdown = actions.createDiv({
-      cls: "rss-dashboard-tags-dropdown",
-    });
     const tagsButton = (this.tagsToggleButton = createIconButton({
-      parent: tagsDropdown,
-      cls: "rss-dashboard-tags-toggle clickable-icon rss-reader-action-button",
+      parent: actions,
+      cls: "rss-reader-action-button",
       label: "Manage tags",
       icon: "tag",
       action: "tags",
