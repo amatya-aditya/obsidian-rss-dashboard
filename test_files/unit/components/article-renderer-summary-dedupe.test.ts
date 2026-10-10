@@ -1,3 +1,4 @@
+import type { FullArticleFetchResult } from "../../../src/utils/fetch-helpers";
 /**
  * Regression tests for summary de-duplication in ArticleRenderer.
  *
@@ -52,7 +53,9 @@ function makeItem(overrides: Partial<FeedItem> = {}): FeedItem {
 
 interface ArticleRendererWithPrivate {
   render(container: HTMLElement, item: FeedItem): Promise<void>;
-  fetchFullArticleContent: Mock<(url?: string) => Promise<string>>;
+  fetchFullArticleContent: Mock<
+    (url?: string) => Promise<FullArticleFetchResult>
+  >;
 }
 
 describe("ArticleRenderer – summary de-duplication", () => {
@@ -75,7 +78,9 @@ describe("ArticleRenderer – summary de-duplication", () => {
 
     // Prevent outbound HTTP — content comes from item fields only
     const rendererInternal = renderer as unknown as ArticleRendererWithPrivate;
-    rendererInternal.fetchFullArticleContent = vi.fn().mockResolvedValue("");
+    rendererInternal.fetchFullArticleContent = vi
+      .fn()
+      .mockResolvedValue({ content: "", failureType: "none" });
 
     container = document.body.appendChild(createDiv());
   });
@@ -122,7 +127,7 @@ describe("ArticleRenderer – summary de-duplication", () => {
     const rendererInternal = renderer as unknown as ArticleRendererWithPrivate;
     rendererInternal.fetchFullArticleContent = vi
       .fn()
-      .mockResolvedValue(fetchedHtml);
+      .mockResolvedValue({ content: fetchedHtml, failureType: "none" });
 
     await renderer.render(container, item);
 
@@ -206,7 +211,7 @@ describe("ArticleRenderer – summary de-duplication", () => {
     const rendererInternal = renderer as unknown as ArticleRendererWithPrivate;
     rendererInternal.fetchFullArticleContent = vi
       .fn()
-      .mockResolvedValue(fetchedHtml);
+      .mockResolvedValue({ content: fetchedHtml, failureType: "none" });
 
     await renderer.render(container, item);
 
@@ -260,11 +265,10 @@ describe("ArticleRenderer – summary de-duplication", () => {
     const moreText = "Further article text remains visible. ".repeat(8);
     const item = makeItem({ coverImage: heroUrl, content: "" });
     const rendererInternal = renderer as unknown as ArticleRendererWithPrivate;
-    rendererInternal.fetchFullArticleContent = vi
-      .fn()
-      .mockResolvedValue(
-        `<a href="/story"><div><img src="${heroUrl}"><p>${leadText}</p></div></a><p>${moreText}</p>`,
-      );
+    rendererInternal.fetchFullArticleContent = vi.fn().mockResolvedValue({
+      content: `<a href="/story"><div><img src="${heroUrl}"><p>${leadText}</p></div></a><p>${moreText}</p>`,
+      failureType: "none",
+    });
 
     await renderer.render(container, item);
 
@@ -403,7 +407,7 @@ describe("ArticleRenderer – summary de-duplication", () => {
     const rendererInternal = renderer as unknown as ArticleRendererWithPrivate;
     rendererInternal.fetchFullArticleContent = vi
       .fn()
-      .mockResolvedValue(fetchedHtml);
+      .mockResolvedValue({ content: fetchedHtml, failureType: "none" });
 
     await renderer.render(container, item);
 
@@ -471,7 +475,7 @@ describe("ArticleRenderer – summary de-duplication", () => {
     const rendererInternal = renderer as unknown as ArticleRendererWithPrivate;
     rendererInternal.fetchFullArticleContent = vi
       .fn()
-      .mockResolvedValue(fetchedHtml);
+      .mockResolvedValue({ content: fetchedHtml, failureType: "none" });
 
     await renderer.render(container, item);
 
@@ -554,7 +558,7 @@ describe("ArticleRenderer – summary de-duplication", () => {
     const rendererInternal = renderer as unknown as ArticleRendererWithPrivate;
     rendererInternal.fetchFullArticleContent = vi
       .fn()
-      .mockResolvedValue(fetchedHtml);
+      .mockResolvedValue({ content: fetchedHtml, failureType: "none" });
 
     await renderer.render(container, item);
 
@@ -605,9 +609,10 @@ describe("ArticleRenderer – summary de-duplication", () => {
     });
 
     const rendererInternal = renderer as unknown as ArticleRendererWithPrivate;
-    rendererInternal.fetchFullArticleContent = vi
-      .fn()
-      .mockResolvedValue("<p>Fetched content that should not be used.</p>");
+    rendererInternal.fetchFullArticleContent = vi.fn().mockResolvedValue({
+      content: "<p>Fetched content that should not be used.</p>",
+      failureType: "none",
+    });
 
     await renderer.render(container, item);
 

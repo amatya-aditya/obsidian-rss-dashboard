@@ -88,7 +88,7 @@ describe("ReaderView Tag Synchronization", () => {
     const item = makeItem({ tags: [] });
     getInternals(readerView).fetchFullArticleContent = vi
       .fn()
-      .mockResolvedValue("<p>Content</p>");
+      .mockResolvedValue({ content: "<p>Content</p>", failureType: "none" });
     await readerView.displayItem(item);
 
     // Verify initial state: no tags
@@ -123,7 +123,7 @@ describe("ReaderView Tag Synchronization", () => {
     });
     getInternals(readerView).fetchFullArticleContent = vi
       .fn()
-      .mockResolvedValue("<p>Content</p>");
+      .mockResolvedValue({ content: "<p>Content</p>", failureType: "none" });
 
     await readerView.displayItem(item);
 
@@ -145,7 +145,7 @@ describe("ReaderView Tag Synchronization", () => {
     });
     getInternals(readerView).fetchFullArticleContent = vi
       .fn()
-      .mockResolvedValue("<p>Content</p>");
+      .mockResolvedValue({ content: "<p>Content</p>", failureType: "none" });
 
     await readerView.displayItem(item);
 
@@ -176,7 +176,7 @@ describe("ReaderView Tag Synchronization", () => {
     const item = makeItem({ tags: [{ name: "Tag1", color: "#8b5cf6" }] });
     getInternals(readerView).fetchFullArticleContent = vi
       .fn()
-      .mockResolvedValue("<p>Content</p>");
+      .mockResolvedValue({ content: "<p>Content</p>", failureType: "none" });
     await readerView.displayItem(item);
 
     // Verify initial state: has tags

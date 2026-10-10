@@ -83,7 +83,7 @@ describe("ReaderView headline de-dupe", () => {
     const html = `<h1>Page Headline From Site</h1><p>${"x".repeat(260)}</p>`;
     getInternals(readerView).fetchFullArticleContent = vi
       .fn()
-      .mockResolvedValue(html);
+      .mockResolvedValue({ content: html, failureType: "none" });
 
     const item = makeBaseItem({ title: "Feed Title Should Not Show" });
     await readerView.displayItem(item);
@@ -101,7 +101,7 @@ describe("ReaderView headline de-dupe", () => {
     const html = `<h1>Sign in</h1><p>${"x".repeat(260)}</p>`;
     getInternals(readerView).fetchFullArticleContent = vi
       .fn()
-      .mockResolvedValue(html);
+      .mockResolvedValue({ content: html, failureType: "none" });
 
     const item = makeBaseItem({ title: "Feed Title Here" });
     await readerView.displayItem(item);
@@ -122,7 +122,7 @@ describe("ReaderView headline de-dupe", () => {
     const html = `<div>${prefix}<h1>Deep Heading</h1><p>${"x".repeat(260)}</p></div>`;
     getInternals(readerView).fetchFullArticleContent = vi
       .fn()
-      .mockResolvedValue(html);
+      .mockResolvedValue({ content: html, failureType: "none" });
 
     const item = makeBaseItem({ title: "Feed Title Here" });
     await readerView.displayItem(item);
