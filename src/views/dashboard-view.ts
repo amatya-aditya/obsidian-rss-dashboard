@@ -10,6 +10,7 @@ import {
   type EventRef,
   setTooltip,
 } from "obsidian";
+import { resolveReaderMediaRoute } from "../utils/reader-article-render";
 import { renderReaderTagChips } from "../utils/reader-tag-chips";
 import {
   Feed,
@@ -3015,6 +3016,27 @@ export class RssDashboardView extends ItemView {
     this.articleList?.setSelectedArticle(article);
   }
 
+  public setYouTubeFocusMode(hide: boolean): void {
+    this.articleRenderer?.setYouTubeFocusMode(hide);
+    this.syncInlineYouTubeFocusChrome(hide);
+  }
+
+  /**
+   * In Focus mode an inline YouTube video drops the toolbar and title from the
+   * inline header and keeps only the back button.
+   */
+  private syncInlineYouTubeFocusChrome(
+    focusMode: boolean,
+    header: HTMLElement | null = this.containerEl.querySelector<HTMLElement>(
+      ".inline-reader-header",
+    ),
+  ): void {
+    const isVideo =
+      this.inlineArticle !== null &&
+      resolveReaderMediaRoute(this.inlineArticle) === "video";
+    header?.toggleClass("rss-youtube-focus", focusMode && isVideo);
+  }
+
   public refreshTagColors(): void {
     this.refreshInlineArticleTags();
     this.articleList?.syncVisibleArticlesFromSource((article) =>
@@ -3047,6 +3069,7 @@ export class RssDashboardView extends ItemView {
     if (header) {
       renderReaderTagChips(header, inline.tags);
     }
+    this.articleRenderer?.setVideoTags(inline.tags);
   }
 
   private syncArticleListAfterUpdate(article: FeedItem): void {
@@ -4095,6 +4118,10 @@ export class RssDashboardView extends ItemView {
     const header = container.createDiv({
       cls: "rss-reader-header inline-reader-header",
     });
+    this.syncInlineYouTubeFocusChrome(
+      this.settings.media.youtubeFocusMode,
+      header,
+    );
     createIconButton({
       parent: header,
       cls: "rss-reader-back-button clickable-icon",

@@ -1,5 +1,6 @@
-import { Notice, Setting, setIcon } from "obsidian";
-import { FeedItem } from "../types/types";
+import { Notice, Setting } from "obsidian";
+import { renderReaderTagChips } from "../utils/reader-tag-chips";
+import { FeedItem, Tag } from "../types/types";
 import { MediaService } from "../services/media-service";
 import { resolveDisplayDate } from "../services/feed-parser/feed-retention";
 
@@ -29,6 +30,12 @@ export class VideoPlayer {
   private playStartTime: number | null = null;
   private videoDuration: number | null = null;
   private useFirstSeenDateFallback: boolean;
+  private focusMode: boolean;
+  private relatedEl: HTMLElement | null = null;
+  private tagsEl: HTMLElement | null = null;
+  private tags: Tag[] | undefined;
+  private detailsEl: HTMLElement | null = null;
+  private descriptionEl: HTMLElement | null = null;
 
   constructor(
     container: HTMLElement,
@@ -41,12 +48,14 @@ export class VideoPlayer {
     ) => void,
     progressTrackingEnabled = true,
     useFirstSeenDateFallback = false,
+    focusMode = false,
   ) {
     this.container = container;
     this.onVideoSelect = onVideoSelect;
     this.onPlaybackProgress = onPlaybackProgress;
     this.progressTrackingEnabled = progressTrackingEnabled;
     this.useFirstSeenDateFallback = useFirstSeenDateFallback;
+    this.focusMode = focusMode;
     this.setupMessageListener();
   }
 
@@ -96,6 +105,31 @@ export class VideoPlayer {
 
     this.initPlayer(iframeId);
 
+    this.tags = this.currentItem.tags;
+    this.renderDetails();
+    this.renderRelatedVideos();
+  }
+
+  /**
+   * Focus mode shows only the video: it drops everything below it (title,
+   * channel, date, tag chips, description and the related list). Only those
+   * blocks are added or removed, so the iframe and playback state survive a
+   * preference change.
+   */
+  setFocusMode(enabled: boolean): void {
+    if (this.focusMode === enabled) return;
+    this.focusMode = enabled;
+    this.renderDetails();
+    this.renderRelatedVideos();
+  }
+
+  private renderDetails(): void {
+    this.detailsEl?.remove();
+    this.detailsEl = null;
+    this.tagsEl = null;
+    this.descriptionEl = null;
+    if (this.focusMode || !this.playerEl || !this.currentItem) return;
+
     const details = this.playerEl.createDiv({ cls: "rss-video-details" });
     const titleSetting = new Setting(details)
       .setName(this.currentItem.title)
@@ -112,50 +146,46 @@ export class VideoPlayer {
       text: this.formatVideoDate(this.currentItem),
     });
 
-    if (this.currentItem.description) {
-      const descriptionContainer = details.createDiv({
-        cls: "rss-video-description",
-      });
-      const sanitizeAndAppend = (html: string, target: HTMLElement): void => {
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(html, "text/html");
-        doc.querySelectorAll("script").forEach((s) => s.remove());
-        doc.querySelectorAll("a").forEach((link) => {
-          link.target = "_blank";
-          link.rel = "noopener noreferrer";
-        });
-        const fragment = target.win.createFragment();
-        while (doc.body.firstChild) {
-          fragment.appendChild(doc.body.firstChild);
-        }
-        target.appendChild(fragment);
-      };
-      sanitizeAndAppend(this.currentItem.description, descriptionContainer);
+    this.tagsEl = details.createDiv({ cls: "rss-video-tags" });
+    this.detailsEl = details;
+    this.renderTags();
+    this.renderDescription();
+  }
+
+  /** Replaces the tag chips under the title, channel and date line. */
+  setTags(tags: Tag[] | undefined): void {
+    this.tags = tags;
+    this.renderTags();
+  }
+
+  private renderTags(): void {
+    if (!this.tagsEl) return;
+    this.tagsEl.empty();
+    renderReaderTagChips(this.tagsEl, this.tags);
+  }
+
+  private renderDescription(): void {
+    this.descriptionEl?.remove();
+    this.descriptionEl = null;
+    const description = this.currentItem?.description;
+    if (this.focusMode || !description || !this.detailsEl) return;
+
+    const descriptionContainer = this.detailsEl.createDiv({
+      cls: "rss-video-description",
+    });
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(description, "text/html");
+    doc.querySelectorAll("script").forEach((s) => s.remove());
+    doc.querySelectorAll("a").forEach((link) => {
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+    });
+    const fragment = descriptionContainer.win.createFragment();
+    while (doc.body.firstChild) {
+      fragment.appendChild(doc.body.firstChild);
     }
-
-    const linksContainer = this.playerEl.createDiv({ cls: "rss-video-links" });
-    const youtubeButton = linksContainer.createEl("a", {
-      cls: "rss-video-youtube-button",
-      href: embed.watchUrl,
-    });
-    youtubeButton.target = "_blank";
-    youtubeButton.rel = "noopener noreferrer";
-    const youtubeIcon = youtubeButton.createSpan({
-      cls: "rss-video-youtube-button-icon",
-    });
-    setIcon(youtubeIcon, "youtube");
-    youtubeButton.createSpan({ text: "Watch on YouTube" });
-
-    const tosLink = linksContainer.createEl("a", {
-      cls: "rss-video-tos-link",
-      href: "https://www.youtube.com/t/terms",
-      text: "YouTube terms of service",
-    });
-    tosLink.target = "_blank";
-    tosLink.rel = "noopener noreferrer";
-
-    this.playerEl.createDiv({ cls: "rss-video-related" });
-    this.renderRelatedVideos();
+    descriptionContainer.appendChild(fragment);
+    this.descriptionEl = descriptionContainer;
   }
 
   private sendCommand(func: string, args: unknown[] = []): void {
@@ -344,10 +374,14 @@ export class VideoPlayer {
   }
 
   private renderRelatedVideos(): void {
-    const relatedContainer = this.playerEl?.querySelector(".rss-video-related");
-    if (!relatedContainer || !this.currentItem) return;
+    this.relatedEl?.remove();
+    this.relatedEl = null;
+    if (this.focusMode || !this.playerEl || !this.currentItem) return;
 
-    relatedContainer.empty();
+    const relatedContainer = this.playerEl.createDiv({
+      cls: "rss-video-related",
+    });
+    this.relatedEl = relatedContainer;
 
     const filtered = this.relatedVideos
       .filter(
@@ -422,5 +456,9 @@ export class VideoPlayer {
       this.iframeEl = null;
     }
     this.playerEl = null;
+    this.detailsEl = null;
+    this.descriptionEl = null;
+    this.relatedEl = null;
+    this.tagsEl = null;
   }
 }

@@ -56,6 +56,10 @@
   outline: 2px solid var(--interactive-accent);
   outline-offset: 2px;
 }
+/* Focus mode: a YouTube video keeps only the back button in the header. */
+.rss-reader-header.rss-youtube-focus > :not(.rss-reader-back-button) {
+  display: none;
+}
 .rss-reader-title {
   flex-grow: 1;
   font-weight: bold;

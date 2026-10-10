@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { migrateDisplaySettings } from "../../../src/utils/settings-migration";
 import { migrateMediaVideoTagSettings } from "../../../src/utils/settings-migration";
+import {
+  loadAndNormalizeSettings,
+  migrateSettings,
+} from "../../../src/utils/settings-loader";
+import type { RssDashboardSettings } from "../../../src/types/types";
 
 describe("migrateMediaVideoTagSettings", () => {
   it("adds defaultVideoTag default and Video tag when missing", () => {
@@ -18,6 +23,9 @@ describe("migrateMediaVideoTagSettings", () => {
     expect(
       (settings.media as Record<string, unknown>).rememberPlaybackProgress,
     ).toBe(true);
+    expect((settings.media as Record<string, unknown>).youtubeFocusMode).toBe(
+      false,
+    );
     expect((settings.media as Record<string, unknown>).defaultYouTubeTag).toBe(
       "Video",
     );
@@ -141,6 +149,7 @@ describe("migrateMediaVideoTagSettings", () => {
       media: {
         defaultVideoTag: "",
         rememberPlaybackProgress: true,
+        youtubeFocusMode: false,
         defaultMastodonFolder: "Mastodon",
         useDomainIconsMastodon: false,
         defaultYouTubeTag: "Video",
@@ -154,5 +163,26 @@ describe("migrateMediaVideoTagSettings", () => {
     expect((settings.media as Record<string, unknown>).defaultVideoTag).toBe(
       "",
     );
+  });
+  it("carries a dev-build hideYouTubeDescriptions value through loading into Focus mode", () => {
+    const loaded = loadAndNormalizeSettings({
+      media: { hideYouTubeDescriptions: true },
+    } as unknown as Partial<RssDashboardSettings>);
+    migrateSettings(loaded);
+
+    const media = loaded.media as unknown as Record<string, unknown>;
+    expect(media.youtubeFocusMode).toBe(true);
+    expect("hideYouTubeDescriptions" in media).toBe(false);
+  });
+
+  it("keeps an existing Focus mode value over a stale old key", () => {
+    const loaded = loadAndNormalizeSettings({
+      media: { youtubeFocusMode: false, hideYouTubeDescriptions: true },
+    } as unknown as Partial<RssDashboardSettings>);
+    migrateSettings(loaded);
+
+    const media = loaded.media as unknown as Record<string, unknown>;
+    expect(media.youtubeFocusMode).toBe(false);
+    expect("hideYouTubeDescriptions" in media).toBe(false);
   });
 });
