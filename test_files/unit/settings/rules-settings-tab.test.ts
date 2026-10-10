@@ -75,4 +75,26 @@ describe("renderRulesSettingsTab()", () => {
       timestamp: 123,
     });
   });
+
+  it("explains that opening an article cannot change what the Preview scope matches", async () => {
+    const { renderRulesSettingsTab } =
+      await import("../../../src/settings/tabs/rules-settings-tab");
+
+    const containerEl = createDiv();
+    document.body.appendChild(containerEl);
+    const plugin = {
+      settings: {},
+      saveSettings: vi.fn(async () => {}),
+      notifyFiltersUpdated: vi.fn(),
+    } as unknown as RssDashboardPlugin;
+
+    renderRulesSettingsTab(containerEl, plugin, vi.fn());
+
+    const text = containerEl.textContent ?? "";
+    expect(text).toContain("Opening an article can fetch a page description");
+    expect(text).toContain("the feed supplied");
+    expect(text).toContain(
+      "never changes whether a rule includes or excludes it",
+    );
+  });
 });
