@@ -666,11 +666,21 @@
   z-index: 99998;
 }
 
-.rss-reader-format-mobile-sheet {
+/* Scoped to the reader portal class so the shared tags-dropdown base rule
+   (equal specificity, later in the bundle) cannot override the sheet's
+   positioning. See the reader format mobile sheet contract test. */
+.rss-reader-format-dropdown-portal.rss-reader-format-mobile-sheet {
   left: 8px;
   right: 8px;
   top: auto;
-  bottom: 8px;
+  bottom: calc(
+    var(--rss-footer-visual-pad, 8px) +
+      max(
+        var(--rss-footer-safe-bottom, env(safe-area-inset-bottom, 0px)),
+        var(--rss-footer-system-bottom, 0px),
+        var(--rss-footer-platform-fallback-bottom, 0px)
+      )
+  );
   width: auto;
   max-width: none;
   min-width: 0;
