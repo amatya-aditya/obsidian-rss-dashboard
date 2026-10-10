@@ -10,12 +10,13 @@ storage migration can damage, and its state can't be shared or reset.
 
 ## Layout
 
-| Path                                 | What it is                                                                                 |
-| ------------------------------------ | ------------------------------------------------------------------------------------------ |
-| `test_files/fixture-vault/`          | The pristine template, tracked in git. Testing never changes it.                           |
-| `.fixture-vault/`                    | The working copy you open in Obsidian. Gitignored and disposable.                          |
-| `scripts/setup-fixture-vault.mjs`    | Creates or resets a working copy and installs the current build (`npm run fixture:vault`). |
-| `scripts/generate-fixture-vault.mjs` | Regenerates the template's seeded plugin data (`npm run fixture:vault:generate`).          |
+| Path                                 | What it is                                                                                                         |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------ |
+| `test_files/fixture-vault/`          | The pristine template, tracked in git. Testing never changes it.                                                   |
+| `.fixture-vault/`                    | The working copy you open in Obsidian. Gitignored and disposable.                                                  |
+| `scripts/setup-fixture-vault.mjs`    | Creates or resets a working copy and installs the current build (`npm run fixture:vault`).                         |
+| `scripts/generate-fixture-vault.mjs` | Regenerates the template's seeded plugin data (`npm run fixture:vault:generate`).                                  |
+| `scripts/obsidian-cdp.mjs`           | Drives the running app over the DevTools Protocol (see [Driving the vault over CDP](#driving-the-vault-over-cdp)). |
 
 Inside the template:
 
@@ -90,6 +91,98 @@ plugin's own `data.json`. `--storage shard-v1` keeps settings in the plugin's
 `rss-dashboard-data/feeds/`. Both hold the same content as the default, so
 after running the storage migration the dashboard should look exactly as it
 does in a Shard storage v2 vault.
+
+## Driving the vault over CDP
+
+The developer console needs a human at the keyboard. For agent or headless
+verification, drive the same running app over the Chrome DevTools Protocol with
+`scripts/obsidian-cdp.mjs`, a dependency-free Node helper (Node 22 or newer).
+
+Start Obsidian with a debug port. Close the app first — an instance that is
+already running without the flag cannot be attached to. Use a disposable
+profile so the port is not exposed on your normal one:
+
+```powershell
+$profile = "$env:TEMP\rss-dashboard-cdp-profile"
+& "$env:LOCALAPPDATA\Obsidian\Obsidian.exe" `
+  --remote-debugging-port=9333 `
+  --user-data-dir=$profile
+```
+
+Then open the fixture vault in that instance (**Open another vault** → **Open
+folder as vault** → `.fixture-vault/`) and trust it. The harness probes ports
+9222, 9333, and 9334, so any of them works; pin one with `--port` or `CDP_PORT`
+when several apps are open.
+
+After copying in a new build (`npm run fixture:vault -- --plugin-only`), reload
+the app before you attach, as in [Load a new build](#load-a-new-build).
+
+```sh
+node scripts/obsidian-cdp.mjs targets                # list windows
+node scripts/obsidian-cdp.mjs eval ./probe.js        # one expression, from a file
+echo "document.title" | node scripts/obsidian-cdp.mjs eval -   # or stdin
+node scripts/obsidian-cdp.mjs shot dashboard.png     # one screenshot
+node scripts/obsidian-cdp.mjs repl ./steps.txt       # many steps, one connection
+```
+
+`eval`'s expression runs in the app's renderer, where `app` is the Obsidian
+API. It is evaluated in REPL mode, so a bare top-level `await` works and a
+later step can redeclare a `const` or `let` from an earlier one — the harness
+waits for the returned promise.
+
+A `repl` script (alias `batch`) runs every step over one connection, so nothing
+drifts between them. Each step starts with `@`: `@eval` (an inline expression,
+or a multi-line body up to the next `@` line), `@shot <path>`, `@wait <ms>`, or
+`@target <text>` (switch to another window, such as the settings window, and
+keep going). For example, open the dashboard, wait for it to finish rendering,
+read the first card previews, and screenshot:
+
+```text
+@eval
+app.commands.executeCommandById("rss-dashboard:open-dashboard")
+
+@eval
+const ready = () =>
+  document.querySelector(
+    '.workspace-leaf-content[data-type="rss-dashboard-view"][data-rss-ready]',
+  );
+for (let i = 0; i < 50 && !ready(); i += 1) {
+  await new Promise((resolve) => window.setTimeout(resolve, 100));
+}
+Boolean(ready())
+
+@eval
+Array.from(document.querySelectorAll(".rss-dashboard-card-preview-region"))
+  .map((element) => element.textContent.trim())
+  .slice(0, 3)
+
+@shot dashboard.png
+```
+
+To act on another window, `@target` reconnects by title. This switches to the
+settings window and captures it:
+
+```text
+@target Settings
+@wait 300
+@shot settings.png
+```
+
+Compare builds by their **build stamp**, not by file hash. `main.js` embeds a
+`builtAt` timestamp, so its hash changes on every build even when the code has
+not; the status bar label (Display setting **Show version in status bar**, also
+shown in About) names the build.
+
+Obsidian's own **Command line interface** (**Settings → General → Advanced**,
+which some builds surface as a standalone **Advanced** group; "Allow
+interactions with Obsidian from the command line") is off by default and not
+part of this route yet.
+
+Reach for full computer control (a mouse-and-keyboard driver) instead of this
+route only when the behaviour needs real input or native chrome — a drag, a
+native dialog, or pixel-level layout. Reading the DOM, clicking, and
+screenshotting are cheaper and repeatable over CDP, which is why this is the
+default for automated checks.
 
 ## Testing a refactor
 
