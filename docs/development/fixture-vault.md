@@ -126,9 +126,9 @@ node scripts/obsidian-cdp.mjs repl ./steps.txt       # many steps, one connectio
 ```
 
 `eval`'s expression runs in the app's renderer, where `app` is the Obsidian
-API. Use an async IIFE when you need to `await` — the harness waits for the
-promise — because the evaluated source is not a module, so a bare top-level
-`await` is a syntax error.
+API. It is evaluated in REPL mode, so a bare top-level `await` works and a
+later step can redeclare a `const` or `let` from an earlier one — the harness
+waits for the returned promise.
 
 A `repl` script (alias `batch`) runs every step over one connection, so nothing
 drifts between them. Each step starts with `@`: `@eval` (an inline expression,
@@ -142,16 +142,14 @@ read the first card previews, and screenshot:
 app.commands.executeCommandById("rss-dashboard:open-dashboard")
 
 @eval
-(async () => {
-  const ready = () =>
-    document.querySelector(
-      '.workspace-leaf-content[data-type="rss-dashboard-view"][data-rss-ready]',
-    );
-  for (let i = 0; i < 50 && !ready(); i += 1) {
-    await new Promise((resolve) => window.setTimeout(resolve, 100));
-  }
-  return Boolean(ready());
-})()
+const ready = () =>
+  document.querySelector(
+    '.workspace-leaf-content[data-type="rss-dashboard-view"][data-rss-ready]',
+  );
+for (let i = 0; i < 50 && !ready(); i += 1) {
+  await new Promise((resolve) => window.setTimeout(resolve, 100));
+}
+Boolean(ready())
 
 @eval
 Array.from(document.querySelectorAll(".rss-dashboard-card-preview-region"))

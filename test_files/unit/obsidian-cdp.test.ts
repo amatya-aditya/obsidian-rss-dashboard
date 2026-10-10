@@ -4,8 +4,11 @@ import {
   CdpError,
   DEFAULT_PORTS,
   assertWebSocket,
+  choosePort,
+  connect,
   parseArgs,
   parseBatch,
+  renderValue,
   selectTarget,
 } from "../../scripts/obsidian-cdp.mjs";
 
@@ -22,6 +25,48 @@ function page(
     webSocketDebuggerUrl: "ws://localhost:9333/devtools/page/page-1",
     ...overrides,
   };
+}
+
+/** A WebSocket stand-in that lets a test drive open/message/close by hand. */
+class FakeSocket {
+  static last: FakeSocket | undefined;
+
+  listeners = new Map<string, Array<(event: unknown) => void>>();
+  sent: Array<Record<string, unknown>> = [];
+
+  constructor() {
+    FakeSocket.last = this;
+  }
+
+  addEventListener(type: string, listener: (event: unknown) => void): void {
+    const listeners = this.listeners.get(type) ?? [];
+    listeners.push(listener);
+    this.listeners.set(type, listeners);
+  }
+
+  emit(type: string, event: unknown = {}): void {
+    for (const listener of this.listeners.get(type) ?? []) {
+      listener(event);
+    }
+  }
+
+  send(data: string): void {
+    this.sent.push(JSON.parse(data) as Record<string, unknown>);
+  }
+
+  close(): void {
+    this.emit("close");
+  }
+}
+
+function connectWithFakeSocket(timeoutMs: number) {
+  const connection = connect("ws://example", {
+    WebSocketImpl: FakeSocket as unknown as typeof WebSocket,
+    timeoutMs,
+  });
+  const socket = FakeSocket.last;
+  if (!socket) throw new Error("the fake socket was not created");
+  return { connection, socket };
 }
 
 describe("obsidian-cdp parseArgs", () => {
@@ -89,6 +134,12 @@ describe("obsidian-cdp parseArgs", () => {
     expect(parseArgs(["--help"], noEnv).help).toBe(true);
     expect(parseArgs(["-h"], noEnv).help).toBe(true);
     expect(parseArgs(["help"], noEnv).help).toBe(true);
+  });
+
+  it("lets --help win over a command and its arity check", () => {
+    expect(parseArgs(["eval", "--help"], noEnv).help).toBe(true);
+    expect(parseArgs(["shot", "--help"], noEnv).help).toBe(true);
+    expect(parseArgs(["targets", "extra", "--help"], noEnv).help).toBe(true);
   });
 
   it("rejects bad usage", () => {
@@ -202,6 +253,56 @@ describe("obsidian-cdp selectTarget", () => {
   });
 });
 
+describe("obsidian-cdp choosePort", () => {
+  it("prefers a port with an Obsidian window over an earlier other app", () => {
+    const chosen = choosePort([
+      {
+        port: 9222,
+        pages: [page({ id: "chrome", url: "https://example.com/" })],
+      },
+      { port: 9333, pages: [page({ id: "obsidian" })] },
+    ]);
+    expect(chosen.port).toBe(9333);
+  });
+
+  it("falls back to the first reachable port when none is Obsidian", () => {
+    const chosen = choosePort([
+      {
+        port: 9222,
+        pages: [page({ id: "chrome", url: "https://example.com/" })],
+      },
+    ]);
+    expect(chosen.port).toBe(9222);
+  });
+
+  it("returns undefined when no port is reachable", () => {
+    expect(choosePort([])).toBeUndefined();
+  });
+});
+
+describe("obsidian-cdp renderValue", () => {
+  it("prints a serializable value as JSON", () => {
+    expect(renderValue({ type: "number", value: 3 })).toBe("3");
+  });
+
+  it("prints non-finite numbers and bigints from unserializableValue", () => {
+    expect(renderValue({ type: "number", unserializableValue: "NaN" })).toBe(
+      "NaN",
+    );
+    expect(renderValue({ type: "number", unserializableValue: "-0" })).toBe(
+      "-0",
+    );
+    expect(renderValue({ type: "bigint", unserializableValue: "42n" })).toBe(
+      "42n",
+    );
+  });
+
+  it("prints undefined and a missing result", () => {
+    expect(renderValue({ type: "undefined" })).toBe("undefined");
+    expect(renderValue(undefined)).toBe("undefined");
+  });
+});
+
 describe("obsidian-cdp parseBatch", () => {
   it("reads a single-line eval", () => {
     expect(parseBatch("@eval 1 + 1")).toEqual([
@@ -219,6 +320,19 @@ describe("obsidian-cdp parseBatch", () => {
     ].join("\n");
     expect(parseBatch(text)).toEqual([
       { kind: "eval", code: "const a = 1;\na + 1" },
+      { kind: "shot", path: "out.png" },
+    ]);
+  });
+
+  it("keeps an @-line that is not a step inside an eval body", () => {
+    const text = [
+      "@eval",
+      "const css = `@media { color: red }`;",
+      "css",
+      "@shot out.png",
+    ].join("\n");
+    expect(parseBatch(text)).toEqual([
+      { kind: "eval", code: "const css = `@media { color: red }`;\ncss" },
       { kind: "shot", path: "out.png" },
     ]);
   });
@@ -252,5 +366,36 @@ describe("obsidian-cdp assertWebSocket", () => {
 
   it("explains the Node requirement when WebSocket is missing", () => {
     expect(() => assertWebSocket(false)).toThrow(/Node 22/);
+  });
+});
+
+describe("obsidian-cdp connect", () => {
+  it("rejects a pending call when the socket closes", async () => {
+    const { connection, socket } = connectWithFakeSocket(10_000);
+    socket.emit("open");
+    const pending = connection.send("Runtime.evaluate", { expression: "1" });
+    socket.emit("close");
+    await expect(pending).rejects.toThrow(/closed/);
+  });
+
+  it("rejects a call that is never answered", async () => {
+    const { connection, socket } = connectWithFakeSocket(20);
+    socket.emit("open");
+    await expect(connection.send("Runtime.evaluate")).rejects.toThrow(
+      /Timed out/,
+    );
+  });
+
+  it("resolves a call when the matching reply arrives", async () => {
+    const { connection, socket } = connectWithFakeSocket(10_000);
+    socket.emit("open");
+    const pending = connection.send("Runtime.evaluate", { expression: "1" });
+    socket.emit("message", {
+      data: JSON.stringify({
+        id: socket.sent[0].id,
+        result: { type: "number", value: 1 },
+      }),
+    });
+    await expect(pending).resolves.toEqual({ type: "number", value: 1 });
   });
 });

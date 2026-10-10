@@ -14,8 +14,10 @@
 // started with --remote-debugging-port=<port>; running without that flag is
 // unattachable.
 
-import { readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { request } from "node:http";
+import { dirname } from "node:path";
+import { clearTimeout, setTimeout } from "node:timers";
 import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 
@@ -25,9 +27,12 @@ const DEFAULT_HOST = "localhost";
 const ENV_PORT = "CDP_PORT";
 const ENV_TARGET = "CDP_TARGET";
 const OBSIDIAN_URL_PREFIX = "app://obsidian.md";
+/** Abandons a DevTools call that never answers, so the CLI cannot hang. */
+const DEFAULT_CALL_TIMEOUT_MS = 30_000;
 
 const COMMANDS = ["targets", "eval", "shot", "repl", "batch", "help"];
 const STEP_NAMES = ["eval", "shot", "wait", "target"];
+const STEP_LINE = new RegExp(`^@(?:${STEP_NAMES.join("|")})(?:[ \\t]|$)`);
 
 const USAGE = `Drive a running Obsidian instance over the Chrome DevTools Protocol.
 
@@ -146,7 +151,7 @@ export function parseArgs(argv, env = process.env) {
   }
 
   const [command, ...args] = positionals;
-  if (options.help && command === undefined) {
+  if (options.help) {
     return options;
   }
   if (command === "help") {
@@ -173,6 +178,10 @@ function isPageTarget(candidate) {
     typeof candidate.webSocketDebuggerUrl === "string" &&
     candidate.webSocketDebuggerUrl !== "",
   );
+}
+
+function isObsidianTarget(target) {
+  return String(target.url || "").startsWith(OBSIDIAN_URL_PREFIX);
 }
 
 function describeTarget(target) {
@@ -213,9 +222,7 @@ export function selectTarget(pages, { title } = {}) {
     return matches[0];
   }
 
-  const obsidian = candidates.filter((target) =>
-    String(target.url || "").startsWith(OBSIDIAN_URL_PREFIX),
-  );
+  const obsidian = candidates.filter(isObsidianTarget);
   if (obsidian.length > 0) {
     return obsidian[0];
   }
@@ -285,7 +292,7 @@ export function parseBatch(text) {
         continue;
       }
       const body = [];
-      while (i < lines.length && !lines[i].startsWith("@")) {
+      while (i < lines.length && !STEP_LINE.test(lines[i])) {
         body.push(lines[i]);
         i += 1;
       }
@@ -397,35 +404,73 @@ function noDebuggablePage(host, ports, detail) {
   );
 }
 
-async function discover(host, ports) {
-  const attempts = [];
-  for (const port of ports) {
-    let pages;
-    try {
-      pages = await pageTargetsOn(host, port);
-    } catch (error) {
-      attempts.push(`  ${port}: ${errorMessage(error)}`);
-      continue;
-    }
-    if (pages.length === 0) {
-      attempts.push(`  ${port}: no page targets`);
-      continue;
-    }
-    return { port, pages };
+/**
+ * Prefers a port with an Obsidian window over one that only has other pages
+ * (for example a Chrome on 9222), so the harness does not attach to the wrong
+ * app; falls back to the first reachable port. Exported for unit tests.
+ */
+export function choosePort(candidates) {
+  if (candidates.length === 0) {
+    return undefined;
   }
-  throw noDebuggablePage(host, ports, attempts.join("\n"));
+  return (
+    candidates.find((candidate) => candidate.pages.some(isObsidianTarget)) ??
+    candidates[0]
+  );
 }
 
-function connect(webSocketUrl) {
-  const socket = new WebSocket(webSocketUrl);
+async function discover(host, ports) {
+  const attempts = [];
+  const reachable = [];
+  for (const port of ports) {
+    try {
+      const pages = await pageTargetsOn(host, port);
+      if (pages.length === 0) {
+        attempts.push(`  ${port}: no page targets`);
+        continue;
+      }
+      reachable.push({ port, pages });
+    } catch (error) {
+      attempts.push(`  ${port}: ${errorMessage(error)}`);
+    }
+  }
+  const chosen = choosePort(reachable);
+  if (!chosen) {
+    throw noDebuggablePage(host, ports, attempts.join("\n"));
+  }
+  return chosen;
+}
+
+export function connect(
+  webSocketUrl,
+  { WebSocketImpl = WebSocket, timeoutMs = DEFAULT_CALL_TIMEOUT_MS } = {},
+) {
+  const socket = new WebSocketImpl(webSocketUrl);
   const pending = new Map();
   let nextId = 1;
+  let closed = false;
+
+  const failPending = (error) => {
+    for (const waiter of pending.values()) {
+      waiter.reject(error);
+    }
+    pending.clear();
+  };
 
   const opened = new Promise((resolve, reject) => {
     socket.addEventListener("open", () => resolve());
-    socket.addEventListener("error", () =>
-      reject(new CdpError(`Could not open ${webSocketUrl}.`)),
-    );
+    socket.addEventListener("error", () => {
+      const error = new CdpError(`Could not open ${webSocketUrl}.`);
+      failPending(error);
+      reject(error);
+    });
+  });
+
+  // A dropped socket (the app reloaded or crashed) must not leave a caller
+  // waiting on a reply that will never come.
+  socket.addEventListener("close", () => {
+    closed = true;
+    failPending(new CdpError(`Connection to ${webSocketUrl} closed.`));
   });
 
   socket.addEventListener("message", (event) => {
@@ -449,22 +494,49 @@ function connect(webSocketUrl) {
 
   const send = (method, params = {}) =>
     new Promise((resolve, reject) => {
+      if (closed) {
+        reject(new CdpError(`Connection to ${webSocketUrl} is closed.`));
+        return;
+      }
       const id = nextId;
       nextId += 1;
-      pending.set(id, { resolve, reject });
-      socket.send(JSON.stringify({ id, method, params }));
+      const timer = setTimeout(() => {
+        pending.delete(id);
+        reject(
+          new CdpError(`Timed out after ${timeoutMs}ms waiting for ${method}.`),
+        );
+      }, timeoutMs);
+      pending.set(id, {
+        resolve: (value) => {
+          clearTimeout(timer);
+          resolve(value);
+        },
+        reject: (error) => {
+          clearTimeout(timer);
+          reject(error);
+        },
+      });
+      try {
+        socket.send(JSON.stringify({ id, method, params }));
+      } catch (error) {
+        pending.delete(id);
+        clearTimeout(timer);
+        reject(new CdpError(errorMessage(error)));
+      }
     });
 
   return { opened, send, close: () => socket.close() };
 }
 
 async function evaluate(connection, expression) {
-  await connection.send("Runtime.enable");
+  // replMode lets a batch redeclare `const`/`let` across steps and use
+  // top-level `await`, the way the developer console does.
   const result = await connection.send("Runtime.evaluate", {
     expression,
     awaitPromise: true,
     returnByValue: true,
     userGesture: true,
+    replMode: true,
   });
   if (result.exceptionDetails) {
     const details = result.exceptionDetails;
@@ -475,8 +547,12 @@ async function evaluate(connection, expression) {
   return result.result;
 }
 
-function renderValue(result) {
+/** Renders a `Runtime.evaluate` result as printable text. Exported for tests. */
+export function renderValue(result) {
   if (!result) return "undefined";
+  if (result.unserializableValue !== undefined) {
+    return String(result.unserializableValue);
+  }
   if ("value" in result) {
     const text = JSON.stringify(result.value, null, 2);
     return text === undefined ? "undefined" : text;
@@ -493,7 +569,12 @@ async function screenshot(connection, path) {
   if (!data) {
     throw new CdpError("screenshot returned no image data");
   }
-  writeFileSync(path, Buffer.from(data, "base64"));
+  try {
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(path, Buffer.from(data, "base64"));
+  } catch (error) {
+    throw new CdpError(`Could not write ${path}: ${errorMessage(error)}`);
+  }
   return path;
 }
 
@@ -511,12 +592,9 @@ async function runBatch(options, initialConnection, steps) {
   try {
     for (const step of steps) {
       if (step.kind === "target") {
+        const next = await openTarget(options.host, options.ports, step.title);
         connection.close();
-        ({ connection } = await openTarget(
-          options.host,
-          options.ports,
-          step.title,
-        ));
+        connection = next.connection;
       } else if (step.kind === "wait") {
         await delay(step.ms);
       } else if (step.kind === "shot") {
