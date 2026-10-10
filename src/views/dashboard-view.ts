@@ -1098,11 +1098,12 @@ export class RssDashboardView extends ItemView {
         contentContainer.empty();
       }
 
-      const scopedArticles = this.getUnfilteredArticles();
+      const feedsByUrl = this.buildFeedUrlIndex();
+      const scopedArticles = this.getUnfilteredArticles(feedsByUrl);
       const articlesIgnoringAge = scopedArticles.filter((item) =>
         this.matchesFilters(item, { ignoreAgeFilter: true }),
       );
-      const allFilteredArticles = this.getFilteredArticles();
+      const allFilteredArticles = this.getFilteredArticles(feedsByUrl);
       // Must run after getFilteredArticles() so counts reflect the active view,
       // and before renderFilterSubheader() which reads this.highlightMatchCounts.
       this.computeHighlightMatchCounts(allFilteredArticles);
@@ -1742,16 +1743,20 @@ export class RssDashboardView extends ItemView {
     });
   }
 
-  private getFilteredArticles(): FeedItem[] {
-    return this.buildFilteredArticles();
+  private getFilteredArticles(
+    feedsByUrl?: ReadonlyMap<string, Feed>,
+  ): FeedItem[] {
+    return this.buildFilteredArticles(feedsByUrl);
   }
 
-  private buildFilteredArticles(): FeedItem[] {
+  private buildFilteredArticles(
+    feedsByUrl?: ReadonlyMap<string, Feed>,
+  ): FeedItem[] {
     this.syncCurrentFeedReference();
     let articles = getFilteredArticleScope(this.getArticleScopeState());
 
     // Apply keyword rules (global/per-feed) before status/tag/age filters.
-    articles = this.applyKeywordFiltersWithStats(articles);
+    articles = this.applyKeywordFiltersWithStats(articles, feedsByUrl);
 
     // Capture dashboard multi-filter counts using the post-keyword-filter pool.
     this.computeDashboardMultiFilterCounts(articles);
@@ -1797,16 +1802,20 @@ export class RssDashboardView extends ItemView {
    * Get all articles in the current view BEFORE filter matching is applied.
    * Used for empty state detection to determine if articles exist but are filtered out.
    */
-  private getUnfilteredArticles(): FeedItem[] {
-    return this.buildUnfilteredArticles();
+  private getUnfilteredArticles(
+    feedsByUrl?: ReadonlyMap<string, Feed>,
+  ): FeedItem[] {
+    return this.buildUnfilteredArticles(feedsByUrl);
   }
 
-  private buildUnfilteredArticles(): FeedItem[] {
+  private buildUnfilteredArticles(
+    feedsByUrl?: ReadonlyMap<string, Feed>,
+  ): FeedItem[] {
     this.syncCurrentFeedReference();
     let articles = getUnfilteredArticleScope(this.getArticleScopeState());
 
     // Apply keyword rules but not filter matching
-    articles = this.applyKeywordFiltersWithStats(articles);
+    articles = this.applyKeywordFiltersWithStats(articles, feedsByUrl);
 
     return articles;
   }
@@ -1875,7 +1884,10 @@ export class RssDashboardView extends ItemView {
   }
 
   // --- Keyword filtering and filter matching ---
-  private applyKeywordFiltersWithStats(articles: FeedItem[]): FeedItem[] {
+  private applyKeywordFiltersWithStats(
+    articles: FeedItem[],
+    feedsByUrl: ReadonlyMap<string, Feed> = this.buildFeedUrlIndex(),
+  ): FeedItem[] {
     const globalRules = this.settings.keywordRules || {
       includeLogic: "AND" as const,
       bypassAll: false,
@@ -1885,12 +1897,15 @@ export class RssDashboardView extends ItemView {
     const hasGlobalRules = KeywordFilterService.hasActiveRules(
       globalRules.rules,
     );
-    const hasFeedRules = this.hasActiveFeedRulesInScope(articles);
+    const hasFeedRules = this.hasActiveFeedRulesInScope(articles, feedsByUrl);
     const filtersActive = hasGlobalRules || hasFeedRules;
     const activeGlobalRules = KeywordFilterService.getActiveRules(
       globalRules.rules,
     );
-    const activeFeedRules = this.getActiveFeedRulesForScope(articles);
+    const activeFeedRules = this.getActiveFeedRulesForScope(
+      articles,
+      feedsByUrl,
+    );
     this.keywordFilterTooltip = this.buildKeywordFilterTooltip(
       globalRules.includeLogic,
       activeGlobalRules,
@@ -1915,7 +1930,7 @@ export class RssDashboardView extends ItemView {
     const filtered: FeedItem[] = [];
 
     for (const article of articles) {
-      const feed = this.findFeedForArticle(article);
+      const feed = this.findFeedForArticle(article, feedsByUrl);
       const decision = KeywordFilterService.evaluateForArticle(
         article,
         feed,
@@ -1942,10 +1957,13 @@ export class RssDashboardView extends ItemView {
     return filtered;
   }
 
-  private hasActiveFeedRulesInScope(articles: FeedItem[]): boolean {
+  private hasActiveFeedRulesInScope(
+    articles: FeedItem[],
+    feedsByUrl: ReadonlyMap<string, Feed>,
+  ): boolean {
     const seenFeeds = new Set<string>();
     for (const article of articles) {
-      const feed = this.findFeedForArticle(article);
+      const feed = this.findFeedForArticle(article, feedsByUrl);
       if (!feed || !feed.url || seenFeeds.has(feed.url)) {
         continue;
       }
@@ -1957,7 +1975,10 @@ export class RssDashboardView extends ItemView {
     return false;
   }
 
-  private getActiveFeedRulesForScope(articles: FeedItem[]): Array<{
+  private getActiveFeedRulesForScope(
+    articles: FeedItem[],
+    feedsByUrl: ReadonlyMap<string, Feed>,
+  ): Array<{
     feedTitle: string;
     includeLogic: "AND" | "OR";
     rules: KeywordFilterRule[];
@@ -1970,7 +1991,7 @@ export class RssDashboardView extends ItemView {
     }> = [];
 
     for (const article of articles) {
-      const feed = this.findFeedForArticle(article);
+      const feed = this.findFeedForArticle(article, feedsByUrl);
       if (!feed || !feed.url || seenFeeds.has(feed.url)) {
         continue;
       }
@@ -2058,9 +2079,23 @@ export class RssDashboardView extends ItemView {
     return parts.join(", ");
   }
 
-  private findFeedForArticle(article: FeedItem): Feed | undefined {
+  private buildFeedUrlIndex(): ReadonlyMap<string, Feed> {
+    const feedsByUrl = new Map<string, Feed>();
+    for (const feed of this.settings.feeds) {
+      // Match Array.find: duplicate URLs resolve to the first feed in settings.
+      if (!feedsByUrl.has(feed.url)) {
+        feedsByUrl.set(feed.url, feed);
+      }
+    }
+    return feedsByUrl;
+  }
+
+  private findFeedForArticle(
+    article: FeedItem,
+    feedsByUrl: ReadonlyMap<string, Feed>,
+  ): Feed | undefined {
     if (article.feedUrl) {
-      return this.settings.feeds.find((feed) => feed.url === article.feedUrl);
+      return feedsByUrl.get(article.feedUrl);
     }
 
     if (this.currentFeed) {
