@@ -316,6 +316,40 @@ describe("KeywordFilterService.evaluateRules", () => {
       expect(after).toEqual([true, false]);
     });
 
+    it("filters the same before and after publisherDescription is stored when the feed ships no text", () => {
+      // A feed that publishes empty descriptions and no content (#959): the
+      // preview stays blank until the reader fetches the page and stores its
+      // description on the item. Storing it must not flip the summary-scope
+      // filter (#888).
+      const item = createItem({
+        summary: "",
+        description: "",
+        content: "",
+      });
+      const rules = [
+        createRule({
+          type: "exclude",
+          keyword: "zebrafish",
+          applyToTitle: false,
+          applyToSummary: true,
+          applyToContent: false,
+          matchMode: "partial",
+        }),
+      ];
+      const before = rules.map((rule) =>
+        KeywordFilterService.evaluateRules(item, [rule], "AND"),
+      );
+
+      item.publisherDescription =
+        "A publisher description about zebrafish research and scientific progress.";
+      const after = rules.map((rule) =>
+        KeywordFilterService.evaluateRules(item, [rule], "AND"),
+      );
+
+      expect(before).toEqual([true]);
+      expect(after).toEqual(before);
+    });
+
     it("matches only the clamped preview, not text past the 420-character limit", () => {
       const item = createItem({
         summary: `${"filler ".repeat(80)}lateword`,

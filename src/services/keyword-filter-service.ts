@@ -5,7 +5,7 @@ import {
   GlobalKeywordRulesSettings,
   KeywordFilterRule,
 } from "../types/types";
-import { getArticlePreviewSummaryText } from "../utils/article-preview-utils";
+import { getArticleFilterSummaryText } from "../utils/article-preview-utils";
 
 export type RuleMatchSource = "global" | "feed" | "none";
 
@@ -127,8 +127,11 @@ export class KeywordFilterService {
       sources.push(item.title || "");
     }
     if (rule.applyToSummary) {
-      // The summary scope matches the preview text the user sees (#888).
-      sources.push(getArticlePreviewSummaryText(item));
+      // The summary scope matches the preview text the user sees (#888), but
+      // resolves from the feed's own fields only: the reader-fetched page
+      // description is left out so opening an article cannot change whether
+      // the rule matches it.
+      sources.push(getArticleFilterSummaryText(item));
     }
     if (rule.applyToContent) {
       sources.push(item.content || item.description || "");

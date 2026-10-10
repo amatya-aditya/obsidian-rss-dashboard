@@ -173,19 +173,39 @@ interface PreviewCacheEntry {
   summary: string;
   description: string;
   content: string;
+  publisherDescription: string;
   text: string;
+  feedOnlyText: string;
 }
 
-// The views and the highlight count both ask for every article's preview on
-// each render, and building it converts HTML to text. The entry records its
+// The views and the highlight count ask for every article's preview on each
+// render, and the keyword filter asks for its feed-only text on the same
+// render; building either converts HTML to text. The entry records its
 // inputs, so an item rewritten on refresh recomputes.
 const previewCache = new WeakMap<FeedItem, PreviewCacheEntry>();
 
+/** The card preview: the guarded feed blurb, else the reader-fetched page description, then the feed's own text (#959). */
 export function getArticlePreviewSummaryText(article: FeedItem): string {
+  return getPreviewEntry(article).text;
+}
+
+/**
+ * The feed-only preview text for the keyword-filter summary scope (#888): the
+ * guarded blurb, then the feed's own summary, description or content. The
+ * reader-fetched `publisherDescription` is excluded on purpose — the reader
+ * stores it on the first open, so resolving from it would let opening an
+ * article change whether a rule matches it.
+ */
+export function getArticleFilterSummaryText(article: FeedItem): string {
+  return getPreviewEntry(article).feedOnlyText;
+}
+
+function getPreviewEntry(article: FeedItem): PreviewCacheEntry {
   const title = article.title || "";
   const summary = article.summary || "";
   const description = article.description || "";
   const content = article.content || "";
+  const publisherDescription = article.publisherDescription || "";
 
   const cached = previewCache.get(article);
   if (
@@ -193,26 +213,58 @@ export function getArticlePreviewSummaryText(article: FeedItem): string {
     cached.title === title &&
     cached.summary === summary &&
     cached.description === description &&
-    cached.content === content
+    cached.content === content &&
+    cached.publisherDescription === publisherDescription
   ) {
-    return cached.text;
+    return cached;
   }
 
-  const text = resolveArticlePreviewSummaryText(article);
-  previewCache.set(article, { title, summary, description, content, text });
-  return text;
+  const entry: PreviewCacheEntry = {
+    title,
+    summary,
+    description,
+    content,
+    publisherDescription,
+    text: resolveArticlePreviewSummaryText(article),
+    feedOnlyText: resolveArticleFeedPreviewSummaryText(article),
+  };
+  previewCache.set(article, entry);
+  return entry;
 }
 
 function resolveArticlePreviewSummaryText(article: FeedItem): string {
   const blurb = getGuardedBlurbPreview(article);
   if (blurb) return getCardPreviewSummaryText(blurb);
 
+  // For items with no usable blurb, the reader-fetched page description
+  // outranks the feed's raw text and is the only text for feeds that publish
+  // empty descriptions (#959).
   const candidates = [
+    article.publisherDescription || "",
+    ...feedPreviewCandidates(article),
+  ];
+
+  return firstUsablePreviewText(candidates);
+}
+
+// The keyword-filter summary scope resolves from the feed's own fields only,
+// so a description stored while reading cannot change the filter result (#888).
+function resolveArticleFeedPreviewSummaryText(article: FeedItem): string {
+  const blurb = getGuardedBlurbPreview(article);
+  if (blurb) return getCardPreviewSummaryText(blurb);
+
+  return firstUsablePreviewText(feedPreviewCandidates(article));
+}
+
+function feedPreviewCandidates(article: FeedItem): string[] {
+  return [
     article.summary || "",
     article.description || "",
     article.content || "",
   ];
+}
 
+function firstUsablePreviewText(candidates: readonly string[]): string {
   for (const candidate of candidates) {
     const previewText = getCardPreviewSummaryText(candidate);
     if (previewText && !looksLikeStylesheetText(previewText)) {
