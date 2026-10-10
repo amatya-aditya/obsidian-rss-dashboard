@@ -45,6 +45,7 @@ export interface PaletteCommandPlugin {
   getActiveDashboardView: () => Promise<DashboardCommandTarget | null>;
   getActiveReaderView: () => Promise<ReaderCommandTarget | null>;
   openSettingsToTab: (tabName: string) => Promise<void>;
+  openShortcutHelp: () => void;
 }
 
 /** Turns a settings tab name into its command id segment. */
@@ -190,11 +191,27 @@ function registerReaderCommands(plugin: PaletteCommandPlugin): void {
 }
 
 /**
- * Registers the settings, dashboard, and reader palette commands. The ids are a
- * test contract (see the testing docs); none sets a default hotkey (DEC-004).
+ * Adds the global command that opens the keyboard shortcut reference. It is
+ * available from any view, like the settings commands.
+ */
+function registerShortcutHelpCommand(plugin: PaletteCommandPlugin): void {
+  plugin.addCommand({
+    id: "show-keyboard-shortcuts",
+    name: "Show keyboard shortcuts",
+    callback: () => {
+      plugin.openShortcutHelp();
+    },
+  });
+}
+
+/**
+ * Registers the settings, dashboard, reader, and shortcut-help palette
+ * commands. The ids are a test contract (see the testing docs); none sets a
+ * default hotkey (DEC-004).
  */
 export function registerPaletteCommands(plugin: PaletteCommandPlugin): void {
   registerSettingsCommands(plugin);
   registerDashboardCommands(plugin);
   registerReaderCommands(plugin);
+  registerShortcutHelpCommand(plugin);
 }

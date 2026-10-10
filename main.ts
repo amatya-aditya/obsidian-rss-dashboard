@@ -89,6 +89,7 @@ import { ImportStarredModal } from "./src/modals/import-starred-modal";
 import { AddFeedModal } from "./src/modals/feed-manager/add-feed-modal";
 import { StorageMigrationModal } from "./src/modals/storage-migration-modal";
 import { WhatsNewModal } from "./src/modals/whats-new-modal";
+import { ShortcutHelpModal } from "./src/modals/shortcut-help-modal";
 import { shouldShowStorageDeprecationPrompt } from "./src/utils/storage-deprecation-prompt";
 import { decideWhatsNew } from "./src/utils/whats-new";
 import {
@@ -851,6 +852,14 @@ export default class RssDashboardPlugin extends Plugin {
         this.settingTab.activateTab(tabName, sectionName);
       }
     }
+  }
+
+  /**
+   * Opens the keyboard shortcut reference modal. Reached from the command
+   * palette, the Settings → General row, the dashboard header menu, and `?`.
+   */
+  public openShortcutHelp(): void {
+    new ShortcutHelpModal(this.app, this.settings).open();
   }
 
   async onload() {

@@ -360,6 +360,54 @@
 }
 
 /* ============================================
+ * 4b. Keyboard shortcuts entry
+ * ============================================ */
+.rss-dashboard-menu-shortcuts-row {
+  margin-top: 4px;
+  padding-top: 12px;
+  border-top: 1px solid var(--background-modifier-border);
+}
+
+.rss-dashboard-shortcuts-button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-normal);
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.rss-dashboard-shortcuts-button:hover {
+  background: var(--background-modifier-hover);
+  border-color: var(--rss-dashboard-dropdown-accent);
+}
+
+.rss-dashboard-shortcuts-button:focus-visible {
+  outline: 2px solid var(--interactive-accent-hover);
+  outline-offset: 1px;
+}
+
+.rss-dashboard-shortcuts-key {
+  flex-shrink: 0;
+  padding: 2px 6px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  background: var(--background-secondary);
+  color: var(--text-muted);
+  font-family: var(--font-monospace);
+  font-size: 12px;
+  line-height: 1;
+}
+
+/* ============================================
  * 5. Themed Selectors
  * ============================================ */
 .rss-dashboard-dropdown-controls .rss-dashboard-select-with-icon {

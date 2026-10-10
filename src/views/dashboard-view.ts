@@ -1261,6 +1261,9 @@ export class RssDashboardView extends ItemView {
       onMarkAllAsUnread: () => {
         this.actionMarkAllAsUnread();
       },
+      onShowShortcuts: () => {
+        this.actionOpenShortcutHelp();
+      },
     };
   }
 

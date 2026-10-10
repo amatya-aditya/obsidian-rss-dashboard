@@ -41,6 +41,7 @@ export interface GeneralSettingsPlugin {
   exportPortableDataBundle(): Promise<void>;
   applyFeedLimitsToAllFeeds(): Promise<void>;
   refreshFeeds(): Promise<void>;
+  openShortcutHelp(): void;
 }
 
 // ── Pure preset helpers (exported for testing) ───────────────────────────────
@@ -62,6 +63,13 @@ export function renderGeneralSettingsTab(
   containerEl: HTMLElement,
   plugin: GeneralSettingsPlugin,
 ): void {
+  new Setting(containerEl)
+    .setName("Keyboard shortcuts")
+    .setDesc("Open the reference of the plugin's keyboard shortcuts")
+    .addButton((button) =>
+      button.setButtonText("View").onClick(() => plugin.openShortcutHelp()),
+    );
+
   new Setting(containerEl)
     .setName("View style")
     .setDesc("Choose between list, card, and feed view for articles")

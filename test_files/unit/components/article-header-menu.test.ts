@@ -44,6 +44,7 @@ describe("ArticleHeaderMenu Component", () => {
       onRefreshFeeds: vi.fn(),
       onMarkAllAsRead: vi.fn(),
       onMarkAllAsUnread: vi.fn(),
+      onShowShortcuts: vi.fn(),
     } satisfies ArticleHeaderMenuCallbacks;
   });
 
@@ -371,7 +372,7 @@ describe("ArticleHeaderMenu Component", () => {
     expect(button.getAttribute("aria-expanded")).toBe("true");
 
     const lastButton = container.querySelector(
-      ".rss-dashboard-mark-all-buttons-row .rss-dashboard-mark-all-button:last-child",
+      ".rss-dashboard-shortcuts-button",
     ) as HTMLElement;
     lastButton.focus();
     const leavingTab = new KeyboardEvent("keydown", {
@@ -642,6 +643,33 @@ describe("ArticleHeaderMenu Component", () => {
     expect(callbacks.onRefreshFeeds).toHaveBeenCalledTimes(1);
     expect(callbacks.onMarkAllAsRead).toHaveBeenCalledTimes(1);
     expect(callbacks.onMarkAllAsUnread).toHaveBeenCalledTimes(1);
+  });
+
+  it("offers a keyboard shortcuts item at the bottom that opens the reference and closes the menu", () => {
+    const menu = new ArticleHeaderMenu(settings, "", callbacks);
+    menu.render(container);
+    const button = container.querySelector<HTMLElement>(
+      ".rss-dashboard-hamburger-button",
+    )!;
+    button.click();
+
+    const shortcuts = container.querySelector<HTMLElement>(
+      ".rss-dashboard-shortcuts-button",
+    );
+    expect(shortcuts).not.toBeNull();
+    expect(shortcuts?.tagName).toBe("BUTTON");
+    expect(shortcuts?.textContent).toContain("Keyboard shortcuts");
+    expect(shortcuts?.querySelector("kbd")?.textContent).toBe("?");
+    // It is the last control in the dropdown, so Tab from it can leave the menu.
+    const focusable = container.querySelectorAll(
+      ".rss-dashboard-dropdown-menu button",
+    );
+    expect(focusable[focusable.length - 1]).toBe(shortcuts);
+
+    shortcuts?.click();
+
+    expect(callbacks.onShowShortcuts).toHaveBeenCalledTimes(1);
+    expect(button.getAttribute("aria-expanded")).toBe("false");
   });
 
   it("emits live and commit events for card spacing changes", () => {

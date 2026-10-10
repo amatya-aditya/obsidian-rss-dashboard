@@ -370,3 +370,46 @@ describe("renderGeneralSettingsTab() reader view location", () => {
     }
   });
 });
+
+describe("renderGeneralSettingsTab() keyboard shortcuts", () => {
+  beforeEach(() => {
+    installObsidianDomPolyfills();
+    document.body.empty();
+    vi.restoreAllMocks();
+  });
+
+  it("puts a Keyboard shortcuts row with a View button at the top, above View style", () => {
+    const containerEl = createDiv();
+    document.body.appendChild(containerEl);
+    const openShortcutHelp = vi.fn();
+    const plugin = {
+      app: { workspace: { revealLeaf: vi.fn(async () => {}) } },
+      settings: cloneSettings(),
+      saveSettings: vi.fn(async () => {}),
+      getActiveDashboardView: vi.fn(async () => null),
+      importPortableDataBundleFromFile: vi.fn(async () => {}),
+      exportPortableDataBundle: vi.fn(async () => {}),
+      applyFeedLimitsToAllFeeds: vi.fn(async () => {}),
+      refreshFeeds: vi.fn(async () => {}),
+      settingTab: null,
+      openShortcutHelp,
+    } as unknown as GeneralSettingsPlugin;
+
+    renderGeneralSettingsTab(containerEl, plugin);
+
+    const names = Array.from(
+      containerEl.querySelectorAll(".setting-item-name"),
+    ).map((element) => element.textContent);
+    expect(names[0]).toBe("Keyboard shortcuts");
+    expect(names[1]).toBe("View style");
+
+    const button = getSettingByName(
+      containerEl,
+      "Keyboard shortcuts",
+    ).querySelector("button");
+    expect(button?.textContent).toBe("View");
+
+    button?.click();
+    expect(openShortcutHelp).toHaveBeenCalledTimes(1);
+  });
+});

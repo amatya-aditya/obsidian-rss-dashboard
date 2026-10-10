@@ -80,6 +80,10 @@ For BRAT beta testing or manual installation, see [Installation Methods](docs/us
 
 For detailed workflows, see [Getting Started Guide](docs/user/getting-started.md).
 
+## Keyboard shortcuts
+
+Press `?` while the dashboard or reader has focus, run **Show keyboard shortcuts** from the command palette, open the dashboard ☰ menu, or use **Settings → General → Keyboard shortcuts → View** to open the shortcut reference. See the [keyboard shortcuts guide](docs/user/keyboard-shortcuts.md) for the full list.
+
 ## Documentation
 
 Complete guides, workflows, and reference: [Read the Docs](docs/)

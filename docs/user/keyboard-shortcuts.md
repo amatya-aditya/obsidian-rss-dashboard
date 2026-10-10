@@ -1,5 +1,12 @@
 # Keyboard Shortcuts
 
+The shortcut reference opens in several ways:
+
+- Press `?` while the dashboard or the Reader has focus.
+- Run **Show keyboard shortcuts** from the command palette. It has no default hotkey; assign one in Settings → Hotkeys if you want.
+- Open the dashboard ☰ menu and choose **Keyboard shortcuts** (shown with its `?` key).
+- In **Settings → General**, choose **View** in the **Keyboard shortcuts** row.
+
 ## General Navigation
 
 | Shortcut | Action           |
