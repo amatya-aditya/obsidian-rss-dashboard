@@ -173,6 +173,7 @@ interface PreviewCacheEntry {
   summary: string;
   description: string;
   content: string;
+  publisherDescription: string;
   text: string;
 }
 
@@ -186,6 +187,7 @@ export function getArticlePreviewSummaryText(article: FeedItem): string {
   const summary = article.summary || "";
   const description = article.description || "";
   const content = article.content || "";
+  const publisherDescription = article.publisherDescription || "";
 
   const cached = previewCache.get(article);
   if (
@@ -193,13 +195,21 @@ export function getArticlePreviewSummaryText(article: FeedItem): string {
     cached.title === title &&
     cached.summary === summary &&
     cached.description === description &&
-    cached.content === content
+    cached.content === content &&
+    cached.publisherDescription === publisherDescription
   ) {
     return cached.text;
   }
 
   const text = resolveArticlePreviewSummaryText(article);
-  previewCache.set(article, { title, summary, description, content, text });
+  previewCache.set(article, {
+    title,
+    summary,
+    description,
+    content,
+    publisherDescription,
+    text,
+  });
   return text;
 }
 
@@ -207,7 +217,12 @@ function resolveArticlePreviewSummaryText(article: FeedItem): string {
   const blurb = getGuardedBlurbPreview(article);
   if (blurb) return getCardPreviewSummaryText(blurb);
 
+  // For items with no usable blurb, the reader-fetched page description outranks
+  // the feed's raw text and is the only text for feeds that publish empty
+  // descriptions (#959). A guarded blurb still wins so keyword filters on the
+  // summary scope do not flip once the reader stores it (#888).
   const candidates = [
+    article.publisherDescription || "",
     article.summary || "",
     article.description || "",
     article.content || "",
