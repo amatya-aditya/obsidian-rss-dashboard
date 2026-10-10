@@ -16,6 +16,7 @@ related:
 ## Update History
 
 - 2026-10-10: Record the native Reader icon-button pattern verified on desktop and Android (#801), with the scoped Reader button reset and the Android Shift+Tab unknown
+- 2026-10-10: Align the Reader toolbar tags button with its siblings on the verified scoped-reset path (#979)
 - 2026-09-27: Fact-check against the code: stylesheet ownership after the CSS split, Tier 1 navigation (Home, Kagi Small Web, back to Discover), breakpoints, token snapshot, destructive tokens, and the Obsidian 1.13 modal close button. Add metadata, **Testing UI Changes**, and **Open Questions**
 - 2026-05-31: Replace !important icon rendering workaround with contain/will-change pattern; add §Android WebView SVG Rendering
 - 2026-04-25: Add branding guidance for logo typography and asset storage
@@ -401,7 +402,7 @@ Minimum expectations:
 
 ## Icon Rendering Standards
 
-To ensure cross-platform compatibility (especially Android WebView) and accessibility, all interactive icons must follow the `clickable-icon` pattern.
+To ensure cross-platform compatibility (especially Android WebView) and accessibility, all interactive icons follow one pattern: a native `<button type="button">` with an accessible name and explicit SVG sizing. Obsidian's `clickable-icon` class is the default for that button; a surface may replace it with a plugin-scoped button reset, the route the Reader toolbar verifies in **Verified Native-Button Pattern** below.
 
 ### Critical: CSS Scoping (Do Not Break Obsidian Core) @design-spec
 
@@ -461,9 +462,10 @@ Android emulator. That is a host/WebView difference, not plugin logic — the
 roving toolbar leaves Tab and Shift+Tab to the browser — and is not fixed here.
 
 The Reader toolbar reaches the icon look through a scoped button reset in
-`src/styles/reader.css` rather than `clickable-icon` on every button. The tags
-button still carries `clickable-icon`; aligning it with its siblings is tracked
-in [#979](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/979).
+`src/styles/reader.css` rather than `clickable-icon` on every button. All six
+toolbar buttons — including the tags button, which no longer carries the
+dashboard-card class or `clickable-icon` — use that single reset
+([#979](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/979)).
 
 ### Keyboard Interactivity
 
@@ -602,9 +604,9 @@ See `docs/development/test_coverage/testing-guide.md` for the testing rules.
 Found in the 2026-09-27 review, each with its own issue.
 
 - **Icon button element: decided; migration is in progress ([#502](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/502)).** Follow
-  the accessibility guidelines: use a native `<button type="button"
-class="clickable-icon">` with an `aria-label`, not a `div` with
-  `role="button"`. The `div` rule dates from 2.3.0-alpha.3 (commit
+  the accessibility guidelines: use a native `<button type="button">` with an
+  `aria-label`, not a `div` with `role="button"`, and style it with Obsidian's
+  `clickable-icon` class or a plugin-scoped button reset. The `div` rule dates from 2.3.0-alpha.3 (commit
   `8b0c7d5d`), which blamed the element type for broken icons on Android. The
   Android bug was later fixed in CSS (**Android WebView SVG Rendering**), and
   that fix targets the icon SVG rather than its wrapper. Existing controls are

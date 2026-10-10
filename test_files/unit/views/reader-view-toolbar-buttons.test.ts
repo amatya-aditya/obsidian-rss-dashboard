@@ -189,7 +189,6 @@ describe("ReaderView toolbar icon buttons", () => {
         ".rss-reader-star-toggle",
         ".rss-reader-read-toggle",
         ".rss-reader-format-button",
-        ".rss-dashboard-tags-toggle",
       ]) {
         for (const el of toolbar().querySelectorAll(cls)) {
           expect(el.tagName, cls).toBe("BUTTON");
@@ -197,15 +196,12 @@ describe("ReaderView toolbar icon buttons", () => {
       }
     });
 
-    it("keeps the existing classes so styling is unchanged", () => {
+    it("keeps every button on one styling path", () => {
       expect(byName("Star/unstar article").className).toContain(
         "rss-reader-star-toggle",
       );
       expect(byName("Mark as read/unread").className).toContain(
         "rss-reader-read-toggle",
-      );
-      expect(byName("Manage tags").className).toContain(
-        "rss-dashboard-tags-toggle",
       );
       expect(byName("Reader settings").className).toContain(
         "rss-reader-format-button",
@@ -213,6 +209,12 @@ describe("ReaderView toolbar icon buttons", () => {
       for (const button of buttons()) {
         expect(button.classList.contains("rss-reader-action-button")).toBe(
           true,
+        );
+        // The tags button used to add the host icon chrome and the
+        // dashboard-card lookup class; it no longer does (GH Issue #979).
+        expect(button.classList.contains("clickable-icon")).toBe(false);
+        expect(button.classList.contains("rss-dashboard-tags-toggle")).toBe(
+          false,
         );
       }
     });
