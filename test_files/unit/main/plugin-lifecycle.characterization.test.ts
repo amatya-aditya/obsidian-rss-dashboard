@@ -136,6 +136,7 @@ const PALETTE_COMMAND_LOG = [
   "addCommand:reader-toggle-read",
   "addCommand:reader-open-tags",
   "addCommand:reader-open-original",
+  "addCommand:show-keyboard-shortcuts",
 ];
 
 const STARTUP_SEQUENCE = [

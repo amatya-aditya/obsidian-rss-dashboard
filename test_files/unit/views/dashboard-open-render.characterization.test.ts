@@ -307,6 +307,7 @@ const ARTICLE_LIST_CALLBACK_NAMES = [
   "onRenderArticleTitle",
   "onResolveCachedImageUrl",
   "onSearch",
+  "onShowShortcuts",
   "onSortChange",
   "onTagsMutated",
   "onToggleSidebar",

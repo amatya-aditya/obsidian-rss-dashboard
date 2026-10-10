@@ -22,6 +22,7 @@ export interface ArticleHeaderCallbacks {
   onRefreshFeeds: () => Promise<void>;
   onMarkAllAsRead: () => void;
   onMarkAllAsUnread: () => void;
+  onShowShortcuts: () => void;
 }
 
 /**
@@ -202,6 +203,7 @@ export class ArticleHeader {
         onRefreshFeeds: () => this.callbacks.onRefreshFeeds(),
         onMarkAllAsRead: () => this.callbacks.onMarkAllAsRead(),
         onMarkAllAsUnread: () => this.callbacks.onMarkAllAsUnread(),
+        onShowShortcuts: () => this.callbacks.onShowShortcuts(),
       },
     );
     this.headerMenu.render(rightSection);

@@ -62,6 +62,8 @@ const EXPECTED_READER_IDS = [
   "reader-open-original",
 ];
 
+const EXPECTED_HELP_IDS = ["show-keyboard-shortcuts"];
+
 function createDashboardStub() {
   return {
     actionFocusSearch: vi.fn(),
@@ -104,6 +106,7 @@ function setup(open: { dashboard?: boolean; reader?: boolean } = {}) {
     getActiveDashboardView: vi.fn(async () => dashboard),
     getActiveReaderView: vi.fn(async () => reader),
     openSettingsToTab: vi.fn(async () => {}),
+    openShortcutHelp: vi.fn(),
   };
   registerPaletteCommands(plugin);
   const byId = (id: string): RegisteredCommand => {
@@ -133,6 +136,7 @@ describe("palette command registration", () => {
       ...EXPECTED_SETTINGS_IDS,
       ...EXPECTED_DASHBOARD_IDS,
       ...EXPECTED_READER_IDS,
+      ...EXPECTED_HELP_IDS,
     ]);
     for (const command of commands) {
       expect(command.id).toMatch(/^[a-z0-9]+(-[a-z0-9]+)*$/);
@@ -289,6 +293,23 @@ describe("reader commands", () => {
       expect(closed.byId(id).checkCallback?.(true)).toBe(false);
       expect(open.byId(id).checkCallback?.(true)).toBe(true);
     }
+  });
+});
+
+describe("shortcut help command", () => {
+  it("opens the shortcut reference from any view", async () => {
+    const { run, byId, plugin } = setup();
+
+    expect(byId("show-keyboard-shortcuts").checkCallback).toBeUndefined();
+    expect(byId("show-keyboard-shortcuts").name).toBe(
+      "Show keyboard shortcuts",
+    );
+
+    await run("show-keyboard-shortcuts");
+
+    expect(plugin.openShortcutHelp).toHaveBeenCalledTimes(1);
+    expect(plugin.getActiveDashboardView).not.toHaveBeenCalled();
+    expect(plugin.getActiveReaderView).not.toHaveBeenCalled();
   });
 });
 

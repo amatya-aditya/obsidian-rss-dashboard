@@ -387,6 +387,7 @@ describe("Mastodon Feed Icon — ArticleHeader renderHeaderFeedIcon", () => {
       onRefreshFeeds: vi.fn(),
       onMarkAllAsRead: vi.fn(),
       onMarkAllAsUnread: vi.fn(),
+      onShowShortcuts: vi.fn(),
     };
   });
 

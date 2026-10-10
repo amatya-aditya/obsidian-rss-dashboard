@@ -25,6 +25,7 @@ export interface ArticleHeaderMenuCallbacks {
   onRefreshFeeds: () => Promise<void>;
   onMarkAllAsRead: () => void;
   onMarkAllAsUnread: () => void;
+  onShowShortcuts: () => void;
 }
 
 export class ArticleHeaderMenu {
@@ -106,7 +107,7 @@ export class ArticleHeaderMenu {
     dropdownMenu.addEventListener("keydown", (e: KeyboardEvent) => {
       if (e.key !== "Tab" || e.shiftKey) return;
       const lastMenuButton = dropdownMenu.querySelector(
-        ".rss-dashboard-mark-all-buttons-row .rss-dashboard-mark-all-button:last-child",
+        ".rss-dashboard-shortcuts-button",
       );
       if (lastMenuButton === targetDocument.activeElement) {
         targetDocument.defaultView?.setTimeout(() => this.closeMenu(), 0);
@@ -345,6 +346,30 @@ export class ArticleHeaderMenu {
       cls: "rss-dashboard-mark-all-text",
     });
     unreadBtn.onclick = () => this.callbacks.onMarkAllAsUnread();
+
+    this.createShortcutsRow(controls);
+  }
+
+  private createShortcutsRow(controls: HTMLElement): void {
+    const shortcutsRow = controls.createDiv({
+      cls: "rss-dashboard-menu-shortcuts-row",
+    });
+    const shortcutsBtn = shortcutsRow.createEl("button", {
+      cls: "rss-dashboard-shortcuts-button",
+      attr: { type: "button" },
+    });
+    shortcutsBtn.createSpan({
+      cls: "rss-dashboard-shortcuts-label",
+      text: "Keyboard shortcuts",
+    });
+    shortcutsBtn.createEl("kbd", {
+      cls: "rss-dashboard-shortcuts-key",
+      text: "?",
+    });
+    shortcutsBtn.onclick = () => {
+      this.closeMenu();
+      this.callbacks.onShowShortcuts();
+    };
   }
 
   private createDropdownCardLayoutControls(parent: HTMLElement): void {

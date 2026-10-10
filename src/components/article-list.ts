@@ -72,6 +72,7 @@ interface ArticleListCallbacks {
   onMarkPageAsRead?: () => void;
   onMarkAllAsRead?: () => void;
   onMarkAllAsUnread?: () => void;
+  onShowShortcuts?: () => void;
   onPersistSettings?: () => Promise<void> | void;
   onOpenTagsSettings?: () => Promise<void> | void;
   onTagsMutated?: () => void;
@@ -204,6 +205,9 @@ export class ArticleList {
               void this.callbacks.onPersistSettings();
             this.render();
           }
+        },
+        onShowShortcuts: () => {
+          this.callbacks.onShowShortcuts?.();
         },
       },
     );
