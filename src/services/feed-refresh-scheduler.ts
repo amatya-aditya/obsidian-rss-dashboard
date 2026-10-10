@@ -22,6 +22,8 @@ export interface FeedRefreshSchedulerOptions {
 export class FeedRefreshScheduler {
   private timeoutId: number | null = null;
   private started = false;
+  // Single-feed refreshes do not acquire the batch lock.
+  private refreshPending = false;
   private globalRefreshDeferredUntil: number | null = null;
 
   constructor(private readonly options: FeedRefreshSchedulerOptions) {}
@@ -49,7 +51,7 @@ export class FeedRefreshScheduler {
 
   public reschedule(): void {
     this.clearTimer();
-    if (!this.started) {
+    if (!this.started || this.refreshPending) {
       return;
     }
 
@@ -96,6 +98,7 @@ export class FeedRefreshScheduler {
       return;
     }
 
+    this.refreshPending = true;
     try {
       const feeds = this.options.getFeeds();
       const globalIntervalMinutes = this.options.getGlobalIntervalMinutes();
@@ -121,6 +124,7 @@ export class FeedRefreshScheduler {
         await this.options.requestDueFeeds(dueFeeds);
       }
     } finally {
+      this.refreshPending = false;
       this.reschedule();
     }
   }
