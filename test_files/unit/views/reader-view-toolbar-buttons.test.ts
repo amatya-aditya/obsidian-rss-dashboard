@@ -527,4 +527,51 @@ describe("ReaderView toolbar icon buttons", () => {
       expect(open.hasAttribute("aria-haspopup")).toBe(false);
     });
   });
+
+  // The separate Reader builds its toolbar once and updates the Star in place,
+  // so a toggle must not move focus or drop it (GH Issue #802). The inline
+  // Reader rebuilds its toolbar and restores focus instead (#899).
+  describe("focus retention", () => {
+    async function flush(): Promise<void> {
+      await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
+    }
+
+    it("keeps focus and the Tab stop on the Star button through both toggle directions", async () => {
+      // Apply the update the way the plugin does, so the button reflects the
+      // new state while it stays focused.
+      onArticleUpdate.mockImplementation(
+        (item: FeedItem, updates: Partial<FeedItem>) => {
+          Object.assign(item, updates);
+        },
+      );
+      await openArticle({ starred: false });
+      const star = byAction("star");
+      star.focus();
+      expect(activeDocument.activeElement).toBe(star);
+
+      star.click();
+      await flush();
+      expect(star.getAttribute("aria-pressed")).toBe("true");
+      expect(activeDocument.activeElement).toBe(star);
+      expect(tabStops()).toEqual([star]);
+
+      star.click();
+      await flush();
+      expect(star.getAttribute("aria-pressed")).toBe("false");
+      expect(activeDocument.activeElement).toBe(star);
+      expect(tabStops()).toEqual([star]);
+    });
+
+    it("does not move focus into the toolbar when the Star is activated elsewhere", async () => {
+      await openArticle({ starred: false });
+      const outside = contentEl.createEl("input");
+      outside.focus();
+      expect(activeDocument.activeElement).toBe(outside);
+
+      byAction("star").click();
+      await flush();
+
+      expect(activeDocument.activeElement).toBe(outside);
+    });
+  });
 });
