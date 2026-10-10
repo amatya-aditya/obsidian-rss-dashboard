@@ -7,7 +7,7 @@ assignees: ""
 ---
 
 **TLDR:**
-<!-- One or two sentences: the problem and what you want, readable on its own. Put evidence, options and detail in the sections below. -->
+<!-- Optional, for long tickets: one or two sentences with the problem and what you want, readable on its own. Put evidence, options and detail in the sections below. -->
 
 **Is your feature request related to a problem? Please describe.**
 A clear and concise description of what the problem is. Ex. I'm always frustrated when [...]

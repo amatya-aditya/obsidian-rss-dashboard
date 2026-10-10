@@ -28,6 +28,14 @@
 
 -
 
+## Before / After
+
+<!-- Optional. For user-visible changes: what the user saw before and what they see now, as a short description or screenshots. Write "N/A" when there is nothing to see. -->
+
+| Before | After |
+| ------ | ----- |
+|        |       |
+
 ## Release Notes Candidate
 
 <!-- Copy/paste friendly text for CHANGELOG. Keep tense and style consistent. -->
