@@ -37,6 +37,23 @@ jobs:
       - name: Build and validate
         run: npm run build
 
+      # Attach the built plugin so manual testers can download it from the run
+      # without a rebuild. Pull requests only: pushes to dev and master do not
+      # pay for the upload. The build stamp changes on every build, so name the
+      # artifact by the PR and the commit that was built.
+      - name: Attach the built plugin for testers
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: rss-dashboard-pr${{ github.event.pull_request.number }}-${{ github.sha }}
+          path: |
+            main.js
+            styles.css
+            manifest.json
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+
       # Obsidian's community directory reads manifest.json from the default
       # branch, so dev and master must never carry a Beta version (#529).
       - name: Keep dev and master on a stable manifest version
