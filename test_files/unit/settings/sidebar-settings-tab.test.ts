@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as obsidian from "obsidian";
 import {
   type RssDashboardSettings,
@@ -39,6 +39,12 @@ beforeEach(() => {
   installObsidianDomPolyfills();
   document.body.empty();
   vi.restoreAllMocks();
+  // 1.8.7 through 1.12.x use the legacy settings controls; pin that branch.
+  obsidian.__setObsidianVersion("1.8.7");
+});
+
+afterEach(() => {
+  obsidian.__resetObsidianVersion();
 });
 
 describe("renderSidebarSettingsTab() - domain icon toggles", () => {
