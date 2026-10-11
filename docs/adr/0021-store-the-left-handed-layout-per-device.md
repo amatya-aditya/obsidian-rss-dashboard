@@ -94,7 +94,7 @@ Obsidian's vault-local storage is its home for per-vault, per-device UI state, a
 ## Implementation notes
 
 - The value is exposed through `loadLeftHandedLayout` / `saveLeftHandedLayout` in `src/utils/left-handed-layout.ts`, keyed by `LEFT_HANDED_LAYOUT_STORAGE_KEY` (`rss-left-handed-layout`).
-- The article-list component reads the value at render time and adds one modifier class (`rss-dashboard-mirrored-footer`) to the articles-list root; the mirroring is scoped CSS that sets `direction: rtl` on the footer and restores it on the date, so only the rendered order reverses. The document order stays read → save → star → tags, so Mark read is the far-right icon and still the first footer Tab stop: focus enters at the primary action and moves leftward with the icons, which is what the glossary means by the keyboard order matching the visual order. See [ADR 0016](0016-wcag-22-aa-accessibility-reference.md).
+- The article-list component reads the value at render time and adds one modifier class (`rss-dashboard-mirrored-footer`) to the articles-list root; the mirroring is scoped CSS that sets `direction: rtl` on the footer and restores it on the date, so only the rendered order reverses. The document order stays read → save → star → tags, so Mark read is the far-right icon and still the first footer Tab stop: focus enters at the primary action and moves leftward with the icons. See [ADR 0016](0016-wcag-22-aa-accessibility-reference.md).
 - The key is registered with the factory-reset local-storage set, so a reset returns the layout to off.
 
 ## Related
