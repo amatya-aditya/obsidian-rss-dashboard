@@ -14,6 +14,7 @@ Internal developer documentation for the RSS Dashboard plugin.
 - [Feed Validation](./feed-validation.md)
 - [Fixture Vault for Manual Testing](./fixture-vault.md)
 - [Issue Labels and Milestones](./labels.md)
+- [Obsidian Alignment Audit](./obsidian-alignment-audit.md)
 - [Obsidian Settings Reference](./obsidian-settings-reference.md)
 - [Obsidian Test Stub Probes](../../test_files/stubs/obsidian-console-probes.md)
 - [Release Notes Workflow](./release-notes-workflow.md)
