@@ -35,6 +35,10 @@ _Note: Grouping tests by feature or module makes it much easier to maintain the 
 
 A test that pins current behavior before a refactor, bugs included, is named `*.characterization.test.ts` and lives in the same folder as the module's other tests. Mark each pinned bug with `// BUG: pinned, see #<issue>`. CI keeps these files read-only on `refactor/*` pull requests; see **Characterization tests** in the [architecture guardrails](../architecture.md#characterization-tests).
 
+### Sibling callers of a changed shared function
+
+When a shared function's **inputs or resolution order** change, list its callers and add or keep a **stability characterization test for each sibling caller** — a test that pins the caller's observable result across the newly-varied input. Covering the caller you changed is not enough: a fallback or a new source can change what a sibling caller matches or renders. Write it as a normal `*.test.ts` beside the caller's other tests (the CI-locked `*.characterization.test.ts` rules above apply only to `refactor/*` work). The `publisherDescription` fallback added to `getArticlePreviewSummaryText` (#959) was covered for the card blurb, but the keyword filter's feed-only sibling (`getArticleFilterSummaryText`) left its empty-feed case unpinned.
+
 ### Shared and isolated test environments
 
 `vitest.config.mjs` sorts every test file into one of two projects by reading its source:
