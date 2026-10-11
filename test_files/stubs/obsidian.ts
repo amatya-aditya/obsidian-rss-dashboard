@@ -288,9 +288,29 @@ function normalizePathImpl(path: string): string {
   return joined.replace(/[\u00a0\u202f]/g, " ").normalize("NFC");
 }
 
-// Observed on Obsidian 1.14.4 desktop (Windows): real requireApiVersion is
-// true at or below the running version (1.14.4) and false above it. The stub
-// always returns false; the version-aware model is a separate slice (#431).
+// The pinned reference version (see the header). Observed on Obsidian 1.14.4
+// desktop (Windows): the exported `apiVersion` is the running app version
+// ("1.14.4"), and real requireApiVersion is true at or below it and false
+// above it (see obsidian-console-probes.md).
+const OBSIDIAN_REFERENCE_VERSION = "1.14.4";
+
+// Observed on Obsidian 1.14.4 desktop (Windows): `apiVersion` is a mutable
+// string export. Tests switch it through the hooks below to exercise
+// minimum-version paths; the faithful requireApiVersion comparison lands in a
+// follow-up slice (#431), so this one only adds the version state.
+export let apiVersion: typeof ObsidianApi.apiVersion =
+  OBSIDIAN_REFERENCE_VERSION;
+
+/** Test hook (not an Obsidian API): pretend the app runs this version. */
+export function __setObsidianVersion(version: string): void {
+  apiVersion = version;
+}
+
+/** Test hook (not an Obsidian API): restore the pinned reference version. */
+export function __resetObsidianVersion(): void {
+  apiVersion = OBSIDIAN_REFERENCE_VERSION;
+}
+
 function requireApiVersionImpl(_version: string): boolean {
   return false;
 }
@@ -1290,6 +1310,15 @@ class WorkspaceLeafStub {
   }
 
   updateHeader(): void {}
+
+  /**
+   * Not probed: whether a deferred view loads synchronously or after a tick.
+   * The stub's views load synchronously, so this resolves immediately. The
+   * `Promise<void>` return is from the API typings (obsidian.d.ts).
+   */
+  loadIfDeferred(): Promise<void> {
+    return Promise.resolve();
+  }
 }
 
 class ItemViewStub extends ComponentStub {
