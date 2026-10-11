@@ -90,3 +90,50 @@ cached.adapterReadBinaryMissing = await A3.readBinary("probe-nope.bin").then(
   (e) => ({ code: e.code, message: e.message }),
 );
 JSON.stringify(cached)
+
+@eval
+const A4 = app.vault.adapter;
+const V4 = app.vault;
+const cache = {};
+// `create` writes to disk without caching: removed before any read, the cache
+// has nothing to serve and `cachedRead` reads the missing file.
+const uncached = await V4.create("probe-uncached.md", "hello world");
+await A4.remove("probe-uncached.md");
+cache.removedBeforeRead = await V4.cachedRead(uncached).then(
+  (v) => ({ returned: v }),
+  (e) => ({ code: e.code, message: e.message }),
+);
+// A prior read fills the cache, which outlives the removal of the file.
+const readFirst = await V4.create("probe-read-first.md", "hello world");
+await V4.read(readFirst);
+await A4.remove("probe-read-first.md");
+cache.readThenRemoved = await V4.cachedRead(readFirst).then(
+  (v) => ({ returned: v }),
+  (e) => ({ code: e.code, message: e.message }),
+);
+// Content over the default cache limit (65536) is not held.
+const large = await V4.create("probe-large.md", "x".repeat(65537));
+await V4.read(large);
+await A4.remove("probe-large.md");
+cache.overLimitRemoved = await V4.cachedRead(large).then(
+  (v) => ({ returnedLength: v.length }),
+  (e) => ({ code: e.code, message: e.message }),
+);
+// `adapter.read` bypasses the cache; only `vault.read` fills it.
+const viaAdapter = await V4.create("probe-adapter-read.md", "hello world");
+await A4.read("probe-adapter-read.md");
+await A4.remove("probe-adapter-read.md");
+cache.adapterReadThenRemoved = await V4.cachedRead(viaAdapter).then(
+  (v) => ({ returned: v }),
+  (e) => ({ code: e.code, message: e.message }),
+);
+// A rename keeps the same TFile, so the cache follows it.
+const renamed = await V4.create("probe-renamed-before.md", "hello world");
+await V4.read(renamed);
+await app.fileManager.renameFile(renamed, "probe-renamed-after.md");
+await A4.remove("probe-renamed-after.md");
+cache.renameThenRemoved = await V4.cachedRead(renamed).then(
+  (v) => ({ returned: v }),
+  (e) => ({ code: e.code, message: e.message }),
+);
+JSON.stringify(cache)

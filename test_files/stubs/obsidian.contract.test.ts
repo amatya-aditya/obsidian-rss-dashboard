@@ -640,6 +640,102 @@ describe("Obsidian stub contract: vault reads", () => {
       );
     });
   });
+
+  describe("vault.cachedRead", () => {
+    // Observed on Obsidian 1.14.4 desktop (Windows) by reading the shipped
+    // `Vault`/`TFile` implementation in the running renderer: `cachedRead`
+    // returns the vault's in-memory content cache and reads from disk only on a
+    // miss; `read` (and so a miss) caches the content; `create` writes to disk
+    // without caching. The cache is keyed by the TFile, so it survives an
+    // `adapter.remove` and follows a rename, and `adapter.read` bypasses it.
+    // Content longer than the cache limit is not held.
+    it("serves content cached by an earlier read after the file is removed on disk", async () => {
+      const { vault } = new App();
+      const file = await vault.create("probe-cached.md", "hello world");
+      await vault.read(file);
+      await vault.adapter.remove("probe-cached.md");
+
+      await expect(vault.cachedRead(file)).resolves.toBe("hello world");
+    });
+
+    it("reads through and caches on a miss", async () => {
+      const { vault } = new App();
+      const file = await vault.create("probe-cached.md", "hello world");
+
+      await expect(vault.cachedRead(file)).resolves.toBe("hello world");
+      await vault.adapter.remove("probe-cached.md");
+
+      await expect(vault.cachedRead(file)).resolves.toBe("hello world");
+    });
+
+    // `create` writes to disk without caching, so a file removed before any
+    // read has nothing cached to serve and falls through to `read`.
+    it("throws ENOENT when the file is removed before it is ever cached", async () => {
+      const { vault } = new App();
+      const file = await vault.create("probe-uncached.md", "hello world");
+      await vault.adapter.remove("probe-uncached.md");
+
+      const error: unknown = await vault
+        .cachedRead(file)
+        .catch((e: unknown) => e);
+
+      expect(error).toBeInstanceOf(Error);
+      expect(error).toMatchObject({ code: "ENOENT" });
+      expect((error as Error).message).toMatch(
+        /^ENOENT: no such file or directory, open '.*probe-uncached\.md'$/,
+      );
+    });
+
+    // Only `vault.read` fills the cache; `adapter.read` bypasses it.
+    it("is not populated by adapter.read", async () => {
+      const { vault } = new App();
+      const file = await vault.create("probe-adapter.md", "hello world");
+      await vault.adapter.read("probe-adapter.md");
+      await vault.adapter.remove("probe-adapter.md");
+
+      const error: unknown = await vault
+        .cachedRead(file)
+        .catch((e: unknown) => e);
+
+      expect(error).toMatchObject({ code: "ENOENT" });
+    });
+
+    // The cache is keyed by the TFile, so a rename keeps the entry.
+    it("follows the file across a rename", async () => {
+      const app = new App();
+      const { vault } = app;
+      const file = await vault.create("probe-before.md", "hello world");
+      await vault.read(file);
+      await app.fileManager.renameFile(file, "probe-after.md");
+      await vault.adapter.remove("probe-after.md");
+
+      await expect(vault.cachedRead(file)).resolves.toBe("hello world");
+    });
+
+    it("caches content up to the file cache limit but not past it", async () => {
+      const { vault } = new App();
+      // The observed default limit is 65536 characters.
+      const atLimit = await vault.create(
+        "probe-at-limit.md",
+        "x".repeat(65536),
+      );
+      await vault.read(atLimit);
+      await vault.adapter.remove("probe-at-limit.md");
+      await expect(vault.cachedRead(atLimit)).resolves.toHaveLength(65536);
+
+      const overLimit = await vault.create(
+        "probe-over-limit.md",
+        "x".repeat(65537),
+      );
+      await vault.read(overLimit);
+      await vault.adapter.remove("probe-over-limit.md");
+      const error: unknown = await vault
+        .cachedRead(overLimit)
+        .catch((e: unknown) => e);
+
+      expect(error).toMatchObject({ code: "ENOENT" });
+    });
+  });
 });
 
 describe("Obsidian stub contract: lifecycle and workspace", () => {

@@ -421,8 +421,32 @@ message `ENOENT: no such file or directory, open '<absolute path>'`. `vault.read
 of a `TFile` whose file was removed on disk through the adapter throws the same
 way. Now probed too: `vault.readBinary` and `adapter.readBinary` of a missing
 path throw the same `ENOENT`. **`vault.cachedRead` does not throw**: it returned
-the content it had cached before the removal. The stub has no content cache, so
-it models `read` and throws `ENOENT`; that divergence is tracked by #1001.
+the content it had cached before the removal. The cache model was settled on
+1.14.4 by reading the running renderer's `Vault`/`TFile` implementation over the
+same CDP connection (introspecting `app.vault.cachedRead`, `Vault.read`,
+`Vault.create`, and `TFile.cache`):
+
+- `cachedRead(file)` returns the file's entry in a module-level `Map` keyed by
+  the `TFile` object, and falls back to `read(file)` on a miss; the entry
+  therefore outlives an `adapter.remove` of the file, and a rename carries it
+  too (the map is not re-keyed, the same `TFile` object is kept).
+- `read(file)` reads the path through the adapter, strips a leading BOM, and
+  calls `file.cache(content)`. Only `Vault.read` fills the cache that way;
+  `adapter.read` bypasses it. `file.cache` stores content whose length is at or
+  under the vault's cache limit (`vault.cacheLimit`, 65536 by default), evicts
+  content over it, and clears the entry for `null`.
+- `create` writes through the adapter and returns the `TFile` without caching,
+  so a file removed before it is ever read has nothing to serve and `cachedRead`
+  still throws `ENOENT`.
+- `modify(file, content)` updates the cache to the new content on success and
+  clears it when the write fails; `append(file, content)` clears it.
+
+The stub models the `cachedRead`/`read`/`create` cases in
+`MockDataVault.cachedRead`: a per-`TFile` cache filled by `read`, served by
+`cachedRead`, and left empty for content over the limit (#1001). It does not
+model the `modify`/`append` cache effects (the stub's `modify` is a no-op that
+never changes content) or the BOM strip. The cache cases below are added to
+`adapter.repl` (step 4) for the behavioral drift check.
 
 ```js
 const A = app.vault.adapter;
