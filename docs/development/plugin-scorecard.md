@@ -31,6 +31,18 @@ the fifth is a deliberate deferral recorded below.
 | Build output did not match the released `main.js` artifact                                                            | Remediated in [#933](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/933). The production bundle no longer embeds the git commit, dirty flag, or build time, so a clean `npm run build` is byte-for-byte reproducible and matches CI and a copy with no `.git` folder. Local dev/watch builds keep the full commit and build-time stamp for #373.                         |
 | `PluginSettingTab` does not implement `getSettingDefinitions()` (Obsidian 1.13.0+)                                    | Deferred. See **Deferred: declarative settings** below.                                                                                                                                                                                                                                                                                                                                  |
 
+### 2.8.0 verification
+
+Verified locally on October 11, 2026 against the fixture vault. Two production
+builds produced a byte-identical `main.js` (SHA-256 `F53936E5…`), and the
+production bundle carries no commit or timestamp. `npm run build` passed every
+gate (compliance, CSS scope, platform, `!important`, release compatibility,
+pre-release, doc links, format, ESLint, main and test type checks, esbuild).
+The full unit suite passed: 407 files, 6711 tests. The popout cross-window
+checks, the podcast-tools `gap`, and the About / status-bar build label were
+exercised by hand in the fixture vault. Ready for the community rescan that
+follows the 2.8.0 release.
+
 ### Deferred: declarative settings (1.13.0)
 
 `src/settings/settings-tab.ts` implements the imperative `display()` settings
@@ -79,7 +91,7 @@ Earlier public scorecard snapshots are archived: [post-2.5.0](../archive/investi
 | 2.4.0   | Risks      | Jul 2, 2026  | 🔄 Remediated in 2.4.1 — pending community rescan                                                                                              |
 | 2.4.1   | TBD        | Jul 2, 2026  | ✅ Local compliance gates pass — see[2.4.0 audit remediation plan](../archive/investigations/2026/2.4.0-audit/2.4.0_audit_remediation_plan.md) |
 | 2.6.0   | Warnings   | Aug 10, 2026 | ✅ Remediated — post-2.6.0 record below                                                                                                        |
-| 2.7.1   | 5 warnings | Oct 11, 2026 | 🔄 2.8.0 remediation in progress ([#933](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/933))                                  |
+| 2.7.1   | 5 warnings | Oct 11, 2026 | ✅ Remediated locally — pending community rescan ([#933](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/933))                  |
 
 ---
 
