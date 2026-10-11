@@ -295,5 +295,19 @@ describe("ShortcutHelpModal", () => {
       ).not.toBeNull();
       modal.onClose();
     });
+
+    it("writes the YouTube focus mode row into the saved note", async () => {
+      const app = App.createMock();
+      const modal = new ShortcutHelpModal(app, createSettings(""));
+      modal.onOpen();
+
+      await clickSaveLink(modal);
+
+      const file = app.vault.getAbstractFileByPath("keyboard-shortcuts.md");
+      expect(file).not.toBeNull();
+      const content = await app.vault.read(file as never);
+      expect(content).toContain("| Shift + f | Toggle YouTube focus mode |");
+      modal.onClose();
+    });
   });
 });
