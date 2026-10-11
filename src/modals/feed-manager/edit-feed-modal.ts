@@ -10,6 +10,7 @@ import type {
 import { FolderSuggest } from "../../components/folder-suggest";
 import { renderKeywordFilterEditor } from "../../components/keyword-filter-editor";
 import { shouldUseMobileSidebarLayout } from "../../utils/platform-utils";
+import { removeNativeModalCloseButton } from "../../utils/modal-close-button";
 import { settingsUiCompatibility } from "../../settings/settings-ui-compat";
 import { isValidFeedTitle } from "../../utils/validation";
 import {
@@ -148,7 +149,8 @@ export class EditFeedModal extends Modal {
 
     if (isMobile) {
       this.modalEl.addClass("rss-mobile-feed-manager-modal");
-      this.modalEl.addClass("hide-default-close-button");
+      // Remove Obsidian's default floating close button on mobile
+      removeNativeModalCloseButton(this.modalEl);
     }
 
     this.contentEl.empty();

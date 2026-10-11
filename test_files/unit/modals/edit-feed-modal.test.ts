@@ -245,6 +245,81 @@ beforeEach(() => {
 });
 
 describe("EditFeedModal", () => {
+  it("removes the native close button in the mobile layout", () => {
+    Object.defineProperty(window, "innerWidth", {
+      value: 500,
+      configurable: true,
+    });
+    const app = createMockApp();
+    const feed: Feed = {
+      title: "Example feed",
+      url: "https://example.com/feed.xml",
+      folder: "Tech",
+      items: [],
+      lastUpdated: 0,
+    };
+    const plugin = {
+      app,
+      settings: {
+        feeds: [feed],
+        folders: [],
+        maxItems: 50,
+        corsProxyEnabled: false,
+        corsProxyUrl: "",
+        articleSaving: { savedTemplates: [] },
+      },
+      ensureFolderExists: vi.fn(async () => {}),
+      saveSettings: vi.fn(async () => {}),
+      notifyFiltersUpdated: vi.fn(),
+    };
+    const modal = new EditFeedModal(
+      app,
+      asRssDashboardPlugin(plugin),
+      feed,
+      vi.fn(),
+    );
+
+    modal.open();
+
+    expect(modal.modalEl.querySelector(".modal-header-button")).toBeNull();
+    expect(modal.containerEl.isConnected).toBe(true);
+  });
+
+  it("keeps the native close button in the desktop layout", () => {
+    const app = createMockApp();
+    const feed: Feed = {
+      title: "Example feed",
+      url: "https://example.com/feed.xml",
+      folder: "Tech",
+      items: [],
+      lastUpdated: 0,
+    };
+    const plugin = {
+      app,
+      settings: {
+        feeds: [feed],
+        folders: [],
+        maxItems: 50,
+        corsProxyEnabled: false,
+        corsProxyUrl: "",
+        articleSaving: { savedTemplates: [] },
+      },
+      ensureFolderExists: vi.fn(async () => {}),
+      saveSettings: vi.fn(async () => {}),
+      notifyFiltersUpdated: vi.fn(),
+    };
+    const modal = new EditFeedModal(
+      app,
+      asRssDashboardPlugin(plugin),
+      feed,
+      vi.fn(),
+    );
+
+    modal.open();
+
+    expect(modal.modalEl.querySelector(".modal-header-button")).not.toBeNull();
+  });
+
   it.each([false, true])(
     "keeps duplicate URL edits open without changing data, and lets the user correct the URL (pre-existing duplicate: %s)",
     async (hasDuplicate) => {
