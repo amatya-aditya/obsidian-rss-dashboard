@@ -1300,8 +1300,8 @@ export class ReaderView extends ItemView {
     } else {
       const skipFullArticleFetch = this.shouldSkipFullArticleFetch(item);
       this.currentFullContentFetchAttempted = !skipFullArticleFetch;
-      const fetchResult = skipFullArticleFetch
-        ? undefined
+      const fetchResult: FullArticleFetchResult = skipFullArticleFetch
+        ? { content: "", failureType: "none" }
         : await this.fetchFullArticleContent(item.link);
       const fetchedContent = fetchResult?.content ?? "";
       this.currentFetchedArticleContent = fetchedContent.trim()
@@ -1314,9 +1314,9 @@ export class ReaderView extends ItemView {
         this.persistFetchedMetadata(
           item,
           fetchedContent,
-          fetchResult?.pageMetadata,
+          fetchResult.pageMetadata,
         );
-      } else if (this.lastFullArticleFetchWasRestricted()) {
+      } else if (fetchResult?.failureType === "restricted") {
         item.restrictedReason = RESTRICTED_ARTICLE_REASON;
         // Toast notification removed for paywalled/restricted articles.
       }

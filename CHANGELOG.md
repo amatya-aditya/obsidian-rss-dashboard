@@ -30,6 +30,7 @@
 
 ### Fixes
 
+- Overlapping article loads in the Reader and inline reader now keep the restricted-access banner and restriction reason on the article whose fetch was restricted. [GH Issue #982](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/982)
 - Adding an unreachable feed from Discover no longer hangs and blocks every other add. The add gives up after about five seconds with a message, the **Add to...** button shows a spinner while it works, and a second add during another feed operation now says so instead of doing nothing. [GH Issue #949](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/949)
 - On phones, the Reader options sheet (font, size, line height) now opens as a centred bottom sheet instead of being pinned to the top of the screen. [GH Issue #978](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/978)
 - Article cards now show the description the reader fetched from the article page when the feed itself supplied none, instead of a blank preview. A description in the feed still takes priority. [GH Issue #959](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/959)
