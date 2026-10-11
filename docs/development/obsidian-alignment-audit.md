@@ -156,13 +156,13 @@ verdict, so the two stay consistent.
 Each finding needs a GitHub issue before remediation starts. Severity follows
 the mapping above.
 
-| Finding | Severity | Summary                                                               | Remediation direction                                                                             | Issue |
-| ------- | -------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- | ----- |
-| G2      | Low      | 15 ungated `console.debug` calls across 5 files                       | Route through a shared, opt-in debug logger, or remove; keep `console.warn`/`error`               | TBD   |
-| M2      | Medium   | Two production regexes use lookbehind, unsupported on iOS before 16.4 | Replace with a lookbehind-free pattern or a documented platform fallback                          | TBD   |
-| U2      | Low      | Settings heading "Settings bundle" repeats "settings"                 | Rename to e.g. "App preferences"                                                                  | TBD   |
-| V2      | Low      | `vault.modify` rewrites a saved note instead of `vault.process`       | Switch to `vault.process` for the atomic read-modify-write                                        | TBD   |
-| L2      | Low      | Bundled Apache-2.0/MIT dependencies have no attribution               | Add a `THIRD-PARTY` notices file or README section, or confirm the release SPDX SBOM satisfies it | TBD   |
+| Finding | Severity | Summary                                                               | Remediation direction                                                                             | Issue                                                                        |
+| ------- | -------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| G2      | Low      | 15 ungated `console.debug` calls across 5 files                       | Route through a shared, opt-in debug logger, or remove; keep `console.warn`/`error`               | [#1017](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1017) |
+| M2      | Medium   | Two production regexes use lookbehind, unsupported on iOS before 16.4 | Replace with a lookbehind-free pattern or a documented platform fallback                          | [#1018](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1018) |
+| U2      | Low      | Settings heading "Settings bundle" repeats "settings"                 | Rename to e.g. "App preferences"                                                                  | [#1021](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1021) |
+| V2      | Low      | `vault.modify` rewrites a saved note instead of `vault.process`       | Switch to `vault.process` for the atomic read-modify-write                                        | [#1019](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1019) |
+| L2      | Low      | Bundled Apache-2.0/MIT dependencies have no attribution               | Add a `THIRD-PARTY` notices file or README section, or confirm the release SPDX SBOM satisfies it | [#1020](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1020) |
 
 Documented notes that are not findings, so a reader knows they were considered:
 
