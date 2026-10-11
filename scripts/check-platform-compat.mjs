@@ -77,6 +77,14 @@ function parseRulesFromLine(line) {
     });
   }
 
+  if (/\(\?<[=!]/.test(line)) {
+    findings.push({
+      rule: "regex-lookbehind",
+      message:
+        "Avoid regex lookbehind assertions: they throw a SyntaxError on iOS before 16.4. Capture the leading boundary and adjust the match instead.",
+    });
+  }
+
   return findings;
 }
 

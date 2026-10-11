@@ -76,6 +76,59 @@ describe("HighlightService", () => {
     });
   });
 
+  describe("whole-word boundary matching", () => {
+    function markedSegments(html: string): string[] {
+      return [...html.matchAll(/<mark[^>]*>([\s\S]*?)<\/mark>/g)].map(
+        (match) => match[1],
+      );
+    }
+
+    function useWord(text: string, wholeWord: boolean): void {
+      settings.words = [
+        {
+          id: "w",
+          text,
+          enabled: true,
+          wholeWord,
+          caseSensitive: false,
+          createdAt: Date.now(),
+        },
+      ];
+      service = new HighlightService(settings);
+    }
+
+    it("highlights a whole word at the start, middle, and end of a string", () => {
+      useWord("cat", true);
+
+      const result = service.highlightText("cat and a cat, then cat.");
+
+      expect(markedSegments(result)).toEqual(["cat", "cat", "cat"]);
+    });
+
+    it("does not highlight a whole word embedded inside a longer word", () => {
+      useWord("cat", true);
+
+      const text = "scatter concatenate Bobcat";
+      expect(service.highlightText(text)).toBe(text);
+    });
+
+    it("treats digits as word characters for whole-word boundaries", () => {
+      useWord("cat", true);
+
+      const result = service.highlightText("3cat cat3 /cat/");
+
+      expect(markedSegments(result)).toEqual(["cat"]);
+    });
+
+    it("highlights a substring when wholeWord is disabled", () => {
+      useWord("cat", false);
+
+      const result = service.highlightText("scatter");
+
+      expect(markedSegments(result)).toEqual(["cat"]);
+    });
+  });
+
   describe("setHighlightedText (DOM Manipulation)", () => {
     it("should set textContent if highlighting is disabled", () => {
       settings.enabled = false;
