@@ -23,11 +23,20 @@ function git(args) {
     return "";
   }
 }
-const buildInfo = {
-  commit: git("rev-parse --short=7 HEAD") || "unknown",
-  dirty: git("status --porcelain") !== "",
-  builtAt: new Date().toISOString(),
-};
+
+// The release artifact must be byte-for-byte reproducible. The community
+// directory scanner rebuilds the tagged source and compares main.js to the
+// published asset, and the release checklist builds a copy with no `.git`
+// folder, so a git- or clock-derived value would differ between those builds.
+// Production therefore embeds a stable stamp; only local dev/watch builds carry
+// the commit, dirty flag, and build time that #373 wants for local diagnosis.
+const buildInfo = prod
+  ? { commit: "", dirty: false, builtAt: "" }
+  : {
+      commit: git("rev-parse --short=7 HEAD") || "unknown",
+      dirty: git("status --porcelain") !== "",
+      builtAt: new Date().toISOString(),
+    };
 
 const context = await esbuild.context({
   banner: {

@@ -1,13 +1,15 @@
 import { Scope } from "obsidian";
 import type { ReaderView } from "../views/reader-view";
+import { isDomNode } from "../utils/dom-node";
 import { readerBindings, type KeyBinding } from "./keymap";
 
 /**
  * Returns whether a keyboard event came from an editable element.
  */
 function isEditableTarget(target: EventTarget | null): boolean {
+  if (!isDomNode(target)) return false;
   const ElementConstructor = activeDocument.defaultView?.Element;
-  if (!ElementConstructor || !(target instanceof ElementConstructor))
+  if (!ElementConstructor || !target.instanceOf(ElementConstructor))
     return false;
 
   return (
@@ -24,8 +26,9 @@ const TOOLBAR_KEYS = new Set(["ArrowLeft", "ArrowRight", "Home", "End"]);
  * Returns whether a keyboard event came from a Reader toolbar button.
  */
 function isToolbarTarget(target: EventTarget | null): boolean {
+  if (!isDomNode(target)) return false;
   const ElementConstructor = activeDocument.defaultView?.Element;
-  if (!ElementConstructor || !(target instanceof ElementConstructor))
+  if (!ElementConstructor || !target.instanceOf(ElementConstructor))
     return false;
 
   return target.closest(".rss-reader-actions") !== null;
