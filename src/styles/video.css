@@ -46,30 +46,8 @@
   max-height: 300px;
   overflow-y: auto;
 }
-.rss-video-links {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 15px;
-  background-color: var(--background-secondary-alt);
-  border-radius: 5px;
-}
-.rss-video-youtube-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  background-color: red;
-  color: #fff;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: 500;
-  text-decoration: none;
-  transition: background-color 0.2s;
-}
-.rss-video-youtube-button:hover {
-  background-color: #c00;
+.rss-video-tags:empty {
+  display: none;
 }
 .rss-video-related {
   padding: 15px;
