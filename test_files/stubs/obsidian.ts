@@ -927,6 +927,21 @@ export class MockDataVault {
 
   async modify(_file: TFileStub, _content: string): Promise<void> {}
 
+  /**
+   * Obsidian's `process` (API typings, `@since 1.1.0`): reads the file, passes
+   * its current content to `fn`, writes the returned value, and resolves with
+   * the text that was written. A file removed on disk throws ENOENT before the
+   * callback runs.
+   */
+  async process(
+    file: TFileStub,
+    fn: (data: string) => string,
+  ): Promise<string> {
+    const next = fn(this.readFromDisk(file.path));
+    this.adapterFiles.set(file.path, next);
+    return next;
+  }
+
   async createFolder(folderPath: string): Promise<TFolderStub> {
     const cleanPath = folderPath.replace(/^\/+|\/+$/g, "");
     if (!cleanPath) return this.root;

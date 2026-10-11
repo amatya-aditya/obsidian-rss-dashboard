@@ -5,7 +5,7 @@
  * state) or observes `Notice` output, so the pins survive the extraction.
  *
  * The cases cover the blocks the split moves: folder resolution, template
- * selection, frontmatter decision, existing-file lookup, and create/modify,
+ * selection, frontmatter decision, existing-file lookup, and create/rewrite,
  * including the edge cases named in the ticket.
  */
 import {
@@ -380,7 +380,7 @@ describe("ArticleSaver.saveArticle existing-file lookup", () => {
     });
     await app.vault.createFolder("Archive");
     const existing = await app.vault.create("Archive/Original.md", "old");
-    const modify = vi.spyOn(app.vault, "modify");
+    const process = vi.spyOn(app.vault, "process");
     const create = vi.spyOn(app.vault, "create");
 
     const file = requireFile(
@@ -388,7 +388,10 @@ describe("ArticleSaver.saveArticle existing-file lookup", () => {
     );
 
     expect(file.path).toBe("Archive/Original.md");
-    expect(modify).toHaveBeenCalledWith(existing, "NEW");
+    expect(process).toHaveBeenCalledTimes(1);
+    const [processFile, writeContent] = process.mock.calls[0] ?? [];
+    expect(processFile).toBe(existing);
+    expect(writeContent?.("old")).toBe("NEW");
     expect(create).not.toHaveBeenCalled();
     expect(item.savedFilePath).toBe("Archive/Original.md");
   });
@@ -410,7 +413,7 @@ describe("ArticleSaver.saveArticle existing-file lookup", () => {
     await app.vault.createFolder("Some Folder");
     await app.vault.createFolder("Articles");
     const legacy = await app.vault.create("Articles/Legacy.md", "old");
-    const modify = vi.spyOn(app.vault, "modify");
+    const process = vi.spyOn(app.vault, "process");
     const create = vi.spyOn(app.vault, "create");
 
     const file = requireFile(
@@ -418,7 +421,10 @@ describe("ArticleSaver.saveArticle existing-file lookup", () => {
     );
 
     expect(file.path).toBe("Articles/Legacy.md");
-    expect(modify).toHaveBeenCalledWith(legacy, "NEW");
+    expect(process).toHaveBeenCalledTimes(1);
+    const [processFile, writeContent] = process.mock.calls[0] ?? [];
+    expect(processFile).toBe(legacy);
+    expect(writeContent?.("old")).toBe("NEW");
     expect(create).not.toHaveBeenCalled();
   });
 
@@ -484,14 +490,14 @@ describe("ArticleSaver.saveArticle existing-file lookup", () => {
     });
     await app.vault.createFolder("Archive");
     await app.vault.create("Archive/Original.md", "old");
-    const modify = vi.spyOn(app.vault, "modify");
+    const process = vi.spyOn(app.vault, "process");
 
     const file = requireFile(
       await saver.saveArticle(item, undefined, undefined, "NEW"),
     );
 
     expect(file.path).toBe("Articles/Test Article.md");
-    expect(modify).not.toHaveBeenCalled();
+    expect(process).not.toHaveBeenCalled();
   });
 
   it("modifies a legacy title note for a saved item without a recorded path", async () => {
@@ -506,14 +512,17 @@ describe("ArticleSaver.saveArticle existing-file lookup", () => {
     const item = createItem({ saved: true });
     await app.vault.createFolder("Articles");
     const legacy = await app.vault.create("Articles/Test Article.md", "old");
-    const modify = vi.spyOn(app.vault, "modify");
+    const process = vi.spyOn(app.vault, "process");
 
     const file = requireFile(
       await saver.saveArticle(item, undefined, undefined, "NEW"),
     );
 
     expect(file.path).toBe("Articles/Test Article.md");
-    expect(modify).toHaveBeenCalledWith(legacy, "NEW");
+    expect(process).toHaveBeenCalledTimes(1);
+    const [processFile, writeContent] = process.mock.calls[0] ?? [];
+    expect(processFile).toBe(legacy);
+    expect(writeContent?.("old")).toBe("NEW");
   });
 });
 
@@ -568,7 +577,7 @@ describe("ArticleSaver.saveArticle item state and notices", () => {
     });
     await app.vault.createFolder("Articles");
     await app.vault.create("Articles/Repeat.md", "old");
-    vi.spyOn(app.vault, "modify").mockRejectedValueOnce(new Error("locked"));
+    vi.spyOn(app.vault, "process").mockRejectedValueOnce(new Error("locked"));
     const create = vi.spyOn(app.vault, "create");
 
     const result = await saver.saveArticle(item, undefined, undefined, "NEW");

@@ -753,7 +753,9 @@ guid: "{{guid}}"
   ): Promise<TFile> {
     try {
       if (existingSavedFile) {
-        await this.app.vault.modify(existingSavedFile, contentToWrite);
+        // `contentToWrite` is fully computed above; `process` gives the write
+        // atomic read-modify-write semantics, so the callback returns it as is.
+        await this.app.vault.process(existingSavedFile, () => contentToWrite);
         return existingSavedFile;
       }
 
