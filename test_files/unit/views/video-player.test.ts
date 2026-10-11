@@ -66,7 +66,7 @@ describe("VideoPlayer", () => {
 
     expect(logSpy).toHaveBeenCalledWith(
       "[Stub Notice]",
-      "No video ID provided",
+      "No video id provided",
     );
     expect(container.querySelector(".rss-video-player")).toBeNull();
     expect(container.textContent).toContain("keep");

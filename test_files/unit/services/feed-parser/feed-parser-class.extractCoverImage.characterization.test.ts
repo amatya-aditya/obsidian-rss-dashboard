@@ -9,6 +9,7 @@ import {
 } from "../../../../src/types/types.js";
 import { FeedParser } from "../../../../src/services/feed-parser/feed-parser-class.js";
 import { CustomXMLParser } from "../../../../src/services/feed-parser/xml-parser/custom-xml-parser.js";
+import { setDebugLoggingEnabled } from "../../../../src/utils/debug-logger.js";
 import type {
   ParsedFeed,
   ParsedItem,
@@ -186,11 +187,15 @@ describe("FeedParser.extractCoverImage characterization", () => {
     // Fake only Date; real timers keep the mocked fetch promises flowing.
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(NOW);
+    // The double-encoded diagnostics below are pinned through the shared
+    // logger, which emits only when a build or test opts in (#1017).
+    setDebugLoggingEnabled(true);
   });
 
   afterEach(() => {
     vi.useRealTimers();
     vi.restoreAllMocks();
+    setDebugLoggingEnabled(null);
   });
 
   describe("input", () => {

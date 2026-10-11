@@ -1,4 +1,5 @@
 import { Readability } from "@mozilla/readability";
+import { debugLog } from "./debug-logger";
 import {
   extractPageMetadata,
   isEmptyRawMetadata,
@@ -243,7 +244,7 @@ export async function fetchWithProxyFallbackDetailed(
         isRestrictedStatus(directResponse.status);
 
       if (!directBlocked) {
-        console.debug(
+        debugLog(
           `[RSS Dashboard] Direct fetch succeeded for ${url} (${directHtml.length} chars).`,
         );
         return { ...parseArticleContent(directHtml), failureType: "none" };
@@ -313,7 +314,7 @@ export async function fetchWithProxyFallbackDetailed(
           continue;
         }
 
-        console.debug(
+        debugLog(
           `[RSS Dashboard] Proxy fetch succeeded for ${url} (${proxyHtml.length} chars).`,
         );
         return { ...parseArticleContent(proxyHtml), failureType: "none" };

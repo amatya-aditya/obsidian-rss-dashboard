@@ -70,6 +70,9 @@ const context = await esbuild.context({
   minify: prod,
   define: {
     __RSS_DASHBOARD_BUILD__: JSON.stringify(buildInfo),
+    // Debug logging stays off in the release bundle and on for dev/watch
+    // builds. See src/utils/debug-logger.ts.
+    __RSS_DASHBOARD_DEBUG__: prod ? "false" : "true",
   },
   loader: {
     ".json": "json",
