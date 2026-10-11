@@ -1,0 +1,64 @@
+@eval
+const A = app.vault.adapter;
+const probeDir = ".obsidian/plugins/obsidian-probe";
+await A.mkdir(probeDir).catch(() => {});
+await A.write(
+  `${probeDir}/manifest.json`,
+  JSON.stringify({
+    id: "obsidian-probe",
+    name: "Obsidian probe",
+    version: "1.0.0",
+    minAppVersion: "1.0.0",
+    description: "Probe helper: stashes the obsidian module on window (#431).",
+    author: "rss-dashboard probe",
+    isDesktopOnly: false,
+  }),
+);
+await A.write(
+  `${probeDir}/main.js`,
+  'const o=require("obsidian");class P extends o.Plugin{onload(){window.__obsidianApi=o}}module.exports=P;',
+);
+await app.plugins.setEnable(true);
+await app.plugins.loadManifests();
+if (!app.plugins.plugins["obsidian-probe"]) {
+  await app.plugins.enablePluginAndSave("obsidian-probe");
+}
+await new Promise((r) => window.setTimeout(r, 300));
+const api = window.__obsidianApi;
+typeof api
+
+@eval
+const log = [];
+const m = new api.Modal(app);
+m.onOpen = () => log.push("onOpen connected=" + m.containerEl.isConnected);
+m.onClose = () => log.push("onClose connected=" + m.containerEl.isConnected);
+m.setTitle("T");
+m.open();
+await new Promise((r) => window.setTimeout(r, 100));
+const dom = {
+  scope: m.scope instanceof api.Scope,
+  containerElClass: m.containerEl.className,
+  headerElClass: m.headerEl?.className,
+  titleElParent: m.titleEl?.parentElement?.className,
+  modalElChildren: [...m.modalEl.children].map((e) => e.className),
+  hasModalCloseButton: !!m.modalEl.querySelector(".modal-close-button"),
+  hasHeaderButton: !!m.modalEl.querySelector(".modal-header-button"),
+};
+m.close();
+log.push("after close() sync, connected=" + m.containerEl.isConnected);
+JSON.stringify({ log, dom })
+
+@eval
+const clickLog = [];
+const m2 = new api.Modal(app);
+m2.onClose = () => clickLog.push("onClose");
+m2.open();
+const closeButton =
+  m2.modalEl.querySelector(".modal-header-button") ??
+  m2.modalEl.querySelector(".modal-close-button");
+closeButton?.click();
+JSON.stringify({
+  found: !!closeButton,
+  closed: !m2.containerEl.isConnected,
+  log: clickLog,
+})

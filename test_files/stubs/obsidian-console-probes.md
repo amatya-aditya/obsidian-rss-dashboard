@@ -2,24 +2,69 @@
 
 These probes observe real Obsidian behavior for the stub contract
 (`obsidian.contract.test.ts`, ADR 0014). Run them in a throwaway vault, never
-a vault with real data, and record the Obsidian version
-(**Settings → About**) with each result.
+a vault with real data, and record the Obsidian version (**Settings → About**)
+with each result.
 
-## How to run
+The records below were re-observed on **Obsidian 1.14.4 desktop (Windows)**,
+the current stable, on **2026-10-11**. The reference was 1.13.7 before that;
+every behavior recorded on 1.13.7 reproduced unchanged on 1.14.4 unless a
+record says otherwise. The stub's reference pin is 1.14.4; the installer in the
+probe session was 1.13.7 (the renderer updates in place, so the running app was
+newer than the installer).
+
+## Re-running these probes (drift check)
+
+The committed drivers under `test_files/stubs/probes/` run over the merged CDP
+harness (`scripts/obsidian-cdp.mjs`, see "Driving the vault over CDP" in
+`docs/development/fixture-vault.md`). Point a disposable profile at a throwaway
+vault, then run one file per API group:
+
+```sh
+node scripts/obsidian-cdp.mjs repl test_files/stubs/probes/version-and-platform.repl
+node scripts/obsidian-cdp.mjs repl test_files/stubs/probes/request-url.repl
+# ...and the rest of the files listed below.
+```
+
+Run `version-and-platform.repl` first: it records the running app version from
+Settings → About, the exported API version, and the `Platform` flags.
+
+The console exposes only `Notice`, `moment`, `requestUrl`, the DOM helpers, and
+`app` as globals; the API classes (`Setting`, `Menu`, `MarkdownRenderer`,
+`Scope`, `setIcon`, `requireApiVersion`, ...) are not. Each driver that needs
+them starts by writing a tiny local plugin (`.obsidian/plugins/obsidian-probe`)
+that stashes `require("obsidian")` on `window.__obsidianApi`, enabling it with
+`app.plugins.setEnable(true)`. That is throwaway-vault-only setup, and it is
+idempotent. `Notice`, `moment`, `requestUrl`, and the DOM helpers are reachable
+without it.
+
+Triggers for a re-run: a reference-pin bump, a `minAppVersion` change, an
+`obsidian` package bump, or an Obsidian stable release. Diff each output against
+the record below; a change is a new finding (ADR 0014), not a test to fix
+silently.
+
+The harness quirk to remember: in `repl`/`eval` mode a **promise result must be
+awaited at the top level** (`await somePromise` as the last expression), not
+returned from an async IIFE — the harness prints `{}` for the IIFE's promise.
+
+## How to run by hand
 
 - Open DevTools with Ctrl+Shift+I (Cmd+Option+I on macOS) and use the
   **Console** tab.
 - `require("obsidian")` doesn't work in the console ("Cannot find module
   'obsidian'"). `requestUrl` is available as the global `window.requestUrl`.
-  `app`, `activeDocument`, and `createDiv` are globals too.
+  `app`, `activeDocument`, `createDiv`, `Notice`, and `moment` are globals too.
+- Use a bare top-level `await`; an async IIFE prints `Promise {<pending>}`.
 - `copy()` only works at the top level of a console command, not inside an
   async function. Store results on `window` and call `copy(window.__probe)`
   afterwards.
 
 ## requestUrl throws on status 400 and above
 
-Observed on 1.13.7: every status throws an `Error` with `status` and
-`headers` properties. With `throw: false`, the response is returned.
+**Probe:** `test_files/stubs/probes/request-url.repl`.
+**Observed on 1.14.4 (Windows):** unchanged from 1.13.7. Every status at or
+above 400 rejects with an `Error` message `Request failed, status <n>` whose own
+keys are exactly `["status", "headers"]`; with `throw: false` the response is
+returned (`{ status: 403, text: "" }`).
 
 ```js
 for (const s of [403, 404, 500]) {
@@ -39,10 +84,10 @@ console.log("throw:false returned", r.status);
 
 ## Document.createDiv appends to the document
 
-Observed on 1.13.7: throws `HierarchyRequestError` ("Only one element on
-document allowed"), because the document already has its `<html>` element.
-The stack trace shows `createDiv` going through `createEl`, and `createSpan`
-is the same Node helper. The global `createDiv()` (a Window helper) returns a
+**Probe:** `test_files/stubs/probes/dom-helpers.repl`.
+**Observed on 1.14.4 (Windows):** unchanged. `activeDocument.createDiv()` throws
+`HierarchyRequestError` ("Only one element on document allowed"), because the
+document already has its `<html>` element. The global `createDiv()` returns a
 detached element instead; use it, or `el.win.createDiv()`, for a temporary
 container (#409).
 
@@ -58,8 +103,10 @@ try {
 
 ## Hidden paths aren't indexed
 
-Observed on 1.13.7: `getAbstractFileByPath` returns `null` for anything
-under a dot folder (including `configDir`), even when it's on disk.
+**Probe:** `test_files/stubs/probes/vault-index.repl`.
+**Observed on 1.14.4 (Windows):** unchanged. `getAbstractFileByPath` returns
+`null` for anything under a dot folder (including `configDir`), even when it's
+on disk.
 
 ```js
 for (const p of [
@@ -76,13 +123,17 @@ for (const p of [
 }
 ```
 
+Observed: both paths are indexed `null` and on disk `true`.
+
 ## create and createFolder on existing paths
 
-Observed on 1.13.7 (Windows): `createFolder` throws `Folder already exists.`
-for an existing path and for a case variant of it. `create` throws `File
-already exists.` the same way. `getAbstractFileByPath` is case-sensitive, so
-the case variant returns `null` while `adapter.exists` returns `true`.
-`create` with a missing parent folder throws `ENOENT`.
+**Probe:** `test_files/stubs/probes/vault-index.repl`.
+**Observed on 1.14.4 (Windows):** unchanged. `createFolder` throws `Folder
+already exists.` for an existing path and for a case variant of it. `create`
+throws `File already exists.` the same way. `getAbstractFileByPath` is
+case-sensitive, so the case variant returns `null` while `adapter.exists`
+returns `true`. `create` with a missing parent folder throws `ENOENT` with the
+absolute path.
 
 ```js
 await app.vault.createFolder("probe-folder");
@@ -112,13 +163,17 @@ try {
 
 ## Adapter file system model
 
-Observed on 1.13.7 (Windows): `adapter.write` under a missing parent folder
+**Probe:** `test_files/stubs/probes/adapter.repl`.
+**Observed on 1.14.4 (Windows):** `adapter.write` under a missing parent folder
 throws an `Error` with `code: "ENOENT"` and the message `ENOENT: no such file
 or directory, open '<absolute path>'`. `adapter.mkdir` creates nested folders
-and resolves `undefined`, and `exists` then reports them. `adapter.list` sees
-folders made by `mkdir` (not only `vault.createFolder`) and returns the full
-vault paths of the direct children. After `adapter.write`, `exists` is true
-and `getAbstractFileByPath` returns the file.
+and resolves `undefined`; it also **resolves on an existing folder** (no
+throw). `exists` and `list` then report mkdir-made folders, and the folder
+**joins the vault index** — `getAbstractFileByPath("probe-adapter/m1/m2")`
+returns it — not only `vault.createFolder` folders. After `adapter.write`,
+`exists` is true and `getAbstractFileByPath` returns the file. `list` returns
+the full vault paths of the direct children (`{ folders: ["probe-adapter/m1"],
+files: [] }` for the nested mkdir above).
 
 ```js
 const A = app.vault.adapter;
@@ -132,8 +187,13 @@ try {
   console.log("missing parent threw", e.code, e.message);
 }
 console.log("mkdir resolved", await A.mkdir(`${root}/m1/m2`));
+console.log("mkdir on existing", await A.mkdir(`${root}/m1`));
 console.log("exists after mkdir", await A.exists(`${root}/m1/m2`));
 console.log("list after mkdir", await A.list(root));
+console.log(
+  "mkdir folder indexed",
+  app.vault.getAbstractFileByPath(`${root}/m1/m2`)?.path ?? null,
+);
 await A.write(`${root}/w.md`, "w");
 console.log(
   "after write: exists",
@@ -146,17 +206,15 @@ console.log(
 
 ## Modal lifecycle and DOM
 
-Observed on 1.13.7 (Windows): `onOpen` runs with `containerEl.isConnected`
-true. `close()` detaches `containerEl` first and then runs `onClose`
-synchronously, so `isConnected` is false inside `onClose`. `scope` exists,
-`headerEl` has class `modal-header` and holds `titleEl`. `modalEl`'s children
-are, in order, `modal-header-button mod-raised clickable-icon` (the close
-button), `modal-header`, and `modal-content`; there is no
-`.modal-close-button`. `containerEl`'s class is `modal-container mod-dim`.
-
-`Modal` isn't a console global. The probe reaches it as the base class of
-`app.setting`, the prototype that owns `open`, `close`, `onOpen`, and
-`onClose`.
+**Probe:** `test_files/stubs/probes/modal.repl`.
+**Observed on 1.14.4 (Windows):** unchanged. `onOpen` runs with
+`containerEl.isConnected` true. `close()` detaches `containerEl` first and then
+runs `onClose` synchronously, so `isConnected` is false inside `onClose`.
+`scope` exists, `headerEl` has class `modal-header` and holds `titleEl`.
+`modalEl`'s children are, in order, `modal-header-button mod-raised
+clickable-icon` (the close button), `modal-header`, and `modal-content`; there
+is no `.modal-close-button`. `containerEl`'s class is `modal-container mod-dim`.
+Clicking the header button closes the modal.
 
 ```js
 const findCtor = (o, needs) => {
@@ -189,9 +247,14 @@ log.push("after close() sync, connected=" + m.containerEl.isConnected);
 console.log(log);
 ```
 
+The driver reaches `Modal` as `api.Modal` from the bootstrapped module; the
+console route above (its base class on `app.setting`) gives the same class.
+
 ## DOM helpers on elements
 
-Observed on 1.13.7 (Windows):
+**Probe:** `test_files/stubs/probes/dom-helpers.repl`.
+**Observed on 1.14.4 (Windows):** unchanged from 1.13.7, plus the `parent`
+option below.
 
 - A `cls` array is joined with spaces (`"a b"`).
 - An `attr` value of `null` leaves the attribute out; `false`, `true` and `0`
@@ -210,6 +273,12 @@ Observed on 1.13.7 (Windows):
   option only (not select, textarea, button or div), and `placeholder` to
   input only (a textarea gets neither the property nor the attribute; use
   `attr: { placeholder }`). `title` applies to any element, `href` to a link.
+- **`parent` (new):** the global Window helpers (`createEl`, `createDiv`,
+  `createSpan`) append the new element to a `parent` option (`createEl("span",
+{ parent: host })` puts it in `host`, and `{ parent: fragment }` appends to
+  the fragment). A Node receiver ignores `parent`:
+  `receiver.createEl("span", { parent: other })` appends to `receiver`, not
+  `other`. `test_files/unit/test-dom-polyfills.ts` models this.
 
 ```js
 const r = {};
@@ -279,24 +348,24 @@ r.byTag = {
   divTitle: createEl("div", { title: "t" }).title,
   aHref: createEl("a", { href: "https://example.com/" }).getAttribute("href"),
 };
+const pHost = createDiv();
+const pChild = createEl("span", { text: "x", parent: pHost });
+r.parentOption = { appended: pChild.parentElement === pHost };
+const frag = createFragment();
+const pChild2 = createEl("span", { text: "y", parent: frag });
+r.parentFragment = { appendedToFragment: pChild2.parentNode === frag };
 console.log(JSON.stringify(r, null, 1));
 ```
 
 ## normalizePath
 
-**Not yet run.** `normalizePath` isn't a console global, so the contract
-expectations come from the 1.13.7 source audit (#372): `/` and `\` are both
-separators, runs of them collapse to one `/`, leading and trailing separators
-are trimmed, an empty path (or one of only slashes) becomes `/`, non-breaking
-spaces (U+00A0, U+202F) become spaces, and the result is NFC-normalized.
-
-Observed on 1.13.7 (Windows), indirectly: `fileManager.renameFile(f,
-"a//r3.md")` left `f.path` as `a/r3.md`.
-
-This probe reaches `normalizePath` through vault APIs. It only shows the
-normalization where the API applies it, so an input that comes back unchanged
-means that API doesn't normalize, not that `normalizePath` doesn't. Record the
-result of each line.
+**Probe:** `test_files/stubs/probes/normalize-path.repl`.
+**Observed on 1.14.4 (Windows):** the 1.13.7 source-audit rules still hold,
+confirmed indirectly through `vault.create` and `fileManager.renameFile`:
+`/` and `\` are both separators, runs of them collapse to one `/`, leading and
+trailing separators are trimmed, non-breaking spaces (U+00A0, U+202F) become
+spaces, and the result is NFC-normalized. `normalizePath` itself isn't a
+console global, so every result here comes through an API that applies it.
 
 ```js
 await app.vault.createFolder("probe-np");
@@ -305,9 +374,9 @@ const cases = [
   ["/probe-np/lead.md", "probe-np/lead.md"],
   ["probe-np/trail.md/", "probe-np/trail.md"],
   ["probe-np\\back.md", "probe-np/back.md"],
-  ["probe-np/nb sp.md", "probe-np/nb sp.md"],
-  ["probe-np/nnb sp.md", "probe-np/nnb sp.md"],
-  ["probe-np/café.md", "probe-np/café.md"],
+  ["probe-np/nb\u00a0sp.md", "probe-np/nb sp.md"],
+  ["probe-np/nnb\u202fsp.md", "probe-np/nnb sp.md"],
+  ["probe-np/cafe\u0301.md", "probe-np/caf\u00e9.md"],
 ];
 for (const [input, expected] of cases) {
   try {
@@ -322,14 +391,6 @@ for (const [input, expected] of cases) {
     console.log(JSON.stringify(input), "threw", e.message);
   }
 }
-for (const [input] of cases) {
-  console.log(
-    "lookup",
-    JSON.stringify(input),
-    "->",
-    JSON.stringify(app.vault.getAbstractFileByPath(input)?.path ?? null),
-  );
-}
 console.log(
   "root lookups:",
   JSON.stringify(app.vault.getAbstractFileByPath("")?.path ?? null),
@@ -338,19 +399,30 @@ console.log(
 const target = app.vault
   .getAllLoadedFiles()
   .find((f) => f.path.startsWith("probe-np/") && f.name.endsWith(".md"));
-await app.fileManager.renameFile(target, "\\probe-np\\\\renamed café.md/");
+await app.fileManager.renameFile(
+  target,
+  "\\probe-np\\\\renamed cafe\u0301.md/",
+);
 console.log("renamed to", JSON.stringify(target.path));
-// Expected if renameFile normalizes fully: "probe-np/renamed café.md".
 // Clean up: delete probe-np from the file explorer.
 ```
 
+Observed: every case is normalized, including the combining-accent `cafe\u0301`
+→ `caf\u00e9`; `getAbstractFileByPath("")` is `null`, `getAbstractFileByPath("/")`
+is `"/"`, and a direct lookup with a backslash (`probe-np\back.md`) is `null`
+(lookups don't normalize). The rename lands at `"probe-np/renamed café.md"`.
+
 ## Reading a missing file
 
-Observed on 1.13.7 (Windows): `adapter.read` of a missing path throws an
-`Error` with `code: "ENOENT"` and the message `ENOENT: no such file or
-directory, open '<absolute path>'`. `vault.read` of a `TFile` whose file was
-removed on disk through the adapter throws the same way. `vault.cachedRead`,
-`vault.readBinary`, and `adapter.readBinary` weren't probed.
+**Probe:** `test_files/stubs/probes/adapter.repl`.
+**Observed on 1.14.4 (Windows):** unchanged for the recorded cases.
+`adapter.read` of a missing path throws an `Error` with `code: "ENOENT"` and the
+message `ENOENT: no such file or directory, open '<absolute path>'`. `vault.read`
+of a `TFile` whose file was removed on disk through the adapter throws the same
+way. Now probed too: `vault.readBinary` and `adapter.readBinary` of a missing
+path throw the same `ENOENT`. **`vault.cachedRead` does not throw**: it returned
+the content it had cached before the removal. The stub has no content cache, so
+it models `read` and throws `ENOENT`; that divergence is tracked by #1001.
 
 ```js
 const A = app.vault.adapter;
@@ -372,16 +444,13 @@ try {
 
 ## Component lifecycle
 
-Observed on 1.13.7 (Windows): a `register` callback runs on `unload()`, and
-`unload()` removes a `registerDomEvent` listener (1 click counted before
-unload, none after). `addChild` on a loaded parent loads the child at once,
-and the parent's `unload()` unloads it (its `onunload` runs, `_loaded` is
-`false`). `addChild` on an unloaded parent doesn't load the child; the
-parent's later `load()` does.
-
-`Component` isn't a console global. Reach it as the base class of a plugin
-instance: the prototype that owns `load`, `unload`, `register`,
-`registerDomEvent`, and `addChild`.
+**Probe:** `test_files/stubs/probes/component.repl`.
+**Observed on 1.14.4 (Windows):** unchanged. A `register` callback runs on
+`unload()`, and `unload()` removes a `registerDomEvent` listener (1 click
+counted before unload, none after). `addChild` on a loaded parent loads the
+child at once, and the parent's `unload()` unloads it (its `onunload` runs,
+`_loaded` is `false`). `addChild` on an unloaded parent doesn't load the child;
+the parent's later `load()` does.
 
 ```js
 const findCtor = (o, needs) => {
@@ -437,14 +506,19 @@ console.log({
 });
 ```
 
+Observed: `{ log: ["register cb ran", "child onunload"], clicks: 1,
+loadedAfterAdd: true, loadedAfterParentUnload: false, lateBeforeLoad: false,
+lateAfterLoad: true }`. The driver reaches `Component` as `api.Component` (the
+console route above needs at least one enabled community plugin).
+
 ## Workspace leaves by type
 
-Observed on 1.13.7 (Windows), with rss-dashboard-view, file-explorer, and
-backlink leaves open: `getLeavesOfType` returned 0 leaves for `"markdown"` and
-for an unknown type, so it filters by view type.
-`revealLeaf` is a function, and `getLeaf.length` is 2.
-`openViewTypes` lists the open leaves as a check; it was added after the
-recorded run.
+**Probe:** `test_files/stubs/probes/workspace.repl`.
+**Observed on 1.14.4 (Windows), with empty, file-explorer, and backlink leaves
+open:** unchanged. `getLeavesOfType` filters by view type (`"markdown"` and an
+unknown type both returned 0). `revealLeaf` is a function, and
+`getLeaf.length` is 2. `openViewTypes` lists the open leaves as a check:
+`["empty", "file-explorer", "backlink"]`.
 
 ```js
 console.log({
@@ -462,10 +536,11 @@ console.log({
 
 ## fileManager.trashFile on a folder
 
-Observed on 1.13.7 (Windows): after `fileManager.trashFile(folder)` where the
-folder holds `c.md`, the folder and the child are gone from the vault index,
-and `adapter.exists` reports the child gone on disk. Not probed: descendants
-nested more than one level down, and `adapter.exists` for the folder itself.
+**Probe:** `test_files/stubs/probes/workspace.repl`.
+**Observed on 1.14.4 (Windows):** after `fileManager.trashFile(folder)`, the
+folder and its whole subtree are gone from the vault index, and `adapter.exists`
+reports them gone on disk. Now probed: a descendant nested a level deeper than
+one (`tf/nested/c.md`) and the folder path itself are also gone.
 
 ```js
 const V = app.vault;
@@ -473,28 +548,34 @@ const A = V.adapter;
 const root = "probe-trash";
 if (await A.exists(root)) await A.rmdir(root, true);
 await V.createFolder(`${root}/tf`);
-await V.create(`${root}/tf/c.md`, "c");
+await V.create("probe-trash/tf/deep.md", "d");
+await V.createFolder(`${root}/tf/nested`);
+await V.create(`${root}/tf/nested/c.md`, "c");
 await app.fileManager.trashFile(V.getAbstractFileByPath(`${root}/tf`));
-await new Promise((r) => setTimeout(r, 300));
+await new Promise((r) => setTimeout(r, 400));
 console.log({
   folder: !!V.getAbstractFileByPath(`${root}/tf`),
-  child: !!V.getAbstractFileByPath(`${root}/tf/c.md`),
-  childOnDisk: await A.exists(`${root}/tf/c.md`),
+  child: !!V.getAbstractFileByPath(`${root}/tf/deep.md`),
+  grandchild: !!V.getAbstractFileByPath(`${root}/tf/nested/c.md`),
+  folderOnDisk: await A.exists(`${root}/tf`),
+  childOnDisk: await A.exists(`${root}/tf/deep.md`),
+  grandchildOnDisk: await A.exists(`${root}/tf/nested/c.md`),
 });
-// Observed: { folder: false, child: false, childOnDisk: false }
-// Clean up: await A.rmdir(root, true); then empty the trashed folder from
-// the system trash or the vault's .trash folder.
+// Observed: every field false.
+// Clean up: empty the trashed folder from the system trash or the vault's
+// .trash folder.
 ```
 
 ## TFile names and adapter paths
 
-Observed on 1.13.7 desktop (Windows): for `dir/my.file.name.md`, `name` is
-`my.file.name.md`, `basename` is `my.file.name` (up to the last dot), and
-`extension` is `md`. For `dir/noext`, `name` and `basename` are `noext` and
+**Probe:** `test_files/stubs/probes/vault-index.repl`.
+**Observed on 1.14.4 desktop (Windows):** unchanged. For `dir/my.file.name.md`,
+`name` is `my.file.name.md`, `basename` is `my.file.name` (up to the last dot),
+and `extension` is `md`. For `dir/noext`, `name` and `basename` are `noext` and
 `extension` is `""`. `adapter.getBasePath` is a function that returns the
 vault's absolute path, and `adapter.getFullPath("a/b.md")` returns it joined
-with the vault path in OS separators (`C:\Obsidian\rss-372-scratch\a\b.md`).
-The stub always joins with `/`. Mobile wasn't probed; its adapter has no
+with the vault path in OS separators (`...\rss-431-scratch-vault\a\b.md`). The
+stub always joins with `/`. Mobile wasn't probed; its adapter has no
 `getBasePath`.
 
 ```js
@@ -523,13 +604,15 @@ console.log({
 
 ## Removing a missing path or a folder
 
-Observed on 1.13.7 (Windows): `adapter.remove` of a missing path throws an
-`Error` with `code: "ENOENT"` and the message `ENOENT: no such file or
+**Probe:** `test_files/stubs/probes/adapter.repl`.
+**Observed on 1.14.4 (Windows):** unchanged. `adapter.remove` of a missing path
+throws an `Error` with `code: "ENOENT"` and the message `ENOENT: no such file or
 directory, unlink '<absolute path>'`. `adapter.remove` of a folder throws an
 `Error` with `code: "EPERM"` and the message `EPERM: operation not permitted,
 unlink '<absolute path>'`, and the folder stays. Node's `unlink` on Linux and
-macOS reports `EISDIR` for a folder instead; that wasn't probed. Removing a
-case variant of an existing file's path wasn't probed either.
+macOS reports `EISDIR` for a folder instead; that wasn't probed. Removing a case
+variant of an existing file's path wasn't probed either. `adapter.remove` of an
+existing file resolves and the file is gone.
 
 ```js
 const A = app.vault.adapter;
@@ -552,14 +635,15 @@ console.log("folder still exists:", await A.exists("probe-remove/m1"));
 
 ## Renaming a file
 
-Observed on 1.13.7 desktop (Windows): after `fileManager.renameFile(f, newPath)`,
-`vault.read(f)` returns the old content, `f.path` is the new path, and the old
-path is no longer indexed. `renameFile(f, "probe-rename//r3.md")` leaves
-`f.path` as `probe-rename/r3.md` (normalized). Renaming onto an existing path
-throws "Destination file already exists!", from both `fileManager.renameFile`
-and `vault.rename`. Not probed: `adapter.exists` for the old and new paths,
-whether `vault.rename` normalizes, a case-only rename, a missing destination
-folder, and renaming a folder.
+**Probe:** `test_files/stubs/probes/vault-index.repl`.
+**Observed on 1.14.4 desktop (Windows):** unchanged. After
+`fileManager.renameFile(f, newPath)`, `vault.read(f)` returns the old content,
+`f.path` is the new path, and the old path is no longer indexed.
+`renameFile(f, "probe-rename//r3.md")` leaves `f.path` as `probe-rename/r3.md`
+(normalized). Renaming onto an existing path throws "Destination file already
+exists!", from both `fileManager.renameFile` and `vault.rename`. Not probed:
+`adapter.exists` for the old and new paths, whether `vault.rename` normalizes,
+a case-only rename, a missing destination folder, and renaming a folder.
 
 ```js
 const V = app.vault;
@@ -591,3 +675,129 @@ for (const [label, rename] of [
 // Observed: both threw "Destination file already exists!"
 // Clean up: await V.adapter.rmdir(root, true);
 ```
+
+## Step 3: version and Platform
+
+**Probe:** `test_files/stubs/probes/version-and-platform.repl`.
+**Observed on 1.14.4 (Windows):** Settings → About reads **Version 1.14.4** and
+**Installer version: 1.13.7** (the renderer updates in place, so the app can be
+newer than the installer). The exported `apiVersion` is `"1.14.4"`. `Platform`
+has `isDesktop`, `isDesktopApp`, `isWin` true; every other flag false;
+`resourcePathPrefix` is a per-install `app://<hash>/` URL. The stub keeps the OS
+flags false and a fixed `resourcePathPrefix` so tests don't depend on the
+machine.
+
+## Step 3: requireApiVersion
+
+**Probe:** `test_files/stubs/probes/require-api-version.repl`.
+**Observed on 1.14.4 (Windows):** `true` for every version at or below 1.14.4
+(1.0.0, 1.8.7, 1.13.7, 1.14.3, 1.14.4) and `false` above it (1.14.5, 1.15.0,
+2.0.0). The stub returns `false` for every version; a version-aware model is a
+separate slice (#431).
+
+## Step 3: Setting
+
+**Probe:** `test_files/stubs/probes/setting.repl`.
+**Observed on 1.14.4 (Windows):** a `Setting(containerEl)` builds
+`setting-item` → `setting-item-info` (`setting-item-name`,
+`setting-item-description`) plus `setting-item-control`. `setHeading()` adds
+`setting-item-heading`. `setClass(cls)` adds the class. `setTooltip(text)` sets
+`aria-label` on `nameEl`. `setDisabled(true)` adds `is-disabled` to
+`settingEl`; it does not set the `disabled` attribute on the control.
+`addButton` builds `<button class="mod-cta" aria-label="...">`; `addExtraButton`
+builds a `div.clickable-icon.extra-setting-button[tabindex=0][aria-label]`
+holding an `<svg class="svg-icon lucide-<name>">`; `addText` builds
+`<input type="text" spellcheck="false" placeholder="...">`; `addDropdown` builds
+a `<select>` with the added options. The stub models the base DOM and buttons;
+the heading, tooltip, disabled and extra-button shapes are not modeled yet
+(#431).
+
+## Step 3: Menu
+
+**Probe:** `test_files/stubs/probes/menu.repl`.
+**Observed on 1.14.4 (Windows):** a `MenuItem` exposes `disabled` and `checked`
+as readable properties (`setChecked(true)` → `checked: true`,
+`setDisabled(true)` → `disabled: true`), and has `setTitle`, `setIcon`,
+`setChecked`, `setDisabled`, `onClick`, plus `titleEl`, `iconEl`,
+`checkIconEl`, `submenu`, `section`, `menu`, `dom` and `callback`. `Menu` has
+`addItem`, `addSeparator`, `showAtPosition`, `showAtMouseEvent`, and also `hide`
+and `close`. The stub's `MenuItem` lacks `setDisabled` (production calls it in
+`src/views/reader-view.ts`), and its `Menu` lacks `hide`/`close`; the
+disabled/checked behavior is a separate slice (#431). A shown menu renders in
+the main window's `document` as `.menu > .menu-scroll > .menu-group >
+.menu-item`; a disabled item carries `is-disabled` and a checked one carries
+`mod-checked` (`menu-item tappable`, `menu-item tappable mod-checked`,
+`menu-item tappable is-disabled`). Close the Settings popout before probing, or
+`activeDocument` points at that window and the menu renders elsewhere.
+
+## Step 3: Notice
+
+**Probe:** `test_files/stubs/probes/notice.repl`.
+**Observed on 1.14.4 (Windows):** a `Notice` instance has own keys `timerId`,
+`buttonContainerEl`, `win`, `containerEl`, `noticeEl`, `messageEl`; its
+prototype has `setMessage`, `setAutoHide`, `addButton`, `hide`; `noticeEl` has
+class `notice-message` and holds the message text. The global `Notice` is the
+same constructor. The stub only models `hide()`; the instance shape is a
+separate confirmation slice (#431).
+
+## Step 3: setIcon
+
+**Probe:** `test_files/stubs/probes/set-icon.repl`.
+**Observed on 1.14.4 (Windows):** `setIcon(el, "play")` writes an inline lucide
+SVG `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+stroke-linecap="round" stroke-linejoin="round" class="svg-icon lucide-play">…`
+into the element; an unknown name leaves it empty. `getIcon("play")` returns a
+detached `svg` with the same `class`. `getIconIds()` returned 1979 ids and did
+**not** include `"play"` (custom icons only, it seems). The stub records the
+icon name on `data-icon`; modeling the SVG is a separate slice (#431).
+
+## Step 3: Scope
+
+**Probe:** `test_files/stubs/probes/scope.repl`.
+**Observed on 1.14.4 (Windows):** `register` returns a handler with own keys
+`scope`, `modifiers`, `key`, `func`. `modifiers` is a **comma-joined string**
+with `Mod` resolved to the platform key: `["Mod", "Shift"]` → `"Ctrl,Shift"` on
+Windows, `["Ctrl", "Alt"]` → `"Alt,Ctrl"`, `null` → `null`, `[]` → `""`. A
+`Scope` has no `handlers` property. The stub stores the modifier array that
+tests inspect; the string form is not modeled (#431).
+
+## Step 3: AbstractInputSuggest
+
+**Probe:** `test_files/stubs/probes/abstract-input-suggest.repl`.
+**Observed on 1.14.4 (Windows):** `AbstractInputSuggest` extends
+`PopoverSuggest`. Its prototype has `showSuggestions`, `setValue`, `getValue`,
+`onInputFocus`, `onInputChange`, `selectSuggestion`, `onSelect`, `close`,
+`reposition`, `open`, `autoReposition`; `getSuggestions` and `renderSuggestion`
+are abstract. Stays thin in the stub: no production consumer; model it
+faithfully when one appears (#431).
+
+## Step 3: MarkdownRenderer (the 1.14 math DOM)
+
+**Probe:** `test_files/stubs/probes/markdown-renderer.repl`.
+**Observed on 1.14.4 (Windows):** math renders through MathJax 4 CHTML. Inline
+`$x^2$` becomes `<span class="math math-inline is-loaded"><mjx-container
+class="MathJax" jax="CHTML" overflow="overflow"><mjx-math data-latex="x^2"
+class="TEX-N">…</mjx-math></mjx-container></span>`; display math uses a
+`div.math.math-block` and `mjx-container … display="true"`. The `.math` span
+gains `is-loaded` once MathJax finishes. `renderMath("a+b", false)` returns an
+`MJX-CONTAINER` with class `MathJax`; `finishRenderMath` and `loadMathJax`
+exist. Plain markdown renders `<h1 data-heading="H" dir="auto">H</h1>` and
+`<p dir="auto"><strong>b</strong> and <code>c</code></p>`.
+
+**Containment check:** the plugin's reader math path
+(`src/utils/math-rendering.ts`) reads back only `.math` and `mjx-container` and
+sets its own `data-math`, all of which the MathJax 4 DOM still provides, so the
+swap did not break the plugin; the reference pin moves to 1.14.4. The stub's
+math model is a bare `mjx-container` holding the LaTeX text, a divergence to
+confirm in the confirmations slice (#431).
+
+## Step 3: moment
+
+**Probe:** `test_files/stubs/probes/moment.repl`.
+**Observed on 1.14.4 (Windows):** `format("YYYY-MM-DD HH:mm")` →
+`2026-10-11 13:05`; `format("ddd MMM Do YYYY h:mm A")` → `Sun Oct 11th 2026
+1:05 PM`; `locale()` → `"en"`; `isMoment` true; an invalid string is not valid;
+`duration(90, "minutes").humanize()` → `"2 hours"`; `fromNow` and `calendar`
+are functions; `utcOffset()` follows the machine time zone. The stub models the
+common tokens; the remaining boundaries stay documented gaps (#431).

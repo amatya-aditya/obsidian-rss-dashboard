@@ -1,7 +1,9 @@
 // =============================================================================
 // Core Obsidian API Stubs
 //
-// Reference version: Obsidian 1.13.7 desktop (installer 1.13.7, Electron 43.3.0).
+// Reference version: Obsidian 1.14.4 desktop (installer 1.13.7, Electron
+// 43.3.0). The renderer updates in place, so the running app can be newer than
+// the installer; re-observed on 1.14.4 (see obsidian-console-probes.md).
 // The stub models observed Obsidian behavior (ADR 0014). Each modeled behavior
 // has an expectation in obsidian.contract.test.ts; the console probes used to
 // observe it live in obsidian-console-probes.md.
@@ -203,7 +205,7 @@ function requestUrlImpl(
 }
 
 /**
- * Models Obsidian 1.13.7: a status of 400 or above rejects with an Error
+ * Models Obsidian 1.14.4: a status of 400 or above rejects with an Error
  * carrying own `status` and `headers` properties, unless `throw: false`.
  */
 async function requestUrlAsync(
@@ -238,6 +240,10 @@ async function requestUrlAsync(
 }
 
 const PlatformStub = {
+  // Observed on Obsidian 1.14.4 desktop (Windows): the desktop flags are
+  // true and the OS flag for the host (isWin) is true, and
+  // `resourcePathPrefix` is a per-install `app://<hash>/` URL. The stub keeps
+  // the OS flags false and a fixed prefix so no test depends on the machine.
   isDesktop: true,
   isMobile: false,
   isDesktopApp: true,
@@ -254,6 +260,10 @@ const PlatformStub = {
   resourcePathPrefix: "app://local/",
 };
 
+// Observed on Obsidian 1.14.4 desktop (Windows): real setIcon writes a lucide
+// `<svg class="svg-icon lucide-<name>">` into the element, and leaves it empty
+// for an unknown name. The stub records the name on `data-icon`; the SVG is
+// not modeled (#431).
 function setIconImpl(el: HTMLElement, iconName: string): void {
   el.dataset.icon = iconName;
 }
@@ -264,7 +274,7 @@ function setTooltipImpl(el: HTMLElement, tooltip: string): void {
 }
 
 /**
- * Models Obsidian 1.13.7's `normalizePath` as read in the #372 source audit
+ * Models `normalizePath` as read in the #372 source audit
  * (the function isn't reachable from the console; `renameFile(f, "a//r3.md")`
  * yielding "a/r3.md" confirms the slash collapse). Written independently:
  * `/` and `\` are both separators, runs of them become one `/`, leading and
@@ -278,6 +288,9 @@ function normalizePathImpl(path: string): string {
   return joined.replace(/[\u00a0\u202f]/g, " ").normalize("NFC");
 }
 
+// Observed on Obsidian 1.14.4 desktop (Windows): real requireApiVersion is
+// true at or below the running version (1.14.4) and false above it. The stub
+// always returns false; the version-aware model is a separate slice (#431).
 function requireApiVersionImpl(_version: string): boolean {
   return false;
 }
@@ -428,7 +441,7 @@ export class MockEvent {
 
 /**
  * A file's `name`, `basename`, and `extension`, derived from its path.
- * Observed on Obsidian 1.13.7 desktop (Windows): `basename` is the name up to
+ * Observed on Obsidian 1.14.4 desktop (Windows): `basename` is the name up to
  * its last dot and `extension` follows it ("my.file.name.md" -> "my.file.name"
  * and "md"); a name without a dot is its own basename with extension "".
  * Names starting with a dot weren't probed (Obsidian doesn't index them).
@@ -552,7 +565,7 @@ export class MockDataVault {
   configDir = ".vault-config";
   /**
    * Whether the file system distinguishes paths that differ only in case.
-   * Windows and macOS don't (the default, observed on Obsidian 1.13.7
+   * Windows and macOS don't (the default, observed on Obsidian 1.14.4
    * Windows); Linux does, so set this to model a Linux desktop.
    */
   caseSensitiveFileSystem = false;
@@ -567,21 +580,22 @@ export class MockDataVault {
     this.folders.set("/", this.root);
 
     this.adapter = {
-      // Observed on Obsidian 1.13.7 desktop (Windows): `getFullPath` joins
+      // Observed on Obsidian 1.14.4 desktop (Windows): `getFullPath` joins
       // the vault path onto `getBasePath()` with OS separators. The stub is
       // OS-independent and always joins with "/". Mobile has no
       // `getBasePath` (not modeled; the stub is the desktop adapter).
       getBasePath: () => "/test/vault",
       getFullPath: (p: string) => `${this.adapter.getBasePath()}/${p}`,
       exists: async (path: string) => this.existsOnDisk(path),
-      // Observed on Obsidian 1.13.7 desktop (Windows): a missing path throws
+      // Observed on Obsidian 1.14.4 desktop (Windows): a missing path throws
       // Node's ENOENT.
       read: async (path: string) => this.readFromDisk(path),
-      // Not probed: modeled like `read`, throwing ENOENT for a missing path.
+      // Observed on Obsidian 1.14.4 desktop (Windows): `adapter.readBinary` of
+      // a missing path throws Node's ENOENT, so this models `read`.
       readBinary: async (path: string) =>
         new TextEncoder().encode(this.readFromDisk(path)).buffer,
       write: async (path: string, content: string) => {
-        // Observed on Obsidian 1.13.7 desktop (Windows): a missing parent
+        // Observed on Obsidian 1.14.4 desktop (Windows): a missing parent
         // folder throws Node's ENOENT, and a written file outside dot folders
         // joins the vault index.
         const parentPath = path.includes("/")
@@ -595,9 +609,9 @@ export class MockDataVault {
           this.files.set(path, new TFileStub(path));
         }
       },
-      // Observed on Obsidian 1.13.7 desktop (Windows): creates missing parent
-      // folders too. Not observed: mkdir on an existing folder is modeled as
-      // a no-op, and the new folders join the vault index like written files.
+      // Observed on Obsidian 1.14.4 desktop (Windows): creates missing parent
+      // folders too, resolves on an existing folder, and the new folders join
+      // the vault index like written files.
       mkdir: async (path: string) => {
         this.makeFolders(path);
       },
@@ -638,7 +652,7 @@ export class MockDataVault {
 
         return { files, folders };
       },
-      // Observed on Obsidian 1.13.7 desktop (Windows): a missing path throws
+      // Observed on Obsidian 1.14.4 desktop (Windows): a missing path throws
       // Node's ENOENT, and a folder throws EPERM and stays.
       remove: async (path: string) => this.removeFromDisk(path),
       // Not yet observed against Obsidian: trashSystem is modeled as always
@@ -768,7 +782,7 @@ export class MockDataVault {
   }
 
   async create(path: string, content: string): Promise<TFileStub> {
-    // Observed on Obsidian 1.13.7 desktop: an existing path, or a case variant
+    // Observed on Obsidian 1.14.4 desktop: an existing path, or a case variant
     // of one on a case-insensitive file system, throws; a missing parent
     // folder throws Node's ENOENT.
     if (this.existsOnDisk(path)) {
@@ -788,19 +802,23 @@ export class MockDataVault {
     return file;
   }
 
-  // Observed on Obsidian 1.13.7 desktop (Windows): reading a TFile whose file
+  // Observed on Obsidian 1.14.4 desktop (Windows): reading a TFile whose file
   // was removed on disk throws Node's ENOENT.
   async read(file: TFileStub | string): Promise<string> {
     const path = typeof file === "string" ? file : file.path;
     return this.readFromDisk(path);
   }
 
-  // Not probed: modeled like `read`, throwing ENOENT for a missing file.
+  // Observed on Obsidian 1.14.4 desktop (Windows): `cachedRead` returned the
+  // content it had cached before the file was removed on disk and did not
+  // throw. The stub has no content cache; it models `read` and throws ENOENT
+  // for a missing file, a divergence tracked by #1001.
   async cachedRead(file: TFileStub): Promise<string> {
     return this.readFromDisk(file.path);
   }
 
-  // Not probed: modeled like `read`, throwing ENOENT for a missing file.
+  // Observed on Obsidian 1.14.4 desktop (Windows): a file removed on disk
+  // throws Node's ENOENT, so this models `read`.
   async readBinary(file: TFileStub): Promise<ArrayBuffer> {
     return new TextEncoder().encode(this.readFromDisk(file.path)).buffer;
   }
@@ -817,7 +835,7 @@ export class MockDataVault {
     const cleanPath = folderPath.replace(/^\/+|\/+$/g, "");
     if (!cleanPath) return this.root;
 
-    // Observed on Obsidian 1.13.7 desktop: an existing folder, or a case
+    // Observed on Obsidian 1.14.4 desktop: an existing folder, or a case
     // variant of one on a case-insensitive file system, throws.
     if (this.existsOnDisk(cleanPath)) {
       throw new Error("Folder already exists.");
@@ -861,10 +879,9 @@ export class MockDataVault {
       await this.delete(file);
       return;
     }
-    // Observed on Obsidian 1.13.7 desktop (Windows): trashing a folder takes
-    // its child file with it, out of the index and off disk. Not probed:
-    // descendants nested more than one level down are modeled the same way,
-    // and so is the folder itself on disk.
+    // Observed on Obsidian 1.14.4 desktop (Windows): trashing a folder takes
+    // its whole subtree out of the index and off disk, including descendants
+    // nested more than one level down and the folder itself.
     const key = this.diskKey(file.path);
     const isInside = (path: string): boolean => {
       const pathKey = this.diskKey(path);
@@ -882,7 +899,7 @@ export class MockDataVault {
   }
 
   /**
-   * Observed on Obsidian 1.13.7 desktop (Windows): the file keeps its content
+   * Observed on Obsidian 1.14.4 desktop (Windows): the file keeps its content
    * at the new path, its name parts follow the path, and the old path leaves
    * the index; renaming onto an existing path throws "Destination file
    * already exists!". Not probed: whether `vault.rename` itself normalizes
@@ -1060,7 +1077,7 @@ class AppStub {
       trashFile: async (file: TFileStub | TFolderStub) => {
         await this.vault.trashAbstractFile(file);
       },
-      // Observed on Obsidian 1.13.7 desktop (Windows): the new path is
+      // Observed on Obsidian 1.14.4 desktop (Windows): the new path is
       // normalized ("a//r3.md" -> "a/r3.md"). Updating links in other notes
       // isn't modeled.
       renameFile: async (file: TFileStub, newPath: string) => {
@@ -1672,14 +1689,14 @@ class ModalStub {
   scope: ScopeStub;
   containerEl: HTMLDivElement;
   modalEl: HTMLDivElement;
-  /** Not in obsidian.d.ts (1.13.1), but present in 1.13.7. */
+  /** Not in obsidian.d.ts (1.13.1), but present in 1.13.7 and 1.14.4. */
   headerEl: HTMLDivElement;
   titleEl: HTMLDivElement;
   contentEl: HTMLDivElement;
   constructor(app: AppStub) {
     this.app = app;
     this.scope = new ScopeStub();
-    // Observed on Obsidian 1.13.7 desktop (Windows): containerEl is
+    // Observed on Obsidian 1.14.4 desktop (Windows): containerEl is
     // `modal-container mod-dim`, and modalEl holds the close button, the
     // header (with the title), and the content, in that order.
     this.containerEl = createDiv({ cls: "modal-container mod-dim" });
@@ -1709,7 +1726,7 @@ class ModalStub {
   }
 
   close(): void {
-    // Observed on Obsidian 1.13.7 desktop (Windows): the container is
+    // Observed on Obsidian 1.14.4 desktop (Windows): the container is
     // detached before onClose runs, synchronously.
     this.containerEl.remove();
     this.onClose();
@@ -1739,8 +1756,10 @@ class ScopeStub {
     key: string | null,
     func: ObsidianApi.KeymapEventListener,
   ): ObsidianApi.KeymapEventHandler {
-    // Not yet observed: real Obsidian stores `modifiers` as a string; the stub
-    // keeps the array that tests inspect (Track B, #372).
+    // Observed on Obsidian 1.14.4 desktop (Windows): real Obsidian stores
+    // `modifiers` as a comma-joined string with `Mod` resolved to the platform
+    // key (`["Mod", "Shift"]` → "Ctrl,Shift" on Windows). The stub keeps the
+    // array that tests inspect; the string form is not modeled (#431).
     const handler = {
       scope: this,
       modifiers,

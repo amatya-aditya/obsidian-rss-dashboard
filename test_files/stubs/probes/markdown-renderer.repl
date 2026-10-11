@@ -1,0 +1,88 @@
+@eval
+const A = app.vault.adapter;
+const probeDir = ".obsidian/plugins/obsidian-probe";
+await A.mkdir(probeDir).catch(() => {});
+await A.write(
+  `${probeDir}/manifest.json`,
+  JSON.stringify({
+    id: "obsidian-probe",
+    name: "Obsidian probe",
+    version: "1.0.0",
+    minAppVersion: "1.0.0",
+    description: "Probe helper: stashes the obsidian module on window (#431).",
+    author: "rss-dashboard probe",
+    isDesktopOnly: false,
+  }),
+);
+await A.write(
+  `${probeDir}/main.js`,
+  'const o=require("obsidian");class P extends o.Plugin{onload(){window.__obsidianApi=o}}module.exports=P;',
+);
+await app.plugins.setEnable(true);
+await app.plugins.loadManifests();
+if (!app.plugins.plugins["obsidian-probe"]) {
+  await app.plugins.enablePluginAndSave("obsidian-probe");
+}
+await new Promise((r) => window.setTimeout(r, 300));
+const api = window.__obsidianApi;
+JSON.stringify({
+  hasRender: typeof api.MarkdownRenderer.render,
+  hasRenderMarkdown: typeof api.MarkdownRenderer.renderMarkdown,
+  renderMath: typeof api.renderMath,
+  finishRenderMath: typeof api.finishRenderMath,
+  loadMathJax: typeof api.loadMathJax,
+})
+
+@eval
+const host = createDiv();
+document.body.appendChild(host);
+const comp = new api.Component();
+const out = {};
+await api.MarkdownRenderer.render(app, "Inline $x^2$ end", host, "", comp);
+await api.finishRenderMath();
+await new Promise((r) => window.setTimeout(r, 400));
+out.inlineHtml = host.innerHTML;
+out.mjxCount = host.querySelectorAll("mjx-container").length;
+out.mjx = [...host.querySelectorAll("mjx-container")].map((e) => ({
+  cls: e.className,
+  jax: e.getAttribute("jax"),
+  display: e.getAttribute("display"),
+  childTags: [...e.children].map((c) => c.tagName),
+}));
+out.mathEls = [...host.querySelectorAll(".math")].map((e) => ({
+  tag: e.tagName,
+  cls: e.className,
+  childTags: [...e.children].map((c) => c.tagName),
+}));
+JSON.stringify(out)
+
+@eval
+const host2 = createDiv();
+document.body.appendChild(host2);
+const comp2 = new api.Component();
+const out2 = {};
+await api.MarkdownRenderer.render(app, "$$\nE=mc^2\n$$", host2, "", comp2);
+await api.finishRenderMath();
+await new Promise((r) => window.setTimeout(r, 400));
+out2.blockHtml = host2.innerHTML;
+out2.blockMjx = [...host2.querySelectorAll("mjx-container")].map((e) => ({
+  cls: e.className,
+  display: e.getAttribute("display"),
+}));
+out2.mathEls = [...host2.querySelectorAll(".math, .math-block, .math-inline")].map(
+  (e) => ({ tag: e.tagName, cls: e.className }),
+);
+const m = api.renderMath("a+b", false);
+out2.renderMath = {
+  tag: m.tagName,
+  cls: m.className,
+  html: m.outerHTML.slice(0, 220),
+};
+await api.finishRenderMath();
+JSON.stringify(out2)
+
+@eval
+const host3 = createDiv();
+const comp3 = new api.Component();
+await api.MarkdownRenderer.render(app, "# H\n\n**b** and `c`", host3, "", comp3);
+JSON.stringify({ plainHtml: host3.innerHTML })

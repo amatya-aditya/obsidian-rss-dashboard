@@ -1,0 +1,29 @@
+@eval
+const types = [];
+app.workspace.iterateAllLeaves((l) => types.push(l.view.getViewType()));
+JSON.stringify({
+  unknownType: app.workspace.getLeavesOfType("definitely-not-a-view").length,
+  markdown: app.workspace.getLeavesOfType("markdown").length,
+  openViewTypes: types,
+  revealLeaf: typeof app.workspace.revealLeaf,
+  getLeafLength: app.workspace.getLeaf.length,
+})
+
+@eval
+const V = app.vault;
+const A = V.adapter;
+await A.rmdir("probe-trash", true).catch(() => {});
+await V.createFolder("probe-trash/tf");
+await V.create("probe-trash/tf/deep.md", "d");
+await V.createFolder("probe-trash/tf/nested");
+await V.create("probe-trash/tf/nested/c.md", "c");
+await app.fileManager.trashFile(V.getAbstractFileByPath("probe-trash/tf"));
+await new Promise((r) => window.setTimeout(r, 400));
+JSON.stringify({
+  folder: !!V.getAbstractFileByPath("probe-trash/tf"),
+  child: !!V.getAbstractFileByPath("probe-trash/tf/deep.md"),
+  grandchild: !!V.getAbstractFileByPath("probe-trash/tf/nested/c.md"),
+  folderOnDisk: await A.exists("probe-trash/tf"),
+  childOnDisk: await A.exists("probe-trash/tf/deep.md"),
+  grandchildOnDisk: await A.exists("probe-trash/tf/nested/c.md"),
+})

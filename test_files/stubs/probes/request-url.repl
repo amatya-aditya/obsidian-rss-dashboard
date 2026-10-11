@@ -1,0 +1,22 @@
+@eval
+const results = {};
+for (const status of [403, 404, 500]) {
+  try {
+    const r = await requestUrl({ url: `https://httpbin.org/status/${status}` });
+    results[status] = { outcome: "returned", status: r.status };
+  } catch (e) {
+    results[status] = {
+      outcome: "threw",
+      name: e.name,
+      message: e.message,
+      ownKeys: Object.keys(e),
+      status: e.status,
+      hasHeaders: typeof e.headers === "object" && e.headers !== null,
+    };
+  }
+}
+results.throwFalse = await requestUrl({
+  url: "https://httpbin.org/status/403",
+  throw: false,
+}).then((r) => ({ outcome: "returned", status: r.status, textLen: r.text.length }));
+JSON.stringify(results)

@@ -1,0 +1,58 @@
+@eval
+const A = app.vault.adapter;
+const probeDir = ".obsidian/plugins/obsidian-probe";
+await A.mkdir(probeDir).catch(() => {});
+await A.write(
+  `${probeDir}/manifest.json`,
+  JSON.stringify({
+    id: "obsidian-probe",
+    name: "Obsidian probe",
+    version: "1.0.0",
+    minAppVersion: "1.0.0",
+    description: "Probe helper: stashes the obsidian module on window (#431).",
+    author: "rss-dashboard probe",
+    isDesktopOnly: false,
+  }),
+);
+await A.write(
+  `${probeDir}/main.js`,
+  'const o=require("obsidian");class P extends o.Plugin{onload(){window.__obsidianApi=o}}module.exports=P;',
+);
+await app.plugins.setEnable(true);
+await app.plugins.loadManifests();
+if (!app.plugins.plugins["obsidian-probe"]) {
+  await app.plugins.enablePluginAndSave("obsidian-probe");
+}
+await new Promise((r) => window.setTimeout(r, 300));
+const api = window.__obsidianApi;
+typeof api
+
+@eval
+const scope = new api.Scope();
+const out = {};
+const h1 = scope.register(["Mod", "Shift"], "a", () => true);
+out.handlerOwnKeys = Object.keys(h1);
+out.modifiersType = typeof h1.modifiers;
+out.modifiers = h1.modifiers;
+out.key = h1.key;
+out.scopeIsSelf = h1.scope === scope;
+const h2 = scope.register(["Ctrl", "Alt"], "b", () => {});
+out.ctrlAlt = h2.modifiers;
+const h3 = scope.register(null, "c", () => {});
+out.nullModifiers = h3.modifiers;
+const h4 = scope.register([], "d", () => {});
+out.emptyModifiers = h4.modifiers;
+out.hasHandlersProperty = "handlers" in scope;
+out.unregisterReturn =
+  typeof scope.unregister === "function"
+    ? (scope.unregister(h1), "callable")
+    : "missing";
+JSON.stringify(out)
+
+@eval
+const s2 = new api.Scope();
+const emptyResult = s2.handleKey(
+  new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+);
+JSON.stringify({ hasHandleKey: typeof s2.handleKey, emptyResult })
+

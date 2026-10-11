@@ -1,0 +1,36 @@
+@eval
+const V = app.vault;
+const A = V.adapter;
+await A.rmdir("probe-np", true).catch(() => {});
+await V.createFolder("probe-np");
+const cases = [
+  ["probe-np//double.md", "probe-np/double.md"],
+  ["/probe-np/lead.md", "probe-np/lead.md"],
+  ["probe-np/trail.md/", "probe-np/trail.md"],
+  ["probe-np\\back.md", "probe-np/back.md"],
+  ["probe-np/nb\u00a0sp.md", "probe-np/nb sp.md"],
+  ["probe-np/nnb\u202fsp.md", "probe-np/nnb sp.md"],
+  ["probe-np/cafe\u0301.md", "probe-np/caf\u00e9.md"],
+];
+const out = {};
+for (const [input, expected] of cases) {
+  try {
+    const f = await V.create(input, "x");
+    out[JSON.stringify(input)] = {
+      path: f.path,
+      matchesExpected: f.path === expected,
+    };
+  } catch (e) {
+    out[JSON.stringify(input)] = { threw: e.message };
+  }
+}
+out.rootEmpty = V.getAbstractFileByPath("")?.path ?? null;
+out.rootSlash = V.getAbstractFileByPath("/")?.path ?? null;
+out.lookupBackslash = V.getAbstractFileByPath("probe-np\\back.md")?.path ?? null;
+const target = V.getAllLoadedFiles().find(
+  (x) => x.path.startsWith("probe-np/") && x.name.endsWith(".md"),
+);
+await app.fileManager.renameFile(target, "\\probe-np\\\\renamed cafe\u0301.md/");
+out.renamed = target.path;
+await A.rmdir("probe-np", true).catch(() => {});
+JSON.stringify(out)
