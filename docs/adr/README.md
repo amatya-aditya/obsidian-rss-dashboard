@@ -58,6 +58,7 @@ See the [ADR Policy](POLICY.md) for the complete lifecycle, authoring, and maint
 | [0018](0018-generate-safe-article-filenames-from-template-patterns.md)         | Generate Safe Article Filenames from Template Patterns                  | accepted | Allow optional per-template filename stems, preserve existing article paths, and add numeric suffixes instead of replacing a different note.              |
 | [0019](0019-saved-note-association-authority.md)                               | Saved-Note Association Authority                                        | accepted | Use events, plugin metadata, and explicit saved-note opens without proactive note-existence checks.                                                       |
 | [0020](0020-keep-tag-changes-consistent-across-reader-views.md)                | Keep Tag Changes Consistent Across Reader Views                         | accepted | Make tag deletion remove every article assignment and keep open Reader views current after tag changes.                                                   |
+| [0021](0021-store-the-left-handed-layout-per-device.md)                        | Store the Left-Handed Layout per Device                                 | accepted | Keep the Left-handed layout Display setting in vault-local storage so it stays per device instead of syncing through the settings file.                   |
 
 ## Creating a new ADR
 
