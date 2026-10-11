@@ -15,7 +15,7 @@ The row at the bottom of an article in card view and feed view that holds the ar
 _Avoid_: Card footer (when feed view is also meant), toolbar (the buttons alone)
 
 **Mirrored footer**:
-The [[Article footer]] with its order reversed: Mark read at the far right, the other buttons extending leftward from it, and the date at the left. Offered as the "Left-handed layout" setting, kept per device. The visual order and the keyboard order match.
+The [[Article footer]] with its order reversed: Mark read at the far right, the other buttons extending leftward from it, and the date at the left. Offered as the "Left-handed layout" setting, kept per device. Mark read stays the first footer Tab stop, so keyboard focus starts at the primary action and moves leftward through the other buttons.
 _Avoid_: Left-handed mode, RTL layout, flipped footer
 
 ## Podcast player
