@@ -4,7 +4,7 @@
 
 ## Related issues
 
-<!-- Use `Fixes #123` to link the issue (PRs into `dev` do not close it on merge; the maintainer closes it afterwards), or `Refs #123` for context only. Include each issue reference once. -->
+<!-- Use a closing keyword (`Fixes #123`, `Closes #123`, or `Resolves #123`) to link the issue and close it when the PR merges. A merge into `master` (the default branch) closes it natively; a merge into `dev` is closed by the close-linked-issues workflow. Use `Refs #123` to link without closing the issue. Include each issue reference once. -->
 
 -
 
