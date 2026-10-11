@@ -66,6 +66,7 @@ export class DiscoverView extends ItemView {
   private isAddingAllFeeds = false;
   private bulkAddCompletedCount = 0;
   private bulkAddTotalCount = 0;
+  private readonly addingFeedUrls = new Set<string>();
 
   constructor(
     leaf: WorkspaceLeaf,
@@ -1465,8 +1466,7 @@ export class DiscoverView extends ItemView {
       const addToBtn = rightSection.createEl("button", {
         cls: "rss-discover-card-add-btn rss-discover-card-add-to-btn",
       });
-      setIcon(addToBtn, "plus");
-      addToBtn.createSpan({ text: " Add to..." });
+      this.renderAddToButtonContent(addToBtn, feed.url);
 
       const defaultFolder = "Uncategorized";
       addToBtn.addEventListener("click", () => {
@@ -1479,6 +1479,51 @@ export class DiscoverView extends ItemView {
           },
         });
       });
+    }
+  }
+
+  /**
+   * Draw the card's add button. While that feed's add runs — or a later render
+   * catches it in flight — the button is disabled and shows a spinner.
+   */
+  private renderAddToButtonContent(
+    button: HTMLButtonElement,
+    feedUrl: string,
+  ): void {
+    button.empty();
+    if (this.addingFeedUrls.has(feedUrl)) {
+      button.disabled = true;
+      button.addClass("is-processing");
+      const spinner = button.createSpan({
+        cls: "rss-discover-add-all-spinner",
+      });
+      setIcon(spinner, "loader-2");
+      button.createSpan({ text: " Adding..." });
+      return;
+    }
+
+    button.disabled = false;
+    button.removeClass("is-processing");
+    setIcon(button, "plus");
+    button.createSpan({ text: " Add to..." });
+  }
+
+  /** Track a single add in flight and repaint that card's button if it is drawn. */
+  private setFeedAddingState(feedUrl: string, adding: boolean): void {
+    if (adding) {
+      this.addingFeedUrls.add(feedUrl);
+    } else {
+      this.addingFeedUrls.delete(feedUrl);
+    }
+
+    const card = Array.from(
+      this.containerEl.querySelectorAll<HTMLElement>(".rss-discover-card"),
+    ).find((element) => element.dataset.feedUrl === feedUrl);
+    const button = card?.querySelector<HTMLButtonElement>(
+      ".rss-discover-card-add-to-btn",
+    );
+    if (button) {
+      this.renderAddToButtonContent(button, feedUrl);
     }
   }
 
@@ -1697,6 +1742,14 @@ export class DiscoverView extends ItemView {
       return;
     }
 
+    if (this.plugin.isMultiFeedRefreshActive) {
+      new Notice(
+        "Another feed operation is in progress. Please try again in a moment.",
+      );
+      return;
+    }
+
+    this.setFeedAddingState(feed.url, true);
     try {
       await this.plugin.ensureFolderExists(folderName);
 
@@ -1732,6 +1785,8 @@ export class DiscoverView extends ItemView {
       new Notice(
         `Failed to add feed: ${error instanceof Error ? error.message : "Unknown error"}`,
       );
+    } finally {
+      this.setFeedAddingState(feed.url, false);
     }
   }
 

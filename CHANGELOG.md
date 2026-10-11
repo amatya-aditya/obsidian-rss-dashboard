@@ -30,6 +30,7 @@
 
 ### Fixes
 
+- Adding an unreachable feed from Discover no longer hangs and blocks every other add. The add gives up after about five seconds with a message, the **Add to...** button shows a spinner while it works, and a second add during another feed operation now says so instead of doing nothing. [GH Issue #949](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/949)
 - On phones, the Reader options sheet (font, size, line height) now opens as a centred bottom sheet instead of being pinned to the top of the screen. [GH Issue #978](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/978)
 - Article cards now show the description the reader fetched from the article page when the feed itself supplied none, instead of a blank preview. A description in the feed still takes priority. [GH Issue #959](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/959)
 - Keyword filter rules using the **Preview** scope now match the same articles before and after you open one: the scope reads the feed's own summary, description, or content and no longer the description the Reader fetched from the article page. Article cards still fall back to that fetched description when the feed supplied none. Settings > Rules now explains this. [GH Issue #888](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/888)

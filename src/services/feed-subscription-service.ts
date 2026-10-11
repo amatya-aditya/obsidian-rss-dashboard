@@ -11,8 +11,13 @@ import {
   type FeedParser,
 } from "./feed-parser";
 import type { FeedOperationTracker } from "./feed-operation-tracker";
+import { FEED_SOFT_TIMEOUT_MS } from "./feed-timeout";
 import { MediaService } from "./media-service";
 import type { PreviewImageCache } from "./preview-image-cache";
+
+/** The outcome of a global-operation add parse bounded by the soft timeout. */
+type ParseOutcome =
+  { status: "parsed"; feed: Feed | null } | { status: "timed-out" };
 
 /** The dashboard view method the service redraws through. main.ts supplies the view. */
 export interface FeedSubscriptionViewLike {
@@ -178,10 +183,12 @@ export class FeedSubscriptionService {
       }
 
       // Try to parse the feed BEFORE adding it to settings.
-      // requestUrl cannot be cancelled mid-flight, so a global add races Stop.
+      // requestUrl cannot be cancelled mid-flight, so a global add races Stop
+      // and, for a globalOperation, a soft timeout that releases the lock.
       try {
-        const parsedFeed = await this.parseWithAbortRace(
+        const parsedFeed = await this.parseAddFeed(
           url,
+          title,
           newFeed,
           operationSignal,
         );
@@ -196,9 +203,7 @@ export class FeedSubscriptionService {
         await this.storeAddedFeed(feedToStore, title, showNotice);
         return true;
       } catch (error) {
-        if (showNotice) {
-          new Notice(formatFeedParseNoticeMessage(error));
-        }
+        this.reportAddFailure(error, showNotice, options);
         return false;
       } finally {
         if (operationSignal) {
@@ -217,7 +222,8 @@ export class FeedSubscriptionService {
     }
   }
 
-  /** Race parse against Stop only. A slow parse still waits; there is no extra timeout. */
+  /** Race parse against Stop only. This method adds no timeout of its own;
+   * a global add wraps it with {@link parseWithinSoftTimeout}. */
   private async parseWithAbortRace(
     url: string,
     newFeed: Feed,
@@ -252,6 +258,73 @@ export class FeedSubscriptionService {
       return winner.value;
     } finally {
       if (onAbort) signal.removeEventListener("abort", onAbort);
+    }
+  }
+
+  /**
+   * Report a failed add. A global (Discover) add suppresses the success notice
+   * but owns no failure UI of its own, so it still reports the failure here.
+   */
+  private reportAddFailure(
+    error: unknown,
+    showNotice: boolean,
+    options?: FeedSubscriptionAddOptions,
+  ): void {
+    if (showNotice || options?.globalOperation) {
+      new Notice(formatFeedParseNoticeMessage(error));
+    }
+  }
+
+  /**
+   * Parse the feed for an add, bounding a global add with the soft timeout.
+   * Returns null when the request timed out or was stopped; on a timeout the
+   * user is told why.
+   */
+  private async parseAddFeed(
+    url: string,
+    title: string,
+    newFeed: Feed,
+    signal: AbortSignal | null,
+  ): Promise<Feed | null> {
+    if (!signal) {
+      return await this.parseWithAbortRace(url, newFeed, null);
+    }
+
+    const outcome = await this.parseWithinSoftTimeout(url, newFeed, signal);
+    if (outcome.status === "timed-out") {
+      new Notice(`Couldn't add "${title}". The feed didn't respond in time.`);
+      return null;
+    }
+    return outcome.feed;
+  }
+
+  /**
+   * Await the parse, but give up after FEED_SOFT_TIMEOUT_MS so an unreachable
+   * feed releases the global operation lock. `requestUrl` cannot be cancelled,
+   * so a parse that outlives the timeout is abandoned and its result dropped.
+   */
+  private async parseWithinSoftTimeout(
+    url: string,
+    newFeed: Feed,
+    signal: AbortSignal,
+  ): Promise<ParseOutcome> {
+    const softTimeout = this.feedOperationTracker.createSoftTimeout(
+      FEED_SOFT_TIMEOUT_MS,
+      signal,
+    );
+    try {
+      return await Promise.race([
+        this.parseWithAbortRace(url, newFeed, signal).then(
+          (feed): ParseOutcome => ({ status: "parsed", feed }),
+        ),
+        softTimeout.promise.then((result): ParseOutcome =>
+          result === "timeout"
+            ? { status: "timed-out" }
+            : { status: "parsed", feed: null },
+        ),
+      ]);
+    } finally {
+      softTimeout.cancel();
     }
   }
 

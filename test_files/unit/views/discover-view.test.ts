@@ -111,6 +111,7 @@ interface TestPlugin {
   getActiveDashboardView: ReturnType<typeof vi.fn>;
   activateSmallwebView: ReturnType<typeof vi.fn>;
   activateView: ReturnType<typeof vi.fn>;
+  isMultiFeedRefreshActive: boolean;
 }
 
 interface TestView {
@@ -178,6 +179,7 @@ async function createView(opts?: {
     getActiveDashboardView: vi.fn(async () => null),
     activateSmallwebView: vi.fn(async () => undefined),
     activateView: vi.fn(async () => undefined),
+    isMultiFeedRefreshActive: false,
   };
   // WorkspaceLeaf is not generic, so cast only once here
   const leaf = new (
@@ -454,6 +456,79 @@ describe("DiscoverView (P1-3)", () => {
       undefined,
       { showNotice: false, globalOperation: true },
     );
+  });
+
+  it("shows an in-progress button while a single add runs and restores it when the add fails", async () => {
+    const { plugin, view } = await createView();
+    let finishAdd: (added: boolean) => void = () => {};
+    plugin.addFeed.mockReturnValue(
+      new Promise<boolean>((resolve) => {
+        finishAdd = resolve;
+      }),
+    );
+
+    view.loadData();
+    view.render();
+
+    const addButton = view.containerEl.querySelector(
+      ".rss-discover-card-add-to-btn",
+    );
+    expect(addButton).not.toBeNull();
+    if (!addButton) throw new Error("addButton not found");
+
+    (addButton as HTMLElement).click();
+    folderSelectorSpy.calls[0].onSelect("Uncategorized");
+    await flushPromises();
+
+    const busyButton = view.containerEl.querySelector(
+      ".rss-discover-card-add-to-btn",
+    );
+    expect(busyButton).not.toBeNull();
+    if (!busyButton) throw new Error("busyButton not found");
+    expect((busyButton as HTMLButtonElement).disabled).toBe(true);
+    expect((busyButton as HTMLElement).textContent).toContain("Adding...");
+    expect(
+      busyButton.querySelector(".rss-discover-add-all-spinner"),
+    ).not.toBeNull();
+
+    finishAdd(false);
+    await flushPromises();
+
+    const resetButton = view.containerEl.querySelector(
+      ".rss-discover-card-add-to-btn",
+    );
+    expect(resetButton).not.toBeNull();
+    if (!resetButton) throw new Error("resetButton not found");
+    expect((resetButton as HTMLButtonElement).disabled).toBe(false);
+    expect((resetButton as HTMLElement).textContent).toContain("Add to...");
+  });
+
+  it("refuses a single add with one busy message while another feed operation runs", async () => {
+    const { plugin, view } = await createView();
+    plugin.isMultiFeedRefreshActive = true;
+    const noticeSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
+
+    view.loadData();
+    view.render();
+
+    const addButton = view.containerEl.querySelector(
+      ".rss-discover-card-add-to-btn",
+    );
+    expect(addButton).not.toBeNull();
+    if (!addButton) throw new Error("addButton not found");
+
+    (addButton as HTMLElement).click();
+    folderSelectorSpy.calls[0].onSelect("Uncategorized");
+    await flushPromises();
+
+    expect(plugin.addFeed).not.toHaveBeenCalled();
+    expect(noticeSpy).toHaveBeenCalledWith(
+      "[Stub Notice]",
+      "Another feed operation is in progress. Please try again in a moment.",
+    );
+    expect(
+      noticeSpy.mock.calls.filter((call) => call[0] === "[Stub Notice]"),
+    ).toHaveLength(1);
   });
 
   it("refuses a feed that was added while its folder picker was open", async () => {
