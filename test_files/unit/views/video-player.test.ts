@@ -153,27 +153,17 @@ describe("VideoPlayer", () => {
     expect(description?.innerHTML).toContain('rel="noopener noreferrer"');
   });
 
-  it("renders the YouTube watch button using embed.watchUrl and sets icon dataset", () => {
+  it("does not render the Watch on YouTube button or the terms link box", () => {
     const container = createContainer();
     const player = new VideoPlayer(container);
 
-    const embed = fixedEmbed();
-    vi.spyOn(MediaService, "buildYouTubeEmbed").mockReturnValue(embed);
-
     player.loadVideo(baseItem());
 
-    const button = container.querySelector<HTMLAnchorElement>(
-      ".rss-video-youtube-button",
-    );
-    expect(button).not.toBeNull();
-    expect(button?.getAttribute("href")).toBe(embed.watchUrl);
-    expect(button?.target).toBe("_blank");
-    expect(button?.rel).toBe("noopener noreferrer");
-
-    const icon = container.querySelector<HTMLElement>(
-      ".rss-video-youtube-button-icon",
-    );
-    expect(icon?.getAttribute("data-icon")).toBe("youtube");
+    expect(container.querySelector(".rss-video-links")).toBeNull();
+    expect(container.querySelector(".rss-video-youtube-button")).toBeNull();
+    expect(container.querySelector(".rss-video-tos-link")).toBeNull();
+    expect(container.textContent).not.toContain("Watch on YouTube");
+    expect(container.textContent).not.toContain("YouTube terms of service");
   });
 
   it("renders related videos empty state initially (findRelatedVideos returns [])", () => {
@@ -468,5 +458,201 @@ describe("VideoPlayer", () => {
       "[Stub Notice]",
       "Error loading video: boom",
     );
+  });
+
+  describe("focus mode", () => {
+    const withDescription = (): FeedItem =>
+      baseItem({
+        description: '<p>Promo <a href="https://x.test">link</a></p>',
+      });
+
+    it("shows the description and related list by default", () => {
+      const container = createContainer();
+      new VideoPlayer(container).loadVideo(withDescription());
+
+      expect(container.querySelector(".rss-video-description")).not.toBeNull();
+      expect(container.querySelector(".rss-video-related")).not.toBeNull();
+    });
+
+    it("shows only the video: no title, channel, date, tags, description or related list", () => {
+      const container = createContainer();
+      const item = withDescription();
+      new VideoPlayer(
+        container,
+        undefined,
+        undefined,
+        true,
+        false,
+        true,
+      ).loadVideo(item);
+
+      expect(container.querySelector(".rss-video-description")).toBeNull();
+      expect(container.querySelector(".rss-video-related")).toBeNull();
+      expect(container.textContent).not.toContain("Promo");
+      expect(container.textContent).not.toContain("From the same channel");
+      expect(container.querySelector(".rss-video-details")).toBeNull();
+      expect(container.querySelector(".rss-video-title")).toBeNull();
+      expect(container.querySelector(".rss-video-channel")).toBeNull();
+      expect(container.querySelector(".rss-video-date")).toBeNull();
+      expect(container.textContent).not.toContain("Video Title");
+      expect(container.textContent).not.toContain("Channel Name");
+      expect(container.querySelector("iframe")).not.toBeNull();
+      expect(item.description).toContain("Promo");
+    });
+
+    it("toggles both blocks live without recreating the iframe", () => {
+      const container = createContainer();
+      const player = new VideoPlayer(container);
+      player.loadVideo(withDescription());
+      const iframe = container.querySelector("iframe");
+
+      player.setFocusMode(true);
+      expect(container.querySelector(".rss-video-details")).toBeNull();
+      expect(container.querySelector(".rss-video-description")).toBeNull();
+      expect(container.querySelector(".rss-video-related")).toBeNull();
+      expect(container.querySelector("iframe")).toBe(iframe);
+
+      player.setFocusMode(true);
+      player.setFocusMode(false);
+      expect(container.querySelector(".rss-video-title")).not.toBeNull();
+      expect(container.querySelector(".rss-video-channel")?.textContent).toBe(
+        "Channel Name",
+      );
+      expect(container.querySelector(".rss-video-date")).not.toBeNull();
+      expect(container.querySelectorAll(".rss-video-description")).toHaveLength(
+        1,
+      );
+      const order = Array.from(
+        container.querySelector(".rss-video-details")?.parentElement
+          ?.children ?? [],
+      ).map((child) => child.className.split(" ")[0]);
+      expect(order.indexOf("rss-video-details")).toBeLessThan(
+        order.indexOf("rss-video-related"),
+      );
+      expect(container.querySelectorAll(".rss-video-related")).toHaveLength(1);
+      expect(container.querySelector("iframe")).toBe(iframe);
+    });
+
+    it("restores related videos supplied while focus mode was on", () => {
+      const container = createContainer();
+      const player = new VideoPlayer(container);
+      player.setFocusMode(true);
+      player.loadVideo(withDescription());
+      player.setRelatedVideos([
+        baseItem({ guid: "other", videoId: "other-id", title: "Other" }),
+      ]);
+      expect(container.querySelector(".rss-video-related")).toBeNull();
+
+      player.setFocusMode(false);
+
+      expect(
+        container.querySelectorAll(".rss-video-related-item"),
+      ).toHaveLength(1);
+    });
+
+    describe("tag chips", () => {
+      const tagged = (): FeedItem =>
+        baseItem({
+          tags: [
+            { name: "Video", color: "#e11d48" },
+            { name: "Watch later", color: "#22c55e" },
+          ],
+        });
+
+      it("renders a chip for each tag with its color", () => {
+        const container = createContainer();
+        new VideoPlayer(container).loadVideo(tagged());
+
+        const chips = container.querySelectorAll<HTMLElement>(
+          ".rss-video-details .rss-reader-tag",
+        );
+        expect(Array.from(chips).map((chip) => chip.textContent)).toEqual([
+          "Video",
+          "Watch later",
+        ]);
+        expect(chips[0]?.style.getPropertyValue("--tag-color")).toBe("#e11d48");
+      });
+
+      it("places the chips after the channel and date line, before the description", () => {
+        const container = createContainer();
+        new VideoPlayer(container).loadVideo({
+          ...tagged(),
+          description: "<p>Promo</p>",
+        });
+
+        const details = container.querySelector(".rss-video-details");
+        const order = Array.from(details?.children ?? []).map((child) =>
+          child.classList.contains("rss-video-meta")
+            ? "meta"
+            : child.classList.contains("rss-video-tags")
+              ? "tags"
+              : child.classList.contains("rss-video-description")
+                ? "description"
+                : "other",
+        );
+        expect(order.filter((name) => name !== "other")).toEqual([
+          "meta",
+          "tags",
+          "description",
+        ]);
+      });
+
+      it("renders no chips for an untagged video", () => {
+        const container = createContainer();
+        new VideoPlayer(container).loadVideo(baseItem({ tags: [] }));
+
+        expect(container.querySelector(".rss-reader-tag")).toBeNull();
+      });
+
+      it("omits the chips in focus mode and restores them live on the same iframe", () => {
+        const container = createContainer();
+        const player = new VideoPlayer(container);
+        player.loadVideo(tagged());
+        const iframe = container.querySelector("iframe");
+
+        player.setFocusMode(true);
+        expect(container.querySelector(".rss-reader-tag")).toBeNull();
+        expect(container.querySelector("iframe")).toBe(iframe);
+
+        player.setFocusMode(false);
+        expect(container.querySelectorAll(".rss-reader-tag")).toHaveLength(2);
+        expect(container.querySelector("iframe")).toBe(iframe);
+      });
+
+      it("setTags replaces the chips, and shows none while focus mode is on", () => {
+        const container = createContainer();
+        const player = new VideoPlayer(container);
+        player.loadVideo(tagged());
+
+        player.setTags([{ name: "Only", color: "#3b82f6" }]);
+        expect(
+          Array.from(container.querySelectorAll(".rss-reader-tag")).map(
+            (chip) => chip.textContent,
+          ),
+        ).toEqual(["Only"]);
+
+        player.setTags([]);
+        expect(container.querySelector(".rss-reader-tag")).toBeNull();
+
+        player.setFocusMode(true);
+        player.setTags([{ name: "Hidden", color: "#3b82f6" }]);
+        expect(container.querySelector(".rss-reader-tag")).toBeNull();
+
+        player.setFocusMode(false);
+        expect(container.querySelector(".rss-reader-tag")?.textContent).toBe(
+          "Hidden",
+        );
+      });
+    });
+
+    it("applies focus mode set before the next video loads", () => {
+      const container = createContainer();
+      const player = new VideoPlayer(container);
+      player.setFocusMode(true);
+      player.loadVideo(withDescription());
+
+      expect(container.querySelector(".rss-video-description")).toBeNull();
+      expect(container.querySelector(".rss-video-related")).toBeNull();
+    });
   });
 });

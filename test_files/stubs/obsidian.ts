@@ -536,6 +536,13 @@ function isHiddenVaultPath(path: string): boolean {
   return path.split("/").some((segment) => segment.startsWith("."));
 }
 
+/**
+ * Obsidian's default file cache limit, observed on 1.14.4 desktop (Windows) as
+ * `vault.cacheLimit` (65536 characters). Content longer than this is not held
+ * in the `cachedRead` cache.
+ */
+const FILE_CACHE_LIMIT = 65536;
+
 interface MockVaultAdapter {
   getBasePath(): string;
   getFullPath(path: string): string;
@@ -557,6 +564,13 @@ export class MockDataVault {
   private folders: Map<string, TFolderStub> = new Map();
   private root: TFolderStub;
   private adapterFiles: Map<string, string> = new Map();
+  /**
+   * Obsidian's `cachedRead` content cache (1.14.4, Windows), keyed by the
+   * `TFile` object rather than its path. A successful `vault.read` fills it;
+   * `vault.cachedRead` serves it and falls back to `read` on a miss. Keying by
+   * object is why the entry outlives an `adapter.remove` of the file.
+   */
+  private fileCache: Map<TFileStub, string> = new Map();
   /**
    * The vault's config folder. Users can rename it, but Obsidian only accepts
    * a dot-prefixed name, so it's always hidden from the vault index. The stub
@@ -803,18 +817,33 @@ export class MockDataVault {
   }
 
   // Observed on Obsidian 1.14.4 desktop (Windows): reading a TFile whose file
-  // was removed on disk throws Node's ENOENT.
+  // was removed on disk throws Node's ENOENT. A successful read also caches the
+  // content for `cachedRead` (`TFile.cache`), within the cache limit.
   async read(file: TFileStub | string): Promise<string> {
     const path = typeof file === "string" ? file : file.path;
-    return this.readFromDisk(path);
+    const content = this.readFromDisk(path);
+    if (typeof file !== "string") this.cacheFile(file, content);
+    return content;
   }
 
-  // Observed on Obsidian 1.14.4 desktop (Windows): `cachedRead` returned the
-  // content it had cached before the file was removed on disk and did not
-  // throw. The stub has no content cache; it models `read` and throws ENOENT
-  // for a missing file, a divergence tracked by #1001.
+  // Observed on Obsidian 1.14.4 desktop (Windows): `cachedRead` returns the
+  // content cached by an earlier read without touching the disk, so it still
+  // returns content after the file is removed on disk. On a cache miss it falls
+  // back to `read` (which caches on success), so a file removed before it was
+  // ever read still throws ENOENT. `create` writes to disk without caching.
   async cachedRead(file: TFileStub): Promise<string> {
-    return this.readFromDisk(file.path);
+    const cached = this.fileCache.get(file);
+    if (cached !== undefined) return cached;
+    return this.read(file);
+  }
+
+  /** Obsidian's `TFile.cache`: stores content within the limit, else evicts. */
+  private cacheFile(file: TFileStub, content: string): void {
+    if (content.length <= FILE_CACHE_LIMIT) {
+      this.fileCache.set(file, content);
+    } else {
+      this.fileCache.delete(file);
+    }
   }
 
   // Observed on Obsidian 1.14.4 desktop (Windows): a file removed on disk

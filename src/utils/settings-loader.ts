@@ -2,6 +2,7 @@ import type {
   Feed,
   FeedItem,
   Folder,
+  MediaSettings,
   RssDashboardSettings,
 } from "../types/types";
 import {
@@ -92,6 +93,29 @@ export function buildFactoryResetSettings(): RssDashboardSettings {
   );
 
   return settings;
+}
+
+/**
+ * Dev builds stored Focus mode as `hideYouTubeDescriptions`. Carry that value
+ * across before default-filling, which would otherwise mask a missing
+ * `youtubeFocusMode` with `false`. The old key is dropped by
+ * `migrateMediaVideoTagSettings`.
+ * @param {MediaSettings | undefined} media The raw media settings group
+ * @returns {Partial<MediaSettings>} The group with Focus mode carried over
+ */
+function withLegacyYouTubeFocusMode(
+  media: MediaSettings | undefined,
+): Partial<MediaSettings> {
+  const raw = (media ?? {}) as Partial<MediaSettings> & {
+    hideYouTubeDescriptions?: unknown;
+  };
+  if (
+    typeof raw.youtubeFocusMode !== "boolean" &&
+    raw.hideYouTubeDescriptions === true
+  ) {
+    return { ...raw, youtubeFocusMode: true };
+  }
+  return raw;
 }
 
 /**
@@ -202,7 +226,7 @@ export function loadAndNormalizeSettings(
   settings.media = Object.assign(
     {},
     DEFAULT_SETTINGS.media,
-    settings.media ?? {},
+    withLegacyYouTubeFocusMode(settings.media),
   );
   settings.availableTags = Array.isArray(settings.availableTags)
     ? settings.availableTags

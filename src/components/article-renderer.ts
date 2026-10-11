@@ -2,7 +2,7 @@ import { App, type Component, TFile } from "obsidian";
 import { renderReaderTagChips } from "../utils/reader-tag-chips";
 import { sanitizeAndAppendHtml } from "../utils/safe-html";
 import { scheduleProcessMathElements } from "../utils/math-rendering";
-import { FeedItem, RssDashboardSettings } from "../types/types";
+import { FeedItem, RssDashboardSettings, Tag } from "../types/types";
 import { HighlightService } from "../services/highlight-service";
 import {
   getPubDateMs,
@@ -165,7 +165,7 @@ export class ArticleRenderer {
           fetchedContent,
           fetchResult?.pageMetadata,
         );
-      } else if (this.lastFullArticleFetchWasRestricted()) {
+      } else if (fetchResult?.failureType === "restricted") {
         item.restrictedReason = RESTRICTED_ARTICLE_REASON;
         this.showRestrictedNotice(item);
       }
@@ -200,6 +200,7 @@ export class ArticleRenderer {
         this.onPlaybackProgress,
         this.settings.media.rememberPlaybackProgress,
         this.settings.useFirstSeenDateFallback,
+        this.settings.media.youtubeFocusMode,
       );
       this.videoPlayer.loadVideo(item);
       if (this.relatedItems.length > 0) {
@@ -630,6 +631,14 @@ export class ArticleRenderer {
     }
 
     return !/^(?:\.{3,}|…+|\[\s*(?:\.{3,}|…+)\s*\])$/.test(text);
+  }
+
+  public setYouTubeFocusMode(hide: boolean): void {
+    this.videoPlayer?.setFocusMode(hide);
+  }
+
+  public setVideoTags(tags: Tag[] | undefined): void {
+    this.videoPlayer?.setTags(tags);
   }
 
   public cleanupPlayers(): void {

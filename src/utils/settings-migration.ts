@@ -259,6 +259,16 @@ export function migrateMediaVideoTagSettings(
     changed = true;
   }
 
+  if (typeof media.youtubeFocusMode !== "boolean") {
+    media.youtubeFocusMode = false;
+    changed = true;
+  }
+  if ("hideYouTubeDescriptions" in media) {
+    delete (media as { hideYouTubeDescriptions?: unknown })
+      .hideYouTubeDescriptions;
+    changed = true;
+  }
+
   if (typeof media.defaultMastodonFolder !== "string") {
     media.defaultMastodonFolder = "Mastodon";
     changed = true;

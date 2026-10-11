@@ -22,6 +22,7 @@ interface MediaSettingsPlugin {
   getActiveReaderView?(): Promise<{
     updatePodcastTheme: (theme: PodcastTheme) => void;
   } | null>;
+  applyYouTubeFocusMode(hide: boolean): Promise<void>;
 }
 
 export function renderMediaSettingsTab(
@@ -60,6 +61,24 @@ export function renderMediaSettingsTab(
       });
       settingsUiCompatibility.markDestructive(button);
     });
+
+  // ── YouTube player ────────────────────────────────────────────────────────
+  new Setting(containerEl).setName("YouTube player").setHeading();
+
+  new Setting(containerEl)
+    .setName("Focus mode")
+    .setDesc(
+      "Show only the video: hide the description and the related videos below it. The stored description is kept for search and saved notes.",
+    )
+    .addToggle((toggle) =>
+      toggle
+        .setValue(plugin.settings.media.youtubeFocusMode ?? false)
+        .onChange(async (value) => {
+          plugin.settings.media.youtubeFocusMode = value;
+          await plugin.applyYouTubeFocusMode(value);
+          await plugin.saveSettings();
+        }),
+    );
 
   // ── Podcast player ────────────────────────────────────────────────────────
   new Setting(containerEl).setName("Podcast player").setHeading();

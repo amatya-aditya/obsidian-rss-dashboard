@@ -5,6 +5,10 @@ import { App, Component, TFile } from "../../stubs/obsidian";
 import { ArticleSaver } from "../../../src/services/article-saver";
 import { DEFAULT_SETTINGS, type FeedItem } from "../../../src/types/types";
 import type { FullArticleFetchResult } from "../../../src/utils/fetch-helpers";
+import {
+  RESTRICTED_ARTICLE_BANNER,
+  RESTRICTED_ARTICLE_REASON,
+} from "../../../src/utils/full-article-fetch";
 
 const fetchMock = vi.hoisted(() => vi.fn());
 vi.mock("../../../src/utils/full-article-fetch", async () => ({
@@ -76,7 +80,7 @@ afterEach(() => {
 });
 
 describe.each(["ReaderView", "ArticleRenderer"])(
-  "%s fetched metadata ownership",
+  "%s request-local fetch outcomes",
   (surface) => {
     async function setup() {
       const app = App.createMock();
@@ -98,11 +102,13 @@ describe.each(["ReaderView", "ArticleRenderer"])(
           vi.fn(),
           updates,
         );
-        (view as unknown as { contentEl: HTMLElement }).contentEl = createDiv();
+        const container = createDiv();
+        (view as unknown as { contentEl: HTMLElement }).contentEl = container;
         await view.onOpen();
         return {
           render: (entry: FeedItem) => view.displayItem(entry),
           updates,
+          container,
         };
       }
       const renderer = new ArticleRenderer({
@@ -117,8 +123,143 @@ describe.each(["ReaderView", "ArticleRenderer"])(
       return {
         render: (entry: FeedItem) => renderer.render(container, entry),
         updates,
+        container,
       };
     }
+
+    describe.each(["A then B", "B then A"])("completion order: %s", (order) => {
+      describe.each(["A", "B"])("restricted article: %s", (restrictedId) => {
+        it.each([
+          ["empty unrestricted result", { content: "", failureType: "none" }],
+          ["network failure", { content: "", failureType: "network" }],
+          ["full content", { ...result("other"), pageMetadata: undefined }],
+          [
+            "restricted result with full content",
+            {
+              ...result("other"),
+              failureType: "restricted",
+              pageMetadata: undefined,
+            },
+          ],
+        ] satisfies [string, FullArticleFetchResult][])(
+          "keeps the restricted reason and banner on their own article beside %s",
+          async (_label, otherResult) => {
+            const harness = await setup();
+            const first = deferFetch();
+            const second = deferFetch();
+            const a = item("A");
+            const b = item("B");
+            const restricted = restrictedId === "A" ? a : b;
+            const other = restrictedId === "A" ? b : a;
+            // A usable body must clear a previously stored restriction, even
+            // when that request's outcome also reports restricted access.
+            if (otherResult.content) other.restrictedReason = "Old restriction";
+            const restrictedResult: FullArticleFetchResult = {
+              content: "",
+              failureType: "restricted",
+            };
+            const resultA =
+              restrictedId === "A" ? restrictedResult : otherResult;
+            const resultB =
+              restrictedId === "B" ? restrictedResult : otherResult;
+            const pendingA = harness.render(a);
+            const pendingB = harness.render(b);
+            // Both helpers finish before either render continuation resumes.
+            if (order === "A then B") {
+              first.resolve(resultA);
+              second.resolve(resultB);
+            } else {
+              second.resolve(resultB);
+              first.resolve(resultA);
+            }
+            await Promise.all([pendingA, pendingB]);
+
+            expect(fetchMock).toHaveBeenCalledTimes(2);
+            expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
+              a.link,
+              b.link,
+            ]);
+            expect(restricted.restrictedReason).toBe(RESTRICTED_ARTICLE_REASON);
+            expect(other.restrictedReason).toBeUndefined();
+            const banners = harness.container.querySelectorAll(
+              ".rss-reader-paywall-banner",
+            );
+            expect(banners).toHaveLength(1);
+            expect(banners[0]?.textContent).toContain(
+              RESTRICTED_ARTICLE_BANNER,
+            );
+            expect(banners[0]?.querySelector("a")?.getAttribute("href")).toBe(
+              restricted.link,
+            );
+            expect(harness.container.textContent).toContain("Short feed blurb");
+            if (otherResult.content) {
+              expect(harness.container.textContent).toContain(
+                "A substantial opening paragraph",
+              );
+            }
+            expect(harness.updates).not.toHaveBeenCalled();
+          },
+        );
+      });
+
+      it("preserves the fetch error boundary beside a restricted article", async () => {
+        const harness = await setup();
+        const first = deferFetch();
+        const second = deferFetch();
+        const a = item("A");
+        const b = item("B");
+        const pendingA = harness.render(a);
+        const pendingB = harness.render(b);
+        const error = new Error("Unexpected fetch failure");
+        const check =
+          surface === "ReaderView"
+            ? expect(pendingA).rejects.toThrow(error)
+            : expect(pendingA).resolves.toBeUndefined();
+        const restrictedResult: FullArticleFetchResult = {
+          content: "",
+          failureType: "restricted",
+        };
+        if (order === "A then B") {
+          first.reject(error);
+          second.resolve(restrictedResult);
+        } else {
+          second.resolve(restrictedResult);
+          first.reject(error);
+        }
+        await Promise.all([check, pendingB]);
+
+        expect(a.restrictedReason).toBeUndefined();
+        expect(b.restrictedReason).toBe(RESTRICTED_ARTICLE_REASON);
+        const banners = harness.container.querySelectorAll(
+          ".rss-reader-paywall-banner",
+        );
+        expect(banners).toHaveLength(1);
+        expect(banners[0]?.textContent).toContain(RESTRICTED_ARTICLE_BANNER);
+        expect(banners[0]?.querySelector("a")?.getAttribute("href")).toBe(
+          b.link,
+        );
+        expect(harness.updates).not.toHaveBeenCalled();
+      });
+    });
+
+    it.each(["", "https://news.kagi.com/story"])(
+      "does not borrow a restriction when the next article needs no fetch: %s",
+      async (link) => {
+        const harness = await setup();
+        fetchMock.mockResolvedValueOnce({
+          content: "",
+          failureType: "restricted",
+        });
+        await harness.render(item("B"));
+        const a = { ...item("A"), link };
+        await harness.render(a);
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+        expect(a.restrictedReason).toBeUndefined();
+        expect(
+          harness.container.querySelector(".rss-reader-paywall-banner"),
+        ).toBeNull();
+      },
+    );
 
     it("persists each article's own metadata during sequential navigation", async () => {
       const harness = await setup();
