@@ -204,7 +204,20 @@ export function installObsidianDomPolyfills(): void {
     const documentOf = (win: Window | undefined): Document =>
       win?.document ?? globalScope.activeDocument ?? window.document;
 
-    // The global Window helpers return detached elements.
+    // Observed on 1.14.4: the global Window helpers return detached elements,
+    // unless the options carry a `parent`, in which case the new element is
+    // appended to it. A Node receiver (el.createEl) ignores `parent` and
+    // appends to the receiver instead, so this stays out of createChildEl.
+    const attachParent = <T extends Element>(
+      el: T,
+      opts?: HelperOptions,
+    ): T => {
+      if (typeof opts === "object" && opts.parent) {
+        opts.parent.appendChild(el);
+      }
+      return el;
+    };
+
     if (typeof helperTarget.createEl !== "function") {
       helperTarget.createEl = function createEl<
         K extends keyof HTMLElementTagNameMap,
@@ -214,7 +227,10 @@ export function installObsidianDomPolyfills(): void {
         opts?: HelperOptions,
         callback?: (el: HTMLElementTagNameMap[K]) => void,
       ): HTMLElementTagNameMap[K] {
-        const el = createDetachedEl(documentOf(this), tag, opts);
+        const el = attachParent(
+          createDetachedEl(documentOf(this), tag, opts),
+          opts,
+        );
         callback?.(el);
         return el;
       };
@@ -226,7 +242,10 @@ export function installObsidianDomPolyfills(): void {
         opts?: HelperOptions,
         callback?: (el: HTMLDivElement) => void,
       ): HTMLDivElement {
-        const el = createDetachedEl(documentOf(this), "div", opts);
+        const el = attachParent(
+          createDetachedEl(documentOf(this), "div", opts),
+          opts,
+        );
         callback?.(el);
         return el;
       };
@@ -238,7 +257,10 @@ export function installObsidianDomPolyfills(): void {
         opts?: HelperOptions,
         callback?: (el: HTMLSpanElement) => void,
       ): HTMLSpanElement {
-        const el = createDetachedEl(documentOf(this), "span", opts);
+        const el = attachParent(
+          createDetachedEl(documentOf(this), "span", opts),
+          opts,
+        );
         callback?.(el);
         return el;
       };
@@ -593,15 +615,19 @@ export function installWindowNodePolyfills(win: Window): void {
     ) => HTMLElement;
     const createDetached = (
       tag: string,
-      opts?: { cls?: string },
+      opts?: { cls?: string; parent?: Node },
     ): HTMLElement => {
       const el = nativeCreate.call(win.document, tag);
       if (opts?.cls) el.className = opts.cls;
+      // Observed on 1.14.4: a `parent` option appends to it.
+      opts?.parent?.appendChild(el);
       return el;
     };
     windowHelpers.createEl = createDetached;
-    windowHelpers.createDiv = (opts?: { cls?: string }): HTMLElement =>
-      createDetached("div", opts);
+    windowHelpers.createDiv = (opts?: {
+      cls?: string;
+      parent?: Node;
+    }): HTMLElement => createDetached("div", opts);
   }
 
   if (typeof scope.Node.prototype.instanceOf !== "function") {

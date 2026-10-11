@@ -1,0 +1,92 @@
+@eval
+const A = app.vault.adapter;
+const V = app.vault;
+const fs = {};
+await A.rmdir("probe-adapter", true).catch(() => {});
+await A.mkdir("probe-adapter");
+try {
+  await A.write("probe-adapter/nope/x.md", "x");
+  fs.writeMissingParent = "wrote";
+} catch (e) {
+  fs.writeMissingParent = { code: e.code, message: e.message };
+}
+fs.mkdirResolved = await A.mkdir("probe-adapter/m1/m2");
+fs.mkdirExistingFolder = await A.mkdir("probe-adapter/m1").then(
+  () => "resolved",
+  (e) => ({ code: e.code, message: e.message }),
+);
+fs.existsAfterMkdir = await A.exists("probe-adapter/m1/m2");
+fs.listAfterMkdir = await A.list("probe-adapter");
+fs.mkdirFolderIndexed =
+  V.getAbstractFileByPath("probe-adapter/m1/m2")?.path ?? null;
+await A.write("probe-adapter/w.md", "w");
+fs.afterWrite = {
+  exists: await A.exists("probe-adapter/w.md"),
+  indexed: V.getAbstractFileByPath("probe-adapter/w.md")?.path ?? null,
+};
+await A.rmdir("probe-adapter", true).catch(() => {});
+JSON.stringify(fs)
+
+@eval
+const A2 = app.vault.adapter;
+const V2 = app.vault;
+const read = {};
+try {
+  await A2.read("probe-read-missing.md");
+  read.adapterReadMissing = "returned";
+} catch (e) {
+  read.adapterReadMissing = { code: e.code, message: e.message };
+}
+const f = await V2.create("probe-read.md", "hello");
+await A2.remove("probe-read.md");
+try {
+  await V2.read(f);
+  read.vaultReadRemoved = "returned";
+} catch (e) {
+  read.vaultReadRemoved = { code: e.code, message: e.message };
+}
+await A2.mkdir("probe-remove/m1");
+try {
+  await A2.remove("probe-remove/missing.md");
+  read.removeMissing = "returned";
+} catch (e) {
+  read.removeMissing = { code: e.code, message: e.message };
+}
+try {
+  await A2.remove("probe-remove/m1");
+  read.removeFolder = "returned";
+} catch (e) {
+  read.removeFolder = { code: e.code, message: e.message };
+}
+read.folderStillExists = await A2.exists("probe-remove/m1");
+await A2.write("probe-remove/f.md", "f");
+read.removeExisting = await A2.remove("probe-remove/f.md").then(
+  () => "resolved",
+  (e) => ({ code: e.code, message: e.message }),
+);
+read.removeExistingAfter = await A2.exists("probe-remove/f.md");
+await A2.rmdir("probe-remove", true).catch(() => {});
+JSON.stringify(read)
+
+@eval
+const A3 = app.vault.adapter;
+const V3 = app.vault;
+const cached = {};
+const f2 = await V3.create("probe-cached.md", "hello world");
+cached.cachedRead = await V3.cachedRead(f2).catch((e) => ({
+  threw: e.message,
+}));
+await A3.remove("probe-cached.md");
+cached.cachedReadAfterRemove = await V3.cachedRead(f2).then(
+  (v) => ({ returned: v }),
+  (e) => ({ code: e.code, message: e.message }),
+);
+cached.readBinaryMissing = await V3.readBinary(f2).then(
+  (v) => ({ returnedBytes: v.byteLength }),
+  (e) => ({ code: e.code, message: e.message }),
+);
+cached.adapterReadBinaryMissing = await A3.readBinary("probe-nope.bin").then(
+  (v) => ({ returnedBytes: v.byteLength }),
+  (e) => ({ code: e.code, message: e.message }),
+);
+JSON.stringify(cached)

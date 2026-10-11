@@ -1,0 +1,76 @@
+@eval
+const A = app.vault.adapter;
+const probeDir = ".obsidian/plugins/obsidian-probe";
+await A.mkdir(probeDir).catch(() => {});
+await A.write(
+  `${probeDir}/manifest.json`,
+  JSON.stringify({
+    id: "obsidian-probe",
+    name: "Obsidian probe",
+    version: "1.0.0",
+    minAppVersion: "1.0.0",
+    description: "Probe helper: stashes the obsidian module on window (#431).",
+    author: "rss-dashboard probe",
+    isDesktopOnly: false,
+  }),
+);
+await A.write(
+  `${probeDir}/main.js`,
+  'const o=require("obsidian");class P extends o.Plugin{onload(){window.__obsidianApi=o}}module.exports=P;',
+);
+await app.plugins.setEnable(true);
+await app.plugins.loadManifests();
+if (!app.plugins.plugins["obsidian-probe"]) {
+  await app.plugins.enablePluginAndSave("obsidian-probe");
+}
+await new Promise((r) => window.setTimeout(r, 300));
+const api = window.__obsidianApi;
+typeof api
+
+@eval
+const menu = new api.Menu();
+let firstItem = null;
+let secondItem = null;
+menu.addItem((item) => {
+  firstItem = item;
+  item.setTitle("Alpha").setIcon("play").onClick(() => {});
+});
+menu.addSeparator();
+menu.addItem((item) => {
+  secondItem = item;
+  item.setTitle("Beta").setChecked(true).setDisabled(true);
+});
+JSON.stringify({
+  first: {
+    ownKeys: Object.keys(firstItem),
+    title: firstItem.title,
+    icon: firstItem.icon,
+    checked: firstItem.checked,
+    disabled: firstItem.disabled,
+  },
+  second: {
+    title: secondItem.title,
+    checked: secondItem.checked,
+    disabled: secondItem.disabled,
+  },
+  menuProto: Object.getOwnPropertyNames(Object.getPrototypeOf(menu)),
+})
+
+@eval
+app.setting.close();
+await new Promise((r) => window.setTimeout(r, 200));
+const domMenu = new api.Menu();
+domMenu.addItem((item) => item.setTitle("Enabled"));
+domMenu.addSeparator();
+domMenu.addItem((item) => item.setTitle("Checked").setChecked(true));
+domMenu.addItem((item) => item.setTitle("Disabled").setDisabled(true));
+domMenu.showAtPosition({ x: 60, y: 60 });
+await new Promise((r) => window.setTimeout(r, 200));
+const menuItems = [...document.querySelectorAll(".menu .menu-item")].map((e) => ({
+  cls: e.className,
+  text: (e.textContent ?? "").trim(),
+  ariaDisabled: e.getAttribute("aria-disabled"),
+}));
+domMenu.hide();
+JSON.stringify({ menuItems })
+

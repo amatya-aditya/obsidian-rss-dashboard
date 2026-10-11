@@ -1,0 +1,38 @@
+@eval
+const A = app.vault.adapter;
+const probeDir = ".obsidian/plugins/obsidian-probe";
+await A.mkdir(probeDir).catch(() => {});
+await A.write(
+  `${probeDir}/manifest.json`,
+  JSON.stringify({
+    id: "obsidian-probe",
+    name: "Obsidian probe",
+    version: "1.0.0",
+    minAppVersion: "1.0.0",
+    description: "Probe helper: stashes the obsidian module on window (#431).",
+    author: "rss-dashboard probe",
+    isDesktopOnly: false,
+  }),
+);
+await A.write(
+  `${probeDir}/main.js`,
+  'const o=require("obsidian");class P extends o.Plugin{onload(){window.__obsidianApi=o}}module.exports=P;',
+);
+await app.plugins.setEnable(true);
+await app.plugins.loadManifests();
+if (!app.plugins.plugins["obsidian-probe"]) {
+  await app.plugins.enablePluginAndSave("obsidian-probe");
+}
+await new Promise((r) => window.setTimeout(r, 300));
+const api = window.__obsidianApi;
+JSON.stringify({
+  apiVersion: api.apiVersion,
+  "1.0.0": api.requireApiVersion("1.0.0"),
+  "1.8.7": api.requireApiVersion("1.8.7"),
+  "1.13.7": api.requireApiVersion("1.13.7"),
+  "1.14.3": api.requireApiVersion("1.14.3"),
+  "1.14.4": api.requireApiVersion("1.14.4"),
+  "1.14.5": api.requireApiVersion("1.14.5"),
+  "1.15.0": api.requireApiVersion("1.15.0"),
+  "2.0.0": api.requireApiVersion("2.0.0"),
+})

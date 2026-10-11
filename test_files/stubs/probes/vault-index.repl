@@ -1,0 +1,102 @@
+@eval
+const V = app.vault;
+const hidden = {};
+for (const p of [
+  `${V.configDir}/plugins`,
+  `${V.configDir}/community-plugins.json`,
+]) {
+  hidden[p] = {
+    indexed: V.getAbstractFileByPath(p)?.path ?? null,
+    onDisk: await V.adapter.exists(p),
+  };
+}
+JSON.stringify(hidden)
+
+@eval
+const V2 = app.vault;
+const A2 = V2.adapter;
+await A2.rmdir("probe-existing", true).catch(() => {});
+await V2.createFolder("probe-existing");
+const existing = {};
+for (const p of ["probe-existing", "PROBE-Existing"]) {
+  try {
+    await V2.createFolder(p);
+    existing[`createFolder:${p}`] = "created";
+  } catch (e) {
+    existing[`createFolder:${p}`] = e.message;
+  }
+}
+existing.caseVariantLookup =
+  V2.getAbstractFileByPath("PROBE-Existing")?.path ?? null;
+existing.caseVariantExists = await A2.exists("PROBE-Existing");
+await V2.create("probe-existing/a.md", "a");
+for (const p of ["probe-existing/a.md", "PROBE-Existing/A.md"]) {
+  try {
+    await V2.create(p, "");
+    existing[`create:${p}`] = "created";
+  } catch (e) {
+    existing[`create:${p}`] = e.message;
+  }
+}
+try {
+  await V2.create("probe-missing/x.md", "");
+  existing.missingParent = "created";
+} catch (e) {
+  existing.missingParent = { message: e.message, code: e.code };
+}
+await A2.rmdir("probe-existing", true).catch(() => {});
+JSON.stringify(existing)
+
+@eval
+const V3 = app.vault;
+const A3 = V3.adapter;
+await A3.mkdir("probe-names").catch(() => {});
+const names = [];
+for (const path of ["probe-names/my.file.name.md", "probe-names/noext"]) {
+  let f = V3.getAbstractFileByPath(path);
+  if (!f) f = await V3.create(path, "");
+  names.push(f);
+}
+JSON.stringify({
+  files: names.map((f) => ({
+    path: f.path,
+    name: f.name,
+    basename: f.basename,
+    extension: f.extension,
+  })),
+  getBasePath: typeof A3.getBasePath,
+  basePath: A3.getBasePath?.(),
+  getFullPath: A3.getFullPath?.("a/b.md"),
+})
+
+@eval
+const V4 = app.vault;
+const A4 = V4.adapter;
+await A4.rmdir("probe-rename", true).catch(() => {});
+await V4.createFolder("probe-rename");
+const f = await V4.create("probe-rename/r1.md", "hello");
+await app.fileManager.renameFile(f, "probe-rename/r2.md");
+const renamed = {
+  afterRename: {
+    path: f.path,
+    content: await V4.read(f),
+    oldIndexed: !!V4.getAbstractFileByPath("probe-rename/r1.md"),
+  },
+};
+await app.fileManager.renameFile(f, "probe-rename//r3.md");
+renamed.normalizedRename = f.path;
+const other = await V4.create("probe-rename/r4.md", "4");
+for (const [label, rename] of [
+  ["renameFile", () => app.fileManager.renameFile(other, "probe-rename/r3.md")],
+  ["vault.rename", () => V4.rename(other, "probe-rename/r3.md")],
+]) {
+  try {
+    await rename();
+    renamed[label] = "resolved";
+  } catch (e) {
+    renamed[label] = e.message;
+  }
+}
+await A4.rmdir("probe-rename", true).catch(() => {});
+await A4.rmdir("probe-names", true).catch(() => {});
+JSON.stringify(renamed)

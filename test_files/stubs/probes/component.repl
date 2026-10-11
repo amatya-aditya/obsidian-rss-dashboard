@@ -1,0 +1,62 @@
+@eval
+const A = app.vault.adapter;
+const probeDir = ".obsidian/plugins/obsidian-probe";
+await A.mkdir(probeDir).catch(() => {});
+await A.write(
+  `${probeDir}/manifest.json`,
+  JSON.stringify({
+    id: "obsidian-probe",
+    name: "Obsidian probe",
+    version: "1.0.0",
+    minAppVersion: "1.0.0",
+    description: "Probe helper: stashes the obsidian module on window (#431).",
+    author: "rss-dashboard probe",
+    isDesktopOnly: false,
+  }),
+);
+await A.write(
+  `${probeDir}/main.js`,
+  'const o=require("obsidian");class P extends o.Plugin{onload(){window.__obsidianApi=o}}module.exports=P;',
+);
+await app.plugins.setEnable(true);
+await app.plugins.loadManifests();
+if (!app.plugins.plugins["obsidian-probe"]) {
+  await app.plugins.enablePluginAndSave("obsidian-probe");
+}
+await new Promise((r) => window.setTimeout(r, 300));
+const api = window.__obsidianApi;
+typeof api
+
+@eval
+const log = [];
+const c = new api.Component();
+c.load();
+c.register(() => log.push("register cb ran"));
+const el = createDiv();
+document.body.appendChild(el);
+let clicks = 0;
+c.registerDomEvent(el, "click", () => clicks++);
+el.click();
+c.unload();
+el.click();
+el.remove();
+const child = new api.Component();
+child.onunload = () => log.push("child onunload");
+const parent = new api.Component();
+parent.load();
+parent.addChild(child);
+const loadedAfterAdd = child._loaded;
+parent.unload();
+const late = new api.Component();
+const idle = new api.Component();
+idle.addChild(late);
+const lateBeforeLoad = late._loaded;
+idle.load();
+JSON.stringify({
+  log,
+  clicks,
+  loadedAfterAdd,
+  loadedAfterParentUnload: child._loaded,
+  lateBeforeLoad,
+  lateAfterLoad: late._loaded,
+})

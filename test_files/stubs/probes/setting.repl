@@ -1,0 +1,89 @@
+@eval
+const A = app.vault.adapter;
+const probeDir = ".obsidian/plugins/obsidian-probe";
+await A.mkdir(probeDir).catch(() => {});
+await A.write(
+  `${probeDir}/manifest.json`,
+  JSON.stringify({
+    id: "obsidian-probe",
+    name: "Obsidian probe",
+    version: "1.0.0",
+    minAppVersion: "1.0.0",
+    description: "Probe helper: stashes the obsidian module on window (#431).",
+    author: "rss-dashboard probe",
+    isDesktopOnly: false,
+  }),
+);
+await A.write(
+  `${probeDir}/main.js`,
+  'const o=require("obsidian");class P extends o.Plugin{onload(){window.__obsidianApi=o}}module.exports=P;',
+);
+await app.plugins.setEnable(true);
+await app.plugins.loadManifests();
+if (!app.plugins.plugins["obsidian-probe"]) {
+  await app.plugins.enablePluginAndSave("obsidian-probe");
+}
+await new Promise((r) => window.setTimeout(r, 300));
+const api = window.__obsidianApi;
+typeof api
+
+@eval
+const host = createDiv();
+const out = {};
+const s = new api.Setting(host);
+s.setName("Alpha").setDesc("Beta");
+out.base = {
+  settingElClass: s.settingEl.className,
+  nameClass: s.nameEl.className,
+  descClass: s.descEl.className,
+  controlClass: s.controlEl.className,
+  nameText: s.nameEl.textContent,
+  descText: s.descEl.textContent,
+};
+const heading = new api.Setting(host).setHeading();
+out.heading = {
+  class: heading.settingEl.className,
+  nameText: heading.nameEl.textContent,
+};
+const svc = new api.Setting(host).setClass("probe-cls");
+out.setClass = svc.settingEl.className;
+const stt = new api.Setting(host).setTooltip("Tip");
+out.setTooltip = {
+  setting: stt.settingEl.getAttribute("aria-label"),
+  name: stt.nameEl.getAttribute("aria-label"),
+  desc: stt.descEl.getAttribute("aria-label"),
+};
+const sd = new api.Setting(host);
+sd.setDisabled(true);
+sd.addButton((b) => b.setButtonText("Go"));
+out.setDisabled = {
+  settingClass: sd.settingEl.className,
+  buttonDisabled: sd.controlEl.querySelector("button")?.disabled ?? null,
+  inputDisabled: sd.controlEl.querySelector("input")?.disabled ?? null,
+};
+const sb = new api.Setting(host);
+sb.addButton((b) =>
+  b.setButtonText("Run").setCta().setTooltip("T").onClick(() => {}),
+);
+out.addButton = { html: sb.controlEl.innerHTML };
+const se = new api.Setting(host);
+se.addExtraButton((b) => b.setIcon("x").setTooltip("E"));
+out.addExtraButton = { html: se.controlEl.innerHTML };
+const st = new api.Setting(host);
+st.addText((t) => t.setPlaceholder("ph").setValue("val"));
+out.addText = {
+  html: st.controlEl.innerHTML,
+  value: st.controlEl.querySelector("input")?.value ?? null,
+};
+const stg = new api.Setting(host);
+stg.addToggle((t) => t.setValue(true));
+out.addToggle = {
+  checked: stg.controlEl.querySelector("input")?.checked ?? null,
+};
+const sdd = new api.Setting(host);
+sdd.addDropdown((d) => d.addOption("a", "A").addOption("b", "B").setValue("a"));
+out.addDropdown = {
+  value: sdd.controlEl.querySelector("select")?.value ?? null,
+  options: sdd.controlEl.querySelector("select")?.options.length ?? null,
+};
+JSON.stringify(out)

@@ -1,0 +1,13 @@
+@eval
+const m = moment("2026-10-11T13:05:00");
+JSON.stringify({
+  format: m.format("YYYY-MM-DD HH:mm"),
+  tokens: m.format("ddd MMM Do YYYY h:mm A"),
+  locale: moment.locale(),
+  isMoment: moment.isMoment(m),
+  invalidValid: moment("not-a-real-date-xyz").isValid(),
+  durationHumanize: moment.duration(90, "minutes").humanize(),
+  hasFromNow: typeof m.fromNow,
+  hasCalendar: typeof m.calendar,
+  utcOffset: m.utcOffset(),
+})
