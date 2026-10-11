@@ -113,3 +113,6 @@ If you find this plugin useful:
 ## License
 
 MIT. See [LICENSE](LICENSE) for details.
+
+The production bundle includes third-party code with its own license terms. See
+[THIRD-PARTY.md](THIRD-PARTY.md) for the bundled dependencies and their notices.
