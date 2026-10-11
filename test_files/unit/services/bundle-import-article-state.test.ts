@@ -8,6 +8,13 @@ import {
   type RssDashboardSettings,
 } from "../../../src/types/types";
 
+import {
+  BUNDLE_KINDS,
+  buildBundle,
+  importBundle,
+  failNextStateWrite,
+} from "./bundle-import-fixture";
+
 const statePath = ".rss-dashboard-data/user-state.json";
 const shardPath = ".rss-dashboard-data/feeds/feed-1.json";
 const emptyState = { read: false, starred: false, saved: false, tags: [] };
@@ -62,7 +69,7 @@ describe("bundle replacement article state (issue #853)", () => {
     await app.vault.adapter.mkdir(".rss-dashboard-data/feeds");
   });
 
-  for (const kind of ["feed", "portable"] as const) {
+  for (const kind of BUNDLE_KINDS) {
     for (const startup of ["missing", "healthy", "fresh"] as const) {
       it.each(["restore", "clear"] as const)(
         `${kind} import can %s article state with a ${startup} startup shard`,
@@ -86,22 +93,8 @@ describe("bundle replacement article state (issue #853)", () => {
           await repository.hydrateSettings(destination);
           const source = settings([item(imported)]);
           // Exercise the real serialized export and public import boundary.
-          const bundle: unknown = JSON.parse(
-            JSON.stringify(
-              kind === "feed"
-                ? repository.buildFeedBundle(source)
-                : repository.buildPortableDataBundle(source),
-            ),
-          );
-          if (kind === "feed") {
-            await repository.importFeedBundle(bundle, destination, saveData);
-          } else {
-            await repository.importPortableDataBundle(
-              bundle,
-              destination,
-              saveData,
-            );
-          }
+          const bundle = buildBundle(repository, kind, source);
+          await importBundle(repository, kind, bundle, destination, saveData);
 
           expect(destination.feeds[0].items).toEqual(source.feeds[0].items);
           const persisted = await repository.loadUserState(destination);
@@ -147,32 +140,16 @@ describe("bundle replacement article state (issue #853)", () => {
     expect(destination.feeds[0].items[1]).toEqual(preserved);
   });
 
-  it.each(["feed", "portable"] as const)(
+  it.each(BUNDLE_KINDS)(
     "%s import restores prior article state when its state write fails",
     async (kind) => {
       const prior = settings([item({ ...emptyState, read: true })]);
       const repository = new FeedStorageRepository(app);
       await repository.persistSettings(prior, saveData);
       const source = settings([item(restoredState)]);
-      const bundle =
-        kind === "feed"
-          ? repository.buildFeedBundle(source)
-          : repository.buildPortableDataBundle(source);
-      const write = app.vault.adapter.write.bind(app.vault.adapter);
-      let failed = false;
-      vi.spyOn(app.vault.adapter, "write").mockImplementation(
-        async (path, data) => {
-          if (path === statePath && !failed) {
-            failed = true;
-            throw new Error("state write failed");
-          }
-          await write(path, data);
-        },
-      );
-      const importing =
-        kind === "feed"
-          ? repository.importFeedBundle(bundle, prior, saveData)
-          : repository.importPortableDataBundle(bundle, prior, saveData);
+      const bundle = buildBundle(repository, kind, source);
+      failNextStateWrite(app, statePath);
+      const importing = importBundle(repository, kind, bundle, prior, saveData);
       await expect(importing).rejects.toThrow("state write failed");
       expect(prior.feeds[0].items).toEqual([
         item({ ...emptyState, read: true }),

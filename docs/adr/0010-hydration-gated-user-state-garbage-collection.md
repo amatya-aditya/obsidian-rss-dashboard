@@ -123,6 +123,8 @@ The lifecycle metadata is introduced as version 3 of the `user-state.json` forma
 - `unattributedFirstObservedAtByGuid` records when legacy bare-GUID state was first observed without a validated owner.
 - `unrecognizedFeedSinceByFeedId` records when a feed's state was first found without the feed in the saving device's feed list. It is kept separate from `missingSinceByStateKey` so a feed that returns does not carry stale article-level timestamps.
 
+A confirmed Feed bundle or Portable data bundle restoration also invalidates prior absence evidence for every imported article, including articles with no state signal or stored baseline ([GitHub Issue #963](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/963)). `restoredUserStateKeys` is a separate in-memory exemption, not a fourth persisted map: it lasts across subsequent saves until the next `applyToFeeds` hydration clears it. That fresh hydration can establish a new absence period; importing or writing a shard never establishes hydration proof. Keys are staged until the state save succeeds (or safely needs no file), and authoritative rollback saves do not add exemptions.
+
 ## Related
 
 - [GitHub Issue #315](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/315) — bound `user-state.json` growth with hydration-gated GC

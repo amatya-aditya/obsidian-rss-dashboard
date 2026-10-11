@@ -45,6 +45,8 @@ export interface PersistSettingsOptions {
   replacesFeedList?: boolean;
   /** Imported article state replaces existing values, including explicit resets. */
   authoritativeArticleState?: boolean;
+  /** A confirmed bundle restore invalidates prior absence evidence; rollback does not. */
+  restoresArticlePresence?: boolean;
 }
 
 export interface RepairResult {
@@ -552,10 +554,10 @@ export class FeedStorageRepository {
     }
 
     if (settings.storageMode === "vault-shards-v2") {
-      await this.userState.save(
-        settings,
-        Boolean(options.authoritativeArticleState),
-      );
+      await this.userState.save(settings, {
+        authoritativeLoadedState: options.authoritativeArticleState,
+        restoresArticlePresence: options.restoresArticlePresence,
+      });
     }
 
     this.lastStorageFolderPath = normalizedStorageFolder;
@@ -876,6 +878,7 @@ export class FeedStorageRepository {
         forceMetadata: true,
         replacesFeedList: true,
         authoritativeArticleState: true,
+        restoresArticlePresence: true,
       });
 
       storageLog("Completed portable bundle import", {
@@ -977,6 +980,7 @@ export class FeedStorageRepository {
         forceMetadata: true,
         replacesFeedList: true,
         authoritativeArticleState: true,
+        restoresArticlePresence: true,
       });
 
       storageLog("Completed feed bundle import", {
