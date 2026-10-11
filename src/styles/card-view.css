@@ -336,6 +336,17 @@
   flex: 0 0 auto;
 }
 
+.rss-dashboard-articles-list.rss-dashboard-mirrored-footer
+  .rss-dashboard-card-footer {
+  direction: rtl;
+}
+
+.rss-dashboard-articles-list.rss-dashboard-mirrored-footer
+  .rss-dashboard-card-footer
+  .rss-dashboard-article-date {
+  direction: ltr;
+}
+
 .rss-dashboard-article-card.active .rss-dashboard-card-footer {
   background: var(--background-secondary);
   border-top-color: var(--background-modifier-border);

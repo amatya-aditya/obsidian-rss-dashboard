@@ -34,6 +34,10 @@ import type {
   ViewDeps,
 } from "./article-list/views/view-types";
 import { prefersReducedMotion } from "../utils/motion-preference";
+import {
+  LEFT_HANDED_LAYOUT_ROOT_CLASS,
+  loadLeftHandedLayout,
+} from "../utils/left-handed-layout";
 
 interface ArticleListCallbacks {
   onArticleClick: (article: FeedItem) => void;
@@ -1252,6 +1256,17 @@ export class ArticleList {
     });
   }
 
+  /**
+   * Applies the per-device mirrored-footer modifier to the articles-list root.
+   * The value is read from vault-local storage, so it never reaches settings.
+   */
+  private applyLeftHandedLayoutClass(articlesList: HTMLElement): void {
+    articlesList.toggleClass(
+      LEFT_HANDED_LAYOUT_ROOT_CLASS,
+      loadLeftHandedLayout(this.app),
+    );
+  }
+
   private renderArticles(): void {
     const renderPagination = (): void => {
       const paginationWrapper = this.container.createDiv({
@@ -1289,6 +1304,7 @@ export class ArticleList {
     const articlesList = this.container.createDiv({
       cls: `rss-dashboard-articles-list rss-dashboard-${this.settings.viewStyle}-view`,
     });
+    this.applyLeftHandedLayoutClass(articlesList);
     if (this.settings.viewStyle === "card") {
       // Keep card layout controls in one render-time path so both hamburger
       // controls and formal settings stay in sync with the same persisted fields.

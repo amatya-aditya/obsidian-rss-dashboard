@@ -17,6 +17,7 @@ import {
   migrateMediaDefaultTagArrays,
 } from "./settings-migration";
 import { normalizeTagChipRadius, repairTagChipRadius } from "./tag-chip-radius";
+import { LEFT_HANDED_LAYOUT_STORAGE_KEY } from "./left-handed-layout";
 import { canonicalizeItemIdentityUrl } from "./url-utils";
 import { normalizeRefreshIntervalMinutes } from "./validation";
 import {
@@ -48,6 +49,7 @@ export const FACTORY_RESET_LOCAL_STORAGE_KEYS = [
   "rss-discover-filters",
   "rss-podcast-progress",
   "rss-first-launch-coachmark-shown",
+  LEFT_HANDED_LAYOUT_STORAGE_KEY,
 ] as const;
 
 /**

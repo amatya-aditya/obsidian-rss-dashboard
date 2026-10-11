@@ -149,6 +149,17 @@
   flex: 0 0 auto;
 }
 
+.rss-dashboard-articles-list.rss-dashboard-mirrored-footer
+  .rss-dashboard-feed-footer {
+  direction: rtl;
+}
+
+.rss-dashboard-articles-list.rss-dashboard-mirrored-footer
+  .rss-dashboard-feed-footer
+  .rss-dashboard-article-date {
+  direction: ltr;
+}
+
 /* Mobile Tweaks */
 @media (max-width: 768px) {
   .rss-dashboard-feed-view {

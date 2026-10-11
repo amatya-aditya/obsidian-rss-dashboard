@@ -96,7 +96,10 @@ import {
   getReleaseNoteForVersion,
   hasExactReleaseNoteForVersion,
 } from "./src/release-notes";
-import { migrateSettings } from "./src/utils/settings-loader";
+import {
+  FACTORY_RESET_LOCAL_STORAGE_KEYS,
+  migrateSettings,
+} from "./src/utils/settings-loader";
 import { snapshotArticleFields } from "./src/utils/article-update";
 import { applyAutomaticArticleTags } from "./src/utils/tag-utils";
 import { registerPaletteCommands } from "./src/commands/palette-commands";
@@ -182,12 +185,6 @@ export type {
 } from "./src/types/types";
 
 export default class RssDashboardPlugin extends Plugin {
-  private static readonly FACTORY_RESET_LOCAL_STORAGE_KEYS = [
-    "rss-discover-filters",
-    "rss-podcast-progress",
-    "rss-first-launch-coachmark-shown",
-  ] as const;
-
   settings!: RssDashboardSettings;
   feedParser!: FeedParser;
   articleSaver!: ArticleSaver;
@@ -503,7 +500,7 @@ export default class RssDashboardPlugin extends Plugin {
       saveLocalStorage?: (key: string, value: unknown) => void;
     };
 
-    for (const key of RssDashboardPlugin.FACTORY_RESET_LOCAL_STORAGE_KEYS as readonly string[]) {
+    for (const key of FACTORY_RESET_LOCAL_STORAGE_KEYS) {
       if (typeof appWithLocalStorage.removeLocalStorage === "function") {
         appWithLocalStorage.removeLocalStorage(key);
         continue;

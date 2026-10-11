@@ -37,6 +37,7 @@ export interface ArticleListHarnessOverrides {
   filterLogic?: "AND" | "OR";
   currentFeedUrl?: string | null;
   showFeedSource?: boolean;
+  app?: App;
 }
 
 function cloneSettings(): RssDashboardSettings {
@@ -170,6 +171,7 @@ export function createArticleListHarness(
   const filterLogic = overrides.filterLogic ?? "OR";
   const currentFeedUrl = overrides.currentFeedUrl ?? null;
   const showFeedSource = overrides.showFeedSource ?? true;
+  const app = overrides.app ?? new App();
 
   const list = new ArticleList(
     container,
@@ -188,7 +190,7 @@ export function createArticleListHarness(
     filterLogic,
     currentFeedUrl,
     showFeedSource,
-    new App(),
+    app,
   );
 
   const getHeaderEl = () =>
@@ -221,6 +223,7 @@ export function createArticleListHarness(
     callbacks,
     articles,
     list,
+    app,
     buildArticle,
     getHeaderEl,
     getArticlesListEl,
