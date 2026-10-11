@@ -123,6 +123,15 @@ Actions runs the full suite with coverage for pull requests and pushes to
 `dev` or `master`. The pre-push hook skips local checks. See **Git Hooks** in
 [CONTRIBUTING.md](../../../CONTRIBUTING.md#git-hooks).
 
+Pull requests also publish the built plugin for manual testing: the `Test`
+workflow's `validate` job attaches `main.js`, `styles.css`, and `manifest.json`
+as `rss-dashboard-pr<number>-<sha>` (pull requests only, kept 30 days), and the
+`PR build comment` workflow links it on the pull request. Download it from the
+run's Artifacts section, or `gh run download <run-id>`. See **Manual Testing a
+PR Build** in
+[CONTRIBUTING.md](../../../CONTRIBUTING.md#manual-testing-a-pr-build) for how to
+load it.
+
 ## 9. Palette command ids
 
 Command-palette commands are a test contract: a test or an agent runs a command

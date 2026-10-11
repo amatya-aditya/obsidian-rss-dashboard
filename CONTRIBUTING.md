@@ -263,6 +263,26 @@ Skip an ADR for anything obvious, easily reversed, or where there was no real al
    - Any related issues (e.g., "Fixes #123")
 4. Ensure CI checks pass (tests, lint, type checking).
 
+### Manual Testing a PR Build
+
+The `Test` workflow attaches the built plugin to the `validate` job of every pull request, so a reviewer or manual tester can install exactly what CI built without building locally. The artifact is named `rss-dashboard-pr<number>-<sha>`, holds `main.js`, `styles.css`, and `manifest.json`, is kept for 30 days, and is published for pull requests only — pushes to `dev` and `master` skip it.
+
+The `PR build comment` workflow then posts a comment on the pull request linking that run, updated in place on each run. It runs after `Test` in the base repository, so a pull request from a fork — which cannot comment on itself — still gets the link.
+
+Download it from the run's **Artifacts** section, or with the CLI:
+
+```bash
+gh run download <run-id> -n rss-dashboard-pr<number>-<sha>
+```
+
+Then put `main.js` and `styles.css` in the repository root and load them into the [fixture vault](docs/development/fixture-vault.md#load-a-new-build):
+
+```bash
+npm run fixture:vault -- --plugin-only
+```
+
+The status bar shows the build stamp (`Version … · build <sha> · <time>`), so a tester can confirm the running build matches the artifact.
+
 ### Review Process
 
 - At least one maintainer review is required before merge.
