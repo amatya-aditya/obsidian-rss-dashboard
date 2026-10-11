@@ -792,7 +792,9 @@
     display: grid;
     grid-template-columns: auto minmax(0, 1fr) auto;
     justify-content: center;
-    column-gap: 8px;
+    /* `gap`, not `column-gap`: the community scanner reports `column-gap` as
+       the partially supported "multicolumn" feature. */
+    gap: 0 8px;
     min-width: 0;
   }
 

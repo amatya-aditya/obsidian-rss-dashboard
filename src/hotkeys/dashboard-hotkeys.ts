@@ -1,5 +1,6 @@
 import { ItemView } from "obsidian";
 import type { RssDashboardView } from "../views/dashboard-view";
+import { isDomNode } from "../utils/dom-node";
 import { dashboardCandidates, findDashboardBinding } from "./keymap";
 
 /**
@@ -9,7 +10,7 @@ import { dashboardCandidates, findDashboardBinding } from "./keymap";
 export function isInteractiveTarget(target: EventTarget | null): boolean {
   // `instanceof HTMLElement` is false for elements a popout window created,
   // so use Obsidian's cross-window Node.instanceOf.
-  if (!isNode(target) || !target.instanceOf(HTMLElement)) return false;
+  if (!isDomNode(target) || !target.instanceOf(HTMLElement)) return false;
 
   const tag = target.tagName;
   if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return true;
@@ -148,10 +149,6 @@ export const DASHBOARD_ACTIONS: Readonly<Record<string, DashboardAction>> = {
     view.actionSidebarRenameFocused();
   },
 };
-
-function isNode(target: EventTarget | null): target is Node {
-  return typeof (target as Partial<Node> | null)?.instanceOf === "function";
-}
 
 /**
  * Registers keyboard shortcuts scoped to the RSS Dashboard view.

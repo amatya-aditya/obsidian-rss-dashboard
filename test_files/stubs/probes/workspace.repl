@@ -27,3 +27,11 @@ JSON.stringify({
   childOnDisk: await A.exists("probe-trash/tf/deep.md"),
   grandchildOnDisk: await A.exists("probe-trash/tf/nested/c.md"),
 })
+
+@eval
+const probeLeaf = app.workspace.getMostRecentLeaf();
+JSON.stringify({
+  leafFound: !!probeLeaf,
+  loadIfDeferred: typeof probeLeaf?.loadIfDeferred,
+  resolved: String(await probeLeaf?.loadIfDeferred()),
+})

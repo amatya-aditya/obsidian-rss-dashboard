@@ -33,6 +33,7 @@ import {
   attachInputClearButton,
   windowInstanceOf,
 } from "../utils/platform-utils";
+import { isDomNode } from "../utils/dom-node";
 import {
   SidebarSearchService,
   type SidebarSearchQuery,
@@ -894,7 +895,9 @@ export class Sidebar {
         .setIcon("info")
         .onClick(() => {
           this.showRefreshDetails(
-            anchor instanceof HTMLElement ? anchor : this.container,
+            isDomNode(anchor) && anchor.instanceOf(HTMLElement)
+              ? anchor
+              : this.container,
             this.settings.feeds,
             "all",
           );
@@ -1745,7 +1748,7 @@ export class Sidebar {
         .setTitle("Move selection to folder")
         .setIcon("folder-open")
         .onClick((evt) => {
-          if (evt instanceof MouseEvent) {
+          if (evt.instanceOf(MouseEvent)) {
             this.showMoveSelectionToFolderMenu(evt);
           }
         });
@@ -2782,8 +2785,9 @@ export class Sidebar {
     const startDrag = (e: MouseEvent | TouchEvent) => {
       isDown = true;
       isDragging = false;
-      const clientX =
-        e instanceof MouseEvent ? e.clientX : e.touches[0]?.clientX;
+      const clientX = e.instanceOf(MouseEvent)
+        ? e.clientX
+        : e.touches[0]?.clientX;
       if (clientX === undefined) return;
       startX = clientX - iconRow.offsetLeft;
       scrollLeft = iconRow.scrollLeft;
@@ -2797,8 +2801,9 @@ export class Sidebar {
     const drag = (e: MouseEvent | TouchEvent) => {
       if (!isDown) return;
       e.preventDefault();
-      const clientX =
-        e instanceof MouseEvent ? e.clientX : e.touches[0]?.clientX;
+      const clientX = e.instanceOf(MouseEvent)
+        ? e.clientX
+        : e.touches[0]?.clientX;
       if (clientX === undefined) return;
       const x = clientX - iconRow.offsetLeft;
       const walk = (x - startX) * 2; // Scroll speed multiplier
@@ -3301,7 +3306,9 @@ export class Sidebar {
         .setIcon("info")
         .onClick(() => {
           this.showRefreshDetails(
-            anchor instanceof HTMLElement ? anchor : this.container,
+            isDomNode(anchor) && anchor.instanceOf(HTMLElement)
+              ? anchor
+              : this.container,
             [feed],
             "feed",
           );
@@ -3389,7 +3396,7 @@ export class Sidebar {
                 void this.plugin.saveSettings().then(() => this.render());
               });
           });
-          if (evt instanceof MouseEvent) {
+          if (evt.instanceOf(MouseEvent)) {
             typeMenu.showAtMouseEvent(evt);
           }
         });
@@ -3400,7 +3407,7 @@ export class Sidebar {
         .setTitle("Move to folder")
         .setIcon("folder-open")
         .onClick((evt) => {
-          if (evt instanceof MouseEvent) {
+          if (evt.instanceOf(MouseEvent)) {
             this.showMoveToFolderMenu(evt, feed);
           }
         });

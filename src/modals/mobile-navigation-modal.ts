@@ -144,7 +144,7 @@ export class MobileNavigationModal extends Modal {
     const allFeedsIcon = this.sidebarWrapper.querySelector(
       ".rss-dashboard-all-feeds-icon",
     );
-    if (allFeedsIcon instanceof HTMLElement) {
+    if (allFeedsIcon?.instanceOf(HTMLElement)) {
       allFeedsIcon.classList.toggle("stop", isCancellable);
       allFeedsIcon.classList.toggle("refreshing", isRefreshActive);
       setTooltip(

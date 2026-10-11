@@ -1,5 +1,6 @@
 import { setIcon } from "obsidian";
 import type { Tag } from "../types/types";
+import { isDomNode } from "../utils/dom-node";
 
 export interface TagMultiSelectControlOptions {
   setting: import("obsidian").Setting;
@@ -171,7 +172,7 @@ export function addTagMultiSelectControl(
 
     const onDocumentPointerDown = (event: MouseEvent) => {
       const target = event.target;
-      if (!(target instanceof Node)) return;
+      if (!isDomNode(target)) return;
       if (portal.contains(target) || trigger.contains(target)) return;
       closeMenu?.();
     };

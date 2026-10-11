@@ -847,7 +847,7 @@ export function renderStorageSettingsTab(
   const applyButton = Array.from(
     storageActions.controlEl.querySelectorAll("button"),
   ).find((button) => button.textContent === "Apply");
-  if (applyButton instanceof HTMLButtonElement) {
+  if (applyButton?.instanceOf(HTMLButtonElement)) {
     setCssProps(applyButton, {
       "background-color": "#7c5cff",
       color: "#ffffff",

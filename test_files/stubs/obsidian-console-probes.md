@@ -558,6 +558,11 @@ console.log({
 });
 ```
 
+The driver's last step checks `typeof leaf.loadIfDeferred` and its resolved
+value. That step was added after the 1.14.4 run, so its output is not recorded
+yet; run it against a scratch vault to record it. Until then the stub models
+`loadIfDeferred` as resolving immediately, marked "Not probed".
+
 ## fileManager.trashFile on a folder
 
 **Probe:** `test_files/stubs/probes/workspace.repl`.

@@ -192,10 +192,11 @@ settings window and captures it:
 @shot settings.png
 ```
 
-Compare builds by their **build stamp**, not by file hash. `main.js` embeds a
-`builtAt` timestamp, so its hash changes on every build even when the code has
-not; the status bar label (Display setting **Show version in status bar**, also
-shown in About) names the build.
+A release build (`npm run build`) is byte-for-byte reproducible: its `main.js`
+embeds no commit or timestamp, so its hash is stable. A local dev/watch build
+embeds a fresh commit and build time, so compare those by their **build stamp**,
+not by file hash; the status bar label (Display setting **Show version in
+status bar**, also shown in About) names the build.
 
 Obsidian's own **Command line interface** (**Settings → General → Advanced**,
 which some builds surface as a standalone **Advanced** group; "Allow

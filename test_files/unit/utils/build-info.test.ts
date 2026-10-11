@@ -31,6 +31,16 @@ describe("formatBuildLabel", () => {
       }),
     ).toBe("Version 2.7.0 · build unknown");
   });
+
+  it("shows just the version for a reproducible release build", () => {
+    expect(
+      formatBuildLabel("2.8.0", {
+        commit: "",
+        dirty: false,
+        builtAt: "",
+      }),
+    ).toBe("Version 2.8.0");
+  });
 });
 
 describe("getBuildInfo", () => {

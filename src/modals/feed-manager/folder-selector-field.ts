@@ -1,4 +1,5 @@
 import { Setting } from "obsidian";
+import { isDomNode } from "../../utils/dom-node";
 
 export function decorateFolderSelectorInput(
   setting: Setting,
@@ -15,7 +16,8 @@ export function decorateFolderSelectorInput(
   wrapper.appendChild(inputEl);
 
   wrapper.addEventListener("click", (event) => {
-    if (event.target instanceof HTMLInputElement) return;
+    const target = event.target;
+    if (isDomNode(target) && target.instanceOf(HTMLInputElement)) return;
 
     inputEl.focus();
     inputEl.dispatchEvent(new MouseEvent("click", { bubbles: true }));

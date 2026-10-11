@@ -1,5 +1,6 @@
 import { Menu, type MenuItem } from "obsidian";
 import type { Feed, Folder, RssDashboardSettings } from "../types/types";
+import { isDomNode } from "../utils/dom-node";
 
 /**
  * What the folder context menu needs from its owner. `Sidebar` keeps the state
@@ -66,7 +67,9 @@ function addRefreshDetailsItem(
       .setIcon("info")
       .onClick(() => {
         host.showRefreshDetails(
-          anchor instanceof HTMLElement ? anchor : host.container,
+          isDomNode(anchor) && anchor.instanceOf(HTMLElement)
+            ? anchor
+            : host.container,
           host.settings.feeds.filter((feed) => {
             const paths = host.getAllDescendantFolderPaths(fullPath);
             return Boolean(feed.folder) && paths.includes(feed.folder);
