@@ -3402,7 +3402,7 @@ export class RssDashboardView extends ItemView {
     const articleEl = activeDocument.getElementById(`article-${articleGuid}`);
     if (articleEl) {
       const saveButton = articleEl.querySelector(".rss-dashboard-save-toggle");
-      if (saveButton instanceof HTMLElement) {
+      if (saveButton?.instanceOf(HTMLElement)) {
         saveButton.classList.add("saved");
         setTooltip(saveButton, "Click to open saved article");
       }

@@ -6,18 +6,45 @@ This document tracks compliance status against the Obsidian Community Plugin aud
 
 ## Current Public Snapshot
 
-Checked August 10, 2026. The public listing reports RSS Dashboard version
-2.5.0 with **Health: Excellent** and **Review: Caution**. The unauthenticated
-public view does not identify a specific current finding behind the caution
-rating, so this document does not infer one. Recheck the listing during release,
-compliance, security, platform, storage, and audit-remediation work.
+Checked October 11, 2026. The public listing reports RSS Dashboard version
+2.7.1 with **Health: Excellent** and **Review: Satisfactory**. The scanner run
+behind the review reported five warnings and no errors or risks; the **2.7.1
+scanner findings** section below records each one and its 2.8.0 disposition.
+Recheck the listing during release, compliance, security, platform, storage,
+and audit-remediation work.
 
 Current CSS policy requires zero `!important` declarations in `src/styles/`.
 `npm run check:important` enforces this without comment-based exceptions.
 
-## Post-2.6.0 remediation status
+## 2.7.1 scanner findings and 2.8.0 remediation
 
-Remediation is in progress following the post-2.6.0 community plugin scorecard review (44 findings total from automated scans):
+The community scanner run for the 2.7.1 release (checked October 11, 2026)
+reported five warnings, no errors, and no risks. Four are remediated for 2.8.0
+in [#933](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/933)
+under the [2.8.0 release tracker #900](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/900);
+the fifth is a deliberate deferral recorded below.
+
+| Warning                                                                                                               | Disposition for 2.8.0                                                                                                                                                                                                                                                                                                                                                                    |
+| --------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Two cross-window type checks used native `instanceof` in `test_files/unit/test-dom-polyfills.ts`                      | Remediated in [#933](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/933). The polyfill that defines Obsidian's `instanceOf` now walks the prototype chain instead of using the `instanceof` operator, so it no longer trips `obsidianmd/prefer-instanceof`. Production UI checks that reached a DOM node or `UIEvent` were moved to `.instanceOf(...)` at the same time. |
+| `column-gap` in `src/styles/podcast-player.css` was reported as the partially supported "multicolumn" browser feature | Remediated in [#933](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/933). Replaced with the equivalent `gap: 0 8px`.                                                                                                                                                                                                                                                     |
+| Build output did not match the released `main.js` artifact                                                            | Remediated in [#933](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/933). The production bundle no longer embeds the git commit, dirty flag, or build time, so a clean `npm run build` is byte-for-byte reproducible and matches CI and a copy with no `.git` folder. Local dev/watch builds keep the full commit and build-time stamp for #373.                         |
+| `PluginSettingTab` does not implement `getSettingDefinitions()` (Obsidian 1.13.0+)                                    | Deferred. See **Deferred: declarative settings** below.                                                                                                                                                                                                                                                                                                                                  |
+
+### Deferred: declarative settings (1.13.0)
+
+`src/settings/settings-tab.ts` implements the imperative `display()` settings
+tab. The scanner suggests the declarative `getSettingDefinitions()` API added
+in Obsidian 1.13.0 so the plugin's settings appear in Obsidian's settings
+search. `manifest.json` still targets `minAppVersion` 1.8.7, so the imperative
+tab is the supported baseline and the declarative API is intentionally deferred
+to a future release that raises the minimum version. Implementing it is out of
+scope for 2.8.0.
+
+## Post-2.6.0 remediation status (historical)
+
+Remediation following the post-2.6.0 community plugin scorecard review (44
+findings total from automated scans):
 
 1. **`document.createElement` -> Obsidian createEl helpers (34 findings)**: Staged across test and UI files.
 2. **`mjx-container` unknown type selector (6 findings)**: Resolved by replacing raw `mjx-container` type selectors in `src/styles/articles.css` and `src/styles/reader.css` with attribute and class selectors (`[class*="mjx-container"]`, `.MathJax`).
@@ -45,12 +72,14 @@ community rescan.
 
 Earlier public scorecard snapshots are archived: [post-2.5.0](../archive/investigations/2026/post-2.5.0-plugin-scorecard-snapshot.md).
 
-| Version | Score | Date         | Status                                                                                                                                         |
-| ------- | ----- | ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| 2.2.0   | 46%   | May 15, 2026 | ✅ Remediated — 100% target verified                                                                                                           |
-| 2.3.0   | 72%   | May 26, 2026 | ✅ Remediated — see[audit-remediation-2.3.0.md](../archive/investigations/2026/audit-remediation-2.3.0.md)                                     |
-| 2.4.0   | Risks | Jul 2, 2026  | 🔄 Remediated in 2.4.1 — pending community rescan                                                                                              |
-| 2.4.1   | TBD   | Jul 2, 2026  | ✅ Local compliance gates pass — see[2.4.0 audit remediation plan](../archive/investigations/2026/2.4.0-audit/2.4.0_audit_remediation_plan.md) |
+| Version | Score      | Date         | Status                                                                                                                                         |
+| ------- | ---------- | ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2.2.0   | 46%        | May 15, 2026 | ✅ Remediated — 100% target verified                                                                                                           |
+| 2.3.0   | 72%        | May 26, 2026 | ✅ Remediated — see[audit-remediation-2.3.0.md](../archive/investigations/2026/audit-remediation-2.3.0.md)                                     |
+| 2.4.0   | Risks      | Jul 2, 2026  | 🔄 Remediated in 2.4.1 — pending community rescan                                                                                              |
+| 2.4.1   | TBD        | Jul 2, 2026  | ✅ Local compliance gates pass — see[2.4.0 audit remediation plan](../archive/investigations/2026/2.4.0-audit/2.4.0_audit_remediation_plan.md) |
+| 2.6.0   | Warnings   | Aug 10, 2026 | ✅ Remediated — post-2.6.0 record below                                                                                                        |
+| 2.7.1   | 5 warnings | Oct 11, 2026 | 🔄 2.8.0 remediation in progress ([#933](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/933))                                  |
 
 ---
 

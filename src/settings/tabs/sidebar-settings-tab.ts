@@ -9,6 +9,7 @@
  */
 import { Setting, setIcon, Notice } from "obsidian";
 import RssDashboardPlugin from "../../../main";
+import { isDomNode } from "../../utils/dom-node";
 import {
   SIDEBAR_ICON_IDS,
   getIconById,
@@ -450,8 +451,11 @@ export function renderSidebarSettingsTab(
       });
 
       iconSetting.settingEl.addEventListener("dragleave", (e: DragEvent) => {
+        const relatedTarget = e.relatedTarget;
         const related =
-          e.relatedTarget instanceof HTMLElement ? e.relatedTarget : null;
+          isDomNode(relatedTarget) && relatedTarget.instanceOf(HTMLElement)
+            ? relatedTarget
+            : null;
         if (related && iconSetting.settingEl.contains(related)) return;
         iconSetting.settingEl.classList.remove(
           "rss-dashboard-icon-drop-before",

@@ -31,6 +31,8 @@
 
 ### Fixes
 
+- Dashboard, sidebar, tag menu, settings, and modal interactions now work when their element or event belongs to a popout window. Cross-window element and event checks use Obsidian's `instanceOf` helper instead of native `instanceof`, which is always false for a node another window created. [GH Issue #933](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/933)
+- Release builds are now byte-for-byte reproducible, so a clean local build matches the published `main.js` and the community directory scanner's build check passes. The build label in About and the status bar shows the commit and time for local development builds and the version for release builds. [GH Issue #933](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/933)
 - Adding an unreachable feed from Discover no longer hangs and blocks every other add. The add gives up after about five seconds with a message, the **Add to...** button shows a spinner while it works, and a second add during another feed operation now says so instead of doing nothing. [GH Issue #949](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/949)
 - On phones, the Reader options sheet (font, size, line height) now opens as a centred bottom sheet instead of being pinned to the top of the screen. [GH Issue #978](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/978)
 - Article cards now show the description the reader fetched from the article page when the feed itself supplied none, instead of a blank preview. A description in the feed still takes priority. [GH Issue #959](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/959)
