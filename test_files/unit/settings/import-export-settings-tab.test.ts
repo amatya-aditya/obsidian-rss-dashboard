@@ -140,6 +140,7 @@ describe("Auto Backup Helpers", () => {
         "rss-discover-filters",
         "rss-podcast-progress",
         "rss-first-launch-coachmark-shown",
+        "rss-left-handed-layout",
       ]);
     });
 
