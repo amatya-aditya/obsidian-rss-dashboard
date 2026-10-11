@@ -707,6 +707,116 @@ guid: "{{guid}}"
     }
   }
 
+  /** Resolves the save folder from its custom, saved-template and settings sources, then creates it. */
+  private async resolveSaveFolder(
+    customFolder: string | undefined,
+    savedTemplate: SavedTemplate | undefined,
+  ): Promise<string> {
+    let folder =
+      customFolder !== undefined
+        ? customFolder
+        : savedTemplate?.defaultFolder || this.settings.defaultFolder || "";
+    folder = this.normalizePath(folder);
+
+    if (folder && folder.trim() !== "") {
+      folder = await this.ensureFolderExists(folder);
+    }
+
+    return folder;
+  }
+
+  /** Picks the note template from a custom template, the saved one, settings, or the built-in fallback. */
+  private resolveSaveTemplate(
+    customTemplate: string | undefined,
+    savedTemplate: SavedTemplate | undefined,
+  ): string {
+    return savedTemplate
+      ? (customTemplate ?? savedTemplate.template)
+      : customTemplate ||
+          this.settings.defaultTemplate ||
+          "# {{title}}\n\n{{content}}\n\n[Source]({{link}})";
+  }
+
+  /** Assembles the note body: optional plugin frontmatter, then the rendered template. */
+  private buildArticleFileContent(
+    item: FeedItem,
+    template: string,
+    rawContent: string | undefined,
+    savedTemplate: SavedTemplate | undefined,
+  ): string {
+    let contentToWrite = "";
+    if (this.shouldAddFrontmatter(template, savedTemplate)) {
+      contentToWrite += this.generateFrontmatter(item);
+    }
+
+    contentToWrite += this.applyTemplate(item, template, rawContent);
+    return contentToWrite;
+  }
+
+  /** Finds the saved note to update, or the free path a new note will take. */
+  private resolveSaveTarget(
+    item: FeedItem,
+    folder: string,
+    savedTemplate: SavedTemplate | undefined,
+  ): { filePath: string; existingSavedFile: TFile | null } {
+    const filename = buildArticleFilename(
+      item,
+      savedTemplate?.filenamePattern,
+      this.settings.addSavedTag,
+      this.getUseFirstSeenDateFallback(),
+    );
+    const recordedFile =
+      item.saved && item.savedFilePath
+        ? this.app.vault.getAbstractFileByPath(
+            this.normalizePath(item.savedFilePath),
+          )
+        : null;
+    const legacyPath =
+      item.saved && !(recordedFile instanceof TFile)
+        ? this.buildSavedArticleFilePath(item)
+        : "";
+    const legacyFile = legacyPath
+      ? this.app.vault.getAbstractFileByPath(legacyPath)
+      : null;
+    const existingSavedFile =
+      recordedFile instanceof TFile
+        ? recordedFile
+        : legacyFile instanceof TFile
+          ? legacyFile
+          : null;
+
+    return {
+      filePath: existingSavedFile
+        ? existingSavedFile.path
+        : findAvailableArticlePath(this.app, folder, filename),
+      existingSavedFile,
+    };
+  }
+
+  /** Creates or modifies the note, restoring the folder if it vanished before the write. */
+  private async writeArticleFile(
+    folder: string,
+    filePath: string,
+    existingSavedFile: TFile | null,
+    contentToWrite: string,
+  ): Promise<TFile> {
+    try {
+      if (existingSavedFile) {
+        await this.app.vault.modify(existingSavedFile, contentToWrite);
+        return existingSavedFile;
+      }
+
+      return await this.app.vault.create(filePath, contentToWrite);
+    } catch (error) {
+      if (existingSavedFile || !(folder && this.isMissingPathError(error))) {
+        throw error;
+      }
+
+      await this.ensureFolderExists(folder);
+      return await this.app.vault.create(filePath, contentToWrite);
+    }
+  }
+
   async findSavedArticleFile(article: FeedItem): Promise<TFile | null> {
     const savedPath = article.savedFilePath;
     if (!article.saved || !savedPath?.trim()) return null;
