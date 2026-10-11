@@ -40,35 +40,39 @@ out.base = {
   nameText: s.nameEl.textContent,
   descText: s.descEl.textContent,
 };
-const heading = new api.Setting(host).setHeading();
+const heading = new api.Setting(host).setName("Gamma").setDesc("Delta").setHeading();
 out.heading = {
   class: heading.settingEl.className,
   nameText: heading.nameEl.textContent,
+  descText: heading.descEl.textContent,
+  descPresent: !!heading.descEl,
+  controlChildren: heading.controlEl.childElementCount,
 };
-const svc = new api.Setting(host).setClass("probe-cls");
-out.setClass = svc.settingEl.className;
+const svc = new api.Setting(host).setClass("alpha beta").setClass("gamma");
+out.setClass = { class: svc.settingEl.className };
 const stt = new api.Setting(host).setTooltip("Tip");
 out.setTooltip = {
   setting: stt.settingEl.getAttribute("aria-label"),
   name: stt.nameEl.getAttribute("aria-label"),
   desc: stt.descEl.getAttribute("aria-label"),
-};
-const sd = new api.Setting(host);
-sd.setDisabled(true);
-sd.addButton((b) => b.setButtonText("Go"));
-out.setDisabled = {
-  settingClass: sd.settingEl.className,
-  buttonDisabled: sd.controlEl.querySelector("button")?.disabled ?? null,
-  inputDisabled: sd.controlEl.querySelector("input")?.disabled ?? null,
+  control: stt.controlEl.getAttribute("aria-label"),
 };
 const sb = new api.Setting(host);
 sb.addButton((b) =>
   b.setButtonText("Run").setCta().setTooltip("T").onClick(() => {}),
 );
 out.addButton = { html: sb.controlEl.innerHTML };
+const sft = new api.Setting(host);
+sft.addButton((b) => b.setWarning());
+out.setWarning = { buttonClass: sft.controlEl.querySelector("button").className };
 const se = new api.Setting(host);
 se.addExtraButton((b) => b.setIcon("x").setTooltip("E"));
 out.addExtraButton = { html: se.controlEl.innerHTML };
+const sde = new api.Setting(host);
+sde.addExtraButton(() => {});
+out.addExtraButtonDefault = {
+  iconClass: sde.controlEl.querySelector("svg")?.getAttribute("class") ?? null,
+};
 const st = new api.Setting(host);
 st.addText((t) => t.setPlaceholder("ph").setValue("val"));
 out.addText = {
@@ -78,6 +82,10 @@ out.addText = {
 const stg = new api.Setting(host);
 stg.addToggle((t) => t.setValue(true));
 out.addToggle = {
+  settingClass: stg.settingEl.className,
+  html: stg.controlEl.innerHTML,
+  toggleClass: stg.controlEl.querySelector(".checkbox-container")?.className ?? null,
+  outerTag: stg.controlEl.firstElementChild?.tagName ?? null,
   checked: stg.controlEl.querySelector("input")?.checked ?? null,
 };
 const sdd = new api.Setting(host);
@@ -87,3 +95,158 @@ out.addDropdown = {
   options: sdd.controlEl.querySelector("select")?.options.length ?? null,
 };
 JSON.stringify(out)
+
+@eval
+const host = createDiv();
+const s = new api.Setting(host);
+const captures = {};
+s.addButton((b) => {
+  captures.button = b;
+  b.setButtonText("Go");
+});
+s.addText((t) => {
+  captures.text = t;
+  t.setValue("v");
+});
+s.addDropdown((d) => {
+  captures.dropdown = d;
+  d.addOption("a", "A");
+});
+s.addToggle((t) => {
+  captures.toggle = t;
+  t.setValue(true);
+});
+s.addExtraButton((b) => {
+  captures.extra = b;
+  b.setIcon("x");
+});
+s.addSlider((sl) => {
+  captures.slider = sl;
+  sl.setValue(5);
+});
+s.addColorPicker((c) => {
+  captures.color = c;
+  c.setValue("#ffffff");
+});
+const before = s.settingEl.className;
+s.setDisabled(true);
+JSON.stringify({
+  settingClassBefore: before,
+  settingClassAfter: s.settingEl.className,
+  buttonDisabled: captures.button.buttonEl.disabled,
+  textInputDisabled: captures.text.inputEl.disabled,
+  dropdownDisabled: captures.dropdown.selectEl.disabled,
+  toggleClass: captures.toggle.toggleEl?.className ?? null,
+  toggleOuterTag: captures.toggle.toggleEl?.tagName ?? null,
+  toggleChecked: captures.toggle.getValue(),
+  extraClass: captures.extra.extraSettingsEl?.className ?? null,
+  extraTag: captures.extra.extraSettingsEl?.tagName ?? null,
+  extraTabindex: captures.extra.extraSettingsEl?.getAttribute("tabindex") ?? null,
+  sliderDisabled: captures.slider.sliderEl.disabled,
+  colorDisabled: (captures.color.colorPickerEl ?? captures.color.inputEl)?.disabled ?? null,
+});
+
+@eval
+const host = createDiv();
+const s = new api.Setting(host);
+s.setDisabled(true);
+const captures = {};
+s.addButton((b) => {
+  captures.button = b;
+  b.setButtonText("Go");
+});
+s.addText((t) => {
+  captures.text = t;
+});
+s.addToggle((t) => {
+  captures.toggle = t;
+});
+s.addExtraButton((b) => {
+  captures.extra = b;
+});
+JSON.stringify({
+  settingClass: s.settingEl.className,
+  buttonDisabled: captures.button.buttonEl.disabled,
+  textInputDisabled: captures.text.inputEl.disabled,
+  toggleClass: captures.toggle.toggleEl?.className ?? null,
+  extraClass: captures.extra.extraSettingsEl?.className ?? null,
+});
+
+@eval
+const host = createDiv();
+const s = new api.Setting(host);
+s.addButton((b) => {
+  b.setButtonText("Go");
+});
+s.setDisabled(true);
+const on = {
+  settingClass: s.settingEl.className,
+  buttonDisabled: s.controlEl.querySelector("button").disabled,
+};
+s.setDisabled(false);
+JSON.stringify({
+  on,
+  off: {
+    settingClass: s.settingEl.className,
+    buttonDisabled: s.controlEl.querySelector("button").disabled,
+  },
+});
+
+@eval
+const host = createDiv();
+const s = new api.Setting(host);
+let extra;
+s.addExtraButton((b) => {
+  extra = b;
+  b.setIcon("trash").setTooltip("Delete");
+});
+const disabledExtra = new api.Setting(host);
+disabledExtra.addExtraButton((b) => {
+  b.setIcon("pencil");
+});
+disabledExtra.setDisabled(true);
+JSON.stringify({
+  controlHtml: s.controlEl.innerHTML,
+  extraTag: extra.extraSettingsEl.tagName,
+  extraClass: extra.extraSettingsEl.className,
+  extraTabindex: extra.extraSettingsEl.getAttribute("tabindex"),
+  ariaLabel: extra.extraSettingsEl.getAttribute("aria-label"),
+  iconClass: extra.extraSettingsEl.querySelector("svg")?.getAttribute("class") ?? null,
+  disabledExtraClass: disabledExtra.controlEl.firstElementChild?.className ?? null,
+  disabledExtraTabindex: disabledExtra.controlEl.firstElementChild?.getAttribute("tabindex") ?? null,
+});
+
+@eval
+const host = createDiv();
+const s = new api.Setting(host);
+let slider;
+s.addSlider((sl) => {
+  slider = sl;
+  sl.setLimits(0, 100, 1).setValue(25);
+  sl.setDisplayFormat((v) => `${v} MiB`);
+});
+JSON.stringify({
+  controlHtml: s.controlEl.innerHTML,
+  valueElTag: slider.valueEl?.tagName ?? null,
+  valueElClass: slider.valueEl?.className ?? null,
+  valueElText: slider.valueEl?.textContent ?? null,
+  sliderElClass: slider.sliderEl.className,
+  sliderType: slider.sliderEl.type,
+  sliderDisabled: slider.sliderEl.disabled,
+  pretty: slider.getValuePretty(),
+});
+
+@eval
+const host = createDiv();
+const s = new api.Setting(host);
+let slider;
+const calls = [];
+s.addSlider((sl) => {
+  slider = sl;
+  sl.setLimits(0, 10, 1);
+  sl.setValue(5);
+  sl.onChange((v) => calls.push(v));
+});
+slider.setValue(7);
+slider.setValue(7);
+JSON.stringify({ calls, value: slider.getValue() });
