@@ -34,6 +34,16 @@ describe("keymap table", () => {
     expect(new Set(slots).size).toBe(slots.length);
   });
 
+  it("binds Shift+F to toggle YouTube focus mode in the dashboard and the Reader", () => {
+    expect(
+      findDashboardBinding({ key: "F", shiftKey: true }, () => false)?.id,
+    ).toBe("toggle-youtube-focus-mode");
+    expect(
+      readerBindings().find((binding) => binding.key === "f" && binding.shift)
+        ?.id,
+    ).toBe("toggle-youtube-focus-mode");
+  });
+
   it("gives every candidate for one key press the same repeat class", () => {
     for (const binding of KEYMAP) {
       if (!binding.contexts.includes("dashboard")) continue;

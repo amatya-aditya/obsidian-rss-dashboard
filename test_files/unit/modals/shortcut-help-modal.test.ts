@@ -188,6 +188,33 @@ describe("ShortcutHelpModal", () => {
     });
   });
 
+  describe("YouTube focus mode shortcut", () => {
+    it("lists Shift+F as toggling YouTube focus mode in the modal and the guide", () => {
+      const modal = new ShortcutHelpModal(
+        createMockApp(),
+        structuredClone(DEFAULT_SETTINGS),
+      );
+      modal.onOpen();
+      const rows = new Map<string, string>();
+      modal.contentEl.querySelectorAll(".rss-shortcut-row").forEach((row) => {
+        rows.set(
+          row.querySelector("kbd")?.textContent ?? "",
+          row.querySelector(".rss-shortcut-desc")?.textContent ?? "",
+        );
+      });
+      modal.onClose();
+
+      expect(rows.get("Shift + f")).toBe("Toggle YouTube focus mode");
+
+      const guide = readFileSync("docs/user/keyboard-shortcuts.md", "utf8");
+      const row = guide
+        .split("\n")
+        .find((line) => line.startsWith("| Shift + f "));
+      expect(row).toBeDefined();
+      expect(row).toContain("Toggle YouTube focus mode");
+    });
+  });
+
   it("has a compliant clickable-icon for the close button", () => {
     const app = createMockApp();
     const modal = new ShortcutHelpModal(app, structuredClone(DEFAULT_SETTINGS));

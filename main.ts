@@ -779,6 +779,22 @@ export default class RssDashboardPlugin extends Plugin {
     }
   }
 
+  /**
+   * Flips YouTube Focus mode, applies it to every open Reader and dashboard,
+   * persists it, refreshes an open settings tab, and announces the new state.
+   * The palette command and the `Shift+F` keymap action both delegate here, so
+   * they stay in step with the Settings → Media toggle.
+   */
+  public async toggleYouTubeFocusMode(): Promise<boolean> {
+    const hide = !this.settings.media.youtubeFocusMode;
+    this.settings.media.youtubeFocusMode = hide;
+    await this.applyYouTubeFocusMode(hide);
+    await this.saveSettings();
+    this.settingTab?.refresh();
+    new Notice(hide ? "Focus mode on" : "Focus mode off");
+    return hide;
+  }
+
   public async refreshOpenTagColorViews(): Promise<void> {
     const dashboardLeaves = this.app.workspace.getLeavesOfType(
       RSS_DASHBOARD_VIEW_TYPE,

@@ -188,4 +188,48 @@ describe("ReaderView YouTube focus mode", () => {
     view.setYouTubeFocusMode(false);
     expect(chips()).toEqual(["Hidden"]);
   });
+
+  describe("actionToggleYouTubeFocusMode", () => {
+    function createViewWithApp(app: unknown): ReaderView {
+      return new ReaderView(
+        new MockLeaf(app) as never,
+        { ...DEFAULT_SETTINGS, useWebViewer: false },
+        {
+          saveArticle: vi.fn(),
+          checkSavedFileExists: vi.fn().mockReturnValue(true),
+        } as never,
+        vi.fn(),
+        vi.fn(),
+      );
+    }
+
+    it("delegates to the plugin toggle", () => {
+      const toggleYouTubeFocusMode = vi.fn();
+      const app = {
+        workspace: { getLeavesOfType: vi.fn().mockReturnValue([]) },
+        vault: { getAbstractFileByPath: vi.fn() },
+        plugins: {
+          getPlugin: vi.fn(() => ({
+            saveSettings: vi.fn(),
+            toggleYouTubeFocusMode,
+          })),
+        },
+      };
+      const reader = createViewWithApp(app);
+
+      reader.actionToggleYouTubeFocusMode();
+
+      expect(toggleYouTubeFocusMode).toHaveBeenCalledTimes(1);
+    });
+
+    it("does nothing when the plugin cannot be reached", () => {
+      const app = {
+        workspace: { getLeavesOfType: vi.fn().mockReturnValue([]) },
+        vault: { getAbstractFileByPath: vi.fn() },
+      };
+      const reader = createViewWithApp(app);
+
+      expect(() => reader.actionToggleYouTubeFocusMode()).not.toThrow();
+    });
+  });
 });

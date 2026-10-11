@@ -64,6 +64,8 @@ const EXPECTED_READER_IDS = [
 
 const EXPECTED_HELP_IDS = ["show-keyboard-shortcuts"];
 
+const EXPECTED_FOCUS_MODE_IDS = ["toggle-youtube-focus-mode"];
+
 function createDashboardStub() {
   return {
     actionFocusSearch: vi.fn(),
@@ -107,6 +109,7 @@ function setup(open: { dashboard?: boolean; reader?: boolean } = {}) {
     getActiveReaderView: vi.fn(async () => reader),
     openSettingsToTab: vi.fn(async () => {}),
     openShortcutHelp: vi.fn(),
+    toggleYouTubeFocusMode: vi.fn(),
   };
   registerPaletteCommands(plugin);
   const byId = (id: string): RegisteredCommand => {
@@ -137,6 +140,7 @@ describe("palette command registration", () => {
       ...EXPECTED_DASHBOARD_IDS,
       ...EXPECTED_READER_IDS,
       ...EXPECTED_HELP_IDS,
+      ...EXPECTED_FOCUS_MODE_IDS,
     ]);
     for (const command of commands) {
       expect(command.id).toMatch(/^[a-z0-9]+(-[a-z0-9]+)*$/);
@@ -308,6 +312,23 @@ describe("shortcut help command", () => {
     await run("show-keyboard-shortcuts");
 
     expect(plugin.openShortcutHelp).toHaveBeenCalledTimes(1);
+    expect(plugin.getActiveDashboardView).not.toHaveBeenCalled();
+    expect(plugin.getActiveReaderView).not.toHaveBeenCalled();
+  });
+});
+
+describe("focus mode command", () => {
+  it("toggles YouTube Focus mode from any view and sets no default hotkey", async () => {
+    const { run, byId, plugin } = setup();
+
+    expect(byId("toggle-youtube-focus-mode").checkCallback).toBeUndefined();
+    expect(byId("toggle-youtube-focus-mode").name).toBe(
+      "Toggle YouTube focus mode",
+    );
+
+    await run("toggle-youtube-focus-mode");
+
+    expect(plugin.toggleYouTubeFocusMode).toHaveBeenCalledTimes(1);
     expect(plugin.getActiveDashboardView).not.toHaveBeenCalled();
     expect(plugin.getActiveReaderView).not.toHaveBeenCalled();
   });

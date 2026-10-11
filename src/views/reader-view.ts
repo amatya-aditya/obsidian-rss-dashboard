@@ -901,6 +901,14 @@ export class ReaderView extends ItemView {
     new ShortcutHelpModal(this.app, this.settings).open();
   }
 
+  /**
+   * Action: Toggle YouTube Focus mode from the `Shift+F` keymap binding.
+   * @internal
+   */
+  public actionToggleYouTubeFocusMode(): void {
+    void this.getRssDashboardPlugin()?.toggleYouTubeFocusMode?.();
+  }
+
   getViewType(): string {
     return RSS_READER_VIEW_TYPE;
   }
@@ -2317,7 +2325,7 @@ export class ReaderView extends ItemView {
         this.toggleTag(item, tag, checked);
       },
       onPersistSettings: async () => {
-        const plugin = this.getRssDashboardPluginForSettingsSave();
+        const plugin = this.getRssDashboardPlugin();
         if (!plugin) {
           return;
         }
@@ -2328,7 +2336,7 @@ export class ReaderView extends ItemView {
         }
       },
       onAfterSettingsTagsMutated: () => {
-        const plugin = this.getRssDashboardPluginForSettingsSave();
+        const plugin = this.getRssDashboardPlugin();
         if (plugin?.refreshOpenTagColorViews) {
           void plugin.refreshOpenTagColorViews();
         } else {
@@ -2557,9 +2565,15 @@ export class ReaderView extends ItemView {
     }, 300);
   }
 
-  private getRssDashboardPluginForSettingsSave(): {
+  /**
+   * The running plugin behind the runtime lookup, so the Reader can reach
+   * plugin-level operations (settings save, tag-colour refresh, focus-mode
+   * toggle) without importing `main.ts`.
+   */
+  private getRssDashboardPlugin(): {
     saveSettings: () => Promise<void>;
     refreshOpenTagColorViews?: () => Promise<void>;
+    toggleYouTubeFocusMode?: () => void;
   } | null {
     try {
       const appWithPlugins = this.app as unknown as {
@@ -2584,12 +2598,14 @@ export class ReaderView extends ItemView {
         | {
             saveSettings?: unknown;
             refreshOpenTagColorViews?: unknown;
+            toggleYouTubeFocusMode?: unknown;
           }
         | undefined;
       if (plugin && typeof plugin.saveSettings === "function") {
         return plugin as {
           saveSettings: () => Promise<void>;
           refreshOpenTagColorViews?: () => Promise<void>;
+          toggleYouTubeFocusMode?: () => void;
         };
       }
     } catch {
@@ -2641,7 +2657,7 @@ export class ReaderView extends ItemView {
       this.readerFormatSaveTimeout = null;
     }
 
-    const plugin = this.getRssDashboardPluginForSettingsSave();
+    const plugin = this.getRssDashboardPlugin();
     if (!plugin) {
       return;
     }
