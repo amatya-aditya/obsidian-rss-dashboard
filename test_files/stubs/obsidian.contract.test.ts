@@ -17,6 +17,9 @@ import {
   Plugin,
   Scope,
   TFolder,
+  __resetObsidianVersion,
+  __setObsidianVersion,
+  apiVersion,
   normalizePath,
   type WorkspaceLeaf,
   requestUrl,
@@ -29,6 +32,28 @@ describe("Obsidian stub contract", () => {
     // `activeDocument === document` is true.
     it("activeDocument is the main window's document", () => {
       expect(activeDocument).toBe(document);
+    });
+  });
+
+  describe("version", () => {
+    afterEach(() => {
+      __resetObsidianVersion();
+    });
+
+    // Observed on Obsidian 1.14.4 desktop (Windows): the exported `apiVersion`
+    // is the running app version, read from Settings -> About.
+    it("exports apiVersion as the running app version", () => {
+      expect(apiVersion).toBe("1.14.4");
+    });
+
+    // Stub tooling, not an Obsidian behavior: the hook lets a test pretend the
+    // app is another version, so minimum-version paths stay testable.
+    it("switches the running version through the test hook", () => {
+      __setObsidianVersion("1.8.7");
+      expect(apiVersion).toBe("1.8.7");
+
+      __resetObsidianVersion();
+      expect(apiVersion).toBe("1.14.4");
     });
   });
 
