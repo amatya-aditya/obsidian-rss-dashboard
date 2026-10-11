@@ -56,6 +56,7 @@ describe("dashboard actions behind palette commands", () => {
   let view: RssDashboardView;
   let privateView: PrivateView;
   let debugSpy: ReturnType<typeof vi.spyOn>;
+  let toggleFocusSpy: ReturnType<typeof vi.fn>;
 
   const noticeMessages = (): unknown[] =>
     debugSpy.mock.calls
@@ -64,6 +65,7 @@ describe("dashboard actions behind palette commands", () => {
 
   beforeEach(() => {
     debugSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
+    toggleFocusSpy = vi.fn();
     installObsidianDomPolyfills();
     document.body.empty();
     const app = {
@@ -85,6 +87,7 @@ describe("dashboard actions behind palette commands", () => {
       app,
       settings: structuredClone(DEFAULT_SETTINGS),
       saveSettings: vi.fn(),
+      toggleYouTubeFocusMode: toggleFocusSpy,
     } as unknown as RssDashboardPlugin;
     view = new RssDashboardView(leaf, plugin);
     privateView = view as unknown as PrivateView;
@@ -171,6 +174,12 @@ describe("dashboard actions behind palette commands", () => {
     expect(noticeMessages()).toEqual([
       "The article search box is not visible.",
     ]);
+  });
+
+  it("actionToggleYouTubeFocusMode delegates to the plugin toggle", () => {
+    view.actionToggleYouTubeFocusMode();
+
+    expect(toggleFocusSpy).toHaveBeenCalledTimes(1);
   });
 
   it("actionSetAllFoldersCollapsed delegates to the sidebar", () => {

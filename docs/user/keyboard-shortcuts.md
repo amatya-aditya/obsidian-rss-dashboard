@@ -58,6 +58,7 @@ The shortcut reference opens in several ways:
 | ,                      | Mark article read and open next                      |
 | Shift + a              | Mark all as read                                     |
 | f                      | Star/Unstar article                                  |
+| Shift + f              | Toggle YouTube focus mode                            |
 | t                      | Add tags to article                                  |
 | s                      | Save full content to notes                           |
 

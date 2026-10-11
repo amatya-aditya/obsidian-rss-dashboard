@@ -774,6 +774,14 @@ export class RssDashboardView extends ItemView {
     new ShortcutHelpModal(this.app, this.settings).open();
   }
 
+  /**
+   * Action: Toggle YouTube Focus mode from the `Shift+F` keymap binding.
+   * @internal
+   */
+  public actionToggleYouTubeFocusMode(): void {
+    void this.plugin.toggleYouTubeFocusMode();
+  }
+
   // --- Render pipeline ---
   onOpen(): Promise<void> {
     this.listenForHotkeysInHostDocument();

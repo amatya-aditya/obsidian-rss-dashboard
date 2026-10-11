@@ -232,6 +232,14 @@ export const KEYMAP: readonly KeyBinding[] = [
     help: [HELP_ARTICLE],
   },
   {
+    id: "toggle-youtube-focus-mode",
+    key: "f",
+    shift: true,
+    contexts: DR,
+    repeat: false,
+    help: [HELP_ARTICLE],
+  },
+  {
     id: "toggle-tags",
     key: "t",
     shift: false,

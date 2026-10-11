@@ -46,6 +46,7 @@ export interface PaletteCommandPlugin {
   getActiveReaderView: () => Promise<ReaderCommandTarget | null>;
   openSettingsToTab: (tabName: string) => Promise<void>;
   openShortcutHelp: () => void;
+  toggleYouTubeFocusMode: () => void;
 }
 
 /** Turns a settings tab name into its command id segment. */
@@ -205,13 +206,29 @@ function registerShortcutHelpCommand(plugin: PaletteCommandPlugin): void {
 }
 
 /**
- * Registers the settings, dashboard, reader, and shortcut-help palette
- * commands. The ids are a test contract (see the testing docs); none sets a
- * default hotkey (DEC-004).
+ * Adds the global command that flips YouTube Focus mode. It is available from
+ * any view, like the settings commands, and delegates the flip to the plugin so
+ * the Settings → Media toggle and the `Shift+F` keymap action stay in step.
+ */
+function registerFocusModeCommand(plugin: PaletteCommandPlugin): void {
+  plugin.addCommand({
+    id: "toggle-youtube-focus-mode",
+    name: "Toggle YouTube focus mode",
+    callback: () => {
+      void plugin.toggleYouTubeFocusMode();
+    },
+  });
+}
+
+/**
+ * Registers the settings, dashboard, reader, shortcut-help, and focus-mode
+ * palette commands. The ids are a test contract (see the testing docs); none
+ * sets a default hotkey (DEC-004).
  */
 export function registerPaletteCommands(plugin: PaletteCommandPlugin): void {
   registerSettingsCommands(plugin);
   registerDashboardCommands(plugin);
   registerReaderCommands(plugin);
   registerShortcutHelpCommand(plugin);
+  registerFocusModeCommand(plugin);
 }

@@ -58,6 +58,7 @@ export const READER_ACTIONS: Readonly<Record<string, ReaderAction>> = {
   "toggle-read": (view) => view.actionToggleReadStatus(),
   "mark-all-read": (view) => view.actionMarkAllAsRead(),
   "toggle-star": (view) => view.actionToggleStarStatus(),
+  "toggle-youtube-focus-mode": (view) => view.actionToggleYouTubeFocusMode(),
   "toggle-tags": (view) => view.actionToggleTagsMenu(),
   "save-article": (view) => {
     void view.actionSaveCurrentArticle();
