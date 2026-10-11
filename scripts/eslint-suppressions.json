@@ -71,11 +71,6 @@
       "count": 2
     }
   },
-  "src/services/article-saver.ts": {
-    "complexity": {
-      "count": 1
-    }
-  },
   "src/services/background-import-service.ts": {
     "complexity": {
       "count": 2
