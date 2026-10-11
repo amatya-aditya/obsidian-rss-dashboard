@@ -67,7 +67,6 @@ export class VideoPlayer {
   loadVideo(item: FeedItem): void {
     if (!item.videoId) {
       new Notice("No video id provided");
-      console.debug("[Stub Notice]", "No video ID provided");
       return;
     }
 
@@ -78,7 +77,6 @@ export class VideoPlayer {
     } catch (error) {
       const msg = `Error loading video: ${error instanceof Error ? error.message : "Unknown error"}`;
       new Notice(msg);
-      console.debug("[Stub Notice]", msg);
     }
   }
 
