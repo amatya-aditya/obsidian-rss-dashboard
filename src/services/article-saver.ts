@@ -624,74 +624,25 @@ guid: "{{guid}}"
     savedTemplate?: SavedTemplate,
   ): Promise<TFile | null> {
     try {
-      let folder =
-        customFolder !== undefined
-          ? customFolder
-          : savedTemplate?.defaultFolder || this.settings.defaultFolder || "";
-      folder = this.normalizePath(folder);
-
-      if (folder && folder.trim() !== "") {
-        folder = await this.ensureFolderExists(folder);
-      }
-
-      const template = savedTemplate
-        ? (customTemplate ?? savedTemplate.template)
-        : customTemplate ||
-          this.settings.defaultTemplate ||
-          "# {{title}}\n\n{{content}}\n\n[Source]({{link}})";
-
-      let contentToWrite = "";
-      if (this.shouldAddFrontmatter(template, savedTemplate)) {
-        contentToWrite += this.generateFrontmatter(item);
-      }
-
-      contentToWrite += this.applyTemplate(item, template, rawContent);
-
-      const filename = buildArticleFilename(
+      const folder = await this.resolveSaveFolder(customFolder, savedTemplate);
+      const template = this.resolveSaveTemplate(customTemplate, savedTemplate);
+      const contentToWrite = this.buildArticleFileContent(
         item,
-        savedTemplate?.filenamePattern,
-        this.settings.addSavedTag,
-        this.getUseFirstSeenDateFallback(),
+        template,
+        rawContent,
+        savedTemplate,
       );
-      const recordedFile =
-        item.saved && item.savedFilePath
-          ? this.app.vault.getAbstractFileByPath(
-              this.normalizePath(item.savedFilePath),
-            )
-          : null;
-      const legacyPath =
-        item.saved && !(recordedFile instanceof TFile)
-          ? this.buildSavedArticleFilePath(item)
-          : "";
-      const legacyFile = legacyPath
-        ? this.app.vault.getAbstractFileByPath(legacyPath)
-        : null;
-      const existingSavedFile =
-        recordedFile instanceof TFile
-          ? recordedFile
-          : legacyFile instanceof TFile
-            ? legacyFile
-            : null;
-      const filePath = existingSavedFile
-        ? existingSavedFile.path
-        : findAvailableArticlePath(this.app, folder, filename);
-
-      let file: TFile;
-      try {
-        if (existingSavedFile) {
-          await this.app.vault.modify(existingSavedFile, contentToWrite);
-          file = existingSavedFile;
-        } else {
-          file = await this.app.vault.create(filePath, contentToWrite);
-        }
-      } catch (error) {
-        if (existingSavedFile || !(folder && this.isMissingPathError(error))) {
-          throw error;
-        }
-
-        await this.ensureFolderExists(folder);
-        file = await this.app.vault.create(filePath, contentToWrite);
-      }
+      const { filePath, existingSavedFile } = this.resolveSaveTarget(
+        item,
+        folder,
+        savedTemplate,
+      );
+      const file = await this.writeArticleFile(
+        folder,
+        filePath,
+        existingSavedFile,
+        contentToWrite,
+      );
 
       item.saved = true;
       item.savedFilePath = filePath;
