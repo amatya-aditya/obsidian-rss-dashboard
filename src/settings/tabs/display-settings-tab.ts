@@ -13,6 +13,10 @@ import {
   IMAGE_CACHE_LIMIT_MIN_MIB,
 } from "../../types/types";
 import { formatDashboardMultiFiltersSummaryCompact } from "../../utils/filter-title-format";
+import {
+  loadLeftHandedLayout,
+  saveLeftHandedLayout,
+} from "../../utils/left-handed-layout";
 import { formatDateWithRelative } from "../../utils/platform-utils";
 import {
   computePopoverPosition,
@@ -477,6 +481,20 @@ export function renderDisplaySettingsTab(
             await plugin.app.workspace.revealLeaf(view.leaf);
             view.render();
           }
+        }),
+    );
+
+  new Setting(containerEl)
+    .setName("Left-handed layout")
+    .setDesc(
+      "Mirror the article footer in card and feed view so the read action sits within left-thumb reach on the right. This setting is per device. Turning it on here does not change your other devices.",
+    )
+    .addToggle((toggle) =>
+      toggle
+        .setValue(loadLeftHandedLayout(plugin.app))
+        .onChange(async (value) => {
+          saveLeftHandedLayout(plugin.app, value);
+          await rerenderActiveDashboardView();
         }),
     );
 
