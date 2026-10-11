@@ -22,6 +22,7 @@ import {
   apiVersion,
   normalizePath,
   requireApiVersion,
+  setIcon,
   type WorkspaceLeaf,
   requestUrl,
   setRequestUrlHandler,
@@ -592,6 +593,80 @@ describe("Obsidian stub contract", () => {
       const receiverChild = receiver.createSpan({ parent: other });
       expect(receiverChild.parentElement).toBe(receiver);
       expect(other.children).toHaveLength(0);
+    });
+  });
+
+  describe("setIcon", () => {
+    // Observed on Obsidian 1.14.4 desktop (Windows): setIcon empties the
+    // element and inserts one lucide `<svg class="svg-icon lucide-<name>">`
+    // whose wrapper attributes are the same for every lucide icon.
+    it("inserts the lucide svg for a known icon", () => {
+      const el = createDiv();
+
+      setIcon(el, "play");
+
+      const svg = el.querySelector("svg.svg-icon.lucide-play");
+      expect(svg).not.toBeNull();
+      expect(el.children).toHaveLength(1);
+      expect(el.firstElementChild).toBe(svg);
+      expect(svg?.getAttribute("xmlns")).toBe("http://www.w3.org/2000/svg");
+      expect(svg?.getAttribute("width")).toBe("24");
+      expect(svg?.getAttribute("height")).toBe("24");
+      expect(svg?.getAttribute("viewBox")).toBe("0 0 24 24");
+      expect(svg?.getAttribute("fill")).toBe("none");
+      expect(svg?.getAttribute("stroke")).toBe("currentColor");
+      expect(svg?.getAttribute("stroke-width")).toBe("2");
+      expect(svg?.getAttribute("stroke-linecap")).toBe("round");
+      expect(svg?.getAttribute("stroke-linejoin")).toBe("round");
+      expect(svg?.getAttribute("class")).toBe("svg-icon lucide-play");
+    });
+
+    // Observed on Obsidian 1.14.4 desktop (Windows): some names resolve to a
+    // different lucide id. "trash" renders `lucide-trash-2`; the requested name
+    // never appears in the class.
+    it("renders the lucide id an aliased name resolves to", () => {
+      const el = createDiv();
+
+      setIcon(el, "trash");
+
+      expect(el.querySelector("svg.svg-icon.lucide-trash-2")).not.toBeNull();
+      expect(el.querySelector("svg.lucide-trash")).toBeNull();
+    });
+
+    // Observed on Obsidian 1.14.4 desktop (Windows): a few ids are not
+    // lucide-prefixed. `setIcon(el, "link")` renders `svg-icon link`.
+    it("renders a non-lucide id as observed", () => {
+      const el = createDiv();
+
+      setIcon(el, "link");
+
+      expect(el.querySelector("svg")?.getAttribute("class")).toBe(
+        "svg-icon link",
+      );
+    });
+
+    // Observed on Obsidian 1.14.4 desktop (Windows): an unknown name empties
+    // the element and inserts nothing (probed with an element that held text).
+    it("leaves the element empty for an unknown name", () => {
+      const el = createDiv({ text: "old content" });
+
+      setIcon(el, "definitely-not-an-icon");
+
+      expect(el.innerHTML).toBe("");
+      expect(el.childElementCount).toBe(0);
+    });
+
+    // Observed on Obsidian 1.14.4 desktop (Windows): setIcon replaces the
+    // element's existing content rather than appending a second icon.
+    it("replaces existing content", () => {
+      const el = createDiv({ text: "old content" });
+
+      setIcon(el, "play");
+      setIcon(el, "rss");
+
+      expect(el.childElementCount).toBe(1);
+      expect(el.querySelector("svg.svg-icon.lucide-rss")).not.toBeNull();
+      expect(el.querySelector("svg.svg-icon.lucide-play")).toBeNull();
     });
   });
 });

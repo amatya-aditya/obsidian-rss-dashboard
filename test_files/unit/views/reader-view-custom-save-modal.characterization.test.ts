@@ -10,6 +10,7 @@ import {
   type RssDashboardSettings,
   type SavedTemplate,
 } from "../../../src/types/types";
+import { lucideIconId } from "../test-icon-helpers";
 
 type ReaderViewInternals = {
   currentItem: FeedItem | null;
@@ -549,9 +550,11 @@ describe("ReaderView custom save dialog behavior", () => {
         "New template will be saved",
       );
       expect(
-        getFields(modal).saveAsTemplate.querySelector<HTMLElement>(
-          ".rss-dashboard-custom-save-button-icon",
-        )?.dataset.icon,
+        lucideIconId(
+          getFields(modal).saveAsTemplate.querySelector(
+            ".rss-dashboard-custom-save-button-icon",
+          ),
+        ),
       ).toBe("file-plus");
       expect(harness.settings.articleSaving.savedTemplates).toHaveLength(0);
 

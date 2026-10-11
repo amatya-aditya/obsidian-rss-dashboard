@@ -4,6 +4,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { createIconButton } from "../../../src/utils/icon-button";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
+import { lucideIconId } from "../test-icon-helpers";
 
 installObsidianDomPolyfills();
 
@@ -87,8 +88,8 @@ describe("createIconButton", () => {
       icon: "save",
     });
 
-    // The Obsidian stub records the icon id on the element `setIcon` receives.
-    expect(button.dataset.icon).toBe("save");
+    // The stub models Obsidian's setIcon: it writes the lucide svg into the button.
+    expect(lucideIconId(button)).toBe("save");
   });
 
   it("sets aria-pressed, aria-expanded and aria-haspopup only when asked", () => {

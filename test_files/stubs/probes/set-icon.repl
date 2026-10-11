@@ -43,3 +43,46 @@ JSON.stringify({
   getIconIdsIncludesPlay: api.getIconIds().includes("play"),
   getIconIdsLength: api.getIconIds().length,
 })
+
+@eval
+const rss = createDiv();
+api.setIcon(rss, "rss");
+const trash = createDiv();
+api.setIcon(trash, "trash");
+const getIconRss = api.getIcon("rss");
+JSON.stringify({
+  rssIconHtml: rss.innerHTML,
+  trashIconHtml: trash.innerHTML,
+  getIconRssHtml: getIconRss?.outerHTML ?? null,
+})
+
+@eval
+const reused = createDiv({ text: "old content" });
+api.setIcon(reused, "play");
+const switched = createDiv();
+api.setIcon(switched, "play");
+api.setIcon(switched, "rss");
+JSON.stringify({
+  reusedHtml: reused.innerHTML,
+  reusedChildCount: reused.childElementCount,
+  switchedHtml: switched.innerHTML,
+  switchedClass: switched.firstElementChild?.getAttribute("class") ?? null,
+})
+
+@eval
+const cases = [
+  "trash",
+  "pencil",
+  "folder",
+  "fullscreen",
+  "link",
+  "star-off",
+  "youtube",
+];
+const renderedClass = {};
+for (const name of cases) {
+  const host = createDiv();
+  api.setIcon(host, name);
+  renderedClass[name] = host.firstElementChild?.getAttribute("class") ?? null;
+}
+JSON.stringify(renderedClass)

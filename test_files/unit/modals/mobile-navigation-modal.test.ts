@@ -7,6 +7,7 @@ import {
 import { RssDashboardSettings, Feed } from "../../../src/types/types";
 import type RssDashboardPlugin from "../../../main";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
+import { lucideIconId } from "../test-icon-helpers";
 
 interface MockSidebar {
   callbacks: SidebarCallbacks;
@@ -240,7 +241,7 @@ describe("MobileNavigationModal", () => {
         expect(icon.classList.contains("stop")).toBe(false);
         expect(icon.classList.contains("refreshing")).toBe(false);
         expect(icon.getAttribute("aria-label")).toBe("Refresh all feeds");
-        expect(icon.dataset.icon).toBe("refresh-cw");
+        expect(lucideIconId(icon)).toBe("refresh-cw");
       } finally {
         modal?.close();
         vi.useRealTimers();
@@ -263,7 +264,7 @@ describe("MobileNavigationModal", () => {
         expect(icon.classList.contains("refreshing")).toBe(true);
         expect(icon.classList.contains("stop")).toBe(false);
         expect(icon.getAttribute("aria-label")).toBe("Refresh all feeds");
-        expect(icon.dataset.icon).toBe("refresh-cw");
+        expect(lucideIconId(icon)).toBe("refresh-cw");
       } finally {
         modal?.close();
         vi.useRealTimers();
@@ -286,7 +287,7 @@ describe("MobileNavigationModal", () => {
         expect(icon.classList.contains("stop")).toBe(true);
         expect(icon.classList.contains("refreshing")).toBe(false);
         expect(icon.getAttribute("aria-label")).toBe("Stop refresh");
-        expect(icon.dataset.icon).toBe("square-stop");
+        expect(lucideIconId(icon)).toBe("square-stop");
       } finally {
         modal?.close();
         vi.useRealTimers();

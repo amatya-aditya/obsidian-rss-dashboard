@@ -5,6 +5,7 @@ import {
   installMediaElementPolyfills,
   installObsidianDomPolyfills,
 } from "../test-dom-polyfills";
+import { lucideIconId } from "../test-icon-helpers";
 import type { FeedItem, Tag } from "../../../src/types/types";
 
 describe("PodcastPlayer", () => {
@@ -422,7 +423,7 @@ describe("PodcastPlayer", () => {
       // Checking if playBtn is not "pause" is a proxy for stopped
       const playBtnAfter =
         container.querySelector<HTMLElement>(".rss-play-pause");
-      expect(playBtnAfter?.dataset.icon).toBe("play");
+      expect(lucideIconId(playBtnAfter)).toBe("play");
     });
 
     it("advances to next episode when Autoplay is enabled", async () => {

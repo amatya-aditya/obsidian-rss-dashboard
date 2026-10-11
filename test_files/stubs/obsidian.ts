@@ -10,6 +10,7 @@
 // The real API's types, for checking the stub against them (#362). Type-only:
 // importing it also brings in Obsidian's global DOM helper declarations.
 import type * as ObsidianApi from "obsidian-api";
+import { renderIconMarkup } from "./lucide-icons";
 
 // =============================================================================
 
@@ -260,13 +261,40 @@ const PlatformStub = {
   resourcePathPrefix: "app://local/",
 };
 
-// Observed on Obsidian 1.14.4 desktop (Windows): real setIcon writes a lucide
-// `<svg class="svg-icon lucide-<name>">` into the element, and leaves it empty
-// for an unknown name. The stub records the name on `data-icon`; the SVG is
-// not modeled (#431).
+// Observed on Obsidian 1.14.4 desktop (Windows): setIcon empties the element,
+// then writes a lucide `<svg class="svg-icon lucide-<name>">` for a name it
+// knows and nothing for one it does not (the set-icon probe confirms both,
+// including the empty element left for "youtube"). renderIconMarkup carries the
+// icons RSS Dashboard uses and returns "" for anything else, so an icon the app
+// does not ship renders empty here too (ADR 0014).
+//
+// setIcon runs on every render, so parse each icon's markup once and clone from
+// the cache; that keeps icon-heavy renders close to the old `data-icon` cost.
+const parsedIconCache = new Map<string, Element>();
+
 function setIconImpl(el: HTMLElement, iconName: string): void {
-  el.dataset.icon = iconName;
+  const markup = renderIconMarkup(iconName);
+  if (markup === "") {
+    el.replaceChildren();
+    return;
+  }
+  let svg = parsedIconCache.get(iconName);
+  if (!svg) {
+    svg =
+      new DOMParser().parseFromString(markup, "text/html").body
+        .firstElementChild ?? undefined;
+  }
+  if (!svg) {
+    el.replaceChildren();
+    return;
+  }
+  parsedIconCache.set(iconName, svg);
+  el.replaceChildren(el.ownerDocument.importNode(svg, true));
 }
+
+// `getIcon` and `getIconIds` are not modeled: no production code imports them
+// and no test needs them. Model either when a consumer appears, the way
+// `AbstractInputSuggest` stays thin until one does (obsidian-console-probes.md).
 
 /** Mirrors Obsidian: the tooltip text is stored as the element's aria-label. */
 function setTooltipImpl(el: HTMLElement, tooltip: string): void {
@@ -1488,7 +1516,7 @@ class SettingStub {
       }
 
       setIcon(icon: string): this {
-        this.buttonEl.dataset.icon = icon;
+        setIconImpl(this.buttonEl, icon);
         return this;
       }
 

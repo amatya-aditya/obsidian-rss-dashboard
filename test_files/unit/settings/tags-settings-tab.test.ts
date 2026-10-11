@@ -7,6 +7,7 @@ import {
 } from "../../../src/types/types";
 import { renderTagsSettingsTab } from "../../../src/settings/tabs/tags-settings-tab";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
+import { findIconButton } from "../test-icon-helpers";
 import type RssDashboardPlugin from "../../../main";
 
 function flushPromises(): Promise<void> {
@@ -357,8 +358,9 @@ describe("renderTagsSettingsTab()", () => {
 
     renderTagsSettingsTab(containerEl, plugin, onRefresh);
 
-    const deleteBtn = containerEl.querySelector(
-      'button[data-icon="trash"]',
+    const deleteBtn = findIconButton(
+      containerEl,
+      "trash-2",
     ) as HTMLButtonElement;
     deleteBtn.click();
     await flushPromises();

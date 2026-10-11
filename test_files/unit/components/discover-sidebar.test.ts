@@ -6,6 +6,7 @@ import type {
   FeedMetadata,
 } from "../../../src/types/discover-types";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
+import { lucideIconId } from "../test-icon-helpers";
 
 type TestPlugin = ConstructorParameters<typeof DiscoverSidebar>[2];
 
@@ -155,7 +156,7 @@ describe("DiscoverSidebar", () => {
       ".rss-discover-return-home",
     ) as HTMLElement;
     expect(returnHome).toBeTruthy();
-    expect(returnHome.dataset.icon).toBe("arrow-left");
+    expect(lucideIconId(returnHome)).toBe("arrow-left");
     expect(returnHome.getAttribute("role")).toBe("button");
     expect(returnHome.getAttribute("tabindex")).toBe("0");
 
@@ -172,7 +173,7 @@ describe("DiscoverSidebar", () => {
       ".rss-discover-smallweb-button",
     ) as HTMLElement;
     expect(smallweb).toBeTruthy();
-    expect(smallweb.dataset.icon).toBe("sparkles");
+    expect(lucideIconId(smallweb)).toBe("sparkles");
     expect(smallweb.textContent).toContain("Kagi");
     expect(smallweb.getAttribute("role")).toBe("button");
     expect(smallweb.getAttribute("tabindex")).toBe("0");
@@ -314,7 +315,7 @@ describe("DiscoverSidebar", () => {
     const techExpand = techItem.querySelector(
       ".rss-discover-category-expand",
     ) as HTMLElement;
-    expect(techExpand.dataset.icon).toBe("chevron-right");
+    expect(lucideIconId(techExpand)).toBe("chevron-right");
 
     const techChildren = techItem.querySelector(
       ".rss-discover-category-children",
@@ -323,11 +324,11 @@ describe("DiscoverSidebar", () => {
 
     techExpand.click();
     expect(techChildren.classList.contains("rss-collapsed")).toBe(false);
-    expect(techExpand.dataset.icon).toBe("chevron-down");
+    expect(lucideIconId(techExpand)).toBe("chevron-down");
 
     techExpand.click();
     expect(techChildren.classList.contains("rss-collapsed")).toBe(true);
-    expect(techExpand.dataset.icon).toBe("chevron-right");
+    expect(lucideIconId(techExpand)).toBe("chevron-right");
 
     const aiItem = findCategoryItem("AI")!;
     const aiCheckbox = aiItem.querySelector(
