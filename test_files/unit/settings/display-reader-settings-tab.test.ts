@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { __resetObsidianVersion, __setObsidianVersion } from "obsidian";
 import { DEFAULT_SETTINGS } from "../../../src/types/types";
 import type RssDashboardPlugin from "../../../main";
 import { renderDisplaySettingsTab } from "../../../src/settings/tabs/display-settings-tab";
@@ -31,6 +32,12 @@ beforeEach(() => {
   installObsidianDomPolyfills();
   document.body.empty();
   vi.restoreAllMocks();
+  // 1.8.7 through 1.12.x use the legacy settings controls; pin that branch.
+  __setObsidianVersion("1.8.7");
+});
+
+afterEach(() => {
+  __resetObsidianVersion();
 });
 
 describe("renderDisplaySettingsTab() reader section", () => {

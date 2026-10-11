@@ -21,6 +21,7 @@ import {
   __setObsidianVersion,
   apiVersion,
   normalizePath,
+  requireApiVersion,
   type WorkspaceLeaf,
   requestUrl,
   setRequestUrlHandler,
@@ -46,6 +47,22 @@ describe("Obsidian stub contract", () => {
       expect(apiVersion).toBe("1.14.4");
     });
 
+    // Observed on Obsidian 1.14.4 desktop (Windows): true for every version at
+    // or below the running one, false above it.
+    it.each(["1.0.0", "1.8.7", "1.13.7", "1.14.3", "1.14.4"])(
+      "returns true for %s on 1.14.4",
+      (version) => {
+        expect(requireApiVersion(version)).toBe(true);
+      },
+    );
+
+    it.each(["1.14.5", "1.15.0", "2.0.0"])(
+      "returns false for %s on 1.14.4",
+      (version) => {
+        expect(requireApiVersion(version)).toBe(false);
+      },
+    );
+
     // Stub tooling, not an Obsidian behavior: the hook lets a test pretend the
     // app is another version, so minimum-version paths stay testable.
     it("switches the running version through the test hook", () => {
@@ -54,6 +71,12 @@ describe("Obsidian stub contract", () => {
 
       __resetObsidianVersion();
       expect(apiVersion).toBe("1.14.4");
+    });
+
+    it("follows the version hook", () => {
+      __setObsidianVersion("1.8.7");
+      expect(requireApiVersion("1.8.7")).toBe(true);
+      expect(requireApiVersion("1.8.8")).toBe(false);
     });
   });
 

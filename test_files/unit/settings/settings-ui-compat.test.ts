@@ -89,4 +89,19 @@ describe("settings UI compatibility", () => {
     slider.setValue(24);
     expect(valueEl?.textContent).toBe("24 MiB");
   });
+
+  // The stub reads its version per call, so a version switch between calls
+  // takes effect without re-importing the module (#431).
+  it("reads the API version on every call", () => {
+    let modern = false;
+    const compatibility = createSettingsUiCompatibility(() => modern);
+    const button = createButton();
+
+    compatibility.markDestructive(button);
+    modern = true;
+    compatibility.markDestructive(button);
+
+    expect(button.calls).toEqual(["destructive"]);
+    expect(button.buttonEl.classList.contains("mod-warning")).toBe(true);
+  });
 });

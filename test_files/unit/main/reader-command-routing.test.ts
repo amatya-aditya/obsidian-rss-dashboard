@@ -48,7 +48,12 @@ function makeReader() {
     actionToggleArticleOpen: vi.fn(),
   } satisfies Record<ReaderActions, ReturnType<typeof vi.fn>>;
   Object.assign(reader, actions);
-  return { reader, actions, leaf: { view: reader } };
+  return {
+    reader,
+    actions,
+    // The real WorkspaceLeaf has loadIfDeferred; the 1.7.2+ guard awaits it.
+    leaf: { view: reader, loadIfDeferred: vi.fn(async () => {}) },
+  };
 }
 
 async function setup(activeIsArticle: boolean | null) {

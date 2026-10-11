@@ -721,8 +721,8 @@ machine.
 **Probe:** `test_files/stubs/probes/require-api-version.repl`.
 **Observed on 1.14.4 (Windows):** `true` for every version at or below 1.14.4
 (1.0.0, 1.8.7, 1.13.7, 1.14.3, 1.14.4) and `false` above it (1.14.5, 1.15.0,
-2.0.0). The stub returns `false` for every version; a version-aware model is a
-separate slice (#431).
+2.0.0). The stub models this against a running version that defaults to the
+pinned reference (1.14.4) and is switchable through a test hook (#431).
 
 ## Step 3: Setting
 

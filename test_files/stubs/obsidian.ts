@@ -295,9 +295,8 @@ function normalizePathImpl(path: string): string {
 const OBSIDIAN_REFERENCE_VERSION = "1.14.4";
 
 // Observed on Obsidian 1.14.4 desktop (Windows): `apiVersion` is a mutable
-// string export. Tests switch it through the hooks below to exercise
-// minimum-version paths; the faithful requireApiVersion comparison lands in a
-// follow-up slice (#431), so this one only adds the version state.
+// string export holding the running app version. Tests switch it through the
+// hooks below to exercise minimum-version paths.
 export let apiVersion: typeof ObsidianApi.apiVersion =
   OBSIDIAN_REFERENCE_VERSION;
 
@@ -311,8 +310,28 @@ export function __resetObsidianVersion(): void {
   apiVersion = OBSIDIAN_REFERENCE_VERSION;
 }
 
-function requireApiVersionImpl(_version: string): boolean {
-  return false;
+/**
+ * Compares two dot-separated numeric versions. Missing segments count as 0, so
+ * "1.14" equals "1.14.0". Only the dotted forms the probes covered are
+ * modeled; pre-release or non-numeric segments are not observed.
+ */
+function compareVersions(left: string, right: string): number {
+  const leftParts = left.split(".");
+  const rightParts = right.split(".");
+  const length = Math.max(leftParts.length, rightParts.length);
+  for (let index = 0; index < length; index += 1) {
+    const diff = Number(leftParts[index] ?? 0) - Number(rightParts[index] ?? 0);
+    if (diff !== 0) return diff;
+  }
+  return 0;
+}
+
+// Observed on Obsidian 1.14.4 desktop (Windows): true for every version at or
+// below the running version (1.0.0, 1.8.7, 1.13.7, 1.14.3, 1.14.4) and false
+// above it (1.14.5, 1.15.0, 2.0.0). Reads the mutable `apiVersion`, so the
+// version hook switches the branch.
+function requireApiVersionImpl(version: string): boolean {
+  return compareVersions(version, apiVersion) <= 0;
 }
 
 function renderMathImpl(source: string, display: boolean): HTMLElement {

@@ -29,15 +29,20 @@ type ApiVersionChecker = (version: string) => boolean;
  *
  * Obsidian 1.8.7 through 1.12.x need the legacy DOM presentation. This branch
  * can be removed when the plugin minimum version increases to 1.13.0.
+ *
+ * The API version is read on every call, not once at creation: the running
+ * version never changes, but reading it live lets a test switch the stub's
+ * version to exercise the minimum-version path (#431).
  */
 export function createSettingsUiCompatibility(
   hasApiVersion: ApiVersionChecker = requireApiVersion,
 ): SettingsUiCompatibility {
-  const supportsModernControls = hasApiVersion(MODERN_SETTINGS_API_VERSION);
+  const supportsModernControls = (): boolean =>
+    hasApiVersion(MODERN_SETTINGS_API_VERSION);
 
   return {
     markDestructive(button): void {
-      if (supportsModernControls) {
+      if (supportsModernControls()) {
         button.setDestructive();
         return;
       }
@@ -46,7 +51,7 @@ export function createSettingsUiCompatibility(
     },
 
     presentSliderValue(slider, format): void {
-      if (supportsModernControls) {
+      if (supportsModernControls()) {
         slider.setDisplayFormat(format);
         return;
       }
