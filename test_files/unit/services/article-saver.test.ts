@@ -533,7 +533,7 @@ title: "{{title}}"
     const item = createItem({ title: "Repeat Title" });
     await saver.saveArticle(item, undefined, undefined, "FIRST");
 
-    const modifySpy = vi.spyOn(app.vault, "modify");
+    const processSpy = vi.spyOn(app.vault, "process");
     const result = await saver.saveArticle(
       item,
       undefined,
@@ -542,8 +542,32 @@ title: "{{title}}"
     );
 
     expect(result?.path).toBe("Articles/Repeat Title.md");
-    expect(modifySpy).toHaveBeenCalledTimes(1);
-    expect(modifySpy).toHaveBeenCalledWith(result, "SECOND");
+    expect(processSpy).toHaveBeenCalledTimes(1);
+    const [processFile, writeContent] = processSpy.mock.calls[0] ?? [];
+    expect(processFile).toBe(result);
+    // contentToWrite is computed before the write, so the callback returns it
+    // unchanged for the atomic read-modify-write.
+    expect(writeContent?.("FIRST")).toBe("SECOND");
+    if (!result) throw new Error("expected saved file");
+    await expect(app.vault.read(result)).resolves.toBe("SECOND");
+  });
+
+  it("creates a new note and never rewrites when there is no saved file", async () => {
+    const app = App.createMock();
+    const saver = new ArticleSaver(app, createSettings());
+    const processSpy = vi.spyOn(app.vault, "process");
+    const createSpy = vi.spyOn(app.vault, "create");
+
+    const result = await saver.saveArticle(
+      createItem({ title: "Brand New" }),
+      undefined,
+      undefined,
+      "BODY",
+    );
+
+    expect(result?.path).toBe("Brand New.md");
+    expect(createSpy).toHaveBeenCalledTimes(1);
+    expect(processSpy).not.toHaveBeenCalled();
   });
 
   it("returns null and does not mark the item saved when writing fails", async () => {
@@ -871,7 +895,7 @@ title: "{{title}}"
       "Archive/Original name.md",
       "old content",
     );
-    const modify = vi.spyOn(app.vault, "modify");
+    const process = vi.spyOn(app.vault, "process");
 
     const file = await saver.saveArticle(
       item,
@@ -883,7 +907,10 @@ title: "{{title}}"
 
     expect(file).toBe(existing);
     expect(file?.path).toBe("Archive/Original name.md");
-    expect(modify).toHaveBeenCalledWith(existing, "# Test Article");
+    expect(process).toHaveBeenCalledTimes(1);
+    const [processFile, writeContent] = process.mock.calls[0] ?? [];
+    expect(processFile).toBe(existing);
+    expect(writeContent?.("old content")).toBe("# Test Article");
   });
 
   it("falls back to the article title for unusable patterns and keeps collision suffixes inside the stem limit", async () => {

@@ -859,6 +859,43 @@ describe("Obsidian stub contract: vault reads", () => {
       expect(error).toMatchObject({ code: "ENOENT" });
     });
   });
+
+  describe("vault.process", () => {
+    // Documented in the shipped API typings (obsidian.d.ts, `@since 1.1.0`):
+    // `process` reads the file, passes its current content to the callback,
+    // writes the callback's return value, and resolves with the written text.
+    it("rewrites the file with the callback's return value", async () => {
+      const { vault } = new App();
+      const file = await vault.create("probe-process.md", "Hello");
+
+      const written = await vault.process(file, (data) =>
+        data.replace("Hello", "World"),
+      );
+
+      expect(written).toBe("World");
+      await expect(vault.read(file)).resolves.toBe("World");
+    });
+
+    // `process` reads from disk first, so a file removed on disk rejects with
+    // ENOENT before the callback runs.
+    it("throws ENOENT for a file removed on disk without running the callback", async () => {
+      const { vault } = new App();
+      const file = await vault.create("probe-process-missing.md", "Hello");
+      await vault.adapter.remove("probe-process-missing.md");
+      let callbackRan = false;
+
+      const error: unknown = await vault
+        .process(file, () => {
+          callbackRan = true;
+          return "World";
+        })
+        .catch((e: unknown) => e);
+
+      expect(error).toBeInstanceOf(Error);
+      expect(error).toMatchObject({ code: "ENOENT" });
+      expect(callbackRan).toBe(false);
+    });
+  });
 });
 
 describe("Obsidian stub contract: lifecycle and workspace", () => {
