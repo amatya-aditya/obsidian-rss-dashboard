@@ -528,6 +528,38 @@ describe("Math Rendering Utilities", () => {
       expect(spans[1].getAttribute("data-math")).toBe("$$b_2$$");
     });
 
+    it("detects inline dollar math only when the inner text has no edge whitespace", () => {
+      const spans = getMathSpans("<p>$x$ and $a b$ and $ y$ and $z $</p>");
+
+      expect(
+        Array.from(spans, (span) => span.getAttribute("data-math")),
+      ).toEqual(["$x$", "$a b$"]);
+    });
+
+    it("still finds a valid inline pair after one with a whitespace edge", () => {
+      const spans = getMathSpans("<p>$a $b$</p>");
+
+      expect(
+        Array.from(spans, (span) => span.getAttribute("data-math")),
+      ).toEqual(["$b$"]);
+    });
+
+    it("detects display and backslash-delimited math", () => {
+      const spans = getMathSpans(
+        String.raw`<p>$$d_d$$ and \[e_e\] and \(f_f\)</p>`,
+      );
+
+      expect(
+        Array.from(spans, (span) => span.getAttribute("data-math")),
+      ).toEqual(["$$d_d$$", String.raw`\[e_e\]`, String.raw`\(f_f\)`]);
+    });
+
+    it("does not treat currency or a lone dollar as math", () => {
+      const spans = getMathSpans("<p>Costs $10 and $20, or just $</p>");
+
+      expect(spans).toHaveLength(0);
+    });
+
     it("normalizes existing math spans and math-container spans", () => {
       const spans = getMathSpans(
         '<p><span class="math" data-math="$a_1$">rendered</span> <span class="math-container">$$b_2$$</span></p>',

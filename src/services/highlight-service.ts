@@ -256,10 +256,13 @@ export class HighlightService {
       if (!regex) return;
 
       for (const match of text.matchAll(regex)) {
-        const matchText = match[0];
-        if (!matchText) continue;
-        const start = match.index ?? -1;
-        if (start < 0) continue;
+        // Group 1 is the word. A whole-word match may consume a leading
+        // non-word boundary character before it, so the captured group offset
+        // is derived from the difference between the full match and the word.
+        const matchText = match[1];
+        const matchIndex = match.index;
+        if (!matchText || matchIndex === undefined) continue;
+        const start = matchIndex + (match[0].length - matchText.length);
         rawMatches.push({
           start,
           end: start + matchText.length,
@@ -305,8 +308,11 @@ export class HighlightService {
     if (cached) return cached;
 
     const escaped = this.escapeRegex(rawText);
+    // Whole-word matching avoids regex lookbehind, which throws on iOS before
+    // 16.4. The leading boundary is captured as a normal group instead, and
+    // collectMatches() subtracts it from the match offset.
     const pattern = word.wholeWord
-      ? `(?<=^|\\W)(${escaped})(?=$|\\W)`
+      ? `(?:^|\\W)(${escaped})(?=$|\\W)`
       : `(${escaped})`;
     const flags = word.caseSensitive ? "g" : "gi";
     const regex = new RegExp(pattern, flags);

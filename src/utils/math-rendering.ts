@@ -120,9 +120,13 @@ export function extractWordPressLatexFormula(
  * We use a regex that helps avoid matching currency by ensuring:
  * 1. Inside `$...$`, there is no leading or trailing whitespace
  * 2. It isn't empty
+ *
+ * The inline branch avoids lookbehind (unsupported on iOS before 16.4) by
+ * requiring the last inner character to be a non-space, non-dollar character
+ * instead of asserting it with `(?<!\s)`.
  */
 const MATH_REGEX =
-  /(\$\$[\s\S]+?\$\$|\\\[[\s\S]+?\\\]|\\\([\s\S]+?\\\)|\$(?!\s)[^$]+?(?<!\s)\$)/g;
+  /(\$\$[\s\S]+?\$\$|\\\[[\s\S]+?\\\]|\\\([\s\S]+?\\\)|\$(?!\s)[^$]*[^$\s]\$)/g;
 
 const DEFAULT_ATTACH_ATTEMPTS = 5;
 const MAX_CACHED_MATH_FRAGMENTS = 500;
