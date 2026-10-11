@@ -200,6 +200,16 @@
   flex-shrink: 0;
 }
 
+.rss-discover-card-add-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.rss-discover-card-add-btn.is-processing {
+  opacity: 1;
+  border-color: var(--interactive-accent);
+}
+
 /* Remove/Following button - default state (Following style) */
 body .rss-discover-card-remove-btn {
   background: var(--rss-color-following-bg);
