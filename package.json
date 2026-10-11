@@ -26,6 +26,7 @@
     "test:unit": "vitest run --config vitest.config.mjs",
     "fixture:vault": "node scripts/setup-fixture-vault.mjs",
     "fixture:vault:generate": "node scripts/generate-fixture-vault.mjs",
+    "fixture:serve": "node scripts/fixture-server.mjs",
     "hooks:install": "node scripts/setup-git-hooks.mjs",
     "prepare": "npm run hooks:install",
     "version": "node version-bump.mjs && git add manifest.json versions.json"
