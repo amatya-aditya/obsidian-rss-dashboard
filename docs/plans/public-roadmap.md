@@ -60,6 +60,7 @@ These ideas have come out of previous planning, issue triage, or implementation 
 | Web Clipper template parity                     | Match Obsidian Web Clipper's template variable vocabulary in saved-note templates.                                                                                                       | Follow-up from #247                                                        |
 | Word count and reading time variables           | Add `{{wordCount}}` and `{{readingTime}}` to saved-note templates once their definitions are specified.                                                                                  | Follow-up from #247                                                        |
 | AI-assisted summaries, translation, and tagging | LLM-based summarization, translation, or tagging of articles. Not planned: it needs an external service and a privacy decision first.                                                    | Follow-up from #247                                                        |
+| Customizable keyboard shortcuts                 | Let users remap the dashboard and Reader shortcuts; the keymap is hard-coded today (a deliberate early scope decision).                                                                  | Raised in #967                                                             |
 
 ## How to Read This Roadmap
 
