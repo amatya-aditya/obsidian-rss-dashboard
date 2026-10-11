@@ -1,0 +1,96 @@
+name: PR build comment
+
+# A pull request from a fork gets a read-only token in the `Test` workflow, so
+# it cannot comment on its own pull request. This workflow runs after `Test`
+# finishes, in the base repository where the token can comment, and links the
+# build artifact `Test` attached so a manual tester can find it without hunting
+# the Actions tab. It is a no-op for runs that are not pull requests and for
+# runs with no build artifact (for example a failed build).
+#
+# `workflow_run` only fires when this file exists on the default branch, so it
+# takes effect once this workflow reaches `master`.
+on:
+  workflow_run:
+    workflows: [Test]
+    types: [completed]
+
+permissions: {}
+
+jobs:
+  comment:
+    if: github.event.workflow_run.event == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      pull-requests: write
+    steps:
+      - name: Link the build artifact on the pull request
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
+        with:
+          script: |
+            const marker = '<!-- rss-dashboard-build-artifact -->';
+            const run = context.payload.workflow_run;
+            const { owner, repo } = context.repo;
+
+            const prs = run.pull_requests || [];
+            if (prs.length === 0) {
+              core.info('This run has no associated pull request; nothing to comment.');
+              return;
+            }
+            const issue_number = prs[0].number;
+
+            const { data } = await github.rest.actions.listWorkflowRunArtifacts({
+              owner,
+              repo,
+              run_id: run.id,
+            });
+            const artifact = data.artifacts.find((item) =>
+              item.name.startsWith('rss-dashboard-pr'),
+            );
+            if (!artifact) {
+              core.info('No build artifact on this run; nothing to comment.');
+              return;
+            }
+
+            const docs = `https://github.com/${owner}/${repo}/blob/dev/CONTRIBUTING.md#manual-testing-a-pr-build`;
+            const body = [
+              marker,
+              '### 📦 Build for manual testing',
+              '',
+              `The plugin built from this pull request is attached to [this run](${run.html_url}) as the artifact **\`${artifact.name}\`** (Artifacts section, kept 30 days).`,
+              '',
+              'Download and load it:',
+              '',
+              '```bash',
+              `gh run download ${run.id} -n ${artifact.name}`,
+              '```',
+              '',
+              `Then follow **Manual Testing a PR Build** in [CONTRIBUTING.md](${docs}).`,
+            ].join('\n');
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner,
+              repo,
+              issue_number,
+              per_page: 100,
+            });
+            const existing = comments.find(
+              (comment) => comment.body && comment.body.includes(marker),
+            );
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner,
+                repo,
+                comment_id: existing.id,
+                body,
+              });
+              core.info(`Updated the build comment on #${issue_number}.`);
+            } else {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number,
+                body,
+              });
+              core.info(`Created the build comment on #${issue_number}.`);
+            }
