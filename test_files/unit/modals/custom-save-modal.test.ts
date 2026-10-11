@@ -13,6 +13,7 @@ import {
   type CustomSaveModalContext,
 } from "../../../src/modals/custom-save-modal";
 import { ConfirmTemplateReplacementModal } from "../../../src/settings/modals/settings-modals";
+import { lucideIconId } from "../test-icon-helpers";
 
 vi.mock("../../../src/components/folder-suggest", () => ({
   VaultFolderSuggest: class {
@@ -268,7 +269,7 @@ describe("CustomSaveModal", () => {
         const icon = button.querySelector<HTMLElement>(
           ".rss-dashboard-custom-save-button-icon",
         );
-        return [icon?.dataset.icon, icon?.getAttribute("aria-hidden")];
+        return [lucideIconId(icon), icon?.getAttribute("aria-hidden")];
       }),
     ).toEqual([
       ["x", "true"],

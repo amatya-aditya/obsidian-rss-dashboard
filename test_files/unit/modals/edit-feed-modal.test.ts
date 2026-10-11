@@ -4,6 +4,7 @@ import { EditFeedModal } from "../../../src/modals/feed-manager/edit-feed-modal"
 import { applyFeedRetentionLimits } from "../../../src/services/feed-parser";
 import * as feedPreviewLoader from "../../../src/modals/feed-manager/feed-preview-loader";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
+import { lucideIconId } from "../test-icon-helpers";
 import type { Feed, FeedItem, Tag } from "../../../src/types/types";
 import type RssDashboardPlugin from "../../../main";
 
@@ -1680,7 +1681,8 @@ describe("EditFeedModal", () => {
 
     const iconSpan = deleteBtn.querySelector(".rss-edit-feed-delete-icon");
     expect(iconSpan).not.toBeNull();
-    expect((iconSpan as HTMLElement).dataset.icon).toBe("trash");
+    // Obsidian resolves "trash" to its lucide id "trash-2".
+    expect(lucideIconId(iconSpan as HTMLElement)).toBe("trash-2");
     expect(deleteBtn.textContent).toContain("Delete");
   });
 

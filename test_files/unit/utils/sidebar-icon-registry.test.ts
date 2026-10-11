@@ -8,6 +8,7 @@ import {
   getIconById,
 } from "../../../src/utils/sidebar-icon-registry";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
+import { lucideIconId } from "../test-icon-helpers";
 
 beforeEach(() => {
   installObsidianDomPolyfills();
@@ -71,7 +72,7 @@ describe("sidebar-icon-registry.createToolbarButton", () => {
     expect(btn.hasAttribute("role")).toBe(false);
     expect(btn.hasAttribute("tabindex")).toBe(false);
     expect(btn.getAttribute("aria-label")).toBe(icon.label);
-    expect(btn.dataset.icon).toBe(icon.lucideIcon);
+    expect(lucideIconId(btn)).toBe(icon.lucideIcon);
 
     btn.dispatchEvent(new MouseEvent("click"));
     expect(onClick).toHaveBeenCalledTimes(1);

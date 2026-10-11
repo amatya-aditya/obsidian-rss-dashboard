@@ -4,6 +4,7 @@ import { DEFAULT_SETTINGS, type SavedTemplate } from "../../../src/types/types";
 import { renderArticleSavingSettingsTab } from "../../../src/settings/tabs/article-saving-settings-tab";
 import { SavedTemplateEditorModal } from "../../../src/settings/modals/settings-modals";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
+import { findIconButton } from "../test-icon-helpers";
 
 function flushPromises(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, 0));
@@ -388,11 +389,11 @@ describe("renderArticleSavingSettingsTab()", () => {
     expect(plugin.mocks.saveSettings).toHaveBeenCalledOnce();
 
     const deleteSetting = getSettingByName(containerEl, "One");
-    (
-      deleteSetting.querySelector(
-        'button[data-icon="trash"]',
-      ) as HTMLButtonElement
-    ).click();
+    const deleteButton = findIconButton(
+      deleteSetting,
+      "trash-2",
+    ) as HTMLButtonElement;
+    deleteButton.click();
     await flushPromises();
     expect(plugin.settings.articleSaving.savedTemplates).toHaveLength(1);
     expect(plugin.mocks.saveSettings).toHaveBeenCalledTimes(2);

@@ -14,6 +14,7 @@ import {
   shouldUseMobileSidebarLayout,
 } from "../../../src/utils/platform-utils";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
+import { lucideIconId } from "../test-icon-helpers";
 
 function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
   return bytes.buffer.slice(
@@ -197,7 +198,7 @@ describe("platform-utils.attachInputClearButton", () => {
 
     const clearButton = attachInputClearButton(wrapper, input, onClear);
 
-    expect(clearButton.dataset.icon).toBe("x");
+    expect(lucideIconId(clearButton)).toBe("x");
     expect(clearButton.classList.contains("rss-discover-search-clear")).toBe(
       true,
     );

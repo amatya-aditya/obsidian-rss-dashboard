@@ -23,6 +23,7 @@ import {
   type SidebarOptions,
 } from "../../../src/components/sidebar";
 import * as ObsidianStubs from "../../stubs/obsidian";
+import { lucideIconId } from "../test-icon-helpers";
 import type {
   Feed,
   Folder,
@@ -1036,9 +1037,7 @@ describe("Sidebar row interactions (characterization)", () => {
 
       const badge = (url: string) =>
         feedRow(url).querySelector(".rss-dashboard-feed-shard-warning-badge");
-      expect((badge("https://a.test/feed") as HTMLElement).dataset.icon).toBe(
-        "alert-triangle",
-      );
+      expect(lucideIconId(badge("https://a.test/feed"))).toBe("alert-triangle");
       expect(badge("https://b.test/feed")).toBeNull();
 
       container.empty();
@@ -1056,7 +1055,7 @@ describe("Sidebar row interactions (characterization)", () => {
           ".rss-dashboard-feed-error-badge",
         );
       expect(badge()?.getAttribute("aria-label")).toBe("Feed error: HTTP 500");
-      expect(badge()?.dataset.icon).toBe("alert-circle");
+      expect(lucideIconId(badge())).toBe("alert-circle");
 
       container.empty();
       settings.display.hideFeedFetchErrorBadges = true;
@@ -1076,7 +1075,7 @@ describe("Sidebar row interactions (characterization)", () => {
       ];
       build();
 
-      expect(icon("https://a.test/feed").dataset.icon).toBe("loader-2");
+      expect(lucideIconId(icon("https://a.test/feed"))).toBe("loader-2");
       expect(icon("https://a.test/feed").classList.contains("processing")).toBe(
         true,
       );
@@ -1096,7 +1095,7 @@ describe("Sidebar row interactions (characterization)", () => {
       ]);
       build();
 
-      expect(icon("https://a.test/feed").dataset.icon).toBe("loader-2");
+      expect(lucideIconId(icon("https://a.test/feed"))).toBe("loader-2");
       expect(
         feedRow("https://a.test/feed").classList.contains("processing-feed"),
       ).toBe(true);
@@ -1120,7 +1119,7 @@ describe("Sidebar row interactions (characterization)", () => {
       expect(indicators[0].getAttribute("aria-label")).toBe(
         "Articles being fetched in background",
       );
-      expect(icon("https://a.test/feed").dataset.icon).toBe("rss");
+      expect(lucideIconId(icon("https://a.test/feed"))).toBe("rss");
     });
 
     it("shows the queued-for-refresh hourglass for a pending refresh", () => {
@@ -1143,7 +1142,7 @@ describe("Sidebar row interactions (characterization)", () => {
       ];
       build();
 
-      expect(icon("https://a.test/feed").dataset.icon).toBe("rss");
+      expect(lucideIconId(icon("https://a.test/feed"))).toBe("rss");
       expect(
         feedRow("https://a.test/feed").querySelector(
           ".rss-dashboard-feed-processing-indicator",
@@ -1170,10 +1169,9 @@ describe("Sidebar row interactions (characterization)", () => {
         "https://www.youtube.com/feeds/videos.xml?channel_id=UC1",
       );
       expect(tube.classList.contains("video-feed")).toBe(true);
-      expect(
-        (tube.querySelector(".rss-dashboard-feed-icon") as HTMLElement).dataset
-          .icon,
-      ).toBe("play");
+      expect(lucideIconId(tube.querySelector(".rss-dashboard-feed-icon"))).toBe(
+        "play",
+      );
       expect(
         tube
           .querySelector(".rss-dashboard-feed-icon")
@@ -1182,7 +1180,7 @@ describe("Sidebar row interactions (characterization)", () => {
 
       const pod = feedRow("https://pod.test/feed");
       expect(pod.classList.contains("podcast-feed")).toBe(true);
-      expect(icon("https://pod.test/feed").dataset.icon).toBe("mic");
+      expect(lucideIconId(icon("https://pod.test/feed"))).toBe("mic");
       expect(icon("https://pod.test/feed").classList.contains("podcast")).toBe(
         true,
       );
@@ -1212,13 +1210,13 @@ describe("Sidebar row interactions (characterization)", () => {
 
       expect(failedFeedIconUrls.has("https://a.test/icon.png")).toBe(true);
       expect(icon("https://a.test/feed").querySelector("img")).toBeNull();
-      expect(icon("https://a.test/feed").dataset.icon).toBe("rss");
+      expect(lucideIconId(icon("https://a.test/feed"))).toBe("rss");
 
       // A rebuilt row skips the image that failed.
       container.empty();
       sidebar.render();
       expect(icon("https://a.test/feed").querySelector("img")).toBeNull();
-      expect(icon("https://a.test/feed").dataset.icon).toBe("rss");
+      expect(lucideIconId(icon("https://a.test/feed"))).toBe("rss");
     });
 
     it("draws the site favicon for a feed with no icon when domain icons are on", () => {
@@ -1255,17 +1253,17 @@ describe("Sidebar row interactions (characterization)", () => {
       build();
 
       expect(icon("not a url").querySelector("img")).toBeNull();
-      expect(icon("not a url").dataset.icon).toBe("rss");
+      expect(lucideIconId(icon("not a url"))).toBe("rss");
     });
 
     it("shows the generic RSS icon by default, and an empty hidden icon when the default is hidden", () => {
       build();
-      expect(icon("https://a.test/feed").dataset.icon).toBe("rss");
+      expect(lucideIconId(icon("https://a.test/feed"))).toBe("rss");
 
       container.empty();
       settings.display.hideDefaultRssIcon = true;
       sidebar.render();
-      expect(icon("https://a.test/feed").dataset.icon).toBeUndefined();
+      expect(lucideIconId(icon("https://a.test/feed"))).toBeNull();
       expect(
         icon("https://a.test/feed").classList.contains("rss-icon-hidden"),
       ).toBe(true);
@@ -1280,14 +1278,14 @@ describe("Sidebar row interactions (characterization)", () => {
         ".rss-dashboard-feed-folder-toggle",
       ) as HTMLElement;
       const list = folderFeedsList("News");
-      expect(toggle.dataset.icon).toBe("chevron-down");
+      expect(lucideIconId(toggle)).toBe("chevron-down");
       expect(toggle.getAttribute("aria-label")).toBe("Collapse folder");
 
       const { reachedContainer } = click(toggle);
 
       expect(header.classList.contains("collapsed")).toBe(true);
       expect(list.classList.contains("collapsed")).toBe(true);
-      expect(toggle.dataset.icon).toBe("chevron-right");
+      expect(lucideIconId(toggle)).toBe("chevron-right");
       expect(toggle.getAttribute("aria-label")).toBe("Expand folder");
       expect(callbacks.onToggleFolderCollapse).toHaveBeenCalledWith(
         "News",
@@ -1300,7 +1298,7 @@ describe("Sidebar row interactions (characterization)", () => {
 
       expect(header.classList.contains("collapsed")).toBe(false);
       expect(list.classList.contains("collapsed")).toBe(false);
-      expect(toggle.dataset.icon).toBe("chevron-down");
+      expect(lucideIconId(toggle)).toBe("chevron-down");
       expect(toggle.getAttribute("aria-label")).toBe("Collapse folder");
       expect(callbacks.onToggleFolderCollapse).toHaveBeenCalledTimes(2);
     });
@@ -1993,14 +1991,13 @@ describe("Sidebar row interactions (characterization)", () => {
       expect(folderFeedsList("News").classList.contains("collapsed")).toBe(
         true,
       );
-      expect(toggle.dataset.icon).toBe("chevron-right");
+      expect(lucideIconId(toggle)).toBe("chevron-right");
       expect(toggle.getAttribute("aria-label")).toBe("Expand folder");
 
       const tech = folderHeader("News/Tech");
       expect(tech.classList.contains("collapsed")).toBe(false);
       expect(
-        (tech.querySelector(".rss-dashboard-feed-folder-toggle") as HTMLElement)
-          .dataset.icon,
+        lucideIconId(tech.querySelector(".rss-dashboard-feed-folder-toggle")),
       ).toBe("chevron-down");
     });
 
@@ -2036,9 +2033,11 @@ describe("Sidebar row interactions (characterization)", () => {
       build();
 
       expect(
-        folderHeader("Videos")
-          .querySelector(".rss-dashboard-folder-pin-icon")
-          ?.getAttribute("data-icon"),
+        lucideIconId(
+          folderHeader("Videos").querySelector(
+            ".rss-dashboard-folder-pin-icon",
+          ),
+        ),
       ).toBe("lock");
       expect(
         folderHeader("News").querySelector(".rss-dashboard-folder-pin-icon"),

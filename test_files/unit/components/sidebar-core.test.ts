@@ -15,6 +15,7 @@ import {
 import { renderFallbackFeedIcon } from "../../../src/components/sidebar-feed-row";
 import * as ObsidianStubs from "../../stubs/obsidian";
 import type { App } from "../../stubs/obsidian";
+import { lucideIconId } from "../test-icon-helpers";
 import {
   RssDashboardSettings,
   Folder,
@@ -406,7 +407,7 @@ describe("Sidebar Core", () => {
 
     it("should add rss icon by default", () => {
       renderFallbackFeedIcon(iconEl, settings);
-      expect(iconEl.dataset.icon).toBe("rss");
+      expect(lucideIconId(iconEl)).toBe("rss");
       expect(iconEl.classList.contains("rss-icon-hidden")).toBe(false);
     });
 
@@ -933,9 +934,7 @@ describe("Sidebar Core", () => {
       );
 
       expect(
-        processingEl
-          ?.querySelector(".rss-dashboard-feed-icon")
-          ?.getAttribute("data-icon"),
+        lucideIconId(processingEl?.querySelector(".rss-dashboard-feed-icon")),
       ).toBe("loader-2");
       expect(processingEl?.classList.contains("processing-feed")).toBe(true);
       expect(
@@ -1104,9 +1103,7 @@ describe("Sidebar Core", () => {
 
       const feedEl = container.querySelector(".rss-dashboard-feed");
       expect(
-        feedEl
-          ?.querySelector(".rss-dashboard-feed-icon")
-          ?.getAttribute("data-icon"),
+        lucideIconId(feedEl?.querySelector(".rss-dashboard-feed-icon")),
       ).toBe("loader-2");
       expect(
         feedEl?.querySelector(".rss-dashboard-feed-processing-indicator"),

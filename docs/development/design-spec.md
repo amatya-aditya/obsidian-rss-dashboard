@@ -578,7 +578,7 @@ changes between versions, and the plugin supports everything from
 ## Testing UI Changes
 
 Unit tests run in jsdom against `test_files/stubs/obsidian.ts`, which models
-Obsidian 1.13.7 desktop (ADR 0014). It's accurate for structure and behavior,
+Obsidian 1.14.4 desktop (ADR 0014). It's accurate for structure and behavior,
 but jsdom doesn't lay out or paint anything. Split checks accordingly:
 
 - **Test in unit tests:** element structure and classes, `aria-label`, native
@@ -586,10 +586,14 @@ but jsdom doesn't lay out or paint anything. Split checks accordingly:
   assert that custom `role`, `tabindex`, and keyboard handlers are absent, and
   exercise the action through a click event. jsdom does not synthesize the
   browser's Enter/Space activation for buttons, so keyboard activation needs a
-  manual browser check. The stub's `setIcon` records the icon name in
-  `data-icon` and doesn't insert an SVG, so assert on `data-icon`, not on SVG
-  markup. `setTooltip` stores its text in `aria-label`, as Obsidian does. Use
-  `activeDocument` and the element's own window so tests also cover popouts.
+  manual browser check. The stub's `setIcon` models Obsidian: it writes
+  `<svg class="svg-icon lucide-<id>">` into the element, so assert on the
+  rendered `svg.svg-icon.lucide-<id>` rather than SVG geometry. The
+  `lucideIconId` helper in `test_files/unit/test-icon-helpers.ts` reads the id;
+  an aliased name resolves to a different id (`setIcon(el, "trash")` renders
+  `lucide-trash-2`). `setTooltip` stores its text in `aria-label`, as Obsidian
+  does. Use `activeDocument` and the element's own window so tests also cover
+  popouts.
 - **Check by hand:** layout, breakpoints, colors in light and dark themes,
   focus rings, and Android and iOS icon rendering. Use the fixture vault
   (`npm run fixture:vault`, see `docs/development/fixture-vault.md`) at

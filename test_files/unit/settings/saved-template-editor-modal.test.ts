@@ -7,6 +7,7 @@ import postcss from "postcss";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { App } from "obsidian";
 import { SavedTemplateEditorModal } from "../../../src/settings/modals/settings-modals";
+import { lucideIconId } from "../test-icon-helpers";
 
 const folderSuggestInputs = vi.hoisted(() => [] as HTMLInputElement[]);
 vi.mock("../../../src/components/folder-suggest", () => ({
@@ -127,7 +128,7 @@ describe.each([
         );
         return [
           button.textContent?.trim(),
-          icon?.dataset.icon,
+          lucideIconId(icon),
           icon?.getAttribute("aria-hidden"),
         ];
       }),

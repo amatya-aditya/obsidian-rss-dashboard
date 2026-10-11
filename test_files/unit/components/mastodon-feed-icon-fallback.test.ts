@@ -5,6 +5,7 @@ import { renderHeaderFeedIcon } from "../../../src/components/article-list/utils
 import { ArticleHeader } from "../../../src/components/article-header";
 import * as ObsidianStubs from "../../stubs/obsidian";
 import type { App } from "../../stubs/obsidian";
+import { lucideIconId } from "../test-icon-helpers";
 import type {
   SidebarCallbacks,
   SidebarOptions,
@@ -118,7 +119,7 @@ describe("Mastodon Feed Icon — Sidebar", () => {
 
     sidebar.render();
 
-    // renderFallbackFeedIcon pre-sets `data-icon="rss"` on the container
+    // renderFallbackFeedIcon inserts the rss lucide svg into the container
     // before renderDomainFavicon empties it and appends the Mastodon <img>.
     // The <img>.src is the real signal that the Mastodon branch ran.
     const feedRow = container.querySelector(
@@ -164,7 +165,7 @@ describe("Mastodon Feed Icon — Sidebar", () => {
     const iconEl = feedRow.querySelector(
       ".rss-dashboard-feed-icon",
     ) as HTMLElement;
-    expect(iconEl.dataset.icon).toBe("rss");
+    expect(lucideIconId(iconEl)).toBe("rss");
   });
 });
 
@@ -294,7 +295,7 @@ describe("Mastodon Feed Icon — ArticleList renderFeedIcon", () => {
     expect(feedIcon).not.toBeNull();
 
     // Must NOT carry the generic RSS icon
-    expect(feedIcon.dataset.icon).not.toBe("rss");
+    expect(lucideIconId(feedIcon)).not.toBe("rss");
 
     // Must carry a favicon img pointing at the Mastodon instance domain
     const faviconImg = feedIcon.querySelector<HTMLImageElement>(
@@ -335,7 +336,7 @@ describe("Mastodon Feed Icon — ArticleList renderFeedIcon", () => {
       display: settings.display,
     });
 
-    expect(headerIconContainer.dataset.icon).not.toBe("rss");
+    expect(lucideIconId(headerIconContainer)).not.toBe("rss");
     const faviconImg = headerIconContainer.querySelector<HTMLImageElement>(
       ".rss-dashboard-header-favicon",
     );
@@ -450,7 +451,7 @@ describe("Mastodon Feed Icon — ArticleHeader renderHeaderFeedIcon", () => {
     expect(feedIcon).not.toBeNull();
 
     // Should NOT carry the generic RSS icon
-    expect(feedIcon.dataset.icon).not.toBe("rss");
+    expect(lucideIconId(feedIcon)).not.toBe("rss");
 
     // Should render an <img> pointing at mastodon.social
     const img = feedIcon.querySelector("img") as HTMLImageElement;

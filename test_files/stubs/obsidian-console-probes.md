@@ -772,14 +772,35 @@ separate confirmation slice (#431).
 ## Step 3: setIcon
 
 **Probe:** `test_files/stubs/probes/set-icon.repl`.
-**Observed on 1.14.4 (Windows):** `setIcon(el, "play")` writes an inline lucide
-SVG `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-stroke-linecap="round" stroke-linejoin="round" class="svg-icon lucide-play">…`
-into the element; an unknown name leaves it empty. `getIcon("play")` returns a
-detached `svg` with the same `class`. `getIconIds()` returned 1979 ids and did
-**not** include `"play"` (custom icons only, it seems). The stub records the
-icon name on `data-icon`; modeling the SVG is a separate slice (#431).
+**Observed on 1.14.4 (Windows):** `setIcon(el, "play")` empties `el` and writes
+the inline lucide SVG
+
+```
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="svg-icon lucide-play"><path d="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z"></path></svg>
+```
+
+and `setIcon(el, "rss")` writes
+
+```
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="svg-icon lucide-rss"><path d="M4 11a9 9 0 0 1 9 9"></path><path d="M4 4a16 16 0 0 1 16 16"></path><circle cx="5" cy="19" r="1"></circle></svg>
+```
+
+The wrapper attributes are identical for every lucide icon; the class is
+`svg-icon` plus the id Obsidian resolves. That id differs from the requested
+name for Obsidian's aliases, which the probe's final step records directly:
+`trash` -> `lucide-trash-2`, `pencil` -> `lucide-edit-3`, `folder` ->
+`lucide-folder-open`, `fullscreen` -> `lucide-maximize`, and `link` ->
+`svg-icon link` (an id with no `lucide-` prefix). An unknown name empties the
+element and inserts nothing (the probe set it on an element that held text).
+`"youtube"` is unknown on 1.14.4, so `setIcon(youtubeIcon, "youtube")` renders
+nothing (issue #1015). `getIcon("play")` returns a detached `svg` with the same
+`class`. `getIconIds()` returned 1979 ids and did **not** include `"play"`
+(custom icons only, it seems). The stub models the SVG through
+`lucide-icons.ts`: `ICON_BODIES` carries the ids the plugin's code and tests name
+and `ICON_ALIASES` the five names above; every other name resolves to
+`lucide-<name>` and, if it is not carried, renders empty — the same thing the app
+does for a name it does not ship. The stub models neither `getIcon` nor
+`getIconIds`, which have no production consumer.
 
 ## Step 3: Scope
 

@@ -6,6 +6,7 @@ import {
 } from "../../../src/components/sidebar";
 import * as ObsidianStubs from "../../stubs/obsidian";
 import type { App } from "../../stubs/obsidian";
+import { lucideIconId } from "../test-icon-helpers";
 import {
   RssDashboardSettings,
   Feed,
@@ -246,7 +247,7 @@ describe("Sidebar Rendering", () => {
     ) as HTMLElement;
 
     expect(feedRow.classList.contains("video-feed")).toBe(false);
-    expect(icon.dataset.icon).not.toBe("play");
+    expect(lucideIconId(icon)).not.toBe("play");
   });
 
   it("shows play icon for YouTube video feeds", () => {
@@ -279,7 +280,7 @@ describe("Sidebar Rendering", () => {
     ) as HTMLElement;
 
     expect(feedRow.classList.contains("video-feed")).toBe(true);
-    expect(icon.dataset.icon).toBe("play");
+    expect(lucideIconId(icon)).toBe("play");
   });
 
   it("keeps the feed icon at a fixed size when the row is width constrained", () => {
@@ -513,6 +514,6 @@ describe("Sidebar Rendering", () => {
     const icon = container.querySelector(
       ".rss-dashboard-feed-icon",
     ) as HTMLElement;
-    expect(icon.dataset.icon).toBe("rss");
+    expect(lucideIconId(icon)).toBe("rss");
   });
 });

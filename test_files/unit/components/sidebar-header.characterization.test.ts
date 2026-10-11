@@ -30,6 +30,7 @@ import * as ObsidianStubs from "../../stubs/obsidian";
 import type { Folder, RssDashboardSettings } from "../../../src/types/types";
 import type RssDashboardPlugin from "../../../main";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
+import { lucideIconId } from "../test-icon-helpers";
 
 installObsidianDomPolyfills();
 
@@ -53,7 +54,7 @@ const DEFAULT_ROW = [
 const ICON_FOR_LABEL: Record<string, string> = {
   Discover: "compass",
   "Add feed": "plus-circle",
-  "Manage feeds": "pencil",
+  "Manage feeds": "edit-3",
   Search: "search",
   Tags: "tags",
   "Add folder": "folder-plus",
@@ -181,7 +182,7 @@ describe("Sidebar header (characterization)", () => {
         : (el.getAttribute("aria-label") ?? "?"),
     );
 
-  const iconOf = (el: HTMLElement): string | undefined => el.dataset.icon;
+  const iconOf = (el: HTMLElement): string | null => lucideIconId(el);
   const coachmark = (root: ParentNode = container): HTMLElement | null =>
     root.querySelector<HTMLElement>(".rss-dashboard-coachmark");
 

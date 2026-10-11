@@ -9,6 +9,7 @@ import type { App } from "../../stubs/obsidian";
 import { RssDashboardSettings, Feed } from "../../../src/types/types";
 import type RssDashboardPlugin from "../../../main";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
+import { lucideIconId } from "../test-icon-helpers";
 import { parseFetchErrorMessage } from "../../../src/services/feed-parser/feed-errors";
 
 installObsidianDomPolyfills();
@@ -126,7 +127,7 @@ describe("Feed Error Badge Rendering", () => {
     );
 
     // Check it rendered the icon
-    expect(errorBadge.dataset.icon).toBe("alert-circle");
+    expect(lucideIconId(errorBadge)).toBe("alert-circle");
   });
 
   it("should render both unread count and error badge when both exist", () => {
