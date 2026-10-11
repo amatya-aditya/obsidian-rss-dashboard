@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_SETTINGS } from "../../../src/types/types";
 import type RssDashboardPlugin from "../../../main";
 import { renderDisplaySettingsTab } from "../../../src/settings/tabs/display-settings-tab";
+import { LEFT_HANDED_LAYOUT_STORAGE_KEY } from "../../../src/utils/left-handed-layout";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 
 function cloneSettings(): typeof DEFAULT_SETTINGS {
@@ -290,5 +291,118 @@ describe("renderDisplaySettingsTab() reader section", () => {
 
     expect(plugin.settings.readerFormat).toEqual(DEFAULT_SETTINGS.readerFormat);
     expect(saveSettings).toHaveBeenCalled();
+  });
+});
+
+describe("renderDisplaySettingsTab() left-handed layout", () => {
+  /** In-memory vault-local storage so the toggle never touches the settings file. */
+  function createAppWithStorage(): {
+    app: {
+      vault: { getName: () => string };
+      loadLocalStorage: (key: string) => unknown;
+      saveLocalStorage: (key: string, value: unknown) => void;
+      workspace: { revealLeaf: ReturnType<typeof vi.fn> };
+    };
+    store: Map<string, unknown>;
+  } {
+    const store = new Map<string, unknown>();
+    return {
+      store,
+      app: {
+        vault: { getName: () => "left-handed-toggle-test-vault" },
+        loadLocalStorage: (key: string) =>
+          store.has(key) ? store.get(key) : null,
+        saveLocalStorage: (key: string, value: unknown) => {
+          store.set(key, value);
+        },
+        workspace: { revealLeaf: vi.fn(async () => {}) },
+      },
+    };
+  }
+
+  it("sits directly beneath Article date display, defaults off, and says it is per device", () => {
+    const containerEl = createDiv();
+    document.body.appendChild(containerEl);
+    const { app } = createAppWithStorage();
+    const plugin = {
+      app,
+      settings: cloneSettings(),
+      saveSettings: vi.fn(async () => {}),
+      getActiveDashboardView: vi.fn(async () => null),
+      getActiveReaderView: vi.fn(async () => null),
+    } as unknown as RssDashboardPlugin;
+
+    renderDisplaySettingsTab(containerEl, plugin, () => {});
+
+    const names = Array.from(
+      containerEl.querySelectorAll(".setting-item-name"),
+    ).map((el) => el.textContent);
+    const dateIndex = names.indexOf("Article date display");
+    expect(dateIndex).toBeGreaterThanOrEqual(0);
+    expect(names[dateIndex + 1]).toBe("Left-handed layout");
+
+    const setting = getSettingByName(containerEl, "Left-handed layout");
+    expect(
+      setting.querySelector(".setting-item-description")?.textContent,
+    ).toContain("per device");
+    expect((setting.querySelector("input") as HTMLInputElement).checked).toBe(
+      false,
+    );
+  });
+
+  it("reflects the stored per-device value", () => {
+    const containerEl = createDiv();
+    document.body.appendChild(containerEl);
+    const { app } = createAppWithStorage();
+    app.saveLocalStorage(LEFT_HANDED_LAYOUT_STORAGE_KEY, true);
+    const plugin = {
+      app,
+      settings: cloneSettings(),
+      saveSettings: vi.fn(async () => {}),
+      getActiveDashboardView: vi.fn(async () => null),
+      getActiveReaderView: vi.fn(async () => null),
+    } as unknown as RssDashboardPlugin;
+
+    renderDisplaySettingsTab(containerEl, plugin, () => {});
+
+    const toggle = getSettingByName(
+      containerEl,
+      "Left-handed layout",
+    ).querySelector("input") as HTMLInputElement;
+    expect(toggle.checked).toBe(true);
+  });
+
+  it("writes the per-device value, leaves settings untouched, and re-renders the open dashboard", async () => {
+    const containerEl = createDiv();
+    document.body.appendChild(containerEl);
+    const { app } = createAppWithStorage();
+    const settings = cloneSettings();
+    const saveSettings = vi.fn(async () => {});
+    const render = vi.fn();
+    const plugin = {
+      app,
+      settings,
+      saveSettings,
+      getActiveDashboardView: vi.fn(async () => ({ leaf: {}, render })),
+      getActiveReaderView: vi.fn(async () => null),
+    } as unknown as RssDashboardPlugin;
+
+    renderDisplaySettingsTab(containerEl, plugin, () => {});
+
+    const toggle = getSettingByName(
+      containerEl,
+      "Left-handed layout",
+    ).querySelector("input") as HTMLInputElement;
+    toggle.checked = true;
+    toggle.dispatchEvent(new Event("change"));
+    await flushPromises();
+
+    expect(app.loadLocalStorage(LEFT_HANDED_LAYOUT_STORAGE_KEY)).toBe(true);
+    expect(saveSettings).not.toHaveBeenCalled();
+    expect(JSON.stringify(settings)).not.toContain(
+      LEFT_HANDED_LAYOUT_STORAGE_KEY,
+    );
+    expect(app.workspace.revealLeaf).toHaveBeenCalledTimes(1);
+    expect(render).toHaveBeenCalledTimes(1);
   });
 });

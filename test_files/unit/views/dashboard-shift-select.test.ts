@@ -21,6 +21,7 @@ function createMockEnv() {
   const leaf = {
     view: null,
     setViewState: vi.fn(),
+    app,
   } as unknown as WorkspaceLeaf;
   const settings = {
     feeds: [],
