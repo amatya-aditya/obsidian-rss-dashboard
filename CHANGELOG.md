@@ -32,6 +32,7 @@
 
 ### Fixes
 
+- The **Edit feed** modal no longer keeps Obsidian's built-in close button in the phone and tablet layout. [GH Issue #431](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/431)
 - The dashboard's inline reader now opens an already-saved article when its save button is clicked again, instead of re-running the save and overwriting the saved note. [GH Issue #1005](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1005)
 - Dashboard, sidebar, tag menu, settings, and modal interactions now work when their element or event belongs to a popout window. Cross-window element and event checks use Obsidian's `instanceOf` helper instead of native `instanceof`, which is always false for a node another window created. [GH Issue #933](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/933)
 - Release builds are now byte-for-byte reproducible, so a clean local build matches the published `main.js` and the community directory scanner's build check passes. The build label in About and the status bar shows the commit and time for local development builds and the version for release builds. [GH Issue #933](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/933)

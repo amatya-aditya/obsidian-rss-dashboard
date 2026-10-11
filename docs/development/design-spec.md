@@ -617,11 +617,6 @@ Found in the 2026-09-27 review, each with its own issue.
   Reader toolbar spike ([#801](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/801))
   verified the same pattern on desktop and Android; see
   **Verified Native-Button Pattern** above.
-- **Native close button CSS ([#500](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/500)).** Rules in
-  `src/styles/modals.css` style or hide only `.modal-close-button`, which
-  Obsidian 1.13 no longer renders. On 1.13 the shortcut help modal shows two
-  close buttons (confirmed), and the mobile modals' close-button positioning
-  doesn't apply.
 
 ---
 
