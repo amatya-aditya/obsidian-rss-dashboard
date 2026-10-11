@@ -128,6 +128,7 @@ interface DashboardViewInternal {
     saveArticleWithContentPolicy: Mock<(...args: any[]) => unknown>;
     saveArticleWithFullContent: Mock<(...args: any[]) => unknown>;
     saveArticle: Mock<(...args: any[]) => unknown>;
+    findSavedArticleFile: Mock<(...args: any[]) => unknown>;
   };
   handleArticleCustomSave(
     article: FeedItem,
@@ -155,6 +156,7 @@ async function makeView(settings: RssDashboardSettings) {
     saveArticleWithContentPolicy: vi.fn(),
     saveArticleWithFullContent: vi.fn(async () => ({ path: "Full/a.md" })),
     saveArticle: vi.fn(async () => ({ path: "Summary/a.md" })),
+    findSavedArticleFile: vi.fn(async () => null),
   };
   saver.saveArticleWithContentPolicy = vi.fn(
     (
@@ -362,6 +364,34 @@ describe("Dashboard Custom save", () => {
 
     items[1].trigger();
     expect(modalOpens.items).toEqual([view.inlineArticle]);
+  });
+
+  it("opens the saved note instead of re-saving when the inline header Save button is clicked on a saved article", async () => {
+    const settings = summarySettings();
+    settings.savedArticleOpenLocation = "inline";
+    settings.feeds = [makeFeed("https://example.com/feed")];
+    const { view } = await makeView(settings);
+    const article = settings.feeds[0].items[0];
+    article.saved = true;
+    article.savedFilePath = "RSS articles/saved.md";
+    const scratchVault = App.createMock().vault;
+    await scratchVault.createFolder("RSS articles");
+    const savedFile = await scratchVault.create(
+      "RSS articles/saved.md",
+      "# Saved article",
+    );
+    view.saver.findSavedArticleFile = vi.fn(async () => savedFile);
+    view.inlineArticle = article;
+    const container = createDiv();
+    view.renderInlineArticle(container);
+
+    container
+      .querySelector<HTMLElement>('[aria-label="Save article"]')
+      ?.click();
+
+    await vi.waitFor(() => expect(view.render).toHaveBeenCalled());
+    expect(view.saver.saveArticle).not.toHaveBeenCalled();
+    expect(view.saver.saveArticleWithFullContent).not.toHaveBeenCalled();
   });
 
   it("blocks a second save of the same article while its dialog is open, and allows it after the dialog closes", async () => {

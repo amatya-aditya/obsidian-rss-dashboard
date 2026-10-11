@@ -4195,7 +4195,7 @@ export class RssDashboardView extends ItemView {
           const article = this.inlineArticle;
           if (!article) return;
           if (article.saved) {
-            void this.handleArticleSave(article);
+            void this.handleOpenSavedArticle(article);
             return;
           }
           showSaveOptionsMenu(event, saveButton, {
