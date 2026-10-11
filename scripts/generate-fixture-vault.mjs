@@ -26,6 +26,16 @@ export const IMPORT_FIXTURES_FOLDER = "import-fixtures";
 export const SAVED_ARTICLE_PATH =
   "saved-articles/fixture-guide-to-offline-reading.md";
 
+// The fixture server (scripts/fixture-server.mjs) serves these pages, so an
+// article whose feed ships no text can fetch a page owned by this repository.
+export const FIXTURE_PAGES_DIR = join(ROOT_DIR, "test_files", "fixture-pages");
+export const FIXTURE_SERVER_HOST = "127.0.0.1";
+export const FIXTURE_SERVER_PORT = 8787;
+export const FIXTURE_SERVER_ORIGIN = `http://${FIXTURE_SERVER_HOST}:${FIXTURE_SERVER_PORT}`;
+// The one seed article whose link is not on example.com (#975).
+export const EMPTY_DESCRIPTION_PAGE = "empty-description.html";
+export const EMPTY_DESCRIPTION_LINK = `${FIXTURE_SERVER_ORIGIN}/${EMPTY_DESCRIPTION_PAGE}`;
+
 // 2026-09-01T12:00:00Z. Every seeded timestamp counts back from here.
 const BASE_MS = Date.UTC(2026, 8, 1, 12, 0, 0);
 const HOUR_MS = 60 * 60 * 1000;
@@ -150,7 +160,7 @@ function longArticleHtml(seedText) {
     }
     if (section === 8) {
       sections.push(
-        "<pre><code>const fixture = { feeds: 11, articles: 154 };\nconsole.log(fixture);</code></pre>",
+        "<pre><code>const fixture = { feeds: 11, articles: 155 };\nconsole.log(fixture);</code></pre>",
       );
     }
     if (section === 10) {
@@ -319,6 +329,17 @@ function rssTechItems() {
       coverImage: previewImage("rss-tech-1"),
       author: "Fixture Author",
       ...articleText("rss-tech-1", 3),
+    }),
+    item(feed, {
+      // No description, content, or summary: the feed publishes none, so the
+      // card preview stays blank until the Reader fetches the linked page and
+      // stores its publisherDescription (#959, #975). The guid stays on
+      // example.com so it does not depend on the fixture server's address.
+      title: "Article with no feed description",
+      link: EMPTY_DESCRIPTION_LINK,
+      guid: `${LINK_BASE}/rss-tech/no-feed-description`,
+      pubDate: at(3),
+      author: "Fixture Author",
     }),
     item(feed, {
       title: "Read article without a preview image",

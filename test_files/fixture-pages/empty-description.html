@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Fixture article with no feed description</title>
+    <meta
+      name="description"
+      content="A page description the Reader stores when the feed publishes no description of its own."
+    />
+    <meta name="author" content="Fixture Author" />
+  </head>
+  <body>
+    <main>
+      <article>
+        <h1>Fixture article with no feed description</h1>
+        <p>
+          This page stands in for a real article whose feed ships an empty
+          description, content, and summary. The fixture vault's matching
+          article links here, so the Reader's fetch-on-open has a page to read.
+        </p>
+        <p>
+          The body is deliberately plain: paragraphs of ordinary prose with no
+          headings, lists, images, or scripts, so Readability extracts a
+          straightforward article and the page metadata is read from the
+          document head before that extraction runs.
+        </p>
+        <p>
+          Because the feed supplied no text, the article card's preview stays
+          blank until the Reader fetches this page. Once the fetch succeeds, the
+          Reader stores the description above and the card shows it, which is
+          the behaviour this fixture exists to exercise without any server
+          outside the repository.
+        </p>
+        <p>
+          Serving this page is all the fixture server does. It keeps the
+          scenario reproducible from a fresh worktree, a second machine, or CI,
+          where a hand-edited working copy and a page on an unlisted port are
+          not available.
+        </p>
+      </article>
+    </main>
+  </body>
+</html>

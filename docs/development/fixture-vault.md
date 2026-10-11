@@ -16,6 +16,8 @@ storage migration can damage, and its state can't be shared or reset.
 | `.fixture-vault/`                    | The working copy you open in Obsidian. Gitignored and disposable.                                                  |
 | `scripts/setup-fixture-vault.mjs`    | Creates or resets a working copy and installs the current build (`npm run fixture:vault`).                         |
 | `scripts/generate-fixture-vault.mjs` | Regenerates the template's seeded plugin data (`npm run fixture:vault:generate`).                                  |
+| `test_files/fixture-pages/`          | Committed HTML pages the fixture server serves to a seed article.                                                  |
+| `scripts/fixture-server.mjs`         | Serves `test_files/fixture-pages/` over HTTP (`npm run fixture:serve`).                                            |
 | `scripts/obsidian-cdp.mjs`           | Drives the running app over the DevTools Protocol (see [Driving the vault over CDP](#driving-the-vault-over-cdp)). |
 
 Inside the template:
@@ -91,6 +93,28 @@ plugin's own `data.json`. `--storage shard-v1` keeps settings in the plugin's
 `rss-dashboard-data/feeds/`. Both hold the same content as the default, so
 after running the storage migration the dashboard should look exactly as it
 does in a Shard storage v2 vault.
+
+## Fixture pages and the fixture server
+
+One seeded article, **GitHub Blog: "Article with no feed description"**, ships
+an empty description, content, and summary, and its link points at a page served
+from this repository instead of `example.com`. The Reader fetches that page when
+you open the article and stores the page's description, which is the case where
+a card preview falls back to the reader-fetched description (#959, #975).
+
+Serve the pages in a second terminal before opening the article:
+
+```sh
+npm run fixture:serve
+```
+
+The server is dependency-free and serves only the `.html` files directly inside
+`test_files/fixture-pages/`, on `127.0.0.1:8787` — the address the seeded link
+uses. It prints each request, so you can confirm the Reader fetched the page. If
+that port is already taken, free it, or change `FIXTURE_SERVER_PORT` in
+`scripts/generate-fixture-vault.mjs`, regenerate the template, and reset the
+vault. With the server stopped the article still opens; the preview stays blank
+because the fetch fails, as it would for any unreachable page.
 
 ## Driving the vault over CDP
 
@@ -226,38 +250,39 @@ result must come from a known build and a clean vault.
 
 ## Seeded scenarios
 
-11 feeds, 154 articles: 48 read, 9 starred, 9 tagged, 1 saved, 2 with playback
+11 feeds, 155 articles: 48 read, 9 starred, 9 tagged, 1 saved, 2 with playback
 progress. The automated test in
 `test_files/unit/main/fixture-vault-loading.test.ts` checks these counts.
 
-| Scenario                       | Where to find it                                                                                                                                                          |
-| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| RSS feed                       | **GitHub Blog (fixture)**, folder `News/Tech`                                                                                                                             |
-| Atom feed                      | **RSS Dashboard releases (fixture)**, folder `News/Tech/Releases`                                                                                                         |
-| JSON Feed                      | **JSON Feed (fixture)**, folder `News`                                                                                                                                    |
-| YouTube feed                   | **Google for Developers (fixture)**, folder `Videos`                                                                                                                      |
-| Podcast feed                   | **The Changelog (fixture)**, folder `Podcasts`                                                                                                                            |
-| Mastodon feed                  | **Mastodon (fixture)**, folder `Mastodon`; posts have no title                                                                                                            |
-| Small web feed                 | **Kagi Small Web (fixture)**, folder `Smallweb` (the default small web folder)                                                                                            |
-| Feed in the root               | **RSS 2.0 sample (fixture, one article)**                                                                                                                                 |
-| Nested folders                 | `News` → `Tech` → `Releases`; `News` is pinned and `News/Tech` has an auto-tag                                                                                            |
-| Empty folder                   | `Empty`                                                                                                                                                                   |
-| Feed with no articles          | **Hacker News (fixture, no articles)**                                                                                                                                    |
-| Feed with one article          | **RSS 2.0 sample (fixture, one article)**                                                                                                                                 |
-| Feed with many articles        | **BBC Technology (fixture, 120 articles)**, folder `Bulk`: every third read, every 25th starred, every 40th tagged, every fourth with an image                            |
-| Feed with a fetch error        | **Unreachable feed (fixture)**: shows the error badge; its URL never resolves                                                                                             |
-| Unread article with an image   | GitHub Blog: "Unread article with a preview image"                                                                                                                        |
-| Read article without an image  | GitHub Blog: "Read article without a preview image"                                                                                                                       |
-| Starred, several tags          | GitHub Blog: "Starred article with two tags" (Important, Research)                                                                                                        |
-| Saved article                  | GitHub Blog: "Fixture guide to offline reading", saved to `saved-articles/`                                                                                               |
-| Long article                   | GitHub Blog: "A very long article for reader layout checks": headings, figure, list, quote, code, table                                                                   |
-| Resized CDN image              | GitHub Blog: "CDN image resizing": an inline Cloudinary demo image with `w_300,c_scale` in its URL; the lightbox should load the original (`.../image/upload/sample.jpg`) |
-| Paywalled article              | GitHub Blog: "Paywalled article showing only an excerpt"                                                                                                                  |
-| Undated articles               | GitHub Blog: two undated articles, one with a first-seen date and one without                                                                                             |
-| Imported starred article       | JSON Feed: "Starred article imported from starred.json" (cached preview banner)                                                                                           |
-| Video with playback progress   | Google for Developers: "Placeholder video two, half watched"                                                                                                              |
-| Podcast with playback progress | The Changelog: "Fixture episode 4", about 40% played                                                                                                                      |
-| Tags                           | Important, Read later, Video, Podcast, Research, Reference, RSS (all used, in different colors) and Unused (defined, never applied)                                       |
+| Scenario                         | Where to find it                                                                                                                                                           |
+| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| RSS feed                         | **GitHub Blog (fixture)**, folder `News/Tech`                                                                                                                              |
+| Atom feed                        | **RSS Dashboard releases (fixture)**, folder `News/Tech/Releases`                                                                                                          |
+| JSON Feed                        | **JSON Feed (fixture)**, folder `News`                                                                                                                                     |
+| YouTube feed                     | **Google for Developers (fixture)**, folder `Videos`                                                                                                                       |
+| Podcast feed                     | **The Changelog (fixture)**, folder `Podcasts`                                                                                                                             |
+| Mastodon feed                    | **Mastodon (fixture)**, folder `Mastodon`; posts have no title                                                                                                             |
+| Small web feed                   | **Kagi Small Web (fixture)**, folder `Smallweb` (the default small web folder)                                                                                             |
+| Feed in the root                 | **RSS 2.0 sample (fixture, one article)**                                                                                                                                  |
+| Nested folders                   | `News` → `Tech` → `Releases`; `News` is pinned and `News/Tech` has an auto-tag                                                                                             |
+| Empty folder                     | `Empty`                                                                                                                                                                    |
+| Feed with no articles            | **Hacker News (fixture, no articles)**                                                                                                                                     |
+| Feed with one article            | **RSS 2.0 sample (fixture, one article)**                                                                                                                                  |
+| Feed with many articles          | **BBC Technology (fixture, 120 articles)**, folder `Bulk`: every third read, every 25th starred, every 40th tagged, every fourth with an image                             |
+| Feed with a fetch error          | **Unreachable feed (fixture)**: shows the error badge; its URL never resolves                                                                                              |
+| Unread article with an image     | GitHub Blog: "Unread article with a preview image"                                                                                                                         |
+| Article with no feed description | GitHub Blog: "Article with no feed description"; the preview stays blank until you open it with `npm run fixture:serve` running, then shows the fetched page's description |
+| Read article without an image    | GitHub Blog: "Read article without a preview image"                                                                                                                        |
+| Starred, several tags            | GitHub Blog: "Starred article with two tags" (Important, Research)                                                                                                         |
+| Saved article                    | GitHub Blog: "Fixture guide to offline reading", saved to `saved-articles/`                                                                                                |
+| Long article                     | GitHub Blog: "A very long article for reader layout checks": headings, figure, list, quote, code, table                                                                    |
+| Resized CDN image                | GitHub Blog: "CDN image resizing": an inline Cloudinary demo image with `w_300,c_scale` in its URL; the lightbox should load the original (`.../image/upload/sample.jpg`)  |
+| Paywalled article                | GitHub Blog: "Paywalled article showing only an excerpt"                                                                                                                   |
+| Undated articles                 | GitHub Blog: two undated articles, one with a first-seen date and one without                                                                                              |
+| Imported starred article         | JSON Feed: "Starred article imported from starred.json" (cached preview banner)                                                                                            |
+| Video with playback progress     | Google for Developers: "Placeholder video two, half watched"                                                                                                               |
+| Podcast with playback progress   | The Changelog: "Fixture episode 4", about 40% played                                                                                                                       |
+| Tags                             | Important, Read later, Video, Podcast, Research, Reference, RSS (all used, in different colors) and Unused (defined, never applied)                                        |
 
 Every feed URL is a real public feed, so a manual refresh works and adds that
 feed's current articles next to the seeded ones. Everything above displays
@@ -271,8 +296,9 @@ test retention, set either limit on a feed, such as the 120-article feed, and
 refresh it.
 
 Article text is generated placeholder text. Links point at `example.com`,
-which is reserved for documentation, and nothing in the vault is personal data
-or a credential.
+which is reserved for documentation, except the "Article with no feed
+description" link, which points at the fixture server. Nothing in the vault is
+personal data or a credential.
 
 ## Import fixtures
 
@@ -293,7 +319,9 @@ file with the plugin's own parsers and validators.
 
 Edit `scripts/generate-fixture-vault.mjs` for feeds, articles, settings, and
 the JSON import fixtures, then run `npm run fixture:vault:generate`. Edit the
-notes, `feeds.opml`, `starred.json`, and the `.obsidian` files by hand.
+notes, `feeds.opml`, `starred.json`, and the `.obsidian` files by hand. Add a
+page for a seed article to link to in `test_files/fixture-pages/`; the fixture
+server serves each `.html` file there by its filename.
 `test_files/unit/setup-fixture-vault.test.ts` fails if the committed files no
 longer match the generator. Update the counts and the table above when the
 scenarios change.
