@@ -278,7 +278,7 @@ export function renderImportExportSettingsTab(
   // ── Settings bundle ───────────────────────────────────────────────────────
   const settingsBundleSection = containerEl.createDiv();
   new Setting(settingsBundleSection)
-    .setName("Settings bundle")
+    .setName("App preferences")
     .setDesc(
       "Import or export app preferences, including storage settings — no feeds, folders, tags, or articles. Exports as rss-dashboard-settings-bundle.json",
     )

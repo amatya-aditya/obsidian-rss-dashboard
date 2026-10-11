@@ -290,7 +290,7 @@ describe("Auto Backup Helpers", () => {
       expect(plugin.exportFeedBundle).toHaveBeenCalledTimes(1);
     });
 
-    it("renders Settings bundle actions", () => {
+    it("renders App preferences actions for the settings bundle", () => {
       const containerEl = createContainerEl();
       const plugin = createPlugin();
 
@@ -301,8 +301,13 @@ describe("Auto Backup Helpers", () => {
 
       const settingsBundleSetting = getSettingByName(
         containerEl,
-        "Settings bundle",
+        "App preferences",
       );
+      // The heading must not repeat "settings" inside the settings tab (#1021).
+      const headingName =
+        settingsBundleSetting.querySelector(".setting-item-name")
+          ?.textContent ?? "";
+      expect(headingName.toLowerCase()).not.toContain("settings");
       expect(settingsBundleSetting.textContent).toContain("app preferences");
       expect(settingsBundleSetting.textContent).toContain(
         "rss-dashboard-settings-bundle.json",
