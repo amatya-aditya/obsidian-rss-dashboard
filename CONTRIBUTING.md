@@ -26,7 +26,7 @@ Two people working on the same issue wastes both of their time, and GitHub doesn
 1. **Look for an existing claim or PR.** Read the issue's comments and check the **Development** section in its sidebar. You can also search open pull requests for the issue number. If someone has claimed it or opened a PR, review that PR or offer to help instead of starting a second one.
 2. **Comment to claim it.** Say you're taking it, for example "I'll take this". Do this before you open a PR, not after.
 3. **Wait for the marker.** A maintainer adds the `status: in-progress` label and replies. Repository assignment isn't used, because GitHub only lets collaborators be assigned. The label and your comment are the claim.
-4. **Open your PR promptly and link it.** Put `Fixes #123` in the description so the PR shows in the issue's Development section. `master` is the default branch and PRs merge into `dev`, so GitHub does not close the issue when the PR merges; the maintainer closes it after merging.
+4. **Open your PR promptly and link it.** Put a closing keyword such as `Fixes #123` in the description so the PR shows in the issue's Development section and closes the issue on merge: GitHub closes it natively when the PR merges into `master` (the default branch), and the `close-linked-issues` workflow closes it when the PR merges into `dev`.
 
 A claim lapses, and a maintainer may release the issue, when there's no PR within 7 days of the claim or no response within 7 days of a review. If two PRs do target one issue, the earlier claim goes first, and the later PR stays open as a fallback while the maintainers decide. A workflow comments on a new PR when another open PR already closes the same issue.
 
