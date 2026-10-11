@@ -165,7 +165,7 @@ export class ArticleRenderer {
           fetchedContent,
           fetchResult?.pageMetadata,
         );
-      } else if (this.lastFullArticleFetchWasRestricted()) {
+      } else if (fetchResult?.failureType === "restricted") {
         item.restrictedReason = RESTRICTED_ARTICLE_REASON;
         this.showRestrictedNotice(item);
       }
