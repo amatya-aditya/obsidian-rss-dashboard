@@ -1,4 +1,5 @@
 import type { ParsedFeed } from "../types.js";
+import { debugLog } from "../../../utils/debug-logger.js";
 import { isLatexFormulaImage } from "../../../utils/image-url-utils.js";
 import { hostMatches } from "../../../utils/url-host.js";
 import {
@@ -439,7 +440,7 @@ export class CustomXMLParser {
 
         // Debug: log image URL extraction for troubleshooting
         if (imageUrl.includes("%25")) {
-          console.debug(
+          debugLog(
             `[RSS Dashboard] extractImageFromContent: Found double-encoded URL: ${imageUrl}`,
           );
         }

@@ -1,3 +1,4 @@
+import { debugLog } from "../../utils/debug-logger.js";
 import {
   isLatexFormulaImage,
   isLatexFormulaImageElement,
@@ -68,7 +69,7 @@ function hasImageLikeSrc(src: string): boolean {
 /** Debug: log a URL for troubleshooting double-encoding. */
 function warnDoubleEncoded(label: string, value: string | null): void {
   if (value && value.includes("%25")) {
-    console.debug(
+    debugLog(
       `[RSS Dashboard] extractCoverImage: ${label} contains double-encoded: ${value}`,
     );
   }

@@ -1,4 +1,5 @@
 import { requestUrl } from "obsidian";
+import { debugLog } from "../../utils/debug-logger.js";
 import {
   detectPodcastPlatform,
   APPLE_PODCASTS,
@@ -104,7 +105,7 @@ async function searchItunesBySlug(slug: string): Promise<string | null> {
       result.feedUrl && slugMatchesName(slug, result.collectionName ?? ""),
   );
   if (match?.feedUrl) {
-    console.debug(
+    debugLog(
       `[RSS Dashboard] Resolved Pocket Casts slug "${slug}" via iTunes: ${match.feedUrl} (matched "${match.collectionName ?? ""}")`,
     );
     return match.feedUrl;
@@ -126,7 +127,7 @@ async function resolvePocketCastsShortUrl(url: string): Promise<string | null> {
     );
   }
 
-  console.debug(
+  debugLog(
     `[RSS Dashboard] Resolving Pocket Casts short link via iTunes search: slug="${slug}"`,
   );
 
@@ -165,7 +166,7 @@ async function resolvePocketCastsViaTitleSearch(
   if (titleMatch?.[1]) {
     const rawTitle = titleMatch[1];
     const decodedTitle = decodeHtmlEntities(rawTitle);
-    console.debug(
+    debugLog(
       `[RSS Dashboard] Extracted title for iTunes search: "${decodedTitle}"`,
     );
 
@@ -186,12 +187,12 @@ async function resolvePocketCastsViaTitleSearch(
         const firstResult = itunesData.results?.[0];
         if (firstResult?.feedUrl) {
           const feedUrl = firstResult.feedUrl;
-          console.debug(
+          debugLog(
             `[RSS Dashboard] Successfully resolved Pocket Casts URL via iTunes API: ${feedUrl} (matched "${firstResult.collectionName ?? ""}")`,
           );
           return feedUrl;
         }
-        console.debug(
+        debugLog(
           `[RSS Dashboard] iTunes API returned no feedUrl for title: ${decodedTitle}`,
         );
       } catch (itunesErr) {
@@ -217,11 +218,11 @@ async function resolvePocketCastsUrl(
     try {
       const feedUrl = await searchItunesBySlug(slug);
       if (feedUrl) return feedUrl;
-      console.debug(
+      debugLog(
         `[RSS Dashboard] iTunes slug search returned no results for "${slug}", falling back to proxy scraping`,
       );
     } catch (slugErr) {
-      console.debug(
+      debugLog(
         `[RSS Dashboard] iTunes slug search failed for "${slug}":`,
         slugErr,
       );
@@ -262,7 +263,7 @@ async function resolvePocketCastsUrl(
 
   for (const proxyUrl of new Set(proxyUrls)) {
     try {
-      console.debug(
+      debugLog(
         `[RSS Dashboard] Attempting to resolve Pocket Casts URL using proxy: ${proxyUrl}`,
       );
       const response = await requestUrl({ url: proxyUrl, method: "GET" });
@@ -286,7 +287,7 @@ async function resolvePocketCastsUrl(
         );
 
       if (match?.[1]) {
-        console.debug(
+        debugLog(
           `[RSS Dashboard] Successfully resolved Pocket Casts URL via meta tag: ${match[1]}`,
         );
         return match[1];

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { extractCoverImage } from "../../../../src/services/feed-parser/feed-cover-image.js";
+import { setDebugLoggingEnabled } from "../../../../src/utils/debug-logger.js";
 
 const BASE = "https://example.com/rss/feed.xml";
 const REAL = "https://img.example.com/real.jpg";
@@ -21,6 +22,7 @@ function extract(html: string, baseUrl = BASE) {
 describe("extractCoverImage", () => {
   afterEach(() => {
     vi.restoreAllMocks();
+    setDebugLoggingEnabled(null);
   });
 
   describe("input", () => {
@@ -132,6 +134,7 @@ describe("extractCoverImage", () => {
 
     it("logs a double-encoded url", () => {
       const debugSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
+      setDebugLoggingEnabled(true);
 
       extract(og("https://img.example.com/a%2520b.jpg"));
 
@@ -265,6 +268,7 @@ describe("extractCoverImage", () => {
 
     it("logs a double-encoded src", () => {
       const debugSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
+      setDebugLoggingEnabled(true);
 
       extract('<img src="/a%2520b.png">');
 
@@ -358,6 +362,7 @@ describe("extractCoverImage", () => {
 
     it("logs a double-encoded src for the first image and again for the scan", () => {
       const debugSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
+      setDebugLoggingEnabled(true);
       const src = "https://t.example.com/tracking/%2520a.gif";
 
       extract(`<img src="${src}"><img src="${REAL}">`);
