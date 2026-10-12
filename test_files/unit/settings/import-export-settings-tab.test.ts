@@ -478,6 +478,10 @@ describe("Auto Backup Helpers", () => {
 
       const starredSetting = getSettingByName(containerEl, "Starred imports");
       expect(starredSetting.textContent).toContain("starred.json");
+      // The produced tags are the "Label-derived tag" term (CONTEXT.md); the
+      // toggle label "Import labels as tags" stays because it names the action.
+      expect(starredSetting.textContent).toContain("Label-derived tag");
+      expect(starredSetting.textContent).toContain("Import labels as tags");
 
       const buttons = Array.from(
         containerEl.querySelectorAll<HTMLButtonElement>("button"),

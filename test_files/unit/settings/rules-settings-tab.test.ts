@@ -97,4 +97,24 @@ describe("renderRulesSettingsTab()", () => {
       "never changes whether a rule includes or excludes it",
     );
   });
+
+  it("explains that a rule set with no include rules passes everything unless excluded", async () => {
+    const { renderRulesSettingsTab } =
+      await import("../../../src/settings/tabs/rules-settings-tab");
+
+    const containerEl = createDiv();
+    document.body.appendChild(containerEl);
+    const plugin = {
+      settings: {},
+      saveSettings: vi.fn(async () => {}),
+      notifyFiltersUpdated: vi.fn(),
+    } as unknown as RssDashboardPlugin;
+
+    renderRulesSettingsTab(containerEl, plugin, vi.fn());
+
+    const text = containerEl.textContent ?? "";
+    expect(text).toContain("no enabled include rules");
+    expect(text).toContain("every article passes unless an exclude rule");
+    expect(text).toContain("bypass keyword rules");
+  });
 });

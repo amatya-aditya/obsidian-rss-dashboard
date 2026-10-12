@@ -444,7 +444,7 @@ export class ImportStarredModal extends Modal {
     const tagImportSetting = new Setting(panel)
       .setName("Import labels as tags")
       .setDesc(
-        "Labels become tags on each starred article, reusing a matching tag's color when your palette already has one. Any new tags this creates appear below before you import.",
+        "Label-derived tags come from the starred article's Inoreader labels, reusing a matching tag's color when your palette already has one. Any new tags this creates appear below before you import.",
       )
       .addToggle((toggle) => {
         toggle.setValue(this.tagImportEnabled).onChange((value) => {

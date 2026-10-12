@@ -1096,6 +1096,11 @@ describe("ImportStarredModal", () => {
     const content = (modal as unknown as TestModal).contentEl;
     const optionsPanel = content.querySelector(".import-options-panel");
     expect(optionsPanel?.textContent).toContain("Import labels as tags");
+    // The description names the produced tags with the "Label-derived tag"
+    // term (CONTEXT.md) while the toggle label keeps naming the action.
+    expect(getTagImportDescription(content).textContent).toContain(
+      "Label-derived tag",
+    );
     expect(getTagImportToggle(content).checked).toBe(true);
   });
 
