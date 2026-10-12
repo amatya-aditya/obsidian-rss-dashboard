@@ -963,6 +963,31 @@ describe("Obsidian stub contract", () => {
         (row.controlEl.querySelector("button") as HTMLButtonElement).disabled,
       ).toBe(false);
     });
+
+    // Observed on Obsidian 1.14.4 desktop (Windows): the color picker exposes
+    // its element as `colorPickerEl`. `obsidian.d.ts` declares neither
+    // `colorPickerEl` nor `inputEl`, so this contract is the only guard on the
+    // name. setDisabled writes `colorPickerEl.disabled`.
+    it("names the color picker element colorPickerEl", () => {
+      type ObservedColor = {
+        colorPickerEl: HTMLInputElement;
+        inputEl?: unknown;
+      };
+      let color!: ObservedColor;
+      const row = new Setting(createDiv()).addColorPicker((component) => {
+        color = component as unknown as ObservedColor;
+      });
+
+      expect(color.colorPickerEl).toBe(
+        row.controlEl.querySelector('input[type="color"]'),
+      );
+      expect(color.colorPickerEl.type).toBe("color");
+      // The runtime has no `inputEl` member; keep the stub from resurrecting it.
+      expect(color.inputEl).toBeUndefined();
+
+      row.setDisabled(true);
+      expect(color.colorPickerEl.disabled).toBe(true);
+    });
   });
 });
 

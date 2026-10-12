@@ -767,8 +767,8 @@ label and does **not** set the inner input's `checked`, and disabled toggles
 label `is-disabled` (toggle). `setDisplayFormat` rewrites the slider's
 `slider-value` span; the slider's `getValue` reads `valueAsNumber` and
 `setValue` fires `onChange` only when the value actually changes. The stub
-models all of these; the color picker's element is exposed as `inputEl` rather
-than the runtime's `colorPickerEl`, tracked as a naming follow-up (#1032).
+models all of these; the color picker's element is exposed as `colorPickerEl`,
+matching the runtime.
 
 ## Step 3: Menu
 
