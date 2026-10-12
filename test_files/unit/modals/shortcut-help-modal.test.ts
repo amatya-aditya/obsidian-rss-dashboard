@@ -233,6 +233,42 @@ describe("ShortcutHelpModal", () => {
     modal.onClose();
   });
 
+  it("removes Obsidian's native close button so only the header one remains", () => {
+    // On the mobile sheet the shared close-button rule re-showed the native
+    // button beside the header one (#1013), so the modal removes it outright
+    // like the feed modals do (#1014).
+    const app = createMockApp();
+    const modal = new ShortcutHelpModal(app, structuredClone(DEFAULT_SETTINGS));
+
+    modal.onOpen();
+
+    expect(modal.modalEl.querySelector(".modal-header-button")).toBeNull();
+    expect(modal.modalEl.querySelector(".modal-close-button")).toBeNull();
+    expect(
+      modal.contentEl.querySelector(
+        ".rss-dashboard-header-close-button.clickable-icon",
+      ),
+    ).not.toBeNull();
+
+    modal.onClose();
+  });
+
+  it("closes from the header close button", () => {
+    const app = createMockApp();
+    const modal = new ShortcutHelpModal(app, structuredClone(DEFAULT_SETTINGS));
+    const close = vi.spyOn(modal, "close").mockImplementation(() => {});
+    modal.onOpen();
+
+    const closeBtn = modal.contentEl.querySelector<HTMLElement>(
+      ".rss-dashboard-header-close-button.clickable-icon",
+    );
+    closeBtn?.click();
+
+    expect(close).toHaveBeenCalledTimes(1);
+
+    modal.onClose();
+  });
+
   describe("saving the shortcuts to a vault note", () => {
     function createSettings(defaultFolder: string): RssDashboardSettings {
       const settings = JSON.parse(

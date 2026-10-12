@@ -1,6 +1,7 @@
 import { Modal, App, setIcon, Notice } from "obsidian";
 import type { RssDashboardSettings } from "../types/types";
 import { ensureVaultFolder } from "../utils/vault-files";
+import { removeNativeModalCloseButton } from "../utils/modal-close-button";
 
 interface ShortcutItem {
   key: string;
@@ -108,6 +109,11 @@ export class ShortcutHelpModal extends Modal {
     this.modalEl.addClass("rss-dashboard-modal");
     this.modalEl.addClass("rss-dashboard-modal-container");
     this.modalEl.addClass("rss-shortcut-help-modal");
+
+    // The modal supplies its own header close button. Obsidian's native one is
+    // hidden by CSS, but the mobile modal sheet's shared rule re-shows it
+    // (#1013), so remove the node like the feed modals do (#1014).
+    removeNativeModalCloseButton(this.modalEl);
 
     const header = contentEl.createDiv({ cls: "rss-dashboard-header" });
     header.createDiv({
