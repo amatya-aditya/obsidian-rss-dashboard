@@ -98,7 +98,7 @@ describe("renderRulesSettingsTab()", () => {
     );
   });
 
-  it("explains that a rule set with no include rules passes everything unless excluded", async () => {
+  it("says that bypassing keyword rules also passes every article", async () => {
     const { renderRulesSettingsTab } =
       await import("../../../src/settings/tabs/rules-settings-tab");
 
@@ -113,8 +113,7 @@ describe("renderRulesSettingsTab()", () => {
     renderRulesSettingsTab(containerEl, plugin, vi.fn());
 
     const text = containerEl.textContent ?? "";
-    expect(text).toContain("no enabled include rules");
-    expect(text).toContain("every article passes unless an exclude rule");
     expect(text).toContain("bypass keyword rules");
+    expect(text).toContain("so it also passes every article");
   });
 });

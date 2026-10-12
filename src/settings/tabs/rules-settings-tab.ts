@@ -25,7 +25,7 @@ export function renderRulesSettingsTab(
   });
   containerEl.createEl("p", {
     cls: "rss-dashboard-settings-description",
-    text: "With no enabled include rules, every article passes unless an exclude rule matches it. The bypass keyword rules option in the dashboard filter menu turns off all keyword rules at once, including per-feed rules, so it also passes every article.",
+    text: "The bypass keyword rules option in the dashboard filter menu turns off all keyword rules at once, including per-feed rules, so it also passes every article.",
   });
   containerEl.createEl("p", {
     cls: "rss-dashboard-settings-description",
