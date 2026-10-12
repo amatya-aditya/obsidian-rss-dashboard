@@ -37,6 +37,7 @@
 
 ### Fixes
 
+- Saving an article from the dashboard's inline reader now applies the saved style and tooltip to its save button straight away, instead of waiting for the dashboard to re-render. [GH Issue #1009](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1009)
 - The keyboard shortcut reference keeps its right-aligned keys flush with the row edge when a description wraps at narrow widths, no longer shows a second close button beside its own on phones, and stacks its header into two rows on mobile. [GH Issue #1013](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1013)
 - The **Edit feed** modal no longer keeps Obsidian's built-in close button in the phone and tablet layout. [GH Issue #431](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/431)
 - The dashboard's inline reader now opens an already-saved article when its save button is clicked again, instead of re-running the save and overwriting the saved note. [GH Issue #1005](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1005)
