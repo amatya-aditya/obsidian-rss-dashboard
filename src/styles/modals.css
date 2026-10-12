@@ -892,11 +892,21 @@ body .rss-dashboard-tag-modal-color-picker::-moz-color-swatch {
 .rss-shortcut-row {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  /* Baseline alignment keeps the key on the description's first line; `center`
+   * re-centred it against the taller row when the description wrapped (#1013). */
+  align-items: baseline;
+  gap: 12px;
 }
 .rss-shortcut-desc {
   color: var(--text-normal);
   font-size: 0.95em;
+  /* Let a long description shrink and wrap instead of shoving the key. */
+  min-width: 0;
+}
+.rss-shortcut-key-container {
+  /* Never compress the key or let it drift from the row's right edge. */
+  flex-shrink: 0;
+  margin-left: auto;
 }
 .rss-shortcut-key-container kbd {
   background: var(--background-primary);
@@ -956,6 +966,30 @@ body .rss-shortcut-help-modal .modal-header-button {
 }
 .rss-shortcut-help-modal .rss-dashboard-modal-content {
   padding: 1rem 1.5rem 1.5rem 1.5rem;
+}
+
+/* The desktop header is one row: title, save link, close button. On the mobile
+ * bottom sheet there is not enough width, so stack it into two rows — title
+ * and close button, then the save link beneath them (#1013). */
+@media (max-width: 768px) {
+  .rss-shortcut-help-modal .rss-dashboard-header {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      "title close"
+      "save save";
+    align-items: center;
+    row-gap: 8px;
+  }
+  .rss-shortcut-help-modal .rss-dashboard-header-title {
+    grid-area: title;
+  }
+  .rss-shortcut-help-modal .rss-dashboard-save-shortcuts-link {
+    grid-area: save;
+  }
+  .rss-shortcut-help-modal .rss-dashboard-header-close-button {
+    grid-area: close;
+  }
 }
 
 /* ============================================

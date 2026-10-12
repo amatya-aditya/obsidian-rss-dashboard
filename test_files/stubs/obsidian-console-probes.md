@@ -767,26 +767,32 @@ label and does **not** set the inner input's `checked`, and disabled toggles
 label `is-disabled` (toggle). `setDisplayFormat` rewrites the slider's
 `slider-value` span; the slider's `getValue` reads `valueAsNumber` and
 `setValue` fires `onChange` only when the value actually changes. The stub
-models all of these; the color picker's element is exposed as `inputEl` rather
-than the runtime's `colorPickerEl`, tracked as a naming follow-up (#1032).
+models all of these; the color picker's element is exposed as `colorPickerEl`,
+matching the runtime.
 
 ## Step 3: Menu
 
 **Probe:** `test_files/stubs/probes/menu.repl`.
 **Observed on 1.14.4 (Windows):** a `MenuItem` exposes `disabled` and `checked`
-as readable properties (`setChecked(true)` → `checked: true`,
-`setDisabled(true)` → `disabled: true`), and has `setTitle`, `setIcon`,
-`setChecked`, `setDisabled`, `onClick`, plus `titleEl`, `iconEl`,
-`checkIconEl`, `submenu`, `section`, `menu`, `dom` and `callback`. `Menu` has
-`addItem`, `addSeparator`, `showAtPosition`, `showAtMouseEvent`, and also `hide`
-and `close`. The stub's `MenuItem` lacks `setDisabled` (production calls it in
-`src/views/reader-view.ts`), and its `Menu` lacks `hide`/`close`; the
-disabled/checked behavior is a separate slice (#431). A shown menu renders in
-the main window's `document` as `.menu > .menu-scroll > .menu-group >
-.menu-item`; a disabled item carries `is-disabled` and a checked one carries
-`mod-checked` (`menu-item tappable`, `menu-item tappable mod-checked`,
-`menu-item tappable is-disabled`). Close the Settings popout before probing, or
-`activeDocument` points at that window and the menu renders elsewhere.
+as readable own properties. A **fresh item has `checked: null` and
+`disabled: false`**; `setChecked(true)` → `checked: true`, `setChecked(null)` →
+`checked: null`, `setChecked(false)` → `checked: false`, and
+`setDisabled(true|false)` writes `disabled`. Both setters return the item
+(`this`), so they chain. The item also has `setTitle`, `setIcon`, `onClick`,
+plus `titleEl`, `iconEl`, `checkIconEl`, `submenu`, `section`, `menu`, `dom`
+and `callback`. `Menu` has `addItem`, `addSeparator`, `showAtPosition`,
+`showAtMouseEvent`, and also `hide` (returns the menu) and `close` (returns
+`undefined`).
+
+**Modeled (#431):** the stub's `MenuItem` stores `checked = null` and
+`disabled = false`, and `setChecked(checked: boolean | null)`/`setDisabled`
+return `this`. `Menu` models `hide(): this` and `close(): void`. A shown menu
+renders in the main window's `document` as
+`.menu > .menu-scroll > .menu-group > .menu-item`; a disabled item carries
+`is-disabled` and a checked one carries `mod-checked` (`menu-item tappable`,
+`menu-item tappable mod-checked`, `menu-item tappable is-disabled`). Close the
+Settings popout before probing, or `activeDocument` points at that window and
+the menu renders elsewhere.
 
 ## Step 3: Notice
 

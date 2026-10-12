@@ -8,6 +8,7 @@
 import { App, Notice, Setting } from "obsidian";
 import { PodcastTheme } from "../../types/types";
 import type { MediaSettings } from "../../types/types";
+import { ConfirmActionModal } from "../modals/settings-modals";
 import { settingsUiCompatibility } from "../settings-ui-compat";
 
 interface MediaTabSettings {
@@ -51,13 +52,24 @@ export function renderMediaSettingsTab(
       "Remove all remembered podcast and video resume positions stored by the plugin",
     )
     .addButton((button) => {
-      button.setButtonText("Clear progress").onClick(async () => {
-        const clearedCount = await plugin.clearPlaybackProgress();
-        new Notice(
-          clearedCount > 0
-            ? `Cleared saved playback progress for ${clearedCount} item${clearedCount === 1 ? "" : "s"}.`
-            : "No saved playback progress was found.",
-        );
+      button.setButtonText("Clear progress").onClick(() => {
+        void (async () => {
+          const confirm = new ConfirmActionModal(plugin.app, {
+            title: "Clear saved playback progress?",
+            message:
+              "Remove every remembered podcast and video resume position. This cannot be undone.",
+            confirmLabel: "Clear progress",
+          });
+          confirm.open();
+          const shouldClear = await confirm.waitForClose();
+          if (!shouldClear) return;
+          const clearedCount = await plugin.clearPlaybackProgress();
+          new Notice(
+            clearedCount > 0
+              ? `Cleared saved playback progress for ${clearedCount} item${clearedCount === 1 ? "" : "s"}.`
+              : "No saved playback progress was found.",
+          );
+        })();
       });
       settingsUiCompatibility.markDestructive(button);
     });
@@ -127,6 +139,20 @@ export function renderMediaSettingsTab(
           if (readerView) {
             readerView.updatePodcastTheme(theme);
           }
+        }),
+    );
+
+  new Setting(containerEl)
+    .setName("Apple podcast links")
+    .setDesc(
+      "Apple podcast links show in a podcast's open menu. Off by default.",
+    )
+    .addToggle((toggle) =>
+      toggle
+        .setValue(plugin.settings.media.enableApplePodcastsOpen ?? false)
+        .onChange(async (value) => {
+          plugin.settings.media.enableApplePodcastsOpen = value;
+          await plugin.saveSettings();
         }),
     );
 

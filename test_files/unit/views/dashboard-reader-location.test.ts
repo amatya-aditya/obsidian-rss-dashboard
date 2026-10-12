@@ -362,7 +362,6 @@ describe("Dashboard reader location", () => {
     const feed = makeFeed("https://example.com/feed", [{}]);
     settings.feeds = [feed];
     settings.readerViewLocation = "right-sidebar";
-    settings.media.openInSplitView = false;
     const rightLeaf = createReaderLeaf(new App(), "right");
     const windowOpenSpy = vi
       .spyOn(window, "open")
@@ -484,12 +483,11 @@ describe("Dashboard reader location", () => {
     },
   );
 
-  it("ignores legacy media.openInSplitView when readerViewLocation targets a sidebar", async () => {
+  it("opens Open in reader view in the configured left sidebar target", async () => {
     const settings = cloneSettings();
     const feed = makeFeed("https://example.com/feed", [{}]);
     settings.feeds = [feed];
     settings.readerViewLocation = "left-sidebar";
-    settings.media.openInSplitView = false;
     const leftLeaf = createReaderLeaf(new App(), "left");
     const windowOpenSpy = vi
       .spyOn(window, "open")

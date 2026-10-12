@@ -1,4 +1,4 @@
-import type { RssDashboardSettings, Tag } from "../types/types";
+import type { Folder, RssDashboardSettings, Tag } from "../types/types";
 
 export function updateTagInSettings(
   settings: Readonly<RssDashboardSettings>,
@@ -35,12 +35,32 @@ export function updateTagInSettings(
 }
 
 /**
+ * Removes every assignment of `tagName` from a folder tree's auto-tags,
+ * including nested subfolders. Folder rules re-apply their auto-tags on every
+ * refresh, so a deleted tag must be stripped here too or it comes straight
+ * back.
+ */
+function stripTagFromFolders(
+  folders: readonly Folder[],
+  tagName: string,
+): void {
+  for (const folder of folders) {
+    if (folder.autoTags) {
+      folder.autoTags = folder.autoTags.filter((tag) => tag.name !== tagName);
+    }
+    if (folder.subfolders?.length) {
+      stripTagFromFolders(folder.subfolders, tagName);
+    }
+  }
+}
+
+/**
  * Deletes a Tag definition and every Tag assignment that uses it. Both
  * tag-management controls (sidebar and Settings) share this so deletion has
  * one meaning; removing a single article's assignment is a separate action.
  */
 export function deleteTagFromSettings(
-  settings: Pick<RssDashboardSettings, "availableTags" | "feeds">,
+  settings: Pick<RssDashboardSettings, "availableTags" | "feeds" | "folders">,
   tagName: string,
 ): void {
   const tagIndex = settings.availableTags.findIndex((t) => t.name === tagName);
@@ -55,4 +75,6 @@ export function deleteTagFromSettings(
       }
     }
   }
+
+  stripTagFromFolders(settings.folders, tagName);
 }

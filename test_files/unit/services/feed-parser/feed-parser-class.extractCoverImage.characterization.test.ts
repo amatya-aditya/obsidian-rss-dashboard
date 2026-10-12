@@ -44,7 +44,6 @@ const ITEM_LINK = "https://example.com/a";
 const DEBUG_PREFIX = "[RSS Dashboard] extractCoverImage:";
 
 const MEDIA_SETTINGS: MediaSettings = {
-  autoTagVideos: true,
   rememberPlaybackProgress: true,
   youtubeFocusMode: false,
   defaultMastodonFolder: "Mastodon",
@@ -63,7 +62,6 @@ const MEDIA_SETTINGS: MediaSettings = {
   defaultSmallwebTags: [],
   defaultMastodonTag: "",
   defaultMastodonTags: [],
-  openInSplitView: true,
   podcastTheme: "obsidian",
   enableApplePodcastsOpen: false,
   defaultPlaySpeed: 1,

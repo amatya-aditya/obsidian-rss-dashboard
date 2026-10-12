@@ -13,6 +13,7 @@ import {
   App,
   Component,
   ItemView,
+  Menu,
   Modal,
   Plugin,
   Scope,
@@ -24,6 +25,7 @@ import {
   normalizePath,
   requireApiVersion,
   setIcon,
+  type MenuItem,
   type WorkspaceLeaf,
   requestUrl,
   setRequestUrlHandler,
@@ -962,6 +964,102 @@ describe("Obsidian stub contract", () => {
       expect(
         (row.controlEl.querySelector("button") as HTMLButtonElement).disabled,
       ).toBe(false);
+    });
+
+    // Observed on Obsidian 1.14.4 desktop (Windows): the color picker exposes
+    // its element as `colorPickerEl`. `obsidian.d.ts` declares neither
+    // `colorPickerEl` nor `inputEl`, so this contract is the only guard on the
+    // name. setDisabled writes `colorPickerEl.disabled`.
+    it("names the color picker element colorPickerEl", () => {
+      type ObservedColor = {
+        colorPickerEl: HTMLInputElement;
+        inputEl?: unknown;
+      };
+      let color!: ObservedColor;
+      const row = new Setting(createDiv()).addColorPicker((component) => {
+        color = component as unknown as ObservedColor;
+      });
+
+      expect(color.colorPickerEl).toBe(
+        row.controlEl.querySelector('input[type="color"]'),
+      );
+      expect(color.colorPickerEl.type).toBe("color");
+      // The runtime has no `inputEl` member; keep the stub from resurrecting it.
+      expect(color.inputEl).toBeUndefined();
+
+      row.setDisabled(true);
+      expect(color.colorPickerEl.disabled).toBe(true);
+    });
+  });
+
+  describe("Menu", () => {
+    // Observed on Obsidian 1.14.4 desktop (Windows): a fresh item has
+    // `checked: null` and `disabled: false` as own readable properties.
+    it("starts a menu item unchecked and enabled", () => {
+      const menu = new Menu();
+      menu.addItem((item) => item.setTitle("Alpha"));
+
+      expect(Menu.lastItems).toHaveLength(1);
+      expect(Menu.lastItems[0].checked).toBeNull();
+      expect(Menu.lastItems[0].disabled).toBe(false);
+    });
+
+    // Observed on Obsidian 1.14.4 desktop (Windows): setChecked writes the
+    // flag (true/false/null) and returns the item, so it chains.
+    it("stores the checked state and returns the item", () => {
+      const menu = new Menu();
+      let item!: MenuItem;
+      menu.addItem((created) => {
+        item = created;
+      });
+
+      expect(item.setChecked(true)).toBe(item);
+      expect(Menu.lastItems[0].checked).toBe(true);
+
+      item.setChecked(null);
+      expect(Menu.lastItems[0].checked).toBeNull();
+
+      item.setChecked(false);
+      expect(Menu.lastItems[0].checked).toBe(false);
+    });
+
+    // Observed on Obsidian 1.14.4 desktop (Windows): setDisabled writes the
+    // flag and returns the item.
+    it("stores the disabled state and returns the item", () => {
+      const menu = new Menu();
+      let item!: MenuItem;
+      menu.addItem((created) => {
+        item = created;
+      });
+
+      expect(item.setDisabled(true)).toBe(item);
+      expect(Menu.lastItems[0].disabled).toBe(true);
+
+      item.setDisabled(false);
+      expect(Menu.lastItems[0].disabled).toBe(false);
+    });
+
+    // Observed on Obsidian 1.14.4 desktop (Windows): addItem collects each item
+    // in call order and addSeparator adds none.
+    it("collects items and ignores separators", () => {
+      const menu = new Menu();
+      menu.addItem((item) => item.setTitle("Alpha"));
+      menu.addSeparator();
+      menu.addItem((item) => item.setTitle("Beta"));
+
+      expect(Menu.lastItems.map((item) => item.title)).toEqual([
+        "Alpha",
+        "Beta",
+      ]);
+    });
+
+    // Observed on Obsidian 1.14.4 desktop (Windows): hide returns the menu and
+    // close returns undefined.
+    it("returns the menu from hide and nothing from close", () => {
+      const menu = new Menu();
+
+      expect(menu.hide()).toBe(menu);
+      expect(menu.close()).toBeUndefined();
     });
   });
 });

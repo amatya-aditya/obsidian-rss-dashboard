@@ -12,6 +12,7 @@ import { DEFAULT_SETTINGS } from "../../types/types";
 import { DEFAULT_TAG_COLOR } from "../../utils/tag-colors";
 import { updateTagInSettings } from "../../utils/tag-utils";
 import { deleteTagFromSettings } from "../../utils/tag-settings";
+import { ConfirmActionModal } from "../modals/settings-modals";
 import { renderTagShapeControl } from "./tag-shape-control";
 
 interface AutoTagSettingConfig {
@@ -158,12 +159,22 @@ export function renderTagsSettingsTab(
         button
           .setIcon("trash")
           .setTooltip("Delete tag")
-          .onClick(async () => {
-            deleteTagFromSettings(plugin.settings, tag.name);
-            await plugin.saveSettings();
-            await plugin.refreshOpenTagColorViews();
-            plugin.app.workspace.trigger("rss-dashboard:tags-mutated");
-            onRefresh();
+          .onClick(() => {
+            void (async () => {
+              const confirm = new ConfirmActionModal(plugin.app, {
+                title: "Delete tag?",
+                message: `"${tag.name}" will be removed from your tags and from every article using it.`,
+                confirmLabel: "Delete",
+              });
+              confirm.open();
+              const shouldDelete = await confirm.waitForClose();
+              if (!shouldDelete) return;
+              deleteTagFromSettings(plugin.settings, tag.name);
+              await plugin.saveSettings();
+              await plugin.refreshOpenTagColorViews();
+              plugin.app.workspace.trigger("rss-dashboard:tags-mutated");
+              onRefresh();
+            })();
           }),
       );
   }
@@ -181,21 +192,35 @@ export function renderTagsSettingsTab(
     .addColorPicker((colorPicker) => colorPicker.setValue(DEFAULT_TAG_COLOR));
 
   new Setting(newTagContainer).addButton((button) =>
-    button.setButtonText("Add tag").onClick(async () => {
-      const nameInput = tagNameSetting.components[0] as unknown as {
-        inputEl: HTMLInputElement;
-      };
-      const name = nameInput.inputEl.value;
-      const colorPicker = tagColorSetting.components[0] as unknown as {
-        getValue: () => string;
-      };
-      const color = colorPicker.getValue();
+    button.setButtonText("Add tag").onClick(() => {
+      void (async () => {
+        const nameInput = tagNameSetting.components[0] as unknown as {
+          inputEl: HTMLInputElement;
+        };
+        const colorPicker = tagColorSetting.components[0] as unknown as {
+          getValue: () => string;
+        };
+        const name = nameInput.inputEl.value.trim();
 
-      if (!name) return;
+        if (!name) {
+          new Notice("Please enter a tag name!");
+          return;
+        }
+        const duplicate = plugin.settings.availableTags.some(
+          (tag) => tag.name.toLowerCase() === name.toLowerCase(),
+        );
+        if (duplicate) {
+          new Notice("A tag with this name already exists!");
+          return;
+        }
 
-      plugin.settings.availableTags.push({ name, color });
-      await plugin.saveSettings();
-      onRefresh();
+        plugin.settings.availableTags.push({
+          name,
+          color: colorPicker.getValue(),
+        });
+        await plugin.saveSettings();
+        onRefresh();
+      })();
     }),
   );
 }

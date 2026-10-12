@@ -3,15 +3,25 @@ import * as obsidian from "obsidian";
 import {
   type RssDashboardSettings,
   type Feed,
+  type Folder,
   DEFAULT_SETTINGS,
 } from "../../../src/types/types";
 import { renderTagsSettingsTab } from "../../../src/settings/tabs/tags-settings-tab";
+import { ConfirmActionModal } from "../../../src/settings/modals/settings-modals";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 import { findIconButton } from "../test-icon-helpers";
 import type RssDashboardPlugin from "../../../main";
 
 function flushPromises(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, 0));
+}
+
+/** Resolve the shared confirmation dialog without a real interaction. */
+function stubConfirm(result: boolean): void {
+  vi.spyOn(ConfirmActionModal.prototype, "open").mockImplementation(() => {});
+  vi.spyOn(ConfirmActionModal.prototype, "waitForClose").mockResolvedValue(
+    result,
+  );
 }
 
 function getSettingByName(containerEl: HTMLElement, name: string): HTMLElement {
@@ -348,6 +358,7 @@ describe("renderTagsSettingsTab()", () => {
     const settings = cloneSettings();
     settings.availableTags = [{ name: "tag1", color: "#000000" }];
     const onRefresh = vi.fn();
+    stubConfirm(true);
 
     const plugin = {
       app: obsidian.App.createMock(),
@@ -368,6 +379,34 @@ describe("renderTagsSettingsTab()", () => {
     expect(plugin.settings.availableTags).toHaveLength(0);
     expect(vi.mocked(plugin.saveSettings)).toHaveBeenCalledTimes(1);
     expect(onRefresh).toHaveBeenCalledTimes(1);
+  });
+
+  it("leaves the tag and everything using it unchanged when deletion is cancelled", async () => {
+    const containerEl = document.body.appendChild(createDiv());
+    const settings = cloneSettings();
+    settings.availableTags = [{ name: "tag1", color: "#000000" }];
+    const onRefresh = vi.fn();
+    stubConfirm(false);
+
+    const plugin = {
+      app: obsidian.App.createMock(),
+      settings,
+      saveSettings: vi.fn(async () => {}),
+      refreshOpenTagColorViews: vi.fn(async () => {}),
+    } as unknown as RssDashboardPlugin;
+
+    renderTagsSettingsTab(containerEl, plugin, onRefresh);
+
+    const deleteBtn = findIconButton(
+      containerEl,
+      "trash-2",
+    ) as HTMLButtonElement;
+    deleteBtn.click();
+    await flushPromises();
+
+    expect(plugin.settings.availableTags).toHaveLength(1);
+    expect(vi.mocked(plugin.saveSettings)).not.toHaveBeenCalled();
+    expect(onRefresh).not.toHaveBeenCalled();
   });
 
   it("adds a new tag and refreshes", async () => {
@@ -412,6 +451,104 @@ describe("renderTagsSettingsTab()", () => {
     });
     expect(vi.mocked(plugin.saveSettings)).toHaveBeenCalledTimes(1);
     expect(onRefresh).toHaveBeenCalledTimes(1);
+  });
+
+  it("trims the new tag name before storing it", async () => {
+    const containerEl = document.body.appendChild(createDiv());
+    const settings = cloneSettings();
+    settings.availableTags = [];
+
+    const plugin = {
+      app: obsidian.App.createMock(),
+      settings,
+      saveSettings: vi.fn(async () => {}),
+      refreshOpenTagColorViews: vi.fn(async () => {}),
+    } as unknown as RssDashboardPlugin;
+
+    renderTagsSettingsTab(containerEl, plugin, vi.fn());
+
+    const nameInput = getSettingByName(containerEl, "Tag name").querySelector(
+      'input[type="text"]',
+    ) as HTMLInputElement;
+    nameInput.value = "  spaced  ";
+
+    const addBtn = Array.from(containerEl.querySelectorAll("button")).find(
+      (b) => b.textContent === "Add tag",
+    ) as HTMLButtonElement;
+    addBtn.click();
+    await flushPromises();
+
+    expect(plugin.settings.availableTags).toEqual([
+      { name: "spaced", color: "#8a5cf5" },
+    ]);
+  });
+
+  it("rejects a whitespace-only tag name", async () => {
+    const containerEl = document.body.appendChild(createDiv());
+    const settings = cloneSettings();
+    settings.availableTags = [];
+    const logSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
+
+    const plugin = {
+      app: obsidian.App.createMock(),
+      settings,
+      saveSettings: vi.fn(async () => {}),
+      refreshOpenTagColorViews: vi.fn(async () => {}),
+    } as unknown as RssDashboardPlugin;
+
+    renderTagsSettingsTab(containerEl, plugin, vi.fn());
+
+    const nameInput = getSettingByName(containerEl, "Tag name").querySelector(
+      'input[type="text"]',
+    ) as HTMLInputElement;
+    nameInput.value = "   ";
+
+    const addBtn = Array.from(containerEl.querySelectorAll("button")).find(
+      (b) => b.textContent === "Add tag",
+    ) as HTMLButtonElement;
+    addBtn.click();
+    await flushPromises();
+
+    expect(plugin.settings.availableTags).toHaveLength(0);
+    expect(vi.mocked(plugin.saveSettings)).not.toHaveBeenCalled();
+    expect(logSpy).toHaveBeenCalledWith(
+      "[Stub Notice]",
+      "Please enter a tag name!",
+    );
+  });
+
+  it("rejects a tag whose name already exists case-insensitively", async () => {
+    const containerEl = document.body.appendChild(createDiv());
+    const settings = cloneSettings();
+    settings.availableTags = [{ name: "Video", color: "#d04747" }];
+    const logSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
+
+    const plugin = {
+      app: obsidian.App.createMock(),
+      settings,
+      saveSettings: vi.fn(async () => {}),
+      refreshOpenTagColorViews: vi.fn(async () => {}),
+    } as unknown as RssDashboardPlugin;
+
+    renderTagsSettingsTab(containerEl, plugin, vi.fn());
+
+    const nameInput = getSettingByName(containerEl, "Tag name").querySelector(
+      'input[type="text"]',
+    ) as HTMLInputElement;
+    nameInput.value = "video";
+
+    const addBtn = Array.from(containerEl.querySelectorAll("button")).find(
+      (b) => b.textContent === "Add tag",
+    ) as HTMLButtonElement;
+    addBtn.click();
+    await flushPromises();
+
+    expect(plugin.settings.availableTags).toHaveLength(1);
+    expect(vi.mocked(plugin.saveSettings)).not.toHaveBeenCalled();
+    expect(logSpy).toHaveBeenCalledWith(
+      "[Stub Notice]",
+      "A tag with this name already exists!",
+    );
   });
 
   describe("deleting a tag definition", () => {
@@ -459,6 +596,7 @@ describe("renderTagsSettingsTab()", () => {
         refreshOpenTagColorViews: vi.fn(async () => {}),
       } as unknown as RssDashboardPlugin;
       const onRefresh = vi.fn();
+      stubConfirm(true);
       renderTagsSettingsTab(containerEl, plugin, onRefresh);
       return { containerEl, settings, plugin, onRefresh, trigger };
     }
@@ -493,6 +631,36 @@ describe("renderTagsSettingsTab()", () => {
 
       expect(plugin.refreshOpenTagColorViews).toHaveBeenCalled();
       expect(trigger).toHaveBeenCalledWith("rss-dashboard:tags-mutated");
+    });
+
+    it("strips the deleted tag from folder auto-tags", async () => {
+      const containerEl = document.body.appendChild(createDiv());
+      const settings = cloneSettings();
+      settings.availableTags = [
+        { name: "Video", color: "#d04747" },
+        { name: "News", color: "#3498db" },
+      ];
+      settings.folders = [
+        {
+          name: "Tech",
+          subfolders: [],
+          autoTags: [{ name: "Video", color: "#d04747" }],
+        } as Folder,
+      ];
+
+      const plugin = {
+        app: obsidian.App.createMock(),
+        settings,
+        saveSettings: vi.fn(async () => {}),
+        refreshOpenTagColorViews: vi.fn(async () => {}),
+      } as unknown as RssDashboardPlugin;
+      stubConfirm(true);
+      renderTagsSettingsTab(containerEl, plugin, vi.fn());
+
+      clickDelete(containerEl, "Video");
+      await flushPromises();
+
+      expect(settings.folders[0].autoTags).toEqual([]);
     });
   });
 });

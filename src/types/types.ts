@@ -271,7 +271,6 @@ export type PodcastTheme =
   | "tokyonight";
 
 export interface MediaSettings {
-  autoTagVideos: boolean;
   rememberPlaybackProgress: boolean;
   /** Show only the YouTube video: omit the description and related list; stored data is untouched. */
   youtubeFocusMode: boolean;
@@ -291,7 +290,6 @@ export interface MediaSettings {
   defaultSmallwebTags: string[];
   defaultMastodonTag: string;
   defaultMastodonTags: string[];
-  openInSplitView: boolean;
   podcastTheme: PodcastTheme;
   enableApplePodcastsOpen?: boolean;
   defaultPlaySpeed: number;
@@ -353,7 +351,6 @@ export interface DisplaySettings {
   useDomainIconsPodcast: boolean;
   useDomainIconsMastodon: boolean;
   useDomainIconsRss: boolean;
-  useDomainIconsYouTube: boolean;
   hideDefaultRssIcon: boolean;
   autoMarkReadOnOpen: boolean;
   sidebarRowSpacing: number;
@@ -586,7 +583,6 @@ export interface RssDashboardSettings {
 
   corsProxyEnabled: boolean;
   corsProxyUrl: string;
-  customProxyUrls: string[];
 
   readerFormat: ReaderFormatSettings;
 
@@ -771,7 +767,6 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
   useWebViewer: true,
   corsProxyEnabled: true,
   corsProxyUrl: "auto",
-  customProxyUrls: [],
   readerFormat: {
     textAlign: "justify",
     paragraphWidth: 100,
@@ -781,7 +776,6 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
     paragraphSpacing: "default",
   },
   media: {
-    autoTagVideos: true,
     rememberPlaybackProgress: true,
     youtubeFocusMode: false,
     defaultMastodonFolder: "Mastodon",
@@ -800,7 +794,6 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
     defaultSmallwebTags: ["smallweb"],
     defaultMastodonTag: "",
     defaultMastodonTags: [],
-    openInSplitView: true,
     podcastTheme: "obsidian",
     enableApplePodcastsOpen: false,
     defaultPlaySpeed: 1,
@@ -869,7 +862,6 @@ guid: "{{guid}}"
     useDomainIconsPodcast: false,
     useDomainIconsMastodon: false,
     useDomainIconsRss: false,
-    useDomainIconsYouTube: false,
     hideDefaultRssIcon: false,
     autoMarkReadOnOpen: false,
     sidebarRowSpacing: 10,

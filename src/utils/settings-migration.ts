@@ -233,6 +233,38 @@ export function migrateKeywordRulesSettings(
   return changed;
 }
 
+/**
+ * Removes settings keys dropped in #919 so an older data.json, or an import
+ * bundle that still carries them, does not keep re-writing keys the plugin no
+ * longer reads. `media.autoTagVideos` is derived into `defaultVideoTag` before
+ * this runs. Returns true when anything was removed.
+ */
+export function removeObsoleteSettingsKeys(
+  settings: Record<string, unknown>,
+): boolean {
+  let changed = false;
+  const media = isRecord(settings.media) ? settings.media : undefined;
+  const display = isRecord(settings.display) ? settings.display : undefined;
+
+  if (settings.customProxyUrls !== undefined) {
+    delete settings.customProxyUrls;
+    changed = true;
+  }
+  if (media && media.autoTagVideos !== undefined) {
+    delete media.autoTagVideos;
+    changed = true;
+  }
+  if (media && media.openInSplitView !== undefined) {
+    delete media.openInSplitView;
+    changed = true;
+  }
+  if (display && display.useDomainIconsYouTube !== undefined) {
+    delete display.useDomainIconsYouTube;
+    changed = true;
+  }
+  return changed;
+}
+
 export function migrateMediaVideoTagSettings(
   settings: Record<string, unknown>,
 ): boolean {
@@ -246,6 +278,9 @@ export function migrateMediaVideoTagSettings(
 
   const media = settings.media as Record<string, unknown>;
   if (typeof media.defaultVideoTag !== "string") {
+    // Legacy installs stored `autoTagVideos`. It is no longer a setting, but
+    // keep reading it from raw data so a user who turned video auto-tagging
+    // off still loads with an empty `defaultVideoTag` (#919).
     if (media.autoTagVideos === false) {
       media.defaultVideoTag = "";
     } else {

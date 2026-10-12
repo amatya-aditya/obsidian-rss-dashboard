@@ -1427,10 +1427,18 @@ class MenuStub extends ComponentStub {
   }
   showAtPosition(): void {}
   showAtMouseEvent(_event: MouseEvent): void {}
+  hide(): this {
+    return this;
+  }
+  close(): void {}
 }
 
 class MenuItemStub {
   title = "";
+  // Observed on Obsidian 1.14.4 desktop (Windows): a fresh item has
+  // `checked: null` and `disabled: false`.
+  checked: boolean | null = null;
+  disabled = false;
   callback: ((evt: MouseEvent) => unknown) | undefined;
 
   setTitle(title: string | DocumentFragment): this {
@@ -1440,7 +1448,12 @@ class MenuItemStub {
   setIcon(): this {
     return this;
   }
-  setChecked(): this {
+  setChecked(checked: boolean | null): this {
+    this.checked = checked;
+    return this;
+  }
+  setDisabled(disabled: boolean): this {
+    this.disabled = disabled;
     return this;
   }
   onClick(cb: (evt: MouseEvent) => unknown): this {
@@ -1745,27 +1758,27 @@ class SettingStub {
 
   addColorPicker(cb: (component: ObsidianApi.ColorComponent) => unknown): this {
     class ColorComponent {
-      inputEl: HTMLInputElement;
+      colorPickerEl: HTMLInputElement;
       private changeHandler: ((value: string) => void) | null = null;
 
       constructor(container: HTMLElement) {
-        this.inputEl = container.createEl("input", { type: "color" });
-        this.inputEl.addEventListener("input", () => {
-          this.changeHandler?.(this.inputEl.value);
+        this.colorPickerEl = container.createEl("input", { type: "color" });
+        this.colorPickerEl.addEventListener("input", () => {
+          this.changeHandler?.(this.colorPickerEl.value);
         });
       }
 
       setValue(value: string): this {
-        this.inputEl.value = value;
+        this.colorPickerEl.value = value;
         return this;
       }
 
       getValue(): string {
-        return this.inputEl.value;
+        return this.colorPickerEl.value;
       }
 
       setPlaceholder(value: string): this {
-        this.inputEl.placeholder = value;
+        this.colorPickerEl.placeholder = value;
         return this;
       }
 
@@ -1775,10 +1788,9 @@ class SettingStub {
       }
 
       // Observed on Obsidian 1.14.4 desktop (Windows): disabling the color
-      // picker writes `colorPickerEl.disabled`; the stub exposes the element as
-      // `inputEl` (naming follow-up: #1032).
+      // picker writes `colorPickerEl.disabled`.
       setDisabled(disabled: boolean): this {
-        this.inputEl.disabled = disabled;
+        this.colorPickerEl.disabled = disabled;
         return this;
       }
     }
