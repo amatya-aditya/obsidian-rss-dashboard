@@ -20,14 +20,14 @@ export function lucideIconId(
   return match ? match[1] : null;
 }
 
-/** The `button` whose icon is `lucideIconId`, or null. */
+/** The button or extra-button whose icon is `lucideIconId`, or null. */
 export function findIconButton(
   container: ParentNode | null | undefined,
   lucideId: string,
-): HTMLButtonElement | null {
+): HTMLElement | null {
   return (
     container
       ?.querySelector(`svg.svg-icon.lucide-${lucideId}`)
-      ?.closest("button") ?? null
+      ?.closest("button, .extra-setting-button") ?? null
   );
 }

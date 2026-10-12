@@ -1453,7 +1453,14 @@ class MenuItemStub {
   }
 }
 
-type SettingComponent = object;
+/**
+ * A control added to a Setting row. Real Obsidian's `Setting.setDisabled`
+ * forwards to every component already added, so each stub component exposes a
+ * `setDisabled`.
+ */
+interface SettingComponent {
+  setDisabled(disabled: boolean): unknown;
+}
 
 class SettingStub {
   settingEl: HTMLDivElement;
@@ -1528,11 +1535,15 @@ class SettingStub {
     return this;
   }
   // Observed on Obsidian 1.14.4 desktop (Windows): setDisabled toggles
-  // `is-disabled` on the row. Real Obsidian also forwards the flag to the
-  // row's existing components; that half lands with the faithful component
-  // shapes (#431), so only the row class is modeled here.
+  // `is-disabled` on the row and forwards the flag to every component already
+  // added, so its reach is order-dependent; components added afterwards stay
+  // interactive (see #1028 for the plugin call that relies on this).
   setDisabled(_disabled?: boolean): this {
-    this.settingEl.toggleClass("is-disabled", _disabled ?? false);
+    const disabled = _disabled ?? false;
+    this.settingEl.toggleClass("is-disabled", disabled);
+    for (const component of this.components) {
+      component.setDisabled(disabled);
+    }
     return this;
   }
   addButton(cb: (component: ObsidianApi.ButtonComponent) => unknown): this {
@@ -1565,14 +1576,23 @@ class SettingStub {
         return this;
       }
 
+      // Observed on Obsidian 1.14.4 desktop (Windows): disabling a button
+      // writes `buttonEl.disabled`.
+      setDisabled(disabled: boolean): this {
+        this.buttonEl.disabled = disabled;
+        return this;
+      }
+
       setCta(): this {
         this.buttonEl.classList.add("mod-cta");
         return this;
       }
 
+      // Observed on Obsidian 1.14.4 desktop (Windows): setWarning is
+      // `setDestructive().setCta()`, so it adds `mod-destructive mod-cta` and
+      // never `mod-warning`.
       setWarning(): this {
-        this.buttonEl.classList.add("mod-warning");
-        return this;
+        return this.setDestructive().setCta();
       }
 
       setDestructive(): this {
@@ -1596,45 +1616,120 @@ class SettingStub {
   addExtraButton(
     cb: (component: ObsidianApi.ExtraButtonComponent) => unknown,
   ): this {
-    return this.addButton((component) =>
-      cb(component as unknown as ObsidianApi.ExtraButtonComponent),
-    );
+    class ExtraButtonComponent {
+      extraSettingsEl: HTMLElement;
+
+      constructor(container: HTMLElement) {
+        this.extraSettingsEl = container.createDiv({
+          cls: "clickable-icon extra-setting-button",
+        });
+        this.extraSettingsEl.tabIndex = 0;
+        // Observed on Obsidian 1.14.4 desktop (Windows): the icon defaults to
+        // `lucide-settings` until setIcon replaces it.
+        setIconImpl(this.extraSettingsEl, "settings");
+      }
+
+      setIcon(icon: string): this {
+        setIconImpl(this.extraSettingsEl, icon);
+        return this;
+      }
+
+      setTooltip(tooltip: string): this {
+        setTooltipImpl(this.extraSettingsEl, tooltip);
+        return this;
+      }
+
+      onClick(handler: (evt: MouseEvent) => void): this {
+        this.extraSettingsEl.addEventListener("click", handler);
+        return this;
+      }
+
+      // Observed on Obsidian 1.14.4 desktop (Windows): disabling adds
+      // `is-disabled` and removes the `tabindex`. The re-enable direction was
+      // not observed, so the stub leaves the attribute as-is.
+      setDisabled(disabled: boolean): this {
+        this.extraSettingsEl.toggleClass("is-disabled", disabled);
+        if (disabled) {
+          this.extraSettingsEl.removeAttribute("tabindex");
+        }
+        return this;
+      }
+    }
+
+    const component = new ExtraButtonComponent(this.controlEl);
+    return this.attach(component, cb);
   }
 
   addSlider(cb: (component: ObsidianApi.SliderComponent) => unknown): this {
     class SliderComponent {
       sliderEl: HTMLInputElement;
+      valueEl: HTMLSpanElement;
+      private displayFormat: (value: number) => string = (value) =>
+        String(value);
       private changeHandler: ((value: number) => void) | null = null;
 
       constructor(container: HTMLElement) {
-        this.sliderEl = container.createEl("input", { type: "range" });
-        this.sliderEl.addEventListener("input", () => {
-          const value = Number(this.sliderEl.value);
-          this.changeHandler?.(value);
+        // Observed on Obsidian 1.14.4 desktop (Windows): the `slider-value`
+        // span is inserted before the range input, which carries the `slider`
+        // class and `data-ignore-swipe`.
+        this.valueEl = container.createSpan({ cls: "slider-value" });
+        this.sliderEl = container.createEl("input", {
+          cls: "slider",
+          type: "range",
         });
+        this.sliderEl.setAttribute("data-ignore-swipe", "true");
+        this.sliderEl.addEventListener("input", () => {
+          this.updateDisplay();
+          this.changeHandler?.(this.getValue());
+        });
+        this.updateDisplay();
+      }
+
+      private updateDisplay(): void {
+        this.valueEl.textContent = this.displayFormat(this.getValue());
       }
 
       setLimits(min: number, max: number, step: number): this {
         this.sliderEl.min = String(min);
         this.sliderEl.max = String(max);
         this.sliderEl.step = String(step);
+        // Observed on Obsidian 1.14.4 desktop (Windows): setLimits refreshes
+        // the value display.
+        this.updateDisplay();
         return this;
       }
 
+      // Observed on Obsidian 1.14.4 desktop (Windows): setValue fires onChange
+      // only when the value actually changes.
       setValue(value: number): this {
-        this.sliderEl.value = String(value);
+        if (this.getValue() !== value) {
+          this.sliderEl.value = String(value);
+          this.updateDisplay();
+          this.changeHandler?.(value);
+        }
         return this;
       }
 
+      // Observed on Obsidian 1.14.4 desktop (Windows): getValue reads
+      // `valueAsNumber`.
       getValue(): number {
-        return Number(this.sliderEl.value);
+        return this.sliderEl.valueAsNumber;
       }
 
-      setDisplayFormat(_format: (value: number) => string): this {
+      setDisplayFormat(format: (value: number) => string): this {
+        this.displayFormat = format;
+        this.updateDisplay();
         return this;
       }
 
       setDynamicTooltip(): this {
+        return this;
+      }
+
+      // Observed on Obsidian 1.14.4 desktop (Windows): disabling a slider
+      // writes `sliderEl.disabled`.
+      setDisabled(disabled: boolean): this {
+        this.sliderEl.disabled = disabled;
         return this;
       }
 
@@ -1678,6 +1773,14 @@ class SettingStub {
         this.changeHandler = handler;
         return this;
       }
+
+      // Observed on Obsidian 1.14.4 desktop (Windows): disabling the color
+      // picker writes `colorPickerEl.disabled`; the stub exposes the element as
+      // `inputEl` (naming follow-up: #1032).
+      setDisabled(disabled: boolean): this {
+        this.inputEl.disabled = disabled;
+        return this;
+      }
     }
 
     const component = new ColorComponent(this.controlEl);
@@ -1685,18 +1788,45 @@ class SettingStub {
   }
   addToggle(cb: (component: ObsidianApi.ToggleComponent) => unknown): this {
     class ToggleComponent {
-      toggleEl: HTMLInputElement;
+      toggleEl: HTMLElement;
+      private inputEl: HTMLInputElement;
+      private value = false;
       private changeHandler: ((value: boolean) => void) | null = null;
 
       constructor(container: HTMLElement) {
-        this.toggleEl = container.createEl("input", { type: "checkbox" });
-        this.toggleEl.addEventListener("change", () => {
-          this.changeHandler?.(this.toggleEl.checked);
+        // Observed on Obsidian 1.14.4 desktop (Windows): the toggle is a
+        // `label.checkbox-container[tabindex=0]` wrapping an
+        // `input[type=checkbox][tabindex=-1]`.
+        this.toggleEl = container.createEl("label", {
+          cls: "checkbox-container",
+        });
+        this.toggleEl.tabIndex = 0;
+        this.inputEl = this.toggleEl.createEl("input", { type: "checkbox" });
+        this.inputEl.tabIndex = -1;
+        this.inputEl.addEventListener("change", () => {
+          this.setValue(this.inputEl.checked);
+          this.changeHandler?.(this.inputEl.checked);
         });
       }
 
+      // Observed on Obsidian 1.14.4 desktop (Windows): setValue toggles
+      // `is-enabled` on the label and does not set the inner input's `checked`.
       setValue(value: boolean): this {
-        this.toggleEl.checked = value;
+        this.value = value;
+        this.toggleEl.toggleClass("is-enabled", value);
+        return this;
+      }
+
+      // Observed on Obsidian 1.14.4 desktop (Windows): getValue returns the
+      // value that was set.
+      getValue(): boolean {
+        return this.value;
+      }
+
+      // Observed on Obsidian 1.14.4 desktop (Windows): disabling toggles
+      // `is-disabled` on the label.
+      setDisabled(disabled: boolean): this {
+        this.toggleEl.toggleClass("is-disabled", disabled);
         return this;
       }
 
@@ -1706,8 +1836,8 @@ class SettingStub {
       }
 
       _triggerChange(value: boolean): void {
-        this.toggleEl.checked = value;
-        this.toggleEl.dispatchEvent(new Event("change"));
+        this.inputEl.checked = value;
+        this.inputEl.dispatchEvent(new Event("change"));
       }
     }
 
@@ -1753,6 +1883,13 @@ class SettingStub {
         this.inputEl.value = value;
         this.inputEl.dispatchEvent(new Event("input"));
       }
+
+      // Observed on Obsidian 1.14.4 desktop (Windows): disabling a text input
+      // writes `inputEl.disabled`.
+      setDisabled(disabled: boolean): this {
+        this.inputEl.disabled = disabled;
+        return this;
+      }
     }
 
     const component = new TextComponent(this.controlEl);
@@ -1788,6 +1925,13 @@ class SettingStub {
       _triggerChange(value: string): void {
         this.selectEl.value = value;
         this.selectEl.dispatchEvent(new Event("change"));
+      }
+
+      // Observed on Obsidian 1.14.4 desktop (Windows): disabling a dropdown
+      // writes `selectEl.disabled`.
+      setDisabled(disabled: boolean): this {
+        this.selectEl.disabled = disabled;
+        return this;
       }
     }
 

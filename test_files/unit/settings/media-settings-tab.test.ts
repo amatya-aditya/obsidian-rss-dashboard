@@ -8,6 +8,7 @@ import {
 import { renderMediaSettingsTab } from "../../../src/settings/tabs/media-settings-tab";
 import { ConfirmActionModal } from "../../../src/settings/modals/settings-modals";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
+import { isToggleOn, setToggle } from "../test-toggle-helpers";
 import type RssDashboardPlugin from "../../../main";
 
 function flushPromises(): Promise<void> {
@@ -76,8 +77,8 @@ describe("renderMediaSettingsTab()", () => {
       'input[type="checkbox"]',
     ) as HTMLInputElement;
 
-    expect(toggle.checked).toBe(true);
-    toggle.click();
+    expect(isToggleOn(toggle)).toBe(true);
+    setToggle(toggle, false);
     await flushPromises();
 
     expect(plugin.settings.media.rememberPlaybackProgress).toBe(false);
@@ -240,9 +241,9 @@ describe("renderMediaSettingsTab()", () => {
     const toggle = getSettingByName(containerEl, "Focus mode").querySelector(
       'input[type="checkbox"]',
     ) as HTMLInputElement;
-    expect(toggle.checked).toBe(false);
+    expect(isToggleOn(toggle)).toBe(false);
 
-    toggle.click();
+    setToggle(toggle, true);
     await flushPromises();
 
     expect(settings.media.youtubeFocusMode).toBe(true);
