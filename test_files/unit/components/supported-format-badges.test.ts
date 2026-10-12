@@ -14,7 +14,7 @@ describe("renderSupportedFormatBadges()", () => {
     (document.body as unknown as ObsidianElement).empty();
   });
 
-  it("renders RSS, Podcast, and YouTube badges (the YouTube icon is missing, see #1015)", () => {
+  it("renders RSS, Podcast, and YouTube badges each with a format icon", () => {
     const host = (document.body as unknown as ObsidianElement).createDiv();
     renderSupportedFormatBadges(host);
 
@@ -30,11 +30,11 @@ describe("renderSupportedFormatBadges()", () => {
     expect(podcastBadge?.textContent).toContain("Apple Podcasts");
     expect(youtubeBadge?.textContent).toContain("YouTube");
 
+    // Obsidian 1.14.4 ships no "youtube" icon (getIcon returns null), so the
+    // badge uses the "play" glyph the sidebar already uses for video feeds.
     expect(lucideIconId(rssBadge)).toBe("rss");
     expect(lucideIconId(podcastBadge)).toBe("headphones");
-    // Obsidian 1.14.4 ships no "youtube" icon, so setIcon leaves the badge's
-    // icon slot empty. BUG: pinned, see #1015.
-    expect(lucideIconId(youtubeBadge)).toBeNull();
+    expect(lucideIconId(youtubeBadge)).toBe("play");
   });
 
   it("toggles active badge state", () => {
