@@ -16,6 +16,7 @@ import {
   Modal,
   Plugin,
   Scope,
+  Setting,
   TFolder,
   __resetObsidianVersion,
   __setObsidianVersion,
@@ -667,6 +668,81 @@ describe("Obsidian stub contract", () => {
       expect(el.childElementCount).toBe(1);
       expect(el.querySelector("svg.svg-icon.lucide-rss")).not.toBeNull();
       expect(el.querySelector("svg.svg-icon.lucide-play")).toBeNull();
+    });
+  });
+
+  describe("Setting", () => {
+    // Observed on Obsidian 1.14.4 desktop (Windows): a row builds
+    // `setting-item` -> `setting-item-info` (`setting-item-name`,
+    // `setting-item-description`) plus `setting-item-control`.
+    it("builds the base row", () => {
+      const row = new Setting(createDiv()).setName("Alpha").setDesc("Beta");
+
+      expect(row.settingEl.className).toBe("setting-item");
+      expect(row.nameEl.className).toBe("setting-item-name");
+      expect(row.descEl.className).toBe("setting-item-description");
+      expect(row.controlEl.className).toBe("setting-item-control");
+      expect(row.nameEl.textContent).toBe("Alpha");
+      expect(row.descEl.textContent).toBe("Beta");
+    });
+
+    // Observed on Obsidian 1.14.4 desktop (Windows): setHeading adds
+    // `setting-item-heading` and leaves the name, description and empty
+    // control in place.
+    it("marks a heading and keeps its name and description", () => {
+      const row = new Setting(createDiv())
+        .setName("Gamma")
+        .setDesc("Delta")
+        .setHeading();
+
+      expect(row.settingEl.className).toBe("setting-item setting-item-heading");
+      expect(row.nameEl.textContent).toBe("Gamma");
+      expect(row.descEl.textContent).toBe("Delta");
+      expect(row.controlEl.childElementCount).toBe(0);
+    });
+
+    // Observed on Obsidian 1.14.4 desktop (Windows): setClass splits on spaces
+    // and adds every non-empty class.
+    it("adds every space-separated class", () => {
+      const row = new Setting(createDiv())
+        .setClass("alpha beta")
+        .setClass("gamma");
+
+      expect(row.settingEl.className).toBe("setting-item alpha beta gamma");
+    });
+
+    // Observed on Obsidian 1.14.4 desktop (Windows): the tooltip is the name
+    // element's aria-label, not the row's, description's or control's.
+    it("puts the tooltip on the name element", () => {
+      const row = new Setting(createDiv()).setTooltip("Tip");
+
+      expect(row.nameEl.getAttribute("aria-label")).toBe("Tip");
+      expect(row.settingEl.getAttribute("aria-label")).toBeNull();
+      expect(row.descEl.getAttribute("aria-label")).toBeNull();
+      expect(row.controlEl.getAttribute("aria-label")).toBeNull();
+    });
+
+    // Observed on Obsidian 1.14.4 desktop (Windows): setDisabled toggles
+    // `is-disabled` on the row. Real Obsidian also forwards the flag to the
+    // row's components; that half lands with the component shapes (#431).
+    it("toggles is-disabled on the row", () => {
+      const row = new Setting(createDiv());
+
+      row.setDisabled(true);
+      expect(row.settingEl.className).toBe("setting-item is-disabled");
+
+      row.setDisabled(false);
+      expect(row.settingEl.className).toBe("setting-item");
+    });
+
+    // Observed on Obsidian 1.14.4 desktop (Windows): addToggle also marks the
+    // row with `mod-toggle`.
+    it("marks a row that holds a toggle", () => {
+      const row = new Setting(createDiv()).addToggle((toggle) =>
+        toggle.setValue(false),
+      );
+
+      expect(row.settingEl.className).toBe("setting-item mod-toggle");
     });
   });
 });

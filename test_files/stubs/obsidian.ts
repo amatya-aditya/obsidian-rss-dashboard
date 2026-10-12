@@ -1504,16 +1504,35 @@ class SettingStub {
     }
     return this;
   }
+  // Observed on Obsidian 1.14.4 desktop (Windows): setHeading adds the heading
+  // class and leaves the name, description and empty control in place.
   setHeading(): this {
+    this.settingEl.addClass("setting-item-heading");
     return this;
   }
+  // Observed on Obsidian 1.14.4 desktop (Windows): setClass splits on spaces
+  // and adds every non-empty class.
   setClass(_cls?: string): this {
+    const classes = _cls?.split(" ").filter(Boolean) ?? [];
+    if (classes.length > 0) {
+      this.settingEl.addClass(...classes);
+    }
     return this;
   }
+  // Observed on Obsidian 1.14.4 desktop (Windows): the tooltip lands on the
+  // name element, not the row, description or control.
   setTooltip(_tooltip?: string): this {
+    if (_tooltip !== undefined) {
+      setTooltipImpl(this.nameEl, _tooltip);
+    }
     return this;
   }
+  // Observed on Obsidian 1.14.4 desktop (Windows): setDisabled toggles
+  // `is-disabled` on the row. Real Obsidian also forwards the flag to the
+  // row's existing components; that half lands with the faithful component
+  // shapes (#431), so only the row class is modeled here.
   setDisabled(_disabled?: boolean): this {
+    this.settingEl.toggleClass("is-disabled", _disabled ?? false);
     return this;
   }
   addButton(cb: (component: ObsidianApi.ButtonComponent) => unknown): this {
@@ -1693,7 +1712,11 @@ class SettingStub {
     }
 
     const component = new ToggleComponent(this.controlEl);
-    return this.attach(component, cb);
+    this.attach(component, cb);
+    // Observed on Obsidian 1.14.4 desktop (Windows): addToggle also marks the
+    // row with `mod-toggle`.
+    this.settingEl.addClass("mod-toggle");
+    return this;
   }
   addText(cb: (component: ObsidianApi.TextComponent) => unknown): this {
     class TextComponent {

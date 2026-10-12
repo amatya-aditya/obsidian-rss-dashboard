@@ -199,7 +199,7 @@ A tag on a starred-imported article that came from mapping one of the export's I
 _Avoid_: Imported tag, bulk tag
 
 **Manually-assigned tag**:
-A tag added or removed on a candidate article by hand, via its per-article tag chip in the import preview. Independent of label-derived tags and of the "Import labels as tags" toggle — it always carries through to the imported item regardless of that toggle's state.
+A tag added or removed on a candidate article by hand, via its per-article tag chip in the import preview. Independent of [[Label-derived tag|Label-derived tags]] and of the "Import labels as tags" toggle — it always carries through to the imported item regardless of that toggle's state.
 _Avoid_: Ad hoc tag, user tag, manual tag override
 
 ## Article metadata pipeline

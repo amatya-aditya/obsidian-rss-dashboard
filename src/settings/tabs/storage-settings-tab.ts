@@ -916,35 +916,35 @@ export function renderStorageSettingsTab(
     containerEl,
     plugin,
     "Default Mastodon folder",
-    "Folder for new Mastodon feeds. Existing feeds keep their folder.",
+    "Folder for new Mastodon feeds. Existing feeds keep their folder. An empty value means the vault root.",
     "defaultMastodonFolder",
   );
   renderFolderSetting(
     containerEl,
     plugin,
     "Default YouTube folder",
-    "Folder for new YouTube feeds. Existing feeds keep their folder.",
+    "Folder for new YouTube feeds. Existing feeds keep their folder. An empty value means the vault root.",
     "defaultYouTubeFolder",
   );
   renderFolderSetting(
     containerEl,
     plugin,
     "Default podcast folder",
-    "Folder for new podcast feeds. Existing feeds keep their folder.",
+    "Folder for new podcast feeds. Existing feeds keep their folder. An empty value means the vault root.",
     "defaultPodcastFolder",
   );
   renderFolderSetting(
     containerEl,
     plugin,
     "Default RSS folder",
-    "Folder for new RSS feeds. Existing feeds keep their folder.",
+    "Folder for new RSS feeds. Existing feeds keep their folder. An empty value means the vault root.",
     "defaultRssFolder",
   );
   renderFolderSetting(
     containerEl,
     plugin,
     "Default smallweb folder",
-    "Folder for new smallweb feeds. Existing feeds keep their folder.",
+    "Folder for new smallweb feeds. Existing feeds keep their folder. An empty value means the vault root.",
     "defaultSmallwebFolder",
   );
 

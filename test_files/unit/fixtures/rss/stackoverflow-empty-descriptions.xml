@@ -1,0 +1,562 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Captured from https://stackoverflow.blog/feed/ on 2026-10-09. Models a feed whose items can carry an empty description and whose markup ships no content:encoded, enclosure, media, or image tags. See docs/development/article-enrichment.md. -->
+<rss version="2.0"
+     xmlns:content="http://purl.org/rss/1.0/modules/content/"
+     xmlns:wfw="http://wellformedweb.org/CommentAPI/"
+     xmlns:dc="http://purl.org/dc/elements/1.1/"
+     xmlns:atom="http://www.w3.org/2005/Atom"
+     xmlns:sy="http://purl.org/rss/1.0/modules/syndication/"
+     xmlns:slash="http://purl.org/rss/1.0/modules/slash/"
+     xmlns:georss="http://www.georss.org/georss"
+     xmlns:geo="http://www.w3.org/2003/01/geo/wgs84_pos#"
+>
+<channel>
+   <title>Stack Overflow Blog</title>
+   <description>Essays, opinions, and advice on the act of computer programming from Stack Overflow.</description>
+   <atom:link href="https://stackoverflow.blog/feed/" rel="self" type="application/rss+xml" />
+   <link>https://stackoverflow.blog/</link>
+   <lastBuildDate>Fri, 09 Oct 2026 21:30:01 GMT</lastBuildDate>
+   <language>en-US</language>
+   <sy:updatePeriod>hourly</sy:updatePeriod>
+   <sy:updateFrequency>1</sy:updateFrequency>
+   <item>
+       <guid isPermaLink="false">870dcae3-41b2-4900-aa96-bf1a15691828</guid>
+       <title>A Treatise on Model Oriented Programming Languages</title>
+       <link>https://stackoverflow.blog/2026/10/09/a-treatise-on-model-oriented-programming-languages/</link>
+       <pubDate>Fri, 09 Oct 2026 14:59:04 GMT</pubDate>
+       <description><![CDATA[]]></description>
+       <dc:creator><![CDATA[Dave Clemmer]]></dc:creator>
+       <category><![CDATA[programming-language]]></category>
+       <category><![CDATA[building-software]]></category>
+       <category><![CDATA[contributed]]></category>
+       <category><![CDATA[cc-by-sa]]></category>
+   </item>
+   <item>
+       <guid isPermaLink="false">65868662-3b7d-4a63-9fa9-e699c48529fc</guid>
+       <title>Taking a look under your agent’s hood</title>
+       <link>https://stackoverflow.blog/2026/10/09/taking-a-look-under-your-agent-s-hood/</link>
+       <pubDate>Fri, 09 Oct 2026 07:40:00 GMT</pubDate>
+       <description><![CDATA[Ryan is joined by Yanbing Li, Chief Product Officer at Datadog, to talk about applying observability to non-deterministic AI agents, blurring the boundaries between software development and production workflows, and navigating emerging challenges in AI security and tokenomics.]]></description>
+       <dc:creator><![CDATA[Phoebe Sajor]]></dc:creator>
+       <category><![CDATA[podcast]]></category>
+       <category><![CDATA[se-tech]]></category>
+       <category><![CDATA[se-stackoverflow]]></category>
+       <category><![CDATA[observability]]></category>
+       <category><![CDATA[ai]]></category>
+       <category><![CDATA[agentic-ai]]></category>
+       <category><![CDATA[se-tech]]></category>
+       <category><![CDATA[se-stackoverflow]]></category>
+   </item>
+   <item>
+       <guid isPermaLink="false">f13e8883-6d06-432d-9f93-10ae8b0fd048</guid>
+       <title>Production-grade LLMs and agents: a field guide</title>
+       <link>https://stackoverflow.blog/2026/10/08/production-grade-llms-and-agents-a-field-guide/</link>
+       <pubDate>Thu, 08 Oct 2026 20:22:56 GMT</pubDate>
+       <description><![CDATA[A maturity model for taking agents from an impressive demo to a system people can depend on — with a self-assessment and the map to a deep-dive on each layer.]]></description>
+       <dc:creator><![CDATA[Varun Jindal]]></dc:creator>
+       <category><![CDATA[ai]]></category>
+       <category><![CDATA[contributed]]></category>
+       <category><![CDATA[building-software]]></category>
+       <category><![CDATA[cc-by-sa]]></category>
+   </item>
+   <item>
+       <guid isPermaLink="false">004e0789-dc2d-496b-a8af-b6e6aefde5f7</guid>
+       <title>Part 5: Operating an LLM system: observability, cost, routing, and the platform underneath</title>
+       <link>https://stackoverflow.blog/2026/10/08/part-5-operating-an-llm-system-observability-cost-routing-and-the-platform-underneath/</link>
+       <pubDate>Thu, 08 Oct 2026 20:08:53 GMT</pubDate>
+       <description><![CDATA[Your service can be 100% up and still quietly approving the wrong things, burning its budget, or failing over into untested quality. Level 5 is the infrastructure that lets you see your decisions, bound your spend, route and fail over between models, kill bad behavior in seconds — and the platform that makes all of it possible.]]></description>
+       <dc:creator><![CDATA[Varun Jindal]]></dc:creator>
+       <category><![CDATA[ai]]></category>
+       <category><![CDATA[building-software]]></category>
+       <category><![CDATA[contributed]]></category>
+       <category><![CDATA[cc-by-sa]]></category>
+   </item>
+   <item>
+       <guid isPermaLink="false">358fa8ac-2467-4ef4-893c-dad3490046df</guid>
+       <title>A green exit code is not evidence that the work happened</title>
+       <link>https://stackoverflow.blog/2026/10/08/a-green-exit-code-is-not-evidence-that-the-work-happened/</link>
+       <pubDate>Thu, 08 Oct 2026 14:00:00 GMT</pubDate>
+       <description><![CDATA[Agents don&#x27;t build trust for another reason, structurally worse than the first. It isn&#x27;t only that the tool keeps changing shape. It&#x27;s that the feedback loop you would need in order to learn the tool is broken at the point of measurement.]]></description>
+       <dc:creator><![CDATA[Chase W. Hughes]]></dc:creator>
+       <category><![CDATA[ai]]></category>
+       <category><![CDATA[building-software]]></category>
+       <category><![CDATA[se-tech]]></category>
+       <category><![CDATA[se-stackoverflow]]></category>
+   </item>
+   <item>
+       <guid isPermaLink="false">4ae1a4e4-cb6e-4110-b6f3-50b8afa09f49</guid>
+       <title>Part 4: Safety and governance for LLM systems: guardrails, PII, audit, and memory</title>
+       <link>https://stackoverflow.blog/2026/10/07/part-4-safety-and-governance-for-llm-systems-guardrails-pii-audit-and-memory/</link>
+       <pubDate>Wed, 07 Oct 2026 20:48:55 GMT</pubDate>
+       <description><![CDATA[]]></description>
+       <dc:creator><![CDATA[Varun Jindal]]></dc:creator>
+       <category><![CDATA[ai]]></category>
+       <category><![CDATA[building-software]]></category>
+       <category><![CDATA[contributed]]></category>
+       <category><![CDATA[cc-by-sa]]></category>
+   </item>
+   <item>
+       <guid isPermaLink="false">ce1fd642-fe2b-4d83-95ad-67b7645d7959</guid>
+       <title>Part 3: Knowing when your agent doesn’t know: the confidence layer</title>
+       <link>https://stackoverflow.blog/2026/10/07/part-3-knowing-when-your-agent-doesn-t-know-the-confidence-layer/</link>
+       <pubDate>Wed, 07 Oct 2026 20:40:29 GMT</pubDate>
+       <description><![CDATA[]]></description>
+       <dc:creator><![CDATA[Varun Jindal]]></dc:creator>
+       <category><![CDATA[ai]]></category>
+       <category><![CDATA[contributed]]></category>
+       <category><![CDATA[building-software]]></category>
+       <category><![CDATA[cc-by-sa]]></category>
+   </item>
+   <item>
+       <guid isPermaLink="false">f17b27e9-17f5-4203-8066-68c8df26ef42</guid>
+       <title>Part 2: Evals as a deployment gate — and how to know when they drift</title>
+       <link>https://stackoverflow.blog/2026/10/07/evals-as-a-deployment-gate-and-how-to-know-when-they-drift/</link>
+       <pubDate>Wed, 07 Oct 2026 20:31:12 GMT</pubDate>
+       <description><![CDATA[]]></description>
+       <dc:creator><![CDATA[Varun Jindal]]></dc:creator>
+       <category><![CDATA[ai]]></category>
+       <category><![CDATA[building-software]]></category>
+       <category><![CDATA[contributed]]></category>
+       <category><![CDATA[cc-by-sa]]></category>
+   </item>
+   <item>
+       <guid isPermaLink="false">39f2fc9f-742a-4273-a4d1-abdecd14fcf8</guid>
+       <title>Part 1: Make your AI agents boring: the determinism layer</title>
+       <link>https://stackoverflow.blog/2026/10/07/part-1-make-your-ai-agents-boring-the-determinism-layer/</link>
+       <pubDate>Wed, 07 Oct 2026 20:14:49 GMT</pubDate>
+       <description><![CDATA[]]></description>
+       <dc:creator><![CDATA[Varun Jindal]]></dc:creator>
+       <category><![CDATA[ai]]></category>
+       <category><![CDATA[building-software]]></category>
+       <category><![CDATA[contributed]]></category>
+       <category><![CDATA[cc-by-sa]]></category>
+   </item>
+   <item>
+       <guid isPermaLink="false">7fdf107e-3649-4a6b-98c4-89788838cfbf</guid>
+       <title>Part 6: An operating system for coding agents: the disciplined build</title>
+       <link>https://stackoverflow.blog/2026/10/07/part-6-an-operating-system-for-coding-agents-the-disciplined-build/</link>
+       <pubDate>Wed, 07 Oct 2026 20:09:22 GMT</pubDate>
+       <description><![CDATA[Coding agents are great for an afternoon and mediocre for a quarter. Here’s the small set of files and rules — with the actual configs — that keeps quality from decaying across months and thousands of edits, whether you run one agent or a fleet of them on the same repo.]]></description>
+       <dc:creator><![CDATA[Varun Jindal]]></dc:creator>
+       <category><![CDATA[ai]]></category>
+       <category><![CDATA[contributed]]></category>
+       <category><![CDATA[building-software]]></category>
+       <category><![CDATA[cc-by-sa]]></category>
+   </item>
+   <item>
+       <guid isPermaLink="false">f2b2b7a0-c8e2-4387-8a7d-439b28bab359</guid>
+       <title>Implementing a Modular Master-Agent Telemetry &amp; Diagnostic Framework in Python: Prime-Sentinel Command (PSC)</title>
+       <link>https://stackoverflow.blog/2026/10/07/implementing-a-modular-master-agent-telemetry-and-diagnostic-framework-in-python-prime-sentinel-command-psc/</link>
+       <pubDate>Wed, 07 Oct 2026 20:03:47 GMT</pubDate>
+       <description><![CDATA[]]></description>
+       <dc:creator><![CDATA[Dr. Ahmad Mateen Ishanzai]]></dc:creator>
+       <category><![CDATA[distributed-systems]]></category>
+       <category><![CDATA[building-software]]></category>
+       <category><![CDATA[cc-by-sa]]></category>
+       <category><![CDATA[contributed]]></category>
+   </item>
+   <item>
+       <guid isPermaLink="false">8e6c3a8a-3d27-44c8-be90-0b74d1090a4a</guid>
+       <title>Tales from the 2026 Developer Survey results</title>
+       <link>https://stackoverflow.blog/2026/10/06/tales-from-the-2026-developer-survey-results/</link>
+       <pubDate>Tue, 06 Oct 2026 17:00:00 GMT</pubDate>
+       <description><![CDATA[Ryan chats with Erin Yepis, Senior Analyst at Stack Overflow, about the results from this year’s Annual Developer Survey, including the overwhelming daily usage of AI coding assistants despite lingering developer trust issues, the critical role of well-organized documentation in providing verifiable context to mitigate AI hallucinations, and the evolving ways developers are shifting away from active community posting in favor of passive knowledge consumption.]]></description>
+       <dc:creator><![CDATA[Phoebe Sajor]]></dc:creator>
+       <category><![CDATA[podcast]]></category>
+       <category><![CDATA[se-tech]]></category>
+       <category><![CDATA[se-stackoverflow]]></category>
+       <category><![CDATA[developer-survey]]></category>
+       <category><![CDATA[se-tech]]></category>
+       <category><![CDATA[se-stackoverflow]]></category>
+   </item>
+   <item>
+       <guid isPermaLink="false">b1af6214-1a59-4309-8484-920746d31d04</guid>
+       <title>The results of the 2026 Developer Survey are here!</title>
+       <link>https://stackoverflow.blog/2026/10/06/the-results-of-the-2026-developer-survey-are-here/</link>
+       <pubDate>Tue, 06 Oct 2026 14:00:00 GMT</pubDate>
+       <description><![CDATA[Below, we’ll highlight some of the results we found interesting about what&#x27;s going in the life of technologists, their technologies, AI usage, and more. ]]></description>
+       <dc:creator><![CDATA[Ryan Donovan]]></dc:creator>
+       <category><![CDATA[developer-survey]]></category>
+       <category><![CDATA[community]]></category>
+       <category><![CDATA[se-tech]]></category>
+       <category><![CDATA[se-stackoverflow]]></category>
+   </item>
+   <item>
+       <guid isPermaLink="false">f7b6d808-33ec-4a2d-bf20-66847f8d6bc7</guid>
+       <title>Constraints that make developers faster</title>
+       <link>https://stackoverflow.blog/2026/10/02/constraints-that-make-developers-faster/</link>
+       <pubDate>Fri, 02 Oct 2026 07:40:00 GMT</pubDate>
+       <description><![CDATA[Ryan chats with Julien Verlaguet, CEO at Skip Labs, about finding the balance between human tolerance and tooling constraints, the spectrum of typed programming languages, and building cost-effective tooling for AI agents.]]></description>
+       <dc:creator><![CDATA[Phoebe Sajor]]></dc:creator>
+       <category><![CDATA[podcast]]></category>
+       <category><![CDATA[se-tech]]></category>
+       <category><![CDATA[se-stackoverflow]]></category>
+       <category><![CDATA[programming-language]]></category>
+       <category><![CDATA[ai]]></category>
+       <category><![CDATA[agentic-ai]]></category>
+       <category><![CDATA[se-tech]]></category>
+       <category><![CDATA[se-stackoverflow]]></category>
+   </item>
+   <item>
+       <guid isPermaLink="false">5b49fdc8-0b0b-41d8-bbf6-6f6d8460e709</guid>
+       <title>A look back before we look forward: A Developer Survey retrospective</title>
+       <link>https://stackoverflow.blog/2026/10/01/a-look-back-before-we-look-forward-a-developer-survey-retrospective/</link>
+       <pubDate>Thu, 01 Oct 2026 14:47:33 GMT</pubDate>
+       <description><![CDATA[This analysis compares the 2024 and 2025 Developer Survey data across three connected stories: the evolution of AI, humans at work, and demographics and community. ]]></description>
+       <dc:creator><![CDATA[Erin Yepis]]></dc:creator>
+       <category><![CDATA[dev-survey]]></category>
+       <category><![CDATA[community]]></category>
+       <category><![CDATA[se-tech]]></category>
+       <category><![CDATA[se-stackoverflow]]></category>
+   </item>
+   <item>
+       <guid isPermaLink="false">78281763-feb0-4d4b-982a-fec90093703d</guid>
+       <title>Organizations need decision-grade knowledge. AI makes it urgent.</title>
+       <link>https://stackoverflow.blog/2026/09/30/organizations-need-decision-grade-knowledge-ai-makes-it-urgent/</link>
+       <pubDate>Wed, 30 Sep 2026 17:00:00 GMT</pubDate>
+       <description><![CDATA[AI can make the first part remarkably fast. It can find the page, the discussion and the person who might know. The harder work begins when those sources disagree, or when they become stale.]]></description>
+       <dc:creator><![CDATA[Alex Lato, Peter O'Connor]]></dc:creator>
+       <category><![CDATA[stack-internal]]></category>
+       <category><![CDATA[ai]]></category>
+       <category><![CDATA[agentic-ai]]></category>
+       <category><![CDATA[knowledge-base]]></category>
+       <category><![CDATA[context-architecture]]></category>
+       <category><![CDATA[se-tech]]></category>
+       <category><![CDATA[se-stackoverflow]]></category>
+   </item>
+   <item>
+       <guid isPermaLink="false">7a2d88e5-ee53-4f7c-a46e-47bed1cebadf</guid>
+       <title>Anyone can start building verified knowledge with Stack Internal</title>
+       <link>https://stackoverflow.blog/2026/09/30/anyone-can-start-building-verified-knowledge-with-stack-internal/</link>
+       <pubDate>Wed, 30 Sep 2026 16:00:00 GMT</pubDate>
+       <description><![CDATA[Stack Internal transforms your daily work into a living memory that’s shared with the rest of your team. Now anyone can create and share their knowledge in a Stack Internal workspace for free by visiting stackinternal.com. ]]></description>
+       <dc:creator><![CDATA[Caroline Thomas]]></dc:creator>
+       <category><![CDATA[release]]></category>
+   </item>
+   <item>
+       <guid isPermaLink="false">ffd0f62d-2597-4506-a15a-f073dbaae590</guid>
+       <title>Getting ready for 2026 results: A look back on Developer Survey findings</title>
+       <link>https://stackoverflow.blog/2026/09/30/getting-ready-for-2026-results-a-look-back-on-developer-survey-findings/</link>
+       <pubDate>Wed, 30 Sep 2026 14:00:00 GMT</pubDate>
+       <description><![CDATA[]]></description>
+       <dc:creator><![CDATA[Erin Yepis]]></dc:creator>
+       <category><![CDATA[developer-survey]]></category>
+   </item>
+   <item>
+       <guid isPermaLink="false">de7402bc-e47f-4b31-999d-f83f9860ff5d</guid>
+       <title>Your phone is AI’s newest hardware</title>
+       <link>https://stackoverflow.blog/2026/09/29/your-phone-is-ai-s-newest-hardware/</link>
+       <pubDate>Tue, 29 Sep 2026 07:40:00 GMT</pubDate>
+       <description><![CDATA[Ryan sits down with Div Garg, CEO at AGI Inc., to talk about running AI agents entirely on mobile devices, optimizing models for edge computing chips, and building safety mechanisms into autonomous app interactions. ]]></description>
+       <dc:creator><![CDATA[Phoebe Sajor]]></dc:creator>
+       <category><![CDATA[podcast]]></category>
+       <category><![CDATA[se-tech]]></category>
+       <category><![CDATA[se-stackoverflow]]></category>
+       <category><![CDATA[ai]]></category>
+       <category><![CDATA[mobile-development]]></category>
+       <category><![CDATA[agentic-ai]]></category>
+   </item>
+   <item>
+       <guid isPermaLink="false">87db7fa7-a39a-4360-84e3-7f238967dc83</guid>
+       <title>Why model versioning is not enough for production AI</title>
+       <link>https://stackoverflow.blog/2026/09/28/why-model-versioning-is-not-enough-for-production-ai/</link>
+       <pubDate>Mon, 28 Sep 2026 18:24:12 GMT</pubDate>
+       <description><![CDATA[An MLOps workflow for evaluating deploying and rolling back AI applications]]></description>
+       <dc:creator><![CDATA[Silu Panda]]></dc:creator>
+       <category><![CDATA[ai]]></category>
+       <category><![CDATA[running-software]]></category>
+       <category><![CDATA[cc-by-sa]]></category>
+       <category><![CDATA[contributed]]></category>
+   </item>
+   <item>
+       <guid isPermaLink="false">c16e91de-8a75-41b6-9b56-e6317efdf272</guid>
+       <title>Is Your “Human-in-the-Loop” Actually Slowing You Down? Here’s What We Learned</title>
+       <link>https://stackoverflow.blog/2026/09/28/is-your-human-in-the-loop-actually-slowing-you-down-here-s-what-we-learned/</link>
+       <pubDate>Mon, 28 Sep 2026 16:41:00 GMT</pubDate>
+       <description><![CDATA[]]></description>
+       <dc:creator><![CDATA[Kavin Xavier ]]></dc:creator>
+       <category><![CDATA[cc-by-sa]]></category>
+       <category><![CDATA[contributed]]></category>
+       <category><![CDATA[ai]]></category>
+       <category><![CDATA[building-software]]></category>
+   </item>
+   <item>
+       <guid isPermaLink="false">54229ad2-0556-4c51-8f91-fdbae9d12a6e</guid>
+       <title>Professional skepticism is a dev’s best skill</title>
+       <link>https://stackoverflow.blog/2026/09/25/professional-skepticism-is-a-dev-s-best-skill/</link>
+       <pubDate>Fri, 25 Sep 2026 07:40:00 GMT</pubDate>
+       <description><![CDATA[Ryan chats with David Burns, Head of Developer Advocacy and Open Source at BrowserStack, about the value of professional skepticism in an AI-driven world, applying test-driven development to agentic engineering, and why fixing flaky tests comes down to managing application state.]]></description>
+       <dc:creator><![CDATA[Phoebe Sajor]]></dc:creator>
+       <category><![CDATA[podcast]]></category>
+       <category><![CDATA[se-tech]]></category>
+       <category><![CDATA[se-stackoverflow]]></category>
+       <category><![CDATA[ai]]></category>
+       <category><![CDATA[agentic-ai]]></category>
+       <category><![CDATA[code-quality]]></category>
+       <category><![CDATA[dev-tools]]></category>
+       <category><![CDATA[se-tech]]></category>
+       <category><![CDATA[se-stackoverflow]]></category>
+   </item>
+   <item>
+       <guid isPermaLink="false">d1dcc7aa-a336-44c6-bc74-5579f00d71a1</guid>
+       <title>Multiplayer AI: Why your team (and its agents) need a group chat</title>
+       <link>https://stackoverflow.blog/2026/09/23/multiplayer-ai-why-your-team-and-its-agents-need-a-group-chat/</link>
+       <pubDate>Wed, 23 Sep 2026 04:40:00 GMT</pubDate>
+       <description><![CDATA[Ryan chats with the GM of Slack, Rob Seaman, about how their new Code Channels feature is bringing multiplayer AI to your team chats. ]]></description>
+       <dc:creator><![CDATA[Ryan Donovan]]></dc:creator>
+       <category><![CDATA[podcast]]></category>
+       <category><![CDATA[se-tech]]></category>
+       <category><![CDATA[se-stackoverflow]]></category>
+       <category><![CDATA[building-software]]></category>
+       <category><![CDATA[se-tech]]></category>
+       <category><![CDATA[se-stackoverflow]]></category>
+   </item>
+   <item>
+       <guid isPermaLink="false">ff7ebfaf-2c77-42f0-b979-971af7d74278</guid>
+       <title>Haters think AI agents can&#x27;t write GPU code? This&#x27;ll ROCm</title>
+       <link>https://stackoverflow.blog/2026/09/22/haters-think-ai-can-t-gpu-code-this-ll-rocm/</link>
+       <pubDate>Tue, 22 Sep 2026 07:40:00 GMT</pubDate>
+       <description><![CDATA[Ryan chats with Anush Elangovan, VP of Software at AMD, about ROCm&#x27;s open-source unified toolchain for GPUs, how agentic AI is drastically lowering the barrier to entry for low-level hardware programming, and the rapid convergence of software and hardware development timelines.]]></description>
+       <dc:creator><![CDATA[Phoebe Sajor]]></dc:creator>
+       <category><![CDATA[podcast]]></category>
+       <category><![CDATA[se-tech]]></category>
+       <category><![CDATA[se-stackoverflow]]></category>
+       <category><![CDATA[agentic-ai]]></category>
+       <category><![CDATA[ai]]></category>
+       <category><![CDATA[hardware]]></category>
+       <category><![CDATA[chip]]></category>
+       <category><![CDATA[se-tech]]></category>
+       <category><![CDATA[se-stackoverflow]]></category>
+   </item>
+   <item>
+       <guid isPermaLink="false">db2f17fe-5638-42f9-b95e-da56989b4cba</guid>
+       <title>The AI magic words</title>
+       <link>https://stackoverflow.blog/2026/09/17/the-ai-magic-words/</link>
+       <pubDate>Thu, 17 Sep 2026 07:40:00 GMT</pubDate>
+       <description><![CDATA[From the floor of the Ai4 conference, Ryan sits down with Tim O&#x27;Reilly, founder and CEO at O&#x27;Reilly Media, to talk about the role of books as user interfaces to knowledge, the power of &quot;magic words&quot; to extract better outputs from AI, and why human taste is becoming highly valuable as knowledge becomes a commodity. ]]></description>
+       <dc:creator><![CDATA[Phoebe Sajor]]></dc:creator>
+       <category><![CDATA[podcast]]></category>
+       <category><![CDATA[se-tech]]></category>
+       <category><![CDATA[se-stackoverflow]]></category>
+       <category><![CDATA[ai]]></category>
+       <category><![CDATA[knowledge-building]]></category>
+       <category><![CDATA[agentic-ai]]></category>
+       <category><![CDATA[se-tech]]></category>
+       <category><![CDATA[se-stackoverflow]]></category>
+   </item>
+   <item>
+       <guid isPermaLink="false">c10c4caa-421a-4545-b31e-be57d5cc11f4</guid>
+       <title>From better privacy to our new ChatGPT plugin, here&#x27;s what&#x27;s new on Stack Overflow for Agents</title>
+       <link>https://stackoverflow.blog/2026/09/16/here-s-what-s-new-on-stack-overflow-for-agents/</link>
+       <pubDate>Wed, 16 Sep 2026 17:00:00 GMT</pubDate>
+       <description><![CDATA[We&#x27;ve learned a lot in the last three months since launching Stack Overflow for Agents, our API-first knowledge exchange for agents. Here&#x27;s a few of our findings, what&#x27;s new on the platform (including our new ChatGPT plugin), and how we&#x27;re continuing to build Stack Overflow. ]]></description>
+       <dc:creator><![CDATA[Phoebe Sajor, David Gibson]]></dc:creator>
+       <category><![CDATA[ai]]></category>
+       <category><![CDATA[agentic-ai]]></category>
+       <category><![CDATA[community]]></category>
+       <category><![CDATA[se-tech]]></category>
+       <category><![CDATA[se-stackoverflow]]></category>
+   </item>
+   <item>
+       <guid isPermaLink="false">3aa74322-09c1-458a-9b30-0056f9528c2d</guid>
+       <title>AI, JD, and other letters of the law</title>
+       <link>https://stackoverflow.blog/2026/09/15/ai-jd-and-other-letters-of-the-law/</link>
+       <pubDate>Tue, 15 Sep 2026 07:40:00 GMT</pubDate>
+       <description><![CDATA[From the floor of the Ai4 conference, Ryan chats with Kevin Frazier, director of the AI Innovation and Law program at the University of Texas School of Law, about the legal and social impacts of data centers, the realities of workforce disruption, and regulating AI for child safety using existing consumer protection laws.]]></description>
+       <dc:creator><![CDATA[Phoebe Sajor]]></dc:creator>
+       <category><![CDATA[podcast]]></category>
+       <category><![CDATA[se-tech]]></category>
+       <category><![CDATA[se-stackoverflow]]></category>
+       <category><![CDATA[ai]]></category>
+       <category><![CDATA[big-data]]></category>
+       <category><![CDATA[agentic-ai]]></category>
+       <category><![CDATA[se-tech]]></category>
+       <category><![CDATA[se-stackoverflow]]></category>
+   </item>
+   <item>
+       <guid isPermaLink="false">49701d09-d32d-461c-8af8-b951380c0b3d</guid>
+       <title>AI cybersecurity is a cat and mouse game</title>
+       <link>https://stackoverflow.blog/2026/09/11/ai-cybersecurity-is-a-cat-and-mouse-game/</link>
+       <pubDate>Fri, 11 Sep 2026 07:40:00 GMT</pubDate>
+       <description><![CDATA[From the floor of the Ai4 conference, Ryan chats with Sam Curry, CSO at Zscaler, about where human intelligence sits in the new security landscape with AI, why shifting security protections closer to applications helps limit probes for vulnerabilities, and why building more resilient code infrastructure is the best way to address the vulnerabilities AI does discover.]]></description>
+       <dc:creator><![CDATA[Phoebe Sajor]]></dc:creator>
+       <category><![CDATA[podcast]]></category>
+       <category><![CDATA[se-tech]]></category>
+       <category><![CDATA[se-stackoverflow]]></category>
+       <category><![CDATA[security]]></category>
+       <category><![CDATA[cybersecurity]]></category>
+       <category><![CDATA[ai]]></category>
+       <category><![CDATA[agentic-ai]]></category>
+       <category><![CDATA[se-tech]]></category>
+       <category><![CDATA[se-stackoverflow]]></category>
+   </item>
+   <item>
+       <guid isPermaLink="false">655a3604-d47b-43f0-bfa4-980faa3f32df</guid>
+       <title>(Re)introducing Developer Story</title>
+       <link>https://stackoverflow.blog/2026/09/10/re-introducing-developer-story/</link>
+       <pubDate>Thu, 10 Sep 2026 18:01:54 GMT</pubDate>
+       <description><![CDATA[For the past few years, we’ve been looking at ways to bring a little more of the individual developer back to Stack.]]></description>
+       <dc:creator><![CDATA[Philippe Beaudette]]></dc:creator>
+       <category><![CDATA[community]]></category>
+       <category><![CDATA[company]]></category>
+       <category><![CDATA[se-tech]]></category>
+       <category><![CDATA[se-stackoverflow]]></category>
+   </item>
+   <item>
+       <guid isPermaLink="false">476c86b2-8996-40d1-a74e-08bfeb84c426</guid>
+       <title>Java’s age is its AI superpower</title>
+       <link>https://stackoverflow.blog/2026/09/09/java-s-age-is-its-ai-superpower/</link>
+       <pubDate>Wed, 09 Sep 2026 04:45:00 GMT</pubDate>
+       <description><![CDATA[Ryan welcomes Markus Eisele to the program to talk about why your coding agent should be writing Java. ]]></description>
+       <dc:creator><![CDATA[Ryan Donovan]]></dc:creator>
+       <category><![CDATA[podcast]]></category>
+       <category><![CDATA[se-tech]]></category>
+       <category><![CDATA[se-stackoverflow]]></category>
+       <category><![CDATA[ai]]></category>
+       <category><![CDATA[java]]></category>
+       <category><![CDATA[building-software]]></category>
+       <category><![CDATA[se-tech]]></category>
+       <category><![CDATA[se-stackoverflow]]></category>
+   </item>
+   <item>
+       <guid isPermaLink="false">ad4420d5-b6ac-442a-9775-8f814044fcdb</guid>
+       <title>Scaling your money safely with AI</title>
+       <link>https://stackoverflow.blog/2026/09/08/scaling-your-money-safely-with-ai/</link>
+       <pubDate>Tue, 08 Sep 2026 07:40:00 GMT</pubDate>
+       <description><![CDATA[From the floor of the Ai4 conference, Ryan chats with Srini Venkatesan, CTO at PayPal, about validating AI-generated deterministic code for security, developing autonomous SDLC harnesses with iterative feedback loops, and creating a seamless headless checkout experience.]]></description>
+       <category><![CDATA[podcast]]></category>
+       <category><![CDATA[se-tech]]></category>
+       <category><![CDATA[se-stackoverflow]]></category>
+       <category><![CDATA[ai]]></category>
+       <category><![CDATA[agentic-ai]]></category>
+       <category><![CDATA[se-tech]]></category>
+       <category><![CDATA[se-stackoverflow]]></category>
+   </item>
+   <item>
+       <guid isPermaLink="false">2847bd65-57e7-4f74-b877-ebb3a529be2b</guid>
+       <title>How to build a secure-by-default AI coding agent</title>
+       <link>https://stackoverflow.blog/2026/09/04/how-to-build-a-secure-by-default-ai-coding-agent/</link>
+       <pubDate>Fri, 04 Sep 2026 07:40:00 GMT</pubDate>
+       <description><![CDATA[From the floor of the Ai4 conference, Ryan chats with Greg Jennings, VP of Engineering for AI Products at Anaconda, about what it takes to build a secure-by-default AI coding agent, why prompts shouldn&#x27;t be treated as strict security guardrails, and how Anaconda is using strategic acquisitions to secure the AI software supply chain.]]></description>
+       <dc:creator><![CDATA[Phoebe Sajor]]></dc:creator>
+       <category><![CDATA[podcast]]></category>
+       <category><![CDATA[se-tech]]></category>
+       <category><![CDATA[se-stackoverflow]]></category>
+       <category><![CDATA[ai]]></category>
+       <category><![CDATA[security]]></category>
+       <category><![CDATA[se-tech]]></category>
+       <category><![CDATA[se-stackoverflow]]></category>
+   </item>
+   <item>
+       <guid isPermaLink="false">12c6a8a7-135f-401f-ac1a-1c26c33e69c0</guid>
+       <title>Elevating security, control, and accessibility: Stack Internal 2026.6</title>
+       <link>https://stackoverflow.blog/2026/09/03/security-control-and-accessibility-si-2026-6/</link>
+       <pubDate>Thu, 03 Sep 2026 16:00:00 GMT</pubDate>
+       <description><![CDATA[In our 2026.6 release, we are shipping updates across administrative security, programmatic API control, developer portal integrations, and platform-wide accessibility—ensuring both your engineers and your AI agents act on verified, decision-grade knowledge.]]></description>
+       <dc:creator><![CDATA[Carrie Koos]]></dc:creator>
+       <category><![CDATA[release]]></category>
+       <category><![CDATA[stack-internal]]></category>
+   </item>
+   <item>
+       <guid isPermaLink="false">3cdaadb7-f96a-4ddc-a8fd-e8b24f12bd99</guid>
+       <title>The economics of agent scale: tokens, ROI, and building platforms for AI-first teams (Part 2)</title>
+       <link>https://stackoverflow.blog/2026/09/03/the-economics-of-agent-scale/</link>
+       <pubDate>Thu, 03 Sep 2026 07:40:00 GMT</pubDate>
+       <description><![CDATA[Andi Gutmans, head of Agentic Data Cloud at Google, returns for the second half of his Leaders of Code conversation to talk through the cost and infrastructure side of agentic development. ICYMI, part one covered judgment, code review, and data activation.]]></description>
+       <dc:creator><![CDATA[Eira May]]></dc:creator>
+       <category><![CDATA[leaders-of-code]]></category>
+       <category><![CDATA[podcast]]></category>
+       <category><![CDATA[business]]></category>
+       <category><![CDATA[ai]]></category>
+       <category><![CDATA[engineering-leadership]]></category>
+       <category><![CDATA[php]]></category>
+       <category><![CDATA[ai-agents]]></category>
+       <category><![CDATA[agentic-ai]]></category>
+   </item>
+   <item>
+       <guid isPermaLink="false">600ab925-24bd-4cc6-a9b1-ec4fa27c628f</guid>
+       <title>The good ol’ days of building Java</title>
+       <link>https://stackoverflow.blog/2026/09/01/the-good-ol-days-of-building-java/</link>
+       <pubDate>Tue, 01 Sep 2026 07:40:00 GMT</pubDate>
+       <description><![CDATA[Ryan sits down with Tim Lindholm, an early contributor to the Java language at Sun Microsystems, to chat about what it was like building one of the most popular programming languages ever at its inception, why it was strategically important for the Java team to create a cross-platform ABI to compete with Windows NT, and how applets were initially just an interesting demo. ]]></description>
+       <category><![CDATA[podcast]]></category>
+       <category><![CDATA[se-tech]]></category>
+       <category><![CDATA[se-stackoverflow]]></category>
+       <category><![CDATA[se-tech]]></category>
+       <category><![CDATA[se-stackoverflow]]></category>
+   </item>
+   <item>
+       <guid isPermaLink="false">9e01c114-83be-4b7a-a527-762a63b29734</guid>
+       <title>When you keep AI Lean, you keep AI correct </title>
+       <link>https://stackoverflow.blog/2026/08/28/when-you-keep-ai-lean-you-keep-ai-correct/</link>
+       <pubDate>Fri, 28 Aug 2026 07:40:00 GMT</pubDate>
+       <description><![CDATA[Ryan chats with Leo de Moura, Senior Principal Applied Scientist at AWS and the creator of the Lean language, about proving correctness in AI agents with the Lean language, how automated reasoning complements probabilistic AI models, and the use of AI for continuous code optimization.]]></description>
+       <dc:creator><![CDATA[Phoebe Sajor]]></dc:creator>
+       <category><![CDATA[podcast]]></category>
+       <category><![CDATA[se-tech]]></category>
+       <category><![CDATA[se-stackoverflow]]></category>
+       <category><![CDATA[ai]]></category>
+       <category><![CDATA[programming-language]]></category>
+       <category><![CDATA[agentic-ai]]></category>
+       <category><![CDATA[se-tech]]></category>
+       <category><![CDATA[se-stackoverflow]]></category>
+   </item>
+   <item>
+       <guid isPermaLink="false">a676391e-e7b4-44e7-b05f-9ca5872e3adb</guid>
+       <title>Inside LinkedIn&#x27;s cognitive memory agent for agentic personalization</title>
+       <link>https://stackoverflow.blog/2026/08/25/inside-linkedin-s-cognitive-memory-agent/</link>
+       <pubDate>Tue, 25 Aug 2026 07:40:00 GMT</pubDate>
+       <description><![CDATA[Ryan is joined by Praveen Bodigutla, Principal AI Researcher at LinkedIn, to chat about the four-layer memory system his team built to give LinkedIn&#x27;s hiring assistant a persistent, personalized state. ]]></description>
+       <dc:creator><![CDATA[Phoebe Sajor]]></dc:creator>
+       <category><![CDATA[podcast]]></category>
+       <category><![CDATA[se-tech]]></category>
+       <category><![CDATA[se-stackoverflow]]></category>
+       <category><![CDATA[ai]]></category>
+       <category><![CDATA[agentic-ai]]></category>
+       <category><![CDATA[se-tech]]></category>
+       <category><![CDATA[se-stackoverflow]]></category>
+   </item>
+   <item>
+       <guid isPermaLink="false">9abac319-a90e-4650-8f5d-849f29725e6a</guid>
+       <title>Responsible AI adoption needs developer workflow design</title>
+       <link>https://stackoverflow.blog/2026/08/24/responsible-ai-adoption-needs-developer-workflow-design/</link>
+       <pubDate>Mon, 24 Aug 2026 14:00:00 GMT</pubDate>
+       <description><![CDATA[Organizations cannot solve shadow AI with a document employees read once. They need to make responsible use easier than improvised use.]]></description>
+       <dc:creator><![CDATA[Dr. Gleb Tsipursky]]></dc:creator>
+       <category><![CDATA[ai]]></category>
+       <category><![CDATA[devex]]></category>
+       <category><![CDATA[cc-by-sa]]></category>
+       <category><![CDATA[se-tech]]></category>
+       <category><![CDATA[se-stackoverflow]]></category>
+   </item>
+   <item>
+       <guid isPermaLink="false">d6558158-95fa-4a20-bd6d-53dd86eb876e</guid>
+       <title>Dispatches from O&#x27;Reilly: The right amount of spec for agentic development</title>
+       <link>https://stackoverflow.blog/2026/08/21/dispatches-from-o-reilly-the-right-amount-of-spec-for-agentic-development/</link>
+       <pubDate>Fri, 21 Aug 2026 14:00:00 GMT</pubDate>
+       <description><![CDATA[When code gets cheap, the hard part is deciding what “correct” means and building a reliable way to check it.]]></description>
+       <dc:creator><![CDATA[Markus Eisele]]></dc:creator>
+       <category><![CDATA[oreilly]]></category>
+       <category><![CDATA[ai]]></category>
+       <category><![CDATA[building-software]]></category>
+       <category><![CDATA[se-tech]]></category>
+       <category><![CDATA[se-stackoverflow]]></category>
+   </item>
+   <item>
+       <guid isPermaLink="false">a3ba3491-6a1b-4c84-9026-96b44fd07081</guid>
+       <title>Get rid of your CAPTCHA, the future of the web is bots</title>
+       <link>https://stackoverflow.blog/2026/08/21/get-rid-of-your-captcha-the-future-of-the-web-is-bots/</link>
+       <pubDate>Fri, 21 Aug 2026 07:40:00 GMT</pubDate>
+       <description><![CDATA[Ryan chats with Brian Alvey, CTO at WordPress VIP, about how AI agents are changing the business models of the web, what parts of how we build our sites won’t survive our current digital evolution, and why your site will always need structured content.]]></description>
+       <dc:creator><![CDATA[Phoebe Sajor]]></dc:creator>
+       <category><![CDATA[podcast]]></category>
+       <category><![CDATA[se-tech]]></category>
+       <category><![CDATA[se-stackoverflow]]></category>
+       <category><![CDATA[web-development]]></category>
+       <category><![CDATA[ai]]></category>
+       <category><![CDATA[agentic-ai]]></category>
+       <category><![CDATA[se-tech]]></category>
+       <category><![CDATA[se-stackoverflow]]></category>
+   </item>
+</channel>
+</rss>
