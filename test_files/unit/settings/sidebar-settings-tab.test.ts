@@ -13,6 +13,7 @@ import {
 } from "../../../src/utils/domain-icon-helpers";
 import { FeedParser } from "../../../src/services/feed-parser";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
+import { isToggleOn, setToggle } from "../test-toggle-helpers";
 import type RssDashboardPlugin from "../../../main";
 
 function flushPromises(): Promise<void> {
@@ -130,8 +131,8 @@ describe("renderSidebarSettingsTab() - domain icon toggles", () => {
       const toggle = getSettingByName(containerEl, name).querySelector(
         'input[type="checkbox"]',
       ) as HTMLInputElement;
-      expect(toggle.checked).toBe(false);
-      toggle.click();
+      expect(isToggleOn(toggle)).toBe(false);
+      setToggle(toggle, true);
       await flushPromises();
     }
 
@@ -188,9 +189,9 @@ describe("renderSidebarSettingsTab() - domain icon toggles", () => {
     const toggle = toggleSetting.querySelector(
       'input[type="checkbox"]',
     ) as HTMLInputElement;
-    expect(toggle.checked).toBe(false);
+    expect(isToggleOn(toggle)).toBe(false);
 
-    toggle.click();
+    setToggle(toggle, true);
     await flushPromises();
 
     expect(plugin.settings.display.useDomainIconsPodcast).toBe(true);
@@ -460,8 +461,7 @@ describe("renderSidebarSettingsTab() - disabled icon rows", () => {
       containerEl,
       "Hide toolbar entirely",
     ).querySelector('input[type="checkbox"]') as HTMLInputElement;
-    hideToggle.checked = true;
-    hideToggle.dispatchEvent(new Event("change"));
+    setToggle(hideToggle, true);
     await flushPromises();
 
     expect(

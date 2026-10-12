@@ -9,6 +9,7 @@ import {
   ImportStarredModal,
 } from "../../../src/modals/import-starred-modal";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
+import { isToggleOn, setToggle } from "../test-toggle-helpers";
 import type { FullArticleFetchResult } from "../../../src/utils/fetch-helpers";
 import type { Tag } from "../../../src/types/types";
 
@@ -438,7 +439,7 @@ describe("ImportStarredModal", () => {
     );
 
     const content = (modal as unknown as TestModal).contentEl;
-    getMetadataRefreshToggle(content).click();
+    setToggle(getMetadataRefreshToggle(content), true);
 
     const importButton = content.querySelector<HTMLButtonElement>(
       ".rss-dashboard-modal-buttons .rss-dashboard-primary-button",
@@ -581,7 +582,7 @@ describe("ImportStarredModal", () => {
     expect(optionsIndex).toBeGreaterThanOrEqual(0);
     expect(headerIndex).toBeGreaterThan(optionsIndex);
 
-    expect(getMetadataRefreshToggle(content).checked).toBe(false);
+    expect(isToggleOn(getMetadataRefreshToggle(content))).toBe(false);
   });
 
   it("dims the metadata-refresh toggle's description while off, and un-dims it once switched on", async () => {
@@ -609,7 +610,7 @@ describe("ImportStarredModal", () => {
       ),
     ).toBe(true);
 
-    getMetadataRefreshToggle(content).click();
+    setToggle(getMetadataRefreshToggle(content), true);
 
     expect(
       getMetadataRefreshDescription(content).classList.contains(
@@ -1101,7 +1102,7 @@ describe("ImportStarredModal", () => {
     expect(getTagImportDescription(content).textContent).toContain(
       "Label-derived tag",
     );
-    expect(getTagImportToggle(content).checked).toBe(true);
+    expect(isToggleOn(getTagImportToggle(content))).toBe(true);
   });
 
   it("dims the tag-import toggle's description once switched off", async () => {
@@ -1129,7 +1130,7 @@ describe("ImportStarredModal", () => {
       ),
     ).toBe(false);
 
-    getTagImportToggle(content).click();
+    setToggle(getTagImportToggle(content), false);
 
     expect(
       getTagImportDescription(content).classList.contains(
@@ -1219,7 +1220,7 @@ describe("ImportStarredModal", () => {
     );
 
     const content = (modal as unknown as TestModal).contentEl;
-    getTagImportToggle(content).click();
+    setToggle(getTagImportToggle(content), false);
 
     expect(getNewTagsSection(content)).toBeNull();
 
@@ -1696,7 +1697,7 @@ describe("ImportStarredModal", () => {
     it("hides label-derived chips when 'Import labels as tags' is off, but keeps a tag added by hand through the chip's portal", async () => {
       const { settings, content } = await setUpModal();
 
-      getTagImportToggle(content).click();
+      setToggle(getTagImportToggle(content), false);
 
       // "Design" and "art" are label-derived (234-04's mapping), so they're
       // hidden from the chip once the bulk toggle is off.

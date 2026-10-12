@@ -5,6 +5,7 @@ import type RssDashboardPlugin from "../../../main";
 import { renderDisplaySettingsTab } from "../../../src/settings/tabs/display-settings-tab";
 import { LEFT_HANDED_LAYOUT_STORAGE_KEY } from "../../../src/utils/left-handed-layout";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
+import { isToggleOn, setToggle } from "../test-toggle-helpers";
 
 function cloneSettings(): typeof DEFAULT_SETTINGS {
   return JSON.parse(
@@ -91,9 +92,8 @@ describe("renderDisplaySettingsTab() reader section", () => {
       cacheSetting.querySelector(".setting-item-description")?.textContent,
     ).toContain("one megabyte");
     const toggle = cacheSetting.querySelector("input") as HTMLInputElement;
-    expect(toggle.checked).toBe(false);
-    toggle.checked = true;
-    toggle.dispatchEvent(new Event("change"));
+    expect(isToggleOn(toggle)).toBe(false);
+    setToggle(toggle, true);
     await flushPromises();
 
     expect(setImageCachingEnabled).toHaveBeenCalledWith(true);
@@ -162,8 +162,7 @@ describe("renderDisplaySettingsTab() reader section", () => {
     const unlimitedToggle = unlimitedSetting.querySelector(
       "input",
     ) as HTMLInputElement;
-    unlimitedToggle.checked = true;
-    unlimitedToggle.dispatchEvent(new Event("change"));
+    setToggle(unlimitedToggle, true);
     await flushPromises();
 
     expect(setImageCacheLimit).toHaveBeenLastCalledWith(100, true);
@@ -194,16 +193,14 @@ describe("renderDisplaySettingsTab() reader section", () => {
       "Display cover-image previews in dashboard card and feed views. Turning this off reduces remote image loading and can improve browsing performance.",
     );
     const coverToggle = coverImages.querySelector("input") as HTMLInputElement;
-    coverToggle.checked = false;
-    coverToggle.dispatchEvent(new Event("change"));
+    setToggle(coverToggle, false);
     await flushPromises();
 
     const summaryToggle = getSettingByName(
       containerEl,
       "Show summary",
     ).querySelector("input") as HTMLInputElement;
-    summaryToggle.checked = false;
-    summaryToggle.dispatchEvent(new Event("change"));
+    setToggle(summaryToggle, false);
     await flushPromises();
 
     expect(settings.display.showCoverImage).toBe(false);
@@ -352,9 +349,7 @@ describe("renderDisplaySettingsTab() left-handed layout", () => {
     expect(
       setting.querySelector(".setting-item-description")?.textContent,
     ).toContain("per device");
-    expect((setting.querySelector("input") as HTMLInputElement).checked).toBe(
-      false,
-    );
+    expect(isToggleOn(setting.querySelector("input"))).toBe(false);
   });
 
   it("reflects the stored per-device value", () => {
@@ -376,7 +371,7 @@ describe("renderDisplaySettingsTab() left-handed layout", () => {
       containerEl,
       "Left-handed layout",
     ).querySelector("input") as HTMLInputElement;
-    expect(toggle.checked).toBe(true);
+    expect(isToggleOn(toggle)).toBe(true);
   });
 
   it("writes the per-device value, leaves settings untouched, and re-renders the open dashboard", async () => {
@@ -400,8 +395,7 @@ describe("renderDisplaySettingsTab() left-handed layout", () => {
       containerEl,
       "Left-handed layout",
     ).querySelector("input") as HTMLInputElement;
-    toggle.checked = true;
-    toggle.dispatchEvent(new Event("change"));
+    setToggle(toggle, true);
     await flushPromises();
 
     expect(app.loadLocalStorage(LEFT_HANDED_LAYOUT_STORAGE_KEY)).toBe(true);
