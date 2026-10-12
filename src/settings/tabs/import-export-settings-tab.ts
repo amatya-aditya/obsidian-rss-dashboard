@@ -434,7 +434,7 @@ export function renderImportExportSettingsTab(
   new Setting(starredSection)
     .setName("Starred imports")
     .setDesc(
-      "Import starred articles from a Google Reader-compatible starred.json export. Feeds you don't already subscribe to are created in the New-feed folder (default: Starred imports). Import labels as tags is on by default.",
+      "Import starred articles from a Google Reader-compatible starred.json export. Feeds you don't already subscribe to are created in the New-feed folder (default: Starred imports). Import labels as tags is on by default. Label-derived tags come from the export's Inoreader labels.",
     )
     .setHeading();
 

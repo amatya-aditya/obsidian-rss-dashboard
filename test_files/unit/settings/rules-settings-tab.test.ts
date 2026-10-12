@@ -97,4 +97,23 @@ describe("renderRulesSettingsTab()", () => {
       "never changes whether a rule includes or excludes it",
     );
   });
+
+  it("says that bypassing keyword rules also passes every article", async () => {
+    const { renderRulesSettingsTab } =
+      await import("../../../src/settings/tabs/rules-settings-tab");
+
+    const containerEl = createDiv();
+    document.body.appendChild(containerEl);
+    const plugin = {
+      settings: {},
+      saveSettings: vi.fn(async () => {}),
+      notifyFiltersUpdated: vi.fn(),
+    } as unknown as RssDashboardPlugin;
+
+    renderRulesSettingsTab(containerEl, plugin, vi.fn());
+
+    const text = containerEl.textContent ?? "";
+    expect(text).toContain("bypass keyword rules");
+    expect(text).toContain("so it also passes every article");
+  });
 });

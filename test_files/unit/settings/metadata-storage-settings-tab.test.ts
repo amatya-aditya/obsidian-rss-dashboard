@@ -100,6 +100,27 @@ describe("renderStorageSettingsTab() - default folders and metadata", () => {
     expect(names).toContain("Default folders");
   });
 
+  it("states that an empty default folder means the vault root for every folder field", () => {
+    const containerEl = document.body.appendChild(createDiv());
+    const plugin = createPlugin();
+
+    renderStorageSettingsTab(containerEl, plugin);
+
+    const folderNames = [
+      "Default Mastodon folder",
+      "Default YouTube folder",
+      "Default podcast folder",
+      "Default RSS folder",
+      "Default smallweb folder",
+    ];
+
+    for (const name of folderNames) {
+      const setting = getSettingByName(containerEl, name);
+      expect(setting.textContent).toContain("Existing feeds keep their folder");
+      expect(setting.textContent).toContain("vault root");
+    }
+  });
+
   it("renders and persists the supported default folder settings", async () => {
     const containerEl = document.body.appendChild(createDiv());
     const settings = cloneSettings();
