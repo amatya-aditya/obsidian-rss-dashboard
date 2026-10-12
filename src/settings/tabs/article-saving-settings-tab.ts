@@ -9,7 +9,11 @@ import { Notice, Setting, normalizePath } from "obsidian";
 import type { App } from "obsidian";
 import { DEFAULT_SETTINGS, type SavedTemplate } from "../../types/types";
 import { VaultFolderSuggest } from "../../components/folder-suggest";
-import { SavedTemplateEditorModal } from "../modals/settings-modals";
+import {
+  ConfirmActionModal,
+  SavedTemplateEditorModal,
+} from "../modals/settings-modals";
+import { clearTemplateAssignments } from "../../utils/saved-template-utils";
 import { settingsUiCompatibility } from "../settings-ui-compat";
 import { renderTemplateVariableHelp } from "../template-variable-help";
 
@@ -25,6 +29,7 @@ export interface ArticleSavingPluginLike {
       savedTemplates?: SavedTemplate[] | undefined;
       globalDefaultTemplateId?: string;
     };
+    feeds: { url: string; customTemplate?: string }[];
   };
   saveSettings: () => Promise<void>;
 }
@@ -143,13 +148,24 @@ export function renderArticleSavingSettingsTab(
     text: "Reset to default",
     cls: "rss-dashboard-template-btn",
   });
-  resetBtn.onclick = async () => {
-    templateInput.value = DEFAULT_SETTINGS.articleSaving.defaultTemplate;
-    plugin.settings.articleSaving.defaultTemplate =
-      DEFAULT_SETTINGS.articleSaving.defaultTemplate;
-    templateSetting.setDesc(defaultTemplateHint);
-    await plugin.saveSettings();
-    new Notice("Template reset to default");
+  resetBtn.onclick = () => {
+    void (async () => {
+      const confirm = new ConfirmActionModal(plugin.app, {
+        title: "Reset to default?",
+        message:
+          "This replaces the default article template with the built-in template. Saved templates are not changed.",
+        confirmLabel: "Reset to default",
+      });
+      confirm.open();
+      const shouldReset = await confirm.waitForClose();
+      if (!shouldReset) return;
+      templateInput.value = DEFAULT_SETTINGS.articleSaving.defaultTemplate;
+      plugin.settings.articleSaving.defaultTemplate =
+        DEFAULT_SETTINGS.articleSaving.defaultTemplate;
+      templateSetting.setDesc(defaultTemplateHint);
+      await plugin.saveSettings();
+      new Notice("Template reset to default");
+    })();
   };
 
   const saveAsTemplateBtn = templateBtnRow.createEl("button", {
@@ -262,20 +278,33 @@ export function renderArticleSavingSettingsTab(
           button
             .setIcon("trash")
             .setTooltip("Delete this template")
-            .onClick(async () => {
-              const templates = plugin.settings.articleSaving.savedTemplates;
-              if (!templates) return;
-              const deleted = templates.splice(index, 1)[0];
-              if (
-                deleted?.id ===
-                plugin.settings.articleSaving.globalDefaultTemplateId
-              ) {
-                plugin.settings.articleSaving.globalDefaultTemplateId =
-                  undefined;
-              }
-              await plugin.saveSettings();
-              new Notice(`Template "${template.name}" deleted`);
-              onRefresh();
+            .onClick(() => {
+              void (async () => {
+                const templates = plugin.settings.articleSaving.savedTemplates;
+                if (!templates) return;
+                const confirm = new ConfirmActionModal(plugin.app, {
+                  title: "Delete this template?",
+                  message: `"${template.name}" will be removed. Feeds using it fall back to the global default.`,
+                  confirmLabel: "Delete",
+                });
+                confirm.open();
+                const shouldDelete = await confirm.waitForClose();
+                if (!shouldDelete) return;
+                const deleted = templates.splice(index, 1)[0];
+                if (
+                  deleted?.id ===
+                  plugin.settings.articleSaving.globalDefaultTemplateId
+                ) {
+                  plugin.settings.articleSaving.globalDefaultTemplateId =
+                    undefined;
+                }
+                if (deleted) {
+                  clearTemplateAssignments(plugin.settings.feeds, deleted.id);
+                }
+                await plugin.saveSettings();
+                new Notice(`Template "${template.name}" deleted`);
+                onRefresh();
+              })();
             }),
         );
     });

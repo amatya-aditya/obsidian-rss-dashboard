@@ -2,12 +2,26 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as obsidian from "obsidian";
 import { DEFAULT_SETTINGS, type SavedTemplate } from "../../../src/types/types";
 import { renderArticleSavingSettingsTab } from "../../../src/settings/tabs/article-saving-settings-tab";
-import { SavedTemplateEditorModal } from "../../../src/settings/modals/settings-modals";
+import {
+  ConfirmActionModal,
+  SavedTemplateEditorModal,
+} from "../../../src/settings/modals/settings-modals";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 import { findIconButton } from "../test-icon-helpers";
 
 function flushPromises(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, 0));
+}
+
+/**
+ * Make the shared confirmation dialog resolve without a real interaction, so a
+ * test can exercise the confirm and cancel paths deterministically.
+ */
+function stubConfirm(result: boolean): void {
+  vi.spyOn(ConfirmActionModal.prototype, "open").mockImplementation(() => {});
+  vi.spyOn(ConfirmActionModal.prototype, "waitForClose").mockResolvedValue(
+    result,
+  );
 }
 
 interface TestPlugin {
@@ -22,6 +36,7 @@ interface TestPlugin {
       savedTemplates: SavedTemplate[] | undefined;
       globalDefaultTemplateId?: string;
     };
+    feeds: { url: string; customTemplate?: string }[];
   };
   saveSettings: () => Promise<void>;
   mocks: {
@@ -49,6 +64,7 @@ function createPlugin(overrides?: {
   defaultTemplate?: string;
   savedTemplates?: SavedTemplate[] | undefined;
   globalDefaultTemplateId?: string;
+  feeds?: { url: string; customTemplate?: string }[];
 }): TestPlugin {
   const app = obsidian.App.createMock();
   const saveSettingsMock = vi.fn(async () => {});
@@ -64,6 +80,7 @@ function createPlugin(overrides?: {
         savedTemplates: overrides?.savedTemplates,
         globalDefaultTemplateId: overrides?.globalDefaultTemplateId,
       },
+      feeds: overrides?.feeds ?? [],
     },
     saveSettings: saveSettingsMock,
     mocks: {
@@ -91,6 +108,7 @@ describe("renderArticleSavingSettingsTab()", () => {
     const plugin = createPlugin({
       defaultTemplate: DEFAULT_SETTINGS.articleSaving.defaultTemplate,
     });
+    stubConfirm(true);
 
     renderArticleSavingSettingsTab(containerEl, plugin, vi.fn());
 
@@ -235,6 +253,7 @@ describe("renderArticleSavingSettingsTab()", () => {
     const containerEl = createDiv();
     const plugin = createPlugin({ defaultTemplate: "A" });
     const onRefresh = vi.fn();
+    stubConfirm(true);
 
     const logSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
 
@@ -346,9 +365,14 @@ describe("renderArticleSavingSettingsTab()", () => {
         { id: "t2", name: "Two", template: "OTHER", defaultFolder: "Two" },
       ],
       globalDefaultTemplateId: "t1",
+      feeds: [
+        { url: "https://a.example/feed", customTemplate: "t1" },
+        { url: "https://b.example/feed", customTemplate: "t2" },
+      ],
     });
     const onRefresh = vi.fn();
     const logSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
+    stubConfirm(true);
 
     renderArticleSavingSettingsTab(containerEl, plugin, onRefresh);
 
@@ -402,6 +426,92 @@ describe("renderArticleSavingSettingsTab()", () => {
       "[Stub Notice]",
       'Template "Renamed" deleted',
     );
+  });
+
+  it("clears feed assignments that referenced the deleted template", async () => {
+    const containerEl = createDiv();
+    const plugin = createPlugin({
+      savedTemplates: [
+        { id: "t1", name: "One", template: "SAVED" },
+        { id: "t2", name: "Two", template: "OTHER" },
+      ],
+      globalDefaultTemplateId: "t1",
+      feeds: [
+        { url: "https://a.example/feed", customTemplate: "t1" },
+        { url: "https://b.example/feed", customTemplate: "t2" },
+        { url: "https://c.example/feed" },
+      ],
+    });
+    const onRefresh = vi.fn();
+    stubConfirm(true);
+
+    renderArticleSavingSettingsTab(containerEl, plugin, onRefresh);
+
+    const deleteButton = findIconButton(
+      getSettingByName(containerEl, "One"),
+      "trash-2",
+    ) as HTMLButtonElement;
+    deleteButton.click();
+    await flushPromises();
+
+    expect(plugin.settings.articleSaving.savedTemplates).toHaveLength(1);
+    expect(
+      plugin.settings.articleSaving.globalDefaultTemplateId,
+    ).toBeUndefined();
+    expect(plugin.settings.feeds.map((feed) => feed.customTemplate)).toEqual([
+      undefined,
+      "t2",
+      undefined,
+    ]);
+    expect(plugin.mocks.saveSettings).toHaveBeenCalledTimes(1);
+    expect(onRefresh).toHaveBeenCalledTimes(1);
+  });
+
+  it("leaves the template and its feed assignments unchanged when deletion is cancelled", async () => {
+    const containerEl = createDiv();
+    const plugin = createPlugin({
+      savedTemplates: [{ id: "t1", name: "One", template: "SAVED" }],
+      globalDefaultTemplateId: "t1",
+      feeds: [{ url: "https://a.example/feed", customTemplate: "t1" }],
+    });
+    const onRefresh = vi.fn();
+    stubConfirm(false);
+
+    renderArticleSavingSettingsTab(containerEl, plugin, onRefresh);
+
+    const deleteButton = findIconButton(
+      getSettingByName(containerEl, "One"),
+      "trash-2",
+    ) as HTMLButtonElement;
+    deleteButton.click();
+    await flushPromises();
+
+    expect(plugin.settings.articleSaving.savedTemplates).toHaveLength(1);
+    expect(plugin.settings.articleSaving.globalDefaultTemplateId).toBe("t1");
+    expect(plugin.settings.feeds[0].customTemplate).toBe("t1");
+    expect(plugin.mocks.saveSettings).not.toHaveBeenCalled();
+    expect(onRefresh).not.toHaveBeenCalled();
+  });
+
+  it("does not reset the template when the reset confirmation is cancelled", async () => {
+    const containerEl = createDiv();
+    const plugin = createPlugin({ defaultTemplate: "CUSTOM" });
+    stubConfirm(false);
+
+    renderArticleSavingSettingsTab(containerEl, plugin, vi.fn());
+
+    const resetBtn = Array.from(containerEl.querySelectorAll("button")).find(
+      (b) => b.textContent === "Reset to default",
+    ) as HTMLButtonElement;
+    resetBtn.click();
+    await flushPromises();
+
+    const textarea = containerEl.querySelector(
+      ".rss-dashboard-template-input",
+    ) as HTMLTextAreaElement;
+    expect(textarea.value).toBe("CUSTOM");
+    expect(plugin.settings.articleSaving.defaultTemplate).toBe("CUSTOM");
+    expect(plugin.mocks.saveSettings).not.toHaveBeenCalled();
   });
 });
 

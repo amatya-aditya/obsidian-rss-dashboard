@@ -476,6 +476,69 @@ export class ConfirmDeleteModal extends Modal {
   }
 }
 
+// ── ConfirmActionModal ──────────────────────────────────────────────────────
+
+export interface ConfirmActionModalOptions {
+  /** Modal heading, for example "Delete this template?". */
+  title: string;
+  /** One-sentence explanation of what confirming will do. */
+  message: string;
+  /** Label of the destructive confirming button, for example "Delete". */
+  confirmLabel: string;
+}
+
+/**
+ * Small shared confirmation dialog for a single destructive settings action.
+ * Resolves `true` only when the confirming button is pressed; Cancel, Escape,
+ * or closing the dialog resolves `false`, so callers leave state untouched.
+ */
+export class ConfirmActionModal extends Modal {
+  private confirmed = false;
+  private resolvePromise: ((value: boolean) => void) | null = null;
+  private readonly options: ConfirmActionModalOptions;
+
+  constructor(app: App, options: ConfirmActionModalOptions) {
+    super(app);
+    this.options = options;
+  }
+
+  onOpen() {
+    const { contentEl } = this;
+    contentEl.empty();
+
+    contentEl.createEl("h2", { text: this.options.title });
+    contentEl.createEl("p", { text: this.options.message });
+
+    new Setting(contentEl)
+      .addButton((btn) =>
+        btn.setButtonText("Cancel").onClick(() => {
+          this.confirmed = false;
+          this.close();
+        }),
+      )
+      .addButton((btn) => {
+        btn.setButtonText(this.options.confirmLabel);
+        settingsUiCompatibility.markDestructive(btn);
+        btn.onClick(() => {
+          this.confirmed = true;
+          this.close();
+        });
+      });
+  }
+
+  onClose() {
+    const { contentEl } = this;
+    contentEl.empty();
+    this.resolvePromise?.(this.confirmed);
+  }
+
+  waitForClose(): Promise<boolean> {
+    return new Promise((resolve) => {
+      this.resolvePromise = resolve;
+    });
+  }
+}
+
 // ── FactoryResetConfirmModal ────────────────────────────────────────────────
 
 export class FactoryResetConfirmModal extends Modal {

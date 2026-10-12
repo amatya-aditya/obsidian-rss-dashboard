@@ -246,6 +246,9 @@ export function migrateMediaVideoTagSettings(
 
   const media = settings.media as Record<string, unknown>;
   if (typeof media.defaultVideoTag !== "string") {
+    // Legacy installs stored `autoTagVideos`. It is no longer a setting, but
+    // keep reading it from raw data so a user who turned video auto-tagging
+    // off still loads with an empty `defaultVideoTag` (#919).
     if (media.autoTagVideos === false) {
       media.defaultVideoTag = "";
     } else {

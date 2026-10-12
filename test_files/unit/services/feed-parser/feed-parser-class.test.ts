@@ -31,7 +31,6 @@ describe("FeedParser.parseFeed", () => {
   });
 
   const mediaSettings: MediaSettings = {
-    autoTagVideos: true,
     rememberPlaybackProgress: true,
     youtubeFocusMode: false,
     defaultMastodonFolder: "Mastodon",
@@ -50,7 +49,6 @@ describe("FeedParser.parseFeed", () => {
     defaultSmallwebTags: [],
     defaultMastodonTag: "",
     defaultMastodonTags: [],
-    openInSplitView: true,
     podcastTheme: "obsidian",
     enableApplePodcastsOpen: false,
     defaultPlaySpeed: 1,
