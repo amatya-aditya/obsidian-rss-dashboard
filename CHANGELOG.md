@@ -37,6 +37,7 @@
 
 ### Fixes
 
+- The keyboard shortcut reference keeps its right-aligned keys flush with the row edge when a description wraps at narrow widths, no longer shows a second close button beside its own on phones, and stacks its header into two rows on mobile. [GH Issue #1013](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1013)
 - The **Edit feed** modal no longer keeps Obsidian's built-in close button in the phone and tablet layout. [GH Issue #431](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/431)
 - The dashboard's inline reader now opens an already-saved article when its save button is clicked again, instead of re-running the save and overwriting the saved note. [GH Issue #1005](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1005)
 - Dashboard, sidebar, tag menu, settings, and modal interactions now work when their element or event belongs to a popout window. Cross-window element and event checks use Obsidian's `instanceOf` helper instead of native `instanceof`, which is always false for a node another window created. [GH Issue #933](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/933)

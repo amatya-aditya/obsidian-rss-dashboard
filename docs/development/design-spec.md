@@ -15,6 +15,7 @@ related:
 
 ## Update History
 
+- 2026-10-12: Pin the keyboard shortcut help rows to the text baseline with the key flush right, remove the native close button so only the header one shows, and stack the help header on mobile (#1013)
 - 2026-10-10: Record the native Reader icon-button pattern verified on desktop and Android (#801), with the scoped Reader button reset and the Android Shift+Tab unknown
 - 2026-10-10: Align the Reader toolbar tags button with its siblings on the verified scoped-reset path (#979)
 - 2026-09-27: Fact-check against the code: stylesheet ownership after the CSS split, Tier 1 navigation (Home, Kagi Small Web, back to Discover), breakpoints, token snapshot, destructive tokens, and the Obsidian 1.13 modal close button. Add metadata, **Testing UI Changes**, and **Open Questions**
@@ -106,6 +107,11 @@ Current governed surfaces:
   - Canonical selector / owner: `.modal.rss-mobile-navigation-modal .rss-dashboard-header`, `.modal.rss-mobile-discover-filters-modal .rss-discover-header`, `.rss-dashboard-header-close-button` in `src/styles/modals.css`
   - Purpose: mobile-specific top bar layout, safe-area ownership, dismiss action
   - Visual hierarchy role: structural shell controls
+- Keyboard shortcut help rows
+  - Canonical selector / owner: `.rss-shortcut-row`, `.rss-shortcut-key-container` and the `.rss-shortcut-help-modal .rss-dashboard-header` override in `src/styles/modals.css`
+  - Purpose: a shortcut description with its key pinned to the row's right edge, staying flush when the description wraps
+  - Visual hierarchy role: reference metadata
+  - Breakpoint notes: row alignment is width-independent; the help header stacks to two rows at the mobile tier (see **Responsive Intent by Breakpoint**)
 - Accent CTA buttons
   - Canonical selector / owner: `.rss-dashboard-primary-button` in `src/styles/modals.css` (with import-modal variants in `import-opml-modal.css` and `import-starred-modal.css`), `.rss-discover-ok-button` in `src/styles/discover-sidebar-filters.css`
   - Purpose: confirm, save, proceed, or commit actions
@@ -227,6 +233,7 @@ Rules:
 3. Discover secondary tabs must keep tab semantics in both sidebar and modal.
 4. Any breakpoint-specific overrides for nav controls must be declared in one place per component and referenced here.
 5. Mobile sidebar modal header top spacing must be status-bar aware and may include platform-scoped overrides.
+6. The keyboard shortcut help header is a single row above the mobile tier and stacks to two rows at the mobile tier (`<= 768px`); that override lives with the rest of the shortcut-help rules in `src/styles/modals.css`.
 
 ### Desktop Intent
 
