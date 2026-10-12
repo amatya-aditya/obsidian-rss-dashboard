@@ -423,59 +423,6 @@ export class HighlightWordEditModal extends Modal {
   }
 }
 
-// ── ConfirmDeleteModal ──────────────────────────────────────────────────────
-
-export class ConfirmDeleteModal extends Modal {
-  private targetLabel: string;
-  private confirmed = false;
-  private resolvePromise: ((value: boolean) => void) | null = null;
-
-  constructor(app: App, targetLabel: string) {
-    super(app);
-    this.targetLabel = targetLabel;
-  }
-
-  onOpen() {
-    const { contentEl } = this;
-    contentEl.empty();
-
-    contentEl.createEl("h2", { text: "Delete highlight word?" });
-    contentEl.createEl("p", {
-      text: `Are you sure you want to delete "${this.targetLabel}"?`,
-    });
-
-    new Setting(contentEl)
-      .addButton((btn) =>
-        btn.setButtonText("Cancel").onClick(() => {
-          this.confirmed = false;
-          this.close();
-        }),
-      )
-      .addButton((btn) => {
-        btn.setButtonText("Delete");
-        settingsUiCompatibility.markDestructive(btn);
-        btn.onClick(() => {
-          this.confirmed = true;
-          this.close();
-        });
-      });
-  }
-
-  onClose() {
-    const { contentEl } = this;
-    contentEl.empty();
-    if (this.resolvePromise) {
-      this.resolvePromise(this.confirmed);
-    }
-  }
-
-  waitForClose(): Promise<boolean> {
-    return new Promise((resolve) => {
-      this.resolvePromise = resolve;
-    });
-  }
-}
-
 // ── ConfirmActionModal ──────────────────────────────────────────────────────
 
 export interface ConfirmActionModalOptions {
@@ -535,6 +482,23 @@ export class ConfirmActionModal extends Modal {
   waitForClose(): Promise<boolean> {
     return new Promise((resolve) => {
       this.resolvePromise = resolve;
+    });
+  }
+}
+
+// ── ConfirmDeleteModal ──────────────────────────────────────────────────────
+
+/**
+ * Confirmation for deleting a highlight word. A thin wrapper over
+ * {@link ConfirmActionModal} so the destructive-action dialog lives in one
+ * place.
+ */
+export class ConfirmDeleteModal extends ConfirmActionModal {
+  constructor(app: App, targetLabel: string) {
+    super(app, {
+      title: "Delete highlight word?",
+      message: `Are you sure you want to delete "${targetLabel}"?`,
+      confirmLabel: "Delete",
     });
   }
 }

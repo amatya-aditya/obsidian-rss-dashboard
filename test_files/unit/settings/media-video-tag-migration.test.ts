@@ -205,6 +205,21 @@ describe("removed settings load cleanly (#919)", () => {
     );
   });
 
+  it("derives an empty defaultVideoTag through the real load path", () => {
+    // Pins the ordering bug the migration had: loadAndNormalizeSettings fills
+    // defaults before migrateSettings runs, so the legacy key must be read
+    // during normalization (#919).
+    const loaded = loadAndNormalizeSettings({
+      media: { autoTagVideos: false },
+    } as unknown as Partial<RssDashboardSettings>);
+    migrateSettings(loaded);
+
+    expect(loaded.media.defaultVideoTag).toBe("");
+    expect(
+      (loaded.media as unknown as Record<string, unknown>).autoTagVideos,
+    ).toBeUndefined();
+  });
+
   it("keeps the Video default when legacy autoTagVideos was on or absent", () => {
     const withTrue: Record<string, unknown> = {
       media: { autoTagVideos: true },
@@ -222,7 +237,7 @@ describe("removed settings load cleanly (#919)", () => {
     );
   });
 
-  it("normalizes raw settings that still carry the removed fields", () => {
+  it("drops the removed fields carried by raw settings", () => {
     const loaded = loadAndNormalizeSettings({
       customProxyUrls: ["https://proxy.example"],
       display: { useDomainIconsYouTube: true },
@@ -231,6 +246,14 @@ describe("removed settings load cleanly (#919)", () => {
 
     migrateSettings(loaded);
 
+    const topLevel = loaded as unknown as Record<string, unknown>;
+    const media = loaded.media as unknown as Record<string, unknown>;
+    const display = loaded.display as unknown as Record<string, unknown>;
+    expect(topLevel.customProxyUrls).toBeUndefined();
+    expect(media.autoTagVideos).toBeUndefined();
+    expect(media.openInSplitView).toBeUndefined();
+    expect(display.useDomainIconsYouTube).toBeUndefined();
+    // Defaults for the surviving fields are still filled.
     expect(loaded.media.defaultVideoTag).toBe("Video");
     expect(loaded.media.rememberPlaybackProgress).toBe(true);
     expect(typeof loaded.media.youtubeFocusMode).toBe("boolean");
