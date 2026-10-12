@@ -11,3 +11,27 @@ JSON.stringify({
   hasCalendar: typeof m.calendar,
   utcOffset: m.utcOffset(),
 })
+
+@eval
+// Boundary tokens a user could put in {{date:FORMAT}} (#431), plus the invalid
+// and bracket edges. Values are a local 2026-10-11 13:05:07.123 on the probe
+// machine (UTC-04:00), so the zone-dependent ones (Z/ZZ, week/day-of-year) are
+// recorded here but not modeled by the stub.
+const b = moment("2026-10-11T13:05:07.123");
+const tokens = {};
+for (const f of [
+  "YYYY","YY","MMMM","MMM","MM","M","Mo",
+  "DD","D","Do","DDD","DDDD","dddd","ddd","dd","d",
+  "HH","H","hh","h","mm","m","ss","s","SS","S","SSS",
+  "A","a","Q","X","x","Z","ZZ",
+  "L","LL","LLL","LLLL","LT","LTS",
+  "w","ww","Wo","W","WW","gg","gggg","GGGG","e","E","k","kk","N","NNNNN",
+  "[Published] YYYY-MM-DD","[done]","",
+]) { tokens[f] = b.format(f); }
+JSON.stringify({
+  input: b.format("YYYY-MM-DD HH:mm:ss.SSS"),
+  utcOffset: b.utcOffset(),
+  tokens,
+  invalidFormat: moment("not-a-real-date-xyz").format("YYYY-MM-DD"),
+  literalBrackets: b.format("[[x]] and [y]"),
+}, null, 1)

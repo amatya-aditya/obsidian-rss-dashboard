@@ -1,15 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { moment } from "obsidian";
 import {
   renderArticleTemplate,
   type TemplateStep,
 } from "../../../../src/services/article-template/render-template";
 import type { ArticleTemplateValues } from "../../../../src/services/article-template/template-values";
-
-// The real `obsidian` types `moment` as the moment namespace, which is not
-// callable; production code casts it the same way.
-type MomentFactory = (input?: Date) => { format: (fmt: string) => string };
-const callMoment = moment as unknown as MomentFactory;
 
 const ARTICLE_DATE = new Date("2024-04-21T12:00:00Z");
 
@@ -138,15 +132,29 @@ describe("renderArticleTemplate", () => {
   });
 
   it("formats {{date:FORMAT}} placeholders from the article date with moment", () => {
+    // Built from local components, so the expected strings hold in any
+    // machine time zone.
+    const articleDate = new Date(2024, 3, 21, 12, 0, 0);
     const text = renderArticleTemplate(
       "Custom: {{date:YYYY/MM/DD}} Time: {{date:HH:mm}} Long: {{date:dddd, MMMM Do YYYY}}",
       [{ kind: "dateFormat" }],
-      createValues(),
+      createValues({ articleDate }),
     );
 
     expect(text).toBe(
-      `Custom: ${callMoment(ARTICLE_DATE).format("YYYY/MM/DD")} Time: ${callMoment(ARTICLE_DATE).format("HH:mm")} Long: ${callMoment(ARTICLE_DATE).format("dddd, MMMM Do YYYY")}`,
+      "Custom: 2024/04/21 Time: 12:00 Long: Sunday, April 21st 2024",
     );
+  });
+
+  it("renders bracket literals and localized formats in {{date:FORMAT}}", () => {
+    const articleDate = new Date(2024, 3, 21, 12, 0, 0);
+    const text = renderArticleTemplate(
+      "{{date:[Saved] YYYY-MM-DD}}|{{date:L}}|{{date:Mo}}",
+      [{ kind: "dateFormat" }],
+      createValues({ articleDate }),
+    );
+
+    expect(text).toBe("Saved 2024-04-21|04/21/2024|4th");
   });
 
   it("keeps $ sequences in {{content}} as they are", () => {

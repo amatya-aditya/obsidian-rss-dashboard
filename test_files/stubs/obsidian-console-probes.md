@@ -880,9 +880,21 @@ confirm in the confirmations slice (#431).
 ## Step 3: moment
 
 **Probe:** `test_files/stubs/probes/moment.repl`.
-**Observed on 1.14.4 (Windows):** `format("YYYY-MM-DD HH:mm")` →
-`2026-10-11 13:05`; `format("ddd MMM Do YYYY h:mm A")` → `Sun Oct 11th 2026
-1:05 PM`; `locale()` → `"en"`; `isMoment` true; an invalid string is not valid;
-`duration(90, "minutes").humanize()` → `"2 hours"`; `fromNow` and `calendar`
-are functions; `utcOffset()` follows the machine time zone. The stub models the
-common tokens; the remaining boundaries stay documented gaps (#431).
+**Observed on 1.14.4 (Windows):** the base step is unchanged: `format("YYYY-MM-DD HH:mm")` → `2026-10-11 13:05`; `format("ddd MMM Do YYYY h:mm A")` → `Sun Oct 11th 2026 1:05 PM`; `locale()` → `"en"`; `isMoment` true; an invalid string is not valid; `duration(90, "minutes").humanize()` → `"2 hours"`; `fromNow` and `calendar` are functions; `utcOffset()` follows the machine time zone (`-240` on the UTC-04:00 probe machine). The second step records the boundary tokens for a local `2026-10-11 13:05:07.123`:
+
+- Year/month/day: `YYYY`/`YY` → `2026`/`26`; `MMMM`/`MMM`/`MM`/`M`/`Mo` → `October`/`Oct`/`10`/`10`/`10th`; `DD`/`D`/`Do` → `11`/`11`/`11th`; `dddd`/`ddd`/`dd`/`d` → `Sunday`/`Sun`/`Su`/`0`.
+- Time: `HH`/`H`/`hh`/`h` → `13`/`13`/`01`/`1`; `mm`/`m` → `05`/`5`; `ss`/`s` → `07`/`7`; `SSS`/`SS`/`S` → `123`/`12`/`1`; `A`/`a` → `PM`/`pm`.
+- `Q` → `4` (`Q1` is `1`, `Q3` is `3`); `X`/`x` → `1791738307`/`1791738307123` for the local instant (`moment.utc("2026-10-11T13:05:07.123Z")` gives `1791723907`/`1791723907123`).
+- Localized `en`: `L`/`LL`/`LLL`/`LLLL` → `10/11/2026`/`October 11, 2026`/`October 11, 2026 1:05 PM`/`Sunday, October 11, 2026 1:05 PM`; `LT`/`LTS` → `1:05 PM`/`1:05:07 PM`.
+- Literals: `[Published] YYYY-MM-DD` → `Published 2026-10-11`; `[done]` → `done`; `[[x]] and [y]` → `[x] pmn0 y` (`[[`/`]]` escape a bracket, and `and` is still tokenized: `a`→`pm`, `d`→`0`).
+- Zone/week tokens the machine zone decides: `Z`/`ZZ` → `-04:00`/`-0400`; `DDD`/`DDDD` → `284`; `w`/`ww`/`Wo`/`W`/`WW` → `42`/`42`/`41st`/`41`/`41`; `gg`/`gggg`/`GGGG` → `26`/`2026`/`2026`; `e`/`E` → `0`/`7`; `k`/`kk` → `13`/`13`; `N`/`NNNNN` → `AD`.
+
+**Modeled (#431):** `createMoment`'s `format` is a longest-match tokenizer over `YYYY YY MMMM MMM MM M Mo DD D Do dddd ddd dd d HH H hh h mm m ss s SSS SS S A a Q X x L LL LLL LLLL LT LTS`, with `[text]` literals and `[[`/`]]` escapes; any other character passes through. `obsidian.contract.test.ts` pins the observed values (a local `Date` keeps them time-zone independent).
+
+**Unmodeled (documented boundary):** the stub does not model
+
+- the offset and zone tokens `Z`, `ZZ`, `z`, `zz` — their value follows the machine zone, like the unmodeled `utcOffset()`, and `Z` renders as literal text in the stub;
+- the calendar-position tokens `DDD`/`DDDD` (day of year), `w`/`ww`/`wo`/`Wo`/`W`/`WW` (week of year), `gg`/`gggg`/`GGGG` (week year), `e`/`E` (locale day of week), `k`/`kk` (ISO hour), `N`…`NNNNN` (era), the ordinals `Qo`/`yo`/`do`, and the lowercase localized set `l`/`ll`/`lll`/`llll`;
+- `format("")`, which moment treats as its default `YYYY-MM-DDTHH:mm:ssZ` format (unreachable through `render-template.ts`'s `/{{date:(.+?)}}/g`, which needs a non-empty format);
+- an invalid moment's `"Invalid date"` (production always passes a real `Date`);
+- the non-`format` members `locale()`, `isMoment`, `isValid`, `duration().humanize()`, `fromNow`, `calendar`, `utcOffset()` and `zone()` — observed here, not modeled because no production path needs them.
