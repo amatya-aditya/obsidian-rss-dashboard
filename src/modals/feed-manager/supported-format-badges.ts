@@ -24,7 +24,9 @@ export function renderSupportedFormatBadges(containerEl: HTMLElement): {
 
   const youtubeBadge = formatsEl.createSpan({ cls: "format-badge youtube" });
   const youtubeIcon = youtubeBadge.createSpan({ cls: "format-badge-icon" });
-  setIcon(youtubeIcon, "youtube");
+  // Obsidian 1.14.4 ships no "youtube" icon, so use the "play" glyph the
+  // sidebar also uses for video feeds (#1015).
+  setIcon(youtubeIcon, "play");
   youtubeBadge.appendChild(activeDocument.createTextNode(" YouTube"));
 
   const clearActiveBadge = () => {
