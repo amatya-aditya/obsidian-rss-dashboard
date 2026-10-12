@@ -738,12 +738,10 @@ splits on spaces and adds every non-empty class, so
 `setting-item alpha beta gamma`. `setTooltip(text)` sets `aria-label` on
 `nameEl` only. `setDisabled(true)` toggles `is-disabled` on `settingEl` and
 `setDisabled(false)` removes it. `addToggle(cb)` adds `mod-toggle` to
-`settingEl`. The stub models this row chrome; the component half — the
-`setDisabled` forwarding and the control shapes below — is the next slice
-(#431).
+`settingEl`.
 
-**Component shapes (not modeled):** `setDisabled` also calls `setDisabled` on
-each component already added, so its reach is order-dependent: after
+**Component shapes (modeled):** `setDisabled` also calls `setDisabled` on each
+component already added, so its reach is order-dependent: after
 `setDisabled(true)` the button, text, dropdown, slider, color picker and extra
 button are disabled and a toggle gets `is-disabled`, while
 `setDisabled(true)` **before** the `add*` calls leaves every one of them
@@ -768,8 +766,9 @@ label and does **not** set the inner input's `checked`, and disabled toggles
 `extraSettingsEl` `is-disabled` plus `tabindex` removed (extra button), and the
 label `is-disabled` (toggle). `setDisplayFormat` rewrites the slider's
 `slider-value` span; the slider's `getValue` reads `valueAsNumber` and
-`setValue` fires `onChange` only when the value actually changes. The stub does
-not model these yet; each is the next slice (#431).
+`setValue` fires `onChange` only when the value actually changes. The stub
+models all of these; the color picker's element is exposed as `inputEl` rather
+than the runtime's `colorPickerEl`, tracked as a naming follow-up (#1032).
 
 ## Step 3: Menu
 

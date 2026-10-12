@@ -6,6 +6,7 @@ import {
 } from "../../../src/settings/tabs/general-settings-tab";
 import { RetentionChangeConfirmModal } from "../../../src/settings/modals/settings-modals";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
+import { isToggleOn, setToggle } from "../test-toggle-helpers";
 
 function cloneSettings(): typeof DEFAULT_SETTINGS {
   return JSON.parse(
@@ -75,10 +76,9 @@ describe("renderGeneralSettingsTab() retention protections", () => {
       const toggle = getSettingByName(containerEl, label).querySelector(
         'input[type="checkbox"]',
       ) as HTMLInputElement;
-      expect(toggle.checked).toBe(settings[settingKey]);
+      expect(isToggleOn(toggle)).toBe(settings[settingKey]);
 
-      toggle.checked = nextValue;
-      toggle.dispatchEvent(new Event("change"));
+      setToggle(toggle, nextValue);
       await flushPromises();
 
       expect(settings[settingKey]).toBe(nextValue);
@@ -110,11 +110,10 @@ describe("renderGeneralSettingsTab() retention protections", () => {
       containerEl,
       "Use first-seen date for undated items",
     ).querySelector('input[type="checkbox"]') as HTMLInputElement;
-    expect(toggle.checked).toBe(false);
+    expect(isToggleOn(toggle)).toBe(false);
     expect(settings.useFirstSeenDateFallback).toBe(false);
 
-    toggle.checked = true;
-    toggle.dispatchEvent(new Event("change"));
+    setToggle(toggle, true);
     await flushPromises();
 
     expect(settings.useFirstSeenDateFallback).toBe(true);
@@ -152,8 +151,7 @@ describe("renderGeneralSettingsTab() retention protections", () => {
       containerEl,
       "Protect starred articles",
     ).querySelector('input[type="checkbox"]') as HTMLInputElement;
-    toggle.checked = false;
-    toggle.dispatchEvent(new Event("change"));
+    setToggle(toggle, false);
     await flushPromises();
     await flushPromises();
 
@@ -236,13 +234,12 @@ describe("renderGeneralSettingsTab() retention protections", () => {
       containerEl,
       "Protect saved articles",
     ).querySelector('input[type="checkbox"]') as HTMLInputElement;
-    toggle.checked = false;
-    toggle.dispatchEvent(new Event("change"));
+    setToggle(toggle, false);
     await flushPromises();
     await flushPromises();
 
     expect(openModal).toHaveBeenCalledTimes(1);
-    expect(toggle.checked).toBe(true);
+    expect(isToggleOn(toggle)).toBe(true);
     expect(settings.protectSaved).toBe(true);
     expect(saveSettings).not.toHaveBeenCalled();
     expect(applyFeedLimitsToAllFeeds).not.toHaveBeenCalled();
@@ -319,8 +316,7 @@ describe("renderGeneralSettingsTab() retention protections", () => {
       containerEl,
       "Protect unread articles",
     ).querySelector('input[type="checkbox"]') as HTMLInputElement;
-    unreadToggle.checked = true;
-    unreadToggle.dispatchEvent(new Event("change"));
+    setToggle(unreadToggle, true);
     await flushPromises();
 
     expect(openModal).not.toHaveBeenCalled();

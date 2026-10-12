@@ -4,6 +4,7 @@ import type RssDashboardPlugin from "../../../main";
 import { renderDisplaySettingsTab } from "../../../src/settings/tabs/display-settings-tab";
 import { VersionStatusBarFeature } from "../../../src/settings/version-status-bar";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
+import { isToggleOn, setToggle } from "../test-toggle-helpers";
 
 interface RegisteredCommand {
   id: string;
@@ -70,11 +71,10 @@ describe("version status bar setting and command", () => {
 
     const control = getSetting(containerEl, "Show version in status bar");
     const toggle = control.querySelector("input") as HTMLInputElement;
-    expect(toggle.checked).toBe(false);
+    expect(isToggleOn(toggle)).toBe(false);
     expect(statusItems).toHaveLength(0);
 
-    toggle.checked = true;
-    toggle.dispatchEvent(new Event("change"));
+    setToggle(toggle, true);
     await Promise.resolve();
 
     expect(savedPreference).toBe(true);
@@ -97,8 +97,7 @@ describe("version status bar setting and command", () => {
     expect(statusItems[1]?.textContent).toBe("Version 2.7.0 · build unknown");
     expect(statusItems.filter((item) => item.isConnected)).toHaveLength(1);
 
-    toggle.checked = false;
-    toggle.dispatchEvent(new Event("change"));
+    setToggle(toggle, false);
     await Promise.resolve();
     expect(savedPreference).toBe(false);
     expect(statusItems[1]?.isConnected).toBe(false);

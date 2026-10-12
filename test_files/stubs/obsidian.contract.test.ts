@@ -723,8 +723,8 @@ describe("Obsidian stub contract", () => {
     });
 
     // Observed on Obsidian 1.14.4 desktop (Windows): setDisabled toggles
-    // `is-disabled` on the row. Real Obsidian also forwards the flag to the
-    // row's components; that half lands with the component shapes (#431).
+    // `is-disabled` on the row. It also forwards the flag to the row's
+    // components; that half is pinned by the tests below.
     it("toggles is-disabled on the row", () => {
       const row = new Setting(createDiv());
 
@@ -743,6 +743,225 @@ describe("Obsidian stub contract", () => {
       );
 
       expect(row.settingEl.className).toBe("setting-item mod-toggle");
+    });
+
+    // Observed on Obsidian 1.14.4 desktop (Windows): addButton builds a
+    // `<button>`; `setWarning()` is `setDestructive().setCta()`, so it adds
+    // `mod-destructive mod-cta` and never `mod-warning`. `setWarning` is
+    // deprecated in the API types, so the contract names the member it pins.
+    it("treats setWarning as destructive plus CTA", () => {
+      const row = new Setting(createDiv()).addButton((button) =>
+        (button as unknown as { setWarning(): unknown }).setWarning(),
+      );
+      const buttonEl = row.controlEl.querySelector("button");
+
+      expect(buttonEl?.className).toBe("mod-destructive mod-cta");
+      expect(buttonEl?.classList.contains("mod-warning")).toBe(false);
+    });
+
+    // Observed on Obsidian 1.14.4 desktop (Windows): addExtraButton builds a
+    // `div.clickable-icon.extra-setting-button[tabindex=0]` holding a
+    // `lucide-settings` icon until setIcon replaces it.
+    it("builds an extra button as a clickable icon div", () => {
+      const row = new Setting(createDiv()).addExtraButton(() => {});
+      const extra = row.controlEl.querySelector(".extra-setting-button");
+
+      expect(extra?.tagName).toBe("DIV");
+      expect(extra?.className).toBe("clickable-icon extra-setting-button");
+      expect(extra?.getAttribute("tabindex")).toBe("0");
+      expect(extra?.querySelector("svg")?.getAttribute("class")).toContain(
+        "lucide-settings",
+      );
+    });
+
+    // Observed on Obsidian 1.14.4 desktop (Windows): setIcon writes the svg
+    // into the extra button and setTooltip writes its aria-label.
+    it("writes the icon and tooltip into the extra button", () => {
+      const row = new Setting(createDiv()).addExtraButton((button) =>
+        button.setIcon("trash").setTooltip("Delete"),
+      );
+      const extra = row.controlEl.querySelector(".extra-setting-button");
+
+      expect(extra?.getAttribute("aria-label")).toBe("Delete");
+      expect(extra?.querySelector("svg")?.getAttribute("class")).toContain(
+        "lucide-trash-2",
+      );
+    });
+
+    // Observed on Obsidian 1.14.4 desktop (Windows): a toggle is a
+    // `label.checkbox-container[tabindex=0]` wrapping an
+    // `input[type=checkbox][tabindex=-1]`; setValue toggles `is-enabled` on the
+    // label and leaves the inner input's `checked` unset, and getValue returns
+    // the value that was set.
+    it("builds a toggle as a label around the checkbox input", () => {
+      let value: boolean | null = null;
+      const row = new Setting(createDiv()).addToggle((toggle) => {
+        toggle.setValue(true);
+        value = toggle.getValue();
+      });
+      const label = row.controlEl.querySelector(".checkbox-container");
+      const input = row.controlEl.querySelector('input[type="checkbox"]');
+
+      expect(label?.tagName).toBe("LABEL");
+      expect(label?.getAttribute("tabindex")).toBe("0");
+      expect(label?.classList.contains("is-enabled")).toBe(true);
+      expect(input?.getAttribute("tabindex")).toBe("-1");
+      expect((input as HTMLInputElement | null)?.checked).toBe(false);
+      expect(value).toBe(true);
+    });
+
+    // Observed on Obsidian 1.14.4 desktop (Windows): setDisabled toggles
+    // `is-disabled` on the toggle label.
+    it("marks the toggle label disabled", () => {
+      const row = new Setting(createDiv()).addToggle((toggle) =>
+        toggle.setValue(true),
+      );
+      const label = row.controlEl.querySelector(".checkbox-container");
+
+      row.setDisabled(true);
+      expect(label?.classList.contains("is-disabled")).toBe(true);
+
+      row.setDisabled(false);
+      expect(label?.classList.contains("is-disabled")).toBe(false);
+    });
+
+    // Observed on Obsidian 1.14.4 desktop (Windows): addSlider builds a
+    // `span.slider-value` before an
+    // `input.slider[type=range][data-ignore-swipe=true]`.
+    it("puts the slider value span before the range input", () => {
+      const row = new Setting(createDiv()).addSlider((slider) => {
+        slider.setLimits(0, 100, 1).setValue(25);
+        if (requireApiVersion("1.13.0")) {
+          slider.setDisplayFormat((value) => `${value} MiB`);
+        }
+      });
+      const valueEl = row.controlEl.querySelector(".slider-value");
+      const sliderEl = row.controlEl.querySelector(
+        "input.slider",
+      ) as HTMLInputElement;
+
+      expect(valueEl?.tagName).toBe("SPAN");
+      expect(valueEl?.textContent).toBe("25 MiB");
+      expect(row.controlEl.firstElementChild).toBe(valueEl);
+      expect(sliderEl.type).toBe("range");
+      expect(sliderEl.getAttribute("data-ignore-swipe")).toBe("true");
+    });
+
+    // Observed on Obsidian 1.14.4 desktop (Windows): the slider's getValue
+    // reads `valueAsNumber`, and setValue fires onChange only on a real change.
+    it("reads valueAsNumber and fires onChange only on a real change", () => {
+      const calls: number[] = [];
+      let setValue!: (value: number) => unknown;
+      let getValue!: () => number;
+      const row = new Setting(createDiv()).addSlider((slider) => {
+        setValue = (value) => slider.setValue(value);
+        getValue = () => slider.getValue();
+        slider.setLimits(0, 10, 1).setValue(5);
+        slider.onChange((value) => calls.push(value));
+      });
+
+      setValue(7);
+      setValue(7);
+
+      expect(calls).toEqual([7]);
+      expect(getValue()).toBe(7);
+
+      const sliderEl = row.controlEl.querySelector(
+        "input.slider",
+      ) as HTMLInputElement;
+      sliderEl.value = "3";
+      expect(getValue()).toBe(3);
+    });
+
+    // Observed on Obsidian 1.14.4 desktop (Windows): setLimits refreshes the
+    // `slider-value` display.
+    it("refreshes the slider value display on setLimits", () => {
+      let setLimits!: (min: number, max: number, step: number) => unknown;
+      const row = new Setting(createDiv()).addSlider((slider) => {
+        setLimits = (min, max, step) => slider.setLimits(min, max, step);
+        if (requireApiVersion("1.13.0")) {
+          slider.setDisplayFormat((value) => `${value}%`);
+        }
+        slider.setLimits(0, 10, 1).setValue(3);
+      });
+      const valueEl = row.controlEl.querySelector(".slider-value");
+      expect(valueEl?.textContent).toBe("3%");
+
+      if (valueEl) valueEl.textContent = "";
+      setLimits(0, 10, 1);
+      expect(valueEl?.textContent).toBe("3%");
+    });
+
+    // Observed on Obsidian 1.14.4 desktop (Windows): setDisabled forwards to
+    // each component already added — the button, text, dropdown, slider and
+    // color picker get their `disabled` property, the toggle label and extra
+    // button get `is-disabled`, and the extra button loses its `tabindex`.
+    it("forwards setDisabled to the components already added", () => {
+      const row = new Setting(createDiv());
+      row.addButton((button) => button.setButtonText("Go"));
+      row.addText((text) => text.setValue("v"));
+      row.addDropdown((dropdown) => dropdown.addOption("a", "A"));
+      row.addToggle((toggle) => toggle.setValue(true));
+      row.addExtraButton((button) => button.setIcon("x"));
+      row.addSlider((slider) => slider.setValue(5));
+      row.addColorPicker((color) => color.setValue("#ffffff"));
+
+      row.setDisabled(true);
+
+      expect(row.settingEl.classList.contains("is-disabled")).toBe(true);
+      expect(
+        (row.controlEl.querySelector("button") as HTMLButtonElement).disabled,
+      ).toBe(true);
+      expect(
+        (row.controlEl.querySelector('input[type="text"]') as HTMLInputElement)
+          .disabled,
+      ).toBe(true);
+      expect(
+        (row.controlEl.querySelector("select") as HTMLSelectElement).disabled,
+      ).toBe(true);
+      expect(
+        (row.controlEl.querySelector('input[type="range"]') as HTMLInputElement)
+          .disabled,
+      ).toBe(true);
+      expect(
+        (row.controlEl.querySelector('input[type="color"]') as HTMLInputElement)
+          .disabled,
+      ).toBe(true);
+      expect(
+        row.controlEl
+          .querySelector(".checkbox-container")
+          ?.classList.contains("is-disabled"),
+      ).toBe(true);
+      const extra = row.controlEl.querySelector(".extra-setting-button");
+      expect(extra?.classList.contains("is-disabled")).toBe(true);
+      expect(extra?.getAttribute("tabindex")).toBeNull();
+    });
+
+    // Observed on Obsidian 1.14.4 desktop (Windows): setDisabled only reaches
+    // the components already added, so calling it before the add* calls leaves
+    // them interactive while the row still carries `is-disabled`.
+    it("leaves components added after setDisabled untouched", () => {
+      const row = new Setting(createDiv()).setDisabled(true);
+      row.addButton((button) => button.setButtonText("Go"));
+
+      expect(row.settingEl.classList.contains("is-disabled")).toBe(true);
+      expect(
+        (row.controlEl.querySelector("button") as HTMLButtonElement).disabled,
+      ).toBe(false);
+    });
+
+    // Observed on Obsidian 1.14.4 desktop (Windows): setDisabled(false) clears
+    // the row state and re-enables the components already added.
+    it("re-enables the components already added", () => {
+      const row = new Setting(createDiv());
+      row.addButton((button) => button.setButtonText("Go"));
+      row.setDisabled(true);
+      row.setDisabled(false);
+
+      expect(row.settingEl.classList.contains("is-disabled")).toBe(false);
+      expect(
+        (row.controlEl.querySelector("button") as HTMLButtonElement).disabled,
+      ).toBe(false);
     });
   });
 });
