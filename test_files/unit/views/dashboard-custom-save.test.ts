@@ -386,7 +386,9 @@ describe("Dashboard Custom save", () => {
     view.renderInlineArticle(container);
 
     container
-      .querySelector<HTMLElement>('[aria-label="Save article"]')
+      .querySelector<HTMLElement>(
+        '.inline-reader-header [data-rss-action="save"]',
+      )
       ?.click();
 
     await vi.waitFor(() => expect(view.render).toHaveBeenCalled());

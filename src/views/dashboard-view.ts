@@ -2943,6 +2943,12 @@ export class RssDashboardView extends ItemView {
 
     if (!shouldRerenderAfterSave) {
       this.updateArticleSaveButton(article.guid);
+      if (
+        this.inlineArticle?.guid === article.guid &&
+        this.inlineArticle.feedUrl === article.feedUrl
+      ) {
+        this.applyInlineReaderSaveState(true);
+      }
     }
   }
 
@@ -3038,10 +3044,7 @@ export class RssDashboardView extends ItemView {
         this.refreshInlineArticleTags();
       }
       if (updates.saved !== undefined) {
-        const saveButton = this.containerEl.querySelector<HTMLElement>(
-          ".inline-reader-header [aria-label='Save article']",
-        );
-        saveButton?.classList.toggle("saved", updates.saved);
+        this.applyInlineReaderSaveState(updates.saved);
       }
     }
 
@@ -3438,6 +3441,27 @@ export class RssDashboardView extends ItemView {
         setTooltip(saveButton, "Click to open saved article");
       }
     }
+  }
+
+  /**
+   * Applies the saved state to the inline Reader header's save control without
+   * a full re-render. The control's accessible name changes with that state, so
+   * find it by its action hook rather than by its tooltip text.
+   */
+  private applyInlineReaderSaveState(saved: boolean): void {
+    const buttons = this.containerEl.querySelectorAll<HTMLButtonElement>(
+      ".inline-reader-header [role='toolbar'] button",
+    );
+    // Identify the control by its action hook, not its state-dependent tooltip.
+    const saveButton = Array.from(buttons).find(
+      (button) => getIconButtonAction(button) === "save",
+    );
+    if (!saveButton) return;
+    saveButton.classList.toggle("saved", saved);
+    setTooltip(
+      saveButton,
+      saved ? "Click to open saved article" : "Save article",
+    );
   }
 
   showEditFeedModal(
@@ -4195,7 +4219,9 @@ export class RssDashboardView extends ItemView {
       const saveButton = createIconButton({
         parent: actions,
         cls: `rss-reader-action-button${this.inlineArticle.saved ? " saved" : ""}`,
-        label: "Save article",
+        label: this.inlineArticle.saved
+          ? "Click to open saved article"
+          : "Save article",
         icon: "save",
         action: "save",
         region,

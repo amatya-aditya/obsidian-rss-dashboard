@@ -712,7 +712,7 @@ describe("Dashboard reader location", () => {
     view.renderInlineArticle(inlineContainer);
     const body = inlineContainer.querySelector(".inline-reader-content");
     const saveButton = inlineContainer.querySelector<HTMLElement>(
-      ".inline-reader-header [aria-label='Save article']",
+      ".inline-reader-header [data-rss-action='save']",
     );
     expect(saveButton?.classList.contains("saved")).toBe(true);
 
