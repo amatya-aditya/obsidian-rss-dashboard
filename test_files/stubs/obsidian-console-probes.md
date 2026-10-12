@@ -729,17 +729,47 @@ pinned reference (1.14.4) and is switchable through a test hook (#431).
 **Probe:** `test_files/stubs/probes/setting.repl`.
 **Observed on 1.14.4 (Windows):** a `Setting(containerEl)` builds
 `setting-item` → `setting-item-info` (`setting-item-name`,
-`setting-item-description`) plus `setting-item-control`. `setHeading()` adds
-`setting-item-heading`. `setClass(cls)` adds the class. `setTooltip(text)` sets
-`aria-label` on `nameEl`. `setDisabled(true)` adds `is-disabled` to
-`settingEl`; it does not set the `disabled` attribute on the control.
-`addButton` builds `<button class="mod-cta" aria-label="...">`; `addExtraButton`
-builds a `div.clickable-icon.extra-setting-button[tabindex=0][aria-label]`
-holding an `<svg class="svg-icon lucide-<name>">`; `addText` builds
-`<input type="text" spellcheck="false" placeholder="...">`; `addDropdown` builds
-a `<select>` with the added options. The stub models the base DOM and buttons;
-the heading, tooltip, disabled and extra-button shapes are not modeled yet
+`setting-item-description`) plus `setting-item-control`.
+
+**Row chrome (modeled):** `setHeading()` adds `setting-item-heading` and leaves
+the name, the description and the empty control in place. `setClass(cls)`
+splits on spaces and adds every non-empty class, so
+`setClass("alpha beta").setClass("gamma")` gives
+`setting-item alpha beta gamma`. `setTooltip(text)` sets `aria-label` on
+`nameEl` only. `setDisabled(true)` toggles `is-disabled` on `settingEl` and
+`setDisabled(false)` removes it. `addToggle(cb)` adds `mod-toggle` to
+`settingEl`. The stub models this row chrome; the component half — the
+`setDisabled` forwarding and the control shapes below — is the next slice
 (#431).
+
+**Component shapes (not modeled):** `setDisabled` also calls `setDisabled` on
+each component already added, so its reach is order-dependent: after
+`setDisabled(true)` the button, text, dropdown, slider, color picker and extra
+button are disabled and a toggle gets `is-disabled`, while
+`setDisabled(true)` **before** the `add*` calls leaves every one of them
+untouched (the row still gets `is-disabled`). `addButton` builds
+`<button class="mod-cta" aria-label="...">`; `addExtraButton` builds
+`div.clickable-icon.extra-setting-button[tabindex=0][aria-label]` holding an
+`<svg class="svg-icon lucide-<id>">`, defaulting to `lucide-settings` until
+`setIcon` replaces it; `addText` builds
+`<input type="text" spellcheck="false" placeholder="...">`; `addDropdown`
+builds a `<select>` with the added options; `addSlider` builds
+`<span class="slider-value">` before
+`<input class="slider" type="range" data-ignore-swipe="true">`; `addColorPicker`
+builds `<input type="color">`. A toggle is a
+`<label class="checkbox-container" tabindex="0">` wrapping
+`<input type="checkbox" tabindex="-1">`; `setValue` toggles `is-enabled` on the
+label and does **not** set the inner input's `checked`, and disabled toggles
+`is-disabled` on the label. `ButtonComponent.setWarning()` is
+`setDestructive().setCta()`, so it adds `mod-destructive mod-cta`, not
+`mod-warning`. Disabling a control writes `buttonEl.disabled` (button),
+`inputEl.disabled` (text), `selectEl.disabled` (dropdown),
+`sliderEl.disabled` (slider), `colorPickerEl.disabled` (color picker),
+`extraSettingsEl` `is-disabled` plus `tabindex` removed (extra button), and the
+label `is-disabled` (toggle). `setDisplayFormat` rewrites the slider's
+`slider-value` span; the slider's `getValue` reads `valueAsNumber` and
+`setValue` fires `onChange` only when the value actually changes. The stub does
+not model these yet; each is the next slice (#431).
 
 ## Step 3: Menu
 
