@@ -74,3 +74,33 @@ const menuItems = [...document.querySelectorAll(".menu .menu-item")].map((e) => 
 domMenu.hide();
 JSON.stringify({ menuItems })
 
+@eval
+const clearMenu = new api.Menu();
+let clearItem = null;
+clearMenu.addItem((item) => {
+  clearItem = item;
+  item.setChecked(true).setDisabled(true);
+});
+const beforeClear = { checked: clearItem.checked, disabled: clearItem.disabled };
+clearItem.setChecked(false);
+clearItem.setDisabled(false);
+const afterClear = { checked: clearItem.checked, disabled: clearItem.disabled };
+clearItem.setChecked(null);
+JSON.stringify({
+  beforeClear,
+  afterClear,
+  afterNull: { checked: clearItem.checked },
+  chainChecked: clearItem.setChecked(true) === clearItem,
+  chainDisabled: clearItem.setDisabled(true) === clearItem,
+})
+
+@eval
+const lifeMenu = new api.Menu();
+const hideReturn = lifeMenu.hide();
+const closeReturn = lifeMenu.close();
+JSON.stringify({
+  hideType: typeof hideReturn,
+  hideIsThis: hideReturn === lifeMenu,
+  closeType: typeof closeReturn,
+})
+

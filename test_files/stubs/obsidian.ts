@@ -1427,10 +1427,18 @@ class MenuStub extends ComponentStub {
   }
   showAtPosition(): void {}
   showAtMouseEvent(_event: MouseEvent): void {}
+  hide(): this {
+    return this;
+  }
+  close(): void {}
 }
 
 class MenuItemStub {
   title = "";
+  // Observed on Obsidian 1.14.4 desktop (Windows): a fresh item has
+  // `checked: null` and `disabled: false`.
+  checked: boolean | null = null;
+  disabled = false;
   callback: ((evt: MouseEvent) => unknown) | undefined;
 
   setTitle(title: string | DocumentFragment): this {
@@ -1440,7 +1448,12 @@ class MenuItemStub {
   setIcon(): this {
     return this;
   }
-  setChecked(): this {
+  setChecked(checked: boolean | null): this {
+    this.checked = checked;
+    return this;
+  }
+  setDisabled(disabled: boolean): this {
+    this.disabled = disabled;
     return this;
   }
   onClick(cb: (evt: MouseEvent) => unknown): this {

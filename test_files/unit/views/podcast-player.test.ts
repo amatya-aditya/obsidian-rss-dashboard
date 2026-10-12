@@ -75,6 +75,28 @@ describe("PodcastPlayer", () => {
 
       expect(atMouse).toHaveBeenCalledTimes(1);
     });
+
+    it("checks the active timer option and leaves the rest unchecked", () => {
+      const button = loadPlayer();
+      button.click();
+
+      const byTitle = (title: string) =>
+        Menu.lastItems.find((item) => item.title === title);
+      expect(byTitle("Off")?.checked).toBe(true);
+      expect(byTitle("5 minutes")?.checked).toBeNull();
+    });
+
+    it("checks End of episode once it is selected", () => {
+      const button = loadPlayer();
+      button.click();
+      Menu.lastItems.find((item) => item.title === "End of episode")?.trigger();
+
+      button.click();
+      const byTitle = (title: string) =>
+        Menu.lastItems.find((item) => item.title === title);
+      expect(byTitle("End of episode")?.checked).toBe(true);
+      expect(byTitle("Off")?.checked).toBeNull();
+    });
   });
 
   describe("cover artwork", () => {
