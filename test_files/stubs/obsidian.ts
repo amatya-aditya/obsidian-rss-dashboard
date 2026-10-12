@@ -80,6 +80,199 @@ const ordinalSuffix = (value: number): string => {
   }
 };
 
+// The two-letter weekday names moment's `dd` token produces, in `getDay()`
+// order (Sunday first).
+const minWeekdayNames = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+
+// moment's localized formats in its `en` locale, as the tokens each expands
+// to. Only `en` is modeled (#431); another locale is documented as unmodeled
+// in `obsidian-console-probes.md`.
+const localizedMomentFormats: Record<string, string> = {
+  L: "MM/DD/YYYY",
+  LL: "MMMM D, YYYY",
+  LLL: "MMMM D, YYYY h:mm A",
+  LLLL: "dddd, MMMM D, YYYY h:mm A",
+  LT: "h:mm A",
+  LTS: "h:mm:ss A",
+};
+
+// Every format token the stub models. Real moment matches the longest token
+// at each position, so scanning longest-first reproduces it. The tokens left
+// out (`Z`/`ZZ`, `DDD`/`DDDD`, `w`/`W` week tokens, `gggg`/`GGGG`, `e`/`E`,
+// `k`/`kk`, `N`, `l`/`ll`, and so on) are documented as unmodeled in
+// `obsidian-console-probes.md`.
+const momentFormatTokens = [
+  "YYYY",
+  "YY",
+  "MMMM",
+  "MMM",
+  "MM",
+  "M",
+  "Mo",
+  "DD",
+  "D",
+  "Do",
+  "dddd",
+  "ddd",
+  "dd",
+  "d",
+  "HH",
+  "H",
+  "hh",
+  "h",
+  "mm",
+  "m",
+  "ss",
+  "s",
+  "SSS",
+  "SS",
+  "S",
+  "A",
+  "a",
+  "Q",
+  "X",
+  "x",
+  "LTS",
+  "LT",
+  "LLLL",
+  "LLL",
+  "LL",
+  "L",
+].sort((a, b) => b.length - a.length);
+
+/** The modeled token at `index`, or null when none starts there. */
+function matchMomentToken(input: string, index: number): string | null {
+  for (const token of momentFormatTokens) {
+    if (input.startsWith(token, index)) {
+      return token;
+    }
+  }
+  return null;
+}
+
+/** One modeled token's value for `date`. */
+function formatMomentToken(token: string, date: Date): string {
+  const hours = date.getHours();
+  const minutes = date.getMinutes();
+  const seconds = date.getSeconds();
+  const milliseconds = date.getMilliseconds();
+  const month = date.getMonth();
+  const day = date.getDate();
+  const year = date.getFullYear();
+  const weekday = date.getDay();
+
+  switch (token) {
+    case "YYYY":
+      return String(year);
+    case "YY":
+      return String(year).slice(-2);
+    case "MMMM":
+      // month is always 0-11 (Date.getMonth()) and monthNames has exactly 12
+      // entries, so this index is never out of bounds; the fallback only
+      // satisfies noUncheckedIndexedAccess.
+      return monthNames[month] ?? String(month);
+    case "MMM":
+      return shortMonthNames[month] ?? String(month);
+    case "MM":
+      return pad(month + 1);
+    case "M":
+      return String(month + 1);
+    case "Mo":
+      return `${month + 1}${ordinalSuffix(month + 1)}`;
+    case "DD":
+      return pad(day);
+    case "D":
+      return String(day);
+    case "Do":
+      return `${day}${ordinalSuffix(day)}`;
+    case "dddd":
+      // weekday is always 0-6 (Date.getDay()) and weekdayNames has exactly 7
+      // entries, so this index is never out of bounds; the fallback only
+      // satisfies noUncheckedIndexedAccess.
+      return weekdayNames[weekday] ?? String(weekday);
+    case "ddd":
+      return shortWeekdayNames[weekday] ?? String(weekday);
+    case "dd":
+      return minWeekdayNames[weekday] ?? String(weekday);
+    case "d":
+      return String(weekday);
+    case "HH":
+      return pad(hours);
+    case "H":
+      return String(hours);
+    case "hh":
+      return pad(hours % 12 || 12);
+    case "h":
+      return String(hours % 12 || 12);
+    case "mm":
+      return pad(minutes);
+    case "m":
+      return String(minutes);
+    case "ss":
+      return pad(seconds);
+    case "s":
+      return String(seconds);
+    case "SSS":
+      return pad(milliseconds, 3);
+    case "SS":
+      return pad(Math.floor(milliseconds / 10));
+    case "S":
+      return String(Math.floor(milliseconds / 100));
+    case "A":
+      return hours < 12 ? "AM" : "PM";
+    case "a":
+      return hours < 12 ? "am" : "pm";
+    case "Q":
+      return String(Math.floor(month / 3) + 1);
+    case "X":
+      return String(Math.floor(date.getTime() / 1000));
+    case "x":
+      return String(date.getTime());
+    default: {
+      const localized = localizedMomentFormats[token];
+      return localized === undefined
+        ? token
+        : formatMomentFormat(date, localized);
+    }
+  }
+}
+
+/**
+ * Renders `formatStr` as moment does for the modeled set: the longest token at
+ * each position, `[text]` as a literal, `[[` and `]]` as an escaped bracket,
+ * and any other character passed through.
+ */
+function formatMomentFormat(date: Date, formatStr: string): string {
+  let output = "";
+  let index = 0;
+  while (index < formatStr.length) {
+    const char = formatStr.charAt(index);
+    if (char === "[") {
+      // Observed on 1.14.4: `[text]` is literal; a `[` with no `]`, or one
+      // nested before the close, stays a literal `[`.
+      const close = formatStr.indexOf("]", index + 1);
+      const nestedOpen = formatStr.indexOf("[", index + 1);
+      if (close !== -1 && (nestedOpen === -1 || nestedOpen > close)) {
+        output += formatStr.slice(index + 1, close);
+        index = close + 1;
+        continue;
+      }
+      output += "[";
+      index += 1;
+      continue;
+    }
+    const token = matchMomentToken(formatStr, index);
+    if (token === null) {
+      output += char;
+      index += 1;
+      continue;
+    }
+    output += formatMomentToken(token, date);
+    index += token.length;
+  }
+  return output;
+}
+
 const createMoment = (input?: string | number | Date) => {
   const date =
     input instanceof Date
@@ -88,77 +281,9 @@ const createMoment = (input?: string | number | Date) => {
         ? new Date(input)
         : new Date();
 
-  const hours = date.getHours();
-  const minutes = date.getMinutes();
-  const seconds = date.getSeconds();
-  const month = date.getMonth();
-  const day = date.getDate();
-  const year = date.getFullYear();
-  const weekday = date.getDay();
-
   return {
     format(formatStr: string): string {
-      return formatStr.replace(
-        /YYYY|YY|MMMM|MMM|MM|M|DD|D|dddd|ddd|Do|HH|H|hh|h|mm|m|ss|s|A|a/g,
-        (token) => {
-          switch (token) {
-            case "YYYY":
-              return String(year);
-            case "YY":
-              return String(year).slice(-2);
-            case "MMMM":
-              // month is always 0-11 (Date.getMonth()) and monthNames has
-              // exactly 12 entries, so this index is never out of bounds;
-              // the fallback only satisfies noUncheckedIndexedAccess.
-              return monthNames[month] ?? String(month);
-            case "MMM":
-              return shortMonthNames[month] ?? String(month);
-            case "MM":
-              return pad(month + 1);
-            case "M":
-              return String(month + 1);
-            case "DD":
-              return pad(day);
-            case "D":
-              return String(day);
-            case "dddd":
-              // weekday is always 0-6 (Date.getDay()) and weekdayNames has
-              // exactly 7 entries, so this index is never out of bounds;
-              // the fallback only satisfies noUncheckedIndexedAccess.
-              return weekdayNames[weekday] ?? String(weekday);
-            case "ddd":
-              return shortWeekdayNames[weekday] ?? String(weekday);
-            case "Do":
-              return `${day}${ordinalSuffix(day)}`;
-            case "HH":
-              return pad(hours);
-            case "H":
-              return String(hours);
-            case "hh": {
-              const hour12 = hours % 12 || 12;
-              return pad(hour12);
-            }
-            case "h": {
-              const hour12 = hours % 12 || 12;
-              return String(hour12);
-            }
-            case "mm":
-              return pad(minutes);
-            case "m":
-              return String(minutes);
-            case "ss":
-              return pad(seconds);
-            case "s":
-              return String(seconds);
-            case "A":
-              return hours < 12 ? "AM" : "PM";
-            case "a":
-              return hours < 12 ? "am" : "pm";
-            default:
-              return token;
-          }
-        },
-      );
+      return formatMomentFormat(date, formatStr);
     },
   };
 };

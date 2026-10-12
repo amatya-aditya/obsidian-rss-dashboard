@@ -22,6 +22,7 @@ import {
   __resetObsidianVersion,
   __setObsidianVersion,
   apiVersion,
+  moment,
   normalizePath,
   requireApiVersion,
   setIcon,
@@ -30,6 +31,11 @@ import {
   requestUrl,
   setRequestUrlHandler,
 } from "obsidian";
+
+// The real `obsidian` types `moment` as the moment namespace, which TypeScript
+// does not treat as callable; the stub and production cast it the same way.
+type MomentFactory = (input?: Date) => { format: (format: string) => string };
+const callMoment = moment as unknown as MomentFactory;
 
 describe("Obsidian stub contract", () => {
   describe("globals", () => {
@@ -1060,6 +1066,72 @@ describe("Obsidian stub contract", () => {
 
       expect(menu.hide()).toBe(menu);
       expect(menu.close()).toBeUndefined();
+    });
+  });
+
+  describe("moment", () => {
+    // Observed on Obsidian 1.14.4 desktop (Windows): the global `moment`
+    // formats a Date in local time. The date below is built from local
+    // components, so these expectations hold in any machine time zone.
+    const local = (): Date => new Date(2026, 9, 11, 13, 5, 7, 123);
+    const format = (fmt: string, date: Date = local()): string =>
+      callMoment(date).format(fmt);
+
+    it("formats the observed date and time tokens", () => {
+      expect(format("YYYY-MM-DD HH:mm:ss.SSS")).toBe("2026-10-11 13:05:07.123");
+      expect(format("ddd MMM Do YYYY h:mm A")).toBe(
+        "Sun Oct 11th 2026 1:05 PM",
+      );
+      expect(format("dd d")).toBe("Su 0");
+      expect(format("HH H hh h mm m ss s")).toBe("13 13 01 1 05 5 07 7");
+      expect(format("M MM MMM MMMM")).toBe("10 10 Oct October");
+      expect(format("D DD")).toBe("11 11");
+    });
+
+    // Observed on Obsidian 1.14.4 desktop (Windows): S/SS/SSS are the
+    // fractional seconds, and Mo is the ordinal month.
+    it("formats the fractional-second and ordinal tokens", () => {
+      expect(format("S SS SSS")).toBe("1 12 123");
+      expect(format("Mo")).toBe("10th");
+      expect(format("Mo", new Date(2026, 0, 5))).toBe("1st");
+      expect(format("Mo", new Date(2026, 11, 5))).toBe("12th");
+    });
+
+    // Observed on Obsidian 1.14.4 desktop (Windows): Q is the quarter.
+    it("formats the quarter token", () => {
+      expect(format("Q", new Date(2026, 0, 5))).toBe("1");
+      expect(format("Q", new Date(2026, 6, 5))).toBe("3");
+      expect(format("Q", new Date(2026, 9, 5))).toBe("4");
+    });
+
+    // Observed on Obsidian 1.14.4 desktop (Windows): X is Unix seconds and x
+    // is Unix milliseconds, both for the date's absolute instant.
+    it("formats the Unix timestamp tokens", () => {
+      const utc = new Date("2026-10-11T13:05:07.123Z");
+
+      expect(format("X", utc)).toBe("1791723907");
+      expect(format("x", utc)).toBe("1791723907123");
+    });
+
+    // Observed on Obsidian 1.14.4 desktop (Windows): the localized formats in
+    // moment's `en` locale. Only `en` is modeled; another locale is a
+    // documented gap in obsidian-console-probes.md.
+    it("formats the observed localized en formats", () => {
+      expect(format("L")).toBe("10/11/2026");
+      expect(format("LL")).toBe("October 11, 2026");
+      expect(format("LLL")).toBe("October 11, 2026 1:05 PM");
+      expect(format("LLLL")).toBe("Sunday, October 11, 2026 1:05 PM");
+      expect(format("LT")).toBe("1:05 PM");
+      expect(format("LTS")).toBe("1:05:07 PM");
+    });
+
+    // Observed on Obsidian 1.14.4 desktop (Windows): `[text]` is a literal,
+    // `[[`/`]]` escape a bracket, and a letter moment does not know passes
+    // through unchanged.
+    it("renders literal text in brackets", () => {
+      expect(format("[Published] YYYY-MM-DD")).toBe("Published 2026-10-11");
+      expect(format("[[x]]")).toBe("[x]");
+      expect(format("h:mm A [on] dddd")).toBe("1:05 PM on Sunday");
     });
   });
 });
