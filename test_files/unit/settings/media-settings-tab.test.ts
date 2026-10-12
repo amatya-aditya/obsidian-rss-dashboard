@@ -6,12 +6,21 @@ import {
   DEFAULT_SETTINGS,
 } from "../../../src/types/types";
 import { renderMediaSettingsTab } from "../../../src/settings/tabs/media-settings-tab";
+import { ConfirmActionModal } from "../../../src/settings/modals/settings-modals";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 import { isToggleOn, setToggle } from "../test-toggle-helpers";
 import type RssDashboardPlugin from "../../../main";
 
 function flushPromises(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, 0));
+}
+
+/** Resolve the shared confirmation dialog without a real interaction. */
+function stubConfirm(result: boolean): void {
+  vi.spyOn(ConfirmActionModal.prototype, "open").mockImplementation(() => {});
+  vi.spyOn(ConfirmActionModal.prototype, "waitForClose").mockResolvedValue(
+    result,
+  );
 }
 
 function getSettingByName(containerEl: HTMLElement, name: string): HTMLElement {
@@ -79,6 +88,7 @@ describe("renderMediaSettingsTab()", () => {
   it("runs the clear playback progress action", async () => {
     const containerEl = document.body.appendChild(createDiv());
     const settings = cloneSettings();
+    stubConfirm(true);
 
     const plugin = {
       app: obsidian.App.createMock(),
@@ -99,6 +109,60 @@ describe("renderMediaSettingsTab()", () => {
     await flushPromises();
 
     expect(vi.mocked(plugin.clearPlaybackProgress)).toHaveBeenCalledTimes(1);
+  });
+
+  it("leaves playback progress untouched when the confirmation is cancelled", async () => {
+    const containerEl = document.body.appendChild(createDiv());
+    const settings = cloneSettings();
+    stubConfirm(false);
+
+    const plugin = {
+      app: obsidian.App.createMock(),
+      settings,
+      saveSettings: vi.fn(async () => {}),
+      clearPlaybackProgress: vi.fn(async () => 3),
+      getActiveReaderView: vi.fn(async () => null),
+    } as unknown as RssDashboardPlugin;
+
+    renderMediaSettingsTab(containerEl, plugin);
+
+    const clearSetting = getSettingByName(
+      containerEl,
+      "Clear saved playback progress",
+    );
+    const button = clearSetting.querySelector("button") as HTMLButtonElement;
+    button.click();
+    await flushPromises();
+
+    expect(vi.mocked(plugin.clearPlaybackProgress)).not.toHaveBeenCalled();
+  });
+
+  it("offers Apple podcast links off by default and persists the toggle", async () => {
+    const containerEl = document.body.appendChild(createDiv());
+    const settings = cloneSettings();
+    settings.media.enableApplePodcastsOpen = undefined;
+
+    const plugin = {
+      app: obsidian.App.createMock(),
+      settings,
+      saveSettings: vi.fn(async () => {}),
+      clearPlaybackProgress: vi.fn(async () => 0),
+      getActiveReaderView: vi.fn(async () => null),
+    } as unknown as RssDashboardPlugin;
+
+    renderMediaSettingsTab(containerEl, plugin);
+
+    const toggle = getSettingByName(
+      containerEl,
+      "Apple podcast links",
+    ).querySelector('input[type="checkbox"]') as HTMLInputElement;
+    expect(toggle.checked).toBe(false);
+
+    toggle.click();
+    await flushPromises();
+
+    expect(plugin.settings.media.enableApplePodcastsOpen).toBe(true);
+    expect(vi.mocked(plugin.saveSettings)).toHaveBeenCalledTimes(1);
   });
 
   it("updates podcast theme and refreshes reader view when available", async () => {

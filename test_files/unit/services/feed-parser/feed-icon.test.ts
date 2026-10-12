@@ -7,7 +7,6 @@ import { FeedParser } from "../../../../src/services/feed-parser/feed-parser-cla
 
 describe("FeedParser trailing slashes on icons", () => {
   const mediaSettings: MediaSettings = {
-    autoTagVideos: true,
     rememberPlaybackProgress: true,
     youtubeFocusMode: false,
     defaultMastodonFolder: "Mastodon",
@@ -26,7 +25,6 @@ describe("FeedParser trailing slashes on icons", () => {
     defaultSmallwebTags: [],
     defaultMastodonTag: "",
     defaultMastodonTags: [],
-    openInSplitView: true,
     podcastTheme: "obsidian",
     enableApplePodcastsOpen: false,
     defaultPlaySpeed: 1,

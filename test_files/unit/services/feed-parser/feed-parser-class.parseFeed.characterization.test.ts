@@ -47,7 +47,6 @@ const WEEK_OLD = "Mon, 08 Jun 2026 00:00:00 GMT";
 const OLD = "Mon, 01 Jan 2024 00:00:00 GMT";
 
 const MEDIA_SETTINGS: MediaSettings = {
-  autoTagVideos: true,
   rememberPlaybackProgress: true,
   youtubeFocusMode: false,
   defaultMastodonFolder: "Mastodon",
@@ -66,7 +65,6 @@ const MEDIA_SETTINGS: MediaSettings = {
   defaultSmallwebTags: [],
   defaultMastodonTag: "",
   defaultMastodonTags: [],
-  openInSplitView: true,
   podcastTheme: "obsidian",
   enableApplePodcastsOpen: false,
   defaultPlaySpeed: 1,
@@ -3482,7 +3480,6 @@ describe("FeedParser.parseFeed characterization", () => {
         useDomainIconsRss: true,
         useDomainIconsPodcast: true,
         useDomainIconsMastodon: true,
-        useDomainIconsYouTube: true,
       };
       const youtube = await parseParsed(
         [article()],

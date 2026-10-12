@@ -75,7 +75,6 @@ export class FeedParser {
     this.getRetentionProtections = getRetentionProtections;
     this.getUseFirstSeenDateFallback = getUseFirstSeenDateFallback;
     this.mediaSettings = mediaSettings ?? {
-      autoTagVideos: true,
       defaultVideoTag: "Video",
       defaultVideoTags: ["Video"],
       rememberPlaybackProgress: true,
@@ -94,7 +93,6 @@ export class FeedParser {
       defaultSmallwebTags: [],
       defaultMastodonTag: "",
       defaultMastodonTags: [],
-      openInSplitView: true,
       podcastTheme: "obsidian",
       enableApplePodcastsOpen: false,
       defaultPlaySpeed: 1,

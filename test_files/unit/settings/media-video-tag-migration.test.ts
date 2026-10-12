@@ -5,7 +5,10 @@ import {
   loadAndNormalizeSettings,
   migrateSettings,
 } from "../../../src/utils/settings-loader";
-import type { RssDashboardSettings } from "../../../src/types/types";
+import {
+  DEFAULT_SETTINGS,
+  type RssDashboardSettings,
+} from "../../../src/types/types";
 
 describe("migrateMediaVideoTagSettings", () => {
   it("adds defaultVideoTag default and Video tag when missing", () => {
@@ -184,5 +187,84 @@ describe("migrateMediaVideoTagSettings", () => {
     const media = loaded.media as unknown as Record<string, unknown>;
     expect(media.youtubeFocusMode).toBe(false);
     expect("hideYouTubeDescriptions" in media).toBe(false);
+  });
+});
+
+describe("removed settings load cleanly (#919)", () => {
+  it("derives an empty defaultVideoTag from legacy autoTagVideos false", () => {
+    const settings: Record<string, unknown> = {
+      media: { autoTagVideos: false },
+      availableTags: [{ name: "Video", color: "#d04747" }],
+    };
+
+    const changed = migrateMediaVideoTagSettings(settings);
+
+    expect(changed).toBe(true);
+    expect((settings.media as Record<string, unknown>).defaultVideoTag).toBe(
+      "",
+    );
+  });
+
+  it("derives an empty defaultVideoTag through the real load path", () => {
+    // Pins the ordering bug the migration had: loadAndNormalizeSettings fills
+    // defaults before migrateSettings runs, so the legacy key must be read
+    // during normalization (#919).
+    const loaded = loadAndNormalizeSettings({
+      media: { autoTagVideos: false },
+    } as unknown as Partial<RssDashboardSettings>);
+    migrateSettings(loaded);
+
+    expect(loaded.media.defaultVideoTag).toBe("");
+    expect(
+      (loaded.media as unknown as Record<string, unknown>).autoTagVideos,
+    ).toBeUndefined();
+  });
+
+  it("keeps the Video default when legacy autoTagVideos was on or absent", () => {
+    const withTrue: Record<string, unknown> = {
+      media: { autoTagVideos: true },
+      availableTags: [],
+    };
+    migrateMediaVideoTagSettings(withTrue);
+    expect((withTrue.media as Record<string, unknown>).defaultVideoTag).toBe(
+      "Video",
+    );
+
+    const absent: Record<string, unknown> = { media: {}, availableTags: [] };
+    migrateMediaVideoTagSettings(absent);
+    expect((absent.media as Record<string, unknown>).defaultVideoTag).toBe(
+      "Video",
+    );
+  });
+
+  it("drops the removed fields carried by raw settings", () => {
+    const loaded = loadAndNormalizeSettings({
+      customProxyUrls: ["https://proxy.example"],
+      display: { useDomainIconsYouTube: true },
+      media: { autoTagVideos: true, openInSplitView: true },
+    } as unknown as Partial<RssDashboardSettings>);
+
+    migrateSettings(loaded);
+
+    const topLevel = loaded as unknown as Record<string, unknown>;
+    const media = loaded.media as unknown as Record<string, unknown>;
+    const display = loaded.display as unknown as Record<string, unknown>;
+    expect(topLevel.customProxyUrls).toBeUndefined();
+    expect(media.autoTagVideos).toBeUndefined();
+    expect(media.openInSplitView).toBeUndefined();
+    expect(display.useDomainIconsYouTube).toBeUndefined();
+    // Defaults for the surviving fields are still filled.
+    expect(loaded.media.defaultVideoTag).toBe("Video");
+    expect(loaded.media.rememberPlaybackProgress).toBe(true);
+    expect(typeof loaded.media.youtubeFocusMode).toBe("boolean");
+  });
+
+  it("no longer ships the removed fields in the defaults", () => {
+    expect(DEFAULT_SETTINGS).not.toHaveProperty("customProxyUrls");
+    expect(DEFAULT_SETTINGS.media).not.toHaveProperty("autoTagVideos");
+    expect(DEFAULT_SETTINGS.media).not.toHaveProperty("openInSplitView");
+    expect(DEFAULT_SETTINGS.display).not.toHaveProperty(
+      "useDomainIconsYouTube",
+    );
   });
 });

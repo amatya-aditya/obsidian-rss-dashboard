@@ -22,6 +22,7 @@ import type {
   FeedBundle,
   SettingsBundle,
 } from "../../../src/types/types";
+import { DEFAULT_SETTINGS } from "../../../src/types/types";
 
 vi.mock("../../../src/utils/export-utils", () => ({
   exportBlob: vi.fn().mockResolvedValue("downloaded"),
@@ -93,6 +94,25 @@ describe("ImportExportService", () => {
       expect(() => {
         JSON.parse(svc.getUserSettingsJson());
       }).not.toThrow();
+    });
+
+    it("omits removed settings and round-trips through JSON", () => {
+      const svc = new ImportExportService({
+        settings: { ...DEFAULT_SETTINGS },
+        isMobile: false,
+      });
+      const json = svc.getUserSettingsJson();
+      const parsed = JSON.parse(json) as Record<string, unknown>;
+
+      expect(parsed).not.toHaveProperty("customProxyUrls");
+      const media = parsed.media as Record<string, unknown>;
+      expect(media).not.toHaveProperty("autoTagVideos");
+      expect(media).not.toHaveProperty("openInSplitView");
+      const display = parsed.display as Record<string, unknown>;
+      expect(display).not.toHaveProperty("useDomainIconsYouTube");
+
+      // Round-trips: a re-serialized copy is identical.
+      expect(JSON.stringify(JSON.parse(json), null, 2)).toBe(json);
     });
   });
 

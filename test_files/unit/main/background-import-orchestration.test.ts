@@ -42,6 +42,7 @@ vi.mock("../../../src/utils/settings-migration", () => ({
   migrateDefaultFilterToDashboardMultiFilters: vi.fn(),
   migrateKeywordRulesSettings: vi.fn().mockReturnValue(false),
   migrateMediaVideoTagSettings: vi.fn().mockReturnValue(false),
+  removeObsoleteSettingsKeys: vi.fn().mockReturnValue(false),
 }));
 
 interface PluginWithInternal {

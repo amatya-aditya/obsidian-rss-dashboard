@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as obsidian from "obsidian";
 import {
   ApplyMaxItemsToExistingFeedsModal,
+  ConfirmActionModal,
   ConfirmDeleteModal,
   HighlightWordEditModal,
   RetentionChangeConfirmModal,
@@ -131,6 +132,64 @@ describe("ConfirmDeleteModal", () => {
     ).find((b) => b.textContent === "Cancel") as HTMLButtonElement;
     cancelBtn.click();
     await expect(p2).resolves.toBe(false);
+  });
+});
+
+describe("ConfirmActionModal", () => {
+  const options = {
+    title: "Delete this template?",
+    message: "It will be removed from the list.",
+    confirmLabel: "Delete",
+  };
+
+  it("renders the given title and marks the confirming button destructive", () => {
+    const modal = new ConfirmActionModal(obsidian.App.createMock(), options);
+    modal.open();
+
+    expect(modal.contentEl.textContent).toContain("Delete this template?");
+    expect(modal.contentEl.textContent).toContain(
+      "It will be removed from the list.",
+    );
+    const confirmBtn = Array.from(
+      modal.contentEl.querySelectorAll("button"),
+    ).find((b) => b.textContent === "Delete") as HTMLButtonElement;
+    expect(confirmBtn.classList.contains("mod-destructive")).toBe(true);
+  });
+
+  it("resolves true when the confirming button is clicked", async () => {
+    const modal = new ConfirmActionModal(obsidian.App.createMock(), options);
+    const resultPromise = modal.waitForClose();
+    modal.open();
+
+    const confirmBtn = Array.from(
+      modal.contentEl.querySelectorAll("button"),
+    ).find((b) => b.textContent === "Delete") as HTMLButtonElement;
+    confirmBtn.click();
+
+    await expect(resultPromise).resolves.toBe(true);
+  });
+
+  it("resolves false when Cancel is clicked", async () => {
+    const modal = new ConfirmActionModal(obsidian.App.createMock(), options);
+    const resultPromise = modal.waitForClose();
+    modal.open();
+
+    const cancelBtn = Array.from(
+      modal.contentEl.querySelectorAll("button"),
+    ).find((b) => b.textContent === "Cancel") as HTMLButtonElement;
+    cancelBtn.click();
+
+    await expect(resultPromise).resolves.toBe(false);
+  });
+
+  it("resolves false when closed without choosing", async () => {
+    const modal = new ConfirmActionModal(obsidian.App.createMock(), options);
+    const resultPromise = modal.waitForClose();
+    modal.open();
+
+    modal.close();
+
+    await expect(resultPromise).resolves.toBe(false);
   });
 });
 

@@ -60,6 +60,7 @@ vi.mock("../../../src/utils/settings-migration", () => ({
   migrateKeywordRulesSettings: vi.fn().mockReturnValue(false),
   migrateMediaVideoTagSettings: vi.fn().mockReturnValue(false),
   migrateMediaDefaultTagArrays: vi.fn().mockReturnValue(false),
+  removeObsoleteSettingsKeys: vi.fn().mockReturnValue(false),
 }));
 
 // Import main AFTER all mocks are set up

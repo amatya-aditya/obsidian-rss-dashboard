@@ -16,6 +16,7 @@ import {
   migrateKeywordRulesSettings,
   migrateMediaVideoTagSettings,
   migrateMediaDefaultTagArrays,
+  removeObsoleteSettingsKeys,
 } from "./settings-migration";
 import { normalizeTagChipRadius, repairTagChipRadius } from "./tag-chip-radius";
 import { LEFT_HANDED_LAYOUT_STORAGE_KEY } from "./left-handed-layout";
@@ -108,14 +109,22 @@ function withLegacyYouTubeFocusMode(
 ): Partial<MediaSettings> {
   const raw = (media ?? {}) as Partial<MediaSettings> & {
     hideYouTubeDescriptions?: unknown;
+    autoTagVideos?: unknown;
   };
+  const migrated: Partial<MediaSettings> = { ...raw };
   if (
     typeof raw.youtubeFocusMode !== "boolean" &&
     raw.hideYouTubeDescriptions === true
   ) {
-    return { ...raw, youtubeFocusMode: true };
+    migrated.youtubeFocusMode = true;
   }
-  return raw;
+  if (typeof raw.defaultVideoTag !== "string") {
+    // Legacy installs stored `autoTagVideos`. Derive the video tag from it
+    // before the key is dropped, so a user who turned video auto-tagging off
+    // still loads with an empty `defaultVideoTag` (#919).
+    migrated.defaultVideoTag = raw.autoTagVideos === false ? "" : "Video";
+  }
+  return migrated;
 }
 
 /**
@@ -337,6 +346,8 @@ export function migrateSettings(settings: RssDashboardSettings): boolean {
   if (migrateMediaDefaultTagArrays(settingsUnknown)) {
     didChange = true;
   }
+
+  didChange = removeObsoleteSettingsKeys(settingsUnknown) || didChange;
 
   if (settingsUnknown.storageMigrationDismissedPermanently !== undefined) {
     // A permanent dismissal was consent to stop advertising an optional

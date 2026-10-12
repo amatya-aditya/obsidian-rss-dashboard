@@ -22,3 +22,22 @@ export function resolveSavedTemplateForArticle(
     (template) => template.id === globalDefaultTemplateId,
   );
 }
+
+/**
+ * Clears the saved-template assignment from every feed that points at
+ * `templateId`, so deleting a template does not leave feeds silently falling
+ * back. Returns the number of feeds that were changed.
+ */
+export function clearTemplateAssignments(
+  feeds: readonly { customTemplate?: string }[],
+  templateId: string,
+): number {
+  let cleared = 0;
+  for (const feed of feeds) {
+    if (feed.customTemplate === templateId) {
+      feed.customTemplate = undefined;
+      cleared += 1;
+    }
+  }
+  return cleared;
+}

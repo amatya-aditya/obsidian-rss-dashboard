@@ -332,11 +332,21 @@ describe("Sidebar Core", () => {
       expect(plugin.saveSettings).not.toHaveBeenCalled();
     });
 
-    it("preserves a tag when deletion is cancelled and removes it with its active filter when confirmed", async () => {
+    it("preserves a tag when deletion is cancelled and removes it with its active filter and folder rule when confirmed", async () => {
       const row = container.querySelector<HTMLElement>(
         ".rss-dashboard-sidebar-tag-row",
       );
       if (!row) throw new Error("Expected the Research tag row");
+      // The tag is also a folder auto-tag, so the sibling caller must strip it
+      // from the folder rule too, not only from articles (#919).
+      settings.folders = [
+        {
+          name: "News",
+          path: "News",
+          autoTags: [{ name: "Research", color: "#3498db" }],
+          subfolders: [],
+        } as unknown as Folder,
+      ];
 
       row.dispatchEvent(
         new MouseEvent("contextmenu", { bubbles: true, cancelable: true }),
@@ -350,6 +360,7 @@ describe("Sidebar Core", () => {
 
       expect(settings.availableTags).toHaveLength(1);
       expect(settings.feeds[0]?.items[0]?.tags).toHaveLength(1);
+      expect(settings.folders[0]?.autoTags).toHaveLength(1);
       expect(callbacks.onTagToggle).not.toHaveBeenCalled();
 
       row.dispatchEvent(
@@ -364,6 +375,7 @@ describe("Sidebar Core", () => {
 
       expect(settings.availableTags).toEqual([]);
       expect(settings.feeds[0]?.items[0]?.tags).toEqual([]);
+      expect(settings.folders[0]?.autoTags).toEqual([]);
       expect(callbacks.onTagToggle).toHaveBeenCalledWith("Research");
       expect(plugin.saveSettings).toHaveBeenCalledOnce();
       await vi.waitFor(() => {
