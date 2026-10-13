@@ -1,6 +1,7 @@
 # Test scenarios from a diff
 
-Shared reference for `/manual-test-checklist` and `/test-checklist`: how to turn
+Shared reference for `/manual-test-checklist`, `/test-drive`, and
+`/test-drive-and-fix`: how to turn
 a diff into a short, risk-ordered list of scenarios that catch what automated
 tests (unit, type-check, lint) structurally miss: real rendering, real click
 targets, focus, app chrome, whole flows across callers.
