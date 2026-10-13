@@ -1,9 +1,10 @@
 // =============================================================================
 // Core Obsidian API Stubs
 //
-// Reference version: Obsidian 1.14.4 desktop (installer 1.13.7, Electron
-// 43.3.0). The renderer updates in place, so the running app can be newer than
-// the installer; re-observed on 1.14.4 (see obsidian-console-probes.md).
+// Reference version: Obsidian 1.14.4 desktop (installer 1.14.4, Electron
+// 43.7.7). The renderer can update in place ahead of the installer, so pin both
+// by running the `Obsidian-1.14.4.exe` installer from `obsidian-releases` (see
+// obsidian-console-probes.md); re-observed on the matched 1.14.4 install.
 // The stub models observed Obsidian behavior (ADR 0014). Each modeled behavior
 // has an expectation in obsidian.contract.test.ts; the console probes used to
 // observe it live in obsidian-console-probes.md.

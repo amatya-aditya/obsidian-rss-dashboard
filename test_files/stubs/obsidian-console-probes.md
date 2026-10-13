@@ -6,11 +6,16 @@ a vault with real data, and record the Obsidian version (**Settings → About**)
 with each result.
 
 The records below were re-observed on **Obsidian 1.14.4 desktop (Windows)**,
-the current stable, on **2026-10-11**. The reference was 1.13.7 before that;
-every behavior recorded on 1.13.7 reproduced unchanged on 1.14.4 unless a
-record says otherwise. The stub's reference pin is 1.14.4; the installer in the
-probe session was 1.13.7 (the renderer updates in place, so the running app was
-newer than the installer).
+the current stable, on **2026-10-11**, and re-confirmed on a matched install
+(installer 1.14.4, Electron 43.7.7) on **2026-10-13**; every record reproduced
+unchanged unless it says otherwise. The reference was 1.13.7 before that. The
+stub's reference pin is 1.14.4. To reproduce it, run the `Obsidian-1.14.4.exe`
+installer from
+[`obsidian-releases`](https://github.com/obsidianmd/obsidian-releases/releases/tag/v1.14.4),
+kept outside the repo: it bundles the 1.14.4 renderer, so the installer and the
+app both read 1.14.4 with no update step. Obsidian's renderer can update itself
+ahead of the installer, so an older install can run a newer app — the first
+probe session had installer 1.13.7 with the app self-updated to 1.14.4.
 
 ## Re-running these probes (drift check)
 
@@ -79,6 +84,12 @@ node scripts/obsidian-cdp.mjs repl test_files/stubs/probes/request-url.repl
 **Triggers for a re-run:** a reference-pin bump, a `minAppVersion` change, an
 `obsidian` package bump, an `obsidian-test-mocks` pinned-baseline bump, or
 opportunistically after an Obsidian stable release.
+
+Reinstall the pinned reference before a re-run whenever the machine's renderer
+has drifted past it: run the pinned version's installer from the official
+[`obsidian-releases`](https://github.com/obsidianmd/obsidian-releases/releases/tag/v1.14.4)
+page (`Obsidian-1.14.4.exe`), kept outside the repo. It bundles the 1.14.4
+renderer, so the installer and the app both land on the pin with no update step.
 
 The harness quirk to remember: in `repl`/`eval` mode a **promise result must be
 awaited at the top level** (`await somePromise` as the last expression), not
@@ -767,12 +778,12 @@ for (const [label, rename] of [
 
 **Probe:** `test_files/stubs/probes/version-and-platform.repl`.
 **Observed on 1.14.4 (Windows):** Settings → About reads **Version 1.14.4** and
-**Installer version: 1.13.7** (the renderer updates in place, so the app can be
-newer than the installer). The exported `apiVersion` is `"1.14.4"`. `Platform`
-has `isDesktop`, `isDesktopApp`, `isWin` true; every other flag false;
-`resourcePathPrefix` is a per-install `app://<hash>/` URL. The stub keeps the OS
-flags false and a fixed `resourcePathPrefix` so tests don't depend on the
-machine.
+**Installer version: 1.14.4** on the matched install (**1.13.7** in the first
+1.14.4 session, where the renderer had self-updated ahead of the installer). The
+exported `apiVersion` is `"1.14.4"`. `Platform` has `isDesktop`, `isDesktopApp`,
+`isWin` true; every other flag false; `resourcePathPrefix` is a per-install
+`app://<hash>/` URL. The stub keeps the OS flags false and a fixed
+`resourcePathPrefix` so tests don't depend on the machine.
 
 ## Step 3: requireApiVersion
 
