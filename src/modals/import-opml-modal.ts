@@ -505,7 +505,10 @@ export class ImportOpmlModal extends Modal {
       input.className = "import-preview-edit-input";
       input.value = node.name;
       nameText.replaceWith(input);
-      addInputClearButton(input, { fill: true, label: "Clear folder name" });
+      const clearBtn = addInputClearButton(input, {
+        fill: true,
+        label: "Clear folder name",
+      });
       input.focus();
       input.select();
 
@@ -532,7 +535,14 @@ export class ImportOpmlModal extends Modal {
           this.renderPreview();
         }
       });
-      input.addEventListener("blur", () => commit());
+      // Focus moving between the input and its clear button is not a commit.
+      const onFocusLeave = (e: FocusEvent) => {
+        const next = e.relatedTarget;
+        if (next === input || next === clearBtn) return;
+        commit();
+      };
+      input.addEventListener("blur", onFocusLeave);
+      clearBtn.addEventListener("blur", onFocusLeave);
     };
 
     edit.addEventListener("click", (e) => {
@@ -662,7 +672,10 @@ export class ImportOpmlModal extends Modal {
       input.className = "import-preview-edit-input";
       input.value = feed.title;
       titleText.replaceWith(input);
-      addInputClearButton(input, { fill: true, label: "Clear feed title" });
+      const clearBtn = addInputClearButton(input, {
+        fill: true,
+        label: "Clear feed title",
+      });
       input.focus();
       input.select();
 
@@ -689,7 +702,14 @@ export class ImportOpmlModal extends Modal {
           this.renderPreview();
         }
       });
-      input.addEventListener("blur", () => commit());
+      // Focus moving between the input and its clear button is not a commit.
+      const onFocusLeave = (e: FocusEvent) => {
+        const next = e.relatedTarget;
+        if (next === input || next === clearBtn) return;
+        commit();
+      };
+      input.addEventListener("blur", onFocusLeave);
+      clearBtn.addEventListener("blur", onFocusLeave);
     };
 
     edit.addEventListener("click", (e) => {

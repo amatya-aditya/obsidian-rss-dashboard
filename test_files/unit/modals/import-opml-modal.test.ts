@@ -595,4 +595,104 @@ describe("ImportOpmlModal", () => {
       expect.stringContaining("Articles will be fetched in the background"),
     );
   });
+
+  it.each([
+    ["folder", "Rename folder", "Clear folder name"],
+    ["feed", "Rename feed", "Clear feed title"],
+  ])(
+    "keeps the %s rename editor alive when focus moves to its clear button",
+    async (_kind, renameLabel, clearLabel) => {
+      const plugin = {
+        settings: cloneSettings(),
+        saveSettings: vi.fn(async () => {}),
+        getActiveDashboardView: vi.fn(async () => null),
+        startBackgroundImport: vi.fn(),
+      } as unknown as ConstructorParameters<typeof ImportOpmlModal>[1];
+      const modal = new ImportOpmlModal(createMockApp(), plugin);
+      (modal as unknown as TestModal).open();
+      const opml = `<?xml version="1.0" encoding="UTF-8"?>
+<opml version="2.0"><head><title>t</title></head><body>
+  <outline text="News" title="News">
+    <outline text="Feed One" title="Feed One" type="rss" xmlUrl="https://example.com/one.xml" />
+  </outline>
+</body></opml>`;
+      await (modal as unknown as TestModal).handleFileSelection(
+        new File([opml], "t.opml", { type: "text/xml" }),
+      );
+      const content = (modal as unknown as TestModal).contentEl;
+      document.body.appendChild(content);
+
+      content
+        .querySelector<HTMLElement>(`[aria-label="${renameLabel}"]`)!
+        .click();
+      const input = content.querySelector<HTMLInputElement>(
+        ".import-preview-edit-input",
+      )!;
+      const clearBtn = content.querySelector<HTMLButtonElement>(
+        `[aria-label="${clearLabel}"]`,
+      )!;
+      input.focus();
+      clearBtn.focus();
+
+      expect(input.isConnected).toBe(true);
+      expect(clearBtn.isConnected).toBe(true);
+
+      clearBtn.click();
+      expect(input.value).toBe("");
+      expect(document.activeElement).toBe(input);
+    },
+  );
+
+  it.each([
+    ["folder", "Rename folder", "Clear folder name"],
+    ["feed", "Rename feed", "Clear feed title"],
+  ])(
+    "commits the %s rename when focus leaves the editor for elsewhere",
+    async (_kind, renameLabel, clearLabel) => {
+      const plugin = {
+        settings: cloneSettings(),
+        saveSettings: vi.fn(async () => {}),
+        getActiveDashboardView: vi.fn(async () => null),
+        startBackgroundImport: vi.fn(),
+      } as unknown as ConstructorParameters<typeof ImportOpmlModal>[1];
+      const modal = new ImportOpmlModal(createMockApp(), plugin);
+      (modal as unknown as TestModal).open();
+      const opml = `<?xml version="1.0" encoding="UTF-8"?>
+<opml version="2.0"><head><title>t</title></head><body>
+  <outline text="News" title="News">
+    <outline text="Feed One" title="Feed One" type="rss" xmlUrl="https://example.com/one.xml" />
+  </outline>
+</body></opml>`;
+      await (modal as unknown as TestModal).handleFileSelection(
+        new File([opml], "t.opml", { type: "text/xml" }),
+      );
+      const content = (modal as unknown as TestModal).contentEl;
+      document.body.appendChild(content);
+
+      content
+        .querySelector<HTMLElement>(`[aria-label="${renameLabel}"]`)!
+        .click();
+      const input = content.querySelector<HTMLInputElement>(
+        ".import-preview-edit-input",
+      )!;
+      input.focus();
+      input.blur();
+      expect(input.isConnected).toBe(false);
+
+      content
+        .querySelector<HTMLElement>(`[aria-label="${renameLabel}"]`)!
+        .click();
+      const second = content.querySelector<HTMLInputElement>(
+        ".import-preview-edit-input",
+      )!;
+      second.focus();
+      content
+        .querySelector<HTMLButtonElement>(`[aria-label="${clearLabel}"]`)!
+        .focus();
+      content
+        .querySelector<HTMLButtonElement>(`[aria-label="${clearLabel}"]`)!
+        .blur();
+      expect(second.isConnected).toBe(false);
+    },
+  );
 });

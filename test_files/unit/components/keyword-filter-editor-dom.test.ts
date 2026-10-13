@@ -71,3 +71,83 @@ describe("renderKeywordFilterEditor rule row DOM", () => {
     );
   });
 });
+
+describe("keyword clear button focus", () => {
+  beforeEach(() => {
+    installObsidianDomPolyfills();
+    document.body.innerHTML = "";
+  });
+
+  it("moves focus to the replacement input when clearing re-renders the editor", () => {
+    const containerEl = (
+      document.body as unknown as ObsidianHTMLElement
+    ).createDiv();
+    const render = (rules: KeywordFilterRule[]) => {
+      containerEl.innerHTML = "";
+      renderKeywordFilterEditor({
+        containerEl,
+        state: { includeLogic: "AND", rules },
+        onChange: (next) => render(next.rules),
+      });
+    };
+    render([createRule({ keyword: "news" })]);
+
+    const original = containerEl.querySelector<HTMLInputElement>(
+      ".rss-keyword-filter-input",
+    )!;
+    original.focus();
+    containerEl
+      .querySelector<HTMLButtonElement>('[aria-label="Clear keyword"]')!
+      .click();
+
+    const replacement = containerEl.querySelector<HTMLInputElement>(
+      ".rss-keyword-filter-input",
+    )!;
+    expect(original.isConnected).toBe(false);
+    expect(replacement.value).toBe("");
+    expect(document.activeElement).toBe(replacement);
+  });
+
+  it("keeps focus on the same input when the editor is not re-rendered", () => {
+    const containerEl = (
+      document.body as unknown as ObsidianHTMLElement
+    ).createDiv();
+    renderKeywordFilterEditor({
+      containerEl,
+      state: { includeLogic: "AND", rules: [createRule()] },
+      onChange: () => undefined,
+    });
+    const input = containerEl.querySelector<HTMLInputElement>(
+      ".rss-keyword-filter-input",
+    )!;
+    input.focus();
+    containerEl
+      .querySelector<HTMLButtonElement>('[aria-label="Clear keyword"]')!
+      .click();
+    expect(input.value).toBe("");
+    expect(document.activeElement).toBe(input);
+  });
+
+  it("restores focus in the editor that was cleared when two editors share a host", () => {
+    const host = (document.body as unknown as ObsidianHTMLElement).createDiv();
+    const editors = [0, 1].map((n) => {
+      const containerEl = (host as unknown as ObsidianHTMLElement).createDiv();
+      const render = (rules: KeywordFilterRule[]) => {
+        containerEl.innerHTML = "";
+        renderKeywordFilterEditor({
+          containerEl,
+          state: { includeLogic: "AND", rules },
+          onChange: (next) => render(next.rules),
+        });
+      };
+      render([createRule({ id: `e${n}`, keyword: `kw${n}` })]);
+      return containerEl;
+    });
+    editors[1]
+      .querySelector<HTMLButtonElement>('[aria-label="Clear keyword"]')!
+      .click();
+    expect(document.activeElement).toBe(
+      editors[1].querySelector(".rss-keyword-filter-input"),
+    );
+  });
+});

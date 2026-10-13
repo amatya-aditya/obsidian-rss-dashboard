@@ -227,15 +227,37 @@ function renderKeywordInput(
   });
   keywordInput.value = rule.keyword || "";
   keywordInput.disabled = !rule.enabled;
-  addInputClearButton(keywordInput, { fill: true, label: "Clear keyword" });
-  keywordInput.addEventListener("change", () => {
+  const commit = () => {
     onChange({
       ...state,
       rules: updateRule(state.rules, index, {
         keyword: keywordInput.value,
       }),
     });
+  };
+  addInputClearButton(keywordInput, {
+    fill: true,
+    label: "Clear keyword",
+    // The editor re-renders on change and replaces this input, so focus has
+    // to move to the replacement or the cursor is lost.
+    onClear: () => {
+      // The editor's own container survives a re-render; its rules container
+      // does not. Scoping to it keeps another editor's rows out of the lookup.
+      const editorRoot = keywordRow.closest(
+        ".rss-keyword-filter-rules-container",
+      )?.parentElement;
+      commit();
+      if (keywordInput.isConnected) {
+        keywordInput.focus();
+        return;
+      }
+      const rows = editorRoot?.querySelectorAll(".rss-keyword-filter-rule-row");
+      rows?.[index]
+        ?.querySelector<HTMLInputElement>(".rss-keyword-filter-input")
+        ?.focus();
+    },
   });
+  keywordInput.addEventListener("change", commit);
 }
 
 function renderLocationToggles(
