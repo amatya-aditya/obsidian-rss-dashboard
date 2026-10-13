@@ -108,7 +108,7 @@ records the documentation classification.
 ### 2026
 
 - [Math rendering](investigations/2026/math-rendering.md), [sidebar visibility and row compression](investigations/2026/sidebar-visibility-row-compression-regression.md), and [2.4.1 errors](investigations/2026/2.4.1-errors.md).
-- [YouTube Shorts tagging failure](investigations/2026/youtube-shorts-tagging-failure.md) and [YouTube watch progress](investigations/2026/youtube-watch-progress.md).
+- [YouTube Shorts tagging failure](investigations/2026/youtube-shorts-tagging-failure.md) and [YouTube watch progress](investigations/2026/youtube-watch-progress.md), and [YouTube Data API v3 research](investigations/2026/youtube-data-api-v3-research.md) (#1072).
 - [Substack CDATA entity encoding](investigations/2026/substack-cdata-entity-encoding.md), [Defuddle evaluation](investigations/2026/defuddle-evaluation.md), [coverage comparison](investigations/2026/coverage-comparison.md), and [testing closeout checklist](investigations/2026/final-testing-pr-closeout-checklist.md).
 - [Test-lint backlog tracker](investigations/2026/test-lint-backlog-tracker.md): the burn-down of test-file ESLint errors from 2,686 to 0.
 - [2.3.0 audit working checklist](investigations/2026/audit-remediation-2.3.0.md), [2.3.0 audit records](investigations/2026/2.3.0-audit/), and [2.4.0 audit records](investigations/2026/2.4.0-audit/).
