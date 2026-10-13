@@ -166,6 +166,22 @@ bug, no extra prose before or after:
 Number every bug (`Bug 1:`, `Bug 2:`), even a single one — keeps numbering
 stable if the user refers back to "bug 2" later. Blank line between bugs.
 
+## Hold pull requests until reviewed
+
+Do not open a pull request when implementation finishes. Commit through the
+hooks, push the branch, and stop. Report the branch, its commits, the
+validation results, and a draft PR body saved as a local file, then wait. This
+applies to subagents and to every skill that ends in a PR.
+
+A PR opens only after the maintainer has, in order:
+
+1. Reviewed the work and the findings of the `code-review` skill, and had any
+   tightening done on the branch.
+2. Run `/test-checklist` on the branch build. It checks for running vaults
+   before launching one, reports the tested vault path, and captures
+   before/after screenshots. Agents cannot invoke it.
+3. Said in chat to open the PR.
+
 ## GitHub pull request descriptions
 
 Use `.github/PULL_REQUEST_TEMPLATE.md` as the source for PR body structure.
