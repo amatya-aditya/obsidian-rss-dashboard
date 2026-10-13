@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   CdpError,
   DEFAULT_PORTS,
+  assessCompanionTarget,
   assessVaultOwnership,
   assertWebSocket,
   choosePort,
@@ -12,12 +13,18 @@ import {
   parseArgs,
   parseBatch,
   parseDevToolsActivePort,
+  parseSettingsTitle,
   pollUntilReady,
   renderValue,
+  selectSettingsTarget,
   selectTarget,
+  vaultBasename,
 } from "../../scripts/obsidian-cdp.mjs";
 
 const noEnv = {};
+
+const SETTINGS_TITLE = "Settings - .fixture-vault - Obsidian 1.14.0";
+const FIXTURE_VAULT = "C:\\work\\rss\\.fixture-vault";
 
 function page(
   overrides: Record<string, unknown> = {},
@@ -195,6 +202,27 @@ describe("obsidian-cdp parseArgs", () => {
       CdpError,
     );
     expect(() => parseArgs(["targets"], { CDP_WAIT: "x" })).toThrow(CdpError);
+  });
+
+  it("reads --settings and the open-settings command", () => {
+    expect(parseArgs(["eval", "probe.js"], noEnv).settings).toBe(false);
+    expect(parseArgs(["--settings", "eval", "probe.js"], noEnv).settings).toBe(
+      true,
+    );
+    const open = parseArgs(["open-settings", "rss-dashboard"], noEnv);
+    expect(open.command).toBe("open-settings");
+    expect(open.args).toEqual(["rss-dashboard"]);
+  });
+
+  it("rejects --settings where it has no meaning", () => {
+    expect(() => parseArgs(["--settings", "targets"], noEnv)).toThrow(CdpError);
+    expect(() =>
+      parseArgs(["--settings", "open-settings", "rss-dashboard"], noEnv),
+    ).toThrow(CdpError);
+    expect(() =>
+      parseArgs(["--settings", "--target", "x", "eval", "p.js"], noEnv),
+    ).toThrow(CdpError);
+    expect(() => parseArgs(["open-settings"], noEnv)).toThrow(CdpError);
   });
 
   it("recognises help", () => {
@@ -464,6 +492,142 @@ describe("obsidian-cdp vault ownership", () => {
   });
 });
 
+describe("obsidian-cdp companion Settings target", () => {
+  const settingsPage = (overrides: Record<string, unknown> = {}) =>
+    page({
+      id: "settings",
+      title: SETTINGS_TITLE,
+      url: "about:blank",
+      ...overrides,
+    });
+
+  it("reads the vault name and version from the Settings title", () => {
+    expect(parseSettingsTitle(SETTINGS_TITLE)).toEqual({
+      vaultName: ".fixture-vault",
+      version: "1.14.0",
+    });
+    expect(
+      parseSettingsTitle("Settings - My - Vault - Obsidian 1.14.0")?.vaultName,
+    ).toBe("My - Vault");
+    expect(parseSettingsTitle("Obsidian")).toBeUndefined();
+    expect(parseSettingsTitle("Settings - RSS Dashboard")).toBeUndefined();
+    expect(parseSettingsTitle(undefined)).toBeUndefined();
+  });
+
+  it("takes the vault name from the last path segment, ignoring case", () => {
+    expect(vaultBasename("C:\\Work\\.Fixture-Vault\\")).toBe(".fixture-vault");
+    expect(vaultBasename("/home/me/vault")).toBe("vault");
+    expect(vaultBasename("  ")).toBeUndefined();
+  });
+
+  it("accepts the Settings window of the expected vault on a pinned port", () => {
+    const result = assessCompanionTarget({
+      target: settingsPage(),
+      expectedVault: FIXTURE_VAULT,
+      pinned: true,
+    });
+    expect(result.ok).toBe(true);
+    expect(result.code).toBe("ok");
+  });
+
+  it("refuses a Settings window that names another vault", () => {
+    const result = assessCompanionTarget({
+      target: settingsPage({
+        title: "Settings - Personal - Obsidian 1.14.0",
+      }),
+      expectedVault: FIXTURE_VAULT,
+      pinned: true,
+    });
+    expect(result.ok).toBe(false);
+    expect(result.code).toBe("wrong-vault");
+    expect(result.message).toContain("Personal");
+  });
+
+  it("refuses the Settings window when the port is not pinned by --profile", () => {
+    const result = assessCompanionTarget({
+      target: settingsPage(),
+      expectedVault: FIXTURE_VAULT,
+      pinned: false,
+    });
+    expect(result.ok).toBe(false);
+    expect(result.code).toBe("unpinned");
+    expect(result.message).toContain("--profile");
+  });
+
+  it("refuses the Settings window without an expected vault", () => {
+    const result = assessCompanionTarget({
+      target: settingsPage(),
+      expectedVault: undefined,
+      pinned: true,
+    });
+    expect(result.ok).toBe(false);
+    expect(result.code).toBe("no-expectation");
+    expect(result.message).toContain("--expect-vault");
+  });
+
+  it("refuses a page that is not titled as a Settings window", () => {
+    const result = assessCompanionTarget({
+      target: page({ title: "Some page", url: "about:blank" }),
+      expectedVault: FIXTURE_VAULT,
+      pinned: true,
+    });
+    expect(result.ok).toBe(false);
+    expect(result.code).toBe("not-settings");
+  });
+
+  it("refuses a Settings-titled page that is not about:blank", () => {
+    const result = assessCompanionTarget({
+      target: settingsPage({ url: "https://evil.example/" }),
+      expectedVault: FIXTURE_VAULT,
+      pinned: true,
+    });
+    expect(result.ok).toBe(false);
+    expect(result.code).toBe("not-settings");
+  });
+
+  it("selects the matching Settings window among the open pages", () => {
+    const picked = selectSettingsTarget(
+      [page({ id: "vault" }), settingsPage()],
+      { expectedVault: FIXTURE_VAULT, pinned: true },
+    );
+    expect(picked.ok).toBe(true);
+    expect(picked.target?.id).toBe("settings");
+  });
+
+  it("reports that no Settings window is open yet", () => {
+    const picked = selectSettingsTarget([page({ id: "vault" })], {
+      expectedVault: FIXTURE_VAULT,
+      pinned: true,
+    });
+    expect(picked.ok).toBe(false);
+    expect(picked.code).toBe("none-open");
+  });
+
+  it("refuses to pick when only another vault's Settings window is open", () => {
+    const picked = selectSettingsTarget(
+      [
+        page({ id: "vault" }),
+        settingsPage({ title: "Settings - Personal - Obsidian 1.14.0" }),
+      ],
+      { expectedVault: FIXTURE_VAULT, pinned: true },
+    );
+    expect(picked.ok).toBe(false);
+    expect(picked.code).toBe("wrong-vault");
+  });
+
+  it("refuses to pick on an unpinned port even when the name matches", () => {
+    const picked = selectSettingsTarget(
+      [page({ id: "vault" }), settingsPage()],
+      {
+        expectedVault: FIXTURE_VAULT,
+        pinned: false,
+      },
+    );
+    expect(picked.ok).toBe(false);
+    expect(picked.code).toBe("unpinned");
+  });
+});
+
 describe("obsidian-cdp parseDevToolsActivePort", () => {
   it("reads the bound port from the first line", () => {
     expect(parseDevToolsActivePort("9333\n/devtools/browser/abc\n")).toBe(9333);
@@ -606,6 +770,13 @@ describe("obsidian-cdp parseBatch", () => {
   it("ignores blank lines and handles CRLF", () => {
     expect(parseBatch("\r\n\r\n@eval 1\r\n\r\n")).toEqual([
       { kind: "eval", code: "1" },
+    ]);
+  });
+
+  it("reads the settings step", () => {
+    expect(parseBatch("@settings\n@shot s.png")).toEqual([
+      { kind: "settings" },
+      { kind: "shot", path: "s.png" },
     ]);
   });
 

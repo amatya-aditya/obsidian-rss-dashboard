@@ -261,6 +261,91 @@ it has no `app`:
 @eval window.close()
 ```
 
+### Drive the Settings window under the guard
+
+The Settings window has no `app` and is not `index.html`, so the ownership guard
+would refuse it. Instead the harness treats it as a **companion target**: a page
+on the same port whose title is `Settings - <vault name> - Obsidian <version>`,
+where `<vault name>` is the folder name of the `--expect-vault` path (compared
+case-insensitively) and the url is `about:blank`. The harness first confirms the
+vault window on that port is the expected vault, then trusts the Settings window
+beside it. This works only when `--profile` pinned the port to your own
+instance; without `--profile` or `--expect-vault`, or when the title names
+another vault, it refuses with a non-zero exit.
+
+| Command                      | Effect                                                                                                          |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `--settings eval ./probe.js` | Evaluate in the Settings window instead of the vault window (`--settings shot <out.png>` captures it).          |
+| `@settings` (repl step)      | Switch the connection to the Settings window, guarded the same way. It is one-way; start a new run to go back.  |
+| `open-settings <tab-id>`     | In the vault window, run `app:open-settings` and `app.setting.openTabById(<tab-id>)`, then wait for the window. |
+
+`open-settings` prints the Settings window it found, so the next `--settings`
+call attaches to a ready window. `--wait <ms>` sets how long it waits (default
+10000). The plugin's tab id is `rss-dashboard`:
+
+```sh
+node scripts/obsidian-cdp.mjs --profile "$env:TEMP\rss-dashboard-cdp-profile" --expect-vault "$PWD\.fixture-vault" open-settings rss-dashboard
+node scripts/obsidian-cdp.mjs --profile "$env:TEMP\rss-dashboard-cdp-profile" --expect-vault "$PWD\.fixture-vault" --settings shot settings.png
+```
+
+Unlike the older workarounds (mounting the tab in an overlay in the vault
+window, or `@target Settings` without the guard), this captures the real
+Settings layout under the ownership check.
+
+#### Phone width
+
+The Settings window cannot be resized below 599px, so emulate a phone: set the
+device metrics to 390x844 with `Emulation.setDeviceMetricsOverride`, and add the
+`is-mobile` and `is-phone` classes to `<body>` so Obsidian's mobile styles
+apply. The override lasts only while the connection that set it stays open, so
+set it and capture in the same script. `repl` has no step for raw protocol
+calls, so use a short Node 22 script over the same Settings target:
+
+```js
+// phone-settings.mjs: node phone-settings.mjs <port> <out.png>
+import { writeFileSync } from "node:fs";
+
+const [port, out] = process.argv.slice(2);
+const pages = await (await fetch(`http://localhost:${port}/json/list`)).json();
+const settings = pages.find(
+  (page) =>
+    page.type === "page" && /^Settings - .+ - Obsidian \S+$/.test(page.title),
+);
+const socket = new WebSocket(settings.webSocketDebuggerUrl);
+await new Promise((resolve) => socket.addEventListener("open", resolve));
+let nextId = 1;
+const pending = new Map();
+socket.addEventListener("message", ({ data }) => {
+  const message = JSON.parse(String(data));
+  pending.get(message.id)?.(message);
+});
+const send = (method, params = {}) =>
+  new Promise((resolve) => {
+    const id = nextId++;
+    pending.set(id, resolve);
+    socket.send(JSON.stringify({ id, method, params }));
+  });
+
+await send("Emulation.setDeviceMetricsOverride", {
+  width: 390,
+  height: 844,
+  deviceScaleFactor: 2,
+  mobile: true,
+});
+await send("Runtime.evaluate", {
+  expression: "document.body.classList.add('is-mobile', 'is-phone')",
+});
+await new Promise((resolve) => setTimeout(resolve, 500));
+const { result } = await send("Page.captureScreenshot", { format: "png" });
+writeFileSync(out, Buffer.from(result.data, "base64"));
+socket.close();
+```
+
+Pass the port from your own profile's `DevToolsActivePort` file, so the script
+cannot pick up another session's Settings window; run `open-settings` first so
+the window is open and on the tab you want. It is a hand-written script, so it
+does not carry the ownership guard itself.
+
 A release build (`npm run build`) is byte-for-byte reproducible: its `main.js`
 embeds no commit or timestamp, so its hash is stable. A local dev/watch build
 embeds a fresh commit and build time, so compare those by their **build stamp**,
