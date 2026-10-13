@@ -91,9 +91,9 @@
   width: 100%;
 }
 
-.rss-dashboard-variable-list {
-  margin: 8px 0 0 16px;
-  padding: 0 0 0 20px;
+.rss-dashboard-template-help .rss-dashboard-variable-list {
+  margin: 8px 0 0;
+  padding: 0 0 0 24px;
   list-style-type: disc;
   list-style-position: outside;
   font-size: 13px;
