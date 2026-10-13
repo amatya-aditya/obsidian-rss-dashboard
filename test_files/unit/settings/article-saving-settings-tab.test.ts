@@ -7,7 +7,7 @@ import {
   SavedTemplateEditorModal,
 } from "../../../src/settings/modals/settings-modals";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
-import { findIconButton } from "../test-icon-helpers";
+import { findIconButton, lucideIconId } from "../test-icon-helpers";
 
 function flushPromises(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, 0));
@@ -150,7 +150,7 @@ describe("renderArticleSavingSettingsTab()", () => {
     );
 
     const resetBtn = Array.from(containerEl.querySelectorAll("button")).find(
-      (button) => button.textContent === "Reset to default",
+      (button) => button.textContent === "Reset",
     );
     resetBtn?.click();
     await flushPromises();
@@ -275,7 +275,7 @@ describe("renderArticleSavingSettingsTab()", () => {
     logSpy.mockClear();
 
     const resetBtn = Array.from(containerEl.querySelectorAll("button")).find(
-      (b) => b.textContent === "Reset to default",
+      (b) => b.textContent === "Reset",
     ) as HTMLButtonElement;
     expect(resetBtn).toBeTruthy();
 
@@ -501,7 +501,7 @@ describe("renderArticleSavingSettingsTab()", () => {
     renderArticleSavingSettingsTab(containerEl, plugin, vi.fn());
 
     const resetBtn = Array.from(containerEl.querySelectorAll("button")).find(
-      (b) => b.textContent === "Reset to default",
+      (b) => b.textContent === "Reset",
     ) as HTMLButtonElement;
     resetBtn.click();
     await flushPromises();
@@ -542,5 +542,246 @@ describe("Article Saving settings help text", () => {
       buttons!.compareDocumentPosition(help!) &
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
+  });
+});
+
+describe("Default article template actions (#1037)", () => {
+  function render(overrides?: Parameters<typeof createPlugin>[0]): {
+    containerEl: HTMLElement;
+    plugin: TestPlugin;
+    onRefresh: ReturnType<typeof vi.fn>;
+  } {
+    const containerEl = createDiv();
+    const plugin = createPlugin(overrides);
+    const onRefresh = vi.fn();
+    renderArticleSavingSettingsTab(containerEl, plugin, onRefresh);
+    return { containerEl, plugin, onRefresh };
+  }
+
+  function getButton(
+    containerEl: HTMLElement,
+    label: string,
+  ): HTMLButtonElement {
+    const button = Array.from(
+      containerEl.querySelectorAll<HTMLButtonElement>(
+        ".rss-dashboard-template-btn-row button",
+      ),
+    ).find((b) => b.textContent === label);
+    if (!button) throw new Error(`Button not found: ${label}`);
+    return button;
+  }
+
+  function statusText(containerEl: HTMLElement): string | null | undefined {
+    return containerEl.querySelector('[role="status"]')?.textContent;
+  }
+
+  function textarea(containerEl: HTMLElement): HTMLTextAreaElement {
+    return containerEl.querySelector(
+      ".rss-dashboard-template-input",
+    ) as HTMLTextAreaElement;
+  }
+
+  const savedA: SavedTemplate = {
+    id: "a",
+    name: "Alpha",
+    template: "A",
+    defaultFolder: "",
+    filenamePattern: "",
+  };
+
+  it("renders four icon buttons in order with accessible names equal to labels", () => {
+    const { containerEl } = render();
+    const buttons = Array.from(
+      containerEl.querySelectorAll<HTMLButtonElement>(
+        ".rss-dashboard-template-btn-row button",
+      ),
+    );
+    expect(buttons.map((b) => b.textContent)).toEqual([
+      "Use as default",
+      "Save as template",
+      "Reset",
+      "Clear",
+    ]);
+    expect(buttons.map((b) => lucideIconId(b))).toEqual([
+      "check-circle",
+      "save",
+      "rotate-ccw",
+      "x",
+    ]);
+    for (const button of buttons) {
+      expect(button.querySelector('[aria-hidden="true"]')).not.toBeNull();
+    }
+  });
+
+  it("exposes a polite status region before the button row", () => {
+    const { containerEl } = render();
+    const status = containerEl.querySelector('[role="status"]');
+    expect(status?.getAttribute("aria-live")).toBe("polite");
+    const row = containerEl.querySelector(".rss-dashboard-template-btn-row");
+    expect(
+      (status?.compareDocumentPosition(row as Node) ?? 0) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("names the resolved global default template in the status line", () => {
+    const { containerEl } = render({
+      savedTemplates: [savedA],
+      globalDefaultTemplateId: "a",
+    });
+    expect(statusText(containerEl)).toBe("Default saves use: Alpha");
+  });
+
+  it("falls back to the template above when no id or a dangling id is set", () => {
+    expect(statusText(render().containerEl)).toBe(
+      "Default saves use: the template above",
+    );
+    const dangling = render({
+      savedTemplates: [savedA],
+      globalDefaultTemplateId: "gone",
+    });
+    expect(statusText(dangling.containerEl)).toBe(
+      "Default saves use: the template above",
+    );
+    expect(dangling.plugin.settings.articleSaving.globalDefaultTemplateId).toBe(
+      "gone",
+    );
+    expect(getButton(dangling.containerEl, "Use as default").disabled).toBe(
+      true,
+    );
+  });
+
+  it("Use as default clears the id, saves, and updates in place", async () => {
+    const { containerEl, plugin, onRefresh } = render({
+      savedTemplates: [savedA],
+      globalDefaultTemplateId: "a",
+    });
+    const button = getButton(containerEl, "Use as default");
+    expect(button.disabled).toBe(false);
+
+    button.click();
+    await flushPromises();
+
+    expect(
+      plugin.settings.articleSaving.globalDefaultTemplateId,
+    ).toBeUndefined();
+    expect(plugin.mocks.saveSettings).toHaveBeenCalledTimes(1);
+    expect(statusText(containerEl)).toBe(
+      "Default saves use: the template above",
+    );
+    expect(button.disabled).toBe(true);
+    expect(onRefresh).not.toHaveBeenCalled();
+  });
+
+  it("Reset confirms, restores the shipped template, and updates in place", async () => {
+    const { containerEl, plugin, onRefresh } = render({
+      defaultTemplate: "CUSTOM",
+      savedTemplates: [savedA],
+      globalDefaultTemplateId: "a",
+    });
+    stubConfirm(true);
+    const reset = getButton(containerEl, "Reset");
+    expect(reset.disabled).toBe(false);
+
+    reset.click();
+    await flushPromises();
+
+    expect(textarea(containerEl).value).toBe(
+      DEFAULT_SETTINGS.articleSaving.defaultTemplate,
+    );
+    expect(plugin.settings.articleSaving.defaultTemplate).toBe(
+      DEFAULT_SETTINGS.articleSaving.defaultTemplate,
+    );
+    expect(plugin.mocks.saveSettings).toHaveBeenCalledTimes(1);
+    expect(reset.disabled).toBe(true);
+    expect(getButton(containerEl, "Clear").disabled).toBe(false);
+    expect(plugin.settings.articleSaving.globalDefaultTemplateId).toBe("a");
+    expect(statusText(containerEl)).toBe("Default saves use: Alpha");
+    expect(onRefresh).not.toHaveBeenCalled();
+  });
+
+  it("Clear confirms, then sets the minimal template and updates in place", async () => {
+    const { containerEl, plugin, onRefresh } = render({
+      defaultTemplate: "CUSTOM",
+    });
+    stubConfirm(true);
+    const modalSpy = vi.spyOn(ConfirmActionModal.prototype, "open");
+    const clear = getButton(containerEl, "Clear");
+    expect(clear.disabled).toBe(false);
+
+    clear.click();
+    await flushPromises();
+
+    expect(modalSpy).toHaveBeenCalledTimes(1);
+    expect(textarea(containerEl).value).toBe("{{content}}");
+    expect(plugin.settings.articleSaving.defaultTemplate).toBe("{{content}}");
+    expect(plugin.mocks.saveSettings).toHaveBeenCalledTimes(1);
+    expect(clear.disabled).toBe(true);
+    expect(getButton(containerEl, "Reset").disabled).toBe(false);
+    expect(
+      getSettingByName(containerEl, "Default article template").querySelector(
+        ".setting-item-description",
+      )?.textContent,
+    ).toContain("Your custom template");
+    expect(onRefresh).not.toHaveBeenCalled();
+  });
+
+  it("declining Reset or Clear leaves the box, settings, and status unchanged", async () => {
+    const { containerEl, plugin } = render({
+      defaultTemplate: "CUSTOM",
+      savedTemplates: [savedA],
+      globalDefaultTemplateId: "a",
+    });
+    stubConfirm(false);
+
+    getButton(containerEl, "Reset").click();
+    await flushPromises();
+    getButton(containerEl, "Clear").click();
+    await flushPromises();
+
+    expect(textarea(containerEl).value).toBe("CUSTOM");
+    expect(plugin.settings.articleSaving.defaultTemplate).toBe("CUSTOM");
+    expect(plugin.settings.articleSaving.globalDefaultTemplateId).toBe("a");
+    expect(plugin.mocks.saveSettings).not.toHaveBeenCalled();
+    expect(statusText(containerEl)).toBe("Default saves use: Alpha");
+  });
+
+  it("disables Reset and Clear exactly when the box already matches, tracking edits", async () => {
+    const { containerEl } = render({
+      defaultTemplate: DEFAULT_SETTINGS.articleSaving.defaultTemplate,
+    });
+    expect(getButton(containerEl, "Reset").disabled).toBe(true);
+    expect(getButton(containerEl, "Clear").disabled).toBe(false);
+
+    const box = textarea(containerEl);
+    box.value = "{{content}}";
+    box.dispatchEvent(new Event("change"));
+    await flushPromises();
+
+    expect(getButton(containerEl, "Reset").disabled).toBe(false);
+    expect(getButton(containerEl, "Clear").disabled).toBe(true);
+  });
+
+  it("Save as template still rebuilds the tab through onRefresh", async () => {
+    const { containerEl, plugin, onRefresh } = render({ defaultTemplate: "X" });
+    vi.spyOn(SavedTemplateEditorModal.prototype, "open").mockImplementation(
+      () => {},
+    );
+    vi.spyOn(
+      SavedTemplateEditorModal.prototype,
+      "waitForClose",
+    ).mockResolvedValue({
+      name: "N",
+      template: "X",
+      defaultFolder: "",
+      filenamePattern: "",
+      makeGlobalDefault: false,
+    });
+
+    getButton(containerEl, "Save as template").click();
+    await flushPromises();
+
+    expect(plugin.settings.articleSaving.savedTemplates).toHaveLength(1);
+    expect(onRefresh).toHaveBeenCalledTimes(1);
   });
 });

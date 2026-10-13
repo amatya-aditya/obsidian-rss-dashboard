@@ -129,6 +129,39 @@
   cursor: pointer;
 }
 
+.rss-dashboard-template-status {
+  margin-top: 8px;
+  font-size: var(--font-ui-small);
+  color: var(--text-muted);
+}
+
+.rss-dashboard-template-btn-row .rss-dashboard-template-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.rss-dashboard-template-btn-row .rss-dashboard-custom-save-button-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+}
+
+.rss-dashboard-template-btn-row .rss-dashboard-custom-save-button-icon svg {
+  width: var(--icon-size, 1em);
+  height: var(--icon-size, 1em);
+}
+
+.rss-dashboard-template-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.rss-dashboard-template-btn:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 2px;
+}
+
 .rss-dashboard-template-btn:hover {
   background: var(--background-modifier-hover);
   border-color: var(--interactive-accent);

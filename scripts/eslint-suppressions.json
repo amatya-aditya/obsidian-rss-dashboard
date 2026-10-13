@@ -125,11 +125,6 @@
       "count": 1
     }
   },
-  "src/settings/tabs/article-saving-settings-tab.ts": {
-    "max-lines-per-function": {
-      "count": 1
-    }
-  },
   "src/settings/tabs/display-settings-tab.ts": {
     "max-lines-per-function": {
       "count": 3
