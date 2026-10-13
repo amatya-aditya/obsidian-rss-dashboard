@@ -182,7 +182,7 @@ export class WebViewerIntegration {
       defaultTemplate: globalDefault
         ? globalDefault.template
         : this.settings.defaultTemplate ||
-          "---\ntitle: {{title}}\n---\n\n# {{title}}\n\n#rss #{{feedTitle}}\n\n{{content}}",
+          "---\ntitle: {{title}}\n---\n# {{title}}\n\n#rss #{{feedTitle}}\n\n{{content}}",
       defaultFilenamePattern: globalDefault?.filenamePattern || "",
       includeFrontmatter: this.settings.includeFrontmatter !== false,
       onSave: (folder, template, includeFrontmatter, filenamePattern) =>

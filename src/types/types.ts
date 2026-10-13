@@ -812,12 +812,11 @@ feedTitle: "{{feedTitle}}"
 summary: "{{summary}}"
 guid: "{{guid}}"
 ---
-
 # {{title}}
 
 {{content}}
 
-  [Source]({{link}})`,
+[Source]({{link}})`,
     includeFrontmatter: true,
     frontmatterTemplate: `---
 title: "{{title}}"
