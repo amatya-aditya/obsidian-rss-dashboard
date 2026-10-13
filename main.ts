@@ -278,6 +278,7 @@ export default class RssDashboardPlugin extends Plugin {
       activeRefreshState: this.activeRefreshState,
       renderStatus: () => this.notifyRefreshStatusChanged(),
       renderSidebar: () => this.notifySidebarRefreshStatusChanged(),
+      renderSidebarStatus: () => this.notifySidebarFeedStatusChanged(),
       onCancelled: () => this.autoRefreshScheduler?.deferGlobalRefresh(),
     });
     this.previewImageCache = new PreviewImageCache(app, {
@@ -697,6 +698,20 @@ export default class RssDashboardPlugin extends Plugin {
       const view = leaf.view;
       if (view instanceof RssDashboardView) {
         view.refreshSidebarOnly();
+      }
+    }
+  }
+
+  /** Applies per-feed refresh status in place, so open sidebars keep scrolling. */
+  private async notifySidebarFeedStatusChanged(): Promise<void> {
+    const leaves = this.app.workspace.getLeavesOfType(RSS_DASHBOARD_VIEW_TYPE);
+    for (const leaf of leaves) {
+      if (requireApiVersion("1.7.2")) {
+        await leaf.loadIfDeferred();
+      }
+      const view = leaf.view;
+      if (view instanceof RssDashboardView) {
+        view.refreshSidebarStatusOnly();
       }
     }
   }

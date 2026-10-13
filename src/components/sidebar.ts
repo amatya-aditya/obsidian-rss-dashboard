@@ -210,7 +210,9 @@ export class Sidebar {
   private openConfirmModal: Modal | null = null;
   private focusedSidebarTarget: SidebarFocusTarget | null = null;
   private isSidebarKeyboardFocused = false;
-  private refreshStatusDetailCleanups: Array<() => void> = [];
+  private refreshStatusDetailCleanups = new Map<HTMLElement, () => void>();
+  /** The refresh and import state each rendered feed row was drawn with. */
+  private feedRowStates = new WeakMap<HTMLElement, string>();
 
   private getCachedFolderPaths(): string[] {
     if (!this.cachedFolderPaths) {
@@ -226,8 +228,8 @@ export class Sidebar {
   }
 
   private clearRefreshStatusDetails(): void {
-    for (const cleanup of this.refreshStatusDetailCleanups) cleanup();
-    this.refreshStatusDetailCleanups = [];
+    for (const cleanup of this.refreshStatusDetailCleanups.values()) cleanup();
+    this.refreshStatusDetailCleanups.clear();
   }
 
   private getRefreshDetailLines(
@@ -311,7 +313,8 @@ export class Sidebar {
     scope: "all" | "feed" | "aggregate",
   ): void {
     const getLines = () => this.getRefreshDetailLines(feeds, scope);
-    this.refreshStatusDetailCleanups.push(
+    this.refreshStatusDetailCleanups.set(
+      row,
       attachRefreshStatusDetails({
         row,
         description: () => `Refresh details. ${getLines().join(". ")}`,
@@ -330,7 +333,8 @@ export class Sidebar {
 
   private attachRefreshActionDetails(row: HTMLElement): void {
     const actionText = "Refresh all feeds. Shift+click to retry failed feeds.";
-    this.refreshStatusDetailCleanups.push(
+    this.refreshStatusDetailCleanups.set(
+      row,
       attachRefreshStatusDetails({
         row,
         description: () => actionText,
@@ -970,6 +974,112 @@ export class Sidebar {
     }
   }
 
+  /**
+   * Applies refresh-status changes to the rendered rows without rebuilding
+   * the sidebar. render() replaces the scrolling element, which ends an
+   * in-progress touch scroll on iOS, so a refresh run reports through here
+   * and leaves structural changes to the full render that ends the run.
+   * Only feed rows whose feed or refresh state changed are redrawn.
+   */
+  public refreshStatusInPlace(): void {
+    if (!this.container.querySelector(".rss-dashboard-feed-folders-section")) {
+      this.render();
+      return;
+    }
+
+    this.refreshImportStatusLookups();
+    const feedsByUrl = new Map(
+      this.settings.feeds.map((feed) => [feed.url, feed]),
+    );
+    for (const row of [...this.sidebarRows]) {
+      if (row.target.type === "all-feeds") {
+        this.replaceRenderedRow(row.element, (scratch) =>
+          this.renderAllFeedsButton(scratch),
+        );
+        continue;
+      }
+      if (row.target.type !== "feed") continue;
+      const feed = feedsByUrl.get(row.target.url);
+      if (
+        !feed ||
+        (feed === row.feed &&
+          this.feedRowStates.get(row.element) === this.getFeedRowState(feed))
+      ) {
+        continue;
+      }
+      this.replaceRenderedRow(row.element, (scratch) =>
+        this.renderFeed(feed, scratch),
+      );
+    }
+    this.updateFolderUnreadBadges();
+  }
+
+  private getFeedRowState(feed: Feed): string {
+    return [
+      this.plugin.activeRefreshState?.get(feed.url)?.status ?? "",
+      this.processingImportFeedUrls.has(feed.url),
+      this.pendingImportFeedUrls.has(feed.url),
+      this.getReportedShardHealth(feed) !== null,
+    ].join("|");
+  }
+
+  /**
+   * Swaps one rendered row for a freshly built one at the same position,
+   * keeping its keyboard-focus, search-filter and DOM-focus state.
+   */
+  private replaceRenderedRow(
+    oldEl: HTMLElement,
+    build: (scratch: HTMLElement) => void,
+  ): void {
+    const scratch = oldEl.win.createDiv();
+    const firstNewRow = this.sidebarRows.length;
+    build(scratch);
+    const newEl = scratch.firstElementChild;
+    const newRows = this.sidebarRows.splice(firstNewRow);
+    if (!newEl?.instanceOf(HTMLElement)) return;
+
+    const index = this.sidebarRows.findIndex((row) => row.element === oldEl);
+    if (index >= 0) this.sidebarRows.splice(index, 1, ...newRows);
+    for (const cls of [
+      "rss-dashboard-sidebar-row-focused",
+      "rss-dashboard-search-hidden",
+    ]) {
+      newEl.toggleClass(cls, oldEl.hasClass(cls));
+    }
+    this.refreshStatusDetailCleanups.get(oldEl)?.();
+    this.refreshStatusDetailCleanups.delete(oldEl);
+
+    const hadFocus = oldEl.contains(oldEl.ownerDocument.activeElement);
+    oldEl.replaceWith(newEl);
+    if (hadFocus) newEl.focus({ preventScroll: true });
+  }
+
+  private updateFolderUnreadBadges(): void {
+    const unreadCounts = this.buildFolderUnreadCountMap();
+    for (const row of this.sidebarRows) {
+      if (row.target.type !== "folder") continue;
+      const count = this.settings.display.showFolderUnreadBadges
+        ? (unreadCounts.get(row.target.path) ?? 0)
+        : 0;
+      let badge = row.element.querySelector<HTMLElement>(
+        ":scope > .rss-dashboard-folder-unread-count",
+      );
+      if (count === 0) {
+        badge?.remove();
+        continue;
+      }
+      if (!badge) {
+        badge = row.element.createDiv({
+          cls: "rss-dashboard-folder-unread-count",
+        });
+        row.element
+          .querySelector(":scope > .rss-dashboard-feed-folder-name")
+          ?.after(badge);
+      }
+      badge.setText(count.toString());
+    }
+  }
+
   private showAllFeedsContextMenu(event: MouseEvent): void {
     const menu = new Menu();
     const anchor = event.currentTarget;
@@ -1523,6 +1633,7 @@ export class Sidebar {
     const isRefreshProcessing = refreshState?.status === "processing";
     const isQueuedForRefresh = refreshState?.status === "pending";
     const shardHealth = this.getReportedShardHealth(feed);
+    this.feedRowStates.set(feedEl, this.getFeedRowState(feed));
 
     renderFeedIcon(
       feed,

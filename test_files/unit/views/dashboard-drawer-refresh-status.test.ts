@@ -3,7 +3,11 @@ import { App, type WorkspaceLeaf } from "obsidian";
 import type RssDashboardPlugin from "../../../main";
 import { RssDashboardView } from "../../../src/views/dashboard-view";
 import type { MobileNavigationModal } from "../../../src/modals/mobile-navigation-modal";
-import { DEFAULT_SETTINGS, type Feed } from "../../../src/types/types";
+import {
+  DEFAULT_SETTINGS,
+  type Feed,
+  type FeedItem,
+} from "../../../src/types/types";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 import { lucideIconId } from "../test-icon-helpers";
 
@@ -206,6 +210,85 @@ describe("Navigation drawer live refresh status", () => {
     view.refreshSidebarOnly();
 
     expect(drawer.isConnected).toBe(false);
+  });
+
+  /**
+   * A per-feed status tick must not rebuild the drawer: replacing the
+   * scrolling element ends an in-progress touch scroll on iOS (#1064).
+   */
+  describe("status ticks during a refresh run", () => {
+    function scroller(drawer: HTMLElement): HTMLElement {
+      return drawer.querySelector<HTMLElement>(
+        ".rss-dashboard-feed-folders-section",
+      )!;
+    }
+
+    function feedRow(drawer: HTMLElement, title: string): HTMLElement | null {
+      return drawer.querySelector<HTMLElement>(
+        `[data-feed-url="https://example.com/${title}"]`,
+      );
+    }
+
+    it("keeps the scroller and unchanged rows while a feed starts refreshing", () => {
+      plugin.isMultiFeedRefreshActive = true;
+      plugin.isGlobalRefreshCancellable = true;
+      plugin.globalRefreshProgress = { completed: 0, total: 2 };
+      const drawer = openDrawer();
+      const scrollingEl = scroller(drawer);
+      const unchangedRow = feedRow(drawer, "First");
+      const scrollWrites: number[] = [];
+      Object.defineProperty(scrollingEl, "scrollTop", {
+        configurable: true,
+        get: () => 120,
+        set: (value: number) => scrollWrites.push(value),
+      });
+
+      plugin.activeRefreshState.set("https://example.com/Second", {
+        status: "processing",
+        startedAt: 1,
+      });
+      plugin.globalRefreshProgress = { completed: 1, total: 2 };
+      view.refreshSidebarStatusOnly();
+
+      expect(scrollingEl.isConnected).toBe(true);
+      expect(scrollWrites).toEqual([]);
+      expect(feedRow(drawer, "First")).toBe(unchangedRow);
+      expect(
+        feedRow(drawer, "Second")?.classList.contains("processing-feed"),
+      ).toBe(true);
+      expect(allFeedsProgress(drawer)).toBe("1/2");
+    });
+
+    it("shows a finished feed's new articles and its folder's count in place", () => {
+      plugin.settings.folders = [{ name: "News", subfolders: [] }];
+      plugin.settings.feeds = [{ ...feed("First"), folder: "News" }];
+      const drawer = openDrawer();
+      const scrollingEl = scroller(drawer);
+      expect(
+        drawer.querySelector(".rss-dashboard-folder-unread-count"),
+      ).toBeNull();
+
+      // A settled feed is stored as a new object carrying its new articles.
+      plugin.settings.feeds = [
+        {
+          ...plugin.settings.feeds[0],
+          items: [{ guid: "a", read: false } as FeedItem],
+        },
+      ];
+      view.refreshSidebarStatusOnly();
+
+      expect(scrollingEl.isConnected).toBe(true);
+      expect(
+        feedRow(drawer, "First")?.querySelector(
+          ".rss-dashboard-feed-unread-count",
+        )?.textContent,
+      ).toBe("1");
+      expect(
+        drawer.querySelector(
+          '[data-folder-path="News"] .rss-dashboard-folder-unread-count',
+        )?.textContent,
+      ).toBe("1");
+    });
   });
 
   describe("active input state", () => {

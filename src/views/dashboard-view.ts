@@ -3533,6 +3533,20 @@ export class RssDashboardView extends ItemView {
     }
   }
 
+  /**
+   * Applies refresh-status changes to the sidebar rows in place. Unlike
+   * refreshSidebarOnly(), this keeps the scrolling element, so a status tick
+   * during a refresh never interrupts the user's scroll.
+   */
+  refreshSidebarStatusOnly(): void {
+    this.settings = this.plugin.settings;
+    this.mobileSidebarModal?.refreshSidebarStatus();
+    if (!this.sidebar) return;
+
+    this.sidebar["settings"] = this.settings;
+    this.sidebar.refreshStatusInPlace();
+  }
+
   refreshGlobalRefreshProgressOnly(): void {
     this.sidebar?.refreshGlobalRefreshProgressOnly();
     this.mobileSidebarModal?.refreshGlobalRefreshProgressOnly();

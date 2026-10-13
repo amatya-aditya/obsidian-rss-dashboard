@@ -143,6 +143,16 @@ export class MobileNavigationModal extends Modal {
     this.sidebar.render();
   }
 
+  /**
+   * Applies refresh-status changes to the open drawer's rows in place, so a
+   * refresh run never interrupts a scroll through the drawer.
+   */
+  public refreshSidebarStatus(): void {
+    if (!this.sidebar) return;
+    this.sidebar["settings"] = this.plugin.settings;
+    this.sidebar.refreshStatusInPlace();
+  }
+
   /** Updates only the global-refresh progress text, without rebuilding rows. */
   public refreshGlobalRefreshProgressOnly(): void {
     this.sidebar?.refreshGlobalRefreshProgressOnly();
