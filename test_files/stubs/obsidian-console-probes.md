@@ -19,12 +19,22 @@ probe session had installer 1.13.7 with the app self-updated to 1.14.4.
 
 ## Re-running these probes (drift check)
 
-The drift check re-runs the whole probe library and diffs each driver's output
-against the records below. It is a **local, manual step**: it observes real
-Obsidian desktop, which CI has no way to run. CI covers the half that needs no
-app — it runs the contract test (`obsidian.contract.test.ts`), which fails when
-the stub stops matching the recorded expectations. Re-observing those
-expectations is this step; why it stays local is recorded in the
+The drift check has two halves. The **app-free** half is
+`npm run check:stub-drift`
+([#1063](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1063)):
+it downloads the public `obsidian-<version>.asar.gz` release asset, indexes the
+error-message literals and CSS class names the stub pins, and fails when the
+certified baseline (`obsidian-baseline.json`) loses one. It needs no Obsidian
+install, and a weekly canary will run it and file one `obsidian-update` issue.
+The contract test (`obsidian.contract.test.ts`) is also app-free: it fails when
+the stub stops matching the recorded expectations.
+
+The **device-required** half is this step: it re-runs the whole probe library
+and diffs each driver's output against the records below, observing real
+Obsidian desktop, which CI has no way to run. The app-free half only proves the
+pinned strings still exist in a release; it cannot confirm the behavior the
+stub imitates — that is what these probes are for. Why re-observing stays local
+is recorded in the
 [ADR 0014 amendment](../../docs/adr/0014-obsidian-test-stub-fidelity.md#amendment-2026-10-12).
 
 One command runs every committed driver under `test_files/stubs/probes/`, the
