@@ -173,6 +173,19 @@ function parseDraggedStringList(raw: string): string[] {
   }
 }
 
+interface InputDraft {
+  focused: boolean;
+  start: number | null;
+  end: number | null;
+  direction: "forward" | "backward" | "none" | null;
+}
+
+interface EditorDrafts {
+  search: InputDraft | null;
+  tagName: (InputDraft & { value: string }) | null;
+  tagColor: string | null;
+}
+
 export class Sidebar {
   private container: HTMLElement;
   private settings: RssDashboardSettings;
@@ -396,6 +409,8 @@ export class Sidebar {
       foldersScroll = oldFoldersSection.scrollTop;
     }
 
+    const editorDrafts = this.captureEditorDrafts();
+
     this.clearRefreshStatusDetails();
     this.container.empty();
     this.container.addClass("rss-dashboard-sidebar");
@@ -450,6 +465,8 @@ export class Sidebar {
     this.syncFocusedSidebarTargetAfterRender();
     this.applySidebarFocusState();
 
+    this.restoreEditorDrafts(editorDrafts);
+
     // Restore synchronously so a coalesced status redraw never snapshots the
     // transient zero scroll position left by the previous DOM rebuild.
     this.container.scrollTop = scrollPosition;
@@ -481,6 +498,74 @@ export class Sidebar {
         newFoldersSection.scrollTop = foldersScroll;
       }
     });
+  }
+
+  /**
+   * Snapshots the search field and the inline add-tag editor, whose text,
+   * colour, focus and caret live only in the DOM that render() discards.
+   */
+  private captureEditorDrafts(): EditorDrafts {
+    const snapshot = (el: HTMLInputElement | null): InputDraft | null =>
+      el
+        ? {
+            focused: el.ownerDocument.activeElement === el,
+            start: el.selectionStart,
+            end: el.selectionEnd,
+            direction: el.selectionDirection,
+          }
+        : null;
+    const query = <T extends HTMLElement>(sel: string) =>
+      this.container.querySelector<T>(sel);
+    const search = query<HTMLInputElement>(".rss-dashboard-search-input");
+    const tagName = query<HTMLInputElement>(
+      ".rss-dashboard-sidebar-add-tag-input",
+    );
+    const tagColor = query<HTMLInputElement>(".rss-dashboard-tag-color-picker");
+    return {
+      search: snapshot(search),
+      tagName: tagName ? { ...snapshot(tagName)!, value: tagName.value } : null,
+      tagColor: tagColor?.value ?? null,
+    };
+  }
+
+  private restoreEditorDrafts(drafts: EditorDrafts): void {
+    const apply = (
+      el: HTMLInputElement | null,
+      draft: InputDraft | null,
+    ): void => {
+      if (!el || !draft) return;
+      // Queued after the render's own focus/select rAFs, so it has the last word.
+      window.requestAnimationFrame(() => {
+        if (!el.isConnected) return;
+        if (draft.focused) {
+          el.focus();
+          if (draft.start !== null && draft.end !== null) {
+            el.setSelectionRange(
+              draft.start,
+              draft.end,
+              draft.direction ?? undefined,
+            );
+          }
+        } else if (el.ownerDocument.activeElement === el) {
+          el.blur();
+        }
+      });
+    };
+    const search = this.container.querySelector<HTMLInputElement>(
+      ".rss-dashboard-search-input",
+    );
+    const tagName = this.container.querySelector<HTMLInputElement>(
+      ".rss-dashboard-sidebar-add-tag-input",
+    );
+    const tagColor = this.container.querySelector<HTMLInputElement>(
+      ".rss-dashboard-tag-color-picker",
+    );
+    apply(search, drafts.search);
+    if (tagName && drafts.tagName) {
+      tagName.value = drafts.tagName.value;
+      apply(tagName, drafts.tagName);
+    }
+    if (tagColor && drafts.tagColor) tagColor.value = drafts.tagColor;
   }
 
   private refreshImportStatusLookups(): void {

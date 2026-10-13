@@ -207,4 +207,93 @@ describe("Navigation drawer live refresh status", () => {
 
     expect(drawer.isConnected).toBe(false);
   });
+
+  describe("active input state", () => {
+    const flushFrames = async () => {
+      await new Promise((r) => window.setTimeout(r, 0));
+      await new Promise((r) => window.setTimeout(r, 0));
+    };
+    let sidebar: {
+      isSearchExpanded: boolean;
+      isAddTagExpanded: boolean;
+      isTagsExpanded: boolean;
+      searchQuery: string;
+      render(): void;
+    };
+
+    function openDrawerWithSidebar(): HTMLElement {
+      const drawer = openDrawer();
+      sidebar = (
+        internals.mobileSidebarModal as unknown as { sidebar: typeof sidebar }
+      ).sidebar;
+      return drawer;
+    }
+
+    beforeEach(() => {
+      vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) =>
+        window.setTimeout(() => cb(0), 0),
+      );
+      window.requestAnimationFrame = (cb: FrameRequestCallback) =>
+        window.setTimeout(() => cb(0), 0);
+    });
+
+    it("keeps the search field's caret and selection across a status redraw", async () => {
+      const drawer = openDrawerWithSidebar();
+      sidebar.isSearchExpanded = true;
+      sidebar.searchQuery = "First";
+      sidebar.render();
+      await flushFrames();
+      let input = drawer.querySelector<HTMLInputElement>(
+        ".rss-dashboard-search-input",
+      )!;
+      input.focus();
+      input.setSelectionRange(2, 2);
+
+      plugin.activeRefreshState.set("https://example.com/First", {
+        status: "processing",
+        startedAt: 1,
+      });
+      view.refreshSidebarOnly();
+      await flushFrames();
+
+      input = drawer.querySelector<HTMLInputElement>(
+        ".rss-dashboard-search-input",
+      )!;
+      expect(input.value).toBe("First");
+      expect(document.activeElement).toBe(input);
+      expect([input.selectionStart, input.selectionEnd]).toEqual([2, 2]);
+    });
+
+    it("keeps an unsaved tag name and colour across a status redraw", async () => {
+      const drawer = openDrawerWithSidebar();
+      sidebar.isTagsExpanded = true;
+      sidebar.isAddTagExpanded = true;
+      sidebar.render();
+      await flushFrames();
+      const name = drawer.querySelector<HTMLInputElement>(
+        ".rss-dashboard-sidebar-add-tag-input",
+      )!;
+      const color = drawer.querySelector<HTMLInputElement>(
+        ".rss-dashboard-tag-color-picker",
+      )!;
+      name.value = "Draft";
+      color.value = "#123456";
+      name.focus();
+      name.setSelectionRange(1, 3);
+
+      view.refreshSidebarOnly();
+      await flushFrames();
+
+      const nextName = drawer.querySelector<HTMLInputElement>(
+        ".rss-dashboard-sidebar-add-tag-input",
+      )!;
+      const nextColor = drawer.querySelector<HTMLInputElement>(
+        ".rss-dashboard-tag-color-picker",
+      )!;
+      expect(nextName.value).toBe("Draft");
+      expect(nextColor.value).toBe("#123456");
+      expect(document.activeElement).toBe(nextName);
+      expect([nextName.selectionStart, nextName.selectionEnd]).toEqual([1, 3]);
+    });
+  });
 });
