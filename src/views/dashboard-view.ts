@@ -3507,10 +3507,7 @@ export class RssDashboardView extends ItemView {
 
   refreshSidebarOnly(): void {
     this.settings = this.plugin.settings;
-    if (!this.sidebar) return;
-
-    this.sidebar.clearFolderPathCache();
-    this.sidebar["options"] = {
+    const sidebarOptions: SidebarOptions = {
       currentFolder: this.currentFolder,
       currentFeed: this.currentFeed,
       selectedTags: this.selectedTags,
@@ -3519,6 +3516,14 @@ export class RssDashboardView extends ItemView {
       selectedFolders: this.selectedFolders,
       selectedFeeds: this.selectedFeeds,
     };
+    // On mobile the visible sidebar is the navigation drawer's own instance,
+    // so refresh status and the current selection have to reach it while the
+    // drawer stays open.
+    this.mobileSidebarModal?.refreshSidebar(sidebarOptions);
+    if (!this.sidebar) return;
+
+    this.sidebar.clearFolderPathCache();
+    this.sidebar["options"] = sidebarOptions;
     this.sidebar["settings"] = this.settings;
     this.sidebar.render();
 
@@ -3530,6 +3535,7 @@ export class RssDashboardView extends ItemView {
 
   refreshGlobalRefreshProgressOnly(): void {
     this.sidebar?.refreshGlobalRefreshProgressOnly();
+    this.mobileSidebarModal?.refreshGlobalRefreshProgressOnly();
   }
 
   refresh(): void {

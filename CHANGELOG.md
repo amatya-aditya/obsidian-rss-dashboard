@@ -42,6 +42,7 @@
 ### Fixes
 
 - The **Divider** icon in **Settings → RSS Dashboard → Sidebar** shows a separator icon instead of a blank slot. The plugin had named an icon Obsidian does not ship; it now uses one Obsidian renders. [GH Issue #1047](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1047)
+- On mobile and tablet, the sidebar drawer now updates refresh progress and per-feed refresh state live while a refresh runs, instead of showing the Stop button but only updating after the drawer is closed and reopened. [GH Issue #1064](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1064)
 - Saving an article from the dashboard's inline reader now applies the saved style and tooltip to its save button straight away, instead of waiting for the dashboard to re-render. [GH Issue #1009](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1009)
 - The keyboard shortcut reference keeps its right-aligned keys flush with the row edge when a description wraps at narrow widths, no longer shows a second close button beside its own on phones, and stacks its header into two rows on mobile. [GH Issue #1013](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1013)
 - The Add Feed and Edit Feed dialogs' YouTube format badge now shows the video ("play") icon used for video feeds instead of leaving the badge's icon slot blank. [GH Issue #1015](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1015)
