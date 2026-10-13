@@ -19,9 +19,7 @@ vi.mock("../../../src/services/feed-parser", () => ({
 }));
 
 vi.mock("../../../src/services/article-saver", () => ({
-  ArticleSaver: class ArticleSaver {
-    fixSavedFilePaths = vi.fn().mockResolvedValue(undefined);
-  },
+  ArticleSaver: class ArticleSaver {},
 }));
 
 import RssDashboardPlugin from "../../../main";
