@@ -3126,7 +3126,12 @@ export class RssDashboardView extends ItemView {
       return;
     }
 
-    if (!this.matchesFilters(article)) {
+    const keywordDecision = KeywordFilterService.evaluateForArticle(
+      article,
+      this.findFeedForArticle(article, this.buildFeedUrlIndex()),
+      this.settings.keywordRules || DEFAULT_SETTINGS.keywordRules,
+    );
+    if (!keywordDecision.included || !this.matchesFilters(article)) {
       this.articleList.removeArticleInPlace(article.guid, article.feedUrl);
       this.refreshFilterStatusBarOnly();
       return;
