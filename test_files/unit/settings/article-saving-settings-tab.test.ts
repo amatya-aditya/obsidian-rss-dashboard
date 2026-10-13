@@ -646,9 +646,9 @@ describe("Default article template actions (#1037)", () => {
     expect(dangling.plugin.settings.articleSaving.globalDefaultTemplateId).toBe(
       "gone",
     );
-    expect(getButton(dangling.containerEl, "Use as default").disabled).toBe(
-      true,
-    );
+    const danglingBtn = getButton(dangling.containerEl, "Use as default");
+    expect(danglingBtn.classList.contains("is-default")).toBe(true);
+    expect(danglingBtn.getAttribute("aria-disabled")).toBe("true");
   });
 
   it("Use as default clears the id, saves, and updates in place", async () => {
@@ -658,6 +658,8 @@ describe("Default article template actions (#1037)", () => {
     });
     const button = getButton(containerEl, "Use as default");
     expect(button.disabled).toBe(false);
+    expect(button.classList.contains("is-default")).toBe(false);
+    expect(button.hasAttribute("aria-disabled")).toBe(false);
 
     button.click();
     await flushPromises();
@@ -669,8 +671,61 @@ describe("Default article template actions (#1037)", () => {
     expect(statusText(containerEl)).toBe(
       "Default saves use: the template above",
     );
-    expect(button.disabled).toBe(true);
+    expect(button.disabled).toBe(false);
+    expect(button.classList.contains("is-default")).toBe(true);
+    expect(button.getAttribute("aria-disabled")).toBe("true");
     expect(onRefresh).not.toHaveBeenCalled();
+  });
+
+  it("Use as default is an inert no-op while the box is already the default", async () => {
+    const { containerEl, plugin } = render();
+    const button = getButton(containerEl, "Use as default");
+    expect(button.disabled).toBe(false);
+    expect(button.classList.contains("is-default")).toBe(true);
+    expect(button.getAttribute("aria-disabled")).toBe("true");
+
+    button.click();
+    await flushPromises();
+
+    expect(plugin.mocks.saveSettings).not.toHaveBeenCalled();
+    expect(statusText(containerEl)).toBe(
+      "Default saves use: the template above",
+    );
+    expect(button.classList.contains("is-default")).toBe(true);
+  });
+
+  it("clears the is-default state when a global default is set again", async () => {
+    const { containerEl, plugin, onRefresh } = render({
+      savedTemplates: [savedA],
+    });
+    const button = getButton(containerEl, "Use as default");
+    expect(button.classList.contains("is-default")).toBe(true);
+
+    vi.spyOn(SavedTemplateEditorModal.prototype, "open").mockImplementation(
+      () => {},
+    );
+    vi.spyOn(
+      SavedTemplateEditorModal.prototype,
+      "waitForClose",
+    ).mockResolvedValue({
+      name: "N",
+      template: "X",
+      defaultFolder: "",
+      filenamePattern: "",
+      makeGlobalDefault: true,
+    });
+    getButton(containerEl, "Save as template").click();
+    await flushPromises();
+
+    // Setting a global default rebuilds the tab through onRefresh; the rebuilt
+    // button then renders without the inert state.
+    expect(plugin.settings.articleSaving.globalDefaultTemplateId).toBeDefined();
+    expect(onRefresh).toHaveBeenCalledTimes(1);
+    const rebuiltEl = createDiv();
+    renderArticleSavingSettingsTab(rebuiltEl, plugin, onRefresh);
+    const rebuiltBtn = getButton(rebuiltEl, "Use as default");
+    expect(rebuiltBtn.classList.contains("is-default")).toBe(false);
+    expect(rebuiltBtn.hasAttribute("aria-disabled")).toBe(false);
   });
 
   it("Reset confirms, restores the shipped template, and updates in place", async () => {
@@ -762,7 +817,7 @@ describe("Default article template actions (#1037)", () => {
     expect(getButton(containerEl, "Clear").disabled).toBe(true);
   });
 
-  it("moves keyboard focus to Save as template when the focused button disables itself", async () => {
+  it("keeps keyboard focus on Use as default after it becomes inert", async () => {
     const { containerEl } = render({
       savedTemplates: [savedA],
       globalDefaultTemplateId: "a",
@@ -776,7 +831,27 @@ describe("Default article template actions (#1037)", () => {
       useAsDefault.click();
       await flushPromises();
 
-      expect(useAsDefault.disabled).toBe(true);
+      expect(useAsDefault.disabled).toBe(false);
+      expect(useAsDefault.getAttribute("aria-disabled")).toBe("true");
+      expect(document.activeElement).toBe(useAsDefault);
+    } finally {
+      containerEl.remove();
+    }
+  });
+
+  it("moves keyboard focus to Save as template when the focused Clear disables itself", async () => {
+    const { containerEl } = render({ defaultTemplate: "CUSTOM" });
+    document.body.appendChild(containerEl);
+    try {
+      stubConfirm(true);
+      const clear = getButton(containerEl, "Clear");
+      clear.focus();
+      expect(document.activeElement).toBe(clear);
+
+      clear.click();
+      await flushPromises();
+
+      expect(clear.disabled).toBe(true);
       expect(document.activeElement).toBe(
         getButton(containerEl, "Save as template"),
       );

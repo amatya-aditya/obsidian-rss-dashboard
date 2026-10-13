@@ -187,8 +187,13 @@ function renderDefaultTemplateSection(
     templateStatusEl.setText(
       `Default saves use: ${globalName ?? "the template above"}`,
     );
+    // Use as default stays focusable and bright while the box is already the
+    // default: `aria-disabled` plus the state class, never native `disabled`.
+    const boxIsDefault = globalName === undefined;
+    useAsDefaultBtn.toggleClass("is-default", boxIsDefault);
+    if (boxIsDefault) useAsDefaultBtn.setAttribute("aria-disabled", "true");
+    else useAsDefaultBtn.removeAttribute("aria-disabled");
     const nextDisabled = new Map<HTMLButtonElement, boolean>([
-      [useAsDefaultBtn, globalName === undefined],
       [resetBtn, templateInput.value === shippedTemplate],
       [clearBtn, templateInput.value === MINIMAL_TEMPLATE],
     ]);
@@ -218,6 +223,7 @@ function renderDefaultTemplateSection(
   });
 
   useAsDefaultBtn.onclick = () => {
+    if (useAsDefaultBtn.getAttribute("aria-disabled") === "true") return;
     void (async () => {
       articleSaving.globalDefaultTemplateId = undefined;
       syncTemplateState();
