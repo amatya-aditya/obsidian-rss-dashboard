@@ -281,6 +281,19 @@ export function windowInstanceOf<T extends object>(
   );
 }
 
+/** Width at or below which views switch to their compact mobile layout. */
+export const MOBILE_LAYOUT_MAX_WIDTH_PX = 768;
+/** Narrower cutoff used only by the folder selector popup. */
+export const FOLDER_POPUP_MOBILE_MAX_WIDTH_PX = 600;
+
+/** True when `win`'s viewport is at or below `maxWidthPx`. */
+export function isNarrowViewport(
+  win: Window,
+  maxWidthPx: number = MOBILE_LAYOUT_MAX_WIDTH_PX,
+): boolean {
+  return win.matchMedia(`(max-width: ${maxWidthPx}px)`).matches;
+}
+
 export const PHONE_MAX_WIDTH = 768;
 export const TABLET_LAYOUT_MAX_WIDTH = 1200;
 
