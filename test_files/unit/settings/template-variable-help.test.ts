@@ -81,9 +81,9 @@ describe("renderTemplateVariableHelp", () => {
     );
     expect(text("author")).toContain("joined with a comma and a space");
     expect(text("date")).toContain("shares the article timestamp");
-    expect(text("isoDate")).toContain("All the other article dates");
+    expect(text("isoDate")).toContain("except in web viewer notes");
     expect(text("firstSeen")).toContain(
-      "not derived from the article timestamp",
+      "Not derived from the article timestamp",
     );
     expect(text("saveDate")).toContain("independent of the article timestamp");
     expect(text("source")).toContain("same value as {{feedTitle}}");

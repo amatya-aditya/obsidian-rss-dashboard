@@ -41,7 +41,7 @@ export const TEMPLATE_VARIABLE_HELP_GROUPS: readonly TemplateVariableHelpGroup[]
         {
           name: "isoDate",
           description:
-            "The full ISO 8601 timestamp of the article date, in UTC. All the other article dates are formats of this one timestamp.",
+            "The full ISO 8601 timestamp of the article date, in UTC. {{dateShort}}, {{date:FORMAT}}, and {{isoDateTime}} are formats of this one timestamp; so is {{date}}, except in web viewer notes.",
         },
         {
           name: "isoDateTime",
@@ -55,7 +55,7 @@ export const TEMPLATE_VARIABLE_HELP_GROUPS: readonly TemplateVariableHelpGroup[]
         {
           name: "firstSeen",
           description:
-            "An independent value, not derived from the article timestamp. When the dashboard first saw the article, independent of the “Use first-seen date for undated items” display setting. If none was recorded, this falls back to the article date (the publish date, or the save date when there is none), which is not a true first-seen value.",
+            "Not derived from the article timestamp. When the dashboard first saw the article, independent of the “Use first-seen date for undated items” display setting. If none was recorded, this falls back to the article date (the publish date, or the save date when there is none), which is not a true first-seen value.",
         },
         {
           name: "firstSeenISO",
