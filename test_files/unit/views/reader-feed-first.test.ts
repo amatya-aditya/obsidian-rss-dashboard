@@ -220,7 +220,7 @@ describe.each(["ReaderView", "ArticleRenderer"])(
       ).toBeNull();
     });
 
-    it("ignores late UI and metadata results after newer navigation", async () => {
+    it("persists late metadata without changing the display after newer navigation", async () => {
       const harness = await setup();
       const first = deferFetch();
       const second = deferFetch();
@@ -233,9 +233,9 @@ describe.each(["ReaderView", "ArticleRenderer"])(
       first.resolve(result("A"));
       await firstOpen;
       expect(harness.container.textContent).not.toContain("Article A");
-      expect(a.metadataFetchedAt).toBeUndefined();
+      expect(a).toMatchObject(expectedMetadata("A"));
       expect(b).toMatchObject(expectedMetadata("B"));
-      expect(harness.updates).toHaveBeenCalledTimes(1);
+      expect(harness.updates).toHaveBeenCalledTimes(2);
     });
 
     it("updates tags in both cached versions", async () => {
@@ -307,7 +307,7 @@ describe.each(["ReaderView", "ArticleRenderer"])(
       expect(harness.container.textContent).toContain("Short feed blurb");
     });
 
-    it("rejects stale results when the same article object is displayed again", async () => {
+    it("keeps the first metadata write while rejecting stale UI for the same article", async () => {
       const harness = await setup();
       const first = deferFetch();
       const second = deferFetch();
@@ -316,13 +316,20 @@ describe.each(["ReaderView", "ArticleRenderer"])(
       const secondOpen = harness.render(article);
       first.resolve(result("old"));
       await firstOpen;
-      expect(article.metadataFetchedAt).toBeUndefined();
+      expect(article).toMatchObject(expectedMetadata("old"));
+      const firstWrite = article.metadataFetchedAt;
       expect(
         harness.container.querySelector(".rss-reader-content-toggle"),
       ).toBeNull();
       second.resolve(result("new"));
       await secondOpen;
-      expect(article).toMatchObject(expectedMetadata("new"));
+      expect(article).toMatchObject(expectedMetadata("old"));
+      expect(article.metadataFetchedAt).toBe(firstWrite);
+      expect(harness.updates).toHaveBeenCalledExactlyOnceWith(
+        article,
+        expectedMetadata("old"),
+        false,
+      );
     });
 
     it("keeps scroll and the exact RSS DOM on background completion", async () => {
@@ -341,7 +348,7 @@ describe.each(["ReaderView", "ArticleRenderer"])(
       ).toBe(rss);
     });
 
-    it("ignores late UI and metadata results after close", async () => {
+    it("persists late metadata without updating the UI after close", async () => {
       const harness = await setup();
       const pending = deferFetch();
       const article = item("A");
@@ -349,8 +356,12 @@ describe.each(["ReaderView", "ArticleRenderer"])(
       await harness.close();
       pending.resolve(result("A"));
       await opening;
-      expect(article.metadataFetchedAt).toBeUndefined();
-      expect(harness.updates).not.toHaveBeenCalled();
+      expect(article).toMatchObject(expectedMetadata("A"));
+      expect(harness.updates).toHaveBeenCalledExactlyOnceWith(
+        article,
+        expectedMetadata("A"),
+        false,
+      );
       expect(
         harness.container.querySelector(".rss-reader-content-toggle"),
       ).toBeNull();

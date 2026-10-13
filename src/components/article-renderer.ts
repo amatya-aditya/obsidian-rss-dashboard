@@ -100,7 +100,6 @@ export class ArticleRenderer {
   private currentReaderTitle?: string;
   private currentContentIsFullArticle = false;
   private currentFullContentFailureType: FullArticleFetchFailureType = "none";
-  private lastRestrictedNoticeGuid: string | null = null;
 
   constructor(options: ArticleRendererOptions) {
     this.app = options.app;
@@ -123,10 +122,6 @@ export class ArticleRenderer {
     item: FeedItem,
     relatedItems: FeedItem[] = [],
   ): Promise<void> {
-    if (this.currentItem?.guid !== item.guid) {
-      this.lastRestrictedNoticeGuid = null;
-    }
-
     this.cancelPendingDisplay();
     const identity = this.displayIdentity;
     container.empty();
@@ -185,16 +180,19 @@ export class ArticleRenderer {
       );
       this.contentVersions = versions;
       const fetchResult = await this.fetchFullArticleContent(item.link);
+      // Metadata belongs to the fetched item even after navigation or close.
+      if (this.hasMeaningfulArticleContent(fetchResult.content)) {
+        this.persistFetchedMetadata(
+          item,
+          fetchResult.content,
+          fetchResult.pageMetadata,
+        );
+      }
       if (identity !== this.displayIdentity || !versions.isActive()) return;
       this.currentFullContentFailureType = fetchResult.failureType;
       fetchedContent = fetchResult.content;
       if (this.hasMeaningfulArticleContent(fetchedContent)) {
         item.restrictedReason = undefined;
-        this.persistFetchedMetadata(
-          item,
-          fetchedContent,
-          fetchResult.pageMetadata,
-        );
         versions.ready();
       } else {
         if (fetchResult.failureType === "restricted") {
@@ -726,11 +724,6 @@ export class ArticleRenderer {
       feedLanguageFor(this.settings.feeds, item),
     );
     if (update) this.onArticleUpdate(item, update, false);
-  }
-
-  private showRestrictedNotice(item: FeedItem): void {
-    // Toast notification removed for paywalled/restricted articles.
-    this.lastRestrictedNoticeGuid = item.guid;
   }
 
   private lastFullArticleFetchWasRestricted(): boolean {

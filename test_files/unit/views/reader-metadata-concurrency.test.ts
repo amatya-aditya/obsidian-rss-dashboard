@@ -298,7 +298,7 @@ describe.each(["ReaderView", "ArticleRenderer"])(
     });
 
     it.each(["A then B", "B then A"])(
-      "persists only the current article metadata when overlapping fetches resolve together: %s",
+      "persists each article metadata when overlapping fetches resolve together: %s",
       async (order) => {
         const harness = await setup();
         const first = deferFetch();
@@ -316,9 +316,14 @@ describe.each(["ReaderView", "ArticleRenderer"])(
           first.resolve(result("A"));
         }
         await Promise.all([pendingA, pendingB]);
-        expect(a).toEqual(item("A"));
+        expect(a).toMatchObject(expectedMetadata("A"));
         expect(b).toMatchObject(expectedMetadata("B"));
-        expect(harness.updates).toHaveBeenCalledTimes(1);
+        expect(harness.updates).toHaveBeenCalledWith(
+          a,
+          expectedMetadata("A"),
+          false,
+        );
+        expect(harness.updates).toHaveBeenCalledTimes(2);
         expect(harness.updates).toHaveBeenCalledWith(
           b,
           expectedMetadata("B"),
@@ -329,11 +334,11 @@ describe.each(["ReaderView", "ArticleRenderer"])(
         await harness.render(b);
         expect(b).toMatchObject(expectedMetadata("B"));
         expect(b.metadataFetchedAt).toBe(firstWrite);
-        expect(harness.updates).toHaveBeenCalledTimes(1);
+        expect(harness.updates).toHaveBeenCalledTimes(2);
       },
     );
 
-    it("ignores a late result without writing metadata to its original article", async () => {
+    it("persists a late result on its original article without changing the current display", async () => {
       const harness = await setup();
       const first = deferFetch();
       fetchMock.mockResolvedValueOnce(result("B"));
@@ -341,11 +346,18 @@ describe.each(["ReaderView", "ArticleRenderer"])(
       const b = item("B");
       const pendingA = harness.render(a);
       await harness.render(b);
+      const currentDisplay = harness.container.innerHTML;
       first.resolve(result("A"));
       await pendingA;
-      expect(a).toEqual(item("A"));
+      expect(harness.container.innerHTML).toBe(currentDisplay);
+      expect(harness.updates).toHaveBeenCalledWith(
+        a,
+        expectedMetadata("A"),
+        false,
+      );
+      expect(a).toMatchObject(expectedMetadata("A"));
       expect(b).toMatchObject(expectedMetadata("B"));
-      expect(harness.updates).toHaveBeenCalledTimes(1);
+      expect(harness.updates).toHaveBeenCalledTimes(2);
       expect(harness.updates).toHaveBeenCalledWith(
         b,
         expectedMetadata("B"),
@@ -483,9 +495,13 @@ describe("ReaderView fetched metadata and saved content", () => {
     });
     await Promise.all([pendingA, pendingB]);
 
-    expect(a).toEqual(item("A"));
+    expect(a).toMatchObject(expectedMetadata("A"));
     expect(b.metadataFetchedAt).toBeUndefined();
-    expect(updates).not.toHaveBeenCalled();
+    expect(updates).toHaveBeenCalledExactlyOnceWith(
+      a,
+      expectedMetadata("A"),
+      false,
+    );
     const readingContainer = (
       view as unknown as { readingContainer: HTMLElement }
     ).readingContainer;
@@ -507,7 +523,7 @@ describe("ReaderView fetched metadata and saved content", () => {
     expect(written).not.toContain("Long feed body for article B.");
     expect(written).not.toContain("A substantial opening paragraph");
     expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(a).toEqual(item("A"));
+    expect(a).toMatchObject(expectedMetadata("A"));
     expect(b.canonicalUrl).toBeUndefined();
   });
 });

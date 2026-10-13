@@ -51,7 +51,6 @@ import {
   fetchFullArticleContentWithOutcome,
   RESTRICTED_ARTICLE_BANNER,
   RESTRICTED_ARTICLE_LINK_TEXT,
-  RESTRICTED_ARTICLE_NOTICE,
   RESTRICTED_ARTICLE_REASON,
 } from "../utils/full-article-fetch";
 import { isLikelyVideoItem } from "../utils/video-detection";
@@ -169,7 +168,6 @@ export class ReaderView extends ItemView {
   private returnLeaf: WorkspaceLeaf | null = null;
   private tagsDropdownCleanup: (() => void) | null = null;
   private currentFullContentFailureType: FullArticleFetchFailureType = "none";
-  private lastRestrictedNoticeGuid: string | null = null;
 
   private readerFormatPortal: { close: (flushSave: boolean) => void } | null =
     null;
@@ -1295,10 +1293,6 @@ export class ReaderView extends ItemView {
     item: FeedItem,
     relatedItems: FeedItem[] = [],
   ): Promise<void> {
-    if (this.currentItem?.guid !== item.guid) {
-      this.lastRestrictedNoticeGuid = null;
-    }
-
     this.invalidateDisplay();
     const identity = this.displayIdentity;
     this.closeTagsDropdown();
@@ -1381,6 +1375,10 @@ export class ReaderView extends ItemView {
     } catch {
       result = { content: "", failureType: "network" };
     }
+    // Metadata belongs to the fetched item even after navigation or close.
+    if (hasMeaningfulArticleContent(result.content)) {
+      this.persistFetchedMetadata(item, result.content, result.pageMetadata);
+    }
     if (identity !== this.displayIdentity || !versions.isActive()) return;
     this.currentFullContentFetchAttempted = true;
     this.currentFullContentFailureType = result.failureType;
@@ -1390,7 +1388,6 @@ export class ReaderView extends ItemView {
       : undefined;
     if (hasMeaningfulArticleContent(fetchedContent)) {
       item.restrictedReason = undefined;
-      this.persistFetchedMetadata(item, fetchedContent, result.pageMetadata);
       versions.ready();
     } else {
       if (result.failureType === "restricted") {
@@ -2261,15 +2258,6 @@ export class ReaderView extends ItemView {
       feedLanguageFor(this.settings.feeds, item),
     );
     if (update) this.persistBackgroundUpdate(item, update, false);
-  }
-
-  private showRestrictedNotice(item: FeedItem): void {
-    if (this.lastRestrictedNoticeGuid === item.guid) {
-      return;
-    }
-
-    new Notice(RESTRICTED_ARTICLE_NOTICE);
-    this.lastRestrictedNoticeGuid = item.guid;
   }
 
   private lastFullArticleFetchWasRestricted(): boolean {

@@ -103,7 +103,6 @@ type Internals = {
   currentReaderTitle?: string;
   currentContentIsFullArticle: boolean;
   currentFullContentFailureType: string;
-  lastRestrictedNoticeGuid: string | null;
   podcastPlayer: { destroy: () => void } | null;
   videoPlayer: { destroy: () => void } | null;
   webViewerIntegration: { openInWebViewer: ReturnType<typeof vi.fn> } | null;
@@ -298,50 +297,6 @@ describe("ReaderView article rendering (characterization)", () => {
 
       expect(state.closeTagsDropdown).toHaveBeenCalledTimes(1);
       expect(state.updateToggleButtons).toHaveBeenCalledTimes(1);
-    });
-
-    it("forgets the restricted-notice guid when a different article opens", async () => {
-      const state = internals(view);
-      state.currentItem = makeItem({ guid: "old" });
-      state.lastRestrictedNoticeGuid = "old";
-
-      await view.displayItem(
-        makeItem({
-          guid: "new",
-          mediaType: "video",
-          videoId: "abcdefghijk",
-        }),
-      );
-
-      expect(state.lastRestrictedNoticeGuid).toBeNull();
-    });
-
-    it("keeps the restricted-notice guid when the same article reopens", async () => {
-      const state = internals(view);
-      state.currentItem = makeItem({ guid: "same" });
-      state.lastRestrictedNoticeGuid = "same";
-
-      await view.displayItem(
-        makeItem({
-          guid: "same",
-          mediaType: "video",
-          videoId: "abcdefghijk",
-        }),
-      );
-
-      expect(state.lastRestrictedNoticeGuid).toBe("same");
-    });
-
-    it("forgets the restricted-notice guid when nothing was open before", async () => {
-      const state = internals(view);
-      state.currentItem = null;
-      state.lastRestrictedNoticeGuid = "old";
-
-      await view.displayItem(
-        makeItem({ mediaType: "video", videoId: "abcdefghijk" }),
-      );
-
-      expect(state.lastRestrictedNoticeGuid).toBeNull();
     });
   });
 
