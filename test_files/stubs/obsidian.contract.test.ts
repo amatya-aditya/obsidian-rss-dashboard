@@ -10,11 +10,15 @@
  */
 import { afterEach, describe, expect, it } from "vitest";
 import {
+  AbstractInputSuggest,
   App,
   Component,
   ItemView,
+  MarkdownRenderer,
   Menu,
   Modal,
+  Notice,
+  Platform,
   Plugin,
   Scope,
   Setting,
@@ -26,6 +30,7 @@ import {
   normalizePath,
   requireApiVersion,
   setIcon,
+  type ButtonComponent,
   type MenuItem,
   type WorkspaceLeaf,
   requestUrl,
@@ -1132,6 +1137,266 @@ describe("Obsidian stub contract", () => {
       expect(format("[Published] YYYY-MM-DD")).toBe("Published 2026-10-11");
       expect(format("[[x]]")).toBe("[x]");
       expect(format("h:mm A [on] dddd")).toBe("1:05 PM on Sunday");
+    });
+  });
+
+  describe("MarkdownRenderer", () => {
+    /** Renders `markdown` into a fresh detached host and returns the host. */
+    const renderMarkdown = async (markdown: string): Promise<HTMLElement> => {
+      const host = createDiv();
+      const component = new Component();
+      await MarkdownRenderer.render(new App(), markdown, host, "", component);
+      return host;
+    };
+
+    // Observed on Obsidian 1.14.4 desktop (Windows): inline math `$x^2$`
+    // renders a `span.math.math-inline` wrapping an `mjx-container`, and
+    // display math `$$…$$` renders a `div.math.math-block` wrapping one. The
+    // reader's math path (`src/utils/math-rendering.ts`) reads back exactly
+    // those two selectors (obsidian-console-probes.md, "MarkdownRenderer").
+    it("wraps inline math in a math span around an mjx-container", async () => {
+      const host = await renderMarkdown("$x^2$");
+
+      const math = host.querySelector("span.math.math-inline");
+      expect(math).not.toBeNull();
+      expect(math?.querySelector("mjx-container")).not.toBeNull();
+    });
+
+    it("wraps display math in a math-block div around an mjx-container", async () => {
+      const host = await renderMarkdown("$$E=mc^2$$");
+
+      const math = host.querySelector("div.math.math-block");
+      expect(math).not.toBeNull();
+      expect(math?.querySelector("mjx-container")).not.toBeNull();
+    });
+
+    // Stub divergence: real 1.14.4 renders through MathJax 4 CHTML, so the
+    // wrapper also carries `is-loaded`, the `mjx-container` carries
+    // `class="MathJax" jax="CHTML"` (and `display="true"` for display math)
+    // and wraps an `mjx-math data-latex` element. The stub stops at the bare
+    // `mjx-container` holding the LaTeX text, which is all the reader reads
+    // back. Pinned so a future MathJax-4 alignment changes this deliberately.
+    it("models the math DOM as a bare mjx-container holding the LaTeX", async () => {
+      const host = await renderMarkdown("$x^2$");
+
+      const math = host.querySelector(".math.math-inline");
+      expect(math?.className).toBe("math math-inline");
+      expect(math?.querySelector("mjx-container")?.textContent).toBe("x^2");
+    });
+
+    // Stub subset, not fully observed: real 1.14.4 adds `data-heading` and
+    // `dir` to headings and renders inline `**bold**`/`code` as
+    // `<strong>`/`<code>`. The stub's simple renderer covers the headings,
+    // lists and paragraphs the plugin's own components read; pinned so its
+    // growth is deliberate.
+    it("renders the simple-markdown subset", async () => {
+      const host = await renderMarkdown("# H\n\n- a\n\ntext");
+
+      expect(host.querySelector("h1")?.textContent).toBe("H");
+      expect(host.querySelector("ul > li")?.textContent).toBe("a");
+      expect(host.querySelector("p")?.textContent).toBe("text");
+    });
+  });
+
+  describe("Platform", () => {
+    // Observed on Obsidian 1.14.4 desktop (Windows): `isDesktop` and
+    // `isDesktopApp` are true and the mobile flags are all false
+    // (obsidian-console-probes.md, "version and Platform").
+    it("reports the desktop flags and no mobile flags", () => {
+      expect(Platform.isDesktop).toBe(true);
+      expect(Platform.isDesktopApp).toBe(true);
+      expect(Platform.isMobile).toBe(false);
+      expect(Platform.isMobileApp).toBe(false);
+      expect(Platform.isIosApp).toBe(false);
+      expect(Platform.isAndroidApp).toBe(false);
+      expect(Platform.isPhone).toBe(false);
+      expect(Platform.isTablet).toBe(false);
+      expect(Platform.isSafari).toBe(false);
+    });
+
+    // Stub divergence: observed on Obsidian 1.14.4 desktop (Windows), the
+    // host OS flag (`isWin`) is true and `resourcePathPrefix` is a per-install
+    // `app://<hash>/`. The stub pins the OS flags false and the prefix to
+    // "app://local/" so no test depends on the machine.
+    it("pins the OS flags and resource prefix machine-independently", () => {
+      expect(Platform.isMacOS).toBe(false);
+      expect(Platform.isWin).toBe(false);
+      expect(Platform.isLinux).toBe(false);
+      expect(Platform.resourcePathPrefix).toBe("app://local/");
+    });
+  });
+
+  describe("Notice", () => {
+    /** The runtime members the API typings (1.13.1) don't declare. */
+    type ObservedNotice = {
+      timerId: number | null;
+      buttonContainerEl: HTMLElement;
+      win: Window;
+      containerEl: HTMLElement;
+      noticeEl: HTMLElement;
+      messageEl: HTMLElement;
+      setMessage(message: string | DocumentFragment): ObservedNotice;
+      setAutoHide(autoHide: boolean): ObservedNotice;
+      addButton(cb: (button: ButtonComponent) => unknown): ObservedNotice;
+      hide(): void;
+    };
+
+    // Observed on Obsidian 1.14.4 desktop (Windows): a new `Notice` has those
+    // own keys in order, and `noticeEl` has class `notice-message` and holds
+    // the message (obsidian-console-probes.md, "Notice").
+    it("builds the observed instance shape", () => {
+      const notice = new Notice("Hello", 0) as unknown as ObservedNotice;
+
+      expect(Object.keys(notice)).toEqual([
+        "timerId",
+        "buttonContainerEl",
+        "win",
+        "containerEl",
+        "noticeEl",
+        "messageEl",
+      ]);
+      expect(notice.noticeEl.className).toBe("notice-message");
+      expect(notice.noticeEl.textContent).toBe("Hello");
+      expect(notice.containerEl.contains(notice.noticeEl)).toBe(true);
+    });
+
+    // Observed on Obsidian 1.14.4 desktop (Windows): the prototype has
+    // `setMessage`, `setAutoHide`, `addButton` and `hide`. `setMessage` is
+    // documented in obsidian.d.ts to replace the message.
+    it("exposes the observed methods", () => {
+      const notice = new Notice("Hello", 0) as unknown as ObservedNotice;
+      let received: ButtonComponent | null = null;
+
+      expect(typeof notice.setMessage).toBe("function");
+      expect(typeof notice.setAutoHide).toBe("function");
+      expect(typeof notice.addButton).toBe("function");
+      expect(typeof notice.hide).toBe("function");
+
+      expect(notice.setMessage("Changed")).toBe(notice);
+      expect(notice.noticeEl.textContent).toBe("Changed");
+
+      expect(notice.setAutoHide(true)).toBe(notice);
+
+      expect(
+        notice.addButton((button) => {
+          received = button;
+        }),
+      ).toBe(notice);
+      expect(received).not.toBeNull();
+      expect(notice.buttonContainerEl.querySelector("button")).not.toBeNull();
+    });
+  });
+
+  describe("Scope", () => {
+    /** The handler shape the stub builds; `func` is runtime-only. */
+    type ObservedHandler = {
+      scope: Scope;
+      modifiers: unknown;
+      key: string | null;
+      func: unknown;
+    };
+
+    // Observed on Obsidian 1.14.4 desktop (Windows): `register` returns a
+    // handler whose own keys are `scope`, `modifiers`, `key` and `func`
+    // (obsidian-console-probes.md, "Scope").
+    it("returns a handler with the observed own keys", () => {
+      const scope = new Scope();
+      const func = (): boolean => true;
+
+      const handler = scope.register(
+        ["Mod", "Shift"],
+        "a",
+        func,
+      ) as unknown as ObservedHandler;
+
+      expect(Object.keys(handler)).toEqual([
+        "scope",
+        "modifiers",
+        "key",
+        "func",
+      ]);
+      expect(handler.scope).toBe(scope);
+      expect(handler.key).toBe("a");
+      expect(handler.func).toBe(func);
+    });
+
+    // Stub divergence: real 1.14.4 stores `modifiers` as a comma-joined string
+    // with `Mod` resolved to the platform key (["Mod", "Shift"] -> "Ctrl,Shift"
+    // on Windows, ["Ctrl", "Alt"] -> "Alt,Ctrl", null -> null, [] -> ""). The
+    // stub keeps the raw array the hotkey tests inspect; the string form is not
+    // modeled (#431).
+    it("keeps the raw modifiers array the tests inspect", () => {
+      const scope = new Scope();
+      const modifiersOf = (handler: unknown): unknown =>
+        (handler as ObservedHandler).modifiers;
+
+      expect(
+        modifiersOf(scope.register(["Mod", "Shift"], "a", () => true)),
+      ).toEqual(["Mod", "Shift"]);
+      expect(modifiersOf(scope.register(null, "b", () => true))).toBeNull();
+      expect(modifiersOf(scope.register([], "c", () => true))).toEqual([]);
+    });
+
+    // Stub tooling, not observed: real `Scope` has no `handlers` property; the
+    // stub keeps one so tests can find and dispatch registered handlers.
+    it("tracks handlers for tests and removes them on unregister", () => {
+      const scope = new Scope();
+      const handlersOf = (): unknown[] =>
+        (scope as unknown as { handlers: unknown[] }).handlers;
+      const handler = scope.register(["Mod"], "a", () => true);
+
+      expect(handlersOf()).toContain(handler);
+      scope.unregister(handler);
+      expect(handlersOf()).not.toContain(handler);
+    });
+  });
+
+  describe("AbstractInputSuggest", () => {
+    // Observed on Obsidian 1.14.4 desktop (Windows): the real class extends
+    // PopoverSuggest and its prototype has `showSuggestions`, `setValue`,
+    // `getValue`, `onInputFocus`, `onInputChange`, `selectSuggestion`,
+    // `onSelect`, `close`, `reposition`, `open` and `autoReposition`, with
+    // `getSuggestions` and `renderSuggestion` abstract.
+    //
+    // Stub divergence: there is no production consumer — `folder-suggest.ts`
+    // uses its own `LegacyInputSuggest` so it still runs on Obsidian 1.1 — so
+    // the stub stays thin by design. Extend it faithfully when a consumer
+    // appears (obsidian-console-probes.md, "AbstractInputSuggest").
+    it("stays thin with no production consumer", () => {
+      const proto = AbstractInputSuggest.prototype as unknown as Record<
+        string,
+        unknown
+      >;
+
+      expect(typeof proto.getSuggestions).toBe("function");
+      expect(typeof proto.renderSuggestion).toBe("function");
+      expect(typeof proto.selectSuggestion).toBe("function");
+      expect(typeof proto.close).toBe("function");
+
+      expect(proto.setValue).toBeUndefined();
+      expect(proto.getValue).toBeUndefined();
+      expect(proto.onSelect).toBeUndefined();
+      expect(proto.open).toBeUndefined();
+      expect(proto.reposition).toBeUndefined();
+    });
+
+    // Not probed: the stub's constructor stores the app and the input element
+    // (in `inputEl`) and its suggestions are empty; there is no consumer to
+    // exercise more.
+    it("keeps the thin constructor behavior", () => {
+      type ThinSuggest = {
+        getSuggestions(query: string): string[];
+        close(): void;
+      };
+      const Suggest = AbstractInputSuggest as unknown as new (
+        app: App,
+        inputEl: HTMLInputElement,
+      ) => ThinSuggest;
+
+      const suggest = new Suggest(new App(), createEl("input"));
+
+      expect(suggest.getSuggestions("q")).toEqual([]);
+      expect(suggest.close()).toBeUndefined();
     });
   });
 });
