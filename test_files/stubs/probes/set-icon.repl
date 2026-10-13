@@ -86,3 +86,16 @@ for (const name of cases) {
   renderedClass[name] = host.firstElementChild?.getAttribute("class") ?? null;
 }
 JSON.stringify(renderedClass)
+
+@eval
+const names = ["circle-check-big", "eraser", "check-circle", "x", "save", "rotate-ccw"];
+const resolved = {};
+for (const name of names) {
+  const host = createDiv();
+  api.setIcon(host, name);
+  const svg = host.firstElementChild;
+  resolved[name] = svg
+    ? { class: svg.getAttribute("class"), body: svg.innerHTML }
+    : null;
+}
+JSON.stringify(resolved)

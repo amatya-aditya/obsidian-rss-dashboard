@@ -603,10 +603,10 @@ describe("Default article template actions (#1037)", () => {
       "Clear",
     ]);
     expect(buttons.map((b) => lucideIconId(b))).toEqual([
-      "check-circle",
+      "circle-check-big",
       "save",
       "rotate-ccw",
-      "x",
+      "eraser",
     ]);
     for (const button of buttons) {
       expect(button.querySelector('[aria-hidden="true"]')).not.toBeNull();

@@ -175,12 +175,12 @@ function renderDefaultTemplateSection(
   };
 
   const useAsDefaultBtn = createTemplateButton(
-    "check-circle",
+    "circle-check-big",
     "Use as default",
   );
   const saveAsTemplateBtn = createTemplateButton("save", "Save as template");
   const resetBtn = createTemplateButton("rotate-ccw", "Reset");
-  const clearBtn = createTemplateButton("x", "Clear");
+  const clearBtn = createTemplateButton("eraser", "Clear");
 
   const syncTemplateState = (): void => {
     const globalName = resolveGlobalDefaultName();

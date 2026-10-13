@@ -895,6 +895,19 @@ and `ICON_ALIASES` the five names above; every other name resolves to
 does for a name it does not ship. The stub models neither `getIcon` nor
 `getIconIds`, which have no production consumer.
 
+**Observed on 1.13.7 (Windows), 2026-10-12 (#1037):** the probe's final step
+resolves the four ids the default article template buttons use. A fresh
+`--user-data-dir` profile runs the installer's 1.13.7 renderer (the 1.14.4
+in-place update lives in the everyday profile), so these two ids are **not yet
+re-observed on the 1.14.4 pin**; the play/rss/trash/alias results above
+reproduced unchanged on 1.13.7. `circle-check-big` resolves to
+`svg-icon lucide-circle-check-big` and `eraser` to `svg-icon lucide-eraser`, so
+both are shipped under their own names. `check-circle` resolves to
+`svg-icon lucide-check-circle` with the same two paths as `circle-check-big`
+(the stub already carries it), `x` to `lucide-x`, `save` to `lucide-save`, and
+`rotate-ccw` to `lucide-rotate-ccw`. The stub now carries `lucide-circle-check-big`
+and `lucide-eraser` in `lucide-icons.ts`.
+
 ## Step 3: Scope
 
 **Probe:** `test_files/stubs/probes/scope.repl`.
