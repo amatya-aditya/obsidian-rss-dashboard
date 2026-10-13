@@ -571,12 +571,14 @@ Plugin styles and code sometimes touch Obsidian's own elements. Obsidian's DOM
 changes between versions, and the plugin supports everything from
 `minAppVersion` (1.8.7) to the current release, so target both shapes.
 
-- **Modal close button.** In Obsidian 1.13 it's `.modal-header-button.mod-raised.clickable-icon`,
-  a direct child of `modalEl`, and the title sits in `.modal-header`. Older
-  releases render `.modal-close-button` instead. When a modal replaces the
-  native close button, use `removeNativeModalCloseButton` in
-  `src/utils/modal-close-button.ts`, which handles both. CSS that styles or hides
-  the native button must list both selectors.
+- **Modal close button.** In Obsidian 1.13.7 and 1.14.4 it's
+  `.modal-header-button.mod-raised.clickable-icon`, a direct child of
+  `modalEl`, and the title sits in `.modal-header`. Obsidian 1.8.7, the minimum
+  supported version, still renders `.modal-close-button` (observed on 1.8.7,
+  2026-10-13). When a modal replaces the native close button, use
+  `removeNativeModalCloseButton` in `src/utils/modal-close-button.ts`, which
+  handles both. CSS that styles or hides the native button must list both
+  selectors.
 - **Checking a version difference.** `test_files/stubs/obsidian.contract.test.ts`
   records the Obsidian behavior the test stub models, with the version it was
   observed on. Check it before styling or querying a core element, and add an

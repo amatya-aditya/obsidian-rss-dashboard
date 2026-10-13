@@ -1,8 +1,9 @@
 /**
- * Class names of Obsidian's built-in modal close button. Obsidian 1.13.7
- * renders it as `.modal-header-button`, a direct child of `modalEl`. Older
- * releases used `.modal-close-button`; that name is kept for the minimum
- * supported version, where the current class is unverified (#372).
+ * Class names of Obsidian's built-in modal close button. Obsidian 1.13.7 and
+ * 1.14.4 render it as `.modal-header-button`, a direct child of `modalEl`.
+ * Obsidian 1.8.7, the minimum supported version, still renders
+ * `.modal-close-button`, confirmed by probe on 1.8.7 (#431); both names are
+ * required.
  */
 const NATIVE_CLOSE_BUTTON_SELECTOR =
   ".modal-header-button, .modal-close-button";
