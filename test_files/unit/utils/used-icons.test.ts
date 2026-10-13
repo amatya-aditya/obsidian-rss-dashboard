@@ -125,5 +125,7 @@ describe("production icon ids", () => {
     // Array order is stable (files are walked in directory order), so the
     // failure lists each offending file and icon id.
     expect(missing).toEqual([]);
-  });
+    // Parsing every file under src/ into an AST outlasts the default 5 s when
+    // the full suite runs in parallel (#1104).
+  }, 30_000);
 });
