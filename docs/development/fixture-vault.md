@@ -130,6 +130,8 @@ another session's window:
 
 ```powershell
 $profile = "$env:TEMP\rss-dashboard-cdp-profile-$PID"
+# Per-user install: "$env:LOCALAPPDATA\Obsidian\Obsidian.exe"
+# All-users install: "C:\Program Files\Obsidian\Obsidian.exe"
 & "$env:LOCALAPPDATA\Obsidian\Obsidian.exe" `
   --remote-debugging-port=9333 `
   --user-data-dir=$profile

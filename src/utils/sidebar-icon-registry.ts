@@ -13,7 +13,7 @@ export const SIDEBAR_ICONS: SidebarIconConfig[] = [
   {
     id: "divider",
     label: "Divider",
-    lucideIcon: "minus-vertical",
+    lucideIcon: "separator-vertical",
     settingKey: "hideIconDivider",
     isDivider: true,
   },
