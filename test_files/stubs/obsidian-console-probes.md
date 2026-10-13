@@ -895,6 +895,18 @@ and `ICON_ALIASES` the five names above; every other name resolves to
 does for a name it does not ship. The stub models neither `getIcon` nor
 `getIconIds`, which have no production consumer.
 
+The reconciled icon sweep (issue #1047) recorded the resolved id for every
+plugin id the stub did not yet carry, all on 1.14.4: `ban` -> `lucide-ban`,
+`type` -> `lucide-type`, `newspaper` -> `lucide-newspaper`, `layout-grid` ->
+`lucide-layout-grid`, `history` -> `lucide-history`, `dices` -> `lucide-dices`,
+`square` -> `lucide-square`, `check-square` -> `lucide-check-square`,
+`chevrons-up` -> `lucide-chevrons-up`, `chevrons-down` -> `lucide-chevrons-down`,
+`wand-2` -> `lucide-wand-2`, and `folders` -> `lucide-folders`. `minus-vertical`
+is **unknown** on 1.14.4, like `youtube`, so the sidebar divider now uses the
+shipped `separator-vertical` (`lucide-separator-vertical`). `lucide-icons.ts`
+carries all of them, and `test_files/unit/utils/used-icons.test.ts` fails when
+the production code names an icon id the stub does not carry.
+
 ## Step 3: Scope
 
 **Probe:** `test_files/stubs/probes/scope.repl`.
