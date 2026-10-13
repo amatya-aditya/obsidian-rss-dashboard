@@ -288,6 +288,26 @@ console.log(log);
 The driver reaches `Modal` as `api.Modal` from the bootstrapped module; the
 console route above (its base class on `app.setting`) gives the same class.
 
+## Minimum version: the 1.8.7 close button
+
+**Probe:** `test_files/stubs/probes/modal.repl`, with
+`version-and-platform.repl` for the version guard.
+**Observed on Obsidian 1.8.7 desktop (Windows) on 2026-10-13:** Settings →
+About read **Current version: v1.8.7** and the exported `apiVersion` was
+`"1.8.7"`. A `Modal`'s `modalEl` children are, in order, `modal-close-button`,
+`modal-header`, and `modal-content`: the close button is `.modal-close-button`,
+and `.modal-header-button` does not exist (0 occurrences in the 1.8.7
+`obsidian.asar`, against 11 for `.modal-close-button`). Clicking
+`.modal-close-button` closes the modal. The `onOpen`/`close` lifecycle matches
+1.14.4: `onOpen` runs with `containerEl` connected, and `close()` detaches
+`containerEl` before `onClose`. This is why `NATIVE_CLOSE_BUTTON_SELECTOR` in
+`src/utils/modal-close-button.ts` keeps both names and `modals.css` pairs them
+(#431).
+
+The `version-and-platform.repl` `@target Settings` step assumes Settings opens
+in its own window, which is true on 1.14.4; on 1.8.7 Settings opens inside the
+main window, so read the About text from that same target instead.
+
 ## DOM helpers on elements
 
 **Probe:** `test_files/stubs/probes/dom-helpers.repl`.
