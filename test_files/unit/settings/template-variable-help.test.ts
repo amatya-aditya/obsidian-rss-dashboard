@@ -9,7 +9,7 @@ const EXPECTED_GROUPS: Record<string, string[]> = {
   "Article dates": [
     "date",
     "dateShort",
-    "date:FORMAT",
+    "date:YYYY/MM/DD",
     "isoDate",
     "isoDateTime",
   ],
@@ -27,6 +27,13 @@ const EXPECTED_GROUPS: Record<string, string[]> = {
   Content: ["summary", "description", "excerpt", "content"],
   "Links and media": ["link", "image"],
 };
+
+const DATE_EXAMPLES = [
+  "{{date:DD/MM/YYYY}}",
+  "{{date:MM-DD-YYYY}}",
+  "{{date:YYYY-MM-DD HH:mm}}",
+  "{{date:D MMMM YYYY}}",
+];
 
 describe("renderTemplateVariableHelp", () => {
   let container: HTMLElement;
@@ -70,7 +77,7 @@ describe("renderTemplateVariableHelp", () => {
     const expected = [
       ...Object.keys(TEMPLATE_VARIABLES),
       "content",
-      "date:FORMAT",
+      "date:YYYY/MM/DD",
     ].map((n) => `{{${n}}}`);
     expect([...names].sort()).toEqual([...expected].sort());
     expect(new Set(names).size).toBe(names.length);
@@ -138,21 +145,20 @@ describe("renderTemplateVariableHelp", () => {
         expect(button.tagName).toBe("BUTTON");
         expect(button.getAttribute("type")).toBe("button");
         expect(button.firstElementChild?.tagName).toBe("CODE");
-        const label = button.textContent ?? "";
-        const value =
-          label === "{{date:FORMAT}}" ? "{{date:YYYY/MM/DD}}" : label;
-        expect(button.getAttribute("aria-label")).toBe(`Copy ${value}`);
+        expect(button.getAttribute("aria-label")).toBe(
+          `Copy ${button.textContent}`,
+        );
       }
     });
 
-    it("copies the leading placeholder, and the example for {{date:FORMAT}}", async () => {
+    it("copies each leading placeholder, including the {{date:YYYY/MM/DD}} entry", async () => {
       leading()
         .find((b) => b.textContent === "{{title}}")
         ?.click();
       await flush();
       expect(writeText).toHaveBeenLastCalledWith("{{title}}");
       leading()
-        .find((b) => b.textContent === "{{date:FORMAT}}")
+        .find((b) => b.textContent === "{{date:YYYY/MM/DD}}")
         ?.click();
       await flush();
       expect(writeText).toHaveBeenLastCalledWith("{{date:YYYY/MM/DD}}");
@@ -187,10 +193,13 @@ describe("renderTemplateVariableHelp", () => {
       await flush();
       expect(writeText).toHaveBeenLastCalledWith("tags: [{{tags}}]");
 
-      const dateExample = chipFor("{{date:YYYY/MM/DD}}");
-      dateExample.click();
-      await flush();
-      expect(writeText).toHaveBeenLastCalledWith("{{date:YYYY/MM/DD}}");
+      for (const example of DATE_EXAMPLES) {
+        const chip = chipFor(example);
+        expect(chip.hasAttribute("tabindex")).toBe(false);
+        chip.click();
+        await flush();
+        expect(writeText).toHaveBeenLastCalledWith(example);
+      }
 
       const dupe = chipFor("{{isoDate}}", 1);
       dupe.click();
@@ -210,9 +219,25 @@ describe("renderTemplateVariableHelp", () => {
         expect(button.hasAttribute("tabindex")).toBe(false);
       }
       expect(chipFor("tags: [{{tags}}]").hasAttribute("tabindex")).toBe(false);
-      expect(chipFor("{{date:YYYY/MM/DD}}").hasAttribute("tabindex")).toBe(
-        false,
+      for (const example of DATE_EXAMPLES) {
+        expect(chipFor(example).hasAttribute("tabindex")).toBe(false);
+      }
+      expect(allChips().filter((b) => b.tabIndex !== -1)).toHaveLength(28);
+    });
+
+    it("makes the inline {{date:YYYY/MM/DD}} in the {{date}} description a skipped duplicate", () => {
+      const dateItem = Array.from(container.querySelectorAll("li")).find(
+        (item) => item.firstElementChild?.textContent === "{{date}}",
       );
+      const inline = Array.from(dateItem?.querySelectorAll("button") ?? [])
+        .slice(1)
+        .find((b) => b.textContent === "{{date:YYYY/MM/DD}}");
+      expect(inline?.getAttribute("tabindex")).toBe("-1");
+      expect(inline?.classList.contains("is-inline")).toBe(true);
+    });
+
+    it("never mentions {{date:FORMAT}}", () => {
+      expect(container.textContent).not.toContain("date:FORMAT");
     });
 
     it("announces Copied <value> on success", async () => {

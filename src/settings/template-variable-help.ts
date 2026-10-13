@@ -3,7 +3,8 @@
  *
  * The Article Saving tab renders it today; the template create/edit dialogs can
  * render the same content later. Every `TEMPLATE_VARIABLES` key, plus
- * `{{content}}` and `{{date:FORMAT}}` (which the renderer handles itself),
+ * `{{content}}` and `{{date:YYYY/MM/DD}}` (the one entry for the renderer's
+ * `date:<format>` family, which it handles itself),
  * must appear here exactly once; a unit test enforces it.
  */
 
@@ -29,16 +30,16 @@ export const TEMPLATE_VARIABLE_HELP_GROUPS: readonly TemplateVariableHelpGroup[]
         {
           name: "date",
           description:
-            "The article date in a long, readable format. {{dateShort}}, {{date:FORMAT}}, {{isoDate}}, and {{isoDateTime}} are other formats of this same article timestamp. In notes saved from the web viewer, {{date}} is the save date instead.",
+            "The article date in a long, readable format. {{dateShort}}, {{date:YYYY/MM/DD}}, {{isoDate}}, and {{isoDateTime}} are other formats of this same article timestamp. In notes saved from the web viewer, {{date}} is the save date instead.",
         },
         {
           name: "dateShort",
           description: "The article date as YYYY-MM-DD.",
         },
         {
-          name: "date:FORMAT",
+          name: "date:YYYY/MM/DD",
           description:
-            "The article date in a custom Moment.js format, such as {{date:YYYY/MM/DD}}.",
+            "The article date in any Moment.js format: put the format after date:. Tokens are case-sensitive: MM is the month and mm the minutes, DD the day of the month and dd the weekday. Other examples: {{date:DD/MM/YYYY}}, {{date:MM-DD-YYYY}}, {{date:YYYY-MM-DD HH:mm}}, {{date:D MMMM YYYY}}.",
         },
         {
           name: "isoDate",
@@ -156,9 +157,6 @@ export const TEMPLATE_VARIABLE_HELP_GROUPS: readonly TemplateVariableHelpGroup[]
     },
   ];
 
-/** The copy value of the leading `{{date:FORMAT}}` chip: its description's example. */
-const DATE_FORMAT_EXAMPLE = "{{date:YYYY/MM/DD}}";
-
 /**
  * Tokens inside a description. The `tags: [{{tags}}]` example is matched whole,
  * because its brackets are the point of that example; every other `{{...}}` is
@@ -176,9 +174,12 @@ function renderCopyChip(
   label: string,
   copyValue: string,
   inTabOrder: boolean,
+  inline = false,
 ): void {
   const chip = parent.createEl("button", {
-    cls: "rss-dashboard-variable-chip",
+    cls: inline
+      ? "rss-dashboard-variable-chip is-inline"
+      : "rss-dashboard-variable-chip",
     attr: { type: "button" },
   });
   chip.createEl("code", { text: label });
@@ -205,7 +206,7 @@ function renderDescription(
   for (const match of description.matchAll(DESCRIPTION_TOKEN_PATTERN)) {
     const token = match[0];
     parent.appendText(description.slice(cursor, match.index));
-    renderCopyChip(parent, token, token, !leadingTokens.has(token));
+    renderCopyChip(parent, token, token, !leadingTokens.has(token), true);
     cursor = match.index + token.length;
   }
   parent.appendText(description.slice(cursor));
@@ -237,12 +238,7 @@ export function renderTemplateVariableHelp(container: HTMLElement): void {
     for (const variable of group.variables) {
       const item = list.createEl("li");
       const token = `{{${variable.name}}}`;
-      renderCopyChip(
-        item,
-        token,
-        variable.name === "date:FORMAT" ? DATE_FORMAT_EXAMPLE : token,
-        true,
-      );
+      renderCopyChip(item, token, token, true);
       item.appendText(" — ");
       renderDescription(item, variable.description, leadingTokens);
     }
