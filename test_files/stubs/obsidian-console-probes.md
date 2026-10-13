@@ -17,6 +17,13 @@ app both read 1.14.4 with no update step. Obsidian's renderer can update itself
 ahead of the installer, so an older install can run a newer app — the first
 probe session had installer 1.13.7 with the app self-updated to 1.14.4.
 
+A **mobile (Android)** device run on **2026-10-13** recorded the device-required
+items below beside the desktop records; each mobile record names the emulator and
+the running app version as `Mobile (Android <version>, <device>)`. That run also
+answered [#429](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/429)'s
+ENOENT question — see
+[the adapter.remove check on Android](#429-the-enoent-check-holds-on-android).
+
 ## Re-running these probes (drift check)
 
 The drift check has two halves. The **app-free** half is
@@ -66,6 +73,69 @@ real vault:**
 2. Open a scratch vault in that instance (**Open another vault** → **Open
    folder as vault**) and trust it.
 
+### Mobile (Android) setup over adb
+
+Android Obsidian ships with webview debugging enabled, so a device is driven
+through the same harness over an `adb forward` of the renderer's devtools
+socket, with **no code change**. Use a throwaway vault on the device; never the
+fixture or a real vault. The repo's precedent AVD is `Pixel_10a_-37api` (see
+`docs/development/design-spec.md`); boot it and forward the port:
+
+```powershell
+$adb = "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe"
+& "$env:LOCALAPPDATA\Android\Sdk\emulator\emulator.exe" -avd Pixel_10a_-37api
+& $adb wait-for-device
+& $adb shell getprop sys.boot_completed      # poll until 1
+
+& $adb shell pm list packages | Select-String obsidian
+# adb install <obsidian-<version>.apk>       # only when md.obsidian is absent;
+                                             # the APK is a public asset on
+                                             # obsidianmd/obsidian-releases and
+                                             # is never committed
+
+# Keep the renderer in the foreground: a sleeping screen pauses webview timers
+# and every probe call times out. Simulate power and keep the screen on.
+& $adb shell dumpsys battery set ac 1
+& $adb shell settings put global stay_on_while_plugged_in 7
+
+# Reach the renderer over the devtools socket.
+& $adb shell pidof md.obsidian
+& $adb shell cat /proc/net/unix | Select-String webview_devtools_remote
+& $adb forward tcp:9333 localabstract:webview_devtools_remote_<pid>
+
+# The mobile version guard records the running version and the Platform flags.
+# The desktop version-and-platform.repl stops at its `@target Settings` step,
+# which a device has no separate target for.
+node scripts/obsidian-cdp.mjs repl test_files/stubs/probes/mobile-version-and-platform.repl --host localhost --port 9333
+node scripts/obsidian-cdp.mjs repl test_files/stubs/probes/adapter.repl --host localhost --port 9333
+# ...then vault-index.repl, normalize-path.repl, and dom-helpers.repl the same way.
+```
+
+A device vault is a plain folder under shared storage; Obsidian opens the one
+named by the webview localStorage key `mobile-selected-vault`. Point a **new**
+folder at it and reload — again, never the fixture or a real vault:
+
+```js
+localStorage.setItem(
+  "mobile-selected-vault",
+  "/storage/emulated/0/Documents/rss-431-scratch",
+);
+localStorage.setItem(
+  "mobile-external-vaults",
+  JSON.stringify(["/storage/emulated/0/Documents/rss-431-scratch"]),
+);
+app.commands.executeCommandById("app:reload");
+```
+
+Two device quirks. The mobile target URL is `http://localhost/`, not
+`app://obsidian.md/index.html`, so `selectTarget` picks it only when it is the
+sole page (pass `--target` if a session has more). And `--expect-vault` /
+`--profile` cannot guard a mobile session: they rely on
+`app.vault.adapter.getBasePath()`, which does not exist on mobile (see
+[TFile names and adapter paths](#tfile-names-and-adapter-paths)). On desktop,
+`mobile-version-and-platform.repl` is a no-op that prints
+`{"skipped":"desktop"}`.
+
 Run `version-and-platform.repl` first (the command does): it records the
 running app version from Settings → About, the exported API version, and the
 `Platform` flags. Record that version with the result — the installer and the
@@ -93,7 +163,8 @@ node scripts/obsidian-cdp.mjs repl test_files/stubs/probes/request-url.repl
 
 **Triggers for a re-run:** a reference-pin bump, a `minAppVersion` change, an
 `obsidian` package bump, an `obsidian-test-mocks` pinned-baseline bump, or
-opportunistically after an Obsidian stable release.
+opportunistically after an Obsidian stable release. A **mobile** run adds the
+same triggers for the Android app, plus a new device or API level.
 
 Reinstall the pinned reference before a re-run whenever the machine's renderer
 has drifted past it: run the pinned version's installer from the official
@@ -184,6 +255,9 @@ for (const p of [
 
 Observed: both paths are indexed `null` and on disk `true`.
 
+**Mobile (Android 1.14.4 (389), Pixel_10a\_-37api emulator):** the same — both
+paths are indexed `null` and on disk `true`.
+
 ## create and createFolder on existing paths
 
 **Probe:** `test_files/stubs/probes/vault-index.repl`.
@@ -193,6 +267,13 @@ throws `File already exists.` the same way. `getAbstractFileByPath` is
 case-sensitive, so the case variant returns `null` while `adapter.exists`
 returns `true`. `create` with a missing parent folder throws `ENOENT` with the
 absolute path.
+
+**Mobile (Android 1.14.4 (389), Pixel_10a\_-37api emulator):** matches desktop
+except for the missing-parent error, which on Android is a plain `Error` whose
+message is `Parent folder doesn't exist` and whose `code` is present but
+`undefined` (see [Adapter file system model](#adapter-file-system-model)).
+`Folder already exists.`, `File already exists.`, and the case-sensitive lookup
+(`null` while `adapter.exists` is `true`) are unchanged.
 
 ```js
 await app.vault.createFolder("probe-folder");
@@ -233,6 +314,14 @@ returns it — not only `vault.createFolder` folders. After `adapter.write`,
 `exists` is true and `getAbstractFileByPath` returns the file. `list` returns
 the full vault paths of the direct children (`{ folders: ["probe-adapter/m1"],
 files: [] }` for the nested mkdir above).
+
+**Mobile (Android 1.14.4 (389), Pixel_10a\_-37api emulator):**
+`adapter.mkdir` (nested and on an existing folder), `exists`, `list`, and the
+vault index all match desktop. Only `adapter.write` under a missing parent
+diverges: Android rejects with an `Error` (own keys `["stack", "message",
+"code", "data"]`, message `Parent folder doesn't exist`) whose `code` is
+present but **`undefined`**, where desktop rejects with `code: "ENOENT"`.
+`vault.create` with a missing parent throws the same `undefined`-`code` shape.
 
 ```js
 const A = app.vault.adapter;
@@ -358,6 +447,11 @@ option below.
   the fragment). A Node receiver ignores `parent`:
   `receiver.createEl("span", { parent: other })` appends to `receiver`, not
   `other`. `test_files/unit/test-dom-polyfills.ts` models this.
+
+**Mobile (Android 1.14.4 (389), Pixel_10a\_-37api emulator):** every recorded
+value matches desktop, including `activeDocument.createDiv()` throwing
+`HierarchyRequestError` ("Only one element on document allowed") and the global
+`createDiv()` returning a detached element (`parentNode` null).
 
 ```js
 const r = {};
@@ -491,6 +585,13 @@ Observed: every case is normalized, including the combining-accent `cafe\u0301`
 is `"/"`, and a direct lookup with a backslash (`probe-np\back.md`) is `null`
 (lookups don't normalize). The rename lands at `"probe-np/renamed café.md"`.
 
+**Mobile (Android 1.14.4 (389), Pixel_10a\_-37api emulator):** every case
+matches desktop — `//` collapses, leading/trailing separators trim, `\` is a
+separator, U+00A0 and U+202F become spaces, and the combining-accent
+`café` NFC-normalizes; `getAbstractFileByPath("")` is `null`, `("/")` is `"/"`,
+the backslash lookup is `null`, and the rename lands at
+`"probe-np/renamed café.md"`.
+
 ## Reading a missing file
 
 **Probe:** `test_files/stubs/probes/adapter.repl`.
@@ -519,6 +620,18 @@ same CDP connection (introspecting `app.vault.cachedRead`, `Vault.read`,
   still throws `ENOENT`.
 - `modify(file, content)` updates the cache to the new content on success and
   clears it when the write fails; `append(file, content)` clears it.
+
+**Mobile (Android 1.14.4 (389), Pixel_10a\_-37api emulator):** `adapter.read`,
+`vault.read`, `vault.readBinary`, and `adapter.readBinary` of a missing path all
+reject with `code: "ENOENT"` and the message `File does not exist` (the code
+matches desktop; the message does not). The `cachedRead` cases **diverge**: a
+file removed on disk after `vault.create` — never read — still served its
+content, and content written through `adapter.write` was served after the
+removal, where desktop threw `ENOENT` for both. The file was confirmed gone
+(`adapter.exists` false), so the mobile per-`TFile` cache is filled by `create`
+and `adapter.write` too, not only by `read`. The stub keeps the desktop cache
+model (ADR 0014's reference is the desktop release); this mobile-only difference
+is recorded here, not modeled.
 
 The stub models the `cachedRead`/`read`/`create` cases in
 `MockDataVault.cachedRead`: a per-`TFile` cache filled by `read`, served by
@@ -683,8 +796,16 @@ and `extension` is `md`. For `dir/noext`, `name` and `basename` are `noext` and
 `extension` is `""`. `adapter.getBasePath` is a function that returns the
 vault's absolute path, and `adapter.getFullPath("a/b.md")` returns it joined
 with the vault path in OS separators (`...\rss-431-scratch-vault\a\b.md`). The
-stub always joins with `/`. Mobile wasn't probed; its adapter has no
-`getBasePath`.
+stub always joins with `/`.
+
+**Mobile (Android 1.14.4 (389), Pixel_10a\_-37api emulator):** `name`,
+`basename`, and `extension` match desktop (`my.file.name.md` / `my.file.name` /
+`md`; `noext` / `noext` / `""`). `adapter.getBasePath` is **absent**: `typeof
+adapter.getBasePath` is `"undefined"`, which is why `--expect-vault` and
+`--profile` cannot guard a mobile session. `adapter.getFullPath("a/b.md")`
+exists and joins with forward slashes —
+`/storage/emulated/0/Documents/rss-431-scratch/a/b.md` — so mobile matches the
+stub's `/` join, where desktop joined in OS separators.
 
 ```js
 const V = app.vault;
@@ -722,6 +843,15 @@ macOS reports `EISDIR` for a folder instead; that wasn't probed. Removing a case
 variant of an existing file's path wasn't probed either. `adapter.remove` of an
 existing file resolves and the file is gone.
 
+**Mobile (Android 1.14.4 (389), Pixel_10a\_-37api emulator):** `adapter.remove`
+of a missing path rejects with an `Error` (`instanceof Error` true, own keys
+`["stack", "message", "code", "data"]`) whose `code` is **`"ENOENT"`** and whose
+message is **`File does not exist`** — the message differs from desktop, but the
+code is the same. `adapter.remove` of an **empty folder resolves and removes
+it**, where desktop throws `EPERM` and keeps the folder; removing an existing
+file resolves as on desktop. This is the one shape the #429 guard depends on —
+see below.
+
 ```js
 const A = app.vault.adapter;
 await A.mkdir("probe-remove/m1");
@@ -740,6 +870,25 @@ try {
 console.log("folder still exists:", await A.exists("probe-remove/m1"));
 // Clean up: delete probe-remove from the file explorer.
 ```
+
+## #429: the ENOENT check holds on Android
+
+`isMissingFileError` in `src/services/image-cache-service.ts` accepts only an
+`Error` whose `code` is `"ENOENT"`, guarding the `adapter.remove` of a cached
+image file that a user or a sync tool already deleted. That shape was recorded
+on desktop only, so it was unknown whether #429's fix worked on phones. The
+item-12 device run answers it.
+
+**Observed on Obsidian 1.14.4 Android (build 389), Pixel_10a\_-37api emulator
+(Android 17 / API 37) on 2026-10-13:** `adapter.remove` of a missing path
+rejects with an `Error` (`instanceof Error`; own keys `stack`, `message`,
+`code`, `data`) whose `code` is `"ENOENT"` and whose message is `File does not
+exist`. The guard tests `code === "ENOENT"` and never the message, so it
+**matches on Android: the #429 fix holds on phones and no production change is
+needed.** A future guard must keep keying on `code`, not the message. Android's
+missing-parent error from `adapter.write`/`create` is a different shape (message
+`Parent folder doesn't exist`, `code` present but `undefined`), but the guard
+never wraps a write.
 
 ## Renaming a file
 
@@ -784,6 +933,11 @@ for (const [label, rename] of [
 // Clean up: await V.adapter.rmdir(root, true);
 ```
 
+**Mobile (Android 1.14.4 (389), Pixel_10a\_-37api emulator):** matches desktop —
+the content follows the rename, the old path is unindexed, the double-slash
+rename normalizes to `probe-rename/r3.md`, and both `renameFile` and
+`vault.rename` throw `Destination file already exists!` onto an existing path.
+
 ## Step 3: version and Platform
 
 **Probe:** `test_files/stubs/probes/version-and-platform.repl`.
@@ -794,6 +948,18 @@ exported `apiVersion` is `"1.14.4"`. `Platform` has `isDesktop`, `isDesktopApp`,
 `isWin` true; every other flag false; `resourcePathPrefix` is a per-install
 `app://<hash>/` URL. The stub keeps the OS flags false and a fixed
 `resourcePathPrefix` so tests don't depend on the machine.
+
+**Mobile (Android 1.14.4 (389), Pixel_10a\_-37api emulator):** probe
+`test_files/stubs/probes/mobile-version-and-platform.repl`. Settings → General
+(**About**) reads **Version 1.14.4 (389)** and there is no `Installer version`
+line (desktop only); the exported `apiVersion` is `"1.14.4"` and the webview
+user agent ends `obsidian/1.14.4`. `Platform` has `isMobile`, `isMobileApp`,
+`isAndroidApp`, `isPhone`, and `isLinux` true; `isDesktop` and `isDesktopApp`
+false, with every other flag false; `resourcePathPrefix` is `file:///`. Settings
+opens **in the main window** on mobile, so `app.setting.open()` has no separate
+target and the desktop driver's `@target Settings` step does not apply; the
+mobile driver opens Settings, selects the General tab, and reads the About line
+from the same target.
 
 ## Step 3: requireApiVersion
 

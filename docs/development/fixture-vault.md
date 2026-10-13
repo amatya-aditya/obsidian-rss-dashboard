@@ -207,6 +207,13 @@ guard first) so its output can be diffed against the records; see
 [Re-running these probes (drift check)](../../test_files/stubs/obsidian-console-probes.md#re-running-these-probes-drift-check)
 in that ledger for the setup, the diff rule, and the triggers.
 
+A real Obsidian **mobile** app is driven the same way over an Android emulator:
+forward the renderer's webview devtools socket with `adb forward` and pass
+`--host`/`--port`. The full route — AVD, APK, `adb forward`, the throwaway
+device vault, and the keep-awake step — lives with the probe library in
+[Mobile (Android) setup over
+adb](../../test_files/stubs/obsidian-console-probes.md#mobile-android-setup-over-adb).
+
 `eval`'s expression runs in the app's renderer, where `app` is the Obsidian
 API. It is evaluated in REPL mode, so a bare top-level `await` works and a
 later step can redeclare a `const` or `let` from an earlier one — the harness
