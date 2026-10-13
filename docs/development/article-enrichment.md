@@ -34,6 +34,32 @@ later refresh never overwrites them — first-write-wins
 
 Page-derived data therefore exists only for articles that have been opened.
 
+The Reader labels the two sources **RSS content** (the feed-provided version,
+including Atom and JSON Feed) and **Fetched content** (the extracted article
+page). Either source may contain the complete article; these names distinguish
+origin, not completeness. See the [reader-source ADR](../adr/0022-rss-first-reader-content-selection.md).
+
+Both readers render RSS content immediately while the page fetch runs. A
+successful fetch offers **Show fetched content** instead of replacing text under
+the reader; **Show RSS content** switches back. Each version keeps its DOM and
+scroll position for that display, and switching does not fetch again. The feed
+body remains unchanged. Metadata still uses first-write-wins, but a result
+from an obsolete display (including closing or reopening the same article) is
+ignored before any metadata or UI write.
+
+The pending status is a polite live region. Short or empty feed content also
+gets a static skeleton, so it remains motion-free with or without reduced
+motion. Failure leaves RSS readable and resolves the status; restricted
+results retain the existing restriction banner. The direct request, sequential
+proxy attempts, and SagePub abstract fallback share one **Fetch timeout**
+budget. The underlying Obsidian request cannot be cancelled, so an expired
+request is abandoned and its late result is ignored.
+
+This reader change does not add a save-source selector, template provenance,
+or saved-note upgrades. Those saving decisions remain separate work. Source
+parity detection is also deferred: no byte-equality or 95–100% similarity rule
+is assumed or implemented.
+
 ### Preview text
 
 `getArticlePreviewSummaryText` returns the guarded feed blurb first, then the

@@ -1,3 +1,4 @@
+import { ReaderContentVersions } from "../components/reader-content-versions";
 import {
   ItemView,
   WorkspaceLeaf,
@@ -50,7 +51,6 @@ import {
   fetchFullArticleContentWithOutcome,
   RESTRICTED_ARTICLE_BANNER,
   RESTRICTED_ARTICLE_LINK_TEXT,
-  RESTRICTED_ARTICLE_NOTICE,
   RESTRICTED_ARTICLE_REASON,
 } from "../utils/full-article-fetch";
 import { isLikelyVideoItem } from "../utils/video-detection";
@@ -118,11 +118,10 @@ const VIDEO_ARTICLE_LINK_TEXT = "Open video at source";
 const STARRED_IMPORT_UNFETCHED_BANNER_TEXT =
   "This is a cached preview from the starred.json import";
 const STARRED_IMPORT_FAILED_BANNER_TEXT =
-  "The last attempt to fetch the full article failed. Showing the cached preview from the starred.json import";
+  "The last attempt to fetch article content failed. Showing the cached preview from the starred.json import";
 const STARRED_IMPORT_FETCH_NOW_TEXT = "Fetch now";
 const STARRED_IMPORT_OPEN_IN_BROWSER_TEXT = "Open in browser";
-const STARRED_IMPORT_FETCH_FAILED_NOTICE =
-  "Could not fetch full article content.";
+const STARRED_IMPORT_FETCH_FAILED_NOTICE = "Could not fetch article content.";
 
 export const RSS_READER_VIEW_TYPE = "rss-reader-view";
 
@@ -145,6 +144,9 @@ export class ReaderView extends ItemView {
   private videoPlayer: VideoPlayer | null = null;
   private relatedItems: FeedItem[] = [];
   private currentFullContent?: string;
+  private displayIdentity = {};
+  private contentVersions?: ReaderContentVersions;
+  private currentArticleFetch?: Promise<void>;
   private currentFetchedArticleContent?: string;
   private currentFullContentFetchAttempted = false;
   private currentDisplayTitle?: string;
@@ -166,7 +168,6 @@ export class ReaderView extends ItemView {
   private returnLeaf: WorkspaceLeaf | null = null;
   private tagsDropdownCleanup: (() => void) | null = null;
   private currentFullContentFailureType: FullArticleFetchFailureType = "none";
-  private lastRestrictedNoticeGuid: string | null = null;
 
   private readerFormatPortal: { close: (flushSave: boolean) => void } | null =
     null;
@@ -764,12 +765,23 @@ export class ReaderView extends ItemView {
     );
   }
 
-  private saveReaderArticle(
+  private async saveReaderArticle(
     item: FeedItem,
     folder?: string,
     template?: string,
     savedTemplate?: SavedTemplate,
   ): Promise<TFile | null> {
+    const identity = this.displayIdentity;
+    if (this.settings.articleSaving.saveFullContent)
+      await this.currentArticleFetch;
+    if (identity !== this.displayIdentity) {
+      return this.articleSaver.saveArticleWithContentPolicy(
+        item,
+        folder,
+        template,
+        savedTemplate,
+      );
+    }
     const fetchAttempted =
       this.currentFullContentFetchAttempted || this.currentContentIsFullArticle;
     const readerContent = fetchAttempted
@@ -1137,6 +1149,7 @@ export class ReaderView extends ItemView {
   }
 
   async onClose(): Promise<void> {
+    this.invalidateDisplay();
     this.closeTagsDropdown();
 
     if (this.readerFormatPortal) {
@@ -1280,10 +1293,8 @@ export class ReaderView extends ItemView {
     item: FeedItem,
     relatedItems: FeedItem[] = [],
   ): Promise<void> {
-    if (this.currentItem?.guid !== item.guid) {
-      this.lastRestrictedNoticeGuid = null;
-    }
-
+    this.invalidateDisplay();
+    const identity = this.displayIdentity;
     this.closeTagsDropdown();
     if (this.readingContainer) {
       this.readingContainer.empty();
@@ -1310,41 +1321,103 @@ export class ReaderView extends ItemView {
     } else if (route === "podcast") {
       await this.displayPodcast(item);
     } else {
-      const skipFullArticleFetch = this.shouldSkipFullArticleFetch(item);
-      this.currentFullContentFetchAttempted = !skipFullArticleFetch;
-      const fetchResult: FullArticleFetchResult = skipFullArticleFetch
-        ? { content: "", failureType: "none" }
-        : await this.fetchFullArticleContent(item.link);
-      const fetchedContent = fetchResult?.content ?? "";
-      this.currentFetchedArticleContent = fetchedContent.trim()
-        ? fetchedContent
-        : undefined;
-      const hasFullArticleContent = hasMeaningfulArticleContent(fetchedContent);
-
-      if (hasFullArticleContent) {
-        item.restrictedReason = undefined;
-        this.persistFetchedMetadata(
-          item,
-          fetchedContent,
-          fetchResult.pageMetadata,
-        );
-      } else if (fetchResult?.failureType === "restricted") {
-        item.restrictedReason = RESTRICTED_ARTICLE_REASON;
-        // Toast notification removed for paywalled/restricted articles.
-      }
-
-      const displayTitle = hasFullArticleContent
-        ? extractDisplayTitleFromHtml(fetchedContent)
-        : null;
-      const fullContent = hasFullArticleContent
-        ? fetchedContent
-        : item.content || item.description || "";
-      this.currentFullContent = fullContent;
-      this.currentDisplayTitle = displayTitle || undefined;
-      this.currentContentIsFullArticle = hasFullArticleContent;
-      this.syncReaderTitle();
-      await this.displayArticle(item, fullContent);
+      this.currentArticleFetch = this.displayFeedFirstArticle(item, identity);
+      await this.currentArticleFetch;
     }
+  }
+
+  private invalidateDisplay(): void {
+    this.displayIdentity = {};
+    this.contentVersions?.dispose();
+    this.contentVersions = undefined;
+    this.currentArticleFetch = undefined;
+  }
+
+  private async displayFeedFirstArticle(
+    item: FeedItem,
+    identity: object,
+  ): Promise<void> {
+    const feedContent = item.content || item.description || "";
+    this.currentFullContent = feedContent;
+    if (this.shouldSkipFullArticleFetch(item) || !item.link) {
+      await this.displayArticle(item, feedContent);
+      return;
+    }
+    this.podcastPlayer?.destroy();
+    this.podcastPlayer = null;
+    this.videoPlayer?.destroy();
+    this.videoPlayer = null;
+    let fetchedContent = "";
+    const versions = new ReaderContentVersions(
+      this.readingContainer,
+      (parent, version) =>
+        this.renderArticle(
+          item,
+          version === "rss" ? feedContent : fetchedContent,
+          parent,
+        ),
+      (version) => {
+        this.currentContentIsFullArticle = version === "full";
+        this.currentFullContent =
+          version === "full" ? fetchedContent : feedContent;
+        this.currentDisplayTitle =
+          version === "full"
+            ? extractDisplayTitleFromHtml(fetchedContent) || undefined
+            : undefined;
+        this.syncReaderTitle();
+      },
+      !hasMeaningfulArticleContent(feedContent),
+    );
+    this.contentVersions = versions;
+    let result: FullArticleFetchResult;
+    try {
+      result = await this.fetchFullArticleContent(item.link);
+    } catch {
+      result = { content: "", failureType: "network" };
+    }
+    // Metadata belongs to the fetched item even after navigation or close.
+    // Keep the substantial-body gate: a short extraction must not lock metadata.
+    if (hasMeaningfulArticleContent(result.content)) {
+      this.persistFetchedMetadata(item, result.content, result.pageMetadata);
+    }
+    if (identity !== this.displayIdentity || !versions.isActive()) return;
+    this.currentFullContentFetchAttempted = true;
+    this.currentFullContentFailureType = result.failureType;
+    fetchedContent = result.content;
+    this.currentFetchedArticleContent = fetchedContent.trim()
+      ? fetchedContent
+      : undefined;
+    if (this.isSuccessfulArticleFetch(result)) {
+      item.restrictedReason = undefined;
+      versions.ready();
+    } else {
+      if (result.failureType === "restricted") {
+        item.restrictedReason = RESTRICTED_ARTICLE_REASON;
+        if (!this.readingContainer.querySelector(".rss-reader-paywall-banner"))
+          this.renderRestrictedBanner(item);
+      }
+      versions.failed(result);
+    }
+    if (
+      this.settings.useWebViewer &&
+      this.webViewerIntegration &&
+      identity === this.displayIdentity &&
+      versions.isActive()
+    ) {
+      // Opening another pane must not keep the fetched-content cache pending.
+      void this.webViewerIntegration
+        .openInWebViewer(
+          item.link,
+          extractDisplayTitleFromHtml(fetchedContent) || item.title,
+        )
+        .catch(() => {
+          // The RSS version and the optional full-article button remain usable.
+        });
+    }
+  }
+
+  private isSuccessfulArticleFetch(result: FullArticleFetchResult): boolean {
+    return result.failureType === "none" && result.content.trim().length > 0;
   }
 
   private async displayVideo(item: FeedItem): Promise<void> {
@@ -1524,15 +1597,18 @@ export class ReaderView extends ItemView {
       !shouldBypassWebViewer;
 
     if (shouldUseWebViewer && this.webViewerIntegration) {
+      const identity = this.displayIdentity;
       try {
         const success = await this.webViewerIntegration.openInWebViewer(
           item.link,
           this.currentDisplayTitle || item.title,
         );
+        if (identity !== this.displayIdentity) return;
         if (!success) {
           this.renderArticle(item, fullContent);
         }
       } catch {
+        if (identity !== this.displayIdentity) return;
         this.renderArticle(item, fullContent);
       }
 
@@ -1629,8 +1705,12 @@ export class ReaderView extends ItemView {
     );
   }
 
-  private renderArticle(item: FeedItem, fullContent?: string): void {
-    const headerContainer = this.readingContainer.createDiv({
+  private renderArticle(
+    item: FeedItem,
+    fullContent?: string,
+    container = this.readingContainer,
+  ): void {
+    const headerContainer = container.createDiv({
       cls: "rss-reader-article-header",
     });
 
@@ -1684,7 +1764,7 @@ export class ReaderView extends ItemView {
       }
     }
 
-    const heroSlot = this.readingContainer.createDiv({
+    const heroSlot = container.createDiv({
       cls: "rss-reader-hero-slot",
     });
 
@@ -1699,7 +1779,7 @@ export class ReaderView extends ItemView {
     const fallbackHeroUrl = resolveFallbackHeroUrl(item, this.settings.feeds);
 
     if (hasDistinctMainContent && hasMeaningfulDescription) {
-      const descriptionCallout = this.readingContainer.createEl("details", {
+      const descriptionCallout = container.createEl("details", {
         cls: "rss-reader-description-callout",
       });
       descriptionCallout.open = true;
@@ -1720,7 +1800,7 @@ export class ReaderView extends ItemView {
     }
 
     if (contentToRender) {
-      const contentContainer = this.readingContainer.createDiv({
+      const contentContainer = container.createDiv({
         cls: "rss-reader-article-content",
       });
       const shouldStripHeadline =
@@ -1738,11 +1818,11 @@ export class ReaderView extends ItemView {
     }
 
     if (item.restrictedReason) {
-      this.renderRestrictedBanner(item);
+      this.renderRestrictedBanner(item, container);
     } else if (this.shouldRenderVideoSourceBanner(item)) {
-      this.renderVideoSourceBanner(item);
+      this.renderVideoSourceBanner(item, container);
     } else if (this.isStarredImportCachedPreview(item)) {
-      this.renderStarredImportBanner(item);
+      this.renderStarredImportBanner(item, container);
     }
   }
 
@@ -1753,8 +1833,11 @@ export class ReaderView extends ItemView {
    * "Open in Browser" affordance, since the header's browser button is easy
    * to miss when the reader opened straight to an export-only preview.
    */
-  private renderStarredImportBanner(item: FeedItem): void {
-    const banner = this.readingContainer.createDiv({
+  private renderStarredImportBanner(
+    item: FeedItem,
+    container = this.readingContainer,
+  ): void {
+    const banner = container.createDiv({
       cls: "rss-reader-inline-banner rss-reader-starred-import-banner",
     });
 
@@ -1809,6 +1892,7 @@ export class ReaderView extends ItemView {
    * the next time this article is opened.
    */
   private async handleStarredImportFetchNow(item: FeedItem): Promise<void> {
+    const identity = this.displayIdentity;
     const proxyUrl =
       this.settings.corsProxyEnabled && this.settings.corsProxyUrl
         ? this.settings.corsProxyUrl
@@ -1822,6 +1906,7 @@ export class ReaderView extends ItemView {
         )
       : { content: "", failureType: "none" as const };
 
+    if (identity !== this.displayIdentity) return;
     const shouldPersist = Boolean(item.starred || item.saved);
 
     if (result.content) {
@@ -1869,8 +1954,11 @@ export class ReaderView extends ItemView {
     await this.displayArticle(item, this.currentFullContent);
   }
 
-  private renderRestrictedBanner(item: FeedItem): void {
-    const banner = this.readingContainer.createDiv({
+  private renderRestrictedBanner(
+    item: FeedItem,
+    container = this.readingContainer,
+  ): void {
+    const banner = container.createDiv({
       cls: "rss-reader-inline-banner rss-reader-paywall-banner",
     });
     const message = banner.createDiv({
@@ -1899,8 +1987,11 @@ export class ReaderView extends ItemView {
     return isLikelyVideoItem(item) && !item.videoId && !item.videoUrl;
   }
 
-  private renderVideoSourceBanner(item: FeedItem): void {
-    const banner = this.readingContainer.createDiv({
+  private renderVideoSourceBanner(
+    item: FeedItem,
+    container = this.readingContainer,
+  ): void {
+    const banner = container.createDiv({
       cls: "rss-reader-inline-banner rss-reader-video-banner",
     });
     const message = banner.createDiv({
@@ -2143,7 +2234,6 @@ export class ReaderView extends ItemView {
     url: string,
   ): Promise<FullArticleFetchResult> {
     if (!url) {
-      this.currentFullContentFailureType = "none";
       return { content: "", failureType: "none" };
     }
 
@@ -2156,7 +2246,6 @@ export class ReaderView extends ItemView {
       proxyUrl,
       this.settings.articleSaving.fetchTimeout,
     );
-    this.currentFullContentFailureType = result.failureType;
     return result;
   }
 
@@ -2174,15 +2263,6 @@ export class ReaderView extends ItemView {
       feedLanguageFor(this.settings.feeds, item),
     );
     if (update) this.persistBackgroundUpdate(item, update, false);
-  }
-
-  private showRestrictedNotice(item: FeedItem): void {
-    if (this.lastRestrictedNoticeGuid === item.guid) {
-      return;
-    }
-
-    new Notice(RESTRICTED_ARTICLE_NOTICE);
-    this.lastRestrictedNoticeGuid = item.guid;
   }
 
   private lastFullArticleFetchWasRestricted(): boolean {
@@ -2409,14 +2489,14 @@ export class ReaderView extends ItemView {
       return;
     }
 
-    const headerContainer = this.readingContainer?.querySelector<HTMLElement>(
-      ".rss-reader-article-header",
-    );
-    if (!headerContainer) {
-      return;
-    }
-
-    renderReaderTagChips(headerContainer, this.currentItem.tags);
+    const refresh = (container: HTMLElement) => {
+      const header = container.querySelector<HTMLElement>(
+        ".rss-reader-article-header",
+      );
+      if (header) renderReaderTagChips(header, this.currentItem?.tags);
+    };
+    if (this.contentVersions) this.contentVersions.visitVersions(refresh);
+    else if (this.readingContainer) refresh(this.readingContainer);
   }
 
   private syncTagColorsWithSettings(tags: FeedItem["tags"]): Tag[] {
@@ -2453,14 +2533,15 @@ export class ReaderView extends ItemView {
   }
 
   private applyReaderHeadlineFont(fontFamily: string): void {
-    const headlineElements =
-      this.readingContainer?.querySelectorAll<HTMLElement>(
-        ".rss-reader-item-title",
-      ) ?? [];
-
-    headlineElements.forEach((headline) => {
-      headline.style.fontFamily = fontFamily;
-    });
+    const refresh = (container: HTMLElement) => {
+      container
+        .querySelectorAll<HTMLElement>(".rss-reader-item-title")
+        .forEach((headline) => {
+          headline.style.fontFamily = fontFamily;
+        });
+    };
+    if (this.contentVersions) this.contentVersions.visitVersions(refresh);
+    else if (this.readingContainer) refresh(this.readingContainer);
   }
 
   private getReaderFormat(): ReaderFormatSettings {

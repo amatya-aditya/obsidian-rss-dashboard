@@ -78,6 +78,14 @@ _Avoid_: Required search prefix, tag operator (when describing the general Dashb
 RSS Dashboard's article-reading experience, including dedicated views and the inline presentation inside the dashboard. Use a location-qualified term when the specific presentation matters. External browser is a separate destination, not a Reader view.
 _Avoid_: Dashboard preview, inline article preview, dedicated Reader view (when referring to the general experience)
 
+**RSS content**:
+The article content supplied by the subscribed feed, including RSS, Atom, and JSON Feed. It may already contain the complete article. The Reader uses this label to distinguish the feed-provided version from [[Fetched content]], not to imply a summary or incomplete version. Distinct from [[Feed content]], the existing storage term. See proposed [ADR 0022](docs/adr/0022-rss-first-reader-content-selection.md).
+_Avoid_: Partial content, summary (when naming the reading version), Feed content (the storage term)
+
+**Fetched content**:
+The article content extracted from the linked page, offered as another reading version alongside [[RSS content]]. The source label does not promise a complete, longer, or better article; extraction may produce less useful content than the feed provides. See proposed [ADR 0022](docs/adr/0022-rss-first-reader-content-selection.md).
+_Avoid_: Full content, full article (when naming the reading version), complete version
+
 **Reader view location**:
 The setting that chooses where clicked articles and media open: [[Reader view (main)]], [[Reader view (right sidebar)]], [[Reader view (left sidebar)]], [[Reader view (inline)]], or [[External browser destination]]. The separate [[Saved article open location]] setting offers the same four in-app locations without the external browser destination.
 _Avoid_: Reader view (unqualified when a location matters), article location

@@ -103,7 +103,7 @@ describe("ReaderView toolbar icon buttons", () => {
   async function openArticle(overrides: Partial<FeedItem> = {}) {
     internals().fetchFullArticleContent = vi
       .fn()
-      .mockResolvedValue("<p>Content</p>");
+      .mockResolvedValue({ content: "<p>Content</p>", failureType: "none" });
     const item = makeItem(overrides);
     await view.displayItem(item);
     return item;

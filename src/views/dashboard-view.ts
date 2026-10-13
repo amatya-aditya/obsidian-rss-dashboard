@@ -1044,6 +1044,7 @@ export class RssDashboardView extends ItemView {
       return;
     }
 
+    this.articleRenderer?.cancelPendingDisplay();
     this.isRenderInProgress = true;
 
     try {
@@ -2775,8 +2776,9 @@ export class RssDashboardView extends ItemView {
         const view = leaf.view;
         view.setReturnLeaf(this.leaf);
         const relatedItems = this.getRelatedItems(article);
-        await view.displayItem(article, relatedItems);
+        const displaying = view.displayItem(article, relatedItems);
         view.focusReaderView();
+        await displaying;
       }
     }
     return leaf;
@@ -2798,8 +2800,9 @@ export class RssDashboardView extends ItemView {
         const view = leaf.view;
         view.setReturnLeaf(this.leaf);
         const relatedItems = this.getRelatedItems(article);
-        await view.displayItem(article, relatedItems);
+        const displaying = view.displayItem(article, relatedItems);
         view.focusReaderView();
+        await displaying;
       }
     }
   }
@@ -3558,6 +3561,7 @@ export class RssDashboardView extends ItemView {
   }
 
   async onClose(): Promise<void> {
+    this.articleRenderer?.cancelPendingDisplay();
     clearViewReady(this.containerEl);
     this.closeMobileSidebarModal();
     this.unbindViewportResizeListener();

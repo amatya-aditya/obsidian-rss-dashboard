@@ -53,6 +53,8 @@ export type FullArticleFetchFailureType = "none" | "restricted" | "network";
 export interface FullArticleFetchResult {
   content: string;
   failureType: FullArticleFetchFailureType;
+  /** The shared direct-and-proxy deadline expired. */
+  failureReason?: "timeout";
   /**
    * Raw signals from the fetched page (#247). Unresolved: callers resolve it
    * against their own feed context. Absent when no page was fetched or the
@@ -70,29 +72,43 @@ export function resolveFetchTimeoutMs(seconds: number | undefined): number {
   return (valid ? seconds : DEFAULT_FETCH_TIMEOUT_SECONDS) * 1000;
 }
 
+class FetchTimeoutError extends Error {
+  constructor() {
+    super("Article fetch deadline expired");
+  }
+}
+
 /**
- * Races `request` against a timer (#928). Obsidian's `requestUrl` cannot be
- * aborted, so a timed-out request is abandoned rather than cancelled.
+ * Every sequential attempt uses the same deadline (#954). Obsidian's
+ * `requestUrl` cannot be aborted, so a timed-out request is abandoned.
+ * Accept a factory so no request starts after the budget has been exhausted.
  */
-function withFetchTimeout<T>(
-  request: Promise<T>,
-  fetchTimeoutSeconds: number | undefined,
+function withFetchDeadline<T>(
+  request: () => Promise<T>,
+  deadline: number,
 ): Promise<T> {
-  const timeoutMs = resolveFetchTimeoutMs(fetchTimeoutSeconds);
+  const remainingMs = deadline - Date.now();
+  if (remainingMs <= 0) return Promise.reject(new FetchTimeoutError());
   return new Promise<T>((resolve, reject) => {
     const timer = window.setTimeout(() => {
-      reject(new Error(`Request timed out after ${timeoutMs / 1000}s`));
-    }, timeoutMs);
-    request.then(
-      (value) => {
-        window.clearTimeout(timer);
-        resolve(value);
-      },
-      (error: unknown) => {
-        window.clearTimeout(timer);
-        reject(error instanceof Error ? error : new Error(String(error)));
-      },
-    );
+      reject(new FetchTimeoutError());
+    }, remainingMs);
+    void Promise.resolve()
+      .then(() => {
+        if (Date.now() >= deadline) throw new FetchTimeoutError();
+        return request();
+      })
+      .then(
+        (value) => {
+          window.clearTimeout(timer);
+          if (Date.now() >= deadline) reject(new FetchTimeoutError());
+          else resolve(value);
+        },
+        (error: unknown) => {
+          window.clearTimeout(timer);
+          reject(error instanceof Error ? error : new Error(String(error)));
+        },
+      );
   });
 }
 
@@ -229,14 +245,15 @@ export async function fetchWithProxyFallbackDetailed(
   proxyUrl?: string,
   fetchTimeoutSeconds?: number,
 ): Promise<FullArticleFetchResult> {
+  const deadline = Date.now() + resolveFetchTimeoutMs(fetchTimeoutSeconds);
+  let directRestricted = false;
+  let directMetadata: RawArticleMetadata | undefined;
   try {
     // 1. Direct fetch
-    let directRestricted: boolean;
-    let directMetadata: RawArticleMetadata | undefined;
     try {
-      const directResponse = await withFetchTimeout(
-        robustFetchDetailed(url, { headers: DEFAULT_HEADERS }),
-        fetchTimeoutSeconds,
+      const directResponse = await withFetchDeadline(
+        () => robustFetchDetailed(url, { headers: DEFAULT_HEADERS }),
+        deadline,
       );
       const directHtml = directResponse.text;
       const directBlocked =
@@ -289,9 +306,9 @@ export async function fetchWithProxyFallbackDetailed(
     })) {
       const proxyTarget = prefix.replace(/\/$/, "") + encodeURIComponent(url);
       try {
-        const proxyResponse = await withFetchTimeout(
-          robustFetchDetailed(proxyTarget, { headers: DEFAULT_HEADERS }),
-          fetchTimeoutSeconds,
+        const proxyResponse = await withFetchDeadline(
+          () => robustFetchDetailed(proxyTarget, { headers: DEFAULT_HEADERS }),
+          deadline,
         );
         const proxyHtml = proxyResponse.text;
 
@@ -306,9 +323,12 @@ export async function fetchWithProxyFallbackDetailed(
           console.warn(
             `[RSS Dashboard] Proxy fetch also returned blocked/empty response for ${url}.`,
           );
+          directRestricted ||= proxyRestricted;
+          directMetadata =
+            extractMetadataOfUnparsedResponse(proxyHtml) ?? directMetadata;
           lastFailure = failureResult(
-            directRestricted || proxyRestricted ? "restricted" : "network",
-            extractMetadataOfUnparsedResponse(proxyHtml) ?? directMetadata,
+            directRestricted ? "restricted" : "network",
+            directMetadata,
           );
           lastError = undefined;
           continue;
@@ -319,6 +339,8 @@ export async function fetchWithProxyFallbackDetailed(
         );
         return { ...parseArticleContent(proxyHtml), failureType: "none" };
       } catch (proxyError: unknown) {
+        if (proxyError instanceof FetchTimeoutError) throw proxyError;
+        directRestricted ||= describeFetchError(proxyError).restricted;
         lastError =
           proxyError instanceof Error
             ? proxyError
@@ -343,8 +365,13 @@ export async function fetchWithProxyFallbackDetailed(
       console.error(logMessage);
     }
     return {
-      content: "",
-      failureType: restricted ? "restricted" : "network",
+      ...failureResult(
+        directRestricted || restricted ? "restricted" : "network",
+        directMetadata,
+      ),
+      ...(e instanceof FetchTimeoutError
+        ? { failureReason: "timeout" as const }
+        : {}),
     };
   }
 }

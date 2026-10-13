@@ -73,7 +73,7 @@ vi.mock("../../../src/views/reader-view", () => ({
 
 type MockReaderView = {
   setReturnLeaf: ReturnType<typeof vi.fn>;
-  displayItem: ReturnType<typeof vi.fn>;
+  displayItem: ReturnType<typeof vi.fn<ReaderView["displayItem"]>>;
   focusReaderView: ReturnType<typeof vi.fn>;
   isPodcastPlaying: ReturnType<typeof vi.fn>;
 };
@@ -324,6 +324,65 @@ describe("Dashboard reader location", () => {
     );
     expect(existingLeaf.view.focusReaderView).toHaveBeenCalledTimes(1);
   });
+
+  it.each(["new main split", "existing main split", "right sidebar"] as const)(
+    "focuses the %s before display finishes and never steals focus on completion",
+    async (location) => {
+      const settings = cloneSettings();
+      const feed = makeFeed("https://example.com/feed", [{}]);
+      settings.feeds = [feed];
+      settings.display.autoMarkReadOnOpen = false;
+      settings.readerViewLocation =
+        location === "right sidebar" ? "right-sidebar" : "main";
+      const readerLeaf = createReaderLeaf(new App(), "reader");
+      let resolveDisplay!: () => void;
+      const displaying = new Promise<void>((resolve) => {
+        resolveDisplay = resolve;
+      });
+      let notifyDisplayStarted!: () => void;
+      const displayStarted = new Promise<void>((resolve) => {
+        notifyDisplayStarted = resolve;
+      });
+      readerLeaf.view.displayItem.mockImplementation(() => {
+        notifyDisplayStarted();
+        return displaying;
+      });
+      const readerControl = document.body.createEl("button", {
+        text: "Reader",
+      });
+      const otherPaneControl = document.body.createEl("button", {
+        text: "Other pane",
+      });
+      readerLeaf.view.focusReaderView.mockImplementation(() =>
+        readerControl.focus(),
+      );
+      const { view } = await createDashboardView(settings, {
+        getLeavesOfType: vi.fn(() =>
+          location === "existing main split" ? [readerLeaf] : [],
+        ),
+        getLeaf: vi.fn(() => readerLeaf),
+        getLeftLeaf: vi.fn(),
+        getRightLeaf: vi.fn(() => readerLeaf),
+        revealLeaf: vi.fn(async () => {}),
+      });
+
+      const opening = view.handleArticleClick(feed.items[0]);
+      await displayStarted;
+      expect(readerLeaf.view.displayItem).toHaveBeenCalledWith(
+        feed.items[0],
+        [],
+      );
+      expect(readerLeaf.view.focusReaderView).toHaveBeenCalledTimes(1);
+      expect(document.activeElement).toBe(readerControl);
+
+      // A user can leave the Reader while its full article is still loading.
+      otherPaneControl.focus();
+      resolveDisplay();
+      await opening;
+      expect(readerLeaf.view.focusReaderView).toHaveBeenCalledTimes(1);
+      expect(document.activeElement).toBe(otherPaneControl);
+    },
+  );
 
   it("moves focus to the reader when opening from the dashboard", async () => {
     const settings = cloneSettings();

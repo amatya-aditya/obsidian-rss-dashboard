@@ -142,17 +142,16 @@ describe.each(["ReaderView", "ArticleRenderer"])(
             },
           ],
         ] satisfies [string, FullArticleFetchResult][])(
-          "keeps the restricted reason and banner on their own article beside %s",
+          "ignores stale restrictions and preserves the current RSS body beside %s",
           async (_label, otherResult) => {
             const harness = await setup();
             const first = deferFetch();
             const second = deferFetch();
             const a = item("A");
             const b = item("B");
-            const restricted = restrictedId === "A" ? a : b;
             const other = restrictedId === "A" ? b : a;
-            // A usable body must clear a previously stored restriction, even
-            // when that request's outcome also reports restricted access.
+            // A successful body clears a prior restriction; a restricted
+            // outcome remains a failure even when it includes some content.
             if (otherResult.content) other.restrictedReason = "Old restriction";
             const restrictedResult: FullArticleFetchResult = {
               content: "",
@@ -179,24 +178,44 @@ describe.each(["ReaderView", "ArticleRenderer"])(
               a.link,
               b.link,
             ]);
-            expect(restricted.restrictedReason).toBe(RESTRICTED_ARTICLE_REASON);
-            expect(other.restrictedReason).toBeUndefined();
+            expect(a.restrictedReason).toBe(
+              restrictedId === "B" && otherResult.content
+                ? "Old restriction"
+                : undefined,
+            );
+            const currentIsRestricted =
+              restrictedId === "B" || otherResult.failureType === "restricted";
+            expect(b.restrictedReason).toBe(
+              currentIsRestricted ? RESTRICTED_ARTICLE_REASON : undefined,
+            );
             const banners = harness.container.querySelectorAll(
               ".rss-reader-paywall-banner",
             );
-            expect(banners).toHaveLength(1);
-            expect(banners[0]?.textContent).toContain(
-              RESTRICTED_ARTICLE_BANNER,
-            );
-            expect(banners[0]?.querySelector("a")?.getAttribute("href")).toBe(
-              restricted.link,
-            );
-            expect(harness.container.textContent).toContain("Short feed blurb");
-            if (otherResult.content) {
-              expect(harness.container.textContent).toContain(
-                "A substantial opening paragraph",
+            expect(banners).toHaveLength(currentIsRestricted ? 1 : 0);
+            if (currentIsRestricted) {
+              expect(banners[0]?.textContent).toContain(
+                restrictedId === "A" && otherResult.content
+                  ? "Old restriction"
+                  : RESTRICTED_ARTICLE_BANNER,
+              );
+              expect(banners[0]?.querySelector("a")?.getAttribute("href")).toBe(
+                b.link,
               );
             }
+            expect(harness.container.textContent).toContain("Short feed blurb");
+            expect(harness.container.textContent).not.toContain(
+              "A substantial opening paragraph",
+            );
+            expect(
+              harness.container.querySelector(".rss-reader-content-toggle")
+                ?.textContent,
+            ).toBe(
+              restrictedId === "A" &&
+                otherResult.content &&
+                otherResult.failureType === "none"
+                ? "Show fetched content"
+                : undefined,
+            );
             expect(harness.updates).not.toHaveBeenCalled();
           },
         );
@@ -211,10 +230,7 @@ describe.each(["ReaderView", "ArticleRenderer"])(
         const pendingA = harness.render(a);
         const pendingB = harness.render(b);
         const error = new Error("Unexpected fetch failure");
-        const check =
-          surface === "ReaderView"
-            ? expect(pendingA).rejects.toThrow(error)
-            : expect(pendingA).resolves.toBeUndefined();
+        const check = expect(pendingA).resolves.toBeUndefined();
         const restrictedResult: FullArticleFetchResult = {
           content: "",
           failureType: "restricted",
@@ -288,7 +304,7 @@ describe.each(["ReaderView", "ArticleRenderer"])(
     });
 
     it.each(["A then B", "B then A"])(
-      "persists each article's own metadata when overlapping fetches resolve together: %s",
+      "persists each article metadata when overlapping fetches resolve together: %s",
       async (order) => {
         const harness = await setup();
         const first = deferFetch();
@@ -308,27 +324,27 @@ describe.each(["ReaderView", "ArticleRenderer"])(
         await Promise.all([pendingA, pendingB]);
         expect(a).toMatchObject(expectedMetadata("A"));
         expect(b).toMatchObject(expectedMetadata("B"));
-        expect(harness.updates).toHaveBeenCalledTimes(2);
         expect(harness.updates).toHaveBeenCalledWith(
           a,
           expectedMetadata("A"),
           false,
         );
+        expect(harness.updates).toHaveBeenCalledTimes(2);
         expect(harness.updates).toHaveBeenCalledWith(
           b,
           expectedMetadata("B"),
           false,
         );
-        const firstWrite = a.metadataFetchedAt;
-        fetchMock.mockResolvedValueOnce(result("A"));
-        await harness.render(a);
-        expect(a).toMatchObject(expectedMetadata("A"));
-        expect(a.metadataFetchedAt).toBe(firstWrite);
+        const firstWrite = b.metadataFetchedAt;
+        fetchMock.mockResolvedValueOnce(result("B"));
+        await harness.render(b);
+        expect(b).toMatchObject(expectedMetadata("B"));
+        expect(b.metadataFetchedAt).toBe(firstWrite);
         expect(harness.updates).toHaveBeenCalledTimes(2);
       },
     );
 
-    it("keeps a late result's metadata on its original article after newer navigation finishes", async () => {
+    it("persists a late result on its original article without changing the current display", async () => {
       const harness = await setup();
       const first = deferFetch();
       fetchMock.mockResolvedValueOnce(result("B"));
@@ -336,15 +352,18 @@ describe.each(["ReaderView", "ArticleRenderer"])(
       const b = item("B");
       const pendingA = harness.render(a);
       await harness.render(b);
+      const currentDisplay = harness.container.innerHTML;
       first.resolve(result("A"));
       await pendingA;
-      expect(a).toMatchObject(expectedMetadata("A"));
-      expect(b).toMatchObject(expectedMetadata("B"));
+      expect(harness.container.innerHTML).toBe(currentDisplay);
       expect(harness.updates).toHaveBeenCalledWith(
         a,
         expectedMetadata("A"),
         false,
       );
+      expect(a).toMatchObject(expectedMetadata("A"));
+      expect(b).toMatchObject(expectedMetadata("B"));
+      expect(harness.updates).toHaveBeenCalledTimes(2);
       expect(harness.updates).toHaveBeenCalledWith(
         b,
         expectedMetadata("B"),
@@ -430,10 +449,7 @@ describe.each(["ReaderView", "ArticleRenderer"])(
       const pendingA = harness.render(a);
       await harness.render(b);
       const error = new Error("Unexpected fetch failure");
-      const check =
-        surface === "ReaderView"
-          ? expect(pendingA).rejects.toThrow(error)
-          : expect(pendingA).resolves.toBeUndefined();
+      const check = expect(pendingA).resolves.toBeUndefined();
       first.reject(error);
       await check;
       expect(a.metadataFetchedAt).toBeUndefined();
@@ -487,7 +503,11 @@ describe("ReaderView fetched metadata and saved content", () => {
 
     expect(a).toMatchObject(expectedMetadata("A"));
     expect(b.metadataFetchedAt).toBeUndefined();
-    expect(updates).toHaveBeenCalledWith(a, expectedMetadata("A"), false);
+    expect(updates).toHaveBeenCalledExactlyOnceWith(
+      a,
+      expectedMetadata("A"),
+      false,
+    );
     const readingContainer = (
       view as unknown as { readingContainer: HTMLElement }
     ).readingContainer;

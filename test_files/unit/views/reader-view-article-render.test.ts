@@ -103,7 +103,6 @@ type Internals = {
   currentReaderTitle?: string;
   currentContentIsFullArticle: boolean;
   currentFullContentFailureType: string;
-  lastRestrictedNoticeGuid: string | null;
   podcastPlayer: { destroy: () => void } | null;
   videoPlayer: { destroy: () => void } | null;
   webViewerIntegration: { openInWebViewer: ReturnType<typeof vi.fn> } | null;
@@ -298,50 +297,6 @@ describe("ReaderView article rendering (characterization)", () => {
 
       expect(state.closeTagsDropdown).toHaveBeenCalledTimes(1);
       expect(state.updateToggleButtons).toHaveBeenCalledTimes(1);
-    });
-
-    it("forgets the restricted-notice guid when a different article opens", async () => {
-      const state = internals(view);
-      state.currentItem = makeItem({ guid: "old" });
-      state.lastRestrictedNoticeGuid = "old";
-
-      await view.displayItem(
-        makeItem({
-          guid: "new",
-          mediaType: "video",
-          videoId: "abcdefghijk",
-        }),
-      );
-
-      expect(state.lastRestrictedNoticeGuid).toBeNull();
-    });
-
-    it("keeps the restricted-notice guid when the same article reopens", async () => {
-      const state = internals(view);
-      state.currentItem = makeItem({ guid: "same" });
-      state.lastRestrictedNoticeGuid = "same";
-
-      await view.displayItem(
-        makeItem({
-          guid: "same",
-          mediaType: "video",
-          videoId: "abcdefghijk",
-        }),
-      );
-
-      expect(state.lastRestrictedNoticeGuid).toBe("same");
-    });
-
-    it("forgets the restricted-notice guid when nothing was open before", async () => {
-      const state = internals(view);
-      state.currentItem = null;
-      state.lastRestrictedNoticeGuid = "old";
-
-      await view.displayItem(
-        makeItem({ mediaType: "video", videoId: "abcdefghijk" }),
-      );
-
-      expect(state.lastRestrictedNoticeGuid).toBeNull();
     });
   });
 
@@ -660,7 +615,7 @@ describe("ReaderView article rendering (characterization)", () => {
       expect(fetchMock()).toHaveBeenCalledWith("not a url");
     });
 
-    it("renders fetched content that is long enough, and marks it as the full article", async () => {
+    it("renders fetched content and marks it full only after selecting it", async () => {
       const fetched = `<h1>A Proper Headline Here</h1>${LONG_HTML}`;
       fetchMock().mockResolvedValue({ content: fetched, failureType: "none" });
       const item = makeItem({
@@ -669,6 +624,12 @@ describe("ReaderView article rendering (characterization)", () => {
       });
 
       await view.displayItem(item);
+      expect(internals(view).currentContentIsFullArticle).toBe(false);
+      const fullArticleToggle = reading().querySelector<HTMLButtonElement>(
+        ".rss-reader-content-toggle",
+      );
+      expect(fullArticleToggle?.textContent).toBe("Show fetched content");
+      fullArticleToggle?.click();
 
       const state = internals(view);
       expect(state.currentFullContent).toBe(fetched);
@@ -699,13 +660,19 @@ describe("ReaderView article rendering (characterization)", () => {
       );
     });
 
-    it("accepts fetched text of 201 characters", async () => {
+    it("offers fetched text of 201 characters for explicit selection", async () => {
       fetchMock().mockResolvedValue({
         content: `<p>${"x".repeat(201)}</p>`,
         failureType: "none",
       });
 
       await view.displayItem(makeItem({ content: "<p>feed content</p>" }));
+      expect(internals(view).currentContentIsFullArticle).toBe(false);
+      const fullArticleToggle = reading().querySelector<HTMLButtonElement>(
+        ".rss-reader-content-toggle",
+      );
+      expect(fullArticleToggle?.textContent).toBe("Show fetched content");
+      fullArticleToggle?.click();
 
       expect(internals(view).currentContentIsFullArticle).toBe(true);
     });
@@ -745,26 +712,38 @@ describe("ReaderView article rendering (characterization)", () => {
       expect(q(".rss-reader-item-title")?.textContent).toBe("Feed Item Title");
     });
 
-    it("shows the fetched headline in the reader header too", async () => {
+    it("shows the selected full-article headline in the reader header too", async () => {
       fetchMock().mockResolvedValue({
         content: `<h1>A Proper Headline Here</h1>${LONG_HTML}`,
         failureType: "none",
       });
 
       await view.displayItem(makeItem());
+      expect(internals(view).currentContentIsFullArticle).toBe(false);
+      const fullArticleToggle = reading().querySelector<HTMLButtonElement>(
+        ".rss-reader-content-toggle",
+      );
+      expect(fullArticleToggle?.textContent).toBe("Show fetched content");
+      fullArticleToggle?.click();
 
       expect(internals(view).titleElement.textContent).toBe(
         "A Proper Headline Here",
       );
     });
 
-    it("shows the fetched headline as the article title", async () => {
+    it("shows the selected full-article headline as the article title", async () => {
       fetchMock().mockResolvedValue({
         content: `<h1>A Proper Headline Here</h1>${LONG_HTML}`,
         failureType: "none",
       });
 
       await view.displayItem(makeItem());
+      expect(internals(view).currentContentIsFullArticle).toBe(false);
+      const fullArticleToggle = reading().querySelector<HTMLButtonElement>(
+        ".rss-reader-content-toggle",
+      );
+      expect(fullArticleToggle?.textContent).toBe("Show fetched content");
+      fullArticleToggle?.click();
 
       expect(q(".rss-reader-item-title")?.textContent).toBe(
         "A Proper Headline Here",
@@ -786,7 +765,7 @@ describe("ReaderView article rendering (characterization)", () => {
       );
     });
 
-    it("does not mark the item restricted when the blocked fetch still returned a full article", async () => {
+    it("honors a restricted fetch outcome even when it includes a substantial body", async () => {
       fetchMock().mockImplementation(() => {
         internals(view).currentFullContentFailureType = "restricted";
         return Promise.resolve({
@@ -798,8 +777,11 @@ describe("ReaderView article rendering (characterization)", () => {
 
       await view.displayItem(item);
 
-      expect(item.restrictedReason).toBeUndefined();
-      expect(q(".rss-reader-paywall-banner")).toBeNull();
+      expect(item.restrictedReason).toBe(RESTRICTED_ARTICLE_REASON);
+      expect(q(".rss-reader-paywall-banner-text")?.textContent).toBe(
+        RESTRICTED_ARTICLE_BANNER,
+      );
+      expect(q(".rss-reader-content-toggle")).toBeNull();
     });
 
     it("leaves an earlier restricted reason in place when the fetch merely failed", async () => {
@@ -830,7 +812,7 @@ describe("ReaderView article rendering (characterization)", () => {
       internals(view).webViewerIntegration = { openInWebViewer };
     }
 
-    it("opens the article there with the link and the item title, and renders nothing", async () => {
+    it("opens the article there with the link and item title while retaining the RSS body", async () => {
       const open = vi.fn().mockResolvedValue(true);
       enableWebViewer(open);
 
@@ -840,7 +822,10 @@ describe("ReaderView article rendering (characterization)", () => {
         "https://example.com/article",
         "Feed Item Title",
       );
-      expect(q(".rss-reader-article-header")).toBeNull();
+      expect(q(".rss-reader-item-title")?.textContent).toBe("Feed Item Title");
+      expect(q(".rss-reader-article-content")?.textContent).toContain(
+        "Sentence of article body text.",
+      );
     });
 
     it("passes the fetched headline as the title", async () => {
@@ -1147,9 +1132,9 @@ describe("ReaderView article rendering (characterization)", () => {
     it("builds the header, then the hero slot, then the body, in that order", async () => {
       await view.displayItem(makeItem({ content: LONG_HTML }));
 
-      const order = Array.from(reading().children).map(
-        (child) => child.className,
-      );
+      const order = Array.from(
+        q(".rss-reader-content-version")?.children ?? reading().children,
+      ).map((child) => child.className);
       expect(order.slice(0, 3)).toEqual([
         "rss-reader-article-header",
         "rss-reader-hero-slot",
@@ -1204,7 +1189,9 @@ describe("ReaderView article rendering (characterization)", () => {
         "the full story",
       );
       expect(
-        Array.from(reading().children).map((child) => child.className),
+        Array.from(
+          q(".rss-reader-content-version")?.children ?? reading().children,
+        ).map((child) => child.className),
       ).toEqual([
         "rss-reader-article-header",
         "rss-reader-hero-slot",
@@ -1294,6 +1281,12 @@ describe("ReaderView article rendering (characterization)", () => {
           content: "<p>feed content</p>",
         }),
       );
+      expect(internals(view).currentContentIsFullArticle).toBe(false);
+      const fullArticleToggle = reading().querySelector<HTMLButtonElement>(
+        ".rss-reader-content-toggle",
+      );
+      expect(fullArticleToggle?.textContent).toBe("Show fetched content");
+      fullArticleToggle?.click();
 
       expect(q(".rss-reader-description-body")?.textContent).toBe("the teaser");
       expect(q(".rss-reader-article-content")?.textContent).toContain(
@@ -1361,9 +1354,9 @@ describe("ReaderView article rendering (characterization)", () => {
         }),
       );
 
-      const classes = Array.from(reading().children).map(
-        (child) => child.className,
-      );
+      const classes = Array.from(
+        q(".rss-reader-content-version")?.children ?? reading().children,
+      ).map((child) => child.className);
       expect(classes[classes.length - 1]).toContain(
         "rss-reader-paywall-banner",
       );
