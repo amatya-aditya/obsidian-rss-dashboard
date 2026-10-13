@@ -155,7 +155,7 @@ describe("Sidebar tag search", () => {
   };
   const clearSearch = (): void => {
     const clear = container.querySelector<HTMLElement>(
-      ".rss-dashboard-search-clear",
+      ".rss-dashboard-search-container > button.search-input-clear-button",
     );
     if (!clear) throw new Error("Search clear button did not render");
     clear.click();

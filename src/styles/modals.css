@@ -230,9 +230,6 @@ body .rss-dashboard-modal input .setting-item-control {
   width: 100%;
   margin-bottom: 1rem;
 }
-body .rss-dashboard-folder-input-container input {
-  padding-right: 34px;
-}
 
 /* Error message below the input */
 .rss-folder-name-modal-error {
@@ -996,22 +993,6 @@ body .rss-shortcut-help-modal .modal-header-button {
  * 9. Icons & Fixes
  * SVG rendering, reset styles
  * ============================================ */
-.rss-dashboard-clear-icon {
-  --icon-size: 18px;
-  position: absolute;
-  right: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--text-muted);
-  padding: 4px;
-  border-radius: 4px;
-  z-index: 5;
-}
-.rss-dashboard-clear-icon:hover {
-  background-color: var(--background-modifier-hover);
-  color: var(--text-normal);
-}
-
 /* Android WebView Icon Rendering Compatibility Block
  * Scoped to .rss-dashboard-modal to avoid Obsidian core collisions. */
 .rss-dashboard-modal .clickable-icon {

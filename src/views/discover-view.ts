@@ -15,9 +15,9 @@ import type RssDashboardPlugin from "../../main";
 import {
   TABLET_LAYOUT_MAX_WIDTH,
   shouldUseMobileSidebarLayout,
-  attachInputClearButton,
   windowInstanceOf,
 } from "../utils/platform-utils";
+import { addInputClearButton } from "../utils/input-clear-button";
 import {
   getPageSizeOptions,
   PAGE_SIZE_OPTIONS,
@@ -671,17 +671,21 @@ export class DiscoverView extends ItemView {
     });
     searchInput.addClass("rss-discover-search-input");
 
-    attachInputClearButton(searchInputWrapper, searchInput, () => {
-      this.filters.query = "";
-      this.currentPage = 1;
-      this.filterFeeds();
-      this.saveFilterState();
-      const contentEl = this.containerEl.querySelector(
-        ".rss-discover-content",
-      ) as HTMLElement;
-      if (contentEl) {
-        this.renderContent(contentEl);
-      }
+    addInputClearButton(searchInput, {
+      container: searchInputWrapper,
+      label: "Clear search",
+      onClear: () => {
+        this.filters.query = "";
+        this.currentPage = 1;
+        this.filterFeeds();
+        this.saveFilterState();
+        const contentEl = this.containerEl.querySelector(
+          ".rss-discover-content",
+        ) as HTMLElement;
+        if (contentEl) {
+          this.renderContent(contentEl);
+        }
+      },
     });
 
     searchInput.addEventListener("input", (e) => {

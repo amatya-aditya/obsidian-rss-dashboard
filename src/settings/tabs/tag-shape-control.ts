@@ -15,6 +15,7 @@ import {
   normalizeTagChipRadius,
   parseTagChipRadius,
 } from "../../utils/tag-chip-radius";
+import { addInputClearButton } from "../../utils/input-clear-button";
 
 /** The slice of the plugin this control reads and writes. */
 export interface TagShapeControlHost {
@@ -81,6 +82,7 @@ export function renderTagShapeControl(
       "aria-describedby": errorId,
     },
   });
+  addInputClearButton(input, { fill: true, label: "Clear custom radius" });
   const sample = createSampleChip(customWrap, "Sample");
   sample.addClass("rss-dashboard-tag-shape-sample");
   const errorEl = root.createDiv({

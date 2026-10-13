@@ -29,10 +29,8 @@ import { DEFAULT_TAG_COLOR } from "../utils/tag-colors";
 import { AddTagModal } from "../modals/add-tag-modal";
 import { showEditTagModal } from "../utils/tag-utils";
 import { deleteTagFromSettings } from "../utils/tag-settings";
-import {
-  attachInputClearButton,
-  windowInstanceOf,
-} from "../utils/platform-utils";
+import { windowInstanceOf } from "../utils/platform-utils";
+import { addInputClearButton } from "../utils/input-clear-button";
 import { isDomNode } from "../utils/dom-node";
 import {
   SidebarSearchService,
@@ -698,6 +696,7 @@ export class Sidebar {
         attr: { type: "text", placeholder: "New tag..." },
         cls: "rss-dashboard-sidebar-add-tag-input",
       });
+      addInputClearButton(input, { fill: true });
       const addBtn = addRow.createEl("button", {
         cls: "rss-dashboard-sidebar-add-tag-btn",
         text: "Add",
@@ -2962,21 +2961,15 @@ export class Sidebar {
       attr: { role: "status", "aria-live": "polite", "aria-atomic": "true" },
     });
 
-    attachInputClearButton(
-      searchContainer,
-      searchInput,
-      () => {
+    addInputClearButton(searchInput, {
+      container: searchContainer,
+      label: "Clear search",
+      onClear: () => {
         this.searchQuery = "";
         this.clearSearchTimeout();
         this.filterFeedsAndFolders("");
-        searchInput.focus();
       },
-      {
-        buttonClass: "rss-dashboard-search-clear",
-        hiddenClass: "is-hidden",
-        useButtonElement: true,
-      },
-    );
+    });
 
     searchInput.addEventListener("focus", () => {
       searchInput.select();

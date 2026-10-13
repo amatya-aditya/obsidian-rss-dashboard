@@ -3,6 +3,7 @@ import type {
   OpenWebViewerSaveDialog,
   WebViewerSaveDialogOptions,
 } from "../services/web-viewer-integration";
+import { addInputClearButton } from "../utils/input-clear-button";
 
 export class WebViewerSaveModal extends Modal {
   private readonly opts: WebViewerSaveDialogOptions;
@@ -40,6 +41,7 @@ export class WebViewerSaveModal extends Modal {
       },
     });
     folderInput.spellcheck = false;
+    addInputClearButton(folderInput, { label: "Clear folder" });
     folderInput.addEventListener("focus", () => folderInput.select());
 
     contentEl.createEl("label", {
@@ -71,6 +73,9 @@ export class WebViewerSaveModal extends Modal {
       },
     });
     filenamePatternInput.spellcheck = false;
+    addInputClearButton(filenamePatternInput, {
+      label: "Clear filename pattern",
+    });
     contentEl.createEl("p", {
       cls: "setting-item-description",
       attr: { id: "rss-web-viewer-filename-pattern-help" },

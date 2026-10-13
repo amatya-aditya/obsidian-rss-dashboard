@@ -32,6 +32,7 @@ import {
   setIcon,
   type ButtonComponent,
   type MenuItem,
+  type SearchComponent,
   type WorkspaceLeaf,
   requestUrl,
   setRequestUrlHandler,
@@ -770,6 +771,52 @@ describe("Obsidian stub contract", () => {
 
       expect(buttonEl?.className).toBe("mod-destructive mod-cta");
       expect(buttonEl?.classList.contains("mod-warning")).toBe(false);
+    });
+
+    // Observed in the Obsidian 1.14.4 and 1.8.7 app bundles: addSearch builds
+    // `div.search-input-container` with an `input[type=search]` and a
+    // sibling `div.search-input-clear-button`. app.css draws the button's
+    // icon, so the button holds no svg.
+    it("builds a search input with a sibling clear button", () => {
+      let search: SearchComponent | undefined;
+      const row = new Setting(createDiv()).addSearch((component) => {
+        search = component;
+      });
+      const container = row.controlEl.querySelector(".search-input-container");
+      const input = container?.querySelector("input");
+      const clear = container?.querySelector(".search-input-clear-button");
+
+      expect(container?.parentElement).toBe(row.controlEl);
+      expect(input?.type).toBe("search");
+      expect(input?.getAttribute("enterkeyhint")).toBe("search");
+      expect(clear?.tagName).toBe("DIV");
+      expect(clear?.previousElementSibling).toBe(input);
+      expect(clear?.querySelector("svg")).toBeNull();
+      expect(search?.clearButtonEl).toBe(clear);
+      expect(search?.inputEl).toBe(input);
+    });
+
+    // Observed in the Obsidian 1.14.4 and 1.8.7 app bundles: the clear button
+    // cancels mousedown, and a click empties the input, runs the change
+    // handler with "", and focuses the input.
+    it("clears the search input and reports the empty value", () => {
+      const changes: string[] = [];
+      const host = activeDocument.body.createDiv();
+      const row = new Setting(host).addSearch((component) =>
+        component.setValue("rss").onChange((value) => changes.push(value)),
+      );
+      const input = row.controlEl.querySelector("input");
+      const clear = row.controlEl.querySelector(".search-input-clear-button");
+      const mousedown = new MouseEvent("mousedown", { cancelable: true });
+
+      clear?.dispatchEvent(mousedown);
+      (clear as HTMLElement | null)?.click();
+
+      expect(mousedown.defaultPrevented).toBe(true);
+      expect(input?.value).toBe("");
+      expect(changes).toEqual([""]);
+      expect(activeDocument.activeElement).toBe(input);
+      host.remove();
     });
 
     // Observed on Obsidian 1.14.4 desktop (Windows): addExtraButton builds a

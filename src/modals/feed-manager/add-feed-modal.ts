@@ -28,6 +28,7 @@ import {
   SupportedFeedType,
 } from "./supported-format-badges";
 import { decorateFolderSelectorInput } from "./folder-selector-field";
+import { addInputClearButton } from "../../utils/input-clear-button";
 import { addTagMultiSelectControl } from "../../components/tag-multi-select-control";
 
 const EMPTY_FEED_VALIDATION_WARNING =
@@ -273,6 +274,10 @@ export class AddFeedModal extends Modal {
         this.urlInput.spellcheck = false;
         this.urlInput.placeholder = "https://example.com/feed.xml";
         this.urlInput.addClass("feed-url-input");
+        addInputClearButton(this.urlInput, {
+          fill: true,
+          label: "Clear feed URL",
+        });
         this.urlInput.addEventListener("focus", () => this.urlInput.select());
         const handleEnter = (e: KeyboardEvent) => {
           if (e.key === "Enter") {
@@ -329,6 +334,10 @@ export class AddFeedModal extends Modal {
         this.titleInput.autocomplete = "off";
         this.titleInput.spellcheck = false;
         this.titleInput.addClass("title-input");
+        addInputClearButton(this.titleInput, {
+          fill: true,
+          label: "Clear title",
+        });
         this.titleInput.addEventListener("focus", () =>
           this.titleInput.select(),
         );

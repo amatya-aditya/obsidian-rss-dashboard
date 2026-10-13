@@ -11,6 +11,7 @@ import {
 import { isValidFeedTitle, isValidFolderName } from "../utils/validation";
 import { ImporterShell } from "./importer-shell";
 import { OpmlOverwriteConfirmModal } from "./opml-overwrite-confirm-modal";
+import { addInputClearButton } from "../utils/input-clear-button";
 
 /**
  * Import OPML Modal - Provides a preview-based import experience
@@ -504,6 +505,7 @@ export class ImportOpmlModal extends Modal {
       input.className = "import-preview-edit-input";
       input.value = node.name;
       nameText.replaceWith(input);
+      addInputClearButton(input, { fill: true, label: "Clear folder name" });
       input.focus();
       input.select();
 
@@ -660,6 +662,7 @@ export class ImportOpmlModal extends Modal {
       input.className = "import-preview-edit-input";
       input.value = feed.title;
       titleText.replaceWith(input);
+      addInputClearButton(input, { fill: true, label: "Clear feed title" });
       input.focus();
       input.select();
 

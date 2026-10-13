@@ -1,6 +1,7 @@
 import { setTooltip } from "obsidian";
 import type { KeywordFilterRule } from "../types/types";
 import type { KeywordFilterEditorState } from "./keyword-filter-editor";
+import { addInputClearButton } from "../utils/input-clear-button";
 
 const PREVIEW_SCOPE_HINT =
   "Matches the preview text shown on article cards and in the feed view. The rule matches even when Show summary is off.";
@@ -226,6 +227,7 @@ function renderKeywordInput(
   });
   keywordInput.value = rule.keyword || "";
   keywordInput.disabled = !rule.enabled;
+  addInputClearButton(keywordInput, { fill: true, label: "Clear keyword" });
   keywordInput.addEventListener("change", () => {
     onChange({
       ...state,

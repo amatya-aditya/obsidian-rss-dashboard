@@ -16,6 +16,7 @@ import {
 import { clearTemplateAssignments } from "../../utils/saved-template-utils";
 import { settingsUiCompatibility } from "../settings-ui-compat";
 import { renderTemplateVariableHelp } from "../template-variable-help";
+import { addInputClearButton } from "../../utils/input-clear-button";
 
 export interface ArticleSavingPluginLike {
   app: App;
@@ -63,6 +64,7 @@ export function renderArticleSavingSettingsTab(
           await plugin.saveSettings();
         });
       new VaultFolderSuggest(plugin.app, text.inputEl);
+      addInputClearButton(text.inputEl, { label: "Clear folder" });
     });
 
   new Setting(containerEl)

@@ -1,0 +1,79 @@
+/* =============================================================================
+ * Input Clear Button (input-clear-button.css)
+ *
+ * Clear (circle-x) button inside text inputs, built by addInputClearButton in
+ * src/utils/input-clear-button.ts. The button carries Obsidian's own
+ * `.search-input-clear-button` class, so Obsidian's app.css draws the icon,
+ * positions it at the input's end, and sizes it per platform (13px desktop,
+ * 16px or text-scaled on mobile). These rules only add what Obsidian scopes to
+ * its `.search-input-container`, and reset the native button defaults.
+ * =============================================================================
+ */
+
+.rss-input-clear {
+  position: relative;
+}
+
+/* Wrapper the helper creates: as wide as the input it holds. */
+.rss-input-clear-wrap {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  vertical-align: middle;
+}
+
+/* Wrapper for an input that spans its row. */
+.rss-input-clear-fill {
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.rss-input-clear-fill > input {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+}
+
+/* Room for the button while it shows, as Obsidian's search input does. */
+.rss-input-clear > input:not(:placeholder-shown) {
+  padding-inline-end: 28px;
+}
+
+.rss-input-clear > input:placeholder-shown ~ .search-input-clear-button,
+.rss-input-clear > input:disabled ~ .search-input-clear-button,
+.rss-input-clear > input:read-only ~ .search-input-clear-button {
+  display: none;
+}
+
+/* Native <button> defaults would draw a pill behind the icon and recolor it:
+ * Obsidian's own clear button is a bare div. `input ~ button` outranks
+ * Obsidian's `button:not(.clickable-icon)` and the plugin's setting-row
+ * button rules, and this file loads after them. */
+.rss-input-clear > input ~ button.search-input-clear-button {
+  background-color: transparent;
+  box-shadow: none;
+  padding: 0;
+  color: var(--search-clear-button-color);
+}
+
+@media (hover: hover) {
+  .rss-input-clear > input ~ button.search-input-clear-button:hover {
+    background-color: transparent;
+    box-shadow: none;
+    color: var(--text-normal);
+  }
+}
+
+.rss-input-clear > input ~ button.search-input-clear-button.mobile-tap {
+  background-color: transparent;
+  box-shadow: none;
+}
+
+.rss-input-clear > input ~ button.search-input-clear-button:active {
+  color: var(--text-normal);
+}
+
+.rss-input-clear > input ~ button.search-input-clear-button:focus-visible {
+  box-shadow: 0 0 0 2px var(--background-modifier-border-focus);
+}

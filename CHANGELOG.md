@@ -38,6 +38,7 @@
 
 ### Fixes
 
+- Text boxes now clear the way Obsidian's own do: a gray circle-x inside the box, at its end, shown only while the box has text. **Proxy URL** in **Settings → General** no longer shows a separate x that dropped below the box on phones, and the search boxes (dashboard sidebar, article search, Discover, Kagi Small Web, folder picker), the save and folder dialogs, and the text fields in Settings, the feed dialogs, the tag dialogs, keyword rules, and OPML import renames all use the same button. Clearing keeps the cursor in the box. Number fields, color pickers, and multi-line fields are unchanged. [GH Issue #TBD]
 - The **Divider** icon in **Settings → RSS Dashboard → Sidebar** shows a separator icon instead of a blank slot. The plugin had named an icon Obsidian does not ship; it now uses one Obsidian renders. [GH Issue #1047](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1047)
 - Saving an article from the dashboard's inline reader now applies the saved style and tooltip to its save button straight away, instead of waiting for the dashboard to re-render. [GH Issue #1009](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1009)
 - The keyboard shortcut reference keeps its right-aligned keys flush with the row edge when a description wraps at narrow widths, no longer shows a second close button beside its own on phones, and stacks its header into two rows on mobile. [GH Issue #1013](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1013)
