@@ -25,6 +25,7 @@
     "lint:dev": "eslint . --suppressions-location scripts/eslint-suppressions.json",
     "lint:prune": "eslint . --prune-suppressions --suppressions-location scripts/eslint-suppressions.json",
     "test:unit": "vitest run --config vitest.config.mjs",
+    "test:mutation": "stryker run",
     "fixture:vault": "node scripts/setup-fixture-vault.mjs",
     "fixture:vault:generate": "node scripts/generate-fixture-vault.mjs",
     "fixture:serve": "node scripts/fixture-server.mjs",
@@ -44,6 +45,8 @@
   },
   "devDependencies": {
     "@electron/asar": "^4.3.1",
+    "@stryker-mutator/core": "^10.0.0",
+    "@stryker-mutator/vitest-runner": "^10.0.0",
     "@types/jsdom": "^28.0.3",
     "@types/node": "^26.6.5",
     "@typescript-eslint/parser": "^8.71.1",

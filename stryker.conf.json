@@ -1,0 +1,29 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "packageManager": "npm",
+  "testRunner": "vitest",
+  "vitest": {
+    "configFile": "vitest.mutation.config.mjs",
+    "related": false
+  },
+  "coverageAnalysis": "perTest",
+  "reporters": ["clear-text", "progress", "json", "html"],
+  "jsonReporter": {
+    "fileName": "reports/mutation/mutation.json"
+  },
+  "htmlReporter": {
+    "fileName": "reports/mutation/mutation.html"
+  },
+  "mutate": [
+    "src/services/feed-refresh-runner.ts",
+    "src/services/feed-refresh-scheduler.ts",
+    "src/services/feed-operation-tracker.ts",
+    "src/services/article-saver.ts"
+  ],
+  "thresholds": {
+    "high": 80,
+    "low": 60,
+    "break": 0
+  },
+  "timeoutMS": 30000
+}
