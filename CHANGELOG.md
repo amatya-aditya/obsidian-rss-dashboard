@@ -2,6 +2,8 @@
 
 ### Features
 
+- Both readers show RSS content immediately while content from the article page loads. Switch between cached RSS content and fetched content explicitly, keeping a separate reading position for each. Fetching and failure states are announced, and the direct request, sequential proxies, and article fallback share one Fetch timeout budget. [GH Issue #954](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/954)
+
 - Reader images now load lazily and fade in, with a placeholder that reserves their space while they load. Images are capped at 60% of the window height (up to 600px) without distortion; click an image to view it full size. The fade honors the reduce-motion setting, and failed images stay visible. [GH Issue #946](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/946)
 - Add an optional status bar label with the same version, build identifier, and timestamp shown in About. [GH Issue #803](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/803)
 - Sidebar toolbar and article-header icon actions use native buttons with built-in keyboard activation. [GH Issue #502](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/502)

@@ -130,6 +130,11 @@ describe("ArticleRenderer – summary de-duplication", () => {
       .mockResolvedValue({ content: fetchedHtml, failureType: "none" });
 
     await renderer.render(container, item);
+    const fullArticleToggle = container.querySelector<HTMLButtonElement>(
+      ".rss-reader-content-toggle",
+    );
+    expect(fullArticleToggle?.textContent).toBe("Show fetched content");
+    fullArticleToggle?.click();
 
     const body = container.querySelector<HTMLElement>(
       ".rss-reader-article-content",
@@ -214,6 +219,11 @@ describe("ArticleRenderer – summary de-duplication", () => {
       .mockResolvedValue({ content: fetchedHtml, failureType: "none" });
 
     await renderer.render(container, item);
+    const fullArticleToggle = container.querySelector<HTMLButtonElement>(
+      ".rss-reader-content-toggle",
+    );
+    expect(fullArticleToggle?.textContent).toBe("Show fetched content");
+    fullArticleToggle?.click();
 
     const callout = container.querySelector(".rss-reader-description-callout");
     const heroImg = container.querySelector<HTMLImageElement>(
@@ -271,6 +281,11 @@ describe("ArticleRenderer – summary de-duplication", () => {
     });
 
     await renderer.render(container, item);
+    const fullArticleToggle = container.querySelector<HTMLButtonElement>(
+      ".rss-reader-content-toggle",
+    );
+    expect(fullArticleToggle?.textContent).toBe("Show fetched content");
+    fullArticleToggle?.click();
 
     const body = container.querySelector<HTMLElement>(
       ".rss-reader-article-content",
@@ -410,6 +425,11 @@ describe("ArticleRenderer – summary de-duplication", () => {
       .mockResolvedValue({ content: fetchedHtml, failureType: "none" });
 
     await renderer.render(container, item);
+    const fullArticleToggle = container.querySelector<HTMLButtonElement>(
+      ".rss-reader-content-toggle",
+    );
+    expect(fullArticleToggle?.textContent).toBe("Show fetched content");
+    fullArticleToggle?.click();
 
     const body = container.querySelector<HTMLElement>(
       ".rss-reader-article-content",
@@ -478,6 +498,11 @@ describe("ArticleRenderer – summary de-duplication", () => {
       .mockResolvedValue({ content: fetchedHtml, failureType: "none" });
 
     await renderer.render(container, item);
+    const fullArticleToggle = container.querySelector<HTMLButtonElement>(
+      ".rss-reader-content-toggle",
+    );
+    expect(fullArticleToggle?.textContent).toBe("Show fetched content");
+    fullArticleToggle?.click();
 
     const body = container.querySelector<HTMLElement>(
       ".rss-reader-article-content",
@@ -561,6 +586,11 @@ describe("ArticleRenderer – summary de-duplication", () => {
       .mockResolvedValue({ content: fetchedHtml, failureType: "none" });
 
     await renderer.render(container, item);
+    const fullArticleToggle = container.querySelector<HTMLButtonElement>(
+      ".rss-reader-content-toggle",
+    );
+    expect(fullArticleToggle?.textContent).toBe("Show fetched content");
+    fullArticleToggle?.click();
 
     const body = container.querySelector<HTMLElement>(
       ".rss-reader-article-content",

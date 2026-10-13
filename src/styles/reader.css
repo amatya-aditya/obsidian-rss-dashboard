@@ -919,3 +919,23 @@ mark.rss-highlight {
   overflow-y: auto;
   padding: 10px;
 }
+
+.rss-reader-content .rss-reader-content-progress {
+  margin-block: var(--size-4-2);
+  color: var(--text-muted);
+}
+.rss-reader-content .rss-reader-content-toggle {
+  margin-block-start: var(--size-4-2);
+}
+.rss-reader-content .rss-reader-content-placeholder {
+  padding-block: var(--size-4-3);
+}
+.rss-reader-content .rss-reader-content-placeholder > div {
+  height: var(--size-4-3);
+  margin-block: var(--size-4-2);
+  border-radius: var(--radius-s);
+  background: var(--background-modifier-border);
+}
+.rss-reader-content .rss-reader-content-placeholder > div:last-child {
+  width: 65%;
+}

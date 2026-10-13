@@ -105,6 +105,7 @@ vi.mock("../../../src/components/article-renderer", () => ({
     constructor(options: Record<string, unknown>) {
       recorded.articleRenderers.push(options);
     }
+    cancelPendingDisplay(): void {}
   },
 }));
 

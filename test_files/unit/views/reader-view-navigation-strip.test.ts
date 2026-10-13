@@ -97,6 +97,11 @@ describe("ReaderView full-article nav/breadcrumb stripping", () => {
       .mockResolvedValue({ content: html, failureType: "none" });
 
     await readerView.displayItem(makeItem());
+    const fullArticleToggle = getInternals(
+      readerView,
+    ).contentEl.querySelector<HTMLButtonElement>(".rss-reader-content-toggle");
+    expect(fullArticleToggle?.textContent).toBe("Show fetched content");
+    fullArticleToggle?.click();
 
     const container = getInternals(readerView).readingContainer;
     const content = container.querySelector<HTMLElement>(
@@ -126,6 +131,11 @@ describe("ReaderView full-article nav/breadcrumb stripping", () => {
       .mockResolvedValue({ content: html, failureType: "none" });
 
     await readerView.displayItem(makeItem());
+    const fullArticleToggle = getInternals(
+      readerView,
+    ).contentEl.querySelector<HTMLButtonElement>(".rss-reader-content-toggle");
+    expect(fullArticleToggle?.textContent).toBe("Show fetched content");
+    fullArticleToggle?.click();
 
     const container = getInternals(readerView).readingContainer;
     const content = container.querySelector<HTMLElement>(
