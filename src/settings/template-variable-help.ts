@@ -26,22 +26,20 @@ export const TEMPLATE_VARIABLE_HELP_GROUPS: readonly TemplateVariableHelpGroup[]
         {
           name: "date",
           description:
-            "The article date in a long, readable format. It shares the article timestamp with {{dateShort}}, {{date:FORMAT}}, {{isoDate}}, and {{isoDateTime}}. In notes saved from the web viewer, it is the save date.",
+            "The article date in a long, readable format. {{dateShort}}, {{date:FORMAT}}, {{isoDate}}, and {{isoDateTime}} are other formats of this same article timestamp. In notes saved from the web viewer, {{date}} is the save date instead.",
         },
         {
           name: "dateShort",
-          description:
-            "The article timestamp as YYYY-MM-DD. Derived from the same article date as {{date}}.",
+          description: "The article date as YYYY-MM-DD.",
         },
         {
           name: "date:FORMAT",
           description:
-            "The article timestamp in a custom Moment.js format, such as {{date:YYYY/MM/DD}}. Derived from the same article date as {{date}}.",
+            "The article date in a custom Moment.js format, such as {{date:YYYY/MM/DD}}.",
         },
         {
           name: "isoDate",
-          description:
-            "The full ISO 8601 timestamp of the article date, in UTC. {{dateShort}}, {{date:FORMAT}}, and {{isoDateTime}} are formats of this one timestamp; so is {{date}}, except in web viewer notes.",
+          description: "The article date as a full ISO 8601 timestamp in UTC.",
         },
         {
           name: "isoDateTime",
