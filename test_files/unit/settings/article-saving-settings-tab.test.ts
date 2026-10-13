@@ -110,7 +110,7 @@ describe("renderArticleSavingSettingsTab()", () => {
     });
     stubConfirm(true);
 
-    renderArticleSavingSettingsTab(containerEl, plugin, vi.fn());
+    renderArticleSavingSettingsTab(containerEl, plugin, vi.fn<() => void>());
 
     const templateSetting = getSettingByName(
       containerEl,
@@ -161,7 +161,7 @@ describe("renderArticleSavingSettingsTab()", () => {
   it("persists save path via normalizePath() and saveSettings()", async () => {
     const containerEl = createDiv();
     const plugin = createPlugin({ defaultFolder: "Old" });
-    const onRefresh = vi.fn();
+    const onRefresh = vi.fn<() => void>();
 
     vi.spyOn(obsidian, "normalizePath").mockImplementation(
       (p: string) => `norm:${p}`,
@@ -186,7 +186,7 @@ describe("renderArticleSavingSettingsTab()", () => {
   it("persists toggles (addSavedTag, saveFullContent)", async () => {
     const containerEl = createDiv();
     const plugin = createPlugin({ addSavedTag: false, saveFullContent: false });
-    const onRefresh = vi.fn();
+    const onRefresh = vi.fn<() => void>();
 
     renderArticleSavingSettingsTab(containerEl, plugin, onRefresh);
 
@@ -225,7 +225,7 @@ describe("renderArticleSavingSettingsTab()", () => {
   it("defaults fetchTimeout to 10 and persists slider changes", async () => {
     const containerEl = createDiv();
     const plugin = createPlugin({ fetchTimeout: undefined });
-    const onRefresh = vi.fn();
+    const onRefresh = vi.fn<() => void>();
 
     renderArticleSavingSettingsTab(containerEl, plugin, onRefresh);
 
@@ -252,7 +252,7 @@ describe("renderArticleSavingSettingsTab()", () => {
   it("updates defaultTemplate on textarea change; reset restores DEFAULT_SETTINGS + Notice", async () => {
     const containerEl = createDiv();
     const plugin = createPlugin({ defaultTemplate: "A" });
-    const onRefresh = vi.fn();
+    const onRefresh = vi.fn<() => void>();
     stubConfirm(true);
 
     const logSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
@@ -299,7 +299,7 @@ describe("renderArticleSavingSettingsTab()", () => {
       defaultTemplate: "CURR",
       savedTemplates: undefined,
     });
-    const onRefresh = vi.fn();
+    const onRefresh = vi.fn<() => void>();
 
     const logSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
     const openSpy = vi
@@ -370,7 +370,7 @@ describe("renderArticleSavingSettingsTab()", () => {
         { url: "https://b.example/feed", customTemplate: "t2" },
       ],
     });
-    const onRefresh = vi.fn();
+    const onRefresh = vi.fn<() => void>();
     const logSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
     stubConfirm(true);
 
@@ -442,7 +442,7 @@ describe("renderArticleSavingSettingsTab()", () => {
         { url: "https://c.example/feed" },
       ],
     });
-    const onRefresh = vi.fn();
+    const onRefresh = vi.fn<() => void>();
     stubConfirm(true);
 
     renderArticleSavingSettingsTab(containerEl, plugin, onRefresh);
@@ -474,7 +474,7 @@ describe("renderArticleSavingSettingsTab()", () => {
       globalDefaultTemplateId: "t1",
       feeds: [{ url: "https://a.example/feed", customTemplate: "t1" }],
     });
-    const onRefresh = vi.fn();
+    const onRefresh = vi.fn<() => void>();
     stubConfirm(false);
 
     renderArticleSavingSettingsTab(containerEl, plugin, onRefresh);
@@ -498,7 +498,7 @@ describe("renderArticleSavingSettingsTab()", () => {
     const plugin = createPlugin({ defaultTemplate: "CUSTOM" });
     stubConfirm(false);
 
-    renderArticleSavingSettingsTab(containerEl, plugin, vi.fn());
+    renderArticleSavingSettingsTab(containerEl, plugin, vi.fn<() => void>());
 
     const resetBtn = Array.from(containerEl.querySelectorAll("button")).find(
       (b) => b.textContent === "Reset",
@@ -518,7 +518,11 @@ describe("renderArticleSavingSettingsTab()", () => {
 describe("Article Saving settings help text", () => {
   it("renders the grouped variable help through the shared renderer", () => {
     const containerEl = createDiv();
-    renderArticleSavingSettingsTab(containerEl, createPlugin(), vi.fn());
+    renderArticleSavingSettingsTab(
+      containerEl,
+      createPlugin(),
+      vi.fn<() => void>(),
+    );
 
     const help = containerEl.querySelector(".rss-dashboard-template-help");
     expect(help).not.toBeNull();
@@ -530,7 +534,11 @@ describe("Article Saving settings help text", () => {
 
   it("places the template buttons above the variable help", () => {
     const containerEl = createDiv();
-    renderArticleSavingSettingsTab(containerEl, createPlugin(), vi.fn());
+    renderArticleSavingSettingsTab(
+      containerEl,
+      createPlugin(),
+      vi.fn<() => void>(),
+    );
 
     const buttons = containerEl.querySelector(
       ".rss-dashboard-template-btn-row",
@@ -549,11 +557,11 @@ describe("Default article template actions (#1037)", () => {
   function render(overrides?: Parameters<typeof createPlugin>[0]): {
     containerEl: HTMLElement;
     plugin: TestPlugin;
-    onRefresh: ReturnType<typeof vi.fn>;
+    onRefresh: ReturnType<typeof vi.fn<() => void>>;
   } {
     const containerEl = createDiv();
     const plugin = createPlugin(overrides);
-    const onRefresh = vi.fn();
+    const onRefresh = vi.fn<() => void>();
     renderArticleSavingSettingsTab(containerEl, plugin, onRefresh);
     return { containerEl, plugin, onRefresh };
   }
