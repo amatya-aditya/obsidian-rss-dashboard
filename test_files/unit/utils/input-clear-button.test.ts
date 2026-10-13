@@ -39,6 +39,9 @@ describe("addInputClearButton", () => {
     expect(wrapper?.nextElementSibling).toBe(after);
     const button = clearButtonOf(input);
     expect(button.previousElementSibling).toBe(input);
+    expect(button.className).toBe(
+      "search-input-clear-button rss-input-clear-button",
+    );
     expect(button.type).toBe("button");
     expect(button.getAttribute("aria-label")).toBe("Clear");
     // Obsidian's app.css draws the icon; the button holds no svg of its own.

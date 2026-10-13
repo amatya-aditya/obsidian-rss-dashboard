@@ -47,8 +47,9 @@ export function addInputClearButton(
   container.addClass(INPUT_CLEAR_CONTAINER_CLASS);
   if (!input.placeholder) input.placeholder = " ";
 
+  // The plugin class lets input-clear-button.css outrank host button rules.
   const button = container.createEl("button", {
-    cls: INPUT_CLEAR_BUTTON_CLASS,
+    cls: `${INPUT_CLEAR_BUTTON_CLASS} rss-input-clear-button`,
     attr: { type: "button", "aria-label": options.label ?? "Clear" },
   });
   // Keep focus (and a phone's keyboard) on the input, as Obsidian does.

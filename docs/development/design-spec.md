@@ -504,6 +504,10 @@ only while the input holds text.
   16px or text-scaled on mobile), position, and color follow Obsidian and its
   themes. `src/styles/input-clear-button.css` adds only what Obsidian scopes
   to its own `.search-input-container`, and resets the native button pill.
+  The button also carries `rss-input-clear-button` so that reset outranks
+  host button rules, including Obsidian's phone rule that stretches buttons
+  in modal setting rows to the full width (Settings is a modal on phones).
+  Check a new surface in phone emulation (`app.emulateMobile(true)`).
 - **Never add a separate clear control** next to an input, such as a
   `Setting.addExtraButton` with the `x` icon: it wraps below the input on a
   phone.

@@ -46,34 +46,62 @@
   display: none;
 }
 
-/* Native <button> defaults would draw a pill behind the icon and recolor it:
- * Obsidian's own clear button is a bare div. `input ~ button` outranks
- * Obsidian's `button:not(.clickable-icon)` and the plugin's setting-row
- * button rules, and this file loads after them. */
-.rss-input-clear > input ~ button.search-input-clear-button {
+/* Native <button> defaults would draw a pill behind the icon, recolor it, or
+ * resize it: Obsidian's own clear button is a bare div. Host button rules
+ * reach (0,3,1), such as the feed dialogs' phone-width `min-height: 44px`, so
+ * the reset uses both button classes, and this file loads after them. Width,
+ * margin, and height restate Obsidian's `.search-input-clear-button` box. */
+.rss-input-clear
+  > input
+  ~ button.search-input-clear-button.rss-input-clear-button {
   background-color: transparent;
   box-shadow: none;
   padding: 0;
+  width: 28px;
+  min-height: 0;
+  margin: auto;
   color: var(--search-clear-button-color);
 }
 
+/* Phones: Obsidian stretches buttons in modal setting rows (Settings is a
+ * modal there) with `.is-phone .modal .setting-item-control
+ * button:not(.clickable-icon) { width: 100%; margin: 0 }` and `padding: 10px`,
+ * at (0,4,1). Without this the button covers the input and a tap clears it. */
+.is-phone
+  .rss-input-clear
+  > input
+  ~ button.search-input-clear-button.rss-input-clear-button {
+  padding: 0;
+  width: 28px;
+  min-height: 0;
+  margin: auto;
+}
+
 @media (hover: hover) {
-  .rss-input-clear > input ~ button.search-input-clear-button:hover {
+  .rss-input-clear
+    > input
+    ~ button.search-input-clear-button.rss-input-clear-button:hover {
     background-color: transparent;
     box-shadow: none;
     color: var(--text-normal);
   }
 }
 
-.rss-input-clear > input ~ button.search-input-clear-button.mobile-tap {
+.rss-input-clear
+  > input
+  ~ button.search-input-clear-button.rss-input-clear-button.mobile-tap {
   background-color: transparent;
   box-shadow: none;
 }
 
-.rss-input-clear > input ~ button.search-input-clear-button:active {
+.rss-input-clear
+  > input
+  ~ button.search-input-clear-button.rss-input-clear-button:active {
   color: var(--text-normal);
 }
 
-.rss-input-clear > input ~ button.search-input-clear-button:focus-visible {
+.rss-input-clear
+  > input
+  ~ button.search-input-clear-button.rss-input-clear-button:focus-visible {
   box-shadow: 0 0 0 2px var(--background-modifier-border-focus);
 }
