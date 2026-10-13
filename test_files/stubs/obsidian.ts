@@ -3,7 +3,10 @@
 //
 // Reference version: Obsidian 1.14.4 desktop (installer 1.13.7, Electron
 // 43.3.0). The renderer updates in place, so the running app can be newer than
-// the installer; re-observed on 1.14.4 (see obsidian-console-probes.md).
+// the installer; re-observed on 1.14.4 (see obsidian-console-probes.md). The
+// pinned 1.14.4 installer is the official `obsidian-releases` asset
+// (`Obsidian-1.14.4.exe`), kept outside the repo, to reinstall the reference if
+// an update drifts past it.
 // The stub models observed Obsidian behavior (ADR 0014). Each modeled behavior
 // has an expectation in obsidian.contract.test.ts; the console probes used to
 // observe it live in obsidian-console-probes.md.

@@ -8,9 +8,12 @@ with each result.
 The records below were re-observed on **Obsidian 1.14.4 desktop (Windows)**,
 the current stable, on **2026-10-11**. The reference was 1.13.7 before that;
 every behavior recorded on 1.13.7 reproduced unchanged on 1.14.4 unless a
-record says otherwise. The stub's reference pin is 1.14.4; the installer in the
-probe session was 1.13.7 (the renderer updates in place, so the running app was
-newer than the installer).
+record says otherwise. The stub's reference pin is 1.14.4; the pinned installer
+is the official release asset
+[`Obsidian-1.14.4.exe`](https://github.com/obsidianmd/obsidian-releases/releases/tag/v1.14.4),
+kept outside the repo, so the reference can be reinstalled if an auto-update
+drifts past it. The installer in the probe session was 1.13.7 (the renderer
+updates in place, so the running app was newer than the installer).
 
 ## Re-running these probes (drift check)
 
@@ -41,6 +44,13 @@ Triggers for a re-run: a reference-pin bump, a `minAppVersion` change, an
 `obsidian` package bump, or an Obsidian stable release. Diff each output against
 the record below; a change is a new finding (ADR 0014), not a test to fix
 silently.
+
+Reinstall the pinned reference before a re-run whenever the machine's renderer
+has drifted past it: download the pinned version's installer from the official
+[`obsidian-releases`](https://github.com/obsidianmd/obsidian-releases/releases/tag/v1.14.4)
+page (`Obsidian-1.14.4.exe`) and keep it outside the repo. The app updates in
+place, so a renderer newer than the pin is reverted by running that installer
+before the probes.
 
 The harness quirk to remember: in `repl`/`eval` mode a **promise result must be
 awaited at the top level** (`await somePromise` as the last expression), not
