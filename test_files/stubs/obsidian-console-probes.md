@@ -916,6 +916,16 @@ and `ICON_ALIASES` the five names above; every other name resolves to
 does for a name it does not ship. The stub models neither `getIcon` nor
 `getIconIds`, which have no production consumer.
 
+**Observed on 1.14.4 (Windows), 2026-10-12 (#1037):** the probe's final step
+resolves the four ids the default article template buttons use, on the pinned
+version (`apiVersion` and Settings → About both report 1.14.4).
+`circle-check-big` resolves to `svg-icon lucide-circle-check-big` and `eraser`
+to `svg-icon lucide-eraser`, so both are shipped under their own names.
+`check-circle` resolves to `svg-icon lucide-check-circle` with the same two
+paths as `circle-check-big` (the stub already carries it), `x` to `lucide-x`,
+`save` to `lucide-save`, and `rotate-ccw` to `lucide-rotate-ccw`. The same
+output was seen earlier on 1.13.7, so 1.13.7 matched. The stub now carries
+`lucide-circle-check-big` and `lucide-eraser` in `lucide-icons.ts`.
 The reconciled icon sweep (issue #1047) recorded the resolved id for every
 plugin id the stub did not yet carry, all on 1.14.4: `ban` -> `lucide-ban`,
 `type` -> `lucide-type`, `newspaper` -> `lucide-newspaper`, `layout-grid` ->
