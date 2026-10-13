@@ -5,6 +5,7 @@ import { escapeCdata, escapeXml } from "../../utils/xml-escape.js";
 import { hostMatches } from "../../utils/url-host.js";
 import { resolveAbsoluteHttpUrl } from "../../utils/url-utils.js";
 import type { FeedEncoding } from "../../types/types.js";
+import { discoverFeedUrl } from "./feed-discovery.js";
 import { isValidFeed } from "./feed-validation.js";
 import type {
   AllOriginsResponse,
@@ -116,131 +117,6 @@ async function fetchThroughProxy(
   }
 
   return responseText;
-}
-
-async function discoverFeedUrl(
-  baseUrl: string,
-  signal?: AbortSignal,
-  encodingOverride?: FeedEncoding,
-): Promise<string | null> {
-  if (signal?.aborted) return null;
-  try {
-    const responseText = await robustFetch(baseUrl, {
-      method: "GET",
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-        Accept:
-          "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-      },
-    });
-
-    if (signal?.aborted) return null;
-
-    if (!responseText) return null;
-
-    if (hostMatches(baseUrl, "feeds.feedburner.com")) {
-      const feedNameMatch = baseUrl.match(/feeds\.feedburner\.com\/([^/?]+)/);
-      if (feedNameMatch) {
-        const feedName = feedNameMatch[1];
-        const feedBurnerUrls = [
-          `https://feeds.feedburner.com/${feedName}?format=xml`,
-          `https://feeds.feedburner.com/${feedName}?fmt=xml`,
-          `https://feeds.feedburner.com/${feedName}?type=xml`,
-          `https://feeds.feedburner.com/${feedName}/feed`,
-          `https://feeds.feedburner.com/${feedName}/rss`,
-          `https://feeds.feedburner.com/${feedName}/atom`,
-          `https://feeds.feedburner.com/${feedName}.xml`,
-          `https://feeds.feedburner.com/${feedName}/feed.xml`,
-          `https://feeds.feedburner.com/${feedName}/rss.xml`,
-          `https://feeds.feedburner.com/${feedName}/atom.xml`,
-        ];
-
-        for (const feedUrl of feedBurnerUrls) {
-          if (signal?.aborted) return null;
-          try {
-            const feedResponseText = await robustFetch(feedUrl, {
-              method: "GET",
-              headers: {
-                "User-Agent":
-                  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-                Accept:
-                  "application/feed+json, application/rss+xml, application/atom+xml, application/rdf+xml, application/xml, text/xml;q=0.9, */*;q=0.8",
-              },
-              encodingOverride,
-            });
-
-            if (
-              feedResponseText &&
-              (feedResponseText.includes("<rss") ||
-                feedResponseText.includes("<feed") ||
-                feedResponseText.includes("<channel"))
-            ) {
-              return feedUrl;
-            }
-          } catch {
-            continue;
-          }
-        }
-      }
-    }
-
-    const feedLinkMatches = responseText.match(
-      /<link[^>]+(?:type="application\/rss\+xml"|type="application\/atom\+xml"|type="application\/rdf\+xml"|type="application\/xml")[^>]+href="([^"]+)"/gi,
-    );
-
-    if (feedLinkMatches) {
-      for (const match of feedLinkMatches) {
-        const hrefMatch = match.match(/href="([^"]+)"/);
-        const href = hrefMatch?.[1];
-        if (href) {
-          let feedUrl = href;
-
-          if (feedUrl.startsWith("/")) {
-            const url = new URL(baseUrl);
-            feedUrl = `${url.protocol}//${url.host}${feedUrl}`;
-          } else if (!feedUrl.startsWith("http")) {
-            feedUrl = `${baseUrl}/${feedUrl}`;
-          }
-
-          return feedUrl;
-        }
-      }
-    }
-
-    const altFeedPatterns = [
-      /<a[^>]+href="([^"]*feed[^"]*)"[^>]*>/gi,
-      /<a[^>]+href="([^"]*rss[^"]*)"[^>]*>/gi,
-      /<a[^>]+href="([^"]*atom[^"]*)"[^>]*>/gi,
-      /<a[^>]+href="([^"]*rdf[^"]*)"[^>]*>/gi,
-      /<a[^>]+href="([^"]*xml[^"]*)"[^>]*>/gi,
-    ];
-
-    for (const pattern of altFeedPatterns) {
-      const matches = responseText.match(pattern);
-      if (matches) {
-        for (const match of matches) {
-          const hrefMatch = match.match(/href="([^"]+)"/);
-          const href = hrefMatch?.[1];
-          if (href) {
-            let feedUrl = href;
-            if (feedUrl.startsWith("/")) {
-              const url = new URL(baseUrl);
-              feedUrl = `${url.protocol}//${url.host}${feedUrl}`;
-            } else if (!feedUrl.startsWith("http")) {
-              feedUrl = `${baseUrl}/${feedUrl}`;
-            }
-            if (feedUrl === baseUrl) continue;
-
-            return feedUrl;
-          }
-        }
-      }
-    }
-  } catch {
-    // Feed discovery failed, return null
-  }
-  return null;
 }
 
 export async function fetchFeedXml(

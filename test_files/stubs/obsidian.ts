@@ -1,9 +1,10 @@
 // =============================================================================
 // Core Obsidian API Stubs
 //
-// Reference version: Obsidian 1.14.4 desktop (installer 1.13.7, Electron
-// 43.3.0). The renderer updates in place, so the running app can be newer than
-// the installer; re-observed on 1.14.4 (see obsidian-console-probes.md).
+// Reference version: Obsidian 1.14.4 desktop (installer 1.14.4, Electron
+// 43.7.7). The renderer can update in place ahead of the installer, so pin both
+// by running the `Obsidian-1.14.4.exe` installer from `obsidian-releases` (see
+// obsidian-console-probes.md); re-observed on the matched 1.14.4 install.
 // The stub models observed Obsidian behavior (ADR 0014). Each modeled behavior
 // has an expectation in obsidian.contract.test.ts; the console probes used to
 // observe it live in obsidian-console-probes.md.
@@ -1480,9 +1481,55 @@ class PluginSettingTabStub {
 // UI Components
 // =============================================================================
 
+/**
+ * Observed on Obsidian 1.14.4 desktop (Windows): a `Notice` instance has the
+ * own keys `timerId`, `buttonContainerEl`, `win`, `containerEl`, `noticeEl`
+ * and `messageEl`, and its prototype has `setMessage`, `setAutoHide`,
+ * `addButton` and `hide`. `noticeEl` has class `notice-message` and holds the
+ * message text (see obsidian-console-probes.md, "Notice"). The `console.debug`
+ * line is stub tooling, not an Obsidian behavior: many tests watch it to see
+ * which notices a code path shows.
+ */
 class NoticeStub {
-  constructor(message: string, _timeout?: number) {
+  timerId: number | null;
+  buttonContainerEl: HTMLDivElement;
+  win: Window;
+  containerEl: HTMLDivElement;
+  // Deprecated in obsidian.d.ts; `messageEl` is the modern alias.
+  noticeEl: HTMLDivElement;
+  messageEl: HTMLDivElement;
+
+  constructor(message: string | DocumentFragment, _timeout?: number) {
+    this.timerId = null;
+    this.buttonContainerEl = createDiv();
+    this.win = activeWindow;
+    this.containerEl = createDiv();
+    this.containerEl.appendChild(this.buttonContainerEl);
+    this.noticeEl = this.containerEl.createDiv({ cls: "notice-message" });
+    this.messageEl = this.noticeEl;
+    this.setMessage(message);
     console.debug("[Stub Notice]", message);
+  }
+
+  // From obsidian.d.ts ("Change the message of this notice.").
+  setMessage(message: string | DocumentFragment): this {
+    if (message instanceof DocumentFragment) {
+      this.messageEl.empty();
+      this.messageEl.appendChild(message);
+    } else {
+      this.messageEl.textContent = message;
+    }
+    return this;
+  }
+
+  setAutoHide(_autoHide: boolean): this {
+    return this;
+  }
+
+  addButton(cb: (component: ObsidianApi.ButtonComponent) => unknown): this {
+    const component = new ButtonComponentStub(this.buttonContainerEl);
+    cb(component as unknown as ObsidianApi.ButtonComponent);
+    return this;
   }
 
   hide(): void {}
@@ -1600,6 +1647,74 @@ interface SettingComponent {
   setDisabled(disabled: boolean): unknown;
 }
 
+/**
+ * A button control, the shape shared by `Setting.addButton` and
+ * `Notice.addButton`. Observed on Obsidian 1.14.4 desktop (Windows): it wraps
+ * a `<button>` in the given container and disables through
+ * `buttonEl.disabled`.
+ */
+class ButtonComponentStub implements SettingComponent {
+  buttonEl: HTMLButtonElement;
+  private clickHandler: ((evt: MouseEvent) => void) | null = null;
+
+  constructor(container: HTMLElement) {
+    this.buttonEl = container.createEl("button");
+  }
+
+  setButtonText(text: string): this {
+    this.buttonEl.textContent = text;
+    return this;
+  }
+
+  setIcon(icon: string): this {
+    setIconImpl(this.buttonEl, icon);
+    return this;
+  }
+
+  setTooltip(tooltip: string): this {
+    this.buttonEl.setAttribute("aria-label", tooltip);
+    return this;
+  }
+
+  onClick(handler: (evt: MouseEvent) => void): this {
+    this.clickHandler = handler;
+    this.buttonEl.addEventListener("click", handler);
+    return this;
+  }
+
+  // Observed on Obsidian 1.14.4 desktop (Windows): disabling a button
+  // writes `buttonEl.disabled`.
+  setDisabled(disabled: boolean): this {
+    this.buttonEl.disabled = disabled;
+    return this;
+  }
+
+  setCta(): this {
+    this.buttonEl.classList.add("mod-cta");
+    return this;
+  }
+
+  // Observed on Obsidian 1.14.4 desktop (Windows): setWarning is
+  // `setDestructive().setCta()`, so it adds `mod-destructive mod-cta` and
+  // never `mod-warning`.
+  setWarning(): this {
+    return this.setDestructive().setCta();
+  }
+
+  setDestructive(): this {
+    this.buttonEl.classList.add("mod-destructive");
+    return this;
+  }
+
+  _triggerClick(evt?: MouseEvent): void {
+    if (this.clickHandler) {
+      this.clickHandler(evt ?? new MouseEvent("click"));
+    } else {
+      this.buttonEl.click();
+    }
+  }
+}
+
 class SettingStub {
   settingEl: HTMLDivElement;
   nameEl: HTMLDivElement;
@@ -1685,70 +1800,7 @@ class SettingStub {
     return this;
   }
   addButton(cb: (component: ObsidianApi.ButtonComponent) => unknown): this {
-    class ButtonComponent {
-      buttonEl: HTMLButtonElement;
-      private clickHandler: ((evt: MouseEvent) => void) | null = null;
-
-      constructor(container: HTMLElement) {
-        this.buttonEl = container.createEl("button");
-      }
-
-      setButtonText(text: string): this {
-        this.buttonEl.textContent = text;
-        return this;
-      }
-
-      setIcon(icon: string): this {
-        setIconImpl(this.buttonEl, icon);
-        return this;
-      }
-
-      setTooltip(tooltip: string): this {
-        this.buttonEl.setAttribute("aria-label", tooltip);
-        return this;
-      }
-
-      onClick(handler: (evt: MouseEvent) => void): this {
-        this.clickHandler = handler;
-        this.buttonEl.addEventListener("click", handler);
-        return this;
-      }
-
-      // Observed on Obsidian 1.14.4 desktop (Windows): disabling a button
-      // writes `buttonEl.disabled`.
-      setDisabled(disabled: boolean): this {
-        this.buttonEl.disabled = disabled;
-        return this;
-      }
-
-      setCta(): this {
-        this.buttonEl.classList.add("mod-cta");
-        return this;
-      }
-
-      // Observed on Obsidian 1.14.4 desktop (Windows): setWarning is
-      // `setDestructive().setCta()`, so it adds `mod-destructive mod-cta` and
-      // never `mod-warning`.
-      setWarning(): this {
-        return this.setDestructive().setCta();
-      }
-
-      setDestructive(): this {
-        this.buttonEl.classList.add("mod-destructive");
-        return this;
-      }
-
-      _triggerClick(evt?: MouseEvent): void {
-        if (this.clickHandler) {
-          this.clickHandler(evt ?? new MouseEvent("click"));
-        } else {
-          this.buttonEl.click();
-        }
-      }
-    }
-
-    const component = new ButtonComponent(this.controlEl);
-    return this.attach(component, cb);
+    return this.attach(new ButtonComponentStub(this.controlEl), cb);
   }
 
   addExtraButton(
@@ -2032,6 +2084,9 @@ class SettingStub {
     const component = new TextComponent(this.controlEl);
     return this.attach(component, cb);
   }
+  addSearch(cb: (component: ObsidianApi.SearchComponent) => unknown): this {
+    return this.attach(new SearchComponentStub(this.controlEl), cb);
+  }
   addDropdown(cb: (component: ObsidianApi.DropdownComponent) => unknown): this {
     class DropdownComponent {
       selectEl: HTMLSelectElement;
@@ -2104,6 +2159,69 @@ class TextComponentStub {
 
   onChange(handler: (value: string) => void): this {
     this.changeHandler = handler;
+    return this;
+  }
+}
+
+// Observed in the Obsidian 1.14.4 and 1.8.7 app bundles (app.js, app.css):
+// `SearchComponent` builds `div.search-input-container` holding
+// `input[type=search][enterkeyhint=search]` and a sibling
+// `div.search-input-clear-button`. The clear button swallows `mousedown` so
+// the input keeps focus; a click empties the input, runs the change handler,
+// and focuses the input. app.css draws the button's filled circle-x and hides
+// it while the input shows its placeholder, so it never renders an icon.
+class SearchComponentStub {
+  containerEl: HTMLDivElement;
+  inputEl: HTMLInputElement;
+  clearButtonEl: HTMLDivElement;
+  private changeHandler: ((value: string) => void) | null = null;
+
+  constructor(container: HTMLElement) {
+    this.containerEl = container.createDiv("search-input-container");
+    this.inputEl = this.containerEl.createEl("input", {
+      type: "search",
+      attr: { enterkeyhint: "search" },
+    });
+    this.inputEl.addEventListener("input", () => this.onChanged());
+    this.clearButtonEl = this.containerEl.createDiv(
+      "search-input-clear-button",
+    );
+    this.clearButtonEl.addEventListener("mousedown", (event) =>
+      event.preventDefault(),
+    );
+    this.clearButtonEl.addEventListener("click", () => {
+      if (this.inputEl.disabled) return;
+      this.inputEl.value = "";
+      this.onChanged();
+      this.inputEl.focus();
+    });
+  }
+
+  onChanged(): void {
+    this.changeHandler?.(this.inputEl.value);
+  }
+
+  setValue(value: string): this {
+    this.inputEl.value = value;
+    return this;
+  }
+
+  setPlaceholder(value: string): this {
+    this.inputEl.placeholder = value;
+    return this;
+  }
+
+  getValue(): string {
+    return this.inputEl.value;
+  }
+
+  onChange(handler: (value: string) => void): this {
+    this.changeHandler = handler;
+    return this;
+  }
+
+  setDisabled(disabled: boolean): this {
+    this.inputEl.disabled = disabled;
     return this;
   }
 }
@@ -2273,6 +2391,9 @@ export const Setting = SettingStub as unknown as typeof ObsidianApi.Setting;
 export type TextComponent = ObsidianApi.TextComponent;
 export const TextComponent =
   TextComponentStub as unknown as typeof ObsidianApi.TextComponent;
+export type SearchComponent = ObsidianApi.SearchComponent;
+export const SearchComponent =
+  SearchComponentStub as unknown as typeof ObsidianApi.SearchComponent;
 export type Modal = ObsidianApi.Modal;
 export const Modal = ModalStub as unknown as typeof ObsidianApi.Modal;
 export type AbstractInputSuggest<T> = ObsidianApi.AbstractInputSuggest<T>;
@@ -2297,6 +2418,7 @@ export type StubSignatureChecks = [
   StubMatches<ObsidianApi.MenuItem, MenuItemStub>,
   StubMatches<ObsidianApi.Setting, SettingStub>,
   StubMatches<ObsidianApi.TextComponent, TextComponentStub>,
+  StubMatches<ObsidianApi.SearchComponent, SearchComponentStub>,
   StubMatches<ObsidianApi.Modal, ModalStub>,
   StubMatches<
     ObsidianApi.AbstractInputSuggest<unknown>,

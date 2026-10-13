@@ -1,0 +1,77 @@
+@eval
+// Mobile version guard (#431). Android Obsidian opens Settings inside the main
+// window, so the desktop version-and-platform.repl cannot finish its
+// `@target Settings` step on a device. This driver records the same version
+// guard for a mobile run over the same CDP harness (see the mobile run in
+// test_files/stubs/obsidian-console-probes.md), and it is a no-op on desktop,
+// where version-and-platform.repl already covers the guard. Throwaway vault
+// only; the bootstrap below is the same idempotent one the desktop driver uses.
+const mobile = document.body.classList.contains("is-mobile");
+let output;
+if (!mobile) {
+  output = JSON.stringify({ skipped: "desktop" });
+} else {
+  const A = app.vault.adapter;
+  const probeDir = ".obsidian/plugins/obsidian-probe";
+  await A.mkdir(probeDir).catch(() => {});
+  await A.write(
+    `${probeDir}/manifest.json`,
+    JSON.stringify({
+      id: "obsidian-probe",
+      name: "Obsidian probe",
+      version: "1.0.0",
+      minAppVersion: "1.0.0",
+      description: "Probe helper: stashes the obsidian module on window (#431).",
+      author: "rss-dashboard probe",
+      isDesktopOnly: false,
+    }),
+  );
+  await A.write(
+    `${probeDir}/main.js`,
+    'const o=require("obsidian");class P extends o.Plugin{onload(){window.__obsidianApi=o}}module.exports=P;',
+  );
+  await app.plugins.setEnable(true);
+  await app.plugins.loadManifests();
+  if (!app.plugins.plugins["obsidian-probe"]) {
+    await app.plugins.enablePluginAndSave("obsidian-probe");
+  }
+  await new Promise((r) => window.setTimeout(r, 300));
+  const api = window.__obsidianApi;
+  const P = api.Platform;
+  // Settings opens in this window on mobile; the About line lives on the
+  // General tab. Read it from the same target instead of an `@target Settings`.
+  app.setting.open();
+  await new Promise((r) => window.setTimeout(r, 1200));
+  const general = Array.from(
+    document.querySelectorAll(".vertical-tab-nav-item"),
+  ).find((element) => element.textContent.trim() === "General");
+  if (general) general.click();
+  await new Promise((r) => window.setTimeout(r, 600));
+  const text = document.body.innerText ?? "";
+  const about = {
+    title: document.title,
+    currentVersion: (text.match(/^Version\s+([0-9][0-9.]*)/m) ?? [])[1] ?? null,
+    userAgent: navigator.userAgent,
+  };
+  app.setting.close();
+  output = JSON.stringify({
+    apiVersion: api.apiVersion,
+    platform: {
+      isDesktop: P.isDesktop,
+      isMobile: P.isMobile,
+      isDesktopApp: P.isDesktopApp,
+      isMobileApp: P.isMobileApp,
+      isIosApp: P.isIosApp,
+      isAndroidApp: P.isAndroidApp,
+      isPhone: P.isPhone,
+      isTablet: P.isTablet,
+      isMacOS: P.isMacOS,
+      isWin: P.isWin,
+      isLinux: P.isLinux,
+      isSafari: P.isSafari,
+      resourcePathPrefix: P.resourcePathPrefix,
+    },
+    about,
+  });
+}
+output

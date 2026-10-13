@@ -24,6 +24,7 @@ import {
 } from "../../utils/domain-icon-helpers";
 import { FeedItem, Feed } from "../../types/types";
 import { settingsUiCompatibility } from "../settings-ui-compat";
+import { addInputClearButton } from "../../utils/input-clear-button";
 
 // ── Pure helpers (exported for unit tests) ────────────────────────────────────
 
@@ -178,6 +179,7 @@ export function renderSidebarSettingsTab(
             await applyBadgeColor(normalized);
           });
         text.inputEl.addClass("rss-dashboard-color-hex-input");
+        addInputClearButton(text.inputEl, { label: "Clear color" });
         text.inputEl.setAttribute("aria-label", `${label} hex color`);
       });
     // The color picker component exposes no element, so name its input here.

@@ -13,6 +13,7 @@ import {
   shouldUseMobileSidebarLayout,
 } from "../../utils/platform-utils";
 import { settingsUiCompatibility } from "../settings-ui-compat";
+import { addInputClearButton } from "../../utils/input-clear-button";
 
 // ── TemplateNameModal ───────────────────────────────────────────────────────
 
@@ -37,6 +38,7 @@ export class TemplateNameModal extends Modal {
     new Setting(contentEl).setName("Template name").addText((text) => {
       inputComponent = text;
       text.setPlaceholder("My template");
+      addInputClearButton(text.inputEl);
       text.inputEl.addEventListener("keydown", (e) => {
         if (e.key === "Enter") {
           e.preventDefault();
@@ -183,9 +185,16 @@ export class SavedTemplateEditorModal extends Modal {
     ): HTMLInputElement | HTMLTextAreaElement => {
       const field = parent.createDiv({ cls: "rss-template-field" });
       field.createEl("label", { text: name, attr: { for: id } });
-      const input = multiline
-        ? field.createEl("textarea", { attr: { id, rows: "8" } })
-        : field.createEl("input", { attr: { id, type: "text" } });
+      let input: HTMLInputElement | HTMLTextAreaElement;
+      if (multiline) {
+        input = field.createEl("textarea", { attr: { id, rows: "8" } });
+      } else {
+        const textInput = field.createEl("input", {
+          attr: { id, type: "text" },
+        });
+        addInputClearButton(textInput, { fill: true });
+        input = textInput;
+      }
       input.value = value;
       if (description) {
         input.setAttribute("aria-describedby", description.id);
@@ -376,6 +385,7 @@ export class HighlightWordEditModal extends Modal {
     new Setting(contentEl).setName("Word or phrase").addText((text) => {
       inputComponent = text;
       text.setValue(this.value);
+      addInputClearButton(text.inputEl);
       text.inputEl.addEventListener("keydown", (e) => {
         if (e.key === "Enter") {
           e.preventDefault();

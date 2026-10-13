@@ -2,6 +2,7 @@ import { setIcon } from "obsidian";
 import type RssDashboardPlugin from "../../main";
 import { collectFolderPaths } from "../utils/folder-paths";
 import { FolderNameModal } from "../modals/folder-name-modal";
+import { addInputClearButton } from "../utils/input-clear-button";
 
 export interface FolderSelectorOptions {
   /** The element to position the popup relative to */
@@ -26,7 +27,6 @@ export class FolderSelectorPopup {
   private plugin: RssDashboardPlugin;
   private popupEl!: HTMLElement;
   private inputEl?: HTMLInputElement;
-  private clearBtnEl?: HTMLElement;
   private listEl!: HTMLElement;
   private folders: string[];
   private filteredFolders: string[];
@@ -159,19 +159,10 @@ export class FolderSelectorPopup {
         },
       });
 
-      this.clearBtnEl = inputWrapper.createDiv({
-        cls: `rss-folder-selector-clear${initialQuery ? "" : " is-hidden"}`,
-      });
-      setIcon(this.clearBtnEl, "x");
-      this.clearBtnEl.addEventListener("click", () => {
-        if (this.inputEl) {
-          this.inputEl.value = "";
-          if (this.clearBtnEl) {
-            this.clearBtnEl.addClass("is-hidden");
-          }
-          this.filterFolders("");
-          this.inputEl.focus();
-        }
+      addInputClearButton(this.inputEl, {
+        container: inputWrapper,
+        label: "Clear folder",
+        onClear: () => this.filterFolders(""),
       });
     }
 
@@ -369,12 +360,6 @@ export class FolderSelectorPopup {
           }, 500);
         }
         this.filterFolders(this.inputEl!.value);
-
-        if (this.inputEl!.value) {
-          this.clearBtnEl?.removeClass("is-hidden");
-        } else {
-          this.clearBtnEl?.addClass("is-hidden");
-        }
       });
     }
 

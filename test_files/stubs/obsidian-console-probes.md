@@ -6,27 +6,140 @@ a vault with real data, and record the Obsidian version (**Settings → About**)
 with each result.
 
 The records below were re-observed on **Obsidian 1.14.4 desktop (Windows)**,
-the current stable, on **2026-10-11**. The reference was 1.13.7 before that;
-every behavior recorded on 1.13.7 reproduced unchanged on 1.14.4 unless a
-record says otherwise. The stub's reference pin is 1.14.4; the installer in the
-probe session was 1.13.7 (the renderer updates in place, so the running app was
-newer than the installer).
+the current stable, on **2026-10-11**, and re-confirmed on a matched install
+(installer 1.14.4, Electron 43.7.7) on **2026-10-13**; every record reproduced
+unchanged unless it says otherwise. The reference was 1.13.7 before that. The
+stub's reference pin is 1.14.4. To reproduce it, run the `Obsidian-1.14.4.exe`
+installer from
+[`obsidian-releases`](https://github.com/obsidianmd/obsidian-releases/releases/tag/v1.14.4),
+kept outside the repo: it bundles the 1.14.4 renderer, so the installer and the
+app both read 1.14.4 with no update step. Obsidian's renderer can update itself
+ahead of the installer, so an older install can run a newer app — the first
+probe session had installer 1.13.7 with the app self-updated to 1.14.4.
+
+A **mobile (Android)** device run on **2026-10-13** recorded the device-required
+items below beside the desktop records; each mobile record names the emulator and
+the running app version as `Mobile (Android <version>, <device>)`. That run also
+answered [#429](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/429)'s
+ENOENT question — see
+[the adapter.remove check on Android](#429-the-enoent-check-holds-on-android).
 
 ## Re-running these probes (drift check)
 
-The committed drivers under `test_files/stubs/probes/` run over the merged CDP
-harness (`scripts/obsidian-cdp.mjs`, see "Driving the vault over CDP" in
-`docs/development/fixture-vault.md`). Point a disposable profile at a throwaway
-vault, then run one file per API group:
+The drift check has two halves. The **app-free** half is
+`npm run check:stub-drift`
+([#1063](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1063)):
+it downloads the public `obsidian-<version>.asar.gz` release asset, indexes the
+error-message literals and CSS class names the stub pins, and fails when the
+certified baseline (`obsidian-baseline.json`) loses one. It needs no Obsidian
+install, and a weekly canary will run it and file one `obsidian-update` issue.
+The contract test (`obsidian.contract.test.ts`) is also app-free: it fails when
+the stub stops matching the recorded expectations.
+
+The **device-required** half is this step: it re-runs the whole probe library
+and diffs each driver's output against the records below, observing real
+Obsidian desktop, which CI has no way to run. The app-free half only proves the
+pinned strings still exist in a release; it cannot confirm the behavior the
+stub imitates — that is what these probes are for. Why re-observing stays local
+is recorded in the
+[ADR 0014 amendment](../../docs/adr/0014-obsidian-test-stub-fidelity.md#amendment-2026-10-12).
+
+One command runs every committed driver under `test_files/stubs/probes/`, the
+version guard first, each over the merged CDP harness
+(`scripts/obsidian-cdp.mjs`):
 
 ```sh
-node scripts/obsidian-cdp.mjs repl test_files/stubs/probes/version-and-platform.repl
-node scripts/obsidian-cdp.mjs repl test_files/stubs/probes/request-url.repl
-# ...and the rest of the files listed below.
+npm run stub:probes                  # every driver, version-and-platform first
+npm run stub:probes -- --port 9333   # extra options reach obsidian-cdp.mjs
 ```
 
-Run `version-and-platform.repl` first: it records the running app version from
-Settings → About, the exported API version, and the `Platform` flags.
+It prints a `### <file>` delimiter before each driver's output and exits
+non-zero if any driver fails, after running the rest. The probe output is not
+committed.
+
+**Setup — a disposable profile and a throwaway vault, never the fixture or a
+real vault:**
+
+1. Close Obsidian, then start it with a debug port on a disposable profile, as
+   in [Driving the vault over CDP](../../docs/development/fixture-vault.md#driving-the-vault-over-cdp):
+
+   ```powershell
+   $profile = "$env:TEMP\rss-dashboard-cdp-profile"
+   & "$env:LOCALAPPDATA\Obsidian\Obsidian.exe" `
+     --remote-debugging-port=9333 `
+     --user-data-dir=$profile
+   ```
+
+2. Open a scratch vault in that instance (**Open another vault** → **Open
+   folder as vault**) and trust it.
+
+### Mobile (Android) setup over adb
+
+Android Obsidian ships with webview debugging enabled, so a device is driven
+through the same harness over an `adb forward` of the renderer's devtools
+socket, with **no code change**. Use a throwaway vault on the device; never the
+fixture or a real vault. The repo's precedent AVD is `Pixel_10a_-37api` (see
+`docs/development/design-spec.md`); boot it and forward the port:
+
+```powershell
+$adb = "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe"
+& "$env:LOCALAPPDATA\Android\Sdk\emulator\emulator.exe" -avd Pixel_10a_-37api
+& $adb wait-for-device
+& $adb shell getprop sys.boot_completed      # poll until 1
+
+& $adb shell pm list packages | Select-String obsidian
+# adb install <obsidian-<version>.apk>       # only when md.obsidian is absent;
+                                             # the APK is a public asset on
+                                             # obsidianmd/obsidian-releases and
+                                             # is never committed
+
+# Keep the renderer in the foreground: a sleeping screen pauses webview timers
+# and every probe call times out. Simulate power and keep the screen on.
+& $adb shell dumpsys battery set ac 1
+& $adb shell settings put global stay_on_while_plugged_in 7
+
+# Reach the renderer over the devtools socket.
+& $adb shell pidof md.obsidian
+& $adb shell cat /proc/net/unix | Select-String webview_devtools_remote
+& $adb forward tcp:9333 localabstract:webview_devtools_remote_<pid>
+
+# The mobile version guard records the running version and the Platform flags.
+# The desktop version-and-platform.repl stops at its `@target Settings` step,
+# which a device has no separate target for.
+node scripts/obsidian-cdp.mjs repl test_files/stubs/probes/mobile-version-and-platform.repl --host localhost --port 9333
+node scripts/obsidian-cdp.mjs repl test_files/stubs/probes/adapter.repl --host localhost --port 9333
+# ...then vault-index.repl, normalize-path.repl, and dom-helpers.repl the same way.
+```
+
+A device vault is a plain folder under shared storage; Obsidian opens the one
+named by the webview localStorage key `mobile-selected-vault`. Point a **new**
+folder at it and reload — again, never the fixture or a real vault:
+
+```js
+localStorage.setItem(
+  "mobile-selected-vault",
+  "/storage/emulated/0/Documents/rss-431-scratch",
+);
+localStorage.setItem(
+  "mobile-external-vaults",
+  JSON.stringify(["/storage/emulated/0/Documents/rss-431-scratch"]),
+);
+app.commands.executeCommandById("app:reload");
+```
+
+Two device quirks. The mobile target URL is `http://localhost/`, not
+`app://obsidian.md/index.html`, so `selectTarget` picks it only when it is the
+sole page (pass `--target` if a session has more). And `--expect-vault` /
+`--profile` cannot guard a mobile session: they rely on
+`app.vault.adapter.getBasePath()`, which does not exist on mobile (see
+[TFile names and adapter paths](#tfile-names-and-adapter-paths)). On desktop,
+`mobile-version-and-platform.repl` is a no-op that prints
+`{"skipped":"desktop"}`.
+
+Run `version-and-platform.repl` first (the command does): it records the
+running app version from Settings → About, the exported API version, and the
+`Platform` flags. Record that version with the result — the installer and the
+running renderer can differ.
 
 The console exposes only `Notice`, `moment`, `requestUrl`, the DOM helpers, and
 `app` as globals; the API classes (`Setting`, `Menu`, `MarkdownRenderer`,
@@ -37,10 +150,27 @@ that stashes `require("obsidian")` on `window.__obsidianApi`, enabling it with
 idempotent. `Notice`, `moment`, `requestUrl`, and the DOM helpers are reachable
 without it.
 
-Triggers for a re-run: a reference-pin bump, a `minAppVersion` change, an
-`obsidian` package bump, or an Obsidian stable release. Diff each output against
-the record below; a change is a new finding (ADR 0014), not a test to fix
-silently.
+**Diffing:** compare each driver's output with the matching record below. A
+change is a **new ADR 0014 finding**, not a test to fix silently — record the
+behavior with the running version and treat it as the stub's new target, or as a
+production bug the old stub was hiding. To re-run one file by hand:
+
+```sh
+node scripts/obsidian-cdp.mjs repl test_files/stubs/probes/version-and-platform.repl
+node scripts/obsidian-cdp.mjs repl test_files/stubs/probes/request-url.repl
+# ...and the rest of the files listed below.
+```
+
+**Triggers for a re-run:** a reference-pin bump, a `minAppVersion` change, an
+`obsidian` package bump, an `obsidian-test-mocks` pinned-baseline bump, or
+opportunistically after an Obsidian stable release. A **mobile** run adds the
+same triggers for the Android app, plus a new device or API level.
+
+Reinstall the pinned reference before a re-run whenever the machine's renderer
+has drifted past it: run the pinned version's installer from the official
+[`obsidian-releases`](https://github.com/obsidianmd/obsidian-releases/releases/tag/v1.14.4)
+page (`Obsidian-1.14.4.exe`), kept outside the repo. It bundles the 1.14.4
+renderer, so the installer and the app both land on the pin with no update step.
 
 The harness quirk to remember: in `repl`/`eval` mode a **promise result must be
 awaited at the top level** (`await somePromise` as the last expression), not
@@ -125,6 +255,9 @@ for (const p of [
 
 Observed: both paths are indexed `null` and on disk `true`.
 
+**Mobile (Android 1.14.4 (389), Pixel_10a\_-37api emulator):** the same — both
+paths are indexed `null` and on disk `true`.
+
 ## create and createFolder on existing paths
 
 **Probe:** `test_files/stubs/probes/vault-index.repl`.
@@ -134,6 +267,13 @@ throws `File already exists.` the same way. `getAbstractFileByPath` is
 case-sensitive, so the case variant returns `null` while `adapter.exists`
 returns `true`. `create` with a missing parent folder throws `ENOENT` with the
 absolute path.
+
+**Mobile (Android 1.14.4 (389), Pixel_10a\_-37api emulator):** matches desktop
+except for the missing-parent error, which on Android is a plain `Error` whose
+message is `Parent folder doesn't exist` and whose `code` is present but
+`undefined` (see [Adapter file system model](#adapter-file-system-model)).
+`Folder already exists.`, `File already exists.`, and the case-sensitive lookup
+(`null` while `adapter.exists` is `true`) are unchanged.
 
 ```js
 await app.vault.createFolder("probe-folder");
@@ -174,6 +314,14 @@ returns it — not only `vault.createFolder` folders. After `adapter.write`,
 `exists` is true and `getAbstractFileByPath` returns the file. `list` returns
 the full vault paths of the direct children (`{ folders: ["probe-adapter/m1"],
 files: [] }` for the nested mkdir above).
+
+**Mobile (Android 1.14.4 (389), Pixel_10a\_-37api emulator):**
+`adapter.mkdir` (nested and on an existing folder), `exists`, `list`, and the
+vault index all match desktop. Only `adapter.write` under a missing parent
+diverges: Android rejects with an `Error` (own keys `["stack", "message",
+"code", "data"]`, message `Parent folder doesn't exist`) whose `code` is
+present but **`undefined`**, where desktop rejects with `code: "ENOENT"`.
+`vault.create` with a missing parent throws the same `undefined`-`code` shape.
 
 ```js
 const A = app.vault.adapter;
@@ -250,6 +398,26 @@ console.log(log);
 The driver reaches `Modal` as `api.Modal` from the bootstrapped module; the
 console route above (its base class on `app.setting`) gives the same class.
 
+## Minimum version: the 1.8.7 close button
+
+**Probe:** `test_files/stubs/probes/modal.repl`, with
+`version-and-platform.repl` for the version guard.
+**Observed on Obsidian 1.8.7 desktop (Windows) on 2026-10-13:** Settings →
+About read **Current version: v1.8.7** and the exported `apiVersion` was
+`"1.8.7"`. A `Modal`'s `modalEl` children are, in order, `modal-close-button`,
+`modal-header`, and `modal-content`: the close button is `.modal-close-button`,
+and `.modal-header-button` does not exist (0 occurrences in the 1.8.7
+`obsidian.asar`, against 11 for `.modal-close-button`). Clicking
+`.modal-close-button` closes the modal. The `onOpen`/`close` lifecycle matches
+1.14.4: `onOpen` runs with `containerEl` connected, and `close()` detaches
+`containerEl` before `onClose`. This is why `NATIVE_CLOSE_BUTTON_SELECTOR` in
+`src/utils/modal-close-button.ts` keeps both names and `modals.css` pairs them
+(#431).
+
+The `version-and-platform.repl` `@target Settings` step assumes Settings opens
+in its own window, which is true on 1.14.4; on 1.8.7 Settings opens inside the
+main window, so read the About text from that same target instead.
+
 ## DOM helpers on elements
 
 **Probe:** `test_files/stubs/probes/dom-helpers.repl`.
@@ -279,6 +447,11 @@ option below.
   the fragment). A Node receiver ignores `parent`:
   `receiver.createEl("span", { parent: other })` appends to `receiver`, not
   `other`. `test_files/unit/test-dom-polyfills.ts` models this.
+
+**Mobile (Android 1.14.4 (389), Pixel_10a\_-37api emulator):** every recorded
+value matches desktop, including `activeDocument.createDiv()` throwing
+`HierarchyRequestError` ("Only one element on document allowed") and the global
+`createDiv()` returning a detached element (`parentNode` null).
 
 ```js
 const r = {};
@@ -412,6 +585,13 @@ Observed: every case is normalized, including the combining-accent `cafe\u0301`
 is `"/"`, and a direct lookup with a backslash (`probe-np\back.md`) is `null`
 (lookups don't normalize). The rename lands at `"probe-np/renamed café.md"`.
 
+**Mobile (Android 1.14.4 (389), Pixel_10a\_-37api emulator):** every case
+matches desktop — `//` collapses, leading/trailing separators trim, `\` is a
+separator, U+00A0 and U+202F become spaces, and the combining-accent
+`café` NFC-normalizes; `getAbstractFileByPath("")` is `null`, `("/")` is `"/"`,
+the backslash lookup is `null`, and the rename lands at
+`"probe-np/renamed café.md"`.
+
 ## Reading a missing file
 
 **Probe:** `test_files/stubs/probes/adapter.repl`.
@@ -440,6 +620,18 @@ same CDP connection (introspecting `app.vault.cachedRead`, `Vault.read`,
   still throws `ENOENT`.
 - `modify(file, content)` updates the cache to the new content on success and
   clears it when the write fails; `append(file, content)` clears it.
+
+**Mobile (Android 1.14.4 (389), Pixel_10a\_-37api emulator):** `adapter.read`,
+`vault.read`, `vault.readBinary`, and `adapter.readBinary` of a missing path all
+reject with `code: "ENOENT"` and the message `File does not exist` (the code
+matches desktop; the message does not). The `cachedRead` cases **diverge**: a
+file removed on disk after `vault.create` — never read — still served its
+content, and content written through `adapter.write` was served after the
+removal, where desktop threw `ENOENT` for both. The file was confirmed gone
+(`adapter.exists` false), so the mobile per-`TFile` cache is filled by `create`
+and `adapter.write` too, not only by `read`. The stub keeps the desktop cache
+model (ADR 0014's reference is the desktop release); this mobile-only difference
+is recorded here, not modeled.
 
 The stub models the `cachedRead`/`read`/`create` cases in
 `MockDataVault.cachedRead`: a per-`TFile` cache filled by `read`, served by
@@ -604,8 +796,16 @@ and `extension` is `md`. For `dir/noext`, `name` and `basename` are `noext` and
 `extension` is `""`. `adapter.getBasePath` is a function that returns the
 vault's absolute path, and `adapter.getFullPath("a/b.md")` returns it joined
 with the vault path in OS separators (`...\rss-431-scratch-vault\a\b.md`). The
-stub always joins with `/`. Mobile wasn't probed; its adapter has no
-`getBasePath`.
+stub always joins with `/`.
+
+**Mobile (Android 1.14.4 (389), Pixel_10a\_-37api emulator):** `name`,
+`basename`, and `extension` match desktop (`my.file.name.md` / `my.file.name` /
+`md`; `noext` / `noext` / `""`). `adapter.getBasePath` is **absent**: `typeof
+adapter.getBasePath` is `"undefined"`, which is why `--expect-vault` and
+`--profile` cannot guard a mobile session. `adapter.getFullPath("a/b.md")`
+exists and joins with forward slashes —
+`/storage/emulated/0/Documents/rss-431-scratch/a/b.md` — so mobile matches the
+stub's `/` join, where desktop joined in OS separators.
 
 ```js
 const V = app.vault;
@@ -643,6 +843,15 @@ macOS reports `EISDIR` for a folder instead; that wasn't probed. Removing a case
 variant of an existing file's path wasn't probed either. `adapter.remove` of an
 existing file resolves and the file is gone.
 
+**Mobile (Android 1.14.4 (389), Pixel_10a\_-37api emulator):** `adapter.remove`
+of a missing path rejects with an `Error` (`instanceof Error` true, own keys
+`["stack", "message", "code", "data"]`) whose `code` is **`"ENOENT"`** and whose
+message is **`File does not exist`** — the message differs from desktop, but the
+code is the same. `adapter.remove` of an **empty folder resolves and removes
+it**, where desktop throws `EPERM` and keeps the folder; removing an existing
+file resolves as on desktop. This is the one shape the #429 guard depends on —
+see below.
+
 ```js
 const A = app.vault.adapter;
 await A.mkdir("probe-remove/m1");
@@ -661,6 +870,25 @@ try {
 console.log("folder still exists:", await A.exists("probe-remove/m1"));
 // Clean up: delete probe-remove from the file explorer.
 ```
+
+## #429: the ENOENT check holds on Android
+
+`isMissingFileError` in `src/services/image-cache-service.ts` accepts only an
+`Error` whose `code` is `"ENOENT"`, guarding the `adapter.remove` of a cached
+image file that a user or a sync tool already deleted. That shape was recorded
+on desktop only, so it was unknown whether #429's fix worked on phones. The
+item-12 device run answers it.
+
+**Observed on Obsidian 1.14.4 Android (build 389), Pixel_10a\_-37api emulator
+(Android 17 / API 37) on 2026-10-13:** `adapter.remove` of a missing path
+rejects with an `Error` (`instanceof Error`; own keys `stack`, `message`,
+`code`, `data`) whose `code` is `"ENOENT"` and whose message is `File does not
+exist`. The guard tests `code === "ENOENT"` and never the message, so it
+**matches on Android: the #429 fix holds on phones and no production change is
+needed.** A future guard must keep keying on `code`, not the message. Android's
+missing-parent error from `adapter.write`/`create` is a different shape (message
+`Parent folder doesn't exist`, `code` present but `undefined`), but the guard
+never wraps a write.
 
 ## Renaming a file
 
@@ -705,16 +933,33 @@ for (const [label, rename] of [
 // Clean up: await V.adapter.rmdir(root, true);
 ```
 
+**Mobile (Android 1.14.4 (389), Pixel_10a\_-37api emulator):** matches desktop —
+the content follows the rename, the old path is unindexed, the double-slash
+rename normalizes to `probe-rename/r3.md`, and both `renameFile` and
+`vault.rename` throw `Destination file already exists!` onto an existing path.
+
 ## Step 3: version and Platform
 
 **Probe:** `test_files/stubs/probes/version-and-platform.repl`.
 **Observed on 1.14.4 (Windows):** Settings → About reads **Version 1.14.4** and
-**Installer version: 1.13.7** (the renderer updates in place, so the app can be
-newer than the installer). The exported `apiVersion` is `"1.14.4"`. `Platform`
-has `isDesktop`, `isDesktopApp`, `isWin` true; every other flag false;
-`resourcePathPrefix` is a per-install `app://<hash>/` URL. The stub keeps the OS
-flags false and a fixed `resourcePathPrefix` so tests don't depend on the
-machine.
+**Installer version: 1.14.4** on the matched install (**1.13.7** in the first
+1.14.4 session, where the renderer had self-updated ahead of the installer). The
+exported `apiVersion` is `"1.14.4"`. `Platform` has `isDesktop`, `isDesktopApp`,
+`isWin` true; every other flag false; `resourcePathPrefix` is a per-install
+`app://<hash>/` URL. The stub keeps the OS flags false and a fixed
+`resourcePathPrefix` so tests don't depend on the machine.
+
+**Mobile (Android 1.14.4 (389), Pixel_10a\_-37api emulator):** probe
+`test_files/stubs/probes/mobile-version-and-platform.repl`. Settings → General
+(**About**) reads **Version 1.14.4 (389)** and there is no `Installer version`
+line (desktop only); the exported `apiVersion` is `"1.14.4"` and the webview
+user agent ends `obsidian/1.14.4`. `Platform` has `isMobile`, `isMobileApp`,
+`isAndroidApp`, `isPhone`, and `isLinux` true; `isDesktop` and `isDesktopApp`
+false, with every other flag false; `resourcePathPrefix` is `file:///`. Settings
+opens **in the main window** on mobile, so `app.setting.open()` has no separate
+target and the desktop driver's `@target Settings` step does not apply; the
+mobile driver opens Settings, selects the General tab, and reads the About line
+from the same target.
 
 ## Step 3: requireApiVersion
 
@@ -770,6 +1015,38 @@ label `is-disabled` (toggle). `setDisplayFormat` rewrites the slider's
 models all of these; the color picker's element is exposed as `colorPickerEl`,
 matching the runtime.
 
+## SearchComponent and the input clear button
+
+**Source:** read from the app bundles, not a console probe: `app.js` and
+`app.css` in `obsidian-1.14.4.asar` (the installed 1.14.4 desktop app) and
+`obsidian-1.8.7.asar` (the public release asset `check:stub-drift` downloads),
+on 2026-10-13. The iPhone and Android Settings search show the same control
+(checked by hand on both phones, 2026-10-13).
+
+**Structure (modeled):** `new SearchComponent(containerEl)` builds
+`div.search-input-container` holding
+`<input type="search" enterkeyhint="search">` and a sibling
+`div.search-input-clear-button`, and exposes `containerEl`, `inputEl` and
+`clearButtonEl` (`containerEl` is not in the public API types). The clear button cancels `mousedown`, so the input keeps
+focus; a click, unless the component is disabled, empties the input, calls
+`onChanged()` (which runs the `onChange` handler) and focuses the input.
+`Setting.addSearch` adds one to the control. The stub models all of these.
+
+**Styling (not modeled; jsdom does not apply app.css):** the button holds no
+svg. `.search-input-clear-button::after` paints a 12-unit filled circle with
+an x cut out as a CSS mask in `currentColor`, sized
+`--search-clear-button-size`; the button is `position: absolute`,
+`inset-inline-end: 2px`, 28px wide and `--input-height` tall, colored
+`--search-clear-button-color` (`--text-muted`), and `--text-normal` on hover.
+`.search-input-container input:placeholder-shown ~ .search-input-clear-button`
+hides it while the input is empty, and a non-empty input gets
+`padding-inline-end: 28px`. Both versions match, except the mobile size: 1.8.7
+sets `--search-clear-button-size: 16px` under `.is-mobile`, 1.14.4
+`max(16px, calc(16px * var(--preferred-text-scale)))`; desktop is 13px in
+both. There are no `.is-ios` or `.is-android` clear-button rules. The
+plugin's `addInputClearButton` reuses the class (see **Input Clear Buttons**
+in `docs/development/design-spec.md`).
+
 ## Step 3: Menu
 
 **Probe:** `test_files/stubs/probes/menu.repl`.
@@ -801,8 +1078,8 @@ the menu renders elsewhere.
 `buttonContainerEl`, `win`, `containerEl`, `noticeEl`, `messageEl`; its
 prototype has `setMessage`, `setAutoHide`, `addButton`, `hide`; `noticeEl` has
 class `notice-message` and holds the message text. The global `Notice` is the
-same constructor. The stub only models `hide()`; the instance shape is a
-separate confirmation slice (#431).
+same constructor. The stub models the instance shape and the contract test pins
+it (#431).
 
 ## Step 3: setIcon
 
@@ -837,6 +1114,28 @@ and `ICON_ALIASES` the five names above; every other name resolves to
 does for a name it does not ship. The stub models neither `getIcon` nor
 `getIconIds`, which have no production consumer.
 
+**Observed on 1.14.4 (Windows), 2026-10-12 (#1037):** the probe's final step
+resolves the four ids the default article template buttons use, on the pinned
+version (`apiVersion` and Settings → About both report 1.14.4).
+`circle-check-big` resolves to `svg-icon lucide-circle-check-big` and `eraser`
+to `svg-icon lucide-eraser`, so both are shipped under their own names.
+`check-circle` resolves to `svg-icon lucide-check-circle` with the same two
+paths as `circle-check-big` (the stub already carries it), `x` to `lucide-x`,
+`save` to `lucide-save`, and `rotate-ccw` to `lucide-rotate-ccw`. The same
+output was seen earlier on 1.13.7, so 1.13.7 matched. The stub now carries
+`lucide-circle-check-big` and `lucide-eraser` in `lucide-icons.ts`.
+The reconciled icon sweep (issue #1047) recorded the resolved id for every
+plugin id the stub did not yet carry, all on 1.14.4: `ban` -> `lucide-ban`,
+`type` -> `lucide-type`, `newspaper` -> `lucide-newspaper`, `layout-grid` ->
+`lucide-layout-grid`, `history` -> `lucide-history`, `dices` -> `lucide-dices`,
+`square` -> `lucide-square`, `check-square` -> `lucide-check-square`,
+`chevrons-up` -> `lucide-chevrons-up`, `chevrons-down` -> `lucide-chevrons-down`,
+`wand-2` -> `lucide-wand-2`, and `folders` -> `lucide-folders`. `minus-vertical`
+is **unknown** on 1.14.4, like `youtube`, so the sidebar divider now uses the
+shipped `separator-vertical` (`lucide-separator-vertical`). `lucide-icons.ts`
+carries all of them, and `test_files/unit/utils/used-icons.test.ts` fails when
+the production code names an icon id the stub does not carry.
+
 ## Step 3: Scope
 
 **Probe:** `test_files/stubs/probes/scope.repl`.
@@ -845,7 +1144,8 @@ does for a name it does not ship. The stub models neither `getIcon` nor
 with `Mod` resolved to the platform key: `["Mod", "Shift"]` → `"Ctrl,Shift"` on
 Windows, `["Ctrl", "Alt"]` → `"Alt,Ctrl"`, `null` → `null`, `[]` → `""`. A
 `Scope` has no `handlers` property. The stub stores the modifier array that
-tests inspect; the string form is not modeled (#431).
+tests inspect and the contract test pins that divergence; the string form is not
+modeled (#431).
 
 ## Step 3: AbstractInputSuggest
 
@@ -854,8 +1154,9 @@ tests inspect; the string form is not modeled (#431).
 `PopoverSuggest`. Its prototype has `showSuggestions`, `setValue`, `getValue`,
 `onInputFocus`, `onInputChange`, `selectSuggestion`, `onSelect`, `close`,
 `reposition`, `open`, `autoReposition`; `getSuggestions` and `renderSuggestion`
-are abstract. Stays thin in the stub: no production consumer; model it
-faithfully when one appears (#431).
+are abstract. The stub stays thin by design and the contract test pins that
+surface; there is no production consumer, so model it faithfully when one
+appears (#431).
 
 ## Step 3: MarkdownRenderer (the 1.14 math DOM)
 
@@ -874,8 +1175,8 @@ exist. Plain markdown renders `<h1 data-heading="H" dir="auto">H</h1>` and
 (`src/utils/math-rendering.ts`) reads back only `.math` and `mjx-container` and
 sets its own `data-math`, all of which the MathJax 4 DOM still provides, so the
 swap did not break the plugin; the reference pin moves to 1.14.4. The stub's
-math model is a bare `mjx-container` holding the LaTeX text, a divergence to
-confirm in the confirmations slice (#431).
+math model is a bare `mjx-container` holding the LaTeX text; the contract test
+pins that subset and records the divergence (#431).
 
 ## Step 3: moment
 

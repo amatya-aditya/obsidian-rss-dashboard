@@ -210,42 +210,6 @@
   width: 100%;
 }
 
-.rss-dashboard-dropdown-controls .rss-dashboard-article-search-clear-button {
-  position: absolute;
-  right: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 24px;
-  height: 24px;
-  padding: 0;
-  border: none;
-  border-radius: 999px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-muted);
-  background: transparent;
-  cursor: pointer;
-}
-
-.rss-dashboard-dropdown-controls
-  .rss-dashboard-article-search-clear-button:hover {
-  color: var(--text-normal);
-  background: var(--background-modifier-hover);
-}
-
-.rss-dashboard-dropdown-controls
-  .rss-dashboard-article-search-clear-button.is-hidden {
-  display: none;
-}
-
-.rss-dashboard-dropdown-controls
-  .rss-dashboard-article-search-clear-button
-  svg {
-  width: 14px;
-  height: 14px;
-}
-
 /* ============================================
  * 4. Mark All Controls
  * ============================================ */

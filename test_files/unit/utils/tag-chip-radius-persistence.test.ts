@@ -10,15 +10,16 @@ import {
   DEFAULT_SETTINGS,
   type RssDashboardSettings,
 } from "../../../src/types/types";
+import type { DeepPartial } from "../../../src/types/deep-partial";
 
 function cloneSettings(): RssDashboardSettings {
   return JSON.parse(JSON.stringify(DEFAULT_SETTINGS)) as RssDashboardSettings;
 }
 
-function withRadius(value: unknown): Partial<RssDashboardSettings> {
+function withRadius(value: unknown): DeepPartial<RssDashboardSettings> {
   return {
     display: { tagChipRadius: value },
-  } as unknown as Partial<RssDashboardSettings>;
+  } as unknown as DeepPartial<RssDashboardSettings>;
 }
 
 describe("tag chip radius default and load", () => {
@@ -29,9 +30,7 @@ describe("tag chip radius default and load", () => {
 
   it("backfills Pill for legacy settings whose display group lacks the field", () => {
     const legacy = { display: { showSummary: false } };
-    const loaded = loadAndNormalizeSettings(
-      legacy as unknown as Partial<RssDashboardSettings>,
-    );
+    const loaded = loadAndNormalizeSettings(legacy);
 
     expect(loaded.display.tagChipRadius).toBe("999px");
     expect(loaded.display.showSummary).toBe(false);

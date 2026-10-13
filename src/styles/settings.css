@@ -91,16 +91,87 @@
   width: 100%;
 }
 
-.rss-dashboard-variable-list {
-  margin: 8px 0 0 16px;
-  padding: 0;
-  list-style-type: none;
+.rss-dashboard-template-help .rss-dashboard-variable-list {
+  margin: 8px 0 0;
+  padding: 0 0 0 24px;
+  list-style-type: disc;
+  list-style-position: outside;
   font-size: 13px;
   color: var(--text-normal);
 }
 
 .rss-dashboard-variable-list li {
-  margin-bottom: 2px;
+  margin-bottom: 6px;
+}
+
+.rss-dashboard-template-help
+  .rss-dashboard-variable-list
+  .rss-dashboard-variable-chip {
+  display: inline;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-s);
+  background: transparent;
+  box-shadow: none;
+  height: auto;
+  font: inherit;
+  color: inherit;
+  text-align: inherit;
+  cursor: pointer;
+}
+
+.rss-dashboard-template-help
+  .rss-dashboard-variable-list
+  .rss-dashboard-variable-chip
+  code {
+  padding: 1px 4px;
+  background-color: var(--background-modifier-hover);
+  border-radius: var(--radius-s);
+  text-decoration: underline dotted;
+  text-underline-offset: 2px;
+  overflow-wrap: anywhere;
+}
+
+.rss-dashboard-template-help
+  .rss-dashboard-variable-list
+  .rss-dashboard-variable-chip.is-inline
+  code {
+  padding-inline: 0;
+}
+
+.is-phone
+  .rss-dashboard-template-help
+  .rss-dashboard-variable-list
+  .rss-dashboard-variable-chip {
+  position: relative;
+}
+
+.is-phone
+  .rss-dashboard-template-help
+  .rss-dashboard-variable-list
+  .rss-dashboard-variable-chip::after {
+  content: "";
+  position: absolute;
+  inset: -5px -2px;
+}
+
+.rss-dashboard-template-help
+  .rss-dashboard-variable-list
+  .rss-dashboard-variable-chip:hover
+  code,
+.rss-dashboard-template-help
+  .rss-dashboard-variable-list
+  .rss-dashboard-variable-chip:focus-visible
+  code {
+  background-color: var(--background-modifier-border);
+}
+
+.rss-dashboard-template-help
+  .rss-dashboard-variable-list
+  .rss-dashboard-variable-chip:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 1px;
 }
 
 .rss-dashboard-template-help .rss-dashboard-variable-group-heading {
@@ -126,6 +197,51 @@
   transition: all 0.2s ease;
   border: 1px solid var(--background-modifier-border);
   cursor: pointer;
+}
+
+.rss-dashboard-template-status {
+  margin-top: 8px;
+  font-size: var(--font-ui-small);
+  color: var(--text-muted);
+}
+
+.rss-dashboard-template-btn-row .rss-dashboard-template-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.rss-dashboard-template-btn-row .rss-dashboard-custom-save-button-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+}
+
+.rss-dashboard-template-btn-row .rss-dashboard-custom-save-button-icon svg {
+  width: var(--icon-size, 1em);
+  height: var(--icon-size, 1em);
+}
+
+.rss-dashboard-template-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Obsidian dims button[aria-disabled="true"] to 0.7; this state stays bright. */
+.rss-dashboard-template-btn-row .rss-dashboard-template-btn.is-default {
+  opacity: 1;
+  cursor: default;
+}
+
+.rss-dashboard-template-btn-row
+  .rss-dashboard-template-btn.is-default
+  .rss-dashboard-custom-save-button-icon {
+  color: var(--color-green);
+}
+
+.rss-dashboard-template-btn:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 2px;
 }
 
 .rss-dashboard-template-btn:hover {
@@ -562,4 +678,11 @@
 
 .rss-dashboard-tag-shape .rss-dashboard-tag-shape-reset {
   align-self: flex-start;
+}
+
+/* The custom radius input sits in a clear-button wrapper (input-clear-button.css). */
+.rss-dashboard-tag-shape .rss-dashboard-tag-shape-custom > .rss-input-clear {
+  min-width: 0;
+  flex: 1 1 180px;
+  max-width: 280px;
 }

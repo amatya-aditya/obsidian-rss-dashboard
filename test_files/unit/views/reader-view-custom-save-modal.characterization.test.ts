@@ -311,19 +311,14 @@ describe("ReaderView custom save dialog behavior", () => {
     expect(folder.type).toBe("text");
     expect(folder.placeholder).toBe("Enter folder path");
     expect(folder.value).toBe("Reading/Queue");
-    expect(
-      modal
-        .querySelector(".rss-dashboard-clear-icon")
-        ?.getAttribute("aria-label"),
-    ).toBe("Clear save folder");
-    expect(
-      modal.querySelector(".rss-dashboard-clear-icon")?.getAttribute("role"),
-    ).toBe("button");
-    expect(
-      modal
-        .querySelector(".rss-dashboard-clear-icon")
-        ?.getAttribute("tabindex"),
-    ).toBe("0");
+    // Obsidian's clear button, as a native button (no role or tabindex).
+    const folderClear = modal.querySelector<HTMLButtonElement>(
+      ".rss-dashboard-folder-input-container > button.search-input-clear-button",
+    );
+    expect(folderClear?.getAttribute("aria-label")).toBe("Clear save folder");
+    expect(folderClear?.type).toBe("button");
+    expect(folderClear?.hasAttribute("role")).toBe(false);
+    expect(folderClear?.hasAttribute("tabindex")).toBe(false);
     expect(
       Array.from(savedTemplate.options, (option) => [
         option.text,
@@ -375,30 +370,20 @@ describe("ReaderView custom save dialog behavior", () => {
     expect(getFields(missingModal).template.value).toBe("Fallback template");
   });
 
-  it("clears the folder by click or keyboard and returns focus to the input", async () => {
+  it("clears the folder with its clear button and returns focus to the input", async () => {
     const { view } = createHarness({ defaultFolder: "Initial" });
     const modal = await openCustomSaveDialog({
       view,
       item: createItem(),
     } as CustomSaveHarness);
     const { folder } = getFields(modal);
-    const clearIcon = modal.querySelector<HTMLElement>(
-      ".rss-dashboard-clear-icon",
+    const clearButton = modal.querySelector<HTMLButtonElement>(
+      ".rss-dashboard-folder-input-container > button.search-input-clear-button",
     );
-    if (!clearIcon) throw new Error("Folder clear control was not rendered");
+    if (!clearButton) throw new Error("Folder clear control was not rendered");
 
-    clearIcon.click();
-    expect(folder.value).toBe("");
-    expect(activeDocument.activeElement).toBe(folder);
-
-    folder.value = "Again";
-    clearIcon.dispatchEvent(
-      new KeyboardEvent("keydown", {
-        key: " ",
-        bubbles: true,
-        cancelable: true,
-      }),
-    );
+    // Native button: the browser supplies Enter and Space, which jsdom does not.
+    clearButton.click();
     expect(folder.value).toBe("");
     expect(activeDocument.activeElement).toBe(folder);
   });

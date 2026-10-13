@@ -24,6 +24,11 @@ export interface FeedOperationTrackerOptions {
   renderStatus: () => Promise<void>;
   /** Redraws only the sidebar of open dashboards. */
   renderSidebar: () => Promise<void>;
+  /**
+   * Applies per-feed status changes to open sidebars in place, without the
+   * rebuild that would interrupt a scroll through them.
+   */
+  renderSidebarStatus: () => Promise<void>;
   /** Called when the user stops an operation, before its signal aborts. */
   onCancelled: () => void;
 }
@@ -195,7 +200,10 @@ export class FeedOperationTracker {
     return this.disposed ? Promise.resolve() : this.options.renderStatus();
   }
 
-  /** Coalesces sidebar-only status redraws without delaying final settlement. */
+  /**
+   * Coalesces in-place sidebar status updates. A flush, sent when the last
+   * feed settles, redraws the sidebar fully so structural changes appear.
+   */
   public scheduleSidebarRender(flush = false): void {
     if (this.disposed) return;
     if (flush) {
@@ -211,7 +219,7 @@ export class FeedOperationTracker {
 
     this.refreshStatusRenderTimeoutId = window.setTimeout(() => {
       this.refreshStatusRenderTimeoutId = null;
-      void this.options.renderSidebar();
+      void this.options.renderSidebarStatus();
     }, FEED_REFRESH_RENDER_THROTTLE_MS);
   }
 

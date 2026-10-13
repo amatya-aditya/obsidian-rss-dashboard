@@ -29,10 +29,8 @@ import { DEFAULT_TAG_COLOR } from "../utils/tag-colors";
 import { AddTagModal } from "../modals/add-tag-modal";
 import { showEditTagModal } from "../utils/tag-utils";
 import { deleteTagFromSettings } from "../utils/tag-settings";
-import {
-  attachInputClearButton,
-  windowInstanceOf,
-} from "../utils/platform-utils";
+import { windowInstanceOf } from "../utils/platform-utils";
+import { addInputClearButton } from "../utils/input-clear-button";
 import { isDomNode } from "../utils/dom-node";
 import {
   SidebarSearchService,
@@ -173,6 +171,19 @@ function parseDraggedStringList(raw: string): string[] {
   }
 }
 
+interface InputDraft {
+  focused: boolean;
+  start: number | null;
+  end: number | null;
+  direction: "forward" | "backward" | "none" | null;
+}
+
+interface EditorDrafts {
+  search: InputDraft | null;
+  tagName: (InputDraft & { value: string }) | null;
+  tagColor: string | null;
+}
+
 export class Sidebar {
   private container: HTMLElement;
   private settings: RssDashboardSettings;
@@ -197,7 +208,9 @@ export class Sidebar {
   private openConfirmModal: Modal | null = null;
   private focusedSidebarTarget: SidebarFocusTarget | null = null;
   private isSidebarKeyboardFocused = false;
-  private refreshStatusDetailCleanups: Array<() => void> = [];
+  private refreshStatusDetailCleanups = new Map<HTMLElement, () => void>();
+  /** The refresh and import state each rendered feed row was drawn with. */
+  private feedRowStates = new WeakMap<HTMLElement, string>();
 
   private getCachedFolderPaths(): string[] {
     if (!this.cachedFolderPaths) {
@@ -213,8 +226,8 @@ export class Sidebar {
   }
 
   private clearRefreshStatusDetails(): void {
-    for (const cleanup of this.refreshStatusDetailCleanups) cleanup();
-    this.refreshStatusDetailCleanups = [];
+    for (const cleanup of this.refreshStatusDetailCleanups.values()) cleanup();
+    this.refreshStatusDetailCleanups.clear();
   }
 
   private getRefreshDetailLines(
@@ -298,7 +311,8 @@ export class Sidebar {
     scope: "all" | "feed" | "aggregate",
   ): void {
     const getLines = () => this.getRefreshDetailLines(feeds, scope);
-    this.refreshStatusDetailCleanups.push(
+    this.refreshStatusDetailCleanups.set(
+      row,
       attachRefreshStatusDetails({
         row,
         description: () => `Refresh details. ${getLines().join(". ")}`,
@@ -317,7 +331,8 @@ export class Sidebar {
 
   private attachRefreshActionDetails(row: HTMLElement): void {
     const actionText = "Refresh all feeds. Shift+click to retry failed feeds.";
-    this.refreshStatusDetailCleanups.push(
+    this.refreshStatusDetailCleanups.set(
+      row,
       attachRefreshStatusDetails({
         row,
         description: () => actionText,
@@ -396,6 +411,8 @@ export class Sidebar {
       foldersScroll = oldFoldersSection.scrollTop;
     }
 
+    const editorDrafts = this.captureEditorDrafts();
+
     this.clearRefreshStatusDetails();
     this.container.empty();
     this.container.addClass("rss-dashboard-sidebar");
@@ -450,6 +467,8 @@ export class Sidebar {
     this.syncFocusedSidebarTargetAfterRender();
     this.applySidebarFocusState();
 
+    this.restoreEditorDrafts(editorDrafts);
+
     // Restore synchronously so a coalesced status redraw never snapshots the
     // transient zero scroll position left by the previous DOM rebuild.
     this.container.scrollTop = scrollPosition;
@@ -481,6 +500,74 @@ export class Sidebar {
         newFoldersSection.scrollTop = foldersScroll;
       }
     });
+  }
+
+  /**
+   * Snapshots the search field and the inline add-tag editor, whose text,
+   * colour, focus and caret live only in the DOM that render() discards.
+   */
+  private captureEditorDrafts(): EditorDrafts {
+    const snapshot = (el: HTMLInputElement | null): InputDraft | null =>
+      el
+        ? {
+            focused: el.ownerDocument.activeElement === el,
+            start: el.selectionStart,
+            end: el.selectionEnd,
+            direction: el.selectionDirection,
+          }
+        : null;
+    const query = <T extends HTMLElement>(sel: string) =>
+      this.container.querySelector<T>(sel);
+    const search = query<HTMLInputElement>(".rss-dashboard-search-input");
+    const tagName = query<HTMLInputElement>(
+      ".rss-dashboard-sidebar-add-tag-input",
+    );
+    const tagColor = query<HTMLInputElement>(".rss-dashboard-tag-color-picker");
+    return {
+      search: snapshot(search),
+      tagName: tagName ? { ...snapshot(tagName)!, value: tagName.value } : null,
+      tagColor: tagColor?.value ?? null,
+    };
+  }
+
+  private restoreEditorDrafts(drafts: EditorDrafts): void {
+    const apply = (
+      el: HTMLInputElement | null,
+      draft: InputDraft | null,
+    ): void => {
+      if (!el || !draft) return;
+      // Queued after the render's own focus/select rAFs, so it has the last word.
+      window.requestAnimationFrame(() => {
+        if (!el.isConnected) return;
+        if (draft.focused) {
+          el.focus();
+          if (draft.start !== null && draft.end !== null) {
+            el.setSelectionRange(
+              draft.start,
+              draft.end,
+              draft.direction ?? undefined,
+            );
+          }
+        } else if (el.ownerDocument.activeElement === el) {
+          el.blur();
+        }
+      });
+    };
+    const search = this.container.querySelector<HTMLInputElement>(
+      ".rss-dashboard-search-input",
+    );
+    const tagName = this.container.querySelector<HTMLInputElement>(
+      ".rss-dashboard-sidebar-add-tag-input",
+    );
+    const tagColor = this.container.querySelector<HTMLInputElement>(
+      ".rss-dashboard-tag-color-picker",
+    );
+    apply(search, drafts.search);
+    if (tagName && drafts.tagName) {
+      tagName.value = drafts.tagName.value;
+      apply(tagName, drafts.tagName);
+    }
+    if (tagColor && drafts.tagColor) tagColor.value = drafts.tagColor;
   }
 
   private refreshImportStatusLookups(): void {
@@ -698,6 +785,7 @@ export class Sidebar {
         attr: { type: "text", placeholder: "New tag..." },
         cls: "rss-dashboard-sidebar-add-tag-input",
       });
+      addInputClearButton(input, { fill: true });
       const addBtn = addRow.createEl("button", {
         cls: "rss-dashboard-sidebar-add-tag-btn",
         text: "Add",
@@ -882,6 +970,112 @@ export class Sidebar {
     );
     if (progressEl) {
       progressEl.setText(`${progress.completed}/${progress.total}`);
+    }
+  }
+
+  /**
+   * Applies refresh-status changes to the rendered rows without rebuilding
+   * the sidebar. render() replaces the scrolling element, which ends an
+   * in-progress touch scroll on iOS, so a refresh run reports through here
+   * and leaves structural changes to the full render that ends the run.
+   * Only feed rows whose feed or refresh state changed are redrawn.
+   */
+  public refreshStatusInPlace(): void {
+    if (!this.container.querySelector(".rss-dashboard-feed-folders-section")) {
+      this.render();
+      return;
+    }
+
+    this.refreshImportStatusLookups();
+    const feedsByUrl = new Map(
+      this.settings.feeds.map((feed) => [feed.url, feed]),
+    );
+    for (const row of [...this.sidebarRows]) {
+      if (row.target.type === "all-feeds") {
+        this.replaceRenderedRow(row.element, (scratch) =>
+          this.renderAllFeedsButton(scratch),
+        );
+        continue;
+      }
+      if (row.target.type !== "feed") continue;
+      const feed = feedsByUrl.get(row.target.url);
+      if (
+        !feed ||
+        (feed === row.feed &&
+          this.feedRowStates.get(row.element) === this.getFeedRowState(feed))
+      ) {
+        continue;
+      }
+      this.replaceRenderedRow(row.element, (scratch) =>
+        this.renderFeed(feed, scratch),
+      );
+    }
+    this.updateFolderUnreadBadges();
+  }
+
+  private getFeedRowState(feed: Feed): string {
+    return [
+      this.plugin.activeRefreshState?.get(feed.url)?.status ?? "",
+      this.processingImportFeedUrls.has(feed.url),
+      this.pendingImportFeedUrls.has(feed.url),
+      this.getReportedShardHealth(feed) !== null,
+    ].join("|");
+  }
+
+  /**
+   * Swaps one rendered row for a freshly built one at the same position,
+   * keeping its keyboard-focus, search-filter and DOM-focus state.
+   */
+  private replaceRenderedRow(
+    oldEl: HTMLElement,
+    build: (scratch: HTMLElement) => void,
+  ): void {
+    const scratch = oldEl.win.createDiv();
+    const firstNewRow = this.sidebarRows.length;
+    build(scratch);
+    const newEl = scratch.firstElementChild;
+    const newRows = this.sidebarRows.splice(firstNewRow);
+    if (!newEl?.instanceOf(HTMLElement)) return;
+
+    const index = this.sidebarRows.findIndex((row) => row.element === oldEl);
+    if (index >= 0) this.sidebarRows.splice(index, 1, ...newRows);
+    for (const cls of [
+      "rss-dashboard-sidebar-row-focused",
+      "rss-dashboard-search-hidden",
+    ]) {
+      newEl.toggleClass(cls, oldEl.hasClass(cls));
+    }
+    this.refreshStatusDetailCleanups.get(oldEl)?.();
+    this.refreshStatusDetailCleanups.delete(oldEl);
+
+    const hadFocus = oldEl.contains(oldEl.ownerDocument.activeElement);
+    oldEl.replaceWith(newEl);
+    if (hadFocus) newEl.focus({ preventScroll: true });
+  }
+
+  private updateFolderUnreadBadges(): void {
+    const unreadCounts = this.buildFolderUnreadCountMap();
+    for (const row of this.sidebarRows) {
+      if (row.target.type !== "folder") continue;
+      const count = this.settings.display.showFolderUnreadBadges
+        ? (unreadCounts.get(row.target.path) ?? 0)
+        : 0;
+      let badge = row.element.querySelector<HTMLElement>(
+        ":scope > .rss-dashboard-folder-unread-count",
+      );
+      if (count === 0) {
+        badge?.remove();
+        continue;
+      }
+      if (!badge) {
+        badge = row.element.createDiv({
+          cls: "rss-dashboard-folder-unread-count",
+        });
+        row.element
+          .querySelector(":scope > .rss-dashboard-feed-folder-name")
+          ?.after(badge);
+      }
+      badge.setText(count.toString());
     }
   }
 
@@ -1438,6 +1632,7 @@ export class Sidebar {
     const isRefreshProcessing = refreshState?.status === "processing";
     const isQueuedForRefresh = refreshState?.status === "pending";
     const shardHealth = this.getReportedShardHealth(feed);
+    this.feedRowStates.set(feedEl, this.getFeedRowState(feed));
 
     renderFeedIcon(
       feed,
@@ -2962,21 +3157,15 @@ export class Sidebar {
       attr: { role: "status", "aria-live": "polite", "aria-atomic": "true" },
     });
 
-    attachInputClearButton(
-      searchContainer,
-      searchInput,
-      () => {
+    addInputClearButton(searchInput, {
+      container: searchContainer,
+      label: "Clear search",
+      onClear: () => {
         this.searchQuery = "";
         this.clearSearchTimeout();
         this.filterFeedsAndFolders("");
-        searchInput.focus();
       },
-      {
-        buttonClass: "rss-dashboard-search-clear",
-        hiddenClass: "is-hidden",
-        useButtonElement: true,
-      },
-    );
+    });
 
     searchInput.addEventListener("focus", () => {
       searchInput.select();

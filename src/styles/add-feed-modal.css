@@ -171,11 +171,6 @@
   width: 100%;
 }
 
-.rss-dashboard-modal .rss-feed-form-row-url .feed-url-input {
-  grid-area: 1 / 1;
-  padding-right: calc(var(--rss-feed-form-load-button-width) + 18px);
-}
-
 .rss-dashboard-modal .rss-feed-source-row .setting-item-control {
   justify-content: center;
 }

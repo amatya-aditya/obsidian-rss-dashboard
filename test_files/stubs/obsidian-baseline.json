@@ -1,0 +1,105 @@
+{
+  "obsidian": "1.14.4",
+  "facts": {
+    "class.checkbox-container": {
+      "kind": "class",
+      "match": "checkbox-container",
+      "sources": ["app.css", "app.js"]
+    },
+    "class.extra-setting-button": {
+      "kind": "class",
+      "match": "extra-setting-button",
+      "sources": ["app.css", "app.js"]
+    },
+    "class.is-disabled": {
+      "kind": "class",
+      "match": "is-disabled",
+      "sources": ["app.css", "app.js"]
+    },
+    "class.is-enabled": {
+      "kind": "class",
+      "match": "is-enabled",
+      "sources": ["app.css", "app.js"]
+    },
+    "class.is-loaded": {
+      "kind": "class",
+      "match": "is-loaded",
+      "sources": ["app.js"]
+    },
+    "class.math": {
+      "kind": "class",
+      "match": "math",
+      "sources": ["app.css", "app.js"]
+    },
+    "class.menu-item": {
+      "kind": "class",
+      "match": "menu-item",
+      "sources": ["app.css", "app.js"]
+    },
+    "class.mjx-container": {
+      "kind": "class",
+      "match": "mjx-container",
+      "sources": ["app.css"]
+    },
+    "class.mod-checked": {
+      "kind": "class",
+      "match": "mod-checked",
+      "sources": ["app.css", "app.js"]
+    },
+    "class.mod-cta": {
+      "kind": "class",
+      "match": "mod-cta",
+      "sources": ["app.css", "app.js"]
+    },
+    "class.mod-destructive": {
+      "kind": "class",
+      "match": "mod-destructive",
+      "sources": ["app.css", "app.js"]
+    },
+    "class.modal-container": {
+      "kind": "class",
+      "match": "modal-container",
+      "sources": ["app.css", "app.js"]
+    },
+    "class.notice-message": {
+      "kind": "class",
+      "match": "notice-message",
+      "sources": ["app.js"]
+    },
+    "class.search-input-clear-button": {
+      "kind": "class",
+      "match": "search-input-clear-button",
+      "sources": ["app.css", "app.js"]
+    },
+    "class.search-input-container": {
+      "kind": "class",
+      "match": "search-input-container",
+      "sources": ["app.css", "app.js"]
+    },
+    "class.setting-item-heading": {
+      "kind": "class",
+      "match": "setting-item-heading",
+      "sources": ["app.css", "app.js"]
+    },
+    "class.slider-value": {
+      "kind": "class",
+      "match": "slider-value",
+      "sources": ["app.css", "app.js"]
+    },
+    "message.create-file-exists": {
+      "kind": "message",
+      "match": "File already exists.",
+      "sources": ["app.js"]
+    },
+    "message.create-folder-exists": {
+      "kind": "message",
+      "match": "Folder already exists.",
+      "sources": ["app.js"]
+    },
+    "message.rename-destination-exists": {
+      "kind": "message",
+      "match": "Destination file already exists!",
+      "sources": ["app.js"]
+    }
+  }
+}

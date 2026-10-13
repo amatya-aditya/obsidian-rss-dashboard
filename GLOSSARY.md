@@ -10,6 +10,10 @@ A named reusable article-note body with per-template save options such as a fold
 **Global default template**:
 The saved template selected for article saves that have no feed-specific template assignment.
 
+**Default article template**:
+The editable fallback note template used for article saves that have no feed-assigned or global default saved template.
+_Avoid_: global template (when referring to this fallback rather than a saved template).
+
 **Feed-assigned template**:
 A saved template selected for future article saves from one configured feed. It takes precedence over the global default for that feed.
 

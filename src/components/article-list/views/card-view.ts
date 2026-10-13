@@ -12,6 +12,10 @@ import {
 } from "../../../utils/article-preview-utils";
 import { renderSingleRowCardTagChips } from "../utils/tag-layout-utils";
 import type { BaseViewContext, ViewDeps } from "./view-types";
+import {
+  renderPreviewPlaceholder,
+  shouldShowPreviewPlaceholder,
+} from "./preview-placeholder";
 
 export interface CardViewContext extends BaseViewContext {
   showCardToolbar: boolean;
@@ -23,6 +27,21 @@ function keepTextStopEnterLocal(element: HTMLElement): void {
       event.stopPropagation();
     }
   });
+}
+
+function renderCardPlaceholder(
+  previewRegion: HTMLElement,
+  openButton: HTMLElement,
+  descriptionId: string,
+): void {
+  const placeholder = renderPreviewPlaceholder(
+    previewRegion,
+    "rss-dashboard-cover-summary-only rss-dashboard-card-preview-placeholder",
+    descriptionId,
+  );
+  placeholder.tabIndex = 0;
+  keepTextStopEnterLocal(placeholder);
+  openButton.setAttribute("aria-describedby", descriptionId);
 }
 
 export function renderCardView(
@@ -188,6 +207,14 @@ export function renderCardView(
           } else {
             summaryOnlyContainer.textContent = previewSummaryText;
           }
+        } else if (
+          shouldShowPreviewPlaceholder(
+            ctx.settings.display.showSummary,
+            previewSummaryText,
+            false,
+          )
+        ) {
+          renderCardPlaceholder(previewRegion, openButton, cardDescriptionId);
         } else {
           previewRegion.remove();
         }
@@ -243,6 +270,17 @@ export function renderCardView(
       } else {
         summaryOnlyContainer.textContent = previewSummaryText;
       }
+    } else if (
+      shouldShowPreviewPlaceholder(
+        ctx.settings.display.showSummary,
+        previewSummaryText,
+        false,
+      )
+    ) {
+      const previewRegion = cardContent.createDiv({
+        cls: "rss-dashboard-card-preview-region",
+      });
+      renderCardPlaceholder(previewRegion, openButton, cardDescriptionId);
     }
 
     if (hasTags) {

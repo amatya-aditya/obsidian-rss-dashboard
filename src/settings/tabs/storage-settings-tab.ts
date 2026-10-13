@@ -35,6 +35,7 @@ import {
   type RepairResult,
   type ShardFolderDeletionError,
 } from "../../services/feed-storage-repository";
+import { addInputClearButton } from "../../utils/input-clear-button";
 
 interface StorageSettingsPlugin {
   app: App;
@@ -133,6 +134,7 @@ function renderFolderSetting(
           await plugin.saveSettings();
         });
       new FolderSuggest(plugin.app, text.inputEl, plugin.settings.folders);
+      addInputClearButton(text.inputEl, { label: "Clear folder" });
     });
 }
 
@@ -414,7 +416,7 @@ export function renderStorageSettingsTab(
     .setDesc(
       "Vault folder for per-feed shard files. A change takes effect only after you apply it. Adding a '.' prefix to the path will hide the folder. The '.' must be removed for Obsidian sync to work properly.",
     )
-    .addText((text) =>
+    .addText((text) => {
       text
         .setPlaceholder(".rss-dashboard-data/feeds")
         .setValue(plugin.settings.storageFolder)
@@ -424,8 +426,9 @@ export function renderStorageSettingsTab(
             previousFolder: plugin.settings.storageFolder,
             pendingStorageFolder,
           });
-        }),
-    );
+        });
+      addInputClearButton(text.inputEl, { label: "Clear folder" });
+    });
 
   new Setting(containerEl)
     .setName("Storage status")
@@ -873,6 +876,7 @@ export function renderStorageSettingsTab(
         .onChange((value) => {
           pendingMetadataStorageFolder = value;
         });
+      addInputClearButton(text.inputEl, { label: "Clear folder" });
     });
 
   const hiddenStateHint = getHiddenUserStateHint(plugin.settings);

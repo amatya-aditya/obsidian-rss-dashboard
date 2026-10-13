@@ -17,11 +17,6 @@
       "count": 1
     }
   },
-  "src/components/article-list/views/feed-view.ts": {
-    "complexity": {
-      "count": 1
-    }
-  },
   "src/components/article-list/views/list-view.ts": {
     "complexity": {
       "count": 1
@@ -78,7 +73,7 @@
   },
   "src/services/feed-parser/feed-fetch.ts": {
     "complexity": {
-      "count": 3
+      "count": 2
     },
     "max-lines-per-function": {
       "count": 2
@@ -122,11 +117,6 @@
   },
   "src/services/sidebar-ordering-controller.ts": {
     "complexity": {
-      "count": 1
-    }
-  },
-  "src/settings/tabs/article-saving-settings-tab.ts": {
-    "max-lines-per-function": {
       "count": 1
     }
   },

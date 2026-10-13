@@ -122,12 +122,16 @@ The developer console needs a human at the keyboard. For agent or headless
 verification, drive the same running app over the Chrome DevTools Protocol with
 `scripts/obsidian-cdp.mjs`, a dependency-free Node helper (Node 22 or newer).
 
-Start Obsidian with a debug port. Close the app first — an instance that is
-already running without the flag cannot be attached to. Use a disposable
-profile so the port is not exposed on your normal one:
+Start Obsidian with a debug port, in its own disposable profile. Close the app
+first — an instance that is already running without the flag cannot be attached
+to. Several sessions can share a machine, and each opens its own app, so give
+every session its own port and profile — otherwise a session can attach to
+another session's window:
 
 ```powershell
-$profile = "$env:TEMP\rss-dashboard-cdp-profile"
+$profile = "$env:TEMP\rss-dashboard-cdp-profile-$PID"
+# Per-user install: "$env:LOCALAPPDATA\Obsidian\Obsidian.exe"
+# All-users install: "C:\Program Files\Obsidian\Obsidian.exe"
 & "$env:LOCALAPPDATA\Obsidian\Obsidian.exe" `
   --remote-debugging-port=9333 `
   --user-data-dir=$profile
@@ -137,6 +141,54 @@ Then open the fixture vault in that instance (**Open another vault** → **Open
 folder as vault** → `.fixture-vault/`) and trust it. The harness probes ports
 9222, 9333, and 9334, so any of them works; pin one with `--port` or `CDP_PORT`
 when several apps are open.
+
+A fresh `--user-data-dir` opens Obsidian's **vault picker**
+(`app://obsidian.md/starter.html`), which has no vault loaded and whose **Open
+folder as vault** is a native dialog you cannot drive over CDP. The picker does
+expose Electron, so open a vault directly with the same IPC its buttons call:
+
+```js
+window.electron.ipcRenderer.sendSync("vault-list"); // the known vault paths
+window.electron.ipcRenderer.sendSync(
+  "vault-open",
+  "<absolute vault path>",
+  false,
+); // true on success, else an error string
+```
+
+`--user-data-dir` is Chromium-only. Obsidian still reads its vault registry
+from `%APPDATA%\obsidian\obsidian.json`, so overriding the child's `APPDATA`
+does not redirect it; open the vault with the IPC call above rather than
+pre-seeding the registry.
+
+Kill only your own instance. Match the process command line to your
+`--user-data-dir` and stop that tree (`Get-NetTCPConnection -LocalPort <port>`
+names the owning process); never blanket-kill Obsidian, or other sessions lose
+their sandbox.
+
+### Guard the session you attach to
+
+By default the harness attaches to the first Obsidian target it finds, which on
+a shared machine may belong to another session. Add an ownership expectation so
+it refuses, with a non-zero exit, unless the attached window is the vault you
+meant:
+
+| Option                  | Effect                                                                                                      |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `--expect-vault <path>` | Refuse unless `app.vault.adapter.getBasePath()` matches `<path>` (case-insensitive, separators normalised). |
+| `--profile <dir>`       | Pin the port recorded in `<dir>\DevToolsActivePort`, and refuse any target that is not the expected vault.  |
+| `--wait <ms>`           | Poll `/json/list` for up to `<ms>` until a ready vault target appears; without it, the harness fails fast.  |
+
+A **ready** target is a real vault window (`app://obsidian.md/index.html` with a
+readable `app.vault.adapter.getBasePath()`), not the picker. With `--profile`,
+the profile's own recorded port is trusted: if its target is not the expected
+vault, the harness fails loudly instead of falling back to another port. The
+matching environment variables are `CDP_EXPECT_VAULT`, `CDP_PROFILE`, and
+`CDP_WAIT`. Callers that pass none of these keep the previous behavior.
+
+```sh
+node scripts/obsidian-cdp.mjs --profile "$env:TEMP\rss-dashboard-cdp-profile" --expect-vault "$PWD\.fixture-vault" eval ./probe.js
+```
 
 After copying in a new build (`npm run fixture:vault -- --plugin-only`), reload
 the app before you attach, as in [Load a new build](#load-a-new-build).
@@ -148,6 +200,19 @@ echo "document.title" | node scripts/obsidian-cdp.mjs eval -   # or stdin
 node scripts/obsidian-cdp.mjs shot dashboard.png     # one screenshot
 node scripts/obsidian-cdp.mjs repl ./steps.txt       # many steps, one connection
 ```
+
+The committed Obsidian console probes under `test_files/stubs/probes/` drive
+this harness. `npm run stub:probes` re-runs the whole library (the version
+guard first) so its output can be diffed against the records; see
+[Re-running these probes (drift check)](../../test_files/stubs/obsidian-console-probes.md#re-running-these-probes-drift-check)
+in that ledger for the setup, the diff rule, and the triggers.
+
+A real Obsidian **mobile** app is driven the same way over an Android emulator:
+forward the renderer's webview devtools socket with `adb forward` and pass
+`--host`/`--port`. The full route — AVD, APK, `adb forward`, the throwaway
+device vault, and the keep-awake step — lives with the probe library in
+[Mobile (Android) setup over
+adb](../../test_files/stubs/obsidian-console-probes.md#mobile-android-setup-over-adb).
 
 `eval`'s expression runs in the app's renderer, where `app` is the Obsidian
 API. It is evaluated in REPL mode, so a bare top-level `await` works and a
@@ -191,6 +256,102 @@ settings window and captures it:
 @wait 300
 @shot settings.png
 ```
+
+Opening **Settings** in application mode creates a second page target titled
+`Settings - <vault> - Obsidian <version>` (url `about:blank`, no `app`). It makes
+`--target <vault>` ambiguous and points `activeDocument` at the wrong window, so
+close it before you target the vault — `window.close()` works on it even though
+it has no `app`:
+
+```text
+@target Settings
+@eval window.close()
+```
+
+### Drive the Settings window under the guard
+
+The Settings window has no `app` and is not `index.html`, so the ownership guard
+would refuse it. Instead the harness treats it as a **companion target**: a page
+on the same port whose title is `Settings - <vault name> - Obsidian <version>`,
+where `<vault name>` is the folder name of the `--expect-vault` path (compared
+case-insensitively) and the url is `about:blank`. The harness first confirms the
+vault window on that port is the expected vault, then trusts the Settings window
+beside it. This works only when `--profile` pinned the port to your own
+instance; without `--profile` or `--expect-vault`, or when the title names
+another vault, it refuses with a non-zero exit.
+
+| Command                      | Effect                                                                                                          |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `--settings eval ./probe.js` | Evaluate in the Settings window instead of the vault window (`--settings shot <out.png>` captures it).          |
+| `@settings` (repl step)      | Switch the connection to the Settings window, guarded the same way. It is one-way; start a new run to go back.  |
+| `open-settings <tab-id>`     | In the vault window, run `app:open-settings` and `app.setting.openTabById(<tab-id>)`, then wait for the window. |
+
+`open-settings` prints the Settings window it found, so the next `--settings`
+call attaches to a ready window. `--wait <ms>` sets how long it waits (default
+10000). The plugin's tab id is `rss-dashboard`:
+
+```sh
+node scripts/obsidian-cdp.mjs --profile "$env:TEMP\rss-dashboard-cdp-profile" --expect-vault "$PWD\.fixture-vault" open-settings rss-dashboard
+node scripts/obsidian-cdp.mjs --profile "$env:TEMP\rss-dashboard-cdp-profile" --expect-vault "$PWD\.fixture-vault" --settings shot settings.png
+```
+
+Unlike the older workarounds (mounting the tab in an overlay in the vault
+window, or `@target Settings` without the guard), this captures the real
+Settings layout under the ownership check.
+
+#### Phone width
+
+The Settings window cannot be resized below 599px, so emulate a phone: set the
+device metrics to 390x844 with `Emulation.setDeviceMetricsOverride`, and add the
+`is-mobile` and `is-phone` classes to `<body>` so Obsidian's mobile styles
+apply. The override lasts only while the connection that set it stays open, so
+set it and capture in the same script. `repl` has no step for raw protocol
+calls, so use a short Node 22 script over the same Settings target:
+
+```js
+// phone-settings.mjs: node phone-settings.mjs <port> <out.png>
+import { writeFileSync } from "node:fs";
+
+const [port, out] = process.argv.slice(2);
+const pages = await (await fetch(`http://localhost:${port}/json/list`)).json();
+const settings = pages.find(
+  (page) =>
+    page.type === "page" && /^Settings - .+ - Obsidian \S+$/.test(page.title),
+);
+const socket = new WebSocket(settings.webSocketDebuggerUrl);
+await new Promise((resolve) => socket.addEventListener("open", resolve));
+let nextId = 1;
+const pending = new Map();
+socket.addEventListener("message", ({ data }) => {
+  const message = JSON.parse(String(data));
+  pending.get(message.id)?.(message);
+});
+const send = (method, params = {}) =>
+  new Promise((resolve) => {
+    const id = nextId++;
+    pending.set(id, resolve);
+    socket.send(JSON.stringify({ id, method, params }));
+  });
+
+await send("Emulation.setDeviceMetricsOverride", {
+  width: 390,
+  height: 844,
+  deviceScaleFactor: 2,
+  mobile: true,
+});
+await send("Runtime.evaluate", {
+  expression: "document.body.classList.add('is-mobile', 'is-phone')",
+});
+await new Promise((resolve) => setTimeout(resolve, 500));
+const { result } = await send("Page.captureScreenshot", { format: "png" });
+writeFileSync(out, Buffer.from(result.data, "base64"));
+socket.close();
+```
+
+Pass the port from your own profile's `DevToolsActivePort` file, so the script
+cannot pick up another session's Settings window; run `open-settings` first so
+the window is open and on the tab you want. It is a hand-written script, so it
+does not carry the ownership guard itself.
 
 A release build (`npm run build`) is byte-for-byte reproducible: its `main.js`
 embeds no commit or timestamp, so its hash is stable. A local dev/watch build

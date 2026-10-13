@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as Obsidian from "obsidian";
 import {
-  attachInputClearButton,
   ensureUtf8Meta,
   formatDateWithRelative,
   formatArticleDate,
@@ -14,7 +13,6 @@ import {
   shouldUseMobileSidebarLayout,
 } from "../../../src/utils/platform-utils";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
-import { lucideIconId } from "../test-icon-helpers";
 
 function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
   return bytes.buffer.slice(
@@ -184,104 +182,6 @@ describe("platform-utils.robustFetch", () => {
       method: "POST",
     });
     expect(result).toBe("ok");
-  });
-});
-
-describe("platform-utils.attachInputClearButton", () => {
-  it("toggles visibility on input events and clears on click", () => {
-    const wrapper = createDiv();
-    document.body.appendChild(wrapper);
-    const input = createEl("input");
-    input.type = "text";
-    wrapper.appendChild(input);
-    const onClear = vi.fn();
-
-    const clearButton = attachInputClearButton(wrapper, input, onClear);
-
-    expect(lucideIconId(clearButton)).toBe("x");
-    expect(clearButton.classList.contains("rss-discover-search-clear")).toBe(
-      true,
-    );
-    expect(
-      clearButton.classList.contains("rss-discover-search-clear-hidden"),
-    ).toBe(true);
-
-    input.value = "abc";
-    input.dispatchEvent(new Event("input"));
-    expect(
-      clearButton.classList.contains("rss-discover-search-clear-hidden"),
-    ).toBe(false);
-
-    clearButton.click();
-    expect(input.value).toBe("");
-    expect(
-      clearButton.classList.contains("rss-discover-search-clear-hidden"),
-    ).toBe(true);
-    expect(onClear).toHaveBeenCalledTimes(1);
-  });
-
-  it("supports keyboard activation via Enter and Space", () => {
-    const wrapper = createDiv();
-    document.body.appendChild(wrapper);
-    const input = createEl("input");
-    input.type = "text";
-    wrapper.appendChild(input);
-    input.value = "abc";
-
-    const onClear = vi.fn();
-    const clearButton = attachInputClearButton(wrapper, input, onClear);
-
-    input.dispatchEvent(new Event("input"));
-    expect(
-      clearButton.classList.contains("rss-discover-search-clear-hidden"),
-    ).toBe(false);
-
-    const enterEvent = new KeyboardEvent("keydown", {
-      key: "Enter",
-      cancelable: true,
-    });
-    clearButton.dispatchEvent(enterEvent);
-    expect(enterEvent.defaultPrevented).toBe(true);
-    expect(onClear).toHaveBeenCalledTimes(1);
-    expect(input.value).toBe("");
-
-    input.value = "xyz";
-    input.dispatchEvent(new Event("input"));
-    const spaceEvent = new KeyboardEvent("keydown", {
-      key: " ",
-      cancelable: true,
-    });
-    clearButton.dispatchEvent(spaceEvent);
-    expect(spaceEvent.defaultPrevented).toBe(true);
-    expect(onClear).toHaveBeenCalledTimes(2);
-    expect(input.value).toBe("");
-  });
-
-  it("honors useButtonElement and custom classes", () => {
-    const wrapper = createDiv();
-    document.body.appendChild(wrapper);
-    const input = createEl("input");
-    input.type = "text";
-    wrapper.appendChild(input);
-    input.value = "abc";
-
-    const onClear = vi.fn();
-    const clearButton = attachInputClearButton(wrapper, input, onClear, {
-      useButtonElement: true,
-      buttonClass: "my-clear",
-      hiddenClass: "my-hidden",
-    });
-
-    expect(clearButton.tagName).toBe("BUTTON");
-    expect(clearButton.getAttribute("type")).toBe("button");
-    expect(clearButton.getAttribute("aria-label")).toBe("Clear search");
-    expect(clearButton.hasAttribute("title")).toBe(false);
-    expect(clearButton.classList.contains("my-clear")).toBe(true);
-    expect(clearButton.classList.contains("my-hidden")).toBe(false);
-
-    input.value = "";
-    input.dispatchEvent(new Event("input"));
-    expect(clearButton.classList.contains("my-hidden")).toBe(true);
   });
 });
 

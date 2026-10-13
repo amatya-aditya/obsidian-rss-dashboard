@@ -1,0 +1,85 @@
+name: Obsidian stub drift canary
+
+# The app-free half of the stub drift check (#1063, ADR 0014). It reads the
+# public obsidian-<version>.asar.gz release asset and confirms every fact in
+# test_files/stubs/obsidian-baseline.json is still present, so a release that
+# drops a pinned error message or CSS class is noticed between probe sessions.
+# No Obsidian install is needed.
+#
+# This is a canary, not a gate (DEC-002): it is not part of check:compliance,
+# npm run build, or any pull-request check. It runs weekly and on demand, files
+# or updates a single `obsidian-update` issue when a pinned fact is gone
+# (DEC-006), and leaves ordinary pull-request checks untouched.
+
+on:
+  schedule:
+    # Weekly, Monday 06:00 UTC.
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+    inputs:
+      obsidian:
+        description: >-
+          Obsidian version to check, e.g. 1.14.4. Leave empty to check the
+          newest public stable release.
+        required: false
+        type: string
+
+# Serialise runs so a manual dispatch cannot race the weekly run into filing
+# two issues (DEC-006).
+concurrency:
+  group: obsidian-canary
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  canary:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      # Exits 1 when a pinned fact is gone. continue-on-error keeps the run
+      # going so the finding can be filed before the job is failed.
+      - name: Check the release for stub drift
+        id: check
+        continue-on-error: true
+        env:
+          OBSIDIAN_VERSION: ${{ inputs.obsidian }}
+        run: |
+          args=(--report drift.md)
+          if [[ -n "$OBSIDIAN_VERSION" ]]; then
+            args+=(--obsidian "$OBSIDIAN_VERSION")
+          fi
+          node scripts/check-stub-drift.mjs "${args[@]}"
+
+      # File or update the one tracked issue. A failure without a report means
+      # the check itself could not run (for example a download error), so file
+      # nothing and let the final step fail the run with the check's own log.
+      - name: File or update the obsidian-update issue
+        if: steps.check.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [[ ! -s drift.md ]]; then
+            echo "::warning title=No drift report::The check failed without writing drift.md; not filing an issue."
+            exit 0
+          fi
+          node scripts/upsert-obsidian-update-issue.mjs --report drift.md
+
+      - name: Fail when a pinned fact is gone
+        if: steps.check.outcome == 'failure'
+        run: |
+          echo "::error title=Stub drift::Obsidian dropped a pinned stub fact; see the obsidian-update issue."
+          exit 1
