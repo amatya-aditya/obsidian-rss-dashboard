@@ -135,6 +135,29 @@
 
 .rss-dashboard-template-help
   .rss-dashboard-variable-list
+  .rss-dashboard-variable-chip.is-inline
+  code {
+  padding-inline: 0;
+}
+
+.is-phone
+  .rss-dashboard-template-help
+  .rss-dashboard-variable-list
+  .rss-dashboard-variable-chip {
+  position: relative;
+}
+
+.is-phone
+  .rss-dashboard-template-help
+  .rss-dashboard-variable-list
+  .rss-dashboard-variable-chip::after {
+  content: "";
+  position: absolute;
+  inset: -5px -2px;
+}
+
+.rss-dashboard-template-help
+  .rss-dashboard-variable-list
   .rss-dashboard-variable-chip:hover
   code,
 .rss-dashboard-template-help

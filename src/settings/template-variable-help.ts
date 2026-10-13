@@ -39,7 +39,7 @@ export const TEMPLATE_VARIABLE_HELP_GROUPS: readonly TemplateVariableHelpGroup[]
         {
           name: "date:YYYY/MM/DD",
           description:
-            "The article date in any Moment.js format: put the format after date:. Tokens are case-sensitive: MM is the month and mm the minutes, DD the day of the month and dd the weekday. Other examples: {{date:DD/MM/YYYY}}, {{date:MM-DD-YYYY}}, {{date:YYYY-MM-DD HH:mm}}, {{date:D MMMM YYYY}}.",
+            "The article date in any Moment.js format, written after date: in the placeholder. Tokens are case-sensitive: MM is the month and mm the minutes, DD the day of the month and dd the weekday. Other examples: {{date:DD/MM/YYYY}}, {{date:MM-DD-YYYY}}, {{date:YYYY-MM-DD HH:mm}}, {{date:D MMMM YYYY}}.",
         },
         {
           name: "isoDate",
