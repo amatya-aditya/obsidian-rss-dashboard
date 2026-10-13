@@ -24,6 +24,10 @@ tsconfig.tsbuildinfo
 release/
 *.zip
 
+# opt-in mutation testing (`npm run test:mutation`); see the testing guide
+.stryker-tmp/
+reports/
+
 # agent
 CLAUDE.md
 .kilo/
