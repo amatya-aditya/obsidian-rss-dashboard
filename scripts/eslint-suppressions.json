@@ -73,7 +73,7 @@
   },
   "src/services/feed-parser/feed-fetch.ts": {
     "complexity": {
-      "count": 3
+      "count": 2
     },
     "max-lines-per-function": {
       "count": 2
