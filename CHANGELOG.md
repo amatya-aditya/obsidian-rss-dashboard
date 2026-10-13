@@ -41,6 +41,8 @@
 
 ### Fixes
 
+- Closing the Reader or switching away from a podcast now cancels its sleep timer, preventing countdown updates from continuing after the player is closed. [GH Issue #1087](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1087)
+
 - The **Divider** icon in **Settings → RSS Dashboard → Sidebar** shows a separator icon instead of a blank slot. The plugin had named an icon Obsidian does not ship; it now uses one Obsidian renders. [GH Issue #1047](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1047)
 - Saving an article from the dashboard's inline reader now applies the saved style and tooltip to its save button straight away, instead of waiting for the dashboard to re-render. [GH Issue #1009](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1009)
 - The keyboard shortcut reference keeps its right-aligned keys flush with the row edge when a description wraps at narrow widths, no longer shows a second close button beside its own on phones, and stacks its header into two rows on mobile. [GH Issue #1013](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1013)
