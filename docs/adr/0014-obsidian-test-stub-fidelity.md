@@ -10,7 +10,7 @@ accepted
 
 ## Date
 
-2026-09-25
+2026-09-25. Amended 2026-10-12: the drift check is a local, manual step (see _Amendment, 2026-10-12_).
 
 ## Context and problem
 
@@ -58,6 +58,32 @@ imitate, and what to do when a more faithful stub makes existing tests fail.
    The stub is not weakened again to make it pass. If the underlying bug does
    not reproduce in real Obsidian, the contract expectation is wrong and is
    corrected, with a note explaining what was observed.
+
+### Amendment, 2026-10-12
+
+The drift check named above is a local, manual step, and stays that way
+deliberately.
+
+The check re-observes real Obsidian behavior to keep the stub's recorded
+expectations true. CI has no Obsidian install and no desktop app to observe, so
+it cannot re-observe anything. What CI does cover is the half that needs no app:
+it runs the contract test (`obsidian.contract.test.ts`), which fails when the
+stub stops matching the expectations the contract records. Re-observing those
+expectations — after an Obsidian update or a reference-pin bump — needs a real
+desktop release and remains a local step.
+
+The command and the runbook live with the records they refresh:
+
+- `npm run stub:probes` (`scripts/run-stub-probes.mjs`) re-runs the whole probe
+  library, the version guard first, over the CDP harness
+  (`scripts/obsidian-cdp.mjs`).
+- [Re-running these probes (drift check)](../../test_files/stubs/obsidian-console-probes.md#re-running-these-probes-drift-check)
+  in the probe ledger is the runbook: the setup, the diff rule, and the
+  triggers.
+
+A driver's changed output is a new finding under this ADR, not a test to fix
+silently. This amendment clarifies how the drift check runs; it does not change
+the decision above.
 
 ## Consequences
 

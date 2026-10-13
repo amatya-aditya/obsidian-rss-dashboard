@@ -199,6 +199,12 @@ node scripts/obsidian-cdp.mjs shot dashboard.png     # one screenshot
 node scripts/obsidian-cdp.mjs repl ./steps.txt       # many steps, one connection
 ```
 
+The committed Obsidian console probes under `test_files/stubs/probes/` drive
+this harness. `npm run stub:probes` re-runs the whole library (the version
+guard first) so its output can be diffed against the records; see
+[Re-running these probes (drift check)](../../test_files/stubs/obsidian-console-probes.md#re-running-these-probes-drift-check)
+in that ledger for the setup, the diff rule, and the triggers.
+
 `eval`'s expression runs in the app's renderer, where `app` is the Obsidian
 API. It is evaluated in REPL mode, so a bare top-level `await` works and a
 later step can redeclare a `const` or `let` from an earlier one — the harness
