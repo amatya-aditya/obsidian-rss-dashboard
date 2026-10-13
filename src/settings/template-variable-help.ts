@@ -26,20 +26,22 @@ export const TEMPLATE_VARIABLE_HELP_GROUPS: readonly TemplateVariableHelpGroup[]
         {
           name: "date",
           description:
-            "The article date in a long, readable format. In notes saved from the web viewer, it is the save date.",
+            "The article date in a long, readable format. It shares the article timestamp with {{dateShort}}, {{date:FORMAT}}, {{isoDate}}, and {{isoDateTime}}. In notes saved from the web viewer, it is the save date.",
         },
         {
           name: "dateShort",
-          description: "The article date as YYYY-MM-DD.",
+          description:
+            "The article timestamp as YYYY-MM-DD. Derived from the same article date as {{date}}.",
         },
         {
           name: "date:FORMAT",
           description:
-            "The article date in a custom Moment.js format, such as {{date:YYYY/MM/DD}}.",
+            "The article timestamp in a custom Moment.js format, such as {{date:YYYY/MM/DD}}. Derived from the same article date as {{date}}.",
         },
         {
           name: "isoDate",
-          description: "The article date as a full ISO 8601 timestamp in UTC.",
+          description:
+            "The full ISO 8601 timestamp of the article date, in UTC. All the other article dates are formats of this one timestamp.",
         },
         {
           name: "isoDateTime",
@@ -53,12 +55,12 @@ export const TEMPLATE_VARIABLE_HELP_GROUPS: readonly TemplateVariableHelpGroup[]
         {
           name: "firstSeen",
           description:
-            "When the dashboard first saw the article, independent of the “Use first-seen date for undated items” display setting. If none was recorded, this falls back to the article date (the publish date, or the save date when there is none), which is not a true first-seen value.",
+            "An independent value, not derived from the article timestamp. When the dashboard first saw the article, independent of the “Use first-seen date for undated items” display setting. If none was recorded, this falls back to the article date (the publish date, or the save date when there is none), which is not a true first-seen value.",
         },
         {
           name: "firstSeenISO",
           description:
-            "The first-seen date as a local YYYY-MM-DD date, such as 2024-04-30. Uses the same fallback as {{firstSeen}}.",
+            "The first-seen date as a local YYYY-MM-DD date, such as 2024-04-30. Independent of the article timestamp, and uses the same fallback as {{firstSeen}}.",
         },
       ],
     },
@@ -67,16 +69,18 @@ export const TEMPLATE_VARIABLE_HELP_GROUPS: readonly TemplateVariableHelpGroup[]
       variables: [
         {
           name: "saveDate",
-          description: "The local date the article was saved, as YYYY-MM-DD.",
+          description:
+            "The local date the article was saved, as YYYY-MM-DD. The save moment is independent of the article timestamp.",
         },
         {
           name: "saveTime12",
           description:
-            "The local save time in 12-hour format, such as 02:45 PM.",
+            "The local save time in 12-hour format, such as 02:45 PM. Taken from the same save moment as {{saveDate}}.",
         },
         {
           name: "saveTime24",
-          description: "The local save time in 24-hour format, such as 14:45.",
+          description:
+            "The local save time in 24-hour format, such as 14:45. Taken from the same save moment as {{saveDate}}.",
         },
       ],
     },
@@ -84,7 +88,11 @@ export const TEMPLATE_VARIABLE_HELP_GROUPS: readonly TemplateVariableHelpGroup[]
       heading: "Article and feed details",
       variables: [
         { name: "title", description: "The article title." },
-        { name: "author", description: "The article author, when available." },
+        {
+          name: "author",
+          description:
+            "The article author. When the feed lists several authors, their names are joined with a comma and a space, such as Ada, Grace. There is no separate authors variable.",
+        },
         {
           name: "feedTitle",
           description: "The title of the feed the article came from.",

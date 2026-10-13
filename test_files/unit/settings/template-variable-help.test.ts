@@ -79,6 +79,13 @@ describe("renderTemplateVariableHelp", () => {
     expect(text("isoDateTime")).toContain(
       "same full ISO 8601 timestamp as {{isoDate}}",
     );
+    expect(text("author")).toContain("joined with a comma and a space");
+    expect(text("date")).toContain("shares the article timestamp");
+    expect(text("isoDate")).toContain("All the other article dates");
+    expect(text("firstSeen")).toContain(
+      "not derived from the article timestamp",
+    );
+    expect(text("saveDate")).toContain("independent of the article timestamp");
     expect(text("source")).toContain("same value as {{feedTitle}}");
     expect(text("tags")).toContain("tags: [{{tags}}]");
     expect(text("language")).toContain("left out when the language is unknown");
