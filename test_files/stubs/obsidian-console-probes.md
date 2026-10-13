@@ -14,19 +14,47 @@ newer than the installer).
 
 ## Re-running these probes (drift check)
 
-The committed drivers under `test_files/stubs/probes/` run over the merged CDP
-harness (`scripts/obsidian-cdp.mjs`, see "Driving the vault over CDP" in
-`docs/development/fixture-vault.md`). Point a disposable profile at a throwaway
-vault, then run one file per API group:
+The drift check re-runs the whole probe library and diffs each driver's output
+against the records below. It is a **local, manual step**: it observes real
+Obsidian desktop, which CI has no way to run. CI covers the half that needs no
+app — it runs the contract test (`obsidian.contract.test.ts`), which fails when
+the stub stops matching the recorded expectations. Re-observing those
+expectations is this step; why it stays local is recorded in the
+[ADR 0014 amendment](../../docs/adr/0014-obsidian-test-stub-fidelity.md#amendment-2026-10-12).
+
+One command runs every committed driver under `test_files/stubs/probes/`, the
+version guard first, each over the merged CDP harness
+(`scripts/obsidian-cdp.mjs`):
 
 ```sh
-node scripts/obsidian-cdp.mjs repl test_files/stubs/probes/version-and-platform.repl
-node scripts/obsidian-cdp.mjs repl test_files/stubs/probes/request-url.repl
-# ...and the rest of the files listed below.
+npm run stub:probes                  # every driver, version-and-platform first
+npm run stub:probes -- --port 9333   # extra options reach obsidian-cdp.mjs
 ```
 
-Run `version-and-platform.repl` first: it records the running app version from
-Settings → About, the exported API version, and the `Platform` flags.
+It prints a `### <file>` delimiter before each driver's output and exits
+non-zero if any driver fails, after running the rest. The probe output is not
+committed.
+
+**Setup — a disposable profile and a throwaway vault, never the fixture or a
+real vault:**
+
+1. Close Obsidian, then start it with a debug port on a disposable profile, as
+   in [Driving the vault over CDP](../../docs/development/fixture-vault.md#driving-the-vault-over-cdp):
+
+   ```powershell
+   $profile = "$env:TEMP\rss-dashboard-cdp-profile"
+   & "$env:LOCALAPPDATA\Obsidian\Obsidian.exe" `
+     --remote-debugging-port=9333 `
+     --user-data-dir=$profile
+   ```
+
+2. Open a scratch vault in that instance (**Open another vault** → **Open
+   folder as vault**) and trust it.
+
+Run `version-and-platform.repl` first (the command does): it records the
+running app version from Settings → About, the exported API version, and the
+`Platform` flags. Record that version with the result — the installer and the
+running renderer can differ.
 
 The console exposes only `Notice`, `moment`, `requestUrl`, the DOM helpers, and
 `app` as globals; the API classes (`Setting`, `Menu`, `MarkdownRenderer`,
@@ -37,10 +65,20 @@ that stashes `require("obsidian")` on `window.__obsidianApi`, enabling it with
 idempotent. `Notice`, `moment`, `requestUrl`, and the DOM helpers are reachable
 without it.
 
-Triggers for a re-run: a reference-pin bump, a `minAppVersion` change, an
-`obsidian` package bump, or an Obsidian stable release. Diff each output against
-the record below; a change is a new finding (ADR 0014), not a test to fix
-silently.
+**Diffing:** compare each driver's output with the matching record below. A
+change is a **new ADR 0014 finding**, not a test to fix silently — record the
+behavior with the running version and treat it as the stub's new target, or as a
+production bug the old stub was hiding. To re-run one file by hand:
+
+```sh
+node scripts/obsidian-cdp.mjs repl test_files/stubs/probes/version-and-platform.repl
+node scripts/obsidian-cdp.mjs repl test_files/stubs/probes/request-url.repl
+# ...and the rest of the files listed below.
+```
+
+**Triggers for a re-run:** a reference-pin bump, a `minAppVersion` change, an
+`obsidian` package bump, an `obsidian-test-mocks` pinned-baseline bump, or
+opportunistically after an Obsidian stable release.
 
 The harness quirk to remember: in `repl`/`eval` mode a **promise result must be
 awaited at the top level** (`await somePromise` as the last expression), not
