@@ -187,20 +187,25 @@ function renderDefaultTemplateSection(
     templateStatusEl.setText(
       `Default saves use: ${globalName ?? "the template above"}`,
     );
-    useAsDefaultBtn.disabled = globalName === undefined;
-    resetBtn.disabled = templateInput.value === shippedTemplate;
-    clearBtn.disabled = templateInput.value === MINIMAL_TEMPLATE;
+    const nextDisabled = new Map<HTMLButtonElement, boolean>([
+      [useAsDefaultBtn, globalName === undefined],
+      [resetBtn, templateInput.value === shippedTemplate],
+      [clearBtn, templateInput.value === MINIMAL_TEMPLATE],
+    ]);
+    // A focused button that disables itself drops keyboard focus to the page
+    // body (Chromium blurs it the moment `disabled` is set), so hand focus to
+    // the one button that is never a no-op first. Ask each button's own
+    // document: the settings window is another window, so the active document
+    // can differ and `instanceof` fails across realms.
+    const losesFocus = [...nextDisabled].some(
+      ([button, disabled]) =>
+        disabled && button.ownerDocument.activeElement === button,
+    );
+    if (losesFocus) saveAsTemplateBtn.focus();
+    nextDisabled.forEach((disabled, button) => {
+      button.disabled = disabled;
+    });
     templateSetting.setDesc(getArticleTemplateHint(templateInput.value));
-    // A button that disables itself drops keyboard focus to the page body, so
-    // hand focus to the one button that is never a no-op.
-    const focused = activeDocument.activeElement;
-    if (
-      focused instanceof HTMLButtonElement &&
-      focused.disabled &&
-      templateBtnRow.contains(focused)
-    ) {
-      saveAsTemplateBtn.focus();
-    }
   };
   syncTemplateState();
 
