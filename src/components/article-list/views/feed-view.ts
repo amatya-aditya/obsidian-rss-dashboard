@@ -12,6 +12,10 @@ import {
 import { renderSingleRowCardTagChips } from "../utils/tag-layout-utils";
 import { groupArticles } from "../utils/article-grouping";
 import type { BaseViewContext, ViewDeps } from "./view-types";
+import {
+  renderPreviewPlaceholder,
+  shouldShowPreviewPlaceholder,
+} from "./preview-placeholder";
 
 function isSelectedArticle(
   article: FeedItem,
@@ -21,6 +25,60 @@ function isSelectedArticle(
     selectedArticle?.guid === article.guid &&
     selectedArticle?.feedUrl === article.feedUrl
   );
+}
+
+function renderFeedImage(
+  container: HTMLElement,
+  article: FeedItem,
+  ctx: BaseViewContext,
+  onImageUnavailable: () => void,
+): boolean {
+  const coverImgSrc = ctx.settings.display.showCoverImage
+    ? resolveArticlePreviewImage(article, ["image", "coverImage"])
+    : undefined;
+  const displayedCoverImgSrc =
+    coverImgSrc && ctx.settings.display.allowImageCaching
+      ? (ctx.resolveCachedImageUrl?.(coverImgSrc) ?? coverImgSrc)
+      : coverImgSrc;
+  if (displayedCoverImgSrc) {
+    const previewRegion = container.createDiv({
+      cls: "rss-dashboard-feed-preview-region",
+    });
+    const heroBlur = previewRegion.createDiv({
+      cls: "rss-dashboard-feed-hero-blur",
+      attr: {
+        style: `background-image: url('${displayedCoverImgSrc}')`,
+      },
+    });
+    const heroImage = previewRegion.createEl("img", {
+      cls: "rss-dashboard-feed-hero-image",
+      attr: {
+        src: displayedCoverImgSrc,
+        alt: article.title,
+        loading: "lazy",
+      },
+    });
+    heroImage.onerror = () => {
+      if (
+        displayedCoverImgSrc !== coverImgSrc &&
+        coverImgSrc &&
+        heroImage.dataset.rssCacheRemoteFallback !== "true"
+      ) {
+        heroImage.dataset.rssCacheRemoteFallback = "true";
+        heroImage.setAttribute("src", coverImgSrc);
+        heroBlur.setAttribute(
+          "style",
+          `background-image: url('${coverImgSrc}')`,
+        );
+        return;
+      }
+      if (!previewRegion.parentElement) return;
+      previewRegion.remove();
+      onImageUnavailable();
+    };
+  }
+
+  return !!displayedCoverImgSrc;
 }
 
 function renderArticleCard(
@@ -50,46 +108,9 @@ function renderArticleCard(
     cls: "rss-dashboard-feed-content",
   });
 
-  const coverImgSrc = ctx.settings.display.showCoverImage
-    ? resolveArticlePreviewImage(article, ["image", "coverImage"])
-    : undefined;
-  const displayedCoverImgSrc =
-    coverImgSrc && ctx.settings.display.allowImageCaching
-      ? (ctx.resolveCachedImageUrl?.(coverImgSrc) ?? coverImgSrc)
-      : coverImgSrc;
-  if (displayedCoverImgSrc) {
-    const previewRegion = feedContent.createDiv({
-      cls: "rss-dashboard-feed-preview-region",
-    });
-    const heroBlur = previewRegion.createDiv({
-      cls: "rss-dashboard-feed-hero-blur",
-      attr: {
-        style: `background-image: url('${displayedCoverImgSrc}')`,
-      },
-    });
-    const heroImage = previewRegion.createEl("img", {
-      cls: "rss-dashboard-feed-hero-image",
-      attr: {
-        src: displayedCoverImgSrc,
-        alt: article.title,
-        loading: "lazy",
-      },
-    });
-    heroImage.onerror = () => {
-      if (
-        displayedCoverImgSrc !== coverImgSrc &&
-        coverImgSrc &&
-        heroImage.dataset.rssCacheRemoteFallback !== "true"
-      ) {
-        heroImage.dataset.rssCacheRemoteFallback = "true";
-        heroImage.setAttribute("src", coverImgSrc);
-        heroBlur.setAttribute(
-          "style",
-          `background-image: url('${coverImgSrc}')`,
-        );
-      }
-    };
-  }
+  const hasDisplayedImage = renderFeedImage(feedContent, article, ctx, () => {
+    showPlaceholder(false);
+  });
 
   const textRegion = feedContent.createDiv({
     cls: "rss-dashboard-feed-text-region",
@@ -140,6 +161,25 @@ function renderArticleCard(
       summaryEl.textContent = feedPreviewText;
     }
   }
+
+  const showPlaceholder = (hasDisplayedImage: boolean): void => {
+    if (
+      shouldShowPreviewPlaceholder(
+        ctx.settings.display.showSummary,
+        feedPreviewText,
+        hasDisplayedImage,
+      )
+    ) {
+      const descriptionId = `${feedItem.id}-description`;
+      renderPreviewPlaceholder(
+        textRegion,
+        "rss-dashboard-feed-summary rss-dashboard-feed-preview-placeholder",
+        descriptionId,
+      );
+      feedItem.setAttribute("aria-describedby", descriptionId);
+    }
+  };
+  showPlaceholder(hasDisplayedImage);
 
   if (hasTags) {
     const tagsRegion = feedItem.createDiv({
